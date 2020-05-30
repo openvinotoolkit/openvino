@@ -92,7 +92,7 @@ InferenceEngine::CNNNetwork LayerTransformation::transform(const InferenceEngine
 }
 
 void LayerTransformation::checkParentPrecision(const InferenceEngine::CNNLayerPtr& layer, const bool lowPrecision) {
-    EXPECT_EQ(1ul, layer->insData.size()) << "insert data count is no expected: " << layer->insData.size();
+    EXPECT_EQ(1ul, layer->insData.size()) << "insert data count " << layer->insData.size() << " is not correct for layer " << layer->name;
     const InferenceEngine::DataPtr insData = layer->insData[0].lock();
     EXPECT_TRUE(insData != nullptr) << "insert data is nullable";
     const InferenceEngine::Precision precision = insData->getTensorDesc().getPrecision();

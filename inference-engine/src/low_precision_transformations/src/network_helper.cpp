@@ -382,7 +382,7 @@ int CNNNetworkHelper::onWeightsInDepth(const CNNLayer& layer) {
     for (const CNNLayerPtr& child : children) {
         if ((CaselessEq<std::string>()(child->type, "Convolution") ||
             CaselessEq<std::string>()(child->type, "FullyConnected") ||
-            CaselessEq<std::string>()(child->type, "GEMM")) &&
+            CaselessEq<std::string>()(child->type, "Gemm")) &&
             (child->insData.size() >= 2lu)) {
             const std::vector<CNNLayerPtr> parents = getParentsRecursivelyExceptTypes(*child, {}, 1);
             for (const CNNLayerPtr& parent : parents) {
@@ -404,6 +404,15 @@ int CNNNetworkHelper::onWeightsInDepth(const CNNLayer& layer) {
 bool CNNNetworkHelper::onWeights(const CNNLayer& layer) {
     const int result = onWeightsInDepth(layer);
     return result == 1;
+}
+
+bool CNNNetworkHelper::onConstWeightsPath(const CNNLayer& quantize) {
+    CNNLayerPtr parent = CNNNetworkHelper::getParent(quantize, 0);
+    if (parent == nullptr) {
+        THROW_IE_LPT_EXCEPTION(quantize) << "parent layer is nullable";
+    }
+
+    return parent->type == "Const";
 }
 
 size_t CNNNetworkHelper::getIndex(const CNNLayer& layer) {
@@ -1601,6 +1610,27 @@ Blob::Ptr CNNNetworkHelper::quantizeWeights(const CNNLayer& quantize, const bool
     quantizeBlob(quantize, targetBlob, roundValues);
 
     return targetBlob;
+}
+
+bool CNNNetworkHelper::isQuantizedConstWeights(const CNNLayer& layer) {
+    CNNLayerPtr quantize = CNNNetworkHelper::getParent(layer, 1);
+    if (quantize == nullptr) {
+        return false;
+    }
+
+    if (quantize->type == "Const") {
+        return true;
+    }
+
+    if (quantize->type != "FakeQuantize") {
+        return false;
+    }
+
+    if (quantize->insData.size() != 5ul) {
+        THROW_IE_LPT_EXCEPTION(*quantize) << "unexpected inputs size";
+    }
+
+    return onConstWeightsPath(*quantize);
 }
 
 int CNNNetworkHelper::getConstParentBranchID(const CNNLayer& layer) {
