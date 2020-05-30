@@ -310,7 +310,7 @@ IEStatusCode ie_core_read_network(ie_core_t *core, const char *xml, const char *
     return status;
 }
 
-IEStatusCode ie_core_read_network_from_memory(ie_core_t *core, const char *xml_content, size_t xml_content_size, \
+IEStatusCode ie_core_read_network_from_memory(ie_core_t *core, const uint8_t *xml_content, size_t xml_content_size, \
         const ie_blob_t *weight_blob, ie_network_t **network) {
     if (core == nullptr || xml_content == nullptr || network == nullptr || weight_blob == nullptr) {
         return IEStatusCode::GENERAL_ERROR;
@@ -320,7 +320,8 @@ IEStatusCode ie_core_read_network_from_memory(ie_core_t *core, const char *xml_c
 
     try {
         std::unique_ptr<ie_network_t> network_result(new ie_network_t);
-        network_result->object = core->object.ReadNetwork(std::string(xml_content, xml_content + xml_content_size), weight_blob->object);
+        network_result->object = core->object.ReadNetwork(std::string(reinterpret_cast<const char *>(xml_content),
+            reinterpret_cast<const char *>(xml_content + xml_content_size)), weight_blob->object);
         *network = network_result.release();
     } catch (const IE::details::InferenceEngineException& e) {
         return e.hasStatus() ? status_map[e.getStatus()] : IEStatusCode::UNEXPECTED;

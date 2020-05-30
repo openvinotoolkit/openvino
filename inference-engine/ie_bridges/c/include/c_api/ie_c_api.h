@@ -376,12 +376,12 @@ INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_core_read_network(ie_core_t
  * @ingroup Core
  * @param core A pointer to ie_core_t instance.
  * @param xml_content Xml content of the IR.
- * @param xml_content_size Number of characters in the xml content string.
+ * @param xml_content_size Number of bytes in the xml content of the IR.
  * @param weight_blob Blob containing the bin part of the IR.
  * @param network A pointer to the newly created network.
  * @return Status code of the operation: OK(0) for success.
  */
-INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_core_read_network_from_memory(ie_core_t *core, const char *xml_content, size_t xml_content_size,
+INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_core_read_network_from_memory(ie_core_t *core, const uint8_t *xml_content, size_t xml_content_size,
     const ie_blob_t *weight_blob, ie_network_t **network);
 
 /**

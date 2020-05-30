@@ -282,36 +282,28 @@ TEST(ie_core_read_network, networkRead) {
     ie_core_free(&core);
 }
 
+static std::vector<uint8_t> content_from_file(const char * filename, bool is_binary) {
+    std::vector<uint8_t> result;
+    {
+        std::ifstream is(filename, is_binary ? std::ifstream::binary | std::ifstream::in : std::ifstream::in);
+        if (is) {
+            is.seekg(0, std::ifstream::end);
+            result.resize(is.tellg());
+            if (result.size() > 0) {
+                is.seekg(0, std::ifstream::beg);
+                is.read(reinterpret_cast<char *>(&result[0]), result.size());
+            }
+        }
+    }
+    return result;
+}
+
 TEST(ie_core_read_network_from_memory, networkReadFromMemory) {
     ie_core_t *core = nullptr;
     IE_ASSERT_OK(ie_core_create("", &core));
     ASSERT_NE(nullptr, core);
 
-    std::string xml_content;
-    {
-        std::ifstream xml_file(xml);
-        if (xml_file) {
-            xml_file.seekg(0, std::ifstream::end);
-            xml_content.resize(xml_file.tellg());
-            if (xml_content.size() > 0) {
-                xml_file.seekg(0, std::ifstream::beg);
-                xml_file.read(&xml_content[0], xml_content.size());
-            }
-        }
-    }
-
-    std::vector<char> weights_content;
-    {
-        std::ifstream weights_file(bin, std::ifstream::binary);
-        if (weights_file) {
-            weights_file.seekg(0, std::ifstream::end);
-            weights_content.resize(weights_file.tellg());
-            if (weights_content.size() > 0) {
-                weights_file.seekg(0, std::ifstream::beg);
-                weights_file.read(&weights_content[0], weights_content.size());
-            }
-        }
-    }
+    std::vector<uint8_t> weights_content(content_from_file(bin, true));
 
     tensor_desc_t weights_desc { ANY, { 1, { weights_content.size() } }, U8 };
     ie_blob_t *weights_blob = nullptr;
@@ -319,6 +311,8 @@ TEST(ie_core_read_network_from_memory, networkReadFromMemory) {
     EXPECT_NE(nullptr, weights_blob);
 
     if (weights_blob != nullptr) {
+        std::vector<uint8_t> xml_content(content_from_file(xml, false));
+        
         ie_network_t *network = nullptr;
         IE_EXPECT_OK(ie_core_read_network_from_memory(core, xml_content.data(), xml_content.size(), weights_blob, &network));
         EXPECT_NE(nullptr, network);
