@@ -25,8 +25,72 @@
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 
-void FullyConnectedTransformation::transform(TransformationContext& context, CNNLayer& fullyConnected) const {
+bool getDequantizationValuesAreBroadcasted(const CNNLayer& fullyConnected) {
+    const DataPtr inputData = fullyConnected.insData[0].lock();
+    if (inputData == nullptr) {
+        THROW_IE_LPT_EXCEPTION(fullyConnected) << "input data is absent";
+    }
+
+    return inputData->getDims().size() == 3ul;
+}
+
+bool FullyConnectedTransformation::canBeTransformed(const TransformationContext& context, const CNNLayer& fullyConnected) const {
     if (!WeightableLayerTransformation::canBeTransformed(context, fullyConnected)) {
+        return false;
+    }
+
+    const DataPtr inputData = fullyConnected.insData[0].lock();
+    if (inputData == nullptr) {
+        return false;
+    }
+
+    const std::vector<size_t> inTensorDims = inputData->getDims();
+    if ((inTensorDims.size() != 2) && (inTensorDims.size() != 3)) {
+        return false;
+    }
+
+    const DataPtr outputData = fullyConnected.outData[0];
+    if (outputData == nullptr) {
+        return false;
+    }
+
+    const std::vector<size_t> outTensorDims = outputData->getTensorDesc().getDims();
+    if (inTensorDims.size() != outTensorDims.size()) {
+        return false;
+    }
+
+    if (inTensorDims[0] != outTensorDims[0]) {
+        return false;
+    }
+
+    CNNLayerPtr scaleShift = CNNNetworkHelper::getParent(fullyConnected);
+    if (scaleShift->type != "ScaleShift") {
+        return false;
+    }
+
+    // 3D tensor custom validation
+    if ((inTensorDims.size() == 3ul) &&
+        ((!CNNNetworkHelper::blobValuesAreEqual(*scaleShift, "weights")) || (!CNNNetworkHelper::blobValuesAreEqual(*scaleShift, "biases")))) {
+        return false;
+    }
+
+    const Blob::Ptr prevDequantizationScaleBlob = CNNNetworkHelper::getBlob(scaleShift, "weights");
+    const size_t prevDequantizationScaleBlobSize = prevDequantizationScaleBlob->size();
+    if (prevDequantizationScaleBlobSize != inTensorDims[1]) {
+        return false;
+    }
+
+    const Blob::Ptr prevDequantizationShiftBlob = CNNNetworkHelper::getBlob(scaleShift, "biases");
+    const size_t prevDequantizationShiftBlobSize = prevDequantizationShiftBlob->size();
+    if (prevDequantizationShiftBlobSize != inTensorDims[1]) {
+        return false;
+    }
+
+    return true;
+}
+
+void FullyConnectedTransformation::transform(TransformationContext& context, CNNLayer& fullyConnected) const {
+    if (!canBeTransformed(context, fullyConnected)) {
         return;
     }
 
@@ -146,7 +210,7 @@ void FullyConnectedTransformation::transform(TransformationContext& context, CNN
     }
 
     if (this->updateBiases) {
-        updateLayerBiases(context, fullyConnected, dequantizationScales, dequantizationShifts, biasesShifts);
+        updateLayerBiases(context, fullyConnected, fullyConnected.type == "GEMM", dequantizationScales, dequantizationShifts, biasesShifts);
     }
 
     if ((parentOnWeights != nullptr) && (parentOnWeights->type == "FakeQuantize")) {
@@ -205,23 +269,14 @@ void FullyConnectedTransformation::calculateDequantizationForSymmetric(
 
     const DataPtr inputData = fullyConnected.insData[0].lock();
     if (inputData == nullptr) {
-        THROW_IE_EXCEPTION << "input data is absent for layer " << fullyConnected.name;
-    }
-    const Layout inputLayout = inputData->getLayout();
-    if (inputLayout != Layout::NC) {
-        THROW_IE_EXCEPTION << "Unexpected input layout " << inputLayout;
+        THROW_IE_LPT_EXCEPTION(fullyConnected) << "input data is absent";
     }
 
-    const DataPtr insData = fullyConnected.insData[0].lock();
-    if (insData == nullptr) {
-        THROW_IE_LPT_EXCEPTION(fullyConnected) << "insert data ia absent";
+    const DataPtr outputData = fullyConnected.outData[0];
+    if (outputData == nullptr) {
+        THROW_IE_LPT_EXCEPTION(fullyConnected) << "output data is absent";
     }
-    const size_t inputChannelsCount = insData->getDims()[1];
 
-    const Layout outputLayout = fullyConnected.outData[0]->getLayout();
-    if (outputLayout != Layout::NC) {
-        THROW_IE_EXCEPTION << "Unexpected output layout " << outputLayout;
-    }
     const size_t outputChannelsCount = fullyConnected.outData[0]->getDims()[1];
     dequantizationScales.resize(outputChannelsCount);
     dequantizationShifts.resize(outputChannelsCount);
@@ -232,38 +287,45 @@ void FullyConnectedTransformation::calculateDequantizationForSymmetric(
         THROW_IE_EXCEPTION << "Unexpected layer type to calculate quantization values " << scaleShift->type;
     }
 
-    const Blob::Ptr prevDequantizationScaleBlob = CNNNetworkHelper::getBlob(scaleShift, "weights");
-    const auto prevDequantizationScaleBuffer = CNNNetworkHelper::getFloatData(prevDequantizationScaleBlob);
-    const Blob::Ptr prevDequantizationShiftBlob = CNNNetworkHelper::getBlob(scaleShift, "biases");
-    const auto prevDequantizationShiftBuffer = CNNNetworkHelper::getFloatData(prevDequantizationShiftBlob);
+    const auto prevDequantizationScaleBuffer = CNNNetworkHelper::getFloatData(CNNNetworkHelper::getBlob(scaleShift, "weights"));
+    const auto prevDequantizationShiftBuffer = CNNNetworkHelper::getFloatData(CNNNetworkHelper::getBlob(scaleShift, "biases"));
 
     const Blob::Ptr weightsBlob = CNNNetworkHelper::getWeights(fullyConnected, roundQuantizedValues);
     const auto weightsBuffer = CNNNetworkHelper::getFloatData(weightsBlob);
     const Blob::Ptr biasesBlob = CNNNetworkHelper::getBiases(fullyConnected);
     const auto biasesBuffer = biasesBlob == nullptr ? nullptr : CNNNetworkHelper::getFloatData(biasesBlob);
 
-    const float prevDequantizationScale = prevDequantizationScaleBuffer.get()[0];
+    const bool dequantizationValuesAreBroadcasted = getDequantizationValuesAreBroadcasted(fullyConnected);
     for (size_t i = 0; i < outputChannelsCount; ++i) {
-        dequantizationScales[i] = prevDequantizationScale *
+        dequantizationScales[i] =
+            (dequantizationValuesAreBroadcasted ? prevDequantizationScaleBuffer.get()[0] : prevDequantizationScaleBuffer.get()[i]) *
             (originalWeightsDequantizationScales.size() == 0 ?
                 1.0 :
                 (originalWeightsDequantizationScales.size() == 1 ? originalWeightsDequantizationScales[0] : originalWeightsDequantizationScales[i]));
     }
 
+    const DataPtr insData = fullyConnected.insData[0].lock();
+    if (insData == nullptr) {
+        THROW_IE_LPT_EXCEPTION(fullyConnected) << "insert data ia absent";
+    }
+    const size_t inputChannelsCount = insData->getDims().size() == 3ul ? insData->getDims()[2] : insData->getDims()[1];
     for (size_t channel = 0lu; channel < outputChannelsCount; ++channel) {
         float sum = 0.0;
         const float weightsDequantizationScale = originalWeightsDequantizationScales.size() == 0 ?
             1.0 :
-            (originalWeightsDequantizationScales.size() == 1 ? originalWeightsDequantizationScales[0] : originalWeightsDequantizationScales[channel]);
+            ((originalWeightsDequantizationScales.size() == 1) ? originalWeightsDequantizationScales[0] : originalWeightsDequantizationScales[channel]);
 
         for (size_t inputChannel = 0; inputChannel < inputChannelsCount; ++inputChannel) {
             const float w = weightsBuffer.get()[channel * inputChannelsCount + inputChannel];
-            sum += w * prevDequantizationShiftBuffer.get()[inputChannel] * weightsDequantizationScale;
+            const float shift = dequantizationValuesAreBroadcasted ? prevDequantizationShiftBuffer.get()[0] : prevDequantizationShiftBuffer.get()[inputChannel];
+            sum += w * shift * weightsDequantizationScale;
         }
 
         dequantizationShifts[channel] = biasesBuffer == nullptr ?
             sum :
-            (sum + biasesBuffer.get()[channel] - prevDequantizationScale * biasesBuffer.get()[channel] * weightsDequantizationScale);
+            (sum + biasesBuffer.get()[channel] -
+                (dequantizationValuesAreBroadcasted ? prevDequantizationScaleBuffer.get()[0] : prevDequantizationScaleBuffer.get()[channel]) *
+                biasesBuffer.get()[channel] * weightsDequantizationScale);
         biasesShifts[channel] = sum;
     }
 }
@@ -276,69 +338,63 @@ void FullyConnectedTransformation::calculateDequantizationForAsymmetric(
     std::vector<float>& dequantizationShifts) const {
     const DataPtr inputData = fullyConnected.insData[0].lock();
     if (inputData == nullptr) {
-        THROW_IE_EXCEPTION << "input data is absent for layer " << fullyConnected.name;
+        THROW_IE_LPT_EXCEPTION(fullyConnected) << "input data is absent";
     }
-    const Layout inputLayout = inputData->getLayout();
-    if (inputLayout != Layout::NC) {
-        THROW_IE_EXCEPTION << "Unexpected input layout " << inputLayout;
-    }
-    const DataPtr insData = fullyConnected.insData[0].lock();
-    if (insData == nullptr) {
-        THROW_IE_LPT_EXCEPTION(fullyConnected) << "insert data is absent";
-    }
-    const size_t inputChannelsCount = insData->getDims()[1];
+    // const Layout inputLayout = inputData->getLayout();
+    // if (inputLayout != Layout::NC) {
+    //     THROW_IE_EXCEPTION << "Unexpected input layout " << inputLayout;
+    // }
+    const size_t inputChannelsCount = inputData->getDims()[1];
 
-    const Layout outputLayout = fullyConnected.outData[0]->getLayout();
-    if (outputLayout != Layout::NC) {
-        THROW_IE_EXCEPTION << "Unexpected output layout " << outputLayout;
+    const DataPtr outputData = fullyConnected.outData[0];
+    if (outputData == nullptr) {
+        THROW_IE_LPT_EXCEPTION(fullyConnected) << "output data is absent";
     }
-    const size_t outputChannelsCount = fullyConnected.outData[0]->getDims()[1];
-    dequantizationScales.resize(outputChannelsCount);
-    dequantizationShifts.resize(outputChannelsCount);
 
     CNNLayerPtr scaleShift = CNNNetworkHelper::getParent(fullyConnected);
     if (scaleShift->type != "ScaleShift") {
         THROW_IE_EXCEPTION << "Unexpected layer type to calculate quantization values " << scaleShift->type;
     }
 
-    const Blob::Ptr prevDequantizationScaleBlob = CNNNetworkHelper::getBlob(scaleShift, "weights");
-    const auto prevDequantizationScaleBuffer = CNNNetworkHelper::getFloatData(prevDequantizationScaleBlob);
-    const Blob::Ptr prevDequantizationShiftBlob = CNNNetworkHelper::getBlob(scaleShift, "biases");
-    const auto prevDequantizationShiftBuffer = CNNNetworkHelper::getFloatData(prevDequantizationShiftBlob);
+    const bool dequantizationValuesAreBroadcasted = getDequantizationValuesAreBroadcasted(fullyConnected);
 
-    const Blob::Ptr weightsBlob = CNNNetworkHelper::getWeights(fullyConnected, roundQuantizedValues);
-    const auto weightsBuffer = CNNNetworkHelper::getFloatData(weightsBlob);
-    const Blob::Ptr biasesBlob = CNNNetworkHelper::getBiases(fullyConnected);
-    const auto biasesBuffer = biasesBlob == nullptr ? nullptr : CNNNetworkHelper::getFloatData(biasesBlob);
+    const size_t outputChannelsCount = outputData->getDims()[1];
+    dequantizationScales.resize(outputChannelsCount);
+    dequantizationShifts.resize(outputChannelsCount);
 
+    const std::shared_ptr<float> prevDequantizationScaleBuffer = CNNNetworkHelper::getFloatData(CNNNetworkHelper::getBlob(scaleShift, "weights"));
     for (size_t i = 0; i < outputChannelsCount; ++i) {
         dequantizationScales[i] =
-            prevDequantizationScaleBuffer.get()[0] *
-            (originalWeightsDequantizationScales.size() == 0
-                 ? 1.0
-                 : (originalWeightsDequantizationScales.size() == 1 ? originalWeightsDequantizationScales[0]
-                                                                    : originalWeightsDequantizationScales[i]));
+            (dequantizationValuesAreBroadcasted ? prevDequantizationScaleBuffer.get()[0] : prevDequantizationScaleBuffer.get()[i]) *
+            (originalWeightsDequantizationScales.size() == 0 ?
+                1.0 :
+                (originalWeightsDequantizationScales.size() == 1 ? originalWeightsDequantizationScales[0] : originalWeightsDequantizationScales[i]));
     }
+
+    const auto weightsBuffer = CNNNetworkHelper::getFloatData(CNNNetworkHelper::getWeights(fullyConnected, roundQuantizedValues));
+    const Blob::Ptr biasesBlob = CNNNetworkHelper::getBiases(fullyConnected);
+    const auto biasesBuffer = biasesBlob == nullptr ? nullptr : CNNNetworkHelper::getFloatData(CNNNetworkHelper::getBiases(fullyConnected));
+
+    const std::shared_ptr<float> prevDequantizationShiftBuffer = CNNNetworkHelper::getFloatData(CNNNetworkHelper::getBlob(scaleShift, "biases"));
 
     for (size_t channel = 0lu; channel < outputChannelsCount; ++channel) {
         float sum1 = 0.0;
         float sum2 = 0.0;
-        const float weightsDequantizationScale =
-            originalWeightsDequantizationScales.size() == 0
-                ? 1.0
-                : (originalWeightsDequantizationScales.size() == 1 ? originalWeightsDequantizationScales[0]
-                                                                   : originalWeightsDequantizationScales[channel]);
+        const float weightsDequantizationScale = originalWeightsDequantizationScales.size() == 0 ?
+            1.0 :
+            ((originalWeightsDequantizationScales.size() == 1) ? originalWeightsDequantizationScales[0] : originalWeightsDequantizationScales[channel]);
 
         for (size_t w = 0; w < inputChannelsCount; ++w) {
             const float kernel = weightsBuffer.get()[channel * inputChannelsCount + w];
-            sum1 += kernel * prevDequantizationShiftBuffer.get()[channel] * weightsDequantizationScale;
+            const float shift = dequantizationValuesAreBroadcasted ? prevDequantizationShiftBuffer.get()[0] : prevDequantizationShiftBuffer.get()[channel];
+            sum1 += kernel * shift * weightsDequantizationScale;
             sum2 += kernel * dataZeroPoints[w] * weightsDequantizationScale;
         }
 
-        dequantizationShifts[channel] = biasesBuffer == nullptr
-                                            ? sum1
-                                            : (sum1 + biasesBuffer.get()[channel] -
-                                               prevDequantizationScaleBuffer.get()[channel] *
-                                                   biasesBuffer.get()[channel] * weightsDequantizationScale);
+        dequantizationShifts[channel] = biasesBuffer == nullptr ?
+            sum1 :
+            (sum1 + biasesBuffer.get()[channel] -
+                (dequantizationValuesAreBroadcasted ? prevDequantizationScaleBuffer.get()[0] : prevDequantizationScaleBuffer.get()[channel]) *
+                biasesBuffer.get()[channel] * weightsDequantizationScale);
     }
 }
