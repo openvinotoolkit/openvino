@@ -18,6 +18,7 @@ class INFERENCE_ENGINE_API_CLASS(FullyConnectedTransformation) : public Weightab
 public:
     FullyConnectedTransformation(const Params& params) : WeightableLayerTransformation(params) {}
     ~FullyConnectedTransformation() override {};
+    bool canBeTransformed(const TransformationContext& context, const CNNLayer& layer) const override;
     void transform(TransformationContext& context, CNNLayer& layer) const override;
 
 private:

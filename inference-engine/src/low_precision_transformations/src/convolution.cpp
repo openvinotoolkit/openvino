@@ -180,7 +180,7 @@ void ConvolutionTransformation::transform(TransformationContext& context, CNNLay
 
     if (this->updateBiases) {
         std::vector<float> biasesShifts(dequantizationShifts.size(), 0.f);
-        updateLayerBiases(context, layer, dequantizationScales, dequantizationShifts, biasesShifts);
+        updateLayerBiases(context, layer, false, dequantizationScales, dequantizationShifts, biasesShifts);
     }
 
     CNNNetworkHelper::removeLayer(context.network, scaleShiftOnData);

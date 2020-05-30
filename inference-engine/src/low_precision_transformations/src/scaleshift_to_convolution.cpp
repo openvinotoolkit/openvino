@@ -115,7 +115,7 @@ void ScaleShiftToConvolutionTransformation::transform(TransformationContext& con
 
         if (this->updateBiases) {
             std::vector<float> biasesShifts(dequantizationShifts.size(), 0.f);
-            updateLayerBiases(context, *convolutionLayerPtr, dequantizationScales, dequantizationShifts, biasesShifts);
+            updateLayerBiases(context, *convolutionLayerPtr, false, dequantizationScales, dequantizationShifts, biasesShifts);
         }
 
         addDequantizationLayer(context, *convolutionLayerPtr, dequantizationScales, dequantizationShifts);
