@@ -147,16 +147,6 @@ if (GEMM STREQUAL "MKL")
     log_rpath_from_dir(MKL "${MKL}/lib")
 endif()
 
-if (THREADING STREQUAL "TBB")
-    set(MKLDNN_THR MKLDNN_THR_TBB)
-elseif (THREADING STREQUAL "TBB_AUTO")
-    set(MKLDNN_THR MKLDNN_THR_TBB_AUTO)
-elseif (THREADING STREQUAL "OMP")
-    set(MKLDNN_THR MKLDNN_THR_OMP)
-else()
-    set(MKLDNN_THR MKLDNN_THR_SEQ)
-endif()
-
 function(ie_cpu_forced_include target graph_header compression_mode)
     if(MSVC)
         set(forced_include "/FI ${graph_header}")
@@ -178,7 +168,7 @@ macro(ie_cpu_set_output_directory)
 endmacro()
 
 function(ie_cpu_plugin_build)
-    set(options)
+    set(options ALLOW_UNDEF)
     set(oneValueArgs TARGET_NAME GRAPH_HEADER DEVICE_NAME)
     set(multiValueArgs)
     cmake_parse_arguments(IE_CPU "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
@@ -200,13 +190,11 @@ function(ie_cpu_plugin_build)
 
     if(NOT "${TARGET}" STREQUAL "mkldnn")
         ie_cpu_set_output_directory(${TARGET} ${IE_CPU_TARGET_NAME})
-        set(compression_mode OFF)
     else()
-        set(compression_mode ON)
     endif()
 
-    ie_cpu_forced_include(${TARGET} ${IE_CPU_GRAPH_HEADER} ${compression_mode})
-    ie_cpu_forced_include(${IE_CPU_TARGET_NAME} ${IE_CPU_GRAPH_HEADER} ${compression_mode})
+    ie_cpu_forced_include(${TARGET} ${IE_CPU_GRAPH_HEADER} ${IE_CPU_ALLOW_UNDEF})
+    ie_cpu_forced_include(${IE_CPU_TARGET_NAME} ${IE_CPU_GRAPH_HEADER} ${IE_CPU_ALLOW_UNDEF})
 
     # Cross compiled function
     # TODO: The same for proposal, proposalONNX, topk
@@ -227,7 +215,6 @@ function(ie_cpu_plugin_build)
 
     set_ie_threading_interface_for(${IE_CPU_TARGET_NAME})
 
-    target_compile_definitions(${IE_CPU_TARGET_NAME} PUBLIC -DMKLDNN_THR=${MKLDNN_THR})
     target_link_libraries(${IE_CPU_TARGET_NAME} PRIVATE inference_engine inference_engine_lp_transformations
                                                         inference_engine_transformations
                                                         ${INTEL_ITT_LIBS} ${TARGET})
@@ -278,7 +265,8 @@ if(CPU_GRAPHS)
     # build optimized plugin
     ie_cpu_plugin_build(TARGET_NAME "MKLDNNPlugin"
                         DEVICE_NAME "CPU"
-                        GRAPH_HEADER ${gen_header_file})
+                        GRAPH_HEADER ${gen_header_file}
+                        ALLOW_UNDEF)
     add_dependencies("MKLDNNPlugin" ie_cpu_gen_header)
     add_dependencies("mkldnn" ie_cpu_gen_header)
 

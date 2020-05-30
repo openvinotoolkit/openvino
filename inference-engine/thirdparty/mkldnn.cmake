@@ -85,13 +85,13 @@ function(detect_mkl LIBNAME)
 endfunction()
 
 if (THREADING STREQUAL "TBB")
-    add_definitions(-DMKLDNN_THR=MKLDNN_THR_TBB)
+    set(MKLDNN_THR MKLDNN_THR_TBB)
 elseif (THREADING STREQUAL "TBB_AUTO")
-    add_definitions(-DMKLDNN_THR=MKLDNN_THR_TBB_AUTO)
+    set(MKLDNN_THR MKLDNN_THR_TBB_AUTO)
 elseif (THREADING STREQUAL "OMP")
-    add_definitions(-DMKLDNN_THR=MKLDNN_THR_OMP)
+    set(MKLDNN_THR MKLDNN_THR_OMP)
 else()
-    add_definitions(-DMKLDNN_THR=MKLDNN_THR_SEQ)
+    set(MKLDNN_THR MKLDNN_THR_SEQ)
 endif ()
 
 file(GLOB_RECURSE HDR
@@ -123,6 +123,8 @@ if(WIN32)
 endif()
 
 add_library(${TARGET} STATIC ${HDR} ${SRC})
+
+target_compile_definitions(${TARGET} PUBLIC -DMKLDNN_THR=${MKLDNN_THR})
 set_ie_threading_interface_for(${TARGET})
 
 if(GEMM STREQUAL "OPENBLAS")
@@ -148,5 +150,6 @@ endif()
 ## enable jit_gemm from mlk-dnn
 
 add_definitions(-DMKLDNN_ENABLE_CONCURRENT_EXEC)
+add_definitions(-DTBB_PREVIEW_NUMA_SUPPORT)
 
 target_link_libraries(${TARGET} PRIVATE ${${TARGET}_LINKER_LIBS})
