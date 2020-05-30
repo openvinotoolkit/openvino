@@ -31,41 +31,50 @@ public:
     void setWeightsToConst(const bool weightsToConst);
     void setQuantizedTensorAlignmentOnActivations(const LayerTransformation::QuantizedTensorAlignment quantizedTensorAlignmentOnActivations);
     void setQuantizedTensorAlignmentOnWeights(const LayerTransformation::QuantizedTensorAlignment quantizedTensorAlignmentOnWeights);
-    LowPrecisionTransformations& remove(const std::string& layerName);
-    LowPrecisionTransformations& removeBranchSpecificTransformations(const std::string& layerName);
-    LowPrecisionTransformations& removeTransformations(const std::string& layerName);
-    LowPrecisionTransformations& removeCleanupTransformations(const std::string& layerName);
+    LowPrecisionTransformations& remove(const std::string& layerType);
+    LowPrecisionTransformations& removeBranchSpecificTransformations(const std::string& layerType);
+    LowPrecisionTransformations& removeTransformations(const std::string& layerType);
+    LowPrecisionTransformations& removeCleanupTransformations(const std::string& layerType);
 
     template <class T>
     LowPrecisionTransformations& addBranchSpecific(const LayerTransformation::Params& params, const std::string& layerType) {
-        const auto it = branchSpecificTransformations.find(layerType);
+        std::string type = layerType;
+        std::transform(type.begin(), type.end(), type.begin(), ::tolower);
+
+        const auto it = branchSpecificTransformations.find(type);
         if (it != branchSpecificTransformations.end()) {
             branchSpecificTransformations.erase(it);
         }
 
-        branchSpecificTransformations.emplace(layerType, std::make_shared<T>(params));
+        branchSpecificTransformations.emplace(type, std::make_shared<T>(params));
         return *this;
     }
 
     template <class T>
     LowPrecisionTransformations& add(const LayerTransformation::Params& params, const std::string& layerType) {
-        const auto it = transformations.find(layerType);
+        std::string type = layerType;
+        std::transform(type.begin(), type.end(), type.begin(), ::tolower);
+
+        const auto it = transformations.find(type);
         if (it != transformations.end()) {
             transformations.erase(it);
         }
 
-        transformations.emplace(layerType, std::make_shared<T>(params));
+        transformations.emplace(type, std::make_shared<T>(params));
         return *this;
     }
 
     template <class T>
     LowPrecisionTransformations& addCleanup(const LayerTransformation::Params& params, const std::string& layerType) {
-        const auto it = cleanupTransformations.find(layerType);
+        std::string type = layerType;
+        std::transform(type.begin(), type.end(), type.begin(), ::tolower);
+
+        const auto it = cleanupTransformations.find(type);
         if (it != cleanupTransformations.end()) {
             cleanupTransformations.erase(it);
         }
 
-        cleanupTransformations.emplace(layerType, std::make_shared<T>(params));
+        cleanupTransformations.emplace(type, std::make_shared<T>(params));
         return *this;
     }
 
