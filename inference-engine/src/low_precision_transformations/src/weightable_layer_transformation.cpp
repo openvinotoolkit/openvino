@@ -96,25 +96,28 @@ bool WeightableLayerTransformation::isQuantized(const CNNLayer& layer) const noe
         return false;
     }
 
-    const Blob::Ptr weightsBlob = CNNNetworkHelper::getWeights(layer, roundQuantizedValues);
-    if ((weightsBlob == nullptr) || (!CNNNetworkHelper::isBlobPrecisionSupported(weightsBlob->getTensorDesc().getPrecision()))) {
-        return false;
-    }
-
-    const Blob::Ptr biasesBlob = CNNNetworkHelper::getBiases(layer);
-    if ((biasesBlob != nullptr) && (!CNNNetworkHelper::isBlobPrecisionSupported(biasesBlob->getTensorDesc().getPrecision()))) {
-        return false;
-    }
-
-    const CNNLayerPtr parentOnWeights = CNNNetworkHelper::getParent(layer, 1);
-    if (parentOnWeights == nullptr) {
-        return false;
-    }
-
-    if (parentOnWeights->type != "FakeQuantize") {
-        const Precision precision = parentOnWeights->outData[0]->getPrecision();
-        if ((precision != Precision::I8) && (precision != Precision::U8)) {
+    if (CNNNetworkHelper::isQuantizedConstWeights(layer)) {
+        const Blob::Ptr weightsBlob = CNNNetworkHelper::getWeights(layer, roundQuantizedValues);
+        if ((weightsBlob == nullptr) || (!CNNNetworkHelper::isBlobPrecisionSupported(weightsBlob->getTensorDesc().getPrecision()))) {
             return false;
+        }
+
+
+        const Blob::Ptr biasesBlob = CNNNetworkHelper::getBiases(layer);
+        if ((biasesBlob != nullptr) && (!CNNNetworkHelper::isBlobPrecisionSupported(biasesBlob->getTensorDesc().getPrecision()))) {
+            return false;
+        }
+
+        const CNNLayerPtr parentOnWeights = CNNNetworkHelper::getParent(layer, 1);
+        if (parentOnWeights == nullptr) {
+            return false;
+        }
+
+        if (parentOnWeights->type != "FakeQuantize") {
+            const Precision precision = parentOnWeights->outData[0]->getPrecision();
+            if ((precision != Precision::I8) && (precision != Precision::U8)) {
+                return false;
+            }
         }
     }
 
@@ -289,7 +292,8 @@ void WeightableLayerTransformation::updateToSupportAsymmetricQuantization(
             weightsPrecisionsInfo.low);
         if (!std::all_of(weightsConvertedInBlob.get(), weightsConvertedInBlob.get() + weightsShifts.size(), [](float value) { return value == 0.0; })) {
             const CNNLayerPtr parentOnWeights = CNNNetworkHelper::getParent(layer, 1ul);
-            createAsymmetric(context, *parentOnWeights, layer, weightsPrecisionsInfo, weightsShifts, true);
+            const bool onWeights = CNNNetworkHelper::isQuantizedConstWeights(layer);
+            createAsymmetric(context, *parentOnWeights, layer, weightsPrecisionsInfo, weightsShifts, onWeights);
         }
     }
 }
@@ -359,7 +363,9 @@ DataPrecision WeightableLayerTransformation::fillDequantizationsForWeightsPath(
     const bool supportAsymmetricQuantization,
     std::vector<float>& dequantizationScales,
     std::vector<float>& dequantizationShifts) const {
-    if ((weightableLayer.type != "Convolution") && (weightableLayer.type != "FullyConnected") && (weightableLayer.type != "GEMM")) {
+    if (CaselessEq<std::string>()(weightableLayer.type, "Convolution") &&
+        CaselessEq<std::string>()(weightableLayer.type, "FullyConnected") &&
+        CaselessEq<std::string>()(weightableLayer.type, "Gemm")) {
         THROW_IE_EXCEPTION << "layer '" << weightableLayer.name << "' has unexpected type '" << weightableLayer.type << "'";
     }
 
