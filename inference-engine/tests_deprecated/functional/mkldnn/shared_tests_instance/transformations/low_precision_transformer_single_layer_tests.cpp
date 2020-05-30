@@ -35,7 +35,7 @@ INSTANTIATE_TEST_CASE_P(
             PowerTestModel::Ptr(new PowerTestModel(1.f, -32.f, 0)),
             { { 1, 3, 299, 299 } },
             { { 1, 3, 299, 299 } }),
-            
+
         SingleLayerTransformationsTestParams(
             "CPU",
             PowerTestModel::Ptr(new PowerTestModel(1.f, 1.f, -64.f)),
@@ -59,6 +59,19 @@ INSTANTIATE_TEST_CASE_P(
             SingleLayerTestModel::Ptr(new FullyConnectedAndScaleShiftsOnActivationsTestModel()),
             { { 1, 2048 } },
             { { 1, 1000 } }),
+
+        // TODO: uncomment later
+        //SingleLayerTransformationsTestParams(
+        //    "MKLDNNPlugin",
+        //    SingleLayerTestModel::Ptr(new FullyConnectedTestModel({ 1, 128, 12, 64 }, { 128, 768 })),
+        //    { { 1, 128, 12, 64 } },
+        //    { { 128, 768 } }),
+
+        SingleLayerTransformationsTestParams(
+            "CPU",
+            SingleLayerTestModel::Ptr(new FullyConnectedTestModel({ 1, 128, 12, 64 }, { 1, 128, 768 })),
+            { { 1, 128, 12, 64 } },
+            { { 1, 128, 768 } }),
 
         SingleLayerTransformationsTestParams(
             "CPU",
@@ -512,13 +525,21 @@ INSTANTIATE_TEST_CASE_P(
             "CPU",
             SingleLayerTestModel::Ptr(new UpdateBiasesConvolutionTestModel(true)),
             { { 1, 32, 112, 112 } },
-            { { 1, 32, 112, 112 } }),
+            { { 1, 32, 112, 112 } })
 
-        SingleLayerTransformationsTestParams(
-            "CPU",
-            SingleLayerTestModel::Ptr(new UpdateBiasesFullyConnectedTestModel(true)),
-            { { 1, 32, 112, 112 } },
-            { { 1, 100 } })
+        // TODO: uncomment later
+        //SingleLayerTransformationsTestParams(
+        //    "CPU",
+        //    SingleLayerTestModel::Ptr(new UpdateBiasesFullyConnectedTestModel(false)),
+        //    { { 1, 32, 112, 112 } },
+        //    { { 1, 100 } }),
+
+        // TODO: uncomment later
+        //SingleLayerTransformationsTestParams(
+        //    "CPU",
+        //    SingleLayerTestModel::Ptr(new UpdateBiasesFullyConnectedTestModel(true)),
+        //    { { 1, 32, 112, 112 } },
+        //    { { 1, 100 } })
     ),
     SingleLayerTransformationsTestParams::getLowPrecisionTransformerSingleLayerTestName);
 

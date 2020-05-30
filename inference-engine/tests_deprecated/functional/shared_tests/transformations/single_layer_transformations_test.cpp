@@ -210,7 +210,7 @@ void SingleLayerTransformationsTest::SetUp() {
         Core core;
         ExecutableNetwork executableNetwork;
         InferRequest inferRequest;
-        const auto originalOutputMap = infer(network, inputBlobs, core, 
+        const auto originalOutputMap = infer(network, inputBlobs, core,
                 p.device_name, executableNetwork, inferRequest);
 
         const std::vector<bool> updatePrecisionsValues = { false };
@@ -228,6 +228,7 @@ void SingleLayerTransformationsTest::SetUp() {
         const std::vector<bool> updateBiasesValues = { true, false };
         const std::vector<bool> supportAsymmetricQuantizationValues = { true /*, false*/ };
         const std::vector<std::vector<Precision>> precisionOnActivationsValues = {
+            // TODO: just to debug
             { Precision::I8 },
             { Precision::I8, Precision::U8 },
             { Precision::U8 },
@@ -304,7 +305,7 @@ void SingleLayerTransformationsTest::SetUp() {
 
                                                     const float threshold = p.model->getThreshold(p.device_name, net_precision, param);
                                                     const float zeroThreshold = p.model->getZeroThreshold();
-                                                    
+
                                                     const auto outName = transformedOutput.find(name);
                                                     if (outName == transformedOutput.end()) {
                                                         THROW_IE_EXCEPTION << "Original output name " + name + " doesn't exist in transformed model";
