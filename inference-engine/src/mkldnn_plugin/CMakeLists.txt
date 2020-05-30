@@ -157,6 +157,19 @@ else()
     set(MKLDNN_THR MKLDNN_THR_SEQ)
 endif()
 
+function(ie_cpu_forced_include target graph_header compression_mode)
+    if(MSVC)
+        set(forced_include "/FI ${graph_header}")
+    else()
+        set(forced_include "-imacros ${graph_header}")
+        if(compression_mode)
+            set(forced_include "${forced_include} -Wno-undef")
+        endif()
+    endif()
+
+    set_target_properties(${target} PROPERTIES COMPILE_FLAGS ${forced_include})
+endfunction()
+
 function(ie_cpu_plugin_build)
     set(options)
     set(oneValueArgs TARGET_NAME GRAPH_HEADER DEVICE_NAME)
@@ -183,22 +196,18 @@ function(ie_cpu_plugin_build)
         RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
         LIBRARY_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
         ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
+        set(compression_mode OFF)
+    else()
+        set(compression_mode ON)
     endif()
 
-    if(IE_CPU_GRAPH_HEADER)
-        if(MSVC)
-            set(forced_include "/FI ${IE_CPU_GRAPH_HEADER}")
-        else()
-            set(forced_include "-imacros ${IE_CPU_GRAPH_HEADER}")
-        endif()
-
-        set_target_properties(${TARGET} ${IE_CPU_TARGET_NAME} PROPERTIES COMPILE_FLAGS ${forced_include})
-    endif()
+    ie_cpu_forced_include(${TARGET} ${IE_CPU_GRAPH_HEADER} ${compression_mode})
+    ie_cpu_forced_include(${IE_CPU_TARGET_NAME} ${IE_CPU_GRAPH_HEADER} ${compression_mode})
 
     # Cross compiled function
     # TODO: The same for proposal, proposalONNX, topk
     cross_compiled_file(${IE_CPU_TARGET_NAME}
-            ARCH AVX2 SSE42 ANY # TODO: return back AVX512F
+            ARCH AVX512F AVX2 SSE42 ANY
                         nodes/argmax_imp.cpp
             API         nodes/argmax_imp.hpp
             NAME        arg_max_execute
@@ -324,6 +333,8 @@ endif()
 #  add test object library
 
 add_library(${TARGET_NAME}_obj OBJECT ${SOURCES} ${HEADERS})
+
+ie_cpu_forced_include(${TARGET_NAME}_obj "${CMAKE_CURRENT_BINARY_DIR}/ie_gen_default.hpp" OFF)
 
 target_include_directories(${TARGET_NAME}_obj PRIVATE $<TARGET_PROPERTY:inference_engine_preproc_s,INTERFACE_INCLUDE_DIRECTORIES>
                                                       $<TARGET_PROPERTY:inference_engine_lp_transformations,INTERFACE_INCLUDE_DIRECTORIES>
