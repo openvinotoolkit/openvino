@@ -38,7 +38,9 @@ target_include_directories(${TARGET_NAME}_obj PRIVATE ${PUBLIC_HEADERS_DIR} ${CM
 
 # Create shared library
 
-file(TOUCH ${CMAKE_CURRENT_BINARY_DIR}/dummy.cpp)
+if(NOT EXISTS ${CMAKE_CURRENT_BINARY_DIR}/dummy.cpp)
+    file(TOUCH ${CMAKE_CURRENT_BINARY_DIR}/dummy.cpp)
+endif()
 
 add_library(${TARGET_NAME} SHARED
             # according to https://cmake.org/cmake/help/latest/command/add_library.html#id4

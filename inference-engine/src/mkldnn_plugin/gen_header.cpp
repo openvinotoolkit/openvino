@@ -17,8 +17,31 @@
 
 namespace {
 
-void processGraph(const char * execGraph, const char * graph, std::ostream & header) {
-    auto parse_result = ParseXml(execGraph);
+std::string baseName(std::string const & path) {
+    return path.substr(path.find_last_of("/\\") + 1);
+}
+
+std::string withoutExtension(std::string const & path) {
+    return path.substr(0, path.find_last_of("."));
+}
+
+std::string generateExecGraph(InferenceEngine::Core & ie, const char * graph,
+                              const char * deviceName, const char * suffix) {
+    IE_ASSERT(FileUtils::fileExist(graph));
+    std::string execGraphName = "exec_" + withoutExtension(baseName(graph)) + suffix + ".xml";
+    auto network = ie.ReadNetwork(graph);
+    auto execNetwork = ie.LoadNetwork(network, deviceName);
+    auto execGraph = execNetwork.GetExecGraphInfo();
+    execGraph.serialize(execGraphName);
+    return execGraphName;
+}
+
+void processGraph(InferenceEngine::Core & ie, const char * graph, std::ostream & header) {
+    // generate execution graph and serialize
+    std::string execGraphName = generateExecGraph(ie, graph, "cpu_reference", "_ref");
+
+    IE_ASSERT(FileUtils::fileExist(execGraphName));
+    auto parse_result = ParseXml(execGraphName.c_str());
     if (!parse_result.error_msg.empty()) {
         throw std::logic_error(parse_result.error_msg);
     }
@@ -40,9 +63,7 @@ void processGraph(const char * execGraph, const char * graph, std::ostream & hea
         header << std::endl;
     };
 
-    InferenceEngine::Core reader;
-    auto network = reader.ReadNetwork(graph);
-
+    auto network = ie.ReadNetwork(graph);
     for (auto node = root.child("layers").child("layer"); !node.empty();
               node = node.next_sibling("layer")) {
         std::string layerName = XMLParseUtils::GetStrAttr(node, "id") + ":" +
@@ -87,7 +108,7 @@ void processGraph(const char * execGraph, const char * graph, std::ostream & hea
     }
 }
 
-void generateHeader(const std::vector<char *> & execGraphs,
+void generateHeader(InferenceEngine::Core & ie,
                     const std::vector<char *> & graphs,
                     std::ostream & header) {
     // generate common macro
@@ -98,9 +119,8 @@ void generateHeader(const std::vector<char *> & execGraphs,
     header << "#define GraphGen(impl) impl\n";
     header << "#endif \n\n";
 
-    IE_ASSERT(execGraphs.size() == graphs.size());
     for (size_t i = 0; i < graphs.size(); ++i) {
-        processGraph(execGraphs[i], graphs[i], header);
+        processGraph(ie, graphs[i], header);
     }
 }
 
@@ -108,27 +128,20 @@ void generateHeader(const std::vector<char *> & execGraphs,
 
 int main(int argc, char *argv[]) {
     try {
-        std::string lastArg = argv[argc - 1];
-        bool genHeaderMode = FileUtils::fileExt(lastArg) == "hpp";
+        InferenceEngine::Core ie;
 
-        if (genHeaderMode) {
-            std::ofstream header(lastArg.c_str());
+        if (argc == 2) {
+            // just to generate execution graph
+            generateExecGraph(ie, argv[1], "CPU", "_actual");
+        } else {
+            ie.RegisterPlugin(argv[1], "cpu_reference");
+
+            std::ofstream header(argv[2]);
             if (!header.is_open()) {
                 throw std::logic_error("Failed to open header file");
             }
 
-            size_t numGraphs = (argc - 2) / 2;
-            generateHeader(std::vector<char *>(argv + 1, argv + numGraphs + 1),
-                           std::vector<char *>(argv + numGraphs + 1, argv + argc - 1),
-                           header);
-        } else {
-            InferenceEngine::Core ie;
-            ie.RegisterPlugin(argv[2], "cpu_reference");
-
-            auto network = ie.ReadNetwork(argv[1]);
-            auto execNetwork = ie.LoadNetwork(network, "cpu_reference");
-            auto execGraph = execNetwork.GetExecGraphInfo();
-            execGraph.serialize(lastArg);
+            generateHeader(ie, std::vector<char *>(argv + 3, argv + argc), header);
         }
     } catch (const std::exception & ex) {
         std::cerr << ex.what() << std::endl;

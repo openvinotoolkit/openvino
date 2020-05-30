@@ -170,6 +170,13 @@ function(ie_cpu_forced_include target graph_header compression_mode)
     set_target_properties(${target} PROPERTIES COMPILE_FLAGS ${forced_include})
 endfunction()
 
+macro(ie_cpu_set_output_directory)
+    set_target_properties(${ARGV} PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
+        LIBRARY_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
+        ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
+endmacro()
+
 function(ie_cpu_plugin_build)
     set(options)
     set(oneValueArgs TARGET_NAME GRAPH_HEADER DEVICE_NAME)
@@ -192,10 +199,7 @@ function(ie_cpu_plugin_build)
                   SOURCES ${SOURCES} ${HEADERS})
 
     if(NOT "${TARGET}" STREQUAL "mkldnn")
-        set_target_properties(${TARGET} ${IE_CPU_TARGET_NAME} PROPERTIES
-        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
-        LIBRARY_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
-        ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
+        ie_cpu_set_output_directory(${TARGET} ${IE_CPU_TARGET_NAME})
         set(compression_mode OFF)
     else()
         set(compression_mode ON)
@@ -245,39 +249,27 @@ if(CPU_GRAPHS)
     add_executable(ie_cpu_gen_header_tool gen_header.cpp)
     target_link_libraries(ie_cpu_gen_header_tool PRIVATE pugixml
         inference_engine_plugin_api inference_engine ${NGRAPH_LIBRARIES})
+    ie_cpu_set_output_directory(ie_cpu_gen_header_tool)
 
     # build `cpu_reference` target for the ie_cpu_gen_header_tool
     add_dependencies(ie_cpu_gen_header_tool "cpu_reference")
 
-    # generate executable graphs
-    function(ie_cpu_generate_executable_graph graph exec_graph_file_out suffix)
-        get_filename_component(graph_file_name "${graph}" NAME)
-        set(exec_graph_file "${CMAKE_CURRENT_BINARY_DIR}/exec_${graph_file_name}${suffix}")
-        set(ref_plugin $<TARGET_FILE:cpu_reference>)
-        add_custom_command(OUTPUT ${exec_graph_file}
-            COMMAND $<TARGET_FILE:ie_cpu_gen_header_tool> ${graph} ${ref_plugin} ${exec_graph_file}
-            DEPENDS ie_cpu_gen_header_tool
-            COMMENT "Generate reference executable graph for ${graph_file_name} model"
-            VERBATIM)
-        set("${exec_graph_file_out}" ${exec_graph_file} PARENT_SCOPE)
-    endfunction()
-
-    set(executable_graphs "")
-    foreach(graph IN LISTS CPU_GRAPHS)
-        ie_cpu_generate_executable_graph(${graph} executable_graph "_ref")
-        list(APPEND executable_graphs ${executable_graph})
-    endforeach()
-
-    # create target to generate executable graphs
-    add_custom_target(ie_cpu_generate_executable_graphs DEPENDS ${executable_graphs})
-
     # run the ie_cpu_gen_header_tool tool
     set(gen_header_file "${CMAKE_CURRENT_BINARY_DIR}/ie_cpu_gen_header.hpp")
     file(REMOVE ${gen_header_file})
-    add_custom_command(OUTPUT ${gen_header_file}
+
+    set(gen_header_tool_artifacts "${gen_header_file}")
+    foreach(graph IN LISTS CPU_GRAPHS)
+        get_filename_component(graph_file_name "${graph}" NAME_WE)
+        set(exec_graph_file_ref "${CMAKE_CURRENT_BINARY_DIR}/exec_${graph_file_name}_ref.xml")
+        list(APPEND gen_header_tool_artifacts "${exec_graph_file_ref}")
+    endforeach()
+
+    add_custom_command(OUTPUT ${gen_header_tool_artifacts}
                        COMMAND $<TARGET_FILE:ie_cpu_gen_header_tool>
-                               ${executable_graphs} ${CPU_GRAPHS} ${gen_header_file}
-                       DEPENDS gen_header.cpp ${executable_graphs}
+                               $<TARGET_FILE:cpu_reference> ${gen_header_file} ${CPU_GRAPHS}
+                       DEPENDS cpu_reference ie_cpu_gen_header_tool
+                       WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
                        COMMENT "Generate header file for custom CPU runtime compilation"
                        VERBATIM)
     set_source_files_properties(${gen_header_file} PROPERTIES GENERATED ON)
@@ -293,36 +285,33 @@ if(CPU_GRAPHS)
     # check that with CPU (not cpu_reference) the executable graphs are generated the same
     set(executable_graphs_actual "")
     foreach(graph IN LISTS CPU_GRAPHS)
-        get_filename_component(graph_file_name "${graph}" NAME)
-        set(exec_graph_file_actual "${CMAKE_CURRENT_BINARY_DIR}/exec_${graph_file_name}_actual")
-        set(exec_graph_file_ref "${CMAKE_CURRENT_BINARY_DIR}/exec_${graph_file_name}_actual")
-        set(actual_plugin $<TARGET_FILE:MKLDNNPlugin>)
+        get_filename_component(graph_file_name "${graph}" NAME_WE)
+        set(exec_graph_file_actual "${CMAKE_CURRENT_BINARY_DIR}/exec_${graph_file_name}_actual.xml")
+        set(exec_graph_file_ref "${CMAKE_CURRENT_BINARY_DIR}/exec_${graph_file_name}_ref.xml")
 
         add_custom_command(TARGET ${TARGET_NAME} POST_BUILD
-            COMMAND $<TARGET_FILE:ie_cpu_gen_header_tool> ${graph} ${actual_plugin} ${exec_graph_file_actual}
-            DEPENDS ie_cpu_gen_header_tool
+            COMMAND $<TARGET_FILE:ie_cpu_gen_header_tool> ${graph}
+            WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
             COMMENT "Generate actual executable graph for ${graph_file_name} model"
             VERBATIM)
 
         add_custom_command(TARGET ${TARGET_NAME} POST_BUILD
-            COMMAND
-            "${CMAKE_COMMAND}"
-            -D "ACTUAL_GRAPH=${exec_graph_file_actual}"
-            -D "REF_GRAPH=${exec_graph_file_ref}"
-            -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/exec_graph_check.cmake"
-            COMMENT
-            "Check that execution graph for ${graph_file_name} is valid"
+            COMMAND "${CMAKE_COMMAND}"
+                    -D "ACTUAL_GRAPH=${exec_graph_file_actual}"
+                    -D "REF_GRAPH=${exec_graph_file_ref}"
+                    -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/exec_graph_check.cmake"
+            WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
+            COMMENT "Check that execution graph for ${graph_file_name} is valid"
             VERBATIM)
     endforeach()
 
     add_custom_command(TARGET ${TARGET_NAME} POST_BUILD
-        COMMAND
-        "${CMAKE_COMMAND}"
-        -D "ACTUAL_LIBRARY=$<TARGET_FILE:MKLDNNPlugin>"
-        -D "REF_LIBRARY=$<TARGET_FILE:cpu_reference>"
-        -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/compression_info.cmake"
-        COMMENT
-        "Compression status ..."
+        COMMAND "${CMAKE_COMMAND}"
+                -D "ACTUAL_LIBRARY=$<TARGET_FILE:MKLDNNPlugin>"
+                -D "REF_LIBRARY=$<TARGET_FILE:cpu_reference>"
+                -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/compression_info.cmake"
+        WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
+        COMMENT "Compression status ..."
         VERBATIM)
 else()
     ie_cpu_plugin_build(TARGET_NAME "MKLDNNPlugin"
