@@ -582,18 +582,42 @@ std::vector<CNNLayerPtr> CNNNetworkHelper::getLayers(const CNNLayer& parent, con
     return layers;
 }
 
-Blob::Ptr CNNNetworkHelper::getBlob(CNNLayer* layer, const std::string& blobName) {
+Blob::Ptr CNNNetworkHelper::getBlob(const CNNLayer* layer, const std::string& blobName) {
     if (layer == nullptr) {
         THROW_IE_EXCEPTION << "layer is nullable";
     }
-    if (layer->blobs.empty()) {
-        THROW_IE_EXCEPTION << "Layer '" << layer->name << "' does not have any blob";
+
+    if (blobName.empty()) {
+        if (layer->blobs.empty()) {
+            THROW_IE_LPT_EXCEPTION(*layer) << "does not have any blob";
+        }
+
+        if (layer->blobs.size() != 1) {
+            THROW_IE_LPT_EXCEPTION(*layer) << "there are several blobs";
+        }
+        return layer->blobs.begin()->second;
     }
-    if (blobName.empty() && (layer->blobs.size() != 1)) {
-        THROW_IE_EXCEPTION << "several blobs";
+
+    const auto it = layer->blobs.find(blobName);
+    if (it == layer->blobs.end()) {
+        THROW_IE_LPT_EXCEPTION(*layer) << " does not have blob " << blobName;
     }
-    Blob::Ptr blob = blobName.empty() ? layer->blobs.begin()->second : layer->blobs[blobName];
-    return blob;
+
+    return it->second;
+}
+
+bool CNNNetworkHelper::blobValuesAreEqual(const CNNLayer& layer, const std::string& blobName) {
+    const Blob::Ptr blob = CNNNetworkHelper::getBlob(&layer, blobName);
+    const std::shared_ptr<float> buffer = CNNNetworkHelper::getFloatData(blob);
+    if (!std::equal(
+        buffer.get(),
+        buffer.get() + blob->size(),
+        buffer.get(),
+        [](const float value1, const float value2) { return value1 == value2; })) {
+        return false;
+    }
+
+    return true;
 }
 
 Blob::Ptr CNNNetworkHelper::getBlob(CNNLayerPtr layer, const std::string& blobName) {
@@ -1086,8 +1110,12 @@ CNNLayerPtr CNNNetworkHelper::addScaleShiftBetween(TransformationContext& contex
     CNNLayerPtr ssCnnLayer(new ScaleShiftLayer(ssCnnLayerParams));
 
     const std::vector<size_t> dims = outData->getDims();
-    if ((dims.size() > 1) && (dims[1] != dequantizationDetails.channelsCount)) {
-        THROW_IE_EXCEPTION << "unexpected parent channels count " << dims[1];
+
+    // TODO: just to test
+    if ((dims.size() != 2ul) || ((dims.size() == 2ul) && (dims[0] != dequantizationDetails.channelsCount))) {
+        if ((dims.size() > 1) && (dims[1] != dequantizationDetails.channelsCount)) {
+            THROW_IE_EXCEPTION << "unexpected parent channels count " << dims[1];
+        }
     }
     addLayerToCNNNetworkAfterData(outData, ssCnnLayer, child != nullptr ? child->name : "", context.network);
 
