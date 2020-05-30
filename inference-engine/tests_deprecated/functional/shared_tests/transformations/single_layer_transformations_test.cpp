@@ -228,7 +228,6 @@ void SingleLayerTransformationsTest::SetUp() {
         const std::vector<bool> updateBiasesValues = { true, false };
         const std::vector<bool> supportAsymmetricQuantizationValues = { true /*, false*/ };
         const std::vector<std::vector<Precision>> precisionOnActivationsValues = {
-            // TODO: just to debug
             { Precision::I8 },
             { Precision::I8, Precision::U8 },
             { Precision::U8 },
