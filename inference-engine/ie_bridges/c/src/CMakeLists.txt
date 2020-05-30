@@ -21,6 +21,12 @@ target_include_directories(${TARGET_NAME} PUBLIC "${InferenceEngine_C_API_SOURCE
 
 add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
 
+# Workaround to avoid warnings caused with bug in the avx512intrin.h of GCC5
+if((CMAKE_CXX_COMPILER_ID STREQUAL "GNU") AND
+   (CMAKE_CXX_COMPILER_VERSION VERSION_LESS_EQUAL 5.5))
+    set_target_properties(${TARGET_NAME} PROPERTIES LINK_FLAGS_RELEASE "-Wno-error=maybe-uninitialized -Wno-maybe-uninitialized")
+endif()
+
 # export
 
 export(TARGETS ${TARGET_NAME} NAMESPACE IE:: APPEND FILE "${CMAKE_BINARY_DIR}/targets.cmake")

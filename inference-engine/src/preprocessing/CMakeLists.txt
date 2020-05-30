@@ -170,6 +170,12 @@ target_link_libraries(${TARGET_NAME} PRIVATE fluid PUBLIC inference_engine ${INT
 
 target_include_directories(${TARGET_NAME} INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}")
 
+# Workaround to avoid warnings caused with bug in the avx512intrin.h of GCC5
+if((CMAKE_CXX_COMPILER_ID STREQUAL "GNU") AND
+   (CMAKE_CXX_COMPILER_VERSION VERSION_LESS_EQUAL 5.5))
+    set_target_properties(${TARGET_NAME} PROPERTIES LINK_FLAGS_RELEASE "-Wno-error=maybe-uninitialized -Wno-maybe-uninitialized")
+endif()
+
 if(WIN32)
     set_target_properties(${TARGET_NAME} PROPERTIES COMPILE_PDB_NAME ${TARGET_NAME})
 endif()

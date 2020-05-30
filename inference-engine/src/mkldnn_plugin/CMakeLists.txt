@@ -188,14 +188,6 @@ function(ie_cpu_plugin_build)
                   OBJECT_LIBRARIES ${object_libraries}
                   SOURCES ${SOURCES} ${HEADERS})
 
-    if(NOT "${TARGET}" STREQUAL "mkldnn")
-        ie_cpu_set_output_directory(${TARGET} ${IE_CPU_TARGET_NAME})
-    else()
-    endif()
-
-    ie_cpu_forced_include(${TARGET} ${IE_CPU_GRAPH_HEADER} ${IE_CPU_ALLOW_UNDEF})
-    ie_cpu_forced_include(${IE_CPU_TARGET_NAME} ${IE_CPU_GRAPH_HEADER} ${IE_CPU_ALLOW_UNDEF})
-
     # Cross compiled function
     # TODO: The same for proposal, proposalONNX, topk
     cross_compiled_file(${IE_CPU_TARGET_NAME}
@@ -212,6 +204,13 @@ function(ie_cpu_plugin_build)
             NAME        proposal_exec
             NAMESPACE   InferenceEngine::Extensions::Cpu::XARCH
     )
+
+    if(NOT "${TARGET}" STREQUAL "mkldnn")
+        ie_cpu_set_output_directory(${TARGET} ${IE_CPU_TARGET_NAME})
+    endif()
+
+    ie_cpu_forced_include(${TARGET} ${IE_CPU_GRAPH_HEADER} ${IE_CPU_ALLOW_UNDEF})
+    ie_cpu_forced_include(${IE_CPU_TARGET_NAME} ${IE_CPU_GRAPH_HEADER} ${IE_CPU_ALLOW_UNDEF})
 
     set_ie_threading_interface_for(${IE_CPU_TARGET_NAME})
 
@@ -319,8 +318,8 @@ target_include_directories(${TARGET_NAME}_obj PRIVATE $<TARGET_PROPERTY:inferenc
 
 set_ie_threading_interface_for(${TARGET_NAME}_obj)
 
-target_compile_definitions(${TARGET_NAME}_obj PUBLIC -DMKLDNN_THR=${MKLDNN_THR}
-                                              PRIVATE USE_STATIC_IE IMPLEMENT_INFERENCE_ENGINE_PLUGIN)
+target_compile_definitions(${TARGET_NAME}_obj PRIVATE $<TARGET_PROPERTY:mkldnn,COMPILE_DEFINITIONS>
+                                                      USE_STATIC_IE IMPLEMENT_INFERENCE_ENGINE_PLUGIN)
 
 set(mkldnn_plugin_object_libraries "${TARGET_NAME}_obj" CACHE INTERNAL "" FORCE)
 

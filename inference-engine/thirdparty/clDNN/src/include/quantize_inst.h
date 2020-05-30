@@ -34,8 +34,25 @@ public:
 
     program_node& input(size_t index = 0) const { return get_dependency(index); }
     size_t inputs_count() const { return get_dependencies().size(); }
+    int get_levels() const { return get_primitive()->levels; }
+    bool get_packed_binary_output() const { return get_output_layout().data_type == data_types::bin; }
     bool get_scale_shift_opt() const { return scale_shift_opt; }
-    bool get_need_pre_shift() { return need_pre_shift; }
+    bool get_need_pre_shift() const { return need_pre_shift; }
+    bool get_need_post_scale() const { return need_post_scale; }
+    bool get_need_post_shift() const { return need_post_shift; }
+    bool get_need_clamp() const { return need_clamp; }
+    bool get_per_tensor_input_scale() const { return per_tensor_input_scale; }
+    bool get_per_tensor_input_shift() const { return per_tensor_input_shift; }
+    bool get_per_tensor_input_range() const { return per_tensor_input_range; }
+    bool get_per_tensor_output_scale() const { return per_tensor_output_scale; }
+    bool get_per_tensor_output_shift() const { return per_tensor_output_shift; }
+    float get_input_scale_val() const { return in_scale; }
+    float get_input_shift_val() const { return in_shift; }
+    float get_input_lo_val() const { return in_lo; }
+    float get_input_hi_val() const { return in_hi; }
+    float get_output_scale_val() const { return out_scale; }
+    float get_output_shift_val() const { return out_shift; }
+
     void set_scale_shift_opt() { scale_shift_opt = true; }
     void set_need_post_scale() { need_post_scale = true; }
     void set_need_post_shift() { need_post_shift = true; }
