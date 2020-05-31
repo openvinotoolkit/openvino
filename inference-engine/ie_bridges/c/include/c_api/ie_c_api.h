@@ -31,7 +31,7 @@
     #define IE_NODISCARD
 #else
     #if defined(_WIN32)
-        #define INFERENCE_ENGINE_CALLBACK __cdecl
+        #define INFERENCE_ENGINE_C_API_CALLBACK __cdecl
         #ifdef inference_engine_c_api_EXPORTS
             #define INFERENCE_ENGINE_C_API(...) INFERENCE_ENGINE_C_API_EXTERN   __declspec(dllexport) __VA_ARGS__ __cdecl
         #else
@@ -44,8 +44,8 @@
     #endif
 #endif
 
-#ifndef INFERENCE_ENGINE_CALLBACK
-#define INFERENCE_ENGINE_CALLBACK
+#ifndef INFERENCE_ENGINE_C_API_CALLBACK
+#define INFERENCE_ENGINE_C_API_CALLBACK
 #endif
 
 typedef struct ie_core ie_core_t;
@@ -289,7 +289,7 @@ typedef struct ie_blob_buffer {
  * @brief Completion callback definition about the function and args
  */
 typedef struct ie_complete_call_back {
-    void (INFERENCE_ENGINE_CALLBACK *completeCallBackFunc)(void *args);
+    void (INFERENCE_ENGINE_C_API_CALLBACK *completeCallBackFunc)(void *args);
     void *args;
 }ie_complete_call_back_t;
 
