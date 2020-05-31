@@ -289,7 +289,7 @@ typedef struct ie_blob_buffer {
  * @brief Completion callback definition about the function and args
  */
 typedef struct ie_complete_call_back {
-    void (INFERENCE_ENGINE_CALLBACK * completeCallBackFunc)(void *args);
+    void (INFERENCE_ENGINE_CALLBACK *completeCallBackFunc)(void *args);
     void *args;
 }ie_complete_call_back_t;
 
