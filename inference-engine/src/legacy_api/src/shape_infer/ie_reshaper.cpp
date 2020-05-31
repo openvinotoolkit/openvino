@@ -27,12 +27,12 @@ using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 using namespace ShapeInfer;
 
-inline static std::vector<CNNLayerWeakPtr> SortTopologicallyStartsFrom(const std::vector<DataPtr>& inputs) {
-    std::vector<CNNLayerWeakPtr> all_layers;
+inline static std::vector<CNNLayerPtr> SortTopologicallyStartsFrom(const std::vector<DataPtr>& inputs) {
+    std::vector<CNNLayerPtr> all_layers;
     CNNNetForestDFS(
         inputs,
         [&](CNNLayerPtr current) {
-            all_layers.push_back(CNNLayerWeakPtr{current});
+            all_layers.push_back(current);
         },
         false);
     std::reverse(all_layers.begin(), all_layers.end());
@@ -47,7 +47,7 @@ Reshaper::Reshaper(std::vector<DataPtr> insDatas, const LauncherCreator::Ptr& la
     _allSortedLayers = SortTopologicallyStartsFrom(insDatas);
     for (auto& in_data : insDatas) {
         for (auto layer : in_data->getInputTo()) {
-            _inputLayers.insert(CNNLayerWeakPtr{layer.second});
+            _inputLayers.insert(layer.second);
         }
     }
 
@@ -55,7 +55,7 @@ Reshaper::Reshaper(std::vector<DataPtr> insDatas, const LauncherCreator::Ptr& la
         THROW_IE_EXCEPTION << "Unsupported model for shape inference: failed to collect inputs and layers";
 
     for (auto const& currentLayer : _allSortedLayers) {
-        auto createdLauncher = launcherCreator->createNotInputLauncher(currentLayer.lock().get(), _extensions);
+        auto createdLauncher = launcherCreator->createNotInputLauncher(currentLayer.get(), _extensions);
         _launchers.insert(createdLauncher);
     }
 }
@@ -67,26 +67,22 @@ Reshaper::Reshaper(ICNNNetwork& network, const LauncherCreator::Ptr& launcherCre
 
     auto inputLayers = CNNNetGetAllInputLayers(network);
     for (const auto& layer : inputLayers) {
-        _inputLayers.insert(CNNLayerWeakPtr{layer});
+        _inputLayers.insert(layer);
     }
 
-    auto allSortedLayers = CNNNetSortTopologically(network);
-    for (auto && layer : allSortedLayers) {
-        _allSortedLayers.push_back(CNNLayerWeakPtr{layer});
-    }
-    
+    _allSortedLayers = CNNNetSortTopologically(network);
     if (_inputLayers.empty() || _allSortedLayers.empty())
         THROW_IE_EXCEPTION << "Unsupported model for shape inference: failed to collect inputs and layers";
     for (auto const& currentLayer : _allSortedLayers) {
         auto foundInput =
-            std::find_if(_inputLayers.begin(), _inputLayers.end(), [&currentLayer](const CNNLayerWeakPtr& inputLayer) {
-                return currentLayer.lock()->name == inputLayer.lock()->name;
+            std::find_if(_inputLayers.begin(), _inputLayers.end(), [&currentLayer](const CNNLayerPtr& inputLayer) {
+                return currentLayer->name == inputLayer->name;
             });
         ReshapeLauncher::Ptr createdLauncher;
         if (foundInput == _inputLayers.end()) {
-            createdLauncher = launcherCreator->createNotInputLauncher(currentLayer.lock().get(), _extensions);
+            createdLauncher = launcherCreator->createNotInputLauncher(currentLayer.get(), _extensions);
         } else {
-            createdLauncher = launcherCreator->createInputLauncher(currentLayer.lock().get(), _extensions);
+            createdLauncher = launcherCreator->createInputLauncher(currentLayer.get(), _extensions);
         }
         _launchers.insert(createdLauncher);
     }
@@ -160,8 +156,7 @@ StatusCode Reshaper::run(const std::map<std::string, SizeVector>& inputShapes, R
         }
 
         // Set new input shapes
-        for (auto const& _input : _inputLayers) {
-            CNNLayerPtr input = _input.lock();
+        for (auto const& input : _inputLayers) {
             std::string layerName = input->name;
             for (auto const& outData : input->outData) {
                 std::string dataName = outData->getName();
@@ -177,15 +172,15 @@ StatusCode Reshaper::run(const std::map<std::string, SizeVector>& inputShapes, R
 
         // do reshape
         for (auto& layer : _allSortedLayers) {
-            auto foundLauncher = getLauncherByLayerName(layer.lock()->name);
+            auto foundLauncher = getLauncherByLayerName(layer->name);
             foundLauncher->reshape(_launchers);
             foundLauncher->constInfer(_launchers);
         }
 
         // apply changes
         for (auto& layer : _allSortedLayers) {
-            auto foundLauncher = getLauncherByLayerName(layer.lock()->name);
-            foundLauncher->applyChanges(layer.lock().get());
+            auto foundLauncher = getLauncherByLayerName(layer->name);
+            foundLauncher->applyChanges(layer.get());
         }
         return OK;
     }
@@ -198,8 +193,7 @@ StatusCode Reshaper::runNoApply(const std::map<std::string, SizeVector>& inputSh
     }
 
     // Set new input shapes
-    for (auto const& _input : _inputLayers) {
-        CNNLayerPtr input = _input.lock();
+    for (auto const& input : _inputLayers) {
         std::string layerName = input->name;
         for (auto const& inData_w : input->insData) {
             auto inData = inData_w.lock();
@@ -216,7 +210,7 @@ StatusCode Reshaper::runNoApply(const std::map<std::string, SizeVector>& inputSh
 
     // do reshape
     for (auto& layer : _allSortedLayers) {
-        auto foundLauncher = getLauncherByLayerName(layer.lock()->name);
+        auto foundLauncher = getLauncherByLayerName(layer->name);
         foundLauncher->reshape(_launchers);
     }
     return OK;
@@ -225,8 +219,8 @@ StatusCode Reshaper::runNoApply(const std::map<std::string, SizeVector>& inputSh
 StatusCode Reshaper::apply(ResponseDesc* resp) {
     // apply changes
     for (auto& layer : _allSortedLayers) {
-        auto foundLauncher = getLauncherByLayerName(layer.lock()->name);
-        foundLauncher->applyChanges(layer.lock().get());
+        auto foundLauncher = getLauncherByLayerName(layer->name);
+        foundLauncher->applyChanges(layer.get());
     }
     return OK;
 }
@@ -263,8 +257,7 @@ ReshapeLauncher::Ptr LauncherCreator::createNotInputLauncher(const CNNLayer* lay
                                                              const std::vector<IShapeInferExtensionPtr>& extensions) {
     auto layerType = layer->type;
     if ((::details::equal(layerType, "memory") && layer->GetParamAsInt("index")) ||
-         ::details::equal(layerType, "const") ||
-         ::details::equal(layerType, "input")) {
+        ::details::equal(layerType, "const") || ::details::equal(layerType, "input")) {
         THROW_IE_EXCEPTION << "Failed to reshape: Layer with type `" << layerType
                            << "` can't be intermediate layer in network";
     }

@@ -97,13 +97,6 @@ public:
     SizeVector getResultShapeFor(DataPtr& data, ResponseDesc* resp = nullptr);
 
 private:
-    struct lex_compare {
-        bool operator() (const CNNLayerWeakPtr &lhs, const CNNLayerWeakPtr &rhs)const {
-            auto lptr = lhs.lock(), rptr = rhs.lock();
-            return lptr < rptr;
-        }
-    };
-
     ReshapeLauncher::Ptr getLauncherByLayerName(const std::string& layerName) const;
 
     InferenceEngine::details::caseless_set<std::string> getTypeNamesFromExtension(
@@ -111,8 +104,8 @@ private:
 
     std::vector<IShapeInferExtensionPtr> _extensions;
     std::set<ReshapeLauncher::Ptr> _launchers;
-    std::vector<CNNLayerWeakPtr> _allSortedLayers {};
-    std::set<CNNLayerWeakPtr, lex_compare> _inputLayers {};
+    std::vector<CNNLayerPtr> _allSortedLayers {};
+    std::set<CNNLayerPtr> _inputLayers {};
     InferenceEngine::details::caseless_set<std::string> _allTypes;
 };
 
