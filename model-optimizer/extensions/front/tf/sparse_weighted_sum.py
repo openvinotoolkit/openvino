@@ -76,9 +76,10 @@ class ExperimentalSparseWeightedSumFrontReplacer(FrontReplacementSubgraph):
         gather0_2 = match['gather0_2']
         greaterequal0 = match['greaterequal0']
         sparse_fill_empty_rows = match['sparse_fill_empty_rows']
-
+        where0 = match['where0']
         gather = match['gather']
         select = match['select']
+
         log.debug('Found ExperimentalSparseWeightedSum2 pattern after {} with name {}'.format(sparse_fill_empty_rows.op, sparse_fill_empty_rows.name))
 
         sparse_weighted_sum = ExperimentalSparseWeightedSum(graph, {'name': sparse_fill_empty_rows.name + '/ExperimentalSparseWeightedSum_'}).create_node()
@@ -96,7 +97,7 @@ class ExperimentalSparseWeightedSumFrontReplacer(FrontReplacementSubgraph):
         gather.in_port(0).disconnect()
 
         select.out_port(0).get_connection().set_source(sparse_weighted_sum.out_port(0))
-        graph.remove_nodes_from([gather0_1.id, gather0_2.id, greaterequal0.id, sparse_fill_empty_rows.id, select.id])
+        graph.remove_nodes_from([gather0_1.id, gather0_2.id, greaterequal0.id, sparse_fill_empty_rows.id, select.id, where0.id])
 
 
 class ExperimentalSparseWeightedSumFrontReplacer2(FrontReplacementSubgraph):
@@ -160,6 +161,8 @@ class ExperimentalSparseWeightedSumFrontReplacer2(FrontReplacementSubgraph):
         sparse_fill_empty_rows = match['sparse_fill_empty_rows']
         gather = match['gather']
         select = match['select']
+        where0 = match['where0']
+
         log.debug('Found ExperimentalSparseWeightedSum2 pattern after {} with name {}'.format(sparse_fill_empty_rows.op, sparse_fill_empty_rows.name))
 
         sparse_weighted_sum = ExperimentalSparseWeightedSum(graph, {'name': sparse_fill_empty_rows.name + '/ExperimentalSparseWeightedSum_'}).create_node()
@@ -177,4 +180,4 @@ class ExperimentalSparseWeightedSumFrontReplacer2(FrontReplacementSubgraph):
         gather.in_port(0).disconnect()
 
         select.out_port(0).get_connection().set_source(sparse_weighted_sum.out_port(0))
-        graph.remove_nodes_from([gather0_1.id, gather0_2.id, greaterequal0.id, sparse_fill_empty_rows.id, select.id])
+        graph.remove_nodes_from([gather0_1.id, gather0_2.id, greaterequal0.id, sparse_fill_empty_rows.id, select.id, where0.id])
