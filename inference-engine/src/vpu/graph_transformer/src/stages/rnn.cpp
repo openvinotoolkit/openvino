@@ -100,35 +100,6 @@ private:
 static void RNNRelayout(
                  const fp16_t* src,
 
-                 int out_size,
-                 int seq_size,
-
-                 fp16_t* dst0,
-                 fp16_t* dst1,
-                 fp16_t* dst2,
-
-                 const int ngates,
-                 const int state_size,
-                 const int input_size
-                ) {
-    int counter = 0;
-    for (int j = 0; j < ngates * state_size; j++) {
-        for (int i = 0; i < input_size; i++) {
-            dst0[(input_size) * j + i] = src[counter++];
-        }
-        for (int i = 0; i < state_size; i++) {
-            dst1[(state_size) * j + i] = src[counter++];
-        }
-    }
-    if (out_size == 3) {
-        for (int j = 0; j < state_size / seq_size; j++)
-            dst2[j] = src[counter++];
-    }
-}
-
-static void RNNRelayout(
-                 const fp16_t* src,
-
                  fp16_t* dst0,
                  fp16_t* dst1,
 
@@ -177,8 +148,6 @@ void FrontEnd::parseRNN(const Model& model, const ie::CNNLayerPtr& _layer, const
         stateSize = outputs[2]->desc().totalDimSize() / nCells / nBatches;
     }
 
-    size_t seq_size = inputSize / cellStateSize;
-
     printf("\n nBatches RNN = %d \n\n", static_cast<int>(nBatches));
     printf("\n inputSize RNN = %d \n\n", static_cast<int>(inputSize));
     printf("\n outputs RNN = %d \n\n", static_cast<int>(outputs.size()));
@@ -195,7 +164,7 @@ void FrontEnd::parseRNN(const Model& model, const ie::CNNLayerPtr& _layer, const
     IE_ASSERT(stateSize * ngates == biasesSize);
 
     /* weights repacking */
-    const auto generator = [&weights, stateSize, inputSize, ngates, outputs, seq_size](const ie::Blob::Ptr& blob) {
+    const auto generator = [&weights, stateSize, inputSize, ngates](const ie::Blob::Ptr& blob) {
         auto newWeightsPtr = blob->buffer().as<fp16_t*>();
 
         auto content = weights->content();
@@ -207,12 +176,8 @@ void FrontEnd::parseRNN(const Model& model, const ie::CNNLayerPtr& _layer, const
         RNNRelayout(
             origWeights,
 
-            static_cast<int>(outputs.size()),
-            static_cast<int>(seq_size),
-
             newWeightsPtr,
             newWeightsPtr + ngates * stateSize * inputSize,
-            newWeightsPtr + ngates * stateSize * (inputSize) + stateSize,
 
             ngates,
             stateSize,
