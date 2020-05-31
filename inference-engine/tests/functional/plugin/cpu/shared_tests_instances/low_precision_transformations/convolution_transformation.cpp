@@ -16,7 +16,9 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
 };
 
 const std::vector<InferenceEngine::details::LayerTransformation::Params> trasformationParamValues = {
-    LayerTestsUtils::LayerTransformationParamsFactory::createParams()
+    LayerTestsUtils::LayerTransformationParamsFactory::createParams().setUpdatePrecisions(true),
+    LayerTestsUtils::LayerTransformationParamsFactory::createParams().setUpdatePrecisions(false),
+    LayerTestsUtils::LayerTransformationParamsFactory::createParamsU8I8()
 };
 
 const std::vector<bool> fqOnActivationsValues = { true, false };
