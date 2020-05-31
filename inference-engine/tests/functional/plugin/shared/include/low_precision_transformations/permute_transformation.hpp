@@ -11,12 +11,19 @@
 
 namespace LayerTestsDefinitions {
 
-class ConcatTransformation :
-    public testing::WithParamInterface<LayerTestsUtils::LayerTransformationParams>,
+typedef std::tuple<
+    InferenceEngine::Precision,
+    InferenceEngine::SizeVector,
+    std::string,
+    InferenceEngine::details::LayerTransformation::Params,
+    bool,
+    bool> PermuteTransformationParams;
+
+class PermuteTransformation :
+    public testing::WithParamInterface<PermuteTransformationParams>,
     public LayerTestsUtils::LayerTransformation {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<LayerTestsUtils::LayerTransformationParams> obj);
-    InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &info) const override;
+    static std::string getTestCaseName(testing::TestParamInfo<PermuteTransformationParams> obj);
 
 protected:
     void SetUp() override;
