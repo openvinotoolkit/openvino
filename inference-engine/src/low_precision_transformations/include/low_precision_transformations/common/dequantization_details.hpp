@@ -32,6 +32,15 @@ public:
         return channelsCount;
     }
 
+    bool isPerTensor() const {
+        if ((scales.size() == 0) || (shifts.size() == 0)) {
+            THROW_IE_EXCEPTION << "scale or shift values count is not correct";
+        }
+        return
+            std::all_of(scales.begin(), scales.end(), [&](const float value) { return value == scales[0]; }) &&
+            std::all_of(shifts.begin(), shifts.end(), [&](const float value) { return value == shifts[0]; });
+    }
+
     const std::vector<float> scales;
     const std::vector<float> shifts;
     const size_t channelsCount;
