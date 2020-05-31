@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "functional_test_utils/low_precision_transformations/layer_transformation.hpp"
+
 #include <memory>
 #include <tuple>
 #include <vector>
@@ -100,8 +102,21 @@ InferenceEngine::CNNNetwork LayerTransformation::transform(InferenceEngine::deta
     return InferenceEngine::CNNNetwork(implNetwork);
 }
 
+InferenceEngine::Precision LayerTransformation::getDeviceInternalPrecision(const InferenceEngine::Precision precision) {
+    if (precision == InferenceEngine::Precision::FP16) {
+        return InferenceEngine::Precision::FP32;
+    }
+
+    return precision;
+}
+
 InferenceEngine::CNNNetwork LayerTransformation::transform(const InferenceEngine::details::LowPrecisionTransformations& transformations) {
     InferenceEngine::details::CNNNetworkImplPtr cnnNetworkImp = cloneNet(InferenceEngine::CNNNetwork(function));
+
+    InferenceEngine::NetPass::ConvertPrecision(*cnnNetworkImp, InferenceEngine::Precision::I64, InferenceEngine::Precision::I32);
+    InferenceEngine::NetPass::ConvertPrecision(*cnnNetworkImp, InferenceEngine::Precision::U64, InferenceEngine::Precision::I32);
+    InferenceEngine::NetPass::ConvertPrecision(*cnnNetworkImp, InferenceEngine::Precision::FP16, InferenceEngine::Precision::FP32);
+    InferenceEngine::NetPass::ConvertPrecision(*cnnNetworkImp, InferenceEngine::Precision::BOOL, InferenceEngine::Precision::U8);
 
     InferenceEngine::details::LowPrecisionTransformer transformer(transformations);
     transformer.transform(*cnnNetworkImp);

@@ -9,6 +9,8 @@
 #include <string>
 #include <vector>
 
+#include "low_precision_transformations/network_helper.hpp"
+
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 
@@ -29,9 +31,20 @@ void PermuteTransformation::transform(TransformationContext& context, CNNLayer& 
         THROW_IE_EXCEPTION << "Permute parameter 'order' is absent";
     }
 
-    std::vector<unsigned int> orders = layer.GetParamAsUInts("order");
-    if ((orders.size() < 2) || (orders[0] != 0U) || (orders[1] != 1U)) {
+    const CNNLayerPtr scaleShift = CNNNetworkHelper::getParent(layer);
+    if ((scaleShift == nullptr) || (scaleShift->type != "ScaleShift")) {
         return;
+    }
+
+    std::vector<float> dequantizationScales;
+    std::vector<float> dequantizationShifts;
+    fillFromDequantizationLayer(*scaleShift, dequantizationScales, dequantizationShifts);
+    if ((std::any_of(dequantizationScales.begin(), dequantizationScales.end(), [&](const float value) { return value != dequantizationScales[0]; })) ||
+        (std::any_of(dequantizationShifts.begin(), dequantizationShifts.end(), [&](const float value) { return value != dequantizationShifts[0]; }))) {
+        std::vector<unsigned int> orders = layer.GetParamAsUInts("order");
+        if ((orders.size() < 2) || (orders[0] != 0U) || (orders[1] != 1U)) {
+            return;
+        }
     }
 
     TransparentBaseTransformation::transform(context, layer);

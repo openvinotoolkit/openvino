@@ -11,12 +11,11 @@
 
 namespace LayerTestsDefinitions {
 
-class ConcatTransformation :
+class ReshapeTransformation :
     public testing::WithParamInterface<LayerTestsUtils::LayerTransformationParams>,
     public LayerTestsUtils::LayerTransformation {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<LayerTestsUtils::LayerTransformationParams> obj);
-    InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &info) const override;
 
 protected:
     void SetUp() override;
