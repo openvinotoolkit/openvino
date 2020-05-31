@@ -51,6 +51,8 @@ class EmbeddingSegmentsSumFrontReplacerFrontReplacersTest(unittest.TestCase):
             'squeeze_for_indices': {'kind': 'op', 'op': 'Squeeze'},
             'split_for_dense_shape': {'kind': 'op', 'op': 'Split'},
             'squeeze_to_scalar': {'kind': 'op', 'op': 'Squeeze'},
+            'cast_default_value': {'kind': 'op', 'op': 'Cast'},
+            'cast_number_segments': {'kind': 'op', 'op': 'Cast'},
             'embedding_segments_sum': {'kind': 'op', 'op': 'EmbeddingSegmentsSum'},
 
             **const('split_for_indices_axis', int64_array(1)),
@@ -103,9 +105,11 @@ class EmbeddingSegmentsSumFrontReplacerFrontReplacersTest(unittest.TestCase):
                                  ('split_for_dense_shape_axis', 'split_for_dense_shape', {'in': 1}),
                                  ('split_for_dense_shape', 'squeeze_to_scalar', {'in': 0}),
                                  ('squeeze_axis', 'squeeze_to_scalar', {'in': 1}),
-                                 ('squeeze_to_scalar', 'embedding_segments_sum', {'in': 3, 'out': 0}),
+                                 ('squeeze_to_scalar', 'cast_number_segments', {'in': 0}),
+                                 ('cast_number_segments', 'embedding_segments_sum', {'in': 3, 'out': 0}),
                                  ('input_params_table', 'embedding_segments_sum', {'in': 0}),
-                                 ('input_default_value', 'embedding_segments_sum', {'in': 4}),
+                                 ('input_default_value', 'cast_default_value', {'in': 0}),
+                                 ('cast_default_value', 'embedding_segments_sum', {'in': 4}),
                                  ('embedding_segments_sum', 'last', {'in': 0}),],
                                  nodes_with_edges_only=True)
 
@@ -142,6 +146,8 @@ class EmbeddingSegmentsSumFrontReplacerFrontReplacersTest(unittest.TestCase):
             'squeeze_for_indices': {'kind': 'op', 'op': 'Squeeze'},
             'split_for_dense_shape': {'kind': 'op', 'op': 'Split'},
             'squeeze_to_scalar': {'kind': 'op', 'op': 'Squeeze'},
+            'cast_default_value': {'kind': 'op', 'op': 'Cast'},
+            'cast_number_segments': {'kind': 'op', 'op': 'Cast'},
             'embedding_segments_sum': {'kind': 'op', 'op': 'EmbeddingSegmentsSum'},
 
             **const('split_for_indices_axis', int64_array(1)),
@@ -196,9 +202,11 @@ class EmbeddingSegmentsSumFrontReplacerFrontReplacersTest(unittest.TestCase):
                                  ('split_for_dense_shape_axis', 'split_for_dense_shape', {'in': 1}),
                                  ('split_for_dense_shape', 'squeeze_to_scalar', {'in': 0}),
                                  ('squeeze_axis', 'squeeze_to_scalar', {'in': 1}),
-                                 ('squeeze_to_scalar', 'embedding_segments_sum', {'in': 3, 'out': 0}),
+                                 ('squeeze_to_scalar', 'cast_number_segments', {'in': 0}),
+                                 ('cast_number_segments', 'embedding_segments_sum', {'in': 3, 'out': 0}),
                                  ('input_params_table', 'embedding_segments_sum', {'in': 0}),
-                                 ('input_default_value', 'embedding_segments_sum', {'in': 4}),
+                                 ('input_default_value', 'cast_default_value', {'in': 0}),
+                                 ('cast_default_value', 'embedding_segments_sum', {'in': 4}),
                                  ('embedding_segments_sum', 'last', {'in': 0}),],
                                 nodes_with_edges_only=True)
 

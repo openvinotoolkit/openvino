@@ -33,9 +33,9 @@ class WhereDecomposition(FrontReplacementOp):
     enabled = True
 
     def run_after(self):
-        from extensions.front.tf.embedding_segments_sum import EmbeddingSegmentsSumFrontReplacer
+        from extensions.front.tf.embedding_segments_sum import EmbeddingSegmentsSumFrontReplacer, EmbeddingSegmentsSumFrontReplacer2
         from extensions.front.TransposeOrderNormalizer import TransposeOrderNormalizer
-        return [EmbeddingSegmentsSumFrontReplacer, TransposeOrderNormalizer]
+        return [EmbeddingSegmentsSumFrontReplacer, EmbeddingSegmentsSumFrontReplacer2, TransposeOrderNormalizer]
 
     def replace_op(self, graph: Graph, node: Node):
         node_name = node.soft_get('name', node.id)

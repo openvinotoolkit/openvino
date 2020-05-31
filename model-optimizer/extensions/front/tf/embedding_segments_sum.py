@@ -15,7 +15,9 @@
 """
 
 import logging as log
+import numpy as np
 
+from extensions.ops.Cast import Cast
 from extensions.ops.embedding_bag import EmbeddingSegmentsSum
 from extensions.ops.split import Split
 from mo.front.common.partial_infer.utils import int64_array
@@ -32,6 +34,7 @@ class EmbeddingSegmentsSumFrontReplacer(FrontReplacementSubgraph):
     Such sub-graph is met in the Wide and Deep model in case of the SINGLE categorical feature.
     """
     enabled = True
+    force_clean_up = True
 
     def pattern(self):
         log.debug('Enabled EmbeddingSegmentsSum replacement')
@@ -91,6 +94,8 @@ class EmbeddingSegmentsSumFrontReplacer(FrontReplacementSubgraph):
         squeeze_for_indices = create_op_with_const_inputs(graph, Squeeze, {1: int64_array([1])})
         split_for_dense_shape = create_op_with_const_inputs(graph, Split, {1: int64_array(0)}, {'num_splits': 2})
         squeeze_to_scalar = create_op_with_const_inputs(graph, Squeeze, {1: int64_array([0])})
+        cast_default_value = Cast(graph, {'name': output_node_name + '/CastDefaultValue', 'dst_type': np.int32}).create_node()
+        cast_num_segments = Cast(graph, {'name': output_node_name + '/CastSegmentsNumber', 'dst_type': np.int32}).create_node()
         embedding_segments_sum = EmbeddingSegmentsSum(graph, {'name': output_node_name}).create_node()
         rename_nodes([(select, output_node_name + '/AbandonedName'), (embedding_segments_sum, output_node_name)])
 
@@ -105,9 +110,13 @@ class EmbeddingSegmentsSumFrontReplacer(FrontReplacementSubgraph):
         # split and connect number of segments
         identity_spw.in_port(0).get_connection().set_destination(split_for_dense_shape.in_port(0))
         squeeze_to_scalar.in_port(0).connect(split_for_dense_shape.out_port(0))
-        embedding_segments_sum.in_port(3).connect(squeeze_to_scalar.out_port(0))
+        # TODO: remove casting once we start to support I64 model input
+        cast_num_segments.in_port(0).connect(squeeze_to_scalar.out_port(0))
+        embedding_segments_sum.in_port(3).connect(cast_num_segments.out_port(0))
         # connect default value
-        sparse_fill_empty_rows.in_port(3).get_connection().set_destination(embedding_segments_sum.in_port(4))
+        # TODO: remove casting once we start to support I64 model input
+        sparse_fill_empty_rows.in_port(3).get_connection().set_destination(cast_default_value.in_port(0))
+        embedding_segments_sum.in_port(4).connect(cast_default_value.out_port(0))
         # no input port for per_sample_weight
 
         identity_spw.in_port(0).disconnect()
@@ -128,6 +137,7 @@ class EmbeddingSegmentsSumFrontReplacer2(FrontReplacementSubgraph):
     Such sub-graph is met in the Wide and Deep model in case of MULTIPLE categorical features.
     """
     enabled = True
+    force_clean_up = True
 
     def pattern(self):
         log.debug('Enabled EmbeddingSegmentsSum2 replacement')
@@ -195,6 +205,8 @@ class EmbeddingSegmentsSumFrontReplacer2(FrontReplacementSubgraph):
                                                             {'num_splits': 2,
                                                              'name': output_node_name + '/SplitForDenseShape'})
         squeeze_to_scalar = create_op_with_const_inputs(graph, Squeeze, {1: int64_array([0])})
+        cast_default_value = Cast(graph, {'name': output_node_name + '/CastDefaultValue', 'dst_type': np.int32}).create_node()
+        cast_num_segments = Cast(graph, {'name': output_node_name + '/CastSegmentsNumber', 'dst_type': np.int32}).create_node()
         embedding_segments_sum = EmbeddingSegmentsSum(graph, {'name': output_node_name}).create_node()
         rename_nodes([(select, output_node_name + '/AbandonedName'), (embedding_segments_sum, output_node_name)])
 
@@ -209,9 +221,13 @@ class EmbeddingSegmentsSumFrontReplacer2(FrontReplacementSubgraph):
         # split and connect number of segments
         identity_spw.in_port(0).get_connection().set_destination(split_for_dense_shape.in_port(0))
         squeeze_to_scalar.in_port(0).connect(split_for_dense_shape.out_port(0))
-        embedding_segments_sum.in_port(3).connect(squeeze_to_scalar.out_port(0))
+        # TODO: remove casting once we start to support I64 model input
+        cast_num_segments.in_port(0).connect(squeeze_to_scalar.out_port(0))
+        embedding_segments_sum.in_port(3).connect(cast_num_segments.out_port(0))
         # connect default value
-        sparse_fill_empty_rows.in_port(3).get_connection().set_destination(embedding_segments_sum.in_port(4))
+        # TODO: remove casting once we start to support I64 model input
+        sparse_fill_empty_rows.in_port(3).get_connection().set_destination(cast_default_value.in_port(0))
+        embedding_segments_sum.in_port(4).connect(cast_default_value.out_port(0))
         # no input port for per_sample_weight
 
         identity_spw.in_port(0).disconnect()
