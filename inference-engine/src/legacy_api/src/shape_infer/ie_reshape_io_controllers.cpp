@@ -25,9 +25,10 @@ void DefaultChecker::run(const std::vector<DataPtr>& dataVec, const std::string&
 
 InputController::InputController(const std::vector<DataPtr>& dataVec, const std::string& layerName,
                                  const DefaultChecker::Ptr& checker)
-    : _dataVec(dataVec), _layerName(layerName) {
-    checker->run(_dataVec, layerName);
-    for (const auto& data : _dataVec) {
+    : _layerName(layerName) {
+    checker->run(dataVec, layerName);
+    for (const auto& data : dataVec) {
+        _dataVec.push_back(DataWeakPtr{data});
         if (data) {
             _dataNames.push_back(data->getName());
             SizeVector dims = data->getTensorDesc().getDims();
@@ -57,7 +58,7 @@ std::vector<SizeVector> InputController::getShapes(bool check) {
 void InputController::applyChanges() {
     checkCorrespondence();
     for (int i = 0; i < _dataVec.size(); i++) {
-        auto data = _dataVec[i];
+        auto data = _dataVec[i].lock();
         if (data) data->setDims(_shapes[i]);
     }
 }
@@ -116,7 +117,7 @@ std::vector<Blob::CPtr> InputController::getBlobs(bool check) {
     if (check) checkCorrespondence();
     for (int i = 0; i < _dataVec.size(); i++) {
         if (_inferedData[i] == nullptr || _inferedData[i]->cbuffer() == nullptr) {
-            TensorDesc desc = _dataVec[i]->getTensorDesc();
+            TensorDesc desc = _dataVec[i].lock()->getTensorDesc();
             desc.setDims(_shapes[i]);
             // special case of Shape layer: no input data, but blob contains info about dimensions, layout and etc...
             auto blob = make_blob_with_precision(desc);
@@ -138,7 +139,8 @@ OutputController::OutputController(const std::vector<DataPtr>& data, const std::
 void OutputController::propagateShapes(const std::set<ReshapeLauncher::Ptr>& launchers) {
     checkCorrespondence();
     unsigned idx = 0;
-    for (auto const& outData : _dataVec) {
+    for (auto const& _outData : _dataVec) {
+        auto outData = _outData.lock();
         for (auto const& inputTo : outData->getInputTo()) {
             CNNLayerPtr layer = inputTo.second;
             if (layer == nullptr) {
@@ -161,7 +163,8 @@ void OutputController::propagateShapes(const std::set<ReshapeLauncher::Ptr>& lau
 // Combine with propagate shapes
 void OutputController::propagateBlobs(const std::set<ReshapeLauncher::Ptr>& launchers) {
     unsigned idx = 0;
-    for (auto const& outData : _dataVec) {
+    for (auto const& _outData : _dataVec) {
+        auto outData = _outData.lock();
         for (auto const& inputTo : outData->getInputTo()) {
             CNNLayerPtr layer = inputTo.second;
             if (layer == nullptr) {
@@ -195,7 +198,7 @@ void OutputController::setBlobs(const std::vector<Blob::Ptr>& blobs) {
 std::vector<Blob::Ptr> OutputController::createBlobs() {
     std::vector<Blob::Ptr> blobs;
     for (int i = 0; i < _dataVec.size(); i++) {
-        TensorDesc desc = _dataVec[i]->getTensorDesc();
+        TensorDesc desc = _dataVec[i].lock()->getTensorDesc();
         desc.setDims(_shapes[i]);
         auto blob = make_blob_with_precision(desc);
         blob->allocate();

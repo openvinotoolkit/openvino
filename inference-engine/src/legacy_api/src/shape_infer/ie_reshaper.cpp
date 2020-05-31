@@ -263,7 +263,8 @@ ReshapeLauncher::Ptr LauncherCreator::createNotInputLauncher(const CNNLayer* lay
                                                              const std::vector<IShapeInferExtensionPtr>& extensions) {
     auto layerType = layer->type;
     if ((::details::equal(layerType, "memory") && layer->GetParamAsInt("index")) ||
-        ::details::equal(layerType, "const") || ::details::equal(layerType, "input")) {
+         ::details::equal(layerType, "const") ||
+         ::details::equal(layerType, "input")) {
         THROW_IE_EXCEPTION << "Failed to reshape: Layer with type `" << layerType
                            << "` can't be intermediate layer in network";
     }

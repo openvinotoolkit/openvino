@@ -109,7 +109,7 @@ private:
     long getPositionByName(const std::string& dataName);
 
 protected:
-    std::vector<DataPtr> _dataVec;
+    std::vector<DataWeakPtr> _dataVec;
     std::vector<SizeVector> _shapes;
     std::vector<SizeVector> _irShapes;
     std::vector<std::string> _dataNames;
