@@ -316,363 +316,6 @@ std::string tensorIteratorModel_2 = R"V0G0N(
 </net>
 )V0G0N";
 
-std::string tensorIteratorModel_4 = R"V0G0N(
-<net batch="1" name="ctpn" version="4">
-  <layers>
-    <layer id="0" name="RNNInput_Hidden" precision="FP16" type="Input">
-      <output>
-        <port id="0">
-          <dim>4</dim>
-          <dim>128</dim>
-        </port>
-      </output>
-    </layer>
-    <layer id="1" name="RNNInput_CellState" precision="FP16" type="Input">
-      <output>
-        <port id="0">
-          <dim>4</dim>
-          <dim>128</dim>
-        </port>
-      </output>
-    </layer>
-    <layer id="2" name="RNNInput" precision="FP16" type="Input">
-      <output>
-        <port id="0">
-          <dim>4</dim>
-          <dim>2</dim>
-          <dim>512</dim>
-        </port>
-      </output>
-    </layer>
-    <layer id="38" name="RNNOutput" precision="FP16" type="TensorIterator">
-      <input>
-        <port id="0">
-          <dim>4</dim>
-          <dim>2</dim>
-          <dim>512</dim>
-        </port>
-        <port id="1">
-          <dim>4</dim>
-          <dim>128</dim>
-        </port>
-        <port id="2">
-          <dim>4</dim>
-          <dim>128</dim>
-        </port>
-      </input>
-      <output>
-        <port id="3">
-          <dim>4</dim>
-          <dim>2</dim>
-          <dim>128</dim>
-        </port>
-		<port id="4">
-          <dim>4</dim>
-		  <dim>2</dim>
-          <dim>128</dim>
-        </port>
-      </output>
-      <port_map>
-        <input axis="1" external_port_id="0" internal_layer_id="0" internal_port_id="0"/>
-        <input external_port_id="1" internal_layer_id="1" internal_port_id="1"/>
-        <input external_port_id="2" internal_layer_id="1" internal_port_id="2"/>
-        <output axis="1" external_port_id="3" internal_layer_id="2" internal_port_id="1"/>
-		<output axis="1" external_port_id="4" internal_layer_id="3" internal_port_id="1"/>
-      </port_map>
-      <back_edges>
-        <edge from-layer="1" from-port="5" to-layer="1" to-port="1"/>
-        <edge from-layer="1" from-port="6" to-layer="1" to-port="2"/>
-      </back_edges>
-      <body>
-        <layers>
-          <layer id="0" name="lstm_o/bidirectional_rnn/fw/fw/while/TensorArrayReadV3/Output_0/Data_/InputSqueeze" precision="FP16" type="Reshape">
-            <data dim="-1,512"/>
-            <input>
-              <port id="0">
-                <dim>4</dim>
-                <dim>1</dim>
-                <dim>512</dim>
-              </port>
-            </input>
-            <output>
-              <port id="1">
-                <dim>4</dim>
-                <dim>512</dim>
-              </port>
-            </output>
-          </layer>
-          <layer id="1" name="lstm_o/bidirectional_rnn/fw/fw/while/fw/lstm_cell/concat/LSTMCell" precision="FP16" type="LSTMCell">
-            <data hidden_size="128"/>
-            <input>
-              <port id="0">
-                <dim>4</dim>
-                <dim>512</dim>
-              </port>
-              <port id="1">
-                <dim>4</dim>
-                <dim>128</dim>
-              </port>
-              <port id="2">
-                <dim>4</dim>
-                <dim>128</dim>
-              </port>
-            </input>
-            <output>
-              <port id="5">
-                <dim>4</dim>
-                <dim>128</dim>
-              </port>
-              <port id="6">
-                <dim>4</dim>
-                <dim>128</dim>
-              </port>
-            </output>
-            <blobs>
-              <weights offset="0" size="655360"/>
-              <biases offset="655360" size="1024"/>
-            </blobs>
-          </layer>
-          <layer id="2" name="lstm_o/bidirectional_rnn/fw/fw/while/fw/lstm_cell/concat/LSTMCell/Output_0/Data_/OutputUnsqueeze" precision="FP16" type="Reshape">
-            <data dim="-1,1,128"/>
-            <input>
-              <port id="0">
-                <dim>4</dim>
-                <dim>128</dim>
-              </port>
-            </input>
-            <output>
-              <port id="1">
-                <dim>4</dim>
-                <dim>1</dim>
-                <dim>128</dim>
-              </port>
-            </output>
-          </layer>
-		  <layer id="3" name="lstm_o/bidirectional_rnn/fw/fw/while/fw/lstm_cell/concat/LSTMCell/Output_1/Data_/OutputUnsqueeze" precision="FP16" type="Reshape">
-            <data dim="-1,1,128"/>
-            <input>
-              <port id="0">
-                <dim>4</dim>
-                <dim>128</dim>
-              </port>
-            </input>
-            <output>
-              <port id="1">
-                <dim>4</dim>
-				<dim>1</dim>
-                <dim>128</dim>
-              </port>
-            </output>
-          </layer>
-        </layers>
-        <edges>
-          <edge from-layer="0" from-port="1" to-layer="1" to-port="0"/>
-          <edge from-layer="1" from-port="5" to-layer="2" to-port="0"/>
-		  <edge from-layer="1" from-port="6" to-layer="3" to-port="0"/>
-        </edges>
-      </body>
-    </layer>
-  </layers>
-  <edges>
-    <edge from-layer="2" from-port="0" to-layer="38" to-port="0"/>
-    <edge from-layer="0" from-port="0" to-layer="38" to-port="1"/>
-    <edge from-layer="1" from-port="0" to-layer="38" to-port="2"/>
-  </edges>
-</net>
-)V0G0N";
-
-std::string tensorIteratorModel_31 = R"V0G0N(
-<net batch="1" name="ctpn" version="4">
-  <layers>
-    <layer id="0" name="RNNInput_Hidden" precision="FP16" type="Input">
-      <output>
-        <port id="0">
-          <dim>4</dim>
-          <dim>128</dim>
-        </port>
-      </output>
-    </layer>
-    <layer id="1" name="RNNInput_CellState" precision="FP16" type="Input">
-      <output>
-        <port id="0">
-          <dim>4</dim>
-          <dim>128</dim>
-        </port>
-      </output>
-    </layer>
-    <layer id="2" name="RNNInput" precision="FP16" type="Input">
-      <output>
-        <port id="0">
-          <dim>4</dim>
-          <dim>2</dim>
-          <dim>512</dim>
-        </port>
-      </output>
-    </layer>
-    <layer id="38" name="RNNOutput" precision="FP16" type="TensorIterator">
-      <input>
-        <port id="0">
-          <dim>4</dim>
-          <dim>2</dim>
-          <dim>512</dim>
-        </port>
-        <port id="1">
-          <dim>4</dim>
-          <dim>128</dim>
-        </port>
-        <port id="2">
-          <dim>4</dim>
-          <dim>128</dim>
-        </port>
-      </input>
-      <output>
-        <port id="3">
-          <dim>4</dim>
-          <dim>2</dim>
-          <dim>128</dim>
-        </port>
-		<port id="4">
-          <dim>4</dim>
-          <dim>2</dim>
-          <dim>128</dim>
-        </port>
-		<port id="5">
-          <dim>4</dim>
-          <dim>2</dim>
-          <dim>128</dim>
-        </port>
-      </output>
-      <port_map>
-        <input axis="1" external_port_id="0" internal_layer_id="0" internal_port_id="0"/>
-        <input external_port_id="1" internal_layer_id="1" internal_port_id="1"/>
-        <input external_port_id="2" internal_layer_id="1" internal_port_id="2"/>
-        <output axis="1" external_port_id="3" internal_layer_id="2" internal_port_id="1"/>
-		<output axis="1" external_port_id="4" internal_layer_id="3" internal_port_id="1"/>
-		<output axis="1" external_port_id="5" internal_layer_id="4" internal_port_id="1"/>
-      </port_map>
-      <back_edges>
-        <edge from-layer="1" from-port="5" to-layer="1" to-port="1"/>
-        <edge from-layer="1" from-port="6" to-layer="1" to-port="2"/>
-      </back_edges>
-      <body>
-        <layers>
-          <layer id="0" name="lstm_o/bidirectional_rnn/fw/fw/while/TensorArrayReadV3/Output_0/Data_/InputSqueeze" precision="FP16" type="Reshape">
-            <data dim="-1,512"/>
-            <input>
-              <port id="0">
-                <dim>4</dim>
-                <dim>1</dim>
-                <dim>512</dim>
-              </port>
-            </input>
-            <output>
-              <port id="1">
-                <dim>4</dim>
-                <dim>512</dim>
-              </port>
-            </output>
-          </layer>
-          <layer id="1" name="lstm_o/bidirectional_rnn/fw/fw/while/fw/lstm_cell/concat/LSTMCell" precision="FP16" type="LSTMCell">
-            <data hidden_size="128"/>
-            <input>
-              <port id="0">
-                <dim>4</dim>
-                <dim>512</dim>
-              </port>
-              <port id="1">
-                <dim>4</dim>
-                <dim>128</dim>
-              </port>
-              <port id="2">
-                <dim>4</dim>
-                <dim>128</dim>
-              </port>
-            </input>
-            <output>
-              <port id="5">
-                <dim>4</dim>
-                <dim>128</dim>
-              </port>
-              <port id="6">
-                <dim>4</dim>
-                <dim>128</dim>
-              </port>
-			  <port id="7">
-                <dim>4</dim>
-                <dim>128</dim>
-              </port>
-            </output>
-            <blobs>
-              <weights offset="0" size="655360"/>
-              <biases offset="655360" size="1024"/>
-            </blobs>
-          </layer>
-          <layer id="2" name="lstm_o/bidirectional_rnn/fw/fw/while/fw/lstm_cell/concat/LSTMCell/Output_0/Data_/OutputUnsqueeze" precision="FP16" type="Reshape">
-            <data dim="-1,1,128"/>
-            <input>
-              <port id="0">
-                <dim>4</dim>
-                <dim>128</dim>
-              </port>
-            </input>
-            <output>
-              <port id="1">
-                <dim>4</dim>
-                <dim>1</dim>
-                <dim>128</dim>
-              </port>
-            </output>
-          </layer>
-		  <layer id="3" name="lstm_o/bidirectional_rnn/fw/fw/while/fw/lstm_cell/concat/LSTMCell/Output_1/Data_/OutputUnsqueeze" precision="FP16" type="Reshape">
-            <data dim="-1,1,128"/>
-            <input>
-              <port id="0">
-                <dim>4</dim>
-                <dim>128</dim>
-              </port>
-            </input>
-            <output>
-              <port id="1">
-                <dim>4</dim>
-                <dim>1</dim>
-                <dim>128</dim>
-              </port>
-            </output>
-          </layer>
-		  <layer id="4" name="lstm_o/bidirectional_rnn/fw/fw/while/fw/lstm_cell/concat/LSTMCell/Output_2/Data_/OutputUnsqueeze" precision="FP16" type="Reshape">
-            <data dim="-1,1,128"/>
-            <input>
-              <port id="0">
-                <dim>4</dim>
-                <dim>128</dim>
-              </port>
-            </input>
-            <output>
-              <port id="1">
-                <dim>4</dim>
-                <dim>1</dim>
-                <dim>128</dim>
-              </port>
-            </output>
-          </layer>
-        </layers>
-        <edges>
-          <edge from-layer="0" from-port="1" to-layer="1" to-port="0"/>
-          <edge from-layer="1" from-port="5" to-layer="2" to-port="0"/>
-		  <edge from-layer="1" from-port="6" to-layer="3" to-port="0"/>
-		  <edge from-layer="1" from-port="7" to-layer="4" to-port="0"/>
-        </edges>
-      </body>
-    </layer>
-  </layers>
-  <edges>
-    <edge from-layer="2" from-port="0" to-layer="38" to-port="0"/>
-    <edge from-layer="0" from-port="0" to-layer="38" to-port="1"/>
-    <edge from-layer="1" from-port="0" to-layer="38" to-port="2"/>
-  </edges>
-</net>
-)V0G0N";
-
 std::string tensorIteratorModel_3 = R"V0G0N(
 <net batch="1" name="ctpn" version="4">
   <layers>
@@ -824,6 +467,565 @@ std::string tensorIteratorModel_3 = R"V0G0N(
           <edge from-layer="0" from-port="1" to-layer="1" to-port="0"/>
           <edge from-layer="1" from-port="5" to-layer="2" to-port="0"/>
           <edge from-layer="1" from-port="6" to-layer="3" to-port="0"/>
+        </edges>
+      </body>
+    </layer>
+  </layers>
+  <edges>
+    <edge from-layer="2" from-port="0" to-layer="38" to-port="0"/>
+    <edge from-layer="0" from-port="0" to-layer="38" to-port="1"/>
+    <edge from-layer="1" from-port="0" to-layer="38" to-port="2"/>
+  </edges>
+</net>
+)V0G0N";
+
+std::string tensorIteratorModel_4 = R"V0G0N(
+<net batch="1" name="ctpn" version="4">
+  <layers>
+    <layer id="0" name="RNNInput_Hidden" precision="FP16" type="Input">
+      <output>
+        <port id="0">
+          <dim>4</dim>
+          <dim>128</dim>
+        </port>
+      </output>
+    </layer>
+    <layer id="1" name="RNNInput_CellState" precision="FP16" type="Input">
+      <output>
+        <port id="0">
+          <dim>4</dim>
+          <dim>128</dim>
+        </port>
+      </output>
+    </layer>
+    <layer id="2" name="RNNInput" precision="FP16" type="Input">
+      <output>
+        <port id="0">
+          <dim>4</dim>
+          <dim>2</dim>
+          <dim>512</dim>
+        </port>
+      </output>
+    </layer>
+    <layer id="38" name="RNNOutput" precision="FP16" type="TensorIterator">
+      <input>
+        <port id="0">
+          <dim>4</dim>
+          <dim>2</dim>
+          <dim>512</dim>
+        </port>
+        <port id="1">
+          <dim>4</dim>
+          <dim>128</dim>
+        </port>
+        <port id="2">
+          <dim>4</dim>
+          <dim>128</dim>
+        </port>
+      </input>
+      <output>
+        <port id="3">
+          <dim>4</dim>
+          <dim>2</dim>
+          <dim>128</dim>
+        </port>
+        <port id="4">
+          <dim>4</dim>
+          <dim>128</dim>
+        </port>
+        <port id="5">
+          <dim>4</dim>
+          <dim>128</dim>
+        </port>
+      </output>
+      <port_map>
+        <input axis="0" external_port_id="0" internal_layer_id="1" internal_port_id="0"/>
+        <input external_port_id="1" internal_layer_id="1" internal_port_id="1"/>
+        <input external_port_id="2" internal_layer_id="1" internal_port_id="2"/>
+
+        <output external_port_id="3" internal_layer_id="2" internal_port_id="1"/>
+        <output external_port_id="4" internal_layer_id="3" internal_port_id="1"/>
+        <output axis="0" external_port_id="5" internal_layer_id="4" internal_port_id="1"/>
+      </port_map>
+      <back_edges>
+        <edge from-layer="1" from-port="5" to-layer="1" to-port="1"/>
+        <edge from-layer="1" from-port="6" to-layer="1" to-port="2"/>
+      </back_edges>
+      <body>
+        <layers>
+          <layer id="0" name="lstm_o/bidirectional_rnn/fw/fw/while/TensorArrayReadV3/Output_0/Data_/InputSqueeze" precision="FP16" type="Reshape">
+            <data dim="-1,512"/>
+            <input>
+              <port id="0">
+                <dim>4</dim>
+                <dim>1</dim>
+                <dim>512</dim>
+              </port>
+            </input>
+            <output>
+              <port id="1">
+                <dim>4</dim>
+                <dim>512</dim>
+              </port>
+            </output>
+          </layer>
+          <layer id="1" name="lstm_o/bidirectional_rnn/fw/fw/while/fw/lstm_cell/concat/LSTMCell" precision="FP16" type="LSTMCell">
+            <data hidden_size="128"/>
+            <input>
+              <port id="0">
+                <dim>4</dim>
+                <dim>512</dim>
+              </port>
+              <port id="1">
+                <dim>4</dim>
+                <dim>128</dim>
+              </port>
+              <port id="2">
+                <dim>4</dim>
+                <dim>128</dim>
+              </port>
+            </input>
+            <output>
+              <port id="5">
+                <dim>4</dim>
+                <dim>128</dim>
+              </port>
+              <port id="6">
+                <dim>4</dim>
+                <dim>128</dim>
+              </port>
+              <port id="7">
+                <dim>4</dim>
+                <dim>128</dim>
+              </port>
+            </output>
+            <blobs>
+              <weights offset="0" size="655360"/>
+              <biases offset="655360" size="1024"/>
+            </blobs>
+          </layer>
+          <layer id="2" name="lstm_o/bidirectional_rnn/fw/fw/while/fw/lstm_cell/concat/LSTMCell/Output_0/Data_/OutputUnsqueeze" precision="FP16" type="Reshape">
+            <data dim="-1,128"/>
+			      <input>
+              <port id="0">
+                <dim>4</dim>
+                <dim>128</dim>
+              </port>
+            </input>
+            <output>
+              <port id="1">
+                <dim>4</dim>
+                <dim>128</dim>
+              </port>
+            </output>
+          </layer>
+          <layer id="3" name="lstm_o/bidirectional_rnn/fw/fw/while/fw/lstm_cell/concat/LSTMCell/Output_1/Data_/OutputUnsqueeze" precision="FP16" type="Reshape">
+            <data dim="-1,128"/>
+		      	<input>
+              <port id="0">
+                <dim>4</dim>
+                <dim>128</dim>
+              </port>
+            </input>
+            <output>
+              <port id="1">
+                <dim>4</dim>
+                <dim>128</dim>
+              </port>
+            </output>
+          </layer>
+          <layer id="4" name="lstm_o/bidirectional_rnn/fw/fw/while/fw/lstm_cell/concat/LSTMCell/Output_2/Data_/OutputUnsqueeze" precision="FP16" type="Reshape">
+            <data dim="-1,128"/>
+		      	<input>
+              <port id="0">
+                <dim>4</dim>
+                <dim>128</dim>
+              </port>
+            </input>
+            <output>
+              <port id="1">
+                <dim>4</dim>
+                <dim>128</dim>
+              </port>
+            </output>
+          </layer>
+        </layers>
+        <edges>
+          <edge from-layer="0" from-port="1" to-layer="1" to-port="0"/>
+          <edge from-layer="1" from-port="5" to-layer="2" to-port="0"/>
+          <edge from-layer="1" from-port="6" to-layer="3" to-port="0"/>
+          <edge from-layer="1" from-port="7" to-layer="4" to-port="0"/>
+        </edges>
+      </body>
+    </layer>
+  </layers>
+  <edges>
+    <edge from-layer="2" from-port="0" to-layer="38" to-port="0"/>
+    <edge from-layer="0" from-port="0" to-layer="38" to-port="1"/>
+    <edge from-layer="1" from-port="0" to-layer="38" to-port="2"/>
+  </edges>
+</net>
+)V0G0N";
+
+std::string tensorIteratorModel_41 = R"V0G0N(
+<net batch="1" name="ctpn" version="4">
+  <layers>
+    <layer id="0" name="RNNInput_Hidden" precision="FP16" type="Input">
+      <output>
+        <port id="0">
+          <dim>4</dim>
+          <dim>128</dim>
+        </port>
+      </output>
+    </layer>
+    <layer id="1" name="RNNInput_CellState" precision="FP16" type="Input">
+      <output>
+        <port id="0">
+          <dim>4</dim>
+          <dim>128</dim>
+        </port>
+      </output>
+    </layer>
+    <layer id="2" name="RNNInput" precision="FP16" type="Input">
+      <output>
+        <port id="0">
+          <dim>4</dim>
+          <dim>2</dim>
+          <dim>512</dim>
+        </port>
+      </output>
+    </layer>
+    <layer id="38" name="RNNOutput" precision="FP16" type="TensorIterator">
+      <input>
+        <port id="0">
+          <dim>4</dim>
+          <dim>2</dim>
+          <dim>512</dim>
+        </port>
+        <port id="1">
+          <dim>4</dim>
+          <dim>128</dim>
+        </port>
+        <port id="2">
+          <dim>4</dim>
+          <dim>128</dim>
+        </port>
+      </input>
+      <output>
+        <port id="3">
+          <dim>4</dim>
+          <dim>2</dim>
+          <dim>128</dim>
+        </port>
+        <port id="4">
+          <dim>4</dim>
+          <dim>128</dim>
+        </port>
+        <port id="5">
+          <dim>4</dim>
+          <dim>128</dim>
+        </port>
+      </output>
+      <port_map>
+        <input axis="0" external_port_id="0" internal_layer_id="1" internal_port_id="0"/>
+        <input external_port_id="1" internal_layer_id="1" internal_port_id="1"/>
+        <input external_port_id="2" internal_layer_id="1" internal_port_id="2"/>
+
+        <output external_port_id="3" internal_layer_id="2" internal_port_id="1"/>
+        <output external_port_id="4" internal_layer_id="3" internal_port_id="1"/>
+        <output axis="0" external_port_id="5" internal_layer_id="4" internal_port_id="1"/>
+      </port_map>
+      <back_edges>
+        <edge from-layer="1" from-port="5" to-layer="1" to-port="1"/>
+        <edge from-layer="1" from-port="6" to-layer="1" to-port="2"/>
+      </back_edges>
+      <body>
+        <layers>
+          <layer id="0" name="lstm_o/bidirectional_rnn/fw/fw/while/TensorArrayReadV3/Output_0/Data_/InputSqueeze" precision="FP16" type="Reshape">
+            <data dim="-1,512"/>
+            <input>
+              <port id="0">
+                <dim>4</dim>
+                <dim>1</dim>
+                <dim>512</dim>
+              </port>
+            </input>
+            <output>
+              <port id="1">
+                <dim>4</dim>
+                <dim>512</dim>
+              </port>
+            </output>
+          </layer>
+          <layer id="1" name="lstm_o/bidirectional_rnn/fw/fw/while/fw/lstm_cell/concat/LSTMCell" precision="FP16" type="LSTMCell">
+            <data hidden_size="128"/>
+            <input>
+              <port id="0">
+                <dim>4</dim>
+                <dim>512</dim>
+              </port>
+              <port id="1">
+                <dim>4</dim>
+                <dim>128</dim>
+              </port>
+              <port id="2">
+                <dim>4</dim>
+                <dim>128</dim>
+              </port>
+            </input>
+            <output>
+              <port id="5">
+                <dim>4</dim>
+                <dim>128</dim>
+              </port>
+              <port id="6">
+                <dim>4</dim>
+                <dim>128</dim>
+              </port>
+            </output>
+            <blobs>
+              <weights offset="0" size="655360"/>
+              <biases offset="655360" size="1024"/>
+            </blobs>
+          </layer>
+          <layer id="2" name="lstm_o/bidirectional_rnn/fw/fw/while/fw/lstm_cell/concat/LSTMCell/Output_0/Data_/OutputUnsqueeze" precision="FP16" type="Reshape">
+            <data dim="-1,128"/>
+			      <input>
+              <port id="0">
+                <dim>4</dim>
+                <dim>128</dim>
+              </port>
+            </input>
+            <output>
+              <port id="1">
+                <dim>4</dim>
+                <dim>128</dim>
+              </port>
+            </output>
+          </layer>
+          <layer id="3" name="lstm_o/bidirectional_rnn/fw/fw/while/fw/lstm_cell/concat/LSTMCell/Output_1/Data_/OutputUnsqueeze" precision="FP16" type="Reshape">
+            <data dim="-1,128"/>
+		      	<input>
+              <port id="0">
+                <dim>4</dim>
+                <dim>128</dim>
+              </port>
+            </input>
+            <output>
+              <port id="1">
+                <dim>4</dim>
+                <dim>128</dim>
+              </port>
+            </output>
+          </layer>
+          <layer id="4" name="lstm_o/bidirectional_rnn/fw/fw/while/fw/lstm_cell/concat/LSTMCell/Output_2/Data_/OutputUnsqueeze" precision="FP16" type="Reshape">
+            <data dim="-1,128"/>
+		      	<input>
+              <port id="0">
+                <dim>4</dim>
+                <dim>128</dim>
+              </port>
+            </input>
+            <output>
+              <port id="1">
+                <dim>4</dim>
+                <dim>128</dim>
+              </port>
+            </output>
+          </layer>
+        </layers>
+        <edges>
+          <edge from-layer="0" from-port="1" to-layer="1" to-port="0"/>
+          <edge from-layer="1" from-port="5" to-layer="2" to-port="0"/>
+          <edge from-layer="1" from-port="6" to-layer="3" to-port="0"/>
+        </edges>
+      </body>
+    </layer>
+  </layers>
+  <edges>
+    <edge from-layer="2" from-port="0" to-layer="38" to-port="0"/>
+    <edge from-layer="0" from-port="0" to-layer="38" to-port="1"/>
+    <edge from-layer="1" from-port="0" to-layer="38" to-port="2"/>
+  </edges>
+</net>
+)V0G0N";
+
+std::string tensorIteratorModel_42 = R"V0G0N(
+<net batch="1" name="ctpn" version="4">
+  <layers>
+    <layer id="0" name="RNNInput_Hidden" precision="FP16" type="Input">
+      <output>
+        <port id="0">
+          <dim>16</dim>
+          <dim>2048</dim>
+        </port>
+      </output>
+    </layer>
+    <layer id="1" name="RNNInput_CellState" precision="FP16" type="Input">
+      <output>
+        <port id="0">
+          <dim>16</dim>
+          <dim>2048</dim>
+        </port>
+      </output>
+    </layer>
+    <layer id="2" name="RNNInput" precision="FP16" type="Input">
+      <output>
+        <port id="0">
+          <dim>16</dim>
+          <dim>1</dim>
+          <dim>2048</dim>
+        </port>
+      </output>
+    </layer>
+    <layer id="38" name="RNNOutput" precision="FP16" type="TensorIterator">
+      <input>
+        <port id="0">
+          <dim>16</dim>
+          <dim>1</dim>
+          <dim>2048</dim>
+        </port>
+        <port id="1">
+          <dim>16</dim>
+          <dim>2048</dim>
+        </port>
+        <port id="2">
+          <dim>16</dim>
+          <dim>2048</dim>
+        </port>
+      </input>
+      <output>
+        <port id="3">
+          <dim>16</dim>
+          <dim>1</dim>
+          <dim>2048</dim>
+        </port>
+        <port id="4">
+          <dim>16</dim>
+          <dim>2048</dim>
+        </port>
+        <port id="5">
+          <dim>16</dim>
+          <dim>2048</dim>
+        </port>
+      </output>
+      <port_map>
+        <input axis="0" external_port_id="0" internal_layer_id="1" internal_port_id="0"/>
+        <input external_port_id="1" internal_layer_id="1" internal_port_id="1"/>
+        <input external_port_id="2" internal_layer_id="1" internal_port_id="2"/>
+
+        <output external_port_id="3" internal_layer_id="2" internal_port_id="1"/>
+        <output external_port_id="4" internal_layer_id="3" internal_port_id="1"/>
+        <output axis="0" external_port_id="5" internal_layer_id="4" internal_port_id="1"/>
+      </port_map>
+      <back_edges>
+        <edge from-layer="1" from-port="5" to-layer="1" to-port="1"/>
+        <edge from-layer="1" from-port="6" to-layer="1" to-port="2"/>
+      </back_edges>
+      <body>
+        <layers>
+          <layer id="0" name="lstm_o/bidirectional_rnn/fw/fw/while/TensorArrayReadV3/Output_0/Data_/InputSqueeze" precision="FP16" type="Reshape">
+            <data dim="-1,2048"/>
+            <input>
+              <port id="0">
+                <dim>16</dim>
+                <dim>1</dim>
+                <dim>2048</dim>
+              </port>
+            </input>
+            <output>
+              <port id="1">
+                <dim>16</dim>
+                <dim>2048</dim>
+              </port>
+            </output>
+          </layer>
+          <layer id="1" name="lstm_o/bidirectional_rnn/fw/fw/while/fw/lstm_cell/concat/LSTMCell" precision="FP16" type="LSTMCell">
+            <data hidden_size="2048"/>
+            <input>
+              <port id="0">
+                <dim>16</dim>
+                <dim>2048</dim>
+              </port>
+              <port id="1">
+                <dim>16</dim>
+                <dim>2048</dim>
+              </port>
+              <port id="2">
+                <dim>16</dim>
+                <dim>2048</dim>
+              </port>
+            </input>
+            <output>
+              <port id="5">
+                <dim>16</dim>
+                <dim>2048</dim>
+              </port>
+              <port id="6">
+                <dim>16</dim>
+                <dim>2048</dim>
+              </port>
+              <port id="7">
+                <dim>16</dim>
+                <dim>2048</dim>
+              </port>
+            </output>
+            <blobs>
+              <weights offset="0" size="655360"/>
+              <biases offset="655360" size="1024"/>
+            </blobs>
+          </layer>
+          <layer id="2" name="lstm_o/bidirectional_rnn/fw/fw/while/fw/lstm_cell/concat/LSTMCell/Output_0/Data_/OutputUnsqueeze" precision="FP16" type="Reshape">
+            <data dim="-1,2048"/>
+			      <input>
+              <port id="0">
+                <dim>16</dim>
+                <dim>2048</dim>
+              </port>
+            </input>
+            <output>
+              <port id="1">
+                <dim>16</dim>
+                <dim>2048</dim>
+              </port>
+            </output>
+          </layer>
+          <layer id="3" name="lstm_o/bidirectional_rnn/fw/fw/while/fw/lstm_cell/concat/LSTMCell/Output_1/Data_/OutputUnsqueeze" precision="FP16" type="Reshape">
+            <data dim="-1,2048"/>
+		      	<input>
+              <port id="0">
+                <dim>16</dim>
+                <dim>2048</dim>
+              </port>
+            </input>
+            <output>
+              <port id="1">
+                <dim>16</dim>
+                <dim>2048</dim>
+              </port>
+            </output>
+          </layer>
+          <layer id="4" name="lstm_o/bidirectional_rnn/fw/fw/while/fw/lstm_cell/concat/LSTMCell/Output_2/Data_/OutputUnsqueeze" precision="FP16" type="Reshape">
+            <data dim="-1,2048"/>
+		      	<input>
+              <port id="0">
+                <dim>16</dim>
+                <dim>2048</dim>
+              </port>
+            </input>
+            <output>
+              <port id="1">
+                <dim>16</dim>
+                <dim>2048</dim>
+              </port>
+            </output>
+          </layer>
+        </layers>
+        <edges>
+          <edge from-layer="0" from-port="1" to-layer="1" to-port="0"/>
+          <edge from-layer="1" from-port="5" to-layer="2" to-port="0"/>
+          <edge from-layer="1" from-port="6" to-layer="3" to-port="0"/>
+          <edge from-layer="1" from-port="7" to-layer="4" to-port="0"/>
         </edges>
       </body>
     </layer>
@@ -1103,7 +1305,6 @@ TEST_P(myriadLayersTestsLSTMCell_nightly, LSTMCell) {
             weights_for_net[counter++] = weights1[(state_size) * j + i];
         }
     }
-
     for (int i = 0; i < num_bias; i++) {
         bias[i] = PrecisionUtils::f32tof16((float)((rand() % num_bias)) / num_bias);
         *(weights_for_net + num_weights + i) = bias[i];
@@ -1147,18 +1348,15 @@ TEST_P(myriadLayersTestsLSTMCell_nightly, LSTMCell) {
             }
         }
     }
-
     matrix_copy_transpose(weights_inv0, weights0_repacked, ngates * state_size, input_size);
     matrix_copy_transpose(weights_inv1, weights1_repacked, ngates * state_size, state_size);
 
     for (int i = 0; i < input_size; i++) {
         src_data0[i] = PrecisionUtils::f32tof16(( ((float)(rand() % input_size)) / input_size * .1f));
     }
-
     for (int i = 0; i < state_size; i++) {
         src_data1[i] = PrecisionUtils::f32tof16(( ((float)(rand() % state_size)) / state_size * .2f));
     }
-
     for (int i = 0; i < state_size; i++) {
         src_data2[i] = PrecisionUtils::f32tof16(( ((float)(rand() % state_size)) / state_size * .3f));
     }

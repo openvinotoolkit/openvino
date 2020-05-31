@@ -6,12 +6,12 @@
 #include "blob_factory.hpp"
 
 TEST_F(myriadLayersTests_nightly, LSTMCellSequenceNet) {
-    size_t input_size = 512;
-    size_t state_size = 128;
-    const size_t seq_size = 2;
-    const size_t batch_size = 4;
+    size_t input_size = 2048;
+    size_t state_size = 2048;
+    const size_t seq_size = 1;
+    const size_t batch_size = 16;
     
-    int output_num = 2; 
+    int output_num = 3;
 
     size_t num_weights = ngates * state_size * (input_size + state_size);
     size_t num_bias = ngates * state_size;
@@ -80,13 +80,7 @@ TEST_F(myriadLayersTests_nightly, LSTMCellSequenceNet) {
     if (output_num == 2)
         full_network = ie.ReadNetwork(tensorIteratorModel_3, weightsBlob_for_net);
     if (output_num == 3)
-        full_network = ie.ReadNetwork(tensorIteratorModel_3, weightsBlob_for_net);
-
-    // full_network.addOutput("lstm_fused_cell/BlockLSTM/TensorIterator", 0);
-    // if (output_num > 1)
-    //     full_network.addOutput("lstm_fused_cell/BlockLSTM/TensorIterator", 1);
-    // if (output_num > 2)
-    //     full_network.addOutput("lstm_fused_cell/BlockLSTM/TensorIterator", 2);
+        full_network = ie.ReadNetwork(tensorIteratorModel_42, weightsBlob_for_net);
 
     full_network.addOutput("RNNOutput", 0);
     if (output_num > 1)

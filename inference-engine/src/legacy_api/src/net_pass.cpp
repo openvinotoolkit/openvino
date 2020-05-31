@@ -346,7 +346,7 @@ bool convertToRNNSeq(CNNLayerPtr cur, const N& net) {
     int NS = (cell->cellType == RNNSequenceLayer::LSTM) ? 2 : 1;  // number of states
 
     IE_ASSERT(cell->insData.size() == NS + 1);  // {data, state1, [state2]}
-    IE_ASSERT(cell->outData.size() <= NS + 1);  // {state1, [state2]}
+    IE_ASSERT(cell->outData.size() == NS);      // {state1, [state2]}
 
     if (cell->insData[0].lock()->getCreatorLayer().lock() != rsp1 ||
         cell->outData[0]->getInputTo().begin()->second != rsp2)

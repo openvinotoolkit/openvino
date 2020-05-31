@@ -61,6 +61,7 @@ private:
     void initialCheckImpl() const override {
         IE_ASSERT(numInputs() == 5);
         IE_ASSERT(numOutputs() > 0);
+        IE_ASSERT(numOutputs() < 4);
         assertAllInputsOutputsTypes(this, DataType::FP16, DataType::FP16);
     }
 
@@ -68,7 +69,7 @@ private:
         const auto RNNForward = attrs().get<bool>("RNNForward");
         const auto nCells     = attrs().get<int>("nCells");
         const auto nBatches   = attrs().get<int>("nBatches");
-        const bool useCellState = outputEdges().size() >= 2;
+        const bool useCellState = outputEdges().size() >= 1;
         serializer.append(static_cast<int>(RNNForward));
         serializer.append(nCells);
         serializer.append(nBatches);
@@ -99,6 +100,9 @@ private:
 static void RNNRelayout(
                  const fp16_t* src,
 
+                 int out_size,
+                 int seq_size,
+
                  fp16_t* dst0,
                  fp16_t* dst1,
                  fp16_t* dst2,
@@ -111,11 +115,14 @@ static void RNNRelayout(
     for (int j = 0; j < ngates * state_size; j++) {
         for (int i = 0; i < input_size; i++) {
             dst0[(input_size) * j + i] = src[counter++];
-            dst2[(input_size) * j + i] = dst0[(input_size) * j + i];
         }
         for (int i = 0; i < state_size; i++) {
             dst1[(state_size) * j + i] = src[counter++];
         }
+    }
+    if (out_size == 3) {
+        for (int j = 0; j < state_size / seq_size; j++)
+            dst2[j] = src[counter++];
     }
 }
 
@@ -141,6 +148,8 @@ static void RNNRelayout(
 }
 
 void FrontEnd::parseRNN(const Model& model, const ie::CNNLayerPtr& _layer, const DataVector &inputs, const DataVector &outputs) const {
+    printf("\n START RNN \n\n");
+
     IE_ASSERT(inputs.size() == 3);
     IE_ASSERT(outputs.size() <= 3);
 
@@ -154,6 +163,7 @@ void FrontEnd::parseRNN(const Model& model, const ie::CNNLayerPtr& _layer, const
 
     size_t nCells = inputs[0]->desc().dim(Dim::H);
     size_t nBatches = inputs[0]->desc().dim(Dim::C);
+
     IE_ASSERT(nCells >= 1);
     IE_ASSERT(nBatches >= 1);
 
@@ -162,6 +172,20 @@ void FrontEnd::parseRNN(const Model& model, const ie::CNNLayerPtr& _layer, const
 
     size_t stateSize = outputs[0]->desc().totalDimSize() / nCells / nBatches;
     size_t cellStateSize = inputs[2]->desc().totalDimSize() / nBatches;
+
+    if (outputs.size() == 3) {
+        stateSize = outputs[2]->desc().totalDimSize() / nCells / nBatches;
+    }
+
+    size_t seq_size = inputSize / cellStateSize;
+
+    printf("\n nBatches RNN = %d \n\n", static_cast<int>(nBatches));
+    printf("\n inputSize RNN = %d \n\n", static_cast<int>(inputSize));
+    printf("\n outputs RNN = %d \n\n", static_cast<int>(outputs.size()));
+    printf("\n stateSize RNN = %d \n\n", static_cast<int>(stateSize));
+    printf("\n cellStateSize RNN = %d \n\n", static_cast<int>(cellStateSize));
+    printf("\n nCells RNN = %d \n\n", static_cast<int>(nCells));
+
     IE_ASSERT(stateSize == cellStateSize);
 
     size_t weightsSize = weights->desc().totalDimSize();
@@ -171,7 +195,7 @@ void FrontEnd::parseRNN(const Model& model, const ie::CNNLayerPtr& _layer, const
     IE_ASSERT(stateSize * ngates == biasesSize);
 
     /* weights repacking */
-    const auto generator = [&weights, stateSize, inputSize, ngates](const ie::Blob::Ptr& blob) {
+    const auto generator = [&weights, stateSize, inputSize, ngates, outputs, seq_size](const ie::Blob::Ptr& blob) {
         auto newWeightsPtr = blob->buffer().as<fp16_t*>();
 
         auto content = weights->content();
@@ -183,9 +207,12 @@ void FrontEnd::parseRNN(const Model& model, const ie::CNNLayerPtr& _layer, const
         RNNRelayout(
             origWeights,
 
+            static_cast<int>(outputs.size()),
+            static_cast<int>(seq_size),
+
             newWeightsPtr,
             newWeightsPtr + ngates * stateSize * inputSize,
-            newWeightsPtr + ngates * stateSize * (inputSize + stateSize),
+            newWeightsPtr + ngates * stateSize * (inputSize) + stateSize,
 
             ngates,
             stateSize,
@@ -195,41 +222,61 @@ void FrontEnd::parseRNN(const Model& model, const ie::CNNLayerPtr& _layer, const
     auto newWeights = model->addConstData(_layer->name + "@weights", weights->desc(), generator);
 
     auto stateCellFinal = model->addFakeData();
-    auto stage = model->addNewStage<LSTMCellStage>(
+
+    if (outputs.size() == 1) {
+        auto stage = model->addNewStage<LSTMCellStage>(
         layer->name,
         StageType::LSTMCell,
         layer,
         {inputs[0], inputs[1], inputs[2], newWeights, biases},
         {outputs[0], stateCellFinal});
 
+        if (nCells > 1)
+            model->addTempBuffer(stage, DataDesc({stateSize}));
+
+        bool RNNForward = layer->direction == ie::RNNSequenceLayer::FWD;
+        stage->attrs().set<bool>("RNNForward", RNNForward);
+        stage->attrs().set<int>("nCells", nCells);
+        stage->attrs().set<int>("nBatches", nBatches);
+    }
+
     if (outputs.size() == 2) {
-        stage = model->addNewStage<LSTMCellStage>(
+        auto stage = model->addNewStage<LSTMCellStage>(
         layer->name,
         StageType::LSTMCell,
         layer,
         {inputs[0], inputs[1], inputs[2], newWeights, biases},
         {outputs[0], outputs[1]});
+
+        if (nCells > 1)
+            model->addTempBuffer(stage, DataDesc({stateSize}));
+
+        bool RNNForward = layer->direction == ie::RNNSequenceLayer::FWD;
+        stage->attrs().set<bool>("RNNForward", RNNForward);
+        stage->attrs().set<int>("nCells", nCells);
+        stage->attrs().set<int>("nBatches", nBatches);
     }
 
     if (outputs.size() == 3) {
-        stage = model->addNewStage<LSTMCellStage>(
+        auto stage = model->addNewStage<LSTMCellStage>(
         layer->name,
         StageType::LSTMCell,
         layer,
         {inputs[0], inputs[1], inputs[2], newWeights, biases},
         {outputs[0], outputs[1], outputs[2]});
+
+        if (nCells > 1)
+            model->addTempBuffer(stage, DataDesc({stateSize}));
+
+        bool RNNForward = layer->direction == ie::RNNSequenceLayer::FWD;
+        stage->attrs().set<bool>("RNNForward", RNNForward);
+        stage->attrs().set<int>("nCells", nCells);
+        stage->attrs().set<int>("nBatches", nBatches);
     }
-
-    if (nCells > 1)
-        model->addTempBuffer(stage, DataDesc({stateSize}));
-
-    bool RNNForward = layer->direction == ie::RNNSequenceLayer::FWD;
-    stage->attrs().set<bool>("RNNForward", RNNForward);
-    stage->attrs().set<int>("nCells", nCells);
-    stage->attrs().set<int>("nBatches", nBatches);
 }
 
 void FrontEnd::parseLSTMCell(const Model& model, const ie::CNNLayerPtr& _layer, const DataVector &inputs, const DataVector &outputs) {
+    printf("\n START LSTM \n\n");
     IE_ASSERT(inputs.size() == 3);
     IE_ASSERT(outputs.size() <= 3);
 
@@ -246,16 +293,25 @@ void FrontEnd::parseLSTMCell(const Model& model, const ie::CNNLayerPtr& _layer, 
     const std::size_t nBatches = src.dim(Dim::N);
     IE_ASSERT(nBatches >= 1);
 
-    const std::size_t stateSize = outputs[0]->desc().totalDimSize() / nBatches;
+    const std::size_t stateSize = ((outputs.size() == 3)? outputs[2]->desc().totalDimSize() : outputs[0]->desc().totalDimSize()) / nBatches;
     IE_ASSERT(src.numDims() == 2);
     const std::size_t inputSize = src.dim(Dim::C);
 
     const std::size_t cellStateSize = inputs[2]->desc().totalDimSize() / nBatches;
 
     IE_ASSERT(inputSize == src.totalDimSize() / nBatches);
+
     IE_ASSERT(stateSize == cellStateSize);
 
     const std::size_t weightsSize = weights->desc().totalDimSize();
+
+    printf("\n outputs LSTM = %d \n\n", static_cast<int>(outputs.size()));
+    printf("\n nBatches LSTM = %d \n\n", static_cast<int>(nBatches));
+    printf("\n inputSize LSTM = %d \n\n", static_cast<int>(inputSize));
+    printf("\n stateSize LSTM = %d \n\n", static_cast<int>(stateSize));
+    printf("\n weightsSize LSTM = %d \n\n", static_cast<int>(weightsSize));
+    printf("\n cellStateSize LSTM = %d \n\n", static_cast<int>(cellStateSize));
+
     IE_ASSERT(stateSize * (inputSize + stateSize) * ngates == weightsSize);
 
     const auto generator = [&weights, stateSize, inputSize, ngates](const ie::Blob::Ptr& blob) {
