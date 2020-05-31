@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "low_precision_transformations/convolution_transformation.hpp"
+#include "low_precision_transformations/reshape_transformation.hpp"
 
 #include <memory>
 #include <tuple>
@@ -21,41 +21,31 @@
 
 namespace LayerTestsDefinitions {
 
-std::string ConvolutionTransformation::getTestCaseName(testing::TestParamInfo<ConvolutionTransformationParams> obj) {
+std::string ReshapeTransformation::getTestCaseName(testing::TestParamInfo<LayerTestsUtils::LayerTransformationParams> obj) {
     InferenceEngine::Precision netPrecision;
     InferenceEngine::SizeVector inputShapes;
     std::string targetDevice;
     InferenceEngine::details::LayerTransformation::Params params;
-    bool fqOnActivations;
-    bool fqOnWeights;
-    std::tie(netPrecision, inputShapes, targetDevice, params, fqOnActivations, fqOnWeights) = obj.param;
+    std::tie(netPrecision, inputShapes, targetDevice, params) = obj.param;
 
     std::ostringstream result;
-    result << netPrecision.name() << "_" << targetDevice << "_" << toString(params) <<
-        (fqOnActivations ? "" : "_noFqOnActivations") <<
-        (fqOnWeights ? "" : "_noFqOnWeights");
+    result << netPrecision.name() << "_" << targetDevice << "_" << toString(params);
     return result.str();
 }
 
-void ConvolutionTransformation::SetUp() {
-    threshold = 0.1f;
-
+void ReshapeTransformation::SetUp() {
     InferenceEngine::SizeVector inputShape;
     InferenceEngine::Precision netPrecision;
     InferenceEngine::details::LayerTransformation::Params params;
-    bool fqOnActivations;
-    bool fqOnWeights;
-    std::tie(netPrecision, inputShape, targetDevice, params, fqOnActivations, fqOnWeights) = this->GetParam();
-    auto precision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+    std::tie(netPrecision, inputShape, targetDevice, params) = this->GetParam();
+    const auto precision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
     const float k = 50.f;
 
     const auto input = std::make_shared<ngraph::opset1::Parameter>(precision, ngraph::Shape(inputShape));
-    const auto fakeQuantizeOnActivations = fqOnActivations ?
-        ngraph::builder::makeFakeQuantize(
-            input, precision, 256ul, { 1ul },
-            { 0.f }, { 255.f / k }, { 0.f }, { 255.f / k }) :
-        nullptr;
+    const auto fakeQuantizeOnActivations = ngraph::builder::makeFakeQuantize(
+        input, precision, 256ul, { 1ul },
+        { 0.f }, { 255.f / k }, { 0.f }, { 255.f / k });
 
     const auto weights = ngraph::opset1::Constant::create(
         precision,
@@ -64,29 +54,23 @@ void ConvolutionTransformation::SetUp() {
 
     const auto convolution = std::make_shared<ngraph::opset1::Convolution>(
         fakeQuantizeOnActivations == nullptr ? input : fakeQuantizeOnActivations,
-        fqOnWeights ?
-            ngraph::builder::makeFakeQuantize(
-                weights, precision, 256ul, { 1ul },
-                { -128.f / k }, { 127.f / k }, { -128.f / k }, { 127.f / k }) :
-            weights->output(0),
+        ngraph::builder::makeFakeQuantize(weights, precision, 256ul, { 1ul }, { -128.f / k }, { 127.f / k }, { -128.f / k }, { 127.f / k }),
         ngraph::Strides{ 1, 1 },
         ngraph::CoordinateDiff{ 0, 0 },
         ngraph::CoordinateDiff{ 0, 0 },
         ngraph::Strides{ 1, 1 });
 
     ngraph::ResultVector results {std::make_shared<ngraph::opset1::Result>(convolution)};
-    function = std::make_shared<ngraph::Function>(results, ngraph::ParameterVector { input }, "ConvolutionTransformation");
+    function = std::make_shared<ngraph::Function>(results, ngraph::ParameterVector { input }, "ReshapeTransformation");
 
     validate();
 }
 
-void ConvolutionTransformation::validate() {
+void ReshapeTransformation::validate() {
     InferenceEngine::SizeVector inputShape;
     InferenceEngine::Precision netPrecision;
     InferenceEngine::details::LayerTransformation::Params params;
-    bool fqOnActivations;
-    bool fqOnWeights;
-    std::tie(netPrecision, inputShape, targetDevice, params, fqOnActivations, fqOnWeights) = this->GetParam();
+    std::tie(netPrecision, inputShape, targetDevice, params) = this->GetParam();
 
     const InferenceEngine::CNNNetwork network = transform(params);
 
@@ -98,24 +82,22 @@ void ConvolutionTransformation::validate() {
     std::map<std::string, InferenceEngine::DataPtr>::iterator it = outputs.begin();
     const InferenceEngine::CNNLayerPtr outputLayer = it->second->getCreatorLayer().lock();
     EXPECT_TRUE(outputLayer != nullptr);
-    EXPECT_EQ(fqOnActivations & fqOnWeights ? "ScaleShift" : "Convolution", outputLayer->type);
+    EXPECT_EQ("ScaleShift", outputLayer->type);
 
-    if (fqOnActivations & fqOnWeights) {
-        const InferenceEngine::CNNLayerPtr layer = InferenceEngine::details::CNNNetworkHelper::getParent(*outputLayer);
-        if (params.updatePrecisions) {
-            checkPrecisions(
-                *layer,
-                { { InferenceEngine::Precision::U8 }, { InferenceEngine::Precision::I8 } },
-                { getDeviceInternalPrecision(netPrecision) });
-        } else {
-            checkPrecisions(*layer, netPrecision);
-        }
+    const InferenceEngine::CNNLayerPtr layer = InferenceEngine::details::CNNNetworkHelper::getParent(*outputLayer);
+    if (params.updatePrecisions) {
+        checkPrecisions(
+            *layer,
+            { { InferenceEngine::Precision::U8 }, { InferenceEngine::Precision::I8 } },
+            { getDeviceInternalPrecision(netPrecision) });
+    } else {
+        checkPrecisions(*layer, netPrecision);
     }
 
     IE_SUPPRESS_DEPRECATED_END
 }
 
-TEST_P(ConvolutionTransformation, CompareWithRefImpl) {
+TEST_P(ReshapeTransformation, CompareWithRefImpl) {
     Run();
 
     if (targetDevice == std::string{CommonTestUtils::DEVICE_GPU}) {

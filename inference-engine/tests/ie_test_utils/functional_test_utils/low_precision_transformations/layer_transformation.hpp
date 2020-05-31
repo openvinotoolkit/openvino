@@ -6,6 +6,7 @@
 
 #include "functional_test_utils/layer_test_utils.hpp"
 #include "low_precision_transformations/transformer.hpp"
+#include "low_precision_transformations/network_helper.hpp"
 
 #include "ie_util_internal.hpp"
 #include "low_precision_transformations/convolution.hpp"
@@ -27,8 +28,15 @@ public:
     static InferenceEngine::details::LayerTransformation::Params createParams();
 };
 
+IE_SUPPRESS_DEPRECATED_START
+
 class LayerTransformation : public LayerTestsUtils::LayerTestsCommon {
 protected:
+    static InferenceEngine::Blob::Ptr GenerateInput(
+        const InferenceEngine::Precision precision,
+        const InferenceEngine::TensorDesc& tensorDesc,
+        const float k = 1.f);
+
     InferenceEngine::details::LowPrecisionTransformations getLowPrecisionTransformations(
         const InferenceEngine::details::LayerTransformation::Params& params) const;
 
@@ -39,9 +47,20 @@ protected:
 
     InferenceEngine::CNNNetwork transform(const InferenceEngine::details::LowPrecisionTransformations& transformations);
 
-    static void checkParentPrecision(const InferenceEngine::CNNLayerPtr& layer, const bool lowPrecision);
+    static void checkPrecisions(const InferenceEngine::CNNLayer& layer, const InferenceEngine::Precision& expectedPrecision);
+
+    static void checkPrecisions(
+        const InferenceEngine::CNNLayer& layer,
+        const std::vector<std::vector<InferenceEngine::Precision>>& expectedInputPrecisions,
+        const std::vector<InferenceEngine::Precision>& expectedOutputPrecisions);
+
+    static std::pair<float, float> getQuantizationInterval(const InferenceEngine::Precision precision);
 
     static std::string toString(const InferenceEngine::details::LayerTransformation::Params& params);
+
+    static InferenceEngine::Precision getDeviceInternalPrecision(const InferenceEngine::Precision precision);
 };
+
+IE_SUPPRESS_DEPRECATED_END
 
 }  // namespace LayerTestsUtils
