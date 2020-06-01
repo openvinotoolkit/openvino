@@ -332,7 +332,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         res->params = params;
         return res;
     });
-
+    
     addSpecificCreator({"Assign"}, [](const std::shared_ptr<::ngraph::Node>& node,
                                             const std::map<std::string, std::string> params) -> CNNLayerPtr {
         LayerParams attrs = {node->get_friendly_name(), "Memory",
@@ -352,6 +352,24 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         res->params["id"] = params.at("variable_id");
         res->params["index"] = "1";
         res->params["size"] = "2";
+        return res;
+    });
+
+    addSpecificCreator({"DepthToSpace"}, [](const std::shared_ptr<::ngraph::Node>& node,
+                                            const std::map<std::string, std::string> params) -> CNNLayerPtr {
+        LayerParams attrs = {node->get_friendly_name(), node->description(),
+                             details::convertPrecision(node->get_output_element_type(0))};
+        auto res = std::make_shared<DepthToSpaceLayer>(attrs);
+        res->params = params;
+        return res;
+    });
+
+    addSpecificCreator({"SpaceToDepth"}, [](const std::shared_ptr<::ngraph::Node>& node,
+                                            const std::map<std::string, std::string> params) -> CNNLayerPtr {
+        LayerParams attrs = {node->get_friendly_name(), node->description(),
+                             details::convertPrecision(node->get_output_element_type(0))};
+        auto res = std::make_shared<SpaceToDepthLayer>(attrs);
+        res->params = params;
         return res;
     });
 
