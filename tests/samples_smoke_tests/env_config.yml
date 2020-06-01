@@ -1,0 +1,6 @@
+out_directory: ${WORKSPACE}/out
+public_models: ${SHARE}/models/public/
+icv_model_zoo_models: ${SHARE}/models/omz_models/
+test_data: ${SHARE}/validation_set/
+#Performance data:
+perf_result_path: ${SHARE}/validation_set/performance_result/

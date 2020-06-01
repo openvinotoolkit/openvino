@@ -53,6 +53,7 @@ jobs:
     SETUPVARS: $(INSTALL_DIR)\setupvars.bat
     IB_DIR: C:\Program Files (x86)\IncrediBuild
     IB_TESTCONSOLE: $(IB_DIR)\IBTestConsole.exe
+    PYTHON_DIR: C:\hostedtoolcache\windows\Python\3.7.6\x64
 
   steps:
   - script: |
@@ -181,9 +182,29 @@ jobs:
     condition: eq(variables['CMAKE_BUILD_SHARED_LIBS'], 'ON')
 
   - script: |
-      set PATH=$(IB_DIR);%PATH%
-      call $(SETUPVARS) && "$(IB_TESTCONSOLE)" $(INSTALL_TEST_DIR)\InferenceEngineUnitTests.exe --gtest_output=xml:TEST-InferenceEngineUnitTests-IB.xml
-    displayName: 'IE UT old - IB'
+      powershell -command "Invoke-WebRequest  -Uri  https://storage.openvinotoolkit.org/repositories/openvino/ci_dependencies/test/samples_smoke_tests_data.zip -OutFile  $(REPO_DIR)\tests\samples_smoke_tests\samples_smoke_tests_data.zip"
+      powershell -command "Expand-Archive -Force -Path $(REPO_DIR)\tests\samples_smoke_tests\samples_smoke_tests_data.zip $(REPO_DIR)\tests\samples_smoke_tests"
+      python3 -m pip install -r $(REPO_DIR)/tests/samples_smoke_tests/requirements.txt
+    workingDirectory: $(REPO_DIR)
+    displayName: 'Install  dependencies for samples smoke tests'
+    continueOnError: false
+
+  - script: |
+      set IE_APP_PATH=$(BIN_DIR)
+      set IE_APP_PYTHON_PATH=$(REPO_DIR)\inference-engine\ie_bridges\python\sample\
+      set PYTHONPATH=$(REPO_DIR)\tests\samples_smoke_tests\;$(BIN_DIR)\$(BUILD_TYPE)\python_api\python3.7\;$(REPO_DIR)\ngraph\python\src\
+      set PATH=$(REPO_DIR)\inference-engine\temp\tbb\bin;$(REPO_DIR)\inference-engine\temp\opencv_4.5.2\opencv\bin;$(BIN_DIR);$(BIN_DIR)\$(BUILD_TYPE);$(REPO_DIR)\inference-engine\temp\gna_02.00.00.1226\win64\x64;%PATH%
+      set SHARE=$(REPO_DIR)\tests\samples_smoke_tests\samples_smoke_tests_data\
+      set WORKSPACE=$(REPO_DIR)
+      set IE_APP_PYTHON_TOOL_PATH=$(REPO_DIR)\inference-engine\tools\
+
+      python -m pytest $(REPO_DIR)\tests\samples_smoke_tests\  --env_conf $(REPO_DIR)\tests\samples_smoke_tests\env_config.yml -s --junitxml=TEST-SamplesSmokeTests.xml
+    workingDirectory: $(REPO_DIR)
+    displayName: 'Samples Smoke Tests'
+    continueOnError: false
+
+  - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\InferenceEngineUnitTests.exe --gtest_output=xml:TEST-InferenceEngineUnitTests.xml
+    displayName: 'IE UT old'
     continueOnError: false
 
   - script: call $(SETUPVARS) && $(INSTALL_TEST_DIR)\ieUnitTests --gtest_output=xml:TEST-ieUnitTests.xml
