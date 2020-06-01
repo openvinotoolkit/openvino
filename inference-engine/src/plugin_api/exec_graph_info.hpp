@@ -63,4 +63,29 @@ static const char EXECUTION_ORDER[] = "execOrder";
  */
 static const char LAYER_TYPE[] = "layerType";
 
+class INFERENCE_ENGINE_API_CLASS(ExecutionNode) : public ngraph::Node {
+public:
+    static constexpr ngraph::NodeTypeInfo type_info { "ExecutionNode", 0 };
+    const ngraph::NodeTypeInfo& get_type_info() const override;
+
+    ExecutionNode() = default;
+
+    ExecutionNode(const ngraph::OutputVector& arguments, size_t output_size = 1) :
+        Node(arguments, output_size) { }
+
+    std::shared_ptr<ngraph::Node> clone_with_new_inputs(const ngraph::OutputVector& inputs) const override {
+        auto cloned = std::make_shared<ExecutionNode>();
+
+        cloned->set_arguments(inputs);
+
+        for (auto kvp : get_rt_info())
+            cloned->get_rt_info()[kvp.first] = kvp.second;
+
+        for (size_t i = 0; i < get_output_size(); ++i)
+            cloned->set_output_type(i, get_output_element_type(i), get_output_partial_shape(i));
+
+        return cloned;
+    }
+};
+
 }  // namespace ExecGraphInfoSerialization

@@ -95,18 +95,15 @@ std::shared_ptr<ICNNNetwork> dump_graph_as_ie_ngraph_net(const MKLDNNGraph &grap
             results.emplace_back(std::make_shared<ngraph::op::Result>(get_inputs(node).back()));
             return_node = results.back();
         } else {
-            auto &cfg = node->getSelectedPrimitiveDescriptor()->getConfig();
-            size_t output_size = cfg.outConfs.size();
+            return_node = std::make_shared<ExecGraphInfoSerialization::ExecutionNode>(
+                get_inputs(node), node->getSelectedPrimitiveDescriptor()->getConfig().outConfs.size());
 
-            std::vector<ngraph::op::GenericIE::PortIE> ports(output_size);
-            for (size_t port = 0; port < output_size; ++port) {
+            for (size_t port = 0; port < return_node->get_output_size(); ++port) {
                 auto desc = node->getChildEdgeAt(port)->getDesc();
-                ports[port] = { desc.getPrecision(), desc.getDims() };
+                return_node->set_output_type(port,
+                    details::convertPrecision(desc.getPrecision()),
+                    ngraph::PartialShape(desc.getDims()));
             }
-
-            return_node = std::make_shared<ngraph::op::GenericIE>(
-                get_inputs(node), std::map<std::string, Parameter>{},
-                meta_data[ExecGraphInfoSerialization::LAYER_TYPE], ports);
         }
 
         for (auto && kvp : meta_data)
