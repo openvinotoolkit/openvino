@@ -304,19 +304,6 @@ void RemoveLayer(CNNLayerPtr& layer) {
 /****  Converter Passes  ************************************/
 /************************************************************/
 
-static RNNSequenceLayer::CellType cell_type_from_name(std::string& layer_type) {
-    RNNSequenceLayer::CellType res;
-    if (layer_type == "LSTMCell")
-        res = RNNSequenceLayer::LSTM;
-    else if (layer_type == "GRUCell")
-        res = RNNSequenceLayer::GRU;
-    else if (layer_type == "RNNCell")
-        res = RNNSequenceLayer::RNN;
-    else
-        THROW_IE_EXCEPTION << "Unknown Cell type (" << layer_type << "). Expected LSTMCell|GRUCell|RNNCell";
-    return res;
-}
-
 static std::string cell_name(RNNSequenceLayer::CellType type) {
     std::string res;
     switch (type) {
@@ -356,11 +343,10 @@ bool convertToRNNSeq(CNNLayerPtr cur, const N& net) {
     IE_ASSERT(cell);
     IE_ASSERT(rsp2);
 
-    // mb smth in here should be changed
     int NS = (cell->cellType == RNNSequenceLayer::LSTM) ? 2 : 1;  // number of states
 
-    IE_ASSERT(cell->insData.size() == NS + 1);      // {data, state1, [state2]}
-    IE_ASSERT(cell->outData.size() == NS);          // {state1, [state2]}
+    IE_ASSERT(cell->insData.size() == NS + 1);  // {data, state1, [state2]}
+    IE_ASSERT(cell->outData.size() == NS);      // {state1, [state2]}
 
     if (cell->insData[0].lock()->getCreatorLayer().lock() != rsp1 ||
         cell->outData[0]->getInputTo().begin()->second != rsp2)
@@ -379,16 +365,10 @@ bool convertToRNNSeq(CNNLayerPtr cur, const N& net) {
     int out_dt_idx = _indx_in(ti->body.outputs, rsp2->outData[0]);
     int out_hs_idx = _indx_in(ti->body.outputs, cell->outData[0]);
     int out_cs_idx = NS == 2 ? _indx_in(ti->body.outputs, cell->outData[1]) : -1;
-    int out_lhs_idx = 0;
-
-    if (ti->body.outputs.size() == 3) {
-        printf("\n ti->body.outputs.size()  = %d \n", static_cast<int>(ti->body.outputs.size()));
-        out_lhs_idx = _indx_in(ti->body.outputs, cell->outData[0]);
-    }
 
     // indexes should be [0,1,2] : sum == 3 or [0,1,-1] : sum == 0
     int sum = (NS - 1) * 3;
-    if (in_hs_idx + in_cs_idx + in_dt_idx != sum || out_hs_idx + out_cs_idx + out_lhs_idx + out_dt_idx != sum) return false;
+    if (in_hs_idx + in_cs_idx + in_dt_idx != sum || out_hs_idx + out_cs_idx + out_dt_idx != sum) return false;
 
     std::map<int, TensorIterator::PortMap> i2map, o2map, be2map;
     for (auto& m : ti->input_port_map) i2map[m.to] = m;
@@ -455,7 +435,6 @@ bool convertToRNNSeq(CNNLayerPtr cur, const N& net) {
         rnn->insData.push_back(in_data);
     }
     for (int i : o_order) {
-        printf("\n o_order : %d \n", i);
         rnn->outData.push_back(ti->outData[i]);
         rnn->outData.back()->getCreatorLayer() = rnn;
     }
@@ -465,7 +444,6 @@ bool convertToRNNSeq(CNNLayerPtr cur, const N& net) {
 
 bool unrollTI(CNNLayerPtr cur, ICNNNetwork& net) {
     if (cur->type != "TensorIterator") return true;
-    printf("\n unrollTI \n");
 
     auto ti = std::dynamic_pointer_cast<TensorIterator>(cur);
     IE_ASSERT(ti) << "Cannot cast object with type TensorIterator to TensorIterator object";
@@ -476,7 +454,6 @@ bool unrollTI(CNNLayerPtr cur, ICNNNetwork& net) {
     const auto& body = ti->body;
 
     std::vector<TensorIterator::Body> body_list(num);
-    printf("\n num = %d \n", num);
     for (int i = 0; i < num; i++) {
         // copy with additional suffix to each object name
         body_list[i] = CopyTIBody(body, ":" + std::to_string(i));
@@ -787,20 +764,6 @@ static void _link_with_clip(CNNLayerPtr src, CNNLayerPtr dst, const float clip_v
         _link(clip, dst, 0, dst_port);
     }
 }
-
-static Blob::Ptr make_partial_copy(Blob::Ptr src, size_t off, size_t size) {
-    auto res = make_plain_blob(src->getTensorDesc().getPrecision(), {size});
-    res->allocate();
-
-    size_t elem_size = src->getTensorDesc().getPrecision().size();
-    auto src_ptr = src->buffer().as<uint8_t*>();
-    auto dst_ptr = res->buffer().as<uint8_t*>();
-
-    ie_memcpy(dst_ptr, res->byteSize(), src_ptr + off * elem_size, size * elem_size);
-
-    return res;
-}
-
 static Blob::Ptr wrap_as_tensor(Blob::Ptr src, SizeVector dims) {
     auto res = make_blob_with_precision(
         TensorDesc {src->getTensorDesc().getPrecision(), dims, TensorDesc::getLayoutByDims(dims)}, src->buffer());
@@ -859,12 +822,6 @@ static bool unrollRNNCellBody(CNNLayerPtr cur) {
     auto in_data = cell->insData[0].lock();
     auto in_h_state = cell->insData[1].lock();
     auto out_h_state = cell->outData[0];
-    auto out_c_state = cell->outData[0];
-    auto out_l_h_state = cell->outData[0];
-    if (cell->outData.size() == 2)
-        out_c_state = cell->outData[1];
-    if (cell->outData.size() == 3)
-        out_l_h_state = cell->outData[2];
 
     auto d_dims = in_data->getTensorDesc().getDims();
     auto s_dims = in_h_state->getTensorDesc().getDims();
@@ -893,14 +850,6 @@ static bool unrollRNNCellBody(CNNLayerPtr cur) {
     // Output
     act->outData[0] = out_h_state;
     out_h_state->getCreatorLayer() = act;
-    if (cell->outData.size() == 2) {
-        act->outData[0] = out_c_state;
-        out_c_state->getCreatorLayer() = act;
-    }
-    if (cell->outData.size() == 3) {
-        act->outData[0] = out_l_h_state;
-        out_l_h_state->getCreatorLayer() = act;
-    }
 
     return true;
 }
