@@ -141,6 +141,75 @@ bool memory_pool::has_conflict(const memory_set& a,
     return !intersection.empty();
 }
 
+void memory_pool::release_memory(memory_impl* mem,
+    const primitive_id& id) {
+    // check nonpadded pool first
+    auto _layout = mem->get_layout();
+    auto type = mem->get_allocation_type();
+    auto network_id = mem->get_net_id();
+
+    {
+        auto range = _non_padded_pool.equal_range(_layout.bytes_count());
+        auto it = range.first;
+
+        while (it != range.second && it != _non_padded_pool.end()) {
+            if (it->second._network_id == network_id &&
+                it->second._type == type &&
+                it->second._memory.get() == mem) {
+                auto user_it = it->second._users.find({ id, network_id });
+
+                // normally there should be only one entry
+                if (user_it != it->second._users.end()) {
+                    user_it = it->second._users.erase(user_it);
+                }
+                if (it->second._users.empty()) {
+                    // if this was the only user of the memory, then free it up
+                    it = _non_padded_pool.erase(it);
+                }
+
+                //entry found and processed - so return
+                return;
+            } else {
+                ++it;
+            }
+        }
+    }
+    {
+        auto itr = _padded_pool.find(_layout);
+
+        if (itr != _padded_pool.end()) {
+            auto& list = itr->second;
+            auto list_itr = list.begin();
+
+            while (list_itr != list.end()) {
+                if (list_itr->_memory.get() == mem &&
+                    list_itr->_network_id == network_id &&
+                    list_itr->_type == type) {
+                    auto user_it = list_itr->_users.find({ id, network_id });
+
+                    // normally there should be only one entry
+                    if (user_it != list_itr->_users.end()) {
+                        user_it = list_itr->_users.erase(user_it);
+                    }
+                    if (list_itr->_users.empty()) {
+                        // if this was the only user of the memory, then free it up
+                        list.erase(list_itr);
+                    }
+
+                    //entry found and processed - so return
+                    break;
+                } else {
+                    list_itr++;
+                }
+            }
+
+            if (list.empty()) {
+                _padded_pool.erase(itr);
+            }
+        }
+    }
+}
+
 memory_impl::ptr memory_pool::get_from_non_padded_pool(const layout& layout,
                                                        const primitive_id& id,
                                                        uint32_t network_id,
