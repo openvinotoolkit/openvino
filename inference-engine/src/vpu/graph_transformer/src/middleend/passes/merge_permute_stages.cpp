@@ -177,7 +177,7 @@ void PassImpl::run(const Model& model) {
         if (!outputLayout.empty())
             firstPermuteStage->attrs().set(outputOrderKey, outputLayout);
 
-        // if we have no actual permutation, replace it with copy.
+        // if we have no actual permutation, replace it with copy or reshape.
         if (isTrivialPermute(resultPermutation, firstPermuteStage->input(0)->desc().dims())) {
             auto permuteInput  = firstPermuteStage->input(0);
             auto permuteOutput = firstPermuteStage->output(0);
@@ -186,7 +186,15 @@ void PassImpl::run(const Model& model) {
                 auto origLayer     = firstPermuteStage->origLayer();
                 model->removeStage(firstPermuteStage);
 
-                auto reshapeStage = _stageBuilder->addReshapeStage(model, "name", origLayer, permuteInput, permuteOutput);
+                if (permuteInput->desc().dims() == permuteOutput->desc().dims()) {
+                    auto copyStage = _stageBuilder->addCopyStage(model, stageName + "@merged-to-copy",
+                                                origLayer, permuteInput, permuteOutput, "Eliminated permute");
+                     // TODO: make this optional=true with corresponding fixes in eliminate_copy (it expects Special stages now).
+                    copyStage->attrs().set("optional", false);
+                } else {
+                    _stageBuilder->addReshapeStage(model, stageName + "@merged-to-reshape", origLayer,
+                                                    permuteInput, permuteOutput);
+                }
             }
         }
     }
