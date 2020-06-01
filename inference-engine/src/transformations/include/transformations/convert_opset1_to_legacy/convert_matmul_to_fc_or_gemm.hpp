@@ -11,14 +11,14 @@
 #include <sstream>
 #include <vector>
 
-#include <ie_api.h>
+#include <transformations_visibility.hpp>
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
 namespace ngraph {
 namespace pass {
 
-class INFERENCE_ENGINE_API_CLASS(ConvertMatMulToFCorGemm);
+class TRANSFORMATIONS_API ConvertMatMulToFCorGemm;
 
 }  // namespace pass
 }  // namespace ngraph
