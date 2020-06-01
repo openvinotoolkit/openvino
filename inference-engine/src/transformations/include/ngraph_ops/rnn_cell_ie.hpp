@@ -8,14 +8,14 @@
 #include <string>
 #include <vector>
 
-#include <ie_api.h>
+#include <transformations_visibility.hpp>
 
 #include "ngraph/op/op.hpp"
 
 namespace ngraph {
 namespace op {
 
-class INFERENCE_ENGINE_API_CLASS(RNNCellIE) : public Op {
+class TRANSFORMATIONS_API RNNCellIE : public Op {
 public:
     RNNCellIE(const Output<Node> &X,
               const Output<Node> &H_t,
@@ -41,6 +41,7 @@ public:
     const std::vector<float>& get_activations_beta() { return m_activations_beta; }
     float get_clip() {return m_clip;}
     bool visit_attributes(AttributeVisitor& visitor) override;
+
 protected:
     int64_t m_hidden_size{};
 

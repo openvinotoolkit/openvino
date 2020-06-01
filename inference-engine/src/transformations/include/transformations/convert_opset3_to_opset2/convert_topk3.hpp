@@ -7,7 +7,7 @@
 #include <vector>
 #include <memory>
 
-#include <ie_api.h>
+#include <transformations_visibility.hpp>
 
 #include <ngraph/pass/graph_rewrite.hpp>
 #include "transformations/utils/pass_param.hpp"
@@ -15,7 +15,7 @@
 namespace ngraph {
 namespace pass {
 
-    class INFERENCE_ENGINE_API_CLASS(ConvertTopK3);
+class TRANSFORMATIONS_API ConvertTopK3;
 
 }  // namespace pass
 }  // namespace ngraph

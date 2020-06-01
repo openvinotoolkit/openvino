@@ -8,14 +8,14 @@
 #include <string>
 #include <vector>
 
-#include <ie_api.h>
+#include <transformations_visibility.hpp>
 
 #include "ngraph/op/op.hpp"
 
 namespace ngraph {
 namespace op {
 
-class INFERENCE_ENGINE_API_CLASS(LSTMCellIE) : public Op {
+class TRANSFORMATIONS_API LSTMCellIE : public Op {
 public:
     LSTMCellIE(const Output<Node> &X,
                 const Output<Node> &H_t,

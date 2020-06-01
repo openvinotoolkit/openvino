@@ -10,7 +10,7 @@
 
 #include <ngraph/node.hpp>
 #include <ngraph/variant.hpp>
-#include <ie_api.h>
+#include <transformations_visibility.hpp>
 
 
 namespace ngraph {
@@ -21,7 +21,7 @@ namespace ngraph {
  *     all operation names that was fully or partially fused into node
  */
 
-class INFERENCE_ENGINE_API_CLASS(FusedNames) {
+class TRANSFORMATIONS_API FusedNames {
 private:
     std::set<std::string> fused_names;
 
@@ -43,7 +43,7 @@ public:
 };
 
 template<>
-class INFERENCE_ENGINE_API_CLASS(VariantWrapper<FusedNames>) : public VariantImpl<FusedNames> {
+class TRANSFORMATIONS_API VariantWrapper<FusedNames> : public VariantImpl<FusedNames> {
 public:
     static constexpr VariantTypeInfo type_info{"Variant::RuntimeAttribute::FusedNames", 0};
 
@@ -58,8 +58,8 @@ public:
     std::shared_ptr<ngraph::Variant> init(const std::shared_ptr<ngraph::Node> & node) override;
 };
 
-INFERENCE_ENGINE_API_CPP(std::string) getFusedNames(const std::shared_ptr<ngraph::Node> & node);
+TRANSFORMATIONS_API std::string getFusedNames(const std::shared_ptr<ngraph::Node> & node);
 
-INFERENCE_ENGINE_API_CPP(std::vector<std::string>) getFusedNamesVector(const std::shared_ptr<ngraph::Node> & node);
+TRANSFORMATIONS_API std::vector<std::string> getFusedNamesVector(const std::shared_ptr<ngraph::Node> & node);
 
 }  // namespace ngraph

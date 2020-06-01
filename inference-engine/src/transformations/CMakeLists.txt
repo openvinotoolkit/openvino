@@ -23,14 +23,9 @@ source_group("include" FILES ${PUBLIC_HEADERS})
 
 add_library(${TARGET_NAME} SHARED ${LIBRARY_SRC} ${PUBLIC_HEADERS})
 
-target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_INFERENCE_ENGINE_API)
-
 target_link_libraries(${TARGET_NAME} PUBLIC ${NGRAPH_LIBRARIES})
 
 target_include_directories(${TARGET_NAME} PUBLIC ${PUBLIC_HEADERS_DIR})
-
-# TODO: get rid of this dependency
-target_include_directories(${TARGET_NAME} PUBLIC ${IE_MAIN_SOURCE_DIR}/include)
 
 add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
 

@@ -7,14 +7,14 @@
 #include <vector>
 #include <memory>
 
-#include <ie_api.h>
+#include <transformations_visibility.hpp>
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
 namespace ngraph {
 namespace pass {
 
-    class INFERENCE_ENGINE_API_CLASS(ConvertShuffleChannels3);
+class TRANSFORMATIONS_API ConvertShuffleChannels3;
 
 }  // namespace pass
 }  // namespace ngraph

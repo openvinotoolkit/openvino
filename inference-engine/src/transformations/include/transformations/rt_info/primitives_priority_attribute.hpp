@@ -10,11 +10,11 @@
 
 #include <ngraph/node.hpp>
 #include <ngraph/variant.hpp>
-#include <ie_api.h>
+#include <transformations_visibility.hpp>
 
 namespace ngraph {
 
-class INFERENCE_ENGINE_API_CLASS(PrimitivesPriority) {
+class TRANSFORMATIONS_API PrimitivesPriority {
 private:
     std::string primitives_priority;
 
@@ -27,7 +27,7 @@ public:
 };
 
 template<>
-class INFERENCE_ENGINE_API_CLASS(VariantWrapper<PrimitivesPriority>) : public VariantImpl<PrimitivesPriority> {
+class TRANSFORMATIONS_API VariantWrapper<PrimitivesPriority> : public VariantImpl<PrimitivesPriority> {
 public:
     static constexpr VariantTypeInfo type_info{"Variant::RuntimeAttribute::PrimitivesPriority", 0};
 
@@ -42,6 +42,6 @@ public:
     std::shared_ptr<ngraph::Variant> init(const std::shared_ptr<ngraph::Node> & node) override;
 };
 
-INFERENCE_ENGINE_API_CPP(std::string) getPrimitivesPriority(const std::shared_ptr<ngraph::Node> & node);
+TRANSFORMATIONS_API std::string getPrimitivesPriority(const std::shared_ptr<ngraph::Node> & node);
 
 }  // namespace ngraph

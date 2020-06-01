@@ -5,14 +5,14 @@
 #pragma once
 
 #include <memory>
-#include <ie_api.h>
+#include <transformations_visibility.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
 #include "transformations/utils/pass_param.hpp"
 
 namespace ngraph {
 namespace pass {
 
-class INFERENCE_ENGINE_API_CLASS(ConvertOpSet2ToOpSet1);
+class TRANSFORMATIONS_API ConvertOpSet2ToOpSet1;
 
 }  // namespace pass
 }  // namespace ngraph

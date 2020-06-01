@@ -5,13 +5,13 @@
 #pragma once
 
 #include <memory>
-#include <ie_api.h>
+#include <transformations_visibility.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
 
 namespace ngraph {
 namespace pass {
 
-class INFERENCE_ENGINE_API_CLASS(PassParam);
+class TRANSFORMATIONS_API PassParam;
 
 }  // namespace pass
 }  // namespace ngraph

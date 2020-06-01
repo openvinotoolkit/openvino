@@ -7,7 +7,7 @@
 #include <memory>
 #include <vector>
 
-#include <ie_api.h>
+#include <transformations_visibility.hpp>
 
 #include "ngraph/node.hpp"
 #include "ngraph/op/op.hpp"
@@ -16,7 +16,7 @@
 namespace ngraph {
 namespace op {
 
-class INFERENCE_ENGINE_API_CLASS(OneHotIE) : public Op {
+class TRANSFORMATIONS_API OneHotIE : public Op {
 public:
     static constexpr NodeTypeInfo type_info{"OneHotIE", 1};
     const NodeTypeInfo& get_type_info() const override { return type_info; }

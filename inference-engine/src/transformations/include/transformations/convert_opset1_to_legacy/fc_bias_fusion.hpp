@@ -7,7 +7,7 @@
 #include <functional>
 #include <memory>
 
-#include <ie_api.h>
+#include <transformations_visibility.hpp>
 
 #include <ngraph_ops/fully_connected.hpp>
 #include <ngraph/builder/make_constant.hpp>
@@ -26,7 +26,7 @@
 namespace ngraph {
 namespace pass {
 
-class INFERENCE_ENGINE_API_CLASS(FullyConnectedBiasFusion);
+class TRANSFORMATIONS_API FullyConnectedBiasFusion;
 
 }  // namespace pass
 }  // namespace ngraph
