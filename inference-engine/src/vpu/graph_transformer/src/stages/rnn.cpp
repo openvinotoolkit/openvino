@@ -119,8 +119,6 @@ static void RNNRelayout(
 }
 
 void FrontEnd::parseRNN(const Model& model, const ie::CNNLayerPtr& _layer, const DataVector &inputs, const DataVector &outputs) const {
-    printf("\n START RNN \n\n");
-
     IE_ASSERT(inputs.size() == 3);
     IE_ASSERT(outputs.size() <= 3);
 
@@ -135,6 +133,11 @@ void FrontEnd::parseRNN(const Model& model, const ie::CNNLayerPtr& _layer, const
     size_t nCells = inputs[0]->desc().dim(Dim::H);
     size_t nBatches = inputs[0]->desc().dim(Dim::C);
 
+    if (outputs.size() == 3) {
+        nCells = inputs[0]->desc().dim(Dim::C);
+        nBatches = inputs[0]->desc().dim(Dim::H);
+    }
+
     IE_ASSERT(nCells >= 1);
     IE_ASSERT(nBatches >= 1);
 
@@ -143,17 +146,6 @@ void FrontEnd::parseRNN(const Model& model, const ie::CNNLayerPtr& _layer, const
 
     size_t stateSize = outputs[0]->desc().totalDimSize() / nCells / nBatches;
     size_t cellStateSize = inputs[2]->desc().totalDimSize() / nBatches;
-
-    if (outputs.size() == 3) {
-        stateSize = outputs[2]->desc().totalDimSize() / nCells / nBatches;
-    }
-
-    printf("\n nBatches RNN = %d \n\n", static_cast<int>(nBatches));
-    printf("\n inputSize RNN = %d \n\n", static_cast<int>(inputSize));
-    printf("\n outputs RNN = %d \n\n", static_cast<int>(outputs.size()));
-    printf("\n stateSize RNN = %d \n\n", static_cast<int>(stateSize));
-    printf("\n cellStateSize RNN = %d \n\n", static_cast<int>(cellStateSize));
-    printf("\n nCells RNN = %d \n\n", static_cast<int>(nCells));
 
     IE_ASSERT(stateSize == cellStateSize);
 
@@ -186,9 +178,8 @@ void FrontEnd::parseRNN(const Model& model, const ie::CNNLayerPtr& _layer, const
 
     auto newWeights = model->addConstData(_layer->name + "@weights", weights->desc(), generator);
 
-    auto stateCellFinal = model->addFakeData();
-
     if (outputs.size() == 1) {
+        auto stateCellFinal = model->addFakeData();
         auto stage = model->addNewStage<LSTMCellStage>(
         layer->name,
         StageType::LSTMCell,
@@ -241,7 +232,6 @@ void FrontEnd::parseRNN(const Model& model, const ie::CNNLayerPtr& _layer, const
 }
 
 void FrontEnd::parseLSTMCell(const Model& model, const ie::CNNLayerPtr& _layer, const DataVector &inputs, const DataVector &outputs) {
-    printf("\n START LSTM \n\n");
     IE_ASSERT(inputs.size() == 3);
     IE_ASSERT(outputs.size() <= 3);
 
@@ -255,10 +245,12 @@ void FrontEnd::parseLSTMCell(const Model& model, const ie::CNNLayerPtr& _layer, 
 
     const auto& src = inputs[0]->desc();
 
-    const std::size_t nBatches = src.dim(Dim::N);
+    std::size_t nBatches = src.dim(Dim::N);
+
     IE_ASSERT(nBatches >= 1);
 
-    const std::size_t stateSize = ((outputs.size() == 3)? outputs[2]->desc().totalDimSize() : outputs[0]->desc().totalDimSize()) / nBatches;
+    const std::size_t stateSize = outputs[0]->desc().totalDimSize() / nBatches;
+
     IE_ASSERT(src.numDims() == 2);
     const std::size_t inputSize = src.dim(Dim::C);
 
@@ -269,13 +261,6 @@ void FrontEnd::parseLSTMCell(const Model& model, const ie::CNNLayerPtr& _layer, 
     IE_ASSERT(stateSize == cellStateSize);
 
     const std::size_t weightsSize = weights->desc().totalDimSize();
-
-    printf("\n outputs LSTM = %d \n\n", static_cast<int>(outputs.size()));
-    printf("\n nBatches LSTM = %d \n\n", static_cast<int>(nBatches));
-    printf("\n inputSize LSTM = %d \n\n", static_cast<int>(inputSize));
-    printf("\n stateSize LSTM = %d \n\n", static_cast<int>(stateSize));
-    printf("\n weightsSize LSTM = %d \n\n", static_cast<int>(weightsSize));
-    printf("\n cellStateSize LSTM = %d \n\n", static_cast<int>(cellStateSize));
 
     IE_ASSERT(stateSize * (inputSize + stateSize) * ngates == weightsSize);
 
@@ -300,7 +285,6 @@ void FrontEnd::parseLSTMCell(const Model& model, const ie::CNNLayerPtr& _layer, 
     };
 
     auto newWeights = model->addConstData(_layer->name + "@weights", weights->desc(), generator);
-
     DataVector stageInputs = inputs;
     auto origWeights = layer->_weights;
 
