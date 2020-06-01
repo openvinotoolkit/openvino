@@ -88,7 +88,15 @@ void FullyConnectedTransformation::validate() {
         EXPECT_TRUE(outputLayer != nullptr);
         EXPECT_EQ("ScaleShift", outputLayer->type);
 
-        checkParentPrecision(outputLayer, false);
+        const InferenceEngine::CNNLayerPtr layer = InferenceEngine::details::CNNNetworkHelper::getParent(*outputLayer);
+        if (params.updatePrecisions) {
+            checkPrecisions(
+                *layer,
+                { { InferenceEngine::Precision::U8 }, { InferenceEngine::Precision::I8 }, { netPrecision } },
+                { getDeviceInternalPrecision(netPrecision) });
+        } else {
+            checkPrecisions(*layer, netPrecision);
+        }
     }
 
     IE_SUPPRESS_DEPRECATED_END

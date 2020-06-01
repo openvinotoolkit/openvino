@@ -39,27 +39,30 @@ void GemmTransformation::SetUp() {
     std::tie(netPrecision, inputShape, targetDevice, params) = this->GetParam();
     auto ngPrecision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
-    const auto paramNode1 = std::make_shared<ngraph::opset1::Parameter>(ngPrecision, ngraph::Shape(inputShape));
-    const auto fakeQuantizeOnAcitvations = ngraph::builder::makeFakeQuantize(
-        paramNode1, ngPrecision, 256ul, { 1ul },
-        { 0.f }, { 255.f / 4.f }, { 0.f }, { 255.f / 4.f });
-    fakeQuantizeOnAcitvations->set_friendly_name("fakeQuantizeOnAcitvations");
+    const float low = params.precisionsOnActivations[0] == InferenceEngine::Precision::U8 ? 0.f : -128.f;
+    const float high = params.precisionsOnActivations[0] == InferenceEngine::Precision::U8 ? 255.f : 127.f;
 
-    const auto paramNode2 = std::make_shared<ngraph::opset1::Parameter>(ngPrecision, ngraph::Shape(inputShape));
-    const auto fakeQuantizeOnWeights = ngraph::builder::makeFakeQuantize(
-        paramNode2, ngPrecision, 256ul, { 1ul },
-        { -128.f / 8.f }, { 127.f / 8.f }, { -128.f / 8.f }, { 127.f / 8.f });
-    fakeQuantizeOnWeights->set_friendly_name("fakeQuantizeOnWeights");
+    const auto input1 = std::make_shared<ngraph::opset1::Parameter>(ngPrecision, ngraph::Shape(inputShape));
+    const auto fakeQuantize1 = ngraph::builder::makeFakeQuantize(
+        input1, ngPrecision, 256ul, { 1ul },
+        { low / 4.f }, { high / 4.f }, { low / 4.f }, { high / 4.f });
+    fakeQuantize1->set_friendly_name("fakeQuantize1");
+
+    const auto input2 = std::make_shared<ngraph::opset1::Parameter>(ngPrecision, ngraph::Shape(inputShape));
+    const auto fakeQuantize2 = ngraph::builder::makeFakeQuantize(
+        input2, ngPrecision, 256ul, { 1ul },
+        { low / 8.f }, { high / 8.f }, { low / 8.f }, { high / 8.f });
+    fakeQuantize2->set_friendly_name("fakeQuantize2");
 
     const auto matMul = std::make_shared<ngraph::opset1::MatMul>(
-        fakeQuantizeOnAcitvations->output(0),
-        fakeQuantizeOnWeights->output(0),
+        fakeQuantize1->output(0),
+        fakeQuantize2->output(0),
         false,
         false);
     matMul->set_friendly_name("matMul");
 
     ngraph::ResultVector results {std::make_shared<ngraph::opset1::Result>(matMul)};
-    function = std::make_shared<ngraph::Function>(results, ngraph::ParameterVector { paramNode1, paramNode2 }, "GemmTransformation");
+    function = std::make_shared<ngraph::Function>(results, ngraph::ParameterVector { input1, input2 }, "GemmTransformation");
 
     // TODO: move to some another place
     validate();
@@ -83,7 +86,17 @@ void GemmTransformation::validate() {
         EXPECT_TRUE(outputLayer != nullptr);
         EXPECT_EQ("ScaleShift", outputLayer->type);
 
-        checkParentPrecision(outputLayer, false);
+        const InferenceEngine::CNNLayerPtr layer = InferenceEngine::details::CNNNetworkHelper::getParent(*outputLayer);
+        for (const InferenceEngine::DataWeakPtr insDataWeak : layer->insData) {
+            const InferenceEngine::DataPtr insData = insDataWeak.lock();
+            EXPECT_TRUE(insData != nullptr) << "insert data is nullable";
+            const InferenceEngine::Precision precision = insData->getTensorDesc().getPrecision();
+            const std::unordered_set<uint8_t> expectedPrecisions = params.updatePrecisions ?
+                std::unordered_set<uint8_t>({ params.precisionsOnActivations[0] }) :
+                std::unordered_set<uint8_t>({ InferenceEngine::Precision::FP16, InferenceEngine::Precision::FP32 });
+            EXPECT_TRUE(expectedPrecisions.find(precision) != expectedPrecisions.end()) <<
+                " actual precision is " << precision;
+        }
     }
 
     IE_SUPPRESS_DEPRECATED_END
