@@ -34,7 +34,6 @@ class EmbeddingSegmentsSumFrontReplacer(FrontReplacementSubgraph):
     Such sub-graph is met in the Wide and Deep model in case of the SINGLE categorical feature.
     """
     enabled = True
-    force_clean_up = True
 
     def pattern(self):
         log.debug('Enabled EmbeddingSegmentsSum replacement')
@@ -83,10 +82,11 @@ class EmbeddingSegmentsSumFrontReplacer(FrontReplacementSubgraph):
         gather0_2 = match['gather0_2']
         greaterequal0 = match['greaterequal0']
         sparse_fill_empty_rows = match['sparse_fill_empty_rows']
-
         gather = match['gather']
         select = match['select']
+        where0 = match['where0']
         output_node_name = select.soft_get('name', select.id)
+
         log.debug('Found EmbeddingSegmentsSum pattern after {} with name {}'.format(sparse_fill_empty_rows.op,
                                                                                     sparse_fill_empty_rows.name))
 
@@ -127,7 +127,7 @@ class EmbeddingSegmentsSumFrontReplacer(FrontReplacementSubgraph):
         gather.in_port(0).disconnect()
 
         select.out_port(0).get_connection().set_source(embedding_segments_sum.out_port(0))
-        graph.remove_nodes_from([gather0_1.id, gather0_2.id, greaterequal0.id, sparse_fill_empty_rows.id, select.id])
+        graph.remove_nodes_from([gather0_1.id, gather0_2.id, greaterequal0.id, sparse_fill_empty_rows.id, select.id, where0.id])
 
 
 class EmbeddingSegmentsSumFrontReplacer2(FrontReplacementSubgraph):
@@ -137,7 +137,6 @@ class EmbeddingSegmentsSumFrontReplacer2(FrontReplacementSubgraph):
     Such sub-graph is met in the Wide and Deep model in case of MULTIPLE categorical features.
     """
     enabled = True
-    force_clean_up = True
 
     def pattern(self):
         log.debug('Enabled EmbeddingSegmentsSum2 replacement')
@@ -192,6 +191,7 @@ class EmbeddingSegmentsSumFrontReplacer2(FrontReplacementSubgraph):
         sparse_fill_empty_rows = match['sparse_fill_empty_rows']
         gather = match['gather']
         select = match['select']
+        where0 = match['where0']
         output_node_name = select.soft_get('name', select.id)
 
         log.debug('Found EmbeddingSegmentsSum2 pattern after {} with name {}'.format(sparse_fill_empty_rows.op,
@@ -238,4 +238,4 @@ class EmbeddingSegmentsSumFrontReplacer2(FrontReplacementSubgraph):
         gather.in_port(0).disconnect()
 
         select.out_port(0).get_connection().set_source(embedding_segments_sum.out_port(0))
-        graph.remove_nodes_from([gather0_1.id, gather0_2.id, greaterequal0.id, sparse_fill_empty_rows.id, select.id])
+        graph.remove_nodes_from([gather0_1.id, gather0_2.id, greaterequal0.id, sparse_fill_empty_rows.id, select.id, where0.id])
