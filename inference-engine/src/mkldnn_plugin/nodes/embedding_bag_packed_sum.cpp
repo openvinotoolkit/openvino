@@ -23,13 +23,13 @@ public:
             std::vector<size_t>(indicesData->getTensorDesc().getDims()[1], 0lu));
     }
 
-    void init_from_inputs(std::vector<Blob::Ptr>& inputs) override {
+    void initFromInputs(std::vector<Blob::Ptr>& inputs) override {
         // Initialize indices
-        const size_t bags_num = inputs[INDICES_IDX]->getTensorDesc().getDims()[0];
+        const size_t bagsNum = inputs[INDICES_IDX]->getTensorDesc().getDims()[0];
         const size_t batch = inputs[INDICES_IDX]->getTensorDesc().getDims()[1];
         if (inputs[INDICES_IDX]->getTensorDesc().getPrecision().size() == sizeof(INT32)) {
             const INT32* src = inputs[INDICES_IDX]->cbuffer().as<const INT32*>();
-            for (size_t i = 0lu; i < bags_num; i++) {
+            for (size_t i = 0lu; i < bagsNum; i++) {
                 size_t ibn = i * batch;
                 for (size_t j = 0lu; j < batch; j++) {
                     _indices[i][j] = static_cast<size_t>(src[ibn + j]);
@@ -37,22 +37,22 @@ public:
             }
         } else if (inputs[INDICES_IDX]->getTensorDesc().getPrecision().size() == sizeof(UINT64)) {
             const UINT64* src = inputs[INDICES_IDX]->cbuffer().as<const UINT64*>();
-            for (size_t i = 0lu; i < bags_num; i++) {
+            for (size_t i = 0lu; i < bagsNum; i++) {
                 memcpy(_indices[i].data(), src + i * batch, batch * sizeof(UINT64));
             }
         }
     }
 
-    void get_indices(size_t emb_index, const size_t*& indices, size_t& size, size_t& weights_idx, bool& with_weights) override {
-        if (emb_index >= _indices.size())
+    void getIndices(size_t embIndex, const size_t*& indices, size_t& size, size_t& weightsIdx, bool& withWeights) override {
+        if (embIndex >= _indices.size())
             THROW_IE_EXCEPTION << "Invalid embedding bag index.";
 
-        with_weights = true;
+        withWeights = true;
 
-        indices = _indices[emb_index].data();
+        indices = _indices[embIndex].data();
         size = _indices[0].size();
 
-        weights_idx = emb_index * _indices[0].size();
+        weightsIdx = embIndex * _indices[0].size();
     }
 
 protected:

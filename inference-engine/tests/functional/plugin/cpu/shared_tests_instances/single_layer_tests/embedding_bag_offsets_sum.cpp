@@ -14,8 +14,12 @@ namespace {
 const std::vector<InferenceEngine::Precision> netPrecisions = {
         InferenceEngine::Precision::FP32,
         InferenceEngine::Precision::I32,
-        InferenceEngine::Precision::U8,
-        InferenceEngine::Precision::I8
+        InferenceEngine::Precision::U8
+};
+
+const std::vector<InferenceEngine::Precision> indPrecisions = {
+        InferenceEngine::Precision::I64,
+        InferenceEngine::Precision::I32
 };
 
 const std::vector<std::vector<size_t>> emb_table_shape = {{5, 6}, {10, 35}, {5, 4, 16}};
@@ -39,6 +43,7 @@ INSTANTIATE_TEST_CASE_P(smoke, EmbeddingBagOffsetsSumLayerTest,
                         ::testing::Combine(
                                 embBagOffsetSumArgSet,
                                 ::testing::ValuesIn(netPrecisions),
+                                ::testing::ValuesIn(indPrecisions),
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                         EmbeddingBagOffsetsSumLayerTest::getTestCaseName);
 }  // namespace

@@ -22,7 +22,8 @@ typedef std::tuple<
 
 typedef std::tuple<
         embeddingSegmentsSumParams,
-        InferenceEngine::Precision,
+        InferenceEngine::Precision, // embedding table
+        InferenceEngine::Precision, // indices
         LayerTestsUtils::TargetDevice> embeddingSegmentsSumLayerTestParamsSet;
 
 namespace LayerTestsDefinitions {

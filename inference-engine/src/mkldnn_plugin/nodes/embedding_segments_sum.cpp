@@ -11,38 +11,39 @@ namespace Cpu {
 class EmbeddingSegmentsSumImpl: public MKLDNNEmbeddingBagSum {
 public:
     explicit EmbeddingSegmentsSumImpl(const CNNLayer* layer) :
-            MKLDNNEmbeddingBagSum(layer, 4lu, 1lu, 5lu, 4lu) {
+                MKLDNNEmbeddingBagSum(layer, 4lu, 1lu, 5lu, 4lu) {
+        std::string errPrefix = std::string("EmbeddingSegmentsSum layer with name '") + _layerName + "' ";
         auto indicesData = layer->insData[INDICES_IDX].lock();
         if (indicesData == nullptr)
-            THROW_IE_EXCEPTION << "EmbeddingSegmentsSum layer with name '" << layer->name << "' has nullable indices data.";
+            THROW_IE_EXCEPTION << errPrefix << "has nullable indices data.";
         if (indicesData->getTensorDesc().getDims().size() != 1)
-            THROW_IE_EXCEPTION << "EmbeddingSegmentsSum layer with name '" << layer->name
-                << "' has indices data with invalid shape: " << indicesData->getTensorDesc().getDims().size();
+            THROW_IE_EXCEPTION << errPrefix << "has indices data with invalid shape: "
+                << indicesData->getTensorDesc().getDims().size();
 
         auto segmentIdData = layer->insData[SEGMENT_ID_IDX].lock();
         if (segmentIdData == nullptr)
-            THROW_IE_EXCEPTION << "EmbeddingSegmentsSum layer with name '" << layer->name << "' has invalid segmentID data.";
+            THROW_IE_EXCEPTION << errPrefix << "has invalid segmentID data.";
         if (segmentIdData->getTensorDesc().getDims().size() != 1)
-            THROW_IE_EXCEPTION << "EmbeddingSegmentsSum layer with name '" << layer->name
-               << "' has invalid segmentID data shape: " << segmentIdData->getTensorDesc().getDims().size();
+            THROW_IE_EXCEPTION << errPrefix << "has invalid segmentID data shape: "
+                << segmentIdData->getTensorDesc().getDims().size();
 
         auto numSegmentData = layer->insData[NUM_SEGMENTS_IDX].lock();
         if (numSegmentData == nullptr)
-            THROW_IE_EXCEPTION << "EmbeddingSegmentsSum layer with name '" << layer->name << "' has nullable numSegmentID data.";
+            THROW_IE_EXCEPTION << errPrefix << "has nullable numSegmentID data.";
 
-        if (_supported_indexes_type_size.find(indicesData->getTensorDesc().getPrecision().size())
-                    == _supported_indexes_type_size.end()
-                || _supported_indexes_type_size.find(segmentIdData->getTensorDesc().getPrecision().size())
-                    == _supported_indexes_type_size.end()
-                || _supported_indexes_type_size.find(numSegmentData->getTensorDesc().getPrecision().size())
-                    == _supported_indexes_type_size.end())
-            THROW_IE_EXCEPTION << "EmbeddingSegmentsSum layer with name '" << layer->name << "' has unsupported input data type.";
+        if (_supportedIndicesTypeSize.find(indicesData->getTensorDesc().getPrecision().size())
+                    == _supportedIndicesTypeSize.end()
+                || _supportedIndicesTypeSize.find(segmentIdData->getTensorDesc().getPrecision().size())
+                    == _supportedIndicesTypeSize.end()
+                || _supportedIndicesTypeSize.find(numSegmentData->getTensorDesc().getPrecision().size())
+                    == _supportedIndicesTypeSize.end())
+            THROW_IE_EXCEPTION << errPrefix << "has unsupported input data type.";
 
         _indices = std::vector<size_t>(indicesData->getTensorDesc().getDims()[0], 0lu);
-        _segment_ids = std::vector<size_t>(segmentIdData->getTensorDesc().getDims()[0], 0lu);
+        _segmentIds = std::vector<size_t>(segmentIdData->getTensorDesc().getDims()[0], 0lu);
     }
 
-    void init_from_inputs(std::vector<Blob::Ptr>& inputs) override {
+    void initFromInputs(std::vector<Blob::Ptr>& inputs) override {
         // Initialize indices
         if (inputs[INDICES_IDX]->getTensorDesc().getPrecision().size() == sizeof(INT32)) {
             const INT32* src = inputs[INDICES_IDX]->cbuffer().as<const INT32*>();
@@ -57,49 +58,49 @@ public:
         if (inputs[SEGMENT_ID_IDX]->getTensorDesc().getPrecision().size() == sizeof(INT32)) {
             const INT32* src = inputs[SEGMENT_ID_IDX]->cbuffer().as<const INT32*>();
             for (size_t i = 0lu; i < inputs[SEGMENT_ID_IDX]->size(); i++)
-                _segment_ids[i] = static_cast<size_t>(src[i]);
+                _segmentIds[i] = static_cast<size_t>(src[i]);
         } else if (inputs[SEGMENT_ID_IDX]->getTensorDesc().getPrecision().size() == sizeof(UINT64)) {
             const UINT64* src = inputs[SEGMENT_ID_IDX]->cbuffer().as<const UINT64*>();
-            memcpy(_segment_ids.data(), src, inputs[SEGMENT_ID_IDX]->byteSize());
+            memcpy(_segmentIds.data(), src, inputs[SEGMENT_ID_IDX]->byteSize());
         }
 
         if (inputs.size() > NUM_SEGMENTS_IDX) {
             if (inputs[NUM_SEGMENTS_IDX]->getTensorDesc().getPrecision().size() == sizeof(INT32)) {
                 const INT32* src = inputs[NUM_SEGMENTS_IDX]->cbuffer().as<const INT32*>();
-                _num_segments = static_cast<size_t>(*src);
+                _numSegments = static_cast<size_t>(*src);
             } else if (inputs[NUM_SEGMENTS_IDX]->getTensorDesc().getPrecision().size() == sizeof(UINT64)) {
                 const INT64* src = inputs[NUM_SEGMENTS_IDX]->cbuffer().as<const INT64*>();
-                _num_segments = *src;
+                _numSegments = *src;
             }
         }
 
         // Initialize default index
-        _default_indices.clear();
+        _defaultIndices.clear();
         if (inputs.size() > DEFAULT_INDEX_IDX) {
             if (inputs[DEFAULT_INDEX_IDX]->getTensorDesc().getPrecision().size() == sizeof(INT32)) {
                 const INT32* src = inputs[DEFAULT_INDEX_IDX]->cbuffer().as<const INT32*>();
-                _default_indices.push_back(static_cast<size_t>(*src));
+                _defaultIndices.push_back(static_cast<size_t>(*src));
             } else if (inputs[DEFAULT_INDEX_IDX]->getTensorDesc().getPrecision().size() == sizeof(UINT64)) {
                 const INT64* src = inputs[DEFAULT_INDEX_IDX]->cbuffer().as<const INT64*>();
-                _default_indices.push_back(*src);
+                _defaultIndices.push_back(*src);
             }
         }
     }
 
-    void get_indices(size_t emb_index, const size_t*& indices, size_t& size, size_t& weights_idx, bool& with_weight) override {
-        if (emb_index >= _num_segments)
+    void getIndices(size_t embIndex, const size_t*& indices, size_t& size, size_t& weightsIdx, bool& withWeight) override {
+        if (embIndex >= _numSegments)
             THROW_IE_EXCEPTION << "Invalid embedding bag index.";
 
         indices = nullptr;
         size = 0lu;
-        with_weight = true;
+        withWeight = true;
 
         for (size_t si = 0; si < _indices.size(); si++) {
-            if (_segment_ids[si] == emb_index) {
+            if (_segmentIds[si] == embIndex) {
                 size++;
                 if (indices == nullptr) {
                     indices = _indices.data() + si;
-                    weights_idx = si;
+                    weightsIdx = si;
                 }
             }
         }
@@ -107,9 +108,9 @@ public:
         // Empty bag
         if (size == 0) {
             size = 1lu;
-            with_weight = false;
-            if (_default_indices.size() == 1lu)
-                indices = _default_indices.data();
+            withWeight = false;
+            if (_defaultIndices.size() == 1lu)
+                indices = _defaultIndices.data();
             return;
         }
     }
@@ -118,11 +119,11 @@ protected:
     const size_t SEGMENT_ID_IDX = 2lu;
     const size_t NUM_SEGMENTS_IDX = 3lu;
 
-    size_t _num_segments = 0lu;
+    size_t _numSegments = 0lu;
 
     std::vector<size_t> _indices;
-    std::vector<size_t> _segment_ids;
-    std::vector<size_t> _default_indices;
+    std::vector<size_t> _segmentIds;
+    std::vector<size_t> _defaultIndices;
 };
 
 REG_FACTORY_FOR(EmbeddingSegmentsSumImpl, EmbeddingSegmentsSum);

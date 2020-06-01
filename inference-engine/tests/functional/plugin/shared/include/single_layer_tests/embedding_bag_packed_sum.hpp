@@ -18,7 +18,8 @@ typedef std::tuple<
 
 typedef std::tuple<
         embeddingBagPackedSumParams,
-        InferenceEngine::Precision,
+        InferenceEngine::Precision, // embedding table
+        InferenceEngine::Precision, // indices
         LayerTestsUtils::TargetDevice> embeddingBagPackedSumLayerTestParamsSet;
 
 namespace LayerTestsDefinitions {

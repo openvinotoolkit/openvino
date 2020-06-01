@@ -18,11 +18,11 @@ class MKLDNNEmbeddingBagSum : public ExtLayerBase {
 public:
     MKLDNNEmbeddingBagSum(
         const CNNLayer* layer,
-        size_t required_inputs_num,
-        size_t indices_idx,
-        size_t per_sample_weights_idx,
-        size_t default_index_idx,
-        const std::set<Precision>& supported_precisions = {});
+        size_t requiredInputsNum,
+        size_t indicesIdx,
+        size_t perSampleWeightsIdx,
+        size_t defaultIndexIdx,
+        const std::set<Precision>& supportedPrecisions = {});
 
     StatusCode execute(
         std::vector<Blob::Ptr>& inputs,
@@ -30,32 +30,32 @@ public:
         ResponseDesc *resp) noexcept override;
 
 protected:
-    virtual void init_from_inputs(std::vector<Blob::Ptr>& inputs) = 0;
-    virtual void get_indices(
-        size_t emb_index,
-        const size_t*& indices,
+    virtual void initFromInputs(std::vector<Blob::Ptr>& inputs) = 0;
+    virtual void getIndices(
+        size_t embIndex,
+        const size_t*& indicesRef,
         size_t& size,
-        size_t& weights_idx,
-        bool& with_weights) = 0;
+        size_t& weightsIdx,
+        bool& withWeights) = 0;
 
     template<typename T>
-    void process_data(std::vector<Blob::Ptr>& inputs, std::vector<Blob::Ptr>& outputs) noexcept;
+    void processData(std::vector<Blob::Ptr>& inputs, std::vector<Blob::Ptr>& outputs) noexcept;
 
-    std::set<Precision> _supported_precisions;
+    std::set<Precision> _supportedPrecisions;
 
     const size_t INDICES_IDX;
     const size_t PER_SAMPLE_WEIGHTS_IDX;
     const size_t DEFAULT_INDEX_IDX;
 
-    bool _with_weights = false;
+    bool _withWeights = false;
     size_t _embDepth = 0;
-    std::string _l_name;
+    std::string _layerName;
 
     using INT32 = PrecisionTrait<Precision::I32>::value_type;
     using INT64 = PrecisionTrait<Precision::I64>::value_type;
     using UINT64 = PrecisionTrait<Precision::U64>::value_type;
 
-    static const std::set<size_t> _supported_indexes_type_size;
+    static const std::set<size_t> _supportedIndicesTypeSize;
 };
 
 }  // namespace Cpu
