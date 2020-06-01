@@ -5,7 +5,6 @@
 #pragma once
 
 #include "base.hpp"
-#include "jit_generator.hpp"
 
 #include <memory>
 #include <set>
@@ -14,38 +13,6 @@
 namespace InferenceEngine {
 namespace Extensions {
 namespace Cpu {
-
-struct jit_emb_bag_config_params {
-    size_t emb_dim;
-    bool with_weights; // Initialized on creation dependent on weights input existence.
-};
-
-struct jit_emb_bag_call_args {
-    const void* src;
-    void* dst;
-    const void* weights;
-    size_t with_weights; // Need to detect empty bag. They are not multiplied on weights.
-};
-
-struct jit_uni_embedding_bag_sum_kernel {
-    void (*_ker)(const jit_emb_bag_call_args *);
-
-    void operator()(const jit_emb_bag_call_args *args) {
-        assert(_ker);
-        _ker(args);
-    }
-
-    explicit jit_uni_embedding_bag_sum_kernel(jit_emb_bag_config_params jcp) : _ker(nullptr), _jcp(jcp) {}
-    virtual ~jit_uni_embedding_bag_sum_kernel() {}
-
-protected:
-    jit_emb_bag_config_params _jcp;
-
-    Xbyak::Reg64 reg_src = Xbyak::util::r8;
-    Xbyak::Reg64 reg_dst = Xbyak::util::r9;
-    Xbyak::Reg64 reg_weights = Xbyak::util::r10;
-    Xbyak::Reg64 reg_params = mkldnn::impl::cpu::abi_param1;
-};
 
 class MKLDNNEmbeddingBagSum : public ExtLayerBase {
 public:
@@ -80,12 +47,9 @@ protected:
     const size_t PER_SAMPLE_WEIGHTS_IDX;
     const size_t DEFAULT_INDEX_IDX;
 
-    size_t _default_index = 0lu;
     bool _with_weights = false;
-    std::vector<size_t> _multipliers;
+    size_t _embDepth = 0;
     std::string _l_name;
-
-    std::shared_ptr<jit_uni_embedding_bag_sum_kernel> emb_bag_kernel;
 
     using INT32 = PrecisionTrait<Precision::I32>::value_type;
     using INT64 = PrecisionTrait<Precision::I64>::value_type;
