@@ -20,6 +20,11 @@ from mo.graph.graph import Node
 from mo.utils.error import Error
 
 
+def onnx_node_has_attr(node: Node, name: str):
+    attrs = [a for a in node.pb.attribute if a.name == name]
+    return len(attrs) != 0
+
+
 def onnx_attr(node: Node, name: str, field: str, default=None, dst_type=None):
     """ Retrieves ONNX attribute with name `name` from ONNX protobuf `node.pb`.
         The final value is casted to dst_type if attribute really exists.
@@ -55,6 +60,10 @@ def get_onnx_autopad(auto_pad):
     if auto_pad == 'notset':
         auto_pad = None
     return auto_pad
+
+
+def get_onnx_opset_version(node: Node):
+    return node.graph.graph.get('fw_opset_version', 0)
 
 
 def get_onnx_datatype_as_numpy(value):

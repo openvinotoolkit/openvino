@@ -1,4 +1,4 @@
-// Copyright (C) 2019 Intel Corporation
+// Copyright (C) 2019-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
@@ -88,6 +88,26 @@ void inline  fill_data_random(InferenceEngine::Blob::Ptr &blob, const uint32_t r
     }
     for (size_t i = 0; i < blob->size(); i++) {
         rawBlobDataPtr[i] = static_cast<dataType>(start_from + static_cast<int64_t>(random.Generate(range)));
+    }
+}
+
+template<InferenceEngine::Precision::ePrecision PRC>
+void inline fill_data_consistently(InferenceEngine::Blob::Ptr &blob, const uint32_t range = 10, int32_t start_from = 0, const int32_t k = 1) {
+    using dataType = typename InferenceEngine::PrecisionTrait<PRC>::value_type;
+    auto *rawBlobDataPtr = blob->buffer().as<dataType *>();
+    if (start_from < 0 && !std::is_signed<dataType>::value) {
+        start_from = 0;
+    }
+
+    int64_t value = start_from;
+    const int64_t maxValue = start_from + range;
+    for (size_t i = 0; i < blob->size(); i++) {
+        rawBlobDataPtr[i] = static_cast<dataType>(value);
+        if (value < (maxValue - k)) {
+            value += k;
+        } else {
+            value = start_from;
+        }
     }
 }
 

@@ -7,7 +7,7 @@
 #include <memory>
 #include <functional>
 
-#include <ie_api.h>
+#include <transformations_visibility.hpp>
 
 #include <ngraph/ngraph.hpp>
 
@@ -30,7 +30,7 @@
 namespace ngraph {
 namespace pass {
 
-class INFERENCE_ENGINE_API_CLASS(ConvFusion);
+class TRANSFORMATIONS_API ConvFusion;
 
 }  // namespace pass
 }  // namespace ngraph

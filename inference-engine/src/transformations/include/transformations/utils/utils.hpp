@@ -10,7 +10,7 @@
 #include <vector>
 #include <limits>
 
-#include <ie_api.h>
+#include <transformations_visibility.hpp>
 #include <ngraph/op/util/op_annotations.hpp>
 #include <ngraph/op/constant.hpp>
 
@@ -44,18 +44,18 @@ bool has_op_with_type(const std::shared_ptr<const ngraph::Function> &function) {
     return false;
 }
 
-INFERENCE_ENGINE_API_CPP(bool) get_single_value(const std::shared_ptr<op::Constant> & const_node, float & value);
+TRANSFORMATIONS_API bool get_single_value(const std::shared_ptr<op::Constant> & const_node, float & value);
 
-INFERENCE_ENGINE_API_CPP(std::shared_ptr<ngraph::Node>) normalize_constant(const std::shared_ptr<op::Constant> & constant,
-                                                 const Shape & shape);
+TRANSFORMATIONS_API std::shared_ptr<ngraph::Node> normalize_constant(const std::shared_ptr<op::Constant> & constant,
+                                                                           const PartialShape & shape);
 
-INFERENCE_ENGINE_API_CPP(std::shared_ptr<ngraph::Node>) broadcastTo(const Output<Node>& input, const Shape& shape);
+TRANSFORMATIONS_API std::shared_ptr<ngraph::Node> broadcastTo(const Output<Node>& input, const Shape& shape);
 
-INFERENCE_ENGINE_API_CPP(std::shared_ptr<ngraph::Node>) reshapeTo(const Output<Node> & input, const Shape& shape);
+TRANSFORMATIONS_API std::shared_ptr<ngraph::Node> reshapeTo(const Output<Node> & input, const Shape& shape);
 
-INFERENCE_ENGINE_API_CPP(bool) constantIsEqualTo(const std::shared_ptr<ngraph::op::Constant>& const_node, float value, float eps = 1e-5);
+TRANSFORMATIONS_API bool constantIsEqualTo(const std::shared_ptr<ngraph::op::Constant>& const_node, float value, float eps = 1e-5);
 
-INFERENCE_ENGINE_API_CPP(bool) has_f16_constants(const std::shared_ptr<const ngraph::Function> &function);
+TRANSFORMATIONS_API bool has_f16_constants(const std::shared_ptr<const ngraph::Function> &function);
 
 }  // namespace util
 }  // namespace op

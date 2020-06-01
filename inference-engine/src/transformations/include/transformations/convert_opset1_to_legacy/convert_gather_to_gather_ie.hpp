@@ -8,7 +8,7 @@
 #include <memory>
 #include <string>
 
-#include <ie_api.h>
+#include <transformations_visibility.hpp>
 
 #include <ngraph/pass/graph_rewrite.hpp>
 #include <ngraph_ops/gather_ie.hpp>
@@ -22,10 +22,17 @@
 namespace ngraph {
 namespace pass {
 
-class INFERENCE_ENGINE_API_CLASS(ConvertGatherToGatherIE);
+class TRANSFORMATIONS_API ConvertGatherToGatherIE;
 
 }  // namespace pass
 }  // namespace ngraph
+
+/*
+ * Description:
+ *     This transformation converts opset1::Gather to legacy GatherIE
+ *     GatherIE takes axes as value and if indices input has empty shape (scalar)
+ *     we unsqueeze indices input and squeeze GatherIE output.
+ */
 
 class ngraph::pass::ConvertGatherToGatherIE : public ngraph::pass::GraphRewrite {
 public:

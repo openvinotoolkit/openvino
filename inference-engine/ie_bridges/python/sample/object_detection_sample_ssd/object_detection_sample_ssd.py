@@ -84,13 +84,13 @@ def main():
 
     # --------------------------- 3. Read and preprocess input --------------------------------------------
 
-    print("inputs number: " + str(len(net.inputs.keys())))
+    print("inputs number: " + str(len(net.input_info.keys())))
 
-    for input_key in net.inputs:
-        print("input shape: " + str(net.inputs[input_key].shape))
+    for input_key in net.input_info:
+        print("input shape: " + str(net.input_info[input_key].input_data.shape))
         print("input key: " + input_key)
-        if len(net.inputs[input_key].layout) == 4:
-            n, c, h, w = net.inputs[input_key].shape
+        if len(net.input_info[input_key].input_data.layout) == 4:
+            n, c, h, w = net.input_info[input_key].input_data.shape
 
     images = np.ndarray(shape=(n, c, h, w))
     images_hw = []
@@ -101,8 +101,8 @@ def main():
         log.info("File was added: ")
         log.info("        {}".format(args.input[i]))
         if (ih, iw) != (h, w):
-            image = cv2.resize(image, (w, h))
             log.warning("Image {} is resized from {} to {}".format(args.input[i], image.shape[:-1], (h, w)))
+            image = cv2.resize(image, (w, h))
         image = image.transpose((2, 0, 1))  # Change data layout from HWC to CHW
         images[i] = image
 
@@ -111,21 +111,21 @@ def main():
     # --------------------------- 4. Configure input & output ---------------------------------------------
     # --------------------------- Prepare input blobs -----------------------------------------------------
     log.info("Preparing input blobs")
-    assert (len(net.inputs.keys()) == 1 or len(
-        net.inputs.keys()) == 2), "Sample supports topologies only with 1 or 2 inputs"
+    assert (len(net.input_info.keys()) == 1 or len(
+        net.input_info.keys()) == 2), "Sample supports topologies only with 1 or 2 inputs"
     out_blob = next(iter(net.outputs))
     input_name, input_info_name = "", ""
 
-    for input_key in net.inputs:
-        if len(net.inputs[input_key].layout) == 4:
+    for input_key in net.input_info:
+        if len(net.input_info[input_key].layout) == 4:
             input_name = input_key
             log.info("Batch size is {}".format(net.batch_size))
-            net.inputs[input_key].precision = 'U8'
-        elif len(net.inputs[input_key].layout) == 2:
+            net.input_info[input_key].precision = 'U8'
+        elif len(net.input_info[input_key].layout) == 2:
             input_info_name = input_key
-            net.inputs[input_key].precision = 'FP32'
-            if net.inputs[input_key].shape[1] != 3 and net.inputs[input_key].shape[1] != 6 or \
-                net.inputs[input_key].shape[0] != 1:
+            net.input_info[input_key].precision = 'FP32'
+            if net.input_info[input_key].input_data.shape[1] != 3 and net.input_info[input_key].input_data.shape[1] != 6 or \
+                net.input_info[input_key].input_data.shape[0] != 1:
                 log.error('Invalid input info. Should be 3 or 6 values length.')
 
     data = {}

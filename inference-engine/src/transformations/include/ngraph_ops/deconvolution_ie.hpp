@@ -8,7 +8,7 @@
 #include <vector>
 #include <algorithm>
 
-#include <ie_api.h>
+#include <transformations_visibility.hpp>
 
 #include "ngraph/coordinate_diff.hpp"
 #include "ngraph/op/op.hpp"
@@ -16,7 +16,7 @@
 namespace ngraph {
 namespace op {
 
-class INFERENCE_ENGINE_API_CLASS(DeconvolutionIE) : public Op {
+class TRANSFORMATIONS_API DeconvolutionIE : public Op {
 public:
     static constexpr NodeTypeInfo type_info{"DeconvolutionIE", 1};
     const NodeTypeInfo& get_type_info() const override { return type_info; }
@@ -47,8 +47,6 @@ public:
     void validate_and_infer_types() override;
 
     std::shared_ptr<Node> copy_with_new_args(const NodeVector& new_args) const override;
-
-    std::shared_ptr<Node> copy(const OutputVector & new_args) const;
 
     /// \return The data batch shape.
     const PartialShape get_output_shape() { return m_output_shape; }

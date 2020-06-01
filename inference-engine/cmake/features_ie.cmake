@@ -68,15 +68,13 @@ ie_dependent_option (ENABLE_MYRIAD "myriad targeted plugin for inference engine"
 
 ie_dependent_option (ENABLE_MYRIAD_NO_BOOT "myriad plugin will skip device boot" OFF "ENABLE_MYRIAD" OFF)
 
-ie_option (ENABLE_TESTS "unit, behavior and functional tests" OFF)
-
 ie_dependent_option (ENABLE_GAPI_TESTS "tests for GAPI kernels" ON "ENABLE_TESTS" OFF)
 
 ie_dependent_option (GAPI_TEST_PERF "if GAPI unit tests should examine performance" OFF "ENABLE_GAPI_TESTS" OFF)
 
 ie_dependent_option (ENABLE_MYRIAD_MVNC_TESTS "functional and behavior tests for mvnc api" OFF "ENABLE_TESTS;ENABLE_MYRIAD" OFF)
 
-ie_dependent_option (ENABLE_DATA "fetch models from open-source-data repo" ON "ENABLE_FUNCTIONAL_TESTS;NOT ANDROID" OFF)
+ie_dependent_option (ENABLE_DATA "fetch models from testdata repo" ON "ENABLE_FUNCTIONAL_TESTS;NOT ANDROID" OFF)
 
 ie_dependent_option (ENABLE_SAME_BRANCH_FOR_MODELS "uses same branch for models and for inference engine, if not enabled models are taken from master" OFF "ENABLE_TESTS" OFF)
 

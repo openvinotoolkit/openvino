@@ -23,8 +23,8 @@ class ReverseSequenceExtractor(FrontExtractorOp):
     op = 'ReverseSequence'
     enabled = True
 
-    @staticmethod
-    def extract(node):
+    @classmethod
+    def extract(cls, node):
         batch_axis = onnx_attr(node, 'batch_axis', 'i', default=1)
         time_axis = onnx_attr(node, 'time_axis', 'i', default=0)
 
@@ -33,4 +33,4 @@ class ReverseSequenceExtractor(FrontExtractorOp):
             'seq_axis': time_axis,
         }
         ReverseSequence.update_node_stat(node, attrs)
-        return __class__.enabled
+        return cls.enabled
