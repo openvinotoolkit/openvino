@@ -83,18 +83,24 @@ void initialize_usb_boot()
     // We sanitize the situation by trying to reset the devices that have been left open
     initialized = 1;
 }
-#else
-void __attribute__((constructor)) usb_library_load()
+#endif
+
+void usb_library_load()
 {
+#if defined(_WIN32)
+    initialize_usb_boot();
+#else
     initialized = !libusb_init(NULL);
+#endif
 }
 
-void __attribute__((destructor)) usb_library_unload()
+void usb_library_unload()
 {
+#if !defined(_WIN32)
     if(initialized)
         libusb_exit(NULL);
-}
 #endif
+}
 
 typedef struct timespec highres_time_t;
 

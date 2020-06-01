@@ -13,6 +13,7 @@
 #include <vector>
 #include <map>
 #include <cpp_interfaces/impl/ie_plugin_internal.hpp>
+#include <usb_boot.h>
 
 namespace vpu {
 namespace MyriadPlugin {
@@ -23,6 +24,7 @@ public:
 
     ~Engine() override {
         MyriadExecutor::closeDevices(_devicePool, _mvnc);
+        usb_library_unload();
     }
 
     void SetConfig(const std::map<std::string, std::string>& config) override;

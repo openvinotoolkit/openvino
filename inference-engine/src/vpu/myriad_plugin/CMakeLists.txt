@@ -43,7 +43,7 @@ endif()
 # "mvnc" must be the first library in the link list
 target_link_libraries(${TARGET_NAME}
     PRIVATE
-        mvnc ${INTEL_ITT_LIBS} inference_engine vpu_graph_transformer)
+        mvnc XLink ${INTEL_ITT_LIBS} inference_engine vpu_graph_transformer)
 
 # install
 

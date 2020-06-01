@@ -14,6 +14,8 @@
 #include "XLinkPrivateFields.h"
 #include "XLinkDispatcherImpl.h"
 
+#include "usb_boot.h"
+
 #ifdef MVLOG_UNIT_NAME
 #undef MVLOG_UNIT_NAME
 #define MVLOG_UNIT_NAME xLink

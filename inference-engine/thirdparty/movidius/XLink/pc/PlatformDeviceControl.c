@@ -87,9 +87,7 @@ static int (*close_fcts[X_LINK_NMB_OF_PROTOCOLS])(void*) = \
 
 void XLinkPlatformInit()
 {
-#if (defined(_WIN32) || defined(_WIN64))
-    initialize_usb_boot();
-#endif
+    usb_library_load();
 }
 
 int XLinkPlatformBootRemote(deviceDesc_t* deviceDesc, const char* binaryPath)
