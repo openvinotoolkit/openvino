@@ -8,7 +8,7 @@
 #include <memory>
 #include <algorithm>
 
-#include <ie_api.h>
+#include <transformations_visibility.hpp>
 
 #include <ngraph/pass/graph_rewrite.hpp>
 #include <ngraph/opsets/opset1.hpp>
@@ -19,7 +19,7 @@
 namespace ngraph {
 namespace pass {
 
-class INFERENCE_ENGINE_API_CLASS(ConvertReduceToPooling);
+class TRANSFORMATIONS_API ConvertReduceToPooling;
 
 }  // namespace pass
 }  // namespace ngraph
