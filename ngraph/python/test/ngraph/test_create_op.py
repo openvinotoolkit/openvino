@@ -19,7 +19,6 @@ import pytest
 import ngraph as ng
 from ngraph.impl import Type
 from _pyngraph import PartialShape
-import test
 
 np_types = [np.float32, np.int32]
 integral_np_types = [
@@ -537,18 +536,6 @@ def test_convert_like():
     assert node.get_output_element_type(0) == Type.i8
 
 
-def test_one_hot():
-    data = np.array([0, 1, 2], dtype=np.int32)
-    depth = 2
-    on_value = 5
-    off_value = 10
-    axis = -1
-    excepted = [[5, 10], [10, 5], [10, 10]]
-
-    result = test.ngraph.util.run_op_node([data, depth, on_value, off_value], ng.ops.one_hot, axis)
-    assert np.allclose(result, excepted)
-
-
 def test_reverse():
     parameter_data = ng.parameter([3, 10, 100, 200], name="data", dtype=np.float32)
     parameter_axis = ng.parameter([1], name="axis", dtype=np.int64)
@@ -562,23 +549,6 @@ def test_reverse():
     assert node.get_output_element_type(0) == Type.f32
 
 
-def test_select():
-    cond = [[False, False], [True, False], [True, True]]
-    then_node = [[-1, 0], [1, 2], [3, 4]]
-    else_node = [[11, 10], [9, 8], [7, 6]]
-    excepted = [[11, 10], [1, 8], [3, 4]]
-
-    result = test.ngraph.util.run_op_node([cond, then_node, else_node], ng.ops.select)
-    assert np.allclose(result, excepted)
-
-
-def test_result():
-    node = [[11, 10], [1, 8], [3, 4]]
-
-    result = test.ngraph.util.run_op_node([node], ng.ops.result)
-    assert np.allclose(result, node)
-
-
 def test_bucketize():
     data = ng.parameter([4, 3, 2, 1], name="data", dtype=np.float32)
     buckets = ng.parameter([5], name="buckets", dtype=np.int64)
@@ -589,15 +559,6 @@ def test_bucketize():
     assert node.get_output_size() == 1
     assert list(node.get_output_shape(0)) == [4, 3, 2, 1]
     assert node.get_output_element_type(0) == Type.i32
-
-
-def test_range():
-    start = 5
-    stop = 35
-    step = 5
-
-    result = test.ngraph.util.run_op_node([start, stop, step], ng.ops.range)
-    assert np.allclose(result, [5, 10, 15, 20, 25, 30])
 
 
 def test_region_yolo():
