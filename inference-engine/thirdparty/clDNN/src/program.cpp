@@ -367,7 +367,7 @@ void program_impl::build_program(bool is_internal) {
     if (!is_internal)
         prim_info = get_current_stage_info();
 
-    transfer_memory_to_device();
+    if (!is_internal)  transfer_memory_to_device();
     cleanup();
 }
 
@@ -523,6 +523,7 @@ void program_impl::transfer_memory_to_device() {
                                                                     mem.get_net_id());
                 dynamic_cast<gpu::gpu_usm&>(*device_mem).copy_from_other(dynamic_cast<gpu::gpu_usm&>(mem));
                 data_node.attach_memory(*device_mem);
+                const_cast<memory&>(data_node.get_primitive()->mem).reset();
             }
         }
     }
