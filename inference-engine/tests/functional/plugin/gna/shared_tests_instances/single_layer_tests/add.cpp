@@ -34,13 +34,13 @@ std::map<std::string, std::string> additional_config = {
     {"GNA_SCALE_FACTOR_1", "1638.4"}
 };
 
-const auto addition_params_flat= ::testing::Combine(
-                                          ::testing::ValuesIn(flat_shapes),
-                                          ::testing::ValuesIn(secondaryInputTypes),
-                                          ::testing::ValuesIn(additionTypes),
-                                          ::testing::ValuesIn(netPrecisions),
-                                          ::testing::Values(CommonTestUtils::DEVICE_GNA),
-                                          ::testing::Values(additional_config));
+const auto addition_params_flat = ::testing::Combine(
+                                           ::testing::ValuesIn(flat_shapes),
+                                           ::testing::ValuesIn(secondaryInputTypes),
+                                           ::testing::ValuesIn(additionTypes),
+                                           ::testing::ValuesIn(netPrecisions),
+                                           ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                           ::testing::Values(additional_config));
 
 const auto addition_params_non_flat = ::testing::Combine(
                                                ::testing::ValuesIn(non_flat_shapes),
