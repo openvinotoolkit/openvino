@@ -24,8 +24,7 @@ from mo.graph.graph import Graph
 
 class SoftPlus(FrontReplacementOp):
     """
-    SoftPlus computes logarithm of (1 + Exp(x)).
-    It replaces SoftPlus operation with Exp -> Add -> Log.
+    The transformation replaces SoftPlus(x) with log(1.0 + exp(x)).
     """
     op = 'SoftPlus'
     enabled = True
