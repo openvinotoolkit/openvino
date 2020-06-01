@@ -23,15 +23,20 @@ from mo.graph.graph import Graph
 
 
 class SoftPlus(FrontReplacementOp):
+    """
+    SoftPlus computes logarithm of (1 + Exp(x)).
+    It replaces SoftPlus operation with Exp -> Add -> Log.
+    """
     op = 'SoftPlus'
     enabled = True
 
     def replace_sub_graph(self, graph: Graph, match: dict):
         softplus = match['op']
 
-        exp_node = Exp(graph, {'name': softplus.name + '/Exp'}).create_node()
-        add_node = create_op_node_with_second_input(graph, Add, float_array([1.0]), {'name': softplus.name + '/Add'})
-        log_node = Log(graph, {'name': softplus.name + '/Log'}).create_node()
+        name = softplus.soft_get('name', softplus.id)
+        exp_node = Exp(graph, {'name': name + '/Exp'}).create_node()
+        add_node = create_op_node_with_second_input(graph, Add, float_array([1.0]), {'name': name + '/Add'})
+        log_node = Log(graph, {'name': softplus.name}).create_node()
 
         softplus.in_port(0).get_connection().set_destination(exp_node.in_port(0))
         add_node.in_port(0).connect(exp_node.out_port(0))

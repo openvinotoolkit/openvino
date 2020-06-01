@@ -14,8 +14,8 @@
  limitations under the License.
 """
 
+from extensions.ops.activation_ops import SoftPlus
 from mo.front.extractor import FrontExtractorOp
-from extensions.ops.softplus import SoftPlus
 
 
 class SoftPlusExtractor(FrontExtractorOp):

@@ -14,8 +14,7 @@
  limitations under the License.
 """
 
-from extensions.ops.activation_ops import Sigmoid, Tanh, ReLU
-from extensions.ops.softplus import SoftPlus
+from extensions.ops.activation_ops import SoftPlus, Sigmoid, Tanh, ReLU
 from mo.front.extractor import FrontExtractorOp
 from mo.front.mxnet.extractors.utils import get_mxnet_layer_attrs
 from mo.utils.error import Error

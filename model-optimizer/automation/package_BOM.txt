@@ -676,7 +676,6 @@ extensions/ops/shufflechannel.py
 extensions/ops/simplernms.py
 extensions/ops/size.py
 extensions/ops/slice_like.py
-extensions/ops/softplus.py
 extensions/ops/space_to_depth.py
 extensions/ops/sparse_fill_empty_rows.py
 extensions/ops/sparse_reshape.py

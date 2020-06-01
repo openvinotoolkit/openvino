@@ -15,7 +15,7 @@
 """
 
 from mo.front.extractor import FrontExtractorOp
-from extensions.ops.softplus import SoftPlus
+from extensions.ops.activation_ops import SoftPlus
 
 
 class SoftPlusExtractor(FrontExtractorOp):
