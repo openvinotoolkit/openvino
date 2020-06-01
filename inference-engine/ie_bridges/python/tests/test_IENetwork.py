@@ -3,10 +3,13 @@ import pytest
 import warnings
 import numpy as np
 
-from openvino.inference_engine import IENetwork, IENetLayer, DataPtr, LayersStatsMap, LayerStats, IECore
+from openvino.inference_engine import IECore, IENetwork, IENetLayer, DataPtr, \
+    LayersStatsMap, LayerStats, InputInfoPtr, PreProcessInfo
 from conftest import model_path
 
+
 test_net_xml, test_net_bin = model_path()
+
 
 def test_create_ie_network_deprecated():
     with warnings.catch_warnings(record=True) as w:
@@ -40,43 +43,59 @@ def test_incorrect_bin_deprecated():
                "Please, use IECore.read_network() method instead" in str(w[0].message)
 
 
-@pytest.mark.skip(reason="name) returns wrong name, problem somewhere in ngraph")
 def test_name():
     ie = IECore()
     net = ie.read_network(model=test_net_xml, weights=test_net_bin)
-    assert net.name == "model"
+    assert net.name == "test_model"
 
 
-def test_inputs():
+def test_inputs_deprecated():
     ie = IECore()
     net = ie.read_network(model=test_net_xml, weights=test_net_bin)
-    assert isinstance(net.inputs['data'], DataPtr)
-    assert net.inputs['data'].layout == "NCHW"
-    assert net.inputs['data'].precision == "FP32"
-    assert net.inputs['data'].shape == [1, 3, 32, 32]
+    with warnings.catch_warnings(record=True) as w:
+        inp = net.inputs
+        assert isinstance(inp['data'], DataPtr)
+        assert inp['data'].layout == "NCHW"
+        assert inp['data'].precision == "FP32"
+        assert inp['data'].shape == [1, 3, 32, 32]
+    assert len(w) == 1
+    assert "'inputs' property of IENetwork class is deprecated. " \
+               "To access DataPtrs user need to use 'input_data' property " \
+               "of InputInfoPtr objects which " \
+               "can be acessed by 'input_info' property." in str(w[-1].message)
 
 
-def test_input_precision_setter():
+def test_input_info():
     ie = IECore()
     net = ie.read_network(model=test_net_xml, weights=test_net_bin)
-    assert net.inputs['data'].layout == "NCHW"
-    net.inputs['data'].layout = "NHWC"
-    assert net.inputs['data'].layout == "NHWC"
+    assert isinstance(net.input_info['data'], InputInfoPtr)
+    assert net.input_info['data'].layout == "NCHW"
+    assert net.input_info['data'].precision == "FP32"
+    assert isinstance(net.input_info['data'].input_data, DataPtr)
+    assert isinstance(net.input_info['data'].preprocess_info, PreProcessInfo)
 
 
-def test_input_layout_setter():
+def test_input_info_precision_setter():
     ie = IECore()
     net = ie.read_network(model=test_net_xml, weights=test_net_bin)
-    assert net.inputs['data'].precision == "FP32"
-    net.inputs['data'].precision = "I8"
-    assert net.inputs['data'].precision == "I8"
+    assert net.input_info['data'].layout == "NCHW"
+    net.input_info['data'].layout = "NHWC"
+    assert net.input_info['data'].layout == "NHWC"
+
+
+def test_input_input_info_layout_setter():
+    ie = IECore()
+    net = ie.read_network(model=test_net_xml, weights=test_net_bin)
+    assert net.input_info['data'].precision == "FP32"
+    net.input_info['data'].precision = "I8"
+    assert net.input_info['data'].precision == "I8"
 
 
 def test_input_unsupported_precision_setter():
     ie = IECore()
     net = ie.read_network(model=test_net_xml, weights=test_net_bin)
     with pytest.raises(ValueError) as e:
-        net.inputs['data'].precision = "BLA"
+        net.input_info['data'].precision = "BLA"
     assert "Unsupported precision BLA! List of supported precisions: " in str(e.value)
 
 
@@ -84,7 +103,7 @@ def test_input_unsupported_layout_setter():
     ie = IECore()
     net = ie.read_network(model=test_net_xml, weights=test_net_bin)
     with pytest.raises(ValueError) as e:
-        net.inputs['data'].layout = "BLA"
+        net.input_info['data'].layout = "BLA"
     assert "Unsupported layout BLA! List of supported layouts: " in str(e.value)
 
 
@@ -148,23 +167,26 @@ def test_batch_size_setter():
     net = ie.read_network(model=test_net_xml, weights=test_net_bin)
     net.batch_size = 4
     assert net.batch_size == 4
-    assert net.inputs['data'].shape == [4, 3, 32, 32]
+    assert net.input_info['data'].input_data.shape == [4, 3, 32, 32]
+
 
 def test_batch_size_after_reshape():
     ie = IECore()
     net = ie.read_network(model=test_net_xml, weights=test_net_bin)
-    net.reshape({'data' : [4, 3, 32, 32]})
+    net.reshape({'data': [4, 3, 32, 32]})
     assert net.batch_size == 4
-    assert net.inputs['data'].shape == [4, 3, 32, 32]
-    net.reshape({'data' : [8, 3, 32, 32]})
+    assert net.input_info['data'].input_data.shape == [4, 3, 32, 32]
+    net.reshape({'data': [8, 3, 32, 32]})
     assert net.batch_size == 8
-    assert net.inputs['data'].shape == [8, 3, 32, 32]
+    assert net.input_info['data'].input_data.shape == [8, 3, 32, 32]
+
 
 def test_layers():
     ie = IECore()
     net = ie.read_network(model=test_net_xml, weights=test_net_bin)
     layers_name = [key for key in net.layers]
-    assert sorted(layers_name) == ['19/Fused_Add_', '21', '22', '23', '24/Fused_Add_', '26', '27', '29', 'data', 'fc_out']
+    assert sorted(layers_name) == ['19/Fused_Add_', '21', '22', '23', '24/Fused_Add_',
+                                   '26', '27', '29', 'data', 'fc_out']
     assert isinstance(net.layers['19/Fused_Add_'], IENetLayer)
 
 

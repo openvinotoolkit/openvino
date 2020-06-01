@@ -42,10 +42,17 @@ void ngraph::pass::ConvertNMSToNMSIE::convert_nms_to_nms_ie() {
 
         auto new_max_per_class = nms->input_value(2);
         if (max_output_boxes_per_class_rank.get_length() == 0) {
-            new_max_per_class = std::make_shared<ngraph::op::Unsqueeze>(
-                    nms->input_value(2),
-                    opset1::Constant::create(element::i64, Shape{1}, {0}));
-            new_ops.push_back(new_max_per_class.get_node_shared_ptr());
+            // WA: we need to create Constant manually because it requires by NMS shape inference
+            //     otherwise we will get dynamic shape until first CF is executed. It can be resolved
+            //     if CF will be executed right after transformation and before Validate pass.
+            if (auto new_max_per_class_const = std::dynamic_pointer_cast<opset1::Constant>(new_max_per_class.get_node_shared_ptr())) {
+                new_max_per_class = opset1::Constant::create(element::i64, Shape{1}, new_max_per_class_const->cast_vector<int64_t>());
+            } else {
+                new_max_per_class = std::make_shared<ngraph::op::Unsqueeze>(
+                        nms->input_value(2),
+                        opset1::Constant::create(element::i64, Shape{1}, {0}));
+                new_ops.push_back(new_max_per_class.get_node_shared_ptr());
+            }
         }
         auto new_iou_threshold = nms->input_value(3);
         if (iou_threshold_rank.get_length() == 0) {

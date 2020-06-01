@@ -107,7 +107,7 @@ TEST_P(NetReaderTest, ReadNetworkTwiceSeparately) {
 
 #ifdef ENABLE_UNICODE_PATH_SUPPORT
 
-TEST_P(NetReaderTest, DISABLED_ReadCorrectModelWithWeightsUnicodePath) {
+TEST_P(NetReaderTest, ReadCorrectModelWithWeightsUnicodePath) {
     GTEST_COUT << "params.modelPath: '" << _modelPath << "'" << std::endl;
     GTEST_COUT << "params.weightsPath: '" << _weightsPath << "'" << std::endl;
     GTEST_COUT << "params.netPrc: '" << _netPrc.name() << "'" << std::endl;

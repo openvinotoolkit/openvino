@@ -16,7 +16,7 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
 };
 
 const std::vector<LayerTransformation::Params> trasformationParamValues = {
-    LayerTestsUtils::LayerTransformationParamsFactory::createParamGpu()
+    LayerTestsUtils::LayerTransformationParamsFactory::createParams()
 };
 
 INSTANTIATE_TEST_CASE_P(LPT, ConcatTransformation,

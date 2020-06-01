@@ -61,7 +61,7 @@ shared_ptr<Node>
 {
     check_new_args_count(this, new_args);
     NODE_VALIDATION_CHECK(
-        this, new_args.size() >= 3 && new_args.size() <= 5, "Number of inputs must be 3, 4 or 5");
+        this, new_args.size() >= 2 && new_args.size() <= 5, "Number of inputs must be 2, 3, 4 or 5");
     if (new_args.size() == 5)
     {
         return make_shared<op::v1::NonMaxSuppression>(new_args.at(0),
@@ -83,12 +83,23 @@ shared_ptr<Node>
             m_box_encoding,
             m_sort_result_descending);
     }
-    else
+    else if (new_args.size() == 3)
     {
         return make_shared<op::v1::NonMaxSuppression>(
             new_args.at(0),
             new_args.at(1),
             new_args.at(2),
+            op::Constant::create(element::f32, Shape{}, {.0f}),
+            op::Constant::create(element::f32, Shape{}, {.0f}),
+            m_box_encoding,
+            m_sort_result_descending);
+    }
+    else
+    {
+        return make_shared<op::v1::NonMaxSuppression>(
+            new_args.at(0),
+            new_args.at(1),
+            op::Constant::create(element::i32, Shape{}, {0}),
             op::Constant::create(element::f32, Shape{}, {.0f}),
             op::Constant::create(element::f32, Shape{}, {.0f}),
             m_box_encoding,
@@ -133,24 +144,30 @@ void op::v1::NonMaxSuppression::validate_and_infer_types()
                           "Expected a 3D tensor for the 'scores' input. Got: ",
                           scores_ps);
 
-    const auto max_boxes_ps = get_input_partial_shape(2);
-    NODE_VALIDATION_CHECK(this,
-                          max_boxes_ps.is_dynamic() || is_scalar(max_boxes_ps.to_shape()),
-                          "Expected a scalar for the 'max_output_boxes_per_class' input. Got: ",
-                          max_boxes_ps);
+    if (get_inputs().size() >= 3) {
+        const auto max_boxes_ps = get_input_partial_shape(2);
+        NODE_VALIDATION_CHECK(this,
+                              max_boxes_ps.is_dynamic() || is_scalar(max_boxes_ps.to_shape()),
+                              "Expected a scalar for the 'max_output_boxes_per_class' input. Got: ",
+                              max_boxes_ps);
+    }
 
-    const auto iou_threshold_ps = get_input_partial_shape(3);
-    NODE_VALIDATION_CHECK(this,
-                          iou_threshold_ps.is_dynamic() || is_scalar(iou_threshold_ps.to_shape()),
-                          "Expected a scalar for the 'iou_threshold' input. Got: ",
-                          iou_threshold_ps);
+    if (get_inputs().size() >= 4) {
+        const auto iou_threshold_ps = get_input_partial_shape(3);
+        NODE_VALIDATION_CHECK(this,
+                              iou_threshold_ps.is_dynamic() || is_scalar(iou_threshold_ps.to_shape()),
+                              "Expected a scalar for the 'iou_threshold' input. Got: ",
+                              iou_threshold_ps);
+    }
 
-    const auto score_threshold_ps = get_input_partial_shape(4);
-    NODE_VALIDATION_CHECK(this,
-                          score_threshold_ps.is_dynamic() ||
-                              is_scalar(score_threshold_ps.to_shape()),
-                          "Expected a scalar for the 'score_threshold' input. Got: ",
-                          score_threshold_ps);
+    if (get_inputs().size() >= 5) {
+        const auto score_threshold_ps = get_input_partial_shape(4);
+        NODE_VALIDATION_CHECK(this,
+                              score_threshold_ps.is_dynamic() ||
+                                  is_scalar(score_threshold_ps.to_shape()),
+                              "Expected a scalar for the 'score_threshold' input. Got: ",
+                              score_threshold_ps);
+    }
 
     const auto num_batches_boxes = boxes_ps[0];
     const auto num_batches_scores = scores_ps[0];
@@ -268,7 +285,7 @@ shared_ptr<Node>
 {
     check_new_args_count(this, new_args);
     NODE_VALIDATION_CHECK(
-        this, new_args.size() >= 3 && new_args.size() <= 5, "Number of inputs must be 3, 4 or 5");
+        this, new_args.size() >= 2 && new_args.size() <= 5, "Number of inputs must be 2, 3, 4 or 5");
     if (new_args.size() == 5)
     {
         return make_shared<op::v3::NonMaxSuppression>(new_args.at(0),
@@ -292,12 +309,23 @@ shared_ptr<Node>
             m_sort_result_descending,
             m_output_type);
     }
-    else
+    else if (new_args.size() == 3)
     {
         return make_shared<op::v3::NonMaxSuppression>(
             new_args.at(0),
             new_args.at(1),
             new_args.at(2),
+            op::Constant::create(element::f32, Shape{}, {.0f}),
+            op::Constant::create(element::f32, Shape{}, {.0f}),
+            m_box_encoding,
+            m_sort_result_descending);
+    }
+    else
+    {
+        return make_shared<op::v3::NonMaxSuppression>(
+            new_args.at(0),
+            new_args.at(1),
+            op::Constant::create(element::i32, Shape{}, {0}),
             op::Constant::create(element::f32, Shape{}, {.0f}),
             op::Constant::create(element::f32, Shape{}, {.0f}),
             m_box_encoding,
@@ -343,24 +371,30 @@ void op::v3::NonMaxSuppression::validate_and_infer_types()
                           "Expected a 3D tensor for the 'scores' input. Got: ",
                           scores_ps);
 
-    const auto max_boxes_ps = get_input_partial_shape(2);
-    NODE_VALIDATION_CHECK(this,
-                          max_boxes_ps.is_dynamic() || is_scalar(max_boxes_ps.to_shape()),
-                          "Expected a scalar for the 'max_output_boxes_per_class' input. Got: ",
-                          max_boxes_ps);
+    if (get_inputs().size() >= 3) {
+        const auto max_boxes_ps = get_input_partial_shape(2);
+        NODE_VALIDATION_CHECK(this,
+                              max_boxes_ps.is_dynamic() || is_scalar(max_boxes_ps.to_shape()),
+                              "Expected a scalar for the 'max_output_boxes_per_class' input. Got: ",
+                              max_boxes_ps);
+    }
 
-    const auto iou_threshold_ps = get_input_partial_shape(3);
-    NODE_VALIDATION_CHECK(this,
-                          iou_threshold_ps.is_dynamic() || is_scalar(iou_threshold_ps.to_shape()),
-                          "Expected a scalar for the 'iou_threshold' input. Got: ",
-                          iou_threshold_ps);
+    if (get_inputs().size() >= 4) {
+        const auto iou_threshold_ps = get_input_partial_shape(3);
+        NODE_VALIDATION_CHECK(this,
+                              iou_threshold_ps.is_dynamic() || is_scalar(iou_threshold_ps.to_shape()),
+                              "Expected a scalar for the 'iou_threshold' input. Got: ",
+                              iou_threshold_ps);
+    }
 
-    const auto score_threshold_ps = get_input_partial_shape(4);
-    NODE_VALIDATION_CHECK(this,
-                          score_threshold_ps.is_dynamic() ||
-                              is_scalar(score_threshold_ps.to_shape()),
-                          "Expected a scalar for the 'score_threshold' input. Got: ",
-                          score_threshold_ps);
+    if (get_inputs().size() >= 5) {
+        const auto score_threshold_ps = get_input_partial_shape(4);
+        NODE_VALIDATION_CHECK(this,
+                              score_threshold_ps.is_dynamic() ||
+                                  is_scalar(score_threshold_ps.to_shape()),
+                              "Expected a scalar for the 'score_threshold' input. Got: ",
+                              score_threshold_ps);
+    }
 
     const auto num_batches_boxes = boxes_ps[0];
     const auto num_batches_scores = scores_ps[0];
