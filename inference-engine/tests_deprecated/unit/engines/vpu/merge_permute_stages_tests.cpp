@@ -238,7 +238,7 @@ TEST_F(VPU_MergePermuteTest, TwoPermutes) {
                                PermuteDims{{Dim::H, Dim::W}, {Dim::C, Dim::H}, {Dim::W, Dim::C}});
     ASSERT_NO_THROW(pipeline.run(model));
     ASSERT_EQ(model->getStages().size(), 1U);
-    ASSERT_EQ(model->getStages().front()->type(), StageType::Reshape);
+    ASSERT_EQ(model->getStages().front()->type(), StageType::Copy);
 }
 
 TEST_F(VPU_MergePermuteTest, ThreePermutes) {
@@ -249,7 +249,7 @@ TEST_F(VPU_MergePermuteTest, ThreePermutes) {
                                  PermuteDims{{Dim::W, Dim::H}, {Dim::H, Dim::C}, {Dim::C, Dim::W}});
     ASSERT_NO_THROW(pipeline.run(model));
     ASSERT_EQ(model->getStages().size(), 1U);
-    ASSERT_EQ(model->getStages().front()->type(), StageType::Reshape);
+    ASSERT_EQ(model->getStages().front()->type(), StageType::Copy);
 
     // three merging permutes (5 dim)
     CreateModelWithThreePermutes(DimsOrder::NCDHW,
