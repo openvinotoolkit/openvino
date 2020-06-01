@@ -73,6 +73,7 @@ extensions/back/TransposeToPermute.py
 extensions/back/UselessConcatRemoval.py
 extensions/front/__init__.py
 extensions/front/ArgMaxSqueeze.py
+extensions/front/ATenToEmbeddingBag.py
 extensions/front/AttributedClampNormalizer.py
 extensions/front/AttributedGatherNormalizer.py
 extensions/front/AttributedPadToPad.py
