@@ -89,6 +89,8 @@ void ConcatTransformation::validate() {
     EXPECT_TRUE(outputLayer != nullptr);
     EXPECT_EQ("ScaleShift", outputLayer->type);
 
+    checkParentPrecision(outputLayer, params.updatePrecisions);
+
     IE_SUPPRESS_DEPRECATED_END
 }
 

@@ -8,45 +8,53 @@ from conftest import model_path
 test_net_xml, test_net_bin = model_path()
 
 
-def get_preprocess_info():
+def test_preprocess_info():
     ie_core = IECore()
     net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
-    return net.input_info["data"].preprocess_info
-
-
-def test_preprocess_info():
-    assert isinstance(get_preprocess_info(), PreProcessInfo)
+    assert isinstance(net.input_info["data"].preprocess_info, PreProcessInfo)
 
 
 def test_color_format():
-    preprocess_info = get_preprocess_info()
+    ie_core = IECore()
+    net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
+    preprocess_info = net.input_info["data"].preprocess_info
     assert preprocess_info.color_format == ColorFormat.RAW
 
 
 def test_color_format_setter():
-    preprocess_info = get_preprocess_info()
+    ie_core = IECore()
+    net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
+    preprocess_info = net.input_info["data"].preprocess_info
     preprocess_info.color_format = ColorFormat.BGR
     assert preprocess_info.color_format == ColorFormat.BGR
 
 
 def test_resize_algorithm():
-    preprocess_info = get_preprocess_info()
+    ie_core = IECore()
+    net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
+    preprocess_info = net.input_info["data"].preprocess_info
     assert preprocess_info.resize_algorithm == ResizeAlgorithm.NO_RESIZE
 
 
 def test_resize_algorithm_setter():
-    preprocess_info = get_preprocess_info()
+    ie_core = IECore()
+    net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
+    preprocess_info = net.input_info["data"].preprocess_info
     preprocess_info.resize_algorithm = ResizeAlgorithm.RESIZE_BILINEAR
     assert preprocess_info.resize_algorithm == ResizeAlgorithm.RESIZE_BILINEAR
 
 
 def test_mean_variant():
-    preprocess_info = get_preprocess_info()
+    ie_core = IECore()
+    net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
+    preprocess_info = net.input_info["data"].preprocess_info
     assert preprocess_info.mean_variant == MeanVariant.NONE
 
 
 def test_mean_variant_setter():
-    preprocess_info = get_preprocess_info()
+    ie_core = IECore()
+    net = ie_core.read_network(model=test_net_xml, weights=test_net_bin)
+    preprocess_info = net.input_info["data"].preprocess_info
     preprocess_info.mean_variant = MeanVariant.MEAN_IMAGE
     assert preprocess_info.mean_variant == MeanVariant.MEAN_IMAGE
 

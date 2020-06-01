@@ -69,6 +69,13 @@ class GNAInferRequest : public InferenceEngine::AsyncInferRequestInternal {
         // execute input pre-processing.
         execDataPreprocessing(_inputs);
         inferRequestIdx = plg->QueueInference(_inputs, _outputs);
+        // workaround to unblock callback-based flows
+        if (_callback) {
+            auto infer_request = _publicInterface.lock();
+            IE_ASSERT(infer_request != nullptr);
+            auto res = Wait(0);
+            _callback(infer_request, res);
+        }
     }
 
     InferenceEngine::StatusCode Wait(int64_t millis_timeout) override {
