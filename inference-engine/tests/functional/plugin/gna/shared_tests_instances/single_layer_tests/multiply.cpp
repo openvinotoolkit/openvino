@@ -11,7 +11,7 @@ using namespace MultiplyTestDefinitions;
 
 namespace {
 std::vector<std::vector<std::vector<size_t>>> inShapes = {
-        {{1,200}},
+        {{1, 200}},
         {{2}},
         {{1, 1, 1, 3}},
         {{1, 2, 4}},
