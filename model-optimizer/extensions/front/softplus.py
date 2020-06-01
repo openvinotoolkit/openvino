@@ -19,7 +19,7 @@ from extensions.ops.elementwise import Add
 from mo.front.common.partial_infer.utils import float_array
 from mo.front.common.replacement import FrontReplacementOp
 from mo.front.tf.graph_utils import create_op_node_with_second_input
-from mo.graph.graph import Graph
+from mo.graph.graph import Graph, rename_nodes
 
 
 class SoftPlus(FrontReplacementOp):
@@ -35,7 +35,8 @@ class SoftPlus(FrontReplacementOp):
         name = softplus.soft_get('name', softplus.id)
         exp_node = Exp(graph, {'name': name + '/Exp'}).create_node()
         add_node = create_op_node_with_second_input(graph, Add, float_array([1.0]), {'name': name + '/Add'})
-        log_node = Log(graph, {'name': softplus.name}).create_node()
+        log_node = Log(graph, {'name': name + '/Log'}).create_node()
+        rename_nodes([(softplus, name + '/Log'), (log_node, name)])
 
         softplus.in_port(0).get_connection().set_destination(exp_node.in_port(0))
         add_node.in_port(0).connect(exp_node.out_port(0))
