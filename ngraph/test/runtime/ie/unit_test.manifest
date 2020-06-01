@@ -57,6 +57,10 @@ onnx_model_scatterND
 onnx_model_gatherND_int32
 onnx_model_gatherND_float
 
+# Not supported ONNX op: Range
+onnx_model_range_positive_step
+onnx_model_range_negative_step
+
 # Not supported ONNX op: Round
 onnx_model_round
 

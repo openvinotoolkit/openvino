@@ -166,6 +166,8 @@ add_library(onnx_importer SHARED
         op/quant_conv.hpp
         op/quantize_linear.cpp
         op/quantize_linear.hpp
+        op/range.cpp
+        op/range.hpp
         op/reciprocal.cpp
         op/reciprocal.hpp
         op/reduce.cpp
