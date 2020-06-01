@@ -1418,18 +1418,6 @@ CNNLayer::Ptr NodeConverter<ngraph::op::DetectionOutput>::createLayer(
 }
 
 template <>
-CNNLayer::Ptr NodeConverter<ngraph::op::Transpose>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
-    LayerParams params = {layer->get_friendly_name(), "Permute",
-                          details::convertPrecision(layer->get_output_element_type(0))};
-    auto res = std::make_shared<InferenceEngine::CNNLayer>(params);
-
-    if (auto transpose_const = std::dynamic_pointer_cast<ngraph::op::Constant>(layer->input_value(1).get_node_shared_ptr())) {
-        res->params["order"] = asString(transpose_const->cast_vector<int64_t>());
-    }
-    return res;
-}
-
-template <>
 CNNLayer::Ptr NodeConverter<ngraph::op::Proposal>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
     THROW_IE_EXCEPTION << "Proposal operation should be converted to ProposalIE";
 }
