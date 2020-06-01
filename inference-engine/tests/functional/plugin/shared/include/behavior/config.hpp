@@ -116,7 +116,7 @@ TEST_P(CorrectConfigAPITests, canSetExclusiveAsyncRequests) {
     if ((targetDevice == CommonTestUtils::DEVICE_HDDL) || (targetDevice == CommonTestUtils::DEVICE_GNA)) {
         ASSERT_EQ(0u, InferenceEngine::ExecutorManager::getInstance()->getExecutorsNumber());
     } else if ((targetDevice == CommonTestUtils::DEVICE_FPGA) ||
-    (targetDevice == CommonTestUtils::DEVICE_KEEMBAY)) {
+    (targetDevice == CommonTestUtils::DEVICE_KEEMBAY) || (targetDevice == CommonTestUtils::DEVICE_MYRIAD)) {
         ASSERT_EQ(2u, InferenceEngine::ExecutorManager::getInstance()->getExecutorsNumber());
     } else if (targetDevice == CommonTestUtils::DEVICE_MULTI) {
     } else {
