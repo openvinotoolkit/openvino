@@ -17,6 +17,28 @@
 namespace LayerTestsDefinitions {
 using namespace SubtractTestDefinitions;
 
+const char* SubtractTestDefinitions::SecondaryInputType_to_string(SecondaryInputType input_type) {
+    switch (input_type) {
+    case SecondaryInputType::CONSTANT:
+        return "CONSTANT";
+    case SecondaryInputType::PARAMETER:
+        return "PARAMETER";
+    default:
+        return "NOT_SUPPORTED_INPUT_LAYER_TYPE";
+    }
+}
+
+const char* SubtractTestDefinitions::SubtractionType_to_string(SubtractionType subtraction_type) {
+    switch (subtraction_type) {
+    case SubtractionType::SCALAR:
+        return "SCALAR";
+    case SubtractionType::VECTOR:
+        return "VECTOR";
+    default:
+        return "NOT_SUPPORTED_SUBSTRACTION_TYPE";
+    }
+}
+
 std::string SubtractLayerTest::getTestCaseName(testing::TestParamInfo<SubtractParamsTuple> obj) {
     std::vector<std::vector<size_t>> inputShapes;
     InferenceEngine::Precision netPrecision;
@@ -79,27 +101,5 @@ void SubtractLayerTest::SetUp() {
 
 TEST_P(SubtractLayerTest, CompareWithRefs) {
     Run();
-}
-
-const char* SubtractTestDefinitions::SecondaryInputType_to_string(SecondaryInputType input_type) {
-    switch (input_type) {
-    case SecondaryInputType::CONSTANT:
-        return "CONSTANT";
-    case SecondaryInputType::PARAMETER:
-        return "PARAMETER";
-    default:
-        return "NOT_SUPPORTED_INPUT_LAYER_TYPE";
-    }
-}
-
-const char* SubtractTestDefinitions::SubtractionType_to_string(SubtractionType subtraction_type) {
-    switch (subtraction_type) {
-    case SubtractionType::SCALAR:
-        return "SCALAR";
-    case SubtractionType::VECTOR:
-        return "VECTOR";
-    default:
-        return "NOT_SUPPORTED_SUBSTRACTION_TYPE";
-    }
 }
 }  // namespace LayerTestsDefinitions

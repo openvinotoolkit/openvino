@@ -17,6 +17,28 @@
 namespace LayerTestsDefinitions {
 using namespace AddTestDefinitions;
 
+const char* AddTestDefinitions::SecondaryInputType_to_string(SecondaryInputType input_type) {
+    switch (input_type) {
+    case SecondaryInputType::CONSTANT:
+        return "CONSTANT";
+    case SecondaryInputType::PARAMETER:
+        return "PARAMETER";
+    default:
+        return "NOT_SUPPORTED_INPUT_LAYER_TYPE";
+    }
+}
+
+const char* AddTestDefinitions::AdditionType_to_string(AdditionType addition_type) {
+    switch (addition_type) {
+    case AdditionType::SCALAR:
+        return "SCALAR";
+    case AdditionType::VECTOR:
+        return "VECTOR";
+    default:
+        return "NOT_SUPPORTED_ADDITION_TYPE";
+    }
+}
+
 std::string AddLayerTest::getTestCaseName(testing::TestParamInfo<AddParamsTuple> obj) {
     std::vector<std::vector<size_t>> inputShapes;
     InferenceEngine::Precision netPrecision;
@@ -79,27 +101,5 @@ void AddLayerTest::SetUp() {
 
 TEST_P(AddLayerTest, CompareWithRefs) {
     Run();
-}
-
-const char* AddTestDefinitions::SecondaryInputType_to_string(SecondaryInputType input_type) {
-    switch (input_type) {
-    case SecondaryInputType::CONSTANT:
-        return "CONSTANT";
-    case SecondaryInputType::PARAMETER:
-        return "PARAMETER";
-    default:
-        return "NOT_SUPPORTED_INPUT_LAYER_TYPE";
-    }
-}
-
-const char* AddTestDefinitions::AdditionType_to_string(AdditionType addition_type) {
-    switch (addition_type) {
-    case AdditionType::SCALAR:
-        return "SCALAR";
-    case AdditionType::VECTOR:
-        return "VECTOR";
-    default:
-        return "NOT_SUPPORTED_ADDITION_TYPE";
-    }
 }
 }  // namespace LayerTestsDefinitions

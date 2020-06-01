@@ -11,6 +11,7 @@ using namespace MultiplyTestDefinitions;
 
 namespace {
 std::vector<std::vector<std::vector<size_t>>> inShapes = {
+        {{1,200}},
         {{2}},
         {{1, 1, 1, 3}},
         {{1, 2, 4}},
@@ -24,6 +25,10 @@ std::vector<InferenceEngine::Precision> netPrecisions = { InferenceEngine::Preci
                                                           InferenceEngine::Precision::FP16,
 };
 
+std::vector<SecondaryInputType> secondaryInputTypes = { SecondaryInputType::CONSTANT,
+                                                        SecondaryInputType::PARAMETER,
+};
+
 std::vector<MultiplicationType> multiplicationTypes = { MultiplicationType::SCALAR,
                                                         MultiplicationType::VECTOR,
 };
@@ -34,22 +39,13 @@ std::map<std::string, std::string> additional_config = {
     {"GNA_SCALE_FACTOR_1", "1638.4"}
 };
 
-const auto multiply_params_constant = ::testing::Combine(
-                                               ::testing::ValuesIn(inShapes),
-                                               ::testing::Values(SecondaryInputType::CONSTANT),
-                                               ::testing::ValuesIn(multiplicationTypes),
-                                               ::testing::ValuesIn(netPrecisions),
-                                               ::testing::Values(CommonTestUtils::DEVICE_GNA),
-                                               ::testing::Values(additional_config));
+const auto multiply_params = ::testing::Combine(
+                                      ::testing::ValuesIn(inShapes),
+                                      ::testing::ValuesIn(secondaryInputTypes),
+                                      ::testing::ValuesIn(multiplicationTypes),
+                                      ::testing::ValuesIn(netPrecisions),
+                                      ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                      ::testing::Values(additional_config));
 
-const auto multiply_params_parameter = ::testing::Combine(
-                                                ::testing::ValuesIn(inShapes),
-                                                ::testing::Values(SecondaryInputType::PARAMETER),
-                                                ::testing::ValuesIn(multiplicationTypes),
-                                                ::testing::ValuesIn(netPrecisions),
-                                                ::testing::Values(CommonTestUtils::DEVICE_GNA),
-                                                ::testing::Values(additional_config));
-
-INSTANTIATE_TEST_CASE_P(CompareWithRefs_constant, MultiplyLayerTest, multiply_params_constant, MultiplyLayerTest::getTestCaseName);
-INSTANTIATE_TEST_CASE_P(DISABLED_CompareWithRefs_parameter, MultiplyLayerTest, multiply_params_parameter, MultiplyLayerTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(CompareWithRefs, MultiplyLayerTest, multiply_params, MultiplyLayerTest::getTestCaseName);
 }  // namespace

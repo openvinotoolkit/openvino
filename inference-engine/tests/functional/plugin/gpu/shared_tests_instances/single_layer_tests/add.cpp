@@ -13,7 +13,14 @@ using namespace LayerTestsDefinitions;
 using namespace AddTestDefinitions;
 namespace {
 
-std::vector<std::vector<std::vector<size_t>>> inputShapes = { {std::vector<std::size_t>({1, 30})} };
+std::vector<std::vector<std::vector<size_t>>> inputShapes = { {{1, 200}},
+                                                              {{1, 2000}},
+                                                              {{1, 20000}},
+                                                              {{2, 200}},
+                                                              {{10, 200}},
+                                                              {{1, 10, 100}},
+                                                              {{4, 4, 16}},
+};
 
 std::vector<SecondaryInputType> secondaryInputTypes = { SecondaryInputType::CONSTANT,
                                                         SecondaryInputType::PARAMETER,

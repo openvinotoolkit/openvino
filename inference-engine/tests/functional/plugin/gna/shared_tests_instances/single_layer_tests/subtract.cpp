@@ -13,10 +13,15 @@ using namespace LayerTestsDefinitions;
 using namespace SubtractTestDefinitions;
 namespace {
 
-std::vector<std::vector<std::vector<size_t>>> inputShapes = { {std::vector<std::size_t>({1, 30})} };
+std::vector<std::vector<InferenceEngine::SizeVector>> flat_shapes = { {{1, 200}}, {{1, 2000}}, {{1, 20000}} };
+std::vector<std::vector<InferenceEngine::SizeVector>> non_flat_shapes = { {{2, 200}}, {{10, 200}}, {{1, 10, 100}}, {{4, 4, 16}} };
 
 std::vector<SecondaryInputType> secondaryInputTypes = { SecondaryInputType::CONSTANT,
                                                         SecondaryInputType::PARAMETER,
+};
+
+std::vector<SubtractionType> substractionTypes = { SubtractionType::SCALAR,
+                                                   SubtractionType::VECTOR,
 };
 
 std::vector<InferenceEngine::Precision> netPrecisions = { InferenceEngine::Precision::FP32,
@@ -29,47 +34,24 @@ std::map<std::string, std::string> additional_config = {
     {"GNA_SCALE_FACTOR_1", "1638.4"}
 };
 
-const auto subtraction_params_vector_fp32 = ::testing::Combine(
-                                                     ::testing::ValuesIn(inputShapes),
-                                                     ::testing::ValuesIn(secondaryInputTypes),
-                                                     ::testing::Values(SubtractionType::VECTOR),
-                                                     ::testing::Values(InferenceEngine::Precision::FP32),
-                                                     ::testing::Values(CommonTestUtils::DEVICE_GNA),
-                                                     ::testing::Values(additional_config));
+const auto subtraction_params_flat = ::testing::Combine(
+                                              ::testing::ValuesIn(flat_shapes),
+                                              ::testing::ValuesIn(secondaryInputTypes),
+                                              ::testing::ValuesIn(substractionTypes),
+                                              ::testing::ValuesIn(netPrecisions),
+                                              ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                              ::testing::Values(additional_config));
 
-const auto subtraction_params_vector_fp16_parameter = ::testing::Combine(
-                                                               ::testing::ValuesIn(inputShapes),
-                                                               ::testing::Values(SecondaryInputType::PARAMETER),
-                                                               ::testing::Values(SubtractionType::VECTOR),
-                                                               ::testing::Values(InferenceEngine::Precision::FP16),
-                                                               ::testing::Values(CommonTestUtils::DEVICE_GNA),
-                                                               ::testing::Values(additional_config));
+const auto subtraction_params_non_flat = ::testing::Combine(
+                                                  ::testing::ValuesIn(non_flat_shapes),
+                                                  ::testing::ValuesIn(secondaryInputTypes),
+                                                  ::testing::ValuesIn(substractionTypes),
+                                                  ::testing::ValuesIn(netPrecisions),
+                                                  ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                                  ::testing::Values(additional_config));
 
-const auto subtraction_params_vector_fp16_constant = ::testing::Combine(
-                                                              ::testing::ValuesIn(inputShapes),
-                                                              ::testing::Values(SecondaryInputType::CONSTANT),
-                                                              ::testing::Values(SubtractionType::VECTOR),
-                                                              ::testing::Values(InferenceEngine::Precision::FP16),
-                                                              ::testing::Values(CommonTestUtils::DEVICE_GNA),
-                                                              ::testing::Values(additional_config));
+INSTANTIATE_TEST_CASE_P(CompareWithRefs_flat, SubtractLayerTest, subtraction_params_flat, SubtractLayerTest::getTestCaseName);
 
-const auto subtraction_params_scalar = ::testing::Combine(
-                                                ::testing::ValuesIn(inputShapes),
-                                                ::testing::ValuesIn(secondaryInputTypes),
-                                                ::testing::Values(SubtractionType::SCALAR),
-                                                ::testing::ValuesIn(netPrecisions),
-                                                ::testing::Values(CommonTestUtils::DEVICE_GNA),
-                                                ::testing::Values(additional_config));
+INSTANTIATE_TEST_CASE_P(CompareWithRefs_non_flat, SubtractLayerTest, subtraction_params_non_flat, SubtractLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(CompareWithRefs_vector_fp32, SubtractLayerTest,
-                        subtraction_params_vector_fp32, SubtractLayerTest::getTestCaseName);
-
-INSTANTIATE_TEST_CASE_P(CompareWithRefs_vector_fp16_parameter, SubtractLayerTest,
-                        subtraction_params_vector_fp16_parameter, SubtractLayerTest::getTestCaseName);
-
-INSTANTIATE_TEST_CASE_P(DISABLED_CompareWithRefs_vector_fp16_constant, SubtractLayerTest,
-                        subtraction_params_vector_fp16_constant, SubtractLayerTest::getTestCaseName);
-
-INSTANTIATE_TEST_CASE_P(DISABLED_CompareWithRefs_scalar, SubtractLayerTest,
-                        subtraction_params_scalar, SubtractLayerTest::getTestCaseName);
 }  // namespace

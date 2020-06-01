@@ -9,5 +9,7 @@
 
 std::vector<std::string> disabledTestPatterns() {
     return {
+        // TODO: Issue 32521
+        R"(.*SubtractLayerTest.*netPRC=FP16.*)"
     };
 }

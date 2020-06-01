@@ -20,6 +20,8 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO: Issue 32023
         R"(.*(QuantGroupConvBackpropData2D)*QG=Pertensor.*)",
         // TODO: Issue 31845
-        R"(.*(FakeQuantize).*)"
+        R"(.*(FakeQuantize).*)",
+        // TODO: Issue 32521
+        R"(.*SubtractLayerTest.*netPRC=FP16.*)"
     };
 }

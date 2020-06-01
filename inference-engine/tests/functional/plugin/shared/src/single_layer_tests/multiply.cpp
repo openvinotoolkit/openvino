@@ -19,6 +19,28 @@
 namespace LayerTestsDefinitions {
 using namespace MultiplyTestDefinitions;
 
+const char* MultiplyTestDefinitions::SecondaryInputType_to_string(SecondaryInputType input_type) {
+    switch (input_type) {
+    case SecondaryInputType::CONSTANT:
+        return "CONSTANT";
+    case SecondaryInputType::PARAMETER:
+        return "PARAMETER";
+    default:
+        return "NOT_SUPPORTED_INPUT_LAYER_TYPE";
+    }
+}
+
+const char* MultiplyTestDefinitions::MultiplicationType_to_string(MultiplicationType multiplication_type) {
+    switch (multiplication_type) {
+    case MultiplicationType::SCALAR:
+        return "SCALAR";
+    case MultiplicationType::VECTOR:
+        return "VECTOR";
+    default:
+        return "NOT_SUPPORTED_MULTIPLICATION_TYPE";
+    }
+}
+
 std::string MultiplyLayerTest::getTestCaseName(const testing::TestParamInfo<MultiplyParamsTuple> &obj) {
     std::vector<std::vector<size_t>> inputShapes;
     InferenceEngine::Precision netPrecision;
@@ -84,26 +106,4 @@ void MultiplyLayerTest::SetUp() {
 TEST_P(MultiplyLayerTest, CompareWithRefs){
     Run();
 };
-
-const char* MultiplyTestDefinitions::SecondaryInputType_to_string(SecondaryInputType input_type) {
-    switch (input_type) {
-    case SecondaryInputType::CONSTANT:
-        return "CONSTANT";
-    case SecondaryInputType::PARAMETER:
-        return "PARAMETER";
-    default:
-        return "NOT_SUPPORTED_INPUT_LAYER_TYPE";
-    }
-}
-
-const char* MultiplyTestDefinitions::MultiplicationType_to_string(MultiplicationType multiplication_type) {
-    switch (multiplication_type) {
-    case MultiplicationType::SCALAR:
-        return "SCALAR";
-    case MultiplicationType::VECTOR:
-        return "VECTOR";
-    default:
-        return "NOT_SUPPORTED_MULTIPLICATION_TYPE";
-    }
-}
 } // namespace LayerTestsDefinitions
