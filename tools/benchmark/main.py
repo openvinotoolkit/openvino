@@ -175,12 +175,12 @@ def run(args):
             # --------------------- 5. Resizing network to match image sizes and given batch ---------------------------
             next_step()
 
-            shapes = {k: v.shape.copy() for k, v in ie_network.inputs.items()}
+            shapes = {k: v.input_data.shape.copy() for k, v in ie_network.input_info.items()}
             reshape = False
             if args.shape:
-                reshape |= update_shapes(shapes, args.shape, ie_network.inputs)
+                reshape |= update_shapes(shapes, args.shape, ie_network.input_info)
             if args.batch_size and args.batch_size != ie_network.batch_size:
-                reshape |= adjust_shapes_batch(shapes, args.batch_size, ie_network.inputs)
+                reshape |= adjust_shapes_batch(shapes, args.batch_size, ie_network.input_info)
 
             if reshape:
                 start_time = datetime.utcnow()
@@ -259,7 +259,7 @@ def run(args):
         if args.paths_to_input:
             for path in args.paths_to_input:
                 paths_to_input.append(os.path.abspath(*path) if args.paths_to_input else None)
-        set_inputs(paths_to_input, batch_size, exe_network.inputs, infer_requests)
+        set_inputs(paths_to_input, batch_size, exe_network.input_info, infer_requests)
 
         if statistics:
             statistics.add_parameters(StatisticsReport.Category.RUNTIME_CONFIG,
