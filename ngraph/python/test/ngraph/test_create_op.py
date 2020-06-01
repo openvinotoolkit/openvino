@@ -867,3 +867,17 @@ def test_assign():
     assert node.get_output_size() == 1
     assert list(node.get_output_shape(0)) == [5, 7]
     assert node.get_output_element_type(0) == Type.i32
+
+
+def test_extract_image_patches():
+    image = ng.parameter([64, 3, 10, 10], name="image", dtype=np.int32)
+    sizes = [3, 3];
+    strides = [5, 5];
+    rates = [1, 1];
+    padding = "VALID";
+    node = ng.extract_image_patches(image, sizes, strides, rates, padding)
+
+    assert node.get_type_name() == "ExtractImagePatches"
+    assert node.get_output_size() == 1
+    assert list(node.get_output_shape(0)) == [64, 27, 2, 2]
+    assert node.get_output_element_type(0) == Type.i32

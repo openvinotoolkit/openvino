@@ -3462,3 +3462,29 @@ def read_value(init_value: NodeInput, variable_id: str, name: Optional[str] = No
     :return: ReadValue node
     """
     return _get_node_factory().create("ReadValue", [init_value], {"variable_id": variable_id})
+
+
+@nameable_op
+def extract_image_patches(
+    image: NodeInput,
+    sizes: TensorShape,
+    strides: List[int],
+    rates: TensorShape,
+    auto_pad: str,
+    name: Optional[str] = None,
+) -> Node:
+    """Return a node which produces the ExtractImagePatches operation.
+
+    :param image:     4-D Input data to extract image patches.
+    :param sizes:     Patch size in the format of [size_rows, size_cols].
+    :param strides:   Patch movement stride in the format of [stride_rows, stride_cols]
+    :param rates:     Element seleciton rate for creating a patch.
+    :param auto_pad:  Padding type.
+    :param name:      Optional name for output node.
+    :return: ExtractImagePatches node
+    """
+    return _get_node_factory().create(
+        "ExtractImagePatches",
+        [image],
+        {"sizes": sizes, "strides": strides, "rates": rates, "auto_pad": auto_pad},
+    )
