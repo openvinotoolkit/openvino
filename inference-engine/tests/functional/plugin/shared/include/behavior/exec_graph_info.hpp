@@ -39,8 +39,6 @@ TEST_P(ExecGraphTests, CheckExecGraphInfoBeforeExecution) {
     // Create CNNNetwork from ngrpah::Function
     InferenceEngine::CNNNetwork cnnNet(function);
     InferenceEngine::CNNNetwork execGraph;
-    // Get Core from cache
-    auto ie = PluginCache::get().ie();
     if (targetDevice == CommonTestUtils::DEVICE_CPU || targetDevice == CommonTestUtils::DEVICE_GPU) {
         // Load CNNNetwork to target plugins
         auto execNet = ie->LoadNetwork(cnnNet, targetDevice);
@@ -89,7 +87,6 @@ TEST_P(ExecGraphTests, CheckExecGraphInfoBeforeExecution) {
                 InferenceEngine::details::InferenceEngineException);
     }
     IE_SUPPRESS_DEPRECATED_END
-    function.reset();
 }
 
 TEST_P(ExecGraphTests, CheckExecGraphInfoAfterExecution) {
@@ -98,8 +95,6 @@ TEST_P(ExecGraphTests, CheckExecGraphInfoAfterExecution) {
     // Create CNNNetwork from ngrpah::Function
     InferenceEngine::CNNNetwork cnnNet(function);
     InferenceEngine::CNNNetwork execGraph;
-    // Get Core from cache
-    auto ie = PluginCache::get().ie();
     if (targetDevice == CommonTestUtils::DEVICE_CPU || targetDevice == CommonTestUtils::DEVICE_GPU) {
         // Load CNNNetwork to target plugins
         auto execNet = ie->LoadNetwork(cnnNet, targetDevice);
@@ -155,7 +150,6 @@ TEST_P(ExecGraphTests, CheckExecGraphInfoAfterExecution) {
                 InferenceEngine::details::InferenceEngineException);
     }
     IE_SUPPRESS_DEPRECATED_END
-    function.reset();
 }
 
 TEST_P(ExecGraphTests, CheckExecGraphInfoSerialization) {
@@ -164,8 +158,6 @@ TEST_P(ExecGraphTests, CheckExecGraphInfoSerialization) {
     // Create CNNNetwork from ngrpah::Function
     InferenceEngine::CNNNetwork cnnNet(function);
     InferenceEngine::CNNNetwork execGraph;
-    // Get Core from cache
-    auto ie = PluginCache::get().ie();
     if (targetDevice == CommonTestUtils::DEVICE_CPU || targetDevice == CommonTestUtils::DEVICE_GPU) {
         // Load CNNNetwork to target plugins
         auto execNet = ie->LoadNetwork(cnnNet, targetDevice);
@@ -177,7 +169,6 @@ TEST_P(ExecGraphTests, CheckExecGraphInfoSerialization) {
         ASSERT_EQ(0, std::remove("exeNetwork.xml"));
     } else {
         ASSERT_THROW(ie->LoadNetwork(cnnNet, targetDevice).GetExecGraphInfo(),
-                InferenceEngine::details::InferenceEngineException);
+                     InferenceEngine::details::InferenceEngineException);
     }
-    function.reset();
 }

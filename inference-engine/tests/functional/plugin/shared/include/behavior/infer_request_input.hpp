@@ -30,8 +30,6 @@ TEST_P(InferRequestInputTests, canSetInputBlobForSyncRequest) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     // Create CNNNetwork from ngrpah::Function
     InferenceEngine::CNNNetwork cnnNet(function);
-    // Get Core from cache
-    auto ie = PluginCache::get().ie();
     // Load CNNNetwork to target plugins
     auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
     // Create InferRequest
@@ -43,7 +41,6 @@ TEST_P(InferRequestInputTests, canSetInputBlobForSyncRequest) {
     InferenceEngine::Blob::Ptr actualBlob;
     ASSERT_NO_THROW(actualBlob = req.GetBlob(cnnNet.getInputsInfo().begin()->first));
     ASSERT_EQ(inputBlob, actualBlob);
-    function.reset();
 }
 
 TEST_P(InferRequestInputTests, canInferWithSetInOut) {
@@ -51,8 +48,6 @@ TEST_P(InferRequestInputTests, canInferWithSetInOut) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     // Create CNNNetwork from ngrpah::Function
     InferenceEngine::CNNNetwork cnnNet(function);
-    // Get Core from cache
-    auto ie = PluginCache::get().ie();
     // Load CNNNetwork to target plugins
     auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
     // Create InferRequest
@@ -65,7 +60,6 @@ TEST_P(InferRequestInputTests, canInferWithSetInOut) {
             FuncTestUtils::createAndFillBlob(cnnNet.getInputsInfo().begin()->second->getTensorDesc());
     req.SetBlob(cnnNet.getInputsInfo().begin()->first, outputBlob);
     ASSERT_NO_THROW(req.Infer());
-    function.reset();
 }
 
 TEST_P(InferRequestInputTests, canGetInputBlob_deprecatedAPI) {
@@ -73,8 +67,6 @@ TEST_P(InferRequestInputTests, canGetInputBlob_deprecatedAPI) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     // Create CNNNetwork from ngrpah::Function
     InferenceEngine::CNNNetwork cnnNet(function);
-    // Get Core from cache
-    auto ie = PluginCache::get().ie();
     // Load CNNNetwork to target plugins
     auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
     // Create InferRequest
@@ -93,7 +85,6 @@ TEST_P(InferRequestInputTests, canGetInputBlob_deprecatedAPI) {
 
     ASSERT_EQ(execNet.GetInputsInfo().begin()->second->getPrecision(), tensorDescription.getPrecision())
                                 << "Input blob precision don't match network input";
-    function.reset();
 }
 
 TEST_P(InferRequestInputTests, getAfterSetInputDoNotChangeInput) {
@@ -101,8 +92,6 @@ TEST_P(InferRequestInputTests, getAfterSetInputDoNotChangeInput) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     // Create CNNNetwork from ngrpah::Function
     InferenceEngine::CNNNetwork cnnNet(function);
-    // Get Core from cache
-    auto ie = PluginCache::get().ie();
     // Load CNNNetwork to target plugins
     auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
     // Create InferRequest
@@ -113,7 +102,6 @@ TEST_P(InferRequestInputTests, getAfterSetInputDoNotChangeInput) {
     std::shared_ptr<InferenceEngine::Blob> actualBlob;
     ASSERT_NO_THROW(actualBlob = req.GetBlob(cnnNet.getInputsInfo().begin()->first));
     ASSERT_EQ(inputBlob.get(), actualBlob.get());
-    function.reset();
 }
 
 TEST_P(InferRequestInputTests, canInferWithGetInOut) {
@@ -121,8 +109,6 @@ TEST_P(InferRequestInputTests, canInferWithGetInOut) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     // Create CNNNetwork from ngrpah::Function
     InferenceEngine::CNNNetwork cnnNet(function);
-    // Get Core from cache
-    auto ie = PluginCache::get().ie();
     // Load CNNNetwork to target plugins
     auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
     // Create InferRequest
@@ -131,7 +117,6 @@ TEST_P(InferRequestInputTests, canInferWithGetInOut) {
     InferenceEngine::Blob::Ptr inputBlob = req.GetBlob(cnnNet.getInputsInfo().begin()->first);
     InferenceEngine::Blob::Ptr outputBlob = req.GetBlob(cnnNet.getOutputsInfo().begin()->first);
     ASSERT_NO_THROW(req.Infer());
-    function.reset();
 }
 
 TEST_P(InferRequestInputTests, canStartAsyncInferWithGetInOut) {
@@ -139,8 +124,6 @@ TEST_P(InferRequestInputTests, canStartAsyncInferWithGetInOut) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     // Create CNNNetwork from ngrpah::Function
     InferenceEngine::CNNNetwork cnnNet(function);
-    // Get Core from cache
-    auto ie = PluginCache::get().ie();
     // Load CNNNetwork to target plugins
     auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
     // Create InferRequest
@@ -153,5 +136,4 @@ TEST_P(InferRequestInputTests, canStartAsyncInferWithGetInOut) {
     sts = req.Wait(500);
     ASSERT_EQ(InferenceEngine::StatusCode::OK, sts);
     InferenceEngine::Blob::Ptr outputBlob = req.GetBlob(cnnNet.getOutputsInfo().begin()->first);
-    function.reset();
 }

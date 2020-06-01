@@ -29,8 +29,6 @@ TEST_P(CallbackTests, canCallSyncAndAsyncWithCompletionCallback) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     // Create CNNNetwork from ngrpah::Function
     InferenceEngine::CNNNetwork cnnNet(function);
-    // Get Core from cache
-    auto ie = PluginCache::get().ie();
     // Load CNNNetwork to target plugins
     auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
     // Create InferRequest
@@ -50,7 +48,6 @@ TEST_P(CallbackTests, canCallSyncAndAsyncWithCompletionCallback) {
 
     ASSERT_EQ(static_cast<int>(InferenceEngine::StatusCode::OK), waitStatus);
     ASSERT_TRUE(isCalled);
-    function.reset();
 }
 
 // test that can wait all callbacks on dtor
@@ -66,8 +63,6 @@ TEST_P(CallbackTests, canStartAsyncInsideCompletionCallback) {
 
     // Create CNNNetwork from ngrpah::Function
     InferenceEngine::CNNNetwork cnnNet(function);
-    // Get Core from cache
-    auto ie = PluginCache::get().ie();
     // Load CNNNetwork to target plugins
     auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
     // Create InferRequest
@@ -95,7 +90,6 @@ TEST_P(CallbackTests, canStartAsyncInsideCompletionCallback) {
     ASSERT_EQ(static_cast<int>(InferenceEngine::StatusCode::OK), waitStatus) << responseWait.msg;
     ASSERT_EQ(1, data.numIsCalled);
     ASSERT_TRUE(data.startAsyncOK);
-    function.reset();
 }
 
 // test that can wait all callbacks on dtor
@@ -116,8 +110,6 @@ TEST_P(CallbackTests, canStartSeveralAsyncInsideCompletionCallbackWithSafeDtor) 
 
     // Create CNNNetwork from ngrpah::Function
     InferenceEngine::CNNNetwork cnnNet(function);
-    // Get Core from cache
-    auto ie = PluginCache::get().ie();
     // Load CNNNetwork to target plugins
     auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
     // Create InferRequest
@@ -151,7 +143,6 @@ TEST_P(CallbackTests, canStartSeveralAsyncInsideCompletionCallbackWithSafeDtor) 
     ASSERT_EQ((int) InferenceEngine::StatusCode::OK, waitStatus) << responseWait.msg;
     ASSERT_EQ(NUM_ITER, data.numIsCalled);
     ASSERT_TRUE(data.startAsyncOK);
-    function.reset();
 }
 
 TEST_P(CallbackTests, inferDoesNotCallCompletionCallback) {
@@ -159,8 +150,6 @@ TEST_P(CallbackTests, inferDoesNotCallCompletionCallback) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     // Create CNNNetwork from ngrpah::Function
     InferenceEngine::CNNNetwork cnnNet(function);
-    // Get Core from cache
-    auto ie = PluginCache::get().ie();
     // Load CNNNetwork to target plugins
     auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
     // Create InferRequest
@@ -172,7 +161,6 @@ TEST_P(CallbackTests, inferDoesNotCallCompletionCallback) {
             });
     req.Infer();
     ASSERT_FALSE(isCalled);
-    function.reset();
 }
 
 TEST_P(CallbackTests, canStartAsyncInsideCompletionCallbackNoSafeDtor) {
@@ -194,8 +182,6 @@ TEST_P(CallbackTests, canStartAsyncInsideCompletionCallbackNoSafeDtor) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     // Create CNNNetwork from ngrpah::Function
     InferenceEngine::CNNNetwork cnnNet(function);
-    // Get Core from cache
-    auto ie = PluginCache::get().ie();
     // Load CNNNetwork to target plugins
     auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
     // Create InferRequest
@@ -229,7 +215,6 @@ TEST_P(CallbackTests, canStartAsyncInsideCompletionCallbackNoSafeDtor) {
     ASSERT_EQ(1, data.numIsCalled);
     ASSERT_TRUE(data.startAsyncOK);
     ASSERT_TRUE(data.getDataOK);
-    function.reset();
 }
 
 TEST_P(CallbackTests, canStartSeveralAsyncInsideCompletionCallbackNoSafeDtor) {
@@ -251,8 +236,6 @@ TEST_P(CallbackTests, canStartSeveralAsyncInsideCompletionCallbackNoSafeDtor) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     // Create CNNNetwork from ngrpah::Function
     InferenceEngine::CNNNetwork cnnNet(function);
-    // Get Core from cache
-    auto ie = PluginCache::get().ie();
     // Load CNNNetwork to target plugins
     auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
     // Create InferRequest
@@ -286,7 +269,6 @@ TEST_P(CallbackTests, canStartSeveralAsyncInsideCompletionCallbackNoSafeDtor) {
     ASSERT_EQ(10, data.numIsCalled);
     ASSERT_TRUE(data.startAsyncOK);
     ASSERT_TRUE(data.getDataOK);
-    function.reset();
 }
 
 TEST_P(CallbackTests, returnGeneralErrorIfCallbackThrowException) {
@@ -294,8 +276,6 @@ TEST_P(CallbackTests, returnGeneralErrorIfCallbackThrowException) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     // Create CNNNetwork from ngrpah::Function
     InferenceEngine::CNNNetwork cnnNet(function);
-    // Get Core from cache
-    auto ie = PluginCache::get().ie();
     // Load CNNNetwork to target plugins
     auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
     // Create InferRequest
@@ -314,5 +294,4 @@ TEST_P(CallbackTests, returnGeneralErrorIfCallbackThrowException) {
     }
     ASSERT_EQ(InferenceEngine::StatusCode::GENERAL_ERROR, waitStatus);
     ASSERT_NE(std::string(resp.msg).find("returnGeneralErrorIfCallbackThrowException"), std::string::npos);
-    function.reset();
 }

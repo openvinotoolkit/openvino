@@ -60,17 +60,11 @@ public:
     }
 
     void TearDown() override {
-        if (targetDevice.find(CommonTestUtils::DEVICE_GPU) != std::string::npos) {
-            PluginCache::get().reset();
-        }
-        configuration.clear();
+        PluginCache::get().reset();
         function.reset();
     }
 
-    ~BehaviorTestsBasic() {
-        configuration.clear();
-    }
-
+    std::shared_ptr<InferenceEngine::Core> ie = PluginCache::get().ie();
     std::shared_ptr<ngraph::Function> function;
     InferenceEngine::Precision netPrecision;
     std::string targetDevice;

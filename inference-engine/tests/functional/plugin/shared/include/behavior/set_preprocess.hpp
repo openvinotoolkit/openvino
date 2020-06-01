@@ -23,9 +23,6 @@ TEST_P(PreprocessBehTest, SetPreProcessToInputInfo) {
 
     auto &preProcess = cnnNet.getInputsInfo().begin()->second->getPreProcess();
     preProcess.setResizeAlgorithm(InferenceEngine::ResizeAlgorithm::RESIZE_BILINEAR);
-
-    // Get Core from cache
-    auto ie = PluginCache::get().ie();
     // Load CNNNetwork to target plugins
     auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
     // Create InferRequest
@@ -37,7 +34,6 @@ TEST_P(PreprocessBehTest, SetPreProcessToInputInfo) {
         ASSERT_EQ(info->getResizeAlgorithm(), InferenceEngine::ResizeAlgorithm::RESIZE_BILINEAR);
         ASSERT_PREPROCESS_INFO_EQ(preProcess, *info);
     }
-    function.reset();
 }
 
 TEST_P(PreprocessBehTest, SetPreProcessToInferRequest) {
@@ -48,9 +44,6 @@ TEST_P(PreprocessBehTest, SetPreProcessToInferRequest) {
 
     auto &preProcess = cnnNet.getInputsInfo().begin()->second->getPreProcess();
     preProcess.setResizeAlgorithm(InferenceEngine::ResizeAlgorithm::RESIZE_BILINEAR);
-
-    // Get Core from cache
-    auto ie = PluginCache::get().ie();
     // Load CNNNetwork to target plugins
     auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
     // Create InferRequest
@@ -65,5 +58,4 @@ TEST_P(PreprocessBehTest, SetPreProcessToInferRequest) {
         ASSERT_EQ(cnnNet.getInputsInfo().begin()->second->getPreProcess().getResizeAlgorithm(),
                   info->getResizeAlgorithm());
     }
-    function.reset();
 }

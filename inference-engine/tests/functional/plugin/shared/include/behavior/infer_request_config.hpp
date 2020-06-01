@@ -33,8 +33,6 @@ TEST_P(InferConfigTests, canSetExclusiveAsyncRequests) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     // Create CNNNetwork from ngrpah::Function
     InferenceEngine::CNNNetwork cnnNet(function);
-    // Get Core from cache
-    auto ie = PluginCache::get().ie();
     // Load config
     std::map<std::string, std::string> config = {{CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS), CONFIG_VALUE(YES)}};
     config.insert(configuration.begin(), configuration.end());
@@ -55,7 +53,6 @@ TEST_P(InferConfigTests, canSetExclusiveAsyncRequests) {
     } else {
         ASSERT_EQ(1u, InferenceEngine::ExecutorManager::getInstance()->getExecutorsNumber());
     }
-    function.reset();
 }
 
 TEST_P(InferConfigTests, withoutExclusiveAsyncRequests) {
@@ -64,8 +61,6 @@ TEST_P(InferConfigTests, withoutExclusiveAsyncRequests) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     // Create CNNNetwork from ngrpah::Function
     InferenceEngine::CNNNetwork cnnNet(function);
-    // Get Core from cache
-    auto ie = PluginCache::get().ie();
     // Load config
     std::map<std::string, std::string> config = {{CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS), CONFIG_VALUE(YES)}};
     config.insert(configuration.begin(), configuration.end());
@@ -85,7 +80,6 @@ TEST_P(InferConfigTests, withoutExclusiveAsyncRequests) {
     } else {
         ASSERT_EQ(1u, InferenceEngine::ExecutorManager::getInstance()->getExecutorsNumber());
     }
-    function.reset();
 }
 
 using InferConfigInTests = BehaviorTestsUtils::BehaviorTestsBasic;
@@ -95,11 +89,8 @@ TEST_P(InferConfigInTests, CanInferWithConfig) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     // Create CNNNetwork from ngrpah::Function
     InferenceEngine::CNNNetwork cnnNet(function);
-    // Get Core from cache
-    auto ie = PluginCache::get().ie();
     // Load CNNNetwork to target plugins
     auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration);
     auto req = execNet.CreateInferRequest();
     ASSERT_NO_THROW(req.Infer());
-    function.reset();
 }

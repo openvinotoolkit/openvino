@@ -36,12 +36,9 @@ TEST_P(CorrectConfigTests, SetEmptyConfig) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     // Create CNNNetwork from ngrpah::Function
     InferenceEngine::CNNNetwork cnnNet(function);
-    // Get Core from cache
-    auto ie = PluginCache::get().ie();
     std::map<std::string, std::string> config;
     ASSERT_NO_THROW(ie->GetMetric(targetDevice, METRIC_KEY(SUPPORTED_CONFIG_KEYS)));
     ASSERT_NO_THROW(ie->SetConfig(config, targetDevice));
-    function.reset();
 }
 
 // Setting correct config doesn't throw
@@ -50,11 +47,8 @@ TEST_P(CorrectConfigTests, SetCorrectConfig) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     // Create CNNNetwork from ngrpah::Function
     InferenceEngine::CNNNetwork cnnNet(function);
-    // Get Core from cache
-    auto ie = PluginCache::get().ie();
     ASSERT_NO_THROW(ie->GetMetric(targetDevice, METRIC_KEY(SUPPORTED_CONFIG_KEYS)));
     ASSERT_NO_THROW(ie->SetConfig(configuration, targetDevice));
-    function.reset();
 }
 
 using IncorrectConfigTests = BehaviorTestsUtils::BehaviorTestsBasic;
@@ -64,8 +58,6 @@ TEST_P(IncorrectConfigTests, SetConfigWithIncorrectKey) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     // Create CNNNetwork from ngrpah::Function
     InferenceEngine::CNNNetwork cnnNet(function);
-    // Get Core from cache
-    auto ie = PluginCache::get().ie();
     if (targetDevice.find(CommonTestUtils::DEVICE_MULTI) == std::string::npos &&
     targetDevice.find(CommonTestUtils::DEVICE_HETERO) == std::string::npos) {
         ASSERT_NO_THROW(ie->GetMetric(targetDevice, METRIC_KEY(SUPPORTED_CONFIG_KEYS)));
@@ -75,7 +67,6 @@ TEST_P(IncorrectConfigTests, SetConfigWithIncorrectKey) {
         ASSERT_NO_THROW(ie->GetMetric(targetDevice, METRIC_KEY(SUPPORTED_CONFIG_KEYS)));
         ASSERT_NO_THROW(ie->SetConfig(configuration, targetDevice));
     }
-    function.reset();
 }
 
 TEST_P(IncorrectConfigTests, canNotLoadNetworkWithIncorrectConfig) {
@@ -83,11 +74,8 @@ TEST_P(IncorrectConfigTests, canNotLoadNetworkWithIncorrectConfig) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     // Create CNNNetwork from ngrpah::Function
     InferenceEngine::CNNNetwork cnnNet(function);
-    // Get Core from cache
-    auto ie = PluginCache::get().ie();
     ASSERT_THROW(auto execNet = ie->LoadNetwork(cnnNet, targetDevice, configuration),
             InferenceEngine::details::InferenceEngineException);
-    function.reset();
 }
 
 using IncorrectConfigAPITests = BehaviorTestsUtils::BehaviorTestsBasic;
@@ -97,8 +85,6 @@ TEST_P(IncorrectConfigAPITests, SetConfigWithNoExistingKey) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     // Create CNNNetwork from ngrpah::Function
     InferenceEngine::CNNNetwork cnnNet(function);
-    // Get Core from cache
-    auto ie = PluginCache::get().ie();
     ASSERT_NO_THROW(ie->GetMetric(targetDevice, METRIC_KEY(SUPPORTED_CONFIG_KEYS)));
     if (targetDevice.find(CommonTestUtils::DEVICE_GNA) != std::string::npos) {
         ASSERT_THROW(ie->SetConfig(configuration, targetDevice), InferenceEngine::NotFound);
@@ -107,7 +93,6 @@ TEST_P(IncorrectConfigAPITests, SetConfigWithNoExistingKey) {
             ie->SetConfig(configuration, targetDevice);
         } catch (InferenceEngine::details::InferenceEngineException ex) {}
     }
-    function.reset();
 }
 
 using CorrectConfigAPITests = BehaviorTestsUtils::BehaviorTestsBasic;
@@ -117,8 +102,6 @@ TEST_P(CorrectConfigAPITests, canSetExclusiveAsyncRequests) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     // Create CNNNetwork from ngrpah::Function
     InferenceEngine::CNNNetwork cnnNet(function);
-    // Get Core from cache
-    auto ie = PluginCache::get().ie();
     // Load config
     std::map<std::string, std::string> config = {{CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS), CONFIG_VALUE(YES)}};
     config.insert(configuration.begin(), configuration.end());
@@ -130,8 +113,7 @@ TEST_P(CorrectConfigAPITests, canSetExclusiveAsyncRequests) {
     auto execNet = ie->LoadNetwork(cnnNet, targetDevice, config);
     execNet.CreateInferRequest();
 
-    if ((targetDevice == CommonTestUtils::DEVICE_HDDL) || (targetDevice == CommonTestUtils::DEVICE_GNA) ||
-    (targetDevice == CommonTestUtils::DEVICE_CPU) || (targetDevice == CommonTestUtils::DEVICE_GPU)) {
+    if ((targetDevice == CommonTestUtils::DEVICE_HDDL) || (targetDevice == CommonTestUtils::DEVICE_GNA)) {
         ASSERT_EQ(0u, InferenceEngine::ExecutorManager::getInstance()->getExecutorsNumber());
     } else if ((targetDevice == CommonTestUtils::DEVICE_FPGA) ||
     (targetDevice == CommonTestUtils::DEVICE_KEEMBAY)) {
@@ -141,7 +123,6 @@ TEST_P(CorrectConfigAPITests, canSetExclusiveAsyncRequests) {
         ASSERT_EQ(1u, InferenceEngine::ExecutorManager::getInstance()->getExecutorsNumber());
     }
     config.clear();
-    function.reset();
 }
 
 TEST_P(CorrectConfigAPITests, withoutExclusiveAsyncRequests) {
@@ -149,8 +130,6 @@ TEST_P(CorrectConfigAPITests, withoutExclusiveAsyncRequests) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     // Create CNNNetwork from ngrpah::Function
     InferenceEngine::CNNNetwork cnnNet(function);
-    // Get Core from cache
-    auto ie = PluginCache::get().ie();
     // Load config
     std::map<std::string, std::string> config = {{CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS), CONFIG_VALUE(NO)}};
     config.insert(configuration.begin(), configuration.end());
@@ -170,7 +149,6 @@ TEST_P(CorrectConfigAPITests, withoutExclusiveAsyncRequests) {
         ASSERT_EQ(0u, InferenceEngine::ExecutorManager::getInstance()->getExecutorsNumber());
     }
     config.clear();
-    function.reset();
 }
 
 TEST_P(CorrectConfigAPITests, reusableCPUStreamsExecutor) {
@@ -181,8 +159,6 @@ TEST_P(CorrectConfigAPITests, reusableCPUStreamsExecutor) {
 
     // Create CNNNetwork from ngrpah::Function
     InferenceEngine::CNNNetwork cnnNet(function);
-    // Get Core from cache
-    auto ie = PluginCache::get().ie();
     {
         // Load config
         std::map<std::string, std::string> config = {{CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS), CONFIG_VALUE(NO)}};
@@ -212,5 +188,4 @@ TEST_P(CorrectConfigAPITests, reusableCPUStreamsExecutor) {
         ASSERT_EQ(0u, InferenceEngine::ExecutorManager::getInstance()->getExecutorsNumber());
         ASSERT_EQ(0u, InferenceEngine::ExecutorManager::getInstance()->getIdleCPUStreamsExecutorsNumber());
     }
-    function.reset();
 }
