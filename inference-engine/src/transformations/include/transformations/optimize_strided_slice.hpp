@@ -7,7 +7,7 @@
 #include <vector>
 #include <memory>
 
-#include <ie_api.h>
+#include <transformations_visibility.hpp>
 
 #include <ngraph/pass/graph_rewrite.hpp>
 #include <ngraph/slice_plan.hpp>
@@ -16,11 +16,12 @@
 namespace ngraph {
 namespace pass {
 
-        class INFERENCE_ENGINE_API_CLASS(StridedSliceOptimization);
-        class INFERENCE_ENGINE_API_CLASS(UselessStridedSliceEraser);
-        class INFERENCE_ENGINE_API_CLASS(SharedStridedSliceEraser);
-        class INFERENCE_ENGINE_API_CLASS(GroupedStridedSliceOptimizer);
-    }  // namespace pass
+class TRANSFORMATIONS_API StridedSliceOptimization;
+class TRANSFORMATIONS_API UselessStridedSliceEraser;
+class TRANSFORMATIONS_API SharedStridedSliceEraser;
+class TRANSFORMATIONS_API GroupedStridedSliceOptimizer;
+
+}  // namespace pass
 }  // namespace ngraph
 
 
