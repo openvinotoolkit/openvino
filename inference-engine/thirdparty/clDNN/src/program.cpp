@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016-2019 Intel Corporation
+// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -36,6 +36,7 @@
 #include "binary_convolution_inst.h"
 #include "resample_inst.h"
 #include "reshape_inst.h"
+#include "quantize_inst.h"
 #include "activation_inst.h"
 #include "scale_inst.h"
 #include "depth_to_space_inst.h"
@@ -901,6 +902,29 @@ void program_impl::fuse_nodes(program_node &fused_node, program_node &peer_node)
         auto& dep = peer_node.get_dependency(i);
         if (dep.id() == fused_node.id())
             continue;
+
+        if (peer_node.is_type<quantize>()) {
+            quantize_node& q_node = peer_node.as<quantize>();
+            if (q_node.get_scale_shift_opt()) {
+                bool can_drop_input = false;
+
+                // Drop input range if clamp is not needed
+                can_drop_input |= (i == 1 || i == 2) && !q_node.get_need_clamp();
+                // Drop output range - it's not used in scale-shift-opt quantize kernel
+                can_drop_input |= i == 3 || i == 4;
+                // Drop tensor with input scale when we have per-tensor parameter
+                can_drop_input |= i == 5 && q_node.get_per_tensor_input_scale();
+                // Drop tensor with input shift when we have per-tensor parameter or it's not needed at all
+                can_drop_input |= i == 6 && (!q_node.get_need_pre_shift() || q_node.get_per_tensor_input_shift());
+                // Drop tensor with output scale when we have per-tensor parameter or it's not needed at all
+                can_drop_input |= i == 7 && (!q_node.get_need_post_scale() || q_node.get_per_tensor_output_scale());
+                // Drop tensor with output shift when we have per-tensor parameter or it's not needed at all
+                can_drop_input |= i == 8 && (!q_node.get_need_post_shift() || q_node.get_per_tensor_output_shift());
+
+                if (can_drop_input)
+                    continue;
+            }
+        }
         fused_node.dependencies.push_back(&dep);
         local_desc.deps.push_back(dep.id());
         dep.users.push_back(&fused_node);
