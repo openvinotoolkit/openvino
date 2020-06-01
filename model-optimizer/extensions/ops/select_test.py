@@ -174,6 +174,11 @@ class TestSelect(unittest.TestCase):
     ])
     def test_select_infer_condition_with_value(self, else_data_shape, than_data_shape, select_output_shape,
                                                condition_value, else_value, than_value, output_value):
+        """
+        Unit tests generator can sporadic throw exception if we try
+        to run generator with call numpy array generation functions.
+        So we need to use lambda function for escape the problem.
+        """
         condition_value = condition_value(select_output_shape)
         else_value = else_value(else_data_shape)
         than_value = than_value(than_data_shape)
