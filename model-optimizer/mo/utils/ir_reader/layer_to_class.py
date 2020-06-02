@@ -19,6 +19,7 @@ import os
 
 import numpy as np
 
+from extensions.back.TopKNormalizer import TopKNormalizer
 from extensions.ops.Cast import Cast
 from extensions.ops.ReduceOps import ReduceOp
 from extensions.ops.activation_ops import Activation
@@ -260,6 +261,7 @@ preprocessing_op_nodes = {
 postprocessing_op_nodes = {
     'Assign': assign_add_output_result,
     'TensorIterator': ti_add_edge_attrs,
+    'TopK': TopKNormalizer.normalize_outputs,
 }
 
 
