@@ -33,7 +33,7 @@ function run_cpplint() {
         -readability/todo,
         -readability/fn_size
     " $(find ${SOURCE_DIR} -name '*.h' -or -name '*.cc' -or -name '*.c' -or -name '*.cpp' -or -name '*.hpp' |
-        grep -v 'inference-engine/bin\|inference-engine/build\|inference-engine/report\|inference-engine/scripts\|inference-engine/temp\|inference-engine/tests_deprecated/\|gtest\|inference-engine/ie_bridges\|pugixml\|inference-engine/tools/vpu_perfcheck\|thirdparty/gflags\|thirdparty/ade\|thirdparty/fluid\|thirdparty/mkl-dnn\|thirdparty/movidius\|thirdparty/ocv\|thirdparty/plugixml\|thirdparty/std_lib\|thirdparty/clDNN/common\|thirdparty/clDNN/tutorial\|thirdparty/clDNN/utils\|thirdparty/ittnotify' |
+        grep -v 'inference-engine/bin\|inference-engine/build\|inference-engine/report\|inference-engine/scripts\|inference-engine/temp\|inference-engine/tests_deprecated/\|gtest\|inference-engine/ie_bridges\|pugixml\|inference-engine/tools/vpu_perfcheck\|thirdparty/gflags\|thirdparty/ade\|thirdparty/fluid\|thirdparty/mkl-dnn\|thirdparty/movidius\|thirdparty/ocv\|thirdparty/plugixml\|thirdparty/std_lib\|thirdparty/clDNN/common\|thirdparty/clDNN/tutorial\|thirdparty/clDNN/utils' |
         grep 'include\|src\|inference-engine/samples\|thirdparty/clDNN/kernel_selector\|thirdparty/clDNN/api\|thirdparty/clDNN/api_extension\|inference-engine/tests_' ) 2>&1 |
         sed 's/"/\&quot;/g' >&1| sed 's/</\&lt;/g' >&1| sed 's/>/\&gt;/g' >&1| sed "s/'/\&apos;/g" >&1|
         sed 's/\&/\&amp;/g' >&1| python ${CURRENT_DIR}/cpplint_to_cppcheckxml.py &> ${CPPLINT_REPORT_DIR}/cpplint-cppcheck-result.xml
