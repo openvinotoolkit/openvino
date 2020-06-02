@@ -14,14 +14,8 @@
 #include <ngraph_ops/deconvolution_ie.hpp>
 
 void ngraph::pass::ConvertConvolutions::convert_convolution() {
-    auto data = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 3, 12, 12});
-    auto weights = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 3, 1, 1});
-    auto conv = std::make_shared<ngraph::opset1::Convolution>(data,
-                                                              weights,
-                                                              Strides{1, 1},
-                                                              CoordinateDiff{0, 0},
-                                                              CoordinateDiff{0, 0},
-                                                              Strides{1, 1});
+    auto conv = std::make_shared<pattern::op::Label>(element::f32, Shape{},
+            pattern::has_class<opset1::Convolution>());
 
     ngraph::graph_rewrite_callback callback = [](pattern::Matcher& m) {
         auto conv = std::dynamic_pointer_cast<ngraph::opset1::Convolution> (m.get_match_root());
@@ -48,14 +42,8 @@ void ngraph::pass::ConvertConvolutions::convert_convolution() {
 }
 
 void ngraph::pass::ConvertConvolutions::convert_group_convolution() {
-    auto data = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 3, 12, 12});
-    auto weights = std::make_shared<pattern::op::Label>(element::f32, Shape{3, 1, 1, 1, 1});
-    auto gconv = std::make_shared<ngraph::opset1::GroupConvolution>(data,
-                                                                    weights,
-                                                                    Strides{1, 1},
-                                                                    CoordinateDiff{0, 0},
-                                                                    CoordinateDiff{0, 0},
-                                                                    Strides{1, 1});
+    auto gconv = std::make_shared<pattern::op::Label>(element::f32, Shape{},
+            pattern::has_class<opset1::GroupConvolution>());
 
     ngraph::graph_rewrite_callback callback = [](pattern::Matcher& m) {
         auto gconv = std::dynamic_pointer_cast<ngraph::opset1::GroupConvolution> (m.get_match_root());
@@ -97,23 +85,8 @@ void ngraph::pass::ConvertConvolutions::convert_group_convolution() {
 }
 
 void ngraph::pass::ConvertConvolutions::convert_convolution_backprop_data() {
-    auto data = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 3, 12, 12});
-    auto weights = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 3, 1, 1});
-    auto conv = std::make_shared<ngraph::opset1::ConvolutionBackpropData>(data,
-                                                                          weights,
-                                                                          Strides{1, 1},
-                                                                          CoordinateDiff{0, 0},
-                                                                          CoordinateDiff{0, 0},
-                                                                          Strides{1, 1});
-
-    auto output_shape = std::make_shared<pattern::op::Label>(element::i64, Shape{2});
-    auto conv2 = std::make_shared<ngraph::opset1::ConvolutionBackpropData>(data,
-                                                                           weights,
-                                                                           output_shape,
-                                                                           Strides{1, 1},
-                                                                           CoordinateDiff{0, 0},
-                                                                           CoordinateDiff{0, 0},
-                                                                           Strides{1, 1});
+    auto conv = std::make_shared<pattern::op::Label>(element::f32, Shape{},
+            pattern::has_class<opset1::ConvolutionBackpropData>());
 
     ngraph::graph_rewrite_callback callback = [](pattern::Matcher& m) {
         auto deconv = std::dynamic_pointer_cast<ngraph::opset1::ConvolutionBackpropData> (m.get_match_root());
@@ -128,7 +101,10 @@ void ngraph::pass::ConvertConvolutions::convert_convolution_backprop_data() {
                                                                        deconv->get_pads_begin(),
                                                                        deconv->get_pads_end(),
                                                                        1 /* groups */,
-                                                                       deconv->get_auto_pad());
+                                                                       deconv->get_auto_pad(),
+                                                                       deconv->get_output_padding(),
+                                                                       (deconv->inputs().size() == 3 ? deconv->input_value(2).get_node_shared_ptr()
+                                                                                                     : nullptr));
         deconv_ie->set_friendly_name(deconv->get_friendly_name());
         ngraph::copy_runtime_info(deconv, deconv_ie);
         ngraph::replace_node(deconv, deconv_ie);
@@ -137,29 +113,11 @@ void ngraph::pass::ConvertConvolutions::convert_convolution_backprop_data() {
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(conv, "ConvertConvolutionBackpropData");
     this->add_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
-
-    auto m2 = std::make_shared<ngraph::pattern::Matcher>(conv2, "ConvertConvolutionBackpropData2");
-    this->add_matcher(m2, callback, PassProperty::CHANGE_DYNAMIC_STATE);
 }
 
 void ngraph::pass::ConvertConvolutions::convert_group_convolution_backprop_data() {
-    auto data = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 3, 12, 12});
-    auto weights = std::make_shared<pattern::op::Label>(element::f32, Shape{3, 1, 1, 1, 1});
-    auto gconv = std::make_shared<ngraph::opset1::GroupConvolutionBackpropData>(data,
-                                                                                weights,
-                                                                                Strides{1, 1},
-                                                                                CoordinateDiff{0, 0},
-                                                                                CoordinateDiff{0, 0},
-                                                                                Strides{1, 1});
-
-    auto output_shape = std::make_shared<pattern::op::Label>(element::i64, Shape{2});
-    auto gconv2 = std::make_shared<ngraph::opset1::GroupConvolutionBackpropData>(data,
-                                                                                 weights,
-                                                                                 output_shape,
-                                                                                 Strides{1, 1},
-                                                                                 CoordinateDiff{0, 0},
-                                                                                 CoordinateDiff{0, 0},
-                                                                                 Strides{1, 1});
+    auto gconv = std::make_shared<pattern::op::Label>(element::f32, Shape{},
+            pattern::has_class<opset1::GroupConvolutionBackpropData>());
 
     ngraph::graph_rewrite_callback callback = [](pattern::Matcher& m) {
         auto gconv = std::dynamic_pointer_cast<ngraph::opset1::GroupConvolutionBackpropData> (m.get_match_root());
@@ -186,7 +144,9 @@ void ngraph::pass::ConvertConvolutions::convert_group_convolution_backprop_data(
                                                                      gconv->get_pads_end(),
                                                                      group,
                                                                      gconv->get_auto_pad(),
-                                                                     gconv->get_output_padding());
+                                                                     gconv->get_output_padding(),
+                                                                     (gconv->inputs().size() == 3 ? gconv->input_value(2).get_node_shared_ptr()
+                                                                                                  : nullptr));
         conv_ie->set_friendly_name(gconv->get_friendly_name());
         ngraph::copy_runtime_info(gconv, conv_ie);
         ngraph::replace_node(gconv, conv_ie);
@@ -195,7 +155,4 @@ void ngraph::pass::ConvertConvolutions::convert_group_convolution_backprop_data(
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(gconv, "ConvertGroupConvolutionBackpropData");
     this->add_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
-
-    auto m2 = std::make_shared<ngraph::pattern::Matcher>(gconv2, "ConvertGroupConvolutionBackpropData2");
-    this->add_matcher(m2, callback, PassProperty::CHANGE_DYNAMIC_STATE);
 }
