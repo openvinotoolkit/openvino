@@ -66,6 +66,38 @@ inline uint FUNC(get_output_batch_offset)(uint b, uint f, uint w, uint z) {
 #endif // OUTPUT_SIMPLE
 }
 
+inline uint FUNC(get_common_input1_offset)(uint batch_offset_input1, uint k, uint i, uint output_x_tile, uint lid) {
+#if !TRANSPOSE_INPUT1
+    return batch_offset_input1 + (k * TILE_SIZE_K + i * PACK_SIZE) * INPUT1_SIZE_X + output_x_tile * TILE_SIZE_N;
+#else
+    return batch_offset_input1 + (output_x_tile * TILE_SIZE_N + lid) * INPUT1_SIZE_X + k * TILE_SIZE_K + i * PACK_SIZE;
+#endif
+}
+
+inline uint FUNC(get_current_input1_offset)(uint common_input1_offset, uint i, uint lid) {
+#if !TRANSPOSE_INPUT1
+    return common_input1_offset + INPUT1_SIZE_X * i + lid;
+#else
+    return common_input1_offset + i;
+#endif
+}
+
+inline uint FUNC(get_common_input0_offset)(uint batch_offset_input0, uint k, uint i, uint output_y_tile, uint lid) {
+#if !TRANSPOSE_INPUT0
+    return batch_offset_input0 + (output_y_tile * TILE_SIZE_M + i) * INPUT0_SIZE_X + k * TILE_SIZE_K;
+#else
+    return batch_offset_input0 + (k * TILE_SIZE_K + lid * PACK_SIZE) * INPUT0_SIZE_X + output_y_tile * TILE_SIZE_M + i;
+#endif
+}
+
+inline uint FUNC(get_current_input0_offset)(uint common_input0_offset, uint i, uint lid) {
+#if !TRANSPOSE_INPUT0
+    return common_input0_offset + lid * PACK_SIZE + i;
+#else
+    return common_input0_offset + INPUT0_SIZE_X * i;
+#endif
+}
+
 __attribute__((reqd_work_group_size(SUB_GROUP_SIZE, 1, 1)))
 __attribute__((intel_reqd_sub_group_size(SUB_GROUP_SIZE)))
 KERNEL(gemm_mmad_int8)(
@@ -116,12 +148,12 @@ KERNEL(gemm_mmad_int8)(
         if (output_y_tile * TILE_SIZE_M + i >= OUTPUT_SIZE_Y) continue;
         if (output_x_tile * TILE_SIZE_N + lid >= OUTPUT_SIZE_X) continue;
 
-        tile_input2[i] = TO_ACTIVATION_TYPE(input2[batch_offset_input2 + (output_y_tile * TILE_SIZE_M + i) * OUTPUT_SIZE_X + \
+        tile_input2[i] = TO_ACTIVATION_TYPE(input2[batch_offset_input2 + (output_y_tile * TILE_SIZE_M + i) * OUTPUT_SIZE_X +
                                                    output_x_tile * TILE_SIZE_N + lid]);
     }
 #else // OUTPUT_LEFTOVERS_M || OUTPUT_LEFTOVERS_N
     for (uint i = 0; i < SUB_GROUP_SIZE; i++) {
-        tile_input2[i] = TO_ACTIVATION_TYPE(input2[batch_offset_input2 + (output_y_tile * TILE_SIZE_M + i) * OUTPUT_SIZE_X + \
+        tile_input2[i] = TO_ACTIVATION_TYPE(input2[batch_offset_input2 + (output_y_tile * TILE_SIZE_M + i) * OUTPUT_SIZE_X +
                                                    output_x_tile * TILE_SIZE_N + lid]);
     }
 #endif // OUTPUT_LEFTOVERS_M || OUTPUT_LEFTOVERS_N
@@ -138,11 +170,11 @@ KERNEL(gemm_mmad_int8)(
 #endif // !TRANSPOSE_INPUT0
 
     for (uint k = 0; k < K_BLOCK_NUM; k++) {
-#if !TRANSPOSE_INPUT1
+        MAKE_VECTOR_TYPE(INPUT0_TYPE, PACK_SIZE) temp_input0[SUB_GROUP_SIZE];
         MAKE_VECTOR_TYPE(INPUT1_TYPE, PACK_SIZE) temp_input1[SUB_GROUP_SIZE];
 
         for (uint i = 0; i < SUB_GROUP_SIZE; i++) {
-            const uint common_input1_offset = batch_offset_input1 + (k * TILE_SIZE_K + i * PACK_SIZE) * INPUT1_SIZE_X + output_x_tile * TILE_SIZE_N;
+            const uint common_input1_offset = FUNC_CALL(get_common_input1_offset)(batch_offset_input1, k, i, output_x_tile, lid);
 
 #if OUTPUT_LEFTOVERS_N || OUTPUT_LEFTOVERS_K
             const uint cur_n = output_x_tile * TILE_SIZE_N + lid;
@@ -152,150 +184,74 @@ KERNEL(gemm_mmad_int8)(
 
             if (cur_n < OUTPUT_SIZE_X) {
                 if (cur_k + 3 < K_SIZE) {
-                    temp_input1[i].s0 = input1[common_input1_offset + lid];
-                    temp_input1[i].s1 = input1[common_input1_offset + INPUT1_SIZE_X + lid];
-                    temp_input1[i].s2 = input1[common_input1_offset + INPUT1_SIZE_X * 2 + lid];
-                    temp_input1[i].s3 = input1[common_input1_offset + INPUT1_SIZE_X * 3 + lid];
+                    temp_input1[i].s0 = input1[FUNC_CALL(get_current_input1_offset)(common_input1_offset, 0, lid)];
+                    temp_input1[i].s1 = input1[FUNC_CALL(get_current_input1_offset)(common_input1_offset, 1, lid)];
+                    temp_input1[i].s2 = input1[FUNC_CALL(get_current_input1_offset)(common_input1_offset, 2, lid)];
+                    temp_input1[i].s3 = input1[FUNC_CALL(get_current_input1_offset)(common_input1_offset, 3, lid)];
                 } else if (cur_k + 2 < K_SIZE) {
-                    temp_input1[i].s0 = input1[common_input1_offset + lid];
-                    temp_input1[i].s1 = input1[common_input1_offset + INPUT1_SIZE_X + lid];
-                    temp_input1[i].s2 = input1[common_input1_offset + INPUT1_SIZE_X * 2 + lid];
+                    temp_input1[i].s0 = input1[FUNC_CALL(get_current_input1_offset)(common_input1_offset, 0, lid)];
+                    temp_input1[i].s1 = input1[FUNC_CALL(get_current_input1_offset)(common_input1_offset, 1, lid)];
+                    temp_input1[i].s2 = input1[FUNC_CALL(get_current_input1_offset)(common_input1_offset, 2, lid)];
                 } else if (cur_k + 1 < K_SIZE) {
-                    temp_input1[i].s0 = input1[common_input1_offset + lid];
-                    temp_input1[i].s1 = input1[common_input1_offset + INPUT1_SIZE_X + lid];
+                    temp_input1[i].s0 = input1[FUNC_CALL(get_current_input1_offset)(common_input1_offset, 0, lid)];
+                    temp_input1[i].s1 = input1[FUNC_CALL(get_current_input1_offset)(common_input1_offset, 1, lid)];
                 } else if (cur_k < K_SIZE) {
-                    temp_input1[i].s0 = input1[common_input1_offset + lid];
+                    temp_input1[i].s0 = input1[FUNC_CALL(get_current_input1_offset)(common_input1_offset, 0, lid)];
                 }
             }
 #else // OUTPUT_LEFTOVERS_N || OUTPUT_LEFTOVERS_K
-            temp_input1[i].s0 = input1[common_input1_offset + lid];
-            temp_input1[i].s1 = input1[common_input1_offset + INPUT1_SIZE_X + lid];
-            temp_input1[i].s2 = input1[common_input1_offset + 2 * INPUT1_SIZE_X + lid];
-            temp_input1[i].s3 = input1[common_input1_offset + 3 * INPUT1_SIZE_X + lid];
+            temp_input1[i].s0 = input1[FUNC_CALL(get_current_input1_offset)(common_input1_offset, 0, lid)];
+            temp_input1[i].s1 = input1[FUNC_CALL(get_current_input1_offset)(common_input1_offset, 1, lid)];
+            temp_input1[i].s2 = input1[FUNC_CALL(get_current_input1_offset)(common_input1_offset, 2, lid)];
+            temp_input1[i].s3 = input1[FUNC_CALL(get_current_input1_offset)(common_input1_offset, 3, lid)];
 #endif // OUTPUT_LEFTOVERS_N || OUTPUT_LEFTOVERS_K
 
             tile_input1[i] = AS_TYPE(PACKED_INPUT1_TYPE, temp_input1[i]);
         }
-#else // !TRANSPOSE_INPUT1
-        MAKE_VECTOR_TYPE(INPUT1_TYPE, PACK_SIZE) temp_input1[SUB_GROUP_SIZE];
 
         for (uint i = 0; i < SUB_GROUP_SIZE; i++) {
-            const uint common_input1_offset = batch_offset_input1 + (output_x_tile * TILE_SIZE_N + lid) * INPUT1_SIZE_X + \
-                                              k * TILE_SIZE_K + i * PACK_SIZE;
+            const uint common_input0_offset = FUNC_CALL(get_common_input0_offset)(batch_offset_input0, k, i, output_y_tile, lid);
 
-#if OUTPUT_LEFTOVERS_N || OUTPUT_LEFTOVERS_K
-            const uint cur_n = output_x_tile * TILE_SIZE_N + lid;
-            const uint cur_k = k * TILE_SIZE_K + i * PACK_SIZE;
+#if OUTPUT_LEFTOVERS_M || OUTPUT_LEFTOVERS_K
+            const uint cur_m = output_y_tile * TILE_SIZE_M + i;
+            const uint cur_k = k * TILE_SIZE_K + lid * PACK_SIZE;
 
-            temp_input1[i] = 0;
+            temp_input0[i] = 0;
 
-            if (cur_n < OUTPUT_SIZE_X) {
+            if (cur_m < OUTPUT_SIZE_Y) {
                 if (cur_k + 3 < K_SIZE) {
-                    temp_input1[i].s0 = input1[common_input1_offset + 0];
-                    temp_input1[i].s1 = input1[common_input1_offset + 1];
-                    temp_input1[i].s2 = input1[common_input1_offset + 2];
-                    temp_input1[i].s3 = input1[common_input1_offset + 3];
+                    temp_input0[i].s0 = input0[FUNC_CALL(get_current_input0_offset)(common_input0_offset, 0, lid)];
+                    temp_input0[i].s1 = input0[FUNC_CALL(get_current_input0_offset)(common_input0_offset, 1, lid)];
+                    temp_input0[i].s2 = input0[FUNC_CALL(get_current_input0_offset)(common_input0_offset, 2, lid)];
+                    temp_input0[i].s3 = input0[FUNC_CALL(get_current_input0_offset)(common_input0_offset, 3, lid)];
                 } else if (cur_k + 2 < K_SIZE) {
-                    temp_input1[i].s0 = input1[common_input1_offset + 0];
-                    temp_input1[i].s1 = input1[common_input1_offset + 1];
-                    temp_input1[i].s2 = input1[common_input1_offset + 2];
+                    temp_input0[i].s0 = input0[FUNC_CALL(get_current_input0_offset)(common_input0_offset, 0, lid)];
+                    temp_input0[i].s1 = input0[FUNC_CALL(get_current_input0_offset)(common_input0_offset, 1, lid)];
+                    temp_input0[i].s2 = input0[FUNC_CALL(get_current_input0_offset)(common_input0_offset, 2, lid)];
                 } else if (cur_k + 1 < K_SIZE) {
-                    temp_input1[i].s0 = input1[common_input1_offset + 0];
-                    temp_input1[i].s1 = input1[common_input1_offset + 1];
+                    temp_input0[i].s0 = input0[FUNC_CALL(get_current_input0_offset)(common_input0_offset, 0, lid)];
+                    temp_input0[i].s1 = input0[FUNC_CALL(get_current_input0_offset)(common_input0_offset, 1, lid)];
                 } else if (cur_k < K_SIZE) {
-                    temp_input1[i].s0 = input1[common_input1_offset + 0];
+                    temp_input0[i].s0 = input0[FUNC_CALL(get_current_input0_offset)(common_input0_offset, 0, lid)];
                 }
             }
-#else // OUTPUT_LEFTOVERS_N || OUTPUT_LEFTOVERS_K
-            temp_input1[i].s0 = input1[common_input1_offset];
-            temp_input1[i].s1 = input1[common_input1_offset + 1];
-            temp_input1[i].s2 = input1[common_input1_offset + 2];
-            temp_input1[i].s3 = input1[common_input1_offset + 3];
-#endif // OUTPUT_LEFTOVERS_N || OUTPUT_LEFTOVERS_K
 
-            tile_input1[i] = AS_TYPE(PACKED_INPUT1_TYPE, temp_input1[i]);
-        }
-#endif // !TRANSPOSE_INPUT1
+            tile_input0[i] = AS_TYPE(PACKED_INPUT0_TYPE, temp_input0[i]);
+#else // OUTPUT_LEFTOVERS_M || OUTPUT_LEFTOVERS_K
 
 #if !TRANSPOSE_INPUT0
-#if OUTPUT_LEFTOVERS_M || OUTPUT_LEFTOVERS_K
-        MAKE_VECTOR_TYPE(INPUT0_TYPE, PACK_SIZE) temp_input0[SUB_GROUP_SIZE];
-
-        for (uint i = 0; i < SUB_GROUP_SIZE; i++) {
-            const uint common_input0_offset = batch_offset_input0 + (output_y_tile * TILE_SIZE_M + i) * INPUT0_SIZE_X + k * TILE_SIZE_K;
-
-            const uint cur_m = output_y_tile * TILE_SIZE_M + i;
-            const uint cur_k = k * TILE_SIZE_K + lid * PACK_SIZE;
-
-            temp_input0[i] = 0;
-
-            if (cur_m < OUTPUT_SIZE_Y) {
-                if (cur_k + 3 < K_SIZE) {
-                    temp_input0[i].s0 = input0[common_input0_offset + lid * 4 + 0];
-                    temp_input0[i].s1 = input0[common_input0_offset + lid * 4 + 1];
-                    temp_input0[i].s2 = input0[common_input0_offset + lid * 4 + 2];
-                    temp_input0[i].s3 = input0[common_input0_offset + lid * 4 + 3];
-                } else if (cur_k + 2 < K_SIZE) {
-                    temp_input0[i].s0 = input0[common_input0_offset + lid * 4 + 0];
-                    temp_input0[i].s1 = input0[common_input0_offset + lid * 4 + 1];
-                    temp_input0[i].s2 = input0[common_input0_offset + lid * 4 + 2];
-                } else if (cur_k + 1 < K_SIZE) {
-                    temp_input0[i].s0 = input0[common_input0_offset + lid * 4 + 0];
-                    temp_input0[i].s1 = input0[common_input0_offset + lid * 4 + 1];
-                } else if (cur_k < K_SIZE) {
-                    temp_input0[i].s0 = input0[common_input0_offset + lid * 4 + 0];
-                }
-            }
-
-            tile_input0[i] = AS_TYPE(PACKED_INPUT0_TYPE, temp_input0[i]);
-            }
-#else // OUTPUT_LEFTOVERS_M || OUTPUT_LEFTOVERS_K
-        for (uint i = 0; i < SUB_GROUP_SIZE; i++) {
-            tile_input0[i] = AS_TYPE(PACKED_INPUT0_TYPE, BLOCK_READ(input0 + batch_offset_input0 + \
-                                                                    (output_y_tile * TILE_SIZE_M + i) * INPUT0_SIZE_X + k * TILE_SIZE_K));
-            }
-#endif // OUTPUT_LEFTOVERS_M || OUTPUT_LEFTOVERS_K
-
+            tile_input0[i] = AS_TYPE(PACKED_INPUT0_TYPE, BLOCK_READ(input0 + common_input0_offset));
 #else // !TRANSPOSE_INPUT0
-        MAKE_VECTOR_TYPE(INPUT0_TYPE, PACK_SIZE) temp_input0[SUB_GROUP_SIZE];
-
-        for (uint i = 0; i < SUB_GROUP_SIZE; i++) {
-            const uint common_input0_offset = batch_offset_input0 + (k * TILE_SIZE_K + lid * PACK_SIZE) * INPUT0_SIZE_X + \
-                                              output_y_tile * TILE_SIZE_M + i;
-
-#if OUTPUT_LEFTOVERS_M || OUTPUT_LEFTOVERS_K
-            const uint cur_m = output_y_tile * TILE_SIZE_M + i;
-            const uint cur_k = k * TILE_SIZE_K + lid * PACK_SIZE;
-
-            temp_input0[i] = 0;
-
-            if (cur_m < OUTPUT_SIZE_Y) {
-                if (cur_k + 3 < K_SIZE) {
-                    temp_input0[i].s0 = input0[common_input0_offset];
-                    temp_input0[i].s1 = input0[common_input0_offset + INPUT0_SIZE_X];
-                    temp_input0[i].s2 = input0[common_input0_offset + INPUT0_SIZE_X * 2];
-                    temp_input0[i].s3 = input0[common_input0_offset + INPUT0_SIZE_X * 3];
-                } else if (cur_k + 2 < K_SIZE) {
-                    temp_input0[i].s0 = input0[common_input0_offset];
-                    temp_input0[i].s1 = input0[common_input0_offset + INPUT0_SIZE_X];
-                    temp_input0[i].s2 = input0[common_input0_offset + INPUT0_SIZE_X * 2];
-                } else if (cur_k + 1 < K_SIZE) {
-                    temp_input0[i].s0 = input0[common_input0_offset];
-                    temp_input0[i].s1 = input0[common_input0_offset + INPUT0_SIZE_X];
-                } else if (cur_k < K_SIZE) {
-                    temp_input0[i].s0 = input0[common_input0_offset];
-                }
-            }
-#else // OUTPUT_LEFTOVERS_M || OUTPUT_LEFTOVERS_K
-            temp_input0[i].s0 = input0[common_input0_offset];
-            temp_input0[i].s1 = input0[common_input0_offset + INPUT0_SIZE_X];
-            temp_input0[i].s2 = input0[common_input0_offset + INPUT0_SIZE_X * 2];
-            temp_input0[i].s3 = input0[common_input0_offset + INPUT0_SIZE_X * 3];
-#endif // OUTPUT_LEFTOVERS_M || OUTPUT_LEFTOVERS_K
+            temp_input0[i].s0 = input0[FUNC_CALL(get_current_input0_offset)(common_input0_offset, 0, lid)];
+            temp_input0[i].s1 = input0[FUNC_CALL(get_current_input0_offset)(common_input0_offset, 1, lid)];
+            temp_input0[i].s2 = input0[FUNC_CALL(get_current_input0_offset)(common_input0_offset, 2, lid)];
+            temp_input0[i].s3 = input0[FUNC_CALL(get_current_input0_offset)(common_input0_offset, 3, lid)];
 
             tile_input0[i] = AS_TYPE(PACKED_INPUT0_TYPE, temp_input0[i]);
+#endif // !TRANSPOSE_INPUT0       
+
+#endif // OUTPUT_LEFTOVERS_M || OUTPUT_LEFTOVERS_K
         }
-#endif // !TRANSPOSE_INPUT0
 
         tile_output = MMAD(tile_input0, tile_input1, tile_output);
     }
@@ -303,6 +259,7 @@ KERNEL(gemm_mmad_int8)(
 #if HAS_FUSED_OPS && FUSED_OPS_CAN_USE_PRELOAD
     FUSED_OPS_PRELOAD;
 #endif // HAS_FUSED_OPS && FUSED_OPS_CAN_USE_PRELOAD
+
     for (uint i = 0; i < SUB_GROUP_SIZE; i++) {
 #if OUTPUT_LEFTOVERS_M || OUTPUT_LEFTOVERS_N
         if (output_y_tile * TILE_SIZE_M + i >= OUTPUT_SIZE_Y) continue;
@@ -311,9 +268,11 @@ KERNEL(gemm_mmad_int8)(
 
         ACTIVATION_TYPE dequantized = TO_ACTIVATION_TYPE(tile_output[i]);
         dequantized *= TO_ACTIVATION_TYPE(ALPHA);
+
 #ifdef INPUT2_TYPE
         dequantized += TO_ACTIVATION_TYPE(BETA) * tile_input2[i];
 #endif // INPUT2_TYPE
+
 #if HAS_FUSED_OPS
 #if FUSED_OPS_CAN_USE_PRELOAD
         FUSED_OPS_CALC;
@@ -362,7 +321,7 @@ KERNEL(gemm_mmad_int8)(
     ACTIVATION_TYPE_VEC tile_input20;
 
     for (uint i = 0; i < SUB_GROUP_SIZE; i++) {
-        tile_input20[i] = TO_ACTIVATION_TYPE(input2[batch_offset_input2 + (output_y_tile * TILE_SIZE_M + i) * OUTPUT_SIZE_X + \
+        tile_input20[i] = TO_ACTIVATION_TYPE(input2[batch_offset_input2 + (output_y_tile * TILE_SIZE_M + i) * OUTPUT_SIZE_X +
                                                     output_x_tile * TILE_SIZE_N + lid]);
     }
 #endif // INPUT2_TYPE
@@ -396,7 +355,7 @@ KERNEL(gemm_mmad_int8)(
 
         for (uint i = 0; i < SUB_GROUP_SIZE; i++) {
             tile_input10[i] = AS_TYPE(PACKED_INPUT1_TYPE, BLOCK_READ(input1 + common_input1_offset  + i * INPUT1_SIZE_X));
-            }
+        }
 
         PACKED_INPUT1_TYPE_VEC tile_input1_col0 = BLOCK_SHUFFLE(tile_input10, 0);
         PACKED_INPUT1_TYPE_VEC tile_input1_col1 = BLOCK_SHUFFLE(tile_input10, 1);
@@ -443,14 +402,14 @@ KERNEL(gemm_mmad_int8)(
 
         for (uint i = 0; i < SUB_GROUP_SIZE; i++) {
             tile_input00[i] = AS_TYPE(PACKED_INPUT0_TYPE, BLOCK_READ(input0 + common_input0_offset + i * INPUT0_SIZE_X));
-            }
+        }
 
         tile_output00 = MMAD(tile_input00, tile_input10, tile_output00);
 
 #if TILE_NUM == 2
         for (uint i = 0; i < SUB_GROUP_SIZE; i++) {
             tile_input00[i] = AS_TYPE(PACKED_INPUT0_TYPE, BLOCK_READ(input0 + common_input0_offset + (TILE_SIZE_M_DIV + i) * INPUT0_SIZE_X));
-            }
+        }
 
         tile_output01 = MMAD(tile_input00, tile_input10, tile_output01);
 #endif // TILE_NUM == 2
@@ -489,18 +448,21 @@ KERNEL(gemm_mmad_int8)(
 #if HAS_FUSED_OPS && FUSED_OPS_CAN_USE_PRELOAD
     FUSED_OPS_PRELOAD;
 #endif // HAS_FUSED_OPS && FUSED_OPS_CAN_USE_PRELOAD
+
     for (uint i = 0; i < SUB_GROUP_SIZE; i++) {
         ACTIVATION_TYPE dequantized = TO_ACTIVATION_TYPE(tile_output00[i]);
         dequantized *= TO_ACTIVATION_TYPE(ALPHA);
 #ifdef INPUT2_TYPE
         dequantized += TO_ACTIVATION_TYPE(BETA) * tile_input20[i];
 #endif // INPUT2_TYPE
+
 #if HAS_FUSED_OPS
 #if FUSED_OPS_CAN_USE_PRELOAD
         FUSED_OPS_CALC;
 #else // FUSED_OPS_CAN_USE_PRELOAD
         FUSED_OPS;
 #endif // FUSED_OPS_CAN_USE_PRELOAD
+
         OUTPUT_TYPE res = FUSED_OPS_RESULT;
         output[batch_offset_output + (output_y_tile * TILE_SIZE_M + i) * OUTPUT_SIZE_X + output_x_tile * TILE_SIZE_N + lid] = res;
 #else // HAS_FUSED_OPS
@@ -512,15 +474,18 @@ KERNEL(gemm_mmad_int8)(
 #if HAS_FUSED_OPS && FUSED_OPS_CAN_USE_PRELOAD
     FUSED_OPS_PRELOAD;
 #endif
+
     for (uint i = 0; i < SUB_GROUP_SIZE; i++) {
         ACTIVATION_TYPE dequantized = TO_ACTIVATION_TYPE(tile_output01[i]);
         dequantized *= TO_ACTIVATION_TYPE(ALPHA);
+
 #if HAS_FUSED_OPS
 #if FUSED_OPS_CAN_USE_PRELOAD
         FUSED_OPS_CALC;
 #else // FUSED_OPS_CAN_USE_PRELOAD
         FUSED_OPS;
 #endif // FUSED_OPS_CAN_USE_PRELOAD
+
         OUTPUT_TYPE res = FUSED_OPS_RESULT;
         output[batch_offset_output + (output_y_tile * TILE_SIZE_M + TILE_SIZE_M_DIV + i) * OUTPUT_SIZE_X + output_x_tile * TILE_SIZE_N + lid] = res;
 #else // HAS_FUSED_OPS
