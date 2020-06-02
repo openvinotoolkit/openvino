@@ -6,7 +6,7 @@
 
 namespace vpu {
 
-void FrontEnd::parseDSR(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const {
+void FrontEnd::parseDSR(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) {
     VPU_THROW_UNLESS(inputs.size() == 2, "Error while parsing {} of type {}, got {} inputs, while {} were expected",
         layer->name, layer->type, inputs.size(), 2);
     const auto& data = inputs[0];
@@ -49,6 +49,11 @@ void FrontEnd::parseDSR(const Model& model, const ie::CNNLayerPtr& layer, const 
     if (dataOutput->usage() == DataUsage::Output) {
         // Create the second output with shape in case of dynamic output
         const auto& shapeOutput = model->addOutputData(dataOutput->name() + "@shape", shape->desc());
+
+        bindData(shapeOutput, shape->origData());
+        for (const auto& shapeConsumersEdges : shape->consumerEdges()) {
+            model->replaceStageInput(shapeConsumersEdges, shapeOutput);
+        }
 
         for (const auto& dataToShapeEdge : shape->childDataToShapeEdges()) {
             model->replaceDataToShapeParent(dataToShapeEdge, shapeOutput);
