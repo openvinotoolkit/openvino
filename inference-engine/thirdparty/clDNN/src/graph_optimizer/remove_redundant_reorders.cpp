@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2018 Intel Corporation
+// Copyright (c) 2018-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -199,7 +199,13 @@ void remove_redundant_reorders::run(program_impl& p) {
         r_node.can_be_optimized(true);
         r_node.requires_reinterpret(!ident.first);
         if (ident.first) {  // no need of reshape
-            p.add_optimized_primitive_info(r_node.get_primitive()->id);
+            if (r_node.is_output()) {
+                // if removed reorder is output, we need to add it's dependency id to the optimized primitives list,
+                // because it's name will be changed after extract_and_remove call
+                p.add_optimized_primitive_info(r_node.get_dependency(0).get_primitive()->id, {r_node.get_primitive()->id});
+            } else {
+                p.add_optimized_primitive_info(r_node.get_primitive()->id);
+            }
             p.extract_and_remove(
                 r_node);  // try to remove if possible (with respect to r_node not being marked as output)
         }
