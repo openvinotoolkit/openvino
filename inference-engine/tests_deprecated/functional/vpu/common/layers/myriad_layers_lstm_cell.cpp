@@ -8,10 +8,17 @@
 TEST_F(myriadLayersTests_nightly, LSTMCellSequenceNet) {
     size_t input_size = 2048;
     size_t state_size = 2048;
-    const size_t seq_size = 16;
-    const size_t batch_size = 1;
+    size_t seq_size = 16;
+    size_t batch_size = 1;
     
     int output_num = 3;
+
+    if (output_num == 1) {
+        input_size = 512;
+        state_size = 128;
+        seq_size = 2;
+        batch_size = 4;
+    }
 
     size_t num_weights = ngates * state_size * (input_size + state_size);
     size_t num_bias = ngates * state_size;
