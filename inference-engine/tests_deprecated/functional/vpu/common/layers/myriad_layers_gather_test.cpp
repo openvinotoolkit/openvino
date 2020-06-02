@@ -7,6 +7,8 @@
 using namespace testing;
 
 INSTANTIATE_TEST_CASE_P(accuracy, myriadLayerGather_smoke,
+                                                // Synthetic tests
+                                                // input shape,  indices shape, axis, precision
                         Values(GatherTestParams { {36549, 1024},   {16},           0, "FP16" },
                                GatherTestParams { {10},            {10},           0, "FP16" },
                                GatherTestParams { {36549, 1024},   {10},           0, "FP16" },
@@ -24,4 +26,9 @@ INSTANTIATE_TEST_CASE_P(accuracy, myriadLayerGather_smoke,
                                GatherTestParams { {30522, 768},    {1, 128, 1},    0, "I32" },
                                GatherTestParams { {30522, 768},    {1, 128, 1},    1, "I32" },
                                GatherTestParams { {6, 12, 10, 24}, {15, 4, 20, 5}, 0, "I32" },
-                               GatherTestParams { {6, 12, 10, 24}, {15, 4, 20, 5}, 3, "I32" }));
+                               GatherTestParams { {6, 12, 10, 24}, {15, 4, 20, 5}, 3, "I32" },
+                                                // Customer use-cases
+                                                // From: Mask R-CNN
+                                                // input shape,  indices shape, axis, precision
+                               GatherTestParams { {1000, 3},       {1},            1, "FP16" },
+                               GatherTestParams { {1000, 3},       {1},            1, "I32"  }));
