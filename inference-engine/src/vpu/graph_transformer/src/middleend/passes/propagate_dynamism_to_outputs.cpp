@@ -16,8 +16,6 @@ public:
     explicit PassImpl(StageBuilder::Ptr stageBuilder) : _stageBuilder(std::move(stageBuilder)) {}
 
     void run(const Model& model) override {
-        static const std::unordered_set<StageType> types = {StageType::Convert};
-
         for (auto const& data : model->datas()) {
             if (data->usage() != DataUsage::Output || data->parentDataToShapeEdge() != nullptr) {
                 continue;
@@ -26,7 +24,7 @@ public:
             auto const& producer = data->producer();
             VPU_THROW_UNLESS(producer, "Output data must have a producer, but {} doesn't have", data->name());
 
-            if (types.count(producer->type()) == 0) {
+            if (producer->type() != StageType::Convert) {
                 continue;
             }
 
@@ -51,7 +49,7 @@ public:
                     nullptr,
                     parent,
                     shapeOutput,
-                    "PropogateDynamismToOutput");
+                    "PropagateDynamismToOutput");
 
             } else {
                 auto const parentProducerEdge = parent->producerEdge();
