@@ -56,7 +56,6 @@ class Environment {
 private:
     pugi::xml_document _test_config;
     pugi::xml_document _env_config;
-    bool _collect_results_only = false;
 
     Environment() = default;
     Environment(const Environment&) = delete;
@@ -71,8 +70,6 @@ public:
     void setTestConfig(const pugi::xml_document &test_config);
     const pugi::xml_document & getEnvConfig();
     void setEnvConfig(const pugi::xml_document &env_config);
-    const bool & getCollectResultsOnly();
-    void setCollectResultsOnly(const bool &collect_results_only);
 };
 
 std::vector<TestCase> generateTestsParams(std::initializer_list<std::string> items);

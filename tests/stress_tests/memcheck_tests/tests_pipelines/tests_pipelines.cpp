@@ -63,13 +63,13 @@ test_create_exenetwork(const std::string &model_name, const std::string &model_p
     log_info_ref_mem_usage();
     log_info_cur_mem_usage();
 
-    if ((!Environment::Instance().getCollectResultsOnly()) && (test_cur_vmrss > ref_vmrss))
+    if (test_cur_vmrss > ref_vmrss)
         return TestResult(TestStatus::TEST_FAILED,
                           "Test failed: RSS virtual memory consumption became greater than reference.\n"
                           "Reference RSS memory consumption: " + std::to_string(ref_vmrss) + " KB.\n" +
                           "Current RSS memory consumption: " + std::to_string(test_cur_vmrss) + " KB.\n");
 
-    if ((!Environment::Instance().getCollectResultsOnly()) && (test_cur_vmhwm > ref_vmhwm))
+    if (test_cur_vmhwm > ref_vmhwm)
         return TestResult(TestStatus::TEST_FAILED,
                           "Test failed: HWM (peak of RSS) virtual memory consumption is greater than reference.\n"
                           "Reference HWM of memory consumption: " + std::to_string(ref_vmhwm) + " KB.\n" +
@@ -124,13 +124,13 @@ test_infer_request_inference(const std::string &model_name, const std::string &m
 
     log_debug_ref_record_for_test("infer_request_inference");
 
-    if ((!Environment::Instance().getCollectResultsOnly()) && (test_cur_vmrss > ref_vmrss))
+    if (test_cur_vmrss > ref_vmrss)
         return TestResult(TestStatus::TEST_FAILED,
                           "Test failed: RSS virtual memory consumption became greater than reference.\n"
                           "Reference RSS memory consumption: " + std::to_string(ref_vmrss) + " KB.\n" +
                           "Current RSS memory consumption: " + std::to_string(test_cur_vmrss) + " KB.\n");
 
-    if ((!Environment::Instance().getCollectResultsOnly()) && (test_cur_vmhwm > ref_vmhwm))
+    if (test_cur_vmhwm > ref_vmhwm)
         return TestResult(TestStatus::TEST_FAILED,
                           "Test failed: HWM (peak of RSS) virtual memory consumption is greater than reference.\n"
                           "Reference HWM of memory consumption: " + std::to_string(ref_vmhwm) + " KB.\n" +

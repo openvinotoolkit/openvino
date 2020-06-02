@@ -38,9 +38,11 @@ static const char refs_conf_message[] = "Optional. Path to a references config w
 /// refs_conf is an optional parameter
 DEFINE_string(refs_conf, OS_PATH_JOIN({"stress_tests_configs", "memcheck_tests", "references_config.xml"}), refs_conf_message);
 
+// TODO: deprecated
 /// @brief message for collect_results_only argument
 static const char collect_results_only_message[] = "Optional. Path to a references config with values of memory consumption per test.";
 
+// TODO: deprecated
 /// @brief Define parameter for mode with collecting results only <br>
 /// collect_results_only is an optional parameter
 DEFINE_bool(collect_results_only, false, collect_results_only_message);

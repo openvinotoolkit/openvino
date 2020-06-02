@@ -79,8 +79,6 @@ There are the next available command-line keys:
    (path to models etc.) 
 3. --refs_conf < path > (available for MemCheckTests only) - path to config with references used to 
    compare with results of a run
-4. --collect_results_only < bool > (available for MemCheckTests only) - boolean value that disable comparison and 
-   provide memory consumption results only 
 
 MemCheckTests logs can be used to gather reference values based on current
 memory consumption:
