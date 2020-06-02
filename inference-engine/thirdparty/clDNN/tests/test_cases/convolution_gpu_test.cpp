@@ -4746,7 +4746,6 @@ protected:
 
         build_options opts;
         opts.set_option(build_option::optimize_data(false));
-        opts.set_option(build_option::graph_dumps_dir("/tmp/cldnn_dumps/"));
 
         topology topology(input_layout("input", input.get_layout()),
                           data("weights", weights),
@@ -8214,6 +8213,11 @@ struct params_generator : std::vector<convolution_random_test_all_params> {
                 b, 32, 24, { 19, 19 }, { 3, 3 }, { 1, 1 }, { -1, -1 }, { 2, 2 }, true, 1, input_format, asymm_weights, asymm_data, padded_input });
             push_back(convolution_random_test_all_params{
                 b, 32, 24, { 19, 19 }, { 3, 3 }, { 2, 2 }, { -1, -1 }, { 2, 2 }, true, 1, input_format, asymm_weights, asymm_data, padded_input });
+            // depthwise + dilation
+            push_back(convolution_random_test_all_params{
+                b, 64, 64, { 19, 19 }, { 3, 3 }, { 1, 1 }, { -1, -1 }, { 2, 2 }, true, 64, input_format, asymm_weights, asymm_data, padded_input });
+            push_back(convolution_random_test_all_params{
+                b, 64, 64, { 19, 19 }, { 3, 3 }, { 2, 2 }, { -1, -1 }, { 2, 2 }, true, 64, input_format, asymm_weights, asymm_data, padded_input });
         }
         return *this;
     }

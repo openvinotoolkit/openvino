@@ -99,6 +99,7 @@ const SupportedConversionSet ConvertStage::expectedTypes = {
         {DataType::FP32, DataType::FP16},
         {DataType::S32, DataType::FP16},
         {DataType::FP16, DataType::S32},
+        {DataType::S32, DataType::U8},
 };
 
 }  // namespace
