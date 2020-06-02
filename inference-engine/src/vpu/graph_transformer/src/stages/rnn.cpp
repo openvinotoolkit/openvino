@@ -137,14 +137,14 @@ void FrontEnd::parseRNN(const Model& model, const ie::CNNLayerPtr& _layer, const
     bool permute_input = (1 != layer->axis);
 
     if (!permute_input) {
-        nCells = inputs[0]->desc().dim(Dim::H); 
+        nCells = inputs[0]->desc().dim(Dim::H);
         nBatches = inputs[0]->desc().dim(Dim::C);
     } else {
         nCells = inputs[0]->desc().dim(Dim::C);
         nBatches = inputs[0]->desc().dim(Dim::H);
     }
     if (layer->axis == 2) {
-        nCells = inputs[0]->desc().dim(Dim::W); 
+        nCells = inputs[0]->desc().dim(Dim::W);
         nBatches = inputs[0]->desc().dim(Dim::C);
         inputSize = inputs[0]->desc().dim(Dim::H);
     }
