@@ -40,7 +40,7 @@ public:
             auto const parent = parentDataToShapeEdge->parent();
 
             // Create the second output with shape in case of dynamic output
-            const auto& shapeOutput = model->addOutputData(parent->name() + "@output-dynamic-shape", parent->desc());
+            const auto& shapeOutput = model->addOutputData(parent->name() + "@shape", parent->desc());
 
             if (parent->numConsumers() > 0) {
                 _stageBuilder->addCopyStage(
