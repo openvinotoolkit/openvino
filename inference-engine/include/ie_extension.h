@@ -34,6 +34,7 @@ public:
 };
 
 /**
+ * @deprecated Implement IExtension interface. The interface will be removed in 2021.1 release.
  * @brief The SOCreatorTrait class specialization for IExtension case, defines the name of the fabric method for
  * creating IExtension object in DLL
  */
@@ -72,6 +73,7 @@ public:
 
     /**
      * @deprecated IErrorListener is not used anymore. StatusCode is provided in case of unexpected situations
+     * The method will be removed in 2021.1 release.
      * @brief Sets a log callback that is used to track what is going on inside
      *
      * @param listener Logging listener
@@ -96,7 +98,8 @@ public:
     void Release() noexcept override {}
 
     /**
-     * @deprecated Use IExtension::getImplTypes to get implementation types for a particular node
+     * @deprecated Use IExtension::getImplTypes to get implementation types for a particular node.
+     * The method will removed in 2021.1 release.
      * @brief Gets the array with types of layers which are included in the extension
      *
      * @param types Types array
@@ -112,7 +115,8 @@ public:
     }
 
     /**
-     * @deprecated Use IExtension::getImplementation to get a concrete implementation
+     * @deprecated Use IExtension::getImplementation to get a concrete implementation.
+     * The method will be removed in 2021.1 release.
      * @brief Gets the factory with implementations for a given layer
      *
      * @param factory Factory with implementations
@@ -130,6 +134,7 @@ public:
 
     /**
      * @deprecated Implement ngraph::op::Op::validate_and_infer_types method in a custom ngraph operation
+     * The method will be removed in 2021.1 release.
      * @brief Gets shape propagation implementation for the given string-type of CNNLayer
      *
      * @param impl the vector with implementations which is ordered by priority
@@ -146,6 +151,7 @@ public:
 
     /**
      * @deprecated Implement ngraph::op::Op::validate_and_infer_types method in a custom ngraph operation
+     * The method will be removed in 2021.1 release.
      * @brief Gets the array with types of layers which are included in the extension
      *
      * @param types Types array
@@ -194,7 +200,7 @@ protected:
 };
 
 /**
- * @deprecated Use a common Extension class
+ * @deprecated Use a common Extension class. The interface will be removed in 2021.1 release.
  * @brief This class is a C++ helper to work with objects created using extensions.
  */
 class INFERENCE_ENGINE_DEPRECATED("Use a common Extension interface") ShapeInferExtension :
@@ -205,7 +211,9 @@ public:
      *
      * @param name Full or relative path to extension library
      */
+    IE_SUPPRESS_DEPRECATED_START_WIN
     explicit ShapeInferExtension(const file_name_t& name): actual(name) {}
+    IE_SUPPRESS_DEPRECATED_END_WIN
 
     /**
      * @brief Gets the extension version information
@@ -218,6 +226,7 @@ public:
 
     /**
      * @brief IErrorListener is not used anymore. StatusCode is provided in case of unexpected situations
+     * The method will be removed in 2021.1 release.
      * @brief Sets a log callback that is used to track what is going on inside
      *
      * @param listener Logging listener

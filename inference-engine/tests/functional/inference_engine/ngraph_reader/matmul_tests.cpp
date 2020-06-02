@@ -6,7 +6,7 @@
 #include "ngraph_reader_tests.hpp"
 TEST_F(NGraphReaderTests, ReadMatMulNetwork1) {
     std::string model = R"V0G0N(
-<net name="Convolution" version="10">
+<net name="Network" version="10">
     <layers>
         <layer id="0" name="data" type="Parameter" version="opset1">
             <data element_type="f32" shape="1,2048"/>
@@ -62,7 +62,7 @@ TEST_F(NGraphReaderTests, ReadMatMulNetwork1) {
 )V0G0N";
     // 'fc' layer biases are fake and added due to IE limitation for Fully Connected layer
     std::string modelV5 = R"V0G0N(
-<net name="Convolution" version="5" precision="FP32" batch="1">
+<net name="Network" version="5" precision="FP32" batch="1">
     <layers>
         <layer id="0" name="data" precision="FP32" type="Input">
             <output>
@@ -100,7 +100,7 @@ TEST_F(NGraphReaderTests, ReadMatMulNetwork1) {
 
 TEST_F(NGraphReaderTests, ReadMatMulNetwork2) {
     std::string model = R"V0G0N(
-<net name="Convolution" version="10">
+<net name="Network" version="10">
     <layers>
         <layer id="0" name="data" type="Parameter" version="opset1">
             <data element_type="f32" shape="1,2048"/>
@@ -157,7 +157,7 @@ TEST_F(NGraphReaderTests, ReadMatMulNetwork2) {
 )V0G0N";
     // 'fc' layer biases are fake and added due to IE limitation for Fully Connected layer
     std::string modelV5 = R"V0G0N(
-<net name="Convolution" version="5" precision="FP32" batch="1">
+<net name="Network" version="5" precision="FP32" batch="1">
     <layers>
         <layer id="0" name="data" precision="FP32" type="Input">
             <output>
@@ -195,7 +195,7 @@ TEST_F(NGraphReaderTests, ReadMatMulNetwork2) {
 
 TEST_F(NGraphReaderTests, ReadMatMulNetwork3) {
     std::string model = R"V0G0N(
-<net name="Convolution" version="10">
+<net name="Network" version="10">
     <layers>
         <layer id="0" name="data" type="Parameter" version="opset1">
             <data element_type="f32" shape="2048,1"/>
@@ -252,7 +252,7 @@ TEST_F(NGraphReaderTests, ReadMatMulNetwork3) {
 )V0G0N";
     // 'fc' layer biases are fake and added due to IE limitation for FUlly Connected layer
     std::string modelV5 = R"V0G0N(
-<net name="Convolution" version="5" precision="FP32" batch="1">
+<net name="Network" version="5" precision="FP32" batch="1">
     <layers>
         <layer id="0" name="data" precision="FP32" type="Input">
             <output>
@@ -306,7 +306,7 @@ TEST_F(NGraphReaderTests, ReadMatMulNetwork3) {
 
 TEST_F(NGraphReaderTests, ReadMatMulNetwork4) {
     std::string model = R"V0G0N(
-<net name="Convolution" version="10">
+<net name="Network" version="10">
     <layers>
         <layer id="0" name="data1" type="Parameter" version="opset1">
             <data element_type="f32" shape="2048,1"/>
@@ -362,7 +362,7 @@ TEST_F(NGraphReaderTests, ReadMatMulNetwork4) {
 </net>
 )V0G0N";
     std::string modelV5 = R"V0G0N(
-<net name="Convolution" version="5" precision="FP32" batch="1">
+<net name="Network" version="5" precision="FP32" batch="1">
     <layers>
         <layer id="0" name="data1" precision="FP32" type="Input">
             <output>
@@ -411,7 +411,7 @@ TEST_F(NGraphReaderTests, ReadMatMulNetwork4) {
 
 TEST_F(NGraphReaderTests, ReadMatMulNetwork5) {
     std::string model = R"V0G0N(
-<net name="Convolution" version="10">
+<net name="Network" version="10">
     <layers>
         <layer id="0" name="data1" type="Parameter" version="opset1">
             <data element_type="f32" shape="2,3,2"/>
@@ -476,7 +476,7 @@ TEST_F(NGraphReaderTests, ReadMatMulNetwork5) {
 </net>
 )V0G0N";
     std::string modelV5 = R"V0G0N(
-<net name="Convolution" version="5" precision="FP32" batch="1">
+<net name="Network" version="5" precision="FP32" batch="1">
     <layers>
         <layer id="0" name="data1" precision="FP32" type="Input">
             <output>

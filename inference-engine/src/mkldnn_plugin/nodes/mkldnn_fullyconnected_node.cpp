@@ -78,7 +78,7 @@ void MKLDNNFullyConnectedNode::getSupportedDescriptors() {
         }
         auto weightsDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(getCnnLayer()->insData[1].lock()->getPrecision());
 
-        if (inputDataType != memory::u8 || weightsDataType != memory::s8) {
+        if ((inputDataType != memory::u8 && inputDataType != memory::s8) || weightsDataType != memory::s8) {
             inputDataType = memory::f32;
             outputDataType = memory::f32;
         }

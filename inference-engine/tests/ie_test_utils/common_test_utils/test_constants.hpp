@@ -1,7 +1,6 @@
-// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2019 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
 #pragma once
 
 namespace CommonTestUtils {
@@ -12,6 +11,7 @@ const char DEVICE_GPU[] = "GPU";
 const char DEVICE_HDDL[] = "HDDL";
 const char DEVICE_FPGA[] = "FPGA";
 const char DEVICE_MYRIAD[] = "MYRIAD";
+const char DEVICE_KEEMBAY[] = "KMB";
 const char DEVICE_MULTI[] = "MULTI";
 const char DEVICE_HETERO[] = "HETERO";
 

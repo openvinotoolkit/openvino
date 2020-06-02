@@ -156,16 +156,25 @@ bool EltwiseKernel_b_fs_yx_fsv16::Validate(const Params& params, const optional_
     for (size_t i = 0; i < ewParams.inputs.size(); i++) {
         // Allow the same input sizes OR per-channel operation
         if ((ewParams.inputs[i].LogicalSize() != output.LogicalSize()) &&
-            (ewParams.inputs[i].LogicalSize() != output.Feature().v) &&
+            (ewParams.inputs[i].LogicalSize() != output.Feature().v || ewParams.inputs[i].Feature().v != output.Feature().v) &&
             (ewParams.inputs[i].LogicalSize() != 1))
             return false;
     }
 
     auto input0 = ewParams.inputs[0];
 
+    // Check that padding before features doesn't miss-align the blocks
+    auto feature_block_size = 16;
+    if (input0.Feature().pad.before % feature_block_size != 0 || output.Feature().pad.before % feature_block_size != 0) {
+        return false;
+    }
+
     for (size_t i = 1; i < ewParams.inputs.size(); i++) {
         if (ewParams.inputs[i].LogicalSize() == input0.LogicalSize() && !(ewParams.inputs[i] == input0))
             return false;
+        if (ewParams.inputs[i].Feature().pad.before % feature_block_size != 0) {
+            return false;
+        }
     }
 
     return true;

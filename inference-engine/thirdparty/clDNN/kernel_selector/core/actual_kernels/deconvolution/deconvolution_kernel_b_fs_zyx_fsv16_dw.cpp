@@ -85,12 +85,16 @@ bool DeconvolutionKernel_b_fs_zyx_fsv16_dw::Validate(const Params& p, const opti
         return false;
     }
 
-    const deconvolution_params& params = static_cast<const deconvolution_params&>(p);
+    const auto& params = static_cast<const deconvolution_params&>(p);
 
     if (params.groups == 1)
         return false;
 
     if (params.weights.IFM().v != 1 || params.weights.OFM().v != 1)
+        return false;
+
+    // Check that padding features doesn't miss-align the blocks
+    if (params.inputs[0].Feature().pad.before % feature_block_size != 0 || params.output.Feature().pad.before % feature_block_size != 0)
         return false;
 
     return true;

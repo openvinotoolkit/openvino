@@ -1327,11 +1327,10 @@ std::string FusedOpsCodeGenerator::GetInputVarName(size_t input_id) const {
 }
 
 std::string FusedOpsCodeGenerator::GetOutputVarName(std::string input_var) const {
-    static int i = 0;
     std::replace(input_var.begin(), input_var.end(), '[', '_');
     std::replace(input_var.begin(), input_var.end(), ']', '_');
     std::replace(input_var.begin(), input_var.end(), ' ', '_');
-    return input_var + "_" + std::to_string(i++);
+    return input_var + "_out";
 }
 
 std::string FusedOpsCodeGenerator::GetType(Datatype dt, size_t vec_size) const {

@@ -171,11 +171,11 @@ as `<models_dir>` below) with the Model Downloader:
    ``` 
    After the Model Optimizer script is completed, the produced IR files (`squeezenet1.1.xml`, `squeezenet1.1.bin`) are in the specified `<ir_dir>` directory.
 
-3. Copy the `squeezenet1.1.labels` file from the `<DLDT_DIR>/inference-engine/samples/sample_data/` 
+3. Copy the `squeezenet1.1.labels` file from the `<OPENVINO_DIR>/scripts/demo/` 
    folder to the model IR directory. This file contains the classes that ImageNet 
    uses so that the inference results show text instead of classification numbers:
    ```sh   
-   cp <DLDT_DIR>/inference-engine/samples/sample_data/squeezenet1.1.labels <ir_dir>
+   cp <OPENVINO_DIR>/scripts/demo/squeezenet1.1.labels <ir_dir>
    ```
 
 Now you are ready to run the Image Classification Sample Application.
@@ -194,18 +194,18 @@ To run the Image Classification sample application with an input image on the pr
    cd <DLDT_DIR>/inference-engine/bin/intel64/Release
    
 2. Run the sample executable with specifying the `car.png` file from the 
-   `<DLDT_DIR>/inference-engine/samples/sample_data/` directory as an input 
+   `<OPENVINO_DIR>/scripts/demo/` directory as an input 
    image, the IR of your model and a plugin for a hardware device to perform 
    inference on:
 
    **For CPU:**
    ```sh
-   ./classification_sample -i <DLDT_DIR>/inference-engine/samples/sample_data/car.png -m <ir_dir>/squeezenet1.1.xml -d CPU
+   ./classification_sample -i <OPENVINO_DIR>/scripts/demo/car.png -m <ir_dir>/squeezenet1.1.xml -d CPU
    ```
 
    **For GPU:**
    ```sh
-   ./classification_sample -i <DLDT_DIR>/inference-engine/samples/sample_data/car.png -m <ir_dir>/squeezenet1.1.xml -d GPU
+   ./classification_sample -i <OPENVINO_DIR>/scripts/demo/car.png -m <ir_dir>/squeezenet1.1.xml -d GPU
    ```
    
    **For MYRIAD:** 
@@ -214,14 +214,14 @@ To run the Image Classification sample application with an input image on the pr
    Stick or Intel® Neural Compute Stick 2) with the MYRIAD plugin requires 
    performing [additional hardware configuration steps](inference-engine/README.md#optional-additional-installation-steps-for-the-intel-movidius-neural-compute-stick-and-neural-compute-stick-2).
    ```sh   
-   ./classification_sample -i <DLDT_DIR>/inference-engine/samples/sample_data/car.png -m <ir_dir>/squeezenet1.1.xml -d MYRIAD
+   ./classification_sample -i <OPENVINO_DIR>/scripts/demo/car.png -m <ir_dir>/squeezenet1.1.xml -d MYRIAD
    ```
 
 When the Sample Application completes, you will have the label and confidence for the top-10 categories printed on the screen. Below is a sample output with inference results on CPU:    
 ```sh
 Top 10 results:
 
-Image /home/user/dldt/inference-engine/samples/sample_data/car.png
+Image /home/user/openvino/scripts/demo/car.png
 
 classid probability label
 ------- ----------- -----

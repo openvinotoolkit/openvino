@@ -23,13 +23,14 @@ import traceback
 from collections import OrderedDict
 
 import numpy as np
-from mo.pipeline.unified import unified_pipeline
 
 from extensions.back.SpecialNodesFinalization import RemoveConstOps, CreateConstNodesReplacement, RemoveOutputOps, \
     NormalizeTI
+from mo.utils.get_ov_update_message import get_ov_update_message
 from mo.graph.graph import Graph
 from mo.middle.pattern_match import for_graph_and_each_sub_graph_recursively, for_each_sub_graph_recursively
 from mo.pipeline.common import prepare_emit_ir, get_ir_version
+from mo.pipeline.unified import unified_pipeline
 from mo.utils import import_extensions
 from mo.utils.cli_parser import get_placeholder_shapes, get_tuple_values, get_model_name, \
     get_common_cli_options, get_caffe_cli_options, get_tf_cli_options, get_mxnet_cli_options, get_kaldi_cli_options, \
@@ -304,7 +305,14 @@ def main(cli_parser: argparse.ArgumentParser, framework: str):
         if argv.generate_deprecated_IR_V7:
             from mo.middle.passes.convert_data_type import SUPPORTED_DATA_TYPES
             SUPPORTED_DATA_TYPES['bool'] = (np.bool, 'I32', 'boolean')
-        return driver(argv)
+
+        ov_update_message = None
+        if not hasattr(argv, 'silent') or not argv.silent:
+            ov_update_message = get_ov_update_message()
+        ret_code = driver(argv)
+        if ov_update_message:
+            print(ov_update_message)
+        return ret_code
     except (FileNotFoundError, NotADirectoryError) as e:
         log.error('File {} was not found'.format(str(e).split('No such file or directory:')[1]))
         log.debug(traceback.format_exc())

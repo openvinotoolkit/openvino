@@ -24,6 +24,8 @@ endif()
 
 add_subdirectory(hetero_plugin)
 
+add_subdirectory(multi_device)
+
 add_subdirectory(transformations)
 
 add_subdirectory(inference_engine)

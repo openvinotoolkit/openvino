@@ -27,6 +27,7 @@ include(CMakeParseArguments)
 #
 # ie_headers_compilation_with_custom_flags(TEST_SUFFIX <prefix>
 #                                          FLAGS <flags>
+#                                          DEFINITIONS <definitions>
 #                                          HEADERS_TO_SKIP <skip headers>
 #                                          CXX_STANDARD <number>)
 #
@@ -35,7 +36,7 @@ include(CMakeParseArguments)
 function(ie_headers_compilation_with_custom_flags)
     set(options)
     set(oneValueArgs TEST_SUFFIX CXX_STANDARD)
-    set(multiValueArgs FLAGS HEADERS_TO_SKIP)
+    set(multiValueArgs FLAGS DEFINITIONS HEADERS_TO_SKIP)
     cmake_parse_arguments(IE_TEST "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
 
     file(GLOB_RECURSE header_files RELATIVE "${IE_MAIN_SOURCE_DIR}/include"
@@ -98,7 +99,10 @@ function(ie_headers_compilation_with_custom_flags)
     if(IE_TEST_FLAGS)
         set_target_properties(${target_name} PROPERTIES
                               COMPILE_FLAGS ${IE_TEST_FLAGS})
+    endif()
 
+    if(IE_TEST_DEFINITIONS)
+        target_compile_definitions(${target_name} PRIVATE ${IE_TEST_DEFINITIONS})
     endif()
 
     add_dependencies(${TARGET_NAME} ${target_name})
@@ -109,6 +113,11 @@ ie_headers_compilation_with_custom_flags(TEST_SUFFIX Cxx17 CXX_STANDARD 17)
 
 if(UNIX)    
     ie_headers_compilation_with_custom_flags(TEST_SUFFIX Pedantic FLAGS -Wpedantic)
+else()
+    ie_headers_compilation_with_custom_flags(TEST_SUFFIX WindowsAreErrors
+                                             FLAGS "/we4996 /W4 /WX")
+    ie_headers_compilation_with_custom_flags(TEST_SUFFIX Unicode
+                                             DEFINITIONS UNICODE _UNICODE)
 endif()
 
 # compilation with -Wweak-vtables

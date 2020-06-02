@@ -171,9 +171,9 @@ cdef class IECore:
     #
     #  Usage example:\n
     #  ```python
-    #  net = IENetwork(model=path_to_xml_file, weights=path_to_bin_file)
     #  ie = IECore()
-    #  exec_net = ie.load_network(network=net, device_name="CPU", num_requsts=2)
+    #  net = ie.read_network(model=path_to_xml_file, weights=path_to_bin_file)
+    #  exec_net = ie.load_network(network=net, device_name="CPU", num_requests=2)
     #  ```
     cpdef ExecutableNetwork load_network(self, IENetwork network, str device_name, config=None, int num_requests=1):
         cdef ExecutableNetwork exec_net = ExecutableNetwork()
@@ -197,8 +197,8 @@ cdef class IECore:
     #  @return An `ExecutableNetwork` object
     #  Usage example:\n
     #  ```python
-    #  net = IENetwork(model=path_to_xml_file, weights=path_to_bin_file)
     #  ie = IECore()
+    #  net = ie.read_network(model=path_to_xml_file, weights=path_to_bin_file)
     #  exec_net = ie.load_network(network=net, device_name="MYRIAD", num_requsts=2)
     #  # export executable network
     #  exec_net.export(path_to_file_to_save)
@@ -226,8 +226,8 @@ cdef class IECore:
     #
     #  Usage example:\n
     #  ```python
-    #  net = IENetwork(model=path_to_xml_file, weights=path_to_bin_file)
     #  ie = IECore()
+    #  net = ie.read_network(model=path_to_xml_file, weights=path_to_bin_file)
     #  layers_map = ie.query_network(network=net, device_name="HETERO:GPU,CPU")
     #  ```
     def query_network(self, IENetwork network, str device_name, config=None):
@@ -238,12 +238,19 @@ cdef class IECore:
         return c_map_to_dict(res)
 
     ## Sets a configuration for a plugin
-    #  NOTE: When specifying a key value of a config, the "KEY_" prefix is omitted.
+    #
+    #  \note When specifying a key value of a config, the "KEY_" prefix is omitted.
+    #
     #  @param config: a dictionary of configuration parameters as keys and their values
     #  @param device_name: a device name of a target plugin
     #  @return None
     #
-    #  Usage examples: See the `set_affinity` method of the `IENetwork` class
+    #  Usage examples:\n
+    #  ```python
+    #  ie = IECore()
+    #  net = ie.read_network(model=path_to_xml_file, weights=path_to_bin_file)
+    #  ie.set_config(config={"DYN_BATCH_ENABLED": "YES"}, device_name="CPU")
+    #  ```
     def set_config(self, config: dict, device_name: str):
         cdef map[string, string] c_config = dict_to_c_map(config)
         self.impl.setConfig(c_config, device_name.encode())
@@ -316,7 +323,9 @@ cdef class IECore:
 
     ## Gets a configuration dedicated to device behavior. The method targets to extract information
     #  which can be set via set_config method.
-    #  NOTE: When specifying a key value of a config, the "KEY_" prefix is omitted.
+    #
+    #  \note When specifying a key value of a config, the "KEY_" prefix is omitted.
+    #
     #  @param device_name: A name of a device to get a config value.
     #  @param config_name: A config name to request.
     #  @return A config value corresponding to a config key.
@@ -452,8 +461,8 @@ cdef class ExecutableNetwork:
     #
     #  Usage example:\n
     #  ```python
-    #  net = IENetwork(model=path_to_xml_file, weights=path_to_bin_file)
     #  ie_core = IECore()
+    #  net = ie_core.read_network(model=path_to_xml_file, weights=path_to_bin_file)
     #  exec_net = ie_core.load_network(net, device, num_requests=2)
     #  res = exec_net.infer({'data': img})
     #  res
@@ -531,9 +540,9 @@ cdef class ExecutableNetwork:
     #
     #  Usage example:\n
     #  ```python
-    #  net = IENetwork(model=path_to_xml_file, weights=path_to_bin_file)
     #  ie_core = IECore()
-    #  exec_net = ie_core.load_network(net, device, num_requsts=2)
+    #  net = ie_core.read_network(model=path_to_xml_file, weights=path_to_bin_file)
+    #  exec_net = ie_core.load_network(net, device, num_requests=2)
     #  exec_graph = exec_net.get_exec_graph_info()
     #  ```
     def get_exec_graph_info(self):
@@ -549,7 +558,7 @@ cdef class ExecutableNetwork:
     #  Usage example:\n
     #  ```python
     #  ie = IECore()
-    #  net = IENetwork(model=path_to_xml_file, weights=path_to_bin_file)
+    #  net = ie.read_network(model=path_to_xml_file, weights=path_to_bin_file)
     #  exec_net = ie.load_network(net, "CPU")
     #  exec_net.get_metric("NETWORK_NAME")
     #  ```
@@ -564,9 +573,9 @@ cdef class ExecutableNetwork:
     #  Usage example:\n
     #  ```python
     #  ie = IECore()
-    #  net = IENetwork(model=path_to_xml_file, weights=path_to_bin_file)
+    #  net = ie.read_network(model=path_to_xml_file, weights=path_to_bin_file)
     #  exec_net = ie.load_network(net, "CPU")
-    #  exec_net.get_metric("DEVICE_ID")
+    #  config = exec_net.get_config("CPU_BIND_THREAD")
     #  ```
     def get_config(self, config_name: str):
         return deref(self.impl).getConfig(config_name.encode())
@@ -576,8 +585,8 @@ cdef class ExecutableNetwork:
     #  @return None
     #
     #  ```python
-    #  net = IENetwork(model=path_to_xml_file, weights=path_to_bin_file)
     #  ie = IECore()
+    #  net = ie.read_network(model=path_to_xml_file, weights=path_to_bin_file)
     #  exec_net = ie.load_network(network=net, device_name="MYRIAD", num_requsts=2)
     #  exec_net.export(path_to_file_to_save)
     #  ```
@@ -620,8 +629,9 @@ cdef class InferRequest:
 
     cdef void user_callback(self, int status) with gil:
         if self._py_callback:
-            self._py_callback(status, self._py_data)
+            # Set flag at first since user can call wait in callback
             self._py_callback_called.set()
+            self._py_callback(status, self._py_data)
 
     ## Description: Sets a callback function that is called on success or failure of an asynchronous request
     #
@@ -632,8 +642,8 @@ cdef class InferRequest:
     #  Usage example:\n
     #  ```python
     #  callback = lambda status, py_data: print("Request with id {} finished with status {}".format(py_data, status))
-    #  net = IENetwork("./model.xml", "./model.bin")
     #  ie = IECore()
+    #  net = ie.read_network(model="./model.xml", weights="./model.bin")
     #  exec_net = ie.load_network(net, "CPU", num_requests=4)
     #  for id, req in enumerate(exec_net.requests):
     #      req.set_completion_callback(py_callback=callback, py_data=id)
@@ -662,7 +672,7 @@ cdef class InferRequest:
     #
     #  Usage example:\n
     #  ```python
-    #  exec_net = plugin.load(network=net, num_requests=2)
+    #  exec_net = ie_core.load_network(network=net, device_name="CPU", num_requests=2)
     #  exec_net.requests[0].infer({input_blob: image})
     #  res = exec_net.requests[0].outputs['prob']
     #  np.flip(np.sort(np.squeeze(res)),0)
@@ -683,7 +693,7 @@ cdef class InferRequest:
     #
     #  Usage example:\n
     #  ```python
-    #  exec_net = plugin.load(network=net, num_requests=2)
+    #  exec_net = ie_core.load_network(network=net, device_name="CPU", num_requests=2)
     #  exec_net.requests[0].async_infer({input_blob: image})
     #  request_status = exec_net.requests[0].wait()
     #  res = exec_net.requests[0].outputs['prob']
@@ -697,7 +707,8 @@ cdef class InferRequest:
 
     ## Waits for the result to become available. Blocks until specified timeout elapses or the result
     #  becomes available, whichever comes first.
-    #  NOTE: There are special values of the timeout parameter:
+    #
+    #  \note There are special values of the timeout parameter:
     #  * 0 - Immediately returns the inference status. It does not block or interrupt execution.
     #        To find statuses meaning, please refer to InferenceEngine::StatusCode in Inference Engine C++ documentation
     #  * -1 - Waits until inference result becomes available (default value)
@@ -714,6 +725,11 @@ cdef class InferRequest:
             if status != StatusCode.RESULT_NOT_READY:
                 return status
             if not self._py_callback_called.is_set():
+                if timeout == WaitMode.RESULT_READY:
+                    timeout = None
+                if timeout is not None:
+                    # Convert milliseconds to seconds
+                    timeout = float(timeout)/1000
                 if not self._py_callback_called.wait(timeout):
                     return StatusCode.REQUEST_BUSY
             return StatusCode.OK
@@ -724,12 +740,14 @@ cdef class InferRequest:
         return deref(self.impl).wait(<int64_t> timeout)
 
     ## Queries performance measures per layer to get feedback of what is the most time consuming layer.
-    #  NOTE: Performance counters data and format depends on the plugin
+    #
+    #  \note Performance counters data and format depends on the plugin
+    #
     #  @return Dictionary containing per-layer execution information.
     #
     #  Usage example:
     #  ```python
-    #  exec_net = plugin.load(network=net, num_requests=2)
+    #  exec_net = ie_core.load_network(network=net, device_name="CPU", num_requests=2)
     #  exec_net.requests[0].infer({input_blob: image})
     #  exec_net.requests[0].get_perf_counts()
     #  {'Conv2D': {'exec_type': 'jit_avx2_1x1',
@@ -780,18 +798,20 @@ cdef class InferRequest:
 
     ## Sets new batch size for certain infer request when dynamic batching is enabled in executable network
     #  that created this request.
-    #  NOTE: Support of dynamic batch size depends on the target plugin.
+    #
+    #  \note Support of dynamic batch size depends on the target plugin.
     #
     #  @param size: New batch size to be used by all the following inference calls for this request
     #  @return None
     #
     #  Usage example:\n
     #  ```python
-    #  net = IENetwork(model=path_to_xml_file, weights=path_to_bin_file)
+    #  ie = IECore()
+    #  net = ie.read_network(model=path_to_xml_file, weights=path_to_bin_file)
     #  # Set max batch size
     #  net.batch = 10
-    #  plugin.set_config({"DYN_BATCH_ENABLED": "YES"})
-    #  exec_net = plugin.load(network=net)
+    #  ie.set_config(config={"DYN_BATCH_ENABLED": "YES"}, device_name=device)
+    #  exec_net = ie.load_network(network=net, device_name=device)
     #  # Set batch size for certain network.
     #  # NOTE: Input data shape will not be changed, but will be used partially in inference which increases performance
     #  exec_net.requests[0].set_batch(2)
@@ -855,7 +875,11 @@ cdef class IENetLayer:
     def type(self):
         return deref(self._ptr).type.decode()
 
-    ## Layer base operating precision. Provides getter and setter interfaces.
+    ## \note This property is deprecated.
+    #  Please, use out_data property to access DataPtr objects for all output ports, which contains full
+    #  information about layer's output data including precision.
+    #
+    #  Layer base operating precision. Provides getter and setter interfaces.
     @property
     def precision(self):
         warnings.filterwarnings("always", category=DeprecationWarning)
@@ -874,8 +898,8 @@ cdef class IENetLayer:
     #  The affinity attribute provides getter and setter interfaces, so the layer affinity can be modified directly.
     #  For example:\n
     #  ```python
-    #  net = IENetwork(model=path_to_xml_file, weights=path_to_bin_file)
     #  ie = IECore()
+    #  net = ie.read_network(model=path_to_xml_file, weights=path_to_bin_file)
     #  layers_map = ie.query_network(network=net, device_name="HETERO:GPU,CPU")
     #  layers = net.layers
     #  for layer, device in layers_map.items():
@@ -922,8 +946,10 @@ cdef class IENetLayer:
                 input_to_list.append(deref(layer.second).name.decode())
         return input_to_list
 
-    ## Deprecated: use out_data property to access DataPtr objects for all output ports, which contains full
+    ## \note This property is deprecated.
+    # Please, use out_data property to access DataPtr objects for all output ports, which contains full
     # information about layer's output data including layout
+    #
     # Returns the layout of the layer output data on 1st port
     @property
     def layout(self):
@@ -936,8 +962,10 @@ cdef class IENetLayer:
         cdef C.DataPtr c_input = deref(self._ptr).outData[0]
         return layout_int_to_str_map[deref(c_input).getLayout()]
 
-    ## Deprecated: use out_data property to access DataPtr objects for all output ports, which contains full
+    ## \note This property is deprecated.
+    # Please, use out_data property to access DataPtr objects for all output ports, which contains full
     # information about layer's output data including shape
+    #
     # Return the list of dimension of the layer output data on 1st port
     @property
     def shape(self):
@@ -988,7 +1016,10 @@ cdef class IENetLayer:
             weights_buffer.reset(blob.second)
             blobs_map[blob.first.decode()] = weights_buffer.to_numpy()
         return blobs_map
-    ## Dictionary with layer weights, biases or custom blobs if any
+    ## \note This property is deprecated.
+    #  Please use blobs property instead.
+    #
+    #  Dictionary with layer weights, biases or custom blobs if any
     @property
     def weights(self):
         warnings.filterwarnings("always", category=DeprecationWarning)
@@ -1002,6 +1033,9 @@ cdef class IENetLayer:
 #  some model parameters such as layers affinity and output layers.
 cdef class IENetwork:
     ## Class constructor
+    #
+    #  \note Reading networks using IENetwork constructor is deprecated.
+    #  Please, use IECore.read_network() method instead.
     #
     #  @param model: A `.xml` file of the IR or PyCapsule containing smart pointer to nGraph function.
     #                In case of passing a `.xml` file  attribute value can be a string path or bytes with file content
@@ -1100,8 +1134,9 @@ cdef class IENetwork:
     ## Batch size of the network. Provides getter and setter interfaces to get and modify the
     #  network batch size. For example:\n
     #  ```python
-    #  net = IENetwork(model=path_to_xml_file, weights=path_to_bin_file)
-    #  print(et.batch_size)
+    #  ie = IECore()
+    #  net = ie.read_network(model=path_to_xml_file, weights=path_to_bin_file)
+    #  print(net.batch_size)
     #  net.batch_size = 4
     #  print(net.batch_size)
     #  print(net.inputs['data'].shape)
@@ -1109,7 +1144,9 @@ cdef class IENetwork:
     @property
     def batch_size(self):
         return self.impl.getBatch()
-    ## Deprecated: network precision does not make sence, use precision on egdes.
+    ## \note This property is deprecated:
+    #  network precision does not make sense, use precision on edges.
+    #
     #  Precision of the network
     @property
     def precision(self):
@@ -1139,13 +1176,16 @@ cdef class IENetwork:
             layers[deref(l).name.decode()] = net_l
         return layers
 
-    ## Deprecated: new Calibration Tool doesn't generate statistics
+    ## \note This property is deprecated.
+    #  New Calibration Tool doesn't generate statistics
+    #
     #  Returns `LayersStatsMap` object containing dictionary that maps network layer names to calibration statistics
     #  represented by `LayerStats`  objects.
     #
     #  Usage example:\n
     #  ```python
-    #  net = IENetwork(model=path_to_xml_file, weights=path_to_bin_file)
+    #  ie = IECore()
+    #  net = ie.read_network(model=path_to_xml_file, weights=path_to_bin_file)
     #  net.stats.update({"conv1_2d" : LayserStats(min=(-25, -1, 0), max=(63, 124, 70)),
     #                    "conv2_2d" : LayserStats(min=(-5, -1, 0, 1, -7, 2), max=(63, 124, 70, 174, 99, 106))
     #                   })
@@ -1163,7 +1203,7 @@ cdef class IENetwork:
                                                          max=tuple(it.second["max".encode()]))
         return py_stats_map
 
-    ## NOTE: The function is deprecated. Please use the `IENetwork()` class constructor
+    ## \note The function is deprecated. Please use the `IENetwork()` class constructor
     #        to create valid instance of `IENetwork`.
     #
     #  Reads the model from the `.xml` and `.bin` files of the IR.
@@ -1192,7 +1232,8 @@ cdef class IENetwork:
     #
     #  Usage example:\n
     #  ```python
-    #  net = IENetwork(model=path_to_xml_file, weights=path_to_bin_file)
+    #  ie = IECore()
+    #  net = ie.read_network(model=path_to_xml_file, weights=path_to_bin_file)
     #  net.add_outputs(["conv5_1', conv2_1', (split_2, 1)])]
     #  ```
     def add_outputs(self, outputs):
@@ -1216,14 +1257,16 @@ cdef class IENetwork:
     #
     #  Usage example:
     #  ```python
-    #  net = IENetwork(model=path_to_model, weights=path_to_weights)
+    #  ie = IECore()
+    #  net = ie.read_network(model=path_to_xml, weights=path_to_bin)
     #  net.serialize(path_to_xml, path_to_bin)
     #  ```
     def serialize(self, path_to_xml, path_to_bin: str = ""):
         self.impl.serialize(path_to_xml.encode(), path_to_bin.encode())
 
     ## Reshapes the network to change spatial dimensions, batch size, or any dimension.
-    #  NOTE: Before using this method, make sure that the target shape is applicable for the network.
+    #
+    #  \note Before using this method, make sure that the target shape is applicable for the network.
     #        Changing the network shape to an arbitrary value may lead to unpredictable behaviour.
     #
     #  @param input_shapes: A dictionary that maps input layer names to tuples with the target shape
@@ -1231,10 +1274,11 @@ cdef class IENetwork:
     #
     #  Usage example:\n
     #  ```python
-    #  net = IENetwork(model=path_to_xml_file, weights=path_to_bin_file)
+    #  ie = IECore()
+    #  net = ie.read_network(model=path_to_xml_file, weights=path_to_bin_file)
     #  input_layer = next(iter(net.inputs))
     #  n, c, h, w = net.inputs[input_layer]
-    #  net.reshape({input_layer: (n, c, h*2, w*2)}]
+    #  net.reshape({input_layer: (n, c, h*2, w*2)})
     #  ```
     def reshape(self, input_shapes: dict):
         cdef map[string, vector[size_t]] c_input_shapes;
@@ -1255,9 +1299,11 @@ cdef class IENetwork:
     #     return self.impl.getFunction()
 
 ## This class is the main plugin interface and serves to initialize and configure the plugin.
+#
+#\note This class is deprecated: Use IECore instead
+#
 cdef class IEPlugin:
-    ## Deprecated: Use IECore instead
-    #  Class constructor
+    ##  Class constructor
     #
     #  @param device: Target device name. Supported devices: CPU, GPU, FPGA, MYRIAD, HETERO, MULTI
     #  @param plugin_dirs: List of paths to plugin directories

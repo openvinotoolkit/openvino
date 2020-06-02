@@ -6,7 +6,7 @@
 #include "ngraph_reader_tests.hpp"
 TEST_F(NGraphReaderTests, ReadPriorBoxClusteredNetwork) {
     std::string model = R"V0G0N(
-<net name="PriorBoxClusteredNet" version="10">
+<net name="Network" version="10">
     <layers>
         <layer id="0" name="in1" type="Parameter" version="opset1">
             <data element_type="f32" shape="1,768,30,30"/>
@@ -202,7 +202,7 @@ TEST_F(NGraphReaderTests, ReadPriorBoxClusteredNetwork) {
 </net>
 )V0G0N";
     std::string modelV5 = R"V0G0N(
-<net name="Activation" version="5" precision="FP32" batch="1">
+<net name="Network" version="5" precision="FP32" batch="1">
     <layers>
         <layer id="0" name="in1" type="Input" precision="FP32">
             <output>
@@ -267,7 +267,7 @@ TEST_F(NGraphReaderTests, ReadPriorBoxClusteredNetwork) {
 
 TEST_F(NGraphReaderTests, ReadPriorBoxNetwork) {
     std::string model = R"V0G0N(
-<net name="PriorBoxNet" version="10">
+<net name="Network" version="10">
     <layers>
         <layer id="0" name="in1" type="Parameter" version="opset1">
             <data element_type="f32" shape="1,768,30,30"/>
@@ -462,7 +462,7 @@ TEST_F(NGraphReaderTests, ReadPriorBoxNetwork) {
 </net>
 )V0G0N";
     std::string modelV5 = R"V0G0N(
-<net name="Activation" version="5" precision="FP32" batch="1">
+<net name="Network" version="5" precision="FP32" batch="1">
     <layers>
         <layer id="0" name="in1" type="Input" precision="FP32">
             <output>

@@ -50,6 +50,7 @@ public:
     virtual const std::string GetName() const { return kernelName; }
 
     static const primitive_db& get_db() { return db; }
+    static void ResetCounter() { counter = 0; }
 
 protected:
     static const primitive_db db;
@@ -65,6 +66,6 @@ protected:
     virtual JitConstants MakeFusedOpsDeclsJitConstants(const base_params &params, const std::vector<FusedOpsConfiguration> &conf) const;
 
 private:
-    static size_t counter;
+    static thread_local size_t counter;
 };
 }  // namespace kernel_selector

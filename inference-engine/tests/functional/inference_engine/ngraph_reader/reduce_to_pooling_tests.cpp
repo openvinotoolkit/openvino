@@ -6,7 +6,7 @@
 #include "ngraph_reader_tests.hpp"
 TEST_F(NGraphReaderTests, ReduceMeanToAvgPool) {
     std::string model = R"V0G0N(
-<net name="ReduceMean" version="10">
+<net name="Network" version="10">
     <layers>
         <layer id="0" name="data" type="Parameter" version="opset1">
             <data element_type="f32" shape="1,3,227,227"/>
@@ -68,7 +68,7 @@ TEST_F(NGraphReaderTests, ReduceMeanToAvgPool) {
 </net>
 )V0G0N";
     std::string modelV5 = R"V0G0N(
-<net name="ReduceMean" version="5" precision="FP32" batch="1">
+<net name="Network" version="5" precision="FP32" batch="1">
     <layers>
         <layer id="0" name="data" precision="FP32" type="Input">
             <output>
@@ -115,7 +115,7 @@ TEST_F(NGraphReaderTests, ReduceMeanToAvgPool) {
 
 TEST_F(NGraphReaderTests, ReduceMeanToAvgPoolKeepDimsFalse) {
     std::string model = R"V0G0N(
-<net name="ReduceMean" version="10">
+<net name="Network" version="10">
     <layers>
         <layer id="0" name="data" type="Parameter" version="opset1">
             <data element_type="f32" shape="1,3,227,64"/>
@@ -176,7 +176,7 @@ TEST_F(NGraphReaderTests, ReduceMeanToAvgPoolKeepDimsFalse) {
 </net>
 )V0G0N";
     std::string modelV5 = R"V0G0N(
-<net name="Convolution" version="5" precision="FP32" batch="1">
+<net name="Network" version="5" precision="FP32" batch="1">
     <layers>
         <layer id="0" name="data" precision="FP32" type="Input">
             <output>
@@ -254,7 +254,7 @@ TEST_F(NGraphReaderTests, ReduceMeanToAvgPoolKeepDimsFalse) {
 
 TEST_F(NGraphReaderTests, ReduceMeanToAvgPoolNonSpatial) {
     std::string model = R"V0G0N(
-<net name="ReduceMean" version="10">
+<net name="Network" version="10">
     <layers>
         <layer id="0" name="data" type="Parameter" version="opset1">
             <data element_type="f32" shape="1,3,24,12"/>
@@ -317,7 +317,7 @@ TEST_F(NGraphReaderTests, ReduceMeanToAvgPoolNonSpatial) {
 </net>
 )V0G0N";
     std::string modelV5 = R"V0G0N(
-<net name="Convolution" version="5" precision="FP32" batch="1">
+<net name="Network" version="5" precision="FP32" batch="1">
     <layers>
         <layer id="0" name="data" precision="FP32" type="Input">
             <output>
@@ -429,7 +429,7 @@ TEST_F(NGraphReaderTests, ReduceMeanToAvgPoolNonSpatial) {
 
 TEST_F(NGraphReaderTests, ReduceMeanToAvgPoolNonSpatialHard) {
     std::string model = R"V0G0N(
-<net name="ReduceMean" version="10">
+<net name="Network" version="10">
     <layers>
         <layer id="0" name="data" type="Parameter" version="opset1">
             <data element_type="f32" shape="1,3,24,12"/>
@@ -492,7 +492,7 @@ TEST_F(NGraphReaderTests, ReduceMeanToAvgPoolNonSpatialHard) {
 </net>
 )V0G0N";
     std::string modelV5 = R"V0G0N(
-<net name="Convolution" version="5" precision="FP32" batch="1">
+<net name="Network" version="5" precision="FP32" batch="1">
     <layers>
         <layer id="0" name="data" precision="FP32" type="Input">
             <output>
@@ -572,7 +572,7 @@ TEST_F(NGraphReaderTests, ReduceMeanToAvgPoolNonSpatialHard) {
 
 TEST_F(NGraphReaderTests, ReduceMeanToMaxPool) {
     std::string model = R"V0G0N(
-<net name="ReduceMean" version="10">
+<net name="Network" version="10">
     <layers>
         <layer id="0" name="data" type="Parameter" version="opset1">
             <data element_type="f32" shape="1,3,227,227"/>
@@ -635,7 +635,7 @@ TEST_F(NGraphReaderTests, ReduceMeanToMaxPool) {
 </net>
 )V0G0N";
     std::string modelV5 = R"V0G0N(
-<net name="ReduceMean" version="5" precision="FP32" batch="1">
+<net name="Network" version="5" precision="FP32" batch="1">
     <layers>
         <layer id="0" name="data" precision="FP32" type="Input">
             <output>
@@ -682,7 +682,7 @@ TEST_F(NGraphReaderTests, ReduceMeanToMaxPool) {
 
 TEST_F(NGraphReaderTests, ReduceMeanToMaxPoolKeepDimsFalse) {
     std::string model = R"V0G0N(
-<net name="ReduceMean" version="10">
+<net name="Network" version="10">
     <layers>
         <layer id="0" name="data" type="Parameter" version="opset1">
             <data element_type="f32" shape="1,3,227,64"/>
@@ -743,7 +743,7 @@ TEST_F(NGraphReaderTests, ReduceMeanToMaxPoolKeepDimsFalse) {
 </net>
 )V0G0N";
     std::string modelV5 = R"V0G0N(
-<net name="Convolution" version="5" precision="FP32" batch="1">
+<net name="Network" version="5" precision="FP32" batch="1">
     <layers>
         <layer id="0" name="data" precision="FP32" type="Input">
             <output>
@@ -821,7 +821,7 @@ TEST_F(NGraphReaderTests, ReduceMeanToMaxPoolKeepDimsFalse) {
 
 TEST_F(NGraphReaderTests, ReduceMeanToMaxPoolNonSpatial) {
     std::string model = R"V0G0N(
-<net name="ReduceMean" version="10">
+<net name="Network" version="10">
     <layers>
         <layer id="0" name="data" type="Parameter" version="opset1">
             <data element_type="f32" shape="1,3,24,12"/>
@@ -884,7 +884,7 @@ TEST_F(NGraphReaderTests, ReduceMeanToMaxPoolNonSpatial) {
 </net>
 )V0G0N";
     std::string modelV5 = R"V0G0N(
-<net name="Convolution" version="5" precision="FP32" batch="1">
+<net name="Network" version="5" precision="FP32" batch="1">
     <layers>
         <layer id="0" name="data" precision="FP32" type="Input">
             <output>
@@ -996,7 +996,7 @@ TEST_F(NGraphReaderTests, ReduceMeanToMaxPoolNonSpatial) {
 
 TEST_F(NGraphReaderTests, ReduceSumToAvgPool) {
     std::string model = R"V0G0N(
-<net name="ReduceMean" version="10">
+<net name="Network" version="10">
     <layers>
         <layer id="0" name="data" type="Parameter" version="opset1">
             <data element_type="f32" shape="1,3,227,227"/>
@@ -1058,7 +1058,7 @@ TEST_F(NGraphReaderTests, ReduceSumToAvgPool) {
 </net>
 )V0G0N";
     std::string modelV5 = R"V0G0N(
-<net name="ReduceMean" version="5" precision="FP32" batch="1">
+<net name="Network" version="5" precision="FP32" batch="1">
     <layers>
         <layer id="0" name="data" precision="FP32" type="Input">
             <output>

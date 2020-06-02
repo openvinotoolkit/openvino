@@ -6,7 +6,7 @@
 #include "ngraph_reader_tests.hpp"
 TEST_F(NGraphReaderTests, ConvBiasFusion) {
     std::string model = R"V0G0N(
-<net name="ConvBias" version="10">
+<net name="Network" version="10">
     <layers>
         <layer id="0" name="data" type="Parameter" version="opset1">
             <data element_type="f32" shape="1,3,227,227"/>
@@ -109,7 +109,7 @@ TEST_F(NGraphReaderTests, ConvBiasFusion) {
 </net>
 )V0G0N";
     std::string modelV5 = R"V0G0N(
-<net name="Convolution" version="5" precision="FP32" batch="1">
+<net name="Network" version="5" precision="FP32" batch="1">
     <layers>
         <layer id="0" name="data" precision="FP32" type="Input">
             <output>
@@ -160,7 +160,7 @@ TEST_F(NGraphReaderTests, ConvBiasFusion) {
 
 TEST_F(NGraphReaderTests, ConvBiasFusionFP16) {
     std::string model = R"V0G0N(
-<net name="ConvBias" version="10">
+<net name="Network" version="10">
     <layers>
         <layer id="0" name="data" type="Parameter" version="opset1">
             <data element_type="f16" shape="1,3,227,227"/>
@@ -263,7 +263,7 @@ TEST_F(NGraphReaderTests, ConvBiasFusionFP16) {
 </net>
 )V0G0N";
     std::string modelV5 = R"V0G0N(
-<net name="Convolution" version="5" precision="FP16" batch="1">
+<net name="Network" version="5" precision="FP16" batch="1">
     <layers>
         <layer id="0" name="data" precision="FP16" type="Input">
             <output>
@@ -314,7 +314,7 @@ TEST_F(NGraphReaderTests, ConvBiasFusionFP16) {
 
 TEST_F(NGraphReaderTests, MatMulBiasFusionNoBroadcast) {
     std::string model = R"V0G0N(
-<net name="MatMulBias" version="10">
+<net name="Network" version="10">
     <layers>
         <layer id="0" name="data" type="Parameter" version="opset1">
             <data element_type="f32" shape="1,2048"/>
@@ -398,7 +398,7 @@ TEST_F(NGraphReaderTests, MatMulBiasFusionNoBroadcast) {
 </net>
 )V0G0N";
     std::string modelV5 = R"V0G0N(
-<net name="MatMulBias" version="5" precision="FP32" batch="1">
+<net name="Network" version="5" precision="FP32" batch="1">
     <layers>
         <layer id="0" name="data" precision="FP32" type="Input">
             <output>
@@ -437,7 +437,7 @@ TEST_F(NGraphReaderTests, MatMulBiasFusionNoBroadcast) {
 
 TEST_F(NGraphReaderTests, DISABLED_MatMulBiasFusion) {
     std::string model = R"V0G0N(
-<net name="MatMulBias" version="10">
+<net name="Network" version="10">
     <layers>
         <layer id="0" name="data" type="Parameter" version="opset1">
             <output>
@@ -557,7 +557,7 @@ TEST_F(NGraphReaderTests, DISABLED_MatMulBiasFusion) {
 </net>
 )V0G0N";
     std::string modelV5 = R"V0G0N(
-<net name="MatMulBias" version="5" precision="FP32" batch="1">
+<net name="Network" version="5" precision="FP32" batch="1">
     <layers>
         <layer id="0" name="data" precision="FP32" type="Input">
             <output>

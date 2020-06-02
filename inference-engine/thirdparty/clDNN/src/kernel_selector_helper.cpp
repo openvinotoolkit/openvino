@@ -472,6 +472,14 @@ kernel_selector::data_tensor convert_data_tensor(const layout& l, uint32_t split
         new_vals[3] = align_to(vals[3], 4);
         new_vals[2] = align_to(vals[2], 8);
     }
+    if (ks_layout == kernel_selector::Tensor::bs_fs_yx_bsv16_fsv16) {
+        new_vals[0] = align_to(vals[0], 16);
+        new_vals[1] = align_to(vals[1], 16);
+    }
+    if (ks_layout == kernel_selector::Tensor::bs_fs_zyx_bsv16_fsv16) {
+        new_vals[0] = align_to(vals[0], 16);
+        new_vals[1] = align_to(vals[1], 16);
+    }
 
     for (size_t i = 0; i < vec.size(); i++) {
         const size_t tensor_index = vec.size() - 1 - i;
@@ -488,6 +496,15 @@ kernel_selector::data_tensor convert_data_tensor(const layout& l, uint32_t split
         elm.pad.after = up;
 
         pitch *= (reserved_in_mem_count + lp + up);
+    }
+
+    if (ks_layout == kernel_selector::Tensor::bs_fs_yx_bsv16_fsv16) {
+        vec[2].pitch = (vec[0].v * vec[1].v) * 16;
+        vec[3].pitch = vec[2].pitch * vec[2].v;
+    }
+    if (ks_layout == kernel_selector::Tensor::bs_fs_zyx_bsv16_fsv16) {
+        vec[3].pitch = (vec[0].v * vec[1].v * vec[2].v) * 16;
+        vec[4].pitch = vec[3].pitch * vec[3].v;
     }
 
     const int feature_index =

@@ -373,41 +373,22 @@ void MKLDNNQuantizeNode::createPrimitive() {
     } else if (levels != 2) {
         auto prim_desc = createPrimitiveDescriptor<quantization_forward::primitive_desc, quantization_forward::desc>();
 
-        if (cropLow.size() == 1)
-            cropLow.resize(axisSize, cropLow[0]);
-        auto cropLowDataMem = std::make_shared<MKLDNNMemory>(getEngine());
-        cropLowDataMem->Create(weightsDataDesc, &cropLow[0]);
-        internalBlobMemory.push_back(cropLowDataMem);
+        auto pushInternalBlob = [&](std::vector<float>& data) {
+            if (data.size() == 1)
+                data.resize(axisPaddedSize, data[0]);
+            else
+                data.resize(axisPaddedSize);
+            auto memory = std::make_shared<MKLDNNMemory>(getEngine());
+            memory->Create(weightsDataDesc, &data[0]);
+            internalBlobMemory.push_back(memory);
+        };
 
-        if (cropHigh.size() == 1)
-            cropHigh.resize(axisSize, cropHigh[0]);
-        auto cropHighDataMem = std::make_shared<MKLDNNMemory>(getEngine());
-        cropHighDataMem->Create(weightsDataDesc, &cropHigh[0]);
-        internalBlobMemory.push_back(cropHighDataMem);
-
-        if (inputScale.size() == 1)
-            inputScale.resize(axisSize, inputScale[0]);
-        auto inputScaleDataMem = std::make_shared<MKLDNNMemory>(getEngine());
-        inputScaleDataMem->Create(weightsDataDesc, &inputScale[0]);
-        internalBlobMemory.push_back(inputScaleDataMem);
-
-        if (inputShift.size() == 1)
-            inputShift.resize(axisSize, inputShift[0]);
-        auto inputShiftDataMem = std::make_shared<MKLDNNMemory>(getEngine());
-        inputShiftDataMem->Create(weightsDataDesc, &inputShift[0]);
-        internalBlobMemory.push_back(inputShiftDataMem);
-
-        if (outputScale.size() == 1)
-            outputScale.resize(axisSize, outputScale[0]);
-        auto outputScaleDataMem = std::make_shared<MKLDNNMemory>(getEngine());
-        outputScaleDataMem->Create(weightsDataDesc, &outputScale[0]);
-        internalBlobMemory.push_back(outputScaleDataMem);
-
-        if (outputShift.size() == 1)
-            outputShift.resize(axisSize, outputShift[0]);
-        auto outputShiftDataMem = std::make_shared<MKLDNNMemory>(getEngine());
-        outputShiftDataMem->Create(weightsDataDesc, &outputShift[0]);
-        internalBlobMemory.push_back(outputShiftDataMem);
+        pushInternalBlob(cropLow);
+        pushInternalBlob(cropHigh);
+        pushInternalBlob(inputScale);
+        pushInternalBlob(inputShift);
+        pushInternalBlob(outputScale);
+        pushInternalBlob(outputShift);
 
         prim.reset(new quantization_forward(prim_desc, getParentEdgeAt(0)->getMemory().GetPrimitive(),
                                             internalBlobMemory[0]->GetPrimitive(),

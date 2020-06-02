@@ -35,7 +35,8 @@
 namespace InferenceEngine {
 
 /**
- * @deprecated InferenceEngine utility functions are not a part of public API
+ * @deprecated InferenceEngine utility functions are not a part of public API.
+ * This method will be removed in 2020.4 release.
  * @brief Gets the top n results from a tblob
  *
  * @param n Top n count
@@ -44,7 +45,7 @@ namespace InferenceEngine {
  */
 template <class T>
 INFERENCE_ENGINE_DEPRECATED(
-    "InferenceEngine utility functions are not a part of public API. Will be removed in 2020.3")
+    "InferenceEngine utility functions are not a part of public API. Will be removed in 2020.4")
 inline void TopResults(unsigned int n, TBlob<T>& input, std::vector<unsigned>& output) {
     SizeVector dims = input.getTensorDesc().getDims();
     size_t input_rank = dims.size();
@@ -81,7 +82,8 @@ inline void TopResults(unsigned int n, TBlob<T>& input, std::vector<unsigned>& o
     }
 
 /**
- * @deprecated InferenceEngine utility functions are not a part of public API
+ * @deprecated InferenceEngine utility functions are not a part of public API.
+ * This method will be removed in 2020.4 release.
  * @brief Gets the top n results from a blob
  *
  * @param n Top n count
@@ -89,7 +91,7 @@ inline void TopResults(unsigned int n, TBlob<T>& input, std::vector<unsigned>& o
  * @param output Vector of indexes for the top n places
  */
 INFERENCE_ENGINE_DEPRECATED(
-    "InferenceEngine utility functions are not a part of public API. Will be removed in 2020.3")
+    "InferenceEngine utility functions are not a part of public API. Will be removed in 2020.4")
 inline void TopResults(unsigned int n, Blob& input, std::vector<unsigned>& output) {
     IE_SUPPRESS_DEPRECATED_START
     switch (input.getTensorDesc().getPrecision()) {
@@ -112,7 +114,8 @@ inline void TopResults(unsigned int n, Blob& input, std::vector<unsigned>& outpu
 #undef TBLOB_TOP_RESULT
 
 /**
- * @deprecated InferenceEngine utility functions are not a part of public API
+ * @deprecated InferenceEngine utility functions are not a part of public API.
+ * This method will be removed in 2020.4 release.
  * @brief Copies a 8-bit RGB image to the blob.
  *
  * Throws an exception in case of dimensions or input size mismatch
@@ -124,7 +127,7 @@ inline void TopResults(unsigned int n, Blob& input, std::vector<unsigned>& outpu
  */
 template <typename data_t>
 INFERENCE_ENGINE_DEPRECATED(
-    "InferenceEngine utility functions are not a part of public API. Will be removed in 2020.3")
+    "InferenceEngine utility functions are not a part of public API. Will be removed in 2020.4")
 void copyFromRGB8(uint8_t* RGB8, size_t RGB8_size, InferenceEngine::TBlob<data_t>* blob) {
     SizeVector dims = blob->getTensorDesc().getDims();
     if (4 != dims.size())
@@ -162,7 +165,8 @@ void copyFromRGB8(uint8_t* RGB8, size_t RGB8_size, InferenceEngine::TBlob<data_t
 }
 
 /**
- * @deprecated InferenceEngine utility functions are not a part of public API
+ * @deprecated InferenceEngine utility functions are not a part of public API.
+ * This method will be removed in 2020.4 release.
  * @brief Splits the RGB channels to either I16 Blob or float blob.
  *
  * The image buffer is assumed to be packed with no support for strides.
@@ -172,7 +176,7 @@ void copyFromRGB8(uint8_t* RGB8, size_t RGB8_size, InferenceEngine::TBlob<data_t
  * @param input Blob to contain the split image (to 3 channels)
  */
 INFERENCE_ENGINE_DEPRECATED(
-    "InferenceEngine utility functions are not a part of public API. Will be removed in 2020.3")
+    "InferenceEngine utility functions are not a part of public API. Will be removed in 2020.4")
 inline void ConvertImageToInput(unsigned char* imgBufRGB8, size_t lengthbytesSize, Blob& input) {
     IE_SUPPRESS_DEPRECATED_START
     TBlob<float>* float_input = dynamic_cast<TBlob<float>*>(&input);
@@ -187,7 +191,8 @@ inline void ConvertImageToInput(unsigned char* imgBufRGB8, size_t lengthbytesSiz
 }
 
 /**
- * @deprecated InferenceEngine utility functions are not a part of public API
+ * @deprecated InferenceEngine utility functions are not a part of public API.
+ * This method will be removed in 2020.4 release.
  * @brief Copies data from a certain precision to float
  *
  * @param dst Pointer to an output float buffer, must be allocated before the call
@@ -195,7 +200,7 @@ inline void ConvertImageToInput(unsigned char* imgBufRGB8, size_t lengthbytesSiz
  */
 template <typename T>
 INFERENCE_ENGINE_DEPRECATED(
-    "InferenceEngine utility functions are not a part of public API. Will be removed in 2020.3")
+    "InferenceEngine utility functions are not a part of public API. Will be removed in 2020.4")
 void copyToFloat(float* dst, const InferenceEngine::Blob* src) {
     if (!dst) {
         return;

@@ -153,6 +153,7 @@ public:
 
     /**
      * @deprecated Use ExecutableNetwork::GetExecGraphInfo to get information about an internal graph.
+     * This method will be removed in 2021.1 release.
      * @copybrief IExecutableNetwork::GetMappedTopology
      *
      * Wraps IExecutableNetwork::GetMappedTopology.

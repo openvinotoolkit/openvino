@@ -17,7 +17,7 @@
 
 namespace kernel_selector {
 const primitive_db KernelBase::db;
-size_t KernelBase::counter = 0;
+thread_local size_t KernelBase::counter = 0;
 
 static bool IsTypeUsedIn(Datatype type, const base_params& params) {
     return params.output.GetDType() == type ||
@@ -64,8 +64,9 @@ JitConstants KernelBase::MakeBaseParamsJitConstants(const base_params& params) c
         jit.AddConstant(MakeJitConstant("INPUT" + toCodeString(i), params.inputs[i]));
     }
 
+#ifndef NDEBUG
     jit.AddConstant(MakeJitConstant("LayerID", params.layerID));
-
+#endif
     return jit;
 }
 

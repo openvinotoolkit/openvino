@@ -6,7 +6,7 @@
 #include "ngraph_reader_tests.hpp"
 TEST_F(NGraphReaderTests, ReadTileNetwork) {
     std::string model = R"V0G0N(
-<net name="Transpose" version="10">
+<net name="Network" version="10">
     <layers>
         <layer id="0" name="data" type="Parameter" version="opset1">
             <data element_type="f32" shape="1,2,3,4"/>
@@ -67,7 +67,7 @@ TEST_F(NGraphReaderTests, ReadTileNetwork) {
 </net>
 )V0G0N";
     std::string modelV5 = R"V0G0N(
-<net name="Transpose" version="5" precision="FP32" batch="1">
+<net name="Network" version="5" precision="FP32" batch="1">
     <layers>
         <layer id="0" name="data" precision="FP32" type="Input">
             <output>
@@ -116,7 +116,7 @@ TEST_F(NGraphReaderTests, ReadTileNetwork) {
 
 TEST_F(NGraphReaderTests, ReadTileNetwork2) {
     std::string model = R"V0G0N(
-<net name="Transpose" version="10">
+<net name="Network" version="10">
     <layers>
         <layer id="0" name="data" type="Parameter" version="opset1">
             <data element_type="f32" shape="1,64,10,10"/>
@@ -177,7 +177,7 @@ TEST_F(NGraphReaderTests, ReadTileNetwork2) {
 </net>
 )V0G0N";
     std::string modelV5 = R"V0G0N(
-<net name="Transpose" version="5" precision="FP32" batch="1">
+<net name="Network" version="5" precision="FP32" batch="1">
     <layers>
         <layer id="0" name="data" precision="FP32" type="Input">
             <output>

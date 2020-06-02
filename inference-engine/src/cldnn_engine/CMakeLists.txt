@@ -42,9 +42,9 @@ add_custom_command(TARGET ${TARGET_NAME} POST_BUILD
 # install
 
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/cldnn_global_custom_kernels
-        DESTINATION ${IE_CPACK_LIBRARY_PATH}
+        DESTINATION ${IE_CPACK_RUNTIME_PATH}
         COMPONENT gpu)
 
 install(FILES "${clDNN_SOURCE_DIR}/kernel_selector/core/cache/cache.json"
-        DESTINATION ${IE_CPACK_LIBRARY_PATH}
+        DESTINATION ${IE_CPACK_RUNTIME_PATH}
         COMPONENT gpu)

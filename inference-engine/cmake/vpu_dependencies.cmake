@@ -19,7 +19,7 @@ set(VPU_SUPPORTED_FIRMWARES usb-ma2450 usb-ma2x8x pcie-ma248x)
 # Default packages
 #
 
-set(FIRMWARE_PACKAGE_VERSION 1076)
+set(FIRMWARE_PACKAGE_VERSION 1119)
 
 #
 # CMake variables to override default firmware files
@@ -82,7 +82,7 @@ foreach(firmware_name IN LISTS VPU_SUPPORTED_FIRMWARES)
         VERBATIM)
 
     install(FILES ${${var_name}}
-        DESTINATION ${IE_CPACK_LIBRARY_PATH}
+        DESTINATION ${IE_CPACK_RUNTIME_PATH}
         COMPONENT myriad)
 endforeach()
 

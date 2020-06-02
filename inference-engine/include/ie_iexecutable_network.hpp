@@ -102,7 +102,8 @@ public:
     virtual StatusCode Export(std::ostream& networkModel, ResponseDesc* resp) noexcept = 0;
 
     /**
-     * @deprecated Use ExecutableNetwork::GetExecGraphInfo to get information about an internal graph
+     * @deprecated Use ExecutableNetwork::GetExecGraphInfo to get information about an internal graph.
+     * The method will be removed in 2021.1 release.
      * @brief Get the mapping of IR layer names to implemented kernels
      *
      * @param deployedTopology Map of PrimitiveInfo objects that represent the deployed topology

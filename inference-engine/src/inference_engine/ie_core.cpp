@@ -250,6 +250,11 @@ public:
                     iplugin_api_ptr->SetCore(mutableCore);
                 }
 
+                // Add registered extensions to new plugin
+                for (const auto& ext : extensions) {
+                    plugin->AddExtension(ext, nullptr);
+                }
+
                 InferencePlugin cppPlugin(plugin);
 
                 // configuring
@@ -360,6 +365,14 @@ public:
             if (opsetNames.find(it.first) != opsetNames.end())
                 THROW_IE_EXCEPTION << "Cannot add opset with name: " << it.first << ". Opset with the same name already exists.";
             opsetNames.insert(it.first);
+        }
+
+        for (auto& plugin : plugins) {
+            IE_SUPPRESS_DEPRECATED_START
+            try {
+                plugin.second.AddExtension(extension);
+            } catch (...) {}
+            IE_SUPPRESS_DEPRECATED_END
         }
         extensions.emplace_back(extension);
     }
@@ -488,6 +501,17 @@ CNNNetwork Core::ReadNetwork(const std::string& modelPath, const std::string& bi
     return CNNNetwork(cnnReader);
 }
 
+/**
+ * Hold original blob in order to avoid situations when original blob is allocated on stack
+ */
+class WeightsHolderBlob: public TBlob<uint8_t> {
+private:
+    Blob::CPtr originBlob;
+
+public:
+    WeightsHolderBlob(const Blob::CPtr& weights): TBlob<uint8_t>(weights->getTensorDesc(), weights->cbuffer().as<uint8_t*>()), originBlob(weights) {}
+};
+
 CNNNetwork Core::ReadNetwork(const std::string& model, const Blob::CPtr& weights) const {
     IE_PROFILING_AUTO_SCOPE(Core::ReadNetwork)
     IE_SUPPRESS_DEPRECATED_START
@@ -501,8 +525,7 @@ CNNNetwork Core::ReadNetwork(const std::string& model, const Blob::CPtr& weights
     }
     TBlob<uint8_t>::Ptr weights_ptr;
     if (weights) {
-        uint8_t* ptr = weights->cbuffer().as<uint8_t*>();
-        weights_ptr = make_shared_blob<uint8_t>(weights->getTensorDesc(), ptr);
+        weights_ptr = std::make_shared<WeightsHolderBlob>(weights);
     }
     rt = cnnReader->SetWeights(weights_ptr, &desc);
     if (rt != OK) THROW_IE_EXCEPTION << desc.msg;

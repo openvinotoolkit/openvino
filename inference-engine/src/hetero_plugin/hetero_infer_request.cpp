@@ -65,6 +65,27 @@ HeteroInferRequest::HeteroInferRequest(InferenceEngine::InputsDataMap networkInp
     }
 }
 
+void HeteroInferRequest::SetBlob(const char* name, const InferenceEngine::Blob::Ptr& data) {
+    InferenceEngine::InferRequestInternal::SetBlob(name, data);
+    assert(!_inferRequests.empty());
+    for (auto &&desc : _inferRequests) {
+        auto &r = desc._request;
+        assert(nullptr != r);
+        InputInfo::Ptr foundInput;
+        DataPtr foundOutput;
+        try {
+            // if `name` is input blob
+            if (findInputAndOutputBlobByName(name, foundInput, foundOutput)) {
+                r->SetBlob(name, data, foundInput->getPreProcess());
+            }
+        } catch (const InferenceEngine::details::InferenceEngineException & ex) {
+            std::string message = ex.what();
+            if (message.find(NOT_FOUND_str) == std::string::npos)
+                throw ex;
+        }
+    }
+}
+
 void HeteroInferRequest::InferImpl() {
     updateInOutIfNeeded();
     size_t i = 0;

@@ -70,7 +70,7 @@ public:
     explicit SharedObjectLoader(LPCSTR pluginName) {
         ExcludeCurrentDirectory();
 
-        shared_object = LoadLibrary(pluginName);
+        shared_object = LoadLibraryA(pluginName);
         if (!shared_object) {
             char cwd[1024];
             THROW_IE_EXCEPTION << "Cannot load library '" << pluginName << "': " << GetLastError()

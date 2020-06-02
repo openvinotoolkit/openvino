@@ -82,6 +82,16 @@ else()
     endif()
 endif()
 
+if(APPLE)
+    set(CMAKE_MACOSX_RPATH ON)
+endif()
+
+set(CMAKE_POLICY_DEFAULT_CMP0063 NEW)
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+set(CMAKE_CXX_VISIBILITY_PRESET hidden)
+set(CMAKE_C_VISIBILITY_PRESET hidden)
+set(CMAKE_VISIBILITY_INLINES_HIDDEN ON)
+
 ####################################
 ## to use C++11; can overwritten via cmake command line
 if(NOT DEFINED CMAKE_CXX_STANDARD)

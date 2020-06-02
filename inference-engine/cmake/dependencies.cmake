@@ -83,24 +83,24 @@ if (THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
         if (WIN32 AND X86_64)
             #TODO: add target_path to be platform specific as well, to avoid following if
             RESOLVE_DEPENDENCY(TBB
-                    ARCHIVE_WIN "tbb2020_20200214_win.zip"
+                    ARCHIVE_WIN "tbb2020_20200415_win.zip"
                     TARGET_PATH "${TEMP}/tbb"
                     ENVIRONMENT "TBBROOT"
                     VERSION_REGEX ".*_([a-z]*_([a-z0-9]+\\.)*[0-9]+).*")
         elseif(ANDROID)  # Should be before LINUX due LINUX is detected as well
             RESOLVE_DEPENDENCY(TBB
-                    ARCHIVE_ANDROID "tbb2020_20191023_android.tgz"
+                    ARCHIVE_ANDROID "tbb2020_20200404_android.tgz"
                     TARGET_PATH "${TEMP}/tbb"
                     ENVIRONMENT "TBBROOT"
                     VERSION_REGEX ".*_([a-z]*_([a-z0-9]+\\.)*[0-9]+).*")
         elseif(LINUX AND X86_64)
             RESOLVE_DEPENDENCY(TBB
-                    ARCHIVE_LIN "tbb2020_20200327_lin_strip.tgz"
+                    ARCHIVE_LIN "tbb2020_20200415_lin_strip.tgz"
                     TARGET_PATH "${TEMP}/tbb"
                     ENVIRONMENT "TBBROOT")
         elseif(APPLE AND X86_64)
             RESOLVE_DEPENDENCY(TBB
-                    ARCHIVE_MAC "tbb2020_20191023_mac.tgz"
+                    ARCHIVE_MAC "tbb2020_20200404_mac.tgz"
                     TARGET_PATH "${TEMP}/tbb"
                     ENVIRONMENT "TBBROOT"
                     VERSION_REGEX ".*_([a-z]*_([a-z0-9]+\\.)*[0-9]+).*")

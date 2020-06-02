@@ -392,7 +392,7 @@ bool layout_optimizer::convolution_b_fs_zyx_fsv16_opt(layout const &input_layout
         (input_layout.data_type == data_types::f32 || input_layout.data_type == data_types::f16) &&
         ((input_layout.size.feature[0] / conv->split()) % 16 == 0 || input_layout.size.feature[0] == 3) &&
         weights_layout.data_type == input_layout.data_type &&
-        (weights_layout.size.batch[0] % 16 == 0 || weights_layout.size.batch[0] % 8 == 0) &&
+        (weights_layout.size.batch[0] % 16 == 0 || (weights_layout.size.batch[0] == 8 && conv->groups > 1)) &&
         conv->dilation == tensor(1))
         return true;
     return false;

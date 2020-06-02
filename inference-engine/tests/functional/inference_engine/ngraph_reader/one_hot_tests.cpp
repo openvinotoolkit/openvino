@@ -6,7 +6,7 @@
 #include "ngraph_reader_tests.hpp"
 TEST_F(NGraphReaderTests, ReadOneHotFP32) {
     std::string model = R"V0G0N(
-<net name="OneHot" version="10">
+<net name="Network" version="10">
     <layers>
         <layer id="0" name="in1" type="Parameter"  version="opset1">
             <data element_type="i64" shape="1,10,22"/>
@@ -78,7 +78,7 @@ TEST_F(NGraphReaderTests, ReadOneHotFP32) {
 </net>
 )V0G0N";
     std::string modelV5 = R"V0G0N(
-<net name="OneHot" version="5" precision="FP32" batch="1">
+<net name="Network" version="5" precision="FP32" batch="1">
     <layers>
         <layer name="in1" type="Input" precision="I64" id="0">
             <output>
@@ -126,7 +126,7 @@ TEST_F(NGraphReaderTests, ReadOneHotFP32) {
 
 TEST_F(NGraphReaderTests, ReadOneHotINT16) {
     std::string model = R"V0G0N(
-<net name="OneHot" version="10">
+<net name="Network" version="10">
     <layers>
         <layer id="0" name="in1" type="Parameter"  version="opset1">
             <data element_type="i64" shape="1,10,22"/>
@@ -224,7 +224,7 @@ TEST_F(NGraphReaderTests, ReadOneHotINT16) {
 </net>
 )V0G0N";
     std::string modelV5 = R"V0G0N(
-<net name="OneHot" version="5" precision="FP32" batch="1">
+<net name="Network" version="5" precision="FP32" batch="1">
     <layers>
         <layer name="in1" type="Input" precision="I64" id="0">
             <output>

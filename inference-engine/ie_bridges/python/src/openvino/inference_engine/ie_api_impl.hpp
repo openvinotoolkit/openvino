@@ -136,7 +136,7 @@ struct IEExecNetwork {
     std::map<std::string, InferenceEngine::CDataPtr> getOutputs();
 
     PyObject* getMetric(const std::string & metric_name);
-    PyObject* getConfig(const std::string & metric_name);
+    PyObject* getConfig(const std::string & name);
 
     int wait(int num_requests, int64_t timeout);
     int getIdleRequestId();

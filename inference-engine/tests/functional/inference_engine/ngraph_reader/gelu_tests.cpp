@@ -31,7 +31,7 @@ TEST_F(NGraphReaderTests, ReadGeluNetwork) {
     // f(x) = 0.5 * x * (1.0 + erf( x / sqrt(2.0) )
     std::string model_v7 = R"V0G0N(
 <?xml version="1.0"?>
-<net name="Function_7" version="6" batch="1">
+<net name="Network" version="6" batch="1">
 	<layers>
 		<layer name="in1" type="Input" precision="FP32" id="0">
 			<output>

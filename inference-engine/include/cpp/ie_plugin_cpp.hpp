@@ -78,8 +78,8 @@ public:
         IExecutableNetwork::Ptr ret;
         IE_SUPPRESS_DEPRECATED_START
         CALL_STATUS_FNC(LoadNetwork, ret, network, config);
-        IE_SUPPRESS_DEPRECATED_END
         return ExecutableNetwork(ret, actual);
+        IE_SUPPRESS_DEPRECATED_END
     }
 
     /**
@@ -94,9 +94,9 @@ public:
         IExecutableNetwork::Ptr ret;
         IE_SUPPRESS_DEPRECATED_START
         CALL_STATUS_FNC(LoadNetwork, ret, network, config);
-        IE_SUPPRESS_DEPRECATED_END
         if (ret.get() == nullptr) THROW_IE_EXCEPTION << "Internal error: pointer to executable network is null";
         return ExecutableNetwork(ret, actual);
+        IE_SUPPRESS_DEPRECATED_END
     }
 
     /**
@@ -137,8 +137,8 @@ public:
         IExecutableNetwork::Ptr ret;
         IE_SUPPRESS_DEPRECATED_START
         CALL_STATUS_FNC(ImportNetwork, ret, modelFileName, config);
-        IE_SUPPRESS_DEPRECATED_END
         return ExecutableNetwork(ret, actual);
+        IE_SUPPRESS_DEPRECATED_END
     }
 
     /**

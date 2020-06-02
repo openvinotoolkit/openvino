@@ -437,10 +437,10 @@ PyObject *InferenceEnginePython::IEExecNetwork::getMetric(const std::string &met
     return parse_parameter(parameter);
 }
 
-PyObject *InferenceEnginePython::IEExecNetwork::getConfig(const std::string &metric_name) {
+PyObject *InferenceEnginePython::IEExecNetwork::getConfig(const std::string &name) {
     InferenceEngine::Parameter parameter;
     InferenceEngine::ResponseDesc response;
-    IE_CHECK_CALL(actual->GetMetric(metric_name, parameter, &response));
+    IE_CHECK_CALL(actual->GetConfig(name, parameter, &response));
     return parse_parameter(parameter);
 }
 

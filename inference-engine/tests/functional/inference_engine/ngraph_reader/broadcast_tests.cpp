@@ -6,7 +6,7 @@
 #include "ngraph_reader_tests.hpp"
 TEST_F(NGraphReaderTests, ConvertBroadcastToTiles1) {
     std::string model = R"V0G0N(
-<net name="Multiply" version="10">
+<net name="Network" version="10">
     <layers>
         <layer id="14" name="data" type="Parameter" version="opset1">
             <data element_type="f32" shape="112,1"/>
@@ -63,7 +63,7 @@ TEST_F(NGraphReaderTests, ConvertBroadcastToTiles1) {
 </net>
 )V0G0N";
     std::string modelV5 = R"V0G0N(
-<net name="Convolution" version="5" precision="FP32" batch="1">
+<net name="Network" version="5" precision="FP32" batch="1">
     <layers>
         <layer id="0" name="data" precision="FP32" type="Input">
             <output>
@@ -161,7 +161,7 @@ TEST_F(NGraphReaderTests, ConvertBroadcastToTiles1) {
 
 TEST_F(NGraphReaderTests, ConvertBroadcastToTiles2) {
     std::string model = R"V0G0N(
-<net name="Broadcast" version="10">
+<net name="Network" version="10">
     <layers>
         <layer id="14" name="data" type="Parameter" version="opset1">
             <data element_type="f32" shape="1"/>
@@ -219,7 +219,7 @@ TEST_F(NGraphReaderTests, ConvertBroadcastToTiles2) {
 </net>
 )V0G0N";
     std::string modelV5 = R"V0G0N(
-<net name="Convolution" version="5" precision="FP32" batch="1">
+<net name="Network" version="5" precision="FP32" batch="1">
     <layers>
         <layer id="0" name="data" precision="FP32" type="Input">
             <output>
@@ -335,7 +335,7 @@ TEST_F(NGraphReaderTests, ConvertBroadcastToTiles2) {
 
 TEST_F(NGraphReaderTests, ConvertBroadcastToTiles3) {
     std::string model = R"V0G0N(
-<net name="Broadcast" version="10">
+<net name="Network" version="10">
     <layers>
         <layer id="14" name="data" type="Parameter" version="opset1">
             <data element_type="f32" shape="1,64,1,112"/>
@@ -399,7 +399,7 @@ TEST_F(NGraphReaderTests, ConvertBroadcastToTiles3) {
 </net>
 )V0G0N";
     std::string modelV5 = R"V0G0N(
-<net name="Convolution" version="5" precision="FP32" batch="1">
+<net name="Network" version="5" precision="FP32" batch="1">
     <layers>
         <layer id="0" name="data" precision="FP32" type="Input">
             <output>
@@ -448,7 +448,7 @@ TEST_F(NGraphReaderTests, ConvertBroadcastToTiles3) {
 
 TEST_F(NGraphReaderTests, ConvertBroadcastToTiles4) {
     std::string model = R"V0G0N(
-<net name="Broadcast" version="10">
+<net name="Network" version="10">
     <layers>
         <layer id="14" name="data" type="Parameter" version="opset1">
             <data element_type="f32" shape="3,64"/>
@@ -517,7 +517,7 @@ TEST_F(NGraphReaderTests, ConvertBroadcastToTiles4) {
 </net>
 )V0G0N";
     std::string modelV5 = R"V0G0N(
-<net name="Broadcast" version="5" precision="FP32" batch="1">
+<net name="Network" version="5" precision="FP32" batch="1">
     <layers>
         <layer id="0" name="data" precision="FP32" type="Input">
             <output>
@@ -598,7 +598,7 @@ TEST_F(NGraphReaderTests, ConvertBroadcastToTiles4) {
 
 TEST_F(NGraphReaderTests, DISABLED_ConvertBroadcastToTiles5) {
     std::string model = R"V0G0N(
-<net name="Broadcast" version="10">
+<net name="Network" version="10">
     <layers>
         <layer id="14" name="data" type="Parameter" version="opset1">
             <output>
@@ -666,7 +666,7 @@ TEST_F(NGraphReaderTests, DISABLED_ConvertBroadcastToTiles5) {
 </net>
 )V0G0N";
     std::string modelV5 = R"V0G0N(
-<net name="Broadcast" version="5" precision="FP32" batch="1">
+<net name="Network" version="5" precision="FP32" batch="1">
     <layers>
         <layer id="0" name="data" precision="FP32" type="Input">
             <output>

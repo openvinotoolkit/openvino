@@ -228,13 +228,15 @@ bool CheckInputsOutputNoPitchSameDims(const base_params& params) {
     if (params.inputs.size()) {
         no_pitch_same_dims = !params.inputs[0].PitchesDifferFromLogicalDims();
 
-        if (params.inputs[0].GetLayout() == DataLayout::b_fs_yx_fsv16 && params.inputs[0].Feature().v % 16 != 0)
+        if ((params.inputs[0].GetLayout() == DataLayout::b_fs_yx_fsv16 && params.inputs[0].Feature().v % 16 != 0) ||
+            (params.inputs[0].GetLayout() == DataLayout::b_fs_zyx_fsv16 && params.inputs[0].Feature().v % 16 != 0))
             return false;
 
         for (size_t i = 1; i < params.inputs.size(); i++) {
             no_pitch_same_dims = no_pitch_same_dims && (params.inputs[0] == params.inputs[i]);
 
-            if (params.inputs[i].GetLayout() == DataLayout::b_fs_yx_fsv16 && params.inputs[i].Feature().v % 16 != 0)
+            if ((params.inputs[i].GetLayout() == DataLayout::b_fs_yx_fsv16 && params.inputs[i].Feature().v % 16 != 0) ||
+                (params.inputs[0].GetLayout() == DataLayout::b_fs_zyx_fsv16 && params.inputs[0].Feature().v % 16 != 0))
                 return false;
         }
 

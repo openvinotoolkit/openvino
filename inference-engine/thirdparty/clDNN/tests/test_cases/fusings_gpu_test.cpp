@@ -337,6 +337,7 @@ public:
 #define CASE_CONV_FP32_10 {32, 16, 4, 5, 4}, {32, 32, 4, 5, 4}, {1, 1, 1, 1, 1}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::f32, format::bs_fs_zyx_bsv16_fsv16, data_types::f32, format::bfzyx, data_types::f32, format::bfzyx
 #define CASE_CONV_FP32_11 {1, 32, 4, 5, 4}, {1, 16, 2, 3, 2}, {1, 1, 3, 3, 3}, tensor{1}, tensor{0}, tensor{1}, 2, data_types::f32, format::b_fs_zyx_fsv16, data_types::f32, format::os_is_zyx_isv16_osv16, data_types::f32, format::bfzyx
 #define CASE_CONV_FP32_12 {1, 16, 4, 5, 4}, {1, 16, 2, 3, 2}, {1, 1, 3, 3, 3}, tensor{1}, tensor{0}, tensor{1}, 2, data_types::f32, format::b_fs_zyx_fsv16, data_types::f32, format::os_is_zyx_isv16_osv16, data_types::f32, format::bfzyx
+#define CASE_CONV_FP32_13 {1, 16, 18, 5, 4}, {1, 16, 16, 3, 2}, {1, 1, 3, 3, 3}, tensor{1}, tensor{0}, tensor{1}, 2, data_types::f32, format::b_fs_zyx_fsv16, data_types::f32, format::os_is_zyx_isv16_osv16, data_types::f32, format::bfzyx
 
 #define CASE_CONV_FP16_1 {1, 15, 4, 5}, {1, 30, 2, 3}, {1, 1, 3, 3}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::f16, format::bfyx, data_types::f16, format::bfyx, data_types::f16, format::bfyx
 #define CASE_CONV_FP16_2 {1, 16, 4, 5}, {1, 32, 2, 3}, {1, 1, 3, 3}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::f16, format::b_fs_yx_fsv16, data_types::f16, format::os_is_yx_isv16_osv16, data_types::f16, format::bfyx
@@ -614,6 +615,7 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_fp32_eltwise_b_fs_zyx_fsv16,
                                 bc_test_params{CASE_CONV_FP32_9, 2, 3},
                                 bc_test_params{CASE_CONV_FP32_11, 2, 3},
                                 bc_test_params{CASE_CONV_FP32_12, 2, 3},
+                                bc_test_params{CASE_CONV_FP32_13, 2, 3},
 
                                 bc_test_params{CASE_CONV_FP16_6, 2, 3},
                                 bc_test_params{CASE_CONV_FP16_7, 2, 3},

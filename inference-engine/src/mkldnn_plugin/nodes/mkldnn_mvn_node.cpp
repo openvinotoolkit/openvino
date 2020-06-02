@@ -440,6 +440,10 @@ void MKLDNNMVNNode::getSupportedDescriptors() {
     if (!descs.empty())
         return;
 
+    const auto& numOfDims = getParentEdgeAt(0)->getDims().ndims();
+    if (numOfDims < 1 || numOfDims > 5)
+        THROW_IE_EXCEPTION << "MVN layer with name '" << getCnnLayer()->name << "' doesn't support input with size of dimensions: " << numOfDims;
+
     auto * mvnLayer = dynamic_cast<MVNLayer*>(getCnnLayer().get());
     if (mvnLayer == nullptr)
         THROW_IE_EXCEPTION << "Cannot convert MVN layer.";
@@ -667,7 +671,7 @@ void MKLDNNMVNNode::execute(mkldnn::stream strm) {
     auto src_data = reinterpret_cast<const float *>(srcMemPtr->GetData());
     auto dst_data = reinterpret_cast<float *>(dstMemPtr->GetData());
 
-    if (layout == NCHW || layout == NCDHW) {
+    if (layout == C || layout == NC || layout == CHW || layout == NCHW || layout == NCDHW) {
         mvn_pln(src_data, dst_data, getParentEdgeAt(0)->getDesc().getDims());
     } else {
         if (output_prec == Precision::U8) {
@@ -710,6 +714,19 @@ void MKLDNNMVNNode::execute(mkldnn::stream strm) {
     }
 }
 
+std::tuple<size_t, size_t, size_t, size_t, size_t> MKLDNNMVNNode::get5dShapes(const SizeVector& dims) {
+    std::tuple<size_t, size_t, size_t, size_t, size_t> shapes;
+    switch (dims.size()) {
+        case 1 : { shapes = std::make_tuple(1, dims[0], 1, 1, 1); break; }
+        case 2 : { shapes = std::make_tuple(dims[0], dims[1], 1, 1, 1); break; }
+        case 3 : { shapes = std::make_tuple(dims[0], dims[1], 1, dims[2], 1); break; }
+        case 4 : { shapes = std::make_tuple(dims[0], dims[1], 1, dims[2], dims[3]); break; }
+        case 5 : { shapes = std::make_tuple(dims[0], dims[1], dims[2], dims[3], dims[4]); break; }
+        default : { THROW_IE_EXCEPTION << "MVN layer with name '" << getCnnLayer()->name << "' doesn't support planar layout with rank: " << dims.size(); }
+    }
+    return shapes;
+}
+
 void MKLDNNMVNNode::mvn_pln(const float* src_data, float* dst_data, const SizeVector& dims) {
     size_t blk_size = 1;  // blk size in vmm
     if (mayiuse(cpu::avx512_common)) {
@@ -721,11 +738,8 @@ void MKLDNNMVNNode::mvn_pln(const float* src_data, float* dst_data, const SizeVe
     }
 
     size_t dims_size = dims.size();
-    size_t N = (dims_size > 0) ? dims[0] : 1lu;
-    size_t C = (dims_size > 1) ? dims[1] : 1lu;
-    size_t D = (dims_size > 4) ? dims[dims_size - 3] : 1lu;
-    size_t H = (dims_size > 3) ? dims[dims_size - 2] : 1lu;
-    size_t W = (dims_size > 2) ? dims[dims_size - 1] : 1lu;
+    size_t N = 0; size_t C = 0; size_t D = 0; size_t H = 0; size_t W = 0;
+    std::tie(N, C, D, H, W) = get5dShapes(dims);
 
     size_t C1 = H * W;
     size_t C2 = C1 * D;

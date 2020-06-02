@@ -113,20 +113,21 @@ void PassImpl::run(const Model& model) {
 
         model->disconnectStage(stage);
 
-        const bool isOverlapByX = (input->desc().dim(Dim::W) + padLeft + padRight) == kernelSizeX;
-        const bool isOverlapByY = (input->desc().dim(Dim::H) + padTop + padBottom) == kernelSizeY;
-        const bool isOverlapByKernel = isOverlapByX && isOverlapByY;
         const bool paddingsNotExist = padLeft == 0 && padRight == 0 && padTop == 0 && padBottom == 0;
         const bool isGlobalPoolingOutputFormat =
                 output->desc().dim(Dim::W) == 1 && output->desc().dim(Dim::H) == 1;
         auto stageType = StageType::None;
         if (stage->type() == StageType::StubMaxPool) {
-            if (isGlobalPoolingOutputFormat && isOverlapByKernel) {
+            if (isGlobalPoolingOutputFormat) {
                 stageType = StageType::GlobalMaxPool;
             } else {
                 stageType = StageType::MaxPool;
             }
         } else {
+            const bool isOverlapByX = (input->desc().dim(Dim::W) + padLeft + padRight) == kernelSizeX;
+            const bool isOverlapByY = (input->desc().dim(Dim::H) + padTop + padBottom) == kernelSizeY;
+            const bool isOverlapByKernel = isOverlapByX && isOverlapByY;
+
             if (isGlobalPoolingOutputFormat && (isOverlapByKernel && (paddingsNotExist || excludePad))) {
                 stageType = StageType::GlobalAvgPool;
             } else {

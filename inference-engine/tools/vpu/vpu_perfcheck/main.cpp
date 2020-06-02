@@ -326,9 +326,15 @@ int process(const std::string& modelFileName, const std::string& inputsDir,
     }
 #endif
 
+#ifdef USE_KMB_PLUGIN
+    InferenceEngine::PluginDispatcher disp;
+    InferenceEngine::InferenceEnginePluginPtr plugin(
+        disp.getPluginByName(std::string("kmbPlugin") + IE_BUILD_POSTFIX));
+#else
     InferenceEngine::PluginDispatcher disp;
     InferenceEngine::InferenceEnginePluginPtr plugin(
         disp.getPluginByName(std::string("myriadPlugin") + IE_BUILD_POSTFIX));
+#endif
 
     std::cout << "InferenceEngine: " << std::endl;
 

@@ -170,7 +170,7 @@ endif()
 target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_INFERENCE_ENGINE_API)
 
 ie_register_plugins(MAIN_TARGET ${TARGET_NAME}
-                    POSSIBLE_PLUGINS HeteroPlugin clDNNPlugin GNAPlugin MKLDNNPlugin myriadPlugin)
+                    POSSIBLE_PLUGINS MultiDevicePlugin HeteroPlugin clDNNPlugin GNAPlugin MKLDNNPlugin myriadPlugin)
 
 # Create NN Builder
 
@@ -272,6 +272,10 @@ if(THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
     install(FILES "${TBB}/LICENSE"
             DESTINATION ${IE_CPACK_IE_DIR}/external/tbb
             COMPONENT tbb)
+    install(FILES "${TBB}/cmake/TBBConfig.cmake"
+                  "${TBB}/cmake/TBBConfigVersion.cmake"
+            DESTINATION ${IE_CPACK_IE_DIR}/external/tbb/cmake
+            COMPONENT tbb)
 endif()
 
 ie_cpack_add_component(core REQUIRED DEPENDS ${core_components})
@@ -279,8 +283,8 @@ ie_cpack_add_component(core REQUIRED DEPENDS ${core_components})
 install(DIRECTORY "${IE_MAIN_SOURCE_DIR}/include" DESTINATION ${IE_CPACK_IE_DIR}
         COMPONENT core)
 install(TARGETS ${TARGET_NAME} ${TARGET_NAME}_nn_builder
-        RUNTIME DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT core
-        ARCHIVE DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT core
+        RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT core
+        ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT core
         LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT core)
 install(FILES "${OpenVINO_BINARY_DIR}/share/ie_parallel.cmake"
               "${OpenVINO_BINARY_DIR}/share/InferenceEngineConfig.cmake"
@@ -288,5 +292,5 @@ install(FILES "${OpenVINO_BINARY_DIR}/share/ie_parallel.cmake"
         DESTINATION ${IE_CPACK_IE_DIR}/share
         COMPONENT core)
 install(FILES $<TARGET_FILE_DIR:${TARGET_NAME}>/plugins.xml
-        DESTINATION ${IE_CPACK_LIBRARY_PATH}
+        DESTINATION ${IE_CPACK_RUNTIME_PATH}
         COMPONENT core)

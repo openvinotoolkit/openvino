@@ -620,7 +620,7 @@ void prepare_conv_eltw_fusing::fuse_conv_eltwise(program_impl& p, program_node* 
     // only single ADD operation is currently supported
     // TODO: enable more
     eltwise& eltw = const_cast<eltwise&>(*eltw_node->get_primitive());
-    if (eltw.mode != eltwise_mode::sum)
+    if (eltw.mode != eltwise_mode::sum || !eltw.coefficients.empty())
         return;
 
     int eltw_fused_input_idx;   // <-- this input gets fused with eltwise

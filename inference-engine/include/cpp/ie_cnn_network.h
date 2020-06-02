@@ -79,14 +79,14 @@ public:
     virtual ~CNNNetwork() {}
 
     /**
-     * @deprecated Network precision does not make sence, use precision on egdes. The method will be removed in 2020.3
+     * @deprecated Network precision does not make sence, use precision on egdes. The method will be removed in 2021.1
      * @copybrief ICNNNetwork::getPrecision
      *
      * Wraps ICNNNetwork::getPrecision
      *
      * @return A precision type
      */
-    INFERENCE_ENGINE_DEPRECATED("Network precision does not make sence, use precision on egdes. The method will be removed in 2020.3")
+    INFERENCE_ENGINE_DEPRECATED("Network precision does not make sence, use precision on egdes. The method will be removed in 2021.1")
     virtual Precision getPrecision() const;
 
     /**
@@ -200,7 +200,7 @@ public:
     }
 
     /**
-     * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2020.3
+     * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
      * @copybrief ICNNNetwork::getLayerByName
      *
      * Wraps ICNNNetwork::getLayerByName
@@ -208,11 +208,11 @@ public:
      * @param layerName Given name of the layer
      * @return Status code of the operation. InferenceEngine::OK if succeeded
      */
-    INFERENCE_ENGINE_DEPRECATED("Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2020.3")
+    INFERENCE_ENGINE_DEPRECATED("Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1")
     CNNLayerPtr getLayerByName(const char* layerName) const;
 
     /**
-     * @deprecated Use CNNNetwork::getFunction() and work with ngraph::Function directly. The method will be removed in 2020.3
+     * @deprecated Use CNNNetwork::getFunction() and work with ngraph::Function directly. The method will be removed in 2021.1
      * @brief Begin layer iterator
      *
      * Order of layers is implementation specific,
@@ -221,25 +221,25 @@ public:
      * @return Iterator pointing to a layer
      */
     IE_SUPPRESS_DEPRECATED_START
-    INFERENCE_ENGINE_DEPRECATED("Use CNNNetwork::getFunction() and work with ngraph::Function directly. The method will be removed in 2020.3")
+    INFERENCE_ENGINE_DEPRECATED("Use CNNNetwork::getFunction() and work with ngraph::Function directly. The method will be removed in 2021.1")
     details::CNNNetworkIterator begin() const;
 
     /**
-     * @deprecated Use CNNNetwork::getFunction() and work with ngraph::Function directly. The method will be removed in 2020.3
+     * @deprecated Use CNNNetwork::getFunction() and work with ngraph::Function directly. The method will be removed in 2021.1
      * @brief End layer iterator
      * @return Iterator pointing to a layer
      */
-    INFERENCE_ENGINE_DEPRECATED("Use CNNNetwork::getFunction() and work with ngraph::Function directly. The method will be removed in 2020.3")
+    INFERENCE_ENGINE_DEPRECATED("Use CNNNetwork::getFunction() and work with ngraph::Function directly. The method will be removed in 2021.1")
     details::CNNNetworkIterator end() const;
     IE_SUPPRESS_DEPRECATED_END
 
     /**
-     * @deprecated Use CNNNetwork::layerCount() instead. The method will be removed in 2020.3
+     * @deprecated Use CNNNetwork::layerCount() instead. The method will be removed in 2021.1
      * @brief Number of layers in network object
      *
      * @return Number of layers.
      */
-    INFERENCE_ENGINE_DEPRECATED("Use CNNNetwork::layerCount() instead. The method will be removed in 2020.3")
+    INFERENCE_ENGINE_DEPRECATED("Use CNNNetwork::layerCount() instead. The method will be removed in 2021.1")
     size_t size() const;
 
     /**

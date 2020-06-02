@@ -118,8 +118,9 @@ bool ConvolutionKernel_b_fs_yx_fsv16_1x1::Validate(const Params& p, const option
         output.X().v != input.X().v || output.Y().v != input.Y().v || output.Feature().v % 16 != 0;
     const bool bFilterSize = params.filterSize.x != 1 || params.filterSize.y != 1;
     const bool bStride = params.stride.x != 1 || params.stride.y != 1;
+    const bool bPadding = input.Feature().pad.before % feature_block_size != 0 || output.Feature().pad.before % feature_block_size != 0;
 
-    if  (bOutputSizes || bFilterSize || bStride) {
+    if  (bOutputSizes || bFilterSize || bStride || bPadding) {
         return false;
     }
 
