@@ -24,6 +24,7 @@
 #include <transformations/convert_opset3_to_opset2/convert_opset3_to_opset2.hpp>
 #include <transformations/convert_opset2_to_opset1/convert_opset2_to_opset1.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
+#include <transformations/common_optimizations/common_optimizations.hpp>
 
 namespace vpu {
 
@@ -383,6 +384,7 @@ ModelPtr FrontEnd::runCommonPasses(ie::ICNNNetwork& network, const UnsupportedLa
             // Disable shape inference (WA for generic operations)
             ngraph::op::GenericIE::DisableReshape noReshape(nGraphFunc);
 
+            ngraph::pass::CommonOptimizations().run_on_function(nGraphFunc);
             ngraph::pass::ConvertOpSet3ToOpSet2().run_on_function(nGraphFunc);
             ngraph::pass::ConvertOpSet2ToOpSet1().run_on_function(nGraphFunc);
             ngraph::pass::ConvertOpSet1ToLegacy().run_on_function(nGraphFunc);
