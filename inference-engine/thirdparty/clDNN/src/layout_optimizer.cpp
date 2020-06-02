@@ -367,8 +367,7 @@ bool layout_optimizer::convolution_b_fs_yx_fsv16_opt(layout const &input_layout,
             weights_layout.size.batch[0] >= 16 &&
             ((conv->groups == 1 && conv->split() == 1) ||
              conv->groups == static_cast<uint32_t>(input_layout.size.feature[0]) ||
-             conv->split() == static_cast<int32_t>(input_layout.size.feature[0])) &&
-             conv->dilation == tensor{ 1 })
+             conv->split() == static_cast<int32_t>(input_layout.size.feature[0])))
             return true;
         // Check for grouped convolution
         else if (input_layout.size.spatial[2] == 1 && input_layout.size.batch[0] < 16 &&
