@@ -2,7 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+<<<<<<< HEAD
 #include "functional_test_utils/low_precision_transformations/layer_transformation.hpp"
+=======
+#include "layer_transformation.hpp"
+>>>>>>> e471447... [LPT] [TEST] LayerTransformation generalization
 
 #include <memory>
 #include <tuple>
@@ -11,6 +15,7 @@
 #include <unordered_set>
 
 #include <ie_core.hpp>
+#include <net_pass.h>
 
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
@@ -22,7 +27,6 @@
 #include "ie_util_internal.hpp"
 #include "low_precision_transformations/convolution.hpp"
 #include "low_precision_transformations/scaleshift_to_convolution.hpp"
-
 
 namespace LayerTestsUtils {
 
@@ -85,6 +89,7 @@ InferenceEngine::details::LowPrecisionTransformer LayerTransformation::getLowPre
     return transformer;
 }
 
+<<<<<<< HEAD
 void LayerTransformation::checkPrecisions(const InferenceEngine::CNNLayer& layer, const InferenceEngine::Precision& expectedPrecision) {
     for (const InferenceEngine::DataWeakPtr insDataWeak : layer.insData) {
         const InferenceEngine::DataPtr insData = insDataWeak.lock();
@@ -140,6 +145,19 @@ std::pair<float, float> LayerTransformation::getQuantizationInterval(const Infer
     const float low = unsignedInterval ? 0.f : -128.f;
     const float hight = unsignedInterval ? 255.f : 127.f;
     return std::make_pair(low, hight);
+=======
+void LayerTransformation::checkParentPrecision(const InferenceEngine::CNNLayerPtr& layer, const bool lowPrecision) {
+    EXPECT_EQ(1ul, layer->insData.size()) << "insert data count is no expected: " << layer->insData.size();
+    const InferenceEngine::DataPtr insData = layer->insData[0].lock();
+    EXPECT_TRUE(insData != nullptr) << "insert data is nullable";
+    const InferenceEngine::Precision precision = insData->getTensorDesc().getPrecision();
+
+    const std::unordered_set<uint8_t> expectedPrecisions = lowPrecision ?
+        std::unordered_set<uint8_t>({ InferenceEngine::Precision::U8, InferenceEngine::Precision::I8 }) :
+        std::unordered_set<uint8_t>({ InferenceEngine::Precision::FP16, InferenceEngine::Precision::FP32 });
+    EXPECT_TRUE((expectedPrecisions.find(precision) != expectedPrecisions.end())) <<
+        "actual precision is " << precision;
+>>>>>>> e471447... [LPT] [TEST] LayerTransformation generalization
 }
 
 std::string LayerTransformation::toString(const InferenceEngine::details::LayerTransformation::Params& params) {

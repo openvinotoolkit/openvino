@@ -4,13 +4,22 @@
 
 #pragma once
 
+<<<<<<< HEAD
 #include "functional_test_utils/layer_test_utils.hpp"
 #include "low_precision_transformations/transformer.hpp"
 #include "low_precision_transformations/network_helper.hpp"
+=======
+#include <memory>
+#include <string>
+#include <sstream>
+#include <tuple>
+>>>>>>> e471447... [LPT] [TEST] LayerTransformation generalization
 
 #include "ie_util_internal.hpp"
 #include "low_precision_transformations/convolution.hpp"
 #include "low_precision_transformations/scaleshift_to_convolution.hpp"
+#include "functional_test_utils/layer_test_utils.hpp"
+#include "low_precision_transformations/transformer.hpp"
 
 namespace LayerTestsUtils {
 
