@@ -33,6 +33,10 @@ public:
     }
 
     bool isPerTensor() const {
+        return isPerTensor(scales, shifts);
+    }
+
+    static bool isPerTensor(const std::vector<float>& scales, const std::vector<float>& shifts) {
         if ((scales.size() == 0) || (shifts.size() == 0)) {
             THROW_IE_EXCEPTION << "scale or shift values count is not correct";
         }
