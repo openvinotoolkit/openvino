@@ -46,6 +46,7 @@
 #include "deconvolution_inst.h"
 #include "detection_output_inst.h"
 #include "input_layout_inst.h"
+#include "arg_max_min_inst.h"
 #include "lstm_inst.h"
 #include "lstm_elt_inst.h"
 #include "lstm_gemm_inst.h"
@@ -367,7 +368,7 @@ void program_impl::build_program(bool is_internal) {
     if (!is_internal)
         prim_info = get_current_stage_info();
 
-    transfer_memory_to_device();
+    if (!is_internal)  transfer_memory_to_device();
     cleanup();
 }
 
@@ -523,6 +524,7 @@ void program_impl::transfer_memory_to_device() {
                                                                     mem.get_net_id());
                 dynamic_cast<gpu::gpu_usm&>(*device_mem).copy_from_other(dynamic_cast<gpu::gpu_usm&>(mem));
                 data_node.attach_memory(*device_mem);
+                const_cast<memory&>(data_node.get_primitive()->mem).reset();
             }
         }
     }
@@ -1129,7 +1131,9 @@ void program_impl::set_layout_optimizer_attributes(layout_optimizer& lo) {
             (prim.type() != cldnn::mvn::type_id()
              || (prim.as<mvn>().input().get_output_layout().data_type != data_types::u8 &&
                  prim.as<mvn>().input().get_output_layout().data_type != data_types::i8)
-             || prim.as<mvn>().get_primitive()->across_channels))
+             || prim.as<mvn>().get_primitive()->across_channels) &&
+            prim.type() != cldnn::arg_max_min::type_id() &&
+            prim.type() != cldnn::mutable_data::type_id())
             can_use_fsv16 = false;
 
         // WA to keep bfyx_f16 layout disabled for some topologies where it leads to regressions.
