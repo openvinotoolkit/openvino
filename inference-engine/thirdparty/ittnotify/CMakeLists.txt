@@ -48,7 +48,6 @@ if (ANDROID)
 endif()
 
 SET_TARGET_PROPERTIES(ittnotify PROPERTIES LINKER_LANGUAGE C)
-SET_TARGET_PROPERTIES(ittnotify PROPERTIES INTERFACE_COMPILE_DEFINITIONS ENABLE_PROFILING_ITT)
 
 target_include_directories(ittnotify
     PUBLIC include src/ittnotify

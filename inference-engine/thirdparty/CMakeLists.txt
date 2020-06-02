@@ -46,7 +46,6 @@ function(build_with_lto)
     add_subdirectory(stb_lib)
     add_subdirectory(ade)
     add_subdirectory(fluid/modules/gapi)
-    add_subdirectory(ittnotify)
 
     target_include_directories(pugixml INTERFACE "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/pugixml/src>")
 
@@ -55,7 +54,7 @@ function(build_with_lto)
 
     # developer package
 
-    ie_developer_export_targets(ade fluid pugixml ittnotify)
+    ie_developer_export_targets(ade fluid pugixml)
     if(TARGET pugixml_mt)
         ie_developer_export_targets(pugixml_mt)
         set_target_properties(pugixml_mt PROPERTIES FOLDER thirdparty)
