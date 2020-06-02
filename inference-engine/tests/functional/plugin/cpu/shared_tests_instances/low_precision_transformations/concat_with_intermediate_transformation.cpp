@@ -17,9 +17,9 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
 };
 
 const std::vector<LayerTransformation::Params> trasformationParamValues = {
-    LayerTestsUtils::LayerTransformationParamsFactory::createParamCpu(),
-    LayerTestsUtils::LayerTransformationParamsFactory::createParamI8I8(),
-    LayerTestsUtils::LayerTransformationParamsFactory::createParamU8I8()
+    LayerTestsUtils::LayerTransformationParamsFactory::createParams(),
+    LayerTestsUtils::LayerTransformationParamsFactory::createParamsI8I8(),
+    LayerTestsUtils::LayerTransformationParamsFactory::createParamsU8I8()
 };
 
 const std::vector<bool> transparentIntermediateValues = { true, false };

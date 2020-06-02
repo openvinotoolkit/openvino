@@ -132,6 +132,8 @@ void ConcatNeighboringGraphTransformation::validate() {
         const InferenceEngine::CNNLayerPtr outputLayer = it.second->getCreatorLayer().lock();
         EXPECT_TRUE(outputLayer != nullptr);
         EXPECT_EQ("ScaleShift", outputLayer->type);
+
+        checkParentPrecision(outputLayer, params.updatePrecisions);
     }
 
     // check quantized FQ layers map: should includes all FQ

@@ -7,7 +7,7 @@
 #include <vector>
 #include <memory>
 
-#include <ie_api.h>
+#include <transformations_visibility.hpp>
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
@@ -15,8 +15,8 @@
 namespace ngraph {
 namespace pass {
 
-class INFERENCE_ENGINE_API_CLASS(ConvertNormalizeL2WithMulToNormalizeIE);
-class INFERENCE_ENGINE_API_CLASS(ConvertNormalizeL2ToNormalizeIE);
+class TRANSFORMATIONS_API ConvertNormalizeL2WithMulToNormalizeIE;
+class TRANSFORMATIONS_API ConvertNormalizeL2ToNormalizeIE;
 
 }  // namespace pass
 }  // namespace ngraph

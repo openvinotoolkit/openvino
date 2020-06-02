@@ -48,7 +48,7 @@ inline __m256d _v256_permute2x128(const __m256d& a, const __m256d& b)
 { return _mm256_permute2f128_pd(a, b, imm); }
 
 template<int imm, typename _Tpvec>
-inline _Tpvec v256_permute2x128(const _Tpvec& a, const _Tpvec& b)
+static inline _Tpvec v256_permute2x128(const _Tpvec& a, const _Tpvec& b)
 { return _Tpvec(_v256_permute2x128<imm>(a.val, b.val)); }
 
 template<int imm>
@@ -60,7 +60,7 @@ inline __m256d _v256_permute4x64(const __m256d& a)
 { return _mm256_permute4x64_pd(a, imm); }
 
 template<int imm, typename _Tpvec>
-inline _Tpvec v256_permute4x64(const _Tpvec& a)
+static inline _Tpvec v256_permute4x64(const _Tpvec& a)
 { return _Tpvec(_v256_permute4x64<imm>(a.val)); }
 
 inline __m128i _v256_extract_high(const __m256i& v)
@@ -729,6 +729,11 @@ OPENCV_HAL_IMPL_AVX_EXPAND(v_uint16x16, v_uint32x8,  ushort,   _mm256_cvtepu16_e
 OPENCV_HAL_IMPL_AVX_EXPAND(v_int16x16,  v_int32x8,   short,    _mm256_cvtepi16_epi32)
 OPENCV_HAL_IMPL_AVX_EXPAND(v_uint32x8,  v_uint64x4,  unsigned, _mm256_cvtepu32_epi64)
 OPENCV_HAL_IMPL_AVX_EXPAND(v_int32x8,   v_int64x4,   int,      _mm256_cvtepi32_epi64)
+
+static inline v_int16x16 v_load_ccache_expand(const uchar* ptr)
+{
+    return v_int16x16(_mm256_cvtepu8_epi16(_mm_lddqu_si128((const __m128i*)ptr)));
+}
 
 inline v_uint8x32 v_mul_wrap(const v_uint8x32& a, const v_uint8x32& b)
 {
@@ -1925,6 +1930,37 @@ inline v_uint8x32 v_pack_u(const v_int16x16& a, const v_int16x16& b)
     return v_uint8x32(_v256_shuffle_odd_64(_mm256_packus_epi16(a.val, b.val)));
 }
 
+static inline v_uint8x32 v_packus(const v_int16x16& a, const v_int16x16& b)
+{
+    return v_uint8x32(_mm256_packus_epi16(a.val, b.val));
+}
+
+template<int mask, int shift>
+static inline v_uint8x32 v_blend_shiftleft(const v_uint8x32& a, const v_uint8x32& b)
+{
+    return v_uint8x32(_mm256_blend_epi16(a.val, _mm256_slli_si256(b.val, shift), mask));
+}
+
+template<int mask, int shift>
+static inline v_uint8x32 v_blend_shiftright(const v_uint8x32& a, const v_uint8x32& b)
+{
+    return v_uint8x32(_mm256_blend_epi16(_mm256_srli_si256(a.val, shift), b.val, mask));
+}
+
+static inline v_uint8x32 v_setr_s8(char b0, char b1, char b2, char b3, char b4,
+                                   char b5, char b6, char b7, char b8, char b9,
+                                   char b10, char b11, char b12, char b13, char b14,
+                                   char b15, char b16, char b17, char b18, char b19,
+                                   char b20, char b21, char b22, char b23, char b24,
+                                   char b25, char b26, char b27, char b28, char b29,
+                                   char b30, char b31)
+{
+    return v_uint8x32(_mm256_setr_epi8(b0, b1, b2, b3, b4, b5, b6, b7,
+                        b8, b9, b10, b11, b12, b13, b14, b15,
+                        b16, b17, b18, b19, b20, b21, b22, b23,
+                        b24, b25, b26, b27, b28, b29, b30, b31));
+}
+
 inline void v_pack_store(schar* ptr, const v_int16x16& a)
 { v_store_low(ptr, v_pack(a, a)); }
 
@@ -3075,9 +3111,7 @@ static inline v_uint16x16 v_mulhi(const v_uint16x16& a, uint16_t b)
 
 static inline v_int16x16 v_mulhrs(const v_int16x16& a, const v_int16x16& b)
 {
-    v_int16x16 r;
-    r.val = _mm256_mulhrs_epi16(a.val, b.val);
-    return r;
+    return v_int16x16(_mm256_mulhrs_epi16(a.val, b.val));
 }
 
 static inline v_int16x16 v_mulhrs(const v_int16x16& a, short b)
@@ -3109,6 +3143,49 @@ static inline v_float32x8 operator* (const v_float32x8& a, float b)
 {
     return a * v256_setall_f32(b);
 }
+
+static inline v_uint8x32 v_shuffle_s8(const v_uint8x32& a, const v_uint8x32& mask)
+{
+    return v_uint8x32(_mm256_shuffle_epi8(a.val, mask.val));
+}
+
+static inline void v_gather_channel(v_uint8x32& vec, const uint8_t tmp[], const short mapsx[],
+                                    int chanNum, int c, int x, int shift)
+{
+    vec.val = _mm256_insert_epi32(vec.val, *reinterpret_cast<const int*>(&tmp[4 * (chanNum *  mapsx[x + shift + 0] + c)]), 0);
+    vec.val = _mm256_insert_epi32(vec.val, *reinterpret_cast<const int*>(&tmp[4 * (chanNum *  mapsx[x + shift + 1] + c)]), 1);
+    vec.val = _mm256_insert_epi32(vec.val, *reinterpret_cast<const int*>(&tmp[4 * (chanNum *  mapsx[x + shift + 2] + c)]), 2);
+    vec.val = _mm256_insert_epi32(vec.val, *reinterpret_cast<const int*>(&tmp[4 * (chanNum *  mapsx[x + shift + 3] + c)]), 3);
+
+    vec.val = _mm256_insert_epi32(vec.val, *reinterpret_cast<const int*>(&tmp[4 * (chanNum * (mapsx[x + shift + 0] + 1) + c)]), 4);
+    vec.val = _mm256_insert_epi32(vec.val, *reinterpret_cast<const int*>(&tmp[4 * (chanNum * (mapsx[x + shift + 1] + 1) + c)]), 5);
+    vec.val = _mm256_insert_epi32(vec.val, *reinterpret_cast<const int*>(&tmp[4 * (chanNum * (mapsx[x + shift + 2] + 1) + c)]), 6);
+    vec.val = _mm256_insert_epi32(vec.val, *reinterpret_cast<const int*>(&tmp[4 * (chanNum * (mapsx[x + shift + 3] + 1) + c)]), 7);
+}
+
+namespace {
+    template<int chanNum>
+    static inline v_int16x16 v_gather_chan(const uchar src[], const v_int16x16& index, int channel, int pos) {
+        v_int16x16 r;
+        r.val = _mm256_insert_epi16(r.val, *reinterpret_cast<const uchar*>(&src[chanNum*(_mm256_extract_epi16(index.val, 0) + pos) + channel]), 0);
+        r.val = _mm256_insert_epi16(r.val, *reinterpret_cast<const uchar*>(&src[chanNum*(_mm256_extract_epi16(index.val, 1) + pos) + channel]), 1);
+        r.val = _mm256_insert_epi16(r.val, *reinterpret_cast<const uchar*>(&src[chanNum*(_mm256_extract_epi16(index.val, 2) + pos) + channel]), 2);
+        r.val = _mm256_insert_epi16(r.val, *reinterpret_cast<const uchar*>(&src[chanNum*(_mm256_extract_epi16(index.val, 3) + pos) + channel]), 3);
+        r.val = _mm256_insert_epi16(r.val, *reinterpret_cast<const uchar*>(&src[chanNum*(_mm256_extract_epi16(index.val, 4) + pos) + channel]), 4);
+        r.val = _mm256_insert_epi16(r.val, *reinterpret_cast<const uchar*>(&src[chanNum*(_mm256_extract_epi16(index.val, 5) + pos) + channel]), 5);
+        r.val = _mm256_insert_epi16(r.val, *reinterpret_cast<const uchar*>(&src[chanNum*(_mm256_extract_epi16(index.val, 6) + pos) + channel]), 6);
+        r.val = _mm256_insert_epi16(r.val, *reinterpret_cast<const uchar*>(&src[chanNum*(_mm256_extract_epi16(index.val, 7) + pos) + channel]), 7);
+        r.val = _mm256_insert_epi16(r.val, *reinterpret_cast<const uchar*>(&src[chanNum*(_mm256_extract_epi16(index.val, 8) + pos) + channel]), 8);
+        r.val = _mm256_insert_epi16(r.val, *reinterpret_cast<const uchar*>(&src[chanNum*(_mm256_extract_epi16(index.val, 9) + pos) + channel]), 9);
+        r.val = _mm256_insert_epi16(r.val, *reinterpret_cast<const uchar*>(&src[chanNum*(_mm256_extract_epi16(index.val, 10) + pos) + channel]), 10);
+        r.val = _mm256_insert_epi16(r.val, *reinterpret_cast<const uchar*>(&src[chanNum*(_mm256_extract_epi16(index.val, 11) + pos) + channel]), 11);
+        r.val = _mm256_insert_epi16(r.val, *reinterpret_cast<const uchar*>(&src[chanNum*(_mm256_extract_epi16(index.val, 12) + pos) + channel]), 12);
+        r.val = _mm256_insert_epi16(r.val, *reinterpret_cast<const uchar*>(&src[chanNum*(_mm256_extract_epi16(index.val, 13) + pos) + channel]), 13);
+        r.val = _mm256_insert_epi16(r.val, *reinterpret_cast<const uchar*>(&src[chanNum*(_mm256_extract_epi16(index.val, 14) + pos) + channel]), 14);
+        r.val = _mm256_insert_epi16(r.val, *reinterpret_cast<const uchar*>(&src[chanNum*(_mm256_extract_epi16(index.val, 15) + pos) + channel]), 15);
+        return r;
+    }
+}  // namespace
 
 CV_CPU_OPTIMIZATION_HAL_NAMESPACE_END
 
