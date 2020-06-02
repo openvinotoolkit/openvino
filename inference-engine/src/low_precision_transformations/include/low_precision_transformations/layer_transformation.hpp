@@ -316,6 +316,11 @@ protected:
         const std::vector<float>& dequantizationScales,
         const std::vector<float>& dequantizationShifts);
 #endif
+    void addDequantizationLayer(
+        TransformationContext& context,
+        const CNNLayer& layer,
+        const std::vector<float>& dequantizationScales,
+        const std::vector<float>& dequantizationShifts) const;
 
     void fillFromQuantizationDetails(
         const QuantizationDetails& quantizationDetails,
@@ -351,7 +356,7 @@ protected:
     float dequantizationShiftToZeroRatioTreshold;
     size_t minQuantizationLevels;
 
-    static const char lastLayerPrefix[];
+    static const char lastLayerPostfix[];
     IParamsManager* paramsManager;
     ILayerTransformationsManager* layerTransformationsManager;
 };

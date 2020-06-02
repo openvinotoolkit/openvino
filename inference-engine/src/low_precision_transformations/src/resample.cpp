@@ -47,26 +47,5 @@ void ResampleTransformation::transform(TransformationContext& context, CNNLayer&
         CNNNetworkHelper::setOutDataPrecision(layer, precision);
     }
 
-    const std::vector<CNNLayerPtr> children = CNNNetworkHelper::getChildren(layer);
-    if (children.size() == 0) {
-        const std::string originalName = layer.name;
-        CNNNetworkHelper::renameLayer(context.network, layer.name, layer.name + LayerTransformation::lastLayerPrefix);
-
-        CNNLayerPtr dequantizationLayer = CNNNetworkHelper::addScaleShiftBetween(
-            context,
-            std::make_shared<CNNLayer>(layer),
-            nullptr,
-            DequantizationDetails(dequantizationScales, dequantizationShifts),
-            originalName);
-        context.dequantizationLayersNames.insert(dequantizationLayer->name);
-    } else {
-        for (const CNNLayerPtr& child : children) {
-            CNNLayerPtr dequantizationLayer = CNNNetworkHelper::addScaleShiftBetween(
-                context,
-                std::make_shared<CNNLayer>(layer),
-                child,
-                DequantizationDetails(dequantizationScales, dequantizationShifts));
-            context.dequantizationLayersNames.insert(dequantizationLayer->name);
-        }
-    }
+    addDequantizationLayer(context, layer, dequantizationScales, dequantizationShifts);
 }

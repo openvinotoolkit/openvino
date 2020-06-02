@@ -26,7 +26,7 @@
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 
-const char LayerTransformation::lastLayerPrefix[] = "_original";
+const char LayerTransformation::lastLayerPostfix[] = "_original";
 
 LayerTransformation::LayerTransformation(const Params& params) :
     updatePrecisions(params.updatePrecisions),
@@ -240,6 +240,40 @@ void LayerTransformation::checkAndUpdateDequantizationShiftWithZero(
     const float relative = std::fabs(*maxShiftIt) / std::fabs(maxOutputIt);
     if (relative < dequantizationShiftToZeroRatioTreshold) {
         std::fill(dequantizationShifts.begin(), dequantizationShifts.end(), 0.f);
+    }
+}
+
+void LayerTransformation::addDequantizationLayer(
+    TransformationContext& context,
+    const CNNLayer& layer,
+    const std::vector<float>& dequantizationScales,
+    const std::vector<float>& dequantizationShifts) const {
+    const size_t outputChannelsCount = CNNNetworkHelper::getOutputChannelsCount(layer);
+
+    const std::vector<CNNLayerPtr> children = CNNNetworkHelper::getChildren(layer);
+    for (const CNNLayerPtr& child : children) {
+        const CNNLayerPtr dequantizationLayer = CNNNetworkHelper::addScaleShiftBetween(
+            context,
+            std::make_shared<CNNLayer>(layer),
+            child,
+            DequantizationDetails(dequantizationScales, dequantizationShifts, outputChannelsCount));
+        context.dequantizationLayersNames.insert(dequantizationLayer->name);
+    }
+
+    OutputsDataMap outputs;
+    context.network.getOutputsInfo(outputs);
+    const auto it = outputs.find(layer.name);
+    if (it != outputs.end()) {
+        const std::string dequantizationLayerName = layer.name;
+        CNNNetworkHelper::renameLayer(context.network, layer.name, layer.name + LayerTransformation::lastLayerPostfix);
+
+        const CNNLayerPtr dequantizationLayer = CNNNetworkHelper::addScaleShiftBetween(
+            context,
+            std::make_shared<CNNLayer>(layer),
+            nullptr,
+            DequantizationDetails(dequantizationScales, dequantizationShifts, outputChannelsCount),
+            dequantizationLayerName);
+        context.dequantizationLayersNames.insert(dequantizationLayer->name);
     }
 }
 

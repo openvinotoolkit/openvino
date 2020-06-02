@@ -118,28 +118,7 @@ void ScaleShiftToConvolutionTransformation::transform(TransformationContext& con
             updateLayerBiases(context, *convolutionLayerPtr, dequantizationScales, dequantizationShifts, biasesShifts);
         }
 
-        const std::vector<CNNLayerPtr> children = CNNNetworkHelper::getChildren(*convolutionLayerPtr);
-        if (children.size() == 0) {
-            const std::string originalName = convolutionLayerPtr->name;
-            CNNNetworkHelper::renameLayer(context.network, convolutionLayerPtr->name, convolutionLayerPtr->name + LayerTransformation::lastLayerPrefix);
-
-            const CNNLayerPtr dequantizationLayer = CNNNetworkHelper::addScaleShiftBetween(
-                context,
-                convolutionLayerPtr,
-                nullptr,
-                DequantizationDetails(dequantizationScales, dequantizationShifts, channelsCount),
-                originalName);
-            context.dequantizationLayersNames.insert(dequantizationLayer->name);
-        } else {
-            for (const CNNLayerPtr& child : children) {
-                const CNNLayerPtr dequantizationLayer = CNNNetworkHelper::addScaleShiftBetween(
-                    context,
-                    convolutionLayerPtr,
-                    child,
-                    DequantizationDetails(dequantizationScales, dequantizationShifts, channelsCount));
-                context.dequantizationLayersNames.insert(dequantizationLayer->name);
-            }
-        }
+        addDequantizationLayer(context, *convolutionLayerPtr, dequantizationScales, dequantizationShifts);
     }
 }
 
