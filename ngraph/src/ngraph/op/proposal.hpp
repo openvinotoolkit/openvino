@@ -92,7 +92,7 @@ namespace ngraph
     public:
         AttributeAdapter(op::ProposalAttrs& ref);
 
-        virtual bool visit_attributes(AttributeVisitor& visitor);
+        virtual bool visit_attributes(AttributeVisitor& visitor) override;
         static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::ProposalAttrs>", 0};
         const DiscreteTypeInfo& get_type_info() const override { return type_info; }
     protected:
