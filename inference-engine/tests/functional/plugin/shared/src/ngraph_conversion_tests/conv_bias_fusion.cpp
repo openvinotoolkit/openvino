@@ -12,6 +12,13 @@ std::string ConvBiasFusion::getTestCaseName(const testing::TestParamInfo<std::st
     return "Device=" + obj.param;
 }
 
+std::string ConvBiasFusion::getOutputName() const {
+    if (this->GetParam() == CommonTestUtils::DEVICE_GPU)
+        return "add_cldnn_output_postprocess";
+    else
+        return "add";
+}
+
 TEST_P(ConvBiasFusion, ConvBiasFusion) {
     std::string device = this->GetParam();
     std::shared_ptr<ngraph::Function> f(nullptr);
@@ -37,7 +44,7 @@ TEST_P(ConvBiasFusion, ConvBiasFusion) {
     auto net = exeNetwork.GetExecGraphInfo();
 
     IE_SUPPRESS_DEPRECATED_START
-    auto add_layer = net.getLayerByName("add");
+    auto add_layer = net.getLayerByName(getOutputName().c_str());
     ASSERT_EQ(add_layer->params["originalLayersNames"], "add,conv");
     IE_SUPPRESS_DEPRECATED_END
 }
