@@ -16,12 +16,12 @@ public:
     explicit PassImpl(StageBuilder::Ptr stageBuilder) : _stageBuilder(std::move(stageBuilder)) {}
 
     void run(const Model& model) override {
-        for (auto const& data : model->datas()) {
+        for (const auto& data : model->datas()) {
             if (data->usage() != DataUsage::Output || data->parentDataToShapeEdge() != nullptr) {
                 continue;
             }
 
-            auto const& producer = data->producer();
+            const auto& producer = data->producer();
             VPU_THROW_UNLESS(producer, "Output data must have a producer, but {} doesn't have", data->name());
 
             if (producer->type() != StageType::Convert) {
@@ -32,15 +32,17 @@ public:
                 "Only single input producers are supported, but {} has {} inputs",
                 producer->name(), producer->numInputs());
 
-            auto const& input = producer->input(0);
-            auto const& parentDataToShapeEdge = input->parentDataToShapeEdge();
+            const auto& input = producer->input(0);
+            const auto& parentDataToShapeEdge = input->parentDataToShapeEdge();
             if (parentDataToShapeEdge == nullptr) {
                 continue;
             }
-            auto const parent = parentDataToShapeEdge->parent();
+            const auto parent = parentDataToShapeEdge->parent();
 
-            // Create the second output with shape in case of dynamic output
-            const auto& shapeOutput = model->addOutputData(parent->name() + "@shape", parent->desc());
+            // MyriadInferRequest::GetResult assumes that dynamic data object has shape data object
+            // with the same name + suffix "@shape"
+            const auto shapeName = data->name() + "@shape";
+            const auto& shapeOutput = model->addOutputData(shapeName, parent->desc());
 
             if (parent->numConsumers() > 0) {
                 _stageBuilder->addCopyStage(
@@ -52,7 +54,7 @@ public:
                     "PropagateDynamismToOutput");
 
             } else {
-                auto const parentProducerEdge = parent->producerEdge();
+                const auto parentProducerEdge = parent->producerEdge();
                 VPU_THROW_UNLESS(parentProducerEdge != nullptr,
                     "Data containing shape is expected to have a producer, but {} doesn't have", parent->name());
 
