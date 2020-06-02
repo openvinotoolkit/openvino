@@ -79,25 +79,29 @@ function(detect_mkl LIBNAME)
     endif()
 endfunction()
 
-if (THREADING STREQUAL "TBB")
+if(THREADING STREQUAL "TBB")
     add_definitions(-DMKLDNN_THR=MKLDNN_THR_TBB)
-elseif (THREADING STREQUAL "TBB_AUTO")
+elseif(THREADING STREQUAL "TBB_AUTO")
     add_definitions(-DMKLDNN_THR=MKLDNN_THR_TBB_AUTO)
-elseif (THREADING STREQUAL "OMP")
+elseif(THREADING STREQUAL "OMP")
     add_definitions(-DMKLDNN_THR=MKLDNN_THR_OMP)
 else()
     add_definitions(-DMKLDNN_THR=MKLDNN_THR_SEQ)
-endif ()
+endif()
 
 file(GLOB_RECURSE HDR
         ${MKLDNN_ROOT}/include/*.h
         ${MKLDNN_ROOT}/include/*.hpp
 )
 file(GLOB_RECURSE SRC
-        ${MKLDNN_ROOT}/src/*.c
-        ${MKLDNN_ROOT}/src/*.cpp
-        ${MKLDNN_ROOT}/src/*.h
-        ${MKLDNN_ROOT}/src/*.hpp
+        ${MKLDNN_ROOT}/src/cpu/*.c
+        ${MKLDNN_ROOT}/src/cpu/*.cpp
+        ${MKLDNN_ROOT}/src/cpu/*.h
+        ${MKLDNN_ROOT}/src/cpu/*.hpp
+        ${MKLDNN_ROOT}/src/common/*.c
+        ${MKLDNN_ROOT}/src/common/*.cpp
+        ${MKLDNN_ROOT}/src/common/*.h
+        ${MKLDNN_ROOT}/src/common/*.hpp
 )
 include_directories(
         ${MKLDNN_ROOT}/include
@@ -119,6 +123,9 @@ endif()
 
 add_library(${TARGET} STATIC ${HDR} ${SRC})
 set_ie_threading_interface_for(${TARGET})
+target_include_directories(${TARGET} PUBLIC ${MKLDNN_ROOT}/include)
+target_include_directories(${TARGET} PRIVATE "${MKLDNN_ROOT}/src/common ${MKLDNN_ROOT}/src/cpu")
+target_compile_definitions(${TARGET} PRIVATE ${SUFFIX}_ENABLE_CONCURRENT_EXEC)
 
 if(GEMM STREQUAL "OPENBLAS")
     ## enable cblas_gemm from OpenBLAS package
@@ -141,7 +148,5 @@ elseif (GEMM STREQUAL "MKL")
     list(APPEND ${TARGET}_LINKER_LIBS ${MKLLIB})
 endif()
 ## enable jit_gemm from mlk-dnn
-
-add_definitions(-DMKLDNN_ENABLE_CONCURRENT_EXEC)
 
 target_link_libraries(${TARGET} PRIVATE ${${TARGET}_LINKER_LIBS})

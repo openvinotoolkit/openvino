@@ -4,13 +4,17 @@
 
 set(TARGET_NAME "MKLDNNPlugin")
 
+if(USE_DNNL)
+    add_definitions(-DUSE_DNNL)
+endif()
+
 if (WIN32)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DNOMINMAX")
 endif()
 
 set(LAYERS
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_batchnorm_node.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_bin_conv_node.cpp
+#    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_bin_conv_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_concat_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_conv_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_crop_node.cpp
@@ -29,7 +33,7 @@ set(LAYERS
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_reorder_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_reshape_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_rnn.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_roi_pooling_node.cpp
+#    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_roi_pooling_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_softmax_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_split_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_tensoriterator_node.cpp
@@ -138,12 +142,8 @@ include_directories(
         $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
         ${CMAKE_CURRENT_SOURCE_DIR}/mkldnn
         ${CMAKE_CURRENT_SOURCE_DIR}
-        ${CMAKE_BINARY_DIR}/include)
-
-include_directories(SYSTEM
-        ${IE_MAIN_SOURCE_DIR}/thirdparty/mkl-dnn/src/common
-        ${IE_MAIN_SOURCE_DIR}/thirdparty/mkl-dnn/src/cpu
-        ${IE_MAIN_SOURCE_DIR}/thirdparty/mkl-dnn/include)
+        ${CMAKE_BINARY_DIR}/include
+)
 
 if (GEMM STREQUAL "MKL")
     log_rpath_from_dir(MKL "${MKL}/lib")
@@ -170,8 +170,19 @@ set_ie_threading_interface_for(${TARGET_NAME})
 
 target_compile_definitions(${TARGET_NAME} PUBLIC -DMKLDNN_THR=${MKLDNN_THR})
 
-target_link_libraries(${TARGET_NAME} PRIVATE mkldnn inference_engine inference_engine_legacy
-                                             inference_engine_transformations)
+target_link_libraries(${TARGET_NAME} PRIVATE
+        mkldnn
+        inference_engine
+        inference_engine_legacy
+        inference_engine_transformations)
+
+## to use internal API headers of MKLDNN
+target_include_directories(${TARGET_NAME} PRIVATE
+        $<TARGET_PROPERTY:mkldnn,INCLUDE_DIRECTORIES>
+        ${IE_MAIN_SOURCE_DIR}/thirdparty/oneDNN/src/cpu       ## |
+        ${IE_MAIN_SOURCE_DIR}/thirdparty/oneDNN/src/cpu/x64   ## | TODO: Should be available via oneDNN target
+        ${IE_MAIN_SOURCE_DIR}/thirdparty/oneDNN/src/common    ## |
+)
 
 if(USE_CNNNETWORK_LPT)
     target_link_libraries(${TARGET_NAME} PRIVATE inference_engine_lp_transformations_legacy)
@@ -218,9 +229,18 @@ else()
 endif()
 
 set_ie_threading_interface_for(${TARGET_NAME}_obj)
+target_include_directories(${TARGET_NAME}_obj PRIVATE
+        $<TARGET_PROPERTY:inference_engine_preproc_s,INTERFACE_INCLUDE_DIRECTORIES>
+        $<TARGET_PROPERTY:inference_engine_lp_transformations,INTERFACE_INCLUDE_DIRECTORIES>
+        $<TARGET_PROPERTY:inference_engine_transformations,INTERFACE_INCLUDE_DIRECTORIES>
+        $<TARGET_PROPERTY:mkldnn,INTERFACE_INCLUDE_DIRECTORIES>
+        $<TARGET_PROPERTY:mkldnn,INCLUDE_DIRECTORIES>
+)
 
-target_compile_definitions(${TARGET_NAME}_obj PUBLIC -DMKLDNN_THR=${MKLDNN_THR}
-                                              PRIVATE USE_STATIC_IE IMPLEMENT_INFERENCE_ENGINE_PLUGIN)
+target_compile_definitions(${TARGET_NAME}_obj
+        PUBLIC -DMKLDNN_THR=${MKLDNN_THR}
+        PRIVATE USE_STATIC_IE IMPLEMENT_INFERENCE_ENGINE_PLUGIN
+)
 
 # LTO
 
