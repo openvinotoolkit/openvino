@@ -88,6 +88,8 @@ protected:
 
     void LoadNetwork();
 
+    void Infer();
+
     TargetDevice targetDevice;
     std::shared_ptr<ngraph::Function> function;
     std::map<std::string, std::string> configuration;
@@ -106,8 +108,6 @@ protected:
 
 private:
     void ConfigureNetwork() const;
-
-    void Infer();
 
     std::vector<InferenceEngine::Blob::Ptr> GetOutputs();
 
