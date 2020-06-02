@@ -134,17 +134,16 @@ void FrontEnd::parseRNN(const Model& model, const ie::CNNLayerPtr& _layer, const
     size_t nBatches = inputs[0]->desc().dim(Dim::C);
     size_t inputSize = inputs[0]->desc().dim(Dim::W);
 
-    int axis = 1; // TODO : get from xml
-    if (outputs.size() == 3)
-        axis = 0;
+    bool permute_input = (1 != layer->axis);
 
-    if (axis == 0) {
-        nCells = inputs[0]->desc().dim(Dim::C); 
-        nBatches = inputs[0]->desc().dim(Dim::H);
-    } else if (axis == 1) {
+    if (!permute_input) {
         nCells = inputs[0]->desc().dim(Dim::H); 
         nBatches = inputs[0]->desc().dim(Dim::C);
-    } else if (axis == 2) {
+    } else {
+        nCells = inputs[0]->desc().dim(Dim::C);
+        nBatches = inputs[0]->desc().dim(Dim::H);
+    }
+    if (layer->axis == 2) {
         nCells = inputs[0]->desc().dim(Dim::W); 
         nBatches = inputs[0]->desc().dim(Dim::C);
         inputSize = inputs[0]->desc().dim(Dim::H);
