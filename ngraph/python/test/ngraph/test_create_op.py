@@ -819,27 +819,29 @@ def test_tensor_iterator():
     )
 
     #  Body parameters
-    body_timestep = ng.parameter([1], np.int32, "timestep")
-    body_data_in = ng.parameter([2, 2], np.float32, "body_in")
+    body_timestep = ng.parameter([], np.int32, "timestep")
+    body_data_in = ng.parameter([1, 2, 2], np.float32, "body_in")
     body_prev_cma = ng.parameter([2, 2], np.float32, "body_prev_cma")
     body_const_one = ng.parameter([], np.int32, "body_const_one")
 
     # CMA = cumulative moving average
     prev_cum_sum = ng.multiply(ng.convert(body_timestep, "f32"), body_prev_cma)
-    curr_cum_sum = ng.add(prev_cum_sum, body_data_in)
+    curr_cum_sum = ng.add(prev_cum_sum, ng.squeeze(body_data_in, [0]))
     elem_cnt = ng.add(body_const_one, body_timestep)
     curr_cma = ng.divide(curr_cum_sum, ng.convert(elem_cnt, "f32"))
+    cma_hist = ng.unsqueeze(curr_cma, [0])
 
     # TI inputs
     data = ng.parameter([16, 2, 2], np.float32, "data")
     # Iterations count
     zero = ng.constant(0, dtype=np.int32)
     one = ng.constant(1, dtype=np.int32)
+    initial_cma = ng.constant(np.zeros([2, 2], dtype=np.float32), dtype=np.float32)
     iter_cnt = ng.ops.range(zero, np.int32(16), np.int32(1))
-    ti_inputs = [iter_cnt, data, zero, one]
+    ti_inputs = [iter_cnt, data, initial_cma, one]
 
     graph_body = GraphBody([body_timestep, body_data_in, body_prev_cma, body_const_one],
-                           [curr_cma])
+                           [curr_cma, cma_hist])
     ti_slice_input_desc = [
         # timestep
         # input_idx, body_param_idx, start, stride, part_size, end, axis
@@ -863,16 +865,16 @@ def test_tensor_iterator():
     ]
     ti_concat_output_desc = [
         # history of cma
-        TensorIteratorConcatOutputDesc(0, 1, 0, 1, 1, -1, 0),
+        TensorIteratorConcatOutputDesc(1, 1, 0, 1, 1, -1, 0),
     ]
 
-    ng.tensor_iterator(ti_inputs,
-                       graph_body,
-                       ti_slice_input_desc,
-                       ti_merged_input_desc,
-                       ti_invariant_input_desc,
-                       ti_body_output_desc,
-                       ti_concat_output_desc)
+    node = ng.tensor_iterator(ti_inputs,
+                              graph_body,
+                              ti_slice_input_desc,
+                              ti_merged_input_desc,
+                              ti_invariant_input_desc,
+                              ti_body_output_desc,
+                              ti_concat_output_desc)
 
     assert node.get_type_name() == "TensorIterator"
     assert node.get_output_size() == 2
