@@ -2972,7 +2972,7 @@ void ref_nonZero(const InferenceEngine::Blob::Ptr& src,
     const auto getCoord = [&src](int offset){
         std::vector<size_t> coord;
         for (const size_t& stride : src->getTensorDesc().getBlockingDesc().getStrides()) {
-            coord.insert(coord.begin(), offset / stride);
+            coord.push_back(offset / stride);
             offset %= stride;
         }
         return coord;
@@ -3006,6 +3006,6 @@ void ref_nonZero(const InferenceEngine::Blob::Ptr& src,
         }
     }
 
-    outDimsPtr[0] = numNonZeros;
-    outDimsPtr[1] = src->getTensorDesc().getDims().size();
+    outDimsPtr[0] = src->getTensorDesc().getDims().size();
+    outDimsPtr[1] = numNonZeros;
 }

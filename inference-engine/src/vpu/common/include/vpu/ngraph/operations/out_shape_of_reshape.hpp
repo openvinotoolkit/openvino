@@ -6,6 +6,7 @@
 
 #include <ngraph/node.hpp>
 #include <ngraph/op/op.hpp>
+#include "ngraph/runtime/host_tensor.hpp"
 
 namespace ngraph { namespace vpu { namespace op {
 
@@ -27,6 +28,8 @@ public:
 
     bool getSpecialZero() const { return m_specialZero; }
     void setSpecialZero(bool special_zero) { m_specialZero = special_zero; }
+
+    bool evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) override;
 
 private:
     bool m_specialZero;

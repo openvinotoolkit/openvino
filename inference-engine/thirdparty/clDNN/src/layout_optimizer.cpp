@@ -22,6 +22,7 @@
 
 #include "data_inst.h"
 #include "reorder_inst.h"
+#include "reshape_inst.h"
 #include "generic_layer.hpp"
 #include <sstream>
 
@@ -366,8 +367,7 @@ bool layout_optimizer::convolution_b_fs_yx_fsv16_opt(layout const &input_layout,
             weights_layout.size.batch[0] >= 16 &&
             ((conv->groups == 1 && conv->split() == 1) ||
              conv->groups == static_cast<uint32_t>(input_layout.size.feature[0]) ||
-             conv->split() == static_cast<int32_t>(input_layout.size.feature[0])) &&
-             conv->dilation == tensor{ 1 })
+             conv->split() == static_cast<int32_t>(input_layout.size.feature[0])))
             return true;
         // Check for grouped convolution
         else if (input_layout.size.spatial[2] == 1 && input_layout.size.batch[0] < 16 &&
@@ -776,6 +776,14 @@ format layout_optimizer::get_preferred_format(program_node& node) {
             layout{ data_types::f32, format::bfyx, tensor{} }).format;
     } else if (node.is_type<reorder>() || node.is_type<input_layout>()) {
         expected = node.get_output_layout().format;
+    } else if (node.is_type<reshape>()) {
+        if (node.get_output_layout().format.dimension() == 6) {
+            expected = format::bfwzyx;
+        } else if (node.get_output_layout().format.dimension() == 5) {
+            expected = format::bfzyx;
+        } else if (node.get_output_layout().format.dimension() == 4) {
+            expected = format::bfyx;
+        }
     } else if (node.is_type<deconvolution>()) {
         auto& deconv_node = node.as<deconvolution>();
         auto weights_layout = deconv_node.weights(0).get_output_layout();
