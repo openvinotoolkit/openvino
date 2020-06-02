@@ -42,6 +42,23 @@ namespace ngraph
 
                 const auto el_type = ng_inputs.at(0)->get_output_element_type(0);
 
+                const auto x_pshape = m_map[OpInput::X]->get_output_partial_shape(0);
+                const auto w_pshape = m_map[OpInput::W]->get_output_partial_shape(0);
+                const auto r_pshape = m_map[OpInput::R]->get_output_partial_shape(0);
+                NGRAPH_CHECK(x_pshape.rank().is_static() &&
+                             x_pshape[0].is_static() &&
+                             x_pshape[1].is_static(),
+                             "RecurrentSequence input X must have static \"seq_length\" and "
+                             "\"batch_size\" dimensions.");
+                NGRAPH_CHECK(w_pshape.rank().is_static() &&
+                             w_pshape[0].is_static(),
+                             "RecurrentSequence input W must have static \"num_directions\" "
+                             "(outermost) dimension.");
+                NGRAPH_CHECK(r_pshape.rank().is_static() &&
+                             r_pshape[2].is_static(),
+                             "RecurrentSequence input R must have static \"hidden_size\" "
+                             "(innermost) dimension.");
+
                 const std::size_t hidden_size = m_map[OpInput::R]->get_shape().back();
                 const std::size_t batch_size = m_map[OpInput::X]->get_shape().at(1);
                 const std::size_t num_directions = m_map[OpInput::W]->get_shape().front();
@@ -183,10 +200,6 @@ namespace ngraph
                     X = std::make_shared<default_opset::ReverseSequence>(
                         X, seq_lengths, 1 /*batch_axis*/, 0 /*seq_axis*/);
                 }
-
-                const auto x_pshape = X->get_output_partial_shape(0);
-                NGRAPH_CHECK(x_pshape.rank().is_static() && x_pshape[0].is_static(),
-                             "RecurrentSequence input X must have static outermost dimension.");
 
                 OutputVector in_seq_steps =
                     as_output_vector(builder::opset1::split(X, X->get_shape().at(0)));
