@@ -3449,7 +3449,7 @@ def assign(new_value: NodeInput, variable_id: str, name: Optional[str] = None) -
     :param name:         Optional name for output node.
     :return: Assign node
     """
-    return _get_node_factory().create("Assign", [new_value], {"variable_id": variable_id})
+    return _get_node_factory().create("Assign", [as_node(new_value)], {"variable_id": variable_id})
 
 
 @nameable_op
@@ -3461,7 +3461,7 @@ def read_value(init_value: NodeInput, variable_id: str, name: Optional[str] = No
     :param name:         Optional name for output node.
     :return: ReadValue node
     """
-    return _get_node_factory().create("ReadValue", [init_value], {"variable_id": variable_id})
+    return _get_node_factory().create("ReadValue", [as_node(init_value)], {"variable_id": variable_id})
 
 
 @nameable_op
@@ -3485,6 +3485,6 @@ def extract_image_patches(
     """
     return _get_node_factory().create(
         "ExtractImagePatches",
-        [image],
+        [as_node(image)],
         {"sizes": sizes, "strides": strides, "rates": rates, "auto_pad": auto_pad},
     )
