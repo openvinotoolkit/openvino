@@ -154,9 +154,9 @@ std::string tensorIteratorModel = R"V0G0N(
 )V0G0N";
 
 std::string tensorIteratorModel_2 = R"V0G0N(
-<net batch="1" name="deepspeech-v10" version="10">
+<net batch="1" name="deepspeech-v10" version="4">
   <layers>
-    <layer id="0" name="RNNInput_Hidden" type="Input" version="opset1">
+    <layer id="0" name="previous_state_h/read/placeholder_port_0" type="Input" version="opset1">
       <output>
         <port id="0"  precision="FP16">
           <dim>1</dim>
@@ -164,7 +164,7 @@ std::string tensorIteratorModel_2 = R"V0G0N(
         </port>
       </output>
     </layer>
-    <layer id="1" name="RNNInput_CellState" type="Input" version="opset1">
+    <layer id="1" name="previous_state_c/read/placeholder_port_0" type="Input" version="opset1">
       <output>
         <port id="0" precision="FP16">
           <dim>1</dim>
@@ -172,19 +172,19 @@ std::string tensorIteratorModel_2 = R"V0G0N(
         </port>
       </output>
     </layer>
-    <layer id="2" name="RNNInput" type="Input" version="opset1">
+    <layer id="2" name="previous_input/read/placeholder_port_0" type="Input" version="opset1">
       <output>
         <port id="0" precision="FP16">
-          <dim>16</dim>
+          <dim>8</dim>
           <dim>1</dim>
           <dim>2048</dim>
         </port>
       </output>
     </layer>
-    <layer id="38" name="lstm_fused_cell/BlockLSTM/TensorIterator" type="TensorIterator" version="opset1">
+    <layer id="38" name="lstm_fused_cell/BlockLSTM/TensorIterator" type="TensorIterator">
       <input>
         <port id="0">
-          <dim>16</dim>
+          <dim>8</dim>
           <dim>1</dim>
           <dim>2048</dim>
         </port>
@@ -199,7 +199,7 @@ std::string tensorIteratorModel_2 = R"V0G0N(
       </input>
       <output>
         <port id="3" precision="FP16">
-          <dim>16</dim>
+          <dim>8</dim>
           <dim>1</dim>
           <dim>2048</dim>
         </port>
@@ -213,13 +213,13 @@ std::string tensorIteratorModel_2 = R"V0G0N(
         </port>
       </output>
       <port_map>
-        <input axis="0" external_port_id="0" internal_layer_id="1" internal_port_id="0"/>
+        <input axis ="0" external_port_id="0" internal_layer_id="1" internal_port_id="0"/>
         <input external_port_id="1" internal_layer_id="1" internal_port_id="1"/>
         <input external_port_id="2" internal_layer_id="1" internal_port_id="2"/>
 
-        <output external_port_id="3" internal_layer_id="2" internal_port_id="1"/>
+        <output axis ="0" external_port_id="3" internal_layer_id="2" internal_port_id="1"/>
         <output external_port_id="4" internal_layer_id="3" internal_port_id="1"/>
-        <output axis="0" external_port_id="5" internal_layer_id="4" internal_port_id="1"/>
+        <output external_port_id="5" internal_layer_id="4" internal_port_id="1"/>
       </port_map>
       <back_edges>
         <edge from-layer="1" from-port="5" to-layer="1" to-port="1"/>
@@ -231,64 +231,64 @@ std::string tensorIteratorModel_2 = R"V0G0N(
             <data dim="-1,2048"/>
             <input>
               <port id="0">
-                <dim>16</dim>
+                <dim>1</dim>
                 <dim>1</dim>
                 <dim>2048</dim>
               </port>
             </input>
             <output>
               <port id="1" precision="FP16">
-                <dim>16</dim>
+                <dim>1</dim>
                 <dim>2048</dim>
               </port>
             </output>
           </layer>
-          <layer id="1" name="lstm_o/bidirectional_rnn/fw/fw/while/fw/lstm_cell/concat/LSTMCell" type="LSTMCell" version="opset1">
+          <layer id="1" name="lstm_fused_cell/BlockLSTM/LSTMCell" type="LSTMCell" version="opset1">
             <data hidden_size="2048"/>
             <input>
               <port id="0">
-                <dim>16</dim>
+                <dim>1</dim>
                 <dim>2048</dim>
               </port>
               <port id="1">
-                <dim>16</dim>
+                <dim>1</dim>
                 <dim>2048</dim>
               </port>
               <port id="2">
-                <dim>16</dim>
+                <dim>1</dim>
                 <dim>2048</dim>
               </port>
             </input>
             <output>
               <port id="5" precision="FP16">
-                <dim>16</dim>
+                <dim>1</dim>
                 <dim>2048</dim>
               </port>
               <port id="6" precision="FP16">
-                <dim>16</dim>
+                <dim>1</dim>
                 <dim>2048</dim>
               </port>
               <port id="7" precision="FP16">
-                <dim>16</dim>
+                <dim>1</dim>
                 <dim>2048</dim>
               </port>
             </output>
             <blobs>
-              <weights offset="0" size="655360"/>
-              <biases offset="655360" size="1024"/>
+              <weights offset="0" size="67108864"/>
+              <biases offset="67108864" size="16384"/>
             </blobs>
           </layer>
           <layer id="2" name="lstm_o/bidirectional_rnn/fw/fw/while/fw/lstm_cell/concat/LSTMCell/Output_0/Data_/OutputUnsqueeze" type="Reshape" version="opset1">
             <data dim="-1,2048"/>
 			      <input>
               <port id="0">
-                <dim>16</dim>
+                <dim>1</dim>
                 <dim>2048</dim>
               </port>
             </input>
             <output>
               <port id="1" precision="FP16">
-                <dim>16</dim>
+                <dim>1</dim>
                 <dim>2048</dim>
               </port>
             </output>
@@ -297,13 +297,13 @@ std::string tensorIteratorModel_2 = R"V0G0N(
             <data dim="-1,2048"/>
 		      	<input>
               <port id="0">
-                <dim>16</dim>
+                <dim>1</dim>
                 <dim>2048</dim>
               </port>
             </input>
             <output>
               <port id="1" precision="FP16">
-                <dim>16</dim>
+                <dim>1</dim>
                 <dim>2048</dim>
               </port>
             </output>
@@ -312,13 +312,13 @@ std::string tensorIteratorModel_2 = R"V0G0N(
             <data dim="-1,2048"/>
 		      	<input>
               <port id="0">
-                <dim>16</dim>
+                <dim>1</dim>
                 <dim>2048</dim>
               </port>
             </input>
             <output>
               <port id="1" precision="FP16">
-                <dim>16</dim>
+                <dim>1</dim>
                 <dim>2048</dim>
               </port>
             </output>

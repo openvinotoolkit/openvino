@@ -6,12 +6,11 @@
 #include "blob_factory.hpp"
 
 TEST_F(myriadLayersTests_nightly, LSTMCellSequenceNet) {
+    int output_num = 1;
     size_t input_size = 2048;
     size_t state_size = 2048;
-    size_t seq_size = 16;
+    size_t seq_size = 8;
     size_t batch_size = 1;
-    
-    int output_num = 3;
 
     if (output_num == 1) {
         input_size = 512;
@@ -103,10 +102,10 @@ TEST_F(myriadLayersTests_nightly, LSTMCellSequenceNet) {
     (++++networkInputsFull.begin())->second->setPrecision(InferenceEngine::Precision::FP16);
 
     networkOutputsFull.begin()->second->setPrecision(InferenceEngine::Precision::FP16);
-    if (output_num > 1)
+    if (output_num == 3) {
         (++networkOutputsFull.begin())->second->setPrecision(InferenceEngine::Precision::FP16);
-    if (output_num > 2)
         (++networkOutputsFull.begin())->second->setPrecision(InferenceEngine::Precision::FP16);
+    }
 
     InferenceEngine::IExecutableNetwork::Ptr exeNetworkFull;
     std::map<std::string, std::string> networkConfig;
