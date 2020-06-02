@@ -11,7 +11,149 @@ const int gate_map[] = {0, 1, 3, 2};
 const size_t ngates = 4;
 #define ERROR_BOUND (.01f)
 
-std::string tensorIteratorModel_42 = R"V0G0N(
+std::string tensorIteratorModel = R"V0G0N(
+<net batch="1" name="ctpn" version="4">
+  <layers>
+    <layer id="0" name="RNNInput_Hidden" precision="FP16" type="Input">
+      <output>
+        <port id="0">
+          <dim>4</dim>
+          <dim>128</dim>
+        </port>
+      </output>
+    </layer>
+    <layer id="1" name="RNNInput_CellState" precision="FP16" type="Input">
+      <output>
+        <port id="0">
+          <dim>4</dim>
+          <dim>128</dim>
+        </port>
+      </output>
+    </layer>
+    <layer id="2" name="RNNInput" precision="FP16" type="Input">
+      <output>
+        <port id="0">
+          <dim>4</dim>
+          <dim>2</dim>
+          <dim>512</dim>
+        </port>
+      </output>
+    </layer>
+    <layer id="38" name="RNNOutput" precision="FP16" type="TensorIterator">
+      <input>
+        <port id="0">
+          <dim>4</dim>
+          <dim>2</dim>
+          <dim>512</dim>
+        </port>
+        <port id="1">
+          <dim>4</dim>
+          <dim>128</dim>
+        </port>
+        <port id="2">
+          <dim>4</dim>
+          <dim>128</dim>
+        </port>
+      </input>
+      <output>
+        <port id="3">
+          <dim>4</dim>
+          <dim>2</dim>
+          <dim>128</dim>
+        </port>
+      </output>
+      <port_map>
+        <input axis="1" external_port_id="0" internal_layer_id="0" internal_port_id="0"/>
+        <input external_port_id="1" internal_layer_id="1" internal_port_id="1"/>
+        <input external_port_id="2" internal_layer_id="1" internal_port_id="2"/>
+        <output axis="1" external_port_id="3" internal_layer_id="2" internal_port_id="1"/>
+      </port_map>
+      <back_edges>
+        <edge from-layer="1" from-port="5" to-layer="1" to-port="1"/>
+        <edge from-layer="1" from-port="6" to-layer="1" to-port="2"/>
+      </back_edges>
+      <body>
+        <layers>
+          <layer id="0" name="lstm_o/bidirectional_rnn/fw/fw/while/TensorArrayReadV3/Output_0/Data_/InputSqueeze" precision="FP16" type="Reshape">
+            <data dim="-1,512"/>
+            <input>
+              <port id="0">
+                <dim>4</dim>
+                <dim>1</dim>
+                <dim>512</dim>
+              </port>
+            </input>
+            <output>
+              <port id="1">
+                <dim>4</dim>
+                <dim>512</dim>
+              </port>
+            </output>
+          </layer>
+          <layer id="1" name="lstm_o/bidirectional_rnn/fw/fw/while/fw/lstm_cell/concat/LSTMCell" precision="FP16" type="LSTMCell">
+            <data hidden_size="128"/>
+            <input>
+              <port id="0">
+                <dim>4</dim>
+                <dim>512</dim>
+              </port>
+              <port id="1">
+                <dim>4</dim>
+                <dim>128</dim>
+              </port>
+              <port id="2">
+                <dim>4</dim>
+                <dim>128</dim>
+              </port>
+            </input>
+            <output>
+              <port id="5">
+                <dim>4</dim>
+                <dim>128</dim>
+              </port>
+              <port id="6">
+                <dim>4</dim>
+                <dim>128</dim>
+              </port>
+            </output>
+            <blobs>
+              <weights offset="0" size="655360"/>
+              <biases offset="655360" size="1024"/>
+            </blobs>
+          </layer>
+          <layer id="2" name="lstm_o/bidirectional_rnn/fw/fw/while/fw/lstm_cell/concat/LSTMCell/Output_0/Data_/OutputUnsqueeze" precision="FP16" type="Reshape">
+            <data dim="-1,1,128"/>
+            <input>
+              <port id="0">
+                <dim>4</dim>
+                <dim>128</dim>
+              </port>
+            </input>
+            <output>
+              <port id="1">
+                <dim>4</dim>
+                <dim>1</dim>
+                <dim>128</dim>
+              </port>
+            </output>
+          </layer>
+        </layers>
+        <edges>
+          <edge from-layer="0" from-port="1" to-layer="1" to-port="0"/>
+          <edge from-layer="1" from-port="5" to-layer="2" to-port="0"/>
+        </edges>
+      </body>
+    </layer>
+  </layers>
+  <edges>
+    <edge from-layer="2" from-port="0" to-layer="38" to-port="0"/>
+    <edge from-layer="0" from-port="0" to-layer="38" to-port="1"/>
+    <edge from-layer="1" from-port="0" to-layer="38" to-port="2"/>
+  </edges>
+</net>
+)V0G0N";
+
+std::string tensorIteratorModel_2 = R"V0G0N(
 <net batch="1" name="deepspeech-v10" version="10">
   <layers>
     <layer id="0" name="RNNInput_Hidden" type="Input" version="opset1">

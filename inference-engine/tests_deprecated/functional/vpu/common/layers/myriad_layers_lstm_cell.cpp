@@ -76,13 +76,15 @@ TEST_F(myriadLayersTests_nightly, LSTMCellSequenceNet) {
     }
 
     InferenceEngine::Core ie;
-    auto full_network = ie.ReadNetwork(tensorIteratorModel_42, weightsBlob_for_net);
-
-    full_network.addOutput("lstm_fused_cell/BlockLSTM/TensorIterator", 0);
-    if (output_num > 1)
+    auto full_network = ie.ReadNetwork(tensorIteratorModel, weightsBlob_for_net);
+    if (output_num == 3) {
+        full_network = ie.ReadNetwork(tensorIteratorModel_2, weightsBlob_for_net);
+        full_network.addOutput("lstm_fused_cell/BlockLSTM/TensorIterator", 0);
         full_network.addOutput("lstm_fused_cell/BlockLSTM/TensorIterator", 1);
-    if (output_num > 2)
         full_network.addOutput("lstm_fused_cell/BlockLSTM/TensorIterator", 2);
+    } else {
+        full_network.addOutput("RNNOutput", 0);
+    }
 
     InferenceEngine::InputsDataMap networkInputsFull;
     networkInputsFull = full_network.getInputsInfo();
@@ -192,14 +194,6 @@ TEST_F(myriadLayersTests_nightly, LSTMCellSequenceNet) {
         CompareCommonAbsolute(output, refOut0, ERROR_BOUND);
     }
 }
-
-// INSTANTIATE_TEST_CASE_P(accuracy, myriadLayersTestsLSTMCell_nightly,
-//                         ::testing::Values<lstmcell_test_params>(MAKE_STRUCT(lstmcell_test_params, 512, 128, 1)),
-// );
-
-// INSTANTIATE_TEST_CASE_P(accuracy, myriadLayersTestsLSTMCell_nightly,
-//                         ::testing::Values<lstmcell_test_params>(MAKE_STRUCT(lstmcell_test_params, 512, 256, 2)),
-// );
 
 INSTANTIATE_TEST_CASE_P(accuracy, myriadLayersTestsLSTMCell_smoke,
                         ::testing::Values<lstmcell_test_params>(MAKE_STRUCT(lstmcell_test_params, 512, 128, 3)),
