@@ -2558,6 +2558,8 @@ void ref_convert(const InferenceEngine::Blob::Ptr &src,
         } else if (srcPrecision == Precision::I32 && dstPrecision == Precision::FP16) {
             dst->buffer().as<ie_fp16 *>()[i] = PrecisionUtils::f32tof16(
                 static_cast<float >(src->cbuffer().as<int32_t *>()[i]));
+        } else if (srcPrecision == Precision::I32 && dstPrecision == Precision::U8) {
+            dst->buffer().as<uint8_t *>()[i] = static_cast<uint8_t>(src->cbuffer().as<int32_t *>()[i]);
         } else {
             THROW_IE_EXCEPTION << "Unsupported input or output precision";
         }
