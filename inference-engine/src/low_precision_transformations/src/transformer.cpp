@@ -27,6 +27,7 @@
 #include "low_precision_transformations/concat_multi_channels.hpp"
 #include "low_precision_transformations/const.hpp"
 #include "low_precision_transformations/convolution.hpp"
+#include "low_precision_transformations/depth_to_space.hpp"
 #include "low_precision_transformations/fake_quantize.hpp"
 #include "low_precision_transformations/fully_connected.hpp"
 #include "low_precision_transformations/fuse_fake_quantize_and_scale_shift.hpp"
@@ -204,7 +205,8 @@ LowPrecisionTransformations LowPrecisionTransformer::getAllTransformations(const
             { "mvn", LayerTransformationPtr(new MvnTransformation(params)) },
             { "eltwise", LayerTransformationPtr(new EltwiseTransformation(params)) },
             { "resample", LayerTransformationPtr(new ResampleTransformation(params)) },
-            { "power", LayerTransformationPtr(new PowerTransformation(params)) }
+            { "power", LayerTransformationPtr(new PowerTransformation(params)) },
+            { "depthtospace", LayerTransformationPtr(new DepthToSpaceTransformation(params)) }
         }),
         std::map<std::string, LayerTransformationPtr>({
             { "fakequantize", LayerTransformationPtr(new FuseFakeQuantizeAndScaleShiftTransformation(params)) },
