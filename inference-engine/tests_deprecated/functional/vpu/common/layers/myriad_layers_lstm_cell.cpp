@@ -8,8 +8,8 @@
 TEST_F(myriadLayersTests_nightly, LSTMCellSequenceNet) {
     size_t input_size = 2048;
     size_t state_size = 2048;
-    const size_t seq_size = 1;
-    const size_t batch_size = 16;
+    const size_t seq_size = 16;
+    const size_t batch_size = 1;
     
     int output_num = 3;
 
@@ -76,17 +76,13 @@ TEST_F(myriadLayersTests_nightly, LSTMCellSequenceNet) {
     }
 
     InferenceEngine::Core ie;
-    auto full_network = ie.ReadNetwork(tensorIteratorModel_1, weightsBlob_for_net);
-    if (output_num == 2)
-        full_network = ie.ReadNetwork(tensorIteratorModel_3, weightsBlob_for_net);
-    if (output_num == 3)
-        full_network = ie.ReadNetwork(tensorIteratorModel_42, weightsBlob_for_net);
+    auto full_network = ie.ReadNetwork(tensorIteratorModel_42, weightsBlob_for_net);
 
-    full_network.addOutput("RNNOutput", 0);
+    full_network.addOutput("lstm_fused_cell/BlockLSTM/TensorIterator", 0);
     if (output_num > 1)
-        full_network.addOutput("RNNOutput", 1);
+        full_network.addOutput("lstm_fused_cell/BlockLSTM/TensorIterator", 1);
     if (output_num > 2)
-        full_network.addOutput("RNNOutput", 2);
+        full_network.addOutput("lstm_fused_cell/BlockLSTM/TensorIterator", 2);
 
     InferenceEngine::InputsDataMap networkInputsFull;
     networkInputsFull = full_network.getInputsInfo();
