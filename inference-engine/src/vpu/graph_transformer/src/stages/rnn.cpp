@@ -132,16 +132,27 @@ void FrontEnd::parseRNN(const Model& model, const ie::CNNLayerPtr& _layer, const
 
     size_t nCells = inputs[0]->desc().dim(Dim::H);
     size_t nBatches = inputs[0]->desc().dim(Dim::C);
+    size_t inputSize = inputs[0]->desc().dim(Dim::W);
 
-    if (outputs.size() == 3) {
-        nCells = inputs[0]->desc().dim(Dim::C);
+    int axis = 1; // TODO : get from xml
+    if (outputs.size() == 3)
+        axis = 0;
+
+    if (axis == 0) {
+        nCells = inputs[0]->desc().dim(Dim::C); 
         nBatches = inputs[0]->desc().dim(Dim::H);
+    } else if (axis == 1) {
+        nCells = inputs[0]->desc().dim(Dim::H); 
+        nBatches = inputs[0]->desc().dim(Dim::C);
+    } else if (axis == 2) {
+        nCells = inputs[0]->desc().dim(Dim::W); 
+        nBatches = inputs[0]->desc().dim(Dim::C);
+        inputSize = inputs[0]->desc().dim(Dim::H);
     }
 
     IE_ASSERT(nCells >= 1);
     IE_ASSERT(nBatches >= 1);
 
-    size_t inputSize = inputs[0]->desc().dim(Dim::W);
     IE_ASSERT(inputSize == inputs[0]->desc().totalDimSize() / nCells / nBatches);
 
     size_t stateSize = outputs[0]->desc().totalDimSize() / nCells / nBatches;
