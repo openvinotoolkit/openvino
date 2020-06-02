@@ -1,5 +1,5 @@
 # [OpenVINO™ Toolkit](https://01.org/openvinotoolkit) - Deep Learning Deployment Toolkit repository
-[![Stable release](https://img.shields.io/badge/version-2020.1-green.svg)](https://github.com/opencv/dldt/releases/tag/2020.1)
+[![Stable release](https://img.shields.io/badge/version-2020.3-green.svg)](https://github.com/openvinotoolkit/openvino/releases/tag/2020.3.0)
 [![Apache License Version 2.0](https://img.shields.io/badge/license-Apache_2.0-green.svg)](LICENSE)
 
 This toolkit allows developers to deploy pre-trained deep learning models 
@@ -36,7 +36,7 @@ with us doing the following steps:
 
 * Make sure you can build the product and run all tests and samples with your patch
 * In case of a larger feature, provide relevant unit tests and one or more sample
-* Submit a pull request at https://github.com/opencv/dldt/pulls
+* Submit a pull request at https://github.com/openvinotoolkit/openvino/pulls
 
 We will review your contribution and, if any additional fixes or modifications 
 are necessary, may give some feedback to guide you. Your pull request will be 
@@ -46,7 +46,7 @@ merged into GitHub* repositories if accepted.
 Please report questions, issues and suggestions using:
 
 * The `openvino` [tag on StackOverflow]\*
-* [GitHub* Issues](https://github.com/opencv/dldt/issues) 
+* [GitHub* Issues](https://github.com/openvinotoolkit/openvino/issues) 
 * [Forum](https://software.intel.com/en-us/forums/computer-vision)
 
 ---

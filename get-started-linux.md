@@ -1,7 +1,7 @@
 # Get Started with OpenVINO™ Deep Learning Deployment Toolkit (DLDT) on Linux*
 
 This guide provides you with the information that will help you to start using 
-the DLDT on Linux\*. With this guide, you will learn how to:
+the OpenVINO on Linux\*. With this guide, you will learn how to:
 
 1. [Configure the Model Optimizer](#configure-the-model-optimizer)
 2. [Prepare a model for sample inference](#prepare-a-model-for-sample-inference)
@@ -10,13 +10,13 @@ the DLDT on Linux\*. With this guide, you will learn how to:
 3. [Run the Image Classification Sample Application with the model](#run-the-image-classification-sample-application)
 
 ## Prerequisites
-1. This guide assumes that you have already cloned the `dldt` repo and 
+1. This guide assumes that you have already cloned the `openvino` repo and 
    successfully built the Inference Engine and Samples using the 
    [build instructions](inference-engine/README.md). 
 2. The original structure of the repository directories remains unchanged.
 
-> **NOTE**: Below, the directory to which the `dldt` repository is cloned is 
-referred to as `<DLDT_DIR>`.  
+> **NOTE**: Below, the directory to which the `openvino` repository is cloned is 
+referred to as `<OPENVINO_DIR>`.  
 
 ## Configure the Model Optimizer
 
@@ -53,7 +53,7 @@ If you see error messages, check for any missing dependencies.
 
 1.  Go to the Model Optimizer prerequisites directory:
 ```sh
-cd <DLDT_DIR>/model_optimizer/install_prerequisites
+cd <OPENVINO_DIR>/model_optimizer/install_prerequisites
 ```
 2.  Run the script to configure the Model Optimizer for Caffe,
     TensorFlow, MXNet, Kaldi\*, and ONNX:
@@ -68,7 +68,7 @@ Configure individual frameworks separately **ONLY** if you did not select
 
 1.  Go to the Model Optimizer prerequisites directory:
 ```sh
-cd <DLDT_DIR>/model_optimizer/install_prerequisites
+cd <OPENVINO_DIR>/model_optimizer/install_prerequisites
 ```
 2.  Run the script for your model framework. You can run more than one script:
 
@@ -162,12 +162,12 @@ as `<models_dir>` below) with the Model Downloader:
 
    **For CPU (FP32):**
    ```sh  
-   python3 <DLDT_DIR>/model_optimizer/mo.py --input_model <models_dir>/classification/squeezenet/1.1/caffe/squeezenet1.1.caffemodel --data_type FP32 --output_dir <ir_dir>
+   python3 <OPENVINO_DIR>/model_optimizer/mo.py --input_model <models_dir>/classification/squeezenet/1.1/caffe/squeezenet1.1.caffemodel --data_type FP32 --output_dir <ir_dir>
    ```
 
    **For GPU and MYRIAD (FP16):**
    ```sh  
-   python3 <DLDT_DIR>/model_optimizer/mo.py --input_model <models_dir>/classification/squeezenet/1.1/caffe/squeezenet1.1.caffemodel --data_type FP16 --output_dir <ir_dir>
+   python3 <OPENVINO_DIR>/model_optimizer/mo.py --input_model <models_dir>/classification/squeezenet/1.1/caffe/squeezenet1.1.caffemodel --data_type FP16 --output_dir <ir_dir>
    ``` 
    After the Model Optimizer script is completed, the produced IR files (`squeezenet1.1.xml`, `squeezenet1.1.bin`) are in the specified `<ir_dir>` directory.
 
@@ -184,14 +184,14 @@ Now you are ready to run the Image Classification Sample Application.
 
 The Inference Engine sample applications are automatically compiled when you 
 built the Inference Engine using the [build instructions](inference-engine/README.md). 
-The binary files are located in the `<DLDT_DIR>/inference-engine/bin/intel64/Release` 
+The binary files are located in the `<OPENVINO_DIR>/inference-engine/bin/intel64/Release` 
 directory.
 
 To run the Image Classification sample application with an input image on the prepared IR: 
 
 1. Go to the samples build directory:
    ```sh
-   cd <DLDT_DIR>/inference-engine/bin/intel64/Release
+   cd <OPENVINO_DIR>/inference-engine/bin/intel64/Release
    
 2. Run the sample executable with specifying the `car.png` file from the 
    `<OPENVINO_DIR>/scripts/demo/` directory as an input 
