@@ -405,7 +405,9 @@ class ScaleFactorPerLayer<InferenceEngine::ConcatLayer*> {
                 quantParams1->_dst_quant = quantParams0->_dst_quant;
                 sourceQuantParams = quantParams0;
             } else {
-                THROW_GNA_EXCEPTION << "Concat quantization for this case need to be implemented!!! \n";
+                THROW_GNA_LAYER_EXCEPTION(concatLayer) << "Concat quantization for " << in0->type << ": " << in0->name
+                    << " and " << in1->type << ": " << in1->name
+                    << " as inputs needs to be implemented! None of these inputs is an activation.\n";
             }
         }
 

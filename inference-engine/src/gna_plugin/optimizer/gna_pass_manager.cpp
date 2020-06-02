@@ -1100,7 +1100,7 @@ int PassManager::run(int index) {
 #endif
 
     for (auto && pass : passes) {
-        if (runBeforeCopy != pass->runBeforeCopyPass()) {
+        if (settings.runBeforeCopy != pass->runBeforeCopyPass()) {
             continue;
         }
         auto layers = CNNNetSortTopologically(*network.get());
