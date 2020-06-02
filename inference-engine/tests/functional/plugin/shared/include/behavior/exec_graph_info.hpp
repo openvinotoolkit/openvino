@@ -13,7 +13,7 @@
 #include <string>
 #include <ie_core.hpp>
 #include <details/ie_cnn_network_tools.h>
-#include <common_test_utils/behavior_test_utils.hpp>
+#include <functional_test_utils/behavior_test_utils.hpp>
 #include <exec_graph_info.hpp>
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
@@ -73,6 +73,7 @@ TEST_P(ExecGraphTests, CheckExecGraphInfoBeforeExecution) {
                 ASSERT_NE(originalLayersMap.end(), origLayer) << layer;
                 origLayer->second++;
             });
+            IE_SUPPRESS_DEPRECATED_END
         }
         // All layers from the original IR must be present with in ExecGraphInfo
         for (auto &layer : originalLayersMap) {
@@ -86,7 +87,6 @@ TEST_P(ExecGraphTests, CheckExecGraphInfoBeforeExecution) {
         ASSERT_THROW(ie->LoadNetwork(cnnNet, targetDevice).GetExecGraphInfo(),
                 InferenceEngine::details::InferenceEngineException);
     }
-    IE_SUPPRESS_DEPRECATED_END
 }
 
 TEST_P(ExecGraphTests, CheckExecGraphInfoAfterExecution) {
@@ -134,6 +134,7 @@ TEST_P(ExecGraphTests, CheckExecGraphInfoAfterExecution) {
                 ASSERT_NE(originalLayersMap.end(), origLayer) << layer;
                 origLayer->second++;
             });
+            IE_SUPPRESS_DEPRECATED_END
         }
         ASSERT_TRUE(has_layer_with_valid_time);
 
@@ -149,7 +150,6 @@ TEST_P(ExecGraphTests, CheckExecGraphInfoAfterExecution) {
         ASSERT_THROW(ie->LoadNetwork(cnnNet, targetDevice).GetExecGraphInfo(),
                 InferenceEngine::details::InferenceEngineException);
     }
-    IE_SUPPRESS_DEPRECATED_END
 }
 
 TEST_P(ExecGraphTests, CheckExecGraphInfoSerialization) {

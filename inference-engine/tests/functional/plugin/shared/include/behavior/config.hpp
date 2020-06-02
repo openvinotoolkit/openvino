@@ -24,7 +24,7 @@
 #include "functional_test_utils/plugin_cache.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include <threading/ie_executor_manager.hpp>
-#include <common_test_utils/behavior_test_utils.hpp>
+#include <functional_test_utils/behavior_test_utils.hpp>
 #include "ngraph_functions/pass/convert_prc.hpp"
 #include "ngraph_functions/subgraph_builders.hpp"
 
@@ -122,7 +122,6 @@ TEST_P(CorrectConfigAPITests, canSetExclusiveAsyncRequests) {
     } else {
         ASSERT_EQ(1u, InferenceEngine::ExecutorManager::getInstance()->getExecutorsNumber());
     }
-    config.clear();
 }
 
 TEST_P(CorrectConfigAPITests, withoutExclusiveAsyncRequests) {
@@ -148,7 +147,6 @@ TEST_P(CorrectConfigAPITests, withoutExclusiveAsyncRequests) {
     } else {
         ASSERT_EQ(0u, InferenceEngine::ExecutorManager::getInstance()->getExecutorsNumber());
     }
-    config.clear();
 }
 
 TEST_P(CorrectConfigAPITests, reusableCPUStreamsExecutor) {
@@ -180,7 +178,6 @@ TEST_P(CorrectConfigAPITests, reusableCPUStreamsExecutor) {
             ASSERT_EQ(0u, InferenceEngine::ExecutorManager::getInstance()->getExecutorsNumber());
             ASSERT_GE(2u, InferenceEngine::ExecutorManager::getInstance()->getIdleCPUStreamsExecutorsNumber());
         }
-        config.clear();
     }
     if (targetDevice == CommonTestUtils::DEVICE_CPU) {
         ASSERT_NE(0u, InferenceEngine::ExecutorManager::getInstance()->getIdleCPUStreamsExecutorsNumber());

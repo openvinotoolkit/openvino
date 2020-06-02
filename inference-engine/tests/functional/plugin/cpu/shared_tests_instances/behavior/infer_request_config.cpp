@@ -21,7 +21,7 @@ namespace {
     };
 
     const std::vector<std::map<std::string, std::string>> InConfigs = {
-            configs.front(),
+            {},
             {{InferenceEngine::PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS, InferenceEngine::PluginConfigParams::CPU_THROUGHPUT_AUTO}},
             {{InferenceEngine::PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS, InferenceEngine::PluginConfigParams::CPU_THROUGHPUT_NUMA}},
             {{InferenceEngine::PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS, "8"}},
@@ -32,7 +32,7 @@ namespace {
 
     const std::vector<std::map<std::string, std::string>> MultiInConfigs = {
             {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , CommonTestUtils::DEVICE_CPU},
-                {InferenceEngine::PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS,
+             {InferenceEngine::PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS,
                         InferenceEngine::PluginConfigParams::CPU_THROUGHPUT_AUTO}},
             {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , CommonTestUtils::DEVICE_CPU},
              {InferenceEngine::PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS,

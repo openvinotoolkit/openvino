@@ -19,7 +19,7 @@
 #include <multi-device/multi_device_config.hpp>
 #include <ie_core.hpp>
 #include <threading/ie_executor_manager.hpp>
-#include <common_test_utils/behavior_test_utils.hpp>
+#include <functional_test_utils/behavior_test_utils.hpp>
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
 #include "functional_test_utils/blob_utils.hpp"

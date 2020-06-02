@@ -16,11 +16,11 @@ namespace {
             {}
     };
 
-    INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, PreprocessBehTest,
+    INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, PreprocessTest,
                             ::testing::Combine(
                                     ::testing::ValuesIn(netPrecisions),
                                     ::testing::Values("TEMPLATE"),
                                     ::testing::ValuesIn(configs)),
-                            PreprocessBehTest::getTestCaseName);
+                            PreprocessTest::getTestCaseName);
 
 }  // namespace

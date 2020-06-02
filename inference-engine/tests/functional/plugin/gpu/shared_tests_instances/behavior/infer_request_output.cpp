@@ -18,8 +18,7 @@ namespace {
 
     const std::vector<std::map<std::string, std::string>> multiConfigs = {
             {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , CommonTestUtils::DEVICE_GPU},
-                    {InferenceEngine::PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS,
-                            InferenceEngine::PluginConfigParams::GPU_THROUGHPUT_AUTO}}
+             {InferenceEngine::PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS, InferenceEngine::PluginConfigParams::GPU_THROUGHPUT_AUTO}}
     };
 
     INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, InferRequestOutputTests,

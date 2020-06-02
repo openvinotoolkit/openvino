@@ -23,10 +23,8 @@
 #include "functional_test_utils/plugin_cache.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include "functional_test_utils/precision_utils.hpp"
-
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
 #include "ngraph_functions/pass/convert_prc.hpp"
-
 
 namespace BehaviorTestsUtils {
     typedef std::tuple<
@@ -60,7 +58,9 @@ public:
     }
 
     void TearDown() override {
-        PluginCache::get().reset();
+        if ((targetDevice == CommonTestUtils::DEVICE_GPU) || (!configuration.empty())) {
+            PluginCache::get().reset();
+        }
         function.reset();
     }
 

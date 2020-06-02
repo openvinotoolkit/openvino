@@ -36,16 +36,16 @@ namespace {
 
     INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, IncorrectConfigTests,
             ::testing::Combine(
-            ::testing::ValuesIn(netPrecisions),
-            ::testing::Values(CommonTestUtils::DEVICE_GPU),
-            ::testing::ValuesIn(inconfigs)),
+                ::testing::ValuesIn(netPrecisions),
+                ::testing::Values(CommonTestUtils::DEVICE_GPU),
+                ::testing::ValuesIn(inconfigs)),
             IncorrectConfigTests::getTestCaseName);
 
     INSTANTIATE_TEST_CASE_P(smoke_Multi_BehaviorTests, IncorrectConfigTests,
             ::testing::Combine(
-            ::testing::ValuesIn(netPrecisions),
-            ::testing::Values(CommonTestUtils::DEVICE_MULTI),
-            ::testing::ValuesIn(multiinconfigs)),
+                ::testing::ValuesIn(netPrecisions),
+                ::testing::Values(CommonTestUtils::DEVICE_MULTI),
+                ::testing::ValuesIn(multiinconfigs)),
             IncorrectConfigTests::getTestCaseName);
 
 
@@ -58,31 +58,31 @@ namespace {
     };
 
     INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, CorrectConfigAPITests,
-                            ::testing::Combine(
-                                    ::testing::ValuesIn(netPrecisions),
-                                    ::testing::Values(CommonTestUtils::DEVICE_GPU),
-                                    ::testing::ValuesIn(conf)),
-                            CorrectConfigAPITests::getTestCaseName);
+            ::testing::Combine(
+                ::testing::ValuesIn(netPrecisions),
+                ::testing::Values(CommonTestUtils::DEVICE_GPU),
+                ::testing::ValuesIn(conf)),
+            CorrectConfigAPITests::getTestCaseName);
 
     INSTANTIATE_TEST_CASE_P(smoke_Multi_BehaviorTests, CorrectConfigAPITests,
-                            ::testing::Combine(
-                                    ::testing::ValuesIn(netPrecisions),
-                                    ::testing::Values(CommonTestUtils::DEVICE_MULTI),
-                                    ::testing::ValuesIn(multiconf)),
-                            CorrectConfigAPITests::getTestCaseName);
+            ::testing::Combine(
+                    ::testing::ValuesIn(netPrecisions),
+                    ::testing::Values(CommonTestUtils::DEVICE_MULTI),
+                    ::testing::ValuesIn(multiconf)),
+            CorrectConfigAPITests::getTestCaseName);
 
     INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, IncorrectConfigAPITests,
-                            ::testing::Combine(
-                                    ::testing::ValuesIn(netPrecisions),
-                                    ::testing::Values(CommonTestUtils::DEVICE_GPU),
-                                    ::testing::ValuesIn(conf)),
-                            IncorrectConfigAPITests::getTestCaseName);
+            ::testing::Combine(
+                    ::testing::ValuesIn(netPrecisions),
+                    ::testing::Values(CommonTestUtils::DEVICE_GPU),
+                    ::testing::ValuesIn(conf)),
+             IncorrectConfigAPITests::getTestCaseName);
 
     INSTANTIATE_TEST_CASE_P(smoke_Multi_BehaviorTests, IncorrectConfigAPITests,
-                            ::testing::Combine(
-                                    ::testing::ValuesIn(netPrecisions),
-                                    ::testing::Values(CommonTestUtils::DEVICE_MULTI),
-                                    ::testing::ValuesIn(multiconf)),
-                            IncorrectConfigAPITests::getTestCaseName);
+            ::testing::Combine(
+                    ::testing::ValuesIn(netPrecisions),
+                    ::testing::Values(CommonTestUtils::DEVICE_MULTI),
+                    ::testing::ValuesIn(multiconf)),
+            IncorrectConfigAPITests::getTestCaseName);
 
 } // namespace

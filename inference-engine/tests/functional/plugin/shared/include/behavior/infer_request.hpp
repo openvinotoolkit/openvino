@@ -18,7 +18,7 @@
 #include <ie_core.hpp>
 #include <cpp_interfaces/exception2status.hpp>
 #include <thread>
-#include <common_test_utils/behavior_test_utils.hpp>
+#include <functional_test_utils/behavior_test_utils.hpp>
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
 #include "functional_test_utils/blob_utils.hpp"

@@ -11,11 +11,11 @@
 #include "functional_test_utils/layer_test_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include "ie_preprocess.hpp"
-#include "common_test_utils/behavior_test_utils.hpp"
+#include "functional_test_utils/behavior_test_utils.hpp"
 
-using PreprocessBehTest = BehaviorTestsUtils::BehaviorTestsBasic;
+using PreprocessTest = BehaviorTestsUtils::BehaviorTestsBasic;
 
-TEST_P(PreprocessBehTest, SetPreProcessToInputInfo) {
+TEST_P(PreprocessTest, SetPreProcessToInputInfo) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     // Create CNNNetwork from ngrpah::Function
@@ -36,7 +36,7 @@ TEST_P(PreprocessBehTest, SetPreProcessToInputInfo) {
     }
 }
 
-TEST_P(PreprocessBehTest, SetPreProcessToInferRequest) {
+TEST_P(PreprocessTest, SetPreProcessToInferRequest) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     // Create CNNNetwork from ngrpah::Function

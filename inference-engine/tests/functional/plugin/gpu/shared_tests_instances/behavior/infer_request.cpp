@@ -13,6 +13,9 @@ namespace {
             InferenceEngine::Precision::FP16
     };
 
+    const std::vector<std::map<std::string, std::string>> configs = {
+            {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_GPU}}
+    };
     INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, InferRequestTests,
                             ::testing::Combine(
                                     ::testing::ValuesIn(netPrecisions),
@@ -24,7 +27,6 @@ namespace {
                             ::testing::Combine(
                                     ::testing::ValuesIn(netPrecisions),
                                     ::testing::Values(CommonTestUtils::DEVICE_MULTI),
-                                    ::testing::Values(std::map<std::string, std::string>
-                                            ({{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_GPU}}))),
+                                    ::testing::ValuesIn(configs)),
                             InferRequestTests::getTestCaseName);
 }  // namespace
