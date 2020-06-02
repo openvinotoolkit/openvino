@@ -6,7 +6,7 @@ include(cpplint)
 include(clang_format)
 
 if(ENABLE_PROFILING_ITT)
-    set(INTEL_ITT_LIBS IE::ittnotify)
+    find_package(ITT REQUIRED)
 endif()
 
 set(TBB_FIND_RELEASE_ONLY ${ENABLE_TBB_RELEASE_ONLY})
