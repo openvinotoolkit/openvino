@@ -3218,6 +3218,10 @@ void Program::CreateTopKPrimitive(cldnn::topology& topology, InferenceEngine::CN
             auto data = constantBlob->buffer().as<int32_t*>();
             for (size_t i = 0; i < constantBlob->size(); ++i)
                 topk.push_back(data[i]);
+        } else if (axesPrecision == InferenceEngine::Precision::I64) {
+            auto data = constantBlob->buffer().as<int64_t*>();
+            for (size_t i = 0; i < constantBlob->size(); ++i)
+                topk.push_back(static_cast<int32_t>(data[i]));
         } else {
             THROW_IE_EXCEPTION << layer->name << " Incorrect TopK input Precision";
         }
