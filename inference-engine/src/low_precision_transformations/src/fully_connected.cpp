@@ -187,32 +187,7 @@ void FullyConnectedTransformation::transform(TransformationContext& context, CNN
     CNNNetworkHelper::removeLayer(context.network, scaleShiftOnData);
     context.removeLayer(*scaleShiftOnData);
 
-    const std::vector<CNNLayerPtr> children = CNNNetworkHelper::getChildren(fullyConnected);
-    const size_t outputChannelsCount = CNNNetworkHelper::getOutputChannelsCount(fullyConnected);
-    if (children.size() == 0) {
-        const std::string originalName = fullyConnected.name;
-        CNNNetworkHelper::renameLayer(
-            context.network,
-            fullyConnected.name,
-            fullyConnected.name + LayerTransformation::lastLayerPrefix);
-
-        CNNLayerPtr dequantizationLayer = CNNNetworkHelper::addScaleShiftBetween(
-            context,
-            std::make_shared<CNNLayer>(fullyConnected),
-            nullptr,
-            DequantizationDetails(dequantizationScales, dequantizationShifts, outputChannelsCount),
-            originalName);
-        context.dequantizationLayersNames.insert(dequantizationLayer->name);
-    } else {
-        for (const CNNLayerPtr& child : children) {
-            CNNLayerPtr dequantizationLayer = CNNNetworkHelper::addScaleShiftBetween(
-                context,
-                std::make_shared<CNNLayer>(fullyConnected),
-                child,
-                DequantizationDetails(dequantizationScales, dequantizationShifts, outputChannelsCount));
-            context.dequantizationLayersNames.insert(dequantizationLayer->name);
-        }
-    }
+    addDequantizationLayer(context, fullyConnected, dequantizationScales, dequantizationShifts);
 }
 
 void FullyConnectedTransformation::calculateDequantizationForSymmetric(

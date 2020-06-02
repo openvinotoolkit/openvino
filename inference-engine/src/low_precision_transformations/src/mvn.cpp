@@ -58,29 +58,7 @@ void MvnTransformation::transform(TransformationContext& context, CNNLayer& laye
     CNNNetworkHelper::removeLayer(context.network, scaleShiftOnData);
     context.removeLayer(*scaleShiftOnData);
 
-    const size_t outputChannelsCount = CNNNetworkHelper::getOutputChannelsCount(layer);
-    const std::vector<CNNLayerPtr> children = CNNNetworkHelper::getChildren(layer);
-    if (children.size() == 0) {
-        const std::string originalName = layer.name;
-        CNNNetworkHelper::renameLayer(context.network, layer.name, layer.name + LayerTransformation::lastLayerPrefix);
-
-        const CNNLayerPtr dequantizationLayer = CNNNetworkHelper::addScaleShiftBetween(
-            context,
-            std::make_shared<CNNLayer>(layer),
-            nullptr,
-            DequantizationDetails(dequantizationScales, dequantizationShifts, outputChannelsCount),
-            originalName);
-        context.dequantizationLayersNames.insert(dequantizationLayer->name);
-    } else {
-        for (const CNNLayerPtr& child : children) {
-            const CNNLayerPtr dequantizationLayer = CNNNetworkHelper::addScaleShiftBetween(
-                context,
-                std::make_shared<CNNLayer>(layer),
-                child,
-                DequantizationDetails(dequantizationScales, dequantizationShifts, outputChannelsCount));
-            context.dequantizationLayersNames.insert(dequantizationLayer->name);
-        }
-    }
+    addDequantizationLayer(context, layer, dequantizationScales, dequantizationShifts);
 }
 
 bool MvnTransformation::isPrecisionPreserved(const CNNLayer& layer) const noexcept {

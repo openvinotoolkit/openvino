@@ -26,6 +26,7 @@ std::pair<float, float> getInterval(const std::vector<InferenceEngine::Precision
     const float hight = unsignedInterval ? 255.f : 127.f;
     return std::make_pair(low, hight);
 }
+
 std::string ConcatNeighboringGraphTransformation::getTestCaseName(testing::TestParamInfo<LayerTestsUtils::LayerTransformationParams> obj) {
     InferenceEngine::Precision netPrecision;
     InferenceEngine::SizeVector inputShapes;
@@ -45,6 +46,9 @@ InferenceEngine::Blob::Ptr ConcatNeighboringGraphTransformation::GenerateInput(c
     InferenceEngine::details::LayerTransformation::Params params;
     std::tie(netPrecision, inputShape, targetDevice, params) = this->GetParam();
 
+    if ((info.name() != "input1") && (info.name() != "input2") && (info.name() != "input3")) {
+        THROW_IE_EXCEPTION << "unexpected input name " << info.name();
+    }
     const float k = (info.name() == "input1") ? 1.f : (info.name() == "input2" ? 2.f : 3.f);
 
     const auto interval = getInterval(params.precisionsOnActivations);
