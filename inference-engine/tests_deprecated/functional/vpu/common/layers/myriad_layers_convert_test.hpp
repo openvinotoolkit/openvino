@@ -134,7 +134,8 @@ std::vector<SizeVector> inputsDims4D = {
 std::vector<PrecisionPair> precisionsIO = {
     {Precision::U8,   Precision::FP16},
     {Precision::FP32, Precision::FP16},
-    {Precision::FP16, Precision::FP32}
+    {Precision::FP16, Precision::FP32},
+    {Precision::I32, Precision::U8}
 };
 
 std::vector<Precision> withFP16Precisions = {
