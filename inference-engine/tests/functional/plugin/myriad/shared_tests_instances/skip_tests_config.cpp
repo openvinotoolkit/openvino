@@ -19,6 +19,8 @@ std::vector<std::string> disabledTestPatterns() {
 
     std::vector<std::string> behaviorTests = {
         ".*Behavior.*ExecGraphTests.*"
+            // TODO: Issue: 32521
+            ".*(EltwiseLayerTest).*eltwiseOpType=(Sub|Prod).*secondaryInputType=CONSTANT.*netPRC=FP16.*",
     };
 
     // Issue 26268
