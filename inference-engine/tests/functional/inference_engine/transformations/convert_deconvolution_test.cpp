@@ -21,6 +21,7 @@
 #include <ngraph/pass/visualize_tree.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_convolutions.hpp>
 #include <ngraph_ops/convolution_ie.hpp>
+#include <ngraph_ops/deconvolution_ie.hpp>
 
 #include "ngraph_test_utils.hpp"
 
@@ -29,8 +30,8 @@ using namespace testing;
 using InputShape = ngraph::PartialShape;
 using WeightsShape = ngraph::Shape;
 
-class ConvertConvolutionTest: public CommonTestUtils::TestsCommon,
-                               public testing::WithParamInterface<std::tuple<InputShape, WeightsShape> > {
+class ConvertDeconvolutionTest: public CommonTestUtils::TestsCommon,
+                                public testing::WithParamInterface<std::tuple<InputShape, WeightsShape> > {
 public:
     std::shared_ptr<ngraph::Function> f, f_ref;
 
@@ -48,7 +49,7 @@ private:
         auto spatial_dims = input_shape.rank().get_length() - 2;
         auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, input_shape);
         auto weights = ngraph::opset1::Constant::create(ngraph::element::f32, weights_shape, {1});
-        auto conv = std::make_shared<ngraph::opset1::Convolution>(input, weights, ngraph::Strides(spatial_dims, 1),
+        auto conv = std::make_shared<ngraph::opset1::ConvolutionBackpropData>(input, weights, ngraph::Strides(spatial_dims, 1),
                 ngraph::CoordinateDiff(spatial_dims, 0), ngraph::CoordinateDiff(spatial_dims, 0), ngraph::Strides(spatial_dims, 1));
 
         return std::make_shared<ngraph::Function>(ngraph::NodeVector{conv}, ngraph::ParameterVector{input});
@@ -59,14 +60,14 @@ private:
         auto spatial_dims = input_shape.rank().get_length() - 2;
         auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, input_shape);
         auto weights = ngraph::opset1::Constant::create(ngraph::element::f32, weights_shape, {1});
-        auto conv = std::make_shared<ngraph::op::ConvolutionIE>(input, weights, ngraph::Strides(spatial_dims, 1), ngraph::Strides(spatial_dims, 1),
+        auto conv = std::make_shared<ngraph::op::DeconvolutionIE>(input, weights, ngraph::Strides(spatial_dims, 1), ngraph::Strides(spatial_dims, 1),
                 ngraph::CoordinateDiff(spatial_dims, 0), ngraph::CoordinateDiff(spatial_dims, 0));
 
         return std::make_shared<ngraph::Function>(ngraph::NodeVector{conv}, ngraph::ParameterVector{input});
     }
 };
 
-TEST_P(ConvertConvolutionTest, CompareFunctions) {
+TEST_P(ConvertDeconvolutionTest, CompareFunctions) {
     const auto & orig_shape = f->get_output_partial_shape(0);
     ngraph::pass::InitNodeInfo().run_on_function(f);
     ngraph::pass::ConvertConvolutions().run_on_function(f);
@@ -76,20 +77,20 @@ TEST_P(ConvertConvolutionTest, CompareFunctions) {
     ASSERT_TRUE(orig_shape.same_scheme(f->get_output_partial_shape(0))) << "Shape " << orig_shape << " is not equal to " << f->get_output_partial_shape(0);
 }
 
-INSTANTIATE_TEST_CASE_P(ConvertConvolution, ConvertConvolutionTest,
-        testing::Values(std::make_tuple(InputShape{DYN, DYN, DYN, DYN, DYN}, WeightsShape{8, 3, 1, 2, 3}),
-                        std::make_tuple(InputShape{DYN, 3, 64, 64, 64}, WeightsShape{8, 3, 1, 2, 3}),
-                        std::make_tuple(InputShape{2, DYN, 64, 64, 64}, WeightsShape{9, 3, 2, 3, 1}),
-                        std::make_tuple(InputShape{3, 3, DYN, 64, 64},  WeightsShape{6, 3, 3, 4, 2}),
-                        std::make_tuple(InputShape{3, 3, 64, DYN, 64},  WeightsShape{5, 3, 3, 4, 3}),
-                        std::make_tuple(InputShape{3, 3, 64, 64, DYN},  WeightsShape{5, 3, 3, 4, 3}),
-                        std::make_tuple(InputShape{1, 3, 64, 64},       WeightsShape{6, 3, 1, 1}),
-                        std::make_tuple(InputShape{DYN, DYN, DYN, DYN}, WeightsShape{7, 3, 1, 1}),
-                        std::make_tuple(InputShape{DYN, 3, 64, 64},     WeightsShape{8, 3, 1, 2}),
-                        std::make_tuple(InputShape{2, DYN, 64, 64},     WeightsShape{9, 3, 2, 3}),
-                        std::make_tuple(InputShape{3, 3, DYN, 64},      WeightsShape{6, 3, 3, 4}),
-                        std::make_tuple(InputShape{3, 3, 64, DYN},      WeightsShape{5, 3, 3, 4}),
-                        std::make_tuple(InputShape{DYN, DYN, DYN},      WeightsShape{5, 3, 1}),
+INSTANTIATE_TEST_CASE_P(ConvertDeconvolution, ConvertDeconvolutionTest,
+        testing::Values(std::make_tuple(InputShape{DYN, DYN, DYN, DYN, DYN}, WeightsShape{3, 8, 1, 2, 3}),
+                        std::make_tuple(InputShape{DYN, 3, 64, 64, 64}, WeightsShape{3, 8, 1, 2, 3}),
+                        std::make_tuple(InputShape{2, DYN, 64, 64, 64}, WeightsShape{3, 9, 2, 3, 1}),
+                        std::make_tuple(InputShape{3, 3, DYN, 64, 64},  WeightsShape{3, 6, 3, 4, 2}),
+                        std::make_tuple(InputShape{3, 3, 64, DYN, 64},  WeightsShape{3, 5, 3, 4, 3}),
+                        std::make_tuple(InputShape{3, 3, 64, 64, DYN},  WeightsShape{3, 3, 3, 4, 3}),
+                        std::make_tuple(InputShape{1, 3, 64, 64},       WeightsShape{3, 6, 1, 1}),
+                        std::make_tuple(InputShape{DYN, DYN, DYN, DYN}, WeightsShape{3, 7, 1, 1}),
+                        std::make_tuple(InputShape{DYN, 3, 64, 64},     WeightsShape{3, 8, 1, 2}),
+                        std::make_tuple(InputShape{2, DYN, 64, 64},     WeightsShape{3, 9, 2, 3}),
+                        std::make_tuple(InputShape{3, 3, DYN, 64},      WeightsShape{3, 6, 3, 4}),
+                        std::make_tuple(InputShape{3, 3, 64, DYN},      WeightsShape{3, 5, 3, 4}),
+                        std::make_tuple(InputShape{DYN, DYN, DYN},      WeightsShape{3, 5, 1}),
                         std::make_tuple(InputShape{DYN, 3, 10},         WeightsShape{3, 3, 1}),
-                        std::make_tuple(InputShape{2, DYN, 9},          WeightsShape{2, 3, 2}),
-                        std::make_tuple(InputShape{3, 3, DYN},          WeightsShape{1, 3, 3})));
+                        std::make_tuple(InputShape{2, DYN, 9},          WeightsShape{3, 2, 2}),
+                        std::make_tuple(InputShape{3, 3, DYN},          WeightsShape{3, 1, 3})));
