@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2018 Intel Corporation
+﻿// Copyright (c) 2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -20,13 +20,15 @@ ParamsKey PoolingKerneGPU_fs_bs_yx_bsv4_fsv32_simd32::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::INT8);
     k.EnableOutputDataType(Datatype::INT8);
+    k.EnableOutputDataType(Datatype::UINT8);
+    k.EnableOutputDataType(Datatype::F16);
+    k.EnableOutputDataType(Datatype::F32);
     k.EnableInputLayout(DataLayout::fs_bs_yx_bsv4_fsv32);
     k.EnableOutputLayout(DataLayout::fs_bs_yx_bsv4_fsv32);
     k.EnableTensorOffset();
     k.EnableTensorPitches();
     k.EnableBatching();
     k.EnablePoolType(PoolType::MAX);
-    //        k.EnablePoolType(PoolType::AVG);
     k.EnablePoolRemainder(PoolRemainder::FLOOR);
     k.EnablePoolRemainder(PoolRemainder::CEIL);
     k.EnablePoolKernelDividerMode(KernelDividerMode::FIXED);
@@ -77,6 +79,22 @@ JitConstants PoolingKerneGPU_fs_bs_yx_bsv4_fsv32_simd32::GetJitConstants(const p
     jit.AddConstant(MakeJitConstant("IN_F_BLOCK_PITCH", in_f_block_pitch));
     jit.AddConstant(MakeJitConstant("IN_OFFSET", in_offset));
     jit.AddConstant(MakeJitConstant("BATCH_SG_COUNT", get_batch_sub_groups_count(params)));
+    jit.Merge(MakeTypeJitConstants(GetActivationType(params), "ACTIVATION"));
+    jit.Merge(MakeTypeJitConstants(GetAccumulatorType(params), "ACCUMULATOR"));
+
+    if (!params.fused_ops.empty()) {
+        auto input_dt = GetActivationType(params);
+        FusedOpsConfiguration conf = {"",
+                                     {"b", "f", "y", "x"},
+                                     "pool_result",
+                                     input_dt,
+                                     4,
+                                     LoadType::LT_UNALIGNED,
+                                     BoundaryCheck::ENABLED,
+                                     IndexType::TENSOR_COORD,
+                                     Tensor::DataChannelName::FEATURE};
+        jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
+    }
 
     return jit;
 }

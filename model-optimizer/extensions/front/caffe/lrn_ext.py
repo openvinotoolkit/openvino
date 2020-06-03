@@ -29,7 +29,7 @@ class LRNExtractor(FrontExtractorOp):
         AttributedLRN.update_node_stat(node, {
             'alpha': param.alpha,
             'beta': param.beta,
-            'bias': 1,
+            'bias': param.k,
             'local_size': param.local_size,
             'region': region,
         })
