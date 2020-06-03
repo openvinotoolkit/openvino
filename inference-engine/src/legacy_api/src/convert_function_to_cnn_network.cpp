@@ -991,7 +991,6 @@ std::shared_ptr<CNNNetworkImpl> convertFunctionToICNNNetwork(const std::shared_p
                     std::make_shared<Builder::NodeConverter<::ngraph::op::v1::Split>>(),
                     std::make_shared<Builder::NodeConverter<::ngraph::op::VariadicSplit>>(),
                     std::make_shared<Builder::NodeConverter<::ngraph::op::v1::StridedSlice>>(),
-                    std::make_shared<Builder::NodeConverter<::ngraph::op::StridedSliceIE>>(),
                     std::make_shared<Builder::NodeConverter<::ngraph::op::Squeeze>>(),
                     std::make_shared<Builder::NodeConverter<::ngraph::op::Sqrt>>(),
                     std::make_shared<Builder::NodeConverter<::ngraph::op::Subtract>>(),
