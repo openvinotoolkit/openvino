@@ -71,7 +71,7 @@ void TemplatePlugin::ExecutableNetwork::CompileGraph(const std::shared_ptr<const
 
     // 1.Copy ngraph::Function first to apply some transformations later in
     // ExecutableNetwork::CompileGraph, which modify original ngraph::Function
-    const bool shareConsts = false, constFolding = false;
+    const bool constFolding = false;
     std::vector<::ngraph::element::Type> new_types;
     std::vector<::ngraph::PartialShape> new_shapes;
 
@@ -80,8 +80,7 @@ void TemplatePlugin::ExecutableNetwork::CompileGraph(const std::shared_ptr<const
         new_types.emplace_back(parameter->get_element_type());
     }
 
-    auto copyFunction = ngraph::specialize_function(std::const_pointer_cast<ngraph::Function>(ngraphFunction),
-        new_types, new_shapes, std::vector<void *>(new_types.size(), nullptr), constFolding, shareConsts);
+    auto copyFunction = ngraph::clone_function(*ngraphFunction);
 
     // 2. Perform common and device-specific transformations
     ngraph::pass::Manager passManager;

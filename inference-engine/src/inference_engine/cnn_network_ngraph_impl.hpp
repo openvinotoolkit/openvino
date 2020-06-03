@@ -122,8 +122,7 @@ public:
 
 protected:
     std::shared_ptr<::ngraph::Function> _ngraph_function;
-    virtual std::shared_ptr<::ngraph::Function> cloneFunction(bool constFolding = false, const std::map<std::string,
-            std::vector<size_t>>& inputShapes = {}) const;
+    virtual std::shared_ptr<::ngraph::Function> cloneFunction(bool constFolding = false) const;
     std::mutex& getMutex() {
         return networkMutex;
     }
@@ -159,7 +158,7 @@ public:
     explicit TINGraphBody(const std::shared_ptr<::ngraph::Function>& func): CNNNetworkNGraphImpl(func) {}
 
 protected:
-    std::shared_ptr<::ngraph::Function> cloneFunction(bool constFolding, const std::map<std::string, std::vector<size_t>>& inputShapes) const override {
+    std::shared_ptr<::ngraph::Function> cloneFunction(bool constFolding) const override {
         return _ngraph_function;
     }
 };
