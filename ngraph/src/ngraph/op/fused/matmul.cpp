@@ -226,6 +226,8 @@ namespace
             break;
             TYPE_CASE(bf16)(arg0, arg1, output, transpose_a, transpose_b);
             break;
+            TYPE_CASE(f16)(arg0, arg1, output, transpose_a, transpose_b);
+            break;
             TYPE_CASE(f32)(arg0, arg1, output, transpose_a, transpose_b);
             break;
             TYPE_CASE(f64)(arg0, arg1, output, transpose_a, transpose_b);

@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2016 Intel Corporation
+﻿// Copyright (c) 2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -20,12 +20,16 @@ ParamsKey PoolingKernelGPUAverageOpt::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::F32);
     k.EnableOutputDataType(Datatype::F32);
+    k.EnableOutputDataType(Datatype::F16);
+    k.EnableOutputDataType(Datatype::INT8);
+    k.EnableOutputDataType(Datatype::UINT8);
     k.EnableInputLayout(DataLayout::bfyx);
     k.EnableOutputLayout(DataLayout::bfyx);
     k.EnablePoolType(PoolType::AVG);
     k.EnablePoolRemainder(PoolRemainder::FLOOR);
     k.EnablePoolRemainder(PoolRemainder::CEIL);
     k.EnablePoolKernelDividerMode(KernelDividerMode::FIXED);
+    k.EnableDifferentTypes();
     return k;
 }
 
@@ -80,16 +84,16 @@ PoolingKernelBase::DispatchData PoolingKernelGPUAverageOpt::SetDefault(const poo
 
 JitConstants PoolingKernelGPUAverageOpt::GetJitConstants(const pooling_params& params, DispatchData kd) const {
     auto tileDims = GetTileDimentions();
-    auto mem_consts = PoolingKernelBase::GetJitConstants(params, kd);
+    auto jit = PoolingKernelBase::GetJitConstants(params, kd);
 
     if (tileDims.y != 0 && tileDims.x != 0) {
-        mem_consts.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", kd.lws0));
-        mem_consts.AddConstant(MakeJitConstant("TILE_HEIGHT", tileDims.y));
-        mem_consts.AddConstant(MakeJitConstant("TILE_WIDTH", tileDims.x));
-        mem_consts.AddConstant(MakeJitConstant("ONE_OVER_POOL_SIZE", 1.f / (params.poolSize.x * params.poolSize.y)));
+        jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", kd.lws0));
+        jit.AddConstant(MakeJitConstant("TILE_HEIGHT", tileDims.y));
+        jit.AddConstant(MakeJitConstant("TILE_WIDTH", tileDims.x));
+        jit.AddConstant(MakeJitConstant("ONE_OVER_POOL_SIZE", 1.f / (params.poolSize.x * params.poolSize.y)));
     }
 
-    return mem_consts;
+    return jit;
 }
 
 KernelsData PoolingKernelGPUAverageOpt::GetKernelsData(const Params& params, const optional_params& options) const {
