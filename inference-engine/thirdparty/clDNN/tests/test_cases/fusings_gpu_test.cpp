@@ -4236,16 +4236,14 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, permute_scale_eltwise_quant_u8,
                             permute_params{CASE_PERMUTE_F32_6, 2, 5},
                             permute_params{CASE_PERMUTE_F32_7, 2, 5},
                                                                   
-                            // quantize f16 fusing not supported  
-                            permute_params{CASE_PERMUTE_F16_0, 3, 5},
-                            permute_params{CASE_PERMUTE_F16_1, 3, 5},
-                            permute_params{CASE_PERMUTE_F16_2, 3, 5},
-                            permute_params{CASE_PERMUTE_F16_3, 3, 5},
-                            permute_params{CASE_PERMUTE_F16_4, 3, 5},
-                            permute_params{CASE_PERMUTE_F16_5, 3, 5},
-                            permute_params{CASE_PERMUTE_F16_6, 3, 5},
+                            permute_params{CASE_PERMUTE_F16_0, 2, 5},
+                            permute_params{CASE_PERMUTE_F16_1, 2, 5},
+                            permute_params{CASE_PERMUTE_F16_2, 2, 5},
+                            permute_params{CASE_PERMUTE_F16_3, 2, 5},
+                            permute_params{CASE_PERMUTE_F16_4, 2, 5},
+                            permute_params{CASE_PERMUTE_F16_5, 2, 5},
+                            permute_params{CASE_PERMUTE_F16_6, 2, 5},
 
-                            
                             permute_params{CASE_PERMUTE_S8_0, 2, 5},
                             permute_params{CASE_PERMUTE_S8_1, 2, 5},
                             permute_params{CASE_PERMUTE_S8_2, 2, 5},
@@ -4262,12 +4260,11 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, permute_scale_eltwise_quant_u8,
                             permute_params{CASE_PERMUTE_F32_3D_3, 2, 5},
                             permute_params{CASE_PERMUTE_F32_3D_4, 2, 5},
                                                                      
-                            // quantize f16 fusing not supported     
-                            permute_params{CASE_PERMUTE_F16_3D_0, 3, 5},
-                            permute_params{CASE_PERMUTE_F16_3D_1, 3, 5},
-                            permute_params{CASE_PERMUTE_F16_3D_2, 3, 5},
-                            permute_params{CASE_PERMUTE_F16_3D_3, 3, 5},
-                            permute_params{CASE_PERMUTE_F16_3D_4, 3, 5},
+                            permute_params{CASE_PERMUTE_F16_3D_0, 2, 5},
+                            permute_params{CASE_PERMUTE_F16_3D_1, 2, 5},
+                            permute_params{CASE_PERMUTE_F16_3D_2, 2, 5},
+                            permute_params{CASE_PERMUTE_F16_3D_3, 2, 5},
+                            permute_params{CASE_PERMUTE_F16_3D_4, 2, 5},
 
                             permute_params{CASE_PERMUTE_S8_3D_0, 2, 5},
                             permute_params{CASE_PERMUTE_S8_3D_1, 2, 5},
@@ -4316,15 +4313,14 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, permute_scale_actv_eltw_scale_actv_quant_i8
                             permute_params{CASE_PERMUTE_F32_5, 2, 8},
                             permute_params{CASE_PERMUTE_F32_6, 2, 8},
                             permute_params{CASE_PERMUTE_F32_7, 2, 8},
-                                                                  
-                            // quantize f16 fusing not supported
-                            permute_params{CASE_PERMUTE_F16_0, 3, 8},
-                            permute_params{CASE_PERMUTE_F16_1, 3, 8},
-                            permute_params{CASE_PERMUTE_F16_2, 3, 8},
-                            permute_params{CASE_PERMUTE_F16_3, 3, 8},
-                            permute_params{CASE_PERMUTE_F16_4, 3, 8},
-                            permute_params{CASE_PERMUTE_F16_5, 3, 8},
-                            permute_params{CASE_PERMUTE_F16_6, 3, 8},
+
+                            permute_params{CASE_PERMUTE_F16_0, 2, 8},
+                            permute_params{CASE_PERMUTE_F16_1, 2, 8},
+                            permute_params{CASE_PERMUTE_F16_2, 2, 8},
+                            permute_params{CASE_PERMUTE_F16_3, 2, 8},
+                            permute_params{CASE_PERMUTE_F16_4, 2, 8},
+                            permute_params{CASE_PERMUTE_F16_5, 2, 8},
+                            permute_params{CASE_PERMUTE_F16_6, 2, 8},
                                 
                             permute_params{CASE_PERMUTE_S8_0, 2, 8},
                             permute_params{CASE_PERMUTE_S8_1, 2, 8},
@@ -4341,13 +4337,12 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, permute_scale_actv_eltw_scale_actv_quant_i8
                             permute_params{CASE_PERMUTE_F32_3D_2, 2, 8},
                             permute_params{CASE_PERMUTE_F32_3D_3, 2, 8},
                             permute_params{CASE_PERMUTE_F32_3D_4, 2, 8},
-                            
-                            // quantize f16 fusing not supported
-                            permute_params{CASE_PERMUTE_F16_3D_0, 3, 8},
-                            permute_params{CASE_PERMUTE_F16_3D_1, 3, 8},
-                            permute_params{CASE_PERMUTE_F16_3D_2, 3, 8},
-                            permute_params{CASE_PERMUTE_F16_3D_3, 3, 8},
-                            permute_params{CASE_PERMUTE_F16_3D_4, 3, 8},
+
+                            permute_params{CASE_PERMUTE_F16_3D_0, 2, 8},
+                            permute_params{CASE_PERMUTE_F16_3D_1, 2, 8},
+                            permute_params{CASE_PERMUTE_F16_3D_2, 2, 8},
+                            permute_params{CASE_PERMUTE_F16_3D_3, 2, 8},
+                            permute_params{CASE_PERMUTE_F16_3D_4, 2, 8},
 
                             permute_params{CASE_PERMUTE_S8_3D_0, 2, 8},
                             permute_params{CASE_PERMUTE_S8_3D_1, 2, 8},
