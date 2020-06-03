@@ -23,10 +23,10 @@ INSTANTIATE_TEST_CASE_P(CPU, CoreThreadingTests, testing::ValuesIn(params));
 
 INSTANTIATE_TEST_CASE_P(CPU, CoreThreadingTestsWithIterations,
     testing::Combine(testing::ValuesIn(params),
-                     testing::Values(4),
+                     testing::Values(16),
                      testing::Values(50)));
 
 INSTANTIATE_TEST_CASE_P(CPU_Streams, CoreThreadingTestsWithIterations,
     testing::Combine(testing::ValuesIn(paramsStreams),
-                     testing::Values(4),
+                     testing::Values(16),
                      testing::Values(10)));

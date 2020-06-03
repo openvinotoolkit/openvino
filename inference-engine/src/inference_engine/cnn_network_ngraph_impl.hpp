@@ -14,6 +14,7 @@
 #include <ie_icnn_network.hpp>
 #include <map>
 #include <memory>
+#include <mutex>
 #include <ngraph/attribute_visitor.hpp>
 #include <ngraph/function.hpp>
 #include <ngraph/node.hpp>
@@ -118,15 +119,21 @@ public:
         noexcept override;
 
     void convertToCNNNetworkImpl();
+
 protected:
     std::shared_ptr<::ngraph::Function> _ngraph_function;
     virtual std::shared_ptr<::ngraph::Function> cloneFunction(bool constFolding = false, const std::map<std::string,
             std::vector<size_t>>& inputShapes = {}) const;
+    std::mutex& getMutex() {
+        return networkMutex;
+    }
+
 private:
     std::map<std::string, DataPtr> _data;
     InferenceEngine::InputsDataMap _inputData;
     std::map<std::string, DataPtr> _outputData;
     std::shared_ptr<CNNNetworkImpl> cnnNetwork;
+    std::mutex networkMutex;
 
     /**
      * @brief Create DataPtr for nGraph operation
