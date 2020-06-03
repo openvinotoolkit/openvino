@@ -50,14 +50,13 @@ void FrontEnd::parseDSR(const Model& model, const ie::CNNLayerPtr& layer, const 
         // Create the second output with shape in case of dynamic output
         const auto& shapeOutput = model->addOutputData(dataOutput->name() + "@shape", shape->desc());
 
-        model->replaceStageOutput(shapeProducerEdge, shapeOutput);
-        model->connectDataWithShape(shapeOutput, dataOutput);
-
         for (const auto& dataToShapeEdge : shape->childDataToShapeEdges()) {
             model->replaceDataToShapeParent(dataToShapeEdge, shapeOutput);
         }
-
+        model->replaceStageOutput(shapeProducerEdge, shapeOutput);
         model->removeUnusedData(shape);
+
+        model->connectDataWithShape(shapeOutput, dataOutput);
     } else {
         model->connectDataWithShape(shape, dataOutput);
     }
