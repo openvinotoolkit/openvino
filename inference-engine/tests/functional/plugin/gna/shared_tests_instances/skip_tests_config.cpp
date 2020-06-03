@@ -10,6 +10,8 @@
 std::vector<std::string> disabledTestPatterns() {
     return {
         // TODO: FIX BUG 31661
-        ".*Behavior.*CallbackThrowException.*"
+        ".*Behavior.*CallbackThrowException.*",
+        // TODO: FIX BUG 32210
+        R"(.*(Sigmoid|Tanh|Exp|Log).*)"
     };
 }

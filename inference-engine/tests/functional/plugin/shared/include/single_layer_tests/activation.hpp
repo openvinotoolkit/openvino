@@ -46,19 +46,19 @@ static std::map<ngraph::helpers::ActivationTypes, std::string> activationNames =
 typedef std::tuple<
         ngraph::helpers::ActivationTypes,
         InferenceEngine::Precision,
-        InferenceEngine::Precision,
         InferenceEngine::SizeVector,
         std::string> activationParams;
 
-class ActivationLayerTest
-        : public LayerTestsUtils::LayerTestsCommonDeprecated<activationParams> {
+class ActivationLayerTest : public testing::WithParamInterface<activationParams>,
+                            public LayerTestsUtils::LayerTestsCommon {
 public:
-    static std::string getTestCaseName(const testing::TestParamInfo<activationParams> &obj);
-
-protected:
-    InferenceEngine::SizeVector inputShapes;
     ngraph::helpers::ActivationTypes activationType;
 
+    static std::string getTestCaseName(const testing::TestParamInfo<activationParams> &obj);
+
+    virtual InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &info) const;
+
+protected:
     void SetUp();
 };
 

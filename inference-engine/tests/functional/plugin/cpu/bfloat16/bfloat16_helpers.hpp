@@ -132,15 +132,16 @@ typedef std::tuple<
  *
  * In 3rd stage do not forget bfloat16 preffix!
  */
-class BasicBF16Test : public LayerTestsUtils::LayerTestsCommonDeprecated<basicParams> {
+class BasicBF16Test : public testing::WithParamInterface<basicParams>,
+                      public CommonTestUtils::TestsCommon {
 protected:
     virtual std::shared_ptr<ngraph::Function> createGraph(InferenceEngine::Precision netPrecision) = 0;
 
 public:
     std::shared_ptr<ngraph::Function> fnPtr;
-    std::vector<float *> refOut;
+    std::string targetDevice;
     InferenceEngine::SizeVector inputShapes, newInputShapes;
-    InferenceEngine::SizeVector refOutShape;
+    InferenceEngine::Precision inputPrecision, netPrecision;
     std::map<std::string, std::string> expectedPrecisions;
     float threshold = 2e-2;  // Is enough for tensor having abs maximum values less than 1
 
@@ -161,6 +162,20 @@ public:
         result << "netPRC=" << netPrecision.name() << "_";
         result << "targetDevice=" << targetDevice;
         return result.str();
+    }
+
+    static void setNetInOutPrecision(InferenceEngine::CNNNetwork &cnnNet, InferenceEngine::Precision inPrc,
+                                     InferenceEngine::Precision outPrc = InferenceEngine::Precision::UNSPECIFIED) {
+        if (inPrc != InferenceEngine::Precision::UNSPECIFIED) {
+            for (const auto &inputItem : cnnNet.getInputsInfo()) {
+                inputItem.second->setPrecision(inPrc);
+            }
+        }
+        if (outPrc != InferenceEngine::Precision::UNSPECIFIED) {
+            for (const auto &output : cnnNet.getOutputsInfo()) {
+                output.second->setPrecision(outPrc);
+            }
+        }
     }
 
     void test() {
