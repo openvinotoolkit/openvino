@@ -185,57 +185,38 @@ void FrontEnd::parseRNN(const Model& model, const ie::CNNLayerPtr& _layer, const
 
     auto newWeights = model->addConstData(_layer->name + "@weights", weights->desc(), generator);
 
-    if (outputs.size() == 1) {
-        auto stateCellFinal = model->addFakeData();
-        auto stage = model->addNewStage<LSTMCellStage>(
+    auto stateCellFinal = model->addFakeData();
+    auto stage = model->addNewStage<LSTMCellStage>(
         layer->name,
         StageType::LSTMCell,
         layer,
         {inputs[0], inputs[1], inputs[2], newWeights, biases},
         {outputs[0], stateCellFinal});
 
-        if (nCells > 1)
-            model->addTempBuffer(stage, DataDesc({stateSize}));
-
-        bool RNNForward = layer->direction == ie::RNNSequenceLayer::FWD;
-        stage->attrs().set<bool>("RNNForward", RNNForward);
-        stage->attrs().set<int>("nCells", nCells);
-        stage->attrs().set<int>("nBatches", nBatches);
-    }
-
     if (outputs.size() == 2) {
-        auto stage = model->addNewStage<LSTMCellStage>(
+        stage = model->addNewStage<LSTMCellStage>(
         layer->name,
         StageType::LSTMCell,
         layer,
         {inputs[0], inputs[1], inputs[2], newWeights, biases},
         {outputs[0], outputs[1]});
-
-        if (nCells > 1)
-            model->addTempBuffer(stage, DataDesc({stateSize}));
-
-        bool RNNForward = layer->direction == ie::RNNSequenceLayer::FWD;
-        stage->attrs().set<bool>("RNNForward", RNNForward);
-        stage->attrs().set<int>("nCells", nCells);
-        stage->attrs().set<int>("nBatches", nBatches);
     }
 
     if (outputs.size() == 3) {
-        auto stage = model->addNewStage<LSTMCellStage>(
+        stage = model->addNewStage<LSTMCellStage>(
         layer->name,
         StageType::LSTMCell,
         layer,
         {inputs[0], inputs[1], inputs[2], newWeights, biases},
         {outputs[0], outputs[1], outputs[2]});
-
-        if (nCells > 1)
-            model->addTempBuffer(stage, DataDesc({stateSize}));
-
-        bool RNNForward = layer->direction == ie::RNNSequenceLayer::FWD;
-        stage->attrs().set<bool>("RNNForward", RNNForward);
-        stage->attrs().set<int>("nCells", nCells);
-        stage->attrs().set<int>("nBatches", nBatches);
     }
+    if (nCells > 1)
+        model->addTempBuffer(stage, DataDesc({stateSize}));
+
+    bool RNNForward = layer->direction == ie::RNNSequenceLayer::FWD;
+    stage->attrs().set<bool>("RNNForward", RNNForward);
+    stage->attrs().set<int>("nCells", nCells);
+    stage->attrs().set<int>("nBatches", nBatches);
 }
 
 void FrontEnd::parseLSTMCell(const Model& model, const ie::CNNLayerPtr& _layer, const DataVector &inputs, const DataVector &outputs) {

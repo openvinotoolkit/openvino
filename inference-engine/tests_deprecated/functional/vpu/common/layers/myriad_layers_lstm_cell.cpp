@@ -82,9 +82,8 @@ TEST_F(myriadLayersTests_nightly, LSTMCellSequenceNet) {
     }
 
     InferenceEngine::Core ie;
-    auto full_network = ie.ReadNetwork(tensorIteratorModel, weightsBlob_for_net);
+    auto full_network = ie.ReadNetwork((output_num == 3) ? tensorIteratorModel_2 : tensorIteratorModel, weightsBlob_for_net);
     if (output_num == 3) {
-        full_network = ie.ReadNetwork(tensorIteratorModel_2, weightsBlob_for_net);
         full_network.addOutput("lstm_fused_cell/BlockLSTM/TensorIterator", 0);
         full_network.addOutput("lstm_fused_cell/BlockLSTM/TensorIterator", 1);
         full_network.addOutput("lstm_fused_cell/BlockLSTM/TensorIterator", 2);
