@@ -78,6 +78,7 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_b_fs_yx_fsv16_1x1::SetDefa
     auto autoTune = GetAutoTuneOptions(params, autoTuneIndex);
     kd.cldnnStyle.blockWidth = autoTune.blockWidth;
 
+    const auto& input = params.inputs[0];
     const auto& out = params.output;
     auto x = out.X().v;
     auto y = out.Y().v;
@@ -92,11 +93,16 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_b_fs_yx_fsv16_1x1::SetDefa
     kd.lws1 = sub_group_size;
     kd.lws2 = 1;
 
+    auto bBlockSizeX = x % autoTune.blockWidth == 0;
+    auto bBlockSizeXY = out.X().pad.Total() + out.Y().pad.Total() == 0;
+    auto bInputPad = input.X().pad.Total() + input.Y().pad.Total() != 0;
+    
     if (b == 1) {
-        if (x <= 8)
+        if ((bBlockSizeX || bBlockSizeXY) && !bInputPad) {
             kd.efficiency = FORCE_PRIORITY_1;
-        else
-            kd.efficiency = FORCE_PRIORITY_2;
+        } else {
+            kd.efficiency = FORCE_PRIORITY_3;
+        }
     } else {
         kd.efficiency = FORCE_PRIORITY_7;
     }
