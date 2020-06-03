@@ -528,28 +528,14 @@ TEST_P(myriadLayersTestsLSTMCell_smoke, LSTMCell) {
 
     IN_OUT_desc dims_output;
 
-    if (param.output_num == 3) {
-      dims_output.resize(3);
-      /* outputs */
-      dims_output[0].resize(2);
-      dims_output[0][0] = 1;
-      dims_output[0][1] = state_size;
-      dims_output[1].resize(2);
-      dims_output[1][0] = 1;
-      dims_output[1][1] = state_size;
-      dims_output[2].resize(2);
-      dims_output[2][0] = 1;
-      dims_output[2][1] = state_size;
-    } else {
-      dims_output.resize(2);
-      /* outputs */
-      dims_output[0].resize(2);
-      dims_output[0][0] = 1;
-      dims_output[0][1] = state_size;
-      dims_output[1].resize(2);
-      dims_output[1][0] = 1;
-      dims_output[1][1] = state_size;
-    }
+    dims_output.resize(2);
+    /* outputs */
+    dims_output[0].resize(2);
+    dims_output[0][0] = 1;
+    dims_output[0][1] = state_size;
+    dims_output[1].resize(2);
+    dims_output[1][0] = 1;
+    dims_output[1][1] = state_size;
 
     SetInputTensors(dims_input);
     SetOutputTensors(dims_output);
@@ -559,11 +545,7 @@ TEST_P(myriadLayersTestsLSTMCell_smoke, LSTMCell) {
     refOut0->allocate();
     auto refOut1 = make_shared_blob<ie_fp16>({Precision::FP16, dims_output[1], Layout::NC});
     refOut1->allocate();
-    auto refOut2 = make_shared_blob<ie_fp16>({Precision::FP16, dims_output[0], Layout::NC});
-    if (param.output_num == 3) {
-      refOut2 = make_shared_blob<ie_fp16>({Precision::FP16, dims_output[2], Layout::NC});
-    }
-    refOut2->allocate();
+
     // num_weights + num_bias
     auto gatesBlob = make_shared_blob<ie_fp16>({Precision::FP16, {1, ngates * state_size}, Layout::NC});
     gatesBlob->allocate();
@@ -574,7 +556,6 @@ TEST_P(myriadLayersTestsLSTMCell_smoke, LSTMCell) {
 
     ie_fp16* h_dst = static_cast<ie_fp16*>(refOut0->buffer());
     ie_fp16* c_dst = static_cast<ie_fp16*>(refOut1->buffer());
-    ie_fp16* l_h_dst = (param.output_num == 3) ? static_cast<ie_fp16*>(refOut2->buffer()) : nullptr;
     ie_fp16* gates = static_cast<ie_fp16*>(gatesBlob->buffer());
 
     /* weights repacking */
@@ -681,7 +662,7 @@ TEST_P(myriadLayersTestsLSTMCell_smoke, LSTMCell) {
               // output
               h_dst,
               c_dst,
-              l_h_dst,
+              nullptr,
 
               gates
             );
@@ -692,9 +673,7 @@ TEST_P(myriadLayersTestsLSTMCell_smoke, LSTMCell) {
     auto pOutputBlob = _outputMap.begin();
     auto outputBlob0 = pOutputBlob->second;
     CompareCommonAbsolute(outputBlob0, refOut0, ERROR_BOUND);
-    if (param.output_num > 1) {
-      pOutputBlob++;
-      auto outputBlob1 = pOutputBlob->second;
-      CompareCommonAbsolute(outputBlob1, refOut1, ERROR_BOUND);
-    }
+    pOutputBlob++;
+    auto outputBlob1 = pOutputBlob->second;
+    CompareCommonAbsolute(outputBlob1, refOut1, ERROR_BOUND);
 }
