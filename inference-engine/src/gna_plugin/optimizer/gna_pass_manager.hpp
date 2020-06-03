@@ -149,19 +149,23 @@ DECL_PASS_BEFORE_COPY(UnrollTI);
 */
 DECL_PASS_BEFORE_COPY(RemoveConst);
 
+struct PassManagerSettings {
+    Policy policy;
+    /// @brief whether to run passes before copy
+    bool runBeforeCopy;
+};
+
 
 class PassManager : public IPassManager, public std::enable_shared_from_this<PassManager> {
-    Policy policy;
+    PassManagerSettings settings;
     InferenceEngine::CNNNetPtr network;
     std::vector<std::shared_ptr<Pass>> passes;
     std::map<std::string, int> intMap;
-    bool runBeforeCopy;
 
 public:
-    explicit PassManager(Policy policy, InferenceEngine::CNNNetPtr network, bool runBeforeCopy) noexcept
-    : policy(policy)
-    , network(network)
-    , runBeforeCopy(runBeforeCopy) {}
+    explicit PassManager(PassManagerSettings settings, InferenceEngine::CNNNetPtr network) noexcept
+    : settings(settings)
+    , network(network) {}
 
     template <class T>
     void registerPass() {
@@ -171,7 +175,7 @@ public:
         return intMap[name];
     }
     const Policy & getPolicy() const override {
-        return policy;
+        return settings.policy;
     }
     const InferenceEngine::CNNNetPtr & getNetwork() const override {
         return network;
