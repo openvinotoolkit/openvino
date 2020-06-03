@@ -6,8 +6,6 @@
 #include "vpu/vpu_plugin_config.hpp"
 #include "behavior/config.hpp"
 
-using namespace LayerTestsDefinitions;
-
 namespace {
 
     const std::vector<InferenceEngine::Precision> netPrecisions = {
@@ -43,7 +41,7 @@ namespace {
 
     const std::vector<std::map<std::string, std::string>> MultiConfigs = {
             {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_MYRIAD},
-                {CONFIG_KEY(LOG_LEVEL), CONFIG_VALUE(LOG_DEBUG)}},
+             {CONFIG_KEY(LOG_LEVEL), CONFIG_VALUE(LOG_DEBUG)}},
             {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_MYRIAD},
              {VPU_CONFIG_KEY(HW_STAGES_OPTIMIZATION), CONFIG_VALUE(YES)}}
     };
@@ -89,15 +87,15 @@ namespace {
             {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_MYRIAD},
              {VPU_CONFIG_KEY(HW_STAGES_OPTIMIZATION), "ON"}},
             {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_MYRIAD},
-                {CONFIG_KEY(LOG_LEVEL), "VERBOSE"}},
+             {CONFIG_KEY(LOG_LEVEL), "VERBOSE"}},
             {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_MYRIAD},
-                {VPU_CONFIG_KEY(IGNORE_IR_STATISTIC), "ON"}},
+             {VPU_CONFIG_KEY(IGNORE_IR_STATISTIC), "ON"}},
             {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_MYRIAD},
-                {VPU_MYRIAD_CONFIG_KEY(PLATFORM), "-1"}},
+             {VPU_MYRIAD_CONFIG_KEY(PLATFORM), "-1"}},
             {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_MYRIAD},
-                {VPU_MYRIAD_CONFIG_KEY(PLATFORM), "0"}},
+             {VPU_MYRIAD_CONFIG_KEY(PLATFORM), "0"}},
             {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_MYRIAD},
-                {VPU_MYRIAD_CONFIG_KEY(PLATFORM), "1"}}
+             {VPU_MYRIAD_CONFIG_KEY(PLATFORM), "1"}}
     };
 
     INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, IncorrectConfigTests,
@@ -122,7 +120,7 @@ namespace {
 
     const std::vector<std::map<std::string, std::string>> multiInconf = {
             {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , CommonTestUtils::DEVICE_MYRIAD},
-                    {"some_nonexistent_key", "some_unknown_value"}}
+             {"some_nonexistent_key", "some_unknown_value"}}
     };
 
 

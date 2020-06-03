@@ -37,7 +37,7 @@ if (CMAKE_BUILD_TYPE STREQUAL "Release")
             set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} -z noexecstack -z relro -z now")
         endif()
     elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-        set(IE_C_CXX_FLAGS "${IE_C_CXX_FLAGS} /sdl")
+        set(IE_C_CXX_FLAGS "${IE_C_CXX_FLAGS} /sdl /guard:cf")
     endif()
 
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${IE_C_CXX_FLAGS}")

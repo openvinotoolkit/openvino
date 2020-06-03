@@ -33,6 +33,7 @@ ParamsKey QuantizeKernelScaleShift::GetSupportedKey() const {
     k.EnableOutputDataType(Datatype::INT8);
     k.EnableInputLayout(DataLayout::bfyx);
     k.EnableInputLayout(DataLayout::yxfb);
+    k.EnableInputLayout(DataLayout::byxf);
     k.EnableInputLayout(DataLayout::bfzyx);
     k.EnableInputLayout(DataLayout::b_fs_yx_fsv16);
     k.EnableInputLayout(DataLayout::b_fs_zyx_fsv16);
