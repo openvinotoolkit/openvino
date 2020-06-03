@@ -1033,8 +1033,8 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_fp32_activation_eltwise_diff_sizes,
                                 conv_eltw_test_params{CASE_CONV_ELTW_FP32_8, 3, 4},
                         }), );
 
-class conv_scale_activation_quantize_f32_eltwise_fp32_quantize_f32 : public ConvEltwTest {};
-TEST_P(conv_scale_activation_quantize_f32_eltwise_fp32_quantize_f32, basic) {
+class conv_scale_activation_eltwise_fp32_quantize_i8 : public ConvEltwTest {};
+TEST_P(conv_scale_activation_eltwise_fp32_quantize_i8, basic) {
     auto p = GetParam();
     create_topologies(input_layout("input", get_input_layout(p)),
                  data("weights", get_mem(get_weights_layout(p))),
@@ -1043,34 +1043,29 @@ TEST_P(conv_scale_activation_quantize_f32_eltwise_fp32_quantize_f32, basic) {
                  data("scale_data", get_mem(get_per_channel_layout(p))),
                  scale("scale", "conv", "scale_data"),
                  activation("activation", "scale", activation_func::hyperbolic_tan),
+                 data("eltwise_data", get_mem(layout{ p.data_type, p.input_format, p.eltw_shape })),
+                 eltwise("eltw", { "activation", "eltwise_data" }, eltwise_mode::sum, data_types::f32),
                  data("in_low", get_mem(get_per_channel_layout(p), min_random, 0)),
                  data("in_high", get_mem(get_per_channel_layout(p), 1, max_random)),
                  data("out_low", get_mem(get_single_element_layout(p), -127, 127)),
                  data("out_high", get_mem(get_single_element_layout(p), -127, 127)),
-                 quantize("quant", "activation", "in_low", "in_high", "out_low", "out_high", 255, data_types::f32),
-                 data("eltwise_data", get_mem(layout{ p.data_type, p.input_format, p.eltw_shape })),
-                 eltwise("eltw", { "quant", "eltwise_data" }, eltwise_mode::sum, data_types::f32),
-                 data("in_low2", get_mem(get_per_channel_layout(p), min_random, 0)),
-                 data("in_high2", get_mem(get_per_channel_layout(p), 1, max_random)),
-                 data("out_low2", get_mem(get_single_element_layout(p), -127, 127)),
-                 data("out_high2", get_mem(get_single_element_layout(p), -127, 127)),
-                 quantize("quant2", "eltw", "in_low2", "in_high2", "out_low2", "out_high2", 255, data_types::f32),
-                 reorder("reorder_bfyx", "quant2", p.default_format, data_types::f32)
+                 quantize("quant", "eltw", "in_low", "in_high", "out_low", "out_high", 255, data_types::i8),
+                 reorder("reorder_bfyx", "quant", p.default_format, data_types::f32)
     );
     tolerance = 1.f;
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_scale_activation_quantize_f32_eltwise_fp32_quantize_f32,
+INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_scale_activation_eltwise_fp32_quantize_i8,
                         ::testing::ValuesIn(std::vector<conv_eltw_test_params>{
-                                conv_eltw_test_params{CASE_CONV_ELTW_FP32_1, 2, 7},
-                                conv_eltw_test_params{CASE_CONV_ELTW_FP32_2, 2, 7},
-                                conv_eltw_test_params{CASE_CONV_ELTW_FP32_3, 2, 7},
-                                conv_eltw_test_params{CASE_CONV_ELTW_FP32_4, 2, 7},
-                                conv_eltw_test_params{CASE_CONV_ELTW_FP32_5, 2, 7},
-                                conv_eltw_test_params{CASE_CONV_ELTW_FP32_6, 2, 7},
-                                conv_eltw_test_params{CASE_CONV_ELTW_FP32_7, 4, 7},
-                                conv_eltw_test_params{CASE_CONV_ELTW_FP32_8, 4, 7},
+                                conv_eltw_test_params{CASE_CONV_ELTW_FP32_1, 2, 6},
+                                conv_eltw_test_params{CASE_CONV_ELTW_FP32_2, 2, 6},
+                                conv_eltw_test_params{CASE_CONV_ELTW_FP32_3, 2, 6},
+                                conv_eltw_test_params{CASE_CONV_ELTW_FP32_4, 2, 6},
+                                conv_eltw_test_params{CASE_CONV_ELTW_FP32_5, 3, 6},
+                                conv_eltw_test_params{CASE_CONV_ELTW_FP32_6, 3, 6},
+                                conv_eltw_test_params{CASE_CONV_ELTW_FP32_7, 4, 6},
+                                conv_eltw_test_params{CASE_CONV_ELTW_FP32_8, 4, 6},
                         }), );
 
 
@@ -2877,8 +2872,8 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, mvn_scale_quantize_i8,
         mvn_test_params{ CASE_MVN_3D_U8_2, 2, 4 },
 }), );
 
-class mvn_scale_activation_quantize_u8_eltwise_fp32_quantize_i8 : public MVNFusingTest {};
-TEST_P(mvn_scale_activation_quantize_u8_eltwise_fp32_quantize_i8, basic) {
+class mvn_scale_activation_eltwise_fp32_quantize_i8 : public MVNFusingTest {};
+TEST_P(mvn_scale_activation_eltwise_fp32_quantize_i8, basic) {
     auto p = GetParam();
     create_topologies(
         input_layout("input", get_input_layout(p)),
@@ -2886,26 +2881,21 @@ TEST_P(mvn_scale_activation_quantize_u8_eltwise_fp32_quantize_i8, basic) {
         data("scale_data", get_mem(get_per_channel_layout(p))),
         scale("scale", "mvn", "scale_data"),
         activation("act", "scale", activation_func::hyperbolic_tan),
-        data("in_low", get_mem(get_per_channel_layout(p), 0)),
-        data("in_high", get_mem(get_per_channel_layout(p), 1, max_random)),
-        data("out_low", get_mem(get_single_element_layout(p), 0)),
-        data("out_high", get_mem(get_single_element_layout(p), 255)),
-        quantize("quant", "act", "in_low", "in_high", "out_low", "out_high", 256, data_types::u8),
         data("eltw_data", get_mem(layout{ p.input_type, p.default_format, p.elwise_size })),
-        eltwise("eltw", {"quant", "eltw_data"}, eltwise_mode::sum, data_types::f32),
-        data("in_low2", get_mem(get_per_channel_layout(p), min_random, 0)),
-        data("in_high2", get_mem(get_per_channel_layout(p), 1, max_random)),
-        data("out_low2", get_mem(get_single_element_layout(p), -128)),
-        data("out_high2", get_mem(get_single_element_layout(p), 127)),
-        quantize("quant2", "eltw", "in_low2", "in_high2", "out_low2", "out_high2", 256, data_types::i8),
-        reorder("reorder_bfyx", "quant2", format::bfyx, data_types::f32)
+        eltwise("eltw", {"act", "eltw_data"}, eltwise_mode::sum, data_types::f32),
+        data("in_low", get_mem(get_per_channel_layout(p), min_random, 0)),
+        data("in_high", get_mem(get_per_channel_layout(p), 1, max_random)),
+        data("out_low", get_mem(get_single_element_layout(p), -128)),
+        data("out_high", get_mem(get_single_element_layout(p), 127)),
+        quantize("quant", "eltw", "in_low", "in_high", "out_low", "out_high", 256, data_types::i8),
+        reorder("reorder_bfyx", "quant", format::bfyx, data_types::f32)
     );
 
     tolerance = 1.f;
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu, mvn_scale_activation_quantize_u8_eltwise_fp32_quantize_i8,
+INSTANTIATE_TEST_CASE_P(fusings_gpu, mvn_scale_activation_eltwise_fp32_quantize_i8,
     ::testing::ValuesIn(std::vector<mvn_test_params>{
         // Full using for fp input not supported yet, it may lead to output padding and non-optimal kernel
         // mvn_test_params{ CASE_MVN_F32_1, 2, 7 },
@@ -2916,30 +2906,30 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, mvn_scale_activation_quantize_u8_eltwise_fp
         // mvn_test_params{ CASE_MVN_F16_2, 2, 7 },
         // mvn_test_params{ CASE_MVN_3D_F16_1, 2, 7 },
         // mvn_test_params{ CASE_MVN_3D_F16_2, 2, 7 },
-        mvn_test_params{ CASE_MVN_I8_1, 2, 7 },
-        mvn_test_params{ CASE_MVN_I8_2, 2, 7 },
-        mvn_test_params{ CASE_MVN_I8_3, 2, 7 },
-        mvn_test_params{ CASE_MVN_I8_4, 2, 7 },
-        mvn_test_params{ CASE_MVN_I8_5, 2, 7 },
-        mvn_test_params{ CASE_MVN_I8_6, 2, 7 },
-        mvn_test_params{ CASE_MVN_I8_7, 4, 7 },
-        mvn_test_params{ CASE_MVN_3D_I8_1, 2, 7 },
-        mvn_test_params{ CASE_MVN_3D_I8_2, 2, 7 },
-        mvn_test_params{ CASE_MVN_3D_I8_3, 2, 7 },
-        mvn_test_params{ CASE_MVN_3D_I8_4, 2, 7 },
-        mvn_test_params{ CASE_MVN_3D_I8_5, 4, 7 },
-        mvn_test_params{ CASE_MVN_U8_1, 2, 7 },
-        mvn_test_params{ CASE_MVN_U8_2, 2, 7 },
-        mvn_test_params{ CASE_MVN_U8_3, 2, 7 },
-        mvn_test_params{ CASE_MVN_U8_4, 2, 7 },
-        mvn_test_params{ CASE_MVN_U8_5, 2, 7 },
-        mvn_test_params{ CASE_MVN_U8_6, 2, 7 },
-        mvn_test_params{ CASE_MVN_U8_7, 4, 7 },
-        mvn_test_params{ CASE_MVN_3D_U8_1, 2, 7 },
-        mvn_test_params{ CASE_MVN_3D_U8_2, 2, 7 },
-        mvn_test_params{ CASE_MVN_3D_U8_3, 2, 7 },
-        mvn_test_params{ CASE_MVN_3D_U8_4, 2, 7 },
-        mvn_test_params{ CASE_MVN_3D_U8_5, 4, 7 },
+        mvn_test_params{ CASE_MVN_I8_1, 2, 6 },
+        mvn_test_params{ CASE_MVN_I8_2, 2, 6 },
+        mvn_test_params{ CASE_MVN_I8_3, 2, 6 },
+        mvn_test_params{ CASE_MVN_I8_4, 2, 6 },
+        mvn_test_params{ CASE_MVN_I8_5, 2, 6 },
+        mvn_test_params{ CASE_MVN_I8_6, 2, 6 },
+        mvn_test_params{ CASE_MVN_I8_7, 4, 6 },
+        mvn_test_params{ CASE_MVN_3D_I8_1, 2, 6 },
+        mvn_test_params{ CASE_MVN_3D_I8_2, 2, 6 },
+        mvn_test_params{ CASE_MVN_3D_I8_3, 2, 6 },
+        mvn_test_params{ CASE_MVN_3D_I8_4, 2, 6 },
+        mvn_test_params{ CASE_MVN_3D_I8_5, 4, 6 },
+        mvn_test_params{ CASE_MVN_U8_1, 2, 6 },
+        mvn_test_params{ CASE_MVN_U8_2, 2, 6 },
+        mvn_test_params{ CASE_MVN_U8_3, 2, 6 },
+        mvn_test_params{ CASE_MVN_U8_4, 2, 6 },
+        mvn_test_params{ CASE_MVN_U8_5, 2, 6 },
+        mvn_test_params{ CASE_MVN_U8_6, 2, 6 },
+        mvn_test_params{ CASE_MVN_U8_7, 4, 6 },
+        mvn_test_params{ CASE_MVN_3D_U8_1, 2, 6 },
+        mvn_test_params{ CASE_MVN_3D_U8_2, 2, 6 },
+        mvn_test_params{ CASE_MVN_3D_U8_3, 2, 6 },
+        mvn_test_params{ CASE_MVN_3D_U8_4, 2, 6 },
+        mvn_test_params{ CASE_MVN_3D_U8_5, 4, 6 },
 }), );
 
 class mvn_eltwise : public MVNFusingTest {};
