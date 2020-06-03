@@ -51,8 +51,8 @@ void FrontEnd::parseDSR(const Model& model, const ie::CNNLayerPtr& layer, const 
         const auto& shapeOutput = model->addOutputData(dataOutput->name() + "@shape", shape->desc());
 
         bindData(shapeOutput, shape->origData());
-        for (const auto& shapeConsumersEdges : shape->consumerEdges()) {
-            model->replaceStageInput(shapeConsumersEdges, shapeOutput);
+        for (const auto& shapeConsumerEdge : shape->consumerEdges()) {
+            model->replaceStageInput(shapeConsumerEdge, shapeOutput);
         }
 
         for (const auto& dataToShapeEdge : shape->childDataToShapeEdges()) {
