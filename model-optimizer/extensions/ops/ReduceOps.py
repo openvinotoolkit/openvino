@@ -140,7 +140,7 @@ class ReduceMean(ReduceOp):
 
 class ReduceL2(ReduceOp):
     op = 'ReduceL2'
-    op_type = 'ReduceL2'
+    op_type = None
     enabled = True
 
 

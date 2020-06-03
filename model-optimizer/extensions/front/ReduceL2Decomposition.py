@@ -37,7 +37,7 @@ class ReduceL2Decomposition(FrontReplacementOp):
         reduce_sum_node = ReduceSum(graph, {'keep_dims': node.soft_get('keep_dims', 0),
                                             'axis': node.soft_get('axis', None)}).create_node()
         sqrt_node = create_op_with_const_inputs(graph, Pow, {1: float_array(0.5)})
-        rename_node(sqr_node, node_name)
+        rename_node(sqrt_node, node_name)
 
         # Connect nodes
         node.in_port(0).get_connection().set_destination(sqr_node.in_port(0))
