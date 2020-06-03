@@ -2,10 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "multi-device/multi_device_config.hpp"
+#include <vector>
 
-#include "behavior/set_preprocess.hpp"
-
+#include "behavior/infer_request.hpp"
 namespace {
     const std::vector<InferenceEngine::Precision> netPrecisions = {
             InferenceEngine::Precision::FP32,
@@ -16,11 +15,10 @@ namespace {
             {}
     };
 
-    INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, PreprocessTest,
+    INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, InferRequestTests,
                             ::testing::Combine(
                                     ::testing::ValuesIn(netPrecisions),
                                     ::testing::Values("TEMPLATE"),
                                     ::testing::ValuesIn(configs)),
-                            PreprocessTest::getTestCaseName);
-
+                            InferRequestTests::getTestCaseName);
 }  // namespace

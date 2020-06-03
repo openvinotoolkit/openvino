@@ -3,10 +3,7 @@
 //
 
 #include "multi-device/multi_device_config.hpp"
-
 #include "behavior/exec_graph_info.hpp"
-
-using namespace LayerTestsDefinitions;
 
 namespace {
     const std::vector<InferenceEngine::Precision> netPrecisions = {
