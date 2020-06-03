@@ -28,7 +28,6 @@
 - [Add Inference Engine to Your Project](#add-inference-engine-to-your-project)
 - [(Optional) Additional Installation Steps for the Intel® Movidius™ Neural Compute Stick and Neural Compute Stick 2](#optional-additional-installation-steps-for-the-intel-movidius-neural-compute-stick-and-neural-compute-stick-2)
   - [For Linux, Raspbian Stretch* OS](#for-linux-raspbian-stretch-os)
-  - [For Windows](#for-windows-1)
 - [Next Steps](#next-steps)
 - [Additional Resources](#additional-resources)
 
@@ -60,12 +59,12 @@ The software was validated on:
 - [CMake]\* 3.11 or higher
 - GCC\* 4.8 or higher to build the Inference Engine
 - Python 2.7 or higher for Inference Engine Python API wrapper
-- (Optional) [Install Intel® Graphics Compute Runtime for OpenCL™ Driver package 19.41.14441].
+- (Optional) [Install Intel® Graphics Compute Runtime for OpenCL™ Driver package 20.13.16352].
 
 ### Build Steps
 1. Clone submodules:
     ```sh
-    cd dldt
+    cd openvino
     git submodule update --init --recursive
     ```
 2. Install build dependencies using the `install_dependencies.sh` script in the
@@ -78,7 +77,7 @@ The software was validated on:
    ```
 3. By default, the build enables the Inference Engine GPU plugin to infer models
    on your Intel® Processor Graphics. This requires you to
-   [Install Intel® Graphics Compute Runtime for OpenCL™ Driver package 19.41.14441]
+   [Install Intel® Graphics Compute Runtime for OpenCL™ Driver package 20.13.16352]
    before running the build. If you don't want to use the GPU plugin, use the
    `-DENABLE_CLDNN=OFF` CMake build option and skip the installation of the
    Intel® Graphics Compute Runtime for OpenCL™ Driver.
@@ -172,10 +171,10 @@ Native compilation of the Inference Engine is the most straightforward solution.
   sudo apt-get install -y git cmake libusb-1.0-0-dev
   ```
 
-2. Go to the cloned `dldt` repository:
+2. Go to the cloned `openvino` repository:
 
   ```bash
-  cd dldt
+  cd openvino
   ```
 
 3. Initialize submodules:
@@ -262,15 +261,15 @@ with the following content:
 5. Run Docker\* container with mounted source code folder from host:
 
   ```bash
-  docker run -it -v /absolute/path/to/dldt:/dldt ie_cross_armhf /bin/bash
+  docker run -it -v /absolute/path/to/openvino:/openvino ie_cross_armhf /bin/bash
   ```
 
 6. While in the container:
 
-    1. Go to the cloned `dldt` repository:
+    1. Go to the cloned `openvino` repository:
 
       ```bash
-      cd dldt
+      cd openvino
       ```
 
     2. Create a build folder:
@@ -291,8 +290,8 @@ with the following content:
       ```
 
 7. Press **Ctrl+D** to exit from Docker. You can find the resulting binaries
-   in the `dldt/bin/armv7l/` directory and the OpenCV*
-   installation in the `dldt/inference-engine/temp`.
+   in the `openvino/bin/armv7l/` directory and the OpenCV*
+   installation in the `openvino/inference-engine/temp`.
 
 >**NOTE**: Native applications that link to cross-compiled Inference Engine
 library require an extra compilation flag `-march=armv7-a`.
@@ -381,8 +380,8 @@ cmake -G "Visual Studio 15 2017 Win64" -T "Intel C++ Compiler 18.0" ^
 
 6. Before running the samples, add paths to the TBB and OpenCV binaries used for
    the build to the `%PATH%` environment variable. By default, TBB binaries are
-   downloaded by the CMake-based script to the `<dldt_repo>/inference-engine/temp/tbb/bin`
-   folder, OpenCV binaries to the `<dldt_repo>/inference-engine/temp/opencv_4.3.0/opencv/bin`
+   downloaded by the CMake-based script to the `<openvino_repo>/inference-engine/temp/tbb/bin`
+   folder, OpenCV binaries to the `<openvino_repo>/inference-engine/temp/opencv_4.3.0/opencv/bin`
    folder.
 
 ### Additional Build Options
@@ -437,7 +436,7 @@ cmake -G "Visual Studio 15 2017 Win64" -T "Intel C++ Compiler 18.0" ^
 call "C:\Program Files (x86)\IntelSWTools\compilers_and_libraries_2018\windows\bin\ipsxe-comp-vars.bat" intel64 vs2017
 set CXX=icl
 set CC=icl
-:: clean TBBROOT value set by ipsxe-comp-vars.bat, required TBB package will be downloaded by dldt cmake script
+:: clean TBBROOT value set by ipsxe-comp-vars.bat, required TBB package will be downloaded by openvino cmake script
 set TBBROOT=
 cmake -G Ninja -Wno-dev -DCMAKE_BUILD_TYPE=Release ..
 cmake --build . --config Release
@@ -461,7 +460,7 @@ The software was validated on:
 
 1. Clone submodules:
     ```sh
-    cd dldt
+    cd openvino
     git submodule update --init --recursive
     ```
 2. Install build dependencies using the `install_dependencies.sh` script in the
@@ -545,7 +544,7 @@ This section describes how to build Inference Engine for Android x86 (64-bit) op
 
 2. Clone submodules
   ```sh
-  cd dldt
+  cd openvino
   git submodule update --init --recursive
   ```
 
@@ -610,7 +609,7 @@ before running the Inference Engine build:
 For CMake projects, set the `InferenceEngine_DIR` environment variable:
 
 ```sh
-export InferenceEngine_DIR=/path/to/dldt/build/
+export InferenceEngine_DIR=/path/to/openvino/build/
 ```
 
 Then you can find Inference Engine by `find_package`:
@@ -660,20 +659,6 @@ sudo ldconfig
 rm 97-myriad-usbboot.rules
 ```
 
-### For Windows
-
-For Intel® Movidius™ Neural Compute Stick and Intel® Neural Compute Stick 2,
-install the Movidius™ VSC driver:
-
-1. Go to the `<DLDT_ROOT_DIR>/inference-engine/thirdparty/movidius/MovidiusDriver`
-   directory, where the `DLDT_ROOT_DIR` is the directory to which the DLDT
-   repository was cloned.
-2. Right click on the `Movidius_VSC_Device.inf` file and choose **Install** from
-   the pop-up menu.
-
-You have installed the driver for your Intel® Movidius™ Neural Compute Stick
-or Intel® Neural Compute Stick 2.
-
 ## Next Steps
 
 Congratulations, you have built the Inference Engine. To get started with the
@@ -706,7 +691,7 @@ This target collects all dependencies, prepares the nGraph package and copies it
 
 [Intel® Distribution of OpenVINO™]:https://software.intel.com/en-us/openvino-toolkit
 [CMake]:https://cmake.org/download/
-[Install Intel® Graphics Compute Runtime for OpenCL™ Driver package 19.41.14441]:https://github.com/intel/compute-runtime/releases/tag/19.41.14441
+[Install Intel® Graphics Compute Runtime for OpenCL™ Driver package 20.13.16352]:https://github.com/intel/compute-runtime/releases/tag/20.13.16352
 [MKL-DNN repository]:https://github.com/intel/mkl-dnn/releases/download/v0.19/mklml_lnx_2019.0.5.20190502.tgz
 [MKL-DNN repository for Windows]:(https://github.com/intel/mkl-dnn/releases/download/v0.19/mklml_win_2019.0.5.20190502.zip)
 [OpenBLAS]:https://sourceforge.net/projects/openblas/files/v0.2.14/OpenBLAS-v0.2.14-Win64-int64.zip/download

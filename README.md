@@ -1,5 +1,5 @@
 # [OpenVINO™ Toolkit](https://01.org/openvinotoolkit) - Deep Learning Deployment Toolkit repository
-[![Stable release](https://img.shields.io/badge/version-2020.2-green.svg)](https://github.com/openvinotoolkit/openvino/releases/tag/2020.2)
+[![Stable release](https://img.shields.io/badge/version-2020.3-green.svg)](https://github.com/openvinotoolkit/openvino/releases/tag/2020.3.0)
 [![Apache License Version 2.0](https://img.shields.io/badge/license-Apache_2.0-green.svg)](LICENSE)
 
 This toolkit allows developers to deploy pre-trained deep learning models 
