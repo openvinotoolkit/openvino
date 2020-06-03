@@ -173,7 +173,8 @@ namespace
     bool evaluate_softmax(const HostTensorPtr& arg, const HostTensorPtr& out, const AxisSet& axes)
     {
         auto shape = out->get_shape();
-        return try_evaluate_softmax<element::Type_t::f32>(arg, out, shape, axes) ||
+        return try_evaluate_softmax<element::Type_t::f16>(arg, out, shape, axes) ||
+               try_evaluate_softmax<element::Type_t::f32>(arg, out, shape, axes) ||
                try_evaluate_softmax<element::Type_t::f64>(arg, out, shape, axes);
     }
 }
