@@ -2932,7 +2932,6 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu,
                             lrn_test_params{CASE_LRN_FP16_5, 2, 4, lrn_norm_region_across_channel, "lrn_gpu_across_channel_multiple_features"},
                         }), );
 
-
 /* ----------------------------------------------------------------------------------------------------- */
 /* -------------------------------- Activation cases --------------------------------------------------- */
 /* ----------------------------------------------------------------------------------------------------- */
@@ -2940,43 +2939,62 @@ struct activation_test_params {
     tensor input_size;
     data_types input_type;
     format input_format;
-    activation_func activation_function;
-    activation_additional_params additional_params;
     data_types default_type;
     format default_format;
     size_t expected_fused_primitives;
     size_t expected_not_fused_primitives;
+    std::string kernel_name;
 };
 
-#define CASE_ACTIVATION_F32_1 {1, 16, 8, 8}, data_types::f32, format::bfyx, activation_func::hyperbolic_tan, {0.f, 0.f}, data_types::f32, format::bfyx
-#define CASE_ACTIVATION_F32_2 {1, 16, 8, 8}, data_types::f32, format::bfyx, activation_func::hard_sigmoid, {1.f, 1.f}, data_types::f32, format::bfyx
-#define CASE_ACTIVATION_F32_3 {1, 16, 8, 8}, data_types::f32, format::bfyx, activation_func::relu, {0.f, 0.f}, data_types::f32, format::bfyx
-#define CASE_ACTIVATION_F32_4 {1, 16, 8, 8}, data_types::f32, format::b_fs_yx_fsv16, activation_func::hyperbolic_tan, {0.f, 0.f}, data_types::f32, format::bfyx
-#define CASE_ACTIVATION_F32_5 {1, 16, 8, 8}, data_types::f32, format::b_fs_yx_fsv16, activation_func::hard_sigmoid, {1.f, 1.f}, data_types::f32, format::bfyx
-#define CASE_ACTIVATION_F32_6 {1, 16, 8, 8}, data_types::f32, format::b_fs_yx_fsv16, activation_func::relu, {0.f, 0.f}, data_types::f32, format::bfyx
-#define CASE_ACTIVATION_3D_F32_1 {1, 16, 8, 8, 8}, data_types::f32, format::bfzyx, activation_func::hyperbolic_tan, {0.f, 0.f}, data_types::f32, format::bfyx
-#define CASE_ACTIVATION_3D_F32_2 {1, 16, 8, 8, 8}, data_types::f32, format::bfzyx, activation_func::hard_sigmoid, {0.f, 0.f}, data_types::f32, format::bfyx
-#define CASE_ACTIVATION_3D_F32_3 {1, 16, 8, 8, 8}, data_types::f32, format::bfzyx, activation_func::relu, {0.f, 0.f}, data_types::f32, format::bfyx
-#define CASE_ACTIVATION_F16_1 {1, 16, 8, 8}, data_types::f16, format::bfyx, activation_func::hyperbolic_tan, {0.f, 0.f}, data_types::f32, format::bfyx
-#define CASE_ACTIVATION_F16_2 {1, 16, 8, 8}, data_types::f16, format::bfyx, activation_func::hard_sigmoid, {1.f, 1.f}, data_types::f32, format::bfyx
-#define CASE_ACTIVATION_F16_3 {1, 16, 8, 8}, data_types::f16, format::bfyx, activation_func::relu, {0.f, 0.f}, data_types::f32, format::bfyx
-#define CASE_ACTIVATION_F16_4 {1, 16, 8, 8}, data_types::f16, format::b_fs_yx_fsv16, activation_func::hyperbolic_tan, {0.f, 0.f}, data_types::f32, format::bfyx
-#define CASE_ACTIVATION_F16_5 {1, 16, 8, 8}, data_types::f16, format::b_fs_yx_fsv16, activation_func::hard_sigmoid, {1.f, 1.f}, data_types::f32, format::bfyx
-#define CASE_ACTIVATION_F16_6 {1, 16, 8, 8}, data_types::f16, format::b_fs_yx_fsv16, activation_func::relu, {0.f, 0.f}, data_types::f32, format::bfyx
-#define CASE_ACTIVATION_3D_F16_1 {1, 16, 8, 8, 8}, data_types::f16, format::bfzyx, activation_func::hyperbolic_tan, {0.f, 0.f}, data_types::f32, format::bfyx
-#define CASE_ACTIVATION_3D_F16_2 {1, 16, 8, 8, 8}, data_types::f16, format::bfzyx, activation_func::hard_sigmoid, {0.f, 0.f}, data_types::f32, format::bfyx
-#define CASE_ACTIVATION_3D_F16_3 {1, 16, 8, 8, 8}, data_types::f16, format::bfzyx, activation_func::relu, {0.f, 0.f}, data_types::f32, format::bfyx
-#define CASE_ACTIVATION_U8_1 {1, 16, 8, 8}, data_types::u8, format::bfyx, activation_func::relu, {0.f, 0.f}, data_types::f32, format::bfyx
-#define CASE_ACTIVATION_U8_2 {1, 16, 8, 8}, data_types::u8, format::b_fs_yx_fsv16, activation_func::relu, {0.f, 0.f}, data_types::f32, format::bfyx
-#define CASE_ACTIVATION_3D_U8_1 {1, 16, 8, 8, 8}, data_types::u8, format::bfzyx, activation_func::relu, {0.f, 0.f}, data_types::f32, format::bfyx
+#define CASE_ACTIVATION_F32_0 {7, 32, 3, 3}, data_types::f32, format::bfyx, data_types::f32, format::bfyx
+#define CASE_ACTIVATION_F32_1 {1, 16, 8, 8}, data_types::f32, format::bfyx, data_types::f32, format::bfyx
+#define CASE_ACTIVATION_F32_2 {7, 3, 7, 7}, data_types::f32, format::b_fs_yx_fsv16, data_types::f32, format::bfyx
+#define CASE_ACTIVATION_F32_3 {1, 14, 8, 8}, data_types::f32, format::b_fs_yx_fsv16, data_types::f32, format::bfyx
+#define CASE_ACTIVATION_F32_4 {1, 17, 31, 29}, data_types::f32, format::yxfb, data_types::f32, format::bfyx
+#define CASE_ACTIVATION_F32_5 {1, 17, 31, 29}, data_types::f32, format::byxf_af32, data_types::f32, format::bfyx
+#define CASE_ACTIVATION_F32_6 {1, 17, 31, 29}, data_types::f32, format::b_fs_yx_fsv32, data_types::f32, format::bfyx
+#define CASE_ACTIVATION_F32_7 {1, 17, 31, 29}, data_types::f32, format::fyxb, data_types::f32, format::bfyx
+#define CASE_ACTIVATION_3D_F32_0 {3, 16, 13, 13, 13}, data_types::f32, format::bfzyx, data_types::f32, format::bfzyx
+#define CASE_ACTIVATION_3D_F32_1 {2, 16, 8, 8, 8}, data_types::f32, format::bfzyx, data_types::f32, format::bfzyx
+#define CASE_ACTIVATION_3D_F32_2 {1, 16, 7, 7, 7}, data_types::f32, format::b_fs_zyx_fsv16, data_types::f32, format::bfzyx
+#define CASE_ACTIVATION_3D_F32_3 {1, 17, 7, 7, 7}, data_types::f32, format::b_fs_zyx_fsv32, data_types::f32, format::bfzyx
+#define CASE_ACTIVATION_3D_F32_4 {1, 17, 7, 7, 7}, data_types::f32, format::bs_fs_yx_bsv16_fsv16, data_types::f32, format::bfzyx
+#define CASE_ACTIVATION_3D_F32_5 {1, 17, 7, 7, 7}, data_types::f32, format::fs_b_yx_fsv32, data_types::f32, format::bfzyx
+#define CASE_ACTIVATION_3D_F32_6 {1, 17, 7, 7, 7}, data_types::f32, format::fs_bs_yx_bsv4_fsv32, data_types::f32, format::bfzyx
+
+#define CASE_ACTIVATION_F16_0 {7, 32, 5, 5}, data_types::f16, format::bfyx, data_types::f32, format::bfyx
+#define CASE_ACTIVATION_F16_1 {1, 16, 8, 8}, data_types::f16, format::bfyx, data_types::f32, format::bfyx
+#define CASE_ACTIVATION_F16_2 {7, 16, 7, 7}, data_types::f16, format::b_fs_yx_fsv16, data_types::f32, format::bfyx
+#define CASE_ACTIVATION_F16_3 {1, 14, 8, 8}, data_types::f16, format::b_fs_yx_fsv16, data_types::f32, format::bfyx
+#define CASE_ACTIVATION_F16_4 {1, 17, 31, 29}, data_types::f16, format::yxfb, data_types::f32, format::bfyx
+#define CASE_ACTIVATION_F16_5 {1, 17, 31, 29}, data_types::f16, format::byxf_af32, data_types::f32, format::bfyx
+#define CASE_ACTIVATION_F16_6 {1, 17, 31, 29}, data_types::f16, format::b_fs_yx_fsv32, data_types::f32, format::bfyx
+#define CASE_ACTIVATION_F16_7 {1, 17, 31, 29}, data_types::f16, format::fyxb, data_types::f32, format::bfyx
+#define CASE_ACTIVATION_3D_F16_0 {3, 16, 13, 13, 13}, data_types::f16, format::bfzyx, data_types::f32, format::bfzyx
+#define CASE_ACTIVATION_3D_F16_1 {2, 16, 8, 8, 8}, data_types::f16, format::bfzyx, data_types::f32, format::bfzyx
+#define CASE_ACTIVATION_3D_F16_2 {1, 16, 7, 7, 7}, data_types::f16, format::b_fs_zyx_fsv16, data_types::f32, format::bfzyx
+#define CASE_ACTIVATION_3D_F16_3 {1, 17, 7, 7, 7}, data_types::f16, format::b_fs_zyx_fsv32, data_types::f32, format::bfzyx
+#define CASE_ACTIVATION_3D_F16_4 {1, 17, 7, 7, 7}, data_types::f16, format::bs_fs_yx_bsv16_fsv16, data_types::f32, format::bfzyx
+#define CASE_ACTIVATION_3D_F16_5 {1, 17, 7, 7, 7}, data_types::f16, format::fs_b_yx_fsv32, data_types::f32, format::bfzyx
+#define CASE_ACTIVATION_3D_F16_6 {1, 17, 7, 7, 7}, data_types::f16, format::fs_bs_yx_bsv4_fsv32, data_types::f32, format::bfzyx
+
+#define CASE_ACTIVATION_U8_1 {1, 16, 8, 8}, data_types::u8, format::bfyx, data_types::f32, format::bfyx
+#define CASE_ACTIVATION_U8_2 {1, 12, 8, 8}, data_types::u8, format::b_fs_yx_fsv16, data_types::f32, format::bfyx
+#define CASE_ACTIVATION_I8_1 {1, 16, 8, 8}, data_types::i8, format::bfyx, data_types::f32, format::bfyx
+#define CASE_ACTIVATION_I8_2 {1, 14, 8, 8}, data_types::i8, format::b_fs_yx_fsv16, data_types::f32, format::bfyx
+#define CASE_ACTIVATION_3D_I8_1 {1, 17, 8, 8, 8}, data_types::i8, format::bfzyx, data_types::f32, format::bfzyx
 
 class ActivationFusingTest : public ::BaseFusingTest<activation_test_params> {
 public:
     void execute(activation_test_params& p) {
         auto input_prim = get_mem(get_input_layout(p));
 
+        build_options options;
+        implementation_desc activation_impl = {p.input_format, p.kernel_name};
+        options.set_option(build_option::optimize_data(true));
+        options.set_option(build_option::force_implementations({{"act", activation_impl}}));
+        network network_fused(this->engine, this->topology_fused, options);
         network network_not_fused(this->engine, this->topology_non_fused, bo_not_fused);
-        network network_fused(this->engine, this->topology_fused, bo_fused);
 
         network_fused.set_input_data("input", input_prim);
         network_not_fused.set_input_data("input", input_prim);
@@ -2989,8 +3007,7 @@ public:
     layout get_per_channel_layout(activation_test_params& p) {
         return layout{p.default_type, p.default_format, tensor{1, p.input_size.feature[0], 1, 1}};
     }
-    activation_func get_activation_function(activation_test_params& p) { return p.activation_function; }
-    activation_additional_params get_activation_additional_params(activation_test_params& p) { return p.additional_params; }
+
     format get_input_format(activation_test_params &p) { return p.input_format; }
 };
 
@@ -2998,68 +3015,97 @@ class activation_quantize_i8 : public ActivationFusingTest {};
 TEST_P(activation_quantize_i8, basic) {
     auto p = GetParam();
     create_topologies(input_layout("input", get_input_layout(p)),
-                      activation("act", "input", get_activation_function(p), get_activation_additional_params(p)),
-                      data("in_low", get_mem(get_per_channel_layout(p), min_random, 0)),
-                      data("in_high", get_mem(get_per_channel_layout(p), 1, max_random)),
+                      activation("act", "input", activation_func::relu),
+                      data("in_low", get_mem(get_single_element_layout(p), min_random, 0)),
+                      data("in_high", get_mem(get_single_element_layout(p), 1, max_random)),
                       data("out_low", get_mem(get_single_element_layout(p), -127, 0)),
                       data("out_high", get_mem(get_single_element_layout(p), 0, 127)),
                       quantize("quant", "act", "in_low", "in_high", "out_low", "out_high", 255, data_types::i8),
-                      reorder("reorder_bfyx", "quant", format::bfyx, data_types::f32));
+                      reorder("reorder_bfyx", "quant", p.default_format, data_types::f32));
 
-    tolerance = 1.f;
+    tolerance = 1.0f;
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(
-    fusings_gpu,
-    activation_quantize_i8,
-    ::testing::ValuesIn(std::vector<activation_test_params>{
-        activation_test_params{CASE_ACTIVATION_F32_1, 2, 3},
-        activation_test_params{CASE_ACTIVATION_F32_2, 2, 3},
-        activation_test_params{CASE_ACTIVATION_F32_3, 2, 3},
-        activation_test_params{CASE_ACTIVATION_F32_4, 2, 3},
-        activation_test_params{CASE_ACTIVATION_F32_5, 2, 3},
-        activation_test_params{CASE_ACTIVATION_F32_6, 2, 3},
-        activation_test_params{CASE_ACTIVATION_3D_F32_1, 2, 3},
-        activation_test_params{CASE_ACTIVATION_3D_F32_2, 2, 3},
-        activation_test_params{CASE_ACTIVATION_3D_F32_3, 2, 3}
-    }), );
-
-INSTANTIATE_TEST_CASE_P(
-    DISABLED_fusings_gpu,
-    activation_quantize_i8,
-    ::testing::ValuesIn(std::vector<activation_test_params>{
-        // fp16 cases
-        activation_test_params{CASE_ACTIVATION_F16_1, 2, 3},
-        activation_test_params{CASE_ACTIVATION_F16_2, 2, 3},
-        activation_test_params{CASE_ACTIVATION_F16_3, 2, 3},
-        activation_test_params{CASE_ACTIVATION_F16_4, 2, 3},
-        activation_test_params{CASE_ACTIVATION_F16_5, 2, 3},
-        activation_test_params{CASE_ACTIVATION_F16_6, 2, 3},
-        activation_test_params{CASE_ACTIVATION_3D_F16_1, 2, 3},
-        activation_test_params{CASE_ACTIVATION_3D_F16_2, 2, 3},
-        activation_test_params{CASE_ACTIVATION_3D_F16_3, 2, 3},
-
-        // u8 cases
-        activation_test_params{CASE_ACTIVATION_U8_1, 2, 3},
-        activation_test_params{CASE_ACTIVATION_U8_2, 2, 3},
-        activation_test_params{CASE_ACTIVATION_3D_U8_1, 2, 3}
-    }), );
-
-class activation_opt_quantize_i8 : public ActivationFusingTest {};
-TEST_P(activation_opt_quantize_i8, basic) {
+TEST_P(activation_quantize_i8, per_channel) {
     auto p = GetParam();
-    implementation_desc activation_impl = {get_input_format(p), "activation_opt"};
-    this->bo_fused.set_option(build_option::force_implementations({{"act", activation_impl}}));
-
     create_topologies(input_layout("input", get_input_layout(p)),
-                      activation("act", "input", get_activation_function(p), get_activation_additional_params(p)),
+                      activation("act", "input", activation_func::relu),
                       data("in_low", get_mem(get_per_channel_layout(p), min_random, 0)),
                       data("in_high", get_mem(get_per_channel_layout(p), 1, max_random)),
                       data("out_low", get_mem(get_single_element_layout(p), -127, 0)),
                       data("out_high", get_mem(get_single_element_layout(p), 0, 127)),
                       quantize("quant", "act", "in_low", "in_high", "out_low", "out_high", 255, data_types::i8),
-                      reorder("reorder_bfyx", "quant", format::bfyx, data_types::f32));
+                      reorder("reorder_bfyx", "quant", p.default_format, data_types::f32));
+
+    tolerance = 1.0f;
+    execute(p);
+}
+
+INSTANTIATE_TEST_CASE_P(
+    fusings_gpu,
+    activation_quantize_i8,
+    ::testing::ValuesIn(std::vector<activation_test_params>{
+        // InputDataType = FP32
+        activation_test_params{CASE_ACTIVATION_F32_0, 2, 3, "activation_opt"},
+        activation_test_params{CASE_ACTIVATION_F32_1, 2, 3, "activation_opt"},
+        activation_test_params{CASE_ACTIVATION_3D_F32_0, 2, 3, "activation_opt"},
+        activation_test_params{CASE_ACTIVATION_3D_F32_1, 2, 3, "activation_opt"},
+
+        activation_test_params{CASE_ACTIVATION_F32_0, 2, 3, "activation_ref"},
+        activation_test_params{CASE_ACTIVATION_F32_1, 2, 3, "activation_ref"},
+        activation_test_params{CASE_ACTIVATION_F32_2, 2, 3, "activation_ref"},
+        activation_test_params{CASE_ACTIVATION_F32_3, 2, 3, "activation_ref"},
+        activation_test_params{CASE_ACTIVATION_F32_4, 2, 3, "activation_ref"},
+        activation_test_params{CASE_ACTIVATION_3D_F32_0, 2, 3, "activation_ref"},
+        activation_test_params{CASE_ACTIVATION_3D_F32_1, 2, 3, "activation_ref"},
+        activation_test_params{CASE_ACTIVATION_3D_F32_2, 2, 3, "activation_ref"},
+    }), );
+
+INSTANTIATE_TEST_CASE_P(
+    DISABLED_fusings_gpu,
+    activation_quantize_i8,
+    ::testing::ValuesIn(std::vector<activation_test_params>{
+        activation_test_params{CASE_ACTIVATION_F32_5, 2, 3, "activation_ref"},     // FIXME - accuracy bug
+        activation_test_params{CASE_ACTIVATION_F32_6, 2, 3, "activation_ref"},     // FIXME - accuracy bug
+        activation_test_params{CASE_ACTIVATION_F32_7, 2, 3, "activation_ref"},     // FIXME - accuracy bug
+        activation_test_params{CASE_ACTIVATION_3D_F32_3, 2, 3, "activation_ref"},  // FIXME - accuracy bug
+        activation_test_params{CASE_ACTIVATION_3D_F32_5, 2, 3, "activation_ref"},  // FIXME - accuracy bug
+        activation_test_params{CASE_ACTIVATION_3D_F32_6, 2, 3, "activation_ref"},  // FIXME - accuracy bug
+    }), );
+
+class activation_scale_activation_quantize_i8 : public ActivationFusingTest {};
+TEST_P(activation_scale_activation_quantize_i8, basic) {
+    auto p = GetParam();
+    create_topologies(input_layout("input", get_input_layout(p)),
+                      activation("act", "input", activation_func::relu),
+                      data("scale_data", get_mem(get_single_element_layout(p), 1.0f / 255)),
+                      data("in_low", get_mem(get_single_element_layout(p), min_random, 0)),
+                      data("in_high", get_mem(get_single_element_layout(p), 1, max_random)),
+                      data("out_low", get_mem(get_single_element_layout(p), 0)),
+                      data("out_high", get_mem(get_single_element_layout(p), 255)),
+                      scale("scale", "act", "scale_data"),
+                      activation("act2", "scale", activation_func::softsign),
+                      quantize("quant", "act2", "in_low", "in_high", "out_low", "out_high", 255, data_types::i8),
+                      reorder("reorder_bfyx", "quant", p.default_format, data_types::f32));
+
+    tolerance = 1.f;
+    execute(p);
+}
+
+TEST_P(activation_scale_activation_quantize_i8, per_channel) {
+    auto p = GetParam();
+    create_topologies(input_layout("input", get_input_layout(p)),
+                      activation("act", "input", activation_func::relu),
+                      data("scale_data", get_mem(get_single_element_layout(p), 1.0f / 255)),
+                      data("in_low", get_mem(get_per_channel_layout(p), min_random, 0)),
+                      data("in_high", get_mem(get_per_channel_layout(p), 1, max_random)),
+                      data("out_low", get_mem(get_single_element_layout(p), 0)),
+                      data("out_high", get_mem(get_single_element_layout(p), 255)),
+                      scale("scale", "act", "scale_data"),
+                      activation("act2", "scale", activation_func::softsign),
+                      quantize("quant", "act2", "in_low", "in_high", "out_low", "out_high", 255, data_types::i8),
+                      reorder("reorder_bfyx", "quant", p.default_format, data_types::f32));
 
     tolerance = 1.f;
     execute(p);
@@ -3067,31 +3113,113 @@ TEST_P(activation_opt_quantize_i8, basic) {
 
 INSTANTIATE_TEST_CASE_P(
     fusings_gpu,
-    activation_opt_quantize_i8,
+    activation_scale_activation_quantize_i8,
     ::testing::ValuesIn(std::vector<activation_test_params>{
-        activation_test_params{CASE_ACTIVATION_F32_1, 2, 3},
-        activation_test_params{CASE_ACTIVATION_F32_2, 2, 3},
-        activation_test_params{CASE_ACTIVATION_F32_3, 2, 3},
-        activation_test_params{CASE_ACTIVATION_3D_F32_1, 2, 3},
-        activation_test_params{CASE_ACTIVATION_3D_F32_2, 2, 3},
-        activation_test_params{CASE_ACTIVATION_3D_F32_3, 2, 3}
+        // InputDataType = FP32
+        activation_test_params{CASE_ACTIVATION_F32_0, 2, 5, "activation_opt"},
+        activation_test_params{CASE_ACTIVATION_F32_1, 2, 5, "activation_opt"},
+        activation_test_params{CASE_ACTIVATION_3D_F32_0, 2, 5, "activation_opt"},
+        activation_test_params{CASE_ACTIVATION_3D_F32_1, 2, 5, "activation_opt"},
+
+        activation_test_params{CASE_ACTIVATION_F32_0, 2, 5, "activation_ref"},
+        activation_test_params{CASE_ACTIVATION_F32_1, 2, 5, "activation_ref"},
+        activation_test_params{CASE_ACTIVATION_F32_2, 2, 5, "activation_ref"},
+        activation_test_params{CASE_ACTIVATION_F32_3, 2, 5, "activation_ref"},
+        activation_test_params{CASE_ACTIVATION_F32_4, 2, 5, "activation_ref"},
+        activation_test_params{CASE_ACTIVATION_F32_5, 2, 5, "activation_ref"},
+        activation_test_params{CASE_ACTIVATION_F32_6, 2, 5, "activation_ref"},
+        activation_test_params{CASE_ACTIVATION_F32_7, 2, 5, "activation_ref"},
+        activation_test_params{CASE_ACTIVATION_3D_F32_0, 2, 5, "activation_ref"},
+        activation_test_params{CASE_ACTIVATION_3D_F32_1, 2, 5, "activation_ref"},
+        activation_test_params{CASE_ACTIVATION_3D_F32_2, 2, 5, "activation_ref"},
     }), );
 
 INSTANTIATE_TEST_CASE_P(
     DISABLED_fusings_gpu,
-    activation_opt_quantize_i8,
+    activation_scale_activation_quantize_i8,
     ::testing::ValuesIn(std::vector<activation_test_params>{
-        // fp16 cases
-        activation_test_params{CASE_ACTIVATION_F16_1, 2, 3},
-        activation_test_params{CASE_ACTIVATION_F16_2, 2, 3},
-        activation_test_params{CASE_ACTIVATION_F16_3, 2, 3},
-        activation_test_params{CASE_ACTIVATION_3D_F16_1, 2, 3},
-        activation_test_params{CASE_ACTIVATION_3D_F16_2, 2, 3},
-        activation_test_params{CASE_ACTIVATION_3D_F16_3, 2, 3},
+        activation_test_params{CASE_ACTIVATION_3D_F32_5, 2, 5, "activation_ref"},  // FIXME - accuracy bug
+        activation_test_params{CASE_ACTIVATION_3D_F32_6, 2, 5, "activation_ref"},  // FIXME - accuracy bug
+    }), );
 
-        // u8 cases
-        activation_test_params{CASE_ACTIVATION_U8_1, 2, 3},
-        activation_test_params{CASE_ACTIVATION_3D_U8_1, 2, 3}
+class activation_scale_activation : public ActivationFusingTest {};
+TEST_P(activation_scale_activation, basic) {
+    auto p = GetParam();
+    create_topologies(input_layout("input", get_input_layout(p)),
+                      activation("act", "input", activation_func::relu),
+                      data("scale_data", get_mem(get_single_element_layout(p), 1.0f / 255)),
+                      scale("scale", "act", "scale_data"),
+                      activation("act2", "scale", activation_func::exp),
+                      reorder("reorder_bfyx", "act2", p.default_format, data_types::f32));
+
+    tolerance = 1e-05f;
+    execute(p);
+}
+
+INSTANTIATE_TEST_CASE_P(
+    fusings_gpu,
+    activation_scale_activation,
+    ::testing::ValuesIn(std::vector<activation_test_params>{
+        // InputDataType = FP32
+        activation_test_params{CASE_ACTIVATION_F32_0, 2, 4, "activation_opt"},
+        activation_test_params{CASE_ACTIVATION_F32_1, 2, 4, "activation_opt"},
+        activation_test_params{CASE_ACTIVATION_3D_F32_0, 2, 4, "activation_opt"},
+        activation_test_params{CASE_ACTIVATION_3D_F32_1, 2, 4, "activation_opt"},
+
+        activation_test_params{CASE_ACTIVATION_F32_0, 2, 4, "activation_ref"},
+        activation_test_params{CASE_ACTIVATION_F32_1, 2, 4, "activation_ref"},
+        activation_test_params{CASE_ACTIVATION_F32_2, 2, 4, "activation_ref"},
+        activation_test_params{CASE_ACTIVATION_F32_3, 2, 4, "activation_ref"},
+        activation_test_params{CASE_ACTIVATION_F32_4, 2, 4, "activation_ref"},
+        activation_test_params{CASE_ACTIVATION_F32_5, 2, 4, "activation_ref"},
+        activation_test_params{CASE_ACTIVATION_F32_6, 2, 4, "activation_ref"},
+        activation_test_params{CASE_ACTIVATION_F32_7, 2, 4, "activation_ref"},
+        activation_test_params{CASE_ACTIVATION_3D_F32_0, 2, 4, "activation_ref"},
+        activation_test_params{CASE_ACTIVATION_3D_F32_1, 2, 4, "activation_ref"},
+        activation_test_params{CASE_ACTIVATION_3D_F32_2, 2, 4, "activation_ref"},
+
+        // InputDataType = FP16
+        activation_test_params{CASE_ACTIVATION_F16_0, 2, 4, "activation_opt"},
+        activation_test_params{CASE_ACTIVATION_F16_1, 2, 4, "activation_opt"},
+        activation_test_params{CASE_ACTIVATION_3D_F16_0, 2, 4, "activation_opt"},
+        activation_test_params{CASE_ACTIVATION_3D_F16_1, 2, 4, "activation_opt"},
+
+        activation_test_params{CASE_ACTIVATION_F16_0, 2, 4, "activation_ref"},
+        activation_test_params{CASE_ACTIVATION_F16_1, 2, 4, "activation_ref"},
+        activation_test_params{CASE_ACTIVATION_F16_2, 2, 4, "activation_ref"},
+        activation_test_params{CASE_ACTIVATION_F16_3, 2, 4, "activation_ref"},
+        activation_test_params{CASE_ACTIVATION_F16_4, 2, 4, "activation_ref"},
+        activation_test_params{CASE_ACTIVATION_F16_5, 2, 4, "activation_ref"},
+        activation_test_params{CASE_ACTIVATION_F16_6, 2, 4, "activation_ref"},
+        activation_test_params{CASE_ACTIVATION_F16_7, 2, 4, "activation_ref"},
+        activation_test_params{CASE_ACTIVATION_3D_F16_0, 2, 4, "activation_ref"},
+        activation_test_params{CASE_ACTIVATION_3D_F16_1, 2, 4, "activation_ref"},
+        activation_test_params{CASE_ACTIVATION_3D_F16_2, 2, 4, "activation_ref"},
+        activation_test_params{CASE_ACTIVATION_3D_F16_3, 2, 4, "activation_ref"},
+          activation_test_params{CASE_ACTIVATION_3D_F16_4, 2, 4, "activation_ref"},
+          activation_test_params{CASE_ACTIVATION_3D_F16_5, 2, 4, "activation_ref"},
+
+        // InputDataType = UINT8
+        activation_test_params{CASE_ACTIVATION_U8_1, 2, 4, "activation_ref"},
+        activation_test_params{CASE_ACTIVATION_U8_2, 2, 4, "activation_ref"},
+
+        // InputDataType = INT8
+        activation_test_params{CASE_ACTIVATION_I8_1, 2, 4, "activation_opt"},
+        activation_test_params{CASE_ACTIVATION_3D_I8_1, 2, 4, "activation_opt"},
+
+        activation_test_params{CASE_ACTIVATION_I8_1, 2, 4, "activation_ref"},
+        activation_test_params{CASE_ACTIVATION_I8_2, 2, 4, "activation_ref"},
+        activation_test_params{CASE_ACTIVATION_3D_I8_1, 2, 4, "activation_ref"}
+    }), );
+
+INSTANTIATE_TEST_CASE_P(
+    DISABLED_fusings_gpu,
+    activation_scale_activation,
+    ::testing::ValuesIn(std::vector<activation_test_params>{
+        activation_test_params{CASE_ACTIVATION_3D_F32_4, 2, 4, "activation_ref"},  // FIXME - accuracy bug
+        activation_test_params{CASE_ACTIVATION_3D_F32_5, 2, 4, "activation_ref"},  // FIXME - accuracy bug
+        activation_test_params{CASE_ACTIVATION_3D_F32_6, 2, 4, "activation_ref"},  // FIXME - accuracy bug
+        activation_test_params{CASE_ACTIVATION_3D_F16_6, 2, 4, "activation_ref"},  // FIXME - accuracy bug
     }), );
 
 /* ----------------------------------------------------------------------------------------------------- */
@@ -3392,7 +3520,7 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, deconv_scale_actv_quant_i8,
     ::testing::ValuesIn(std::vector<deconv_test_params>{
         // Some fusings disabled under deconvolution -> convolution optimization
         // Quantize fusing disabled for fp16/fp32 for performance reasons
-        // deconv_test_params{ CASE_DECONV_FP32_1, 4, 5 }, FIXME Failure due to activation + quantization fusing
+        deconv_test_params{ CASE_DECONV_FP32_1, 4, 5 },
         deconv_test_params{ CASE_DECONV_FP32_2, 3, 5 },
         deconv_test_params{ CASE_DECONV_FP32_3, 3, 5 },
         deconv_test_params{ CASE_DECONV_FP32_4, 3, 5 },
@@ -3438,7 +3566,7 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, deconv_scale_actv_quant_i8,
         deconv_test_params{ CASE_DECONV_FP32_3D_8, 3, 5 },
         // FIXME no quantize implementation for bs_fs_yx_bsv16_fsv16 format AND add_required_reorders pass completely ruins data types
         // add_required_reorders pass tries to reorder everything to output type if no format exists, this ruins fp32 -> int8 quantize
-        // deconv_test_params{ CASE_DECONV_FP32_3D_9, 3, 5 },
+        //deconv_test_params{ CASE_DECONV_FP32_3D_9, 3, 5 },
 
         deconv_test_params{ CASE_DECONV_FP16_3D_1, 3, 5 },
         deconv_test_params{ CASE_DECONV_FP16_3D_2, 3, 5 },
@@ -3448,7 +3576,7 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, deconv_scale_actv_quant_i8,
         deconv_test_params{ CASE_DECONV_FP16_3D_6, 3, 5 },
         deconv_test_params{ CASE_DECONV_FP16_3D_7, 3, 5 },
         deconv_test_params{ CASE_DECONV_FP16_3D_8, 3, 5 },
-        // deconv_test_params{ CASE_DECONV_FP16_3D_9, 3, 5 },
+        //deconv_test_params{ CASE_DECONV_FP16_3D_9, 3, 5 },
 
         deconv_test_params{ CASE_DECONV_U8S8_3D_1, 2, 5 },
         deconv_test_params{ CASE_DECONV_U8S8_3D_2, 2, 5 },
@@ -3505,7 +3633,7 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, deconv_scale_actv_quant_u8_eltw_scale_actv_
     ::testing::ValuesIn(std::vector<deconv_test_params>{
         // Some fusings disabled under deconvolution -> convolution optimization
         // Quantize fusing disabled for fp16/fp32 for performance reasons
-        // deconv_test_params{ CASE_DECONV_FP32_1, 7, 9 }, FIXME Failure due to activation + quantization fusing
+        deconv_test_params{ CASE_DECONV_FP32_1, 7, 9 },
         deconv_test_params{ CASE_DECONV_FP32_2, 6, 9 },
         deconv_test_params{ CASE_DECONV_FP32_3, 6, 9 },
         deconv_test_params{ CASE_DECONV_FP32_4, 6, 9 },
@@ -3541,7 +3669,7 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, deconv_scale_actv_quant_u8_eltw_scale_actv_
         deconv_test_params{ CASE_DECONV_S8S8_7, 2, 9 },
         deconv_test_params{ CASE_DECONV_S8S8_8, 2, 9 },
 
-        // deconv_test_params{ CASE_DECONV_FP32_3D_1, 6, 9 }, FIXME Failure due to activation + quantization fusing
+        deconv_test_params{ CASE_DECONV_FP32_3D_1, 6, 9 },
         deconv_test_params{ CASE_DECONV_FP32_3D_2, 6, 9 },
         deconv_test_params{ CASE_DECONV_FP32_3D_3, 6, 9 },
         deconv_test_params{ CASE_DECONV_FP32_3D_4, 6, 9 },

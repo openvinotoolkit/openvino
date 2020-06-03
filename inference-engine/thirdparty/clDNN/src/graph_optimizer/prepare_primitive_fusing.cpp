@@ -180,8 +180,10 @@ void prepare_primitive_fusing::fuse_activations(program_impl &p) {
             // - primitives input cannot be output
             // - no activation additional input
             // - input was optimized
+            // - can't have fused primitives
             if (node.has_padded_dependency() || (input.is_output() && !is_debug) || node.is_output() ||
-                node.get_dependencies().size() != 1 || input.can_be_optimized() || node.is_constant())
+                node.get_dependencies().size() != 1 || input.can_be_optimized() || node.is_constant() ||
+                node.has_fused_primitives())
                 return;
 
             // - limit to primitives which implementations support activation fusing
@@ -353,6 +355,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
 
             should_fuse |= input_data.is_type<deconvolution>();
 
+            should_fuse |= input_data.is_type<activation>();
+
             if (!should_fuse)
                 return;
 
@@ -389,6 +393,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
             should_fuse |= input_data.is_type<mvn>() && mvn_supports_fusings(input_data.as<mvn>());
 
             should_fuse |= input_data.is_type<deconvolution>();
+
+            should_fuse |= input_data.is_type<activation>();
 
             if (!should_fuse)
                 return;
