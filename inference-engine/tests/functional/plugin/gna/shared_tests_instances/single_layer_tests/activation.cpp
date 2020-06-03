@@ -22,7 +22,7 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
         // TODO: Issue:28036
         // InferenceEngine::Precision::FP16,
         InferenceEngine::Precision::I16,
-        InferenceEngine::Precision::I8
+        InferenceEngine::Precision::U8
 };
 
 const std::vector<ActivationTypes> activationTypes = {
@@ -37,11 +37,10 @@ const std::vector<ActivationTypes> activationTypes = {
 
 const auto basicCases = ::testing::Combine(
         ::testing::ValuesIn(activationTypes),
-        ::testing::ValuesIn(inputPrecisions),
         ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(std::vector<size_t >({1, 50}),
-                std::vector<size_t >({1, 128}),
-                std::vector<size_t >({1, 10 * 1024})),
+        ::testing::Values(std::vector<size_t>({1, 50}),
+                          std::vector<size_t>({1, 128}),
+                          std::vector<size_t>({1, 10 * 1024})),
         ::testing::Values(CommonTestUtils::DEVICE_GNA)
 );
 

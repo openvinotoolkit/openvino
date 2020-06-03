@@ -147,6 +147,7 @@ public:
 
 /**
  * @deprecated Implement IExtension::getImplTypes and IExtension::getImplementation
+ * The interface will be removed in 2021.1 release.
  * @interface ILayerImplFactory
  * @brief This class provides interface for extension factories
  */
@@ -178,6 +179,7 @@ public:
 
 /**
  * @deprecated Implement ngraph::op::Op::validate_and_infer_types method in a custom ngraph operation.
+ * The interface will be removed in 2021.1 release.
  * @class IShapeInferImpl
  * @brief This class provides interface for the implementation with the custom execution code
  */
@@ -212,6 +214,7 @@ class IShapeInferExtension : public InferenceEngine::details::IRelease {
 public:
     /**
      * @deprecated IErrorListener is not used anymore. StatusCode is provided in case of unexpected situations
+     * The method will be removed in 2021.1 release.
      * @brief Sets logging callback.
      *
      * Logging is used to track what is going on inside.
@@ -225,7 +228,6 @@ public:
 
     /**
      * @brief Gets extension version information and stores in versionInfo
-     *
      * @param versionInfo Pointer to version info, will be set by plugin
      */
     virtual void GetVersion(const InferenceEngine::Version*& versionInfo) const noexcept = 0;
@@ -237,6 +239,7 @@ public:
 
     /**
      * @deprecated Implement ngraph::op::Op::validate_and_infer_types method in a custom ngraph operation.
+     * The method will be removed in 2021.1 release.
      * @brief Fills passed array with types of layers which shape infer implementations are included in the extension
      *
      * @param types Array to store the layer types
@@ -249,6 +252,7 @@ public:
 
     /**
      * @deprecated Implement ngraph::op::Op::validate_and_infer_types method in a custom ngraph operation.
+     * The method will be removed in 2021.1 release.
      * @brief Gets shape propagation implementation for the given string-type of CNNLayer
      *
      * @param impl the vector with implementations which is ordered by priority
@@ -271,6 +275,7 @@ class INFERENCE_ENGINE_API_CLASS(IExtension) : public IShapeInferExtension {
 public:
     /**
      * @deprecated Use IExtension::getImplementation to get a concrete implementation
+     * The method will be removed in 2021.1 release.
      * @brief Provides a factory for a specified CNNLayer
      * @param factory A factory returned from an extension plugin
      * @param cnnLayer A CNNLayer object to provide factory for
@@ -290,6 +295,7 @@ public:
 
     /**
      * @deprecated Use IExtension::getImplTypes to get implementation types for a particular node
+     * The method will be removed in 2021.1 release.
      * @brief Fills passed array with types of layers which kernel implementations are included in the extension
      *
      * @param types Array to store the layer types
@@ -354,6 +360,7 @@ using IExtensionPtr = std::shared_ptr<IExtension>;
 
 /**
  * @deprecated Migrate to IR v10 and implement shape inference in the ngraph::op::Op::validate_and_infer_types method
+ * This API will be removed in 2021.1 release.
  * @brief A shared pointer to a IShapeInferExtension interface
  */
 using IShapeInferExtensionPtr = std::shared_ptr<IShapeInferExtension>;
@@ -369,6 +376,7 @@ INFERENCE_EXTENSION_API(StatusCode) CreateExtension(IExtension*& ext, ResponseDe
 
 /**
  * @deprecated Migrate to IR v10 and implement shape inference in the ngraph::op::Op::validate_and_infer_types method
+ * This API will be removed in 2021.1 release.
  * @brief Creates the default instance of the shape infer extension
  *
  * @param ext Shape Infer Extension interface

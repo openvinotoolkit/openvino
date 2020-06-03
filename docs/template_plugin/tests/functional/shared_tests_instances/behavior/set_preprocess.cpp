@@ -6,8 +6,6 @@
 
 #include "behavior/set_preprocess.hpp"
 
-using namespace LayerTestsDefinitions;
-
 namespace {
     const std::vector<InferenceEngine::Precision> netPrecisions = {
             InferenceEngine::Precision::FP32,
@@ -18,11 +16,11 @@ namespace {
             {}
     };
 
-    INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, PreProcessTests,
+    INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, PreprocessTest,
                             ::testing::Combine(
                                     ::testing::ValuesIn(netPrecisions),
                                     ::testing::Values("TEMPLATE"),
                                     ::testing::ValuesIn(configs)),
-                            PreProcessTests::getTestCaseName);
+                            PreprocessTest::getTestCaseName);
 
 }  // namespace
