@@ -534,7 +534,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
                         return;
                     can_fuse_parents[0] = false;
                 }
-                if (p2_raw_size[k] < p1_raw_size[k]) {
+                else if (p2_raw_size[k] < p1_raw_size[k]) {
                     if (p2_raw_size[k] != 1)
                         return;
                     can_fuse_parents[1] = false;
