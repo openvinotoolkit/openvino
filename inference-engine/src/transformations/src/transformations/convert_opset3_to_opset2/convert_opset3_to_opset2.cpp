@@ -9,6 +9,7 @@
 #include "transformations/convert_opset3_to_opset2/convert_shapeof3.hpp"
 #include "transformations/convert_opset3_to_opset2/convert_shuffle_channels3.hpp"
 #include "transformations/convert_opset3_to_opset2/convert_topk3.hpp"
+#include "transformations/convrt_extract_image_patches_to_reorg_yolo.hpp"
 
 #include <memory>
 #include <vector>
