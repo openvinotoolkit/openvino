@@ -30,7 +30,7 @@ class ReduceL2Decomposition(FrontReplacementOp):
         return [ReduceAxisNormalizer]
 
     def replace_op(self, graph: Graph, node: Node):
-        node_name = node.name
+        node_name = node.soft_get('name', node.id)
 
         rename_node(node, node_name + '/TBR')
         sqr_node = Mul(graph, {}).create_node()
