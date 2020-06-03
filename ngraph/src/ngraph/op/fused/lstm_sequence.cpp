@@ -255,24 +255,3 @@ shared_ptr<Node> op::v0::LSTMSequence::prepare_input(Output<Node> node,
     // Since we have forward LSTM we can squeeze `num_directions` axis from inputs.
     return builder::opset1::squeeze(tmp, {num_direction_axis});
 }
-
-namespace ngraph
-{
-    template <>
-    EnumNames<op::v0::LSTMSequence::direction>& EnumNames<op::v0::LSTMSequence::direction>::get()
-    {
-        static auto enum_names = EnumNames<op::v0::LSTMSequence::direction>(
-            "op::v0::LSTMSequence::direction",
-            {{"forward", op::v0::LSTMSequence::direction::FORWARD},
-             {"reverse", op::v0::LSTMSequence::direction::REVERSE},
-             {"bidirectional", op::v0::LSTMSequence::direction::BIDIRECTIONAL}});
-        return enum_names;
-    }
-
-    constexpr DiscreteTypeInfo AttributeAdapter<op::v0::LSTMSequence::direction>::type_info;
-
-    std::ostream& operator<<(std::ostream& s, const op::v0::LSTMSequence::direction& type)
-    {
-        return s << as_string(type);
-    }
-} // namespace ngraph
