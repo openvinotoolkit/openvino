@@ -138,38 +138,6 @@ size_t float16::size() const
     return sizeof(m_value);
 }
 
-bool float16::operator==(const float16& other) const
-{
-#if defined(__GNUC__)
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wfloat-equal"
-#endif
-    return (static_cast<float>(*this) == static_cast<float>(other));
-#if defined(__GNUC__)
-#pragma GCC diagnostic pop
-#endif
-}
-
-bool float16::operator<(const float16& other) const
-{
-    return (static_cast<float>(*this) < static_cast<float>(other));
-}
-
-bool float16::operator<=(const float16& other) const
-{
-    return (static_cast<float>(*this) <= static_cast<float>(other));
-}
-
-bool float16::operator>(const float16& other) const
-{
-    return (static_cast<float>(*this) > static_cast<float>(other));
-}
-
-bool float16::operator>=(const float16& other) const
-{
-    return (static_cast<float>(*this) >= static_cast<float>(other));
-}
-
 float16::operator float() const
 {
     union {

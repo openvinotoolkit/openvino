@@ -99,6 +99,8 @@ namespace
             break;
             TYPE_OUT_CASE(bf16)(arg, out);
             break;
+            TYPE_OUT_CASE(f16)(arg, out);
+            break;
             TYPE_OUT_CASE(f32)(arg, out);
             break;
             TYPE_OUT_CASE(f64)(arg, out);
@@ -131,6 +133,8 @@ namespace
             TYPE_CASE(u64)(arg, out);
             break;
             TYPE_CASE(bf16)(arg, out);
+            break;
+            TYPE_CASE(f16)(arg, out);
             break;
             TYPE_CASE(f32)(arg, out);
             break;
