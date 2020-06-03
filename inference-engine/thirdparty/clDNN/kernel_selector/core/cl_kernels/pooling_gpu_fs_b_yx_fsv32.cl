@@ -1,4 +1,4 @@
-// Copyright (c) 2019 Intel Corporation
+// Copyright (c) 2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,25 +14,26 @@
 
 
 #include "include/include_all.cl"
-#include "include/unit_type.cl"
+#include "include/data_types.cl"
 
 #if MAX_POOLING
-    #define INIT_VAL UNIT_VAL_MIN
+    #define INIT_VAL ACCUMULATOR_VAL_MIN
 #elif AVG_POOLING
-    #define INIT_VAL 0
+    #define INIT_VAL ACCUMULATOR_VAL_ZERO
 #else
-#error No correct pooling mode defined
+    #error No correct pooling mode defined
 #endif
 
-#if defined(USE_FLOAT_ACC)
-    #define ACC_TYPE2 float2
-    #define READ_BLOCK2_INPUT(input, input_total_offset) convert_float2(UNIT_BLOCK_READ2(input,total_input_offset))
-    #define TO_UNIT_BLOCK2(values) convert_half2(values)
-#else
-    #define ACC_TYPE2 UNIT_TYPE2
-    #define READ_BLOCK2_INPUT(input, input_total_offset) UNIT_BLOCK_READ2(input,total_input_offset)
-    #define TO_UNIT_BLOCK2(values) values
-#endif
+#define INPUT_VEC2 MAKE_VECTOR_TYPE(INPUT0_TYPE, 2)
+
+#define ACCUMULATOR_VEC2 MAKE_VECTOR_TYPE(ACCUMULATOR_TYPE, 2)
+#define TO_ACCUMULATOR_VEC2 CAT(convert_, ACCUMULATOR_VEC2)
+
+#define ACTIVATION_VEC2 MAKE_VECTOR_TYPE(ACTIVATION_TYPE, 2)
+#define TO_ACTIVATION_VEC2 CAT(convert_, ACTIVATION_VEC2)
+
+#define OUTPUT_VEC2 MAKE_VECTOR_TYPE(OUTPUT_TYPE, 2)
+#define TO_OUTPUT_VEC2 CAT(convert_, OUTPUT_VEC2)
 
 #define INPUT0_SIZE_X_WITH_PADDING (INPUT0_PAD_BEFORE_SIZE_X + INPUT0_SIZE_X + INPUT0_PAD_AFTER_SIZE_X)
 #define INPUT0_SIZE_Y_WITH_PADDING (INPUT0_PAD_BEFORE_SIZE_Y + INPUT0_SIZE_Y + INPUT0_PAD_AFTER_SIZE_Y)
@@ -46,10 +47,10 @@
 
 #define unroll_for __attribute__((opencl_unroll_hint)) for
 
-inline ACC_TYPE2 FUNC(apply_pooling)(ACC_TYPE2 tmp, ACC_TYPE2 in)
+inline ACCUMULATOR_VEC2 FUNC(apply_pooling)(ACCUMULATOR_VEC2 tmp, ACCUMULATOR_VEC2 in)
 {
 #if MAX_POOLING
-    return max(tmp, in);
+    return ACCUMULATOR_MAX_FUNC(tmp, in);
 #elif AVG_POOLING
     return tmp + in;
 #endif
@@ -57,8 +58,12 @@ inline ACC_TYPE2 FUNC(apply_pooling)(ACC_TYPE2 tmp, ACC_TYPE2 in)
 
 __attribute__((intel_reqd_sub_group_size(REQD_SUB_GROUP_SIZE)))
 KERNEL(pooling_gpu_fs_b_yx_fsv32)(
-    const __global UNIT_TYPE* input,
-    __global UNIT_TYPE* output)
+    const __global INPUT0_TYPE* input,
+    __global OUTPUT_TYPE* output
+#if HAS_FUSED_OPS_DECLS
+    , FUSED_OPS_DECLS
+#endif
+)
 {
     const uint out_x    = (uint)get_global_id(0);
     const uint out_y    = (uint)get_global_id(1);
@@ -69,12 +74,12 @@ KERNEL(pooling_gpu_fs_b_yx_fsv32)(
     const uint b  = bfs % INPUT0_BATCH_NUM;
     const uint fs = bfs / INPUT0_BATCH_NUM;
 
-    ACC_TYPE2 results = (ACC_TYPE2)(INIT_VAL,INIT_VAL);
+    ACCUMULATOR_VEC2 results  = (ACCUMULATOR_VEC2)(INIT_VAL,INIT_VAL);
 
     const uint x_pitch = REQD_FEATURE_SLICE_SIZE;                        // difference in location between (x+1) and (x)
     const uint y_pitch = x_pitch * INPUT0_SIZE_X_WITH_PADDING;           // difference in location between (y+1) and (y)
     const uint b_pitch = y_pitch * INPUT0_SIZE_Y_WITH_PADDING;           // difference in location between (b+1) and (b)
-    const uint fs_pitch = b_pitch * INPUT0_BATCH_NUM;                     // difference in location between (fs+1) and (fs)
+    const uint fs_pitch = b_pitch * INPUT0_BATCH_NUM;                    // difference in location between (fs+1) and (fs)
 
     const int offset_x = (int)out_x*STRIDE_SIZE_X - PADDING_SIZE_X;
     const int offset_y = (int)out_y*STRIDE_SIZE_Y - PADDING_SIZE_Y;
@@ -103,10 +108,8 @@ KERNEL(pooling_gpu_fs_b_yx_fsv32)(
                 {
                     const size_t input_offset_x = (offset_x + in_dx) * x_pitch;
                     const size_t total_input_offset = padding_offset + fs_offset + b_offset + input_offset_y + input_offset_x;
-
-                    ACC_TYPE2 tmp_input = READ_BLOCK2_INPUT(input, input_total_offset);
-                    
-                    results = FUNC_CALL(apply_pooling)(results, tmp_input);
+                    INPUT_VEC2 tmp_input = DT_INPUT_BLOCK_READ2(input, total_input_offset);
+                    results  = FUNC_CALL(apply_pooling)(results , TO_ACCUMULATOR_VEC2(tmp_input));
 
                     #ifdef DYNAMIC_KERNEL_DIVIDER
                         num_elements++;
@@ -115,6 +118,7 @@ KERNEL(pooling_gpu_fs_b_yx_fsv32)(
             }
         }
     }
+
 #ifdef DYNAMIC_WITH_PADDING_KERNEL_DIVIDER
     const int hend = min(offset_y + POOL_SIZE_Y, INPUT0_SIZE_Y + PADDING_SIZE_Y);
     const int wend = min(offset_x + POOL_SIZE_X, INPUT0_SIZE_X + PADDING_SIZE_X);
@@ -128,10 +132,8 @@ KERNEL(pooling_gpu_fs_b_yx_fsv32)(
         {
             const size_t input_offset_x = (offset_x + in_dx) * x_pitch;
             const size_t total_input_offset = padding_offset + fs_offset + b_offset + input_offset_y + input_offset_x;
-
-            ACC_TYPE2 tmp_input = READ_BLOCK2_INPUT(input, input_total_offset);
-
-            results = FUNC_CALL(apply_pooling)(results, tmp_input);
+            INPUT_VEC2 tmp_input = DT_INPUT_BLOCK_READ2(input, total_input_offset);
+            results = FUNC_CALL(apply_pooling)(results , TO_ACCUMULATOR_VEC2(tmp_input));
         }
     }
     #if defined(DYNAMIC_KERNEL_DIVIDER) || defined(DYNAMIC_WITH_PADDING_KERNEL_DIVIDER)
@@ -146,8 +148,6 @@ KERNEL(pooling_gpu_fs_b_yx_fsv32)(
         results /= POOL_SIZE_Y * POOL_SIZE_X;
     #endif
 #endif
-
-    results = ACTIVATION(results, ACTIVATION_PARAMS);
 
     const size_t out_x_pitch = REQD_FEATURE_SLICE_SIZE;
     const size_t out_y_pitch = out_x_pitch * OUTPUT_SIZE_X_WITH_PADDING;
@@ -166,9 +166,19 @@ KERNEL(pooling_gpu_fs_b_yx_fsv32)(
     const bool full_f = OUTPUT_FEATURE_NUM % REQD_FEATURE_SLICE_SIZE == 0 ||
                         fs * REQD_FEATURE_SLICE_SIZE + REQD_FEATURE_SLICE_SIZE <= OUTPUT_FEATURE_NUM;
 
+    OUTPUT_VEC2 final_result;
+    ACTIVATION_VEC2 pool_result = TO_ACTIVATION_VEC2(results);
+
+    #if HAS_FUSED_OPS
+        FUSED_OPS;
+        final_result = FUSED_OPS_RESULT;
+    #else
+        final_result = TO_OUTPUT_VEC2(ACTIVATION(pool_result , ACTIVATION_PARAMS));
+    #endif
+
     if (full_f)
     {
-        UNIT_BLOCK_WRITE2(output, output_offset, TO_UNIT_BLOCK2(results));
+        DT_OUTPUT_BLOCK_WRITE2(output, output_offset, final_result);
     }
     else
     {
@@ -176,14 +186,21 @@ KERNEL(pooling_gpu_fs_b_yx_fsv32)(
         {
             if (fs * REQD_FEATURE_SLICE_SIZE + ofi * REQD_SUB_GROUP_SIZE + sglid < OUTPUT_FEATURE_NUM)
             {
-                output[output_offset + ofi * REQD_SUB_GROUP_SIZE + sglid] = (UNIT_TYPE)results[ofi];
+                output[output_offset + ofi * REQD_SUB_GROUP_SIZE + sglid] = (OUTPUT_TYPE)final_result[ofi];
             }
         }
     }
 }
 
-#undef TO_UNIT_BLOCK2
-#undef READ_BLOCK2_INPUT
-#undef ACC_TYPE2
 #undef FEATURE_SLICE_SIZE
 #undef INIT_VAL
+#undef INPUT_VEC2
+
+#undef ACCUMULATOR_VEC2
+#undef TO_ACCUMULATOR_VEC2
+
+#undef ACTIVATION_VEC2
+#undef TO_ACTIVATION_VEC2
+
+#undef OUTPUT_VEC2
+#undef TO_OUTPUT_VEC2
