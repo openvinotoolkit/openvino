@@ -101,13 +101,13 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x2x2_full) {
             0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f,
             9.0f, 10.0f, 11.0f, 12.0f, 13.0f, 14.0f, 15.0f
     });
-    set_values(begin, {
+    set_values<int64_t>(begin, {
             0, 0, 0, 0
     });
-    set_values(end, {
+    set_values<int64_t>(end, {
             2, 2, 2, 2
     });
-    set_values(strides, {
+    set_values<int64_t>(strides, {
             1, 1, 1, 1
     });
 
@@ -217,13 +217,13 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x2x2_ignore) {
             0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f,
             9.0f, 10.0f, 11.0f, 12.0f, 13.0f, 14.0f, 15.0f
     });
-    set_values(begin, {
+    set_values<int64_t>(begin, {
             1, 1, 1, 1
     });
-    set_values(end, {
+    set_values<int64_t>(end, {
             2, 2, 2, 2
     });
-    set_values(strides, {
+    set_values<int64_t>(strides, {
             1, 1, 1, 1
     });
 
@@ -332,13 +332,13 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x2x2_single) {
             0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f,
             9.0f, 10.0f, 11.0f, 12.0f, 13.0f, 14.0f, 15.0f
                });
-    set_values(begin, {
+    set_values<int64_t>(begin, {
             1, 1, 1, 1
                });
-    set_values(end, {
+    set_values<int64_t>(end, {
             2, 2, 2, 2
                });
-    set_values(strides, {
+    set_values<int64_t>(strides, {
             1, 1, 1, 1
                });
 
@@ -455,13 +455,13 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x4x3_stride) {
             36.f, 37.f, 38.f, 39.f, 40.f, 41.f, 42.f, 43.f, 44.f,
             45.f, 46.f, 47.f
     });
-    set_values(begin, {
+    set_values<int64_t>(begin, {
             0, 0, 0, 0
     });
-    set_values(end, {
+    set_values<int64_t>(end, {
             2, 2, 4, 3
     });
-    set_values(strides, {
+    set_values<int64_t>(strides, {
             1, 1, 2, 1
     });
 
@@ -614,13 +614,13 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x4x4_part_stride) {
             56.0f, 57.0f, 58.0f, 59.0f,
             60.0f, 61.0f, 62.0f, 63.0f
     });
-    set_values(begin, {
+    set_values<int64_t>(begin, {
             1, 0, 0, 1
     });
-    set_values(end, {
+    set_values<int64_t>(end, {
             2, 2, 4, 4
     });
-    set_values(strides, {
+    set_values<int64_t>(strides, {
             1, 1, 1, 2
     });
 
@@ -734,13 +734,13 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x4x1_new_axis_mask) {
             0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f,
             10.0f, 11.0f, 12.0f, 13.0f, 14.0f, 15.0f
     });
-    set_values(begin, {
+    set_values<int64_t>(begin, {
             1, 0, 1, 0
     });
-    set_values(end, {
+    set_values<int64_t>(end, {
             2, 2, 4, 4
     });
-    set_values(strides, {
+    set_values<int64_t>(strides, {
             1, 1, 1, 2
     });
 
@@ -843,13 +843,13 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x1x1_new_axis_mask_2) {
     set_values(input, {
             0.0f, 1.0f, 2.0f, 3.0f
     });
-    set_values(begin, {
+    set_values<int64_t>(begin, {
             1, 0, 1, 0
     });
-    set_values(end, {
+    set_values<int64_t>(end, {
             2, 2, 4, 4
     });
-    set_values(strides, {
+    set_values<int64_t>(strides, {
             1, 1, 1, 2
     });
 
@@ -949,13 +949,13 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x1x1) {
     set_values(input, {
             0.0f, 1.0f, 2.0f, 3.0f
     });
-    set_values(begin, {
+    set_values<int64_t>(begin, {
             0, 0
     });
-    set_values(end, {
+    set_values<int64_t>(end, {
             2, 2
     });
-    set_values(strides, {
+    set_values<int64_t>(strides, {
             1, 1
     });
 
@@ -1055,13 +1055,13 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x2x1x1) {
     set_values(input, {
             0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f
     });
-    set_values(begin, {
+    set_values<int64_t>(begin, {
             0, 0, 0
     });
-    set_values(end, {
+    set_values<int64_t>(end, {
             1, 2, 2
     });
-    set_values(strides, {
+    set_values<int64_t>(strides, {
             1, 1, 1
     });
 
@@ -1161,13 +1161,13 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x2x1x1_2) {
     set_values(input, {
             0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f
     });
-    set_values(begin, {
+    set_values<int64_t>(begin, {
             0, 0, 0
     });
-    set_values(end, {
+    set_values<int64_t>(end, {
             2, 2, 2
     });
-    set_values(strides, {
+    set_values<int64_t>(strides, {
             1, 2, 2
     });
 
@@ -1275,13 +1275,13 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x2x2_full_negative_stride) {
             0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f,
             9.0f, 10.0f, 11.0f, 12.0f, 13.0f, 14.0f, 15.0f
     });
-    set_values(begin, {
+    set_values<int64_t>(begin, {
             0, 0, 0, 0
     });
-    set_values(end, {
+    set_values<int64_t>(end, {
             2, 2, 2, 2
     });
-    set_values(strides, {
+    set_values<int64_t>(strides, {
             -1, -1, 1, 1
     });
 
@@ -1381,13 +1381,13 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x2x1x1_2_negative_all) {
     set_values(input, {
             0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f
     });
-    set_values(begin, {
+    set_values<int64_t>(begin, {
             0, 0, 0
     });
-    set_values(end, {
+    set_values<int64_t>(end, {
             2, 2, 2
     });
-    set_values(strides, {
+    set_values<int64_t>(strides, {
             1, 2, 2
     });
 
