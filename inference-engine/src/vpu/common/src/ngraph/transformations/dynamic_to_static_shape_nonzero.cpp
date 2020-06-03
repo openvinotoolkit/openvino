@@ -21,7 +21,6 @@ void dynamicToStaticShapeNonZero(std::shared_ptr<ngraph::Node> node) {
                      node->get_friendly_name(), node->get_type_info(), ngraph::op::v3::NonZero::type_info);
 
     auto staticShapeNonZero = std::make_shared<ngraph::vpu::op::StaticShapeNonZero>(nonZero->input(0).get_source_output(), nonZero->get_output_type());
-    staticShapeNonZero->set_friendly_name("");
 
     auto dynamicShapeResolver = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(
         staticShapeNonZero->output(0), staticShapeNonZero->output(1));

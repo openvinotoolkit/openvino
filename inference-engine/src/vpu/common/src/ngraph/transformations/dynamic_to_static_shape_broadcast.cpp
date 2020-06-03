@@ -36,7 +36,6 @@ void dynamicToStaticShapeBroadcast(std::shared_ptr<ngraph::Node> target) {
         VPU_THROW_FORMAT("dynamicToStaticShapeBroadcast supports only explicit and numpy modes,"
                          "provided {}", broadcast->get_broadcast_spec().m_type);
     }
-    staticShapeBroadcast->set_friendly_name("");
 
     auto dsr = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(
             staticShapeBroadcast->output(0), broadcast->input_value(1));

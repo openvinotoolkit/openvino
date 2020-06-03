@@ -106,11 +106,10 @@ void dynamicToStaticShapeConcat(std::shared_ptr<ngraph::Node> target) {
         accumulatedShape = sumOfShapes(accumulatedShape, accumulatedStaticShape);
     }
 
-    auto copied = target->clone_with_new_inputs(target->input_values());
-    copied->set_friendly_name("");
+    const auto copied = target->clone_with_new_inputs(target->input_values());
     auto outDsr = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(
             copied, accumulatedShape);
-    outDsr->set_friendly_name(copied->get_friendly_name());
+    outDsr->set_friendly_name(target->get_friendly_name());
 
     ngraph::replace_node(std::move(target), outDsr);
 }

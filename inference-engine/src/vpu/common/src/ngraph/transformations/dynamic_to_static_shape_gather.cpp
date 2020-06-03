@@ -40,12 +40,10 @@ void dynamicToStaticShapeGather(std::shared_ptr<ngraph::Node> target) {
     const auto data_shape = dataDSR ? dataDSR->input_value(1) : shapeToConstant(gather->input_value(0));
     const auto indices_shape = idxDSR ? idxDSR->input_value(1) : shapeToConstant(gather->input_value(1));
 
-    auto copied = target->clone_with_new_inputs(target->input_values());
-    copied->set_friendly_name("");
+    const auto copied = target->clone_with_new_inputs(target->input_values());
 
-
-    const auto & data_rank = data_shape.get_partial_shape();
-    const auto & indices_rank = indices_shape.get_partial_shape();
+    const auto& data_rank = data_shape.get_partial_shape();
+    const auto& indices_rank = indices_shape.get_partial_shape();
     VPU_THROW_UNLESS(data_rank.is_static() && indices_rank.is_static(),
             "DynamicToStaticShape transformation for {} doesn't support dynamic rank", gather);
 
@@ -74,7 +72,7 @@ void dynamicToStaticShapeGather(std::shared_ptr<ngraph::Node> target) {
     }
     const auto output_shape = std::make_shared<ngraph::opset3::Concat>(output_dims, 0);
     auto outDsr = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(copied, output_shape);
-    outDsr->set_friendly_name(copied->get_friendly_name());
+    outDsr->set_friendly_name(target->get_friendly_name());
     ngraph::replace_node(target, outDsr);
 }
 
