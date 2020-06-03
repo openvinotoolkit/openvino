@@ -1,4 +1,4 @@
-// Copyright (c) 2018 Intel Corporation
+// Copyright (c) 2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,25 +14,39 @@
 
 
 #include "include/include_all.cl"
-#include "include/unit_type.cl"
+#include "include/data_types.cl"
 
 #define FEATURE_SLICE_SIZE 16
 #if X_BLOCK_SIZE > 1
-#define vec_t MAKE_VECTOR_TYPE(UNIT_TYPE, X_BLOCK_SIZE)
+    #define INPUT_VAR_TYPE MAKE_VECTOR_TYPE(INPUT0_TYPE, X_BLOCK_SIZE)
+    #define OUTPUT_VAR_TYPE MAKE_VECTOR_TYPE(OUTPUT_TYPE, X_BLOCK_SIZE)
+    #define ACCUMULATOR_VAR_TYPE MAKE_VECTOR_TYPE(ACCUMULATOR_TYPE, X_BLOCK_SIZE)
+    #define ACTIVATION_VAR_TYPE MAKE_VECTOR_TYPE(ACTIVATION_TYPE, X_BLOCK_SIZE)
 #else
-#define vec_t UNIT_TYPE
+    #define INPUT_VAR_TYPE INPUT0_TYPE
+    #define OUTPUT_VAR_TYPE OUTPUT_TYPE
+    #define ACCUMULATOR_VAR_TYPE ACCUMULATOR_TYPE
+    #define ACTIVATION_VAR_TYPE ACTIVATION_TYPE
 #endif
 
+#define TO_OUTPUT_VAR_TYPE(x) CAT(convert_, OUTPUT_VAR_TYPE)(x)
+#define TO_ACCUMULATOR_VAR_TYPE CAT(convert_, ACCUMULATOR_VAR_TYPE)
+#define TO_ACTIVATION_VAR_TYPE CAT(convert_, ACTIVATION_VAR_TYPE)
+
 #if   defined MAX_POOLING
-    #define UNIT_INIT_VAL UNIT_VAL_MIN
+    #define INIT_VAL ACCUMULATOR_VAL_MIN
 #elif defined AVG_POOLING
-    #define UNIT_INIT_VAL UNIT_VAL_ZERO
-#else
-#error
+    #define INIT_VAL ACCUMULATOR_VAL_ZERO
 #endif
 
 __attribute__((intel_reqd_sub_group_size(16)))
-KERNEL(pooling_gpu_blocked)(const __global UNIT_TYPE* input, __global UNIT_TYPE* output)
+KERNEL(pooling_gpu_blocked)(
+    const __global INPUT0_TYPE* input,
+    __global OUTPUT_TYPE* output
+#if HAS_FUSED_OPS_DECLS
+    , FUSED_OPS_DECLS
+#endif
+)
 {
     const int lid = get_sub_group_local_id();
     const int f_block = get_group_id(1);
@@ -74,10 +88,10 @@ KERNEL(pooling_gpu_blocked)(const __global UNIT_TYPE* input, __global UNIT_TYPE*
                                (x + OUTPUT_PAD_BEFORE_SIZE_X) * output_x_pitch;
 
 
-    vec_t dst = (vec_t)UNIT_INIT_VAL;
+    ACCUMULATOR_VAR_TYPE dst = (ACCUMULATOR_VAR_TYPE)INIT_VAL;
 
 #if AVG_POOLING && (defined(DYNAMIC_KERNEL_DIVIDER) || defined(DYNAMIC_WITH_PADDING_KERNEL_DIVIDER))
-    UNIT_TYPE count;
+    ACCUMULATOR_TYPE count;
     if (lid < X_BLOCK_SIZE)
     {
 #if defined(DYNAMIC_WITH_PADDING_KERNEL_DIVIDER)
@@ -91,10 +105,10 @@ KERNEL(pooling_gpu_blocked)(const __global UNIT_TYPE* input, __global UNIT_TYPE*
         int x_max = min(input_x + lid*STRIDE_SIZE_X + POOL_SIZE_X, INPUT0_SIZE_X);
         int y_max = min(input_y + POOL_SIZE_Y, INPUT0_SIZE_Y);
 #endif
-        count = (UNIT_TYPE)(1.f / (float)((y_max - y_min) * (x_max - x_min)));
+        count = TO_ACCUMULATOR_TYPE(1.f / (float)((y_max - y_min) * (x_max - x_min)));
     }
 
-    vec_t scale;
+    ACCUMULATOR_VAR_TYPE scale;
 #if X_BLOCK_SIZE > 1
     for (int i = 0; i < X_BLOCK_SIZE; i++)
         scale[i] = intel_sub_group_shuffle(count, i);
@@ -108,80 +122,138 @@ KERNEL(pooling_gpu_blocked)(const __global UNIT_TYPE* input, __global UNIT_TYPE*
         if (input_y + kh < 0 || input_y + kh >= INPUT0_SIZE_Y)
             continue;
 
-        UNIT_TYPE line_cache[INPUT_LINE_SIZE];
+        INPUT0_TYPE line_cache[INPUT_LINE_SIZE];
         for (int i = 0; i < INPUT_LINE_SIZE; i++) {
             if ((input_x + i) >= 0 && (input_x + i) < INPUT0_SIZE_X)
-                line_cache[i] = UNIT_BLOCK_READ(input, input_offset + kh*input_y_pitch + i*input_x_pitch);
+                line_cache[i] = DT_INPUT_BLOCK_READ(input, input_offset + kh*input_y_pitch + i*input_x_pitch);
             else
-                line_cache[i] = UNIT_INIT_VAL;
+                #if   defined MAX_POOLING
+                    line_cache[i] = INPUT0_VAL_MIN;
+                #elif defined AVG_POOLING
+                    line_cache[i] = INPUT0_VAL_ZERO;
+                #endif
         }
 
         __attribute__((opencl_unroll_hint(POOL_SIZE_X)))
         for (int kw = 0; kw < POOL_SIZE_X; kw++)
         {
-            vec_t src;
+            ACCUMULATOR_VAR_TYPE src;
 #if X_BLOCK_SIZE > 1
             for (int i = 0; i < X_BLOCK_SIZE; i++) {
-                src[i] = line_cache[kw + STRIDE_SIZE_X*i];
+                src[i] = TO_ACCUMULATOR_TYPE(line_cache[kw + STRIDE_SIZE_X*i]);
             }
 #else
-            src = line_cache[kw];
+            src = TO_ACCUMULATOR_VAR_TYPE(line_cache[kw]);
 #endif
 
 #if defined MAX_POOLING
-            dst = max(dst, src);
+            dst = ACCUMULATOR_MAX_FUNC(dst, src);
 #elif defined AVG_POOLING
             dst += src;
 #endif
         }
     }
 
+    ACTIVATION_VAR_TYPE pool_result;
+
 #if defined MAX_POOLING
-    dst = ACTIVATION(dst, ACTIVATION_PARAMS);
+        pool_result = TO_ACTIVATION_VAR_TYPE(dst);
+    #if !HAS_FUSED_OP
+        pool_result = ACTIVATION(pool_result, ACTIVATION_PARAMS);
+    #endif
 #elif defined AVG_POOLING && (defined(DYNAMIC_KERNEL_DIVIDER) || defined(DYNAMIC_WITH_PADDING_KERNEL_DIVIDER))
-    dst = ACTIVATION((dst*scale), ACTIVATION_PARAMS);
+        pool_result = TO_ACTIVATION_VAR_TYPE(dst*scale);
+    #if !HAS_FUSED_OP
+        pool_result = ACTIVATION(pool_result, ACTIVATION_PARAMS);
+    #endif
 #elif defined AVG_POOLING
-    dst = ACTIVATION((dst/(POOL_SIZE_X*POOL_SIZE_Y)), ACTIVATION_PARAMS);
+        pool_result = TO_ACTIVATION_VAR_TYPE(dst/(POOL_SIZE_X*POOL_SIZE_Y));
+    #if !HAS_FUSED_OP
+        pool_result = ACTIVATION(pool_result, ACTIVATION_PARAMS);
+    #endif
 #endif
+
+    OUTPUT_VAR_TYPE final_result;
 
 #if OUTPUT_LEFTOVERS
     if ((f_block+1)*FEATURE_SLICE_SIZE >= OUTPUT_FEATURE_NUM) {
         for (int i = 0; i < X_BLOCK_SIZE; i++) {
-            if ((f_block*FEATURE_SLICE_SIZE + lid < OUTPUT_FEATURE_NUM) && (x + i) < OUTPUT_SIZE_X)
+            if ((f_block*FEATURE_SLICE_SIZE + lid < OUTPUT_FEATURE_NUM) && (x + i) < OUTPUT_SIZE_X) {
 #if X_BLOCK_SIZE > 1
-                output[output_offset + i * output_x_pitch + lid] = dst[i];
+            #if HAS_FUSED_OP
+                FUSED_OPS_SCALAR;
+                final_result[i] = FUSED_OPS_RESULT_SCALAR;
+            #else
+                final_result[i] = TO_OUTPUT_TYPE(pool_result[i]);
+            #endif
+                output[output_offset + i * output_x_pitch + lid] = final_result[i];
 #else
-                output[output_offset + i * output_x_pitch + lid] = dst;
+            #if HAS_FUSED_OPS
+                FUSED_OPS_VEC;
+                final_result = FUSED_OPS_RESULT_VEC;
+            #else
+                final_result = TO_OUTPUT_VAR_TYPE(pool_result);
+            #endif
+                output[output_offset + i * output_x_pitch + lid] = final_result;
+
 #endif
+            }
         }
     }
     else
 #endif  // OUTPUT_LEFTOVERS
     if (x + X_BLOCK_SIZE <= OUTPUT_SIZE_X)
     {
-#if X_BLOCK_SIZE == 8
-        UNIT_BLOCK_WRITE8(output, output_offset, dst);
-#elif X_BLOCK_SIZE == 4
-        UNIT_BLOCK_WRITE4(output, output_offset, dst);
-#elif X_BLOCK_SIZE == 2
-        UNIT_BLOCK_WRITE2(output, output_offset, dst);
-#elif X_BLOCK_SIZE == 1
-        UNIT_BLOCK_WRITE(output, output_offset, dst);
-#endif
+        #if HAS_FUSED_OPS
+                FUSED_OPS_VEC;
+                final_result = FUSED_OPS_RESULT_VEC;
+        #else
+                final_result = TO_OUTPUT_VAR_TYPE(pool_result);
+        #endif
+
+        #if X_BLOCK_SIZE == 8
+                DT_OUTPUT_BLOCK_WRITE8(output, output_offset, final_result);
+        #elif X_BLOCK_SIZE == 4
+                DT_OUTPUT_BLOCK_WRITE4(output, output_offset, final_result);
+        #elif X_BLOCK_SIZE == 2
+                DT_OUTPUT_BLOCK_WRITE2(output, output_offset, final_result);
+        #elif X_BLOCK_SIZE == 1
+                DT_OUTPUT_BLOCK_WRITE(output, output_offset, final_result);
+        #endif
     }
     else
     {
         const int x_tail = OUTPUT_SIZE_X - x;
-        for (int i = 0; i < x_tail; i++)
+        for (int i = 0; i < x_tail; i++){
 #if X_BLOCK_SIZE > 1
-            UNIT_BLOCK_WRITE(output, output_offset + i*output_x_pitch, dst[i]);
+        #if HAS_FUSED_OPS
+            FUSED_OPS_SCALAR;
+            final_result[i] = FUSED_OPS_RESULT_SCALAR;
+        #else
+            final_result[i] = TO_OUTPUT_TYPE(pool_result[i]);
+        #endif
+            DT_OUTPUT_BLOCK_WRITE(output, output_offset + i*output_x_pitch, final_result[i]);
 #else
-            UNIT_BLOCK_WRITE(output, output_offset + i*output_x_pitch, dst);
+        #if HAS_FUSED_OPS
+            FUSED_OPS_VEC;
+            final_result = FUSED_OPS_RESULT_VEC;
+        #else
+            final_result = TO_OUTPUT_VAR_TYPE(pool_result);
+        #endif
+            DT_OUTPUT_BLOCK_WRITE(output, output_offset + i*output_x_pitch, final_result);
 #endif
+        }
     }
-
-
 }
 
-#undef UNIT_INIT_VAL
+#undef INIT_VAL
 #undef FEATURE_SLICE_SIZE
+
+#undef INPUT_VAR_TYPE
+#undef OUTPUT_VAR_TYPE
+#undef TO_OUTPUT_VAR_TYPE
+
+#undef ACCUMULATOR_VAR_TYPE
+
+#undef ACTIVATION_VAR_TYPE
+#undef TO_ACTIVATION_VAR_TYPE

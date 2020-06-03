@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2018 Intel Corporation
+﻿// Copyright (c) 2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -29,5 +29,11 @@ public:
 
 protected:
     JitConstants GetJitConstants(const pooling_params& params, DispatchData kd) const override;
+    bool Validate(const Params&, const optional_params&) const override;
+    std::vector<FusedOpType> GetSupportedFusedOps() const override {
+         return { FusedOpType::QUANTIZE,
+                  FusedOpType::SCALE,
+                  FusedOpType::ACTIVATION };
+    }
 };
 }  // namespace kernel_selector

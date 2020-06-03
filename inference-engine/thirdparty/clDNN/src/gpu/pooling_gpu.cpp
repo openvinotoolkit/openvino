@@ -115,13 +115,13 @@ public:
         }
 
         // check if last pooling window goes outside of input size + padding. If so the avg pooling size will be
-        // adjusted to that.
+        // adjusted to that, to work properly this calculation must take pad_end into account.
         auto dynamic_mode = (((output_sizes.spatial[0] - 1) * stride.spatial[0]) + primitive->size.spatial[0]) >
-                                -2 * input_offset.spatial[0] + input_sizes.spatial[0] ||
+                                 (-input_offset.spatial[0] - primitive->pad_end.spatial[0]) + input_sizes.spatial[0] ||
                             (((output_sizes.spatial[1] - 1) * stride.spatial[1]) + primitive->size.spatial[1]) >
-                                -2 * input_offset.spatial[1] + input_sizes.spatial[1] ||
+                                 (-input_offset.spatial[1] - primitive->pad_end.spatial[1]) + input_sizes.spatial[1] ||
                             (((output_sizes.spatial[2] - 1) * stride.spatial[2]) + primitive->size.spatial[2]) >
-                                -2 * input_offset.spatial[2] + input_sizes.spatial[2];
+                                 (-input_offset.spatial[2] - primitive->pad_end.spatial[2]) + input_sizes.spatial[2];
 
         if (primitive->mode == pooling_mode::average && dynamic_mode)
             pp.divMode = kernel_selector::kernel_divider_mode::DYNAMIC_WITH_PADDING;
@@ -196,6 +196,7 @@ attach_pooling_gpu::attach_pooling_gpu() {
     implementation_map<pooling>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bs_fs_zyx_bsv16_fsv16), pooling_gpu::create);
     implementation_map<pooling>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bs_fs_zyx_bsv16_fsv16), pooling_gpu::create);
     implementation_map<pooling>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::bs_fs_zyx_bsv16_fsv16), pooling_gpu::create);
+    implementation_map<pooling>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::bs_fs_zyx_bsv16_fsv16), pooling_gpu::create);
     implementation_map<pooling>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bs_fs_yx_bsv16_fsv16), pooling_gpu::create);
     implementation_map<pooling>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bs_fs_yx_bsv16_fsv16), pooling_gpu::create);
     // MMAD
@@ -214,6 +215,9 @@ attach_pooling_gpu::attach_pooling_gpu() {
     implementation_map<pooling>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::b_fs_zyx_fsv32), pooling_gpu::create);
     //
     implementation_map<pooling>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::fs_b_yx_fsv32), pooling_gpu::create);
+    implementation_map<pooling>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::fs_b_yx_fsv32), pooling_gpu::create);
+    implementation_map<pooling>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::fs_b_yx_fsv32), pooling_gpu::create);
+    implementation_map<pooling>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::fs_b_yx_fsv32), pooling_gpu::create);
 }
 
 }  // namespace detail

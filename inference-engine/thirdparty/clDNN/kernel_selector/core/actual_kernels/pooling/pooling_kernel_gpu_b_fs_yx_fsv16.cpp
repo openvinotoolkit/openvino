@@ -22,6 +22,8 @@ ParamsKey PoolingKernel_b_fs_yx_fsv16::GetSupportedKey() const {
     k.EnableOutputDataType(Datatype::F16);
     k.EnableInputDataType(Datatype::F32);
     k.EnableOutputDataType(Datatype::F32);
+    k.EnableOutputDataType(Datatype::INT8);
+    k.EnableOutputDataType(Datatype::UINT8);
     k.EnableInputLayout(DataLayout::b_fs_yx_fsv16);
     k.EnableOutputLayout(DataLayout::b_fs_yx_fsv16);
     k.EnableTensorOffset();
@@ -38,6 +40,7 @@ ParamsKey PoolingKernel_b_fs_yx_fsv16::GetSupportedKey() const {
     k.EnableDifferentTypes();
     k.EnableSubGroup();
     k.EnableSubGroupShort();
+    k.EnableDifferentTypes();
     return k;
 }
 
@@ -88,9 +91,36 @@ JitConstants PoolingKernel_b_fs_yx_fsv16::GetJitConstants(const pooling_params& 
     jit.AddConstant(MakeJitConstant("INPUT_LINE_SIZE", input_line_size));
     jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", alignment));
     jit.AddConstant(MakeJitConstant("X_BLOCKS", CeilDiv(output.X().v, x_block_size)));
+    jit.Merge(MakeTypeJitConstants(GetActivationType(params), "ACTIVATION"));
+    jit.Merge(MakeTypeJitConstants(GetAccumulatorType(params), "ACCUMULATOR"));
+
     if (params.output.Feature().v % 16 != 0) {
         jit.AddConstant(MakeJitConstant("OUTPUT_LEFTOVERS", 1));
     }
+
+    if (!params.fused_ops.empty()) {
+        auto input_dt = GetActivationType(params);
+        FusedOpsConfiguration conf_vec = {"_VEC",
+                                         {"b", "(f_block*16)", "y", "x"},
+                                         "pool_result",
+                                         input_dt,
+                                         x_block_size,
+                                         LoadType::LT_ALIGNED_READ,
+                                         BoundaryCheck::ENABLED,
+                                         IndexType::TENSOR_COORD,
+                                         Tensor::DataChannelName::X};
+        FusedOpsConfiguration conf_scalar = {"_SCALAR",
+                                            {"b", "(f_block*16)", "y", "(x+i)"},
+                                            "pool_result[i]",
+                                            input_dt,
+                                            1,
+                                            LoadType::LT_ALIGNED_READ,
+                                            BoundaryCheck::ENABLED,
+                                            IndexType::TENSOR_COORD,
+                                            Tensor::DataChannelName::X};
+        jit.Merge(MakeFusedOpsJitConstants(params, {conf_vec, conf_scalar}));
+    }
+
     return jit;
 }
 

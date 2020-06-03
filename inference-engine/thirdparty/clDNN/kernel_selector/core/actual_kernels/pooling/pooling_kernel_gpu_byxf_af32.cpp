@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2016 Intel Corporation
+﻿// Copyright (c) 2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -62,18 +62,20 @@ JitConstants PoolingKerneGPU_byxf_af32::GetJitConstants(const pooling_params& pa
     JitConstants jit = PoolingKernelBase::GetJitConstants(params, kd);
 
     jit.AddConstant(MakeJitConstant("AS_INPUT_TYPE(val)", "as_" + toCLType(params.inputs[0].GetDType()) + "4(val)"));
+    jit.Merge(MakeTypeJitConstants(GetActivationType(params), "ACTIVATION"));
+    jit.Merge(MakeTypeJitConstants(GetAccumulatorType(params), "ACCUMULATOR"));
 
     if (!params.fused_ops.empty()) {
-        auto input_dt = EnableRound(params) ? Datatype::INT32 : GetActivationType(params);
-        FusedOpsConfiguration conf = { "",
-                                       {"b", "f", "y", "x"},
-                                       "pool_result",
-                                       input_dt,
-                                       4,
-                                       LoadType::LT_UNALIGNED,
-                                       BoundaryCheck::ENABLED,
-                                       IndexType::TENSOR_COORD,
-                                       Tensor::DataChannelName::FEATURE };
+        auto input_dt = GetActivationType(params);
+        FusedOpsConfiguration conf = {"",
+                                     {"b", "f", "y", "x"},
+                                     "fused_pool_result",
+                                     input_dt,
+                                     4,
+                                     LoadType::LT_UNALIGNED,
+                                     BoundaryCheck::ENABLED,
+                                     IndexType::TENSOR_COORD,
+                                     Tensor::DataChannelName::FEATURE};
         jit.Merge(MakeFusedOpsJitConstants(params, { conf }));
     }
 

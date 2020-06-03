@@ -32,7 +32,7 @@ namespace kernel_selector {
 
 pooling_kernel_selector::pooling_kernel_selector() {
     Attach<PoolingKernelGPURef>();
-    // Attach<PoolingKernelGPUAverageOpt>(); TODO: fix the kernel as it reads out of bounds now
+    //Attach<PoolingKernelGPUAverageOpt>(); TODO: fix the kernel as it reads out of bounds now
     Attach<PoolingKernelGPUByxfOpt>();
     Attach<PoolingKernelGPUBfyxBlockOpt>();
     Attach<PoolingKernelGPUByxfPaddingOpt>();

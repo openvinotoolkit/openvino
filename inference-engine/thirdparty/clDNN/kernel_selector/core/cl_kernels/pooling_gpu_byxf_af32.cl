@@ -1,4 +1,4 @@
-// Copyright (c) 2016-2017 Intel Corporation
+// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,22 +15,26 @@
 
 #include "include/include_all.cl"
 
-#define OUTPUT_TYPE4 MAKE_VECTOR_TYPE(OUTPUT_TYPE, 4)
-#define TO_OUTPUT_TYPE4(x) CAT(convert_, OUTPUT_TYPE4)(x)
+#define ACTIVATION_VEC4 MAKE_VECTOR_TYPE(ACTIVATION_TYPE, 4)
+#define TO_ACTIVATION_VEC4 CAT(convert_, ACTIVATION_VEC4)
+
+#define ACCUMULATOR_VEC4 MAKE_VECTOR_TYPE(ACCUMULATOR_TYPE, 4)
+
+#define OUTPUT_VEC4 MAKE_VECTOR_TYPE(OUTPUT_TYPE, 4)
+#define TO_OUTPUT_VEC4 CAT(convert_, OUTPUT_VEC4)
 
 #if MAX_POOLING
-    #define INIT_VAL INPUT0_VAL_MIN
+    #define INIT_VAL ACCUMULATOR_VAL_MIN
 #elif AVG_POOLING
-    #define INIT_VAL 0
+    #define INIT_VAL ACCUMULATOR_VAL_ZERO
 #else
-#error
+    #error
 #endif
 
-
-inline int FUNC(apply_pooling)(int tmp, int in)
+inline ACCUMULATOR_TYPE FUNC(apply_pooling)(ACCUMULATOR_TYPE tmp, ACCUMULATOR_TYPE in)
 {
 #if MAX_POOLING
-    return max(tmp, in);
+    return ACCUMULATOR_MAX_FUNC(tmp, in);
 #elif AVG_POOLING
     return tmp + in;
 #endif
@@ -61,7 +65,7 @@ KERNEL(pooling_gpu_byxf_af32)(
     const int offset_x = (int)x*STRIDE_SIZE_X - PADDING_SIZE_X;
     const int offset_y = (int)y*STRIDE_SIZE_Y - PADDING_SIZE_Y;
 
-    int4 result = INIT_VAL;
+    ACCUMULATOR_VEC4 result = INIT_VAL;
 
 #ifdef CHECK_BOUNDRY
     if (offset_x + POOL_SIZE_X < 0 || offset_x >= INPUT0_SIZE_X ||
@@ -90,10 +94,10 @@ KERNEL(pooling_gpu_byxf_af32)(
                     const uint input_idx = batch_and_feature_offset + input_offset_y*INPUT0_Y_PITCH + input_offset_x*INPUT0_X_PITCH;
 
                     input_t input_data = AS_INPUT_TYPE(intel_sub_group_block_read((const __global uint*)(input + input_idx)));
-                    result[0] = FUNC_CALL(apply_pooling)(result[0], (int)input_data[0]);
-                    result[1] = FUNC_CALL(apply_pooling)(result[1], (int)input_data[1]);
-                    result[2] = FUNC_CALL(apply_pooling)(result[2], (int)input_data[2]);
-                    result[3] = FUNC_CALL(apply_pooling)(result[3], (int)input_data[3]);
+                    result[0] = FUNC_CALL(apply_pooling)(result[0], TO_ACCUMULATOR_TYPE(input_data[0]));
+                    result[1] = FUNC_CALL(apply_pooling)(result[1], TO_ACCUMULATOR_TYPE(input_data[1]));
+                    result[2] = FUNC_CALL(apply_pooling)(result[2], TO_ACCUMULATOR_TYPE(input_data[2]));
+                    result[3] = FUNC_CALL(apply_pooling)(result[3], TO_ACCUMULATOR_TYPE(input_data[3]));
 
 #ifdef DYNAMIC_KERNEL_DIVIDER
                     num_elementes++;
@@ -115,10 +119,10 @@ KERNEL(pooling_gpu_byxf_af32)(
         for(uint i = 0; i < POOL_SIZE_X; i++)
         {
             input_t input_data = AS_INPUT_TYPE(intel_sub_group_block_read((const __global uint*)(input + input_idx)));
-            result[0] = FUNC_CALL(apply_pooling)(result[0], (int)input_data[0]);
-            result[1] = FUNC_CALL(apply_pooling)(result[1], (int)input_data[1]);
-            result[2] = FUNC_CALL(apply_pooling)(result[2], (int)input_data[2]);
-            result[3] = FUNC_CALL(apply_pooling)(result[3], (int)input_data[3]);
+            result[0] = FUNC_CALL(apply_pooling)(result[0], TO_ACCUMULATOR_TYPE(input_data[0]));
+            result[1] = FUNC_CALL(apply_pooling)(result[1], TO_ACCUMULATOR_TYPE(input_data[1]));
+            result[2] = FUNC_CALL(apply_pooling)(result[2], TO_ACCUMULATOR_TYPE(input_data[2]));
+            result[3] = FUNC_CALL(apply_pooling)(result[3], TO_ACCUMULATOR_TYPE(input_data[3]));
 
             input_idx += INPUT0_X_PITCH;
         }
@@ -132,44 +136,54 @@ KERNEL(pooling_gpu_byxf_af32)(
 
 #if defined AVG_POOLING
 #if ENABLE_ROUND
-    int4 pool_result;
+    int4 not_fused_result;
     for (uint i = 0; i < 4; ++i) {
     #if defined(DYNAMIC_KERNEL_DIVIDER) || defined(DYNAMIC_WITH_PADDING_KERNEL_DIVIDER)
-        pool_result[i] = convert_int(round(((float)result[i] / max(num_elementes, (uint)1)));
+        not_fused_result[i] = convert_int(round(((float)result[i] / max(num_elementes, (uint)1)));
     #else
-        pool_result[i] = convert_int(round((float)result[i] / (int)(POOL_SIZE_Y * POOL_SIZE_X)));
+        not_fused_result[i] = convert_int(round((float)result[i] / (int)(POOL_SIZE_Y * POOL_SIZE_X)));
     #endif
     }
 #else  // ENABLE_ROUND
-    float4 pool_result;
+    float4 not_fused_result;
     for (uint i = 0; i < 4; ++i) {
     #if defined(DYNAMIC_KERNEL_DIVIDER) || defined(DYNAMIC_WITH_PADDING_KERNEL_DIVIDER)
-        pool_result[i] = (float)result[i] / max(num_elementes, (uint)1);
+        not_fused_result[i] = (float)result[i] / max(num_elementes, (uint)1);
     #else
-        pool_result[i] = (float)result[i] / (int)(POOL_SIZE_Y * POOL_SIZE_X);
+        not_fused_result[i] = (float)result[i] / (int)(POOL_SIZE_Y * POOL_SIZE_X);
     #endif
     }
 #endif  // ENABLE_ROUND
 #else  // AVG_POOLING
-    int4 pool_result = result;
+    float4 not_fused_result = convert_float4(result);
 #endif  // AVG_POOLING
 
-    OUTPUT_TYPE4 final_result;
+    OUTPUT_VEC4 final_result;
 #if HAS_FUSED_OPS
+    ACTIVATION_VEC4 fused_pool_result = TO_ACTIVATION_VEC4(not_fused_result);
     FUSED_OPS;
     final_result = FUSED_OPS_RESULT;
+    for(uint op = 0; op < 4; op++)
+    {
+        const uint output_pos = GET_DATA_INDEX(OUTPUT, b, f+op, y, x);
+        output[output_pos] = final_result[op];
+    }
 #else
-    final_result = TO_OUTPUT_TYPE4(pool_result);
+    final_result = TO_OUTPUT_VEC4(not_fused_result);
+    for(uint op = 0; op < 4; op++)
+    {
+        const uint output_pos = GET_DATA_INDEX(OUTPUT, b, f+op, y, x);
+        final_result[op] = TO_OUTPUT_TYPE(ACTIVATION(not_fused_result[op], ACTIVATION_PARAMS));
+        output[output_pos] = final_result[op];
+    }
 #endif
-
-for(uint op = 0; op < 4; op++)
-{
-    const uint output_pos = GET_DATA_INDEX(OUTPUT, b, f+op, y, x);
-    output[output_pos] = ACTIVATION(TO_OUTPUT_TYPE(final_result[op]), ACTIVATION_PARAMS);
-}
-
 }
 
 #undef INIT_VAL
-#undef OUTPUT_TYPE4
-#undef TO_OUTPUT_TYPE4
+#undef ACCUMULATOR_VEC4
+
+#undef ACTIVATION_VEC4
+#undef TO_ACTIVATION_VEC4
+
+#undef OUTPUT_VEC4
+#undef TO_OUTPUT_VEC4

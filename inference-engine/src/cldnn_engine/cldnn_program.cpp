@@ -2735,6 +2735,8 @@ void Program::CreatePoolingPrimitive(cldnn::topology& topology, InferenceEngine:
             input_offset,
             CldnnTensorFromIEDims(poolLayer->outData[0]->getTensorDesc().getDims()),
             dt);
+        cldnn::tensor pad_end = { 0, 0, -TensorValue(poolLayer->_pads_end[X_AXIS]), -TensorValue(poolLayer->_pads_end[Y_AXIS]), 0 };
+        poolPrim.pad_end = pad_end;
         topology.add(poolPrim);
         primitiveIDs[poolLayerName] = poolLayerName;
     }

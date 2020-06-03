@@ -1,4 +1,4 @@
-// Copyright (c) 2016-2017 Intel Corporation
+// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,17 +16,17 @@
 #include "include/include_all.cl"
 
 #if MAX_POOLING
-    #define INIT_VAL CHAR_MIN
+    #define INIT_VAL ACCUMULATOR_VAL_MIN
 #elif AVG_POOLING
-    #define INIT_VAL 0
+    #define INIT_VAL ACCUMULATOR_VAL_ZERO
 #else
-#error
+    #error
 #endif
 
-inline int FUNC(apply_pooling)(int tmp, int in)
+inline ACCUMULATOR_TYPE FUNC(apply_pooling)(ACCUMULATOR_TYPE tmp, ACCUMULATOR_TYPE in)
 {
 #if MAX_POOLING
-    return max(tmp, in);
+    return ACCUMULATOR_MAX_FUNC(tmp, in);
 #elif AVG_POOLING
     return tmp + in;
 #endif
@@ -84,6 +84,7 @@ KERNEL(pooling_gpu_int8_ref)(
     const uint bf   = (uint)get_global_id(0);
     const uint f    = bf / INPUT0_BATCH_NUM;
     const uint b    = bf % INPUT0_BATCH_NUM;
+    const uint z    = 0;
 #elif OUTPUT_LAYOUT_B_FS_YX_FSV16
     const uint x = get_global_id(1);
     const uint y = get_global_id(2);
@@ -92,14 +93,14 @@ KERNEL(pooling_gpu_int8_ref)(
     const uint b = bf % INPUT0_BATCH_NUM;
     const uint z = 0;
 #else
-#error "pooling_int8_ref: unsupported layout"
+    #error "pooling_int8_ref: unsupported layout"
 #endif
 
     const int offset_x = (int)x*STRIDE_SIZE_X - PADDING_SIZE_X;
     const int offset_y = (int)y*STRIDE_SIZE_Y - PADDING_SIZE_Y;
     const int offset_z = (int)z*STRIDE_SIZE_Z - PADDING_SIZE_Z;
 
-    int result = INIT_VAL;
+    ACCUMULATOR_TYPE result = INIT_VAL;
 
 #ifdef CHECK_BOUNDRY
     if (offset_x + POOL_SIZE_X < 0 || offset_x >= INPUT0_SIZE_X ||
@@ -138,8 +139,7 @@ KERNEL(pooling_gpu_int8_ref)(
 #else
                             const uint input_idx = INPUT0_GET_INDEX(b, f, input_offset_y, input_offset_x);
 #endif
-
-                            result = FUNC_CALL(apply_pooling)(result, (int)input[input_idx]);
+                            result = FUNC_CALL(apply_pooling)(result, TO_ACCUMULATOR_TYPE(input[input_idx]));
 
 #ifdef DYNAMIC_KERNEL_DIVIDER
                             num_elementes++;
@@ -180,7 +180,7 @@ KERNEL(pooling_gpu_int8_ref)(
 #else
                 uint input_idx = INPUT0_GET_INDEX(b, f, offset_y + j, offset_x + i);
 #endif
-                result = FUNC_CALL(apply_pooling)(result, (int)input[input_idx]);
+                result = FUNC_CALL(apply_pooling)(result, TO_ACCUMULATOR_TYPE(input[input_idx]));
             }
         }
     }
@@ -194,26 +194,29 @@ KERNEL(pooling_gpu_int8_ref)(
 #if defined AVG_POOLING
 #if ENABLE_ROUND
     #if defined(DYNAMIC_KERNEL_DIVIDER) || defined(DYNAMIC_WITH_PADDING_KERNEL_DIVIDER)
-    int pool_res = convert_int(round((float)result / max(num_elementes, (uint)1)));
+    int not_fused_result = convert_int(round((float)result / max(num_elementes, (uint)1)));
     #else
-    int pool_res = convert_int(round((float)result / (int)(POOL_SIZE_Z * POOL_SIZE_Y * POOL_SIZE_X)));
+    int not_fused_result = convert_int(round((float)result / (int)(POOL_SIZE_Z * POOL_SIZE_Y * POOL_SIZE_X)));
     #endif
 #else  // ENABLE_ROUND
     #if defined(DYNAMIC_KERNEL_DIVIDER) || defined(DYNAMIC_WITH_PADDING_KERNEL_DIVIDER)
-    float pool_res = (float)result / max(num_elementes, (uint)1);
+    float not_fused_result = (float)result / max(num_elementes, (uint)1);
     #else
-    float pool_res = (float)result / (int)(POOL_SIZE_Z * POOL_SIZE_Y * POOL_SIZE_X);
+    float not_fused_result = (float)result / (int)(POOL_SIZE_Z * POOL_SIZE_Y * POOL_SIZE_X);
     #endif
 #endif  // ENABLE_ROUND
 #else  // defined AVG_POOLING
-    int pool_res = result;
+    int not_fused_result = result;
 #endif  // defined AVG_POOLING
+
+    OUTPUT_TYPE final_result;
+    ACTIVATION_TYPE pool_result = TO_ACTIVATION_TYPE(not_fused_result);
 
 #if HAS_FUSED_OPS
       FUSED_OPS;
-      OUTPUT_TYPE dst = FUSED_OPS_RESULT;
+      final_result = FUSED_OPS_RESULT;
 #else  // HAS_FUSED_OPS
-      OUTPUT_TYPE dst = TO_OUTPUT_TYPE(pool_res);
+      final_result = TO_OUTPUT_TYPE(ACTIVATION(pool_result, ACTIVATION_PARAMS));
 #endif  // HAS_FUSED_OPS
 
 #if OUTPUT_DIMS == 5
@@ -221,7 +224,7 @@ KERNEL(pooling_gpu_int8_ref)(
 #else
     const uint output_pos = OUTPUT_GET_INDEX(b, f, y, x);
 #endif
-    output[output_pos] = ACTIVATION(dst, ACTIVATION_PARAMS);
+    output[output_pos] = final_result;
 }
 
 #undef INIT_VAL
