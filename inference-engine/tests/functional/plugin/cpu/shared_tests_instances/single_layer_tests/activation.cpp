@@ -34,7 +34,6 @@ const std::vector<ActivationTypes> activationTypes = {
 
 const auto basicCases = ::testing::Combine(
         ::testing::ValuesIn(activationTypes),
-        ::testing::ValuesIn(inputPrecisions),
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(std::vector<size_t >({1, 50}), std::vector<size_t >({1, 128})),
         ::testing::Values(CommonTestUtils::DEVICE_CPU)

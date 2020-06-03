@@ -8,7 +8,7 @@
 #include <memory>
 #include <string>
 
-#include <ie_api.h>
+#include <transformations_visibility.hpp>
 
 #include <ngraph/pass/graph_rewrite.hpp>
 #include <ngraph_ops/gather_ie.hpp>
@@ -22,7 +22,7 @@
 namespace ngraph {
 namespace pass {
 
-class INFERENCE_ENGINE_API_CLASS(ConvertGatherToGatherIE);
+class TRANSFORMATIONS_API ConvertGatherToGatherIE;
 
 }  // namespace pass
 }  // namespace ngraph

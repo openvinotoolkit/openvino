@@ -1168,7 +1168,7 @@ CNNLayer::Ptr NodeConverter<ngraph::op::v1::Split>::createLayer(const std::share
     if (!axis_node_const) {
         THROW_IE_EXCEPTION << "Split " << castedLayer->get_friendly_name() << " has no axes as Constant";
     }
-    auto axis = axis_node_const->get_vector<int64_t>()[0];
+    auto axis = axis_node_const->cast_vector<int64_t>()[0];
     if (axis < 0) {
         axis += castedLayer->get_input_shape(0).size();
     }
@@ -1189,7 +1189,7 @@ CNNLayer::Ptr NodeConverter<ngraph::op::VariadicSplit>::createLayer(const std::s
     if (!axis_node_const) {
         THROW_IE_EXCEPTION << "Split " << castedLayer->get_friendly_name() << " has no axes as Constant";
     }
-    auto axis = axis_node_const->get_vector<int64_t>()[0];
+    auto axis = axis_node_const->cast_vector<int64_t>()[0];
     if (axis < 0) {
         axis += castedLayer->get_input_shape(0).size();
     }
@@ -1281,7 +1281,7 @@ CNNLayer::Ptr NodeConverter<ngraph::op::v1::Reshape>::createLayer(const std::sha
 
     const auto constNode = castedLayer->get_inputs()[1].get_output().get_node();
     if (auto constValue = ngraph::as_type_ptr<ngraph::op::Constant>(constNode)) {
-        auto value = constValue->get_vector<int64_t>();
+        auto value = constValue->cast_vector<int64_t>();
         for (auto & i : value) {
             if (i == 0 && !castedLayer->get_special_zero())
                 THROW_IE_EXCEPTION << "Reshape " << params.name << " has `special_zero`=False and zeros in second input. This combination is not supported";
@@ -1413,29 +1413,6 @@ CNNLayer::Ptr NodeConverter<ngraph::op::DetectionOutput>::createLayer(
     res->params["input_height"] = asString(attr.input_height);
     res->params["input_width"] = asString(attr.input_width);
     res->params["objectness_score"] = asString(attr.objectness_score);
-
-    return res;
-}
-
-template <>
-CNNLayer::Ptr NodeConverter<ngraph::op::Transpose>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
-    LayerParams params = {layer->get_friendly_name(), "Permute",
-                          details::convertPrecision(layer->get_output_element_type(0))};
-    auto res = std::make_shared<InferenceEngine::CNNLayer>(params);
-
-    NodeConverter<ngraph::op::Constant> converter;
-    const auto orderNode = layer->get_inputs()[1].get_output().get_node();
-    if (converter.canCreate(orderNode)) {
-        const auto& orderLayer = converter.createLayer(orderNode);
-        auto order = orderLayer->blobs["custom"];
-        int64_t* data = order->buffer().as<int64_t*>();
-        std::string orderStr;
-        for (size_t i = 0; i < order->size(); i++) {
-            if (!orderStr.empty()) orderStr += ",";
-            orderStr += asString(data[i]);
-        }
-        res->params["order"] = orderStr;
-    }
 
     return res;
 }
