@@ -11,6 +11,7 @@
 #include <cmath>
 #include <mkldnn_types.h>
 #include <mkldnn_extension_utils.h>
+#include "ie_parallel.hpp"
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -118,29 +119,38 @@ void MKLDNNGemmNode::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    auto inputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(InferenceEngine::Precision::FP32);
+    auto inPrec0 = getCnnLayer()->insData[0].lock()->getPrecision();
+    auto inPrec1 = getCnnLayer()->insData[1].lock()->getPrecision();
+    if ((inPrec0 != Precision::U8 && inPrec0 != Precision::I8) || inPrec1 != Precision::I8 || isThreeInputs) {
+        inPrec0 = Precision::FP32;
+        inPrec1 = Precision::FP32;
+    }
+
+    auto inputDataType0 = MKLDNNExtensionUtils::IEPrecisionToDataType(inPrec0);
+    auto inputDataType1 = MKLDNNExtensionUtils::IEPrecisionToDataType(inPrec1);
     auto outputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(InferenceEngine::Precision::FP32);
 
-    auto same = [&] (memory::format fmt) -> PrimitiveDescInfo {
-        InferenceEngine::LayerConfig config;
-        config.dynBatchSupport = true;
-        for (size_t i = 0; i < getParentEdges().size(); i++) {
-            InferenceEngine::DataConfig dataConfig;
-            dataConfig.inPlace = -1;
-            dataConfig.constant = false;
-            dataConfig.desc = MKLDNNMemoryDesc(getParentEdgeAt(i)->getDims(), inputDataType, fmt);
-            config.inConfs.push_back(dataConfig);
-        }
+    InferenceEngine::LayerConfig config;
+    config.dynBatchSupport = true;
 
+    auto createDataConfig = [](const MKLDNNDims& dims, memory::data_type dataType) -> InferenceEngine::DataConfig {
         InferenceEngine::DataConfig dataConfig;
-            dataConfig.inPlace = -1;
-            dataConfig.constant = false;
-            dataConfig.desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, fmt);
-            config.outConfs.push_back(dataConfig);
-        return {config, impl_desc_type::gemm_any, fmt};
+        dataConfig.inPlace = -1;
+        dataConfig.constant = false;
+        dataConfig.desc = MKLDNNMemoryDesc(dims, dataType, MKLDNNMemory::GetPlainFormat(dims));
+        return dataConfig;
     };
 
-    supportedPrimitiveDescriptors.push_back(same(memory::any));
+    config.inConfs.push_back(createDataConfig(getParentEdgeAt(0)->getDims(), inputDataType0));
+    config.inConfs.push_back(createDataConfig(getParentEdgeAt(1)->getDims(), inputDataType1));
+    if (isThreeInputs) {
+        auto inputDataType2 = MKLDNNExtensionUtils::IEPrecisionToDataType(InferenceEngine::Precision::FP32);
+        config.inConfs.push_back(createDataConfig(getParentEdgeAt(2)->getDims(), inputDataType2));
+    }
+
+    config.outConfs.push_back(createDataConfig(getChildEdgeAt(0)->getDims(), outputDataType));
+
+    supportedPrimitiveDescriptors.push_back(PrimitiveDescInfo(config, impl_desc_type::gemm_any, MKLDNNMemory::GetPlainFormat(getChildEdgeAt(0)->getDims())));
 }
 
 void MKLDNNGemmNode::initOptimalPrimitiveDescriptor() {
@@ -156,16 +166,6 @@ void MKLDNNGemmNode::initOptimalPrimitiveDescriptor() {
     auto* selectedPD = getSelectedPrimitiveDescriptor();
     if (!selectedPD) {
         return;
-    }
-
-    // Only FP32 is supported for now
-    auto& selectedConfig = getSelectedPrimitiveDescriptor()->getConfig();
-    for (auto &inConf : selectedConfig.inConfs) {
-        inConf.desc.setPrecision(Precision::FP32);
-    }
-
-    for (auto &outConf : selectedConfig.outConfs) {
-        outConf.desc.setPrecision(Precision::FP32);
     }
 }
 
@@ -187,17 +187,44 @@ void MKLDNNGemmNode::createPrimitive() {
     }
 }
 
-void MKLDNNGemmNode::execute(mkldnn::stream strm) {
+inline void process_gemm(char transa, char transb, int M, int N, int K, float alpha, const float *A, int lda,
+                         const float *B, int ldb, float beta, float *C, int ldc) {
+    mkldnn_sgemm(transa, transb, M, N, K, alpha, A, lda, B, ldb, beta, C, ldc);
+}
+
+inline void process_gemm(char transa, char transb, int M, int N, int K, float alpha, const uint8_t *A, int lda,
+                         const int8_t *B, int ldb, float beta, float *C, int ldc) {
+    const int32_t co = 0;
+    int32_t *Ci = reinterpret_cast<int32_t *>(C);
+    mkldnn_gemm_u8s8s32(transa, transb, 'F', M, N, K, alpha, A, lda, 0, B, ldb, 0, beta, Ci, ldc, &co);
+    parallel_for(M * N, [&](size_t i) {
+        C[i] = Ci[i];
+    });
+}
+
+inline void process_gemm(char transa, char transb, int M, int N, int K, float alpha, const int8_t *A, int lda,
+                         const int8_t *B, int ldb, float beta, float *C, int ldc) {
+    const int32_t co = 0;
+    int32_t *Ci = reinterpret_cast<int32_t *>(C);
+    mkldnn_gemm_s8s8s32(transa, transb, 'F', M, N, K, alpha, A, lda, 0, B, ldb, 0, beta, Ci, ldc, &co);
+    parallel_for(M * N, [&](size_t i) {
+        C[i] = Ci[i];
+    });
+}
+
+template<typename T0, typename T1>
+void MKLDNNGemmNode::process_data() {
     auto inDims0 = getParentEdgeAt(0)->getDims();
     auto inDims1 = getParentEdgeAt(1)->getDims();
     auto outDims = getChildEdgeAt(0)->getDims();
 
     auto& srcMemory0 = getParentEdgeAt(0)->getMemory();
     auto& srcMemory1 = getParentEdgeAt(1)->getMemory();
-    const float *src0_ptr = reinterpret_cast<const float*>(srcMemory0.GetData()) +
-                            srcMemory0.GetDescriptor().data.layout_desc.blocking.offset_padding;
-    const float *src1_ptr = reinterpret_cast<const float*>(srcMemory1.GetData()) +
-                            srcMemory1.GetDescriptor().data.layout_desc.blocking.offset_padding;
+
+    const T0 *src0_ptr = reinterpret_cast<const T0*>(srcMemory0.GetData()) +
+                              srcMemory0.GetDescriptor().data.layout_desc.blocking.offset_padding;
+    const T1 *src1_ptr = reinterpret_cast<const T1*>(srcMemory1.GetData()) +
+                             srcMemory1.GetDescriptor().data.layout_desc.blocking.offset_padding;
     float *dst_ptr = reinterpret_cast<float*>(getChildEdgeAt(0)->getMemory().GetData()) +
                      getChildEdgeAt(0)->getMemory().GetDescriptor().data.layout_desc.blocking.offset_padding;
 
@@ -218,7 +245,7 @@ void MKLDNNGemmNode::execute(mkldnn::stream strm) {
     if (isThreeInputs) {
         auto& srcMemory2 = getParentEdgeAt(2)->getMemory();
         src2_ptr = reinterpret_cast<const float *>(srcMemory2.GetData()) +
-                                srcMemory2.GetDescriptor().data.layout_desc.blocking.offset_padding;
+                   srcMemory2.GetDescriptor().data.layout_desc.blocking.offset_padding;
     } else {
         src2_ptr = dst_ptr;
     }
@@ -228,8 +255,8 @@ void MKLDNNGemmNode::execute(mkldnn::stream strm) {
     }
 
     for (int b1 = 0; b1 < MB1; b1++) {
-        const float *a_ptr = src0_ptr;
-        const float *b_ptr = src1_ptr;
+        const T0 *a_ptr = src0_ptr;
+        const T1 *b_ptr = src1_ptr;
         const float *c_ptr = src2_ptr;
         float *d_ptr = dst_ptr;
 
@@ -239,7 +266,7 @@ void MKLDNNGemmNode::execute(mkldnn::stream strm) {
                 c_ptr += cOffsets[0];
             }
 
-            mkldnn_sgemm(transa, transb, M, N, K, alpha, a_ptr, lda, b_ptr, ldb, beta, d_ptr, ldc);
+            process_gemm(transa, transb, M, N, K, alpha, a_ptr, lda, b_ptr, ldb, beta, d_ptr, ldc);
 
             a_ptr += aOffsets[0];
             b_ptr += bOffsets[0];
@@ -253,6 +280,22 @@ void MKLDNNGemmNode::execute(mkldnn::stream strm) {
         if (isThreeInputs) {
             src2_ptr += cOffsets[1];
         }
+    }
+}
+
+void MKLDNNGemmNode::execute(mkldnn::stream strm) {
+    switch (getParentEdgeAt(0)->getDesc().getPrecision()) {
+        case Precision::FP32:
+            process_data<float, float>();
+            break;
+        case Precision::I8:
+            process_data<int8_t, int8_t>();
+            break;
+        case Precision::U8:
+            process_data<uint8_t, int8_t>();
+            break;
+        default:
+            THROW_IE_EXCEPTION << "Gemm node: first input has unsupported precision";
     }
 }
 

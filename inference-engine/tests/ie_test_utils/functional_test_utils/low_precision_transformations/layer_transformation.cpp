@@ -89,6 +89,8 @@ InferenceEngine::details::LowPrecisionTransformer LayerTransformation::getLowPre
     return transformer;
 }
 
+IE_SUPPRESS_DEPRECATED_START
+
 void LayerTransformation::checkPrecisions(const InferenceEngine::CNNLayer& layer, const InferenceEngine::Precision& expectedPrecision) {
     for (const InferenceEngine::DataWeakPtr insDataWeak : layer.insData) {
         const InferenceEngine::DataPtr insData = insDataWeak.lock();
@@ -152,6 +154,8 @@ void LayerTransformation::checkPrecisions(
 
     checkPrecision(layer, expectedOutputPrecisions, 0, false);
 }
+
+IE_SUPPRESS_DEPRECATED_END
 
 std::pair<float, float> LayerTransformation::getQuantizationInterval(const InferenceEngine::Precision precision) {
     const bool unsignedInterval = precision == InferenceEngine::Precision::U8;

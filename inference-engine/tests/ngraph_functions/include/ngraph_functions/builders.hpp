@@ -239,5 +239,8 @@ std::shared_ptr<Node> makeShuffleChannels(const ngraph::Output<Node> &in,
                                           int axis,
                                           int group);
 
+std::shared_ptr<Node> makeMatMul(const Output<Node>& A,
+                                 const Output<Node>& B);
+
 }  // namespace builder
 }  // namespace ngraph
