@@ -61,7 +61,8 @@ JitConstants GemmKernelMMADint8::GetJitConstants(const gemm_params& params) cons
 
     if (!params.fused_ops.empty()) {
         auto input_dt = GetActivationType(params);
-        FusedOpsConfiguration conf = { "", {"b", "f", "y", "x"}, "dequantized", input_dt, 1 };
+        FusedOpsConfiguration conf = { "", {"b", "f", "output_y", "output_x"}, "dequantized", input_dt, 1 };
+        conf.SetLoopAxes({ Tensor::DataChannelName::Y }, true);
         jit.Merge(MakeFusedOpsJitConstants(params, { conf }));
     }
 

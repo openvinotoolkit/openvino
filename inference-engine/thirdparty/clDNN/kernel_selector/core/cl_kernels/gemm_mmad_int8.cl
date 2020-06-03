@@ -121,6 +121,9 @@ KERNEL(gemm_mmad_int8)(
     const uint output_x = (uint)get_global_id(0);
     const uint output_x_tile = output_x / TILE_SIZE_N;
     const uint output_y_tile = (uint)get_global_id(1);
+#if HAS_FUSED_OPS
+    uint output_y = output_y_tile * TILE_SIZE_M;
+#endif // HAS_FUSED_OPS
     uint batch = get_global_id(2);
     const uint lid = (uint)get_local_id(0);
 
@@ -248,7 +251,7 @@ KERNEL(gemm_mmad_int8)(
             temp_input0[i].s3 = input0[FUNC_CALL(get_current_input0_offset)(common_input0_offset, 3, lid)];
 
             tile_input0[i] = AS_TYPE(PACKED_INPUT0_TYPE, temp_input0[i]);
-#endif // !TRANSPOSE_INPUT0       
+#endif // !TRANSPOSE_INPUT0
 
 #endif // OUTPUT_LEFTOVERS_M || OUTPUT_LEFTOVERS_K
         }
@@ -281,6 +284,7 @@ KERNEL(gemm_mmad_int8)(
 #endif // FUSED_OPS_CAN_USE_PRELOAD
         OUTPUT_TYPE res = FUSED_OPS_RESULT;
         output[batch_offset_output + (output_y_tile * TILE_SIZE_M + i) * OUTPUT_SIZE_X + output_x_tile * TILE_SIZE_N + lid] = res;
+        output_y++;
 #else // HAS_FUSED_OPS
         output[batch_offset_output + (output_y_tile * TILE_SIZE_M + i) * OUTPUT_SIZE_X + output_x_tile * TILE_SIZE_N + lid] = dequantized;
 #endif // HAS_FUSED_OPS
@@ -296,6 +300,9 @@ KERNEL(gemm_mmad_int8)(
     const uint output_x = (uint)get_global_id(0);
     const uint output_x_tile = output_x / TILE_SIZE_N;
     const uint output_y_tile = (uint)get_global_id(1);
+#if HAS_FUSED_OPS
+    uint output_y = output_y_tile * TILE_SIZE_M;
+#endif // HAS_FUSED_OPS
     uint batch = get_global_id(2);
     const uint lid = (uint)get_local_id(0);
 
@@ -465,6 +472,7 @@ KERNEL(gemm_mmad_int8)(
 
         OUTPUT_TYPE res = FUSED_OPS_RESULT;
         output[batch_offset_output + (output_y_tile * TILE_SIZE_M + i) * OUTPUT_SIZE_X + output_x_tile * TILE_SIZE_N + lid] = res;
+        output_y++;
 #else // HAS_FUSED_OPS
         output[batch_offset_output + (output_y_tile * TILE_SIZE_M + i) * OUTPUT_SIZE_X + output_x_tile * TILE_SIZE_N + lid] = dequantized;
 #endif // HAS_FUSED_OPS
@@ -488,6 +496,7 @@ KERNEL(gemm_mmad_int8)(
 
         OUTPUT_TYPE res = FUSED_OPS_RESULT;
         output[batch_offset_output + (output_y_tile * TILE_SIZE_M + TILE_SIZE_M_DIV + i) * OUTPUT_SIZE_X + output_x_tile * TILE_SIZE_N + lid] = res;
+        output_y++;
 #else // HAS_FUSED_OPS
         output[batch_offset_output + (output_y_tile * TILE_SIZE_M + TILE_SIZE_M_DIV + i) * OUTPUT_SIZE_X + output_x_tile * TILE_SIZE_N + lid] = dequantized;
 #endif // HAS_FUSED_OPS
