@@ -42,7 +42,7 @@ TEST(type_prop, lstm_sequence_forward)
                                               Shape{num_directions, 4 * hidden_size, hidden_size});
     const auto B = make_shared<op::Parameter>(element::f32, Shape{num_directions, 4 * hidden_size});
 
-    const auto lstm_direction = op::LSTMSequence::direction::FORWARD;
+    const auto lstm_direction = op::RecurrentSequenceDirection::FORWARD;
 
     const auto lstm_sequence = make_shared<op::LSTMSequence>(X,
                                                              initial_hidden_state,
@@ -53,8 +53,9 @@ TEST(type_prop, lstm_sequence_forward)
                                                              B,
                                                              hidden_size,
                                                              lstm_direction);
+
     EXPECT_EQ(lstm_sequence->get_hidden_size(), hidden_size);
-    EXPECT_EQ(lstm_sequence->get_direction(), op::LSTMSequence::direction::FORWARD);
+    EXPECT_EQ(lstm_sequence->get_direction(), op::RecurrentSequenceDirection::FORWARD);
     EXPECT_EQ(lstm_sequence->get_weights_format(), op::LSTMWeightsFormat::IFCO);
     EXPECT_TRUE(lstm_sequence->get_activations_alpha().empty());
     EXPECT_TRUE(lstm_sequence->get_activations_beta().empty());

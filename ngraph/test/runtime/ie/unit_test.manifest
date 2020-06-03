@@ -1349,6 +1349,25 @@ IE_CPU.onnx_dyn_shapes_model_flatten
 IE_CPU.onnx_dyn_shapes_slice_10_default_axes
 IE_CPU.fused_clamp_float
 
+# GRUCell operation has a form that is not supported
+IE_CPU.onnx_model_gru_defaults_fwd
+IE_CPU.onnx_model_gru_fwd_activations
+IE_CPU.onnx_model_gru_fwd_mixed_seq_len
+IE_CPU.onnx_model_gru_rev_clip
+IE_CPU.onnx_model_gru_reverse
+IE_CPU.onnx_model_gru_fwd_bias_initial_h
+IE_CPU.onnx_model_gru_bidirectional
+IE_CPU.onnx_model_gru_fwd_linear_before_reset
+
+# RNNCell operation has a form that is not supported
+IE_CPU.onnx_model_rnn_defaults_fwd
+IE_CPU.onnx_model_rnn_fwd_activations
+IE_CPU.onnx_model_rnn_fwd_mixed_seq_len
+IE_CPU.onnx_model_rnn_rev_clip
+IE_CPU.onnx_model_rnn_reverse
+IE_CPU.onnx_model_rnn_fwd_bias_initial_h
+IE_CPU.onnx_model_rnn_bidirectional
+IE_CPU.onnx_model_rnn_bidirectional_const
 #-------------------------------------------------------------------------------
 #
 #       Inference Engine GPU plugin excludes

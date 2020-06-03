@@ -45,9 +45,8 @@ namespace ngraph
             ///             *       - Is a dot product,
             ///             f       - is activation functions.
             ///
-            /// \note       This class represents only single *cell* (for current time step) and not
-            /// the
-            ///             whole LSTM Sequence layer
+            /// \note       This class represents only single *cell* (for current time step)
+            ///             and not the whole RNN Sequence layer
             ///
             /// \sa         LSTMSequence, LSTMCell, GRUCell
             ///

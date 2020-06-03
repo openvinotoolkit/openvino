@@ -16,6 +16,7 @@
 
 #include <algorithm>
 #include <iterator>
+#include <locale>
 
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/op/add.hpp"
@@ -61,7 +62,14 @@ bool ngraph::op::util::RNNCellBase::visit_attributes(AttributeVisitor& visitor)
 
 op::util::ActivationFunction op::util::RNNCellBase::get_activation_function(size_t idx) const
 {
-    op::util::ActivationFunction afunc = get_activation_func_by_name(m_activations.at(idx));
+    // Normalize activation function case.
+    std::string func_name = m_activations.at(idx);
+    std::locale loc;
+    std::transform(func_name.begin(), func_name.end(), func_name.begin(), [&loc](char c) {
+        return std::tolower(c, loc);
+    });
+
+    op::util::ActivationFunction afunc = get_activation_func_by_name(func_name);
 
     // Set activation functions parameters (if any)
     if (m_activations_alpha.size() > idx)

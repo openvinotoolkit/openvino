@@ -153,6 +153,7 @@ namespace ngraph
             ///                    new axis is placed.
             ///
             /// \return     Reshape:v1 op.
+            NGRAPH_API
             std::shared_ptr<Node> expand_dims(const Output<Node>& value, std::size_t axis = 0);
 
             /// \brief      Remove empty axes from input tensor.
@@ -161,6 +162,7 @@ namespace ngraph
             /// \param[in]  axes   The vector defining indexes of axes to be removed.
             ///
             /// \return     Reshape:v1 op.
+            NGRAPH_API
             std::shared_ptr<Node> squeeze(const Output<Node>& value,
                                           std::vector<std::size_t> axes = {0});
         }
