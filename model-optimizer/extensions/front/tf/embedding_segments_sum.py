@@ -94,6 +94,7 @@ class EmbeddingSegmentsSumFrontReplacer(FrontReplacementSubgraph):
         squeeze_for_indices = create_op_with_const_inputs(graph, Squeeze, {1: int64_array([1])})
         split_for_dense_shape = create_op_with_const_inputs(graph, Split, {1: int64_array(0)}, {'num_splits': 2})
         squeeze_to_scalar = create_op_with_const_inputs(graph, Squeeze, {1: int64_array([0])})
+        cast_segment_ids = Cast(graph, {'name': output_node_name + '/CastSegmentIds', 'dst_type': np.int32}).create_node()
         cast_default_value = Cast(graph, {'name': output_node_name + '/CastDefaultValue', 'dst_type': np.int32}).create_node()
         cast_num_segments = Cast(graph, {'name': output_node_name + '/CastSegmentsNumber', 'dst_type': np.int32}).create_node()
         embedding_segments_sum = EmbeddingSegmentsSum(graph, {'name': output_node_name}).create_node()
@@ -106,7 +107,9 @@ class EmbeddingSegmentsSumFrontReplacer(FrontReplacementSubgraph):
         # split and connect segment ids
         gather0_1.in_port(0).get_connection().set_destination(split_for_indices.in_port(0))
         squeeze_for_indices.in_port(0).connect(split_for_indices.out_port(0))
-        embedding_segments_sum.in_port(2).connect(squeeze_for_indices.out_port(0))
+        # TODO: remove casting once we start to support I64 model input
+        cast_segment_ids.in_port(0).connect(squeeze_for_indices.out_port(0))
+        embedding_segments_sum.in_port(2).connect(cast_segment_ids.out_port(0))
         # split and connect number of segments
         identity_spw.in_port(0).get_connection().set_destination(split_for_dense_shape.in_port(0))
         squeeze_to_scalar.in_port(0).connect(split_for_dense_shape.out_port(0))
@@ -205,6 +208,7 @@ class EmbeddingSegmentsSumFrontReplacer2(FrontReplacementSubgraph):
                                                             {'num_splits': 2,
                                                              'name': output_node_name + '/SplitForDenseShape'})
         squeeze_to_scalar = create_op_with_const_inputs(graph, Squeeze, {1: int64_array([0])})
+        cast_segment_ids = Cast(graph, {'name': output_node_name + '/CastSegmentIds', 'dst_type': np.int32}).create_node()
         cast_default_value = Cast(graph, {'name': output_node_name + '/CastDefaultValue', 'dst_type': np.int32}).create_node()
         cast_num_segments = Cast(graph, {'name': output_node_name + '/CastSegmentsNumber', 'dst_type': np.int32}).create_node()
         embedding_segments_sum = EmbeddingSegmentsSum(graph, {'name': output_node_name}).create_node()
@@ -217,7 +221,9 @@ class EmbeddingSegmentsSumFrontReplacer2(FrontReplacementSubgraph):
         # split and connect segment ids
         gather0_1.in_port(0).get_connection().set_destination(split_for_indices.in_port(0))
         squeeze_for_indices.in_port(0).connect(split_for_indices.out_port(0))
-        embedding_segments_sum.in_port(2).connect(squeeze_for_indices.out_port(0))
+        # TODO: remove casting once we start to support I64 model input
+        cast_segment_ids.in_port(0).connect(squeeze_for_indices.out_port(0))
+        embedding_segments_sum.in_port(2).connect(cast_segment_ids.out_port(0))
         # split and connect number of segments
         identity_spw.in_port(0).get_connection().set_destination(split_for_dense_shape.in_port(0))
         squeeze_to_scalar.in_port(0).connect(split_for_dense_shape.out_port(0))
