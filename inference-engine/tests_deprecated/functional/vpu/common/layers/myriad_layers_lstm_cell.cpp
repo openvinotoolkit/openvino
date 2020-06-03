@@ -201,5 +201,5 @@ TEST_F(myriadLayersTests_nightly, LSTMCellSequenceNet) {
 }
 
 INSTANTIATE_TEST_CASE_P(accuracy, myriadLayersTestsLSTMCell_smoke,
-                        ::testing::Values<lstmcell_test_params>(MAKE_STRUCT(lstmcell_test_params, 512, 128, 3)),
+                        ::testing::Values<lstmcell_test_params>(MAKE_STRUCT(lstmcell_test_params, 512, 128)),
 );
