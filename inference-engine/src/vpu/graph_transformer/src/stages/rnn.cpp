@@ -73,6 +73,7 @@ private:
         serializer.append(static_cast<int>(RNNForward));
         serializer.append(nCells);
         serializer.append(nBatches);
+        serializer.append(static_cast<int>(outputEdges().size()));
         serializer.append(static_cast<int>(useCellState));
     }
 
@@ -102,21 +103,18 @@ static void RNNRelayout(
 
                  fp16_t* dst0,
                  fp16_t* dst1,
-                 fp16_t* dst2,
 
-                 int out_num,
                  const int ngates,
                  const int state_size,
                  const int input_size
                 ) {
     int counter = 0;
-    dst0[0] = out_num;
     for (int j = 0; j < ngates * state_size; j++) {
         for (int i = 0; i < input_size; i++) {
-            dst1[(input_size) * j + i] = src[counter++];
+            dst0[(input_size) * j + i] = src[counter++];
         }
         for (int i = 0; i < state_size; i++) {
-            dst2[(state_size) * j + i] = src[counter++];
+            dst1[(state_size) * j + i] = src[counter++];
         }
     }
 }
@@ -166,7 +164,7 @@ void FrontEnd::parseRNN(const Model& model, const ie::CNNLayerPtr& _layer, const
     IE_ASSERT(stateSize * ngates == biasesSize);
 
     /* weights repacking */
-    const auto generator = [&weights, stateSize, inputSize, ngates, outputs](const ie::Blob::Ptr& blob) {
+    const auto generator = [&weights, stateSize, inputSize, ngates](const ie::Blob::Ptr& blob) {
         auto newWeightsPtr = blob->buffer().as<fp16_t*>();
 
         auto content = weights->content();
@@ -179,10 +177,8 @@ void FrontEnd::parseRNN(const Model& model, const ie::CNNLayerPtr& _layer, const
             origWeights,
 
             newWeightsPtr,
-            newWeightsPtr + 1,
             newWeightsPtr + ngates * stateSize * inputSize,
 
-            static_cast<int>(outputs.size()),
             ngates,
             stateSize,
             inputSize);
@@ -275,7 +271,7 @@ void FrontEnd::parseLSTMCell(const Model& model, const ie::CNNLayerPtr& _layer, 
 
     IE_ASSERT(stateSize * (inputSize + stateSize) * ngates == weightsSize);
 
-    const auto generator = [&weights, stateSize, inputSize, ngates, outputs](const ie::Blob::Ptr& blob) {
+    const auto generator = [&weights, stateSize, inputSize, ngates](const ie::Blob::Ptr& blob) {
         auto newWeightsPtr = blob->buffer().as<fp16_t*>();
 
         auto content = weights->content();
@@ -288,10 +284,8 @@ void FrontEnd::parseLSTMCell(const Model& model, const ie::CNNLayerPtr& _layer, 
             origWeights,
 
             newWeightsPtr,
-            newWeightsPtr + 1,
             newWeightsPtr + ngates * stateSize * inputSize,
 
-            static_cast<int>(outputs.size()),
             ngates,
             stateSize,
             inputSize);
