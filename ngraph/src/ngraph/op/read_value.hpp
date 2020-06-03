@@ -36,9 +36,9 @@ namespace ngraph
 
                 /// \brief Constructs a ReadValue operation.
                 ///
-                /// \param new_value   Node that produces the input tensor.
-                /// \param variable_id identificator of the variable to create.
-                ReadValue(const Output<Node>& new_value, const std::string& variable_id);
+                /// \param init_value   Node that produces the input tensor.
+                /// \param variable_id  identificator of the variable to create.
+                ReadValue(const Output<Node>& init_value, const std::string& variable_id);
 
                 void validate_and_infer_types() override;
 

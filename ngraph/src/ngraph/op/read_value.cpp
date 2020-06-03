@@ -21,8 +21,8 @@ using namespace ngraph;
 
 constexpr NodeTypeInfo op::ReadValue::type_info;
 
-op::ReadValue::ReadValue(const Output<Node>& new_value, const std::string& variable_id)
-    : Op({new_value})
+op::ReadValue::ReadValue(const Output<Node>& init_value, const std::string& variable_id)
+    : Op({init_value})
     , m_variable_id(variable_id)
 {
     constructor_validate_and_infer_types();
