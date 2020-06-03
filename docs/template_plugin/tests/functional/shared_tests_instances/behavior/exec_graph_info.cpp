@@ -6,8 +6,6 @@
 
 #include "behavior/exec_graph_info.hpp"
 
-using namespace LayerTestsDefinitions;
-
 namespace {
     const std::vector<InferenceEngine::Precision> netPrecisions = {
             InferenceEngine::Precision::FP32,
