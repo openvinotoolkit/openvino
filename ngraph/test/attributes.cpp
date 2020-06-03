@@ -1124,7 +1124,7 @@ TEST(attributes, lstm_sequence_op)
                                               Shape{num_directions, 4 * hidden_size, hidden_size});
     const auto B = make_shared<op::Parameter>(element::f32, Shape{num_directions, 4 * hidden_size});
 
-    const auto lstm_direction = op::LSTMSequence::direction::BIDIRECTIONAL;
+    const auto lstm_direction = op::RecurrentSequenceDirection::BIDIRECTIONAL;
     const auto weights_format = op::LSTMWeightsFormat::ICOF;
     const std::vector<float> activations_alpha = {1, 2, 3};
     const std::vector<float> activations_beta = {4, 5, 6};
