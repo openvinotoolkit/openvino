@@ -2297,7 +2297,7 @@ TEST_P(gemm_int8_2in_act_scale_quantize_eltwise_i8, basic) {
         reorder("reorder_bfyx", "sum", p.default_format, data_types::f32)
     );
 
-    tolerance = 1e-5f;
+    tolerance = 1.0f;
     execute(p);
 }
 
