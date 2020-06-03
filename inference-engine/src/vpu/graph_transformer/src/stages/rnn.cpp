@@ -69,7 +69,7 @@ private:
         const auto RNNForward = attrs().get<bool>("RNNForward");
         const auto nCells     = attrs().get<int>("nCells");
         const auto nBatches   = attrs().get<int>("nBatches");
-        const bool useCellState = outputEdges().size() >= 1;
+        const bool useCellState = outputEdges().size() >= 2;
         serializer.append(static_cast<int>(RNNForward));
         serializer.append(nCells);
         serializer.append(nBatches);
