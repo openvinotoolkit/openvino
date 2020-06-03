@@ -47,7 +47,7 @@ public:
      * @param _precision Precision of the data
      * @param layout Data layout
      */
-    INFERENCE_ENGINE_DEPRECATED("Use Data(const std::string &, const TensorDesc&). The ctor will be removed in 2020.3")
+    INFERENCE_ENGINE_DEPRECATED("Use Data(const std::string &, const TensorDesc&). The ctor will be removed in 2021.1")
     Data(const std::string& name, const SizeVector& a_dims, Precision _precision, Layout layout = NCHW);
 
     /**

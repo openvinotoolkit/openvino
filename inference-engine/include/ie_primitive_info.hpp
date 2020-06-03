@@ -21,6 +21,7 @@ namespace InferenceEngine {
 
 /**
  * @deprecated Use ExecutableNetwork::GetExecGraphInfo to get information about an internal graph.
+ * This structure will be removed in 2021.1 release.
  * @brief Structure with information about Primitive
  */
 struct INFERENCE_ENGINE_DEPRECATED("Use ExecutableNetwork::GetExecGraphInfo to get information about an internal graph") PrimitiveInfo {

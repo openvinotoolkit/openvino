@@ -21,7 +21,7 @@ namespace details {
 IE_SUPPRESS_DEPRECATED_START
 
 /**
- * @deprecated Use InferenceEngine::Core instead.
+ * @deprecated Use InferenceEngine::Core instead. This API will be removed in 2021.1 release.
  * @brief This class defines the name of the fabric for creating an IInferencePlugin object in DLL
  */
 template <>

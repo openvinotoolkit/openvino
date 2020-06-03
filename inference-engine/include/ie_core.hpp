@@ -73,6 +73,7 @@ public:
 
     /**
      * @deprecated IErrorListener is not used anymore. An exception is thrown in case of any unexpected situations.
+     * The function will be removed in 2021.1 release.
      * @brief Sets logging callback
      *
      * Logging is used to track what is going on inside the plugins, Inference Engine library

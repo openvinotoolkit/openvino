@@ -56,7 +56,7 @@
 # define INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(...) INFERENCE_ENGINE_API_CLASS(__VA_ARGS__)
 #else
 # define INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(...)                                                                           \
-    INFERENCE_ENGINE_INTERNAL("Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2020.3") \
+    INFERENCE_ENGINE_INTERNAL("Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1") \
     INFERENCE_ENGINE_API_CLASS(__VA_ARGS__)
 #endif
 

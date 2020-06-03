@@ -20,6 +20,7 @@ namespace InferenceEngine {
 
 /**
  * @deprecated Use ExecutableNetwork::GetExecGraphInfo to get information about an internal graph.
+ * This API will be removed in 2021.1 release.
  * @struct TensorInfo
  * @brief This structure describes tensor information
  */

@@ -28,10 +28,10 @@
 namespace InferenceEngine {
 
 /**
- * @deprecated Use InferenceEngine::Core instead. Will be removed in 2020.3
+ * @deprecated Use InferenceEngine::Core instead. Will be removed in 2021.1
  * @brief This class is a main plugin interface
  */
-class INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::Core instead. Will be removed in 2020.3")
+class INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::Core instead. Will be removed in 2021.1")
     INFERENCE_ENGINE_API_CLASS(IInferencePlugin)
     : public details::IRelease {
 public:
@@ -44,6 +44,7 @@ public:
 
     /**
      * @deprecated IErrorListener is not used anymore. StatusCode is provided in case of unexpected situations
+     * This API will be removed in 2021.1 release.
      * @brief Sets logging callback
      *
      * Logging is used to track what is going on inside
