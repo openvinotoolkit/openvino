@@ -562,6 +562,10 @@ namespace
             break;
             TYPE_CASE(u64)(arg, out, out_shape, kernel, strides, pad_begin, pad_end);
             break;
+            TYPE_CASE(bf16)(arg, out, out_shape, kernel, strides, pad_begin, pad_end);
+            break;
+            TYPE_CASE(f16)(arg, out, out_shape, kernel, strides, pad_begin, pad_end);
+            break;
             TYPE_CASE(f32)(arg, out, out_shape, kernel, strides, pad_begin, pad_end);
             break;
             TYPE_CASE(f64)(arg, out, out_shape, kernel, strides, pad_begin, pad_end);
