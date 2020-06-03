@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2018 Intel Corporation
+﻿// Copyright (c) 2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -20,6 +20,9 @@ ParamsKey PoolingKerneGPU_fs_bs_yx_bsv4_fsv32::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::INT8);
     k.EnableOutputDataType(Datatype::INT8);
+    k.EnableOutputDataType(Datatype::UINT8);
+    k.EnableOutputDataType(Datatype::F16);
+    k.EnableOutputDataType(Datatype::F32);
     k.EnableInputLayout(DataLayout::fs_bs_yx_bsv4_fsv32);
     k.EnableOutputLayout(DataLayout::fs_bs_yx_bsv4_fsv32);
     k.EnableTensorOffset();
@@ -68,10 +71,39 @@ JitConstants PoolingKerneGPU_fs_bs_yx_bsv4_fsv32::GetJitConstants(const pooling_
     jit.AddConstant(MakeJitConstant("IN_B_BLOCK_PITCH", in_b_block_pitch));
     jit.AddConstant(MakeJitConstant("IN_F_BLOCK_PITCH", in_f_block_pitch));
     jit.AddConstant(MakeJitConstant("IN_OFFSET", in_offset));
+    jit.Merge(MakeTypeJitConstants(GetActivationType(params), "ACTIVATION"));
+    jit.Merge(MakeTypeJitConstants(GetAccumulatorType(params), "ACCUMULATOR"));
+
+    if (!params.fused_ops.empty()) {
+        auto input_dt = GetActivationType(params);
+        FusedOpsConfiguration conf = {"",
+                                     {"b + bi", "f", "y", "x"},
+                                     "char_result",
+                                     input_dt,
+                                     4,
+                                     LoadType::LT_UNALIGNED,
+                                     BoundaryCheck::ENABLED,
+                                     IndexType::TENSOR_COORD,
+                                     Tensor::DataChannelName::FEATURE};
+        jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
+    }
 
     return jit;
 }
 
+bool PoolingKerneGPU_fs_bs_yx_bsv4_fsv32::Validate(const Params& params, const optional_params& options) const {
+    if (!PoolingKernelBase::Validate(params, options)) {
+        return false;
+    }
+
+    auto p = dynamic_cast<const pooling_params&>(params);
+
+    if (p.quantization != QuantizationType::NONE && p.poolType == PoolType::AVG) {
+        return false;
+    }
+
+    return true;
+}
 KernelsData PoolingKerneGPU_fs_bs_yx_bsv4_fsv32::GetKernelsData(const Params& params,
                                                                 const optional_params& options) const {
     return GetCommonKernelsData(params, options, FORCE_PRIORITY_2);

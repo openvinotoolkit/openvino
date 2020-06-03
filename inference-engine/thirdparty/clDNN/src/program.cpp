@@ -375,6 +375,11 @@ void program_impl::build_program(bool is_internal) {
 void program_impl::init_graph() {
     apply_opt_pass<graph_initializations>();
 
+    for (auto& node : processing_order) {
+        if (!node->is_type<internal_primitive>() && !node->is_type<data>())
+            node->get_output_layout();
+    }
+
     apply_opt_pass<calculate_prior_boxes>();
 
     apply_opt_pass<mark_nodes>();

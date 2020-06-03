@@ -91,6 +91,10 @@ namespace
             break;
             TYPE_CASE(u64)(arg, out, axes);
             break;
+            TYPE_CASE(bf16)(arg, out, axes);
+            break;
+            TYPE_CASE(f16)(arg, out, axes);
+            break;
             TYPE_CASE(f32)(arg, out, axes);
             break;
             TYPE_CASE(f64)(arg, out, axes);

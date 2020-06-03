@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2016 Intel Corporation
+﻿// Copyright (c) 2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -63,9 +63,12 @@ KernelsData PoolingKernelGPUInt8Ref::GetKernelsData(const Params& params, const 
 
 JitConstants PoolingKernelGPUInt8Ref::GetJitConstants(const pooling_params& params, DispatchData kd) const {
     JitConstants jit = PoolingKernelBase::GetJitConstants(params, kd);
+    jit.Merge(MakeTypeJitConstants(GetActivationType(params), "ACTIVATION"));
+    jit.Merge(MakeTypeJitConstants(GetAccumulatorType(params), "ACCUMULATOR"));
 
     if (!params.fused_ops.empty()) {
-        auto input_dt = EnableRound(params) ? Datatype::INT32 : GetActivationType(params);
+        auto input_dt = GetActivationType(params);
+
         std::vector<std::string> idx_order;
         if (DataTensor::ChannelsCount(params.output.GetLayout()) == 4) {
             idx_order = {"b", "f", "y", "x"};
@@ -73,7 +76,7 @@ JitConstants PoolingKernelGPUInt8Ref::GetJitConstants(const pooling_params& para
             idx_order = {"b", "f", "z", "y", "x"};
         }
 
-        FusedOpsConfiguration conf = {"", idx_order, "pool_res", input_dt, 1 };
+        FusedOpsConfiguration conf = {"", idx_order, "pool_result", input_dt, 1 };
         jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
     }
 
@@ -88,7 +91,8 @@ bool PoolingKernelGPUInt8Ref::Validate(const Params& params, const optional_para
 
     if (p.inputs[0].GetDType() == Datatype::INT8 || p.inputs[0].GetDType() == Datatype::UINT8) {
         // Max pooling doesn't change quantization ranges, so output data type should be the same as input
-        if ((p.poolType == PoolType::MAX || p.poolType == PoolType::MAX_WITH_ARGMAX) && p.output.GetDType() != p.inputs[0].GetDType())
+        if ((p.poolType == PoolType::MAX || p.poolType == PoolType::MAX_WITH_ARGMAX)
+            && (p.output.GetDType() != p.inputs[0].GetDType()) && p.quantization == QuantizationType::NONE)
             return false;
 //         Average pooling should produce FP by default. (u)int8 is possible when quantize op is fused.
 //        if (p.poolType == PoolType::AVG &&
