@@ -1,7 +1,7 @@
-# Get Started with OpenVINO™ Deep Learning Deployment Toolkit (DLDT) on Linux*
+# Get Started with OpenVINO™ Toolkit on Linux*
 
 This guide provides you with the information that will help you to start using 
-the OpenVINO on Linux\*. With this guide, you will learn how to:
+the OpenVINO™ Toolkit on Linux\*. With this guide, you will learn how to:
 
 1. [Configure the Model Optimizer](#configure-the-model-optimizer)
 2. [Prepare a model for sample inference](#prepare-a-model-for-sample-inference)
