@@ -52,6 +52,7 @@ extensions/back/ReadValueAssignToMemory.py
 extensions/back/ReduceToPooling.py
 extensions/back/ReduceTransposeDimensions.py
 extensions/back/remove_last_softmax_pattern.py
+extensions/back/RemoveConstToResult.py
 extensions/back/RemoveUselessConvert.py
 extensions/back/Reshape0DToSqueeze.py
 extensions/back/ReshapeMutation.py
