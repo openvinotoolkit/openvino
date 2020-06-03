@@ -12,6 +12,7 @@
 namespace InferenceEngine {
 /**
  * @deprecated IErrorListener is not used anymore. An exception is thrown / StatusCode set in case of any unexpected situations
+ * The class will be removed in 2021.1 release.
  * @brief This class represents a custom error listener.
  */
 class
