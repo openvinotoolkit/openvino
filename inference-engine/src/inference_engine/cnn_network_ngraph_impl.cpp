@@ -15,7 +15,6 @@
 #include <vector>
 #include <unordered_set>
 #include <ngraph/ngraph.hpp>
-#include <ngraph/pass/constant_folding.hpp>
 #include <ngraph/pass/get_output_element_elimination.hpp>
 #include <set>
 #include <string>
@@ -44,13 +43,28 @@ using InferenceEngine::details::CNNNetworkNGraphImpl;
 using ngraph::Function;
 
 static std::shared_ptr<ngraph::Function> copyFunction(const std::shared_ptr<const ngraph::Function>& func,
-                                                      bool constFolding) {
+                                                      bool constFolding,
+                                                      const std::map<std::string, std::vector<size_t>>& inputShapes) {
     ::ngraph::op::GenericIE::DisableReshape noReshape(func);
+    auto original_parameters = func->get_parameters();
 
-    auto specialized_function = ngraph::clone_function(*func);
-    if (constFolding) {
-        ngraph::pass::ConstantFolding().run_on_function(specialized_function);
+    std::vector<::ngraph::element::Type> new_types;
+    std::vector<::ngraph::PartialShape> new_shapes;
+
+    for (const auto &parameter : original_parameters) {
+        if (inputShapes.find(parameter->get_friendly_name()) != inputShapes.end()) {
+            new_shapes.emplace_back(inputShapes.at(parameter->get_friendly_name()));
+        } else {
+            new_shapes.emplace_back(parameter->get_partial_shape());
+        }
+        new_types.emplace_back(parameter->get_element_type());
     }
+    IE_ASSERT(original_parameters.size() == new_types.size());
+    IE_ASSERT(original_parameters.size() == new_shapes.size());
+
+    // TODO: remove const cast if specialize function works with constant ngraph function
+    auto specialized_function = ::ngraph::specialize_function(std::const_pointer_cast<ngraph::Function>(func), new_types, new_shapes,
+                                                              std::vector<void*>(new_shapes.size(), nullptr), constFolding, true);
     // TODO: remove this code after the fix on the nGraph side
     ::ngraph::pass::GetOutputElementElimination goe_elimination;
     for (auto n : specialized_function->get_ops()) {
@@ -69,7 +83,7 @@ CNNNetwork::CNNNetwork(const std::shared_ptr<const ngraph::Function>& graph) {
     // Copy nGraph function
     if (graph == nullptr)
         THROW_IE_EXCEPTION << "Cannot create CNNNetwork from empty nGraph function!";
-    network = std::make_shared<CNNNetworkNGraphImpl>(copyFunction(graph, false));
+    network = std::make_shared<CNNNetworkNGraphImpl>(copyFunction(graph, false, {}));
     actual = network.get();
     if (actual == nullptr) {
         THROW_IE_EXCEPTION << "CNNNetwork was not initialized.";
@@ -321,8 +335,8 @@ size_t CNNNetworkNGraphImpl::getBatchSize() const noexcept {
     return shape[0];
 }
 
-std::shared_ptr<ngraph::Function> CNNNetworkNGraphImpl::cloneFunction(bool constFolding) const {
-    return copyFunction(_ngraph_function, constFolding);
+std::shared_ptr<ngraph::Function> CNNNetworkNGraphImpl::cloneFunction(bool constFolding, const std::map<std::string, std::vector<size_t>>& inputShapes) const {
+    return copyFunction(_ngraph_function, constFolding, inputShapes);
 }
 
 void CNNNetworkNGraphImpl::reshape() {
@@ -358,7 +372,7 @@ CNNNetworkNGraphImpl::reshape(const std::map<std::string, std::vector<size_t>>& 
         if (cnnNetwork) {
             convertToCNNNetworkImpl();
         } else {
-            auto specialized_ngraph_function = cloneFunction(true);
+            auto specialized_ngraph_function = cloneFunction(true, inputShapes);
             // Call this transformation because OneHot IE and nGraph have different output precisions
             {
                 IE_PROFILING_AUTO_SCOPE(ConvertOneHot);
