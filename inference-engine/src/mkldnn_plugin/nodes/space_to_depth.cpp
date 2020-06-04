@@ -61,7 +61,7 @@ public:
                 THROW_IE_EXCEPTION << "SpaceToDepth layer with name '" << layer->name << " has incompatible input/output channels";
 
             for (int i = 0; i < numSpatialDims; i++) {
-                if (inDims[i + 2] / blockSize != outDims[i + 2])
+                if (inDims[i + 2] != outDims[i + 2] * blockSize)
                     THROW_IE_EXCEPTION << "SpaceToDepth layer with name '" << layer->name << " has incompatible spatial dims";
             }
 
@@ -130,7 +130,7 @@ private:
         return shape5D;
     }
 
-    std::vector<size_t> getBlock3D(const SizeVector& shape, const SizeVector& shape5D) {
+    std::vector<size_t> getBlock3D(const SizeVector& shape) {
         std::vector<size_t> block3D(3, 1);
         for (int i = 0; i < shape.size() - 2; i++) {
             block3D[i] = blockSize;
@@ -144,7 +144,7 @@ private:
         T* dst_data = outputs[0]->buffer().as<T *>() + outputs[0]->getTensorDesc().getBlockingDesc().getOffsetPadding();
 
         auto shape5D = getShape5D(outDims);
-        auto block3D = getBlock3D(outDims, shape5D);
+        auto block3D = getBlock3D(outDims);
 
         size_t spatialStep = shape5D[2] * shape5D[3] * shape5D[4];
         size_t batchStep = shape5D[1] * spatialStep;
