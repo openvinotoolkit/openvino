@@ -138,3 +138,25 @@ class TFPad(Op):
             'out_ports_count': 1,
             'mode': 'constant',
         }, attrs)
+
+class ONNXPad(Op):
+    """ Pad operation that explicitly extends an input tensor at borders.
+
+        This operation with the ONNX semantics with inputs:
+        1. Input tensor.
+        2. Pad values
+        3. Fill value (Optional)
+    """
+
+    op = 'ONNXPad'
+    enabled = False
+
+    def __init__(self, graph: Graph, attrs: dict):
+        super().__init__(graph, {
+            'op': self.op,
+            'type': None,
+            'infer': None,  # the operation should be replaced before the shape inference
+            'in_ports_count': 3,
+            'out_ports_count': 1,
+            'mode': 'constant',
+        }, attrs)

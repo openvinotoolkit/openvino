@@ -17,8 +17,8 @@
 import numpy as np
 
 from mo.front.extractor import FrontExtractorOp
-from mo.front.onnx.extractors.utils import onnx_attr
-from mo.ops.pad import AttributedPad
+from mo.front.onnx.extractors.utils import onnx_attr, get_onnx_opset_version
+from mo.ops.pad import AttributedPad, ONNXPad
 
 
 class PadFrontExtractor(FrontExtractorOp):
@@ -28,16 +28,19 @@ class PadFrontExtractor(FrontExtractorOp):
     @classmethod
     def extract(cls, node):
         mode = onnx_attr(node, 'mode', 's', default='constant', dst_type=lambda x: x.decode())
-        pads = onnx_attr(node, 'pads', 'ints', dst_type=lambda x: np.array(x, dtype=np.int64))
-        value = onnx_attr(node, 'value', 'f', default=0.)
+        if get_onnx_opset_version(node) < 11:
+            pads = onnx_attr(node, 'pads', 'ints', dst_type=lambda x: np.array(x, dtype=np.int64))
+            value = onnx_attr(node, 'value', 'f', default=0.)
 
-        assert pads is not None
+            assert pads is not None
 
-        # MO Pad op and ONNX Pad op have different format for pads values
-        # MO Pad has Dx2 where D is the total number of dimensions
-        # ONNX Pad pads flat layout, so need to reshape and transpose
+            # MO Pad op and ONNX Pad op have different format for pads values
+            # MO Pad has Dx2 where D is the total number of dimensions
+            # ONNX Pad pads flat layout, so need to reshape and transpose
 
-        pads = np.transpose(pads.reshape([2, -1]))
+            pads = np.transpose(pads.reshape([2, -1]))
 
-        AttributedPad.update_node_stat(node, {'mode': mode, 'pads': pads, 'fill_value': value})
+            AttributedPad.update_node_stat(node, {'mode': mode, 'pads': pads, 'fill_value': value})
+        else:
+            ONNXPad.update_node_stat(node, {'mode': mode})
         return cls.enabled
