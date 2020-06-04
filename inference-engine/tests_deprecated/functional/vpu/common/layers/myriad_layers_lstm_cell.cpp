@@ -202,6 +202,18 @@ TEST_F(myriadLayersTests_nightly, LSTMCellSequenceNet) {
         ASSERT_NO_THROW(st = inferRequest->GetBlob("RNNOutput", output, &_resp));
         ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
         CompareCommonAbsolute(output, refOut0, ERROR_BOUND);
+    } else if (output_num == 3) {
+        ASSERT_NO_THROW(st = inferRequest->SetBlob("previous_state_h/read/placeholder_port_0", inputBlobHidden, &_resp));
+        ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
+        ASSERT_NO_THROW(st = inferRequest->SetBlob("previous_state_c/read/placeholder_port_0", inputBlobCellState, &_resp));
+        ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
+        ASSERT_NO_THROW(st = inferRequest->SetBlob("previous_input/read/placeholder_port_0", inputBlob, &_resp));
+        ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
+
+        ASSERT_NO_THROW(st = inferRequest->Infer(&_resp));
+
+        InferenceEngine::Blob::Ptr output;
+        ASSERT_NO_THROW(st = inferRequest->GetBlob("lstm_fused_cell/BlockLSTM/TensorIterator", output, &_resp));
     }
 }
 
