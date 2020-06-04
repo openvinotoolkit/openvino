@@ -217,6 +217,9 @@ public:
         CTCGreedyDecoder,
         PriorBoxClustered,
         CumSum,
+        EmbeddingBagPackedSum,
+        EmbeddingBagOffsetsSum,
+        EmbeddingSegmentsSum,
         NO_TYPE
     };
     using GenericBlobMap = std::map<cldnn::primitive_id, cldnn::primitive_id>;
@@ -373,6 +376,9 @@ private:
     void CreateCTCGreedyDecoderPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr& layer);
     void CreatePriorBoxClusteredPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr& layer);
     void CreateCumSumPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr& layer);
+    void CreateEmbeddingBagPackedSumPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr& layer);
+    void CreateEmbeddingBagOffsetsSumPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr& layer);
+    void CreateEmbeddingSegmentsSumPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr& layer);
 };
 
 }  // namespace CLDNNPlugin

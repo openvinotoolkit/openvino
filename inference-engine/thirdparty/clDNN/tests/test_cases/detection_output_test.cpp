@@ -859,7 +859,7 @@ TYPED_TEST(detection_output_test, test_forward_share_location)
     this->forward_share_location(false);
 }
 
-TYPED_TEST(detection_output_test, test_forward_share_location_gpu)
+TYPED_TEST(detection_output_test, DISABLED_test_forward_share_location_gpu)
 {
     this->forward_share_location(true);
 }
@@ -879,7 +879,7 @@ TYPED_TEST(detection_output_test, test_forward_num_detections_smaller_than_keep_
     this->forward_num_detections_smaller_than_keep_top_k(false);
 }
 
-TYPED_TEST(detection_output_test, test_forward_num_detections_smaller_than_keep_top_k_gpu)
+TYPED_TEST(detection_output_test, DISABLED_test_forward_num_detections_smaller_than_keep_top_k_gpu)
 {
     this->forward_num_detections_smaller_than_keep_top_k(true);
 }
