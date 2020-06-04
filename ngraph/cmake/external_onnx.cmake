@@ -58,7 +58,12 @@ endif()
 
 target_include_directories(onnx PRIVATE "${Protobuf_INCLUDE_DIR}")
 target_include_directories(onnx_proto PRIVATE "${Protobuf_INCLUDE_DIR}")
-target_compile_options(onnx PRIVATE -Wno-error)
+
+if(WIN32)
+    target_compile_options(onnx PRIVATE /WX-)
+else()
+    target_compile_options(onnx PRIVATE -Wno-error)
+endif()
 
 set(ONNX_INCLUDE_DIR ${ext_onnx_SOURCE_DIR})
 set(ONNX_PROTO_INCLUDE_DIR ${ext_onnx_BINARY_DIR})
