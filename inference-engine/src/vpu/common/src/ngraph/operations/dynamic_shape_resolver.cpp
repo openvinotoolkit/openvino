@@ -4,23 +4,27 @@
 
 #include "vpu/ngraph/operations/dynamic_shape_resolver.hpp"
 
+#include "ngraph/opsets/opset3.hpp"
+
 namespace ngraph { namespace vpu { namespace op {
 
 constexpr NodeTypeInfo DynamicShapeResolver::type_info;
 
-DynamicShapeResolver::DynamicShapeResolver(const Output<Node>& tensorWithData, const Output<Node>& tensorWithDims)
-    : Op(OutputVector{tensorWithData, tensorWithDims}) {
+DynamicShapeResolver::DynamicShapeResolver(
+        const Output<Node>& tensorWithData,
+        const Output<Node>& tensorWithDims,
+        const DynamicShapeResolverMode& mode)
+    : Op(OutputVector{tensorWithData, tensorWithDims}), m_mode(mode) {
     constructor_validate_and_infer_types();
 }
 
 std::shared_ptr<Node> DynamicShapeResolver::copy_with_new_args(const NodeVector& new_args) const {
     check_new_args_count(this, new_args);
-    return std::make_shared<DynamicShapeResolver>(new_args.at(0), new_args.at(1));
+    return std::make_shared<DynamicShapeResolver>(new_args.at(0), new_args.at(1), m_mode);
 }
 
 void DynamicShapeResolver::validate_and_infer_types() {
     NODE_VALIDATION_CHECK(this, get_input_size() == 2, "(", get_friendly_name(), ") supports only ", 2, " inputs, but ", get_input_size(), " provided");
-    NODE_VALIDATION_CHECK(this, get_input_partial_shape(0).is_static(), "(", get_friendly_name(), ") does not support dynamic shape for data tensor");
     NODE_VALIDATION_CHECK(this, get_input_partial_shape(1).is_static(), "(", get_friendly_name(), ") does not support dynamic shape for dims tensor");
 
     const auto& dataElementType = get_input_element_type(0);
@@ -30,16 +34,157 @@ void DynamicShapeResolver::validate_and_infer_types() {
                                                                 dimsElementType.compatible(ngraph::element::i32)),
         "(", get_friendly_name(), ") supports only i64 and i32 number type for dims tensor, but ", dimsElementType, " provided");
 
-    const auto& dataShape = get_input_shape(0);
     const auto& dimsShape = get_input_shape(1);
-    NODE_VALIDATION_CHECK(this, dimsShape.size() == 1 && dimsShape.front() == dataShape.size(), "(", get_friendly_name(), ") inputs shapes mismatch: first "
-        "input shape = ", dataShape, " second input shape = ", dimsShape, " but ", dataShape, " and ", Shape{dataShape.size()}, " are expected");
 
-    set_output_type(0, dataElementType, dataShape);
+    if (m_mode == DynamicShapeResolverMode::INFER_UPPER_BOUND_SHAPE) {
+        NODE_VALIDATION_CHECK(this, get_input_partial_shape(0).is_static(), "(", get_friendly_name(), ") does not support dynamic shape for data tensor");
+
+        const auto& dataShape = get_input_shape(0);
+        NODE_VALIDATION_CHECK(this, dimsShape.size() == 1 && dimsShape.front() == dataShape.size(), "(", get_friendly_name(), ") inputs shapes mismatch: first "
+            "input shape = ", dataShape, " second input shape = ", dimsShape, " but ", dataShape, " and ", Shape{dataShape.size()}, " are expected");
+
+        set_output_type(0, dataElementType, dataShape);
+    } else {
+        NODE_VALIDATION_CHECK(this, get_input_partial_shape(0).rank() == dimsShape.front(),
+                "(", get_friendly_name(), ") data and shape ranks must be equal, proided: ",
+                get_input_partial_shape(0).rank(), " vs ", dimsShape.front());
+
+        set_output_type(0, dataElementType,
+                        ngraph::PartialShape::dynamic(get_input_partial_shape(0).rank()));
+    }
 }
 
 bool DynamicShapeResolver::visit_attributes(ngraph::AttributeVisitor&) {
     return true;
+}
+
+namespace {
+
+template<element::Type_t ET>
+bool getShapeFromHostTensorData(const HostTensorPtr& data, Shape& result) {
+    using T = typename element_type_traits<ET>::value_type;
+    T *dataPtr = data->get_data_ptr<ET>();
+    if (!dataPtr) {
+        return false;
+    }
+    size_t outputRank = data->get_shape()[0];
+
+    for (int i = 0; i < outputRank; i++) {
+        result.push_back(dataPtr[i]);
+    }
+
+    return true;
+}
+
+bool getShapeFromHostTensorData(const HostTensorPtr& data, Shape& shape) {
+    switch (data->get_element_type()) {
+        case element::Type_t::i8:
+            return getShapeFromHostTensorData<element::Type_t::i8>(data, shape);
+        case element::Type_t::i16:
+            return getShapeFromHostTensorData<element::Type_t::i16>(data, shape);
+        case element::Type_t::i32:
+            return getShapeFromHostTensorData<element::Type_t::i32>(data, shape);
+        case element::Type_t::i64:
+            return getShapeFromHostTensorData<element::Type_t::i64>(data, shape);
+        case element::Type_t::u8:
+            return getShapeFromHostTensorData<element::Type_t::u8>(data, shape);
+        case element::Type_t::u16:
+            return getShapeFromHostTensorData<element::Type_t::u16>(data, shape);
+        case element::Type_t::u32:
+            return getShapeFromHostTensorData<element::Type_t::u32>(data, shape);
+        case element::Type_t::u64:
+            return getShapeFromHostTensorData<element::Type_t::u64>(data, shape);
+        default:
+            return false;
+    }
+    return true;
+}
+
+template<element::Type_t InType>
+bool evaluate(const HostTensorPtr& inputTensor,
+              const HostTensorPtr& outShapeTensor,
+              const HostTensorPtr& outputTensor) {
+    Shape inputShape = inputTensor->get_shape();
+    Shape outputShape;
+    if (!getShapeFromHostTensorData(outShapeTensor, outputShape)) {
+        return false;
+    }
+
+    if (!ngraph::PartialShape(outputShape).refines(outputTensor->get_partial_shape())) {
+        return false;
+    }
+
+    outputTensor->set_shape(outputShape);
+
+    using T = typename element_type_traits<InType>::value_type;
+    T *inputPtr = inputTensor->get_data_ptr<InType>();
+    T *outputPtr = outputTensor->get_data_ptr<InType>();
+
+    const auto inTotalDimSize = shape_size(inputShape);
+    const auto strides = row_major_strides(inputShape);
+
+    size_t outputTensorIdx = 0;
+
+    for (size_t inputTensorIdx = 0; inputTensorIdx < inTotalDimSize; ++inputTensorIdx) {
+        auto offset = inputTensorIdx;
+        bool needCopy = true;
+        for (size_t dim = 0; dim < strides.size(); ++dim) {
+            const auto coordAlongDim = offset / strides[dim];
+            if (coordAlongDim > outputShape[dim] - 1) {
+                needCopy = false;
+                break;
+            }
+
+            offset %= strides[dim];
+        }
+        if (needCopy) {
+            outputPtr[outputTensorIdx++] = inputPtr[inputTensorIdx];
+        }
+    }
+    return true;
+}
+
+bool evaluateDynamicShapeResolver(const HostTensorPtr& inputTensor,
+                                  const HostTensorPtr& outShapeTensor,
+                                  const HostTensorPtr& outputTensor) {
+    bool rc = true;
+
+    switch (inputTensor->get_element_type()) {
+        TYPE_CASE(i8)(inputTensor, outShapeTensor, outputTensor);
+            break;
+        TYPE_CASE(i16)(inputTensor, outShapeTensor, outputTensor);
+            break;
+        TYPE_CASE(i32)(inputTensor, outShapeTensor, outputTensor);
+            break;
+        TYPE_CASE(i64)(inputTensor, outShapeTensor, outputTensor);
+            break;
+        TYPE_CASE(u8)(inputTensor, outShapeTensor, outputTensor);
+            break;
+        TYPE_CASE(u16)(inputTensor, outShapeTensor, outputTensor);
+            break;
+        TYPE_CASE(u32)(inputTensor, outShapeTensor, outputTensor);
+            break;
+        TYPE_CASE(u64)(inputTensor, outShapeTensor, outputTensor);
+            break;
+        TYPE_CASE(bf16)(inputTensor, outShapeTensor, outputTensor);
+            break;
+        TYPE_CASE(f32)(inputTensor, outShapeTensor, outputTensor);
+            break;
+        TYPE_CASE(f64)(inputTensor, outShapeTensor, outputTensor);
+            break;
+        default:
+            rc = false;
+            break;
+    }
+
+    return rc;
+}
+
+}  // namespace
+
+bool DynamicShapeResolver::evaluate(const HostTensorVector& outputs,
+                                    const HostTensorVector& inputs) {
+    return evaluateDynamicShapeResolver(inputs[0], inputs[1], outputs[0]);
 }
 
 }  // namespace op
