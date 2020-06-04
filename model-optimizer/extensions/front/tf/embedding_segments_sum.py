@@ -36,7 +36,6 @@ class EmbeddingSegmentsSumFrontReplacer(FrontReplacementSubgraph):
     enabled = True
 
     def pattern(self):
-        log.debug('Enabled EmbeddingSegmentsSum replacement')
         return dict(
             nodes=[
                 ('identity_spw', dict(op='Identity')),
@@ -142,7 +141,6 @@ class EmbeddingSegmentsSumFrontReplacer2(FrontReplacementSubgraph):
     enabled = True
 
     def pattern(self):
-        log.debug('Enabled EmbeddingSegmentsSum2 replacement')
         return dict(
             nodes=[
                 ('identity_spw', dict(op='Identity')),
