@@ -36,6 +36,7 @@
 #include "lrn_inst.h"
 #include "mutable_data_inst.h"
 #include "mvn_inst.h"
+#include "pooling_inst.h"
 #include "normalize_inst.h"
 #include "permute_inst.h"
 #include "reshape_inst.h"
@@ -49,6 +50,7 @@
 #include "shuffle_channels_inst.h"
 #include "strided_slice_inst.h"
 #include "cum_sum_inst.h"
+#include "embedding_bag_inst.h"
 #include <vector>
 #include <list>
 #include <memory>
@@ -199,7 +201,8 @@ void prepare_primitive_fusing::fuse_activations(program_impl &p) {
                  !input.is_type<softmax>() && !input.is_type<resample>() && !input.is_type<mvn>() &&
                  !input.is_type<depth_to_space>() && !input.is_type<gather>() && !input.is_type<reverse_sequence>() &&
                  !input.is_type<shuffle_channels>() && !input.is_type<strided_slice>() && !input.is_type<cum_sum>() &&
-                 !input.is_type<fused_conv_eltwise>() && !input.is_type<activation>()))
+                 !input.is_type<embedding_bag>() && !input.is_type<fused_conv_eltwise>() &&
+                 !input.is_type<activation>()))
                 return;
 
             if (input.is_type<eltwise>()) {
@@ -328,6 +331,15 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
             return false;
         };
 
+        auto pooling_supports_fusings = [](pooling_node& node) -> bool {
+            auto pooling_mode = node.as<pooling>().get_primitive()->mode;
+
+            if (pooling_mode != cldnn::pooling_mode::max_with_argmax)
+                return true;
+
+            return false;
+        };
+
         auto fuse_activation_f = [&](activation_node& activation_node) {
             auto& input_data = activation_node.get_dependency(0);
             if (input_data.get_users().size() != 1 || activation_node.get_dependencies().size() >= 3)
@@ -341,13 +353,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
 
             should_fuse |= input_data.is_type<gemm>() && gemm_supports_fusings(input_data.as<gemm>());
 
-            should_fuse |= input_data.is_type<lrn>();
-
-            should_fuse |= input_data.is_type<pooling>() &&
-                (input_data.get_dependency(0).get_output_layout().data_type == data_types::i8 ||
-                 input_data.get_dependency(0).get_output_layout().data_type == data_types::u8) &&
-                (input_data.as<pooling>().get_primitive()->mode == pooling_mode::average ||
-                 input_data.as<pooling>().get_primitive()->mode == pooling_mode::average_no_padding);
+            should_fuse |= input_data.is_type<pooling>() && pooling_supports_fusings(input_data.as<pooling>());
 
             should_fuse |= input_data.is_type<resample>();
 
@@ -356,6 +362,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
             should_fuse |= input_data.is_type<deconvolution>();
 
             should_fuse |= input_data.is_type<activation>();
+
+            should_fuse |= input_data.is_type<lrn>();
 
             if (!should_fuse)
                 return;
@@ -380,13 +388,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
 
             should_fuse |= input_data.is_type<gemm>() && gemm_supports_fusings(input_data.as<gemm>());
 
-            should_fuse |= input_data.is_type<lrn>();
-
-            should_fuse |= input_data.is_type<pooling>() &&
-                (input_data.get_dependency(0).get_output_layout().data_type == data_types::i8 ||
-                 input_data.get_dependency(0).get_output_layout().data_type == data_types::u8) &&
-                (input_data.as<pooling>().get_primitive()->mode == pooling_mode::average ||
-                 input_data.as<pooling>().get_primitive()->mode == pooling_mode::average_no_padding);
+            should_fuse |= input_data.is_type<pooling>() && pooling_supports_fusings(input_data.as<pooling>());
 
             should_fuse |= input_data.is_type<resample>();
 
@@ -395,6 +397,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
             should_fuse |= input_data.is_type<deconvolution>();
 
             should_fuse |= input_data.is_type<activation>();
+
+            should_fuse |= input_data.is_type<lrn>();
 
             if (!should_fuse)
                 return;
@@ -434,13 +438,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
                            input_data.get_dependency(0).get_output_layout().data_type == data_types::i8) &&
                            (out_layout.data_type == data_types::u8 || out_layout.data_type == data_types::i8)));
 
-            should_fuse |= input_data.is_type<pooling>() &&
-                           quantize_node.get_scale_shift_opt() &&
-                          // TODO: unify pooling ref and ref_int8 kernels and remove this restriction on precision
-                          (input_data.get_dependency(0).get_output_layout().data_type == data_types::u8 ||
-                           input_data.get_dependency(0).get_output_layout().data_type == data_types::i8) &&
-                          (input_data.as<pooling>().get_primitive()->mode == pooling_mode::average ||
-                           input_data.as<pooling>().get_primitive()->mode == pooling_mode::average_no_padding);
+            should_fuse |= input_data.is_type<pooling>() && quantize_node.get_scale_shift_opt() &&
+                           pooling_supports_fusings(input_data.as<pooling>());
 
             should_fuse |= input_data.is_type<fully_connected>() && fc_supports_fusings(input_data.as<fully_connected>()) &&
                            quantize_node.get_scale_shift_opt() &&
