@@ -1,4 +1,4 @@
-// Copyright (c) 2019 Intel Corporation
+// Copyright (c) 2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,24 +19,26 @@
 #define ALIGN_TO(val, multiple) (((val) + (multiple) - 1) / (multiple) * (multiple))
 
 #define AS_TYPE(type, val) CAT(as_, type)(val)
-#define IN_VEC4 MAKE_VECTOR_TYPE(INPUT0_TYPE, 4)
-#define OUT_VEC4 MAKE_VECTOR_TYPE(OUTPUT_TYPE, 4)
-#define CONVERT_OUT CAT(convert_, OUTPUT_TYPE)
-#define CONVERT_OUT_VEC4 CAT(convert_, OUT_VEC4)
+#define INPUT_VEC4 MAKE_VECTOR_TYPE(INPUT0_TYPE, 4)
 
-#if MAX_POOLING
-    #define INIT_VAL CHAR_MIN
-#elif AVG_POOLING
-    #define INIT_VAL 0
+#define ACTIVATION_VEC4 MAKE_VECTOR_TYPE(ACTIVATION_TYPE, 4)
+#define TO_ACTIVATION_VEC4 CAT(convert_, ACTIVATION_VEC4)
+
+#define OUTPUT_VEC4 MAKE_VECTOR_TYPE(OUTPUT_TYPE, 4)
+#define TO_OUTPUT_VEC4 CAT(convert_, OUTPUT_VEC4)
+
+#if   defined MAX_POOLING
+    #define INIT_VAL ACCUMULATOR_VAL_MIN
+#elif defined AVG_POOLING
+    #define INIT_VAL ACCUMULATOR_VAL_ZERO
 #else
-#error
+    #error
 #endif
 
-
-inline int FUNC(apply_pooling)(int tmp, int in)
+inline ACCUMULATOR_TYPE FUNC(apply_pooling)(ACCUMULATOR_TYPE tmp, ACCUMULATOR_TYPE in)
 {
 #if MAX_POOLING
-    return max(tmp, in);
+    return ACCUMULATOR_MAX_FUNC(tmp, in);
 #elif AVG_POOLING
     return tmp + in;
 #endif
@@ -59,7 +61,7 @@ KERNEL(pooling_gpu_b_fs_yx_fsv4)(
     const int offset_x = (int)x*STRIDE_SIZE_X - PADDING_SIZE_X;
     const int offset_y = (int)y*STRIDE_SIZE_Y - PADDING_SIZE_Y;
 
-    int result[4] = { INIT_VAL, INIT_VAL, INIT_VAL, INIT_VAL };
+    ACCUMULATOR_TYPE result[4] = { INIT_VAL, INIT_VAL, INIT_VAL, INIT_VAL };
 
 #ifdef CHECK_BOUNDRY
     if (offset_x + POOL_SIZE_X < 0 || offset_x >= INPUT0_SIZE_X ||
@@ -88,11 +90,11 @@ KERNEL(pooling_gpu_b_fs_yx_fsv4)(
                     const uint input_idx = batch_and_feature_offset + input_offset_y*IN_Y_PITCH + input_offset_x*IN_X_PITCH;
 
                     int int_data   = *((const __global int*)(input + input_idx));
-                    IN_VEC4 ch4_data = AS_TYPE(IN_VEC4, int_data);
-                    result[0] = FUNC_CALL(apply_pooling)(result[0], (int)ch4_data[0]);
-                    result[1] = FUNC_CALL(apply_pooling)(result[1], (int)ch4_data[1]);
-                    result[2] = FUNC_CALL(apply_pooling)(result[2], (int)ch4_data[2]);
-                    result[3] = FUNC_CALL(apply_pooling)(result[3], (int)ch4_data[3]);
+                    INPUT_VEC4 ch4_data = AS_TYPE(INPUT_VEC4, int_data);
+                    result[0] = FUNC_CALL(apply_pooling)(result[0], TO_ACCUMULATOR_TYPE(ch4_data[0]));
+                    result[1] = FUNC_CALL(apply_pooling)(result[1], TO_ACCUMULATOR_TYPE(ch4_data[1]));
+                    result[2] = FUNC_CALL(apply_pooling)(result[2], TO_ACCUMULATOR_TYPE(ch4_data[2]));
+                    result[3] = FUNC_CALL(apply_pooling)(result[3], TO_ACCUMULATOR_TYPE(ch4_data[3]));
 
 #ifdef DYNAMIC_KERNEL_DIVIDER
                     num_elements++;
@@ -114,11 +116,11 @@ KERNEL(pooling_gpu_b_fs_yx_fsv4)(
         for(uint i = 0; i < POOL_SIZE_X; i++)
         {
             int int_data   = *((const __global int*)(input + input_idx));
-            IN_VEC4 ch4_data = AS_TYPE(IN_VEC4, int_data);
-            result[0] = FUNC_CALL(apply_pooling)(result[0], (int)ch4_data[0]);
-            result[1] = FUNC_CALL(apply_pooling)(result[1], (int)ch4_data[1]);
-            result[2] = FUNC_CALL(apply_pooling)(result[2], (int)ch4_data[2]);
-            result[3] = FUNC_CALL(apply_pooling)(result[3], (int)ch4_data[3]);
+            INPUT_VEC4 ch4_data = AS_TYPE(INPUT_VEC4, int_data);
+            result[0] = FUNC_CALL(apply_pooling)(result[0], TO_ACCUMULATOR_TYPE(ch4_data[0]));
+            result[1] = FUNC_CALL(apply_pooling)(result[1], TO_ACCUMULATOR_TYPE(ch4_data[1]));
+            result[2] = FUNC_CALL(apply_pooling)(result[2], TO_ACCUMULATOR_TYPE(ch4_data[2]));
+            result[3] = FUNC_CALL(apply_pooling)(result[3], TO_ACCUMULATOR_TYPE(ch4_data[3]));;
 
             input_idx += IN_X_PITCH;
         }
@@ -132,47 +134,48 @@ KERNEL(pooling_gpu_b_fs_yx_fsv4)(
 
 #if defined AVG_POOLING
 #if ENABLE_ROUND
-    int4 pool_result;
+    int4 not_fused_result;
     for(uint i = 0; i < 4; i++) {
     #if defined(DYNAMIC_KERNEL_DIVIDER) || defined(DYNAMIC_WITH_PADDING_KERNEL_DIVIDER)
-        result[i] = convert_int(round(((float)result[i] / max(num_elements, (uint)1))));
+        not_fused_result[i] = convert_int(round(((float)result[i] / max(num_elements, (uint)1))));
     #else
-        result[i] = convert_int(round((float)result[i] / (int)(POOL_SIZE_Y * POOL_SIZE_X)));
+        not_fused_result[i] = convert_int(round((float)result[i] / (int)(POOL_SIZE_Y * POOL_SIZE_X)));
     #endif
     }
 #else
-    float4 pool_result;
+    float4 not_fused_result;
     for(uint i = 0; i < 4; i++) {
     #if defined(DYNAMIC_KERNEL_DIVIDER) || defined(DYNAMIC_WITH_PADDING_KERNEL_DIVIDER)
-        pool_result[i] = (float)result[i] / max(num_elements, (uint)1);
+        not_fused_result[i] = (float)result[i] / max(num_elements, (uint)1);
     #else
-        pool_result[i] = (float)result[i] / (int)(POOL_SIZE_Y * POOL_SIZE_X);
+        not_fused_result[i] = (float)result[i] / (int)(POOL_SIZE_Y * POOL_SIZE_X);
     #endif
     }
 #endif  // ENABLE_ROUND
 #else  // AVG_POOLING
-    int4 pool_result;
+    int4 not_fused_result;
     for (uint i = 0; i < 4; ++i) {
-        pool_result[i] = result[i];
+        not_fused_result[i] = result[i];
     }
 #endif  // AVG_POOLING
 
+    ACTIVATION_VEC4 pool_result = TO_ACTIVATION_VEC4(not_fused_result);
+
 #if HAS_FUSED_OPS
     FUSED_OPS;
-    OUT_VEC4 final_result = FUSED_OPS_RESULT;
+    OUTPUT_VEC4 final_result = FUSED_OPS_RESULT;
 #else
-    OUT_VEC4 final_result = CONVERT_OUT_VEC4(pool_result);
-#endif
-
+    OUTPUT_VEC4 final_result = TO_OUTPUT_VEC4(pool_result);
     for(uint op = 0; op < 4; op++)
     {
         final_result[op] = ACTIVATION(final_result[op], ACTIVATION_PARAMS);
     }
+#endif
 
 #if OUTPUT_LAYOUT_B_FS_YX_FSV4 || OUTPUT_LAYOUT_BYXF_AF32
     const uint output_pos = OUTPUT_GET_INDEX(b, f, y, x);
 #if OUTPUT_FEATURE_NUM % 4 == 0
-    *((__global OUT_VEC4*)(output + output_pos)) = final_result;
+    *((__global OUTPUT_VEC4*)(output + output_pos)) = final_result;
 #else
     for (uint i = 0; i < 4; ++i) {
         if (f + i < OUTPUT_FEATURE_NUM) {
@@ -191,8 +194,12 @@ KERNEL(pooling_gpu_b_fs_yx_fsv4)(
 
 #undef ALIGN_TO
 #undef AS_TYPE
-#undef IN_VEC4
-#undef OUT_VEC4
-#undef CONVERT_OUT
-#undef CONVERT_OUT_VEC4
+
 #undef INIT_VAL
+#undef INPUT_VEC4
+
+#undef ACTIVATION_VEC4
+#undef TO_ACTIVATION_VEC4
+
+#undef OUTPUT_VEC4
+#undef TO_OUTPUT_VEC4

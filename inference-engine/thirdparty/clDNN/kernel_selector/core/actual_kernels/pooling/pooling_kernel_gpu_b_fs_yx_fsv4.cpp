@@ -1,4 +1,4 @@
-// Copyright (c) 2019 Intel Corporation
+// Copyright (c) 2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -66,19 +66,21 @@ JitConstants PoolingKerneGPU_b_fs_yx_fsv4::GetJitConstants(const pooling_params&
     const size_t in_y_pitch = 4 * params.inputs[0].X().LogicalDimPadded();
     jit.AddConstant(MakeJitConstant("IN_X_PITCH", in_x_pitch));
     jit.AddConstant(MakeJitConstant("IN_Y_PITCH", in_y_pitch));
+    jit.Merge(MakeTypeJitConstants(GetActivationType(params), "ACTIVATION"));
+    jit.Merge(MakeTypeJitConstants(GetAccumulatorType(params), "ACCUMULATOR"));
 
     if (!params.fused_ops.empty()) {
-        auto input_dt = EnableRound(params) ? Datatype::INT32 : GetActivationType(params);
-        FusedOpsConfiguration conf = { "",
-                                       {"b", "f", "y", "x"},
-                                       "pool_result",
-                                       input_dt,
-                                       4,
-                                       LoadType::LT_UNALIGNED,
-                                       BoundaryCheck::ENABLED,
-                                       IndexType::TENSOR_COORD,
-                                       Tensor::DataChannelName::FEATURE };
-        jit.Merge(MakeFusedOpsJitConstants(params, { conf }));
+        auto input_dt = GetActivationType(params);
+        FusedOpsConfiguration conf = {"",
+                                     {"b", "f", "y", "x"},
+                                     "pool_result",
+                                     input_dt,
+                                     4,
+                                     LoadType::LT_UNALIGNED,
+                                     BoundaryCheck::ENABLED,
+                                     IndexType::TENSOR_COORD,
+                                     Tensor::DataChannelName::FEATURE};
+        jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
     }
 
     return jit;
