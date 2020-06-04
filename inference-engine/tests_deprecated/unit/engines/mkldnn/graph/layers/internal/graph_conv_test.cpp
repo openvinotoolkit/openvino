@@ -31,6 +31,7 @@ struct conv_test_params {
     size_t num_prim_desc;
 
     int selectedType;
+    bool defaultPrimitivesPriority;
     vector<MKLDNNPlugin::impl_desc_type> preferTypes;
 
     vector<std::function<void(MKLDNNPlugin::PrimitiveDescInfo)>> comp;
@@ -149,7 +150,7 @@ class MKLDNNGraphConvolutionTests: public TestsCommon,
             <convolution _AP_ kernel="_K_"
                          pads_begin="_PB_"  pads_end="_PE_"
                          strides="_KS_"
-                         output="_OC_"  group="_GC_" PrimitivesPriority="_IMPLS_"/>
+                         output="_OC_"  group="_GC_" _PRIM_PRIORITY_/>
 
             <weights offset="0" size="_S1_" />
             <biases offset="_S1_" size="_S2_" />
@@ -216,13 +217,17 @@ protected:
         REPLACE_WITH_NUM(model, "_S1_", w_data_size);
         REPLACE_WITH_NUM(model, "_S2_", b_data_size);
 
-        std::string impls;
-        for (const auto& preferType : p.preferTypes) {
-            if (!impls.empty())
-                impls += ",";
-            impls += "cpu:" + MKLDNNGraphTestClass::getStrPrimitiveDescriptorType(preferType);
+        std::string primitivesPriorityStr;
+        if (!p.defaultPrimitivesPriority) {
+            std::string impls;
+            for (const auto& preferType : p.preferTypes) {
+                if (!impls.empty())
+                    impls += ",";
+                impls += "cpu:" + MKLDNNGraphTestClass::getStrPrimitiveDescriptorType(preferType);
+            }
+            primitivesPriorityStr = "PrimitivesPriority=\"" + impls + "\"";
         }
-        REPLACE_WITH_STR(model, "_IMPLS_", impls);
+        REPLACE_WITH_STR(model, "_PRIM_PRIORITY_", primitivesPriorityStr);
 
         return model;
     }
@@ -263,6 +268,10 @@ protected:
                 if (node->getType() == MKLDNNPlugin::Convolution) {
                     ASSERT_LE(p.num_prim_desc, node->getSupportedPrimitiveDescriptors().size());
                     for (const auto prim : node->getSupportedPrimitiveDescriptors()) {
+                        if (p.defaultPrimitivesPriority) {
+                            if (prim.getImplementationType() & MKLDNNPlugin::impl_desc_type::gemm)
+                                FAIL() << "There should be no gemm implementation in supportedPrimitiveDescriptors";
+                        }
                         std::cout << MKLDNNGraphTestClass::getStrPrimitiveDescriptorType(prim.getImplementationType()) << " ";
                     }
                     std::cout << std::endl;
@@ -335,44 +344,29 @@ TEST_P(MKLDNNGraphConvolutionTests, TestsConvolution) {}
 INSTANTIATE_TEST_CASE_P(
     TestConvolution, MKLDNNGraphConvolutionTests,
     ::testing::Values(
-        /*0*/   conv_test_params{{1, 9, 16, 32},
-                                 {1, 1}, {1, 1}, {0, 0}, {0, 0}, 17, 1, "same_upper", 6, MKLDNNPlugin::impl_desc_type::jit | MKLDNNPlugin::impl_desc_type::_1x1 },
-                conv_test_params{{1, 9, 32, 16},
-                                 {2, 4}, {1, 1}, {1, 1}, {0, 2}, 17, 1, "", 5, MKLDNNPlugin::impl_desc_type::jit },
-                conv_test_params{{1, 9, 32, 16},
-                                 {2, 4}, {2, 1}, {0, 0}, {0, 0}, 17, 1, "", 5, MKLDNNPlugin::impl_desc_type::jit },
-                conv_test_params{{1, 3, 40, 40},
-                                 {3, 3}, {1, 2}, {0, 0}, {0, 0}, 20, 1, "", 5, MKLDNNPlugin::impl_desc_type::jit },
-                conv_test_params{{1, 1, 40, 40},
-                                 {3, 3}, {1, 2}, {0, 0}, {0, 0}, 20, 1, "", 5, MKLDNNPlugin::impl_desc_type::jit },
-                conv_test_params{{1, 1, 32, 16},
-                                 {2, 4}, {2, 1}, {0, 0}, {0, 0}, 17, 1, "", 5, MKLDNNPlugin::impl_desc_type::jit },
-                conv_test_params{{1, 9, 32, 16},
-                                 {2, 4}, {1, 1}, {0, 0}, {0, 0}, 17, 1, "", 5, MKLDNNPlugin::impl_desc_type::ref_any,
+        /*0*/   conv_test_params{{1, 9, 16, 32}, {1, 1}, {1, 1}, {0, 0}, {0, 0}, 17, 1, "same_upper", 6,
+                                 MKLDNNPlugin::impl_desc_type::jit | MKLDNNPlugin::impl_desc_type::_1x1, false },
+                conv_test_params{{1, 9, 32, 16}, {2, 4}, {1, 1}, {1, 1}, {0, 2}, 17, 1, "", 5, MKLDNNPlugin::impl_desc_type::jit, false },
+                conv_test_params{{1, 9, 32, 16}, {2, 4}, {2, 1}, {0, 0}, {0, 0}, 17, 1, "", 5, MKLDNNPlugin::impl_desc_type::jit, false },
+                conv_test_params{{1, 3, 40, 40}, {3, 3}, {1, 2}, {0, 0}, {0, 0}, 20, 1, "", 5, MKLDNNPlugin::impl_desc_type::jit, false },
+                conv_test_params{{1, 1, 40, 40}, {3, 3}, {1, 2}, {0, 0}, {0, 0}, 20, 1, "", 5, MKLDNNPlugin::impl_desc_type::jit, false },
+                conv_test_params{{1, 1, 32, 16}, {2, 4}, {2, 1}, {0, 0}, {0, 0}, 17, 1, "", 5, MKLDNNPlugin::impl_desc_type::jit, false },
+                conv_test_params{{1, 9, 32, 16}, {2, 4}, {1, 1}, {0, 0}, {0, 0}, 17, 1, "", 5, MKLDNNPlugin::impl_desc_type::ref_any, false,
                                  {MKLDNNPlugin::impl_desc_type::ref_any} },
-                conv_test_params{{1, 4, 54, 96},
-                                 {3, 3}, {1, 1}, {1, 1}, {0, 0}, 64, 1, "", 3, MKLDNNPlugin::impl_desc_type::ref_any,
+                conv_test_params{{1, 4, 54, 96}, {3, 3}, {1, 1}, {1, 1}, {0, 0}, 64, 1, "", 3, MKLDNNPlugin::impl_desc_type::ref_any, false,
                                  {MKLDNNPlugin::impl_desc_type::jit_avx512_winograd, MKLDNNPlugin::impl_desc_type::ref_any}},
                 // 5D
-        /*8*/   conv_test_params{{1, 3, 15, 20, 20},
-                                 {3, 3, 3}, {2, 2, 2}, {0, 0, 0}, {0, 0, 0}, 64, 1, "", 2, MKLDNNPlugin::impl_desc_type::ref_any,
+        /*8*/   conv_test_params{{1, 3, 15, 20, 20}, {3, 3, 3}, {2, 2, 2}, {0, 0, 0}, {0, 0, 0}, 64, 1, "", 2, MKLDNNPlugin::impl_desc_type::ref_any, false,
                                  {MKLDNNPlugin::impl_desc_type::ref_any} },
-                conv_test_params{{1, 24, 15, 20, 20},
-                                 {3, 3, 3}, {2, 2, 2}, {0, 0, 0}, {0, 0, 0}, 64, 1, "", 2, MKLDNNPlugin::impl_desc_type::ref_any,
+                conv_test_params{{1, 24, 15, 20, 20}, {3, 3, 3}, {2, 2, 2}, {0, 0, 0}, {0, 0, 0}, 64, 1, "", 2, MKLDNNPlugin::impl_desc_type::ref_any, false,
                                  {MKLDNNPlugin::impl_desc_type::ref_any} },
-                conv_test_params{{1, 32, 15, 20, 20},
-                                 {3, 3, 3}, {2, 2, 2}, {0, 0, 0}, {0, 0, 0}, 64, 1, "", 2, MKLDNNPlugin::impl_desc_type::ref_any,
+                conv_test_params{{1, 32, 15, 20, 20}, {3, 3, 3}, {2, 2, 2}, {0, 0, 0}, {0, 0, 0}, 64, 1, "", 2, MKLDNNPlugin::impl_desc_type::ref_any, false,
                                  {MKLDNNPlugin::impl_desc_type::ref_any} },
-                conv_test_params{{1, 3, 15, 25, 20},
-                                 {3, 3, 3}, {2, 2, 2}, {0, 0, 0}, {0, 0, 0}, 64, 1, "", 2, MKLDNNPlugin::impl_desc_type::jit },
-                conv_test_params{{1, 24, 15, 25, 20},
-                                 {3, 3, 3}, {2, 2, 2}, {0, 0, 0}, {0, 0, 0}, 64, 1, "", 2, MKLDNNPlugin::impl_desc_type::jit },
-        /*13*/  conv_test_params{{1, 32, 15, 25, 20},
-                                 {3, 3, 3}, {2, 2, 2}, {0, 0, 0}, {0, 0, 0}, 64, 1, "", 2, MKLDNNPlugin::impl_desc_type::jit },
-        /*20*/  conv_test_params{{1, 16, 30, 30, 10},
-                                 {5, 5, 5}, {1, 1, 1}, {2, 2, 2}, {2, 2, 2}, 16, 1, "", 2, MKLDNNPlugin::impl_desc_type::jit },
-                conv_test_params{{1, 16, 30, 30, 10},
-                                 {5, 5, 5}, {1, 1, 1}, {2, 2, 2}, {2, 2, 2}, 16, 1, "", 2, MKLDNNPlugin::impl_desc_type::ref_any,
+                conv_test_params{{1, 3, 15, 25, 20}, {3, 3, 3}, {2, 2, 2}, {0, 0, 0}, {0, 0, 0}, 64, 1, "", 2, MKLDNNPlugin::impl_desc_type::jit, false },
+                conv_test_params{{1, 24, 15, 25, 20}, {3, 3, 3}, {2, 2, 2}, {0, 0, 0}, {0, 0, 0}, 64, 1, "", 2, MKLDNNPlugin::impl_desc_type::jit, false },
+        /*13*/  conv_test_params{{1, 32, 15, 25, 20}, {3, 3, 3}, {2, 2, 2}, {0, 0, 0}, {0, 0, 0}, 64, 1, "", 2, MKLDNNPlugin::impl_desc_type::jit, false },
+                conv_test_params{{1, 16, 30, 30, 10}, {5, 5, 5}, {1, 1, 1}, {2, 2, 2}, {2, 2, 2}, 16, 1, "", 2, MKLDNNPlugin::impl_desc_type::jit, false },
+                conv_test_params{{1, 16, 30, 30, 10}, {5, 5, 5}, {1, 1, 1}, {2, 2, 2}, {2, 2, 2}, 16, 1, "", 2, MKLDNNPlugin::impl_desc_type::ref_any, false,
                                  {MKLDNNPlugin::impl_desc_type::ref_any} } ));
 
 #ifdef USE_MKL
@@ -380,28 +374,44 @@ INSTANTIATE_TEST_CASE_P(
     MKLTestConvolution, MKLDNNGraphConvolutionTests,
     ::testing::Values(
                 conv_test_params{{1, 9, 16, 32},
-                                 {1, 1}, {1, 1}, {0, 0}, {0, 0}, 17, 1, "", 6, MKLDNNPlugin::impl_desc_type::gemm,
+                                 {1, 1}, {1, 1}, {0, 0}, {0, 0}, 17, 1, "", 6, MKLDNNPlugin::impl_desc_type::gemm, false,
                                  {MKLDNNPlugin::impl_desc_type::gemm_any,
                                   MKLDNNPlugin::impl_desc_type::gemm_blas,
                                   MKLDNNPlugin::impl_desc_type::gemm_avx512,
                                   MKLDNNPlugin::impl_desc_type::gemm_avx2,
                                   MKLDNNPlugin::impl_desc_type::gemm_sse42} },
                 conv_test_params{{1, 5, 15, 20, 20},
-                                 {3, 3, 3}, {1, 1, 1}, {0, 0, 0}, {0, 0, 0}, 64, 1, "", 2, MKLDNNPlugin::impl_desc_type::gemm_blas,
+                                 {3, 3, 3}, {1, 1, 1}, {0, 0, 0}, {0, 0, 0}, 64, 1, "", 2, MKLDNNPlugin::impl_desc_type::gemm_blas, false,
                                  {MKLDNNPlugin::impl_desc_type::gemm_blas} },
                 conv_test_params{{1, 5, 15, 20, 20},
-                                 {3, 3, 3}, {3, 2, 1}, {0, 0, 0}, {0, 0, 0}, 64, 1, "", 2, MKLDNNPlugin::impl_desc_type::gemm_blas,
+                                 {3, 3, 3}, {3, 2, 1}, {0, 0, 0}, {0, 0, 0}, 64, 1, "", 2, MKLDNNPlugin::impl_desc_type::gemm_blas, false,
                                  {MKLDNNPlugin::impl_desc_type::gemm_blas} },
                 // conv_test_params{{1, 5, 15, 20, 20},
-                //                  {3, 3, 3}, {1, 1, 1}, {2, 2, 2}, {1, 1, 1}, 64, 1, "", 2, MKLDNNPlugin::impl_desc_type::gemm_blas,
+                //                  {3, 3, 3}, {1, 1, 1}, {2, 2, 2}, {1, 1, 1}, 64, 1, "", 2, MKLDNNPlugin::impl_desc_type::gemm_blas, false,
                 //                  {MKLDNNPlugin::impl_desc_type::gemm_blas}  },
                 conv_test_params{{1, 16, 30, 30, 10},
-                                 {5, 5, 5}, {1, 1, 1}, {2, 2, 2}, {2, 2, 2}, 16, 1, "", 2, MKLDNNPlugin::impl_desc_type::gemm_blas,
+                                 {5, 5, 5}, {1, 1, 1}, {2, 2, 2}, {2, 2, 2}, 16, 1, "", 2, MKLDNNPlugin::impl_desc_type::gemm_blas, false,
                                  {MKLDNNPlugin::impl_desc_type::gemm_blas} },
                 conv_test_params{{1, 4, 16, 16, 16},
-                                 {3, 3, 3}, {1, 1, 1}, {1, 1, 1}, {1, 1, 1}, 8, 1, "", 2, MKLDNNPlugin::impl_desc_type::gemm_blas,
+                                 {3, 3, 3}, {1, 1, 1}, {1, 1, 1}, {1, 1, 1}, 8, 1, "", 2, MKLDNNPlugin::impl_desc_type::gemm_blas, false,
                                  {MKLDNNPlugin::impl_desc_type::gemm_blas} } ));
 #endif
+
+INSTANTIATE_TEST_CASE_P(
+    TestConvolutionDefaultPrimitivesPriority, MKLDNNGraphConvolutionTests,
+    ::testing::Values(
+        /*0*/   conv_test_params{{1, 9, 16, 32}, {1, 1}, {1, 1}, {0, 0}, {0, 0}, 17, 1, "same_upper", 6,
+                                 MKLDNNPlugin::impl_desc_type::jit | MKLDNNPlugin::impl_desc_type::_1x1, true },
+                conv_test_params{{1, 9, 32, 16}, {2, 4}, {1, 1}, {1, 1}, {0, 2}, 17, 1, "", 4, MKLDNNPlugin::impl_desc_type::jit, true },
+                conv_test_params{{1, 9, 32, 16}, {2, 4}, {2, 1}, {0, 0}, {0, 0}, 17, 1, "", 4, MKLDNNPlugin::impl_desc_type::jit, true },
+                conv_test_params{{1, 3, 40, 40}, {3, 3}, {1, 2}, {0, 0}, {0, 0}, 20, 1, "", 4, MKLDNNPlugin::impl_desc_type::jit, true },
+                conv_test_params{{1, 1, 40, 40}, {3, 3}, {1, 2}, {0, 0}, {0, 0}, 20, 1, "", 4, MKLDNNPlugin::impl_desc_type::jit, true },
+                conv_test_params{{1, 1, 32, 16}, {2, 4}, {2, 1}, {0, 0}, {0, 0}, 17, 1, "", 4, MKLDNNPlugin::impl_desc_type::jit, true },
+        // 5D
+        /*6*/   conv_test_params{{1, 3, 15, 25, 20}, {3, 3, 3}, {2, 2, 2}, {0, 0, 0}, {0, 0, 0}, 64, 1, "", 2, MKLDNNPlugin::impl_desc_type::jit, true },
+                conv_test_params{{1, 24, 15, 25, 20}, {3, 3, 3}, {2, 2, 2}, {0, 0, 0}, {0, 0, 0}, 64, 1, "", 2, MKLDNNPlugin::impl_desc_type::jit, true },
+                conv_test_params{{1, 32, 15, 25, 20}, {3, 3, 3}, {2, 2, 2}, {0, 0, 0}, {0, 0, 0}, 64, 1, "", 2, MKLDNNPlugin::impl_desc_type::jit, true },
+                conv_test_params{{1, 16, 30, 30, 10}, {5, 5, 5}, {1, 1, 1}, {2, 2, 2}, {2, 2, 2}, 16, 1, "", 2, MKLDNNPlugin::impl_desc_type::jit, true } ));
 
 
 class MKLDNNGraphDynBatchConvolutionTests: public MKLDNNGraphConvolutionTests {
@@ -490,31 +500,31 @@ INSTANTIATE_TEST_CASE_P(
     ::testing::Values(
                 conv_test_params{{1, 8, 16, 32},
                                  {1, 1}, {1, 1}, {0, 0}, {0, 0}, 17, 1, "same_upper", 7, MKLDNNPlugin::impl_desc_type::jit | MKLDNNPlugin::impl_desc_type::_1x1,
-                                 {MKLDNNPlugin::impl_desc_type::jit_avx512_winograd}},
+                                 false, {MKLDNNPlugin::impl_desc_type::jit_avx512_winograd}},
                 conv_test_params{{1, 9, 32, 16},
                                  {2, 4}, {1, 1}, {0, 0}, {0, 0}, 17, 1, "", 5, MKLDNNPlugin::impl_desc_type::jit,
-                                 {MKLDNNPlugin::impl_desc_type::jit_avx512_winograd} },
+                                 false, {MKLDNNPlugin::impl_desc_type::jit_avx512_winograd} },
                 conv_test_params{{1, 9, 32, 16},
                                  {2, 4}, {2, 1}, {0, 0}, {0, 0}, 17, 1, "", 5, MKLDNNPlugin::impl_desc_type::jit,
-                                 {MKLDNNPlugin::impl_desc_type::jit_avx512_winograd} },
+                                 false, {MKLDNNPlugin::impl_desc_type::jit_avx512_winograd} },
                 conv_test_params{{1, 3, 40, 40},
                                  {3, 3}, {1, 2}, {0, 0}, {0, 0}, 20, 1, "", 5, MKLDNNPlugin::impl_desc_type::jit,
-                                 {MKLDNNPlugin::impl_desc_type::jit_avx512_winograd} },
+                                 false, {MKLDNNPlugin::impl_desc_type::jit_avx512_winograd} },
                 conv_test_params{{1, 1, 40, 40},
                                  {3, 3}, {1, 2}, {0, 0}, {0, 0}, 20, 1, "", 5, MKLDNNPlugin::impl_desc_type::jit,
-                                 {MKLDNNPlugin::impl_desc_type::jit_avx512_winograd} },
+                                 false, {MKLDNNPlugin::impl_desc_type::jit_avx512_winograd} },
                 conv_test_params{{1, 1, 32, 16},
                                  {2, 4}, {2, 1}, {0, 0}, {0, 0}, 17, 1, "", 5, MKLDNNPlugin::impl_desc_type::jit,
-                                 {MKLDNNPlugin::impl_desc_type::jit_avx512_winograd} },
+                                 false, {MKLDNNPlugin::impl_desc_type::jit_avx512_winograd} },
                 conv_test_params{{1, 9, 32, 16},
                                  {2, 4}, {1, 1}, {0, 0}, {0, 0}, 17, 1, "", 5, MKLDNNPlugin::impl_desc_type::ref_any,
-                                 {MKLDNNPlugin::impl_desc_type::ref_any} } ));
+                                 false, {MKLDNNPlugin::impl_desc_type::ref_any} } ));
 #ifdef USE_MKL
 INSTANTIATE_TEST_CASE_P(
     MKLTestDynBatchConvolution, MKLDNNGraphDynBatchConvolutionTests,
     ::testing::Values(
                 conv_test_params{{1, 9, 16, 32},
-                                 {1, 1}, {1, 1}, {0, 0}, {0, 0}, 17, 1, "", 7, MKLDNNPlugin::impl_desc_type::gemm,
+                                 {1, 1}, {1, 1}, {0, 0}, {0, 0}, 17, 1, "", 7, MKLDNNPlugin::impl_desc_type::gemm, false,
                                  {MKLDNNPlugin::impl_desc_type::gemm_any,
                                   MKLDNNPlugin::impl_desc_type::gemm_blas,
                                   MKLDNNPlugin::impl_desc_type::gemm_avx512,
