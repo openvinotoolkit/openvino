@@ -66,6 +66,8 @@ void dynamicToStaticShapeReduce(std::shared_ptr<ngraph::Node> target) {
                 ngraph::opset3::Constant::create(ngraph::element::i64, {1}, {0}));
     }
     const auto copied = target->clone_with_new_inputs(target->input_values());
-    ngraph::replace_node(target, std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(copied, output_shape));
+    const auto outDsr = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(copied, output_shape);
+    outDsr->set_friendly_name(target->get_friendly_name());
+    ngraph::replace_node(target, outDsr);
 }
 }  // namespace vpu

@@ -58,7 +58,9 @@ void dynamicToStaticShapeUnsqueeze(std::shared_ptr<ngraph::Node> target) {
         new_shape_dims.insert(new_shape_dims.begin() + i, new_dim);
     }
     const auto unsqueeze_output_shape = std::make_shared<ngraph::opset3::Concat>(new_shape_dims, 0);
-    ngraph::replace_node(std::move(target), std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(copied, unsqueeze_output_shape));
+    auto outDsr = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(copied, unsqueeze_output_shape);
+    outDsr->set_friendly_name(target->get_friendly_name());
+    ngraph::replace_node(std::move(target), outDsr);
 }
 
 }  // namespace vpu

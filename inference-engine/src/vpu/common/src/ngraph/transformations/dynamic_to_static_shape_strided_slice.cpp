@@ -137,7 +137,9 @@ void dynamicToStaticShapeStridedSlice(std::shared_ptr<ngraph::Node> target) {
             input_shape);
 
     const auto copied = ss->clone_with_new_inputs(target->input_values());
-    ngraph::replace_node(std::move(target), std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(copied, output_shape));
+    auto outDsr = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(copied, output_shape);
+    outDsr->set_friendly_name(target->get_friendly_name());
+    ngraph::replace_node(std::move(target), outDsr);
 }
 
 }  // namespace vpu

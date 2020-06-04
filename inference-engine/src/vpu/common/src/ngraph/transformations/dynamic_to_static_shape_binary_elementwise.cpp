@@ -44,7 +44,9 @@ void dynamicToStaticShapeBinaryEltwise(std::shared_ptr<ngraph::Node> eltwise) {
     }
 
     const auto shape = std::make_shared<ngraph::opset3::Maximum>(lhsInput, rhsInput);
-    ngraph::replace_node(std::move(eltwise), std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(copied, shape));
+    auto outDsr = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(copied, shape);
+    outDsr->set_friendly_name(eltwise->get_friendly_name());
+    ngraph::replace_node(std::move(eltwise), outDsr);
 }
 
 }  // namespace vpu

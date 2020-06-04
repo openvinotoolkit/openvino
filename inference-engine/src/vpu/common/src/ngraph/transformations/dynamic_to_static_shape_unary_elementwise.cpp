@@ -22,7 +22,9 @@ void dynamicToStaticUnaryElementwise(std::shared_ptr<ngraph::Node> target) {
 
     const auto shape = dsr->input(1).get_source_output();
     const auto copied = target->clone_with_new_inputs(target->input_values());
-    ngraph::replace_node(target, std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(copied, shape));
+    auto outDsr = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(copied, shape);
+    outDsr->set_friendly_name(target->get_friendly_name());
+    ngraph::replace_node(target, outDsr);
 }
 
 }  // namespace vpu
