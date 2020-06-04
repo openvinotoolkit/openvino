@@ -6,7 +6,7 @@
 
 #include <memory>
 
-#include <ie_api.h>
+#include <transformations_visibility.hpp>
 
 #include <ngraph/ngraph.hpp>
 
@@ -17,7 +17,7 @@ using namespace std;
 namespace ngraph {
 namespace pass {
 
-class INFERENCE_ENGINE_API_CLASS(BatchNormDecomposition);
+class TRANSFORMATIONS_API BatchNormDecomposition;
 
 }  // namespace pass
 }  // namespace ngraph

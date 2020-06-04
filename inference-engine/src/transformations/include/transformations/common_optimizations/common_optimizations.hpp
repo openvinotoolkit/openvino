@@ -7,7 +7,7 @@
 #include <vector>
 #include <memory>
 
-#include <ie_api.h>
+#include <transformations_visibility.hpp>
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
@@ -16,14 +16,15 @@
 namespace ngraph {
 namespace pass {
 
-class INFERENCE_ENGINE_API_CLASS(CommonOptimizations);
+class TRANSFORMATIONS_API CommonOptimizations;
 
 }  // namespace pass
 }  // namespace ngraph
 
-class ngraph::pass::CommonOptimizations: public ngraph::pass::FunctionPass {
+class ngraph::pass::CommonOptimizations: public ngraph::pass::FunctionPass, public ngraph::pass::PassParam {
 public:
-    explicit CommonOptimizations() : FunctionPass() {}
+    explicit CommonOptimizations(const PassParam::param_callback & callback = PassParam::getDefaultCallback())
+            : FunctionPass(), PassParam(callback) {}
 
     bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
 };
