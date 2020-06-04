@@ -7,6 +7,12 @@
 
 #include <cpp/ie_executable_network.hpp>
 
+#include <ngraph/type/element_type.hpp>
+#include <ngraph/op/parameter.hpp>
+#include <ngraph/ops.hpp>
+#include <ngraph_ops/fully_connected.hpp>
+#include <ngraph/op/constant.hpp>
+#include <ngraph/opsets/opset1.hpp>
 #include <limits>
 
 using namespace vpu;
@@ -14,104 +20,109 @@ using namespace InferenceEngine;
 
 using VPU_AddVpuScaleTest = GraphTransformerTest;
 
-// TEST_F(VPU_AddVpuScaleTest, CanAddVpuScaleToNetwork) {
-//     InitCompileEnv();
+TEST_F(VPU_AddVpuScaleTest, CanAddVpuScaleToNetwork) {
+    InitCompileEnv();
 
-//     auto& env = CompileEnv::get();
-//     CompilationConfig config{};
-//     config.irWithVpuScalesDir = "/";
-//     env.updateConfig(config);
+    auto& env = CompileEnv::get();
+    CompilationConfig config{};
+    config.irWithVpuScalesDir = "/";
+    env.updateConfig(config);
 
-//     Builder::Network builder("network");
-//     Builder::FullyConnectedLayer fcBuilder("FullyConnected");
+    std::shared_ptr<ngraph::Function> function;
 
-//     fcBuilder.setOutputNum(1024 * 1);
-//     SizeVector inputDims = {1, 2, 16, 16};
+    {
+        auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f16, ngraph::Shape{4, 2, 2});
+        input->set_friendly_name("input");
+        auto weights = ngraph::opset1::Constant::create(ngraph::element::f16, ngraph::Shape{2, 2}, {1});
+        auto bias = ngraph::opset1::Constant::create(ngraph::element::f16, ngraph::Shape{2}, {1});
+        auto fc = std::make_shared<ngraph::op::FullyConnected>(input, weights, bias, ngraph::Shape{4, 2, 2});
+        fc->set_friendly_name("FullyConnected");
+        auto result = std::make_shared<ngraph::op::Result>(fc);
+        ngraph::ResultVector results { result };
+        ngraph::ParameterVector params {input };
+        function = std::make_shared<ngraph::Function>(results, params);
+    }
 
-//     idx_t layerId = builder.addLayer(Builder::InputLayer("input").setPort(Port(inputDims)));
+    auto network = InferenceEngine::CNNNetwork(function);
+    auto model = frontEnd->buildInitialModel(network);
 
-//     Blob::Ptr blob = make_shared_blob<ie_fp16>(TensorDesc(Precision::FP16, {1024, 2, 16, 16}, Layout::OIHW));
-//     blob->allocate();
+    const auto getFullyConnectedStage = [&]() -> Handle<StageNode> {
+        const auto isFullyConnected = [&](const Handle<StageNode>& stage) {
+            const auto& layer = stage->origLayer();
+            return layer && layer->type == "FullyConnected";
+        };
+        const auto stages = model->getStages();
+        const auto stageIt = std::find_if(begin(stages), end(stages), isFullyConnected);
+        return *stageIt;
+    };
 
-//     idx_t weightsId = builder.addLayer(Builder::ConstLayer("weights").setData(blob));
-//     layerId = builder.addLayer({{layerId}, {weightsId}}, fcBuilder);
-//     builder.addLayer({PortInfo(layerId)}, Builder::OutputLayer("output"));
+    const auto fcStage = getFullyConnectedStage();
+    EXPECT_EQ(fcStage->origLayer()->params.find("vpu_scale"), fcStage->origLayer()->params.end());
 
-//     auto network = Builder::convertToICNNNetwork(builder.build());
+    auto middleEnd = passManager->buildMiddleEnd();
+    middleEnd->run(model);
 
-//     CNNLayerPtr layer;
-//     network->getLayerByName("FullyConnected", layer, nullptr);
+    const auto fcStageAfterMiddleEnd = getFullyConnectedStage();
+    EXPECT_NE(fcStageAfterMiddleEnd->origLayer()->params.find("vpu_scale"), fcStageAfterMiddleEnd->origLayer()->params.end());
+}
 
-//     EXPECT_EQ(layer->params.find("vpu_scale"), layer->params.end());
+TEST_F(VPU_AddVpuScaleTest, VpuScaleFromIrChangesWeights) {
+    InitCompileEnv();
+    const auto& env = CompileEnv::get();
+    CompilationConfig config{};
+    config.irWithVpuScalesDir = "/";
+    env.updateConfig(config);
 
-//     auto model = frontEnd->buildInitialModel(*network);
+    std::shared_ptr<ngraph::Function> function;
+    {
+        ngraph::element::Type elementType = ngraph::element::Type_t::f16;
+        ngraph::Shape shape { 1, 1, 4, 5 };
+        auto input = std::make_shared<ngraph::op::Parameter>(elementType, shape);
+        input->set_friendly_name("input");
 
-//     auto middleEnd = passManager->buildMiddleEnd();
+        auto weights = std::make_shared<ngraph::op::Constant>(
+                elementType, ngraph::Shape{1, 1, 1, 1}, std::vector<float>(1, 1.0f));
+        auto conv = std::make_shared<ngraph::op::v1::Convolution>(
+                input, weights, ngraph::Strides {1, 1},
+                ngraph::CoordinateDiff{0, 0}, ngraph::CoordinateDiff{0, 0}, ngraph::Strides{1, 1});
+        conv->set_friendly_name("Convolution");
+        auto result = std::make_shared<ngraph::op::Result>(conv);
 
-//     middleEnd->run(model);
+        ngraph::ResultVector results { result };
+        ngraph::ParameterVector params { input };
+        function = std::make_shared<ngraph::Function>(results, params);
+    }
 
-//     EXPECT_NE(layer->params.find("vpu_scale"), layer->params.end());
-// }
+    auto network = InferenceEngine::CNNNetwork(function);
+    auto model = frontEnd->buildInitialModel(network);
 
-// TEST_F(VPU_AddVpuScaleTest, VpuScaleFromIrChangesWeights) {
-//     InitCompileEnv();
-//     const auto& env = CompileEnv::get();
-//     CompilationConfig config{};
-//     config.irWithVpuScalesDir = "/";
-//     env.updateConfig(config);
+    auto middleEnd = passManager->buildMiddleEnd();
+    auto checkWeightWasChanged = [this, &network](const float scale) {
+        auto model = frontEnd->buildInitialModel(network);
+        for (const auto& stage : model->getStages()) {
+            if (stage->name() == "Convolution") {
+                stage->origLayer()->params["vpu_scale"] = toString(scale);
+            }
+        }
 
-//     Builder::Network netBuilder("network");
+        auto middleEnd = passManager->buildMiddleEnd();
+        middleEnd->run(model);
+        for (const auto& stage : model->getStages()) {
+            if (stage->name() == "Convolution") {
+                auto content = stage->input(1)->content()->get<ie_fp16>();
+                if (scale < 0) {
+                    EXPECT_EQ(scale, PrecisionUtils::f16tof32(content[0]));
+                } else {
+                    EXPECT_EQ(scale, fabs(PrecisionUtils::f16tof32(content[0])));
+                }
+            }
+        }
+    };
 
-//     Blob::Ptr weightsBlob = make_shared_blob<ie_fp16>(TensorDesc(Precision::FP16, {1, 1, 1, 1}, Layout::NCHW));
-//     weightsBlob->allocate();
-//     auto buf = weightsBlob->buffer().as<ie_fp16*>();
+    const auto maxVal = std::numeric_limits<float>::infinity();
 
-//     for (size_t i = 0; i < weightsBlob->size(); ++i) {
-//         buf[i] = PrecisionUtils::f32tof16(1.f);
-//     }
+    checkWeightWasChanged(32);
+    checkWeightWasChanged(64);
+    checkWeightWasChanged(maxVal);
 
-//     idx_t layerId = netBuilder.addLayer(Builder::InputLayer("input").setPort(Port({1, 1, 1, 1})));
-//     size_t weightsId = netBuilder.addLayer(Builder::ConstLayer("weights").setData(weightsBlob));
-
-//     const auto convBuilder = Builder::ConvolutionLayer("Convolution").setStrides({1, 1}).setKernel({1, 1})
-//             .setOutDepth(1).setInputPort(Port({1, 1, 1, 1}));
-
-//     layerId = netBuilder.addLayer({{layerId}, {weightsId}}, convBuilder);
-//     netBuilder.addLayer({PortInfo(layerId)}, Builder::OutputLayer("output"));
-
-//     auto network = Builder::convertToICNNNetwork(netBuilder.build());
-
-//     CNNLayerPtr layer;
-//     network->getLayerByName("Convolution", layer, nullptr);
-
-//     auto model = frontEnd->buildInitialModel(*network);
-//     auto middleEnd = passManager->buildMiddleEnd();
-
-//     auto checkWeightWasChanged = [this, network, layer](const float scale) {
-//         layer->params["vpu_scale"] = toString(scale);
-//         auto model = frontEnd->buildInitialModel(*network);
-//         auto middleEnd = passManager->buildMiddleEnd();
-//         middleEnd->run(model);
-//         for (const auto& stage : model->getStages()) {
-//             if (stage->name() == "Convolution") {
-//                 auto content = stage->input(1)->content()->get<ie_fp16>();
-//                 EXPECT_EQ(scale, PrecisionUtils::f16tof32(content[0]));
-//             }
-//         }
-//     };
-
-//     checkWeightWasChanged(32);
-//     checkWeightWasChanged(64);
-
-//     const auto maxVal = std::numeric_limits<float>::infinity();
-//     layer->params["vpu_scale"] = toString(maxVal);
-//     model = frontEnd->buildInitialModel(*network);
-//     middleEnd = passManager->buildMiddleEnd();
-//     middleEnd->run(model);
-
-//     for (const auto& stage : model->getStages()) {
-//         if (stage->name() == "Convolution") {
-//             EXPECT_EQ(stage->attrs().get<float>("scaleFactor"), maxVal);
-//         }
-//     }
-// }
+}
