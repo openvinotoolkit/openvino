@@ -39,11 +39,11 @@ inline int FUNC(apply_pooling)(int tmp, int in) {
     return tmp + in;
 #endif
 }
-__attribute__((intel_reqd_sub_group_size(16))) KERNEL(pooling_gpu_bs_fs_yx_bsv16_fsv16)(const __global INPUT0_TYPE* input,
-                                                                                __global OUTPUT_TYPE* output
+__attribute__((intel_reqd_sub_group_size(16)))
+KERNEL(pooling_gpu_bs_fs_yx_bsv16_fsv16)(const __global INPUT0_TYPE* input,
+                                         __global OUTPUT_TYPE* output
 #if HAS_FUSED_OPS_DECLS
-                                                                                ,
-                                                                                FUSED_OPS_DECLS
+                                         , FUSED_OPS_DECLS
 #endif
 ) {
     const uint f = (uint)get_global_id(0) * 16;
@@ -57,8 +57,7 @@ __attribute__((intel_reqd_sub_group_size(16))) KERNEL(pooling_gpu_bs_fs_yx_bsv16
     const uint input_x_pitch = BATCH_SLICE_SIZE * FEATURE_SLICE_SIZE;
     const uint input_y_pitch = input_x_pitch * (INPUT0_PAD_BEFORE_SIZE_X + INPUT0_SIZE_X + INPUT0_PAD_AFTER_SIZE_X);
     const uint input_fs_pitch = input_y_pitch * (INPUT0_PAD_BEFORE_SIZE_Y + INPUT0_SIZE_Y + INPUT0_PAD_AFTER_SIZE_Y);
-    int16 result = (int16)(INIT_VAL, INIT_VAL, INIT_VAL, INIT_VAL, INIT_VAL, INIT_VAL, INIT_VAL, INIT_VAL,
-                           INIT_VAL, INIT_VAL, INIT_VAL, INIT_VAL, INIT_VAL, INIT_VAL, INIT_VAL, INIT_VAL);
+    int16 result = INIT_VAL;
 
 #ifdef CHECK_BOUNDRY
     uint batch_and_feature_offset = GET_DATA_BS_FS_YX_BSV16_FSV16_INDEX(INPUT0, b, f, 0, 0);

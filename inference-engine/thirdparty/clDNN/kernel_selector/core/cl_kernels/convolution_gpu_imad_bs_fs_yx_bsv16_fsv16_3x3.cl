@@ -49,7 +49,6 @@ KERNEL(convolution_gpu_imad_bs_fs_yx_bsv16_fsv16_3x3)(
 #endif
 uint split_idx)
 {
-
     const uint out_x = (uint)get_global_id(0);
     const uint out_y = (uint)get_global_id(1);
     const uint out_f = (uint)get_group_id(2) * 16 % OUTPUT_FEATURE_NUM;
@@ -67,81 +66,72 @@ uint split_idx)
     const uint f_diff = input_fs_pitch - 3 * input_y_pitch;
     uint input_idx = GET_DATA_BS_FS_YX_BSV16_FSV16_INDEX(INPUT0, out_b, 0, input_y, input_x);
 
-      __attribute__((opencl_unroll_hint(1)))
-      for (uint k = 0; k < INPUT0_FEATURE_NUM / 16; k++) {  
-        
-            uint filter_idx = GET_FILTER_OS_IS_YX_OSV16_ISV16_INDEX(FILTER, out_f + get_sub_group_local_id(), k*16, 0, 0);
+    __attribute__((opencl_unroll_hint(1)))
+    for (uint k = 0; k < INPUT0_FEATURE_NUM / 16; k++) {
+        uint filter_idx = GET_FILTER_OS_IS_YX_OSV16_ISV16_INDEX(FILTER, out_f + get_sub_group_local_id(), k*16, 0, 0);
 
-            __attribute__((opencl_unroll_hint(1)))
-            for (uint y = 0; y < FILTER_SIZE_Y; y++)
-            {
-                __attribute__((opencl_unroll_hint(FILTER_SIZE_X)))
-                for (uint x = 0; x < FILTER_SIZE_X; x++) {
-                   
-                    uint4 input_val0 = vload4(0, (__global uint *)(conv_input + input_idx));
-                    uint4 weights_val = vload4(0, (__global uint *)(weights + filter_idx));
+        __attribute__((opencl_unroll_hint(1)))
+        for (uint y = 0; y < FILTER_SIZE_Y; y++) {
+            __attribute__((opencl_unroll_hint(FILTER_SIZE_X)))
+            for (uint x = 0; x < FILTER_SIZE_X; x++) {
+                uint4 input_val0 = vload4(0, (__global uint *)(conv_input + input_idx));
+                uint4 weights_val = vload4(0, (__global uint *)(weights + filter_idx));
 
-                    __attribute__((opencl_unroll_hint(16)))
-                    for (uint j = 0; j < 16; j++)
-                    {
-
-                        dotProd[j] = TO_ACCUMULATOR_TYPE(IMAD(dotProd[j], AS_INPUT0_TYPE_4(input_val0.s0), as_char4(intel_sub_group_shuffle(weights_val.s0, j))));
-                        dotProd[j] = TO_ACCUMULATOR_TYPE(IMAD(dotProd[j], AS_INPUT0_TYPE_4(input_val0.s1), as_char4(intel_sub_group_shuffle(weights_val.s1, j))));
-                        dotProd[j] = TO_ACCUMULATOR_TYPE(IMAD(dotProd[j], AS_INPUT0_TYPE_4(input_val0.s2), as_char4(intel_sub_group_shuffle(weights_val.s2, j))));
-                        dotProd[j] = TO_ACCUMULATOR_TYPE(IMAD(dotProd[j], AS_INPUT0_TYPE_4(input_val0.s3), as_char4(intel_sub_group_shuffle(weights_val.s3, j))));
-
-                    }
-                    filter_idx += weights_x_pitch;
-                    input_idx += input_x_pitch;
+                __attribute__((opencl_unroll_hint(16)))
+                for (uint j = 0; j < 16; j++) {
+                    dotProd[j] = TO_ACCUMULATOR_TYPE(IMAD(dotProd[j], AS_INPUT0_TYPE_4(input_val0.s0), as_char4(intel_sub_group_shuffle(weights_val.s0, j))));
+                    dotProd[j] = TO_ACCUMULATOR_TYPE(IMAD(dotProd[j], AS_INPUT0_TYPE_4(input_val0.s1), as_char4(intel_sub_group_shuffle(weights_val.s1, j))));
+                    dotProd[j] = TO_ACCUMULATOR_TYPE(IMAD(dotProd[j], AS_INPUT0_TYPE_4(input_val0.s2), as_char4(intel_sub_group_shuffle(weights_val.s2, j))));
+                    dotProd[j] = TO_ACCUMULATOR_TYPE(IMAD(dotProd[j], AS_INPUT0_TYPE_4(input_val0.s3), as_char4(intel_sub_group_shuffle(weights_val.s3, j))));
                 }
-                input_idx += y_diff;
+                filter_idx += weights_x_pitch;
+                input_idx += input_x_pitch;
             }
-            input_idx += f_diff;
+            input_idx += y_diff;
         }
+        input_idx += f_diff;
+    }
 
-        OUTPUT_TYPE16 results = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-        const uint dst_index = GET_DATA_BS_FS_YX_BSV16_FSV16_INDEX(OUTPUT, out_b, out_f, out_y, out_x);
-    #if BIAS_TERM
-        ACTIVATION_TYPE bias = biases[out_f + get_sub_group_local_id()];
-    #endif
-#if HAS_FUSED_OPS && FUSED_OPS_CAN_USE_PRELOAD
-        FUSED_OPS_PRELOAD
+    OUTPUT_TYPE16 results = 0;
+    const uint dst_index = GET_DATA_BS_FS_YX_BSV16_FSV16_INDEX(OUTPUT, out_b, out_f, out_y, out_x);
+#if BIAS_TERM
+    ACTIVATION_TYPE bias = biases[out_f + get_sub_group_local_id()];
 #endif
-        __attribute__((opencl_unroll_hint(16)))
-        for (uint i = 0; i < 16; i++) {
-
-            ACTIVATION_TYPE dequantized = (ACTIVATION_TYPE)0;
-    #if BIAS_TERM
-            dequantized = (ACTIVATION_TYPE)dotProd[i] + intel_sub_group_shuffle(bias, i);
-    #else
-            dequantized = (ACTIVATION_TYPE)dotProd[i];
-    #endif
+#if HAS_FUSED_OPS && FUSED_OPS_CAN_USE_PRELOAD
+    FUSED_OPS_PRELOAD
+#endif
+    __attribute__((opencl_unroll_hint(16)))
+    for (uint i = 0; i < 16; i++) {
+        ACTIVATION_TYPE dequantized = (ACTIVATION_TYPE)0;
+#if BIAS_TERM
+        dequantized = (ACTIVATION_TYPE)dotProd[i] + intel_sub_group_shuffle(bias, i);
+#else
+        dequantized = (ACTIVATION_TYPE)dotProd[i];
+#endif
 #if HAS_FUSED_OPS
 #if FUSED_OPS_CAN_USE_PRELOAD
-            FUSED_OPS_CALC
+        FUSED_OPS_CALC
 #else
-            FUSED_OPS
+        FUSED_OPS
 #endif
-            OUTPUT_TYPE res = FUSED_OPS_RESULT;
-            results[i] = res;
+        OUTPUT_TYPE res = FUSED_OPS_RESULT;
+        results[i] = res;
 #else
-            results[i] = TO_OUTPUT_TYPE(dequantized);
+        results[i] = TO_OUTPUT_TYPE(dequantized);
 
 #endif
-        }
+    }
 #if OUTPUT_TYPE_SIZE == 1
-        vstore4(as_uint4(results), 0, ((__global uint *)(output + dst_index)));
+    vstore4(as_uint4(results), 0, ((__global uint *)(output + dst_index)));
 #else
-        __attribute__((opencl_unroll_hint(16)))
-        for (uint z = 0; z < 16; z++) {
-            output[dst_index + z] = results[z];
-        }
+    __attribute__((opencl_unroll_hint(16)))
+    for (uint z = 0; z < 16; z++) {
+        output[dst_index + z] = results[z];
+    }
 #endif
 }
 
 #undef BLOCK_LOAD_INPUTS
-#undef K_WSTRIDE
-#undef K_HSTRIDE
 #undef IN_BLOCK_WIDTH
 #undef IN_BLOCK_HEIGHT
 #undef PACK

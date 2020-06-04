@@ -52,13 +52,11 @@ ParamsKey Convolution_kernel_imad_bs_fs_yx_bsv16_fsv16_3x3::GetSupportedKey() co
     return k;
 }
 
-KernelsData Convolution_kernel_imad_bs_fs_yx_bsv16_fsv16_3x3::GetKernelsData(const Params& params,
-                                                                   const optional_params& options) const {
+KernelsData Convolution_kernel_imad_bs_fs_yx_bsv16_fsv16_3x3::GetKernelsData(const Params& params, const optional_params& options) const {
     return GetCommonKernelsData(params, options);
 }
 
-JitConstants Convolution_kernel_imad_bs_fs_yx_bsv16_fsv16_3x3::GetJitConstants(const convolution_params& params,
-                                                                     const DispatchData& kd) const {
+JitConstants Convolution_kernel_imad_bs_fs_yx_bsv16_fsv16_3x3::GetJitConstants(const convolution_params& params, const DispatchData& kd) const {
     auto mem_consts = Parent::GetJitConstants(params, kd);
 
     if (!params.fused_ops.empty()) {
@@ -76,8 +74,7 @@ JitConstants Convolution_kernel_imad_bs_fs_yx_bsv16_fsv16_3x3::GetJitConstants(c
     return mem_consts;
 }  // GetJitConstants
 
-ConvolutionKernelBase::DispatchData Convolution_kernel_imad_bs_fs_yx_bsv16_fsv16_3x3::SetDefault(const convolution_params& params,
-                                                                           int) const {
+ConvolutionKernelBase::DispatchData Convolution_kernel_imad_bs_fs_yx_bsv16_fsv16_3x3::SetDefault(const convolution_params& params, int) const {
     DispatchData kd;
     const auto& output = params.output;
 
@@ -100,8 +97,7 @@ ConvolutionKernelBase::DispatchData Convolution_kernel_imad_bs_fs_yx_bsv16_fsv16
     return kd;
 }  // SetDefault
 
-bool Convolution_kernel_imad_bs_fs_yx_bsv16_fsv16_3x3::Validate(const Params& params,
-                                                                const optional_params& options) const {
+bool Convolution_kernel_imad_bs_fs_yx_bsv16_fsv16_3x3::Validate(const Params& params, const optional_params& options) const {
     if (!Parent::Validate(params, options)) {
         return false;
     }

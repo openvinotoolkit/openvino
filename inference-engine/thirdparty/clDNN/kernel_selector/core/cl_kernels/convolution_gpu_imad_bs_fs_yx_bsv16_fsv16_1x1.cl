@@ -89,7 +89,7 @@ KERNEL(convolution_gpu_imad_bs_fs_yx_bsv16_fsv16_1x1)(
         input_idx += input_fs_pitch;
     }
 
-    OUTPUT_TYPE16 results = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+    OUTPUT_TYPE16 results = 0;
 
     __attribute__((opencl_unroll_hint(2)))
     for (uint j = 0; j < 2; j++) {
@@ -135,8 +135,6 @@ KERNEL(convolution_gpu_imad_bs_fs_yx_bsv16_fsv16_1x1)(
 }
 
 #undef BLOCK_LOAD_INPUTS
-#undef K_WSTRIDE
-#undef K_HSTRIDE
 #undef IN_BLOCK_WIDTH
 #undef IN_BLOCK_HEIGHT
 #undef PACK

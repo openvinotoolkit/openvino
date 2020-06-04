@@ -1109,7 +1109,7 @@ JitConstants FusedOpsCodeGenerator::MakeLoadJitConstants(const FusedOpsConfigura
         std::string sub_group_local_id_str = "get_sub_group_local_id()";
         size_t found_sub = conf.bfzyx_idx_order[1].rfind(sub_group_local_id_str);
         if (found_sub != std::string::npos)
-            fused_op_config.bfzyx_idx_order[1].replace(found_sub, sub_group_local_id_str.length(), "i");
+            fused_op_config.bfzyx_idx_order[1].replace(found_sub, sub_group_local_id_str.length(), fused_op_config.shuffle_var_name);
     }
 
     for (auto op_input_id : GetRequiredInputs()) {
