@@ -46,6 +46,7 @@ class TestConcatPartialInfer(unittest.TestCase):
                                 'ctc': {'ctc_merge_repeated': 1}
                             })
 
+        graph.graph['layout'] = 'NHWC'
         ctc_node = Node(graph, 'ctc')
         CTCGreedyDecoderOp.ctc_greedy_decoder_infer(ctc_node)
         exp_shape = np.array([2, 88, 1, 1])
