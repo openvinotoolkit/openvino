@@ -8,6 +8,10 @@
 #include <mkldnn_node.h>
 #include <string>
 #include <vector>
+<<<<<<< HEAD
+=======
+//#include <c_types_map.hpp>
+>>>>>>> DNTC. Big patch on plugin surces.
 #include <memory>
 #include <caseless.hpp>
 

@@ -32,9 +32,9 @@ public:
     MKLDNNMemoryDesc getDstMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) override;
 private:
     float eps = 0.0f;
-    MKLDNNMemoryDesc GetVarianceDesc(const mkldnn::memory::primitive_desc& primitive_desc) const;
-    MKLDNNMemoryDesc GetMeanDesc(const mkldnn::memory::primitive_desc& primitive_desc) const;
-    MKLDNNMemoryDesc GetScaleShiftWeightsDesc(const mkldnn::memory::primitive_desc& primitive_desc) const;
+    MKLDNNMemoryDesc GetVarianceDesc(const mkldnn::primitive_desc& primitive_desc) const;
+    MKLDNNMemoryDesc GetMeanDesc(const mkldnn::primitive_desc& primitive_desc) const;
+    MKLDNNMemoryDesc GetScaleShiftWeightsDesc(const mkldnn::primitive_desc& primitive_desc) const;
 };
 
 }  // namespace MKLDNNPlugin

@@ -397,7 +397,12 @@ void MKLDNNGraph::InitGraph() {
     }
 #endif
 
-    mkldnn::stream stream = mkldnn::stream(stream::kind::eager);
+#ifdef USE_DNNL
+    mkldnn::stream stream(eng);
+#else
+    mkldnn::stream stream(stream::kind::eager);
+#endif
+
     for (auto &graphNode : graphNodes) {
         if (!graphNode->isConstant())
             continue;
@@ -779,7 +784,12 @@ void MKLDNNGraph::Infer(int batch) {
         THROW_IE_EXCEPTION << "Wrong state. Topology is not ready.";
     }
 
-    mkldnn::stream stream = mkldnn::stream(stream::kind::eager);
+#ifdef USE_DNNL
+    mkldnn::stream stream(eng);
+#else
+    mkldnn::stream stream(stream::kind::eager);
+#endif
+
     for (int i = 0; i < graphNodes.size(); i++) {
         PERF(graphNodes[i]);
 

@@ -41,7 +41,7 @@ void MKLDNNSoftMaxNode::getSupportedDescriptors() {
     }
 
     if (getParentEdgeAt(0)->getDims().ndims() == 3) {
-        MKLDNNMemoryDesc in_candidate(getParentEdgeAt(0)->getDims(), inputDataType, memory::format::blocked);
+        MKLDNNMemoryDesc in_candidate(getParentEdgeAt(0)->getDims(), inputDataType, memory::format_tag::blocked);
         createDescriptor({in_candidate}, {});
     }
 

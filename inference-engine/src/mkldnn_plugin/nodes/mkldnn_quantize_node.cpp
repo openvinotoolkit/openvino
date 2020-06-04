@@ -166,7 +166,9 @@ void MKLDNNQuantizeNode::init() {
     }
 
     if (binarization) {
-        quantizeAlgorithm = algorithm::binarization_depthwise;
+        // TODO: Unimplemented
+        THROW_IE_EXCEPTION << "unimplemented";
+//        quantizeAlgorithm = algorithm::binarization_depthwise;
 
         binarizationThresholds.resize(axisPaddedSize);
         binarizationOutputMask.resize(axisPaddedSize);

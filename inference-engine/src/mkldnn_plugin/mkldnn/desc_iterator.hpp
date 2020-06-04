@@ -10,9 +10,19 @@
 #include <mkldnn_types.h>
 #include <mkldnn.h>
 
-namespace mkldnn {
+namespace dnnl {
 
-struct primitive_desc_iterator : public handle<mkldnn_primitive_desc_iterator_t> {
+#ifdef USE_DNNL
+//    struct primitive_desc_iterator {
+//        dnnl::primitive_desc pdesc_iter;
+//        template <typename T>
+//        primitive_desc_iterator(const T &adesc, const dnnl::primitive_attr &aattr, const engine &aengine) {
+//        }
+//
+//    };
+#else
+
+    struct primitive_desc_iterator : public handle<mkldnn_primitive_desc_iterator_t> {
     template <typename T>
     primitive_desc_iterator(const T &adesc, const mkldnn::primitive_attr &aattr, const engine &aengine) {
         mkldnn_primitive_desc_iterator_t result;
@@ -49,8 +59,8 @@ struct primitive_desc_iterator : public handle<mkldnn_primitive_desc_iterator_t>
         return (handle::get() != nullptr);
     }
 
-    memory::primitive_desc fetch() const {
-        memory::primitive_desc adesc;
+    handle<mkldnn_primitive_desc_t> fetch() const {
+        handle<mkldnn_primitive_desc_t> adesc;
         mkldnn_primitive_desc_t cdesc = nullptr;
 
         cdesc = mkldnn_primitive_desc_iterator_fetch(get());
@@ -69,7 +79,8 @@ struct primitive_desc_iterator : public handle<mkldnn_primitive_desc_iterator_t>
         return *this;
     }
 
-    memory::primitive_desc src_primitive_desc(size_t index = 0) const {
+    memory::desc src_desc(size_t index = 0) const {
+
         memory::primitive_desc adesc;
         memory::primitive_desc cdesc_elem;
         mkldnn_primitive_desc_t cdesc = nullptr;
@@ -80,10 +91,10 @@ struct primitive_desc_iterator : public handle<mkldnn_primitive_desc_iterator_t>
         error::wrap_c_api(mkldnn_primitive_desc_clone(&cdesc, const_cdesc),
                           "could not clone a src primititve descriptor");
         adesc.reset(cdesc);
-        return adesc;
+        return adesc.desc();
     }
 
-    memory::primitive_desc dst_primitive_desc(size_t index = 0) const {
+    memory::desc dst_desc(size_t index = 0) const {
         memory::primitive_desc adesc;
         memory::primitive_desc cdesc_elem;
         mkldnn_primitive_desc_t cdesc = nullptr;
@@ -94,11 +105,11 @@ struct primitive_desc_iterator : public handle<mkldnn_primitive_desc_iterator_t>
         error::wrap_c_api(mkldnn_primitive_desc_clone(&cdesc, const_cdesc),
                           "could not clone a dst primitive descriptor");
         adesc.reset(cdesc);
-        return adesc;
+        return adesc.desc();
     }
 
 
-    memory::primitive_desc diff_src_primitive_desc(size_t index = 0) const {
+    memory::desc diff_src_desc(size_t index = 0) const {
         memory::primitive_desc adesc;
         memory::primitive_desc cdesc_elem;
         mkldnn_primitive_desc_t cdesc = nullptr;
@@ -109,10 +120,10 @@ struct primitive_desc_iterator : public handle<mkldnn_primitive_desc_iterator_t>
         error::wrap_c_api(mkldnn_primitive_desc_clone(&cdesc, const_cdesc),
                           "could not clone a diff_src primititve descriptor");
         adesc.reset(cdesc);
-        return adesc;
+        return adesc.desc();
     }
 
-    memory::primitive_desc weights_primitive_desc(size_t index = 0) const {
+    memory::desc weights_desc(size_t index = 0) const {
         memory::primitive_desc adesc;
         memory::primitive_desc cdesc_elem;
         mkldnn_primitive_desc_t cdesc = nullptr;
@@ -123,10 +134,10 @@ struct primitive_desc_iterator : public handle<mkldnn_primitive_desc_iterator_t>
         error::wrap_c_api(mkldnn_primitive_desc_clone(&cdesc, const_cdesc),
                           "could not clone a weights primitive descriptor");
         adesc.reset(cdesc);
-        return adesc;
+        return adesc.desc();
     }
 
-    memory::primitive_desc diff_dst_primitive_desc(size_t index = 0) const {
+    memory::desc diff_dst_desc(size_t index = 0) const {
         memory::primitive_desc adesc;
         memory::primitive_desc cdesc_elem;
         mkldnn_primitive_desc_t cdesc = nullptr;
@@ -137,7 +148,7 @@ struct primitive_desc_iterator : public handle<mkldnn_primitive_desc_iterator_t>
         error::wrap_c_api(mkldnn_primitive_desc_clone(&cdesc, const_cdesc),
                           "could not clone a diff_dst primitive descriptor");
         adesc.reset(cdesc);
-        return adesc;
+        return adesc.desc();
     }
 
     std::string get_impl_info_str() const {
@@ -162,5 +173,7 @@ struct primitive_desc_iterator : public handle<mkldnn_primitive_desc_iterator_t>
         pdesc.reset(cdesc);
     }
 };
+
+#endif
 
 }  // namespace mkldnn

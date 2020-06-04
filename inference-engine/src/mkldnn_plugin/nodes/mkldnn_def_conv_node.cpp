@@ -22,12 +22,12 @@ MKLDNNDeformableConvolutionNode::MKLDNNDeformableConvolutionNode(const Inference
                                                                  const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
         : MKLDNNNode(layer, eng, cache) {
     internalBlobDesc.emplace_back([&](primitive_desc_iterator &primitive_desc_it, size_t idx) -> MKLDNNMemoryDesc {
-        return MKLDNNMemoryDesc(primitive_desc_it.weights_primitive_desc(0).desc());
+        return MKLDNNMemoryDesc(primitive_desc_it.weights_desc(0));
     });
     internalBlobDesc.emplace_back([&](primitive_desc_iterator &primitive_desc_it, size_t idx) -> MKLDNNMemoryDesc {
         if (!withBiases)
             return MKLDNNMemoryDesc();
-        return MKLDNNMemoryDesc(primitive_desc_it.weights_primitive_desc(1).desc());
+        return MKLDNNMemoryDesc(primitive_desc_it.weights_desc(1));
     });
 }
 
@@ -108,9 +108,9 @@ void MKLDNNDeformableConvolutionNode::getSupportedDescriptors() {
         paddingR[i] = (dst - calc_dst) * stride[i];
     }
 
-    MKLDNNMemoryDesc in_candidate(getParentEdgeAt(0)->getDims(), memory::f32, memory::nhwc);
-    MKLDNNMemoryDesc offset_candidate(getParentEdgeAt(1)->getDims(), memory::f32, memory::nchw);
-    MKLDNNMemoryDesc out_candidate(getChildEdgeAt(0)->getDims(), memory::f32, memory::nhwc);
+    MKLDNNMemoryDesc in_candidate(getParentEdgeAt(0)->getDims(), memory::data_type::f32, memory::format_tag::nhwc);
+    MKLDNNMemoryDesc offset_candidate(getParentEdgeAt(1)->getDims(), memory::data_type::f32, memory::format_tag::nchw);
+    MKLDNNMemoryDesc out_candidate(getChildEdgeAt(0)->getDims(), memory::data_type::f32, memory::format_tag::nhwc);
     createDescriptor({in_candidate, offset_candidate}, {out_candidate});
 }
 
@@ -145,7 +145,7 @@ void MKLDNNDeformableConvolutionNode::initSupportedPrimitiveDescriptors() {
                     dataConfig.desc = MKLDNNExtensionUtils::getUninitTensorDesc(dataConfig.desc);
                 config.outConfs.push_back(dataConfig);
 
-                outFormats.emplace_back(static_cast<memory::format>(itpd.dst_primitive_desc().desc().data.format));
+                outFormats.emplace_back(static_cast<memory::format>(itpd.dst_desc().data.format));
             }
             impl_desc_type impl_type = parse_impl_name(itpd.get_impl_info_str());
 

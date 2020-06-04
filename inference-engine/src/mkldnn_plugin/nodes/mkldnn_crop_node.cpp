@@ -32,7 +32,7 @@ void MKLDNNCropNode::getSupportedDescriptors() {
     MKLDNNDims childDims = getChildEdgeAt(0)->getDims();
 
     offsets.resize(static_cast<size_t>(childDims.ndims()));  // plus one dim for batch
-    dims.resize(static_cast<size_t>(childDims.ndims()));  // plus one dim for batch
+    dims.resize(static_cast<size_t>(childDims.ndims()));     // plus one dim for batch
     for (int i = 0; i < childDims.ndims(); i++)
         dims[i] = childDims[i];
 
@@ -71,11 +71,11 @@ void MKLDNNCropNode::initSupportedPrimitiveDescriptors() {
         THROW_IE_EXCEPTION << "Crop supports only 2d, 4d and 5d blobs.";
     }
 
-    memory::format fmt = memory::format::format_undef;
+    memory::format_tag fmt = memory::format_tag::undef;
     switch (inDims.ndims()) {
-        case 2: fmt = memory::format::nc; break;
-        case 4: fmt = memory::format::nchw; break;
-        case 5: fmt = memory::format::ncdhw; break;
+        case 2: fmt = memory::format_tag::nc; break;
+        case 4: fmt = memory::format_tag::nchw; break;
+        case 5: fmt = memory::format_tag::ncdhw; break;
     }
 
     InferenceEngine::LayerConfig config;
@@ -94,12 +94,12 @@ void MKLDNNCropNode::initSupportedPrimitiveDescriptors() {
     supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown, fmt);
 
     if ((inDims.ndims() == 4 || inDims.ndims() == 5) && channelAxis >= 0 && dims[channelAxis] % 8 == 0) {
-        fmt = inDims.ndims() == 5 ? memory::format::nCdhw8c : memory::format::nChw8c;
+        fmt = inDims.ndims() == 5 ? memory::format_tag::nCdhw8c : memory::format_tag::nChw8c;
         config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, fmt);
         config.outConfs[0].desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, fmt);
         supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown, fmt);
         if (dims[channelAxis] % 16 == 0) {
-            fmt = inDims.ndims() == 5 ? memory::format::nCdhw16c : memory::format::nChw16c;
+            fmt = inDims.ndims() == 5 ? memory::format_tag::nCdhw16c : memory::format_tag::nChw16c;
             config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, fmt);
             config.outConfs[0].desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, fmt);
             supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown, fmt);
@@ -122,7 +122,7 @@ void MKLDNNCropNode::execute(mkldnn::stream strm) {
     auto& parentMem = getParentEdgeAt(0)->getMemory();
 
     int m_block_size = 1;
-    if (!MKLDNNMemory::IsPlainFormat(parentMem.GetFormat())) {
+    if (!parentMem.GetDesc().isPlainFormat()) {
         m_block_size = parentMem.GetDescriptor().data.layout_desc.blocking.block_dims[1];
     }
     int m_inner_dim = dims[dims.size() - 1] * m_block_size;

@@ -18,13 +18,15 @@ namespace MKLDNNPlugin {
 
 class MKLDNNMemoryDesc {
 public:
-    MKLDNNMemoryDesc(): desc({}, mkldnn::memory::data_type::f32, mkldnn::memory::format::format_undef) {}
+    MKLDNNMemoryDesc(): desc({}, mkldnn::memory::data_type::f32, mkldnn::memory::format_tag::undef) {}
     explicit MKLDNNMemoryDesc(const InferenceEngine::TensorDesc& tDesc);
     explicit MKLDNNMemoryDesc(const mkldnn::memory::desc& desc): desc(desc) {}
-    MKLDNNMemoryDesc(mkldnn::memory::dims dims, mkldnn::memory::data_type dataType, mkldnn::memory::format format);
+    MKLDNNMemoryDesc(mkldnn::memory::dims dims, mkldnn::memory::data_type dataType, mkldnn::memory::format_tag format);
 
-    mkldnn::memory::format getFormat() const {
-        return static_cast<mkldnn::memory::format>(desc.data.format);
+    mkldnn::memory::format_tag getFormat() const {
+        // TODO: TBD
+//        return static_cast<mkldnn::memory::format_tag>(desc.data.format);
+        return mkldnn::memory::format_tag::undef;
     }
 
     mkldnn::memory::data_type getDataType() const {
@@ -37,7 +39,7 @@ public:
 
     bool blocksExtended() const;
     operator bool() const {
-        return getFormat() != mkldnn::memory::format::any && getFormat() != mkldnn::memory::format::format_undef;
+        return getFormat() != mkldnn::memory::format_tag::any && getFormat() != mkldnn::memory::format_tag::undef;
     }
 
     bool operator == (const MKLDNNMemoryDesc& rhs) const;
@@ -46,14 +48,11 @@ public:
     operator mkldnn::memory::desc() const;
     operator InferenceEngine::TensorDesc() const;
 
+    bool isPlainFormat() const { THROW_IE_EXCEPTION << "UNIMPLEMENTED"; };
 private:
     mkldnn::memory::desc desc;
 };
 
-
-class MKLDNNMemory;
-
-using MKLDNNMemoryPtr = std::shared_ptr<MKLDNNMemory>;
 
 class MKLDNNMemory {
 public:
@@ -68,12 +67,22 @@ public:
     }
 
     mkldnn::memory::desc GetDescriptor() const {
-        return prim->get_primitive_desc().desc();
+        // TODO: TBD
+//        return prim->get_primitive_desc().desc();
+        return {};
     }
 
-    mkldnn::memory::primitive_desc GetPrimitiveDescriptor() const {
-        return prim->get_primitive_desc();
+    const MKLDNNMemoryDesc GetDesc() const {
+        // TODO: TBD
+//        return prim->get_primitive_desc().desc();
+        return {};
     }
+
+
+    /// TODO: Should be avoid to use
+//    mkldnn::memory::primitive_desc GetPrimitiveDescriptor() const {
+//        return prim->get_primitive_desc();
+//    }
 
     void* GetData() const {
         void* data = prim->get_data_handle();
@@ -89,35 +98,37 @@ public:
     size_t GetSize() const;
     size_t GetElementsCount() const;
 
-    mkldnn::memory::format GetFormat() const {
-        return static_cast<mkldnn::memory::format>(prim->get_primitive_desc().desc().data.format);
+
+    mkldnn::memory::format_tag GetFormat() const {
+        MKLDNNMemoryDesc desc(prim->get_desc());
+        return desc.getFormat();
     }
 
     mkldnn::memory::dims GetDims() const {
         auto data = GetDescriptor().data;
-
-        return std::vector<ptrdiff_t>(data.dims, data.dims + data.ndims);
+        return {data.dims, data.dims + data.ndims};
     }
 
-    void Create(mkldnn::memory::dims dims, mkldnn::memory::data_type data_type, mkldnn::memory::format format,
+    void Create(mkldnn::memory::dims dims, mkldnn::memory::data_type data_type, mkldnn::memory::format_tag format,
                 const void* data = nullptr);
 
     void Create(const mkldnn::memory::desc& desc, const void* data = nullptr, bool pads_zeroing = true);
 
-    void SetData(mkldnn::memory::data_type dataType, mkldnn::memory::format format, const void* data, size_t size, bool ftz = true) const;
+    void SetData(mkldnn::memory::data_type dataType, mkldnn::memory::format_tag format, const void* data, size_t size, bool ftz = true) const;
     void SetData(const MKLDNNMemory& memory, bool ftz = true) const;
-
     void FillZero();
 
-    static bool IsPlainFormat(mkldnn::memory::format format);
-    static bool IsGroupedFormat(mkldnn::memory::format format);
-    static mkldnn::memory::format GetPlainFormat(mkldnn::memory::dims dims);
+    bool IsPlain();
+
+//    static bool IsPlainFormat(mkldnn::memory::format_tag format); // TODO: moved into instance method
+//    static bool IsGroupedFormat(mkldnn::memory::format_tag format); // TODO: try to avoid usage
+    static mkldnn::memory::format_tag GetPlainFormat(mkldnn::memory::dims dims);
     static InferenceEngine::Layout GetPlainLayout(mkldnn::memory::dims dims);
     static bool isConsistant(mkldnn::memory::dims dims, mkldnn::memory::format format);
-    static mkldnn::memory::format Convert(const InferenceEngine::Layout layout);
+    static mkldnn::memory::format_tag Convert(const InferenceEngine::Layout layout);
     static InferenceEngine::Precision convertToIePrec(mkldnn::memory::data_type dataType);
 
-    static std::string formatToString(mkldnn::memory::format fmt);
+    static std::string formatToString(mkldnn::memory::format_tag fmt);
 
     static void CreateBlockingDesc(mkldnn::memory::desc& desc);
 
@@ -126,5 +137,6 @@ private:
     mkldnn::engine eng;
 };
 
+using MKLDNNMemoryPtr = std::shared_ptr<MKLDNNMemory>;
 
 }  // namespace MKLDNNPlugin

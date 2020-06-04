@@ -19,12 +19,12 @@ using namespace InferenceEngine;
 MKLDNNFullyConnectedNode::MKLDNNFullyConnectedNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
         : MKLDNNNode(layer, eng, cache), withBiases(false), baseInputsNumber(0) {
     internalBlobDesc.emplace_back([&](primitive_desc_iterator &primitive_desc_it, size_t idx) -> MKLDNNMemoryDesc {
-        return MKLDNNMemoryDesc(primitive_desc_it.weights_primitive_desc(0).desc());
+        return MKLDNNMemoryDesc(primitive_desc_it.weights_desc(0));
     });
     internalBlobDesc.emplace_back([&](primitive_desc_iterator &primitive_desc_it, size_t idx) -> MKLDNNMemoryDesc {
         if (internalBlobs.size() <= 1)
             return MKLDNNMemoryDesc();
-        return MKLDNNMemoryDesc(primitive_desc_it.weights_primitive_desc(1).desc());
+        return MKLDNNMemoryDesc(primitive_desc_it.weights_desc(1));
     });
 
     auto ws = layer->blobs.find("w-scale");
@@ -206,7 +206,7 @@ void MKLDNNFullyConnectedNode::setPostOps(mkldnn::primitive_attr &attr, bool ini
                 MKLDNNDims depthwiseDims({static_cast<ptrdiff_t>(rnd_up(ndims == 3 ? getChildEdgeAt(0)->getDims()[2] : getChildEdgeAt(0)->getDims()[1], 16))});
 
                 PostOpsIntBlobMemory.push_back(MKLDNNMemoryPtr(new MKLDNNMemory(getEngine())));
-                PostOpsIntBlobMemory[blob_idx]->Create(depthwiseDims, memory::data_type::f32, memory::format::x);
+                PostOpsIntBlobMemory[blob_idx]->Create(depthwiseDims, memory::data_type::f32, memory::format_tag::x);
                 PostOpsIntBlobMemory[blob_idx]->FillZero();
 
                 // In case ndims == 3 graph optimizer allows fusing only if all weights values are the same
@@ -224,7 +224,7 @@ void MKLDNNFullyConnectedNode::setPostOps(mkldnn::primitive_attr &attr, bool ini
 
                 if (eltwiseNode->getAlgorithm() == depthwise_scale_shift) {
                     PostOpsIntBlobMemory.push_back(MKLDNNMemoryPtr(new MKLDNNMemory(getEngine())));
-                    PostOpsIntBlobMemory[blob_idx + 1]->Create(depthwiseDims, memory::data_type::f32, memory::format::x);
+                    PostOpsIntBlobMemory[blob_idx + 1]->Create(depthwiseDims, memory::data_type::f32, memory::format_tag::x);
                     PostOpsIntBlobMemory[blob_idx + 1]->FillZero();
 
                     // In case ndims == 3 graph optimizer allows fusing only if all biases values are the same
@@ -275,24 +275,24 @@ bool MKLDNNFullyConnectedNode::created() const {
 
 memory::format MKLDNNFullyConnectedNode::weightsFormatForSrcFormat(memory::format sourceFormat) {
     switch (sourceFormat) {
-        case memory::format::x:
-            return memory::format::x;
-        case memory::format::nc:
-        case memory::format::tnc:
-        case memory::format::ntc:
-            return memory::format::oi;
-        case memory::format::nchw:
-            return memory::format::oihw;
-        case memory::format::ncdhw:
-            return memory::format::oidhw;
-        case memory::format::nChw8c:
-            return memory::format::oIhw8i;
-        case memory::format::nCdhw8c:
-            return memory::format::oIdhw8i;
-        case memory::format::nChw16c:
-            return memory::format::oIhw16i;
-        case memory::format::nCdhw16c:
-            return memory::format::oIdhw16i;
+        case memory::format_tag::x:
+            return memory::format_tag::x;
+        case memory::format_tag::nc:
+        case memory::format_tag::tnc:
+        case memory::format_tag::ntc:
+            return memory::format_tag::oi;
+        case memory::format_tag::nchw:
+            return memory::format_tag::oihw;
+        case memory::format_tag::ncdhw:
+            return memory::format_tag::oidhw;
+        case memory::format_tag::nChw8c:
+            return memory::format_tag::oIhw8i;
+        case memory::format_tag::nCdhw8c:
+            return memory::format_tag::oIdhw8i;
+        case memory::format_tag::nChw16c:
+            return memory::format_tag::oIhw16i;
+        case memory::format_tag::nCdhw16c:
+            return memory::format_tag::oIdhw16i;
         default:
             THROW_IE_EXCEPTION << "Unsupported source format for node " << getName();
     }
@@ -417,8 +417,8 @@ void MKLDNNFullyConnectedNode::createDescriptor(const std::vector<InferenceEngin
 }
 
 MKLDNNMemoryDesc MKLDNNFullyConnectedNode::getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) {
-    InferenceEngine::TensorDesc desc = idx > 0 ? MKLDNNMemoryDesc(primitive_desc_it.weights_primitive_desc(idx - 1).desc())
-                                               : MKLDNNMemoryDesc(primitive_desc_it.src_primitive_desc(idx).desc());
+    InferenceEngine::TensorDesc desc = idx > 0 ? MKLDNNMemoryDesc(primitive_desc_it.weights_desc(idx - 1))
+                                               : MKLDNNMemoryDesc(primitive_desc_it.src_desc(idx));
 
     if (desc.getLayout() == InferenceEngine::Layout::ANY)
         return MKLDNNMemoryDesc(InferenceEngine::TensorDesc(desc.getPrecision(),

@@ -10,7 +10,7 @@
 #include <mkldnn_extension_utils.h>
 #include "ie_parallel.hpp"
 
-using namespace mkldnn;
+using namespace ie_dnnl;
 using namespace MKLDNNPlugin;
 
 MKLDNNReorderNode::MKLDNNReorderNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &w_cache) :
@@ -54,8 +54,8 @@ void MKLDNNReorderNode::initSupportedPrimitiveDescriptors() {
         config.inConfs[0].desc = parent->getSelectedPrimitiveDescriptor()->getConfig().outConfs[0].desc;
         config.outConfs[0].desc = child->getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].desc;
     } else {
-        config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, memory::format::any);
-        config.outConfs[0].desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, memory::format::any);
+        config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, memory::format_tag::any);
+        config.outConfs[0].desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, memory::format_tag::any);
     }
 
     supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::reorder, MKLDNNMemory::Convert(config.outConfs[0].desc.getLayout()));
@@ -98,15 +98,15 @@ void MKLDNNReorderNode::createReorderPrimitive(const mkldnn::memory::desc &srcDe
         mask = 1 << oc_dim_id;
 
         attr.set_output_scales(mask, scales);
-        attr.set_int_output_round_mode(round_nearest);
+        attr.set_int_output_round_mode(round_mode::round_nearest);
     }
 
     auto createReorder = [&]() {
         // No autoblocking. Reorder can be applied as is
-        reorder::primitive_desc pd = reorder::primitive_desc(src_blocked->GetPrimitiveDescriptor(), dst_blocked->GetPrimitiveDescriptor(), attr);
+        reorder::primitive_desc pd = ie_dnnl::reorder::primitive_desc(src_blocked->GetPrimitiveDescriptor(), dst_blocked->GetPrimitiveDescriptor(), attr);
 
         const char *info;
-        mkldnn_primitive_desc_query(pd.get(), mkldnn::convert_to_c(impl_info_str), 0, &info);
+        mkldnn_primitive_desc_query(pd.get(), mkldnn::convert_to_c(mkldnn::impl_info_str), 0, &info);
         supportedPrimitiveDescriptors[0].setImplementationType(parse_impl_name(std::string(info)));
         supportedPrimitiveDescriptors[0].setOutputLayouts(static_cast<memory::format>(dstDesc.data.format));
 

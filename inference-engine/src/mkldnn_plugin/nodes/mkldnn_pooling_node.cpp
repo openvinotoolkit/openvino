@@ -88,19 +88,19 @@ void MKLDNNPoolingNode::getSupportedDescriptors() {
     }
     if (inputPrecision == Precision::I8 || inputPrecision == Precision::U8) {
         // i8 layers supports only ndhwc and nhwc layouts
-        MKLDNNMemoryDesc in_candidate{parentDims, inputDataType, parentDims.ndims() == 5 ? memory::format::ndhwc : memory::format::nhwc};
-        MKLDNNMemoryDesc out_candidate{childDims, outputDataType, parentDims.ndims() == 5 ? memory::format::ndhwc : memory::format::nhwc};
+        MKLDNNMemoryDesc in_candidate{parentDims, inputDataType, parentDims.ndims() == 5 ? memory::format_tag::ndhwc : memory::format_tag::nhwc};
+        MKLDNNMemoryDesc out_candidate{childDims, outputDataType, parentDims.ndims() == 5 ? memory::format_tag::ndhwc : memory::format_tag::nhwc};
         createDescriptor({ in_candidate }, { out_candidate });
     } else if ((parentDims.ndims() == 4 || parentDims.ndims() == 5) && (inputDataType == memory::bf16 || outputDataType == memory::bf16)) {
-        MKLDNNMemoryDesc in_candidate{ parentDims, memory::bf16, parentDims.ndims() == 5 ? memory::format::nCdhw16c : memory::format::nChw16c};
-        MKLDNNMemoryDesc out_candidate{ childDims, memory::bf16, parentDims.ndims() == 5 ? memory::format::nCdhw16c : memory::format::nChw16c};
+        MKLDNNMemoryDesc in_candidate{ parentDims, memory::bf16, parentDims.ndims() == 5 ? memory::format_tag::nCdhw16c : memory::format_tag::nChw16c};
+        MKLDNNMemoryDesc out_candidate{ childDims, memory::bf16, parentDims.ndims() == 5 ? memory::format_tag::nCdhw16c : memory::format_tag::nChw16c};
         createDescriptor({ in_candidate }, { out_candidate });
     } else if ((parentDims.ndims() == 4 || parentDims.ndims() == 5) && parentDims[1] == 1) {
         inputDataType = memory::f32;
         outputDataType = memory::f32;
         // WA. We should force planar layout since it provides better performance
-        MKLDNNMemoryDesc in_candidate{parentDims, inputDataType, parentDims.ndims() == 5 ? memory::format::ncdhw : memory::format::nchw};
-        MKLDNNMemoryDesc out_candidate{childDims, outputDataType, parentDims.ndims() == 5 ? memory::format::ncdhw : memory::format::nchw};
+        MKLDNNMemoryDesc in_candidate{parentDims, inputDataType, parentDims.ndims() == 5 ? memory::format_tag::ncdhw : memory::format_tag::nchw};
+        MKLDNNMemoryDesc out_candidate{childDims, outputDataType, parentDims.ndims() == 5 ? memory::format_tag::ncdhw : memory::format_tag::nchw};
         createDescriptor({ in_candidate }, { out_candidate });
     } else {
         if (inputDataType != memory::bf16) {
@@ -215,15 +215,16 @@ void MKLDNNPoolingNode::initSupportedPrimitiveDescriptors() {
                 dataConfig.desc = MKLDNNExtensionUtils::getUninitTensorDesc(getDstMemDesc(itpd, i));
                 config.outConfs.push_back(dataConfig);
 
-                auto primDesc = itpd.fetch();
+                handle<mkldnn_primitive_desc_t> primDesc;
+                itpd.getPrimitiveDescriptor(primDesc);
                 auto dstPrimDesc = mkldnn_primitive_desc_query_pd(primDesc.get(), mkldnn::convert_to_c(dst_pd), 0);
                 if (dstPrimDesc) {
-                    outFormats.emplace_back(static_cast<memory::format>(itpd.dst_primitive_desc().desc().data.format));
+                    outFormats.emplace_back(static_cast<memory::format>(itpd.dst_desc().data.format));
                 } else {
                     // This path is needed to correctly handle Deconvolution node
                     auto diffSrcPrimDesc = mkldnn_primitive_desc_query_pd(primDesc.get(), mkldnn::convert_to_c(diff_src_pd), 0);
                     if (diffSrcPrimDesc) {
-                        outFormats.emplace_back(static_cast<memory::format>(itpd.diff_src_primitive_desc().desc().data.format));
+                        outFormats.emplace_back(static_cast<memory::format>(itpd.diff_src_desc().data.format));
                     }
                 }
             }

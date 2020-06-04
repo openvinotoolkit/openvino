@@ -4,9 +4,12 @@
 
 #include <mkldnn_types.h>
 #include "mkldnn_primitive.h"
-#include "../../thirdparty/mkl-dnn/src/common/primitive_desc.hpp"
-#include "../../thirdparty/mkl-dnn/src/common/memory_pd.hpp"
-#include "../../thirdparty/mkl-dnn/src/cpu/cpu_concat.hpp"
+
+#ifndef USE_DNNL
+#include "primitive_desc.hpp"
+#include "memory_pd.hpp"
+#include "cpu_concat.hpp"
+#endif
 
 using namespace MKLDNNPlugin;
 
@@ -20,16 +23,19 @@ mkldnn::primitive MKLDNNPrimitive::operator*() {
     return *prim;
 }
 
-void MKLDNNPrimitive::reset(mkldnn::primitive* prim) {
-    this->prim.reset(prim);
+void MKLDNNPrimitive::reset(mkldnn::primitive* primitive) {
+    prim.reset(primitive);
 }
 
-MKLDNNPrimitive &MKLDNNPrimitive::operator=(const std::shared_ptr<mkldnn::primitive>& prim) {
-    this->prim = prim;
+MKLDNNPrimitive &MKLDNNPrimitive::operator=(const std::shared_ptr<mkldnn::primitive>& primitive) {
+    prim = primitive;
     return *this;
 }
 
 void MKLDNNPrimitive::setBatchLimit(int batch, size_t inputNum, size_t outputNum) {
+#ifdef USE_DNNL
+    THROW_IE_EXCEPTION << "currently unsupported method for DNNL";
+#else
     bool success = true;
     auto * primDesc = prim->get_primitive_desc();
     auto * concatPrimDesc = dynamic_cast<const mkldnn::impl::cpu::cpu_concat_pd_t *>(primDesc);
@@ -81,4 +87,5 @@ void MKLDNNPrimitive::setBatchLimit(int batch, size_t inputNum, size_t outputNum
     }
 
     THROW_IE_EXCEPTION << "Dynamic batch cannot be changed!";
+#endif
 }

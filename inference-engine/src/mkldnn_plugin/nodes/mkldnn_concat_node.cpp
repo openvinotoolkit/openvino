@@ -101,10 +101,10 @@ void MKLDNNConcatNode::initSupportedPrimitiveDescriptors() {
         InferenceEngine::DataConfig dataConfig;
         dataConfig.inPlace = -1;
         dataConfig.constant = false;
-        auto fmt = (inputPrecision == Precision::U8 || inputPrecision == Precision::I8) ? parentEdge->getDims().ndims() == 2 ? memory::format::nc :
-                                                                                          parentEdge->getDims().ndims() == 4 ? memory::format::nhwc :
-                                                                                                                               memory::format::ndhwc
-                                                                                        : memory::format::any;
+        auto fmt = (inputPrecision == Precision::U8 || inputPrecision == Precision::I8) ? parentEdge->getDims().ndims() == 2 ? memory::format_tag::nc :
+                                                                                          parentEdge->getDims().ndims() == 4 ? memory::format_tag::nhwc :
+                                                                                                                               memory::format_tag::ndhwc
+                                                                                        : memory::format_tag::any;
 
         dataConfig.desc = MKLDNNExtensionUtils::getUninitTensorDesc(MKLDNNMemoryDesc(parentEdge->getDims(), inputDataType, fmt));
         config.inConfs.push_back(dataConfig);
@@ -116,9 +116,9 @@ void MKLDNNConcatNode::initSupportedPrimitiveDescriptors() {
     config.outConfs[0].inPlace = -1;
     config.outConfs[0].constant = false;
     if ((!isMixedPrecision && outputPrecision != Precision::U8 && outputPrecision != Precision::I8) || axis != 1) {
-        auto fmt = (inputPrecision == Precision::U8 || inputPrecision == Precision::I8) ? dims.ndims() == 2 ? memory::format::nc :
-                                                                                          dims.ndims() == 4 ? memory::format::nhwc :
-                                                                                                              memory::format::ndhwc
+        auto fmt = (inputPrecision == Precision::U8 || inputPrecision == Precision::I8) ? dims.ndims() == 2 ? memory::format_tag::nc :
+                                                                                          dims.ndims() == 4 ? memory::format_tag::nhwc :
+                                                                                                              memory::format_tag::ndhwc
                                                                                         : MKLDNNMemory::GetPlainFormat(dims);
 
         config.outConfs[0].desc = MKLDNNExtensionUtils::getUninitTensorDesc(MKLDNNMemoryDesc(dims, outputDataType, fmt));
@@ -128,25 +128,25 @@ void MKLDNNConcatNode::initSupportedPrimitiveDescriptors() {
             if (dims.ndims() == 4) {
                 if (dims[1] % 8 == 0) {
                     config.outConfs[0].desc = MKLDNNExtensionUtils::getUninitTensorDesc(
-                            MKLDNNMemoryDesc(dims, outputDataType, mkldnn::memory::nChw8c));
-                    supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref, mkldnn::memory::nChw8c);
+                            MKLDNNMemoryDesc(dims, outputDataType, memory::format_tag::nChw8c));
+                    supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref, memory::format_tag::nChw8c);
 
                     if (dims[1] % 16 == 0) {
                         config.outConfs[0].desc = MKLDNNExtensionUtils::getUninitTensorDesc(
-                                MKLDNNMemoryDesc(dims, outputDataType, mkldnn::memory::nChw16c));
-                        supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref, mkldnn::memory::nChw16c);
+                                MKLDNNMemoryDesc(dims, outputDataType, mkldnn::memory::format_tag::nChw16c));
+                        supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref, mkldnn::memory::format_tag::nChw16c);
                     }
                 }
             } else if (dims.ndims() == 5) {
                 if (dims[1] % 8 == 0) {
                     config.outConfs[0].desc = MKLDNNExtensionUtils::getUninitTensorDesc(
-                            MKLDNNMemoryDesc(dims, outputDataType, mkldnn::memory::nCdhw8c));
-                    supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref, mkldnn::memory::nCdhw8c);
+                            MKLDNNMemoryDesc(dims, outputDataType, mkldnn::memory::format_tag::nCdhw8c));
+                    supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref, mkldnn::memory::format_tag::nCdhw8c);
 
                     if (dims[1] % 16 == 0) {
                         config.outConfs[0].desc = MKLDNNExtensionUtils::getUninitTensorDesc(
-                                MKLDNNMemoryDesc(dims, outputDataType, mkldnn::memory::nCdhw16c));
-                        supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref, mkldnn::memory::nCdhw16c);
+                                MKLDNNMemoryDesc(dims, outputDataType, mkldnn::memory::format_tag::nCdhw16c));
+                        supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref, mkldnn::memory::format_tag::nCdhw16c);
                     }
                 }
             }
@@ -197,7 +197,7 @@ void MKLDNNConcatNode::initSupportedPrimitiveDescriptors() {
                                                     {blkDims, order, offset, offsets, strides});
             }
 
-            supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref, mkldnn::memory::nhwc);
+            supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref, mkldnn::memory::format_tag::nhwc);
 
             return;
         } else if (numOfDim == 5) {
@@ -303,8 +303,8 @@ void MKLDNNConcatNode::initSupportedPrimitiveDescriptors() {
                                                      {blkDims, order, offset, offsets, strides});
             }
             if (canInplace) {
-                auto dstFormat = numOfDim == 4lu ? sizeS == 8lu ? mkldnn::memory::nChw8c : mkldnn::memory::nChw16c
-                                                 : sizeS == 8lu ? mkldnn::memory::nCdhw8c : mkldnn::memory::nCdhw16c;
+                auto dstFormat = numOfDim == 4lu ? sizeS == 8lu ? mkldnn::memory::nChw8c : mkldnn::memory::format_tag::nChw16c
+                                                 : sizeS == 8lu ? mkldnn::memory::format_tag::nCdhw8c : mkldnn::memory::format_tag::nCdhw16c;
                 supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown, dstFormat);
             }
         }
@@ -499,7 +499,7 @@ void MKLDNNConcatNode::createPrimitive() {
             desc.data.dims[j] = dims[j];
         }
 
-        srcs_pd.emplace_back(desc, srcMemPtr->GetPrimitiveDescriptor().get_engine());
+        srcs_pd.emplace_back(desc, getEngine());
         srcs_p.emplace_back(srcMemPtr->GetPrimitive());
     }
 

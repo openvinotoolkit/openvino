@@ -26,12 +26,12 @@ MKLDNNConvolutionNode::MKLDNNConvolutionNode(const InferenceEngine::CNNLayerPtr&
           isGrouped(false), dw_conv_oc(0), dw_conv_ih(0), dw_conv_iw(0), dw_conv_in_dt(memory::data_type::data_undef),
           groupNum(1lu), baseInputsNumber(1), eltwisePrecision(Precision::FP32) {
     internalBlobDesc.emplace_back([&](primitive_desc_iterator &primitive_desc_it, size_t idx) -> MKLDNNMemoryDesc {
-        return MKLDNNMemoryDesc(primitive_desc_it.weights_primitive_desc(0).desc());
+        return MKLDNNMemoryDesc(primitive_desc_it.weights_desc(0));
     });
     internalBlobDesc.emplace_back([&](primitive_desc_iterator &primitive_desc_it, size_t idx) -> MKLDNNMemoryDesc {
         if (!withBiases)
             return MKLDNNMemoryDesc();
-        return MKLDNNMemoryDesc(primitive_desc_it.weights_primitive_desc(1).desc());
+        return MKLDNNMemoryDesc(primitive_desc_it.weights_desc(1));
     });
 
     auto ws = layer->blobs.find("w-scale");
@@ -396,7 +396,7 @@ void MKLDNNConvolutionNode::setPostOps(mkldnn::primitive_attr &attr, bool initWe
 
                     PostOpsIntBlobMemory.push_back(MKLDNNMemoryPtr(new MKLDNNMemory(getEngine())));
                     MKLDNNDims dwWeightsDims({dw_conv_oc, (ptrdiff_t)1, (ptrdiff_t)1, dw_conv_kernel[Y_AXIS], dw_conv_kernel[X_AXIS]});
-                    PostOpsIntBlobMemory[blob_idx]->Create(dwWeightsDims, weightsPrc, memory::format::Goihw8g);
+                    PostOpsIntBlobMemory[blob_idx]->Create(dwWeightsDims, weightsPrc, memory::format_tag::Goihw8g);
                     PostOpsIntBlobMemory[blob_idx]->FillZero();
 
                     Blob::Ptr weights = convLayer->blobs.find("weights")->second;
@@ -407,7 +407,7 @@ void MKLDNNConvolutionNode::setPostOps(mkldnn::primitive_attr &attr, bool initWe
 
                     PostOpsIntBlobMemory.push_back(MKLDNNMemoryPtr(new MKLDNNMemory(getEngine())));
                     MKLDNNDims dwBiasesDims({dw_conv_oc});
-                    PostOpsIntBlobMemory[blob_idx + 1]->Create(dwBiasesDims, biasPrc, memory::format::x);
+                    PostOpsIntBlobMemory[blob_idx + 1]->Create(dwBiasesDims, biasPrc, memory::format_tag::x);
                     PostOpsIntBlobMemory[blob_idx + 1]->FillZero();
                     PostOpsIntBlobMemory[blob_idx + 1]->SetData(biasPrc, memory::x, biases->buffer(),
                                                                 dwBiasesDims.size() * MKLDNNExtensionUtils::sizeOfDataType(biasPrc));
@@ -458,13 +458,13 @@ void MKLDNNConvolutionNode::setPostOps(mkldnn::primitive_attr &attr, bool initWe
                 MKLDNNDims oScaleDims({static_cast<ptrdiff_t>(rnd_up(biasesDims[0], 16))});
 
                 PostOpsIntBlobMemory.push_back(MKLDNNMemoryPtr(new MKLDNNMemory(getEngine())));
-                PostOpsIntBlobMemory[blob_idx]->Create(oScaleDims, memory::data_type::f32, memory::format::x);
+                PostOpsIntBlobMemory[blob_idx]->Create(oScaleDims, memory::data_type::f32, memory::format_tag::x);
                 PostOpsIntBlobMemory[blob_idx]->FillZero();
                 PostOpsIntBlobMemory[blob_idx]->SetData(memory::data_type::f32, memory::x, &oScaleDataVector[0],
                                                         oScaleDataVector.size() * MKLDNNExtensionUtils::sizeOfDataType(memory::data_type::f32));
 
                 PostOpsIntBlobMemory.push_back(MKLDNNMemoryPtr(new MKLDNNMemory(getEngine())));
-                PostOpsIntBlobMemory[blob_idx + 1]->Create(oScaleDims, memory::data_type::f32, memory::format::x);
+                PostOpsIntBlobMemory[blob_idx + 1]->Create(oScaleDims, memory::data_type::f32, memory::format_tag::x);
                 PostOpsIntBlobMemory[blob_idx + 1]->FillZero();
                 PostOpsIntBlobMemory[blob_idx + 1]->SetData(memory::data_type::f32, memory::x, &oShiftDataVector[0],
                                                             oShiftDataVector.size() * MKLDNNExtensionUtils::sizeOfDataType(memory::data_type::f32));
@@ -522,10 +522,10 @@ void MKLDNNConvolutionNode::initSupportedPrimitiveDescriptors() {
                 InferenceEngine::DataConfig dataConfig;
                 dataConfig.inPlace = -1;
                 dataConfig.constant = false;
-                dataConfig.desc = MKLDNNMemoryDesc(dwWeightsDims, weightsPrc, memory::format::Goihw8g);
+                dataConfig.desc = MKLDNNMemoryDesc(dwWeightsDims, weightsPrc, memory::format_tag::Goihw8g);
                 config.inConfs.push_back(dataConfig);
 
-                dataConfig.desc = MKLDNNMemoryDesc(dwBiasesDims, biasPrc, memory::format::x);
+                dataConfig.desc = MKLDNNMemoryDesc(dwBiasesDims, biasPrc, memory::format_tag::x);
                 config.inConfs.push_back(dataConfig);
             }
 
@@ -548,7 +548,7 @@ void MKLDNNConvolutionNode::initSupportedPrimitiveDescriptors() {
                     config.inConfs.push_back(dataConfig);
                 }
 
-                outFormats.emplace_back(static_cast<memory::format>(itpd.dst_primitive_desc().desc().data.format));
+                outFormats.emplace_back(static_cast<memory::format>(itpd.dst_desc().data.format));
             }
             impl_desc_type impl_type = parse_impl_name(itpd.get_impl_info_str());
             if (impl_type & jit)
@@ -762,10 +762,10 @@ void MKLDNNConvolutionNode::initDescriptor(const InferenceEngine::LayerConfig& c
                 InferenceEngine::DataConfig dataConfig;
                 dataConfig.inPlace = -1;
                 dataConfig.constant = false;
-                dataConfig.desc = MKLDNNMemoryDesc(dwWeightsDims, weightsPrc, memory::format::Goihw8g);
+                dataConfig.desc = MKLDNNMemoryDesc(dwWeightsDims, weightsPrc, memory::format_tag::Goihw8g);
                 cfg.inConfs.push_back(dataConfig);
 
-                dataConfig.desc = MKLDNNMemoryDesc(dwBiasesDims, biasPrc, memory::format::x);
+                dataConfig.desc = MKLDNNMemoryDesc(dwBiasesDims, biasPrc, memory::format_tag::x);
                 cfg.inConfs.push_back(dataConfig);
             }
 
@@ -874,8 +874,8 @@ bool MKLDNNConvolutionNode::isPossibleToSkipInitConfig(MKLDNNDescriptor &desc) {
 }
 
 MKLDNNMemoryDesc MKLDNNConvolutionNode::getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) {
-    InferenceEngine::TensorDesc desc = idx > 0 ? MKLDNNMemoryDesc(primitive_desc_it.weights_primitive_desc(idx - 1).desc())
-                                               : MKLDNNMemoryDesc(primitive_desc_it.src_primitive_desc(idx).desc());
+    InferenceEngine::TensorDesc desc = idx > 0 ? MKLDNNMemoryDesc(primitive_desc_it.weights_desc(idx - 1))
+                                               : MKLDNNMemoryDesc(primitive_desc_it.src_desc(idx));
 
     if (desc.getLayout() == InferenceEngine::Layout::ANY) {
         return MKLDNNMemoryDesc(InferenceEngine::TensorDesc(desc.getPrecision(),

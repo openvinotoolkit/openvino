@@ -15,19 +15,27 @@ uint8_t MKLDNNExtensionUtils::sizeOfDataType(mkldnn::memory::data_type dataType)
         return 4;
     case mkldnn::memory::data_type::s32:
         return 4;
+#ifndef USE_DNNL
     case mkldnn::memory::data_type::s16:
         return 2;
+#endif
     case mkldnn::memory::data_type::bf16:
         return 2;
     case mkldnn::memory::data_type::s8:
         return 1;
     case mkldnn::memory::data_type::u8:
         return 1;
+#ifndef USE_DNNL
     case mkldnn::memory::data_type::bin:
         return 1;
-    case mkldnn::memory::data_type::data_undef:
+#endif
+#ifdef USE_DNNL
+        case mkldnn::memory::data_type::undef:
+            return 0;
+#else
+        case mkldnn::memory::data_type::data_undef:
         return 0;
-
+#endif
     default:
         THROW_IE_EXCEPTION << "Unsupported data type.";
     }
@@ -36,20 +44,24 @@ uint8_t MKLDNNExtensionUtils::sizeOfDataType(mkldnn::memory::data_type dataType)
 memory::data_type MKLDNNExtensionUtils::IEPrecisionToDataType(InferenceEngine::Precision prec) {
     switch (prec) {
         case InferenceEngine::Precision::FP32:
-            return memory::f32;
+            return memory::data_type::f32;
         case InferenceEngine::Precision::I32:
-            return memory::s32;
+            return memory::data_type::s32;
+#ifndef USE_DNNL
         case InferenceEngine::Precision::I16:
-            return memory::s16;
+            return memory::data_type::s16;
+#endif
         case InferenceEngine::Precision::BF16:
-            return memory::bf16;
+            return memory::data_type::bf16;
         case InferenceEngine::Precision::I8:
-            return memory::s8;
+            return memory::data_type::s8;
         case InferenceEngine::Precision::U8:
         case InferenceEngine::Precision::BOOL:
-            return memory::u8;
+            return memory::data_type::u8;
+#ifndef USE_DNNL
         case InferenceEngine::Precision::BIN:
             return memory::bin;
+#endif
 
         default: {
             THROW_IE_EXCEPTION << "The plugin does not support " << prec.name();
@@ -59,21 +71,24 @@ memory::data_type MKLDNNExtensionUtils::IEPrecisionToDataType(InferenceEngine::P
 
 InferenceEngine::Precision MKLDNNExtensionUtils::DataTypeToIEPrecision(memory::data_type dataType) {
     switch (dataType) {
-        case memory::f32:
+        case memory::data_type::f32:
             return InferenceEngine::Precision(InferenceEngine::Precision::FP32);
-        case memory::s32:
+        case memory::data_type::s32:
             return InferenceEngine::Precision::I32;
-        case memory::s16:
+#ifndef USE_DNNL
+        case memory::data_type::s16:
             return InferenceEngine::Precision::I16;
-        case memory::bf16:
+#endif
+        case memory::data_type::bf16:
             return InferenceEngine::Precision::BF16;
-        case memory::s8:
+        case memory::data_type::s8:
             return InferenceEngine::Precision::I8;
-        case memory::u8:
+        case memory::data_type::u8:
             return InferenceEngine::Precision::U8;
-        case memory::bin:
+#ifndef USE_DNNL
+        case memory::data_type::bin:
             return InferenceEngine::Precision::BIN;
-
+#endif
         default: {
             THROW_IE_EXCEPTION << "Unsupported data type.";
         }

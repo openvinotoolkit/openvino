@@ -10,6 +10,8 @@
 
 #include "ie_plugin_config.hpp"
 #include "ie_common.h"
+#include "ie_parallel.hpp"
+#include "ie_system_conf.h"
 
 #include <cpp_interfaces/exception2status.hpp>
 #include <cpp_interfaces/interface/ie_internal_plugin_config.hpp>

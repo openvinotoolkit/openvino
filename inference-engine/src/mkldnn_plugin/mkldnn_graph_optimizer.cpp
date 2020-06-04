@@ -13,24 +13,13 @@
 #include "nodes/mkldnn_conv_node.h"
 #include "nodes/mkldnn_bin_conv_node.h"
 #include "nodes/mkldnn_quantize_node.h"
-#include "nodes/mkldnn_mvn_node.h"
-#include "nodes/mkldnn_resample_node.h"
 #include "nodes/mkldnn_interpolate_node.h"
 #include "nodes/mkldnn_input_node.h"
 
+#include "mkldnn/ie_mkldnn.h"
+
 #include <blob_factory.hpp>
 #include <legacy/ie_layers_internal.hpp>
-
-// WA for xbyak.h
-#ifdef _WIN32
-# ifndef _WINSOCKAPI_
-#  define _WINSOCKAPI_
-# endif
-# ifndef _WINSOCK2API_
-#  define _WINSOCK2API_
-#endif
-#endif
-#include <cpu_isa_traits.hpp>
 
 #include <string>
 #include <list>
@@ -38,9 +27,26 @@
 #include <set>
 #include <algorithm>
 
-using namespace mkldnn;
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
+
+static constexpr mkldnn::algorithm depthwise_scale_shift = mkldnn::algorithm::depthwise_scale_shift;
+static constexpr mkldnn::algorithm depthwise_prelu = mkldnn::algorithm::depthwise_prelu;
+
+static constexpr mkldnn::algorithm eltwise_relu = mkldnn::algorithm::eltwise_relu;
+static constexpr mkldnn::algorithm eltwise_elu = mkldnn::algorithm::eltwise_elu;
+static constexpr mkldnn::algorithm eltwise_gelu = mkldnn::algorithm::eltwise_gelu;
+static constexpr mkldnn::algorithm eltwise_logistic = mkldnn::algorithm::eltwise_logistic;
+static constexpr mkldnn::algorithm eltwise_bounded_relu = mkldnn::algorithm::eltwise_bounded_relu;
+static constexpr mkldnn::algorithm eltwise_clamp = mkldnn::algorithm::eltwise_clip;
+static constexpr mkldnn::algorithm eltwise_swish = mkldnn::algorithm::eltwise_swish;
+static constexpr mkldnn::algorithm eltwise_mish = mkldnn::algorithm::eltwise_mish;
+static constexpr mkldnn::algorithm eltwise_hswish = mkldnn::algorithm::eltwise_hswish;
+static constexpr mkldnn::algorithm eltwise_tanh = mkldnn::algorithm::eltwise_tanh;
+static constexpr mkldnn::algorithm eltwise_linear = mkldnn::algorithm::eltwise_linear;
+static constexpr mkldnn::algorithm eltwise_abs = mkldnn::algorithm::eltwise_abs;
+static constexpr mkldnn::algorithm eltwise_square = mkldnn::algorithm::eltwise_square;
+static constexpr mkldnn::algorithm eltwise_sqrt = mkldnn::algorithm::eltwise_sqrt;
 
 MKLDNNGraphOptimizer::MKLDNNGraphOptimizer() {}
 
@@ -929,7 +935,7 @@ void MKLDNNGraphOptimizer::FuseConvolutionAndDWConvolution(MKLDNNGraph &graph) {
         auto outDims = childNode->outDims[0];
         int elemSize = MKLDNNExtensionUtils::sizeOfDataType(MKLDNNExtensionUtils::IEPrecisionToDataType(layer->precision));
 
-        int L3_cache_size = mkldnn_get_cache_size(3, false);
+        int L3_cache_size = mkldnn::utils::get_cache_size(3, false);
         int dw_conv_input_size = inDims[0] * inDims[1] * inDims[2] * inDims[3] * elemSize;
         int dw_conv_output_size = outDims[0] * outDims[1]* outDims[2] * outDims[3] * elemSize;
 
@@ -938,7 +944,7 @@ void MKLDNNGraphOptimizer::FuseConvolutionAndDWConvolution(MKLDNNGraph &graph) {
             THROW_IE_EXCEPTION << "Cannot get convolution node " << parentNode->getName();
 
         bool isInt8 = parentConvolutionNode->canBeExecutedInInt8();
-        bool isAVX512NotSupported = !mkldnn::impl::cpu::mayiuse(impl::cpu::cpu_isa_t::avx512_common);
+        bool isAVX512NotSupported = !mkldnn::utils::mayiuse_isa(mkldnn::utils::isa::avx512_common);
 
         return isInt8 ? isAVX512NotSupported : (dw_conv_input_size + dw_conv_output_size > L3_cache_size / 2);
     };

@@ -4,14 +4,21 @@
 
 #include <vector>
 #include <algorithm>
+#include <cassert>
 #include <ie_parallel.hpp>
+
+#include "mkldnn.hpp"  // TODO: just to replace mkldnn->dnnl via macros
 #include "jit_generator.hpp"
-#include "jit_uni_eltwise.hpp"
+#include "jit_uni_eltwise_injector.hpp"
 #include "softmax.h"
 
 using namespace InferenceEngine;
+using namespace mkldnn::impl;
 using namespace mkldnn::impl::cpu;
+using namespace mkldnn::impl::cpu::x64;
 using namespace mkldnn::impl::utils;
+
+constexpr cpu_isa_t sse42 = cpu_isa_t::sse41; // TODO: clarify is it valid replacement?
 
 #define GET_OFF(field) offsetof(jit_args_softmax, field)
 
@@ -35,8 +42,10 @@ template <cpu_isa_t isa>
 struct jit_uni_softmax_kernel_f32 : public jit_uni_softmax_kernel, public jit_generator {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_softmax_kernel_f32)
 
-    jit_uni_softmax_kernel_f32() : jit_uni_softmax_kernel(), jit_generator() {
-        exp_injector.reset(new jit_uni_eltwise_injector_f32<isa>(this, alg_kind::eltwise_exp, 0.f, 0.f));
+    jit_uni_softmax_kernel_f32() : jit_uni_softmax_kernel(), jit_generator() {}
+
+    void generate() override{
+        exp_injector.reset(new jit_uni_eltwise_injector_f32<isa>(this, alg_kind::eltwise_exp, 0.f, 0.f, 0.0f));
 
         this->preamble();
 
@@ -133,8 +142,6 @@ struct jit_uni_softmax_kernel_f32 : public jit_uni_softmax_kernel, public jit_ge
         this->postamble();
 
         exp_injector->prepare_table();
-
-        ker_ = (decltype(ker_))this->getCode();
     }
 
 private:

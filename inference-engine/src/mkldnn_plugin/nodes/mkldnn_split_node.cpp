@@ -55,7 +55,7 @@ void MKLDNNSplitNode::initSupportedPrimitiveDescriptors() {
     config.inConfs.resize(1);
     config.inConfs[0].inPlace = -1;
     config.inConfs[0].constant = false;
-    config.inConfs[0].desc = MKLDNNMemoryDesc(srcDims, inputDataType, memory::format::any);
+    config.inConfs[0].desc = MKLDNNMemoryDesc(srcDims, inputDataType, memory::format_tag::any);
     config.outConfs.resize(outDims.size());
 
     std::vector<memory::format> outFormats;
@@ -70,8 +70,8 @@ void MKLDNNSplitNode::initSupportedPrimitiveDescriptors() {
 
         config.outConfs[i].inPlace = -1;
         config.outConfs[i].constant = false;
-        config.outConfs[i].desc = MKLDNNMemoryDesc(o_Dims, outputDataType, memory::format::any);
-        outFormats.push_back(memory::format::any);
+        config.outConfs[i].desc = MKLDNNMemoryDesc(o_Dims, outputDataType, memory::format_tag::any);
+        outFormats.push_back(memory::format_tag::any);
 
         axis_size += o_Dims[axis];
         for (size_t j = 0; j < dstFirstDims.ndims(); j++) {

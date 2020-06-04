@@ -39,7 +39,7 @@ void MKLDNNMemoryOutputNode::initSupportedPrimitiveDescriptors() {
     config.inConfs[0].inPlace = -1;
     config.inConfs[0].constant = false;
     config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, MKLDNNMemory::GetPlainFormat(getParentEdgeAt(0)->getDims()));
-    supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown, memory::format::any);
+    supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown, memory::format_tag::any);
 }
 
 void MKLDNNMemoryOutputNode::execute(mkldnn::stream strm)  {
