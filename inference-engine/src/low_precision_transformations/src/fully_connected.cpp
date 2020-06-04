@@ -174,6 +174,7 @@ void FullyConnectedTransformation::transform(TransformationContext& context, CNN
     std::vector<float> dequantizationScales;
     std::vector<float> dequantizationShifts;
     std::vector<float> biasesShifts;
+
     if (supportAsymmetricQuantization) {
         std::vector<float> dataShifts(originalDataDequantizationShifts.size());
         for (size_t i = 0; i < dataShifts.size(); ++i) {
@@ -246,8 +247,14 @@ void FullyConnectedTransformation::transform(TransformationContext& context, CNN
             biasesShifts);
     }
 
-    if (this->updateBiases) {
-        updateLayerBiases(context, fullyConnected, fullyConnected.type == "GEMM", dequantizationScales, dequantizationShifts, biasesShifts);
+    if (fullyConnected.type != "Gemm") {
+        if (this->updateBiases) {
+            if (fullyConnected.outData[0]->getDims().size() > 2ul) {
+                updateLayerBiasesFcSpecific(context, fullyConnected, false, dequantizationScales, dequantizationShifts, biasesShifts);
+            } else {
+                updateLayerBiases(context, fullyConnected, false, dequantizationScales, dequantizationShifts, biasesShifts);
+            }
+        }
     }
 
     if ((weightsOnConstPath) && (parentOnWeights != nullptr) && (parentOnWeights->type == "FakeQuantize")) {
@@ -291,6 +298,11 @@ void FullyConnectedTransformation::transform(TransformationContext& context, CNN
 
     CNNNetworkHelper::removeLayer(context.network, scaleShiftOnData);
     context.removeLayer(*scaleShiftOnData);
+
+    if (fullyConnected.type == "Gemm") {
+        CNNNetworkHelper::removeLayer(context.network, parentOnWeights);
+        context.removeLayer(*parentOnWeights);
+    }
 
     addDequantizationLayer(context, fullyConnected, dequantizationScales, dequantizationShifts);
 }

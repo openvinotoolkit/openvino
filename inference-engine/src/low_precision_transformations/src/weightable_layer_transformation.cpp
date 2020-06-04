@@ -128,7 +128,6 @@ bool WeightableLayerTransformation::isPrecisionPreserved(const CNNLayer& layer) 
     return false;
 }
 
-
 void WeightableLayerTransformation::updateLayerBiases(
     TransformationContext& context,
     const CNNLayer& weightableLayer,
@@ -187,7 +186,8 @@ void WeightableLayerTransformation::updateLayerBiases(
         }
         const float* biasesBuffer = biasesBufferPtr.get();
         std::vector<float> biases(biasesBlob->size());
-        const bool broadcast = insDataDims.size() == 3ul;
+        // const bool broadcast = insDataDims.size() == 3ul;
+        const bool broadcast = false;
         for (size_t channel = 0ul; channel < biases.size(); ++channel) {
             biases[channel] = broadcast ?
                 (biasesShifts[0] + biasesBuffer[0]) / dequantizationScales[0] :
@@ -196,6 +196,41 @@ void WeightableLayerTransformation::updateLayerBiases(
         std::fill(dequantizationShifts.begin(), dequantizationShifts.end(), 0.f);
         CNNNetworkHelper::updateBlobs(*biasesLayer, "custom", biases);
     }
+}
+
+void WeightableLayerTransformation::updateLayerBiasesFcSpecific(
+    TransformationContext& context,
+    const CNNLayer& weightableLayer,
+    const bool biasesDimsAsOutput,
+    std::vector<float>& dequantizationScales,
+    std::vector<float>& dequantizationShifts,
+    std::vector<float>& biasesShifts) const {
+    CNNLayerPtr biasesLayer = CNNNetworkHelper::getParent(weightableLayer, 2);
+    if (biasesLayer == nullptr) {
+        return;
+    }
+
+    Blob::Ptr biasesBlob = CNNNetworkHelper::getBlob(biasesLayer, "custom");
+    DataPtr insData = weightableLayer.insData[0].lock();
+    if (insData == nullptr) {
+        THROW_IE_LPT_EXCEPTION(weightableLayer) << "input data is absent";
+    }
+
+    if ((insData->getDims().size() != 3) && (biasesBlob->size() != dequantizationShifts.size())) {
+        THROW_IE_LPT_EXCEPTION(weightableLayer) <<
+            "dequantization shifts size " << dequantizationShifts.size() <<
+            " is not equal biases blob size " << biasesBlob->size();
+    }
+    std::shared_ptr<float> biasesBufferPtr = CNNNetworkHelper::getFloatData(biasesBlob);
+
+    const float* biasesBuffer = biasesBufferPtr.get();
+    std::vector<float> biases(biasesBlob->size());
+    for (size_t i = 0ul; i < biases.size(); ++i) {
+        biases[i] = biasesBuffer[i] / dequantizationScales[0];
+    }
+    std::fill(dequantizationShifts.begin(), dequantizationShifts.end(), 0.f);
+
+    CNNNetworkHelper::updateBlobs(*biasesLayer, "custom", biases);
 }
 
 void WeightableLayerTransformation::updateWeights(const CNNLayerPtr parent, std::vector<float>& outputLowValues,
@@ -363,9 +398,9 @@ DataPrecision WeightableLayerTransformation::fillDequantizationsForWeightsPath(
     const bool supportAsymmetricQuantization,
     std::vector<float>& dequantizationScales,
     std::vector<float>& dequantizationShifts) const {
-    if (CaselessEq<std::string>()(weightableLayer.type, "Convolution") &&
-        CaselessEq<std::string>()(weightableLayer.type, "FullyConnected") &&
-        CaselessEq<std::string>()(weightableLayer.type, "Gemm")) {
+    if ((!CaselessEq<std::string>()(weightableLayer.type, "Convolution")) &&
+        (!CaselessEq<std::string>()(weightableLayer.type, "FullyConnected")) &&
+        (!CaselessEq<std::string>()(weightableLayer.type, "Gemm"))) {
         THROW_IE_EXCEPTION << "layer '" << weightableLayer.name << "' has unexpected type '" << weightableLayer.type << "'";
     }
 
