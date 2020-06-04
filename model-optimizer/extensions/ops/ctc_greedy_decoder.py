@@ -47,4 +47,7 @@ class CTCGreedyDecoderOp(Op):
         outn.shape = np.ones(4, dtype=np.int)
         assert inn.shape[1] == inn2.shape[1], 'Batch for CTCGreedyDecoder should be the same in both inputs'
         outn.shape[0] = inn.shape[1]
-        outn.shape[1] = inn.shape[0]
+        if node.graph.graph['layout'] == 'NHWC':
+            outn.shape[1] = inn.shape[0]
+        else:
+            outn.shape[2] = inn.shape[0]
