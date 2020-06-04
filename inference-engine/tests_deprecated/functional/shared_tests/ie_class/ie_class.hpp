@@ -28,6 +28,8 @@
 #include <iostream>
 #define GTEST_COUT std::cerr << "[          ] [ INFO ] "
 #include <codecvt>
+#include <functional_test_utils/skip_tests_config.hpp>
+
 #endif
 
 using namespace testing;
