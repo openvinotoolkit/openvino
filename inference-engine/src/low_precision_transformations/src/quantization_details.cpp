@@ -113,7 +113,9 @@ bool QuantizationDetails::outputLayoutIsSupported(const CNNLayer& quantize) {
     size_t outputIntervalsCount;
     getOutputIntervals(quantize, outputLowValues, outputHighValues, outputIntervalsCount);
 
-    const size_t outputChannelsCount = CNNNetworkHelper::getOutputChannelsCount(quantize, CNNNetworkHelper::onWeights(quantize));
+    const size_t outputChannelsCount = CNNNetworkHelper::getOutputChannelsCount(
+        quantize,
+        CNNNetworkHelper::onWeights(quantize) && CNNNetworkHelper::onConstWeightsPath(quantize));
     if ((outputIntervalsCount != 1ul) && (outputIntervalsCount != outputChannelsCount)) {
         return false;
     }

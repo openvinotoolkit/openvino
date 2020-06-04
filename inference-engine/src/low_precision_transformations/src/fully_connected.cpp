@@ -45,8 +45,7 @@ bool FullyConnectedTransformation::canBeTransformed(const TransformationContext&
     }
 
     const std::vector<size_t> inTensorDims = inputData->getDims();
-    if ((inTensorDims.size() != 2ul) && (inTensorDims.size() != 3ul) &&
-        ((fullyConnected.type == "FullyConnected") || ((fullyConnected.type == "Gemm") && (inTensorDims.size() != 4ul)))) {
+    if ((inTensorDims.size() != 2ul) && (inTensorDims.size() != 3ul)) {
         return false;
     }
 
@@ -95,8 +94,7 @@ void FullyConnectedTransformation::transform(TransformationContext& context, CNN
         return;
     }
 
-    if (!CaselessEq<std::string>()(fullyConnected.type, "FullyConnected") &&
-        !CaselessEq<std::string>()(fullyConnected.type, "Gemm")) {
+    if ((!CaselessEq<std::string>()(fullyConnected.type, "FullyConnected")) && (!CaselessEq<std::string>()(fullyConnected.type, "Gemm"))) {
         THROW_IE_EXCEPTION << "layer '" << fullyConnected.name << "' is not correct";
     }
 
@@ -111,10 +109,6 @@ void FullyConnectedTransformation::transform(TransformationContext& context, CNN
     }
 
     const CNNLayerPtr parentOnWeights = CNNNetworkHelper::getParent(fullyConnected, 1);
-    if ((fullyConnected.type == "Gemm") && (parentOnWeights->type != "ScaleShift")) {
-        return;
-    }
-
     if (fullyConnected.outData.size() != 1) {
         THROW_IE_EXCEPTION << "layer outputs '" << fullyConnected.outData.size() << "' is not correct";
     }
@@ -126,21 +120,31 @@ void FullyConnectedTransformation::transform(TransformationContext& context, CNN
     std::vector<float> originalWeightsDequantizationScales;
     std::vector<float> originalWeightsDequantizationShifts;
 
-    const bool weightsOnConstPath = CNNNetworkHelper::isQuantizedConstWeights(fullyConnected);
-    if (!weightsOnConstPath) {
-        if (std::any_of(
-            originalDataDequantizationShifts.begin(),
-            originalDataDequantizationShifts.end(),
-            [](const float value) { return value != 0.f; })) {
-            return;
-        }
-    }
-
     if (parentOnWeights != nullptr) {
         if (parentOnWeights->type == "FakeQuantize") {
-            if (!weightsOnConstPath) {
-                THROW_IE_LPT_EXCEPTION(*parentOnWeights) << "unexpected layer type";
+            const std::vector<size_t> dims = fullyConnected.outData[0]->getDims();
+            if (dims.size() > 2ul) {
+                const QuantizationDetails quantizationDetails = QuantizationDetails::getDetails(*parentOnWeights);
+                const DataPrecision dataPrecision = getDataPrecision(*parentOnWeights, quantizationDetails, true, supportAsymmetricQuantization);
+                if (dataPrecision.precision == Precision::UNSPECIFIED) {
+                    return;
+                }
+
+                fillFromQuantizationDetails(
+                    quantizationDetails,
+                    dataPrecision,
+                    originalWeightsDequantizationScales,
+                    originalWeightsDequantizationShifts);
+
+                if ((dims[1ul] != originalWeightsDequantizationScales.size()) &&
+                    (std::any_of(
+                        originalWeightsDequantizationScales.begin(),
+                        originalWeightsDequantizationScales.end(),
+                        [&](const float value) { return value != originalWeightsDequantizationScales[0]; }))) {
+                    return;
+                }
             }
+
             fillDequantizationsForWeightsPath(
                 fullyConnected,
                 supportAsymmetricQuantization,
@@ -150,22 +154,6 @@ void FullyConnectedTransformation::transform(TransformationContext& context, CNN
         } else if (parentOnWeights->type == "Const") {
             originalWeightsDequantizationScales.push_back(1.0);
             originalWeightsDequantizationShifts.push_back(0.0);
-        } else if (parentOnWeights->type == "ScaleShift") {
-            if (weightsOnConstPath) {
-                THROW_IE_LPT_EXCEPTION(*parentOnWeights) << "unexpected layer type";
-            }
-
-            fillFromDequantizationLayer(
-                *parentOnWeights,
-                originalWeightsDequantizationScales,
-                originalWeightsDequantizationShifts);
-
-            if (std::any_of(
-                originalWeightsDequantizationShifts.begin(),
-                originalWeightsDequantizationShifts.end(),
-                [](const float value) { return value != 0.f; })) {
-                return;
-            }
         } else {
             THROW_IE_EXCEPTION << "Unexpected dequantization layer type " << parentOnWeights->type;
         }
@@ -174,6 +162,7 @@ void FullyConnectedTransformation::transform(TransformationContext& context, CNN
     std::vector<float> dequantizationScales;
     std::vector<float> dequantizationShifts;
     std::vector<float> biasesShifts;
+
     if (supportAsymmetricQuantization) {
         std::vector<float> dataShifts(originalDataDequantizationShifts.size());
         for (size_t i = 0; i < dataShifts.size(); ++i) {
@@ -247,10 +236,10 @@ void FullyConnectedTransformation::transform(TransformationContext& context, CNN
     }
 
     if (this->updateBiases) {
-        updateLayerBiases(context, fullyConnected, fullyConnected.type == "GEMM", dequantizationScales, dequantizationShifts, biasesShifts);
+        updateLayerBiases(context, fullyConnected, false, dequantizationScales, dequantizationShifts, biasesShifts);
     }
 
-    if ((weightsOnConstPath) && (parentOnWeights != nullptr) && (parentOnWeights->type == "FakeQuantize")) {
+    if (parentOnWeights != nullptr) {
         const QuantizationDetails originalQuantizationDetails = parentOnWeights != nullptr ?
             QuantizationDetails::getDetails(*parentOnWeights) :
             QuantizationDetails();
@@ -278,6 +267,7 @@ void FullyConnectedTransformation::transform(TransformationContext& context, CNN
                 updatePrecisions
                     ? CNNNetworkHelper::quantizeWeights(*parentOnWeights, roundQuantizedValues, dataPrecision.precision)
                     : CNNNetworkHelper::quantizeWeights(*parentOnWeights, roundQuantizedValues);
+
             const std::vector<CNNLayerPtr> constLayers = CNNNetworkHelper::transformFakeQuantizeToConst(
                 context, parentOnWeights, weights, CNNNetworkHelper::getParent(*parentOnWeights, 0)->name);
 
@@ -394,14 +384,23 @@ void FullyConnectedTransformation::calculateDequantizationForAsymmetric(
     if (inputData->getDims().size() < 2) {
         THROW_IE_EXCEPTION << "Unexpected input layout " << inputData->getLayout();
     }
-    const size_t inputChannelsCount = inputData->getDims()[1];
 
     const DataPtr outputData = fullyConnected.outData[0];
     if (outputData == nullptr) {
         THROW_IE_LPT_EXCEPTION(fullyConnected) << "output data is absent";
     }
-    const size_t outputChannelsCount = outputData->getDims()[1];
 
+    const size_t inputChannelsCount = inputData->getDims()[1];
+    const size_t outputChannelsCount = outputData->getDims()[1];
+    if ((originalWeightsDequantizationScales.size() != outputChannelsCount) &&
+        std::any_of(
+            originalWeightsDequantizationScales.begin(),
+            originalWeightsDequantizationScales.end(),
+            [&](const float value) { return value != originalWeightsDequantizationScales[0]; })) {
+        THROW_IE_LPT_EXCEPTION(fullyConnected) << "can not insert dequantization layer for " <<
+            outputChannelsCount << " output channels and " <<
+            originalWeightsDequantizationScales.size() << " weigths dequantization scales";
+    }
 
     CNNLayerPtr scaleShift = CNNNetworkHelper::getParent(fullyConnected);
     if (scaleShift->type != "ScaleShift") {
