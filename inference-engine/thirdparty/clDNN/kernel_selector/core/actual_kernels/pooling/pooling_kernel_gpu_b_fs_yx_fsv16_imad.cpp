@@ -75,6 +75,7 @@ JitConstants PoolingKernelGPU_b_fs_yx_fsv16_imad::GetJitConstants(const pooling_
     if (!params.fused_ops.empty()) {
         auto input_dt = EnableRound(params) ? Datatype::INT32 : GetActivationType(params);
         FusedOpsConfiguration conf = {"", {"b", "f", "y", "x"}, "pool_result[i]", input_dt, 1};
+        conf.SetLoopAxes({ Tensor::DataChannelName::X }, true);
         jit.Merge(MakeFusedOpsJitConstants(params, { conf }));
     }
 

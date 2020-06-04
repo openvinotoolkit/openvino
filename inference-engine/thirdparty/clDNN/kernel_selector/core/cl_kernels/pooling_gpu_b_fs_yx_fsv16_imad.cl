@@ -43,6 +43,7 @@ inline int FUNC(apply_pooling)(int tmp, int in)
 #endif
 }
 
+__attribute__((intel_reqd_sub_group_size(16)))
 KERNEL(pooling_gpu_b_fs_yx_fsv16)(
     const __global INPUT0_TYPE* input,
     __global OUTPUT_TYPE* output
@@ -60,7 +61,8 @@ KERNEL(pooling_gpu_b_fs_yx_fsv16)(
     const int offset_x = (int)x*STRIDE_SIZE_X - PADDING_SIZE_X;
     const int offset_y = (int)y*STRIDE_SIZE_Y - PADDING_SIZE_Y;
 
-    int result[FEATURE_SLICE_SIZE] = { INIT_VAL, INIT_VAL, INIT_VAL, INIT_VAL, INIT_VAL, INIT_VAL, INIT_VAL, INIT_VAL, INIT_VAL, INIT_VAL, INIT_VAL, INIT_VAL, INIT_VAL, INIT_VAL, INIT_VAL, INIT_VAL };
+    int result[FEATURE_SLICE_SIZE] = { INIT_VAL, INIT_VAL, INIT_VAL, INIT_VAL, INIT_VAL, INIT_VAL, INIT_VAL, INIT_VAL,
+                                       INIT_VAL, INIT_VAL, INIT_VAL, INIT_VAL, INIT_VAL, INIT_VAL, INIT_VAL, INIT_VAL };
 
 #ifdef CHECK_BOUNDRY
     if (offset_x + POOL_SIZE_X < 0 || offset_x >= INPUT0_SIZE_X ||
@@ -74,12 +76,14 @@ KERNEL(pooling_gpu_b_fs_yx_fsv16)(
 #endif
 
     const uint batch_and_feature_offset = INPUT0_GET_INDEX(b, f, 0, 0);
+    __attribute__((opencl_unroll_hint(POOL_SIZE_Y)))
     for(uint j = 0; j < POOL_SIZE_Y; j++)
     {
         int input_offset_y = offset_y + j;
         bool zero_y = input_offset_y >= INPUT0_SIZE_Y || input_offset_y < 0;
         if(!zero_y)
         {
+            __attribute__((opencl_unroll_hint(POOL_SIZE_X)))
             for(uint i = 0; i < POOL_SIZE_X; i++)
             {
                 int input_offset_x = offset_x + i;
@@ -90,6 +94,7 @@ KERNEL(pooling_gpu_b_fs_yx_fsv16)(
 
                     int4 int_data = vload4(0, (__global int*)(input + input_idx));
                     IN_VEC16 ch16_data = AS_TYPE(IN_VEC16, int_data);
+                    __attribute__((opencl_unroll_hint(FEATURE_SLICE_SIZE)))
                     for(uint k = 0; k < FEATURE_SLICE_SIZE; k++)
                     {
                         result[k] = FUNC_CALL(apply_pooling)(result[k], ch16_data[k]);
@@ -109,13 +114,15 @@ KERNEL(pooling_gpu_b_fs_yx_fsv16)(
 #endif
 #else // !CHECK_BOUNDRY
     uint input_idx = INPUT0_GET_INDEX(b, f, offset_y, offset_x);
-
+    __attribute__((opencl_unroll_hint(POOL_SIZE_Y)))
     for(uint j = 0; j < POOL_SIZE_Y; j++)
     {
+        __attribute__((opencl_unroll_hint(POOL_SIZE_X)))
         for(uint i = 0; i < POOL_SIZE_X; i++)
         {
             int4 int_data = vload4(0, (__global int*)(input + input_idx));
             IN_VEC16 ch16_data = AS_TYPE(IN_VEC16, int_data);
+            __attribute__((opencl_unroll_hint(FEATURE_SLICE_SIZE)))
             for(uint k = 0; k < FEATURE_SLICE_SIZE; k++)
             {
                 result[k] = FUNC_CALL(apply_pooling)(result[k], ch16_data[k]);
@@ -134,6 +141,7 @@ KERNEL(pooling_gpu_b_fs_yx_fsv16)(
 #if defined AVG_POOLING
 #if ENABLE_ROUND
     int16 pool_result;
+    __attribute__((opencl_unroll_hint(FEATURE_SLICE_SIZE)))
     for(uint i = 0; i < FEATURE_SLICE_SIZE; i++) {
     #if defined(DYNAMIC_KERNEL_DIVIDER) || defined(DYNAMIC_WITH_PADDING_KERNEL_DIVIDER)
         pool_result[i] = convert_int(round(((float)result[i] / max(num_elements, (uint)1))));
@@ -143,6 +151,7 @@ KERNEL(pooling_gpu_b_fs_yx_fsv16)(
     }
 #else
     float16 pool_result;
+    __attribute__((opencl_unroll_hint(FEATURE_SLICE_SIZE)))
     for(uint i = 0; i < FEATURE_SLICE_SIZE; i++) {
     #if defined(DYNAMIC_KERNEL_DIVIDER) || defined(DYNAMIC_WITH_PADDING_KERNEL_DIVIDER)
         pool_result[i] = (float)result[i] / max(num_elements, (uint)1);
@@ -153,19 +162,25 @@ KERNEL(pooling_gpu_b_fs_yx_fsv16)(
 #endif  // ENABLE_ROUND
 #else  // AVG_POOLING
     int16 pool_result;
+    __attribute__((opencl_unroll_hint(FEATURE_SLICE_SIZE)))
     for (uint i = 0; i < FEATURE_SLICE_SIZE; ++i) {
         pool_result[i] = result[i];
     }
 #endif  // AVG_POOLING
 
 OUT_VEC16 final_result = (OUTPUT_TYPE)(0);
-#if HAS_FUSED_OPS
+#if HAS_FUSED_OPS && FUSED_OPS_CAN_USE_PRELOAD
     //FUSED_OPS_LOAD_PER_SCALE
     FUSED_OPS_PRELOAD
 #endif
+    __attribute__((opencl_unroll_hint(FEATURE_SLICE_SIZE)))
     for (uint i = 0; i < FEATURE_SLICE_SIZE; ++i) {
 #if HAS_FUSED_OPS
-        FUSED_OPS;
+#if FUSED_OPS_CAN_USE_PRELOAD
+        FUSED_OPS_CALC
+#else
+        FUSED_OPS
+#endif
         final_result[i] = FUSED_OPS_RESULT;
 #else
         final_result[i] = pool_result[i];
