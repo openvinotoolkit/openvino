@@ -13,19 +13,17 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-import logging as log
-
 from mo.back.replacement import BackReplacementPattern
 from mo.graph.graph import Graph
 
 
 class RemoveConstToResult(BackReplacementPattern):
     """
-    Transformation looks for a sub-graph "Const->Result"
-    and removes Result node.
+    Transformation looks for a sub-graph "Const->Result" and removes Result node.
+    Currently IE is unable to handle such graph so this transformation removes to work around this case.
+    For instance, this case appears for Wide and Deep model.
     """
     enabled = True
-    #force_clean_up = True
 
     @staticmethod
     def pattern():
