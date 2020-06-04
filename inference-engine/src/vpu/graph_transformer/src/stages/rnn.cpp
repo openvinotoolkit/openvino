@@ -73,8 +73,8 @@ private:
         serializer.append(static_cast<int>(RNNForward));
         serializer.append(nCells);
         serializer.append(nBatches);
-        serializer.append(static_cast<int>(outputEdges().size()));
         serializer.append(static_cast<int>(useCellState));
+        serializer.append(static_cast<int>(outputEdges().size()));
     }
 
     void serializeDataImpl(BlobSerializer& serializer) const override {
