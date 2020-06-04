@@ -404,6 +404,26 @@ void sumPerformanceCounters(std::map<std::string, InferenceEngine::InferenceEngi
     }
 }
 
+std::vector<std::string> ParseScaleFactors(const std::string& str) {
+    std::vector<std::string> scaleFactorInput;
+
+    if (!str.empty()) {
+        std::string outStr;
+        std::istringstream stream(str);
+        int i = 0;
+        while (getline(stream, outStr, ',')) {
+            auto floatScaleFactor  = std::stof(outStr);
+            if (floatScaleFactor <= 0.0f) {
+                throw std::logic_error("Scale factor for " + std::to_string(i) + " input out of range (must be non-negative).");
+            }
+            scaleFactorInput.push_back(outStr);
+        }
+    } else {
+        throw std::logic_error("Scale factor need to be specified via -sf option if you are using -q user");
+    }
+    return scaleFactorInput;
+}
+
 bool ParseAndCheckCommandLine(int argc, char *argv[]) {
     // ---------------------------Parsing and validation of input args--------------------------------------
     slog::info << "Parsing input parameters" << slog::endl;
@@ -451,11 +471,6 @@ bool ParseAndCheckCommandLine(int argc, char *argv[]) {
 
     if (std::find(supportedDevices.begin(), supportedDevices.end(), FLAGS_d) == supportedDevices.end()) {
         throw std::logic_error("Specified device is not supported.");
-    }
-
-    float scaleFactorInput = static_cast<float>(FLAGS_sf);
-    if (scaleFactorInput <= 0.0f) {
-        throw std::logic_error("Scale factor out of range (must be non-negative).");
     }
 
     uint32_t batchSize = (uint32_t) FLAGS_bs;
@@ -515,7 +530,6 @@ int main(int argc, char *argv[]) {
         bool useHetero = isFeature("HETERO");
         std::string deviceStr =
                 useHetero && useGna ? "HETERO:GNA,CPU" : FLAGS_d.substr(0, (FLAGS_d.find("_")));
-        float scaleFactorInput = static_cast<float>(FLAGS_sf);
         uint32_t batchSize = (FLAGS_cw_r > 0 || FLAGS_cw_l > 0) ? 1 : (uint32_t) FLAGS_bs;
 
         std::vector<std::string> inputArkFiles;
@@ -586,12 +600,17 @@ int main(int argc, char *argv[]) {
         }
 
         if (FLAGS_q.compare("user") == 0) {
-            if (numInputArkFiles > 1) {
-                std::string errMessage("Incorrect use case for multiple input ark files. Please don't use -q 'user' for this case.");
+            auto scaleFactorInput = ParseScaleFactors(FLAGS_sf);
+            if (scaleFactorInput.size() != network.getInputsInfo().size()) {
+                std::string errMessage("Incorrect command line for multiple inputs. Please make sure to provide scale factor for every input out of "
+                    + std::to_string(network.getInputsInfo().size()));
                 throw std::logic_error(errMessage);
             }
-            slog::info << "Using scale factor of " << FLAGS_sf << slog::endl;
-            gnaPluginConfig[GNA_CONFIG_KEY(SCALE_FACTOR)] = std::to_string(FLAGS_sf);
+            for (size_t i = 0; i < scaleFactorInput.size(); ++i) {
+                slog::info << "For input " << i << " using scale factor of " << scaleFactorInput[i] << slog::endl;
+                std::string scaleFactorConfigKey = GNA_CONFIG_KEY(SCALE_FACTOR) + std::string("_") + std::to_string(i);
+                gnaPluginConfig[scaleFactorConfigKey] = scaleFactorInput[i];
+            }
         } else {
             // "static" quantization with calculated scale factor
             for (size_t i = 0; i < numInputArkFiles; i++) {
@@ -608,12 +627,12 @@ int main(int argc, char *argv[]) {
                                   &numFrames,
                                   &numFrameElements,
                                   &numBytesPerElement);
-                scaleFactorInput =
+                auto floatScaleFactor =
                         ScaleFactorForQuantization(ptrFeatures.data(), MAX_VAL_2B_FEAT, numFrames * numFrameElements);
-                slog::info << "Using scale factor of " << scaleFactorInput << " calculated from first utterance."
+                slog::info << "Using scale factor of " << floatScaleFactor << " calculated from first utterance."
                            << slog::endl;
                 std::string scaleFactorConfigKey = GNA_CONFIG_KEY(SCALE_FACTOR) + std::string("_") + std::to_string(i);
-                gnaPluginConfig[scaleFactorConfigKey] = std::to_string(scaleFactorInput);
+                gnaPluginConfig[scaleFactorConfigKey] = std::to_string(floatScaleFactor);
             }
         }
 

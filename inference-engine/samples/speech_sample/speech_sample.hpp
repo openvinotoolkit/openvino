@@ -61,7 +61,8 @@ static const char quantization_message[] = "Input quantization mode:  static (de
 static const char quantization_bits_message[] = "Weight bits for quantization:  8 or 16 (default)";
 
 /// @brief message for scale factor argument
-static const char scale_factor_message[] = "Optional user-specified input scale factor for quantization (use with -q user).";
+static const char scale_factor_message[] = "Optional user-specified input scale factor for quantization (use with -q user). "
+                                           "If the network contains multiple inputs, provide scale factors by separating them with commas.";
 
 /// @brief message for batch size argument
 static const char batch_size_message[] = "Batch size 1-8 (default 1)";
@@ -130,7 +131,7 @@ DEFINE_string(q, "static", quantization_message);
 DEFINE_int32(qb, 16, quantization_bits_message);
 
 /// @brief Scale factor for quantization (default 1.0)
-DEFINE_double(sf, 1.0, scale_factor_message);
+DEFINE_string(sf, "", scale_factor_message);
 
 /// @brief Batch size (default 1)
 DEFINE_int32(bs, 1, batch_size_message);
