@@ -252,7 +252,7 @@ void FrontEnd::parseLSTMCell(const Model& model, const ie::CNNLayerPtr& _layer, 
 
     const auto& src = inputs[0]->desc();
 
-    std::size_t nBatches = src.dim(Dim::N);
+    const std::size_t nBatches = src.dim(Dim::N);
 
     IE_ASSERT(nBatches >= 1);
 
