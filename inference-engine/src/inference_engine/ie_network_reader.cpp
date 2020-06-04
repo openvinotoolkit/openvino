@@ -185,7 +185,8 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath, const std::string&
             return reader->read(modelStream, exts);
         }
     }
-    THROW_IE_EXCEPTION << "Unknown model format! Cannot read the model: " << modelPath;
+    THROW_IE_EXCEPTION << "Unknown model format! Cannot find reader for model format: " << fileExt << " and read the model: " << modelPath <<
+        ". Please check that reader library exists in your PATH.";
 }
 
 CNNNetwork details::ReadNetwork(const std::string& model, const Blob::CPtr& weights, const std::vector<IExtensionPtr>& exts) {
@@ -203,7 +204,7 @@ CNNNetwork details::ReadNetwork(const std::string& model, const Blob::CPtr& weig
             return reader->read(modelStream, exts);
         }
     }
-    THROW_IE_EXCEPTION << "Unknown model format! Cannot read the model from string!";
+    THROW_IE_EXCEPTION << "Unknown model format! Cannot find reader for the model and read it. Please check that reader library exists in your PATH.";
 }
 
 }  // namespace InferenceEngine
