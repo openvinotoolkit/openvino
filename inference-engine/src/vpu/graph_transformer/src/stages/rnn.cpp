@@ -186,12 +186,12 @@ void FrontEnd::parseRNN(const Model& model, const ie::CNNLayerPtr& _layer, const
 
     auto newWeights = model->addConstData(_layer->name + "@weights", weights->desc(), generator);
     auto stateCellFinal = model->addFakeData();
-    auto oututKeeper = {outputs[0], stateCellFinal};
+    auto outputKeeper = {outputs[0], stateCellFinal};
 
     if (outputs.size() == 2) {
-        oututKeeper = {outputs[0], outputs[1]};
+        outputKeeper = {outputs[0], outputs[1]};
     } else if (outputs.size() == 3) {
-        oututKeeper = {outputs[0], outputs[1], outputs[2]};
+        outputKeeper = {outputs[0], outputs[1], outputs[2]};
     }
 
     auto stage = model->addNewStage<LSTMCellStage>(
@@ -199,7 +199,7 @@ void FrontEnd::parseRNN(const Model& model, const ie::CNNLayerPtr& _layer, const
         StageType::LSTMCell,
         layer,
         {inputs[0], inputs[1], inputs[2], newWeights, biases},
-        oututKeeper);
+        outputKeeper);
 
     if (nCells > 1)
         model->addTempBuffer(stage, DataDesc({stateSize}));
