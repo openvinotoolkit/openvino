@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2016-2019 Intel Corporation
+﻿// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -22,6 +22,8 @@ ParamsKey PoolingKernelGPURef::GetSupportedKey() const {
     k.EnableInputDataType(Datatype::F32);
     k.EnableOutputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::F32);
+    k.EnableOutputDataType(Datatype::UINT8);
+    k.EnableOutputDataType(Datatype::INT8);
     k.EnableInputLayout(DataLayout::bfyx);
     k.EnableInputLayout(DataLayout::yxfb);
     k.EnableInputLayout(DataLayout::byxf);
@@ -51,6 +53,26 @@ ParamsKey PoolingKernelGPURef::GetSupportedKey() const {
     k.EnablePoolKernelDividerMode(KernelDividerMode::DYNAMIC_WITH_PADDING);
     k.EnableDifferentTypes();
     return k;
+}
+
+JitConstants PoolingKernelGPURef::GetJitConstants(const pooling_params& params, DispatchData kd) const {
+    auto jit = PoolingKernelBase::GetJitConstants(params, kd);
+    jit.Merge(MakeTypeJitConstants(GetActivationType(params), "ACTIVATION"));
+    jit.Merge(MakeTypeJitConstants(GetAccumulatorType(params), "ACCUMULATOR"));
+
+    if (!params.fused_ops.empty()) {
+        auto input_dt = GetActivationType(params);
+        std::vector<std::string> idx_order;
+        if (DataTensor::ChannelsCount(params.output.GetLayout()) == 4) {
+            idx_order = {"b", "f", "y", "x"};
+        } else if (DataTensor::ChannelsCount(params.output.GetLayout()) == 5) {
+            idx_order = {"b", "f", "z", "y", "x"};
+        }
+        FusedOpsConfiguration conf = {"", idx_order, "pool_result", input_dt, 1};
+        jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
+    }
+
+    return jit;
 }
 
 KernelsData PoolingKernelGPURef::GetKernelsData(const Params& params, const optional_params& options) const {
