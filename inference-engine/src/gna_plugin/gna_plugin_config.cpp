@@ -71,13 +71,13 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& config) {
                 key.erase(0, 1);
                 try {
                     input_index = std::stoi(key);
-                    if (input_index < 0 | input_index > 9) {
+                    if (input_index < 0 | input_index > 99) {
                         throw std::out_of_range("");
                     }
                 } catch (std::invalid_argument&) {
                     THROW_GNA_EXCEPTION << "Invalid value of index of input scale factor";
                 } catch (std::out_of_range&) {
-                    THROW_GNA_EXCEPTION << "Index of input scale factor must be in the range [0..9], " << value << " provided";
+                    THROW_GNA_EXCEPTION << "Index of input scale factor must be in the range [0..99], " << key << " provided";
                 }
             }
             auto scale_factor = InferenceEngine::CNNLayer::ie_parse_float(value);

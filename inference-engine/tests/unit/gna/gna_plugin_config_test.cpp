@@ -73,12 +73,12 @@ TEST_F(GNAPluginConfigTest, GnaConfigScaleFactorTest) {
     EXPECT_FLOAT_EQ(config.inputScaleFactors[2], 1.0);
     EXPECT_FLOAT_EQ(config.inputScaleFactors[3], 15.2);
 
-    config.UpdateFromMap({{GNA_CONFIG_KEY(SCALE_FACTOR) + std::string("_9"), std::string("8.43")}});
-    EXPECT_EQ(config.GetParameter(GNA_CONFIG_KEY(SCALE_FACTOR) + std::string("_9")), std::string("8.430000"));
-    EXPECT_EQ(config.inputScaleFactors.size(), 10);
-    EXPECT_FLOAT_EQ(config.inputScaleFactors[9], 8.43);
+    config.UpdateFromMap({{GNA_CONFIG_KEY(SCALE_FACTOR) + std::string("_99"), std::string("8.43")}});
+    EXPECT_EQ(config.GetParameter(GNA_CONFIG_KEY(SCALE_FACTOR) + std::string("_99")), std::string("8.430000"));
+    EXPECT_EQ(config.inputScaleFactors.size(), 100);
+    EXPECT_FLOAT_EQ(config.inputScaleFactors[99], 8.43);
 
-    ExpectThrow(GNA_CONFIG_KEY(SCALE_FACTOR) + std::string("_10"), std::string("8.43"));
+    ExpectThrow(GNA_CONFIG_KEY(SCALE_FACTOR) + std::string("_100"), std::string("8.43"));
     ExpectThrow(GNA_CONFIG_KEY(SCALE_FACTOR) + std::string("&1"), std::string("8.43"));
     ExpectThrow(GNA_CONFIG_KEY(SCALE_FACTOR) + std::string("_"), std::string("8.43"));
     ExpectThrow(GNA_CONFIG_KEY(SCALE_FACTOR) + std::string("abs"), std::string("8.43"));
