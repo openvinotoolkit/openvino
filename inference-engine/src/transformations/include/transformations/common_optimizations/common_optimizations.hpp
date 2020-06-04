@@ -21,9 +21,10 @@ class TRANSFORMATIONS_API CommonOptimizations;
 }  // namespace pass
 }  // namespace ngraph
 
-class ngraph::pass::CommonOptimizations: public ngraph::pass::FunctionPass {
+class ngraph::pass::CommonOptimizations: public ngraph::pass::FunctionPass, public ngraph::pass::PassParam {
 public:
-    explicit CommonOptimizations() : FunctionPass() {}
+    explicit CommonOptimizations(const PassParam::param_callback & callback = PassParam::getDefaultCallback())
+            : FunctionPass(), PassParam(callback) {}
 
     bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
 };

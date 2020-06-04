@@ -91,10 +91,6 @@ void ngraph::pass::DepthToSpaceFusion::depth_to_space_fusion() {
     auto reshape_after = std::make_shared<ngraph::opset3::Reshape> (permute, input3, false);
 
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
-        if (!transformation_callback(std::make_shared<ngraph::opset3::DepthToSpace>())) {
-            return false;
-        }
-
         auto reshape_after = std::dynamic_pointer_cast<ngraph::opset3::Reshape>(m.get_match_root());
         if (!reshape_after) {
             return false;
@@ -157,6 +153,11 @@ void ngraph::pass::DepthToSpaceFusion::depth_to_space_fusion() {
                 std::make_shared<ngraph::opset3::DepthToSpace>(reshape_before->input_value(0), mode, block_size);
         depth_to_space->set_friendly_name(reshape_after->get_friendly_name());
         ngraph::copy_runtime_info({reshape_before, permute, reshape_after}, depth_to_space);
+
+        if (!transformation_callback(depth_to_space)) {
+            return false;
+        }
+
         ngraph::replace_node(reshape_after, depth_to_space);
         return true;
     };
