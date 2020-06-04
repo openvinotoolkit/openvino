@@ -32,14 +32,15 @@ struct Config {
     std::string dumpQuantizedGraphToDot = "";
     std::string dumpQuantizedGraphToIr = "";
     int batchLimit = 0;
-    bool enforceBF16 = false;
     InferenceEngine::IStreamsExecutor::Config streamExecutorConfig;
 
 #if defined(__arm__) || defined(__aarch64__)
     // Currently INT8 mode is not optimized on ARM, fallback to FP32 mode.
     LPTransformsMode lpTransformsMode = LPTransformsMode::Off;
+    bool enforceBF16 = false;
 #else
     LPTransformsMode lpTransformsMode = LPTransformsMode::On;
+    bool enforceBF16 = true;
 #endif
 
     void readProperties(const std::map<std::string, std::string> &config);
