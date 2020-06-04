@@ -31,6 +31,7 @@
 #include "low_precision_transformations/fake_quantize.hpp"
 #include "low_precision_transformations/fully_connected.hpp"
 #include "low_precision_transformations/fuse_fake_quantize_and_scale_shift.hpp"
+#include "low_precision_transformations/gemm.hpp"
 #include "low_precision_transformations/mvn.hpp"
 #include "low_precision_transformations/permute.hpp"
 #include "low_precision_transformations/pooling.hpp"
@@ -198,7 +199,7 @@ LowPrecisionTransformations LowPrecisionTransformer::getAllTransformations(const
             { "fakequantize", LayerTransformationPtr(new FakeQuantizeTransformation(params)) },
             { "reshape", LayerTransformationPtr(new ReshapeTransformation(params)) },
             { "fullyconnected", LayerTransformationPtr(new FullyConnectedTransformation(params)) },
-            { "gemm", LayerTransformationPtr(new FullyConnectedTransformation(params)) },
+            { "gemm", LayerTransformationPtr(new GemmTransformation(params)) },
             { "permute", LayerTransformationPtr(new PermuteTransformation(params)) },
             { "squeeze", LayerTransformationPtr(new SqueezeTransformation(params)) },
             { "relu", LayerTransformationPtr(new ActivationTransformation(params)) },

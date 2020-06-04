@@ -1120,23 +1120,10 @@ CNNLayerPtr CNNNetworkHelper::addScaleShiftBetween(TransformationContext& contex
 
     const std::vector<size_t> dims = outData->getDims();
 
-    std::vector<float> scales;
-    std::vector<float> shifts;
     if ((dims.size() != 2ul) || ((dims.size() == 2ul) && (dims[0] != dequantizationDetails.channelsCount))) {
         if ((dims.size() > 1) && (dims[1] != dequantizationDetails.channelsCount)) {
-            if (!dequantizationDetails.isPerTensor()) {
-                THROW_IE_EXCEPTION << "unexpected parent channels count " << dims[1];
-            }
-
-            scales = std::vector<float>(dims[1], dequantizationDetails.scales[0]);
-            shifts = std::vector<float>(dims[1], dequantizationDetails.shifts[0]);
-        } else {
-            scales = dequantizationDetails.scales;
-            shifts = dequantizationDetails.shifts;
+            THROW_IE_EXCEPTION << "unexpected parent channels count " << dims[1];
         }
-    } else {
-        scales = dequantizationDetails.scales;
-        shifts = dequantizationDetails.shifts;
     }
     addLayerToCNNNetworkAfterData(outData, ssCnnLayer, child != nullptr ? child->name : "", context.network);
 
@@ -1147,9 +1134,9 @@ CNNLayerPtr CNNNetworkHelper::addScaleShiftBetween(TransformationContext& contex
         }
         fillInScaleShift(
             scshLayer,
-            scales.size(),
-            scales.data(),
-            shifts.data());
+            dequantizationDetails.channelsCount,
+            dequantizationDetails.scales.data(),
+            dequantizationDetails.shifts.data());
     }
 
     CNNNetworkHelper::setOutDataPrecision(*ssCnnLayer, ssPrecision);
