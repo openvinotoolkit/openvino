@@ -62,26 +62,18 @@ private:
             dimsVector[defDims.dimInd(dim.first)] = dim.second;
         }
 
-        size_t i;
-        bool swapAdjacentDims, dimIsOne = false;
-
-        for (i = 0; i < permuteDims.size(); ++i)
+        for (size_t i = 0; i < permuteDims.size(); ++i) {
             if (i != permuteDims[i]) {
-                swapAdjacentDims = permuteDims[i] == (i + 1) && permuteDims[i + 1] == i;
-                dimIsOne = dimsVector[i] == 1 || dimsVector[i + 1] == 1;
+                bool swapAdjacentDims = permuteDims[i] == (i + 1) && permuteDims[i + 1] == i;
+                bool dimIsOne = dimsVector[i] == 1 || dimsVector[i + 1] == 1;
                 if (swapAdjacentDims && dimIsOne) {
                         i++;
-                        continue;
                 } else {
-                    break;
+                    return false;
                 }
             }
-
-        if (i == permuteDims.size()) {
-            return true;
         }
-
-        return false;
+        return true;
     }
 
     static StageMergeGroupList prepareStagesForMerge(const Model& model) {
