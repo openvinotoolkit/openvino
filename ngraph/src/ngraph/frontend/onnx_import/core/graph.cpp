@@ -95,8 +95,14 @@ namespace ngraph
         } // namespace detail
 
         Graph::Graph(const ONNX_NAMESPACE::GraphProto& graph_proto, Model& model)
+            : Graph(graph_proto, model, GraphCache{graph_proto})
+        {
+        }
+
+        Graph::Graph(const ONNX_NAMESPACE::GraphProto& graph_proto, Model& model, GraphCache&& cache)
             : m_graph_proto{&graph_proto}
             , m_model{&model}
+            , m_cache{std::move(cache)}
         {
             // Process all initializers in the graph
             for (const auto& initializer_tensor : m_graph_proto->initializer())
@@ -105,11 +111,8 @@ namespace ngraph
                 {
                     Tensor tensor = Tensor{initializer_tensor};
                     m_initializers.emplace(initializer_tensor.name(), tensor);
-
-                    // For each initializer, create a Constant node and store in cache
                     auto ng_constant = tensor.get_ng_constant();
                     add_provenance_tag_to_initializer(tensor, ng_constant);
-                    m_ng_node_cache.emplace(initializer_tensor.name(), std::move(ng_constant));
                 }
             }
 
@@ -119,7 +122,7 @@ namespace ngraph
                 m_inputs.emplace_back(input);
 
                 // Check if a Constant node was already created from an initializer
-                if (m_ng_node_cache.count(input.name()) > 0)
+                if (m_cache.contains(input.name()))
                 {
                     continue;
                 }
@@ -127,7 +130,7 @@ namespace ngraph
                 const auto value_info = m_inputs.back();
                 auto ng_node = value_info.get_ng_node(m_parameters, m_initializers);
                 add_provenance_tag_to_input(value_info, ng_node);
-                m_ng_node_cache[input.name()] = std::move(ng_node);
+                m_cache.set_node(input.name(), std::move(ng_node));
             }
 
             // Process all graph outputs
@@ -181,9 +184,19 @@ namespace ngraph
                 // https://github.com/onnx/onnx/blob/master/docs/IR.md#optional-inputs-and-outputs
                 for (std::size_t i{0}; i < node.get_outputs_size(); ++i)
                 {
-                    m_ng_node_cache[node.output(i)] = ng_nodes.at(i);
+                    m_cache.set_node(node.output(i), std::move(ng_nodes.at(i)));
                 }
             }
+        }
+
+        const GraphCache& Graph::get_graph_cache() const
+        {
+            return m_cache;
+        }
+
+        bool Graph::is_node_in_cache(const std::string& name) const
+        {
+            return m_cache.contains(name);
         }
 
         NodeVector Graph::get_ng_outputs() const

@@ -26,11 +26,6 @@ namespace ngraph
         {
         public:
             SubGraph(const ONNX_NAMESPACE::GraphProto& proto, Model& model, const Graph& parent_graph);
-
-            std::shared_ptr<ngraph::Node> get_ng_node_from_cache(const std::string& name) const override;
-        
-        private:
-            const Graph* m_parent_graph;
         };
 
     } // namespace onnx_import

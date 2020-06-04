@@ -28,6 +28,8 @@ add_library(onnx_importer SHARED
         core/attribute.hpp
         core/graph.cpp
         core/graph.hpp
+        core/graph_cache.cpp
+        core/graph_cache.hpp
         core/model.cpp
         core/model.hpp
         core/node.hpp

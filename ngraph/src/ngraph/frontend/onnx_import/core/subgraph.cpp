@@ -15,30 +15,15 @@
 //*****************************************************************************
 
 #include "subgraph.hpp"
+#include "graph_cache.hpp"
 
 namespace ngraph
 {
     namespace onnx_import
     {
         SubGraph::SubGraph(const ONNX_NAMESPACE::GraphProto& proto, Model& model, const Graph& parent_graph)
-            : Graph(proto, model)
-            , m_parent_graph{&parent_graph}
+            : Graph(proto, model, SubgraphCache{proto, parent_graph.get_graph_cache()})
         {
-        }
-
-        std::shared_ptr<ngraph::Node> SubGraph::get_ng_node_from_cache(const std::string& name) const
-        {
-            if(is_node_in_cache(name))
-            {
-                std::cout << "From subgraph: " << name << "\n";
-                return Graph::get_ng_node_from_cache(name);
-            }
-            else
-            {
-                std::cout << "From parent graph: " << name << "\n";
-                m_parent_graph->get_ng_node_from_cache(name);
-            }
-            
         }
 
     } // namespace onnx_import

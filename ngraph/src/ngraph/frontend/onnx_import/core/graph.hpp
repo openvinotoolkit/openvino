@@ -21,6 +21,7 @@
 #include <vector>
 
 #include "default_opset.hpp"
+#include "graph_cache.hpp"
 #include "model.hpp"
 #include "ngraph/op/parameter.hpp"
 #include "operator_set.hpp"
@@ -39,14 +40,18 @@ namespace ngraph
             const std::vector<ValueInfo>& get_outputs() const { return m_outputs; }
             NodeVector get_ng_outputs() const;
             const ParameterVector& get_ng_parameters() const { return m_parameters; }
-            virtual std::shared_ptr<ngraph::Node> get_ng_node_from_cache(const std::string& name) const
+            bool is_node_in_cache(const std::string& name) const;
+            std::shared_ptr<ngraph::Node> get_ng_node_from_cache(const std::string& name) const
             {
-                return m_ng_node_cache.at(name);
+                return m_cache.get_node(name);
             }
             const std::string& get_name() const { return m_graph_proto->name(); }
             NodeVector make_ng_nodes(const Node& onnx_node) const;
+            const GraphCache& get_graph_cache() const;
 
         protected:
+            Graph(const ONNX_NAMESPACE::GraphProto& proto, Model& model, GraphCache&& cache);
+
             void set_friendly_names(const Node& onnx_node, const NodeVector& ng_node_vector) const;
 
             void add_provenance_tag_to_initializer(
@@ -57,18 +62,13 @@ namespace ngraph
 
             void add_provenance_tags(const Node& onnx_node, const NodeVector& ng_node_vector) const;
 
-            bool is_node_in_cache(const std::string& name) const
-            {
-                return (m_ng_node_cache.count(name) > 0);
-            }
-
         private:
             const ONNX_NAMESPACE::GraphProto* m_graph_proto;
+            GraphCache&& m_cache;
             std::vector<Node> m_nodes;
             std::vector<ValueInfo> m_inputs;
             std::vector<ValueInfo> m_outputs;
             ParameterVector m_parameters;
-            std::map<std::string, std::shared_ptr<ngraph::Node>> m_ng_node_cache;
             std::map<std::string, Tensor> m_initializers;
             Model* m_model;
         };
