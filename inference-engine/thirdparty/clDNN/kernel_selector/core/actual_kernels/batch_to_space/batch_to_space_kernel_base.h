@@ -50,8 +50,7 @@ public:
     using common_kernel_base::common_kernel_base;
     virtual ~BatchToSpaceKernelBase() {}
 
-    struct DispatchData : public CommonDispatchData {
-    };
+    struct DispatchData : public CommonDispatchData {};
 
 protected:
     virtual bool Validate(const Params&, const optional_params&) const;

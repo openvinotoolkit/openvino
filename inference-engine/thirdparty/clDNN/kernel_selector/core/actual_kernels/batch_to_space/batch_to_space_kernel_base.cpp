@@ -57,24 +57,24 @@ JitConstants BatchToSpaceKernelBase::GetJitConstants(const batch_to_space_params
         jit.AddConstant(MakeJitConstant(name + "_BATCH", vec[0]));
         jit.AddConstant(MakeJitConstant(name + "_FEATURE", vec[1]));
 
-        switch(vec.size()){
+        switch(vec.size()) {
             case 4: //BFYX
-            jit.AddConstant(MakeJitConstant(name + "_W", default_value));
-            jit.AddConstant(MakeJitConstant(name + "_Z", default_value));
-            jit.AddConstant(MakeJitConstant(name + "_Y", vec[2]));
-            jit.AddConstant(MakeJitConstant(name + "_X", vec[3]));
+                jit.AddConstant(MakeJitConstant(name + "_W", default_value));
+                jit.AddConstant(MakeJitConstant(name + "_Z", default_value));
+                jit.AddConstant(MakeJitConstant(name + "_Y", vec[2]));
+                jit.AddConstant(MakeJitConstant(name + "_X", vec[3]));
             break;
             case 5: //BFZYX
-            jit.AddConstant(MakeJitConstant(name + "_W", default_value));
-            jit.AddConstant(MakeJitConstant(name + "_Z", vec[2]));
-            jit.AddConstant(MakeJitConstant(name + "_Y", vec[3]));
-            jit.AddConstant(MakeJitConstant(name + "_X", vec[4]));
+                jit.AddConstant(MakeJitConstant(name + "_W", default_value));
+                jit.AddConstant(MakeJitConstant(name + "_Z", vec[2]));
+                jit.AddConstant(MakeJitConstant(name + "_Y", vec[3]));
+                jit.AddConstant(MakeJitConstant(name + "_X", vec[4]));
             break;
             case 6: //BFWZYX
-            jit.AddConstant(MakeJitConstant(name + "_W", vec[2]));
-            jit.AddConstant(MakeJitConstant(name + "_Z", vec[3]));
-            jit.AddConstant(MakeJitConstant(name + "_Y", vec[4]));
-            jit.AddConstant(MakeJitConstant(name + "_X", vec[5]));
+                jit.AddConstant(MakeJitConstant(name + "_W", vec[2]));
+                jit.AddConstant(MakeJitConstant(name + "_Z", vec[3]));
+                jit.AddConstant(MakeJitConstant(name + "_Y", vec[4]));
+                jit.AddConstant(MakeJitConstant(name + "_X", vec[5]));
             break;
         }
     };

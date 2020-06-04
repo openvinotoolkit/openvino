@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2019 Intel Corporation
+// Copyright (c) 2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -67,18 +67,12 @@ namespace detail {
 
 attach_batch_to_space_gpu::attach_batch_to_space_gpu() {
     auto val_fw = batch_to_space_gpu::create;
-    implementation_map<batch_to_space>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx),
-                                            val_fw);
-    implementation_map<batch_to_space>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx),
-                                            val_fw);
-    implementation_map<batch_to_space>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfzyx),
-                                           val_fw);
-    implementation_map<batch_to_space>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfzyx),
-                                           val_fw);
-    implementation_map<batch_to_space>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfwzyx),
-                                           val_fw);
-    implementation_map<batch_to_space>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfwzyx),
-                                           val_fw);
+    implementation_map<batch_to_space>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx), val_fw);
+    implementation_map<batch_to_space>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx), val_fw);
+    implementation_map<batch_to_space>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfzyx), val_fw);
+    implementation_map<batch_to_space>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfzyx), val_fw);
+    implementation_map<batch_to_space>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfwzyx), val_fw);
+    implementation_map<batch_to_space>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfwzyx), val_fw);
 }
 
 }  // namespace detail

@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2019 Intel Corporation
+// Copyright (c) 2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -28,7 +28,6 @@ primitive_type_id cldnn::batch_to_space::type_id() {
     static primitive_type_base<batch_to_space> instance;
     return &instance;
 }
-
 
 layout batch_to_space_inst::calc_output_layout(batch_to_space_node const& node) {
     auto desc = node.get_primitive();
@@ -86,28 +85,27 @@ layout batch_to_space_inst::calc_output_layout(batch_to_space_node const& node) 
 
     std::vector<int32_t> output_shape;
     output_shape.reserve(dims_num);
-    for (size_t i = 1; i < dims_num; ++i){
+    for (size_t i = 1; i < dims_num; ++i) {
         output_shape.emplace_back(input_layout.size.sizes(input_format)[i] * block_shape[i] - crops_begin[i] - crops_end[i]);
     }
 
     switch(input_format) {
         case format::bfzyx:
-        return layout {
-            input_layout.data_type,
-            input_format,
-            tensor(batch(output_batch), feature(output_shape[0]), spatial(output_shape[3], output_shape[2],
-                                                                   output_shape[1]))};
+            return layout {
+                input_layout.data_type,
+                input_format,
+                tensor(batch(output_batch), feature(output_shape[0]), spatial(output_shape[3], output_shape[2], output_shape[1]))};
         case format::bfwzyx:
-        return layout {
-            input_layout.data_type,
-            input_format,
-            tensor(batch(output_batch), feature(output_shape[0]), spatial(output_shape[4], output_shape[3],
-                                                                   output_shape[2], output_shape[1]))};
+            return layout {
+                input_layout.data_type,
+                input_format,
+                tensor(batch(output_batch), feature(output_shape[0]), spatial(output_shape[4], output_shape[3],
+                                                                              output_shape[2], output_shape[1]))};
         default:
-        return layout {
-            input_layout.data_type,
-            input_format,
-            tensor(batch(output_batch), feature(output_shape[0]), spatial(output_shape[2], output_shape[1]))};
+            return layout {
+                input_layout.data_type,
+                input_format,
+                tensor(batch(output_batch), feature(output_shape[0]), spatial(output_shape[2], output_shape[1]))};
     }
 }
 

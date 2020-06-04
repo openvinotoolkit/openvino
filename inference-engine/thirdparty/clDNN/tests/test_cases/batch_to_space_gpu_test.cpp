@@ -1,4 +1,4 @@
-// Copyright (c) 2019 Intel Corporation
+// Copyright (c) 2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -395,7 +395,6 @@ TEST(batch_to_space_fp32_gpu, i8111_bs1222_cb0000_ce0000) {
     }
 }
 
-
 TEST(batch_to_space_fp32_gpu, i4321_bs1212_cb0000_ce0000) {
     //  Input  :      4x3x2x1
     //  Block shape : 1x2x1x2
@@ -460,7 +459,6 @@ TEST(batch_to_space_fp32_gpu, i4321_bs1212_cb0000_ce0000) {
     }
 }
 
-
 TEST(batch_to_space_fp32_gpu, i4321_bs1212_cb0010_ce0101) {
     //  Input  :      4x3x2x1
     //  Block shape : 1x2x1x2
@@ -521,7 +519,6 @@ TEST(batch_to_space_fp32_gpu, i4321_bs1212_cb0010_ce0101) {
         EXPECT_EQ(expected_results[i], output_ptr[i]);
     }
 }
-
 
 TEST(batch_to_space_fp32_gpu, i62121_bs12311_cb02000_ce00110) {
     //  Input  :      6x2x1x2x1
