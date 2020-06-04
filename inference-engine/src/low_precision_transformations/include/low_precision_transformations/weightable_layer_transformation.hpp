@@ -38,6 +38,14 @@ protected:
         std::vector<float>& dequantizationShifts,
         std::vector<float>& biasesShifts) const;
 
+    void updateLayerBiasesFcSpecific(
+        TransformationContext& context,
+        const CNNLayer& convolution,
+        const bool biasesDimsAsOutput,
+        std::vector<float>& dequantizationScales,
+        std::vector<float>& dequantizationShifts,
+        std::vector<float>& biasesShifts) const;
+
     void updateWeights(
         const CNNLayerPtr fakeQuantize,
         std::vector<float>& outputLowValues,

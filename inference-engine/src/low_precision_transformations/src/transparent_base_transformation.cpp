@@ -35,15 +35,13 @@ void TransparentBaseTransformation::transform(TransformationContext& context, CN
         std::vector<float> shifts;
         fillFromDequantizationLayer(*scaleShift, scales, shifts);
 
-        const size_t inputChannels = CNNNetworkHelper::getInputChannelsCount(layer);
-        const size_t outputChannels = CNNNetworkHelper::getOutputChannelsCount(layer);
-        if (inputChannels != outputChannels) {
+        const size_t outputChannelsCount = CNNNetworkHelper::getOutputChannelsCount(layer);
+        if (outputChannelsCount != CNNNetworkHelper::getInputChannelsCount(layer)) {
             if (!DequantizationDetails::isPerTensor(scales, shifts)) {
-                THROW_IE_LPT_EXCEPTION(layer) << "layer input and output channels count values are different for by channel quantization";
+                THROW_IE_LPT_EXCEPTION(layer) << "input and output channels count values are different for per channel quantization";
             }
-
-            scales = std::vector<float>(outputChannels, scales[0]);
-            shifts = std::vector<float>(outputChannels, shifts[0]);
+            scales = std::vector<float>(outputChannelsCount, scales[0]);
+            shifts = std::vector<float>(outputChannelsCount, shifts[0]);
         }
 
         CNNNetworkHelper::removeLayer(context.network, scaleShift);
