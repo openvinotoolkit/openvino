@@ -158,22 +158,31 @@ static void copyBlobAccordingUpperBound(
     auto outPtr = out->cbuffer().as<uint8_t *>();
     IE_ASSERT(outPtr != nullptr);
 
-    if (inDims.size() == 1) {
-        std::copy_n(
-            in->cbuffer().as<uint8_t*>(),
-            in->byteSize(),
-            out->buffer().as<uint8_t*>());
-    } else if (inDims.size() == 2) {
-        size_t inLineSize = inDims[1] * in->element_size();
-        size_t outLineSize = outDims[1] * out->element_size();
-        for (size_t n = 0; n < outDims[0]; n++) {
-            std::copy_n(
-                in->cbuffer().as<uint8_t*>() + n * inLineSize,
-                outLineSize,
-                out->buffer().as<uint8_t*>() + n * outLineSize);
-        }
-    } else {
+    if (inDims.size() > 4) {
         VPU_THROW_EXCEPTION << "Copying of blobs with dynamic shape and num dims greater than 2 unsupported yet";
+    }
+
+    const auto inLineSize = inDims.size() > 1 ? inDims[inDims.size() - 1] * in->element_size() : in->byteSize();
+    const auto outLineSize = outDims.size() > 1 ? outDims[inDims.size() - 1] * out->element_size() : out->byteSize();
+    const auto numLines = outDims.size() > 1 ? outDims[inDims.size() - 2] : 1;
+
+    const auto inChannelSize = inDims.size() > 2 ? inDims[inDims.size() - 2] * inLineSize : 1;
+    const auto outChannelSize = outDims.size() > 2 ? outDims[inDims.size() - 2] * outLineSize : 1;
+    const auto numChannels = outDims.size() > 2 ? outDims[inDims.size() - 3] : 1;
+
+    const auto inBatchSize = inDims.size() > 3 ? inDims[inDims.size() - 3] * inChannelSize : 1;
+    const auto outBtchSize = outDims.size() > 3 ? outDims[inDims.size() - 3] * outChannelSize : 1;
+    const auto numBatches = outDims.size() > 3 ? outDims[inDims.size() - 4] : 1;
+
+    for (size_t n = 0; n < numBatches; ++n) {
+        for (size_t c = 0; c < numChannels; ++c) {
+            for (size_t h = 0; h < numLines; ++h) {
+                std::copy_n(
+                        in->cbuffer().as<uint8_t*>() + n * inBatchSize + c * inChannelSize + h * inLineSize,
+                        outLineSize,
+                        out->buffer().as<uint8_t*>() + n * outBtchSize + c * outChannelSize + h * outLineSize);
+            }
+        }
     }
 }
 
