@@ -14,10 +14,10 @@
  limitations under the License.
 """
 
-from mo.utils.graph import Node
-from mo.utils.ir_reader.extender import Extender
 from extensions.front.tf.CTCGreedyDecoder import CTCGreedyDecoderReplacement
 from extensions.ops.ctc_greedy_decoder import CTCGreedyDecoderOp
+from mo.utils.graph import Node
+from mo.utils.ir_reader.extender import Extender
 
 
 class CTCGreedyDecoder_extender(Extender):
