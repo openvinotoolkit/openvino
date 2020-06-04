@@ -39,8 +39,8 @@ void PermuteTransformation::transform(TransformationContext& context, CNNLayer& 
     std::vector<float> dequantizationScales;
     std::vector<float> dequantizationShifts;
     fillFromDequantizationLayer(*scaleShift, dequantizationScales, dequantizationShifts);
-    if ((std::any_of(dequantizationScales.begin(), dequantizationScales.end(), [&](const float value) { return value != dequantizationScales[0]; })) ||
-        (std::any_of(dequantizationShifts.begin(), dequantizationShifts.end(), [&](const float value) { return value != dequantizationShifts[0]; }))) {
+
+    if (!DequantizationDetails::isPerTensor(dequantizationScales, dequantizationShifts)) {
         std::vector<unsigned int> orders = layer.GetParamAsUInts("order");
         if ((orders.size() < 2) || (orders[0] != 0U) || (orders[1] != 1U)) {
             return;
