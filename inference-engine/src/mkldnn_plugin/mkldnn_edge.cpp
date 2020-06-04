@@ -267,9 +267,20 @@ bool MKLDNNEdge::nodeCanChangeDesc(const MKLDNNNodePtr &node) const {
     return false;
 }
 
-/// In we have {any, any, any} -> {any} or {any} -> {any, any, any} or {any} -> {any} it means that
-/// layer doesn't change memory format
-/// We don't support {any, any, nchw} -> {any}
+/**
+ * The function return the selected layout for current Edge
+ * The decision based on layer configs info provided by each Node connected.
+ *
+ * General logic:
+ * If parent node strongly requests some layout it will be returned as result. If parent node can
+ * support any layout (just pass through it to parents), will ask layout recurrently while found
+ * strongly qualified.
+ *
+ * In we have {any, any, any} -> {any} or {any} -> {any, any, any} or {any} -> {any} it means that
+ * layer pass through layout.
+ *
+ * We don't support {any, any, nchw} -> {any}
+ */
 InferenceEngine::TensorDesc MKLDNNEdge::getSpecifiedInputDesc(std::map<mkldnn::memory::format, size_t> formats, size_t enterCountUp, size_t enterCountDown) {
     InferenceEngine::TensorDesc inDesc;
 
@@ -292,6 +303,8 @@ InferenceEngine::TensorDesc MKLDNNEdge::getSpecifiedInputDesc(std::map<mkldnn::m
     if (inDesc.getLayout() != InferenceEngine::Layout::ANY) {
         return inDesc;
     }
+
+    THROW_IE_EXCEPTION << "[AP] Guess this line will not reached ever. getSpecifiedInputDesc func.";
 
     bool isFormatChanging = nodeCanChangeDesc(parentPtr);
 
@@ -414,6 +427,8 @@ InferenceEngine::TensorDesc MKLDNNEdge::getSpecifiedOutputDesc(std::map<mkldnn::
     if (outDesc.getLayout() != InferenceEngine::Layout::ANY) {
         return outDesc;
     }
+
+    THROW_IE_EXCEPTION << "[AP] Guess this line will not reached ever. getSpecifiedOutputDesc func.";
 
     if (inputIdx >= parentPtr->getSelectedPrimitiveDescriptor()->getConfig().outConfs.size())
         inputIdx = 0;
