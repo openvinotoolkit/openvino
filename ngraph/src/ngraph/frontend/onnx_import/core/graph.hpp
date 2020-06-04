@@ -19,6 +19,7 @@
 #include <onnx/onnx_pb.h>
 #include <string>
 #include <vector>
+#include <memory>
 
 #include "default_opset.hpp"
 #include "graph_cache.hpp"
@@ -43,14 +44,14 @@ namespace ngraph
             bool is_node_in_cache(const std::string& name) const;
             std::shared_ptr<ngraph::Node> get_ng_node_from_cache(const std::string& name) const
             {
-                return m_cache.get_node(name);
+                return m_cache->get_node(name);
             }
             const std::string& get_name() const { return m_graph_proto->name(); }
             NodeVector make_ng_nodes(const Node& onnx_node) const;
-            const GraphCache& get_graph_cache() const;
+            const std::shared_ptr<GraphCache> get_graph_cache() const;
 
         protected:
-            Graph(const ONNX_NAMESPACE::GraphProto& proto, Model& model, GraphCache&& cache);
+            Graph(const ONNX_NAMESPACE::GraphProto& proto, Model& model, std::shared_ptr<GraphCache> cache);
 
             void set_friendly_names(const Node& onnx_node, const NodeVector& ng_node_vector) const;
 
@@ -64,7 +65,7 @@ namespace ngraph
 
         private:
             const ONNX_NAMESPACE::GraphProto* m_graph_proto;
-            GraphCache&& m_cache;
+            std::shared_ptr<GraphCache> m_cache;
             std::vector<Node> m_nodes;
             std::vector<ValueInfo> m_inputs;
             std::vector<ValueInfo> m_outputs;

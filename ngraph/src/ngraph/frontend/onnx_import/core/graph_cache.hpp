@@ -32,9 +32,9 @@ namespace ngraph
             public:
                 GraphCache(const ONNX_NAMESPACE::GraphProto& graph_proto);
 
-                virtual void set_node(const std::string& name, std::shared_ptr<ngraph::Node>&& node);
+                void set_node(const std::string& name, std::shared_ptr<ngraph::Node>&& node);
+                
                 virtual std::shared_ptr<ngraph::Node> get_node(const std::string& name) const;
-
                 virtual bool contains(const std::string& node_name) const;
 
             protected:
@@ -44,15 +44,13 @@ namespace ngraph
         class SubgraphCache : public GraphCache
         {
             public:
-                SubgraphCache(const ONNX_NAMESPACE::GraphProto& graph_proto, const GraphCache& parent_graph_cache);
+                SubgraphCache(const ONNX_NAMESPACE::GraphProto& graph_proto, const std::shared_ptr<GraphCache> parent_graph_cache);
                 
-                void set_node(const std::string& name, std::shared_ptr<ngraph::Node>&& node) override;
                 std::shared_ptr<ngraph::Node> get_node(const std::string& name) const override;
-
                 bool contains(const std::string& node_name) const override;
 
             private:
-                const GraphCache m_parent_graph_cache;
+                const std::shared_ptr<GraphCache> m_parent_graph_cache;
         };
         
     } // namespace onnx_import

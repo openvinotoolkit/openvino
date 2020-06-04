@@ -47,25 +47,10 @@ namespace ngraph
 
 
 
-        SubgraphCache::SubgraphCache(const ONNX_NAMESPACE::GraphProto& graph_proto, const GraphCache& parent_graph_cache)
+        SubgraphCache::SubgraphCache(const ONNX_NAMESPACE::GraphProto& graph_proto, const std::shared_ptr<GraphCache> parent_graph_cache)
             : GraphCache(graph_proto)
             , m_parent_graph_cache{parent_graph_cache}
         {
-        }
-
-        // TODO Not override
-        void SubgraphCache::set_node(const std::string& name, std::shared_ptr<ngraph::Node>&& node)
-        {
-            // present in subgraph
-            if(GraphCache::contains(name))
-            {
-                // TODO use [] ?
-                m_graph_cache_map[name] = std::move(node);
-            }
-            /*else // defined in parent graph scope
-            {
-               m_parent_graph_cache.set_node(name, std::move(node));
-            }*/
         }
 
         std::shared_ptr<ngraph::Node> SubgraphCache::get_node(const std::string& name) const
@@ -78,13 +63,13 @@ namespace ngraph
             }
             else // defined in parent graph scope
             {
-               return m_parent_graph_cache.get_node(name);
+               return m_parent_graph_cache->get_node(name);
             }
         }
 
         bool SubgraphCache::contains(const std::string& node_name) const
         {
-            return GraphCache::contains(node_name) || m_parent_graph_cache.contains(node_name);
+            return GraphCache::contains(node_name) || m_parent_graph_cache->contains(node_name);
         }
 
     } // namespace onnx_import

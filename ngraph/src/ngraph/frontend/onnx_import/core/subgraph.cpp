@@ -22,7 +22,7 @@ namespace ngraph
     namespace onnx_import
     {
         SubGraph::SubGraph(const ONNX_NAMESPACE::GraphProto& proto, Model& model, const Graph& parent_graph)
-            : Graph(proto, model, SubgraphCache{proto, parent_graph.get_graph_cache()})
+            : Graph(proto, model, std::make_shared<SubgraphCache>(proto, parent_graph.get_graph_cache()))
         {
         }
 
