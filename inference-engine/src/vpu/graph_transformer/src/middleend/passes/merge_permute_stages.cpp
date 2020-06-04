@@ -56,8 +56,8 @@ private:
     }
 
     static bool isTrivialPermute(const PermutationIndexVector& permuteDims, const vpu::DimValues& dims) {
-        auto defDims = DimsOrder::fromNumDims(dims.size());
-        std::vector<int> dimsVector(dims.size());
+        const auto defDims = DimsOrder::fromNumDims(dims.size());
+        InferenceEngine::SizeVector dimsVector(dims.size());
         for (const auto& dim : dims) {
             dimsVector[defDims.dimInd(dim.first)] = dim.second;
         }
