@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2019 Intel Corporation
+﻿// Copyright (c) 2019-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -117,7 +117,25 @@ struct quantize_fuse_params : fuse_params {
     , in_scale(in_scale)
     , in_shift(in_shift)
     , out_scale(out_scale)
-    , out_shift(out_shift) { }
+    , out_shift(out_shift) {
+        size_t index = 0;
+        if (has_clamp) {
+            in_range_lo_idx = index++;
+            in_range_hi_idx = index++;
+        }
+        if (!per_tensor_input_scale) {
+            in_scale_idx = index++;
+        }
+        if (!per_tensor_input_shift && has_pre_shift) {
+            in_shift_idx = index++;
+        }
+        if (!per_tensor_output_scale && has_post_scale) {
+            out_scale_idx = index++;
+        }
+        if (!per_tensor_output_shift && has_post_shift) {
+            out_shift_idx = index++;
+        }
+    }
 
     bool scale_shift_opt;
     bool has_post_scale;
@@ -137,6 +155,13 @@ struct quantize_fuse_params : fuse_params {
     float in_shift;
     float out_scale;
     float out_shift;
+
+    size_t in_range_lo_idx;
+    size_t in_range_hi_idx;
+    size_t in_scale_idx;
+    size_t in_shift_idx;
+    size_t out_scale_idx;
+    size_t out_shift_idx;
 };
 
 }  // namespace kernel_selector
