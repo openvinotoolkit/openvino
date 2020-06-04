@@ -48,6 +48,9 @@ namespace ngraph
 
                 int img_width = img[1];
                 int img_height = img[0];
+
+                // TODO: Uncomment after PriorBoxClustered is aligned with the specification.
+
                 //                int img_width = img_w_ == 0 ? img[1] : img_w_;
                 //                int img_height = img_h_ == 0 ? img[0] : img_h_;
 
@@ -63,14 +66,6 @@ namespace ngraph
                     step_w = static_cast<float>(img_width) / layer_width;
                     step_h = static_cast<float>(img_height) / layer_height;
                 }
-
-                std::cout << "PriorBoxClustered const fold" << std::endl;
-                std::cout << "layer_width = " << layer_width << std::endl;
-                std::cout << "layer_height = " << layer_height << std::endl;
-                std::cout << "img_width = " << img_width << std::endl;
-                std::cout << "img_height = " << img_height << std::endl;
-                std::cout << "step_w = " << step_w << std::endl;
-                std::cout << "step_h = " << step_h << std::endl;
 
                 int var_size = variances.size();
                 for (int h = 0; h < layer_height; ++h)

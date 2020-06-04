@@ -476,14 +476,14 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
     addSpecificCreator({"PriorBox"}, [](const std::shared_ptr<::ngraph::Node>& node,
                                        const std::map<std::string, std::string> params) -> CNNLayerPtr {
         THROW_IE_EXCEPTION << "PriorBox operation has a form that is not supported." << node->get_friendly_name()
-                           << " should be fused during constant folding.";
+                           << " should be replaced by constant during constant folding.";
         return nullptr;
     });
 
     addSpecificCreator({"PriorBoxClustered"}, [](const std::shared_ptr<::ngraph::Node>& node,
                                        const std::map<std::string, std::string> params) -> CNNLayerPtr {
         THROW_IE_EXCEPTION << "PriorBoxClustered operation has a form that is not supported." << node->get_friendly_name()
-                           << " should be fused during constant folding.";
+                           << " should be replaced by constant during constant folding.";
         return nullptr;
     });
 }
