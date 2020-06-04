@@ -55,19 +55,19 @@ private:
                                   permuteStage->output(0)->desc().dimsOrder());
     }
 
-    static bool isTrivialPermute(const PermutationIndexVector& permuteDims, const vpu::DimValues& dims) {
-        const auto defDims = DimsOrder::fromNumDims(dims.size());
+    static bool isTrivialPermute(const PermutationIndexVector& permutation, const vpu::DimValues& dims) {
         InferenceEngine::SizeVector dimsVector(dims.size());
         for (const auto& dim : dims) {
-            dimsVector[defDims.dimInd(dim.first)] = dim.second;
+            auto index = dimToIeInd(dim.first, dims.size());
+            dimsVector[index] = dim.second;
         }
 
-        for (size_t i = 0; i < permuteDims.size(); ++i) {
-            if (i != permuteDims[i]) {
-                bool swapAdjacentDims = permuteDims[i] == (i + 1) && permuteDims[i + 1] == i;
+        for (size_t i = 0; i < permutation.size() - 1; ++i) {
+            if (i != permutation[i]) {
+                bool swapAdjacentDims = permutation[i] == (i + 1) && permutation[i + 1] == i;
                 bool dimIsOne = dimsVector[i] == 1 || dimsVector[i + 1] == 1;
                 if (swapAdjacentDims && dimIsOne) {
-                        i++;
+                    i++;
                 } else {
                     return false;
                 }
