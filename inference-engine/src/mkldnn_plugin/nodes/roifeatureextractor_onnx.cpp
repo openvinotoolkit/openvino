@@ -323,7 +323,7 @@ public:
             output_dim_ = layer->GetParamAsInt("output_size");
             pyramid_scales_ = layer->GetParamAsInts("pyramid_scales");
             sampling_ratio_ = layer->GetParamAsInt("sampling_ratio");
-            aligned_ = layer->GetParamAsBool("aligned");
+            aligned_ = layer->GetParamAsBool("aligned", false);
             pooled_height_ = output_dim_;
             pooled_width_ = output_dim_;
 
