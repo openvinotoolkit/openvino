@@ -101,11 +101,12 @@ void MKLDNNFullyConnectedNode::getSupportedDescriptors() {
         THROW_IE_EXCEPTION << "Incorrect number of output edges for layer " << getName();
 
     MKLDNNDims inDims(fcLayer->input()->getDims());
+    MKLDNNDims outDims(fcLayer->outData[0]->getDims());
 
     if (inDims.ndims() == 2) {
         weightsDims = {fcLayer->_out_num, static_cast<size_t>(inDims[1])};
     } else if (inDims.ndims() == 3) {
-        weightsDims = {fcLayer->_out_num, static_cast<size_t>(inDims[2])};
+        weightsDims = {static_cast<size_t>(outDims[2]), static_cast<size_t>(inDims[2])};
     } else if (inDims.ndims() == 4) {
         weightsDims = {fcLayer->_out_num, static_cast<size_t>(inDims[1]), static_cast<size_t>(inDims[2]),
                        static_cast<size_t>(inDims[3])};
