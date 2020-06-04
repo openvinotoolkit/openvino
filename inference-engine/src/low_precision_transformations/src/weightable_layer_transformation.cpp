@@ -190,7 +190,7 @@ void WeightableLayerTransformation::updateLayerBiases(
         const bool broadcast = false;
         for (size_t channel = 0ul; channel < biases.size(); ++channel) {
             biases[channel] = broadcast ?
-                (biasesShifts[0] + biasesBuffer[0]) / dequantizationScales[0] :
+                (biasesShifts[0] + biasesBuffer[channel]) / dequantizationScales[0] :
                 (biasesShifts[channel] + biasesBuffer[channel]) / dequantizationScales[channel];
         }
         std::fill(dequantizationShifts.begin(), dequantizationShifts.end(), 0.f);

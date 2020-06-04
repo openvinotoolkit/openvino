@@ -67,11 +67,11 @@ INSTANTIATE_TEST_CASE_P(
         //    { { 1, 128, 12, 64 } },
         //    { { 128, 768 } }),
 
-        SingleLayerTransformationsTestParams(
-            "CPU",
-            SingleLayerTestModel::Ptr(new FullyConnectedTestModel({ 1, 128, 12, 64 }, { 1, 128, 768 })),
-            { { 1, 128, 12, 64 } },
-            { { 1, 128, 768 } }),
+//        SingleLayerTransformationsTestParams(
+//            "CPU",
+//            SingleLayerTestModel::Ptr(new FullyConnectedTestModel({ 1, 128, 12, 64 }, { 1, 128, 768 })),
+//            { { 1, 128, 12, 64 } },
+//            { { 1, 128, 768 } }),
 
         SingleLayerTransformationsTestParams(
             "CPU",
