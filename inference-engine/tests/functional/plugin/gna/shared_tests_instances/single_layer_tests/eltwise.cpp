@@ -13,11 +13,11 @@ namespace {
 std::vector<std::vector<std::vector<size_t>>> inShapes = {
         {{1, 200}},
         // TODO: Issue 32544
-//        {{2}},
-//        {{1, 1, 1, 3}},
-//        {{1, 2, 4}},
-//        {{1, 4, 4}},
-//        {{1, 4, 4, 1}}
+        // {{2}},
+        // {{1, 1, 1, 3}},
+        // {{1, 2, 4}},
+        // {{1, 4, 4}},
+        // {{1, 4, 4, 1}}
 };
 
 
@@ -36,10 +36,10 @@ std::vector<OpType> opTypes = {
         OpType::VECTOR,
 };
 
-std::vector<EltwiseOpType> eltwiseOpTypes = {
-        EltwiseOpType::MULTIPLY,
-        EltwiseOpType::SUBSTRACT,
-        EltwiseOpType::ADD
+std::vector<ngraph::helpers::EltwiseTypes> eltwiseOpTypes = {
+        ngraph::helpers::EltwiseTypes::MULTIPLY,
+        ngraph::helpers::EltwiseTypes::SUBTRACT,
+        ngraph::helpers::EltwiseTypes::ADD
 };
 
 std::map<std::string, std::string> additional_config = {

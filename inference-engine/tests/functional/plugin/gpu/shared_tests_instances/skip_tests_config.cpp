@@ -9,8 +9,6 @@
 
 std::vector<std::string> disabledTestPatterns() {
     return {
-        // TODO: Issue: 32521
-        R"(.*(EltwiseLayerTest).*secondaryInputType=CONSTANT.*netPRC=FP16.*)",
-        R"(.*(EltwiseLayerTest).*IS=.*1.1.1.1.*opType=SCALAR.*)"
+            R"(.*(EltwiseLayerTest).*IS=\(.*\..*\..*\..*\..*\).*secondaryInputType=PARAMETER.*opType=SCALAR.*)",
     };
 }

@@ -33,10 +33,10 @@ std::vector<OpType> opTypes = {
         OpType::VECTOR,
 };
 
-std::vector<EltwiseOpType> eltwiseOpTypes = {
-        EltwiseOpType::MULTIPLY,
-        EltwiseOpType::SUBSTRACT,
-        EltwiseOpType::ADD
+std::vector<ngraph::helpers::EltwiseTypes> eltwiseOpTypes = {
+        ngraph::helpers::EltwiseTypes::MULTIPLY,
+        ngraph::helpers::EltwiseTypes::SUBTRACT,
+        ngraph::helpers::EltwiseTypes::ADD
 };
 
 std::map<std::string, std::string> additional_config = {};

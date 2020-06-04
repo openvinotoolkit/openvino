@@ -14,39 +14,32 @@
 #include "single_layer_tests/eltwise.hpp"
 
 namespace LayerTestsDefinitions {
-const std::string EltwiseParams::InputLayerType_to_string(InputLayerType lt) {
-    switch (lt) {
-        case InputLayerType::CONSTANT:
-            return "CONSTANT";
-        case InputLayerType::PARAMETER:
-            return "PARAMETER";
+std::ostream& operator<<(std::ostream & os, EltwiseParams::InputLayerType type) {
+    switch (type) {
+        case EltwiseParams::InputLayerType::CONSTANT:
+            os << "CONSTANT";
+            break;
+        case EltwiseParams::InputLayerType::PARAMETER:
+            os << "PARAMETER";
+            break;
         default:
-            return "NOT_SUPPORTED_INPUT_LAYER_TYPE";
+            THROW_IE_EXCEPTION << "NOT_SUPPORTED_INPUT_LAYER_TYPE";
     }
+    return os;
 }
 
-const std::string EltwiseParams::EltwiseOpType_to_string(EltwiseOpType eOp) {
-    switch (eOp) {
-        case EltwiseOpType::ADD:
-            return "Sum";
-        case EltwiseOpType::MULTIPLY:
-            return "Prod";
-        case EltwiseOpType::SUBSTRACT:
-            return "Sub";
+std::ostream& operator<<(std::ostream & os, EltwiseParams::OpType type) {
+    switch (type) {
+        case EltwiseParams::OpType::SCALAR:
+            os << "SCALAR";
+            break;
+        case EltwiseParams::OpType::VECTOR:
+            os << "VECTOR";
+            break;
         default:
-            return "NOT_SUPPORTED_ELTWISE_OPERATION";
+            THROW_IE_EXCEPTION << "NOT_SUPPORTED_OP_TYPE";
     }
-}
-
-const std::string EltwiseParams::OpType_to_string(OpType op) {
-    switch (op) {
-        case OpType::SCALAR:
-            return "SCALAR";
-        case OpType::VECTOR:
-            return "VECTOR";
-        default:
-            return "NOT_SUPPORTED_ADDITION_TYPE";
-    }
+    return os;
 }
 
 std::string EltwiseLayerTest::getTestCaseName(testing::TestParamInfo<EltwiseTestParams> obj) {
@@ -54,16 +47,16 @@ std::string EltwiseLayerTest::getTestCaseName(testing::TestParamInfo<EltwiseTest
     InferenceEngine::Precision netPrecision;
     EltwiseParams::InputLayerType secondaryInputType;
     EltwiseParams::OpType opType;
-    EltwiseParams::EltwiseOpType eltwiseOpType;
+    ngraph::helpers::EltwiseTypes eltwiseOpType;
     std::string targetName;
     std::map<std::string, std::string> additional_config;
     std::tie(inputShapes, eltwiseOpType, secondaryInputType, opType, netPrecision, targetName, additional_config) = obj.param;
     std::ostringstream results;
 
     results << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
-    results << "eltwiseOpType=" << EltwiseParams::EltwiseOpType_to_string(eltwiseOpType) << "_";
-    results << "secondaryInputType=" << EltwiseParams::InputLayerType_to_string(secondaryInputType) << "_";
-    results << "opType=" << EltwiseParams::OpType_to_string(opType) << "_";
+    results << "eltwiseOpType=" << eltwiseOpType << "_";
+    results << "secondaryInputType=" << secondaryInputType << "_";
+    results << "opType=" << opType << "_";
     results << "netPRC=" << netPrecision.name() << "_";
     results << "targetDevice=" << targetName;
     return results.str();
@@ -74,59 +67,56 @@ void EltwiseLayerTest::SetUp() {
     InferenceEngine::Precision netPrecision;
     EltwiseParams::InputLayerType secondaryInputType;
     EltwiseParams::OpType opType;
-    EltwiseParams::EltwiseOpType eltwiseOpType;
+    ngraph::helpers::EltwiseTypes eltwiseType;
     std::map<std::string, std::string> additional_config;
-    std::tie(inputShapes, eltwiseOpType, secondaryInputType, opType, netPrecision, targetDevice, additional_config) = this->GetParam();
+    std::tie(inputShapes, eltwiseType, secondaryInputType, opType, netPrecision, targetDevice, additional_config) = this->GetParam();
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
+    std::vector<size_t> inputShape1, inputShape2;
+    if (inputShapes.size() == 1) {
+        inputShape1 = inputShape2 = inputShapes.front();
+    } else if (inputShapes.size() == 2) {
+        inputShape1 = inputShapes.front();
+        inputShape2 = inputShapes.back();
+    } else {
+        THROW_IE_EXCEPTION << "Incorrect number of input shapes";
+    }
+
     configuration.insert(additional_config.begin(), additional_config.end());
-    auto input = ngraph::builder::makeParams(ngPrc, {inputShapes[0]});
+    auto input = ngraph::builder::makeParams(ngPrc, {inputShape1});
 
     std::vector<size_t> shape_input_secondary;
     switch (opType) {
-        case EltwiseParams::OpType::SCALAR:
+        case EltwiseParams::OpType::SCALAR: {
             shape_input_secondary = std::vector<size_t>({1});
             break;
+        }
         case EltwiseParams::OpType::VECTOR:
-            shape_input_secondary = inputShapes[0];
+            shape_input_secondary = inputShape2;
             break;
         default:
-            FAIL() << "Unsupported SubtractionType: " << EltwiseParams::OpType_to_string(opType);
+            FAIL() << "Unsupported Secondary operation type";
     }
 
     std::shared_ptr<ngraph::Node> secondary_input;
     switch (secondaryInputType) {
-        case EltwiseParams::InputLayerType::CONSTANT:
-            secondary_input = ngraph::builder::makeConstant(ngPrc, shape_input_secondary, std::vector<float>{-1.0f});
+        case EltwiseParams::InputLayerType::CONSTANT: {
+            std::vector<float> data;
+            data.resize(ngraph::shape_size(inputShape2));
+            CommonTestUtils::fill_data_sine(data.data(), data.size(), 0, 10, 1);
+            secondary_input = ngraph::builder::makeConstant(ngPrc, inputShape2, data);
             break;
+        }
         case EltwiseParams::InputLayerType::PARAMETER:
             input.push_back(ngraph::builder::makeParams(ngPrc, {shape_input_secondary})[0]);
             secondary_input = input[1];
             break;
         default:
-            FAIL() << "Unsupported secondaryInputType: " << EltwiseParams::InputLayerType_to_string(secondaryInputType);
+            FAIL() << "Unsupported secondaryInputType";
     }
 
-    switch (eltwiseOpType) {
-        case EltwiseParams::EltwiseOpType::ADD: {
-            auto add = std::make_shared<ngraph::opset1::Add>(input[0], secondary_input);
-            function = std::make_shared<ngraph::Function>(add, input, "Add");
-            break;
-        }
-        case EltwiseParams::EltwiseOpType::SUBSTRACT: {
-            auto add = std::make_shared<ngraph::opset1::Subtract>(input[0], secondary_input);
-            function = std::make_shared<ngraph::Function>(add, input, "Substract");
-            break;
-        }
-        case EltwiseParams::EltwiseOpType::MULTIPLY: {
-            auto add = std::make_shared<ngraph::opset1::Subtract>(input[0], secondary_input);
-            function = std::make_shared<ngraph::Function>(add, input, "Multiply");
-            break;
-        }
-        default: {
-            THROW_IE_EXCEPTION << "Incorrect type of Eltwise operation";
-        }
-    }
+    auto eltwise = ngraph::builder::makeEltwise(input[0], secondary_input, eltwiseType);
+    function = std::make_shared<ngraph::Function>(eltwise, input, "Eltwise");
 }
 
 

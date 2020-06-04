@@ -19,28 +19,18 @@ namespace LayerTestsDefinitions {
 namespace EltwiseParams {
 enum class InputLayerType {
     CONSTANT,
-    PARAMETER
+    PARAMETER,
 };
 
 enum class OpType {
     SCALAR,
     VECTOR
 };
-
-enum class EltwiseOpType {
-    ADD,
-    SUBSTRACT,
-    MULTIPLY
-};
-
-const std::string InputLayerType_to_string(InputLayerType lt);
-const std::string EltwiseOpType_to_string(EltwiseOpType eOp);
-const std::string OpType_to_string(OpType op);
 } // namespace EltwiseParams
 
 typedef std::tuple<
     std::vector<std::vector<size_t>>,             // input shapes
-    EltwiseParams::EltwiseOpType,                 // eltwise op type
+    ngraph::helpers::EltwiseTypes,                // eltwise op type
     EltwiseParams::InputLayerType,                // secondary input type
     EltwiseParams::OpType,                        // op type
     InferenceEngine::Precision,                   // Net precision

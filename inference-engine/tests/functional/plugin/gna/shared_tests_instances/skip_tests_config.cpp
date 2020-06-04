@@ -32,14 +32,9 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO: FIX BUG 31661
         ".*Behavior.*CallbackThrowException.*",
         // TODO: FIX BUG 32210
-        R"(.*(Sigmoid|Tanh|Exp|Log).*)"
-                // TODO: Issue 32541
-        R"(.*(EltwiseLayerTest).*eltwiseOpType=Prod.*secondaryInputType=PARAMETER.*)",
+        R"(.*(Sigmoid|Tanh|Exp|Log).*)",
         // TODO: Issue 32542
-        R"(.*(EltwiseLayerTest).*eltwiseOpType=Su.*opType=SCALAR.*)",
-        // TODO: Issue 32521
-        R"(.*(EltwiseLayerTest).*eltwiseOpType=Sub.*netPRC=FP16.*")",
-        R"(.*(EltwiseLayerTest).*secondaryInputType=CONSTANT.*netPRC=FP16.*)",
-        R"(.*(EltwiseLayerTest).*eltwiseOpType=Prod.*secondaryInputType=CONSTANT_opType=SCALAR_netPRC=FP32.*)",
+        R"(.*(EltwiseLayerTest).*eltwiseOpType=(Sum|Sub).*opType=SCALAR.*)",
+        R"(.*(EltwiseLayerTest).*eltwiseOpType=Prod.*secondaryInputType=PARAMETER.*opType=SCALAR.*)",
     };
 }
