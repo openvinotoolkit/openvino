@@ -276,13 +276,13 @@ std::shared_ptr<ngraph::Node> makeScatterUpdate(const ngraph::Output<Node> &in,
                                                 std::size_t axis);
 
 std::shared_ptr<ngraph::Node> makeScatterElementsUpdate(const ngraph::Output<Node> &in,
-                                                const ngraph::Output<Node> &indices,
-                                                const ngraph::Output<Node> &update,
-                                                std::size_t axis);
+                                                        const ngraph::Output<Node> &indices,
+                                                        const ngraph::Output<Node> &update,
+                                                        std::size_t axis);
 
 std::shared_ptr<ngraph::Node> makeScatterNDUpdate(const ngraph::Output<Node> &in,
-                                                const ngraph::Output<Node> &indices,
-                                                const ngraph::Output<Node> &update);
+                                                  const ngraph::Output<Node> &indices,
+                                                  const ngraph::Output<Node> &update);
 
 }  // namespace builder
 }  // namespace ngraph
