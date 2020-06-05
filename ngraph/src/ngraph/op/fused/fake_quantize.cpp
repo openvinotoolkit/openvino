@@ -184,3 +184,4 @@ shared_ptr<Node> op::FakeQuantize::clone_with_new_inputs(const OutputVector& new
                                      m_levels,
                                      m_auto_broadcast);
 }
+

@@ -89,6 +89,7 @@ namespace ngraph
                     m_auto_broadcast = auto_broadcast;
                 }
 
+
             private:
                 std::size_t m_levels;
                 AutoBroadcastSpec m_auto_broadcast;

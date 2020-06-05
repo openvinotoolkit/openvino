@@ -437,25 +437,60 @@ DataPrecision WeightableLayerTransformation::decomposeFakeQuantizeForWeightsPath
     auto outputLow = fq->input_value(3);
     auto outputHigh = fq->input_value(4);
 
+    std::shared_ptr<Node> scale;
+    std::shared_ptr<Node> shift;
+
     if (dataPrecision.precision.is_signed()) {
         // I8
-        auto scale = fold<opset1::Divide>(
-                fold<opset1::Subtract>(outputHigh, outputLow),
-                fold<opset1::Subtract>(newMax, newMin));
+        scale = fold<opset1::Divide>(
+                    fold<opset1::Subtract>(outputHigh, outputLow),
+                    fold<opset1::Subtract>(newMax, newMin));
 
         auto actualLowPartQuantValue = fold<opset1::Abs>(fold<opset1::Divide>(outputLow, newMin));
         auto actualHighPartQuantValue = fold<opset1::Abs>(fold<opset1::Divide>(outputHigh, newMax));
 
-        auto shift = fold<opset1::Select>(
-                fold<opset1::Less>(actualLowPartQuantValue, actualHighPartQuantValue),
-                fold<opset1::Subtract>(outputLow, fold<opset1::Multiply>(newMin, scale)),
-                fold<opset1::Subtract>(outputHigh, fold<opset1::Multiply>(newMax, scale)));
+        shift = fold<opset1::Select>(
+                    fold<opset1::Less>(actualLowPartQuantValue, actualHighPartQuantValue),
+                        fold<opset1::Subtract>(outputLow, fold<opset1::Multiply>(newMin, scale)),
+                        fold<opset1::Subtract>(outputHigh, fold<opset1::Multiply>(newMax, scale)));
         auto my = shift;
 
     } else {
         // U8
+        // TODO
         assert(false);
     }
+
+    // Build a substitution sub-graph:
+    auto newFQ = make_shared<opset1::Convert>(fold<opset1::Convert>(fold_fake_quantize<opset1::FakeQuantize>(
+            fq->input_value(0),
+            fq->input_value(1),
+            fq->input_value(2),
+            newMin->output(0),
+            newMax->output(0),
+            fq->get_levels(),
+            fq->get_auto_broadcast()), dataPrecision.precision), fq->get_output_element_type(0));
+
+//    auto denormalization = make_shared<op::TypeRelaxed<ngraph::op::MultiplyAdd>>(
+//            ngraph::op::MultiplyAdd(std::shared_ptr<Node>(op::AutoReplaceOutputType(
+//                    newFQ, fq->get_output_element_type(0))), scale, shift), fq->get_output_element_type(0));
+
+    auto denormalization = make_shared<ngraph::op::MultiplyAdd>(newFQ, scale, shift);
+    replace_node(fq, denormalization);
+    // Make type-relaxed node
+
+#if 0
+    // FIXME: is it needed?
+    if (fabs(dequantizationScale) < minQuantizationScale) {
+        dequantizationScales[channel] = minQuantizationScale;
+        denormalOutputValuesWasUpdated = true;
+    } else if (fabs(dequantizationScale) > maxQuantizationScale) {
+        dequantizationScales[channel] = dequantizationScale > 0.f ? maxQuantizationScale : -maxQuantizationScale;
+        denormalOutputValuesWasUpdated = true;
+    } else {
+        dequantizationScales[channel] = dequantizationScale;
+    }
+#endif
 
     return dataPrecision;
 }

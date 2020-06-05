@@ -318,13 +318,26 @@ template <typename T>
 static std::string pretty_value(const vector<T>& value)
 {
     std::stringstream ss;
-    bool first = true;
-    for (const auto& i : value)
+    if(value.empty())
     {
-        if (!first)
-            ss << ", ";
-        ss << i;
-        first = false;
+        return "";
+    }
+    const size_t max_size = 64;
+    if(value.size() > max_size && std::equal(value.begin() + 1, value.end(), value.begin()))
+    {
+        ss << "populated with " << value[0];
+    }
+    else {
+        for (size_t i = 0; i < value.size() && i < max_size; ++i) {
+            if (i) {
+                ss << ", ";
+                if(i%5 == 0)
+                    ss << "\n";
+            }
+            ss << value[i];
+        }
+        if (value.size() > max_size)
+            ss << "...";
     }
     return ss.str();
 }
@@ -449,7 +462,7 @@ string pass::VisualizeTree::get_node_name(shared_ptr<Node> node)
               pretty_partial_shape(output.get_partial_shape()) + '<' + output.get_element_type().get_type_name() + '>';
 
     rc += "\\n";
-    if (node->is_constant() && ngraph::shape_size(node->get_shape()) <= 24)
+    if (node->is_constant())
     {
         rc += "value: ";
         const auto constant = as_type_ptr<op::Constant>(node);

@@ -20,6 +20,7 @@
 #include "transformation_context.hpp"
 #include "quantization_details.hpp"
 #include "ngraph_ops/multiply_add.hpp"
+#include "transformations/utils/utils.hpp"
 
 namespace ngraph {
 namespace pass {
@@ -329,6 +330,49 @@ std::shared_ptr<Node> fold(Args&&... args) {
     }
     return node;
 }
+
+template <typename T, typename... Args>
+std::shared_ptr<Node> fold_reshape(Args&&... args) {
+    std::shared_ptr<Node> node = std::make_shared<T>(std::forward<Args>(args)...);
+    if (node->get_output_size() == 1) {
+        OutputVector folded;
+        if (node->input_value(0).get_node_shared_ptr()->is_constant() && node->input_value(1).get_node_shared_ptr()->is_constant()) {
+            return std::make_shared<opset1::Constant>(
+                    node->get_input_element_type(0),
+                    Shape(as_type_ptr<opset1::Constant>(node->input_value(1).get_node_shared_ptr())->template cast_vector<uint64_t>()),
+                    as_type_ptr<opset1::Constant>(node->input_value(0).get_node_shared_ptr())->get_data_ptr());
+        }
+    }
+    return node;
+}
+
+template <typename T, typename... Args>
+std::shared_ptr<Node> fold_fake_quantize(Args&&... args) {
+    std::shared_ptr<Node> node = std::make_shared<T>(std::forward<Args>(args)...);
+    if (node->get_output_size() == 1) {
+        OutputVector folded;
+        if (node->input_value(0).get_node_shared_ptr()->is_constant() &&
+            node->input_value(1).get_node_shared_ptr()->is_constant() &&
+            node->input_value(2).get_node_shared_ptr()->is_constant() &&
+            node->input_value(3).get_node_shared_ptr()->is_constant() &&
+            node->input_value(4).get_node_shared_ptr()->is_constant() &&
+            op::util::constantIsEqualTo(as_type_ptr<opset1::Constant>(node->input_value(1).get_node_shared_ptr()), 0) &&
+            op::util::constantIsEqualTo(as_type_ptr<opset1::Constant>(node->input_value(2).get_node_shared_ptr()), 254) &&
+            op::util::constantIsEqualTo(as_type_ptr<opset1::Constant>(node->input_value(3).get_node_shared_ptr()), -127) &&
+            op::util::constantIsEqualTo(as_type_ptr<opset1::Constant>(node->input_value(4).get_node_shared_ptr()), 127)) {
+            return fold<opset1::Subtract>(node->input_value(0), node->input_value(3));
+        }
+    }
+    return node;
+}
+
+std::shared_ptr<Node> getConstantInput(std::shared_ptr<Node> node);
+
+// Optimizes the series of multiplies after a given output port
+std::shared_ptr<Node> optimizeMultipliesAfter(std::shared_ptr<Node> multiply);
+
+std::shared_ptr<opset1::Constant> roundWithTolerance(std::shared_ptr<Node> node, element::Type target_type, float tolerance = 1e-5);
+std::shared_ptr<opset1::Constant> tryConvert(std::shared_ptr<Node> node, element::Type target_type);
 
 }  // namespace low_precision
 }  // namespace pass
