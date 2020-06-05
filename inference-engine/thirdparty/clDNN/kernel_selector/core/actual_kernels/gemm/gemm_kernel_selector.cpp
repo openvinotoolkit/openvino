@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2018 Intel Corporation
+// Copyright (c) 2018-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,9 +16,13 @@
 
 #include "gemm_kernel_selector.h"
 #include "gemm_kernel_ref.h"
+#include "gemm_kernel_mmad_int8.h"
 
 namespace kernel_selector {
-gemm_kernel_selector::gemm_kernel_selector() { Attach<GemmKernelRef>(); }
+gemm_kernel_selector::gemm_kernel_selector() {
+    Attach<GemmKernelRef>();
+    Attach<GemmKernelMMADint8>();
+}
 
 KernelsData gemm_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const {
     return GetNaiveBestKernel(params, options, KernelType::GEMM);
