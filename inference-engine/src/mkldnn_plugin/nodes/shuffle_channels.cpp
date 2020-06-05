@@ -7,6 +7,7 @@
 #include <cmath>
 #include <string>
 #include <vector>
+#include <set>
 #include <cassert>
 #include "ie_parallel.hpp"
 
@@ -58,11 +59,9 @@ public:
             if (src_dims.size() != dst_dims.size())
                 THROW_IE_EXCEPTION << layer->name << " Incorrect number of input/output dimensions!";
 
-            if (layer->insData[0].lock()->getTensorDesc().getPrecision() != Precision::FP32)
-                THROW_IE_EXCEPTION << layer->name << " Incorrect input precision. Only F32 is supported!";
-
-            if (layer->outData[0]->getTensorDesc().getPrecision() != Precision::FP32)
-                THROW_IE_EXCEPTION << layer->name << " Incorrect output precision. Only F32 is supported!";
+            const auto precision = layer->insData[0].lock()->getTensorDesc().getPrecision();
+            if (_supported_precisions_sizes.find(precision.size()) == _supported_precisions_sizes.end())
+                THROW_IE_EXCEPTION << layer->name << "has unsupported precision: " << precision.name();
 
             int axis = layer->GetParamAsInt("axis", 1);
             if (axis < 0)
@@ -93,17 +92,62 @@ public:
             ownStrides[2] = own_dims[1];
             work_amount_dst = ownStrides[0] * own_dims[0];
 
-            addConfig(layer, { DataConfigurator(ConfLayout::PLN) }, { DataConfigurator(ConfLayout::PLN) });
+            LayerConfig config;
+            DataConfig inConfig;
+            inConfig.desc = layer->insData[0].lock()->getTensorDesc();
+
+            config.inConfs.push_back(inConfig);
+
+            DataConfig outConfig;
+            outConfig.desc = layer->outData[0]->getTensorDesc();
+            outConfig.desc.setPrecision(inConfig.desc.getPrecision());
+            outConfig.desc.setLayout(inConfig.desc.getLayout());
+            config.outConfs.push_back(outConfig);
+
+            config.dynBatchSupport = false;
+            confs.push_back(config);
         } catch (InferenceEngine::details::InferenceEngineException &ex) {
             errorMsg = ex.what();
         }
     }
 
     StatusCode execute(std::vector<Blob::Ptr>& inputs, std::vector<Blob::Ptr>& outputs, ResponseDesc *resp) noexcept override {
-        const float *src_data = inputs[0]->cbuffer().as<const float *>() +
-            inputs[0]->getTensorDesc().getBlockingDesc().getOffsetPadding();
-        float* dst_data = outputs[0]->cbuffer().as<float *>() +
-            outputs[0]->getTensorDesc().getBlockingDesc().getOffsetPadding();
+        switch (inputs[0]->getTensorDesc().getPrecision().size()) {
+            case 1: {
+                process_data<PrecisionTrait<Precision::U8>::value_type>(inputs, outputs);
+                break;
+            }
+            case 2: {
+                process_data<PrecisionTrait<Precision::U16>::value_type>(inputs, outputs);
+                break;
+            }
+            case 4: {
+                process_data<PrecisionTrait<Precision::I32>::value_type>(inputs, outputs);
+                break;
+            }
+            case 8: {
+                process_data<PrecisionTrait<Precision::U64>::value_type>(inputs, outputs);
+                break;
+            }
+            default: {
+                if (resp) {
+                    std::string errorMsg = "ShuffleChannels layer does not support precision '"
+                                           + std::string(inputs[0]->getTensorDesc().getPrecision().name()) + "'";
+                    errorMsg.copy(resp->msg, sizeof(resp->msg) - 1);
+                }
+                return GENERAL_ERROR;
+            }
+        }
+
+        return OK;
+    }
+
+    template<typename T>
+    void process_data(std::vector<Blob::Ptr>& inputs, std::vector<Blob::Ptr>& outputs) noexcept {
+        const T* src_data = inputs[0]->cbuffer().as<const T*>() +
+                                inputs[0]->getTensorDesc().getBlockingDesc().getOffsetPadding();
+        T* dst_data = outputs[0]->cbuffer().as<T*>() +
+                          outputs[0]->getTensorDesc().getBlockingDesc().getOffsetPadding();
 
         if (dataLength > 1) {
             //  Vectorized & Parallel
@@ -113,7 +157,7 @@ public:
                 splitter(work_amount_dst, nthr, ithr, start, end);
                 src_idx = initter(start, CNTR_SIZE, counters, own_dims, ownStrides);
                 for (size_t iwork = start, dst_idx = start * dataLength; iwork < end; ++iwork, dst_idx += dataLength) {
-                    memcpy(&dst_data[dst_idx], &src_data[dataLength * src_idx], sizeof(float) * dataLength);
+                    memcpy(&dst_data[dst_idx], &src_data[dataLength * src_idx], sizeof(T) * dataLength);
                     src_idx = updater(src_idx, CNTR_SIZE, counters, own_dims, ownStrides);
                 }
             });
@@ -130,8 +174,6 @@ public:
                 }
             });
         }
-
-        return OK;
     }
 
 private:
@@ -139,7 +181,11 @@ private:
     size_t work_amount_dst;
     size_t own_dims[CNTR_SIZE];
     size_t ownStrides[CNTR_SIZE];
+
+    static const std::set<size_t> _supported_precisions_sizes;
 };
+
+const std::set<size_t> ShuffleChannelsImpl::_supported_precisions_sizes = {1, 2, 4, 8};
 
 REG_FACTORY_FOR(ShuffleChannelsImpl, ShuffleChannels);
 

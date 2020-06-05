@@ -1381,6 +1381,20 @@ CNNLayer::Ptr NodeConverter<ngraph::op::SquaredDifference>::createLayer(const st
 }
 
 template <>
+CNNLayer::Ptr NodeConverter<ngraph::op::ShuffleChannels>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
+    LayerParams params = {layer->get_friendly_name(), "ShuffleChannels", details::convertPrecision(layer->get_output_element_type(0))};
+
+    auto res = std::make_shared<InferenceEngine::ShuffleChannelsLayer>(params);
+    auto castedLayer = ngraph::as_type_ptr<ngraph::op::ShuffleChannels>(layer);
+    if (castedLayer == nullptr) THROW_IE_EXCEPTION << "Cannot get " << params.type << " layer " << params.name;
+
+    res->params["axis"] = std::to_string(castedLayer->get_axis());
+    res->params["group"] = std::to_string(castedLayer->get_group());
+
+    return res;
+}
+
+template <>
 CNNLayer::Ptr NodeConverter<ngraph::op::DetectionOutput>::createLayer(
     const std::shared_ptr<ngraph::Node>& layer) const {
     LayerParams params = {layer->get_friendly_name(), "DetectionOutput",
