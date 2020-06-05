@@ -25,6 +25,11 @@ jobs:
       # For running Python API tests
       python3 -m pip install -r ./inference-engine/ie_bridges/python/src/requirements-dev.txt
     displayName: 'Install dependencies'
+  - script: |
+      curl -Ls https://github.com/ninja-build/ninja/releases/download/v1.10.0/ninja-linux.zip -o ninja-linux.zip
+      unzip ninja-linux.zip
+      sudo cp -v ninja /usr/local/bin/
+    displayName: 'Install Ninja'
   - script: git submodule update --init --recursive
     displayName: 'Clone submodules'
   - script: |
@@ -35,11 +40,11 @@ jobs:
     inputs:
       workingDirectory: dldt-build
       # CMake must get Python 3.x version by default
-      cmakeArgs: .. -DVERBOSE_BUILD=ON -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DENABLE_PYTHON=ON -DPYTHON_EXECUTABLE=/usr/bin/python3.6 -DENABLE_TESTS=ON
-  - script: make -j12
+      cmakeArgs: .. -GNinja -DVERBOSE_BUILD=ON -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DENABLE_PYTHON=ON -DPYTHON_EXECUTABLE=/usr/bin/python3.6 -DENABLE_TESTS=ON
+  - script: ninja
     workingDirectory: dldt-build
-    displayName: 'Build IE'
-  - script: ls -alR ../bin/intel64/$(BUILD_TYPE)/
+    displayName: 'Build Lin'
+  - script: ls -alR ../bin/
     workingDirectory: dldt-build
     displayName: 'List files'
   - script: ../bin/intel64/$(BUILD_TYPE)/unit-test --gtest_print_time=1 --gtest_filter=-backend_api.config_unsupported:*IE_GPU*
@@ -94,17 +99,18 @@ jobs:
     workingDirectory: dldt-build
     displayName: 'IE CAPITests'
     continueOnError: false
-#  - script: |
-#      export DATA_PATH=`pwd`/../testdata
-#      export MODELS_PATH=`pwd`/../testdata
-#      export LD_LIBRARY_PATH=`pwd`/../bin/intel64/$(BUILD_TYPE)/lib
-#      export PYTHONPATH=`pwd`/../bin/intel64/$(BUILD_TYPE)/lib/python_api/python3.6
-#      env
-#      cd ../inference-engine/ie_bridges/python/tests
-#      pytest
-#    workingDirectory: dldt-build
-#    displayName: 'Python API Tests'
-#    continueOnError: false
+  - script: |
+      export DATA_PATH=`pwd`/../testdata
+      export MODELS_PATH=`pwd`/../testdata
+      export LD_LIBRARY_PATH=`pwd`/../bin/intel64/$(BUILD_TYPE)/lib
+      export PYTHONPATH=`pwd`/../bin/intel64/$(BUILD_TYPE)/lib/python_api/python3.6
+      env
+      cd ../inference-engine/ie_bridges/python/tests
+      pytest
+    workingDirectory: dldt-build
+    displayName: 'Python API Tests'
+    continueOnError: false
+    enabled: false
 
 - job: Mac
   timeoutInMinutes: 150
@@ -128,10 +134,11 @@ jobs:
       sysctl -a | grep machdep.cpu
     displayName: 'System properties'
   - script: |
-      brew install ninja
       brew install cython
       brew install automake
     displayName: 'Install dependencies'
+  - script: brew install ninja
+    displayName: 'Install Ninja'
   - script: git submodule update --init --recursive
     displayName: 'Clone submodules'
   - script: |
@@ -140,13 +147,13 @@ jobs:
     displayName: 'Create build directory'
   - script: |
       export PATH="/usr/local/opt/cython/bin:$PATH"
-      cmake .. -DVERBOSE_BUILD=ON -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DENABLE_PYTHON=ON -DENABLE_TESTS=ON
+      cmake .. -GNinja -DVERBOSE_BUILD=ON -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DENABLE_PYTHON=ON -DENABLE_TESTS=ON
     workingDirectory: dldt-build
     displayName: 'CMake'
-  - script: make -j3
+  - script: ninja
     workingDirectory: dldt-build
-    displayName: 'Build IE'
-  - script: ls -alR ../bin/intel64/$(BUILD_TYPE)/
+    displayName: 'Build Mac'
+  - script: ls -alR ../bin/
     workingDirectory: dldt-build
     displayName: 'List files'
   - script: ../bin/intel64/$(BUILD_TYPE)/unit-test --gtest_print_time=1 --gtest_filter=-backend_api.config_unsupported:*IE_GPU*:IE_CPU.onnx_model_sigmoid
@@ -206,6 +213,8 @@ jobs:
   variables:
     BUILD_TYPE: Release
     BUILD_DIR: D:\dldt-build
+    MSVS_VARS_PATH: C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat
+    MSVC_COMPILER_PATH: C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Tools\MSVC\14.24.28314\bin\Hostx64\x64\cl.exe
   steps:
   - script: |
       set
@@ -213,6 +222,8 @@ jobs:
       wmic logicaldisk get description,name
       wmic VOLUME list
     displayName: 'System properties'
+  - script: choco install ninja
+    displayName: Install Ninja
   - script: git submodule update --init --recursive
     displayName: 'Clone submodules'
   - script: |
@@ -221,15 +232,13 @@ jobs:
       rd /Q /S dldt-build
       mkdir dldt-build
     displayName: 'Create build directory'
-  - task: CMake@1
-    inputs:
-      #cmakeArgs: -G"Visual Studio 15 2017 Win64" -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DENABLE_TESTS=ON $(Build.Repository.LocalPath)
-      cmakeArgs: -G"Visual Studio 16 2019" -A x64 -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DENABLE_TESTS=ON $(Build.Repository.LocalPath)
-      workingDirectory: $(BUILD_DIR)
-  - script: cmake --build . --config $(BUILD_TYPE) -j12
+  - script: call "$(MSVS_VARS_PATH)" && cmake -GNinja -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DENABLE_TESTS=ON -DCMAKE_C_COMPILER:PATH="$(MSVC_COMPILER_PATH)" -DCMAKE_CXX_COMPILER:PATH="$(MSVC_COMPILER_PATH)" $(Build.Repository.LocalPath)
     workingDirectory: $(BUILD_DIR)
-    displayName: 'Build IE VS2019'
-  - script: dir ..\bin\intel64\$(BUILD_TYPE)\ /s /b
+    displayName: 'CMake'
+  - script: call "$(MSVS_VARS_PATH)" && ninja
+    workingDirectory: $(BUILD_DIR)
+    displayName: 'Build Win'
+  - script: dir ..\bin\ /s /b
     workingDirectory: dldt-build
     displayName: 'List files'
   - script: |
