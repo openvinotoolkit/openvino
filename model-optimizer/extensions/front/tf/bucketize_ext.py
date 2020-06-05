@@ -27,5 +27,5 @@ class BucketizeFrontExtractor(FrontExtractorOp):
     @classmethod
     def extract(cls, node):
         boundaries = np.array(node.pb.attr['boundaries'].list.f, dtype=np.float)
-        Bucketize.update_node_stat(node, {'boundaries': boundaries, 'with_right_bound': False})
+        Bucketize.update_node_stat(node, {'boundaries': boundaries, 'with_right_bound': False, 'output_type': np.int32})
         return cls.enabled

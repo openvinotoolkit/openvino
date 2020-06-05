@@ -212,3 +212,17 @@ class LogicalNot(Activation):
 class Log(Activation):
     op = 'Log'
     operation = staticmethod(lambda x: np.log(x))
+
+
+class SoftPlus(Op):
+    op = 'SoftPlus'
+
+    def __init__(self, graph: Graph, attrs: dict):
+        mandatory_props = {
+            'op': self.op,
+            'type': None,
+            'in_ports_count': 1,
+            'out_ports_count': 1,
+            'infer': None
+        }
+        super().__init__(graph, mandatory_props, attrs)

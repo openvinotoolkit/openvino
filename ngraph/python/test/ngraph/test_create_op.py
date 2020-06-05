@@ -258,9 +258,9 @@ def test_lstm_sequence_operator_bidirectional(dtype):
     num_directions = 2
     seq_length = 2
 
-    X_shape = [seq_length, batch_size, input_size]
-    H_t_shape = [num_directions, batch_size, hidden_size]
-    C_t_shape = [num_directions, batch_size, hidden_size]
+    X_shape = [batch_size, seq_length, input_size]
+    H_t_shape = [batch_size, num_directions, hidden_size]
+    C_t_shape = [batch_size, num_directions, hidden_size]
     seq_len_shape = [batch_size]
     W_shape = [num_directions, 4 * hidden_size, input_size]
     R_shape = [num_directions, 4 * hidden_size, hidden_size]
@@ -323,9 +323,9 @@ def test_lstm_sequence_operator_reverse(dtype):
     num_directions = 1
     seq_length = 2
 
-    X_shape = [seq_length, batch_size, input_size]
-    H_t_shape = [num_directions, batch_size, hidden_size]
-    C_t_shape = [num_directions, batch_size, hidden_size]
+    X_shape = [batch_size, seq_length, input_size]
+    H_t_shape = [batch_size, num_directions, hidden_size]
+    C_t_shape = [batch_size, num_directions, hidden_size]
     seq_len_shape = [batch_size]
     W_shape = [num_directions, 4 * hidden_size, input_size]
     R_shape = [num_directions, 4 * hidden_size, hidden_size]
@@ -389,9 +389,9 @@ def test_lstm_sequence_operator_forward(dtype):
     num_directions = 1
     seq_length = 2
 
-    X_shape = [seq_length, batch_size, input_size]
-    H_t_shape = [num_directions, batch_size, hidden_size]
-    C_t_shape = [num_directions, batch_size, hidden_size]
+    X_shape = [batch_size, seq_length, input_size]
+    H_t_shape = [batch_size, num_directions, hidden_size]
+    C_t_shape = [batch_size, num_directions, hidden_size]
     seq_len_shape = [batch_size]
     W_shape = [num_directions, 4 * hidden_size, input_size]
     R_shape = [num_directions, 4 * hidden_size, hidden_size]
@@ -845,3 +845,39 @@ def test_proposal(int_dtype, fp_dtype):
     assert node.get_type_name() == "Proposal"
     assert node.get_output_size() == 1
     assert list(node.get_output_shape(0)) == [batch_size * attributes["attrs.post_nms_topn"], 5]
+
+
+def test_read_value():
+    init_value = ng.parameter([2, 2], name="init_value", dtype=np.int32)
+
+    node = ng.read_value(init_value, "var_id_667")
+
+    assert node.get_type_name() == "ReadValue"
+    assert node.get_output_size() == 1
+    assert list(node.get_output_shape(0)) == [2, 2]
+    assert node.get_output_element_type(0) == Type.i32
+
+
+def test_assign():
+    input_data = ng.parameter([5, 7], name="input_data", dtype=np.int32)
+    rv = ng.read_value(input_data, "var_id_667")
+    node = ng.assign(rv, "var_id_667")
+
+    assert node.get_type_name() == "Assign"
+    assert node.get_output_size() == 1
+    assert list(node.get_output_shape(0)) == [5, 7]
+    assert node.get_output_element_type(0) == Type.i32
+
+
+def test_extract_image_patches():
+    image = ng.parameter([64, 3, 10, 10], name="image", dtype=np.int32)
+    sizes = [3, 3];
+    strides = [5, 5];
+    rates = [1, 1];
+    padding = "VALID";
+    node = ng.extract_image_patches(image, sizes, strides, rates, padding)
+
+    assert node.get_type_name() == "ExtractImagePatches"
+    assert node.get_output_size() == 1
+    assert list(node.get_output_shape(0)) == [64, 27, 2, 2]
+    assert node.get_output_element_type(0) == Type.i32

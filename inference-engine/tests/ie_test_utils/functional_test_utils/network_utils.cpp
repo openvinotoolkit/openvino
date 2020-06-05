@@ -264,9 +264,6 @@ namespace FuncTestUtils {
         auto back_edges_mp_old = get_port_map(ti_old->back_edges, ti_old->body.outputs, ti_old->body.inputs);
         compare_port_maps(back_edges_mp_new, back_edges_mp_old);
 
-        auto holder = ti_new->body.inputs.back();
-        ti_new->body.inputs.pop_back();
-
         // TI body comparison
         auto nodes_new = InferenceEngine::NetPass::TIBodySortTopologically(ti_new->body);
         auto nodes_old = InferenceEngine::NetPass::TIBodySortTopologically(ti_old->body);
@@ -303,8 +300,6 @@ namespace FuncTestUtils {
         auto old_outputs = get_map(ti_old->body.outputs);
         compareInfo<std::map<std::string, InferenceEngine::DataPtr>>(new_outputs, old_outputs,
                                                                      "Bodies of TensorIterator have different outputs!");
-
-        ti_new->body.inputs.push_back(holder);
         IE_SUPPRESS_DEPRECATED_END
     }
 

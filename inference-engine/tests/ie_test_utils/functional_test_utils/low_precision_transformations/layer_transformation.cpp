@@ -1,4 +1,4 @@
-// Copyright (C) 2019 Intel Corporation
+// Copyright (C) 2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,6 +6,7 @@
 #include <tuple>
 #include <vector>
 #include <string>
+#include <unordered_set>
 
 #include <ie_core.hpp>
 
@@ -23,43 +24,95 @@
 
 
 namespace LayerTestsUtils {
-    InferenceEngine::details::LowPrecisionTransformations LayerTransformation::getLowPrecisionTransformations(
-        const InferenceEngine::details::LayerTransformation::Params& params) const {
-        if (targetDevice == "CPU") {
-            return InferenceEngine::details::LowPrecisionTransformer::getAllTransformations(params).
-                add<InferenceEngine::details::ConvolutionTransformation>(InferenceEngine::details::LayerTransformation::Params(params).
-                    setPrecisionsOnActivations({ InferenceEngine::Precision::U8 }), "Convolution").
-                addCleanup<InferenceEngine::details::ScaleShiftToConvolutionTransformation>(
-                    InferenceEngine::details::LayerTransformation::Params(params).setPrecisionsOnActivations({ InferenceEngine::Precision::U8 }),
-                    "ScaleShift");
-        } else if (targetDevice == "GPU") {
-            return InferenceEngine::details::LowPrecisionTransformer::getAllTransformations(params);
-        } else {
-            THROW_IE_EXCEPTION << "unknown target device " << targetDevice;
-        }
-    }
 
-    InferenceEngine::details::LowPrecisionTransformer LayerTransformation::getLowPrecisionTransformer(
-        const InferenceEngine::details::LayerTransformation::Params& params) const {
-        InferenceEngine::details::LowPrecisionTransformer transformer(getLowPrecisionTransformations(params));
-        return transformer;
-    }
+InferenceEngine::details::LayerTransformation::Params LayerTransformationParamsFactory::createParamsU8I8() {
+    return InferenceEngine::details::LayerTransformation::Params(
+        false,
+        true,
+        true,
+        InferenceEngine::details::LayerTransformation::QuantizedTensorAlignment::None,
+        InferenceEngine::details::LayerTransformation::QuantizedTensorAlignment::None,
+        false,
+        true,
+        true,
+        { InferenceEngine::Precision::U8 },
+        { InferenceEngine::Precision::I8 });
+}
 
-    InferenceEngine::CNNNetwork LayerTransformation::transform() {
-        InferenceEngine::details::CNNNetworkImplPtr cnnNetworkImp = cloneNet(InferenceEngine::CNNNetwork(function));
+InferenceEngine::details::LayerTransformation::Params LayerTransformationParamsFactory::createParamsU8U8() {
+    return InferenceEngine::details::LayerTransformation::Params(
+        false,
+        true,
+        true,
+        InferenceEngine::details::LayerTransformation::QuantizedTensorAlignment::None,
+        InferenceEngine::details::LayerTransformation::QuantizedTensorAlignment::None,
+        false,
+        true,
+        true,
+        { InferenceEngine::Precision::U8 },
+        { InferenceEngine::Precision::U8 });
+}
 
-        InferenceEngine::details::LayerTransformation::Params params = InferenceEngine::details::LayerTransformation::Params(
-            true,  // updatePrecisions
-            true,  // quantizeOutputs
-            true,  // weightsToConst
-            InferenceEngine::details::LayerTransformation::QuantizedTensorAlignment::UpdateLevel,  // quantizedTensorAlignmentOnActivations
-            InferenceEngine::details::LayerTransformation::QuantizedTensorAlignment::None,  // quantizedTensorAlignmentOnWeights
-            true,  // roundQuantizedValues
-            true,  // updateBiases
-            true); // supportAsymmetricQuantization
-        auto transformer = getLowPrecisionTransformer(params);
-        transformer.transform(*cnnNetworkImp);
+InferenceEngine::details::LayerTransformation::Params LayerTransformationParamsFactory::createParamsI8I8() {
+    return InferenceEngine::details::LayerTransformation::Params(
+        false,
+        true,
+        true,
+        InferenceEngine::details::LayerTransformation::QuantizedTensorAlignment::None,
+        InferenceEngine::details::LayerTransformation::QuantizedTensorAlignment::None,
+        false,
+        true,
+        true,
+        { InferenceEngine::Precision::I8 },
+        { InferenceEngine::Precision::I8 });
+}
 
-        return InferenceEngine::CNNNetwork(cnnNetworkImp);
-    }
+InferenceEngine::details::LowPrecisionTransformer LayerTransformation::getLowPrecisionTransformer(
+    const InferenceEngine::details::LayerTransformation::Params& params) const {
+    InferenceEngine::details::LowPrecisionTransformer transformer(getLowPrecisionTransformations(params));
+    return transformer;
+}
+
+InferenceEngine::CNNNetwork LayerTransformation::transform(InferenceEngine::details::LayerTransformation::Params& params) {
+    InferenceEngine::details::CNNNetworkImplPtr cnnNetworkImp = cloneNet(InferenceEngine::CNNNetwork(function));
+
+    auto transformer = getLowPrecisionTransformer(params);
+    transformer.transform(*cnnNetworkImp);
+
+    return InferenceEngine::CNNNetwork(cnnNetworkImp);
+}
+
+InferenceEngine::CNNNetwork LayerTransformation::transform(const InferenceEngine::details::LowPrecisionTransformations& transformations) {
+    InferenceEngine::details::CNNNetworkImplPtr cnnNetworkImp = cloneNet(InferenceEngine::CNNNetwork(function));
+
+    InferenceEngine::details::LowPrecisionTransformer transformer(transformations);
+    transformer.transform(*cnnNetworkImp);
+
+    return InferenceEngine::CNNNetwork(cnnNetworkImp);
+}
+
+void LayerTransformation::checkParentPrecision(const InferenceEngine::CNNLayerPtr& layer, const bool lowPrecision) {
+    EXPECT_EQ(1ul, layer->insData.size()) << "insert data count is no expected: " << layer->insData.size();
+    const InferenceEngine::DataPtr insData = layer->insData[0].lock();
+    EXPECT_TRUE(insData != nullptr) << "insert data is nullable";
+    const InferenceEngine::Precision precision = insData->getTensorDesc().getPrecision();
+
+    const std::unordered_set<uint8_t> expectedPrecisions = lowPrecision ?
+        std::unordered_set<uint8_t>({ InferenceEngine::Precision::U8, InferenceEngine::Precision::I8 }) :
+        std::unordered_set<uint8_t>({ InferenceEngine::Precision::FP16, InferenceEngine::Precision::FP32 });
+    EXPECT_TRUE((expectedPrecisions.find(precision) != expectedPrecisions.end())) <<
+        "actual precision is " << precision;
+}
+
+std::string LayerTransformation::toString(const InferenceEngine::details::LayerTransformation::Params& params) {
+    std::ostringstream result;
+    result <<
+        (params.supportAsymmetricQuantization ? "asymmetric" : "symmetric") << "_" <<
+        params.precisionsOnActivations << "_" <<
+        params.precisionsOnWeights << "_" <<
+        params.quantizedTensorAlignmentOnActivations;
+
+    return result.str();
+}
+
 }  // namespace LayerTestsUtils

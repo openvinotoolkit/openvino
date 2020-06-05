@@ -456,9 +456,36 @@ namespace
         EXPECT_FALSE(node.is_binary_elementwise_logical());
     }
 
+    void op_is_EmbeddingBagOffsetsSum()
+    {
+        op::EmbeddingBagOffsetsSum node;
+        EXPECT_FALSE(node.is_unary_elementwise_arithmetic());
+        EXPECT_FALSE(node.is_binary_elementwise_arithmetic());
+        EXPECT_FALSE(node.is_binary_elementwise_comparison());
+        EXPECT_FALSE(node.is_binary_elementwise_logical());
+    }
+
+    void op_is_EmbeddingBagPackedSum()
+    {
+        op::EmbeddingBagPackedSum node;
+        EXPECT_FALSE(node.is_unary_elementwise_arithmetic());
+        EXPECT_FALSE(node.is_binary_elementwise_arithmetic());
+        EXPECT_FALSE(node.is_binary_elementwise_comparison());
+        EXPECT_FALSE(node.is_binary_elementwise_logical());
+    }
+
     void op_is_EmbeddingLookup()
     {
         op::EmbeddingLookup node;
+        EXPECT_FALSE(node.is_unary_elementwise_arithmetic());
+        EXPECT_FALSE(node.is_binary_elementwise_arithmetic());
+        EXPECT_FALSE(node.is_binary_elementwise_comparison());
+        EXPECT_FALSE(node.is_binary_elementwise_logical());
+    }
+
+    void op_is_EmbeddingSegmentsSum()
+    {
+        op::EmbeddingSegmentsSum node;
         EXPECT_FALSE(node.is_unary_elementwise_arithmetic());
         EXPECT_FALSE(node.is_binary_elementwise_arithmetic());
         EXPECT_FALSE(node.is_binary_elementwise_comparison());
@@ -487,6 +514,15 @@ namespace
     {
         op::Exp node;
         EXPECT_TRUE(node.is_unary_elementwise_arithmetic());
+        EXPECT_FALSE(node.is_binary_elementwise_arithmetic());
+        EXPECT_FALSE(node.is_binary_elementwise_comparison());
+        EXPECT_FALSE(node.is_binary_elementwise_logical());
+    }
+
+    void op_is_ExtractImagePatches()
+    {
+        op::ExtractImagePatches node;
+        EXPECT_FALSE(node.is_unary_elementwise_arithmetic());
         EXPECT_FALSE(node.is_binary_elementwise_arithmetic());
         EXPECT_FALSE(node.is_binary_elementwise_comparison());
         EXPECT_FALSE(node.is_binary_elementwise_logical());

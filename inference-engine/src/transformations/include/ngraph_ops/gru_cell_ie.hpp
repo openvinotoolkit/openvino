@@ -8,14 +8,14 @@
 #include <string>
 #include <vector>
 
-#include <ie_api.h>
+#include <transformations_visibility.hpp>
 
 #include "ngraph/op/op.hpp"
 
 namespace ngraph {
 namespace op {
 
-class INFERENCE_ENGINE_API_CLASS(GRUCellIE) : public Op {
+class TRANSFORMATIONS_API GRUCellIE : public Op {
 public:
     GRUCellIE(const Output<Node> &X,
               const Output<Node> &H_t,
@@ -43,6 +43,7 @@ public:
     float get_clip() {return m_clip;}
     bool get_linear_before_reset() const { return m_linear_before_reset; }
     bool visit_attributes(AttributeVisitor& visitor) override;
+
 protected:
     int64_t m_hidden_size{};
 

@@ -8,6 +8,8 @@
 #include <vector>
 #include <algorithm>
 #include <ie_common.h>
+
+#include "low_precision_transformations/network_helper.hpp"
 #include "low_precision_transformations/layer_transformation.hpp"
 
 namespace InferenceEngine {
@@ -20,25 +22,16 @@ public:
     ConcatTransformation(const Params& params) : LayerTransformation(params) {}
     ~ConcatTransformation() override {};
     void transform(TransformationContext& context, CNNLayer& layer) const override;
-    static bool getQuantizeLayers(
-        CNNLayerPtr layer,
-        std::vector<std::string>& childNameOurAfterQuantizeLayers,
-        std::vector<CNNLayerPtr>& quantizeLayers,
-        std::vector<std::vector<std::pair<CNNLayerPtr, CNNLayerPtr>>>& intermediateLayers,
-        std::vector<CNNLayerPtr>& concatLayers,
-        CNNLayerPtr child,
-        std::vector<CNNLayerPtr>& sideOutputLayers,
-        std::vector<std::string>& childrenNameSideOutputLayers);
 
 protected:
-    void addDequantizationForQuantize(
+    void addDequantizationLayers(
         TransformationContext& context,
-        const CNNLayer& concat,
-        const std::vector<CNNLayerPtr>& quantizeLayers,
-        const std::vector<std::vector<std::pair<CNNLayerPtr, CNNLayerPtr>>>& intermediateLayers,
-        const std::vector<std::string>& childNameOurAfterQuantizeLayers,
-        const std::unordered_map<std::string, std::vector<float>>& dequantizationScalesLayers,
-        const std::unordered_map<std::string, std::vector<float>>& dequantizationShiftsLayers) const;
+        Subgraph& subgraph,
+        std::function<void(
+            const CNNLayer& layer,
+            const std::string& originalLayerName,
+            std::vector<float>& dequantizationScales,
+            std::vector<float>& dequantizationShifts)> getLayerDequantizationCallback) const;
 
 private:
     size_t getMinQuantizationLevels(

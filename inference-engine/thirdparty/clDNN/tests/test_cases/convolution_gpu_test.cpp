@@ -4746,7 +4746,6 @@ protected:
 
         build_options opts;
         opts.set_option(build_option::optimize_data(false));
-        opts.set_option(build_option::graph_dumps_dir("/tmp/cldnn_dumps/"));
 
         topology topology(input_layout("input", input.get_layout()),
                           data("weights", weights),
@@ -7637,9 +7636,10 @@ INSTANTIATE_TEST_CASE_P(convolution_depthwise_gpu_bfyx,
 INSTANTIATE_TEST_CASE_P(convolution_grouped_fsv4_fsv16,
                         convolution_grouped_gpu,
                         ::testing::Values(
-                            // Input X size, Input Y size, Input features, Output features, Kernel size X, Kernel size
-                            // Y, Groups number, Stride, Output padding, Batch, Input data format
+                            // Input X size, Input Y size, Input features, Output features, Kernel size X, Kernel size Y,
+                            // Groups number, Stride, Output padding, Batch, Input data format
                             // Format: b_fs_yx_fsv4
+                            TestParamType_grouped_convolution_gpu(4, 4, 16, 17, 3, 3, 1, 1, 1, format::b_fs_yx_fsv4),
                             TestParamType_grouped_convolution_gpu(4, 4, 16, 16, 3, 3, 4, 1, 1, format::b_fs_yx_fsv4),
                             TestParamType_grouped_convolution_gpu(4, 4, 8, 4, 2, 2, 2, 1, 4, format::b_fs_yx_fsv4),
                             TestParamType_grouped_convolution_gpu(8, 8, 16, 16, 4, 4, 4, 1, 1, format::b_fs_yx_fsv4),
@@ -7648,6 +7648,7 @@ INSTANTIATE_TEST_CASE_P(convolution_grouped_fsv4_fsv16,
                             TestParamType_grouped_convolution_gpu(3, 3, 48, 96, 2, 2, 2, 8, 1, format::b_fs_yx_fsv4),
                             TestParamType_grouped_convolution_gpu(6, 6, 8, 26, 3, 3, 2, 4, 1, format::b_fs_yx_fsv4),
                             // Format: b_fs_yx_fsv16
+                            TestParamType_grouped_convolution_gpu(4, 4, 16, 17, 3, 3, 1, 1, 1, format::b_fs_yx_fsv16),
                             TestParamType_grouped_convolution_gpu(4, 4, 16, 16, 3, 3, 4, 1, 1, format::b_fs_yx_fsv16),
                             TestParamType_grouped_convolution_gpu(4, 4, 8, 4, 2, 2, 2, 1, 4, format::b_fs_yx_fsv16),
                             TestParamType_grouped_convolution_gpu(8, 8, 16, 16, 4, 4, 4, 1, 1, format::b_fs_yx_fsv16),
@@ -8212,6 +8213,11 @@ struct params_generator : std::vector<convolution_random_test_all_params> {
                 b, 32, 24, { 19, 19 }, { 3, 3 }, { 1, 1 }, { -1, -1 }, { 2, 2 }, true, 1, input_format, asymm_weights, asymm_data, padded_input });
             push_back(convolution_random_test_all_params{
                 b, 32, 24, { 19, 19 }, { 3, 3 }, { 2, 2 }, { -1, -1 }, { 2, 2 }, true, 1, input_format, asymm_weights, asymm_data, padded_input });
+            // depthwise + dilation
+            push_back(convolution_random_test_all_params{
+                b, 64, 64, { 19, 19 }, { 3, 3 }, { 1, 1 }, { -1, -1 }, { 2, 2 }, true, 64, input_format, asymm_weights, asymm_data, padded_input });
+            push_back(convolution_random_test_all_params{
+                b, 64, 64, { 19, 19 }, { 3, 3 }, { 2, 2 }, { -1, -1 }, { 2, 2 }, true, 64, input_format, asymm_weights, asymm_data, padded_input });
         }
         return *this;
     }

@@ -57,9 +57,26 @@ public:
         auto quantize_optional_params =
             get_default_optional_params<kernel_selector::quantize_optional_params>(arg.get_program());
 
-        quantize_params.levels = arg.get_primitive()->levels;
-        quantize_params.packed_binary_output = arg.get_output_layout().data_type == data_types::bin;
+        quantize_params.levels = arg.get_levels();
+        quantize_params.packed_binary_output = arg.get_packed_binary_output();
         quantize_params.scale_shift_opt = arg.get_scale_shift_opt();
+        quantize_params.has_post_scale = arg.get_need_post_scale();
+        quantize_params.has_post_shift = arg.get_need_post_shift();
+        quantize_params.has_pre_shift = arg.get_need_pre_shift();
+        quantize_params.has_clamp = arg.get_need_clamp();
+
+        quantize_params.per_tensor_input_range = arg.get_per_tensor_input_range();
+        quantize_params.per_tensor_input_scale = arg.get_per_tensor_input_scale();
+        quantize_params.per_tensor_input_shift = arg.get_per_tensor_input_shift();
+        quantize_params.per_tensor_output_scale = arg.get_per_tensor_output_scale();
+        quantize_params.per_tensor_output_shift = arg.get_per_tensor_output_shift();
+
+        quantize_params.in_lo = arg.get_input_lo_val();
+        quantize_params.in_hi = arg.get_input_hi_val();
+        quantize_params.in_scale = arg.get_input_scale_val();
+        quantize_params.in_shift = arg.get_input_shift_val();
+        quantize_params.out_scale = arg.get_output_scale_val();
+        quantize_params.out_shift = arg.get_output_shift_val();
 
         for (size_t i = 1; i < arg.inputs_count(); i++) {
             quantize_params.inputs.push_back(convert_data_tensor(arg.input(i).get_output_layout()));
@@ -87,6 +104,10 @@ attach_quantize_gpu::attach_quantize_gpu() {
     auto val_fw = quantize_gpu::create;
 
     implementation_map<quantize>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::fs_b_yx_fsv32), val_fw);
+    implementation_map<quantize>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::fs_b_yx_fsv32), val_fw);
+    implementation_map<quantize>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::fs_b_yx_fsv32), val_fw);
+    implementation_map<quantize>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::fs_b_yx_fsv32), val_fw);
+
     implementation_map<quantize>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::b_fs_yx_fsv16), val_fw);
     implementation_map<quantize>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::b_fs_yx_fsv16), val_fw);
     implementation_map<quantize>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::b_fs_yx_fsv16), val_fw);
@@ -117,11 +138,27 @@ attach_quantize_gpu::attach_quantize_gpu() {
     implementation_map<quantize>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::b_fs_zyx_fsv32), val_fw);
     implementation_map<quantize>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::b_fs_zyx_fsv32), val_fw);
 
+    implementation_map<quantize>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bs_fs_yx_bsv16_fsv16), val_fw);
+    implementation_map<quantize>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bs_fs_yx_bsv16_fsv16), val_fw);
+    implementation_map<quantize>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::bs_fs_yx_bsv16_fsv16), val_fw);
+    implementation_map<quantize>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::bs_fs_yx_bsv16_fsv16), val_fw);
+
+    implementation_map<quantize>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bs_fs_zyx_bsv16_fsv16), val_fw);
+    implementation_map<quantize>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bs_fs_zyx_bsv16_fsv16), val_fw);
+    implementation_map<quantize>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::bs_fs_zyx_bsv16_fsv16), val_fw);
+    implementation_map<quantize>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::bs_fs_zyx_bsv16_fsv16), val_fw);
+
     implementation_map<quantize>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx), val_fw);
     implementation_map<quantize>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx), val_fw);
     implementation_map<quantize>::add(std::make_tuple(engine_types::ocl, data_types::i32, format::bfyx), val_fw);
     implementation_map<quantize>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::bfyx), val_fw);
     implementation_map<quantize>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::bfyx), val_fw);
+
+    implementation_map<quantize>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::byxf), val_fw);
+    implementation_map<quantize>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::byxf), val_fw);
+    implementation_map<quantize>::add(std::make_tuple(engine_types::ocl, data_types::i32, format::byxf), val_fw);
+    implementation_map<quantize>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::byxf), val_fw);
+    implementation_map<quantize>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::byxf), val_fw);
 
     implementation_map<quantize>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::yxfb), val_fw);
     implementation_map<quantize>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::yxfb), val_fw);

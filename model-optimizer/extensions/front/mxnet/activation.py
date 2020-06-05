@@ -14,7 +14,7 @@
  limitations under the License.
 """
 
-from extensions.ops.activation_ops import Sigmoid, Tanh, ReLU
+from extensions.ops.activation_ops import SoftPlus, Sigmoid, Tanh, ReLU
 from mo.front.extractor import FrontExtractorOp
 from mo.front.mxnet.extractors.utils import get_mxnet_layer_attrs
 from mo.utils.error import Error
@@ -35,6 +35,8 @@ class ActivationFrontExtractor(FrontExtractorOp):
             act_class = Tanh
         elif act_type == 'relu':
             act_class = ReLU
+        elif act_type == 'softrelu':
+            act_class = SoftPlus
         else:
             raise Error(
                 "Operation '{}' not supported. Please register it as custom op. " +

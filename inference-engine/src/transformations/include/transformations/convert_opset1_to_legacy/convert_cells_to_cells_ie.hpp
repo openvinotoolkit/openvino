@@ -8,14 +8,14 @@
 #include <memory>
 #include <string>
 
-#include <ie_api.h>
+#include <transformations_visibility.hpp>
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
 namespace ngraph {
 namespace pass {
 
-class INFERENCE_ENGINE_API_CLASS(ConvertCellsToCellsIE);
+class TRANSFORMATIONS_API ConvertCellsToCellsIE;
 
 }  // namespace pass
 }  // namespace ngraph
