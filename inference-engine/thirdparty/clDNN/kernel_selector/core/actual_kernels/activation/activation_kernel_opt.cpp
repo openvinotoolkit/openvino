@@ -24,6 +24,7 @@ ParamsKey ActivationKernelOpt::GetSupportedKey() const {
     k.EnableInputDataType(Datatype::INT32);
     k.EnableInputDataType(Datatype::F16);
     k.EnableInputDataType(Datatype::F32);
+    k.EnableOutputDataType(Datatype::UINT8);
     k.EnableOutputDataType(Datatype::INT8);
     k.EnableOutputDataType(Datatype::INT32);
     k.EnableOutputDataType(Datatype::F16);
@@ -76,11 +77,12 @@ bool ActivationKernelOpt::Validate(const Params& p, const optional_params& o) co
         return false;
     }
 
+
     if (params.output.GetLayout() != params.inputs[0].GetLayout())
         return false;
 
-    if (!params.fused_ops.empty() && params.output.GetLayout() != DataLayout::bfyx &&
-        params.output.GetLayout() != DataLayout::bfzyx)
+    if (!params.fused_ops.empty() &&
+        (params.output.GetLayout() != DataLayout::bfyx && params.output.GetLayout() != DataLayout::bfzyx))
         return false;
 
     return true;
@@ -92,15 +94,56 @@ JitConstants ActivationKernelOpt::GetJitConstants(const activation_params& param
 
     jit.AddConstant(MakeJitConstant("NUM_COLS_WI", NUM_COLS_WI));
     if (!params.fused_ops.empty()) {
+        bool can_use_vector = params.inputs[0].X().v % 4 == 0;
+        jit.AddConstant(MakeJitConstant("CAN_USE_VECTOR", can_use_vector));
+
         std::vector<std::string> idx_order;
-        if (params.inputs[0].GetDims().size() <= 4) {
-            idx_order = {"fo_b", "fo_f", "fo_y", "fo_x"};
-        } else if (params.inputs[0].GetDims().size() == 5) {
-            idx_order = {"fo_b", "fo_f", "fo_z", "fo_y", "fo_x"};
+
+        if (can_use_vector) {
+            if (params.inputs[0].GetDims().size() <= 4) {
+                idx_order = {"x / (OUTPUT_SIZE_X * OUTPUT_SIZE_Y * OUTPUT_FEATURE_NUM)",
+                             "x / (OUTPUT_SIZE_X * OUTPUT_SIZE_Y) % OUTPUT_FEATURE_NUM",
+                             "x / OUTPUT_SIZE_X % OUTPUT_SIZE_Y",
+                             "x % OUTPUT_SIZE_X"};
+            } else if (params.inputs[0].GetDims().size() == 5) {
+                idx_order = {"x / (OUTPUT_SIZE_X * OUTPUT_SIZE_Y * OUTPUT_SIZE_Z* OUTPUT_FEATURE_NUM)",
+                             "x / (OUTPUT_SIZE_X * OUTPUT_SIZE_Y * OUTPUT_SIZE_Z) % OUTPUT_FEATURE_NUM",
+                             "x / (OUTPUT_SIZE_X * OUTPUT_SIZE_Y) % OUTPUT_SIZE_Z",
+                             "x / OUTPUT_SIZE_X % OUTPUT_SIZE_Y",
+                             "x % OUTPUT_SIZE_X"};
+            }
+        } else {
+            if (params.inputs[0].GetDims().size() <= 4) {
+                idx_order = {"(x + i) / (OUTPUT_SIZE_X * OUTPUT_SIZE_Y * OUTPUT_FEATURE_NUM)",
+                             "(x + i) / (OUTPUT_SIZE_X * OUTPUT_SIZE_Y) % OUTPUT_FEATURE_NUM",
+                             "(x + i) / OUTPUT_SIZE_X % OUTPUT_SIZE_Y",
+                             "(x + i) % OUTPUT_SIZE_X"};
+            } else if (params.inputs[0].GetDims().size() == 5) {
+                idx_order = {"(x + i) / (OUTPUT_SIZE_X * OUTPUT_SIZE_Y * OUTPUT_SIZE_Z* OUTPUT_FEATURE_NUM)",
+                             "(x + i) / (OUTPUT_SIZE_X * OUTPUT_SIZE_Y * OUTPUT_SIZE_Z) % OUTPUT_FEATURE_NUM",
+                             "(x + i) / (OUTPUT_SIZE_X * OUTPUT_SIZE_Y) % OUTPUT_SIZE_Z",
+                             "(x + i) / OUTPUT_SIZE_X % OUTPUT_SIZE_Y",
+                             "(x + i) % OUTPUT_SIZE_X"};
+            }
         }
-        FusedOpsConfiguration conf =
-            {"", idx_order, "v", input_dt, 4, LoadType::LT_UNALIGNED, BoundaryCheck::DISABLED, IndexType::TENSOR_COORD};
-        jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
+        FusedOpsConfiguration conf_vector = {"_VECTOR",
+                                             idx_order,
+                                             "v",
+                                             input_dt,
+                                             4,
+                                             LoadType::LT_UNALIGNED,
+                                             BoundaryCheck::DISABLED,
+                                             IndexType::TENSOR_COORD,
+                                             Tensor::DataChannelName::X};
+        FusedOpsConfiguration conf_scalar = {"_SCALAR",
+                                             idx_order,
+                                             "v[i]",
+                                             input_dt,
+                                             1,
+                                             LoadType::LT_UNALIGNED,
+                                             BoundaryCheck::DISABLED,
+                                             IndexType::TENSOR_COORD};
+        jit.Merge(MakeFusedOpsJitConstants(params, {conf_vector, conf_scalar}));
     }
     jit.Merge(MakeActivationJitConstants(params.activations, input_dt, "_KERNEL"));
 

@@ -28,6 +28,7 @@ class INodeConverter {
 public:
     virtual CNNLayer::Ptr createLayer(const std::shared_ptr<ngraph::Node>& layer) const = 0;
     virtual bool canCreate(const std::shared_ptr<ngraph::Node>& node) const = 0;
+    virtual ~INodeConverter() = default;
 };
 
 template <class T>
@@ -55,11 +56,12 @@ template <class NGT>
 class NodeConverter : public INodeConverter {
 public:
     NodeConverter() = default;
+    ~NodeConverter() override = default;
 
     CNNLayer::Ptr createLayer(const std::shared_ptr<ngraph::Node>& layer) const override;
 
     bool canCreate(const std::shared_ptr<ngraph::Node>& node) const override {
-        auto castedPtr = std::dynamic_pointer_cast<NGT>(node);
+        auto castedPtr = ngraph::as_type_ptr<NGT>(node);
         return castedPtr != nullptr;
     }
 

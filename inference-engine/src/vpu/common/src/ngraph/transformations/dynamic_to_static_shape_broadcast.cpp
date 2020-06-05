@@ -39,6 +39,7 @@ void dynamicToStaticShapeBroadcast(std::shared_ptr<ngraph::Node> target) {
 
     auto dsr = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(
             staticShapeBroadcast->output(0), broadcast->input_value(1));
+    dsr->set_friendly_name(broadcast->get_friendly_name());
 
     ngraph::replace_node(std::move(target), std::move(dsr));
 }

@@ -8,21 +8,21 @@
 #include <memory>
 #include <string>
 
-#include <ie_api.h>
+#include <transformations_visibility.hpp>
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
 namespace ngraph {
 namespace pass {
 
-class INFERENCE_ENGINE_API_CLASS(ConvertOneHotToOneHotIE);
+class TRANSFORMATIONS_API ConvertOneHotToOneHotIE;
 
 }  // namespace pass
 }  // namespace ngraph
 
 class ngraph::pass::ConvertOneHotToOneHotIE: public ngraph::pass::GraphRewrite {
 public:
-    ConvertOneHotToOneHotIE() : is_f16(false), GraphRewrite() {
+    ConvertOneHotToOneHotIE() : GraphRewrite(), is_f16(false) {
         convert_one_hot();
     }
 

@@ -25,6 +25,7 @@ log.basicConfig(format="{file}: [ %(levelname)s ] %(message)s".format(file=os.pa
 
 # Parameters
 OMZ_NUM_ATTEMPTS = 6
+DOWNLOADER_JOBS_NUM = 4
 
 
 def abs_path(relative_path):
@@ -148,10 +149,12 @@ def main():
     cmd = '{downloader_path} --list {models_list_path}' \
           ' --num_attempts {num_attempts}' \
           ' --output_dir {models_dir}' \
-          ' --cache_dir {cache_dir}'.format(downloader_path=downloader_path, models_list_path=models_list_path,
-                                            num_attempts=OMZ_NUM_ATTEMPTS,
-                                            models_dir=args.omz_models_out_dir,
-                                            cache_dir=args.omz_cache_dir)
+          ' --cache_dir {cache_dir}' \
+          ' --jobs {jobs_num}'.format(downloader_path=downloader_path, models_list_path=models_list_path,
+                                      num_attempts=OMZ_NUM_ATTEMPTS,
+                                      models_dir=args.omz_models_out_dir,
+                                      cache_dir=args.omz_cache_dir,
+                                      jobs_num=DOWNLOADER_JOBS_NUM)
     run_in_subprocess(cmd, check_call=not args.skip_omz_errors)
 
     # Step 4: prepare virtual environment and install requirements

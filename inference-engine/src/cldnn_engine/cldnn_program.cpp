@@ -62,6 +62,8 @@
 #include <api/select.hpp>
 #include <api/grn.hpp>
 #include <api/ctc_greedy_decoder.hpp>
+#include <api/cum_sum.hpp>
+#include <api/embedding_bag.hpp>
 
 #include <chrono>
 #include <cmath>
@@ -461,6 +463,7 @@ std::shared_ptr<cldnn::program> Program::BuildProgram(InferenceEngine::ICNNNetwo
         infLoopProtection = 0;  // found a layer with all inputs already existing
         CreateSingleLayerPrimitive(topology, currLayer);  // currLayer will be advanced if layer was skipped or merged
         prevPrimitiveIDs[layerName] = GetPrevLayersPrimitives(currLayer);
+        IRToNgraphLayersMap[currLayer->name] = currLayer->params["originalLayersNames"];
 
         push_if(GetNextLayers(currLayer));
     }
@@ -595,6 +598,10 @@ Program::LayerType Program::LayerTypeFromStr(const std::string &str) {
         { "GRN", GRN },
         { "CTCGreedyDecoder", CTCGreedyDecoder },
         { "PriorBoxClustered", PriorBoxClustered },
+        { "CumSum", CumSum },
+        { "EmbeddingBagPackedSum", EmbeddingBagPackedSum },
+        { "EmbeddingBagOffsetsSum", EmbeddingBagOffsetsSum },
+        { "EmbeddingSegmentsSum", EmbeddingSegmentsSum },
     };
     auto it = LayerNameToType.find(str);
     if (it != LayerNameToType.end())
@@ -1274,6 +1281,14 @@ void Program::CreateSingleLayerPrimitive(cldnn::topology& topology, InferenceEng
         case CTCGreedyDecoder: CreateCTCGreedyDecoderPrimitive(topology, layer);
             break;
         case PriorBoxClustered: CreatePriorBoxClusteredPrimitive(topology, layer);
+            break;
+        case CumSum: CreateCumSumPrimitive(topology, layer);
+            break;
+        case EmbeddingBagPackedSum: CreateEmbeddingBagPackedSumPrimitive(topology, layer);
+            break;
+        case EmbeddingBagOffsetsSum: CreateEmbeddingBagOffsetsSumPrimitive(topology, layer);
+            break;
+        case EmbeddingSegmentsSum: CreateEmbeddingSegmentsSumPrimitive(topology, layer);
             break;
         default: THROW_CLDNN_EXCEPTION("Unknown Layer Type: " << layer->type);
     }
@@ -2730,6 +2745,8 @@ void Program::CreatePoolingPrimitive(cldnn::topology& topology, InferenceEngine:
             input_offset,
             CldnnTensorFromIEDims(poolLayer->outData[0]->getTensorDesc().getDims()),
             dt);
+        cldnn::tensor pad_end = { 0, 0, -TensorValue(poolLayer->_pads_end[X_AXIS]), -TensorValue(poolLayer->_pads_end[Y_AXIS]), 0 };
+        poolPrim.pad_end = pad_end;
         topology.add(poolPrim);
         primitiveIDs[poolLayerName] = poolLayerName;
     }
@@ -4354,6 +4371,80 @@ void Program::CreateCTCGreedyDecoderPrimitive(cldnn::topology& topology, Inferen
     AddPrimitiveToProfiler(layerName, layer);
 }
 
+inline cldnn::cum_sum::cum_sum_axis CumSumAxisFromIEAxis(int axis, unsigned sz) {
+    if (axis < 0)
+        axis += sz;
+    if (axis < 0 || axis >= sz)
+        THROW_CLDNN_EXCEPTION("CumSum axis is not correspond to number of dimensions");
+
+    // Difference in dimension ordering between IE and clDNN,
+    // reverse spatial dimensions after batch and feature.
+    unsigned cldnn_axis = axis;
+    if (axis >= 2) {
+        auto spatial_axis = axis - 2;
+        // Default and minimum number of dimensions is 4
+        auto spatial_size = std::max(sz, 4u) - 2;
+        cldnn_axis = spatial_size - spatial_axis - 1 + 2;
+    }
+
+    switch (cldnn_axis) {
+        case 0:
+            return cldnn::cum_sum::cum_sum_axis::along_b;
+        case 1:
+            return cldnn::cum_sum::cum_sum_axis::along_f;
+        case 2:
+            return cldnn::cum_sum::cum_sum_axis::along_x;
+        case 3:
+            return cldnn::cum_sum::cum_sum_axis::along_y;
+        case 4:
+            return cldnn::cum_sum::cum_sum_axis::along_z;
+        case 5:
+            return cldnn::cum_sum::cum_sum_axis::along_w;
+        default: THROW_CLDNN_EXCEPTION("Unsupported cumsum axis: " << axis);
+            break;
+    }
+
+    return cldnn::cum_sum::cum_sum_axis::along_f;  // shouldn't get here
+}
+
+void Program::CreateCumSumPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr& layer) {
+    ValidateLayer(layer, {1, 2});
+    auto inputPrimitives = GetPrevLayersPrimitives(layer);
+    auto cumSum = as<InferenceEngine::GenericLayer*> (layer);
+
+    auto exclusive = cumSum->GetParamAsBool("exclusive", false);
+    auto reverse = cumSum->GetParamAsBool("reverse", false);
+
+    auto layerName = layer_type_name_ID(layer);
+
+    size_t dimNumber = cumSum->insData[0].lock()->getTensorDesc().getDims().size();
+    int32_t axis = 0;
+    if (inputPrimitives.size() == 2) {
+        auto axesInput = layer->insData[1].lock();
+        auto axesInputCreator = axesInput->getCreatorLayer().lock();
+        if (axesInputCreator->blobs.size() == 1) {
+            auto constantBlob = axesInputCreator->blobs.begin()->second;
+            auto axesPrecision = constantBlob->getTensorDesc().getPrecision();
+            if (axesPrecision == InferenceEngine::Precision::I32) {
+                auto data = constantBlob->buffer().as<int32_t*>();
+                axis = data[0];
+            } else {
+                THROW_IE_EXCEPTION << layer->name << " Incorrect CumSum axes input Precision";
+            }
+        }
+    }
+
+    auto primitive = cldnn::cum_sum(
+            layerName,
+            inputPrimitives[0],
+            CumSumAxisFromIEAxis(axis, dimNumber),
+            exclusive,
+            reverse);
+
+    topology.add(primitive);
+    AddPrimitiveToProfiler(layerName, layer);
+}
+
 void Program::CreatePriorBoxClusteredPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr& layer) {
     ValidateLayer(layer, 2);
     auto pbcLayer = as<InferenceEngine::GenericLayer*>(layer);
@@ -4405,6 +4496,96 @@ void Program::CreatePriorBoxClusteredPrimitive(cldnn::topology& topology, Infere
     topology.add(priorBoxPrim);
     AddPrimitiveToProfiler(priorBoxLayerName, layer);
 }
+
+void Program::CreateEmbeddingBagPackedSumPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr& layer) {
+    ValidateLayer(layer, {2, 3});
+
+    auto inputPrimitives = GetPrevLayersPrimitives(layer);
+    auto embeddingBag = as<InferenceEngine::GenericLayer*>(layer);
+
+    auto layerName = layer_type_name_ID(layer);
+    auto embeddingBagPrim = cldnn::embedding_bag(
+            layerName,
+            inputPrimitives,
+            cldnn::embedding_bag::packed_sum,
+            CldnnTensorFromIEDims(embeddingBag->outData[0]->getTensorDesc().getDims()));
+
+    topology.add(embeddingBagPrim);
+    AddPrimitiveToProfiler(layerName, layer);
+}
+
+void Program::CreateEmbeddingBagOffsetsSumPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr& layer) {
+    ValidateLayer(layer, {3, 4, 5});
+
+    auto inputPrimitives = GetPrevLayersPrimitives(layer);
+    auto embeddingBag = as<InferenceEngine::GenericLayer*>(layer);
+
+    int32_t defaultIndex = -1;
+    if (inputPrimitives.size() > 3) {
+        auto defaultIndexInput = layer->insData[3].lock();
+        auto defaultIndexInputCreator = defaultIndexInput->getCreatorLayer().lock();
+        if (defaultIndexInputCreator->blobs.size() == 1) {
+            auto constantBlob = defaultIndexInputCreator->blobs.begin()->second;
+            auto defaultIndexPrecision = constantBlob->getTensorDesc().getPrecision();
+            if (defaultIndexPrecision == InferenceEngine::Precision::I32) {
+                auto data = constantBlob->buffer().as<int32_t*>();
+                defaultIndex = data[0];
+            } else {
+                THROW_IE_EXCEPTION << layer->name << "Incorrect EmbeddingBagOfsetsSum default_index precision";
+            }
+        }
+        inputPrimitives.erase(inputPrimitives.begin() + 3); // Remove "default_index"
+    }
+
+    auto layerName = layer_type_name_ID(layer);
+    auto embeddingBagPrim = cldnn::embedding_bag(
+            layerName,
+            inputPrimitives,
+            cldnn::embedding_bag::offsets_sum,
+            CldnnTensorFromIEDims(embeddingBag->outData[0]->getTensorDesc().getDims()),
+            defaultIndex);
+
+    topology.add(embeddingBagPrim);
+    AddPrimitiveToProfiler(layerName, layer);
+}
+
+void Program::CreateEmbeddingSegmentsSumPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr& layer) {
+    ValidateLayer(layer, {4, 5, 6});
+
+    auto inputPrimitives = GetPrevLayersPrimitives(layer);
+    auto embeddingBag = as<InferenceEngine::GenericLayer*>(layer);
+
+    inputPrimitives.erase(inputPrimitives.begin() + 3); // Remove "num_segments"
+
+    int32_t defaultIndex = -1;
+    if (inputPrimitives.size() > 3) {
+        auto defaultIndexInput = layer->insData[4].lock();
+        auto defaultIndexInputCreator = defaultIndexInput->getCreatorLayer().lock();
+        if (defaultIndexInputCreator->blobs.size() == 1) {
+            auto constantBlob = defaultIndexInputCreator->blobs.begin()->second;
+            auto defaultIndexPrecision = constantBlob->getTensorDesc().getPrecision();
+            if (defaultIndexPrecision == InferenceEngine::Precision::I32) {
+                auto data = constantBlob->buffer().as<int32_t*>();
+                defaultIndex = data[0];
+            } else {
+                THROW_IE_EXCEPTION << layer->name << "Incorrect EmbeddingBagOfsetsSum default_index precision";
+            }
+        }
+        inputPrimitives.erase(inputPrimitives.begin() + 3); // Remove "default_index"
+    }
+
+    auto layerName = layer_type_name_ID(layer);
+    auto embeddingBagPrim = cldnn::embedding_bag(
+            layerName,
+            inputPrimitives,
+            cldnn::embedding_bag::segments_sum,
+            CldnnTensorFromIEDims(embeddingBag->outData[0]->getTensorDesc().getDims()),
+            defaultIndex);
+
+    topology.add(embeddingBagPrim);
+    AddPrimitiveToProfiler(layerName, layer);
+}
+
 bool Program::IsValidSplitConvMerge(const InferenceEngine::SplitLayer *splitLayer) const {
     if (splitLayer->outData.size() != 2) return false;  // split into 2
 

@@ -184,5 +184,45 @@ std::shared_ptr<ngraph::Node> makeCumSum(const ngraph::Output<Node> &in,
                                          bool exclusive,
                                          bool reverse);
 
+std::shared_ptr<ngraph::Node> makeEmbeddingBagOffsetsSum(
+                                      const element::Type& dataType,
+                                      const element::Type& indicesType,
+                                      const ngraph::Output<Node>& emb_table_node,
+                                      const std::vector<size_t>& indices,
+                                      const std::vector<size_t>& offsets,
+                                      size_t default_index,
+                                      bool with_weights,
+                                      bool with_default_index);
+
+std::shared_ptr<ngraph::Node> makeEmbeddingBagPackedSum(
+                                      const element::Type& dataType,
+                                      const element::Type& indicesType,
+                                      const ngraph::Output<Node>& emb_table_node,
+                                      const std::vector<std::vector<size_t>>& indices,
+                                      bool with_weights);
+
+std::shared_ptr<ngraph::Node> makeEmbeddingSegmentsSum(
+                                      const element::Type& dataType,
+                                      const element::Type& indicesType,
+                                      const ngraph::Output<Node>& emb_table_node,
+                                      const std::vector<size_t>& indices,
+                                      const std::vector<size_t>& segment_ids,
+                                      size_t num_segments,
+                                      size_t default_index,
+                                      bool with_weights,
+                                      bool with_default_index);
+
+std::shared_ptr<ngraph::Node> makeDepthToSpace(const ngraph::Output<Node> &in,
+                                               ngraph::opset3::DepthToSpace::DepthToSpaceMode mode,
+                                               size_t blockSize);
+
+std::shared_ptr<ngraph::Node> makeSpaceToDepth(const ngraph::Output<Node> &in,
+                                               ngraph::opset3::SpaceToDepth::SpaceToDepthMode mode,
+                                               size_t blockSize);
+
+std::shared_ptr<Node> makeShuffleChannels(const ngraph::Output<Node> &in,
+                                          int axis,
+                                          int group);
+
 }  // namespace builder
 }  // namespace ngraph

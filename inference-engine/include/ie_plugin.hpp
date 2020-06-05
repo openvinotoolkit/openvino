@@ -25,35 +25,13 @@
 #include "ie_iexecutable_network.hpp"
 #include "ie_version.hpp"
 
-/**
- * @def INFERENCE_PLUGIN_API(type)
- * @brief Defines Inference Engine Plugin API method
- * @param type A plugin type
- */
-
-#if defined(_WIN32)
-#ifdef IMPLEMENT_INFERENCE_ENGINE_PLUGIN
-#define INFERENCE_PLUGIN_API(type) extern "C" __declspec(dllexport) type
-#else
-#define INFERENCE_PLUGIN_API(type) extern "C" type
-#endif
-#elif (__GNUC__ >= 4)  // NOLINT
-#ifdef IMPLEMENT_INFERENCE_ENGINE_PLUGIN
-#define INFERENCE_PLUGIN_API(type) extern "C" __attribute__((visibility("default"))) type
-#else
-#define INFERENCE_PLUGIN_API(type) extern "C" type
-#endif
-#else
-#define INFERENCE_PLUGIN_API(TYPE) extern "C" TYPE
-#endif
-
 namespace InferenceEngine {
 
 /**
- * @deprecated Use InferenceEngine::Core instead. Will be removed in 2020.3
+ * @deprecated Use InferenceEngine::Core instead. Will be removed in 2021.1
  * @brief This class is a main plugin interface
  */
-class INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::Core instead. Will be removed in 2020.3")
+class INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::Core instead. Will be removed in 2021.1")
     INFERENCE_ENGINE_API_CLASS(IInferencePlugin)
     : public details::IRelease {
 public:
@@ -66,6 +44,7 @@ public:
 
     /**
      * @deprecated IErrorListener is not used anymore. StatusCode is provided in case of unexpected situations
+     * This API will be removed in 2021.1 release.
      * @brief Sets logging callback
      *
      * Logging is used to track what is going on inside

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <ngraph/opsets/opset3.hpp>
 #include "vpu/ngraph/operations/static_shape_nonzero.hpp"
 
 #include "ngraph/runtime/host_tensor.hpp"
@@ -52,108 +53,53 @@ bool StaticShapeNonZero::visit_attributes(ngraph::AttributeVisitor& visitor) {
 
 namespace {
 
-template <typename InType, typename OutType>
-void staticShapeNonZeroReference(const InType* input, OutType* outIndices, OutType* outShape, const Shape& inputShape) {
-    auto strides = row_major_strides(inputShape);
-    auto totalDimSize = shape_size(inputShape);
-
-    const auto getCoord = [&strides](int offset){
-        std::vector<size_t> coord;
-        for (const size_t& stride : strides) {
-            coord.insert(coord.begin(), offset / stride);
-            offset %= stride;
-        }
-
-        return coord;
-    };
-
-    const auto addCoordToIndices = [&outIndices, &totalDimSize](const std::vector<size_t> &coord,
-                                                                size_t nonZeroCount) {
-        for (int j = 0; j < coord.size(); ++j) {
-            outIndices[j * totalDimSize + nonZeroCount] = coord[j];
-        }
-    };
-
-    const InType zeroValue = InType{0};
-    const auto isNonZero = [&input, &zeroValue](size_t i) {
-        return input[i] != zeroValue;
-    };
-
-    size_t nonZeroCount = 0;
-    for (size_t i = 0; i < totalDimSize; ++i) {
-        if (isNonZero(i)) {
-            addCoordToIndices(getCoord(i), nonZeroCount++);
-        }
-    }
-
-    outShape[0] = nonZeroCount;
-    outShape[1] = inputShape.size();
-}
-
-template <element::Type_t InType>
-bool evaluate(const HostTensorPtr& input,
-              const HostTensorPtr& outIndices,
-              const HostTensorPtr& outShape) {
-    bool rc = true;
-
-    switch (outIndices->get_element_type()) {
-        case element::Type_t::i64:
-            staticShapeNonZeroReference(input->get_data_ptr<InType>(),
-                                        outIndices->get_data_ptr<element::Type_t::i64>(),
-                                        outShape->get_data_ptr<element::Type_t::i64>(),
-                                        input->get_shape());
-            break;
-        case element::Type_t::i32:
-            staticShapeNonZeroReference(input->get_data_ptr<InType>(),
-                                        outIndices->get_data_ptr<element::Type_t::i32>(),
-                                        outShape->get_data_ptr<element::Type_t::i32>(),
-                                        input->get_shape());
-            break;
-        default: rc = false; break;
-    }
-
-    return rc;
-}
-
-bool evaluateStaticShapeNonZero(const HostTensorPtr& input,
+template <element::Type_t OutType>
+void evaluateStaticShapeNonZero(const Shape& inputShape,
+                                const HostTensorPtr& nonZeroOutput,
                                 const HostTensorPtr& outIndices,
                                 const HostTensorPtr& outShape) {
-    bool rc = true;
+    const auto nonZeroOutputBuffer = nonZeroOutput->get_data_ptr<OutType>();
+    const auto outIndicesBuffer = outIndices->get_data_ptr<OutType>();
+    const auto outShapeBuffer = outShape->get_data_ptr<OutType>();
 
-    switch (input->get_element_type()) {
-        TYPE_CASE(i8)(input, outIndices, outShape);
-            break;
-        TYPE_CASE(i16)(input, outIndices, outShape);
-            break;
-        TYPE_CASE(i32)(input, outIndices, outShape);
-            break;
-        TYPE_CASE(i64)(input, outIndices, outShape);
-            break;
-        TYPE_CASE(u8)(input, outIndices, outShape);
-            break;
-        TYPE_CASE(u16)(input, outIndices, outShape);
-            break;
-        TYPE_CASE(u32)(input, outIndices, outShape);
-            break;
-        TYPE_CASE(u64)(input, outIndices, outShape);
-            break;
-        TYPE_CASE(bf16)(input, outIndices, outShape);
-            break;
-        TYPE_CASE(f32)(input, outIndices, outShape);
-            break;
-        TYPE_CASE(f64)(input, outIndices, outShape);
-            break;
-        default: rc = false; break;
+    const auto totalInputSize = shape_size(inputShape);
+    const auto inputRank = static_cast<ngraph::Dimension::value_type>(nonZeroOutput->get_partial_shape()[0]);
+    const auto nonZeroCount = static_cast<ngraph::Dimension::value_type>(nonZeroOutput->get_partial_shape()[1]);
+
+    for (size_t i = 0; i < inputRank; ++i) {
+        for (size_t j = 0; j < nonZeroCount; j++) {
+            outIndicesBuffer[i * totalInputSize + j] = nonZeroOutputBuffer[i * nonZeroCount + j];
+        }
     }
 
-    return rc;
+    outShapeBuffer[0] = inputRank;
+    outShapeBuffer[1] = nonZeroCount;
 }
 
 } // namespace
 
 bool StaticShapeNonZero::evaluate(const HostTensorVector& outputs,
                                   const HostTensorVector& inputs) {
-    return evaluateStaticShapeNonZero(inputs[0], outputs[0], outputs[1]);
+    const auto& input = inputs[0];
+    const auto& outIndices = outputs[0];
+    const auto& outShape = outputs[1];
+
+    const auto nonZeroOutput = std::make_shared<ngraph::runtime::HostTensor>(
+            outIndices->get_element_type(),
+            PartialShape{input->get_partial_shape().rank(), Dimension::dynamic()});
+    bool rc = ngraph::opset3::NonZero().evaluate({nonZeroOutput}, {input});
+
+    switch (nonZeroOutput->get_element_type()) {
+        case element::Type_t::i32:
+            evaluateStaticShapeNonZero<element::Type_t::i32>(input->get_shape(), nonZeroOutput, outIndices, outShape);
+            break;
+        case element::Type_t::i64:
+            evaluateStaticShapeNonZero<element::Type_t::i64>(input->get_shape(), nonZeroOutput, outIndices, outShape);
+            break;
+        default: rc = false; break;
+    }
+
+    return rc;
 }
 
 }  // namespace op

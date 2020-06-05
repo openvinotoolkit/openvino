@@ -1,17 +1,18 @@
 jobs:
 - job: Lin
-  timeoutInMinutes: 0
+  timeoutInMinutes: 90
   pool:
     #vmImage: 'ubuntu-18.04'
-    name: LIN_VMSS_VENV_F8S_WE
+    name: LIN_VMSS_VENV_F8S_WU2
   variables:
     BUILD_TYPE: Release
   steps:
   - script: |
       whoami
       uname -a
-      lsb_release
+      which python3
       gcc --version
+      lsb_release
       env
       cat /proc/cpuinfo
       cat /proc/meminfo
@@ -21,6 +22,8 @@ jobs:
   - script: |
       sudo apt --assume-yes install libusb-1.0-0-dev
       python3 -m pip install -r ./inference-engine/ie_bridges/python/requirements.txt
+      # For running Python API tests
+      python3 -m pip install -r ./inference-engine/ie_bridges/python/src/requirements-dev.txt
     displayName: 'Install dependencies'
   - script: git submodule update --init --recursive
     displayName: 'Clone submodules'
@@ -31,11 +34,12 @@ jobs:
   - task: CMake@1
     inputs:
       workingDirectory: dldt-build
-      cmakeArgs: .. -DVERBOSE_BUILD=ON -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DENABLE_PYTHON=ON -DENABLE_TESTS=ON
+      # CMake must get Python 3.x version by default
+      cmakeArgs: .. -DVERBOSE_BUILD=ON -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DENABLE_PYTHON=ON -DPYTHON_EXECUTABLE=/usr/bin/python3.6 -DENABLE_TESTS=ON
   - script: make -j12
     workingDirectory: dldt-build
     displayName: 'Build IE'
-  - script: ls -al ../bin/intel64/$(BUILD_TYPE)/
+  - script: ls -alR ../bin/intel64/$(BUILD_TYPE)/
     workingDirectory: dldt-build
     displayName: 'List files'
   - script: ../bin/intel64/$(BUILD_TYPE)/unit-test --gtest_print_time=1 --gtest_filter=-backend_api.config_unsupported:*IE_GPU*
@@ -79,7 +83,7 @@ jobs:
   - script: |
       export DATA_PATH=`pwd`/../testdata
       export MODELS_PATH=`pwd`/../testdata
-      ../bin/intel64/$(BUILD_TYPE)/MklDnnFunctionalTests --gtest_filter=-smoke_MobileNet/ModelTransformationsTest.LPT/mobilenet_v2_tf_depthwise_batch1_inPluginDisabled_inTestDisabled_asymmetric*
+      ../bin/intel64/$(BUILD_TYPE)/MklDnnFunctionalTests --gtest_filter=*smoke*:-smoke_MobileNet/ModelTransformationsTest.LPT/mobilenet_v2_tf_depthwise_batch1_inPluginDisabled_inTestDisabled_asymmetric*
     workingDirectory: dldt-build
     displayName: 'MklDnnFunctionalTests'
     continueOnError: false
@@ -90,9 +94,20 @@ jobs:
     workingDirectory: dldt-build
     displayName: 'IE CAPITests'
     continueOnError: false
+#  - script: |
+#      export DATA_PATH=`pwd`/../testdata
+#      export MODELS_PATH=`pwd`/../testdata
+#      export LD_LIBRARY_PATH=`pwd`/../bin/intel64/$(BUILD_TYPE)/lib
+#      export PYTHONPATH=`pwd`/../bin/intel64/$(BUILD_TYPE)/lib/python_api/python3.6
+#      env
+#      cd ../inference-engine/ie_bridges/python/tests
+#      pytest
+#    workingDirectory: dldt-build
+#    displayName: 'Python API Tests'
+#    continueOnError: false
 
 - job: Mac
-  timeoutInMinutes: 0
+  timeoutInMinutes: 150
   pool:
     vmImage: 'macOS-10.15'
   variables:
@@ -106,6 +121,7 @@ jobs:
   - script: |
       whoami
       uname -a
+      which python3
       gcc --version
       env
       xcrun --sdk macosx --show-sdk-version
@@ -130,7 +146,7 @@ jobs:
   - script: make -j3
     workingDirectory: dldt-build
     displayName: 'Build IE'
-  - script: ls -al ../bin/intel64/$(BUILD_TYPE)/
+  - script: ls -alR ../bin/intel64/$(BUILD_TYPE)/
     workingDirectory: dldt-build
     displayName: 'List files'
   - script: ../bin/intel64/$(BUILD_TYPE)/unit-test --gtest_print_time=1 --gtest_filter=-backend_api.config_unsupported:*IE_GPU*:IE_CPU.onnx_model_sigmoid
@@ -170,7 +186,7 @@ jobs:
   - script: |
       export DATA_PATH=`pwd`/../testdata
       export MODELS_PATH=`pwd`/../testdata
-      ../bin/intel64/$(BUILD_TYPE)/MklDnnFunctionalTests --gtest_filter=-smoke_MobileNet/ModelTransformationsTest.LPT/mobilenet_v2_tf_depthwise_batch1_inPluginDisabled_inTestDisabled_asymmetric*
+      ../bin/intel64/$(BUILD_TYPE)/MklDnnFunctionalTests --gtest_filter=*smoke*:-smoke_MobileNet/ModelTransformationsTest.LPT/mobilenet_v2_tf_depthwise_batch1_inPluginDisabled_inTestDisabled_asymmetric*
     workingDirectory: dldt-build
     displayName: 'MklDnnFunctionalTests'
     continueOnError: false
@@ -183,10 +199,10 @@ jobs:
     continueOnError: false
 
 - job: Win
-  timeoutInMinutes: 0
+  timeoutInMinutes: 150
   pool:
     #vmImage: 'vs2017-win2016'
-    name: WIN_VMSS_VENV_F8S_WE
+    name: WIN_VMSS_VENV_F8S_WU2
   variables:
     BUILD_TYPE: Release
     BUILD_DIR: D:\dldt-build
@@ -213,7 +229,7 @@ jobs:
   - script: cmake --build . --config $(BUILD_TYPE) -j12
     workingDirectory: $(BUILD_DIR)
     displayName: 'Build IE VS2019'
-  - script: dir ..\bin\intel64\$(BUILD_TYPE)\
+  - script: dir ..\bin\intel64\$(BUILD_TYPE)\ /s /b
     workingDirectory: dldt-build
     displayName: 'List files'
   - script: |
@@ -277,7 +293,7 @@ jobs:
       set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;$(Build.Repository.LocalPath)\inference-engine\temp\opencv_4.3.0\opencv\bin;%PATH%
       set DATA_PATH=$(BUILD_DIR)\testdata
       set MODELS_PATH=$(BUILD_DIR)\testdata
-      ..\bin\intel64\$(BUILD_TYPE)\MklDnnFunctionalTests --gtest_filter=-smoke_MobileNet/ModelTransformationsTest.LPT/mobilenet_v2_tf_depthwise_batch1_inPluginDisabled_inTestDisabled_asymmetric*
+      ..\bin\intel64\$(BUILD_TYPE)\MklDnnFunctionalTests --gtest_filter=*smoke*:-smoke_MobileNet/ModelTransformationsTest.LPT/mobilenet_v2_tf_depthwise_batch1_inPluginDisabled_inTestDisabled_asymmetric*
     workingDirectory: dldt-build
     displayName: 'MklDnnFunctionalTests'
     continueOnError: false

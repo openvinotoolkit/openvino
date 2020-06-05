@@ -157,6 +157,16 @@ public:
             const StageOutput& edge,
             const Data& newOutput);
 
+    void replaceStageDependency(
+            const StageDependency& edge,
+            const Data& newDependency);
+
+    void replaceDependentStage(
+            const StageDependency& edge,
+            const Stage& newDependentStage);
+
+    void removeStageDependency(const StageDependency& edge);
+
     //
     // Stage <-> Stage edges
     //
@@ -287,6 +297,10 @@ public:
     void buildStageOrder() const;
 
     void reorderStages(const StageComparator& comparator = {});
+
+    void setStagesOrder(const Stage& parent, const Stage& child);
+
+    void removeStagesOrder(const Stage& parent, const Stage& child);
 
     //
     // Nodes accessors

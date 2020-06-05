@@ -27,6 +27,7 @@ public:
     void initSupportedPrimitiveDescriptors() override;
     void filterSupportedPrimitiveDescriptors() override;
     void filterSupportedDescriptors();
+    bool isPossibleToSkipInitConfig(MKLDNNDescriptor &desc);
     bool created() const override;
     bool canBeInPlace() const override {
         return false;
@@ -61,7 +62,6 @@ private:
     void addZeroPoints(mkldnn::primitive_attr& attr) const;
 
     bool withBiases;
-    bool withActivation;
     bool withSum;
     bool withDWConv;
     bool isDW;

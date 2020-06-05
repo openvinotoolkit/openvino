@@ -25,6 +25,7 @@
 #include "ngraph/node.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/fused/lstm_cell.hpp"
+#include "ngraph/op/util/attr_types.hpp"
 #include "ngraph/op/util/fused_op.hpp"
 
 namespace ngraph
@@ -49,14 +50,9 @@ namespace ngraph
                 const NodeTypeInfo& get_type_info() const override { return type_info; }
                 LSTMSequence() = default;
 
-                size_t get_default_output_index() const override { return no_default_index(); }
-                enum class direction
-                {
-                    FORWARD,
-                    REVERSE,
-                    BIDIRECTIONAL
-                };
+                using direction = RecurrentSequenceDirection;
 
+                size_t get_default_output_index() const override { return no_default_index(); }
                 explicit LSTMSequence(const Output<Node>& X,
                                       const Output<Node>& initial_hidden_state,
                                       const Output<Node>& initial_cell_state,
@@ -173,7 +169,9 @@ namespace ngraph
                 NodeVector lstm_pass(bool is_reverse = false) const;
 
                 // Split(bi-directional) and squeeze input data to remove 'num_direction' dimension.
-                std::shared_ptr<Node> prepare_input(Output<Node> node, bool is_reverse) const;
+                std::shared_ptr<Node> prepare_input(Output<Node> node,
+                                                    bool is_reverse,
+                                                    size_t num_direction_axis = 0) const;
 
                 std::vector<float> m_activations_alpha;
                 std::vector<float> m_activations_beta;
@@ -188,21 +186,4 @@ namespace ngraph
         using v0::LSTMSequence;
     } // namespace op
 
-    NGRAPH_API
-    std::ostream& operator<<(std::ostream& s, const op::v0::LSTMSequence::direction& type);
-
-    template <>
-    class NGRAPH_API AttributeAdapter<op::v0::LSTMSequence::direction>
-        : public EnumAttributeAdapterBase<op::v0::LSTMSequence::direction>
-    {
-    public:
-        AttributeAdapter(op::v0::LSTMSequence::direction& value)
-            : EnumAttributeAdapterBase<op::v0::LSTMSequence::direction>(value)
-        {
-        }
-
-        static constexpr DiscreteTypeInfo type_info{
-            "AttributeAdapter<op::v0::LSTMSequence::direction>", 1};
-        const DiscreteTypeInfo& get_type_info() const override { return type_info; }
-    };
 } // namespace ngraph
