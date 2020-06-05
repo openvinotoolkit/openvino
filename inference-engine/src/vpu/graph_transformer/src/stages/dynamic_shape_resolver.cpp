@@ -19,6 +19,12 @@ void FrontEnd::parseDSR(const Model& model, const ie::CNNLayerPtr& layer, const 
     const auto dataProducerEdge = data->producerEdge();
     VPU_THROW_UNLESS(dataProducerEdge != nullptr, "Parsing layer {} of type {} failed: input with index {} (of name {}) must have a producer",
         layer->name, layer->type, 0, data->name());
+    VPU_THROW_UNLESS(data->consumerEdges().size() == 0,
+        "Parsing layer {} of type {} failed: input with index {} (of name {}) must have no consumers, actual: {}. "
+        "DynamicToStaticShape transformations should add {} operation after all operations with dynamic output as only "
+        "consumer. All operations that were previously original output data consumers should now consume the output data "
+        "from {}. Otherwise the consumer which was not redirected to {} output would process garbage data.",
+        layer->name, layer->type, 0, data->name(), data->consumerEdges().size(), layer->type, layer->type, layer->type);
 
     VPU_THROW_UNLESS(shape->desc().numDims() == 1,
         "Parsing layer {} of type {} failed: input with index {} (of name {}) must have rank equal to {}, actual is {}",
