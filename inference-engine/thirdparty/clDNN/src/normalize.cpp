@@ -29,7 +29,16 @@ primitive_type_id normalize::type_id() {
 layout normalize_inst::calc_output_layout(normalize_node const& node) {
     assert(static_cast<bool>(node.get_primitive()->output_data_type) == false &&
            "Output data type forcing is not supported for normalize_node!");
-    return node.input().get_non_padded_output_layout();
+    auto input_node_layout = node.input().get_non_padded_output_layout();
+    auto output_type = input_node_layout.data_type;
+
+    if (node.has_fused_primitives()) {
+        output_type = node.get_fused_output_layout().data_type;
+    } else if (input_node_layout.data_type == data_types::u8 || input_node_layout.data_type == data_types::i8) {
+        output_type = data_types::f32;
+    }
+
+    return layout(output_type, input_node_layout.format, input_node_layout.size);
 }
 
 std::string normalize_inst::to_string(normalize_node const& node) {

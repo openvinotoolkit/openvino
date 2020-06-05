@@ -359,6 +359,10 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
 
             should_fuse |= input_data.is_type<mvn>();
 
+            should_fuse |= input_data.is_type<normalize>() &&
+                          (input_data.get_dependency(0).get_output_layout().data_type == data_types::u8 ||
+                           input_data.get_dependency(0).get_output_layout().data_type == data_types::i8);
+
             should_fuse |= input_data.is_type<deconvolution>();
             
             should_fuse |= input_data.is_type<permute>();
@@ -366,6 +370,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
             should_fuse |= input_data.is_type<activation>();
 
             should_fuse |= input_data.is_type<lrn>();
+
+            should_fuse |= input_data.is_type<gather>();
 
             if (!should_fuse)
                 return;
@@ -396,6 +402,10 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
 
             should_fuse |= input_data.is_type<mvn>() && mvn_supports_fusings(input_data.as<mvn>());
 
+            should_fuse |= input_data.is_type<normalize>() &&
+                          (input_data.get_dependency(0).get_output_layout().data_type == data_types::u8 ||
+                           input_data.get_dependency(0).get_output_layout().data_type == data_types::i8);
+
             should_fuse |= input_data.is_type<deconvolution>();
             
             should_fuse |= input_data.is_type<permute>();
@@ -403,6 +413,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
             should_fuse |= input_data.is_type<activation>();
 
             should_fuse |= input_data.is_type<lrn>();
+
+            should_fuse |= input_data.is_type<gather>();
 
             if (!should_fuse)
                 return;
@@ -449,8 +461,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
                            quantize_node.get_scale_shift_opt() &&
                            (out_layout.data_type == data_types::u8 || out_layout.data_type == data_types::i8);
 
-            should_fuse |= input_data.is_type<lrn>() &&
-                           quantize_node.get_scale_shift_opt();
+            should_fuse |= input_data.is_type<lrn>() && quantize_node.get_scale_shift_opt();
 
             should_fuse |= input_data.is_type<gemm>() && gemm_supports_fusings(input_data.as<gemm>()) &&
                            quantize_node.get_scale_shift_opt() &&
@@ -465,11 +476,17 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
 
             should_fuse |= input_data.is_type<activation>() && quantize_node.get_scale_shift_opt();
 
+            should_fuse |= input_data.is_type<normalize>() && quantize_node.get_scale_shift_opt() &&
+                          (input_data.get_dependency(0).get_output_layout().data_type == data_types::u8 ||
+                           input_data.get_dependency(0).get_output_layout().data_type == data_types::i8);
+
             should_fuse |= input_data.is_type<deconvolution>() && quantize_node.get_scale_shift_opt() &&
                             // fp16/fp32 optimized kernels don't support chaning data type
                            (input_data.get_dependency(0).get_output_layout().data_type == data_types::u8 ||
                             input_data.get_dependency(0).get_output_layout().data_type == data_types::i8 ||
                             input_data.get_output_layout().data_type == out_layout.data_type);
+            
+            should_fuse |= input_data.is_type<gather>() && quantize_node.get_scale_shift_opt();
 
             should_fuse |= input_data.is_type<permute>() &&
                            quantize_node.get_scale_shift_opt();
