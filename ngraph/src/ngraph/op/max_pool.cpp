@@ -305,7 +305,9 @@ void op::v0::MaxPool::generate_adjoints(autodiff::Adjoints& adjoints, const Outp
     adjoints.add_delta(operand, backprop);
 }
 
-constexpr NodeTypeInfo op::v1::MaxPool::type_info;
+//constexpr NodeTypeInfo op::v1::MaxPool::type_info;
+RTTI_DEFINITION("MaxPool", op::v1::MaxPool, Node, 1);
+
 
 op::v1::MaxPool::MaxPool(const Output<Node>& arg,
                          const Strides& strides,

@@ -265,6 +265,7 @@ void pass::VisualizeTree::add_node_arguments(shared_ptr<Node> node,
         size_t jump_distance = height_maps[arg.get()].max_jump_to(height_maps[node.get()]);
         if (is_type<ngraph::op::Constant>(arg) || is_type<ngraph::op::Parameter>(arg))
         {
+            m_ss << add_attributes(node);
             auto clone_name = "CLONE_" + to_string(fake_node_ctr);
             auto color = (arg->description() == "Parameter" ? "blue" : "black");
             m_ss << "    " << clone_name << "[shape=\"box\" style=\"dashed,filled\" color=\""
@@ -312,6 +313,22 @@ string pass::VisualizeTree::add_attributes(shared_ptr<Node> node)
     }
     return rc;
 }
+
+template <typename T>
+static std::string pretty_value(const vector<T>& value)
+{
+    std::stringstream ss;
+    bool first = true;
+    for (const auto& i : value)
+    {
+        if (!first)
+            ss << ", ";
+        ss << i;
+        first = false;
+    }
+    return ss.str();
+}
+
 
 static std::string pretty_partial_shape(const PartialShape& shape)
 {
@@ -425,6 +442,43 @@ string pass::VisualizeTree::get_node_name(shared_ptr<Node> node)
             rc += ", ";
         }
         rc += "}\\n";
+    }
+
+    for (const auto& output : node->outputs())
+        rc += "\\n" + to_string(output.get_index()) + ": " +
+              pretty_partial_shape(output.get_partial_shape()) + '<' + output.get_element_type().get_type_name() + '>';
+
+    rc += "\\n";
+    if (node->is_constant() && ngraph::shape_size(node->get_shape()) <= 24)
+    {
+        rc += "value: ";
+        const auto constant = as_type_ptr<op::Constant>(node);
+
+        switch (constant->get_output_element_type(0))
+        {
+            case element::Type_t::undefined: rc += "[ undefined value ]"; break;
+            case element::Type_t::dynamic: rc += "[ dynamic value ]"; break;
+            case element::Type_t::u1: rc += "[ u1 value ]"; break;
+            case element::Type_t::bf16:
+            case element::Type_t::f16:
+            case element::Type_t::f32:
+            case element::Type_t::f64:
+                rc += "[" + pretty_value(constant->cast_vector<double>()) + "]";
+                break;
+            case element::Type_t::i8:
+            case element::Type_t::i16:
+            case element::Type_t::i32:
+            case element::Type_t::i64:
+                rc += "[" + pretty_value(constant->cast_vector<int64_t>()) + "]";
+                break;
+            case element::Type_t::boolean:
+            case element::Type_t::u8:
+            case element::Type_t::u16:
+            case element::Type_t::u32:
+            case element::Type_t::u64:
+                rc += "[" + pretty_value(constant->cast_vector<uint64_t>()) + "]";
+                break;
+        }
     }
     return rc;
 }

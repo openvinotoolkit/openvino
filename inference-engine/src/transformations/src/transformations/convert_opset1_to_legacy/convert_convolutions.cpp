@@ -29,6 +29,7 @@ void ngraph::pass::ConvertConvolutions::convert_convolution() {
                                                                    conv->get_dilations(),
                                                                    conv->get_pads_begin(),
                                                                    conv->get_pads_end(),
+                                                                   conv->get_output_element_type(0),
                                                                    1 /* groups */,
                                                                    conv->get_auto_pad());
         ngraph::copy_runtime_info(conv, conv_ie);
@@ -72,6 +73,7 @@ void ngraph::pass::ConvertConvolutions::convert_group_convolution() {
                                                                    gconv->get_dilations(),
                                                                    gconv->get_pads_begin(),
                                                                    gconv->get_pads_end(),
+                                                                   gconv->get_output_element_type(0),
                                                                    group,
                                                                    gconv->get_auto_pad());
         conv_ie->set_friendly_name(gconv->get_friendly_name());

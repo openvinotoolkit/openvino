@@ -19,6 +19,7 @@
 
 #include <ngraph/pass/graph_rewrite.hpp>
 #include <transformations/utils/annotations.hpp>
+#include <ngraph/rt_info.hpp>
 
 namespace ngraph {
 namespace pass {

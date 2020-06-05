@@ -223,8 +223,9 @@ namespace ngraph
             class NGRAPH_API AvgPool : public Op
             {
             public:
-                static constexpr NodeTypeInfo type_info{"AvgPool", 1};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
+                RTTI_DECLARATION;
+                //static constexpr NodeTypeInfo type_info{"AvgPool", 1};
+                //const NodeTypeInfo& get_type_info() const override { return type_info; }
                 /// \brief Constructs a batched average pooling operation.
                 AvgPool() = default;
 

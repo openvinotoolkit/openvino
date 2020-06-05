@@ -12,7 +12,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::ScaleShiftIE::type_info;
+RTTI_DEFINITION("ScaleShift", op::ScaleShiftIE, Node, 1);
 
 op::ScaleShiftIE::ScaleShiftIE(const Output<Node>& data_batch, const Output<Node>& weights, const Output<Node>& bias)
     : Op({data_batch, weights, bias}) {

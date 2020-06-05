@@ -43,6 +43,7 @@ std::shared_ptr<Node> convert(const Output<Node> & data, std::shared_ptr<op::Con
                                                    new_dilations,
                                                    new_pads_begin,
                                                    new_pad_end,
+                                                   node->get_output_element_type(0),
                                                    node->get_group(),
                                                    node->get_auto_pad());
     } else {
@@ -53,6 +54,7 @@ std::shared_ptr<Node> convert(const Output<Node> & data, std::shared_ptr<op::Con
                                                    new_dilations,
                                                    new_pads_begin,
                                                    new_pad_end,
+                                                   node->get_output_element_type(0),
                                                    node->get_group(),
                                                    node->get_auto_pad());
     }

@@ -19,12 +19,17 @@
 #include "convert_function_to_cnn_network.hpp"
 #include <transformations/common_optimizations/common_optimizations.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
+#include <transformations/low_precision/transformer.hpp>
+#include <transformations/low_precision/convolution.hpp>
 #include <transformations/convert_opset2_to_opset1/convert_opset2_to_opset1.hpp>
 #include <transformations/convert_opset3_to_opset2/convert_opset3_to_opset2.hpp>
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset2.hpp>
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/op/fused/gelu.hpp>
+
+#include <ngraph/pass/visualize_tree.hpp>
+#include "ngraph_ops/subgraph.hpp"
 
 #if !defined(__arm__) && !defined(_M_ARM) && !defined(__aarch64__) && !defined(_M_ARM64)
 #if defined(_WIN32) || defined(WIN32)
@@ -105,8 +110,50 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::ICNNNetwork &network, const st
         ngraph::pass::CommonOptimizations(transformations_callback).run_on_function(nGraphFunc);
         ngraph::pass::ConvertOpSet3ToOpSet2(transformations_callback).run_on_function(nGraphFunc);
         ngraph::pass::ConvertOpSet2ToOpSet1(transformations_callback).run_on_function(nGraphFunc);
+
+        using namespace ngraph::pass::low_precision;
+
+        const char* newLPTEnabled = std::getenv("OPENVINO_NEW_NGRAPH_LPT");
+        if ((newLPTEnabled && std::strcmp(newLPTEnabled, "1") == 0) && conf.lpTransformsMode == Config::LPTransformsMode::On) {
+            auto params = LayerTransformation::Params(true,  // updatePrecisions
+                                                      true,  // quantizeOutputs
+                                                      true,  // weightsToConst
+                                                      LayerTransformation::QuantizedTensorAlignment::UpdateLevel,  // quantizedTensorAlignmentOnActivations
+                                                      LayerTransformation::QuantizedTensorAlignment::None,  // quantizedTensorAlignmentOnWeights
+                                                      true,  // roundQuantizedValues
+                                                      true,  // updateBiases
+                                                      true);  // supportAsymmetricQuantization
+            LowPrecisionTransformer transformer(LowPrecisionTransformer::getAllTransformations(params).
+                    add<ConvolutionTransformation>(
+                    LayerTransformation::Params(params).setPrecisionsOnActivations({ngraph::element::u8}), "Convolution"));
+#if 0 // TODO LPT-TO-NGRAPH
+            addCleanup<ScaleShiftToConvolutionTransformation>(
+                    LayerTransformation::Params(params).setPrecisionsOnActivations({ngraph::element::u8}),
+                    "ScaleShift"));
+#endif
+            transformer.transform(nGraphFunc);
+
+            // TODO: Implement remaining part
+        }
+
         ngraph::pass::ConvertOpSet1ToLegacy(transformations_callback).run_on_function(nGraphFunc);
+
+        {
+            std::vector<std::shared_ptr<ngraph::Function>> module{nGraphFunc};
+            ngraph::pass::VisualizeTree("after_convert_to_legacy.svg").run_on_module(module);
+
+            // Output subgraphs as a separagge pictures
+            for (auto op : nGraphFunc->get_ops()) {
+                if (auto subgraph = ngraph::as_type_ptr<ngraph::op::Subgraph>(op)) {
+                    std::vector<std::shared_ptr<ngraph::Function>> module_subgraph{subgraph->get_body()};
+                    ngraph::pass::VisualizeTree(subgraph->get_name() + ".svg").run_on_module(module_subgraph);
+                }
+            }
+        }
+
         clonedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(nGraphFunc, *clonedNetwork);
+
+        clonedNetwork->serialize("after_legacy.xml", "after_legacy.bin", 0);
     }
 
     auto implNetwork = std::dynamic_pointer_cast<details::CNNNetworkImpl>(clonedNetwork);

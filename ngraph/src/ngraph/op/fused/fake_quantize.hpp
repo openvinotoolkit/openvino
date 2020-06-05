@@ -43,8 +43,9 @@ namespace ngraph
             class NGRAPH_API FakeQuantize : public ngraph::op::util::FusedOp
             {
             public:
-                static constexpr NodeTypeInfo type_info{"FakeQuantize", 0};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
+                RTTI_DECLARATION;
+                //static constexpr NodeTypeInfo type_info{"FakeQuantize", 0};
+                //const NodeTypeInfo& get_type_info() const override { return type_info; }
                 FakeQuantize() = default;
                 ///
                 /// \brief      Constructs a FakeQuantize operation node.
