@@ -228,7 +228,7 @@ jobs:
       #cmakeArgs: -G"Visual Studio 15 2017 Win64" -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DENABLE_TESTS=ON $(Build.Repository.LocalPath)
       cmakeArgs: -GNinja -A x64 -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DENABLE_TESTS=ON $(Build.Repository.LocalPath)
       workingDirectory: $(BUILD_DIR)
-  - script: cmake --build . --config $(BUILD_TYPE) -j12
+  - script: ninja
     workingDirectory: $(BUILD_DIR)
     displayName: 'Build IE VS2019'
   - script: dir ..\bin\intel64\$(BUILD_TYPE)\ /s /b
