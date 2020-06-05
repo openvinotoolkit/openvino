@@ -26,7 +26,7 @@ jobs:
       python3 -m pip install -r ./inference-engine/ie_bridges/python/src/requirements-dev.txt
     displayName: 'Install dependencies'
   - script: |
-      curl -Ls https://github.com/ninja-build/ninja/releases/download/v1.10.0/ninja-linux.zip -o ninja-linux.zip
+      wget https://github.com/ninja-build/ninja/releases/download/v1.10.0/ninja-linux.zip
       unzip ninja-linux.zip
       sudo cp -v ninja /usr/local/bin/
     displayName: 'Install Ninja'
