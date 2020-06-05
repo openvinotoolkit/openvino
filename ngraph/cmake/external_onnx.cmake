@@ -59,7 +59,7 @@ endif()
 target_include_directories(onnx PRIVATE "${Protobuf_INCLUDE_DIR}")
 target_include_directories(onnx_proto PRIVATE "${Protobuf_INCLUDE_DIR}")
 
-if(WIN32)
+if(MSVC)
     target_compile_options(onnx PRIVATE /WX-)
 else()
     target_compile_options(onnx PRIVATE -Wno-error)
