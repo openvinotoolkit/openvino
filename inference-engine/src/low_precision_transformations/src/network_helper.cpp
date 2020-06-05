@@ -1318,11 +1318,6 @@ size_t CNNNetworkHelper::disconnectLayers(CNNNetworkImpl* network, const CNNLaye
                 THROW_IE_EXCEPTION << "Output layer for '" << parentLayer->name << "'is absent";
             }
             if (currentChildLayer->name == childLayer->name) {
-                const DataPtr dataToRemove = network->getData(data->getName().c_str());
-                if (!dataToRemove) {
-                    THROW_IE_EXCEPTION << "there is not data to remove";
-                }
-
                 data->getInputTo().erase(inputIt);
                 wasFound = true;
                 break;
