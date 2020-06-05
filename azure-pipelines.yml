@@ -42,69 +42,74 @@ jobs:
   - script: ls -alR ../bin/intel64/$(BUILD_TYPE)/
     workingDirectory: dldt-build
     displayName: 'List files'
-  - script: ../bin/intel64/$(BUILD_TYPE)/unit-test --gtest_print_time=1 --gtest_filter=-backend_api.config_unsupported:*GPU*:*CPU*
+  - script: ../bin/intel64/$(BUILD_TYPE)/unit-test --gtest_print_time=1 --gtest_filter=-backend_api.config_unsupported:*GPU*:*CPU*:constant.shared_data
     workingDirectory: dldt-build
     displayName: 'nGraph UT'
-    continueOnError: true
+    continueOnError: false
   - script: ../bin/intel64/$(BUILD_TYPE)/InferenceEngineUnitTests
     workingDirectory: dldt-build
     displayName: 'IE UT old'
-    continueOnError: true
+    continueOnError: false
   - script: ../bin/intel64/$(BUILD_TYPE)/ieUnitTests
     workingDirectory: dldt-build
     displayName: 'IE UT'
-    continueOnError: true
+    continueOnError: false
   - script: ../bin/intel64/$(BUILD_TYPE)/cpuUnitTests
     workingDirectory: dldt-build
     displayName: 'CPU UT'
-    continueOnError: true
+    continueOnError: false
   - script: ../bin/intel64/$(BUILD_TYPE)/gnaUnitTests
     workingDirectory: dldt-build
     displayName: 'GNA UT'
-    continueOnError: true
+    continueOnError: false
   - script: ../bin/intel64/$(BUILD_TYPE)/vpuUnitTests
     workingDirectory: dldt-build
     displayName: 'VPU UT'
-    continueOnError: true
+    continueOnError: false
   - script: ../bin/intel64/$(BUILD_TYPE)/ieFuncTests
     workingDirectory: dldt-build
     displayName: 'IE FuncTests'
-    continueOnError: true
+    continueOnError: false
   - script: ../bin/intel64/$(BUILD_TYPE)/cpuFuncTests
     workingDirectory: dldt-build
     displayName: 'CPU FuncTests'
-    continueOnError: true
+    continueOnError: false
   - script: ../bin/intel64/$(BUILD_TYPE)/MklDnnBehaviorTests
     workingDirectory: dldt-build
     displayName: 'MklDnnBehaviorTests'
-    continueOnError: true
+    continueOnError: false
+    enabled: false
   - script: git clone https://github.com/openvinotoolkit/testdata.git
     displayName: 'Clone testdata'
+    enabled: false
   - script: |
       export DATA_PATH=`pwd`/../testdata
       export MODELS_PATH=`pwd`/../testdata
       ../bin/intel64/$(BUILD_TYPE)/MklDnnFunctionalTests --gtest_filter=*smoke*:-smoke_MobileNet/ModelTransformationsTest.LPT/mobilenet_v2_tf_depthwise_batch1_inPluginDisabled_inTestDisabled_asymmetric*
     workingDirectory: dldt-build
     displayName: 'MklDnnFunctionalTests'
-    continueOnError: true
+    continueOnError: false
+    enabled: false
   - script: |
       export DATA_PATH=`pwd`/../testdata
       export MODELS_PATH=`pwd`/../testdata
       ../bin/intel64/$(BUILD_TYPE)/InferenceEngineCAPITests
     workingDirectory: dldt-build
     displayName: 'IE CAPITests'
-    continueOnError: true
-#  - script: |
-#      export DATA_PATH=`pwd`/../testdata
-#      export MODELS_PATH=`pwd`/../testdata
-#      export LD_LIBRARY_PATH=`pwd`/../bin/intel64/$(BUILD_TYPE)/lib
-#      export PYTHONPATH=`pwd`/../bin/intel64/$(BUILD_TYPE)/lib/python_api/python3.6
-#      env
-#      cd ../inference-engine/ie_bridges/python/tests
-#      pytest
-#    workingDirectory: dldt-build
-#    displayName: 'Python API Tests'
-#    continueOnError: true
+    continueOnError: false
+    enabled: false
+  - script: |
+      export DATA_PATH=`pwd`/../testdata
+      export MODELS_PATH=`pwd`/../testdata
+      export LD_LIBRARY_PATH=`pwd`/../bin/intel64/$(BUILD_TYPE)/lib
+      export PYTHONPATH=`pwd`/../bin/intel64/$(BUILD_TYPE)/lib/python_api/python3.6
+      env
+      cd ../inference-engine/ie_bridges/python/tests
+      pytest
+    workingDirectory: dldt-build
+    displayName: 'Python API Tests'
+    continueOnError: false
+    enabled: false
 
 - job: Mac
   timeoutInMinutes: 150
@@ -152,51 +157,55 @@ jobs:
   - script: ../bin/intel64/$(BUILD_TYPE)/unit-test --gtest_print_time=1 --gtest_filter=-backend_api.config_unsupported:*GPU*:*CPU*
     workingDirectory: dldt-build
     displayName: 'nGraph UT'
-    continueOnError: true
-  - script: ../bin/intel64/$(BUILD_TYPE)/InferenceEngineUnitTests
+    continueOnError: false
+  - script: ../bin/intel64/$(BUILD_TYPE)/InferenceEngineUnitTests --gtest_filter=-*MKLDNNGraph*
     workingDirectory: dldt-build
     displayName: 'IE UT old'
-    continueOnError: true
+    continueOnError: false
   - script: ../bin/intel64/$(BUILD_TYPE)/ieUnitTests
     workingDirectory: dldt-build
     displayName: 'IE UT'
-    continueOnError: true
+    continueOnError: false
   - script: ../bin/intel64/$(BUILD_TYPE)/cpuUnitTests
     workingDirectory: dldt-build
     displayName: 'CPU UT'
-    continueOnError: true
+    continueOnError: false
   - script: ../bin/intel64/$(BUILD_TYPE)/vpuUnitTests
     workingDirectory: dldt-build
     displayName: 'VPU UT'
-    continueOnError: true
+    continueOnError: false
   - script: ../bin/intel64/$(BUILD_TYPE)/ieFuncTests
     workingDirectory: dldt-build
     displayName: 'IE FuncTests'
-    continueOnError: true
+    continueOnError: false
   - script: ../bin/intel64/$(BUILD_TYPE)/cpuFuncTests
     workingDirectory: dldt-build
     displayName: 'CPU FuncTests'
-    continueOnError: true
+    continueOnError: false
   - script: ../bin/intel64/$(BUILD_TYPE)/MklDnnBehaviorTests
     workingDirectory: dldt-build
     displayName: 'MklDnnBehaviorTests'
-    continueOnError: true
+    continueOnError: false
+    enabled: false
   - script: git clone https://github.com/openvinotoolkit/testdata.git
     displayName: 'Clone testdata'
+    enabled: false
   - script: |
       export DATA_PATH=`pwd`/../testdata
       export MODELS_PATH=`pwd`/../testdata
       ../bin/intel64/$(BUILD_TYPE)/MklDnnFunctionalTests --gtest_filter=*smoke*:-smoke_MobileNet/ModelTransformationsTest.LPT/mobilenet_v2_tf_depthwise_batch1_inPluginDisabled_inTestDisabled_asymmetric*
     workingDirectory: dldt-build
     displayName: 'MklDnnFunctionalTests'
-    continueOnError: true
+    continueOnError: false
+    enabled: false
   - script: |
       export DATA_PATH=`pwd`/../testdata
       export MODELS_PATH=`pwd`/../testdata
       ../bin/intel64/$(BUILD_TYPE)/InferenceEngineCAPITests
     workingDirectory: dldt-build
     displayName: 'IE CAPITests'
-    continueOnError: true
+    continueOnError: false
+    enabled: false
 
 - job: Win
   timeoutInMinutes: 150
@@ -237,58 +246,60 @@ jobs:
       ..\bin\intel64\$(BUILD_TYPE)\unit-test --gtest_print_time=1 --gtest_filter=-backend_api.config_unsupported:*GPU*:*CPU*
     workingDirectory: dldt-build
     displayName: 'nGraph UT'
-    continueOnError: true
+    continueOnError: false
   - script: |
       set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
       ..\bin\intel64\$(BUILD_TYPE)\InferenceEngineUnitTests
     workingDirectory: dldt-build
     displayName: 'IE UT old'
-    continueOnError: true
+    continueOnError: false
   - script: |
       set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
       ..\bin\intel64\$(BUILD_TYPE)\ieUnitTests
     workingDirectory: dldt-build
     displayName: 'IE UT'
-    continueOnError: true
+    continueOnError: false
   - script: |
       set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
       ..\bin\intel64\$(BUILD_TYPE)\cpuUnitTests
     workingDirectory: dldt-build
     displayName: 'CPU UT'
-    continueOnError: true
+    continueOnError: false
   - script: |
       set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
       ..\bin\intel64\$(BUILD_TYPE)\gnaUnitTests
     workingDirectory: dldt-build
     displayName: 'GNA UT'
-    continueOnError: true
+    continueOnError: false
   - script: |
       set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
       ..\bin\intel64\$(BUILD_TYPE)\vpuUnitTests
     workingDirectory: dldt-build
     displayName: 'VPU UT'
-    continueOnError: true
+    continueOnError: false
   - script: |
       set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
       ..\bin\intel64\$(BUILD_TYPE)\ieFuncTests
     workingDirectory: dldt-build
     displayName: 'IE FuncTests'
-    continueOnError: true
+    continueOnError: false
   - script: |
       set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
       ..\bin\intel64\$(BUILD_TYPE)\cpuFuncTests
     workingDirectory: dldt-build
     displayName: 'CPU FuncTests'
-    continueOnError: true
+    continueOnError: false
   - script: |
       set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
       ..\bin\intel64\$(BUILD_TYPE)\MklDnnBehaviorTests
     workingDirectory: dldt-build
     displayName: 'MklDnnBehaviorTests'
-    continueOnError: true
+    continueOnError: false
+    enabled: false
   - script: git clone https://github.com/openvinotoolkit/testdata.git
     workingDirectory: $(BUILD_DIR)
     displayName: 'Clone testdata'
+    enabled: false
   - script: |
       set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;$(Build.Repository.LocalPath)\inference-engine\temp\opencv_4.3.0\opencv\bin;%PATH%
       set DATA_PATH=$(BUILD_DIR)\testdata
@@ -296,7 +307,8 @@ jobs:
       ..\bin\intel64\$(BUILD_TYPE)\MklDnnFunctionalTests --gtest_filter=*smoke*:-smoke_MobileNet/ModelTransformationsTest.LPT/mobilenet_v2_tf_depthwise_batch1_inPluginDisabled_inTestDisabled_asymmetric*
     workingDirectory: dldt-build
     displayName: 'MklDnnFunctionalTests'
-    continueOnError: true
+    continueOnError: false
+    enabled: false
   - script: |
       set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;$(Build.Repository.LocalPath)\inference-engine\temp\opencv_4.3.0\opencv\bin;%PATH%
       set DATA_PATH=$(BUILD_DIR)\testdata
@@ -304,4 +316,5 @@ jobs:
       ..\bin\intel64\$(BUILD_TYPE)\InferenceEngineCAPITests
     workingDirectory: dldt-build
     displayName: 'IE CAPITests'
-    continueOnError: true
+    continueOnError: false
+    enabled: false
