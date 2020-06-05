@@ -496,6 +496,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
 
             should_fuse |= input_data.is_type<depth_to_space>() && quantize_node.get_scale_shift_opt();
 
+            should_fuse |= input_data.is_type<eltwise>() && quantize_node.get_scale_shift_opt();
+
             if (!should_fuse)
                 return;
 
