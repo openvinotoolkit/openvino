@@ -93,6 +93,7 @@ void ConvolutionTransformation::transform(TransformationContext& context, CNNLay
 
     const bool isDepthwiseConvolution = isDepthwise(layer);
     if (!isDepthwiseConvolution) {
+        // FIXME: it was already checked in WeightableLayerTransformation::canBeTransformed
         for (size_t i = 0lu; i < (originalDataDequantizationScales.size() - 1); ++i) {
             if (originalDataDequantizationScales[i] != originalDataDequantizationScales[i + 1]) {
                 return;

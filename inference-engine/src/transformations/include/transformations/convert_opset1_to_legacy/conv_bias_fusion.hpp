@@ -118,7 +118,7 @@ ngraph::graph_rewrite_callback ngraph::pass::ConvFusion::get_callback() {
                 new_bias = std::make_shared<opset1::Add>(constant, m_conv->input_value(2));
             }
             new_conv = m_conv->clone_with_new_inputs({m_conv->input_value(0), m_conv->input_value(1), new_bias});
-        } else if (std::is_same<Conv, op::ConvolutionIE>() && std::dynamic_pointer_cast<opset1::Multiply>(eltwise)) {
+        } else if (std::is_same<Conv, op::ConvolutionIE>() && std::dynamic_pointer_cast<opset1::Multiply>(eltwise) && false) {
             // Fuse: ConvolutionIE->Mul
             auto weights_shape = m_conv->input(1).get_shape();
 

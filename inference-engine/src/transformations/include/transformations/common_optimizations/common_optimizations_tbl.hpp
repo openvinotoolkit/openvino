@@ -24,3 +24,5 @@ NGRAPH_PASS(AlgebraicSimplification, ::ngraph::pass) // may introduce fake dynam
 NGRAPH_PASS(ConstantFolding, ::ngraph::pass)
 NGRAPH_PASS(ConvertScatterElementsToScatter, ::ngraph::pass) // partially depends on CF
 NGRAPH_PASS(DepthToSpaceFusion, ::ngraph::pass)
+NGRAPH_PASS(MulAddFusion, ::ngraph::pass)
+NGRAPH_PASS(CollapseSubgraph, ::ngraph::pass)

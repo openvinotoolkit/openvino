@@ -136,6 +136,22 @@ namespace ngraph
 #define TYPE_CASE(a)                                                                               \
     case element::Type_t::a: rc = evaluate<element::Type_t::a>
 
+#define RTTI_DECLARATION \
+    static const ::ngraph::Node::type_info_t type_info;   \
+    static const ::ngraph::Node::type_info_t& get_type_info_static (); \
+    const ::ngraph::Node::type_info_t& get_type_info () const override { return type_info; }
+
+#define RTTI_DEFINITION_1(TYPE_NAME, CLASS, PARENT_CLASS, _VERSION_INDEX)  \
+    const ::ngraph::Node::type_info_t CLASS::type_info{TYPE_NAME, _VERSION_INDEX, &PARENT_CLASS::get_type_info_static()};
+
+#define RTTI_DEFINITION_2(TYPE_NAME, CLASS, PARENT_CLASS, _VERSION_INDEX)  \
+    const ::ngraph::Node::type_info_t& CLASS::get_type_info_static () { return type_info; }
+
+#define RTTI_DEFINITION(TYPE_NAME, CLASS, PARENT_CLASS, _VERSION_INDEX)  \
+    RTTI_DEFINITION_1(TYPE_NAME, CLASS, PARENT_CLASS, _VERSION_INDEX) \
+    RTTI_DEFINITION_2(TYPE_NAME, CLASS, PARENT_CLASS, _VERSION_INDEX)
+
+
     /// Nodes are the backbone of the graph of Value dataflow. Every node has
     /// zero or more nodes as arguments and one value, which is either a tensor
     /// or a (possibly empty) tuple of values.
@@ -167,6 +183,9 @@ namespace ngraph
         void constructor_validate_and_infer_types();
 
         using type_info_t = DiscreteTypeInfo;
+
+        static const type_info_t type_info;
+        static const type_info_t& get_type_info_static ();
 
     protected:
         std::tuple<element::Type, PartialShape> validate_and_infer_elementwise_args(
@@ -217,6 +236,7 @@ namespace ngraph
         virtual bool evaluate(const HostTensorVector& output_values,
                               const HostTensorVector& input_values);
         virtual bool constant_fold(OutputVector& output_values, const OutputVector& inputs_values);
+        bool constant_fold(OutputVector& output_values) { return constant_fold(output_values, input_values()); }
         /// \brief Decomposes the FusedOp into a sub-graph consisting of core ngraph ops
         ///
         /// \return A vector of nodes comprising the sub-graph. The order of output
@@ -244,7 +264,7 @@ namespace ngraph
         /// \brief Get the string name for the type of the node, such as `Add` or `Multiply`.
         ///        The class name, must not contain spaces as it is used for codegen.
         /// \returns A const reference to the node's type name
-        virtual const std::string& description() const;
+        virtual std::string description() const;
         /// \brief Get the unique name of the node.
         /// \returns A const reference to the node's unique name.
         const std::string& get_name() const;
@@ -294,10 +314,14 @@ namespace ngraph
         // TODO(amprocte): should be protected
         void set_input_is_relevant_to_value(size_t i, bool relevant = true);
 
+public:
+
         // TODO(amprocte): should this be protected?
         void set_output_type(size_t i,
                              const element::Type& element_type,
                              const PartialShape& pshape);
+
+public:
 
         virtual bool is_parameter() const { return false; }
         virtual bool is_output() const;
@@ -573,6 +597,13 @@ namespace ngraph
 
         virtual bool match_node(pattern::Matcher* matcher, const Output<Node>& graph_value);
 
+        void update_inputs_after_copy_tmp () {
+            for(auto& input: m_inputs){
+                input = descriptor::Input(this, input.get_index(), input.get_output());
+                input.get_output().add_input(&input);
+            }
+        }
+
     private:
         descriptor::Input& get_input_descriptor(size_t position);
         descriptor::Output& get_output_descriptor(size_t position);
@@ -580,6 +611,7 @@ namespace ngraph
         std::vector<Node*> m_control_dependents;
         std::vector<std::shared_ptr<Node>> m_control_dependencies;
         std::string m_node_type;
+        // TODO: provide correct copying in copy-ctor
         size_t m_instance_id{m_next_instance_id.fetch_add(1)};
         std::string m_friendly_name;
         std::string m_unique_name;

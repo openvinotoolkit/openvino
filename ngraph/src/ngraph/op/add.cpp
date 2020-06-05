@@ -129,7 +129,13 @@ bool op::v0::Add::evaluate(const HostTensorVector& outputs, const HostTensorVect
 
 // ------------------------------- v1 ------------------------------------------
 
-constexpr NodeTypeInfo op::v1::Add::type_info;
+
+RTTI_DEFINITION("Add", op::v1::Add, Node, 1);
+//static constexpr NodeTypeInfo type_info{"Add", 1};
+//const NodeTypeInfo& get_type_info() const override { /*std::cerr << "TYPE INFO FROM ADD !!! 1 !!!\n";*/ return type_info; }
+
+
+//constexpr NodeTypeInfo op::v1::Add::type_info;
 
 op::v1::Add::Add(const Output<Node>& arg0,
                  const Output<Node>& arg1,
@@ -138,12 +144,13 @@ op::v1::Add::Add(const Output<Node>& arg0,
 {
     constructor_validate_and_infer_types();
 }
-
+#if 0
 bool op::v1::Add::visit_attributes(AttributeVisitor& visitor)
 {
     BinaryElementwiseArithmetic::visit_attributes(visitor);
     return true;
 }
+#endif
 
 shared_ptr<Node> op::v1::Add::clone_with_new_inputs(const OutputVector& new_args) const
 {
@@ -170,4 +177,12 @@ void op::v1::Add::generate_adjoints(autodiff::Adjoints& adjoints, const OutputVe
 bool op::v1::Add::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
 {
     return evaluate_add(inputs[0], inputs[1], outputs[0], get_autob());
+}
+
+constexpr NodeTypeInfo op::v2::Add::type_info;
+
+shared_ptr<Node> op::v2::Add::clone_with_new_inputs(const OutputVector& new_args) const
+{
+    check_new_args_count(this, new_args);
+    return make_shared<op::v2::Add>(new_args.at(0), new_args.at(1), this->get_autob());
 }

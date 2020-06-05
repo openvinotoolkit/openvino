@@ -791,6 +791,9 @@ std::shared_ptr<CNNNetworkImpl> convertFunctionToICNNNetwork(const std::shared_p
 
                     nData->reset();
                     nData->reshape(dims, layout);
+                    nData->setPrecision(details::convertPrecision(layer->get_output_element_type(i)));
+                    //std::cerr << "Set precision 2 " << layer->get_output_element_type(i).get_type_name() << " for layer " << layer->get_friendly_name() << "\n";
+
                 }
                 cnnNetworkImpl->addData(outName.c_str(), ptr);
             }
@@ -799,6 +802,7 @@ std::shared_ptr<CNNNetworkImpl> convertFunctionToICNNNetwork(const std::shared_p
                 ptr.reset(new Data(outName,
                                    {details::convertPrecision(layer->get_output_element_type(i)), dims,
                                     TensorDesc::getLayoutByDims(dims)}));
+                //std::cerr << "Set precision " << layer->get_output_element_type(i).get_type_name() << " for layer " << layer->get_friendly_name() << "\n";
             }
 
             ptr->getCreatorLayer() = cnnLayer;

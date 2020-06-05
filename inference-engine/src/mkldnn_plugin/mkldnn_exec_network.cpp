@@ -26,6 +26,7 @@
 #include <algorithm>
 #include <unordered_set>
 #include <utility>
+#include <cstring>
 
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
@@ -70,7 +71,8 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::ICNNNetwork &network
         CNNNetworkInt8Normalizer cnnorm;
         cnnorm.NormalizeNetwork(*_clonedNetwork, *pstats);
     } else {
-        if (_cfg.lpTransformsMode == Config::LPTransformsMode::On) {
+        const char* newLPTEnabled = std::getenv("OPENVINO_NEW_NGRAPH_LPT");
+        if ((!newLPTEnabled || std::strcmp(newLPTEnabled, "1") != 0) && _cfg.lpTransformsMode == Config::LPTransformsMode::On) {
             auto params = LayerTransformation::Params(true,  // updatePrecisions
                                                       true,  // quantizeOutputs
                                                       true,  // weightsToConst

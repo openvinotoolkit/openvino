@@ -43,6 +43,8 @@ namespace ngraph
             /// \param tensor The tensor where the value will be written
             Output(Node* node, size_t index, const std::shared_ptr<Tensor>& tensor);
 
+            Output () : m_node(nullptr) {}
+
             std::shared_ptr<Node> get_node() const;
             size_t get_index() const { return m_index; }
             ngraph::Output<Node> get_output() const;

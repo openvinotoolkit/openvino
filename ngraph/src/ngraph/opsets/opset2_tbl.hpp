@@ -21,7 +21,7 @@
 
 NGRAPH_OP(Abs, ngraph::op::v0)
 NGRAPH_OP(Acos, ngraph::op::v0)
-NGRAPH_OP(Add, ngraph::op::v1)
+NGRAPH_OP(Add, ngraph::op::v2)
 NGRAPH_OP(Asin, ngraph::op::v0)
 NGRAPH_OP(Atan, ngraph::op::v0)
 NGRAPH_OP(AvgPool, ngraph::op::v1)

@@ -61,6 +61,7 @@ void pass::Manager::run_passes(shared_ptr<Function> func, bool /* transitive */)
     overall_timer.start();
     for (shared_ptr<PassBase> pass : m_pass_list)
     {
+        //std::cerr << "pass " << typeid(*pass).name() << "\n";
         pass_timer.start();
         pass->set_state(get_state());
         auto module_pass = dynamic_pointer_cast<ModulePass>(pass);

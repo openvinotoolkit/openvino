@@ -34,6 +34,10 @@
 using namespace std;
 using namespace ngraph;
 
+const Node::type_info_t Node::type_info{"Node", 0, nullptr };
+const Node::type_info_t& Node::get_type_info_static () { return Node::type_info; }
+
+
 atomic<size_t> Node::m_next_instance_id(0);
 
 Node::Node(size_t output_size)
@@ -254,11 +258,16 @@ void Node::delayed_validate_and_infer_types()
 
 void Node::set_output_size(size_t n)
 {
-    NGRAPH_CHECK(n >= m_outputs.size(), "shrinking ", m_outputs.size(), " to ", n);
-    for (size_t i = m_outputs.size(); i < n; ++i)
+    //NGRAPH_CHECK(n >= m_outputs.size(), "shrinking ", m_outputs.size(), " to ", n);
+    if(n < m_outputs.size())
     {
-        // create the descriptors
-        get_output_descriptor(i);
+        m_outputs.resize(n);
+    }
+    else {
+        for (size_t i = m_outputs.size(); i < n; ++i) {
+            // create the descriptors
+            get_output_descriptor(i);
+        }
     }
 }
 
@@ -309,12 +318,9 @@ bool Node::is_constant() const
     return false;
 }
 
-const std::string& Node::description() const
+std::string Node::description() const
 {
-    // Terrible transitional kludge to keep description working while we change
-    // type_name to const_char and virtual description() to virtual get_type_name()
-    const_cast<Node*>(this)->m_node_type = get_type_name();
-    return m_node_type;
+    return get_type_name();
 }
 
 const std::string& Node::get_friendly_name() const
@@ -839,7 +845,7 @@ NodeVector Node::get_users(bool check_is_used) const
 std::string ngraph::node_validation_failure_loc_string(const Node* node)
 {
     std::stringstream ss;
-    ss << "While validating node '" << *node << "'";
+    ss << "While validating node '" << *node << "' with friendly_name " << node->get_friendly_name();
     return ss.str();
 }
 
@@ -979,7 +985,7 @@ bool Node::match_value(pattern::Matcher* matcher,
 bool Node::match_node(pattern::Matcher* matcher, const Output<Node>& graph_value)
 {
     matcher->add_node(graph_value);
-    return graph_value.get_node_shared_ptr()->get_type_info() == get_type_info() &&
+    return graph_value.get_node_shared_ptr()->get_type_info().is_castable(get_type_info()) &&
            matcher->match_arguments(this, graph_value.get_node_shared_ptr());
 }
 
@@ -1136,6 +1142,7 @@ bool Node::constant_fold(OutputVector& output_values, const OutputVector& input_
     }
     if (evaluate(output_tensors, input_tensors))
     {
+        output_values.resize(output_tensors.size());
         for (size_t i = 0; i < output_tensors.size(); ++i)
         {
             output_values[i] = make_shared<op::Constant>(output_tensors[i]);

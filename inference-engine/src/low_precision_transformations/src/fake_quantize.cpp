@@ -27,6 +27,7 @@ using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 
 void FakeQuantizeTransformation::transform(TransformationContext& context, CNNLayer& layer) const {
+    std::cerr << "TEST 2 OLD: FQ: " << layer.name << "\n";
     if (!CaselessEq<std::string>()(layer.type, "FakeQuantize")) {
         THROW_IE_EXCEPTION << "Layer '" << layer.name << "' has invalid type. FakeQuantize is expected.";
     }
@@ -194,7 +195,7 @@ Blob::Ptr FakeQuantizeTransformation::reshapeWeightsIntervalConst(CNNLayer& cons
 
     Blob::Ptr targetBlob = CNNNetworkHelper::makeNewBlobPtr({srcPrecision, dims, layout});
     targetBlob->allocate();
-    constLayer.blobs["custom"] = targetBlob;
+    constLayer.blobs["custom"] = targetBlob;  // ??? old blob is lost
 
     constLayer.outData[0]->reshape(dims, layout);
 
