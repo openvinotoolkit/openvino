@@ -151,35 +151,47 @@ class TestSelect(unittest.TestCase):
         self.assertTrue(flag, resp)
 
     @generate(*[
-        ([5, 6], [5, 6], [5, 6], lambda x: np.ones(x, dtype=np.float),
+        ([5, 6], [5, 6], [5, 6], [5, 6], lambda x: np.ones(x, dtype=np.float),
          lambda x: np.zeros(x, dtype=np.float), lambda x: np.ones(x, dtype=np.float),
          lambda x: np.ones(x, dtype=np.float)),
-        ([15, 3, 5], [15, 1, 5], [15, 3, 5], lambda x: np.ones(x, dtype=np.float),
+        ([15, 3, 5], [15, 3, 5], [15, 1, 5], [15, 3, 5], lambda x: np.ones(x, dtype=np.float),
          lambda x: np.zeros(x, dtype=np.float), lambda x: np.ones(x, dtype=np.float),
          lambda x: np.ones(x, dtype=np.float)),
-        ([15, 3, 5], [15, 1, 5], [15, 3, 5], lambda x: np.ones(x, dtype=np.float),
+        ([15, 3, 5], [15, 3, 5], [15, 1, 5], [15, 3, 5], lambda x: np.ones(x, dtype=np.float),
          lambda x: None, lambda x: np.ones(x, dtype=np.float), lambda x: np.ones(x, dtype=np.float)),
-        ([15, 3, 5], [15, 1, 5], [15, 3, 5], lambda x: np.ones(x, dtype=np.float),
+        ([15, 3, 5], [15, 3, 5], [15, 1, 5], [15, 3, 5], lambda x: np.ones(x, dtype=np.float),
          lambda x: np.ones(x, dtype=np.float), lambda x: None, lambda x: None),
-        ([15, 3, 5], [15, 1, 5], [15, 3, 5], lambda x: np.zeros(x, dtype=np.float),
+        ([15, 3, 5], [15, 3, 5], [15, 1, 5], [15, 3, 5], lambda x: np.zeros(x, dtype=np.float),
          lambda x: None, lambda x: np.ones(x, dtype=np.float), lambda x: None),
-        ([15, 3, 5], [15, 1, 5], [15, 3, 5], lambda x: np.zeros(x, dtype=np.float),
+        ([15, 3, 5], [15, 3, 5], [15, 1, 5], [15, 3, 5], lambda x: np.zeros(x, dtype=np.float),
          lambda x: np.ones(x, dtype=np.float), lambda x: None, lambda x: np.ones(x, dtype=np.float)),
-        ([15, 3, 5], [15, 1, 5], [15, 3, 5], lambda x: np.array([True], np.bool),
+        ([15, 3, 5], [15, 3, 5], [15, 1, 5], [15, 3, 5], lambda x: np.array([True], np.bool),
          lambda x: np.zeros(x, dtype=np.float), lambda x: np.ones(x, dtype=np.float),
          lambda x: np.ones(x, dtype=np.float)),
-        ([15, 3, 5], [15, 1, 5], [15, 3, 5], lambda x: np.array([False], np.bool),
+        ([15, 3, 5], [15, 3, 5], [15, 1, 5], [15, 3, 5], lambda x: np.array([False], np.bool),
          lambda x: np.zeros(x, dtype=np.float), lambda x: np.ones(x, dtype=np.float),
          lambda x: np.zeros(x, dtype=np.float)),
+        ([2, 3, 4, 5], [2, 3, 4, 5], [], [2, 3, 4, 5], lambda x: np.ones(x, dtype=np.float),
+         lambda x: np.zeros(x, dtype=np.float), lambda x: np.ones(x, dtype=np.float),
+         lambda x: np.ones(x, dtype=np.float)),
+        ([2, 3, 4, 5], [2, 3, 4, 5], [5], [2, 3, 4, 5], lambda x: np.ones(x, dtype=np.float),
+         lambda x: np.zeros(x, dtype=np.float), lambda x: np.ones(x, dtype=np.float),
+         lambda x: np.ones(x, dtype=np.float)),
+        ([2, 3, 1, 1], [2, 1, 1, 5], [2, 3, 4, 5], [2, 3, 4, 5], lambda x: np.ones(x, dtype=np.float),
+         lambda x: np.zeros(x, dtype=np.float), lambda x: np.ones(x, dtype=np.float),
+         lambda x: np.ones(x, dtype=np.float)),
+        ([2, 3, 4, 1], [2, 1, 1, 5], [1, 3, 1, 5], [2, 3, 4, 5], lambda x: np.ones(x, dtype=np.float),
+         lambda x: np.zeros(x, dtype=np.float), lambda x: np.ones(x, dtype=np.float),
+         lambda x: np.ones(x, dtype=np.float)),
     ])
-    def test_select_infer_condition_with_value(self, else_data_shape, than_data_shape, select_output_shape,
+    def test_select_infer_condition_with_value(self, condition_shape, else_data_shape, than_data_shape, select_output_shape,
                                                condition_value, else_value, than_value, output_value):
         """
         Unit tests generator can sporadic throw exception if we try
         to run generator with call numpy array generation functions.
         So we need to use lambda function for escape the problem.
         """
-        condition_value = condition_value(select_output_shape)
+        condition_value = condition_value(condition_shape)
         else_value = else_value(else_data_shape)
         than_value = than_value(than_data_shape)
         output_value = output_value(select_output_shape)
