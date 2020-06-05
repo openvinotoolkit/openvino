@@ -223,10 +223,7 @@ jobs:
       rd /Q /S dldt-build
       mkdir dldt-build
     displayName: 'Create build directory'
-  - task: CMake@1
-    inputs:
-      #cmakeArgs: -G"Visual Studio 15 2017 Win64" -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DENABLE_TESTS=ON $(Build.Repository.LocalPath)
-      cmakeArgs: -GNinja -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DENABLE_TESTS=ON $(Build.Repository.LocalPath)
+  - script: call "C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\BuildTools\\Common7\\Tools\\VsDevCmd.bat" -arch=x64 && cmake -GNinja -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DENABLE_TESTS=ON $(Build.Repository.LocalPath)
       workingDirectory: $(BUILD_DIR)
   - script: call "C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\BuildTools\\Common7\\Tools\\VsDevCmd.bat" -arch=x64 && ninja
     workingDirectory: $(BUILD_DIR)
