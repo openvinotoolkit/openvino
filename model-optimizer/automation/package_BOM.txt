@@ -520,7 +520,6 @@ extensions/middle/DilatedConvolution.py
 extensions/middle/EltwiseChecker.py
 extensions/middle/EltwiseInputNormalization.py
 extensions/middle/EltwiseInputReshape.py
-extensions/middle/EmbeddingBagResolver.py
 extensions/middle/FakeSplitOutputs.py
 extensions/middle/FusedBatchNormNonConstant.py
 extensions/middle/FusedBatchNormTraining.py

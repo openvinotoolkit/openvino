@@ -65,7 +65,7 @@ class EmbeddingBagOffsetsSum(EmbeddingBagBase):
         offsets_shape = node.in_port(2).data.get_shape()
         assert offsets_shape is not None and len(offsets_shape) == 1
 
-        node.out_port(0).data.set_shape(np.concatenate((offsets_shape[:1], weights_shape[1:])).astype(np.int64))
+        node.out_port(0).data.set_shape(np.concatenate((offsets_shape[:1], weights_shape[1:])))
 
 
 class EmbeddingBagPackedSum(EmbeddingBagBase):
@@ -87,7 +87,7 @@ class EmbeddingBagPackedSum(EmbeddingBagBase):
         input_shape = node.in_port(1).data.get_shape()
         assert input_shape is not None
 
-        node.out_port(0).data.set_shape(np.concatenate((input_shape[:1], weights_shape[1:])).astype(np.int64))
+        node.out_port(0).data.set_shape(np.concatenate((input_shape[:1], weights_shape[1:])))
 
 
 class EmbeddingSegmentsSum(EmbeddingBagBase):
@@ -113,25 +113,5 @@ class EmbeddingSegmentsSum(EmbeddingBagBase):
         num_segments = node.in_port(3).data.get_value()
         assert num_segments is not None, "EmbeddingSegmentsSum should have a constant num_segments provided, but it " \
                                          "doesn't for node: `{}`.".format(name)
-        output_shape = np.concatenate(([num_segments], weights_shape[1:])).astype(np.int64)
+        output_shape = np.concatenate(([num_segments], weights_shape[1:]))
         node.out_port(0).data.set_shape(output_shape)
-
-
-class ATenEmbeddingBag(EmbeddingBagBase):
-    op = 'ATenEmbeddingBag'
-    op_type = None
-    version = None
-    in_ports_count = 4
-
-    @staticmethod
-    def infer(node: Node):
-        weights_shape = node.in_port(0).data.get_shape()
-        assert len(weights_shape) >= 2
-        indices_shape = node.in_port(1).data.get_shape()
-        assert indices_shape is not None
-        if len(indices_shape) == 2:
-            node.out_port(0).data.set_shape(np.concatenate((indices_shape[:1], weights_shape[1:])).astype(np.int64))
-        elif len(indices_shape) == 1:
-            offsets_shape = node.in_port(2).data.get_shape()
-            assert offsets_shape is not None and len(offsets_shape) == 1
-            node.out_port(0).data.set_shape(np.concatenate((offsets_shape[:1], weights_shape[1:])).astype(np.int64))
