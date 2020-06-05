@@ -1,3 +1,4 @@
+from functools import partial
 from typing import Any, Dict, List, Optional
 
 from _pyngraph import NodeFactory as _NodeFactory
@@ -30,4 +31,30 @@ class NodeFactory(object):
         if attributes is None:
             attributes = {}
         node = self.factory.create(op_type_name, arguments, attributes)
+
+        for atr_name in node._get_attributes().keys():
+            setattr(node,
+                    self._normalize_atr_name_getter(atr_name),
+                    partial(Node._get_attribute, node, atr_name))
+            setattr(node,
+                    self._normalize_atr_name_setter(atr_name),
+                    partial(Node._set_attribute, node, atr_name))
         return node
+
+    def _normalize_atr_name_getter(self, attr_name: str) -> str:
+        """Normalizes atr name to be suitable for getter function name.
+
+        :param      attr_name:  The attribute name to normalize
+
+        :returns:   The appropriate getter function name.
+        """
+        return "get_" + attr_name.replace(".", "_")
+
+    def _normalize_atr_name_setter(self, attr_name: str) -> str:
+        """Normalizes atr name to be suitable for setter function name.
+
+        :param      attr_name:  The attribute name to normalize
+
+        :returns:   The appropriate setter function name.
+        """
+        return "set_" + attr_name.replace(".", "_")

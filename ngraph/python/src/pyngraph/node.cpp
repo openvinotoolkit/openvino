@@ -14,21 +14,21 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
-#include "ngraph/node.hpp"        // ngraph::Node
-#include "ngraph/op/add.hpp"      // ngraph::op::Add
-#include "ngraph/op/divide.hpp"   // ngraph::op::Divide
-#include "ngraph/op/multiply.hpp" // ngraph::op::Multiply
-#include "ngraph/op/subtract.hpp" // ngraph::op::Subtract
+#include "dict_attribute_visitor.hpp"
+#include "ngraph/node.hpp"
+#include "ngraph/op/add.hpp"
+#include "ngraph/op/divide.hpp"
+#include "ngraph/op/multiply.hpp"
+#include "ngraph/op/subtract.hpp"
 #include "pyngraph/node.hpp"
 
 namespace py = pybind11;
 
 void regclass_pyngraph_Node(py::module m)
 {
-    py::class_<ngraph::Node, std::shared_ptr<ngraph::Node>> node(m, "Node");
+    py::class_<ngraph::Node, std::shared_ptr<ngraph::Node>> node(m, "Node", py::dynamic_attr());
     node.doc() = "ngraph.impl.Node wraps ngraph::Node";
     node.def("__add__",
              [](const std::shared_ptr<ngraph::Node>& a, const std::shared_ptr<ngraph::Node> b) {
@@ -83,4 +83,22 @@ void regclass_pyngraph_Node(py::module m)
 
     node.def_property("name", &ngraph::Node::get_friendly_name, &ngraph::Node::set_friendly_name);
     node.def_property_readonly("shape", &ngraph::Node::get_shape);
+
+    node.def("_get_attributes", [](const std::shared_ptr<ngraph::Node>& self) {
+        util::DictAttributeSerializer dict_serializer(self);
+        return dict_serializer.get_attributes();
+    });
+    node.def("_get_attribute",
+             [](const std::shared_ptr<ngraph::Node>& self, const std::string& atr_name) {
+                 util::DictAttributeSerializer dict_serializer(self);
+                 return dict_serializer.get_attributes()[atr_name.c_str()];
+             });
+    node.def(
+        "_set_attribute",
+        [](std::shared_ptr<ngraph::Node>& self, const std::string& atr_name, py::object value) {
+            py::dict attr_dict;
+            attr_dict[atr_name.c_str()] = value;
+            util::DictAttributeDeserializer dict_deserializer(attr_dict);
+            self->visit_attributes(dict_deserializer);
+        });
 }
