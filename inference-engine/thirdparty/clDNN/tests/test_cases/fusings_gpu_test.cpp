@@ -75,6 +75,7 @@ struct bc_test_params {
 
 struct gemm_test_params {
     std::vector<tensor> in_shapes;
+    tensor out_shape;
     tensor kernel;
     tensor pad;
     data_types data_type_in0;
@@ -361,6 +362,10 @@ public:
     layout get_per_channel_layout(gemm_test_params& p) {
         return layout{ p.default_type, p.default_format, tensor{1, p.in_shapes.at(0).feature[0], 1, 1} };
     }
+
+    layout get_output_layout(gemm_test_params& p) {
+        return layout{ p.default_type, p.input_format, p.out_shape };
+    }
 };
 
 // in_shape; out_shape; kernel; stride; pad; dilation; groups; data_type; input_format; weights_type; weights_format; default_type; default_format;
@@ -432,16 +437,19 @@ public:
 #define CASE_FC_U8S8_2 {2, 1, 3, 1}, {2, 4, 1, 1}, {4, 1, 3, 1}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::u8, format::b_fs_yx_fsv4, data_types::i8, format::oiyx, data_types::f32, format::bfyx
 #define CASE_FC_U8S8_3 {2, 32, 1, 1}, {2, 16, 1, 1}, {16, 32, 1, 1}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::u8, format::b_fs_yx_fsv4, data_types::i8, format::oiyx, data_types::f32, format::bfyx
 
-#define CASE_GEMM_3IN_S8S8_1 {{1, 1, 2, 2}, {1, 1, 2, 2}, {1, 1, 2, 2}}, tensor{1}, tensor{0}, data_types::i8, data_types::i8, data_types::i8, format::bfyx, data_types::f32, format::bfyx
-#define CASE_GEMM_3IN_S8S8_2 {{1, 2, 64, 128}, {1, 2, 256, 64}, {1, 2, 256, 128}}, tensor{1}, tensor{0}, data_types::i8, data_types::i8, data_types::i8, format::bfyx, data_types::f32, format::bfyx
-#define CASE_GEMM_3IN_S8S8_3 {{1, 1, 8, 16}, {1, 1, 32, 8}, {1, 1, 32, 16}}, tensor{1}, tensor{0}, data_types::i8, data_types::i8, data_types::i8, format::bfyx, data_types::f32, format::bfyx
+#define CASE_GEMM_3IN_S8S8_1 {{1, 1, 2, 2}, {1, 1, 2, 2}, {1, 1, 2, 2}}, {1, 1, 2, 2}, tensor{1}, tensor{0}, data_types::i8, data_types::i8, data_types::i8, format::bfyx, data_types::f32, format::bfyx
+#define CASE_GEMM_3IN_S8S8_2 {{1, 2, 64, 128}, {1, 2, 256, 64}, {1, 2, 256, 128}}, {1, 2, 256, 128}, tensor{1}, tensor{0}, data_types::i8, data_types::i8, data_types::i8, format::bfyx, data_types::f32, format::bfyx
+#define CASE_GEMM_3IN_S8S8_3 {{1, 1, 8, 16}, {1, 1, 32, 8}, {1, 1, 32, 16}}, {1, 1, 32, 16}, tensor{1}, tensor{0}, data_types::i8, data_types::i8, data_types::i8, format::bfyx, data_types::f32, format::bfyx
 
-#define CASE_GEMM_2IN_U8U8_1 {{1, 1, 2, 2}, {1, 1, 2, 2}}, tensor{1}, tensor{0}, data_types::u8,  data_types::u8,  data_types::u8, format::bfyx, data_types::f32, format::bfyx
-#define CASE_GEMM_2IN_U8U8_2 {{1, 2, 64, 128}, {1, 2, 256, 64}}, tensor{1}, tensor{0}, data_types::u8,  data_types::u8,  data_types::u8, format::bfyx, data_types::f32, format::bfyx
-#define CASE_GEMM_2IN_U8U8_3 {{1, 1, 16, 32}, {1, 1, 12, 16}}, tensor{1}, tensor{0}, data_types::u8,  data_types::u8,  data_types::u8, format::bfyx, data_types::f32, format::bfyx
+#define CASE_GEMM_2IN_U8U8_1 {{1, 1, 2, 2}, {1, 1, 2, 2}}, {1, 1, 2, 2}, tensor{1}, tensor{0}, data_types::u8, data_types::u8, data_types::u8, format::bfyx, data_types::f32, format::bfyx
+#define CASE_GEMM_2IN_U8U8_2 {{1, 2, 64, 128}, {1, 2, 256, 64}}, {1, 2, 256, 128}, tensor{1}, tensor{0}, data_types::u8, data_types::u8, data_types::u8, format::bfyx, data_types::f32, format::bfyx
+#define CASE_GEMM_2IN_U8U8_3 {{1, 1, 16, 32}, {1, 1, 32, 16}}, {1, 1, 32, 32}, tensor{1}, tensor{0}, data_types::u8, data_types::u8, data_types::u8, format::bfyx, data_types::f32, format::bfyx
 
-#define CASE_GEMM_2IN_U8S8_1 {{1, 1, 4, 2}, {1, 1, 8, 4}}, tensor{1}, tensor{0}, data_types::u8,  data_types::i8,  data_types::u8, format::bfyx, data_types::f32, format::bfyx
-#define CASE_GEMM_2IN_S8U8_1 {{1, 2, 64, 128}, {1, 2, 256, 64}}, tensor{1}, tensor{0}, data_types::i8,  data_types::u8,  data_types::u8, format::bfyx, data_types::f32, format::bfyx
+#define CASE_GEMM_2IN_U8S8_1 {{1, 1, 4, 2}, {1, 1, 8, 4}}, {1, 1, 8, 4}, tensor{1}, tensor{0}, data_types::u8, data_types::i8, data_types::u8, format::bfyx, data_types::f32, format::bfyx
+#define CASE_GEMM_2IN_S8U8_1 {{1, 2, 64, 128}, {1, 2, 256, 64}}, {1, 2, 256, 128}, tensor{1}, tensor{0}, data_types::i8, data_types::u8, data_types::u8, format::bfyx, data_types::f32, format::bfyx
+
+#define CASE_GEMM_ELTWISE_2IN_U8S8_1 {{1, 1, 4, 4}, {1, 1, 4, 4}}, {1, 1, 4, 4}, tensor{1}, tensor{0}, data_types::u8, data_types::i8, data_types::u8, format::bfyx, data_types::f32, format::bfyx
+#define CASE_GEMM_ELTWISE_2IN_S8U8_1 {{1, 1, 32, 32}, {1, 1, 32, 32}}, {1, 1, 32, 32}, tensor{1}, tensor{0}, data_types::i8, data_types::u8, data_types::u8, format::bfyx, data_types::f32, format::bfyx
 
 #define CASE_NORMALIZE_I8_1 {1, 2, 3, 3}, data_types::u8, format::bfyx, data_types::f32, format::bfyx
 
@@ -2269,6 +2277,35 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, gemm_int8_2in_act_scale_quantize_i8,
     ::testing::ValuesIn(std::vector<gemm_test_params>{
                         gemm_test_params{ CASE_GEMM_2IN_U8S8_1, 3, 6 },
                         gemm_test_params{ CASE_GEMM_2IN_S8U8_1, 3, 6 },
+}), );
+
+class gemm_int8_2in_act_scale_quantize_eltwise_i8 : public GemmFusingTest {};
+TEST_P(gemm_int8_2in_act_scale_quantize_eltwise_i8, basic) {
+    auto p = GetParam();
+    create_topologies(input_layout("input0", get_input_layout(p, 0)),
+        input_layout("input1", get_input_layout(p, 1)),
+        data("in_lo", get_mem(get_per_channel_layout(p), min_random, 0)),
+        data("in_hi", get_mem(get_per_channel_layout(p), 1, max_random)),
+        data("out_lo", get_mem(get_single_element_layout(p), -127)),
+        data("out_hi", get_mem(get_single_element_layout(p), 127)),
+        data("scale_data", get_mem(get_per_channel_layout(p), 1.0f / p.kernel.count() / 255)),
+        data("eltwise_data", get_mem(get_output_layout(p))),
+        gemm("gemm_prim", { "input0", "input1" }, data_types::f32),
+        activation("activation", "gemm_prim", activation_func::exp),
+        scale("scale", "activation", "scale_data"),
+        quantize("quantize", "scale", "in_lo", "in_hi", "out_lo", "out_hi", 255, data_types::i8),
+        eltwise("sum", { "quantize", "eltwise_data"}, eltwise_mode::sum,  data_types::f32),
+        reorder("reorder_bfyx", "sum", p.default_format, data_types::f32)
+    );
+
+    tolerance = 1.0f;
+    execute(p);
+}
+
+INSTANTIATE_TEST_CASE_P(fusings_gpu, gemm_int8_2in_act_scale_quantize_eltwise_i8,
+    ::testing::ValuesIn(std::vector<gemm_test_params>{
+                        gemm_test_params{ CASE_GEMM_ELTWISE_2IN_U8S8_1, 3, 7 },
+                        gemm_test_params{ CASE_GEMM_ELTWISE_2IN_S8U8_1, 3, 7 },
 }), );
 
 /* ----------------------------------------------------------------------------------------------------- */

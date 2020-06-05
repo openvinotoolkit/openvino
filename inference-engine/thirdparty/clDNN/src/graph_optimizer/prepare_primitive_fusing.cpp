@@ -517,12 +517,12 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
             bool can_fuse_parent1 = (parent1->is_type<convolution>() && conv_supports_fusings(parent1->as<convolution>())) ||
                                     (parent1->is_type<mvn>() && mvn_supports_fusings(parent1->as<mvn>())) ||
                                     (parent1->is_type<deconvolution>()) || (parent1->is_type<permute>()) ||
-                                    (parent1->is_type<depth_to_space>());
+                                    (parent1->is_type<depth_to_space>()) || (parent1->is_type<gemm>());
 
             bool can_fuse_parent2 = (parent2->is_type<convolution>() && conv_supports_fusings(parent2->as<convolution>())) ||
                                     (parent2->is_type<mvn>() && mvn_supports_fusings(parent2->as<mvn>())) ||
                                     (parent2->is_type<deconvolution>()) || (parent2->is_type<permute>()) ||
-                                    (parent1->is_type<depth_to_space>());
+                                    (parent1->is_type<depth_to_space>()) || (parent2->is_type<gemm>());
 
             std::vector<bool> can_fuse_parents = { can_fuse_parent1, can_fuse_parent2 };
 
