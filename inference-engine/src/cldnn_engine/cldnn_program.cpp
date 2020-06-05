@@ -3770,11 +3770,12 @@ void Program::CreateDepthToSpacePrimitive(cldnn::topology& topology, InferenceEn
     auto depthToSpace = as<InferenceEngine::GenericLayer*> (layer);
 
     size_t blockSize = static_cast<size_t>(depthToSpace->GetParamAsUInt("block_size", 2));
+    std::string mode_s = depthToSpace->GetParamAsString("mode");
+
+    cldnn::depth_to_space_mode mode = mode_s == "depth_first" ? cldnn::depth_to_space_mode::depth_first
+                                                              : cldnn::depth_to_space_mode::blocks_first;
 
     auto inputDim = depthToSpace->input().get()->getTensorDesc().getDims();
-    if (inputDim.size() != 4)
-        THROW_CLDNN_EXCEPTION("Unsupported size of tensor " << inputDim.size());
-
     size_t blockSizeSquare = blockSize * blockSize;
 
     if (inputDim[1] % blockSizeSquare != 0)
@@ -3784,7 +3785,8 @@ void Program::CreateDepthToSpacePrimitive(cldnn::topology& topology, InferenceEn
     auto depthToSpacePrim = cldnn::depth_to_space(
             depthToSpaceName,
             inputPrimitives[0],
-            blockSize);
+            blockSize,
+            mode);
 
     topology.add(depthToSpacePrim);
     AddPrimitiveToProfiler(depthToSpaceName, layer);

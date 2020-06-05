@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2018-2019 Intel Corporation
+// Copyright (c) 2018-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -324,7 +324,7 @@ void pre_replace_deconv::run(program_impl& p) {
                     p.inputs.push_back(weights_node_conv_rpl_ptr.get());
                 }
 
-                auto pixel_shuffle_prim = std::make_shared<depth_to_space>(deconv_id, deconv_id_conv, 2);
+                auto pixel_shuffle_prim = std::make_shared<depth_to_space>(deconv_id, deconv_id_conv, 2, depth_to_space_mode::blocks_first);
 
                 p.get_or_create(pixel_shuffle_prim);
                 auto pixel_shuffle_node_ptr = p.nodes_map.find(deconv_id)->second;

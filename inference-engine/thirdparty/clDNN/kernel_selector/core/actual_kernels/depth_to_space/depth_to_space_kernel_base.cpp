@@ -27,6 +27,15 @@ bool DepthToSpaceKernelBase::Validate(const Params& p, const optional_params& o)
         return false;
     }
 
+    const depth_to_space_params& params = static_cast<const depth_to_space_params&>(p);
+    for (auto& fused_op : params.fused_ops) {
+        if (!IsFusedPrimitiveSupported(fused_op))
+            return false;
+    }
+
+    if (params.inputs[0].Dimentions() > 5)
+        return false;
+
     return true;
 }
 
@@ -35,7 +44,7 @@ CommonDispatchData DepthToSpaceKernelBase::SetDefault(const depth_to_space_param
 
     std::vector<size_t> global = { params.output.Batch().v,
                                    params.output.Feature().v,
-                                   params.output.Y().v * params.output.X().v };
+                                   params.output.Z().v * params.output.Y().v * params.output.X().v };
 
     auto local = GetOptimalLocalWorkGroupSizes(global, params.engineInfo);
 
@@ -54,6 +63,11 @@ JitConstants DepthToSpaceKernelBase::GetJitConstants(const depth_to_space_params
     JitConstants jit = MakeBaseParamsJitConstants(params);
 
     jit.AddConstant(MakeJitConstant("BLOCK_SIZE", params.block_size));
+    if (params.mode == DepthToSpaceMode::BLOCKS_FIRST) {
+        jit.AddConstant(MakeJitConstant("BLOCKS_FIRST", 1));
+    } else {
+        jit.AddConstant(MakeJitConstant("DEPTH_FIRST", 1));
+    }
 
     return jit;
 }
@@ -73,7 +87,8 @@ KernelsData DepthToSpaceKernelBase::GetCommonKernelsData(const Params& params, c
 
     auto& kernel = kd.kernels[0];
 
-    FillCLKernelData(kernel, runInfo, params.engineInfo, kernelName, jit, entry_point);
+    FillCLKernelData(kernel, runInfo, params.engineInfo, kernelName, jit, entry_point,
+                     DEFAULT, false, false, 1, GetFusedPrimitiveInputsCount(params));
 
     kd.estimatedTime = estimatedTime;
 

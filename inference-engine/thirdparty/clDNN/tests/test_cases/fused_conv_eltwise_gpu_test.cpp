@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016 Intel Corporation
+// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -102,7 +102,7 @@ TEST(fused_conv_eltwise, basic_image2d)
         input_layout("input2", input2.get_layout()),
         data("weights", weights),
         convolution("conv", "input", { "weights" }),
-        depth_to_space("depth_to_space", "conv", 2),
+        depth_to_space("depth_to_space", "conv", 2, depth_to_space_mode::blocks_first),
         eltwise("eltwise", "input2", "depth_to_space", eltwise_mode::sum)
     );
 
@@ -125,7 +125,7 @@ TEST(fused_conv_eltwise, basic_image2d)
         input_layout("input2", input2.get_layout()),
         data("weights", weights),
         convolution("conv", "input", { "weights" }),
-        depth_to_space("depth_to_space", "conv", 2),
+        depth_to_space("depth_to_space", "conv", 2, depth_to_space_mode::blocks_first),
         eltwise("eltwise", "input2", "depth_to_space", eltwise_mode::sum),
         reorder("out", "eltwise", format::image_2d_rgba, data_types::u8));
 
