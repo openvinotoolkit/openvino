@@ -147,7 +147,7 @@ jobs:
     displayName: 'Create build directory'
   - script: |
       export PATH="/usr/local/opt/cython/bin:$PATH"
-      cmake .. -GNinja -DVERBOSE_BUILD=ON -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DENABLE_PYTHON=ON -DENABLE_TESTS=ON
+      cmake .. -GNinja -DVERBOSE_BUILD=ON -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DENABLE_PYTHON=ON -DENABLE_TESTS=ON -Wno-unused-variable
     workingDirectory: dldt-build
     displayName: 'CMake'
   - script: ninja
