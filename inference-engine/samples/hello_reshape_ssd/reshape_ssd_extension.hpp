@@ -127,7 +127,7 @@ constexpr ngraph::NodeTypeInfo CustomReluOp::type_info;
 class InPlaceExtension : public InferenceEngine::IExtension {
 public:
     InPlaceExtension() {
-        impls["CustomReLU"] = [](const std::shared_ptr<ngraph::Node>& node) -> InferenceEngine::ILayerImpl::Ptr {
+        impls[CUSTOM_RELU_TYPE] = [](const std::shared_ptr<ngraph::Node>& node) -> InferenceEngine::ILayerImpl::Ptr {
             return std::make_shared<CustomReLUImpl>(node);
         };
     }
