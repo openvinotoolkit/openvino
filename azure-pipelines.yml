@@ -206,6 +206,7 @@ jobs:
   variables:
     BUILD_TYPE: Release
     BUILD_DIR: D:\dldt-build
+    MSVC_COMPILER_PATH: "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Tools\MSVC\14.24.28314"
   steps:
   - script: |
       set
@@ -223,7 +224,7 @@ jobs:
       rd /Q /S dldt-build
       mkdir dldt-build
     displayName: 'Create build directory'
-  - script: call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat" && cmake -GNinja -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DENABLE_TESTS=ON -DCMAKE_C_COMPILER:PATH="%VCToolsInstallDir%\bin\Hostx64\x64\cl.exe" -DCMAKE_CXX_COMPILER:PATH="%VCToolsInstallDir%\bin\Hostx64\x64\cl.exe" $(Build.Repository.LocalPath)
+  - script: call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat" && cmake -GNinja -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DENABLE_TESTS=ON -DCMAKE_C_COMPILER:PATH="$(MSVC_COMPILER_PATH)\bin\Hostx64\x64\cl.exe" -DCMAKE_CXX_COMPILER:PATH="$(MSVC_COMPILER_PATH)\bin\Hostx64\x64\cl.exe" $(Build.Repository.LocalPath)
     workingDirectory: $(BUILD_DIR)
   - script: call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat" && ninja
     workingDirectory: $(BUILD_DIR)
