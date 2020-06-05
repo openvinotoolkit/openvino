@@ -117,11 +117,12 @@ bool canTryHW(const ie::PoolingLayer::PoolType poolType,
     }
 
     //  FIX #14949, enable HW AVG pooling, need SW postproc
-    if (excludePad && poolType == ie::PoolingLayer::PoolType::AVG) {
-        if (outputWidth == 5 &&
-            outputHeight == 5 &&
-            kernelSizeX == 5 &&
-            kernelSizeY == 5) {
+    //  HW AVG pooling will output wrong results in borders when excludePad=true
+    bool hasPad = padLeft || padTop || padRight || padBottom;
+    if (excludePad && hasPad && poolType == ie::PoolingLayer::PoolType::AVG) {
+        // Only apply to small output tensors for now
+        // May need to loose the condition if accuracy issues are met
+        if (outputWidth <= 5 && outputHeight <= 5) {
             tryHW = false;
         }
     }
