@@ -24,6 +24,7 @@ from mo.ops.op import Op
 reduce_map = {
     'ReduceSum': np.sum,
     'ReduceProd': np.prod,
+    'ReduceL2': lambda x, axis, keepdims: np.sqrt(np.sum(a=np.square(x), axis=axis, keepdims=keepdims)),
     'ReduceMax': np.max,
     'ReduceMin': np.min,
     'ReduceMean': np.mean,
@@ -134,6 +135,12 @@ class ReduceMax(ReduceOp):
 class ReduceMean(ReduceOp):
     op = 'ReduceMean'
     op_type = 'ReduceMean'
+    enabled = True
+
+
+class ReduceL2(ReduceOp):
+    op = 'ReduceL2'
+    op_type = None
     enabled = True
 
 
