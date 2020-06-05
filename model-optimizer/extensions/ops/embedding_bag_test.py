@@ -52,17 +52,17 @@ class TestEmbeddingInfer(unittest.TestCase):
     def test_embedding_bag_offsets_sum(self):
         graph = build_graph(nodes, [
             *connect('data', '0:embedding_bag_offsets'),
-            *connect('indices', '1:embedding_bag_offsets'),
+            *connect('indices1d', '1:embedding_bag_offsets'),
             *connect('offsets', '2:embedding_bag_offsets'),
             ('embedding_bag_offsets', 'embedding_bag_offsets_d', {'out': 0}),
             ('embedding_bag_offsets_d', 'output'),
         ], nodes_with_edges_only=True)
-        eb_node = Node(graph, 'embedding_bag')
+        eb_node = Node(graph, 'embedding_bag_offsets')
         EmbeddingBagOffsetsSum.infer(eb_node)
 
         self.assertTrue(np.array_equal(eb_node.out_port(0).data.get_shape(), int64_array([30, 8])))
 
-    def test_embedding_bag_offsets_sum(self):
+    def test_embedding_bag_packed_sum(self):
         graph = build_graph(nodes, [
             *connect('data', '0:embedding_bag_packed'),
             *connect('indices2d', '1:embedding_bag_packed'),
