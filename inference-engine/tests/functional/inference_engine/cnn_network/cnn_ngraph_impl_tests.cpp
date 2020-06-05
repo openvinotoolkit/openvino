@@ -15,11 +15,13 @@
 #include <ie_util_internal.hpp>
 #include <ie_parameter.hpp>
 #include <ie_core.hpp>
+#include <net_pass.h>
 
 #include <ngraph/function.hpp>
 #include <ngraph/variant.hpp>
 #include <ngraph/op/maximum.hpp>
 #include <ngraph/op/constant.hpp>
+#include <ngraph/op/convert.hpp>
 #include <ngraph/op/parameter.hpp>
 #include <ngraph/op/relu.hpp>
 #include <ngraph/op/fused/prelu.hpp>
@@ -54,6 +56,32 @@ TEST(CNNNGraphImplTests, TestConvertNetwork) {
     cnnNet.convertToCNNNetworkImpl();
 
     ASSERT_EQ(cnnRefNet, cnnNet.getCNNNetwork());
+}
+
+TEST(CNNNGraphImplTests, TestConvertWithRemoveLastLayerNetwork) {
+    std::shared_ptr<ngraph::Function> ngraph;
+    {
+        ngraph::PartialShape shape({1, 3, 22, 22});
+        ngraph::element::Type type(ngraph::element::Type_t::i32);
+        auto param = std::make_shared<ngraph::op::Parameter>(type, shape);
+        param->set_friendly_name("param");
+        auto relu = std::make_shared<ngraph::op::Relu>(param);
+        relu->set_friendly_name("relu");
+        auto convert = std::make_shared<ngraph::op::Convert>(relu, ngraph::element::Type_t::i64);
+        convert->set_friendly_name("convert");
+        auto result = std::make_shared<ngraph::op::Result>(convert);
+
+        ngraph::ParameterVector params = {param};
+        ngraph::ResultVector results = {result};
+
+        ngraph = std::make_shared<ngraph::Function>(results, params);
+    }
+
+    InferenceEngine::details::CNNNetworkNGraphImpl cnnNet(ngraph);
+    InferenceEngine::ICNNNetwork& cnnRefNet = *cnnNet.getCNNNetwork();
+    // Remove convert layer
+    InferenceEngine::NetPass::ConvertPrecision(cnnRefNet, Precision::I64, Precision::I32);
+    ASSERT_NO_THROW(cloneNet(cnnRefNet));
 }
 
 TEST(CNNNGraphImplTests, TestResultWithNotEqualName) {

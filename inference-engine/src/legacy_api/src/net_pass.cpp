@@ -298,6 +298,11 @@ void RemoveLayer(CNNLayerPtr& layer) {
 
     // transfer output connections into parent data
     CombineData(in_data, out_data);
+
+    // Save name for output data
+    if (out_data->getInputTo().empty()) {
+        in_data->setName(out_data->getName());
+    }
 }
 
 /************************************************************/
