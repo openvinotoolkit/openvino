@@ -154,7 +154,7 @@ jobs:
   - script: ls -alR ../bin/intel64/$(BUILD_TYPE)/
     workingDirectory: dldt-build
     displayName: 'List files'
-  - script: ../bin/intel64/$(BUILD_TYPE)/unit-test --gtest_print_time=1 --gtest_filter=-backend_api.config_unsupported:*GPU*:*CPU*
+  - script: ../bin/intel64/$(BUILD_TYPE)/unit-test --gtest_print_time=1 --gtest_filter=-backend_api.config_unsupported:*GPU*:*CPU*:constant.shared_data
     workingDirectory: dldt-build
     displayName: 'nGraph UT'
     continueOnError: false
@@ -243,7 +243,7 @@ jobs:
     displayName: 'List files'
   - script: |
       set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
-      ..\bin\intel64\$(BUILD_TYPE)\unit-test --gtest_print_time=1 --gtest_filter=-backend_api.config_unsupported:*GPU*:*CPU*
+      ..\bin\intel64\$(BUILD_TYPE)\unit-test --gtest_print_time=1 --gtest_filter=-backend_api.config_unsupported:*GPU*:*CPU*:constant.shared_data
     workingDirectory: dldt-build
     displayName: 'nGraph UT'
     continueOnError: false
