@@ -845,8 +845,14 @@ std::shared_ptr<CNNNetworkImpl> convertFunctionToICNNNetwork(const std::shared_p
         const CNNLayer::Ptr &layer = kvp.second;
         size_t inSize = layer->insData.size();
 
-        if (layer->type == "Const" && (layer->outData.empty() || layer->outData[0]->getInputTo().empty()))
+        if (layer->type == "Const" && (layer->outData.empty() || layer->outData[0]->getInputTo().empty())) {
             to_remove.emplace_back(layer->name);
+            if (!layer->outData.empty()) {
+                IE_ASSERT(layer->outData.size() == 1);
+                cnnNetworkImpl->removeData(layer->outData[0]->getName());
+            }
+            continue;
+        }
 
         for (unsigned i = 0; i < inSize; i++) {
             if (!layer->insData[i].lock()) {
