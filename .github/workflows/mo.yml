@@ -1,0 +1,55 @@
+name: MO
+on:
+  push:
+    paths:
+      - 'model-optimizer/**'
+  pull_request:
+    paths:
+      - 'model-optimizer/**'
+
+jobs:
+  Pylint-UT:
+    runs-on: ubuntu-18.04
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v1
+        with:
+          python-version: 3.6
+
+      - name: Cache pip
+        uses: actions/cache@v1
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('model-optimizer/requirements*.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+            ${{ runner.os }}-
+
+        # tensorflow 1.15 causes modules import
+        # errors, most likely due to https://github.com/PyCQA/pylint/issues/2603
+        # for tensorflow.core.framework and tensorflow.contrib
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip setuptools
+          # For Pylint
+          pip install tensorflow==1.14.0 tensorboard==1.14.0 tensorflow-estimator==1.14.0
+          # For UT
+          pip install unittest-xml-reporting==3.0.2
+          # MO requirements
+          pip install -r requirements.txt
+          pip install -r requirements_dev.txt
+        working-directory: model-optimizer
+
+      - name: Pylint
+        run: pylint -d C,R,W mo/ mo.py extensions/
+        working-directory: model-optimizer
+
+      - name: UT
+        run: |
+          export PYTHONPATH=$PYTHONPATH:`pwd`
+          export MO_ROOT=`pwd`
+          env
+          mkdir ../mo-ut-logs
+          python3 -m xmlrunner discover -p *_test.py --output=../mo-ut-logs
+        working-directory: model-optimizer
