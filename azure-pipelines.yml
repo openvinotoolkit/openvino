@@ -30,7 +30,7 @@ jobs:
       unzip ninja-linux.zip
       sudo cp -v ninja /usr/local/bin/
     displayName: 'Install Ninja'
-  - script: git submodule update --init --recursive
+  - script: git submodule update --init --recursive --jobs 8
     displayName: 'Clone submodules'
   - script: |
       mkdir dldt-build
@@ -113,7 +113,7 @@ jobs:
     enabled: false
 
 - job: Mac
-  timeoutInMinutes: 150
+  timeoutInMinutes: 180
   pool:
     vmImage: 'macOS-10.15'
   variables:
@@ -139,7 +139,7 @@ jobs:
     displayName: 'Install dependencies'
   - script: brew install ninja
     displayName: 'Install Ninja'
-  - script: git submodule update --init --recursive
+  - script: git submodule update --init --recursive --jobs 8
     displayName: 'Clone submodules'
   - script: |
       mkdir dldt-build
@@ -206,13 +206,14 @@ jobs:
     continueOnError: false
 
 - job: Win
-  timeoutInMinutes: 150
+  timeoutInMinutes: 120
   pool:
     #vmImage: 'vs2017-win2016'
     name: WIN_VMSS_VENV_F8S_WU2
   variables:
     BUILD_TYPE: Release
     BUILD_DIR: D:\dldt-build
+    BIN_DIR: ..\bin\intel64
     MSVS_VARS_PATH: C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat
     MSVC_COMPILER_PATH: C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Tools\MSVC\14.24.28314\bin\Hostx64\x64\cl.exe
   steps:
@@ -222,9 +223,11 @@ jobs:
       wmic logicaldisk get description,name
       wmic VOLUME list
     displayName: 'System properties'
-  - script: choco install ninja
+  - script: |
+      certutil -urlcache -split -f https://github.com/ninja-build/ninja/releases/download/v1.10.0/ninja-win.zip ninja-win.zip
+      powershell -command "Expand-Archive -Force ninja-win.zip"
     displayName: Install Ninja
-  - script: git submodule update --init --recursive
+  - script: git submodule update --init --recursive --jobs 8
     displayName: 'Clone submodules'
   - script: |
       rd /Q /S $(BUILD_DIR)
@@ -232,10 +235,14 @@ jobs:
       rd /Q /S dldt-build
       mkdir dldt-build
     displayName: 'Create build directory'
-  - script: call "$(MSVS_VARS_PATH)" && cmake -GNinja -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DENABLE_TESTS=ON -DCMAKE_C_COMPILER:PATH="$(MSVC_COMPILER_PATH)" -DCMAKE_CXX_COMPILER:PATH="$(MSVC_COMPILER_PATH)" $(Build.Repository.LocalPath)
+  - script: |
+      set PATH=$(Build.Repository.LocalPath)\ninja-win;%PATH%
+      call "$(MSVS_VARS_PATH)" && cmake -GNinja -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DENABLE_TESTS=ON -DCMAKE_C_COMPILER:PATH="$(MSVC_COMPILER_PATH)" -DCMAKE_CXX_COMPILER:PATH="$(MSVC_COMPILER_PATH)" $(Build.Repository.LocalPath)
     workingDirectory: $(BUILD_DIR)
     displayName: 'CMake'
-  - script: call "$(MSVS_VARS_PATH)" && ninja
+  - script: |
+      set PATH=$(Build.Repository.LocalPath)\ninja-win;%PATH%
+      call "$(MSVS_VARS_PATH)" && ninja
     workingDirectory: $(BUILD_DIR)
     displayName: 'Build Win'
   - script: dir ..\bin\ /s /b
@@ -243,55 +250,55 @@ jobs:
     displayName: 'List files'
   - script: |
       set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
-      ..\bin\intel64\$(BUILD_TYPE)\unit-test --gtest_print_time=1 --gtest_filter=-backend_api.config_unsupported:*IE_GPU*
+      $(BIN_DIR)\unit-test --gtest_print_time=1 --gtest_filter=-backend_api.config_unsupported:*IE_GPU*
     workingDirectory: dldt-build
     displayName: 'nGraph UT'
     continueOnError: false
   - script: |
       set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
-      ..\bin\intel64\$(BUILD_TYPE)\InferenceEngineUnitTests
+      $(BIN_DIR)\InferenceEngineUnitTests
     workingDirectory: dldt-build
     displayName: 'IE UT old'
     continueOnError: false
   - script: |
       set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
-      ..\bin\intel64\$(BUILD_TYPE)\ieUnitTests
+      $(BIN_DIR)\ieUnitTests
     workingDirectory: dldt-build
     displayName: 'IE UT'
     continueOnError: false
   - script: |
       set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
-      ..\bin\intel64\$(BUILD_TYPE)\cpuUnitTests
+      $(BIN_DIR)\cpuUnitTests
     workingDirectory: dldt-build
     displayName: 'CPU UT'
     continueOnError: false
   - script: |
       set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
-      ..\bin\intel64\$(BUILD_TYPE)\gnaUnitTests
+      $(BIN_DIR)\gnaUnitTests
     workingDirectory: dldt-build
     displayName: 'GNA UT'
     continueOnError: false
   - script: |
       set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
-      ..\bin\intel64\$(BUILD_TYPE)\vpuUnitTests
+      $(BIN_DIR)\vpuUnitTests
     workingDirectory: dldt-build
     displayName: 'VPU UT'
     continueOnError: false
   - script: |
       set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
-      ..\bin\intel64\$(BUILD_TYPE)\ieFuncTests
+      $(BIN_DIR)\ieFuncTests
     workingDirectory: dldt-build
     displayName: 'IE FuncTests'
     continueOnError: false
   - script: |
       set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
-      ..\bin\intel64\$(BUILD_TYPE)\cpuFuncTests
+      $(BIN_DIR)\cpuFuncTests
     workingDirectory: dldt-build
     displayName: 'CPU FuncTests'
     continueOnError: false
   - script: |
       set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
-      ..\bin\intel64\$(BUILD_TYPE)\MklDnnBehaviorTests
+      $(BIN_DIR)\MklDnnBehaviorTests
     workingDirectory: dldt-build
     displayName: 'MklDnnBehaviorTests'
     continueOnError: false
@@ -302,7 +309,7 @@ jobs:
       set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;$(Build.Repository.LocalPath)\inference-engine\temp\opencv_4.3.0\opencv\bin;%PATH%
       set DATA_PATH=$(BUILD_DIR)\testdata
       set MODELS_PATH=$(BUILD_DIR)\testdata
-      ..\bin\intel64\$(BUILD_TYPE)\MklDnnFunctionalTests --gtest_filter=*smoke*:-smoke_MobileNet/ModelTransformationsTest.LPT/mobilenet_v2_tf_depthwise_batch1_inPluginDisabled_inTestDisabled_asymmetric*
+      $(BIN_DIR)\MklDnnFunctionalTests --gtest_filter=*smoke*:-smoke_MobileNet/ModelTransformationsTest.LPT/mobilenet_v2_tf_depthwise_batch1_inPluginDisabled_inTestDisabled_asymmetric*
     workingDirectory: dldt-build
     displayName: 'MklDnnFunctionalTests'
     continueOnError: false
@@ -310,7 +317,7 @@ jobs:
       set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;$(Build.Repository.LocalPath)\inference-engine\temp\opencv_4.3.0\opencv\bin;%PATH%
       set DATA_PATH=$(BUILD_DIR)\testdata
       set MODELS_PATH=$(BUILD_DIR)\testdata
-      ..\bin\intel64\$(BUILD_TYPE)\InferenceEngineCAPITests
+      $(BIN_DIR)\InferenceEngineCAPITests
     workingDirectory: dldt-build
     displayName: 'IE CAPITests'
     continueOnError: false
