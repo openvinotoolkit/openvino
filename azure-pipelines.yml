@@ -206,7 +206,7 @@ jobs:
   variables:
     BUILD_TYPE: Release
     BUILD_DIR: D:\dldt-build
-    MSVC_COMPILER_PATH: "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Tools\MSVC\14.24.28314"
+    MSVC_COMPILER_PATH: C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Tools\MSVC\14.24.28314\
   steps:
   - script: |
       set
