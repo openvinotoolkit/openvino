@@ -1,4 +1,4 @@
-// Copyright (c) 2016-2017 Intel Corporation
+// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,15 +15,14 @@
 #include "include/common.cl"
 #include "include/data_types.cl"
 
-
-#if FP16_UNIT_USED
-    #define UNIT_CVT_FUNC(val) convert_half(val)
-#else
-    #define UNIT_CVT_FUNC(val) (val)
+KERNEL (normalize_gpu_within_spatial_bfyx)(
+    const __global INPUT0_TYPE* input,
+    __global OUTPUT_TYPE* output,
+#if HAS_FUSED_OPS_DECLS
+    FUSED_OPS_DECLS,
 #endif
-
-
-KERNEL (normalize_gpu_within_spatial_bfyx)(const __global UNIT_TYPE* input, __global UNIT_TYPE* output, const __global UNIT_TYPE* scale_input)
+    const __global SCALE_TABLE_TYPE* scale_input
+    )
 {
     const uint x = get_global_id(0);
     const uint y = get_global_id(1);
@@ -40,7 +39,7 @@ KERNEL (normalize_gpu_within_spatial_bfyx)(const __global UNIT_TYPE* input, __gl
         norm = mad(value, value, norm);
         input_idx += INPUT0_FEATURE_PITCH;
     }
-   
+
     uint output_idx = OUTPUT_OFFSET + b*OUTPUT_BATCH_PITCH + y*OUTPUT_Y_PITCH + x*OUTPUT_X_PITCH;
 
     if(norm <= THRESHOLD)
@@ -62,13 +61,16 @@ KERNEL (normalize_gpu_within_spatial_bfyx)(const __global UNIT_TYPE* input, __gl
         const uint scale_index = f;
 #else
         const uint scale_index = f % SCALE_TABLE_FEATURE_NUM;
-#endif 
+#endif
 
-        output[output_idx] = ACTIVATION(UNIT_CVT_FUNC(norm) * input[input_idx] * scale_input[scale_index], ACTIVATION_PARAMS);
+        ACTIVATION_TYPE result = TO_ACTIVATION_TYPE(norm) * TO_ACTIVATION_TYPE(input[input_idx]) * TO_ACTIVATION_TYPE(scale_input[scale_index]);
+#if HAS_FUSED_OPS
+        FUSED_OPS;
+        output[output_idx] = FUSED_OPS_RESULT;
+#else
+        output[output_idx] = TO_OUTPUT_TYPE(ACTIVATION(result, ACTIVATION_PARAMS));
+#endif
         output_idx += OUTPUT_FEATURE_PITCH;
         input_idx += INPUT0_FEATURE_PITCH;
     }
 }
-
-
-#undef UNIT_CVT_FUNC
