@@ -35,7 +35,7 @@ class EmbeddingBagResolver(MiddleReplacementPattern):
         for node in graph.get_op_nodes(op='ATenEmbeddingBag'):
             assert node.soft_get('mode') == 0, 'ATen::embedding_bag has unsupported mode, only "sum" ' \
                                                'mode is supported for node {}.'.format(node.id)
-            node_name = node.name
+            node_name = node.soft_get('name', node.id)
             rename_node(node, node_name + '/TBR')
             is_packed = False
             if len(node.in_ports()) < 3 or node.in_port(2).disconnected():
