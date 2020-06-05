@@ -25,9 +25,7 @@ endif()
 if(DEFINED INTEL_VTUNE_DIR)
     message(STATUS "INTEL_VTUNE_DIR = ${INTEL_VTUNE_DIR}")
 
-    find_path(ITT_INCLUDE_DIR
-    FILES
-        ittnotify.h
+    find_path(ITT_INCLUDE_DIR ittnotify.h
     PATHS "${INTEL_VTUNE_DIR}/include/")
 
     find_library(ITT_LIB
