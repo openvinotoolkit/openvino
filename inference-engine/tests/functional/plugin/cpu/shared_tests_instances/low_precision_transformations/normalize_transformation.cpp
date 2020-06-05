@@ -29,7 +29,7 @@ const std::vector<bool> shiftValues = { true, false };
 INSTANTIATE_TEST_CASE_P(LPT, NormalizeTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(InferenceEngine::SizeVector({ 1, 96, 32, 32 })),
+        ::testing::Values(InferenceEngine::SizeVector({ 1, 16, 8, 8 })),
         ::testing::Values(CommonTestUtils::DEVICE_CPU),
         ::testing::ValuesIn(trasformationParamValues),
         ::testing::ValuesIn(fuseMultiplyValues),

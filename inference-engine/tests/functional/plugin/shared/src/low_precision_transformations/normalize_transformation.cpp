@@ -65,7 +65,8 @@ void NormalizeTransformation::SetUp() {
 
     ngraph::ResultVector results;
     if (fuseMultiply) {
-        const auto multiplyConst = std::make_shared<ngraph::op::Constant>(ngPrc, ngraph::Shape(inputShape), std::vector<float>{ 2.f });
+        const auto multiplyConst = std::make_shared<ngraph::op::Constant>(
+            ngPrc, ngraph::Shape{ inputShape[0], inputShape[1], 1ul, 1ul }, std::vector<float>{ 2.f });
         const auto multiply = std::make_shared<ngraph::opset1::Multiply>(normL2->output(0), multiplyConst);
         results = { std::make_shared<ngraph::opset1::Result>(multiply) };
     } else {
