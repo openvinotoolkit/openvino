@@ -12,6 +12,7 @@
 
 #include <ie_core.hpp>
 #include <net_pass.h>
+#include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
@@ -66,6 +67,10 @@ InferenceEngine::details::LayerTransformation::Params LayerTransformationParamsF
         true,
         { InferenceEngine::Precision::I8 },
         { InferenceEngine::Precision::I8 });
+}
+
+LayerTransformation::LayerTransformation() {
+    configuration[InferenceEngine::PluginConfigInternalParams::KEY_LP_TRANSFORMS_MODE] = InferenceEngine::PluginConfigParams::YES;
 }
 
 InferenceEngine::details::LowPrecisionTransformer LayerTransformation::getLowPrecisionTransformer(
