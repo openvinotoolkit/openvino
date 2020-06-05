@@ -58,6 +58,25 @@ public:
     }
 };
 
+
+class AutoReplaceOutputType {
+    std::shared_ptr<Node> m_node;
+    element::Type orig_type;
+public:
+    AutoReplaceOutputType(std::shared_ptr<Node> node, element::Type tmp_type) : m_node(node) {
+        orig_type = node->get_output_element_type(0);
+        m_node->set_output_type(0, tmp_type, m_node->get_output_partial_shape(0));
+    }
+
+    operator std::shared_ptr<Node>() const {
+        return m_node;
+    }
+
+    ~AutoReplaceOutputType() {
+        m_node->set_output_type(0, orig_type, m_node->get_output_partial_shape(0));
+    }
+};
+
 template <typename BaseOp>
 class TRANSFORMATIONS_API TypeRelaxed : public BaseOp, public TypeRelaxedBase {
 public:

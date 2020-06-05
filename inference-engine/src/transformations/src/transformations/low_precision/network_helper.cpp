@@ -1683,6 +1683,60 @@ std::shared_ptr<opset1::Constant> distillToScalar(std::shared_ptr<opset1::Consta
     return std::make_shared<opset1::Constant>(constant->get_element_type(), Shape{}, constant->get_data_ptr());
 }
 
+std::shared_ptr<Node> getConstantInput(std::shared_ptr<Node> node) {
+    std::shared_ptr<Node> constant1 = as_type_ptr<opset1::Constant>(node->input_value(0).get_node_shared_ptr());
+    if (!constant1) {
+        constant1 = as_type_ptr<opset1::Constant>(node->input_value(1).get_node_shared_ptr());
+    }
+    return constant1;
+}
+
+
+std::shared_ptr<Node> optimizeMultipliesAfter(std::shared_ptr<Node> multiply) {
+    multiply = as_type_ptr<opset1::Multiply>(multiply);
+
+    if (multiply && multiply->output(0).get_target_inputs().size() == 1) {
+        auto constant1 = getConstantInput(multiply);
+        if (!constant1 || constant1->output(0).get_target_inputs().size() != 1) {
+            return multiply;
+        }
+        auto nextMultiplyInput = *multiply->output(0).get_target_inputs().begin();
+        auto nextMultiply = as_type_ptr<opset1::Multiply>(nextMultiplyInput.get_node()->shared_from_this());
+        if (nextMultiply) {
+            auto constant2 = getConstantInput(nextMultiply);
+            if (!constant2 || constant2->output(0).get_target_inputs().size() != 1) {
+                return multiply;
+            }
+
+            auto newConst = fold<opset1::Multiply>(constant1, constant2);
+            auto newMultiply =
+                    std::make_shared<opset1::Multiply>(
+                            multiply->input_value(1 - constant1->output(0).get_target_inputs().begin()->get_index()),
+                            newConst->output(0));
+            replace_node(nextMultiply, newMultiply);
+            return newMultiply;
+        }
+    }
+}
+
+std::shared_ptr<opset1::Constant> roundWithTolerance(std::shared_ptr<Node> node, element::Type target_type, float tolerance) {
+    auto constant = as_type_ptr<opset1::Constant>(node);
+    assert(constant);
+    auto values = constant->cast_vector<float>();
+
+    auto castedConstant = as_type_ptr<opset1::Constant>(fold<opset1::Convert>(constant, target_type));
+    auto castedValues = castedConstant->cast_vector<float>();
+
+    if (std::equal(values.begin(), values.end(), castedValues.begin(), [tolerance](float a, float b) { return fabs(a - b) < tolerance; })) {
+        return castedConstant;
+    } else {
+        return constant;
+    }
+}
+
+
+
+
 }  // namespace low_precision
 }  // namespace pass
 }  // namespace ngraph

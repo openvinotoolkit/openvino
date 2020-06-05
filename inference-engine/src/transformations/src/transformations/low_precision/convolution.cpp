@@ -116,17 +116,77 @@ void ConvolutionTransformation::transform(TransformationContext &context, ngraph
         // TODO: Acknowledge and remove this block
     }*/
 
-    // Move Multiply from Data path immediately to the output
-    // Before moving, Multiply should be decoupled and exchanged with Add in MultiplyAdd operation
-    auto newMultiplyFromData = swapMultiplyAndAdd(decomposeMultiplyAdd(as_type_ptr<ngraph::op::MultiplyAdd>(scaleShiftOnData)));
-    // double-check that Multiply is still scalar-like
-    assert(isScalarLike(as_type_ptr<opset1::Constant>(newMultiplyFromData->input_value(1).get_node_shared_ptr())));
-    auto newMultiplyAfter = std::make_shared<opset1::Multiply>(
-            layer->copy_with_new_inputs({newMultiplyFromData->input_value(0), layer->input_value(1)}),
-            distillToScalar(as_type_ptr<opset1::Constant>(newMultiplyFromData->input_value(1).get_node_shared_ptr())));
-    replace_node(layer, newMultiplyAfter);
+    {
+        // Move Multiply from Data path immediately to the output
+        // Before moving, Multiply should be decoupled and exchanged with Add in MultiplyAdd operation
+        auto newMultiplyFromData = swapMultiplyAndAdd(
+                decomposeMultiplyAdd(as_type_ptr<ngraph::op::MultiplyAdd>(scaleShiftOnData)));
+        // double-check that Multiply is still scalar-like
+        assert(isScalarLike(as_type_ptr<opset1::Constant>(newMultiplyFromData->input_value(1).get_node_shared_ptr())));
+        auto newMultiplyAfter = std::make_shared<opset1::Multiply>(
+                layer->copy_with_new_inputs({newMultiplyFromData->input_value(0), layer->input_value(1)}),
+                distillToScalar(
+                        as_type_ptr<opset1::Constant>(newMultiplyFromData->input_value(1).get_node_shared_ptr())));
+        replace_node(layer, newMultiplyAfter);
+        layer = newMultiplyAfter->input_value(0).get_node_shared_ptr();
+    }
 
-    decomposeFakeQuantizeForWeightsPath(layer, supportAsymmetricQuantization);
+    {
+        decomposeFakeQuantizeForWeightsPath(layer, supportAsymmetricQuantization);
+        // reassign, because the old one is obosolete and replaced
+        parentOnWeights = layer->input_value(1).get_node_shared_ptr();
+        auto newMultiplyFromWeights = swapMultiplyAndAdd(decomposeMultiplyAdd(as_type_ptr<ngraph::op::MultiplyAdd>(parentOnWeights)));
+
+        // Check if all dimensions of scale except the first one (which is O-Output channels dimension) are all ones
+        auto weightScaleShape = newMultiplyFromWeights->get_input_shape(1);
+        if (weightScaleShape.size() <= 2 && shape_size(weightScaleShape) != weightScaleShape[0]) {
+            // TODO: should we roll back all changes in the network?
+            return;
+        }
+
+        // It has been just checked that weights scale is effectively 1D tensor, so we can reshape it to [X, 1, ..., 1]
+        // to move to the output
+        auto newScaleShape = weightScaleShape;
+        newScaleShape.pop_back();   // that's all we need: [C, 1, 1, 1] => [C, 1, 1]
+        std::cerr << newScaleShape << "\n";
+        std::cerr << *newMultiplyFromWeights->input_value(1).get_node_shared_ptr();
+
+        auto newMultiplyAfter = std::make_shared<opset1::Multiply>(
+                layer->copy_with_new_inputs({layer->input_value(0), newMultiplyFromWeights->input_value(0)}),
+                fold_reshape<opset1::Reshape>(
+                        newMultiplyFromWeights->input_value(1),
+                        std::make_shared<opset1::Constant>(
+                                element::u64,
+                                Shape{newScaleShape.size()},
+                                newScaleShape)->output(0),
+                        false));
+        replace_node(layer, newMultiplyAfter);
+        layer = newMultiplyAfter->input_value(0).get_node_shared_ptr();
+
+        // Handle remaining Add
+        auto remainingAdd = layer->input_value(1).get_node_shared_ptr();
+        auto convertOnAdd = remainingAdd->input_value(0).get_node_shared_ptr();
+        assert(as_type_ptr<opset1::Convert>(convertOnAdd));
+        auto precisionOnWeights = convertOnAdd->get_input_element_type(0);
+        auto roundedShift = roundWithTolerance(remainingAdd->input_value(1).get_node_shared_ptr(), precisionOnWeights);
+        if (roundedShift->get_element_type() == precisionOnWeights) {
+            // Eliminate f32 completely
+            auto newAdd = std::make_shared<opset1::Add>(convertOnAdd->input_value(0), roundedShift);
+            replace_node(remainingAdd, newAdd);
+            remainingAdd = newAdd;
+        }
+
+        if (isScalarLike(roundedShift)) {
+            auto scalar = distillToScalar(roundedShift);
+            if (op::util::constantIsEqualTo(scalar, 0)) {
+                replace_node(remainingAdd, remainingAdd->input_value(0).get_node_shared_ptr());
+            }
+        }
+    }
+
+    optimizeMultipliesAfter(layer->output(0).get_target_inputs().begin()->get_node()->shared_from_this());
+
+
 
 #if 0
     std::vector<float> originalWeightsDequantizationScales;
