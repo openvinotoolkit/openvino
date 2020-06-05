@@ -33,6 +33,7 @@
 #include "api/mvn.hpp"
 #include "api/deconvolution.hpp"
 #include "api/permute.hpp"
+#include "api/gather.hpp"
 
 #include "test_utils/test_utils.h"
 
@@ -4058,6 +4059,138 @@ INSTANTIATE_TEST_CASE_P(DISABLED_fusings_gpu,
                             pooling_test_params{CASE_POOLING_I8_3, 2, 4, pooling_mode::max, "pooling_gpu_fs_bs_yx_bsv4_fsv32"},
                             pooling_test_params{CASE_POOLING_I8_3, 2, 4, pooling_mode::average, "pooling_gpu_fs_bs_yx_bsv4_fsv32"},
                      }), );
+
+/* ----------------------------------------------------------------------------------------------------- */
+/* ------------------------------------------ Gather cases --------------------------------------------- */
+/* ----------------------------------------------------------------------------------------------------- */
+struct gather_test_params {
+    tensor dictionary_shape;
+    tensor indices_shape;
+    tensor out_shape;
+    cldnn::gather::gather_axis axis;
+    data_types data_type;
+    format input_format;
+    data_types default_type;
+    format default_format;
+    size_t expected_fused_primitives;
+    size_t expected_not_fused_primitives;
+};
+
+#define CASE_GATHER_FP32_1 {2, 3, 1, 4}, {4, 1, 1, 1}, {4, 3, 1, 4}, cldnn::gather::gather_axis::along_b, data_types::f32, format::bfyx, data_types::f32, format::bfyx
+#define CASE_GATHER_FP32_2 {3, 2, 1, 2}, {2, 3, 1, 1}, {2, 3, 2, 2}, cldnn::gather::gather_axis::along_b, data_types::f32, format::bfyx, data_types::f32, format::bfyx
+#define CASE_GATHER_FP32_3 {3, 1, 1, 2}, {2, 1, 1, 1}, {3, 2, 1, 2}, cldnn::gather::gather_axis::along_f, data_types::f32, format::bfyx, data_types::f32, format::bfyx
+#define CASE_GATHER_FP32_4 {5, 3, 2, 2}, {3, 1, 1, 1}, {5, 2, 2, 3}, cldnn::gather::gather_axis::along_y, data_types::f32, format::bfyx, data_types::f32, format::bfyx
+#define CASE_GATHER_FP32_5 {2, 3, 1, 2}, {1, 3, 1, 1}, {2, 3, 3, 1}, cldnn::gather::gather_axis::along_y, data_types::f32, format::bfyx, data_types::f32, format::bfyx
+
+#define CASE_GATHER_FP16_1 {2, 3, 1, 4}, {4, 1, 1, 1}, {4, 3, 1, 4}, cldnn::gather::gather_axis::along_b, data_types::f16, format::bfyx, data_types::f16, format::bfyx
+#define CASE_GATHER_FP16_2 {3, 2, 1, 2}, {2, 3, 1, 1}, {2, 3, 2, 2}, cldnn::gather::gather_axis::along_b, data_types::f16, format::bfyx, data_types::f16, format::bfyx
+#define CASE_GATHER_FP16_3 {3, 1, 1, 2}, {2, 1, 1, 1}, {3, 2, 1, 2}, cldnn::gather::gather_axis::along_f, data_types::f16, format::bfyx, data_types::f16, format::bfyx
+#define CASE_GATHER_FP16_4 {5, 3, 2, 2}, {3, 1, 1, 1}, {5, 2, 2, 3}, cldnn::gather::gather_axis::along_y, data_types::f16, format::bfyx, data_types::f16, format::bfyx
+#define CASE_GATHER_FP16_5 {2, 3, 1, 2}, {1, 3, 1, 1}, {2, 3, 3, 1}, cldnn::gather::gather_axis::along_y, data_types::f16, format::bfyx, data_types::f16, format::bfyx
+
+class GatherPrimitiveFusingTest : public ::BaseFusingTest<gather_test_params> {
+public:
+    void execute(gather_test_params& p) {
+        auto input_prim = get_mem(get_input_layout(p));
+        network network_not_fused(this->engine, this->topology_non_fused, bo_not_fused);
+        network network_fused(this->engine, this->topology_fused, bo_fused);
+        network_fused.set_input_data("input", input_prim);
+        network_not_fused.set_input_data("input", input_prim);
+
+        compare(network_not_fused, network_fused, p);
+    }
+
+    layout get_input_layout(gather_test_params& p) {
+        return layout{ p.data_type, p.input_format, p.dictionary_shape };
+    }
+
+    layout get_indices_layout(gather_test_params& p) {
+        return layout{ p.data_type, format::bfyx, p.indices_shape };
+    }
+
+    size_t get_axis_dim(gather_test_params& p) {
+        switch (p.axis) {
+            case cldnn::gather::gather_axis::along_x:
+                return p.dictionary_shape.spatial[0];
+            case cldnn::gather::gather_axis::along_y:
+                return p.dictionary_shape.spatial[1];
+            case cldnn::gather::gather_axis::along_f:
+                return p.dictionary_shape.feature[0];
+            case cldnn::gather::gather_axis::along_b:
+                return p.dictionary_shape.batch[0];
+            default:
+                return 1;
+        }
+    }
+
+    layout get_per_channel_layout(gather_test_params& p) {
+        return layout{ p.default_type, p.default_format, tensor{1, p.out_shape.feature[0], 1, 1} };
+    }
+};
+
+class gather_quantize : public GatherPrimitiveFusingTest {};
+TEST_P(gather_quantize, basic) {
+    auto p = GetParam();
+    create_topologies(input_layout("input", get_input_layout(p)),
+        data("gather_indices", get_mem(get_indices_layout(p), 0, static_cast<int>(get_axis_dim(p)))),
+        data("in_lo", get_mem(get_per_channel_layout(p), min_random, 0)),
+        data("in_hi", get_mem(get_per_channel_layout(p), 1, max_random)),
+        data("out_lo", get_mem(get_single_element_layout(p), -127)),
+        data("out_hi", get_mem(get_single_element_layout(p), 127)),
+        gather("gather_prim", "input", "gather_indices", p.axis, p.out_shape),
+        quantize("quantize", "gather_prim", "in_lo", "in_hi", "out_lo", "out_hi", 255, data_types::i8),
+        reorder("reorder_bfyx", "quantize", p.default_format, data_types::f32)
+    );
+
+    tolerance = 1.f;
+    execute(p);
+}
+
+INSTANTIATE_TEST_CASE_P(fusings_gpu, gather_quantize,
+    ::testing::ValuesIn(std::vector<gather_test_params>{
+                        gather_test_params{ CASE_GATHER_FP32_1, 2, 3 },
+                        gather_test_params{ CASE_GATHER_FP32_2, 2, 3 },
+                        gather_test_params{ CASE_GATHER_FP32_3, 2, 3 },
+                        gather_test_params{ CASE_GATHER_FP32_4, 2, 3 },
+                        gather_test_params{ CASE_GATHER_FP32_5, 2, 3 }, 
+                        
+                        gather_test_params{ CASE_GATHER_FP16_1, 2, 3 },
+                        gather_test_params{ CASE_GATHER_FP16_2, 2, 3 },
+                        gather_test_params{ CASE_GATHER_FP16_3, 2, 3 },
+                        gather_test_params{ CASE_GATHER_FP16_4, 2, 3 },
+                        gather_test_params{ CASE_GATHER_FP16_5, 2, 3 }, 
+}), );
+
+class gather_scale_activation : public GatherPrimitiveFusingTest {};
+TEST_P(gather_scale_activation, basic) {
+    auto p = GetParam();
+    create_topologies(input_layout("input", get_input_layout(p)),
+        data("gather_indices", get_mem(get_indices_layout(p), 0, static_cast<int>(get_axis_dim(p)))),
+        data("scale_data", get_mem(get_per_channel_layout(p), -10, 10)),
+        gather("gather_prim", "input", "gather_indices", p.axis, p.out_shape),
+        activation("activation", "gather_prim", activation_func::abs),
+        scale("scale", "activation", "scale_data"),
+        reorder("reorder_bfyx", "scale", p.default_format, data_types::f32)
+    );
+
+    tolerance = 1e-5f;
+    execute(p);
+}
+
+INSTANTIATE_TEST_CASE_P(fusings_gpu, gather_scale_activation,
+    ::testing::ValuesIn(std::vector<gather_test_params>{
+                        gather_test_params{ CASE_GATHER_FP32_1, 2, 4 },
+                        gather_test_params{ CASE_GATHER_FP32_2, 2, 4 },
+                        gather_test_params{ CASE_GATHER_FP32_3, 2, 4 },
+                        gather_test_params{ CASE_GATHER_FP32_4, 2, 4 },
+                        gather_test_params{ CASE_GATHER_FP32_5, 2, 4 }, 
+                        
+                        gather_test_params{ CASE_GATHER_FP16_1, 2, 4 },
+                        gather_test_params{ CASE_GATHER_FP16_2, 2, 4 },
+                        gather_test_params{ CASE_GATHER_FP16_3, 2, 4 },
+                        gather_test_params{ CASE_GATHER_FP16_4, 2, 4 },
+                        gather_test_params{ CASE_GATHER_FP16_5, 2, 4 },
+}), );
 
 /* ------------------------------------------------------------------------------------------------------------ */
 /* ---------------------------------------- PERMUTE FUSE cases -------------------------------------------------- */
