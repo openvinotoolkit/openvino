@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2019 Intel Corporation
+// Copyright (c) 2019-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -35,7 +35,12 @@ layout gather_inst::calc_output_layout(gather_node const& node) {
 
     auto output_shape = desc->output_shape;
 
-    return layout{input_layout.data_type, input_format, output_shape};
+    auto output_type = input_layout.data_type;
+    if (node.has_fused_primitives()) {
+        output_type = node.get_fused_output_layout().data_type;
+    }
+
+    return layout{output_type, input_format, output_shape};
 }
 
 std::string gather_inst::to_string(gather_node const& node) {
