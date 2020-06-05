@@ -604,7 +604,7 @@ std::shared_ptr<CNNNetworkImpl> convertFunctionToICNNNetwork(const std::shared_p
                 std::make_shared<Builder::NodeConverter<::ngraph::op::TileIE>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::v1::TopK>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::TopKIE>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::Transpose>>(),
+                // std::make_shared<Builder::NodeConverter<::ngraph::op::Transpose>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::Unsqueeze>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::TensorIterator>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::LSTMCellIE>>(),
@@ -719,12 +719,8 @@ std::shared_ptr<CNNNetworkImpl> convertFunctionToICNNNetwork(const std::shared_p
     for (const auto &layer : nodes)
         op_names.insert(layer->get_name());
 
-    bool keep_constants;
-    if (keep_constant_inputs == false) {
-        keep_constants = ::ngraph::op::util::has_op_with_type<::ngraph::op::FakeQuantize>(graph);
-    } else {
-        keep_constants = keep_constant_inputs;
-    }
+    bool keep_constants = keep_constant_inputs || ::ngraph::op::util::has_op_with_type<::ngraph::op::FakeQuantize>(graph);
+
     // Create layers and output data
     for (const auto &layer : nodes) {
         if (isInternalLayer(layer, op_names, keep_constants)) continue;
