@@ -697,6 +697,21 @@ void GNAPlugin::LoadNetwork(ICNNNetwork &network) {
     num_rotate_rows = dnn->num_rotate_rows;
     num_rotate_columns = dnn->num_rotate_columns;
 
+    for (auto& gnaMemoryConn : graphCompiler.memory_connection) {
+        std::string name = gnaMemoryConn.first;
+        GNAMemoryLayer memLayer = gnaMemoryConn.second;
+
+        InferenceEngine::CNNLayerPtr layer = memLayer.getInput();
+        auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(layer);
+        auto scale_factor = quantized != nullptr ? quantized->_dst_quant.scale : 1.0f;
+
+        auto ptr = make_blob_with_precision(TensorDesc(InferenceEngine::Precision::I16,
+                                            memLayer.getDims(),
+                                            memLayer.getDims().size() == 2 ? NC : NCHW),
+                                            memLayer.gna_ptr);
+        graphCompiler.memoryStates.emplace_back(std::make_shared<memory::GNAMemoryState>(name, ptr, scale_factor));
+    }
+
     DumpXNNToFile();
 
 #ifdef PLOT
@@ -1053,7 +1068,7 @@ std::vector<InferenceEngine::MemoryStateInternal::Ptr>  GNAPlugin::QueryState() 
         return {};
     }
 
-    return {std::make_shared<memory::GNAMemoryState>(shared_from_this())};
+    return graphCompiler.memoryStates;
 }
 
 std::string GNAPlugin::GetName() const noexcept {
