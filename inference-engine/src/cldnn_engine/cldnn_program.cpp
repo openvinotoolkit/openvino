@@ -4557,9 +4557,33 @@ void Program::CreateEmbeddingBagPackedSumPrimitive(cldnn::topology& topology, In
     auto embeddingBag = as<InferenceEngine::GenericLayer*>(layer);
 
     auto layerName = layer_type_name_ID(layer);
+
+    std::vector<cldnn::primitive_id> reorderedInputs;
+    reorderedInputs.resize(inputPrimitives.size());
+
+    for (size_t portIndex=0; portIndex<inputPrimitives.size(); portIndex++) {
+        auto inputDataType = DataTypeFromPrecision(layer->insData[portIndex].lock()->getPrecision());
+        if ((portIndex == 1) && (inputDataType == cldnn::data_types::i64)) {
+            // clDNN primitive supports only i32 data type for indices input,
+            // so we need additional reorder if it's provided as i64
+            auto reorderPrimName = inputPrimitives[portIndex] + "_" + layer->name + m_preProcessTag;
+            auto targetFormat = FormatFromLayout(layer->insData[portIndex].lock()->getLayout());
+            auto preprocessPrim = cldnn::reorder(
+                reorderPrimName,
+                inputPrimitives[portIndex],
+                targetFormat,
+                cldnn::data_types::i32);
+            topology.add(preprocessPrim);
+            AddInnerPrimitiveToProfiler(reorderPrimName, layer_type_name_ID(layer), layer);
+            reorderedInputs[portIndex] = (reorderPrimName);
+        } else {
+            reorderedInputs[portIndex] = inputPrimitives[portIndex];
+        }
+    }
+
     auto embeddingBagPrim = cldnn::embedding_bag(
             layerName,
-            inputPrimitives,
+            reorderedInputs,
             cldnn::embedding_bag::packed_sum,
             CldnnTensorFromIEDims(embeddingBag->outData[0]->getTensorDesc().getDims()));
 
@@ -4583,6 +4607,9 @@ void Program::CreateEmbeddingBagOffsetsSumPrimitive(cldnn::topology& topology, I
             if (defaultIndexPrecision == InferenceEngine::Precision::I32) {
                 auto data = constantBlob->buffer().as<int32_t*>();
                 defaultIndex = data[0];
+            } else if (defaultIndexPrecision == InferenceEngine::Precision::I64) {
+                auto data = constantBlob->buffer().as<int64_t*>();
+                defaultIndex = static_cast<int32_t>(data[0]);
             } else {
                 THROW_IE_EXCEPTION << layer->name << "Incorrect EmbeddingBagOfsetsSum default_index precision";
             }
@@ -4590,10 +4617,33 @@ void Program::CreateEmbeddingBagOffsetsSumPrimitive(cldnn::topology& topology, I
         inputPrimitives.erase(inputPrimitives.begin() + 3); // Remove "default_index"
     }
 
+    std::vector<cldnn::primitive_id> reorderedInputs;
+    reorderedInputs.resize(inputPrimitives.size());
+
+    for (size_t portIndex=0; portIndex<inputPrimitives.size(); portIndex++) {
+        auto inputDataType = DataTypeFromPrecision(layer->insData[portIndex].lock()->getPrecision());
+        if (((portIndex == 1) || (portIndex == 2)) && (inputDataType == cldnn::data_types::i64)) {
+            // clDNN primitive supports only i32 data type for indices inputs,
+            // so we need additional reorders if they are provided as i64
+            auto reorderPrimName = inputPrimitives[portIndex] + "_" + layer->name + m_preProcessTag;
+            auto targetFormat = FormatFromLayout(layer->insData[portIndex].lock()->getLayout());
+            auto preprocessPrim = cldnn::reorder(
+                reorderPrimName,
+                inputPrimitives[portIndex],
+                targetFormat,
+                cldnn::data_types::i32);
+            topology.add(preprocessPrim);
+            AddInnerPrimitiveToProfiler(reorderPrimName, layer_type_name_ID(layer), layer);
+            reorderedInputs[portIndex] = (reorderPrimName);
+        } else {
+            reorderedInputs[portIndex] = inputPrimitives[portIndex];
+        }
+    }
+
     auto layerName = layer_type_name_ID(layer);
     auto embeddingBagPrim = cldnn::embedding_bag(
             layerName,
-            inputPrimitives,
+            reorderedInputs,
             cldnn::embedding_bag::offsets_sum,
             CldnnTensorFromIEDims(embeddingBag->outData[0]->getTensorDesc().getDims()),
             defaultIndex);
@@ -4620,6 +4670,9 @@ void Program::CreateEmbeddingSegmentsSumPrimitive(cldnn::topology& topology, Inf
             if (defaultIndexPrecision == InferenceEngine::Precision::I32) {
                 auto data = constantBlob->buffer().as<int32_t*>();
                 defaultIndex = data[0];
+            } else if (defaultIndexPrecision == InferenceEngine::Precision::I64) {
+                auto data = constantBlob->buffer().as<int64_t*>();
+                defaultIndex = static_cast<int32_t>(data[0]);
             } else {
                 THROW_IE_EXCEPTION << layer->name << "Incorrect EmbeddingBagOfsetsSum default_index precision";
             }
@@ -4627,10 +4680,33 @@ void Program::CreateEmbeddingSegmentsSumPrimitive(cldnn::topology& topology, Inf
         inputPrimitives.erase(inputPrimitives.begin() + 3); // Remove "default_index"
     }
 
+    std::vector<cldnn::primitive_id> reorderedInputs;
+    reorderedInputs.resize(inputPrimitives.size());
+
+    for (size_t portIndex=0; portIndex<inputPrimitives.size(); portIndex++) {
+        auto inputDataType = DataTypeFromPrecision(layer->insData[portIndex].lock()->getPrecision());
+        if (((portIndex == 1) || (portIndex == 2)) && (inputDataType == cldnn::data_types::i64)) {
+            // clDNN primitive supports only i32 data type for indices inputs,
+            // so we need additional reorders if they are provided as i64
+            auto reorderPrimName = inputPrimitives[portIndex] + "_" + layer->name + m_preProcessTag;
+            auto targetFormat = FormatFromLayout(layer->insData[portIndex].lock()->getLayout());
+            auto preprocessPrim = cldnn::reorder(
+                reorderPrimName,
+                inputPrimitives[portIndex],
+                targetFormat,
+                cldnn::data_types::i32);
+            topology.add(preprocessPrim);
+            AddInnerPrimitiveToProfiler(reorderPrimName, layer_type_name_ID(layer), layer);
+            reorderedInputs[portIndex] = (reorderPrimName);
+        } else {
+            reorderedInputs[portIndex] = inputPrimitives[portIndex];
+        }
+    }
+
     auto layerName = layer_type_name_ID(layer);
     auto embeddingBagPrim = cldnn::embedding_bag(
             layerName,
-            inputPrimitives,
+            reorderedInputs,
             cldnn::embedding_bag::segments_sum,
             CldnnTensorFromIEDims(embeddingBag->outData[0]->getTensorDesc().getDims()),
             defaultIndex);
