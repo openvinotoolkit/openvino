@@ -4244,24 +4244,50 @@ void Program::CreateNonMaxSuppressionPrimitive(cldnn::topology& topology, Infere
     auto inputPrimitives = GetPrevLayersPrimitives(layer);
     auto nonMaxSupression = as<InferenceEngine::NonMaxSuppressionLayer*>(layer);
 
+    std::vector<cldnn::primitive_id> reorderedInputs;
+    reorderedInputs.resize(inputPrimitives.size());
+
+    for (size_t portIndex=0; portIndex<inputPrimitives.size(); portIndex++) {
+        auto inputDataType = DataTypeFromPrecision(layer->insData[portIndex].lock()->getPrecision());
+        if ((portIndex == 2) && (inputDataType == cldnn::data_types::i64)) {
+            // clDNN primitive supports only i32 data type for 'max_output_boxes_per_class' input
+            // so we need additional reorder if it's provided as i64
+            auto reorderPrimName = inputPrimitives[portIndex] + "_" + layer->name + m_preProcessTag;
+            auto targetFormat = FormatFromLayout(layer->insData[portIndex].lock()->getLayout());
+            auto preprocessPrim = cldnn::reorder(
+                reorderPrimName,
+                inputPrimitives[portIndex],
+                targetFormat,
+                cldnn::data_types::i32);
+            topology.add(preprocessPrim);
+            AddInnerPrimitiveToProfiler(reorderPrimName, layer_type_name_ID(layer), layer);
+            reorderedInputs[portIndex] = (reorderPrimName);
+        } else {
+            reorderedInputs[portIndex] = inputPrimitives[portIndex];
+        }
+    }
+
+    // clDNN primitive supports only i32 as output data type
+    nonMaxSupression->outData[0]->setPrecision(Precision::I32);
+
     auto centerPointBox = nonMaxSupression->center_point_box;
     auto outputIndices = nonMaxSupression->outData[0]->getTensorDesc().getDims()[0];
 
     auto name = layer_type_name_ID(layer);
     auto prim = cldnn::non_max_suppression(
         name,
-        inputPrimitives[0],
-        inputPrimitives[1],
+        reorderedInputs[0],
+        reorderedInputs[1],
         static_cast<int>(outputIndices),
         centerPointBox);
 
-    switch (inputPrimitives.size()) {
+    switch (reorderedInputs.size()) {
     case 5:
-        prim.score_threshold = inputPrimitives[4];
+        prim.score_threshold = reorderedInputs[4];
     case 4:
-        prim.iou_threshold = inputPrimitives[3];
+        prim.iou_threshold = reorderedInputs[3];
     case 3:
-        prim.num_select_per_class = inputPrimitives[2];
+        prim.num_select_per_class = reorderedInputs[2];
     case 2:
     case 1:
         break;
