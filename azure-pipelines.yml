@@ -1,6 +1,7 @@
 jobs:
 - job: Lin
-  timeoutInMinutes: 90
+  # About 150% of total time
+  timeoutInMinutes: 75
   pool:
     #vmImage: 'ubuntu-18.04'
     name: LIN_VMSS_VENV_F8S_WU2
@@ -47,39 +48,39 @@ jobs:
   - script: ls -alR ../bin/
     workingDirectory: dldt-build
     displayName: 'List files'
-  - script: ../bin/intel64/$(BUILD_TYPE)/unit-test --gtest_print_time=1 --gtest_filter=-backend_api.config_unsupported:*IE_GPU*
+  - script: $(BIN_DIR)/unit-test --gtest_print_time=1 --gtest_filter=-backend_api.config_unsupported:*IE_GPU*
     workingDirectory: dldt-build
     displayName: 'nGraph UT'
     continueOnError: false
-  - script: ../bin/intel64/$(BUILD_TYPE)/InferenceEngineUnitTests
+  - script: $(BIN_DIR)/InferenceEngineUnitTests
     workingDirectory: dldt-build
     displayName: 'IE UT old'
     continueOnError: false
-  - script: ../bin/intel64/$(BUILD_TYPE)/ieUnitTests
+  - script: $(BIN_DIR)/ieUnitTests
     workingDirectory: dldt-build
     displayName: 'IE UT'
     continueOnError: false
-  - script: ../bin/intel64/$(BUILD_TYPE)/cpuUnitTests
+  - script: $(BIN_DIR)/cpuUnitTests
     workingDirectory: dldt-build
     displayName: 'CPU UT'
     continueOnError: false
-  - script: ../bin/intel64/$(BUILD_TYPE)/gnaUnitTests
+  - script: $(BIN_DIR)/gnaUnitTests
     workingDirectory: dldt-build
     displayName: 'GNA UT'
     continueOnError: false
-  - script: ../bin/intel64/$(BUILD_TYPE)/vpuUnitTests
+  - script: $(BIN_DIR)/vpuUnitTests
     workingDirectory: dldt-build
     displayName: 'VPU UT'
     continueOnError: false
-  - script: ../bin/intel64/$(BUILD_TYPE)/ieFuncTests
+  - script: $(BIN_DIR)/ieFuncTests
     workingDirectory: dldt-build
     displayName: 'IE FuncTests'
     continueOnError: false
-  - script: ../bin/intel64/$(BUILD_TYPE)/cpuFuncTests
+  - script: $(BIN_DIR)/cpuFuncTests
     workingDirectory: dldt-build
     displayName: 'CPU FuncTests'
     continueOnError: false
-  - script: ../bin/intel64/$(BUILD_TYPE)/MklDnnBehaviorTests
+  - script: $(BIN_DIR)/MklDnnBehaviorTests
     workingDirectory: dldt-build
     displayName: 'MklDnnBehaviorTests'
     continueOnError: false
@@ -88,22 +89,22 @@ jobs:
   - script: |
       export DATA_PATH=`pwd`/../testdata
       export MODELS_PATH=`pwd`/../testdata
-      ../bin/intel64/$(BUILD_TYPE)/MklDnnFunctionalTests --gtest_filter=*smoke*:-smoke_MobileNet/ModelTransformationsTest.LPT/mobilenet_v2_tf_depthwise_batch1_inPluginDisabled_inTestDisabled_asymmetric*
+      $(BIN_DIR)/MklDnnFunctionalTests --gtest_filter=*smoke*:-smoke_MobileNet/ModelTransformationsTest.LPT/mobilenet_v2_tf_depthwise_batch1_inPluginDisabled_inTestDisabled_asymmetric*
     workingDirectory: dldt-build
     displayName: 'MklDnnFunctionalTests'
     continueOnError: false
   - script: |
       export DATA_PATH=`pwd`/../testdata
       export MODELS_PATH=`pwd`/../testdata
-      ../bin/intel64/$(BUILD_TYPE)/InferenceEngineCAPITests
+      $(BIN_DIR)/InferenceEngineCAPITests
     workingDirectory: dldt-build
     displayName: 'IE CAPITests'
     continueOnError: false
   - script: |
       export DATA_PATH=`pwd`/../testdata
       export MODELS_PATH=`pwd`/../testdata
-      export LD_LIBRARY_PATH=`pwd`/../bin/intel64/$(BUILD_TYPE)/lib
-      export PYTHONPATH=`pwd`/../bin/intel64/$(BUILD_TYPE)/lib/python_api/python3.6
+      export LD_LIBRARY_PATH=`pwd`/$(BIN_DIR)/lib
+      export PYTHONPATH=`pwd`/$(BIN_DIR)/lib/python_api/python3.6
       env
       cd ../inference-engine/ie_bridges/python/tests
       pytest
@@ -113,13 +114,13 @@ jobs:
     enabled: false
 
 - job: Mac
-  timeoutInMinutes: 180
+  # About 150% of total time
+  timeoutInMinutes: 130
   pool:
     vmImage: 'macOS-10.15'
   variables:
-    CC: gcc
-    CXX: g++
     BUILD_TYPE: Release
+    BIN_DIR: ../bin/intel64/$(BUILD_TYPE)
   steps:
   - task: UsePythonVersion@0
     inputs:
@@ -129,9 +130,9 @@ jobs:
       uname -a
       which python3
       gcc --version
-      env
       xcrun --sdk macosx --show-sdk-version
-      sysctl -a | grep machdep.cpu
+      env
+      sysctl -a
     displayName: 'System properties'
   - script: |
       brew install cython
@@ -147,6 +148,8 @@ jobs:
     displayName: 'Create build directory'
   - script: |
       export PATH="/usr/local/opt/cython/bin:$PATH"
+      export CC=gcc
+      export CXX=g++
       # Disable errors with Ninja
       export CXXFLAGS="-Wno-error=unused-command-line-argument"
       export CFLAGS="-Wno-error=unused-command-line-argument"
@@ -159,35 +162,35 @@ jobs:
   - script: ls -alR ../bin/
     workingDirectory: dldt-build
     displayName: 'List files'
-  - script: ../bin/intel64/$(BUILD_TYPE)/unit-test --gtest_print_time=1 --gtest_filter=-backend_api.config_unsupported:*IE_GPU*:IE_CPU.onnx_model_sigmoid
+  - script: $(BIN_DIR)/unit-test --gtest_print_time=1 --gtest_filter=-backend_api.config_unsupported:*IE_GPU*:IE_CPU.onnx_model_sigmoid
     workingDirectory: dldt-build
     displayName: 'nGraph UT'
     continueOnError: false
-  - script: ../bin/intel64/$(BUILD_TYPE)/InferenceEngineUnitTests
+  - script: $(BIN_DIR)/InferenceEngineUnitTests
     workingDirectory: dldt-build
     displayName: 'IE UT old'
     continueOnError: false
-  - script: ../bin/intel64/$(BUILD_TYPE)/ieUnitTests
+  - script: $(BIN_DIR)/ieUnitTests
     workingDirectory: dldt-build
     displayName: 'IE UT'
     continueOnError: false
-  - script: ../bin/intel64/$(BUILD_TYPE)/cpuUnitTests
+  - script: $(BIN_DIR)/cpuUnitTests
     workingDirectory: dldt-build
     displayName: 'CPU UT'
     continueOnError: false
-  - script: ../bin/intel64/$(BUILD_TYPE)/vpuUnitTests
+  - script: $(BIN_DIR)/vpuUnitTests
     workingDirectory: dldt-build
     displayName: 'VPU UT'
     continueOnError: false
-  - script: ../bin/intel64/$(BUILD_TYPE)/ieFuncTests
+  - script: $(BIN_DIR)/ieFuncTests
     workingDirectory: dldt-build
     displayName: 'IE FuncTests'
     continueOnError: false
-  - script: ../bin/intel64/$(BUILD_TYPE)/cpuFuncTests
+  - script: $(BIN_DIR)/cpuFuncTests
     workingDirectory: dldt-build
     displayName: 'CPU FuncTests'
     continueOnError: false
-  - script: ../bin/intel64/$(BUILD_TYPE)/MklDnnBehaviorTests
+  - script: $(BIN_DIR)/MklDnnBehaviorTests
     workingDirectory: dldt-build
     displayName: 'MklDnnBehaviorTests'
     continueOnError: false
@@ -196,19 +199,20 @@ jobs:
   - script: |
       export DATA_PATH=`pwd`/../testdata
       export MODELS_PATH=`pwd`/../testdata
-      ../bin/intel64/$(BUILD_TYPE)/MklDnnFunctionalTests --gtest_filter=*smoke*:-smoke_MobileNet/ModelTransformationsTest.LPT/mobilenet_v2_tf_depthwise_batch1_inPluginDisabled_inTestDisabled_asymmetric*
+      $(BIN_DIR)/MklDnnFunctionalTests --gtest_filter=*smoke*:-smoke_MobileNet/ModelTransformationsTest.LPT/mobilenet_v2_tf_depthwise_batch1_inPluginDisabled_inTestDisabled_asymmetric*
     workingDirectory: dldt-build
     displayName: 'MklDnnFunctionalTests'
     continueOnError: false
   - script: |
       export DATA_PATH=`pwd`/../testdata
       export MODELS_PATH=`pwd`/../testdata
-      ../bin/intel64/$(BUILD_TYPE)/InferenceEngineCAPITests
+      $(BIN_DIR)/InferenceEngineCAPITests
     workingDirectory: dldt-build
     displayName: 'IE CAPITests'
     continueOnError: false
 
 - job: Win
+  # About 150% of total time
   timeoutInMinutes: 120
   pool:
     #vmImage: 'vs2017-win2016'
@@ -221,10 +225,12 @@ jobs:
     MSVC_COMPILER_PATH: C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Tools\MSVC\14.24.28314\bin\Hostx64\x64\cl.exe
   steps:
   - script: |
-      set
+      where python3
+      wmic computersystem get TotalPhysicalMemory
       wmic cpu list
       wmic logicaldisk get description,name
       wmic VOLUME list
+      set
     displayName: 'System properties'
   - script: |
       certutil -urlcache -split -f https://github.com/ninja-build/ninja/releases/download/v1.10.0/ninja-win.zip ninja-win.zip
