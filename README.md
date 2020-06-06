@@ -30,17 +30,7 @@ and release your contribution under these terms.
 * [Model Optimizer Developer Guide](https://docs.openvinotoolkit.org/latest/_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html)
 
 ## How to Contribute
-We welcome community contributions to the Deep Learning Deployment Toolkit 
-repository. If you have an idea how to improve the product, please share it 
-with us doing the following steps:
-
-* Make sure you can build the product and run all tests and samples with your patch
-* In case of a larger feature, provide relevant unit tests and one or more sample
-* Submit a pull request at https://github.com/openvinotoolkit/openvino/pulls
-
-We will review your contribution and, if any additional fixes or modifications 
-are necessary, may give some feedback to guide you. Your pull request will be 
-merged into GitHub* repositories if accepted.
+See [CONTRIBUTING](./CONTRIBUTING.md) for details. Thank you!
 
 ## Support
 Please report questions, issues and suggestions using:
