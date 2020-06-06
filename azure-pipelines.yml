@@ -156,12 +156,12 @@ jobs:
       export CC=gcc
       export CXX=g++
       # Disable errors with Ninja
-      export CXXFLAGS="-Wno-error=unused-command-line-argument"
-      export CFLAGS="-Wno-error=unused-command-line-argument"
-      cmake .. -GNinja -DVERBOSE_BUILD=ON -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DENABLE_PYTHON=ON -DENABLE_TESTS=ON
+      #export CXXFLAGS="-Wno-error=unused-command-line-argument"
+      #export CFLAGS="-Wno-error=unused-command-line-argument"
+      cmake .. -DVERBOSE_BUILD=ON -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DENABLE_PYTHON=ON -DENABLE_TESTS=ON
     workingDirectory: dldt-build
     displayName: 'CMake'
-  - script: ninja
+  - script: make -j3
     workingDirectory: dldt-build
     displayName: 'Build Mac'
   - script: ls -alR ../bin/
