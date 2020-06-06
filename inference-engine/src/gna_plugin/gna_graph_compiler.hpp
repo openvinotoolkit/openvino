@@ -14,6 +14,7 @@
 #include "descriptions/gna_input_desc.hpp"
 #include "descriptions/gna_flags.hpp"
 #include "cpp_interfaces/base/ie_plugin_base.hpp"
+#include "cpp_interfaces/impl/ie_memory_state_internal.hpp"
 #include "connection_details.hpp"
 #include "backend/dnn.hpp"
 #include "memory/polymorph_allocator.hpp"
@@ -50,6 +51,7 @@ public:
     GNAPluginNS::backend::DnnComponents dnnComponents;
     MemoryConnection memory_connection;
     ConcatConnection concat_connection;
+    std::vector<InferenceEngine::IMemoryStateInternal::Ptr> memoryStates;
 
     void setGNAMemoryPtr(std::shared_ptr<GNAPluginNS::gna_memory_type> gnaMemPtr);
     void setDNNPtr(std::shared_ptr<GNAPluginNS::backend::AMIntelDNN> dnnPtr);
