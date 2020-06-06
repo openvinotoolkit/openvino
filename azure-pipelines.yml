@@ -7,6 +7,7 @@ jobs:
     name: LIN_VMSS_VENV_F8S_WU2
   variables:
     BUILD_TYPE: Release
+    BIN_DIR: ../bin/intel64/$(BUILD_TYPE)
   steps:
   - script: |
       whoami
