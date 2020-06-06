@@ -4247,7 +4247,7 @@ void Program::CreateNonMaxSuppressionPrimitive(cldnn::topology& topology, Infere
     std::vector<cldnn::primitive_id> reorderedInputs;
     reorderedInputs.resize(inputPrimitives.size());
 
-    for (size_t portIndex=0; portIndex<inputPrimitives.size(); portIndex++) {
+    for (size_t portIndex = 0; portIndex < inputPrimitives.size(); portIndex++) {
         auto inputDataType = DataTypeFromPrecision(layer->insData[portIndex].lock()->getPrecision());
         if ((portIndex == 2) && (inputDataType == cldnn::data_types::i64)) {
             // clDNN primitive supports only i32 data type for 'max_output_boxes_per_class' input
@@ -4587,7 +4587,7 @@ void Program::CreateEmbeddingBagPackedSumPrimitive(cldnn::topology& topology, In
     std::vector<cldnn::primitive_id> reorderedInputs;
     reorderedInputs.resize(inputPrimitives.size());
 
-    for (size_t portIndex=0; portIndex<inputPrimitives.size(); portIndex++) {
+    for (size_t portIndex = 0; portIndex < inputPrimitives.size(); portIndex++) {
         auto inputDataType = DataTypeFromPrecision(layer->insData[portIndex].lock()->getPrecision());
         if ((portIndex == 1) && (inputDataType == cldnn::data_types::i64)) {
             // clDNN primitive supports only i32 data type for indices input,
@@ -4646,7 +4646,7 @@ void Program::CreateEmbeddingBagOffsetsSumPrimitive(cldnn::topology& topology, I
     std::vector<cldnn::primitive_id> reorderedInputs;
     reorderedInputs.resize(inputPrimitives.size());
 
-    for (size_t portIndex=0; portIndex<inputPrimitives.size(); portIndex++) {
+    for (size_t portIndex = 0; portIndex < inputPrimitives.size(); portIndex++) {
         auto inputDataType = DataTypeFromPrecision(layer->insData[portIndex].lock()->getPrecision());
         if (((portIndex == 1) || (portIndex == 2)) && (inputDataType == cldnn::data_types::i64)) {
             // clDNN primitive supports only i32 data type for indices inputs,
@@ -4709,7 +4709,7 @@ void Program::CreateEmbeddingSegmentsSumPrimitive(cldnn::topology& topology, Inf
     std::vector<cldnn::primitive_id> reorderedInputs;
     reorderedInputs.resize(inputPrimitives.size());
 
-    for (size_t portIndex=0; portIndex<inputPrimitives.size(); portIndex++) {
+    for (size_t portIndex = 0; portIndex < inputPrimitives.size(); portIndex++) {
         auto inputDataType = DataTypeFromPrecision(layer->insData[portIndex].lock()->getPrecision());
         if (((portIndex == 1) || (portIndex == 2)) && (inputDataType == cldnn::data_types::i64)) {
             // clDNN primitive supports only i32 data type for indices inputs,
