@@ -4,7 +4,7 @@
 
 #include <vector>
 
-#include "low_precision_transformations/concat_with_intermediate_transformation.hpp"
+#include "low_precision_transformations/depth_to_space_transformation.hpp"
 #include "common_test_utils/test_constants.hpp"
 
 using namespace LayerTestsDefinitions;
@@ -22,16 +22,11 @@ const std::vector<LayerTransformation::Params> trasformationParamValues = {
     LayerTestsUtils::LayerTransformationParamsFactory::createParamsU8I8()
 };
 
-const std::vector<bool> transparentIntermediateValues = { true, false };
-const std::vector<bool> multiChannelValues = { /*true,*/ false };
-
-INSTANTIATE_TEST_CASE_P(LPT, ConcatWithIntermediateTransformation,
+INSTANTIATE_TEST_CASE_P(LPT, DepthToSpaceTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(InferenceEngine::SizeVector({ 1, 3, 16, 16 })),
+        ::testing::Values(InferenceEngine::SizeVector({ 1, 32, 72, 48 })),
         ::testing::Values(CommonTestUtils::DEVICE_CPU),
-        ::testing::ValuesIn(trasformationParamValues),
-        ::testing::ValuesIn(transparentIntermediateValues),
-        ::testing::ValuesIn(multiChannelValues)),
-    ConcatWithIntermediateTransformation::getTestCaseName);
+        ::testing::ValuesIn(trasformationParamValues)),
+    DepthToSpaceTransformation::getTestCaseName);
 }  // namespace
