@@ -18,6 +18,9 @@ addIeTarget(
     EXPORT_DEPENDENCIES ${EXPORT_DEPENDENCIES}
 )
 
-target_include_directories(${TARGET_NAME} PUBLIC $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>)
+target_include_directories(${TARGET_NAME} PUBLIC
+    $<TARGET_PROPERTY:inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
+    $<TARGET_PROPERTY:inference_engine_transformations,INTERFACE_INCLUDE_DIRECTORIES>
+    )
 
-target_link_libraries(${TARGET_NAME} PUBLIC ${EXPORT_DEPENDENCIES})
+target_link_libraries(${TARGET_NAME} PUBLIC ${EXPORT_DEPENDENCIES} inference_engine_transformations)

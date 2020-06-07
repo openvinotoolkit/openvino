@@ -4,7 +4,7 @@
 
 #include <vector>
 
-#include "low_precision_transformations/concat_with_intermediate_transformation.hpp"
+#include "low_precision_transformations/depth_to_space_transformation.hpp"
 #include "common_test_utils/test_constants.hpp"
 
 using namespace LayerTestsDefinitions;
@@ -19,16 +19,12 @@ const std::vector<LayerTransformation::Params> trasformationParamValues = {
     LayerTestsUtils::LayerTransformationParamsFactory::createParams()
 };
 
-const std::vector<bool> transparentIntermediates = { true, false };
-const std::vector<bool> multiChannelValues = { true, false };
-
-INSTANTIATE_TEST_CASE_P(LPT, ConcatWithIntermediateTransformation,
+// disabled while GPU is not supported DepthToSpace
+INSTANTIATE_TEST_CASE_P(DISABLED_LPT, DepthToSpaceTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(InferenceEngine::SizeVector({ 1, 3, 16, 16 })),
+        ::testing::Values(InferenceEngine::SizeVector({ 1, 32, 72, 48 })),
         ::testing::Values(CommonTestUtils::DEVICE_GPU),
-        ::testing::ValuesIn(trasformationParamValues),
-        ::testing::ValuesIn(transparentIntermediates),
-        ::testing::ValuesIn(multiChannelValues)),
-    ConcatWithIntermediateTransformation::getTestCaseName);
+        ::testing::ValuesIn(trasformationParamValues)),
+    DepthToSpaceTransformation::getTestCaseName);
 }  // namespace
