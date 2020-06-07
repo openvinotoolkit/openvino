@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "layer_transformation.hpp"
+
 #include <memory>
 #include <tuple>
 #include <vector>
@@ -9,6 +11,7 @@
 #include <unordered_set>
 
 #include <ie_core.hpp>
+#include <net_pass.h>
 
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
@@ -18,10 +21,8 @@
 #include "ngraph_functions/pass/convert_prc.hpp"
 
 #include "ie_util_internal.hpp"
-#include "functional_test_utils/low_precision_transformations/layer_transformation.hpp"
 #include "low_precision_transformations/convolution.hpp"
 #include "low_precision_transformations/scaleshift_to_convolution.hpp"
-
 
 namespace LayerTestsUtils {
 
@@ -71,24 +72,6 @@ InferenceEngine::details::LowPrecisionTransformer LayerTransformation::getLowPre
     const InferenceEngine::details::LayerTransformation::Params& params) const {
     InferenceEngine::details::LowPrecisionTransformer transformer(getLowPrecisionTransformations(params));
     return transformer;
-}
-
-InferenceEngine::CNNNetwork LayerTransformation::transform(InferenceEngine::details::LayerTransformation::Params& params) {
-    InferenceEngine::details::CNNNetworkImplPtr cnnNetworkImp = cloneNet(InferenceEngine::CNNNetwork(function));
-
-    auto transformer = getLowPrecisionTransformer(params);
-    transformer.transform(*cnnNetworkImp);
-
-    return InferenceEngine::CNNNetwork(cnnNetworkImp);
-}
-
-InferenceEngine::CNNNetwork LayerTransformation::transform(const InferenceEngine::details::LowPrecisionTransformations& transformations) {
-    InferenceEngine::details::CNNNetworkImplPtr cnnNetworkImp = cloneNet(InferenceEngine::CNNNetwork(function));
-
-    InferenceEngine::details::LowPrecisionTransformer transformer(transformations);
-    transformer.transform(*cnnNetworkImp);
-
-    return InferenceEngine::CNNNetwork(cnnNetworkImp);
 }
 
 void LayerTransformation::checkParentPrecision(const InferenceEngine::CNNLayerPtr& layer, const bool lowPrecision) {

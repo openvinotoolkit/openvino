@@ -4,12 +4,16 @@
 
 #pragma once
 
-#include "functional_test_utils/layer_test_utils.hpp"
-#include "low_precision_transformations/transformer.hpp"
+#include <memory>
+#include <string>
+#include <sstream>
+#include <tuple>
 
 #include "ie_util_internal.hpp"
 #include "low_precision_transformations/convolution.hpp"
 #include "low_precision_transformations/scaleshift_to_convolution.hpp"
+#include "functional_test_utils/layer_test_utils.hpp"
+#include "low_precision_transformations/transformer.hpp"
 
 namespace LayerTestsUtils {
 

@@ -25,7 +25,7 @@ const std::vector<LayerTransformation::Params> trasformationParamValues = {
 INSTANTIATE_TEST_CASE_P(LPT, ConcatTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(InferenceEngine::SizeVector({ 1, 1024, 16, 16 })),
+        ::testing::Values(InferenceEngine::SizeVector({ 1, 3, 16, 16 })),
         ::testing::Values(CommonTestUtils::DEVICE_CPU),
         ::testing::ValuesIn(trasformationParamValues)),
     ConcatTransformation::getTestCaseName);
