@@ -3748,11 +3748,34 @@ void Program::CreateGatherPrimitive(cldnn::topology& topology, InferenceEngine::
         }
     };
 
+    std::vector<cldnn::primitive_id> reorderedInputs;
+    reorderedInputs.resize(inputPrimitives.size());
+
+    for (size_t portIndex = 0; portIndex < inputPrimitives.size(); portIndex++) {
+        auto inputDataType = DataTypeFromPrecision(layer->insData[portIndex].lock()->getPrecision());
+        if (inputDataType == cldnn::data_types::i64) {
+            // clDNN primitive does not support i64 inputs,
+            // so we need additional reorders to convert them to i32
+            auto reorderPrimName = inputPrimitives[portIndex] + "_" + layer->name + m_preProcessTag;
+            auto targetFormat = FormatFromLayout(layer->insData[portIndex].lock()->getLayout());
+            auto preprocessPrim = cldnn::reorder(
+                reorderPrimName,
+                inputPrimitives[portIndex],
+                targetFormat,
+                cldnn::data_types::i32);
+            topology.add(preprocessPrim);
+            AddInnerPrimitiveToProfiler(reorderPrimName, layer_type_name_ID(layer), layer);
+            reorderedInputs[portIndex] = (reorderPrimName);
+        } else {
+            reorderedInputs[portIndex] = inputPrimitives[portIndex];
+        }
+    }
+
     std::string gatherLayerName = layer_type_name_ID(layer);
     auto gatherPrim = cldnn::gather(
             gatherLayerName,
-            inputPrimitives[0],
-            inputPrimitives[1],
+            reorderedInputs[0],
+            reorderedInputs[1],
             cldnnAxisFromIE(axis),
             CldnnTensorFromIEDims(gatherLayer->outData[0]->getTensorDesc().getDims()));
 
@@ -3765,13 +3788,36 @@ void CLDNNPlugin::Program::CreateGatherTreePrimitive(cldnn::topology & topology,
 
     auto inputPrimitives = GetPrevLayersPrimitives(layer);
 
+    std::vector<cldnn::primitive_id> reorderedInputs;
+    reorderedInputs.resize(inputPrimitives.size());
+
+    for (size_t portIndex = 0; portIndex < inputPrimitives.size(); portIndex++) {
+        auto inputDataType = DataTypeFromPrecision(layer->insData[portIndex].lock()->getPrecision());
+        if (inputDataType == cldnn::data_types::i64) {
+            // clDNN primitive does not support i64 inputs,
+            // so we need additional reorders to convert them to i32
+            auto reorderPrimName = inputPrimitives[portIndex] + "_" + layer->name + m_preProcessTag;
+            auto targetFormat = FormatFromLayout(layer->insData[portIndex].lock()->getLayout());
+            auto preprocessPrim = cldnn::reorder(
+                reorderPrimName,
+                inputPrimitives[portIndex],
+                targetFormat,
+                cldnn::data_types::i32);
+            topology.add(preprocessPrim);
+            AddInnerPrimitiveToProfiler(reorderPrimName, layer_type_name_ID(layer), layer);
+            reorderedInputs[portIndex] = (reorderPrimName);
+        } else {
+            reorderedInputs[portIndex] = inputPrimitives[portIndex];
+        }
+    }
+
     std::string gatherTreeLayerName = layer_type_name_ID(layer);
     auto gatherTreePrim = cldnn::gather_tree(
         gatherTreeLayerName,
-        inputPrimitives[0],
-        inputPrimitives[1],
-        inputPrimitives[2],
-        inputPrimitives[3]);
+        reorderedInputs[0],
+        reorderedInputs[1],
+        reorderedInputs[2],
+        reorderedInputs[3]);
 
     topology.add(gatherTreePrim);
     AddPrimitiveToProfiler(gatherTreeLayerName, layer);
