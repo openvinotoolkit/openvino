@@ -26,6 +26,9 @@ from .constants import WaitMode, StatusCode, MeanVariant, layout_str_to_enum, fo
 
 import numpy as np
 
+
+warnings.filterwarnings(action="module", category=DeprecationWarning)
+
 cdef extern from "<utility>" namespace "std" nogil:
     cdef unique_ptr[C.IEExecNetwork] move(unique_ptr[C.IEExecNetwork])
 
@@ -870,10 +873,9 @@ cdef class ExecutableNetwork:
     ## A dictionary that maps input layer names to DataPtr objects
     @property
     def inputs(self):
-        warnings.filterwarnings("always", category=DeprecationWarning)
         warnings.warn("'inputs' property of ExecutableNetwork class is deprecated. "
                       "To access DataPtrs user need to use 'input_data' property "
-                      "of InputInfoCPtr objects which can be acessed by 'input_info' property.",
+                      "of InputInfoCPtr objects which can be accessed by 'input_info' property.",
                       DeprecationWarning)
         cdef map[string, C.DataPtr] c_inputs = deref(self.impl).getInputs()
         inputs = {}
@@ -1180,7 +1182,6 @@ cdef class InferRequest:
     #  objects of proper shape with input data for the layer
     @property
     def inputs(self):
-        warnings.filterwarnings("always", category=DeprecationWarning)
         warnings.warn("'inputs' property of InferRequest is deprecated. Please instead use 'input_blobs' property.",
                       DeprecationWarning)
         inputs = {}
@@ -1191,7 +1192,6 @@ cdef class InferRequest:
     ## A dictionary that maps output layer names to `numpy.ndarray` objects with output data of the layer
     @property
     def outputs(self):
-        warnings.filterwarnings("always", category=DeprecationWarning)
         warnings.warn("'outputs' property of InferRequest is deprecated. Please instead use 'output_blobs' property.",
                       DeprecationWarning)
         outputs = {}
@@ -1290,7 +1290,6 @@ cdef class IENetLayer:
     #  Layer base operating precision. Provides getter and setter interfaces.
     @property
     def precision(self):
-        warnings.filterwarnings("always", category=DeprecationWarning)
         warnings.warn("precision property of IENetLayer is deprecated. "
                       "Please instead use precision property of DataPtr objects "
                       "returned by out_data property",
@@ -1361,7 +1360,6 @@ cdef class IENetLayer:
     # Returns the layout of the layer output data on 1st port
     @property
     def layout(self):
-        warnings.filterwarnings("always", category=DeprecationWarning)
         warnings.warn("layout property of IENetLayer is deprecated. "
                       "Please instead use shape property of DataPtr objects "
                       "returned by in_data or out_data property to access shape of input or output data "
@@ -1377,7 +1375,6 @@ cdef class IENetLayer:
     # Return the list of dimension of the layer output data on 1st port
     @property
     def shape(self):
-        warnings.filterwarnings("always", category=DeprecationWarning)
         warnings.warn("shape property of IENetLayer is deprecated. "
                       "Please use shape property of DataPtr instead objects "
                       "returned by in_data or out_data property to access shape of input or output data "
@@ -1431,7 +1428,6 @@ cdef class IENetLayer:
     #  Dictionary with layer weights, biases or custom blobs if any
     @property
     def weights(self):
-        warnings.filterwarnings("always", category=DeprecationWarning)
         warnings.warn("weights property of IENetLayer is deprecated. "
                       "Please use blobs property instead.",
                       DeprecationWarning)
@@ -1484,7 +1480,6 @@ cdef class IENetwork:
         cdef string model_
         cdef string weights_
         if init_from_buffer:
-            warnings.filterwarnings("always", category=DeprecationWarning)
             warnings.warn("Reading network using constructor is deprecated. "
                           "Please, use IECore.read_network() method instead",
                           DeprecationWarning)
@@ -1495,7 +1490,6 @@ cdef class IENetwork:
             self.impl.load_from_buffer(xml_buffer, len(model), bin_buffer, len(weights))
         else:
             if model and weights:
-                warnings.filterwarnings("always", category=DeprecationWarning)
                 warnings.warn("Reading network using constructor is deprecated. "
                           "Please, use IECore.read_network() method instead",
                           DeprecationWarning)
@@ -1534,10 +1528,9 @@ cdef class IENetwork:
     ## A dictionary that maps input layer names to DataPtr objects
     @property
     def inputs(self):
-        warnings.filterwarnings("always", category=DeprecationWarning)
         warnings.warn("'inputs' property of IENetwork class is deprecated. "
                       "To access DataPtrs user need to use 'input_data' property "
-                      "of InputInfoPtr objects which can be acessed by 'input_info' property.",
+                      "of InputInfoPtr objects which can be accessed by 'input_info' property.",
                       DeprecationWarning)
         cdef map[string, C.DataPtr] c_inputs = self.impl.getInputs()
         inputs = {}
@@ -1580,7 +1573,6 @@ cdef class IENetwork:
     #  Precision of the network
     @property
     def precision(self):
-        warnings.filterwarnings("always", category=DeprecationWarning)
         warnings.warn("Network precision is deprecated "
                       "because it does not make sence, "
                       "use precision on egdes.",
@@ -1622,7 +1614,6 @@ cdef class IENetwork:
     #  ```
     @property
     def stats(self):
-        warnings.filterwarnings("always", category=DeprecationWarning)
         warnings.warn("stats property of IENetwork is deprecated.",
                           DeprecationWarning)
         cdef map[string, map[string, vector[float]]] c_stats_map = self.impl.getStats()
@@ -1719,7 +1710,6 @@ cdef class IEPlugin:
     #  @param plugin_dirs: List of paths to plugin directories
     #  @return IEPlugin instance
     def __cinit__(self, device: str, plugin_dirs=None):
-        warnings.filterwarnings("always", category=DeprecationWarning)
         warnings.warn("IEPlugin class is deprecated. "
                       "Please use IECore class instead.",
                       DeprecationWarning)
