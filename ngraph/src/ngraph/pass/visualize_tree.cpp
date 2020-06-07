@@ -366,7 +366,7 @@ static std::string pretty_value(const vector<T>& value)
 
 std::string pass::VisualizeTree::get_constant_value(std::shared_ptr<Node> node, size_t max_elements)
 {
-    if (not node->is_constant())
+    if (!node->is_constant())
         return {};
     std::stringstream ss;
     ss << "{" << node->get_element_type().get_type_name() << "}";
