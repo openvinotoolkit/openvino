@@ -63,6 +63,7 @@ void add_required_reorders::run(program_impl& p) {
     auto usr_itr = p.get_processing_order().begin();
     while (usr_itr != p.get_processing_order().end()) {
         auto& usr = *usr_itr++;
+
         if (usr->get_dependencies().size() == 0)
             continue;  // only nodes with dependencies
         if (usr->is_type<internal_primitive>() || usr->is_type<data>())
@@ -73,6 +74,9 @@ void add_required_reorders::run(program_impl& p) {
         bool correct_layout_selected = false;
         bool weights_data = (usr->is_type<convolution>() || usr->is_type<deconvolution>() ||
                              usr->is_type<deformable_conv>() || usr->is_type<fully_connected>());
+
+        layout original_layout = usr->get_output_layout();
+
         for (auto& node : usr->get_dependencies()) {
             if (!node->is_in_data_flow() && !weights_data) {
                 /*
@@ -87,15 +91,38 @@ void add_required_reorders::run(program_impl& p) {
                     correct_layout_selected = true;
                     break;
                 } else {
+                    if (original_layout.data_type == data_types::i64) {
+                        // goal of this section is to use int32 implementation
+                        // if int64 is not available for usr primitive
+                        current_layout = original_layout;
+                        current_layout.data_type = data_types::i32;
+                        usr->set_output_layout(current_layout, false);
+                        if (usr->type()->does_possible_implementation_exist(p.get_engine(), *usr)) {
+                            correct_layout_selected = true;
+                            break;
+                        } else {
+                            current_layout = original_layout;
+                            current_layout.data_type = data_types::i32;
+                            current_layout.format = node->get_output_layout().format;
+                            usr->set_output_layout(current_layout, false);
+                            if (usr->type()->does_possible_implementation_exist(p.get_engine(), *usr)) {
+                                correct_layout_selected = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                if (!correct_layout_selected) {
                     throw std::runtime_error("Internal Error: no layout format available for " + usr->id() +
-                                             " (format: " + std::to_string(usr->get_output_layout().format.value) + " )"
-                                             "compatible with " + node->id() +
-                                             " (format: " + std::to_string(node->get_output_layout().format.value) + ")");
+                                                " (format: " + std::to_string(original_layout.format.value) +
+                                                ", data_type: " + data_type_traits::name(original_layout.data_type) + ") "
+                                                "compatible with " + node->id() +
+                                                " (format: " + std::to_string(node->get_output_layout().format.value) +
+                                                ", data_type: " + data_type_traits::name(node->get_output_layout().data_type) + ")");
                 }
             }
         }
-
-        layout original_layout = usr->get_output_layout();
 
         if (!correct_layout_selected) {
             std::vector<cldnn::format> preffered_layout_formats;
@@ -177,8 +204,9 @@ void add_required_reorders::run(program_impl& p) {
         auto dep_itr = usr->get_dependencies().begin();
         while (dep_itr != usr->get_dependencies().end()) {
             auto node = *dep_itr++;
-            // do not add a reorder if usr or node are reorders or does not belong to data_flow
-            if (!usr->is_type<reorder>() && node->is_in_data_flow()) {
+
+            // do not add reorder if usr primitive is a reorder already
+            if (!usr->is_type<reorder>()) {
                 if ((usr->get_output_layout() != node->get_output_layout())) {
                     add_reorder(p, node, usr);
                 }
