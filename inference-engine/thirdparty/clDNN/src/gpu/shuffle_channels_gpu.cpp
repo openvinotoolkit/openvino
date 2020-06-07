@@ -64,10 +64,28 @@ namespace detail {
 
 attach_shuffle_channels_gpu::attach_shuffle_channels_gpu() {
     auto val_fw = shuffle_channels_gpu::create;
-    implementation_map<shuffle_channels>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx),
-                                              val_fw);
-    implementation_map<shuffle_channels>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx),
-                                              val_fw);
+    implementation_map<shuffle_channels>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bfyx), val_fw);
+    implementation_map<shuffle_channels>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx), val_fw);
+    implementation_map<shuffle_channels>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::bfyx), val_fw);
+    implementation_map<shuffle_channels>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::bfyx), val_fw);
+
+    implementation_map<shuffle_channels>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::b_fs_yx_fsv16), val_fw);
+    implementation_map<shuffle_channels>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::b_fs_yx_fsv16), val_fw);
+    implementation_map<shuffle_channels>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::b_fs_yx_fsv16), val_fw);
+    implementation_map<shuffle_channels>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::b_fs_yx_fsv16), val_fw);
+
+    implementation_map<shuffle_channels>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::b_fs_yx_fsv4), val_fw);
+    implementation_map<shuffle_channels>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::b_fs_yx_fsv4), val_fw);
+    implementation_map<shuffle_channels>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::b_fs_yx_fsv4), val_fw);
+    implementation_map<shuffle_channels>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::b_fs_yx_fsv4), val_fw);
+
+    implementation_map<shuffle_channels>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bs_fs_yx_bsv16_fsv16), val_fw);
+    implementation_map<shuffle_channels>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bs_fs_yx_bsv16_fsv16), val_fw);
+    implementation_map<shuffle_channels>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::bs_fs_yx_bsv16_fsv16), val_fw);
+    implementation_map<shuffle_channels>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::bs_fs_yx_bsv16_fsv16), val_fw);
+
+    implementation_map<shuffle_channels>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::fs_b_yx_fsv32), val_fw);
+    implementation_map<shuffle_channels>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::fs_b_yx_fsv32), val_fw);
 }
 
 }  // namespace detail
