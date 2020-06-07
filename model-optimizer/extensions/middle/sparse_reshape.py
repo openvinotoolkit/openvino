@@ -59,23 +59,10 @@ class SparseReshapeMiddleReplacer(MiddleReplacementPattern):
         if not np.array_equal(input_shape_value, output_shape_value):
             raise Error("Input shape and output shape values must be equal for node {}".format(sparse_reshape.id))
 
-        input_data_node1 = sparse_reshape.in_node(0)
-        input_data_node2 = sparse_reshape.in_node(1)
-        graph.remove_edge(input_data_node1.id, sparse_reshape.id)
-        graph.remove_edge(input_data_node2.id, sparse_reshape.id)
         if 0 in sparse_reshape.out_nodes():
-            output_data_node1 = sparse_reshape.out_node(0)
-            graph.remove_edge(sparse_reshape.id, output_data_node1.id)
-            merge_data_nodes(graph, output_data_node1, input_data_node1)
-        if 1 in sparse_reshape.out_nodes():
-            output_data_node2 = sparse_reshape.out_node(1)
-            graph.remove_edge(sparse_reshape.id, output_data_node2.id)
-            merge_data_nodes(graph, output_data_node2, input_data_node2)
-        graph.remove_nodes_from([sparse_reshape.id, input_data_node1.id, input_data_node2.id])
+            sparse_reshape.out_port(0).get_connection().set_source(sparse_reshape.in_port(0).get_source())
 
-        # TODO: investigate why this second way does not work
-        # sparse_reshape.out_port(0).get_connection().set_source(sparse_reshape.in_port(0).get_source())
-        # sparse_reshape.out_port(1).get_connection().set_source(sparse_reshape.in_port(1).get_source())
-        # sparse_reshape.in_port(0).get_connection().set_destination(sparse_reshape.in_port(0)
-        # sparse_reshape.in_port(2).disconnect()
-        # graph.remove_nodes_from([sparse_reshape.id])
+        if 1 in sparse_reshape.out_nodes():
+            sparse_reshape.out_port(1).get_connection().set_source(sparse_reshape.in_port(1).get_source())
+
+        graph.remove_nodes_from([sparse_reshape.id])
