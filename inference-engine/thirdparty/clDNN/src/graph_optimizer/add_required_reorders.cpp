@@ -63,7 +63,6 @@ void add_required_reorders::run(program_impl& p) {
     auto usr_itr = p.get_processing_order().begin();
     while (usr_itr != p.get_processing_order().end()) {
         auto& usr = *usr_itr++;
-
         if (usr->get_dependencies().size() == 0)
             continue;  // only nodes with dependencies
         if (usr->is_type<internal_primitive>() || usr->is_type<data>())
@@ -204,9 +203,8 @@ void add_required_reorders::run(program_impl& p) {
         auto dep_itr = usr->get_dependencies().begin();
         while (dep_itr != usr->get_dependencies().end()) {
             auto node = *dep_itr++;
-
-            // do not add reorder if usr primitive is a reorder already
-            if (!usr->is_type<reorder>()) {
+            // do not add a reorder if usr or node are reorders or does not belong to data_flow
+            if (!usr->is_type<reorder>() && node->is_in_data_flow()) {
                 if ((usr->get_output_layout() != node->get_output_layout())) {
                     add_reorder(p, node, usr);
                 }
