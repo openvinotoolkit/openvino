@@ -35,13 +35,19 @@
 #include "low_precision_transformations/transformer.hpp"
 #include "low_precision_transformations/convolution.hpp"
 #include "low_precision_transformations/scaleshift_to_convolution.hpp"
+#include "low_precision_transformations/fully_connected.hpp"
 
+using namespace InferenceEngine::details;
 
 namespace LayerTestsUtils {
 
 InferenceEngine::details::LowPrecisionTransformations LayerTransformation::getLowPrecisionTransformations(
     const InferenceEngine::details::LayerTransformation::Params& params) const {
-    return InferenceEngine::details::LowPrecisionTransformer::getAllTransformations(params);
+    return LowPrecisionTransformer::getAllTransformations(params)
+        .add<FullyConnectedTransformation>(
+            InferenceEngine::details::LayerTransformation::Params(params).setSupportAsymmetricQuantization(false), "FullyConnected")
+        .add<FullyConnectedTransformation>(
+            InferenceEngine::details::LayerTransformation::Params(params).setSupportAsymmetricQuantization(false), "GEMM");
 }
 
 InferenceEngine::CNNNetwork LayerTransformation::transform(InferenceEngine::details::LayerTransformation::Params& params) {
