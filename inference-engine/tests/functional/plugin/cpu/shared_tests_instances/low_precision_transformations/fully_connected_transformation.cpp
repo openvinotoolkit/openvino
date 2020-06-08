@@ -22,7 +22,7 @@ const std::vector<InferenceEngine::SizeVector> dimensions = {
 
 const std::vector<LayerTransformation::Params> trasformationParamValues = {
     LayerTestsUtils::LayerTransformationParamsFactory::createParams(),
-    // LayerTestsUtils::LayerTransformationParamsFactory::createParamsI8I8(),
+    LayerTestsUtils::LayerTransformationParamsFactory::createParamsI8I8(),
     LayerTestsUtils::LayerTransformationParamsFactory::createParamsU8I8()
 };
 
