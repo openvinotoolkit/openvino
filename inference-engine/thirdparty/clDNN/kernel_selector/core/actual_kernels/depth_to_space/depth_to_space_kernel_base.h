@@ -24,8 +24,12 @@ namespace kernel_selector {
 // depth_to_space_params
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 struct depth_to_space_params : public base_params {
-    depth_to_space_params() : base_params(KernelType::DEPTH_TO_SPACE), block_size(0) {}
+    depth_to_space_params()
+    : base_params(KernelType::DEPTH_TO_SPACE)
+    , block_size(0)
+    , mode(DepthToSpaceMode::DEPTH_FIRST) {}
     size_t block_size;
+    DepthToSpaceMode mode;
 
     virtual ParamsKey GetParamsKey() const { return base_params::GetParamsKey(); }
 };

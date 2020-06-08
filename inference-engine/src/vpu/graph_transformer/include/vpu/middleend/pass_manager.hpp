@@ -243,6 +243,8 @@ public:
 
     Pass::Ptr replaceGemmByConv();
 
+    Pass::Ptr propagateDynamismToOutputs();
+
 protected:
     StageBuilder::Ptr _stageBuilder;
     BackEnd::Ptr _backEnd;

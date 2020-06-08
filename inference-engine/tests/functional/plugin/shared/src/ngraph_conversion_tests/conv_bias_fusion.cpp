@@ -13,6 +13,13 @@ std::string ConvBiasFusion::getTestCaseName(const testing::TestParamInfo<std::st
     return "Device=" + obj.param;
 }
 
+std::string ConvBiasFusion::getOutputName() const {
+    if (this->GetParam() == CommonTestUtils::DEVICE_GPU)
+        return "add_cldnn_output_postprocess";
+    else
+        return "add";
+}
+
 TEST_P(ConvBiasFusion, ConvBiasFusion) {
     std::string device = this->GetParam();
     std::shared_ptr<ngraph::Function> f(nullptr);
@@ -39,7 +46,7 @@ TEST_P(ConvBiasFusion, ConvBiasFusion) {
 
     if (auto function = net.getFunction()) {
         for (const auto & op : function->get_ops()) {
-            if (op->get_friendly_name() == "add") {
+            if (op->get_friendly_name() ==  getOutputName()) {
                 auto rtInfo = op->get_rt_info();
                 auto it = rtInfo.find("originalLayersNames");
                 ASSERT_NE(rtInfo.end(), it);
@@ -51,7 +58,7 @@ TEST_P(ConvBiasFusion, ConvBiasFusion) {
         }
     } else {
         IE_SUPPRESS_DEPRECATED_START
-        auto add_layer = net.getLayerByName("add");
+        auto add_layer = net.getLayerByName(getOutputName().c_str());
         ASSERT_EQ(add_layer->params["originalLayersNames"], "add,conv");
         IE_SUPPRESS_DEPRECATED_END
     }
