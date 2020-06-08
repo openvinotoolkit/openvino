@@ -359,13 +359,21 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
 
             should_fuse |= input_data.is_type<mvn>();
 
+            should_fuse |= input_data.is_type<normalize>() &&
+                          (input_data.get_dependency(0).get_output_layout().data_type == data_types::u8 ||
+                           input_data.get_dependency(0).get_output_layout().data_type == data_types::i8);
+
             should_fuse |= input_data.is_type<deconvolution>();
-            
+
             should_fuse |= input_data.is_type<permute>();
 
             should_fuse |= input_data.is_type<activation>();
 
             should_fuse |= input_data.is_type<lrn>();
+
+            should_fuse |= input_data.is_type<gather>();
+
+            should_fuse |= input_data.is_type<depth_to_space>();
 
             if (!should_fuse)
                 return;
@@ -396,13 +404,21 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
 
             should_fuse |= input_data.is_type<mvn>() && mvn_supports_fusings(input_data.as<mvn>());
 
+            should_fuse |= input_data.is_type<normalize>() &&
+                          (input_data.get_dependency(0).get_output_layout().data_type == data_types::u8 ||
+                           input_data.get_dependency(0).get_output_layout().data_type == data_types::i8);
+
             should_fuse |= input_data.is_type<deconvolution>();
-            
+
             should_fuse |= input_data.is_type<permute>();
 
             should_fuse |= input_data.is_type<activation>();
 
             should_fuse |= input_data.is_type<lrn>();
+
+            should_fuse |= input_data.is_type<gather>();
+
+            should_fuse |= input_data.is_type<depth_to_space>();
 
             if (!should_fuse)
                 return;
@@ -449,8 +465,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
                            quantize_node.get_scale_shift_opt() &&
                            (out_layout.data_type == data_types::u8 || out_layout.data_type == data_types::i8);
 
-            should_fuse |= input_data.is_type<lrn>() &&
-                           quantize_node.get_scale_shift_opt();
+            should_fuse |= input_data.is_type<lrn>() && quantize_node.get_scale_shift_opt();
 
             should_fuse |= input_data.is_type<gemm>() && gemm_supports_fusings(input_data.as<gemm>()) &&
                            quantize_node.get_scale_shift_opt() &&
@@ -465,14 +480,21 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
 
             should_fuse |= input_data.is_type<activation>() && quantize_node.get_scale_shift_opt();
 
+            should_fuse |= input_data.is_type<normalize>() && quantize_node.get_scale_shift_opt() &&
+                          (input_data.get_dependency(0).get_output_layout().data_type == data_types::u8 ||
+                           input_data.get_dependency(0).get_output_layout().data_type == data_types::i8);
+
             should_fuse |= input_data.is_type<deconvolution>() && quantize_node.get_scale_shift_opt() &&
                             // fp16/fp32 optimized kernels don't support chaning data type
                            (input_data.get_dependency(0).get_output_layout().data_type == data_types::u8 ||
                             input_data.get_dependency(0).get_output_layout().data_type == data_types::i8 ||
                             input_data.get_output_layout().data_type == out_layout.data_type);
 
-            should_fuse |= input_data.is_type<permute>() &&
-                           quantize_node.get_scale_shift_opt();
+            should_fuse |= input_data.is_type<gather>() && quantize_node.get_scale_shift_opt();
+
+            should_fuse |= input_data.is_type<permute>() && quantize_node.get_scale_shift_opt();
+
+            should_fuse |= input_data.is_type<depth_to_space>() && quantize_node.get_scale_shift_opt();
 
             if (!should_fuse)
                 return;
@@ -494,11 +516,13 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
 
             bool can_fuse_parent1 = (parent1->is_type<convolution>() && conv_supports_fusings(parent1->as<convolution>())) ||
                                     (parent1->is_type<mvn>() && mvn_supports_fusings(parent1->as<mvn>())) ||
-                                    (parent1->is_type<deconvolution>()) || (parent1->is_type<permute>());
+                                    (parent1->is_type<deconvolution>()) || (parent1->is_type<permute>()) ||
+                                    (parent1->is_type<depth_to_space>()) || (parent1->is_type<gemm>());
 
             bool can_fuse_parent2 = (parent2->is_type<convolution>() && conv_supports_fusings(parent2->as<convolution>())) ||
                                     (parent2->is_type<mvn>() && mvn_supports_fusings(parent2->as<mvn>())) ||
-                                    (parent2->is_type<deconvolution>()) || (parent2->is_type<permute>());
+                                    (parent2->is_type<deconvolution>()) || (parent2->is_type<permute>()) ||
+                                    (parent1->is_type<depth_to_space>()) || (parent2->is_type<gemm>());
 
             std::vector<bool> can_fuse_parents = { can_fuse_parent1, can_fuse_parent2 };
 

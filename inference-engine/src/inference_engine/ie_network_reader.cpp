@@ -102,14 +102,28 @@ void registerReaders() {
     static std::mutex readerMutex;
     std::lock_guard<std::mutex> lock(readerMutex);
     if (initialized) return;
+
     // TODO: Read readers info from XML
-#ifdef ONNX_IMPORT_ENABLE
-    auto onnxReader = std::make_shared<Reader>("ONNX", std::string("inference_engine_onnx_reader") + std::string(IE_BUILD_POSTFIX));
-    readers.emplace("onnx", onnxReader);
-    readers.emplace("prototxt", onnxReader);
-#endif
-    auto irReader = std::make_shared<Reader>("IR", std::string("inference_engine_ir_reader") + std::string(IE_BUILD_POSTFIX));
-    readers.emplace("xml", irReader);
+    auto create_if_exists = [] (const std::string name, const std::string library_name) {
+        FileUtils::FilePath libraryName = FileUtils::toFilePath(library_name);
+        FileUtils::FilePath readersLibraryPath = FileUtils::makeSharedLibraryName(getInferenceEngineLibraryPath(), libraryName);
+
+        if (!FileUtils::fileExist(readersLibraryPath))
+            return std::shared_ptr<Reader>();
+        return std::make_shared<Reader>(name, library_name);
+    };
+
+    // try to load ONNX reader if library exists
+    auto onnxReader = create_if_exists("ONNX", std::string("inference_engine_onnx_reader") + std::string(IE_BUILD_POSTFIX));
+    if (onnxReader) {
+        readers.emplace("onnx", onnxReader);
+        readers.emplace("prototxt", onnxReader);
+    }
+
+    // try to load IR reader if library exists
+    auto irReader = create_if_exists("IR", std::string("inference_engine_ir_reader") + std::string(IE_BUILD_POSTFIX));
+    if (irReader)
+        readers.emplace("xml", irReader);
     initialized = true;
 }
 
@@ -171,7 +185,8 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath, const std::string&
             return reader->read(modelStream, exts);
         }
     }
-    THROW_IE_EXCEPTION << "Unknown model format! Cannot read the model: " << modelPath;
+    THROW_IE_EXCEPTION << "Unknown model format! Cannot find reader for model format: " << fileExt << " and read the model: " << modelPath <<
+        ". Please check that reader library exists in your PATH.";
 }
 
 CNNNetwork details::ReadNetwork(const std::string& model, const Blob::CPtr& weights, const std::vector<IExtensionPtr>& exts) {
@@ -189,7 +204,7 @@ CNNNetwork details::ReadNetwork(const std::string& model, const Blob::CPtr& weig
             return reader->read(modelStream, exts);
         }
     }
-    THROW_IE_EXCEPTION << "Unknown model format! Cannot read the model from string!";
+    THROW_IE_EXCEPTION << "Unknown model format! Cannot find reader for the model and read it. Please check that reader library exists in your PATH.";
 }
 
 }  // namespace InferenceEngine
