@@ -49,7 +49,7 @@ class Select(Op):
         node.out_port(0).data.set_shape(broadcast_shape(a_shape, b_shape))
         # Case with unknown condition
         if condition_value is not None:
-            output_value = np.where(condition_value, resulting_tensors[0], resulting_tensors[1])
+            output_value = np.array(np.where(condition_value, resulting_tensors[0], resulting_tensors[1]))
             if condition_value.size != 1:
                 if np.any(output_value == None):
                     # If any element of output value is None that means that we use the value from 'then' or 'else' tensor
