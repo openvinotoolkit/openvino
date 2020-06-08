@@ -183,7 +183,6 @@ class TestSelect(unittest.TestCase):
         ([2, 3, 4, 1], [2, 1, 1, 5], [1, 3, 1, 5], [2, 3, 4, 5], lambda x: np.ones(x, dtype=np.float),
          lambda x: np.zeros(x, dtype=np.float), lambda x: np.ones(x, dtype=np.float),
          lambda x: np.ones(x, dtype=np.float)),
-
         ([15, 3, 5], [15, 3, 5], [15, 1, 5], [15, 3, 5], lambda x: np.array([True], np.bool),
          lambda x: np.zeros(x, dtype=np.float), lambda x: np.ones(x, dtype=np.float),
          lambda x: None)
