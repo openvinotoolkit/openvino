@@ -17,28 +17,38 @@
 #include "include/fetch.cl"
 #include "include/imad.cl"
 #include "include/mmad.cl"
+#include "include/data_types.cl"
 
-#if QUANTIZATION_TERM
-    #define ACCUMULATOR_TYPE int
-    #define TO_ACCUMULATOR_TYPE(x) convert_int(x)
-    #define ACTIVATION_TYPE float
-    #define TO_ACTIVATION_TYPE(x) convert_float(x)
-#else
-    #define ACCUMULATOR_TYPE INPUT0_TYPE
-    #define TO_ACCUMULATOR_TYPE(x) TO_INPUT0_TYPE(x)
-    #define ACTIVATION_TYPE INPUT0_TYPE
-    #define TO_ACTIVATION_TYPE(x) TO_INPUT0_TYPE(x)
+#define FSV  16
+#define SIMD 16
+
+#if FILTER_LAYOUT_OS_IS_YX_OSV16_ISV16
+#   define GET_WEIGHTS_INDEX(o, i, z, y, x)     GET_FILTER_OS_IS_YX_OSV16_ISV16_INDEX(FILTER, o, i, y, x)
+#   define WEIGHTS_FEATURE_BLOCK_PITCH          (ALIGN(FILTER_IFM_NUM, FSV) * FILTER_SIZE_X * FILTER_SIZE_Y * FSV)
+#   define WEIGHTS_IS_PITCH                     (FSV * FSV * FILTER_SIZE_X * FILTER_SIZE_Y)
+
+#elif FILTER_LAYOUT_OS_IS_ZYX_OSV32_ISV16
+#   define GET_WEIGHTS_INDEX(o, i, z, y, x)     GET_FILTER_OS_IS_ZYX_OSV32_ISV16_INDEX(FILTER, o, i, z, y, x)
+#   define WEIGHTS_FEATURE_BLOCK_PITCH          (FSV * FSV)
+#   define WEIGHTS_IS_PITCH                     (2 * FSV * FSV * FILTER_SIZE_X * FILTER_SIZE_Y * FILTER_SIZE_Z)
+
+#elif FILTER_LAYOUT_OS_IS_ZYX_OSV64_ISV16
+#   define GET_WEIGHTS_INDEX(o, i, z, y, x)     GET_FILTER_OS_IS_ZYX_OSV64_ISV16_INDEX(FILTER, o, i, z, y, x)
+#   define WEIGHTS_FEATURE_BLOCK_PITCH          (FSV * FSV)
+#   define WEIGHTS_IS_PITCH                     (4 * FSV * FSV * FILTER_SIZE_X * FILTER_SIZE_Y * FILTER_SIZE_Z)
+
 #endif
 
-#define MAKE_VECTOR_TYPE(elem_type, size) CAT(elem_type, size)
 #define AS_TYPE_N_(type, n, x) as_##type##n(x)
 #define AS_TYPE_N(type, n, x) AS_TYPE_N_(type, n, x)
 #define AS_INPUT0_TYPE_4(x) AS_TYPE_N(INPUT0_TYPE, 4, x)
+#define AS_FILTER_TYPE_4(x) AS_TYPE_N(FILTER_TYPE, 4, x)
 
 #define CEIL_DIV(a, b) (((a) + (b) - 1)/(b))
 #define ALIGN(a, b) (CEIL_DIV(a, b) * (b))
 
-__attribute__((intel_reqd_sub_group_size(16)))
+__attribute__((intel_reqd_sub_group_size(SIMD)))
+__attribute__((reqd_work_group_size(1, SIMD * FEATURE_SLM_SPLIT, 1)))
 KERNEL(convolution_gpu_b_fs_yx_fsv16_imad_1x1)(
     const __global INPUT0_TYPE   *conv_input,
     __global OUTPUT_TYPE         *output,
@@ -51,182 +61,343 @@ KERNEL(convolution_gpu_b_fs_yx_fsv16_imad_1x1)(
 #endif
     uint split_idx)
 {
-    #define LUT_VALUE_CLAMP(x) ((x) < (OUT_BLOCK_WIDTH - 1) * STRIDE_SIZE_X + 1 ? (x) : 0)
-    const int tmp[16] = {
-        LUT_VALUE_CLAMP(0),
-        LUT_VALUE_CLAMP(1),
-        LUT_VALUE_CLAMP(2),
-        LUT_VALUE_CLAMP(3),
-        LUT_VALUE_CLAMP(4),
-        LUT_VALUE_CLAMP(5),
-        LUT_VALUE_CLAMP(6),
-        LUT_VALUE_CLAMP(7),
-        LUT_VALUE_CLAMP(8),
-        LUT_VALUE_CLAMP(9),
-        LUT_VALUE_CLAMP(10),
-        LUT_VALUE_CLAMP(11),
-        LUT_VALUE_CLAMP(12),
-        LUT_VALUE_CLAMP(13),
-        LUT_VALUE_CLAMP(14),
-        LUT_VALUE_CLAMP(15)
-    };
-    #undef LUT_VALUE_CLAMP
+    // Use group ids to ease sub-group uniform variables optimization for compiler
+    const uint out_yx_sg = (uint)get_group_id(0) * OUT_BLOCK_SPATIAL;
+    uint out_fg = (uint)get_group_id(1) * OUT_BLOCK_FEATURES * SIMD;
+    const uint out_b = (uint)get_group_id(2);
+    uint out_f = out_fg + get_sub_group_local_id();
 
-#if FEATURE_LWS_SPLIT != 1
-    const uint subgroup_id = get_sub_group_id();
-#else
-    const uint subgroup_id = 0;
-#endif
-    const uint subgroup_local_id = get_sub_group_local_id();
+    const uint sglid = get_sub_group_local_id();
 
-    const uint out_x = (uint)get_global_id(0) * OUT_BLOCK_WIDTH;
-    const uint out_y = get_global_id(1);
-    const uint out_b = (uint)(get_group_id(2) * 32) / ALIGN(OUTPUT_FEATURE_NUM, 32);
-    const uint out_fg = (uint)(get_group_id(2) * 32) % ALIGN(OUTPUT_FEATURE_NUM, 32);
-    const uint out_f = out_fg + subgroup_local_id;
+    uint out_x_shuffle[CEIL_DIV(OUT_BLOCK_SPATIAL, SIMD)] = { };
+    uint out_y_shuffle[CEIL_DIV(OUT_BLOCK_SPATIAL, SIMD)] = { };
 
-    const uint feature_offset = subgroup_id * INPUT0_FEATURE_NUM / FEATURE_LWS_SPLIT;
-
-    ACCUMULATOR_TYPE dotProd[OUT_BLOCK_WIDTH * 2] = { 0 };
-
-    const int input_x = out_x * STRIDE_SIZE_X - PADDING_SIZE_X;
-    const int input_y = out_y * STRIDE_SIZE_Y - PADDING_SIZE_Y;
-    
-    uint filter_idx = GET_FILTER_OS_IS_YX_OSV16_ISV16_INDEX(FILTER, out_f, feature_offset, 0, 0);
-    uint filter_idx2 = GET_FILTER_OS_IS_YX_OSV16_ISV16_INDEX(FILTER, out_f + 16, feature_offset, 0, 0);
-
-    __attribute__((opencl_unroll_hint(1)))
-    for(uint k = 0; k < CEIL_DIV(INPUT0_FEATURE_NUM, 16)/FEATURE_LWS_SPLIT; k++ ) {
-        uint4 weights_val = vload4(0, (__global uint*)(weights + filter_idx));
-        uint4 weights_val2 = vload4(0, (__global uint *)(weights + filter_idx2));
-
-        uint input_idx = GET_DATA_B_FS_YX_FSV16_INDEX(INPUT0, out_b, feature_offset + k * 16, input_y, input_x + tmp[get_sub_group_local_id()]);
-        uint4 input_val0 = vload4(0, (__global uint *)(conv_input + input_idx));
-
-        __attribute__((opencl_unroll_hint(OUT_BLOCK_WIDTH)))
-        for(uint ow = 0; ow < OUT_BLOCK_WIDTH; ow++) {
-            const uint ow_offset = ow + OUT_BLOCK_WIDTH;
-            dotProd[ow] = TO_ACCUMULATOR_TYPE(IMAD(dotProd[ow], AS_INPUT0_TYPE_4(intel_sub_group_shuffle(input_val0.s0, ow * STRIDE_SIZE_X)), as_char4(weights_val.s0)));
-            dotProd[ow] = TO_ACCUMULATOR_TYPE(IMAD(dotProd[ow], AS_INPUT0_TYPE_4(intel_sub_group_shuffle(input_val0.s1, ow * STRIDE_SIZE_X)), as_char4(weights_val.s1)));
-            dotProd[ow] = TO_ACCUMULATOR_TYPE(IMAD(dotProd[ow], AS_INPUT0_TYPE_4(intel_sub_group_shuffle(input_val0.s2, ow * STRIDE_SIZE_X)), as_char4(weights_val.s2)));
-            dotProd[ow] = TO_ACCUMULATOR_TYPE(IMAD(dotProd[ow], AS_INPUT0_TYPE_4(intel_sub_group_shuffle(input_val0.s3, ow * STRIDE_SIZE_X)), as_char4(weights_val.s3)));
-
-            dotProd[ow_offset] = TO_ACCUMULATOR_TYPE(IMAD(dotProd[ow_offset], AS_INPUT0_TYPE_4(intel_sub_group_shuffle(input_val0.s0, ow * STRIDE_SIZE_X)), as_char4(weights_val2.s0)));
-            dotProd[ow_offset] = TO_ACCUMULATOR_TYPE(IMAD(dotProd[ow_offset], AS_INPUT0_TYPE_4(intel_sub_group_shuffle(input_val0.s1, ow * STRIDE_SIZE_X)), as_char4(weights_val2.s1)));
-            dotProd[ow_offset] = TO_ACCUMULATOR_TYPE(IMAD(dotProd[ow_offset], AS_INPUT0_TYPE_4(intel_sub_group_shuffle(input_val0.s2, ow * STRIDE_SIZE_X)), as_char4(weights_val2.s2)));
-            dotProd[ow_offset] = TO_ACCUMULATOR_TYPE(IMAD(dotProd[ow_offset], AS_INPUT0_TYPE_4(intel_sub_group_shuffle(input_val0.s3, ow * STRIDE_SIZE_X)), as_char4(weights_val2.s3)));
-        }
-
-        filter_idx += 16 * 16;
-        filter_idx2 += 16 * 16;
+    const uint max_out_yx = OUTPUT_SIZE_X * OUTPUT_SIZE_Y;
+    uint max_local_yx = min(max_out_yx, out_yx_sg + OUT_BLOCK_SPATIAL);
+    __attribute__((opencl_unroll_hint))
+    for (uint os = 0; os < CEIL_DIV(OUT_BLOCK_SPATIAL, SIMD); ++os) {
+        uint out_yx_shuffle = out_yx_sg + sglid + os * SIMD;
+        uint out_yx_clamp = max_out_yx % OUT_BLOCK_SPATIAL == 0
+                          ? out_yx_shuffle 
+                          : min(out_yx_shuffle, max_local_yx - 1);
+        out_x_shuffle[os] = out_yx_clamp % OUTPUT_SIZE_X;
+        out_y_shuffle[os] = out_yx_clamp / OUTPUT_SIZE_X;
     }
 
-#if FEATURE_LWS_SPLIT != 1
-   __local ACCUMULATOR_TYPE partial_acc[16 * OUT_BLOCK_WIDTH * (FEATURE_LWS_SPLIT - 1) * 2];
-    if (subgroup_id == 0) {
-        __attribute__((opencl_unroll_hint(OUT_BLOCK_WIDTH)))
-        for (uint i = 0; i < OUT_BLOCK_WIDTH; i++) {
-            partial_acc[16 * OUT_BLOCK_WIDTH + i * 16 + subgroup_local_id] = dotProd[i + OUT_BLOCK_WIDTH];
+    const uint ifm_blocks = CEIL_DIV(INPUT0_FEATURE_NUM, FSV);
+    const uint ifm_blocks_per_sg = ifm_blocks / FEATURE_SLM_SPLIT;
+    const uint ifm_per_sg = ifm_blocks_per_sg * FSV;
+
+    uint feature_offset = 0;
+    uint feature_blocks = ifm_blocks_per_sg;
+#if FEATURE_SLM_SPLIT != 1
+    feature_offset = get_sub_group_id() * ifm_per_sg;
+
+    if (ifm_blocks % FEATURE_SLM_SPLIT != 0) {
+        bool bigger_sg = get_sub_group_id() < ifm_blocks % FEATURE_SLM_SPLIT;
+        feature_blocks = bigger_sg ? ifm_blocks_per_sg + 1 : ifm_blocks_per_sg;
+        feature_offset += bigger_sg ? get_sub_group_id() * FSV : ifm_blocks % FEATURE_SLM_SPLIT * FSV;
+    }
+#endif
+
+    uint filter_idx = GET_WEIGHTS_INDEX(out_f, feature_offset, 0, 0, 0);
+
+    uint input_idx[CEIL_DIV(OUT_BLOCK_SPATIAL, SIMD)] = { };
+    __attribute__((opencl_unroll_hint))
+    for (uint os = 0; os < CEIL_DIV(OUT_BLOCK_SPATIAL, SIMD); ++os) {
+        uint input_x = out_x_shuffle[os] * STRIDE_SIZE_X - PADDING_SIZE_X;
+        uint input_y = out_y_shuffle[os] * STRIDE_SIZE_Y - PADDING_SIZE_Y;
+        input_idx[os] = INPUT0_GET_INDEX(out_b, feature_offset, input_y, input_x);
+    }
+
+    ACCUMULATOR_TYPE dotProd[OUT_BLOCK_FEATURES][OUT_BLOCK_SPATIAL] = { };
+
+    __attribute__((opencl_unroll_hint(1)))
+    for (uint k = 0; k < feature_blocks; ++k) {
+        uint4 weights_val[OUT_BLOCK_FEATURES] = { };
+        __attribute__((opencl_unroll_hint))
+        for (uint ofb = 0; ofb < OUT_BLOCK_FEATURES; ++ofb) {
+            weights_val[ofb] = vload4(0, (__global uint*)(weights + filter_idx + ofb * WEIGHTS_FEATURE_BLOCK_PITCH));
         }
-    } else if (subgroup_id == 1) {
-        __attribute__((opencl_unroll_hint(OUT_BLOCK_WIDTH)))
-        for (uint i = 0; i < OUT_BLOCK_WIDTH; i++) {
-            partial_acc[i * 16 + subgroup_local_id] = dotProd[i];
-            dotProd[i] = dotProd[i + OUT_BLOCK_WIDTH];
+
+        uint4 input_val[CEIL_DIV(OUT_BLOCK_SPATIAL, SIMD)] = { };
+        __attribute__((opencl_unroll_hint))
+        for (uint os = 0; os < CEIL_DIV(OUT_BLOCK_SPATIAL, SIMD); ++os) {
+            input_val[os] = vload4(0, (__global uint *)(conv_input + input_idx[os]));
         }
-    } else if (subgroup_id == 2) {
-        __attribute__((opencl_unroll_hint(OUT_BLOCK_WIDTH)))
-        for (uint i = 0; i < OUT_BLOCK_WIDTH; i++) {
-            partial_acc[2 * 16 * OUT_BLOCK_WIDTH + i * 16 + subgroup_local_id] = dotProd[i];
-            partial_acc[3 * 16 * OUT_BLOCK_WIDTH + i * 16 + subgroup_local_id] = dotProd[i + OUT_BLOCK_WIDTH];
+
+#if OUT_BLOCK_FEATURES > 1 && FEATURE_SLM_SPLIT != 1 && OUT_BLOCK_SPATIAL > 14
+        // For some cases compiler spills here due to loop order
+        // Use suboptimal order to avoid this at cost of instruction dispatch delays.
+        __attribute__((opencl_unroll_hint))
+        for (uint os = 0; os < OUT_BLOCK_SPATIAL; ++os) {
+            __attribute__((opencl_unroll_hint))
+            for (uint ive = 0; ive < 4; ++ive) {
+                __attribute__((opencl_unroll_hint))
+                for (uint ofb = 0; ofb < OUT_BLOCK_FEATURES; ++ofb) {
+#else
+        __attribute__((opencl_unroll_hint))
+        for (uint ive = 0; ive < 4; ++ive) {
+            __attribute__((opencl_unroll_hint))
+            for (uint ofb = 0; ofb < OUT_BLOCK_FEATURES; ++ofb) {
+                __attribute__((opencl_unroll_hint))
+                for (uint os = 0; os < OUT_BLOCK_SPATIAL; ++os) {
+#endif
+                        dotProd[ofb][os] = IMAD(dotProd[ofb][os],
+                                                AS_INPUT0_TYPE_4(intel_sub_group_shuffle(input_val[os / SIMD][ive], os % SIMD)),
+                                                AS_FILTER_TYPE_4(weights_val[ofb][ive]));
+                }
+            }
         }
-    } else if (subgroup_id == 3) {
-        __attribute__((opencl_unroll_hint(OUT_BLOCK_WIDTH)))
-        for (uint i = 0; i < OUT_BLOCK_WIDTH; i++) {
-            partial_acc[4 * 16 * OUT_BLOCK_WIDTH + i * 16 + subgroup_local_id] = dotProd[i];
-            partial_acc[5 * 16 * OUT_BLOCK_WIDTH + i * 16 + subgroup_local_id] = dotProd[i + OUT_BLOCK_WIDTH];
+
+        filter_idx += WEIGHTS_IS_PITCH;
+        __attribute__((opencl_unroll_hint))
+        for (uint os = 0; os < CEIL_DIV(OUT_BLOCK_SPATIAL, SIMD); ++os) {
+            input_idx[os] += INPUT0_FEATURE_PITCH * FSV;
+        }
+    }
+
+#if FEATURE_SLM_SPLIT != 1
+    // Additional local memory reduction for feature split mode
+#   if FEATURE_SLM_SPLIT < OUT_BLOCK_FEATURES
+#   error convolution_gpu_b_fs_yx_fsv16_imad_1x1.cl - OUT_BLOCK_FEATURES must be less or equal to FEATURE_SLM_SPLIT
+#   endif
+
+    const uint partial_acc_size = (FEATURE_SLM_SPLIT - 1) * OUT_BLOCK_FEATURES * SIMD * OUT_BLOCK_SPATIAL;
+    __local ACCUMULATOR_TYPE partial_acc[partial_acc_size];
+
+    uint sgid_start_idx = get_sub_group_id();
+    sgid_start_idx = sgid_start_idx == 0 ? 0 : sgid_start_idx - 1;
+    __local ACCUMULATOR_TYPE* partial_acc_ptr = partial_acc + sgid_start_idx * OUT_BLOCK_FEATURES * SIMD * OUT_BLOCK_SPATIAL + sglid;
+
+    if (get_sub_group_id() < OUT_BLOCK_FEATURES) {
+        __attribute__((opencl_unroll_hint))
+        for (uint wg = 0; wg < OUT_BLOCK_FEATURES; ++wg) {
+            if (get_sub_group_id() == wg) {
+                __attribute__((opencl_unroll_hint))
+                for (uint ofb = 0; ofb < wg; ++ofb) {
+                    __attribute__((opencl_unroll_hint))
+                    for (uint os = 0; os < OUT_BLOCK_SPATIAL; ++os) {
+                        const uint partial_acc_ptr_idx =
+                            ofb * OUT_BLOCK_SPATIAL * SIMD +
+                            os * SIMD;
+                        partial_acc_ptr[partial_acc_ptr_idx] = dotProd[ofb][os];
+                    }
+                }
+                __attribute__((opencl_unroll_hint))
+                for (uint os = 0; os < OUT_BLOCK_SPATIAL; ++os) {
+                    dotProd[0][os] = dotProd[wg][os];
+                }
+                __attribute__((opencl_unroll_hint))
+                for (uint ofb = wg + 1; ofb < OUT_BLOCK_FEATURES; ++ofb) {
+                    __attribute__((opencl_unroll_hint))
+                    for (uint os = 0; os < OUT_BLOCK_SPATIAL; ++os) {
+                        const uint partial_acc_ptr_idx =
+                            ((wg != 0) ? OUT_BLOCK_SPATIAL * OUT_BLOCK_FEATURES * SIMD : 0) +
+                            ofb * OUT_BLOCK_SPATIAL * SIMD +
+                            os * SIMD;
+                        partial_acc_ptr[partial_acc_ptr_idx] = dotProd[ofb][os];
+                    }
+                }
+            }
+        }
+    } else {
+        __attribute__((opencl_unroll_hint))
+        for (uint ofb = 0; ofb < OUT_BLOCK_FEATURES; ++ofb) {
+            __attribute__((opencl_unroll_hint))
+            for (uint os = 0; os < OUT_BLOCK_SPATIAL; ++os) {
+                const uint partial_acc_ptr_idx =
+                    ofb * OUT_BLOCK_SPATIAL * SIMD +
+                    os * SIMD;
+                partial_acc_ptr[partial_acc_ptr_idx] = dotProd[ofb][os];
+            }
         }
     }
 
     barrier(CLK_LOCAL_MEM_FENCE);
-    if (subgroup_id >= 2)
+
+    if (get_sub_group_id() >= OUT_BLOCK_FEATURES)
         return;
-    __attribute__((opencl_unroll_hint(OUT_BLOCK_WIDTH)))
-    for (uint i = 0; i < OUT_BLOCK_WIDTH; i++) {
-        dotProd[i] += partial_acc[(i + subgroup_id * OUT_BLOCK_WIDTH) * 16 + subgroup_local_id];
-        dotProd[i] += partial_acc[(i + (subgroup_id + 2) * OUT_BLOCK_WIDTH) * 16 + subgroup_local_id];
-        dotProd[i] += partial_acc[(i + (subgroup_id + 4) * OUT_BLOCK_WIDTH) * 16 + subgroup_local_id];
+
+    partial_acc_ptr = partial_acc + get_sub_group_id() * OUT_BLOCK_SPATIAL * SIMD + sglid;
+    __attribute__((opencl_unroll_hint))
+    for (uint wg = 0; wg < FEATURE_SLM_SPLIT - 1; ++wg) {
+        __attribute__((opencl_unroll_hint))
+        for (uint os = 0; os < OUT_BLOCK_SPATIAL; ++os) {
+            const uint partial_acc_ptr_idx =
+                wg * OUT_BLOCK_FEATURES * SIMD * OUT_BLOCK_SPATIAL +
+                os * SIMD;
+            dotProd[0][os] += partial_acc_ptr[partial_acc_ptr_idx];
+        }
     }
 #endif
 
-#if FEATURE_LWS_SPLIT == 1
-#   define OUTPUT_FEATURES_PER_WI 2
-#   if BIAS_TERM
-    BIAS_TYPE bias[OUTPUT_FEATURES_PER_WI] = { biases[out_f], biases[out_f + 16] };
-#   endif
+#if FEATURE_SLM_SPLIT == 1
+#   define FINAL_OUT_BLOCK_FEATURES (OUT_BLOCK_FEATURES)
 #else
-#   define OUTPUT_FEATURES_PER_WI 1
-#   if BIAS_TERM
-    BIAS_TYPE bias[OUTPUT_FEATURES_PER_WI] = { biases[out_f + subgroup_id * 16] };
-#   endif
+#   define FINAL_OUT_BLOCK_FEATURES 1
+    out_f += get_sub_group_id() * SIMD;
+    out_fg += get_sub_group_id() * SIMD;
+
+    if (CEIL_DIV(OUTPUT_FEATURE_NUM, SIMD) % OUT_BLOCK_FEATURES != 0 && out_fg >= OUTPUT_FEATURE_NUM)
+        return;
 #endif
 
-    for (uint j = 0; j < OUTPUT_FEATURES_PER_WI; j++) {
-        uint out_f_offset = subgroup_id * 16 + j * 16;
-
-#if OUTPUT_FEATURE_NUM % 32 != 0 && OUTPUT_FEATURE_NUM % 32 <= 16
-        if (out_fg + 32 > OUTPUT_FEATURE_NUM && out_f_offset >= OUTPUT_FEATURE_NUM % 32)
-            break;
-#endif
-
-        const uint dst_index = GET_DATA_B_FS_YX_FSV16_INDEX(OUTPUT, out_b, out_f + out_f_offset, out_y, out_x);
-#if HAS_FUSED_OPS && FUSED_OPS_CAN_USE_PRELOAD
-        FUSED_OPS_PRELOAD
-#endif
-        __attribute__((opencl_unroll_hint(OUT_BLOCK_WIDTH)))
-        for (uint i = 0; i < OUT_BLOCK_WIDTH; i++) {
-
-#if OUTPUT_SIZE_X % OUT_BLOCK_WIDTH != 0
-            if (out_x + OUT_BLOCK_WIDTH > OUTPUT_SIZE_X && i >= OUTPUT_SIZE_X % OUT_BLOCK_WIDTH)
-                break;
-#endif
-            ACTIVATION_TYPE dequantized = (ACTIVATION_TYPE)0;
 #if BIAS_TERM
-            dequantized = (ACTIVATION_TYPE)dotProd[OUT_BLOCK_WIDTH * j + i] + bias[j];
-#else
-            dequantized = (ACTIVATION_TYPE)dotProd[OUT_BLOCK_WIDTH * j + i];
-#endif
-            OUTPUT_TYPE result;
-#if HAS_FUSED_OPS
-            #if FUSED_OPS_CAN_USE_PRELOAD
-                FUSED_OPS_CALC
-            #else
-                FUSED_OPS
-            #endif
-            result = FUSED_OPS_RESULT;
-#else
-            result = TO_OUTPUT_TYPE(dequantized);
+    // Preload bias
+    BIAS_TYPE bias_val[FINAL_OUT_BLOCK_FEATURES];
+    for (uint ofb = 0; ofb < FINAL_OUT_BLOCK_FEATURES; ++ofb) {
+        bias_val[ofb] = biases[out_f + ofb * SIMD];
+    }
 #endif
 
-#if OUTPUT_FEATURE_NUM % 16 != 0
-            if (out_fg + out_f_offset + 16 > OUTPUT_FEATURE_NUM && subgroup_local_id >= OUTPUT_FEATURE_NUM % 16)
-                result = (OUTPUT_TYPE)0;
+    // Convert accumulator type to activation type
+    ACTIVATION_TYPE dequantized[FINAL_OUT_BLOCK_FEATURES][OUT_BLOCK_SPATIAL];
+    __attribute__((opencl_unroll_hint))
+    for (uint ofb = 0; ofb < FINAL_OUT_BLOCK_FEATURES; ++ofb) {
+        __attribute__((opencl_unroll_hint))
+        for (uint os = 0; os < OUT_BLOCK_SPATIAL; ++os) {
+            dequantized[ofb][os] = TO_ACTIVATION_TYPE(dotProd[ofb][os]);
+
+#if BIAS_TERM
+            dequantized[ofb][os] += TO_ACTIVATION_TYPE(bias_val[ofb]);
 #endif
-            output[dst_index + i * 16] = result;
         }
     }
 
-#undef OUTPUT_FEATURES_PER_WI
+    // Fused ops/activation
+    OUTPUT_TYPE result[FINAL_OUT_BLOCK_FEATURES][OUT_BLOCK_SPATIAL];
+    __attribute__((opencl_unroll_hint))
+    for (uint ofb = 0; ofb < FINAL_OUT_BLOCK_FEATURES; ++ofb) {
+#if HAS_FUSED_OPS && FUSED_OPS_CAN_USE_PRELOAD_SCALAR
+        FUSED_OPS_PRELOAD_SCALAR;
+#endif
+        __attribute__((opencl_unroll_hint))
+        for (uint os = 0; os < OUT_BLOCK_SPATIAL; ++os) {
+#if HAS_FUSED_OPS
+    #if FUSED_OPS_CAN_USE_PRELOAD_SCALAR
+            FUSED_OPS_CALC_SCALAR;
+    #else
+            FUSED_OPS_SCALAR;
+    #endif
+            result[ofb][os] = FUSED_OPS_RESULT_SCALAR;
+#else
+            result[ofb][os] = TO_OUTPUT_TYPE(ACTIVATION(dequantized[ofb][os], ACTIVATION_PARAMS));
+#endif
+        }
+    }
+
+    // Store output
+    // Check if can use block writes
+    bool only_x_block = OUTPUT_SIZE_X % OUT_BLOCK_SPATIAL == 0;
+    bool at_least_one_x_block = OUTPUT_SIZE_X >= OUT_BLOCK_SPATIAL;
+    bool full_x = out_yx_sg % OUTPUT_SIZE_X <= OUTPUT_SIZE_X - OUT_BLOCK_SPATIAL;
+    bool can_write_x = only_x_block || (at_least_one_x_block && full_x);
+
+    bool no_x_pad = OUTPUT_PAD_BEFORE_SIZE_X == 0 && OUTPUT_PAD_AFTER_SIZE_X == 0;
+    bool exact_spatial = max_out_yx % OUT_BLOCK_SPATIAL == 0;
+    bool full_spatial = out_yx_sg <= max_out_yx - OUT_BLOCK_SPATIAL;
+    bool can_write_spatial = no_x_pad && (exact_spatial || full_spatial);
+
+    bool full_feature_block = (OUTPUT_FEATURE_NUM % SIMD == 0) || (out_fg + FINAL_OUT_BLOCK_FEATURES * SIMD <= OUTPUT_FEATURE_NUM);
+
+    bool can_use_full_block_write =  full_feature_block && (can_write_x || can_write_spatial);
+    if (can_use_full_block_write) {
+        uint output_idx = OUTPUT_GET_INDEX(out_b,
+                                           out_fg,
+                                           intel_sub_group_shuffle(out_y_shuffle[0], 0),
+                                           intel_sub_group_shuffle(out_x_shuffle[0], 0));
+        __attribute__((opencl_unroll_hint))
+        for (uint ofb = 0; ofb < FINAL_OUT_BLOCK_FEATURES; ++ofb) {
+            bool good_of_block = (CEIL_DIV(OUTPUT_FEATURE_NUM, SIMD) % FINAL_OUT_BLOCK_FEATURES == 0)
+                               || (out_fg + FINAL_OUT_BLOCK_FEATURES * SIMD <= OUTPUT_FEATURE_NUM)
+                               || (ofb < CEIL_DIV(OUTPUT_FEATURE_NUM, SIMD) % FINAL_OUT_BLOCK_FEATURES);
+            if (good_of_block) {
+                uint os = 0;
+#if OUTPUT_TYPE_SIZE == 1
+                for (; os + 8 <= OUT_BLOCK_SPATIAL; os += 8) {
+                    MAKE_VECTOR_TYPE(OUTPUT_TYPE, 8) result_val;
+                    __attribute__((opencl_unroll_hint))
+                    for (uint i = 0; i < 8; ++i) {
+                        result_val[i] = result[ofb][os + i];
+                    }
+                    DT_OUTPUT_BLOCK_WRITE8(output, output_idx, result_val);
+                    output_idx += 8 * SIMD;
+                }
+#endif
+#if OUTPUT_TYPE_SIZE <= 2
+                for (; os + 4 <= OUT_BLOCK_SPATIAL; os += 4) {
+                    MAKE_VECTOR_TYPE(OUTPUT_TYPE, 4) result_val;
+                    __attribute__((opencl_unroll_hint))
+                    for (uint i = 0; i < 4; ++i) {
+                        result_val[i] = result[ofb][os + i];
+                    }
+                    DT_OUTPUT_BLOCK_WRITE4(output, output_idx, result_val);
+                    output_idx += 4 * SIMD;
+                }
+#endif
+                for (; os + 2 <= OUT_BLOCK_SPATIAL; os += 2) {
+                    MAKE_VECTOR_TYPE(OUTPUT_TYPE, 2) result_val;
+                    __attribute__((opencl_unroll_hint))
+                    for (uint i = 0; i < 2; ++i) {
+                        result_val[i] = result[ofb][os + i];
+                    }
+                    DT_OUTPUT_BLOCK_WRITE2(output, output_idx, result_val);
+                    output_idx += 2 * SIMD;
+                }
+                if (OUT_BLOCK_SPATIAL % 2 == 1) {
+                    OUTPUT_TYPE result_val = result[ofb][os];
+                    DT_OUTPUT_BLOCK_WRITE(output, output_idx, result_val);
+                    output_idx += 1 * SIMD;
+                }
+            }
+            output_idx += OUTPUT_FEATURE_PITCH * FSV - OUT_BLOCK_SPATIAL * SIMD;
+        }
+    } else {
+        uint output_idx_shuffle[CEIL_DIV(OUT_BLOCK_SPATIAL, SIMD)] = { };
+        __attribute__((opencl_unroll_hint))
+        for (uint os = 0; os < CEIL_DIV(OUT_BLOCK_SPATIAL, SIMD); ++os) {
+            output_idx_shuffle[os] = OUTPUT_GET_INDEX(out_b, out_fg, out_y_shuffle[os], out_x_shuffle[os]);
+        }
+        __attribute__((opencl_unroll_hint))
+        for (uint ofb = 0; ofb < FINAL_OUT_BLOCK_FEATURES; ++ofb) {
+            bool good_of_block = (CEIL_DIV(OUTPUT_FEATURE_NUM, SIMD) % FINAL_OUT_BLOCK_FEATURES == 0)
+                               || (out_fg + FINAL_OUT_BLOCK_FEATURES * SIMD <= OUTPUT_FEATURE_NUM)
+                               || (ofb < CEIL_DIV(OUTPUT_FEATURE_NUM, SIMD) % FINAL_OUT_BLOCK_FEATURES);
+            if (good_of_block) {
+                __attribute__((opencl_unroll_hint))
+                for (uint os = 0; os < OUT_BLOCK_SPATIAL; ++os) {
+                    bool good_os = (max_out_yx % OUT_BLOCK_SPATIAL == 0) || (out_yx_sg <= max_out_yx - OUT_BLOCK_SPATIAL) || (os < max_out_yx % OUT_BLOCK_SPATIAL);
+                    if (!good_os)
+                        break;
+
+                    uint output_idx = intel_sub_group_shuffle(output_idx_shuffle[os / SIMD], os % SIMD);
+                    bool good_of = (OUTPUT_FEATURE_NUM % SIMD == 0) || (out_f + ofb * SIMD < OUTPUT_FEATURE_NUM);
+
+                    if (!good_of)
+                        result[ofb][os] = (OUTPUT_TYPE)0;
+
+                    output[output_idx + sglid] = result[ofb][os];
+                }
+            }
+
+            __attribute__((opencl_unroll_hint))
+            for (uint os = 0; os < CEIL_DIV(OUT_BLOCK_SPATIAL, SIMD); ++os) {
+                output_idx_shuffle[os] += OUTPUT_FEATURE_PITCH * FSV;
+            }
+        }
+    }
+
+#undef FINAL_OUT_BLOCK_FEATURES
 }
 
 #undef AS_INPUT0_TYPE_4
+#undef AS_FILTER_TYPE_4
 #undef AS_TYPE_N
 #undef AS_TYPE_N_
-#undef MAKE_VECTOR_TYPE
-#undef TO_ACTIVATION_TYPE
-#undef ACTIVATION_TYPE
-#undef TO_ACCUMULATOR_TYPE
-#undef ACCUMULATOR_TYPE
 
 #undef CEIL_DIV
 #undef ALIGN
+
+#undef FSV
+#undef SIMD
