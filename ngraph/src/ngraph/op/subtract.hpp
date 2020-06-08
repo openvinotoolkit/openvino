@@ -62,8 +62,8 @@ namespace ngraph
             class NGRAPH_API Subtract : public util::BinaryElementwiseArithmetic
             {
             public:
-                static constexpr NodeTypeInfo type_info{"Subtract", 1};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
+                RTTI_DECLARATION;
+
                 Subtract()
                     : util::BinaryElementwiseArithmetic(AutoBroadcastSpec::NUMPY)
                 {

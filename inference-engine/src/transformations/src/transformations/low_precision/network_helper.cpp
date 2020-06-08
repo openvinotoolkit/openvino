@@ -1639,11 +1639,16 @@ std::shared_ptr<opset1::Multiply> swapMultiplyAndAdd(std::shared_ptr<opset1::Add
     if (bDivA->constant_fold(foldedTerm)) {
         assert(foldedTerm.size() == 1);
         auto addTerm = as_type_ptr<opset1::Constant>(foldedTerm[0].get_node_shared_ptr());
+        // TODO: is it useful to optimize here?
+#if 0
         if (isScalarLike(addTerm) && addTerm->cast_vector<float>()[0] == 0) {
             foldedTerm.clear();
         } else {
+#endif
             replace_node(bDivA, foldedTerm);
+#if 0
         }
+#endif
     } else {
         foldedTerm = {bDivA->output(0)};
     }
@@ -1734,6 +1739,124 @@ std::shared_ptr<opset1::Constant> roundWithTolerance(std::shared_ptr<Node> node,
     }
 }
 
+// Decompose FakeQuantize to FakeQuantize with output integer limits (quantize), dequatized MultiplyAdd
+// To align types the resulting sequence is FakeQuantize -> Convert -> Convert -> MultiplyAdd
+std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> decomposeFakeQuantize(std::shared_ptr<opset1::FakeQuantize> fq,
+                                            element::Type precision,
+                                            float min,
+                                            float max) {
+    using std::make_shared;
+
+    // Now calculate scales and shifts according to given shapes -- all operations in ngraph
+    auto newMin = make_shared<opset1::Constant>(fq->get_output_element_type(0), Shape{}, min);
+    auto newMax = make_shared<opset1::Constant>(fq->get_output_element_type(0), Shape{}, max);
+
+    auto outputLow = fq->input_value(3);
+    auto outputHigh = fq->input_value(4);
+
+    std::shared_ptr<Node> scale;
+    std::shared_ptr<Node> shift;
+
+    if (precision.is_signed()) {
+        // I8
+        scale = fold<opset1::Divide>(
+                fold<opset1::Subtract>(outputHigh, outputLow),
+                fold<opset1::Subtract>(newMax, newMin));
+
+        auto actualLowPartQuantValue = fold<opset1::Abs>(fold<opset1::Divide>(outputLow, newMin));
+        auto actualHighPartQuantValue = fold<opset1::Abs>(fold<opset1::Divide>(outputHigh, newMax));
+
+        shift = fold<opset1::Select>(
+                fold<opset1::Less>(actualLowPartQuantValue, actualHighPartQuantValue),
+                fold<opset1::Subtract>(outputLow, fold<opset1::Multiply>(newMin, scale)),
+                fold<opset1::Subtract>(outputHigh, fold<opset1::Multiply>(newMax, scale)));
+
+    } else {
+        // U8
+        scale = fold<opset1::Divide>(
+                fold<opset1::Subtract>(outputHigh, outputLow),
+                fold<opset1::Subtract>(newMax, newMin));
+
+        // TODO: here should be a check for zero point; I've removed it as it alway true
+        // if it is really required
+        shift = outputLow.get_node_shared_ptr();
+    }
+
+    // Build a substitution sub-graph:
+    auto newFQ = fold_fake_quantize<opset1::FakeQuantize>(
+            fq->input_value(0),
+            fq->input_value(1),
+            fq->input_value(2),
+            newMin->output(0),
+            newMax->output(0),
+            fq->get_levels(),
+            fq->get_auto_broadcast());
+
+//    auto denormalization = make_shared<op::TypeRelaxed<ngraph::op::MultiplyAdd>>(
+//            ngraph::op::MultiplyAdd(std::shared_ptr<Node>(op::AutoReplaceOutputType(
+//                    newFQ, fq->get_output_element_type(0))), scale, shift), fq->get_output_element_type(0));
+
+    auto dequantize = make_shared<ngraph::op::MultiplyAdd>(
+            make_shared<opset1::Convert>(
+                    fold<opset1::Convert>(newFQ, precision),
+                    fq->get_output_element_type(0)), scale, shift);
+    replace_node(fq, dequantize);
+    // Make type-relaxed node
+
+#if 0
+    // FIXME: is it needed?
+    if (fabs(dequantizationScale) < minQuantizationScale) {
+        dequantizationScales[channel] = minQuantizationScale;
+        denormalOutputValuesWasUpdated = true;
+    } else if (fabs(dequantizationScale) > maxQuantizationScale) {
+        dequantizationScales[channel] = dequantizationScale > 0.f ? maxQuantizationScale : -maxQuantizationScale;
+        denormalOutputValuesWasUpdated = true;
+    } else {
+        dequantizationScales[channel] = dequantizationScale;
+    }
+#endif
+
+    return std::make_tuple(newFQ, dequantize);
+}
+
+std::shared_ptr<Node> optimizeAdd(std::shared_ptr<opset1::Add> add) {
+    auto convertOnAdd = add->input_value(0).get_node_shared_ptr();
+    // TODO: replace assert to condition and omit conversion part if there is no convert
+    // TODO: also check convertInputType to understand if we really want to propagate type
+    assert(as_type_ptr<opset1::Convert>(convertOnAdd));
+    auto convertInputType = convertOnAdd->get_input_element_type(0);
+    auto data = convertOnAdd->input_value(0);
+    auto shift = add->input_value(1).get_node_shared_ptr();
+    auto roundedShift = roundWithTolerance(shift, convertInputType);
+    std::shared_ptr<Node> replacement;
+    if (roundedShift->get_element_type() == convertInputType) {
+        // Propagate convertInputType down
+        replacement = std::make_shared<opset1::Add>(data, roundedShift);
+        replace_node(add, replacement);
+    } else {
+        // Try to represent it as data - (-b)
+        roundedShift = roundWithTolerance(fold<opset1::Negative>(shift), convertInputType);
+        if (roundedShift->get_element_type() == convertInputType) {
+            // Assuming Subtract will go out of representable set of values for target type
+            // So keep the original data type (likely not integer)
+            replacement = std::make_shared<op::TypeRelaxed<opset1::Subtract>>(
+                    opset1::Subtract(data, roundedShift),
+                    convertOnAdd->get_output_element_type(0));
+            replace_node(add, replacement);
+        }
+    }
+
+    // We lose the tail conversion here; not needed if the next node is a TypeRelaxed
+    // TODO: check cases when Convert should be preserved
+
+    // Try to optimize Add out if constant is zero
+    if (isScalarLike(roundedShift)) {
+        auto scalar = distillToScalar(roundedShift);
+        if (op::util::constantIsEqualTo(scalar, 0)) {
+            replace_node(replacement, replacement->input_value(0).get_node_shared_ptr());
+        }
+    }
+}
 
 
 

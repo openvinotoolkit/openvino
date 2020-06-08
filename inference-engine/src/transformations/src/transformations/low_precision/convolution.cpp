@@ -121,6 +121,7 @@ void ConvolutionTransformation::transform(TransformationContext &context, ngraph
         // Before moving, Multiply should be decoupled and exchanged with Add in MultiplyAdd operation
         auto newMultiplyFromData = swapMultiplyAndAdd(
                 decomposeMultiplyAdd(as_type_ptr<ngraph::op::MultiplyAdd>(scaleShiftOnData)));
+        optimizeAdd(as_type_ptr<opset1::Add>(newMultiplyFromData->input_value(0).get_node_shared_ptr()));
         // double-check that Multiply is still scalar-like
         assert(isScalarLike(as_type_ptr<opset1::Constant>(newMultiplyFromData->input_value(1).get_node_shared_ptr())));
         auto newMultiplyAfter = std::make_shared<opset1::Multiply>(
@@ -164,7 +165,9 @@ void ConvolutionTransformation::transform(TransformationContext &context, ngraph
         layer = newMultiplyAfter->input_value(0).get_node_shared_ptr();
 
         // Handle remaining Add
-        auto remainingAdd = layer->input_value(1).get_node_shared_ptr();
+        auto remainingAdd = as_type_ptr<opset1::Add>(layer->input_value(1).get_node_shared_ptr());
+        optimizeAdd(remainingAdd);
+#if 0
         auto convertOnAdd = remainingAdd->input_value(0).get_node_shared_ptr();
         assert(as_type_ptr<opset1::Convert>(convertOnAdd));
         auto precisionOnWeights = convertOnAdd->get_input_element_type(0);
@@ -182,6 +185,7 @@ void ConvolutionTransformation::transform(TransformationContext &context, ngraph
                 replace_node(remainingAdd, remainingAdd->input_value(0).get_node_shared_ptr());
             }
         }
+#endif
     }
 
     optimizeMultipliesAfter(layer->output(0).get_target_inputs().begin()->get_node()->shared_from_this());

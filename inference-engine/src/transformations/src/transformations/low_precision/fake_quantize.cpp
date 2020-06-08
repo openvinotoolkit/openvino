@@ -39,7 +39,30 @@ void FakeQuantizeTransformation::transform(TransformationContext& context, ngrap
         return;
     }
 
-    // TODO: Original LPT has a SS+FQ fusion code here; we should handle it separately
+    // Gather Multiply from the data path
+    if (auto multiply = as_type_ptr<opset1::Multiply>(layer->input_value(0).get_node_shared_ptr())) {
+        std::shared_ptr<opset1::Constant> constant = as_type_ptr<opset1::Constant>(multiply->input_value(0).get_node_shared_ptr());
+        auto data = multiply->input_value(1);
+        if (!constant) {
+            constant = as_type_ptr<opset1::Constant>(multiply->input_value(1).get_node_shared_ptr());
+            data = multiply->input_value(0);
+        }
+
+        if (constant) {
+            // TODO: Check multiply consumers
+            // TODO: verify that direct multiplication is correct
+            auto newInputMin = fold<opset1::Multiply>(layer->input_value(1), constant);
+            auto newInputMax = fold<opset1::Multiply>(layer->input_value(2), constant);
+            // FIXME: workaround for current CPU implementation that has restrictions on shapes:
+            auto newShape = newInputMin->get_output_shape(0);
+            newShape.insert(newShape.begin(), 1);
+            newInputMin = fold_reshape<opset1::Reshape>(newInputMin, std::make_shared<opset1::Constant>(element::i64, Shape{4}, newShape), false);
+            newInputMax = fold_reshape<opset1::Reshape>(newInputMax, std::make_shared<opset1::Constant>(element::i64, Shape{4}, newShape), false);
+            auto newFQ = layer->copy_with_new_inputs({data, newInputMin, newInputMax, layer->input_value(3), layer->input_value(4)});
+            replace_node(layer, newFQ);
+            layer = as_type_ptr<opset1::FakeQuantize>(newFQ);
+        }
+    }
 
     // TODO: can we handle it by marking FQs that we wanted to exclude in RTinfo
     //       (in previous passes where quantizedFakeQuantizeNames has been populated)
@@ -56,6 +79,7 @@ void FakeQuantizeTransformation::transform(TransformationContext& context, ngrap
         return;
     }
 
+#if 0 // replaced by decomposeFakeQuantize
     std::vector<float> dequantizationScales;
     std::vector<float> dequantizationShifts;
     fillFromQuantizationDetails(
@@ -63,6 +87,7 @@ void FakeQuantizeTransformation::transform(TransformationContext& context, ngrap
             dataPrecision,
             dequantizationScales,
             dequantizationShifts);
+#endif
 
 #if 0  // TODO LPT-TO-NGRAPH
 #ifdef LPT_PRINT_DEQUANTIZATION_INFO
@@ -72,9 +97,27 @@ void FakeQuantizeTransformation::transform(TransformationContext& context, ngrap
 
     // Split FakeQuantize to two parts: Quantize and Dequantize
 
+    auto QDQ = decomposeFakeQuantize(
+            as_type_ptr<opset1::FakeQuantize>(layer),
+            dataPrecision.precision,
+            dataPrecision.min,
+            dataPrecision.max);
+
+    // To disable application of the same transform twice on the same node
+    // TODO: Handle it through node property
+    auto quantize = as_type_ptr<opset1::FakeQuantize>(std::get<0>(QDQ));
+    quantize->set_friendly_name(layer->get_friendly_name());
+    auto quantizeConvert = as_type_ptr<opset1::Convert>(quantize->get_output_target_inputs(0).begin()->get_node()->shared_from_this());
+
+    // Remove the first Convert and built convert directly to FQ by modifying output type
+    NetworkHelper::setOutDataPrecision(quantize, quantizeConvert->get_output_element_type(0));
+    NetworkHelper::removeLayer(quantizeConvert);
+
+#if 0 // replaced by decomposeFakeQuantize
     // Quantize is represented as FakeQuantize operation, just update existing node to serve the role
     NetworkHelper::updateBlobs(layer, 3, dataPrecision.min);
     NetworkHelper::updateBlobs(layer, 4, dataPrecision.max);
+#endif
 
     // Dequantize can be represented as Multiply+Add combination, but currently we use ScaleShiftIE.
 
@@ -102,18 +145,22 @@ void FakeQuantizeTransformation::transform(TransformationContext& context, ngrap
         context.dequantizationLayersNames.insert(dequantizationLayer->get_friendly_name());
     }
 #else
+#if 0  // replaced by decomposeFakeQuantize
     NetworkHelper::addDequantizationAfter(
             context,
             layer->output(0),
             DequantizationDetails(dequantizationScales, dequantizationShifts, dequantizationShifts.size()));
 #endif
+#endif
 
+#if 0 // replaced by decomposeFakeQuantize
     // Move update precision for FQ later after SS is inserted
     // It is required because we don't rely on original precision map and extract original precisions from the graph node
     // If precision for FQ is set before adding SS, then SS will derive type of its output as u8/i8 from FQ which is not correct
     if (updatePrecisions) {
         NetworkHelper::setOutDataPrecision(layer, dataPrecision.precision);
     }
+#endif
 
     // TODO: Get rid of this.
     context.quantizedFakeQuantizeNames.insert(layer->get_friendly_name());

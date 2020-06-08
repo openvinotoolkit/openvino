@@ -372,7 +372,13 @@ std::shared_ptr<Node> getConstantInput(std::shared_ptr<Node> node);
 std::shared_ptr<Node> optimizeMultipliesAfter(std::shared_ptr<Node> multiply);
 
 std::shared_ptr<opset1::Constant> roundWithTolerance(std::shared_ptr<Node> node, element::Type target_type, float tolerance = 1e-5);
-std::shared_ptr<opset1::Constant> tryConvert(std::shared_ptr<Node> node, element::Type target_type);
+
+std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> decomposeFakeQuantize(std::shared_ptr<opset1::FakeQuantize> fq,
+                                            element::Type precision,
+                                            float min,
+                                            float max);
+
+std::shared_ptr<Node> optimizeAdd(std::shared_ptr<opset1::Add> add);
 
 }  // namespace low_precision
 }  // namespace pass
