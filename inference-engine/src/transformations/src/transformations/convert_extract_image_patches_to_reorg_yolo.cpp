@@ -20,7 +20,22 @@ void ngraph::pass::ConvertExtractImagePatchesToReorgYolo::convert_extract_image_
         if (!extract_image_patches) {
             return false;
         }
-        
+
+        if (extract_image_patches->get_strides() != extract_image_patches->get_sizes()) {
+            return false;
+        }
+
+        auto input_shape = extract_image_patches->get_input_shape(0);
+        auto strides = extract_image_patches->get_strides();
+
+        if (input_shape[i] % strides[i] != 0 || input_shape[3] % strides[2] != 0) {
+            return false;
+        }
+
+        if (extract_image_patches->get_auto_pad() != ngraph::op::PadType::VALID) {
+            return false;
+        }
+
         auto reorg_yolo = std::make_shared<ngraph::opset3::ReorgYolo>(extract_image_patches->input(0).get_source_output(),
                                                                       Strides{extract_image_patches->get_strides()});
 
