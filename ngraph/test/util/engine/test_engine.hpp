@@ -1,5 +1,6 @@
 #pragma once
 
+#include <ie_core.hpp>
 #include "ngraph/function.hpp"
 
 namespace ngraph
@@ -9,18 +10,12 @@ namespace ngraph
         class IE_CPU_Engine
         {
         public:
-            IE_CPU_Engine(const std::shared_ptr<Function>& function)
-                : m_function{function}
-            {
-            }
+            IE_CPU_Engine() = delete;
+            IE_CPU_Engine(const std::shared_ptr<Function>& function);
 
             virtual ~IE_CPU_Engine() noexcept = default;
 
-            void infer()
-            {
-                std::cout << "Running function inference on IE Engine\n";
-            };
-
+            void infer() { std::cout << "Running function inference on IE Engine\n"; };
             template <typename T>
             void add_input(const Shape& shape, const std::vector<T>& values)
             {
@@ -29,6 +24,10 @@ namespace ngraph
 
         private:
             std::shared_ptr<Function> m_function;
+            InferenceEngine::CNNNetwork m_network;
+
+            std::shared_ptr<Function>
+                upgrade_and_validate_function(std::shared_ptr<Function> function) const;
         };
 
         // TODO: implement afterwards

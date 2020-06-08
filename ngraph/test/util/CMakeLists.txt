@@ -21,6 +21,7 @@ endif()
 set (SRC
     autodiff/backprop_function.cpp
     all_close_f.cpp
+    engine/test_engine.cpp
     float_util.cpp
     test_tools.cpp
     test_control.cpp
@@ -34,7 +35,7 @@ if(NGRAPH_LIB_VERSIONING_ENABLE)
     set_target_properties(ngraph_test_util PROPERTIES
         VERSION ${NGRAPH_VERSION})
 endif()
-target_include_directories(ngraph_test_util PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/..)
+target_include_directories(ngraph_test_util PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/.. ${IE_MAIN_SOURCE_DIR}/include)
 target_link_libraries(ngraph_test_util PRIVATE ngraph ngraph_backend libgtest)
 add_dependencies(ngraph_test_util ext_gtest)
 
