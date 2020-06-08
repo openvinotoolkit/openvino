@@ -44,6 +44,9 @@ ie_dependent_option (ENABLE_AVX2 "Enable AVX2 optimizations" ON "X86_64 OR X86" 
 
 ie_dependent_option (ENABLE_AVX512F "Enable AVX512 optimizations" ON "X86_64 OR X86" OFF)
 
+# DO NOT COMMIT (asomsiko), debugging code
+set (ENABLE_PROFILING_ITT ON CACHE BOOL "ITT tracing of IE and plugins internals" FORCE)
+
 ie_option (ENABLE_PROFILING_ITT "ITT tracing of IE and plugins internals" ON)
 
 # Documentation build
