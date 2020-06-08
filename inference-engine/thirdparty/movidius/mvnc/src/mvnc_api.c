@@ -681,7 +681,7 @@ ncStatus_t ncDeviceOpen(struct ncDeviceHandle_t **deviceHandlePtr,
     }
 
     bootOptions_t bootOptions = {0};
-    bootOptions.memType = 0;
+    bootOptions.memType = deviceOpenParams.memoryType;
     bootOptions.wdEnable = watchdogInterval > 0;
 
 #ifdef NO_BOOT
