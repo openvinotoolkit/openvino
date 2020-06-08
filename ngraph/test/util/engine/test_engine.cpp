@@ -7,11 +7,17 @@
 
 using namespace ngraph;
 
-test::IE_CPU_Engine::IE_CPU_Engine(const std::shared_ptr<Function>& function)
+test::IE_CPU_Engine::IE_CPU_Engine(std::shared_ptr<Function> function)
 {
-    m_function = upgrade_and_validate_function(function);
-    m_network = InferenceEngine::CNNNetwork(m_function);
+    function = upgrade_and_validate_function(function);
+    const auto cnn_network = InferenceEngine::CNNNetwork(function);
+    m_network_inputs = cnn_network.getInputsInfo();
     // set_parameters_and_results(*m_function);
+
+    InferenceEngine::Core ie;
+    // TODO: make it a member?
+    auto exe_network = ie.LoadNetwork(cnn_network, "CPU");
+    m_inference_req = exe_network.CreateInferRequest();
 }
 
 std::shared_ptr<Function>
