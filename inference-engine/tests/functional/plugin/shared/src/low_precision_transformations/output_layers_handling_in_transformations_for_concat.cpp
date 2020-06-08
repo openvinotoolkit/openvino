@@ -66,6 +66,8 @@ InferenceEngine::Blob::Ptr OutputLayersHandlingInTransformationsForConcat::Gener
 */
 
 void OutputLayersHandlingInTransformationsForConcat::SetUp() {
+    threshold = 0.05;
+
     InferenceEngine::SizeVector inputShape1;
     InferenceEngine::Precision netPrecision;
     InferenceEngine::details::LayerTransformation::Params params;

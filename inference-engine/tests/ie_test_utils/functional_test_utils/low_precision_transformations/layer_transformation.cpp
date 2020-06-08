@@ -75,6 +75,8 @@ InferenceEngine::details::LowPrecisionTransformer LayerTransformation::getLowPre
 }
 
 void LayerTransformation::checkParentPrecision(const InferenceEngine::CNNLayerPtr& layer, const bool lowPrecision) {
+    IE_SUPPRESS_DEPRECATED_START
+
     EXPECT_EQ(1ul, layer->insData.size()) << "insert data count is no expected: " << layer->insData.size();
     const InferenceEngine::DataPtr insData = layer->insData[0].lock();
     EXPECT_TRUE(insData != nullptr) << "insert data is nullable";
@@ -85,6 +87,8 @@ void LayerTransformation::checkParentPrecision(const InferenceEngine::CNNLayerPt
         std::unordered_set<uint8_t>({ InferenceEngine::Precision::FP16, InferenceEngine::Precision::FP32 });
     EXPECT_TRUE((expectedPrecisions.find(precision) != expectedPrecisions.end())) <<
         "actual precision is " << precision;
+
+    IE_SUPPRESS_DEPRECATED_END
 }
 
 std::string LayerTransformation::toString(const InferenceEngine::details::LayerTransformation::Params& params) {
