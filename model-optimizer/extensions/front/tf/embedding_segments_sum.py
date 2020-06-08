@@ -1,5 +1,5 @@
 """
- Copyright (C) 2018-2020 Intel Corporation
+ Copyright (C) 2020 Intel Corporation
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -15,13 +15,19 @@
 """
 
 import logging as log
+import numpy as np
 
-from extensions.ops.sparse_weighted_sum import ExperimentalSparseWeightedSum
+from extensions.ops.Cast import Cast
+from extensions.ops.embedding_bag import EmbeddingSegmentsSum
+from extensions.ops.split import Split
+from mo.front.common.partial_infer.utils import int64_array
 from mo.front.common.replacement import FrontReplacementSubgraph
-from mo.graph.graph import Graph
+from mo.front.tf.graph_utils import create_op_with_const_inputs
+from mo.graph.graph import Graph, rename_nodes
+from mo.ops.squeeze import Squeeze
 
 
-class ExperimentalSparseWeightedSumFrontReplacer(FrontReplacementSubgraph):
+class EmbeddingSegmentsSumFrontReplacer(FrontReplacementSubgraph):
     """
     The transformation looks for pattern (sub-graph) that performs extraction of embedding vectors from the parameters table
     for object feature values and sum up these embedding vectors for every object.
@@ -30,7 +36,6 @@ class ExperimentalSparseWeightedSumFrontReplacer(FrontReplacementSubgraph):
     enabled = True
 
     def pattern(self):
-        log.debug('Enabled ExperimentalSparseWeightedSum replacement')
         return dict(
             nodes=[
                 ('identity_spw', dict(op='Identity')),
@@ -76,18 +81,45 @@ class ExperimentalSparseWeightedSumFrontReplacer(FrontReplacementSubgraph):
         gather0_2 = match['gather0_2']
         greaterequal0 = match['greaterequal0']
         sparse_fill_empty_rows = match['sparse_fill_empty_rows']
-        where0 = match['where0']
         gather = match['gather']
         select = match['select']
+        where0 = match['where0']
+        output_node_name = select.soft_get('name', select.id)
 
-        log.debug('Found ExperimentalSparseWeightedSum2 pattern after {} with name {}'.format(sparse_fill_empty_rows.op, sparse_fill_empty_rows.name))
+        log.debug('Found EmbeddingSegmentsSum pattern after {} with name {}'.format(sparse_fill_empty_rows.op,
+                                                                                    sparse_fill_empty_rows.name))
 
-        sparse_weighted_sum = ExperimentalSparseWeightedSum(graph, {'name': sparse_fill_empty_rows.name + '/ExperimentalSparseWeightedSum_'}).create_node()
-        gather0_1.in_port(0).get_connection().set_destination(sparse_weighted_sum.in_port(0))
-        greaterequal0.in_port(0).get_connection().set_destination(sparse_weighted_sum.in_port(1))
-        identity_spw.in_port(0).get_connection().set_destination(sparse_weighted_sum.in_port(2))
-        gather.in_port(0).get_connection().set_destination(sparse_weighted_sum.in_port(3))
-        sparse_fill_empty_rows.in_port(3).get_connection().set_destination(sparse_weighted_sum.in_port(4))
+        split_for_indices = create_op_with_const_inputs(graph, Split, {1: int64_array(1)}, {'num_splits': 2})
+        squeeze_for_indices = create_op_with_const_inputs(graph, Squeeze, {1: int64_array([1])})
+        split_for_dense_shape = create_op_with_const_inputs(graph, Split, {1: int64_array(0)}, {'num_splits': 2})
+        squeeze_to_scalar = create_op_with_const_inputs(graph, Squeeze, {1: int64_array([0])})
+        cast_segment_ids = Cast(graph, {'name': output_node_name + '/CastSegmentIds', 'dst_type': np.int32}).create_node()
+        cast_default_value = Cast(graph, {'name': output_node_name + '/CastDefaultValue', 'dst_type': np.int32}).create_node()
+        cast_num_segments = Cast(graph, {'name': output_node_name + '/CastSegmentsNumber', 'dst_type': np.int32}).create_node()
+        embedding_segments_sum = EmbeddingSegmentsSum(graph, {'name': output_node_name}).create_node()
+        rename_nodes([(select, output_node_name + '/AbandonedName'), (embedding_segments_sum, output_node_name)])
+
+        # connect parameters table
+        gather.in_port(0).get_connection().set_destination(embedding_segments_sum.in_port(0))
+        # connect indices values
+        greaterequal0.in_port(0).get_connection().set_destination(embedding_segments_sum.in_port(1))
+        # split and connect segment ids
+        gather0_1.in_port(0).get_connection().set_destination(split_for_indices.in_port(0))
+        squeeze_for_indices.in_port(0).connect(split_for_indices.out_port(0))
+        # TODO: remove casting once we start to support I64 model input
+        cast_segment_ids.in_port(0).connect(squeeze_for_indices.out_port(0))
+        embedding_segments_sum.in_port(2).connect(cast_segment_ids.out_port(0))
+        # split and connect number of segments
+        identity_spw.in_port(0).get_connection().set_destination(split_for_dense_shape.in_port(0))
+        squeeze_to_scalar.in_port(0).connect(split_for_dense_shape.out_port(0))
+        # TODO: remove casting once we start to support I64 model input
+        cast_num_segments.in_port(0).connect(squeeze_to_scalar.out_port(0))
+        embedding_segments_sum.in_port(3).connect(cast_num_segments.out_port(0))
+        # connect default value
+        # TODO: remove casting once we start to support I64 model input
+        sparse_fill_empty_rows.in_port(3).get_connection().set_destination(cast_default_value.in_port(0))
+        embedding_segments_sum.in_port(4).connect(cast_default_value.out_port(0))
+        # no input port for per_sample_weight
 
         identity_spw.in_port(0).disconnect()
         gather0_1.in_port(0).disconnect()
@@ -96,11 +128,11 @@ class ExperimentalSparseWeightedSumFrontReplacer(FrontReplacementSubgraph):
         sparse_fill_empty_rows.in_port(2).disconnect()
         gather.in_port(0).disconnect()
 
-        select.out_port(0).get_connection().set_source(sparse_weighted_sum.out_port(0))
+        select.out_port(0).get_connection().set_source(embedding_segments_sum.out_port(0))
         graph.remove_nodes_from([gather0_1.id, gather0_2.id, greaterequal0.id, sparse_fill_empty_rows.id, select.id, where0.id])
 
 
-class ExperimentalSparseWeightedSumFrontReplacer2(FrontReplacementSubgraph):
+class EmbeddingSegmentsSumFrontReplacer2(FrontReplacementSubgraph):
     """
     The transformation looks for pattern (sub-graph) that performs extraction of embedding vectors from the parameters table
     for object feature values and sum up these embedding vectors for every object.
@@ -109,7 +141,6 @@ class ExperimentalSparseWeightedSumFrontReplacer2(FrontReplacementSubgraph):
     enabled = True
 
     def pattern(self):
-        log.debug('Enabled ExperimentalSparseWeightedSum2 replacement')
         return dict(
             nodes=[
                 ('identity_spw', dict(op='Identity')),
@@ -162,15 +193,46 @@ class ExperimentalSparseWeightedSumFrontReplacer2(FrontReplacementSubgraph):
         gather = match['gather']
         select = match['select']
         where0 = match['where0']
+        output_node_name = select.soft_get('name', select.id)
 
-        log.debug('Found ExperimentalSparseWeightedSum2 pattern after {} with name {}'.format(sparse_fill_empty_rows.op, sparse_fill_empty_rows.name))
+        log.debug('Found EmbeddingSegmentsSum2 pattern after {} with name {}'.format(sparse_fill_empty_rows.op,
+                                                                                     sparse_fill_empty_rows.name))
 
-        sparse_weighted_sum = ExperimentalSparseWeightedSum(graph, {'name': sparse_fill_empty_rows.name + '/ExperimentalSparseWeightedSum_'}).create_node()
-        gather0_1.in_port(0).get_connection().set_destination(sparse_weighted_sum.in_port(0))
-        greaterequal0.in_port(0).get_connection().set_destination(sparse_weighted_sum.in_port(1))
-        identity_spw.in_port(0).get_connection().set_destination(sparse_weighted_sum.in_port(2))
-        gather.in_port(0).get_connection().set_destination(sparse_weighted_sum.in_port(3))
-        sparse_fill_empty_rows.in_port(3).get_connection().set_destination(sparse_weighted_sum.in_port(4))
+        split_for_indices = create_op_with_const_inputs(graph, Split, {1: int64_array(1)},
+                                                        {'num_splits': 2,
+                                                         'name': output_node_name + '/SplitForIndices'})
+        squeeze_for_indices = create_op_with_const_inputs(graph, Squeeze, {1: int64_array([1])})
+        split_for_dense_shape = create_op_with_const_inputs(graph, Split, {1: int64_array(0)},
+                                                            {'num_splits': 2,
+                                                             'name': output_node_name + '/SplitForDenseShape'})
+        squeeze_to_scalar = create_op_with_const_inputs(graph, Squeeze, {1: int64_array([0])})
+        cast_segment_ids = Cast(graph, {'name': output_node_name + '/CastSegmentIds', 'dst_type': np.int32}).create_node()
+        cast_default_value = Cast(graph, {'name': output_node_name + '/CastDefaultValue', 'dst_type': np.int32}).create_node()
+        cast_num_segments = Cast(graph, {'name': output_node_name + '/CastSegmentsNumber', 'dst_type': np.int32}).create_node()
+        embedding_segments_sum = EmbeddingSegmentsSum(graph, {'name': output_node_name}).create_node()
+        rename_nodes([(select, output_node_name + '/AbandonedName'), (embedding_segments_sum, output_node_name)])
+
+        # connect parameters table
+        gather.in_port(0).get_connection().set_destination(embedding_segments_sum.in_port(0))
+        # connect indices values
+        greaterequal0.in_port(0).get_connection().set_destination(embedding_segments_sum.in_port(1))
+        # split and connect segment ids
+        gather0_1.in_port(0).get_connection().set_destination(split_for_indices.in_port(0))
+        squeeze_for_indices.in_port(0).connect(split_for_indices.out_port(0))
+        # TODO: remove casting once we start to support I64 model input
+        cast_segment_ids.in_port(0).connect(squeeze_for_indices.out_port(0))
+        embedding_segments_sum.in_port(2).connect(cast_segment_ids.out_port(0))
+        # split and connect number of segments
+        identity_spw.in_port(0).get_connection().set_destination(split_for_dense_shape.in_port(0))
+        squeeze_to_scalar.in_port(0).connect(split_for_dense_shape.out_port(0))
+        # TODO: remove casting once we start to support I64 model input
+        cast_num_segments.in_port(0).connect(squeeze_to_scalar.out_port(0))
+        embedding_segments_sum.in_port(3).connect(cast_num_segments.out_port(0))
+        # connect default value
+        # TODO: remove casting once we start to support I64 model input
+        sparse_fill_empty_rows.in_port(3).get_connection().set_destination(cast_default_value.in_port(0))
+        embedding_segments_sum.in_port(4).connect(cast_default_value.out_port(0))
+        # no input port for per_sample_weight
 
         identity_spw.in_port(0).disconnect()
         gather0_1.in_port(0).disconnect()
@@ -179,5 +241,5 @@ class ExperimentalSparseWeightedSumFrontReplacer2(FrontReplacementSubgraph):
         sparse_fill_empty_rows.in_port(2).disconnect()
         gather.in_port(0).disconnect()
 
-        select.out_port(0).get_connection().set_source(sparse_weighted_sum.out_port(0))
+        select.out_port(0).get_connection().set_source(embedding_segments_sum.out_port(0))
         graph.remove_nodes_from([gather0_1.id, gather0_2.id, greaterequal0.id, sparse_fill_empty_rows.id, select.id, where0.id])
