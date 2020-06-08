@@ -156,6 +156,8 @@ namespace
             break;
             TYPE_CASE(bf16)(input, output);
             break;
+            TYPE_CASE(f16)(input, output);
+            break;
             TYPE_CASE(f32)(input, output);
             break;
             TYPE_CASE(f64)(input, output);

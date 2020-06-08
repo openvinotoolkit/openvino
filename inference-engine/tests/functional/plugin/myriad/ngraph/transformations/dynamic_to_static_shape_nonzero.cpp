@@ -57,10 +57,9 @@ public:
             const auto input = std::make_shared<ngraph::opset1::Parameter>(inputType, inputShape);
 
             const auto staticShapeNonZero = std::make_shared<ngraph::vpu::op::StaticShapeNonZero>(input, resultType);
-            staticShapeNonZero->set_friendly_name(std::string(s_FriendlyName) + "/static_shape");
             const auto dynamicShapeResolver = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(
                     staticShapeNonZero->output(0), staticShapeNonZero->output(1));
-            dynamicShapeResolver->set_friendly_name(std::string(s_FriendlyName) + "/resolve_shape");
+            dynamicShapeResolver->set_friendly_name(std::string(s_FriendlyName));
 
             expected = std::make_shared<ngraph::Function>(ngraph::NodeVector{dynamicShapeResolver}, ngraph::ParameterVector{input});
         }
@@ -69,16 +68,13 @@ public:
     void compareFunctions() {
         ASSERT_NO_THROW(ngraph::helpers::CompareFunctions(*actual, *expected));
 
-        auto actualResultNode = actual->get_output_op(0);
-        auto actualResolverNode = actualResultNode->input(0).get_source_output().get_node_shared_ptr();
-        auto actualNonZeroNode = actualResolverNode->input(0).get_source_output().get_node_shared_ptr();
+        const auto actualResultNode = actual->get_output_op(0);
+        const auto actualResolverNode = actualResultNode->input(0).get_source_output().get_node_shared_ptr();
 
-        auto expectedResultNode = expected->get_output_op(0);
-        auto expectedResolverNode = expectedResultNode->input(0).get_source_output().get_node_shared_ptr();
-        auto expectedNonZeroNode = expectedResolverNode->input(0).get_source_output().get_node_shared_ptr();
+        const auto expectedResultNode = expected->get_output_op(0);
+        const auto expectedResolverNode = expectedResultNode->input(0).get_source_output().get_node_shared_ptr();
 
         EXPECT_EQ(actualResolverNode->get_friendly_name(), expectedResolverNode->get_friendly_name());
-        EXPECT_EQ(actualNonZeroNode->get_friendly_name(), expectedNonZeroNode->get_friendly_name());
     }
 
 protected:

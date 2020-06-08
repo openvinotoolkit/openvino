@@ -212,6 +212,17 @@ std::shared_ptr<ngraph::Node> makeEmbeddingSegmentsSum(
                                       bool with_weights,
                                       bool with_default_index);
 
+std::shared_ptr<ngraph::Node> makeDepthToSpace(const ngraph::Output<Node> &in,
+                                               ngraph::opset3::DepthToSpace::DepthToSpaceMode mode,
+                                               size_t blockSize);
+
+std::shared_ptr<ngraph::Node> makeSpaceToDepth(const ngraph::Output<Node> &in,
+                                               ngraph::opset3::SpaceToDepth::SpaceToDepthMode mode,
+                                               size_t blockSize);
+
+std::shared_ptr<Node> makeShuffleChannels(const ngraph::Output<Node> &in,
+                                          int axis,
+                                          int group);
 
 }  // namespace builder
 }  // namespace ngraph

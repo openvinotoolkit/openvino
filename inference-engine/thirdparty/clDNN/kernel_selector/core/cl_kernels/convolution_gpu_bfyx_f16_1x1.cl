@@ -208,21 +208,10 @@ KERNEL(convolution_b_fs_yx_fsv16_1x1)(
 #endif
     {
 #if !PADDED_OUTPUT
-        if (xy * X_BLOCK_SIZE + X_BLOCK_SIZE <= OUTPUT_SIZE_X * OUTPUT_SIZE_Y) {
-#if HAS_FUSED_OPS
-            FUSED_OPS_VEC;
-            dst = FUSED_OPS_RESULT_VEC;
-#endif
-#if X_BLOCK_SIZE == 8
-            UNIT_BLOCK_WRITE8(output, output_offset + y * output_y_pitch + x * output_x_pitch, dst);
-#elif X_BLOCK_SIZE == 4
-            UNIT_BLOCK_WRITE4(output, output_offset + y * output_y_pitch + x * output_x_pitch, dst);
-#elif X_BLOCK_SIZE == 2
-            UNIT_BLOCK_WRITE2(output, output_offset + y * output_y_pitch + x * output_x_pitch, dst);
-#endif
-        } else {
+        if (xy * X_BLOCK_SIZE + X_BLOCK_SIZE <= OUTPUT_SIZE_X * OUTPUT_SIZE_Y || (OUTPUT_SIZE_X * OUTPUT_SIZE_Y) % X_BLOCK_SIZE == 0) {
 #else
-        if (x * X_BLOCK_SIZE + X_BLOCK_SIZE <= OUTPUT_SIZE_X) {
+        if (x + X_BLOCK_SIZE <= OUTPUT_SIZE_X || OUTPUT_SIZE_X % X_BLOCK_SIZE == 0) {
+#endif
 #if HAS_FUSED_OPS
             FUSED_OPS_VEC;
             dst = FUSED_OPS_RESULT_VEC;
@@ -235,7 +224,6 @@ KERNEL(convolution_b_fs_yx_fsv16_1x1)(
             UNIT_BLOCK_WRITE2(output, output_offset + y * output_y_pitch + x * output_x_pitch, dst);
 #endif
         } else {
-#endif
             for (int i = 0; i < X_BLOCK_SIZE; i++) {
                 if (xy * X_BLOCK_SIZE + i >= OUTPUT_SIZE_X * OUTPUT_SIZE_Y)
                     return;
