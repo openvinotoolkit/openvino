@@ -38,7 +38,7 @@ class FixedBiasComponentFrontExtractor(FrontExtractorOp):
             'bias_term': True,
             'out-size': biases.shape[0],
         }
-        embed_input(mapping_rule, 1, 'biases', biases)
+        embed_input(mapping_rule, 2, 'biases', biases)
 
         ScaleShiftOp.update_node_stat(node, mapping_rule)
         return cls.enabled
