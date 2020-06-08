@@ -49,6 +49,7 @@
 #include <api/depth_to_space.hpp>
 #include <api/space_to_depth.hpp>
 #include <api/batch_to_space.hpp>
+#include <api/space_to_batch.hpp>
 #include <api/shuffle_channels.hpp>
 #include <api/strided_slice.hpp>
 #include <api/reverse_sequence.hpp>
@@ -541,6 +542,7 @@ Program::LayerType Program::LayerTypeFromStr(const std::string &str) {
         { "DepthToSpace" , DepthToSpace },
         { "SpaceToDepth" , SpaceToDepth },
         { "BatchToSpace", BatchToSpace },
+        { "SpaceToBatch" , SpaceToBatch },
         { "ShuffleChannels" , ShuffleChannels },
         { "StridedSlice" , StridedSlice },
         { "ReverseSequence" , ReverseSequence },
@@ -1243,6 +1245,8 @@ void Program::CreateSingleLayerPrimitive(cldnn::topology& topology, InferenceEng
         case SpaceToDepth: CreateSpaceToDepthPrimitive(topology, layer);
             break;
         case BatchToSpace: CreateBatchToSpacePrimitive(topology, layer);
+            break;
+        case SpaceToBatch: CreateSpaceToBatchPrimitive(topology, layer);
             break;
         case ShuffleChannels: CreateShuffleChannelsPrimitive(topology, layer);
             break;
@@ -3834,6 +3838,24 @@ void Program::CreateBatchToSpacePrimitive(cldnn::topology& topology, InferenceEn
 
     topology.add(batchToSpacePrim);
     AddPrimitiveToProfiler(batchToSpaceName, layer);
+}
+
+void Program::CreateSpaceToBatchPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer) {
+    ValidateLayer(layer, 4);
+
+    auto inputPrimitives = GetPrevLayersPrimitives(layer);
+    auto spaceToBatch = as<InferenceEngine::GenericLayer*> (layer);
+
+    std::string spaceToBatchName = layer_type_name_ID(layer);
+    auto spaceToBatchPrim = cldnn::space_to_batch(
+            spaceToBatchName,
+            inputPrimitives[0],
+            inputPrimitives[1],
+            inputPrimitives[2],
+            inputPrimitives[3]);
+
+    topology.add(spaceToBatchPrim);
+    AddPrimitiveToProfiler(spaceToBatchName, layer);
 }
 
 void Program::CreateShuffleChannelsPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer) {
