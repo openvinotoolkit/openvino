@@ -160,7 +160,7 @@ class RemoveConstToResult(BackReplacementPattern):
         nodes_to_remove = [result_node.id]
 
         # in case only const data consumer that is the result node, remove the whole sub-graph
-        if len(const_data_node.out_nodes()) == 1:
+        if len(const_node.out_port(0).get_destinations()) == 1:
             nodes_to_remove.append(const_node.id)
             nodes_to_remove.append(const_data_node.id)
 
