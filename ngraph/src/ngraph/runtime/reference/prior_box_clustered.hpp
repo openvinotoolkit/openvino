@@ -36,18 +36,18 @@ namespace ngraph
                                      const Shape& out_shape,
                                      const op::PriorBoxClusteredAttrs& attrs)
             {
-                int num_priors_ = attrs.widths.size();
+                size_t num_priors_ = attrs.widths.size();
 
                 auto variances = attrs.variances;
                 if (variances.empty())
                     variances.push_back(0.1f);
 
                 // Execute
-                const int layer_width = data[1];
-                const int layer_height = data[0];
+                const int64_t layer_width = data[1];
+                const int64_t layer_height = data[0];
 
-                int img_width = img[1];
-                int img_height = img[0];
+                int64_t img_width = img[1];
+                int64_t img_height = img[0];
 
                 // TODO: Uncomment after PriorBoxClustered is aligned with the specification.
 
@@ -58,8 +58,8 @@ namespace ngraph
                 //                float step_h = attrs.step_heights == 0 ? step_ :
                 //                attrs.step_heights;
 
-                float step_w = attrs.step_widths == 0 ? 0 : attrs.step_widths;
-                float step_h = attrs.step_heights == 0 ? 0 : attrs.step_heights;
+                float step_w = attrs.step_widths;
+                float step_h = attrs.step_heights;
 
                 if (step_w == 0 && step_h == 0)
                 {
@@ -67,15 +67,15 @@ namespace ngraph
                     step_h = static_cast<float>(img_height) / layer_height;
                 }
 
-                int var_size = variances.size();
-                for (int h = 0; h < layer_height; ++h)
+                size_t var_size = variances.size();
+                for (int64_t h = 0; h < layer_height; ++h)
                 {
-                    for (int w = 0; w < layer_width; ++w)
+                    for (int64_t w = 0; w < layer_width; ++w)
                     {
                         float center_x = (w + attrs.offset) * step_w;
                         float center_y = (h + attrs.offset) * step_h;
 
-                        for (int s = 0; s < num_priors_; ++s)
+                        for (size_t s = 0; s < num_priors_; ++s)
                         {
                             float box_width = attrs.widths[s];
                             float box_height = attrs.heights[s];
@@ -98,14 +98,14 @@ namespace ngraph
                                        s * cnt;
                             };
 
-                            size_t idx = get_idx(4);
+                            uint64_t idx = get_idx(4);
                             dst_data[idx + 0] = xmin;
                             dst_data[idx + 1] = ymin;
                             dst_data[idx + 2] = xmax;
                             dst_data[idx + 3] = ymax;
 
                             idx = get_idx(var_size);
-                            for (int j = 0; j < var_size; j++)
+                            for (size_t j = 0; j < var_size; j++)
                                 dst_data[idx + j + out_shape[1]] = variances[j];
                         }
                     }

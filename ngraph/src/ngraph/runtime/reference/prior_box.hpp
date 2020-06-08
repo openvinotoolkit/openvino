@@ -150,8 +150,8 @@ namespace ngraph
                             {
                                 for (float ar : attrs.fixed_ratio)
                                 {
-                                    auto density_ = static_cast<size_t>(attrs.density[s]);
-                                    int shift = static_cast<int>(attrs.fixed_size[s] / density_);
+                                    auto density_ = static_cast<int64_t>(attrs.density[s]);
+                                    auto shift = static_cast<int64_t>(attrs.fixed_size[s] / density_);
                                     ar = std::sqrt(ar);
                                     float box_width_ratio = attrs.fixed_size[s] * 0.5f * ar;
                                     float box_height_ratio = attrs.fixed_size[s] * 0.5f / ar;
@@ -176,11 +176,11 @@ namespace ngraph
                             {
                                 if (!attrs.density.empty())
                                 {
-                                    int density_ = static_cast<int>(attrs.density[s]);
-                                    int shift = static_cast<int>(attrs.fixed_size[s] / density_);
-                                    for (int r = 0; r < density_; ++r)
+                                    auto density_ = static_cast<int64_t>(attrs.density[s]);
+                                    auto shift = static_cast<int64_t>(attrs.fixed_size[s] / density_);
+                                    for (int64_t r = 0; r < density_; ++r)
                                     {
-                                        for (int c = 0; c < density_; ++c)
+                                        for (int64_t c = 0; c < density_; ++c)
                                         {
                                             float center_x_temp = center_x - fixed_size_ / 2 +
                                                                   shift / 2.f + c * shift;
@@ -202,14 +202,14 @@ namespace ngraph
                                         continue;
                                     }
 
-                                    int density_ = static_cast<int>(attrs.density[s]);
-                                    int shift = static_cast<int>(attrs.fixed_size[s] / density_);
+                                    auto density_ = static_cast<int64_t>(attrs.density[s]);
+                                    auto shift = static_cast<int64_t>(attrs.fixed_size[s] / density_);
                                     ar = std::sqrt(ar);
                                     float box_width_ratio = attrs.fixed_size[s] * 0.5f * ar;
                                     float box_height_ratio = attrs.fixed_size[s] * 0.5f / ar;
-                                    for (int r = 0; r < density_; ++r)
+                                    for (int64_t r = 0; r < density_; ++r)
                                     {
-                                        for (int c = 0; c < density_; ++c)
+                                        for (int64_t c = 0; c < density_; ++c)
                                         {
                                             float center_x_temp = center_x - fixed_size_ / 2 +
                                                                   shift / 2.f + c * shift;
@@ -242,7 +242,7 @@ namespace ngraph
                             if (attrs.scale_all_sizes ||
                                 (!attrs.scale_all_sizes && (ms_idx == min_size.size() - 1)))
                             {
-                                size_t sIdx = attrs.scale_all_sizes ? ms_idx : 0;
+                                size_t s_idx = attrs.scale_all_sizes ? ms_idx : 0;
                                 for (float ar : aspect_ratios)
                                 {
                                     if (std::fabs(ar - 1.0f) < 1e-6)
@@ -251,8 +251,8 @@ namespace ngraph
                                     }
 
                                     ar = std::sqrt(ar);
-                                    box_width = min_size[sIdx] * 0.5f * ar;
-                                    box_height = min_size[sIdx] * 0.5f / ar;
+                                    box_width = min_size[s_idx] * 0.5f * ar;
+                                    box_height = min_size[s_idx] * 0.5f / ar;
                                     calculate_data(
                                         center_x, center_y, box_width, box_height, false);
                                 }
@@ -263,23 +263,23 @@ namespace ngraph
 
                 if (attrs.clip)
                 {
-                    for (size_t i = 0; i < H * W * num_priors * 4; ++i)
+                    for (uint64_t i = 0; i < H * W * num_priors * 4; ++i)
                     {
                         dst_data[i] = (std::min)((std::max)(dst_data[i], 0.0f), 1.0f);
                     }
                 }
 
-                size_t channel_size = OH * OW;
+                uint64_t channel_size = OH * OW;
                 if (variance.size() == 1)
                 {
-                    for (size_t i = 0; i < channel_size; ++i)
+                    for (uint64_t i = 0; i < channel_size; ++i)
                     {
                         dst_data[i + channel_size] = variance[0];
                     }
                 }
                 else
                 {
-                    for (size_t i = 0; i < H * W * num_priors; ++i)
+                    for (uint64_t i = 0; i < H * W * num_priors; ++i)
                     {
                         for (size_t j = 0; j < 4; ++j)
                         {
