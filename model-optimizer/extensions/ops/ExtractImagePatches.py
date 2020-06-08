@@ -26,11 +26,14 @@ class ExtractImagePatches(Op):
     op = "ExtractImagePatches"
 
     def __init__(self, graph: Graph, attrs: dict):
+        assert 'spatial_dims' in attrs, \
+            'ExtractImagePatches operation should have `spatial_dims` parameter set during creation'
+
         super().__init__(graph, {
-            'type': __class__.op,
-            'op': __class__.op,
+            'type': self.op,
+            'op': self.op,
             'version': 'opset3',
-            'infer': ExtractImagePatches.infer,
+            'infer': self.infer,
             'in_ports_count': 1,
             'out_ports_count': 1,
         }, attrs)
@@ -45,8 +48,8 @@ class ExtractImagePatches(Op):
 
     @staticmethod
     def infer(node: Node):
-        assert (len(node.in_nodes()) == 1), 'Wrong input nodes number for node {} with type ExtractImagePatches'\
-            .format(node.soft_get('name', node.id))
+        assert (len(node.in_nodes()) == 1), \
+            'Wrong input nodes number for node {} with type ExtractImagePatches'.format(node.soft_get('name', node.id))
         input_shape = node.in_port(0).data.get_shape()
         if input_shape is None:
             return
@@ -56,15 +59,6 @@ class ExtractImagePatches(Op):
         layout = node.graph.graph['layout']
         N = input_shape[get_batch_dim(layout, 4)]
         C = input_shape[get_features_dim(layout, 4)]
-
-        if not node.has_valid('batch_dims'):
-            node['batch_dims'] = int64_array([0])
-
-        if not node.has_valid('channel_dims'):
-            node['channel_dims'] = int64_array([3]) if layout == 'NHWC' else int64_array([1])
-
-        if not node.has_valid('spatial_dims'):
-            node['spatial_dims'] = int64_array([1, 2]) if layout == 'NHWC' else int64_array([2, 3])
 
         size_spatial = int64_array(node.sizes)[node.spatial_dims]
 
@@ -81,8 +75,8 @@ class ExtractImagePatches(Op):
 
         out_shape = shape_for_layout(layout,
                                      batch=N,
-                                     features=int(C * np.prod(size_spatial)),
-                                     height=int(output_spatial_shape[0]),
-                                     width=int(output_spatial_shape[1]))
+                                     features=C * np.prod(size_spatial),
+                                     height=output_spatial_shape[0],
+                                     width=output_spatial_shape[1])
 
         node.out_port(0).data.set_shape(int64_array(out_shape))

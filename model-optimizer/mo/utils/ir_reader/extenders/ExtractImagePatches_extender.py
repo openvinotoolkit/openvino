@@ -28,6 +28,4 @@ class ExtractImagePatches(Extender):
         op['strides'] = int64_array([1, 1] + op.strides)
         op['rates'] = int64_array([1, 1] + op.rates)
 
-        op['batch_dims'] = int64_array([0])
-        op['channel_dims'] = int64_array([1])
         op['spatial_dims'] = int64_array([2, 3])

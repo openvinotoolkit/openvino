@@ -26,11 +26,9 @@ class ExtractImagePatchesExtractor(FrontExtractorOp):
 
     @classmethod
     def extract(cls, node):
-        node['batch_dims'] = int64_array([0])
-        node['channel_dims'] = int64_array([3])
-        node['spatial_dims'] = int64_array([1, 2])
 
         attrs = {
+            'spatial_dims': int64_array([1, 2]),
             'sizes': tf_int_list(node.pb.attr['ksizes'].list),
             'strides': tf_int_list(node.pb.attr['strides'].list),
             'rates': tf_int_list(node.pb.attr['rates'].list),
