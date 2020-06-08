@@ -31,7 +31,7 @@ nodes_attributes = {'node_1': {'type': 'Identity', 'kind': 'op'},
 
 
 class TestConcatPartialInfer(unittest.TestCase):
-    def test_tf_concat_infer(self):
+    def test_tf_ctc_greedy_decoder_nhwc_infer(self):
         graph = build_graph(nodes_attributes,
                             [
                                 ('node_1', 'ctc'),
@@ -47,6 +47,29 @@ class TestConcatPartialInfer(unittest.TestCase):
                             })
 
         graph.graph['layout'] = 'NHWC'
+        ctc_node = Node(graph, 'ctc')
+        CTCGreedyDecoderOp.ctc_greedy_decoder_infer(ctc_node)
+        exp_shape = np.array([2, 88, 1, 1])
+        res_shape = graph.node['node_3']['shape']
+        for i in range(0, len(exp_shape)):
+            self.assertEqual(exp_shape[i], res_shape[i])
+
+    def test_tf_ctc_greedy_decoder_nchw_infer(self):
+        graph = build_graph(nodes_attributes,
+                            [
+                                ('node_1', 'ctc'),
+                                ('node_2', 'ctc'),
+                                ('ctc', 'node_3'),
+                                ('node_3', 'op_output')
+                            ],
+                            {
+                                'node_3': {'shape': None},
+                                'node_1': {'shape': np.array([88, 2, 71])},
+                                'node_2': {'shape': np.array([88, 2])},
+                                'ctc': {'ctc_merge_repeated': 1}
+                            })
+
+        graph.graph['layout'] = 'NCHW'
         ctc_node = Node(graph, 'ctc')
         CTCGreedyDecoderOp.ctc_greedy_decoder_infer(ctc_node)
         exp_shape = np.array([2, 88, 1, 1])
