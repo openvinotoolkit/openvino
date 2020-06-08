@@ -495,7 +495,6 @@ extensions/middle/__init__.py
 extensions/middle/AddFakeQuantizeFuse.py
 extensions/middle/AddIsCyclicAttribute.py
 extensions/middle/AddMeanScaleValues.py
-extensions/middle/AnchorToPriorBox.py
 extensions/middle/ApplyNHWCtoNCHWpermutation.py
 extensions/middle/ApplyPermutations.py
 extensions/middle/ArgMaxToTopK.py
