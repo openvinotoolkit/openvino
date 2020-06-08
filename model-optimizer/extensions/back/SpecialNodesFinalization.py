@@ -130,6 +130,43 @@ class RemoveOutputOps(BackReplacementPattern):
             graph.remove_node(node.id)
 
 
+class RemoveConstToResult(BackReplacementPattern):
+    """
+    Transformation looks for a sub-graph "Const->Result" and removes Result node.
+    Currently IE is unable to handle such graph so this transformation removes to work around this case.
+    For instance, this case appears for Wide and Deep model.
+    """
+    enabled = True
+
+    @staticmethod
+    def pattern():
+        return dict(
+            nodes=[
+                ('const_node', {'type': 'Const', 'kind': 'op'}),
+                ('const_data', {'kind': 'data'}),
+                ('result_node', {'type': 'Result', 'kind': 'op'}),
+            ],
+            edges=[
+                ('const_node', 'const_data'),
+                ('const_data', 'result_node')
+            ]
+        )
+
+    @staticmethod
+    def replace_pattern(graph: Graph, match: dict):
+        const_node = match['const_node']
+        const_data_node = match['const_data']
+        result_node = match['result_node']
+        nodes_to_remove = [result_node.id]
+
+        # in case only const data consumer that is the result node, remove the whole sub-graph
+        if len(const_node.out_port(0).get_destinations()) == 1:
+            nodes_to_remove.append(const_node.id)
+            nodes_to_remove.append(const_data_node.id)
+
+        graph.remove_node(nodes_to_remove)
+
+
 class NormalizeTI(BackReplacementPattern):
     """
     This transformation is used while generating IR of lower than 10 version

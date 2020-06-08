@@ -26,7 +26,6 @@ class ATenFrontExtractor(FrontExtractorOp):
     def extract(cls, node):
         mode = onnx_attr(node, 'mode', 'i', default=1)
         operator = onnx_attr(node, 'operator', 's').decode()
-        scale_grad_by_freq = onnx_attr(node, 'scale_grad_by_freq', 'i', default=0)
 
-        ATen.update_node_stat(node, {'operator': operator, 'mode': mode, 'scale_grad_by_freq': scale_grad_by_freq})
+        ATen.update_node_stat(node, {'operator': operator, 'mode': mode})
         return cls.enabled
