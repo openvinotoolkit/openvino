@@ -1,0 +1,20 @@
+name: Code Style
+on: [push, pull_request]
+
+jobs:
+  nGraph:
+    runs-on: ubuntu-18.04
+    steps:
+      - name: Install clang-format-3.9
+        run: sudo apt --assume-yes install clang-format-3.9
+
+      - name: CMake
+        run: |
+          mkdir ngraph-build
+          cd ngraph-build
+          cmake ../ngraph
+
+      - name: Check
+        run: |
+          make style-check
+        working-directory: ngraph-build
