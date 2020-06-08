@@ -44,6 +44,8 @@ IE_SUPPRESS_DEPRECATED_START
 
         VPU_MYRIAD_CONFIG_KEY(PLUGIN_LOG_FILE_PATH),
         VPU_MYRIAD_CONFIG_KEY(DEVICE_CONNECT_TIMEOUT),
+
+        VPU_MYRIAD_CONFIG_KEY(MOVIDIUS_DDR_TYPE),
     });
 IE_SUPPRESS_DEPRECATED_END
 
@@ -95,6 +97,14 @@ IE_SUPPRESS_DEPRECATED_END
         { VPU_MYRIAD_CONFIG_VALUE(POWER_STAGE_NCES),   PowerConfig::STAGE_NCES },
     };
 
+    static const std::unordered_map<std::string, MovidiusDdrType> memoryTypes = {
+        { VPU_MYRIAD_CONFIG_VALUE(DDR_AUTO),     MovidiusDdrType::AUTO },
+        { VPU_MYRIAD_CONFIG_VALUE(MICRON_2GB),   MovidiusDdrType::MICRON_2GB },
+        { VPU_MYRIAD_CONFIG_VALUE(SAMSUNG_2GB),  MovidiusDdrType::SAMSUNG_2GB },
+        { VPU_MYRIAD_CONFIG_VALUE(HYNIX_2GB),    MovidiusDdrType::HYNIX_2GB },
+        { VPU_MYRIAD_CONFIG_VALUE(MICRON_1GB),   MovidiusDdrType::MICRON_1GB }
+    };
+
     ParsedConfig::parse(config);
 
     setOption(_pluginLogFilePath, config, VPU_MYRIAD_CONFIG_KEY(PLUGIN_LOG_FILE_PATH));
@@ -105,6 +115,7 @@ IE_SUPPRESS_DEPRECATED_END
     setOption(_watchdogInterval, watchdogIntervals, config, VPU_MYRIAD_CONFIG_KEY(WATCHDOG));
     setOption(_deviceConnectTimeout, config, VPU_MYRIAD_CONFIG_KEY(DEVICE_CONNECT_TIMEOUT), parseSeconds);
     setOption(_powerConfig, powerConfigs, config, VPU_MYRIAD_CONFIG_KEY(POWER_MANAGEMENT));
+    setOption(_memoryType, memoryTypes, config, VPU_MYRIAD_CONFIG_KEY(MOVIDIUS_DDR_TYPE));
 
 IE_SUPPRESS_DEPRECATED_START
     setOption(_forceReset, switches, config, VPU_CONFIG_KEY(FORCE_RESET));

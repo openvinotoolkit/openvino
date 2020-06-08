@@ -112,6 +112,9 @@ const std::vector<BehTestParams> deviceAgnosticConfigurations = {
         {MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, "MYRIAD"},
         {VPU_CONFIG_KEY(HW_STAGES_OPTIMIZATION), CONFIG_VALUE(YES)}
     }),
+
+    // Please do not use other types of DDR in tests with a real device, because it may hang.
+    BEH_MYRIAD.withConfig({{VPU_MYRIAD_CONFIG_KEY(MOVIDIUS_DDR_TYPE), VPU_MYRIAD_CONFIG_VALUE(DDR_AUTO)}}),
 };
 
 const std::vector<BehTestParams> withCorrectConfValuesPluginOnly = {
@@ -154,6 +157,9 @@ const BehTestParams withIncorrectConfValues[] = {
                                  {VPU_MYRIAD_CONFIG_KEY(PLATFORM), "0"}}),
     BEH_MULTI_CONFIG.withConfig({{MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, "MYRIAD"},
                                  {VPU_MYRIAD_CONFIG_KEY(PLATFORM), "1"}}),
+
+    BEH_MYRIAD.withConfig({{VPU_MYRIAD_CONFIG_KEY(MOVIDIUS_DDR_TYPE), "-1"}}),
+    BEH_MYRIAD.withConfig({{VPU_MYRIAD_CONFIG_KEY(MOVIDIUS_DDR_TYPE), "MICRON"}}),
 };
 
 const BehTestParams withIncorrectConfKeys[] = {

@@ -69,7 +69,6 @@ TEST_P(myriadCorrectModelsConfigsTests_nightly, CreateInferRequestWithUnavailabl
 TEST_P(myriadIncorrectModelsConfigsTests_nightly, LoadNetworkWithIncorrectConfig) {
     InferenceEngine::ResponseDesc response;
     const auto &config = GetParam();
-    DISABLE_IF(hasAppropriateStick(config));
 
     InferenceEngine::CNNNetwork net(ngraph::builder::subgraph::makeSplitConvConcat());
     InferenceEngine::IExecutableNetwork::Ptr executable;
@@ -106,9 +105,27 @@ static const std::vector<config_t> myriadIncorrectPlatformConfigValues = {
         // Current key & deprecated value
         {{VPU_MYRIAD_CONFIG_KEY(PLATFORM), VPU_CONFIG_VALUE(2450)}},
         {{VPU_MYRIAD_CONFIG_KEY(PLATFORM), VPU_CONFIG_VALUE(2480)}},
-
 };
 
-INSTANTIATE_TEST_CASE_P(MyriadConfigs, myriadCorrectModelsConfigsTests_nightly, ::testing::ValuesIn(myriadCorrectPlatformConfigValues));
+static const std::vector<config_t> myriadCorrectPackageTypeConfigValues = {
+    // Please do not use other types of DDR in tests with a real device, because it may hang.
+    {{VPU_MYRIAD_CONFIG_KEY(MOVIDIUS_DDR_TYPE), VPU_MYRIAD_CONFIG_VALUE(DDR_AUTO)}}
+};
 
-INSTANTIATE_TEST_CASE_P(MyriadConfigs, myriadIncorrectModelsConfigsTests_nightly, ::testing::ValuesIn(myriadIncorrectPlatformConfigValues));
+static const std::vector<config_t> myriadIncorrectPackageTypeConfigValues = {
+
+    {{VPU_MYRIAD_CONFIG_KEY(MOVIDIUS_DDR_TYPE), "-1"}},
+    {{VPU_MYRIAD_CONFIG_KEY(MOVIDIUS_DDR_TYPE), "-MICRON_1GB"}},
+};
+
+INSTANTIATE_TEST_CASE_P(MyriadConfigs, myriadCorrectModelsConfigsTests_nightly,
+    ::testing::ValuesIn(myriadCorrectPlatformConfigValues));
+
+INSTANTIATE_TEST_CASE_P(MyriadConfigs, myriadIncorrectModelsConfigsTests_nightly,
+    ::testing::ValuesIn(myriadIncorrectPlatformConfigValues));
+
+INSTANTIATE_TEST_CASE_P(MyriadPackageConfigs, myriadCorrectModelsConfigsTests_nightly,
+    ::testing::ValuesIn(myriadCorrectPackageTypeConfigValues));
+
+INSTANTIATE_TEST_CASE_P(MyriadPackageConfigs, myriadIncorrectModelsConfigsTests_nightly,
+    ::testing::ValuesIn(myriadIncorrectPackageTypeConfigValues));

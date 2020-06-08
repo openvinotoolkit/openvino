@@ -297,13 +297,15 @@ void WatchdogImpl::watchdogRoutine() noexcept {
             if (sleepInterval.count() <= 0) {
                 continue;
             }
-
+#if 0 // To avoid spam in Debug mode
             mvLog(MVLOG_DEBUG, "sleep interval = %ld ms\n", sleepInterval.count());
+#endif
 
             waitFor(sleepInterval);
-
+#if 0 // To avoid spam in Debug mode
             mvLog(MVLOG_DEBUG, "waiting completed in  %ld ms\n",
                   duration_cast<std::chrono::milliseconds>(steady_clock::now() - currentTime).count());
+#endif
 
         } while (threadRunning);
     } catch (const std::exception &ex) {

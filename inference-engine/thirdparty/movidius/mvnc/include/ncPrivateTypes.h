@@ -111,6 +111,10 @@ struct _fifoPrivate_t {
     void* output_data;
 };
 
+typedef struct {
+    char memType;
+    char wdEnable;
+} bootOptions_t;
 
 #if (!defined(_WIN32) && !defined(_WIN64))
 #define PACKED(name) struct __attribute__((packed)) name

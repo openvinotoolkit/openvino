@@ -4,6 +4,7 @@
 
 #include <thread>
 #include "mvnc.h"
+#include "mvnc_data.h"
 #include "ncPrivateTypes.h"
 #include "mvnc_common_test_cases.h"
 
@@ -293,6 +294,39 @@ TEST_P(MvncOpenDevice, OpenTwiceWithOneXLinkInitializion) {
     ASSERT_TRUE(isSameProtocolDevice(actDeviceName, _deviceProtocol));
 
     ASSERT_NO_ERROR(ncDeviceClose(&deviceHandle, m_watchdogHndl));
+}
+
+TEST_P(MvncOpenDevice, WatchdogShouldResetDeviceWithoutConnection) {
+    if (availableDevices_ == 0)
+        GTEST_SKIP() << ncProtocolToStr(_deviceProtocol) << " devices not found";
+
+    ncDeviceHandle_t*   deviceHandle = nullptr;
+    std::string         deviceName;
+    deviceDesc_t deviceDescToBoot = {};
+    deviceDesc_t in_deviceDesc = {};
+    in_deviceDesc.protocol = convertProtocolToXlink(_deviceProtocol);
+    in_deviceDesc.platform = convertPlatformToXlink(NC_ANY_PLATFORM);
+    int expectAvailableDevices = getAmountOfDevices(_deviceProtocol, NC_ANY_PLATFORM, X_LINK_UNBOOTED);
+
+    XLinkError_t rc = X_LINK_ERROR;
+    auto waittm = std::chrono::system_clock::now() + std::chrono::seconds(5);
+    while ((rc != X_LINK_SUCCESS) && (std::chrono::system_clock::now() < waittm)) {
+        rc = XLinkFindFirstSuitableDevice(X_LINK_UNBOOTED, in_deviceDesc, &deviceDescToBoot);
+    }
+
+    bootOptions_t bootOptions = {0};
+    bootOptions.wdEnable = 1;
+
+    auto pathToFirmware = getMyriadFirmwarePath(deviceDescToBoot);
+    ASSERT_EQ(bootDevice(&deviceDescToBoot, pathToFirmware.c_str(), bootOptions), NC_OK);
+
+    std::this_thread::sleep_for(5_sec);
+    ASSERT_EQ(expectAvailableDevices - 1,
+        getAmountOfDevices(_deviceProtocol, NC_ANY_PLATFORM, X_LINK_UNBOOTED));
+
+    std::this_thread::sleep_for(15_sec);
+    ASSERT_EQ(expectAvailableDevices,
+        getAmountOfDevices(_deviceProtocol, NC_ANY_PLATFORM, X_LINK_UNBOOTED));
 }
 
 //------------------------------------------------------------------------------
