@@ -780,6 +780,7 @@ mo/front/kaldi/extractors/affine_component_preconditioned_online_ext.py
 mo/front/kaldi/extractors/affine_transform_ext.py
 mo/front/kaldi/extractors/backproptruncation_ext.py
 mo/front/kaldi/extractors/batchnorm_component_ext.py
+mo/front/kaldi/extractors/bias_component_ext.py
 mo/front/kaldi/extractors/clip_ext.py
 mo/front/kaldi/extractors/concat_ext.py
 mo/front/kaldi/extractors/convolutional_1d_component_ext.py
