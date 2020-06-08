@@ -72,7 +72,7 @@ class TestConcatPartialInfer(unittest.TestCase):
         graph.graph['layout'] = 'NCHW'
         ctc_node = Node(graph, 'ctc')
         CTCGreedyDecoderOp.ctc_greedy_decoder_infer(ctc_node)
-        exp_shape = np.array([2, 88, 1, 1])
+        exp_shape = np.array([2, 1, 88, 1])
         res_shape = graph.node['node_3']['shape']
         for i in range(0, len(exp_shape)):
             self.assertEqual(exp_shape[i], res_shape[i])
