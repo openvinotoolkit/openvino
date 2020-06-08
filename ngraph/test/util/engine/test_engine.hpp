@@ -28,6 +28,8 @@ namespace ngraph
 
             std::shared_ptr<Function>
                 upgrade_and_validate_function(std::shared_ptr<Function> function) const;
+
+            std::set<NodeTypeInfo> get_ie_ops() const;
         };
 
         // TODO: implement afterwards

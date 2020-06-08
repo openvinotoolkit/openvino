@@ -7,19 +7,6 @@
 
 using namespace ngraph;
 
-namespace
-{
-    std::set<NodeTypeInfo> get_ie_ops()
-    {
-        std::set<NodeTypeInfo> ie_ops = get_opset1().get_type_info_set();
-        auto& opset2 = get_opset2().get_type_info_set();
-        ie_ops.insert(opset2.begin(), opset2.end());
-        auto& opset3 = get_opset3().get_type_info_set();
-        ie_ops.insert(opset3.begin(), opset3.end());
-        return ie_ops;
-    }
-}
-
 test::IE_CPU_Engine::IE_CPU_Engine(const std::shared_ptr<Function>& function)
 {
     m_function = upgrade_and_validate_function(function);
@@ -53,4 +40,14 @@ std::shared_ptr<Function>
     }
 
     return function;
+}
+
+std::set<NodeTypeInfo> test::IE_CPU_Engine::get_ie_ops() const
+{
+    std::set<NodeTypeInfo> ie_ops = get_opset1().get_type_info_set();
+    auto& opset2 = get_opset2().get_type_info_set();
+    ie_ops.insert(opset2.begin(), opset2.end());
+    auto& opset3 = get_opset3().get_type_info_set();
+    ie_ops.insert(opset3.begin(), opset3.end());
+    return ie_ops;
 }
