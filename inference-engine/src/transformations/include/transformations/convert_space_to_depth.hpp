@@ -7,21 +7,22 @@
 #include <vector>
 #include <memory>
 
-#include <ie_api.h>
+#include <transformations_visibility.hpp>
 
 #include <ngraph/pass/graph_rewrite.hpp>
+#include "transformations/utils/pass_param.hpp"
 
 namespace ngraph {
 namespace pass {
 
-class INFERENCE_ENGINE_API_CLASS(ConvertSpaceToDepth);
+class TRANSFORMATIONS_API ConvertSpaceToDepth;
 
 }  // namespace pass
 }  // namespace ngraph
 
-class ngraph::pass::ConvertSpaceToDepth: public ngraph::pass::GraphRewrite {
+class ngraph::pass::ConvertSpaceToDepth: public ngraph::pass::GraphRewrite, public ngraph::pass::PassParam  {
 public:
-    ConvertSpaceToDepth() : GraphRewrite() {
+    ConvertSpaceToDepth() : GraphRewrite(), PassParam() {
         convert();
     }
 

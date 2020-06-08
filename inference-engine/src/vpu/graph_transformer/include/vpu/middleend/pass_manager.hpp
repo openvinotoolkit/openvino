@@ -119,6 +119,12 @@ public:
     Pass::Ptr adjustDataBatch();
 
     //
+    // Dynamic shape adaptation
+    //
+
+    Pass::Ptr convertShapeNotation();
+
+    //
     // HW stages tiling
     //
 
@@ -236,6 +242,8 @@ public:
     Pass::Ptr countStagesInLoops();
 
     Pass::Ptr replaceGemmByConv();
+
+    Pass::Ptr propagateDynamismToOutputs();
 
 protected:
     StageBuilder::Ptr _stageBuilder;

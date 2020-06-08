@@ -472,11 +472,11 @@ def lstm_sequence(
 ) -> Node:
     """Return a node which performs LSTMSequence operation.
 
-    :param X: The input tensor. Shape: [seq_length, batch_size, input_size].
+    :param X: The input tensor. Shape: [batch_size, seq_length, input_size].
     :param initial_hidden_state:    The hidden state tensor.
-                                    Shape: [num_directions, batch_size, hidden_size].
+                                    Shape: [batch_size, num_directions, hidden_size].
     :param initial_cell_state:      The cell state tensor.
-                                    Shape: [num_directions, batch_size, hidden_size].
+                                    Shape: [batch_size, num_directions, hidden_size].
     :param sequence_lengths:        Specifies real sequence lengths for each batch element.
                                     Shape: [batch_size]. Integer type.
     :param W: Tensor with weights for matrix multiplication operation with input portion of data.
@@ -3437,4 +3437,54 @@ def proposal(
 
     return _get_node_factory().create(
         "Proposal", [class_probs, box_logits, as_node(image_shape)], attrs
+    )
+
+
+@nameable_op
+def assign(new_value: NodeInput, variable_id: str, name: Optional[str] = None) -> Node:
+    """Return a node which produces the Assign operation.
+
+    :param new_value:    Node producing a value to be assigned to a variable.
+    :param variable_id:  Id of a variable to be updated.
+    :param name:         Optional name for output node.
+    :return: Assign node
+    """
+    return _get_node_factory().create("Assign", [as_node(new_value)], {"variable_id": variable_id})
+
+
+@nameable_op
+def read_value(init_value: NodeInput, variable_id: str, name: Optional[str] = None) -> Node:
+    """Return a node which produces the Assign operation.
+
+    :param init_value:   Node producing a value to be returned instead of an unassigned variable.
+    :param variable_id:  Id of a variable to be read.
+    :param name:         Optional name for output node.
+    :return: ReadValue node
+    """
+    return _get_node_factory().create("ReadValue", [as_node(init_value)], {"variable_id": variable_id})
+
+
+@nameable_op
+def extract_image_patches(
+    image: NodeInput,
+    sizes: TensorShape,
+    strides: List[int],
+    rates: TensorShape,
+    auto_pad: str,
+    name: Optional[str] = None,
+) -> Node:
+    """Return a node which produces the ExtractImagePatches operation.
+
+    :param image:     4-D Input data to extract image patches.
+    :param sizes:     Patch size in the format of [size_rows, size_cols].
+    :param strides:   Patch movement stride in the format of [stride_rows, stride_cols]
+    :param rates:     Element seleciton rate for creating a patch.
+    :param auto_pad:  Padding type.
+    :param name:      Optional name for output node.
+    :return: ExtractImagePatches node
+    """
+    return _get_node_factory().create(
+        "ExtractImagePatches",
+        [as_node(image)],
+        {"sizes": sizes, "strides": strides, "rates": rates, "auto_pad": auto_pad},
     )

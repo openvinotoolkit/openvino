@@ -27,6 +27,133 @@
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 
+static const std::unordered_set<std::string> intermediateLayers{
+    "Pooling",
+    "Resample"
+};
+
+bool Subgraph::fillSubgraphForQuantization(const CNNLayerPtr& fakeQuantize, std::unordered_set<std::string>& handledLayers) {
+    if (fakeQuantize->type != "FakeQuantize") {
+        THROW_IE_EXCEPTION << "unexpected layer type " << fakeQuantize->type;
+    }
+
+    if (!QuantizationDetails::outputLayoutIsSupported(*fakeQuantize)) {
+        return false;
+    }
+
+    quantizationLayers.push_back(fakeQuantize);
+    handledLayers.insert(fakeQuantize->name);
+    layers.emplace(fakeQuantize->name, fakeQuantize.get());
+
+    const std::vector<CNNLayerPtr> children = CNNNetworkHelper::getChildren(*fakeQuantize);
+    for (const CNNLayerPtr& child : children) {
+        if (handledLayers.find(child->name) != handledLayers.end()) {
+            continue;
+        }
+
+        if (child->type == "Concat") {
+            if (!fillSubgraphForConcat(child, handledLayers)) {
+                return false;
+            }
+        } else if (child->type == "FakeQuantize") {
+            //
+        } else if (intermediateLayers.find(child->type) != intermediateLayers.end()) {
+            if (!fillSubgraphForIntermediate(child, handledLayers)) {
+                return false;
+            }
+        }
+    }
+
+    return true;
+}
+
+bool Subgraph::fill(const CNNLayerPtr& layer, std::unordered_set<std::string>& handledLayers) {
+    const std::vector<CNNLayerPtr> parents = CNNNetworkHelper::getParents(*layer);
+    for (const CNNLayerPtr& parent : parents) {
+        if (handledLayers.find(parent->name) != handledLayers.end()) {
+            continue;
+        }
+
+        if (parent->type == "Concat") {
+            if (!fillSubgraphForConcat(parent, handledLayers)) {
+                return false;
+            }
+        } else if (parent->type == "FakeQuantize") {
+            if (!fillSubgraphForQuantization(parent, handledLayers)) {
+                return false;
+            }
+        } else if (intermediateLayers.find(parent->type) != intermediateLayers.end()) {
+            if (!fillSubgraphForIntermediate(parent, handledLayers)) {
+                return false;
+            }
+        } else {
+            return false;
+        }
+    }
+
+    const std::vector<CNNLayerPtr> children = CNNNetworkHelper::getChildren(*layer);
+    for (const CNNLayerPtr& child : children) {
+        if (handledLayers.find(child->name) != handledLayers.end()) {
+            continue;
+        }
+
+        if (child->type == "Concat") {
+            if (!fillSubgraphForConcat(child, handledLayers)) {
+                return false;
+            }
+        } else if (child->type == "FakeQuantize") {
+            //
+        } else if (intermediateLayers.find(child->type) != intermediateLayers.end()) {
+            if (!fillSubgraphForIntermediate(child, handledLayers)) {
+                return false;
+            }
+        }
+    }
+
+    return true;
+}
+
+bool Subgraph::fillSubgraphForIntermediate(const CNNLayerPtr& intermediate, std::unordered_set<std::string>& handledLayers) {
+    if (intermediateLayers.find(intermediate->type) == intermediateLayers.end()) {
+        THROW_IE_EXCEPTION << "unexpected layer type " << intermediate->type;
+    }
+
+    handledLayers.insert(intermediate->name);
+    layers.emplace(intermediate->name, intermediate.get());
+
+    return fill(intermediate, handledLayers);
+}
+
+bool Subgraph::empty() const {
+    return quantizationLayers.empty();
+}
+
+bool Subgraph::fillSubgraphForConcat(const CNNLayerPtr& concat, std::unordered_set<std::string>& handledLayers) {
+    if (concat->type != "Concat") {
+        THROW_IE_EXCEPTION << "unexpected layer type " << concat->type;
+    }
+
+    concatLayers.push_back(concat);
+    handledLayers.insert(concat->name);
+    layers.emplace(concat->name, concat.get());
+
+    return fill(concat, handledLayers);
+}
+
+Subgraph CNNNetworkHelper::getSubgraph(const CNNLayer& concat) {
+    if (concat.type != "Concat") {
+        THROW_IE_EXCEPTION << "unexpected layer type " << concat.type;
+    }
+
+    Subgraph subgraph;
+    std::unordered_set<std::string> handledLayers;
+    if (!subgraph.fillSubgraphForConcat(std::make_shared<CNNLayer>(concat), handledLayers)) {
+        return Subgraph();
+    }
+
+    return subgraph;
+}
+
 CNNLayerPtr CNNNetworkHelper::getLayer(const ICNNNetwork& network, const std::string& layerName) {
     std::vector<CNNLayerPtr> layers = InferenceEngine::details::CNNNetSortTopologically(network);
     for (CNNLayerPtr layer : layers) {
@@ -1191,11 +1318,6 @@ size_t CNNNetworkHelper::disconnectLayers(CNNNetworkImpl* network, const CNNLaye
                 THROW_IE_EXCEPTION << "Output layer for '" << parentLayer->name << "'is absent";
             }
             if (currentChildLayer->name == childLayer->name) {
-                const DataPtr dataToRemove = network->getData(data->getName().c_str());
-                if (!dataToRemove) {
-                    THROW_IE_EXCEPTION << "there is not data to remove";
-                }
-
                 data->getInputTo().erase(inputIt);
                 wasFound = true;
                 break;

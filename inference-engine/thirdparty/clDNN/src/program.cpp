@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016-2019 Intel Corporation
+// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -36,6 +36,7 @@
 #include "binary_convolution_inst.h"
 #include "resample_inst.h"
 #include "reshape_inst.h"
+#include "quantize_inst.h"
 #include "activation_inst.h"
 #include "scale_inst.h"
 #include "depth_to_space_inst.h"
@@ -46,6 +47,8 @@
 #include "deconvolution_inst.h"
 #include "detection_output_inst.h"
 #include "input_layout_inst.h"
+#include "shuffle_channels_inst.h"
+#include "arg_max_min_inst.h"
 #include "lstm_inst.h"
 #include "lstm_elt_inst.h"
 #include "lstm_gemm_inst.h"
@@ -367,12 +370,17 @@ void program_impl::build_program(bool is_internal) {
     if (!is_internal)
         prim_info = get_current_stage_info();
 
-    transfer_memory_to_device();
+    if (!is_internal)  transfer_memory_to_device();
     cleanup();
 }
 
 void program_impl::init_graph() {
     apply_opt_pass<graph_initializations>();
+
+    for (auto& node : processing_order) {
+        if (!node->is_type<internal_primitive>() && !node->is_type<data>())
+            node->get_output_layout();
+    }
 
     apply_opt_pass<calculate_prior_boxes>();
 
@@ -523,6 +531,7 @@ void program_impl::transfer_memory_to_device() {
                                                                     mem.get_net_id());
                 dynamic_cast<gpu::gpu_usm&>(*device_mem).copy_from_other(dynamic_cast<gpu::gpu_usm&>(mem));
                 data_node.attach_memory(*device_mem);
+                const_cast<memory&>(data_node.get_primitive()->mem).reset();
             }
         }
     }
@@ -899,6 +908,29 @@ void program_impl::fuse_nodes(program_node &fused_node, program_node &peer_node)
         auto& dep = peer_node.get_dependency(i);
         if (dep.id() == fused_node.id())
             continue;
+
+        if (peer_node.is_type<quantize>()) {
+            quantize_node& q_node = peer_node.as<quantize>();
+            if (q_node.get_scale_shift_opt()) {
+                bool can_drop_input = false;
+
+                // Drop input range if clamp is not needed
+                can_drop_input |= (i == 1 || i == 2) && !q_node.get_need_clamp();
+                // Drop output range - it's not used in scale-shift-opt quantize kernel
+                can_drop_input |= i == 3 || i == 4;
+                // Drop tensor with input scale when we have per-tensor parameter
+                can_drop_input |= i == 5 && q_node.get_per_tensor_input_scale();
+                // Drop tensor with input shift when we have per-tensor parameter or it's not needed at all
+                can_drop_input |= i == 6 && (!q_node.get_need_pre_shift() || q_node.get_per_tensor_input_shift());
+                // Drop tensor with output scale when we have per-tensor parameter or it's not needed at all
+                can_drop_input |= i == 7 && (!q_node.get_need_post_scale() || q_node.get_per_tensor_output_scale());
+                // Drop tensor with output shift when we have per-tensor parameter or it's not needed at all
+                can_drop_input |= i == 8 && (!q_node.get_need_post_shift() || q_node.get_per_tensor_output_shift());
+
+                if (can_drop_input)
+                    continue;
+            }
+        }
         fused_node.dependencies.push_back(&dep);
         local_desc.deps.push_back(dep.id());
         dep.users.push_back(&fused_node);
@@ -1126,10 +1158,13 @@ void program_impl::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::crop::type_id() &&
             prim.type() != cldnn::scale::type_id() &&
             prim.type() != cldnn::depth_to_space::type_id() &&
+            prim.type() != cldnn::shuffle_channels::type_id() &&
             (prim.type() != cldnn::mvn::type_id()
              || (prim.as<mvn>().input().get_output_layout().data_type != data_types::u8 &&
                  prim.as<mvn>().input().get_output_layout().data_type != data_types::i8)
-             || prim.as<mvn>().get_primitive()->across_channels))
+             || prim.as<mvn>().get_primitive()->across_channels) &&
+            prim.type() != cldnn::arg_max_min::type_id() &&
+            prim.type() != cldnn::mutable_data::type_id())
             can_use_fsv16 = false;
 
         // WA to keep bfyx_f16 layout disabled for some topologies where it leads to regressions.

@@ -12,8 +12,12 @@
 #include "unit_test_utils/mocks/mock_iexecutable_network.hpp"
 #include "unit_test_utils/mocks/mock_iinfer_request.hpp"
 #include "unit_test_utils/mocks/mock_ie_imemory_state.hpp"
+#include "unit_test_utils/mocks/cpp_interfaces/impl/mock_inference_plugin_internal.hpp"
+#include "unit_test_utils/mocks/cpp_interfaces/interface/mock_iexecutable_network_internal.hpp"
 
 using testing::_;
+using testing::Throw;
+using testing::Ref;
 using testing::Return;
 using testing::SetArgReferee;
 
@@ -204,3 +208,58 @@ TEST_F(ExecutableNetworkWithIInferReqTests, CreateInferRequestPtrThrowsIfSetRequ
             .WillOnce(DoAll(SetArgReferee<0>(nullptr), Return(InferenceEngine::OK)));
     ASSERT_THROW(exeNetwork->CreateInferRequestPtr(), InferenceEngine::details::InferenceEngineException);
 }
+
+class ExecutableNetworkBaseTests : public ::testing::Test {
+protected:
+    std::shared_ptr<MockIExecutableNetworkInternal> mock_impl;
+    std::shared_ptr<IExecutableNetwork> exeNetwork;
+    ResponseDesc dsc;
+
+    virtual void TearDown() {
+    }
+
+    virtual void SetUp() {
+        mock_impl.reset(new MockIExecutableNetworkInternal());
+        exeNetwork = shared_from_irelease(new ExecutableNetworkBase<MockIExecutableNetworkInternal>(mock_impl));
+    }
+};
+
+// CreateInferRequest
+TEST_F(ExecutableNetworkBaseTests, canForwardCreateInferRequest) {
+    IInferRequest::Ptr req;
+    EXPECT_CALL(*mock_impl.get(), CreateInferRequest(Ref(req))).Times(1);
+    ASSERT_EQ(OK, exeNetwork->CreateInferRequest(req, &dsc));
+}
+
+TEST_F(ExecutableNetworkBaseTests, canReportErrorInCreateInferRequest) {
+    EXPECT_CALL(*mock_impl.get(), CreateInferRequest(_)).WillOnce(Throw(std::runtime_error("compare")));
+    IInferRequest::Ptr req;
+    ASSERT_NE(exeNetwork->CreateInferRequest(req, &dsc), OK);
+    ASSERT_STREQ(dsc.msg, "compare");
+}
+
+TEST_F(ExecutableNetworkBaseTests, canCatchUnknownErrorInCreateInferRequest) {
+    EXPECT_CALL(*mock_impl.get(), CreateInferRequest(_)).WillOnce(Throw(5));
+    IInferRequest::Ptr req;
+    ASSERT_EQ(UNEXPECTED, exeNetwork->CreateInferRequest(req, nullptr));
+}
+
+// Export
+TEST_F(ExecutableNetworkBaseTests, canForwardExport) {
+    const std::string modelFileName;
+    EXPECT_CALL(*mock_impl.get(), Export(Ref(modelFileName))).Times(1);
+    ASSERT_EQ(OK, exeNetwork->Export(modelFileName, &dsc));
+}
+
+TEST_F(ExecutableNetworkBaseTests, canReportErrorInExport) {
+    EXPECT_CALL(*mock_impl.get(), Export(_)).WillOnce(Throw(std::runtime_error("compare")));
+    ASSERT_NE(exeNetwork->Export({}, &dsc), OK);
+    ASSERT_STREQ(dsc.msg, "compare");
+}
+
+TEST_F(ExecutableNetworkBaseTests, canCatchUnknownErrorInExport) {
+    EXPECT_CALL(*mock_impl.get(), Export(_)).WillOnce(Throw(5));
+    ASSERT_EQ(UNEXPECTED, exeNetwork->Export({}, nullptr));
+}
+
+

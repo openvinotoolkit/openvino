@@ -31,6 +31,7 @@
     #define IE_NODISCARD
 #else
     #if defined(_WIN32)
+        #define INFERENCE_ENGINE_C_API_CALLBACK __cdecl
         #ifdef inference_engine_c_api_EXPORTS
             #define INFERENCE_ENGINE_C_API(...) INFERENCE_ENGINE_C_API_EXTERN   __declspec(dllexport) __VA_ARGS__ __cdecl
         #else
@@ -41,6 +42,10 @@
         #define INFERENCE_ENGINE_C_API(...) INFERENCE_ENGINE_C_API_EXTERN __attribute__((visibility("default"))) __VA_ARGS__
         #define IE_NODISCARD __attribute__((warn_unused_result))
     #endif
+#endif
+
+#ifndef INFERENCE_ENGINE_C_API_CALLBACK
+#define INFERENCE_ENGINE_C_API_CALLBACK
 #endif
 
 typedef struct ie_core ie_core_t;
@@ -284,7 +289,7 @@ typedef struct ie_blob_buffer {
  * @brief Completion callback definition about the function and args
  */
 typedef struct ie_complete_call_back {
-    void (*completeCallBackFunc)(void *args);
+    void (INFERENCE_ENGINE_C_API_CALLBACK *completeCallBackFunc)(void *args);
     void *args;
 }ie_complete_call_back_t;
 
@@ -370,6 +375,19 @@ INFERENCE_ENGINE_C_API(void) ie_core_versions_free(ie_core_versions_t *vers);
  * @return Status code of the operation: OK(0) for success.
  */
 INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_core_read_network(ie_core_t *core, const char *xml, const char *weights_file, ie_network_t **network);
+
+/**
+ * @brief Reads the model from an xml string and a blob of the bin part of the IR. Use the ie_network_free() method to free memory.
+ * @ingroup Core
+ * @param core A pointer to ie_core_t instance.
+ * @param xml_content Xml content of the IR.
+ * @param xml_content_size Number of bytes in the xml content of the IR.
+ * @param weight_blob Blob containing the bin part of the IR.
+ * @param network A pointer to the newly created network.
+ * @return Status code of the operation: OK(0) for success.
+ */
+INFERENCE_ENGINE_C_API(IE_NODISCARD IEStatusCode) ie_core_read_network_from_memory(ie_core_t *core, const uint8_t *xml_content, size_t xml_content_size,
+    const ie_blob_t *weight_blob, ie_network_t **network);
 
 /**
  * @brief Creates an executable network from a network object. Users can create as many networks as they need and use

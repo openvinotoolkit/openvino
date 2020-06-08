@@ -291,6 +291,8 @@ namespace
             break;
             TYPE_CASE(bf16)(in, slice_plan, out);
             break;
+            TYPE_CASE(f16)(in, slice_plan, out);
+            break;
             TYPE_CASE(f32)(in, slice_plan, out);
             break;
             TYPE_CASE(f64)(in, slice_plan, out);

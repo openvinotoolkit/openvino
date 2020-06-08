@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016 Intel Corporation
+// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -75,13 +75,25 @@ attach_normalize_gpu::attach_normalize_gpu() {
                                        normalize_gpu::create);
     implementation_map<normalize>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bfyx),
                                        normalize_gpu::create);
+    implementation_map<normalize>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::bfyx),
+                                       normalize_gpu::create);
+    implementation_map<normalize>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::bfyx),
+                                       normalize_gpu::create);
     implementation_map<normalize>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::yxfb),
                                        normalize_gpu::create);
     implementation_map<normalize>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::yxfb),
                                        normalize_gpu::create);
+    implementation_map<normalize>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::yxfb),
+                                       normalize_gpu::create);
+    implementation_map<normalize>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::yxfb),
+                                       normalize_gpu::create);
     implementation_map<normalize>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::byxf),
                                        normalize_gpu::create);
     implementation_map<normalize>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::byxf),
+                                       normalize_gpu::create);
+    implementation_map<normalize>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::byxf),
+                                       normalize_gpu::create);
+    implementation_map<normalize>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::byxf),
                                        normalize_gpu::create);
 }
 

@@ -1,4 +1,4 @@
-// Copyright (c) 2016-2018 Intel Corporation
+// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -79,6 +79,8 @@ using sample_type = kernel_selector::ResampleType;
 using border_type = kernel_selector::BorderType;
 using gather_axis = kernel_selector::GatherAxis;
 using reduce_mode = kernel_selector::ReduceMode;
+using cum_sum_axis = kernel_selector::CumSumAxis;
+using depth_to_space_mode = kernel_selector::DepthToSpaceMode;
 
 using data_tensor = kernel_selector::DataTensor;
 using weights_tensor = kernel_selector::WeightsTensor;
