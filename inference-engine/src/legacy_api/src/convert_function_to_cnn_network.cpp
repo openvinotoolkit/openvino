@@ -504,7 +504,7 @@ std::shared_ptr<CNNNetworkImpl> convertFunctionToICNNNetwork(const std::shared_p
                                                              bool keep_constant_inputs) {
     IE_PROFILING_AUTO_SCOPE(convertFunctionToICNNNetwork)
     const auto createCNNLayer = [](const std::shared_ptr<::ngraph::Node> &node) -> CNNLayerPtr {
-        class NGraphCNNLayer : public CNNLayer {
+        class NGraphCNNLayer: public CNNLayer {
         public:
             void setNode(const std::shared_ptr<::ngraph::Node> &node) {
                 this->node = node;
@@ -617,7 +617,7 @@ std::shared_ptr<CNNNetworkImpl> convertFunctionToICNNNetwork(const std::shared_p
         };
         CNNLayerPtr result;
 
-        for (auto &convertor : convertors) {
+        for (auto &convertor: convertors) {
             if (!convertor->canCreate(node)) continue;
             result = convertor->createLayer(node);
             break;
