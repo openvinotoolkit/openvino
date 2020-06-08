@@ -6,6 +6,7 @@
 
 #include "vpu/private_plugin_config.hpp"
 
+#include "../common/myriad_common_test_utils.hpp"
 #include <functional_test_utils/layer_test_utils.hpp>
 #include <ngraph_functions/builders.hpp>
 
@@ -24,7 +25,9 @@ protected:
         SetRefMode(LayerTestsUtils::RefMode::CONSTANT_FOLDING);
         configuration[VPU_CONFIG_KEY(DETECT_NETWORK_BATCH)] = CONFIG_VALUE(NO);
         // DISABLE_REORDER is needed for Myriad2 cases
-        configuration[VPU_CONFIG_KEY(DISABLE_REORDER)] = CONFIG_VALUE(YES);
+        if (!CommonTestUtils::vpu::CheckMyriadX()) {
+            configuration[VPU_CONFIG_KEY(DISABLE_REORDER)] = CONFIG_VALUE(YES);
+        }
 
         const auto& parameters = GetParam();
         const auto& tensorType  = std::get<0>(parameters);
