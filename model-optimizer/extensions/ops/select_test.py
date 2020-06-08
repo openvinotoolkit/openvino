@@ -196,7 +196,7 @@ class TestSelect(unittest.TestCase):
         than_value = than_value(than_data_shape)
         output_value = output_value(select_output_shape)
         graph = build_graph_with_attrs(nodes_with_attrs=self.nodes, edges_with_attrs=self.edges,
-                                       update_nodes_attributes=[('condition_data', {'shape': np.array(select_output_shape),
+                                       update_nodes_attributes=[('condition_data', {'shape': np.array(condition_shape),
                                                                                     'value': condition_value}),
                                                                 ('else_data', {'shape': np.array(else_data_shape),
                                                                                'value': else_value}),
@@ -209,7 +209,7 @@ class TestSelect(unittest.TestCase):
 
         graph_ref = build_graph_with_attrs(nodes_with_attrs=self.nodes, edges_with_attrs=self.edges,
                                            update_nodes_attributes=[
-                                               ('condition_data', {'shape': np.array(select_output_shape),
+                                               ('condition_data', {'shape': np.array(condition_shape),
                                                                    'value': condition_value}),
                                                ('else_data', {'shape': np.array(else_data_shape),
                                                               'value': else_value}),
