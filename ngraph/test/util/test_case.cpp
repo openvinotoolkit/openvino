@@ -17,11 +17,13 @@
 #include "test_case.hpp"
 
 #include "gtest/gtest.h"
-#include "ngraph/assertion.hpp"
+#include "util/engine/test_engine.hpp"
 
-ngraph::test::NgraphTestCase::NgraphTestCase(const std::shared_ptr<Function>& function,
-                                             const std::string& backend_name,
-                                             const BackendMode mode)
+using namespace ngraph::test;
+
+NgraphTestCase::NgraphTestCase(const std::shared_ptr<Function>& function,
+                               const std::string& backend_name,
+                               const BackendMode mode)
     : m_function(function)
 {
     if (mode == BackendMode::STATIC)
@@ -49,7 +51,12 @@ ngraph::test::NgraphTestCase::NgraphTestCase(const std::shared_ptr<Function>& fu
     }
 }
 
-::testing::AssertionResult ngraph::test::NgraphTestCase::run(size_t tolerance_bits)
+NgraphTestCase::NgraphTestCase(const std::shared_ptr<Function>& function)
+    : m_function{function}
+{
+}
+
+::testing::AssertionResult NgraphTestCase::run(size_t tolerance_bits)
 {
     m_tolerance_bits = tolerance_bits;
     const auto& function_results = m_function->get_results();
@@ -72,7 +79,7 @@ ngraph::test::NgraphTestCase::NgraphTestCase(const std::shared_ptr<Function>& fu
         if (m_value_comparators.count(element_type) == 0)
         {
             NGRAPH_FAIL() << "Please add support for " << element_type
-                          << " to ngraph::test::NgraphTestCase::run()";
+                          << " to NgraphTestCase::run()";
         }
         else
         {
@@ -88,7 +95,7 @@ ngraph::test::NgraphTestCase::NgraphTestCase(const std::shared_ptr<Function>& fu
     return ::testing::AssertionSuccess();
 }
 
-ngraph::test::NgraphTestCase& ngraph::test::NgraphTestCase::dump_results(bool dump)
+NgraphTestCase& NgraphTestCase::dump_results(bool dump)
 {
     m_dump_results = dump;
     return *this;

@@ -20,6 +20,7 @@
 
 #include "all_close.hpp"
 #include "all_close_f.hpp"
+#include "ngraph/assertion.hpp"
 #include "ngraph/function.hpp"
 #include "ngraph/ngraph.hpp"
 #include "test_tools.hpp"
@@ -44,6 +45,8 @@ namespace ngraph
             NgraphTestCase(const std::shared_ptr<Function>& function,
                            const std::string& backend_name,
                            BackendMode mode = BackendMode::STATIC);
+
+            NgraphTestCase(const std::shared_ptr<Function>& function);
 
             /// \brief Makes the test case print the expected and computed values to the console.
             ///        This should only be used for debugging purposes.
@@ -187,7 +190,8 @@ namespace ngraph
                 add_expected_output<T>(expected_shape, value);
             }
 
-            ::testing::AssertionResult run(size_t tolerance_bits = DEFAULT_FLOAT_TOLERANCE_BITS);
+            virtual ::testing::AssertionResult
+                run(size_t tolerance_bits = DEFAULT_FLOAT_TOLERANCE_BITS);
 
         private:
             template <typename T>
@@ -291,6 +295,57 @@ namespace ngraph
             size_t m_output_index = 0;
             bool m_dump_results = false;
             int m_tolerance_bits = DEFAULT_DOUBLE_TOLERANCE_BITS;
+        };
+
+        template <typename Engine>
+        class TestCase : public NgraphTestCase
+        {
+        public:
+            TestCase(const std::shared_ptr<Function>& function)
+                : NgraphTestCase{function}
+                , m_engine{function}
+            {
+            }
+
+            template <typename T>
+            void add_input(const Shape& shape, const std::vector<T>& values)
+            {
+                const auto params = m_function->get_parameters();
+                NGRAPH_CHECK(m_input_index < params.size(),
+                             "All function parameters already have inputs.");
+
+                const auto& input_pshape = params.at(m_input_index)->get_partial_shape();
+                NGRAPH_CHECK(input_pshape.compatible(shape),
+                             "Passed input shape is not compatible with nGraph function.");
+
+                m_engine.add_input<T>(shape, values);
+
+                ++m_input_index;
+            }
+
+            template <typename T>
+            void add_input(const std::vector<T>& values)
+            {
+                const auto& input_pshape =
+                    m_function->get_parameters().at(m_input_index)->get_partial_shape();
+                NGRAPH_CHECK(input_pshape.is_static(),
+                             "Input data shape must be provided, if shape defined in Functions is "
+                             "not fully known.");
+
+                add_input<T>(input_pshape.to_shape(), values);
+            }
+
+            ::testing::AssertionResult
+                run(size_t tolerance_bits = DEFAULT_FLOAT_TOLERANCE_BITS) override
+            {
+                std::cout << "Running TestCase\n";
+                m_engine.infer();
+                EXPECT_TRUE(true);
+                return ::testing::AssertionSuccess();
+            }
+
+        private:
+            Engine m_engine;
         };
     }
 }

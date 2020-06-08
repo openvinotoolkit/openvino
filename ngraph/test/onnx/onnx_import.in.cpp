@@ -46,6 +46,7 @@
 #include "util/ndarray.hpp"
 #include "util/test_case.hpp"
 #include "util/test_control.hpp"
+#include "util/engine/test_engine.hpp"
 #include "util/test_tools.hpp"
 #include "util/type_prop.hpp"
 
@@ -56,13 +57,21 @@ static std::string s_manifest = "${MANIFEST}";
 using Inputs = std::vector<std::vector<float>>;
 using Outputs = std::vector<std::vector<float>>;
 
+// Builds a class name for a given backend prefix
+// The prefix should come from cmake
+// Example: INTERPRETER -> INTERPRETER_Engine
+// Example: IE_CPU -> IE_CPU_Engine
+#define ENGINE_CLASS_NAME(backend) backend##_Engine
+
+using TestEngine_t = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
+
 // ############################################################################ CORE TESTS
 NGRAPH_TEST(${BACKEND_NAME}, onnx_test_test_case)
 {
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/add_abc.prototxt"));
 
-    auto test_case = ngraph::test::NgraphTestCase(function, "${BACKEND_NAME}");
+    auto test_case = test::TestCase<TestEngine_t>(function);
     test_case.add_input<float>({1});
     test_case.add_input<float>({2});
     test_case.add_input<float>({3});
