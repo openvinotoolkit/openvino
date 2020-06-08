@@ -107,7 +107,7 @@ JitConstants KernelBase::MakeFusedOpsJitConstants(const kernel_selector::base_pa
             fused_ops += "\\\n\tFUSED_OP" + std::to_string(i) + "_ACTION" + c.suffix;
             if (can_use_preload && can_preload_eltwise)
                 fused_ops_preload += "\\\n\tFUSED_OP" + std::to_string(i) + "_LOAD" + c.suffix;
-            if ((c.allow_for_partial_preload && !can_use_preload) || !can_preload_eltwise)
+            if (c.allow_for_partial_preload && (!can_use_preload || !can_preload_eltwise))
                 fused_ops_calc += "\\\n\tFUSED_OP" + std::to_string(i) + "_LOAD" + c.suffix;
             fused_ops_calc += "\\\n\tFUSED_OP" + std::to_string(i) + "_ACTION" + c.suffix;
         }
