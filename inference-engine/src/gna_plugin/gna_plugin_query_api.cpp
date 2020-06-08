@@ -67,24 +67,16 @@ Parameter GNAPlugin::GetAvailableDevices() const {
     std::vector<std::string> devices;
     // probing for gna-sw-exact, or gna-sw implementation part of libgna
     try {
-#if GNA_LIB_VER == 2
-        GNADeviceHelper swHelper(Gna2AccelerationModeSoftware);
-#else
-        GNADeviceHelper swHelper(GNA_SOFTWARE);
-#endif
+        GNADeviceHelper swHelper;
         devices.push_back("GNA_SW");
     }catch(...) {}
 
     try {
-#if GNA_LIB_VER == 2
-        GNADeviceHelper hwHelper(Gna2AccelerationModeHardware);
-#else
-        GNADeviceHelper hwHelper(GNA_HARDWARE);
-#endif
+        GNADeviceHelper hwHelper;
 #if GNA_LIB_VER == 1
         try {
             intel_nnet_type_t neuralNetwork = { 0 };
-            hwHelper.propagate(&neuralNetwork, nullptr, 0);
+            hwHelper.propagate(&neuralNetwork, nullptr, 0, GNA_HARDWARE);
         }catch (...) {
             if (hwHelper.getGNAStatus() != GNA_DEVNOTFOUND) {
                 devices.push_back("GNA_HW");

@@ -3,12 +3,7 @@
 //
 
 #include "ie_class.hpp"
-
-// Copyright (C) 2018-2020 Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
-//
-
-#include "ie_class.hpp"
+#include <gna/gna_config.hpp>
 
 //
 // IE Class Common tests with <pluginName, deviceName params>
@@ -109,6 +104,42 @@ INSTANTIATE_TEST_CASE_P(
 INSTANTIATE_TEST_CASE_P(
     IEClassExecutableNetworkSetConfigTest, IEClassExecutableNetworkSetConfigTest,
     ::testing::Values("GNA"));
+
+INSTANTIATE_TEST_CASE_P(
+    IEClassExecutableNetworkSupportedConfigTest, IEClassExecutableNetworkSupportedConfigTest,
+    ::testing::Combine(::testing::Values("GNA"),
+                       ::testing::Values(std::make_pair(GNA_CONFIG_KEY(DEVICE_MODE), GNAConfigParams::GNA_HW),
+                                         std::make_pair(GNA_CONFIG_KEY(DEVICE_MODE), GNAConfigParams::GNA_SW),
+                                         std::make_pair(GNA_CONFIG_KEY(DEVICE_MODE), GNAConfigParams::GNA_SW_EXACT),
+                                         std::make_pair(GNA_CONFIG_KEY(DEVICE_MODE), GNAConfigParams::GNA_AUTO))));
+
+INSTANTIATE_TEST_CASE_P(
+    IEClassExecutableNetworkUnsupportedConfigTest, IEClassExecutableNetworkUnsupportedConfigTest,
+    ::testing::Combine(::testing::Values("GNA"),
+                       ::testing::Values(std::make_pair(GNA_CONFIG_KEY(DEVICE_MODE), GNAConfigParams::GNA_SW_FP32),
+                                         std::make_pair(GNA_CONFIG_KEY(SCALE_FACTOR), "5"),
+                                         std::make_pair(CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS), CONFIG_VALUE(YES)),
+                                         std::make_pair(GNA_CONFIG_KEY(COMPACT_MODE), CONFIG_VALUE(NO)))));
+
+using IEClassExecutableNetworkSetConfigFromFp32Test = IEClassExecutableNetworkGetMetricTestForSpecificConfig;
+TEST_P(IEClassExecutableNetworkSetConfigFromFp32Test, SetConfigFromFp32Throws) {
+    Core ie;
+
+    std::map<std::string, std::string> initialConfig;
+    initialConfig[GNA_CONFIG_KEY(DEVICE_MODE)] = GNAConfigParams::GNA_SW_FP32;
+    ExecutableNetwork exeNetwork = ie.LoadNetwork(simpleNetwork, deviceName, initialConfig);
+
+    ASSERT_THROW(exeNetwork.SetConfig({ { configKey, configValue } }), InferenceEngineException);
+}
+
+INSTANTIATE_TEST_CASE_P(
+    IEClassExecutableNetworkSetConfigFromFp32Test, IEClassExecutableNetworkSetConfigFromFp32Test,
+    ::testing::Combine(::testing::Values("GNA"),
+                       ::testing::Values(std::make_pair(GNA_CONFIG_KEY(DEVICE_MODE), GNAConfigParams::GNA_HW),
+                                         std::make_pair(GNA_CONFIG_KEY(DEVICE_MODE), GNAConfigParams::GNA_SW),
+                                         std::make_pair(GNA_CONFIG_KEY(DEVICE_MODE), GNAConfigParams::GNA_SW_EXACT),
+                                         std::make_pair(GNA_CONFIG_KEY(DEVICE_MODE), GNAConfigParams::GNA_SW_FP32),
+                                         std::make_pair(GNA_CONFIG_KEY(DEVICE_MODE), GNAConfigParams::GNA_AUTO))));
 
 // IE Class Query network
 

@@ -52,7 +52,8 @@ void GNADeviceHelper::free(void * ptr) {
 #if GNA_LIB_VER == 1
 uint32_t GNADeviceHelper::propagate(const intel_nnet_type_t *pNeuralNetwork,
                    const uint32_t *pActiveIndices,
-                   uint32_t nActiveIndices) {
+                   uint32_t nActiveIndices,
+                   intel_gna_proc_t nGNAProcType) {
     uint32_t reqId;
 
     nGNAStatus = GNAPropagateForward(nGNAHandle, pNeuralNetwork,
@@ -65,14 +66,20 @@ void GNADeviceHelper::setUpActiveList(const uint32_t requestConfigId, uint32_t l
     const auto status = Gna2RequestConfigEnableActiveList(requestConfigId, layerIndex, num_active_indices, ptr_active_indices);
     checkGna2Status(status);
 }
-void GNADeviceHelper::propagateSync(const uint32_t requestConfigId) {
-    wait(propagate(requestConfigId));
+void GNADeviceHelper::propagateSync(const uint32_t requestConfigId, Gna2AccelerationMode gna2AccelerationMode) {
+    wait(propagate(requestConfigId, gna2AccelerationMode));
 }
 
-uint32_t GNADeviceHelper::propagate(const uint32_t requestConfigId) {
+uint32_t GNADeviceHelper::propagate(const uint32_t requestConfigId, Gna2AccelerationMode gna2AccelerationMode) {
     uint32_t reqId;
-    const auto status = Gna2RequestEnqueue(requestConfigId, &reqId);
-    checkGna2Status(status);
+    if (gna2AccelerationMode == Gna2AccelerationModeHardware &&
+        detectedGnaDevVersion == Gna2DeviceVersionSoftwareEmulation) {
+        gnawarn() << "GNA Device not detected, consider using other mode of acceleration";
+    }
+    const auto status1 = Gna2RequestConfigSetAccelerationMode(requestConfigId, gna2AccelerationMode);
+    checkGna2Status(status1);
+    const auto status2 = Gna2RequestEnqueue(requestConfigId, &reqId);
+    checkGna2Status(status2);
     return reqId;
 }
 
@@ -84,7 +91,7 @@ uint32_t GNADeviceHelper::createModel(const Gna2Model& gnaModel) const {
     return modelId;
 }
 
-void GNADeviceHelper::releseModel(const uint32_t model_id) {
+void GNADeviceHelper::releaseModel(const uint32_t model_id) {
     const auto status = Gna2ModelRelease(model_id);
     checkGna2Status(status);
 }
@@ -92,8 +99,6 @@ void GNADeviceHelper::releseModel(const uint32_t model_id) {
 uint32_t GNADeviceHelper::createRequestConfig(const uint32_t model_id) {
     uint32_t reqConfId;
     auto status = Gna2RequestConfigCreate(model_id, &reqConfId);
-    checkGna2Status(status);
-    status = Gna2RequestConfigSetAccelerationMode(reqConfId, gna2AccelerationMode);
     checkGna2Status(status);
     if (gna2HwConsistency != Gna2DeviceVersionSoftwareEmulation) {
         status = Gna2RequestConfigEnableHardwareConsistency(reqConfId, gna2HwConsistency);
@@ -350,10 +355,6 @@ void GNADeviceHelper::open(uint8_t n_threads) {
 #else
     auto status = Gna2DeviceGetVersion(nGnaDeviceIndex, &detectedGnaDevVersion);
     checkGna2Status(status);
-    if (gna2AccelerationMode == Gna2AccelerationModeHardware &&
-        detectedGnaDevVersion == Gna2DeviceVersionSoftwareEmulation) {
-        gnalog() << "GNA Device not detected, consider using other mode of acceleration";
-    }
     status = Gna2DeviceOpen(nGnaDeviceIndex);
     checkGna2Status(status);
     // TODO: GNA2: uncomment when scratchpad repaired

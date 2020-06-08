@@ -34,12 +34,10 @@ class GNADeviceHelper {
 #if GNA_LIB_VER == 1
     intel_gna_status_t nGNAStatus = GNA_NOERROR;
     intel_gna_handle_t nGNAHandle = 0;
-    intel_gna_proc_t nGNAProcType = GNA_AUTO;
     intel_gna_perf_t nGNAPerfResults;
     intel_gna_perf_t nGNAPerfResultsTotal;
 #else
     uint32_t nGnaDeviceIndex = 0;
-    Gna2AccelerationMode gna2AccelerationMode = Gna2AccelerationModeAuto;
     Gna2DeviceVersion gna2HwConsistency = Gna2DeviceVersionSoftwareEmulation;
     Gna2DeviceVersion detectedGnaDevVersion = Gna2DeviceVersionSoftwareEmulation;
 
@@ -59,19 +57,15 @@ class GNADeviceHelper {
     bool deviceOpened = false;
 public:
 #if GNA_LIB_VER == 1
-    explicit GNADeviceHelper(intel_gna_proc_t proc_type = GNA_AUTO,
-                            uint8_t lib_async_n_threads = 1,
+    explicit GNADeviceHelper(uint8_t lib_async_n_threads = 1,
                             bool use_openmp = false,
                             bool isPerformanceMeasuring = false) :
-                                    nGNAProcType(proc_type),
                                     isPerformanceMeasuring(isPerformanceMeasuring) {
 #else
-     explicit GNADeviceHelper(Gna2AccelerationMode gna2accMode = Gna2AccelerationModeAuto,
-         Gna2DeviceVersion gna2HwConsistency = Gna2DeviceVersionSoftwareEmulation,
+     explicit GNADeviceHelper(Gna2DeviceVersion gna2HwConsistency = Gna2DeviceVersionSoftwareEmulation,
          uint8_t lib_async_n_threads = 1,
          bool use_openmp = false,
          bool isPerformanceMeasuring = false) :
-         gna2AccelerationMode(gna2accMode),
          gna2HwConsistency(gna2HwConsistency),
          isPerformanceMeasuring(isPerformanceMeasuring) {
 #endif
@@ -97,21 +91,23 @@ public:
 #if GNA_LIB_VER == 1
     void propagateSync(const intel_nnet_type_t *pNeuralNetwork,
                        const uint32_t *pActiveIndices,
-                       uint32_t nActiveIndices);
+                       uint32_t nActiveIndices,
+                       intel_gna_proc_t nGNAProcType);
 
     uint32_t propagate(const intel_nnet_type_t *pNeuralNetwork,
                        const uint32_t *pActiveIndices,
-                       uint32_t nActiveIndices);
+                       uint32_t nActiveIndices,
+                       intel_gna_proc_t nGNAProcType);
 #else
     void setUpActiveList(unsigned req_config_id, uint32_t layerIndex, uint32_t* ptr_active_indices, uint32_t num_active_indices);
-    void propagateSync(const uint32_t requestConfigId);
-    uint32_t propagate(const uint32_t requestConfigId);
+    void propagateSync(const uint32_t requestConfigId, Gna2AccelerationMode gna2AccelerationMode);
+    uint32_t propagate(const uint32_t requestConfigId, Gna2AccelerationMode gna2AccelerationMode);
 #if GNA_LIB_VER == 2
     uint32_t createModel(const Gna2Model& gnaModel) const;
 #else
     uint32_t createModel(const intel_nnet_type_t& intel_nnet_type);
 #endif
-    void releseModel(const uint32_t model_id);
+    void releaseModel(const uint32_t model_id);
     uint32_t createRequestConfig(const uint32_t model_id);
     bool hasGnaHw() const {
         return Gna2DeviceVersionSoftwareEmulation != detectedGnaDevVersion;

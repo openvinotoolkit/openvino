@@ -785,6 +785,21 @@ public:
     }
 };
 
+class IEClassExecutableNetworkGetMetricTestForSpecificConfig : public IEClassNetworkTest,
+public WithParamInterface<std::tuple<std::string, std::pair<std::string, std::string>>> {
+protected:
+    std::string deviceName;
+    std::string configKey;
+    std::string configValue;
+public:
+    virtual void SetUp() {
+        IEClassNetworkTest::SetUp();
+        deviceName = get<0>(GetParam());
+        configKey = get<1>(GetParam()).first;
+        configValue = get<1>(GetParam()).second;
+    }
+};
+
 #define ASSERT_EXEC_METRIC_SUPPORTED(metricName)                         \
     {                                                                    \
         std::vector<std::string> metrics =                               \
@@ -905,6 +920,27 @@ TEST_P(IEClassExecutableNetworkSetConfigTest, SetConfigThrows) {
     ExecutableNetwork exeNetwork = ie.LoadNetwork(simpleNetwork, deviceName);
 
     ASSERT_THROW(exeNetwork.SetConfig({ { "unsupported_config", "some_value" } }), InferenceEngineException);
+}
+
+using IEClassExecutableNetworkSupportedConfigTest = IEClassExecutableNetworkGetMetricTestForSpecificConfig;
+TEST_P(IEClassExecutableNetworkSupportedConfigTest, SupportedConfigWorks) {
+    Core ie;
+    Parameter p;
+
+    ExecutableNetwork exeNetwork = ie.LoadNetwork(simpleNetwork, deviceName);
+
+    ASSERT_NO_THROW(exeNetwork.SetConfig({ { configKey, configValue } }));
+    ASSERT_NO_THROW(p = exeNetwork.GetConfig( configKey ));
+    ASSERT_EQ(p, configValue);
+}
+
+using IEClassExecutableNetworkUnsupportedConfigTest = IEClassExecutableNetworkGetMetricTestForSpecificConfig;
+TEST_P(IEClassExecutableNetworkUnsupportedConfigTest, UnsupportedConfigThrows) {
+    Core ie;
+
+    ExecutableNetwork exeNetwork = ie.LoadNetwork(simpleNetwork, deviceName);
+
+    ASSERT_THROW(exeNetwork.SetConfig({ { configKey, configValue } }), InferenceEngineException);
 }
 
 using IEClassExecutableNetworkGetConfigTest = IEClassExecutableNetworkGetMetricTest;
