@@ -41,12 +41,16 @@ void FullyConnectedTransformation::SetUp() {
     auto ngPrecision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
     const auto paramNode = std::make_shared<ngraph::opset1::Parameter>(ngPrecision, ngraph::Shape(inputShape));
+    const std::vector<size_t> constShapes(inputShape.size(), 1ul);
     const auto fakeQuantizeOnAcitvations = ngraph::builder::makeFakeQuantize(
-        paramNode, ngPrecision, 256ul, { 1ul },
+        paramNode, ngPrecision, 256ul, constShapes,
         { 0.f }, { 255.f / 4.f }, { 0.f }, { 255.f / 4.f });
     fakeQuantizeOnAcitvations->set_friendly_name("fakeQuantizeOnAcitvations");
 
-    auto weightsConst = std::make_shared<ngraph::op::Constant>(ngPrecision, ngraph::Shape{ inputShape[1], inputShape[1] }, std::vector<float>({ 1.f }));
+    auto weightsConst = std::make_shared<ngraph::op::Constant>(
+        ngPrecision,
+        ngraph::Shape { inputShape[inputShape.size() - 1ul], inputShape[inputShape.size() - 1ul] },
+        std::vector<float>({ 1.f }));
     const auto fakeQuantizeOnWeights = ngraph::builder::makeFakeQuantize(
         weightsConst, ngPrecision, 256ul, { 1ul, 1ul },
         { -128.f / 8.f }, { 127.f / 8.f }, { -128.f / 8.f }, { 127.f / 8.f });
@@ -90,10 +94,22 @@ void FullyConnectedTransformation::validate() {
 
         const InferenceEngine::CNNLayerPtr layer = InferenceEngine::details::CNNNetworkHelper::getParent(*outputLayer);
         if (params.updatePrecisions) {
+            const bool asymmetricQuantizationOnData = std::all_of(
+                params.precisionsOnActivations.begin(),
+                params.precisionsOnActivations.end(),
+                [](const InferenceEngine::Precision precision) { return precision != InferenceEngine::Precision::U8; });
+
+            const bool asymmetricQuantizationOnWeights = std::all_of(
+                params.precisionsOnWeights.begin(),
+                params.precisionsOnWeights.end(),
+                [](const InferenceEngine::Precision precision) { return precision != InferenceEngine::Precision::I8; });
+
             checkPrecisions(
                 *layer,
-                { { InferenceEngine::Precision::U8 }, { InferenceEngine::Precision::I8 }, { netPrecision } },
-                { getDeviceInternalPrecision(netPrecision) });
+                { { params.precisionsOnActivations[0] }, { params.precisionsOnWeights[0] }, { netPrecision } },
+                { getDeviceInternalPrecision(netPrecision) },
+                asymmetricQuantizationOnData,
+                asymmetricQuantizationOnWeights);
         } else {
             checkPrecisions(*layer, netPrecision);
         }
@@ -104,10 +120,6 @@ void FullyConnectedTransformation::validate() {
 
 TEST_P(FullyConnectedTransformation, CompareWithRefImpl) {
     Run();
-
-    if (targetDevice == std::string{CommonTestUtils::DEVICE_GPU}) {
-        PluginCache::get().reset();
-    }
 };
 
 }  // namespace LayerTestsDefinitions

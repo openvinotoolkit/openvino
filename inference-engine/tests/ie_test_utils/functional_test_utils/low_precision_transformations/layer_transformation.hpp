@@ -56,7 +56,9 @@ protected:
     static void checkPrecisions(
         const InferenceEngine::CNNLayer& layer,
         const std::vector<std::vector<InferenceEngine::Precision>>& expectedInputPrecisions,
-        const std::vector<InferenceEngine::Precision>& expectedOutputPrecisions);
+        const std::vector<InferenceEngine::Precision>& expectedOutputPrecisions,
+        const bool asymmetricQuantizationOnData = false,
+        const bool asymmetricQuantizationOnWeights = false);
 
     static std::pair<float, float> getQuantizationInterval(const InferenceEngine::Precision precision);
 
