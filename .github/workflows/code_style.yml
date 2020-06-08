@@ -22,6 +22,7 @@ jobs:
         working-directory: ngraph-build
 
       - name: apply-code-format
+        if: ${{ failure() }}
         run: |
           ../ngraph/maint/apply-code-format.sh
         working-directory: ngraph-build
