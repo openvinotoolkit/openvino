@@ -28,7 +28,7 @@ void ngraph::pass::ConvertExtractImagePatchesToReorgYolo::convert_extract_image_
         auto input_shape = extract_image_patches->get_input_shape(0);
         auto strides = extract_image_patches->get_strides();
 
-        if (input_shape[i] % strides[i] != 0 || input_shape[3] % strides[2] != 0) {
+        if (input_shape[2] % strides[1] != 0 || input_shape[3] % strides[2] != 0) {
             return false;
         }
 
