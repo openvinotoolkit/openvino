@@ -115,8 +115,8 @@ jobs:
     enabled: false
 
 - job: Mac
-  # About 150% of total time
-  timeoutInMinutes: 130
+  # About 200% of total time (perfomace of Mac hosts is unstable)
+  timeoutInMinutes: 180
   pool:
     vmImage: 'macOS-10.15'
   variables:
