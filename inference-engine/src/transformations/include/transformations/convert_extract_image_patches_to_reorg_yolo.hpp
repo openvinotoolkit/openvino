@@ -12,11 +12,11 @@
 #include <ngraph/pass/graph_rewrite.hpp>
 
 namespace ngraph {
-    namespace pass {
+namespace pass {
 
         class INFERENCE_ENGINE_API_CLASS(ConvertExtractImagePatchesToReorgYolo);
 
-    }  // namespace pass
+}  // namespace pass
 }  // namespace ngraph
 
 class ngraph::pass::ConvertExtractImagePatchesToReorgYolo : public ngraph::pass::GraphRewrite {
