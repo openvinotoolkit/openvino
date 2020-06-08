@@ -643,13 +643,12 @@ int main(int argc, char *argv[]) {
         auto t0 = Time::now();
         ExecutableNetwork executableNet;
 
-        ie.SetConfig(genericPluginConfig, deviceStr);
         if (!FLAGS_m.empty()) {
             slog::info << "Loading model to the device" << slog::endl;
-            executableNet = ie.LoadNetwork(network, deviceStr);
+            executableNet = ie.LoadNetwork(network, deviceStr, genericPluginConfig);
         } else {
             slog::info << "Importing model to the device" << slog::endl;
-            executableNet = ie.ImportNetwork(FLAGS_rg.c_str(), deviceStr);
+            executableNet = ie.ImportNetwork(FLAGS_rg.c_str(), deviceStr, genericPluginConfig);
         }
 
         ms loadTime = std::chrono::duration_cast<ms>(Time::now() - t0);
