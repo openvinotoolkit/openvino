@@ -56,7 +56,8 @@ class Select(Op):
                     # which is not defined, this means that we cannot perform value propagation.
                     output_value = None
             else:
-                output_value = np.array(output_value, dtype=resulting_tensors[not np.bool(condition_value.item(0))].dtype)
+                assert resulting_tensors[0].dtype == resulting_tensors[1].dtype
+                output_value.astype(resulting_tensors[not np.bool(condition_value.item(0))].dtype)
 
             if output_value is not None:
                 node.out_port(0).data.set_value(np.array(output_value))
