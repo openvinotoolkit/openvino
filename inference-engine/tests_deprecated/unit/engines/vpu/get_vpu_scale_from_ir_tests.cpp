@@ -46,8 +46,8 @@ TEST_F(VPU_AddVpuScaleTest, CanAddVpuScaleToNetwork) {
     auto network = InferenceEngine::CNNNetwork(function);
     auto model = frontEnd->buildInitialModel(network);
 
-    const auto getFullyConnectedStage = [&]() -> Handle<StageNode> {
-        const auto isFullyConnected = [&](const Handle<StageNode>& stage) {
+    const auto getFullyConnectedStage = [model]() -> Stage {
+        const auto isFullyConnected = [](const Stage& stage) {
             const auto& layer = stage->origLayer();
             return layer && layer->type == "FullyConnected";
         };
