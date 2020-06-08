@@ -42,9 +42,11 @@ class ShuffleChannelsKernelRef : public common_kernel_base {
 public:
     ShuffleChannelsKernelRef() : common_kernel_base("shuffle_channels_ref") {}
     virtual ~ShuffleChannelsKernelRef() {}
-    virtual JitConstants GetJitConstants(const shuffle_channels_params& params) const;
-    virtual CommonDispatchData SetDefault(const shuffle_channels_params& params, const optional_params&) const;
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
     ParamsKey GetSupportedKey() const override;
+protected:
+    bool Validate(const Params&, const optional_params&) const override;
+    virtual CommonDispatchData SetDefault(const shuffle_channels_params& params, const optional_params&) const;
+    virtual JitConstants GetJitConstants(const shuffle_channels_params& params) const;
 };
 }  // namespace kernel_selector

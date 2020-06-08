@@ -107,6 +107,10 @@ std::shared_ptr<ngraph::Node> makeActivation(const ngraph::Output<Node> &in,
                                              const element::Type &type,
                                              ngraph::helpers::ActivationTypes activationType);
 
+std::shared_ptr<ngraph::Node> makeEltwise(const ngraph::Output<Node> &in0,
+                                          const ngraph::Output<Node> &in1,
+                                          ngraph::helpers::EltwiseTypes eltwiseType);
+
 std::shared_ptr<ngraph::Node> makeBatchToSpace(const ngraph::Output<Node> &in,
                                                const element::Type &type,
                                                const std::vector<size_t> &blockShape,
@@ -219,6 +223,10 @@ std::shared_ptr<ngraph::Node> makeDepthToSpace(const ngraph::Output<Node> &in,
 std::shared_ptr<ngraph::Node> makeSpaceToDepth(const ngraph::Output<Node> &in,
                                                ngraph::opset3::SpaceToDepth::SpaceToDepthMode mode,
                                                size_t blockSize);
+
+std::shared_ptr<Node> makeShuffleChannels(const ngraph::Output<Node> &in,
+                                          int axis,
+                                          int group);
 
 }  // namespace builder
 }  // namespace ngraph

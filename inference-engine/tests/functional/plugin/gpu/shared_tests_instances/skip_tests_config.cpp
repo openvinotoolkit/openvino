@@ -9,5 +9,6 @@
 
 std::vector<std::string> disabledTestPatterns() {
     return {
+            R"(.*(EltwiseLayerTest).*IS=\(.*\..*\..*\..*\..*\).*secondaryInputType=PARAMETER.*opType=SCALAR.*)",
     };
 }

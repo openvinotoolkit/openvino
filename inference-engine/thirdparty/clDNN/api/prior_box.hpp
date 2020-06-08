@@ -127,11 +127,13 @@ struct prior_box : public primitive_base<prior_box> {
               const padding& output_padding = padding())
         : primitive_base(id, {input}, output_padding),
           img_size(img_size),
+          flip(false),
           clip(clip),
           variance(variance),
           step_width(step_width),
           step_height(step_height),
           offset(offset),
+          scale_all_sizes(false),
           widths(widths),
           heights(heights),
           clustered(true) {

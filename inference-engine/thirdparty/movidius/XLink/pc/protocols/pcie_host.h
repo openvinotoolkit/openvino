@@ -41,11 +41,11 @@ pcieHostError_t pcie_init(const char *slot, void **fd);
 pcieHostError_t pcie_close(void *fd);
 
 #if (!defined(_WIN32))
-pcieHostError_t pcie_boot_device(int fd, void *buffer, size_t length);
+pcieHostError_t pcie_boot_device(int fd, const char  *buffer, size_t length);
 pcieHostError_t pcie_reset_device(int fd);
 
 #else // Windows
-pcieHostError_t pcie_boot_device(HANDLE fd, void *buffer, size_t length);
+pcieHostError_t pcie_boot_device(HANDLE fd, const char  *buffer, size_t length);
 pcieHostError_t pcie_reset_device(HANDLE fd);
 #endif
 
