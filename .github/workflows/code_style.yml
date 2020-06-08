@@ -20,3 +20,8 @@ jobs:
         run: |
           make style-check
         working-directory: ngraph-build
+
+      - name: apply-code-format
+        run: |
+          ../ngraph/maint/apply-code-format.sh
+        working-directory: ngraph-build
