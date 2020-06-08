@@ -25,4 +25,10 @@ jobs:
         if: ${{ failure() }}
         run: |
           ngraph/maint/apply-code-format.sh
-          git diff
+          git diff >code_style_diff.patch
+
+      - uses: actions/upload-artifact@v2
+        if: failure()
+        with:
+          name: code_style_diff
+          path: code_style_diff.patch
