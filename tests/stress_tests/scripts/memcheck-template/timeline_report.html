@@ -3,119 +3,144 @@
 {% block head %}
     {{ super() }}
 <link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.13.0/moment.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.9.3/Chart.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.9.3/Chart.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-annotation/0.5.7/chartjs-plugin-annotation.min.js"></script>
 {% endblock %}
 {% block content %}
 <div class="w3-container">
 <h2>Memcheck report</h2>
     {% for timeline in timelines %}
-    <button onclick="show('{{timeline['_id'][0]|e}}-details')"
-            class="w3-button w3-block w3-border w3-left-align">
-        <h4> {{ timeline['device'][0]|e }} {{ timeline['model'][0]|e }} {{ timeline['test_name'][0]|e }} </h4> 
+    <div class="w3-container">
+        <h4> {{ timeline['device'][0]|e }} {{ timeline['model'][0]|e }} {{ timeline['test_name'][0]|e }} </h4>
         <div class="w3-text-green">
             PASS
         </div>
-    
-        <div id="{{timeline['_id'][0]|e}}-details" class="w3-hide w3-container">
 
+        <div id="{{timeline['_id'][0]|e}}-details" class="w3-show w3-container">
             <div class="w3-container">
                 Test timeline:
-            <canvas id="{{timeline['_id'][0]|e}}-chart" height="100"></canvas>
-            <script>
-            var ctx = document.getElementById("{{timeline['_id'][0]|e}}-chart").getContext('2d');
-            var myChart = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: [
-{% for point in timeline['commit_date'] %} "{{point}}", {% endfor %}
-                    ],
-                    datasets: [{
-                        label: 'vmrss',
-                        borderColor: 'red',
-                        lineTension: 0,
-                        data: [
-{% for point in timeline['metrics']['vmrss'] %} {{point}}, {% endfor %}
-                        ],
-                    },
-                    {
-                        label: 'vmhwm',
-                        borderColor: 'blue',
-                        lineTension: 0,
-                        data: [
-{% for point in timeline['metrics']['vmhwm'] %} {{point}}, {% endfor %}
-                        ],
-                    }
-                    ]
-                },
-                options: {
-                annotation: {
-                    annotations: [{
-                        type: 'line',
-                        mode: 'horizontal',
-                        scaleID: 'y-axis-0',
-                        value: '{{ timeline['ref_metrics']['vmrss'][-1]|e }}',
-                        borderColor: 'black',
-                        borderWidth: 3,
-                        label: {
-                            backgroundColor: "red",
-                            content: "vmrss waterline",
-                            enabled: true,
-                        },
-                
-                    },
-                    {
-                        type: 'line',
-                        mode: 'horizontal',
-                        scaleID: 'y-axis-0',
-                        value: '{{ timeline['ref_metrics']['vmhwm'][-1]|e }}',
-                        borderColor: 'black',
-                        borderWidth: 3,
-                        label: {
-                            backgroundColor: "blue",
-                            content: "vmhwm waterline",
-                            enabled: true,
-                        },
-                
-                    }],
-                    drawTime: "afterDraw" // (default)
-                },
-                scales: {
-                    xAxes: [{
-                        type: 'time',
-                        distribution: 'series',
-                        time:       {
-                            format: 'YYYY-MM-DD hh:mm:ss',
-                            displayFormats: {
-                                'millisecond': 'MMM DD hh:mm',
-                                'second': 'MMM DD hh:mm',
-                                'minute': 'MMM DD hh:mm',
-                                'hour': 'MMM DD hh:mm',
-                                'day': 'MMM DD hh:mm',
-                                'week': 'MMM DD hh:mm',
-                                'month': 'MMM DD hh:mm',
-                                'quarter': 'MMM DD hh:mm',
-                                'year': 'MMM DD hh:mm',
-                            },
-
-                        },
-                        scaleLabel: {
-                            display: true,
-                            labelString: 'Commit Time'
-                        }
-                    }]
-                }
-                }
-            });
-            </script>
+            <canvas class="chartjs"
+                id="{{timeline['_id'][0]|e}}-chart"
+                height="100"
+                data-labels='[{% for point in timeline['commit_date'] %} "{{point}}" {{ "," if not loop.last }} {% endfor %}]'
+                data-charttype='line'>
+                <div class="chartjs-item"
+                    data-label='vmrss'
+                    data-commitid='[{% for point in timeline['commit_sha'] %} "{{point}}" {{ "," if not loop.last }} {% endfor %}]'
+                    data-data='[{% for point in timeline['metrics']['vmrss'] %} {{point}} {{ "," if not loop.last }} {% endfor %}]'
+                    data-rgb='255, 68, 55',
+                    data-waterline='{{ timeline['ref_metrics']['vmrss'][-1] }}'>
+                </div>
+                <div class="chartjs-item"
+                    data-label='vmhwms'
+                    data-commitid='[{% for point in timeline['commit_sha'] %} "{{point}}" {{ "," if not loop.last }} {% endfor %}]'
+                    data-data='[{% for point in timeline['metrics']['vmhwm'] %} {{point}} {{ "," if not loop.last }} {% endfor %}]'
+                    data-rgb='66,133,244'
+                    data-waterline='{{ timeline['ref_metrics']['vmhwm'][-1] }}'>
+                </div>
+            </canvas>
             </div>
         </div>
-
-    </button>
+    </div>
     {% endfor %}
 </div>
 <script>
+    if ($(".chartjs").length > 0) {
+        $( ".chartjs" ).each(function() {
+            datasets=[];
+            annotations=[];
+            $(this).find('.chartjs-item').each(function(index, el){
+                var data=$(this).data('data');
+                var label=$(this).data('label');
+                var commitid=$(this).data('commitid');
+                var waterline=$(this).data('waterline');
+                if($(this).data('rgb')){
+                    var rgb=$(this).data('rgb');
+                }else{
+                    var rgb='244,160,0';
+                }
+                var dataset=[{
+                    label: label,
+                    data: data,
+                    commitid: commitid,
+                    borderColor: 'rgba('+rgb+', 1)',
+                    backgroundColor: 'rgba('+rgb+', 0.12)',
+                    borderWidth:3,
+                    pointBorderWidth:3,
+                    pointBorderColor:'rgba('+rgb+', 1)',
+                    pointBackgroundColor:'#465f80',
+                    pointRadius: 5,
+                    lineTension: 0,
+                }];
+                datasets = $.merge(dataset, datasets);
+                var annotation = [{
+                    type: 'line',
+                    mode: 'horizontal',
+                    scaleID: 'y-axis-0',
+                    value: waterline,
+                    borderColor: 'black',
+                    borderWidth: 3,
+                    label: {
+                        backgroundColor: 'rgba('+rgb+', 1)',
+                        content: label + 'waterline',
+                        enabled: true,
+                    },
+                }]
+                annotations = $.merge(annotation, annotations)
+            });
+
+
+            var chartType=$(this).data('charttype');
+            var labels=$(this).data('labels');
+            var myChart = new Chart(this, {
+                type: chartType,
+                data: {
+                    labels: labels,
+                    datasets: datasets,
+                },
+                options: {
+                    annotation: {
+                        annotations: annotations
+                    },
+                    scales: {
+                        xAxes: [{
+                            type: 'time',
+                            distribution: 'series',
+                            time:       {
+                                parser: 'YYYY-MM-DD hh:mm:ss',
+                                displayFormats: {
+                                    'millisecond': 'MMM DD hh:mm',
+                                    'second': 'MMM DD hh:mm',
+                                    'minute': 'MMM DD hh:mm',
+                                    'hour': 'MMM DD hh:mm',
+                                    'day': 'MMM DD hh:mm',
+                                    'week': 'MMM DD hh:mm',
+                                    'month': 'MMM DD hh:mm',
+                                    'quarter': 'MMM DD hh:mm',
+                                    'year': 'MMM DD hh:mm',
+                                },
+                            },
+                            scaleLabel: {
+                                display: true,
+                                labelString: 'Commit Time'
+                            }
+                        }]
+                    }
+                }
+            });
+
+            $(this).on('click', function(evt){
+                var activePoint = myChart.getElementAtEvent(evt);
+                if(activePoint[0]){
+                    var commitid = myChart.data.datasets[activePoint[0]._datasetIndex].commitid[activePoint[0]._index];
+                    window.open('https://github.com/openvinotoolkit/openvino/commit/' + commitid, '_blank');
+                }
+            });
+        });
+    }
+
 function show(id) {
     var x = document.getElementById(id);
     if (x.className.indexOf("w3-show") == -1) {
