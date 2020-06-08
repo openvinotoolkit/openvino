@@ -21,7 +21,7 @@ from pkg_resources import get_distribution, DistributionNotFound
 try:
     __version__ = get_distribution("ngraph-core").version
 except DistributionNotFound:
-    __version__ = "0.0.0-dev"
+    __version__ = "0.0.0.dev0"
 
 
 from ngraph.ops import absolute
@@ -29,6 +29,7 @@ from ngraph.ops import absolute as abs
 from ngraph.ops import acos
 from ngraph.ops import add
 from ngraph.ops import asin
+from ngraph.ops import assign
 from ngraph.ops import atan
 from ngraph.ops import avg_pool
 from ngraph.ops import batch_norm_inference
@@ -59,6 +60,7 @@ from ngraph.ops import elu
 from ngraph.ops import embedding_bag_offsets_sum
 from ngraph.ops import embedding_bag_packed_sum
 from ngraph.ops import embedding_segments_sum
+from ngraph.ops import extract_image_patches
 from ngraph.ops import equal
 from ngraph.ops import erf
 from ngraph.ops import exp
@@ -108,6 +110,7 @@ from ngraph.ops import prior_box
 from ngraph.ops import prior_box_clustered
 from ngraph.ops import psroi_pooling
 from ngraph.ops import proposal
+from ngraph.ops import read_value
 from ngraph.ops import reduce_logical_and
 from ngraph.ops import reduce_logical_or
 from ngraph.ops import reduce_max
@@ -151,6 +154,3 @@ from ngraph.ops import topk
 from ngraph.ops import transpose
 from ngraph.ops import unsqueeze
 from ngraph.ops import variadic_split
-
-
-from ngraph.runtime import runtime

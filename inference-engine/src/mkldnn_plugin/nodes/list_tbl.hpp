@@ -7,6 +7,9 @@
 # define MKLDNN_EXTENSION_NODE(__prim, __type)
 #endif
 
+MKLDNN_EXTENSION_NODE(EmbeddingBagOffsetsSumImpl, EmbeddingBagOffsetsSum);
+MKLDNN_EXTENSION_NODE(EmbeddingBagPackedSumImpl, EmbeddingBagPackedSum);
+MKLDNN_EXTENSION_NODE(EmbeddingSegmentsSumImpl, EmbeddingSegmentsSum);
 MKLDNN_EXTENSION_NODE(PriorBoxImpl, PriorBox);
 MKLDNN_EXTENSION_NODE(MathImpl, Abs);
 MKLDNN_EXTENSION_NODE(MathImpl, Acos);
@@ -32,6 +35,7 @@ MKLDNN_EXTENSION_NODE(MathImpl, Softplus);
 MKLDNN_EXTENSION_NODE(MathImpl, Softsign);
 MKLDNN_EXTENSION_NODE(MathImpl, Tan);
 MKLDNN_EXTENSION_NODE(ExperimentalDetectronTopKROIsImpl, ExperimentalDetectronTopKROIs);
+MKLDNN_EXTENSION_NODE(ExtractImagePatchesImpl, ExtractImagePatches);
 MKLDNN_EXTENSION_NODE(ReverseSequenceImpl, ReverseSequence);
 MKLDNN_EXTENSION_NODE(DetectionOutputImpl, DetectionOutput);
 MKLDNN_EXTENSION_NODE(ArgMaxImpl, ArgMax);

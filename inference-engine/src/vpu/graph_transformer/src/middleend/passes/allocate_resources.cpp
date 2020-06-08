@@ -185,6 +185,23 @@ AllocationResult runAllocator(const Model& model, bool onlyCheckCMX) {
     }
 
     //
+    // Clean up undeallocated shapes
+    //
+
+    for (auto data : model->datas()) {
+        if (data->usage() != DataUsage::Output) {
+            continue;
+        }
+
+        if (const auto& parentEdge = data->parentDataToShapeEdge()) {
+            const auto& parent = parentEdge->parent();
+            if (parent->usage() == DataUsage::Intermediate && (!onlyCheckCMX || parent->memReqs() == MemoryType::CMX)) {
+                allocator.freeData(parent);
+            }
+        }
+    }
+
+    //
     // Allocate shape for all datas
     //
 

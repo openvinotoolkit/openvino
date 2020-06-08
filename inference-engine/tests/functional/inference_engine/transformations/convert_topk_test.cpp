@@ -33,6 +33,7 @@ TEST(TransformationTests, ConvertTopKToTopKIEStatic) {
         ngraph::pass::ConvertTopKToTopKIE().run_on_function(f);
         ASSERT_NO_THROW(check_rt_info(f));
         ngraph::pass::ConstantFolding().run_on_function(f);
+        ASSERT_TRUE(f->get_output_partial_shape(0).is_static()) << "Shape " << f->get_output_partial_shape(0) << " should be static";
     }
 
     {

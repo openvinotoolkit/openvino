@@ -33,7 +33,6 @@ void FrontEnd::parseDSR(const Model& model, const ie::CNNLayerPtr& layer, const 
     VPU_THROW_UNLESS(shapeProducerEdge != nullptr, "Parsing layer {} of type {} failed: input with index {} (of name {}) must have a producer",
         layer->name, layer->type, 1, shape->name());
 
-    model->replaceStageOutput(dataProducerEdge, dataOutput);
     if (auto dataToShapeEdge = data->parentDataToShapeEdge()) {
         const auto& parent = dataToShapeEdge->parent();
         VPU_THROW_UNLESS(parent == shape, "Myriad plugin encountered layer of type \"{}\" and name \"{}\" with input #{} (data input with name \"{}\") that "
@@ -44,20 +43,20 @@ void FrontEnd::parseDSR(const Model& model, const ie::CNNLayerPtr& layer, const 
             layer->type, layer->name, 0, data->name(), 1, shape->name(), layer->type, parent->name(), layer->type, layer->type);
         model->disconnectDatas(dataToShapeEdge);
     }
+    model->replaceStageOutput(dataProducerEdge, dataOutput);
     model->removeUnusedData(data);
 
     if (dataOutput->usage() == DataUsage::Output) {
         // Create the second output with shape in case of dynamic output
         const auto& shapeOutput = model->addOutputData(dataOutput->name() + "@shape", shape->desc());
 
-        model->replaceStageOutput(shapeProducerEdge, shapeOutput);
-        model->connectDataWithShape(shapeOutput, dataOutput);
-
         for (const auto& dataToShapeEdge : shape->childDataToShapeEdges()) {
             model->replaceDataToShapeParent(dataToShapeEdge, shapeOutput);
         }
-
+        model->replaceStageOutput(shapeProducerEdge, shapeOutput);
         model->removeUnusedData(shape);
+
+        model->connectDataWithShape(shapeOutput, dataOutput);
     } else {
         model->connectDataWithShape(shape, dataOutput);
     }

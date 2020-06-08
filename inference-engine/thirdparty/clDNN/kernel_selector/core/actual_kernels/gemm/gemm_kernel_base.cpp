@@ -72,13 +72,6 @@ KernelsData GemmKernelBase::GetCommonKernelsData(const Params& params,
     auto entry_point = GetEntryPoint(kernelName, prim_params.layerID, options);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
-    uint32_t fused_deps_total = 0;
-    for (auto& fused_dep : prim_params.fused_ops) {
-        for (int i = 0; i < static_cast<int>(fused_dep.dep_size); i++) {
-            fused_deps_total++;
-        }
-    }
-
     auto& kernel = k_data.kernels[0];
     FillCLKernelData(kernel,
                      run_info,
@@ -90,7 +83,7 @@ KernelsData GemmKernelBase::GetCommonKernelsData(const Params& params,
                      false,
                      false,
                      (uint32_t)prim_params.inputs.size(),
-                     fused_deps_total);
+                     GetFusedPrimitiveInputsCount(params));
 
     k_data.estimatedTime = estimated_time;
 

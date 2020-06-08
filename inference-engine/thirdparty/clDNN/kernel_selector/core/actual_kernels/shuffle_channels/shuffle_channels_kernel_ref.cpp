@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2019 Intel Corporation
+// Copyright (c) 2019-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -20,18 +20,37 @@
 #include <vector>
 
 namespace kernel_selector {
+
 ParamsKey ShuffleChannelsKernelRef::GetSupportedKey() const {
     ParamsKey k;
+    k.EnableInputDataType(Datatype::UINT8);
+    k.EnableInputDataType(Datatype::INT8);
     k.EnableInputDataType(Datatype::F16);
     k.EnableInputDataType(Datatype::F32);
+    k.EnableOutputDataType(Datatype::UINT8);
+    k.EnableOutputDataType(Datatype::INT8);
     k.EnableOutputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::F32);
-    k.EnableInputLayout(DataLayout::bfyx);
-    k.EnableOutputLayout(DataLayout::bfyx);
+    k.EnableAllInputLayout();
+    k.EnableAllOutputLayout();
     k.EnableTensorOffset();
     k.EnableTensorPitches();
     k.EnableBatching();
     return k;
+}
+
+bool ShuffleChannelsKernelRef::Validate(const Params& p, const optional_params& o) const {
+    if (p.GetType() != KernelType::SHUFFLE_CHANNELS ||
+        o.GetType() != KernelType::SHUFFLE_CHANNELS) {
+        return false;
+    }
+
+    const shuffle_channels_params& params = static_cast<const shuffle_channels_params&>(p);
+
+    if (params.inputs[0].Dimentions() > 4)
+        return false;
+
+    return true;
 }
 
 CommonDispatchData ShuffleChannelsKernelRef::SetDefault(const shuffle_channels_params& params,
@@ -81,6 +100,10 @@ JitConstants ShuffleChannelsKernelRef::GetJitConstants(const shuffle_channels_pa
 }
 
 KernelsData ShuffleChannelsKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {
+    if (!Validate(params, options)) {
+        return {};
+    }
+
     KernelData kd = KernelData::Default<shuffle_channels_params>(params);
     shuffle_channels_params& newParams = *static_cast<shuffle_channels_params*>(kd.params.get());
 

@@ -54,9 +54,13 @@
 #include "ngraph/runtime/reference/dequantize.hpp"
 #include "ngraph/runtime/reference/dot.hpp"
 #include "ngraph/runtime/reference/elu.hpp"
+#include "ngraph/runtime/reference/embedding_bag_offsets_sum.hpp"
+#include "ngraph/runtime/reference/embedding_bag_packed_sum.hpp"
 #include "ngraph/runtime/reference/embedding_lookup.hpp"
+#include "ngraph/runtime/reference/embedding_segments_sum.hpp"
 #include "ngraph/runtime/reference/erf.hpp"
 #include "ngraph/runtime/reference/exp.hpp"
+#include "ngraph/runtime/reference/extract_image_patches.hpp"
 #include "ngraph/runtime/reference/floor.hpp"
 #include "ngraph/runtime/reference/gather.hpp"
 #include "ngraph/runtime/reference/gather_nd.hpp"
@@ -728,7 +732,100 @@ protected:
             else
             {
                 throw ngraph_error(std::string("Unsupported index type ") + type.c_type_string() +
-                                   std::string("in EmbeddingLookup"));
+                                   std::string(" in EmbeddingLookup"));
+            }
+            break;
+        }
+        case OP_TYPEID::EmbeddingBagOffsetsSum_v3:
+        {
+            const op::EmbeddingBagOffsetsSum* embed = static_cast<const op::EmbeddingBagOffsetsSum*>(&node);
+            auto indicesType = embed->input(1).get_element_type();
+            size_t indices_num = shape_size(embed->get_input_shape(1));
+
+            if (indicesType == element::u64 || indicesType == element::i64) {
+                reference::embeddingBagOffsetsSum<T, size_t>(
+                                               args[0]->get_data_ptr<const T>(),
+                                               args[1]->get_data_ptr<const size_t>(),
+                                               args[2]->get_data_ptr<const size_t>(),
+                                               args.size() > 3 ? args[3]->get_data_ptr<const size_t>() : nullptr,
+                                               args.size() > 4 ? args[4]->get_data_ptr<const T>() : nullptr,
+                                               out[0]->get_data_ptr<T>(),
+                                               indices_num,
+                                               embed->get_shape());
+            } else if (indicesType == element::u32 || indicesType == element::i32) {
+                reference::embeddingBagOffsetsSum<T, unsigned>(
+                                               args[0]->get_data_ptr<const T>(),
+                                               args[1]->get_data_ptr<const unsigned>(),
+                                               args[2]->get_data_ptr<const unsigned>(),
+                                               args.size() > 3 ? args[3]->get_data_ptr<const unsigned>() : nullptr,
+                                               args.size() > 4 ? args[4]->get_data_ptr<const T>() : nullptr,
+                                               out[0]->get_data_ptr<T>(),
+                                               indices_num,
+                                               embed->get_shape());
+            } else {
+                throw ngraph_error(std::string("Unsupported index type ") + indicesType.c_type_string() +
+                                   std::string(" in EmbeddingBagOffsetsSum"));
+            }
+            break;
+        }
+        case OP_TYPEID::EmbeddingBagPackedSum_v3:
+        {
+            const op::EmbeddingBagPackedSum* embed = static_cast<const op::EmbeddingBagPackedSum*>(&node);
+            auto indicesType = embed->input(1).get_element_type();
+
+            if (indicesType == element::u64 || indicesType == element::i64) {
+                reference::embeddingBagPackedSum<T, size_t>(
+                                               args[0]->get_data_ptr<const T>(),
+                                               args[1]->get_data_ptr<const size_t>(),
+                                               args.size() > 2 ? args[2]->get_data_ptr<const T>() : nullptr,
+                                               out[0]->get_data_ptr<T>(),
+                                               embed->get_input_shape(1),
+                                               embed->get_shape());
+            } else if (indicesType == element::u32 || indicesType == element::i32) {
+                reference::embeddingBagPackedSum<T, unsigned>(
+                                               args[0]->get_data_ptr<const T>(),
+                                               args[1]->get_data_ptr<const unsigned>(),
+                                               args.size() > 2 ? args[2]->get_data_ptr<const T>() : nullptr,
+                                               out[0]->get_data_ptr<T>(),
+                                               embed->get_input_shape(1),
+                                               embed->get_shape());
+            } else {
+                throw ngraph_error(std::string("Unsupported index type ") + indicesType.c_type_string() +
+                                   std::string(" in EmbeddingBagPackedSum"));
+            }
+            break;
+        }
+        case OP_TYPEID::EmbeddingSegmentsSum_v3:
+        {
+            const op::EmbeddingSegmentsSum* embed = static_cast<const op::EmbeddingSegmentsSum*>(&node);
+            auto indicesType = embed->input(1).get_element_type();
+            size_t indices_num = shape_size(embed->get_input_shape(1));
+
+            if (indicesType == element::u64 || indicesType == element::i64) {
+                reference::embeddingSegmentsSum<T, size_t>(
+                                               args[0]->get_data_ptr<const T>(),
+                                               args[1]->get_data_ptr<const size_t>(),
+                                               args[2]->get_data_ptr<const size_t>(),
+                                               args.size() > 4 ? args[4]->get_data_ptr<const size_t>() : nullptr,
+                                               args.size() > 5 ? args[5]->get_data_ptr<const T>() : nullptr,
+                                               out[0]->get_data_ptr<T>(),
+                                               embed->get_input_shape(0),
+                                               embed->get_input_shape(1),
+                                               embed->get_shape());
+            } else if (indicesType == element::u32 || indicesType == element::i32) {
+                reference::embeddingSegmentsSum<T, unsigned>(
+                                               args[0]->get_data_ptr<const T>(),
+                                               args[1]->get_data_ptr<const unsigned>(),
+                                               args[2]->get_data_ptr<const unsigned>(),
+                                               args.size() > 4 ? args[4]->get_data_ptr<const unsigned>() : nullptr,
+                                               args.size() > 5 ? args[5]->get_data_ptr<const T>() : nullptr,
+                                               out[0]->get_data_ptr<T>(),
+                                               embed->get_input_shape(0),
+                                               embed->get_input_shape(1),
+                                               embed->get_shape());
+            } else {
+                throw ngraph_error(std::string("Unsupported index type ") + indicesType.c_type_string() +
+                                   std::string(" in EmbeddingSegmentsSum"));
             }
             break;
         }
@@ -737,6 +834,17 @@ protected:
             size_t element_count = shape_size(node.get_output_shape(0));
             reference::erf<T>(
                 args[0]->get_data_ptr<const T>(), out[0]->get_data_ptr<T>(), element_count);
+            break;
+        }
+        case OP_TYPEID::ExtractImagePatches_v3:
+        {
+            const op::ExtractImagePatches* extImgPatches = static_cast<const op::ExtractImagePatches*>(&node);
+            reference::extractImagePatches<T, size_t>(
+                                       extImgPatches,
+                                       args[0]->get_data_ptr<const T>(),
+                                       out[0]->get_data_ptr<T>(),
+                                       extImgPatches->get_input_shape(0),
+                                       extImgPatches->get_shape());
             break;
         }
         case OP_TYPEID::Exp:

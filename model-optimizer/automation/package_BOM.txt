@@ -29,6 +29,7 @@ extensions/back/GatherNormalizer.py
 extensions/back/GroupedConvWeightsNormalize.py
 extensions/back/I64ToI32.py
 extensions/back/insert_compatibility_l2normalization.py
+extensions/back/InterpolateReshape.py
 extensions/back/InterpolateToInterpOrResample.py
 extensions/back/kaldi_remove_memory_output.py
 extensions/back/LeakyReLUMutation.py
@@ -281,6 +282,7 @@ extensions/front/onnx/normalize_ext.py
 extensions/front/onnx/normalize_l2_normalize.py
 extensions/front/onnx/one_hot_ext.py
 extensions/front/onnx/one_hot_normalize.py
+extensions/front/onnx/pad_converter.py
 extensions/front/onnx/pad_ext.py
 extensions/front/onnx/parameter_ext.py
 extensions/front/onnx/person_detection_crossroad.json
@@ -293,6 +295,7 @@ extensions/front/onnx/proposal_ext.py
 extensions/front/onnx/quantize_dequantize_linear.py
 extensions/front/onnx/quantize_ext.py
 extensions/front/onnx/range_ext.py
+extensions/front/onnx/reduce_l2_ext.py
 extensions/front/onnx/reduce_max_ext.py
 extensions/front/onnx/reduce_mean_ext.py
 extensions/front/onnx/reduce_min_ext.py
@@ -310,6 +313,7 @@ extensions/front/onnx/shape_ext.py
 extensions/front/onnx/slice_ext.py
 extensions/front/onnx/softmax_ext.py
 extensions/front/onnx/softmaxONNX_to_softmax.py
+extensions/front/onnx/softplus_ext.py
 extensions/front/onnx/split_ext.py
 extensions/front/onnx/squeeze_ext.py
 extensions/front/onnx/top_k_ext.py
@@ -326,10 +330,12 @@ extensions/front/PowerToEltwises.py
 extensions/front/rank_decomposer.py
 extensions/front/reciprocal.py
 extensions/front/reduce_axis_normalizer.py
+extensions/front/ReduceL2Decomposition.py
 extensions/front/reshape_dim_normalizer.py
 extensions/front/restore_ports.py
 extensions/front/scatter_normalizer.py
 extensions/front/softmax.py
+extensions/front/softplus.py
 extensions/front/softsign_replacer.py
 extensions/front/split_normalizer.py
 extensions/front/squared_difference.py
@@ -426,6 +432,7 @@ extensions/front/tf/sign_ext.py
 extensions/front/tf/SizeReplacer.py
 extensions/front/tf/slice_ext.py
 extensions/front/tf/softmax_ext.py
+extensions/front/tf/softplus_ext.py
 extensions/front/tf/space_to_batch.py
 extensions/front/tf/space_to_batch_ext.py
 extensions/front/tf/space_to_depth_ext.py
@@ -436,7 +443,6 @@ extensions/front/tf/sparse_segment_sum_ext.py
 extensions/front/tf/sparse_to_dense_ext.py
 extensions/front/tf/sparse_weighted_sum.py
 extensions/front/tf/split_ext.py
-extensions/front/tf/SplitConcatPairToInterpolate.py
 extensions/front/tf/ssd_support.json
 extensions/front/tf/ssd_support_api_v1.14.json
 extensions/front/tf/ssd_support_api_v1.15.json
@@ -568,6 +574,7 @@ extensions/middle/SliceConverter.py
 extensions/middle/SliceLikeToStridedSlice.py
 extensions/middle/space_to_depth.py
 extensions/middle/sparse_reshape.py
+extensions/middle/SplitConcatPairToInterpolate.py
 extensions/middle/ssd_anchors_to_const.py
 extensions/middle/SwapAxesMiddleReplacer.py
 extensions/middle/TensorIterator_utils.py
@@ -936,6 +943,7 @@ mo/utils/ir_engine/ir_engine.py
 mo/utils/ir_reader/__init__.py
 mo/utils/ir_reader/extender.py
 mo/utils/ir_reader/extenders/binary_convolution_extender.py
+mo/utils/ir_reader/extenders/bucketize_extender.py
 mo/utils/ir_reader/extenders/conv_extender.py
 mo/utils/ir_reader/extenders/convert_extender.py
 mo/utils/ir_reader/extenders/deconvolution_extender.py

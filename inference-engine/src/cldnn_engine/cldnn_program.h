@@ -90,6 +90,7 @@ public:
 
     std::map<std::string, cldnn::primitive_id> primitiveIDs;
     std::map<cldnn::primitive_id, std::vector<std::string>> primitivesToIRLayersMap;
+    std::map<cldnn::primitive_id, std::string> IRToNgraphLayersMap;
     std::map<std::string, std::vector<cldnn::primitive_id>> prevPrimitiveIDs;
     std::map<cldnn::primitive_id, std::pair<std::string, PerfCounter>> perfMap;
 
@@ -215,6 +216,10 @@ public:
         GRN,
         CTCGreedyDecoder,
         PriorBoxClustered,
+        CumSum,
+        EmbeddingBagPackedSum,
+        EmbeddingBagOffsetsSum,
+        EmbeddingSegmentsSum,
         NO_TYPE
     };
     using GenericBlobMap = std::map<cldnn::primitive_id, cldnn::primitive_id>;
@@ -370,6 +375,10 @@ private:
     void CreateGRNPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr& layer);
     void CreateCTCGreedyDecoderPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr& layer);
     void CreatePriorBoxClusteredPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr& layer);
+    void CreateCumSumPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr& layer);
+    void CreateEmbeddingBagPackedSumPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr& layer);
+    void CreateEmbeddingBagOffsetsSumPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr& layer);
+    void CreateEmbeddingSegmentsSumPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr& layer);
 };
 
 }  // namespace CLDNNPlugin
