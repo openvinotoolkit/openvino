@@ -60,7 +60,7 @@ class SparseReshapeMiddleReplacer(MiddleReplacementPattern):
             raise Error("Input shape and output shape values must be equal for node {}".format(sparse_reshape.id))
 
         nodes_to_remove = [sparse_reshape.id]
-        if 0 in sparse_reshape.out_nodes():
+        if sparse_reshape.is_out_port_connected(0):
             sparse_reshape.out_port(0).get_connection().set_source(sparse_reshape.in_port(0).get_source())
             output_data_node = sparse_reshape.out_node(0)
             nodes_to_remove.append(output_data_node.id)
@@ -68,7 +68,7 @@ class SparseReshapeMiddleReplacer(MiddleReplacementPattern):
             input_data_node = sparse_reshape.in_node(0)
             nodes_to_remove.append(input_data_node.id)
 
-        if 1 in sparse_reshape.out_nodes():
+        if sparse_reshape.is_out_port_connected(1):
             sparse_reshape.out_port(1).get_connection().set_source(sparse_reshape.in_port(1).get_source())
             output_data_node = sparse_reshape.out_node(1)
             nodes_to_remove.append(output_data_node.id)
