@@ -5,6 +5,8 @@ jobs:
   nGraph:
     runs-on: ubuntu-18.04
     steps:
+      - uses: actions/checkout@v2
+
       - name: Install clang-format-3.9
         run: sudo apt --assume-yes install clang-format-3.9
 
