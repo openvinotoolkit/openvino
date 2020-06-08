@@ -108,35 +108,49 @@ void LayerTransformation::checkPrecisions(const InferenceEngine::CNNLayer& layer
 void LayerTransformation::checkPrecisions(
     const InferenceEngine::CNNLayer& layer,
     const std::vector<std::vector<InferenceEngine::Precision>>& expectedInputPrecisions,
-    const std::vector<InferenceEngine::Precision>& expectedOutputPrecisions) {
+    const std::vector<InferenceEngine::Precision>& expectedOutputPrecisions,
+    const bool asymmetricQuantizationOnData,
+    const bool asymmetricQuantizationOnWeights) {
     EXPECT_EQ(expectedInputPrecisions.size(), layer.insData.size()) << "insert data count is no expected: " << layer.insData.size();
 
-    for (size_t inputIndex = 0ul; inputIndex < layer.insData.size(); ++inputIndex) {
-        const std::vector<InferenceEngine::Precision>& precisions = expectedInputPrecisions[inputIndex];
-        const InferenceEngine::DataPtr insData = layer.insData[inputIndex].lock();
-        EXPECT_TRUE(insData != nullptr) << "insert data is nullable";
-        const InferenceEngine::Precision actualPrecision = insData->getTensorDesc().getPrecision();
+    const auto checkPrecision = [](
+        const InferenceEngine::CNNLayer& layer,
+        const std::vector<InferenceEngine::Precision>& expectedPrecisions,
+        const size_t index,
+        const bool input) {
+        const InferenceEngine::DataPtr data = input ? layer.insData[index].lock() : layer.outData[index];
+        EXPECT_TRUE(data != nullptr) << "data is nullable";
+        const InferenceEngine::Precision actualPrecision = data->getTensorDesc().getPrecision();
 
         EXPECT_FALSE(std::all_of(
-            precisions.begin(),
-            precisions.end(),
+            expectedPrecisions.begin(),
+            expectedPrecisions.end(),
             [&](const InferenceEngine::Precision precision) { return getDeviceInternalPrecision(precision) != actualPrecision; })) <<
-            "expected input precisions on " << inputIndex << " input port " << precisions <<
+            "expected precisions on " << index << (input ? " input" : " output") << " port " << expectedPrecisions <<
             " actual precision " << actualPrecision;
+    };
+
+    if (asymmetricQuantizationOnData || asymmetricQuantizationOnWeights) {
+        if (asymmetricQuantizationOnData) {
+            const InferenceEngine::CNNLayerPtr parentOnData = InferenceEngine::details::CNNNetworkHelper::getParent(layer, 0);
+            checkPrecision(*parentOnData, expectedInputPrecisions[0], 0, true);
+        } else {
+            checkPrecision(layer, expectedInputPrecisions[0], 0, true);
+        }
+
+        if (asymmetricQuantizationOnWeights) {
+            const InferenceEngine::CNNLayerPtr parentOnWeights = InferenceEngine::details::CNNNetworkHelper::getParent(layer, 1);
+            checkPrecision(*parentOnWeights, expectedInputPrecisions[1], 1, true);
+        } else {
+            checkPrecision(layer, expectedInputPrecisions[1], 1, true);
+        }
+    } else {
+        for (size_t inputIndex = 0ul; inputIndex < layer.insData.size(); ++inputIndex) {
+            checkPrecision(layer, expectedInputPrecisions[inputIndex], inputIndex, true);
+        }
     }
 
-    {
-        const InferenceEngine::DataPtr outData = layer.outData[0];
-        EXPECT_TRUE(outData != nullptr) << "output data is nullable";
-        const InferenceEngine::Precision actualPrecision = outData->getTensorDesc().getPrecision();
-
-        EXPECT_FALSE(std::all_of(
-            expectedOutputPrecisions.begin(),
-            expectedOutputPrecisions.end(),
-            [&](const InferenceEngine::Precision expectedPrecision) { return getDeviceInternalPrecision(expectedPrecision) != actualPrecision; })) <<
-            "expected output precisions " << expectedOutputPrecisions <<
-            " actual precision " << actualPrecision;
-    }
+    checkPrecision(layer, expectedOutputPrecisions, 0, false);
 }
 
 std::pair<float, float> LayerTransformation::getQuantizationInterval(const InferenceEngine::Precision precision) {
