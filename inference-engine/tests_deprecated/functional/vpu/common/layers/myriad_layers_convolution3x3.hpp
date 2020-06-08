@@ -102,7 +102,7 @@ void refConvolution3x3(const Blob::Ptr src, InferenceEngine::TBlob<uint8_t>::Ptr
     }
 }
 
-TEST_P(myriadConvolution3x3LayerTests_smoke, Convolution3x3) {
+TEST_P(myriadConvolution3x3LayerTests_smoke, DISABLED_Convolution3x3) {
     std::string model = R"V0G0N(
        <net name="Convolution3x3" version="2" batch="1">
            <layers>
