@@ -154,8 +154,17 @@ class RemoveConstToResult(BackReplacementPattern):
 
     @staticmethod
     def replace_pattern(graph: Graph, match: dict):
+        const_node = match['const_node']
+        const_data_node = match['const_data']
         result_node = match['result_node']
-        graph.remove_node(result_node.id)
+        nodes_to_remove = [result_node.id]
+
+        # in case only const data consumer that is the result node, remove the whole sub-graph
+        if len(const_data_node.out_nodes()) == 1:
+            nodes_to_remove.append(const_node.id)
+            nodes_to_remove.append(const_data_node.id)
+
+        graph.remove_node(nodes_to_remove)
 
 
 class NormalizeTI(BackReplacementPattern):

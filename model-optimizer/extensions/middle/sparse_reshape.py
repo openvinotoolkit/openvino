@@ -59,10 +59,21 @@ class SparseReshapeMiddleReplacer(MiddleReplacementPattern):
         if not np.array_equal(input_shape_value, output_shape_value):
             raise Error("Input shape and output shape values must be equal for node {}".format(sparse_reshape.id))
 
+        nodes_to_remove = [sparse_reshape.id]
         if 0 in sparse_reshape.out_nodes():
             sparse_reshape.out_port(0).get_connection().set_source(sparse_reshape.in_port(0).get_source())
+            output_data_node = sparse_reshape.out_node(0)
+            nodes_to_remove.append(output_data_node.id)
+        else:
+            input_data_node = sparse_reshape.in_node(0)
+            nodes_to_remove.append(input_data_node.id)
 
         if 1 in sparse_reshape.out_nodes():
             sparse_reshape.out_port(1).get_connection().set_source(sparse_reshape.in_port(1).get_source())
+            output_data_node = sparse_reshape.out_node(1)
+            nodes_to_remove.append(output_data_node.id)
+        else:
+            input_data_node = sparse_reshape.in_node(1)
+            nodes_to_remove.append(input_data_node.id)
 
-        graph.remove_nodes_from([sparse_reshape.id])
+        graph.remove_nodes_from(nodes_to_remove)
