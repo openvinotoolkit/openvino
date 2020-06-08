@@ -11,6 +11,9 @@ ie_dependent_option (ENABLE_GNA "GNA support for inference engine" ON "NOT APPLE
 
 ie_dependent_option (ENABLE_CLDNN_TESTS "Enable clDNN unit tests" OFF "ENABLE_CLDNN" OFF)
 
+# DO NOT COMMIT (asomsiko), debugging code
+set (ENABLE_PROFILING_ITT ON CACHE BOOL "ITT tracing of IE and plugins internals" FORCE)
+
 ie_option (ENABLE_PROFILING_ITT "ITT tracing of IE and plugins internals" ON)
 
 # "MKL-DNN library might use MKL-ML or OpenBLAS for gemm tasks: MKL|OPENBLAS|JIT"
