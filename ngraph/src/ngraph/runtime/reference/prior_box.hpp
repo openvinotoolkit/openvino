@@ -151,7 +151,8 @@ namespace ngraph
                                 for (float ar : attrs.fixed_ratio)
                                 {
                                     auto density_ = static_cast<int64_t>(attrs.density[s]);
-                                    auto shift = static_cast<int64_t>(attrs.fixed_size[s] / density_);
+                                    auto shift =
+                                        static_cast<int64_t>(attrs.fixed_size[s] / density_);
                                     ar = std::sqrt(ar);
                                     float box_width_ratio = attrs.fixed_size[s] * 0.5f * ar;
                                     float box_height_ratio = attrs.fixed_size[s] * 0.5f / ar;
@@ -177,7 +178,8 @@ namespace ngraph
                                 if (!attrs.density.empty())
                                 {
                                     auto density_ = static_cast<int64_t>(attrs.density[s]);
-                                    auto shift = static_cast<int64_t>(attrs.fixed_size[s] / density_);
+                                    auto shift =
+                                        static_cast<int64_t>(attrs.fixed_size[s] / density_);
                                     for (int64_t r = 0; r < density_; ++r)
                                     {
                                         for (int64_t c = 0; c < density_; ++c)
@@ -203,7 +205,8 @@ namespace ngraph
                                     }
 
                                     auto density_ = static_cast<int64_t>(attrs.density[s]);
-                                    auto shift = static_cast<int64_t>(attrs.fixed_size[s] / density_);
+                                    auto shift =
+                                        static_cast<int64_t>(attrs.fixed_size[s] / density_);
                                     ar = std::sqrt(ar);
                                     float box_width_ratio = attrs.fixed_size[s] * 0.5f * ar;
                                     float box_height_ratio = attrs.fixed_size[s] * 0.5f / ar;
