@@ -10,11 +10,11 @@
 namespace CommonTestUtils {
 namespace vpu {
 
-bool CheckMyriadX() {
-    if (auto envVar = std::getenv("IE_VPU_MYRIADX")) {
-        return std::stoi(envVar) != 0;
+bool CheckMyriad2() {
+    if (const auto& envVar = std::getenv("IE_VPU_MYRIADX")) {
+        return std::stoi(envVar) == 0;
     }
-    return false;
+    return true;
 }
 
 }  // namespace vpu

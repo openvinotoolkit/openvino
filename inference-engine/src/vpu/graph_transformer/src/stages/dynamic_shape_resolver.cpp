@@ -3,6 +3,7 @@
 //
 
 #include <vpu/frontend/frontend.hpp>
+#include <ngraph/node.hpp>
 
 namespace vpu {
 
@@ -19,6 +20,16 @@ void FrontEnd::parseDSR(const Model& model, const ie::CNNLayerPtr& layer, const 
     const auto dataProducerEdge = data->producerEdge();
     VPU_THROW_UNLESS(dataProducerEdge != nullptr, "Parsing layer {} of type {} failed: input with index {} (of name {}) must have a producer",
         layer->name, layer->type, 0, data->name());
+
+    const auto ngraphNode = layer->getNode();
+    VPU_THROW_UNLESS(!ngraphNode || ngraphNode->get_input_source_output(0).get_target_inputs().size() == 1,
+        "Parsing layer {} of type {} failed: input with index {} (of name {}) must not be an input for any operation except current "
+        "of type {}, actual number of operations for which data is input is {}. "
+        "DynamicToStaticShape transformations should add {} operation after all operations with dynamic output as only "
+        "consumer. All operations that were previously original output data consumers should now consume the output data "
+        "from {}. Otherwise the consumer which was not redirected to {} output would process garbage data.",
+        layer->name, layer->type, 0, data->name(), layer->type, ngraphNode->get_input_source_output(0).get_target_inputs().size(),
+        layer->type, layer->type);
     VPU_THROW_UNLESS(data->consumerEdges().size() == 0,
         "Parsing layer {} of type {} failed: input with index {} (of name {}) must have no consumers, actual: {}. "
         "DynamicToStaticShape transformations should add {} operation after all operations with dynamic output as only "
