@@ -322,7 +322,7 @@ static std::string pretty_value(const vector<T>& value)
     {
         return "";
     }
-    const size_t max_size = 64;
+    const size_t max_size = 20;
     if(value.size() > max_size && std::equal(value.begin() + 1, value.end(), value.begin()))
     {
         ss << "populated with " << value[0];
@@ -445,6 +445,8 @@ string pass::VisualizeTree::get_node_name(shared_ptr<Node> node)
     {
         rc += "\\n" + node->get_name();
     }
+    rc += "\n";
+    rc += node->get_type_name();
     if (auto ck = as_type_ptr<ngraph::op::CompiledKernel>(node))
     {
         rc += "\\n{";

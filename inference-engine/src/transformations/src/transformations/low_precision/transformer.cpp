@@ -18,7 +18,7 @@
 #include <ngraph/pass/visualize_tree.hpp>
 
 
-// #include "low_precision_transformations/activation.hpp"
+#include "transformations/low_precision/relu.hpp"
 // #include "low_precision_transformations/concat_multi_channels.hpp"
 // #include "low_precision_transformations/const.hpp"
 #include "transformations/low_precision/convolution.hpp"
@@ -27,7 +27,7 @@
 // #include "low_precision_transformations/fuse_fake_quantize_and_scale_shift.hpp"
 // #include "low_precision_transformations/mvn.hpp"
 // #include "low_precision_transformations/permute.hpp"
-// #include "low_precision_transformations/pooling.hpp"
+#include "transformations/low_precision/max_pool.hpp"
 // #include "low_precision_transformations/resample.hpp"
 // #include "low_precision_transformations/reshape.hpp"
 // #include "low_precision_transformations/scaleshift_to_convolution.hpp"
@@ -176,13 +176,13 @@ LowPrecisionTransformations LowPrecisionTransformer::getAllTransformations(const
             { "Convolution", LayerTransformationPtr(new ConvolutionTransformation(params)) },
             //{ "GroupConvolution", LayerTransformationPtr(new ConvolutionTransformation(params)) },
             //{ "AvgPool", LayerTransformationPtr(new AvgPoolTransformation(params)) },
-            //{ "MaxPool", LayerTransformationPtr(new MaxPoolTransformation(params)) },
+            { "MaxPool", LayerTransformationPtr(new MaxPoolTransformation(params)) },
             { "FakeQuantize", LayerTransformationPtr(new FakeQuantizeTransformation(params)) },
             //{ "Reshape", LayerTransformationPtr(new ReshapeTransformation(params)) },
             //{ "MatMul", LayerTransformationPtr(new MatMulTransformation(params)) },
             //{ "Transpose", LayerTransformationPtr(new TransposeTransformation(params)) },
             //{ "Squeeze", LayerTransformationPtr(new SqueezeTransformation(params)) },
-            //{ "ReLU", LayerTransformationPtr(new ReluTransformation(params)) },
+            { "ReLU", LayerTransformationPtr(new ReluTransformation(params)) },
             //{ "MVN", LayerTransformationPtr(new MvnTransformation(params)) },
             { "Add", LayerTransformationPtr(new AddTransformation(params)) },
             //{ "Multiply", LayerTransformationPtr(new MultiplyTransformation(params)) },
