@@ -14,7 +14,7 @@
 namespace ngraph {
 namespace pass {
 
-        class INFERENCE_ENGINE_API_CLASS(ConvertExtractImagePatchesToReorgYolo);
+class INFERENCE_ENGINE_API_CLASS(ConvertExtractImagePatchesToReorgYolo);
 
 }  // namespace pass
 }  // namespace ngraph
