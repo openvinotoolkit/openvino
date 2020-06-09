@@ -30,13 +30,13 @@ class SsdPriorboxReshape(MiddleReplacementPattern):
     enabled = True
     graph_condition = [lambda graph: graph.graph['fw'] == 'mxnet' and graph.graph['cmd_params'].enable_ssd_gluoncv]
 
-    def run_before(self):
+    def run_after(self):
         return [SliceLikeToStridedSlice]
 
     def pattern(self):
         return dict(
             nodes=[
-                ('slice_like', dict(op='slice_like')),
+                ('slice_like', dict(op='StridedSlice')),
                 ('slice_like_data', dict(kind='data')),
                 ('reshape', dict(op='Reshape')),
                 ('reshape_data', dict(kind='data')),
@@ -125,7 +125,7 @@ class SsdAnchorsMiddleReplacer(MiddleReplacementPattern):
     graph_condition = [lambda graph: graph.graph['fw'] == 'mxnet' and graph.graph['cmd_params'].enable_ssd_gluoncv]
 
     def run_after(self):
-        return [SliceLikeToStridedSlice, SsdAnchorMiddleReshape]
+        return [SliceLikeToStridedSlice, SsdAnchorMiddleReshape, SsdPriorboxReshape]
 
     def pattern(self):
         return dict(
@@ -197,7 +197,7 @@ class SsdAnchorsMiddleReplacer(MiddleReplacementPattern):
         reshape_concat_values = create_op_node_with_second_input(graph, Reshape, int64_array([1, 1, -1]),
                                                                  op_attrs=dict(name=concat_slice_value.name + '/Reshape'),
                                                                  input_node=concat_slice_value)
-        concat = Concat(graph, dict(name='Concat', in_ports_count=2, axis=1)).create_node()
+        concat = Concat(graph, dict(name=reshape_concat_values.name + '/Concat', in_ports_count=2, axis=1)).create_node()
         concat.in_port(0).connect(reshape_concat_values.out_port(0))
         concat.in_port(1).connect(split_node.out_port(1))
         concat.out_port(0).connect(detection_output_port)

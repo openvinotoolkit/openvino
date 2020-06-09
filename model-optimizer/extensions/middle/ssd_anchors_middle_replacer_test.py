@@ -23,7 +23,7 @@ from mo.utils.ir_engine.compare_graphs import compare_graphs
 from mo.utils.unittest.graph import build_graph
 
 nodes_attributes = {
-    'slice_like': {'kind': 'op', 'op': 'slice_like'},
+    'slice_like': {'kind': 'op', 'op': 'StridedSlice'},
     'slice_like_data': {'kind': 'data'},
     'reshape': {'kind': 'op', 'op': 'Reshape'},
     'reshape_data': {'kind': 'data'},
