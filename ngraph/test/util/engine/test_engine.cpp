@@ -9,13 +9,14 @@ using namespace ngraph;
 
 test::IE_CPU_Engine::IE_CPU_Engine(std::shared_ptr<Function> function)
 {
-    function = upgrade_and_validate_function(function);
-    const auto cnn_network = InferenceEngine::CNNNetwork(function);
+    m_function = upgrade_and_validate_function(function);
+    const auto cnn_network = InferenceEngine::CNNNetwork(m_function);
     m_network_inputs = cnn_network.getInputsInfo();
-    // set_parameters_and_results(*m_function);
+    // TODO: is just one output supported?
+    m_output_name = cnn_network.getOutputsInfo().begin()->first;
 
     InferenceEngine::Core ie;
-    // TODO: make it a member?
+    // TODO: make exe_network a member?
     auto exe_network = ie.LoadNetwork(cnn_network, "CPU");
     m_inference_req = exe_network.CreateInferRequest();
 }

@@ -340,7 +340,8 @@ namespace ngraph
             {
                 std::cout << "Running TestCase\n";
                 m_engine.infer();
-                EXPECT_TRUE(true);
+                const auto results = m_engine.template output_data<float>();
+                EXPECT_TRUE(results.size() > 0);
                 return ::testing::AssertionSuccess();
             }
 
