@@ -79,7 +79,7 @@ function(ie_build_samples)
                 MINGW64 CMAKE_BUILD_TYPE CMAKE_MACOSX_RPATH)
         unset(${var})
     endforeach()
-
+    include(sanitizer)
     add_subdirectory(samples)
 endfunction()
 
