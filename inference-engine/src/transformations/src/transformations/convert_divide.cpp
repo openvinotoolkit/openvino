@@ -17,7 +17,8 @@ void ngraph::pass::ConvertDivide::convert_divide() {
 
     ngraph::graph_rewrite_callback callback = [](pattern::Matcher& m) {
         auto div = std::dynamic_pointer_cast<ngraph::opset1::Divide> (m.get_match_root());
-        if (!div) {
+        // We can not apply this transformation in case with integer input data type
+        if (!div || div->input(0).get_element_type().is_integral()) {
             return false;
         }
 
