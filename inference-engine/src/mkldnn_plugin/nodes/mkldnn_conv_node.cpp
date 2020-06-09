@@ -898,7 +898,7 @@ void MKLDNNConvolutionNode::filterSupportedDescriptors() {
                     isSuitableDesc = false;
             }
             if (!isSuitableDesc) {
-                descs.erase(itd);
+                itd = descs.erase(itd);
             } else {
                 itd++;
             }

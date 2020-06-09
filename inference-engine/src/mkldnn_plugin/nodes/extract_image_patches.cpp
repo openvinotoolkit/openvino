@@ -131,7 +131,6 @@ public:
 
         const size_t BATCH = 0, CHANNEL = 1, HIGHT = 0, WIDTH = 1;
 
-        const int64_t IB = inDims[BATCH];
         const int64_t IC = inDims[CHANNEL];
         const int64_t IH = inDims[inDimsSize - 2];
         const int64_t IW = inDims[inDimsSize - 1];
@@ -150,9 +149,6 @@ public:
         const int64_t SW = _strides[WIDTH];
         const int64_t RH = _rates[HIGHT];
         const int64_t RW = _rates[WIDTH];
-
-        int64_t ihStart = 0;
-        int64_t iwStart = 0;
 
         int64_t iwStep = KW + (RW - 1) * (KW - 1);
         int64_t ihStep = KH + (RH - 1) * (KH - 1);
@@ -190,7 +186,6 @@ public:
         const int64_t OC_OH_OW = OC * OH_OW;
         const int64_t IH_IW = IH * IW;
         const int64_t IC_IH_IW = IC * IH_IW;
-        const int64_t KH_KW = KH * KW;
 
         const int64_t work_amount = OB;
 

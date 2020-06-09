@@ -1003,12 +1003,14 @@ void CNNNetworkInt8Normalizer::QuantizeConvolutionOrFullyConnected(CNNLayer::Ptr
                 symQuant = *(intervals.begin());
             }
             std::set<double> divs;
-            prev = 0.f;
-            for (auto it = individualsG.begin(); it != individualsG.end(); it++) {
-                if (prev) {
-                    divs.insert((*it - prev) / symQuant);
+            if (symQuant != 0.) {
+                prev = 0.f;
+                for (auto it = individualsG.begin(); it != individualsG.end(); it++) {
+                    if (prev) {
+                        divs.insert((*it - prev) / symQuant);
+                    }
+                    prev = *it;
                 }
-                prev = *it;
             }
 
             bwquantized = true;

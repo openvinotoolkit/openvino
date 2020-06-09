@@ -22,6 +22,8 @@ void ngraph::pass::ConvertInterpolateToInterpOrResample::convert_interpolate_to_
 
     ngraph::graph_rewrite_callback callback = [](pattern::Matcher& m) {
         auto interpolate = std::dynamic_pointer_cast<ngraph::opset1::Interpolate> (m.get_match_root());
+        if (!interpolate)
+            return false;
 
         auto data_node = interpolate->input_value(0);
         auto out_shape_node = std::dynamic_pointer_cast<ngraph::opset1::Constant>(interpolate->input_value(1).get_node_shared_ptr());
