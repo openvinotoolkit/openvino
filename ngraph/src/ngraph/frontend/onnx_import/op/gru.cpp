@@ -39,7 +39,7 @@ namespace ngraph
                             : OpInputMap(node, gates_count)
                         {
                             bool linear_before_reset = static_cast<bool>(
-                                  node.get_attribute_value<std::int64_t>("linear_before_reset", 0));
+                                node.get_attribute_value<std::int64_t>("linear_before_reset", 0));
 
                             // Override bias, since we need separated W and R biases for `h` gate.
                             if (linear_before_reset)
