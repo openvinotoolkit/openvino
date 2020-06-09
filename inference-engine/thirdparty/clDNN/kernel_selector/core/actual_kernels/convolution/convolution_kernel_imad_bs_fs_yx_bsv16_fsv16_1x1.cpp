@@ -130,6 +130,16 @@ bool Convolution_kernel_imad_bs_fs_yx_bsv16_fsv16_1x1::Validate(const Params& pa
         return false;
     }
 
+    // check that all fused ops except eltwise have only feature or scalar inputs
+    for (auto& fo : newParams.fused_ops) {
+        if (fo.GetType() == FusedOpType::ELTWISE)
+            continue;
+        for (auto& input : fo.tensors) {
+            if (input.X().v != 1 || input.Y().v != 1 || input.Batch().v != 1)
+                return false;
+        }
+    }
+
     return true;
 }
 }  // namespace kernel_selector
