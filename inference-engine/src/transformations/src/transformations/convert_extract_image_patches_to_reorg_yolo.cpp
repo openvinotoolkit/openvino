@@ -12,7 +12,8 @@
 
 void ngraph::pass::ConvertExtractImagePatchesToReorgYolo::convert_extract_image_patches_to_reorg_yolo() {
     auto image = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1, 1});
-    auto extract_image_patches = std::make_shared<ngraph::opset3::ExtractImagePatches>(image, Shape{1, 1}, Strides{1, 1}, Shape{1, 1}, ngraph::op::PadType);
+    auto extract_image_patches = std::make_shared<ngraph::opset3::ExtractImagePatches>(image, Shape{1, 1}, Strides{1, 1}, Shape{1, 1},
+            ngraph::op::PadType::VALID);
 
     ngraph::graph_rewrite_callback callback = [](pattern::Matcher& m) {
         auto extract_image_patches = std::dynamic_pointer_cast<ngraph::opset3::ExtractImagePatches>(m.get_match_root());
