@@ -196,7 +196,7 @@ namespace ngraph
                                                  std::end(raw_axes_vec),
                                                  [](int64_t axis) { return axis >= 0; }),
                                      "All axes must be positive when data rank is unknown");
-                        axes_vec = std::vector<uint64_t>(std::begin(axes_vec), std::end(axes_vec));
+                        axes_vec = std::vector<uint64_t>(std::begin(raw_axes_vec), std::end(raw_axes_vec));
                     }
 
                     const uint64_t slice_indices_length =

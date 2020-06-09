@@ -51,6 +51,7 @@ namespace ngraph
             const std::shared_ptr<GraphCache> get_graph_cache() const;
 
         protected:
+        //TODO change cache to &&
             Graph(const ONNX_NAMESPACE::GraphProto& proto, Model& model, std::shared_ptr<GraphCache> cache);
 
             void set_friendly_names(const Node& onnx_node, const NodeVector& ng_node_vector) const;

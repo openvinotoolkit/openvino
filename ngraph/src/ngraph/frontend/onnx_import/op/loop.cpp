@@ -32,6 +32,46 @@ namespace ngraph
         {
             namespace set_1
             {
+                namespace
+                {
+                    //TODO DOC
+                    bool is_termination_condition_always_true(const std::shared_ptr<ngraph::Node>& loop_cond, const std::shared_ptr<ngraph::Node>& body_cond)
+                    {
+                        bool loop_cond_value = false;
+                        if(loop_cond->is_constant() && loop_cond->get_element_type() == element::boolean)
+                        {
+                            loop_cond_value = as_type_ptr<default_opset::Constant>(loop_cond)->cast_vector<bool>().at(0);
+                        }
+                        // According to ONNX skipped cond input (is_null) means that is has true value
+                        bool is_loop_cond_true = loop_cond->is_null() || loop_cond_value == true;
+                        
+                        if(!is_loop_cond_true)
+                        {
+                            return false;
+                        }
+
+                        if(body_cond->is_constant() && as_type_ptr<default_opset::Constant>(body_cond)->cast_vector<bool>().at(0) == true)
+                        {
+                            std::cout << "constant \n";
+                            return true;
+                        }
+
+                        // If body termination condition input matches Indentity op pattern it has value of loop_cond - true
+                        // Identity op for boolean value is represented by LogicalOr op whose second input is always false
+                        if(is_type<default_opset::LogicalOr>(body_cond))
+                        {
+                            const auto second_input = body_cond->input_value(1).get_node_shared_ptr();
+                            if(second_input->is_constant() && second_input->get_element_type() == element::boolean 
+                               && as_type_ptr<default_opset::Constant>(second_input)->cast_vector<bool>().at(0) == false)
+                            {
+                                std::cout << "identity \n";
+                                return true;
+                            }
+                        }
+                        return false;
+                    }
+                }
+
                 NodeVector loop(const Node& node)
                 {
                     const auto& ng_inputs = node.get_ng_inputs();
@@ -44,10 +84,6 @@ namespace ngraph
                     CHECK_VALID_NODE(node,
                                      !trip_count->is_null(),
                                      "Currently nGraph requires trip count input to be provided.");
-                    /*CHECK_VALID_NODE(node,
-                                     loop_cond->is_null(),
-                                     "Currently nGraph doesn't support conditional loop "
-                                     "termination.");*/
 
                     const OutputVector loop_carried_dependencies{std::next(ng_inputs.begin(), 2),
                                                                  ng_inputs.end()};
@@ -75,6 +111,15 @@ namespace ngraph
                                      ") has to small number of outpus. Required at least: ",
                                      loop_carried_dependencies.size() + 1);
 
+                    const auto& body_loop_cond = graph_outputs.at(0).get_node_shared_ptr();
+                    CHECK_VALID_NODE(node,
+                        is_termination_condition_always_true(loop_cond, body_loop_cond),
+                            "Current version of Loop operator doesn't support termination loop condition input.");
+                    
+                    // TODO: Remove when loop condition would be supported.
+                    const auto& cond_node =
+                        default_opset::Constant::create(element::boolean, Shape{}, {true});
+
                     // create the loop body
                     const auto body = std::make_shared<ngraph::op::TensorIterator::BodyLambda>(
                         graph_outputs, graph_inputs);
@@ -95,10 +140,6 @@ namespace ngraph
                     // start=0, stride=1, part_size=1, end=-1, axis=0
                     tensor_iterator->set_sliced_input(
                         graph_inputs.at(0), loop_trip_count, 0, 1, 1, -1, 0);
-
-                    // TODO: Remove when loop condition would be supported.
-                    const auto& cond_node =
-                        default_opset::Constant::create(element::boolean, Shape{}, {true});
 
                     // Set loop condition input, which should be changing over the iterations.
                     tensor_iterator->set_merged_input(
