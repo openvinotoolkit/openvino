@@ -11,6 +11,7 @@
 #include "details/caseless.hpp"
 #include "ie_algorithm.hpp"
 #include "gna-api.h"
+#include "gna_permute.hpp"
 
 
 namespace GNAPluginNS {
@@ -193,6 +194,42 @@ class LayerInfo {
     }
     bool isPermute() const noexcept {
         return isOfType("permute");
+    }
+    // @brief this not only mathematically trivial, has some WA for kaldi case
+    bool isTrivialPermute() {
+        if (!isPermute()) return false;
+
+        auto layerOrder = layer->GetParamAsInts("order");
+
+        if (layerOrder == std::vector<int>({ 0, 3, 2, 1 })) {
+            return true;  // supported case
+        }
+        auto inputs = layer->insData.begin()->lock();
+        auto inputsOrder = inputs->getTensorDesc().getDims();
+
+        // cases when all permutations happened either between 1 and X shape where no other dims in between
+        auto permuteSequence = genPermutations(layerOrder.begin(), layerOrder.end());
+        auto inputsOrderTransformed = inputsOrder;
+        for (auto && permute : permuteSequence) {
+            // check dims of permuted
+            if (inputsOrderTransformed[permute.first] == 1 &&
+                inputsOrderTransformed[permute.second] == 1) {
+                return true;
+            }
+            if (inputsOrderTransformed[permute.first] != 1 &&
+                inputsOrderTransformed[permute.second] != 1) {
+                return false;
+            }
+            // check dims in between
+            for (int j = permute.first + 1; j != permute.second; j++) {
+                if (inputsOrderTransformed[j] != 1) {
+                    return false;
+                }
+            }
+            // apply permutation
+            std::swap(inputsOrderTransformed[permute.first], inputsOrderTransformed[permute.second]);
+        }
+        return true;
     }
     bool isPooling() const noexcept {
         return isOfType("pooling");
