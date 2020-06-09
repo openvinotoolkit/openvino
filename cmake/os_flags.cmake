@@ -130,7 +130,7 @@ endfunction()
 # Enables Link Time Optimization compilation
 #
 macro(ie_enable_lto)
-    if(CMAKE_CXX_COMPILER_ID STREQUAL "Intel" AND OFF)
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
         ProcessorCount(N)
         if(UNIX)
             set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -ipo")
