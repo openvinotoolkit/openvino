@@ -48,6 +48,7 @@
 #include <api/gather.hpp>
 #include <api/depth_to_space.hpp>
 #include <api/space_to_depth.hpp>
+#include <api/batch_to_space.hpp>
 #include <api/shuffle_channels.hpp>
 #include <api/strided_slice.hpp>
 #include <api/reverse_sequence.hpp>
@@ -539,6 +540,7 @@ Program::LayerType Program::LayerTypeFromStr(const std::string &str) {
         { "Gather" , Gather },
         { "DepthToSpace" , DepthToSpace },
         { "SpaceToDepth" , SpaceToDepth },
+        { "BatchToSpace", BatchToSpace },
         { "ShuffleChannels" , ShuffleChannels },
         { "StridedSlice" , StridedSlice },
         { "ReverseSequence" , ReverseSequence },
@@ -1239,6 +1241,8 @@ void Program::CreateSingleLayerPrimitive(cldnn::topology& topology, InferenceEng
         case DepthToSpace: CreateDepthToSpacePrimitive(topology, layer);
             break;
         case SpaceToDepth: CreateSpaceToDepthPrimitive(topology, layer);
+            break;
+        case BatchToSpace: CreateBatchToSpacePrimitive(topology, layer);
             break;
         case ShuffleChannels: CreateShuffleChannelsPrimitive(topology, layer);
             break;
@@ -3814,6 +3818,24 @@ void Program::CreateSpaceToDepthPrimitive(cldnn::topology& topology, InferenceEn
     AddPrimitiveToProfiler(spaceToDepthName, layer);
 }
 
+void Program::CreateBatchToSpacePrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer) {
+    ValidateLayer(layer, 4);
+
+    auto inputPrimitives = GetPrevLayersPrimitives(layer);
+    auto batchToSpace = as<InferenceEngine::GenericLayer*> (layer);
+
+    std::string batchToSpaceName = layer_type_name_ID(layer);
+    auto batchToSpacePrim = cldnn::batch_to_space(
+            batchToSpaceName,
+            inputPrimitives[0],
+            inputPrimitives[1],
+            inputPrimitives[2],
+            inputPrimitives[3]);
+
+    topology.add(batchToSpacePrim);
+    AddPrimitiveToProfiler(batchToSpaceName, layer);
+}
+
 void Program::CreateShuffleChannelsPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer) {
     ValidateLayer(layer, 1);
 
@@ -4910,6 +4932,12 @@ void Program::AddOutputPrimitive(cldnn::topology& topology, std::string outputNa
 
     // Find correct output ID. Start with name stored in IR.
     std::string outputID = outLayerName;
+    // This can happen when an output has invalid connections with previous layer and
+    // it's not handled by CreateSingleLayerPrimitive method
+    if (primitiveIDs.find(outLayerName) == primitiveIDs.end()) {
+        THROW_IE_EXCEPTION << "Can't find output with name " << outLayerName;
+    }
+
     std::string finalID = primitiveIDs.at(outLayerName);
 
     while (outputID != finalID) {
