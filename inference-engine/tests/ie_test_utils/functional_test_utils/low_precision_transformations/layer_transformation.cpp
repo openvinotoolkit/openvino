@@ -83,10 +83,6 @@ InferenceEngine::Blob::Ptr LayerTransformation::GenerateInput(
     return FuncTestUtils::createAndFillBlobConsistently(tensorDesc, hight - low, static_cast<int32_t>(low), 1ul);
 }
 
-LayerTransformation::LayerTransformation() {
-    threshold = 0.05;
-}
-
 InferenceEngine::details::LowPrecisionTransformer LayerTransformation::getLowPrecisionTransformer(
     const InferenceEngine::details::LayerTransformation::Params& params) const {
     InferenceEngine::details::LowPrecisionTransformer transformer(getLowPrecisionTransformations(params));
