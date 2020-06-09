@@ -64,6 +64,7 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::ICNNNetwork &network
     NetPass::ConvertPrecision(*_clonedNetwork, Precision::U64, Precision::I32);
     NetPass::ConvertPrecision(*_clonedNetwork, Precision::FP16, Precision::FP32);
     NetPass::ConvertPrecision(*_clonedNetwork, Precision::BOOL, Precision::U8);
+    NetPass::ConvertPrecision(*_clonedNetwork, Precision::U16, Precision::I32);
 
     if (s == StatusCode::OK && pstats && !pstats->isEmpty()) {
         CNNNetworkInt8Normalizer cnnorm;
