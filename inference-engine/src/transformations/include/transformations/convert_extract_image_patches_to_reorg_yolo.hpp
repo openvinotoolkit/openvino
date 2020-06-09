@@ -14,7 +14,7 @@
 namespace ngraph {
 namespace pass {
 
-class TRANSFORMATIONS_API(ConvertExtractImagePatchesToReorgYolo);
+class TRANSFORMATIONS_API ConvertExtractImagePatchesToReorgYolo;
 
 }  // namespace pass
 }  // namespace ngraph
