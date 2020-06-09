@@ -53,29 +53,51 @@ namespace ngraph
             }
 
             template <typename T>
+            void add_expected_output(ngraph::Shape expected_shape, const std::vector<T>& values)
+            {
+                const auto& function_output = m_function->get_results()[m_expected_outputs];
+                std::cout << "Adding blob to output name: " << function_output->get_friendly_name() << std::endl;
+                // TODO: assert that function_output->get_friendly_name() is in network outputs
+                const auto output_info = m_network_outputs[function_output->get_friendly_name()];
+                auto blob =
+                    std::make_shared<InferenceEngine::TBlob<T>>(output_info->getTensorDesc());
+                blob->allocate();
+                auto* blob_buffer = blob->wmap().template as<T*>();
+                // TODO: assert blob->size() == values.size() ?
+                std::copy(values.begin(), values.end(), blob_buffer);
+
+                m_expected_outputs_map.emplace(function_output->get_friendly_name(), blob);
+
+                ++m_expected_outputs;
+            }
+
+            template <typename T>
             std::vector<T> output_data()
             {
-                InferenceEngine::Blob::Ptr output = m_inference_req.GetBlob(m_output_name);
+                InferenceEngine::MemoryBlob::CPtr output_blob =
+                    InferenceEngine::as<InferenceEngine::MemoryBlob>(
+                        m_inference_req.GetBlob(m_output_name));
 
-                InferenceEngine::MemoryBlob::Ptr moutput =
-                    InferenceEngine::as<InferenceEngine::MemoryBlob>(output);
-                if (!moutput)
+                if (!output_blob)
                 {
-                    THROW_IE_EXCEPTION << "Cannot get output MemoryBlob in call_with_validate()";
+                    THROW_IE_EXCEPTION << "Cannot retrieve output MemoryBlob for output: "
+                                       << m_output_name;
                 }
 
-                const auto lm = moutput->rmap();
-                const T* output_buffer = lm.as<const T*>();
+                const T* output_buffer = output_blob->rmap().template as<const T*>();
 
-                return std::vector<T>(output_buffer, output_buffer + output->size());
+                return std::vector<T>(output_buffer, output_buffer + output_blob->size());
             }
 
         private:
             std::shared_ptr<Function> m_function;
             InferenceEngine::InputsDataMap m_network_inputs;
+            InferenceEngine::OutputsDataMap m_network_outputs;
             InferenceEngine::InferRequest m_inference_req;
+            std::map<std::string, InferenceEngine::Blob::Ptr> m_expected_outputs_map;
             std::string m_output_name;
             unsigned int m_allocated_inputs = 0;
+            unsigned int m_expected_outputs = 0;
 
             std::shared_ptr<Function>
                 upgrade_and_validate_function(std::shared_ptr<Function> function) const;

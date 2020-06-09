@@ -335,6 +335,29 @@ namespace ngraph
                 add_input<T>(input_pshape.to_shape(), values);
             }
 
+            template <typename T>
+            void add_expected_output(const Shape& expected_shape, const std::vector<T>& values)
+            {
+                auto results = m_function->get_results();
+
+                NGRAPH_CHECK(m_output_index < results.size(),
+                             "All function results already have expected outputs.");
+
+                auto function_output_type = results.at(m_output_index)->get_element_type();
+
+                const auto& output_pshape = results.at(m_output_index)->get_output_partial_shape(0);
+                NGRAPH_CHECK(
+                    output_pshape.compatible(expected_shape),
+                    "nGraph function generated an unexpected output shape. Expected shape: ",
+                    expected_shape,
+                    " Output shape: ",
+                    output_pshape);
+
+                m_engine.add_expected_output<T>(expected_shape, values);
+
+                ++m_output_index;
+            }
+
             ::testing::AssertionResult
                 run(size_t tolerance_bits = DEFAULT_FLOAT_TOLERANCE_BITS) override
             {

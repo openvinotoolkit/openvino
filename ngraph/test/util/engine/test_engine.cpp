@@ -12,6 +12,7 @@ test::IE_CPU_Engine::IE_CPU_Engine(std::shared_ptr<Function> function)
     m_function = upgrade_and_validate_function(function);
     const auto cnn_network = InferenceEngine::CNNNetwork(m_function);
     m_network_inputs = cnn_network.getInputsInfo();
+    m_network_outputs = cnn_network.getOutputsInfo();
     // TODO: is just one output supported?
     m_output_name = cnn_network.getOutputsInfo().begin()->first;
 
