@@ -1854,8 +1854,11 @@ std::shared_ptr<Node> optimizeAdd(std::shared_ptr<opset1::Add> add) {
         auto scalar = distillToScalar(roundedShift);
         if (op::util::constantIsEqualTo(scalar, 0)) {
             replace_node(replacement, replacement->input_value(0).get_node_shared_ptr());
+            replacement = nullptr;
         }
     }
+
+    return replacement;
 }
 
 
