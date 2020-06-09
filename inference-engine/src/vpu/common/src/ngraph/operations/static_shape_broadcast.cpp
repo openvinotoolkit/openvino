@@ -141,6 +141,10 @@ bool StaticShapeBroadcast::visit_attributes(ngraph::AttributeVisitor& visitor) {
     return true;
 }
 
+bool StaticShapeBroadcast::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs) {
+    return ::ngraph::op::util::BroadcastBase::evaluate(outputs, inputs);
+}
+
 }  // namespace op
 }  // namespace vpu
 }  // namespace ngraph
