@@ -49,6 +49,10 @@ protected:
     void getBatchSupportInfoImpl(StageDataInfo<BatchSupport>& batchInfo) override {
     }
 
+    StageSHAVEsRequirements getSHAVEsRequirementsImpl() const override {
+        return StageSHAVEsRequirements::NotNeeded;
+    }
+
     void initialCheckImpl() const override {
         const auto mode = attrs().getOrDefault<BroadcastMode>("mode", BroadcastMode::NUMPY);
         const auto& dataPrecision = input(0)->desc().type();
@@ -122,7 +126,7 @@ void FrontEnd::parseBroadcast(
                          "{} layer with name {} and explicit mode must have 1D axesMapping tensor, "
                          "actually provided {}D tensor",
                          layer->type, layer->name, axesMappingDesc.numDims());
-        VPU_THROW_UNLESS(axesMappingDim == output->desc().numDims(),
+        VPU_THROW_UNLESS(axesMappingDim == inputs[0]->desc().numDims(),
                          "{} layer with name {} and explicit mode must have axesMapping tensor with "
                          "size equals to number of output dims, expected [{}], provided [{}]",
                          layer->type, layer->name, output->desc().numDims(), axesMappingDim);
