@@ -41,8 +41,6 @@ protected:
         const InferenceEngine::TensorDesc& tensorDesc,
         const float k = 1.f);
 
-    LayerTransformation();
-
     InferenceEngine::details::LowPrecisionTransformations getLowPrecisionTransformations(
         const InferenceEngine::details::LayerTransformation::Params& params) const;
 
