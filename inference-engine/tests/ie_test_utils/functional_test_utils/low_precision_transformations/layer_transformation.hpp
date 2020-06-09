@@ -33,6 +33,8 @@ public:
 
 class LayerTransformation : public LayerTestsUtils::LayerTestsCommon {
 protected:
+    LayerTransformation();
+
     InferenceEngine::details::LowPrecisionTransformations getLowPrecisionTransformations(
         const InferenceEngine::details::LayerTransformation::Params& params) const;
 

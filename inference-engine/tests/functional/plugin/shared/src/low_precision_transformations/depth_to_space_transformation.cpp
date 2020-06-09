@@ -42,8 +42,6 @@ std::string DepthToSpaceTransformation::getTestCaseName(testing::TestParamInfo<L
 }
 
 void DepthToSpaceTransformation::SetUp() {
-    threshold = 0.05;
-
     InferenceEngine::SizeVector inputShape;
     InferenceEngine::Precision netPrecision;
     InferenceEngine::details::LayerTransformation::Params params;

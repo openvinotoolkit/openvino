@@ -50,8 +50,6 @@ InferenceEngine::Blob::Ptr OutputLayersHandlingInTransformations::GenerateInput(
 }
 
 void OutputLayersHandlingInTransformations::SetUp() {
-    threshold = 0.05;
-
     InferenceEngine::SizeVector inputShape;
     InferenceEngine::Precision netPrecision;
     InferenceEngine::details::LayerTransformation::Params params;
