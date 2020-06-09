@@ -1734,7 +1734,7 @@ void CNNNetworkHelper::quantizeBlob(const CNNLayer& quantize, Blob::Ptr& targetB
     const size_t OC = outDims[0];
     const size_t IC = outDims.size() > 1lu ? outDims[1] : 1;
     const size_t D  = outDims.size() > 4lu ? outDims[outDims.size() - 3] : 1;
-    const size_t H  = outDims.size() > 2lu ? outDims[outDims.size() - 2] : 1;
+    const size_t H  = outDims.size() > 2lu ? outDims.size() == 3lu ? outDims[2] : outDims[outDims.size() - 2] : 1;
     const size_t W  = outDims.size() > 3lu ? outDims[outDims.size() - 1] : 1;
 
     // Const layer blob shape (sourceBlob->getTensorDesc().getDims()) can be different from output port shape
