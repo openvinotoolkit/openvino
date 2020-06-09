@@ -92,7 +92,7 @@ def test_inputs_deprecated(device):
         assert "'inputs' property of ExecutableNetwork class is deprecated. " \
             "To access DataPtrs user need to use 'input_data' property " \
             "of InputInfoCPtr objects which " \
-            "can be acessed by 'input_info' property." in str(w[i].message)
+            "can be accessed by 'input_info' property." in str(w[i].message)
     del exec_net
     del ie_core
 
