@@ -60,9 +60,14 @@ void MKLDNNDepthwiseNode::getSupportedDescriptors() {
         internalBlobs.push_back(createInternalBlob(weightDims, false));
     }
 
-    for (auto format : getAvailableFormatsForDims(parentOutDims)) {
-        MKLDNNMemoryDesc in_candidate{parentOutDims, inputDataType, format};
+    if (parentOutDims.ndims() == 6) {
+        MKLDNNMemoryDesc in_candidate{parentOutDims, inputDataType, memory::format::blocked};
         createDescriptor({in_candidate}, {});
+    } else {
+        for (auto format : getAvailableFormatsForDims(parentOutDims)) {
+            MKLDNNMemoryDesc in_candidate{parentOutDims, inputDataType, format};
+            createDescriptor({in_candidate}, {});
+        }
     }
 }
 

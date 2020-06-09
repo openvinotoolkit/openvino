@@ -875,7 +875,7 @@ size_t CNNNetworkHelper::getInputChannelsCount(const CNNLayer& layer) {
         return insertData->getDims()[1];
     }
     default: {
-        THROW_IE_EXCEPTION << "Not supported layout " << insertData->getLayout();
+        return insertData->getDims()[1];
     }
     }
 }
