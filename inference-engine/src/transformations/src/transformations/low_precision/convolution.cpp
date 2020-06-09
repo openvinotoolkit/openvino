@@ -121,7 +121,21 @@ void ConvolutionTransformation::transform(TransformationContext &context, ngraph
         // Before moving, Multiply should be decoupled and exchanged with Add in MultiplyAdd operation
         auto newMultiplyFromData = swapMultiplyAndAdd(
                 decomposeMultiplyAdd(as_type_ptr<ngraph::op::MultiplyAdd>(scaleShiftOnData)));
-        optimizeAdd(as_type_ptr<opset1::Add>(newMultiplyFromData->input_value(0).get_node_shared_ptr()));
+        auto newAdd = optimizeAdd(as_type_ptr<opset1::Add>(newMultiplyFromData->input_value(0).get_node_shared_ptr()));
+
+        // FIXME: next workaround normalizes shape of newAdd to match CPU plugin expectations
+        if (newAdd && newAdd->get_output_partial_shape(0) != newAdd->get_input_partial_shape(1)) {
+            // Insert explicit broadcast for channel dimension [1] and immediately fold it
+            Shape broadcastShape(newAdd->get_output_partial_shape(0).rank().get_length(), 1);
+            broadcastShape[1] = newAdd->get_output_shape(0)[1];
+            auto newShift = fold<opset1::Broadcast>(newAdd->input_value(1),
+                    std::make_shared<opset1::Constant>(
+                            element::i64,
+                            Shape{size_t(newAdd->get_output_partial_shape(0).rank().get_length())},
+                            broadcastShape));
+            replace_node(newAdd->input_value(1).get_node_shared_ptr(), newShift);
+        }
+
         // double-check that Multiply is still scalar-like
         assert(isScalarLike(as_type_ptr<opset1::Constant>(newMultiplyFromData->input_value(1).get_node_shared_ptr())));
         auto newMultiplyAfter = std::make_shared<opset1::Multiply>(
