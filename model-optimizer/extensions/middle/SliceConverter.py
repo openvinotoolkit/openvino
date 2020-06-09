@@ -71,7 +71,7 @@ class ConvertSlice(MiddleReplacementPattern):
         # in ONNX the value for 'ends' is usually -1 which is translated to maximum possible value of int64. This
         # value must be converted to maximum of int32 because such big values do not fit into the int32 which is
         # supported by the StridedSlice layer
-        ends = int64_array([np.iinfo(np.int32).max if item > np.iinfo(np.int32).max else item for item in ends])
+        ends = np.clip(ends, np.iinfo(np.int32).min, np.iinfo(np.int32).max)
         if node.is_in_port_connected(3):
             axes = node.in_port(3).data.get_value()
             if axes is None:
