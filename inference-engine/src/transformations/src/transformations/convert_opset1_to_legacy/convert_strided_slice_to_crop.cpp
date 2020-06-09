@@ -41,10 +41,6 @@ void ngraph::pass::ConvertStridedSliceToCrop::convert_strided_slice_to_crop() {
 
         auto input_shape = slice->get_input_shape(0);
         auto output_shape = slice->get_output_shape(0);
-        // MKLDNN: "Crop supports only 2d, 4d and 5d blobs."
-        if (input_shape.size() != 2 && input_shape.size() != 4 && input_shape.size() != 5) {
-            return false;
-        }
 
         auto begin = begin_node->cast_vector<int64_t>();
         auto end = end_node->cast_vector<int64_t>();
@@ -199,6 +195,12 @@ void ngraph::pass::ConvertStridedSliceToCrop::convert_strided_slice_to_crop() {
             data_node = std::make_shared<ngraph::opset1::Reshape>(data_node, new_shape, true);
             data_node->set_friendly_name(slice->get_friendly_name() + "/Reshape_before");
             new_ops.push_back(data_node);
+        }
+
+        auto data_node_shape = data_node->get_output_shape(0);
+        // MKLDNN: "Crop supports only 2d, 4d and 5d blobs."
+        if (data_node_shape.size() != 2 && data_node_shape.size() != 4 && data_node_shape.size() != 5) {
+            return false;
         }
 
         // Crop
