@@ -868,7 +868,7 @@ int main(int argc, char *argv[]) {
                             if (!FLAGS_o.empty()) {
                                 outputFrame =
                                         &ptrScores.front() + numScoresPerFrame * sizeof(float) * (inferRequest.frameIndex);
-                                MemoryBlob::CPtr moutput = as<MemoryBlob>(inferRequest.inferRequest.GetBlob(cOutputInfo.rbegin()->first));
+                                MemoryBlob::CPtr moutput = as<MemoryBlob>(ptrOutputBlob);
                                 if (!moutput) {
                                     throw std::logic_error("We expect output to be inherited from MemoryBlob, "
                                                            "but by fact we were not able to cast output to MemoryBlob");
@@ -882,8 +882,7 @@ int main(int argc, char *argv[]) {
                             }
 
                             if (!FLAGS_r.empty()) {
-                                Blob::Ptr outputBlob = inferRequest.inferRequest.GetBlob(cOutputInfo.rbegin()->first);
-                                MemoryBlob::CPtr moutput = as<MemoryBlob>(outputBlob);
+                                MemoryBlob::CPtr moutput = as<MemoryBlob>(ptrOutputBlob);
                                 if (!moutput) {
                                     throw std::logic_error("We expect output to be inherited from MemoryBlob, "
                                                            "but by fact we were not able to cast output to MemoryBlob");
