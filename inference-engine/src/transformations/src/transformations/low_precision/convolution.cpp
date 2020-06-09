@@ -94,7 +94,6 @@ void ConvolutionTransformation::registerMatcherIn(GraphRewrite &pass, Transforma
 }
 
 void ConvolutionTransformation::transform(TransformationContext &context, ngraph::pattern::Matcher &m) const {
-    //return;
     auto layer = m.get_match_root();
     // Almost all checks that was in WeightableLayerTransformation now should be included into the pattern in registerMatcherIn
     if (!WeightableLayerTransformation::canBeTransformed(context, layer)) {
@@ -122,7 +121,6 @@ void ConvolutionTransformation::transform(TransformationContext &context, ngraph
         auto newMultiplyFromData = swapMultiplyAndAdd(
                 decomposeMultiplyAdd(as_type_ptr<ngraph::op::MultiplyAdd>(scaleShiftOnData)));
         auto newAdd = optimizeAdd(as_type_ptr<opset1::Add>(newMultiplyFromData->input_value(0).get_node_shared_ptr()));
-
         // FIXME: next workaround normalizes shape of newAdd to match CPU plugin expectations
         if (newAdd && newAdd->get_output_partial_shape(0) != newAdd->get_input_partial_shape(1)) {
             // Insert explicit broadcast for channel dimension [1] and immediately fold it
@@ -148,12 +146,13 @@ void ConvolutionTransformation::transform(TransformationContext &context, ngraph
 
     {
         decomposeFakeQuantizeForWeightsPath(layer, supportAsymmetricQuantization);
-        // reassign, because the old one is obosolete and replaced
+        // reassign, because the old one is obsolete and replaced
         parentOnWeights = layer->input_value(1).get_node_shared_ptr();
         auto newMultiplyFromWeights = swapMultiplyAndAdd(decomposeMultiplyAdd(as_type_ptr<ngraph::op::MultiplyAdd>(parentOnWeights)));
 
         // Check if all dimensions of scale except the first one (which is O-Output channels dimension) are all ones
         auto weightScaleShape = newMultiplyFromWeights->get_input_shape(1);
+        // FIXME: check for rank and 1D-like multiplier
         if (weightScaleShape.size() <= 2 && shape_size(weightScaleShape) != weightScaleShape[0]) {
             // TODO: should we roll back all changes in the network?
             return;
