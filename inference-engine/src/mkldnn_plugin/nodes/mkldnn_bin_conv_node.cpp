@@ -35,10 +35,13 @@ using namespace InferenceEngine;
 
 MKLDNNBinaryConvolutionNode::MKLDNNBinaryConvolutionNode(const InferenceEngine::CNNLayerPtr& layer,
                                                          const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
-        : MKLDNNNode(layer, eng, cache) {
+        : MKLDNNNode(layer, eng, cache), baseInputsNumber(1) {
     internalBlobDesc.emplace_back([&](primitive_desc_iterator &primitive_desc_it, size_t idx) -> MKLDNNMemoryDesc {
         return MKLDNNMemoryDesc(primitive_desc_it.weights_primitive_desc(0).desc());
     });
+
+    if (getCnnLayer()->type == "BinaryConvolution")
+        baseInputsNumber = getCnnLayer().get()->insData.size();
 }
 
 void MKLDNNBinaryConvolutionNode::getSupportedDescriptors() {
@@ -135,7 +138,7 @@ void MKLDNNBinaryConvolutionNode::getSupportedDescriptors() {
 #endif
     }
 
-    int expectedInputEdgesNum = 1 + isFusedWith(Eltwise);
+    int expectedInputEdgesNum = baseInputsNumber + isFusedWith(Eltwise);
     for (int i = 0; i < fusedWith.size(); i++) {
         auto *convolutionNode = dynamic_cast<MKLDNNConvolutionNode *>(fusedWith[i].get());
         if (convolutionNode) {
@@ -319,8 +322,8 @@ void MKLDNNBinaryConvolutionNode::setPostOps(mkldnn::primitive_attr &attr, bool 
                     ops.append_dw_conv(dw_conv_ih, dw_conv_iw, dw_conv_kernel[Y_AXIS], dw_conv_kernel[X_AXIS],
                                        dw_conv_strides[Y_AXIS], dw_conv_strides[X_AXIS],
                                        mkldnn::memory::convert_to_c(dw_conv_in_dt),
-                                       static_cast<float *>(getParentEdgeAt(1)->getMemory().GetData()),
-                                       static_cast<float *>(getParentEdgeAt(2)->getMemory().GetData()));
+                                       static_cast<float *>(getParentEdgeAt(baseInputsNumber + 0)->getMemory().GetData()),
+                                       static_cast<float *>(getParentEdgeAt(baseInputsNumber + 1)->getMemory().GetData()));
                 }
             } else {
                 ops.append_dw_conv(dw_conv_ih, dw_conv_iw, dw_conv_kernel[Y_AXIS], dw_conv_kernel[X_AXIS],
@@ -363,22 +366,32 @@ void MKLDNNBinaryConvolutionNode::initSupportedPrimitiveDescriptors() {
             }
 
             if (withDWConv) {
-                auto weightsPrc = memory::data_type::f32;
-                auto biasPrc = memory::data_type::f32;
+                int convNumInput = 1;
+                for (auto &node : fusedWith) {
+                    auto* convolutionNode = dynamic_cast<MKLDNNConvolutionNode *>(node.get());
+                    if (convolutionNode) {
+                        convNumInput = convolutionNode->getBaseIntputsNumber();
+                        break;
+                    }
+                }
+                if (convNumInput > 1) {
+                    auto weightsPrc = memory::data_type::f32;
+                    auto biasPrc = memory::data_type::f32;
 
-                MKLDNNDims dwWeightsDims({dw_conv_oc, (ptrdiff_t)1, (ptrdiff_t)1, dw_conv_kernel[Y_AXIS], dw_conv_kernel[X_AXIS]});
-                MKLDNNDims dwBiasesDims({dw_conv_oc});
-                auto w_fmt = mkldnn::impl::cpu::mayiuse(impl::cpu::cpu_isa_t::avx512_common)
-                             ? memory::format::Goihw16g : memory::format::Goihw8g;
+                    MKLDNNDims dwWeightsDims({dw_conv_oc, (ptrdiff_t)1, (ptrdiff_t)1, dw_conv_kernel[Y_AXIS], dw_conv_kernel[X_AXIS]});
+                    MKLDNNDims dwBiasesDims({dw_conv_oc});
+                    auto w_fmt = mkldnn::impl::cpu::mayiuse(impl::cpu::cpu_isa_t::avx512_common)
+                                 ? memory::format::Goihw16g : memory::format::Goihw8g;
 
-                InferenceEngine::DataConfig dataConfig;
-                dataConfig.inPlace = -1;
-                dataConfig.constant = false;
-                dataConfig.desc = MKLDNNMemoryDesc(dwWeightsDims, weightsPrc, w_fmt);
-                config.inConfs.push_back(dataConfig);
+                    InferenceEngine::DataConfig dataConfig;
+                    dataConfig.inPlace = -1;
+                    dataConfig.constant = false;
+                    dataConfig.desc = MKLDNNMemoryDesc(dwWeightsDims, weightsPrc, w_fmt);
+                    config.inConfs.push_back(dataConfig);
 
-                dataConfig.desc = MKLDNNMemoryDesc(dwBiasesDims, biasPrc, memory::format::x);
-                config.inConfs.push_back(dataConfig);
+                    dataConfig.desc = MKLDNNMemoryDesc(dwBiasesDims, biasPrc, memory::format::x);
+                    config.inConfs.push_back(dataConfig);
+                }
             }
 
             std::vector<memory::format> outFormats;
@@ -481,22 +494,32 @@ void MKLDNNBinaryConvolutionNode::initDescriptor(const InferenceEngine::LayerCon
             }
 
             if (withDWConv) {
-                auto weightsPrc = memory::data_type::f32;
-                auto biasPrc = memory::data_type::f32;
+                int convNumInput = 1;
+                for (auto &node : fusedWith) {
+                    auto* convolutionNode = dynamic_cast<MKLDNNConvolutionNode *>(node.get());
+                    if (convolutionNode) {
+                        convNumInput = convolutionNode->getBaseIntputsNumber();
+                        break;
+                    }
+                }
+                if (convNumInput > 1) {
+                    auto weightsPrc = memory::data_type::f32;
+                    auto biasPrc = memory::data_type::f32;
 
-                MKLDNNDims dwWeightsDims({dw_conv_oc, (ptrdiff_t)1, (ptrdiff_t)1, dw_conv_kernel[Y_AXIS], dw_conv_kernel[X_AXIS]});
-                MKLDNNDims dwBiasesDims({dw_conv_oc});
-                auto w_fmt = mkldnn::impl::cpu::mayiuse(impl::cpu::cpu_isa_t::avx512_common)
-                             ? memory::format::Goihw16g : memory::format::Goihw8g;
+                    MKLDNNDims dwWeightsDims({dw_conv_oc, (ptrdiff_t)1, (ptrdiff_t)1, dw_conv_kernel[Y_AXIS], dw_conv_kernel[X_AXIS]});
+                    MKLDNNDims dwBiasesDims({dw_conv_oc});
+                    auto w_fmt = mkldnn::impl::cpu::mayiuse(impl::cpu::cpu_isa_t::avx512_common)
+                                 ? memory::format::Goihw16g : memory::format::Goihw8g;
 
-                InferenceEngine::DataConfig dataConfig;
-                dataConfig.inPlace = -1;
-                dataConfig.constant = false;
-                dataConfig.desc = MKLDNNMemoryDesc(dwWeightsDims, weightsPrc, w_fmt);
-                cfg.inConfs.push_back(dataConfig);
+                    InferenceEngine::DataConfig dataConfig;
+                    dataConfig.inPlace = -1;
+                    dataConfig.constant = false;
+                    dataConfig.desc = MKLDNNMemoryDesc(dwWeightsDims, weightsPrc, w_fmt);
+                    cfg.inConfs.push_back(dataConfig);
 
-                dataConfig.desc = MKLDNNMemoryDesc(dwBiasesDims, biasPrc, memory::format::x);
-                cfg.inConfs.push_back(dataConfig);
+                    dataConfig.desc = MKLDNNMemoryDesc(dwBiasesDims, biasPrc, memory::format::x);
+                    cfg.inConfs.push_back(dataConfig);
+                }
             }
 
             for (size_t j = 0; j < desc.outputNumbers(); j++) {
