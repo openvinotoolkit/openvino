@@ -59,7 +59,7 @@ private:
         InferenceEngine::SizeVector dimsVector(dims.size());
         for (const auto& dim : dims) {
             auto index = dimToIeInd(dim.first, dims.size());
-            dimsVector[index] = dim.second;
+            dimsVector[dims.size() - 1 - index] = dim.second;
         }
 
         for (size_t i = 0; i < permutation.size() - 1; ++i) {
