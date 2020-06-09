@@ -19,14 +19,13 @@ set(NGRAPH_ONNX_NAMESPACE ngraph_onnx)
 
 set(ONNX_LIBRARIES onnx onnx_proto)
 
+add_subdirectory(runtime)
 
 if(NOT NGRAPH_UNIT_TEST_ENABLE)
     message(STATUS "unit tests disabled")
     add_subdirectory(util)
     return()
 endif()
-
-add_subdirectory(runtime)
 
 message(STATUS "unit tests enabled")
 

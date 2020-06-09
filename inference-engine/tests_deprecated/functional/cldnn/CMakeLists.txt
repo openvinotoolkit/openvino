@@ -29,6 +29,11 @@ list(APPEND CLDNN_LIBS
 include(FindPkgConfig)
 pkg_search_module(LIBVA QUIET libva)
 
+# TODO: pkg_search_module finds libva not in sysroot
+if(ANDROID)
+    set(LIBVA_FOUND OFF)
+endif()
+
 if(LIBVA_FOUND)
     list(APPEND CLDNN_LIBS ${LIBVA_LINK_LIBRARIES})
 endif()
