@@ -93,8 +93,6 @@ public:
 
     static Blob::Ptr getBlob(const CNNLayer* layer, const std::string& blobName);
 
-    static bool blobValuesAreEqual(const CNNLayer& layer, const std::string& blobName);
-
     static std::shared_ptr<float> getFloatData(const CNNLayerPtr& layer, const std::string& blobName);
 
     static std::shared_ptr<float> getFloatData(const Blob::Ptr& srcBlob);

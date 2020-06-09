@@ -68,21 +68,15 @@ bool FullyConnectedTransformation::canBeTransformed(const TransformationContext&
         return false;
     }
 
-    // 3D tensor custom validation
-    if ((inTensorDims.size() == 3ul) &&
-        ((!CNNNetworkHelper::blobValuesAreEqual(*scaleShift, "weights")) || (!CNNNetworkHelper::blobValuesAreEqual(*scaleShift, "biases")))) {
+    std::vector<float> dequantizationScales;
+    std::vector<float> dequantizationShifts;
+    fillFromDequantizationLayer(*scaleShift, dequantizationScales, dequantizationShifts);
+
+    if ((inTensorDims.size() == 3ul) && (!DequantizationDetails::isPerTensor(dequantizationScales, dequantizationShifts))) {
         return false;
     }
 
-    const Blob::Ptr prevDequantizationScaleBlob = CNNNetworkHelper::getBlob(scaleShift, "weights");
-    const size_t prevDequantizationScaleBlobSize = prevDequantizationScaleBlob->size();
-    if (prevDequantizationScaleBlobSize != inTensorDims[1]) {
-        return false;
-    }
-
-    const Blob::Ptr prevDequantizationShiftBlob = CNNNetworkHelper::getBlob(scaleShift, "biases");
-    const size_t prevDequantizationShiftBlobSize = prevDequantizationShiftBlob->size();
-    if (prevDequantizationShiftBlobSize != inTensorDims[1]) {
+    if ((dequantizationScales.size() != inTensorDims[1]) || (dequantizationShifts.size() != inTensorDims[1])) {
         return false;
     }
 

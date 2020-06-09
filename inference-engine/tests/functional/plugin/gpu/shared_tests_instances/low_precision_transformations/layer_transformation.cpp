@@ -38,6 +38,7 @@
 #include "low_precision_transformations/convolution.hpp"
 #include "low_precision_transformations/scaleshift_to_convolution.hpp"
 #include "low_precision_transformations/fully_connected.hpp"
+#include "low_precision_transformations/gemm.hpp"
 
 using namespace InferenceEngine::details;
 #include "common_test_utils/common_utils.hpp"
@@ -52,7 +53,7 @@ InferenceEngine::details::LowPrecisionTransformations LayerTransformation::getLo
     return LowPrecisionTransformer::getAllTransformations(params)
         .add<FullyConnectedTransformation>(
             InferenceEngine::details::LayerTransformation::Params(params).setSupportAsymmetricQuantization(false), "FullyConnected")
-        .add<FullyConnectedTransformation>(
+        .add<GemmTransformation>(
             InferenceEngine::details::LayerTransformation::Params(params).setSupportAsymmetricQuantization(false), "GEMM");
 }
 

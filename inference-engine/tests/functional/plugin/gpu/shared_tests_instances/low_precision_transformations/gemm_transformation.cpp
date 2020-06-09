@@ -20,7 +20,7 @@ const std::vector<InferenceEngine::SizeVector> dimensions = {
 };
 
 const std::vector<LayerTransformation::Params> trasformationParamValues = {
-    LayerTestsUtils::LayerTransformationParamsFactory::createParams()
+    LayerTestsUtils::LayerTransformationParamsFactory::createParamsI8I8()
 };
 
 INSTANTIATE_TEST_CASE_P(LPT, GemmTransformation,
