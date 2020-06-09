@@ -68,6 +68,10 @@ InferenceEngine::details::LayerTransformation::Params LayerTransformationParamsF
         { InferenceEngine::Precision::I8 });
 }
 
+LayerTransformation::LayerTransformation() {
+    threshold = 0.05;
+}
+
 InferenceEngine::details::LowPrecisionTransformer LayerTransformation::getLowPrecisionTransformer(
     const InferenceEngine::details::LayerTransformation::Params& params) const {
     InferenceEngine::details::LowPrecisionTransformer transformer(getLowPrecisionTransformations(params));
