@@ -1732,6 +1732,7 @@ std::shared_ptr<opset1::Constant> roundWithTolerance(std::shared_ptr<Node> node,
     auto castedConstant = as_type_ptr<opset1::Constant>(fold<opset1::Convert>(constant, target_type));
     auto castedValues = castedConstant->cast_vector<float>();
 
+    // TODO: implement with constant folding when ReduceAnd constant folding is ready
     if (std::equal(values.begin(), values.end(), castedValues.begin(), [tolerance](float a, float b) { return fabs(a - b) < tolerance; })) {
         return castedConstant;
     } else {
@@ -1777,7 +1778,7 @@ std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> decomposeFakeQuantize(s
                 fold<opset1::Subtract>(outputHigh, outputLow),
                 fold<opset1::Subtract>(newMax, newMin));
 
-        // TODO: here should be a check for zero point; I've removed it as it alway true
+        // TODO: here should be a check for zero point; I've removed it as it always true
         // if it is really required
         shift = outputLow.get_node_shared_ptr();
     }
@@ -1791,10 +1792,6 @@ std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> decomposeFakeQuantize(s
             newMax->output(0),
             fq->get_levels(),
             fq->get_auto_broadcast());
-
-//    auto denormalization = make_shared<op::TypeRelaxed<ngraph::op::MultiplyAdd>>(
-//            ngraph::op::MultiplyAdd(std::shared_ptr<Node>(op::AutoReplaceOutputType(
-//                    newFQ, fq->get_output_element_type(0))), scale, shift), fq->get_output_element_type(0));
 
     auto dequantize = make_shared<ngraph::op::MultiplyAdd>(
             make_shared<opset1::Convert>(

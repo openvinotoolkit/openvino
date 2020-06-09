@@ -51,8 +51,8 @@ void FakeQuantizeTransformation::transform(TransformationContext& context, ngrap
         if (constant) {
             // TODO: Check multiply consumers
             // TODO: verify that direct multiplication is correct
-            auto newInputMin = fold<opset1::Multiply>(layer->input_value(1), constant);
-            auto newInputMax = fold<opset1::Multiply>(layer->input_value(2), constant);
+            auto newInputMin = fold<opset1::Divide>(layer->input_value(1), constant);
+            auto newInputMax = fold<opset1::Divide>(layer->input_value(2), constant);
             // FIXME: workaround for current CPU implementation that has restrictions on shapes:
             auto newShape = newInputMin->get_output_shape(0);
             newShape.insert(newShape.begin(), 1);
@@ -113,54 +113,6 @@ void FakeQuantizeTransformation::transform(TransformationContext& context, ngrap
     NetworkHelper::setOutDataPrecision(quantize, quantizeConvert->get_output_element_type(0));
     NetworkHelper::removeLayer(quantizeConvert);
 
-#if 0 // replaced by decomposeFakeQuantize
-    // Quantize is represented as FakeQuantize operation, just update existing node to serve the role
-    NetworkHelper::updateBlobs(layer, 3, dataPrecision.min);
-    NetworkHelper::updateBlobs(layer, 4, dataPrecision.max);
-#endif
-
-    // Dequantize can be represented as Multiply+Add combination, but currently we use ScaleShiftIE.
-
-    // Difference from legacy LPT: don't add Dequantize to not connected port; output case is covered via Result,
-    // just not connected port is not used then no need to add Dequantize.
-
-#if 0
-    auto children = consumer_inputs(layer);
-    std::string nameForResult = layer->get_friendly_name();
-    for (auto child : children) {
-        std::string nameForDequantize;
-        if (child.get_node()->get_type_info().is_castable(opset1::Result::get_type_info_static())) {
-            if (nameForDequantize.empty()) {
-                // TODO: not a regular situation when we have more than one Result for FQ or we don't have friendly_name for FQ
-            } else {
-                nameForDequantize = nameForResult;
-                nameForResult.clear();  // use only once
-            }
-        }
-        auto dequantizationLayer = NetworkHelper::addScaleShiftBeforeInput(
-                context,
-                child,
-                DequantizationDetails(dequantizationScales, dequantizationShifts, dequantizationShifts.size()),
-                nameForDequantize);
-        context.dequantizationLayersNames.insert(dequantizationLayer->get_friendly_name());
-    }
-#else
-#if 0  // replaced by decomposeFakeQuantize
-    NetworkHelper::addDequantizationAfter(
-            context,
-            layer->output(0),
-            DequantizationDetails(dequantizationScales, dequantizationShifts, dequantizationShifts.size()));
-#endif
-#endif
-
-#if 0 // replaced by decomposeFakeQuantize
-    // Move update precision for FQ later after SS is inserted
-    // It is required because we don't rely on original precision map and extract original precisions from the graph node
-    // If precision for FQ is set before adding SS, then SS will derive type of its output as u8/i8 from FQ which is not correct
-    if (updatePrecisions) {
-        NetworkHelper::setOutDataPrecision(layer, dataPrecision.precision);
-    }
-#endif
 
     // TODO: Get rid of this.
     context.quantizedFakeQuantizeNames.insert(layer->get_friendly_name());

@@ -360,7 +360,7 @@ std::shared_ptr<Node> fold_fake_quantize(Args&&... args) {
             op::util::constantIsEqualTo(as_type_ptr<opset1::Constant>(node->input_value(2).get_node_shared_ptr()), 254) &&
             op::util::constantIsEqualTo(as_type_ptr<opset1::Constant>(node->input_value(3).get_node_shared_ptr()), -127) &&
             op::util::constantIsEqualTo(as_type_ptr<opset1::Constant>(node->input_value(4).get_node_shared_ptr()), 127)) {
-            return fold<opset1::Subtract>(node->input_value(0), node->input_value(3));
+            return fold<opset1::Add>(node->input_value(0), node->input_value(3));
         }
     }
     return node;
