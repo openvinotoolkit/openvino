@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016-2019 Intel Corporation
+// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -121,6 +121,33 @@ inline VF<T> flatten_4d(cldnn::format input_format, VVVVF<T> &data) {
                             vec[idx++] = data[bi][fi][yi][xi];
             break;
 
+        default:
+            assert(0);
+    }
+    return vec;
+}
+
+template<typename T>
+inline VF<T> flatten_6d(cldnn::format input_format, VVVVVVF<T> &data) {
+    size_t a = data.size();
+    size_t b = data[0].size();
+    size_t c = data[0][0].size();
+    size_t d = data[0][0][0].size();
+    size_t e = data[0][0][0][0].size();
+    size_t f = data[0][0][0][0][0].size();
+    VF<T> vec(a * b * c * d * e * f, (T)(0.0f));
+    size_t idx = 0;
+
+    switch (input_format.value) {
+        case cldnn::format::bfwzyx:
+            for (size_t bi = 0; bi < a; ++bi)
+                for (size_t fi = 0; fi < b; ++fi)
+                    for (size_t wi = 0; wi < c; ++wi)
+                        for (size_t zi = 0; zi < d; ++zi)
+                            for (size_t yi = 0; yi < e; ++yi)
+                                for (size_t xi = 0; xi < f; ++xi)
+                                    vec[idx++] = data[bi][fi][wi][zi][yi][xi];
+            break;
         default:
             assert(0);
     }

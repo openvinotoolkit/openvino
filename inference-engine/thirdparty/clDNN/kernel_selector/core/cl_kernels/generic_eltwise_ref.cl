@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016-2019 Intel Corporation
+// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -32,7 +32,39 @@ KERNEL(eltwise)(
 #endif
     )
 {
-#if OUTPUT_DIMS == 5 // 3D spatial
+
+#if OUTPUT_DIMS == 6 // 4D spatial
+    #if ELTWISE_LAYOUT_BASED || QUANTIZATION_TERM || ELTWISE_BROADCAST
+        uint data_idx = get_global_id(GWS_YX);
+        const uint d1 = data_idx % OUTPUT_SIZE_X; // X
+        data_idx = data_idx / OUTPUT_SIZE_X;
+
+        const uint d2 = data_idx % OUTPUT_SIZE_Y; // Y
+        data_idx = data_idx / OUTPUT_SIZE_Y;
+
+        const uint d3 = data_idx % OUTPUT_SIZE_Z; // Z
+        data_idx = data_idx / OUTPUT_SIZE_Z;
+
+        const uint d4 = data_idx % OUTPUT_SIZE_W; // W
+
+        const uint d5 = get_global_id(GWS_FEATURE);             // Feature
+        const uint d6 = get_global_id(GWS_BATCH);               // Batch
+
+        uint output_offset = OUTPUT_GET_INDEX(d6, d5, d4, d3, d2, d1);
+    #elif ELTWISE_NO_PITCH_SAME_DIMS
+        const uint d1 = get_global_id(0);
+        uint output_offset = OUTPUT_OFFSET + d1;
+    #else
+        const uint d1 = get_global_id(0);
+        const uint d2 = (uint)get_global_id(1) % OUTPUT_SIZES[1];
+        const uint d3 = (uint)get_global_id(1) / OUTPUT_SIZES[1] % OUTPUT_SIZE[2];
+        const uint d4 = (uint)get_global_id(1) / OUTPUT_SIZES[1] / OUTPUT_SIZE[2];
+        const uint d5 = (uint)get_global_id(2) % OUTPUT_SIZES[3];
+        const uint d6 = (uint)get_global_id(2) / OUTPUT_SIZES[3];
+
+        uint output_offset = OUTPUT_GET_INDEX(d6, d5, d4, d3, d2, d1);
+    #endif
+#elif OUTPUT_DIMS == 5 // 3D spatial
     #if ELTWISE_LAYOUT_BASED || QUANTIZATION_TERM || ELTWISE_BROADCAST
         uint data_idx = get_global_id(GWS_YX);
         const uint d1 = data_idx % OUTPUT_SIZE_X; // X

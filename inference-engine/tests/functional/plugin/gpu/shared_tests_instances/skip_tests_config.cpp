@@ -9,6 +9,8 @@
 
 std::vector<std::string> disabledTestPatterns() {
     return {
-            R"(.*(EltwiseLayerTest).*IS=\(.*\..*\..*\..*\..*\).*secondaryInputType=PARAMETER.*opType=SCALAR.*)",
+            // cldnn treats 1d constant as [1, f, 1, 1] tensor instead of [b, 1, 1, 1] which leads to fails of these tests
+            R"(.*(EltwiseLayerTest).*IS=\(.*\..*\..*\..*\..*\).*secondaryInputType=CONSTANT.*opType=SCALAR.*)",
+            R"(.*(EltwiseLayerTest).*IS=\(.*\).*secondaryInputType=CONSTANT.*)",
     };
 }

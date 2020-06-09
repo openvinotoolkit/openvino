@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2016-2019 Intel Corporation
+﻿// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -397,6 +397,8 @@ JitConstants EltwiseKernelBase::MakeIndexJitConstants(const eltwise_params& para
                                                                                           {1, 1, 1})));
             } else if (out_c == 5) {
                 jit.AddConstant(MakeJitConstant(out_idx_order, "d5,d4,d3,d2,d1"));
+            } else if (out_c == 6) {
+                jit.AddConstant(MakeJitConstant(out_idx_order, "d6,d5,d4,d3,d2,d1"));
             } else {
                 assert(0);
             }
@@ -445,6 +447,14 @@ JitConstants EltwiseKernelBase::MakeIndexJitConstants(const eltwise_params& para
                     // quite strange case, but can happen due to reorders fusing
                     // it means that z coord is equal to 1, so z offset will be always equal to 0
                     jit.AddConstant(MakeJitConstant(idx_order, "d4,d3,0,d2,d1"));
+                } else if (out_c == 6) {
+                    if (in_c < 5)
+                        jit.AddConstant(MakeJitConstant(idx_order, "d6,d5,d2,d1"));
+                    else if (in_c == 5) {
+                        jit.AddConstant(MakeJitConstant(idx_order, "d6,d5,d3,d2,d1"));
+                    } else {
+                        jit.AddConstant(MakeJitConstant(idx_order, "d6,d5,d4,d3,d2,d1"));
+                    }
                 } else {
                     assert(0);
                 }
@@ -526,19 +536,16 @@ EltwiseKernelBase::DispatchData EltwiseKernelBase::SetDefault(const eltwise_para
             gws.push_back(o.v);
         }
 
-        size_t n_dims;
-        if ((out.GetLayout() == DataLayout::bfzyx)  || (out.GetLayout() == DataLayout::b_fs_zyx_fsv16) ||
-            (out.GetLayout() == DataLayout::bs_fs_zyx_bsv16_fsv16))
-            n_dims = 5;
-        else
-            n_dims = 4;
-
+        size_t n_dims = DataTensor::ChannelsCount(out.GetLayout());
         for (size_t i = gws.size(); i < n_dims; i++) {
             gws.push_back(1U);
         }
 
         kd.gws0 = gws[0];
-        if (n_dims == 5) {
+        if (n_dims == 6) {
+            kd.gws1 = gws[1] * gws[2] * gws[3];  // y*z*w
+            kd.gws2 = gws[4] * gws[5];
+        } else if (n_dims == 5) {
             kd.gws1 = gws[1] * gws[2];  // y*z
             kd.gws2 = gws[3] * gws[4];
         } else {

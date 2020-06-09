@@ -52,6 +52,7 @@ JitConstants PermuteKernelRef::GetJitConstants(const permute_params& params) con
         default: in_idx = {"b", "f", "x", "y" }; break;
     }
 
+    assert(params.order.size() == in_idx.size());
     for (auto& o : params.order) {
         out_idx.push_back(in_idx[o]);
     }
