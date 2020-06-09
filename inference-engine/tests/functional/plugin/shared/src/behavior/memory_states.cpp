@@ -43,24 +43,58 @@ TEST_P(MemoryStateTest, smoke_MemoryState_QueryState) {
 
 TEST_P(MemoryStateTest, smoke_MemoryState_SetState) {
     auto executableNet = PrepareNetwork();
+    const int16_t new_state_val = 123;
+    for (auto&& state : executableNet.QueryState()) {
+        state.Reset();
+        auto element_count = state.GetLastState()->size();
+
+        std::vector<int16_t> new_state_data(element_count, new_state_val);
+        auto stateBlob = InferenceEngine::make_shared_blob<int16_t>(
+            { InferenceEngine::Precision::I16, {element_count}, InferenceEngine::C },
+            new_state_data.data(), new_state_data.size());
+
+        state.SetState(stateBlob);
+    }
+
+    for (auto&& state : executableNet.QueryState()) {
+        auto lastState = state.GetLastState();
+        auto last_state_size = lastState->size();
+        auto last_state_data = lastState->cbuffer().as<int16_t*>();
+        ASSERT_FALSE(last_state_size == 0) << "State size should not be 0";
+
+        for (int i = 0; i < last_state_size; i++) {
+            ASSERT_EQ(new_state_val, last_state_data[i]);
+        }
+    }
+}
+
+TEST_P(MemoryStateTest, smoke_MemoryState_Reset) {
+    auto executableNet = PrepareNetwork();
+    const int16_t new_state_val = 123;
+    for (auto&& state : executableNet.QueryState()) {
+        state.Reset();
+        auto element_count = state.GetLastState()->size();
+
+        std::vector<int16_t> new_state_data(element_count, new_state_val);
+        auto stateBlob = InferenceEngine::make_shared_blob<int16_t>(
+            { InferenceEngine::Precision::I16, {element_count}, InferenceEngine::C },
+            new_state_data.data(), new_state_data.size());
+
+        state.SetState(stateBlob);
+    }
 
     for (auto&& state : executableNet.QueryState()) {
         state.Reset();
     }
 
-    float data[] = { 123, 124 };
-    auto stateBlob = InferenceEngine::make_shared_blob<float>(
-        { InferenceEngine::Precision::FP32, {2}, InferenceEngine::C },
-        data, sizeof(data) / sizeof(*data));
-    executableNet.QueryState().front().SetState(stateBlob);
-
-
     for (auto&& state : executableNet.QueryState()) {
-        try {
-            auto lastState = state.GetLastState();
-        } catch (InferenceEngine::details::InferenceEngineException ex) {
-            std::string msg = ex.what();
-            ASSERT_TRUE(msg.find("GetLastState method is not yet implemented for GNAMemoryState") != std::string::npos) << ex.what();
+        auto lastState = state.GetLastState();
+        auto last_state_size = lastState->size();
+        auto last_state_data = lastState->cbuffer().as<int16_t*>();
+        ASSERT_FALSE(last_state_size == 0) << "State size should not be 0";
+
+        for (int i = 0; i < last_state_size; i++) {
+            ASSERT_EQ(0, last_state_data[i]);
         }
     }
 }

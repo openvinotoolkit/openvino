@@ -13,7 +13,7 @@ namespace  GNAPluginNS {
 namespace memory {
 class GNAMemoryState : public InferenceEngine::IMemoryStateInternal {
  public:
-    GNAMemoryState(std::string name, GNAMemoryLayer state)
+    GNAMemoryState(std::string name, GNAMemoryLayer *state)
         : name(name), state(state) { }
 
     void Reset() override;
@@ -22,7 +22,7 @@ class GNAMemoryState : public InferenceEngine::IMemoryStateInternal {
     std::string GetName() const override;
 
 private:
-    GNAMemoryLayer state;
+    GNAMemoryLayer* state;
     std::string name;
 };
 }  // namespace memory

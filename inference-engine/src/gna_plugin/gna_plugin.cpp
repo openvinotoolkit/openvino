@@ -455,9 +455,6 @@ void GNAPlugin::LoadNetwork(ICNNNetwork &network) {
 
     // fill in extra storage with memory layers
     graphCompiler.fillMemoryConnections(memoryPairs);
-    for (auto& mem : graphCompiler.memory_connection) {
-        memoryStates.emplace_back(std::make_shared<memory::GNAMemoryState>(mem.first, mem.second));
-    }
 
     if (!graphCompiler.memory_connection.empty()) {
         gnaFlags->gna_lib_async_threads_num = 1;
@@ -1102,7 +1099,14 @@ Blob::Ptr GNAPlugin::GetInputBlob(const std::string& name, InferenceEngine::Prec
 }
 
 std::vector<InferenceEngine::MemoryStateInternal::Ptr>  GNAPlugin::QueryState() {
-   return memoryStates;
+    if (memoryStates.size() != graphCompiler.memory_connection.size()) {
+        memoryStates.clear();
+        for (auto& connection : graphCompiler.memory_connection) {
+            auto state = std::make_shared<memory::GNAMemoryState>(connection.first, &connection.second);
+            memoryStates.emplace_back(state);
+        }
+    }
+    return memoryStates;
 }
 
 std::string GNAPlugin::GetName() const noexcept {
