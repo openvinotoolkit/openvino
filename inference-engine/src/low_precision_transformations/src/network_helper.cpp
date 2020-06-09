@@ -615,20 +615,6 @@ Blob::Ptr CNNNetworkHelper::getBlob(const CNNLayer* layer, const std::string& bl
     return it->second;
 }
 
-bool CNNNetworkHelper::blobValuesAreEqual(const CNNLayer& layer, const std::string& blobName) {
-    const Blob::Ptr blob = CNNNetworkHelper::getBlob(&layer, blobName);
-    const std::shared_ptr<float> buffer = CNNNetworkHelper::getFloatData(blob);
-    if (!std::equal(
-        buffer.get(),
-        buffer.get() + blob->size(),
-        buffer.get(),
-        [](const float value1, const float value2) { return value1 == value2; })) {
-        return false;
-    }
-
-    return true;
-}
-
 Blob::Ptr CNNNetworkHelper::getBlob(CNNLayerPtr layer, const std::string& blobName) {
     return getBlob(layer.get(), blobName);
 }
