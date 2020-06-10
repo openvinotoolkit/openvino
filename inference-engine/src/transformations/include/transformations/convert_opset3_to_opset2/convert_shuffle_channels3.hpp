@@ -22,7 +22,7 @@ class TRANSFORMATIONS_API ConvertShuffleChannels3;
 
 class ngraph::pass::ConvertShuffleChannels3: public ngraph::pass::GraphRewrite, public ngraph::pass::PassParam {
 public:
-    ConvertShuffleChannels3() : GraphRewrite() {
+    ConvertShuffleChannels3() : GraphRewrite(), PassParam() {
         convert_shuffle_channels3();
     }
 

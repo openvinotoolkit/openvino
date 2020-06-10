@@ -47,6 +47,8 @@ void ngraph::pass::ConvertTileToIETile::convert_tile() {
         //
         // if (!already_set) return false;
         auto last_node = std::dynamic_pointer_cast<ngraph::Node>(data_node);
+        if (!last_node)
+            return false;
         auto friendly_name = tile->get_friendly_name();
 
         int num_of_tile_dims = 0;

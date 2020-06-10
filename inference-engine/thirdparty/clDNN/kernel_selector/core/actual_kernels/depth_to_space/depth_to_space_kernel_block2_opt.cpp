@@ -38,6 +38,9 @@ bool DepthToSpaceKernelBlock2Opt::Validate(const Params& p, const optional_param
     if ((params.block_size != 2) || (params.inputs[0].X().v % 2 != 0))
         return false;
 
+    if (params.mode != DepthToSpaceMode::BLOCKS_FIRST)
+        return false;
+
     return true;
 }
 
