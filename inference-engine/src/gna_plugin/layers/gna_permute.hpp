@@ -40,7 +40,6 @@ public:
 
         // length of current cycle
         std::list<cnt_type> permuteCycles;
-        int seqId = 0;
         bool newSeq = false;
 
         for (int i = 0; i != orderVec.size();) {
