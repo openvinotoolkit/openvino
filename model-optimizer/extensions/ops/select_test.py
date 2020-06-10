@@ -185,7 +185,9 @@ class TestSelect(unittest.TestCase):
          lambda x: np.ones(x, dtype=np.float)),
         ([15, 3, 5], [15, 3, 5], [15, 1, 5], [15, 3, 5], lambda x: np.array([True], np.bool),
          lambda x: np.zeros(x, dtype=np.float), lambda x: np.ones(x, dtype=np.float),
-         lambda x: None)
+         lambda x: None),
+        ([1], [1], [1], [1], lambda x: np.array([True], np.bool),
+         lambda x: None, lambda x: None, lambda x: None)
     ])
     def test_select_infer_condition_with_value(self, condition_shape, else_data_shape, than_data_shape, select_output_shape,
                                                condition_value, else_value, than_value, output_value):

@@ -40,25 +40,18 @@ class Select(Op):
     def infer(node: Node):
         assert len([port for port in node.in_ports().values() if not port.disconnected()]) == 3, "Select operation must have 3 inputs:" \
                                           " \'condition\', \'then\' and \'else\' tensors"
-
         condition_value = node.in_port(0).data.get_value()
         resulting_tensors = [node.in_port(1).data.get_value(), node.in_port(2).data.get_value()]
 
         a_shape = node.in_port(1).data.get_shape()
         b_shape = node.in_port(2).data.get_shape()
         node.out_port(0).data.set_shape(broadcast_shape(a_shape, b_shape))
-        # Case with unknown condition
         if condition_value is not None:
-            output_value = np.array(np.where(condition_value, resulting_tensors[0], resulting_tensors[1]))
-            if condition_value.size != 1:
-                if np.any(output_value == None):
-                    # If any element of output value is None that means that we use the value from 'then' or 'else' tensor
-                    # which is not defined, this means that we cannot perform value propagation.
-                    output_value = None
-            else:
-                assert resulting_tensors[0].dtype == resulting_tensors[1].dtype
-                output_value.astype(resulting_tensors[not np.bool(condition_value.item(0))].dtype)
-
+            output_value = np.where(condition_value, resulting_tensors[0], resulting_tensors[1])
+            if np.any(output_value == None):
+                # If any element of output value is None that means that we use the value from 'then' or 'else' tensor
+                # which is not defined, this means that we cannot perform value propagation.
+                output_value = None
             if output_value is not None:
                 node.out_port(0).data.set_value(np.array(output_value))
 
