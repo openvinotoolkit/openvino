@@ -33,6 +33,17 @@ namespace PluginConfigInternalParams {
 DECLARE_CONFIG_KEY(LP_TRANSFORMS_MODE);
 
 /**
+ * @brief Defines a low precision version key
+ * @ingroup ie_dev_api_plugin_api
+ */
+DECLARE_CONFIG_KEY(LP_TRANSFORMS_VERSION);
+/**
+ * @brief generic KEY_LP_TRANSFORMS_VERSION values
+ */
+DECLARE_CONFIG_VALUE(LP_TRANSFORMS_CNNNETWORK);
+DECLARE_CONFIG_VALUE(LP_TRANSFORMS_NGRAPH);
+
+/**
  * @brief This key should be used to mark input executable subnetworks
  * @ingroup ie_dev_api_plugin_api
  */

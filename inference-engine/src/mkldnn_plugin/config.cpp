@@ -68,6 +68,13 @@ void Config::readProperties(const std::map<std::string, std::string> &prop) {
                 lpTransformsMode = LPTransformsMode::On;
             else
                 THROW_IE_EXCEPTION << "Wrong value for property key " << PluginConfigInternalParams::KEY_LP_TRANSFORMS_MODE;
+        } else if (key.compare(PluginConfigInternalParams::KEY_LP_TRANSFORMS_VERSION) == 0) {
+            if (val == PluginConfigInternalParams::LP_TRANSFORMS_CNNNETWORK)
+                lptVersion = LptVersion::cnnNetwork;
+            else if (val == PluginConfigInternalParams::LP_TRANSFORMS_NGRAPH)
+                lptVersion = LptVersion::nGraph;
+            else
+                THROW_IE_EXCEPTION << "Wrong value for property key " << PluginConfigInternalParams::KEY_LP_TRANSFORMS_MODE;
         } else if (key.compare(PluginConfigParams::KEY_DUMP_QUANTIZED_GRAPH_AS_DOT) == 0) {
             dumpQuantizedGraphToDot = val;
         } else if (key.compare(PluginConfigParams::KEY_DUMP_QUANTIZED_GRAPH_AS_IR) == 0) {

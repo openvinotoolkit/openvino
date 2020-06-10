@@ -116,9 +116,7 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::ICNNNetwork &network, const st
         ngraph::pass::ConvertOpSet2ToOpSet1(transformations_callback).run_on_function(nGraphFunc);
 
         using namespace ngraph::pass::low_precision;
-
-        const char* newLPTEnabled = std::getenv("OPENVINO_NEW_NGRAPH_LPT");
-        if ((newLPTEnabled && std::strcmp(newLPTEnabled, "1") == 0) && conf.lpTransformsMode == Config::LPTransformsMode::On) {
+        if ((conf.lptVersion == Config::LptVersion::nGraph) && conf.lpTransformsMode == Config::LPTransformsMode::On) {
             auto params = LayerTransformation::Params(true,  // updatePrecisions
                                                       true,  // quantizeOutputs
                                                       true,  // weightsToConst
