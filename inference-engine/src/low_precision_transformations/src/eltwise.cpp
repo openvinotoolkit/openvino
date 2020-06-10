@@ -272,7 +272,7 @@ int EltwiseTransformation::getNotEmpty(const CNNLayer& eltwise) {
         return 1;
     }
 
-    const std::vector<std::string> targetTypes = { "Convolution", "GEMM", "FullyConnected" };
+    const std::vector<std::string> targetTypes = { "Convolution", "Gemm", "FullyConnected" };
     const bool allBranchesAreEqual =
         std::all_of(parents.begin(), parents.end(), [&](const CNNLayerPtr& layer) { return isBranchWithTargetType(*layer, targetTypes); }) ||
         std::all_of(parents.begin(), parents.end(), [&](const CNNLayerPtr& layer) { return !isBranchWithTargetType(*layer, targetTypes); });
