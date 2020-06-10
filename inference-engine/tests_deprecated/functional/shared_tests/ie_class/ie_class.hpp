@@ -28,8 +28,6 @@
 #include <iostream>
 #define GTEST_COUT std::cerr << "[          ] [ INFO ] "
 #include <codecvt>
-#include <functional_test_utils/skip_tests_config.hpp>
-
 #endif
 
 using namespace testing;
@@ -180,6 +178,13 @@ TEST_F(IEClassBasicTest, smoke_createMockEngineConfigThrows) {
 #ifdef ENABLE_UNICODE_PATH_SUPPORT
 
 TEST_P(IEClassBasicTestP, smoke_registerPluginsXMLUnicodePath) {
+// TODO: Issue: 31197 Remove this code
+#if defined(_WIN32) || defined(_WIN64)
+    if (deviceName == CommonTestUtils::DEVICE_MYRIAD) {
+        GTEST_SKIP();
+    }
+#endif
+
     std::string pluginXML = TestDataHelpers::get_data_path() + "/ie_class/mock_engine_valid.xml";
 
     for (std::size_t testIndex = 0; testIndex < CommonTestUtils::test_unicode_postfix_vector.size(); testIndex++) {
