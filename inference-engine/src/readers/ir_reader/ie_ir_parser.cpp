@@ -423,41 +423,8 @@ std::shared_ptr<ngraph::Node> V10Parser::createNode(const std::vector<ngraph::Ou
     }
 
     std::shared_ptr<ngraph::Node> ngraphNode;
-    // Try to create operation from creators
-    for (const auto& creator : creators) {
-        if (creator->shouldCreate(params.type)) {
-            bool useCreator = false;
-            // Check that opset is registered
-            useCreator |= opsets.find(params.version) == opsets.end();
-            if (!useCreator) {
-                // Check that creator can create operation with the version from opset
-                const auto opset = opsets.at(params.version);
-                // Opset should contains the same version of operation or doesn't contain operation with current type
-                useCreator |= opset.contains_type(creator->getNodeType()) || !opset.contains_type(params.type);
-            }
-            if (useCreator)
-                ngraphNode = creator->createLayer(inputs, node, binStream, params);
-            break;
-        }
-    }
-
-    // Try to create operation from loaded opsets
-    if (!ngraphNode && opsets.count(params.version)) {
-        auto opset = opsets.at(params.version);
-
-        if (!opset.contains_type(params.type)) {
-            THROW_IE_EXCEPTION << "Opset " << params.version << " doesn't contain the operation with type: " << params.type;
-        }
-
-        ngraphNode = std::shared_ptr<ngraph::Node>(opset.create(params.type));
-        ngraphNode->set_arguments(inputs);
-        XmlDeserializer visitor(node);
-        if (ngraphNode->visit_attributes(visitor))
-            ngraphNode->constructor_validate_and_infer_types();
-    }
-
     // Create GenericIE operation for backward compatibility
-    if (!ngraphNode && (params.version == "experimental" || params.version == "extension")) {
+    if (params.version == "experimental" || params.version == "extension") {
         // Try to create Generic node for backward compatibility
         std::map<std::string, Parameter> parameters;
         pugi::xml_node dn = node.child("data");
@@ -505,6 +472,41 @@ std::shared_ptr<ngraph::Node> V10Parser::createNode(const std::vector<ngraph::Ou
         }
 
         ngraphNode = std::make_shared<ngraph::op::GenericIE>(inputs, parameters, params.type, outputs);
+    }
+
+    // Try to create operation from creators
+    if (!ngraphNode) {
+        for (const auto &creator : creators) {
+            if (creator->shouldCreate(params.type)) {
+                bool useCreator = false;
+                // Check that opset is registered
+                useCreator |= opsets.find(params.version) == opsets.end();
+                if (!useCreator) {
+                    // Check that creator can create operation with the version from opset
+                    const auto opset = opsets.at(params.version);
+                    // Opset should contains the same version of operation or doesn't contain operation with current type
+                    useCreator |= opset.contains_type(creator->getNodeType()) || !opset.contains_type(params.type);
+                }
+                if (useCreator)
+                    ngraphNode = creator->createLayer(inputs, node, binStream, params);
+                break;
+            }
+        }
+    }
+
+    // Try to create operation from loaded opsets
+    if (!ngraphNode && opsets.count(params.version)) {
+        auto opset = opsets.at(params.version);
+
+        if (!opset.contains_type(params.type)) {
+            THROW_IE_EXCEPTION << "Opset " << params.version << " doesn't contain the operation with type: " << params.type;
+        }
+
+        ngraphNode = std::shared_ptr<ngraph::Node>(opset.create(params.type));
+        ngraphNode->set_arguments(inputs);
+        XmlDeserializer visitor(node);
+        if (ngraphNode->visit_attributes(visitor))
+            ngraphNode->constructor_validate_and_infer_types();
     }
 
     if (!ngraphNode) {
