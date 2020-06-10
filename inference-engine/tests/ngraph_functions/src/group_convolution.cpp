@@ -34,8 +34,21 @@ std::shared_ptr<Node> makeGroupConvolution(const ngraph::Output<Node> &in,
     filterWeightsShape.insert(filterWeightsShape.begin(), numGroups);
     filterWeightsShape.insert(filterWeightsShape.end(), filterSize.begin(), filterSize.end());
     auto filterWeightsNode = makeConstant(type, filterWeightsShape, filterWeights, randomFilterWeights);
-    auto conv = std::make_shared<opset1::GroupConvolution>(in, filterWeightsNode, strides, padsBegin, padsEnd, dilations,
-                                                      autoPad);
+
+    return makeGroupConvolution(in, filterWeightsNode, type, strides, padsBegin, padsEnd, dilations, autoPad, addBiases, biasesWeights);
+}
+
+std::shared_ptr<Node> makeGroupConvolution(const ngraph::Output<Node> &in,
+                                           const ngraph::Output<Node> &weights,
+                                           const element::Type &type,
+                                           const std::vector<size_t> &strides,
+                                           const std::vector<ptrdiff_t> &padsBegin,
+                                           const std::vector<ptrdiff_t> &padsEnd,
+                                           const std::vector<size_t> &dilations,
+                                           const op::PadType &autoPad,
+                                           bool addBiases,
+                                           const std::vector<float> &biasesWeights) {
+    auto conv = std::make_shared<opset1::GroupConvolution>(in, weights, strides, padsBegin, padsEnd, dilations, autoPad);
     if (addBiases) {
         bool randomBiases = biasesWeights.empty();
         auto biasesWeightsNode = makeConstant(type, {}, biasesWeights, randomBiases);

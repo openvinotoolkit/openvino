@@ -661,6 +661,13 @@ MKLDNNMemoryDesc::operator InferenceEngine::TensorDesc() const {
             blkDims.push_back(8);
             layout = Layout::BLOCKED;
             break;
+        case memory::gOdhwi8o:
+            order = {0, 1, 2, 3, 4, 5, 1};
+            blkDims = dims;
+            blkDims[1] = blkDims[1] / 8 + (blkDims[1] % 8 ? 1 : 0);
+            blkDims.push_back(8);
+            layout = Layout::BLOCKED;
+            break;
         case memory::nChw16c:
             order = {0, 1, 2, 3, 1};
             blkDims = dims;
@@ -671,6 +678,13 @@ MKLDNNMemoryDesc::operator InferenceEngine::TensorDesc() const {
         case memory::gOhwi16o:
         case memory::nCdhw16c:
             order = {0, 1, 2, 3, 4, 1};
+            blkDims = dims;
+            blkDims[1] = blkDims[1] / 16 + (blkDims[1] % 16 ? 1 : 0);
+            blkDims.push_back(16);
+            layout = Layout::BLOCKED;
+            break;
+        case memory::gOdhwi16o:
+            order = {0, 1, 2, 3, 4, 5, 1};
             blkDims = dims;
             blkDims[1] = blkDims[1] / 16 + (blkDims[1] % 16 ? 1 : 0);
             blkDims.push_back(16);
@@ -1266,6 +1280,13 @@ MKLDNNMemoryDesc::MKLDNNMemoryDesc(const TensorDesc& tDesc):
                         mkldnnFormat = memory::format::Goidhw8g;
                     } else if (blkdDims[6] == 16) {
                         mkldnnFormat = memory::format::Goidhw16g;
+                    }
+                } else if (order.size() == 7 &&
+                           order[0] == 0 && order[1] == 1 && order[2] == 2 && order[3] == 3 && order[4] == 4 && order[5] == 5 && order[6] == 1) {
+                    if (blkdDims[6] == 8) {
+                        mkldnnFormat = memory::format::gOdhwi8o;
+                    } else if (blkdDims[6] == 16) {
+                        mkldnnFormat = memory::format::gOdhwi16o;
                     }
                 } else if (order.size() == 8 &&
                            order[0] == 0 && order[1] == 1 && order[2] == 3 && order[3] == 4 && order[4] == 2 && order[5] == 5 &&
