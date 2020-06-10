@@ -22,6 +22,7 @@
 #include "node.hpp"
 #include "provenance.hpp"
 #include "utils/common.hpp"
+#include "utils/provenance_tag.hpp"
 
 namespace ngraph
 {
@@ -61,37 +62,6 @@ namespace ngraph
                 std::string domain = get_node_domain(node_proto);
                 return (domain.empty() ? "" : domain + ".") + node_proto.op_type();
             }
-
-            static std::string concat_strings(
-                const std::vector<std::reference_wrapper<const std::string>>& strings)
-            {
-                const auto concat_with_comma =
-                    [](const std::string& accumulator,
-                       std::reference_wrapper<const std::string> next_string) {
-                        return accumulator + ", " + next_string.get();
-                    };
-
-                return std::accumulate(
-                    strings.begin() + 1, strings.end(), strings.begin()->get(), concat_with_comma);
-            }
-
-            static std::string build_input_provenance_tag(const std::string& input_name,
-                                                          const PartialShape& shape)
-            {
-                std::stringstream tag_builder;
-                tag_builder << "<ONNX Input (" << input_name << ") Shape:" << shape << ">";
-                return tag_builder.str();
-            }
-
-            static std::string build_op_provenance_tag(const Node& onnx_node)
-            {
-                const auto output_names = concat_strings(onnx_node.get_output_names());
-                const auto node_name =
-                    onnx_node.get_name().empty() ? "" : onnx_node.get_name() + " ";
-
-                return std::string{"<ONNX " + onnx_node.op_type() + " (" + node_name + "-> " +
-                                   output_names + ")>"};
-            }
         } // namespace detail
 
         Graph::Graph(const ONNX_NAMESPACE::GraphProto& graph_proto, Model& model)
@@ -104,18 +74,6 @@ namespace ngraph
             , m_model{&model}
             , m_cache{std::move(cache)}
         {
-            // Process all initializers in the graph
-            for (const auto& initializer_tensor : m_graph_proto->initializer())
-            {
-                if (initializer_tensor.has_name())
-                {
-                    Tensor tensor = Tensor{initializer_tensor};
-                    m_initializers.emplace(initializer_tensor.name(), tensor);
-                    auto ng_constant = tensor.get_ng_constant();
-                    add_provenance_tag_to_initializer(tensor, ng_constant);
-                }
-            }
-
             // Process all ONNX graph inputs, convert them to nGraph nodes and store in cache
             for (const auto& input : m_graph_proto->input())
             {
@@ -128,7 +86,7 @@ namespace ngraph
                 }
 
                 const auto value_info = m_inputs.back();
-                auto ng_node = value_info.get_ng_node(m_parameters, m_initializers);
+                auto ng_node = value_info.get_ng_node(m_parameters, m_cache->initializers());
                 add_provenance_tag_to_input(value_info, ng_node);
                 m_cache->set_node(input.name(), std::move(ng_node));
             }
@@ -235,20 +193,6 @@ namespace ngraph
 
                 ng_node_vector[i]->set_friendly_name(onnx_node.output(i));
             }
-        }
-
-        void Graph::add_provenance_tag_to_initializer(
-            const Tensor& tensor, std::shared_ptr<default_opset::Constant> node) const
-        {
-            if (!ngraph::get_provenance_enabled())
-            {
-                return;
-            }
-
-            const std::string tag =
-                detail::build_input_provenance_tag(tensor.get_name(), tensor.get_shape());
-
-            node->add_provenance_tag(tag);
         }
 
         void Graph::add_provenance_tag_to_input(const ValueInfo& input,

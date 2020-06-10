@@ -1,6 +1,8 @@
 #include "graph_cache.hpp"
 #include "except.hpp"
 #include "tensor.hpp"
+#include "provenance.hpp"
+#include "utils/provenance_tag.hpp"
 
 namespace ngraph
 {
@@ -15,11 +17,33 @@ namespace ngraph
                 if (initializer_tensor.has_name())
                 {
                     Tensor tensor = Tensor{initializer_tensor};
+                    m_initializers.emplace(initializer_tensor.name(), tensor);
+
                     // For each initializer, create a Constant node and store in cache
                     auto ng_constant = tensor.get_ng_constant();
+                    add_provenance_tag_to_initializer(tensor, ng_constant);
                     m_graph_cache_map.emplace(initializer_tensor.name(), std::move(ng_constant));
                 }
             }
+        }
+
+        const std::map<std::string, Tensor>& GraphCache::initializers() const
+        {
+            return m_initializers;
+        }
+
+        void GraphCache::add_provenance_tag_to_initializer(
+            const Tensor& tensor, std::shared_ptr<default_opset::Constant> node) const
+        {
+            if (!ngraph::get_provenance_enabled())
+            {
+                return;
+            }
+
+            const std::string tag =
+                detail::build_input_provenance_tag(tensor.get_name(), tensor.get_shape());
+
+            node->add_provenance_tag(tag);
         }
 
         void GraphCache::set_node(const std::string& name, std::shared_ptr<ngraph::Node>&& node)

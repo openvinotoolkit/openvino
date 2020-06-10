@@ -253,6 +253,8 @@ add_library(onnx_importer SHARED
         utils/pooling_factory.hpp
         utils/recurrent.cpp
         utils/recurrent.hpp
+        utils/provenance_tag.cpp
+        utils/provenance_tag.hpp
         utils/reduction.cpp
         utils/reduction.hpp
         utils/reshape.cpp

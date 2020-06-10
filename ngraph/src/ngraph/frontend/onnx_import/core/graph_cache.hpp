@@ -21,7 +21,10 @@
 #include <map>
 #include <string>
 
+#include "default_opset.hpp"
 #include "ngraph/node.hpp"
+#include "ngraph/op/constant.hpp"
+#include "tensor.hpp"
 
 namespace ngraph
 {
@@ -37,8 +40,16 @@ namespace ngraph
                 virtual std::shared_ptr<ngraph::Node> get_node(const std::string& name) const;
                 virtual bool contains(const std::string& node_name) const;
 
+                const std::map<std::string, Tensor>& initializers() const;
+
             protected:
                 std::map<std::string, std::shared_ptr<ngraph::Node>> m_graph_cache_map;
+
+            private:
+                void add_provenance_tag_to_initializer(
+                    const Tensor& initializer, std::shared_ptr<default_opset::Constant> node) const;
+
+                std::map<std::string, Tensor> m_initializers;
         };
 
         class SubgraphCache : public GraphCache

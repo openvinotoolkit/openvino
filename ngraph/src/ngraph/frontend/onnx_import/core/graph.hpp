@@ -56,9 +56,6 @@ namespace ngraph
 
             void set_friendly_names(const Node& onnx_node, const NodeVector& ng_node_vector) const;
 
-            void add_provenance_tag_to_initializer(
-                const Tensor& initializer, std::shared_ptr<default_opset::Constant> node) const;
-
             void add_provenance_tag_to_input(const ValueInfo& input,
                                              std::shared_ptr<ngraph::Node> node) const;
 
@@ -71,7 +68,6 @@ namespace ngraph
             std::vector<ValueInfo> m_inputs;
             std::vector<ValueInfo> m_outputs;
             ParameterVector m_parameters;
-            std::map<std::string, Tensor> m_initializers;
             Model* m_model;
         };
 
