@@ -254,7 +254,8 @@ void set_values_per_batch_and_feature(const cldnn::memory& mem, std::vector<T> a
 
 }
 
-template<typename T>
+template<typename T, typename std::enable_if<std::is_floating_point<T>::value ||
+                                             std::is_same<T, FLOAT16>::value>::type* = nullptr>
 void set_random_values(const cldnn::memory& mem, bool sign = false, unsigned significand_bit = 8, unsigned scale = 1)
 {
     auto ptr = mem.pointer<T>();
@@ -263,6 +264,19 @@ void set_random_values(const cldnn::memory& mem, bool sign = false, unsigned sig
     for (auto it = ptr.begin(); it != ptr.end(); ++it)
     {
         *it = rnd_generators::gen_number<T>(gen, significand_bit, sign, false, scale);
+    }
+}
+
+template<class T, typename std::enable_if<std::is_integral<T>::value>::type* = nullptr>
+void set_random_values(const cldnn::memory& mem)
+{
+    auto ptr = mem.pointer<T>();
+
+    std::mt19937 gen;
+    static std::uniform_int_distribution<T> uid(std::numeric_limits<T>::min(), std::numeric_limits<T>::max());
+    for (auto it = ptr.begin(); it != ptr.end(); ++it)
+    {
+        *it = uid(gen);
     }
 }
 

@@ -52,6 +52,7 @@ TEST(concat_gpu, mixed_input_types) {
     auto input1 = memory::allocate(engine, { data_types::i32, format::bfyx, { 1, 1, 4, 3 } });
     auto input2 = memory::allocate(engine, { data_types::i8, format::bfyx, { 1, 1, 4, 3 } });
     auto input3 = memory::allocate(engine, { data_types::f16, format::bfyx, { 1, 1, 4, 3 } });
+    auto input4 = memory::allocate(engine, { data_types::i64, format::bfyx, { 1, 1, 4, 3 } });
 
     set_values<float>(input0, { 1.0f, 2.0f, 3.0f, 4.0f, 2.0f, 2.0f, 3.0f, 4.0f, 3.0f, 3.0f, 3.0f, 5.0f });
     set_values<int32_t>(input1, { 11, 12, 13, 14, 12, 12, 13, 14, 13, 13, 13, 15 });
@@ -60,20 +61,23 @@ TEST(concat_gpu, mixed_input_types) {
                          half_t(34.f), half_t(32.f), half_t(32.f),
                          half_t(33.f), half_t(34.f), half_t(33.f),
                          half_t(33.f), half_t(33.f), half_t(35.f) });
+    set_values<int64_t>(input4, { 41, 42, 43, 44, 42, 42, 43, 44, 43, 43, 43, 45 });
 
     VF<float> output_vec = {
             1.0f, 2.0f, 3.0f, 4.0f, 2.0f, 2.0f, 3.0f, 4.0f, 3.0f, 3.0f, 3.0f, 5.0f,
             11.0f, 12.0f, 13.0f, 14.0f, 12.0f, 12.0f, 13.0f, 14.0f, 13.0f, 13.0f, 13.0f, 15.0f,
             21.0f, 22.0f, 23.0f, 24.0f, 22.0f, 22.0f, 23.0f, 24.0f, 23.0f, 23.0f, 23.0f, 25.0f,
-            31.0f, 32.0f, 33.0f, 34.0f, 32.0f, 32.0f, 33.0f, 34.0f, 33.0f, 33.0f, 33.0f, 35.0f };
+            31.0f, 32.0f, 33.0f, 34.0f, 32.0f, 32.0f, 33.0f, 34.0f, 33.0f, 33.0f, 33.0f, 35.0f,
+            41.0f, 42.0f, 43.0f, 44.0f, 42.0f, 42.0f, 43.0f, 44.0f, 43.0f, 43.0f, 43.0f, 45.0f };
 
     topology topology(
             input_layout("input0", input0.get_layout()),
             input_layout("input1", input1.get_layout()),
             input_layout("input2", input2.get_layout()),
             input_layout("input3", input3.get_layout()),
+            input_layout("input4", input4.get_layout()),
             concatenation("concat",
-                          { "input0", "input1", "input2", "input3" },
+                          { "input0", "input1", "input2", "input3", "input4" },
                           concatenation::concatenation_axis::along_f,
                           data_types::f32,
                           padding{ { 0,0,0,0 }, 0 })
@@ -84,6 +88,7 @@ TEST(concat_gpu, mixed_input_types) {
     network.set_input_data("input1", input1);
     network.set_input_data("input2", input2);
     network.set_input_data("input3", input3);
+    network.set_input_data("input4", input4);
 
     auto outputs = network.execute();
     EXPECT_EQ(outputs.size(), size_t(1));
@@ -100,7 +105,7 @@ TEST(concat_gpu, mixed_input_types) {
     EXPECT_EQ(output_layout.format, format::bfyx);
     EXPECT_EQ(y_size, 3);
     EXPECT_EQ(x_size, 4);
-    EXPECT_EQ(f_size, 4);
+    EXPECT_EQ(f_size, 5);
     EXPECT_EQ(b_size, 1);
 
     for (size_t x = 0; x < output_layout.count(); ++x) {
