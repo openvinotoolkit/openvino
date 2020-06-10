@@ -20,6 +20,8 @@ set(IE_BASE_SOURCE_FILES
       ${CMAKE_CURRENT_SOURCE_DIR}/cnn_network_ngraph_impl.cpp
       ${CMAKE_CURRENT_SOURCE_DIR}/generic_ie.cpp
       ${CMAKE_CURRENT_SOURCE_DIR}/blob_factory.cpp
+      ${CMAKE_CURRENT_SOURCE_DIR}/ie_blob.cpp
+      ${CMAKE_CURRENT_SOURCE_DIR}/ie_blob_common.cpp
       ${CMAKE_CURRENT_SOURCE_DIR}/ie_data.cpp
       ${CMAKE_CURRENT_SOURCE_DIR}/ie_layouts.cpp
       ${CMAKE_CURRENT_SOURCE_DIR}/ie_memcpy.cpp

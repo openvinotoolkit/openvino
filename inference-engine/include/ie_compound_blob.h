@@ -45,19 +45,9 @@ public:
     CompoundBlob(const CompoundBlob& blob);
 
     /**
-     * @brief A copy assignment operator
-     */
-    CompoundBlob& operator=(const CompoundBlob& blob) = default;
-
-    /**
      * @brief A move constructor
      */
     CompoundBlob(CompoundBlob&& blob);
-
-    /**
-     * @brief A move assignment operator
-     */
-    CompoundBlob& operator=(CompoundBlob&& blob) = default;
 
     /**
      * @brief Constructs a compound blob from a vector of blobs
@@ -137,6 +127,20 @@ protected:
      * @brief Returns nullptr as CompoundBlob is not allocator-based
      */
     void* getHandle() const noexcept override;
+
+    /**
+     * @brief Clones this container. Cloned container references the same blobs as this one.
+     *
+     * @return Pointer to the cloned object
+     */
+    Blob* clone() const override;
+
+    /**
+     * @brief Setting ROI for the array of blobs is not allowed, exception is raised.
+     *
+     * @param roi region of interest
+     */
+    virtual void setROI(const ROI& roi);
 };
 
 /**
@@ -186,19 +190,9 @@ public:
     NV12Blob(const NV12Blob& blob) = default;
 
     /**
-     * @brief A copy assignment operator
-     */
-    NV12Blob& operator=(const NV12Blob& blob) = default;
-
-    /**
      * @brief A move constructor
      */
     NV12Blob(NV12Blob&& blob) = default;
-
-    /**
-     * @brief A move assignment operator
-     */
-    NV12Blob& operator=(NV12Blob&& blob) = default;
 
     /**
      * @brief Returns a shared pointer to Y plane
@@ -219,12 +213,20 @@ public:
      * @brief Returns a shared pointer to UV plane
      */
     virtual const Blob::Ptr& uv() const noexcept;
+
+protected:
+    /**
+     * @brief Clones Blob object of the particular class. Clone references the same memory as this object.
+     *
+     * @return Pointer to the cloned object
+     */
+    Blob* clone() const override;
 };
 
 /**
  * @brief Represents a blob that contains three planes (Y,U and V) in I420 color format
  */
-class INFERENCE_ENGINE_API_CLASS(I420Blob) : public CompoundBlob {
+class INFERENCE_ENGINE_API_CLASS(I420Blob): public CompoundBlob {
 public:
     /**
      * @brief A smart pointer to the I420Blob object
@@ -269,19 +271,9 @@ public:
     I420Blob(const I420Blob& blob) = default;
 
     /**
-     * @brief A copy assignment operator
-     */
-    I420Blob& operator=(const I420Blob& blob) = default;
-
-    /**
      * @brief A move constructor
      */
     I420Blob(I420Blob&& blob) = default;
-
-    /**
-     * @brief A move assignment operator
-     */
-    I420Blob& operator=(I420Blob&& blob) = default;
 
     /**
      * @brief Returns a reference to shared pointer to Y plane
@@ -299,7 +291,7 @@ public:
      * Please note that reference to Blob::Ptr is returned. I.e. the reference will be valid until
      * the I420Blob object is destroyed.
      *
-      * @return constant reference to shared pointer object of Y plane*
+     * @return constant reference to shared pointer object of Y plane*
      */
     const Blob::Ptr& y() const noexcept;
 
@@ -342,5 +334,13 @@ public:
      * @return constant reference to shared pointer object of V plane
      */
     const Blob::Ptr& v() const noexcept;
+
+protected:
+    /**
+     * @brief Clones Blob object of the particular class. Clone references the same memory as this object.
+     *
+     * @return Pointer to the cloned object
+     */
+    Blob* clone() const override;
 };
 }  // namespace InferenceEngine

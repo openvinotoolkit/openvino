@@ -113,6 +113,7 @@ public:
 protected:
     const std::shared_ptr<IAllocator> &getAllocator() const noexcept override { return _impl.getAllocator(); }
     void *getHandle() const noexcept override { return _impl.getHandle(); }
+    Blob* clone() const override { THROW_IE_EXCEPTION << "CLDNNRemoteBlobImpl contains unique ptr and is not copiable"; }
     CLDNNRemoteBlobImpl _impl;
 };
 

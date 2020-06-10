@@ -29,6 +29,10 @@
 #include "ie_precision.hpp"
 
 namespace InferenceEngine {
+
+struct ROI;
+struct ROIData;
+
 /**
  * @brief This class represents a universal container in the Inference Engine
  *
@@ -116,11 +120,27 @@ public:
     }
 
     /**
+     * @brief Creates another Blob, which is copy of current and share the same memory area, but describes only
+     * sub-region of that memory.
+     *
+     * @param roi region of interest
+     * @return Pointer to the copied and modified blob
+     */
+    virtual Blob::Ptr CreateROIBlob(const ROI& roi) const;
+
+    /**
      * @brief Constructor. Creates an empty Blob object with the specified precision.
      *
      * @param tensorDesc Defines the layout and dims of the blob
      */
     explicit Blob(const TensorDesc& tensorDesc): tensorDesc(tensorDesc) {}
+
+    /**
+     * @brief The copy constructor
+     *
+     * @param blob Source blob
+     */
+    Blob(const Blob& blob);
 
     /**
      * @brief Returns the tensor description
@@ -134,6 +154,14 @@ public:
      */
     virtual TensorDesc& getTensorDesc() noexcept {
         return tensorDesc;
+    }
+
+    /**
+     * @brief Returns ROI data for the blob when it was specified. For the blob without ROI the pointer will contain
+     * nothing.
+     */
+    virtual const std::unique_ptr<const ROIData>& getROI() const noexcept {
+        return roiPtr;
     }
 
     /**
@@ -206,6 +234,11 @@ protected:
     TensorDesc tensorDesc;
 
     /**
+     * ROI data for this blob, when it was set
+     */
+    std::unique_ptr<const ROIData> roiPtr;
+
+    /**
      * @deprecated Cast to MemoryBlob and use its API instead.
      * @brief Multiplies the dimension vector values.
      *
@@ -230,6 +263,20 @@ protected:
      * @return The handle to allocated memory for allocator-based blobs or nullptr if there is none
      */
     virtual void* getHandle() const noexcept = 0;
+
+    /**
+     * @brief Clones Blob object of the particular class. Clone references the same memory as this object.
+     *
+     * @return Pointer to the cloned object
+     */
+    virtual Blob* clone() const = 0;
+
+    /**
+     * @brief Sets ROI for the blob
+     *
+     * @param roi region of interest
+     */
+    virtual void setROI(const ROI& roi);
 
     template <typename>
     friend class TBlobProxy;
@@ -384,7 +431,7 @@ public:
      *
      * @return A LockedMemory object
      */
-    virtual LockedMemory<void> rwmap()noexcept = 0;
+    virtual LockedMemory<void> rwmap() noexcept = 0;
 
     /**
      * @brief Gets read only access to the memory in virtual space of the process.
@@ -408,7 +455,7 @@ public:
      *
      * @return A LockedMemory object
      */
-    virtual LockedMemory<const void> rmap()const noexcept = 0;
+    virtual LockedMemory<const void> rmap() const noexcept = 0;
 
     /**
      * @brief Gets "write only direction" access to the memory in virtual space of the process.
@@ -435,9 +482,7 @@ public:
      *
      * @return A LockedMemory object
      */
-    virtual LockedMemory<void> wmap()noexcept = 0;
-
-
+    virtual LockedMemory<void> wmap() noexcept = 0;
 
 protected:
     /**
@@ -454,6 +499,13 @@ protected:
      */
     void* getHandle() const noexcept override = 0;
 
+    /**
+     * @brief Clones Blob object of the particular class. Clone references the same memory as this object.
+     *
+     * @return Pointer to the cloned object
+     */
+    Blob* clone() const override = 0;
+
     template <typename>
     friend class TBlobProxy;
 };
@@ -462,6 +514,22 @@ protected:
  * @brief This is a convenient type for working with a map containing pairs(string, pointer to a Blob instance).
  */
 using BlobMap = std::map<std::string, Blob::Ptr>;
+
+/**
+ * @brief This structure describes ROI data.
+ */
+struct ROI {
+    size_t id;     //!< ID of the ROI within the batch dimension (N)
+    size_t posX;   //!< W upper left coordinate of ROI
+    size_t posY;   //!< H upper left coordinate of ROI
+    size_t sizeX;  //!< W size of ROI
+    size_t sizeY;  //!< H size of ROI
+};
+
+struct ROIData {
+    ROI roi;              // region value
+    TensorDesc original;  // tensor descriptor of the whole memory area
+};
 
 /**
  * @brief Represents real host memory allocated for a Tensor/Blob per C type.
@@ -625,14 +693,14 @@ public:
         return std::move(lockme<const void>());
     }
 
-    LockedMemory<void> rwmap()noexcept override {
+    LockedMemory<void> rwmap() noexcept override {
         return std::move(lockme<void>());
     }
 
     LockedMemory<const void> rmap() const noexcept override {
         return std::move(lockme<const void>());
     }
-    LockedMemory<void> wmap()noexcept override {
+    LockedMemory<void> wmap() noexcept override {
         return std::move(lockme<void>());
     }
 
@@ -756,6 +824,30 @@ protected:
     void* getHandle() const noexcept override {
         return _handle;
     }
+
+    /**
+     * @brief Creates an new empty rvalue LockedMemory object.
+     *
+     * @return rvalue for the empty locked object of type T
+     */
+    virtual LockedMemory<T> data() const noexcept {
+        return std::move(lockme<T>());
+    }
+
+    /**
+     * @brief Clones Blob object of the particular class. Clone references the same memory as this object.
+     *
+     * @return Pointer to the cloned object
+     */
+    Blob* clone() const override {
+        TBlob* cloned = new TBlob<T>(this->tensorDesc, this->data(), this->byteSize());
+
+        if (this->roiPtr) {
+            cloned->roiPtr = std::unique_ptr<ROIData>(new ROIData(*this->roiPtr));
+        }
+
+        return cloned;
+    }
 };
 
 #ifdef __clang__
@@ -845,17 +937,6 @@ std::shared_ptr<T> make_shared_blob(Args&&... args) {
 }
 
 /**
- * @brief This structure describes ROI data.
- */
-struct ROI {
-    size_t id;  //!< ID of a ROI
-    size_t posX;  //!< W upper left coordinate of ROI
-    size_t posY;  //!< H upper left coordinate of ROI
-    size_t sizeX;  //!< W size of ROI
-    size_t sizeY;  //!< H size of ROI
-};
-
-/**
  * @brief Creates a tensor description describing given ROI object based on the given tensor description
  *
  * @param inputTensorDesc original tensor description.
@@ -865,6 +946,7 @@ struct ROI {
 INFERENCE_ENGINE_API_CPP(TensorDesc) make_roi_tensor_desc(const TensorDesc& inputTensorDesc, const ROI& roi);
 
 /**
+ * @deprecated Use inputBlob->CreateROIBlob(roi) instead
  * @brief Creates a blob describing given ROI object based on the given blob with pre-allocated memory.
  *
  * @param inputBlob original blob with pre-allocated memory.
