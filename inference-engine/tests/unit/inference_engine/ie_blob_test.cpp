@@ -349,7 +349,10 @@ TEST_F(BlobTests, makeRoiBlobNchw) {
 
     // create ROI blob based on the already created blob
     InferenceEngine::ROI roi = {0, 2, 1, 2, 4};  // cropped picture with: id = 0, (x,y) = (2,1), sizeX (W) = 2, sizeY (H) = 4
-    InferenceEngine::Blob::Ptr roiBlob = make_shared_blob(blob, roi);
+    InferenceEngine::Blob::Ptr roiBlob = blob->CreateROIBlob(roi);
+
+    InferenceEngine::SizeVector refRoiDims = {1, 3, 4, 2};
+    ASSERT_EQ(roiBlob->getTensorDesc().getDims(), refRoiDims);
 
     // check that BlockingDesc is constructed properly for the ROI blob
     InferenceEngine::SizeVector refDims = {1, 3, 4, 2};
@@ -371,7 +374,10 @@ TEST_F(BlobTests, makeRoiBlobNhwc) {
 
     // create ROI blob based on the already created blob
     InferenceEngine::ROI roi = {0, 3, 2, 5, 2};  // cropped picture with: id = 0, (x,y) = (3,2), sizeX (W) = 5, sizeY (H) = 2
-    InferenceEngine::Blob::Ptr roiBlob = make_shared_blob(blob, roi);
+    InferenceEngine::Blob::Ptr roiBlob = blob->CreateROIBlob(roi);
+
+    InferenceEngine::SizeVector refRoiDims = {1, 3, 2, 5};
+    ASSERT_EQ(roiBlob->getTensorDesc().getDims(), refRoiDims);
 
     // check that BlockingDesc is constructed properly for the ROI blob
     InferenceEngine::SizeVector refDims = {1, 2, 5, 3};
@@ -393,5 +399,59 @@ TEST_F(BlobTests, makeRoiBlobWrongSize) {
 
     // try to create ROI blob with wrong size
     InferenceEngine::ROI roi = {0, 1, 1, 4, 4};  // cropped picture with: id = 0, (x,y) = (1,1), sizeX (W) = 4, sizeY (H) = 4
-    ASSERT_THROW(make_shared_blob(blob, roi), InferenceEngine::details::InferenceEngineException);
+    ASSERT_THROW(blob->CreateROIBlob(roi), InferenceEngine::details::InferenceEngineException);
 }
+
+namespace InferenceEngine {
+    bool operator==(const ROI&l, const ROI&r) {
+        return l.id == r.id && l.posX == r.posX && l.posY == r.posY && l.sizeX == r.sizeX && l.sizeY == r.sizeY;
+    }
+}
+
+TEST_F(BlobTests, makeRoiBlobCheckGetROI) {
+    // we create main blob with NCHW layout. We will crop ROI from this blob.
+    InferenceEngine::SizeVector dims = {1, 3, 4, 8};  // RGB picture of size (WxH) = 8x4
+    InferenceEngine::Blob::Ptr blob = InferenceEngine::make_shared_blob<uint8_t>(
+        InferenceEngine::TensorDesc(InferenceEngine::Precision::U8, dims, InferenceEngine::NCHW));
+    blob->allocate();
+
+    auto emptyPtr = std::unique_ptr<InferenceEngine::ROIData>();
+    ASSERT_EQ(blob->getROI(), emptyPtr);
+
+    // create ROI blob based on the already created blob
+    InferenceEngine::ROI roi = {0, 3, 2, 5, 2};  // cropped picture with: id = 0, (x,y) = (3,2), sizeX (W) = 5, sizeY (H) = 2
+    InferenceEngine::Blob::Ptr roiBlob = blob->CreateROIBlob(roi);
+
+    // check that roi data are correct for the ROI blob
+    ASSERT_EQ(roiBlob->getROI()->original, blob->getTensorDesc());
+    ASSERT_EQ(roiBlob->getROI()->roi, roi);
+}
+
+TEST_F(BlobTests, makeRoiBlobFromAnotherRoi) {
+    // we create main blob with NCHW layout. We will crop ROI from this blob.
+    InferenceEngine::SizeVector dims = {1, 3, 4, 8};  // RGB picture of size (WxH) = 8x4
+    InferenceEngine::Blob::Ptr blob = InferenceEngine::make_shared_blob<uint8_t>(
+        InferenceEngine::TensorDesc(InferenceEngine::Precision::U8, dims, InferenceEngine::NCHW));
+    blob->allocate();
+
+    // create ROI blob based on the already created blob
+    InferenceEngine::ROI roi1 = {0, 3, 2, 5, 2};  // cropped picture with: id = 0, (x,y) = (3,2), sizeX (W) = 5, sizeY (H) = 2
+    InferenceEngine::Blob::Ptr roi1Blob = blob->CreateROIBlob(roi1);
+
+    // check that dims are correct for the 1st ROI blob
+    InferenceEngine::SizeVector refDims1 = {1, 3, 2, 5};
+    ASSERT_EQ(roi1Blob->getTensorDesc().getDims(), refDims1);
+
+    // create ROI blob based on the already created blob
+    InferenceEngine::ROI roi2 = {0, 2, 1, 4, 3};  // cropped picture with: id = 0, (x,y) = (2,1), sizeX (W) = 4, sizeY (H) = 3
+    InferenceEngine::Blob::Ptr roi2Blob = blob->CreateROIBlob(roi2);
+
+    // check that dims are correct for the 2nd ROI blob
+    InferenceEngine::SizeVector refDims2 = {1, 3, 3, 4};
+    ASSERT_EQ(roi2Blob->getTensorDesc().getDims(), refDims2);
+
+    // check that dims are also correct for ROI blob created from 1st ROI blob
+    InferenceEngine::Blob::Ptr roiBlobFromRoiBlob = roi1Blob->CreateROIBlob(roi2);
+    ASSERT_EQ(roiBlobFromRoiBlob->getTensorDesc().getDims(), refDims2);
+ }
+
