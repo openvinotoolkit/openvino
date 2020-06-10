@@ -307,6 +307,8 @@ namespace ngraph
             {
             }
 
+            virtual ~TestCase() noexcept = default;
+
             template <typename T>
             void add_input(const Shape& shape, const std::vector<T>& values)
             {
@@ -363,9 +365,11 @@ namespace ngraph
             {
                 std::cout << "Running TestCase\n";
                 m_engine.infer();
-                const auto results = m_engine.template output_data<float>();
-                EXPECT_TRUE(results.size() > 0);
-                return ::testing::AssertionSuccess();
+                const auto res = m_engine.compare_results();
+                EXPECT_EQ(res, testing::AssertionSuccess());
+                // const auto results = m_engine.template output_data<float>();
+                // EXPECT_TRUE(results.size() > 0);
+                // return ::testing::AssertionSuccess();
             }
 
         private:

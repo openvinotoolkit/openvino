@@ -1,6 +1,7 @@
 #pragma once
 
 #include <ie_core.hpp>
+#include "../../util/all_close_f.hpp"
 #include "ngraph/function.hpp"
 
 namespace ngraph
@@ -24,9 +25,40 @@ namespace ngraph
                 //     THROW_IE_EXCEPTION << "Function inputs number differ from number of given
                 //     inputs";
                 // }
-                std::cout << "Running function inference on IE Engine\n";
+                std::cout << "Running inference with IE_CPU Engine\n";
                 m_inference_req.Infer();
             };
+
+            ::testing::AssertionResult compare_results()
+            {
+                std::cout << "Comparing results with IE_CPU Engine\n";
+                auto comparison_result = testing::AssertionSuccess();
+
+                for (const auto output : m_network_outputs)
+                {
+                    InferenceEngine::MemoryBlob::CPtr computed_output_blob =
+                        InferenceEngine::as<InferenceEngine::MemoryBlob>(
+                            m_inference_req.GetBlob(output.first));
+
+                    const auto& expected_output_blob = m_expected_outputs_map[output.first];
+
+                    // TODO: assert that both blobs have the same precision?
+                    const auto& precision = computed_output_blob->getTensorDesc().getPrecision();
+
+                    // TODO: assert that both blobs have the same number of elements?
+                    comparison_result =
+                        compare(computed_output_blob, expected_output_blob, precision);
+
+                    if (comparison_result == ::testing::AssertionFailure())
+                    {
+                        break;
+                    }
+                }
+
+                std::cout << "Comparisone done\n";
+
+                return comparison_result;
+            }
 
             template <typename T>
             void add_input(const Shape& shape, const std::vector<T>& values)
@@ -56,7 +88,6 @@ namespace ngraph
             void add_expected_output(ngraph::Shape expected_shape, const std::vector<T>& values)
             {
                 const auto& function_output = m_function->get_results()[m_expected_outputs];
-                std::cout << "Adding blob to output name: " << function_output->get_friendly_name() << std::endl;
                 // TODO: assert that function_output->get_friendly_name() is in network outputs
                 const auto output_info = m_network_outputs[function_output->get_friendly_name()];
                 auto blob =
@@ -94,7 +125,7 @@ namespace ngraph
             InferenceEngine::InputsDataMap m_network_inputs;
             InferenceEngine::OutputsDataMap m_network_outputs;
             InferenceEngine::InferRequest m_inference_req;
-            std::map<std::string, InferenceEngine::Blob::Ptr> m_expected_outputs_map;
+            std::map<std::string, InferenceEngine::MemoryBlob::Ptr> m_expected_outputs_map;
             std::string m_output_name;
             unsigned int m_allocated_inputs = 0;
             unsigned int m_expected_outputs = 0;
@@ -103,6 +134,43 @@ namespace ngraph
                 upgrade_and_validate_function(std::shared_ptr<Function> function) const;
 
             std::set<NodeTypeInfo> get_ie_ops() const;
+
+            // using blob_comparator_t = std::function<::testing::AssertionResult(
+            //     const InferenceEngine::MemoryBlob::CPtr, const
+            //     InferenceEngine::MemoryBlob::CPtr)>;
+
+            template <typename T>
+            ::testing::AssertionResult
+                values_match(InferenceEngine::MemoryBlob::CPtr computed,
+                             InferenceEngine::MemoryBlob::CPtr expected) const
+            {
+                const auto computed_data = computed->rmap();
+                const auto expected_data = expected->rmap();
+
+                const auto* computed_data_buffer = computed_data.template as<T*>();
+                const auto* expected_data_buffer = computed_data.template as<T*>();
+
+                const std::vector<T> computed_values(computed_data_buffer,
+                                                     computed_data_buffer + computed->size());
+                const std::vector<T> expected_values(expected_data_buffer,
+                                                     expected_data_buffer + computed->size());
+
+                return ngraph::test::all_close_f(
+                    expected_values, computed_values, DEFAULT_FLOAT_TOLERANCE_BITS);
+            }
+
+            ::testing::AssertionResult compare(InferenceEngine::MemoryBlob::CPtr computed,
+                                               InferenceEngine::MemoryBlob::CPtr expected,
+                                               const InferenceEngine::Precision& precision) const
+            {
+                switch (static_cast<InferenceEngine::Precision::ePrecision>(precision))
+                {
+                case InferenceEngine::Precision::FP32:
+                    return values_match<float>(computed, expected);
+                    break;
+                default: THROW_IE_EXCEPTION << "Not implemented yet";
+                }
+            }
         };
 
         // TODO: implement afterwards
