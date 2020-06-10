@@ -79,26 +79,34 @@ TEST_P(myriadLayersMergePermuteNDTests_nightly, Permute) {
 }
 static const std::vector<InferenceEngine::SizeVector> s_inTensors_3D = {
     {5, 7, 11},
+    {1, 3, 4},
 };
 
 static const std::vector<PermutationsSequence> s_permuteParams_3D = {
+    {{0, 1, 2}, {1, 0, 2}}, // trivial for case with dims {1, 3, 4}
     {{1, 2, 0}, {1, 2, 0}},
     {{1, 2, 0}, {1, 2, 0}, {1, 2, 0}}, // trivial one.
 };
 
 static const std::vector<InferenceEngine::SizeVector> s_inTensors_4D = {
     {3, 5, 7, 11},
+    {5, 1, 1, 7},
 };
 
 static const std::vector<PermutationsSequence> s_permuteParams_4D = {
+    {{0, 1, 2, 3}, {1, 0, 3, 2}}, // 
+    {{0, 1, 2, 3}, {0, 1, 3, 2}}, // trivial for case with dims {5, 1, 1, 7}
     {{1, 2, 3, 0}, {1, 2, 3, 0}, {1, 2, 3, 0}},
     {{1, 2, 3, 0}, {1, 2, 3, 0}, {1, 2, 3, 0}, {1, 2, 3, 0}}, // trivial one.
 };
 
 static const std::vector<InferenceEngine::SizeVector> s_inTensors_5D = {
     {2, 3, 5, 7, 11},
+    {2, 3, 1, 7, 11},
 };
 static const std::vector<PermutationsSequence> s_permuteParams_5D = {
+    {{0, 1, 2, 3, 4}, {0, 1, 3, 2, 4}}, //
+    {{0, 1, 2, 3, 4}, {0, 2, 1, 3, 4}}, // trivial for case with dims {2, 3, 1, 7, 11}
     {{0, 4, 1, 2, 3}, {0, 2, 1, 3, 4}},
     {{0, 3, 4, 1, 2}, {0, 1, 3, 2, 4}},
     {{1, 2, 3, 4, 0}, {1, 2, 3, 4, 0}},
