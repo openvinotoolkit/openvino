@@ -213,10 +213,10 @@ void make_matcher_type_relaxed(ngraph::pass::GraphRewrite* transformation) {
             std::cerr << "Error my matcher 1!!!\n";
             return false;
         }
-        std::cerr << "My matcher pass was triggered: " << l_node->get_friendly_name() << " with " << l_node->get_inputs().size() << " inputs\n";
+        // std::cerr << "My matcher pass was triggered: " << l_node->get_friendly_name() << " with " << l_node->get_inputs().size() << " inputs\n";
         // TODO: replaces only operation with one output port
         auto replacement = std::make_shared<ngraph::op::TypeRelaxed<BaseOp>>(*l_node, l_node->get_output_element_type(0));
-        //auto replacement = std::make_shared<BaseOp>(*l_node);
+        // auto replacement = std::make_shared<BaseOp>(*l_node);
         copy_runtime_info(l_node, replacement);
         replace_node(l_node, replacement);
         return true;
@@ -238,6 +238,7 @@ TypeRelaxedReplacer::TypeRelaxedReplacer() {
     make_matcher_type_relaxed<opset1::Relu>(this);
     make_matcher_type_relaxed<opset1::MaxPool>(this);
     make_matcher_type_relaxed<opset1::Add>(this);
+    make_matcher_type_relaxed<opset1::NormalizeL2>(this);
 }
 
 LowPrecisionTransformer::LowPrecisionTransformer(const LowPrecisionTransformations& transformations)
@@ -350,10 +351,10 @@ void LowPrecisionTransformer::transform(std::shared_ptr<Function> network) {
 
 #endif
 
-    {
-        std::vector<std::shared_ptr<ngraph::Function>> module{network};
-        ngraph::pass::VisualizeTree("before_ltp.png").run_on_module(module);
-    }
+    //{
+    //    std::vector<std::shared_ptr<ngraph::Function>> module{network};
+    //    ngraph::pass::VisualizeTree("before_ltp.png").run_on_module(module);
+    //}
 
     transformations.setParamsManager(this);
     transformations.setLayerTransformationsManager(this);
@@ -414,10 +415,10 @@ void LowPrecisionTransformer::transform(std::shared_ptr<Function> network) {
         #endif
         #endif
     }
-    {
-        std::vector<std::shared_ptr<ngraph::Function>> module{network};
-        ngraph::pass::VisualizeTree("after_layers_replacement.svg").run_on_module(module);
-    }
+    //{
+    //    std::vector<std::shared_ptr<ngraph::Function>> module{network};
+    //    ngraph::pass::VisualizeTree("after_layers_replacement.svg").run_on_module(module);
+    //}
 
 
     { // Step #3: cleanup transformations execution
@@ -426,10 +427,10 @@ void LowPrecisionTransformer::transform(std::shared_ptr<Function> network) {
         pass.run_on_function(network);
     }
 
-    {
-        std::vector<std::shared_ptr<ngraph::Function>> module{network};
-        ngraph::pass::VisualizeTree("after_lpt.svg").run_on_module(module);
-    }
+    //{
+    //    std::vector<std::shared_ptr<ngraph::Function>> module{network};
+    //    ngraph::pass::VisualizeTree("after_lpt.svg").run_on_module(module);
+    //}
 
 
 #if 0 // TODO LPT-TO-NGRAPH

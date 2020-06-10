@@ -400,7 +400,7 @@ void NetworkHelper::setOutDataPrecision(std::shared_ptr<Node>, const element::Ty
     for (const DataPtr& data : layer.outData) {
         data->setPrecision(precision);
     }
-    std::cout << "Just set precision " << precision << " for node " << layer.name << "\n";
+    // std::cout << "Just set precision " << precision << " for node " << layer.name << "\n";
 }
 */
 

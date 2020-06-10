@@ -100,9 +100,9 @@ public:
 
 template <typename BaseOp>
 void TypeRelaxed<BaseOp>::validate_and_infer_types() {
-    std::cerr << "TypeRelaxed<BaseOp>::validate_and_infer_types from my template, name = " << BaseOp::get_name()
-        << ", fiendly_name = " << BaseOp::get_friendly_name() << "\n";
-    std::cerr << "Description: " << BaseOp::description() << "\n";
+    // std::cerr << "TypeRelaxed<BaseOp>::validate_and_infer_types from my template, name = " << BaseOp::get_name()
+    //    << ", fiendly_name = " << BaseOp::get_friendly_name() << "\n";
+    // std::cerr << "Description: " << BaseOp::description() << "\n";
     // Remember all input data types and reset them to m_output_data_type.
     std::vector<element::Type> input_types;
     for (size_t i = 0; i < BaseOp::get_input_size(); ++i) {

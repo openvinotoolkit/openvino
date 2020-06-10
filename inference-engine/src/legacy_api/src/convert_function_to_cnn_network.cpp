@@ -330,7 +330,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         res->params = params;
         return res;
     });
-    
+
     addSpecificCreator({"Assign"}, [](const std::shared_ptr<::ngraph::Node>& node,
                                             const std::map<std::string, std::string> params) -> CNNLayerPtr {
         LayerParams attrs = {node->get_friendly_name(), "Memory",
@@ -792,7 +792,7 @@ std::shared_ptr<CNNNetworkImpl> convertFunctionToICNNNetwork(const std::shared_p
                     nData->reset();
                     nData->reshape(dims, layout);
                     nData->setPrecision(details::convertPrecision(layer->get_output_element_type(i)));
-                    //std::cerr << "Set precision 2 " << layer->get_output_element_type(i).get_type_name() << " for layer " << layer->get_friendly_name() << "\n";
+                    // std::cerr << "Set precision 2 " << layer->get_output_element_type(i).get_type_name() << " for layer " << layer->get_friendly_name() << "\n";
 
                 }
                 cnnNetworkImpl->addData(outName.c_str(), ptr);
@@ -802,7 +802,7 @@ std::shared_ptr<CNNNetworkImpl> convertFunctionToICNNNetwork(const std::shared_p
                 ptr.reset(new Data(outName,
                                    {details::convertPrecision(layer->get_output_element_type(i)), dims,
                                     TensorDesc::getLayoutByDims(dims)}));
-                //std::cerr << "Set precision " << layer->get_output_element_type(i).get_type_name() << " for layer " << layer->get_friendly_name() << "\n";
+                // std::cerr << "Set precision " << layer->get_output_element_type(i).get_type_name() << " for layer " << layer->get_friendly_name() << "\n";
             }
 
             ptr->getCreatorLayer() = cnnLayer;
