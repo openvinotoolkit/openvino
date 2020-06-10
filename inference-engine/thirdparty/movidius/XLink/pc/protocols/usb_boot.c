@@ -313,8 +313,10 @@ usbBootError_t usb_find_device_with_bcd(unsigned idx, char *input_addr,
             if (device) {
                 const char *dev_addr = gen_addr(dev, get_pid_by_name(input_addr));
                 if (!strcmp(dev_addr, input_addr)) {
+#if 0 // To avoid spam in Debug mode
                     mvLog(MVLOG_DEBUG, "Found Address: %s - VID/PID %04x:%04x",
                           input_addr, desc.idVendor, desc.idProduct);
+#endif
 
                     libusb_ref_device(dev);
                     libusb_free_device_list(devs, 1);
@@ -332,8 +334,10 @@ usbBootError_t usb_find_device_with_bcd(unsigned idx, char *input_addr,
                 const char *dev_addr = gen_addr(dev, desc.idProduct);
                 // If the same add as input
                 if (!strcmp(dev_addr, input_addr)) {
+#if 0 // To avoid spam in Debug mode
                     mvLog(MVLOG_DEBUG, "Found Address: %s - VID/PID %04x:%04x",
                           input_addr, desc.idVendor, desc.idProduct);
+#endif
 
                     if (pthread_mutex_unlock(&globalMutex)) {
                         mvLog(MVLOG_ERROR, "globalMutex unlock failed");
@@ -342,8 +346,10 @@ usbBootError_t usb_find_device_with_bcd(unsigned idx, char *input_addr,
                 }
             } else if (idx == count) {
                 const char *caddr = gen_addr(dev, desc.idProduct);
+#if 0 // To avoid spam in Debug mode
                 mvLog(MVLOG_DEBUG, "Device %d Address: %s - VID/PID %04x:%04x",
                       idx, caddr, desc.idVendor, desc.idProduct);
+#endif
                 mv_strncpy(input_addr, addrsize, caddr, addrsize - 1);
                 if (pthread_mutex_unlock(&globalMutex)) {
                     mvLog(MVLOG_ERROR, "globalMutex unlock failed");
@@ -569,9 +575,7 @@ static int wait_findopen(const char *device_address, int timeout, libusb_device 
         if(timeout != -1)
         {
             if(last_open_dev_err[0])
-                mvLog(MVLOG_ERROR, "Last opened device name: %s", last_open_dev_err);
-
-            mvLog(MVLOG_ERROR, "error: device not found!");
+                mvLog(MVLOG_DEBUG, "Last opened device name: %s", last_open_dev_err);
 
             return rc ? USB_BOOT_DEVICE_NOT_FOUND : USB_BOOT_TIMEOUT;
         } else if (elapsedTime > (double)timeout) {

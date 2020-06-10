@@ -367,6 +367,7 @@ extensions/front/tf/cumsum_ext.py
 extensions/front/tf/deconv_ext.py
 extensions/front/tf/depth_to_space.py
 extensions/front/tf/elementwise_ext.py
+extensions/front/tf/embedding_segments_sum.py
 extensions/front/tf/expand_dims_ext.py
 extensions/front/tf/extract_image_patches_ext.py
 extensions/front/tf/fake_const_ext.py
@@ -441,7 +442,6 @@ extensions/front/tf/sparse_segment_mean_ext.py
 extensions/front/tf/sparse_segment_sqrtn_ext.py
 extensions/front/tf/sparse_segment_sum_ext.py
 extensions/front/tf/sparse_to_dense_ext.py
-extensions/front/tf/sparse_weighted_sum.py
 extensions/front/tf/split_ext.py
 extensions/front/tf/ssd_support.json
 extensions/front/tf/ssd_support_api_v1.14.json
@@ -522,7 +522,6 @@ extensions/middle/DilatedConvolution.py
 extensions/middle/EltwiseChecker.py
 extensions/middle/EltwiseInputNormalization.py
 extensions/middle/EltwiseInputReshape.py
-extensions/middle/EmbeddingBagResolver.py
 extensions/middle/FakeSplitOutputs.py
 extensions/middle/FusedBatchNormNonConstant.py
 extensions/middle/FusedBatchNormTraining.py
@@ -686,7 +685,6 @@ extensions/ops/sparse_segment_mean.py
 extensions/ops/sparse_segment_sqrtn.py
 extensions/ops/sparse_segment_sum.py
 extensions/ops/sparse_to_dense.py
-extensions/ops/sparse_weighted_sum.py
 extensions/ops/spatial_transformer.py
 extensions/ops/splice.py
 extensions/ops/split.py
@@ -782,6 +780,7 @@ mo/front/kaldi/extractors/affine_component_preconditioned_online_ext.py
 mo/front/kaldi/extractors/affine_transform_ext.py
 mo/front/kaldi/extractors/backproptruncation_ext.py
 mo/front/kaldi/extractors/batchnorm_component_ext.py
+mo/front/kaldi/extractors/bias_component_ext.py
 mo/front/kaldi/extractors/clip_ext.py
 mo/front/kaldi/extractors/concat_ext.py
 mo/front/kaldi/extractors/convolutional_1d_component_ext.py

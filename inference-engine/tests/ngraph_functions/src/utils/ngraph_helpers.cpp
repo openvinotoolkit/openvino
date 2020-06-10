@@ -486,5 +486,22 @@ std::vector<std::uint8_t> convertOutputPrecision(std::vector<std::uint8_t> &outp
     }
 }
 
+std::ostream& operator<<(std::ostream & os, ngraph::helpers::EltwiseTypes type) {
+    switch (type) {
+        case ngraph::helpers::EltwiseTypes::SUBTRACT:
+            os << "Sub";
+            break;
+        case ngraph::helpers::EltwiseTypes::MULTIPLY:
+            os << "Prod";
+            break;
+        case ngraph::helpers::EltwiseTypes::ADD:
+            os << "Sum";
+            break;
+        default:
+            std::runtime_error("NOT_SUPPORTED_OP_TYPE");
+    }
+    return os;
+}
+
 }  // namespace helpers
 }  // namespace ngraph

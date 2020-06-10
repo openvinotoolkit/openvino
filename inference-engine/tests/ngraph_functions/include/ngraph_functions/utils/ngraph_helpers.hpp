@@ -92,6 +92,12 @@ enum ActivationTypes {
     Gelu
 };
 
+enum EltwiseTypes {
+    ADD,
+    MULTIPLY,
+    SUBTRACT
+};
+
 enum QuantizationGranularity {
     Pertensor,
     Perchannel
@@ -151,6 +157,8 @@ std::vector<std::uint8_t> convertOutputPrecision(std::vector<std::uint8_t> &outp
                                                  const element::Type_t &fromPrecision,
                                                  const element::Type_t &toPrecision,
                                                  const size_t elementsCount);
+
+std::ostream& operator<<(std::ostream & os, ngraph::helpers::EltwiseTypes type);
 
 }  // namespace helpers
 }  // namespace ngraph

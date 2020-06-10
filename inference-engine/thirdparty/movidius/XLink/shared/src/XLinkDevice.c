@@ -225,6 +225,14 @@ XLinkError_t XLinkBoot(deviceDesc_t* deviceDesc, const char* binaryPath)
     return X_LINK_COMMUNICATION_FAIL;
 }
 
+XLinkError_t XLinkBootFirmware(deviceDesc_t* deviceDesc, const char* firmware, unsigned long length) {
+    if (!XLinkPlatformBootFirmware(deviceDesc, firmware, length)) {
+        return X_LINK_SUCCESS;
+    }
+
+    return X_LINK_COMMUNICATION_FAIL;
+}
+
 XLinkError_t XLinkResetRemote(linkId_t id)
 {
     xLinkDesc_t* link = getLinkById(id);
