@@ -11,17 +11,27 @@
 
 namespace LayerTestsDefinitions {
 
+// TODO: refactor: move to LayerTestsUtils::LayerTransformationParams
+typedef std::tuple<
+    InferenceEngine::Precision,
+    InferenceEngine::SizeVector,
+    std::string,
+    // TODO: refactor: CNNNetwork LPT is detected
+    InferenceEngine::details::LayerTransformation::Params,
+    LayerTestsUtils::LayerTransformation::LptVersion> DepthToSpaceTransformationParams;
+
 class DepthToSpaceTransformation :
-    public testing::WithParamInterface<LayerTestsUtils::LayerTransformationParams>,
+    public testing::WithParamInterface<DepthToSpaceTransformationParams>,
     public LayerTestsUtils::LayerTransformation {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<LayerTestsUtils::LayerTransformationParams> obj);
+    static std::string getTestCaseName(testing::TestParamInfo<DepthToSpaceTransformationParams> obj);
 
 protected:
     void SetUp() override;
 
 private:
-    void validate();
+    void validateCNNNetwork();
+    void validateNGraph();
 };
 
 }  // namespace LayerTestsDefinitions

@@ -22,6 +22,7 @@
 // #include "low_precision_transformations/concat_multi_channels.hpp"
 // #include "low_precision_transformations/const.hpp"
 #include "transformations/low_precision/convolution.hpp"
+#include "transformations/low_precision/depth_to_space.hpp"
 #include "transformations/low_precision/fake_quantize.hpp"
 // #include "low_precision_transformations/fully_connected.hpp"
 // #include "low_precision_transformations/fuse_fake_quantize_and_scale_shift.hpp"
@@ -186,7 +187,8 @@ LowPrecisionTransformations LowPrecisionTransformer::getAllTransformations(const
             //{ "MVN", LayerTransformationPtr(new MvnTransformation(params)) },
             { "Add", LayerTransformationPtr(new AddTransformation(params)) },
             //{ "Multiply", LayerTransformationPtr(new MultiplyTransformation(params)) },
-            //{ "Interpolate", LayerTransformationPtr(new InterpolateTransformation(params)) }
+            //{ "Interpolate", LayerTransformationPtr(new InterpolateTransformation(params)) },
+            { "DepthToSpace", LayerTransformationPtr(new DepthToSpaceTransformation(params)) }
         }),
         std::map<std::string, LayerTransformationPtr>({
             //{ "FakeQuantize", LayerTransformationPtr(new FuseFakeQuantizeAndScaleShiftTransformation(params)) },

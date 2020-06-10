@@ -12,6 +12,7 @@
 
 #include <ie_core.hpp>
 #include <net_pass.h>
+#include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
@@ -23,6 +24,8 @@
 #include "ie_util_internal.hpp"
 #include "low_precision_transformations/convolution.hpp"
 #include "low_precision_transformations/scaleshift_to_convolution.hpp"
+
+using namespace InferenceEngine;
 
 namespace LayerTestsUtils {
 
@@ -72,6 +75,22 @@ LayerTransformation::LayerTransformation() {
     threshold = 0.05;
 }
 
+void LayerTransformation::ConfigurePlugin(const LptVersion lptVersion) {
+    switch (lptVersion) {
+        case LptVersion::cnnNetwork: {
+            configuration[PluginConfigInternalParams::KEY_LP_TRANSFORMS_VERSION] = PluginConfigInternalParams::LP_TRANSFORMS_CNNNETWORK;
+            break;
+        }
+        case LptVersion::nGraph: {
+            configuration[PluginConfigInternalParams::KEY_LP_TRANSFORMS_VERSION] = PluginConfigInternalParams::LP_TRANSFORMS_NGRAPH;
+            break;
+        }
+        default: {
+            THROW_IE_EXCEPTION << "unexpected LPT version " << lptVersion;
+        }
+    }
+}
+
 InferenceEngine::Blob::Ptr LayerTransformation::GenerateInput(
     const InferenceEngine::Precision precision,
     const InferenceEngine::TensorDesc& tensorDesc,
@@ -86,6 +105,12 @@ InferenceEngine::Blob::Ptr LayerTransformation::GenerateInput(
 InferenceEngine::details::LowPrecisionTransformer LayerTransformation::getLowPrecisionTransformer(
     const InferenceEngine::details::LayerTransformation::Params& params) const {
     InferenceEngine::details::LowPrecisionTransformer transformer(getLowPrecisionTransformations(params));
+    return transformer;
+}
+
+ngraph::pass::low_precision::LowPrecisionTransformer LayerTransformation::getLowPrecisionTransformerNGraph(
+    const ngraph::pass::low_precision::LayerTransformation::Params& params) const {
+    ngraph::pass::low_precision::LowPrecisionTransformer transformer(getLowPrecisionTransformationsNGraph(params));
     return transformer;
 }
 
@@ -174,6 +199,60 @@ std::string LayerTransformation::toString(const InferenceEngine::details::LayerT
         params.quantizedTensorAlignmentOnActivations;
 
     return result.str();
+}
+
+ngraph::element::Type toNGraph(const InferenceEngine::Precision precision) {
+    switch (precision) {
+        case InferenceEngine::Precision::U8: {
+            return ngraph::element::u8;
+        }
+        case InferenceEngine::Precision::I8: {
+            return ngraph::element::i8;
+        }
+        default: {
+            THROW_IE_EXCEPTION << "unknown precision " << precision;
+        }
+    }
+}
+
+std::vector<ngraph::element::Type> toNGraph(const std::vector<InferenceEngine::Precision>& precisions) {
+    std::vector<ngraph::element::Type> resultPrecisions(precisions.size());
+    for (size_t i = 0ul; i < precisions.size(); ++i) {
+        const InferenceEngine::Precision precision = precisions[i];
+        resultPrecisions[i] = toNGraph(precision);
+    }
+    return resultPrecisions;
+}
+
+ngraph::pass::low_precision::LayerTransformation::QuantizedTensorAlignment toNGraph(
+    InferenceEngine::details::LayerTransformation::QuantizedTensorAlignment aligment) {
+    switch (aligment) {
+        case InferenceEngine::details::LayerTransformation::QuantizedTensorAlignment::UpdateLevel: {
+            return ngraph::pass::low_precision::LayerTransformation::QuantizedTensorAlignment::UpdateLevel;
+        }
+        case InferenceEngine::details::LayerTransformation::QuantizedTensorAlignment::None: {
+            return ngraph::pass::low_precision::LayerTransformation::QuantizedTensorAlignment::None;
+        }
+        default: {
+            THROW_IE_EXCEPTION << "not supported";
+        }
+    }
+}
+
+ngraph::pass::low_precision::LayerTransformation::Params LayerTransformation::toNGraph(const InferenceEngine::details::LayerTransformation::Params& params) {
+    const auto precisionsOnActivations = LayerTestsUtils::toNGraph(params.precisionsOnActivations);
+    const auto precisionsOnWeights = LayerTestsUtils::toNGraph(params.precisionsOnWeights);
+    return ngraph::pass::low_precision::LayerTransformation::Params(
+        params.updatePrecisions,
+        params.quantizeOutputs,
+        params.weightsToConst,
+        LayerTestsUtils::toNGraph(params.quantizedTensorAlignmentOnActivations),
+        LayerTestsUtils::toNGraph(params.quantizedTensorAlignmentOnWeights),
+        params.roundQuantizedValues,
+        params.updateBiases,
+        params.supportAsymmetricQuantization,
+        precisionsOnActivations,
+        precisionsOnWeights);
 }
 
 }  // namespace LayerTestsUtils

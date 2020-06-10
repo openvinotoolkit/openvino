@@ -13,6 +13,7 @@
 #include "low_precision_transformations/scaleshift_to_convolution.hpp"
 #include "functional_test_utils/layer_test_utils.hpp"
 #include "low_precision_transformations/transformer.hpp"
+#include <transformations/low_precision/transformer.hpp>
 
 namespace LayerTestsUtils {
 
@@ -33,8 +34,16 @@ public:
 IE_SUPPRESS_DEPRECATED_START
 
 class LayerTransformation : public LayerTestsUtils::LayerTestsCommon {
+public:
+    enum LptVersion {
+        cnnNetwork,
+        nGraph
+    };
+
 protected:
     LayerTransformation();
+
+    void ConfigurePlugin(const LptVersion lptVersion);
 
     static InferenceEngine::Blob::Ptr GenerateInput(
         const InferenceEngine::Precision precision,
@@ -44,10 +53,18 @@ protected:
     InferenceEngine::details::LowPrecisionTransformations getLowPrecisionTransformations(
         const InferenceEngine::details::LayerTransformation::Params& params) const;
 
+    ngraph::pass::low_precision::LowPrecisionTransformations getLowPrecisionTransformationsNGraph(
+        const ngraph::pass::low_precision::LayerTransformation::Params& params) const;
+
     InferenceEngine::details::LowPrecisionTransformer getLowPrecisionTransformer(
         const InferenceEngine::details::LayerTransformation::Params& params) const;
 
+    ngraph::pass::low_precision::LowPrecisionTransformer getLowPrecisionTransformerNGraph(
+        const ngraph::pass::low_precision::LayerTransformation::Params& params) const;
+
     InferenceEngine::CNNNetwork transform(InferenceEngine::details::LayerTransformation::Params& params);
+
+    std::shared_ptr<ngraph::Function> transformNGraph(InferenceEngine::details::LayerTransformation::Params& params);
 
     InferenceEngine::CNNNetwork transform(const InferenceEngine::details::LowPrecisionTransformations& transformations);
 
@@ -65,6 +82,8 @@ protected:
     static std::string toString(const InferenceEngine::details::LayerTransformation::Params& params);
 
     static InferenceEngine::Precision getDeviceInternalPrecision(const InferenceEngine::Precision precision);
+
+    static ngraph::pass::low_precision::LayerTransformation::Params toNGraph(const InferenceEngine::details::LayerTransformation::Params& params);
 };
 
 IE_SUPPRESS_DEPRECATED_END

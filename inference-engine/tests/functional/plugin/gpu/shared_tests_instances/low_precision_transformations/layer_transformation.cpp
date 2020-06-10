@@ -57,6 +57,15 @@ InferenceEngine::details::LowPrecisionTransformations LayerTransformation::getLo
             InferenceEngine::details::LayerTransformation::Params(params).setSupportAsymmetricQuantization(false), "GEMM");
 }
 
+InferenceEngine::details::LowPrecisionTransformations LayerTransformation::getLowPrecisionTransformationsNGrapth(
+    const InferenceEngine::details::LayerTransformation::Params& params) const {
+    return LowPrecisionTransformer::getAllTransformations(params)
+        .add<FullyConnectedTransformation>(
+            InferenceEngine::details::LayerTransformation::Params(params).setSupportAsymmetricQuantization(false), "FullyConnected")
+        .add<GemmTransformation>(
+            InferenceEngine::details::LayerTransformation::Params(params).setSupportAsymmetricQuantization(false), "GEMM");
+}
+
 InferenceEngine::CNNNetwork LayerTransformation::transform(InferenceEngine::details::LayerTransformation::Params& params) {
     auto net1 = InferenceEngine::CNNNetwork(function);
     std::shared_ptr<InferenceEngine::ICNNNetwork> clonedNetwork = InferenceEngine::cloneNetwork(net1);
