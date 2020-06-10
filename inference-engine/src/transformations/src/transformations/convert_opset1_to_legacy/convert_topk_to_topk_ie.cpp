@@ -50,13 +50,13 @@ void ngraph::pass::ConvertTopKToTopKIE::convert_topk_to_topk_ie() {
             index_output = topk_ie->output(1);
             topk_ie->set_friendly_name(topk->get_friendly_name());
         } else {
-            // create fake convert for 0 output in purpose of correct output names preserving
+            // create fake convert for 0 output, it is a workaround in purpose of correct output names preserving
             element_output = std::make_shared<opset1::Convert>(topk_ie->output(0), topk->get_output_element_type(0));
             index_output = std::make_shared<opset1::Convert>(topk_ie->output(1), topk->get_index_element_type());
             new_ops.push_back(element_output.get_node_shared_ptr());
             new_ops.push_back(index_output.get_node_shared_ptr());
 
-            topk_ie->set_friendly_name(topk->get_friendly_name() + "_before");
+            // workaround for naming two outputs of TopK
             element_output.get_node_shared_ptr()->set_friendly_name(topk->get_friendly_name() + ".0");
             index_output.get_node_shared_ptr()->set_friendly_name(topk->get_friendly_name() + ".1");
         }

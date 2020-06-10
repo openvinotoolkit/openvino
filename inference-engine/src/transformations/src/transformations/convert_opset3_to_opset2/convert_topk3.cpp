@@ -33,13 +33,13 @@ void ngraph::pass::ConvertTopK3::convert_topk3() {
             last1 = new_topk->output(1);
             new_topk->set_friendly_name(topk->get_friendly_name());
         } else {
-            // create fake convert for 0 output in purpose of correct output names preserving
+            // create fake convert for 0 output, it is a workaround in purpose of correct output names preserving
             last0 = std::make_shared<ngraph::opset2::Convert>(new_topk->output(0), topk->get_output_element_type(0));
             last1 = std::make_shared<ngraph::opset2::Convert>(new_topk->output(1), topk->get_index_element_type());
             new_ops.push_back(last0.get_node_shared_ptr());
             new_ops.push_back(last1.get_node_shared_ptr());
 
-            new_topk->set_friendly_name(topk->get_friendly_name() + "_before");
+            // workaround for naming two outputs of TopK
             last0.get_node_shared_ptr()->set_friendly_name(topk->get_friendly_name() + ".0");
             last1.get_node_shared_ptr()->set_friendly_name(topk->get_friendly_name() + ".1");
         }
