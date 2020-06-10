@@ -216,8 +216,8 @@ jobs:
   # About 150% of total time
   timeoutInMinutes: 120
   pool:
-    #vmImage: 'vs2017-win2016'
-    name: WIN_VMSS_VENV_F8S_WU2
+    #vmImage: 'vs2019-win2016'
+    name: WIN_VMSS_VENV_F48S_WU2
   variables:
     BUILD_TYPE: Release
     BUILD_DIR: D:\dldt-build
