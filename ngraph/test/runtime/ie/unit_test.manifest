@@ -1690,4 +1690,4 @@ IE_GPU.matmul_3x2_3x3_transpose
 IE_GPU.matmul_3x2_2x3_transpose
 
 # ONNX Loop
-loop_2d_add
+onnx_controlflow_loop_2d_add_execution

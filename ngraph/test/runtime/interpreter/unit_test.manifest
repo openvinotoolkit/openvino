@@ -11,4 +11,4 @@ reduce_sum_large_1d_to_scalar
 reduce_sum_keep_large_1d_to_scalar
 
 # ONNX Loop
-loop_2d_add
+onnx_controlflow_loop_2d_add_execution

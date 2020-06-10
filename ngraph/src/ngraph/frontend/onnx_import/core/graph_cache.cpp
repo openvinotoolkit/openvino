@@ -58,7 +58,7 @@ namespace ngraph
             {
                 return m_graph_cache_map.at(name);
             }
-            catch(const std::out_of_range)
+            catch(const std::out_of_range&)
             {
                 throw ngraph_error(name + " node not found in graph cache");
             }

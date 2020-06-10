@@ -30,7 +30,7 @@ using namespace ngraph::test;
 
 static std::string s_manifest = "${MANIFEST}";
 
-NGRAPH_TEST(onnx_controlflow_${BACKEND_NAME}, loop_2d_add_check_model)
+NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_add_check_model)
 {
     // The model contains a loop which has statically set iterations count equal 3.
     // In the loop body there is just simple add operation.
@@ -53,7 +53,7 @@ NGRAPH_TEST(onnx_controlflow_${BACKEND_NAME}, loop_2d_add_check_model)
     EXPECT_EQ(function->get_output_shape(1), (Shape{3, 2}));
 }
 
-NGRAPH_TEST(onnx_controlflow_${BACKEND_NAME}, loop_scalars_check_model)
+NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_scalars_check_model)
 {
     // The model contains a loop which has statically set iterations count equal 3.
     // In the loop body there is just simple add operation.
@@ -76,7 +76,48 @@ NGRAPH_TEST(onnx_controlflow_${BACKEND_NAME}, loop_scalars_check_model)
     EXPECT_EQ(function->get_output_shape(1), (Shape{3}));
 }
 
-NGRAPH_TEST(onnx_controlflow_${BACKEND_NAME}, loop_2d_add)
+NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_add_value_from_parent_scope)
+{
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/loop_2d_add_parent_scope.prototxt"));
+
+    const auto& parameters = function->get_parameters();
+    EXPECT_EQ(parameters.size(), 1);
+    EXPECT_EQ(parameters.at(0)->get_element_type(), ngraph::element::f32);
+    EXPECT_TRUE(parameters.at(0)->get_partial_shape().is_static());
+    EXPECT_EQ(parameters.at(0)->get_partial_shape().to_shape(), (Shape{1, 2}));
+
+    const auto& results = function->get_results();
+    EXPECT_EQ(results.size(), 2);
+    EXPECT_EQ(function->get_output_element_type(0), ngraph::element::f32);
+    EXPECT_TRUE(function->get_output_partial_shape(0).is_static());
+    EXPECT_EQ(function->get_output_shape(0), (Shape{1, 2}));
+    EXPECT_EQ(function->get_output_element_type(1), ngraph::element::f32);
+    EXPECT_TRUE(function->get_output_partial_shape(1).is_static());
+    EXPECT_EQ(function->get_output_shape(1), (Shape{3, 2}));
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_add_value_access_to_body_scope_exception)
+{
+    try
+    {
+        const auto function = onnx_import::import_onnx_model(
+            file_util::path_join(SERIALIZED_ZOO, "onnx/loop_2d_add_incorrect_access_body_scope.prototxt"));
+        FAIL() << "Incorrect access to body scope not detected";
+    }
+    catch(const ngraph_error& e)
+    {
+        EXPECT_HAS_SUBSTRING(
+            e.what(),
+            std::string("from_body_scope node not found in graph cache"));
+    }
+    catch (...)
+    {
+        FAIL() << "Deduced type check failed for unexpected reason";
+    }
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_add_execution)
 {
     // The model contains a loop which has statically set iterations count equal 3.
     // In the loop body there is just simple add operation.
