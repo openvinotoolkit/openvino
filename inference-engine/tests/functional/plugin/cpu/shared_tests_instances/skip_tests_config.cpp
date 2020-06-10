@@ -22,5 +22,13 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO: Issue 31845
         R"(.*(FakeQuantize).*)",
         R"(.*(EltwiseLayerTest).*IS=\(.*\..*\..*\..*\..*\).*secondaryInputType=PARAMETER.*opType=SCALAR.*)",
+        // TODO: Issue 32756
+        R"(.*Transpose.*inputOrder=\(\).*)",
+        // TODO: failed to downgrade to opset v0 in interpreter backend
+        R"(.*Gather.*axis=-1.*)",
+        // TODO: Issue 33151
+        R"(.*ReduceLogical.*)",
+        R"(.*Reduce.*axes=\(1\.-1\).*)",
+        R"(.*Reduce.*axes=\(0\.3\)_type=Prod.*)",
     };
 }
