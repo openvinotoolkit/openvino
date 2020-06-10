@@ -99,6 +99,14 @@ public:
     }
 
     /**
+     * @brief Creates a LockedMemory instance of the given type
+     * @return LockedMemory instance of the given type
+     */
+    LockedMemory<T> data() const noexcept override {
+        return {getAllocator().get(), getHandle(), offset};
+    }
+
+    /**
      * @brief Creates a readOnly LockedMemory instance of the given type
      * @return Read-only LockedMemory instance of the given type
      */

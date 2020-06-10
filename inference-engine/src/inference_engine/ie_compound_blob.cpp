@@ -281,6 +281,14 @@ void* CompoundBlob::getHandle() const noexcept {
     return nullptr;
 }
 
+Blob* CompoundBlob::clone() const {
+    return new CompoundBlob(*this);
+}
+
+void CompoundBlob::setROI(const ROI& roi) {
+    THROW_IE_EXCEPTION << "Setting ROI for CompoundBlob is not allowed";
+}
+
 NV12Blob::NV12Blob(const Blob::Ptr& y, const Blob::Ptr& uv) {
     // verify data is correct
     verifyNV12BlobInput(y, uv);
@@ -297,6 +305,10 @@ NV12Blob::NV12Blob(Blob::Ptr&& y, Blob::Ptr&& uv) {
     _blobs.emplace_back(std::move(y));
     _blobs.emplace_back(std::move(uv));
     tensorDesc = TensorDesc(Precision::U8, {}, Layout::NCHW);
+}
+
+Blob* NV12Blob::clone() const {
+    return new NV12Blob(*this);
 }
 
 Blob::Ptr& NV12Blob::y() noexcept {
@@ -340,6 +352,10 @@ I420Blob::I420Blob(Blob::Ptr&& y, Blob::Ptr&& u, Blob::Ptr&& v) {
 }
 
 I420Blob::~I420Blob() {}
+
+Blob* I420Blob::clone() const {
+    return new I420Blob(*this);
+}
 
 Blob::Ptr& I420Blob::y() noexcept {
     // NOTE: Y plane is a memory blob, which is checked in the constructor

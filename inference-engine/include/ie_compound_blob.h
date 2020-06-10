@@ -137,6 +137,20 @@ protected:
      * @brief Returns nullptr as CompoundBlob is not allocator-based
      */
     void* getHandle() const noexcept override;
+
+    /**
+     * @brief Clones this container. Cloned container references the same blobs as this one.
+     *
+     * @return Pointer to the cloned object
+     */
+    Blob* clone() const override;
+
+    /**
+     * @brief Setting ROI for the array of blobs is not allowed, exception is raised.
+     *
+     * @param roi region of interest
+     */
+    virtual void setROI(const ROI& roi);
 };
 
 /**
@@ -219,12 +233,20 @@ public:
      * @brief Returns a shared pointer to UV plane
      */
     virtual const Blob::Ptr& uv() const noexcept;
+
+protected:
+    /**
+     * @brief Clones Blob object of the particular class. Clone references the same memory as this object.
+     *
+     * @return Pointer to the cloned object
+     */
+    Blob* clone() const override;
 };
 
 /**
  * @brief Represents a blob that contains three planes (Y,U and V) in I420 color format
  */
-class INFERENCE_ENGINE_API_CLASS(I420Blob) : public CompoundBlob {
+class INFERENCE_ENGINE_API_CLASS(I420Blob): public CompoundBlob {
 public:
     /**
      * @brief A smart pointer to the I420Blob object
@@ -299,7 +321,7 @@ public:
      * Please note that reference to Blob::Ptr is returned. I.e. the reference will be valid until
      * the I420Blob object is destroyed.
      *
-      * @return constant reference to shared pointer object of Y plane*
+     * @return constant reference to shared pointer object of Y plane*
      */
     const Blob::Ptr& y() const noexcept;
 
@@ -342,5 +364,13 @@ public:
      * @return constant reference to shared pointer object of V plane
      */
     const Blob::Ptr& v() const noexcept;
+
+protected:
+    /**
+     * @brief Clones Blob object of the particular class. Clone references the same memory as this object.
+     *
+     * @return Pointer to the cloned object
+     */
+    Blob* clone() const override;
 };
 }  // namespace InferenceEngine

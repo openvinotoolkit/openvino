@@ -20,26 +20,25 @@ TensorDesc make_roi_tensor_desc(const TensorDesc& inputTensorDesc, const ROI& ro
     SizeVector blkOrder;
     SizeVector blkDims;
 
-    if (roi.posX + roi.sizeX > inputTensorDesc.getDims()[3] ||
-        roi.posY + roi.sizeY > inputTensorDesc.getDims()[2]) {
+    if (roi.posX + roi.sizeX > inputTensorDesc.getDims()[3] || roi.posY + roi.sizeY > inputTensorDesc.getDims()[2]) {
         THROW_IE_EXCEPTION << "passed ROI coordinates are inconsistent to input size";
     }
 
     Layout blobLayout = inputTensorDesc.getLayout();
     switch (blobLayout) {
-        case NCHW: {
-            blkOffset = inputTensorDesc.getDims()[3] * roi.posY + roi.posX;
-            blkOrder = {0, 1, 2, 3};
-            blkDims = {1, blkDimsC, blkDimsH, blkDimsW};  // we use BlockingDesc for 1 cropped image only
-        } break;
-        case NHWC: {
-            blkOffset = blkDimsC * (inputTensorDesc.getDims()[3] * roi.posY + roi.posX);
-            blkOrder = {0, 2, 3, 1};
-            blkDims = {1, blkDimsH, blkDimsW, blkDimsC};  // we use BlockingDesc for 1 cropped image only
-        } break;
-        default: {
-            THROW_IE_EXCEPTION << "ROI could not be cropped due to unsupported input layout: " << blobLayout;
-        }
+    case NCHW: {
+        blkOffset = inputTensorDesc.getDims()[3] * roi.posY + roi.posX;
+        blkOrder = {0, 1, 2, 3};
+        blkDims = {1, blkDimsC, blkDimsH, blkDimsW};  // we use BlockingDesc for 1 cropped image only
+    } break;
+    case NHWC: {
+        blkOffset = blkDimsC * (inputTensorDesc.getDims()[3] * roi.posY + roi.posX);
+        blkOrder = {0, 2, 3, 1};
+        blkDims = {1, blkDimsH, blkDimsW, blkDimsC};  // we use BlockingDesc for 1 cropped image only
+    } break;
+    default: {
+        THROW_IE_EXCEPTION << "ROI could not be cropped due to unsupported input layout: " << blobLayout;
+    }
     }
 
     // the strides are the same because ROI blob uses the same memory buffer as original input blob.
@@ -55,15 +54,7 @@ TensorDesc make_roi_tensor_desc(const TensorDesc& inputTensorDesc, const ROI& ro
 }
 
 Blob::Ptr make_shared_blob(const Blob::Ptr& inputBlob, const ROI& roi) {
-    // reject compound blobs
-    if (inputBlob->is<CompoundBlob>()) {
-        THROW_IE_EXCEPTION << "Compound blobs do not support ROI";
-    }
-
-    const TensorDesc& inputTensorDesc = inputBlob->getTensorDesc();
-    TensorDesc roiTensorDesc =  make_roi_tensor_desc(inputTensorDesc, roi);
-
-    return make_blob_with_precision(roiTensorDesc, inputBlob->buffer());
+    return inputBlob->CreateROIBlob(roi);
 }
 
 }  // namespace InferenceEngine
