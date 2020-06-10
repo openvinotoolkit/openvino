@@ -30,6 +30,11 @@ namespace ngraph
                 NodeVector resize(const Node& node);
 
             } // namespace set_1
+            namespace set_9
+            {
+                NodeVector resize(const Node& node);
+
+            } // namespace set_9
 
         } // namespace op
 

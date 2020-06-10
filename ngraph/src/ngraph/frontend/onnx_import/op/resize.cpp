@@ -30,6 +30,84 @@ namespace ngraph
                 {
                     const auto inputs = node.get_ng_inputs();
                     const auto data = inputs.at(0);
+                    // const auto scales = inputs.at(1);
+
+                    const auto data_shape = data->get_output_partial_shape(0);
+                    // const auto scales_shape = scales->get_output_partial_shape(0);
+
+                    const auto mode = node.get_attribute_value<std::string>("mode", "nearest");
+                    const auto scales = node.get_attribute_value<std::vector<float>>("scales", {});
+
+                    std::unordered_set<std::string> supported_modes = {"nearest", "linear"};
+                    bool is_mode_supported =
+                        (std::find(supported_modes.begin(), supported_modes.end(), mode) !=
+                         supported_modes.end());
+
+                    if (!is_mode_supported)
+                    {
+                        std::string supported_modes_str = "";
+                        for (const auto& mode_name : supported_modes)
+                        {
+                            supported_modes_str += (mode_name + ", ");
+                        }
+                        CHECK_VALID_NODE(node,
+                                         is_mode_supported,
+                                         mode,
+                                         " - this type of interpolation mode is not supported."
+                                         " Choose one of the following modes: ",
+                                         supported_modes_str);
+                    }
+
+                    size_t axes_size = scales.size();
+
+                    AxisSet axes;
+                    for (int ax = 0; ax < axes_size; ++ax)
+                    {
+                        axes.insert(ax);
+                    }
+
+                    auto attrs = ngraph::op::v0::InterpolateAttrs();
+                    attrs.axes = axes;
+                    attrs.mode = mode;
+                    attrs.align_corners = false;
+
+                    const auto scales_const = default_opset::Constant::create(
+                        ngraph::element::f32, Shape({scales.size()}), scales);
+                    if (data_shape.is_static())
+                    {
+                        auto data_static_shape = data_shape.to_shape();
+
+                        std::vector<int64_t> output_shape;
+                        for (size_t i = 0; i < data_static_shape.size(); ++i)
+                        {
+                            output_shape.push_back(
+                                std::floor(data_static_shape.at(i) * scales.at(i)));
+                        }
+                        auto output_shape_const = default_opset::Constant::create(
+                            element::u64, Shape({output_shape.size()}), output_shape);
+
+                        return {std::make_shared<default_opset::Interpolate>(
+                            data, output_shape_const, attrs)};
+                    }
+
+                    auto shape_of_data = std::make_shared<default_opset::Convert>(
+                        std::make_shared<default_opset::ShapeOf>(data), ngraph::element::f32);
+                    auto multiply =
+                        std::make_shared<default_opset::Multiply>(shape_of_data, scales_const);
+                    auto output_shape = std::make_shared<default_opset::Convert>(
+                        std::make_shared<default_opset::Floor>(multiply), ngraph::element::i64);
+                    return {
+                        std::make_shared<default_opset::Interpolate>(data, output_shape, attrs)};
+                }
+
+            } // namespace set_1
+
+            namespace set_9
+            {
+                NodeVector resize(const onnx_import::Node& node)
+                {
+                    const auto inputs = node.get_ng_inputs();
+                    const auto data = inputs.at(0);
                     const auto scales = inputs.at(1);
 
                     const auto data_shape = data->get_output_partial_shape(0);
@@ -106,7 +184,7 @@ namespace ngraph
                         std::make_shared<default_opset::Interpolate>(data, output_shape, attrs)};
                 }
 
-            } // namespace set_1
+            } // namespace set_9
 
         } // namespace op
 
