@@ -403,14 +403,14 @@ TEST_P(RandomROITest, PreprocRandomROITest)
 
             auto roiUV = roi/2;
 
-            auto cropYBlob = make_shared_blob(yBlob, roi);
-            auto cropUvBlob = make_shared_blob(uvBlob, roiUV);
+            auto cropYBlob = yBlob->CreateROIBlob(roi);
+            auto cropUvBlob = uvBlob->CreateROIBlob(roiUV);
 
             cropBlob = make_shared_blob<NV12Blob>(cropYBlob, cropUvBlob);
         }
         else
         {
-            cropBlob = make_shared_blob(blob, roi);
+            cropBlob = blob->CreateROIBlob(roi);
         }
 
         req.SetBlob(net.getInputsInfo().begin()->first, cropBlob);
