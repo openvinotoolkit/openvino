@@ -33,6 +33,15 @@ protected:
     void updateLayerBiases(
         TransformationContext& context,
         const CNNLayer& convolution,
+        const bool biasesDimsAsOutput,
+        std::vector<float>& dequantizationScales,
+        std::vector<float>& dequantizationShifts,
+        std::vector<float>& biasesShifts) const;
+
+    void updateLayerBiasesFcSpecific(
+        TransformationContext& context,
+        const CNNLayer& convolution,
+        const bool biasesDimsAsOutput,
         std::vector<float>& dequantizationScales,
         std::vector<float>& dequantizationShifts,
         std::vector<float>& biasesShifts) const;

@@ -164,6 +164,7 @@ struct ncDeviceDescr_t {
 typedef struct ncDeviceOpenParams {
     WatchdogHndl_t* watchdogHndl;
     int watchdogInterval;
+    char memoryType;
     const char* customFirmwareDirectory;
 } ncDeviceOpenParams_t;
 

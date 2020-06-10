@@ -62,7 +62,7 @@ def test_inputs_deprecated():
     assert "'inputs' property of IENetwork class is deprecated. " \
                "To access DataPtrs user need to use 'input_data' property " \
                "of InputInfoPtr objects which " \
-               "can be acessed by 'input_info' property." in str(w[-1].message)
+               "can be accessed by 'input_info' property." in str(w[-1].message)
 
 
 def test_input_info():

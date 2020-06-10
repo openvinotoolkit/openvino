@@ -74,8 +74,16 @@ InferenceEngine::ICNNNetwork::Ptr clDNNEngine::CloneNetwork(const InferenceEngin
     std::shared_ptr<ICNNNetwork> clonedNetwork(nullptr);
     if (network.getFunction()) {
         const auto transformations_callback = [](const std::shared_ptr<const ::ngraph::Node> &node) -> bool {
+            // DepthToSpace node implementation supports only equal input/output tensors with rank <= 5
+            // Reshape->Permute->Reshape pattern in theory can change output rank, so this check is added to be sure
+            // that DepthToSpace impl will handle fused case
+            if (auto dtsOp = std::dynamic_pointer_cast<const ::ngraph::opset3::DepthToSpace>(node)) {
+                return dtsOp->input_value(0).get_shape().size() <= 5lu && dtsOp->input_value(0).get_shape().size() == dtsOp->get_output_shape(0).size();
+            }
+
             return std::dynamic_pointer_cast<const ::ngraph::opset2::Gelu>(node) ||
-                   std::dynamic_pointer_cast<const ::ngraph::opset3::ShuffleChannels>(node);
+                   std::dynamic_pointer_cast<const ::ngraph::opset3::ShuffleChannels>(node) ||
+                   std::dynamic_pointer_cast<const ::ngraph::opset2::BatchToSpace>(node);
         };
         CNNNetwork net(network.getFunction());
         auto nGraphFunc = net.getFunction();
@@ -142,7 +150,8 @@ auto check_inputs = [](InferenceEngine::InputsDataMap _networkInputs) {
         auto input_precision = ii.second->getTensorDesc().getPrecision();
         if (input_precision != InferenceEngine::Precision::FP16 && input_precision != InferenceEngine::Precision::I16
             && input_precision != InferenceEngine::Precision::FP32 && input_precision != InferenceEngine::Precision::U8
-            && input_precision != InferenceEngine::Precision::I32 && input_precision != InferenceEngine::Precision::BOOL) {
+            && input_precision != InferenceEngine::Precision::I32 && input_precision != InferenceEngine::Precision::I64
+            && input_precision != InferenceEngine::Precision::BOOL) {
             THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str
                 << "Input image format " << input_precision << " is not supported yet...";
         }

@@ -40,8 +40,17 @@ layout strided_slice_inst::calc_output_layout(strided_slice_node const& node) {
     for (size_t i = 1; i < node.get_dependencies().size(); ++i) {
         auto& input = node.get_dependency(i).as<data>();
         auto& mem = input.get_attached_memory();
-        int32_t* data = static_cast<int32_t*>(mem.lock());
-        std::vector<int32_t> sizes = std::vector<int32_t>(data, data + input.get_output_layout().count());
+        std::vector<int32_t> sizes;
+        if (input.get_output_layout().data_type == cldnn::data_types::i64) {
+            int64_t* data = static_cast<int64_t*>(mem.lock());
+            std::vector<int64_t> sizes_i64 = std::vector<int64_t>(data, data + input.get_output_layout().count());
+            sizes.resize(sizes_i64.size());
+            for (size_t j = 0; j < sizes.size(); j++)
+                sizes[j] = static_cast<int32_t>(sizes_i64[j]);
+        } else {
+            int32_t* data = static_cast<int32_t*>(mem.lock());
+            sizes = std::vector<int32_t>(data, data + input.get_output_layout().count());
+        }
         pad_vector_to_size(sizes, dims_num, i != 1);  // for "begin" completion used 0 value, for other - 1
         args.push_back(sizes);
         mem.unlock();
