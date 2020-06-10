@@ -339,6 +339,34 @@ void GNAPlugin::InitGNADevice() {
     graphCompiler.setGNAMemoryPtr(gnamem);
 }
 
+void InitializeMemoryStates(GNAPluginNS::GNAGraphCompiler * graphCompiler) {
+    graphCompiler->memoryStates.clear();
+    for (auto& gnaMemoryConn : graphCompiler->memory_connection) {
+        std::string name = gnaMemoryConn.first;
+        GNAMemoryLayer& memLayer = gnaMemoryConn.second;
+
+        if (memLayer.getInput()) {
+            auto precision = memLayer.getInput()->precision;
+            InferenceEngine::CNNLayerPtr layer = memLayer.getInput();
+            auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(layer);
+            auto scale_factor = quantized != nullptr ? quantized->_dst_quant.scale : 1.0f;
+            auto ptr = make_blob_with_precision(TensorDesc(precision,
+                memLayer.getDims(),
+                memLayer.getDims().size() == 2 ? NC : NCHW),
+                memLayer.gna_ptr);
+            graphCompiler->memoryStates.emplace_back(std::make_shared<memory::GNAMemoryState>(name, ptr, scale_factor));
+        } else {
+            // Case when input and output memory layers of connection are empty, but the reserved space and gna_ptr is there
+            auto elements = memLayer.reserved_size / 2;
+            auto ptr = make_blob_with_precision(TensorDesc(InferenceEngine::Precision::I16,
+                SizeVector({1, elements}),
+                NC),
+                memLayer.gna_ptr);
+            graphCompiler->memoryStates.emplace_back(std::make_shared<memory::GNAMemoryState>(name, ptr, 1.0f));
+        }
+    }
+}
+
 void GNAPlugin::LoadNetwork(ICNNNetwork &network) {
     // move blobs from Constant layers to Convolution, Deconvolution, FullyConnected layers attributes
     BlobTransformation blobsTransformation;
@@ -734,20 +762,7 @@ void GNAPlugin::LoadNetwork(ICNNNetwork &network) {
     num_rotate_rows = dnn->num_rotate_rows;
     num_rotate_columns = dnn->num_rotate_columns;
 
-    for (auto& gnaMemoryConn : graphCompiler.memory_connection) {
-        std::string name = gnaMemoryConn.first;
-        GNAMemoryLayer memLayer = gnaMemoryConn.second;
-
-        InferenceEngine::CNNLayerPtr layer = memLayer.getInput();
-        auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(layer);
-        auto scale_factor = quantized != nullptr ? quantized->_dst_quant.scale : 1.0f;
-
-        auto ptr = make_blob_with_precision(TensorDesc(InferenceEngine::Precision::I16,
-                                            memLayer.getDims(),
-                                            memLayer.getDims().size() == 2 ? NC : NCHW),
-                                            memLayer.gna_ptr);
-        graphCompiler.memoryStates.emplace_back(std::make_shared<memory::GNAMemoryState>(name, ptr, scale_factor));
-    }
+    InitializeMemoryStates(&graphCompiler);
 
     DumpXNNToFile();
 
@@ -1118,6 +1133,8 @@ std::vector<InferenceEngine::MemoryStateInternal::Ptr>  GNAPlugin::QueryState() 
     if (graphCompiler.memory_connection.empty()) {
         return {};
     }
+
+    if (graphCompiler.memoryStates.empty()) InitializeMemoryStates(&graphCompiler);
 
     return graphCompiler.memoryStates;
 }
