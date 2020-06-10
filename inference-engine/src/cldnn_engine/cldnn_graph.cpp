@@ -122,6 +122,7 @@ InferenceEngine::ICNNNetwork::Ptr CLDNNGraph::GetExecGraphInfoByPrimitivesInfo(s
             case cldnn::data_types::f32: return Precision::FP32;
             case cldnn::data_types::f16: return Precision::FP16;
             case cldnn::data_types::i32: return Precision::I32;
+            case cldnn::data_types::i64: return Precision::I64;
             case cldnn::data_types::u8: return Precision::U8;
             case cldnn::data_types::i8: return Precision::I8;
             default: return Precision::UNSPECIFIED;

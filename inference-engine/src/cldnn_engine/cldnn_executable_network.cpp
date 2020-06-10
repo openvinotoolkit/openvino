@@ -59,9 +59,6 @@ CLDNNExecNetwork::CLDNNExecNetwork(InferenceEngine::ICNNNetwork &network, Remote
 
     m_context = casted_context;
 
-    NetPass::ConvertPrecision(network, Precision::I64, Precision::I32);
-    NetPass::ConvertPrecision(network, Precision::U64, Precision::I32);
-
     auto graph_base = std::make_shared<CLDNNGraph>(network, m_context, m_config, 0);
     for (uint16_t n = 0; n < m_config.throughput_streams; n++) {
         auto graph = n == 0 ? graph_base : std::make_shared<CLDNNGraph>(graph_base, n);

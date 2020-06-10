@@ -177,7 +177,7 @@ void split_test(int batch_num, int feature_num, int x_size, int y_size, std::vec
     }
 }
 
-TEST(split_gpu, split_1d_uneven_2_splits) {
+TEST(split_gpu_f32, split_1d_uneven_2_splits) {
 
     //  Input      : 2x4x3x3
     //  Output1    : 2x1x3x3
@@ -198,7 +198,28 @@ TEST(split_gpu, split_1d_uneven_2_splits) {
     split_test<float>(batch_num, feature_num, x_size, y_size, split_offsets);
 }
 
-TEST(split_gpu, basic_split_concat_optimization) {
+TEST(split_gpu_i64, split_1d_uneven_2_splits) {
+
+    //  Input      : 2x4x3x3
+    //  Output1    : 2x1x3x3
+    //  Output2    : 2x3x3x3
+    //  Split params:
+    //  id: "out0", offsets: { 0, 0, 0, 0 }
+    //  id: "out1", offsets: { 0, 1, 0, 0 }
+
+    auto batch_num = 2;
+    auto feature_num = 4;
+    auto x_size = 3;
+    auto y_size = 3;
+    std::vector<cldnn::tensor> split_offsets = {
+                                                {0, 0, 0, 0},
+                                                {0, 1, 0, 0}                                                
+                                               };
+
+    split_test<int64_t>(batch_num, feature_num, x_size, y_size, split_offsets);
+}
+
+TEST(split_gpu_f32, basic_split_concat_optimization) {
 
     const auto& engine = get_test_engine();
 
@@ -238,7 +259,47 @@ TEST(split_gpu, basic_split_concat_optimization) {
     }
 }
 
-TEST(split_gpu, split_1d_uneven_3_splits) {
+TEST(split_gpu_i64, basic_split_concat_optimization) {
+
+    const auto& engine = get_test_engine();
+
+    auto input = memory::allocate(engine, { data_types::i64,format::bfyx,{ 1, 25, 1, 256 } });
+    tests::set_random_values<int64_t>(input);
+
+    topology topology;
+    topology.add(input_layout("input", input.get_layout()));
+    std::vector<std::pair<primitive_id, tensor>> offsets;
+    std::vector<primitive_id> ids;
+    for (int i = 0; i < 25; i++)
+    {
+        auto id = "crop_" + std::to_string(i);
+        ids.push_back("split:" + id);
+        offsets.push_back({ id, {0, i, 0, 0} });
+    }
+
+    topology.add(split("split", "input", offsets));
+    topology.add(concatenation("concat", ids, concatenation::along_f));
+    topology.add(reorder("output", "concat", format::bfyx, data_types::i64));
+
+    build_options opts;
+    opts.set_option(build_option::optimize_data(true));
+    network network(engine, topology, opts);
+
+    network.set_input_data("input", input);
+
+    auto outputs = network.execute();
+
+    auto output = outputs.at("output").get_memory();
+    auto output_ptr = output.pointer<int64_t>();
+    auto input_ptr = input.pointer<int64_t>();
+
+    for (int i = 0; i < 25*256; ++i)
+    {
+        EXPECT_EQ(output_ptr[i], input_ptr[i]);
+    }
+}
+
+TEST(split_gpu_f32, split_1d_uneven_3_splits) {
 
     //  Input      : 2x8x3x3
     //  Output1    : 2x1x3x3
@@ -262,7 +323,31 @@ TEST(split_gpu, split_1d_uneven_3_splits) {
     split_test<float>(batch_num, feature_num, x_size, y_size, split_offsets);
 }
 
-TEST(split_gpu, split_2d_uneven_2_splits) {
+TEST(split_gpu_i64, split_1d_uneven_3_splits) {
+
+    //  Input      : 2x8x3x3
+    //  Output1    : 2x1x3x3
+    //  Output2    : 2x3x3x3
+    //  Output3    : 2x4x3x3
+    //  Split params:
+    //  id: "out0", offsets: { 0, 0, 0, 0 }
+    //  id: "out1", offsets: { 0, 1, 0, 0 }
+    //  id: "out2", offsets: { 0, 4, 0, 0 }
+
+    auto batch_num = 2;
+    auto feature_num = 8;
+    auto x_size = 3;
+    auto y_size = 3;
+    std::vector<cldnn::tensor> split_offsets = {
+                                                {0, 0, 0, 0},
+                                                {0, 1, 0, 0},
+                                                {0, 4, 0, 0},
+                                               };
+
+    split_test<int64_t>(batch_num, feature_num, x_size, y_size, split_offsets);
+}
+
+TEST(split_gpu_f32, split_2d_uneven_2_splits) {
 
     //  Input      : 2x8x10x3
     //  Output1    : 2x1x4x3
@@ -283,7 +368,28 @@ TEST(split_gpu, split_2d_uneven_2_splits) {
     split_test<float>(batch_num, feature_num, x_size, y_size, split_offsets);
 }
 
-TEST(split_gpu, split_2d_uneven_3_split3) {
+TEST(split_gpu_i64, split_2d_uneven_2_splits) {
+
+    //  Input      : 2x8x10x3
+    //  Output1    : 2x1x4x3
+    //  Output2    : 2x3x6x3
+    //  Split params:
+    //  id: "out0", offsets: { 0, 0, 0, 0 }
+    //  id: "out1", offsets: { 0, 1, 4, 0 }
+
+    auto batch_num = 2;
+    auto feature_num = 8;
+    auto x_size = 10;
+    auto y_size = 3;
+    std::vector<cldnn::tensor> split_offsets = {
+                                                {0, 0, 0, 0},
+                                                {0, 1, 4, 0}
+                                               };
+
+    split_test<int64_t>(batch_num, feature_num, x_size, y_size, split_offsets);
+}
+
+TEST(split_gpu_f32, split_2d_uneven_3_split3) {
 
     //  Input      : 2x8x10x3
     //  Output1    : 2x1x4x3
@@ -307,7 +413,31 @@ TEST(split_gpu, split_2d_uneven_3_split3) {
     split_test<float>(batch_num, feature_num, x_size, y_size, split_offsets);
 }
 
-TEST(split_gpu, split_3d_uneven_2_splits) {
+TEST(split_gpu_i64, split_2d_uneven_3_split3) {
+
+    //  Input      : 2x8x10x3
+    //  Output1    : 2x1x4x3
+    //  Output2    : 2x3x3x3
+    //  Output3    : 2x4x3x3
+    //  Split params:
+    //  id: "out0", offsets: { 0, 0, 0, 0 }
+    //  id: "out1", offsets: { 0, 1, 4, 0 }
+    //  id: "out2", offsets: { 0, 4, 7, 0 }
+
+    auto batch_num = 2;
+    auto feature_num = 8;
+    auto x_size = 10;
+    auto y_size = 3;
+    std::vector<cldnn::tensor> split_offsets = {
+                                                {0, 0, 0, 0},
+                                                {0, 1, 4, 0},
+                                                {0, 4, 7, 0},
+                                               };
+
+    split_test<int64_t>(batch_num, feature_num, x_size, y_size, split_offsets);
+}
+
+TEST(split_gpu_f32, split_3d_uneven_2_splits) {
 
     //  Input      : 2x8x10x3
     //  Output1    : 2x1x4x1
@@ -328,7 +458,28 @@ TEST(split_gpu, split_3d_uneven_2_splits) {
     split_test<float>(batch_num, feature_num, x_size, y_size, split_offsets);
 }
 
-TEST(split_gpu, split_3d_uneven_3_splits) {
+TEST(split_gpu_i64, split_3d_uneven_2_splits) {
+
+    //  Input      : 2x8x10x3
+    //  Output1    : 2x1x4x1
+    //  Output2    : 2x7x6x2
+    //  Split params:
+    //  id: "out0", offsets: { 0, 0, 0, 0 }
+    //  id: "out1", offsets: { 0, 1, 4, 1 }
+
+    auto batch_num = 2;
+    auto feature_num = 8;
+    auto x_size = 10;
+    auto y_size = 3;
+    std::vector<cldnn::tensor> split_offsets = {
+                                                {0, 0, 0, 0},
+                                                {0, 1, 4, 1}
+                                               };
+
+    split_test<int64_t>(batch_num, feature_num, x_size, y_size, split_offsets);
+}
+
+TEST(split_gpu_f32, split_3d_uneven_3_splits) {
 
     //  Input      : 2x8x10x5
     //  Output1    : 2x1x4x1
@@ -352,7 +503,31 @@ TEST(split_gpu, split_3d_uneven_3_splits) {
     split_test<float>(batch_num, feature_num, x_size, y_size, split_offsets);
 }
 
-TEST(split_gpu, basic_in2x3x2x2_split_feature_bfyx) {
+TEST(split_gpu_i64, split_3d_uneven_3_splits) {
+
+    //  Input      : 2x8x10x5
+    //  Output1    : 2x1x4x1
+    //  Output2    : 2x6x4x1
+    //  Output3    : 2x1x2x1
+    //  Split params:
+    //  id: "out0", offsets: { 0, 0, 0, 0 }
+    //  id: "out1", offsets: { 0, 1, 4, 1 }
+    //  id: "out2", offsets: { 0, 7, 8, 2 }
+
+    auto batch_num = 2;
+    auto feature_num = 8;
+    auto x_size = 10;
+    auto y_size = 3;
+    std::vector<cldnn::tensor> split_offsets = {
+                                                {0, 0, 0, 0},
+                                                {0, 1, 4, 1},
+                                                {0, 7, 8, 2}
+                                               };
+
+    split_test<int64_t>(batch_num, feature_num, x_size, y_size, split_offsets);
+}
+
+TEST(split_gpu_f32, basic_in2x3x2x2_split_feature_bfyx) {
     //  Input      : 6x3x4x3
     //  3 x Outputs: 6x1x4x3
     //  Split params:
@@ -398,7 +573,53 @@ TEST(split_gpu, basic_in2x3x2x2_split_feature_bfyx) {
     }
 }
 
-TEST(split_gpu, basic_in2x3x2x2_split_scale_feature_bfyx) {
+TEST(split_gpu_i64, basic_in2x3x2x2_split_feature_bfyx) {
+    //  Input      : 6x3x4x3
+    //  3 x Outputs: 6x1x4x3
+    //  Split params:
+    //  id: "out0", offsets: { 0, 0, 0, 0 }
+    //  id: "out1", offsets: { 0, 1, 0, 0 }
+    //  id: "out2", offsets: { 0, 2, 0, 0 }
+
+    const auto& engine = get_test_engine();
+
+    auto batch_num = 6;
+    auto feature_num = 3;
+    auto x_size = 4;
+    auto y_size = 3;
+
+    auto input = memory::allocate(engine, { data_types::i64,format::bfyx,{ batch_num, feature_num, x_size, y_size } });
+
+    topology topology;
+    topology.add(input_layout("input", input.get_layout()));
+    topology.add(split("split", "input",
+    {
+        { "out0", { 0, 0, 0, 0 } },
+        { "out1", { 0, 1, 0, 0 } },
+        { "out2", { 0, 2, 0, 0 } }
+    } ));
+
+    std::vector<int64_t> input_vec = generate_random_input<int64_t>(batch_num, feature_num, y_size, x_size, -10, 10);
+    set_values(input, input_vec);
+
+    network network(engine, topology);
+
+    network.set_input_data("input", input);
+
+    auto outputs = network.execute();
+
+    EXPECT_EQ(outputs.size(), size_t(3));
+
+    for (unsigned int i = 0; i < 3; i++)
+    {
+        auto split_id = "split:out" + std::to_string(i);
+        auto output = outputs.at(split_id).get_memory();
+        auto output_ptr = output.pointer<int64_t>();
+        check_feature_map<int64_t>(output_ptr, input_vec, batch_num, feature_num, y_size, x_size, i, 1);
+    }
+}
+
+TEST(split_gpu_f32, basic_in2x3x2x2_split_scale_feature_bfyx) {
     //  Input      : 6x3x4x3
     //  3 x Outputs: 6x1x4x3
     //  Split params:

@@ -297,6 +297,18 @@ TEST(contract_gpu_i32, generic_f_max) {
     generic_contract_test_int<int32_t>(format::bfyx, 5, 5, 5, 5, contract_mode::max, { 1 });
 }
 
+TEST(contract_gpu_i64, generic_f_max) {
+    generic_contract_test_int<int64_t>(format::bfyx, 5, 5, 5, 5, contract_mode::max, { 1 });
+}
+
+TEST(contract_gpu_i64, generic_x_sum) {
+    generic_contract_test_int<int64_t>(format::bfyx, 5, 5, 5, 5, contract_mode::sum, { 3 });
+}
+
+TEST(contract_gpu_i64, generic_fy_any) {
+    generic_contract_test_int<int64_t>(format::bfyx, 5, 5, 5, 5, contract_mode::any, { 1, 2 });
+}
+
 TEST(contract_error, basic_error_empty_r_axes) {
 
     const auto& engine = get_test_engine();
