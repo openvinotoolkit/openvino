@@ -856,6 +856,15 @@ struct ROI {
 };
 
 /**
+ * @brief Creates a tensor description describing given ROI object based on the given tensor description
+ *
+ * @param inputTensorDesc original tensor description.
+ * @param roi A ROI object describing region of the tensor description.
+ * @return Tensor description describing passed region.
+ */
+INFERENCE_ENGINE_API_CPP(TensorDesc) make_roi_tensor_desc(const TensorDesc& inputTensorDesc, const ROI& roi);
+
+/**
  * @brief Creates a blob describing given ROI object based on the given blob with pre-allocated memory.
  *
  * @param inputBlob original blob with pre-allocated memory.
