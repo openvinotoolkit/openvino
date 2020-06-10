@@ -18,7 +18,7 @@ namespace op {
 
 class TRANSFORMATIONS_API TypeRelaxedBase {
 public:
-    TypeRelaxedBase() {};
+    TypeRelaxedBase() {}
     virtual ~TypeRelaxedBase();
 
     TypeRelaxedBase(element::Type use_type) :m_output_data_type(use_type) {
