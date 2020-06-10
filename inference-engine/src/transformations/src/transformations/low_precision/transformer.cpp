@@ -29,6 +29,7 @@
 // #include "low_precision_transformations/mvn.hpp"
 // #include "low_precision_transformations/permute.hpp"
 #include "transformations/low_precision/max_pool.hpp"
+#include "transformations/low_precision/normalize.hpp"
 // #include "low_precision_transformations/resample.hpp"
 // #include "low_precision_transformations/reshape.hpp"
 // #include "low_precision_transformations/scaleshift_to_convolution.hpp"
@@ -188,7 +189,8 @@ LowPrecisionTransformations LowPrecisionTransformer::getAllTransformations(const
             { "Add", LayerTransformationPtr(new AddTransformation(params)) },
             //{ "Multiply", LayerTransformationPtr(new MultiplyTransformation(params)) },
             //{ "Interpolate", LayerTransformationPtr(new InterpolateTransformation(params)) },
-            { "DepthToSpace", LayerTransformationPtr(new DepthToSpaceTransformation(params)) }
+            { "DepthToSpace", LayerTransformationPtr(new DepthToSpaceTransformation(params)) },
+            { "Normalize", LayerTransformationPtr(new NormalizeTransformation(params)) }
         }),
         std::map<std::string, LayerTransformationPtr>({
             //{ "FakeQuantize", LayerTransformationPtr(new FuseFakeQuantizeAndScaleShiftTransformation(params)) },
