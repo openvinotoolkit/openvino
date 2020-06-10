@@ -506,13 +506,13 @@ std::shared_ptr<CNNNetworkImpl> convertFunctionToICNNNetwork(const std::shared_p
     const auto createCNNLayer = [](const std::shared_ptr<::ngraph::Node> &node) -> CNNLayerPtr {
         class NGraphCNNLayer: public CNNLayer {
         public:
-            void setNode(const std::shared_ptr<::ngraph::Node> &node) {
+            void setNode(const std::shared_ptr<::ngraph::Node>& node) {
                 this->node = node;
             }
         };
 
         static std::vector<std::shared_ptr<Builder::INodeConverter>> convertors = {
-                std::make_shared<Builder::NodeConverter < ::ngraph::op::Abs>>(),
+                std::make_shared<Builder::NodeConverter<::ngraph::op::Abs>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::Acos>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::v1::Add>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::Asin>>(),
@@ -617,7 +617,7 @@ std::shared_ptr<CNNNetworkImpl> convertFunctionToICNNNetwork(const std::shared_p
         };
         CNNLayerPtr result;
 
-        for (auto &convertor: convertors) {
+        for (auto &convertor : convertors) {
             if (!convertor->canCreate(node)) continue;
             result = convertor->createLayer(node);
             break;
@@ -630,7 +630,7 @@ std::shared_ptr<CNNNetworkImpl> convertFunctionToICNNNetwork(const std::shared_p
 
         if (!result)
             THROW_IE_EXCEPTION << "Cannot cast ngraph node " << node->get_friendly_name() << " to CNNLayer!";
-        NGraphCNNLayer *layer = reinterpret_cast<NGraphCNNLayer *>(result.get());
+        NGraphCNNLayer * layer = reinterpret_cast<NGraphCNNLayer*>(result.get());
         layer->setNode(node);
         return result;
     };
@@ -698,7 +698,7 @@ std::shared_ptr<CNNNetworkImpl> convertFunctionToICNNNetwork(const std::shared_p
         network->setInputInfo(info);
     };
 
-    const CNNNetworkNGraphImpl *nGraphImpl = dynamic_cast<const CNNNetworkNGraphImpl *>(&network);
+    const CNNNetworkNGraphImpl* nGraphImpl = dynamic_cast<const CNNNetworkNGraphImpl *>(&network);
 
     InputsDataMap thisInputDataMap;
     network.getInputsInfo(thisInputDataMap);
@@ -713,7 +713,7 @@ std::shared_ptr<CNNNetworkImpl> convertFunctionToICNNNetwork(const std::shared_p
     // Collect all names from current graph
     // It is necessary in order to differentiate outputs from constant layers when we share constants
     // (Constant operations contains outputs for converted and original functions)
-    const ngraph::NodeVector &nodes = graph->get_ops();
+    const ngraph::NodeVector& nodes = graph->get_ops();
 
     std::unordered_set<std::string> op_names;
     for (const auto &layer : nodes)
@@ -727,7 +727,7 @@ std::shared_ptr<CNNNetworkImpl> convertFunctionToICNNNetwork(const std::shared_p
 
         // TODO: remove this rt info when all blobs will be inputs
         auto &rt_info = layer->get_rt_info();
-        rt_info["keep_constants"] = std::make_shared<::ngraph::VariantWrapper<int64_t>>(keep_constants);
+        rt_info["keep_constants"] = std::make_shared<::ngraph::VariantWrapper<int64_t>> (keep_constants);
 
         CNNLayerPtr cnnLayer = createCNNLayer(layer);
 
@@ -756,8 +756,7 @@ std::shared_ptr<CNNNetworkImpl> convertFunctionToICNNNetwork(const std::shared_p
 
         size_t inputCount(0);
         for (size_t i = 0; i < layer->get_input_size(); i++) {
-            const auto &constant = ngraph::as_type_ptr<ngraph::op::Constant>(
-                    layer->get_inputs()[i].get_output().get_node());
+            const auto &constant = ngraph::as_type_ptr<ngraph::op::Constant>(layer->get_inputs()[i].get_output().get_node());
             if (constant && isInternalConstLayer(constant, layer, keep_constants)) {
                 continue;
             }
@@ -784,15 +783,15 @@ std::shared_ptr<CNNNetworkImpl> convertFunctionToICNNNetwork(const std::shared_p
             for (const auto &dim : dims) {
                 if (!dim)
                     THROW_IE_EXCEPTION << cnnLayer->type << " layer " << cnnLayer->name
-                                       << " has incorrect dimensions in the output data " << i;
+                        << " has incorrect dimensions in the output data " << i;
             }
             if (!ptr && nGraphImpl && nGraphImpl->_data.find(outName) != nGraphImpl->_data.end()) {
                 ptr = nGraphImpl->_data.at(outName);
                 if (auto nData = std::dynamic_pointer_cast<InferenceEngine::details::NGraphData>(ptr)) {
                     const auto layout =
-                            dims.size() == nData->getTensorDesc().getDims().size() ?
-                            nData->getTensorDesc().getLayout() :
-                            TensorDesc::getLayoutByDims(dims);
+                        dims.size() == nData->getTensorDesc().getDims().size() ?
+                        nData->getTensorDesc().getLayout() :
+                        TensorDesc::getLayoutByDims(dims);
 
                     nData->reset();
                     nData->reshape(dims, layout);
@@ -803,7 +802,7 @@ std::shared_ptr<CNNNetworkImpl> convertFunctionToICNNNetwork(const std::shared_p
             if (!ptr) {
                 ptr.reset(new Data(outName,
                                    {details::convertPrecision(layer->get_output_element_type(i)), dims,
-                                   TensorDesc::getLayoutByDims(dims)}));
+                                    TensorDesc::getLayoutByDims(dims)}));
             }
 
             ptr->getCreatorLayer() = cnnLayer;
@@ -842,8 +841,7 @@ std::shared_ptr<CNNNetworkImpl> convertFunctionToICNNNetwork(const std::shared_p
             }
 
             CNNLayerPtr prevCnnLayer;
-            StatusCode ret = cnnNetworkImpl->getLayerByName(input->get_friendly_name().c_str(), prevCnnLayer,
-                                                                nullptr);
+            StatusCode ret = cnnNetworkImpl->getLayerByName(input->get_friendly_name().c_str(), prevCnnLayer, nullptr);
             if (ret != OK)
                 THROW_IE_EXCEPTION << "Cannot find layer with name: " << input->get_friendly_name();
 
@@ -897,6 +895,5 @@ std::shared_ptr<CNNNetworkImpl> convertFunctionToICNNNetwork(const std::shared_p
     }
     return cnnNetworkImpl;
 }
-
 }  // namespace details
 }  // namespace InferenceEngine
