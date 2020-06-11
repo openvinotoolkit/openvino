@@ -217,7 +217,7 @@ jobs:
   timeoutInMinutes: 120
   pool:
     #vmImage: 'vs2019-win2016'
-    name: WIN_VMSS_VENV_F72S_WU2
+    name: WIN_VMSS_VENV_F48S_WU2
   variables:
     BUILD_TYPE: Release
     BUILD_DIR: D:\dldt-build
