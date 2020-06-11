@@ -125,5 +125,10 @@ private:
     mkldnn::engine eng;
 };
 
+/***********************************
+ * Util section
+ ***********************************/
+mkldnn::memory::format get_format_tag(const InferenceEngine::TensorDesc &tdesc);
+std::string format_tag_to_string(mkldnn::memory::format tag);
 
 }  // namespace MKLDNNPlugin

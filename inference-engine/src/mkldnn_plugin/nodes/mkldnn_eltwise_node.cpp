@@ -488,7 +488,7 @@ void MKLDNNEltwiseNode::initSupportedPrimitiveDescriptors() {
             dataConfig.constant = false;
             dataConfig.desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDT, format);
             config.outConfs.push_back(dataConfig);
-        return {config, impl_type, format};
+        return {config, impl_type};
     };
 
     if (fusedWith.empty()) {
@@ -553,7 +553,7 @@ void MKLDNNEltwiseNode::initSupportedPrimitiveDescriptors() {
         dataConfig.desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDT, format);
         config.outConfs.push_back(dataConfig);
 
-        supportedPrimitiveDescriptors.push_back({config, impl_type, format});
+        supportedPrimitiveDescriptors.push_back({config, impl_type});
 
         jep.src0_step = config.inConfs[0].desc.getDims()[1] == 1 ? 0 : 1;
         jep.src1_step = config.inConfs[1].desc.getDims()[1] == 1 ? 0 : 1;

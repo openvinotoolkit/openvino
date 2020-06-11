@@ -622,7 +622,7 @@ void MKLDNNConvolutionNode::initSupportedPrimitiveDescriptors() {
             if (impl_type & jit)
                 containJitImpl = true;
 
-            supportedPrimitiveDescriptors.emplace_back(config, impl_type, outFormats);
+            supportedPrimitiveDescriptors.emplace_back(config, impl_type);
             itpd++;
         }
     }

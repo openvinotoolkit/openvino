@@ -549,7 +549,7 @@ void MKLDNNNode::initSupportedPrimitiveDescriptors() {
             }
             impl_desc_type impl_type = parse_impl_name(itpd.get_impl_info_str());
 
-            supportedPrimitiveDescriptors.emplace_back(config, impl_type, outFormats);
+            supportedPrimitiveDescriptors.emplace_back(config, impl_type);
             itpd++;
         }
     }

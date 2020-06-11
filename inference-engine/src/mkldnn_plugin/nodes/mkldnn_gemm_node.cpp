@@ -150,7 +150,7 @@ void MKLDNNGemmNode::initSupportedPrimitiveDescriptors() {
 
     config.outConfs.push_back(createDataConfig(getChildEdgeAt(0)->getDims(), outputDataType));
 
-    supportedPrimitiveDescriptors.push_back(PrimitiveDescInfo(config, impl_desc_type::gemm_any, MKLDNNMemory::GetPlainFormat(getChildEdgeAt(0)->getDims())));
+    supportedPrimitiveDescriptors.push_back(PrimitiveDescInfo(config, impl_desc_type::gemm_any));
 }
 
 void MKLDNNGemmNode::initOptimalPrimitiveDescriptor() {

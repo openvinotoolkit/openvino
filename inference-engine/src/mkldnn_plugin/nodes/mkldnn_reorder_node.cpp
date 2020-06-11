@@ -58,7 +58,7 @@ void MKLDNNReorderNode::initSupportedPrimitiveDescriptors() {
         config.outConfs[0].desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, memory::format::any);
     }
 
-    supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::reorder, MKLDNNMemory::Convert(config.outConfs[0].desc.getLayout()));
+    supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::reorder);
 }
 
 void MKLDNNReorderNode::createPrimitive() {
@@ -108,7 +108,6 @@ void MKLDNNReorderNode::createReorderPrimitive(const mkldnn::memory::desc &srcDe
         const char *info;
         mkldnn_primitive_desc_query(pd.get(), mkldnn::convert_to_c(impl_info_str), 0, &info);
         supportedPrimitiveDescriptors[0].setImplementationType(parse_impl_name(std::string(info)));
-        supportedPrimitiveDescriptors[0].setOutputLayouts(static_cast<memory::format>(dstDesc.data.format));
 
         prim.reset(new mkldnn::reorder(pd, src_blocked->GetPrimitive(), dst_blocked->GetPrimitive()));
     };

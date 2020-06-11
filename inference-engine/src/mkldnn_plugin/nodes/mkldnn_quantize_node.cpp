@@ -348,7 +348,7 @@ void MKLDNNQuantizeNode::initSupportedPrimitiveDescriptors() {
             dataConfig.constant = false;
             dataConfig.desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, fmt);
             config.outConfs.push_back(dataConfig);
-        return {config, impl, fmt};
+        return {config, impl};
     };
 
     if (!descs.empty()) {

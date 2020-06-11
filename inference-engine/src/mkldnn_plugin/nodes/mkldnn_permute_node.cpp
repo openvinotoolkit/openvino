@@ -169,50 +169,50 @@ void MKLDNNPermuteNode::initSupportedPrimitiveDescriptors() {
     if (getParentEdgeAt(0)->getDims().ndims() == 4) {
         config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, memory::nchw);
         config.outConfs[0].desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, memory::nchw);
-        supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown, memory::nchw});
+        supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown});
 
         auto srcDims = getParentEdgeAt(0)->getDims();
         if (srcDims[1] % 8 == 0) {
             config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, memory::nChw8c);
-            supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown, memory::nChw8c});
+            supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown});
         }
 
         if (srcDims[1] % 16 == 0) {
             config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, memory::nChw16c);
-            supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown, memory::nChw16c});
+            supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown});
         }
 
         if (prec == Precision::I8 || prec == Precision::U8) {
             config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, memory::nhwc);
             config.outConfs[0].desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, memory::nhwc);
-            supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown, memory::nhwc});
+            supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown});
         }
     } else if (getParentEdgeAt(0)->getDims().ndims() == 5) {
         config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, memory::ncdhw);
         config.outConfs[0].desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, memory::ncdhw);
-        supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown, memory::ncdhw});
+        supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown});
 
         auto srcDims = getParentEdgeAt(0)->getDims();
         if (srcDims[1] % 8 == 0) {
             config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, memory::nCdhw8c);
-            supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown, memory::nCdhw8c});
+            supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown});
         }
 
         if (srcDims[1] % 16 == 0) {
             config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, memory::nCdhw16c);
-            supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown, memory::nCdhw16c});
+            supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown});
         }
 
         if (prec == Precision::I8 || prec == Precision::U8) {
             config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, memory::ndhwc);
             config.outConfs[0].desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, memory::ndhwc);
-            supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown, memory::ndhwc});
+            supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown});
         }
     } else {
         config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, memory::any);
         config.outConfs[0].desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType,
                                                    MKLDNNMemory::GetPlainFormat(getChildEdgeAt(0)->getDims()));
-        supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown, MKLDNNMemory::GetPlainFormat(getChildEdgeAt(0)->getDims())});
+        supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown});
     }
 }
 

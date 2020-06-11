@@ -349,7 +349,7 @@ void MKLDNNResampleNode::initSupportedPrimitiveDescriptors() {
     auto pushDesc = [&](memory::format format) {
         config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, format);
         config.outConfs[0].desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, format);
-        supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown, format});
+        supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown});
     };
 
     if (type == "caffe.ResampleParameter.NEAREST") {

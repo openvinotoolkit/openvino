@@ -71,7 +71,7 @@ void MKLDNNInputNode::initSupportedPrimitiveDescriptors() {
         dataConfig.desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, outFormat);
         config.inConfs.push_back(dataConfig);
     }
-    supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown, outFormat);
+    supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
 }
 
 void MKLDNNInputNode::createPrimitive() {

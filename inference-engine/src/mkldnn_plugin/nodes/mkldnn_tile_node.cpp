@@ -70,7 +70,7 @@ void MKLDNNTileNode::initSupportedPrimitiveDescriptors() {
     config.outConfs[0].inPlace = -1;
     config.outConfs[0].constant = false;
     config.outConfs[0].desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, fmt);
-    supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown, fmt});
+    supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown});
 }
 
 void MKLDNNTileNode::createPrimitive() {

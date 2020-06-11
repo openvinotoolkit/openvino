@@ -90,18 +90,18 @@ void MKLDNNCropNode::initSupportedPrimitiveDescriptors() {
     config.outConfs[0].constant = false;
     config.outConfs[0].desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, fmt);
 
-    supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown, fmt);
+    supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
 
     if ((inDims.ndims() == 4 || inDims.ndims() == 5) && channelAxis >= 0 && dims[channelAxis] % 8 == 0) {
         fmt = inDims.ndims() == 5 ? memory::format::nCdhw8c : memory::format::nChw8c;
         config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, fmt);
         config.outConfs[0].desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, fmt);
-        supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown, fmt);
+        supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
         if (dims[channelAxis] % 16 == 0) {
             fmt = inDims.ndims() == 5 ? memory::format::nCdhw16c : memory::format::nChw16c;
             config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, fmt);
             config.outConfs[0].desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, fmt);
-            supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown, fmt);
+            supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
         }
     }
 }

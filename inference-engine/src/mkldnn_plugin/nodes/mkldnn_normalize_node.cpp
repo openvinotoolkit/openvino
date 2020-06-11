@@ -769,7 +769,7 @@ void MKLDNNNormalizeNode::initSupportedPrimitiveDescriptors() {
     auto pushDesc = [&](memory::format format) {
         config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, format);
         config.outConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), outputDataType, format);
-        supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown, format});
+        supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown});
     };
 
     // only plain layout support when w/o sse42

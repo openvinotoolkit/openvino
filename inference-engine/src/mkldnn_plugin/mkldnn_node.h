@@ -165,20 +165,8 @@ static std::string NameFromType(Type type) {
 
 class PrimitiveDescInfo {
 public:
-    PrimitiveDescInfo(const InferenceEngine::LayerConfig conf, impl_desc_type type): config(conf) {
-        implementationType = type;
-    }
-
-    PrimitiveDescInfo(const InferenceEngine::LayerConfig conf, impl_desc_type type, std::vector<mkldnn::memory::format> outFmts): config(conf) {
-        implementationType = type;
-        outputLayouts = outFmts;
-    }
-
-    PrimitiveDescInfo(const InferenceEngine::LayerConfig conf, impl_desc_type type, mkldnn::memory::format outFmt): config(conf) {
-        implementationType = type;
-
-        setOutputLayouts(outFmt);
-    }
+    PrimitiveDescInfo(const InferenceEngine::LayerConfig conf, impl_desc_type type) :
+            config(conf), implementationType(type) {}
 
     PrimitiveDescInfo(const PrimitiveDescInfo &descInfo) = default;
     PrimitiveDescInfo(PrimitiveDescInfo &&descInfo) = default;
@@ -196,26 +184,13 @@ public:
         return implementationType;
     }
 
-    const std::vector<mkldnn::memory::format>& getOutputLayouts() const {
-        return outputLayouts;
-    }
-
     void setImplementationType(impl_desc_type type) {
         implementationType = type;
-    }
-
-    void setOutputLayouts(mkldnn::memory::format outFmt) {
-        outputLayouts.clear();
-
-        for (int i = 0; i < config.outConfs.size(); i++) {
-            outputLayouts.push_back(outFmt);
-        }
     }
 
 private:
     InferenceEngine::LayerConfig config;
     impl_desc_type implementationType;
-    std::vector<mkldnn::memory::format> outputLayouts;
 };
 
 class MKLDNNNode : public InferenceEngine::details::no_copy {

@@ -51,7 +51,7 @@ void MKLDNNReshapeNode::initSupportedPrimitiveDescriptors() {
     config.outConfs[0].inPlace = 0;
     config.outConfs[0].constant = false;
     config.outConfs[0].desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, outFormat);
-    supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown, outFormat);
+    supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
 }
 
 void MKLDNNReshapeNode::createPrimitive() {

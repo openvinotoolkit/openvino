@@ -71,7 +71,7 @@ void MKLDNNPowerNode::initSupportedPrimitiveDescriptors() {
                                                                           (std::numeric_limits<size_t>::max)()
                                                                   });
         }
-        supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown, format);
+        supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::unknown);
     }
 }
 

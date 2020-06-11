@@ -10,6 +10,7 @@
 #include <utility>
 
 #include <mkldnn_types.h>
+#include <mkldnn_debug.h>
 #include "mkldnn_memory.h"
 #include "mkldnn_node.h"
 #include "mkldnn_extension_utils.h"
@@ -1399,5 +1400,15 @@ bool MKLDNNMemoryDesc::blocksExtended() const {
     }
     return false;
 }
+
+mkldnn::memory::format get_format_tag(const InferenceEngine::TensorDesc &tdesc) {
+    MKLDNNMemoryDesc mkldnn_tdesc(tdesc);
+    return mkldnn_tdesc.getFormat();
+}
+
+std::string format_tag_to_string(mkldnn::memory::format tag) {
+    return mkldnn_fmt2str(static_cast<mkldnn_memory_format_t>(tag));
+}
+
 
 }  // namespace MKLDNNPlugin
