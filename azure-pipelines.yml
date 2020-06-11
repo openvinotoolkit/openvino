@@ -269,7 +269,7 @@ jobs:
     continueOnError: false
   - script: |
       set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
-      python $(BUILD_DIR)/gtest-parallel/gtest-parallel.py $(BIN_DIR)\InferenceEngineUnitTests
+      python $(BUILD_DIR)\gtest-parallel\gtest_parallel.py $(BIN_DIR)\InferenceEngineUnitTests
     workingDirectory: dldt-build
     displayName: 'IE UT old'
     continueOnError: false
@@ -305,13 +305,13 @@ jobs:
     continueOnError: false
   - script: |
       set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
-      python $(BUILD_DIR)/gtest-parallel/gtest-parallel.py $(BIN_DIR)\cpuFuncTests
+      python $(BUILD_DIR)\gtest-parallel\gtest_parallel.py $(BIN_DIR)\cpuFuncTests
     workingDirectory: dldt-build
     displayName: 'CPU FuncTests'
     continueOnError: false
   - script: |
       set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
-      python $(BUILD_DIR)/gtest-parallel/gtest-parallel.py $(BIN_DIR)\MklDnnBehaviorTests
+      $(BIN_DIR)\MklDnnBehaviorTests
     workingDirectory: dldt-build
     displayName: 'MklDnnBehaviorTests'
     continueOnError: false
@@ -322,7 +322,7 @@ jobs:
       set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;$(Build.Repository.LocalPath)\inference-engine\temp\opencv_4.3.0\opencv\bin;%PATH%
       set DATA_PATH=$(BUILD_DIR)\testdata
       set MODELS_PATH=$(BUILD_DIR)\testdata
-      $(BIN_DIR)\MklDnnFunctionalTests --gtest_filter=*smoke*:-smoke_MobileNet/ModelTransformationsTest.LPT/mobilenet_v2_tf_depthwise_batch1_inPluginDisabled_inTestDisabled_asymmetric*
+      python $(BUILD_DIR)\gtest-parallel\gtest_parallel.py $(BIN_DIR)\MklDnnFunctionalTests --gtest_filter=*smoke*:-smoke_MobileNet/ModelTransformationsTest.LPT/mobilenet_v2_tf_depthwise_batch1_inPluginDisabled_inTestDisabled_asymmetric*
     workingDirectory: dldt-build
     displayName: 'MklDnnFunctionalTests'
     continueOnError: false
