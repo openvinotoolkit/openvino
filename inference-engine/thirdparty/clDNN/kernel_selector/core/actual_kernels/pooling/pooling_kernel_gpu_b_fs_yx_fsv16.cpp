@@ -53,11 +53,20 @@ size_t PoolingKernel_b_fs_yx_fsv16::GetBlockSize(const pooling_params& params) c
         return 1;
 }
 
+size_t PoolingKernel_b_fs_yx_fsv16::GetSimdSize(const pooling_params& params) const {
+    auto& out = params.output;
+    // Use smaller simd size in case of global pooling and small channels count to have more threads
+    if (out.X().v == 1 && out.Y().v == 1 && out.Feature().v < 64)
+        return 8;
+    else
+        return 16;
+}
+
 PoolingKernelBase::DispatchData PoolingKernel_b_fs_yx_fsv16::SetDefault(const pooling_params& params) const {
     DispatchData kd = PoolingKernelBase::SetDefault(params);
 
     const auto& out = params.output;
-    const size_t alignment = 16;
+    const size_t alignment = GetSimdSize(params);
     size_t x_block_size = GetBlockSize(params);
     auto x = out.X().v;
     auto y = out.Y().v;
@@ -78,7 +87,7 @@ PoolingKernelBase::DispatchData PoolingKernel_b_fs_yx_fsv16::SetDefault(const po
 }
 
 JitConstants PoolingKernel_b_fs_yx_fsv16::GetJitConstants(const pooling_params& params, DispatchData runInfo) const {
-    const size_t alignment = 16;
+    const size_t alignment = GetSimdSize(params);
     size_t x_block_size = GetBlockSize(params);
     auto input = params.inputs[0];
     auto output = params.output;
@@ -86,13 +95,26 @@ JitConstants PoolingKernel_b_fs_yx_fsv16::GetJitConstants(const pooling_params& 
 
     size_t input_line_size = params.poolStride.x * (x_block_size - 1) + params.poolSize.x;
 
+    auto acc_type = GetAccumulatorType(params);
+    jit.Merge(MakeTypeJitConstants(acc_type, "ACCUMULATOR"));
+
+    auto can_preload_full_line = [&]() -> bool {
+        const float max_reg_bytes = 128 * 32 * 0.95f;
+        const size_t line_bytes = input_line_size * BytesPerElement(input.GetDType());
+        const size_t acc_bytes = x_block_size * BytesPerElement(acc_type);
+
+        const float req_bytes = static_cast<float>((line_bytes + acc_bytes) * alignment);
+
+        return req_bytes < max_reg_bytes;
+    };
+
+    jit.AddConstant(MakeJitConstant("CAN_PRELOAD_FULL_LINE", can_preload_full_line()));
     jit.AddConstant(MakeJitConstant("PADDED_INPUT", params.inputs[0].X().pad.Total() != 0));
     jit.AddConstant(MakeJitConstant("X_BLOCK_SIZE", x_block_size));
     jit.AddConstant(MakeJitConstant("INPUT_LINE_SIZE", input_line_size));
     jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", alignment));
     jit.AddConstant(MakeJitConstant("X_BLOCKS", CeilDiv(output.X().v, x_block_size)));
     jit.Merge(MakeTypeJitConstants(GetActivationType(params), "ACTIVATION"));
-    jit.Merge(MakeTypeJitConstants(GetAccumulatorType(params), "ACCUMULATOR"));
 
     if (params.output.Feature().v % 16 != 0) {
         jit.AddConstant(MakeJitConstant("OUTPUT_LEFTOVERS", 1));
@@ -101,7 +123,7 @@ JitConstants PoolingKernel_b_fs_yx_fsv16::GetJitConstants(const pooling_params& 
     if (!params.fused_ops.empty()) {
         auto input_dt = GetActivationType(params);
         FusedOpsConfiguration conf_vec = {"_VEC",
-                                         {"b", "(f_block*16)", "y", "x"},
+                                         {"b", "(f_block*FEATURE_SLICE_SIZE + f_val*SUB_GROUP_SIZE)", "y", "x"},
                                          "pool_result",
                                          input_dt,
                                          x_block_size,
@@ -110,7 +132,7 @@ JitConstants PoolingKernel_b_fs_yx_fsv16::GetJitConstants(const pooling_params& 
                                          IndexType::TENSOR_COORD,
                                          Tensor::DataChannelName::X};
         FusedOpsConfiguration conf_scalar = {"_SCALAR",
-                                            {"b", "(f_block*16)", "y", "(x+i)"},
+                                            {"b", "(f_block*FEATURE_SLICE_SIZE + f_val*SUB_GROUP_SIZE)", "y", "(x+i)"},
                                             "pool_result[i]",
                                             input_dt,
                                             1,
