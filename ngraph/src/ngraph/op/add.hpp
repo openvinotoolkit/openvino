@@ -117,9 +117,8 @@ namespace ngraph
             class NGRAPH_API Add : public v1::Add
             {
             public:
-                static constexpr NodeTypeInfo type_info{"Add", 2, &v1::Add::type_info};
-                const NodeTypeInfo& get_type_info() const override
-                { /*std::cerr << "TYPE INFO FROM ADD 2\n";*/ return type_info; }
+                // FIXME: use constexpr is possible
+                static const NodeTypeInfo type_info;
 
                 using v1::Add::Add;
 

@@ -339,7 +339,7 @@ std::shared_ptr<Node> fold_reshape(Args&&... args) {
         if (node->input_value(0).get_node_shared_ptr()->is_constant() && node->input_value(1).get_node_shared_ptr()->is_constant()) {
             return std::make_shared<opset1::Constant>(
                     node->get_input_element_type(0),
-                    Shape(as_type_ptr<opset1::Constant>(node->input_value(1).get_node_shared_ptr())->template cast_vector<uint64_t>()),
+                    Shape(as_type_ptr<opset1::Constant>(node->input_value(1).get_node_shared_ptr())->template cast_vector<size_t>()),
                     as_type_ptr<opset1::Constant>(node->input_value(0).get_node_shared_ptr())->get_data_ptr());
         }
     }

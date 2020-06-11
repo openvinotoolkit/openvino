@@ -1723,6 +1723,8 @@ std::shared_ptr<Node> optimizeMultipliesAfter(std::shared_ptr<Node> multiply) {
             return newMultiply;
         }
     }
+
+    return nullptr;
 }
 
 std::shared_ptr<opset1::Constant> roundWithTolerance(std::shared_ptr<Node> node, element::Type target_type, float tolerance) {

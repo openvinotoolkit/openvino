@@ -60,7 +60,7 @@ private:
         auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, input_shape);
         auto weights = ngraph::opset1::Constant::create(ngraph::element::f32, weights_shape, {1});
         auto conv = std::make_shared<ngraph::op::ConvolutionIE>(input, weights, ngraph::Strides(spatial_dims, 1), ngraph::Strides(spatial_dims, 1),
-                ngraph::CoordinateDiff(spatial_dims, 0), ngraph::CoordinateDiff(spatial_dims, 0));
+                ngraph::CoordinateDiff(spatial_dims, 0), ngraph::CoordinateDiff(spatial_dims, 0), ngraph::element::f32);
 
         auto const_node = ngraph::opset1::Constant::create(ngraph::element::f32, eltwise_shape, {1.1});
         ngraph::Output<ngraph::Node> eltwise;
@@ -83,7 +83,8 @@ private:
         auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, input_shape);
         ngraph::Output<ngraph::Node> weights = ngraph::opset1::Constant::create(ngraph::element::f32, weights_shape, {1});
         ngraph::Output<ngraph::Node> conv = std::make_shared<ngraph::op::ConvolutionIE>(input, weights, ngraph::Strides(spatial_dims, 1),
-                ngraph::Strides(spatial_dims, 1), ngraph::CoordinateDiff(spatial_dims, 0), ngraph::CoordinateDiff(spatial_dims, 0));
+                ngraph::Strides(spatial_dims, 1), ngraph::CoordinateDiff(spatial_dims, 0), ngraph::CoordinateDiff(spatial_dims, 0),
+                ngraph::element::f32);
 
         ngraph::Output<ngraph::Node> const_node;
         const_node = ngraph::opset1::Constant::create(ngraph::element::f32, eltwise_shape, {1.1});

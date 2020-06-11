@@ -178,7 +178,7 @@ bool op::v1::Add::evaluate(const HostTensorVector& outputs, const HostTensorVect
     return evaluate_add(inputs[0], inputs[1], outputs[0], get_autob());
 }
 
-constexpr NodeTypeInfo op::v2::Add::type_info;
+const NodeTypeInfo op::v2::Add::type_info{"Add", 2, &v1::Add::type_info};
 
 shared_ptr<Node> op::v2::Add::clone_with_new_inputs(const OutputVector& new_args) const
 {
