@@ -38,7 +38,7 @@ struct ROIData;
  *
  * @note Each Blob implementation must be derived from this Blob class directly or indirectly
  */
-class INFERENCE_ENGINE_API_CLASS(Blob) {
+class INFERENCE_ENGINE_API_CLASS(Blob): public std::enable_shared_from_this<Blob> {
 public:
     /**
      * @brief A smart pointer containing Blob object
@@ -274,9 +274,9 @@ protected:
     /**
      * @brief Sets ROI for the blob
      *
-     * @param roi region of interest
+     * @param roiData region of interest and original blob
      */
-    virtual void setROI(const ROI& roi);
+    virtual void setROI(const ROIData& roiData);
 
     template <typename>
     friend class TBlobProxy;
@@ -527,8 +527,8 @@ struct ROI {
 };
 
 struct ROIData {
-    ROI roi;              // region value
-    TensorDesc original;  // tensor descriptor of the whole memory area
+    ROI roi;                // region value
+    Blob::CPtr original;    // blob used to create this roi blob
 };
 
 /**
