@@ -140,22 +140,20 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::ICNNNetwork &network, const st
 
         ngraph::pass::ConvertOpSet1ToLegacy(transformations_callback).run_on_function(nGraphFunc);
 
-        {
-            std::vector<std::shared_ptr<ngraph::Function>> module{nGraphFunc};
-            ngraph::pass::VisualizeTree("after_convert_to_legacy.svg").run_on_module(module);
+        //{
+        //    std::vector<std::shared_ptr<ngraph::Function>> module{nGraphFunc};
+        //    ngraph::pass::VisualizeTree("after_convert_to_legacy.svg").run_on_module(module);
 
-            // Output subgraphs as a separagge pictures
-            for (auto op : nGraphFunc->get_ops()) {
-                if (auto subgraph = ngraph::as_type_ptr<ngraph::op::Subgraph>(op)) {
-                    std::vector<std::shared_ptr<ngraph::Function>> module_subgraph{subgraph->get_body()};
-                    ngraph::pass::VisualizeTree(subgraph->get_name() + ".svg").run_on_module(module_subgraph);
-                }
-            }
-        }
+        //    // Output subgraphs as a separagge pictures
+        //    for (auto op : nGraphFunc->get_ops()) {
+        //        if (auto subgraph = ngraph::as_type_ptr<ngraph::op::Subgraph>(op)) {
+        //            std::vector<std::shared_ptr<ngraph::Function>> module_subgraph{subgraph->get_body()};
+        //            ngraph::pass::VisualizeTree(subgraph->get_name() + ".svg").run_on_module(module_subgraph);
+        //        }
+        //    }
+        //}
 
         clonedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(nGraphFunc, *clonedNetwork);
-
-        clonedNetwork->serialize("after_legacy.xml", "after_legacy.bin", 0);
     }
 
     auto implNetwork = std::dynamic_pointer_cast<details::CNNNetworkImpl>(clonedNetwork);

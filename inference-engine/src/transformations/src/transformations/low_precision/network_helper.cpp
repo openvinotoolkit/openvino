@@ -1624,6 +1624,7 @@ std::shared_ptr<opset1::Add> decomposeMultiplyAdd(std::shared_ptr<op::MultiplyAd
             opset1::Multiply(multiplyAdd->input_value(0), multiplyAdd->input_value(1)), multiplyAdd->get_output_element_type(0));
     auto add = make_shared<opset1::Add>(multiply, multiplyAdd->input_value(2));
     copy_runtime_info(multiplyAdd, {multiply, add});
+    add->set_friendly_name(multiplyAdd->get_friendly_name());
     replace_node(multiplyAdd, add);
     return add;
 }

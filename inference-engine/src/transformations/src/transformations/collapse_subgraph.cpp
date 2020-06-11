@@ -169,10 +169,10 @@ ngraph::pass::CollapseSubgraph::CollapseSubgraph() {
 
                 auto new_function = std::make_shared<Function>(results, parameters);
 
-                {
-                    std::vector<std::shared_ptr<ngraph::Function>> module{new_function};
-                    ngraph::pass::VisualizeTree("/localdisk/slyalin/subgraph.png").run_on_module(module);
-                }
+                //{
+                //    std::vector<std::shared_ptr<ngraph::Function>> module{new_function};
+                //    ngraph::pass::VisualizeTree("/localdisk/slyalin/subgraph.png").run_on_module(module);
+                //}
 
                 auto subgraph = std::make_shared<op::Subgraph>(subgraph_inputs, new_function);
                 copy_runtime_info(node, subgraph);
