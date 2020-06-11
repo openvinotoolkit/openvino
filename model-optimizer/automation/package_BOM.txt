@@ -222,6 +222,7 @@ extensions/front/mxnet/softmax_ext.py
 extensions/front/mxnet/softmax_output_ext.py
 extensions/front/mxnet/squeeze_ext.py
 extensions/front/mxnet/ssd_anchor_reshape.py
+extensions/front/mxnet/ssd_anchors_replacer.py
 extensions/front/mxnet/ssd_detection_output_replacer.py
 extensions/front/mxnet/ssd_pattern_flatten_softmax_activation.py
 extensions/front/mxnet/ssd_pattern_remove_flatten.py
@@ -574,7 +575,6 @@ extensions/middle/SliceLikeToStridedSlice.py
 extensions/middle/space_to_depth.py
 extensions/middle/sparse_reshape.py
 extensions/middle/SplitConcatPairToInterpolate.py
-extensions/middle/ssd_anchors_middle_replacer.py
 extensions/middle/SwapAxesMiddleReplacer.py
 extensions/middle/TensorIterator_utils.py
 extensions/middle/TensorIteratorBackEdge.py
