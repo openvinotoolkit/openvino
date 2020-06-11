@@ -1417,6 +1417,7 @@ void GNAGraphCompiler::PermutePrimitive(InferenceEngine::CNNLayerPtr layer) {
     }
     auto layerOrder = layer->GetParamAsInts("order");
     auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(layer);
+    IE_ASSERT(!layer->insData.empty());
     auto inputs = layer->insData.begin()->lock();
     auto inputsOrder = inputs->getTensorDesc().getDims();
     auto outputs = layer->outData.front();
