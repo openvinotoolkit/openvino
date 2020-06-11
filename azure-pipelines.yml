@@ -258,6 +258,9 @@ jobs:
   - script: dir ..\bin\ /s /b
     workingDirectory: dldt-build
     displayName: 'List files'
+  - script: git clone https://github.com/google/gtest-parallel.git
+    workingDirectory: $(BUILD_DIR)
+    displayName: 'Clone GTest Parallel'    
   - script: |
       set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
       $(BIN_DIR)\unit-test --gtest_print_time=1 --gtest_filter=-backend_api.config_unsupported:*IE_GPU*
@@ -266,7 +269,7 @@ jobs:
     continueOnError: false
   - script: |
       set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
-      $(BIN_DIR)\InferenceEngineUnitTests
+      python $(BUILD_DIR)/gtest-parallel/gtest-parallel.py $(BIN_DIR)\InferenceEngineUnitTests
     workingDirectory: dldt-build
     displayName: 'IE UT old'
     continueOnError: false
@@ -302,13 +305,13 @@ jobs:
     continueOnError: false
   - script: |
       set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
-      $(BIN_DIR)\cpuFuncTests
+      python $(BUILD_DIR)/gtest-parallel/gtest-parallel.py $(BIN_DIR)\cpuFuncTests
     workingDirectory: dldt-build
     displayName: 'CPU FuncTests'
     continueOnError: false
   - script: |
       set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
-      $(BIN_DIR)\MklDnnBehaviorTests
+      python $(BUILD_DIR)/gtest-parallel/gtest-parallel.py $(BIN_DIR)\MklDnnBehaviorTests
     workingDirectory: dldt-build
     displayName: 'MklDnnBehaviorTests'
     continueOnError: false
