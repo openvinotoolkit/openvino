@@ -135,7 +135,6 @@ void ConcatTransformation::transform(TransformationContext& context, CNNLayer& c
 
 
         dequantizationScale = maxOutputInterval / (dataPrecision.max - dataPrecision.min);
-        const float max = maxOutputInterval / ((dataPrecision.max - dataPrecision.min) / dataPrecision.max);
         const float min = maxOutputInterval / ((dataPrecision.max - dataPrecision.min) / dataPrecision.min);
         dequantizationShift = outputLowValue - min;
 
