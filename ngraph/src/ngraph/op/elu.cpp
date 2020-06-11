@@ -14,10 +14,10 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include "ngraph/op/elu.hpp"
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/builder/autobroadcast.hpp"
 #include "ngraph/op/constant.hpp"
+#include "ngraph/op/elu.hpp"
 
 using namespace std;
 using namespace ngraph;

@@ -16,6 +16,8 @@
 
 // This pass must be called first in pipeline
 NGRAPH_PASS(InitNodeInfo, ::ngraph::pass)
+NGRAPH_PASS(ConvertPriorBox, ::ngraph::pass)  // WA: ConvertPriorBox must be executed before CF
+NGRAPH_PASS(ConstantFolding, ::ngraph::pass)
 NGRAPH_PASS(RemoveFilteringBoxesBySize, ::ngraph::pass) // Resolves dynamism (replaces NonZero), CF needed
 NGRAPH_PASS(ConstantFolding, ::ngraph::pass)
 NGRAPH_PASS(StridedSliceOptimization, ::ngraph::pass) // depends on CF

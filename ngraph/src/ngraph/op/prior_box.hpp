@@ -76,8 +76,6 @@ namespace ngraph
                     normalized_aspect_ratio(const std::vector<float>& aspect_ratio, bool flip);
                 const PriorBoxAttrs& get_attrs() const { return m_attrs; }
                 virtual bool visit_attributes(AttributeVisitor& visitor) override;
-                bool evaluate(const HostTensorVector& outputs,
-                              const HostTensorVector& inputs) override;
 
             private:
                 PriorBoxAttrs m_attrs;

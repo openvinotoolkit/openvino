@@ -5,6 +5,7 @@
 #include <memory>
 
 #include "transformations/common_optimizations/common_optimizations.hpp"
+#include "transformations/convert_opset1_to_legacy/convert_prior_to_ie_prior.hpp"
 #include "transformations/depth_to_space_fusion.hpp"
 #include "transformations/optimize_strided_slice.hpp"
 #include "transformations/convert_scatter_elements_to_scatter.hpp"

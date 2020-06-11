@@ -71,6 +71,7 @@ public:
     {
         m_cfmap = cfmap;
         m_enable_shape_inference = true;
+
         construct_constant_split();
         construct_constant_variadic_split();
         construct_constant_dyn_broadcast();

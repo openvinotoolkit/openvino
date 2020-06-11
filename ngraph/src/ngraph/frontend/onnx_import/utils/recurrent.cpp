@@ -45,14 +45,17 @@ namespace ngraph
                 const auto x_pshape = m_map[OpInput::X]->get_output_partial_shape(0);
                 const auto w_pshape = m_map[OpInput::W]->get_output_partial_shape(0);
                 const auto r_pshape = m_map[OpInput::R]->get_output_partial_shape(0);
-                NGRAPH_CHECK(x_pshape.rank().is_static() && x_pshape[0].is_static() &&
-                                 x_pshape[1].is_static(),
+                NGRAPH_CHECK(x_pshape.rank().is_static() &&
+                             x_pshape[0].is_static() &&
+                             x_pshape[1].is_static(),
                              "RecurrentSequence input X must have static \"seq_length\" and "
                              "\"batch_size\" dimensions.");
-                NGRAPH_CHECK(w_pshape.rank().is_static() && w_pshape[0].is_static(),
+                NGRAPH_CHECK(w_pshape.rank().is_static() &&
+                             w_pshape[0].is_static(),
                              "RecurrentSequence input W must have static \"num_directions\" "
                              "(outermost) dimension.");
-                NGRAPH_CHECK(r_pshape.rank().is_static() && r_pshape[2].is_static(),
+                NGRAPH_CHECK(r_pshape.rank().is_static() &&
+                             r_pshape[2].is_static(),
                              "RecurrentSequence input R must have static \"hidden_size\" "
                              "(innermost) dimension.");
 
