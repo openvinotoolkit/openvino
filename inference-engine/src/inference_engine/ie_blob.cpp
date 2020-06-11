@@ -10,19 +10,17 @@ namespace InferenceEngine {
 
 Blob::Blob(const Blob& blob): tensorDesc(blob.tensorDesc), roiPtr(blob.roiPtr ? new ROIData(*blob.roiPtr) : nullptr) {}
 
-void Blob::setROI(const ROI& roi) {
-    TensorDesc origTensorDesc = roiPtr ? roiPtr->original : tensorDesc;
-    roiPtr = std::unique_ptr<ROIData>(new ROIData({roi, origTensorDesc}));
-    tensorDesc = make_roi_tensor_desc(origTensorDesc, roi);
+void Blob::setROI(const ROIData& roiData) {
+    roiPtr.reset(new ROIData(roiData));
+    tensorDesc = make_roi_tensor_desc(tensorDesc, roiPtr->roi);
 }
 
 Blob::Ptr Blob::CreateROIBlob(const ROI& roi) const {
-    Blob* roiBlob = this->clone();
+    Blob::Ptr roiBlob = std::shared_ptr<Blob>(this->clone());
     try {
-        roiBlob->setROI(roi);
-        return std::shared_ptr<Blob>(roiBlob);
+        roiBlob->setROI(ROIData{roi, this->shared_from_this()});
+        return roiBlob->shared_from_this();
     } catch (const std::exception& ex) {
-        delete roiBlob;
         THROW_IE_EXCEPTION << "Cannot create ROI blob with the specified parameters: " << ex.what();
     }
 }

@@ -138,9 +138,9 @@ protected:
     /**
      * @brief Setting ROI for the array of blobs is not allowed, exception is raised.
      *
-     * @param roi region of interest
+     * @param roiData region of interest and original blob
      */
-    virtual void setROI(const ROI& roi);
+    void setROI(const ROIData& roiData) override;
 };
 
 /**

@@ -423,7 +423,7 @@ TEST_F(BlobTests, makeRoiBlobCheckGetROI) {
     InferenceEngine::Blob::Ptr roiBlob = blob->CreateROIBlob(roi);
 
     // check that roi data are correct for the ROI blob
-    ASSERT_EQ(roiBlob->getROI()->original, blob->getTensorDesc());
+    ASSERT_EQ(roiBlob->getROI()->original, blob);
     ASSERT_EQ(roiBlob->getROI()->roi, roi);
 }
 
@@ -435,23 +435,56 @@ TEST_F(BlobTests, makeRoiBlobFromAnotherRoi) {
     blob->allocate();
 
     // create ROI blob based on the already created blob
-    InferenceEngine::ROI roi1 = {0, 3, 2, 5, 2};  // cropped picture with: id = 0, (x,y) = (3,2), sizeX (W) = 5, sizeY (H) = 2
+    InferenceEngine::ROI roi1 = {0, 3, 1, 5, 3};  // cropped picture with: id = 0, (x,y) = (3,1), sizeX (W) = 5, sizeY (H) = 3
     InferenceEngine::Blob::Ptr roi1Blob = blob->CreateROIBlob(roi1);
 
     // check that dims are correct for the 1st ROI blob
-    InferenceEngine::SizeVector refDims1 = {1, 3, 2, 5};
+    InferenceEngine::SizeVector refDims1 = {1, 3, 3, 5};
     ASSERT_EQ(roi1Blob->getTensorDesc().getDims(), refDims1);
 
     // create ROI blob based on the already created blob
-    InferenceEngine::ROI roi2 = {0, 2, 1, 4, 3};  // cropped picture with: id = 0, (x,y) = (2,1), sizeX (W) = 4, sizeY (H) = 3
-    InferenceEngine::Blob::Ptr roi2Blob = blob->CreateROIBlob(roi2);
+    InferenceEngine::ROI roi2 = {0, 2, 1, 3, 2};  // cropped picture with: id = 0, (x,y) = (2,1), sizeX (W) = 3, sizeY (H) = 2
+    InferenceEngine::Blob::Ptr roi2Blob = roi1Blob->CreateROIBlob(roi2);
 
     // check that dims are correct for the 2nd ROI blob
-    InferenceEngine::SizeVector refDims2 = {1, 3, 3, 4};
+    InferenceEngine::SizeVector refDims2 = {1, 3, 2, 3};
     ASSERT_EQ(roi2Blob->getTensorDesc().getDims(), refDims2);
 
     // check that dims are also correct for ROI blob created from 1st ROI blob
     InferenceEngine::Blob::Ptr roiBlobFromRoiBlob = roi1Blob->CreateROIBlob(roi2);
     ASSERT_EQ(roiBlobFromRoiBlob->getTensorDesc().getDims(), refDims2);
+
+    // check that roi chain is maintained
+    ASSERT_EQ(roi1Blob->getROI()->original, blob);
+    ASSERT_EQ(roi2Blob->getROI()->original, roi1Blob);
  }
 
+TEST_F(BlobTests, makeRoiBlobAndRoiBlobShareSameMemory) {
+    // we create main blob with NCHW layout. We will crop ROI from this blob.
+    InferenceEngine::SizeVector dims = {1, 3, 4, 8};  // RGB picture of size (WxH) = 8x4
+    InferenceEngine::Blob::Ptr blob = InferenceEngine::make_shared_blob<uint8_t>(
+        InferenceEngine::TensorDesc(InferenceEngine::Precision::U8, dims, InferenceEngine::NCHW));
+    blob->allocate();
+
+    static constexpr const uint8_t MAGIC_NUMBER = 23;
+    {
+        InferenceEngine::MemoryBlob::Ptr mb = InferenceEngine::as<InferenceEngine::MemoryBlob>(blob);
+        auto lm = mb->rwmap();
+        for (size_t i = 0; i < blob->byteSize(); ++i) {
+            lm.as<uint8_t*>()[i] = static_cast<uint8_t>(i + MAGIC_NUMBER);
+        }
+    }
+
+    // create ROI blob based on the already created blob
+    InferenceEngine::ROI roi = {0, 3, 2, 5, 2};  // cropped picture with: id = 0, (x,y) = (3,2), sizeX (W) = 5, sizeY (H) = 2
+    InferenceEngine::Blob::Ptr roiBlob = blob->CreateROIBlob(roi);
+
+    blob = nullptr;
+    {
+        InferenceEngine::MemoryBlob::Ptr mb = InferenceEngine::as<InferenceEngine::MemoryBlob>(roiBlob);
+        auto lm = mb->rwmap();
+        for (size_t i = 0; i < roiBlob->byteSize(); ++i) {
+            ASSERT_EQ(lm.as<uint8_t*>()[i], static_cast<uint8_t>(i + MAGIC_NUMBER));
+        }
+    }
+}
