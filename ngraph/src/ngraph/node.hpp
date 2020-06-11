@@ -134,23 +134,22 @@ namespace ngraph
 /// a runtime error.
 
 #define TYPE_CASE(a)                                                                               \
-    case element::Type_t::a: rc = evaluate<element::Type_t::a>
+    case element::Type_t::a:                                                                       \
+        rc = evaluate<element::Type_t::a>
 
-#define RTTI_DECLARATION \
-    static const ::ngraph::Node::type_info_t type_info;   \
-    static const ::ngraph::Node::type_info_t& get_type_info_static (); \
-    const ::ngraph::Node::type_info_t& get_type_info () const override { return type_info; }
+#define RTTI_DECLARATION                                                                           \
+    static const ::ngraph::Node::type_info_t type_info;                                            \
+    static const ::ngraph::Node::type_info_t& get_type_info_static();                              \
+    const ::ngraph::Node::type_info_t& get_type_info() const override { return type_info; }
+#define RTTI_DEFINITION_1(TYPE_NAME, CLASS, PARENT_CLASS, _VERSION_INDEX)                          \
+    const ::ngraph::Node::type_info_t CLASS::type_info{                                            \
+        TYPE_NAME, _VERSION_INDEX, &PARENT_CLASS::get_type_info_static()};
 
-#define RTTI_DEFINITION_1(TYPE_NAME, CLASS, PARENT_CLASS, _VERSION_INDEX)  \
-    const ::ngraph::Node::type_info_t CLASS::type_info{TYPE_NAME, _VERSION_INDEX, &PARENT_CLASS::get_type_info_static()};
-
-#define RTTI_DEFINITION_2(TYPE_NAME, CLASS, PARENT_CLASS, _VERSION_INDEX)  \
-    const ::ngraph::Node::type_info_t& CLASS::get_type_info_static () { return type_info; }
-
-#define RTTI_DEFINITION(TYPE_NAME, CLASS, PARENT_CLASS, _VERSION_INDEX)  \
-    RTTI_DEFINITION_1(TYPE_NAME, CLASS, PARENT_CLASS, _VERSION_INDEX) \
+#define RTTI_DEFINITION_2(TYPE_NAME, CLASS, PARENT_CLASS, _VERSION_INDEX)                          \
+    const ::ngraph::Node::type_info_t& CLASS::get_type_info_static() { return type_info; }
+#define RTTI_DEFINITION(TYPE_NAME, CLASS, PARENT_CLASS, _VERSION_INDEX)                            \
+    RTTI_DEFINITION_1(TYPE_NAME, CLASS, PARENT_CLASS, _VERSION_INDEX)                              \
     RTTI_DEFINITION_2(TYPE_NAME, CLASS, PARENT_CLASS, _VERSION_INDEX)
-
 
     /// Nodes are the backbone of the graph of Value dataflow. Every node has
     /// zero or more nodes as arguments and one value, which is either a tensor
@@ -185,7 +184,7 @@ namespace ngraph
         using type_info_t = DiscreteTypeInfo;
 
         static const type_info_t type_info;
-        static const type_info_t& get_type_info_static ();
+        static const type_info_t& get_type_info_static();
 
     protected:
         std::tuple<element::Type, PartialShape> validate_and_infer_elementwise_args(
@@ -236,7 +235,10 @@ namespace ngraph
         virtual bool evaluate(const HostTensorVector& output_values,
                               const HostTensorVector& input_values);
         virtual bool constant_fold(OutputVector& output_values, const OutputVector& inputs_values);
-        bool constant_fold(OutputVector& output_values) { return constant_fold(output_values, input_values()); }
+        bool constant_fold(OutputVector& output_values)
+        {
+            return constant_fold(output_values, input_values());
+        }
         /// \brief Decomposes the FusedOp into a sub-graph consisting of core ngraph ops
         ///
         /// \return A vector of nodes comprising the sub-graph. The order of output
@@ -314,15 +316,13 @@ namespace ngraph
         // TODO(amprocte): should be protected
         void set_input_is_relevant_to_value(size_t i, bool relevant = true);
 
-public:
-
+    public:
         // TODO(amprocte): should this be protected?
         void set_output_type(size_t i,
                              const element::Type& element_type,
                              const PartialShape& pshape);
 
-public:
-
+    public:
         virtual bool is_parameter() const { return false; }
         virtual bool is_output() const;
         virtual bool is_constant() const;
@@ -597,8 +597,10 @@ public:
 
         virtual bool match_node(pattern::Matcher* matcher, const Output<Node>& graph_value);
 
-        void update_inputs_after_copy_tmp () {
-            for(auto& input: m_inputs){
+        void update_inputs_after_copy_tmp()
+        {
+            for (auto& input : m_inputs)
+            {
                 input = descriptor::Input(this, input.get_index(), input.get_output());
                 input.get_output().add_input(&input);
             }

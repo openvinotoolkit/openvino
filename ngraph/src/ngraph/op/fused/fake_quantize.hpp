@@ -44,8 +44,8 @@ namespace ngraph
             {
             public:
                 RTTI_DECLARATION;
-                //static constexpr NodeTypeInfo type_info{"FakeQuantize", 0};
-                //const NodeTypeInfo& get_type_info() const override { return type_info; }
+                // static constexpr NodeTypeInfo type_info{"FakeQuantize", 0};
+                // const NodeTypeInfo& get_type_info() const override { return type_info; }
                 FakeQuantize() = default;
                 ///
                 /// \brief      Constructs a FakeQuantize operation node.
@@ -88,7 +88,6 @@ namespace ngraph
                 {
                     m_auto_broadcast = auto_broadcast;
                 }
-
 
             private:
                 std::size_t m_levels;

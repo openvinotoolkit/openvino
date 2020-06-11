@@ -185,52 +185,53 @@ namespace
                   const op::AutoBroadcastSpec& broadcast_spec)
     {
         runtime::reference::select(arg0->get_data_ptr<element::Type_t::boolean>(),
-                                arg1->get_data_ptr<ET>(),
-                                arg2->get_data_ptr<ET>(),
-                                out->get_data_ptr<ET>(),
-                                arg0->get_shape(),
-                                arg1->get_shape(),
-                                arg2->get_shape(),
-                                broadcast_spec);
+                                   arg1->get_data_ptr<ET>(),
+                                   arg2->get_data_ptr<ET>(),
+                                   out->get_data_ptr<ET>(),
+                                   arg0->get_shape(),
+                                   arg1->get_shape(),
+                                   arg2->get_shape(),
+                                   broadcast_spec);
         return true;
     }
 
     bool evaluate_select(const HostTensorPtr& arg0,
-                      const HostTensorPtr& arg1,
-                      const HostTensorPtr& arg2,
-                      const HostTensorPtr& out,
-                      const op::AutoBroadcastSpec& broadcast_spec)
+                         const HostTensorPtr& arg1,
+                         const HostTensorPtr& arg2,
+                         const HostTensorPtr& out,
+                         const op::AutoBroadcastSpec& broadcast_spec)
     {
         bool rc = true;
         out->set_shape(arg0->get_shape());
-        out->set_element_type(arg1->get_element_type());    // assume that arg1 and arg2 are already validation and consistent
+        out->set_element_type(arg1->get_element_type()); // assume that arg1 and arg2 are already
+                                                         // validation and consistent
         switch (arg1->get_element_type())
         {
             TYPE_CASE(i8)(arg0, arg1, arg2, out, broadcast_spec);
-                break;
+            break;
             TYPE_CASE(i16)(arg0, arg1, arg2, out, broadcast_spec);
-                break;
+            break;
             TYPE_CASE(i32)(arg0, arg1, arg2, out, broadcast_spec);
-                break;
+            break;
             TYPE_CASE(i64)(arg0, arg1, arg2, out, broadcast_spec);
-                break;
+            break;
             TYPE_CASE(u8)(arg0, arg1, arg2, out, broadcast_spec);
-                break;
+            break;
             TYPE_CASE(u16)(arg0, arg1, arg2, out, broadcast_spec);
-                break;
+            break;
             TYPE_CASE(u32)(arg0, arg1, arg2, out, broadcast_spec);
-                break;
+            break;
             TYPE_CASE(u64)(arg0, arg1, arg2, out, broadcast_spec);
-                break;
+            break;
             TYPE_CASE(bf16)(arg0, arg1, arg2, out, broadcast_spec);
-                break;
+            break;
             TYPE_CASE(f16)(arg0, arg1, arg2, out, broadcast_spec);
-                break;
+            break;
             TYPE_CASE(f32)(arg0, arg1, arg2, out, broadcast_spec);
-                break;
+            break;
             TYPE_CASE(f64)(arg0, arg1, arg2, out, broadcast_spec);
-                break;
-            default: rc = false; break;
+            break;
+        default: rc = false; break;
         }
         return rc;
     }

@@ -217,8 +217,8 @@ namespace ngraph
             {
             public:
                 RTTI_DECLARATION;
-                //static constexpr NodeTypeInfo type_info{"MaxPool", 1};
-                //const NodeTypeInfo& get_type_info() const override { return type_info; }
+                // static constexpr NodeTypeInfo type_info{"MaxPool", 1};
+                // const NodeTypeInfo& get_type_info() const override { return type_info; }
                 /// \brief Constructs a batched max pooling operation.
                 MaxPool() = default;
 

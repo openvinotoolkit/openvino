@@ -319,20 +319,23 @@ template <typename T>
 static std::string pretty_value(const vector<T>& value)
 {
     std::stringstream ss;
-    if(value.empty())
+    if (value.empty())
     {
         return "";
     }
     const size_t max_size = 20;
-    if(value.size() > max_size && std::equal(value.begin() + 1, value.end(), value.begin()))
+    if (value.size() > max_size && std::equal(value.begin() + 1, value.end(), value.begin()))
     {
         ss << "populated with " << value[0];
     }
-    else {
-        for (size_t i = 0; i < value.size() && i < max_size; ++i) {
-            if (i) {
+    else
+    {
+        for (size_t i = 0; i < value.size() && i < max_size; ++i)
+        {
+            if (i)
+            {
                 ss << ", ";
-                if(i%5 == 0)
+                if (i % 5 == 0)
                     ss << "\n";
             }
             ss << value[i];
@@ -342,7 +345,6 @@ static std::string pretty_value(const vector<T>& value)
     }
     return ss.str();
 }
-
 
 static std::string pretty_partial_shape(const PartialShape& shape)
 {
@@ -511,7 +513,8 @@ string pass::VisualizeTree::get_node_name(shared_ptr<Node> node)
 
     for (const auto& output : node->outputs())
         rc += "\\n" + to_string(output.get_index()) + ": " +
-              pretty_partial_shape(output.get_partial_shape()) + '<' + output.get_element_type().get_type_name() + '>';
+              pretty_partial_shape(output.get_partial_shape()) + '<' +
+              output.get_element_type().get_type_name() + '>';
 
     rc += "\\n";
     if (node->is_constant())
@@ -521,28 +524,28 @@ string pass::VisualizeTree::get_node_name(shared_ptr<Node> node)
 
         switch (constant->get_output_element_type(0))
         {
-            case element::Type_t::undefined: rc += "[ undefined value ]"; break;
-            case element::Type_t::dynamic: rc += "[ dynamic value ]"; break;
-            case element::Type_t::u1: rc += "[ u1 value ]"; break;
-            case element::Type_t::bf16:
-            case element::Type_t::f16:
-            case element::Type_t::f32:
-            case element::Type_t::f64:
-                rc += "[" + pretty_value(constant->cast_vector<double>()) + "]";
-                break;
-            case element::Type_t::i8:
-            case element::Type_t::i16:
-            case element::Type_t::i32:
-            case element::Type_t::i64:
-                rc += "[" + pretty_value(constant->cast_vector<int64_t>()) + "]";
-                break;
-            case element::Type_t::boolean:
-            case element::Type_t::u8:
-            case element::Type_t::u16:
-            case element::Type_t::u32:
-            case element::Type_t::u64:
-                rc += "[" + pretty_value(constant->cast_vector<uint64_t>()) + "]";
-                break;
+        case element::Type_t::undefined: rc += "[ undefined value ]"; break;
+        case element::Type_t::dynamic: rc += "[ dynamic value ]"; break;
+        case element::Type_t::u1: rc += "[ u1 value ]"; break;
+        case element::Type_t::bf16:
+        case element::Type_t::f16:
+        case element::Type_t::f32:
+        case element::Type_t::f64:
+            rc += "[" + pretty_value(constant->cast_vector<double>()) + "]";
+            break;
+        case element::Type_t::i8:
+        case element::Type_t::i16:
+        case element::Type_t::i32:
+        case element::Type_t::i64:
+            rc += "[" + pretty_value(constant->cast_vector<int64_t>()) + "]";
+            break;
+        case element::Type_t::boolean:
+        case element::Type_t::u8:
+        case element::Type_t::u16:
+        case element::Type_t::u32:
+        case element::Type_t::u64:
+            rc += "[" + pretty_value(constant->cast_vector<uint64_t>()) + "]";
+            break;
         }
     }
     return rc;

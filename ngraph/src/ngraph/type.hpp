@@ -42,10 +42,15 @@ namespace ngraph
         // Used for casting only, not for exact type identification
         const DiscreteTypeInfo* parent;
 
-        DiscreteTypeInfo () {}
-
-        constexpr DiscreteTypeInfo (const char* _name, uint64_t _version, const DiscreteTypeInfo* _parent = nullptr) :
-            name(_name), version(_version), parent(_parent) {}
+        DiscreteTypeInfo() {}
+        constexpr DiscreteTypeInfo(const char* _name,
+                                   uint64_t _version,
+                                   const DiscreteTypeInfo* _parent = nullptr)
+            : name(_name)
+            , version(_version)
+            , parent(_parent)
+        {
+        }
 
         bool is_castable(const DiscreteTypeInfo& target_type) const
         {

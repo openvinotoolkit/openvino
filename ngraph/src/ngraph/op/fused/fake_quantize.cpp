@@ -37,7 +37,7 @@
 using namespace std;
 using namespace ngraph;
 
-//constexpr NodeTypeInfo op::FakeQuantize::type_info;
+// constexpr NodeTypeInfo op::FakeQuantize::type_info;
 RTTI_DEFINITION("FakeQuantize", op::v0::FakeQuantize, Node, 0);
 
 op::FakeQuantize::FakeQuantize(const Output<Node>& data,
@@ -184,4 +184,3 @@ shared_ptr<Node> op::FakeQuantize::clone_with_new_inputs(const OutputVector& new
                                      m_levels,
                                      m_auto_broadcast);
 }
-

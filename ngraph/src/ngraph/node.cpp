@@ -34,9 +34,11 @@
 using namespace std;
 using namespace ngraph;
 
-const Node::type_info_t Node::type_info{"Node", 0, nullptr };
-const Node::type_info_t& Node::get_type_info_static () { return Node::type_info; }
-
+const Node::type_info_t Node::type_info{"Node", 0, nullptr};
+const Node::type_info_t& Node::get_type_info_static()
+{
+    return Node::type_info;
+}
 
 atomic<size_t> Node::m_next_instance_id(0);
 
@@ -258,13 +260,15 @@ void Node::delayed_validate_and_infer_types()
 
 void Node::set_output_size(size_t n)
 {
-    //NGRAPH_CHECK(n >= m_outputs.size(), "shrinking ", m_outputs.size(), " to ", n);
-    if(n < m_outputs.size())
+    // NGRAPH_CHECK(n >= m_outputs.size(), "shrinking ", m_outputs.size(), " to ", n);
+    if (n < m_outputs.size())
     {
         m_outputs.resize(n);
     }
-    else {
-        for (size_t i = m_outputs.size(); i < n; ++i) {
+    else
+    {
+        for (size_t i = m_outputs.size(); i < n; ++i)
+        {
             // create the descriptors
             get_output_descriptor(i);
         }
@@ -845,7 +849,8 @@ NodeVector Node::get_users(bool check_is_used) const
 std::string ngraph::node_validation_failure_loc_string(const Node* node)
 {
     std::stringstream ss;
-    ss << "While validating node '" << *node << "' with friendly_name " << node->get_friendly_name();
+    ss << "While validating node '" << *node << "' with friendly_name "
+       << node->get_friendly_name();
     return ss.str();
 }
 

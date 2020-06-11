@@ -100,7 +100,7 @@ namespace ngraph
 
                 std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
-                //bool visit_attributes(AttributeVisitor& visitor) override;
+                // bool visit_attributes(AttributeVisitor& visitor) override;
                 virtual bool is_commutative() const override { return true; }
                 size_t get_version() const override { return 1; }
                 bool evaluate(const HostTensorVector& outputs,
@@ -118,13 +118,14 @@ namespace ngraph
             {
             public:
                 static constexpr NodeTypeInfo type_info{"Add", 2, &v1::Add::type_info};
-                const NodeTypeInfo& get_type_info() const override { /*std::cerr << "TYPE INFO FROM ADD 2\n";*/ return type_info; }
+                const NodeTypeInfo& get_type_info() const override
+                { /*std::cerr << "TYPE INFO FROM ADD 2\n";*/ return type_info; }
 
                 using v1::Add::Add;
 
                 std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
-                //bool visit_attributes(AttributeVisitor& visitor) override;
+                // bool visit_attributes(AttributeVisitor& visitor) override;
                 size_t get_version() const override { return 2; }
             };
 

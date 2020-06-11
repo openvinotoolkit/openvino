@@ -129,13 +129,12 @@ bool op::v0::Add::evaluate(const HostTensorVector& outputs, const HostTensorVect
 
 // ------------------------------- v1 ------------------------------------------
 
-
 RTTI_DEFINITION("Add", op::v1::Add, Node, 1);
-//static constexpr NodeTypeInfo type_info{"Add", 1};
-//const NodeTypeInfo& get_type_info() const override { /*std::cerr << "TYPE INFO FROM ADD !!! 1 !!!\n";*/ return type_info; }
+// static constexpr NodeTypeInfo type_info{"Add", 1};
+// const NodeTypeInfo& get_type_info() const override { /*std::cerr << "TYPE INFO FROM ADD !!! 1
+// !!!\n";*/ return type_info; }
 
-
-//constexpr NodeTypeInfo op::v1::Add::type_info;
+// constexpr NodeTypeInfo op::v1::Add::type_info;
 
 op::v1::Add::Add(const Output<Node>& arg0,
                  const Output<Node>& arg1,
