@@ -15,83 +15,40 @@
 """
 from typing import Dict
 
-from extensions.middle.SliceLikeToStridedSlice import SliceLikeToStridedSlice
+from extensions.front.mxnet.ssd_detection_output_replacer import SsdPatternDetectionOutputReplacer
 from extensions.ops.elementwise import Div, Add, Sub
 from extensions.ops.split import Split
 from mo.front.common.partial_infer.utils import int64_array
+from mo.front.common.replacement import FrontReplacementPattern
 from mo.front.tf.graph_utils import create_op_node_with_second_input
-from mo.graph.graph import Graph, Node, rename_nodes
-from mo.middle.replacement import MiddleReplacementPattern
+from mo.graph.graph import Graph, Node
 from mo.ops.concat import Concat
 from mo.ops.reshape import Reshape
 
 
-class SsdPriorboxReshape(MiddleReplacementPattern):
+class SsdAnchorReshape(FrontReplacementPattern):
     enabled = True
     graph_condition = [lambda graph: graph.graph['fw'] == 'mxnet' and graph.graph['cmd_params'].enable_ssd_gluoncv]
 
     def run_after(self):
-        return [SliceLikeToStridedSlice]
+        return [SsdPatternDetectionOutputReplacer]
 
     def pattern(self):
         return dict(
             nodes=[
-                ('slice_like', dict(op='StridedSlice')),
-                ('slice_like_data', dict(kind='data')),
-                ('reshape', dict(op='Reshape')),
-                ('reshape_data', dict(kind='data')),
-                ('concat', dict(op='Concat')),
-            ],
-            edges=[
-                ('slice_like', 'slice_like_data'),
-                ('slice_like_data', 'reshape'),
-                ('reshape', 'reshape_data'),
-                ('reshape_data', 'concat')]
-        )
-
-    def replace_pattern(self, graph: Graph, match: Dict[str, Node]):
-        reshape = match['reshape']
-        reshape_name = reshape.soft_get('name', reshape.id)
-        new_reshape = create_op_node_with_second_input(graph, Reshape, int64_array([1, -1]), op_attrs=dict(
-            name='Reshape', override_output_shape=True))
-        rename_nodes([(reshape, reshape_name + '/ShouldBeDeleted'), (new_reshape, reshape_name)])
-        reshape.in_port(0).get_connection().set_destination(new_reshape.in_port(0))
-        reshape.out_port(0).get_connection().set_source(new_reshape.out_port(0))
-
-
-class SsdAnchorMiddleReshape(MiddleReplacementPattern):
-    enabled = True
-    graph_condition = [lambda graph: graph.graph['fw'] == 'mxnet' and graph.graph['cmd_params'].enable_ssd_gluoncv]
-
-    def run_after(self):
-        return [SliceLikeToStridedSlice]
-
-    def pattern(self):
-        return dict(
-            nodes=[
-                ('slice_like', dict(op='StridedSlice')),
-                ('slice_like_data', dict(kind='data')),
+                ('slice_like', dict(op='slice_like')),
                 ('reshape0', dict(op='Reshape')),
-                ('reshape0_data', dict(kind='data')),
                 ('reshape1', dict(op='Reshape')),
-                ('reshape1_data', dict(kind='data')),
                 ('reshape2', dict(op='Reshape')),
-                ('reshape2_data', dict(kind='data')),
                 ('reshape3', dict(op='Reshape')),
-                ('reshape3_data', dict(kind='data')),
                 ('concat', dict(op='Concat')),
             ],
             edges=[
-                ('slice_like', 'slice_like_data'),
-                ('slice_like_data', 'reshape0'),
-                ('reshape0', 'reshape0_data'),
-                ('reshape0_data', 'reshape1'),
-                ('reshape1', 'reshape1_data'),
-                ('reshape1_data', 'reshape2'),
-                ('reshape2', 'reshape2_data'),
-                ('reshape2_data', 'reshape3'),
-                ('reshape3', 'reshape3_data'),
-                ('reshape3_data', 'concat'),
+                ('slice_like', 'reshape0'),
+                ('reshape0', 'reshape1'),
+                ('reshape1', 'reshape2'),
+                ('reshape2', 'reshape3'),
+                ('reshape3', 'concat'),
             ])
 
     def replace_pattern(self, graph: Graph, match: Dict[str, Node]):
@@ -100,17 +57,12 @@ class SsdAnchorMiddleReshape(MiddleReplacementPattern):
         concat_node['axis'] = 1
 
         slice_like = match['slice_like']
-        slice_like_name = slice_like.soft_get('name', slice_like.id)
         slice_like.out_port(0).disconnect()
-        match['reshape3'].out_port(0).get_connection().set_source(slice_like.out_port(0))
+        match['reshape2'].out_port(0).get_connection().set_source(slice_like.out_port(0))
         slice_like['override_output_shape'] = True
 
-        reshape = create_op_node_with_second_input(graph, Reshape, int64_array([1, -1]), op_attrs=dict(
-            name=slice_like_name + '/Reshape', override_output_shape=True))
-        slice_like.out_port(0).get_connection().insert_node(reshape)
 
-
-class SsdAnchorsMiddleReplacer(MiddleReplacementPattern):
+class SsdAnchorsReplacer(FrontReplacementPattern):
 
     """
     Replacing sub-graph with all anchors to sub-graph which calculates prior boxes values by formulas:
@@ -125,22 +77,18 @@ class SsdAnchorsMiddleReplacer(MiddleReplacementPattern):
     graph_condition = [lambda graph: graph.graph['fw'] == 'mxnet' and graph.graph['cmd_params'].enable_ssd_gluoncv]
 
     def run_after(self):
-        return [SliceLikeToStridedSlice, SsdAnchorMiddleReshape, SsdPriorboxReshape]
+        return [SsdAnchorReshape, SsdPatternDetectionOutputReplacer]
 
     def pattern(self):
         return dict(
             nodes=[
-                ('slice_like', dict(op='StridedSlice')),
-                ('slice_like_data', dict(kind='data')),
+                ('slice_like', dict(op='slice_like')),
                 ('reshape0', dict(op='Reshape')),
-                ('reshape0_data', dict(kind='data')),
                 ('concat', dict(op='Concat')),
             ],
             edges=[
-                ('slice_like', 'slice_like_data'),
-                ('slice_like_data', 'reshape0'),
-                ('reshape0', 'reshape0_data'),
-                ('reshape0_data', 'concat', {'in': 0}),
+                ('slice_like', 'reshape0'),
+                ('reshape0', 'concat', {'in': 0}),
         ])
 
     def replace_pattern(self, graph: Graph, match: Dict[str, Node]):
