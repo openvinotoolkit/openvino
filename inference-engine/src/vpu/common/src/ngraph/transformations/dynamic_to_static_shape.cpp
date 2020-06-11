@@ -63,7 +63,7 @@ const Transformations& getDefaultTransformations() {
         {ngraph::opset3::Divide::type_info, dynamicToStaticShapeBinaryEltwise},
         {ngraph::opset3::Equal::type_info, dynamicToStaticShapeBinaryEltwise},
         {ngraph::opset3::Power::type_info, dynamicToStaticShapeBinaryEltwise},
-        {ngraph::opset3::NonMaxSuppression::type_info, dynamicToStaticNonMaxSuppression},
+        {ngraph::op::v4::NonMaxSuppression::type_info, dynamicToStaticNonMaxSuppression},
         {ngraph::opset3::NonZero::type_info,   dynamicToStaticShapeNonZero},
         {ngraph::opset3::TopK::type_info, dynamicToStaticShapeTopK},
         {ngraph::opset3::Transpose::type_info, dynamicToStaticShapeTranspose},
