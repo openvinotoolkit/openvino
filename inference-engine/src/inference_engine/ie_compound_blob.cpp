@@ -285,7 +285,7 @@ Blob* CompoundBlob::clone() const {
     return new CompoundBlob(*this);
 }
 
-void CompoundBlob::setROI(const ROI& roi) {
+void CompoundBlob::setROI(const ROIData& roiData) {
     THROW_IE_EXCEPTION << "Setting ROI for CompoundBlob is not allowed";
 }
 
