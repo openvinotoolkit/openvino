@@ -268,8 +268,8 @@ void pass::VisualizeTree::add_node_arguments(shared_ptr<Node> node,
             auto clone_name = "CLONE_" + to_string(fake_node_ctr);
             auto color = (arg->description() == "Parameter" ? "blue" : "black");
             m_ss << "    " << clone_name << "[shape=\"box\" style=\"dashed,filled\" color=\""
-                 << color << "\" fillcolor=\"white\" label=\""
-                 << get_node_name(arg) << "\n" << get_constant_value(arg) << "\"]\n";
+                 << color << "\" fillcolor=\"white\" label=\"" << get_node_name(arg) << "\n"
+                 << get_constant_value(arg) << "\"]\n";
             m_ss << "    " << clone_name << " -> " << node->get_name()
                  << label_edge(arg, node, arg_index, jump_distance) << "\n";
             fake_node_ctr++;
@@ -379,28 +379,28 @@ std::string pass::VisualizeTree::get_constant_value(std::shared_ptr<Node> node, 
     const auto constant = as_type_ptr<op::Constant>(node);
     switch (constant->get_output_element_type(0))
     {
-        case element::Type_t::undefined: ss << "[ undefined value ]"; break;
-        case element::Type_t::dynamic: ss << "[ dynamic value ]"; break;
-        case element::Type_t::u1: ss << "[ u1 value ]"; break;
-        case element::Type_t::bf16:
-        case element::Type_t::f16:
-        case element::Type_t::f32:
-        case element::Type_t::f64:
-            ss << "[" << pretty_value(constant->cast_vector<double>()) << "]";
-            break;
-        case element::Type_t::i8:
-        case element::Type_t::i16:
-        case element::Type_t::i32:
-        case element::Type_t::i64:
-            ss << "[" << pretty_value(constant->cast_vector<int64_t>()) << "]";
-            break;
-        case element::Type_t::boolean:
-        case element::Type_t::u8:
-        case element::Type_t::u16:
-        case element::Type_t::u32:
-        case element::Type_t::u64:
-            ss << "[" << pretty_value(constant->cast_vector<uint64_t>()) << "]";
-            break;
+    case element::Type_t::undefined: ss << "[ undefined value ]"; break;
+    case element::Type_t::dynamic: ss << "[ dynamic value ]"; break;
+    case element::Type_t::u1: ss << "[ u1 value ]"; break;
+    case element::Type_t::bf16:
+    case element::Type_t::f16:
+    case element::Type_t::f32:
+    case element::Type_t::f64:
+        ss << "[" << pretty_value(constant->cast_vector<double>()) << "]";
+        break;
+    case element::Type_t::i8:
+    case element::Type_t::i16:
+    case element::Type_t::i32:
+    case element::Type_t::i64:
+        ss << "[" << pretty_value(constant->cast_vector<int64_t>()) << "]";
+        break;
+    case element::Type_t::boolean:
+    case element::Type_t::u8:
+    case element::Type_t::u16:
+    case element::Type_t::u32:
+    case element::Type_t::u64:
+        ss << "[" << pretty_value(constant->cast_vector<uint64_t>()) << "]";
+        break;
     }
     return ss.str();
 }
