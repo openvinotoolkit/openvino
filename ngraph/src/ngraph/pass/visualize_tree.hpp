@@ -56,6 +56,8 @@ protected:
     std::string add_attributes(std::shared_ptr<Node> node);
     virtual std::string get_attributes(std::shared_ptr<Node> node);
     virtual std::string get_node_name(std::shared_ptr<Node> node);
+    std::string get_constant_value(std::shared_ptr<Node> node, size_t max_elements = 7);
+
     void render() const;
 
     std::stringstream m_ss;
