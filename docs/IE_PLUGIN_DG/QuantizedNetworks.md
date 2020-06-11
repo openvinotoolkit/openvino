@@ -22,7 +22,7 @@ and in some cases fused with the following *Quantize* operation for the next lay
 
 From the calculation standpoint, the FakeQuantize formula also is split into two parts accordingly:  
 `output = round((x - input_low) / (input_high - input_low) * (levels-1)) / (levels-1) * (output_high - output_low) + output_low`  
-The first part of this fomula represetns *Quantize* operation:  
+The first part of this formula represents *Quantize* operation:  
 `q = round((x - input_low) / (input_high - input_low) * (levels-1))`  
 The second is responsible for the dequantization:  
 `r = q / (levels-1) * (output_high - output_low) + output_low`  
