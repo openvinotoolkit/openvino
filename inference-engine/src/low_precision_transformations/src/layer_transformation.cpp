@@ -41,7 +41,7 @@ LayerTransformation::LayerTransformation(const Params& params) :
     precisionsOnWeights(params.precisionsOnWeights),
     layerTransformationsManager(nullptr),
     paramsManager(nullptr),
-    quantizationIntervalAsymmetryThreshold(2.e-4),
+    quantizationIntervalAsymmetryThreshold(0.002f),
     zeroThreshold(1.e-6f),
     dequantizationShiftToZeroRatioTreshold(4.e-4f),
     minQuantizationLevels(2ul) {}
