@@ -78,7 +78,7 @@ JitConstants PermuteKernelRef::GetJitConstants(const permute_params& params) con
             std::swap(out_idx[3], out_idx[4]);
         }
 
-        FusedOpsConfiguration conf = {"", out_idx, "input_var", GetUnitType(params), 1};
+        FusedOpsConfiguration conf = {"", out_idx, "input_var", params.inputs[0].GetDType(), 1};
         jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
     }
 

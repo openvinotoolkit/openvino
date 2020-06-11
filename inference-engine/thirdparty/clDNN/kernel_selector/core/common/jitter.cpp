@@ -1153,29 +1153,27 @@ JitConstants FusedOpsCodeGenerator::MakeOpJitConstants(const FusedOpsConfigurati
             if (!p)
                 throw std::runtime_error("[clDNN] Quantize fuse params can't be nullptr");
 
-            // We can't convert inputs to output data type, because it might be equal to UINT8 or INT8, so we convert the data
-            // to the zero tensor's (input_lo) type
             std::string in_converted = in_var;
-            Datatype tmp_type = desc.tensors.empty() ? in_type : desc.tensors[0].GetDType();
+            Datatype tmp_type = Datatype::F32;
             std::string tmp_type_str = GetType(tmp_type, vec_size);
             std::string tmp_var = out_var + "_tmp";
 
             if (in_type != tmp_type) {
-                in_converted = ConvertToType(in_var, desc.tensors[0].GetDType(), vec_size);
+                in_converted = ConvertToType(in_var, tmp_type, vec_size);
             }
 
             auto post_scale = p->per_tensor_output_scale ? Broadcast(std::to_string(p->out_scale), tmp_type, vec_size)
-                                                         : GetInputVarName(p->out_scale_idx);
+                                                         : ConvertToType(GetInputVarName(p->out_scale_idx), tmp_type, vec_size);
             auto post_shift = p->per_tensor_output_shift ? Broadcast(std::to_string(p->out_shift), tmp_type, vec_size)
-                                                         : GetInputVarName(p->out_shift_idx);
+                                                         : ConvertToType(GetInputVarName(p->out_shift_idx), tmp_type, vec_size);
             auto pre_scale = p->per_tensor_input_scale ? Broadcast(std::to_string(p->in_scale), tmp_type, vec_size)
-                                                       : GetInputVarName(p->in_scale_idx);
+                                                       : ConvertToType(GetInputVarName(p->in_scale_idx), tmp_type, vec_size);
             auto pre_shift = p->per_tensor_input_shift ? Broadcast(std::to_string(p->in_shift), tmp_type, vec_size)
-                                                       : GetInputVarName(p->in_shift_idx);
+                                                       : ConvertToType(GetInputVarName(p->in_shift_idx), tmp_type, vec_size);
             auto in_lo = p->per_tensor_input_range ? Broadcast(std::to_string(p->in_lo), tmp_type, vec_size)
-                                                   : GetInputVarName(p->in_range_lo_idx);
+                                                   : ConvertToType(GetInputVarName(p->in_range_lo_idx), tmp_type, vec_size);
             auto in_hi = p->per_tensor_input_range ? Broadcast(std::to_string(p->in_hi), tmp_type, vec_size)
-                                                   : GetInputVarName(p->in_range_hi_idx);
+                                                   : ConvertToType(GetInputVarName(p->in_range_hi_idx), tmp_type, vec_size);
 
             if (p->has_clamp) {
                 op_decls += "\\\n\t" + tmp_type_str + " " + tmp_var + " = min(max(" + in_lo + ", " + in_converted + "), " + in_hi + ");";

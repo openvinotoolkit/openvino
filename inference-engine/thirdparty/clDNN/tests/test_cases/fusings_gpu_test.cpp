@@ -4526,21 +4526,17 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, permute_activation_scale_eltwise,
                             permute_params{CASE_PERMUTE_U8_3D_3, 2, 5},
                         }), );
 
-class permute_scale_eltwise_quant_u8: public PermuteFusingTest {};
-TEST_P(permute_scale_eltwise_quant_u8, vector_ops) {
+class permute_quant_u8: public PermuteFusingTest {};
+TEST_P(permute_quant_u8, basic) {
         auto p = GetParam();
         create_topologies(
         input_layout("input", get_input_layout(p)),
-        data("scale_data", get_mem(get_per_channel_layout(p))),
-        data("eltwise_data", get_mem(layout{ p.data_type, p.input_format, p.out_shape})),
-        data("in_lo", get_mem(get_per_channel_layout(p), min_random, 0)),
-        data("in_hi", get_mem(get_per_channel_layout(p), 1, max_random)),
+        data("in_lo", get_mem(get_single_element_layout(p), min_random, 0)),
+        data("in_hi", get_mem(get_single_element_layout(p), 1, max_random)),
         data("out_lo", get_mem(get_single_element_layout(p), 0)),
         data("out_hi", get_mem(get_single_element_layout(p), 255)),
         permute("permute", "input", p.permute_order),
-        scale("scale1", "permute", "scale_data"),
-        eltwise("eltwise", "scale1", "eltwise_data", eltwise_mode::sum),
-        quantize("quant", "eltwise", "in_lo", "in_hi", "out_lo", "out_hi", 256, data_types::u8),
+        quantize("quant", "permute", "in_lo", "in_hi", "out_lo", "out_hi", 256, data_types::u8),
         reorder("reorder_bfyx", "quant", p.default_format, p.default_type)
         );
 
@@ -4548,56 +4544,13 @@ TEST_P(permute_scale_eltwise_quant_u8, vector_ops) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu, permute_scale_eltwise_quant_u8,
+INSTANTIATE_TEST_CASE_P(fusings_gpu, permute_quant_u8,
                         ::testing::ValuesIn(std::vector<permute_params> {
-                            permute_params{CASE_PERMUTE_F32_0, 2, 5},
-                            permute_params{CASE_PERMUTE_F32_1, 2, 5},
-                            permute_params{CASE_PERMUTE_F32_2, 2, 5},
-                            permute_params{CASE_PERMUTE_F32_3, 2, 5},
-                            permute_params{CASE_PERMUTE_F32_4, 2, 5},
-                            permute_params{CASE_PERMUTE_F32_5, 2, 5},
-                            permute_params{CASE_PERMUTE_F32_6, 2, 5},
-                            permute_params{CASE_PERMUTE_F32_7, 2, 5},
+                            permute_params{CASE_PERMUTE_F32_0, 2, 3},
+                            permute_params{CASE_PERMUTE_F32_1, 2, 3},
 
-                            permute_params{CASE_PERMUTE_F16_0, 2, 5},
-                            permute_params{CASE_PERMUTE_F16_1, 2, 5},
-                            permute_params{CASE_PERMUTE_F16_2, 2, 5},
-                            permute_params{CASE_PERMUTE_F16_3, 2, 5},
-                            permute_params{CASE_PERMUTE_F16_4, 2, 5},
-                            permute_params{CASE_PERMUTE_F16_5, 2, 5},
-                            permute_params{CASE_PERMUTE_F16_6, 2, 5},
-
-                            permute_params{CASE_PERMUTE_S8_0, 2, 5},
-                            permute_params{CASE_PERMUTE_S8_1, 2, 5},
-                            permute_params{CASE_PERMUTE_S8_2, 2, 5},
-                            permute_params{CASE_PERMUTE_S8_3, 2, 5},
-
-                            permute_params{CASE_PERMUTE_U8_0, 2, 5},
-                            permute_params{CASE_PERMUTE_U8_1, 2, 5},
-                            permute_params{CASE_PERMUTE_U8_2, 2, 5},
-                            permute_params{CASE_PERMUTE_U8_3, 2, 5},
-
-                            permute_params{CASE_PERMUTE_F32_3D_0, 2, 5},
-                            permute_params{CASE_PERMUTE_F32_3D_1, 2, 5},
-                            permute_params{CASE_PERMUTE_F32_3D_2, 2, 5},
-                            permute_params{CASE_PERMUTE_F32_3D_3, 2, 5},
-                            permute_params{CASE_PERMUTE_F32_3D_4, 2, 5},
-
-                            permute_params{CASE_PERMUTE_F16_3D_0, 2, 5},
-                            permute_params{CASE_PERMUTE_F16_3D_1, 2, 5},
-                            permute_params{CASE_PERMUTE_F16_3D_2, 2, 5},
-                            permute_params{CASE_PERMUTE_F16_3D_3, 2, 5},
-                            permute_params{CASE_PERMUTE_F16_3D_4, 2, 5},
-
-                            permute_params{CASE_PERMUTE_S8_3D_0, 2, 5},
-                            permute_params{CASE_PERMUTE_S8_3D_1, 2, 5},
-                            permute_params{CASE_PERMUTE_S8_3D_2, 2, 5},
-                            permute_params{CASE_PERMUTE_S8_3D_3, 2, 5},
-
-                            permute_params{CASE_PERMUTE_U8_3D_0, 2, 5},
-                            permute_params{CASE_PERMUTE_U8_3D_1, 2, 5},
-                            permute_params{CASE_PERMUTE_U8_3D_2, 2, 5},
-                            permute_params{CASE_PERMUTE_U8_3D_3, 2, 5},
+                            permute_params{CASE_PERMUTE_F16_0, 2, 3},
+                            permute_params{CASE_PERMUTE_F16_1, 2, 3},
                         }), );
 
 class permute_scale_actv_eltw_scale_actv_quant_i8: public PermuteFusingTest {};
