@@ -36,8 +36,10 @@ The implementation `CompileGraph` is fully device-specific.
 The function accepts a const shared pointer to `const ngraph::Function` object and performs the following steps:
 
 1. Deep copies a const object to a local object, which can later be modified.
-2. Applies common and plugin-specific transformations on a copied graph to make the graph more friendly to hardware operations.
-3. Maps the transformed graph to a plugin-specific graph representation (for example, to MKLDNN graph for CPU). See [Intermediate Representation and Operation Sets](../_docs_MO_DG_IR_and_opsets.html) for details about supported operations.
+2. Applies common and plugin-specific transformations on a copied graph to make the graph more friendly to hardware operations. For details how to write custom plugin-specific transformation, please, refer to [Writing ngraph transformations](@ref new_ngraph_transformation) guide.
+3. Maps the transformed graph to a plugin-specific graph representation (for example, to MKLDNN graph for CPU). See details topics about network representation:
+    * [Intermediate Representation and Operation Sets](../_docs_MO_DG_IR_and_opsets.html)
+    * [Quantized networks](@ref quantized_networks).
 4. Allocates and fills memory for graph weights.
 
 @snippet src/template_executable_network.cpp executable_network:compile_graph

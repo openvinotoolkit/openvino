@@ -1,4 +1,4 @@
-# Quantized networks compute and restrictions
+# Quantized networks compute and restrictions {#quantized_networks}
 
 One of the feature of Inference Engine is the support of quantized networks with different precisions: INT8, INT4, etc.
 However, it is up to the plugin to define what exact precisions are supported by the particular HW.
@@ -15,9 +15,10 @@ Here we provide only a high-level overview of the interpretation rules of FakeQu
 At runtime each FakeQuantize can be split into two independent operations: **Quantize** and **Dequantize**. 
 The former one is aimed to transform the input data into the target precision while the latter transforms the resulting values back to the original range and precision. 
 In practice *Dequantize* operations can be propagated forward through the linear operations, such as *Convolution* or *Fully-Connected*, 
-and in some cases fused with the following *Quantize* operation for the next layer into the so-called *Requantize* operation (see Fig. 3).
-<div align="center"><img src="./images/qdq_propagation.png" alt="This browser does not support PNG" width=70% height=70%></div>
-<div align="center">Figure 3. Quantization operations propagation at runtime. Q, DQ, RQ stand for Quantize, Dequantize, and Requantize correspondingly.</div><br/>
+and in some cases fused with the following *Quantize* operation for the next layer into the so-called *Requantize* operation (see Fig. 1).
+
+![qdq_propagation]
+<div align="center">Figure 1. Quantization operations propagation at runtime. Q, DQ, RQ stand for Quantize, Dequantize, and Requantize correspondingly.</div>
 
 From the calculation standpoint, the FakeQuantize formula also is split into two parts accordingly:  
 `output = round((x - input_low) / (input_high - input_low) * (levels-1)) / (levels-1) * (output_high - output_low) + output_low`  
@@ -48,3 +49,5 @@ Below we define these rules as follows:
 ## Quantized model inference
 
 !!! Need details from the runtime team.
+
+[qdq_propagation]: ../images/qdq_propagation.png

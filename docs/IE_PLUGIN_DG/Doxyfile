@@ -781,6 +781,7 @@ WARN_LOGFILE           =
 # Note: If this tag is empty the current directory is searched.
 
 INPUT                  = . \
+						 ../../inference-engine/src/transformations/include/transformations \
 						 ../../inference-engine/src/plugin_api
 
 # This tag can be used to specify the character encoding of the source files
@@ -889,7 +890,7 @@ EXAMPLE_RECURSIVE      = YES
 # that contain images that are to be included in the documentation (see the
 # \image command).
 
-IMAGE_PATH             =
+IMAGE_PATH             = ./images
 
 # The INPUT_FILTER tag can be used to specify a program that doxygen should
 # invoke to filter for each input file. Doxygen will invoke the filter program
@@ -2051,7 +2052,8 @@ PREDEFINED             = INFERENCE_ENGINE_API \
                          IE_SUPPRESS_DEPRECATED_END \
                          IE_SUPPRESS_DEPRECATED_START_WIN \
                          IE_SUPPRESS_DEPRECATED_END_WIN \
-                         IE_THREAD=IE_THREAD_TBB
+                         IE_THREAD=IE_THREAD_TBB \
+                         TRANSFORMATIONS_API
 
 # If the MACRO_EXPANSION and EXPAND_ONLY_PREDEF tags are set to YES then this
 # tag can be used to specify a list of macro names that should be expanded. The
