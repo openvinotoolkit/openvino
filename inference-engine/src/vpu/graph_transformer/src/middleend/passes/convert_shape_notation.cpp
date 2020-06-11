@@ -33,7 +33,10 @@ void PassImpl::run(const Model& model) {
 
     for (const auto& shape : shapes) {
         // Revert shape from IE to MDK notation
+        shape->attrs().set<bool>("IE-notation", true);
+
         auto convertedShape = model->duplicateData(shape, "@converted-notation");
+        convertedShape->attrs().set<bool>("converted-notation", true);
 
         const auto generator = [&convertedShape](const ie::Blob::Ptr& blob) {
             std::vector<int32_t> gatherIndices(static_cast<size_t>(convertedShape->desc().totalDimSize()));

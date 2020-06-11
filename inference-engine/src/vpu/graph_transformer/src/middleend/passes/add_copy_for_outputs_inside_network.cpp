@@ -21,6 +21,10 @@ public:
                 continue;
             }
 
+            VPU_THROW_UNLESS(outputData->childDataToShapeEdges().empty(),
+                "Output data object cannot be a shape parent for another data object, since notation conversion "
+                " has already happened");
+
             auto newIntermediateData = model->duplicateData(
                 outputData,
                 "@intermediate",
@@ -39,6 +43,10 @@ public:
                 newIntermediateData,
                 outputData,
                 "addCopyForOutputsInsideNetwork");
+
+            if (const auto& parentShapeEdge = outputData->parentDataToShapeEdge()) {
+                model->connectDataWithShape(parentShapeEdge->parent(), newIntermediateData);
+            }
         }
     }
 

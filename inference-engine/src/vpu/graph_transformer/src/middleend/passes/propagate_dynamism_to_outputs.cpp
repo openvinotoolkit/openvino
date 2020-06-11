@@ -39,34 +39,33 @@ public:
             }
             const auto parent = parentDataToShapeEdge->parent();
 
+            const auto& parentAttrs = parent->attrs();
+            VPU_THROW_UNLESS(parentAttrs.has("converted-notation") && parentAttrs.get<bool>("converted-notation"),
+                "All shape parent data object must be already converted to MDK notation");
+
+            const auto& parentProducer = parent->producer();
+            const auto& parentInIENotation = parentProducer->input(0);
+            VPU_THROW_UNLESS(parentInIENotation->usage() == DataUsage::Intermediate,
+                "Shape parent data object is expected to be an intermediate data object since shape child is not an output");
+
+            const auto& parentInIENotationAttrs = parent->attrs();
+            VPU_THROW_UNLESS(parentInIENotationAttrs.has("IE-notation") && parentInIENotationAttrs.get<bool>("IE-notation"),
+                 "Unexpected data object as shape in IE notation");
+
+            model->connectDataWithShape(parent, data);
+
             // MyriadInferRequest::GetResult assumes that dynamic data object has shape data object
             // with the same name + suffix "@shape"
             const auto shapeName = data->name() + "@shape";
-            const auto& shapeOutput = model->addOutputData(shapeName, parent->desc());
+            const auto& shapeOutput = model->addOutputData(shapeName, parentInIENotation->desc());
 
-            if (parent->numConsumers() > 0) {
-                _stageBuilder->addCopyStage(
-                    model,
-                    "copy-for-dynamic-output",
-                    nullptr,
-                    parent,
-                    shapeOutput,
-                    "PropagateDynamismToOutput");
-
-            } else {
-                const auto parentProducerEdge = parent->producerEdge();
-                VPU_THROW_UNLESS(parentProducerEdge != nullptr,
-                    "Data containing shape is expected to have a producer, but {} doesn't have", parent->name());
-
-                for (const auto& dataToShapeEdge : parent->childDataToShapeEdges()) {
-                    model->replaceDataToShapeParent(dataToShapeEdge, shapeOutput);
-                }
-
-                model->replaceStageOutput(parentProducerEdge, shapeOutput);
-                model->removeUnusedData(parent);
-            }
-
-            model->connectDataWithShape(shapeOutput, data);
+            _stageBuilder->addCopyStage(
+                model,
+                "copy-for-dynamic-output",
+                nullptr,
+                parentInIENotation,
+                shapeOutput,
+                "PropagateDynamismToOutput");
         }
     }
 
