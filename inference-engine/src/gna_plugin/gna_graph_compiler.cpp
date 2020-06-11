@@ -388,17 +388,12 @@ void GNAGraphCompiler::PowerPrimitive(InferenceEngine::CNNLayerPtr layer) {
         gnamem->readonly().push_value(ptr_weights, power.scale, num_rows_out, 64);
         gnamem->readonly().push_value(ptr_biases, power.offset, num_rows_out, 64);
     } else {
-        auto quantizedPowerWeights = power.scale;
-        auto quantizedPowerBiases = power.offset;
-        if (quantized != nullptr) {
-            quantizedPowerWeights = quantized->_weights_quant.scale * quantizedPowerWeights;
-            quantizedPowerBiases = quantized->_dst_quant.scale * quantizedPowerBiases;
-        }
-
-        auto weightQuantizedIdentity = FLOAT_TO_INT16(std::min(quantizedPowerWeights, static_cast<float>(INT16_MAX)));
-        auto biasesQuantizedIdentity = FLOAT_TO_INT32(std::min(quantizedPowerBiases, static_cast<float>(INT32_MAX)));
-        gnamem->readonly().push_value<int16_t>(ptr_weights, weightQuantizedIdentity, num_rows_out, 64);
-        gnamem->readonly().push_value<int32_t>(ptr_biases, biasesQuantizedIdentity, num_rows_out, 64);
+        auto quantizedScale = FLOAT_TO_INT16(std::min(quantized->_weights_quant.scale * power.scale,
+                                                      static_cast<float>(INT16_MAX)));
+        auto quantizedOffset = FLOAT_TO_INT32(std::min(quantized->_dst_quant.scale * power.offset,
+                                                       static_cast<float>(INT32_MAX)));
+        gnamem->readonly().push_value<int16_t>(ptr_weights, quantizedScale, num_rows_out, 64);
+        gnamem->readonly().push_value<int32_t>(ptr_biases, quantizedOffset, num_rows_out, 64);
     }
 }
 
