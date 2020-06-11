@@ -5,6 +5,7 @@
 #include <gtest/gtest.h>
 
 #include "common_test_utils/test_common.hpp"
+#include "functional_test_utils/skip_tests_config.hpp"
 #include <string>
 #include <memory>
 
@@ -61,8 +62,8 @@ TEST(TransformationTests, ConstFoldingPriorBox) {
     EXPECT_TRUE(fused->get_vector<float>() == ref->get_vector<float>());
 }
 
-// Disabled due to rare sporadic failures.
-TEST(TransformationTests, DISABLED_ConstFoldingPriorBoxClustered) {
+TEST(TransformationTests, ConstFoldingPriorBoxClustered) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
 
     {
@@ -162,10 +163,9 @@ TEST(TransformationTests, ConstFoldingPriorBoxSubgraph) {
     EXPECT_TRUE(fused->get_vector<float>() == ref->get_vector<float>());
 }
 
-// Disabled due to rare sporadic failures.
-TEST(TransformationTests, DISABLED_ConstFoldingPriorBoxClusteredSubgraph) {
+TEST(TransformationTests, ConstFoldingPriorBoxClusteredSubgraph) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
-
     {
         auto in = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::i64, ngraph::Shape{2, 3, 2, 2});
         auto in_2 = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::i64, ngraph::Shape{2, 3, 300, 300});
