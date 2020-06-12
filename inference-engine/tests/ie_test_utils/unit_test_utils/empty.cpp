@@ -34,4 +34,3 @@
 #include "unit_test_utils/mocks/shape_infer/mock_ishape_infer_impl.hpp"
 #include "unit_test_utils/mocks/shape_infer/mock_output_controller.hpp"
 #include "unit_test_utils/mocks/shape_infer/mock_reshaper_launcher.hpp"
-#include "unit_test_utils/mocks/shape_infer/mock_shape_infer_extension.hpp"

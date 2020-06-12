@@ -110,10 +110,6 @@ public:
         factory = factories[cnnLayer->type](cnnLayer);
         return InferenceEngine::OK;
     }
-
-    StatusCode getShapeInferImpl(IShapeInferImpl::Ptr& impl, const char* type, ResponseDesc* resp) noexcept override {
-        return NOT_IMPLEMENTED;
-    }
 private:
     std::map<std::string, ext_factory> factories;
 };
@@ -205,8 +201,6 @@ public:
         static const InferenceEngine::Version VERSION{{}, "", ""};
         versionInfo = &VERSION;
     }
-
-    void SetLogCallback(InferenceEngine::IErrorListener &listener) noexcept override {}
 
     void Unload() noexcept override {}
 

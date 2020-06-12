@@ -459,11 +459,6 @@ public:
         return InferenceEngine::OK;
     }
 
-    InferenceEngine::StatusCode getShapeInferImpl(InferenceEngine::IShapeInferImpl::Ptr& impl, const char* type,
-                                                  InferenceEngine::ResponseDesc* resp) noexcept override {
-        return InferenceEngine::NOT_IMPLEMENTED;
-    }
-
 private:
     std::map<std::string, fake_ext_factory> factories;
 };

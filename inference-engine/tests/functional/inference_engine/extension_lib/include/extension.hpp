@@ -52,9 +52,6 @@ class TestExtension : public InferenceEngine::IExtension {
 public:
     TestExtension() = default;
     void GetVersion(const InferenceEngine::Version*& versionInfo) const noexcept override;
-    IE_SUPPRESS_DEPRECATED_START
-    void SetLogCallback(InferenceEngine::IErrorListener& /*listener*/) noexcept override {}
-    IE_SUPPRESS_DEPRECATED_END
     void Unload() noexcept override {}
     void Release() noexcept override {
         delete this;
@@ -77,19 +74,6 @@ public:
      */
     InferenceEngine::StatusCode getPrimitiveTypes(char**& types, unsigned int& size, InferenceEngine::ResponseDesc* resp) noexcept override {
         size = 1;
-        return InferenceEngine::OK;
-    }
-
-    InferenceEngine::StatusCode getShapeInferTypes(char**& types, unsigned int& size, InferenceEngine::ResponseDesc* resp) noexcept override {
-        size = 1;
-        return InferenceEngine::OK;
-    }
-
-    InferenceEngine::StatusCode getShapeInferImpl(InferenceEngine::IShapeInferImpl::Ptr& impl, const char* type,
-                                                  InferenceEngine::ResponseDesc* resp) noexcept override {
-        std::string type_str = type;
-        if (type_str != "test")
-            return InferenceEngine::GENERAL_ERROR;
         return InferenceEngine::OK;
     }
 

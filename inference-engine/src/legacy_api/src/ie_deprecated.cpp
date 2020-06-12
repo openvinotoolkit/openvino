@@ -35,16 +35,6 @@ size_t CNNNetwork::size() const {
     return std::distance(std::begin(*this), std::end(*this));
 }
 
-StatusCode ICNNNetwork::AddExtension(const IShapeInferExtensionPtr& extension, ResponseDesc* resp) noexcept {
-    (void)extension;
-    (void)resp;
-    return NOT_IMPLEMENTED;
-};
-
-void CNNNetwork::AddExtension(InferenceEngine::IShapeInferExtensionPtr extension) {
-    CALL_STATUS_FNC(AddExtension, extension);
-}
-
 CNNLayer::CNNLayer(const LayerParams& prms)
     : node(nullptr), name(prms.name), type(prms.type), precision(prms.precision), userValue({0}) {}
 

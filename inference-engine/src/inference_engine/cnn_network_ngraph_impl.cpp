@@ -446,14 +446,6 @@ CNNNetworkNGraphImpl::reshape(const std::map<std::string, std::vector<size_t>>& 
     return OK;
 }
 
-StatusCode CNNNetworkNGraphImpl::AddExtension(const InferenceEngine::IShapeInferExtensionPtr& extension,
-                                              InferenceEngine::ResponseDesc* resp) noexcept {
-    if (!cnnNetwork) {
-        ::ngraph::op::GenericIE::addExtension(_ngraph_function, extension);
-    }
-    return cnnNetwork ? cnnNetwork->AddExtension(extension, resp) : OK;
-}
-
 StatusCode CNNNetworkNGraphImpl::serialize(const std::string& xmlPath, const std::string& binPath,
                                            ResponseDesc* resp) const noexcept {
     auto network = cnnNetwork;
