@@ -33,22 +33,21 @@ public:
     }
 
 private:
-    template <typename data_t, typename index_t>
-    void scatterUpdate(data_t *srcData, index_t *indices, data_t *update, int axis, data_t *dstData, ScatterUpdateMode mode);
+    void scatterUpdate(uint8_t *indicesPtr, uint8_t *updatePtr, int axis, uint8_t *dstDataPtr);
+    void scatterNDUpdate(uint8_t *indicesPtr, uint8_t *updatePtr, uint8_t *dstDataPtr);
+    void scatterElementsUpdate(uint8_t *indicesPtr, uint8_t *updatePtr, int axis, uint8_t *dstDataPtr);
+    inline int64_t getIndicesValue(uint8_t *indices, size_t offset);
 
     ScatterUpdateMode scatterUpdateMode = ScatterUpdateMode::ScatterUpdate;
     const size_t DATA_ID = 0;
     const size_t INDICES_ID = 1;
     const size_t UPDATE_ID = 2;
-    int axis = 0;
+    const size_t AXIS_ID = 3;
 
-    mkldnn::primitive_attr attr;
-    std::vector<MKLDNNMemoryPtr> PostOpsIntBlobMemory;
-
-    bool planar_layout = true;
-    size_t inputSize, indicesSize, outputSize;
-    InferenceEngine::Precision inputPrec, indicesPrec, outputPrec;
-    size_t blk_size;
+    // if axis can be set other than default 0.
+    bool axisRelaxed = false;
+    size_t dataSize, indicesSize, axisSize;
+    InferenceEngine::Precision dataPrec, indicesPrec, axisPrec;
 };
 
 }  // namespace MKLDNNPlugin

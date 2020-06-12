@@ -8,10 +8,15 @@ namespace ngraph {
 namespace builder {
 
 std::shared_ptr<ngraph::Node> makeScatterNDUpdate(const ngraph::Output<Node> &in,
-                                                  const ngraph::Output<Node> &indices,
+                                                  const element::Type& indicesType,
+                                                  const std::vector<size_t>& indicesShape,
+                                                  const std::vector<size_t>& indices,
                                                   const ngraph::Output<Node> &update) {
-    auto dtsNode = std::make_shared<ngraph::opset3::ScatterNDUpdate>(in, indices, update);
-    return dtsNode;
+    auto indicesNode = std::make_shared<ngraph::opset1::Constant>(indicesType, indicesShape, indices);
+    // blocked by ngraph merge
+    // auto dtsNode = std::make_shared<ngraph::opset3::ScatterNDUpdate>(in, indicesNode, update);
+    // return dtsNode;
+    return nullptr;
 }
 
 }  // namespace builder

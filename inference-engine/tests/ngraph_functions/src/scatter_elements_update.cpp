@@ -8,12 +8,15 @@ namespace ngraph {
 namespace builder {
 
 std::shared_ptr<ngraph::Node> makeScatterElementsUpdate(const ngraph::Output<Node> &in,
-                                                        const ngraph::Output<Node> &indices,
+                                                        const element::Type& indicesType,
+                                                        const std::vector<size_t>& indicesShape,
+                                                        const std::vector<size_t>& indices,
                                                         const ngraph::Output<Node> &update,
-                                                        std::size_t &axis) {
-    auto axis_node = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{},
-                                                                std::vector<uint64_t>{axis});
-    auto dtsNode = std::make_shared<ngraph::opset3::ScatterElementsUpdate>(in, indices, update, axis_node);
+                                                        int axis) {
+    auto indicesNode = std::make_shared<ngraph::opset1::Constant>(indicesType, indicesShape, indices);
+    auto axis_node = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i32, ngraph::Shape{},
+                                                                std::vector<int>{axis});
+    auto dtsNode = std::make_shared<ngraph::opset3::ScatterElementsUpdate>(in, indicesNode, update, axis_node);
     return dtsNode;
 }
 
