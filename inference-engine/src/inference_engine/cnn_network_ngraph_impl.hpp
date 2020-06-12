@@ -91,10 +91,6 @@ public:
 
     void addOutput(const std::string& dataName);
 
-    StatusCode getStats(ICNNNetworkStats** stats, ResponseDesc* resp) const noexcept override {
-        return StatusCode::NOT_FOUND;
-    }
-
     void Release() noexcept override {
         delete this;
     }

@@ -84,7 +84,6 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <exec_graph_info.hpp>
-#include "cnn_network_int8_normalizer.hpp"
 
 #include "low_precision_transformations/transformer.hpp"
 #include "low_precision_transformations/eltwise.hpp"

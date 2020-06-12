@@ -10,7 +10,6 @@
 #include <string>
 #include <vector>
 
-#include "cnn_network_stats_impl.hpp"
 #include "description_buffer.hpp"
 #include "ie_api.h"
 #include "ie_blob.h"
@@ -130,12 +129,6 @@ public:
 
     void removeOutput(const std::string& dataName);
 
-    StatusCode getStats(ICNNNetworkStats** stats, ResponseDesc* /* resp */) const noexcept override {
-        if (stats == nullptr) return StatusCode::PARAMETER_MISMATCH;
-        *stats = _stats.get();
-        return StatusCode::OK;
-    }
-
     void Release() noexcept override {
         delete this;
     }
@@ -160,7 +153,6 @@ protected:
     std::string _name;
     DataPtr _emptyData;
     ShapeInfer::ReshaperPtr _reshaper;
-    CNNNetworkStatsImplPtr _stats;
 };
 
 IE_SUPPRESS_DEPRECATED_END

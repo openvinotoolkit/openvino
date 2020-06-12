@@ -17,7 +17,6 @@
 #include "ie_blob.h"
 #include "ie_common.h"
 #include "ie_data.h"
-#include "ie_icnn_network_stats.hpp"
 #include "ie_iextension.h"
 #include "ie_input_info.hpp"
 #include "ie_layers.h"
@@ -228,22 +227,6 @@ public:
      */
     INFERENCE_ENGINE_DEPRECATED("Use Core::AddExtension to add an extension to the library")
     virtual StatusCode AddExtension(const IShapeInferExtensionPtr& extension, ResponseDesc* resp) noexcept;
-
-    /**
-     * @deprecated Migrate to IR v10 and use quantization approach with FakeQuantize
-     * @brief Gets the statistics.
-     * @param stats The statistics
-     * @param resp Pointer to the response message that holds a description of an error if any occurred
-     * @return Status code of the operation
-     */
-    IE_SUPPRESS_DEPRECATED_START
-    INFERENCE_ENGINE_INTERNAL("Migrate to IR v10 and use quantization approach with FakeQuantize")
-    virtual StatusCode getStats(ICNNNetworkStats** stats, ResponseDesc* resp) const noexcept {
-        (void)stats;
-        (void)resp;
-        return NOT_IMPLEMENTED;
-    };
-    IE_SUPPRESS_DEPRECATED_END
 
     /**
      * @brief Serialize network to IR and weights files.

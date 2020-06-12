@@ -82,40 +82,6 @@ std::size_t updatePreProcInfo(const InferenceEngine::ICNNNetwork& network, pugi:
     return dataOffset;
 }
 
-void UpdateStatisticsInfo(const InferenceEngine::ICNNNetwork& network, pugi::xml_node& netXml) {
-    // If statistics exists, add it to the file
-    ICNNNetworkStats* netNodesStats = nullptr;
-    auto stats = netXml.append_child("statistics");
-    auto resultCode = network.getStats(&netNodesStats, nullptr);
-    if (resultCode != StatusCode::OK) {
-        THROW_IE_EXCEPTION << InferenceEngine::details::as_status << resultCode
-                           << "Can't get statistics info for serialization of the model";
-    }
-    const NetworkStatsMap statsmap = netNodesStats->getNodesStats();
-
-    auto joinCommas = [&](const std::vector<float>& v) -> std::string {
-        std::string res;
-
-        for (size_t i = 0; i < v.size(); ++i) {
-            res += std::to_string(v[i]);
-            if (i < v.size() - 1) {
-                res += ", ";
-            }
-        }
-
-        return res;
-    };
-
-    for (const auto& itStats : statsmap) {
-        auto layer = stats.append_child("layer");
-
-        layer.append_child("name").text().set(itStats.first.c_str());
-
-        layer.append_child("min").text().set(joinCommas(itStats.second->_minOutputs).c_str());
-        layer.append_child("max").text().set(joinCommas(itStats.second->_maxOutputs).c_str());
-    }
-}
-
 void UpdateStdLayerParams(const CNNLayer::Ptr& layer) {
     auto layerPtr = layer.get();
     auto& params = layer->params;
@@ -531,12 +497,6 @@ std::size_t FillXmlDoc(const InferenceEngine::ICNNNetwork& network, pugi::xml_do
                 }
             }
         }
-    }
-
-    // no need to print this info in case of executable graph info serialization
-    if (!execGraphInfoSerialization) {
-        dataOffset = updatePreProcInfo(network, netXml, dataOffset);
-        UpdateStatisticsInfo(network, netXml);
     }
 
     return dataOffset;

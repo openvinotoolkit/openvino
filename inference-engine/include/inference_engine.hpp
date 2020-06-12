@@ -17,7 +17,6 @@
 #include <ie_core.hpp>
 #include <ie_error.hpp>
 #include <ie_icnn_network.hpp>
-#include <ie_icnn_network_stats.hpp>
 #include <ie_plugin_config.hpp>
 #include <ie_plugin_dispatcher.hpp>
 #include <ie_version.hpp>
