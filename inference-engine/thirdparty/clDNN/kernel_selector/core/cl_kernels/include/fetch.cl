@@ -114,7 +114,8 @@ inline uint FUNC(get_bf8_xy16_index)(uint b, uint f, uint y, uint x, uint x_size
 }
 
 inline uint FUNC(get_b_fs_yx_fsv_index)(uint b, uint f, uint y, uint x,
-                                        uint x_size, uint y_size, uint f_size,
+                                        uint x_size, uint y_size, uint f_size, uint b_size,
+                                        uint b_pad_before, uint b_pad_after,
                                         uint f_pad_before, uint f_pad_after,
                                         uint y_pad_before, uint y_pad_after,
                                         uint x_pad_before, uint x_pad_after, uint alignment) {
@@ -127,7 +128,7 @@ inline uint FUNC(get_b_fs_yx_fsv_index)(uint b, uint f, uint y, uint x,
     const uint fs_pitch = y_pitch * (y_pad_before +  y_size + y_pad_after);
     const uint b_pitch = fs_pitch * ((total_f_size + alignment - 1) / alignment);
 
-    const uint output_offset =  b * b_pitch +
+    const uint output_offset =  (b_pad_before + b) * b_pitch +
                                 fs * fs_pitch +
                                 (y_pad_before + y) * y_pitch +
                                 (x_pad_before + x) * x_pitch
@@ -137,7 +138,8 @@ inline uint FUNC(get_b_fs_yx_fsv_index)(uint b, uint f, uint y, uint x,
 }
 
 inline uint FUNC(get_b_fs_yx_fsv_index_safe)(uint b, uint f, uint y, uint x,
-                                             uint x_size, uint y_size, uint f_size,
+                                             uint x_size, uint y_size, uint f_size, uint b_size,
+                                             uint b_pad_before, uint b_pad_after,
                                              uint f_pad_before, uint f_pad_after,
                                              uint y_pad_before, uint y_pad_after,
                                              uint x_pad_before, uint x_pad_after, uint alignment) {
@@ -150,7 +152,7 @@ inline uint FUNC(get_b_fs_yx_fsv_index_safe)(uint b, uint f, uint y, uint x,
     const uint fs_pitch = y_pitch * (y_pad_before +  y_size + y_pad_after);
     const uint b_pitch = fs_pitch * ((total_f_size + alignment - 1) / alignment);
 
-    const uint output_offset = b * b_pitch +
+    const uint output_offset = (b_pad_before + (b % b_size)) * b_pitch +
                                fs * fs_pitch +
                                (y_pad_before + (y % y_size)) * y_pitch +
                                (x_pad_before + (x % x_size)) * x_pitch
@@ -165,6 +167,9 @@ inline uint FUNC(get_b_fs_yx_fsv_index_safe)(uint b, uint f, uint y, uint x,
         CAT(prefix, _SIZE_X ),                           \
         CAT(prefix, _SIZE_Y),                            \
         CAT(prefix, _FEATURE_NUM),                       \
+        CAT(prefix, _BATCH_NUM),                         \
+        CAT(prefix, _PAD_BEFORE_BATCH_NUM),              \
+        CAT(prefix, _PAD_AFTER_BATCH_NUM),               \
         CAT(prefix, _PAD_BEFORE_FEATURE_NUM),            \
         CAT(prefix, _PAD_AFTER_FEATURE_NUM),             \
         CAT(prefix, _PAD_BEFORE_SIZE_Y),                 \
@@ -178,6 +183,9 @@ inline uint FUNC(get_b_fs_yx_fsv_index_safe)(uint b, uint f, uint y, uint x,
         CAT(prefix, _SIZE_X ),                                \
         CAT(prefix, _SIZE_Y),                                 \
         CAT(prefix, _FEATURE_NUM),                            \
+        CAT(prefix, _BATCH_NUM),                              \
+        CAT(prefix, _PAD_BEFORE_BATCH_NUM),                   \
+        CAT(prefix, _PAD_AFTER_BATCH_NUM),                    \
         CAT(prefix, _PAD_BEFORE_FEATURE_NUM),                 \
         CAT(prefix, _PAD_AFTER_FEATURE_NUM),                  \
         CAT(prefix, _PAD_BEFORE_SIZE_Y),                      \
@@ -191,6 +199,9 @@ inline uint FUNC(get_b_fs_yx_fsv_index_safe)(uint b, uint f, uint y, uint x,
         CAT(prefix, _SIZE_X ),                           \
         CAT(prefix, _SIZE_Y),                            \
         CAT(prefix, _FEATURE_NUM),                       \
+        CAT(prefix, _BATCH_NUM),                         \
+        CAT(prefix, _PAD_BEFORE_BATCH_NUM),              \
+        CAT(prefix, _PAD_AFTER_BATCH_NUM),               \
         CAT(prefix, _PAD_BEFORE_FEATURE_NUM),            \
         CAT(prefix, _PAD_AFTER_FEATURE_NUM),             \
         CAT(prefix, _PAD_BEFORE_SIZE_Y),                 \
@@ -204,6 +215,9 @@ inline uint FUNC(get_b_fs_yx_fsv_index_safe)(uint b, uint f, uint y, uint x,
         CAT(prefix, _SIZE_X ),                                \
         CAT(prefix, _SIZE_Y),                                 \
         CAT(prefix, _FEATURE_NUM),                            \
+        CAT(prefix, _BATCH_NUM),                              \
+        CAT(prefix, _PAD_BEFORE_BATCH_NUM),                   \
+        CAT(prefix, _PAD_AFTER_BATCH_NUM),                    \
         CAT(prefix, _PAD_BEFORE_FEATURE_NUM),                 \
         CAT(prefix, _PAD_AFTER_FEATURE_NUM),                  \
         CAT(prefix, _PAD_BEFORE_SIZE_Y),                      \
