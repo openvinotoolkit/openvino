@@ -28,6 +28,8 @@
 #include <transformations/depth_to_space_fusion.hpp>
 #include <ngraph/op/fused/depth_to_space.hpp>
 
+#include "ngraph_functions/low_precision_transformations/depth_to_space_function.hpp"
+
 namespace LayerTestsDefinitions {
 
 std::string DepthToSpaceTransformation::getTestCaseName(testing::TestParamInfo<DepthToSpaceTransformationParams> obj) {
@@ -56,30 +58,8 @@ void DepthToSpaceTransformation::SetUp() {
 
     ConfigurePlugin(version);
 
-    auto ngPrecision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    const auto input = std::make_shared<ngraph::opset1::Parameter>(ngPrecision, ngraph::Shape(inputShape));
-
-    const auto fakeQuantize = ngraph::builder::makeFakeQuantize(input, ngPrecision, 256ul, { 1ul });
-
-    const auto shapeReshapeBefore = ngraph::opset1::Constant::create(
-        ngraph::element::i64,
-        ngraph::Shape{ 6ul },
-        ngraph::Shape{ inputShape[0], inputShape[1] / 4ul, 2ul, 2ul, inputShape[2], inputShape[3] });
-    const auto reshapeBefore = std::make_shared<ngraph::opset1::Reshape>(fakeQuantize, shapeReshapeBefore, false);
-    reshapeBefore->set_friendly_name("reshapeBefore");
-
-    const auto permutation = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{ 6 }, { 0, 1, 4, 2, 5, 3 });
-    const auto permute = std::make_shared<ngraph::opset1::Transpose>(reshapeBefore, permutation);
-    permute->set_friendly_name("permute");
-
-    const auto shapeReshapeAfter = ngraph::opset1::Constant::create(
-        ngraph::element::i64,
-        ngraph::Shape{ 4 },
-        ngraph::Shape{ 1, inputShape[1] / 4ul, inputShape[2] * 2, inputShape[3] * 2 });
-    const auto reshapeAfter = std::make_shared<ngraph::opset1::Reshape>(permute, shapeReshapeAfter, false);
-    reshapeAfter->set_friendly_name("reshapeAfter");
-
-    function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ reshapeAfter }, ngraph::ParameterVector{ input });
+    const auto ngPrecision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+    function = ngraph::builder::subgraph::DepthToSpaceFunction::getOriginal(ngPrecision, inputShape);
 
     ngraph::pass::InitNodeInfo().run_on_function(function);
     ngraph::pass::DepthToSpaceFusion().run_on_function(function);
@@ -134,19 +114,29 @@ void DepthToSpaceTransformation::validateCNNNetwork() {
 }
 
 void DepthToSpaceTransformation::validateNGraph() {
-    InferenceEngine::SizeVector inputShape;
-    InferenceEngine::Precision netPrecision;
-    InferenceEngine::details::LayerTransformation::Params params;
-    LayerTestsUtils::LayerTransformation::LptVersion version;
-    std::tie(netPrecision, inputShape, targetDevice, params, version) = this->GetParam();
+    // TODO: remove: don't need to validate here
+
+    // InferenceEngine::SizeVector inputShape;
+    // InferenceEngine::Precision netPrecision;
+    // InferenceEngine::details::LayerTransformation::Params params;
+    // LayerTestsUtils::LayerTransformation::LptVersion version;
+    // std::tie(netPrecision, inputShape, targetDevice, params, version) = this->GetParam();
 
     // std::vector<std::shared_ptr<ngraph::Function>> module{ function };
     // ngraph::pass::VisualizeTree("C:\\Projects\\temp\\test.original").run_on_module(module);
 
-    const std::shared_ptr<ngraph::Function> transformedFunction = transformNGraph(params);
+    // std::shared_ptr<ngraph::Function> transformedFunction = transformNGraph(params);
 
     // std::vector<std::shared_ptr<ngraph::Function>> transformedModule{ transformedFunction };
     // ngraph::pass::VisualizeTree("C:\\Projects\\temp\\test.transformed").run_on_module(transformedModule);
+
+    // auto ngPrecision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+    // auto input = std::make_shared<ngraph::opset3::Parameter>(ngPrecision, ngraph::Shape(inputShape));
+    // auto depthToSpace = std::make_shared<ngraph::opset3::DepthToSpace>(input, ngraph::opset3::DepthToSpace::DepthToSpaceMode::DEPTH_FIRST, 2);
+    // auto referenceFunction = std::make_shared<ngraph::Function>(ngraph::NodeVector{ depthToSpace }, ngraph::ParameterVector{ input });
+
+    // auto res = compare_functions(f, f_ref);
+    // ASSERT_TRUE(res.first) << res.second;
 }
 
 TEST_P(DepthToSpaceTransformation, CompareWithRefImpl) {
