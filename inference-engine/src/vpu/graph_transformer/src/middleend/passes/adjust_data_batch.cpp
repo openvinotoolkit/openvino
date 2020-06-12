@@ -304,7 +304,7 @@ StageList PassImpl::extractNextSubGraph(StageList& stagesToSplit) {
             }
         }
         for (const auto& nextStage : stage->nextStages()) {
-        if (!stagesToSplit.has(nextStage) && several_consumers) {
+            if (!stagesToSplit.has(nextStage) && several_consumers) {
                 shouldStop = true;
                 break;
             }
