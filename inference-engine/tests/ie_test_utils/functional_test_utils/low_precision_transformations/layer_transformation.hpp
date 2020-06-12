@@ -88,4 +88,13 @@ protected:
 
 IE_SUPPRESS_DEPRECATED_END
 
+inline std::ostream& operator << (std::ostream &os, const LayerTransformation::LptVersion& value) {
+    if ((value != LayerTransformation::LptVersion::cnnNetwork) && (value != LayerTransformation::LptVersion::nGraph)) {
+        THROW_IE_EXCEPTION << "unexpected LPT version value " << value;
+    }
+
+    os << (value == LayerTransformation::LptVersion::cnnNetwork ? "cnnNetwork" : "nGraph");
+    return os;
+}
+
 }  // namespace LayerTestsUtils
