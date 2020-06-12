@@ -380,6 +380,12 @@ std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> decomposeFakeQuantize(s
 
 std::shared_ptr<Node> optimizeAdd(std::shared_ptr<opset1::Add> add);
 
+void moveDequantization(
+    const std::shared_ptr<ngraph::Node> operation,
+    const std::shared_ptr<ngraph::Node> dequantization,
+    const std::shared_ptr<ngraph::Node> scalesConst = nullptr,
+    const std::shared_ptr<ngraph::Node> shiftsConst = nullptr);
+
 }  // namespace low_precision
 }  // namespace pass
 }  // namespace ngraph

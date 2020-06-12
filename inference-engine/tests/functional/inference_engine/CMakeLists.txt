@@ -20,6 +20,7 @@ addIeTargetTest(
             funcTestUtils
             ngraphFunctions
             inference_engine_transformations
+            inference_engine_lp_transformations
         ADD_CPPLINT
         DEPENDENCIES
             extension_tests
@@ -98,7 +99,7 @@ function(ie_headers_compilation_with_custom_flags)
     add_library(${target_name} OBJECT ${source_file})
     target_include_directories(${target_name} PRIVATE $<TARGET_PROPERTY:inference_engine,INTERFACE_INCLUDE_DIRECTORIES>)
     target_compile_definitions(${target_name} PRIVATE $<TARGET_PROPERTY:inference_engine,INTERFACE_COMPILE_DEFINITIONS>)
-    
+
     set_target_properties(${target_name} PROPERTIES
                           CXX_STANDARD ${IE_TEST_CXX_STANDARD}
                           CXX_STANDARD_REQUIRED OFF)

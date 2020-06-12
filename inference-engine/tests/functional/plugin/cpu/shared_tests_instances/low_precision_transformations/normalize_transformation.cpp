@@ -11,9 +11,15 @@ using namespace LayerTestsDefinitions;
 using namespace InferenceEngine::details;
 
 namespace {
-const std::vector<InferenceEngine::Precision> netPrecisions = {
+const std::vector<InferenceEngine::Precision> precisions = {
         InferenceEngine::Precision::FP32,
         InferenceEngine::Precision::FP16
+};
+
+const std::vector<std::pair<ngraph::Shape, ngraph::Shape> > inputAndQuantizationShapes = {
+    { ngraph::Shape({ 1ul, 4ul, 16ul, 16ul }), ngraph::Shape({ 1ul }) },
+    // TODO: different scales initialization is not implemented yet
+    { ngraph::Shape({ 1ul, 4ul, 16ul, 16ul }), ngraph::Shape({ 1ul, 4ul, 1ul, 1ul }) },
 };
 
 const std::vector<LayerTransformation::Params> trasformationParamValues = {
@@ -22,16 +28,23 @@ const std::vector<LayerTransformation::Params> trasformationParamValues = {
     LayerTestsUtils::LayerTransformationParamsFactory::createParamsU8I8()
 };
 
+const std::vector<LayerTestsUtils::LayerTransformation::LptVersion> versionValues = {
+    LayerTestsUtils::LayerTransformation::LptVersion::cnnNetwork,
+    // NormalizeIE expected instead NormalizeL2
+    // LayerTestsUtils::LayerTransformation::LptVersion::nGraph
+};
+
 const std::vector<bool> fuseMultiplyValues = { true, false };
 
 const std::vector<bool> shiftValues = { true, false };
 
 INSTANTIATE_TEST_CASE_P(LPT, NormalizeTransformation,
     ::testing::Combine(
-        ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(InferenceEngine::SizeVector({ 1, 16, 8, 8 })),
+        ::testing::ValuesIn(precisions),
+        ::testing::ValuesIn(inputAndQuantizationShapes),
         ::testing::Values(CommonTestUtils::DEVICE_CPU),
         ::testing::ValuesIn(trasformationParamValues),
+        ::testing::ValuesIn(versionValues),
         ::testing::ValuesIn(fuseMultiplyValues),
         ::testing::ValuesIn(shiftValues)),
     NormalizeTransformation::getTestCaseName);

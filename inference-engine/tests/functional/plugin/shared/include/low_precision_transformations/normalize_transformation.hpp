@@ -13,9 +13,10 @@ namespace LayerTestsDefinitions {
 
 typedef std::tuple<
     InferenceEngine::Precision,
-    InferenceEngine::SizeVector,
+    std::pair<ngraph::Shape, ngraph::Shape>,
     std::string,
     InferenceEngine::details::LayerTransformation::Params,
+    LayerTestsUtils::LayerTransformation::LptVersion,
     bool,
     bool> NormalizeTransformationParams;
 
@@ -29,7 +30,8 @@ protected:
     void SetUp() override;
 
 private:
-    void validate();
+    void validateCNNNetwork();
+    void validateNGraph();
 };
 
 }  // namespace LayerTestsDefinitions
