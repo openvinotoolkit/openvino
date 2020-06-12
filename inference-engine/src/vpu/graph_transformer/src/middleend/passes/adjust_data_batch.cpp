@@ -295,8 +295,16 @@ StageList PassImpl::extractNextSubGraph(StageList& stagesToSplit) {
         }
 
         bool shouldStop = false;
+        bool several_consumers = false;
+        for (const auto& outputEdge : stage->outputEdges()) {
+            const auto originalOutput = outputEdge->output();
+            if (originalOutput->numConsumers() > 1) {
+                several_consumers = true;
+                break;
+            }
+        }
         for (const auto& nextStage : stage->nextStages()) {
-            if (!stagesToSplit.has(nextStage)) {
+        if (!stagesToSplit.has(nextStage) && several_consumers) {
                 shouldStop = true;
                 break;
             }
