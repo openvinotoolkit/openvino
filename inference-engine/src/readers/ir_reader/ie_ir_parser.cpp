@@ -455,7 +455,7 @@ std::shared_ptr<ngraph::Node> V10Parser::createNode(const std::vector<ngraph::Ou
 
         auto blobs = node.child("blobs");
         if (!blobs.empty()) {
-            std::streampos length = weights->byteSize();
+            size_t length = weights->byteSize();
 
             for (pugi::xml_node blob = blobs.first_child(); !blob.empty(); blob = blob.next_sibling()) {
                 size_t size = GetUInt64Attr(blob, "size", 0);
@@ -1431,7 +1431,7 @@ std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::Constant>::cre
     size_t offset = GetUInt64Attr(dn, "offset");
     size_t size = GetUInt64Attr(dn, "size");
 
-    std::streampos length = weights->byteSize();
+    size_t length = weights->byteSize();
     if (!length)
         THROW_IE_EXCEPTION << "Cannot read network! The model requires weights data! "
             << "Bin file cannot be found! Please specify the path to bin file.";
@@ -1447,7 +1447,7 @@ std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::Constant>::cre
 
     auto constant = std::make_shared<ngraph::op::Constant>(port.precision, shape);
     char* data = const_cast<char*>(reinterpret_cast<const char*>(constant->get_data_ptr()));
-    memcpy(data, weights->cbuffer().as<void*>(), size);
+    memcpy(data, weights->cbuffer().as<char*>() + offset, size);
     return constant;
 }
 
