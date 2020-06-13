@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2020 Intel Corporation
+// Copyright (C) 2018-2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -42,8 +42,7 @@ StatusCode CNNNetReaderImpl::SetWeights(const TBlob<uint8_t>::Ptr& weights, Resp
             // It's time to perform actual reading of V10 network and instantiate CNNNetworkNGraphImpl
             IRParser parser(_version, extensions);
             pugi::xml_node root = xmlDoc->document_element();
-            details::BlobStream blobStream(weights);
-            network = parser.parse(root, blobStream);
+            network = parser.parse(root, weights);
         } else if (weights) {
             _parser->SetWeights(weights);
         }

@@ -36,12 +36,12 @@ public:
     /**
      * @brief Reads the model to CNNNetwork
      * @param model stream with model
-     * @param weights stream with binary data
+     * @param weights blob with binary data
      * @param exts vector with extensions
      *
      * @return CNNNetwork
      */
-    virtual CNNNetwork read(std::istream& model, std::istream& weights, const std::vector<IExtensionPtr>& exts) const = 0;
+    virtual CNNNetwork read(std::istream& model, const Blob::CPtr& weights, const std::vector<IExtensionPtr>& exts) const = 0;
 
     /**
      * @brief Returns all supported extensions for data files

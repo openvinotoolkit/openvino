@@ -18,6 +18,8 @@
 #include <samples/slog.hpp>
 #include <samples/args_helper.hpp>
 
+#include <details/ie_mmap_allocator.hpp>
+
 #include "benchmark_app.hpp"
 #include "infer_request_wrap.hpp"
 #include "progress_bar.hpp"
@@ -309,6 +311,7 @@ int main(int argc, char *argv[]) {
             slog::info << "Loading network files" << slog::endl;
 
             auto startTime = Time::now();
+
             CNNNetwork cnnNetwork = ie.ReadNetwork(FLAGS_m);
             auto duration_ms = double_to_string(get_total_ms_time(startTime));
             slog::info << "Read network took " << duration_ms << " ms" << slog::endl;
