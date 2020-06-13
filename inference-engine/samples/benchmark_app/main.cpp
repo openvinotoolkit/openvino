@@ -18,8 +18,6 @@
 #include <samples/slog.hpp>
 #include <samples/args_helper.hpp>
 
-#include <details/ie_mmap_allocator.hpp>
-
 #include "benchmark_app.hpp"
 #include "infer_request_wrap.hpp"
 #include "progress_bar.hpp"
