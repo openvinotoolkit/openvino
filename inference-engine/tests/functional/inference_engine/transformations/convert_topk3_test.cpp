@@ -111,19 +111,18 @@ TEST(TransformationTests, ConvertTopK3I64Output0) {
         auto input = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::f32, ngraph::Shape{15, 20, 3});
         auto k = ngraph::opset3::Constant::create(ngraph::element::i64, ngraph::Shape{}, {10});
         auto topk = std::make_shared<ngraph::opset2::TopK>(input, k, 1, "min", "value", ngraph::element::i32);
-        auto convert = std::make_shared<ngraph::opset2::Convert>(topk->output(0), ngraph::element::i32);
-        convert->set_friendly_name("topk.0");
+        topk->set_friendly_name("topk");
 
         // due to the 'compare_functions' limitation we will check only one output
-        f_ref = std::make_shared<ngraph::Function>(ngraph::OutputVector{convert->output(0)}, ngraph::ParameterVector{input});
+        f_ref = std::make_shared<ngraph::Function>(ngraph::OutputVector{topk->output(0)}, ngraph::ParameterVector{input});
     }
 
     auto res = compare_functions(f, f_ref);
     ASSERT_TRUE(res.first) << res.second;
 
     auto result_node_of_converted_f = f->get_output_op(0);
-    auto convert_node = result_node_of_converted_f->input(0).get_source_output().get_node_shared_ptr();
-    ASSERT_TRUE(convert_node->get_friendly_name() == "topk.0") << "Transformation ConvertTopK3 should keep output names.\n";
+    auto topk_node = result_node_of_converted_f->input(0).get_source_output().get_node_shared_ptr();
+    ASSERT_TRUE(topk_node->get_friendly_name() == "topk") << "Transformation ConvertTopK3 should keep output names.\n";
 }
 
 // check that the second output from the TopK-3 with I64 output indices is equal to the TopK-1 second output converted to I64
@@ -158,5 +157,6 @@ TEST(TransformationTests, ConvertTopK3I64Output1) {
     ASSERT_TRUE(res.first) << res.second;
 
     auto result_node_of_converted_f = f->get_output_op(0);
-    auto topk_node = result_node_of_converted_f->input(0).get_source_output().get_node_shared_ptr();
+    auto convert_node = result_node_of_converted_f->input(0).get_source_output().get_node_shared_ptr();
+    ASSERT_TRUE(convert_node->get_friendly_name() == "topk.1") << "Transformation ConvertTopK3 should keep output names.\n";
 }
