@@ -11,6 +11,7 @@
 
 namespace LayerTestsDefinitions {
 
+// TODO: use MatMulTransformation
 class GemmTransformation :
     public testing::WithParamInterface<LayerTestsUtils::LayerTransformationParams>,
     public LayerTestsUtils::LayerTransformation {

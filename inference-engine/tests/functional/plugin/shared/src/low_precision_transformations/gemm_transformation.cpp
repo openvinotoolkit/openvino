@@ -25,18 +25,21 @@ std::string GemmTransformation::getTestCaseName(testing::TestParamInfo<LayerTest
     InferenceEngine::SizeVector inputShapes;
     std::string targetDevice;
     InferenceEngine::details::LayerTransformation::Params params;
-    std::tie(netPrecision, inputShapes, targetDevice, params) = obj.param;
+    LayerTestsUtils::LayerTransformation::LptVersion version;
+    std::tie(netPrecision, inputShapes, targetDevice, params, version) = obj.param;
 
-    std::ostringstream result;
-    result << inputShapes.size() << "D_" << netPrecision.name() << "_" << targetDevice << "_" << toString(params);
-    return result.str();
+    return getTestCaseNameByParams(netPrecision, inputShapes, targetDevice, params, version);
 }
 
 void GemmTransformation::SetUp() {
     InferenceEngine::SizeVector inputShape;
     InferenceEngine::Precision netPrecision;
     InferenceEngine::details::LayerTransformation::Params params;
-    std::tie(netPrecision, inputShape, targetDevice, params) = this->GetParam();
+    LayerTestsUtils::LayerTransformation::LptVersion version;
+    std::tie(netPrecision, inputShape, targetDevice, params, version) = this->GetParam();
+
+    ConfigurePlugin(version);
+
     auto ngPrecision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
     const float low = params.precisionsOnActivations[0] == InferenceEngine::Precision::U8 ? 0.f : -128.f;
@@ -64,15 +67,17 @@ void GemmTransformation::SetUp() {
     ngraph::ResultVector results {std::make_shared<ngraph::opset1::Result>(matMul)};
     function = std::make_shared<ngraph::Function>(results, ngraph::ParameterVector { input1, input2 }, "GemmTransformation");
 
-    // TODO: move to some another place
-    validate();
+    if (version == LptVersion::cnnNetwork) {
+        validate();
+    }
 }
 
 void GemmTransformation::validate() {
     InferenceEngine::SizeVector inputShape;
     InferenceEngine::Precision netPrecision;
     InferenceEngine::details::LayerTransformation::Params params;
-    std::tie(netPrecision, inputShape, targetDevice, params) = this->GetParam();
+    LayerTestsUtils::LayerTransformation::LptVersion version;
+    std::tie(netPrecision, inputShape, targetDevice, params, version) = this->GetParam();
 
     const InferenceEngine::CNNNetwork network = transform(params);
 
