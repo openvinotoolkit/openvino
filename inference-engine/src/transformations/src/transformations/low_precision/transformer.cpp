@@ -26,6 +26,7 @@
 #include "transformations/low_precision/fake_quantize.hpp"
 // #include "low_precision_transformations/fully_connected.hpp"
 // #include "low_precision_transformations/fuse_fake_quantize_and_scale_shift.hpp"
+#include "transformations/low_precision/mat_mul.hpp"
 // #include "low_precision_transformations/mvn.hpp"
 // #include "low_precision_transformations/permute.hpp"
 #include "transformations/low_precision/max_pool.hpp"
@@ -181,7 +182,7 @@ LowPrecisionTransformations LowPrecisionTransformer::getAllTransformations(const
             { "MaxPool", LayerTransformationPtr(new MaxPoolTransformation(params)) },
             { "FakeQuantize", LayerTransformationPtr(new FakeQuantizeTransformation(params)) },
             //{ "Reshape", LayerTransformationPtr(new ReshapeTransformation(params)) },
-            //{ "MatMul", LayerTransformationPtr(new MatMulTransformation(params)) },
+            { "MatMul", LayerTransformationPtr(new MatMulTransformation(params)) },
             //{ "Transpose", LayerTransformationPtr(new TransposeTransformation(params)) },
             //{ "Squeeze", LayerTransformationPtr(new SqueezeTransformation(params)) },
             { "ReLU", LayerTransformationPtr(new ReluTransformation(params)) },
@@ -360,6 +361,11 @@ void LowPrecisionTransformer::transform(std::shared_ptr<Function> network) {
     //    ngraph::pass::VisualizeTree("before_ltp.png").run_on_module(module);
     //}
 
+    {
+        std::vector<std::shared_ptr<ngraph::Function>> module{ network };
+        VisualizeTree("C:\\Projects\\temp\\test.original").run_on_module(module);
+    }
+
     transformations.setParamsManager(this);
     transformations.setLayerTransformationsManager(this);
 
@@ -435,6 +441,11 @@ void LowPrecisionTransformer::transform(std::shared_ptr<Function> network) {
     //    std::vector<std::shared_ptr<ngraph::Function>> module{network};
     //    ngraph::pass::VisualizeTree("after_lpt.svg").run_on_module(module);
     //}
+
+    {
+        std::vector<std::shared_ptr<ngraph::Function>> module{ network };
+        VisualizeTree("C:\\Projects\\temp\\test.transformed").run_on_module(module);
+    }
 
 
 #if 0 // TODO LPT-TO-NGRAPH
