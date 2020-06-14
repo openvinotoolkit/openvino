@@ -26,7 +26,7 @@ namespace vpu {
 
 template <typename T>
 Optional<int> parseNumber(const std::string& s) {
-    T value;
+    auto value = T{};
     if ((std::istringstream(s) >> value >> std::ws).eof()) {
         return {value};
     }
