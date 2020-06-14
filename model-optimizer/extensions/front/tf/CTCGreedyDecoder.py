@@ -62,8 +62,8 @@ class CTCGreedyDecoderReplacement(FrontReplacementSubgraph):
         match['sparse_to_dense'].replace_node(decoder_node)
 
         # update the TensorFlow infer function for the CTCGreedyDecoder to make necessary changes with the second input
-        decoder_node['old_infer'] = decoder_node.infer
-        decoder_node.infer = __class__.tf_greedy_decoder_infer
+        # decoder_node['old_infer'] = decoder_node.infer
+        # decoder_node.infer = __class__.tf_greedy_decoder_infer
         return {}
 
     @staticmethod
