@@ -2,29 +2,20 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <gtest/gtest.h>
+#include "layer_transformation.hpp"
 
-#include "common_test_utils/test_common.hpp"
 #include <string>
 #include <sstream>
-#include <fstream>
 #include <memory>
-#include <queue>
-#include <map>
 
-#include <ngraph/function.hpp>
-#include <ngraph/opsets/opset1.hpp>
-#include <ngraph/pass/constant_folding.hpp>
+#include <gtest/gtest.h>
+
 #include <transformations/utils/utils.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/convert_opset1_to_legacy/conv_bias_fusion.hpp>
 
-// TODO: debug only
-#include <ngraph/pass/visualize_tree.hpp>
-
 #include "../transformations/ngraph_test_utils.hpp"
 #include "ngraph_functions/low_precision_transformations/normalize_l2_function.hpp"
-#include "layer_transformation.hpp"
 
 using namespace testing;
 using namespace ngraph::pass;
@@ -38,9 +29,6 @@ typedef std::tuple<
 
 class NormalizeL2Transformation : public LayerTransformation, public testing::WithParamInterface<NormalizeL2TransformationParams> {
 public:
-    std::shared_ptr<ngraph::Function> actualFunction;
-    std::shared_ptr<ngraph::Function> referenceFunction;
-
     void SetUp() override {
         const ngraph::element::Type precision = std::get<0>(GetParam());
         const std::pair<ngraph::Shape, ngraph::Shape> shapes = std::get<1>(GetParam());
@@ -55,12 +43,7 @@ public:
             fuseMultiply,
             shift);
 
-        // std::vector<std::shared_ptr<ngraph::Function>> module{ actualFunction };
-        // VisualizeTree("C:\\Projects\\temp\\test.original").run_on_module(module);
-
         transform(actualFunction);
-        // std::vector<std::shared_ptr<ngraph::Function>> transformedModule{ actualFunction };
-        // VisualizeTree("C:\\Projects\\temp\\test.transformed").run_on_module(transformedModule);
 
         referenceFunction = ngraph::builder::subgraph::NormalizeL2Function::getReference(
             precision,
@@ -86,6 +69,10 @@ public:
 
         return result.str();
     }
+
+protected:
+    std::shared_ptr<ngraph::Function> actualFunction;
+    std::shared_ptr<ngraph::Function> referenceFunction;
 };
 
 TEST_P(NormalizeL2Transformation, CompareFunctions) {
