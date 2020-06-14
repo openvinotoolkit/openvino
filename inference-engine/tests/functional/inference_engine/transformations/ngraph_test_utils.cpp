@@ -50,6 +50,12 @@ std::pair<bool, std::string> compare_functions(const std::shared_ptr<ngraph::Fun
         }
 
         for (int i = 0; i < node1->inputs().size(); ++i) {
+            //if (node1->input(i).get_element_type() != node2->input(i).get_element_type()) {
+            //    err_log << "Different element type detected" << std::endl
+            //        << node1->description() << " Input(" << i << ") " << node1->input(i).get_element_type() << " and "
+            //        << node2->description() << " Input(" << i << ") " << node2->input(i).get_element_type() << std::endl;
+            //}
+
             if (!node1->input(i).get_partial_shape().same_scheme(node2->input(i).get_partial_shape())) {
                 err_log << "Different shape detected" << std::endl
                         << node1->description() << " Input(" << i << ") " << node1->input(i).get_partial_shape() << " and "

@@ -201,6 +201,17 @@ std::string LayerTransformation::toString(const InferenceEngine::details::LayerT
     return result.str();
 }
 
+std::string LayerTransformation::getTestCaseNameByParams(
+    const InferenceEngine::Precision netPrecision,
+    const InferenceEngine::SizeVector& inputShapes,
+    const std::string targetDevice,
+    const InferenceEngine::details::LayerTransformation::Params& params,
+    const LayerTestsUtils::LayerTransformation::LptVersion version) {
+    std::ostringstream result;
+    result << netPrecision.name() << "_" << targetDevice << "_" << version << "_" << toString(params);
+    return result.str();
+}
+
 ngraph::element::Type toNGraph(const InferenceEngine::Precision precision) {
     switch (precision) {
         case InferenceEngine::Precision::U8: {

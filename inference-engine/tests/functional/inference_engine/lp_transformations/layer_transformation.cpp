@@ -16,26 +16,15 @@
 #include <transformations/low_precision/transformer.hpp>
 
 using namespace testing;
-
-ngraph::pass::low_precision::LayerTransformation::Params LayerTransformation::createParams() {
-    return ngraph::pass::low_precision::LayerTransformation::Params(
-        true,
-        true,
-        true,
-        ngraph::pass::low_precision::LayerTransformation::QuantizedTensorAlignment::UpdateLevel,
-        ngraph::pass::low_precision::LayerTransformation::QuantizedTensorAlignment::None,
-        true,
-        true,
-        true);
-}
+using namespace ngraph::pass;
 
 ngraph::pass::low_precision::LayerTransformation::Params LayerTransformation::createParamsU8I8() {
-    return ngraph::pass::low_precision::LayerTransformation::Params(
+    return low_precision::LayerTransformation::Params(
         true,
         true,
         true,
-        ngraph::pass::low_precision::LayerTransformation::QuantizedTensorAlignment::None,
-        ngraph::pass::low_precision::LayerTransformation::QuantizedTensorAlignment::None,
+        low_precision::LayerTransformation::QuantizedTensorAlignment::None,
+        low_precision::LayerTransformation::QuantizedTensorAlignment::None,
         false,
         true,
         true,
@@ -44,12 +33,12 @@ ngraph::pass::low_precision::LayerTransformation::Params LayerTransformation::cr
 }
 
 ngraph::pass::low_precision::LayerTransformation::Params LayerTransformation::createParamsI8I8() {
-    return ngraph::pass::low_precision::LayerTransformation::Params(
+    return low_precision::LayerTransformation::Params(
         true,
         true,
         true,
-        ngraph::pass::low_precision::LayerTransformation::QuantizedTensorAlignment::None,
-        ngraph::pass::low_precision::LayerTransformation::QuantizedTensorAlignment::None,
+        low_precision::LayerTransformation::QuantizedTensorAlignment::None,
+        low_precision::LayerTransformation::QuantizedTensorAlignment::None,
         false,
         true,
         true,
@@ -70,6 +59,9 @@ std::string LayerTransformation::toString(const ngraph::pass::low_precision::Lay
 }
 
 void LayerTransformation::transform(std::shared_ptr<ngraph::Function> function) {
+    // std::vector<std::shared_ptr<ngraph::Function>> module{ actualFunction };
+    // VisualizeTree("C:\\Projects\\temp\\test.original").run_on_module(module);
+
     // TODO: refactor: do you really need anything from here?
     {
         const auto transformations_callback = [](const std::shared_ptr<const ::ngraph::Node> &node) -> bool {
@@ -102,4 +94,16 @@ void LayerTransformation::transform(std::shared_ptr<ngraph::Function> function) 
     ngraph::pass::low_precision::LowPrecisionTransformations transformations = ngraph::pass::low_precision::LowPrecisionTransformer::getAllTransformations();
     ngraph::pass::low_precision::LowPrecisionTransformer transformer(transformations);
     transformer.transform(function);
+
+    // std::vector<std::shared_ptr<ngraph::Function>> transformedModule{ actualFunction };
+    // VisualizeTree("C:\\Projects\\temp\\test.transformed").run_on_module(transformedModule);
+}
+
+std::string LayerTransformation::getTestCaseNameByParams(
+    const ngraph::element::Type& type,
+    const ngraph::Shape& shape,
+    const ngraph::pass::low_precision::LayerTransformation::Params& params) {
+    std::ostringstream result;
+    result << type << "_" << shape << "_" << toString(params);
+    return result.str();
 }

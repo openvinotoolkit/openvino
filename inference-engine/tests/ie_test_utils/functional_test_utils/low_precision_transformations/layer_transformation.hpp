@@ -17,12 +17,6 @@
 
 namespace LayerTestsUtils {
 
-typedef std::tuple<
-    InferenceEngine::Precision,
-    InferenceEngine::SizeVector,
-    std::string,
-    InferenceEngine::details::LayerTransformation::Params> LayerTransformationParams;
-
 class LayerTransformationParamsFactory {
 public:
     static InferenceEngine::details::LayerTransformation::Params createParamsU8I8();
@@ -84,9 +78,24 @@ protected:
     static InferenceEngine::Precision getDeviceInternalPrecision(const InferenceEngine::Precision precision);
 
     static ngraph::pass::low_precision::LayerTransformation::Params toNGraph(const InferenceEngine::details::LayerTransformation::Params& params);
+
+    static std::string LayerTransformation::getTestCaseNameByParams(
+        const InferenceEngine::Precision netPrecision,
+        const InferenceEngine::SizeVector& inputShapes,
+        const std::string targetDevice,
+        const InferenceEngine::details::LayerTransformation::Params& params,
+        const LayerTestsUtils::LayerTransformation::LptVersion version);
 };
 
 IE_SUPPRESS_DEPRECATED_END
+
+typedef std::tuple<
+    InferenceEngine::Precision,
+    InferenceEngine::SizeVector,
+    std::string,
+    // TODO: refactor: CNNNetwork LPT is detected
+    InferenceEngine::details::LayerTransformation::Params,
+    LayerTestsUtils::LayerTransformation::LptVersion> LayerTransformationParams;
 
 inline std::ostream& operator << (std::ostream &os, const LayerTransformation::LptVersion& value) {
     if ((value != LayerTransformation::LptVersion::cnnNetwork) && (value != LayerTransformation::LptVersion::nGraph)) {
