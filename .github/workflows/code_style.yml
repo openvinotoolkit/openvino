@@ -1,0 +1,34 @@
+name: Code Style
+on: [push, pull_request]
+
+jobs:
+  nGraph:
+    runs-on: ubuntu-18.04
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Install clang-format-3.9
+        run: sudo apt --assume-yes install clang-format-3.9
+
+      - name: CMake
+        run: |
+          mkdir ngraph-build
+          cd ngraph-build
+          cmake ../ngraph
+
+      - name: Check
+        run: |
+          make style-check
+        working-directory: ngraph-build
+
+      - name: apply-code-format
+        if: ${{ failure() }}
+        run: |
+          ngraph/maint/apply-code-format.sh
+          git diff >code_style_diff.patch
+
+      - uses: actions/upload-artifact@v2
+        if: failure()
+        with:
+          name: code_style_diff
+          path: code_style_diff.patch
