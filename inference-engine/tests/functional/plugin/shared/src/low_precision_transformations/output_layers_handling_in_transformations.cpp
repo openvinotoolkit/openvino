@@ -26,11 +26,10 @@ std::string OutputLayersHandlingInTransformations::getTestCaseName(testing::Test
     InferenceEngine::SizeVector inputShapes;
     std::string targetDevice;
     InferenceEngine::details::LayerTransformation::Params params;
-    std::tie(netPrecision, inputShapes, targetDevice, params) = obj.param;
+    LayerTestsUtils::LayerTransformation::LptVersion version;
+    std::tie(netPrecision, inputShapes, targetDevice, params, version) = obj.param;
 
-    std::ostringstream result;
-    result << netPrecision.name() << "_" << targetDevice << "_" << toString(params);
-    return result.str();
+    return getTestCaseNameByParams(netPrecision, inputShapes, targetDevice, params, version);
 }
 
 InferenceEngine::Blob::Ptr OutputLayersHandlingInTransformations::GenerateInput(const InferenceEngine::InputInfo &info) const {
@@ -38,7 +37,8 @@ InferenceEngine::Blob::Ptr OutputLayersHandlingInTransformations::GenerateInput(
     InferenceEngine::Precision netPrecision;
     std::string targetDevice;
     InferenceEngine::details::LayerTransformation::Params params;
-    std::tie(netPrecision, inputShape, targetDevice, params) = this->GetParam();
+    LayerTestsUtils::LayerTransformation::LptVersion version;
+    std::tie(netPrecision, inputShape, targetDevice, params, version) = this->GetParam();
 
     const float k = 1.f;
     const float low = 0.f / k;
@@ -53,8 +53,11 @@ void OutputLayersHandlingInTransformations::SetUp() {
     InferenceEngine::SizeVector inputShape;
     InferenceEngine::Precision netPrecision;
     InferenceEngine::details::LayerTransformation::Params params;
-    std::tie(netPrecision, inputShape, targetDevice, params) = this->GetParam();
+    LayerTestsUtils::LayerTransformation::LptVersion version;
+    std::tie(netPrecision, inputShape, targetDevice, params, version) = this->GetParam();
     auto ngPrecision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+
+    ConfigurePlugin(version);
 
     const auto input = std::make_shared<ngraph::opset1::Parameter>(ngPrecision, ngraph::Shape(inputShape));
     input->set_friendly_name("input");
@@ -91,8 +94,9 @@ void OutputLayersHandlingInTransformations::SetUp() {
 
     function = std::make_shared<ngraph::Function>(results, ngraph::ParameterVector { input }, "OutputLayersHandling");
 
-    // TODO: move to some another place
-    validate();
+    if (version == LptVersion::cnnNetwork) {
+        validate();
+    }
 }
 
 void OutputLayersHandlingInTransformations::validate() {
@@ -100,7 +104,8 @@ void OutputLayersHandlingInTransformations::validate() {
     InferenceEngine::SizeVector inputShapes;
     std::string targetDevice;
     InferenceEngine::details::LayerTransformation::Params params;
-    std::tie(netPrecision, inputShapes, targetDevice, params) = this->GetParam();
+    LayerTestsUtils::LayerTransformation::LptVersion version;
+    std::tie(netPrecision, inputShapes, targetDevice, params, version) = this->GetParam();
 
     const InferenceEngine::CNNNetwork network = transform(params);
 
