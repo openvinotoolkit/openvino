@@ -39,7 +39,7 @@
     #define INIT_VAL ACCUMULATOR_VAL_ZERO
 #endif
 
-__attribute__((intel_reqd_sub_group_size(16)))
+__attribute__((intel_reqd_sub_group_size(SUB_GROUP_SIZE)))
 KERNEL(pooling_gpu_blocked)(
     const __global INPUT0_TYPE* input,
     __global OUTPUT_TYPE* output
@@ -49,7 +49,13 @@ KERNEL(pooling_gpu_blocked)(
 )
 {
     const int lid = get_sub_group_local_id();
+#if SUB_GROUP_SIZE == 16
     const int f_block = get_group_id(1);
+    const int f_val = 0;
+#else
+    const int f_block = (uint)get_group_id(1) / (FEATURE_SLICE_SIZE / SUB_GROUP_SIZE);
+    const int f_val = (uint)get_group_id(1) % (FEATURE_SLICE_SIZE / SUB_GROUP_SIZE);
+#endif
     const int b = get_global_id(2);
 
     const int xy = get_global_id(0);
@@ -71,7 +77,8 @@ KERNEL(pooling_gpu_blocked)(
     const uint input_offset = b * input_b_pitch +
                               (f_block + input_fs_pad_before) * input_fs_pitch +
                               (INPUT0_PAD_BEFORE_SIZE_Y + input_y) * input_y_pitch +
-                              (INPUT0_PAD_BEFORE_SIZE_X + input_x) * input_x_pitch;
+                              (INPUT0_PAD_BEFORE_SIZE_X + input_x) * input_x_pitch +
+                              f_val * SUB_GROUP_SIZE;
 
     // Output offset calculations:
     const uint output_x_pitch = FEATURE_SLICE_SIZE;
@@ -85,7 +92,8 @@ KERNEL(pooling_gpu_blocked)(
     const uint output_offset = b * output_b_pitch +
                                (f_block + output_fs_pad_before) * output_fs_pitch +
                                (y + OUTPUT_PAD_BEFORE_SIZE_Y) * output_y_pitch +
-                               (x + OUTPUT_PAD_BEFORE_SIZE_X) * output_x_pitch;
+                               (x + OUTPUT_PAD_BEFORE_SIZE_X) * output_x_pitch +
+                               f_val * SUB_GROUP_SIZE;
 
 
     ACCUMULATOR_VAR_TYPE dst = (ACCUMULATOR_VAR_TYPE)INIT_VAL;
@@ -122,12 +130,13 @@ KERNEL(pooling_gpu_blocked)(
         if (input_y + kh < 0 || input_y + kh >= INPUT0_SIZE_Y)
             continue;
 
+#if CAN_PRELOAD_FULL_LINE
         INPUT0_TYPE line_cache[INPUT_LINE_SIZE];
         for (int i = 0; i < INPUT_LINE_SIZE; i++) {
             if ((input_x + i) >= 0 && (input_x + i) < INPUT0_SIZE_X)
                 line_cache[i] = DT_INPUT_BLOCK_READ(input, input_offset + kh*input_y_pitch + i*input_x_pitch);
             else
-                #if   defined MAX_POOLING
+                #if defined MAX_POOLING
                     line_cache[i] = INPUT0_VAL_MIN;
                 #elif defined AVG_POOLING
                     line_cache[i] = INPUT0_VAL_ZERO;
@@ -152,35 +161,56 @@ KERNEL(pooling_gpu_blocked)(
             dst += src;
 #endif
         }
-    }
 
+#else // CAN_PRELOAD_FULL_LINE
+        // TODO: try partial preload
+        for (int kw = 0; kw < POOL_SIZE_X; kw++)
+        {
+            INPUT_VAR_TYPE src;
+#if X_BLOCK_SIZE > 1
+            for (int i = 0; i < X_BLOCK_SIZE; i++) {
+                if ((input_x + kw + STRIDE_SIZE_X*i) >= 0 && (input_x + kw + STRIDE_SIZE_X*i) < INPUT0_SIZE_X)
+                    src[i] = DT_INPUT_BLOCK_READ(input, input_offset + kh*input_y_pitch + (kw + STRIDE_SIZE_X*i)*input_x_pitch);
+                else
+                    #if defined MAX_POOLING
+                        src[i] = INPUT0_VAL_MIN;
+                    #elif defined AVG_POOLING
+                        src[i] = INPUT0_VAL_ZERO;
+                    #endif
+            }
+#else
+            src = DT_INPUT_BLOCK_READ(input, input_offset + kh*input_y_pitch + kw*input_x_pitch);
+#endif
+#if defined MAX_POOLING
+            dst = ACCUMULATOR_MAX_FUNC(dst, src);
+#elif defined AVG_POOLING
+            dst += TO_ACCUMULATOR_VAR_TYPE(src);
+#endif
+        }
+#endif // CAN_PRELOAD_FULL_LINE
+    }
     ACTIVATION_VAR_TYPE pool_result;
 
 #if defined MAX_POOLING
-        pool_result = TO_ACTIVATION_VAR_TYPE(dst);
-    #if !HAS_FUSED_OP
-        pool_result = ACTIVATION(pool_result, ACTIVATION_PARAMS);
-    #endif
+    pool_result = TO_ACTIVATION_VAR_TYPE(dst);
 #elif defined AVG_POOLING && (defined(DYNAMIC_KERNEL_DIVIDER) || defined(DYNAMIC_WITH_PADDING_KERNEL_DIVIDER))
-        pool_result = TO_ACTIVATION_VAR_TYPE(dst*scale);
-    #if !HAS_FUSED_OP
-        pool_result = ACTIVATION(pool_result, ACTIVATION_PARAMS);
-    #endif
+    pool_result = TO_ACTIVATION_VAR_TYPE(dst*scale);
 #elif defined AVG_POOLING
-        pool_result = TO_ACTIVATION_VAR_TYPE(dst/(POOL_SIZE_X*POOL_SIZE_Y));
-    #if !HAS_FUSED_OP
-        pool_result = ACTIVATION(pool_result, ACTIVATION_PARAMS);
-    #endif
+    pool_result = TO_ACTIVATION_VAR_TYPE(dst/(POOL_SIZE_X*POOL_SIZE_Y));
+#endif
+
+#if !HAS_FUSED_OPS
+    pool_result = ACTIVATION(pool_result, ACTIVATION_PARAMS);
 #endif
 
     OUTPUT_VAR_TYPE final_result;
 
 #if OUTPUT_LEFTOVERS
-    if ((f_block+1)*FEATURE_SLICE_SIZE >= OUTPUT_FEATURE_NUM) {
+    if (f_block*FEATURE_SLICE_SIZE + (f_val + 1)*SUB_GROUP_SIZE >= OUTPUT_FEATURE_NUM) {
         for (int i = 0; i < X_BLOCK_SIZE; i++) {
-            if ((f_block*FEATURE_SLICE_SIZE + lid < OUTPUT_FEATURE_NUM) && (x + i) < OUTPUT_SIZE_X) {
+            if ((f_block*FEATURE_SLICE_SIZE + f_val*SUB_GROUP_SIZE + lid < OUTPUT_FEATURE_NUM) && (x + i) < OUTPUT_SIZE_X) {
 #if X_BLOCK_SIZE > 1
-            #if HAS_FUSED_OP
+            #if HAS_FUSED_OPS
                 FUSED_OPS_SCALAR;
                 final_result[i] = FUSED_OPS_RESULT_SCALAR;
             #else
@@ -195,7 +225,6 @@ KERNEL(pooling_gpu_blocked)(
                 final_result = TO_OUTPUT_VAR_TYPE(pool_result);
             #endif
                 output[output_offset + i * output_x_pitch + lid] = final_result;
-
 #endif
             }
         }
@@ -211,6 +240,7 @@ KERNEL(pooling_gpu_blocked)(
                 final_result = TO_OUTPUT_VAR_TYPE(pool_result);
         #endif
 
+#if SUB_GROUP_SIZE == FEATURE_SLICE_SIZE
         #if X_BLOCK_SIZE == 8
                 DT_OUTPUT_BLOCK_WRITE8(output, output_offset, final_result);
         #elif X_BLOCK_SIZE == 4
@@ -220,10 +250,20 @@ KERNEL(pooling_gpu_blocked)(
         #elif X_BLOCK_SIZE == 1
                 DT_OUTPUT_BLOCK_WRITE(output, output_offset, final_result);
         #endif
+#else
+    #if X_BLOCK_SIZE > 1
+        __attribute__((opencl_unroll_hint(X_BLOCK_SIZE)))
+        for (int i = 0; i < X_BLOCK_SIZE; i++) {
+            DT_OUTPUT_BLOCK_WRITE(output, output_offset + i * output_x_pitch, final_result[i]);
+        }
+    #else
+        DT_OUTPUT_BLOCK_WRITE(output, output_offset, final_result);
+    #endif
+#endif
     }
     else
     {
-        const int x_tail = OUTPUT_SIZE_X - x;
+        const int x_tail = OUTPUT_SIZE_X % X_BLOCK_SIZE;
         for (int i = 0; i < x_tail; i++){
 #if X_BLOCK_SIZE > 1
         #if HAS_FUSED_OPS
