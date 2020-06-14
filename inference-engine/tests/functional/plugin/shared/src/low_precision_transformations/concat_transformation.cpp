@@ -8,14 +8,9 @@
 #include <tuple>
 #include <vector>
 #include <string>
-
 #include <ie_core.hpp>
 
-#include "common_test_utils/common_utils.hpp"
-#include "functional_test_utils/plugin_cache.hpp"
-#include "functional_test_utils/layer_test_utils.hpp"
-#include "functional_test_utils/blob_utils.hpp"
-#include "ngraph_functions/pass/convert_prc.hpp"
+#include <transformations/init_node_info.hpp>
 #include "ngraph_functions/builders.hpp"
 
 namespace LayerTestsDefinitions {
@@ -25,11 +20,10 @@ std::string ConcatTransformation::getTestCaseName(testing::TestParamInfo<LayerTe
     InferenceEngine::SizeVector inputShapes;
     std::string targetDevice;
     InferenceEngine::details::LayerTransformation::Params params;
-    std::tie(netPrecision, inputShapes, targetDevice, params) = obj.param;
+    LayerTestsUtils::LayerTransformation::LptVersion version;
+    std::tie(netPrecision, inputShapes, targetDevice, params, version) = obj.param;
 
-    std::ostringstream result;
-    result << netPrecision.name() << "_" << targetDevice << "_" << toString(params);
-    return result.str();
+    return getTestCaseNameByParams(netPrecision, inputShapes, targetDevice, params, version);
 }
 
 InferenceEngine::Blob::Ptr ConcatTransformation::GenerateInput(const InferenceEngine::InputInfo &info) const {
@@ -37,7 +31,8 @@ InferenceEngine::Blob::Ptr ConcatTransformation::GenerateInput(const InferenceEn
     InferenceEngine::Precision netPrecision;
     std::string targetDevice;
     InferenceEngine::details::LayerTransformation::Params params;
-    std::tie(netPrecision, inputShape, targetDevice, params) = this->GetParam();
+    LayerTestsUtils::LayerTransformation::LptVersion version;
+    std::tie(netPrecision, inputShape, targetDevice, params, version) = this->GetParam();
 
     const float k = (info.name() == "input1") ? 1.f : (info.name() == "input2" ? 2.f : 3.f);
     return LayerTransformation::GenerateInput(params.precisionsOnActivations[0], info.getTensorDesc(), k);
@@ -49,7 +44,11 @@ void ConcatTransformation::SetUp() {
     InferenceEngine::SizeVector inputShape;
     InferenceEngine::Precision netPrecision;
     InferenceEngine::details::LayerTransformation::Params params;
-    std::tie(netPrecision, inputShape, targetDevice, params) = this->GetParam();
+    LayerTestsUtils::LayerTransformation::LptVersion version;
+    std::tie(netPrecision, inputShape, targetDevice, params, version) = this->GetParam();
+
+    ConfigurePlugin(version);
+
     const auto ngPrecision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
     const auto interval = getQuantizationInterval(params.precisionsOnActivations[0]);
@@ -88,15 +87,17 @@ void ConcatTransformation::SetUp() {
     ngraph::ResultVector results {std::make_shared<ngraph::opset1::Result>(concat)};
     function = std::make_shared<ngraph::Function>(results, ngraph::ParameterVector { input1, input2 }, "ConcatTransformation");
 
-    // TODO: move to some another place
-    validate();
+    if (version == LptVersion::cnnNetwork) {
+        validate();
+    }
 }
 
 void ConcatTransformation::validate() {
     InferenceEngine::SizeVector inputShape;
     InferenceEngine::Precision netPrecision;
     InferenceEngine::details::LayerTransformation::Params params;
-    std::tie(netPrecision, inputShape, targetDevice, params) = this->GetParam();
+    LayerTestsUtils::LayerTransformation::LptVersion version;
+    std::tie(netPrecision, inputShape, targetDevice, params, version) = this->GetParam();
 
     const InferenceEngine::CNNNetwork network = transform(params);
 

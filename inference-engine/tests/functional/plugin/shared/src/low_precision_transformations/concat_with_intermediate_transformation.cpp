@@ -8,17 +8,11 @@
 #include <tuple>
 #include <vector>
 #include <string>
-
 #include <ie_core.hpp>
-#include <ie_common.h>
 
-#include "ngraph_functions/pass/convert_prc.hpp"
-#include "low_precision_transformations/network_helper.hpp"
 #include "low_precision_transformations/concat.hpp"
-#include "common_test_utils/common_utils.hpp"
-#include "functional_test_utils/plugin_cache.hpp"
-#include "functional_test_utils/layer_test_utils.hpp"
-#include "functional_test_utils/blob_utils.hpp"
+
+#include <transformations/init_node_info.hpp>
 #include "ngraph_functions/builders.hpp"
 
 using namespace InferenceEngine;
@@ -31,15 +25,14 @@ std::string ConcatWithIntermediateTransformation::getTestCaseName(testing::TestP
     InferenceEngine::SizeVector inputShapes;
     std::string targetDevice;
     InferenceEngine::details::LayerTransformation::Params params;
+    LayerTestsUtils::LayerTransformation::LptVersion version;
     bool transparentIntermediate;
     bool multichannel;
-    std::tie(netPrecision, inputShapes, targetDevice, params, transparentIntermediate, multichannel) = obj.param;
+    std::tie(netPrecision, inputShapes, targetDevice, params, version, transparentIntermediate, multichannel) = obj.param;
 
     std::ostringstream result;
     result <<
-        netPrecision.name() << "_" <<
-        targetDevice << "_" <<
-        toString(params) <<
+        getTestCaseNameByParams(netPrecision, inputShapes, targetDevice, params, version) <<
         (transparentIntermediate ? "" : "_notTransparentIntermediate") <<
         (multichannel ? "_multichannel" : "");
 
@@ -51,9 +44,10 @@ InferenceEngine::Blob::Ptr ConcatWithIntermediateTransformation::GenerateInput(c
     std::string targetDevice;
     InferenceEngine::Precision netPrecision;
     InferenceEngine::details::LayerTransformation::Params trasformationParams;
+    LayerTestsUtils::LayerTransformation::LptVersion version;
     bool transparentIntermediate;
     bool multichannel;
-    std::tie(netPrecision, inputShape, targetDevice, trasformationParams, transparentIntermediate, multichannel) = this->GetParam();
+    std::tie(netPrecision, inputShape, targetDevice, trasformationParams, version, transparentIntermediate, multichannel) = this->GetParam();
 
     const float k = (info.name() == "input1") ? 1.f : (info.name() == "input2" ? 2.f : 3.f);
     return LayerTransformation::GenerateInput(trasformationParams.precisionsOnActivations[0], info.getTensorDesc(), k);
@@ -71,9 +65,13 @@ void ConcatWithIntermediateTransformation::SetUp() {
     InferenceEngine::SizeVector inputShape;
     InferenceEngine::Precision netPrecision;
     InferenceEngine::details::LayerTransformation::Params trasformationParams;
+    LayerTestsUtils::LayerTransformation::LptVersion version;
     bool transparentIntermediate;
     bool multichannel;
-    std::tie(netPrecision, inputShape, targetDevice, trasformationParams, transparentIntermediate, multichannel) = this->GetParam();
+    std::tie(netPrecision, inputShape, targetDevice, trasformationParams, version, transparentIntermediate, multichannel) = this->GetParam();
+
+    ConfigurePlugin(version);
+
     const auto ngPrecision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
     const std::vector<size_t> inputShape1 = {
@@ -150,17 +148,19 @@ void ConcatWithIntermediateTransformation::SetUp() {
     };
     function = std::make_shared<ngraph::Function>(results, ngraph::ParameterVector { input1, input2 }, "ConcatWithIntermediateTransformation");
 
-    // TODO: move to some another place
-    validate();
+    if (version == LptVersion::cnnNetwork) {
+        validate();
+    }
 }
 
 void ConcatWithIntermediateTransformation::validate() {
     InferenceEngine::SizeVector inputShape;
     InferenceEngine::Precision netPrecision;
     InferenceEngine::details::LayerTransformation::Params params;
+    LayerTestsUtils::LayerTransformation::LptVersion version;
     bool transparentIntermediate;
     bool multichannel;
-    std::tie(netPrecision, inputShape, targetDevice, params, transparentIntermediate, multichannel) = this->GetParam();
+    std::tie(netPrecision, inputShape, targetDevice, params, version, transparentIntermediate, multichannel) = this->GetParam();
 
     InferenceEngine::details::LowPrecisionTransformations transformations = getLowPrecisionTransformations(params);
     if (!multichannel) {

@@ -16,6 +16,7 @@ typedef std::tuple<
     InferenceEngine::SizeVector,
     std::string, // target device: CPU, GPU
     InferenceEngine::details::LayerTransformation::Params, // transformation parameters
+    LayerTestsUtils::LayerTransformation::LptVersion,
     bool, // transparent intermediate
     // multichannel
     bool> ConcatWithIntermediateTransformationParams;

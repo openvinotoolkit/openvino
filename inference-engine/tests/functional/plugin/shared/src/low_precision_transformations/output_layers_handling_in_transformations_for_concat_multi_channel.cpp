@@ -34,11 +34,10 @@ std::string OutputLayersHandlingInTransformationsForConcatMultiChannel::getTestC
     InferenceEngine::SizeVector inputShapes;
     std::string targetDevice;
     InferenceEngine::details::LayerTransformation::Params params;
-    std::tie(netPrecision, inputShapes, targetDevice, params) = obj.param;
+    LayerTestsUtils::LayerTransformation::LptVersion version;
+    std::tie(netPrecision, inputShapes, targetDevice, params, version) = obj.param;
 
-    std::ostringstream result;
-    result << netPrecision.name() << "_" << targetDevice << "_" << toString(params);
-    return result.str();
+    return getTestCaseNameByParams(netPrecision, inputShapes, targetDevice, params, version);
 }
 
 InferenceEngine::Blob::Ptr OutputLayersHandlingInTransformationsForConcatMultiChannel::GenerateInput(const InferenceEngine::InputInfo &info) const {
@@ -46,7 +45,8 @@ InferenceEngine::Blob::Ptr OutputLayersHandlingInTransformationsForConcatMultiCh
     InferenceEngine::Precision netPrecision;
     std::string targetDevice;
     InferenceEngine::details::LayerTransformation::Params params;
-    std::tie(netPrecision, inputShape, targetDevice, params) = this->GetParam();
+    LayerTestsUtils::LayerTransformation::LptVersion version;
+    std::tie(netPrecision, inputShape, targetDevice, params, version) = this->GetParam();
 
     if ((info.name() != "input1") && (info.name() != "input2")) {
         THROW_IE_EXCEPTION << "unexpected input name " << info.name();
@@ -81,7 +81,11 @@ void OutputLayersHandlingInTransformationsForConcatMultiChannel::SetUp() {
     InferenceEngine::SizeVector inputShape1;
     InferenceEngine::Precision netPrecision;
     InferenceEngine::details::LayerTransformation::Params params;
-    std::tie(netPrecision, inputShape1, targetDevice, params) = this->GetParam();
+    LayerTestsUtils::LayerTransformation::LptVersion version;
+    std::tie(netPrecision, inputShape1, targetDevice, params, version) = this->GetParam();
+
+    ConfigurePlugin(version);
+
     auto ngPrecision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
     const auto input1 = std::make_shared<ngraph::opset1::Parameter>(ngPrecision, ngraph::Shape(inputShape1));
@@ -114,8 +118,9 @@ void OutputLayersHandlingInTransformationsForConcatMultiChannel::SetUp() {
 
     function = std::make_shared<ngraph::Function>(results, ngraph::ParameterVector { input1, input2 }, "OutputLayersHandling");
 
-    // TODO: move to some another place
-    validate();
+    if (version == LptVersion::cnnNetwork) {
+        validate();
+    }
 }
 
 void OutputLayersHandlingInTransformationsForConcatMultiChannel::validate() {
@@ -123,7 +128,8 @@ void OutputLayersHandlingInTransformationsForConcatMultiChannel::validate() {
     InferenceEngine::SizeVector inputShapes;
     std::string targetDevice;
     InferenceEngine::details::LayerTransformation::Params params;
-    std::tie(netPrecision, inputShapes, targetDevice, params) = this->GetParam();
+    LayerTestsUtils::LayerTransformation::LptVersion version;
+    std::tie(netPrecision, inputShapes, targetDevice, params, version) = this->GetParam();
 
     const InferenceEngine::CNNNetwork network = transform(params);
 
