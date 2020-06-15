@@ -22,12 +22,12 @@
 namespace InferenceEngine {
 
 /**
- * @deprecated Use InferenceEngine::Core instead. Will be removed in 2020.3
+ * @deprecated Use InferenceEngine::Core instead. Will be removed in 2021.1
  * @brief This class is a C++ API wrapper for IInferencePlugin.
  *
  * It can throw exceptions safely for the application, where it is properly handled.
  */
-class INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::Core instead. Will be removed in 2020.3") InferencePlugin {
+class INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::Core instead. Will be removed in 2021.1") InferencePlugin {
     IE_SUPPRESS_DEPRECATED_START
     InferenceEnginePluginPtr actual;
 

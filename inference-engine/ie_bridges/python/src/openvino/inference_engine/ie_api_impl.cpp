@@ -229,12 +229,14 @@ void InferenceEnginePython::IENetwork::serialize(const std::string &path_to_xml,
 
 const std::vector <InferenceEngine::CNNLayerPtr>
 InferenceEnginePython::IENetwork::getLayers() {
+    IE_SUPPRESS_DEPRECATED_START
     std::vector<InferenceEngine::CNNLayerPtr> result;
     std::vector<InferenceEngine::CNNLayerPtr> sorted_layers = InferenceEngine::details::CNNNetSortTopologically(*actual);
     for (const auto &layer : sorted_layers) {
         result.emplace_back(layer);
     }
     return result;
+    IE_SUPPRESS_DEPRECATED_END
 }
 
 PyObject* InferenceEnginePython::IENetwork::getFunction() {

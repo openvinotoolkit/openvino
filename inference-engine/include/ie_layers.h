@@ -2049,7 +2049,7 @@ public:
 };
 
 /**
- * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2020.3
+ * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
  * @brief This class represents a standard ScatterUpdate layer
  */
 class INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(ScatterUpdateLayer): public CNNLayer {
@@ -2063,7 +2063,7 @@ public:
 };
 
 /**
- * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2020.3
+ * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
  * @brief This class represents a standard ScatterElementsUpdate layer
  */
 class INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(ScatterElementsUpdateLayer): public CNNLayer {
@@ -2077,7 +2077,7 @@ public:
 };
 
 /**
- * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2020.3
+ * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
  * @brief This class represents an onnx ExperimentalDetectronPriorGridGenerator Layer
  */
 class INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(ExperimentalDetectronPriorGridGeneratorLayer): public CNNLayer {

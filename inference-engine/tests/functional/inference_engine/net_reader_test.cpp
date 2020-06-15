@@ -60,9 +60,11 @@ protected:
     /* validates a read network with the reference map of CNN layers */
     void compareWithRef(const InferenceEngine::CNNNetwork &network,
                         const std::vector<InferenceEngine::CNNLayerPtr> &refLayersVec) {
+        IE_SUPPRESS_DEPRECATED_START
         ASSERT_NO_THROW(FuncTestUtils::compareLayerByLayer<std::vector<InferenceEngine::CNNLayerPtr>>(
                 InferenceEngine::details::CNNNetSortTopologically(network),
                 refLayersVec, false));
+        IE_SUPPRESS_DEPRECATED_END
     }
 
     const std::string _modelPath = "NetReader_test.xml";

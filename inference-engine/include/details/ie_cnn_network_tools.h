@@ -16,6 +16,7 @@
 namespace InferenceEngine {
 namespace details {
 
+INFERENCE_ENGINE_INTERNAL("Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1")
 INFERENCE_ENGINE_API_CPP(std::vector<CNNLayerPtr>) CNNNetSortTopologically(const ICNNNetwork& network);
 
 }  // namespace details
