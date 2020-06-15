@@ -96,9 +96,7 @@ if (ENABLE_PYTHON)
     add_subdirectory(ie_bridges/python)
 endif()
 
-if (ENABLE_C)
-    add_subdirectory(ie_bridges/c)
-endif()
+add_subdirectory(ie_bridges/c)
 
 add_cpplint_report_target()
 
