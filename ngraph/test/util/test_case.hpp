@@ -343,6 +343,15 @@ namespace ngraph
             }
 
             template <typename T>
+            void add_multiple_inputs(const std::vector<std::vector<T>>& vector_of_values)
+            {
+                for (const auto& value : vector_of_values)
+                {
+                    add_input<T>(value);
+                }
+            }
+
+            template <typename T>
             void add_expected_output(const Shape& expected_shape, const std::vector<T>& values)
             {
                 auto results = m_function->get_results();
