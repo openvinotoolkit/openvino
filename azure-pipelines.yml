@@ -42,7 +42,8 @@ jobs:
       #cmakeArgs: -G"Visual Studio 15 2017 Win64" -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DENABLE_TESTS=ON $(Build.Repository.LocalPath)
       cmakeArgs: -G"Visual Studio 16 2019" -A x64 -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DENABLE_TESTS=ON $(Build.Repository.LocalPath)
       workingDirectory: $(BUILD_DIR)
-  - script: buildconsole /COMMAND="cmake --build . --config $(BUILD_TYPE) -j500"
+  - script: |
+      "C:\Program Files (x86)\IncrediBuild\BuildConsole.exe" /COMMAND="cmake --build . --config $(BUILD_TYPE) -j500"
     workingDirectory: $(BUILD_DIR)
     displayName: 'Build Win'
   - script: dir ..\bin\ /s /b
