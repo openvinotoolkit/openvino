@@ -15,7 +15,7 @@
 //*****************************************************************************
 
 #include "attribute.hpp"
-#include "subgraph.hpp"
+#include "graph.hpp"
 #include "model.hpp"
 
 namespace ngraph
@@ -32,7 +32,7 @@ namespace ngraph
             return result;
         }
 
-        SubGraph Attribute::get_subgraph(const Graph& parent_graph) const
+        Subgraph Attribute::get_subgraph(const Graph& parent_graph) const
         {
             if (m_attribute_proto->type() != ONNX_NAMESPACE::AttributeProto_AttributeType_GRAPH)
             {
@@ -47,7 +47,7 @@ namespace ngraph
             // if we encounter a node absent in current available opsets we will try
             // to add it's domain to available opsets.
             Model model{model_proto};
-            return SubGraph{graph, model, parent_graph};
+            return Subgraph{graph, model, parent_graph};
         }
 
     } // namespace onnx_import

@@ -51,8 +51,7 @@ namespace ngraph
             const std::shared_ptr<GraphCache> get_graph_cache() const;
 
         protected:
-        //TODO change cache to &&
-            Graph(const ONNX_NAMESPACE::GraphProto& proto, Model& model, std::shared_ptr<GraphCache> cache);
+            Graph(const ONNX_NAMESPACE::GraphProto& proto, Model& model, std::shared_ptr<GraphCache>&& cache);
 
             void set_friendly_names(const Node& onnx_node, const NodeVector& ng_node_vector) const;
 
@@ -70,6 +69,13 @@ namespace ngraph
             ParameterVector m_parameters;
             Model* m_model;
         };
+
+        class Subgraph : public Graph
+        {
+        public:
+            Subgraph(const ONNX_NAMESPACE::GraphProto& proto, Model& model, const Graph& parent_graph);
+        };
+        
 
         inline std::ostream& operator<<(std::ostream& outs, const Graph& graph)
         {

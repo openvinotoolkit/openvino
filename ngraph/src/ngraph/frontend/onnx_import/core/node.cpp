@@ -18,7 +18,6 @@
 
 #include "attribute.hpp"
 #include "graph.hpp"
-#include "subgraph.hpp"
 #include "node.hpp"
 #include "null_node.hpp"
 #include "tensor.hpp"
@@ -128,7 +127,7 @@ namespace ngraph
         }
 
         template<>
-        SubGraph Node::Impl::get_attribute_value(const std::string& name) const
+        Subgraph Node::Impl::get_attribute_value(const std::string& name) const
         {
             auto it = std::find_if(
                 std::begin(m_attributes), std::end(m_attributes), [&](const Attribute& attribute) {
@@ -351,9 +350,9 @@ namespace ngraph
         }
 
         template <>
-        SubGraph Node::get_attribute_value(const std::string& name) const
+        Subgraph Node::get_attribute_value(const std::string& name) const
         {
-            return m_pimpl->template get_attribute_value<SubGraph>(name);
+            return m_pimpl->template get_attribute_value<Subgraph>(name);
         }
 
         template <>

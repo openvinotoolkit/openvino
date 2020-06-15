@@ -18,7 +18,7 @@
 #include <iterator>
 #include <memory>
 
-#include "core/subgraph.hpp"
+#include "core/graph.hpp"
 #include "default_opset.hpp"
 #include "exceptions.hpp"
 #include "ngraph/function.hpp"
@@ -58,7 +58,6 @@ namespace ngraph
                             if(second_input->is_constant() && second_input->get_element_type() == element::boolean 
                                && as_type_ptr<default_opset::Constant>(second_input)->cast_vector<bool>().at(0) == false)
                             {
-                                std::cout << "identity \n";
                                 return true;
                             }
                         }
@@ -83,7 +82,7 @@ namespace ngraph
                                                                  ng_inputs.end()};
 
                     // required
-                    const SubGraph& body_graph{node.get_attribute_value<SubGraph>("body")};
+                    const Subgraph& body_graph{node.get_attribute_value<Subgraph>("body")};
                     const auto& graph_outputs =
                         ngraph::as_output_vector(body_graph.get_ng_outputs());
                     const auto& graph_inputs = body_graph.get_ng_parameters();

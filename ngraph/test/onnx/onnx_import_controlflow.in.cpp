@@ -148,7 +148,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_add_exception_if_no_identi
     {
         EXPECT_HAS_SUBSTRING(
             e.what(),
-            std::string("Given termination loop condition input is not supported by Loop operator."));
+            std::string("Given termination loop condition input is not supported by Loop operator"));
     }
     catch (...)
     {

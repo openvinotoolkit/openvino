@@ -27,7 +27,7 @@ namespace ngraph
     {
         // forward declarations
         class Graph;
-        class SubGraph;
+        class Subgraph;
         class Model;
 
         // Detecting automatically the underlying type used to store the information
@@ -287,7 +287,7 @@ namespace ngraph
             int64_t get_integer() const { return m_attribute_proto->i(); }
             const std::string& get_string() const { return m_attribute_proto->s(); }
             
-            SubGraph get_subgraph(const Graph& parent_graph) const;
+            Subgraph get_subgraph(const Graph& parent_graph) const;
 
             std::vector<Tensor> get_tensor_array() const
             {

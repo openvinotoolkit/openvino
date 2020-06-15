@@ -69,7 +69,7 @@ namespace ngraph
         {
         }
 
-        Graph::Graph(const ONNX_NAMESPACE::GraphProto& graph_proto, Model& model, std::shared_ptr<GraphCache> cache)
+        Graph::Graph(const ONNX_NAMESPACE::GraphProto& graph_proto, Model& model, std::shared_ptr<GraphCache>&& cache)
             : m_graph_proto{&graph_proto}
             , m_model{&model}
             , m_cache{std::move(cache)}
@@ -225,6 +225,12 @@ namespace ngraph
                 [&tag](std::shared_ptr<ngraph::Node> ng_node) { ng_node->add_provenance_tag(tag); },
                 ng_inputs);
         }
+
+        Subgraph::Subgraph(const ONNX_NAMESPACE::GraphProto& proto, Model& model, const Graph& parent_graph)
+            : Graph(proto, model, std::make_shared<SubgraphCache>(proto, parent_graph.get_graph_cache()))
+        {
+        }
+
     } // namespace onnx_import
 
 } // namespace ngraph
