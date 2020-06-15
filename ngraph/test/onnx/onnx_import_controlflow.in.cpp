@@ -55,8 +55,6 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_add_check_model)
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_scalars_check_model)
 {
-    // The model contains a loop which has statically set iterations count equal 3.
-    // In the loop body there is just simple add operation.
     const auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/loop_scalars_add.prototxt"));
 
@@ -115,6 +113,68 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_add_value_access_to_body_scope_exc
     {
         FAIL() << "Deduced type check failed for unexpected reason";
     }
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_add_value_the_same_node_from_parent_and_subgraph)
+{
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/loop_2d_add_the_same_name.prototxt"));
+
+    const auto& parameters = function->get_parameters();
+    EXPECT_EQ(parameters.size(), 1);
+    EXPECT_EQ(parameters.at(0)->get_element_type(), ngraph::element::f32);
+    EXPECT_TRUE(parameters.at(0)->get_partial_shape().is_static());
+    EXPECT_EQ(parameters.at(0)->get_partial_shape().to_shape(), (Shape{1, 2}));
+
+    const auto& results = function->get_results();
+    EXPECT_EQ(results.size(), 2);
+    EXPECT_EQ(function->get_output_element_type(0), ngraph::element::f32);
+    EXPECT_TRUE(function->get_output_partial_shape(0).is_static());
+    EXPECT_EQ(function->get_output_shape(0), (Shape{1, 2}));
+    EXPECT_EQ(function->get_output_element_type(1), ngraph::element::f32);
+    EXPECT_TRUE(function->get_output_partial_shape(1).is_static());
+    EXPECT_EQ(function->get_output_shape(1), (Shape{3, 2}));
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_add_exception_if_no_identity_cond)
+{
+    try
+    {
+        const auto function = onnx_import::import_onnx_model(
+            file_util::path_join(SERIALIZED_ZOO, "onnx/loop_2d_add_no_identity_cond.prototxt"));
+        FAIL() << "Not supported termination loop condition exception not thrown";
+    }
+    catch(const ngraph_error& e)
+    {
+        EXPECT_HAS_SUBSTRING(
+            e.what(),
+            std::string("Given termination loop condition input is not supported by Loop operator."));
+    }
+    catch (...)
+    {
+        FAIL() << "Deduced type check failed for unexpected reason";
+    }
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_add_const_cond)
+{
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/loop_2d_add_const_cond.prototxt"));
+
+    const auto& parameters = function->get_parameters();
+    EXPECT_EQ(parameters.size(), 1);
+    EXPECT_EQ(parameters.at(0)->get_element_type(), ngraph::element::f32);
+    EXPECT_TRUE(parameters.at(0)->get_partial_shape().is_static());
+    EXPECT_EQ(parameters.at(0)->get_partial_shape().to_shape(), (Shape{1, 2}));
+
+    const auto& results = function->get_results();
+    EXPECT_EQ(results.size(), 2);
+    EXPECT_EQ(function->get_output_element_type(0), ngraph::element::f32);
+    EXPECT_TRUE(function->get_output_partial_shape(0).is_static());
+    EXPECT_EQ(function->get_output_shape(0), (Shape{1, 2}));
+    EXPECT_EQ(function->get_output_element_type(1), ngraph::element::f32);
+    EXPECT_TRUE(function->get_output_partial_shape(1).is_static());
+    EXPECT_EQ(function->get_output_shape(1), (Shape{3, 2}));
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_add_execution)

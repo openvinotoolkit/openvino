@@ -50,12 +50,6 @@ namespace ngraph
                             return false;
                         }
 
-                        if(body_cond->is_constant() && as_type_ptr<default_opset::Constant>(body_cond)->cast_vector<bool>().at(0) == true)
-                        {
-                            std::cout << "constant \n";
-                            return true;
-                        }
-
                         // If body termination condition input matches Indentity op pattern it has value of loop_cond - true
                         // Identity op for boolean value is represented by LogicalOr op whose second input is always false
                         if(is_type<default_opset::LogicalOr>(body_cond))
@@ -114,7 +108,7 @@ namespace ngraph
                     const auto& body_loop_cond = graph_outputs.at(0).get_node_shared_ptr();
                     CHECK_VALID_NODE(node,
                         is_termination_condition_always_true(loop_cond, body_loop_cond),
-                            "Current version of Loop operator doesn't support termination loop condition input.");
+                            "Given termination loop condition input is not supported by Loop operator");
                     
                     // TODO: Remove when loop condition would be supported.
                     const auto& cond_node =
