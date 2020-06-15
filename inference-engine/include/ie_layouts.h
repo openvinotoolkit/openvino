@@ -161,13 +161,20 @@ public:
      */
     TensorDesc(const Precision& precision, const SizeVector& dims, const BlockingDesc& blockDesc);
     /**
-     * @brief The constructor creates the tensor descriptor using standard layout
+     * @brief The constructor creates the tensor descriptor using specified layout
      *
      * @param precision memory precision
      * @param dims memory dimensions
      * @param layout memory layout
      */
     TensorDesc(const Precision& precision, const SizeVector& dims, Layout layout);
+    /**
+     * @brief The constructor creates the tensor descriptor using standard plain layout
+     *
+     * @param precision memory precision
+     * @param dims memory dimensions
+     */
+    TensorDesc(const Precision& precision, const SizeVector &dims);
     /**
      * @brief The constructor creates the empty tensor descriptor with precision and layout
      *

@@ -9,6 +9,9 @@
 
 using namespace InferenceEngine;
 
+TensorDesc::TensorDesc(const Precision& precision, const SizeVector& dims)
+        : dims(dims), precision(precision), layout(getLayoutByDims(dims)), blockingDesc(dims, getLayoutByDims(dims)) {}
+
 TensorDesc::TensorDesc(const Precision& precision, const SizeVector& dims, Layout layout)
     : precision(precision), blockingDesc(dims, layout) {
     this->dims = dims;
