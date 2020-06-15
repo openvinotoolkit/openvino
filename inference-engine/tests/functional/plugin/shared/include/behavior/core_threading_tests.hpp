@@ -202,7 +202,7 @@ TEST_P(CoreThreadingTestsWithIterations, smoke_LoadNetwork) {
 }
 
 // tested function: LoadNetwork accuracy
-TEST_P(CoreThreadingTestsWithIterations, smoke_LoadNetworkAccuracy) {
+TEST_P(CoreThreadingTestsWithIterations, DISABLED_smoke_LoadNetworkAccuracy) {
     InferenceEngine::Core ie;
     std::atomic<unsigned int> counter{0u};
 
