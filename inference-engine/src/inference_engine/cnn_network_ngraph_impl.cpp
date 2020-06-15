@@ -83,8 +83,6 @@ CNNNetwork::CNNNetwork(const std::shared_ptr<const ngraph::Function>& graph) {
     }
 
     // Copy nGraph function
-    if (graph == nullptr)
-        THROW_IE_EXCEPTION << "Cannot create CNNNetwork from empty nGraph function!";
     network = std::make_shared<CNNNetworkNGraphImpl>(copyFunction(graph, false, {}));
     actual = network.get();
     if (actual == nullptr) {

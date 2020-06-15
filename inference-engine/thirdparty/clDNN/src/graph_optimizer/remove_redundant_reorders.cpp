@@ -179,14 +179,27 @@ void remove_redundant_reorders::run(program_impl& p) {
         // but pads need to be handled correctly.
         if (i_layout.format == format::b_fs_yx_fsv16 && o_layout.format == format::bfyx && !r_node.is_output() &&
             i_layout.size.spatial[0] == 1 && i_layout.size.spatial[1] == 1 &&
-            o_layout.data_padding.upper_size() == (tensor)0 && o_layout.data_padding.lower_size() == (tensor)0) {
+            i_layout.data_padding.upper_size().spatial[0] == 0 && i_layout.data_padding.lower_size().spatial[0] == 0 &&
+            i_layout.data_padding.upper_size().spatial[1] == 0 && i_layout.data_padding.lower_size().spatial[1] == 0 &&
+            o_layout.data_padding.upper_size() == (tensor)0 && o_layout.data_padding.lower_size() == (tensor)0 &&
+            i_layout.data_type == o_layout.data_type) {
             r_node.can_be_optimized(true);
+            r_node.requires_reinterpret(true);
+
+            auto pad_lo = o_layout.data_padding.lower_size();
+            auto pad_hi = o_layout.data_padding.upper_size();
+
+            pad_lo.batch[0] = i_layout.data_padding.lower_size().batch[0];
+            pad_hi.batch[0] = i_layout.data_padding.upper_size().batch[0];
+
+            pad_lo.feature[0] = i_layout.data_padding.lower_size().feature[0];
+            pad_hi.feature[0] = i_layout.data_padding.upper_size().feature[0];
+
             if (i_layout.size.feature[0] % 16 != 0) {
-                auto pad_lo = o_layout.data_padding.lower_size();
-                auto pad_hi = o_layout.data_padding.upper_size();
-                pad_hi.feature[0] = i_layout.size.feature[0] % 16;
-                r_node.merge_output_padding(padding{pad_lo.sizes(), pad_hi.sizes()});
+                pad_hi.feature[0] += 16 - i_layout.size.feature[0] % 16;
             }
+
+            r_node.merge_output_padding(padding{pad_lo.sizes(), pad_hi.sizes()});
             continue;
         }
 

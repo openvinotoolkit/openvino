@@ -64,7 +64,7 @@ public:
 
 private:
     void run(program_impl& p) override;
-    void add_reorder(program_impl& p, program_node* node, program_node* usr, const layout& reorder_layout);
+    void add_reorder(program_impl& p, program_node* node, program_node* usr);
 };
 
 class add_reshape_to_primitives : public base_pass {

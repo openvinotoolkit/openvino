@@ -85,11 +85,11 @@ TEST_P(ExecGraphTests, CheckExecGraphInfoBeforeExecution) {
                 });
             }
         } else {
+            IE_SUPPRESS_DEPRECATED_START
             // Store all the layers from the executable graph information represented as CNNNetwork
             const std::vector<InferenceEngine::CNNLayerPtr> execGraphLayers =
                     InferenceEngine::details::CNNNetSortTopologically(execGraph);
             for (const auto &execLayer : execGraphLayers) {
-                IE_SUPPRESS_DEPRECATED_START
                 // Each layer from the execGraphInfo network must have PM data option set
                 ASSERT_EQ("not_executed", execLayer->params[ExecGraphInfoSerialization::PERF_COUNTER]);
                 // Parse origin layer names (fused/merged layers) from the executable graph
@@ -104,6 +104,7 @@ TEST_P(ExecGraphTests, CheckExecGraphInfoBeforeExecution) {
                     origLayer->second++;
                 });
             }
+            IE_SUPPRESS_DEPRECATED_END
         }
 
         // All layers from the original IR must be present with in ExecGraphInfo
@@ -177,10 +178,10 @@ TEST_P(ExecGraphTests, CheckExecGraphInfoAfterExecution) {
                 });
             }
         } else {
+            IE_SUPPRESS_DEPRECATED_START
             const std::vector<InferenceEngine::CNNLayerPtr> execGraphLayers =
                 InferenceEngine::details::CNNNetSortTopologically(execGraph);
             for (const auto &execLayer : execGraphLayers) {
-                IE_SUPPRESS_DEPRECATED_START
                 // At least one layer in the topology should be executed and have valid perf counter value
                 try {
                     float x = static_cast<float>(std::atof(
@@ -201,6 +202,7 @@ TEST_P(ExecGraphTests, CheckExecGraphInfoAfterExecution) {
                     origLayer->second++;
                 });
             }
+            IE_SUPPRESS_DEPRECATED_END
         }
 
         ASSERT_TRUE(has_layer_with_valid_time);

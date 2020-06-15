@@ -38,7 +38,7 @@ void FakeQuantizeTransformation::transform(TransformationContext& context, CNNLa
     // CNNNetworkHelper::invertFakeQuantize(layer);
 
     // FakeQuantize on weights are used without dequantization ScaleShifts
-    const bool onWeights = CNNNetworkHelper::onWeights(layer);
+    const bool onWeights = CNNNetworkHelper::onConstWeightsPath(layer) && CNNNetworkHelper::onWeights(layer);
     if (onWeights) {
         return;
     }

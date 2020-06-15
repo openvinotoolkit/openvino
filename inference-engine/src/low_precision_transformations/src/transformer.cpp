@@ -31,6 +31,7 @@
 #include "low_precision_transformations/fake_quantize.hpp"
 #include "low_precision_transformations/fully_connected.hpp"
 #include "low_precision_transformations/fuse_fake_quantize_and_scale_shift.hpp"
+#include "low_precision_transformations/gemm.hpp"
 #include "low_precision_transformations/mvn.hpp"
 #include "low_precision_transformations/permute.hpp"
 #include "low_precision_transformations/pooling.hpp"
@@ -40,6 +41,7 @@
 #include "low_precision_transformations/scaleshift_to_convolution.hpp"
 #include "low_precision_transformations/squeeze.hpp"
 #include "low_precision_transformations/eltwise.hpp"
+#include "low_precision_transformations/normalize.hpp"
 
 // uncomment to display precision info during low precision transformations
 // #define DISPLAY_PECISION
@@ -102,40 +104,55 @@ void LowPrecisionTransformations::setQuantizedTensorAlignmentOnWeights(
     }
 }
 
-LowPrecisionTransformations& LowPrecisionTransformations::remove(const std::string& layerName) {
-    removeBranchSpecificTransformations(layerName);
-    removeTransformations(layerName);
-    removeCleanupTransformations(layerName);
+LowPrecisionTransformations& LowPrecisionTransformations::remove(const std::string& layerType) {
+    std::string type = layerType;
+    std::transform(type.begin(), type.end(), type.begin(), ::tolower);
+
+    removeBranchSpecificTransformations(type);
+    removeTransformations(type);
+    removeCleanupTransformations(type);
     return *this;
 }
 
-LowPrecisionTransformations& LowPrecisionTransformations::removeBranchSpecificTransformations(const std::string& layerName) {
-    branchSpecificTransformations.erase(layerName);
+LowPrecisionTransformations& LowPrecisionTransformations::removeBranchSpecificTransformations(const std::string& layerType) {
+    std::string type = layerType;
+    std::transform(type.begin(), type.end(), type.begin(), ::tolower);
+
+    branchSpecificTransformations.erase(type);
     return *this;
 }
 
-LowPrecisionTransformations& LowPrecisionTransformations::removeTransformations(const std::string& layerName) {
-    transformations.erase(layerName);
+LowPrecisionTransformations& LowPrecisionTransformations::removeTransformations(const std::string& layerType) {
+    std::string type = layerType;
+    std::transform(type.begin(), type.end(), type.begin(), ::tolower);
+
+    transformations.erase(type);
     return *this;
 }
 
-LowPrecisionTransformations& LowPrecisionTransformations::removeCleanupTransformations(const std::string& layerName) {
-    cleanupTransformations.erase(layerName);
+LowPrecisionTransformations& LowPrecisionTransformations::removeCleanupTransformations(const std::string& layerType) {
+    std::string type = layerType;
+    std::transform(type.begin(), type.end(), type.begin(), ::tolower);
+
+    cleanupTransformations.erase(type);
     return *this;
 }
 
 LayerTransformationPtr LowPrecisionTransformations::find(const std::string& layerType) const {
-    auto it = branchSpecificTransformations.find(layerType);
+    std::string type = layerType;
+    std::transform(type.begin(), type.end(), type.begin(), ::tolower);
+
+    auto it = branchSpecificTransformations.find(type);
     if (it != branchSpecificTransformations.end()) {
         return it->second;
     }
 
-    it = transformations.find(layerType);
+    it = transformations.find(type);
     if (it != transformations.end()) {
         return it->second;
     }
 
-    it = cleanupTransformations.find(layerType);
+    it = cleanupTransformations.find(type);
     if (it != cleanupTransformations.end()) {
         return it->second;
     }
@@ -174,27 +191,28 @@ void LowPrecisionTransformations::setLayerTransformationsManager(
 LowPrecisionTransformations LowPrecisionTransformer::getAllTransformations(const LayerTransformation::Params& params) {
     return LowPrecisionTransformations(
         std::map<std::string, LayerTransformationPtr>({
-            { "Concat", LayerTransformationPtr(new ConcatMultiChannelsTransformation(params))}
+            { "concat", LayerTransformationPtr(new ConcatMultiChannelsTransformation(params))}
         }),
         std::map<std::string, LayerTransformationPtr>({
-            { "Convolution", LayerTransformationPtr(new ConvolutionTransformation(params)) },
-            { "Pooling", LayerTransformationPtr(new PoolingTransformation(params)) },
-            { "FakeQuantize", LayerTransformationPtr(new FakeQuantizeTransformation(params)) },
-            { "Reshape", LayerTransformationPtr(new ReshapeTransformation(params)) },
-            { "FullyConnected", LayerTransformationPtr(new FullyConnectedTransformation(params)) },
-            { "GEMM", LayerTransformationPtr(new FullyConnectedTransformation(params)) },
-            { "Permute", LayerTransformationPtr(new PermuteTransformation(params)) },
-            { "Squeeze", LayerTransformationPtr(new SqueezeTransformation(params)) },
-            { "ReLU", LayerTransformationPtr(new ActivationTransformation(params)) },
-            { "MVN", LayerTransformationPtr(new MvnTransformation(params)) },
-            { "Eltwise", LayerTransformationPtr(new EltwiseTransformation(params)) },
-            { "Resample", LayerTransformationPtr(new ResampleTransformation(params)) },
-            { "Power", LayerTransformationPtr(new PowerTransformation(params)) },
-            { "DepthToSpace", LayerTransformationPtr(new DepthToSpaceTransformation(params)) }
+            { "convolution", LayerTransformationPtr(new ConvolutionTransformation(params)) },
+            { "pooling", LayerTransformationPtr(new PoolingTransformation(params)) },
+            { "fakequantize", LayerTransformationPtr(new FakeQuantizeTransformation(params)) },
+            { "reshape", LayerTransformationPtr(new ReshapeTransformation(params)) },
+            { "fullyconnected", LayerTransformationPtr(new FullyConnectedTransformation(params)) },
+            { "gemm", LayerTransformationPtr(new GemmTransformation(params)) },
+            { "permute", LayerTransformationPtr(new PermuteTransformation(params)) },
+            { "squeeze", LayerTransformationPtr(new SqueezeTransformation(params)) },
+            { "relu", LayerTransformationPtr(new ActivationTransformation(params)) },
+            { "mvn", LayerTransformationPtr(new MvnTransformation(params)) },
+            { "eltwise", LayerTransformationPtr(new EltwiseTransformation(params)) },
+            { "resample", LayerTransformationPtr(new ResampleTransformation(params)) },
+            { "power", LayerTransformationPtr(new PowerTransformation(params)) },
+            { "depthtospace", LayerTransformationPtr(new DepthToSpaceTransformation(params)) },
+            { "normalize", LayerTransformationPtr(new NormalizeTransformation(params)) }
         }),
         std::map<std::string, LayerTransformationPtr>({
-            { "FakeQuantize", LayerTransformationPtr(new FuseFakeQuantizeAndScaleShiftTransformation(params)) },
-            { "ScaleShift", LayerTransformationPtr(new ScaleShiftToConvolutionTransformation(params)) },
+            { "fakequantize", LayerTransformationPtr(new FuseFakeQuantizeAndScaleShiftTransformation(params)) },
+            { "scaleshift", LayerTransformationPtr(new ScaleShiftToConvolutionTransformation(params)) },
         }));
 }
 
@@ -312,7 +330,9 @@ void LowPrecisionTransformer::transform(ICNNNetwork& network) {
             continue;
         }
 
-        const auto it = transformations.branchSpecificTransformations.find(layer->type);
+        std::string type = layer->type;
+        std::transform(type.begin(), type.end(), type.begin(), ::tolower);
+        const auto it = transformations.branchSpecificTransformations.find(type);
         if (it == transformations.branchSpecificTransformations.end()) {
             continue;
         }
@@ -343,7 +363,10 @@ void LowPrecisionTransformer::transform(ICNNNetwork& network) {
         }
 
         bool transformed;
-        const auto it = transformations.transformations.find(layer->type);
+
+        std::string type = layer->type;
+        std::transform(type.begin(), type.end(), type.begin(), ::tolower);
+        const auto it = transformations.transformations.find(type);
         if (it != transformations.transformations.end()) {
             it->second->transform(context, *layer);
             transformed = true;
@@ -381,7 +404,9 @@ void LowPrecisionTransformer::transform(ICNNNetwork& network) {
             continue;
         }
 
-        const auto it = transformations.cleanupTransformations.find(layer->type);
+        std::string type = layer->type;
+        std::transform(type.begin(), type.end(), type.begin(), ::tolower);
+        const auto it = transformations.cleanupTransformations.find(type);
         if (it != transformations.cleanupTransformations.end()) {
             it->second->transform(context, *layer);
         }
@@ -400,7 +425,10 @@ void LowPrecisionTransformer::transform(ICNNNetwork& network) {
 }
 
 std::vector<Precision> LowPrecisionTransformer::getPrecisionsOnActivations(const std::string& layerType) const noexcept {
-    const LayerTransformationPtr transformation = transformations.find(layerType);
+    std::string type = layerType;
+    std::transform(type.begin(), type.end(), type.begin(), ::tolower);
+
+    const LayerTransformationPtr transformation = transformations.find(type);
     if (transformation == nullptr) {
         return std::vector<Precision>();
     }
@@ -408,7 +436,10 @@ std::vector<Precision> LowPrecisionTransformer::getPrecisionsOnActivations(const
 }
 
 bool LowPrecisionTransformer::isQuantized(const CNNLayer& layer) const noexcept {
-    const LayerTransformationPtr transformation = transformations.find(layer.type);
+    std::string type = layer.type;
+    std::transform(type.begin(), type.end(), type.begin(), ::tolower);
+
+    const LayerTransformationPtr transformation = transformations.find(type);
     if (transformation == nullptr) {
         return false;
     }
@@ -416,7 +447,10 @@ bool LowPrecisionTransformer::isQuantized(const CNNLayer& layer) const noexcept 
 }
 
 bool LowPrecisionTransformer::isPrecisionPreserved(const CNNLayer& layer) const noexcept {
-    const LayerTransformationPtr transformation = transformations.find(layer.type);
+    std::string type = layer.type;
+    std::transform(type.begin(), type.end(), type.begin(), ::tolower);
+
+    const LayerTransformationPtr transformation = transformations.find(type);
     if (transformation == nullptr) {
         return false;
     }
