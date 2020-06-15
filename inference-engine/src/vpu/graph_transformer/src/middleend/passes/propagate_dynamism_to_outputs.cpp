@@ -41,16 +41,18 @@ public:
 
             const auto& parentAttrs = parent->attrs();
             VPU_THROW_UNLESS(parentAttrs.getOrDefault("converted-notation", false),
-                "All shape parent data object must be already converted to MDK notation");
+                "All shape parent data object must be already converted to MDK notation, but {} is in IE notation",
+                parent->name());
 
-            const auto& parentProducer = parent->producer();
-            const auto& parentInIENotation = parentProducer->input(0);
-            VPU_THROW_UNLESS(parentInIENotation->usage() == DataUsage::Intermediate,
-                "Shape parent data object is expected to be an intermediate data object since shape child is not an output");
-
-            const auto& parentInIENotationAttrs = parent->attrs();
+            const auto& parentInIENotation = parent->producer()->input(0);
+            const auto& parentInIENotationAttrs = parentInIENotation->attrs();
             VPU_THROW_UNLESS(parentInIENotationAttrs.getOrDefault("IE-notation", false),
-                 "Unexpected data object as shape in IE notation");
+                 "Data object {} is expected to be shape in IE notation, but is not marked as it",
+                 parentInIENotation->name());
+
+            VPU_THROW_UNLESS(parentInIENotation->usage() == DataUsage::Intermediate,
+                "Shape data object in IE notation {} is expected to be an {} data object, but it has usage {}",
+                parentInIENotation->name(), DataUsage::Intermediate, parentInIENotation->usage());
 
             model->connectDataWithShape(parent, data);
 

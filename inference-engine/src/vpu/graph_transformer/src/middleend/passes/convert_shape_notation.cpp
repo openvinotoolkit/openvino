@@ -33,9 +33,11 @@ void PassImpl::run(const Model& model) {
 
     for (const auto& shape : shapes) {
         // Revert shape from IE to MDK notation
-        shape->attrs().set<bool>("IE-notation", true);
-
         auto convertedShape = model->duplicateData(shape, "@converted-notation");
+
+        // Settings IE-notation attribute to shape must be done after duplicateData
+        // Since duplicateData does deep attributes copy
+        shape->attrs().set<bool>("IE-notation", true);
         convertedShape->attrs().set<bool>("converted-notation", true);
 
         const auto generator = [&convertedShape](const ie::Blob::Ptr& blob) {
