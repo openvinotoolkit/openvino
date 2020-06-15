@@ -814,8 +814,8 @@ cdef class ExecutableNetwork:
         current_request = self.requests[0]
         current_request.infer(inputs)
         res = {}
-        for out in current_request._outputs_list:
-            res[out] = deepcopy(current_request.output_blobs[out].buffer)
+        for name, value in current_request.output_blobs.items():
+            res[name] = deepcopy(value.buffer)
         return res
 
 
