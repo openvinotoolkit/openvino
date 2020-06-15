@@ -21,8 +21,8 @@ typedef std::tuple<
         double,                        // Alpha
         double,                        // Beta
         double,                        // Bias
-        size_t,                        // Size,
-        std::string,                   // Region
+        size_t,                        // Size
+        std::vector<size_t>,           // Reduction axes
         InferenceEngine::Precision,    // Network precision
         InferenceEngine::SizeVector,   // Input shapes
         std::string                    // Device name

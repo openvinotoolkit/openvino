@@ -15,11 +15,11 @@ namespace LayerTestsDefinitions {
 std::string LrnLayerTest::getTestCaseName(testing::TestParamInfo<lrnLayerTestParamsSet> obj) {
     double alpha, beta, bias;
     size_t size;
-    std::string region;
+    std::vector<size_t> axes;
     InferenceEngine::Precision  netPrecision;
     std::vector<size_t> inputShapes;
     std::string targetDevice;
-    std::tie(alpha, beta, bias, size, region, netPrecision, inputShapes, targetDevice) = obj.param;
+    std::tie(alpha, beta, bias, size, axes, netPrecision, inputShapes, targetDevice) = obj.param;
 
     std::ostringstream result;
     const char separator = '_';
@@ -28,7 +28,7 @@ std::string LrnLayerTest::getTestCaseName(testing::TestParamInfo<lrnLayerTestPar
     result << "Beta=" << beta << separator;
     result << "Bias=" << bias << separator;
     result << "Size=" << size << separator;
-    result << "Region=" << region << separator;
+    result << "Axes=" << CommonTestUtils::vec2str(axes) << separator;
     result << "netPRC=" << netPrecision.name() << separator;
     result << "targetDevice=" << targetDevice;
 
@@ -40,21 +40,14 @@ void LrnLayerTest::SetUp() {
     auto netPrecision   = InferenceEngine::Precision::UNSPECIFIED;
     double alpha, beta, bias;
     size_t size;
-    std::string region;
-    std::tie(alpha, beta, bias, size, region, netPrecision, inputShapes, targetDevice) = GetParam();
+    std::vector<size_t> axes;
+    std::tie(alpha, beta, bias, size, axes, netPrecision, inputShapes, targetDevice) = GetParam();
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     auto params = ngraph::builder::makeParams(ngPrc, {inputShapes});
     auto paramIn =
         ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
 
-    std::vector<int64_t> axes;
-    if (region == "same") {
-        axes.resize(paramIn[0].get_shape().size() - 2);
-        std::iota(axes.begin(), axes.end(), 2);
-    } else if (region == "across") {
-        axes = {1};
-    }
     auto axes_node = std::make_shared<ngraph::op::Constant>(ngraph::element::i64, ngraph::Shape{axes.size()}, axes.data());
     auto lrn = std::make_shared<ngraph::opset1::LRN>(paramIn[0], axes_node, alpha, beta, bias, size);
     ngraph::ResultVector results {std::make_shared<ngraph::opset1::Result>(lrn)};
