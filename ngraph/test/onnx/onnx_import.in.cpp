@@ -121,7 +121,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_add_abc)
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/add_abc.prototxt"));
 
-    auto test_case = ngraph::test::NgraphTestCase(function, "${BACKEND_NAME}");
+    auto test_case = test::TestCase<TestEngine_t>(function);
     test_case.add_multiple_inputs(Inputs{{1}, {2}, {3}});
     test_case.add_expected_output(Shape{1}, std::vector<float>{6});
     test_case.run();
@@ -132,7 +132,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_binary_add_abc)
     auto function =
         onnx_import::import_onnx_model(file_util::path_join(SERIALIZED_ZOO, "onnx/add_abc.onnx"));
 
-    auto test_case = ngraph::test::NgraphTestCase(function, "${BACKEND_NAME}");
+    auto test_case = test::TestCase<TestEngine_t>(function);
     test_case.add_multiple_inputs(Inputs{{1}, {2}, {3}});
     test_case.add_expected_output(Shape{1}, std::vector<float>{6});
     test_case.run();
@@ -143,7 +143,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_bool_const_op)
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/bool_const_op.prototxt"));
 
-    auto test_case = ngraph::test::NgraphTestCase(function, "${BACKEND_NAME}");
+    auto test_case = test::TestCase<TestEngine_t>(function);
     test_case.add_expected_output(std::vector<bool>{1, 0, 0, 1});
     test_case.run();
 }
@@ -153,7 +153,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_bool_init_and)
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/bool_init_and.prototxt"));
 
-    auto test_case = ngraph::test::NgraphTestCase(function, "${BACKEND_NAME}");
+    auto test_case = test::TestCase<TestEngine_t>(function);
     test_case.add_expected_output(std::vector<bool>{1});
     test_case.run();
 }
@@ -163,7 +163,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_bool_input_or)
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/bool_input_or.prototxt"));
 
-    auto test_case = ngraph::test::NgraphTestCase(function, "${BACKEND_NAME}");
+    auto test_case = test::TestCase<TestEngine_t>(function);
     test_case.add_input(std::vector<bool>{true, false, true, false});
     test_case.add_input(std::vector<bool>{false, false, true, true});
     test_case.add_expected_output(std::vector<bool>{1, 0, 1, 1});
@@ -175,7 +175,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_bool_init_raw)
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/bool_init_raw.prototxt"));
 
-    auto test_case = ngraph::test::NgraphTestCase(function, "${BACKEND_NAME}");
+    auto test_case = test::TestCase<TestEngine_t>(function);
     test_case.add_expected_output(std::vector<bool>{true, false, true});
     test_case.run();
 }
@@ -185,7 +185,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_add_abc_initializers)
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/add_abc_initializers.prototxt"));
 
-    auto test_case = ngraph::test::NgraphTestCase(function, "${BACKEND_NAME}");
+    auto test_case = test::TestCase<TestEngine_t>(function);
     test_case.add_input<float>({1, 2, 3, 4});
     test_case.add_expected_output<float>({3, 6, 9, 12});
     test_case.run();
