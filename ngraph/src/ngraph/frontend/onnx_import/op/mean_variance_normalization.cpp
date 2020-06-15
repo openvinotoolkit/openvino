@@ -42,6 +42,7 @@ namespace ngraph
                     return {std::make_shared<default_opset::MVN>(
                         data, across_channels, normalize_variance)};
                 }
+
             } // namespace set_1
 
             namespace set_9
