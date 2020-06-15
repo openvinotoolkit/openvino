@@ -17,7 +17,6 @@
 #include <ngraph/ngraph.hpp>
 #include <ngraph/pass/get_output_element_elimination.hpp>
 #include <set>
-// #include <shape_infer/ie_reshaper.hpp>
 #include <string>
 
 #include <transformations/common_optimizations/common_optimizations.hpp>
@@ -520,6 +519,8 @@ StatusCode CNNNetworkNGraphImpl::setBatchSizeReshape(size_t size, ResponseDesc* 
 
 void CNNNetworkNGraphImpl::convertToCNNNetworkImpl() {
     IE_PROFILING_AUTO_SCOPE(convertToCNNNetworkImpl)
+    // Don't allow to convert nGraph Function from several threads
+    std::lock_guard<std::mutex> locker(getMutex());
     if (cnnNetwork)
         return;
     auto graph = cloneFunction();

@@ -317,6 +317,8 @@ std::vector<std::shared_ptr<ngraph::Node>>
                 // There is a friendly name for this node so copy it
                 cloned_node->set_friendly_name(node->get_friendly_name());
             }
+            // Save rt info
+            cloned_node->get_rt_info() = node->get_rt_info();
 
             for (auto tag : node->get_provenance_tags())
             {
@@ -381,6 +383,8 @@ std::list<std::shared_ptr<ngraph::Node>>
                     // There is a friendly name for this node so copy it
                     cloned_node->set_friendly_name(node->get_friendly_name());
                 }
+                // Save rt info
+                cloned_node->get_rt_info() = node->get_rt_info();
 
                 for (auto tag : node->get_provenance_tags())
                 {

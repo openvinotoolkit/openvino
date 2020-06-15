@@ -496,7 +496,7 @@ NodeVector op::v1::GroupConvolutionBackpropData::decompose_op() const
 
     for (auto i = 0; i < groups; ++i)
     {
-        if (get_arguments().size() == 3)
+        if (input_values().size() == 3)
         {
             conv_groups.push_back(
                 std::make_shared<op::v1::ConvolutionBackpropData>(sliced_data[i],

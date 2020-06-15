@@ -332,7 +332,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         res->params = params;
         return res;
     });
-    
+
     addSpecificCreator({"Assign"}, [](const std::shared_ptr<::ngraph::Node>& node,
                                             const std::map<std::string, std::string> params) -> CNNLayerPtr {
         LayerParams attrs = {node->get_friendly_name(), "Memory",
@@ -668,17 +668,6 @@ std::shared_ptr<CNNNetworkImpl> convertFunctionToICNNNetwork(const std::shared_p
     const auto isInternalLayer = [=](const std::shared_ptr<::ngraph::Node> &node,
                                      const std::unordered_set<std::string> &names,
                                      bool keep_constant) -> bool {
-        if (auto constantNode = ::ngraph::as_type_ptr<::ngraph::op::Constant>(node)) {
-            for (const auto &consumerInputPort : constantNode->get_outputs()[0].get_inputs()) {
-                const auto &consumerLayer = consumerInputPort->get_node();
-                if (names.find(consumerLayer->get_name()) == names.end())
-                    continue;
-                if (!isInternalConstLayer(constantNode, consumerLayer, keep_constant))
-                    return false;
-            }
-            return true;
-        }
-
         return ::ngraph::as_type_ptr<::ngraph::op::Result>(node) != nullptr;
     };
 
@@ -853,10 +842,20 @@ std::shared_ptr<CNNNetworkImpl> convertFunctionToICNNNetwork(const std::shared_p
         }
     }
 
+    std::list<std::string> to_remove;
     // check all input ports are occupied
     for (const auto &kvp : cnnNetworkImpl->allLayers()) {
         const CNNLayer::Ptr &layer = kvp.second;
         size_t inSize = layer->insData.size();
+
+        if (layer->type == "Const" && (layer->outData.empty() || layer->outData[0]->getInputTo().empty())) {
+            to_remove.emplace_back(layer->name);
+            if (!layer->outData.empty()) {
+                IE_ASSERT(layer->outData.size() == 1);
+                cnnNetworkImpl->removeData(layer->outData[0]->getName());
+            }
+            continue;
+        }
 
         for (unsigned i = 0; i < inSize; i++) {
             if (!layer->insData[i].lock()) {
@@ -866,6 +865,10 @@ std::shared_ptr<CNNNetworkImpl> convertFunctionToICNNNetwork(const std::shared_p
         }
         layer->validateLayer();
     }
+
+    // Remove constants
+    for (const auto& rem_name : to_remove)
+        cnnNetworkImpl->removeLayer(rem_name);
 
     if (!cnnNetworkImpl) THROW_IE_EXCEPTION << "Cannot convert nGraph function to CNNNetworkImpl!";
 
