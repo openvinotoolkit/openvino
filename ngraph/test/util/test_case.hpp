@@ -322,7 +322,7 @@ namespace ngraph
                              " for input ",
                              m_input_index);
 
-                m_engine.add_input<T>(shape, values);
+                m_engine.template add_input<T>(shape, values);
 
                 ++m_input_index;
             }
@@ -361,7 +361,7 @@ namespace ngraph
                              " for output ",
                              m_output_index);
 
-                m_engine.add_expected_output<T>(expected_shape, values);
+                m_engine.template add_expected_output<T>(expected_shape, values);
 
                 ++m_output_index;
             }
