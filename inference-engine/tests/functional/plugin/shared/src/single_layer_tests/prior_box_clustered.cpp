@@ -20,6 +20,7 @@
 #include "functional_test_utils/layer_test_utils.hpp"
 
 #include "single_layer_tests/prior_box_clustered.hpp"
+#include "ngraph_ops/prior_box_clustered_ie.hpp"
 
 namespace LayerTestsDefinitions {
 std::string PriorBoxClusteredLayerTest::getTestCaseName(const testing::TestParamInfo<priorBoxClusteredLayerParams>& obj) {
@@ -156,7 +157,9 @@ void PriorBoxClusteredLayerTest::SetUp() {
         variances) = specParams;
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto params = ngraph::builder::makeParams(ngPrc, { inputShapes, imageShapes });
+    auto paramsIn = ngraph::builder::makeParams(ngPrc, { inputShapes, imageShapes });
+    auto paramsOut = ngraph::helpers::convert2OutputVector(
+        ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(paramsIn));
 
     ngraph::op::PriorBoxClusteredAttrs attributes;
     attributes.widths = widths;
@@ -167,18 +170,16 @@ void PriorBoxClusteredLayerTest::SetUp() {
     attributes.offset = offset;
     attributes.variances = variances;
 
-    auto shape_of_1 = std::make_shared<ngraph::opset3::ShapeOf>(params[0]);
-    auto shape_of_2 = std::make_shared<ngraph::opset3::ShapeOf>(params[1]);
-    auto priorBoxClustered = std::make_shared<ngraph::opset3::PriorBoxClustered>(
-        shape_of_1,
-        shape_of_2,
+    auto priorBoxClustered = std::make_shared<ngraph::op::PriorBoxClusteredIE>(
+        paramsOut[0],
+        paramsOut[1],
         attributes);
 
     ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(priorBoxClustered) };
-    function = std::make_shared<ngraph::Function>(results, params, "PB_Clustered");
+    function = std::make_shared<ngraph::Function>(results, paramsIn, "PB_Clustered");
 }
 
-TEST_P(PriorBoxClusteredLayerTest, DISABLED_CompareWithRefs) {
+TEST_P(PriorBoxClusteredLayerTest, CompareWithRefs) {
     Run();
 };
 }  // namespace LayerTestsDefinitions
