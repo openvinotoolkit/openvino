@@ -18,9 +18,10 @@ namespace ngraph
         class INTERPRETER_Engine
         {
         public:
-            INTERPRETER_Engine(std::shared_ptr<Function> function) {}
+            INTERPRETER_Engine(const std::shared_ptr<Function> function) {}
             void infer() {}
-            testing::AssertionResult compare_results(const size_t tolerance_bits)
+            testing::AssertionResult
+                compare_results(const size_t tolerance_bits = DEFAULT_FLOAT_TOLERANCE_BITS)
             {
                 return testing::AssertionSuccess();
             }
@@ -29,7 +30,8 @@ namespace ngraph
             {
             }
             template <typename T>
-            void add_expected_output(ngraph::Shape expected_shape, const std::vector<T>& values)
+            void add_expected_output(const ngraph::Shape& expected_shape,
+                                     const std::vector<T>& values)
             {
             }
         };
@@ -41,7 +43,7 @@ namespace ngraph
         {
         public:
             IE_CPU_Engine() = delete;
-            IE_CPU_Engine(std::shared_ptr<Function> function);
+            IE_CPU_Engine(const std::shared_ptr<Function> function);
 
             void infer()
             {
@@ -110,7 +112,8 @@ namespace ngraph
             }
 
             template <typename T>
-            void add_expected_output(ngraph::Shape expected_shape, const std::vector<T>& values)
+            void add_expected_output(const ngraph::Shape& expected_shape,
+                                     const std::vector<T>& values)
             {
                 const auto& function_output =
                     m_function->get_results()[m_allocated_expected_outputs];
@@ -129,24 +132,23 @@ namespace ngraph
             }
 
         private:
-            std::shared_ptr<Function> m_function;
+            const std::shared_ptr<Function> m_function;
             InferenceEngine::InputsDataMap m_network_inputs;
             InferenceEngine::OutputsDataMap m_network_outputs;
             InferenceEngine::InferRequest m_inference_req;
             std::map<std::string, InferenceEngine::MemoryBlob::Ptr> m_expected_outputs;
-            std::string m_output_name;
             unsigned int m_allocated_inputs = 0;
             unsigned int m_allocated_expected_outputs = 0;
 
             std::shared_ptr<Function>
-                upgrade_and_validate_function(std::shared_ptr<Function> function) const;
+                upgrade_and_validate_function(const std::shared_ptr<Function> function) const;
 
             std::set<NodeTypeInfo> get_ie_ops() const;
 
             testing::AssertionResult compare_blobs(InferenceEngine::MemoryBlob::CPtr computed,
-                                             InferenceEngine::MemoryBlob::CPtr expected,
-                                             const InferenceEngine::Precision& precision,
-                                             const size_t tolerance_bits) const
+                                                   InferenceEngine::MemoryBlob::CPtr expected,
+                                                   const InferenceEngine::Precision& precision,
+                                                   const size_t tolerance_bits) const
             {
                 switch (static_cast<InferenceEngine::Precision::ePrecision>(precision))
                 {
