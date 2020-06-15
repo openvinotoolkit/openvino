@@ -7,7 +7,6 @@
 #include "details/ie_so_loader.h"
 
 #include "unit_test_utils/mocks/mock_engine/mock_plugin.hpp"
-#include "unit_test_utils/mocks/mock_error_listener.hpp"
 #include "unit_test_utils/mocks/mock_iinference_plugin.hpp"
 
 
@@ -41,7 +40,6 @@ protected:
     }
 
     MockIInferencePlugin engine;
-    Listener error;
 };
 
 TEST_F(PluginTest, canCreatePlugin) {
@@ -50,10 +48,6 @@ TEST_F(PluginTest, canCreatePlugin) {
     unique_ptr<IInferencePlugin, std::function<void(IInferencePlugin*)>> smart_ptr(ptr(nullptr), [](IInferencePlugin *p) {
         p->Release();
     });
-
-    //expect that no error handler has been called
-    smart_ptr->SetLogCallback(error);
-    EXPECT_CALL(error, onError(_)).Times(0);
 }
 
 TEST_F(PluginTest, canCreatePluginUsingSmartPtr) {
@@ -62,13 +56,6 @@ TEST_F(PluginTest, canCreatePluginUsingSmartPtr) {
 
 TEST_F(PluginTest, shouldThrowExceptionIfPluginNotExist) {
     EXPECT_THROW(InferenceEnginePluginPtr("unknown_plugin"), InferenceEngineException);
-}
-
-ACTION_TEMPLATE(CallListenerWithErrorMessage,
-                HAS_1_TEMPLATE_PARAMS(int, k),
-                AND_1_VALUE_PARAMS(pointer)) {
-    InferenceEngine::IErrorListener & data = ::std::get<k>(args);
-    data.onError(pointer);
 }
 
 InferenceEnginePluginPtr PluginTest::getPtr() {
