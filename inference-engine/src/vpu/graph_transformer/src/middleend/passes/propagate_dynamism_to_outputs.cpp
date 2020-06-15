@@ -40,7 +40,7 @@ public:
             const auto parent = parentDataToShapeEdge->parent();
 
             const auto& parentAttrs = parent->attrs();
-            VPU_THROW_UNLESS(parentAttrs.has("converted-notation") && parentAttrs.get<bool>("converted-notation"),
+            VPU_THROW_UNLESS(parentAttrs.getOrDefault("converted-notation", false),
                 "All shape parent data object must be already converted to MDK notation");
 
             const auto& parentProducer = parent->producer();
@@ -49,7 +49,7 @@ public:
                 "Shape parent data object is expected to be an intermediate data object since shape child is not an output");
 
             const auto& parentInIENotationAttrs = parent->attrs();
-            VPU_THROW_UNLESS(parentInIENotationAttrs.has("IE-notation") && parentInIENotationAttrs.get<bool>("IE-notation"),
+            VPU_THROW_UNLESS(parentInIENotationAttrs.getOrDefault("IE-notation", false),
                  "Unexpected data object as shape in IE notation");
 
             model->connectDataWithShape(parent, data);
