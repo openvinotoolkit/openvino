@@ -239,7 +239,7 @@ jobs:
     displayName: Install Ninja
   - script: |
       certutil -urlcache -split -f https://ibstatic.blob.core.windows.net/ibstaticblob/IBSetupConsole.exe IBSetupConsole.9.4.5.exe
-      call c:\IBSetupConsole.9.4.5.exe /Install /Components=Agent,oneuse /Coordinator=10.2.0.4 /AGENT:OPENFIREWALL=ON /AGENT:AUTOSELECTPORTS=ON  /ADDTOPATH=ON /AGENT:INSTALLADDINS=OFF
+      call IBSetupConsole.9.4.5.exe /Install /Components=Agent,oneuse /Coordinator=10.2.0.4 /AGENT:OPENFIREWALL=ON /AGENT:AUTOSELECTPORTS=ON  /ADDTOPATH=ON /AGENT:INSTALLADDINS=OFF
     displayName: Install IncrediBuild
   - script: git submodule update --init --recursive --jobs 8
     displayName: 'Clone submodules'
