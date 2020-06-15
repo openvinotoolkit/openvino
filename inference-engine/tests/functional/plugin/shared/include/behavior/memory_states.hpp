@@ -10,6 +10,7 @@
 
 typedef std::tuple<
         InferenceEngine::CNNNetwork, // CNNNetwork to work with
+        std::vector<std::string>,    // Memory States to query
         std::string>                 // Target device name
         memoryStateParams;
 
@@ -17,6 +18,7 @@ class MemoryStateTest : public CommonTestUtils::TestsCommon,
                         public testing::WithParamInterface<memoryStateParams> {
 protected:
     InferenceEngine::CNNNetwork net;
+    std::vector<std::string> statesToQuery;
     std::string deviceName;
 
     void SetUp();

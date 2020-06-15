@@ -11,13 +11,14 @@ std::string MemoryStateTest::getTestCaseName(const testing::TestParamInfo<memory
     std::ostringstream result;
     InferenceEngine::CNNNetwork net;
     std::string targetDevice;
-    std::tie(net, targetDevice) = obj.param;
+    std::vector<std::string> statesToQuery;
+    std::tie(net, statesToQuery, targetDevice) = obj.param;
     result << "targetDevice=" << targetDevice;
     return result.str();
 }
 
 void MemoryStateTest::SetUp() {
-    std::tie(net, deviceName) = GetParam();
+    std::tie(net, statesToQuery, deviceName) = GetParam();
 }
 
 InferenceEngine::ExecutableNetwork MemoryStateTest::PrepareNetwork() {
@@ -28,7 +29,6 @@ InferenceEngine::ExecutableNetwork MemoryStateTest::PrepareNetwork() {
 }
 
 TEST_P(MemoryStateTest, smoke_MemoryState_QueryState) {
-    std::vector<std::string> statesToQuery = {"c_1-3", "r_1-3"};
     auto executableNet = PrepareNetwork();
 
     auto states = executableNet.QueryState();
@@ -60,7 +60,7 @@ TEST_P(MemoryStateTest, smoke_MemoryState_SetState) {
         auto lastState = state.GetLastState();
         auto last_state_size = lastState->size();
         auto last_state_data = lastState->cbuffer().as<int16_t*>();
-        ASSERT_FALSE(last_state_size == 0) << "State size should not be 0";
+        ASSERT_TRUE(last_state_size != 0) << "State size should not be 0";
 
         for (int i = 0; i < last_state_size; i++) {
             ASSERT_EQ(new_state_val, last_state_data[i]);
@@ -83,18 +83,24 @@ TEST_P(MemoryStateTest, smoke_MemoryState_Reset) {
         state.SetState(stateBlob);
     }
 
-    for (auto&& state : executableNet.QueryState()) {
-        state.Reset();
-    }
+    executableNet.QueryState().front().Reset();
 
-    for (auto&& state : executableNet.QueryState()) {
-        auto lastState = state.GetLastState();
+    auto states = executableNet.QueryState();
+    for (int i = 0; i < states.size(); ++i) {
+        auto lastState = states[i].GetLastState();
         auto last_state_size = lastState->size();
         auto last_state_data = lastState->cbuffer().as<int16_t*>();
-        ASSERT_FALSE(last_state_size == 0) << "State size should not be 0";
 
-        for (int i = 0; i < last_state_size; i++) {
-            ASSERT_EQ(0, last_state_data[i]);
+        ASSERT_TRUE(last_state_size != 0) << "State size should not be 0";
+
+        if (i == 0) {
+            for (int i = 0; i < last_state_size; i++) {
+                ASSERT_EQ(0, last_state_data[i]) << "State values should be 0";
+            }
+        } else {
+            for (int i = 0; i < last_state_size; i++) {
+                ASSERT_TRUE(0 != last_state_data[i]) << "State values should not be 0";
+            }
         }
     }
 }

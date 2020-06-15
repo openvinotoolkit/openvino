@@ -24,6 +24,14 @@ class GNAMemoryState : public InferenceEngine::IMemoryStateInternal {
 private:
     GNAMemoryLayer* state;
     std::string name;
+
+/**
+ * @brief Returns InferenceEngine::Precision of input of state depending of element size
+ * InferenceEngine::Precision::FP32 if element size equals 4
+ * InferenceEngine::Precision::I16 if element size equals 2
+ * Exception otherwise
+ */
+    InferenceEngine::Precision getPrecision() const;
 };
 }  // namespace memory
 }  // namespace GNAPluginNS

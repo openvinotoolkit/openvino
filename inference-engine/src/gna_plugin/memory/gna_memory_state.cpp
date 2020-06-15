@@ -20,7 +20,7 @@ namespace memory {
         state->Reset();
     }
 
-    InferenceEngine::Precision getPrecision(const GNAMemoryLayer* state) {
+    InferenceEngine::Precision GNAMemoryState::getPrecision() const {
         InferenceEngine::Precision state_precision;
 
         if (state->getInput()) {
@@ -50,7 +50,7 @@ namespace memory {
             THROW_GNA_EXCEPTION << "Failed to SetState. Sizes of new and old states do not match";
         }
 
-        InferenceEngine::Precision state_precision = getPrecision(state);
+        InferenceEngine::Precision state_precision = getPrecision();
         auto new_state_precision = newState->getTensorDesc().getPrecision();
 
         if (new_state_precision == state_precision) {
@@ -80,7 +80,7 @@ namespace memory {
 
     InferenceEngine::Blob::CPtr GNAMemoryState::GetLastState() const {
         auto elements = state->reserved_size / state->elementSizeBytes();
-        InferenceEngine::Precision state_precision = getPrecision(state);
+        InferenceEngine::Precision state_precision = getPrecision();
         auto result_blob = make_blob_with_precision(InferenceEngine::TensorDesc(state_precision,
             InferenceEngine::SizeVector({1, elements}),
             InferenceEngine::NC),

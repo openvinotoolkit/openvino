@@ -14,7 +14,7 @@ InferenceEngine::CNNNetwork getNetwork() {
     return ie->ReadNetwork(model.model_xml_str, model.weights_blob);
 }
 std::vector<memoryStateParams> memoryStateTestCases = {
-        memoryStateParams(getNetwork(), CommonTestUtils::DEVICE_GNA)
+        memoryStateParams(getNetwork(), {"c_1-3", "r_1-3"}, CommonTestUtils::DEVICE_GNA)
 };
 
 INSTANTIATE_TEST_CASE_P(MemoryStateBasic, MemoryStateTest,
