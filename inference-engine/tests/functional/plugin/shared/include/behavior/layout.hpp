@@ -125,6 +125,8 @@ TEST_P(LayoutTest, NetWithLayout) {
         ASSERT_THROW(cnnNet.getInputsInfo().begin()->second->setLayout(layout),
                 InferenceEngine::details::InferenceEngineException);
     }
-    ASSERT_NO_THROW(InferenceEngine::ExecutableNetwork exeNetwork =
-                            ie->LoadNetwork(cnnNet, targetDevice, configuration));
+    if (targetDevice != CommonTestUtils::DEVICE_GNA) {
+        ASSERT_NO_THROW(InferenceEngine::ExecutableNetwork exeNetwork =
+                                ie->LoadNetwork(cnnNet, targetDevice, configuration));
+    }
 }

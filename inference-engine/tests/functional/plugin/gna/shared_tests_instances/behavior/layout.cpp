@@ -5,7 +5,8 @@
 #include "behavior/layout.hpp"
 namespace {
     const std::vector<std::map<std::string, std::string>> configs = {
-            {}
+            {{"GNA_SCALE_FACTOR_0", "1638.4"},
+            {"GNA_SCALE_FACTOR_1", "1638.4"}}
     };
 
     const std::vector<InferenceEngine::Layout> Layout = {
@@ -20,13 +21,13 @@ namespace {
             { 1, 3 }
     };
 
-//    INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, LayoutTest,
-//                            ::testing::Combine(
-//                                    ::testing::Values(InferenceEngine::Precision::FP32),
-//                                    ::testing::Values(CommonTestUtils::DEVICE_GNA),
-//                                    ::testing::ValuesIn(configs),
-//                                    ::testing::ValuesIn(Layout),
-//                                    ::testing::ValuesIn(inputShapes)),
-//                            LayoutTest::getTestCaseName);
+    INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, LayoutTest,
+                            ::testing::Combine(
+                                    ::testing::Values(InferenceEngine::Precision::FP32),
+                                    ::testing::Values(CommonTestUtils::DEVICE_GNA),
+                                    ::testing::ValuesIn(configs),
+                                    ::testing::ValuesIn(Layout),
+                                    ::testing::ValuesIn(inputShapes)),
+                            LayoutTest::getTestCaseName);
 
 }  // namespace
