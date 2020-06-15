@@ -56,9 +56,22 @@ bool ngraph::pass::ConvertOpSet1ToLegacy::run_on_function(std::shared_ptr<ngraph
     ngraph::pass::Manager OpSet1ToLegacy;
     std::vector<std::shared_ptr<ngraph::pass::PassBase> > transforms;
 
-#define NGRAPH_PASS(NAME, NAMESPACE) transforms.push_back(OpSet1ToLegacy.register_pass<NAMESPACE::NAME>());
+
+#define NGRAPH_PASS(NAME, NAMESPACE) \
+transforms.push_back(OpSet1ToLegacy.register_pass<NAMESPACE::NAME>());
+
+#define REGISTER_GRAPH_REWRITE_PASS(A) \
+class A : public ngraph::pass::GraphRewrite { public: A() : GraphRewrite() {} }; \
+transforms.push_back(OpSet1ToLegacy.register_pass<A>());
+
+#define REGISTER_MATCHER(NAME, NAMESPACE) \
+NAMESPACE::NAME().register_matcher(std::dynamic_pointer_cast<ngraph::pass::GraphRewrite>(transforms.back()));
+
 #include <transformations/convert_opset1_to_legacy/convert_opset1_to_legacy_tbl.hpp>
+
 #undef NGRAPH_PASS
+#undef REGISTER_GRAPH_REWRITE_PASS
+#undef REGISTER_MATCHER
 
     for (auto & t : transforms) {
         if (auto t_param = std::dynamic_pointer_cast<PassParam>(t)) {

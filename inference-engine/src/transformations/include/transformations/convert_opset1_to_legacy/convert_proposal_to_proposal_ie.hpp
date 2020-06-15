@@ -14,17 +14,12 @@
 namespace ngraph {
 namespace pass {
 
-class TRANSFORMATIONS_API ConvertProposalToProposalIE;
+class TRANSFORMATIONS_API ConvertProposalToProposalIEMatcher;
 
 }  // namespace pass
 }  // namespace ngraph
 
-class ngraph::pass::ConvertProposalToProposalIE: public ngraph::pass::GraphRewrite {
+class ngraph::pass::ConvertProposalToProposalIEMatcher {
 public:
-    ConvertProposalToProposalIE() : GraphRewrite() {
-        convert_proposal();
-    }
-
-private:
-    void convert_proposal();
+    void register_matcher(std::shared_ptr<ngraph::pass::GraphRewrite> t);
 };

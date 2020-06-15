@@ -15,17 +15,12 @@
 namespace ngraph {
 namespace pass {
 
-class TRANSFORMATIONS_API ConvertLRNToLRNIE;
+class TRANSFORMATIONS_API ConvertLRNToLRNIEMatcher;
 
 }  // namespace pass
 }  // namespace ngraph
 
-class ngraph::pass::ConvertLRNToLRNIE: public ngraph::pass::GraphRewrite {
+class ngraph::pass::ConvertLRNToLRNIEMatcher {
 public:
-    ConvertLRNToLRNIE() : GraphRewrite() {
-        convert_lrn();
-    }
-
-private:
-    void convert_lrn();
+    void register_matcher(std::shared_ptr<ngraph::pass::GraphRewrite> t);
 };

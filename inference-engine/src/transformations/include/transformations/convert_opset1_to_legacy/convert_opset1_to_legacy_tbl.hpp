@@ -7,6 +7,16 @@
 #define NGRAPH_PASS(A, B)
 #endif
 
+#ifndef REGISTER_GRAPH_REWRITE_PASS
+#warning "REGISTER_GRAPH_REWRITE_PASS is not defined"
+#define REGISTER_GRAPH_REWRITE_PASS(A)
+#endif
+
+#ifndef REGISTER_MATCHER
+#warning "REGISTER_MATCHER is not defined"
+#define REGISTER_MATCHER(A, B)
+#endif
+
 // To register new pass you need to define NGRAPH_PASS
 // Usage example:
 //   ngraph::pass:Manager pm;
@@ -45,10 +55,17 @@ NGRAPH_PASS(ConvertMulAddToScaleShiftOrPower, ::ngraph::pass)
 NGRAPH_PASS(ConvertMulOrAddFinally, ::ngraph::pass)
 NGRAPH_PASS(ConstantFolding, ::ngraph::pass)
 NGRAPH_PASS(ConvertBroadcastToTiles, ::ngraph::pass)
-NGRAPH_PASS(ConvertTileToIETile, ::ngraph::pass)
-NGRAPH_PASS(ConvertProposalToProposalIE, ::ngraph::pass)
-NGRAPH_PASS(ConvertLRNToLRNIE, ::ngraph::pass)
-NGRAPH_PASS(ConvertPadToPadIE, ::ngraph::pass)
+
+// This is an example how multiple independent matchers can be registered
+// in single GraphRewrite transformation.
+// In this example 4 different independent matchers will be executed at the same time
+// inside ConvertToIE GraphRewrite transformation.
+REGISTER_GRAPH_REWRITE_PASS(ConvertToIE)
+REGISTER_MATCHER(ConvertTileToIETileMatcher, ::ngraph::pass)
+REGISTER_MATCHER(ConvertProposalToProposalIEMatcher, ::ngraph::pass)
+REGISTER_MATCHER(ConvertLRNToLRNIEMatcher, ::ngraph::pass)
+REGISTER_MATCHER(ConvertPadToPadIEMatcher, ::ngraph::pass)
+
 NGRAPH_PASS(ConvertHardSigmoidToHardSigmoidIE, ::ngraph::pass)
 NGRAPH_PASS(ConvertCellsToCellsIE, ::ngraph::pass)
 NGRAPH_PASS(ConvertInterpolateToInterpOrResample, ::ngraph::pass)
