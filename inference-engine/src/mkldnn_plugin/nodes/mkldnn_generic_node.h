@@ -30,7 +30,7 @@ public:
         return false;
     }
 
-    void initDescriptor(const InferenceEngine::LayerConfig& config) override;
+    void initDescriptor(const MKLDNNLayoutConfig& config) override;
 
     void execLayer();
     void cleanup() override;

@@ -21,7 +21,7 @@ public:
                           const std::vector<InferenceEngine::TensorDesc>& outputDesc) override;
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
-    void initDescriptor(const InferenceEngine::LayerConfig &config) override;
+    void initDescriptor(const MKLDNNLayoutConfig& config) override;
     void createPrimitive() override;
     bool created() const override;
     bool canBeInPlace() const override {

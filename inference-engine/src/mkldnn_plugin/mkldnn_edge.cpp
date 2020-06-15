@@ -230,14 +230,14 @@ bool MKLDNNEdge::nodeCanChangeDesc(const MKLDNNNodePtr &node) const {
     if (selectedPd == nullptr)
         THROW_IE_EXCEPTION << "Primitive descriptor for node " << node->getName() << " is not selected.";
 
-    for (auto &inputDesc : selectedPd->getConfig().inConfs) {
-        if (inputDesc.desc.getLayout() != InferenceEngine::Layout::ANY) {
+    for (auto &inDesc : selectedPd->getConfig().inConfs) {
+        if (inDesc.desc.isDefined()) {
             return true;
         }
     }
 
     for (auto &outDesc : selectedPd->getConfig().outConfs) {
-        if (outDesc.desc.getLayout() != InferenceEngine::Layout::ANY) {
+        if (!outDesc.desc.isDefined()) {
             return true;
         }
     }
@@ -282,7 +282,7 @@ bool MKLDNNEdge::nodeCanChangeDesc(const MKLDNNNodePtr &node) const {
  * We don't support {any, any, nchw} -> {any}
  */
 InferenceEngine::TensorDesc MKLDNNEdge::getSpecifiedInputDesc(std::map<mkldnn::memory::format, size_t> formats, size_t enterCountUp, size_t enterCountDown) {
-    InferenceEngine::TensorDesc inDesc;
+    MKLDNNMemoryDesc inDesc;
 
     if (inputDesc.getLayout() != InferenceEngine::Layout::ANY) {
         return inputDesc;
@@ -300,7 +300,7 @@ InferenceEngine::TensorDesc MKLDNNEdge::getSpecifiedInputDesc(std::map<mkldnn::m
         inputIdx = 0;
     inDesc = parentPtr->getSelectedPrimitiveDescriptor()->getConfig().outConfs[inputIdx].desc;
 
-    if (inDesc.getLayout() != InferenceEngine::Layout::ANY) {
+    if (inDesc.isDefined()) {
         return inDesc;
     }
 
@@ -309,7 +309,7 @@ InferenceEngine::TensorDesc MKLDNNEdge::getSpecifiedInputDesc(std::map<mkldnn::m
     bool isFormatChanging = nodeCanChangeDesc(parentPtr);
 
     if (!isFormatChanging && inputIdx < parentPtr->getSelectedPrimitiveDescriptor()->getConfig().inConfs.size() &&
-            parentPtr->getSelectedPrimitiveDescriptor()->getConfig().inConfs[inputIdx].desc.getLayout() != InferenceEngine::Layout::ANY) {
+            parentPtr->getSelectedPrimitiveDescriptor()->getConfig().inConfs[inputIdx].desc.isDefined()) {
         inDesc = parentPtr->getSelectedPrimitiveDescriptor()->getConfig().inConfs[inputIdx].desc;
         parentPtr->getSelectedPrimitiveDescriptor()->getConfig().outConfs[inputIdx].desc = inDesc;
         return inDesc;
@@ -394,9 +394,9 @@ InferenceEngine::TensorDesc MKLDNNEdge::getSpecifiedInputDesc(std::map<mkldnn::m
     auto inDataType = MKLDNNMemoryDesc(parentPtr->getSelectedPrimitiveDescriptor()->getConfig().outConfs[inputIdx].desc).getDataType();
     parentPtr->getSelectedPrimitiveDescriptor()->getConfig().outConfs[inputIdx].desc = MKLDNNMemoryDesc(getDims(), inDataType, desc);
     if (!isFormatChanging && inputIdx < parentPtr->getSelectedPrimitiveDescriptor()->getConfig().inConfs.size() &&
-            parentPtr->getSelectedPrimitiveDescriptor()->getConfig().inConfs[inputIdx].desc.getLayout() == InferenceEngine::Layout::ANY) {
+            parentPtr->getSelectedPrimitiveDescriptor()->getConfig().inConfs[inputIdx].desc.isUnknown()) {
         parentPtr->getSelectedPrimitiveDescriptor()->getConfig().inConfs[inputIdx].desc =
-                MKLDNNExtensionUtils::getUninitTensorDesc(MKLDNNMemoryDesc(getDims(), inDataType, desc));
+                MKLDNNMemoryDesc(getDims(), inDataType, desc).create_uninit_version();
     }
 
     return MKLDNNMemoryDesc(getDims(), inDataType, desc);
@@ -436,17 +436,18 @@ InferenceEngine::TensorDesc MKLDNNEdge::getSpecifiedOutputDesc(std::map<mkldnn::
     bool isFormatChanging = nodeCanChangeDesc(childPtr);
 
     if ((!isFormatChanging && outputIdx < childPtr->getSelectedPrimitiveDescriptor()->getConfig().outConfs.size() &&
-            childPtr->getSelectedPrimitiveDescriptor()->getConfig().outConfs[outputIdx].desc.getLayout() != InferenceEngine::Layout::ANY) ||
+            childPtr->getSelectedPrimitiveDescriptor()->getConfig().outConfs[outputIdx].desc.isDefined()) ||
             (isFormatChanging && inputIdx >= 0 &&
-                    parentPtr->getSelectedPrimitiveDescriptor()->getConfig().outConfs[inputIdx].desc.getLayout() != InferenceEngine::Layout::ANY)) {
-        auto inputDataType = childPtr->getSelectedPrimitiveDescriptor()->getConfig().inConfs[outputIdx].desc.getPrecision();
+                    parentPtr->getSelectedPrimitiveDescriptor()->getConfig().outConfs[inputIdx].desc.isDefined())) {
+        auto inputDataType = MKLDNNExtensionUtils::DataTypeToIEPrecision(
+                childPtr->getSelectedPrimitiveDescriptor()->getConfig().inConfs[outputIdx].desc.getDataType());
         if (!isFormatChanging)
             outDesc = childPtr->getSelectedPrimitiveDescriptor()->getConfig().outConfs[outputIdx].desc;
         else
             outDesc = parentPtr->getSelectedPrimitiveDescriptor()->getConfig().outConfs[inputIdx].desc;
-        childPtr->getSelectedPrimitiveDescriptor()->getConfig().inConfs[outputIdx].desc = InferenceEngine::TensorDesc(inputDataType, getDims().ToSizeVector(),
+        childPtr->getSelectedPrimitiveDescriptor()->getConfig().inConfs[outputIdx].desc = MKLDNNMemoryDesc(InferenceEngine::TensorDesc(inputDataType, getDims().ToSizeVector(),
                                                     {outDesc.getBlockingDesc().getBlockDims(),
-                                                     outDesc.getBlockingDesc().getOrder()});
+                                                     outDesc.getBlockingDesc().getOrder()}));
         return childPtr->getSelectedPrimitiveDescriptor()->getConfig().inConfs[outputIdx].desc;
     }
 
@@ -530,9 +531,9 @@ InferenceEngine::TensorDesc MKLDNNEdge::getSpecifiedOutputDesc(std::map<mkldnn::
     auto inDataType = MKLDNNMemoryDesc(childPtr->getSelectedPrimitiveDescriptor()->getConfig().inConfs[getOutputNum()].desc).getDataType();
     childPtr->getSelectedPrimitiveDescriptor()->getConfig().inConfs[outputIdx].desc = MKLDNNMemoryDesc(getDims(), inDataType, format);
     if (!isFormatChanging && outputIdx < childPtr->getSelectedPrimitiveDescriptor()->getConfig().outConfs.size() &&
-            childPtr->getSelectedPrimitiveDescriptor()->getConfig().outConfs[outputIdx].desc.getLayout() == InferenceEngine::Layout::ANY) {
+            childPtr->getSelectedPrimitiveDescriptor()->getConfig().outConfs[outputIdx].desc.isUnknown()) {
         childPtr->getSelectedPrimitiveDescriptor()->getConfig().outConfs[outputIdx].desc =
-                MKLDNNExtensionUtils::getUninitTensorDesc(MKLDNNMemoryDesc(getDims(), inDataType, format));
+                MKLDNNMemoryDesc(getDims(), inDataType, format).create_uninit_version();
     }
 
     return childPtr->getSelectedPrimitiveDescriptor()->getConfig().outConfs[outputIdx].desc;

@@ -7,6 +7,7 @@
 #include <ie_iextension.h>
 #include "ie_util_internal.hpp"
 #include "nodes/list.hpp"
+#include "gp_utils.h"
 
 #include <string>
 #include <vector>
@@ -81,11 +82,6 @@ protected:
 
         // Fill tensor parameters into config
         auto fill_port = [] (std::vector<DataConfig>& port, DataConfigurator conf, const DataPtr& data) {
-            auto div_up = [](const int a, const int b) -> int {
-                if (!b)
-                    return 0;
-                return (a + b - 1) / b;
-            };
             if (!data) THROW_IE_EXCEPTION << "Cannot get input data!";
 
             DataConfig dataConfig;

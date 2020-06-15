@@ -1410,5 +1410,91 @@ std::string format_tag_to_string(mkldnn::memory::format tag) {
     return mkldnn_fmt2str(static_cast<mkldnn_memory_format_t>(tag));
 }
 
+MKLDNNMemoryDesc MKLDNNMemoryDesc::create_uninit_version() const {
+    mkldnn::memory::desc new_desc(this->desc);
+    if (this->isDefined()) {
+        for (auto &s : new_desc.data.layout_desc.blocking.strides[0])
+            s = std::numeric_limits<ptrdiff_t>::max();
+
+        for (auto &s : new_desc.data.layout_desc.blocking.strides[1])
+            s = std::numeric_limits<ptrdiff_t>::max();
+
+        for (auto &d : new_desc.data.layout_desc.blocking.offset_padding_to_data)
+            d = 0;
+
+        new_desc.data.layout_desc.blocking.offset_padding = 0;
+    }
+
+    return MKLDNNMemoryDesc(new_desc);
+}
+
+bool MKLDNNMemoryDesc::isUninit() const {
+    if (getFormat() == mkldnn::memory::any)
+        return true;
+
+    if (desc.data.layout_desc.blocking.offset_padding == std::numeric_limits<size_t>::max())
+        return true;
+
+    for (auto &s : desc.data.layout_desc.blocking.strides[0])
+        if (s == std::numeric_limits<ptrdiff_t>::max())
+            return true;
+
+    for (auto &s : desc.data.layout_desc.blocking.strides[1])
+        if (s == std::numeric_limits<ptrdiff_t>::max())
+            return true;
+
+    for (auto &s : desc.data.layout_desc.blocking.offset_padding_to_data)
+        // TODO: max or zero? The previous code in create_uninit_version
+        //       sets it to zero...
+        if (s == std::numeric_limits<ptrdiff_t>::max())
+            return true;
+
+    return false;
+}
+
+InferenceEngine::Precision MKLDNNMemoryDesc::getPrecision() const {
+    return MKLDNNExtensionUtils::DataTypeToIEPrecision(getDataType());
+}
+
+bool MKLDNNExtensionUtils::initTensorsAreEqual(const InferenceEngine::TensorDesc &desc1, const InferenceEngine::TensorDesc &desc2) {
+    if (desc1.getDims() != desc2.getDims() || desc1.getPrecision() != desc2.getPrecision())
+        return false;
+    if (desc1.getLayout() == InferenceEngine::Layout::SCALAR && desc2.getLayout() == InferenceEngine::Layout::SCALAR)
+        return true;
+    if (desc1.getLayout() == InferenceEngine::Layout::ANY || desc2.getLayout() == InferenceEngine::Layout::ANY)
+        return true;
+    bool batch1 = desc1.getDims()[0] == 1;
+    const auto& in1Block = desc1.getBlockingDesc();
+    const auto& in2Block = desc2.getBlockingDesc();
+    size_t uninitNum = std::numeric_limits<size_t>::max();
+    if (in1Block.getBlockDims().size() != in2Block.getBlockDims().size())
+        return false;
+    for (size_t i = 0; i < in1Block.getBlockDims().size(); i++) {
+        if (in1Block.getBlockDims()[i] != in2Block.getBlockDims()[i] &&
+            in1Block.getBlockDims()[i] != uninitNum && in2Block.getBlockDims()[i] != uninitNum)
+            return false;
+        if (in1Block.getOffsetPaddingToData()[i] != in2Block.getOffsetPaddingToData()[i] &&
+            in1Block.getOffsetPaddingToData()[i] != uninitNum && in2Block.getOffsetPaddingToData()[i] != uninitNum)
+            return false;
+        if (i >= batch1 && in1Block.getStrides()[i] != in2Block.getStrides()[i] &&
+            in1Block.getStrides()[i] != uninitNum && in2Block.getStrides()[i] != uninitNum)
+            return false;
+        if (in1Block.getOrder()[i] != in2Block.getOrder()[i] &&
+            in1Block.getOrder()[i] != uninitNum && in2Block.getOrder()[i] != uninitNum)
+            return false;
+    }
+    return !(in1Block.getOffsetPadding() != in2Block.getOffsetPadding() &&
+             in1Block.getOffsetPadding() != uninitNum && in2Block.getOffsetPadding() != uninitNum);
+}
+
+
+    /*
+     * @param blocked_dims blocked dimensions
+     * @param order the order of dimensions
+     * @param offset offset to the current memory block
+     * @param dimOffsets per-dimension offset from the padding to actual data,
+     * @param strides strides for each dimension
+     */
+
 
 }  // namespace MKLDNNPlugin

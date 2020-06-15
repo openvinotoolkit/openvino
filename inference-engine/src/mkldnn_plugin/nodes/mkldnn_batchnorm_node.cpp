@@ -216,13 +216,13 @@ void MKLDNNBatchNormalizationNode::initOptimalPrimitiveDescriptor() {
     if (isInitConfig(config))
         return;
 
-    if (config.inConfs.size() != 1 || config.outConfs.size() != 1 || (!isUninitTensorDesc(config.inConfs[0].desc) &&
-            !isUninitTensorDesc(config.outConfs[0].desc) && config.inConfs[0].desc != config.outConfs[0].desc))
+    if (config.inConfs.size() != 1 || config.outConfs.size() != 1 || (!config.inConfs[0].desc.isUninit() &&
+            !config.outConfs[0].desc.isUninit() && config.inConfs[0].desc != config.outConfs[0].desc))
         THROW_IE_EXCEPTION << "Layer " << getName() << " has incorrect selected config!";
 
-    if (!isUninitTensorDesc(config.inConfs[0].desc)) {
+    if (!config.inConfs[0].desc.isUninit()) {
         config.outConfs[0].desc = config.inConfs[0].desc;
-    } else if (!isUninitTensorDesc(config.outConfs[0].desc)) {
+    } else if (!config.outConfs[0].desc.isUninit()) {
         config.inConfs[0].desc = config.outConfs[0].desc;
     } else {
         config.outConfs[0].desc = config.inConfs[0].desc = getConfiguredInputDesc(config, 0);

@@ -30,6 +30,23 @@ public:
     mkldnn::memory::data_type getDataType() const {
         return static_cast<mkldnn::memory::data_type>(desc.data.data_type);
     }
+    ////////////////////////////////////////////
+    /// TODO: Compatibility methods to simulate IE::TensorDesc API. Should be removed sometimes...
+    InferenceEngine::Precision getPrecision() const;
+    class BlkDesk {
+        BlkDesk();
+        mkldnn_blocking_desc_t _blk;
+    public:
+        bool operator == (const BlkDesk&& other) const;
+    };
+    BlkDesk getBlockingDesc() const;
+
+    // TODO: it should removed. Just for build
+    void setDataType(mkldnn::memory::data_type type) {
+        desc.data.data_type = static_cast<mkldnn_data_type_t>(type);
+        THROW_IE_EXCEPTION << "Should not be used";
+    }
+    ///////////
 
     MKLDNNDims getDims() const {
         return MKLDNNDims(desc.data.dims, desc.data.ndims);
@@ -45,6 +62,18 @@ public:
 
     operator mkldnn::memory::desc() const;
     operator InferenceEngine::TensorDesc() const;
+
+    bool isUnknown() const {
+        return getFormat() == mkldnn::memory::format::any;
+    }
+
+    bool isDefined() const {
+        return getFormat() != mkldnn::memory::format::any;
+    }
+
+    bool isUninit() const;
+
+    MKLDNNMemoryDesc create_uninit_version() const;
 
 private:
     mkldnn::memory::desc desc;
@@ -130,5 +159,7 @@ private:
  ***********************************/
 mkldnn::memory::format get_format_tag(const InferenceEngine::TensorDesc &tdesc);
 std::string format_tag_to_string(mkldnn::memory::format tag);
+
+bool initTensorsAreEqual(const MKLDNNMemoryDesc left, const MKLDNNMemoryDesc right);
 
 }  // namespace MKLDNNPlugin

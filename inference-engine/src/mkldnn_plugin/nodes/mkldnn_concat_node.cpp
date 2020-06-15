@@ -324,7 +324,7 @@ void MKLDNNConcatNode::selectOptimalPrimitiveDescriptor() {
             continue;
         hasUnknown = true;
         for (auto iInfo : primDescInfo.getConfig().inConfs) {
-            if (iInfo.desc.getLayout() != InferenceEngine::Layout::ANY) {
+            if (iInfo.desc.isDefined()) {
                 hasAny = false;
                 break;
             }
@@ -332,7 +332,7 @@ void MKLDNNConcatNode::selectOptimalPrimitiveDescriptor() {
 
         if (hasAny) {
             for (auto oInfo : primDescInfo.getConfig().outConfs) {
-                if (oInfo.desc.getLayout() != InferenceEngine::Layout::ANY) {
+                if (oInfo.desc.isDefined()) {
                     hasAny = false;
                     break;
                 }
@@ -534,12 +534,12 @@ void MKLDNNConcatNode::initOptimalPrimitiveDescriptor() {
             for (size_t i = 0; i < config.inConfs.size(); i++) {
                 config.inConfs[i].desc = getConfiguredInputDesc(config, i);
                 // MKLDNN doesn't support different precision on inputs
-                config.inConfs[i].desc.setPrecision(inputPrecision);
+                config.inConfs[i].desc.setDataType(MKLDNNExtensionUtils::IEPrecisionToDataType(inputPrecision));
             }
 
             for (size_t i = 0; i < config.outConfs.size(); i++) {
                 config.outConfs[i].desc = getConfiguredOutputDesc(config, i);
-                config.outConfs[i].desc.setPrecision(outputPrecision);
+                config.outConfs[i].desc.setDataType(MKLDNNExtensionUtils::IEPrecisionToDataType(outputPrecision));
             }
 
             initDescriptor(config);
@@ -553,20 +553,20 @@ void MKLDNNConcatNode::initOptimalPrimitiveDescriptor() {
         return;
 
     for (size_t i = 0; i < config.outConfs.size(); i++) {
-        if (config.outConfs[i].desc.getLayout() == InferenceEngine::Layout::ANY ||
-                !isUninitTensorDesc(config.outConfs[i].desc))
+        if (config.outConfs[i].desc.isUnknown() ||
+                !config.outConfs[i].desc.isUninit())
             continue;
 
         int num = getChildEdgeAt(i)->getOutputNum();
         if (num >= 0) {
             auto childConf = getChildEdgeAt(i)->getChild()->getSelectedPrimitiveDescriptor()->getConfig().inConfs[num];
-            childConf.desc.setPrecision(config.outConfs[i].desc.getPrecision());
+            childConf.desc.setDataType(config.outConfs[i].desc.getDataType());
 
             if (getChildEdgeAt(i)->getChild()->getSelectedPrimitiveDescriptor()) {
-                if (isUninitTensorDesc(childConf.desc) && childConf.inPlace >= 0)
+                if (childConf.desc.isUninit() && childConf.inPlace >= 0)
                     getChildEdgeAt(i)->getChild()->initOptimalPrimitiveDescriptor();
 
-                if (!isUninitTensorDesc(childConf.desc) &&
+                if (!childConf.desc.isUninit()) &&
                         MKLDNNExtensionUtils::initTensorsAreEqual(childConf.desc, config.outConfs[i].desc)) {
                     config.outConfs[i].desc = childConf.desc;
                     continue;

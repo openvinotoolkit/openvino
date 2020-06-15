@@ -581,7 +581,7 @@ void MKLDNNNode::filterSupportedPrimitiveDescriptors() {
     }
 }
 
-void MKLDNNNode::initDescriptor(const InferenceEngine::LayerConfig &config) {
+void MKLDNNNode::initDescriptor(const MKLDNNLayoutConfig &config) {
     auto* selectedPD = getSelectedPrimitiveDescriptor();
     if (!selectedPD) {
         return;
@@ -596,7 +596,7 @@ void MKLDNNNode::initDescriptor(const InferenceEngine::LayerConfig &config) {
 
     std::shared_ptr<mkldnn::primitive_attr> attr = initPrimitiveAttr();
 
-    InferenceEngine::LayerConfig rightConfig = selectedPD->getConfig();
+    auto rightConfig = selectedPD->getConfig();
     size_t selected_count = 0;
     for (size_t j = 0; j < descs.size(); j++) {
         const auto &desc = descs[j];
@@ -647,13 +647,13 @@ void MKLDNNNode::initDescriptor(const InferenceEngine::LayerConfig &config) {
             return;
 
         for (size_t i = 0; i < selectedConfig.inConfs.size(); i++) {
-            if (selectedConfig.inConfs[i].desc.getLayout() != InferenceEngine::Layout::ANY &&
+            if (selectedConfig.inConfs[i].desc.isDefined() &&
                 !MKLDNNExtensionUtils::initTensorsAreEqual(selectedConfig.inConfs[i].desc, config.inConfs[i].desc))
                 THROW_IE_EXCEPTION << "Incorrect descriptor for node: " << getName();
         }
 
         for (size_t i = 0; i < selectedConfig.outConfs.size(); i++) {
-            if (selectedConfig.outConfs[i].desc.getLayout() != InferenceEngine::Layout::ANY &&
+            if (selectedConfig.outConfs[i].desc.isDefined() &&
                 !MKLDNNExtensionUtils::initTensorsAreEqual(selectedConfig.outConfs[i].desc, config.outConfs[i].desc))
                 THROW_IE_EXCEPTION << "Incorrect descriptor for node: " << getName();
         }
@@ -894,25 +894,12 @@ const std::vector<impl_desc_type>& MKLDNNNode::getPrimitivesPriority() {
     }
     return implPriorities;
 }
-
-bool MKLDNNNode::isUninitTensorDesc(const InferenceEngine::TensorDesc& desc) const {
-    if (desc.getLayout() == InferenceEngine::Layout::ANY)
-        return true;
-
-    if (desc.getBlockingDesc().getOffsetPadding() == std::numeric_limits<size_t>::max())
-        return true;
-
-    for (size_t i = 0; i < desc.getBlockingDesc().getOrder().size(); i++) {
-        if (desc.getBlockingDesc().getOffsetPaddingToData()[i] == std::numeric_limits<size_t>::max() ||
-                desc.getBlockingDesc().getStrides()[i] == std::numeric_limits<size_t>::max())
-            return true;
-    }
-
-    return false;
+bool MKLDNNNode::isUninitTensorDesc(const MKLDNNMemoryDesc& desc) const {
+    return desc.isUninit();
 }
 
-InferenceEngine::TensorDesc MKLDNNNode::getConfiguredInputDesc(const InferenceEngine::LayerConfig& config, size_t idx) const {
-    if (!isUninitTensorDesc(config.inConfs[idx].desc))
+MKLDNNMemoryDesc MKLDNNNode::getConfiguredInputDesc(const MKLDNNLayoutConfig& config, size_t idx) const {
+    if (!config.inConfs[idx].desc.isUninit())
         return config.inConfs[idx].desc;
 
     int num = getParentEdgeAt(idx)->getInputNum();
@@ -929,40 +916,41 @@ InferenceEngine::TensorDesc MKLDNNNode::getConfiguredInputDesc(const InferenceEn
 
     if (num >= 0) {
         auto parentConf = selectedPD->getConfig().outConfs[num];
-        parentConf.desc.setPrecision(config.inConfs[idx].desc.getPrecision());
-        if (isUninitTensorDesc(parentConf.desc) && parentConf.inPlace >= 0)
+        parentConf.desc.setDataType(config.inConfs[idx].desc.getDataType());
+        if (parentConf.desc.isUninit() && parentConf.inPlace >= 0)
             getParentEdgeAt(idx)->getParent()->initOptimalPrimitiveDescriptor();
         parentConf = getParentEdgeAt(idx)->getParent()->getSelectedPrimitiveDescriptor()->getConfig().outConfs[num];
-        if (!isUninitTensorDesc(parentConf.desc) &&
+        if (!parentConf.desc.isUninit() &&
             MKLDNNExtensionUtils::initTensorsAreEqual(parentConf.desc, config.inConfs[idx].desc)) {
             return parentConf.desc;
         }
 
-        if (config.inConfs[idx].desc.getLayout() == InferenceEngine::Layout::ANY &&
-            parentConf.desc.getLayout() != InferenceEngine::Layout::ANY) {
-            return InferenceEngine::TensorDesc(parentConf.desc.getPrecision(),
-                                               parentConf.desc.getDims(), {
-                                                       parentConf.desc.getBlockingDesc().getBlockDims(),
-                                                       parentConf.desc.getBlockingDesc().getOrder()
-                                               });
+        if (config.inConfs[idx].desc.isUnknown() && parentConf.desc.isDefined()) {
+            TensorDesc ie_tdesc = parentConf.desc;
+            return MKLDNNMemoryDesc(TensorDesc(ie_tdesc.getPrecision(),
+                                               ie_tdesc.getDims(), {
+                                                   ie_tdesc.getBlockingDesc().getBlockDims(),
+                                                   ie_tdesc.getBlockingDesc().getOrder()
+                                               }));
         }
     }
 
-    if (config.inConfs[idx].desc.getLayout() != InferenceEngine::Layout::ANY) {
-        return InferenceEngine::TensorDesc(config.inConfs[idx].desc.getPrecision(),
-                                           config.inConfs[idx].desc.getDims(), {
-                                                   config.inConfs[idx].desc.getBlockingDesc().getBlockDims(),
-                                                   config.inConfs[idx].desc.getBlockingDesc().getOrder()
-                                           });
+    if (config.inConfs[idx].desc.isDefined()) {
+        TensorDesc ie_tdesc = config.inConfs[idx].desc;
+        return MKLDNNMemoryDesc(TensorDesc(ie_tdesc.getPrecision(),
+                                           ie_tdesc.getDims(), {
+                                                   ie_tdesc.getBlockingDesc().getBlockDims(),
+                                                   ie_tdesc.getBlockingDesc().getOrder()
+                                           }));
     }
 
-    return InferenceEngine::TensorDesc(config.inConfs[idx].desc.getPrecision(),
-                                       config.inConfs[idx].desc.getDims(),
-                                       InferenceEngine::TensorDesc::getLayoutByDims(config.inConfs[idx].desc.getDims()));
+    TensorDesc ie_tdesc = config.inConfs[idx].desc;
+    return MKLDNNMemoryDesc(TensorDesc(ie_tdesc.getPrecision(),
+                                       ie_tdesc.getDims()));
 }
 
-InferenceEngine::TensorDesc MKLDNNNode::getConfiguredOutputDesc(const InferenceEngine::LayerConfig& config, size_t idx) const {
-    if (!isUninitTensorDesc(config.outConfs[idx].desc))
+MKLDNNMemoryDesc MKLDNNNode::getConfiguredOutputDesc(const MKLDNNLayoutConfig& config, size_t idx) const {
+    if (!config.outConfs[idx].desc.isUninit())
         return config.outConfs[idx].desc;
 
     int num = getChildEdgeAt(idx)->getOutputNum();
@@ -979,35 +967,36 @@ InferenceEngine::TensorDesc MKLDNNNode::getConfiguredOutputDesc(const InferenceE
 
     if (num >= 0) {
         auto childConf = selectedPD->getConfig().inConfs[num];
-        childConf.desc.setPrecision(config.outConfs[idx].desc.getPrecision());
-        if (isUninitTensorDesc(childConf.desc) && childConf.inPlace >= 0)
+        childConf.desc.setDataType(config.outConfs[idx].desc.getDataType());
+        if (childConf.desc.isUninit() && childConf.inPlace >= 0)
             getChildEdgeAt(idx)->getChild()->initOptimalPrimitiveDescriptor();
         childConf = getChildEdgeAt(idx)->getChild()->getSelectedPrimitiveDescriptor()->getConfig().inConfs[num];
-        if (!isUninitTensorDesc(childConf.desc) &&
+        if (!childConf.desc.isUninit() &&
             MKLDNNExtensionUtils::initTensorsAreEqual(childConf.desc, config.outConfs[idx].desc)) {
             return childConf.desc;
         }
-        if (config.outConfs[idx].desc.getLayout() == InferenceEngine::Layout::ANY &&
-            childConf.desc.getLayout() != InferenceEngine::Layout::ANY) {
-            return InferenceEngine::TensorDesc(childConf.desc.getPrecision(),
-                                               childConf.desc.getDims(), {
-                                                       childConf.desc.getBlockingDesc().getBlockDims(),
-                                                       childConf.desc.getBlockingDesc().getOrder()
-                                               });
+        if (config.outConfs[idx].desc.isUnknown() && childConf.desc.isDefined()) {
+            TensorDesc ie_tdesc = childConf.desc;
+            return MKLDNNMemoryDesc(TensorDesc(ie_tdesc.getPrecision(),
+                                   ie_tdesc.getDims(), {
+                                       ie_tdesc.getBlockingDesc().getBlockDims(),
+                                       ie_tdesc.getBlockingDesc().getOrder()
+                                   }));
         }
     }
 
-    if (config.outConfs[idx].desc.getLayout() != InferenceEngine::Layout::ANY) {
-        return InferenceEngine::TensorDesc(config.outConfs[idx].desc.getPrecision(),
-                                                                config.outConfs[idx].desc.getDims(), {
-                                                                        config.outConfs[idx].desc.getBlockingDesc().getBlockDims(),
-                                                                        config.outConfs[idx].desc.getBlockingDesc().getOrder()
-                                                                });
+    if (config.outConfs[idx].desc.isDefined()) {
+        TensorDesc ie_tdesc = config.outConfs[idx].desc;
+        return MKLDNNMemoryDesc(TensorDesc(ie_tdesc.getPrecision(),
+                                    ie_tdesc.getDims(), {
+                                        ie_tdesc.getBlockingDesc().getBlockDims(),
+                                        ie_tdesc.getBlockingDesc().getOrder()
+                                    }));
     }
 
-    return InferenceEngine::TensorDesc(config.outConfs[idx].desc.getPrecision(),
-                                       config.outConfs[idx].desc.getDims(),
-                                       InferenceEngine::TensorDesc::getLayoutByDims(config.outConfs[idx].desc.getDims()));
+    TensorDesc ie_tdesc = config.outConfs[idx].desc;
+    return MKLDNNMemoryDesc(TensorDesc(ie_tdesc.getPrecision(),
+                                       ie_tdesc.getDims()));
 }
 
 void MKLDNNNode::initOptimalPrimitiveDescriptor() {
@@ -1034,10 +1023,10 @@ void MKLDNNNode::initOptimalPrimitiveDescriptor() {
     }
 }
 
-bool MKLDNNNode::isInitConfig(const InferenceEngine::LayerConfig& config) const {
+bool MKLDNNNode::isInitConfig(const MKLDNNLayoutConfig& config) const {
     for (const auto& configs : {config.inConfs, config.outConfs}) {
         for (const auto &dc : configs) {
-            if (isUninitTensorDesc(dc.desc))
+            if (dc.desc.isUninit())
                 return false;
         }
     }
