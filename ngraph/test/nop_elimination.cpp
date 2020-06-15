@@ -18,6 +18,7 @@
 
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
+#include "ngraph/opsets/opset1.hpp"
 #include "ngraph/pass/manager.hpp"
 #include "ngraph/pass/nop_elimination.hpp"
 #include "util/all_close.hpp"
@@ -726,6 +727,23 @@ TEST(nop_elimination, unsqueeze_reshape_elimination)
     check_usecase(Shape{}, std::vector<int64_t>{0, 1});
     check_usecase(Shape{2, 3, 2}, std::vector<int64_t>{2});
     check_usecase(Shape{1, 6, 2}, std::vector<int64_t>{3});
+}
+
+TEST(nop_elimination, squeeze_unsqueeze_elimination_negative)
+{
+    auto check_usecase = [](const Shape& shape, const std::vector<int64_t>& indices_val) {
+        auto indices = op::Constant::create(element::i64, Shape{indices_val.size()}, indices_val);
+        auto input = make_shared<op::Parameter>(element::f32, shape);
+        auto squeeze = make_shared<ngraph::opset1::Squeeze>(input, indices);
+        auto baseline_f = make_shared<Function>(squeeze, ParameterVector{input});
+        auto optimized_f = clone_function(*baseline_f);
+        EXPECT_TRUE((compare_pass_int<pass::NopElimination, float>(baseline_f, optimized_f)));
+
+        ASSERT_EQ(count_ops_of_type<ngraph::opset1::Squeeze>(baseline_f), 1);
+        ASSERT_EQ(count_ops_of_type<ngraph::opset1::Squeeze>(optimized_f), 1);
+    };
+
+    check_usecase(Shape{1, 1, 1}, std::vector<int64_t>{0, 1, 2});
 }
 
 TEST(nop_elimination, topk_convert_elimination)
