@@ -13,11 +13,8 @@ test::IE_CPU_Engine::IE_CPU_Engine(std::shared_ptr<Function> function)
     const auto cnn_network = InferenceEngine::CNNNetwork(m_function);
     m_network_inputs = cnn_network.getInputsInfo();
     m_network_outputs = cnn_network.getOutputsInfo();
-    // TODO: is just one output supported?
-    m_output_name = cnn_network.getOutputsInfo().begin()->first;
 
     InferenceEngine::Core ie;
-    // TODO: make exe_network a member?
     auto exe_network = ie.LoadNetwork(cnn_network, "CPU");
     m_inference_req = exe_network.CreateInferRequest();
 }

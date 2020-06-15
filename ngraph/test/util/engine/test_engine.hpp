@@ -4,34 +4,59 @@
 #include "../../util/all_close_f.hpp"
 #include "ngraph/function.hpp"
 
+// Builds a class name for a given backend prefix
+// The prefix should come from cmake
+// Example: INTERPRETER -> INTERPRETER_Engine
+// Example: IE_CPU -> IE_CPU_Engine
+#define ENGINE_CLASS_NAME(backend) backend##_Engine
 namespace ngraph
 {
     namespace test
     {
+        // TODO - implement when IE_CPU engine is done
+        class INTERPRETER_Engine
+        {
+        public:
+            INTERPRETER_Engine(std::shared_ptr<Function> function) {}
+            void infer() {}
+            testing::AssertionResult compare_results(const size_t tolerance_bits)
+            {
+                return testing::AssertionSuccess();
+            }
+            template <typename T>
+            void add_input(const Shape& shape, const std::vector<T>& values)
+            {
+            }
+            template <typename T>
+            void add_expected_output(ngraph::Shape expected_shape, const std::vector<T>& values)
+            {
+            }
+        };
+
+        // TODO -inherit from IE_CPU_Engine?
+        using IE_GPU_Engine = INTERPRETER_Engine;
+
         class IE_CPU_Engine
         {
         public:
             IE_CPU_Engine() = delete;
             IE_CPU_Engine(std::shared_ptr<Function> function);
 
-            virtual ~IE_CPU_Engine() noexcept = default;
-
             void infer()
             {
-                // TODO moved from runtime::ie::IE_Executable::call - check if the number of created
-                //      inputs matches input info size
-                // if (input_info.size() != inputs.size())
-                // {
-                //     THROW_IE_EXCEPTION << "Function inputs number differ from number of given
-                //     inputs";
-                // }
-                std::cout << "Running inference with IE_CPU Engine\n";
-                m_inference_req.Infer();
+                if (m_network_inputs.size() != m_allocated_inputs)
+                {
+                    THROW_IE_EXCEPTION << "The tested graph has " << m_network_inputs.size()
+                                       << " inputs, but " << m_allocated_inputs << " were passed.";
+                }
+                else
+                {
+                    m_inference_req.Infer();
+                }
             };
 
-            ::testing::AssertionResult compare_results()
+            testing::AssertionResult compare_results(const size_t tolerance_bits)
             {
-                std::cout << "Comparing results with IE_CPU Engine\n";
                 auto comparison_result = testing::AssertionSuccess();
 
                 for (const auto output : m_network_outputs)
@@ -40,7 +65,7 @@ namespace ngraph
                         InferenceEngine::as<InferenceEngine::MemoryBlob>(
                             m_inference_req.GetBlob(output.first));
 
-                    const auto& expected_output_blob = m_expected_outputs_map[output.first];
+                    const auto& expected_output_blob = m_expected_outputs[output.first];
 
                     // TODO: assert that both blobs have the same precision?
                     const auto& precision = computed_output_blob->getTensorDesc().getPrecision();
@@ -49,13 +74,11 @@ namespace ngraph
                     comparison_result =
                         compare(computed_output_blob, expected_output_blob, precision);
 
-                    if (comparison_result == ::testing::AssertionFailure())
+                    if (comparison_result == testing::AssertionFailure())
                     {
                         break;
                     }
                 }
-
-                std::cout << "Comparisone done\n";
 
                 return comparison_result;
             }
@@ -63,13 +86,13 @@ namespace ngraph
             template <typename T>
             void add_input(const Shape& shape, const std::vector<T>& values)
             {
-                // retrieve the next function parameter which has not been set yet
-                // the params are stored in a vector in the order of creation
+                // Retrieve the next function parameter which has not been set yet.
+                // The params are stored in a vector in the order of their creation.
                 const auto& function_params = m_function->get_parameters();
                 const auto& input_to_allocate = function_params[m_allocated_inputs];
                 // TODO: check if input exists
-                // retrieve the corresponding CNNNetwork input using param's friendly name
-                // here the inputs are stored in the map and are accessible by a string key
+                // Retrieve the corresponding CNNNetwork input using param's friendly name.
+                // Here the inputs are stored in the map and are accessible by a string key.
                 const auto& input_info = m_network_inputs[input_to_allocate->get_friendly_name()];
 
                 auto blob =
@@ -87,7 +110,8 @@ namespace ngraph
             template <typename T>
             void add_expected_output(ngraph::Shape expected_shape, const std::vector<T>& values)
             {
-                const auto& function_output = m_function->get_results()[m_expected_outputs];
+                const auto& function_output =
+                    m_function->get_results()[m_allocated_expected_outputs];
                 // TODO: assert that function_output->get_friendly_name() is in network outputs
                 const auto output_info = m_network_outputs[function_output->get_friendly_name()];
                 auto blob =
@@ -97,27 +121,9 @@ namespace ngraph
                 // TODO: assert blob->size() == values.size() ?
                 std::copy(values.begin(), values.end(), blob_buffer);
 
-                m_expected_outputs_map.emplace(function_output->get_friendly_name(), blob);
+                m_expected_outputs.emplace(function_output->get_friendly_name(), blob);
 
-                ++m_expected_outputs;
-            }
-
-            template <typename T>
-            std::vector<T> output_data()
-            {
-                InferenceEngine::MemoryBlob::CPtr output_blob =
-                    InferenceEngine::as<InferenceEngine::MemoryBlob>(
-                        m_inference_req.GetBlob(m_output_name));
-
-                if (!output_blob)
-                {
-                    THROW_IE_EXCEPTION << "Cannot retrieve output MemoryBlob for output: "
-                                       << m_output_name;
-                }
-
-                const T* output_buffer = output_blob->rmap().template as<const T*>();
-
-                return std::vector<T>(output_buffer, output_buffer + output_blob->size());
+                ++m_allocated_expected_outputs;
             }
 
         private:
@@ -125,22 +131,19 @@ namespace ngraph
             InferenceEngine::InputsDataMap m_network_inputs;
             InferenceEngine::OutputsDataMap m_network_outputs;
             InferenceEngine::InferRequest m_inference_req;
-            std::map<std::string, InferenceEngine::MemoryBlob::Ptr> m_expected_outputs_map;
+            std::map<std::string, InferenceEngine::MemoryBlob::Ptr> m_expected_outputs;
             std::string m_output_name;
             unsigned int m_allocated_inputs = 0;
-            unsigned int m_expected_outputs = 0;
+            unsigned int m_allocated_expected_outputs = 0;
 
             std::shared_ptr<Function>
                 upgrade_and_validate_function(std::shared_ptr<Function> function) const;
 
             std::set<NodeTypeInfo> get_ie_ops() const;
 
-            // using blob_comparator_t = std::function<::testing::AssertionResult(
-            //     const InferenceEngine::MemoryBlob::CPtr, const
-            //     InferenceEngine::MemoryBlob::CPtr)>;
-
             template <typename T>
-            ::testing::AssertionResult
+            typename std::enable_if<std::is_floating_point<T>::value,
+                                    testing::AssertionResult>::type
                 values_match(InferenceEngine::MemoryBlob::CPtr computed,
                              InferenceEngine::MemoryBlob::CPtr expected) const
             {
@@ -159,9 +162,9 @@ namespace ngraph
                     expected_values, computed_values, DEFAULT_FLOAT_TOLERANCE_BITS);
             }
 
-            ::testing::AssertionResult compare(InferenceEngine::MemoryBlob::CPtr computed,
-                                               InferenceEngine::MemoryBlob::CPtr expected,
-                                               const InferenceEngine::Precision& precision) const
+            testing::AssertionResult compare(InferenceEngine::MemoryBlob::CPtr computed,
+                                             InferenceEngine::MemoryBlob::CPtr expected,
+                                             const InferenceEngine::Precision& precision) const
             {
                 switch (static_cast<InferenceEngine::Precision::ePrecision>(precision))
                 {
@@ -172,9 +175,5 @@ namespace ngraph
                 }
             }
         };
-
-        // TODO: implement afterwards
-        using INTERPRETER_Engine = IE_CPU_Engine;
-        using IE_GPU_Engine = IE_CPU_Engine;
     }
 }

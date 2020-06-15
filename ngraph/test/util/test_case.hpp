@@ -190,13 +190,12 @@ namespace ngraph
                 add_expected_output<T>(expected_shape, value);
             }
 
-            virtual ::testing::AssertionResult
-                run(size_t tolerance_bits = DEFAULT_FLOAT_TOLERANCE_BITS);
+            testing::AssertionResult run(size_t tolerance_bits = DEFAULT_FLOAT_TOLERANCE_BITS);
 
         private:
             template <typename T>
             typename std::enable_if<std::is_floating_point<T>::value,
-                                    ::testing::AssertionResult>::type
+                                    testing::AssertionResult>::type
                 compare_values(const std::shared_ptr<ngraph::op::Constant>& expected_results,
                                const std::shared_ptr<ngraph::runtime::Tensor>& results)
             {
@@ -212,7 +211,7 @@ namespace ngraph
             }
 
             template <typename T>
-            typename std::enable_if<std::is_integral<T>::value, ::testing::AssertionResult>::type
+            typename std::enable_if<std::is_integral<T>::value, testing::AssertionResult>::type
                 compare_values(const std::shared_ptr<ngraph::op::Constant>& expected_results,
                                const std::shared_ptr<ngraph::runtime::Tensor>& results)
             {
@@ -229,7 +228,7 @@ namespace ngraph
 
             // used for float16 and bfloat 16 comparisons
             template <typename T>
-            typename std::enable_if<std::is_class<T>::value, ::testing::AssertionResult>::type
+            typename std::enable_if<std::is_class<T>::value, testing::AssertionResult>::type
                 compare_values(const std::shared_ptr<ngraph::op::Constant>& expected_results,
                                const std::shared_ptr<ngraph::runtime::Tensor>& results)
             {
@@ -255,7 +254,7 @@ namespace ngraph
                 return ngraph::test::all_close_f(expected_double, result_double, m_tolerance_bits);
             }
 
-            using value_comparator_function = std::function<::testing::AssertionResult(
+            using value_comparator_function = std::function<testing::AssertionResult(
                 const std::shared_ptr<ngraph::op::Constant>&,
                 const std::shared_ptr<ngraph::runtime::Tensor>&)>;
 
@@ -316,7 +315,12 @@ namespace ngraph
 
                 const auto& input_pshape = params.at(m_input_index)->get_partial_shape();
                 NGRAPH_CHECK(input_pshape.compatible(shape),
-                             "Passed input shape is not compatible with nGraph function.");
+                             "Provided input shape ",
+                             shape,
+                             " is not compatible with nGraph function's expected input shape ",
+                             input_pshape,
+                             " for input ",
+                             m_input_index);
 
                 m_engine.add_input<T>(shape, values);
 
@@ -328,9 +332,12 @@ namespace ngraph
             {
                 const auto& input_pshape =
                     m_function->get_parameters().at(m_input_index)->get_partial_shape();
+
                 NGRAPH_CHECK(input_pshape.is_static(),
-                             "Input data shape must be provided, if shape defined in Functions is "
-                             "not fully known.");
+                             "Input number ",
+                             m_input_index,
+                             " in the tested graph has dynamic shape. You need to provide ",
+                             "shape information when setting values for this input.");
 
                 add_input<T>(input_pshape.to_shape(), values);
             }
@@ -346,28 +353,25 @@ namespace ngraph
                 auto function_output_type = results.at(m_output_index)->get_element_type();
 
                 const auto& output_pshape = results.at(m_output_index)->get_output_partial_shape(0);
-                NGRAPH_CHECK(
-                    output_pshape.compatible(expected_shape),
-                    "nGraph function generated an unexpected output shape. Expected shape: ",
-                    expected_shape,
-                    " Output shape: ",
-                    output_pshape);
+                NGRAPH_CHECK(output_pshape.compatible(expected_shape),
+                             "Provided expected output shape ",
+                             expected_shape,
+                             " is not compatible with nGraph function's output shape ",
+                             output_pshape,
+                             " for output ",
+                             m_output_index);
 
                 m_engine.add_expected_output<T>(expected_shape, values);
 
                 ++m_output_index;
             }
 
-            ::testing::AssertionResult
-                run(size_t tolerance_bits = DEFAULT_FLOAT_TOLERANCE_BITS)
+            testing::AssertionResult run(const size_t tolerance_bits = DEFAULT_FLOAT_TOLERANCE_BITS)
             {
-                std::cout << "Running TestCase\n";
                 m_engine.infer();
-                const auto res = m_engine.compare_results();
+                const auto res = m_engine.compare_results(tolerance_bits);
                 EXPECT_EQ(res, testing::AssertionSuccess());
-                // const auto results = m_engine.template output_data<float>();
-                // EXPECT_TRUE(results.size() > 0);
-                // return ::testing::AssertionSuccess();
+                return res;
             }
 
         private:
