@@ -14,9 +14,9 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include "resize.hpp"
 #include "default_opset.hpp"
 #include "exceptions.hpp"
+#include "resize.hpp"
 
 namespace ngraph
 {
@@ -24,18 +24,10 @@ namespace ngraph
     {
         namespace op
         {
-            namespace set_1
+            namespace
             {
-                NodeVector upsample(const onnx_import::Node& node)
+                bool check_mode_support(const onnx_import::Node& node, const std::string mode)
                 {
-                    const auto inputs = node.get_ng_inputs();
-                    const auto data = inputs.at(0);
-
-                    const auto data_shape = data->get_output_partial_shape(0);
-
-                    const auto mode = node.get_attribute_value<std::string>("mode", "nearest");
-                    const auto scales = node.get_attribute_value<std::vector<float>>("scales", {});
-
                     std::unordered_set<std::string> supported_modes = {"nearest", "linear"};
                     bool is_mode_supported =
                         (std::find(supported_modes.begin(), supported_modes.end(), mode) !=
@@ -55,6 +47,22 @@ namespace ngraph
                                          " Choose one of the following modes: ",
                                          supported_modes_str);
                     }
+                    return is_mode_supported;
+                }
+            }
+
+            namespace set_1
+            {
+                NodeVector upsample(const onnx_import::Node& node)
+                {
+                    const auto inputs = node.get_ng_inputs();
+                    const auto data = inputs.at(0);
+
+                    const auto data_shape = data->get_output_partial_shape(0);
+
+                    const auto scales = node.get_attribute_value<std::vector<float>>("scales");
+                    const auto mode = node.get_attribute_value<std::string>("mode", "nearest");
+                    check_mode_support(node, mode);
 
                     size_t axes_size = scales.size();
 
@@ -86,7 +94,8 @@ namespace ngraph
                             data, output_shape_const, attrs)};
                     }
 
-                    const auto scales_const = default_opset::Constant::create(ngraph::element::f32, Shape({scales.size()}), scales);
+                    const auto scales_const = default_opset::Constant::create(
+                        ngraph::element::f32, Shape({scales.size()}), scales);
 
                     auto shape_of_data = std::make_shared<default_opset::Convert>(
                         std::make_shared<default_opset::ShapeOf>(data), ngraph::element::f32);
@@ -99,7 +108,7 @@ namespace ngraph
                 }
 
             } // namespace set_1
-            
+
             namespace set_9
             {
                 NodeVector upsample(const onnx_import::Node& node)
@@ -112,26 +121,7 @@ namespace ngraph
                     const auto scales_shape = scales->get_output_partial_shape(0);
 
                     const auto mode = node.get_attribute_value<std::string>("mode", "nearest");
-
-                    std::unordered_set<std::string> supported_modes = {"nearest", "linear"};
-                    bool is_mode_supported =
-                        (std::find(supported_modes.begin(), supported_modes.end(), mode) !=
-                         supported_modes.end());
-
-                    if (!is_mode_supported)
-                    {
-                        std::string supported_modes_str = "";
-                        for (const auto& mode_name : supported_modes)
-                        {
-                            supported_modes_str += (mode_name + ", ");
-                        }
-                        CHECK_VALID_NODE(node,
-                                         is_mode_supported,
-                                         mode,
-                                         " - this type of interpolation mode is not supported."
-                                         " Choose one of the following modes: ",
-                                         supported_modes_str);
-                    }
+                    check_mode_support(node, mode);
 
                     CHECK_VALID_NODE(
                         node,
