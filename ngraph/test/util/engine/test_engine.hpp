@@ -1,6 +1,7 @@
 #pragma once
 
 #include <ie_core.hpp>
+#include "../../util/all_close.hpp"
 #include "../../util/all_close_f.hpp"
 #include "ngraph/function.hpp"
 
@@ -55,7 +56,8 @@ namespace ngraph
                 }
             };
 
-            testing::AssertionResult compare_results(const size_t tolerance_bits)
+            testing::AssertionResult
+                compare_results(const size_t tolerance_bits = DEFAULT_FLOAT_TOLERANCE_BITS)
             {
                 auto comparison_result = testing::AssertionSuccess();
 
@@ -71,8 +73,8 @@ namespace ngraph
                     const auto& precision = computed_output_blob->getTensorDesc().getPrecision();
 
                     // TODO: assert that both blobs have the same number of elements?
-                    comparison_result =
-                        compare(computed_output_blob, expected_output_blob, precision);
+                    comparison_result = compare_blobs(
+                        computed_output_blob, expected_output_blob, precision, tolerance_bits);
 
                     if (comparison_result == testing::AssertionFailure())
                     {
@@ -141,38 +143,86 @@ namespace ngraph
 
             std::set<NodeTypeInfo> get_ie_ops() const;
 
-            template <typename T>
-            typename std::enable_if<std::is_floating_point<T>::value,
-                                    testing::AssertionResult>::type
-                values_match(InferenceEngine::MemoryBlob::CPtr computed,
-                             InferenceEngine::MemoryBlob::CPtr expected) const
-            {
-                const auto computed_data = computed->rmap();
-                const auto expected_data = expected->rmap();
-
-                const auto* computed_data_buffer = computed_data.template as<T*>();
-                const auto* expected_data_buffer = computed_data.template as<T*>();
-
-                const std::vector<T> computed_values(computed_data_buffer,
-                                                     computed_data_buffer + computed->size());
-                const std::vector<T> expected_values(expected_data_buffer,
-                                                     expected_data_buffer + computed->size());
-
-                return ngraph::test::all_close_f(
-                    expected_values, computed_values, DEFAULT_FLOAT_TOLERANCE_BITS);
-            }
-
-            testing::AssertionResult compare(InferenceEngine::MemoryBlob::CPtr computed,
+            testing::AssertionResult compare_blobs(InferenceEngine::MemoryBlob::CPtr computed,
                                              InferenceEngine::MemoryBlob::CPtr expected,
-                                             const InferenceEngine::Precision& precision) const
+                                             const InferenceEngine::Precision& precision,
+                                             const size_t tolerance_bits) const
             {
                 switch (static_cast<InferenceEngine::Precision::ePrecision>(precision))
                 {
                 case InferenceEngine::Precision::FP32:
-                    return values_match<float>(computed, expected);
+                    return compare_blobs<float>(computed, expected, tolerance_bits);
+                    break;
+                case InferenceEngine::Precision::I8:
+                    return compare_blobs<int8_t>(computed, expected, tolerance_bits);
+                    break;
+                case InferenceEngine::Precision::I16:
+                    return compare_blobs<int8_t>(computed, expected, tolerance_bits);
+                    break;
+                case InferenceEngine::Precision::I32:
+                    return compare_blobs<int16_t>(computed, expected, tolerance_bits);
+                    break;
+                case InferenceEngine::Precision::I64:
+                    return compare_blobs<int64_t>(computed, expected, tolerance_bits);
+                    break;
+                case InferenceEngine::Precision::U8:
+                    return compare_blobs<uint8_t>(computed, expected, tolerance_bits);
+                    break;
+                case InferenceEngine::Precision::U16:
+                    return compare_blobs<uint16_t>(computed, expected, tolerance_bits);
+                    break;
+                case InferenceEngine::Precision::U64:
+                    return compare_blobs<uint64_t>(computed, expected, tolerance_bits);
+                    break;
+                case InferenceEngine::Precision::BOOL:
+                    return compare_blobs<uint8_t>(computed, expected, tolerance_bits);
                     break;
                 default: THROW_IE_EXCEPTION << "Not implemented yet";
                 }
+            }
+
+            template <typename T>
+            typename std::enable_if<std::is_floating_point<T>::value,
+                                    testing::AssertionResult>::type
+                compare_blobs(InferenceEngine::MemoryBlob::CPtr computed,
+                              InferenceEngine::MemoryBlob::CPtr expected,
+                              const size_t tolerance_bits) const
+            {
+                const auto test_results = extract_test_results<T>(computed, expected);
+
+                return ngraph::test::all_close_f(
+                    test_results.first, test_results.second, tolerance_bits);
+            }
+
+            template <typename T>
+            typename std::enable_if<std::is_integral<T>::value, testing::AssertionResult>::type
+                compare_blobs(InferenceEngine::MemoryBlob::CPtr computed,
+                              InferenceEngine::MemoryBlob::CPtr expected,
+                              const size_t tolerance_bits) const
+            {
+                const auto test_results = extract_test_results<T>(computed, expected);
+
+                return ngraph::test::all_close<T>(
+                    test_results.first, test_results.second, tolerance_bits);
+            }
+
+            template <typename T>
+            std::pair<std::vector<T>, std::vector<T>>
+                extract_test_results(InferenceEngine::MemoryBlob::CPtr computed,
+                                     InferenceEngine::MemoryBlob::CPtr expected) const
+            {
+                const auto computed_data = computed->rmap();
+                const auto expected_data = expected->rmap();
+
+                const auto* computed_data_buffer = computed_data.template as<const T*>();
+                const auto* expected_data_buffer = computed_data.template as<const T*>();
+
+                std::vector<T> computed_values(computed_data_buffer,
+                                               computed_data_buffer + computed->size());
+                std::vector<T> expected_values(expected_data_buffer,
+                                               expected_data_buffer + computed->size());
+
+                return std::make_pair(std::move(computed_values), std::move(expected_values));
             }
         };
     }
