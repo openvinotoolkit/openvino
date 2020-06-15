@@ -1235,29 +1235,6 @@ cdef class InferRequest:
             self.input_blobs[k].buffer[:] = v
 
 
-## Layer calibration statistic container.
-class LayerStats:
-
-    ## Class constructor
-    #
-    #  @param min: Tuple with per-channel minimum layer activation values
-    #  @param max: Tuple with per-channel maximum layer activation values
-    #  @return An instance of LayerStats class
-    def __init__(self, min: tuple = (), max: tuple = ()):
-        self._min = min
-        self._max = max
-
-    ## Tuple with per-channel minimum layer activation values
-    @property
-    def min(self):
-        return self._min
-
-    ## Tuple with per-channel maximum layer activation values
-    @property
-    def max(self):
-        return self._max
-
-
 ## This class represents a main layer information and providing setters allowing to modify layer properties
 cdef class IENetLayer:
     ## Name of the layer

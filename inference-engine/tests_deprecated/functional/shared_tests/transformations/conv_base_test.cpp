@@ -76,7 +76,7 @@ std::string ConvolutionBaseTestModel::getModel(SingleLayerTransformationsTestPar
             &fake_quantize_params,
             { {weightsConstInputDims, {1}, {1}, {1}, {1}}, {{weightsConstInputDims}} },
             "fakeQuantizeOnWeights")
-        .convolutionLayer(p._network_precision, { convolutionDims, {convOutShape} }, conv, {}, "Convolution");
+        .convolutionLayer(p._network_precision, { convolutionDims, {convOutShape} }, conv, "Convolution");
 
     if (addBiasesLayer) {
         builder.addLayer("Const", p._network_precision, &const_params, { {}, {biasesConvolutionConstDims} }, type_size * conv.out_c, "biasesConst");

@@ -57,9 +57,6 @@ cdef class IEPlugin:
     cpdef void set_initial_affinity(self, IENetwork network) except *
     cpdef set get_supported_layers(self, IENetwork net)
 
-cdef class LayersStatsMap(dict):
-    cdef C.IENetwork net_impl
-
 cdef class IECore:
     cdef C.IECore impl
     cpdef IENetwork read_network(self, model : [str, bytes, Path], weights : [str, bytes, Path] = ?, bool init_from_buffer = ?)

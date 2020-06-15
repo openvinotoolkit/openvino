@@ -311,8 +311,7 @@ public:
         }
         int weights_size = getConvWeightsSize(inout.inDims[0], conv_params, precision);
         int biases_size = getConvBiasesSize(conv_params, precision);
-        return addLayer("Convolution", precision, &params, inout, weights_size, biases_size, "convolution_data", "",
-                        name);
+        return addLayer("Convolution", precision, &params, inout, weights_size, biases_size, "convolution_data", "", name);
     }
 
     XmlNetBuilder &poolingLayer(
@@ -409,7 +408,7 @@ public:
             std::map<std::string, std::string> *params,
             InOutShapes inout,
             const std::string &name) {
-        return addLayer(type, precision, params, inout, 0, 0, "data", "", {}, name);
+        return addLayer(type, precision, params, inout, 0, 0, "data", "", name);
     }
 
     XmlNetBuilder &addLayer(
@@ -419,7 +418,7 @@ public:
             InOutShapes inout,
             int weightsSize,
             const std::string &name) {
-        return addLayer(type, precision, params, inout, weightsSize, 0, "data", "", {}, name);
+        return addLayer(type, precision, params, inout, weightsSize, 0, "data", "", name);
     }
 
     XmlNetBuilder &addLayer(const std::string &type,
