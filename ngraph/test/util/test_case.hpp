@@ -298,16 +298,14 @@ namespace ngraph
         };
 
         template <typename Engine>
-        class TestCase : public NgraphTestCase
+        class TestCase
         {
         public:
             TestCase(const std::shared_ptr<Function>& function)
-                : NgraphTestCase{function}
+                : m_function{function}
                 , m_engine{function}
             {
             }
-
-            virtual ~TestCase() noexcept = default;
 
             template <typename T>
             void add_input(const Shape& shape, const std::vector<T>& values)
@@ -361,7 +359,7 @@ namespace ngraph
             }
 
             ::testing::AssertionResult
-                run(size_t tolerance_bits = DEFAULT_FLOAT_TOLERANCE_BITS) override
+                run(size_t tolerance_bits = DEFAULT_FLOAT_TOLERANCE_BITS)
             {
                 std::cout << "Running TestCase\n";
                 m_engine.infer();
@@ -374,6 +372,9 @@ namespace ngraph
 
         private:
             Engine m_engine;
+            std::shared_ptr<Function> m_function;
+            size_t m_input_index = 0;
+            size_t m_output_index = 0;
         };
     }
 }
