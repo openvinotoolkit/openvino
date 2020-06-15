@@ -217,7 +217,7 @@ jobs:
   timeoutInMinutes: 120
   pool:
     #vmImage: 'vs2017-win2016'
-    name: WIN_VMSS_VENV_F8S_WU2
+    name: WIN_VMSS_VENV_F8S_WE
   variables:
     BUILD_TYPE: Release
     BUILD_DIR: D:\dldt-build
@@ -237,6 +237,10 @@ jobs:
       certutil -urlcache -split -f https://github.com/ninja-build/ninja/releases/download/v1.10.0/ninja-win.zip ninja-win.zip
       powershell -command "Expand-Archive -Force ninja-win.zip"
     displayName: Install Ninja
+  - script: |
+      certutil -urlcache -split -f https://ibstatic.blob.core.windows.net/ibstaticblob/IBSetupConsole.exe IBSetupConsole.9.4.5.exe
+      call c:\IBSetupConsole.9.4.5.exe /Install /Components=Agent,oneuse /Coordinator=10.2.0.4 /AGENT:OPENFIREWALL=ON /AGENT:AUTOSELECTPORTS=ON  /ADDTOPATH=ON /AGENT:INSTALLADDINS=OFF
+    displayName: Install IncrediBuild
   - script: git submodule update --init --recursive --jobs 8
     displayName: 'Clone submodules'
   - script: |
