@@ -26,8 +26,15 @@ void ngraph::pass::ConvertExtractImagePatchesToReorgYolo::convert_extract_image_
             return false;
         }
 
-        auto input_shape = extract_image_patches->get_input_shape(0);
+        auto p_shape_input = extract_image_patches->get_input_partial_shape(0);
         auto strides = extract_image_patches->get_strides();
+
+        // Check that ExtractImagePatches input have static shape
+        if (p_shape_input[2].is_dynamic() && p_shape_input[3].is_dynamic()) {
+            return false;
+        }
+
+        auto input_shape = p_shape_input.get_shape();
 
         if (input_shape[2] % strides[0] != 0 || input_shape[3] % strides[1] != 0) {
             return false;
