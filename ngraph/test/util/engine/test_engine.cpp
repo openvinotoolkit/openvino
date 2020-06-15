@@ -7,7 +7,8 @@
 
 using namespace ngraph;
 
-test::IE_CPU_Engine::IE_CPU_Engine(const std::shared_ptr<Function> function) : m_function{function}
+test::IE_CPU_Engine::IE_CPU_Engine(const std::shared_ptr<Function> function)
+    : m_function{function}
 {
     upgrade_and_validate_function(m_function);
     const auto cnn_network = InferenceEngine::CNNNetwork(m_function);
@@ -19,8 +20,8 @@ test::IE_CPU_Engine::IE_CPU_Engine(const std::shared_ptr<Function> function) : m
     m_inference_req = exe_network.CreateInferRequest();
 }
 
-std::shared_ptr<Function>
-    test::IE_CPU_Engine::upgrade_and_validate_function(const std::shared_ptr<Function> function) const
+std::shared_ptr<Function> test::IE_CPU_Engine::upgrade_and_validate_function(
+    const std::shared_ptr<Function> function) const
 {
     pass::Manager passes;
     passes.register_pass<pass::Opset1Upgrade>();
@@ -38,8 +39,8 @@ std::shared_ptr<Function>
             }
             else
             {
-                std::cout << "UNSUPPORTED OP DETECTED: " << node->get_type_info().name << std::endl;
-                THROW_IE_EXCEPTION << "Detected op not belonging to opset1!";
+                THROW_IE_EXCEPTION << "Unsupported operator detected in the graph: "
+                                   << node->get_type_info().name;
             }
         }
     }

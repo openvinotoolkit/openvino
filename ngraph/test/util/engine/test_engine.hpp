@@ -71,12 +71,8 @@ namespace ngraph
 
                     const auto& expected_output_blob = m_expected_outputs[output.first];
 
-                    // TODO: assert that both blobs have the same precision?
-                    const auto& precision = computed_output_blob->getTensorDesc().getPrecision();
-
-                    // TODO: assert that both blobs have the same number of elements?
-                    comparison_result = compare_blobs(
-                        computed_output_blob, expected_output_blob, precision, tolerance_bits);
+                    comparison_result =
+                        compare_blobs(computed_output_blob, expected_output_blob, tolerance_bits);
 
                     if (comparison_result == testing::AssertionFailure())
                     {
@@ -94,7 +90,14 @@ namespace ngraph
                 // The params are stored in a vector in the order of their creation.
                 const auto& function_params = m_function->get_parameters();
                 const auto& input_to_allocate = function_params[m_allocated_inputs];
-                // TODO: check if input exists
+
+                NGRAPH_CHECK(
+                    m_network_inputs.count(input_to_allocate->get_friendly_name()) == 1,
+                    "nGraph function's input number ",
+                    m_allocated_inputs,
+                    " was not found in the CNNNetwork built from it. Function's input name: ",
+                    input_to_allocate->get_friendly_name());
+
                 // Retrieve the corresponding CNNNetwork input using param's friendly name.
                 // Here the inputs are stored in the map and are accessible by a string key.
                 const auto& input_info = m_network_inputs[input_to_allocate->get_friendly_name()];
@@ -103,7 +106,16 @@ namespace ngraph
                     std::make_shared<InferenceEngine::TBlob<T>>(input_info->getTensorDesc());
                 blob->allocate();
                 auto* blob_buffer = blob->wmap().template as<T*>();
-                // TODO: assert blob->size() == values.size() ?
+
+                NGRAPH_CHECK(blob->size() == values.size(),
+                             "The allocated blob for input '",
+                             input_to_allocate->get_friendly_name(),
+                             " ' expects ",
+                             blob->size(),
+                             " elements while ",
+                             values.size(),
+                             " were provided.");
+
                 std::copy(values.begin(), values.end(), blob_buffer);
 
                 m_inference_req.SetBlob(input_to_allocate->get_friendly_name(), blob);
@@ -117,13 +129,29 @@ namespace ngraph
             {
                 const auto& function_output =
                     m_function->get_results()[m_allocated_expected_outputs];
-                // TODO: assert that function_output->get_friendly_name() is in network outputs
+
+                NGRAPH_CHECK(
+                    m_network_outputs.count(function_output->get_friendly_name()) == 1,
+                    "nGraph function's output number ",
+                    m_allocated_expected_outputs,
+                    " was not found in the CNNNetwork built from it. Function's output name: ",
+                    function_output->get_friendly_name());
+
                 const auto output_info = m_network_outputs[function_output->get_friendly_name()];
                 auto blob =
                     std::make_shared<InferenceEngine::TBlob<T>>(output_info->getTensorDesc());
                 blob->allocate();
                 auto* blob_buffer = blob->wmap().template as<T*>();
-                // TODO: assert blob->size() == values.size() ?
+
+                NGRAPH_CHECK(blob->size() == values.size(),
+                             "The allocated blob for output '",
+                             function_output->get_friendly_name(),
+                             " ' expects ",
+                             blob->size(),
+                             " elements while ",
+                             values.size(),
+                             " were provided.");
+
                 std::copy(values.begin(), values.end(), blob_buffer);
 
                 m_expected_outputs.emplace(function_output->get_friendly_name(), blob);
@@ -140,17 +168,29 @@ namespace ngraph
             unsigned int m_allocated_inputs = 0;
             unsigned int m_allocated_expected_outputs = 0;
 
+            /// Upgrades functions containing legacy opset0 to opset1
+            /// and checks if the graph can be executed
             std::shared_ptr<Function>
                 upgrade_and_validate_function(const std::shared_ptr<Function> function) const;
 
+            /// Retrieves a set of all ops IE can execute
             std::set<NodeTypeInfo> get_ie_ops() const;
 
+            ///
             testing::AssertionResult compare_blobs(InferenceEngine::MemoryBlob::CPtr computed,
                                                    InferenceEngine::MemoryBlob::CPtr expected,
-                                                   const InferenceEngine::Precision& precision,
                                                    const size_t tolerance_bits) const
             {
-                switch (static_cast<InferenceEngine::Precision::ePrecision>(precision))
+                const auto& computed_precision = computed->getTensorDesc().getPrecision();
+                const auto& expected_precision = expected->getTensorDesc().getPrecision();
+
+                if (computed_precision != expected_precision)
+                {
+                    return testing::AssertionFailure();
+                }
+
+                // TODO: double check if all supported types are handled
+                switch (static_cast<InferenceEngine::Precision::ePrecision>(computed_precision))
                 {
                 case InferenceEngine::Precision::FP32:
                     return compare_blobs<float>(computed, expected, tolerance_bits);
