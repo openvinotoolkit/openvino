@@ -462,10 +462,10 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_global_lp_pool_p3)
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_convtranspose_output_shape)
 {
-    auto conv_transpose_fn = onnx_import::import_onnx_model(
+    auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/convtranspose_output_shape.prototxt"));
 
-    auto test_case = ngraph::test::NgraphTestCase(conv_transpose_fn, "${BACKEND_NAME}");
+    auto test_case = test::TestCase<TestEngine_t>(function);
 
     test_case.add_input_from_file<float>(TEST_FILES, "onnx/convtranspose_output_shape/x.bin");
     test_case.add_input_from_file<float>(TEST_FILES, "onnx/convtranspose_output_shape/w.bin");

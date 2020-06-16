@@ -257,7 +257,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_quant_conv_linear_2d)
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/qlinear_conv_2d.prototxt"));
 
-    auto test_case = ngraph::test::NgraphTestCase(function, "${BACKEND_NAME}");
+    auto test_case = test::TestCase<TestEngine_t>(function);
 
     test_case.add_input_from_file<uint8_t>(TEST_FILES, "onnx/qlinearconv2d/x.bin");
     test_case.add_input(std::vector<float>{0.00369204697199166f}); // x_scale
@@ -278,7 +278,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_quant_conv_linear_3d)
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/qlinear_conv_3d.prototxt"));
 
-    auto test_case = ngraph::test::NgraphTestCase(function, "${BACKEND_NAME}");
+    auto test_case = test::TestCase<TestEngine_t>(function);
 
     test_case.add_input_from_file<uint8_t>(TEST_FILES, "onnx/qlinearconv3d/x.bin");
     test_case.add_input(std::vector<float>{0.00389225385151803f}); // x_scale
