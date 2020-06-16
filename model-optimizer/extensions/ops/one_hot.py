@@ -17,6 +17,7 @@ import numpy as np
 
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
+from mo.utils.error import Error
 
 
 class OneHot(Op):
@@ -35,14 +36,15 @@ class OneHot(Op):
             'out_ports_count': 1,
             'in_ports_count': 4,
             'data_type': None,
-            'force_precision_in_ports': {1: 'int64'} if not graph.graph['cmd_params'].generate_deprecated_IR_V7 else None,
+            'force_precision_in_ports': {1: 'int64'} if not graph.graph[
+                'cmd_params'].generate_deprecated_IR_V7 else None,
             'type_infer': self.type_infer,
         }
         super().__init__(graph, mandatory_props, attrs)
 
     def supported_attrs(self):
         if self.ir_version < 10:
-            return ['axis', 'on_value', 'off_value', 'depth',]
+            return ['axis', 'on_value', 'off_value', 'depth', ]
         else:
             return ['axis']
 
@@ -51,14 +53,15 @@ class OneHot(Op):
         indices_shape = node.in_port(0).data.get_shape()
         assert indices_shape is not None
         dim = indices_shape.size
+        node_name = node.soft_get('name', node.id)
 
         if node.in_port(1).disconnected():  # IR v7 version
-            assert node.has_valid('depth'), 'The node "{}" must have attribute "depth"'.format(node.name)
+            assert node.has_valid('depth'), 'The node "{}" must have attribute "depth"'.format(node_name)
             depth = node.depth
         else:
-            assert_msg = "OneHot `{0}` ({1} input port value) should be scalar: node: `{2}`, {0} value: `{3}`"
+            assert_msg = "OneHot `{0}` (1 input port value) should be scalar: node: `{1}`, {0} value: `{2}`"
             depth = node.in_port(1).data.get_value()
-            assert depth is not None and depth.ndim == 0, assert_msg.format('depth', '1', node.name, depth)
+            assert depth is not None and depth.size == 1, assert_msg.format('depth', node_name, depth)
             depth = depth.item(0)
 
         assert node.has_valid('axis')
