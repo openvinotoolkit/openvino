@@ -26,6 +26,7 @@ public:
     virtual ~FakeQuantizeOnData();
 
     bool isSigned() const;
+    virtual bool empty() const;
 
     size_t quantizationLevel;
     ngraph::Shape constantShape;

@@ -24,6 +24,8 @@ public:
         const std::vector<float>& highValues);
 
     virtual ~FakeQuantizeOnWeights();
+
+    bool empty() const override;
 };
 
 inline std::ostream& operator<<(std::ostream& out, const FakeQuantizeOnWeights& data) {
