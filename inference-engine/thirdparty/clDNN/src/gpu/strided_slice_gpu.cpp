@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2019 Intel Corporation
+// Copyright (c) 2019-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -68,14 +68,29 @@ public:
         // If the ith bit of end_mask is not set, end[i] is ignored and the fullest possible range in that dimension is used
         // instead.
         vector_assign_if_not_mask(params.striding_params[1], out_shape, params.end_mask);
-
         for (size_t dim = 0; dim < params.striding_params[2].size(); dim++) {
-            auto begin = params.striding_params[0][dim] < 0 ? out_shape[dim] + params.striding_params[0][dim] : params.striding_params[0][dim];
-            auto end = params.striding_params[1][dim] < 0 ? out_shape[dim] + params.striding_params[1][dim] : params.striding_params[1][dim];
-            auto stride = params.striding_params[2][dim];
-            if (stride < 0 && (end > begin)) {
-                std::swap(params.striding_params[0][dim], params.striding_params[1][dim]);
-                params.striding_params[0][dim] = params.striding_params[0][dim] - 1;
+            if (params.striding_params[0][dim] < 0)
+                params.striding_params[0][dim] = std::max(out_shape[dim] + params.striding_params[0][dim], (int32_t)0);
+            if (params.striding_params[1][dim] < 0)
+                params.striding_params[1][dim] = std::max(out_shape[dim] + params.striding_params[1][dim], (int32_t)0);
+
+            params.striding_params[0][dim] = std::min(params.striding_params[0][dim], out_shape[dim]);
+            params.striding_params[1][dim] = std::min(params.striding_params[1][dim], out_shape[dim]);
+
+            auto& begin = params.striding_params[0][dim];
+            auto& end = params.striding_params[1][dim];
+            auto& stride = params.striding_params[2][dim];
+            bool is_reverse = stride < 0;
+            // If begin > end && is_reverse, then we don't need to adjust begin/end values, the kernel will process it correctly
+            // If begin <= end, then we swap begin/end values and subtruct 1 from each of them
+            // E.g. out_shape[dim] = 100; begin=0; end=100; stride=-1
+            // swap: begin=100; end=0;
+            // sub: begin=99; end=-1;
+            // So the kernel will put the slices [99, 0] in reversed order as expected.
+            if (is_reverse && begin <= end) {
+                std::swap(begin, end);
+                begin--;
+                end--;
             }
         }
 
