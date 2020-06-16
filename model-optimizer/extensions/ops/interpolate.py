@@ -14,6 +14,8 @@
  limitations under the License.
 """
 
+import numpy as np
+
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op, PermuteAttrs
 
@@ -45,10 +47,26 @@ class Interpolate(Op):
         super().__init__(graph, mandatory_props, attrs)
 
     def supported_attrs(self):
-        return [
-            ('axes', lambda node: ','.join(map(str, node.axes))),
-            'mode', 'align_corners', 'antialias', 'pads_begin', 'pads_end',
-        ]
+        attributes_for_opsets = {
+            'opset1': [
+                ('axes', lambda node: ','.join(map(str, node.axes))),
+                'mode', 'align_corners', 'antialias', 'pads_begin', 'pads_end',
+            ],
+            'opset3': [
+                ('axes', lambda node: ','.join(map(str, node.axes))),
+                'mode', 'align_corners', 'antialias', 'nearest_mode', 'cube_coeff', 'coordinate_transformation_mode',
+                ('pads_begin', lambda node: pad_attribute_to_str(node, 'pads_begin')),
+                ('pads_end', lambda node: pad_attribute_to_str(node, 'pads_end')),
+            ]
+        }
+
+        opset = self.get_opset()
+        if opset in attributes_for_opsets:
+            attributes = attributes_for_opsets[opset]
+        else:
+            attributes = attributes_for_opsets['opset1']
+
+        return attributes
 
     @staticmethod
     def infer(node: Node):
@@ -56,6 +74,19 @@ class Interpolate(Op):
         assert node.has_valid('mode')
         assert node.has_valid('axes')
 
+        infers = {
+            'opset1': Interpolate.infer_for_opset1,
+            'opset3': Interpolate.infer_for_opset3,
+        }
+        if node.has_valid('version') and node.version in infers:
+            infer_func = infers[node.version]
+        else:
+            infer_func = infers['opset1']
+
+        infer_func(node)
+
+    @staticmethod
+    def infer_for_opset1(node: Node):
         src_shape = node.in_port(0).data.get_shape()
 
         assert src_shape is not None
@@ -69,3 +100,42 @@ class Interpolate(Op):
         node.out_port(0).data.set_shape(output_shape)
 
         PermuteAttrs.create_permute_attrs(node, attrs=[('axes', 'input:0')])
+
+    @staticmethod
+    def infer_for_opset3(node: Node):
+        src_shape = node.in_port(0).data.get_shape()
+        assert src_shape is not None
+
+        input_rank = len(src_shape)
+
+        pads_begin = correct_pad(node.soft_get('pads_begin', [0]), input_rank)
+        pads_end = correct_pad(node.soft_get('pads_end', [0]), input_rank)
+        node['pads_begin'] = pads_begin
+        node['pads_end'] = pads_end
+
+        axes = node.axes
+        dst_shape = node.in_port(1).data.get_value()
+        assert dst_shape is not None
+
+        output_shape = src_shape + pads_begin + pads_end
+        for i in range(0, len(axes)):
+            output_shape[axes[i]] = dst_shape[i]
+
+        node.out_port(0).data.set_shape(output_shape)
+
+        PermuteAttrs.create_permute_attrs(node, attrs=[('axes', 'input:0')])
+
+
+def pad_attribute_to_str(node: Node, attr: str):
+    return ','.join(map(str, node[attr])) if node.has_valid(attr) else None
+
+
+def correct_pad(pad, rank):
+    pad_len = len(pad)
+    if pad_len < rank:
+        return np.pad(pad, (0, rank - pad_len)).astype(np.int64)
+    elif pad_len > rank:
+        return np.array(pad[: rank]).astype(np.int64)
+    else:
+        return np.array(pad, dtype=np.int64)
+
