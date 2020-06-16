@@ -350,6 +350,36 @@ namespace ngraph
             }
 
             template <typename T>
+            void add_input_from_file(const Shape& shape,
+                                     const std::string& basepath,
+                                     const std::string& filename)
+            {
+                const auto filepath = ngraph::file_util::path_join(basepath, filename);
+                add_input_from_file<T>(shape, filepath);
+            }
+
+            template <typename T>
+            void add_input_from_file(const std::string& basepath, const std::string& filename)
+            {
+                const auto filepath = ngraph::file_util::path_join(basepath, filename);
+                add_input_from_file<T>(filepath);
+            }
+
+            template <typename T>
+            void add_input_from_file(const Shape& shape, const std::string& filepath)
+            {
+                const auto value = read_binary_file<T>(filepath);
+                add_input<T>(shape, value);
+            }
+
+            template <typename T>
+            void add_input_from_file(const std::string& filepath)
+            {
+                const auto value = read_binary_file<T>(filepath);
+                add_input<T>(value);
+            }
+
+            template <typename T>
             void add_expected_output(const Shape& expected_shape, const std::vector<T>& values)
             {
                 const auto results = m_function->get_results();
@@ -381,6 +411,23 @@ namespace ngraph
 
                 const auto shape = results.at(m_output_index)->get_shape();
                 add_expected_output<T>(shape, values);
+            }
+
+            template <typename T>
+            void add_expected_output_from_file(const ngraph::Shape& expected_shape,
+                                               const std::string& basepath,
+                                               const std::string& filename)
+            {
+                const auto filepath = ngraph::file_util::path_join(basepath, filename);
+                add_expected_output_from_file<T>(expected_shape, filepath);
+            }
+
+            template <typename T>
+            void add_expected_output_from_file(const ngraph::Shape& expected_shape,
+                                               const std::string& filepath)
+            {
+                const auto values = read_binary_file<T>(filepath);
+                add_expected_output<T>(expected_shape, values);
             }
 
             testing::AssertionResult run(const size_t tolerance_bits = DEFAULT_FLOAT_TOLERANCE_BITS)
