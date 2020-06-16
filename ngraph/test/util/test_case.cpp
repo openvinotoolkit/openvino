@@ -17,7 +17,6 @@
 #include "test_case.hpp"
 
 #include "gtest/gtest.h"
-#include "util/engine/test_engine.hpp"
 
 using namespace ngraph::test;
 

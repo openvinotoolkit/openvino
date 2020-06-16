@@ -1,4 +1,4 @@
-#include "test_engine.hpp"
+#include "ie_cpu_engine.hpp"
 
 #include "ngraph/op/get_output_element.hpp"
 #include "ngraph/opsets/opset.hpp"

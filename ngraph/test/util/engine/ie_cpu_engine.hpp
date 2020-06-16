@@ -5,40 +5,10 @@
 #include "../../util/all_close_f.hpp"
 #include "ngraph/function.hpp"
 
-// Builds a class name for a given backend prefix
-// The prefix should come from cmake
-// Example: INTERPRETER -> INTERPRETER_Engine
-// Example: IE_CPU -> IE_CPU_Engine
-#define ENGINE_CLASS_NAME(backend) backend##_Engine
 namespace ngraph
 {
     namespace test
     {
-        // TODO - implement when IE_CPU engine is done
-        class INTERPRETER_Engine
-        {
-        public:
-            INTERPRETER_Engine(const std::shared_ptr<Function> function) {}
-            void infer() {}
-            testing::AssertionResult
-                compare_results(const size_t tolerance_bits = DEFAULT_FLOAT_TOLERANCE_BITS)
-            {
-                return testing::AssertionSuccess();
-            }
-            template <typename T>
-            void add_input(const Shape& shape, const std::vector<T>& values)
-            {
-            }
-            template <typename T>
-            void add_expected_output(const ngraph::Shape& expected_shape,
-                                     const std::vector<T>& values)
-            {
-            }
-        };
-
-        // TODO -inherit from IE_CPU_Engine?
-        using IE_GPU_Engine = INTERPRETER_Engine;
-
         class IE_CPU_Engine
         {
         public:
@@ -199,10 +169,10 @@ namespace ngraph
                     return compare_blobs<int8_t>(computed, expected, tolerance_bits);
                     break;
                 case InferenceEngine::Precision::I16:
-                    return compare_blobs<int8_t>(computed, expected, tolerance_bits);
+                    return compare_blobs<int16_t>(computed, expected, tolerance_bits);
                     break;
                 case InferenceEngine::Precision::I32:
-                    return compare_blobs<int16_t>(computed, expected, tolerance_bits);
+                    return compare_blobs<int32_t>(computed, expected, tolerance_bits);
                     break;
                 case InferenceEngine::Precision::I64:
                     return compare_blobs<int64_t>(computed, expected, tolerance_bits);
@@ -256,7 +226,7 @@ namespace ngraph
                 const auto expected_data = expected->rmap();
 
                 const auto* computed_data_buffer = computed_data.template as<const T*>();
-                const auto* expected_data_buffer = computed_data.template as<const T*>();
+                const auto* expected_data_buffer = expected_data.template as<const T*>();
 
                 std::vector<T> computed_values(computed_data_buffer,
                                                computed_data_buffer + computed->size());
@@ -266,5 +236,8 @@ namespace ngraph
                 return std::make_pair(std::move(computed_values), std::move(expected_values));
             }
         };
+
+        // TODO -inherit from IE_CPU_Engine?
+        using IE_GPU_Engine = IE_CPU_Engine;
     }
 }
