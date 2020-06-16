@@ -16,10 +16,10 @@ namespace ngraph {
 namespace op {
 
 
-class TRANSFORMATIONS_API TypeRelaxedBase {
+class TypeRelaxedBase {
 public:
     TypeRelaxedBase() {}
-    virtual ~TypeRelaxedBase();
+    virtual ~TypeRelaxedBase() {};
 
     TypeRelaxedBase(element::Type use_type) :m_output_data_type(use_type) {
     }
@@ -79,7 +79,7 @@ public:
 };
 
 template <typename BaseOp>
-class TRANSFORMATIONS_API TypeRelaxed : public BaseOp, public TypeRelaxedBase {
+class TypeRelaxed : public BaseOp, public TypeRelaxedBase {
 public:
     RTTI_DECLARATION;
 

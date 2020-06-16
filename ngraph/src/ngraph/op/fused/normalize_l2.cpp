@@ -27,7 +27,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::NormalizeL2::type_info;
+RTTI_DEFINITION("NormalizeL2", op::v0::NormalizeL2, Node, 0);
 
 op::NormalizeL2::NormalizeL2(const Output<Node>& data,
                              const Output<Node>& axes,
