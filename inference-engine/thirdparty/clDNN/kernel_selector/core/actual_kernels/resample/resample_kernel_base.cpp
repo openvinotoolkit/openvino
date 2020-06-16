@@ -89,7 +89,8 @@ bool ResampleKernelBase::Validate(const Params& p, const optional_params& o) con
 
     const auto& input = params.inputs[0];
     if ((input.GetDType() == Datatype::UINT8 || input.GetDType() == Datatype::INT8) &&
-        params.resampleType != ResampleType::NEAREST_NEIGHBOR)
+        params.resampleType != ResampleType::NEAREST_NEIGHBOR &&
+        params.resampleType != ResampleType::BILINEAR_INTERP)
         return false;
 
     return true;
@@ -154,6 +155,8 @@ JitConstants ResampleKernelBase::GetJitConstants(const resample_params& params) 
         }
     }
 
+    jit.Merge(MakeTypeJitConstants(GetAccumulatorType(params), "ACCUMULATOR"));
+
     return jit;
 }
 
@@ -178,4 +181,26 @@ KernelsData ResampleKernelBase::GetCommonKernelsData(const Params& params, const
 
     return {kd};
 }
+
+Datatype ResampleKernelBase::GetAccumulatorType(const resample_params& params) const {
+    auto in_dt = params.inputs[0].GetDType();
+    auto out_dt = params.output.GetDType();
+
+    if (params.resampleType == ResampleType::NEAREST_NEIGHBOR)
+        return in_dt;
+
+    auto smaller_fp_type = [](const Datatype& current, const Datatype& candidate) -> Datatype {
+        if (candidate != Datatype::F32 || candidate != Datatype::F16)
+            return current;
+
+        return BytesPerElement(candidate) < BytesPerElement(current) ? candidate : current;
+    };
+
+    Datatype fp_type = Datatype::F32;
+    fp_type = smaller_fp_type(fp_type, in_dt);
+    fp_type = smaller_fp_type(fp_type, out_dt);
+
+    return fp_type;
+}
+
 }  // namespace kernel_selector
