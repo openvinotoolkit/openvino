@@ -323,13 +323,11 @@ void GNAPlugin::Init() {
 
 void GNAPlugin::InitGNADevice() {
 #if GNA_LIB_VER == 1
-    gnadevice = std::make_shared<GNADeviceHelper>(config.gna_proc_type,
-                                        gnaFlags->gna_lib_async_threads_num,
-                                        gnaFlags->gna_openmp_multithreading,
-                                        gnaFlags->performance_counting);
+    gnadevice = std::make_shared<GNADeviceHelper>(gnaFlags->gna_lib_async_threads_num,
+                                                  gnaFlags->gna_openmp_multithreading,
+                                                  gnaFlags->performance_counting);
 #else
-    gnadevice = std::make_shared<GNADeviceHelper>(config.pluginGna2AccMode,
-                                                  config.pluginGna2DeviceConsistent,
+    gnadevice = std::make_shared<GNADeviceHelper>(config.pluginGna2DeviceConsistent,
                 gnaFlags->gna_lib_async_threads_num,
                 gnaFlags->gna_openmp_multithreading,
                 gnaFlags->performance_counting);
@@ -353,7 +351,7 @@ void GNAPlugin::LoadNetwork(ICNNNetwork &network) {
     // network optimisation phases
     int passIdx = 0;
     auto run_passes = [&] (const CNNNetPtr& network, bool runBeforeCopy) {
-        auto passes = make_shared<PassManager>(policy, network, runBeforeCopy);
+        auto passes = make_shared<PassManager>(PassManagerSettings{policy, runBeforeCopy}, network);
         passes->registerPass<RemoveConstPass>();
         passes->registerPass<UnrollTIPass>();
         passes->registerPass<RemoveConstPass>();
@@ -811,7 +809,7 @@ void GNAPlugin::DumpXNNToFile() const {
         gnadevice->dumpXnnForDeviceVersion(modelId, dumpStream,
             *reinterpret_cast<const Gna2DeviceVersion*>(&versionInt));
     }
-    gnadevice->releseModel(modelId);
+    gnadevice->releaseModel(modelId);
 #endif
 }
 
@@ -934,12 +932,12 @@ uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap &inputs, Infer
     } else {
 #if GNA_LIB_VER == 1
         auto nnet = std::get<0>(*freeNnet).get();
-        std::get<1>(*freeNnet) = gnadevice->propagate(&nnet->obj, ptr_active_indices, num_active_indices);
+        std::get<1>(*freeNnet) = gnadevice->propagate(&nnet->obj, ptr_active_indices, num_active_indices, config.gna_proc_type);
 #else
         const auto reqConfigId = std::get<0>(*freeNnet);
         if (ptr_active_indices != nullptr && num_active_indices > 0 && activeLayerIndex != 0xffffffff)
             gnadevice->setUpActiveList(reqConfigId, activeLayerIndex, ptr_active_indices, num_active_indices);
-        std::get<1>(*freeNnet) = gnadevice->propagate(reqConfigId);
+        std::get<1>(*freeNnet) = gnadevice->propagate(reqConfigId, config.pluginGna2AccMode);
 #endif
     }
 

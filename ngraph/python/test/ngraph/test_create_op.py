@@ -882,3 +882,39 @@ def test_tensor_iterator():
     assert list(node.get_output_shape(0)) == [2, 2]
     # cma history
     assert list(node.get_output_shape(1)) == [16, 2, 2]
+
+
+def test_read_value():
+    init_value = ng.parameter([2, 2], name="init_value", dtype=np.int32)
+
+    node = ng.read_value(init_value, "var_id_667")
+
+    assert node.get_type_name() == "ReadValue"
+    assert node.get_output_size() == 1
+    assert list(node.get_output_shape(0)) == [2, 2]
+    assert node.get_output_element_type(0) == Type.i32
+
+
+def test_assign():
+    input_data = ng.parameter([5, 7], name="input_data", dtype=np.int32)
+    rv = ng.read_value(input_data, "var_id_667")
+    node = ng.assign(rv, "var_id_667")
+
+    assert node.get_type_name() == "Assign"
+    assert node.get_output_size() == 1
+    assert list(node.get_output_shape(0)) == [5, 7]
+    assert node.get_output_element_type(0) == Type.i32
+
+
+def test_extract_image_patches():
+    image = ng.parameter([64, 3, 10, 10], name="image", dtype=np.int32)
+    sizes = [3, 3];
+    strides = [5, 5];
+    rates = [1, 1];
+    padding = "VALID";
+    node = ng.extract_image_patches(image, sizes, strides, rates, padding)
+
+    assert node.get_type_name() == "ExtractImagePatches"
+    assert node.get_output_size() == 1
+    assert list(node.get_output_shape(0)) == [64, 27, 2, 2]
+    assert node.get_output_element_type(0) == Type.i32

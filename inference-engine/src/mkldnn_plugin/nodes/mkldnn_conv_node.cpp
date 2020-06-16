@@ -272,10 +272,11 @@ void MKLDNNConvolutionNode::getSupportedDescriptors() {
         }
     }
 
+    MKLDNNMemoryDesc in_candidate, out_candidate;
     if (canBeExecutedInInt8()) {
-        MKLDNNMemoryDesc in_candidate = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType,
+        in_candidate = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType,
                 getParentEdgeAt(0)->getDims().ndims() == 5 ? memory::ndhwc : memory::nhwc);
-        MKLDNNMemoryDesc out_candidate = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType,
+        out_candidate = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType,
                 getParentEdgeAt(0)->getDims().ndims() == 5 ? memory::ndhwc : memory::nhwc);
         createDescriptor({in_candidate}, {out_candidate});
     } else {
@@ -308,13 +309,9 @@ void MKLDNNConvolutionNode::getSupportedDescriptors() {
         Layout layout = convLayer->input()->getLayout();
 
         if (layout == NCHW || layout == NHWC) {
-            MKLDNNMemoryDesc in_candidate(getParentEdgeAt(0)->getDims(), inputDataType,
-                    layout == NCHW ? memory::nchw : memory::nhwc);
-            MKLDNNMemoryDesc out_candidate(getChildEdgeAt(0)->getDims(), outputDataType,
-                    layout == NCHW ? memory::nchw : memory::nhwc);
-            createDescriptor({in_candidate}, {out_candidate});
-
             if (IC == 3 || IC == 1) {
+                in_candidate = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType,
+                                                layout == NCHW ? memory::nchw : memory::nhwc);
                 out_candidate = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, memory::nChw16c);
                 createDescriptor({in_candidate}, {out_candidate});
                 out_candidate = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, memory::nChw8c);
@@ -327,13 +324,15 @@ void MKLDNNConvolutionNode::getSupportedDescriptors() {
                 out_candidate = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, memory::nChw8c);
                 createDescriptor({in_candidate}, {out_candidate});
             }
-        } else if (layout == NCDHW || layout == NDHWC) {
-            MKLDNNMemoryDesc in_candidate(getParentEdgeAt(0)->getDims(), inputDataType,
-                    layout == NCDHW ? memory::ncdhw : memory::ndhwc);
-            MKLDNNMemoryDesc out_candidate(getChildEdgeAt(0)->getDims(), outputDataType,
-                    layout == NCDHW ? memory::ncdhw : memory::ndhwc);
-            createDescriptor({in_candidate}, {out_candidate});
 
+            in_candidate = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType,
+                    layout == NCHW ? memory::nchw : memory::nhwc);
+            out_candidate = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType,
+                    layout == NCHW ? memory::nchw : memory::nhwc);
+            createDescriptor({in_candidate}, {out_candidate});
+        } else if (layout == NCDHW || layout == NDHWC) {
+            in_candidate = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType,
+                    layout == NCDHW ? memory::ncdhw : memory::ndhwc);
             if (IC == 3 || IC == 1) {
                 out_candidate = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, memory::nCdhw16c);
                 createDescriptor({in_candidate}, {out_candidate});
@@ -347,6 +346,12 @@ void MKLDNNConvolutionNode::getSupportedDescriptors() {
                 out_candidate = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType, memory::nCdhw8c);
                 createDescriptor({in_candidate}, {out_candidate});
             }
+
+            in_candidate = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType,
+                    layout == NCDHW ? memory::ncdhw : memory::ndhwc);
+            out_candidate = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), outputDataType,
+                    layout == NCDHW ? memory::ncdhw : memory::ndhwc);
+            createDescriptor({in_candidate}, {out_candidate});
         }
     }
 }
@@ -556,7 +561,11 @@ void MKLDNNConvolutionNode::initSupportedPrimitiveDescriptors() {
     addZeroPoints(attr);
     setPostOps(attr);
 
+    bool containJitImpl = false;
+
     for (auto& desc : descs) {
+        if (containJitImpl && isPossibleToSkipInitConfig(desc))
+            continue;
         auto itpd = desc.createPrimitiveDescriptorIterator(getEngine(), attr);
         while (itpd.is_not_end()) {
             InferenceEngine::LayerConfig config;
@@ -610,6 +619,8 @@ void MKLDNNConvolutionNode::initSupportedPrimitiveDescriptors() {
                 outFormats.emplace_back(static_cast<memory::format>(itpd.dst_primitive_desc().desc().data.format));
             }
             impl_desc_type impl_type = parse_impl_name(itpd.get_impl_info_str());
+            if (impl_type & jit)
+                containJitImpl = true;
 
             supportedPrimitiveDescriptors.emplace_back(config, impl_type, outFormats);
             itpd++;
@@ -790,8 +801,13 @@ void MKLDNNConvolutionNode::initDescriptor(const InferenceEngine::LayerConfig& c
 
     InferenceEngine::LayerConfig rightConfig = selectedPD->getConfig();
     size_t selected_count = 0;
+
+    bool containJitImpl = false;
+
     for (size_t i = 0; i < descs.size(); i++) {
-        const auto& desc = descs[i];
+        auto& desc = descs[i];
+        if (containJitImpl && isPossibleToSkipInitConfig(desc))
+            continue;
         auto itpd = desc.createPrimitiveDescriptorIterator(getEngine(), attr);
         while (itpd.is_not_end()) {
             InferenceEngine::LayerConfig cfg;
@@ -836,6 +852,8 @@ void MKLDNNConvolutionNode::initDescriptor(const InferenceEngine::LayerConfig& c
                 cfg.outConfs.push_back(dataConfig);
             }
             impl_desc_type impl_type = parse_impl_name(itpd.get_impl_info_str());
+            if (impl_type & jit)
+                containJitImpl = true;
 
             if (selected_count == selectedPrimitiveDescriptorIndex) {
                 if (impl_type != selectedPD->getImplementationType()) {
@@ -880,12 +898,47 @@ void MKLDNNConvolutionNode::filterSupportedDescriptors() {
                     isSuitableDesc = false;
             }
             if (!isSuitableDesc) {
-                descs.erase(itd);
+                itd = descs.erase(itd);
             } else {
                 itd++;
             }
         }
     }
+}
+
+bool MKLDNNConvolutionNode::isPossibleToSkipInitConfig(MKLDNNDescriptor &desc) {
+    //  WA: In some cases, we can predict in advance the type of primitive that will be called in the future.
+    //  In particular, isPossibleToSkipInitConfig() checks whether we can skip the creation of primitives with
+    //  gemm implementation, which significantly increase the network load time.
+    if (!inputMemoryFormatsFilter.empty() || !outputMemoryFormatsFilter.empty())
+        return false;
+
+    if (getCnnLayer()->params.find("PrimitivesPriority") != getCnnLayer()->params.end())
+        return false;
+
+    //  Here we check that we will not delete jit_planar_conv primitive by mistake.
+    //  It requires:
+    //      1) strides equal 1;
+    //      2) not grouped;
+    //      3) first dim of weights is not 1.
+    bool isPossibleJitPlanar = true;
+    if (isGrouped || weightDims[0] != 1)
+        isPossibleJitPlanar = false;
+    for (int i = 0; i < stride.size(); i++)
+        if (stride[i] != 1)
+            isPossibleJitPlanar = false;
+
+    std::shared_ptr<mkldnn::convolution_forward::desc> convDesc(desc);
+    auto srcMemFmt = convDesc->data.src_desc.format;
+    auto dstMemFmt = convDesc->data.dst_desc.format;
+    auto srcDataType = convDesc->data.src_desc.data_type;
+    auto dstDataType = convDesc->data.dst_desc.data_type;
+    bool isPlanarFloatConv = (srcMemFmt == memory::nchw || srcMemFmt == memory::ncdhw)
+                             && (dstMemFmt == memory::nchw || dstMemFmt == memory::ncdhw)
+                             && srcDataType == memory::f32
+                             && dstDataType == memory::f32;
+
+    return !isPossibleJitPlanar && isPlanarFloatConv;
 }
 
 MKLDNNMemoryDesc MKLDNNConvolutionNode::getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) {

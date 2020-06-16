@@ -24,6 +24,7 @@
 #include "api/average_unpooling.hpp"
 #include "api/batch_norm.hpp"
 #include "api/batch_norm_grad.hpp"
+#include "api/batch_to_space.hpp"
 #include "api/binary_convolution.hpp"
 #include "api/border.hpp"
 #include "api/broadcast.hpp"
@@ -107,6 +108,7 @@ REGISTER_GPU(arg_max_min);
 REGISTER_GPU(average_unpooling);
 REGISTER_GPU(batch_norm);
 REGISTER_GPU(batch_norm_grad);
+REGISTER_GPU(batch_to_space);
 REGISTER_GPU(binary_convolution);
 REGISTER_GPU(border);
 REGISTER_GPU(broadcast);
@@ -175,6 +177,7 @@ REGISTER_GPU(non_max_suppression);
 REGISTER_GPU(grn);
 REGISTER_GPU(ctc_greedy_decoder);
 REGISTER_GPU(cum_sum);
+REGISTER_GPU(embedding_bag);
 
 #undef REGISTER_GPU
 

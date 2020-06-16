@@ -1,4 +1,4 @@
-// Copyright (C) 2019 Intel Corporation
+// Copyright (C) 2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -57,7 +57,7 @@ void ConvolutionTransformation::SetUp() {
             { 0.f }, { 255.f / k }, { 0.f }, { 255.f / k }) :
         nullptr;
 
-    auto weights = ngraph::opset1::Constant::create(
+    const auto weights = ngraph::opset1::Constant::create(
         precision,
         ngraph::Shape{ inputShape[1], inputShape[1], 1, 1 },
         std::vector<float>(inputShape[1] * inputShape[1], 1));
@@ -66,7 +66,7 @@ void ConvolutionTransformation::SetUp() {
         fakeQuantizeOnActivations == nullptr ? input : fakeQuantizeOnActivations,
         fqOnWeights ?
             ngraph::builder::makeFakeQuantize(
-                weights, precision, 255ul, { 1ul },
+                weights, precision, 256ul, { 1ul },
                 { -128.f / k }, { 127.f / k }, { -128.f / k }, { 127.f / k }) :
             weights->output(0),
         ngraph::Strides{ 1, 1 },
@@ -99,6 +99,18 @@ void ConvolutionTransformation::validate() {
     const InferenceEngine::CNNLayerPtr outputLayer = it->second->getCreatorLayer().lock();
     EXPECT_TRUE(outputLayer != nullptr);
     EXPECT_EQ(fqOnActivations & fqOnWeights ? "ScaleShift" : "Convolution", outputLayer->type);
+
+    if (fqOnActivations & fqOnWeights) {
+        const InferenceEngine::CNNLayerPtr layer = InferenceEngine::details::CNNNetworkHelper::getParent(*outputLayer);
+        if (params.updatePrecisions) {
+            checkPrecisions(
+                *layer,
+                { { InferenceEngine::Precision::U8 }, { InferenceEngine::Precision::I8 } },
+                { getDeviceInternalPrecision(netPrecision) });
+        } else {
+            checkPrecisions(*layer, netPrecision);
+        }
+    }
 
     IE_SUPPRESS_DEPRECATED_END
 }

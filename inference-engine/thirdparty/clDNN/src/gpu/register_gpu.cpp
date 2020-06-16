@@ -45,6 +45,7 @@ void register_implementations_gpu() {
     REGISTER_GPU(deformable_conv);
     REGISTER_GPU(deformable_interp);
     REGISTER_GPU(depth_to_space);
+    REGISTER_GPU(batch_to_space);
     REGISTER_GPU(detection_output);
     REGISTER_GPU(eltwise);
     REGISTER_GPU(embed);
@@ -98,6 +99,7 @@ void register_implementations_gpu() {
     REGISTER_GPU(grn);
     REGISTER_GPU(ctc_greedy_decoder);
     REGISTER_GPU(cum_sum);
+    REGISTER_GPU(embedding_bag);
 }
 
 }  // namespace gpu

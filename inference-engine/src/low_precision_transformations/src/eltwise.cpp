@@ -227,28 +227,7 @@ void EltwiseTransformation::transform(TransformationContext& context, CNNLayer& 
         }
 
         const std::vector<float> eltwiseDequantizationShifts(emptyPathDequantizationShifts.size());
-        const std::vector<CNNLayerPtr> ew_children = CNNNetworkHelper::getChildren(eltwise);
-        if (ew_children.size() == 0) {
-            const std::string originalName = eltwise.name;
-            CNNNetworkHelper::renameLayer(context.network, eltwise.name, eltwise.name + LayerTransformation::lastLayerPrefix);
-
-            CNNLayerPtr dequantizationLayer = CNNNetworkHelper::addScaleShiftBetween(
-                context,
-                std::make_shared<CNNLayer>(eltwise),
-                nullptr,
-                DequantizationDetails(eltwiseDequantizationScales, eltwiseDequantizationShifts, outputChannelsCount),
-                originalName);
-            context.dequantizationLayersNames.insert(dequantizationLayer->name);
-        } else {
-            for (const CNNLayerPtr& child : ew_children) {
-                CNNLayerPtr dequantizationLayer = CNNNetworkHelper::addScaleShiftBetween(
-                    context,
-                    std::make_shared<CNNLayer>(eltwise),
-                    child,
-                    DequantizationDetails(eltwiseDequantizationScales, eltwiseDequantizationShifts, outputChannelsCount));
-                context.dequantizationLayersNames.insert(dequantizationLayer->name);
-            }
-        }
+        addDequantizationLayer(context, eltwise, eltwiseDequantizationScales, eltwiseDequantizationShifts);
     } else if (eltwiseLayer->_operation != EltwiseLayer::eOperation::Prod) {
         THROW_IE_EXCEPTION << "unexpected operation '" << eltwiseLayer->_operation << "'";
     }
@@ -293,7 +272,7 @@ int EltwiseTransformation::getNotEmpty(const CNNLayer& eltwise) {
         return 1;
     }
 
-    const std::vector<std::string> targetTypes = { "Convolution", "GEMM", "FullyConnected" };
+    const std::vector<std::string> targetTypes = { "Convolution", "Gemm", "FullyConnected" };
     const bool allBranchesAreEqual =
         std::all_of(parents.begin(), parents.end(), [&](const CNNLayerPtr& layer) { return isBranchWithTargetType(*layer, targetTypes); }) ||
         std::all_of(parents.begin(), parents.end(), [&](const CNNLayerPtr& layer) { return !isBranchWithTargetType(*layer, targetTypes); });

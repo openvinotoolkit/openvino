@@ -20,12 +20,6 @@
 
 namespace LayerTestsDefinitions {
 
-std::pair<float, float> getInterval(const std::vector<InferenceEngine::Precision>& precisions) {
-    const bool unsignedInterval = std::find(precisions.begin(), precisions.end(), InferenceEngine::Precision::U8) != precisions.end();
-    const float low = unsignedInterval ? 0.f : -128.f;
-    const float hight = unsignedInterval ? 255.f : 127.f;
-    return std::make_pair(low, hight);
-}
 std::string ConcatNeighboringGraphTransformation::getTestCaseName(testing::TestParamInfo<LayerTestsUtils::LayerTransformationParams> obj) {
     InferenceEngine::Precision netPrecision;
     InferenceEngine::SizeVector inputShapes;
@@ -45,15 +39,11 @@ InferenceEngine::Blob::Ptr ConcatNeighboringGraphTransformation::GenerateInput(c
     InferenceEngine::details::LayerTransformation::Params params;
     std::tie(netPrecision, inputShape, targetDevice, params) = this->GetParam();
 
+    if ((info.name() != "input1") && (info.name() != "input2") && (info.name() != "input3")) {
+        THROW_IE_EXCEPTION << "unexpected input name " << info.name();
+    }
     const float k = (info.name() == "input1") ? 1.f : (info.name() == "input2" ? 2.f : 3.f);
-
-    const auto interval = getInterval(params.precisionsOnActivations);
-    const float low = interval.first / k;
-    const float hight = interval.second / k;
-
-    InferenceEngine::Blob::Ptr input = FuncTestUtils::createAndFillBlobConsistently(info.getTensorDesc(), hight - low, static_cast<int32_t>(low), 1ul);
-    const auto buffer = input->buffer().as<float*>();
-    return input;
+    return LayerTransformation::GenerateInput(params.precisionsOnActivations[0], info.getTensorDesc(), k);
 }
 
 void ConcatNeighboringGraphTransformation::SetUp() {
@@ -64,7 +54,7 @@ void ConcatNeighboringGraphTransformation::SetUp() {
     std::tie(netPrecision, inputShape, targetDevice, params) = this->GetParam();
     const auto ngPrecision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
-    const auto interval = getInterval(params.precisionsOnActivations);
+    const auto interval = getQuantizationInterval(params.precisionsOnActivations[0]);
     const float low = interval.first;
     const float hight = interval.second;
 
@@ -133,12 +123,20 @@ void ConcatNeighboringGraphTransformation::validate() {
         EXPECT_TRUE(outputLayer != nullptr);
         EXPECT_EQ("ScaleShift", outputLayer->type);
 
-        checkParentPrecision(outputLayer, params.updatePrecisions);
+        const InferenceEngine::CNNLayerPtr layer = InferenceEngine::details::CNNNetworkHelper::getParent(*outputLayer);
+        if (params.updatePrecisions) {
+            const auto interval = getQuantizationInterval(params.precisionsOnActivations[0]);
+            const InferenceEngine::Precision expectedPrecision = interval.first >= 0.f ? InferenceEngine::Precision::U8 : InferenceEngine::Precision::I8;
+
+            checkPrecisions(*layer, { { expectedPrecision }, { expectedPrecision } }, { { expectedPrecision } });
+        } else {
+            checkPrecisions(*layer, netPrecision);
+        }
     }
 
     // check quantized FQ layers map: should includes all FQ
 
-    IE_SUPPRESS_DEPRECATED_START
+    IE_SUPPRESS_DEPRECATED_END
 }
 
 TEST_P(ConcatNeighboringGraphTransformation, CompareWithRefImpl) {

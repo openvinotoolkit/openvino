@@ -573,7 +573,7 @@ void MKLDNNNode::filterSupportedPrimitiveDescriptors() {
                     isSuitableDesc = false;
             }
             if (!isSuitableDesc) {
-                supportedPrimitiveDescriptors.erase(itpd);
+                itpd = supportedPrimitiveDescriptors.erase(itpd);
             } else {
                 itpd++;
             }

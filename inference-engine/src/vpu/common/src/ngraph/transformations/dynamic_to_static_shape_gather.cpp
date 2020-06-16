@@ -42,9 +42,8 @@ void dynamicToStaticShapeGather(std::shared_ptr<ngraph::Node> target) {
 
     const auto copied = target->clone_with_new_inputs(target->input_values());
 
-
-    const auto & data_rank = data_shape.get_partial_shape();
-    const auto & indices_rank = indices_shape.get_partial_shape();
+    const auto& data_rank = data_shape.get_partial_shape();
+    const auto& indices_rank = indices_shape.get_partial_shape();
     VPU_THROW_UNLESS(data_rank.is_static() && indices_rank.is_static(),
             "DynamicToStaticShape transformation for {} doesn't support dynamic rank", gather);
 
@@ -72,7 +71,9 @@ void dynamicToStaticShapeGather(std::shared_ptr<ngraph::Node> target) {
         output_dims.push_back(second_data_shape_part);
     }
     const auto output_shape = std::make_shared<ngraph::opset3::Concat>(output_dims, 0);
-    ngraph::replace_node(target, std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(copied, output_shape));
+    auto outDsr = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(copied, output_shape);
+    outDsr->set_friendly_name(target->get_friendly_name());
+    ngraph::replace_node(target, outDsr);
 }
 
 }  // namespace vpu

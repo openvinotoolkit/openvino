@@ -47,6 +47,8 @@ public:
 
     struct DispatchData : public CommonDispatchData {
         size_t sum_items_num;
+
+        DispatchData() : sum_items_num(0){}
     };
 
 protected:

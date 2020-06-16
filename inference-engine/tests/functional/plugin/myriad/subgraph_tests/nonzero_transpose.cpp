@@ -15,12 +15,13 @@ using DataDims = ngraph::Shape;
 using Parameters = std::tuple<
     DataType,
     DataDims,
-    LayerTestsUtils::TargetDevice
->;
+    LayerTestsUtils::TargetDevice>;
 
 class NonZero_Transpose : public testing::WithParamInterface<Parameters>, public LayerTestsUtils::LayerTestsCommon {
 protected:
     void SetUp() override {
+        SetRefMode(LayerTestsUtils::RefMode::CONSTANT_FOLDING);
+
         const auto& parameters = GetParam();
         const auto& dataType = std::get<0>(GetParam());
         const auto& dataDims = std::get<1>(GetParam());
@@ -41,12 +42,7 @@ protected:
 };
 
 TEST_P(NonZero_Transpose, CompareWithReference) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
-    configuration.emplace(VPU_MYRIAD_CONFIG_KEY(PLATFORM), VPU_MYRIAD_CONFIG_VALUE(2480));
-    ConfigurePlugin();
-
-    ASSERT_NO_THROW(LoadNetwork());
+    Run();
 }
 
 INSTANTIATE_TEST_CASE_P(DynamicTranspose, NonZero_Transpose,

@@ -15,8 +15,10 @@
 //*****************************************************************************
 
 #include "ngraph/op/prior_box_clustered.hpp"
-
 #include "ngraph/op/constant.hpp"
+
+#include "ngraph/runtime/host_tensor.hpp"
+#include "ngraph/runtime/reference/prior_box_clustered.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -113,4 +115,56 @@ bool AttributeAdapter<op::PriorBoxClusteredAttrs>::visit_attributes(AttributeVis
     visitor.on_attribute("offset", m_ref.offset);
     visitor.on_attribute("variances", m_ref.variances);
     return true;
+}
+
+namespace
+{
+    template <element::Type_t ET>
+    bool evaluate(const HostTensorPtr& arg0,
+                  const HostTensorPtr& arg1,
+                  const HostTensorPtr& out,
+                  op::PriorBoxClusteredAttrs attrs)
+    {
+        runtime::reference::prior_box_clustered(arg0->get_data_ptr<ET>(),
+                                                arg1->get_data_ptr<ET>(),
+                                                out->get_data_ptr<float>(),
+                                                out->get_shape(),
+                                                attrs);
+        return true;
+    }
+
+    bool evaluate_prior_box(const HostTensorPtr& arg0,
+                            const HostTensorPtr& arg1,
+                            const HostTensorPtr& out,
+                            const op::PriorBoxClusteredAttrs& attrs)
+    {
+        bool rc = true;
+        switch (arg0->get_element_type())
+        {
+            TYPE_CASE(i8)(arg0, arg1, out, attrs);
+            break;
+            TYPE_CASE(i16)(arg0, arg1, out, attrs);
+            break;
+            TYPE_CASE(i32)(arg0, arg1, out, attrs);
+            break;
+            TYPE_CASE(i64)(arg0, arg1, out, attrs);
+            break;
+            TYPE_CASE(u8)(arg0, arg1, out, attrs);
+            break;
+            TYPE_CASE(u16)(arg0, arg1, out, attrs);
+            break;
+            TYPE_CASE(u32)(arg0, arg1, out, attrs);
+            break;
+            TYPE_CASE(u64)(arg0, arg1, out, attrs);
+            break;
+        default: rc = false; break;
+        }
+        return rc;
+    }
+}
+
+bool op::v0::PriorBoxClustered::evaluate(const HostTensorVector& outputs,
+                                         const HostTensorVector& inputs)
+{
+    return evaluate_prior_box(inputs[0], inputs[1], outputs[0], get_attrs());
 }

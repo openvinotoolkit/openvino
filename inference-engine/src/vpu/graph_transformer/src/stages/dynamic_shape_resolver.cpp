@@ -3,10 +3,11 @@
 //
 
 #include <vpu/frontend/frontend.hpp>
+#include <ngraph/node.hpp>
 
 namespace vpu {
 
-void FrontEnd::parseDSR(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const {
+void FrontEnd::parseDSR(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) {
     VPU_THROW_UNLESS(inputs.size() == 2, "Error while parsing {} of type {}, got {} inputs, while {} were expected",
         layer->name, layer->type, inputs.size(), 2);
     const auto& data = inputs[0];
@@ -19,6 +20,22 @@ void FrontEnd::parseDSR(const Model& model, const ie::CNNLayerPtr& layer, const 
     const auto dataProducerEdge = data->producerEdge();
     VPU_THROW_UNLESS(dataProducerEdge != nullptr, "Parsing layer {} of type {} failed: input with index {} (of name {}) must have a producer",
         layer->name, layer->type, 0, data->name());
+
+    const auto ngraphNode = layer->getNode();
+    VPU_THROW_UNLESS(!ngraphNode || ngraphNode->get_input_source_output(0).get_target_inputs().size() == 1,
+        "Parsing layer {} of type {} failed: input with index {} (of name {}) must not be an input for any operation except current "
+        "of type {}, actual number of operations for which data is input is {}. "
+        "DynamicToStaticShape transformations should add {} operation after all operations with dynamic output as only "
+        "consumer. All operations that were previously original output data consumers should now consume the output data "
+        "from {}. Otherwise the consumer which was not redirected to {} output would process garbage data.",
+        layer->name, layer->type, 0, data->name(), layer->type, ngraphNode->get_input_source_output(0).get_target_inputs().size(),
+        layer->type, layer->type);
+    VPU_THROW_UNLESS(data->consumerEdges().size() == 0,
+        "Parsing layer {} of type {} failed: input with index {} (of name {}) must have no consumers, actual: {}. "
+        "DynamicToStaticShape transformations should add {} operation after all operations with dynamic output as only "
+        "consumer. All operations that were previously original output data consumers should now consume the output data "
+        "from {}. Otherwise the consumer which was not redirected to {} output would process garbage data.",
+        layer->name, layer->type, 0, data->name(), data->consumerEdges().size(), layer->type, layer->type, layer->type);
 
     VPU_THROW_UNLESS(shape->desc().numDims() == 1,
         "Parsing layer {} of type {} failed: input with index {} (of name {}) must have rank equal to {}, actual is {}",
@@ -50,14 +67,18 @@ void FrontEnd::parseDSR(const Model& model, const ie::CNNLayerPtr& layer, const 
         // Create the second output with shape in case of dynamic output
         const auto& shapeOutput = model->addOutputData(dataOutput->name() + "@shape", shape->desc());
 
-        model->replaceStageOutput(shapeProducerEdge, shapeOutput);
-        model->connectDataWithShape(shapeOutput, dataOutput);
+        bindData(shapeOutput, shape->origData());
+        for (const auto& shapeConsumerEdge : shape->consumerEdges()) {
+            model->replaceStageInput(shapeConsumerEdge, shapeOutput);
+        }
 
         for (const auto& dataToShapeEdge : shape->childDataToShapeEdges()) {
             model->replaceDataToShapeParent(dataToShapeEdge, shapeOutput);
         }
-
+        model->replaceStageOutput(shapeProducerEdge, shapeOutput);
         model->removeUnusedData(shape);
+
+        model->connectDataWithShape(shapeOutput, dataOutput);
     } else {
         model->connectDataWithShape(shape, dataOutput);
     }

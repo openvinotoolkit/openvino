@@ -19,7 +19,7 @@ using std::function;
 struct depthwise_test_params {
     algorithm alg;
 
-    // Formats: NC, NCHW, NCDHW
+    // Formats: NC, CHW (actually NCH), NCHW, NCDHW
     vector<size_t> dims;
 
     bool isBroadcast;
@@ -40,8 +40,9 @@ void ref_depthwise(const InferenceEngine::TBlob<data_t> &src, const data_t *weig
     size_t MB = src.getTensorDesc().getDims()[0];
     size_t IC = src.getTensorDesc().getDims()[1];
     size_t ID = dims_size == 5 ? src.getTensorDesc().getDims()[2] : 1u;
-    size_t IH = dims_size == 2 ? 1 : src.getTensorDesc().getDims()[dims_size - 2];
-    size_t IW = dims_size == 2 ? 1 : src.getTensorDesc().getDims()[dims_size - 1];
+    size_t IH = dims_size < 3 ? 1 : dims_size == 3 ? src.getTensorDesc().getDims()[dims_size - 1]
+                                                   : src.getTensorDesc().getDims()[dims_size - 2];
+    size_t IW = dims_size < 4 ? 1 : src.getTensorDesc().getDims()[dims_size - 1];
 
     const data_t *src_data = src.readOnly();
     const data_t *weights_data = weights;
@@ -129,25 +130,22 @@ protected:
         std::string model = model_t;
         auto dims_size = p.dims.size();
 
-        if (dims_size == 4) {
+        if (dims_size < 5)
             REMOVE_LINE(model, "<dim>_ID_</dim>");
-        } else if (dims_size == 2) {
-            REMOVE_LINE(model, "<dim>_ID_</dim>");
-            REMOVE_LINE(model, "<dim>_IH_</dim>");
+        if (dims_size < 4)
             REMOVE_LINE(model, "<dim>_IW_</dim>");
-        }
+        if (dims_size < 3)
+            REMOVE_LINE(model, "<dim>_IH_</dim>");
 
         REPLACE_WITH_NUM(model, "_IN_", p.dims[0]);
         REPLACE_WITH_NUM(model, "_IC_", p.dims[1]);
 
-        if (dims_size > 2) {
+        if (dims_size > 2)
+            REPLACE_WITH_NUM(model, "_IH_", dims_size == 3 ? p.dims[dims_size - 1] : p.dims[dims_size - 2]);
+        if (dims_size > 3)
             REPLACE_WITH_NUM(model, "_IW_", p.dims[dims_size - 1]);
-            REPLACE_WITH_NUM(model, "_IH_", p.dims[dims_size - 2]);
-        }
-
-        if (dims_size > 4) {
+        if (dims_size > 4)
             REPLACE_WITH_NUM(model, "_ID_", p.dims[dims_size - 3]);
-        }
 
         if (p.alg == depthwise_scale_shift) {
             REPLACE_WITH_STR(model, "_LT_", "ScaleShift");
@@ -214,6 +212,8 @@ protected:
             InferenceEngine::Layout layout = InferenceEngine::ANY;
             switch (p.dims.size()) {
                 case 2: layout = InferenceEngine::NC; break;
+                // InferenceEngine::Layout doesn't have alias for 3D NCH layout so we use CHW instead
+                case 3: layout = InferenceEngine::CHW; break;
                 case 4: layout = InferenceEngine::NCHW; break;
                 case 5: layout = InferenceEngine::NCDHW; break;
             }
@@ -315,6 +315,26 @@ INSTANTIATE_TEST_CASE_P(
                 depthwise_test_params{depthwise_scale_shift, {4, 4, 4, 10, 10}, true, 3, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref_any}},
                 depthwise_test_params{depthwise_prelu, {1, 1, 1, 1, 1}, false, 3, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref_any}},
                 depthwise_test_params{depthwise_prelu, {4, 4, 4, 10, 10}, true, 3, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref_any}}
+        ));
+
+INSTANTIATE_TEST_CASE_P(
+        TestsDepthwise3D, MKLDNNGraphDepthwiseTests,
+        ::testing::Values(
+                depthwise_test_params{depthwise_scale_shift, {1, 32, 16}, false, num_2d_impl, jit},
+                depthwise_test_params{depthwise_scale_shift, {8, 32, 16}, false, num_2d_impl, jit},
+                depthwise_test_params{depthwise_scale_shift, {4, 3, 2}, true,  num_2d_impl, jit},
+                depthwise_test_params{depthwise_scale_shift, {1, 1, 1}, false, num_2d_impl, jit},
+                depthwise_test_params{depthwise_scale_shift, {37, 35, 17}, false, num_2d_impl, jit},
+                depthwise_test_params{depthwise_prelu,       {128, 32, 19}, false, num_2d_impl, jit},
+                depthwise_test_params{depthwise_prelu,       {4, 3, 2}, true,  num_2d_impl, jit},
+                depthwise_test_params{depthwise_prelu,       {1, 1, 1}, false, num_2d_impl, jit},
+                depthwise_test_params{depthwise_prelu,       {37, 35, 17}, false, num_2d_impl, jit},
+                depthwise_test_params{depthwise_scale_shift, {128, 32, 19}, false, num_2d_impl, ref, {ref_any}},
+                depthwise_test_params{depthwise_scale_shift, {4, 3, 2}, true,  num_2d_impl, ref, {ref_any}},
+                depthwise_test_params{depthwise_scale_shift, {1, 1, 1}, false, num_2d_impl, ref, {ref_any}},
+                depthwise_test_params{depthwise_prelu,       {128, 32, 17}, false, num_2d_impl, ref, {ref_any}},
+                depthwise_test_params{depthwise_prelu,       {4, 3, 19}, true,  num_2d_impl, ref, {ref_any}},
+                depthwise_test_params{depthwise_prelu,       {1, 1, 1}, false, num_2d_impl, ref, {ref_any}}
         ));
 
 class MKLDNNGraphDynBatchDepthwiseTests: public MKLDNNGraphDepthwiseTests {

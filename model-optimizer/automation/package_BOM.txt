@@ -282,6 +282,7 @@ extensions/front/onnx/normalize_ext.py
 extensions/front/onnx/normalize_l2_normalize.py
 extensions/front/onnx/one_hot_ext.py
 extensions/front/onnx/one_hot_normalize.py
+extensions/front/onnx/pad_converter.py
 extensions/front/onnx/pad_ext.py
 extensions/front/onnx/parameter_ext.py
 extensions/front/onnx/person_detection_crossroad.json
@@ -294,6 +295,7 @@ extensions/front/onnx/proposal_ext.py
 extensions/front/onnx/quantize_dequantize_linear.py
 extensions/front/onnx/quantize_ext.py
 extensions/front/onnx/range_ext.py
+extensions/front/onnx/reduce_l2_ext.py
 extensions/front/onnx/reduce_max_ext.py
 extensions/front/onnx/reduce_mean_ext.py
 extensions/front/onnx/reduce_min_ext.py
@@ -311,6 +313,7 @@ extensions/front/onnx/shape_ext.py
 extensions/front/onnx/slice_ext.py
 extensions/front/onnx/softmax_ext.py
 extensions/front/onnx/softmaxONNX_to_softmax.py
+extensions/front/onnx/softplus_ext.py
 extensions/front/onnx/split_ext.py
 extensions/front/onnx/squeeze_ext.py
 extensions/front/onnx/top_k_ext.py
@@ -327,10 +330,12 @@ extensions/front/PowerToEltwises.py
 extensions/front/rank_decomposer.py
 extensions/front/reciprocal.py
 extensions/front/reduce_axis_normalizer.py
+extensions/front/ReduceL2Decomposition.py
 extensions/front/reshape_dim_normalizer.py
 extensions/front/restore_ports.py
 extensions/front/scatter_normalizer.py
 extensions/front/softmax.py
+extensions/front/softplus.py
 extensions/front/softsign_replacer.py
 extensions/front/split_normalizer.py
 extensions/front/squared_difference.py
@@ -362,6 +367,7 @@ extensions/front/tf/cumsum_ext.py
 extensions/front/tf/deconv_ext.py
 extensions/front/tf/depth_to_space.py
 extensions/front/tf/elementwise_ext.py
+extensions/front/tf/embedding_segments_sum.py
 extensions/front/tf/expand_dims_ext.py
 extensions/front/tf/extract_image_patches_ext.py
 extensions/front/tf/fake_const_ext.py
@@ -427,6 +433,7 @@ extensions/front/tf/sign_ext.py
 extensions/front/tf/SizeReplacer.py
 extensions/front/tf/slice_ext.py
 extensions/front/tf/softmax_ext.py
+extensions/front/tf/softplus_ext.py
 extensions/front/tf/space_to_batch.py
 extensions/front/tf/space_to_batch_ext.py
 extensions/front/tf/space_to_depth_ext.py
@@ -435,7 +442,6 @@ extensions/front/tf/sparse_segment_mean_ext.py
 extensions/front/tf/sparse_segment_sqrtn_ext.py
 extensions/front/tf/sparse_segment_sum_ext.py
 extensions/front/tf/sparse_to_dense_ext.py
-extensions/front/tf/sparse_weighted_sum.py
 extensions/front/tf/split_ext.py
 extensions/front/tf/ssd_support.json
 extensions/front/tf/ssd_support_api_v1.14.json
@@ -516,7 +522,6 @@ extensions/middle/DilatedConvolution.py
 extensions/middle/EltwiseChecker.py
 extensions/middle/EltwiseInputNormalization.py
 extensions/middle/EltwiseInputReshape.py
-extensions/middle/EmbeddingBagResolver.py
 extensions/middle/FakeSplitOutputs.py
 extensions/middle/FusedBatchNormNonConstant.py
 extensions/middle/FusedBatchNormTraining.py
@@ -680,7 +685,6 @@ extensions/ops/sparse_segment_mean.py
 extensions/ops/sparse_segment_sqrtn.py
 extensions/ops/sparse_segment_sum.py
 extensions/ops/sparse_to_dense.py
-extensions/ops/sparse_weighted_sum.py
 extensions/ops/spatial_transformer.py
 extensions/ops/splice.py
 extensions/ops/split.py
@@ -776,6 +780,7 @@ mo/front/kaldi/extractors/affine_component_preconditioned_online_ext.py
 mo/front/kaldi/extractors/affine_transform_ext.py
 mo/front/kaldi/extractors/backproptruncation_ext.py
 mo/front/kaldi/extractors/batchnorm_component_ext.py
+mo/front/kaldi/extractors/bias_component_ext.py
 mo/front/kaldi/extractors/clip_ext.py
 mo/front/kaldi/extractors/concat_ext.py
 mo/front/kaldi/extractors/convolutional_1d_component_ext.py

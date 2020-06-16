@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2017-2019 Intel Corporation
+// Copyright (c) 2017-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -1381,6 +1381,122 @@ TEST(scale_gpu, basic_in2x2x2x2x3_scale_xyz) {
                         int linear_id = l + x_size * (k + y_size * (m + z_size * (j + feature_num*i)));
                         int linear_id_scale = l + x_size * (k + y_size * m);
                         EXPECT_NEAR(output_ptr[linear_id], input_vec[linear_id] * scale_input_vec[linear_id_scale], 1e-05F);
+                    }
+                }
+            }
+        }
+    }
+}
+
+TEST(scale_gpu, basic_in2x2x2x2x2x3_scale_4d) {
+    //  Scale  : 1x2x1x1
+    //  Input  : 2x2x2x2x2x3
+    //  Output : 2x2x2x2x2x3
+
+    const auto& engine = get_test_engine();
+
+    auto batch_num = 2;
+    auto feature_num = 2;
+    auto w_size = 2;
+    auto z_size = 2;
+    auto y_size = 2;
+    auto x_size = 3;
+
+    tensor in_size = tensor(format::bfwzyx, { batch_num, feature_num, x_size, y_size, z_size, w_size });
+    tensor scale_size = tensor(format::bfyx, { 1, feature_num, 1, 1 });
+
+    auto input = memory::allocate(engine, { data_types::f32, format::bfwzyx,  in_size});
+    auto scale_input = memory::allocate(engine, { data_types::f32, format::bfyx, scale_size });
+
+    topology topology;
+    topology.add(input_layout("input", input.get_layout()));
+    topology.add(input_layout("scale_input", scale_input.get_layout()));
+    topology.add(scale("scale", "input", "scale_input"));
+
+    std::vector<float> input_vec = generate_random_1d<float>(in_size.count(), -10, 10);
+    set_values(input, input_vec);
+
+    std::vector<float> scale_input_vec = generate_random_1d<float>(scale_input.count(), -10, 10);
+    set_values(scale_input, scale_input_vec);
+
+    network network(engine, topology);
+
+    network.set_input_data("input", input);
+    network.set_input_data("scale_input", scale_input);
+
+    auto outputs = network.execute();
+
+    auto output = outputs.at("scale").get_memory();
+    auto output_ptr = output.pointer<float>();
+
+    for (int b = 0; b < batch_num; ++b) {
+        for (int f = 0; f < feature_num; ++f) {
+            for (int w = 0; w < w_size; ++w) {
+                for (int z = 0; z < z_size; ++z) {
+                    for (int y = 0; y < y_size; ++y) {
+                        for (int x = 0; x < x_size; ++x) {
+                            int linear_id = x + x_size * (y + y_size * (z + z_size * (w + w_size * (f + feature_num * b))));
+                            int linear_id_scale = f;
+                            EXPECT_NEAR(output_ptr[linear_id], input_vec[linear_id] * scale_input_vec[linear_id_scale], 1e-05f);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+TEST(scale_gpu, basic_in2x2x2x2x2x3_scale_6d) {
+    //  Scale  : 1x2x1x1x1x1
+    //  Input  : 2x2x2x2x2x3
+    //  Output : 2x2x2x2x2x3
+
+    const auto& engine = get_test_engine();
+
+    auto batch_num = 2;
+    auto feature_num = 2;
+    auto w_size = 2;
+    auto z_size = 2;
+    auto y_size = 2;
+    auto x_size = 3;
+
+    tensor in_size = tensor(format::bfwzyx, { batch_num, feature_num, x_size, y_size, z_size, w_size });
+    tensor scale_size = tensor(format::bfwzyx, { 1, feature_num, 1, 1, 1, 1 });
+
+    auto input = memory::allocate(engine, { data_types::f32, format::bfwzyx,  in_size});
+    auto scale_input = memory::allocate(engine, { data_types::f32, format::bfwzyx, scale_size });
+
+    topology topology;
+    topology.add(input_layout("input", input.get_layout()));
+    topology.add(input_layout("scale_input", scale_input.get_layout()));
+    topology.add(scale("scale", "input", "scale_input"));
+
+    std::vector<float> input_vec = generate_random_1d<float>(in_size.count(), -10, 10);
+    set_values(input, input_vec);
+
+    std::vector<float> scale_input_vec = generate_random_1d<float>(scale_input.count(), -10, 10);
+    set_values(scale_input, scale_input_vec);
+
+    network network(engine, topology);
+
+    network.set_input_data("input", input);
+    network.set_input_data("scale_input", scale_input);
+
+    auto outputs = network.execute();
+
+    auto output = outputs.at("scale").get_memory();
+    auto output_ptr = output.pointer<float>();
+
+    for (int b = 0; b < batch_num; ++b) {
+        for (int f = 0; f < feature_num; ++f) {
+            for (int w = 0; w < w_size; ++w) {
+                for (int z = 0; z < z_size; ++z) {
+                    for (int y = 0; y < y_size; ++y) {
+                        for (int x = 0; x < x_size; ++x) {
+                            int linear_id = x + x_size * (y + y_size * (z + z_size * (w + w_size * (f + feature_num * b))));
+                            int linear_id_scale = f;
+                            EXPECT_NEAR(output_ptr[linear_id], input_vec[linear_id] * scale_input_vec[linear_id_scale], 1e-05f);
+                        }
                     }
                 }
             }

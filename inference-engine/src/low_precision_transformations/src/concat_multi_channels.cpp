@@ -120,10 +120,26 @@ void ConcatMultiChannelsTransformation::transform(TransformationContext& context
     }
 
     auto dequantizationValuesCallback = [&](
-            const CNNLayer& layer,
-            std::vector<float>& dequantizationScales,
-            std::vector<float>& dequantizationShifts
+        const CNNLayer& layer,
+        const std::string originalLayerName,
+        std::vector<float>& dequantizationScales,
+        std::vector<float>& dequantizationShifts
         ) {
+        if (layer.name != originalLayerName) {
+            const auto update = [](
+                const std::string& originalLayerName,
+                const std::string& newLayerName,
+                std::unordered_map<std::string, std::vector<float>>& dequantizationLayers) {
+                auto it = dequantizationLayers.find(originalLayerName);
+                if (it != dequantizationLayers.end()) {
+                    dequantizationLayers.emplace(newLayerName, it->second);
+                    dequantizationLayers.erase(it);
+                }
+            };
+            update(originalLayerName, layer.name, dequantizationScalesLayers);
+            update(originalLayerName, layer.name, dequantizationShiftsLayers);
+        }
+
         fillDequantization(
             layer,
             dequantizationScalesLayers, dequantizationShiftsLayers,

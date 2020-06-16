@@ -64,6 +64,7 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::ICNNNetwork &network
     NetPass::ConvertPrecision(*_clonedNetwork, Precision::U64, Precision::I32);
     NetPass::ConvertPrecision(*_clonedNetwork, Precision::FP16, Precision::FP32);
     NetPass::ConvertPrecision(*_clonedNetwork, Precision::BOOL, Precision::U8);
+    NetPass::ConvertPrecision(*_clonedNetwork, Precision::U16, Precision::I32);
 
     if (s == StatusCode::OK && pstats && !pstats->isEmpty()) {
         CNNNetworkInt8Normalizer cnnorm;
@@ -101,11 +102,11 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::ICNNNetwork &network
             if (with_cpu_x86_bfloat16() && isFloatModel) {
                 BF16Transformer bf16Transformer;
                 CNNNetwork cnnetwork(_clonedNetwork);
-                if (cfg.enforceBF16 == true) {
+                // If enforceBF16 flag was set, BF16 transformation applies for all layers supported by CPU plugin.
+                // Overwise, only layers marked as BF16 in 'cnnetwork' will be performed in bfloat16 mode.
+                // CPU plugin throws an exception, if marked as BF16 layers have not supported by CPU plugin.
+                if (cfg.enforceBF16 == true)
                     bf16Transformer.convertToBFloat16(cnnetwork);
-                } else {
-                    bf16Transformer.optimizeToFloat(cnnetwork);
-                }
             } else {
                 BF16Transformer bf16Transformer;
                 CNNNetwork cnnetwork(_clonedNetwork);

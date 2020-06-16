@@ -88,6 +88,7 @@ void LayerTestsCommon::LoadNetwork() {
 
 void LayerTestsCommon::Infer() {
     inferRequest = executableNetwork.CreateInferRequest();
+    inputs.clear();
 
     for (const auto &input : cnnNetwork.getInputsInfo()) {
         const auto &info = input.second;

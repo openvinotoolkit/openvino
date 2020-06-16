@@ -34,8 +34,6 @@
 #include "ngraph_ops/onehot_ie.hpp"
 #include "ngraph_ops/pad_ie.hpp"
 #include "ngraph_ops/power.hpp"
-#include "ngraph_ops/prior_box_clustered_ie.hpp"
-#include "ngraph_ops/prior_box_ie.hpp"
 #include "ngraph_ops/proposal_ie.hpp"
 #include "ngraph_ops/relu_ie.hpp"
 #include "ngraph_ops/selu_ie.hpp"
@@ -1168,7 +1166,7 @@ CNNLayer::Ptr NodeConverter<ngraph::op::v1::Split>::createLayer(const std::share
     if (!axis_node_const) {
         THROW_IE_EXCEPTION << "Split " << castedLayer->get_friendly_name() << " has no axes as Constant";
     }
-    auto axis = axis_node_const->get_vector<int64_t>()[0];
+    auto axis = axis_node_const->cast_vector<int64_t>()[0];
     if (axis < 0) {
         axis += castedLayer->get_input_shape(0).size();
     }
@@ -1189,7 +1187,7 @@ CNNLayer::Ptr NodeConverter<ngraph::op::VariadicSplit>::createLayer(const std::s
     if (!axis_node_const) {
         THROW_IE_EXCEPTION << "Split " << castedLayer->get_friendly_name() << " has no axes as Constant";
     }
-    auto axis = axis_node_const->get_vector<int64_t>()[0];
+    auto axis = axis_node_const->cast_vector<int64_t>()[0];
     if (axis < 0) {
         axis += castedLayer->get_input_shape(0).size();
     }
@@ -1281,7 +1279,7 @@ CNNLayer::Ptr NodeConverter<ngraph::op::v1::Reshape>::createLayer(const std::sha
 
     const auto constNode = castedLayer->get_inputs()[1].get_output().get_node();
     if (auto constValue = ngraph::as_type_ptr<ngraph::op::Constant>(constNode)) {
-        auto value = constValue->get_vector<int64_t>();
+        auto value = constValue->cast_vector<int64_t>();
         for (auto & i : value) {
             if (i == 0 && !castedLayer->get_special_zero())
                 THROW_IE_EXCEPTION << "Reshape " << params.name << " has `special_zero`=False and zeros in second input. This combination is not supported";
@@ -1381,6 +1379,20 @@ CNNLayer::Ptr NodeConverter<ngraph::op::SquaredDifference>::createLayer(const st
 }
 
 template <>
+CNNLayer::Ptr NodeConverter<ngraph::op::ShuffleChannels>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
+    LayerParams params = {layer->get_friendly_name(), "ShuffleChannels", details::convertPrecision(layer->get_output_element_type(0))};
+
+    auto res = std::make_shared<InferenceEngine::ShuffleChannelsLayer>(params);
+    auto castedLayer = ngraph::as_type_ptr<ngraph::op::ShuffleChannels>(layer);
+    if (castedLayer == nullptr) THROW_IE_EXCEPTION << "Cannot get " << params.type << " layer " << params.name;
+
+    res->params["axis"] = std::to_string(castedLayer->get_axis());
+    res->params["group"] = std::to_string(castedLayer->get_group());
+
+    return res;
+}
+
+template <>
 CNNLayer::Ptr NodeConverter<ngraph::op::DetectionOutput>::createLayer(
     const std::shared_ptr<ngraph::Node>& layer) const {
     LayerParams params = {layer->get_friendly_name(), "DetectionOutput",
@@ -1413,29 +1425,6 @@ CNNLayer::Ptr NodeConverter<ngraph::op::DetectionOutput>::createLayer(
     res->params["input_height"] = asString(attr.input_height);
     res->params["input_width"] = asString(attr.input_width);
     res->params["objectness_score"] = asString(attr.objectness_score);
-
-    return res;
-}
-
-template <>
-CNNLayer::Ptr NodeConverter<ngraph::op::Transpose>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
-    LayerParams params = {layer->get_friendly_name(), "Permute",
-                          details::convertPrecision(layer->get_output_element_type(0))};
-    auto res = std::make_shared<InferenceEngine::CNNLayer>(params);
-
-    NodeConverter<ngraph::op::Constant> converter;
-    const auto orderNode = layer->get_inputs()[1].get_output().get_node();
-    if (converter.canCreate(orderNode)) {
-        const auto& orderLayer = converter.createLayer(orderNode);
-        auto order = orderLayer->blobs["custom"];
-        int64_t* data = order->buffer().as<int64_t*>();
-        std::string orderStr;
-        for (size_t i = 0; i < order->size(); i++) {
-            if (!orderStr.empty()) orderStr += ",";
-            orderStr += asString(data[i]);
-        }
-        res->params["order"] = orderStr;
-    }
 
     return res;
 }
@@ -1482,136 +1471,6 @@ CNNLayer::Ptr NodeConverter<ngraph::op::ProposalIE>::createLayer(const std::shar
     res->params["framework"] = attr.framework;
 
     return res;
-}
-
-template <>
-CNNLayer::Ptr NodeConverter<ngraph::op::PriorBoxClusteredIE>::createLayer(
-    const std::shared_ptr<ngraph::Node>& layer) const {
-    LayerParams params = {layer->get_friendly_name(), "PriorBoxClustered",
-                          details::convertPrecision(layer->get_output_element_type(0))};
-    auto res = std::make_shared<InferenceEngine::CNNLayer>(params);
-    auto castedLayer = ngraph::as_type_ptr<ngraph::op::PriorBoxClusteredIE>(layer);
-    if (castedLayer == nullptr) THROW_IE_EXCEPTION << "Cannot get " << params.type << " layer " << params.name;
-
-    auto attr = castedLayer->get_attrs();
-    std::string param;
-    for (const auto& val : attr.widths) {
-        if (!param.empty()) param += ",";
-        param += asString(val);
-    }
-    res->params["width"] = param;
-
-    param.clear();
-    for (const auto& val : attr.heights) {
-        if (!param.empty()) param += ",";
-        param += asString(val);
-    }
-    res->params["height"] = param;
-
-    param.clear();
-    for (const auto& val : attr.variances) {
-        if (!param.empty()) param += ",";
-        param += asString(val);
-    }
-    res->params["variance"] = param;
-
-    if (std::abs(attr.step_heights - attr.step_widths) < 1e-5) {
-        res->params["step"] = asString(attr.step_widths);
-    } else {
-        res->params["step_w"] = asString(attr.step_widths);
-        res->params["step_h"] = asString(attr.step_heights);
-    }
-    res->params["offset"] = asString(attr.offset);
-    res->params["clip"] = asString(attr.clip ? 1 : 0);
-    res->params["flip"] = "1";
-
-    return res;
-}
-
-template <>
-CNNLayer::Ptr NodeConverter<ngraph::op::PriorBoxClustered>::createLayer(
-    const std::shared_ptr<ngraph::Node>& layer) const {
-    THROW_IE_EXCEPTION << "PriorBoxClustered operation must be converted to PriorBoxClusteredIE operation.";
-}
-
-template <>
-CNNLayer::Ptr NodeConverter<ngraph::op::PriorBoxIE>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
-    LayerParams params = {layer->get_friendly_name(), "PriorBox",
-                          details::convertPrecision(layer->get_output_element_type(0))};
-    auto res = std::make_shared<InferenceEngine::CNNLayer>(params);
-    auto castedLayer = ngraph::as_type_ptr<ngraph::op::PriorBoxIE>(layer);
-    auto layer_info = params.type + " layer " + params.name;
-
-    if (castedLayer == nullptr) THROW_IE_EXCEPTION << "Cannot get " << layer_info;
-
-    auto attr = castedLayer->get_attrs();
-    std::string param;
-
-    auto data_pshape = castedLayer->get_input_partial_shape(0);
-    if (data_pshape.is_dynamic()) THROW_IE_EXCEPTION << "Dynamic 0-port input of " << layer_info << " is not supported";
-    auto data_shape = data_pshape.to_shape();
-    if (data_shape.size() != 4) THROW_IE_EXCEPTION << layer_info << " has " << data_shape.size() << " items in 0-port input, 4 expected";
-
-    auto img_pshape = castedLayer->get_input_partial_shape(1);
-    if (img_pshape.is_dynamic()) THROW_IE_EXCEPTION << "Dynamic 1-port input of " << layer_info << " is not supported";
-    auto img_shape = img_pshape.to_shape();
-    if (img_shape.size() != 4) THROW_IE_EXCEPTION << layer_info << " has " << data_shape.size() << " items in 1-port input, 4 expected";
-
-    if (!attr.scale_all_sizes) {
-        // mxnet-like PriorBox
-        auto img_H = img_shape[2];
-        auto data_H = data_shape[2];
-        if (attr.step == -1)
-            attr.step = 1. * img_H / data_H;
-        else
-            attr.step *= img_H;
-        for (auto& size : attr.min_size)
-            size *= img_H;
-    }
-
-    for (const auto& val : attr.max_size) {
-        if (!param.empty()) param += ",";
-        param += asString(val);
-    }
-    res->params["max_size"] = param;
-
-    param.clear();
-    for (const auto& val : attr.min_size) {
-        if (!param.empty()) param += ",";
-        param += asString(val);
-    }
-    res->params["min_size"] = param;
-
-    param.clear();
-    for (const auto& val : attr.aspect_ratio) {
-        if (!param.empty()) param += ",";
-        param += asString(val);
-    }
-    res->params["aspect_ratio"] = param;
-
-    param.clear();
-    for (const auto& val : attr.variance) {
-        if (!param.empty()) param += ",";
-        param += asString(val);
-    }
-    res->params["variance"] = param;
-
-    res->params["step"] = asString(attr.step);
-    res->params["offset"] = asString(attr.offset);
-    res->params["clip"] = asString(attr.clip ? 1 : 0);
-    res->params["flip"] = asString(attr.flip ? 1 : 0);
-    res->params["scale_all_sizes"] = asString(attr.scale_all_sizes ? 1 : 0);
-
-    res->params["density"] = asString(attr.density);
-    res->params["fixed_size"] = asString(attr.fixed_size);
-    res->params["fixed_ratio"] = asString(attr.fixed_ratio);
-
-    return res;
-}
-
-template <>
-CNNLayer::Ptr NodeConverter<ngraph::op::PriorBox>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
-    THROW_IE_EXCEPTION << "PriorBox operation must be converted to PriorBoxIE operation.";
 }
 
 template <>
