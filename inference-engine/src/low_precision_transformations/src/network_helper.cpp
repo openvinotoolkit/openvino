@@ -1229,6 +1229,8 @@ void CNNNetworkHelper::addLayerToCNNNetworkAfterData(
                 THROW_IE_EXCEPTION << "parent data is absent";
             }
             netImpl->removeOutput(parent->name);
+            netImpl->addData(parent->name.c_str(), parentOutData);
+
             netImpl->addData(layer->name.c_str(), newEdgeAfterLayer);
             netImpl->addOutput(layer->name);
         }
