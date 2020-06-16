@@ -8,7 +8,7 @@ set(TARGET_NAME IEBehaviorSharedTests)
 disable_deprecated_warnings()
 
 file(GLOB_RECURSE SHARED_TESTS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp
-                                   ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp)
+        ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp)
 
 add_library(${TARGET_NAME} STATIC ${SHARED_TESTS_SRC})
 add_dependencies(${TARGET_NAME} MultiDevicePlugin inference_engine_preproc)
