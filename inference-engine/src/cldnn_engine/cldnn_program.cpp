@@ -4916,7 +4916,11 @@ void Program::AddInputPrimitive(cldnn::topology& topology, InputInfo::Ptr inputI
         }
         break;
     case 1:
-        dataTensor = cldnn::tensor(TensorValue(inputDims[0]), 1, 1, 1);
+        if (batch == 1) {
+            dataTensor = cldnn::tensor(1, TensorValue(inputDims[0]), 1, 1);
+        } else {
+            dataTensor = cldnn::tensor(TensorValue(inputDims[0]), 1, 1, 1);
+        }
         break;
     case 0:
         dataTensor = cldnn::tensor(1, 1, 1, 1);
