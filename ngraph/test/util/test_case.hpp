@@ -387,6 +387,13 @@ namespace ngraph
             {
                 m_engine.infer();
                 const auto res = m_engine.compare_results(tolerance_bits);
+
+                if (res != testing::AssertionSuccess())
+                {
+                    std::cout << res.message() << std::endl;
+                }
+
+                // TODO: this needs to be changed - either assert or return and let the caller check
                 EXPECT_EQ(res, testing::AssertionSuccess());
                 return res;
             }
