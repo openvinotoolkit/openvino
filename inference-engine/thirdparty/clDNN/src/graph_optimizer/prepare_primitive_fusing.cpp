@@ -28,6 +28,7 @@
 #include "activation_inst.h"
 #include "batch_norm_inst.h"
 #include "batch_norm_grad_inst.h"
+#include "batch_to_space_inst.h"
 #include "crop_inst.h"
 #include "eltwise_inst.h"
 #include "fused_conv_bn_scale_inst.h"
@@ -199,9 +200,9 @@ void prepare_primitive_fusing::fuse_activations(program_impl &p) {
                  !input.is_type<permute>() && !input.is_type<pooling>() && !input.is_type<reorder>() &&
                  !input.is_type<reshape>() && !input.is_type<roi_pooling>() && !input.is_type<scale>() &&
                  !input.is_type<softmax>() && !input.is_type<resample>() && !input.is_type<mvn>() &&
-                 !input.is_type<depth_to_space>() && !input.is_type<gather>() && !input.is_type<reverse_sequence>() &&
+                 !input.is_type<depth_to_space>() && !input.is_type<batch_to_space>() && !input.is_type<gather>() &&
                  !input.is_type<shuffle_channels>() && !input.is_type<strided_slice>() && !input.is_type<cum_sum>() &&
-                 !input.is_type<embedding_bag>() && !input.is_type<fused_conv_eltwise>() &&
+                 !input.is_type<reverse_sequence>() && !input.is_type<embedding_bag>() && !input.is_type<fused_conv_eltwise>() &&
                  !input.is_type<activation>()))
                 return;
 

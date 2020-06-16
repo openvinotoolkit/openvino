@@ -382,7 +382,7 @@ int CNNNetworkHelper::onWeightsInDepth(const CNNLayer& layer) {
     for (const CNNLayerPtr& child : children) {
         if ((CaselessEq<std::string>()(child->type, "Convolution") ||
             CaselessEq<std::string>()(child->type, "FullyConnected") ||
-            CaselessEq<std::string>()(child->type, "GEMM")) &&
+            CaselessEq<std::string>()(child->type, "Gemm")) &&
             (child->insData.size() >= 2lu)) {
             const std::vector<CNNLayerPtr> parents = getParentsRecursivelyExceptTypes(*child, {}, 1);
             for (const CNNLayerPtr& parent : parents) {
@@ -404,6 +404,15 @@ int CNNNetworkHelper::onWeightsInDepth(const CNNLayer& layer) {
 bool CNNNetworkHelper::onWeights(const CNNLayer& layer) {
     const int result = onWeightsInDepth(layer);
     return result == 1;
+}
+
+bool CNNNetworkHelper::onConstWeightsPath(const CNNLayer& quantize) {
+    CNNLayerPtr parent = CNNNetworkHelper::getParent(quantize, 0);
+    if (parent == nullptr) {
+        THROW_IE_LPT_EXCEPTION(quantize) << "parent layer is nullable";
+    }
+
+    return parent->type == "Const";
 }
 
 size_t CNNNetworkHelper::getIndex(const CNNLayer& layer) {
@@ -582,18 +591,28 @@ std::vector<CNNLayerPtr> CNNNetworkHelper::getLayers(const CNNLayer& parent, con
     return layers;
 }
 
-Blob::Ptr CNNNetworkHelper::getBlob(CNNLayer* layer, const std::string& blobName) {
+Blob::Ptr CNNNetworkHelper::getBlob(const CNNLayer* layer, const std::string& blobName) {
     if (layer == nullptr) {
         THROW_IE_EXCEPTION << "layer is nullable";
     }
-    if (layer->blobs.empty()) {
-        THROW_IE_EXCEPTION << "Layer '" << layer->name << "' does not have any blob";
+
+    if (blobName.empty()) {
+        if (layer->blobs.empty()) {
+            THROW_IE_LPT_EXCEPTION(*layer) << "does not have any blob";
+        }
+
+        if (layer->blobs.size() != 1) {
+            THROW_IE_LPT_EXCEPTION(*layer) << "there are several blobs";
+        }
+        return layer->blobs.begin()->second;
     }
-    if (blobName.empty() && (layer->blobs.size() != 1)) {
-        THROW_IE_EXCEPTION << "several blobs";
+
+    const auto it = layer->blobs.find(blobName);
+    if (it == layer->blobs.end()) {
+        THROW_IE_LPT_EXCEPTION(*layer) << " does not have blob " << blobName;
     }
-    Blob::Ptr blob = blobName.empty() ? layer->blobs.begin()->second : layer->blobs[blobName];
-    return blob;
+
+    return it->second;
 }
 
 Blob::Ptr CNNNetworkHelper::getBlob(CNNLayerPtr layer, const std::string& blobName) {
@@ -1086,8 +1105,11 @@ CNNLayerPtr CNNNetworkHelper::addScaleShiftBetween(TransformationContext& contex
     CNNLayerPtr ssCnnLayer(new ScaleShiftLayer(ssCnnLayerParams));
 
     const std::vector<size_t> dims = outData->getDims();
-    if ((dims.size() > 1) && (dims[1] != dequantizationDetails.channelsCount)) {
-        THROW_IE_EXCEPTION << "unexpected parent channels count " << dims[1];
+
+    if ((dims.size() != 2ul) || ((dims.size() == 2ul) && (dims[0] != dequantizationDetails.channelsCount))) {
+        if ((dims.size() > 1) && (dims[1] != dequantizationDetails.channelsCount)) {
+            THROW_IE_EXCEPTION << "unexpected parent channels count " << dims[1];
+        }
     }
     addLayerToCNNNetworkAfterData(outData, ssCnnLayer, child != nullptr ? child->name : "", context.network);
 
@@ -1096,8 +1118,11 @@ CNNLayerPtr CNNNetworkHelper::addScaleShiftBetween(TransformationContext& contex
         if (scshLayer == nullptr) {
             THROW_IE_EXCEPTION << "Layer " << ssCnnLayer->name << " is not instance of ScaleShiftLayer class";
         }
-        fillInScaleShift(scshLayer, dequantizationDetails.channelsCount, dequantizationDetails.scales.data(),
-                         dequantizationDetails.shifts.data());
+        fillInScaleShift(
+            scshLayer,
+            dequantizationDetails.channelsCount,
+            dequantizationDetails.scales.data(),
+            dequantizationDetails.shifts.data());
     }
 
     CNNNetworkHelper::setOutDataPrecision(*ssCnnLayer, ssPrecision);
@@ -1570,6 +1595,27 @@ Blob::Ptr CNNNetworkHelper::quantizeWeights(const CNNLayer& quantize, const bool
     return targetBlob;
 }
 
+bool CNNNetworkHelper::isQuantizedConstWeights(const CNNLayer& layer) {
+    CNNLayerPtr quantize = CNNNetworkHelper::getParent(layer, 1);
+    if (quantize == nullptr) {
+        return false;
+    }
+
+    if (quantize->type == "Const") {
+        return true;
+    }
+
+    if (quantize->type != "FakeQuantize") {
+        return false;
+    }
+
+    if (quantize->insData.size() != 5ul) {
+        THROW_IE_LPT_EXCEPTION(*quantize) << "unexpected inputs size";
+    }
+
+    return onConstWeightsPath(*quantize);
+}
+
 int CNNNetworkHelper::getConstParentBranchID(const CNNLayer& layer) {
     int constBranchID = -1;
     for (int i = 0; i < layer.insData.size(); i++) {
@@ -1688,7 +1734,7 @@ void CNNNetworkHelper::quantizeBlob(const CNNLayer& quantize, Blob::Ptr& targetB
     const size_t OC = outDims[0];
     const size_t IC = outDims.size() > 1lu ? outDims[1] : 1;
     const size_t D  = outDims.size() > 4lu ? outDims[outDims.size() - 3] : 1;
-    const size_t H  = outDims.size() > 2lu ? outDims[outDims.size() - 2] : 1;
+    const size_t H  = outDims.size() > 2lu ? outDims.size() == 3lu ? outDims[2] : outDims[outDims.size() - 2] : 1;
     const size_t W  = outDims.size() > 3lu ? outDims[outDims.size() - 1] : 1;
 
     // Const layer blob shape (sourceBlob->getTensorDesc().getDims()) can be different from output port shape

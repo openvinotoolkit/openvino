@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2019 Intel Corporation
+// Copyright (c) 2019-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -255,6 +255,13 @@ attach_eltwise_gpu::attach_eltwise_gpu() {
          { std::make_tuple(engine_types::ocl, data_types::u8, format::bfzyx), eltwise_gpu::create },
          { std::make_tuple(engine_types::ocl, data_types::i32, format::bfzyx), eltwise_gpu::create },
          { std::make_tuple(engine_types::ocl, data_types::i64, format::bfzyx), eltwise_gpu::create },
+         // 4D
+         { std::make_tuple(engine_types::ocl, data_types::f32, format::bfwzyx), eltwise_gpu::create },
+         { std::make_tuple(engine_types::ocl, data_types::f16, format::bfwzyx), eltwise_gpu::create },
+         { std::make_tuple(engine_types::ocl, data_types::i8, format::bfwzyx), eltwise_gpu::create },
+         { std::make_tuple(engine_types::ocl, data_types::u8, format::bfwzyx), eltwise_gpu::create },
+         { std::make_tuple(engine_types::ocl, data_types::i32, format::bfwzyx), eltwise_gpu::create },
+         { std::make_tuple(engine_types::ocl, data_types::i64, format::bfwzyx), eltwise_gpu::create },
 
          { std::make_tuple(engine_types::ocl, data_types::f32, format::b_fs_zyx_fsv16), eltwise_gpu::create },
          { std::make_tuple(engine_types::ocl, data_types::f16, format::b_fs_zyx_fsv16), eltwise_gpu::create },

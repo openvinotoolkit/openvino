@@ -780,27 +780,67 @@ void MKLDNNGraphOptimizer::FuseFullyConnectedAndSimpleOperation(MKLDNNGraph &gra
                node->getChildEdges().size() == 1;
     };
 
-    auto isSutableChildNode = [&](MKLDNNNodePtr node) {
-        if (!node->getCnnLayer())
+    auto isSutableChildNode = [&](MKLDNNNodePtr parentNode, MKLDNNNodePtr childNode) {
+        if (!childNode->getCnnLayer())
             return false;
 
-        if (node->getType() == Quantize) {
-            auto* quantizeNode = dynamic_cast<MKLDNNQuantizeNode*>(node.get());
+        if (childNode->getType() == Quantize) {
+            auto* quantizeNode = dynamic_cast<MKLDNNQuantizeNode*>(childNode.get());
             if (quantizeNode == nullptr)
-                THROW_IE_EXCEPTION << "Cannot get quantize layer " << node->getName();
+                THROW_IE_EXCEPTION << "Cannot get quantize layer " << childNode->getName();
 
-            return !quantizeNode->isBinarization();
-        } else if (node->getType() == Depthwise) {
-            auto* depthwiseNode = dynamic_cast<MKLDNNDepthwiseNode*>(node.get());
+            if (parentNode->getParentEdgesAtPort(0)[0]->getDims().ndims() != 3) {
+                return !quantizeNode->isBinarization();
+            } else {
+                return (quantizeNode->isInputLowBroadcast() && quantizeNode->isInputHighBroadcast() &&
+                        quantizeNode->isOutputLowBroadcast() && quantizeNode->isOutputHighBroadcast() &&
+                        !quantizeNode->isBinarization());
+            }
+        } else if (childNode->getType() == Depthwise) {
+            auto* depthwiseNode = dynamic_cast<MKLDNNDepthwiseNode*>(childNode.get());
             if (depthwiseNode == nullptr)
-                THROW_IE_EXCEPTION << "Cannot get depthwise layer " << node->getName();
+                THROW_IE_EXCEPTION << "Cannot get depthwise layer " << childNode->getName();
 
-            return ((depthwiseNode->getAlgorithm() == mkldnn::algorithm::depthwise_scale_shift && depthwiseNode->isWithBiases()) ||
-                    (depthwiseNode->getAlgorithm() == mkldnn::algorithm::depthwise_prelu));
-        } else if (node->getType() == Activation) {
-            auto* activationNode = dynamic_cast<MKLDNNActivationNode*>(node.get());
+            if (parentNode->getParentEdgesAtPort(0)[0]->getDims().ndims() != 3) {
+                return ((depthwiseNode->getAlgorithm() == mkldnn::algorithm::depthwise_scale_shift &&
+                         depthwiseNode->isWithBiases()) ||
+                        (depthwiseNode->getAlgorithm() == mkldnn::algorithm::depthwise_prelu));
+            } else {
+                const auto &depthwiseLayer = depthwiseNode->getCnnLayer();
+                if (depthwiseLayer == nullptr)
+                    THROW_IE_EXCEPTION << "Cannot get scale shift layer " << depthwiseNode->getName();
+
+                if (depthwiseNode->getAlgorithm() != mkldnn::algorithm::depthwise_scale_shift)
+                    return false;
+
+                Blob::Ptr scalesBlob = depthwiseLayer->blobs["weights"];
+                if (scalesBlob == nullptr)
+                    return false;
+
+                Blob::Ptr shiftsBlob = depthwiseLayer->blobs["biases"];
+                if (shiftsBlob == nullptr)
+                    return false;
+
+                const float* scalesBufferPtr = scalesBlob->buffer().as<float*>();
+                const float* shiftsBufferPtr = shiftsBlob->buffer().as<float*>();
+
+                if (scalesBlob->size() != shiftsBlob->size())
+                    return false;
+
+                for (int i = 1; i < scalesBlob->size(); i++)
+                    if (scalesBufferPtr[0] != scalesBufferPtr[i])
+                        return false;
+
+                for (int i = 1; i < shiftsBlob->size(); i++)
+                    if (shiftsBufferPtr[0] != shiftsBufferPtr[i])
+                        return false;
+
+                return true;
+            }
+        } else if (childNode->getType() == Activation) {
+            auto* activationNode = dynamic_cast<MKLDNNActivationNode*>(childNode.get());
             if (activationNode == nullptr)
-                THROW_IE_EXCEPTION << "Cannot get activation layer " << node->getName();
+                THROW_IE_EXCEPTION << "Cannot get activation layer " << childNode->getName();
 
             return isOneOf(activationNode->getAlgorithm(), {eltwise_relu, eltwise_gelu, eltwise_elu, eltwise_logistic, eltwise_bounded_relu, eltwise_clamp});
         }
@@ -817,7 +857,7 @@ void MKLDNNGraphOptimizer::FuseFullyConnectedAndSimpleOperation(MKLDNNGraph &gra
         }
 
         auto childNode = parentNode->getChildEdgeAt(0)->getChild();
-        if (!isSutableChildNode(childNode)) {
+        if (!isSutableChildNode(parentNode, childNode)) {
             parent++;
             continue;
         }

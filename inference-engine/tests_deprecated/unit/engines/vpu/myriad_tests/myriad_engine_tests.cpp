@@ -79,6 +79,19 @@ static const std::vector<config_t> myriadCorrectPowerConfigValues = {
     {{VPU_MYRIAD_CONFIG_KEY(POWER_MANAGEMENT), VPU_MYRIAD_CONFIG_VALUE(POWER_STAGE_NCES)}},
 };
 
+static const std::vector<config_t> myriadCorrectPackageTypeConfigValues = {
+    {{VPU_MYRIAD_CONFIG_KEY(MOVIDIUS_DDR_TYPE), VPU_MYRIAD_CONFIG_VALUE(DDR_AUTO)}},
+    {{VPU_MYRIAD_CONFIG_KEY(MOVIDIUS_DDR_TYPE), VPU_MYRIAD_CONFIG_VALUE(MICRON_2GB)}},
+    {{VPU_MYRIAD_CONFIG_KEY(MOVIDIUS_DDR_TYPE), VPU_MYRIAD_CONFIG_VALUE(SAMSUNG_2GB)}},
+    {{VPU_MYRIAD_CONFIG_KEY(MOVIDIUS_DDR_TYPE), VPU_MYRIAD_CONFIG_VALUE(HYNIX_2GB)}},
+    {{VPU_MYRIAD_CONFIG_KEY(MOVIDIUS_DDR_TYPE), VPU_MYRIAD_CONFIG_VALUE(MICRON_1GB)}}
+};
+
+static const std::vector<config_t> myriadIncorrectPackageTypeConfigValues = {
+    {{VPU_MYRIAD_CONFIG_KEY(MOVIDIUS_DDR_TYPE), "-1"}},
+    {{VPU_MYRIAD_CONFIG_KEY(MOVIDIUS_DDR_TYPE), "-MICRON_1GB"}},
+};
+
 IE_SUPPRESS_DEPRECATED_END
 
 /// Platform
@@ -105,3 +118,9 @@ INSTANTIATE_TEST_CASE_P(MyriadPowerConfigs, MyriadEngineSetCorrectConfigTest,
 
 INSTANTIATE_TEST_CASE_P(MyriadPowerConfigs, MyriadEngineSetIncorrectConfigTest,
                         ::testing::ValuesIn(myriadIncorrectPowerConfigValues));
+/// Package Config
+INSTANTIATE_TEST_CASE_P(MyriadPackageConfigs, MyriadEngineSetCorrectConfigTest,
+                        ::testing::ValuesIn(myriadCorrectPackageTypeConfigValues));
+
+INSTANTIATE_TEST_CASE_P(MyriadPackageConfigs, MyriadEngineSetIncorrectConfigTest,
+                        ::testing::ValuesIn(myriadIncorrectPackageTypeConfigValues));
