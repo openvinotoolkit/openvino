@@ -6,8 +6,13 @@
 
 std::string PoolingTestModel::getModel(SingleLayerTransformationsTestParams& p) const {
     size_t type_size = sizeof(InferenceEngine::PrecisionTrait<InferenceEngine::Precision::FP32>::value_type);
-    if (p._network_precision == "FP16")
+    netPrecision = Precision::FP32;
+
+    // TODO: don't use network precision
+    if (p._network_precision == "FP16") {
+        netPrecision = Precision::FP16;
         type_size = sizeof(InferenceEngine::PrecisionTrait<InferenceEngine::Precision::FP16>::value_type);
+    }
 
     CommonTestUtils::pool_common_params pooling = { {1, 1}, {1, 1}, {0, 0}, {0, 0}, "valid", false, true };
     std::vector<size_t> poolOutShape(p.inputDimensions[0].size());
@@ -55,7 +60,8 @@ bool PoolingTestModel::transform(CNNNetwork& network, LayerTransformation::Param
     LowPrecisionTransformer transformer(LowPrecisionTransformer::getAllTransformations(params));
     transformer.transform(network);
 
-    const Precision precision = params.updatePrecisions ? Precision(Precision::U8) : network.getPrecision();
+    // TODO: don't use network precision
+    const Precision precision = params.updatePrecisions ? Precision(Precision::U8) : netPrecision;
 
     CNNLayerPtr fakeQuantize = getLayer(network, "FakeQuantize6");
     if (fakeQuantize->outData[0]->getPrecision() != precision) {

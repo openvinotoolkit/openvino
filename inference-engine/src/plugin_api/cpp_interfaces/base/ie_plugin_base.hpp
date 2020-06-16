@@ -73,12 +73,6 @@ public:
         versionInfo = &_version;
     }
 
-    IE_SUPPRESS_DEPRECATED_START
-    void SetLogCallback(IErrorListener& listener) noexcept override {
-        (void)listener;
-    }
-    IE_SUPPRESS_DEPRECATED_END
-
     StatusCode LoadNetwork(IExecutableNetwork::Ptr& executableNetwork, const ICNNNetwork& network,
                            const std::map<std::string, std::string>& config, ResponseDesc* resp) noexcept override {
         TO_STATUS(_impl->LoadNetwork(executableNetwork, network, config));

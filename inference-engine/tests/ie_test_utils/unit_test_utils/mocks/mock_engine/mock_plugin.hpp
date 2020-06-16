@@ -20,7 +20,6 @@ public:
     explicit MockPlugin(InferenceEngine::IInferencePlugin*target);
 
     void GetVersion(const InferenceEngine::Version *& versionInfo) noexcept override;
-    void SetLogCallback(InferenceEngine::IErrorListener& listener) noexcept override;
 
     InferenceEngine::StatusCode AddExtension(InferenceEngine::IExtensionPtr extension, InferenceEngine::ResponseDesc *resp) noexcept override;
 

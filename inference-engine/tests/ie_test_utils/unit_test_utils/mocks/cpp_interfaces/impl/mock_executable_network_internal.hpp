@@ -30,7 +30,6 @@ public:
     MOCK_METHOD1(setNetworkOutputs, void(OutputsDataMap));
     MOCK_METHOD1(CreateInferRequest, void(IInferRequest::Ptr &));
     MOCK_METHOD1(Export, void(const std::string &));
-    MOCK_METHOD1(GetMappedTopology, void(std::map<std::string, std::vector<PrimitiveInfo::Ptr>> &));
     MOCK_METHOD1(GetExecGraphInfo, void(ICNNNetwork::Ptr &));
     void WrapOstreamExport(std::ostream& networkModel) {
         ExecutableNetworkInternal::Export(networkModel);

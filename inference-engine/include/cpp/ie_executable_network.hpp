@@ -150,21 +150,6 @@ public:
     }
 
     /**
-     * @deprecated Use ExecutableNetwork::GetExecGraphInfo to get information about an internal graph.
-     * This method will be removed in 2021.1 release.
-     * @copybrief IExecutableNetwork::GetMappedTopology
-     *
-     * Wraps IExecutableNetwork::GetMappedTopology.
-     * @param deployedTopology Map of PrimitiveInfo objects that represent the deployed topology
-     */
-    IE_SUPPRESS_DEPRECATED_START
-    INFERENCE_ENGINE_DEPRECATED("Use ExecutableNetwork::GetExecGraphInfo to get information about an internal graph")
-    void GetMappedTopology(std::map<std::string, std::vector<PrimitiveInfo::Ptr>>& deployedTopology) {
-        CALL_STATUS_FNC(GetMappedTopology, deployedTopology);
-    }
-    IE_SUPPRESS_DEPRECATED_END
-
-    /**
      * @brief cast operator is used when this wrapper initialized by LoadNetwork
      * @return A shared pointer to IExecutableNetwork interface. 
      */

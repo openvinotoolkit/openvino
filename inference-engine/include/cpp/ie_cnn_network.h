@@ -80,17 +80,6 @@ public:
     virtual ~CNNNetwork() {}
 
     /**
-     * @deprecated Network precision does not make sence, use precision on egdes. The method will be removed in 2021.1
-     * @copybrief ICNNNetwork::getPrecision
-     *
-     * Wraps ICNNNetwork::getPrecision
-     *
-     * @return A precision type
-     */
-    INFERENCE_ENGINE_DEPRECATED("Network precision does not make sence, use precision on egdes. The method will be removed in 2021.1")
-    virtual Precision getPrecision() const;
-
-    /**
      * @copybrief ICNNNetwork::getOutputsInfo
      *
      * Wraps ICNNNetwork::getOutputsInfo

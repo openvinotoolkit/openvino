@@ -175,9 +175,6 @@ InferenceEnginePython::IENetwork::IENetwork(const std::string &model, const std:
     actual = std::make_shared<InferenceEngine::CNNNetwork>(net);
     name = actual->getName();
     batch_size = actual->getBatchSize();
-    IE_SUPPRESS_DEPRECATED_START
-    precision = actual->getPrecision().name();
-    IE_SUPPRESS_DEPRECATED_END
 }
 
 InferenceEnginePython::IENetwork::IENetwork(const std::shared_ptr<InferenceEngine::CNNNetwork> &cnn_network)
@@ -185,9 +182,6 @@ InferenceEnginePython::IENetwork::IENetwork(const std::shared_ptr<InferenceEngin
     if (actual == nullptr) THROW_IE_EXCEPTION << "IENetwork was not initialized.";
     name = actual->getName();
     batch_size = actual->getBatchSize();
-    IE_SUPPRESS_DEPRECATED_START
-    precision = actual->getPrecision().name();
-    IE_SUPPRESS_DEPRECATED_END
 }
 
 InferenceEnginePython::IENetwork::IENetwork(PyObject* network) {
@@ -200,9 +194,6 @@ InferenceEnginePython::IENetwork::IENetwork(PyObject* network) {
     actual = std::make_shared<InferenceEngine::CNNNetwork>(cnnNetwork);
     name = actual->getName();
     batch_size = actual->getBatchSize();
-    IE_SUPPRESS_DEPRECATED_START
-    precision = actual->getPrecision().name();
-    IE_SUPPRESS_DEPRECATED_END
 }
 
 void
@@ -218,9 +209,6 @@ InferenceEnginePython::IENetwork::load_from_buffer(const char *xml, size_t xml_s
     IE_SUPPRESS_DEPRECATED_END
     actual = std::make_shared<InferenceEngine::CNNNetwork>(net);
     batch_size = actual->getBatchSize();
-    IE_SUPPRESS_DEPRECATED_START
-    precision = actual->getPrecision().name();
-    IE_SUPPRESS_DEPRECATED_END
 }
 
 void InferenceEnginePython::IENetwork::serialize(const std::string &path_to_xml, const std::string &path_to_bin) {

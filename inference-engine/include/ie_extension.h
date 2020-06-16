@@ -72,20 +72,6 @@ public:
     }
 
     /**
-     * @deprecated IErrorListener is not used anymore. StatusCode is provided in case of unexpected situations
-     * The method will be removed in 2021.1 release.
-     * @brief Sets a log callback that is used to track what is going on inside
-     *
-     * @param listener Logging listener
-     */
-    IE_SUPPRESS_DEPRECATED_START
-    INFERENCE_ENGINE_DEPRECATED("IErrorListener is not used anymore. StatusCode is provided in case of unexpected situations")
-    void SetLogCallback(InferenceEngine::IErrorListener& listener) noexcept override {
-        actual->SetLogCallback(listener);
-    }
-    IE_SUPPRESS_DEPRECATED_END
-
-    /**
      * @brief Cleans the resources up
      */
     void Unload() noexcept override {
@@ -225,20 +211,6 @@ public:
     void GetVersion(const InferenceEngine::Version*& versionInfo) const noexcept override {
         actual->GetVersion(versionInfo);
     }
-
-    /**
-     * @brief IErrorListener is not used anymore. StatusCode is provided in case of unexpected situations
-     * The method will be removed in 2021.1 release.
-     * @brief Sets a log callback that is used to track what is going on inside
-     *
-     * @param listener Logging listener
-     */
-    IE_SUPPRESS_DEPRECATED_START
-    INFERENCE_ENGINE_DEPRECATED("IErrorListener is not used anymore. StatusCode is provided in case of unexpected situations")
-    void SetLogCallback(InferenceEngine::IErrorListener& listener) noexcept override {
-        actual->SetLogCallback(listener);
-    }
-    IE_SUPPRESS_DEPRECATED_END
 
     /**
      * @brief Cleans the resources up

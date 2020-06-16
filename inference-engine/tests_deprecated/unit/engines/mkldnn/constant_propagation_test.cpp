@@ -90,7 +90,6 @@ public:
     }
 
     void GetVersion(const InferenceEngine::Version *&versionInfo) const noexcept override {}
-    void SetLogCallback(InferenceEngine::IErrorListener &listener) noexcept override {}
     void Unload() noexcept override {}
     void Release() noexcept override {
         delete this;

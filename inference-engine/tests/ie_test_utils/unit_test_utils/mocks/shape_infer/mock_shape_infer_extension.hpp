@@ -16,7 +16,6 @@ class MockShapeInferExtension : public InferenceEngine::IShapeInferExtension {
     using Ptr = std::shared_ptr<MockShapeInferExtension>;
     MOCK_QUALIFIED_METHOD1(GetVersion, const noexcept, void(const InferenceEngine::Version *&));
     MOCK_QUALIFIED_METHOD0(Release, noexcept, void());
-    MOCK_QUALIFIED_METHOD1(SetLogCallback, noexcept, void(InferenceEngine::IErrorListener &));
     MOCK_QUALIFIED_METHOD0(Unload, noexcept, void());
 
     MOCK_QUALIFIED_METHOD3(getShapeInferTypes, noexcept, InferenceEngine::StatusCode

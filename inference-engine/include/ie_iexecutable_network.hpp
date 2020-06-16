@@ -20,7 +20,6 @@
 #include "ie_imemory_state.hpp"
 #include "ie_input_info.hpp"
 #include "ie_parameter.hpp"
-#include "ie_primitive_info.hpp"
 #include "ie_remote_context.hpp"
 
 namespace InferenceEngine {
@@ -98,21 +97,6 @@ public:
      * @return Status code of the operation: InferenceEngine::OK (0) for success
      */
     virtual StatusCode Export(std::ostream& networkModel, ResponseDesc* resp) noexcept = 0;
-
-    /**
-     * @deprecated Use ExecutableNetwork::GetExecGraphInfo to get information about an internal graph.
-     * The method will be removed in 2021.1 release.
-     * @brief Get the mapping of IR layer names to implemented kernels
-     *
-     * @param deployedTopology Map of PrimitiveInfo objects that represent the deployed topology
-     * @param resp Optional: pointer to an already allocated object to contain information in case of failure
-     * @return Status code of the operation: InferenceEngine::OK (0) for success
-     */
-    IE_SUPPRESS_DEPRECATED_START_WIN
-    INFERENCE_ENGINE_DEPRECATED("Use ExecutableNetwork::GetExecGraphInfo to get information about an internal graph")
-    virtual StatusCode GetMappedTopology(std::map<std::string, std::vector<PrimitiveInfo::Ptr>>& deployedTopology,
-                                         ResponseDesc* resp) noexcept = 0;
-    IE_SUPPRESS_DEPRECATED_END_WIN
 
     /**
      * @brief Get executable graph information from a device

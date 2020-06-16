@@ -63,13 +63,6 @@ public:
         TO_STATUS(_impl->Export(networkModel));
     }
 
-    IE_SUPPRESS_DEPRECATED_START
-    StatusCode GetMappedTopology(std::map<std::string, std::vector<PrimitiveInfo::Ptr>>& deployedTopology,
-                                 ResponseDesc* resp) noexcept override {
-        return NOT_IMPLEMENTED;
-    }
-    IE_SUPPRESS_DEPRECATED_END
-
     StatusCode GetExecGraphInfo(ICNNNetwork::Ptr& graphPtr, ResponseDesc* resp) noexcept override {
         TO_STATUS(_impl->GetExecGraphInfo(graphPtr));
     }

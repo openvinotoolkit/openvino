@@ -1567,18 +1567,6 @@ cdef class IENetwork:
     def batch_size(self):
         return self.impl.getBatch()
 
-    ## \note This property is deprecated:
-    #  network precision does not make sense, use precision on edges.
-    #
-    #  Precision of the network
-    @property
-    def precision(self):
-        warnings.warn("Network precision is deprecated "
-                      "because it does not make sence, "
-                      "use precision on egdes.",
-                      DeprecationWarning)
-        return self.impl.precision.decode()
-
     @batch_size.setter
     def batch_size(self, batch: int):
         if batch <= 0:

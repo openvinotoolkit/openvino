@@ -17,7 +17,6 @@ public:
                                                                                InferenceEngine::ResponseDesc *resp));
     MOCK_QUALIFIED_METHOD1(GetVersion, noexcept, void(const InferenceEngine::Version *&));
     MOCK_QUALIFIED_METHOD0(Release, noexcept, void());
-    MOCK_QUALIFIED_METHOD1(SetLogCallback, noexcept, void(InferenceEngine::IErrorListener &));
     MOCK_QUALIFIED_METHOD2(LoadNetwork, noexcept, InferenceEngine::StatusCode(
             const InferenceEngine::ICNNNetwork &, InferenceEngine::ResponseDesc *resp));
     MOCK_QUALIFIED_METHOD4(LoadNetwork, noexcept, InferenceEngine::StatusCode(

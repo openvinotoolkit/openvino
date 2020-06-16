@@ -54,7 +54,8 @@ bool PowerTestModel::transform(CNNNetwork& network, LayerTransformation::Params&
     LowPrecisionTransformer transformer(LowPrecisionTransformer::getAllTransformations(params));
     transformer.transform(network);
 
-    const Precision precision = params.updatePrecisions ? Precision(Precision::U8) : network.getPrecision();
+    const Precision precision = params.updatePrecisions ? Precision(Precision::U8) :
+        network.getInputsInfo().begin()->second->getPrecision();
 
     CNNLayerPtr fakeQuantize = getLayer(network, "FakeQuantize6");
     if (fakeQuantize->outData[0]->getPrecision() != precision) {

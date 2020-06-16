@@ -850,6 +850,8 @@ public:
     std::string getName() const override;
     bool transform(CNNNetwork& network, LayerTransformation::Params& params) const override;
     std::string getModel(SingleLayerTransformationsTestParams& p) const override;
+
+    mutable InferenceEngine::Precision netPrecision;
 };
 
 class PowerTestModel : public SingleLayerTestModel {

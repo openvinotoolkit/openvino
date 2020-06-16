@@ -41,7 +41,6 @@ struct IENetwork {
     std::shared_ptr<InferenceEngine::CNNNetwork> actual;
     std::string name;
     std::size_t batch_size;
-    std::string precision;
     PyObject* getFunction();
 
     void setBatch(const size_t size);

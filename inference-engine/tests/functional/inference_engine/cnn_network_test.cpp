@@ -19,13 +19,6 @@ TEST_F(CNNNetworkTests, throwsOnInitWithNullNgraph) {
     ASSERT_THROW(CNNNetwork network(nlptr), InferenceEngine::details::InferenceEngineException);
 }
 
-TEST_F(CNNNetworkTests, throwsOnUninitializedGetPrecision) {
-    CNNNetwork network;
-    IE_SUPPRESS_DEPRECATED_START
-    ASSERT_THROW(network.getPrecision(), InferenceEngine::details::InferenceEngineException);
-    IE_SUPPRESS_DEPRECATED_END
-}
-
 TEST_F(CNNNetworkTests, throwsOnUninitializedGetOutputsInfo) {
     CNNNetwork network;
     ASSERT_THROW(network.getOutputsInfo(), InferenceEngine::details::InferenceEngineException);
