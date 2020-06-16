@@ -51,11 +51,6 @@ NgraphTestCase::NgraphTestCase(const std::shared_ptr<Function>& function,
     }
 }
 
-NgraphTestCase::NgraphTestCase(const std::shared_ptr<Function>& function)
-    : m_function{function}
-{
-}
-
 ::testing::AssertionResult NgraphTestCase::run(size_t tolerance_bits)
 {
     m_tolerance_bits = tolerance_bits;

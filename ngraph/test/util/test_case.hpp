@@ -46,8 +46,6 @@ namespace ngraph
                            const std::string& backend_name,
                            BackendMode mode = BackendMode::STATIC);
 
-            NgraphTestCase(const std::shared_ptr<Function>& function);
-
             /// \brief Makes the test case print the expected and computed values to the console.
             ///        This should only be used for debugging purposes.
             ///
