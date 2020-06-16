@@ -39,7 +39,7 @@ inline uint FUNC(get_output_index)(uint b, uint f, uint z, uint y, uint x)
 }
 
 
-#define TRIANGLE_COEFF(x) (INPUT0_MAX_FUNC(INPUT0_VAL_ZERO, INPUT0_VAL_ONE - INPUT0_ABS_FUNC(x)))
+#define TRIANGLE_COEFF(x) (ACCUMULATOR_MAX_FUNC(ACCUMULATOR_VAL_ZERO, ACCUMULATOR_VAL_ONE - ACCUMULATOR_ABS_FUNC(x)))
 #define unroll_for __attribute__((opencl_unroll_hint)) for
 
 KERNEL (resample_gpu_ref)(__global INPUT0_TYPE* input,
@@ -54,10 +54,15 @@ KERNEL (resample_gpu_ref)(__global INPUT0_TYPE* input,
     typedef MAKE_VECTOR_TYPE(OUTPUT_TYPE, PACK_SIZE) out_pack_t;
 
     const int ox = get_global_id(0);
-    const int oy = get_global_id(1) % OUTPUT_SIZE_Y;
-    const int oz = get_global_id(1) / OUTPUT_SIZE_Y;
-    const int feature = (get_global_id(2) * PACK_SIZE) % OUTPUT_FEATURE_NUM;
-    const int batch = (get_global_id(2) * PACK_SIZE) / OUTPUT_FEATURE_NUM;
+#if OUTPUT_DIMS <= 4
+    const int oy = get_global_id(1);
+    const int oz = 0;
+#else
+    const int oy = (int)get_global_id(1) % OUTPUT_SIZE_Y;
+    const int oz = (int)get_global_id(1) / OUTPUT_SIZE_Y;
+#endif
+    const int feature = ((int)get_global_id(2) * PACK_SIZE) % OUTPUT_FEATURE_NUM;
+    const int batch = ((int)get_global_id(2) * PACK_SIZE) / OUTPUT_FEATURE_NUM;
     const int ix = floor(ox * X_RATIO);
     const int iy = floor(oy * Y_RATIO);
     const int iz = floor(oz * Z_RATIO);
@@ -117,13 +122,13 @@ KERNEL (resample_gpu_ref)(__global INPUT0_TYPE* input,
         return;
 #endif
 
-    const int top_y_index = (int)(floor(iy));
-    const int bottom_y_index = (int)(min(TO_INPUT0_TYPE(ceil(iy)), TO_INPUT0_TYPE(INPUT0_SIZE_Y) - 1));
-    const int left_x_index = (int)(floor(ix));
-    const int right_x_index = (int)(min(TO_INPUT0_TYPE(ceil(ix)), TO_INPUT0_TYPE(INPUT0_SIZE_X) - 1));
+    const int top_y_index    = (int)(floor(iy));
+    const int bottom_y_index = min((int)ceil(iy), INPUT0_SIZE_Y - 1);
+    const int left_x_index   = (int)(floor(ix));
+    const int right_x_index  = min((int)ceil(ix), INPUT0_SIZE_X - 1);
 
-    const INPUT0_TYPE dx = TO_INPUT0_TYPE(ix - left_x_index);
-    const INPUT0_TYPE dy = TO_INPUT0_TYPE(iy - top_y_index);
+    const ACCUMULATOR_TYPE dx = TO_ACCUMULATOR_TYPE(ix - left_x_index);
+    const ACCUMULATOR_TYPE dy = TO_ACCUMULATOR_TYPE(iy - top_y_index);
 
     unroll_for(int in_f = 0; in_f < OUTPUT_FEATURE_NUM; in_f++) {
         INPUT0_TYPE top_left = input[INPUT0_GET_INDEX(batch, in_f, top_y_index, left_x_index)];
@@ -131,17 +136,17 @@ KERNEL (resample_gpu_ref)(__global INPUT0_TYPE* input,
         INPUT0_TYPE bottom_left = input[INPUT0_GET_INDEX(batch, in_f, bottom_y_index, left_x_index)];
         INPUT0_TYPE bottom_right = input[INPUT0_GET_INDEX(batch, in_f, bottom_y_index, right_x_index)];
 
-        INPUT0_TYPE top = top_left + (top_right - top_left) * dx;
-        INPUT0_TYPE bottom = bottom_left + (bottom_right - bottom_left) * dx;
+        ACCUMULATOR_TYPE top = TO_ACCUMULATOR_TYPE(top_left) + (TO_ACCUMULATOR_TYPE(top_right) - TO_ACCUMULATOR_TYPE(top_left)) * dx;
+        ACCUMULATOR_TYPE bottom = TO_ACCUMULATOR_TYPE(bottom_left) + (TO_ACCUMULATOR_TYPE(bottom_right) - TO_ACCUMULATOR_TYPE(bottom_left)) * dx;
 
-        INPUT0_TYPE interp_val = top + (bottom - top) * dy;
+        ACCUMULATOR_TYPE interp_val = top + (bottom - top) * dy;
 
 #if HAS_FUSED_OPS
         #define OF_ID (in_f)
         FUSED_OPS;
         OUTPUT_TYPE res = FUSED_OPS_RESULT;
 #else
-        OUTPUT_TYPE res = ACTIVATION(interp_val, ACTIVATION_PARAMS);
+        OUTPUT_TYPE res = TO_OUTPUT_TYPE(ACTIVATION(interp_val, ACTIVATION_PARAMS));
 #endif
         output[OUTPUT_GET_INDEX(batch, in_f, oy, ox)] = res;
     }
@@ -158,32 +163,32 @@ KERNEL (resample_gpu_ref)(__global INPUT0_TYPE* input,
     const int oz    = (int)get_global_id(2) / OUTPUT_BATCH_NUM;
 #endif
 
-    const INPUT0_TYPE ix = ox * X_RATIO + X_RATIO_HALF - 0.5f;
-    const INPUT0_TYPE iy = oy * Y_RATIO + Y_RATIO_HALF - 0.5f;
-    const INPUT0_TYPE iz = oz * Z_RATIO + Z_RATIO_HALF - 0.5f;
+    const ACCUMULATOR_TYPE ix = ox * X_RATIO + X_RATIO_HALF - 0.5f;
+    const ACCUMULATOR_TYPE iy = oy * Y_RATIO + Y_RATIO_HALF - 0.5f;
+    const ACCUMULATOR_TYPE iz = oz * Z_RATIO + Z_RATIO_HALF - 0.5f;
 
     const int ix_r = (int)ix;
     const int iy_r = (int)iy;
     const int iz_r = (int)iz;
 
 #if ANTIALIAS == 1
-    const INPUT0_TYPE ax = 1.0f / X_RATIO;
-    const INPUT0_TYPE ay = 1.0f / Y_RATIO;
-    const INPUT0_TYPE az = 1.0f / Z_RATIO;
+    const ACCUMULATOR_TYPE ax = 1.0f / X_RATIO;
+    const ACCUMULATOR_TYPE ay = 1.0f / Y_RATIO;
+    const ACCUMULATOR_TYPE az = 1.0f / Z_RATIO;
 #else
-    const INPUT0_TYPE ax = 1.0f;
-    const INPUT0_TYPE ay = 1.0f;
-    const INPUT0_TYPE az = 1.0f;
+    const ACCUMULATOR_TYPE ax = 1.0f;
+    const ACCUMULATOR_TYPE ay = 1.0f;
+    const ACCUMULATOR_TYPE az = 1.0f;
 #endif
-    const int rx = (X_RATIO < 1.0f) ? 2 : (int)ceil(TO_INPUT0_TYPE(KERNEL_W) / ax);
-    const int ry = (Y_RATIO < 1.0f) ? 2 : (int)ceil(TO_INPUT0_TYPE(KERNEL_W) / ay);
-    const int rz = (Z_RATIO < 1.0f) ? 2 : (int)ceil(TO_INPUT0_TYPE(KERNEL_W) / az);
+    const int rx = (X_RATIO < 1.0f) ? 2 : (int)ceil(TO_ACCUMULATOR_TYPE(KERNEL_W) / ax);
+    const int ry = (Y_RATIO < 1.0f) ? 2 : (int)ceil(TO_ACCUMULATOR_TYPE(KERNEL_W) / ay);
+    const int rz = (Z_RATIO < 1.0f) ? 2 : (int)ceil(TO_ACCUMULATOR_TYPE(KERNEL_W) / az);
 
-    INPUT0_TYPE sum[FEATURE_BLOCK_SIZE];
+    ACCUMULATOR_TYPE sum[FEATURE_BLOCK_SIZE];
     for (int i = 0; i < FEATURE_BLOCK_SIZE; i++)
         sum[i] = 0;
 
-    INPUT0_TYPE wsum = 0;
+    ACCUMULATOR_TYPE wsum = 0;
 
     int const y_init = max(0, iy_r - ry);
     int const x_init = max(0, ix_r - rx);
@@ -195,13 +200,13 @@ KERNEL (resample_gpu_ref)(__global INPUT0_TYPE* input,
     unroll_for(int z = z_init; z < z_max; z++) {
         unroll_for(int y = y_init; y < y_max; y++) {
             unroll_for(int x = x_init; x < x_max; x++) {
-                INPUT0_TYPE dx = ix - x;
-                INPUT0_TYPE dy = iy - y;
-                INPUT0_TYPE dz = iz - z;
+                ACCUMULATOR_TYPE dx = ix - x;
+                ACCUMULATOR_TYPE dy = iy - y;
+                ACCUMULATOR_TYPE dz = iz - z;
 #if ANTIALIAS == 1
-                INPUT0_TYPE w = ax * TRIANGLE_COEFF(ax * dx) * ay * TRIANGLE_COEFF(ay * dy) * az * triangleCoeff(az * dz);
+                ACCUMULATOR_TYPE w = ax * TRIANGLE_COEFF(ax * dx) * ay * TRIANGLE_COEFF(ay * dy) * az * triangleCoeff(az * dz);
 #else
-                INPUT0_TYPE w = TRIANGLE_COEFF(dx) * TRIANGLE_COEFF(dy) * TRIANGLE_COEFF(dz);
+                ACCUMULATOR_TYPE w = TRIANGLE_COEFF(dx) * TRIANGLE_COEFF(dy) * TRIANGLE_COEFF(dz);
 #endif
 
 #ifndef LEFTOVERS
@@ -211,7 +216,7 @@ KERNEL (resample_gpu_ref)(__global INPUT0_TYPE* input,
                 unroll_for(int f = 0; f < f_max; f++) {
 #endif
                 if (w != 0)
-                    sum[f] += w * input[FUNC_CALL(get_input_index)(batch, feature + f, z, y, x)];
+                    sum[f] += w * TO_ACCUMULATOR_TYPE(input[FUNC_CALL(get_input_index)(batch, feature + f, z, y, x)]);
                 }
                 wsum += w;
             }
@@ -224,13 +229,13 @@ KERNEL (resample_gpu_ref)(__global INPUT0_TYPE* input,
     unroll_for (int f = 0; f < f_max; f++) {
 #endif
 
-        INPUT0_TYPE interp_val = (wsum == 0) ? 0 : (sum[f] / wsum);
+        ACCUMULATOR_TYPE interp_val = (wsum == 0) ? 0 : (sum[f] / wsum);
 #if HAS_FUSED_OPS
         #define OF_ID (feature + f)
         FUSED_OPS;
         OUTPUT_TYPE res = FUSED_OPS_RESULT;
 #else
-        OUTPUT_TYPE res = ACTIVATION(interp_val, ACTIVATION_PARAMS);
+        OUTPUT_TYPE res = TO_OUTPUT_TYPE(ACTIVATION(interp_val, ACTIVATION_PARAMS));
 #endif
         output[FUNC_CALL(get_output_index)(batch, feature + f, oz, oy, ox)] = res;
     }

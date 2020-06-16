@@ -115,7 +115,7 @@ JitConstants ResampleKernelRef::GetJitConstants(const resample_params& params) c
             idx_order = {"batch", "OF_ID", "oz", "oy", "ox"};
         }
 
-        FusedOpsConfiguration conf = {"", idx_order, "interp_val", params.inputs[0].GetDType(), 1};
+        FusedOpsConfiguration conf = {"", idx_order, "interp_val", GetAccumulatorType(params), 1};
         jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
     }
 
