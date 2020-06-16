@@ -1,7 +1,7 @@
 #include "graph_cache.hpp"
 #include "except.hpp"
-#include "tensor.hpp"
 #include "provenance.hpp"
+#include "tensor.hpp"
 #include "utils/provenance_tag.hpp"
 
 namespace ngraph
@@ -56,7 +56,7 @@ namespace ngraph
             {
                 return m_graph_cache_map.at(name);
             }
-            catch(const std::out_of_range&)
+            catch (const std::out_of_range&)
             {
                 throw ngraph_error(name + " node not found in graph cache");
             }
@@ -67,9 +67,8 @@ namespace ngraph
             return (m_graph_cache_map.count(name) > 0);
         }
 
-
-
-        SubgraphCache::SubgraphCache(const ONNX_NAMESPACE::GraphProto& graph_proto, const std::shared_ptr<GraphCache> parent_graph_cache)
+        SubgraphCache::SubgraphCache(const ONNX_NAMESPACE::GraphProto& graph_proto,
+                                     const std::shared_ptr<GraphCache> parent_graph_cache)
             : GraphCache(graph_proto)
             , m_parent_graph_cache{parent_graph_cache}
         {
@@ -78,13 +77,13 @@ namespace ngraph
         std::shared_ptr<ngraph::Node> SubgraphCache::get_node(const std::string& name) const
         {
             // present in subgraph scope
-            if(GraphCache::contains(name))
+            if (GraphCache::contains(name))
             {
                 return GraphCache::get_node(name);
             }
             else // present in parent graph scope
             {
-               return m_parent_graph_cache->get_node(name);
+                return m_parent_graph_cache->get_node(name);
             }
         }
 

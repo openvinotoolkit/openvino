@@ -69,7 +69,9 @@ namespace ngraph
         {
         }
 
-        Graph::Graph(const ONNX_NAMESPACE::GraphProto& graph_proto, Model& model, std::shared_ptr<GraphCache>&& cache)
+        Graph::Graph(const ONNX_NAMESPACE::GraphProto& graph_proto,
+                     Model& model,
+                     std::shared_ptr<GraphCache>&& cache)
             : m_graph_proto{&graph_proto}
             , m_model{&model}
             , m_cache{std::move(cache)}
@@ -147,11 +149,7 @@ namespace ngraph
             }
         }
 
-        const std::shared_ptr<GraphCache> Graph::get_graph_cache() const
-        {
-            return m_cache;
-        }
-
+        const std::shared_ptr<GraphCache> Graph::get_graph_cache() const { return m_cache; }
         bool Graph::is_node_in_cache(const std::string& name) const
         {
             return m_cache->contains(name);
@@ -231,8 +229,12 @@ namespace ngraph
                 ng_inputs);
         }
 
-        Subgraph::Subgraph(const ONNX_NAMESPACE::GraphProto& proto, Model& model, const Graph& parent_graph)
-            : Graph(proto, model, std::make_shared<SubgraphCache>(proto, parent_graph.get_graph_cache()))
+        Subgraph::Subgraph(const ONNX_NAMESPACE::GraphProto& proto,
+                           Model& model,
+                           const Graph& parent_graph)
+            : Graph(proto,
+                    model,
+                    std::make_shared<SubgraphCache>(proto, parent_graph.get_graph_cache()))
         {
         }
 

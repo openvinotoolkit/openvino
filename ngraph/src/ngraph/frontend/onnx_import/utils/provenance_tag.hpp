@@ -31,10 +31,10 @@ namespace ngraph
                 const std::vector<std::reference_wrapper<const std::string>>& strings);
 
             std::string build_input_provenance_tag(const std::string& input_name,
-                                                          const PartialShape& shape);
+                                                   const PartialShape& shape);
 
             std::string build_op_provenance_tag(const Node& onnx_node);
 
         } // namespace detail
-    } // namespace onnx_import
+    }     // namespace onnx_import
 } // namespace ngraph

@@ -101,7 +101,8 @@ namespace ngraph
         protected:
             std::shared_ptr<ngraph::op::Parameter> get_ng_parameter() const
             {
-                auto parameter = std::make_shared<ngraph::op::Parameter>(get_element_type(), get_shape());
+                auto parameter =
+                    std::make_shared<ngraph::op::Parameter>(get_element_type(), get_shape());
                 parameter->set_friendly_name(get_name());
                 return parameter;
             }

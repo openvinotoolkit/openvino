@@ -286,7 +286,6 @@ namespace ngraph
             float get_float() const { return m_attribute_proto->f(); }
             int64_t get_integer() const { return m_attribute_proto->i(); }
             const std::string& get_string() const { return m_attribute_proto->s(); }
-            
             Subgraph get_subgraph(const Graph& parent_graph) const;
 
             std::vector<Tensor> get_tensor_array() const

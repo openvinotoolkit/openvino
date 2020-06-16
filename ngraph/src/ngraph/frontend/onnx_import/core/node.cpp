@@ -126,7 +126,7 @@ namespace ngraph
             return it->template get_value<T>();
         }
 
-        template<>
+        template <>
         Subgraph Node::Impl::get_attribute_value(const std::string& name) const
         {
             auto it = std::find_if(

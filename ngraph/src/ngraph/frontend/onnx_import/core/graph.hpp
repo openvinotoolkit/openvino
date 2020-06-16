@@ -16,10 +16,10 @@
 
 #pragma once
 
+#include <memory>
 #include <onnx/onnx_pb.h>
 #include <string>
 #include <vector>
-#include <memory>
 
 #include "default_opset.hpp"
 #include "graph_cache.hpp"
@@ -48,7 +48,9 @@ namespace ngraph
             const std::shared_ptr<GraphCache> get_graph_cache() const;
 
         protected:
-            Graph(const ONNX_NAMESPACE::GraphProto& proto, Model& model, std::shared_ptr<GraphCache>&& cache);
+            Graph(const ONNX_NAMESPACE::GraphProto& proto,
+                  Model& model,
+                  std::shared_ptr<GraphCache>&& cache);
 
             void set_friendly_names(const Node& onnx_node, const NodeVector& ng_node_vector) const;
 
@@ -67,19 +69,21 @@ namespace ngraph
             Model* m_model;
         };
 
-        /// \brief      Representation of ONNX subgraph. It is used for example by ONNX Loop op. 
-        ///             It has access for initializers both from subgraph and from parent graph cache. 
+        /// \brief      Representation of ONNX subgraph. It is used for example by ONNX Loop op.
+        ///             It has access for initializers both from subgraph and from parent graph
+        ///             cache.
         class Subgraph : public Graph
         {
         public:
-                /// \brief      Subgraph a GraphCache class object.
-                ///
-                /// \param[in]  proto          The ONNX protobuf graph representation.
-                /// \param[in]  model          The ONNX model object.
-                /// \param[in]  parent_graph   The reference to the parent graph.
-            Subgraph(const ONNX_NAMESPACE::GraphProto& proto, Model& model, const Graph& parent_graph);
+            /// \brief      Subgraph a GraphCache class object.
+            ///
+            /// \param[in]  proto          The ONNX protobuf graph representation.
+            /// \param[in]  model          The ONNX model object.
+            /// \param[in]  parent_graph   The reference to the parent graph.
+            Subgraph(const ONNX_NAMESPACE::GraphProto& proto,
+                     Model& model,
+                     const Graph& parent_graph);
         };
-        
 
         inline std::ostream& operator<<(std::ostream& outs, const Graph& graph)
         {

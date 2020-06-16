@@ -38,7 +38,7 @@ namespace ngraph
             {
                 throw error::attribute::InvalidData{m_attribute_proto->type()};
             }
-            
+
             ONNX_NAMESPACE::ModelProto model_proto;
             const auto& graph = m_attribute_proto->g();
             *(model_proto.mutable_graph()) = graph;

@@ -34,36 +34,53 @@ namespace ngraph
             {
                 namespace
                 {
-                    /// \brief      The termination condition input is not supported by TensorIterator now. 
-                    ///             If it is possible to determine that is is always true, it can be ignored it
-                    ///             and execute using current version of TensorIterator.
+                    /// \brief      The termination condition input is not supported by
+                    ///             TensorIterator now. If it is possible to determine
+                    //              that termination condition is always true,
+                    //              it can be ignored and execute using current version
+                    //              of TensorIterator.
                     ///
-                    /// \param[in]  loop_cond       Termination loop condition input of Loop operator (initial value).
-                    /// \param[in]  body_cond       Termination loop condition input of the body of the Loop (value updated during Loop iterations).
+                    /// \param[in]  loop_cond       Termination loop condition input of Loop
+                    ///                             operator (initial value).
+                    /// \param[in]  body_cond       Termination loop condition input of the body of
+                    ///                             the Loop (value updated during Loop iterations).
                     ///
-                    /// \return true if termination condition is true and it cannot be changed during Loop iterations, false otherwise.
-                    bool is_termination_condition_always_true(const std::shared_ptr<ngraph::Node>& loop_cond, const std::shared_ptr<ngraph::Node>& body_cond)
+                    /// \return true if termination condition is true and it cannot be changed
+                    ///         during Loop iterations, false otherwise.
+                    bool is_termination_condition_always_true(
+                        const std::shared_ptr<ngraph::Node>& loop_cond,
+                        const std::shared_ptr<ngraph::Node>& body_cond)
                     {
                         bool loop_cond_value = false;
-                        if(loop_cond->is_constant() && loop_cond->get_element_type() == element::boolean)
+                        if (loop_cond->is_constant() &&
+                            loop_cond->get_element_type() == element::boolean)
                         {
-                            loop_cond_value = as_type_ptr<default_opset::Constant>(loop_cond)->cast_vector<bool>().at(0);
+                            loop_cond_value = as_type_ptr<default_opset::Constant>(loop_cond)
+                                                  ->cast_vector<bool>()
+                                                  .at(0);
                         }
-                        // According to ONNX skipped cond input (is_null) means that is has true value
+                        // According to ONNX skipped cond input (is_null) means
+                        // that is has true value
                         bool is_loop_cond_true = loop_cond->is_null() || loop_cond_value == true;
-                        
-                        if(!is_loop_cond_true)
+
+                        if (!is_loop_cond_true)
                         {
                             return false;
                         }
 
-                        // If body termination condition input matches Indentity op pattern the has value of loop_cond - true
-                        // Identity op for boolean value is represented by LogicalOr op whose second input is always false
-                        if(is_type<default_opset::LogicalOr>(body_cond))
+                        // If body termination condition input matches Indentity op pattern the has
+                        // value of loop_cond - true
+                        // Identity op for boolean value is represented by LogicalOr op whose second
+                        // input is always false
+                        if (is_type<default_opset::LogicalOr>(body_cond))
                         {
-                            const auto second_input = body_cond->input_value(1).get_node_shared_ptr();
-                            if(second_input->is_constant() && second_input->get_element_type() == element::boolean 
-                               && as_type_ptr<default_opset::Constant>(second_input)->cast_vector<bool>().at(0) == false)
+                            const auto second_input =
+                                body_cond->input_value(1).get_node_shared_ptr();
+                            if (second_input->is_constant() &&
+                                second_input->get_element_type() == element::boolean &&
+                                as_type_ptr<default_opset::Constant>(second_input)
+                                        ->cast_vector<bool>()
+                                        .at(0) == false)
                             {
                                 return true;
                             }
@@ -112,10 +129,11 @@ namespace ngraph
                                      loop_carried_dependencies.size() + 1);
 
                     const auto& body_loop_cond = graph_outputs.at(0).get_node_shared_ptr();
-                    CHECK_VALID_NODE(node,
+                    CHECK_VALID_NODE(
+                        node,
                         is_termination_condition_always_true(loop_cond, body_loop_cond),
-                            "Given termination loop condition input is not supported by Loop operator");
-                    
+                        "Given termination loop condition input is not supported by Loop operator");
+
                     // TODO: Remove when loop condition would be supported.
                     const auto& cond_node =
                         default_opset::Constant::create(element::boolean, Shape{}, {true});

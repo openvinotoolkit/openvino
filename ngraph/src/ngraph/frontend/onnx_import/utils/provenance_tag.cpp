@@ -40,7 +40,7 @@ namespace ngraph
             }
 
             std::string build_input_provenance_tag(const std::string& input_name,
-                                                          const PartialShape& shape)
+                                                   const PartialShape& shape)
             {
                 std::stringstream tag_builder;
                 tag_builder << "<ONNX Input (" << input_name << ") Shape:" << shape << ">";
@@ -56,7 +56,7 @@ namespace ngraph
                 return std::string{"<ONNX " + onnx_node.op_type() + " (" + node_name + "-> " +
                                    output_names + ")>"};
             }
-            
+
         } // namespace detail
-    } // namespace onnx_import
+    }     // namespace onnx_import
 } // namespace ngraph

@@ -99,15 +99,14 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_add_value_access_to_body_scope_exc
 {
     try
     {
-        const auto function = onnx_import::import_onnx_model(
-            file_util::path_join(SERIALIZED_ZOO, "onnx/loop_2d_add_incorrect_access_body_scope.prototxt"));
+        const auto function = onnx_import::import_onnx_model(file_util::path_join(
+            SERIALIZED_ZOO, "onnx/loop_2d_add_incorrect_access_body_scope.prototxt"));
         FAIL() << "Incorrect access to body scope not detected";
     }
-    catch(const ngraph_error& e)
+    catch (const ngraph_error& e)
     {
-        EXPECT_HAS_SUBSTRING(
-            e.what(),
-            std::string("from_body_scope node not found in graph cache"));
+        EXPECT_HAS_SUBSTRING(e.what(),
+                             std::string("from_body_scope node not found in graph cache"));
     }
     catch (...)
     {
@@ -144,11 +143,12 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_add_exception_if_no_identi
             file_util::path_join(SERIALIZED_ZOO, "onnx/loop_2d_add_no_identity_cond.prototxt"));
         FAIL() << "Not supported termination loop condition exception not thrown";
     }
-    catch(const ngraph_error& e)
+    catch (const ngraph_error& e)
     {
         EXPECT_HAS_SUBSTRING(
             e.what(),
-            std::string("Given termination loop condition input is not supported by Loop operator"));
+            std::string(
+                "Given termination loop condition input is not supported by Loop operator"));
     }
     catch (...)
     {
