@@ -96,7 +96,17 @@ void MKLDNNPowerNode::execute(mkldnn::stream strm) {
     float *dst_ptr = reinterpret_cast<float*>(dstMemory.GetData()) +
             dstMemory.GetDescriptor().data.layout_desc.blocking.offset_padding;
 
-    if (power == 1.0f) {
+    if (power == -1.f) {
+        parallel_for(data_size, [&](size_t i) {
+            float val = src_ptr[i] * scale + shift;
+            dst_ptr[i] = 1 / val;
+        });
+    } else if (power == 0.5f) {
+        parallel_for(data_size, [&](size_t i) {
+            float val = src_ptr[i] * scale + shift;
+            dst_ptr[i] = sqrtf(val);
+        });
+    } else if (power == 1.0f) {
         parallel_for(data_size, [&](size_t i) {
             dst_ptr[i] = src_ptr[i] * scale + shift;
         });

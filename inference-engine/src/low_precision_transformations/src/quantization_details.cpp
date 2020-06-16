@@ -113,7 +113,9 @@ bool QuantizationDetails::outputLayoutIsSupported(const CNNLayer& quantize) {
     size_t outputIntervalsCount;
     getOutputIntervals(quantize, outputLowValues, outputHighValues, outputIntervalsCount);
 
-    const size_t outputChannelsCount = CNNNetworkHelper::getOutputChannelsCount(quantize, CNNNetworkHelper::onWeights(quantize));
+    const size_t outputChannelsCount = CNNNetworkHelper::getOutputChannelsCount(
+        quantize,
+        CNNNetworkHelper::onWeights(quantize) && CNNNetworkHelper::onConstWeightsPath(quantize));
     if ((outputIntervalsCount != 1ul) && (outputIntervalsCount != outputChannelsCount)) {
         return false;
     }
@@ -200,7 +202,9 @@ QuantizationDetails QuantizationDetails::getDetails(const CNNLayer& quantize) {
     size_t outputIntervalsCount;
     getOutputIntervals(quantize, outputLowValues, outputHighValues, outputIntervalsCount);
 
-    const size_t outputChannelsCount = CNNNetworkHelper::getOutputChannelsCount(quantize, CNNNetworkHelper::onWeights(quantize));
+    const size_t outputChannelsCount = CNNNetworkHelper::getOutputChannelsCount(
+        quantize,
+        CNNNetworkHelper::onWeights(quantize) && CNNNetworkHelper::onConstWeightsPath(quantize));
     if (!outputLayoutIsSupported(quantize)) {
         THROW_IE_LPT_EXCEPTION(quantize) << "Expected output channels count " << outputIntervalsCount << " but found " << outputChannelsCount;
     }

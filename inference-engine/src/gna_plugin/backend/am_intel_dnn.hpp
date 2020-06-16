@@ -193,6 +193,46 @@ public:
                                             true);
     }
 
+    template<class A, class B>
+    static void InitDeinterleaveComponent(intel_dnn_component_t &cmp,
+                                          uint32_t num_rows_in,
+                                          uint32_t num_columns_in,
+                                          uint32_t num_bytes_per_input,
+                                          uint32_t num_bytes_per_output,
+                                          float output_scale_factor,
+                                          A *&ptr_inputs,
+                                          B *&ptr_outputs) {
+        InitDeinterleaveComponentPrivate(cmp,
+                                         num_rows_in,
+                                         num_columns_in,
+                                         num_bytes_per_input,
+                                         num_bytes_per_output,
+                                         output_scale_factor,
+                                         (void *&) ptr_inputs,
+                                         (void *&) ptr_outputs,
+                                         true);
+    }
+
+    template<class A, class B>
+    static void InitInterleaveComponent(intel_dnn_component_t &cmp,
+                                        uint32_t num_rows_in,
+                                        uint32_t num_columns_in,
+                                        uint32_t num_bytes_per_input,
+                                        uint32_t num_bytes_per_output,
+                                        float output_scale_factor,
+                                        A *&ptr_inputs,
+                                        B *&ptr_outputs) {
+        InitInterleaveComponentPrivate(cmp,
+                                       num_rows_in,
+                                       num_columns_in,
+                                       num_bytes_per_input,
+                                       num_bytes_per_output,
+                                       output_scale_factor,
+                                       (void *&) ptr_inputs,
+                                       (void *&) ptr_outputs,
+                                       true);
+    }
+
 
     template<class A, class B>
     static void InitCopyComponent(intel_dnn_component_t &cmp,
@@ -341,6 +381,26 @@ private:
                                                     void *&ptr_inputs,
                                                     void *&ptr_outputs,
                                                     intel_pwl_segment_t *ptr_segments,
+                                                    bool postInitMem);
+
+    static void InitInterleaveComponentPrivate(intel_dnn_component_t &cmp,
+                                                    uint32_t num_rows_in,
+                                                    uint32_t num_columns_in,
+                                                    uint32_t num_bytes_per_input,
+                                                    uint32_t num_bytes_per_output,
+                                                    float output_scale_factor,
+                                                    void *&ptr_inputs,
+                                                    void *&ptr_outputs,
+                                                    bool postInitMem);
+
+    static void InitDeinterleaveComponentPrivate(intel_dnn_component_t &cmp,
+                                                    uint32_t num_rows_in,
+                                                    uint32_t num_columns_in,
+                                                    uint32_t num_bytes_per_input,
+                                                    uint32_t num_bytes_per_output,
+                                                    float output_scale_factor,
+                                                    void *&ptr_inputs,
+                                                    void *&ptr_outputs,
                                                     bool postInitMem);
 
     static void InitConvolutional1DComponentPrivate(intel_dnn_component_t &comp,

@@ -24,8 +24,6 @@
 #include "ngraph_ops/pad_ie.hpp"
 #include "ngraph_ops/onehot_ie.hpp"
 #include "ngraph_ops/power.hpp"
-#include "ngraph_ops/prior_box_clustered_ie.hpp"
-#include "ngraph_ops/prior_box_ie.hpp"
 #include "ngraph_ops/proposal_ie.hpp"
 #include "ngraph_ops/relu_ie.hpp"
 #include "ngraph_ops/scaleshift.hpp"
@@ -474,6 +472,20 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         return res;
 
     });
+
+    addSpecificCreator({"PriorBox"}, [](const std::shared_ptr<::ngraph::Node>& node,
+                                       const std::map<std::string, std::string> params) -> CNNLayerPtr {
+        THROW_IE_EXCEPTION << "PriorBox operation has a form that is not supported." << node->get_friendly_name()
+                           << " should be replaced by constant during constant folding.";
+        return nullptr;
+    });
+
+    addSpecificCreator({"PriorBoxClustered"}, [](const std::shared_ptr<::ngraph::Node>& node,
+                                       const std::map<std::string, std::string> params) -> CNNLayerPtr {
+        THROW_IE_EXCEPTION << "PriorBoxClustered operation has a form that is not supported." << node->get_friendly_name()
+                           << " should be replaced by constant during constant folding.";
+        return nullptr;
+    });
 }
 
 CNNLayerPtr InferenceEngine::details::CNNLayerCreator::create() {
@@ -487,7 +499,9 @@ CNNLayerPtr InferenceEngine::details::CNNLayerCreator::create() {
     return res;
 }
 
-std::shared_ptr<CNNNetworkImpl> convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function>& graph, const ICNNNetwork &network) {
+std::shared_ptr<CNNNetworkImpl> convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function> &graph,
+                                                             const ICNNNetwork &network,
+                                                             bool keep_constant_inputs) {
     IE_PROFILING_AUTO_SCOPE(convertFunctionToICNNNetwork)
     const auto createCNNLayer = [](const std::shared_ptr<::ngraph::Node> &node) -> CNNLayerPtr {
         class NGraphCNNLayer: public CNNLayer {
@@ -553,10 +567,6 @@ std::shared_ptr<CNNNetworkImpl> convertFunctionToICNNNetwork(const std::shared_p
                 std::make_shared<Builder::NodeConverter<::ngraph::op::PadIE>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::v1::Power>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::PowerIE>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::PriorBox>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::PriorBoxClustered>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::PriorBoxClusteredIE>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::PriorBoxIE>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::Proposal>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::ProposalIE>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::Relu>>(),
@@ -707,7 +717,7 @@ std::shared_ptr<CNNNetworkImpl> convertFunctionToICNNNetwork(const std::shared_p
     for (const auto &layer : nodes)
         op_names.insert(layer->get_name());
 
-    bool keep_constants = ::ngraph::op::util::has_op_with_type<::ngraph::op::FakeQuantize>(graph);
+    bool keep_constants = keep_constant_inputs || ::ngraph::op::util::has_op_with_type<::ngraph::op::FakeQuantize>(graph);
 
     // Create layers and output data
     for (const auto &layer : nodes) {
@@ -881,7 +891,6 @@ std::shared_ptr<CNNNetworkImpl> convertFunctionToICNNNetwork(const std::shared_p
     for (const auto &ext : ::ngraph::op::GenericIE::getExtensions(graph)) {
         cnnNetworkImpl->AddExtension(ext, nullptr);
     }
-
     return cnnNetworkImpl;
 }
 }  // namespace details

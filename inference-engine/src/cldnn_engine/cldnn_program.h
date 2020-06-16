@@ -177,6 +177,7 @@ public:
         Gather,
         DepthToSpace,
         SpaceToDepth,
+        BatchToSpace,
         ShuffleChannels,
         StridedSlice,
         Broadcast,
@@ -357,6 +358,7 @@ private:
     void CreateGatherPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer);
     void CreateDepthToSpacePrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer);
     void CreateSpaceToDepthPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer);
+    void CreateBatchToSpacePrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer);
     void CreateShuffleChannelsPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer);
     void CreateStridedSlicePrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer);
     void CreateBroadcastPrimitive(cldnn::topology &topology, InferenceEngine::CNNLayerPtr &layer);

@@ -30,6 +30,16 @@ TEST_F(NGraphReaderTests, ReadPriorBoxClusteredNetwork) {
                 </port>
             </output>
         </layer>
+        <layer id="15" name="in3" type="Parameter" version="opset1">
+            <data element_type="f32" shape="1,2,32400"/>
+            <output>
+                <port id="0" precision="FP32">
+                    <dim>1</dim>
+                    <dim>2</dim>
+                    <dim>32400</dim>
+                </port>
+            </output>
+        </layer>
         <layer id="2" name="shape_of1" type="ShapeOf" version="opset1">
             <input>
                 <port id="0" precision="FP32">
@@ -172,19 +182,63 @@ TEST_F(NGraphReaderTests, ReadPriorBoxClusteredNetwork) {
                 </port>
             </output>
         </layer>
-        <layer id="10" name="output" type="Result" version="opset1">
+        <layer name="concat" id="16" type="Concat" version="opset1">
+            <data axis="1"/>
             <input>
                 <port id="0" precision="FP32">
                     <dim>1</dim>
                     <dim>2</dim>
                     <dim>32400</dim>
                 </port>
+                <port id="1" precision="FP32">
+                    <dim>1</dim>
+                    <dim>2</dim>
+                    <dim>32400</dim>
+                </port>
+            </input>
+            <output>
+                <port id="2" precision="FP32">
+                    <dim>1</dim>
+                    <dim>4</dim>
+                    <dim>32400</dim>
+                </port>
+            </output>
+        </layer>
+        <layer id="10" name="output" type="Result" version="opset1">
+            <input>
+                <port id="0" precision="FP32">
+                    <dim>1</dim>
+                    <dim>4</dim>
+                    <dim>32400</dim>
+                </port>
+            </input>
+        </layer>
+       <layer id="13" name="output_2" type="Result" version="opset1">
+            <input>
+                <port id="0" precision="FP32">
+                    <dim>1</dim>
+                    <dim>768</dim>
+                    <dim>30</dim>
+                    <dim>30</dim>
+                </port>
+            </input>
+        </layer>
+        <layer id="14" name="output_3" type="Result" version="opset1">
+            <input>
+                <port id="0" precision="FP32">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>512</dim>
+                    <dim>512</dim>
+                </port>
             </input>
         </layer>
     </layers>
     <edges>
         <edge from-layer="0" from-port="0" to-layer="2" to-port="0"/>
+        <edge from-layer="0" from-port="0" to-layer="13" to-port="0"/>
         <edge from-layer="1" from-port="0" to-layer="6" to-port="0"/>
+        <edge from-layer="1" from-port="0" to-layer="14" to-port="0"/>
         <edge from-layer="2" from-port="1" to-layer="5" to-port="0"/>
         <edge from-layer="6" from-port="1" to-layer="7" to-port="0"/>
         <edge from-layer="3" from-port="1" to-layer="5" to-port="1"/>
@@ -197,66 +251,90 @@ TEST_F(NGraphReaderTests, ReadPriorBoxClusteredNetwork) {
         <edge from-layer="7" from-port="4" to-layer="8" to-port="1"/>
         <edge from-layer="8" from-port="2" to-layer="11" to-port="0"/>
         <edge from-layer="12" from-port="0" to-layer="11" to-port="1"/>
-        <edge from-layer="11" from-port="2" to-layer="10" to-port="0"/>
+        <edge from-layer="11" from-port="2" to-layer="16" to-port="1"/>
+        <edge from-layer="16" from-port="2" to-layer="10" to-port="0"/>
+        <edge from-layer="15" from-port="0" to-layer="16" to-port="0"/>
     </edges>
 </net>
 )V0G0N";
     std::string modelV5 = R"V0G0N(
 <net name="Network" version="5" precision="FP32" batch="1">
-    <layers>
-        <layer id="0" name="in1" type="Input" precision="FP32">
-            <output>
-                <port id="0">
-                    <dim>1</dim>
-                    <dim>768</dim>
-                    <dim>30</dim>
-                    <dim>30</dim>
-                </port>
-            </output>
-        </layer>
-        <layer id="1" name="in2" type="Input" precision="FP32">
-            <output>
-                <port id="0">
-                    <dim>1</dim>
-                    <dim>3</dim>
-                    <dim>512</dim>
-                    <dim>512</dim>
-                </port>
-            </output>
-        </layer>
-        <layer name="ExpandDims" id="2" type="PriorBoxClustered" precision="FP32">
-            <data clip="0" step_h="16.000000" step_w="16.000000" flip="1" height="44,10,30,19,94,32,61,53,17" offset="0.500000" step="16.000000" variance="0.1,0.1,0.2,0.2" width="86,13,57,39,68,34,142,50,23" originalLayersNames="ExpandDims,prior,shape_of1,shape_of2,ss1,ss2"/>
-            <input>
-                <port id="1">
-                    <dim>1</dim>
-                    <dim>768</dim>
-                    <dim>30</dim>
-                    <dim>30</dim>
-                </port>
-                <port id="2">
-                    <dim>1</dim>
-                    <dim>3</dim>
-                    <dim>512</dim>
-                    <dim>512</dim>
-                </port>
-            </input>
-            <output>
-                <port id="3">
-                    <dim>1</dim>
-                    <dim>2</dim>
-                    <dim>32400</dim>
-                </port>
-            </output>
-        </layer>
-    </layers>
-    <edges>
-        <edge from-layer="0" from-port="0" to-layer="2" to-port="1"/>
-        <edge from-layer="1" from-port="0" to-layer="2" to-port="2"/>
-    </edges>
+ 	<layers>
+		<layer name="in2" type="Input" precision="FP32" id="0">
+			<data originalLayersNames="in2" />
+			<output>
+				<port id="0" precision="FP32">
+					<dim>1</dim>
+					<dim>3</dim>
+					<dim>512</dim>
+					<dim>512</dim>
+				</port>
+			</output>
+		</layer>
+		<layer name="in1" type="Input" precision="FP32" id="1">
+			<data originalLayersNames="in1" />
+			<output>
+				<port id="0" precision="FP32">
+					<dim>1</dim>
+					<dim>768</dim>
+					<dim>30</dim>
+					<dim>30</dim>
+				</port>
+			</output>
+		</layer>
+		<layer name="in3" type="Input" precision="FP32" id="2">
+			<data originalLayersNames="in3" />
+			<output>
+				<port id="0" precision="FP32">
+					<dim>1</dim>
+					<dim>2</dim>
+					<dim>32400</dim>
+				</port>
+			</output>
+		</layer>
+		<layer name="Constant_49" type="Const" precision="FP32" id="3">
+			<output>
+				<port id="0" precision="FP32">
+					<dim>1</dim>
+					<dim>2</dim>
+					<dim>32400</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="0" size="259200" precision="FP32" />
+			</blobs>
+		</layer>
+		<layer name="concat" type="Concat" precision="FP32" id="4">
+			<data axis="1" originalLayersNames="concat" />
+			<input>
+				<port id="0">
+					<dim>1</dim>
+					<dim>2</dim>
+					<dim>32400</dim>
+				</port>
+				<port id="1">
+					<dim>1</dim>
+					<dim>2</dim>
+					<dim>32400</dim>
+				</port>
+			</input>
+			<output>
+				<port id="2" precision="FP32">
+					<dim>1</dim>
+					<dim>4</dim>
+					<dim>32400</dim>
+				</port>
+			</output>
+		</layer>
+	</layers>
+	<edges>
+		<edge from-layer="2" from-port="0" to-layer="4" to-port="0" />
+		<edge from-layer="3" from-port="0" to-layer="4" to-port="1" />
+	</edges>
 </net>
 )V0G0N";
 
-    compareIRs(model, modelV5, 50, [](Blob::Ptr& weights) {
+    compareIRs(model, modelV5, 259200, [](Blob::Ptr& weights) {
                 auto* buffer = weights->buffer().as<int64_t*>();
                 buffer[0] = 2;
                 buffer[1] = 4;
@@ -288,6 +366,16 @@ TEST_F(NGraphReaderTests, ReadPriorBoxNetwork) {
                     <dim>3</dim>
                     <dim>512</dim>
                     <dim>512</dim>
+                </port>
+            </output>
+        </layer>
+        <layer id="15" name="in3" type="Parameter" version="opset1">
+            <data element_type="f32" shape="1,2,14400"/>
+            <output>
+                <port id="0" precision="FP32">
+                    <dim>1</dim>
+                    <dim>2</dim>
+                    <dim>14400</dim>
                 </port>
             </output>
         </layer>
@@ -432,19 +520,63 @@ TEST_F(NGraphReaderTests, ReadPriorBoxNetwork) {
                 </port>
             </output>
         </layer>
-        <layer id="10" name="output" type="Result" version="opset1">
+        <layer name="concat" id="16" type="Concat" version="opset1">
+            <data axis="1"/>
             <input>
                 <port id="0" precision="FP32">
                     <dim>1</dim>
                     <dim>2</dim>
                     <dim>14400</dim>
                 </port>
+                <port id="1" precision="FP32">
+                    <dim>1</dim>
+                    <dim>2</dim>
+                    <dim>14400</dim>
+                </port>
+            </input>
+            <output>
+                <port id="2" precision="FP32">
+                    <dim>1</dim>
+                    <dim>4</dim>
+                    <dim>14400</dim>
+                </port>
+            </output>
+        </layer>
+        <layer id="10" name="output" type="Result" version="opset1">
+            <input>
+                <port id="0" precision="FP32">
+                    <dim>1</dim>
+                    <dim>4</dim>
+                    <dim>14400</dim>
+                </port>
+            </input>
+        </layer>
+        <layer id="13" name="output_2" type="Result" version="opset1">
+            <input>
+                <port id="0" precision="FP32">
+                    <dim>1</dim>
+                    <dim>768</dim>
+                    <dim>30</dim>
+                    <dim>30</dim>
+                </port>
+            </input>
+        </layer>
+        <layer id="14" name="output_3" type="Result" version="opset1">
+            <input>
+                <port id="0" precision="FP32">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>512</dim>
+                    <dim>512</dim>
+                </port>
             </input>
         </layer>
     </layers>
     <edges>
         <edge from-layer="0" from-port="0" to-layer="2" to-port="0"/>
+        <edge from-layer="0" from-port="0" to-layer="13" to-port="0"/>
         <edge from-layer="1" from-port="0" to-layer="6" to-port="0"/>
+        <edge from-layer="1" from-port="0" to-layer="14" to-port="0"/>
         <edge from-layer="2" from-port="1" to-layer="5" to-port="0"/>
         <edge from-layer="6" from-port="1" to-layer="7" to-port="0"/>
         <edge from-layer="3" from-port="1" to-layer="5" to-port="1"/>
@@ -457,66 +589,90 @@ TEST_F(NGraphReaderTests, ReadPriorBoxNetwork) {
         <edge from-layer="7" from-port="4" to-layer="8" to-port="1"/>
         <edge from-layer="8" from-port="2" to-layer="11" to-port="0"/>
         <edge from-layer="12" from-port="0" to-layer="11" to-port="1"/>
-        <edge from-layer="11" from-port="2" to-layer="10" to-port="0"/>
+        <edge from-layer="11" from-port="2" to-layer="16" to-port="0"/>
+        <edge from-layer="15" from-port="0" to-layer="16" to-port="1"/>
+        <edge from-layer="16" from-port="2" to-layer="10" to-port="0"/>
     </edges>
 </net>
 )V0G0N";
     std::string modelV5 = R"V0G0N(
 <net name="Network" version="5" precision="FP32" batch="1">
-    <layers>
-        <layer id="0" name="in1" type="Input" precision="FP32">
-            <output>
-                <port id="0">
-                    <dim>1</dim>
-                    <dim>768</dim>
-                    <dim>30</dim>
-                    <dim>30</dim>
-                </port>
-            </output>
-        </layer>
-        <layer id="1" name="in2" type="Input" precision="FP32">
-            <output>
-                <port id="0">
-                    <dim>1</dim>
-                    <dim>3</dim>
-                    <dim>512</dim>
-                    <dim>512</dim>
-                </port>
-            </output>
-        </layer>
-        <layer name="ExpandDims" id="2" type="PriorBox" precision="FP32">
-            <data density="" fixed_ratio="" fixed_size="" aspect_ratio="2,0.5" clip="0" flip="0" img_h="0" img_size="0" img_w="0" max_size="" min_size="51.200001,72.407555" offset="0.500000" scale_all_sizes="0" step="17.066666666666666" step_h="0" step_w="0" variance="0.1,0.1,0.2,0.2" originalLayersNames="ExpandDims,prior,shape_of1,shape_of2,ss1,ss2"/>
-            <input>
-                <port id="1">
-                    <dim>1</dim>
-                    <dim>768</dim>
-                    <dim>30</dim>
-                    <dim>30</dim>
-                </port>
-                <port id="2">
-                    <dim>1</dim>
-                    <dim>3</dim>
-                    <dim>512</dim>
-                    <dim>512</dim>
-                </port>
-            </input>
-            <output>
-                <port id="3">
-                    <dim>1</dim>
-                    <dim>2</dim>
-                    <dim>14400</dim>
-                </port>
-            </output>
-        </layer>
-    </layers>
-    <edges>
-        <edge from-layer="0" from-port="0" to-layer="2" to-port="1"/>
-        <edge from-layer="1" from-port="0" to-layer="2" to-port="2"/>
-    </edges>
+	<layers>
+		<layer name="in2" type="Input" precision="FP32" id="0">
+			<data originalLayersNames="in2" />
+			<output>
+				<port id="0" precision="FP32">
+					<dim>1</dim>
+					<dim>3</dim>
+					<dim>512</dim>
+					<dim>512</dim>
+				</port>
+			</output>
+		</layer>
+		<layer name="in1" type="Input" precision="FP32" id="1">
+			<data originalLayersNames="in1" />
+			<output>
+				<port id="0" precision="FP32">
+					<dim>1</dim>
+					<dim>768</dim>
+					<dim>30</dim>
+					<dim>30</dim>
+				</port>
+			</output>
+		</layer>
+		<layer name="Constant_49" type="Const" precision="FP32" id="2">
+			<output>
+				<port id="0" precision="FP32">
+					<dim>1</dim>
+					<dim>2</dim>
+					<dim>14400</dim>
+				</port>
+			</output>
+			<blobs>
+				<custom offset="0" size="115200" precision="FP32" />
+			</blobs>
+		</layer>
+		<layer name="in3" type="Input" precision="FP32" id="3">
+			<data originalLayersNames="in3" />
+			<output>
+				<port id="0" precision="FP32">
+					<dim>1</dim>
+					<dim>2</dim>
+					<dim>14400</dim>
+				</port>
+			</output>
+		</layer>
+		<layer name="concat" type="Concat" precision="FP32" id="4">
+			<data axis="1" originalLayersNames="concat" />
+			<input>
+				<port id="0">
+					<dim>1</dim>
+					<dim>2</dim>
+					<dim>14400</dim>
+				</port>
+				<port id="1">
+					<dim>1</dim>
+					<dim>2</dim>
+					<dim>14400</dim>
+				</port>
+			</input>
+			<output>
+				<port id="2" precision="FP32">
+					<dim>1</dim>
+					<dim>4</dim>
+					<dim>14400</dim>
+				</port>
+			</output>
+		</layer>
+	</layers>
+	<edges>
+		<edge from-layer="2" from-port="0" to-layer="4" to-port="0" />
+		<edge from-layer="3" from-port="0" to-layer="4" to-port="1" />
+	</edges>
 </net>
 )V0G0N";
 
-    compareIRs(model, modelV5, 40, [](Blob::Ptr& weights) {
+    compareIRs(model, modelV5, 115200, [](Blob::Ptr& weights) {
                 auto* buffer = weights->buffer().as<int64_t*>();
                 buffer[0] = 2;
                 buffer[1] = 4;

@@ -2332,6 +2332,16 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, gemm_int8_2in_act_scale_quantize_eltwise_i8
 #define CASE_RESAMPLE_FP16_9 {1, 16, 4, 5}, {1, 16, 7, 8}, data_types::f16, format::b_fs_yx_fsv16, resample_type::bilinear, data_types::f16, format::bfyx
 #define CASE_RESAMPLE_FP16_10 {2, 32, 4, 5}, {2, 32, 7, 8}, data_types::f16, format::fs_b_yx_fsv32, resample_type::bilinear, data_types::f16, format::bfyx
 
+#define CASE_RESAMPLE_I8_1 {1, 16, 4, 5}, {1, 16, 2, 3}, data_types::i8, format::b_fs_yx_fsv16, resample_type::nearest, data_types::f32, format::bfyx
+#define CASE_RESAMPLE_I8_2 {2, 32, 4, 5}, {2, 32, 2, 3}, data_types::i8, format::b_fs_yx_fsv16, resample_type::nearest, data_types::f32, format::bfyx
+#define CASE_RESAMPLE_I8_3 {1, 16, 4, 5}, {1, 16, 2, 3}, data_types::i8, format::b_fs_yx_fsv16, resample_type::bilinear, data_types::f32, format::bfyx
+#define CASE_RESAMPLE_I8_4 {2, 32, 4, 5}, {2, 32, 2, 3}, data_types::i8, format::b_fs_yx_fsv16, resample_type::bilinear, data_types::f32, format::bfyx
+
+#define CASE_RESAMPLE_U8_1 {1, 16, 4, 5}, {1, 16, 2, 3}, data_types::u8, format::b_fs_yx_fsv16, resample_type::nearest, data_types::f32, format::bfyx
+#define CASE_RESAMPLE_U8_2 {2, 32, 4, 5}, {2, 32, 2, 3}, data_types::u8, format::b_fs_yx_fsv16, resample_type::nearest, data_types::f32, format::bfyx
+#define CASE_RESAMPLE_U8_3 {1, 16, 4, 5}, {1, 16, 2, 3}, data_types::u8, format::b_fs_yx_fsv16, resample_type::bilinear, data_types::f32, format::bfyx
+#define CASE_RESAMPLE_U8_4 {2, 32, 4, 5}, {2, 32, 2, 3}, data_types::u8, format::b_fs_yx_fsv16, resample_type::bilinear, data_types::f32, format::bfyx
+
 class resample_quantize : public ResamplePrimitiveFusingTest {};
 TEST_P(resample_quantize, basic) {
     auto p = GetParam();
@@ -2410,6 +2420,126 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, resample_scale_activation,
                         resample_test_params{ CASE_RESAMPLE_FP16_8, 2, 4 },
                         resample_test_params{ CASE_RESAMPLE_FP16_9, 2, 4 },
                         resample_test_params{ CASE_RESAMPLE_FP16_10, 2, 4 },
+
+                        resample_test_params{ CASE_RESAMPLE_I8_1, 2, 4 },
+                        resample_test_params{ CASE_RESAMPLE_I8_2, 2, 4 },
+                        resample_test_params{ CASE_RESAMPLE_I8_3, 2, 4 },
+                        resample_test_params{ CASE_RESAMPLE_I8_4, 2, 4 },
+
+                        resample_test_params{ CASE_RESAMPLE_U8_1, 2, 4 },
+                        resample_test_params{ CASE_RESAMPLE_U8_2, 2, 4 },
+                        resample_test_params{ CASE_RESAMPLE_U8_3, 2, 4 },
+                        resample_test_params{ CASE_RESAMPLE_U8_4, 2, 4 },
+}), );
+
+class resample_quantize_concat : public ResamplePrimitiveFusingTest {};
+TEST_P(resample_quantize_concat, along_f) {
+    auto p = GetParam();
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        resample("resample1", "input", p.out_shape, p.in_shape.feature[0], p.type),
+        data("in_lo_1", get_mem(get_per_channel_layout(p), min_random, 0)),
+        data("in_hi_1", get_mem(get_per_channel_layout(p), 1, max_random)),
+        data("out_lo_1", get_mem(get_single_element_layout(p), -128)),
+        data("out_hi_1", get_mem(get_single_element_layout(p), 127)),
+        quantize("quant1", "resample1", "in_lo_1", "in_hi_1", "out_lo_1", "out_hi_1", 256, data_types::i8),
+        resample("resample2", "input", p.out_shape, p.in_shape.feature[0], p.type),
+        data("in_lo_2", get_mem(get_per_channel_layout(p), min_random, 0)),
+        data("in_hi_2", get_mem(get_per_channel_layout(p), 1, max_random)),
+        data("out_lo_2", get_mem(get_single_element_layout(p), -127)),
+        data("out_hi_2", get_mem(get_single_element_layout(p), 127)),
+        quantize("quant2", "resample2", "in_lo_2", "in_hi_2", "out_lo_2", "out_hi_2", 255, data_types::i8),
+        concatenation("concat", { "quant1", "quant2" }, cldnn::concatenation::along_f),
+        reorder("reorder_bfyx", "concat", cldnn::format::bfyx, p.default_type)
+    );
+
+    tolerance = 1.f;
+    execute(p);
+}
+
+INSTANTIATE_TEST_CASE_P(fusings_gpu, resample_quantize_concat,
+    ::testing::ValuesIn(std::vector<resample_test_params>{
+                        resample_test_params{ CASE_RESAMPLE_FP32_1, 3, 6 },
+                        resample_test_params{ CASE_RESAMPLE_FP32_2, 3, 6 },
+                        resample_test_params{ CASE_RESAMPLE_FP32_3, 3, 6 },
+                        resample_test_params{ CASE_RESAMPLE_FP32_4, 3, 6 },
+                        resample_test_params{ CASE_RESAMPLE_FP32_5, 3, 6 },
+                        resample_test_params{ CASE_RESAMPLE_FP32_6, 3, 6 },
+                        resample_test_params{ CASE_RESAMPLE_FP32_7, 3, 6 },
+                        resample_test_params{ CASE_RESAMPLE_FP32_8, 3, 6 },
+                        resample_test_params{ CASE_RESAMPLE_FP32_9, 3, 6 },
+
+                        resample_test_params{ CASE_RESAMPLE_FP16_1, 3, 6 },
+                        resample_test_params{ CASE_RESAMPLE_FP16_2, 3, 6 },
+                        resample_test_params{ CASE_RESAMPLE_FP16_3, 3, 6 },
+                        resample_test_params{ CASE_RESAMPLE_FP16_4, 3, 6 },
+                        resample_test_params{ CASE_RESAMPLE_FP16_5, 3, 6 },
+                        resample_test_params{ CASE_RESAMPLE_FP16_6, 3, 6 },
+                        resample_test_params{ CASE_RESAMPLE_FP16_7, 3, 6 },
+                        resample_test_params{ CASE_RESAMPLE_FP16_8, 3, 6 },
+                        resample_test_params{ CASE_RESAMPLE_FP16_9, 3, 6 },
+                        resample_test_params{ CASE_RESAMPLE_FP16_10, 3, 6 },
+
+                        resample_test_params{ CASE_RESAMPLE_I8_3, 3, 6 },
+                        resample_test_params{ CASE_RESAMPLE_I8_4, 3, 6 },
+
+                        resample_test_params{ CASE_RESAMPLE_U8_3, 3, 6 },
+                        resample_test_params{ CASE_RESAMPLE_U8_4, 3, 6 },
+}), );
+
+class resample_scale_concat : public ResamplePrimitiveFusingTest {};
+TEST_P(resample_scale_concat, along_f) {
+    auto p = GetParam();
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        resample("resample1", "input", p.out_shape, p.in_shape.feature[0], p.type),
+        data("scale1_scale", get_mem(get_per_channel_layout(p), -10, 10)),
+        data("scale1_shift", get_mem(get_per_channel_layout(p), -10, 10)),
+        scale("scale1", "resample1", "scale1_scale", "scale1_shift"),
+        resample("resample2", "input", p.out_shape, p.in_shape.feature[0], p.type),
+        data("scale2_scale", get_mem(get_per_channel_layout(p), -10, 10)),
+        data("scale2_shift", get_mem(get_per_channel_layout(p), -10, 10)),
+        scale("scale2", "resample2", "scale2_scale", "scale2_shift"),
+        concatenation("concat", { "scale1", "scale2" }, cldnn::concatenation::along_f),
+        reorder("reorder_bfyx", "concat", cldnn::format::bfyx, p.default_type)
+    );
+
+    tolerance = 1e-5f;
+    execute(p);
+}
+
+INSTANTIATE_TEST_CASE_P(fusings_gpu, resample_scale_concat,
+    ::testing::ValuesIn(std::vector<resample_test_params>{
+                        resample_test_params{ CASE_RESAMPLE_FP32_1, 3, 6 },
+                        resample_test_params{ CASE_RESAMPLE_FP32_2, 3, 6 },
+                        resample_test_params{ CASE_RESAMPLE_FP32_3, 3, 6 },
+                        resample_test_params{ CASE_RESAMPLE_FP32_4, 3, 6 },
+                        resample_test_params{ CASE_RESAMPLE_FP32_5, 3, 6 },
+                        resample_test_params{ CASE_RESAMPLE_FP32_6, 3, 6 },
+                        resample_test_params{ CASE_RESAMPLE_FP32_7, 3, 6 },
+                        resample_test_params{ CASE_RESAMPLE_FP32_8, 3, 6 },
+                        resample_test_params{ CASE_RESAMPLE_FP32_9, 3, 6 },
+
+                        resample_test_params{ CASE_RESAMPLE_FP16_1, 3, 6 },
+                        resample_test_params{ CASE_RESAMPLE_FP16_2, 3, 6 },
+                        resample_test_params{ CASE_RESAMPLE_FP16_3, 3, 6 },
+                        resample_test_params{ CASE_RESAMPLE_FP16_4, 3, 6 },
+                        resample_test_params{ CASE_RESAMPLE_FP16_5, 3, 6 },
+                        resample_test_params{ CASE_RESAMPLE_FP16_6, 3, 6 },
+                        resample_test_params{ CASE_RESAMPLE_FP16_7, 3, 6 },
+                        resample_test_params{ CASE_RESAMPLE_FP16_8, 3, 6 },
+                        resample_test_params{ CASE_RESAMPLE_FP16_9, 3, 6 },
+                        resample_test_params{ CASE_RESAMPLE_FP16_10, 3, 6 },
+
+                        resample_test_params{ CASE_RESAMPLE_I8_1, 3, 6},
+                        resample_test_params{ CASE_RESAMPLE_I8_2, 3, 6},
+                        resample_test_params{ CASE_RESAMPLE_I8_3, 3, 6},
+                        resample_test_params{ CASE_RESAMPLE_I8_4, 3, 6},
+
+                        resample_test_params{ CASE_RESAMPLE_U8_1, 3, 6 },
+                        resample_test_params{ CASE_RESAMPLE_U8_2, 3, 6 },
+                        resample_test_params{ CASE_RESAMPLE_U8_3, 3, 6 },
+                        resample_test_params{ CASE_RESAMPLE_U8_4, 3, 6 },
 }), );
 
 /* ----------------------------------------------------------------------------------------------------- */
@@ -4526,21 +4656,17 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, permute_activation_scale_eltwise,
                             permute_params{CASE_PERMUTE_U8_3D_3, 2, 5},
                         }), );
 
-class permute_scale_eltwise_quant_u8: public PermuteFusingTest {};
-TEST_P(permute_scale_eltwise_quant_u8, vector_ops) {
+class permute_quant_u8: public PermuteFusingTest {};
+TEST_P(permute_quant_u8, basic) {
         auto p = GetParam();
         create_topologies(
         input_layout("input", get_input_layout(p)),
-        data("scale_data", get_mem(get_per_channel_layout(p))),
-        data("eltwise_data", get_mem(layout{ p.data_type, p.input_format, p.out_shape})),
-        data("in_lo", get_mem(get_per_channel_layout(p), min_random, 0)),
-        data("in_hi", get_mem(get_per_channel_layout(p), 1, max_random)),
+        data("in_lo", get_mem(get_single_element_layout(p), min_random, 0)),
+        data("in_hi", get_mem(get_single_element_layout(p), 1, max_random)),
         data("out_lo", get_mem(get_single_element_layout(p), 0)),
         data("out_hi", get_mem(get_single_element_layout(p), 255)),
         permute("permute", "input", p.permute_order),
-        scale("scale1", "permute", "scale_data"),
-        eltwise("eltwise", "scale1", "eltwise_data", eltwise_mode::sum),
-        quantize("quant", "eltwise", "in_lo", "in_hi", "out_lo", "out_hi", 256, data_types::u8),
+        quantize("quant", "permute", "in_lo", "in_hi", "out_lo", "out_hi", 256, data_types::u8),
         reorder("reorder_bfyx", "quant", p.default_format, p.default_type)
         );
 
@@ -4548,56 +4674,13 @@ TEST_P(permute_scale_eltwise_quant_u8, vector_ops) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu, permute_scale_eltwise_quant_u8,
+INSTANTIATE_TEST_CASE_P(fusings_gpu, permute_quant_u8,
                         ::testing::ValuesIn(std::vector<permute_params> {
-                            permute_params{CASE_PERMUTE_F32_0, 2, 5},
-                            permute_params{CASE_PERMUTE_F32_1, 2, 5},
-                            permute_params{CASE_PERMUTE_F32_2, 2, 5},
-                            permute_params{CASE_PERMUTE_F32_3, 2, 5},
-                            permute_params{CASE_PERMUTE_F32_4, 2, 5},
-                            permute_params{CASE_PERMUTE_F32_5, 2, 5},
-                            permute_params{CASE_PERMUTE_F32_6, 2, 5},
-                            permute_params{CASE_PERMUTE_F32_7, 2, 5},
+                            permute_params{CASE_PERMUTE_F32_0, 2, 3},
+                            permute_params{CASE_PERMUTE_F32_1, 2, 3},
 
-                            permute_params{CASE_PERMUTE_F16_0, 2, 5},
-                            permute_params{CASE_PERMUTE_F16_1, 2, 5},
-                            permute_params{CASE_PERMUTE_F16_2, 2, 5},
-                            permute_params{CASE_PERMUTE_F16_3, 2, 5},
-                            permute_params{CASE_PERMUTE_F16_4, 2, 5},
-                            permute_params{CASE_PERMUTE_F16_5, 2, 5},
-                            permute_params{CASE_PERMUTE_F16_6, 2, 5},
-
-                            permute_params{CASE_PERMUTE_S8_0, 2, 5},
-                            permute_params{CASE_PERMUTE_S8_1, 2, 5},
-                            permute_params{CASE_PERMUTE_S8_2, 2, 5},
-                            permute_params{CASE_PERMUTE_S8_3, 2, 5},
-
-                            permute_params{CASE_PERMUTE_U8_0, 2, 5},
-                            permute_params{CASE_PERMUTE_U8_1, 2, 5},
-                            permute_params{CASE_PERMUTE_U8_2, 2, 5},
-                            permute_params{CASE_PERMUTE_U8_3, 2, 5},
-
-                            permute_params{CASE_PERMUTE_F32_3D_0, 2, 5},
-                            permute_params{CASE_PERMUTE_F32_3D_1, 2, 5},
-                            permute_params{CASE_PERMUTE_F32_3D_2, 2, 5},
-                            permute_params{CASE_PERMUTE_F32_3D_3, 2, 5},
-                            permute_params{CASE_PERMUTE_F32_3D_4, 2, 5},
-
-                            permute_params{CASE_PERMUTE_F16_3D_0, 2, 5},
-                            permute_params{CASE_PERMUTE_F16_3D_1, 2, 5},
-                            permute_params{CASE_PERMUTE_F16_3D_2, 2, 5},
-                            permute_params{CASE_PERMUTE_F16_3D_3, 2, 5},
-                            permute_params{CASE_PERMUTE_F16_3D_4, 2, 5},
-
-                            permute_params{CASE_PERMUTE_S8_3D_0, 2, 5},
-                            permute_params{CASE_PERMUTE_S8_3D_1, 2, 5},
-                            permute_params{CASE_PERMUTE_S8_3D_2, 2, 5},
-                            permute_params{CASE_PERMUTE_S8_3D_3, 2, 5},
-
-                            permute_params{CASE_PERMUTE_U8_3D_0, 2, 5},
-                            permute_params{CASE_PERMUTE_U8_3D_1, 2, 5},
-                            permute_params{CASE_PERMUTE_U8_3D_2, 2, 5},
-                            permute_params{CASE_PERMUTE_U8_3D_3, 2, 5},
+                            permute_params{CASE_PERMUTE_F16_0, 2, 3},
+                            permute_params{CASE_PERMUTE_F16_1, 2, 3},
                         }), );
 
 class permute_scale_actv_eltw_scale_actv_quant_i8: public PermuteFusingTest {};

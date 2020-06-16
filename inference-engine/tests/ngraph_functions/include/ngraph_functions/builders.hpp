@@ -98,6 +98,17 @@ std::shared_ptr<ngraph::Node> makeGroupConvolutionBackpropData(const ngraph::Out
                                                                bool addBiases = false,
                                                                const std::vector<float> &biasesWeights = {});
 
+std::shared_ptr<ngraph::Node> makeBinaryConvolution(const ngraph::Output<Node> &in,
+                                                    const std::vector<size_t> &filterSize,
+                                                    const std::vector<size_t> &strides,
+                                                    const std::vector<ptrdiff_t> &padsBegin,
+                                                    const std::vector<ptrdiff_t> &padsEnd,
+                                                    const std::vector<size_t> &dilations,
+                                                    const op::PadType &autoPad,
+                                                    size_t numOutChannels,
+                                                    float padValue,
+                                                    const std::vector<int8_t> &filterWeihgts = {});
+
 std::shared_ptr<ngraph::Node> makeSplit(const ngraph::Output<Node> &in,
                                         const element::Type &type,
                                         size_t numSplits,
@@ -106,6 +117,10 @@ std::shared_ptr<ngraph::Node> makeSplit(const ngraph::Output<Node> &in,
 std::shared_ptr<ngraph::Node> makeActivation(const ngraph::Output<Node> &in,
                                              const element::Type &type,
                                              ngraph::helpers::ActivationTypes activationType);
+
+std::shared_ptr<ngraph::Node> makeEltwise(const ngraph::Output<Node> &in0,
+                                          const ngraph::Output<Node> &in1,
+                                          ngraph::helpers::EltwiseTypes eltwiseType);
 
 std::shared_ptr<ngraph::Node> makeBatchToSpace(const ngraph::Output<Node> &in,
                                                const element::Type &type,
@@ -223,6 +238,9 @@ std::shared_ptr<ngraph::Node> makeSpaceToDepth(const ngraph::Output<Node> &in,
 std::shared_ptr<Node> makeShuffleChannels(const ngraph::Output<Node> &in,
                                           int axis,
                                           int group);
+
+std::shared_ptr<Node> makeMatMul(const Output<Node>& A,
+                                 const Output<Node>& B);
 
 }  // namespace builder
 }  // namespace ngraph

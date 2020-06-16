@@ -337,9 +337,9 @@ void insert_reorders_in_dir(program_impl& p, const std::map<program_node*, forma
 }
 
 void insert_reorders(program_impl& p, const std::map<program_node*, format::type>& fmt_map, reorder_factory& rf) {
-    auto it = p.get_processing_order().begin();
-    while (it != p.get_processing_order().end()) {
-        auto node = *(it++);
+    auto fwd_it = p.get_processing_order().begin();
+    while (fwd_it != p.get_processing_order().end()) {
+        auto node = *(fwd_it++);
 
         if (fmt_map.count(node) != 1)
             continue;
@@ -351,9 +351,9 @@ void insert_reorders(program_impl& p, const std::map<program_node*, format::type
         insert_reorders_in_dir<direction_e::forwards>(p, fmt_map, rf, node);
     }
 
-    it = p.get_processing_order().begin();
-    while (it != p.get_processing_order().end()) {
-        auto node = *(it++);
+    auto bwd_it = p.get_processing_order().rbegin();
+    while (bwd_it != p.get_processing_order().rend()) {
+        auto node = *(bwd_it++);
 
         if (fmt_map.count(node) != 1)
             continue;
