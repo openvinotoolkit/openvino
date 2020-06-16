@@ -20,6 +20,42 @@ test::IE_CPU_Engine::IE_CPU_Engine(const std::shared_ptr<Function> function)
     m_inference_req = exe_network.CreateInferRequest();
 }
 
+void test::IE_CPU_Engine::infer()
+{
+    if (m_network_inputs.size() != m_allocated_inputs)
+    {
+        THROW_IE_EXCEPTION << "The tested graph has " << m_network_inputs.size() << " inputs, but "
+                           << m_allocated_inputs << " were passed.";
+    }
+    else
+    {
+        m_inference_req.Infer();
+    }
+}
+
+testing::AssertionResult test::IE_CPU_Engine::compare_results(const size_t tolerance_bits)
+{
+    auto comparison_result = testing::AssertionSuccess();
+
+    for (const auto output : m_network_outputs)
+    {
+        InferenceEngine::MemoryBlob::CPtr computed_output_blob =
+            InferenceEngine::as<InferenceEngine::MemoryBlob>(m_inference_req.GetBlob(output.first));
+
+        const auto& expected_output_blob = m_expected_outputs[output.first];
+
+        comparison_result =
+            compare_blobs(computed_output_blob, expected_output_blob, tolerance_bits);
+
+        if (comparison_result == testing::AssertionFailure())
+        {
+            break;
+        }
+    }
+
+    return comparison_result;
+}
+
 std::shared_ptr<Function> test::IE_CPU_Engine::upgrade_and_validate_function(
     const std::shared_ptr<Function> function) const
 {

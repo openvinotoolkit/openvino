@@ -15,43 +15,10 @@ namespace ngraph
             IE_CPU_Engine() = delete;
             IE_CPU_Engine(const std::shared_ptr<Function> function);
 
-            void infer()
-            {
-                if (m_network_inputs.size() != m_allocated_inputs)
-                {
-                    THROW_IE_EXCEPTION << "The tested graph has " << m_network_inputs.size()
-                                       << " inputs, but " << m_allocated_inputs << " were passed.";
-                }
-                else
-                {
-                    m_inference_req.Infer();
-                }
-            };
+            void infer();
 
             testing::AssertionResult
-                compare_results(const size_t tolerance_bits = DEFAULT_FLOAT_TOLERANCE_BITS)
-            {
-                auto comparison_result = testing::AssertionSuccess();
-
-                for (const auto output : m_network_outputs)
-                {
-                    InferenceEngine::MemoryBlob::CPtr computed_output_blob =
-                        InferenceEngine::as<InferenceEngine::MemoryBlob>(
-                            m_inference_req.GetBlob(output.first));
-
-                    const auto& expected_output_blob = m_expected_outputs[output.first];
-
-                    comparison_result =
-                        compare_blobs(computed_output_blob, expected_output_blob, tolerance_bits);
-
-                    if (comparison_result == testing::AssertionFailure())
-                    {
-                        break;
-                    }
-                }
-
-                return comparison_result;
-            }
+                compare_results(const size_t tolerance_bits = DEFAULT_FLOAT_TOLERANCE_BITS);
 
             template <typename T>
             void add_input(const Shape& shape, const std::vector<T>& values)
