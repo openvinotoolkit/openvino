@@ -413,6 +413,16 @@ std::shared_ptr<ngraph::Node> V10Parser::createNode(const std::vector<ngraph::Ou
         std::make_shared<LayerCreator<ngraph::op::v1::ReduceLogicalOr>>("ReduceLogicalOr"),
     };
 
+    // Check that operation in default opsets
+    auto isDefaultOpSet = [](const std::string& version) -> bool {
+        for (size_t i = 1; i <= 3; i++) {
+            std::string opset_name = "opset" + std::to_string(i);
+            if (version == opset_name)
+                return true;
+        }
+        return false;
+    };
+
     for (size_t i = 0; i < inputs.size(); i++) {
         if (!inputs[i].get_node())
             THROW_IE_EXCEPTION << params.type << " layer " << params.name << " with id: " << params.layerId
@@ -423,21 +433,23 @@ std::shared_ptr<ngraph::Node> V10Parser::createNode(const std::vector<ngraph::Ou
     }
 
     std::shared_ptr<ngraph::Node> ngraphNode;
-    // Try to create operation from creators
-    for (const auto& creator : creators) {
-        if (creator->shouldCreate(params.type)) {
-            bool useCreator = false;
-            // Check that opset is registered
-            useCreator |= opsets.find(params.version) == opsets.end();
-            if (!useCreator) {
-                // Check that creator can create operation with the version from opset
-                const auto opset = opsets.at(params.version);
-                // Opset should contains the same version of operation or doesn't contain operation with current type
-                useCreator |= opset.contains_type(creator->getNodeType()) || !opset.contains_type(params.type);
+    if (isDefaultOpSet(params.version)) {
+        // Try to create operation from creators
+        for (const auto& creator : creators) {
+            if (creator->shouldCreate(params.type)) {
+                bool useCreator = false;
+                // Check that opset is registered
+                useCreator |= opsets.find(params.version) == opsets.end();
+                if (!useCreator) {
+                    // Check that creator can create operation with the version from opset
+                    const auto opset = opsets.at(params.version);
+                    // Opset should contains the same version of operation or doesn't contain operation with current type
+                    useCreator |= opset.contains_type(creator->getNodeType()) || !opset.contains_type(params.type);
+                }
+                if (useCreator)
+                    ngraphNode = creator->createLayer(inputs, node, binStream, params);
+                break;
             }
-            if (useCreator)
-                ngraphNode = creator->createLayer(inputs, node, binStream, params);
-            break;
         }
     }
 

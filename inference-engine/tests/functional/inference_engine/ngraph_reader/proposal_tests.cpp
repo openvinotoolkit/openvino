@@ -3,6 +3,7 @@
 //
 
 #include <string>
+#include <generic_ie.hpp>
 #include "ngraph_reader_tests.hpp"
 TEST_F(NGraphReaderTests, ReadProposalNetwork) {
     std::string model_v10 = R"V0G0N(
@@ -304,4 +305,101 @@ TEST_F(NGraphReaderTests, ReadProposalNetwork_2) {
 )V0G0N";
 
     compareIRs(model_v10, model_v6, 32);
+}
+
+TEST_F(NGraphReaderTests, ReadExtensionProposalNetwork) {
+    std::string model_v10 = R"V0G0N(
+<net name="Network" version="10">
+    <layers>
+        <layer id="0" name="in1" type="Parameter" version="opset1">
+            <data element_type="f32" shape="1,12,34,62"/>
+            <output>
+                <port id="0" precision="FP32">
+                    <dim>1</dim>
+                    <dim>12</dim>
+                    <dim>34</dim>
+                    <dim>62</dim>
+                </port>
+            </output>
+        </layer>
+        <layer id="1" name="in2" type="Parameter" version="opset1">
+            <data element_type="f32" shape="1,24,34,62"/>
+            <output>
+                <port id="0" precision="FP32">
+                    <dim>1</dim>
+                    <dim>24</dim>
+                    <dim>34</dim>
+                    <dim>62</dim>
+                </port>
+            </output>
+        </layer>
+        <layer id="2" name="in3" type="Const" version="opset1">
+            <data offset="0" size="24"/>
+            <output>
+                <port id="0" precision="I64">
+                    <dim>3</dim>
+                </port>
+            </output>
+        </layer>
+        <layer name="proposal" type="Proposal" precision="FP32" id="3" version="extension">
+            <data feat_stride="16" base_size="16" min_size="16" ratio="2.669000" scale="4.000000,6.000000,9.000000,16.000000,24.000000,32.000000" pre_nms_topn="6000" post_nms_topn="200" nms_thresh="0.600000"/>
+            <input>
+                <port id="1">
+                    <dim>1</dim>
+                    <dim>12</dim>
+                    <dim>34</dim>
+                    <dim>62</dim>
+                </port>
+                <port id="2">
+                    <dim>1</dim>
+                    <dim>24</dim>
+                    <dim>34</dim>
+                    <dim>62</dim>
+                </port>
+                <port id="3">
+                    <dim>3</dim>
+                </port>
+            </input>
+            <output>
+                <port id="3" precision="FP32">
+                    <dim>1000</dim>
+                    <dim>5</dim>
+                </port>
+                <port id="4" precision="FP32">
+                    <dim>1000</dim>
+                </port>
+            </output>
+        </layer>
+        <layer id="4" name="output" type="Result" version="opset1">
+            <input>
+                <port id="0" precision="FP32">
+                    <dim>200</dim>
+                    <dim>5</dim>
+                </port>
+            </input>
+        </layer>
+    </layers>
+    <edges>
+        <edge from-layer="0" from-port="0" to-layer="3" to-port="1"/>
+        <edge from-layer="1" from-port="0" to-layer="3" to-port="2"/>
+        <edge from-layer="2" from-port="0" to-layer="3" to-port="3"/>
+        <edge from-layer="3" from-port="4" to-layer="4" to-port="0"/>
+    </edges>
+    </net>
+    )V0G0N";
+
+    Core ie;
+    Blob::Ptr weights;
+
+    weights = make_shared_blob<uint8_t>(TensorDesc(Precision::U8, {24}, Layout::C));
+    weights->allocate();
+    CommonTestUtils::fill_data(weights->buffer().as<float *>(), weights->size() / sizeof(float));
+
+    auto func = ie.ReadNetwork(model_v10, weights).getFunction();
+    for (auto op : func->get_ordered_ops()) {
+        if (op->get_friendly_name() == "proposal" && op->get_type_info() == ngraph::op::GenericIE::type_info) {
+            return;
+        }
+    }
+    FAIL() << "Custom proposal layer is not a Generic operation!";
 }
