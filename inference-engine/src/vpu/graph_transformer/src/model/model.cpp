@@ -1918,8 +1918,10 @@ void ModelObj::cleanUp() {
 
     for (const auto& data : datas()) {
         if (data->_usage == DataUsage::Input) {
-            VPU_THROW_UNLESS(!data->_consumerEdges.empty(),
-                "Input data {} must have at least one consumers, but got zero.", data->name());
+            if (data->childDataToShapeEdges().empty()) {
+                VPU_THROW_UNLESS(!data->_consumerEdges.empty(),
+                    "Input data {} must have at least one consumers, but got zero.", data->name());
+            }
             IE_ASSERT(data->_parentDataToDataEdge == nullptr);
         } else if (data->_usage == DataUsage::Output) {
             IE_ASSERT(data->_producerEdge != nullptr);
@@ -1998,6 +2000,7 @@ void ModelObj::reorderStages(
 void ModelObj::setStagesOrder(const Stage& parent, const Stage& child) {
     ++parent->_nextStages[child];
     ++child->_prevStages[parent];
+    _initialStages.erase(child);
 }
 
 void ModelObj::removeStagesOrder(const Stage& parent, const Stage& child) {
