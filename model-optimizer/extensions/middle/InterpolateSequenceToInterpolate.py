@@ -58,10 +58,10 @@ class CanBeFused:
         :param second: the second of fused nodes
         :return: True, if nodes can be fused, and False otherwise
         """
-        # If some of attributes 'mode', 'align_corners', 'antialias', 'pads_begin', 'pads_end' are different,
+        # If some of attributes 'mode', 'align_corners', 'antialias', 'pads_begin', 'pads_end', 'version' are different,
         # then nodes cannot be fused, because fused result will be incorrect.
         op = Interpolate(graph=first.graph, attrs={})
-        for attr in ['mode', 'align_corners', 'antialias', 'pads_begin', 'pads_end']:
+        for attr in ['version', 'mode', 'align_corners', 'antialias', 'pads_begin', 'pads_end']:
             if first.soft_get(attr, default=op.attrs[attr]) != second.soft_get(attr, default=op.attrs[attr]):
                 return False
 
