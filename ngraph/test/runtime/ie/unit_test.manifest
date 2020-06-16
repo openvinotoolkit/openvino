@@ -165,6 +165,9 @@ bool_init_and
 # Incorrect number of 'indices_to_squeeze' input dimensions!
 arg_min_no_keep_dims_dyn_shape
 
+# Dynamic function 'get_shape was called on a descriptor::Tensor with dynamic shape'
+onnx_upsample9_scales_input_nearest_infer
+
 #-------------------------------------------------------------------------------
 #
 #       nGraph backend unit tests
@@ -1368,6 +1371,7 @@ IE_CPU.onnx_model_rnn_reverse
 IE_CPU.onnx_model_rnn_fwd_bias_initial_h
 IE_CPU.onnx_model_rnn_bidirectional
 IE_CPU.onnx_model_rnn_bidirectional_const
+
 #-------------------------------------------------------------------------------
 #
 #       Inference Engine GPU plugin excludes
@@ -1645,6 +1649,12 @@ IE_GPU.onnx_dyn_shapes_model_acosh_1_3
 IE_GPU.onnx_dyn_shapes_model_acosh_3_2
 IE_GPU.onnx_dyn_shapes_model_asinh_1_3
 IE_GPU.onnx_dyn_shapes_model_asinh_3_2
+IE_GPU.onnx_upsample8_nearest_infer
+IE_GPU.onnx_upsample8_linear_infer
+IE_GPU.onnx_upsample9_scales_const_nearest_infer
+IE_GPU.onnx_upsample9_scales_const_linear_infer
+IE_GPU.onnx_upsample9_scales_input_nearest_infer
+
 IE_GPU.sum_matrix_6d
 IE_GPU.sqrt
 IE_GPU.gather_scalar_indices_no_axis_2d_input
