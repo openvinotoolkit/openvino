@@ -159,7 +159,7 @@ static void copyBlobAccordingUpperBound(
     IE_ASSERT(outPtr != nullptr);
 
     if (inDims.size() > 4) {
-        VPU_THROW_EXCEPTION << "Copying of blobs with dynamic shape and num dims greater than 2 unsupported yet";
+        VPU_THROW_EXCEPTION << "Copying of blobs with dynamic shape and num dims greater than 4 unsupported yet";
     }
 
     const auto inLineSize = inDims.size() > 1 ? inDims[inDims.size() - 1] * in->element_size() : in->byteSize();
