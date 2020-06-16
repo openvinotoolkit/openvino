@@ -37,6 +37,7 @@ shared_ptr<Node> op::v1::LogicalOr::clone_with_new_inputs(const OutputVector& ne
     return make_shared<v1::LogicalOr>(new_args.at(0), new_args.at(1), this->get_autob());
 }
 
+#ifdef NGRAPH_EVALUATE_ENABLE
 namespace
 {
     template <element::Type_t ET>
@@ -99,6 +100,7 @@ bool op::v1::LogicalOr::evaluate(const HostTensorVector& outputs, const HostTens
 {
     return evaluate_logor(inputs[0], inputs[1], outputs[0], get_autob());
 }
+#endif
 
 constexpr NodeTypeInfo op::v0::Or::type_info;
 
@@ -116,7 +118,9 @@ shared_ptr<Node> op::v0::Or::clone_with_new_inputs(const OutputVector& new_args)
     return make_shared<v0::Or>(new_args.at(0), new_args.at(1), this->get_autob());
 }
 
+#ifdef NGRAPH_EVALUATE_ENABLE
 bool op::v0::Or::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
 {
     return evaluate_logor(inputs[0], inputs[1], outputs[0], get_autob());
 }
+#endif

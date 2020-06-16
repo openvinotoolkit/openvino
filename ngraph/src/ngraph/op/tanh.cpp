@@ -52,6 +52,7 @@ void op::Tanh::generate_adjoints(autodiff::Adjoints& adjoints, const OutputVecto
     adjoints.add_delta(x, delta - (delta * (shared_from_this() * shared_from_this())));
 }
 
+#ifdef NGRAPH_EVALUATE_ENABLE
 namespace
 {
     template <element::Type_t ET>
@@ -105,3 +106,4 @@ bool op::Tanh::evaluate(const HostTensorVector& outputs, const HostTensorVector&
 {
     return evaluate_tanh(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }
+#endif

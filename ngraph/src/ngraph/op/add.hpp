@@ -58,8 +58,10 @@ namespace ngraph
 
                 bool visit_attributes(AttributeVisitor& visitor) override;
                 virtual bool is_commutative() const override { return true; }
+#ifdef NGRAPH_EVALUATE_ENABLE
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) override;
+#endif
 
             protected:
                 virtual void generate_adjoints(autodiff::Adjoints& adjoints,
@@ -103,8 +105,10 @@ namespace ngraph
                 bool visit_attributes(AttributeVisitor& visitor) override;
                 virtual bool is_commutative() const override { return true; }
                 size_t get_version() const override { return 1; }
+#ifdef NGRAPH_EVALUATE_ENABLE
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) override;
+#endif
 
             protected:
                 virtual void generate_adjoints(autodiff::Adjoints& adjoints,

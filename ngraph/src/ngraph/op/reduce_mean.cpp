@@ -40,6 +40,7 @@ shared_ptr<Node> op::v1::ReduceMean::clone_with_new_inputs(const OutputVector& n
     return make_shared<op::v1::ReduceMean>(new_args.at(0), new_args.at(1), get_keep_dims());
 }
 
+#ifdef NGRAPH_EVALUATE_ENABLE
 namespace
 {
     template <element::Type_t ET>
@@ -90,3 +91,4 @@ bool op::v1::ReduceMean::evaluate(const HostTensorVector& outputs, const HostTen
 {
     return evaluate_mean(inputs[0], outputs[0], get_reduction_axes());
 }
+#endif

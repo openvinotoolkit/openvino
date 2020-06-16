@@ -103,8 +103,10 @@ namespace ngraph
                     clone_with_new_inputs(const OutputVector& new_args) const override;
                 void validate_and_infer_types() override;
                 size_t get_version() const override { return 1; }
+#ifdef NGRAPH_EVALUATE_ENABLE
                 bool evaluate(const HostTensorVector& output_values,
                               const HostTensorVector& input_values) override;
+#endif
 
             protected:
                 void generate_adjoints(autodiff::Adjoints& adjoints,

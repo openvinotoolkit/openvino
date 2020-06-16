@@ -39,6 +39,7 @@ shared_ptr<Node> op::v0::Less::clone_with_new_inputs(const OutputVector& new_arg
     return make_shared<op::v0::Less>(new_args.at(0), new_args.at(1), this->get_autob());
 }
 
+#ifdef NGRAPH_EVALUATE_ENABLE
 namespace
 {
     template <element::Type_t ET>
@@ -101,6 +102,7 @@ bool op::v0::Less::evaluate(const HostTensorVector& outputs, const HostTensorVec
 {
     return evaluate_less(inputs[0], inputs[1], outputs[0], get_autob());
 }
+#endif
 
 // ----------------------------- v1 --------------------------------------------
 
@@ -120,7 +122,9 @@ shared_ptr<Node> op::v1::Less::clone_with_new_inputs(const OutputVector& new_arg
     return make_shared<op::v1::Less>(new_args.at(0), new_args.at(1), this->get_autob());
 }
 
+#ifdef NGRAPH_EVALUATE_ENABLE
 bool op::v1::Less::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
 {
     return evaluate_less(inputs[0], inputs[1], outputs[0], get_autob());
 }
+#endif

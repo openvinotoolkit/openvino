@@ -309,6 +309,7 @@ void op::util::BroadcastBase::generate_adjoints(autodiff::Adjoints& adjoints,
     }
 }
 
+#ifdef NGRAPH_EVALUATE_ENABLE
 template <element::Type_t ET>
 bool op::util::BroadcastBase::evaluate(const HostTensorPtr& arg0,
                                        const HostTensorPtr& out,
@@ -322,6 +323,7 @@ bool op::util::BroadcastBase::evaluate(const HostTensorPtr& arg0,
                                      broadcast_axes);
     return true;
 }
+#endif
 
 namespace
 {
@@ -416,6 +418,7 @@ namespace
     }
 }
 
+#ifdef NGRAPH_EVALUATE_ENABLE
 bool op::util::BroadcastBase::evaluate_broadcast(const HostTensorPtr& arg0,
                                                  const HostTensorPtr& out,
                                                  const std::pair<bool, AxisSet> pair_broadcast_axes,
@@ -462,6 +465,7 @@ bool op::util::BroadcastBase::evaluate_broadcast(const HostTensorPtr& arg0,
     }
     return rc;
 }
+#endif
 
 Shape op::util::BroadcastBase::get_target_shape(const HostTensorPtr& input1)
 {
@@ -478,6 +482,7 @@ Shape op::util::BroadcastBase::get_target_shape(const HostTensorPtr& input1)
     return target_shape;
 }
 
+#ifdef NGRAPH_EVALUATE_ENABLE
 bool op::util::BroadcastBase::evaluate(const HostTensorVector& outputs,
                                        const HostTensorVector& inputs)
 {
@@ -518,3 +523,4 @@ bool op::util::BroadcastBase::evaluate(const HostTensorVector& outputs,
 
     return evaluate_broadcast(inputs[0], outputs[0], pair_broadcast_axes, result_shape.to_shape());
 }
+#endif

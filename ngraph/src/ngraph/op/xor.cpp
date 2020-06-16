@@ -43,6 +43,7 @@ bool ngraph::op::v1::LogicalXor::visit_attributes(AttributeVisitor& visitor)
     return true;
 }
 
+#ifdef NGRAPH_EVALUATE_ENABLE
 namespace
 {
     template <element::Type_t ET>
@@ -105,6 +106,7 @@ bool op::v1::LogicalXor::evaluate(const HostTensorVector& outputs, const HostTen
 {
     return evaluate_logxor(inputs[0], inputs[1], outputs[0], get_autob());
 }
+#endif
 
 constexpr NodeTypeInfo op::v0::Xor::type_info;
 
@@ -122,7 +124,9 @@ shared_ptr<Node> op::v0::Xor::clone_with_new_inputs(const OutputVector& new_args
     return make_shared<v0::Xor>(new_args.at(0), new_args.at(1), this->get_autob());
 }
 
+#ifdef NGRAPH_EVALUATE_ENABLE
 bool op::v0::Xor::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
 {
     return evaluate_logxor(inputs[0], inputs[1], outputs[0], get_autob());
 }
+#endif

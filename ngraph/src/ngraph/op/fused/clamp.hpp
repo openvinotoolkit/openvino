@@ -55,8 +55,10 @@ namespace ngraph
 
                 double get_min() const { return m_min; }
                 double get_max() const { return m_max; }
+#ifdef NGRAPH_EVALUATE_ENABLE
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) override;
+#endif
 
             private:
                 double m_min;

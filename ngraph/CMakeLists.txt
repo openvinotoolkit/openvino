@@ -127,6 +127,7 @@ option(NGRAPH_WARNINGS_AS_ERRORS "Make all nGraph compile-time warnings into err
 option(NGRAPH_ADDRESS_SANITIZER_ENABLE "Compiles and links with Address Sanitizer" FALSE)
 option(NGRAPH_THREAD_SANITIZER_ENABLE "Compiles and links with Thread Sanitizer" FALSE)
 option(NGRAPH_UB_SANITIZER_ENABLE "Compiles and links with Undefined Behavior Sanitizer" FALSE)
+option(NGRAPH_EVALUATE_ENABLE "Enable compilation of reference implementations for operations" FALSE)
 
 if (NGRAPH_ONNX_IMPORT_ENABLE)
     option(NGRAPH_USE_SYSTEM_PROTOBUF "Use system provided Protobuf shared object" FALSE)
@@ -165,6 +166,7 @@ NORMALIZE_BOOL(NGRAPH_WARNINGS_AS_ERRORS)
 NORMALIZE_BOOL(NGRAPH_ADDRESS_SANITIZER_ENABLE)
 NORMALIZE_BOOL(NGRAPH_THREAD_SANITIZER_ENABLE)
 NORMALIZE_BOOL(NGRAPH_UB_SANITIZER_ENABLE)
+NORMALIZE_BOOL(NGRAPH_EVALUATE_ENABLE)
 
 message(STATUS "NGRAPH_ADDRESS_SANITIZER_ENABLE:      ${NGRAPH_ADDRESS_SANITIZER_ENABLE}")
 message(STATUS "NGRAPH_CODE_COVERAGE_ENABLE:          ${NGRAPH_CODE_COVERAGE_ENABLE}")
@@ -185,6 +187,7 @@ message(STATUS "NGRAPH_TOOLS_ENABLE:                  ${NGRAPH_TOOLS_ENABLE}")
 message(STATUS "NGRAPH_UB_SANITIZER_ENABLE:           ${NGRAPH_UB_SANITIZER_ENABLE}")
 message(STATUS "NGRAPH_UNIT_TEST_ENABLE:              ${NGRAPH_UNIT_TEST_ENABLE}")
 message(STATUS "NGRAPH_WARNINGS_AS_ERRORS:            ${NGRAPH_WARNINGS_AS_ERRORS}")
+message(STATUS "NGRAPH_EVALUATE_ENABLE:               ${NGRAPH_EVALUATE_ENABLE}")
 
 set(NGRAPH_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD ${NGRAPH_CXX_STANDARD})
@@ -414,6 +417,10 @@ add_custom_target(fix-mode
     -DNGRAPH_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}"
     -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/Modules/fix_mode.cmake
 )
+
+if (NGRAPH_EVALUATE_ENABLE)
+    add_definitions(-DNGRAPH_EVALUATE_ENABLE)
+endif()
 
 #-----------------------------------------------------------------------------------------------
 # enable or disable output from NGRAPH_DEBUG statements

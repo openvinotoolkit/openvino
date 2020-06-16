@@ -83,6 +83,7 @@ shared_ptr<Node> op::v3::NonZero::clone_with_new_inputs(const OutputVector& new_
     return make_shared<v3::NonZero>(new_args.at(0), m_output_type);
 }
 
+#ifdef NGRAPH_EVALUATE_ENABLE
 namespace
 {
     template <element::Type_t INPUT_ET, element::Type_t OUT_ET>
@@ -172,3 +173,4 @@ bool op::v3::NonZero::evaluate(const HostTensorVector& outputs, const HostTensor
 {
     return evaluate_nonzero(inputs[0], outputs[0]);
 }
+#endif

@@ -38,8 +38,10 @@ namespace ngraph
                     clone_with_new_inputs(const OutputVector& new_args) const override;
                 virtual void generate_adjoints(autodiff::Adjoints& adjoints,
                                                const OutputVector& deltas) override;
+#ifdef NGRAPH_EVALUATE_ENABLE
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) override;
+#endif
             };
 
             /// \brief Elementwise SigmoidBackprop operation.

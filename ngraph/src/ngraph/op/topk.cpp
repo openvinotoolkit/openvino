@@ -228,6 +228,7 @@ void op::v0::TopK::generate_adjoints(autodiff::Adjoints& /* adjoints */,
     throw ngraph_error("Forward-propagation-only operation");
 }
 
+#ifdef NGRAPH_EVALUATE_ENABLE
 namespace
 {
     template <element::Type_t INPUT_ET, element::Type_t INDEX_ET>
@@ -381,6 +382,7 @@ namespace
         return axis;
     }
 }
+#endif
 
 Shape op::v0::TopK::compute_output_shape(const Shape input_shape,
                                          const int64_t k,
@@ -394,6 +396,7 @@ Shape op::v0::TopK::compute_output_shape(const Shape input_shape,
     return output_shape;
 }
 
+#ifdef NGRAPH_EVALUATE_ENABLE
 bool op::v0::TopK::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
 {
     // check data types for arg, k and output element type
@@ -440,6 +443,7 @@ bool op::v0::TopK::evaluate(const HostTensorVector& outputs, const HostTensorVec
                          sort_type,
                          get_index_element_type());
 }
+#endif
 
 // v1 version starts
 constexpr NodeTypeInfo op::v1::TopK::type_info;
@@ -681,6 +685,7 @@ void op::v1::TopK::set_k(size_t k)
         op::Constant::create(element::i64, Shape{}, {k})->output(0));
 }
 
+#ifdef NGRAPH_EVALUATE_ENABLE
 bool op::v1::TopK::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
 {
     Shape arg_shape = inputs[0]->get_shape();
@@ -723,6 +728,7 @@ bool op::v1::TopK::evaluate(const HostTensorVector& outputs, const HostTensorVec
                          sort_type,
                          get_index_element_type());
 }
+#endif
 
 // v3 version starts
 constexpr NodeTypeInfo op::v3::TopK::type_info;
@@ -808,7 +814,9 @@ shared_ptr<Node> op::v3::TopK::clone_with_new_inputs(const OutputVector& new_arg
     return std::move(new_v3_topk);
 }
 
+#ifdef NGRAPH_EVALUATE_ENABLE
 bool op::v3::TopK::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
 {
     return op::v1::TopK::evaluate(outputs, inputs);
 }
+#endif

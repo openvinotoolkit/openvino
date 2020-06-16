@@ -42,6 +42,7 @@ shared_ptr<Node> op::Floor::clone_with_new_inputs(const OutputVector& new_args) 
     return make_shared<Floor>(new_args.at(0));
 }
 
+#ifdef NGRAPH_EVALUATE_ENABLE
 namespace
 {
     // function used by TYPE_CASE
@@ -104,3 +105,4 @@ bool op::Floor::evaluate(const HostTensorVector& outputs, const HostTensorVector
 {
     return evaluate_floor(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }
+#endif

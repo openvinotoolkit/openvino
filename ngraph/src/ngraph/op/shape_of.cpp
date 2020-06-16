@@ -61,6 +61,7 @@ shared_ptr<Node> op::v3::ShapeOf::clone_with_new_inputs(const OutputVector& new_
     return new_shape_of;
 }
 
+#ifdef NGRAPH_EVALUATE_ENABLE
 namespace
 {
     template <element::Type_t ET>
@@ -173,6 +174,7 @@ bool op::v3::ShapeOf::constant_fold(OutputVector& output_values, const OutputVec
 {
     return constant_fold_shape_of(this, output_values[0], input_values[0], m_is_foldable);
 }
+#endif
 
 // op::v0::ShapeOf
 constexpr NodeTypeInfo op::v0::ShapeOf::type_info;
@@ -202,6 +204,7 @@ shared_ptr<Node> op::v0::ShapeOf::clone_with_new_inputs(const OutputVector& new_
     return new_shape_of;
 }
 
+#ifdef NGRAPH_EVALUATE_ENABLE
 bool op::v0::ShapeOf::evaluate(const HostTensorVector& output_values,
                                const HostTensorVector& input_values)
 {
@@ -212,3 +215,4 @@ bool op::v0::ShapeOf::constant_fold(OutputVector& output_values, const OutputVec
 {
     return constant_fold_shape_of(this, output_values[0], input_values[0], m_is_foldable);
 }
+#endif

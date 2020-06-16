@@ -233,6 +233,7 @@ void op::v1::StridedSlice::generate_adjoints(autodiff::Adjoints& /* adjoints */,
     throw ngraph_error("generate_adjoints not implemented for StridedSlice");
 }
 
+#ifdef NGRAPH_EVALUATE_ENABLE
 namespace
 {
     template <element::Type_t ET>
@@ -317,3 +318,4 @@ bool op::v1::StridedSlice::evaluate(const HostTensorVector& output_values,
                                   convert_mask_to_axis_set(get_ellipsis_mask()),
                                   output_values[0]);
 }
+#endif
