@@ -23,7 +23,7 @@
 #include "functional_test_utils/plugin_cache.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include "ngraph_functions/subgraph_builders.hpp"
-
+namespace BehaviorTestsUtils {
 using InferRequestTests = BehaviorTestsUtils::BehaviorTestsBasic;
 
 // Setting empty config to LoadNetwork doesn't throw
@@ -622,3 +622,4 @@ TEST_P(InferRequestTests, returnDeviceBusyOnGetPerformanceCountAfterAsyncInfer) 
         std::cout << "Exception" << e.what() << std::endl;
     }
 }
+}  // namespace BehaviorTestsUtils

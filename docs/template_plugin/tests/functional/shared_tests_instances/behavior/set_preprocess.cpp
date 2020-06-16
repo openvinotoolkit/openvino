@@ -5,7 +5,7 @@
 #include "multi-device/multi_device_config.hpp"
 
 #include "behavior/set_preprocess.hpp"
-
+using namespace BehaviorTestsUtils;
 namespace {
     const std::vector<InferenceEngine::Precision> netPrecisions = {
             InferenceEngine::Precision::FP32,

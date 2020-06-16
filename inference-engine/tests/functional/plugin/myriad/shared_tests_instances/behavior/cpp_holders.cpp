@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "behavior/holders.hpp"
+#include "behavior/cpp_holders.hpp"
+using namespace BehaviorTestsUtils;
 namespace {
     const std::vector<std::vector<int >> orders = {
             // 0 - plugin
@@ -18,7 +19,7 @@ namespace {
 
     INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, HoldersTest,
             ::testing::Combine(
-            ::testing::Values("TEMPLATE"),
+            ::testing::Values(CommonTestUtils::DEVICE_MYRIAD),
             ::testing::ValuesIn(orders)),
             HoldersTest::getTestCaseName);
 

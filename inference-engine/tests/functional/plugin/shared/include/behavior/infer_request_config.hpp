@@ -24,7 +24,7 @@
 #include "functional_test_utils/plugin_cache.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include "ngraph_functions/subgraph_builders.hpp"
-
+namespace BehaviorTestsUtils {
 using InferConfigTests = BehaviorTestsUtils::BehaviorTestsBasic;
 
 TEST_P(InferConfigTests, canSetExclusiveAsyncRequests) {
@@ -94,3 +94,4 @@ TEST_P(InferConfigInTests, CanInferWithConfig) {
     auto req = execNet.CreateInferRequest();
     ASSERT_NO_THROW(req.Infer());
 }
+}  // namespace BehaviorTestsUtils

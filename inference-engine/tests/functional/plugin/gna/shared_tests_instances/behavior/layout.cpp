@@ -3,10 +3,10 @@
 //
 
 #include "behavior/layout.hpp"
+using namespace BehaviorTestsUtils;
 namespace {
     const std::vector<std::map<std::string, std::string>> configs = {
-            {{"GNA_SCALE_FACTOR_0", "1638.4"},
-            {"GNA_SCALE_FACTOR_1", "1638.4"}}
+            {{"GNA_SCALE_FACTOR_0", "1638.4"}, {"GNA_SCALE_FACTOR_1", "1638.4"}}
     };
 
     const std::vector<InferenceEngine::Layout> Layout = {

@@ -12,7 +12,7 @@
 #include "functional_test_utils/blob_utils.hpp"
 #include "ie_preprocess.hpp"
 #include "functional_test_utils/behavior_test_utils.hpp"
-
+namespace BehaviorTestsUtils {
 using VersionTest = BehaviorTestsUtils::BehaviorTestsBasic;
 
 // Load unsupported network type to the Plugin
@@ -31,3 +31,4 @@ TEST_P(VersionTest, pluginCurrentVersionIsCorrect) {
         ASSERT_EQ(version.apiVersion.minor, 1);
     }
 }
+}  // namespace BehaviorTestsUtils

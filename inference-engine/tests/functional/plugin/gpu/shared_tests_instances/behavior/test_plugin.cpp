@@ -5,6 +5,7 @@
 #include "multi-device/multi_device_config.hpp"
 
 #include "behavior/test_plugin.hpp"
+using namespace BehaviorTestsUtils;
 namespace {
     const std::vector<InferenceEngine::Precision> netPrecisions = {
             InferenceEngine::Precision::FP32,
@@ -27,7 +28,7 @@ namespace {
             {{InferenceEngine::PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS, InferenceEngine::PluginConfigParams::GPU_THROUGHPUT_AUTO}}
     };
 
-    const std::vector<std::map<std::string, std::string>> MultiConfigsInput = {
+    const std::vector<std::map<std::string, std::string>> MultiConfigsInputOutput = {
             {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , CommonTestUtils::DEVICE_GPU}},
             {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , CommonTestUtils::DEVICE_GPU},
              {InferenceEngine::PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS, InferenceEngine::PluginConfigParams::GPU_THROUGHPUT_AUTO}}
@@ -36,12 +37,6 @@ namespace {
     const std::vector<std::map<std::string, std::string>> configsOutput = {
             {},
             {{InferenceEngine::PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS, InferenceEngine::PluginConfigParams::GPU_THROUGHPUT_AUTO}}
-    };
-
-    const std::vector<std::map<std::string, std::string>> MultiConfigsOutput = {
-            {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , CommonTestUtils::DEVICE_GPU}},
-            {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , CommonTestUtils::DEVICE_GPU},
-                    {InferenceEngine::PluginConfigParams::KEY_GPU_THROUGHPUT_STREAMS, InferenceEngine::PluginConfigParams::GPU_THROUGHPUT_AUTO}}
     };
 
     INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, BehaviorTestOutput,
@@ -55,7 +50,7 @@ namespace {
                             ::testing::Combine(
                                     ::testing::ValuesIn(netPrecisions),
                                     ::testing::Values(CommonTestUtils::DEVICE_MULTI),
-                                    ::testing::ValuesIn(MultiConfigsOutput)),
+                                    ::testing::ValuesIn(MultiConfigsInputOutput)),
                             BehaviorTestOutput::getTestCaseName);
 
     INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, BehaviorTests,
@@ -83,7 +78,7 @@ namespace {
                             ::testing::Combine(
                                     ::testing::ValuesIn(netPrecisions),
                                     ::testing::Values(CommonTestUtils::DEVICE_MULTI),
-                                    ::testing::ValuesIn(MultiConfigsInput)),
+                                    ::testing::ValuesIn(MultiConfigsInputOutput)),
                             BehaviorTestInput::getTestCaseName);
 
 }  // namespace

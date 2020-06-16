@@ -5,6 +5,7 @@
 #include "multi-device/multi_device_config.hpp"
 
 #include "behavior/test_plugin.hpp"
+using namespace BehaviorTestsUtils;
 namespace {
     const std::vector<InferenceEngine::Precision> netPrecisions = {
             InferenceEngine::Precision::FP32,
@@ -20,17 +21,13 @@ namespace {
             {{ MULTI_CONFIG_KEY(DEVICE_PRIORITIES) , CommonTestUtils::DEVICE_MYRIAD}}
     };
 
-    const std::vector<std::map<std::string, std::string>> MultiConfigsInput = {
+    const std::vector<std::map<std::string, std::string>> MultiConfigsInputOutput = {
             {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , CommonTestUtils::DEVICE_MYRIAD}}
     };
 
     const std::vector<InferenceEngine::Precision> netPrecision = {
             InferenceEngine::Precision::FP32,
             InferenceEngine::Precision::FP16
-    };
-
-    const std::vector<std::map<std::string, std::string>> MultiConfigsOutput = {
-            {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES , CommonTestUtils::DEVICE_MYRIAD}}
     };
 
     INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, BehaviorTestOutput,
@@ -44,7 +41,7 @@ namespace {
                             ::testing::Combine(
                                     ::testing::ValuesIn(netPrecision),
                                     ::testing::Values(CommonTestUtils::DEVICE_MULTI),
-                                    ::testing::ValuesIn(MultiConfigsOutput)),
+                                    ::testing::ValuesIn(MultiConfigsInputOutput)),
                             BehaviorTestOutput::getTestCaseName);
 
     INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, BehaviorTests,
@@ -72,7 +69,7 @@ namespace {
                             ::testing::Combine(
                                     ::testing::ValuesIn(netPrecisions),
                                     ::testing::Values(CommonTestUtils::DEVICE_MULTI),
-                                    ::testing::ValuesIn(MultiConfigsInput)),
+                                    ::testing::ValuesIn(MultiConfigsInputOutput)),
                             BehaviorTestInput::getTestCaseName);
 
 }  // namespace

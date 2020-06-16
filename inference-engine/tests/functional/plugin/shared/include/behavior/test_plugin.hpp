@@ -18,7 +18,7 @@
 #include "functional_test_utils/layer_test_utils.hpp"
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
 #include "ngraph_functions/builders.hpp"
-
+namespace BehaviorTestsUtils {
 using BehaviorTests = BehaviorTestsUtils::BehaviorTestsBasic;
 
 bool static compare_two_files_lexicographically(const std::string &name_a, const std::string &name_b) {
@@ -159,3 +159,4 @@ TEST_P(BehaviorTestOutput, canSetOutputPrecisionForNetwork) {
         ASSERT_EQ(InferenceEngine::StatusCode::OK, sts);
     }
 }
+}  // namespace BehaviorTestsUtils
