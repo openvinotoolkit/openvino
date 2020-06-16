@@ -58,5 +58,6 @@ protected:
     virtual JitConstants GetJitConstants(const resample_params& params) const;
     KernelsData GetCommonKernelsData(const Params& params, const optional_params& options) const;
     size_t GetFeatureBlockSize(const resample_params& params) const;
+    virtual Datatype GetAccumulatorType(const resample_params& params) const;
 };
 }  // namespace kernel_selector
