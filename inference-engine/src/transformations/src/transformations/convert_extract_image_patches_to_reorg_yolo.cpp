@@ -30,7 +30,7 @@ void ngraph::pass::ConvertExtractImagePatchesToReorgYolo::convert_extract_image_
         auto strides = extract_image_patches->get_strides();
 
         // Check that ExtractImagePatches input have static shape
-        if (p_shape_input[2].is_dynamic() && p_shape_input[3].is_dynamic()) {
+        if (p_shape_input.rank().get_length() != 4 || p_shape_input[2].is_dynamic() || p_shape_input[3].is_dynamic()) {
             return false;
         }
 
