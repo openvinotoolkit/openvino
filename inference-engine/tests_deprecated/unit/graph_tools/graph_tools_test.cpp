@@ -13,6 +13,7 @@
 #include "ie_common.h"
 #include <memory>
 #include "details/ie_cnn_network_tools.h"
+#include "details/ie_cnn_network_iterator.hpp"
 
 using namespace testing;
 using namespace InferenceEngine;
@@ -242,12 +243,14 @@ TEST_F(GraphToolsTest, canIterateOverCNNNetwork) {
         prepareInputs(maps);
     })));
 
-    std::vector<CNNLayerPtr>resultedOrder;
-    for (auto l : wrap) {
-        resultedOrder.push_back(l);
+    std::vector<CNNLayerPtr> resultedOrder;
+    const auto & inetwork = static_cast<const ICNNNetwork&>(wrap);
+    details::CNNNetworkIterator l(&inetwork), end;
+    for ( ; l != end; ++l) {
+        resultedOrder.push_back(*l);
     }
 
-    ASSERT_EQ(wrap.size(), 8);
+    ASSERT_EQ(resultedOrder.size(), 8);
     ASSERT_STREQ(resultedOrder[0]->name.c_str(), "2");
     ASSERT_STREQ(resultedOrder[1]->name.c_str(), "6");
     ASSERT_STREQ(resultedOrder[2]->name.c_str(), "1");
@@ -268,12 +271,14 @@ TEST_F(GraphToolsTest, canIterateOverCNNNetworkWithCycle) {
         prepareInputs(maps);
     })));
 
-    std::vector<CNNLayerPtr>resultedOrder;
-    for (auto l : wrap) {
-        resultedOrder.push_back(l);
+    std::vector<CNNLayerPtr> resultedOrder;
+    const auto & inetwork = static_cast<const ICNNNetwork&>(wrap);
+    details::CNNNetworkIterator l(&inetwork), end;
+    for (; l != end; ++l) {
+        resultedOrder.push_back(*l);
     }
 
-    ASSERT_EQ(wrap.size(), 4);
+    ASSERT_EQ(resultedOrder.size(), 4);
     ASSERT_STREQ(resultedOrder[0]->name.c_str(), "2");
     ASSERT_STREQ(resultedOrder[1]->name.c_str(), "3");
     ASSERT_STREQ(resultedOrder[2]->name.c_str(), "1");
@@ -288,7 +293,8 @@ TEST_F(GraphToolsTest, canCompareCNNNetworkIterators) {
         prepareInputs(maps);
     })));
 
-    auto i = std::begin(wrap);
+    const auto & inetwork = static_cast<const ICNNNetwork&>(wrap);
+    details::CNNNetworkIterator i(&inetwork);
     auto i2 = i;
     i2++;
 
@@ -305,7 +311,9 @@ TEST_F(GraphToolsTest, canIterateOverEmptyNetwork) {
         prepareInputs(maps);
     })));
 
-    ASSERT_EQ(std::begin(wrap), std::end(wrap));
+    const auto & inetwork = static_cast<const ICNNNetwork&>(wrap);
+    details::CNNNetworkIterator beg(&inetwork), end;
+    ASSERT_EQ(beg, end);
 }
 
 TEST_F(GraphToolsTest, CNNNetSwapLayersThrowsForNullPointers) {

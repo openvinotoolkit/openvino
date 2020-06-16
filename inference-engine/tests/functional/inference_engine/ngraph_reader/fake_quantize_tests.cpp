@@ -254,9 +254,9 @@ TEST_F(NGraphReaderTests, ReadFQNetwork) {
     CommonTestUtils::fill_data(weights->buffer().as<float *>(), weights->size() / sizeof(float));
 
     Core reader;
-    auto nGraph = reader.ReadNetwork(model, weights);
-    CNNNetwork cnn(nGraph);
-    IE_SUPPRESS_DEPRECATED_START
-    cnn.begin();
-    IE_SUPPRESS_DEPRECATED_END
+    auto cnn = reader.ReadNetwork(model, weights);
+    // TODO
+    // IE_SUPPRESS_DEPRECATED_START
+    // cnn.begin();
+    // IE_SUPPRESS_DEPRECATED_END
 }

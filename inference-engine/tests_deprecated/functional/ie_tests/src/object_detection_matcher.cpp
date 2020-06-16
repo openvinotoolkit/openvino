@@ -4,6 +4,7 @@
 
 #include <xml_helper.hpp>
 #include "object_detection_matcher.hpp"
+#include "details/ie_cnn_network_iterator.hpp"
 
 #include <algorithm>
 
@@ -187,12 +188,15 @@ void ObjectDetectionMatcher::match(const ScoreFunction& score_function) {
 
         IE_SUPPRESS_DEPRECATED_START
         ICNNNetworkStats *pstats;
-        ((ICNNNetwork&)cnnNetwork).getStats(&pstats, nullptr);
+        auto & inetwork = (ICNNNetwork&)cnnNetwork;
+        inetwork.getStats(&pstats, nullptr);
         pstats->setNodesStats(stat);
 
         // iterating over layers and fixing suppress_normalization->quantization_level
         // because we have in tests IR which has old name for fp32 layers
-        for (auto layer : cnnNetwork) {
+        details::CNNNetworkIterator i(&inetwork), end;
+        for ( ; i != end; ++i) {
+            auto layer = *i;
             if (layer->params.find("suppress_normalization") != layer->params.end() &&
                 layer->params["suppress_normalization"] == "I8") {
                 layer->params["quantization_level"] = "FP32";

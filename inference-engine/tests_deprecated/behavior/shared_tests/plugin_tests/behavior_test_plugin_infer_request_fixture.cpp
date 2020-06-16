@@ -4,6 +4,7 @@
 
 #include "behavior_test_plugin.h"
 #include "details/ie_cnn_network_tools.h"
+#include "details/ie_cnn_network_iterator.hpp"
 
 using namespace std;
 using namespace ::testing;
@@ -70,7 +71,11 @@ void BehaviorPluginTestInferRequest::_createAndCheckInferRequest(
     Core ie;
     testEnv->network = ie.ReadNetwork(param.model_xml_str, param.weights_blob);
     /* Call conversion from CNNNetwork NgraphImpl to CNNNetwork */
-    testEnv->network.begin();
+    {
+        auto & inetwork = (const InferenceEngine::ICNNNetwork &)testEnv->network;
+        InferenceEngine::details::CNNNetworkIterator i(&inetwork);
+        (void)i;
+    }
 
     _setInputPrecision(param, testEnv->network, testEnv, expectedNetworkInputs);
     _setOutputPrecision(param, testEnv->network, testEnv, expectedNetworkOutputs);

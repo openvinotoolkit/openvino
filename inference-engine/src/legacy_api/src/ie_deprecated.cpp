@@ -23,18 +23,6 @@ CNNLayerPtr CNNNetwork::getLayerByName(const char* layerName) const {
     return layer;
 }
 
-details::CNNNetworkIterator CNNNetwork::begin() const {
-    return details::CNNNetworkIterator(actual);
-}
-
-details::CNNNetworkIterator CNNNetwork::end() const {
-    return details::CNNNetworkIterator();
-}
-
-size_t CNNNetwork::size() const {
-    return std::distance(std::begin(*this), std::end(*this));
-}
-
 StatusCode ICNNNetwork::AddExtension(const IShapeInferExtensionPtr& extension, ResponseDesc* resp) noexcept {
     (void)extension;
     (void)resp;

@@ -6,6 +6,7 @@
 
 #include <gtest/gtest.h>
 #include <details/ie_cnn_network_tools.h>
+#include <details/ie_cnn_network_iterator.hpp>
 #include <ie_core.hpp>
 #include <ie_plugin_config.hpp>
 #include <tests_common.hpp>
@@ -1411,8 +1412,9 @@ TEST_P(IEClassLoadNetworkTest, DISABLED_QueryNetworkMULTIwithHETERONoThrowv10) {
             }
         } else {
             IE_SUPPRESS_DEPRECATED_START
-            auto i = irv10Network.begin();
-            while (i != irv10Network.end()) {
+            auto & inetwork = (ICNNNetwork&)irv10Network;
+            details::CNNNetworkIterator i(&inetwork), end;
+            while (i != end) {
                 CNNLayerPtr layer = *i;
                 names.push_back(layer->name);
                 ++i;

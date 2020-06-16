@@ -220,8 +220,4 @@ TEST_F(NGraphReaderTests, ReadReLUScalarNetwork) {
     Blob::CPtr blob;
     Core reader;
     auto nGraph = reader.ReadNetwork(model, blob);
-    CNNNetwork cnetwork(nGraph);
-    IE_SUPPRESS_DEPRECATED_START
-    cnetwork.begin();
-    IE_SUPPRESS_DEPRECATED_END
 }

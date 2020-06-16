@@ -86,7 +86,6 @@ protected:
 
             InferenceEngine::Core ie;
             auto network = ie.ReadNetwork(model, getConvWeightsBlob(p.in1, p.conv));
-            network.begin();  // Call conversion from CNNNetwork NgraphImpl to CNNNetwork
             std::shared_ptr<MKLDNNPlugin::Engine> score_engine(new MKLDNNPlugin::Engine());
             InferenceEngine::IExecutableNetwork::Ptr exeNetwork1;
             ASSERT_NO_THROW(score_engine->LoadNetwork(exeNetwork1, network, {}));
@@ -148,7 +147,6 @@ protected:
 
             Core ie;
             auto network = ie.ReadNetwork(model, getConvWeightsBlob(p.in1, p.conv));
-            network.begin();  // Call conversion from CNNNetwork NgraphImpl to CNNNetwork
 
             std::shared_ptr<MKLDNNPlugin::Engine> score_engine(new MKLDNNPlugin::Engine());
             InferenceEngine::IExecutableNetwork::Ptr exeNetwork1;
@@ -212,7 +210,6 @@ protected:
 
             Core ie;
             auto network = ie.ReadNetwork(model, getConvWeightsBlob(p.in1, p.conv));
-            network.begin();  // Call conversion from CNNNetwork NgraphImpl to CNNNetwork
 
             std::shared_ptr<MKLDNNPlugin::Engine> score_engine(new MKLDNNPlugin::Engine());
             InferenceEngine::IExecutableNetwork::Ptr exeNetwork1;
@@ -278,7 +275,6 @@ protected:
             size_t weight_size = getConvWeightsSize(p.in1, p.conv1, "FP32") + getConvBiasesSize(p.conv1, "FP32") +
                                  getConvWeightsSize(p.in2, p.conv2, "FP32") + getConvBiasesSize(p.conv2, "FP32");
             auto network = ie.ReadNetwork(model, CommonTestUtils::getWeightsBlob(weight_size));
-            network.begin();  // Call conversion from CNNNetwork NgraphImpl to CNNNetwork
 
             std::shared_ptr<MKLDNNPlugin::Engine> score_engine(new MKLDNNPlugin::Engine());
             InferenceEngine::IExecutableNetwork::Ptr exeNetwork1;
@@ -363,7 +359,6 @@ protected:
                                  getConvWeightsSize(p.in2, p.conv2, "FP32") + getConvBiasesSize(p.conv2, "FP32") +
                                  getConvWeightsSize(convOutShape3, p.conv3, "FP32") + getConvBiasesSize(p.conv3, "FP32");
             auto network = ie.ReadNetwork(model, CommonTestUtils::getWeightsBlob(weight_size));
-            network.begin();  // Call conversion from CNNNetwork NgraphImpl to CNNNetwork
 
             std::shared_ptr<MKLDNNPlugin::Engine> score_engine(new MKLDNNPlugin::Engine());
             InferenceEngine::IExecutableNetwork::Ptr exeNetwork1;

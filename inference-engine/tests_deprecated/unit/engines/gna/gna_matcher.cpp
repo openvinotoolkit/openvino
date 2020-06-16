@@ -27,6 +27,7 @@
 #include <details/ie_cnn_network_tools.h>
 
 #include "unit_test_utils/mocks/mock_icnn_network.hpp"
+#include "details/ie_cnn_network_iterator.hpp"
 
 using namespace std;
 using namespace InferenceEngine;
@@ -92,7 +93,10 @@ void GNAPropagateMatcher :: match() {
 
             std::vector<InferenceEngine::CNNLayerPtr> tiBodies;
 
-            for (auto &layer : net_original) {
+            const auto & inetwork = static_cast<const ICNNNetwork&>(net_original);
+            for (auto layerIt = details::CNNNetworkIterator(&inetwork), end = details::CNNNetworkIterator();
+                     layerIt != end; ++layerIt) {
+                auto layer = *layerIt;
                 if (layer->type == "TensorIterator") {
                     auto tiBody = NetPass::TIBodySortTopologically(std::dynamic_pointer_cast<InferenceEngine::TensorIterator>(layer)->body);
                     tiBodies.insert(tiBodies.end(), tiBody.begin(), tiBody.end());

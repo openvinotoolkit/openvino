@@ -3,6 +3,7 @@
 //
 
 #include "ie_util_internal.hpp"
+#include "details/ie_cnn_network_iterator.hpp"
 
 #include <ie_layers.h>
 

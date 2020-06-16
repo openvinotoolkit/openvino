@@ -39,9 +39,13 @@ TEST_P(CNNNetworkSerializerTest, SerializeEmptyFilePathsThrowsException) {
 TEST_P(CNNNetworkSerializerTest, Serialize) {
     InferenceEngine::Core ie;
     InferenceEngine::CNNNetwork originalNetwork = ie.ReadNetwork(_modelPath, _weightsPath);
-    IE_SUPPRESS_DEPRECATED_START
-    originalNetwork.begin();
-    IE_SUPPRESS_DEPRECATED_END
+    {
+        IE_SUPPRESS_DEPRECATED_START
+        auto & inetwork = (const InferenceEngine::ICNNNetwork &)originalNetwork;
+        InferenceEngine::details::CNNNetworkIterator i(&inetwork);
+        (void)i;
+        IE_SUPPRESS_DEPRECATED_END
+    }
     originalNetwork.getInputsInfo().begin()->second->setPrecision(_netPrc);
     originalNetwork.getOutputsInfo().begin()->second->setPrecision(_netPrc);
 

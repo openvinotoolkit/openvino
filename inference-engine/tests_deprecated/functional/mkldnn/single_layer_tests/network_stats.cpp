@@ -12,6 +12,7 @@
 #include <format_reader_ptr.h>
 
 #include "network_stats.h"
+#include "details/ie_cnn_network_iterator.hpp"
 #include <samples/slog.hpp>
 
 using namespace InferenceEngine;
@@ -197,7 +198,10 @@ void NetworkStatsCollector::InferAndCollectStats(const std::vector<std::string>&
     std::string hackPrefix = "scaleshifted_input:";
 
     std::map<std::string, std::string> inputsFromLayers;
-    for (auto&& layer : _network) {
+    auto & inetwork = (const ICNNNetwork &)_network;
+    details::CNNNetworkIterator i(&inetwork), end;
+    for (; i != end; ++i) {
+        auto layer = *i;
         if (layer->insData.size() > 0) {
             std::string inName = layer->input()->getName();
             for (auto&& input : _network.getInputsInfo()) {
@@ -216,7 +220,10 @@ void NetworkStatsCollector::InferAndCollectStats(const std::vector<std::string>&
     }
 
     // Adding output to every layer
-    for (auto&& layer : _network) {
+    auto & inetwork2 = (const ICNNNetwork &)_network;
+    details::CNNNetworkIterator i2(&inetwork2);
+    for ( ; i2 != end; ++i2) {
+        auto layer = *i2;
         slog::info << "\t" << layer->name << slog::endl;
 
         std::string layerType = _network.getLayerByName(layer->name.c_str())->type;
