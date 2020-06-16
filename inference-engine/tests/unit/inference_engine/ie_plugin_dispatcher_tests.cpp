@@ -25,13 +25,23 @@
 using namespace InferenceEngine;
 using namespace ::testing;
 
+// Add DISABLED_ prefix to test name when building with -fsanitize=address
+#if defined(__SANITIZE_ADDRESS__) || (defined(__clang__) && __has_feature(address_sanitizer))
+#define DISABLE_IF_SANITIZER(TEST_NAME) DISABLED_ ## TEST_NAME
+#else
+#define DISABLE_IF_SANITIZER(TEST_NAME) TEST_NAME
+#endif
+
 class PluginDispatcherTests : public ::testing::Test {
 public:
     const std::string nameExt(const std::string& name) { return name + IE_BUILD_POSTFIX;}
 };
 
+// The test is disabled for SANITIZER builds due to known issue in the test code:
+// The module unloaded before static holder object (BuiltInShapeInferHolder::ImplsHolder) was destroyed.
+// IShapeInferExtension mechanics is deprecated.
 IE_SUPPRESS_DEPRECATED_START
-TEST_F(PluginDispatcherTests, canLoadMockPlugin) {
+TEST_F(PluginDispatcherTests, DISABLE_IF_SANITIZER(canLoadMockPlugin)) {
     PluginDispatcher dispatcher({ "", "./", "./lib" });
     ASSERT_NO_THROW(dispatcher.getPluginByName(nameExt("mock_engine")));
 }
