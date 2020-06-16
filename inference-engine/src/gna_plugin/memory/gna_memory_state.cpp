@@ -81,12 +81,32 @@ namespace memory {
     InferenceEngine::Blob::CPtr GNAMemoryState::GetLastState() const {
         auto elements = state->reserved_size / state->elementSizeBytes();
         InferenceEngine::Precision state_precision = getPrecision();
-        auto result_blob = make_blob_with_precision(InferenceEngine::TensorDesc(state_precision,
-            InferenceEngine::SizeVector({1, elements}),
-            InferenceEngine::NC),
-            state->gna_ptr);
 
-        return result_blob;
+        if (state->getInput() && state_precision == InferenceEngine::Precision::I16) {
+            auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(state->getInput());
+            auto scale_factor = quantized != nullptr ? quantized->_dst_quant.scale : 1.0f;
+
+            auto result_blob = make_blob_with_precision(InferenceEngine::TensorDesc(InferenceEngine::Precision::FP32,
+                InferenceEngine::SizeVector({ 1, elements }),
+                InferenceEngine::NC));
+
+            result_blob->allocate();
+            auto buffer = result_blob->buffer().as<float*>();
+            auto new_gna_ptr = static_cast<int16_t*>(state->gna_ptr);
+
+            for (int i = 0; i < elements; i++) {
+                buffer[i] = new_gna_ptr[i] / scale_factor;
+            }
+
+            return result_blob;
+        } else {
+            auto result_blob = make_blob_with_precision(InferenceEngine::TensorDesc(state_precision,
+                InferenceEngine::SizeVector({ 1, elements }),
+                InferenceEngine::NC),
+                state->gna_ptr);
+
+            return result_blob;
+        }
     }
 }  // namespace memory
 }  // namespace GNAPluginNS
