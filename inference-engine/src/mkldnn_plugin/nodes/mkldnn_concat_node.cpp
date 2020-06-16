@@ -552,6 +552,8 @@ void MKLDNNConcatNode::initOptimalPrimitiveDescriptor() {
     if (isInitConfig(config))
         return;
 
+    // TODO: [AP] concat has only one output..
+    //       Also I'm not sure that this code is reachable. May we delete this?
     for (size_t i = 0; i < config.outConfs.size(); i++) {
         if (config.outConfs[i].desc.isUnknown() ||
                 !config.outConfs[i].desc.isUninit())
@@ -566,8 +568,7 @@ void MKLDNNConcatNode::initOptimalPrimitiveDescriptor() {
                 if (childConf.desc.isUninit() && childConf.inPlace >= 0)
                     getChildEdgeAt(i)->getChild()->initOptimalPrimitiveDescriptor();
 
-                if (!childConf.desc.isUninit()) &&
-                        MKLDNNExtensionUtils::initTensorsAreEqual(childConf.desc, config.outConfs[i].desc)) {
+                if (!childConf.desc.isUninit() && initTensorsAreEqual(childConf.desc, config.outConfs[i].desc)) {
                     config.outConfs[i].desc = childConf.desc;
                     continue;
                 }
@@ -575,8 +576,8 @@ void MKLDNNConcatNode::initOptimalPrimitiveDescriptor() {
         }
         config.outConfs[i].desc = InferenceEngine::TensorDesc(config.outConfs[i].desc.getPrecision(),
                                                               config.outConfs[i].desc.getDims(), {
-                                                                      config.outConfs[i].desc.getBlockingDesc().getBlockDims(),
-                                                                      config.outConfs[i].desc.getBlockingDesc().getOrder()
+                                                                  config.outConfs[i].desc.getBlockingDesc().getBlockDims(),
+                                                                  config.outConfs[i].desc.getBlockingDesc().getOrder()
                                                               });
     }
     size_t offset = 0;

@@ -157,8 +157,30 @@ void MKLDNNGenericNode::execLayer() {
     }
 }
 
-void MKLDNNGenericNode::initDescriptor(const InferenceEngine::LayerConfig &config) {
-    InferenceEngine::LayerConfig rightConfig = config;
+InferenceEngine::LayerConfig convert_layout_config(const MKLDNNLayoutConfig& config) {
+    InferenceEngine::LayerConfig res;
+
+    res.dynBatchSupport = config.dynBatchSupport;
+
+    auto convert_port_info = [] (const MKLDNNPortConfig& port_desc) {
+        InferenceEngine::DataConfig res;
+        res.inPlace  = port_desc.inPlace;
+        res.constant = port_desc.constant;
+        res.desc     = port_desc.desc;
+        return res;
+    };
+
+    for (auto info : config.inConfs)
+        res.inConfs.push_back(convert_port_info(info));
+
+    for (auto info : config.outConfs)
+        res.inConfs.push_back(convert_port_info(info));
+
+    return res;
+}
+
+void MKLDNNGenericNode::initDescriptor(const MKLDNNLayoutConfig& config) {
+    auto rightConfig = config;
     InferenceEngine::StatusCode rc;
     InferenceEngine::ResponseDesc resp;
 
@@ -193,7 +215,8 @@ void MKLDNNGenericNode::initDescriptor(const InferenceEngine::LayerConfig &confi
 
     impls.clear();
     impls.emplace_back(selectedImpl);
-    rc = impls[0]->init(rightConfig, &resp);
+    auto ie_config = convert_layout_config(rightConfig);
+    rc = impls[0]->init(ie_config, &resp);
     if (rc != InferenceEngine::OK) {
         THROW_IE_EXCEPTION << resp.msg;
     }

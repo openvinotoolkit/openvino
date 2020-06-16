@@ -79,11 +79,6 @@ private:
     mkldnn::memory::desc desc;
 };
 
-
-class MKLDNNMemory;
-
-using MKLDNNMemoryPtr = std::shared_ptr<MKLDNNMemory>;
-
 class MKLDNNMemory {
 public:
     explicit MKLDNNMemory(const mkldnn::engine& eng);
@@ -153,6 +148,8 @@ private:
     std::shared_ptr<mkldnn::memory> prim;
     mkldnn::engine eng;
 };
+
+using MKLDNNMemoryPtr = std::shared_ptr<MKLDNNMemory>;
 
 /***********************************
  * Util section

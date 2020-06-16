@@ -1487,14 +1487,4 @@ bool MKLDNNExtensionUtils::initTensorsAreEqual(const InferenceEngine::TensorDesc
              in1Block.getOffsetPadding() != uninitNum && in2Block.getOffsetPadding() != uninitNum);
 }
 
-
-    /*
-     * @param blocked_dims blocked dimensions
-     * @param order the order of dimensions
-     * @param offset offset to the current memory block
-     * @param dimOffsets per-dimension offset from the padding to actual data,
-     * @param strides strides for each dimension
-     */
-
-
 }  // namespace MKLDNNPlugin
