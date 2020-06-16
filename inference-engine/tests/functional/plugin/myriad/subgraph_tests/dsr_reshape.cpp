@@ -6,8 +6,10 @@
 
 namespace {
 
+using namespace LayerTestsUtils::vpu;
+
 using ShapeDescriptor = std::vector<int32_t>;
-using ReshapeTestParams = std::tuple<DataShape, bool, ShapeDescriptor>;
+using ReshapeTestParams = std::tuple<DataShapeWithUpperBound, bool, ShapeDescriptor>;
 
 using Parameters = std::tuple<
         DataType,
@@ -17,30 +19,24 @@ using Parameters = std::tuple<
 
 class DSR_Reshape : public testing::WithParamInterface<Parameters>, public DSR_TestsCommon {
 protected:
-    FunctionWithTestedOp createFunctionWithTestedOp() override {
+    std::shared_ptr<ngraph::Node> createTestedOp() override {
         const auto& parameters = GetParam();
         const auto& inDataType = std::get<0>(GetParam());
         const auto& reshapeTestParams = std::get<1>(GetParam());
         targetDevice = std::get<2>(GetParam());
 
-        const auto& inDataShape = std::get<0>(reshapeTestParams);
+        const auto& inDataShapes = std::get<0>(reshapeTestParams);
         const auto& specialZero = std::get<1>(reshapeTestParams);
         const auto& outShapeDescriptor = std::get<2>(reshapeTestParams);
 
-        const auto inputSubgraph = createInputSubgraphWithDSR(inDataType, inDataShape);
+        const auto inputSubgraph = createInputSubgraphWithDSR(inDataType, inDataShapes);
 
         const auto outShapeDescriptorConstNode = std::make_shared<ngraph::opset3::Constant>(
                 ngraph::element::i64, ngraph::Shape{outShapeDescriptor.size()}, outShapeDescriptor);
         const auto reshape = std::make_shared<ngraph::opset3::Reshape>(
                 inputSubgraph, outShapeDescriptorConstNode, specialZero);
-        const auto result = std::make_shared<ngraph::opset3::Result>(reshape);
 
-        const auto function = std::make_shared<ngraph::Function>(
-                ngraph::ResultVector{result},
-                m_parameterVector,
-                "DSR-Reshape");
-
-        return FunctionWithTestedOp{function, reshape};
+        return reshape;
     }
 };
 
@@ -49,20 +45,19 @@ TEST_P(DSR_Reshape, CompareWithReference) {
 }
 
 std::vector<ReshapeTestParams> reshapeTestParams = {
-        std::make_tuple(DataShape{1, 1000}, true, ShapeDescriptor{-1, 1}),
-        std::make_tuple(DataShape{1000, 1}, true, ShapeDescriptor{-1}),
-        std::make_tuple(DataShape{1000, 1}, true, ShapeDescriptor{-1, 1, 1, 1}),
-        std::make_tuple(DataShape{1000, 4}, true, ShapeDescriptor{1, -1, 4}),
-        std::make_tuple(DataShape{1000}, true, ShapeDescriptor{1, 1, -1}),
+        std::make_tuple(DataShapeWithUpperBound{{1, 750}, {1, 1000}}, true, ShapeDescriptor{-1, 1}),
+        std::make_tuple(DataShapeWithUpperBound{{750, 1}, {1000, 1}}, true, ShapeDescriptor{-1}),
+        std::make_tuple(DataShapeWithUpperBound{{750, 1}, {750, 1}}, true, ShapeDescriptor{-1, 1, 1, 1}),
+        std::make_tuple(DataShapeWithUpperBound{{750, 4}, {1000, 4}}, true, ShapeDescriptor{1, -1, 4}),
+        std::make_tuple(DataShapeWithUpperBound{{750}, {1000}}, true, ShapeDescriptor{1, 1, -1}),
 };
 
 INSTANTIATE_TEST_CASE_P(DynamicReshape, DSR_Reshape,
-                        ::testing::Combine(
-                                ::testing::Values(
-                                        ngraph::element::f16,
-                                        ngraph::element::f32,
-                                        ngraph::element::i32),
-                                ::testing::ValuesIn(reshapeTestParams),
-                                ::testing::Values(CommonTestUtils::DEVICE_MYRIAD)));
+    ::testing::Combine(
+        ::testing::Values(ngraph::element::f16,
+                          ngraph::element::f32,
+                          ngraph::element::i32),
+        ::testing::ValuesIn(reshapeTestParams),
+        ::testing::Values(CommonTestUtils::DEVICE_MYRIAD)));
 
 }  // namespace

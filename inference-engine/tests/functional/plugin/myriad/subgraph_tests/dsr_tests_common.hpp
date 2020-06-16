@@ -10,14 +10,15 @@
 #include <functional_test_utils/layer_test_utils.hpp>
 #include <ngraph_functions/builders.hpp>
 
-namespace {
+namespace LayerTestsUtils {
+namespace vpu {
 
 using DataType = ngraph::element::Type;
 using DataShape = ngraph::Shape;
 
-struct FunctionWithTestedOp {
-    std::shared_ptr<ngraph::Function> function;
-    std::shared_ptr<ngraph::Node> testedOp;
+struct DataShapeWithUpperBound {
+    DataShape shape;
+    DataShape upperBoundShape;
 };
 
 class DSR_TestsCommon : public LayerTestsUtils::LayerTestsCommon {
@@ -26,45 +27,41 @@ protected:
     ngraph::ParameterVector m_parameterVector;
 
     virtual std::shared_ptr<ngraph::Node> createInputSubgraphWithDSR(
-            const DataType& inDataType, const DataShape& inDataShape) {
+            const DataType& inDataType, const DataShapeWithUpperBound& shapes,
+            const std::string& suffix = "") {
         const auto inDataParam = std::make_shared<ngraph::opset3::Parameter>(
-                inDataType, inDataShape);
+                inDataType, shapes.upperBoundShape);
+        inDataParam->set_friendly_name(inDataParam->get_friendly_name() + suffix);
         const auto inDataShapeParam = std::make_shared<ngraph::opset3::Parameter>(
-                ngraph::element::i32, ngraph::Shape{inDataShape.size()});
+                ngraph::element::i32, ngraph::Shape{shapes.shape.size()});
         inDataShapeParam->set_friendly_name(inDataParam->get_friendly_name() + "/shape");
 
-        m_shapes[inDataShapeParam->get_friendly_name()] = inDataShape;
+        m_shapes[inDataShapeParam->get_friendly_name()] = shapes.shape;
         m_parameterVector.push_back(inDataParam);
         m_parameterVector.push_back(inDataShapeParam);
 
-        const auto dataConstFactor = std::make_shared<ngraph::opset3::Constant>(
-                inDataType, ngraph::Shape{}, 1.5f);
-        const auto shapeConstFactor = std::make_shared<ngraph::opset3::Constant>(
-                ngraph::element::i32, ngraph::Shape{inDataShape.size()}, 1);
-        const auto inDataCopy = std::make_shared<ngraph::opset3::Multiply>(
-                inDataParam, dataConstFactor);
-        const auto inDataShapeCopy = std::make_shared<ngraph::opset3::Multiply>(
-                inDataShapeParam, shapeConstFactor);
-
         const auto dsr = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(
-                inDataCopy, inDataShapeCopy);
+                inDataParam, inDataShapeParam);
 
         return dsr;
     }
 
-    virtual FunctionWithTestedOp createFunctionWithTestedOp() = 0;
+    virtual std::shared_ptr<ngraph::Node> createTestedOp() = 0;
 
     void SetUp() override {
         SetRefMode(LayerTestsUtils::RefMode::CONSTANT_FOLDING);
         configuration[VPU_CONFIG_KEY(DETECT_NETWORK_BATCH)] = CONFIG_VALUE(NO);
-        configuration[VPU_CONFIG_KEY(DISABLE_REORDER)] = CONFIG_VALUE(YES);
 
-        const auto& infFunctionWithTestedOp = createFunctionWithTestedOp();
-        function = infFunctionWithTestedOp.function;
-        const auto testedOp = infFunctionWithTestedOp.testedOp;
+        const auto testedOp = createTestedOp();
+        const auto result = std::make_shared<ngraph::opset3::Result>(testedOp);
+
+        function = std::make_shared<ngraph::Function>(
+                ngraph::NodeVector{result},
+                m_parameterVector,
+                "DSR-" + std::string(testedOp->get_type_name()));
         testedOp->set_output_type(0, testedOp->get_input_element_type(0), ngraph::PartialShape::dynamic(
                 testedOp->get_output_partial_shape(0).rank()));
-        vpu::DynamicToStaticShape().transform(function);
+        ::vpu::DynamicToStaticShape().transform(function);
     }
 
     InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &info) const override {
@@ -73,7 +70,7 @@ protected:
             return LayerTestsCommon::GenerateInput(info);
         }
 
-        InferenceEngine::Blob::Ptr blob = make_blob_with_precision(info.getTensorDesc());
+        auto blob = make_blob_with_precision(info.getTensorDesc());
         blob->allocate();
 
         auto dataPtr = InferenceEngine::as<InferenceEngine::MemoryBlob>(blob)->rwmap().as<int32_t*>();
@@ -99,8 +96,8 @@ protected:
                 dsr->setMode(ngraph::vpu::op::DynamicShapeResolverMode::INFER_UPPER_BOUND_SHAPE);
             }
         }
-        function->validate_nodes_and_infer_types();
     }
 };
 
-}  // namespace
+}  // namespace vpu
+}  // namespace LayerTestsUtils
