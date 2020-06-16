@@ -90,8 +90,8 @@ namespace ngraph
 
         bool SubgraphCache::contains(const std::string& name) const
         {
-            // exists in subgraph or in parent graph scope
-            return GraphCache::contains(name) || m_parent_graph_cache->contains(node_name);
+            // the node is in subgraph or in parent graph scope
+            return GraphCache::contains(name) || m_parent_graph_cache->contains(name);
         }
 
     } // namespace onnx_import

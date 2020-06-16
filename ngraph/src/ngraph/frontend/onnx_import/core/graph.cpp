@@ -157,6 +157,11 @@ namespace ngraph
             return m_cache->contains(name);
         }
 
+        std::shared_ptr<ngraph::Node> Graph::get_ng_node_from_cache(const std::string& name) const
+        {
+            return m_cache->get_node(name);
+        }
+
         NodeVector Graph::get_ng_outputs() const
         {
             NodeVector results;

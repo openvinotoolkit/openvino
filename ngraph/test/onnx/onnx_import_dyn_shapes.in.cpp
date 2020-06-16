@@ -1177,25 +1177,3 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_range_negative_step)
 
     test_case.run();
 }
-/*
-NGRAPH_TEST(${BACKEND_NAME}, test_yolo_v3_2)
-{
-    auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/dynamic_shapes/yolov3-10.onnx"));
-
-    auto test_case =
-        ngraph::test::NgraphTestCase(function, "${BACKEND_NAME}", test::BackendMode::DYNAMIC);
-
-    const Shape input_shape{1, 3, 416, 416};
-    std::vector<float> input_values(shape_size(input_shape));
-    std::iota(input_values.begin(), input_values.end(), 0.f);
-    test_case.add_input<float>(input_shape, input_values);
-
-    test_case.add_input<float>(Shape{1, 2}, {416.f, 416.f});
-
-    test_case.add_expected_output<float>(Shape{1, 1, 4}, {1, 2, 3 ,4});
-    test_case.add_expected_output<float>(Shape{1, 80, 1}, std::vector<float>(input_values.begin(), input_values.begin()+80));
-    test_case.add_expected_output<float>(Shape{1, 3}, {1, 2, 3});
-
-    test_case.run();
-}*/
