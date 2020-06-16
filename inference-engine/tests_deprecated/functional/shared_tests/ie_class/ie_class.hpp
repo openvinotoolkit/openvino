@@ -317,26 +317,6 @@ TEST_F(IEClassBasicTest, smoke_SetConfigHeteroNoThrow) {
 }
 
 //
-// LogCallBack
-//
-
-TEST_F(IEClassBasicTest, smoke_LogCallBackNoThrow) {
-    Core ie;
-
-    IE_SUPPRESS_DEPRECATED_START
-    class ConsoleErrorListener : public IErrorListener {
-        void onError(const char *msg) noexcept override {
-            std::clog << "Plugin message: " << msg << std::endl;
-        }
-    };
-
-    ConsoleErrorListener listener;
-
-    ASSERT_NO_THROW(ie.SetLogCallback(listener));
-    IE_SUPPRESS_DEPRECATED_END
-}
-
-//
 // ImportNetwork
 //
 

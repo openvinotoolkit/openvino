@@ -21,7 +21,6 @@
 #include "details/ie_no_copy.hpp"
 #include "ie_api.h"
 #include "ie_core.hpp"
-#include "ie_error.hpp"
 #include "ie_iexecutable_network.hpp"
 #include "ie_version.hpp"
 
@@ -41,19 +40,6 @@ public:
      * @param versionInfo Pointer to version info. Is set by plugin
      */
     virtual void GetVersion(const Version*& versionInfo) noexcept = 0;
-
-    /**
-     * @deprecated IErrorListener is not used anymore. StatusCode is provided in case of unexpected situations
-     * This API will be removed in 2021.1 release.
-     * @brief Sets logging callback
-     *
-     * Logging is used to track what is going on inside
-     * @param listener Logging sink
-     */
-    IE_SUPPRESS_DEPRECATED_START
-    INFERENCE_ENGINE_DEPRECATED("IErrorListener is not used anymore. StatusCode is provided in case of unexpected situations")
-    virtual void SetLogCallback(IErrorListener& listener) noexcept = 0;
-    IE_SUPPRESS_DEPRECATED_END
 
     /**
      * @brief Creates an executable network from a network object. User can create as many networks as they need and use

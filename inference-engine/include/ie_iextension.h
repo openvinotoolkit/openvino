@@ -16,7 +16,6 @@
 
 #include "details/ie_no_copy.hpp"
 #include "ie_api.h"
-#include "ie_error.hpp"
 #include "ie_common.h"
 #include "ie_layouts.h"
 #include "ie_blob.h"

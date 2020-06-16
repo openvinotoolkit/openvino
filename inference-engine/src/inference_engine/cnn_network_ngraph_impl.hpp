@@ -136,7 +136,8 @@ private:
 
     friend INFERENCE_ENGINE_API_CPP(std::shared_ptr<CNNNetworkImpl>)
     convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function>& graph,
-                                 const ICNNNetwork& nGraphImpl);
+                                 const ICNNNetwork& nGraphImpl, bool keep_constant_inputs);
+
 
     /**
      * @brief Reshape on the same shape
