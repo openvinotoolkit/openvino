@@ -52,14 +52,9 @@ class SsdAnchorReshape(FrontReplacementPattern):
             ])
 
     def replace_pattern(self, graph: Graph, match: Dict[str, Node]):
-
-        concat_node = match['concat']
-        concat_node['axis'] = 1
-
         slice_like = match['slice_like']
         slice_like.out_port(0).disconnect()
         match['reshape2'].out_port(0).get_connection().set_source(slice_like.out_port(0))
-        slice_like['override_output_shape'] = True
 
 
 class SsdAnchorsReplacer(FrontReplacementPattern):
@@ -93,6 +88,7 @@ class SsdAnchorsReplacer(FrontReplacementPattern):
 
     def replace_pattern(self, graph: Graph, match: Dict[str, Node]):
         concat_node = match['concat']
+        concat_node['axis'] = 1
         concat_name = concat_node.soft_get('name', concat_node.id)
         if len(concat_node.out_nodes()[0].out_nodes()) == 0:
             return
