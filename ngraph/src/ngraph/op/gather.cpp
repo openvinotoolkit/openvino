@@ -211,7 +211,6 @@ shared_ptr<Node> op::v1::Gather::clone_with_new_inputs(const OutputVector& new_a
     return make_shared<v1::Gather>(new_args.at(PARAMS), new_args.at(INDICES), new_args.at(AXIS));
 }
 
-#ifdef NGRAPH_EVALUATE_ENABLE
 namespace
 {
     template <element::Type_t ET>
@@ -309,10 +308,12 @@ namespace
     }
 }
 
+#ifdef NGRAPH_EVALUATE_ENABLE
 bool op::v0::Gather::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
 {
     return evaluate_gather(inputs[0], inputs[1], outputs[0], get_axis());
 }
+#endif
 
 bool op::v1::Gather::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
 {
@@ -340,4 +341,3 @@ bool op::v1::Gather::evaluate(const HostTensorVector& outputs, const HostTensorV
     }
     return evaluate_gather(inputs[0], inputs[1], outputs[0], axis);
 }
-#endif

@@ -61,10 +61,8 @@ namespace ngraph
                 /// \return The concatenation axis.
                 int64_t get_axis() const { return m_axis; }
                 void set_axis(int64_t axis) { m_axis = axis; }
-#ifdef NGRAPH_EVALUATE_ENABLE
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) override;
-#endif
 
             protected:
                 virtual void generate_adjoints(autodiff::Adjoints& adjoints,

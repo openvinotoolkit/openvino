@@ -80,7 +80,6 @@ shared_ptr<Node> ngraph::operator/(const Output<Node>& arg0, const Output<Node>&
     return make_shared<op::v0::Divide>(arg0, arg1);
 }
 
-#ifdef NGRAPH_EVALUATE_ENABLE
 namespace
 {
     template <element::Type_t ET>
@@ -140,6 +139,7 @@ namespace
     }
 }
 
+#ifdef NGRAPH_EVALUATE_ENABLE
 bool op::v0::Divide::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
 {
     return evaluate_divide(inputs[0], inputs[1], outputs[0], get_autob(), is_pythondiv());
@@ -198,9 +198,7 @@ void op::v1::Divide::generate_adjoints(autodiff::Adjoints& adjoints, const Outpu
     adjoints.add_delta(y, -delta * shared_from_this() / y);
 }
 
-#ifdef NGRAPH_EVALUATE_ENABLE
 bool op::v1::Divide::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
 {
     return evaluate_divide(inputs[0], inputs[1], outputs[0], get_autob(), is_pythondiv());
 }
-#endif

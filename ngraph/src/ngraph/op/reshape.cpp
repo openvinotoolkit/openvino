@@ -26,7 +26,6 @@
 using namespace std;
 using namespace ngraph;
 
-#ifdef NGRAPH_EVALUATE_ENABLE
 namespace
 {
     template <element::Type_t ET>
@@ -93,7 +92,6 @@ namespace
         }
     }
 }
-#endif
 
 constexpr NodeTypeInfo op::Reshape::type_info;
 
@@ -225,12 +223,10 @@ void op::Reshape::generate_adjoints(autodiff::Adjoints& adjoints, const OutputVe
     adjoints.add_delta(input_value(0), reshape);
 }
 
-#ifdef NGRAPH_EVALUATE_ENABLE
 bool op::v0::Reshape::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
 {
     return evaluate_reshape(inputs[0], outputs[0], get_input_order());
 }
-#endif
 
 constexpr NodeTypeInfo op::v1::Reshape::type_info;
 
@@ -396,7 +392,6 @@ void op::v1::Reshape::generate_adjoints(autodiff::Adjoints& /* adjoints */,
     throw ngraph_error("generate_adjoints not implemented for Reshape");
 }
 
-#ifdef NGRAPH_EVALUATE_ENABLE
 bool op::v1::Reshape::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
 {
     // infer and set output shape if the output shape contain -1
@@ -516,4 +511,3 @@ bool op::v1::Reshape::evaluate(const HostTensorVector& outputs, const HostTensor
     const AxisVector order = get_default_order(outputs[0]->get_shape());
     return evaluate_reshape(inputs[0], outputs[0], order);
 }
-#endif
