@@ -44,13 +44,15 @@ void DynamicShapeResolver::validate_and_infer_types() {
             "input shape = ", dataShape, " second input shape = ", dimsShape, " but ", dataShape, " and ", Shape{dataShape.size()}, " are expected");
 
         set_output_type(0, dataElementType, dataShape);
-    } else {
+    } else if (m_mode == DynamicShapeResolverMode::INFER_DYNAMIC_SHAPE) {
         NODE_VALIDATION_CHECK(this, get_input_partial_shape(0).rank() == dimsShape.front(),
-                "(", get_friendly_name(), ") data and shape ranks must be equal, proided: ",
+                "(", get_friendly_name(), ") data and shape ranks must be equal, provided: ",
                 get_input_partial_shape(0).rank(), " vs ", dimsShape.front());
 
         set_output_type(0, dataElementType,
                         ngraph::PartialShape::dynamic(get_input_partial_shape(0).rank()));
+    } else {
+        NGRAPH_UNREACHABLE(this, "Unknown DynamicShapeResolverMode value, expected values: INFER_UPPER_BOUND_SHAPE, INFER_DYNAMIC_SHAPE");
     }
 }
 
@@ -65,6 +67,9 @@ bool getShapeFromHostTensorData(const HostTensorPtr& data, Shape& result) {
     using T = typename element_type_traits<ET>::value_type;
     T *dataPtr = data->get_data_ptr<ET>();
     if (!dataPtr) {
+        return false;
+    }
+    if (data->get_shape().size() != 1) {
         return false;
     }
     size_t outputRank = data->get_shape()[0];
@@ -102,11 +107,11 @@ bool getShapeFromHostTensorData(const HostTensorPtr& data, Shape& shape) {
 
 template<element::Type_t InType>
 bool evaluate(const HostTensorPtr& inputTensor,
-              const HostTensorPtr& outShapeTensor,
+              const HostTensorPtr& inputShapeTensor,
               const HostTensorPtr& outputTensor) {
     Shape inputShape = inputTensor->get_shape();
     Shape outputShape;
-    if (!getShapeFromHostTensorData(outShapeTensor, outputShape)) {
+    if (!getShapeFromHostTensorData(inputShapeTensor, outputShape)) {
         return false;
     }
 
@@ -123,9 +128,7 @@ bool evaluate(const HostTensorPtr& inputTensor,
     const auto inTotalDimSize = shape_size(inputShape);
     const auto strides = row_major_strides(inputShape);
 
-    size_t outputTensorIdx = 0;
-
-    for (size_t inputTensorIdx = 0; inputTensorIdx < inTotalDimSize; ++inputTensorIdx) {
+    for (size_t inputTensorIdx = 0, outputTensorIdx = 0; inputTensorIdx < inTotalDimSize; ++inputTensorIdx) {
         auto offset = inputTensorIdx;
         bool needCopy = true;
         for (size_t dim = 0; dim < strides.size(); ++dim) {
@@ -145,32 +148,32 @@ bool evaluate(const HostTensorPtr& inputTensor,
 }
 
 bool evaluateDynamicShapeResolver(const HostTensorPtr& inputTensor,
-                                  const HostTensorPtr& outShapeTensor,
+                                  const HostTensorPtr& inputShapeTensor,
                                   const HostTensorPtr& outputTensor) {
     bool rc = true;
 
     switch (inputTensor->get_element_type()) {
-        TYPE_CASE(i8)(inputTensor, outShapeTensor, outputTensor);
+        TYPE_CASE(i8)(inputTensor, inputShapeTensor, outputTensor);
             break;
-        TYPE_CASE(i16)(inputTensor, outShapeTensor, outputTensor);
+        TYPE_CASE(i16)(inputTensor, inputShapeTensor, outputTensor);
             break;
-        TYPE_CASE(i32)(inputTensor, outShapeTensor, outputTensor);
+        TYPE_CASE(i32)(inputTensor, inputShapeTensor, outputTensor);
             break;
-        TYPE_CASE(i64)(inputTensor, outShapeTensor, outputTensor);
+        TYPE_CASE(i64)(inputTensor, inputShapeTensor, outputTensor);
             break;
-        TYPE_CASE(u8)(inputTensor, outShapeTensor, outputTensor);
+        TYPE_CASE(u8)(inputTensor, inputShapeTensor, outputTensor);
             break;
-        TYPE_CASE(u16)(inputTensor, outShapeTensor, outputTensor);
+        TYPE_CASE(u16)(inputTensor, inputShapeTensor, outputTensor);
             break;
-        TYPE_CASE(u32)(inputTensor, outShapeTensor, outputTensor);
+        TYPE_CASE(u32)(inputTensor, inputShapeTensor, outputTensor);
             break;
-        TYPE_CASE(u64)(inputTensor, outShapeTensor, outputTensor);
+        TYPE_CASE(u64)(inputTensor, inputShapeTensor, outputTensor);
             break;
-        TYPE_CASE(bf16)(inputTensor, outShapeTensor, outputTensor);
+        TYPE_CASE(bf16)(inputTensor, inputShapeTensor, outputTensor);
             break;
-        TYPE_CASE(f32)(inputTensor, outShapeTensor, outputTensor);
+        TYPE_CASE(f32)(inputTensor, inputShapeTensor, outputTensor);
             break;
-        TYPE_CASE(f64)(inputTensor, outShapeTensor, outputTensor);
+        TYPE_CASE(f64)(inputTensor, inputShapeTensor, outputTensor);
             break;
         default:
             rc = false;
