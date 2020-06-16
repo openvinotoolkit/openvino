@@ -14,12 +14,17 @@ public:
     explicit PassImpl(const StageBuilder::Ptr& stageBuilder) : _stageBuilder(stageBuilder) {}
 
     void run(const Model& model) override {
-        VPU_PROFILE(initialCheck);
+        VPU_PROFILE(addCopyForOutputsInsideNetwork);
 
         for (const auto& outputData : model->datas()) {
             if (outputData->usage() != DataUsage::Output || outputData->numConsumers() == 0) {
                 continue;
             }
+
+            VPU_THROW_UNLESS(outputData->childDataToShapeEdges().empty(),
+                "Output data object cannot be a shape parent for another data object, since notation conversion "
+                " has already happened, but {} with usage {} has {} data to shape children",
+                outputData->name(), outputData->usage(), outputData->childDataToShapeEdges().size());
 
             auto newIntermediateData = model->duplicateData(
                 outputData,
@@ -39,6 +44,10 @@ public:
                 newIntermediateData,
                 outputData,
                 "addCopyForOutputsInsideNetwork");
+
+            if (const auto& parentShapeEdge = outputData->parentDataToShapeEdge()) {
+                model->connectDataWithShape(parentShapeEdge->parent(), newIntermediateData);
+            }
         }
     }
 

@@ -90,15 +90,6 @@ PassSet::Ptr PassManager::buildMiddleEnd() {
     //
     // Convert shape notation
     //
-
-
-    // MyriadInferRequest::GetResult expects output shape data object
-    // to be in IE notation in case of dynamic data object
-    // propagateDynamismToOutputs must be applied before convertShapeNotation
-    // to mark shape in IE notation, not MDK notation as output
-    ADD_PASS(propagateDynamismToOutputs);
-    ADD_DUMP_PASS("propagateDynamismToOutputs");
-
     ADD_PASS(convertShapeNotation);
     ADD_DUMP_PASS("convertShapeNotation");
 
@@ -119,6 +110,13 @@ PassSet::Ptr PassManager::buildMiddleEnd() {
 
     ADD_PASS(addCopyForOutputsInsideNetwork);
     ADD_DUMP_PASS("addCopyForOutputsInsideNetwork");
+
+    // MyriadInferRequest::GetResult expects output shape data object
+    // to be in IE notation in case of dynamic data object
+    // propagateDynamismToOutputs must be applied after convertShapeNotation
+    // and addCopyForOutputsInsideNetwork to mark shape in IE notation, not MDK notation as output
+    ADD_PASS(propagateDynamismToOutputs);
+    ADD_DUMP_PASS("propagateDynamismToOutputs");
 
     ADD_PASS(initialCheck);
 

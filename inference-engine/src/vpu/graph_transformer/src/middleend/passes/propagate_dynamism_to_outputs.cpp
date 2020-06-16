@@ -39,34 +39,35 @@ public:
             }
             const auto parent = parentDataToShapeEdge->parent();
 
+            const auto& parentAttrs = parent->attrs();
+            VPU_THROW_UNLESS(parentAttrs.getOrDefault("converted-notation", false),
+                "All shape parent data object must be already converted to MDK notation, but {} is in IE notation",
+                parent->name());
+
+            const auto& parentInIENotation = parent->producer()->input(0);
+            const auto& parentInIENotationAttrs = parentInIENotation->attrs();
+            VPU_THROW_UNLESS(parentInIENotationAttrs.getOrDefault("IE-notation", false),
+                 "Data object {} is expected to be shape in IE notation, but is not marked as it",
+                 parentInIENotation->name());
+
+            VPU_THROW_UNLESS(parentInIENotation->usage() == DataUsage::Intermediate,
+                "Shape data object in IE notation {} is expected to be an {} data object, but it has usage {}",
+                parentInIENotation->name(), DataUsage::Intermediate, parentInIENotation->usage());
+
+            model->connectDataWithShape(parent, data);
+
             // MyriadInferRequest::GetResult assumes that dynamic data object has shape data object
             // with the same name + suffix "@shape"
             const auto shapeName = data->name() + "@shape";
-            const auto& shapeOutput = model->addOutputData(shapeName, parent->desc());
+            const auto& shapeOutput = model->addOutputData(shapeName, parentInIENotation->desc());
 
-            if (parent->numConsumers() > 0) {
-                _stageBuilder->addCopyStage(
-                    model,
-                    "copy-for-dynamic-output",
-                    nullptr,
-                    parent,
-                    shapeOutput,
-                    "PropagateDynamismToOutput");
-
-            } else {
-                const auto parentProducerEdge = parent->producerEdge();
-                VPU_THROW_UNLESS(parentProducerEdge != nullptr,
-                    "Data containing shape is expected to have a producer, but {} doesn't have", parent->name());
-
-                for (const auto& dataToShapeEdge : parent->childDataToShapeEdges()) {
-                    model->replaceDataToShapeParent(dataToShapeEdge, shapeOutput);
-                }
-
-                model->replaceStageOutput(parentProducerEdge, shapeOutput);
-                model->removeUnusedData(parent);
-            }
-
-            model->connectDataWithShape(shapeOutput, data);
+            _stageBuilder->addCopyStage(
+                model,
+                "copy-for-dynamic-output",
+                nullptr,
+                parentInIENotation,
+                shapeOutput,
+                "PropagateDynamismToOutput");
         }
     }
 
