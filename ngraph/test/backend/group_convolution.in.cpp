@@ -20,6 +20,7 @@
 #include "runtime/backend.hpp"
 #include "util/all_close.hpp"
 #include "util/all_close_f.hpp"
+#include "util/engine/test_engines.hpp"
 #include "util/known_element_types.hpp"
 #include "util/ndarray.hpp"
 #include "util/test_case.hpp"
@@ -30,6 +31,8 @@ using namespace std;
 using namespace ngraph;
 
 static string s_manifest = "${MANIFEST}";
+
+using TestEngine_t = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
 NGRAPH_TEST(${BACKEND_NAME}, dyn_group_convolution_backprop_data)
 {
@@ -146,7 +149,7 @@ NGRAPH_TEST(${BACKEND_NAME}, v1_group_conv_backprop_data)
         data, filters, strides, pads_begin, pads_end, dilations, auto_pad, output_padding);
 
     auto function = make_shared<Function>(NodeVector{gcbd}, ParameterVector{data, filters});
-    auto test_case = ngraph::test::NgraphTestCase(function, "${BACKEND_NAME}");
+    auto test_case = test::TestCase<TestEngine_t>(function);
 
     // X
     test_case.add_input<float>(vector<float>{0.16857791f,
@@ -193,7 +196,7 @@ NGRAPH_TEST(${BACKEND_NAME}, v1_group_conv_backprop_data_output_shape)
         data, filters, output_shape, strides, dilations, op::PadType::SAME_UPPER);
 
     auto function = make_shared<Function>(NodeVector{gcbd}, ParameterVector{data, filters});
-    auto test_case = ngraph::test::NgraphTestCase(function, "${BACKEND_NAME}");
+    auto test_case = test::TestCase<TestEngine_t>(function);
 
     // X
     test_case.add_input<float>(
