@@ -280,6 +280,7 @@ StageList PassImpl::extractNextSubGraph(StageList& stagesToSplit) {
     //
 
     StageList subGraph(&StageNode::posForPassList);
+
     for (const auto& stage : stagesToSplit) {
         bool isInternalStage = true;
         for (const auto& prevStage : stage->prevStages()) {
@@ -294,18 +295,8 @@ StageList PassImpl::extractNextSubGraph(StageList& stagesToSplit) {
         }
 
         bool shouldStop = false;
-        bool several_consumers = false;
-        for (const auto& prevStage : stage->prevStages()) {
-            for (const auto& outputEdge : prevStage->outputEdges()) {
-                const auto originalOutput = outputEdge->output();
-                if (subGraph.has(prevStage) && originalOutput->numConsumers() > 1) {
-                    several_consumers = true;
-                    break;
-                }
-            }
-        }
         for (const auto& nextStage : stage->nextStages()) {
-            if (!stagesToSplit.has(nextStage) && !several_consumers) {
+            if (!stagesToSplit.has(nextStage)) {
                 shouldStop = true;
                 break;
             }
@@ -314,6 +305,7 @@ StageList PassImpl::extractNextSubGraph(StageList& stagesToSplit) {
             break;
         }
     }
+
     return subGraph;
 }
 
