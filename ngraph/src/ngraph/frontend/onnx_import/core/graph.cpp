@@ -88,7 +88,7 @@ namespace ngraph
                 const auto value_info = m_inputs.back();
                 auto ng_node = value_info.get_ng_node(m_parameters, m_cache->initializers());
                 add_provenance_tag_to_input(value_info, ng_node);
-                m_cache->set_node(input.name(), std::move(ng_node));
+                m_cache->add_node(input.name(), std::move(ng_node));
             }
 
             // Process all graph outputs
@@ -142,7 +142,7 @@ namespace ngraph
                 // https://github.com/onnx/onnx/blob/master/docs/IR.md#optional-inputs-and-outputs
                 for (std::size_t i{0}; i < node.get_outputs_size(); ++i)
                 {
-                    m_cache->set_node(node.output(i), std::move(ng_nodes.at(i)));
+                    m_cache->add_node(node.output(i), std::move(ng_nodes.at(i)));
                 }
             }
         }

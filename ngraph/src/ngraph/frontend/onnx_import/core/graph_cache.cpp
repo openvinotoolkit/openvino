@@ -8,7 +8,6 @@ namespace ngraph
 {
     namespace onnx_import
     {
-        // TODO DOC
         GraphCache::GraphCache(const ONNX_NAMESPACE::GraphProto& graph_proto)
         {
             // Process all initializers in the graph
@@ -19,7 +18,7 @@ namespace ngraph
                     Tensor tensor = Tensor{initializer_tensor};
                     m_initializers.emplace(initializer_tensor.name(), tensor);
 
-                    // For each initializer, create a Constant node and store in cache
+                    // For each initializer create a Constant node and store it in cache
                     auto ng_constant = tensor.get_ng_constant();
                     add_provenance_tag_to_initializer(tensor, ng_constant);
                     m_graph_cache_map.emplace(initializer_tensor.name(), std::move(ng_constant));
@@ -46,9 +45,8 @@ namespace ngraph
             node->add_provenance_tag(tag);
         }
 
-        void GraphCache::set_node(const std::string& name, std::shared_ptr<ngraph::Node>&& node)
+        void GraphCache::add_node(const std::string& name, std::shared_ptr<ngraph::Node>&& node)
         {
-            // TODO Add exception throwing
             m_graph_cache_map[name] = std::move(node);
         }
 
@@ -64,9 +62,9 @@ namespace ngraph
             }
         }
 
-        bool GraphCache::contains(const std::string& node_name) const
+        bool GraphCache::contains(const std::string& name) const
         {
-            return (m_graph_cache_map.count(node_name) > 0);
+            return (m_graph_cache_map.count(name) > 0);
         }
 
 
@@ -79,21 +77,21 @@ namespace ngraph
 
         std::shared_ptr<ngraph::Node> SubgraphCache::get_node(const std::string& name) const
         {
-            // present in subgraph
+            // present in subgraph scope
             if(GraphCache::contains(name))
             {
-                // TODO use [] ?
                 return GraphCache::get_node(name);
             }
-            else // defined in parent graph scope
+            else // present in parent graph scope
             {
                return m_parent_graph_cache->get_node(name);
             }
         }
 
-        bool SubgraphCache::contains(const std::string& node_name) const
+        bool SubgraphCache::contains(const std::string& name) const
         {
-            return GraphCache::contains(node_name) || m_parent_graph_cache->contains(node_name);
+            // exists in subgraph or in parent graph scope
+            return GraphCache::contains(name) || m_parent_graph_cache->contains(node_name);
         }
 
     } // namespace onnx_import

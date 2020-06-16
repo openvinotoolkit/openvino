@@ -34,7 +34,14 @@ namespace ngraph
             {
                 namespace
                 {
-                    //TODO DOC
+                    /// \brief      The termination condition input is not supported by TensorIterator now. 
+                    ///             If it is possible to determine that is is always true, it can be ignored it
+                    ///             and execute using current version of TensorIterator.
+                    ///
+                    /// \param[in]  loop_cond       Termination loop condition input of Loop operator (initial value).
+                    /// \param[in]  body_cond       Termination loop condition input of the body of the Loop (value updated during Loop iterations).
+                    ///
+                    /// \return true if termination condition is true and it cannot be changed during Loop iterations, false otherwise.
                     bool is_termination_condition_always_true(const std::shared_ptr<ngraph::Node>& loop_cond, const std::shared_ptr<ngraph::Node>& body_cond)
                     {
                         bool loop_cond_value = false;
@@ -50,7 +57,7 @@ namespace ngraph
                             return false;
                         }
 
-                        // If body termination condition input matches Indentity op pattern it has value of loop_cond - true
+                        // If body termination condition input matches Indentity op pattern the has value of loop_cond - true
                         // Identity op for boolean value is represented by LogicalOr op whose second input is always false
                         if(is_type<default_opset::LogicalOr>(body_cond))
                         {

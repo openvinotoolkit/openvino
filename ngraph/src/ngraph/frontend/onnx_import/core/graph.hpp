@@ -70,9 +70,16 @@ namespace ngraph
             Model* m_model;
         };
 
+        /// \brief      Representation of ONNX subgraph. It is used for example by ONNX Loop op. 
+        ///             It has access for initializers both from subgraph and from parent graph cache. 
         class Subgraph : public Graph
         {
         public:
+                /// \brief      Subgraph a GraphCache class object.
+                ///
+                /// \param[in]  proto          The ONNX protobuf graph representation.
+                /// \param[in]  model          The ONNX model object.
+                /// \param[in]  parent_graph   The reference to the parent graph.
             Subgraph(const ONNX_NAMESPACE::GraphProto& proto, Model& model, const Graph& parent_graph);
         };
         
