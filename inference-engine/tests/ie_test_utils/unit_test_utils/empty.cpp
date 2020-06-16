@@ -11,7 +11,6 @@
 #include "unit_test_utils/mocks/mock_iinfer_request.hpp"
 #include "unit_test_utils/mocks/mock_iinference_plugin.hpp"
 #include "unit_test_utils/mocks/mock_not_empty_icnn_network.hpp"
-#include "unit_test_utils/mocks/mock_plugin_dispatcher.hpp"
 
 #include "unit_test_utils/mocks/cpp_interfaces/mock_plugin_impl.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/mock_task_executor.hpp"
