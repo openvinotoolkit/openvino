@@ -21,7 +21,7 @@ endif()
 set (SRC
     autodiff/backprop_function.cpp
     all_close_f.cpp
-    engine/ie_cpu_test_engine.cpp
+    engine/ie_cpu_engine.cpp
     float_util.cpp
     test_tools.cpp
     test_control.cpp
