@@ -34,6 +34,8 @@ add_library(onnx_importer SHARED
         core/null_node.cpp
         core/null_node.hpp
         core/operator_set.hpp
+        core/subgraph.cpp
+        core/subgraph.hpp
         core/tensor.hpp
         core/value_info.hpp
         default_opset.hpp

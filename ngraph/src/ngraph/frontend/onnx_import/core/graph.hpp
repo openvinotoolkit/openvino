@@ -39,7 +39,7 @@ namespace ngraph
             const std::vector<ValueInfo>& get_outputs() const { return m_outputs; }
             NodeVector get_ng_outputs() const;
             const ParameterVector& get_ng_parameters() const { return m_parameters; }
-            std::shared_ptr<ngraph::Node> get_ng_node_from_cache(const std::string& name) const
+            virtual std::shared_ptr<ngraph::Node> get_ng_node_from_cache(const std::string& name) const
             {
                 return m_ng_node_cache.at(name);
             }
@@ -56,6 +56,11 @@ namespace ngraph
                                              std::shared_ptr<ngraph::Node> node) const;
 
             void add_provenance_tags(const Node& onnx_node, const NodeVector& ng_node_vector) const;
+
+            bool is_node_in_cache(const std::string& name) const
+            {
+                return (m_ng_node_cache.count(name) > 0);
+            }
 
         private:
             const ONNX_NAMESPACE::GraphProto* m_graph_proto;

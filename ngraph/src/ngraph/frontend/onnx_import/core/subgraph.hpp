@@ -16,30 +16,22 @@
 
 #pragma once
 
-#include <memory>
-
-#include "core/node.hpp"
-#include "ngraph/node.hpp"
-#include "ngraph/op/get_output_element.hpp"
+#include "graph.hpp"
 
 namespace ngraph
 {
     namespace onnx_import
     {
-        namespace op
+        class SubGraph : public Graph
         {
-            namespace set_1
-            {
-                inline NodeVector identity(const Node& node)
-                {/*
-                    auto input = node.get_ng_inputs().at(0);
-                    auto zero = default_opset::Constant::create(input->get_element_type(), {}, {0});
-                    return {std::make_shared<default_opset::Add>(input, zero)};*/
-                    return {node.get_ng_inputs().at(0)};
-                }
-            } // namespace set_1
+        public:
+            SubGraph(const ONNX_NAMESPACE::GraphProto& proto, Model& model, const Graph& parent_graph);
 
-        } // namespace op
+            std::shared_ptr<ngraph::Node> get_ng_node_from_cache(const std::string& name) const override;
+        
+        private:
+            const Graph* m_parent_graph;
+        };
 
     } // namespace onnx_import
 

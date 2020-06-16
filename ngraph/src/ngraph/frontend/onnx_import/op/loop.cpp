@@ -18,10 +18,11 @@
 #include <iterator>
 #include <memory>
 
-#include "core/graph.hpp"
+#include "core/subgraph.hpp"
 #include "default_opset.hpp"
 #include "exceptions.hpp"
 #include "ngraph/function.hpp"
+#include "utils/reshape.hpp"
 
 namespace ngraph
 {
@@ -43,16 +44,16 @@ namespace ngraph
                     CHECK_VALID_NODE(node,
                                      !trip_count->is_null(),
                                      "Currently nGraph requires trip count input to be provided.");
-                    CHECK_VALID_NODE(node,
+                    /*CHECK_VALID_NODE(node,
                                      loop_cond->is_null(),
                                      "Currently nGraph doesn't support conditional loop "
-                                     "termination.");
+                                     "termination.");*/
 
                     const OutputVector loop_carried_dependencies{std::next(ng_inputs.begin(), 2),
                                                                  ng_inputs.end()};
 
                     // required
-                    const Graph& body_graph{node.get_attribute_value<Graph>("body")};
+                    const SubGraph& body_graph{node.get_attribute_value<SubGraph>("body")};
                     const auto& graph_outputs =
                         ngraph::as_output_vector(body_graph.get_ng_outputs());
                     const auto& graph_inputs = body_graph.get_ng_parameters();
@@ -86,7 +87,7 @@ namespace ngraph
                     const auto loop_trip_count = std::make_shared<default_opset::Range>(
                         default_opset::Constant::create(
                             trip_count->get_element_type(), Shape{}, {0}),
-                        trip_count,
+                        ngraph::onnx_import::reshape::interpret_as_scalar(trip_count),
                         default_opset::Constant::create(
                             trip_count->get_element_type(), Shape{}, {1}));
 

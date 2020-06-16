@@ -14,32 +14,32 @@
 // limitations under the License.
 //*****************************************************************************
 
-#pragma once
-
-#include <memory>
-
-#include "core/node.hpp"
-#include "ngraph/node.hpp"
-#include "ngraph/op/get_output_element.hpp"
+#include "subgraph.hpp"
 
 namespace ngraph
 {
     namespace onnx_import
     {
-        namespace op
+        SubGraph::SubGraph(const ONNX_NAMESPACE::GraphProto& proto, Model& model, const Graph& parent_graph)
+            : Graph(proto, model)
+            , m_parent_graph{&parent_graph}
         {
-            namespace set_1
-            {
-                inline NodeVector identity(const Node& node)
-                {/*
-                    auto input = node.get_ng_inputs().at(0);
-                    auto zero = default_opset::Constant::create(input->get_element_type(), {}, {0});
-                    return {std::make_shared<default_opset::Add>(input, zero)};*/
-                    return {node.get_ng_inputs().at(0)};
-                }
-            } // namespace set_1
+        }
 
-        } // namespace op
+        std::shared_ptr<ngraph::Node> SubGraph::get_ng_node_from_cache(const std::string& name) const
+        {
+            if(is_node_in_cache(name))
+            {
+                std::cout << "From subgraph: " << name << "\n";
+                return Graph::get_ng_node_from_cache(name);
+            }
+            else
+            {
+                std::cout << "From parent graph: " << name << "\n";
+                m_parent_graph->get_ng_node_from_cache(name);
+            }
+            
+        }
 
     } // namespace onnx_import
 

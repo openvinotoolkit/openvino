@@ -18,6 +18,7 @@
 
 #include "attribute.hpp"
 #include "graph.hpp"
+#include "subgraph.hpp"
 #include "node.hpp"
 #include "null_node.hpp"
 #include "tensor.hpp"
@@ -124,6 +125,20 @@ namespace ngraph
                 throw error::node::UnknownAttribute{this->name(), name};
             }
             return it->template get_value<T>();
+        }
+
+        template<>
+        SubGraph Node::Impl::get_attribute_value(const std::string& name) const
+        {
+            auto it = std::find_if(
+                std::begin(m_attributes), std::end(m_attributes), [&](const Attribute& attribute) {
+                    return attribute.get_name() == name;
+                });
+            if (it == std::end(m_attributes))
+            {
+                throw error::node::UnknownAttribute{this->name(), name};
+            }
+            return it->get_subgraph(graph());
         }
 
         NodeVector Node::Impl::get_ng_nodes(const Node& node) const
@@ -336,9 +351,9 @@ namespace ngraph
         }
 
         template <>
-        Graph Node::get_attribute_value(const std::string& name) const
+        SubGraph Node::get_attribute_value(const std::string& name) const
         {
-            return m_pimpl->template get_attribute_value<Graph>(name);
+            return m_pimpl->template get_attribute_value<SubGraph>(name);
         }
 
         template <>
