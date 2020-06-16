@@ -3,7 +3,6 @@
 //
 
 #include "unit_test_utils/mocks/mock_allocator.hpp"
-#include "unit_test_utils/mocks/mock_error_listener.hpp"
 #include "unit_test_utils/mocks/mock_icnn_network.hpp"
 #include "unit_test_utils/mocks/mock_ie_imemory_state.hpp"
 #include "unit_test_utils/mocks/mock_iexecutable_network.hpp"

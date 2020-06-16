@@ -635,11 +635,6 @@ std::map<std::string, Version> Core::GetVersions(const std::string& deviceName) 
     return versions;
 }
 
-IE_SUPPRESS_DEPRECATED_START
-void Core::SetLogCallback(IErrorListener&) const {
-}
-IE_SUPPRESS_DEPRECATED_END
-
 CNNNetwork Core::ReadNetwork(const std::string& modelPath, const std::string& binPath) const {
     return _impl->ReadNetwork(modelPath, binPath);
 }
