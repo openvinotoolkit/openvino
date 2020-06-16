@@ -37,8 +37,6 @@ struct mvn_test_params {
     vector<std::function<void(MKLDNNPlugin::PrimitiveDescInfo)>> comp;
 };
 
-extern InferenceEngine::IExtensionPtr make_FakeExtensions();
-
 template <typename data_t>
 void ref_mvn(const TBlob<data_t> &src, TBlob<data_t> &dst, mvn_test_params prm) {
     const data_t *src_data = src.readOnly();
@@ -260,8 +258,6 @@ protected:
             MKLDNNPlugin::MKLDNNExtensionManager::Ptr extMgr(new MKLDNNPlugin::MKLDNNExtensionManager());
             auto defaultExtensions = std::make_shared<InferenceEngine::Extensions::Cpu::MKLDNNExtensions>();
             extMgr->AddExtension(defaultExtensions);
-            extMgr->AddExtension(make_FakeExtensions());
-
 
             MKLDNNGraphTestClass graph;
             graph.CreateGraph(network, extMgr);

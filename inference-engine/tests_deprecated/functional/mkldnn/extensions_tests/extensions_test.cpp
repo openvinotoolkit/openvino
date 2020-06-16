@@ -23,63 +23,9 @@ struct extension_params {
     std::map<std::string, std::string> config;
 };
 
-using ext_factory = std::function<InferenceEngine::ILayerImplFactory*(const InferenceEngine::CNNLayer *)>;
-
-class FakePrimitiveImpl : public InferenceEngine::ILayerExecImpl {
-public:
-    FakePrimitiveImpl(const InferenceEngine::CNNLayer *layer) {
-        cnnLayer = const_cast<InferenceEngine::CNNLayer *>(layer);
-    }
-    InferenceEngine::StatusCode getSupportedConfigurations(std::vector<InferenceEngine::LayerConfig>& conf, InferenceEngine::ResponseDesc *resp) noexcept override {
-        InferenceEngine::LayerConfig config;
-        config.dynBatchSupport = true;
-        if (cnnLayer->outData.size() != 1 && cnnLayer->insData.size() != 1)
-            return InferenceEngine::GENERAL_ERROR;
-        InferenceEngine::DataConfig cfg;
-        cfg.constant = false;
-        cfg.inPlace = 0;
-        InferenceEngine::SizeVector order;
-        for(size_t i = 0; i < cnnLayer->outData[0]->getTensorDesc().getDims().size(); i++) {
-            order.push_back(i);
-        }
-        cfg.desc = InferenceEngine::TensorDesc(cnnLayer->outData[0]->getTensorDesc().getPrecision(),
-                                               cnnLayer->outData[0]->getTensorDesc().getDims(),
-                                               {cnnLayer->outData[0]->getTensorDesc().getDims(), order});
-        config.outConfs.push_back(cfg);
-        config.inConfs.push_back(cfg);
-        conf.push_back(config);
-        return InferenceEngine::OK;
-    }
-    InferenceEngine::StatusCode init(InferenceEngine::LayerConfig& config, InferenceEngine::ResponseDesc *resp) noexcept override {
-        return InferenceEngine::OK;
-    }
-    InferenceEngine::StatusCode execute(std::vector<InferenceEngine::Blob::Ptr>& inputs, std::vector<InferenceEngine::Blob::Ptr>& outputs, InferenceEngine::ResponseDesc *resp) noexcept override {
-        return InferenceEngine::OK;
-    }
-
-private:
-    InferenceEngine::CNNLayer* cnnLayer;
-};
-
-class FakePrimitiveFactory : public InferenceEngine::ILayerImplFactory {
-public:
-    FakePrimitiveFactory(const InferenceEngine::CNNLayer *layer) {
-        cnnLayer = const_cast<InferenceEngine::CNNLayer *>(layer);
-    }
-    // First implementation has more priority than next
-    InferenceEngine::StatusCode getImplementations(std::vector<InferenceEngine::ILayerImpl::Ptr>& impls, InferenceEngine::ResponseDesc *resp) noexcept override {
-        impls.push_back(InferenceEngine::ILayerImpl::Ptr(new FakePrimitiveImpl(cnnLayer)));
-        return InferenceEngine::OK;
-    }
-
-private:
-    InferenceEngine::CNNLayer * cnnLayer;
-};
-
 class TestExtension : public InferenceEngine::IExtension {
 public:
     TestExtension() {
-        factories["Fake"] = [](const InferenceEngine::CNNLayer * cnnLayer) -> InferenceEngine::ILayerImplFactory* { return new FakePrimitiveFactory(cnnLayer); };
     }
     void Release() noexcept override { delete this; }
 
@@ -90,28 +36,7 @@ public:
     }
 
     void Unload() noexcept override {}
-    StatusCode getPrimitiveTypes(char**& types, unsigned int& size, ResponseDesc* resp) noexcept override {
-        types = new char *[factories.size()];
-        size_t count = 0;
-        for (auto it = factories.begin(); it != factories.end(); it++, count ++) {
-            types[count] = new char[it->first.size() + 1];
-            std::copy(it->first.begin(), it->first.end(), types[count]);
-            types[count][it->first.size() ] = '\0';
-        }
-        return InferenceEngine::OK;
-    }
-
-    StatusCode getFactoryFor(ILayerImplFactory *&factory, const CNNLayer *cnnLayer, ResponseDesc *resp) noexcept override {
-        if (factories.find(cnnLayer->type) == factories.end()) {
-            std::string errorMsg = std::string("Factory for ") + cnnLayer->type + " wasn't found!";
-            errorMsg.copy(resp->msg, sizeof(resp->msg) - 1);
-            return InferenceEngine::NOT_FOUND;
-        }
-        factory = factories[cnnLayer->type](cnnLayer);
-        return InferenceEngine::OK;
-    }
 private:
-    std::map<std::string, ext_factory> factories;
 };
 
 class NewFakePrimitiveImpl : public InferenceEngine::ILayerExecImpl {
@@ -361,17 +286,17 @@ protected:
 #endif
 
 TEST_F(smoke_ExtensionTest, MKLDNN_delete_extension) {
-    std::shared_ptr<IExtension> ext(new TestExtension());
+    std::shared_ptr<IExtension> ext(new NewTestExtension());
     checkExtensionRemoved({"MKLDNN", ext});
 }
 
 TEST_F(smoke_ExtensionTest, MKLDNN_no_delete_extension_from_another_engine) {
-    std::shared_ptr<IExtension> ext(new TestExtension());
+    std::shared_ptr<IExtension> ext(new NewTestExtension());
     checkExtensionNotRemovedFromAnotherEngineObject({"MKLDNN", ext});
 }
 
 TEST_F(smoke_ExtensionTest, MKLDNN_no_share_extension_between_engines) {
-    std::shared_ptr<IExtension> ext(new TestExtension());
+    std::shared_ptr<IExtension> ext(new NewTestExtension());
     checkNotSharedExtensions(ext, "CPU");
 }
 
