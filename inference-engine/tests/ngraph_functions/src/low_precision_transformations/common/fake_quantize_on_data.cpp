@@ -29,6 +29,13 @@ bool FakeQuantizeOnData::isSigned() const {
         std::any_of(highValues.begin(), highValues.end(), [](const float value) { return value < 0.f; });
 }
 
+bool FakeQuantizeOnData::empty() const {
+    return (quantizationLevel == 0ul) &&
+        constantShape.empty() &&
+        lowValues.empty() &&
+        highValues.empty();
+}
+
 }
 }
 }

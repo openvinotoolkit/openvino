@@ -19,6 +19,10 @@ FakeQuantizeOnWeights::FakeQuantizeOnWeights(
 
 FakeQuantizeOnWeights::~FakeQuantizeOnWeights() {}
 
+bool FakeQuantizeOnWeights::empty() const {
+    // TODO: add weights specific logic here
+    return FakeQuantizeOnData::empty();
+}
 }
 }
 }
