@@ -3491,4 +3491,4 @@ def tensor_iterator(
         "concat_output_desc": [desc.serialize() for desc in concat_output_desc],
     }
 
-    return _get_node_factory().create('TensorIterator', inputs, attributes)
+    return _get_node_factory().create('TensorIterator', as_nodes(*inputs), attributes)

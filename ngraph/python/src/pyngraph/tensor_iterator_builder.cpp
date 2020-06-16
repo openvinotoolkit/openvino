@@ -44,7 +44,6 @@ util::TensorIteratorBuilder::TensorIteratorBuilder(const ngraph::NodeVector& arg
         m_invariant_input_desc = m_attributes["invariant_input_desc"].cast<py::list>();
     }
 
-    // m_outputs.resize(n_outputs);
     if (m_attributes.contains("body_output_desc"))
     {
         py::list body_output_desc = m_attributes["body_output_desc"].cast<py::list>();

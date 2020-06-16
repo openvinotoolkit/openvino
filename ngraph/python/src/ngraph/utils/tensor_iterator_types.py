@@ -24,11 +24,7 @@ from ngraph.impl.op import Parameter
 class GraphBody(object):
     """Class containing graph parameters and results."""
 
-    def __init__(
-        self,
-        parameters: List[Parameter],
-        results: List[Node],
-    ) -> None:
+    def __init__(self, parameters: List[Parameter], results: List[Node],) -> None:
         self.parameters = parameters
         self.results = results
 
@@ -42,11 +38,7 @@ class GraphBody(object):
 class TensorIteratorInputDesc(object):
     """Represents a generic input descriptor for TensorIterator operator."""
 
-    def __init__(
-        self,
-        input_idx: int,
-        body_parameter_idx: int,
-    ) -> None:
+    def __init__(self, input_idx: int, body_parameter_idx: int,) -> None:
         self.input_idx = input_idx
         self.body_parameter_idx = body_parameter_idx
 
@@ -58,7 +50,7 @@ class TensorIteratorInputDesc(object):
 
 
 class TensorIteratorSliceInputDesc(TensorIteratorInputDesc):
-    """Represents a TI graph body input formed from slicec of an TI input."""
+    """Represents a TensorIterator graph body input formed from slices of TensorIterator input."""
 
     def __init__(
         self,
@@ -70,7 +62,7 @@ class TensorIteratorSliceInputDesc(TensorIteratorInputDesc):
         end: int,
         axis: int,
     ) -> None:
-        super(TensorIteratorSliceInputDesc, self).__init__(input_idx, body_parameter_idx)
+        super().__init__(input_idx, body_parameter_idx)
         self.start = start
         self.stride = stride
         self.part_size = part_size
@@ -78,7 +70,7 @@ class TensorIteratorSliceInputDesc(TensorIteratorInputDesc):
         self.axis = axis
 
     def serialize(self) -> dict:
-        output = super(TensorIteratorSliceInputDesc, self).serialize()
+        output = super().serialize()
         output["start"] = self.start
         output["stride"] = self.stride
         output["part_size"] = self.part_size
@@ -88,45 +80,32 @@ class TensorIteratorSliceInputDesc(TensorIteratorInputDesc):
 
 
 class TensorIteratorMergedInputDesc(TensorIteratorInputDesc):
-    """Represents a TI graph body input with initial value in the first iteration.
+    """Represents a TensorIterator graph body input with initial value in the first iteration.
 
     Later on, this input value is computed inside graph body.
     """
 
-    def __init__(
-        self,
-        input_idx: int,
-        body_parameter_idx: int,
-        body_value_idx: int,
-    ) -> None:
-        super(TensorIteratorMergedInputDesc, self).__init__(input_idx, body_parameter_idx)
+    def __init__(self, input_idx: int, body_parameter_idx: int, body_value_idx: int,) -> None:
+        super().__init__(input_idx, body_parameter_idx)
         self.body_value_idx = body_value_idx
 
     def serialize(self) -> dict:
-        output = super(TensorIteratorMergedInputDesc, self).serialize()
+        output = super().serialize()
         output["body_value_idx"] = self.body_value_idx
         return output
 
 
 class TensorIteratorInvariantInputDesc(TensorIteratorInputDesc):
-    """Represents a TI graph body input that has invariant value during iteration."""
+    """Represents a TensorIterator graph body input that has invariant value during iteration."""
 
-    def __init__(
-        self,
-        input_idx: int,
-        body_parameter_idx: int,
-    ) -> None:
-        super(TensorIteratorInvariantInputDesc, self).__init__(input_idx, body_parameter_idx)
+    def __init__(self, input_idx: int, body_parameter_idx: int,) -> None:
+        super().__init__(input_idx, body_parameter_idx)
 
 
 class TensorIteratorOutputDesc(object):
     """Represents a generic output descriptor for TensorIterator operator."""
 
-    def __init__(
-        self,
-        body_value_idx: int,
-        output_idx: int,
-    ) -> None:
+    def __init__(self, body_value_idx: int, output_idx: int,) -> None:
         self.body_value_idx = body_value_idx
         self.output_idx = output_idx
 
@@ -140,17 +119,12 @@ class TensorIteratorOutputDesc(object):
 class TensorIteratorBodyOutputDesc(TensorIteratorOutputDesc):
     """Represents an output from a specific iteration."""
 
-    def __init__(
-        self,
-        body_value_idx: int,
-        output_idx: int,
-        iteration: int,
-    ) -> None:
-        super(TensorIteratorBodyOutputDesc, self).__init__(body_value_idx, output_idx)
+    def __init__(self, body_value_idx: int, output_idx: int, iteration: int,) -> None:
+        super().__init__(body_value_idx, output_idx)
         self.iteration = iteration
 
     def serialize(self) -> dict:
-        output = super(TensorIteratorBodyOutputDesc, self).serialize()
+        output = super().serialize()
         output["iteration"] = self.iteration
         return output
 
@@ -168,7 +142,7 @@ class TensorIteratorConcatOutputDesc(TensorIteratorOutputDesc):
         end: int,
         axis: int,
     ) -> None:
-        super(TensorIteratorConcatOutputDesc, self).__init__(body_value_idx, output_idx)
+        super().__init__(body_value_idx, output_idx)
         self.start = start
         self.stride = stride
         self.part_size = part_size
@@ -176,7 +150,7 @@ class TensorIteratorConcatOutputDesc(TensorIteratorOutputDesc):
         self.axis = axis
 
     def serialize(self) -> dict:
-        output = super(TensorIteratorConcatOutputDesc, self).serialize()
+        output = super().serialize()
         output["start"] = self.start
         output["stride"] = self.stride
         output["part_size"] = self.part_size
