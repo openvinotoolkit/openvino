@@ -1368,6 +1368,11 @@ IE_CPU.onnx_model_rnn_reverse
 IE_CPU.onnx_model_rnn_fwd_bias_initial_h
 IE_CPU.onnx_model_rnn_bidirectional
 IE_CPU.onnx_model_rnn_bidirectional_const
+
+# Inputs/outputs of custom ops do not match with the graph's inputs/outputs
+IE_CPU.onnx_model_missing_input
+IE_CPU.onnx_model_missing_op_domain
+IE_CPU.onnx_model_override_op
 #-------------------------------------------------------------------------------
 #
 #       Inference Engine GPU plugin excludes

@@ -244,8 +244,7 @@ namespace ngraph
             {
                 const auto test_results = extract_test_results<T>(computed, expected);
 
-                return ngraph::test::all_close<T>(
-                    test_results.first, test_results.second, tolerance_bits);
+                return ngraph::test::all_close<T>(test_results.first, test_results.second);
             }
 
             template <typename T>
