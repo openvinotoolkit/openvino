@@ -20,7 +20,7 @@
 
 using namespace ngraph::test;
 
-NgraphTestCase::NgraphTestCase(const std::shared_ptr<Function>& function,
+NgraphTestCase::NgraphTestCase(const std::shared_ptr<ngraph::Function>& function,
                                const std::string& backend_name,
                                const BackendMode mode)
     : m_function(function)
