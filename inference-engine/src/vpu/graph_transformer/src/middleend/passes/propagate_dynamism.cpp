@@ -24,48 +24,29 @@ public:
                 continue;
             }
 
+            const auto& inputs = stage->inputs();
+            std::vector<DataToShapeAllocation> parentInputShapeEdges;
+
+            for (const auto& input : inputs) {
+                const auto parentDataToShapeEdge = input->parentDataToShapeEdge();
+                if (parentDataToShapeEdge) {
+                    parentInputShapeEdges.push_back(parentDataToShapeEdge);
+                }
+            }
+
             VPU_THROW_UNLESS(stage->numOutputs() == 1,
                              "PropagateDynamism: only single output stages are supported, but {} stage of name {} has {} inputs",
                              stage->type(), stage->name(), stage->numOutputs());
 
-            const auto& inputs = stage->inputs();
-
-            const auto& dynamicInputIt = std::find_if(inputs.begin(), inputs.end(), [](const Data& input) {
-                return input->parentDataToShapeEdge() != nullptr;
-            });
-
-            const auto& input = dynamicInputIt != inputs.end() ? *dynamicInputIt : inputs[0];
-            const auto& parentInputShapeEdge = input->parentDataToShapeEdge();
-
             const auto& output = stage->output(0);
             const auto& parentOutputShapeEdge = output->parentDataToShapeEdge();
 
-            const auto dynamismIsNotNeeded = !parentInputShapeEdge && !parentOutputShapeEdge;
-            const auto dynamismIsAlreadyPropagated = parentInputShapeEdge && parentOutputShapeEdge;
+            const auto dynamismIsNotNeeded = parentInputShapeEdges.empty() && !parentOutputShapeEdge;
+            const auto dynamismIsAlreadyPropagated = !parentInputShapeEdges.empty() && parentOutputShapeEdge;
 
             if (dynamismIsNotNeeded || dynamismIsAlreadyPropagated) {
                 continue;
             }
-
-            // Propagation is only supported for input and output with equal upper-bound shapes.
-            // For example, Prod stage with dynamic input and broadcast is not supported.
-            for (const auto& dim : input->desc().dims()) {
-                VPU_THROW_UNLESS(dim.second == output->desc().dim(dim.first),
-                                 "PropagateDynamism: {} stage of name {} must have input of name {} with upper-bound dimension {} "
-                                 "which should be equal to output which is {}, actual: {}",
-                                 stage->type(), stage->name(), input->name(), dim.first,
-                                 output->desc().dim(dim.first), dim.second);
-            }
-
-            // Propagation is not supported for many dynamic inputs
-            const auto numOfDynamicInputs = std::count_if(inputs.begin(), inputs.end(), [](const Data& input) {
-                return input->parentDataToShapeEdge() != nullptr;
-            });
-            VPU_THROW_UNLESS(numOfDynamicInputs <= 1,
-                             "PropagateDynamism: {} stage of name {} must have no more than 1 dynamic input, actual: {}."
-                             "Other cases should be processed by DynamicToStatic transformations",
-                             stage->type(), stage->name(), numOfDynamicInputs);
-
 
             const auto validateShapeConversion = [](const Data& shape) {
                 const auto& shapeAttrs = shape->attrs();
@@ -82,7 +63,26 @@ public:
                                  "Unexpected data object as shape in IE notation");
             };
 
-            if (parentInputShapeEdge && !parentOutputShapeEdge) {
+            const auto validateShapes = [&stage](const Data& input, const Data& output) {
+                // Propagation is only supported for input and output with equal upper-bound shapes.
+                // For example, Prod stage with dynamic input and broadcast is not supported.
+                for (const auto& dim : input->desc().dims()) {
+                    VPU_THROW_UNLESS(dim.second == output->desc().dim(dim.first),
+                                     "PropagateDynamism: {} stage of name {} must have input of name {} with upper-bound dimension {} "
+                                     "which should be equal to output which is {}, actual: {}",
+                                     stage->type(), stage->name(), input->name(), dim.first,
+                                     output->desc().dim(dim.first), dim.second);
+                }
+            };
+
+            if (!parentInputShapeEdges.empty() && !parentOutputShapeEdge) {
+                VPU_THROW_UNLESS(parentInputShapeEdges.size() == 1,
+                                 "PropagateDynamism for stage {} of name {} failed: propagation dynamism from multiple inputs is not "
+                                 "supported, actual number of dynamic inputs: {}", stage->type(), stage->name(), parentInputShapeEdges.size());
+                const auto& parentInputShapeEdge = parentInputShapeEdges[0];
+                const auto& input = parentInputShapeEdge->child();
+                validateShapes(input, output);
+
                 const auto shape = parentInputShapeEdge->parent();
                 validateShapeConversion(shape);
 
@@ -105,7 +105,13 @@ public:
                             shapeOutput,
                             "PropagateDynamismToOutput");
                 }
-            } else if (!parentInputShapeEdge && parentOutputShapeEdge) {
+            } else if (parentInputShapeEdges.empty() && parentOutputShapeEdge) {
+                VPU_THROW_UNLESS(inputs.size() == 1,
+                                 "PropagateDynamism for stage {} of name {} failed: propagation dynamism from output "
+                                 "to multiple inputs is not supported", stage->type(), stage->name());
+                const auto& input = inputs[0];
+                validateShapes(input, output);
+
                 const auto shape = parentOutputShapeEdge->parent();
                 validateShapeConversion(shape);
 
