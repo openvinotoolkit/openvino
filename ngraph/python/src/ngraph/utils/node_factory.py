@@ -35,7 +35,8 @@ class NodeFactory(object):
         for atr_name in node._get_attributes().keys():
             setattr(node,
                     self._normalize_atr_name_getter(atr_name),
-                    partial(Node._get_attribute, node, atr_name))
+                    # partial(Node._get_attribute, node, atr_name))
+                    partial(NodeFactory._get_node_attr_value, node, atr_name))
             setattr(node,
                     self._normalize_atr_name_setter(atr_name),
                     partial(Node._set_attribute, node, atr_name))
@@ -58,3 +59,14 @@ class NodeFactory(object):
         :returns:   The appropriate setter function name.
         """
         return "set_" + attr_name.replace(".", "_")
+
+    @staticmethod
+    def _get_node_attr_value(node: Node, attr_name: str) -> Any:
+        """Get provided node attribute value.
+
+        :param      node:       The node we retrieve attribute value from.
+        :param      attr_name:  The attribute name.
+
+        :returns:   The node attribute value.
+        """
+        return node._get_attributes()[attr_name]
