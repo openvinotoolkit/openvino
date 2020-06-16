@@ -1369,10 +1369,25 @@ IE_CPU.onnx_model_rnn_fwd_bias_initial_h
 IE_CPU.onnx_model_rnn_bidirectional
 IE_CPU.onnx_model_rnn_bidirectional_const
 
-# Inputs/outputs of custom ops do not match with the graph's inputs/outputs
+# Inputs/outputs do not match with the graph's inputs/outputs
+# error: nGraph function's output number 0 was not found in the CNNNetwork built from it
 IE_CPU.onnx_model_missing_input
 IE_CPU.onnx_model_missing_op_domain
 IE_CPU.onnx_model_override_op
+IE_CPU.space_to_depth_block_first
+IE_CPU.space_to_depth_depth_first
+IE_CPU.depth_to_space_block_first
+IE_CPU.depth_to_space_depth_first
+IE_CPU.normalize_across_chw_4d
+IE_CPU.normalize_across_h_4d
+IE_CPU.normalize_across_c_2x2_shape
+IE_CPU.normalize_across_c_2x4_shape
+IE_CPU.grn_4d
+IE_CPU.unsqueeze
+IE_CPU.squeeze
+IE_CPU.squared_difference
+IE_CPU.squared_difference_broadcast
+
 #-------------------------------------------------------------------------------
 #
 #       Inference Engine GPU plugin excludes

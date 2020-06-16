@@ -146,7 +146,7 @@ namespace ngraph
             /// Retrieves a set of all ops IE can execute
             std::set<NodeTypeInfo> get_ie_ops() const;
 
-            ///
+            /// Compares two blobs elementwise
             testing::AssertionResult compare_blobs(InferenceEngine::MemoryBlob::CPtr computed,
                                                    InferenceEngine::MemoryBlob::CPtr expected,
                                                    const size_t tolerance_bits) const
@@ -193,6 +193,7 @@ namespace ngraph
                 }
             }
 
+            /// Compares two blobs containing floating point elements.
             template <typename T>
             typename std::enable_if<std::is_floating_point<T>::value,
                                     testing::AssertionResult>::type
@@ -206,6 +207,7 @@ namespace ngraph
                     test_results.first, test_results.second, tolerance_bits);
             }
 
+            /// Compares two blobs containing integer elements.
             template <typename T>
             typename std::enable_if<std::is_integral<T>::value, testing::AssertionResult>::type
                 compare_blobs(InferenceEngine::MemoryBlob::CPtr computed,
@@ -217,6 +219,7 @@ namespace ngraph
                 return ngraph::test::all_close<T>(test_results.first, test_results.second);
             }
 
+            /// Extracts the data from two blobs and returns them as a pair of vectors.
             template <typename T>
             std::pair<std::vector<T>, std::vector<T>>
                 extract_test_results(InferenceEngine::MemoryBlob::CPtr computed,
