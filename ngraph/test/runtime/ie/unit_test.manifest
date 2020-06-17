@@ -139,6 +139,7 @@ floor_int64
 ceiling_int64
 matmul_2x2x3_2x3x1_int64
 matmul_2x2x3_2x1x3_transpose_int64
+onnx_dyn_shapes_slice_10_3d_input_12_axes
 
 # TopK Incorrect input data/index values precision
 onnx_model_argmax_int32
