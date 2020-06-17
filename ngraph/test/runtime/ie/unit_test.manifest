@@ -1388,6 +1388,9 @@ IE_CPU.unsqueeze
 IE_CPU.squeeze
 IE_CPU.squared_difference
 IE_CPU.squared_difference_broadcast
+IE_CPU.builder_opset1_mean
+IE_CPU.builder_opset1_mean_dynamic
+IE_CPU.builder_opset1_mean_dynamic_2
 
 #-------------------------------------------------------------------------------
 #
