@@ -645,6 +645,7 @@ extensions/ops/non_zero.py
 extensions/ops/normalize.py
 extensions/ops/normalize_l2.py
 extensions/ops/one_hot.py
+extensions/ops/ONNXResize11.py
 extensions/ops/pack.py
 extensions/ops/parameter.py
 extensions/ops/pnorm.py
