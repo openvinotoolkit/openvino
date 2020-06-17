@@ -212,7 +212,7 @@ void MKLDNNFullyConnectedNode::setPostOps(mkldnn::primitive_attr &attr, bool ini
                 // In case ndims == 3 graph optimizer allows fusing only if all weights values are the same
                 if (depthwiseNode->isBroadcast() || ndims == 3) {
                     float broadcastValue = static_cast<float *>(depthwiseLayer->_weights->buffer())[0];
-                    for (int i = 1; i < PostOpsIntBlobMemory[blob_idx]->GetPrimitiveDescriptor().desc().data.dims[0]; i++) {
+                    for (int i = 0; i < PostOpsIntBlobMemory[blob_idx]->GetPrimitiveDescriptor().desc().data.dims[0]; i++) {
                         static_cast<float *>(PostOpsIntBlobMemory[blob_idx]->GetData())[i] = broadcastValue;
                     }
                 } else {
@@ -229,7 +229,7 @@ void MKLDNNFullyConnectedNode::setPostOps(mkldnn::primitive_attr &attr, bool ini
                     // In case ndims == 3 graph optimizer allows fusing only if all biases values are the same
                     if (depthwiseNode->isBroadcast() || ndims == 3) {
                         float broadcastValue = static_cast<float *>(depthwiseLayer->_biases->buffer())[0];
-                        for (int i = 1; i < PostOpsIntBlobMemory[blob_idx + 1]->GetPrimitiveDescriptor().desc().data.dims[0]; i++) {
+                        for (int i = 0; i < PostOpsIntBlobMemory[blob_idx + 1]->GetPrimitiveDescriptor().desc().data.dims[0]; i++) {
                             static_cast<float *>(PostOpsIntBlobMemory[blob_idx + 1]->GetData())[i] = broadcastValue;
                         }
                     } else {
