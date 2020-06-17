@@ -88,6 +88,8 @@ namespace ngraph
                 /// \return The default value for Convolution.
                 virtual std::shared_ptr<Node> get_default_value() const override;
 
+                bool evaluate(const HostTensorVector &output_values, const HostTensorVector &input_values) override ;
+
             protected:
                 Strides m_strides;
                 Strides m_dilations;

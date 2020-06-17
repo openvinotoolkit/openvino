@@ -216,24 +216,6 @@ namespace
         return replacement_node;
     }
 
-    shared_ptr<Node> op_cast(shared_ptr<op::v1::Convolution> node)
-    {
-        const auto data_arg = node->input_value(0);
-        const auto filters_arg = node->input_value(1);
-        const auto strides = node->get_strides();
-        const size_t num_spatial_dims = strides.size();
-        auto replacement_node = make_shared<op::v0::Convolution>(data_arg,
-                                                                 filters_arg,
-                                                                 node->get_strides(),
-                                                                 node->get_dilations(),
-                                                                 node->get_pads_begin(),
-                                                                 node->get_pads_end(),
-                                                                 Strides(num_spatial_dims, 1),
-                                                                 node->get_auto_pad());
-        replace_node(node, replacement_node);
-        return replacement_node;
-    }
-
     shared_ptr<Node> op_cast(shared_ptr<op::v1::ConvolutionBackpropData> node)
     {
         const auto data_arg = node->input_value(0);
@@ -540,11 +522,6 @@ namespace
     shared_ptr<Node> op_cast(shared_ptr<op::v1::Minimum> node)
     {
         return op_cast_binary_elementwise_node<op::v0::Minimum, op::v1::Minimum>(node);
-    }
-
-    shared_ptr<Node> op_cast(shared_ptr<op::v1::Multiply> node)
-    {
-        return op_cast_binary_elementwise_node<op::v0::Multiply, op::v1::Multiply>(node);
     }
 
     shared_ptr<Node> op_cast(shared_ptr<op::v1::NotEqual> node)

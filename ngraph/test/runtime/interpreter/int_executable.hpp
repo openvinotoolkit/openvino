@@ -553,23 +553,7 @@ protected:
             }
             break;
         }
-        case OP_TYPEID::Convolution:
-        {
-            const op::Convolution* c = static_cast<const op::Convolution*>(&node);
-            reference::convolution<T>(args[0]->get_data_ptr<const T>(),
-                                      args[1]->get_data_ptr<const T>(),
-                                      out[0]->get_data_ptr<T>(),
-                                      node.get_input_shape(0),
-                                      node.get_input_shape(1),
-                                      node.get_output_shape(0),
-                                      c->get_window_movement_strides(),
-                                      c->get_window_dilation_strides(),
-                                      c->get_padding_below(),
-                                      c->get_padding_above(),
-                                      c->get_data_dilation_strides());
 
-            break;
-        }
         case OP_TYPEID::ConvolutionBackpropFilters:
         {
             const op::ConvolutionBackpropFilters* c =
@@ -1303,13 +1287,7 @@ protected:
             }
             break;
         }
-        case OP_TYPEID::Relu:
-        {
-            size_t element_count = shape_size(node.get_output_shape(0));
-            reference::relu<T>(
-                args[0]->get_data_ptr<const T>(), out[0]->get_data_ptr<T>(), element_count);
-            break;
-        }
+
         case OP_TYPEID::ReluBackprop:
         {
             size_t element_count = shape_size(node.get_output_shape(0));
@@ -1556,7 +1534,12 @@ protected:
             }
             break;
         }
-
+        // Ops handled by evaluate
+        case OP_TYPEID::Convolution:
+        case OP_TYPEID::Multiply:
+        case OP_TYPEID::Add:
+        case OP_TYPEID::Relu:
+        case OP_TYPEID::Reshape:
         // Fused Ops are not supported in interpreter. They need to be decomposed before execution
         case OP_TYPEID::BatchMatMulTranspose:
         case OP_TYPEID::ConvolutionBias:
@@ -1609,7 +1592,6 @@ protected:
         case OP_TYPEID::Tile:
         case OP_TYPEID::UnknownOp:
             throw unsupported_op("Unsupported op '" + node.description() + "'");
-        case OP_TYPEID::Add:
         case OP_TYPEID::And:
         case OP_TYPEID::Broadcast:
         case OP_TYPEID::Clamp:
@@ -1631,14 +1613,12 @@ protected:
         case OP_TYPEID::MaxPool:
         case OP_TYPEID::Min:
         case OP_TYPEID::Minimum:
-        case OP_TYPEID::Multiply:
         case OP_TYPEID::NonZero_v3:
         case OP_TYPEID::NotEqual:
         case OP_TYPEID::Or:
         case OP_TYPEID::Power:
         case OP_TYPEID::Product:
         case OP_TYPEID::Range:
-        case OP_TYPEID::Reshape:
         case OP_TYPEID::Result:
         case OP_TYPEID::ShapeOf_v3:
         case OP_TYPEID::ShapeOf:
