@@ -53,7 +53,7 @@ template<>
 class ScaleFactorPerLayer<InferenceEngine::CNNLayer *> {
  private :
     const float activation_scale_factor = 2048.f;
-    const float identity_scale_factor = 2049.0f;
+    const float identity_scale_factor = 512.0f;
     const float k = 5;
     const float k_identity = 6;
 
@@ -472,7 +472,7 @@ class ScaleFactorPerLayer<InferenceEngine::WeightableLayer*> {
                 quant->_weights_quant.scale = 1.0f;
             }
 
-            if (wl->_biases) {
+            /*if (wl->_biases) {
                 quant->_bias_quant.scale = ScaleFactorForQuantization(wl->_biases->buffer().as<float *>(),
                                                                       MAX_VAL_4B_BIAS,
                                                                       wl->_biases->size());
@@ -480,7 +480,7 @@ class ScaleFactorPerLayer<InferenceEngine::WeightableLayer*> {
                     quant->_bias_quant.scale = std::min(quant->_weights_quant.scale * quant->_src_quant.scale, quant->_bias_quant.scale);
                     quant->_weights_quant.scale = quant->_bias_quant.scale / quant->_src_quant.scale;
                 }
-            }
+            }*/
 
             // TODO: findout why ???
             if (weightsSize == 1) {
