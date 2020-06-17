@@ -4,7 +4,7 @@
 
 #include "multi-device/multi_device_config.hpp"
 #include "behavior/perf_counters.hpp"
-using namespace BehaviorTestsUtils;
+using namespace BehaviorTestsDefinitions;
 namespace {
     const std::vector<std::map<std::string, std::string>> configs = {
             {}

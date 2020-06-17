@@ -12,7 +12,7 @@
 #include "functional_test_utils/blob_utils.hpp"
 #include "ie_preprocess.hpp"
 #include "functional_test_utils/behavior_test_utils.hpp"
-namespace BehaviorTestsUtils {
+namespace BehaviorTestsDefinitions {
 using PerfCountersTest = BehaviorTestsUtils::BehaviorTestsBasic;
 
 TEST_P(PerfCountersTest, NotEmptyWhenExecuted) {
@@ -35,4 +35,4 @@ TEST_P(PerfCountersTest, NotEmptyWhenExecuted) {
     perfMap = req.GetPerformanceCounts();
     ASSERT_NE(perfMap.size(), 0);
 }
-}  // namespace BehaviorTestsUtils
+}  // namespace BehaviorTestsDefinitions

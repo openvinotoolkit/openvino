@@ -3,7 +3,7 @@
 //
 
 #include "behavior/test_plugin.hpp"
-using namespace BehaviorTestsUtils;
+using namespace BehaviorTestsDefinitions;
 namespace {
     const std::vector<InferenceEngine::Precision> netPrecisions = {
             InferenceEngine::Precision::FP32,

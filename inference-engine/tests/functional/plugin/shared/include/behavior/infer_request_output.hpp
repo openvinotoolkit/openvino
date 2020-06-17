@@ -22,7 +22,7 @@
 #include "functional_test_utils/blob_utils.hpp"
 #include "ngraph_functions/subgraph_builders.hpp"
 #include "behavior/infer_request_output.hpp"
-namespace BehaviorTestsUtils {
+namespace BehaviorTestsDefinitions {
 using InferRequestOutputTests = BehaviorTestsUtils::BehaviorTestsBasic;
 
 TEST_P(InferRequestOutputTests, canGetInputBlobForSyncRequest) {
@@ -137,4 +137,4 @@ TEST_P(InferRequestOutputTests, canStartAsyncInferWithGetInOut) {
     ASSERT_EQ(InferenceEngine::StatusCode::OK, sts);
     InferenceEngine::Blob::Ptr outputBlob = req.GetBlob(cnnNet.getOutputsInfo().begin()->first);
 }
-}  // namespace BehaviorTestsUtils
+}  // namespace BehaviorTestsDefinitions

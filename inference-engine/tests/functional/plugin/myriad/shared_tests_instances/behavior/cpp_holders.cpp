@@ -3,7 +3,7 @@
 //
 
 #include "behavior/cpp_holders.hpp"
-using namespace BehaviorTestsUtils;
+using namespace BehaviorTestsDefinitions;
 namespace {
     const std::vector<std::vector<int >> orders = {
             // 0 - plugin

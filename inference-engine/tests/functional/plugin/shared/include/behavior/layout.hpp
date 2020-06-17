@@ -25,7 +25,7 @@
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
 #include "ngraph_functions/pass/convert_prc.hpp"
 
-namespace BehaviorTestsUtils {
+namespace BehaviorTestsDefinitions {
     typedef std::tuple<
             InferenceEngine::Precision,             // Network precision
             std::string,                            // Target device name
@@ -51,4 +51,4 @@ public:
     std::string targetDevice;
     std::map<std::string, std::string> configuration;
 };
-}  // namespace BehaviorTestsUtils
+}  // namespace BehaviorTestsDefinitions

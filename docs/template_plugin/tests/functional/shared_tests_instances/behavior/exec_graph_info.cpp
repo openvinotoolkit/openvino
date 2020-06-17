@@ -5,7 +5,7 @@
 #include <vector>
 
 #include "behavior/exec_graph_info.hpp"
-using namespace BehaviorTestsUtils;
+using namespace BehaviorTestsDefinitions;
 namespace {
     const std::vector<InferenceEngine::Precision> netPrecisions = {
             InferenceEngine::Precision::FP32,

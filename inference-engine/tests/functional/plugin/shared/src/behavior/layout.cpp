@@ -4,7 +4,7 @@
 
 #include "behavior/layout.hpp"
 
-namespace BehaviorTestsUtils {
+namespace BehaviorTestsDefinitions {
 std::string LayoutTest::getTestCaseName(testing::TestParamInfo<LayoutParams> obj) {
     InferenceEngine::Precision netPrecision;
     std::string targetDevice;
@@ -26,7 +26,7 @@ std::string LayoutTest::getTestCaseName(testing::TestParamInfo<LayoutParams> obj
 
 void LayoutTest::SetUp()  {
     std::tie(netPrecision, targetDevice, configuration, layout, inputShapes) = this->GetParam();
-    function = ngraph::builder::subgraph::make2InputSubtractIn(inputShapes, netPrecision);
+    function = ngraph::builder::subgraph::make2InputSubtract(inputShapes, netPrecision);
 }
 
 void LayoutTest::TearDown()  {
@@ -90,4 +90,4 @@ TEST_P(LayoutTest, NetWithLayout) {
                                 ie->LoadNetwork(cnnNet, targetDevice, configuration));
     }
 }
-}  // namespace BehaviorTestsUtils
+}  // namespace BehaviorTestsDefinitions

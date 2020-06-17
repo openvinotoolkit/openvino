@@ -4,7 +4,7 @@
 #include <ngraph_functions/subgraph_builders.hpp>
 #include "behavior/cpp_holders.hpp"
 
-namespace BehaviorTestsUtils {
+namespace BehaviorTestsDefinitions {
     std::string HoldersTest::getTestCaseName(testing::TestParamInfo<HoldersParams> obj) {
         std::string targetDevice;
         std::vector<int> order;
@@ -71,4 +71,4 @@ EXPECT_EXIT(_statement; exit(0), testing::ExitedWithCode(0), "")
         // Test failed if crash happens
         EXPECT_NO_CRASH(release_order_test(order, targetDevice, function));
     }
-}  // namespace BehaviorTestsUtils
+}  // namespace BehaviorTestsDefinitions

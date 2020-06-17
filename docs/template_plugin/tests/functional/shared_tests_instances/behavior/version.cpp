@@ -3,7 +3,7 @@
 //
 
 #include "behavior/version.hpp"
-using namespace BehaviorTestsUtils;
+using namespace BehaviorTestsDefinitions;
 namespace {
     const std::vector<std::map<std::string, std::string>> configs = {
             {}
