@@ -54,7 +54,7 @@ class Interpolate(Op):
             ],
             'opset3': [
                 ('axes', lambda node: ','.join(map(str, node.axes))),
-                'mode', 'align_corners', 'antialias', 'nearest_mode', 'cube_coeff', 'coordinate_transformation_mode',
+                'mode', 'antialias', 'nearest_mode', 'cube_coeff', 'coordinate_transformation_mode',
                 ('pads_begin', lambda node: pad_attribute_to_str(node, 'pads_begin')),
                 ('pads_end', lambda node: pad_attribute_to_str(node, 'pads_end')),
             ]
