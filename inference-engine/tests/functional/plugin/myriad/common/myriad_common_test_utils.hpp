@@ -5,7 +5,7 @@
 #pragma once
 
 #include <cstdlib>
-#include <iostream>
+#include <string>
 
 namespace CommonTestUtils {
 namespace vpu {
