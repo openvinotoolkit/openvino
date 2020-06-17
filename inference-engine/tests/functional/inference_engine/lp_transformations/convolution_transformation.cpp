@@ -18,6 +18,7 @@
 #include "ngraph_functions/low_precision_transformations/convolution_function.hpp"
 
 using namespace testing;
+using namespace ngraph;
 using namespace ngraph::pass;
 
 class ConvolutionTransformation : public LayerTransformation, public testing::WithParamInterface<LayerTransformationParams> {
@@ -26,9 +27,21 @@ public:
         const ngraph::element::Type precision = std::get<0>(GetParam());
         const ngraph::Shape shape = std::get<1>(GetParam());
 
-        actualFunction = ngraph::builder::subgraph::ConvolutionFunction::getOriginal(precision, shape);
+        actualFunction = ngraph::builder::subgraph::ConvolutionFunction::getOriginal(
+            precision,
+            shape,
+            // TODO: pass from test parameters
+            builder::subgraph::FakeQuantizeOnData(),
+            builder::subgraph::FakeQuantizeOnWeights());
+
         transform(actualFunction);
-        referenceFunction = ngraph::builder::subgraph::ConvolutionFunction::getReference(precision, shape);
+
+        referenceFunction = ngraph::builder::subgraph::ConvolutionFunction::getReference(
+            precision,
+            shape,
+            // TODO: pass from test parameters
+            builder::subgraph::FakeQuantizeOnData(),
+            builder::subgraph::FakeQuantizeOnWeights());
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<LayerTransformationParams> obj) {
@@ -66,7 +79,7 @@ const std::vector<low_precision::LayerTransformation::Params> trasformationParam
 };
 
 INSTANTIATE_TEST_CASE_P(
-    LPT,
+    DISABLED_LPT,
     ConvolutionTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(precisions),

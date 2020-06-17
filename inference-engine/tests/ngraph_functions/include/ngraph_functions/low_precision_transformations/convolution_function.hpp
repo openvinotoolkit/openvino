@@ -6,6 +6,8 @@
 
 #include <memory>
 #include <ngraph/ngraph.hpp>
+#include "ngraph_functions/low_precision_transformations/common/fake_quantize_on_data.hpp"
+#include "ngraph_functions/low_precision_transformations/common/fake_quantize_on_weights.hpp"
 
 namespace ngraph {
 namespace builder {
@@ -13,8 +15,17 @@ namespace subgraph {
 
 class ConvolutionFunction {
 public:
-    static std::shared_ptr<ngraph::Function> getOriginal(const ngraph::element::Type ngPrecision, const ngraph::Shape& inputShape);
-    static std::shared_ptr<ngraph::Function> getReference(const ngraph::element::Type ngPrecision, const ngraph::Shape& inputShape);
+    static std::shared_ptr<ngraph::Function> getOriginal(
+        const ngraph::element::Type precision,
+        const ngraph::Shape& inputShape,
+        const FakeQuantizeOnData& fakeQuantizeOnData,
+        const FakeQuantizeOnWeights& fakeQuantizeOnWeights);
+
+    static std::shared_ptr<ngraph::Function> getReference(
+        const ngraph::element::Type precision,
+        const ngraph::Shape& inputShape,
+        const FakeQuantizeOnData& fakeQuantizeOnData,
+        const FakeQuantizeOnWeights& fakeQuantizeOnWeights);
 };
 
 }

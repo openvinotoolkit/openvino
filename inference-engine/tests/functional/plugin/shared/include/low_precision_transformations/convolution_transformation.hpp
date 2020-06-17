@@ -16,6 +16,7 @@ typedef std::tuple<
     InferenceEngine::SizeVector,
     std::string,
     InferenceEngine::details::LayerTransformation::Params,
+    LayerTestsUtils::LayerTransformation::LptVersion,
     bool, // fqOnActivations
     bool  // fqOnWeights
 > ConvolutionTransformationParams;

@@ -16,7 +16,8 @@
 #include "functional_test_utils/layer_test_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include "ngraph_functions/pass/convert_prc.hpp"
-#include "ngraph_functions/builders.hpp"
+//#include "ngraph_functions/builders.hpp"
+#include "ngraph_functions/low_precision_transformations/convolution_function.hpp"
 
 
 namespace LayerTestsDefinitions {
@@ -26,12 +27,13 @@ std::string ConvolutionTransformation::getTestCaseName(testing::TestParamInfo<Co
     InferenceEngine::SizeVector inputShapes;
     std::string targetDevice;
     InferenceEngine::details::LayerTransformation::Params params;
+    LayerTestsUtils::LayerTransformation::LptVersion version;
     bool fqOnActivations;
     bool fqOnWeights;
-    std::tie(netPrecision, inputShapes, targetDevice, params, fqOnActivations, fqOnWeights) = obj.param;
+    std::tie(netPrecision, inputShapes, targetDevice, params, version, fqOnActivations, fqOnWeights) = obj.param;
 
     std::ostringstream result;
-    result << netPrecision.name() << "_" << targetDevice << "_" << toString(params) <<
+    result << getTestCaseNameByParams(netPrecision, inputShapes, targetDevice, params, version) <<
         (fqOnActivations ? "" : "_noFqOnActivations") <<
         (fqOnWeights ? "" : "_noFqOnWeights");
     return result.str();
@@ -40,53 +42,37 @@ std::string ConvolutionTransformation::getTestCaseName(testing::TestParamInfo<Co
 void ConvolutionTransformation::SetUp() {
     threshold = 0.1f;
 
-    InferenceEngine::SizeVector inputShape;
     InferenceEngine::Precision netPrecision;
+    InferenceEngine::SizeVector inputShape;
     InferenceEngine::details::LayerTransformation::Params params;
+    LayerTestsUtils::LayerTransformation::LptVersion version;
     bool fqOnActivations;
     bool fqOnWeights;
-    std::tie(netPrecision, inputShape, targetDevice, params, fqOnActivations, fqOnWeights) = this->GetParam();
+    std::tie(netPrecision, inputShape, targetDevice, params, version, fqOnActivations, fqOnWeights) = this->GetParam();
     auto precision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
-    const float k = 50.f;
+    ConfigurePlugin(version);
 
-    const auto input = std::make_shared<ngraph::opset1::Parameter>(precision, ngraph::Shape(inputShape));
-    const auto fakeQuantizeOnActivations = fqOnActivations ?
-        ngraph::builder::makeFakeQuantize(
-            input, precision, 256ul, { 1ul },
-            { 0.f }, { 255.f / k }, { 0.f }, { 255.f / k }) :
-        nullptr;
-
-    const auto weights = ngraph::opset1::Constant::create(
+    // function = ngraph::builder::subgraph::ConvolutionFunction::getOriginal(precision, inputShape, fqOnActivations, fqOnWeights);
+    function = ngraph::builder::subgraph::ConvolutionFunction::getOriginal(
         precision,
-        ngraph::Shape{ inputShape[1], inputShape[1], 1, 1 },
-        std::vector<float>(inputShape[1] * inputShape[1], 1));
-
-    const auto convolution = std::make_shared<ngraph::opset1::Convolution>(
-        fakeQuantizeOnActivations == nullptr ? input : fakeQuantizeOnActivations,
-        fqOnWeights ?
-            ngraph::builder::makeFakeQuantize(
-                weights, precision, 256ul, { 1ul },
-                { -128.f / k }, { 127.f / k }, { -128.f / k }, { 127.f / k }) :
-            weights->output(0),
-        ngraph::Strides{ 1, 1 },
-        ngraph::CoordinateDiff{ 0, 0 },
-        ngraph::CoordinateDiff{ 0, 0 },
-        ngraph::Strides{ 1, 1 });
-
-    ngraph::ResultVector results {std::make_shared<ngraph::opset1::Result>(convolution)};
-    function = std::make_shared<ngraph::Function>(results, ngraph::ParameterVector { input }, "ConvolutionTransformation");
+        inputShape,
+        // TODO: pass from test parameters
+        ngraph::builder::subgraph::FakeQuantizeOnData(),
+        ngraph::builder::subgraph::FakeQuantizeOnWeights());
 
     validate();
 }
 
 void ConvolutionTransformation::validate() {
-    InferenceEngine::SizeVector inputShape;
     InferenceEngine::Precision netPrecision;
+    InferenceEngine::SizeVector inputShape;
+    std::string targetDevice;
     InferenceEngine::details::LayerTransformation::Params params;
+    LayerTestsUtils::LayerTransformation::LptVersion version;
     bool fqOnActivations;
     bool fqOnWeights;
-    std::tie(netPrecision, inputShape, targetDevice, params, fqOnActivations, fqOnWeights) = this->GetParam();
+    std::tie(netPrecision, inputShape, targetDevice, params, version, fqOnActivations, fqOnWeights) = this->GetParam();
 
     const InferenceEngine::CNNNetwork network = transform(params);
 
@@ -117,10 +103,6 @@ void ConvolutionTransformation::validate() {
 
 TEST_P(ConvolutionTransformation, CompareWithRefImpl) {
     Run();
-
-    if (targetDevice == std::string{CommonTestUtils::DEVICE_GPU}) {
-        PluginCache::get().reset();
-    }
 };
 
 }  // namespace LayerTestsDefinitions
