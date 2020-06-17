@@ -26,6 +26,9 @@ from .constants import WaitMode, StatusCode, MeanVariant, layout_str_to_enum, fo
 
 import numpy as np
 
+
+warnings.filterwarnings(action="module", category=DeprecationWarning)
+
 cdef extern from "<utility>" namespace "std" nogil:
     cdef unique_ptr[C.IEExecNetwork] move(unique_ptr[C.IEExecNetwork])
 
@@ -811,8 +814,8 @@ cdef class ExecutableNetwork:
         current_request = self.requests[0]
         current_request.infer(inputs)
         res = {}
-        for out in current_request._outputs_list:
-            res[out] = deepcopy(current_request.output_blobs[out].buffer)
+        for name, value in current_request.output_blobs.items():
+            res[name] = deepcopy(value.buffer)
         return res
 
 
@@ -870,10 +873,9 @@ cdef class ExecutableNetwork:
     ## A dictionary that maps input layer names to DataPtr objects
     @property
     def inputs(self):
-        warnings.filterwarnings("always", category=DeprecationWarning)
         warnings.warn("'inputs' property of ExecutableNetwork class is deprecated. "
                       "To access DataPtrs user need to use 'input_data' property "
-                      "of InputInfoCPtr objects which can be acessed by 'input_info' property.",
+                      "of InputInfoCPtr objects which can be accessed by 'input_info' property.",
                       DeprecationWarning)
         cdef map[string, C.DataPtr] c_inputs = deref(self.impl).getInputs()
         inputs = {}
@@ -1180,7 +1182,6 @@ cdef class InferRequest:
     #  objects of proper shape with input data for the layer
     @property
     def inputs(self):
-        warnings.filterwarnings("always", category=DeprecationWarning)
         warnings.warn("'inputs' property of InferRequest is deprecated. Please instead use 'input_blobs' property.",
                       DeprecationWarning)
         inputs = {}
@@ -1191,7 +1192,6 @@ cdef class InferRequest:
     ## A dictionary that maps output layer names to `numpy.ndarray` objects with output data of the layer
     @property
     def outputs(self):
-        warnings.filterwarnings("always", category=DeprecationWarning)
         warnings.warn("'outputs' property of InferRequest is deprecated. Please instead use 'output_blobs' property.",
                       DeprecationWarning)
         outputs = {}
@@ -1290,7 +1290,6 @@ cdef class IENetLayer:
     #  Layer base operating precision. Provides getter and setter interfaces.
     @property
     def precision(self):
-        warnings.filterwarnings("always", category=DeprecationWarning)
         warnings.warn("precision property of IENetLayer is deprecated. "
                       "Please instead use precision property of DataPtr objects "
                       "returned by out_data property",
@@ -1361,7 +1360,6 @@ cdef class IENetLayer:
     # Returns the layout of the layer output data on 1st port
     @property
     def layout(self):
-        warnings.filterwarnings("always", category=DeprecationWarning)
         warnings.warn("layout property of IENetLayer is deprecated. "
                       "Please instead use shape property of DataPtr objects "
                       "returned by in_data or out_data property to access shape of input or output data "
@@ -1377,7 +1375,6 @@ cdef class IENetLayer:
     # Return the list of dimension of the layer output data on 1st port
     @property
     def shape(self):
-        warnings.filterwarnings("always", category=DeprecationWarning)
         warnings.warn("shape property of IENetLayer is deprecated. "
                       "Please use shape property of DataPtr instead objects "
                       "returned by in_data or out_data property to access shape of input or output data "
@@ -1431,7 +1428,6 @@ cdef class IENetLayer:
     #  Dictionary with layer weights, biases or custom blobs if any
     @property
     def weights(self):
-        warnings.filterwarnings("always", category=DeprecationWarning)
         warnings.warn("weights property of IENetLayer is deprecated. "
                       "Please use blobs property instead.",
                       DeprecationWarning)
@@ -1484,7 +1480,6 @@ cdef class IENetwork:
         cdef string model_
         cdef string weights_
         if init_from_buffer:
-            warnings.filterwarnings("always", category=DeprecationWarning)
             warnings.warn("Reading network using constructor is deprecated. "
                           "Please, use IECore.read_network() method instead",
                           DeprecationWarning)
@@ -1495,7 +1490,6 @@ cdef class IENetwork:
             self.impl.load_from_buffer(xml_buffer, len(model), bin_buffer, len(weights))
         else:
             if model and weights:
-                warnings.filterwarnings("always", category=DeprecationWarning)
                 warnings.warn("Reading network using constructor is deprecated. "
                           "Please, use IECore.read_network() method instead",
                           DeprecationWarning)
@@ -1534,10 +1528,9 @@ cdef class IENetwork:
     ## A dictionary that maps input layer names to DataPtr objects
     @property
     def inputs(self):
-        warnings.filterwarnings("always", category=DeprecationWarning)
         warnings.warn("'inputs' property of IENetwork class is deprecated. "
                       "To access DataPtrs user need to use 'input_data' property "
-                      "of InputInfoPtr objects which can be acessed by 'input_info' property.",
+                      "of InputInfoPtr objects which can be accessed by 'input_info' property.",
                       DeprecationWarning)
         cdef map[string, C.DataPtr] c_inputs = self.impl.getInputs()
         inputs = {}
@@ -1574,19 +1567,6 @@ cdef class IENetwork:
     def batch_size(self):
         return self.impl.getBatch()
 
-    ## \note This property is deprecated:
-    #  network precision does not make sense, use precision on edges.
-    #
-    #  Precision of the network
-    @property
-    def precision(self):
-        warnings.filterwarnings("always", category=DeprecationWarning)
-        warnings.warn("Network precision is deprecated "
-                      "because it does not make sence, "
-                      "use precision on egdes.",
-                      DeprecationWarning)
-        return self.impl.precision.decode()
-
     @batch_size.setter
     def batch_size(self, batch: int):
         if batch <= 0:
@@ -1622,7 +1602,6 @@ cdef class IENetwork:
     #  ```
     @property
     def stats(self):
-        warnings.filterwarnings("always", category=DeprecationWarning)
         warnings.warn("stats property of IENetwork is deprecated.",
                           DeprecationWarning)
         cdef map[string, map[string, vector[float]]] c_stats_map = self.impl.getStats()
@@ -1707,120 +1686,6 @@ cdef class IENetwork:
 
     # def get_function(self):
     #     return self.impl.getFunction()
-
-## This class is the main plugin interface and serves to initialize and configure the plugin.
-#
-#  \note This class is deprecated: Use IECore instead
-#
-cdef class IEPlugin:
-    ##  Class constructor
-    #
-    #  @param device: Target device name. Supported devices: CPU, GPU, FPGA, MYRIAD, HETERO, MULTI
-    #  @param plugin_dirs: List of paths to plugin directories
-    #  @return IEPlugin instance
-    def __cinit__(self, device: str, plugin_dirs=None):
-        warnings.filterwarnings("always", category=DeprecationWarning)
-        warnings.warn("IEPlugin class is deprecated. "
-                      "Please use IECore class instead.",
-                      DeprecationWarning)
-        plugin_base = device.split(':')[0]
-        if plugin_base not in known_plugins:
-            raise ValueError("Unknown plugin: {}, expected one of: {}"
-                             .format(plugin_base, ",".join(known_plugins)))
-        if plugin_dirs is None:
-            plugin_dirs = [""]
-        elif isinstance(plugin_dirs, str):
-            plugin_dirs = [plugin_dirs]
-
-        # add package directory to plugin_dirs
-        lib_location = os.path.dirname(os.path.realpath(__file__))
-        plugin_dirs.append(lib_location)
-
-        cpdef string device_ = <string> device.encode()
-        cdef vector[string] dirs_
-        for d in plugin_dirs:
-            dirs_.push_back(<string> d.encode())
-
-        self.impl = C.IEPlugin(device_, dirs_)
-
-    ## Loads a network that was read from the IR to the plugin and creates an executable network from a network object.
-    #  You can create as many networks as you need and use them simultaneously (up to the limitation of the hardware
-    #  resources).
-    #
-    #  @param network:  A valid `IENetwork` instance
-    #  @param num_requests: A positive integer value of infer requests to be created. Number of infer
-    #                       requests may be limited by device capabilities.
-    #  @param config: A dictionary of plugin configuration keys and their values
-    #  @return  Valid instance of ExecutableNetwork class
-    #
-    #  Usage example:\n
-    #  ```python
-    #  net = IENetwork(model=path_to_xml_file, weights=path_to_bin_file)
-    #  ie = IECore()
-    #  exec_net = ie.load_network(network=net, device_name="CPU", num_requests=2)
-    #  ```
-    cpdef ExecutableNetwork load(self, IENetwork network, int num_requests=1, config=None):
-        cdef ExecutableNetwork exec_net = ExecutableNetwork()
-        cdef map[string, string] c_config
-        if num_requests < 0:
-            raise ValueError("Incorrect number of requests specified: {}. Expected positive integer number "
-                             "or zero for auto detection".format(num_requests))
-        if config:
-            for k, v in config.items():
-                c_config[to_std_string(k)] = to_std_string(v)
-        exec_net.plugin_impl = self.impl
-        exec_net.impl = move(self.impl.load(network.impl, num_requests, c_config))
-        return exec_net
-
-    ## Sets initial affinity for model layers according to the HETERO plugin logic. Applicable only if
-    #  `IEPlugin` was initialized for a HETERO device.
-    #
-    #  @param net: A valid instance of IENetwork
-    #  @return None
-    #
-    #  Usage example: See `affinity` attribute of the `IENetLayer` class.
-    cpdef void set_initial_affinity(self, IENetwork net) except *:
-        if self.device.find("HETERO") == -1:
-            raise RuntimeError("set_initial_affinity method applicable only for HETERO device")
-        self.impl.setInitialAffinity(net.impl)
-
-    cpdef set get_supported_layers(self, IENetwork net):
-        return set([l.decode() for l in self.impl.queryNetwork(net.impl)])
-
-    ## A name of the device that was specified to initialize IEPlugin
-    @property
-    def device(self):
-        device_name = bytes(self.impl.device_name)
-        return to_py_string(device_name)
-
-    ## A version of the plugin
-    @property
-    def version(self):
-        version = bytes(self.impl.version)
-        return version.decode()
-
-    ## Loads extensions library to the plugin. Applicable only for a CPU device and a HETERO device with CPU
-    #
-    #  @param extension_path: A full path to CPU extensions library
-    #  @return None
-    cpdef void add_cpu_extension(self, str extension_path) except *:
-        if self.device.find("CPU") == -1:
-            raise RuntimeError("add_cpu_extension method applicable only for CPU or HETERO devices")
-        cdef string extension_str = extension_path.encode()
-        self.impl.addCpuExtension(extension_str)
-
-    ## Sets a configuration for the plugin. Refer to `SetConfig()` in Inference Engine C++ documentation for acceptable
-    #  keys and values list.
-    #
-    #  @param config: A dictionary of keys and values of acceptable configuration parameters
-    #  @return None
-    cpdef void set_config(self, config):
-        cdef map[string, string] c_config
-        for k, v in config.items():
-            c_config[to_std_string(k)] = to_std_string(v)
-        self.impl.setConfig(c_config)
-
-    # TODO: Add export compiled network functionality
 
 cdef class BlobBuffer:
     """Copy-less accessor for Inference Engine Blob"""

@@ -298,6 +298,11 @@ void RemoveLayer(CNNLayerPtr& layer) {
 
     // transfer output connections into parent data
     CombineData(in_data, out_data);
+
+    // Save name for output data
+    if (out_data->getInputTo().empty()) {
+        in_data->setName(out_data->getName());
+    }
 }
 
 /************************************************************/
@@ -1414,6 +1419,9 @@ void ConvertPrecision(ICNNNetwork& net, Precision from, Precision to) {
             break;
         case getPrecisionMask(Precision::U8, Precision::I32):
             convertPrecisionForAll<Precision::U8, Precision::I32>(net);
+            break;
+        case getPrecisionMask(Precision::U16, Precision::I32):
+            convertPrecisionForAll<Precision::U16, Precision::I32>(net);
             break;
         default:
             THROW_IE_EXCEPTION << "Precision conversion from " << from << " to " << to

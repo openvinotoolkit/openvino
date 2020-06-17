@@ -157,5 +157,6 @@ TEST(TransformationTests, ConvertTopK3I64Output1) {
     ASSERT_TRUE(res.first) << res.second;
 
     auto result_node_of_converted_f = f->get_output_op(0);
-    auto topk_node = result_node_of_converted_f->input(0).get_source_output().get_node_shared_ptr();
+    auto convert_node = result_node_of_converted_f->input(0).get_source_output().get_node_shared_ptr();
+    ASSERT_TRUE(convert_node->get_friendly_name() == "topk.1") << "Transformation ConvertTopK3 should keep output names.\n";
 }

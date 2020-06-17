@@ -178,6 +178,13 @@ TEST_F(IEClassBasicTest, smoke_createMockEngineConfigThrows) {
 #ifdef ENABLE_UNICODE_PATH_SUPPORT
 
 TEST_P(IEClassBasicTestP, smoke_registerPluginsXMLUnicodePath) {
+// TODO: Issue: 31197 Remove this code
+#if defined(_WIN32) || defined(_WIN64)
+    if (deviceName == CommonTestUtils::DEVICE_MYRIAD) {
+        GTEST_SKIP();
+    }
+#endif
+
     std::string pluginXML = TestDataHelpers::get_data_path() + "/ie_class/mock_engine_valid.xml";
 
     for (std::size_t testIndex = 0; testIndex < CommonTestUtils::test_unicode_postfix_vector.size(); testIndex++) {
@@ -314,26 +321,6 @@ TEST_F(IEClassBasicTest, smoke_SetConfigHeteroNoThrow) {
     ASSERT_NO_THROW(ie.SetConfig({ { HETERO_CONFIG_KEY(DUMP_GRAPH_DOT), NO } }, "HETERO"));
     ASSERT_NO_THROW(value = ie.GetConfig("HETERO", HETERO_CONFIG_KEY(DUMP_GRAPH_DOT)).as<bool>());
     ASSERT_FALSE(value);
-}
-
-//
-// LogCallBack
-//
-
-TEST_F(IEClassBasicTest, smoke_LogCallBackNoThrow) {
-    Core ie;
-
-    IE_SUPPRESS_DEPRECATED_START
-    class ConsoleErrorListener : public IErrorListener {
-        void onError(const char *msg) noexcept override {
-            std::clog << "Plugin message: " << msg << std::endl;
-        }
-    };
-
-    ConsoleErrorListener listener;
-
-    ASSERT_NO_THROW(ie.SetLogCallback(listener));
-    IE_SUPPRESS_DEPRECATED_END
 }
 
 //
@@ -785,6 +772,21 @@ public:
     }
 };
 
+class IEClassExecutableNetworkGetMetricTestForSpecificConfig : public IEClassNetworkTest,
+public WithParamInterface<std::tuple<std::string, std::pair<std::string, std::string>>> {
+protected:
+    std::string deviceName;
+    std::string configKey;
+    std::string configValue;
+public:
+    virtual void SetUp() {
+        IEClassNetworkTest::SetUp();
+        deviceName = get<0>(GetParam());
+        configKey = get<1>(GetParam()).first;
+        configValue = get<1>(GetParam()).second;
+    }
+};
+
 #define ASSERT_EXEC_METRIC_SUPPORTED(metricName)                         \
     {                                                                    \
         std::vector<std::string> metrics =                               \
@@ -905,6 +907,27 @@ TEST_P(IEClassExecutableNetworkSetConfigTest, SetConfigThrows) {
     ExecutableNetwork exeNetwork = ie.LoadNetwork(simpleNetwork, deviceName);
 
     ASSERT_THROW(exeNetwork.SetConfig({ { "unsupported_config", "some_value" } }), InferenceEngineException);
+}
+
+using IEClassExecutableNetworkSupportedConfigTest = IEClassExecutableNetworkGetMetricTestForSpecificConfig;
+TEST_P(IEClassExecutableNetworkSupportedConfigTest, SupportedConfigWorks) {
+    Core ie;
+    Parameter p;
+
+    ExecutableNetwork exeNetwork = ie.LoadNetwork(simpleNetwork, deviceName);
+
+    ASSERT_NO_THROW(exeNetwork.SetConfig({ { configKey, configValue } }));
+    ASSERT_NO_THROW(p = exeNetwork.GetConfig( configKey ));
+    ASSERT_EQ(p, configValue);
+}
+
+using IEClassExecutableNetworkUnsupportedConfigTest = IEClassExecutableNetworkGetMetricTestForSpecificConfig;
+TEST_P(IEClassExecutableNetworkUnsupportedConfigTest, UnsupportedConfigThrows) {
+    Core ie;
+
+    ExecutableNetwork exeNetwork = ie.LoadNetwork(simpleNetwork, deviceName);
+
+    ASSERT_THROW(exeNetwork.SetConfig({ { configKey, configValue } }), InferenceEngineException);
 }
 
 using IEClassExecutableNetworkGetConfigTest = IEClassExecutableNetworkGetMetricTest;

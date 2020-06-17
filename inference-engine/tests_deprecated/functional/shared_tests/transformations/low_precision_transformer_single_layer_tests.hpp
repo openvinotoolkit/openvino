@@ -850,6 +850,8 @@ public:
     std::string getName() const override;
     bool transform(CNNNetwork& network, LayerTransformation::Params& params) const override;
     std::string getModel(SingleLayerTransformationsTestParams& p) const override;
+
+    mutable InferenceEngine::Precision netPrecision;
 };
 
 class PowerTestModel : public SingleLayerTestModel {
@@ -1005,6 +1007,23 @@ public:
     std::string getName() const override;
     bool transform(CNNNetwork& network, LayerTransformation::Params& params) const override;
     void initInput(Blob::Ptr input) const override;
+};
+
+class FullyConnectedTestModel : public SingleLayerTestModel {
+public:
+    FullyConnectedTestModel(const std::vector<size_t>& inputDimentions, const std::vector<size_t>& outputDimentions);
+    std::string getName() const override;
+    bool transform(CNNNetwork& network, LayerTransformation::Params& params) const override;
+    void initInput(Blob::Ptr input) const override;
+    std::string getModel(SingleLayerTransformationsTestParams& p) const override;
+    void resetTransformation(CNNNetwork& network) const override;
+protected:
+    virtual bool areScalesOnActivationsDifferent() const;
+    const bool addBiasesLayer;
+
+private:
+    const std::vector<size_t> inputDimentions;
+    const std::vector<size_t> outputDimentions;
 };
 
 class EltwiseTestModel : public SingleLayerTestModel {
@@ -1895,7 +1914,7 @@ class SingleLayerTransformationsTest : public TestsCommon, public WithParamInter
     std::unordered_map<std::string, InferenceEngine::Blob::Ptr> infer(
             CNNNetwork& network,
             std::unordered_map<std::string, Blob::Ptr>& inputBlobs,
-            Core & plugin, const std::string & device_name, 
+            Core & plugin, const std::string & device_name,
             ExecutableNetwork & executableNetwork,
             InferRequest & inferRequest);
 

@@ -10,7 +10,7 @@
 
 TBlob<uint8_t>::Ptr SingleLayerTransformationsTest::generateWeights(const CNNNetwork& network) {
     std::vector<Blob::Ptr> blobs;
-    const auto net_precision = network.getPrecision();
+    const auto net_precision = network.getInputsInfo().begin()->second->getPrecision();
 
     std::vector<CNNLayerPtr> sortedLayers = CNNNetSortTopologically(network);
     for (CNNLayerPtr layer : sortedLayers) {
@@ -210,7 +210,7 @@ void SingleLayerTransformationsTest::SetUp() {
         Core core;
         ExecutableNetwork executableNetwork;
         InferRequest inferRequest;
-        const auto originalOutputMap = infer(network, inputBlobs, core, 
+        const auto originalOutputMap = infer(network, inputBlobs, core,
                 p.device_name, executableNetwork, inferRequest);
 
         const std::vector<bool> updatePrecisionsValues = { false };
@@ -294,7 +294,7 @@ void SingleLayerTransformationsTest::SetUp() {
                                                 const auto transformedOutput = infer(network, inputBlobs, core, p.device_name, executableNetworkTransformed, inferRequestTransformed);
 
                                                 //compareInDetails(originalOutputMap, *transformedOutput, 70, 0.5);
-                                                auto net_precision = network.getPrecision();
+                                                auto net_precision = network.getInputsInfo().begin()->second->getPrecision();
                                                 for (auto& originalOutput : originalOutputMap) {
                                                     const auto& name = originalOutput.first;
                                                     const auto outSize = originalOutput.second->size();
@@ -304,7 +304,7 @@ void SingleLayerTransformationsTest::SetUp() {
 
                                                     const float threshold = p.model->getThreshold(p.device_name, net_precision, param);
                                                     const float zeroThreshold = p.model->getZeroThreshold();
-                                                    
+
                                                     const auto outName = transformedOutput.find(name);
                                                     if (outName == transformedOutput.end()) {
                                                         THROW_IE_EXCEPTION << "Original output name " + name + " doesn't exist in transformed model";

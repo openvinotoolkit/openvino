@@ -33,6 +33,8 @@
 #include "api/mvn.hpp"
 #include "api/deconvolution.hpp"
 #include "api/permute.hpp"
+#include "api/gather.hpp"
+#include "api/depth_to_space.hpp"
 
 #include "test_utils/test_utils.h"
 
@@ -73,6 +75,7 @@ struct bc_test_params {
 
 struct gemm_test_params {
     std::vector<tensor> in_shapes;
+    tensor out_shape;
     tensor kernel;
     tensor pad;
     data_types data_type_in0;
@@ -81,6 +84,17 @@ struct gemm_test_params {
     format input_format;
     data_types default_type;
     format default_format;
+    size_t expected_fused_primitives;
+    size_t expected_not_fused_primitives;
+};
+
+struct normalize_test_params {
+    tensor in_shape;
+    data_types data_type;
+    format input_format;
+    data_types default_type;
+    format default_format;
+    bool across_spatial;
     size_t expected_fused_primitives;
     size_t expected_not_fused_primitives;
 };
@@ -348,6 +362,10 @@ public:
     layout get_per_channel_layout(gemm_test_params& p) {
         return layout{ p.default_type, p.default_format, tensor{1, p.in_shapes.at(0).feature[0], 1, 1} };
     }
+
+    layout get_output_layout(gemm_test_params& p) {
+        return layout{ p.default_type, p.input_format, p.out_shape };
+    }
 };
 
 // in_shape; out_shape; kernel; stride; pad; dilation; groups; data_type; input_format; weights_type; weights_format; default_type; default_format;
@@ -419,16 +437,21 @@ public:
 #define CASE_FC_U8S8_2 {2, 1, 3, 1}, {2, 4, 1, 1}, {4, 1, 3, 1}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::u8, format::b_fs_yx_fsv4, data_types::i8, format::oiyx, data_types::f32, format::bfyx
 #define CASE_FC_U8S8_3 {2, 32, 1, 1}, {2, 16, 1, 1}, {16, 32, 1, 1}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::u8, format::b_fs_yx_fsv4, data_types::i8, format::oiyx, data_types::f32, format::bfyx
 
-#define CASE_GEMM_3IN_S8S8_1 {{1, 1, 2, 2}, {1, 1, 2, 2}, {1, 1, 2, 2}}, tensor{1}, tensor{0}, data_types::i8, data_types::i8, data_types::i8, format::bfyx, data_types::f32, format::bfyx
-#define CASE_GEMM_3IN_S8S8_2 {{1, 2, 64, 128}, {1, 2, 256, 64}, {1, 2, 256, 128}}, tensor{1}, tensor{0}, data_types::i8, data_types::i8, data_types::i8, format::bfyx, data_types::f32, format::bfyx
-#define CASE_GEMM_3IN_S8S8_3 {{1, 1, 8, 16}, {1, 1, 32, 8}, {1, 1, 32, 16}}, tensor{1}, tensor{0}, data_types::i8, data_types::i8, data_types::i8, format::bfyx, data_types::f32, format::bfyx
+#define CASE_GEMM_3IN_S8S8_1 {{1, 1, 2, 2}, {1, 1, 2, 2}, {1, 1, 2, 2}}, {1, 1, 2, 2}, tensor{1}, tensor{0}, data_types::i8, data_types::i8, data_types::i8, format::bfyx, data_types::f32, format::bfyx
+#define CASE_GEMM_3IN_S8S8_2 {{1, 2, 64, 128}, {1, 2, 256, 64}, {1, 2, 256, 128}}, {1, 2, 256, 128}, tensor{1}, tensor{0}, data_types::i8, data_types::i8, data_types::i8, format::bfyx, data_types::f32, format::bfyx
+#define CASE_GEMM_3IN_S8S8_3 {{1, 1, 8, 16}, {1, 1, 32, 8}, {1, 1, 32, 16}}, {1, 1, 32, 16}, tensor{1}, tensor{0}, data_types::i8, data_types::i8, data_types::i8, format::bfyx, data_types::f32, format::bfyx
 
-#define CASE_GEMM_2IN_U8U8_1 {{1, 1, 2, 2}, {1, 1, 2, 2}}, tensor{1}, tensor{0}, data_types::u8,  data_types::u8,  data_types::u8, format::bfyx, data_types::f32, format::bfyx
-#define CASE_GEMM_2IN_U8U8_2 {{1, 2, 64, 128}, {1, 2, 256, 64}}, tensor{1}, tensor{0}, data_types::u8,  data_types::u8,  data_types::u8, format::bfyx, data_types::f32, format::bfyx
-#define CASE_GEMM_2IN_U8U8_3 {{1, 1, 16, 32}, {1, 1, 12, 16}}, tensor{1}, tensor{0}, data_types::u8,  data_types::u8,  data_types::u8, format::bfyx, data_types::f32, format::bfyx
+#define CASE_GEMM_2IN_U8U8_1 {{1, 1, 2, 2}, {1, 1, 2, 2}}, {1, 1, 2, 2}, tensor{1}, tensor{0}, data_types::u8, data_types::u8, data_types::u8, format::bfyx, data_types::f32, format::bfyx
+#define CASE_GEMM_2IN_U8U8_2 {{1, 2, 64, 128}, {1, 2, 256, 64}}, {1, 2, 256, 128}, tensor{1}, tensor{0}, data_types::u8, data_types::u8, data_types::u8, format::bfyx, data_types::f32, format::bfyx
+#define CASE_GEMM_2IN_U8U8_3 {{1, 1, 16, 32}, {1, 1, 32, 16}}, {1, 1, 32, 32}, tensor{1}, tensor{0}, data_types::u8, data_types::u8, data_types::u8, format::bfyx, data_types::f32, format::bfyx
 
-#define CASE_GEMM_2IN_U8S8_1 {{1, 1, 4, 2}, {1, 1, 8, 4}}, tensor{1}, tensor{0}, data_types::u8,  data_types::i8,  data_types::u8, format::bfyx, data_types::f32, format::bfyx
-#define CASE_GEMM_2IN_S8U8_1 {{1, 2, 64, 128}, {1, 2, 256, 64}}, tensor{1}, tensor{0}, data_types::i8,  data_types::u8,  data_types::u8, format::bfyx, data_types::f32, format::bfyx
+#define CASE_GEMM_2IN_U8S8_1 {{1, 1, 4, 2}, {1, 1, 8, 4}}, {1, 1, 8, 4}, tensor{1}, tensor{0}, data_types::u8, data_types::i8, data_types::u8, format::bfyx, data_types::f32, format::bfyx
+#define CASE_GEMM_2IN_S8U8_1 {{1, 2, 64, 128}, {1, 2, 256, 64}}, {1, 2, 256, 128}, tensor{1}, tensor{0}, data_types::i8, data_types::u8, data_types::u8, format::bfyx, data_types::f32, format::bfyx
+
+#define CASE_GEMM_ELTWISE_2IN_U8S8_1 {{1, 1, 4, 4}, {1, 1, 4, 4}}, {1, 1, 4, 4}, tensor{1}, tensor{0}, data_types::u8, data_types::i8, data_types::u8, format::bfyx, data_types::f32, format::bfyx
+#define CASE_GEMM_ELTWISE_2IN_S8U8_1 {{1, 1, 32, 32}, {1, 1, 32, 32}}, {1, 1, 32, 32}, tensor{1}, tensor{0}, data_types::i8, data_types::u8, data_types::u8, format::bfyx, data_types::f32, format::bfyx
+
+#define CASE_NORMALIZE_I8_1 {1, 2, 3, 3}, data_types::u8, format::bfyx, data_types::f32, format::bfyx
 
 /* ----------------------------------------------------------------------------------------------------- */
 /* ---------------------------------------- FP32 convolution cases ------------------------------------- */
@@ -2256,6 +2279,35 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, gemm_int8_2in_act_scale_quantize_i8,
                         gemm_test_params{ CASE_GEMM_2IN_S8U8_1, 3, 6 },
 }), );
 
+class gemm_int8_2in_act_scale_quantize_eltwise_i8 : public GemmFusingTest {};
+TEST_P(gemm_int8_2in_act_scale_quantize_eltwise_i8, basic) {
+    auto p = GetParam();
+    create_topologies(input_layout("input0", get_input_layout(p, 0)),
+        input_layout("input1", get_input_layout(p, 1)),
+        data("in_lo", get_mem(get_per_channel_layout(p), min_random, 0)),
+        data("in_hi", get_mem(get_per_channel_layout(p), 1, max_random)),
+        data("out_lo", get_mem(get_single_element_layout(p), -127)),
+        data("out_hi", get_mem(get_single_element_layout(p), 127)),
+        data("scale_data", get_mem(get_per_channel_layout(p), 1.0f / p.kernel.count() / 255)),
+        data("eltwise_data", get_mem(get_output_layout(p))),
+        gemm("gemm_prim", { "input0", "input1" }, data_types::f32),
+        activation("activation", "gemm_prim", activation_func::exp),
+        scale("scale", "activation", "scale_data"),
+        quantize("quantize", "scale", "in_lo", "in_hi", "out_lo", "out_hi", 255, data_types::i8),
+        eltwise("sum", { "quantize", "eltwise_data"}, eltwise_mode::sum,  data_types::f32),
+        reorder("reorder_bfyx", "sum", p.default_format, data_types::f32)
+    );
+
+    tolerance = 1.0f;
+    execute(p);
+}
+
+INSTANTIATE_TEST_CASE_P(fusings_gpu, gemm_int8_2in_act_scale_quantize_eltwise_i8,
+    ::testing::ValuesIn(std::vector<gemm_test_params>{
+                        gemm_test_params{ CASE_GEMM_ELTWISE_2IN_U8S8_1, 3, 7 },
+                        gemm_test_params{ CASE_GEMM_ELTWISE_2IN_S8U8_1, 3, 7 },
+}), );
+
 /* ----------------------------------------------------------------------------------------------------- */
 /* ---------------------------------------- Resample cases --------------------------------------------- */
 /* ----------------------------------------------------------------------------------------------------- */
@@ -2279,6 +2331,16 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, gemm_int8_2in_act_scale_quantize_i8,
 #define CASE_RESAMPLE_FP16_8 {1, 16, 4, 5, 4}, {1, 16, 2, 3, 2}, data_types::f16, format::bfzyx, resample_type::caffe_bilinear, data_types::f16, format::bfzyx
 #define CASE_RESAMPLE_FP16_9 {1, 16, 4, 5}, {1, 16, 7, 8}, data_types::f16, format::b_fs_yx_fsv16, resample_type::bilinear, data_types::f16, format::bfyx
 #define CASE_RESAMPLE_FP16_10 {2, 32, 4, 5}, {2, 32, 7, 8}, data_types::f16, format::fs_b_yx_fsv32, resample_type::bilinear, data_types::f16, format::bfyx
+
+#define CASE_RESAMPLE_I8_1 {1, 16, 4, 5}, {1, 16, 2, 3}, data_types::i8, format::b_fs_yx_fsv16, resample_type::nearest, data_types::f32, format::bfyx
+#define CASE_RESAMPLE_I8_2 {2, 32, 4, 5}, {2, 32, 2, 3}, data_types::i8, format::b_fs_yx_fsv16, resample_type::nearest, data_types::f32, format::bfyx
+#define CASE_RESAMPLE_I8_3 {1, 16, 4, 5}, {1, 16, 2, 3}, data_types::i8, format::b_fs_yx_fsv16, resample_type::bilinear, data_types::f32, format::bfyx
+#define CASE_RESAMPLE_I8_4 {2, 32, 4, 5}, {2, 32, 2, 3}, data_types::i8, format::b_fs_yx_fsv16, resample_type::bilinear, data_types::f32, format::bfyx
+
+#define CASE_RESAMPLE_U8_1 {1, 16, 4, 5}, {1, 16, 2, 3}, data_types::u8, format::b_fs_yx_fsv16, resample_type::nearest, data_types::f32, format::bfyx
+#define CASE_RESAMPLE_U8_2 {2, 32, 4, 5}, {2, 32, 2, 3}, data_types::u8, format::b_fs_yx_fsv16, resample_type::nearest, data_types::f32, format::bfyx
+#define CASE_RESAMPLE_U8_3 {1, 16, 4, 5}, {1, 16, 2, 3}, data_types::u8, format::b_fs_yx_fsv16, resample_type::bilinear, data_types::f32, format::bfyx
+#define CASE_RESAMPLE_U8_4 {2, 32, 4, 5}, {2, 32, 2, 3}, data_types::u8, format::b_fs_yx_fsv16, resample_type::bilinear, data_types::f32, format::bfyx
 
 class resample_quantize : public ResamplePrimitiveFusingTest {};
 TEST_P(resample_quantize, basic) {
@@ -2358,6 +2420,126 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, resample_scale_activation,
                         resample_test_params{ CASE_RESAMPLE_FP16_8, 2, 4 },
                         resample_test_params{ CASE_RESAMPLE_FP16_9, 2, 4 },
                         resample_test_params{ CASE_RESAMPLE_FP16_10, 2, 4 },
+
+                        resample_test_params{ CASE_RESAMPLE_I8_1, 2, 4 },
+                        resample_test_params{ CASE_RESAMPLE_I8_2, 2, 4 },
+                        resample_test_params{ CASE_RESAMPLE_I8_3, 2, 4 },
+                        resample_test_params{ CASE_RESAMPLE_I8_4, 2, 4 },
+
+                        resample_test_params{ CASE_RESAMPLE_U8_1, 2, 4 },
+                        resample_test_params{ CASE_RESAMPLE_U8_2, 2, 4 },
+                        resample_test_params{ CASE_RESAMPLE_U8_3, 2, 4 },
+                        resample_test_params{ CASE_RESAMPLE_U8_4, 2, 4 },
+}), );
+
+class resample_quantize_concat : public ResamplePrimitiveFusingTest {};
+TEST_P(resample_quantize_concat, along_f) {
+    auto p = GetParam();
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        resample("resample1", "input", p.out_shape, p.in_shape.feature[0], p.type),
+        data("in_lo_1", get_mem(get_per_channel_layout(p), min_random, 0)),
+        data("in_hi_1", get_mem(get_per_channel_layout(p), 1, max_random)),
+        data("out_lo_1", get_mem(get_single_element_layout(p), -128)),
+        data("out_hi_1", get_mem(get_single_element_layout(p), 127)),
+        quantize("quant1", "resample1", "in_lo_1", "in_hi_1", "out_lo_1", "out_hi_1", 256, data_types::i8),
+        resample("resample2", "input", p.out_shape, p.in_shape.feature[0], p.type),
+        data("in_lo_2", get_mem(get_per_channel_layout(p), min_random, 0)),
+        data("in_hi_2", get_mem(get_per_channel_layout(p), 1, max_random)),
+        data("out_lo_2", get_mem(get_single_element_layout(p), -127)),
+        data("out_hi_2", get_mem(get_single_element_layout(p), 127)),
+        quantize("quant2", "resample2", "in_lo_2", "in_hi_2", "out_lo_2", "out_hi_2", 255, data_types::i8),
+        concatenation("concat", { "quant1", "quant2" }, cldnn::concatenation::along_f),
+        reorder("reorder_bfyx", "concat", cldnn::format::bfyx, p.default_type)
+    );
+
+    tolerance = 1.f;
+    execute(p);
+}
+
+INSTANTIATE_TEST_CASE_P(fusings_gpu, resample_quantize_concat,
+    ::testing::ValuesIn(std::vector<resample_test_params>{
+                        resample_test_params{ CASE_RESAMPLE_FP32_1, 3, 6 },
+                        resample_test_params{ CASE_RESAMPLE_FP32_2, 3, 6 },
+                        resample_test_params{ CASE_RESAMPLE_FP32_3, 3, 6 },
+                        resample_test_params{ CASE_RESAMPLE_FP32_4, 3, 6 },
+                        resample_test_params{ CASE_RESAMPLE_FP32_5, 3, 6 },
+                        resample_test_params{ CASE_RESAMPLE_FP32_6, 3, 6 },
+                        resample_test_params{ CASE_RESAMPLE_FP32_7, 3, 6 },
+                        resample_test_params{ CASE_RESAMPLE_FP32_8, 3, 6 },
+                        resample_test_params{ CASE_RESAMPLE_FP32_9, 3, 6 },
+
+                        resample_test_params{ CASE_RESAMPLE_FP16_1, 3, 6 },
+                        resample_test_params{ CASE_RESAMPLE_FP16_2, 3, 6 },
+                        resample_test_params{ CASE_RESAMPLE_FP16_3, 3, 6 },
+                        resample_test_params{ CASE_RESAMPLE_FP16_4, 3, 6 },
+                        resample_test_params{ CASE_RESAMPLE_FP16_5, 3, 6 },
+                        resample_test_params{ CASE_RESAMPLE_FP16_6, 3, 6 },
+                        resample_test_params{ CASE_RESAMPLE_FP16_7, 3, 6 },
+                        resample_test_params{ CASE_RESAMPLE_FP16_8, 3, 6 },
+                        resample_test_params{ CASE_RESAMPLE_FP16_9, 3, 6 },
+                        resample_test_params{ CASE_RESAMPLE_FP16_10, 3, 6 },
+
+                        resample_test_params{ CASE_RESAMPLE_I8_3, 3, 6 },
+                        resample_test_params{ CASE_RESAMPLE_I8_4, 3, 6 },
+
+                        resample_test_params{ CASE_RESAMPLE_U8_3, 3, 6 },
+                        resample_test_params{ CASE_RESAMPLE_U8_4, 3, 6 },
+}), );
+
+class resample_scale_concat : public ResamplePrimitiveFusingTest {};
+TEST_P(resample_scale_concat, along_f) {
+    auto p = GetParam();
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        resample("resample1", "input", p.out_shape, p.in_shape.feature[0], p.type),
+        data("scale1_scale", get_mem(get_per_channel_layout(p), -10, 10)),
+        data("scale1_shift", get_mem(get_per_channel_layout(p), -10, 10)),
+        scale("scale1", "resample1", "scale1_scale", "scale1_shift"),
+        resample("resample2", "input", p.out_shape, p.in_shape.feature[0], p.type),
+        data("scale2_scale", get_mem(get_per_channel_layout(p), -10, 10)),
+        data("scale2_shift", get_mem(get_per_channel_layout(p), -10, 10)),
+        scale("scale2", "resample2", "scale2_scale", "scale2_shift"),
+        concatenation("concat", { "scale1", "scale2" }, cldnn::concatenation::along_f),
+        reorder("reorder_bfyx", "concat", cldnn::format::bfyx, p.default_type)
+    );
+
+    tolerance = 1e-5f;
+    execute(p);
+}
+
+INSTANTIATE_TEST_CASE_P(fusings_gpu, resample_scale_concat,
+    ::testing::ValuesIn(std::vector<resample_test_params>{
+                        resample_test_params{ CASE_RESAMPLE_FP32_1, 3, 6 },
+                        resample_test_params{ CASE_RESAMPLE_FP32_2, 3, 6 },
+                        resample_test_params{ CASE_RESAMPLE_FP32_3, 3, 6 },
+                        resample_test_params{ CASE_RESAMPLE_FP32_4, 3, 6 },
+                        resample_test_params{ CASE_RESAMPLE_FP32_5, 3, 6 },
+                        resample_test_params{ CASE_RESAMPLE_FP32_6, 3, 6 },
+                        resample_test_params{ CASE_RESAMPLE_FP32_7, 3, 6 },
+                        resample_test_params{ CASE_RESAMPLE_FP32_8, 3, 6 },
+                        resample_test_params{ CASE_RESAMPLE_FP32_9, 3, 6 },
+
+                        resample_test_params{ CASE_RESAMPLE_FP16_1, 3, 6 },
+                        resample_test_params{ CASE_RESAMPLE_FP16_2, 3, 6 },
+                        resample_test_params{ CASE_RESAMPLE_FP16_3, 3, 6 },
+                        resample_test_params{ CASE_RESAMPLE_FP16_4, 3, 6 },
+                        resample_test_params{ CASE_RESAMPLE_FP16_5, 3, 6 },
+                        resample_test_params{ CASE_RESAMPLE_FP16_6, 3, 6 },
+                        resample_test_params{ CASE_RESAMPLE_FP16_7, 3, 6 },
+                        resample_test_params{ CASE_RESAMPLE_FP16_8, 3, 6 },
+                        resample_test_params{ CASE_RESAMPLE_FP16_9, 3, 6 },
+                        resample_test_params{ CASE_RESAMPLE_FP16_10, 3, 6 },
+
+                        resample_test_params{ CASE_RESAMPLE_I8_1, 3, 6},
+                        resample_test_params{ CASE_RESAMPLE_I8_2, 3, 6},
+                        resample_test_params{ CASE_RESAMPLE_I8_3, 3, 6},
+                        resample_test_params{ CASE_RESAMPLE_I8_4, 3, 6},
+
+                        resample_test_params{ CASE_RESAMPLE_U8_1, 3, 6 },
+                        resample_test_params{ CASE_RESAMPLE_U8_2, 3, 6 },
+                        resample_test_params{ CASE_RESAMPLE_U8_3, 3, 6 },
+                        resample_test_params{ CASE_RESAMPLE_U8_4, 3, 6 },
 }), );
 
 /* ----------------------------------------------------------------------------------------------------- */
@@ -4046,6 +4228,277 @@ INSTANTIATE_TEST_CASE_P(DISABLED_fusings_gpu,
                             pooling_test_params{CASE_POOLING_I8_3, 2, 4, pooling_mode::average, "pooling_gpu_fs_bs_yx_bsv4_fsv32"},
                      }), );
 
+/* ----------------------------------------------------------------------------------------------------- */
+/* -------------------------------- DepthToSpace cases ------------------------------------------------- */
+/* ----------------------------------------------------------------------------------------------------- */
+struct depth_to_space_test_params {
+    tensor input_size;
+    tensor output_size;
+    depth_to_space_mode mode;
+    data_types input_type;
+    format input_format;
+    size_t block_size;
+    data_types default_type;
+    format default_format;
+    size_t expected_fused_primitives;
+    size_t expected_not_fused_primitives;
+};
+
+#define CASE_DEPTH_TO_SPACE_F32_1 {1, 16, 8, 10}, {1, 4, 16, 20}, depth_to_space_mode::blocks_first, data_types::f32, format::bfyx, 2, data_types::f32, format::bfyx
+#define CASE_DEPTH_TO_SPACE_F32_2 {1, 32, 8, 8},  {1, 2, 32, 32}, depth_to_space_mode::blocks_first, data_types::f32, format::b_fs_yx_fsv16, 4, data_types::f32, format::bfyx
+#define CASE_DEPTH_TO_SPACE_F16_1 {1, 12, 8, 8},  {1, 3, 16, 16}, depth_to_space_mode::blocks_first, data_types::f16, format::bfyx, 2, data_types::f32, format::bfyx
+#define CASE_DEPTH_TO_SPACE_F16_2 {1, 16, 9, 8},  {1, 1, 36, 32}, depth_to_space_mode::blocks_first, data_types::f16, format::b_fs_yx_fsv16, 4, data_types::f32, format::bfyx
+#define CASE_DEPTH_TO_SPACE_U8_1  {1, 128, 8, 8}, {1, 2, 64, 64}, depth_to_space_mode::blocks_first, data_types::u8, format::bfyx, 8, data_types::f32, format::bfyx
+#define CASE_DEPTH_TO_SPACE_U8_2  {1, 128, 4, 8}, {1, 8, 16, 32}, depth_to_space_mode::blocks_first, data_types::u8, format::b_fs_yx_fsv16, 4, data_types::f32, format::bfyx
+#define CASE_DEPTH_TO_SPACE_I8_1  {1, 16, 8, 8},  {1, 4, 16, 16}, depth_to_space_mode::blocks_first, data_types::i8, format::bfyx, 2, data_types::f32, format::bfyx
+#define CASE_DEPTH_TO_SPACE_I8_2  {1, 256, 8, 8}, {1, 4, 64, 64}, depth_to_space_mode::blocks_first, data_types::i8, format::b_fs_yx_fsv16, 8, data_types::f32, format::bfyx
+
+class DepthToSpaceFusingsTest : public ::BaseFusingTest<depth_to_space_test_params> {
+public:
+    void execute(depth_to_space_test_params& p) {
+        auto input_prim = get_mem(get_input_layout(p));
+
+        network network_not_fused(this->engine, this->topology_non_fused, bo_not_fused);
+        network network_fused(this->engine, this->topology_fused, bo_fused);
+
+        network_fused.set_input_data("input", input_prim);
+        network_not_fused.set_input_data("input", input_prim);
+
+        compare(network_not_fused, network_fused, p);
+    }
+
+    layout get_input_layout(depth_to_space_test_params& p) { return layout{p.input_type, p.input_format, p.input_size}; }
+
+    layout get_per_channel_layout(depth_to_space_test_params& p) {
+        return layout{p.default_type, p.default_format, tensor{1, p.output_size.feature[0], 1, 1}};
+    }
+    format get_input_format(depth_to_space_test_params &p) { return p.input_format; }
+};
+
+class depth_to_space_quantize_i8 : public DepthToSpaceFusingsTest {};
+TEST_P(depth_to_space_quantize_i8, basic) {
+    auto p = GetParam();
+    create_topologies(input_layout("input", get_input_layout(p)),
+                      depth_to_space("depth_to_space", "input", p.block_size, p.mode),
+                      data("in_low", get_mem(get_per_channel_layout(p), min_random, 0)),
+                      data("in_high", get_mem(get_per_channel_layout(p), 1, max_random)),
+                      data("out_low", get_mem(get_single_element_layout(p), -128)),
+                      data("out_high", get_mem(get_single_element_layout(p), 127)),
+                      quantize("quant", "depth_to_space", "in_low", "in_high", "out_low", "out_high", 256, data_types::i8),
+                      reorder("reorder_bfyx", "quant", format::bfyx, data_types::f32));
+
+    tolerance = 1.f;
+    execute(p);
+}
+
+INSTANTIATE_TEST_CASE_P(
+    fusings_gpu,
+    depth_to_space_quantize_i8,
+    ::testing::ValuesIn(std::vector<depth_to_space_test_params>{
+        depth_to_space_test_params{CASE_DEPTH_TO_SPACE_F32_1, 2, 3},
+        depth_to_space_test_params{CASE_DEPTH_TO_SPACE_F32_2, 2, 3},
+        depth_to_space_test_params{CASE_DEPTH_TO_SPACE_F16_1, 2, 3},
+        depth_to_space_test_params{CASE_DEPTH_TO_SPACE_F16_2, 2, 3},
+    }), );
+
+class depth_to_space_scale_act_eltwise_quantize_u8 : public DepthToSpaceFusingsTest {};
+TEST_P(depth_to_space_scale_act_eltwise_quantize_u8, basic) {
+    auto p = GetParam();
+    create_topologies(input_layout("input", get_input_layout(p)),
+                      depth_to_space("depth_to_space", "input", p.block_size, p.mode),
+                      data("scale1_data", get_mem(get_per_channel_layout(p), -0.125f)),
+                      scale("scale1", "depth_to_space", "scale1_data"),
+                      activation("actv1", "scale1", activation_func::relu),
+                      data("eltw_data", get_mem(layout(p.default_type, p.input_format, p.output_size))),
+                      eltwise("eltw", {"actv1", "eltw_data"}, eltwise_mode::sum, p.default_type),
+                      data("in_low", get_mem(get_per_channel_layout(p), min_random, 0)),
+                      data("in_high", get_mem(get_per_channel_layout(p), 1, max_random)),
+                      data("out_low", get_mem(get_single_element_layout(p), 0)),
+                      data("out_high", get_mem(get_single_element_layout(p), 255)),
+                      quantize("quant", "eltw", "in_low", "in_high", "out_low", "out_high", 256, data_types::u8),
+                      reorder("reorder_bfyx", "quant", format::bfyx, data_types::f32));
+
+    tolerance = 1.f;
+    execute(p);
+}
+
+INSTANTIATE_TEST_CASE_P(
+    fusings_gpu,
+    depth_to_space_scale_act_eltwise_quantize_u8,
+    ::testing::ValuesIn(std::vector<depth_to_space_test_params>{
+        depth_to_space_test_params{CASE_DEPTH_TO_SPACE_F32_1, 2, 6},
+        depth_to_space_test_params{CASE_DEPTH_TO_SPACE_F32_2, 2, 6},
+        depth_to_space_test_params{CASE_DEPTH_TO_SPACE_F16_1, 2, 6},
+        depth_to_space_test_params{CASE_DEPTH_TO_SPACE_F16_2, 2, 6},
+        depth_to_space_test_params{CASE_DEPTH_TO_SPACE_U8_1, 2, 6},
+        depth_to_space_test_params{CASE_DEPTH_TO_SPACE_U8_2, 2, 6},
+        depth_to_space_test_params{CASE_DEPTH_TO_SPACE_I8_1, 2, 6},
+        depth_to_space_test_params{CASE_DEPTH_TO_SPACE_I8_2, 2, 6},
+    }), );
+
+
+class depth_to_space_scale_act_eltw : public DepthToSpaceFusingsTest {};
+TEST_P(depth_to_space_scale_act_eltw, basic) {
+    auto p = GetParam();
+    create_topologies(input_layout("input", get_input_layout(p)),
+                      depth_to_space("depth_to_space", "input", p.block_size, p.mode),
+                      data("scale1_data", get_mem(get_per_channel_layout(p), -0.125f)),
+                      scale("scale1", "depth_to_space", "scale1_data"),
+                      activation("actv1", "scale1", activation_func::relu),
+                      data("eltw_data", get_mem(layout(p.default_type, p.input_format, p.output_size))),
+                      eltwise("eltw", {"actv1", "eltw_data"}, eltwise_mode::sum, p.default_type),
+                      reorder("reorder_bfyx", "eltw", format::bfyx, data_types::f32));
+
+    tolerance = 1e-5f;
+    execute(p);
+}
+
+INSTANTIATE_TEST_CASE_P(
+    fusings_gpu,
+    depth_to_space_scale_act_eltw,
+    ::testing::ValuesIn(std::vector<depth_to_space_test_params>{
+        depth_to_space_test_params{CASE_DEPTH_TO_SPACE_F32_1, 2, 5},
+        depth_to_space_test_params{CASE_DEPTH_TO_SPACE_F32_2, 2, 5},
+        depth_to_space_test_params{CASE_DEPTH_TO_SPACE_F16_1, 2, 5},
+        depth_to_space_test_params{CASE_DEPTH_TO_SPACE_F16_2, 2, 5},
+        depth_to_space_test_params{CASE_DEPTH_TO_SPACE_U8_1, 2, 5},
+        depth_to_space_test_params{CASE_DEPTH_TO_SPACE_U8_2, 2, 5},
+        depth_to_space_test_params{CASE_DEPTH_TO_SPACE_I8_1, 2, 5},
+        depth_to_space_test_params{CASE_DEPTH_TO_SPACE_I8_2, 2, 5},
+    }), );
+
+/* ----------------------------------------------------------------------------------------------------- */
+/* ------------------------------------------ Gather cases --------------------------------------------- */
+/* ----------------------------------------------------------------------------------------------------- */
+struct gather_test_params {
+    tensor dictionary_shape;
+    tensor indices_shape;
+    tensor out_shape;
+    cldnn::gather::gather_axis axis;
+    data_types data_type;
+    format input_format;
+    data_types default_type;
+    format default_format;
+    size_t expected_fused_primitives;
+    size_t expected_not_fused_primitives;
+};
+
+#define CASE_GATHER_FP32_1 {2, 3, 1, 4}, {4, 1, 1, 1}, {4, 3, 1, 4}, cldnn::gather::gather_axis::along_b, data_types::f32, format::bfyx, data_types::f32, format::bfyx
+#define CASE_GATHER_FP32_2 {3, 2, 1, 2}, {2, 3, 1, 1}, {2, 3, 2, 2}, cldnn::gather::gather_axis::along_b, data_types::f32, format::bfyx, data_types::f32, format::bfyx
+#define CASE_GATHER_FP32_3 {3, 1, 1, 2}, {2, 1, 1, 1}, {3, 2, 1, 2}, cldnn::gather::gather_axis::along_f, data_types::f32, format::bfyx, data_types::f32, format::bfyx
+#define CASE_GATHER_FP32_4 {5, 3, 2, 2}, {3, 1, 1, 1}, {5, 2, 2, 3}, cldnn::gather::gather_axis::along_y, data_types::f32, format::bfyx, data_types::f32, format::bfyx
+#define CASE_GATHER_FP32_5 {2, 3, 1, 2}, {1, 3, 1, 1}, {2, 3, 3, 1}, cldnn::gather::gather_axis::along_y, data_types::f32, format::bfyx, data_types::f32, format::bfyx
+
+#define CASE_GATHER_FP16_1 {2, 3, 1, 4}, {4, 1, 1, 1}, {4, 3, 1, 4}, cldnn::gather::gather_axis::along_b, data_types::f16, format::bfyx, data_types::f16, format::bfyx
+#define CASE_GATHER_FP16_2 {3, 2, 1, 2}, {2, 3, 1, 1}, {2, 3, 2, 2}, cldnn::gather::gather_axis::along_b, data_types::f16, format::bfyx, data_types::f16, format::bfyx
+#define CASE_GATHER_FP16_3 {3, 1, 1, 2}, {2, 1, 1, 1}, {3, 2, 1, 2}, cldnn::gather::gather_axis::along_f, data_types::f16, format::bfyx, data_types::f16, format::bfyx
+#define CASE_GATHER_FP16_4 {5, 3, 2, 2}, {3, 1, 1, 1}, {5, 2, 2, 3}, cldnn::gather::gather_axis::along_y, data_types::f16, format::bfyx, data_types::f16, format::bfyx
+#define CASE_GATHER_FP16_5 {2, 3, 1, 2}, {1, 3, 1, 1}, {2, 3, 3, 1}, cldnn::gather::gather_axis::along_y, data_types::f16, format::bfyx, data_types::f16, format::bfyx
+
+class GatherPrimitiveFusingTest : public ::BaseFusingTest<gather_test_params> {
+public:
+    void execute(gather_test_params& p) {
+        auto input_prim = get_mem(get_input_layout(p));
+        network network_not_fused(this->engine, this->topology_non_fused, bo_not_fused);
+        network network_fused(this->engine, this->topology_fused, bo_fused);
+        network_fused.set_input_data("input", input_prim);
+        network_not_fused.set_input_data("input", input_prim);
+
+        compare(network_not_fused, network_fused, p);
+    }
+
+    layout get_input_layout(gather_test_params& p) {
+        return layout{ p.data_type, p.input_format, p.dictionary_shape };
+    }
+
+    layout get_indices_layout(gather_test_params& p) {
+        return layout{ p.data_type, format::bfyx, p.indices_shape };
+    }
+
+    size_t get_axis_dim(gather_test_params& p) {
+        switch (p.axis) {
+            case cldnn::gather::gather_axis::along_x:
+                return p.dictionary_shape.spatial[0];
+            case cldnn::gather::gather_axis::along_y:
+                return p.dictionary_shape.spatial[1];
+            case cldnn::gather::gather_axis::along_f:
+                return p.dictionary_shape.feature[0];
+            case cldnn::gather::gather_axis::along_b:
+                return p.dictionary_shape.batch[0];
+            default:
+                return 1;
+        }
+    }
+
+    layout get_per_channel_layout(gather_test_params& p) {
+        return layout{ p.default_type, p.default_format, tensor{1, p.out_shape.feature[0], 1, 1} };
+    }
+};
+
+class gather_quantize : public GatherPrimitiveFusingTest {};
+TEST_P(gather_quantize, basic) {
+    auto p = GetParam();
+    create_topologies(input_layout("input", get_input_layout(p)),
+        data("gather_indices", get_mem(get_indices_layout(p), 0, static_cast<int>(get_axis_dim(p)))),
+        data("in_lo", get_mem(get_per_channel_layout(p), min_random, 0)),
+        data("in_hi", get_mem(get_per_channel_layout(p), 1, max_random)),
+        data("out_lo", get_mem(get_single_element_layout(p), -127)),
+        data("out_hi", get_mem(get_single_element_layout(p), 127)),
+        gather("gather_prim", "input", "gather_indices", p.axis, p.out_shape),
+        quantize("quantize", "gather_prim", "in_lo", "in_hi", "out_lo", "out_hi", 255, data_types::i8),
+        reorder("reorder_bfyx", "quantize", p.default_format, data_types::f32)
+    );
+
+    tolerance = 1.f;
+    execute(p);
+}
+
+INSTANTIATE_TEST_CASE_P(fusings_gpu, gather_quantize,
+    ::testing::ValuesIn(std::vector<gather_test_params>{
+                        gather_test_params{ CASE_GATHER_FP32_1, 2, 3 },
+                        gather_test_params{ CASE_GATHER_FP32_2, 2, 3 },
+                        gather_test_params{ CASE_GATHER_FP32_3, 2, 3 },
+                        gather_test_params{ CASE_GATHER_FP32_4, 2, 3 },
+                        gather_test_params{ CASE_GATHER_FP32_5, 2, 3 },
+
+                        gather_test_params{ CASE_GATHER_FP16_1, 2, 3 },
+                        gather_test_params{ CASE_GATHER_FP16_2, 2, 3 },
+                        gather_test_params{ CASE_GATHER_FP16_3, 2, 3 },
+                        gather_test_params{ CASE_GATHER_FP16_4, 2, 3 },
+                        gather_test_params{ CASE_GATHER_FP16_5, 2, 3 },
+}), );
+
+class gather_scale_activation : public GatherPrimitiveFusingTest {};
+TEST_P(gather_scale_activation, basic) {
+    auto p = GetParam();
+    create_topologies(input_layout("input", get_input_layout(p)),
+        data("gather_indices", get_mem(get_indices_layout(p), 0, static_cast<int>(get_axis_dim(p)))),
+        data("scale_data", get_mem(get_per_channel_layout(p), -10, 10)),
+        gather("gather_prim", "input", "gather_indices", p.axis, p.out_shape),
+        activation("activation", "gather_prim", activation_func::abs),
+        scale("scale", "activation", "scale_data"),
+        reorder("reorder_bfyx", "scale", p.default_format, data_types::f32)
+    );
+
+    tolerance = 1e-5f;
+    execute(p);
+}
+
+INSTANTIATE_TEST_CASE_P(fusings_gpu, gather_scale_activation,
+    ::testing::ValuesIn(std::vector<gather_test_params>{
+                        gather_test_params{ CASE_GATHER_FP32_1, 2, 4 },
+                        gather_test_params{ CASE_GATHER_FP32_2, 2, 4 },
+                        gather_test_params{ CASE_GATHER_FP32_3, 2, 4 },
+                        gather_test_params{ CASE_GATHER_FP32_4, 2, 4 },
+                        gather_test_params{ CASE_GATHER_FP32_5, 2, 4 },
+
+                        gather_test_params{ CASE_GATHER_FP16_1, 2, 4 },
+                        gather_test_params{ CASE_GATHER_FP16_2, 2, 4 },
+                        gather_test_params{ CASE_GATHER_FP16_3, 2, 4 },
+                        gather_test_params{ CASE_GATHER_FP16_4, 2, 4 },
+                        gather_test_params{ CASE_GATHER_FP16_5, 2, 4 },
+}), );
+
 /* ------------------------------------------------------------------------------------------------------------ */
 /* ---------------------------------------- PERMUTE FUSE cases -------------------------------------------------- */
 /* ------------------------------------------------------------------------------------------------------------ */
@@ -4161,7 +4614,7 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, permute_activation_scale_eltwise,
                             permute_params{CASE_PERMUTE_F32_5, 2, 5},
                             permute_params{CASE_PERMUTE_F32_6, 2, 5},
                             permute_params{CASE_PERMUTE_F32_7, 2, 5},
-                            
+
                             permute_params{CASE_PERMUTE_F16_0, 2, 5},
                             permute_params{CASE_PERMUTE_F16_1, 2, 5},
                             permute_params{CASE_PERMUTE_F16_2, 2, 5},
@@ -4169,55 +4622,51 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, permute_activation_scale_eltwise,
                             permute_params{CASE_PERMUTE_F16_4, 2, 5},
                             permute_params{CASE_PERMUTE_F16_5, 2, 5},
                             permute_params{CASE_PERMUTE_F16_6, 2, 5},
-                            
+
                             permute_params{CASE_PERMUTE_S8_0, 2, 5},
                             permute_params{CASE_PERMUTE_S8_1, 2, 5},
                             permute_params{CASE_PERMUTE_S8_2, 2, 5},
                             permute_params{CASE_PERMUTE_S8_3, 2, 5},
-                                                                 
+
                             permute_params{CASE_PERMUTE_U8_0, 2, 5},
                             permute_params{CASE_PERMUTE_U8_1, 2, 5},
                             permute_params{CASE_PERMUTE_U8_2, 2, 5},
                             permute_params{CASE_PERMUTE_U8_3, 2, 5},
-                            
+
                             permute_params{CASE_PERMUTE_F32_3D_0, 2, 5},
                             permute_params{CASE_PERMUTE_F32_3D_1, 2, 5},
                             permute_params{CASE_PERMUTE_F32_3D_2, 2, 5},
                             permute_params{CASE_PERMUTE_F32_3D_3, 2, 5},
                             permute_params{CASE_PERMUTE_F32_3D_4, 2, 5},
-                                
+
                             permute_params{CASE_PERMUTE_F16_3D_0, 2, 5},
                             permute_params{CASE_PERMUTE_F16_3D_1, 2, 5},
                             permute_params{CASE_PERMUTE_F16_3D_2, 2, 5},
                             permute_params{CASE_PERMUTE_F16_3D_3, 2, 5},
                             permute_params{CASE_PERMUTE_F16_3D_4, 2, 5},
-                            
+
                             permute_params{CASE_PERMUTE_S8_3D_0, 2, 5},
                             permute_params{CASE_PERMUTE_S8_3D_1, 2, 5},
                             permute_params{CASE_PERMUTE_S8_3D_2, 2, 5},
                             permute_params{CASE_PERMUTE_S8_3D_3, 2, 5},
-                                                                 
+
                             permute_params{CASE_PERMUTE_U8_3D_0, 2, 5},
                             permute_params{CASE_PERMUTE_U8_3D_1, 2, 5},
                             permute_params{CASE_PERMUTE_U8_3D_2, 2, 5},
                             permute_params{CASE_PERMUTE_U8_3D_3, 2, 5},
                         }), );
 
-class permute_scale_eltwise_quant_u8: public PermuteFusingTest {};
-TEST_P(permute_scale_eltwise_quant_u8, vector_ops) {
+class permute_quant_u8: public PermuteFusingTest {};
+TEST_P(permute_quant_u8, basic) {
         auto p = GetParam();
         create_topologies(
         input_layout("input", get_input_layout(p)),
-        data("scale_data", get_mem(get_per_channel_layout(p))),
-        data("eltwise_data", get_mem(layout{ p.data_type, p.input_format, p.out_shape})),
-        data("in_lo", get_mem(get_per_channel_layout(p), min_random, 0)),
-        data("in_hi", get_mem(get_per_channel_layout(p), 1, max_random)),
+        data("in_lo", get_mem(get_single_element_layout(p), min_random, 0)),
+        data("in_hi", get_mem(get_single_element_layout(p), 1, max_random)),
         data("out_lo", get_mem(get_single_element_layout(p), 0)),
         data("out_hi", get_mem(get_single_element_layout(p), 255)),
         permute("permute", "input", p.permute_order),
-        scale("scale1", "permute", "scale_data"),
-        eltwise("eltwise", "scale1", "eltwise_data", eltwise_mode::sum),
-        quantize("quant", "eltwise", "in_lo", "in_hi", "out_lo", "out_hi", 256, data_types::u8),
+        quantize("quant", "permute", "in_lo", "in_hi", "out_lo", "out_hi", 256, data_types::u8),
         reorder("reorder_bfyx", "quant", p.default_format, p.default_type)
         );
 
@@ -4225,56 +4674,13 @@ TEST_P(permute_scale_eltwise_quant_u8, vector_ops) {
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu, permute_scale_eltwise_quant_u8,
+INSTANTIATE_TEST_CASE_P(fusings_gpu, permute_quant_u8,
                         ::testing::ValuesIn(std::vector<permute_params> {
-                            permute_params{CASE_PERMUTE_F32_0, 2, 5},
-                            permute_params{CASE_PERMUTE_F32_1, 2, 5},
-                            permute_params{CASE_PERMUTE_F32_2, 2, 5},
-                            permute_params{CASE_PERMUTE_F32_3, 2, 5},
-                            permute_params{CASE_PERMUTE_F32_4, 2, 5},
-                            permute_params{CASE_PERMUTE_F32_5, 2, 5},
-                            permute_params{CASE_PERMUTE_F32_6, 2, 5},
-                            permute_params{CASE_PERMUTE_F32_7, 2, 5},
-                                                                  
-                            permute_params{CASE_PERMUTE_F16_0, 2, 5},
-                            permute_params{CASE_PERMUTE_F16_1, 2, 5},
-                            permute_params{CASE_PERMUTE_F16_2, 2, 5},
-                            permute_params{CASE_PERMUTE_F16_3, 2, 5},
-                            permute_params{CASE_PERMUTE_F16_4, 2, 5},
-                            permute_params{CASE_PERMUTE_F16_5, 2, 5},
-                            permute_params{CASE_PERMUTE_F16_6, 2, 5},
+                            permute_params{CASE_PERMUTE_F32_0, 2, 3},
+                            permute_params{CASE_PERMUTE_F32_1, 2, 3},
 
-                            permute_params{CASE_PERMUTE_S8_0, 2, 5},
-                            permute_params{CASE_PERMUTE_S8_1, 2, 5},
-                            permute_params{CASE_PERMUTE_S8_2, 2, 5},
-                            permute_params{CASE_PERMUTE_S8_3, 2, 5},
-                                                                 
-                            permute_params{CASE_PERMUTE_U8_0, 2, 5},
-                            permute_params{CASE_PERMUTE_U8_1, 2, 5},
-                            permute_params{CASE_PERMUTE_U8_2, 2, 5},
-                            permute_params{CASE_PERMUTE_U8_3, 2, 5},
-                            
-                            permute_params{CASE_PERMUTE_F32_3D_0, 2, 5},
-                            permute_params{CASE_PERMUTE_F32_3D_1, 2, 5},
-                            permute_params{CASE_PERMUTE_F32_3D_2, 2, 5},
-                            permute_params{CASE_PERMUTE_F32_3D_3, 2, 5},
-                            permute_params{CASE_PERMUTE_F32_3D_4, 2, 5},
-                                                                     
-                            permute_params{CASE_PERMUTE_F16_3D_0, 2, 5},
-                            permute_params{CASE_PERMUTE_F16_3D_1, 2, 5},
-                            permute_params{CASE_PERMUTE_F16_3D_2, 2, 5},
-                            permute_params{CASE_PERMUTE_F16_3D_3, 2, 5},
-                            permute_params{CASE_PERMUTE_F16_3D_4, 2, 5},
-
-                            permute_params{CASE_PERMUTE_S8_3D_0, 2, 5},
-                            permute_params{CASE_PERMUTE_S8_3D_1, 2, 5},
-                            permute_params{CASE_PERMUTE_S8_3D_2, 2, 5},
-                            permute_params{CASE_PERMUTE_S8_3D_3, 2, 5},
-                                                                    
-                            permute_params{CASE_PERMUTE_U8_3D_0, 2, 5},
-                            permute_params{CASE_PERMUTE_U8_3D_1, 2, 5},
-                            permute_params{CASE_PERMUTE_U8_3D_2, 2, 5},
-                            permute_params{CASE_PERMUTE_U8_3D_3, 2, 5},
+                            permute_params{CASE_PERMUTE_F16_0, 2, 3},
+                            permute_params{CASE_PERMUTE_F16_1, 2, 3},
                         }), );
 
 class permute_scale_actv_eltw_scale_actv_quant_i8: public PermuteFusingTest {};
@@ -4321,19 +4727,19 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, permute_scale_actv_eltw_scale_actv_quant_i8
                             permute_params{CASE_PERMUTE_F16_4, 2, 8},
                             permute_params{CASE_PERMUTE_F16_5, 2, 8},
                             permute_params{CASE_PERMUTE_F16_6, 2, 8},
-                                
+
                             permute_params{CASE_PERMUTE_S8_0, 2, 8},
                             permute_params{CASE_PERMUTE_S8_1, 2, 8},
                             permute_params{CASE_PERMUTE_S8_2, 2, 8},
                             permute_params{CASE_PERMUTE_S8_3, 2, 8},
-                                                                 
+
                             permute_params{CASE_PERMUTE_U8_0, 2, 8},
                             permute_params{CASE_PERMUTE_U8_1, 2, 8},
                             permute_params{CASE_PERMUTE_U8_2, 2, 8},
                             permute_params{CASE_PERMUTE_U8_3, 2, 8},
-                             
+
                             permute_params{CASE_PERMUTE_F32_3D_0, 2, 8},
-                            permute_params{CASE_PERMUTE_F32_3D_1, 2, 8}, 
+                            permute_params{CASE_PERMUTE_F32_3D_1, 2, 8},
                             permute_params{CASE_PERMUTE_F32_3D_2, 2, 8},
                             permute_params{CASE_PERMUTE_F32_3D_3, 2, 8},
                             permute_params{CASE_PERMUTE_F32_3D_4, 2, 8},
@@ -4348,7 +4754,7 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, permute_scale_actv_eltw_scale_actv_quant_i8
                             permute_params{CASE_PERMUTE_S8_3D_1, 2, 8},
                             permute_params{CASE_PERMUTE_S8_3D_2, 2, 8},
                             permute_params{CASE_PERMUTE_S8_3D_3, 2, 8},
-                                                                    
+
                             permute_params{CASE_PERMUTE_U8_3D_0, 2, 8},
                             permute_params{CASE_PERMUTE_U8_3D_1, 2, 8},
                             permute_params{CASE_PERMUTE_U8_3D_2, 2, 8},
@@ -4387,7 +4793,7 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, permute_scale_eltwise_actv_scale_actv,
                             permute_params{CASE_PERMUTE_F32_5, 2, 7},
                             permute_params{CASE_PERMUTE_F32_6, 2, 7},
                             permute_params{CASE_PERMUTE_F32_7, 2, 7},
-                                                                  
+
                             permute_params{CASE_PERMUTE_F16_0, 2, 7},
                             permute_params{CASE_PERMUTE_F16_1, 2, 7},
                             permute_params{CASE_PERMUTE_F16_2, 2, 7},
@@ -4395,36 +4801,102 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, permute_scale_eltwise_actv_scale_actv,
                             permute_params{CASE_PERMUTE_F16_4, 2, 7},
                             permute_params{CASE_PERMUTE_F16_5, 2, 7},
                             permute_params{CASE_PERMUTE_F16_6, 2, 7},
-                            
+
                             permute_params{CASE_PERMUTE_S8_0, 2, 7},
                             permute_params{CASE_PERMUTE_S8_1, 2, 7},
                             permute_params{CASE_PERMUTE_S8_2, 2, 7},
                             permute_params{CASE_PERMUTE_S8_3, 2, 7},
-                                                                 
+
                             permute_params{CASE_PERMUTE_U8_0, 2, 7},
                             permute_params{CASE_PERMUTE_U8_1, 2, 7},
                             permute_params{CASE_PERMUTE_U8_2, 2, 7},
                             permute_params{CASE_PERMUTE_U8_3, 2, 7},
-                            
+
                             permute_params{CASE_PERMUTE_F32_3D_0, 2, 7},
                             permute_params{CASE_PERMUTE_F32_3D_1, 2, 7},
                             permute_params{CASE_PERMUTE_F32_3D_2, 2, 7},
                             permute_params{CASE_PERMUTE_F32_3D_3, 2, 7},
                             permute_params{CASE_PERMUTE_F32_3D_4, 2, 7},
-                                                                     
+
                             permute_params{CASE_PERMUTE_F16_3D_0, 2, 7},
                             permute_params{CASE_PERMUTE_F16_3D_1, 2, 7},
                             permute_params{CASE_PERMUTE_F16_3D_2, 2, 7},
                             permute_params{CASE_PERMUTE_F16_3D_3, 2, 7},
                             permute_params{CASE_PERMUTE_F16_3D_4, 2, 7},
-                            
+
                             permute_params{CASE_PERMUTE_S8_3D_0, 2, 7},
                             permute_params{CASE_PERMUTE_S8_3D_1, 2, 7},
                             permute_params{CASE_PERMUTE_S8_3D_2, 2, 7},
                             permute_params{CASE_PERMUTE_S8_3D_3, 2, 7},
-                                                                    
+
                             permute_params{CASE_PERMUTE_U8_3D_0, 2, 7},
                             permute_params{CASE_PERMUTE_U8_3D_1, 2, 7},
                             permute_params{CASE_PERMUTE_U8_3D_2, 2, 7},
                             permute_params{CASE_PERMUTE_U8_3D_3, 2, 7},
+                        }), );
+
+class NormalizeFusingTest : public ::BaseFusingTest<normalize_test_params> {
+public:
+    void execute(normalize_test_params& p) {
+        auto input_prim = get_mem(get_input_layout(p));
+        network network_not_fused(this->engine, this->topology_non_fused, bo_not_fused);
+        network network_fused(this->engine, this->topology_fused, bo_fused);
+        network_fused.set_input_data("input", input_prim);
+        network_not_fused.set_input_data("input", input_prim);
+
+        compare(network_not_fused, network_fused, p);
+    }
+    layout get_input_layout(normalize_test_params& p) { return layout{p.data_type, p.input_format, p.in_shape}; }
+    layout get_per_channel_layout(normalize_test_params& p) {
+        return layout{p.default_type, p.default_format, tensor{1, p.in_shape.feature[0], 1, 1}};
+    }
+    layout get_weights_layout(normalize_test_params& p) { return layout {p.default_type, p.default_format, tensor{1, p.in_shape.feature[0], 1, 1}}; }
+};
+
+class normalize_i8_quantize : public NormalizeFusingTest {};
+TEST_P(normalize_i8_quantize, basic) {
+    auto p = GetParam();
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        data("weights", get_mem(get_weights_layout(p))),
+        data("in_lo", get_mem(get_single_element_layout(p), min_random, 0)),
+        data("in_hi", get_mem(get_single_element_layout(p), 1, max_random)),
+        data("out_lo", get_mem(get_single_element_layout(p), 0)),
+        data("out_hi", get_mem(get_single_element_layout(p), 255)),
+        normalize("normalizel2", "input", "weights", p.across_spatial),
+        quantize("quantize", "normalizel2", "in_lo", "in_hi", "out_lo", "out_hi", 255, data_types::u8),
+        reorder("output_reorder", "quantize", p.default_format, data_types::f32));
+
+    tolerance = 1;
+    execute(p);
+}
+
+INSTANTIATE_TEST_CASE_P(fusings_gpu,
+                        normalize_i8_quantize,
+                        ::testing::ValuesIn(std::vector<normalize_test_params>{
+                            normalize_test_params{CASE_NORMALIZE_I8_1, false, 2, 3},
+                            normalize_test_params{CASE_NORMALIZE_I8_1, true, 2, 3},
+                        }), );
+
+class normalize_i8_float : public NormalizeFusingTest {};
+TEST_P(normalize_i8_float, basic) {
+    auto p = GetParam();
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        data("weights", get_mem(get_weights_layout(p))),
+        data("scale_data", get_mem(get_per_channel_layout(p), 1.0f/255)),
+        normalize("normalizel2", "input", "weights", p.across_spatial),
+        scale("scale", "normalizel2", "scale_data"),
+        activation("activation", "scale", activation_func::abs),
+        reorder("output_reorder", "activation", p.default_format, data_types::f32));
+
+    tolerance = 1e-05f;
+    execute(p);
+}
+
+INSTANTIATE_TEST_CASE_P(fusings_gpu,
+                        normalize_i8_float,
+                        ::testing::ValuesIn(std::vector<normalize_test_params>{
+                            normalize_test_params{CASE_NORMALIZE_I8_1, false, 2, 4},
+                            normalize_test_params{CASE_NORMALIZE_I8_1, true, 2, 4},
                         }), );

@@ -79,7 +79,7 @@ function(ie_build_samples)
                 MINGW64 CMAKE_BUILD_TYPE CMAKE_MACOSX_RPATH)
         unset(${var})
     endforeach()
-
+    include(sanitizer)
     add_subdirectory(samples)
 endfunction()
 
@@ -96,9 +96,7 @@ if (ENABLE_PYTHON)
     add_subdirectory(ie_bridges/python)
 endif()
 
-if (ENABLE_C)
-    add_subdirectory(ie_bridges/c)
-endif()
+add_subdirectory(ie_bridges/c)
 
 add_cpplint_report_target()
 

@@ -55,7 +55,7 @@ INFERENCE_PLUGIN_API(StatusCode) InferenceEngine::CreateReader(IReader*& reader,
         reader = new IRReader();
         return OK;
     }
-    catch (std::exception &ex) {
+    catch (std::exception &) {
         return GENERAL_ERROR;
     }
 }

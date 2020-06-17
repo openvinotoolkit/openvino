@@ -60,8 +60,9 @@ shared_ptr<Node>
     op::v1::NonMaxSuppression::clone_with_new_inputs(const OutputVector& new_args) const
 {
     check_new_args_count(this, new_args);
-    NODE_VALIDATION_CHECK(
-        this, new_args.size() >= 2 && new_args.size() <= 5, "Number of inputs must be 2, 3, 4 or 5");
+    NODE_VALIDATION_CHECK(this,
+                          new_args.size() >= 2 && new_args.size() <= 5,
+                          "Number of inputs must be 2, 3, 4 or 5");
     if (new_args.size() == 5)
     {
         return make_shared<op::v1::NonMaxSuppression>(new_args.at(0),
@@ -144,7 +145,8 @@ void op::v1::NonMaxSuppression::validate_and_infer_types()
                           "Expected a 3D tensor for the 'scores' input. Got: ",
                           scores_ps);
 
-    if (get_inputs().size() >= 3) {
+    if (get_inputs().size() >= 3)
+    {
         const auto max_boxes_ps = get_input_partial_shape(2);
         NODE_VALIDATION_CHECK(this,
                               max_boxes_ps.is_dynamic() || is_scalar(max_boxes_ps.to_shape()),
@@ -152,15 +154,18 @@ void op::v1::NonMaxSuppression::validate_and_infer_types()
                               max_boxes_ps);
     }
 
-    if (get_inputs().size() >= 4) {
+    if (get_inputs().size() >= 4)
+    {
         const auto iou_threshold_ps = get_input_partial_shape(3);
         NODE_VALIDATION_CHECK(this,
-                              iou_threshold_ps.is_dynamic() || is_scalar(iou_threshold_ps.to_shape()),
+                              iou_threshold_ps.is_dynamic() ||
+                                  is_scalar(iou_threshold_ps.to_shape()),
                               "Expected a scalar for the 'iou_threshold' input. Got: ",
                               iou_threshold_ps);
     }
 
-    if (get_inputs().size() >= 5) {
+    if (get_inputs().size() >= 5)
+    {
         const auto score_threshold_ps = get_input_partial_shape(4);
         NODE_VALIDATION_CHECK(this,
                               score_threshold_ps.is_dynamic() ||
@@ -284,8 +289,9 @@ shared_ptr<Node>
     op::v3::NonMaxSuppression::clone_with_new_inputs(const OutputVector& new_args) const
 {
     check_new_args_count(this, new_args);
-    NODE_VALIDATION_CHECK(
-        this, new_args.size() >= 2 && new_args.size() <= 5, "Number of inputs must be 2, 3, 4 or 5");
+    NODE_VALIDATION_CHECK(this,
+                          new_args.size() >= 2 && new_args.size() <= 5,
+                          "Number of inputs must be 2, 3, 4 or 5");
     if (new_args.size() == 5)
     {
         return make_shared<op::v3::NonMaxSuppression>(new_args.at(0),
@@ -371,7 +377,8 @@ void op::v3::NonMaxSuppression::validate_and_infer_types()
                           "Expected a 3D tensor for the 'scores' input. Got: ",
                           scores_ps);
 
-    if (get_inputs().size() >= 3) {
+    if (get_inputs().size() >= 3)
+    {
         const auto max_boxes_ps = get_input_partial_shape(2);
         NODE_VALIDATION_CHECK(this,
                               max_boxes_ps.is_dynamic() || is_scalar(max_boxes_ps.to_shape()),
@@ -379,15 +386,18 @@ void op::v3::NonMaxSuppression::validate_and_infer_types()
                               max_boxes_ps);
     }
 
-    if (get_inputs().size() >= 4) {
+    if (get_inputs().size() >= 4)
+    {
         const auto iou_threshold_ps = get_input_partial_shape(3);
         NODE_VALIDATION_CHECK(this,
-                              iou_threshold_ps.is_dynamic() || is_scalar(iou_threshold_ps.to_shape()),
+                              iou_threshold_ps.is_dynamic() ||
+                                  is_scalar(iou_threshold_ps.to_shape()),
                               "Expected a scalar for the 'iou_threshold' input. Got: ",
                               iou_threshold_ps);
     }
 
-    if (get_inputs().size() >= 5) {
+    if (get_inputs().size() >= 5)
+    {
         const auto score_threshold_ps = get_input_partial_shape(4);
         NODE_VALIDATION_CHECK(this,
                               score_threshold_ps.is_dynamic() ||
