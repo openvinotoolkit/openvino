@@ -33,6 +33,8 @@ std::string TransposeLayerTest::getTestCaseName(testing::TestParamInfo<transpose
 }
 
 void TransposeLayerTest::SetUp() {
+    // TODO: Issue 32756
+    // Failed to create function on SetUp stage with some parameters
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     SetRefMode(LayerTestsUtils::RefMode::CONSTANT_FOLDING);
     std::vector<size_t> inputShape, inputOrder;

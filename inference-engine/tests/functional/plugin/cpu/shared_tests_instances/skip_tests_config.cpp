@@ -27,7 +27,7 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO: failed to downgrade to opset v0 in interpreter backend
         R"(.*Gather.*axis=-1.*)",
         // TODO: Issue 33151
-        R"(.*ReduceLogical.*)",
+        R"(.*Reduce.*type=Logical.*)",
         R"(.*Reduce.*axes=\(1\.-1\).*)",
         R"(.*Reduce.*axes=\(0\.3\)_type=Prod.*)",
     };
