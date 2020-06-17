@@ -54,11 +54,11 @@ jobs:
   - script: git clone https://github.com/google/gtest-parallel.git
     displayName: 'Clone gtest-parallel'
     # 'concat_vector_params.concat_vector_large' fails with gtest-parallel
-  - script: python3 ../gtest-parallel/gtest-parallel $(BIN_DIR)/unit-test --workers=$(WORKERS_NUMBER) --print_test_times --dump_json_test_results=unit-test.json --gtest_filter=-backend_api.config_unsupported:*IE_GPU*:*concat_vector_params.concat_vector_large* -- --gtest_print_time=1
+  - script: python3 ../gtest-parallel/gtest-parallel $(BIN_DIR)/unit-test --workers=2 --print_test_times --dump_json_test_results=unit-test.json --gtest_filter=-backend_api.config_unsupported:*IE_GPU*:*concat_vector_params.concat_vector_large* -- --gtest_print_time=1
     workingDirectory: dldt-build
     displayName: 'nGraph UT'
     continueOnError: true
-  - script: python3 ../gtest-parallel/gtest-parallel $(BIN_DIR)/InferenceEngineUnitTests --workers=$(WORKERS_NUMBER) --print_test_times --dump_json_test_results=InferenceEngineUnitTests.json -- --gtest_print_time=1
+  - script: python3 ../gtest-parallel/gtest-parallel $(BIN_DIR)/InferenceEngineUnitTests --workers=3 --print_test_times --dump_json_test_results=InferenceEngineUnitTests.json -- --gtest_print_time=1
     workingDirectory: dldt-build
     displayName: 'IE UT old'
     continueOnError: true
@@ -82,7 +82,7 @@ jobs:
     workingDirectory: dldt-build
     displayName: 'IE FuncTests'
     continueOnError: false
-  - script: python3 ../gtest-parallel/gtest-parallel $(BIN_DIR)/cpuFuncTests --workers=$(WORKERS_NUMBER) --print_test_times --dump_json_test_results=cpuFuncTests.json -- --gtest_print_time=1
+  - script: python3 ../gtest-parallel/gtest-parallel $(BIN_DIR)/cpuFuncTests --workers=2 --print_test_times --dump_json_test_results=cpuFuncTests.json -- --gtest_print_time=1
     workingDirectory: dldt-build
     displayName: 'CPU FuncTests'
     continueOnError: true
@@ -95,7 +95,7 @@ jobs:
   - script: |
       export DATA_PATH=`pwd`/../testdata
       export MODELS_PATH=`pwd`/../testdata
-      python3 ../gtest-parallel/gtest-parallel $(BIN_DIR)/MklDnnFunctionalTests --workers=$(WORKERS_NUMBER) --print_test_times --dump_json_test_results=MklDnnFunctionalTests.json --gtest_filter=-smoke_MobileNet/ModelTransformationsTest.LPT/mobilenet_v2_tf_depthwise_batch1_inPluginDisabled_inTestDisabled_asymmetric* -- --gtest_print_time=1
+      python3 ../gtest-parallel/gtest-parallel $(BIN_DIR)/MklDnnFunctionalTests --workers=4 --print_test_times --dump_json_test_results=MklDnnFunctionalTests.json --gtest_filter=-smoke_MobileNet/ModelTransformationsTest.LPT/mobilenet_v2_tf_depthwise_batch1_inPluginDisabled_inTestDisabled_asymmetric* -- --gtest_print_time=1
     workingDirectory: dldt-build
     displayName: 'MklDnnFunctionalTests'
     continueOnError: true
@@ -125,7 +125,7 @@ jobs:
   pool:
     vmImage: 'macOS-10.15'
   variables:
-    WORKERS_NUMBER: 3
+    WORKERS_NUMBER: 2
     BUILD_TYPE: Release
     BIN_DIR: ../bin/intel64/$(BUILD_TYPE)
   steps:
@@ -196,7 +196,7 @@ jobs:
     workingDirectory: dldt-build
     displayName: 'IE FuncTests'
     continueOnError: false
-  - script: python3 ../gtest-parallel/gtest-parallel $(BIN_DIR)/cpuFuncTests --workers=$(WORKERS_NUMBER) --print_test_times --dump_json_test_results=cpuFuncTests.json -- --gtest_print_time=1
+  - script: python3 ../gtest-parallel/gtest-parallel $(BIN_DIR)/cpuFuncTests --workers=1 --print_test_times --dump_json_test_results=cpuFuncTests.json -- --gtest_print_time=1
     workingDirectory: dldt-build
     displayName: 'CPU FuncTests'
     continueOnError: true
@@ -275,13 +275,13 @@ jobs:
     displayName: 'Clone gtest-parallel'
   - script: |
       set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
-      python $(BUILD_DIR)\gtest-parallel\gtest-parallel $(BIN_DIR)\unit-test --workers=$(WORKERS_NUMBER) --print_test_times --dump_json_test_results=unit-test.json --gtest_filter=-backend_api.config_unsupported:*IE_GPU* -- --gtest_print_time=1
+      python $(BUILD_DIR)\gtest-parallel\gtest-parallel $(BIN_DIR)\unit-test --workers=2 --print_test_times --dump_json_test_results=unit-test.json --gtest_filter=-backend_api.config_unsupported:*IE_GPU*:*concat_vector_params.concat_vector_large* -- --gtest_print_time=1
     workingDirectory: dldt-build
     displayName: 'nGraph UT'
     continueOnError: true
   - script: |
       set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
-      python $(BUILD_DIR)\gtest-parallel\gtest-parallel $(BIN_DIR)\InferenceEngineUnitTests --workers=$(WORKERS_NUMBER) --print_test_times --dump_json_test_results=InferenceEngineUnitTests.json -- --gtest_print_time=1
+      python $(BUILD_DIR)\gtest-parallel\gtest-parallel $(BIN_DIR)\InferenceEngineUnitTests --workers=3 --print_test_times --dump_json_test_results=InferenceEngineUnitTests.json -- --gtest_print_time=1
     workingDirectory: dldt-build
     displayName: 'IE UT old'
     continueOnError: true
@@ -317,7 +317,7 @@ jobs:
     continueOnError: false
   - script: |
       set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
-      python $(BUILD_DIR)\gtest-parallel\gtest-parallel $(BIN_DIR)\cpuFuncTests --workers=$(WORKERS_NUMBER) --print_test_times --dump_json_test_results=cpuFuncTests.json -- --gtest_print_time=1
+      python $(BUILD_DIR)\gtest-parallel\gtest-parallel $(BIN_DIR)\cpuFuncTests --workers=2 --print_test_times --dump_json_test_results=cpuFuncTests.json -- --gtest_print_time=1
     workingDirectory: dldt-build
     displayName: 'CPU FuncTests'
     continueOnError: true
@@ -334,7 +334,7 @@ jobs:
       set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;$(Build.Repository.LocalPath)\inference-engine\temp\opencv_4.3.0\opencv\bin;%PATH%
       set DATA_PATH=$(BUILD_DIR)\testdata
       set MODELS_PATH=$(BUILD_DIR)\testdata
-      python $(BUILD_DIR)\gtest-parallel\gtest-parallel $(BIN_DIR)\MklDnnFunctionalTests --workers=$(WORKERS_NUMBER) --print_test_times --dump_json_test_results=MklDnnFunctionalTests.json --gtest_filter=-smoke_MobileNet/ModelTransformationsTest.LPT/mobilenet_v2_tf_depthwise_batch1_inPluginDisabled_inTestDisabled_asymmetric* -- --gtest_print_time=1
+      python $(BUILD_DIR)\gtest-parallel\gtest-parallel $(BIN_DIR)\MklDnnFunctionalTests --workers=4 --print_test_times --dump_json_test_results=MklDnnFunctionalTests.json --gtest_filter=-smoke_MobileNet/ModelTransformationsTest.LPT/mobilenet_v2_tf_depthwise_batch1_inPluginDisabled_inTestDisabled_asymmetric* -- --gtest_print_time=1
     workingDirectory: dldt-build
     displayName: 'MklDnnFunctionalTests'
     continueOnError: true
