@@ -154,11 +154,12 @@ std::shared_ptr<ngraph::Node> makeMVN(const ngraph::Output<Node> &in,
 
 std::shared_ptr<ngraph::Node> makeSqueeze(const ngraph::Output<Node> &in,
                                           const element::Type &type,
-                                          const std::vector<size_t> &squeeze_indices);
+                                          const std::vector<int> &squeeze_indices,
+                                          bool isScalar = false);
 
 std::shared_ptr<ngraph::Node> makeUnsqueeze(const ngraph::Output<Node> &in,
                                             const element::Type &type,
-                                            const std::vector<size_t> &squeeze_indices);
+                                            const std::vector<int> &squeeze_indices);
 
 std::shared_ptr<ngraph::Node> makeProposal(const ngraph::Output<Node> &class_probs,
                                            const ngraph::Output<Node> &class_logits,

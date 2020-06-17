@@ -7,7 +7,7 @@
 using namespace LayerTestsDefinitions;
 
 namespace {
-    std::vector<std::vector<std::vector<size_t>>> inputs{
+    std::vector<SqueezeShape> inputs{
             {{1, 1, 3}, {0, 1}},
             {{1, 1, 3}, {0}},
             {{1, 1, 3}, {1}},

@@ -11,12 +11,13 @@
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
 
 namespace LayerTestsDefinitions {
+using SqueezeShape = std::pair<std::vector<size_t>, std::vector<int>>;
 
 using ReshapeSqueezeReshapeReluTuple = typename std::tuple<
-        std::vector<std::vector<size_t>>, //input shapes and squeeze_indices
-        InferenceEngine::Precision,       //Network precision
-        std::string,                      //Device name
-        bool>;                            //Squeeze -> true, unsqueeze -> false
+        SqueezeShape,                     // Input shapes & squeeze_indices
+        InferenceEngine::Precision,       // Network precision
+        std::string,                      // Device name
+        bool>;                            // Squeeze -> true, unsqueeze -> false
 
 class ReshapeSqueezeReshapeRelu
         : public testing::WithParamInterface<ReshapeSqueezeReshapeReluTuple>,
