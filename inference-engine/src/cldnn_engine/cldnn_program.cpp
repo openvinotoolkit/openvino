@@ -937,7 +937,7 @@ void Program::CreateWeightAndBiasPrimitives(cldnn::topology& topology,
         cldnn::layout biasesLayout = cldnn::layout(
             DataTypeFromPrecision(pBiasBlob->getTensorDesc().getPrecision()),
             FormatFromLayout(pBiasBlob->getTensorDesc().getLayout()),
-            (cldnn::tensor) cldnn::feature(TensorValue(outFeatures)));
+            (cldnn::tensor) cldnn::batch(TensorValue(outFeatures)));
         cldnn::primitive_id biasID = layer_type_name_ID(layer) + m_biasesTag;
         biasID = CreatePrimitiveFromBlob(topology,
                                          biasID,
@@ -3489,7 +3489,7 @@ void Program::AddConstantBlobInput(cldnn::topology& topology, InferenceEngine::C
         break;
     case 2: constTensor = cldnn::tensor(TensorValue(constDims[0]), TensorValue(constDims[1]), 1, 1);
         break;
-    case 1: constTensor = cldnn::tensor(1, TensorValue(constDims[0]), 1, 1);
+    case 1: constTensor = cldnn::tensor(TensorValue(constDims[0]), 1, 1, 1);
         break;
     case 0:
         if (constBlob->size() != 1)

@@ -368,19 +368,22 @@ convolution_inst::typed_primitive_inst(network_impl& network, convolution_node c
                           "stride/output dims mismatch");
 
     auto split = node.get_split();
+    //std::cout << node.type()->to_string(node) << std::endl;
     for (decltype(split) j = 0; j < split; j++) {
         auto filter_inst = node.weights(j).get_output_layout();  // convolution filter
         if (bias_term()) {
             auto bias_inst = node.bias(j).get_output_layout();
-            CLDNN_ERROR_NOT_EQUAL(node.id(),
-                                  "Bias batch[0]",
-                                  bias_inst.size.batch[0],
-                                  "expected size of batch",
-                                  1,
-                                  "Biases isn't 1D vector.");
+            //std::cout << node.bias(j).type()->to_string(node.bias(j)) << std::endl;
             CLDNN_ERROR_NOT_EQUAL(node.id(),
                                   "Bias feature[0]",
                                   bias_inst.size.feature[0],
+                                  "expected size of feature",
+                                  1,
+                                  "Biases isn't 1D vector.");
+            // treat feature interpretation of batch for 1D bias
+            CLDNN_ERROR_NOT_EQUAL(node.id(),
+                                  "Bias batch[0] as feature",
+                                  bias_inst.size.batch[0],
                                   "expected feature map number",
                                   output_size.feature[0] / split,
                                   "Bias/fm mismatch");
