@@ -455,7 +455,13 @@ if(NGRAPH_ADDRESS_SANITIZER)
 endif()
 
 target_link_libraries(unit-test PRIVATE ngraph_test_util)
-target_link_libraries(unit-test PRIVATE ngraph ngraph_backend libgtest)
+# Link with nGraph which includes reference implementations
+if (NGRAPH_EVALUATE_ENABLE)
+    target_link_libraries(unit-test PRIVATE ngraph)
+else()
+    target_link_libraries(unit-test PRIVATE ngraph_test)
+endif()
+target_link_libraries(unit-test PRIVATE ngraph_backend libgtest)
 
 if (NGRAPH_ONNX_IMPORT_ENABLE)
     target_include_directories(unit-test
