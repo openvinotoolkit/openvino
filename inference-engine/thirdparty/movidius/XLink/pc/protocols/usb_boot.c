@@ -56,10 +56,11 @@ typedef struct {
 } deviceBootInfo_t;
 
 static deviceBootInfo_t supportedDevices[] = {
-    {
-        .pid = 0x2150,
-        .name = "ma2450"
-    },
+//    Myriad 2 device has been deprecated since 2020.4 release
+//    {
+//        .pid = 0x2150,
+//        .name = "ma2450"
+//    },
     {
         .pid = 0x2485,
         .name = "ma2480"
