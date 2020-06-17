@@ -14,9 +14,11 @@
 // limitations under the License.
 //*****************************************************************************
 
+#include <memory>
+
 #include "default_opset.hpp"
 #include "exceptions.hpp"
-#include "resize.hpp"
+#include "upsample.hpp"
 
 namespace ngraph
 {
