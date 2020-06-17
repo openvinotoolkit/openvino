@@ -15,6 +15,6 @@ add_library(${TARGET_NAME} SHARED ${SRC})
 target_include_directories(${TARGET_NAME} PRIVATE ${InferenceEngine_INCLUDE_DIRS})
 
 target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_INFERENCE_EXTENSION_API)
-target_link_libraries(${TARGET_NAME} PRIVATE IE::inference_engine_legacy IE::inference_engine IE::inference_engine_nn_builder
+target_link_libraries(${TARGET_NAME} PRIVATE IE::inference_engine_legacy IE::inference_engine
                                              ${NGRAPH_LIBRARIES})
 # [cmake:extension]
