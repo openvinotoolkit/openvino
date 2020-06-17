@@ -14,6 +14,7 @@ jobs:
       whoami
       uname -a
       which python3
+      python3 --version
       gcc --version
       lsb_release
       env
@@ -135,6 +136,7 @@ jobs:
       whoami
       uname -a
       which python3
+      python3 --version
       gcc --version
       xcrun --sdk macosx --show-sdk-version
       env
@@ -233,11 +235,10 @@ jobs:
     MSVS_VARS_PATH: C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat
     MSVC_COMPILER_PATH: C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Tools\MSVC\14.24.28314\bin\Hostx64\x64\cl.exe
   steps:
-  - task: UsePythonVersion@0
-    inputs:
-      versionSpec: '3.7'
   - script: |
       where python3
+      where python
+      python --version
       wmic computersystem get TotalPhysicalMemory
       wmic cpu list
       wmic logicaldisk get description,name
@@ -270,16 +271,17 @@ jobs:
     workingDirectory: dldt-build
     displayName: 'List files'
   - script: git clone https://github.com/google/gtest-parallel.git
+    workingDirectory: $(BUILD_DIR)
     displayName: 'Clone gtest-parallel'
   - script: |
       set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
-      python3 ..\gtest-parallel\gtest-parallel $(BIN_DIR)\unit-test --workers=$(WORKERS_NUMBER) --print_test_times --dump_json_test_results=unit-test.json --gtest_filter=-backend_api.config_unsupported:*IE_GPU* -- --gtest_print_time=1
+      python $(BUILD_DIR)\gtest-parallel\gtest-parallel $(BIN_DIR)\unit-test --workers=$(WORKERS_NUMBER) --print_test_times --dump_json_test_results=unit-test.json --gtest_filter=-backend_api.config_unsupported:*IE_GPU* -- --gtest_print_time=1
     workingDirectory: dldt-build
     displayName: 'nGraph UT'
     continueOnError: true
   - script: |
       set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
-      python3 ..\gtest-parallel\gtest-parallel $(BIN_DIR)\InferenceEngineUnitTests --workers=$(WORKERS_NUMBER) --print_test_times --dump_json_test_results=InferenceEngineUnitTests.json -- --gtest_print_time=1
+      python $(BUILD_DIR)\gtest-parallel\gtest-parallel $(BIN_DIR)\InferenceEngineUnitTests --workers=$(WORKERS_NUMBER) --print_test_times --dump_json_test_results=InferenceEngineUnitTests.json -- --gtest_print_time=1
     workingDirectory: dldt-build
     displayName: 'IE UT old'
     continueOnError: true
@@ -315,7 +317,7 @@ jobs:
     continueOnError: false
   - script: |
       set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
-      python3 ..\gtest-parallel\gtest-parallel $(BIN_DIR)\cpuFuncTests --workers=$(WORKERS_NUMBER) --print_test_times --dump_json_test_results=cpuFuncTests.json -- --gtest_print_time=1
+      python $(BUILD_DIR)\gtest-parallel\gtest-parallel $(BIN_DIR)\cpuFuncTests --workers=$(WORKERS_NUMBER) --print_test_times --dump_json_test_results=cpuFuncTests.json -- --gtest_print_time=1
     workingDirectory: dldt-build
     displayName: 'CPU FuncTests'
     continueOnError: true
@@ -332,7 +334,7 @@ jobs:
       set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;$(Build.Repository.LocalPath)\inference-engine\temp\opencv_4.3.0\opencv\bin;%PATH%
       set DATA_PATH=$(BUILD_DIR)\testdata
       set MODELS_PATH=$(BUILD_DIR)\testdata
-      python3 ..\gtest-parallel\gtest-parallel $(BIN_DIR)\MklDnnFunctionalTests --workers=$(WORKERS_NUMBER) --print_test_times --dump_json_test_results=MklDnnFunctionalTests.json --gtest_filter=-smoke_MobileNet/ModelTransformationsTest.LPT/mobilenet_v2_tf_depthwise_batch1_inPluginDisabled_inTestDisabled_asymmetric* -- --gtest_print_time=1
+      python $(BUILD_DIR)\gtest-parallel\gtest-parallel $(BIN_DIR)\MklDnnFunctionalTests --workers=$(WORKERS_NUMBER) --print_test_times --dump_json_test_results=MklDnnFunctionalTests.json --gtest_filter=-smoke_MobileNet/ModelTransformationsTest.LPT/mobilenet_v2_tf_depthwise_batch1_inPluginDisabled_inTestDisabled_asymmetric* -- --gtest_print_time=1
     workingDirectory: dldt-build
     displayName: 'MklDnnFunctionalTests'
     continueOnError: true
