@@ -54,7 +54,7 @@ void FrontEnd::parseDSR(const Model& model, const ie::CNNLayerPtr& layer, const 
             "Parsing layer {} of type {} failed: output data {} must have original IE data",
             layer->name, layer->type, 0, dataOutput->name());
 
-        bindData(data, dataOutput->origData());
+        bindData(data, origData);
         model->removeUnusedData(dataOutput);
         dataOutput = data;
     } else {
@@ -89,8 +89,8 @@ void FrontEnd::parseDSR(const Model& model, const ie::CNNLayerPtr& layer, const 
             "data usage, actual: {}", layer->name, layer->type, 1, shape->name(), shape->usage());
     }
 
+    auto shapeDataObject = shape;
     if (dataOutput->usage() == DataUsage::Output) {
-        // Create the second output with shape in case of dynamic output
         const auto& shapeOutput = model->addOutputData(dataOutput->name() + "@shape", shape->desc());
 
         bindData(shapeOutput, shape->origData());
@@ -115,10 +115,9 @@ void FrontEnd::parseDSR(const Model& model, const ie::CNNLayerPtr& layer, const 
             model->removeUnusedData(shape);
         }
 
-        model->connectDataWithShape(shapeOutput, dataOutput);
-    } else {
-        model->connectDataWithShape(shape, dataOutput);
+        shapeDataObject = shapeOutput;
     }
+    model->connectDataWithShape(shapeDataObject, dataOutput);
 }
 
 }  // namespace vpu
