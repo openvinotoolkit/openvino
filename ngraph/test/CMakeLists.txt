@@ -258,6 +258,7 @@ set_source_files_properties(includes.cpp PROPERTIES COMPILE_DEFINITIONS
 if (NGRAPH_IE_ENABLE)
     if (ENABLE_MKL_DNN)
         message(STATUS "NGRAPH_TESTS: IE:CPU enabled")
+        # should this backend be enabled unconditionally?
         set(ACTIVE_BACKEND_LIST ${ACTIVE_BACKEND_LIST} "IE:CPU")
     endif()
      if (ENABLE_CLDNN)
@@ -479,6 +480,10 @@ endif()
 # We should probably split up type_prop.cpp.
 if (MSVC)
     target_compile_options(unit-test PRIVATE "/bigobj")
+endif()
+
+if (TARGET inference_engine)
+    target_link_libraries(unit-test PRIVATE inference_engine)
 endif()
 
 if (NGRAPH_ONNX_IMPORT_ENABLE)
