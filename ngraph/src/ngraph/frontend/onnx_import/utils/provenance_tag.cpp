@@ -14,8 +14,8 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include <algorithm>
 #include <functional>
+#include <numeric>
 #include <sstream>
 
 #include "utils/provenance_tag.hpp"
