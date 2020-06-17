@@ -42,20 +42,11 @@ cdef class IENetwork:
 
 cdef class ExecutableNetwork:
     cdef unique_ptr[C.IEExecNetwork] impl
-    cdef C.IEPlugin plugin_impl
     cdef C.IECore ie_core_impl
     cpdef wait(self, num_requests = ?, timeout = ?)
     cpdef get_idle_request_id(self)
     cdef public:
         _requests, _infer_requests
-
-cdef class IEPlugin:
-    cdef C.IEPlugin impl
-    cpdef ExecutableNetwork load(self, IENetwork network, int num_requests = ?, config = ?)
-    cpdef void set_config(self, config)
-    cpdef void add_cpu_extension(self, str extension_path) except *
-    cpdef void set_initial_affinity(self, IENetwork network) except *
-    cpdef set get_supported_layers(self, IENetwork net)
 
 cdef class IECore:
     cdef C.IECore impl

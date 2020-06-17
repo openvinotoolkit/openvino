@@ -192,17 +192,6 @@ cdef extern from "ie_api_impl.hpp" namespace "InferenceEnginePython":
         void load_from_buffer(const char*xml, size_t xml_size, uint8_t*bin, size_t bin_size) except +
         object getFunction() except +
 
-    cdef cppclass IEPlugin:
-        IEPlugin() except +
-        IEPlugin(const string &, const vector[string] &) except +
-        unique_ptr[IEExecNetwork] load(IENetwork & net, int num_requests, const map[string, string]& config) except +
-        void addCpuExtension(const string &) except +
-        void setConfig(const map[string, string] &) except +
-        void setInitialAffinity(IENetwork & net) except +
-        set[string] queryNetwork(const IENetwork & net) except +
-        string device_name
-        string version
-
     cdef cppclass InferRequestWrap:
         double exec_time;
         int index;

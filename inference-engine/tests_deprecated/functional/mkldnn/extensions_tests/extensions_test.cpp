@@ -206,8 +206,6 @@ public:
         versionInfo = &VERSION;
     }
 
-    void SetLogCallback(InferenceEngine::IErrorListener &listener) noexcept override {}
-
     void Unload() noexcept override {}
 
     std::vector<std::string> getImplTypes(const std::shared_ptr<ngraph::Node>& node) override {
