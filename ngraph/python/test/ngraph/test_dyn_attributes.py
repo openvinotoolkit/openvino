@@ -141,3 +141,28 @@ def test_dynamic_set_attribute_value(int_dtype, fp_dtype):
     assert np.isclose(node.get_attrs_box_size_scale(), fp_dtype(1.34))
     assert np.isclose(node.get_attrs_box_coordinate_scale(), fp_dtype(0.88))
     assert node.get_attrs_framework() == "OpenVINO"
+
+
+def test_dynamic_attr_cache():
+    attributes = {
+        "attrs.base_size": np.uint16(1),
+        "attrs.pre_nms_topn": np.uint16(20),
+        "attrs.post_nms_topn": np.uint16(64),
+        "attrs.nms_thresh": np.float64(0.34),
+        "attrs.feat_stride": np.uint16(16),
+        "attrs.min_size": np.uint16(32),
+        "attrs.ratio": np.array([0.1, 1.5, 2.0, 2.5], dtype=np.float64),
+        "attrs.scale": np.array([2, 3, 3, 4], dtype=np.float64),
+    }
+    batch_size = 7
+
+    class_probs = ng.parameter([batch_size, 12, 34, 62], np.float64, "class_probs")
+    class_logits = ng.parameter([batch_size, 24, 34, 62], np.float64, "class_logits")
+    image_shape = ng.parameter([3], np.float64, "image_shape")
+    node = ng.proposal(class_probs, class_logits, image_shape, attributes)
+
+    assert node._attr_cache_valid
+    node.set_attrs_nms_thresh(1.3453678102)
+    assert not node._attr_cache_valid
+    assert np.isclose(node.get_attrs_nms_thresh(), np.float64(1.3453678102))
+    assert node._attr_cache_valid

@@ -22,6 +22,8 @@ class NodeFactory(object):
     ) -> Node:
         """Create node object from provided description.
 
+        The user does not have to provide all node's attributes, but only required ones.
+
         :param      op_type_name:  The operator type name.
         :param      arguments:     The operator arguments.
         :param      attributes:    The operator attributes.
@@ -32,14 +34,25 @@ class NodeFactory(object):
             attributes = {}
         node = self.factory.create(op_type_name, arguments, attributes)
 
-        for atr_name in node._get_attributes().keys():
+        # Set getters and setters for each node's attribute.
+        #   node.get_attribute_name()
+        #   node.set_attribute_name()
+        # For compound (hierarchical) attributes of form ie.: node.struct_member_name.attr_name:
+        #   node.get_struct_member_name_attr_name()
+        #   node.set_struct_member_name_attr_name()
+        all_attributes = node._get_attributes()
+        for atr_name in all_attributes.keys():
             setattr(node,
                     self._normalize_atr_name_getter(atr_name),
-                    # partial(Node._get_attribute, node, atr_name))
                     partial(NodeFactory._get_node_attr_value, node, atr_name))
             setattr(node,
                     self._normalize_atr_name_setter(atr_name),
-                    partial(Node._set_attribute, node, atr_name))
+                    partial(NodeFactory._set_node_attr_value, node, atr_name))
+
+        # Setup helper members for caching attribute values.
+        setattr(node, "_attr_cache", all_attributes)
+        setattr(node, "_attr_cache_valid", bool(True))
+
         return node
 
     def _normalize_atr_name_getter(self, attr_name: str) -> str:
@@ -62,11 +75,25 @@ class NodeFactory(object):
 
     @staticmethod
     def _get_node_attr_value(node: Node, attr_name: str) -> Any:
-        """Get provided node attribute value.
+        """Gets provided node attribute value.
 
         :param      node:       The node we retrieve attribute value from.
         :param      attr_name:  The attribute name.
 
         :returns:   The node attribute value.
         """
-        return node._get_attributes()[attr_name]
+        if not node._attr_cache_valid:
+            node._attr_cache = node._get_attributes()
+            node._attr_cache_valid = True
+        return node._attr_cache[attr_name]
+
+    @staticmethod
+    def _set_node_attr_value(node: Node, attr_name: str, value: Any) -> None:
+        """Sets the node attribute value.
+
+        :param      node:       The node we change attribute value for.
+        :param      attr_name:  The attribute name.
+        :param      value:      The new attribute value.
+        """
+        node._set_attribute(attr_name, value)
+        node._attr_cache_valid = False

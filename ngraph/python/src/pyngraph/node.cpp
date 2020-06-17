@@ -88,11 +88,6 @@ void regclass_pyngraph_Node(py::module m)
         util::DictAttributeSerializer dict_serializer(self);
         return dict_serializer.get_attributes();
     });
-    node.def("_get_attribute",
-             [](const std::shared_ptr<ngraph::Node>& self, const std::string& atr_name) {
-                 util::DictAttributeSerializer dict_serializer(self);
-                 return dict_serializer.get_attributes()[atr_name.c_str()];
-             });
     node.def(
         "_set_attribute",
         [](std::shared_ptr<ngraph::Node>& self, const std::string& atr_name, py::object value) {
