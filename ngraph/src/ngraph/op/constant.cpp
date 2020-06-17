@@ -311,9 +311,19 @@ op::Constant::Constant(const element::Type& type, const Shape& shape, const void
     : Constant(type, shape)
 {
     size_t size = ceil(shape_size(m_shape) * m_element_type.bitwidth() / 8.f);
+
     std::memcpy(get_data_ptr_nc(), data, size);
     constructor_validate_and_infer_types();
     m_all_elements_bitwise_identical = are_all_data_elements_bitwise_identical();
+}
+
+
+op::Constant::Constant(const element::Type& type, const Shape& shape, char* data)
+    : Constant(type, shape)
+{
+    size_t size = ceil(shape_size(m_shape) * m_element_type.bitwidth() / 8.f);
+
+    m_data = make_shared<runtime::AlignedBufferPtr>(data, size);
 }
 
 op::Constant::Constant(const Constant& other)

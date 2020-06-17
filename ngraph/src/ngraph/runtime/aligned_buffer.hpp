@@ -25,6 +25,7 @@ namespace ngraph
     namespace runtime
     {
         class AlignedBuffer;
+        class AlignedBufferPtr;
     }
 }
 
@@ -66,13 +67,31 @@ public:
         return get_ptr<T>();
     }
 
-private:
+protected:
     AlignedBuffer(const AlignedBuffer&) = delete;
     AlignedBuffer& operator=(const AlignedBuffer&) = delete;
 
     char* m_allocated_buffer;
     char* m_aligned_buffer;
     size_t m_byte_size;
+};
+
+class NGRAPH_API ngraph::runtime::AlignedBufferPtr : public ngraph::runtime::AlignedBuffer
+{
+public:
+    AlignedBufferPtr(char* data, size_t size) 
+    {
+        m_allocated_buffer = data;
+        m_aligned_buffer = data;
+        m_byte_size = size;
+    }
+
+    virtual ~AlignedBufferPtr()
+    {
+        m_aligned_buffer = nullptr;
+        m_allocated_buffer = nullptr;
+        m_byte_size = 0;
+    }
 };
 
 namespace ngraph

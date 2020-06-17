@@ -1445,9 +1445,9 @@ std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::Constant>::cre
     if (size < std::ceil(ngraph::shape_size(shape) * el_type.bitwidth() / 8.f))
         THROW_IE_EXCEPTION << "Cannot create Constant op " << layerParsePrms.name << " size attribute and shape size are inconsistent!";
 
-    auto constant = std::make_shared<ngraph::op::Constant>(port.precision, shape);
-    char* data = const_cast<char*>(reinterpret_cast<const char*>(constant->get_data_ptr()));
-    memcpy(data, weights->cbuffer().as<char*>() + offset, size);
+    char* data = (weights->cbuffer().as<char*>() + offset);
+    auto constant = std::make_shared<ngraph::op::Constant>(port.precision, shape, data);
+
     return constant;
 }
 

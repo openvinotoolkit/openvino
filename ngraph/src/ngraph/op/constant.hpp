@@ -231,7 +231,9 @@ namespace ngraph
                 /// \param type The element type of the tensor constant.
                 /// \param shape The shape of the tensor constant.
                 /// \param data A void* to constant data.
+                /// \param preallocated Indicates if buffer pre-allocated already and Constant need to store pointer.
                 Constant(const element::Type& type, const Shape& shape, const void* data);
+                Constant(const element::Type& type, const Shape& shape, char* data);
 
                 Constant(const Constant& other);
                 Constant& operator=(const Constant&) = delete;
