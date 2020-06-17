@@ -47,7 +47,7 @@ namespace ngraph
 }
 
 /// \namespace ngraph
-/// \brief The Intel Nervana Graph C++ API.
+/// \brief The Intel nGraph C++ API.
 
 /// \namespace ngraph::descriptor
 /// \brief Descriptors are compile-time representations of objects that will appear at run-time.
