@@ -424,9 +424,9 @@ void GNAPluginNS::backend::AMIntelDNN::WriteGraphWizModel(const char *filename) 
     auto generate_layer_name = [&](int k) {
         std::string l;
         if (components[k].operation == kDnnPiecewiselinearOp) {
-            l += intel_dnn_activation_name[components[k].op.pwl.func_id];
+            //l += intel_dnn_activation_name[components[k].op.pwl.func_id];
         } else {
-            l += intel_dnn_operation_name[components[k].operation];
+            //l += intel_dnn_operation_name[components[k].operation];
         }
         l += "_" + std::to_string(k);
         if (components[k].operation == kDnnPiecewiselinearOp) {
@@ -623,7 +623,7 @@ void GNAPluginNS::backend::AMIntelDNN::WriteDnnText(const char *filename, intel_
                           << "-" << component[i].num_rows_in
                           << "-" << component[i].num_rows_out;
             if (component[i].operation == kDnnPiecewiselinearOp) {
-                out_file_name << "-" << intel_dnn_activation_name[component[i].op.pwl.func_id.type];
+                //out_file_name << "-" << intel_dnn_activation_name[component[i].op.pwl.func_id.type];
             }
             std::ofstream out_file((out_file_name.str() + ".txt").c_str(), std::ios::out);
             if (!out_file) return;
@@ -1058,10 +1058,10 @@ void GNAPluginNS::backend::AMIntelDNN::WriteDnnText(const char *filename, intel_
                     break;
                 case kDnnPiecewiselinearOp: {
                     intel_pwl_segment_t *ptr_segment = component[i].op.pwl.ptr_segments;
-                    DnnActivationType func_id = component[i].op.pwl.func_id.type;
+                    //DnnActivationType func_id = component[i].op.pwl.func_id.type;
                     uint32_t num_segments = component[i].op.pwl.num_segments;
                     float output_scale_factor = component[i].output_scale_factor;
-                    out_file << "<func_id> " << intel_dnn_activation_name[func_id] << "\n";
+                    //out_file << "<func_id> " << intel_dnn_activation_name[func_id] << "\n";
                     out_file << "<num_bytes_per_slope> " << std::dec << sizeof(int16_t) << "\n";
                     out_file << "<num_bytes_per_intercept> " << std::dec << sizeof(int16_t) << "\n";
                     out_file << "<num_bytes_per_offset> " << std::dec << sizeof(int32_t) << "\n";
@@ -1800,7 +1800,8 @@ void GNAPluginNS::backend::AMIntelDNN::WriteInputAndOutputText() {
                       << "-" << component[i].num_rows_in
                       << "-" << component[i].num_rows_out;
         if (component[i].operation == kDnnPiecewiselinearOp) {
-            out_file_name << "-" << intel_dnn_activation_name[component[i].op.pwl.func_id];
+            out_file_name << "-" << i;
+	   //intel_dnn_activation_name[component[i].op.pwl.func_id];
         }
         auto inputfileName = getDumpFolderName() + out_file_name.str() + "_input.txt";
         auto outFileName = getDumpFolderName() + out_file_name.str() + "_output.txt";
@@ -1928,7 +1929,7 @@ std::string GNAPluginNS::backend::AMIntelDNN::getDumpFilePrefix(const std::strin
 #else
             '/';
 #endif
-    return std::string("") + pathSeparator + folder + pathSeparator + std::to_string(dump_write_index) + pathSeparator;
+    return std::string(".") + pathSeparator + folder + pathSeparator + std::to_string(dump_write_index) + pathSeparator;
 }
 
 std::string GNAPluginNS::backend::AMIntelDNN::getDumpFilePrefixGNA() {

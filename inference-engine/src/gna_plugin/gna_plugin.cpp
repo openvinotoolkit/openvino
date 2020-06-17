@@ -727,7 +727,7 @@ void GNAPlugin::LoadNetwork(ICNNNetwork &network) {
     DumpXNNToFile();
 
 #ifdef PLOT
-    dnn->WriteGraphWizModel("gna-blob.dot");
+    dnn->WriteGraphWizModel("/data/local/tmp/gna-blob.dot");
 #endif
 #if GNA_LIB_VER == 2
     createRequestConfigsForGnaModels();

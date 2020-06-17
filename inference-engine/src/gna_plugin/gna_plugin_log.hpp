@@ -33,7 +33,7 @@ typedef struct
     time_rtc            passed;     // time passed between start and stop
 } intel_gna_profiler_rtc;
 
-// #define GNA_DEBUG
+//#define GNA_DEBUG
 #ifdef  GNA_DEBUG
 #include <iostream>
 /**
