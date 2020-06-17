@@ -21,29 +21,31 @@
 #define AS_TYPE(type, val) CAT(as_, type)(val)
 #define IN_VEC16 MAKE_VECTOR_TYPE(INPUT0_TYPE, 16)
 #define OUT_VEC16 MAKE_VECTOR_TYPE(OUTPUT_TYPE, 16)
-#define CONVERT_OUT CAT(convert_, OUTPUT_TYPE)
-#define CONVERT_OUT_VEC16 CAT(convert_, OUT_VEC16)
+
+#define ACTIVATION_VEC16 MAKE_VECTOR_TYPE(ACTIVATION_TYPE, 16)
+#define TO_ACTIVATION_VEC16 CAT(convert_, ACTIVATION_VEC16)
+
 #define FEATURE_SLICE_SIZE 16
 
 #if MAX_POOLING
-    #define INIT_VAL CHAR_MIN
+    #define INIT_VAL ACCUMULATOR_VAL_MIN
 #elif AVG_POOLING
-    #define INIT_VAL 0
+    #define INIT_VAL ACCUMULATOR_VAL_ZERO
 #else
 #error
 #endif
 
 
-inline int FUNC(apply_pooling)(int tmp, int in)
+inline ACCUMULATOR_TYPE FUNC(apply_pooling)(ACCUMULATOR_TYPE tmp, ACCUMULATOR_TYPE in)
 {
 #if MAX_POOLING
-    return max(tmp, in);
+    return ACCUMULATOR_MAX_FUNC(tmp, in);
 #elif AVG_POOLING
     return tmp + in;
 #endif
 }
 
-__attribute__((intel_reqd_sub_group_size(16)))
+__attribute__((intel_reqd_sub_group_size(FEATURE_SLICE_SIZE)))
 KERNEL(pooling_gpu_b_fs_yx_fsv16)(
     const __global INPUT0_TYPE* input,
     __global OUTPUT_TYPE* output
@@ -61,8 +63,8 @@ KERNEL(pooling_gpu_b_fs_yx_fsv16)(
     const int offset_x = (int)x*STRIDE_SIZE_X - PADDING_SIZE_X;
     const int offset_y = (int)y*STRIDE_SIZE_Y - PADDING_SIZE_Y;
 
-    int result[FEATURE_SLICE_SIZE] = { INIT_VAL, INIT_VAL, INIT_VAL, INIT_VAL, INIT_VAL, INIT_VAL, INIT_VAL, INIT_VAL,
-                                       INIT_VAL, INIT_VAL, INIT_VAL, INIT_VAL, INIT_VAL, INIT_VAL, INIT_VAL, INIT_VAL };
+    ACCUMULATOR_TYPE result[FEATURE_SLICE_SIZE] = { INIT_VAL, INIT_VAL, INIT_VAL, INIT_VAL, INIT_VAL, INIT_VAL, INIT_VAL, INIT_VAL,
+                                                    INIT_VAL, INIT_VAL, INIT_VAL, INIT_VAL, INIT_VAL, INIT_VAL, INIT_VAL, INIT_VAL };
 
 #ifdef CHECK_BOUNDRY
     if (offset_x + POOL_SIZE_X < 0 || offset_x >= INPUT0_SIZE_X ||
@@ -138,9 +140,10 @@ KERNEL(pooling_gpu_b_fs_yx_fsv16)(
 #endif
 #endif
 
+    
+    ACTIVATION_VEC16 pool_result;
 #if defined AVG_POOLING
 #if ENABLE_ROUND
-    int16 pool_result;
     __attribute__((opencl_unroll_hint(FEATURE_SLICE_SIZE)))
     for(uint i = 0; i < FEATURE_SLICE_SIZE; i++) {
     #if defined(DYNAMIC_KERNEL_DIVIDER) || defined(DYNAMIC_WITH_PADDING_KERNEL_DIVIDER)
@@ -150,7 +153,6 @@ KERNEL(pooling_gpu_b_fs_yx_fsv16)(
     #endif
     }
 #else
-    float16 pool_result;
     __attribute__((opencl_unroll_hint(FEATURE_SLICE_SIZE)))
     for(uint i = 0; i < FEATURE_SLICE_SIZE; i++) {
     #if defined(DYNAMIC_KERNEL_DIVIDER) || defined(DYNAMIC_WITH_PADDING_KERNEL_DIVIDER)
@@ -161,7 +163,6 @@ KERNEL(pooling_gpu_b_fs_yx_fsv16)(
     }
 #endif  // ENABLE_ROUND
 #else  // AVG_POOLING
-    int16 pool_result;
     __attribute__((opencl_unroll_hint(FEATURE_SLICE_SIZE)))
     for (uint i = 0; i < FEATURE_SLICE_SIZE; ++i) {
         pool_result[i] = result[i];
@@ -170,9 +171,9 @@ KERNEL(pooling_gpu_b_fs_yx_fsv16)(
 
 OUT_VEC16 final_result = (OUTPUT_TYPE)(0);
 #if HAS_FUSED_OPS && FUSED_OPS_CAN_USE_PRELOAD
-    //FUSED_OPS_LOAD_PER_SCALE
     FUSED_OPS_PRELOAD
 #endif
+
     __attribute__((opencl_unroll_hint(FEATURE_SLICE_SIZE)))
     for (uint i = 0; i < FEATURE_SLICE_SIZE; ++i) {
 #if HAS_FUSED_OPS
@@ -183,7 +184,7 @@ OUT_VEC16 final_result = (OUTPUT_TYPE)(0);
 #endif
         final_result[i] = FUSED_OPS_RESULT;
 #else
-        final_result[i] = pool_result[i];
+        final_result[i] = TO_OUTPUT_TYPE(ACTIVATION(pool_result[i], ACTIVATION_PARAMS));
 #endif
     }
     
@@ -200,7 +201,7 @@ OUT_VEC16 final_result = (OUTPUT_TYPE)(0);
 #undef AS_TYPE
 #undef IN_VEC16
 #undef OUT_VEC16
-#undef CONVERT_OUT
-#undef CONVERT_OUT_VEC16
+#undef ACTIVATION_VEC16
+#undef TO_ACTIVATION_VEC16
 #undef INIT_VAL
 #undef FEATURE_SLICE_SIZE

@@ -71,11 +71,13 @@ JitConstants PoolingKernelGPU_b_fs_yx_fsv16_imad::GetJitConstants(const pooling_
     const size_t in_y_pitch = FEATURE_SLICE_SIZE * params.inputs[0].X().LogicalDimPadded();
     jit.AddConstant(MakeJitConstant("IN_X_PITCH", in_x_pitch));
     jit.AddConstant(MakeJitConstant("IN_Y_PITCH", in_y_pitch));
+    jit.Merge(MakeTypeJitConstants(GetActivationType(params), "ACTIVATION"));
+    jit.Merge(MakeTypeJitConstants(GetAccumulatorType(params), "ACCUMULATOR"));
 
     if (!params.fused_ops.empty()) {
         auto input_dt = EnableRound(params) ? Datatype::INT32 : GetActivationType(params);
         FusedOpsConfiguration conf = {"", {"b", "f", "y", "x"}, "pool_result[i]", input_dt, 1};
-        conf.SetLoopAxes({ Tensor::DataChannelName::X }, true);
+        conf.SetLoopAxes({ Tensor::DataChannelName::FEATURE }, true);
         jit.Merge(MakeFusedOpsJitConstants(params, { conf }));
     }
 
