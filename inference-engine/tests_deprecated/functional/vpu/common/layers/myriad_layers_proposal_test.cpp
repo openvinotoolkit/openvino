@@ -6,6 +6,7 @@
 #include <gtest/gtest.h>
 #include "myriad_layers_tests.hpp"
 #include <blob_factory.hpp>
+#include <functional_test_utils/skip_tests_config.hpp>
 
 using namespace InferenceEngine;
 
@@ -278,7 +279,7 @@ std::string caffeModel() {
 }
 
 TEST_F(myriadLayersTestsProposal_smoke, Caffe) {
-
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     // Verify only 20 ranked proposal output with GT values
     std::vector<float> gt_values = {
         0.f,     72.363f,  58.942f,  197.141f, 177.96f,  // batch_num, left, top, right, bottom
@@ -314,7 +315,7 @@ TEST_F(myriadLayersTestsProposal_smoke, Caffe) {
 }
 
 TEST_F(myriadLayersTestsProposal_smoke, CaffeNoClipBeforeNms) {
-
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     // Verify only 20 ranked proposal output with GT values - reference get from MKLDNN plugin
     std::vector<float> gt_values = {
         0, 72.408f,   58.925f,  197.062f, 177.856f,
@@ -353,7 +354,7 @@ TEST_F(myriadLayersTestsProposal_smoke, CaffeNoClipBeforeNms) {
 }
 
 TEST_F(myriadLayersTestsProposal_smoke, CaffeClipAfterNms) {
-
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     // Verify only 20 ranked proposal output with GT values
     std::vector<float> gt_values = {
         0, 72.408f,  58.925f, 197.062f, 177.856f,
@@ -395,7 +396,7 @@ TEST_F(myriadLayersTestsProposal_smoke, CaffeClipAfterNms) {
 }
 
 TEST_F(myriadLayersTestsProposal_smoke, CaffeNormalizedOutput) {
-
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     // Verify only 20 ranked proposal output with GT values
     std::vector<float> gt_values = {
         0, 0.323f, 0.263f, 0.879f, 0.794f,
@@ -437,7 +438,7 @@ TEST_F(myriadLayersTestsProposal_smoke, CaffeNormalizedOutput) {
 }
 
 TEST_F(myriadLayersTestsProposal_smoke, TensorFlow) {
-
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
      model = R"V0G0N(
         <net name="testProposal" version="2" batch="1">
             <layers>
