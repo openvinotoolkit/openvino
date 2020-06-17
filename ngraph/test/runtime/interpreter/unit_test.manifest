@@ -11,4 +11,8 @@ reduce_sum_large_1d_to_scalar
 reduce_sum_keep_large_1d_to_scalar
 
 # Unsupported op 'Interpolate'
+INTERPRETER.onnx_upsample8_nearest_infer
+INTERPRETER.onnx_upsample8_linear_infer
+INTERPRETER.onnx_upsample9_scales_const_nearest_infer
+INTERPRETER.onnx_upsample9_scales_const_linear_infer
 INTERPRETER.onnx_upsample9_scales_input_nearest_infer

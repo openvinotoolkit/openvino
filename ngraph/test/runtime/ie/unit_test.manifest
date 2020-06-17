@@ -1649,10 +1649,6 @@ IE_GPU.onnx_dyn_shapes_model_acosh_1_3
 IE_GPU.onnx_dyn_shapes_model_acosh_3_2
 IE_GPU.onnx_dyn_shapes_model_asinh_1_3
 IE_GPU.onnx_dyn_shapes_model_asinh_3_2
-IE_GPU.onnx_upsample8_nearest_infer
-IE_GPU.onnx_upsample8_linear_infer
-IE_GPU.onnx_upsample9_scales_const_nearest_infer
-IE_GPU.onnx_upsample9_scales_const_linear_infer
 IE_GPU.onnx_upsample9_scales_input_nearest_infer
 
 IE_GPU.sum_matrix_6d
