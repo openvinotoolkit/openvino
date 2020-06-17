@@ -111,33 +111,31 @@ NGRAPH_TEST(${BACKEND_NAME}, stack_matrix_colwise)
 
 NGRAPH_TEST(${BACKEND_NAME}, stack_negative_axis)
 {
-    //TODO: rewrite to TestCase
+    auto pshape_a = PartialShape::dynamic();
+    auto A = make_shared<op::Parameter>(element::f32, pshape_a);
+    auto pshape_b = PartialShape::dynamic();
+    auto B = make_shared<op::Parameter>(element::f32, pshape_b);
+    auto pshape_c = PartialShape::dynamic();
+    auto C = make_shared<op::Parameter>(element::f32, pshape_c);
+    auto pshape_r = PartialShape::dynamic();
+    auto f = make_shared<Function>(make_shared<op::Stack>(NodeVector{A, B, C}, -1),
+                                   ParameterVector{A, B, C});
 
-    // auto pshape_a = PartialShape::dynamic();
-    // auto A = make_shared<op::Parameter>(element::f32, pshape_a);
-    // auto pshape_b = PartialShape::dynamic();
-    // auto B = make_shared<op::Parameter>(element::f32, pshape_b);
-    // auto pshape_c = PartialShape::dynamic();
-    // auto C = make_shared<op::Parameter>(element::f32, pshape_c);
-    // auto pshape_r = PartialShape::dynamic();
-    // auto f = make_shared<Function>(make_shared<op::Stack>(NodeVector{A, B, C}, -1),
-    //                                ParameterVector{A, B, C});
+    auto backend = runtime::Backend::create("${BACKEND_NAME}", true);
 
-    // auto backend = runtime::Backend::create("${BACKEND_NAME}", true);
-
-    // // Create some tensors for input/output
-    // auto a = backend->create_tensor(element::f32, Shape{2, 2});
-    // copy_data(a, vector<float>{2, 4, 8, 16});
-    // auto b = backend->create_tensor(element::f32, Shape{2, 2});
-    // copy_data(b, vector<float>{1, 2, 4, 8});
-    // auto c = backend->create_tensor(element::f32, Shape{2, 2});
-    // copy_data(c, vector<float>{2, 3, 5, 7});
-    // auto result = backend->create_dynamic_tensor(element::f32, PartialShape::dynamic());
-    // auto handle = backend->compile(f);
-    // handle->call_with_validate({result}, {a, b, c});
-    // ASSERT_EQ(result->get_shape(), (Shape{2, 2, 3}));
-    // EXPECT_TRUE(test::all_close_f((vector<float>{2, 1, 2, 4, 2, 3, 8, 4, 5, 16, 8, 7}),
-    //                               read_vector<float>(result)));
+    // Create some tensors for input/output
+    auto a = backend->create_tensor(element::f32, Shape{2, 2});
+    copy_data(a, vector<float>{2, 4, 8, 16});
+    auto b = backend->create_tensor(element::f32, Shape{2, 2});
+    copy_data(b, vector<float>{1, 2, 4, 8});
+    auto c = backend->create_tensor(element::f32, Shape{2, 2});
+    copy_data(c, vector<float>{2, 3, 5, 7});
+    auto result = backend->create_dynamic_tensor(element::f32, PartialShape::dynamic());
+    auto handle = backend->compile(f);
+    handle->call_with_validate({result}, {a, b, c});
+    ASSERT_EQ(result->get_shape(), (Shape{2, 2, 3}));
+    EXPECT_TRUE(test::all_close_f((vector<float>{2, 1, 2, 4, 2, 3, 8, 4, 5, 16, 8, 7}),
+                                  read_vector<float>(result)));
 }
 NGRAPH_TEST(${BACKEND_NAME}, elu)
 {
