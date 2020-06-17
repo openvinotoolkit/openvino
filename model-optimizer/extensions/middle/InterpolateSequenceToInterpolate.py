@@ -136,6 +136,37 @@ def collect_sequences(xs: List[Node]) -> List[List[Node]]:
     return result
 
 
+def get_interpolate_attributes(node: Node) -> dict:
+    opset_to_default_values = {
+        'opset1': {
+            'mode': None,
+            'align_corners': 0,
+            'antialias': 0,
+            'pads_begin': 0,
+            'pads_end': 0
+        },
+        'opset3': {
+            'mode': None,
+            'antialias': 0,
+            'pads_begin': int64_array([0]),
+            'pads_end': int64_array([0]),
+            'coordinate_transformation_mode': 'half_pixel',
+            'nearest_mode': 'round_prefer_floor',
+            'cube_coeff': -0.75
+        },
+    }
+    opset = node.get_opset()
+    result = {}
+    if opset in opset_to_default_values:
+        default_values = opset_to_default_values[opset]
+        for attr in default_values.keys():
+            value = node.soft_get(attr, default=default_values[attr])
+            result[attr] = value
+        return result
+    else:
+        raise Error('Unsupported opset {} for node with name {}.'.format(opset, node.soft_get('name', node.id)))
+
+
 def replace_sequence(seq: List[Node], graph: Graph):
     """
     This function replaces a sequence of consecutive Interpolate layers with one Interpolate layer,
@@ -166,18 +197,10 @@ def replace_sequence(seq: List[Node], graph: Graph):
     fst_interp_node = seq[0]
     last_interp_node = seq[-1]
     fst_interp_node_name = fst_interp_node.name
-    fst_interp_node_mode = fst_interp_node.mode
-    fst_interp_node_align_corners = fst_interp_node.soft_get('align_corners', default=0)
-    fst_interp_node_antialias = fst_interp_node.soft_get('antialias', default=0)
-    fst_interp_node_pads_begin = fst_interp_node.soft_get('pads_begin', default=0)
-    fst_interp_node_pads_end = fst_interp_node.soft_get('pads_end', default=0)
-    interp_node = Interpolate(graph, dict(name=fst_interp_node_name + '/Interpolate_',
-                                          axes=axes_of_node,
-                                          mode=fst_interp_node_mode,
-                                          align_corners=fst_interp_node_align_corners,
-                                          antialias=fst_interp_node_antialias,
-                                          pads_begin=fst_interp_node_pads_begin,
-                                          pads_end=fst_interp_node_pads_end)).create_node()
+    attributes = get_interpolate_attributes(fst_interp_node)
+    attributes['name'] = fst_interp_node_name + '/Interpolate_'
+    attributes['axes'] = axes_of_node
+    interp_node = Interpolate(graph, attributes).create_node()
 
     scales_node = Const(graph, dict(name=fst_interp_node_name + '/scales_', value=sizes)).create_node()
     scales_node.out_port(0).connect(interp_node.in_port(1))
