@@ -23,16 +23,26 @@
 #include "ngraph_functions/low_precision_transformations/fake_quantize_function.hpp"
 
 using namespace testing;
+using namespace ngraph;
 using namespace ngraph::pass;
 
-class FakeQuantizeTransformation : public LayerTransformation, public testing::WithParamInterface<LayerTransformationParams> {
+// typedef std::pair<ngraph::Shape, std::vector<builder::subgraph::FakeQuantizeOnData>> FakeQuantizeShapes;
+
+typedef std::tuple<
+    ngraph::element::Type,
+    ngraph::Shape,
+    ngraph::pass::low_precision::LayerTransformation::Params,
+    builder::subgraph::FakeQuantizeOnData> FakeQuantizeTransformationParams;
+
+class FakeQuantizeTransformation : public LayerTransformation, public testing::WithParamInterface<FakeQuantizeTransformationParams> {
 public:
     void SetUp() override {
         const ngraph::element::Type precision = std::get<0>(GetParam());
         const ngraph::Shape shape = std::get<1>(GetParam());
         const ngraph::pass::low_precision::LayerTransformation::Params params = std::get<2>(GetParam());
+        const builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData = std::get<3>(GetParam());
 
-        actualFunction = ngraph::builder::subgraph::FakeQuantizeFunction::getOriginal(precision, shape);
+        actualFunction = ngraph::builder::subgraph::FakeQuantizeFunction::getOriginal(precision, shape, params, fakeQuantizeOnData);
         // transform(actualFunction);
 
         ngraph::pass::low_precision::LowPrecisionTransformations transformations(
@@ -46,20 +56,23 @@ public:
         //    VisualizeTree("C:\\Projects\\temp\\test.actual").run_on_module(module);
         //}
 
-        referenceFunction = ngraph::builder::subgraph::FakeQuantizeFunction::getReference(precision, shape);
+        referenceFunction = ngraph::builder::subgraph::FakeQuantizeFunction::getReference(precision, shape, params, fakeQuantizeOnData);
         //{
         //    std::vector<std::shared_ptr<ngraph::Function>> module{ referenceFunction };
         //    VisualizeTree("C:\\Projects\\temp\\test.reference").run_on_module(module);
         //}
     }
 
-    static std::string getTestCaseName(testing::TestParamInfo<LayerTransformationParams> obj) {
+    static std::string getTestCaseName(testing::TestParamInfo<FakeQuantizeTransformationParams> obj) {
         ngraph::element::Type precision;
         ngraph::Shape shape;
         low_precision::LayerTransformation::Params params;
-        std::tie(precision, shape, params) = obj.param;
+        builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData;
+        std::tie(precision, shape, params, fakeQuantizeOnData) = obj.param;
 
-        return LayerTransformation::getTestCaseNameByParams(precision, shape, params);
+        std::ostringstream result;
+        result << LayerTransformation::getTestCaseNameByParams(precision, shape, params) << fakeQuantizeOnData;
+        return result.str();
     }
 };
 
@@ -72,6 +85,13 @@ TEST_P(FakeQuantizeTransformation, CompareFunctions) {
 const std::vector<ngraph::element::Type> precisions = {
     ngraph::element::f32,
     ngraph::element::f16
+};
+
+const std::vector<builder::subgraph::FakeQuantizeOnData> fakeQuantizeOnDataValues = {
+    { 256ul, {}, { 0.f }, { 2.55f } },
+    { 256ul, {}, { -1.28f} , { 1.27f } },
+    // { 256ul, { 1ul }, { 0.f }, { 2.55f } },
+    // { 256ul, { 1ul }, { -1.28f} , { 1.27f } }
 };
 
 const std::vector<ngraph::Shape> shapes = {
@@ -89,5 +109,6 @@ INSTANTIATE_TEST_CASE_P(
     ::testing::Combine(
         ::testing::ValuesIn(precisions),
         ::testing::ValuesIn(shapes),
-        ::testing::ValuesIn(trasformationParamValues)),
+        ::testing::ValuesIn(trasformationParamValues),
+        ::testing::ValuesIn(fakeQuantizeOnDataValues)),
     FakeQuantizeTransformation::getTestCaseName);

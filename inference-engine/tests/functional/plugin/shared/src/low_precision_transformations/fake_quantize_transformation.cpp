@@ -11,19 +11,21 @@
 #include <ie_core.hpp>
 
 #include <transformations/init_node_info.hpp>
-#include "ngraph_functions/low_precision_transformations/fake_quantize_function.hpp"
 
 namespace LayerTestsDefinitions {
 
-std::string FakeQuantizeTransformation::getTestCaseName(testing::TestParamInfo<LayerTestsUtils::LayerTransformationParams> obj) {
+std::string FakeQuantizeTransformation::getTestCaseName(testing::TestParamInfo<FakeQuantizeTransformationParams> obj) {
     InferenceEngine::Precision netPrecision;
     InferenceEngine::SizeVector inputShapes;
     std::string targetDevice;
     InferenceEngine::details::LayerTransformation::Params params;
     LayerTestsUtils::LayerTransformation::LptVersion version;
-    std::tie(netPrecision, inputShapes, targetDevice, params, version) = obj.param;
+    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData;
+    std::tie(netPrecision, inputShapes, targetDevice, params, version, fakeQuantizeOnData) = obj.param;
 
-    return getTestCaseNameByParams(netPrecision, inputShapes, targetDevice, params, version);
+    std::ostringstream result;
+    result << getTestCaseNameByParams(netPrecision, inputShapes, targetDevice, params, version) << "_" << fakeQuantizeOnData;
+    return result.str();
 }
 
 void FakeQuantizeTransformation::SetUp() {
@@ -31,12 +33,16 @@ void FakeQuantizeTransformation::SetUp() {
     InferenceEngine::Precision netPrecision;
     InferenceEngine::details::LayerTransformation::Params params;
     LayerTestsUtils::LayerTransformation::LptVersion version;
-    std::tie(netPrecision, inputShape, targetDevice, params, version) = this->GetParam();
+    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData;
+    std::tie(netPrecision, inputShape, targetDevice, params, version, fakeQuantizeOnData) = this->GetParam();
 
     ConfigurePlugin(version);
 
-    const auto ngPrecision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    function = ngraph::builder::subgraph::FakeQuantizeFunction::getOriginal(ngPrecision, inputShape);
+    function = ngraph::builder::subgraph::FakeQuantizeFunction::getOriginal(
+        FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision),
+        inputShape,
+        toNGraph(params),
+        fakeQuantizeOnData);
 
     ngraph::pass::InitNodeInfo().run_on_function(function);
 
@@ -50,9 +56,13 @@ void FakeQuantizeTransformation::validate() {
     InferenceEngine::Precision netPrecision;
     InferenceEngine::details::LayerTransformation::Params params;
     LayerTestsUtils::LayerTransformation::LptVersion version;
-    std::tie(netPrecision, inputShape, targetDevice, params, version) = this->GetParam();
+    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData;
+    std::tie(netPrecision, inputShape, targetDevice, params, version, fakeQuantizeOnData) = this->GetParam();
 
-    const InferenceEngine::CNNNetwork network = transform(params);
+    auto transformations = getLowPrecisionTransformations(params);
+    transformations.removeCleanupTransformations("FakeQuantize");
+    transformations.removeCleanupTransformations("ScaleShift");
+    const InferenceEngine::CNNNetwork network = transform(transformations);
 
     IE_SUPPRESS_DEPRECATED_START
 
@@ -67,12 +77,12 @@ void FakeQuantizeTransformation::validate() {
     EXPECT_EQ(1ul, outputLayer->insData.size());
     const InferenceEngine::DataPtr insData = outputLayer->insData[0].lock();
     EXPECT_TRUE(insData != nullptr);
-    const InferenceEngine::CNNLayerPtr depthToSpace = insData->getCreatorLayer().lock();
-    EXPECT_TRUE(depthToSpace != nullptr);
-    EXPECT_EQ("FakeQuantize", depthToSpace->type);
+    const InferenceEngine::CNNLayerPtr fakeQuantize = insData->getCreatorLayer().lock();
+    EXPECT_TRUE(fakeQuantize != nullptr);
+    EXPECT_EQ("FakeQuantize", fakeQuantize->type);
 
     if (params.updatePrecisions) {
-        const InferenceEngine::Precision precision = depthToSpace->outData[0]->getTensorDesc().getPrecision();
+        const InferenceEngine::Precision precision = fakeQuantize->outData[0]->getTensorDesc().getPrecision();
         EXPECT_TRUE((precision == InferenceEngine::Precision::U8) || (precision == InferenceEngine::Precision::I8));
     }
 

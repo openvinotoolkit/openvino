@@ -55,7 +55,10 @@ void FakeQuantizeTransformation::transform(TransformationContext& context, ngrap
             auto newInputMax = fold<opset1::Divide>(layer->input_value(2), constant);
             // FIXME: workaround for current CPU implementation that has restrictions on shapes:
             auto newShape = newInputMin->get_output_shape(0);
-            newShape.insert(newShape.begin(), 1);
+            // FIXME: eshoguli: workaround for workaround to avoid 5D tensor
+            if (newShape.size() != 4ul) {
+                newShape.insert(newShape.begin(), 1);
+            }
             newInputMin = fold_reshape<opset1::Reshape>(newInputMin, std::make_shared<opset1::Constant>(element::i64, Shape{4}, newShape), false);
             newInputMax = fold_reshape<opset1::Reshape>(newInputMax, std::make_shared<opset1::Constant>(element::i64, Shape{4}, newShape), false);
             auto newFQ = layer->copy_with_new_inputs({data, newInputMin, newInputMax, layer->input_value(3), layer->input_value(4)});

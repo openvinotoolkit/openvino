@@ -6,6 +6,7 @@
 
 #include "low_precision_transformations/fake_quantize_transformation.hpp"
 #include "common_test_utils/test_constants.hpp"
+#include "ngraph_functions/low_precision_transformations/fake_quantize_function.hpp"
 
 using namespace LayerTestsDefinitions;
 using namespace InferenceEngine::details;
@@ -27,12 +28,20 @@ const std::vector<LayerTestsUtils::LayerTransformation::LptVersion> versionValue
     LayerTestsUtils::LayerTransformation::LptVersion::nGraph
 };
 
-INSTANTIATE_TEST_CASE_P(DISABLED_LPT, FakeQuantizeTransformation,
+const std::vector<ngraph::builder::subgraph::FakeQuantizeOnData> fakeQuantizeOnDataValues = {
+    { 256ul, {}, { 0.f }, { 2.55f } },
+    { 256ul, {}, { -1.28f} , { 1.27f } },
+    { 256ul, { 1ul }, { 0.f }, { 2.55f } },
+    { 256ul, { 1ul }, { -1.28f} , { 1.27f } }
+};
+
+INSTANTIATE_TEST_CASE_P(LPT, FakeQuantizeTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(InferenceEngine::SizeVector({ 1, 32, 72, 48 })),
         ::testing::Values(CommonTestUtils::DEVICE_CPU),
         ::testing::ValuesIn(trasformationParamValues),
-        ::testing::ValuesIn(versionValues)),
+        ::testing::ValuesIn(versionValues),
+        ::testing::ValuesIn(fakeQuantizeOnDataValues)),
     FakeQuantizeTransformation::getTestCaseName);
 }  // namespace
