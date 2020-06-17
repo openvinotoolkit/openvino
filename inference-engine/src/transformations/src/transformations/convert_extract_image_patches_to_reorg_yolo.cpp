@@ -34,9 +34,7 @@ void ngraph::pass::ConvertExtractImagePatchesToReorgYolo::convert_extract_image_
             return false;
         }
 
-        auto input_shape = p_shape_input.get_shape();
-
-        if (input_shape[2] % strides[0] != 0 || input_shape[3] % strides[1] != 0) {
+        if (p_shape_input[2] % strides[0] != 0 || p_shape_input[3] % strides[1] != 0) {
             return false;
         }
 
