@@ -33,7 +33,12 @@ target_compile_definitions(ngraph_backend
         SHARED_LIB_PREFIX="${CMAKE_SHARED_LIBRARY_PREFIX}"
         SHARED_LIB_SUFFIX="${IE_BUILD_POSTFIX}${CMAKE_SHARED_LIBRARY_SUFFIX}"
 )
-target_link_libraries(ngraph_backend PUBLIC ngraph)
+# Link with nGraph which includes reference implementations
+if (NGRAPH_EVALUATE_ENABLE)
+    target_link_libraries(ngraph_backend PUBLIC ngraph)
+else()
+    target_link_libraries(ngraph_backend PUBLIC ngraph_test)
+endif()
 if (NOT WIN32)
     target_link_libraries(ngraph_backend PRIVATE dl)
 endif()

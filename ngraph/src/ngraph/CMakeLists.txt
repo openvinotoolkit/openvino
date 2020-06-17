@@ -705,18 +705,6 @@ if(NOT NGRAPH_JSON_ENABLE)
     target_compile_definitions(ngraph PUBLIC NGRAPH_JSON_DISABLE)
 endif()
 
-# Create static nGraph library with reference implementations for tests
-if (NOT NGRAPH_EVALUATE_ENABLE)
-    add_library(ngraph_test SHARED ${SRC})
-    target_compile_definitions(ngraph_test PUBLIC NGRAPH_EVALUATE_ENABLE)
-    if(NGRAPH_JSON_ENABLE)
-        target_link_libraries(ngraph_test PRIVATE libjson)
-    endif()
-    target_compile_definitions(ngraph_test PRIVATE ngraph_EXPORTS)
-    target_compile_definitions(ngraph_test PUBLIC NGRAPH_VERSION="${NGRAPH_VERSION}")
-    target_include_directories(ngraph_test PUBLIC $<BUILD_INTERFACE:${NGRAPH_INCLUDE_PATH}> $<INSTALL_INTERFACE:include>)
-endif()
-
 add_subdirectory(frontend)
 
 find_package(Graphviz QUIET)
@@ -776,6 +764,26 @@ if(WIN32)
             file(MAKE_DIRECTORY ${NGRAPH_BUILD_DIR}/${BUILD_TYPE})
         endif()
     endforeach()
+endif()
+
+# Create static nGraph library with reference implementations for tests
+if (NOT NGRAPH_EVALUATE_ENABLE)
+    add_library(ngraph_test SHARED ${SRC})
+
+    target_include_directories(ngraph_test PUBLIC $<BUILD_INTERFACE:${NGRAPH_INCLUDE_PATH}>)
+    set_target_properties(ngraph_test PROPERTIES
+                          CXX_VISIBILITY_PRESET hidden
+                          C_VISIBILITY_PRESET hidden
+                          VISIBILITY_INLINES_HIDDEN ON)
+    target_compile_definitions(ngraph_test PUBLIC NGRAPH_EVALUATE_ENABLE)
+    if(NGRAPH_JSON_ENABLE)
+        target_link_libraries(ngraph_test PRIVATE libjson)
+    endif()
+    target_compile_definitions(ngraph_test PRIVATE ngraph_EXPORTS)
+    target_compile_definitions(ngraph_test PUBLIC NGRAPH_VERSION="${NGRAPH_VERSION}")
+    if (NOT WIN32)
+        target_link_libraries(ngraph PRIVATE dl)
+    endif()
 endif()
 
 #-----------------------------------------------------------------------------------------------
