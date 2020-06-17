@@ -14,17 +14,22 @@
  limitations under the License.
 """
 
-from mo.front.common.replacement import FrontReplacementOp
-# from extensions.ops.ONNXResize11 import ONNXResize11Op
+from mo.middle.replacement import MiddleReplacementPattern
 from mo.graph.graph import Graph, Node
 
 
-class ONNXResize11ToInterpolate3(FrontReplacementOp):
+class ONNXResize11ToInterpolate3(MiddleReplacementPattern):
     """
-    The transformation replaces SoftPlus(x) with log(1.0 + exp(x)).
+    The transformation replaces ONNX Resize 11 with Interpolate-3.
     """
-    op = 'ONNXResize11'
     enabled = False
 
-    def replace_op(self, graph: Graph, node: Node):
-        node_name = node.soft_get('name', node.id)
+    @staticmethod
+    def pattern(self):
+        return dict(
+            nodes=[('op', dict(op='ONNXResize11'))],
+            edges=[])
+
+    @staticmethod
+    def replace_pattern(graph: Graph, match: dict):
+        node = match['op']
