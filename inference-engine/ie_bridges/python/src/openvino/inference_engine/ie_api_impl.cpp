@@ -175,9 +175,6 @@ InferenceEnginePython::IENetwork::IENetwork(const std::string &model, const std:
     actual = std::make_shared<InferenceEngine::CNNNetwork>(net);
     name = actual->getName();
     batch_size = actual->getBatchSize();
-    IE_SUPPRESS_DEPRECATED_START
-    precision = actual->getPrecision().name();
-    IE_SUPPRESS_DEPRECATED_END
 }
 
 InferenceEnginePython::IENetwork::IENetwork(const std::shared_ptr<InferenceEngine::CNNNetwork> &cnn_network)
@@ -185,9 +182,6 @@ InferenceEnginePython::IENetwork::IENetwork(const std::shared_ptr<InferenceEngin
     if (actual == nullptr) THROW_IE_EXCEPTION << "IENetwork was not initialized.";
     name = actual->getName();
     batch_size = actual->getBatchSize();
-    IE_SUPPRESS_DEPRECATED_START
-    precision = actual->getPrecision().name();
-    IE_SUPPRESS_DEPRECATED_END
 }
 
 InferenceEnginePython::IENetwork::IENetwork(PyObject* network) {
@@ -200,9 +194,6 @@ InferenceEnginePython::IENetwork::IENetwork(PyObject* network) {
     actual = std::make_shared<InferenceEngine::CNNNetwork>(cnnNetwork);
     name = actual->getName();
     batch_size = actual->getBatchSize();
-    IE_SUPPRESS_DEPRECATED_START
-    precision = actual->getPrecision().name();
-    IE_SUPPRESS_DEPRECATED_END
 }
 
 void
@@ -218,9 +209,6 @@ InferenceEnginePython::IENetwork::load_from_buffer(const char *xml, size_t xml_s
     IE_SUPPRESS_DEPRECATED_END
     actual = std::make_shared<InferenceEngine::CNNNetwork>(net);
     batch_size = actual->getBatchSize();
-    IE_SUPPRESS_DEPRECATED_START
-    precision = actual->getPrecision().name();
-    IE_SUPPRESS_DEPRECATED_END
 }
 
 void InferenceEnginePython::IENetwork::serialize(const std::string &path_to_xml, const std::string &path_to_bin) {
@@ -229,12 +217,14 @@ void InferenceEnginePython::IENetwork::serialize(const std::string &path_to_xml,
 
 const std::vector <InferenceEngine::CNNLayerPtr>
 InferenceEnginePython::IENetwork::getLayers() {
+    IE_SUPPRESS_DEPRECATED_START
     std::vector<InferenceEngine::CNNLayerPtr> result;
     std::vector<InferenceEngine::CNNLayerPtr> sorted_layers = InferenceEngine::details::CNNNetSortTopologically(*actual);
     for (const auto &layer : sorted_layers) {
         result.emplace_back(layer);
     }
     return result;
+    IE_SUPPRESS_DEPRECATED_END
 }
 
 PyObject* InferenceEnginePython::IENetwork::getFunction() {
@@ -343,83 +333,6 @@ void InferenceEnginePython::IENetwork::setStats(const std::map<std::string, std:
         }
         pstats->setNodesStats(newNetNodesStats);
     }
-    IE_SUPPRESS_DEPRECATED_END
-}
-
-
-IE_SUPPRESS_DEPRECATED_START
-InferenceEnginePython::IEPlugin::IEPlugin(const std::string &device, const std::vector <std::string> &plugin_dirs) {
-
-    InferenceEngine::PluginDispatcher dispatcher{plugin_dirs};
-    actual = dispatcher.getPluginByDevice(device);
-    auto pluginVersion = actual.GetVersion();
-    version = std::to_string(pluginVersion->apiVersion.major) + ".";
-    version += std::to_string(pluginVersion->apiVersion.minor) + ".";
-    version += pluginVersion->buildNumber;
-    device_name = device;
-}
-IE_SUPPRESS_DEPRECATED_END
-
-void InferenceEnginePython::IEPlugin::setInitialAffinity(const InferenceEnginePython::IENetwork &net) {
-    IE_SUPPRESS_DEPRECATED_START
-    InferenceEngine::InferenceEnginePluginPtr hetero_plugin(actual);
-    InferenceEngine::QueryNetworkResult queryRes;
-    auto &network = net.actual;
-
-    hetero_plugin->QueryNetwork(*network, {}, queryRes);
-    IE_SUPPRESS_DEPRECATED_END
-
-    if (queryRes.rc != InferenceEngine::StatusCode::OK) {
-        THROW_IE_EXCEPTION << queryRes.resp.msg;
-    }
-    for (auto &&layer : queryRes.supportedLayersMap) {
-        IE_SUPPRESS_DEPRECATED_START
-        network->getLayerByName(layer.first.c_str())->affinity = layer.second;
-        IE_SUPPRESS_DEPRECATED_END
-    }
-}
-
-std::set <std::string> InferenceEnginePython::IEPlugin::queryNetwork(const InferenceEnginePython::IENetwork &net) {
-    const std::shared_ptr<InferenceEngine::CNNNetwork> &network = net.actual;
-    InferenceEngine::QueryNetworkResult queryRes;
-    IE_SUPPRESS_DEPRECATED_START
-    actual.QueryNetwork(*network, {}, queryRes);
-    IE_SUPPRESS_DEPRECATED_END
-
-    std::set <std::string> supportedLayers;
-    for (auto &&layer : queryRes.supportedLayersMap) {
-        supportedLayers.insert(layer.first);
-    }
-
-    return supportedLayers;
-}
-
-
-void InferenceEnginePython::IEPlugin::addCpuExtension(const std::string &extension_path) {
-    auto extension_ptr = InferenceEngine::make_so_pointer<InferenceEngine::IExtension>(extension_path);
-    auto extension = std::dynamic_pointer_cast<InferenceEngine::IExtension>(extension_ptr);
-    IE_SUPPRESS_DEPRECATED_START
-    actual.AddExtension(extension);
-    IE_SUPPRESS_DEPRECATED_END
-}
-
-std::unique_ptr <InferenceEnginePython::IEExecNetwork>
-InferenceEnginePython::IEPlugin::load(const InferenceEnginePython::IENetwork &net,
-                                      int num_requests,
-                                      const std::map <std::string, std::string> &config) {
-    auto exec_network = InferenceEnginePython::make_unique<InferenceEnginePython::IEExecNetwork>(net.name,
-                                                                                                 num_requests);
-    IE_SUPPRESS_DEPRECATED_START
-    exec_network->actual = actual.LoadNetwork(*net.actual, config);
-    IE_SUPPRESS_DEPRECATED_END
-    exec_network->createInferRequests(num_requests);
-
-    return exec_network;
-}
-
-void InferenceEnginePython::IEPlugin::setConfig(const std::map<std::string, std::string> &config) {
-    IE_SUPPRESS_DEPRECATED_START
-    actual.SetConfig(config);
     IE_SUPPRESS_DEPRECATED_END
 }
 

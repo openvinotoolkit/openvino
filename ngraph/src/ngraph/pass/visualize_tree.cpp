@@ -268,7 +268,8 @@ void pass::VisualizeTree::add_node_arguments(shared_ptr<Node> node,
             auto clone_name = "CLONE_" + to_string(fake_node_ctr);
             auto color = (arg->description() == "Parameter" ? "blue" : "black");
             m_ss << "    " << clone_name << "[shape=\"box\" style=\"dashed,filled\" color=\""
-                 << color << "\" fillcolor=\"white\" label=\"" << get_node_name(arg) << "\"]\n";
+                 << color << "\" fillcolor=\"white\" label=\"" << get_node_name(arg) << "\n"
+                 << get_constant_value(arg) << "\"]\n";
             m_ss << "    " << clone_name << " -> " << node->get_name()
                  << label_edge(arg, node, arg_index, jump_distance) << "\n";
             fake_node_ctr++;
@@ -348,6 +349,62 @@ static std::string pretty_partial_shape(const PartialShape& shape)
     return ss.str();
 }
 
+template <typename T>
+static std::string pretty_value(const vector<T>& value)
+{
+    std::stringstream ss;
+    bool first = true;
+    for (const auto& i : value)
+    {
+        if (!first)
+            ss << ", ";
+        ss << i;
+        first = false;
+    }
+    return ss.str();
+}
+
+std::string pass::VisualizeTree::get_constant_value(std::shared_ptr<Node> node, size_t max_elements)
+{
+    if (!node->is_constant())
+        return {};
+    std::stringstream ss;
+    ss << "{" << node->get_element_type().get_type_name() << "}";
+    ss << pretty_partial_shape(node->get_output_partial_shape(0));
+
+    if (ngraph::shape_size(node->get_shape()) > max_elements)
+        return ss.str();
+
+    ss << "\nvalue: ";
+    const auto constant = as_type_ptr<op::Constant>(node);
+    switch (constant->get_output_element_type(0))
+    {
+    case element::Type_t::undefined: ss << "[ undefined value ]"; break;
+    case element::Type_t::dynamic: ss << "[ dynamic value ]"; break;
+    case element::Type_t::u1: ss << "[ u1 value ]"; break;
+    case element::Type_t::bf16:
+    case element::Type_t::f16:
+    case element::Type_t::f32:
+    case element::Type_t::f64:
+        ss << "[" << pretty_value(constant->cast_vector<double>()) << "]";
+        break;
+    case element::Type_t::i8:
+    case element::Type_t::i16:
+    case element::Type_t::i32:
+    case element::Type_t::i64:
+        ss << "[" << pretty_value(constant->cast_vector<int64_t>()) << "]";
+        break;
+    case element::Type_t::boolean:
+    case element::Type_t::u8:
+    case element::Type_t::u16:
+    case element::Type_t::u32:
+    case element::Type_t::u64:
+        ss << "[" << pretty_value(constant->cast_vector<uint64_t>()) << "]";
+        break;
+    }
+    return ss.str();
+}
+
 string pass::VisualizeTree::get_attributes(shared_ptr<Node> node)
 {
     vector<string> attributes;
@@ -369,24 +426,17 @@ string pass::VisualizeTree::get_attributes(shared_ptr<Node> node)
         label << "label=\"" << get_node_name(node);
 
         static const bool nvtos = getenv_bool("NGRAPH_VISUALIZE_TREE_OUTPUT_SHAPES");
-        if (nvtos)
-        {
-            // The shapes of the Outputs of a multi-output op
-            // will be printed for its corresponding `GetOutputElement`s
-            label << " " << (node->get_output_size() != 1
-                                 ? string("[skipped]")
-                                 : pretty_partial_shape(node->get_output_partial_shape(0)));
-        }
-
         static const bool nvtot = getenv_bool("NGRAPH_VISUALIZE_TREE_OUTPUT_TYPES");
-        if (nvtot)
-        {
-            // The types of the Outputs of a multi-output op
-            // will be printed for its corresponding `GetOutputElement`s
-            label << " "
-                  << ((node->get_output_size() != 1) ? string("[skipped]")
-                                                     : node->get_element_type().c_type_string());
-        }
+
+        if (nvtos || nvtot)
+            for (const auto& output : node->outputs())
+            {
+                label << "\\n" << to_string(output.get_index()) << ": ";
+                if (nvtot)
+                    label << "{" << output.get_element_type().get_type_name() << "}";
+                if (nvtos)
+                    label << pretty_partial_shape(output.get_partial_shape());
+            }
 
         auto eh = m_ops_to_details.find(node->get_type_info());
         if (eh != m_ops_to_details.end())

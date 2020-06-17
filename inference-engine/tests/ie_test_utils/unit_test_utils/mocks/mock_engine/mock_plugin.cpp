@@ -32,10 +32,6 @@ void MockPlugin::Release() noexcept {
     delete this;
 }
 
-void MockPlugin::SetLogCallback(InferenceEngine::IErrorListener &listener) noexcept {
-    IF_NOT_NULL(SetLogCallback(listener));
-}
-
 void MockPlugin::GetVersion(const Version *&versionInfo) noexcept {
     versionInfo = &version;
 }

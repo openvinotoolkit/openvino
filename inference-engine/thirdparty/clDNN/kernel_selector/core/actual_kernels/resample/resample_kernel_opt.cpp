@@ -106,8 +106,8 @@ JitConstants ResampleKernelOpt::GetJitConstants(const resample_params &params) c
     jit.AddConstant(MakeJitConstant("VEC_SIZE", vec_size));
 
     if (!params.fused_ops.empty()) {
-        std::vector<std::string> idx_order = {"b", "feature_num", "y", "(x + out_x)"};
-        FusedOpsConfiguration conf = {"", idx_order, "res", params.inputs[0].GetDType(), vec_size, LoadType::LT_ALIGNED_READ};
+        std::vector<std::string> idx_order = {"b", "feature_block", "y", "(x + out_x)"};
+        FusedOpsConfiguration conf = {"", idx_order, "res", GetAccumulatorType(params), vec_size, LoadType::LT_ALIGNED_READ};
         conf.SetVectorAxis(Tensor::DataChannelName::FEATURE);
         jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
     }

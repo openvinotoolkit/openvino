@@ -140,10 +140,17 @@ private:
         const auto& dataTypeOutput = output(0)->desc().type();
 
         {
+            static const std::set<StageType> stageTypesWhichSupportS32 = {
+                    StageType::Sum,
+                    StageType::Greater_equal,
+                    StageType::Equal,
+                    StageType::Select,
+                    StageType::Prod,
+                    StageType::Max,
+                    StageType::Div,
+            };
             auto supportedDataTypesInput0 = EnumSet<DataType>{DataType::FP16};
-            if (operation == StageType::Sum || operation == StageType::Greater_equal ||
-                operation == StageType::Equal || operation == StageType::Select ||
-                operation == StageType::Prod || operation == StageType::Max) {
+            if (stageTypesWhichSupportS32.count(operation)) {
                 supportedDataTypesInput0.insert(DataType::S32);
             }
 
