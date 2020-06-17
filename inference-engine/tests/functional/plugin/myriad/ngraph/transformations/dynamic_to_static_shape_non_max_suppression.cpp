@@ -8,6 +8,8 @@
 #include <vpu/ngraph/operations/dynamic_shape_resolver.hpp>
 #include <vpu/ngraph/transformations/dynamic_to_static_shape.hpp>
 #include <vpu/ngraph/transformations/dynamic_to_static_shape_non_max_suppression.hpp>
+#include <vpu/ngraph/operations/static_shape_non_maximum_suppression.hpp>
+
 #include <vpu/utils/error.hpp>
 #include <numeric>
 #include <queue>
@@ -54,7 +56,7 @@ protected:
         const auto dims = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::i64, ngraph::Shape{3});
         const auto dsr = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(scores, dims);
 
-        const auto node = std::make_shared<ngraph::opset3::NonMaxSuppression>(
+        const auto node = std::make_shared<ngraph::op::v4::NonMaxSuppression>(
                 boxes, dsr, max_output_boxes_per_class, iou_threshold, score_threshold);
 
         auto outputShape = node->get_output_partial_shape(0);
@@ -85,31 +87,10 @@ protected:
         const auto dims = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::i64, ngraph::Shape{3});
         const auto dsr = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(scores, dims);
 
-        const auto node = std::make_shared<ngraph::opset3::NonMaxSuppression>(
+        const auto node = std::make_shared<ngraph::vpu::op::StaticShapeNonMaxSuppression>(
                 boxes, dsr, max_output_boxes_per_class, iou_threshold, score_threshold);
 
-        const auto num_classes_index = ngraph::opset3::Constant::create(ngraph::element::i64, {1}, std::vector<int64_t>{1});
-        const auto num_classes_axis = ngraph::opset3::Constant::create(ngraph::element::i64, {}, std::vector<int64_t>{0});
-        const auto num_classes = std::make_shared<ngraph::opset3::Gather>(dims, num_classes_index, num_classes_axis);
-
-        const auto num_boxes_index = ngraph::opset3::Constant::create(ngraph::element::i64, {1}, std::vector<int64_t>{2});
-        const auto num_boxes_axis = ngraph::opset3::Constant::create(ngraph::element::i64, {}, std::vector<int64_t>{0});
-        const auto num_boxes = std::make_shared<ngraph::opset3::Gather>(dims, num_boxes_index, num_boxes_axis);
-
-        const auto max_boxes = std::make_shared<ngraph::opset3::Convert>(
-                std::make_shared<ngraph::opset3::Unsqueeze>(max_output_boxes_per_class,
-                ngraph::opset3::Constant::create(ngraph::element::i64, {1}, std::vector<int64_t>{0})), dims->get_element_type());
-
-        const auto boxes_overall = std::make_shared<ngraph::opset3::Multiply>(max_boxes, num_classes);
-        const auto selected_boxes = std::make_shared<ngraph::opset3::Minimum>(num_boxes, boxes_overall);
-
-        const auto triplets_const = std::make_shared<ngraph::opset3::Constant>(
-                dims->get_element_type(), ngraph::Shape{1}, std::vector<int64_t>{3});
-
-        const auto final_shape = std::make_shared<ngraph::opset3::Concat>(
-                ngraph::OutputVector{selected_boxes, triplets_const}, 0);
-
-        const auto dsr1 = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(node, final_shape);
+         const auto dsr1 = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(node->output(0), node->output(1));
         return std::make_shared<ngraph::Function>(
                 ngraph::NodeVector{dsr1},
                 ngraph::ParameterVector{boxes, scores, dims},

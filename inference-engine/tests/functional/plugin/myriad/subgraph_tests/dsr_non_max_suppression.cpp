@@ -48,12 +48,12 @@ protected:
         const auto dims = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::i64, ngraph::Shape{3});
         const auto dsr = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(scores, dims);
 
-        const auto node = std::make_shared<ngraph::opset3::NonMaxSuppression>(
+        const auto node = std::make_shared<ngraph::op::v4::NonMaxSuppression>(
                 boxes, dsr, max_output_boxes_per_class, iou_threshold, score_threshold);
 
         const auto result = std::make_shared<ngraph::opset3::Result>(node);
         function = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
-                ngraph::ParameterVector{boxes, scores, dims}, "DSR-NMS");
+                ngraph::ParameterVector{boxes, scores, dims}, "DSR-v4::NMS");
     }
 };
 
