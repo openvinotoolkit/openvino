@@ -88,7 +88,7 @@ static std::string GetDictionaryIndexOrder(const gather_params& params, size_t a
     const std::string zeroVal = "0";
 
     size_t dictionary_dims_num = GetNonEmptyDimsNumber(params.inputs[0]);
-    size_t indices_dims_num = GetNonEmptyDimsNumber(params.inputs[1]);
+    size_t indices_dims_num = GetNonEmptyDimsNumber(params.output) - dictionary_dims_num + 1;
 
     // Shift indices of Gather dictionary input related to output dims
     for (size_t i = axis + 1; i < dictionary_dims_num; i++)
