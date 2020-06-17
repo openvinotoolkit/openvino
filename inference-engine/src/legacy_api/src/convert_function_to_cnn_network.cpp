@@ -35,6 +35,7 @@
 #include "ngraph_ops/rnn_cell_ie.hpp"
 #include "ngraph_ops/topk_ie.hpp"
 #include "generic_ie.hpp"
+#include "exec_graph_info.hpp"
 
 #include "ie_profiling.hpp"
 #include "ie_cnn_layer_builder_ngraph.h"
@@ -732,7 +733,7 @@ std::shared_ptr<CNNNetworkImpl> convertFunctionToICNNNetwork(const std::shared_p
         // Set originalLayersNames from FusedNames
         std::string originalNames = ::ngraph::getFusedNames(layer);
         if (!originalNames.empty()) {
-            cnnLayer->params["originalLayersNames"] = originalNames;
+            cnnLayer->params[ExecGraphInfoSerialization::ORIGINAL_NAMES] = originalNames;
         }
 
         std::string primitivesPriority = ::ngraph::getPrimitivesPriority(layer);
@@ -872,7 +873,11 @@ std::shared_ptr<CNNNetworkImpl> convertFunctionToICNNNetwork(const std::shared_p
                                    << " is not connected to any data";
             }
         }
-        layer->validateLayer();
+
+        // execution ngraph is fake graph and should not be validated
+        if (layer->params.count(ExecGraphInfoSerialization::PERF_COUNTER) == 0) {
+            layer->validateLayer();
+        }
     }
 
     if (!cnnNetworkImpl) THROW_IE_EXCEPTION << "Cannot convert nGraph function to CNNNetworkImpl!";

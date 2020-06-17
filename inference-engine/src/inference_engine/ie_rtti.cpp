@@ -13,10 +13,21 @@
 #include <ie_parameter.hpp>
 #include <ie_iextension.h>
 #include <ie_extension.h>
+#include <exec_graph_info.hpp>
 
 #include <ngraph/opsets/opset.hpp>
 
 using namespace InferenceEngine;
+
+//
+// exec_graph_info.hpp
+//
+constexpr ngraph::NodeTypeInfo ExecGraphInfoSerialization::ExecutionNode::type_info;
+
+const ngraph::NodeTypeInfo&
+ExecGraphInfoSerialization::ExecutionNode::get_type_info() const {
+    return type_info;
+}
 
 //
 // ie_blob.h
