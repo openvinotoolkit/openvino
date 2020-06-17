@@ -6,6 +6,7 @@ jobs:
     #vmImage: 'ubuntu-18.04'
     name: LIN_VMSS_VENV_F8S_WU2
   variables:
+    WORKERS_NUMBER: 8
     BUILD_TYPE: Release
     BIN_DIR: ../bin/intel64/$(BUILD_TYPE)
   steps:
@@ -32,7 +33,7 @@ jobs:
       unzip ninja-linux.zip
       sudo cp -v ninja /usr/local/bin/
     displayName: 'Install Ninja'
-  - script: git submodule update --init --recursive --jobs 8
+  - script: git submodule update --init --recursive --jobs $(WORKERS_NUMBER)
     displayName: 'Clone submodules'
   - script: |
       mkdir dldt-build
@@ -49,11 +50,13 @@ jobs:
   - script: ls -alR ../bin/
     workingDirectory: dldt-build
     displayName: 'List files'
-  - script: $(BIN_DIR)/unit-test --gtest_print_time=1 --gtest_filter=-backend_api.config_unsupported:*IE_GPU*
+  - script: git clone https://github.com/google/gtest-parallel.git
+    displayName: 'Clone gtest-parallel'
+  - script: python3 ../gtest-parallel/gtest-parallel $(BIN_DIR)/unit-test --workers=$(WORKERS_NUMBER) --print_test_times --dump_json_test_results=unit-test.json --gtest_filter=-backend_api.config_unsupported:*IE_GPU* -- --gtest_print_time=1
     workingDirectory: dldt-build
     displayName: 'nGraph UT'
     continueOnError: false
-  - script: $(BIN_DIR)/InferenceEngineUnitTests
+  - script: python3 ../gtest-parallel/gtest-parallel $(BIN_DIR)/InferenceEngineUnitTests --workers=$(WORKERS_NUMBER) --print_test_times --dump_json_test_results=InferenceEngineUnitTests.json -- --gtest_print_time=1
     workingDirectory: dldt-build
     displayName: 'IE UT old'
     continueOnError: false
@@ -77,7 +80,7 @@ jobs:
     workingDirectory: dldt-build
     displayName: 'IE FuncTests'
     continueOnError: false
-  - script: $(BIN_DIR)/cpuFuncTests
+  - script: python3 ../gtest-parallel/gtest-parallel $(BIN_DIR)/cpuFuncTests --workers=$(WORKERS_NUMBER) --print_test_times --dump_json_test_results=cpuFuncTests.json -- --gtest_print_time=1
     workingDirectory: dldt-build
     displayName: 'CPU FuncTests'
     continueOnError: false
@@ -90,7 +93,7 @@ jobs:
   - script: |
       export DATA_PATH=`pwd`/../testdata
       export MODELS_PATH=`pwd`/../testdata
-      $(BIN_DIR)/MklDnnFunctionalTests --gtest_filter=*smoke*:-smoke_MobileNet/ModelTransformationsTest.LPT/mobilenet_v2_tf_depthwise_batch1_inPluginDisabled_inTestDisabled_asymmetric*
+      python3 ../gtest-parallel/gtest-parallel $(BIN_DIR)/MklDnnFunctionalTests --workers=$(WORKERS_NUMBER) --print_test_times --dump_json_test_results=MklDnnFunctionalTests.json --gtest_filter=-smoke_MobileNet/ModelTransformationsTest.LPT/mobilenet_v2_tf_depthwise_batch1_inPluginDisabled_inTestDisabled_asymmetric* -- --gtest_print_time=1
     workingDirectory: dldt-build
     displayName: 'MklDnnFunctionalTests'
     continueOnError: false
@@ -120,6 +123,7 @@ jobs:
   pool:
     vmImage: 'macOS-10.15'
   variables:
+    WORKERS_NUMBER: 3
     BUILD_TYPE: Release
     BIN_DIR: ../bin/intel64/$(BUILD_TYPE)
   steps:
@@ -141,7 +145,7 @@ jobs:
     displayName: 'Install dependencies'
   - script: brew install ninja
     displayName: 'Install Ninja'
-  - script: git submodule update --init --recursive --jobs 8
+  - script: git submodule update --init --recursive --jobs $(WORKERS_NUMBER)
     displayName: 'Clone submodules'
   - script: |
       mkdir dldt-build
@@ -163,11 +167,13 @@ jobs:
   - script: ls -alR ../bin/
     workingDirectory: dldt-build
     displayName: 'List files'
-  - script: $(BIN_DIR)/unit-test --gtest_print_time=1 --gtest_filter=-backend_api.config_unsupported:*IE_GPU*:IE_CPU.onnx_model_sigmoid
+  - script: git clone https://github.com/google/gtest-parallel.git
+    displayName: 'Clone gtest-parallel'
+  - script: python3 ../gtest-parallel/gtest-parallel $(BIN_DIR)/unit-test --workers=$(WORKERS_NUMBER) --print_test_times --dump_json_test_results=unit-test.json --gtest_filter=-backend_api.config_unsupported:*IE_GPU*:IE_CPU.onnx_model_sigmoid -- --gtest_print_time=1
     workingDirectory: dldt-build
     displayName: 'nGraph UT'
     continueOnError: false
-  - script: $(BIN_DIR)/InferenceEngineUnitTests
+  - script: python3 ../gtest-parallel/gtest-parallel $(BIN_DIR)/InferenceEngineUnitTests --workers=$(WORKERS_NUMBER) --print_test_times --dump_json_test_results=InferenceEngineUnitTests.json -- --gtest_print_time=1
     workingDirectory: dldt-build
     displayName: 'IE UT old'
     continueOnError: false
@@ -187,7 +193,7 @@ jobs:
     workingDirectory: dldt-build
     displayName: 'IE FuncTests'
     continueOnError: false
-  - script: $(BIN_DIR)/cpuFuncTests
+  - script: python3 ../gtest-parallel/gtest-parallel $(BIN_DIR)/cpuFuncTests --workers=$(WORKERS_NUMBER) --print_test_times --dump_json_test_results=cpuFuncTests.json -- --gtest_print_time=1
     workingDirectory: dldt-build
     displayName: 'CPU FuncTests'
     continueOnError: false
@@ -200,7 +206,7 @@ jobs:
   - script: |
       export DATA_PATH=`pwd`/../testdata
       export MODELS_PATH=`pwd`/../testdata
-      $(BIN_DIR)/MklDnnFunctionalTests --gtest_filter=*smoke*:-smoke_MobileNet/ModelTransformationsTest.LPT/mobilenet_v2_tf_depthwise_batch1_inPluginDisabled_inTestDisabled_asymmetric*
+      python3 ../gtest-parallel/gtest-parallel $(BIN_DIR)/MklDnnFunctionalTests --workers=$(WORKERS_NUMBER) --print_test_times --dump_json_test_results=MklDnnFunctionalTests.json --gtest_filter=-smoke_MobileNet/ModelTransformationsTest.LPT/mobilenet_v2_tf_depthwise_batch1_inPluginDisabled_inTestDisabled_asymmetric* -- --gtest_print_time=1
     workingDirectory: dldt-build
     displayName: 'MklDnnFunctionalTests'
     continueOnError: false
@@ -219,6 +225,7 @@ jobs:
     #vmImage: 'vs2017-win2016'
     name: WIN_VMSS_VENV_F8S_WU2
   variables:
+    WORKERS_NUMBER: 8
     BUILD_TYPE: Release
     BUILD_DIR: D:\dldt-build
     BIN_DIR: ..\bin\intel64
@@ -258,15 +265,17 @@ jobs:
   - script: dir ..\bin\ /s /b
     workingDirectory: dldt-build
     displayName: 'List files'
+  - script: git clone https://github.com/google/gtest-parallel.git
+    displayName: 'Clone gtest-parallel'
   - script: |
       set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
-      $(BIN_DIR)\unit-test --gtest_print_time=1 --gtest_filter=-backend_api.config_unsupported:*IE_GPU*
+      python3 ..\gtest-parallel\gtest-parallel $(BIN_DIR)\unit-test --workers=$(WORKERS_NUMBER) --print_test_times --dump_json_test_results=unit-test.json --gtest_filter=-backend_api.config_unsupported:*IE_GPU* -- --gtest_print_time=1
     workingDirectory: dldt-build
     displayName: 'nGraph UT'
     continueOnError: false
   - script: |
       set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
-      $(BIN_DIR)\InferenceEngineUnitTests
+      python3 ..\gtest-parallel\gtest-parallel $(BIN_DIR)\InferenceEngineUnitTests --workers=$(WORKERS_NUMBER) --print_test_times --dump_json_test_results=InferenceEngineUnitTests.json -- --gtest_print_time=1
     workingDirectory: dldt-build
     displayName: 'IE UT old'
     continueOnError: false
@@ -302,7 +311,7 @@ jobs:
     continueOnError: false
   - script: |
       set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
-      $(BIN_DIR)\cpuFuncTests
+      python3 ..\gtest-parallel\gtest-parallel $(BIN_DIR)\cpuFuncTests --workers=$(WORKERS_NUMBER) --print_test_times --dump_json_test_results=cpuFuncTests.json -- --gtest_print_time=1
     workingDirectory: dldt-build
     displayName: 'CPU FuncTests'
     continueOnError: false
@@ -319,7 +328,7 @@ jobs:
       set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;$(Build.Repository.LocalPath)\inference-engine\temp\opencv_4.3.0\opencv\bin;%PATH%
       set DATA_PATH=$(BUILD_DIR)\testdata
       set MODELS_PATH=$(BUILD_DIR)\testdata
-      $(BIN_DIR)\MklDnnFunctionalTests --gtest_filter=*smoke*:-smoke_MobileNet/ModelTransformationsTest.LPT/mobilenet_v2_tf_depthwise_batch1_inPluginDisabled_inTestDisabled_asymmetric*
+      python3 ..\gtest-parallel\gtest-parallel $(BIN_DIR)\MklDnnFunctionalTests --workers=$(WORKERS_NUMBER) --print_test_times --dump_json_test_results=MklDnnFunctionalTests.json --gtest_filter=-smoke_MobileNet/ModelTransformationsTest.LPT/mobilenet_v2_tf_depthwise_batch1_inPluginDisabled_inTestDisabled_asymmetric* -- --gtest_print_time=1
     workingDirectory: dldt-build
     displayName: 'MklDnnFunctionalTests'
     continueOnError: false
