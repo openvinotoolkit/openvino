@@ -18,5 +18,9 @@ std::vector<std::string> disabledTestPatterns() {
         ".*Behavior.*ExecGraphTests.*",
         // TODO: Issue: 26268
         ".*ConcatLayerTest.*axis=0.*",
+#if defined(_WIN32) || defined(_WIN64)
+        //TODO: Issue: 33722
+        ".*DynamicTranspose.*NonZero_Transpose.*",
+#endif
     };
 }
