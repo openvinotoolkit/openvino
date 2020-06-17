@@ -105,7 +105,7 @@ bool getShapeFromHostTensorData(const HostTensorPtr& data, Shape& shape) {
     return true;
 }
 
-template<element::Type_t InType>
+template<element::Type_t DataType>
 bool evaluate(const HostTensorPtr& inputTensor,
               const HostTensorPtr& inputShapeTensor,
               const HostTensorPtr& outputTensor) {
@@ -121,27 +121,31 @@ bool evaluate(const HostTensorPtr& inputTensor,
 
     outputTensor->set_shape(outputShape);
 
-    using T = typename element_type_traits<InType>::value_type;
-    T *inputPtr = inputTensor->get_data_ptr<InType>();
-    T *outputPtr = outputTensor->get_data_ptr<InType>();
+    using T = typename element_type_traits<DataType>::value_type;
+    T *inputPtr = inputTensor->get_data_ptr<DataType>();
+    T *outputPtr = outputTensor->get_data_ptr<DataType>();
 
     const auto inTotalDimSize = shape_size(inputShape);
-    const auto strides = row_major_strides(inputShape);
+    const auto stridesByElements = row_major_strides(inputShape);
 
-    for (size_t inputTensorIdx = 0, outputTensorIdx = 0; inputTensorIdx < inTotalDimSize; ++inputTensorIdx) {
-        auto offset = inputTensorIdx;
-        bool needCopy = true;
-        for (size_t dim = 0; dim < strides.size(); ++dim) {
-            const auto coordAlongDim = offset / strides[dim];
+    const auto inLineSize = inputShape[inputShape.size() - 1];
+    const auto outLineSize = outputShape[outputShape.size() - 1];
+
+    for (size_t inElementOffset = 0, outElementOffset = 0; inElementOffset < inTotalDimSize; inElementOffset += inLineSize) {
+        auto offset = inElementOffset;
+        bool isGarbageLine = false;
+        for (size_t dim = 0; dim < stridesByElements.size() - 1; ++dim) {
+            const auto coordAlongDim = offset / stridesByElements[dim];
             if (coordAlongDim > outputShape[dim] - 1) {
-                needCopy = false;
+                isGarbageLine = true;
                 break;
             }
 
-            offset %= strides[dim];
+            offset %= stridesByElements[dim];
         }
-        if (needCopy) {
-            outputPtr[outputTensorIdx++] = inputPtr[inputTensorIdx];
+        if (!isGarbageLine) {
+            std::copy_n(inputPtr + inElementOffset, outLineSize, outputPtr + outElementOffset);
+            outElementOffset += outLineSize;
         }
     }
     return true;

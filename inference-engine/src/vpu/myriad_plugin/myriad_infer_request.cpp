@@ -147,8 +147,18 @@ static void copyBlobAccordingUpperBound(
     const auto inLayout = in->getTensorDesc().getLayout();
     const auto outLayout = out->getTensorDesc().getLayout();
 
-    const auto& inDims = in->getTensorDesc().getDims();
-    const auto& outDims = out->getTensorDesc().getDims();
+    const auto& inBlockingDesc = in->getTensorDesc().getBlockingDesc();
+    const auto& outBlockingDesc = out->getTensorDesc().getBlockingDesc();
+
+    const auto& inDims = inBlockingDesc.getBlockDims();
+    const auto& outDims = outBlockingDesc.getBlockDims();
+    const auto inTotalDimSize = in->byteSize();
+
+    // Strides in blocking description is presented by elements.
+    // So we need to multiply them by element size
+    auto inStrides = inBlockingDesc.getStrides();
+    std::transform(inStrides.begin(), inStrides.end(), inStrides.begin(),
+                   std::bind(std::multiplies<size_t>(), std::placeholders::_1, in->element_size()));
 
     IE_ASSERT(inLayout == outLayout);
 
@@ -158,30 +168,25 @@ static void copyBlobAccordingUpperBound(
     auto outPtr = out->cbuffer().as<uint8_t *>();
     IE_ASSERT(outPtr != nullptr);
 
-    if (inDims.size() > 4) {
-        VPU_THROW_EXCEPTION << "Copying of blobs with dynamic shape and num dims greater than 4 unsupported yet";
-    }
+    const auto inLineByteSize = inDims[inDims.size() - 1] * in->element_size();
+    const auto outLineByteSize = outDims[inDims.size() - 1] * out->element_size();
 
-    const auto inLineSize = inDims.size() > 1 ? inDims[inDims.size() - 1] * in->element_size() : in->byteSize();
-    const auto outLineSize = outDims.size() > 1 ? outDims[inDims.size() - 1] * out->element_size() : out->byteSize();
-    const auto numLines = outDims.size() > 1 ? outDims[inDims.size() - 2] : 1;
-
-    const auto inChannelSize = inDims.size() > 2 ? inDims[inDims.size() - 2] * inLineSize : 1;
-    const auto outChannelSize = outDims.size() > 2 ? outDims[inDims.size() - 2] * outLineSize : 1;
-    const auto numChannels = outDims.size() > 2 ? outDims[inDims.size() - 3] : 1;
-
-    const auto inBatchSize = inDims.size() > 3 ? inDims[inDims.size() - 3] * inChannelSize : 1;
-    const auto outBtchSize = outDims.size() > 3 ? outDims[inDims.size() - 3] * outChannelSize : 1;
-    const auto numBatches = outDims.size() > 3 ? outDims[inDims.size() - 4] : 1;
-
-    for (size_t n = 0; n < numBatches; ++n) {
-        for (size_t c = 0; c < numChannels; ++c) {
-            for (size_t h = 0; h < numLines; ++h) {
-                std::copy_n(
-                        in->cbuffer().as<uint8_t*>() + n * inBatchSize + c * inChannelSize + h * inLineSize,
-                        outLineSize,
-                        out->buffer().as<uint8_t*>() + n * outBtchSize + c * outChannelSize + h * outLineSize);
+    for (size_t inByteOffset = 0, outByteOffset = 0; inByteOffset < inTotalDimSize; inByteOffset += inLineByteSize) {
+        auto offset = inByteOffset;
+        bool isGarbageLine = false;
+        for (size_t dim = 0; dim < inStrides.size() - 1; ++dim) {
+            const auto coordAlongDim = offset / inStrides[dim];
+            if (coordAlongDim > outDims[dim] - 1) {
+                isGarbageLine = true;
+                break;
             }
+
+            offset %= inStrides[dim];
+        }
+        if (!isGarbageLine) {
+            // We transfer outLineByteSize bytes, so garbage data at the end of the line is not copied.
+            std::copy_n(inPtr + inByteOffset, outLineByteSize, outPtr + outByteOffset);
+            outByteOffset += outLineByteSize;
         }
     }
 }
