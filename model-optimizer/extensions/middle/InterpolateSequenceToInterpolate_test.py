@@ -39,7 +39,8 @@ graph_node_attrs_for_2d_case_1 = {
         'kind': 'op',
         'op': 'Interpolate',
         'axes': int64_array([2]),
-        'mode': 'nearest'
+        'mode': 'nearest',
+        'version': 'opset1'
     },
     'interpolate_1_data': {'value': None, 'shape': int64_array([1, 4, 660, 350]), 'kind': 'data'},
     'scale_2': {
@@ -51,7 +52,8 @@ graph_node_attrs_for_2d_case_1 = {
         'kind': 'op',
         'op': 'Interpolate',
         'axes': int64_array([3]),
-        'mode': 'nearest'
+        'mode': 'nearest',
+        'version': 'opset1'
     },
     'interpolate_2_data': {'value': None, 'shape': int64_array([1, 4, 660, 700]), 'kind': 'data'},
     'scale_3': {
@@ -63,7 +65,8 @@ graph_node_attrs_for_2d_case_1 = {
         'kind': 'op',
         'op': 'Interpolate',
         'axes': int64_array([2]),
-        'mode': 'nearest'
+        'mode': 'nearest',
+        'version': 'opset1'
     },
     'interpolate_3_data': {'value': None, 'shape': int64_array([1, 4, 1320, 700]), 'kind': 'data'},
     'abs': {'type': 'Abs', 'kind': 'op', 'op': 'Abs'},
@@ -112,7 +115,8 @@ graph_node_attrs_for_2d_case_2 = {
         'kind': 'op',
         'op': 'Interpolate',
         'axes': int64_array([2]),
-        'mode': 'nearest'
+        'mode': 'nearest',
+        'version': 'opset1'
     },
     'interpolate_1_data': {'value': None, 'shape': int64_array([1, 4, 660, 350]), 'kind': 'data'},
     'abs': {'type': 'Abs', 'kind': 'op', 'op': 'Abs'},
@@ -151,7 +155,8 @@ graph_node_attrs_for_2d_case_3 = {
         'kind': 'op',
         'op': 'Interpolate',
         'axes': int64_array([2]),
-        'mode': 'nearest'
+        'mode': 'nearest',
+        'version': 'opset1'
     },
     'interpolate_1_data': {'value': None, 'shape': int64_array([1, 4, 660, 350]), 'kind': 'data'},
     'scale_2': {
@@ -163,7 +168,8 @@ graph_node_attrs_for_2d_case_3 = {
         'kind': 'op',
         'op': 'Interpolate',
         'axes': int64_array([3]),
-        'mode': 'linear'
+        'mode': 'linear',
+        'version': 'opset1'
     },
     'interpolate_2_data': {'value': None, 'shape': int64_array([1, 4, 660, 700]), 'kind': 'data'},
     'scale_3': {
@@ -175,7 +181,8 @@ graph_node_attrs_for_2d_case_3 = {
         'kind': 'op',
         'op': 'Interpolate',
         'axes': int64_array([2]),
-        'mode': 'cubic'
+        'mode': 'cubic',
+        'version': 'opset1'
     },
     'interpolate_3_data': {'value': None, 'shape': int64_array([1, 4, 1320, 700]), 'kind': 'data'},
     'abs': {'type': 'Abs', 'kind': 'op', 'op': 'Abs'},
@@ -207,7 +214,8 @@ graph_node_attrs_for_2d_case_4 = {
         'align_corners': 0,
         'antialias': 1,
         'pads_begin': 5,
-        'pads_end': 3
+        'pads_end': 3,
+        'version': 'opset1'
     },
     'interpolate_1_data': {'value': None, 'shape': int64_array([1, 4, 2200, 350]), 'kind': 'data'},
     'scale_2': {
@@ -223,7 +231,8 @@ graph_node_attrs_for_2d_case_4 = {
         'align_corners': 0,
         'antialias': 1,
         'pads_begin': 5,
-        'pads_end': 3
+        'pads_end': 3,
+        'version': 'opset1'
     },
     'interpolate_2_data': {'value': None, 'shape': int64_array([1, 4, 2200, 700]), 'kind': 'data'},
     'abs': {'type': 'Abs', 'kind': 'op', 'op': 'Abs'},
@@ -271,7 +280,8 @@ graph_node_attrs_for_2d_case_6 = {
         'align_corners': 0,
         'antialias': 1,
         'pads_begin': 5,
-        'pads_end': 3
+        'pads_end': 3,
+        'version': 'opset1'
     },
     'interpolate_1_data': {'value': None, 'shape': int64_array([1, 4, 220, 350]), 'kind': 'data'},
     'scale_2': {
@@ -287,7 +297,8 @@ graph_node_attrs_for_2d_case_6 = {
         'align_corners': 0,
         'antialias': 1,
         'pads_begin': 5,
-        'pads_end': 3
+        'pads_end': 3,
+        'version': 'opset1'
     },
     'interpolate_2_data': {'value': None, 'shape': int64_array([1, 4, 220, 350]), 'kind': 'data'},
     'abs': {'type': 'Abs', 'kind': 'op', 'op': 'Abs'},
@@ -315,7 +326,8 @@ graph_node_attrs_for_3d_case_1 = {
         'kind': 'op',
         'op': 'Interpolate',
         'axes': int64_array([2, 4]),
-        'mode': 'nearest'
+        'mode': 'nearest',
+        'version': 'opset1'
     },
     'interpolate_1_data': {'value': None, 'shape': int64_array([1, 5, 4096, 256, 2400]), 'kind': 'data'},
     'scale_2': {
@@ -327,7 +339,8 @@ graph_node_attrs_for_3d_case_1 = {
         'kind': 'op',
         'op': 'Interpolate',
         'axes': int64_array([3]),
-        'mode': 'nearest'
+        'mode': 'nearest',
+        'version': 'opset1'
     },
     'interpolate_2_data': {'value': None, 'shape': int64_array([1, 5, 4096, 1280, 2400]), 'kind': 'data'},
     'scale_3': {
@@ -339,7 +352,8 @@ graph_node_attrs_for_3d_case_1 = {
         'kind': 'op',
         'op': 'Interpolate',
         'axes': int64_array([4]),
-        'mode': 'nearest'
+        'mode': 'nearest',
+        'version': 'opset1'
     },
     'interpolate_3_data': {'value': None, 'shape': int64_array([1, 5, 4096, 1280, 512]), 'kind': 'data'},
     'abs': {'type': 'Abs', 'kind': 'op', 'op': 'Abs'},
@@ -367,7 +381,8 @@ graph_node_attrs_for_3d_case_2 = {
         'kind': 'op',
         'op': 'Interpolate',
         'axes': int64_array([2, 3]),
-        'mode': 'nearest'
+        'mode': 'nearest',
+        'version': 'opset1'
     },
     'interpolate_1_data': {'value': None, 'shape': int64_array([1, 5, 4096, 1280, 800]), 'kind': 'data'},
     'abs': {'type': 'Abs', 'kind': 'op', 'op': 'Abs'},
@@ -395,7 +410,8 @@ graph_node_attrs_for_3d_case_3 = {
         'kind': 'op',
         'op': 'Interpolate',
         'axes': int64_array([2]),
-        'mode': 'nearest'
+        'mode': 'nearest',
+        'version': 'opset1'
     },
     'interpolate_1_data': {'value': None, 'shape': int64_array([16, 44, 256, 87, 790]), 'kind': 'data'},
     'scale_2': {
@@ -407,7 +423,8 @@ graph_node_attrs_for_3d_case_3 = {
         'kind': 'op',
         'op': 'Interpolate',
         'axes': int64_array([4]),
-        'mode': 'linear'
+        'mode': 'linear',
+        'version': 'opset1'
     },
     'interpolate_2_data': {'value': None, 'shape': int64_array([16, 44, 256, 87, 2370]), 'kind': 'data'},
     'scale_3': {
@@ -419,7 +436,8 @@ graph_node_attrs_for_3d_case_3 = {
         'kind': 'op',
         'op': 'Interpolate',
         'axes': int64_array([3]),
-        'mode': 'cubic'
+        'mode': 'cubic',
+        'version': 'opset1'
     },
     'interpolate_3_data': {'value': None, 'shape': int64_array([16, 44, 256, 435, 2370]), 'kind': 'data'},
     'abs': {'type': 'Abs', 'kind': 'op', 'op': 'Abs'},
@@ -451,7 +469,8 @@ graph_node_attrs_for_3d_case_4 = {
         'align_corners': 0,
         'antialias': 1,
         'pads_begin': 5,
-        'pads_end': 3
+        'pads_end': 3,
+        'version': 'opset1'
     },
     'interpolate_1_data': {'value': None, 'shape': int64_array([10, 64, 4599, 416, 133120]), 'kind': 'data'},
     'scale_2': {
@@ -467,7 +486,8 @@ graph_node_attrs_for_3d_case_4 = {
         'align_corners': 0,
         'antialias': 1,
         'pads_begin': 5,
-        'pads_end': 3
+        'pads_end': 3,
+        'version': 'opset1'
     },
     'interpolate_2_data': {'value': None, 'shape': int64_array([10, 64, 4599, 912, 133120]), 'kind': 'data'},
     'abs': {'type': 'Abs', 'kind': 'op', 'op': 'Abs'},
@@ -503,7 +523,8 @@ class InterpolateSequenceToInterpolateTest(unittest.TestCase):
                     'kind': 'op',
                     'op': 'Interpolate',
                     'axes': int64_array([2, 3]),
-                    'mode': 'nearest'
+                    'mode': 'nearest',
+                    'version': 'opset1'
                 },
                 'interpolate_1_data': {'value': None, 'shape': int64_array([1, 4, 660, 700]), 'kind': 'data'},
                 'scale_2': {
@@ -515,7 +536,8 @@ class InterpolateSequenceToInterpolateTest(unittest.TestCase):
                     'kind': 'op',
                     'op': 'Interpolate',
                     'axes': int64_array([2]),
-                    'mode': 'nearest'
+                    'mode': 'nearest',
+                    'version': 'opset1'
                 },
                 'interpolate_2_data': {'value': None, 'shape': int64_array([1, 4, 1320, 700]), 'kind': 'data'},
                 'abs': {'type': 'Abs', 'kind': 'op', 'op': 'Abs'},
@@ -597,7 +619,8 @@ class InterpolateSequenceToInterpolateTest(unittest.TestCase):
                     'align_corners': 0,
                     'antialias': 1,
                     'pads_begin': 5,
-                    'pads_end': 3
+                    'pads_end': 3,
+                    'version': 'opset1'
                 },
                 'interpolate_data': {'value': None, 'shape': int64_array([1, 4, 2200, 700]), 'kind': 'data'},
                 'abs': {'type': 'Abs', 'kind': 'op', 'op': 'Abs'},
@@ -686,7 +709,8 @@ class InterpolateSequenceToInterpolateTest(unittest.TestCase):
                     'kind': 'op',
                     'op': 'Interpolate',
                     'axes': int64_array([2, 3, 4]),
-                    'mode': 'nearest'
+                    'mode': 'nearest',
+                    'version': 'opset1'
                 },
                 'interpolate_1_data': {'value': None, 'shape': int64_array([1, 5, 4096, 1280, 2400]), 'kind': 'data'},
                 'scale_2': {
@@ -698,7 +722,8 @@ class InterpolateSequenceToInterpolateTest(unittest.TestCase):
                     'kind': 'op',
                     'op': 'Interpolate',
                     'axes': int64_array([4]),
-                    'mode': 'nearest'
+                    'mode': 'nearest',
+                    'version': 'opset1'
                 },
                 'interpolate_2_data': {'value': None, 'shape': int64_array([1, 5, 4096, 1280, 512]), 'kind': 'data'},
                 'abs': {'type': 'Abs', 'kind': 'op', 'op': 'Abs'},
@@ -778,7 +803,8 @@ class InterpolateSequenceToInterpolateTest(unittest.TestCase):
                     'align_corners': 0,
                     'antialias': 1,
                     'pads_begin': 5,
-                    'pads_end': 3
+                    'pads_end': 3,
+                    'version': 'opset1'
                 },
                 'interpolate_data': {'value': None, 'shape': int64_array([10, 64, 4599, 912, 133120]), 'kind': 'data'},
                 'abs': {'type': 'Abs', 'kind': 'op', 'op': 'Abs'},
