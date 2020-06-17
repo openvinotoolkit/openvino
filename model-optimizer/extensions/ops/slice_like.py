@@ -52,3 +52,15 @@ class SliceLike(Op):
             new_shape = np.copy(shape_like)
 
         node.out_port(0).data.set_shape(new_shape)
+        if node.in_port(0).get_connection().data.get_value() is not None and \
+                not node.graph.graph['cmd_params'].keep_shape_ops:
+            out_value = np.copy(node.in_port(0).get_connection().data.get_value())
+
+            slice_indexes = []
+            for s in out_value.shape:
+                slice_indexes.append(slice(0, s))
+
+            for axis in node.axes:
+                slice_indexes[axis] = slice(0, new_shape[axis])
+                out_value = out_value[tuple(slice_indexes)]
+            node.out_port(0).data.set_value(out_value)
