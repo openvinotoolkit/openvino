@@ -7,8 +7,6 @@
 #include "tests_common.hpp"
 #include <ie_core.hpp>
 
-#include "unit_test_utils/mocks/mock_error_listener.hpp"
-
 using namespace ::testing;
 using namespace std;
 using namespace mkldnn;
