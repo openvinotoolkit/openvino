@@ -491,12 +491,69 @@ Note: make sure that you have dot installed on your machine otherwise it will si
 
 ## Disabling/Enabling specific transformations for plugin X	 
 
-TODO: PassParam, callbacks, usage in plugins with examples
+This topic mostly related to conversion to legacy opset and plugins that based on CNNNetwork but still this mechanism can be applied for other cases.
+Let's suppose that plugin X starts support `opset3::StridedSlice` operation and you want to disable `ConvertStridedSliceToCrop` transformation for plugin X.
+To do this you need to extend transformation class with `ngraph::pass::PassParam` class. This class extends transformations class with `transformation_callback` that can be set by plugin that uses legacy conversion. 
 
-## Custom attributes in nodes
+~~~~~~~~~~~~~{.cpp}
+// Extend transformation class with PassParam
+class ngraph::pass::ConvertStridedSliceToCrop: public ngraph::pass::GraphRewrite, public ngraph::pass::PassParam {
+    ...
+}
 
-TODO: runtime info attributes, examples
+// Update callback to be able to use transformation_callback if this transformation based on GraphRewrite.
+ngraph::graph_rewrite_callback callback = [this](pattern::Matcher &m) {
+    ...
+}
+
+// Use transformation_callback not to execute transformation
+if (transformation_callback(node)) {
+    return false;
+}
+~~~~~~~~~~~~~
+
+TODO: link to existing example
 
 ## Transformations testing
 
-TODO: how to write tests
+We have two types of tests: nGraph reader tests located in `inference-engine/tests/functional/inference_engine/ngraph_reader` and transformation tests located  in `inference-engine/tests/functional/inference_engine/transformations`
+Reader tests are based on IR and tests end to end conversion from IR to CNNNetwork. Transformation tests tests single ngraph transformations or low level functiont that are used inside transformations.
+
+The basic transformation test looks like this:
+~~~~~~~~~~~~~{.cpp}
+TEST(TransformationTests, MyTransformationTest) {
+    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+    {
+        // Create nGraph function that will be processed by transformation
+        auto data = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{3, 1, 2});
+        auto divide_constant = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {1.5});
+        auto divide = std::make_shared<ngraph::opset1::Divide>(data, divide_constant);
+
+        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{divide}, ngraph::ParameterVector{data});
+        
+        // This pass inits runtime info attributes
+        ngraph::pass::InitNodeInfo().run_on_function(f);
+        // Run transformation
+        ngraph::pass::MyTransformation().run_on_function(f);
+        // Check that runtime info attributes was correctly processed
+        ASSERT_NO_THROW(check_rt_info(f));
+    }
+
+    {
+        // Create reference nGraph function that is excpeted after applying MyTransformation
+        auto data = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{3, 1, 2});
+        auto divide_constant = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {1.5});
+        auto pow = std::make_shared<ngraph::opset1::Power>(divide_constant,
+                                                           ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {-1}));
+        auto mul = std::make_shared<ngraph::opset1::Multiply>(data, pow);
+
+        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul}, ngraph::ParameterVector{data});
+    }
+
+    // Comparing processed function with expected
+    auto res = compare_functions(f, f_ref);
+    ASSERT_TRUE(res.first) << res.second;
+}
+~~~~~~~~~~~~~
+
+TODO: insert advanced transformation tests
