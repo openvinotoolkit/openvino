@@ -193,10 +193,10 @@ void PassImpl::wrapInLoop(const Model& model, const StageList& subgraph) {
                 loopEndOutputs.push_back(originalOutput);
                 const auto rule = IterationRule{Dim::N, 0, 1, -1};
                 endIterationComponents.emplace(std::make_pair(loopEndOutputs.size() - 1, rule), loopEndInputs.size() - 1);
-            } else {
-                for (const auto& consumerEdge : originalOutput->consumerEdges()) {
+            }
+            for (const auto& consumerEdge : originalOutput->consumerEdges()) {
+                if (subgraph.has(consumerEdge->consumer()))
                     model->replaceStageInput(consumerEdge, output);
-                }
             }
         }
     }
