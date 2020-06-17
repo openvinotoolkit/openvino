@@ -34,7 +34,7 @@ void ngraph::pass::ConvertExtractImagePatchesToReorgYolo::convert_extract_image_
             return false;
         }
 
-        if (p_shape_input[2] % strides[0] != 0 || p_shape_input[3] % strides[1] != 0) {
+        if (p_shape_input[2].get_length() % strides[0] != 0 || p_shape_input[3].get_length() % strides[1] != 0) {
             return false;
         }
 
