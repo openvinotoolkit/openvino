@@ -20,7 +20,13 @@ const std::vector<LayerTransformation::Params> trasformationParamValues = {
 };
 
 const std::vector<bool> transparentIntermediates = { true, false };
+
 const std::vector<bool> multiChannelValues = { true, false };
+
+const std::vector<LayerTestsUtils::LayerTransformation::LptVersion> versions = {
+    LayerTestsUtils::LayerTransformation::LptVersion::cnnNetwork,
+    // LayerTestsUtils::LayerTransformation::LptVersion::nGraph
+};
 
 INSTANTIATE_TEST_CASE_P(LPT, ConcatWithIntermediateTransformation,
     ::testing::Combine(
@@ -28,6 +34,7 @@ INSTANTIATE_TEST_CASE_P(LPT, ConcatWithIntermediateTransformation,
         ::testing::Values(InferenceEngine::SizeVector({ 1, 3, 16, 16 })),
         ::testing::Values(CommonTestUtils::DEVICE_GPU),
         ::testing::ValuesIn(trasformationParamValues),
+        ::testing::ValuesIn(versions),
         ::testing::ValuesIn(transparentIntermediates),
         ::testing::ValuesIn(multiChannelValues)),
     ConcatWithIntermediateTransformation::getTestCaseName);
