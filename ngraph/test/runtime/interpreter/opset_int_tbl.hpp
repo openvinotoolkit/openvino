@@ -14,23 +14,21 @@
 // limitations under the License.
 //*****************************************************************************
 
-#define ID_SUFFIX(NAME) NAME
-#include "opset0_tbl.hpp"
-#undef ID_SUFFIX
+#ifndef  NGRAPH_OP
+#warning "NGRAPH_OP not defined"
+#define NGRAPH_OP(x, y)
+#endif
 
-#define ID_SUFFIX(NAME) NAME##_v1
-NGRAPH_OP(LessEqual, op::v1)
-NGRAPH_OP(LogicalAnd, op::v1)
-NGRAPH_OP(LogicalOr, op::v1)
-NGRAPH_OP(LogicalXor, op::v1)
-NGRAPH_OP(LogicalNot, op::v1)
-#undef ID_SUFFIX
+NGRAPH_OP(CumSum, ngraph::op::v0)
+NGRAPH_OP(MVN, ngraph::op::v0)
+NGRAPH_OP(LRN, ngraph::op::v0)
+NGRAPH_OP(ShuffleChannels, ngraph::op::v0)
 
-#define ID_SUFFIX(NAME) NAME##_v3
-NGRAPH_OP(EmbeddingBagOffsetsSum, op::v3)
-NGRAPH_OP(EmbeddingBagPackedSum, op::v3)
-NGRAPH_OP(EmbeddingSegmentsSum, op::v3)
-NGRAPH_OP(ExtractImagePatches, op::v3)
-NGRAPH_OP(ShapeOf, op::v3)
-NGRAPH_OP(NonZero, op::v3)
-#undef ID_SUFFIX
+NGRAPH_OP(Convolution, ngraph::op::v1)
+NGRAPH_OP(ConvolutionBackpropData, ngraph::op::v1)
+NGRAPH_OP(GroupConvolution, ngraph::op::v1)
+NGRAPH_OP(GroupConvolutionBackpropData, ngraph::op::v1)
+
+NGRAPH_OP(EmbeddingSegmentsSum, ngraph::op::v3)
+NGRAPH_OP(EmbeddingBagOffsetsSum, ngraph::op::v3)
+NGRAPH_OP(EmbeddingBagPackedSum, ngraph::op::v3)

@@ -20,17 +20,9 @@ set (SRC
     backend_manager.hpp
     cache.cpp
     cache.hpp
-    opset0_downgrade.cpp
-    opset0_downgrade.hpp
-    opset1_downgrade.cpp
-    opset1_downgrade.hpp
-    opset1_upgrade.cpp
-    opset1_upgrade.hpp
     executable.cpp
     executable.hpp
     performance_counter.hpp
-    dynamic/dynamic_backend.cpp
-    dynamic/dynamic_backend.hpp
     op/avg_pool.cpp
     op/avg_pool.hpp
     op/convolution.cpp

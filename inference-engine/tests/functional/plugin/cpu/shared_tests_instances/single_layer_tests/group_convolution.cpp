@@ -49,7 +49,7 @@ INSTANTIATE_TEST_CASE_P(GroupConvolution2D_ExplicitPadding, GroupConvolutionLaye
                         ::testing::Combine(
                                 groupConv2DParams_ExplicitPadding,
                                 ::testing::ValuesIn(netPrecisions),
-                                ::testing::Values(std::vector<size_t >({1, 16, 30, 30})),
+                                ::testing::Values(std::vector<size_t >({1, 16, 10, 10})),
                                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                         GroupConvolutionLayerTest::getTestCaseName);
 

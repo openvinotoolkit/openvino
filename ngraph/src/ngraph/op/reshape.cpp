@@ -477,6 +477,6 @@ bool op::v1::Reshape::evaluate(const HostTensorVector& outputs, const HostTensor
         }
         outputs[0]->set_shape(output_shape);
     }
-    const AxisVector order = get_default_order(outputs[0]->get_shape());
+    const AxisVector order = get_default_order(inputs[0]->get_shape());
     return evaluate_reshape(inputs[0], outputs[0], order);
 }

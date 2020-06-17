@@ -19,6 +19,7 @@
 #include "ngraph/graph_util.hpp"
 #include "ngraph/op/broadcast.hpp"
 #include "ngraph/op/constant.hpp"
+#include "ngraph/runtime/reference/cum_sum.hpp"
 
 using namespace std;
 using namespace ngraph;

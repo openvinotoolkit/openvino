@@ -13,27 +13,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //*****************************************************************************
-
 #pragma once
-
-#include "backend_visibility.hpp"
-#include "ngraph/pass/pass.hpp"
-
-namespace ngraph
-{
-    namespace pass
-    {
-        class BACKEND_API Opset1Upgrade : public NodePass
-        {
-        public:
-            ///
-            /// \brief    Constructor for the Opset1Upgrade transformation pass.
-            ///
-            /// \details  This transformation pass iterates over all nodes in a graph
-            /// and updates version 0 ops to their version 1 equivalents.
-            /// All ops in the final graph have op version 1.
-            Opset1Upgrade() = default;
-            bool run_on_node(std::shared_ptr<ngraph::Node> node) override;
-        };
+#include "ngraph/node.hpp"
+#include "int_backend_visibility.hpp"
+namespace ngraph {
+    namespace runtime {
+        namespace interpreter {
+            using EvaluatorsMap = std::map<ngraph::NodeTypeInfo, std::function<bool(const std::shared_ptr<ngraph::Node> &node,
+                                                                                    const ngraph::HostTensorVector &outputs,
+                                                                                    const ngraph::HostTensorVector &inputs)>>;
+            EvaluatorsMap& get_evaluators_map();
+        }
     }
 }

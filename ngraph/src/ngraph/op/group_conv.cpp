@@ -25,6 +25,7 @@
 #include "ngraph/op/reshape.hpp"
 #include "ngraph/op/slice.hpp"
 #include "ngraph/validation_util.hpp"
+#include "ngraph/runtime/reference/convolution.hpp"
 
 using namespace std;
 using namespace ngraph;

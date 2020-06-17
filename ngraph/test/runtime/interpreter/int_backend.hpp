@@ -36,7 +36,6 @@ namespace ngraph
         {
             class INTBackend;
             class INTExecutable;
-            class INTBackendConstructor;
         }
     }
 }

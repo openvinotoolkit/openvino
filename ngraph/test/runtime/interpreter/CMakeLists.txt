@@ -17,7 +17,7 @@
 set(LIBRARY_TYPE SHARED)
 
 if (NGRAPH_INTERPRETER_ENABLE)
-    add_library(interpreter_backend ${LIBRARY_TYPE} int_backend.cpp int_executable.cpp)
+    add_library(interpreter_backend ${LIBRARY_TYPE} int_backend.cpp int_executable.cpp evaluates_map.cpp)
     target_compile_definitions(interpreter_backend PRIVATE INTERPRETER_BACKEND_EXPORTS)
     if(NGRAPH_LIB_VERSIONING_ENABLE)
         set_target_properties(interpreter_backend PROPERTIES
