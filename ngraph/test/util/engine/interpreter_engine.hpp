@@ -1,18 +1,20 @@
 #pragma once
-#include "../../util/all_close.hpp"
-#include "../../util/all_close_f.hpp"
 #include "ngraph/function.hpp"
 #include "ngraph/op/constant.hpp"
+#include "util/all_close.hpp"
+#include "util/all_close_f.hpp"
+#include "util/engine/engine_traits.hpp"
 
 namespace ngraph
 {
     namespace test
     {
-        // TODO - implement when IE_CPU engine is done
         class INTERPRETER_Engine
         {
         public:
             INTERPRETER_Engine(const std::shared_ptr<Function> function);
+
+            static INTERPRETER_Engine dynamic(const std::shared_ptr<Function> function);
 
             void infer()
             {
@@ -25,6 +27,8 @@ namespace ngraph
 
             testing::AssertionResult
                 compare_results(const size_t tolerance_bits = DEFAULT_FLOAT_TOLERANCE_BITS);
+
+            void reset();
 
             template <typename T>
             void add_input(const Shape& shape, const std::vector<T>& values)
@@ -55,6 +59,14 @@ namespace ngraph
             }
 
         private:
+            /// A private constructor that should only be used from the dynamic() member function
+            struct DynamicBackendTag
+            {
+            };
+            INTERPRETER_Engine(const std::shared_ptr<Function> function, DynamicBackendTag);
+
+            static constexpr const char* NG_BACKEND_NAME = "INTERPRETER";
+
             const std::shared_ptr<Function> m_function;
             std::shared_ptr<runtime::Backend> m_backend;
             std::shared_ptr<ngraph::runtime::Executable> m_executable;
@@ -139,6 +151,13 @@ namespace ngraph
                 REGISTER_COMPARATOR(boolean, char),
             };
 #undef REGISTER_COMPARATOR
+        };
+
+        template <>
+        struct EngineTraits<INTERPRETER_Engine>
+        {
+            static constexpr const bool supports_dynamic = true;
+            static constexpr const bool supports_devices = false;
         };
     }
 }

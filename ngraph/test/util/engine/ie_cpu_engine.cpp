@@ -7,7 +7,7 @@
 
 using namespace ngraph;
 
-test::IE_CPU_Engine::IE_CPU_Engine(const std::shared_ptr<Function> function)
+test::IE_CPU_Engine::IE_CPU_Engine(const std::shared_ptr<Function> function, const char* device)
     : m_function{function}
 {
     upgrade_and_validate_function(m_function);
@@ -16,7 +16,7 @@ test::IE_CPU_Engine::IE_CPU_Engine(const std::shared_ptr<Function> function)
     m_network_outputs = cnn_network.getOutputsInfo();
 
     InferenceEngine::Core ie;
-    auto exe_network = ie.LoadNetwork(cnn_network, "CPU");
+    auto exe_network = ie.LoadNetwork(cnn_network, device);
     m_inference_req = exe_network.CreateInferRequest();
 }
 
@@ -92,4 +92,11 @@ std::set<NodeTypeInfo> test::IE_CPU_Engine::get_ie_ops() const
     const auto& opset3 = get_opset3().get_type_info_set();
     ie_ops.insert(opset3.begin(), opset3.end());
     return ie_ops;
+}
+
+void test::IE_CPU_Engine::reset()
+{
+    m_allocated_inputs = 0;
+    m_allocated_expected_outputs = 0;
+    m_expected_outputs.clear();
 }

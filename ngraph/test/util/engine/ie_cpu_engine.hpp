@@ -1,9 +1,10 @@
 #pragma once
 
 #include <ie_core.hpp>
-#include "../../util/all_close.hpp"
-#include "../../util/all_close_f.hpp"
 #include "ngraph/function.hpp"
+#include "util/all_close.hpp"
+#include "util/all_close_f.hpp"
+#include "util/engine/engine_traits.hpp"
 
 namespace ngraph
 {
@@ -13,7 +14,7 @@ namespace ngraph
         {
         public:
             IE_CPU_Engine() = delete;
-            IE_CPU_Engine(const std::shared_ptr<Function> function);
+            IE_CPU_Engine(const std::shared_ptr<Function> function, const char* device);
 
             void infer();
 
@@ -95,6 +96,8 @@ namespace ngraph
 
                 ++m_allocated_expected_outputs;
             }
+
+            void reset();
 
         private:
             const std::shared_ptr<Function> m_function;
@@ -207,7 +210,29 @@ namespace ngraph
             }
         };
 
-        // TODO -inherit from IE_CPU_Engine?
-        using IE_GPU_Engine = IE_CPU_Engine;
+        class IE_GPU_Engine final : public IE_CPU_Engine
+        {
+        public:
+            IE_GPU_Engine(const std::shared_ptr<Function> function, const char* device)
+                : IE_CPU_Engine{function, device}
+            {
+            }
+        };
+
+        template <>
+        struct EngineTraits<IE_CPU_Engine>
+        {
+            static constexpr const bool supports_dynamic = false;
+            static constexpr const bool supports_devices = true;
+            static constexpr const char* device = "CPU";
+        };
+
+        template <>
+        struct EngineTraits<IE_GPU_Engine>
+        {
+            static constexpr const bool supports_dynamic = false;
+            static constexpr const bool supports_devices = true;
+            static constexpr const char* device = "GPU";
+        };
     }
 }

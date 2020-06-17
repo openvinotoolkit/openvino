@@ -24,6 +24,7 @@
 #include "ngraph/function.hpp"
 #include "ngraph/ngraph.hpp"
 #include "test_tools.hpp"
+#include "util/engine/engine_factory.hpp"
 
 namespace ngraph
 {
@@ -294,13 +295,13 @@ namespace ngraph
             int m_tolerance_bits = DEFAULT_DOUBLE_TOLERANCE_BITS;
         };
 
-        template <typename Engine>
+        template <typename Engine, TestCaseType tct = TestCaseType::STATIC>
         class TestCase
         {
         public:
             TestCase(const std::shared_ptr<Function>& function)
                 : m_function{function}
-                , m_engine{function}
+                , m_engine{create_engine<Engine>(function, tct)}
             {
             }
 
@@ -439,6 +440,10 @@ namespace ngraph
                 {
                     std::cout << res.message() << std::endl;
                 }
+
+                m_input_index = 0;
+                m_output_index = 0;
+                m_engine.reset();
 
                 // TODO: this needs to be changed - either assert or return and let the caller check
                 EXPECT_EQ(res, testing::AssertionSuccess());

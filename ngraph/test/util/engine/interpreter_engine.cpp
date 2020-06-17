@@ -5,27 +5,37 @@ using namespace ngraph;
 test::INTERPRETER_Engine::INTERPRETER_Engine(const std::shared_ptr<Function> function)
     : m_function{function}
 {
-    const bool use_dynamic = false;
-    // TODO: handle dynamic backend
-    m_backend = ngraph::runtime::Backend::create("INTERPRETER", use_dynamic);
+    m_backend = ngraph::runtime::Backend::create(NG_BACKEND_NAME, false); // static INT backend
     m_executable = m_backend->compile(m_function);
     for (auto i = 0; i < m_function->get_output_size(); ++i)
     {
-        const auto output_tensor =
-            (use_dynamic)
-                ? m_backend->create_dynamic_tensor(m_function->get_output_element_type(i),
-                                                   m_function->get_output_partial_shape(i))
-                : m_backend->create_tensor(m_function->get_output_element_type(i),
-                                           m_function->get_output_shape(i));
-
-        m_result_tensors.push_back(output_tensor);
+        m_result_tensors.push_back(m_backend->create_tensor(m_function->get_output_element_type(i),
+                                                            m_function->get_output_shape(i)));
     }
+}
+
+test::INTERPRETER_Engine::INTERPRETER_Engine(const std::shared_ptr<Function> function,
+                                             INTERPRETER_Engine::DynamicBackendTag)
+    : m_function{function}
+{
+    m_backend = ngraph::runtime::Backend::create(NG_BACKEND_NAME, true); // dynamic INT backend
+    m_executable = m_backend->compile(m_function);
+    for (auto i = 0; i < m_function->get_output_size(); ++i)
+    {
+        m_result_tensors.push_back(m_backend->create_dynamic_tensor(
+            m_function->get_output_element_type(i), m_function->get_output_partial_shape(i)));
+    }
+}
+
+test::INTERPRETER_Engine test::INTERPRETER_Engine::dynamic(const std::shared_ptr<Function> function)
+{
+    return INTERPRETER_Engine{function, DynamicBackendTag{}};
 }
 
 testing::AssertionResult test::INTERPRETER_Engine::compare_results(const size_t tolerance_bits)
 {
     m_tolerance_bits = tolerance_bits;
-    // return comparison_result;
+
     auto comparison_result = testing::AssertionSuccess();
 
     for (size_t i = 0; i < m_expected_outputs.size(); ++i)
@@ -34,8 +44,6 @@ testing::AssertionResult test::INTERPRETER_Engine::compare_results(const size_t 
         const auto& expected_result_constant = m_expected_outputs.at(i);
         const auto& element_type = result_tensor->get_element_type();
 
-        // is this needed?
-        // EXPECT_EQ(expected_result_constant->get_output_size(), 1);
         const auto& expected_shape = expected_result_constant->get_shape();
         const auto& result_shape = result_tensor->get_shape();
 
@@ -58,4 +66,12 @@ testing::AssertionResult test::INTERPRETER_Engine::compare_results(const size_t 
     }
 
     return comparison_result;
+}
+
+void test::INTERPRETER_Engine::reset()
+{
+    m_input_index = 0;
+    m_output_index = 0;
+    m_expected_outputs.clear();
+    m_input_tensors.clear();
 }
