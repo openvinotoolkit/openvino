@@ -33,6 +33,8 @@ std::shared_ptr<ngraph::Node> makeReduce(std::vector<ngraph::Output<Node>> &in,
             return std::make_shared<ngraph::opset3::LogicalAnd>(in.at(0), reductionAxesNode);
         case helpers::LogicalXor:
             return std::make_shared<ngraph::opset3::LogicalXor>(in.at(0), reductionAxesNode);
+        default:
+            throw std::runtime_error("Can't create layer for this reduction type");
     }
 }
 }  // namespace builder
