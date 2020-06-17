@@ -51,7 +51,7 @@ jobs:
   - script: ls -alR ../bin/
     workingDirectory: dldt-build
     displayName: 'List files'
-  - script: $(BIN_DIR)/unit-test  --gtest_filter=-backend_api.config_unsupported:*IE_GPU* --gtest_print_time=1
+  - script: $(BIN_DIR)/unit-test --gtest_print_time=1 --gtest_filter=-backend_api.config_unsupported:*IE_GPU*
     workingDirectory: dldt-build
     displayName: 'nGraph UT'
     continueOnError: false
@@ -169,7 +169,7 @@ jobs:
   - script: ls -alR ../bin/
     workingDirectory: dldt-build
     displayName: 'List files'
-  - script: $(BIN_DIR)/unit-test --gtest_filter=-backend_api.config_unsupported:*IE_GPU*:IE_CPU.onnx_model_sigmoid --gtest_print_time=1
+  - script: $(BIN_DIR)/unit-test --gtest_print_time=1 --gtest_filter=-backend_api.config_unsupported:*IE_GPU*:IE_CPU.onnx_model_sigmoid
     workingDirectory: dldt-build
     displayName: 'nGraph UT'
     continueOnError: false
@@ -271,7 +271,7 @@ jobs:
     displayName: 'List files'
   - script: |
       set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
-      $(BIN_DIR)\unit-test --gtest_filter=-backend_api.config_unsupported:*IE_GPU* --gtest_print_time=1
+      $(BIN_DIR)\unit-test --gtest_print_time=1 --gtest_filter=-backend_api.config_unsupported:*IE_GPU*
     workingDirectory: dldt-build
     displayName: 'nGraph UT'
     continueOnError: false
