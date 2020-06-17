@@ -50,7 +50,7 @@ bool NormalizeL2Transformation::canBeTransformed(const TransformationContext& co
         return false;
     }
 
-    const ngraph::op::NormalizeIE* normalizeIe = dynamic_cast<const ngraph::op::NormalizeIE*>(operation.get());
+    const ngraph::op::NormalizeL2* normalizeIe = dynamic_cast<const ngraph::op::NormalizeL2*>(operation.get());
     if (normalizeIe == nullptr) {
         return false;
     }
@@ -62,9 +62,9 @@ bool NormalizeL2Transformation::canBeTransformed(const TransformationContext& co
         return false;
     }
 
-    if (normalizeIe->get_across_spatial() && (!scalesConst->get_all_data_elements_bitwise_identical())) {
-        return false;
-    }
+    //if (normalizeIe->get_across_spatial() && (!scalesConst->get_all_data_elements_bitwise_identical())) {
+    //    return false;
+    //}
 
     return true;
 }

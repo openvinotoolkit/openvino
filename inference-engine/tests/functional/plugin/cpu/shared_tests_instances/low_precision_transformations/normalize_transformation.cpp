@@ -34,9 +34,9 @@ const std::vector<LayerTestsUtils::LayerTransformation::LptVersion> versionValue
     // LayerTestsUtils::LayerTransformation::LptVersion::nGraph
 };
 
-const std::vector<bool> fuseMultiplyValues = { true, false };
+const std::vector<bool> fuseMultiplyValues = { /* true, */ false };
 
-const std::vector<bool> shiftValues = { true, false };
+const std::vector<bool> shiftValues = { /* true, */ false };
 
 INSTANTIATE_TEST_CASE_P(LPT, NormalizeTransformation,
     ::testing::Combine(
