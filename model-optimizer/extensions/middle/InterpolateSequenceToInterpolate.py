@@ -22,6 +22,7 @@ from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Graph, Node
 from mo.middle.replacement import MiddleReplacementPattern
 from mo.ops.const import Const
+from mo.utils.error import Error
 
 
 def node_has_one_consumer(node: Node) -> bool:
@@ -50,6 +51,14 @@ class CanBeFused:
         # We need to accumulate set of axes of compared nodes, because there can be a sequence of a set of axes
         #   {i}{j}{i}
         self.accumulated_axes = set()
+        self.default_values_for_opset3 = {
+            'mode': None,
+            'coordinate_transformation_mode': 'half_pixel',
+            'nearest_mode': 'round_prefer_floor',
+            'antialias': 0,
+            'cube_coeff': -0.75
+        }
+        self.default_pads = int64_array([0])
 
     def __call__(self, first: Node, second: Node) -> bool:
         """
@@ -60,10 +69,29 @@ class CanBeFused:
         """
         # If some of attributes 'mode', 'align_corners', 'antialias', 'pads_begin', 'pads_end', 'version' are different,
         # then nodes cannot be fused, because fused result will be incorrect.
-        op = Interpolate(graph=first.graph, attrs={})
-        for attr in ['version', 'mode', 'align_corners', 'antialias', 'pads_begin', 'pads_end']:
-            if first.soft_get(attr, default=op.attrs[attr]) != second.soft_get(attr, default=op.attrs[attr]):
-                return False
+        fst_opset = first.get_opset()
+        snd_opset = second.get_opset()
+        if fst_opset != snd_opset:
+            return False
+
+        if fst_opset == 'opset1':
+            op = Interpolate(graph=first.graph, attrs={})
+            for attr in ['mode', 'align_corners', 'antialias', 'pads_begin', 'pads_end']:
+                if first.soft_get(attr, default=op.attrs[attr]) != second.soft_get(attr, default=op.attrs[attr]):
+                    return False
+        elif fst_opset == 'opset3':
+            for attr in self.default_values_for_opset3.keys():
+                default_value = self.default_values_for_opset3[attr]
+                if first.soft_get(attr, default=default_value) != second.soft_get(attr, default=default_value):
+                    return False
+
+            for attr in ['pads_begin', 'pads_end']:
+                if first.soft_get(attr, self.default_pads) != second.soft_get(attr, self.default_pads):
+                    return False
+        else:
+            fst_name = first.soft_get('name', first.id)
+            snd_name = second.soft_get('name', second.id)
+            raise Error('Unsupported opset {} for nodes with names {} and {}'.format(fst_opset, fst_name, snd_name))
 
         fst_axes = set([a for a in first.axes])
         snd_axes = set([a for a in second.axes])
