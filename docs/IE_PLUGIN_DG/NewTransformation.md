@@ -13,16 +13,16 @@ On the top it contains two folders:
 
 Transformation flow in transformation library has several layers:
 1. Pass managers - executes list of transformations using `*_tbl.hpp` file. For example conversion form OpSetX to OpSetY.
-2. Transformations - performs particular transformartion algorithm on `ngraph::Funcion` (find more about transformations in [Transformations types]).
+2. Transformations - performs particular transformation algorithm on `ngraph::Funcion` (find more about transformations in [Transformations types]).
 3. Low level functions that takes set of nodes and performs some transformation action. They are not mandatory and all transformation code can be located inside transformation but if some transformation parts can potentially be resued in other transformations we suggest to keep them as a separate functions.
 
-To decide where to store your transformation code please follow this flowchart:
-
-![where_to_keep_transformation_code]
+To decide where to store your transformation code please follow this rules:
+1. If it's plugin specific transformation and can't be reused by other plugins keep source code inside plugin.
+2. If this transformation relates to OpSetXToOpSetY conversion or it's common optimization then keep sources inside transformation library.
 
 After you decided where to store your transformation code you can start develop your own nGraph transformation.
 
-Table of Contents:
+## Table of Contents:
 
 1. `ngraph::Function` and graph representation
 2. Transformations types
@@ -46,10 +46,13 @@ Below you can find examples how `ngraph::Function` can be created:
 
 ~~~~~~~~~~~~~{.cpp}
 // Basic example with explicit Result operation creation
+// Create opset3::Parameter operation with static shape
 auto data = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::f32, ngraph::Shape{3, 1, 2});
+// Create opset3::Constant operation with value
 auto divide_constant = ngraph::opset3::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {1.5});
+// Create opset3::Power operation that takes two opset3::Constant operations as input
 auto pow = std::make_shared<ngraph::opset3::Power>(divide_constant,
-                                                   ngraph::opset3::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {-1}));
+                                                   ngraph::opset3::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {-1}));                                                   
 auto mul = std::make_shared<ngraph::opset3::Multiply>(data, pow);
 auto res = std::make_shared<ngraph::opset3::Result>(mul);
 
@@ -60,6 +63,7 @@ auto f = std::make_shared<ngraph::Function>(ngraph::ResultVector{res}, ngraph::P
 // Advanced example with multioutput operation. Results operation will be created automatically.
 auto data = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 64, 64});
 auto axis_const = ngraph::opset3::Constant::create(ngraph::element::i64, ngraph::Shape{}/*scalar shape*/, {1});
+// Create opset3::Split operation that splits input to three slices across 1st dimension
 auto split = std::make_shared<ngraph::opset3::Split>(data, axis_const, 3);
 auto relu = std::make_shared<ngraph::opset3::Relu>(split->output(1)/*specify explicit output*/);
 // Results operations will be created automatically based on provided OutputVector
@@ -70,7 +74,7 @@ auto f = std::make_shared<ngraph::Function>(ngraph::OutputVector{split->output(0
 
 There are two main transformation types:
 
-`1.` ngraph::pass::FunctionalPass is used for transformations that take entire ngraph::Function as input and process it.
+`1.` ngraph::pass::FunctionalPass is used for transformations that take entire `ngraph::Function` as input and process it.
 
 ~~~~~~~~~~~~~{.cpp}
 // my_transformation.hpp
@@ -228,11 +232,112 @@ TODO: add examples for ngraph::pattern::op::Any
 
 ## Working with ngraph::Function
 
-TODO:
-1. Nodes and input/output ports
-2. Node replacement
-3. Node elimination
-4. Sub-graph elimination
+In this chapter we will review nGraph API that allows us to manipulate with `ngraph::Function`.
+
+`1.` ngraph::Node input and output ports
+
+First of all let's talk about `ngraph::Node` input/output ports. Each nGraph operation has input and output ports except cases when operation has Result, Parameter or Constant type.
+
+Every port belongs to its node so via port we can access parent node, get shape and type for particular input/output, get all consumers in case of output port and get producer node in case of input port.
+
+Lets look at code example.
+~~~~~~~~~~~~~{.cpp}
+// Let's supose that node is opset3::Convolution operation
+// as we know opset3::Convolution has two input ports (data, weights) and one output port
+
+Input<Node> data = node->input(0);
+Input<Node> weights = node->input(1);
+Output<Node> output = node->output(0);
+
+// Getting shape and type
+auto pshape = data.get_partial_shape();
+auto el_type = data.get_element_type();
+
+// Ggetting parent for input port
+Output<Node> parent_output = data.get_source_output();
+// Another short way to get partent for output port
+Output<Node> parent_output = node->input_value(0);
+
+// Getting all consumers for output port
+auto consumers = output.get_target_inputs();
+~~~~~~~~~~~~~
+
+You may notice that we usually construct operations in this way:
+~~~~~~~~~~~~~{.cpp}
+std::shared_ptr<Node> neg_const = opset1::Constant::create(sub->get_input_element_type(1), Shape{1}, {-1}));
+Output<Node> data = node->input_value(0);
+auto neg = std::make_shared<ngraph::opset1::Multiply>(data, neg_const);
+~~~~~~~~~~~~~
+In this example `opset3::Multiply` operation takes `Output<Node>` and `std::shared_ptr<Node>` as inputs. But constructor takes both as `Output<Node>`. 
+In this case `std::shared_ptr<Node>` will be automatically converted to `Output<Node>` if node has exactly one output port otherwise conversion will raise an exception.   
+
+`2.` ngraph::Node replacement
+
+nGraph provides two ways for node replacement: via ngraph helper function and directly via port methods. We are going to review both of them.
+
+Lets start with nGraph helper functions. The most popular function is `ngraph::replace_node(old_node, new_node)`.
+
+Usage example:
+~~~~~~~~~~~~~{.cpp}
+auto neg = std::dynamic_pointer_cast<ngraph::opset1::Negative> (m.get_match_root());
+if (!neg) {
+    return false;
+}
+
+auto mul = std::make_shared<ngraph::opset1::Multiply>(neg->input_value(0),
+                                                      opset1::Constant::create(neg->get_element_type(), Shape{1}, {-1}));
+mul->set_friendly_name(neg->get_friendly_name());
+ngraph::copy_runtime_info(neg, mul);
+// Replaces Negative operation with Multiply operation
+ngraph::replace_node(neg, mul);
+~~~~~~~~~~~~~ 
+`ngraph::replace_node` has a constraint that number of output ports for both of ops must be the same otherwise it will raise an exception.
+
+
+The alternative way to do the same replacement is next:
+~~~~~~~~~~~~~{.cpp}
+// All neg->output(0) consumers will be moved to mul->output(0) port
+neg->output(0).replace(mul->output(0));
+~~~~~~~~~~~~~
+
+Another transformation example is insertion.
+~~~~~~~~~~~~~{.cpp}
+// Lets suppose that we have a node with single output port and we want to insert additional operation new_node after it
+void insert_example(std::shared_ptr<ngraph::Node> node) {
+    // Get all consumers for node
+    auto consumers = node->output(0).get_target_inputs();
+    // Create new node. Let it be opset1::Relu.
+    auto new_node = std::make_shared<ngraph::opset1::Relu>(node);
+    // Reconnect all consumers to new_node
+    for (auto input : consumers) {
+        input.replace_source_output(new_node);
+    }
+}
+~~~~~~~~~~~~~ 
+
+The alternative way to insert operation is to make a node copy and use `replace_node`:
+~~~~~~~~~~~~~{.cpp} 
+void insert_example(std::shared_ptr<ngraph::Node> node) {
+    // Make a node copy 
+    auto node_copy = node->clone_with_new_inputs(node->input_values());
+    // Create new node
+    auto new_node = std::make_shared<ngraph::opset1::Relu>(node_copy);
+    ngraph::replace_node(node, new_node);
+}
+~~~~~~~~~~~~~
+
+`3.` ngraph::Node elimination
+
+Another type of node replacement is its elimination.
+
+To eliminate operation nGraph has special method that consider all limitations related to InferenceEngine.
+~~~~~~~~~~~~~{.cpp}
+// Suppose we have a node that we want to remove
+bool success = replace_output_update_name(node->output(0), node->input_value(0));
+~~~~~~~~~~~~~ 
+
+`replace_output_update_name` in case of successful replacement it automatically preserves friendly name and runtime info.
+  
 
 ## Transformation writing essentials
 
@@ -369,13 +474,17 @@ ngraph::pass::VisualizeTree("/path/to/file/after.svg").run_on_module(g);
 ~~~~~~~~~~~~~
 
 ngraph::pass::VisualizeTree can be parametrized via environment variables:
+
 `NGRAPH_VISUALIZE_TREE_OUTPUT_SHAPES=1` - visualize shapes
+
 `NGRAPH_VISUALIZE_TREE_OUTPUT_TYPES=1`  - visualize types
 
 Note: current VisualTree has not user friendly interface and it will be changed in nearest future. The intention is to move visualize abilities inside transformations.
 
 If you are using `ngraph::pass::Manager` to run sequence of transformations you can get additional debug capabilities by using next environment variables:
+
 `NGRAPH_PROFILE_PASS_ENABLE=1` - enables performance measurement for each transformation and prints execution status
+
 `NGRAPH_ENABLE_VISUALIZE_TRACING=1` -  enables visualization after each transformation. By default it saves dot and svg files.
 
 Note: make sure that you have dot installed on your machine otherwise it will silently save only dot file without svg file.
@@ -391,5 +500,3 @@ TODO: runtime info attributes, examples
 ## Transformations testing
 
 TODO: how to write tests
-
-[where_to_keep_transformation_code]: ../images/where_to_keep_transformation_code.png
