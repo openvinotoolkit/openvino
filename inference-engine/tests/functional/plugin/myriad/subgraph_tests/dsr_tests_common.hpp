@@ -2,6 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#pragma once
+
+#include "../common/myriad_common_test_utils.hpp"
+
 #include <vpu/ngraph/operations/dynamic_shape_resolver.hpp>
 #include <vpu/ngraph/transformations/dynamic_to_static_shape.hpp>
 
@@ -51,6 +55,9 @@ protected:
     void SetUp() override {
         SetRefMode(LayerTestsUtils::RefMode::CONSTANT_FOLDING);
         configuration[VPU_CONFIG_KEY(DETECT_NETWORK_BATCH)] = CONFIG_VALUE(NO);
+        if (CommonTestUtils::vpu::CheckMyriad2()) {
+            configuration[VPU_CONFIG_KEY(DISABLE_REORDER)] = CONFIG_VALUE(YES);
+        }
 
         const auto testedOp = createTestedOp();
         const auto result = std::make_shared<ngraph::opset3::Result>(testedOp);
