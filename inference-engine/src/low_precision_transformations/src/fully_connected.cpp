@@ -63,7 +63,12 @@ bool FullyConnectedTransformation::canBeTransformed(const TransformationContext&
     std::vector<float> dequantizationShifts;
     fillFromDequantizationLayer(*scaleShift, dequantizationScales, dequantizationShifts);
 
-    if ((inTensorDims.size() == 3ul) && (!DequantizationDetails::isPerTensor(dequantizationScales, dequantizationShifts))) {
+    const bool dequantizationDimIsSupported = !getDequantizationDimIsSupported(fullyConnected);
+    if ((!dequantizationDimIsSupported) &&
+        (!DequantizationDetails::isPerTensor(dequantizationScales, dequantizationShifts) ||
+        // if asymmetric quantization is not supported then no shifts for dequantizationDimIsSupported = false case:
+        // in this case we can not dequantize with shifts
+        (!supportAsymmetricQuantization && (dequantizationShifts[0] != 0.f)))) {
         return false;
     }
 
@@ -315,7 +320,7 @@ void FullyConnectedTransformation::calculateDequantizationForSymmetric(
             prevDequantizationScaleBuffer.get()[0] *
             (originalWeightsDequantizationScales.size() == 0 ?
                 1.0 :
-                originalWeightsDequantizationScales[((originalWeightsDequantizationScales.size() == 1) || dequantizationValuesAreBroadcasted) ? 0 : i]);
+                (originalWeightsDequantizationScales.size() == 1 ? originalWeightsDequantizationScales[0] : originalWeightsDequantizationScales[i]));
     }
 
     const DataPtr insData = fullyConnected.insData[0].lock();
@@ -323,7 +328,7 @@ void FullyConnectedTransformation::calculateDequantizationForSymmetric(
         THROW_IE_LPT_EXCEPTION(fullyConnected) << "insert data ia absent";
     }
 
-    if (CNNNetworkHelper::isQuantizedConstWeights(fullyConnected) && (!dequantizationValuesAreBroadcasted)) {
+    if (CNNNetworkHelper::isQuantizedConstWeights(fullyConnected)) {
         const Blob::Ptr weightsBlob = CNNNetworkHelper::getWeights(fullyConnected, roundQuantizedValues);
         const auto weightsBuffer = CNNNetworkHelper::getFloatData(weightsBlob);
         const Blob::Ptr biasesBlob = CNNNetworkHelper::getBiases(fullyConnected);
