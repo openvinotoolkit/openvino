@@ -315,7 +315,7 @@ void FullyConnectedTransformation::calculateDequantizationForSymmetric(
             prevDequantizationScaleBuffer.get()[0] *
             (originalWeightsDequantizationScales.size() == 0 ?
                 1.0 :
-                (originalWeightsDequantizationScales.size() == 1 ? originalWeightsDequantizationScales[0] : originalWeightsDequantizationScales[i]));
+                originalWeightsDequantizationScales[((originalWeightsDequantizationScales.size() == 1) || dequantizationValuesAreBroadcasted) ? 0 : i]);
     }
 
     const DataPtr insData = fullyConnected.insData[0].lock();
@@ -323,8 +323,7 @@ void FullyConnectedTransformation::calculateDequantizationForSymmetric(
         THROW_IE_LPT_EXCEPTION(fullyConnected) << "insert data ia absent";
     }
 
-    // NOT READY!!!!!!!!!!
-    if (CNNNetworkHelper::isQuantizedConstWeights(fullyConnected)) {
+    if (CNNNetworkHelper::isQuantizedConstWeights(fullyConnected) && (!dequantizationValuesAreBroadcasted)) {
         const Blob::Ptr weightsBlob = CNNNetworkHelper::getWeights(fullyConnected, roundQuantizedValues);
         const auto weightsBuffer = CNNNetworkHelper::getFloatData(weightsBlob);
         const Blob::Ptr biasesBlob = CNNNetworkHelper::getBiases(fullyConnected);
