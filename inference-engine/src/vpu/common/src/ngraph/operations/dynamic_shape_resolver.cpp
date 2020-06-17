@@ -52,7 +52,7 @@ void DynamicShapeResolver::validate_and_infer_types() {
         set_output_type(0, dataElementType,
                         ngraph::PartialShape::dynamic(get_input_partial_shape(0).rank()));
     } else {
-        NGRAPH_UNREACHABLE(this, "Unknown DynamicShapeResolverMode value, expected values: INFER_UPPER_BOUND_SHAPE, INFER_DYNAMIC_SHAPE");
+        NGRAPH_UNREACHABLE(this, "Unknown DynamicShapeResolverMode value, expected one of: INFER_UPPER_BOUND_SHAPE, INFER_DYNAMIC_SHAPE");
     }
 }
 
