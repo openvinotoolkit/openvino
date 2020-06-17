@@ -47,10 +47,12 @@ INSTANTIATE_TEST_CASE_P(DISABLED_DynamicUnaryElementwise, DSR_UnaryElementwise,
     ::testing::Combine(
         ::testing::Values(ngraph::element::f16, ngraph::element::f32, ngraph::element::i32),
         ::testing::Values(ngraph::Shape{1, 800}),
-        ::testing::Values(ngraph::opset3::Floor::type_info,
+        ::testing::Values(ngraph::opset3::Exp::type_info,
+                          ngraph::opset3::Floor::type_info,
                           ngraph::opset3::Log::type_info,
                           ngraph::opset3::Relu::type_info,
                           ngraph::opset3::Sigmoid::type_info,
+                          ngraph::opset3::Softmax::type_info,
                           ngraph::opset3::Sqrt::type_info),
         ::testing::Values(CommonTestUtils::DEVICE_MYRIAD)));
 

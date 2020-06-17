@@ -20,7 +20,8 @@
 using namespace std;
 using namespace ngraph;
 
-op::util::BinaryElementwiseComparison::BinaryElementwiseComparison()
+op::util::BinaryElementwiseComparison::BinaryElementwiseComparison(const AutoBroadcastSpec& autob)
+    : m_autob(autob)
 {
 }
 

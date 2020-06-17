@@ -31,7 +31,10 @@ namespace ngraph
                 static constexpr NodeTypeInfo type_info{"LessEqual", 1};
                 const NodeTypeInfo& get_type_info() const override { return type_info; }
                 /// \brief Constructs a less-than-or-equal operation.
-                LessEqual() = default;
+                LessEqual()
+                    : util::BinaryElementwiseComparison(AutoBroadcastSpec::NUMPY)
+                {
+                }
 
                 /// \brief Constructs a less-than-or-equal operation.
                 ///
@@ -59,7 +62,10 @@ namespace ngraph
                 static constexpr NodeTypeInfo type_info{"LessEq", 0};
                 const NodeTypeInfo& get_type_info() const override { return type_info; }
                 /// \brief Constructs a less-than-or-equal operation.
-                LessEq() = default;
+                LessEq()
+                    : util::BinaryElementwiseComparison(AutoBroadcastSpec::NONE)
+                {
+                }
                 /// \brief Constructs a less-than-or-equal operation.
                 ///
                 /// \param arg0 Node that produces the first input tensor.

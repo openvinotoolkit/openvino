@@ -47,7 +47,10 @@ namespace ngraph
                 static constexpr NodeTypeInfo type_info{"Equal", 0};
                 const NodeTypeInfo& get_type_info() const override { return type_info; }
                 /// \brief Constructs an equal operation.
-                Equal() = default;
+                Equal()
+                    : util::BinaryElementwiseComparison(AutoBroadcastSpec::NONE)
+                {
+                }
                 /// \brief Constructs an equal operation.
                 ///
                 /// \param arg0 Node that produces the first input tensor.
@@ -91,7 +94,10 @@ namespace ngraph
                 static constexpr NodeTypeInfo type_info{"Equal", 1};
                 const NodeTypeInfo& get_type_info() const override { return type_info; }
                 /// \brief Constructs an equal operation.
-                Equal() = default;
+                Equal()
+                    : util::BinaryElementwiseComparison(AutoBroadcastSpec::NUMPY)
+                {
+                }
                 /// \brief Constructs an equal operation.
                 ///
                 /// \param arg0 Node that produces the first input tensor.

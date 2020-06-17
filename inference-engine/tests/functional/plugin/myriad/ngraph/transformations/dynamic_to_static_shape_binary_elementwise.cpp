@@ -310,7 +310,8 @@ INSTANTIATE_TEST_CASE_P(EltwiseBroadcast, DynamicToStaticShapeEltwise, testing::
     testing::Values(
         ngraph::opset3::Add::type_info,
         ngraph::opset3::Divide::type_info,
-//        ngraph::opset3::Equal::type_info, operation broadcast default value needs to be fixed
+        ngraph::opset3::Equal::type_info,
+        ngraph::opset3::Greater::type_info,
         ngraph::opset3::Power::type_info,
         ngraph::opset3::Multiply::type_info,
         ngraph::opset3::Subtract::type_info),
@@ -333,7 +334,8 @@ INSTANTIATE_TEST_CASE_P(EltwiseBroadcastSingleDSR, DynamicToStaticShapeEltwiseSi
     testing::Values(
         ngraph::opset3::Add::type_info,
         ngraph::opset3::Divide::type_info,
-//        ngraph::opset3::Equal::type_info, operation broadcast default value needs to be fixed
+        ngraph::opset3::Equal::type_info,
+        ngraph::opset3::Greater::type_info,
         ngraph::opset3::Power::type_info,
         ngraph::opset3::Multiply::type_info,
         ngraph::opset3::Subtract::type_info),

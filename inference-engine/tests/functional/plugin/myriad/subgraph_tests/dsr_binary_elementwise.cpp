@@ -87,7 +87,8 @@ INSTANTIATE_TEST_CASE_P(DISABLED_DynamicBinaryElementwise, DSR_BinaryElementwise
                           ngraph::opset3::Multiply::type_info,
                           ngraph::opset3::Divide::type_info,
                           ngraph::opset3::Subtract::type_info,
-//                        ngraph::opset3::Equal::type_info, operation broadcast default value needs to be fixed
+                          ngraph::opset3::Equal::type_info,
+                          ngraph::opset3::Greater::type_info,
                           ngraph::opset3::Power::type_info),
         ::testing::Values(CommonTestUtils::DEVICE_MYRIAD)));
 
@@ -104,7 +105,8 @@ INSTANTIATE_TEST_CASE_P(DISABLED_DynamicBinaryElementwiseSingleDSR, DSR_BinaryEl
                           ngraph::opset3::Multiply::type_info,
                           ngraph::opset3::Divide::type_info,
                           ngraph::opset3::Subtract::type_info,
-//                        ngraph::opset3::Equal::type_info, operation broadcast default value needs to be fixed
+                         ngraph::opset3::Equal::type_info,
+                         ngraph::opset3::Greater::type_info,
                           ngraph::opset3::Power::type_info),
         ::testing::Values(CommonTestUtils::DEVICE_MYRIAD)));
 
