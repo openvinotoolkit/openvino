@@ -23,12 +23,18 @@ const std::vector<LayerTransformation::Params> trasformationParamValues = {
     LayerTestsUtils::LayerTransformationParamsFactory::createParamsI8I8()
 };
 
+const std::vector<LayerTestsUtils::LayerTransformation::LptVersion> versions = {
+    LayerTestsUtils::LayerTransformation::LptVersion::cnnNetwork,
+    // LayerTestsUtils::LayerTransformation::LptVersion::nGraph
+};
+
 INSTANTIATE_TEST_CASE_P(LPT, GemmTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::ValuesIn(dimensions),
         ::testing::Values(CommonTestUtils::DEVICE_GPU),
-        ::testing::ValuesIn(trasformationParamValues)),
+        ::testing::ValuesIn(trasformationParamValues),
+        ::testing::ValuesIn(versions)),
     GemmTransformation::getTestCaseName);
 }  // namespace
 
