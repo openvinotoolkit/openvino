@@ -849,8 +849,11 @@ int64_t ngraph::normalize_axis(const std::string& node_description,
     }
 
     const auto tensor_rank_value = tensor_rank.get_length();
-    return normalize_axis(
-        node_description, axis, tensor_rank_value, -tensor_rank_value, tensor_rank_value - 1);
+    return normalize_axis(node_description,
+                          axis,
+                          tensor_rank_value,
+                          -tensor_rank_value,
+                          tensor_rank_value ? (tensor_rank_value - 1) : 0);
 }
 
 int64_t ngraph::normalize_axis(const Node* node,
