@@ -382,6 +382,9 @@ int main(int argc, char* argv[]) {
                 trim(strLine);
                 labels.push_back(strLine);
             }
+            inputFile.close();
+        } else {
+            throw std::logic_error("Cannot read label file");
         }
 
         ClassificationResult classificationResult(outputBlob, images, batchSize, FLAGS_nt, labels);

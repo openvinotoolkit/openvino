@@ -63,9 +63,9 @@ ngraph::op::GenericIE::GenericIE(const ngraph::NodeVector& inputs,
     : GenericIE(as_output_vector(inputs), params, type, outputs) {}
 
 ngraph::op::GenericIE::GenericIE(const ngraph::OutputVector& inputs,
-                                 const std::map<std::string, InferenceEngine::Parameter>& params,
-                                 const std::string type, const std::vector<PortIE>& outputs)
-    : Op(inputs), params(params), outputs(outputs), type(type), initialized(0) {
+                                 const std::map<std::string, InferenceEngine::Parameter>& params_,
+                                 const std::string type_, const std::vector<PortIE>& outputs_)
+    : Op(inputs), params(params_), outputs(outputs_), type(type_), initialized(0) {
     constructor_validate_and_infer_types();
 }
 
