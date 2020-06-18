@@ -80,8 +80,6 @@ namespace ngraph
                         {
                             // Split one convolution op to N ops where N is the number of groups
                             // and concat results after computation.
-                            // reference:
-                            // https://github.com/NervanaSystems/ngraph-mxnet/blob/fdd692/src/ngraph/ngraph_emitter.cc#L822-L856
                             std::size_t n_data_channels{data->get_shape().at(1)};
                             std::size_t n_filters_channels{filters->get_shape().at(0)};
 
