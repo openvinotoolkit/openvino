@@ -25,7 +25,7 @@ from extensions.ops.elementwise import Mul
 from extensions.ops.interpolate import Interpolate
 from mo.front.common.layout import get_height_dim, get_width_dim, get_depth_dim
 from mo.front.common.partial_infer.utils import int64_array
-from mo.graph.graph import Graph, Node
+from mo.graph.graph import Graph, Node, rename_nodes
 from mo.middle.replacement import MiddleReplacementPattern
 from mo.ops.const import Const
 from mo.ops.shape import Shape
@@ -121,15 +121,11 @@ class UpsampleToResample(MiddleReplacementPattern):
                                 get_height_dim(layout, input_shape_rank),
                                 get_width_dim(layout, input_shape_rank)])
 
-        # resample_op = Interpolate(graph, dict(name='Interpolate/{}'.format(upsample.name),
-        #                                       axes=axes, mode=upsample.attrs()['mode'],
-        #                                       antialias=0, convert_to_resample=True)).create_node()
-        resample_op = Interpolate(graph, dict(name='Interpolate/{}'.format(upsample.name), axes=axes,
-                                              mode=upsample.attrs()['mode'], antialias=0, convert_to_resample=True,
-                                              pads_begin=int64_array([0]), pads_end=int64_array([0]),
-                                              coordinate_transformation_mode='half_pixel',
-                                              nearest_mode='round_prefer_floor', cube_coeff=-0.75,
-                                              version='opset3')).create_node()
+        resample_op = Interpolate(graph, {'axes': axes, 'mode': upsample.attrs()['mode'], 'antialias': 0,
+                                          'convert_to_resample': True, 'pads_begin': int64_array([0]),
+                                          'pads_end': int64_array([0]), 'coordinate_transformation_mode': 'half_pixel',
+                                          'nearest_mode': 'round_prefer_floor', 'cube_coeff': -0.75,
+                                          'version': 'opset3'}).create_node()
 
         upsample.add_input_port(1, skip_if_exist=True)
         assert upsample.in_port(1).disconnected()
@@ -137,6 +133,8 @@ class UpsampleToResample(MiddleReplacementPattern):
 
         upsample.in_port(0).get_connection().set_destination(resample_op.in_port(0))
         upsample.out_port(0).get_connection().set_source(resample_op.out_port(0))
+
+        rename_nodes([(upsample, upsample.name + '/delete_'), (resample_op, upsample.name)])
 
         convert_to_float = Cast(graph, dict(dst_type=np.float32)).create_node()
         int_np_type = np.int64 if graph.graph['cmd_params'].generate_experimental_IR_V10 else np.int32
