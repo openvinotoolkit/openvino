@@ -134,10 +134,8 @@ namespace ngraph
                 /// \return The default value for MaxPool.
                 virtual std::shared_ptr<Node> get_default_value() const override;
 
-#ifdef NGRAPH_EVALUATE_ENABLE
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) override;
-#endif
 
             protected:
                 virtual void generate_adjoints(autodiff::Adjoints& adjoints,
@@ -288,10 +286,8 @@ namespace ngraph
                 /// \return The default value for MaxPool.
                 virtual std::shared_ptr<Node> get_default_value() const override;
 
-#ifdef NGRAPH_EVALUATE_ENABLE
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) override;
-#endif
 
             protected:
                 virtual void generate_adjoints(autodiff::Adjoints& adjoints,

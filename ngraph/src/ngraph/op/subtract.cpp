@@ -61,7 +61,6 @@ shared_ptr<ngraph::Node> ngraph::operator-(const Output<Node> arg0, const Output
     return make_shared<op::v0::Subtract>(arg0, arg1);
 }
 
-#ifdef NGRAPH_EVALUATE_ENABLE
 namespace
 {
     template <element::Type_t ET>
@@ -122,7 +121,6 @@ bool op::v0::Subtract::evaluate(const HostTensorVector& outputs, const HostTenso
 {
     return evaluate_subtract(inputs[0], inputs[1], outputs[0], get_autob());
 }
-#endif
 
 // ------------------------------- v1 ------------------------------------------
 
@@ -158,9 +156,7 @@ void op::v1::Subtract::generate_adjoints(autodiff::Adjoints& adjoints, const Out
     adjoints.add_delta(y, -delta);
 }
 
-#ifdef NGRAPH_EVALUATE_ENABLE
 bool op::v1::Subtract::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
 {
     return evaluate_subtract(inputs[0], inputs[1], outputs[0], get_autob());
 }
-#endif

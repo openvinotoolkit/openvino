@@ -139,12 +139,10 @@ namespace
     }
 }
 
-#ifdef NGRAPH_EVALUATE_ENABLE
 bool op::v0::Divide::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
 {
     return evaluate_divide(inputs[0], inputs[1], outputs[0], get_autob(), is_pythondiv());
 }
-#endif
 
 // ------------------------------ v1 -------------------------------------------
 

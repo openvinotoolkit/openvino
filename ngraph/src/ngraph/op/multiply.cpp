@@ -111,12 +111,10 @@ namespace
     }
 }
 
-#ifdef NGRAPH_EVALUATE_ENABLE
 bool op::v0::Multiply::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
 {
     return evaluate_multiply(inputs[0], inputs[1], outputs[0], get_autob());
 }
-#endif
 
 // ------------------------------------ v1 -------------------------------------
 
