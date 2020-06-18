@@ -208,7 +208,7 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                                    'operation of the graph. If there are multiple inputs in the model, --input_shape '
                                    'should contain definition of shape for each input separated by a comma, for '
                                    'example: [1,3,227,227],[2,4] for a model with two inputs with 4D and 2D shapes. '
-                                   'Alternatively, you can specify shapes with the --input option.')
+                                   'Alternatively, specify shapes with the --input option.')
     common_group.add_argument('--scale', '-s',
                               type=float,
                               help='All input values coming from original network inputs will be ' +
@@ -230,15 +230,14 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                                        'DEBUG', 'NOTSET'],
                               default='ERROR')
     common_group.add_argument('--input',
-                              help='Quoted list of comma-separated input nodes names with shapes, data types, ' +
-                                   'and values for freezing. The shape and value are specified as space-separated lists. '+
-                                   'The data type of input node is specified in braces and can have one of the values: ' +
+                              help='Quoted list of comma-separated input nodes names with shapes, data types, '
+                                   'and values for freezing. The shape and value are specified as space-separated lists. '
+                                   'The data type of input node is specified in braces and can have one of the values: '
                                    'f64 (float64), f32 (float32), f16 (float16), i64 (int64), i32 (int32), u8 (uint8), boolean. '
-                                   'For example, use the following format to set input port 0 ' +
-                                   'of the node `node_name1` with the shape [3 4] as an input node and ' +
-                                   'freeze output port 1 of the node `node_name2` with the value [20 15] of int32 type' +
-                                   'and the shape [2]: ' +
-                                   '"0:node_name1[3 4],node_name2:1[2]{i32}->[20 15]".')
+                                   'For example, use the following format to set input port 0 '
+                                   'of the node `node_name1` with the shape [3 4] as an input node and '
+                                   'freeze output port 1 of the node `node_name2` with the value [20 15] of the int32 type '
+                                   'and shape [2]: "0:node_name1[3 4],node_name2:1[2]{i32}->[20 15]".')
     common_group.add_argument('--output',
                               help='The name of the output operation of the model. ' +
                                    'For TensorFlow*, do not add :0 to this name.')
@@ -278,7 +277,7 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                               help='Turn off fusing of grouped convolutions',
                               action=DeprecatedStoreTrue)
     common_group.add_argument('--enable_concat_optimization',
-                              help='Turn on concat optimization',
+                              help='Turn on Concat optimization.',
                               action='store_true')
     common_group.add_argument('--move_to_preprocess',
                               help='Move mean values to IR preprocess section',
@@ -322,13 +321,13 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                                    'This feature makes model reshapable in Inference Engine',
                               action='store_true', default=False)
     common_group.add_argument('--disable_weights_compression',
-                              help='Disable compression and store weights with original precision',
+                              help='Disable compression and store weights with original precision.',
                               action='store_true', default=False)
     common_group.add_argument('--progress',
-                              help='Enables model conversion progress display',
+                              help='Enable model conversion progress display.',
                               action='store_true', default=False)
     common_group.add_argument('--stream_output',
-                              help='Switches model conversion progress display to a multiline mode',
+                              help='Switch model conversion progress display to a multiline mode.',
                               action='store_true', default=False)
     common_group.add_argument('--transformations_config',
                           help='Use the configuration file with transformations description.',
