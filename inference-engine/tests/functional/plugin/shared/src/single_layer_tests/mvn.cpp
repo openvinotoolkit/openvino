@@ -54,6 +54,13 @@ void MvnLayerTest::SetUp() {
 
 TEST_P(MvnLayerTest, CompareWithRefs) {
     Run();
-};
+}
+
+TEST_P(MvnLayerTest, TestForDynamicBatch) {
+    if (targetDevice == CommonTestUtils::DEVICE_GPU || targetDevice == CommonTestUtils::DEVICE_CPU) {
+        configuration = {{CONFIG_KEY(DYN_BATCH_ENABLED), CONFIG_VALUE(YES)}};
+        Run();
+    }
+}
 
 }  // namespace LayerTestsDefinitions

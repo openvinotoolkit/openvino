@@ -102,7 +102,7 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::ICNNNetwork &network
 
     MKLDNNGraph::ApplyUnrollPasses(static_cast<ICNNNetwork&>(*_clonedNetwork));
 
-    if (_cfg.batchLimit > 1) {
+    if (_cfg.enableDynamicBatch) {
         // check topology for applicability
         if (!CanProcessDynBatch(*_clonedNetwork)) {
             THROW_IE_EXCEPTION << "MKLDNNGraph::CreateGraph: such topology cannot be compiled for dynamic batch!";
@@ -272,6 +272,10 @@ bool MKLDNNExecNetwork::CanProcessDynBatch(const InferenceEngine::ICNNNetwork &n
             type == Reshape &&
             (reshapeLayer->outData[0]->getTensorDesc().getDims()[0] ==
              reshapeLayer->insData[0].lock()->getTensorDesc().getDims()[0])) {
+            return;
+        }
+        auto MVNLayer = dynamic_cast<InferenceEngine::MVNLayer *>(layer.get());
+        if (MVNLayer && type == MVN) {
             return;
         }
 
