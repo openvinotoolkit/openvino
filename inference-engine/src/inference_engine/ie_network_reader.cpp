@@ -180,6 +180,7 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath, const std::string&
 
                 // read model with weights
                 auto network = reader->read(modelStream, binStream, exts);
+                binStream.close();
                 modelStream.close();
                 return network;
             }
