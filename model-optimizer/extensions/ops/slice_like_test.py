@@ -23,14 +23,18 @@ from mo.graph.graph import Node
 from mo.utils.unittest.graph import build_graph
 
 nodes_attributes = {
+    'input': {'kind': 'op', 'op': 'Const', 'shape': int64_array([3, 4]), 'value': None},
     'input_data': {'kind': 'data', 'shape': int64_array([3, 4]), 'value': None},
+    'shape_like': {'kind': 'op', 'op': 'Const', 'shape': int64_array([2, 3]), 'value': None},
     'shape_like_data': {'kind': 'data', 'shape': int64_array([2, 3]), 'value': None},
     'slice_like': {'kind': 'op', 'op': 'slice_data'},
     'out_data': {'kind': 'data', 'shape': None, 'value': None}
 }
 
 edges = [
+    ('input', 'input_data'),
     ('input_data', 'slice_like', {'in': 0}),
+    ('shape_like', 'shape_like_data'),
     ('shape_like_data', 'slice_like', {'in': 1}),
     ('slice_like', 'out_data')
 ]

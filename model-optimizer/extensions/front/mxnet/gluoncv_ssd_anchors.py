@@ -42,6 +42,7 @@ class SsdAnchorReshape(FrontReplacementPattern):
                 ('reshape2', dict(op='Reshape')),
                 ('reshape3', dict(op='Reshape')),
                 ('concat', dict(op='Concat')),
+                ('detection_output', dict(op='DetectionOutput'))
             ],
             edges=[
                 ('slice_like', 'reshape0'),
@@ -49,6 +50,7 @@ class SsdAnchorReshape(FrontReplacementPattern):
                 ('reshape1', 'reshape2'),
                 ('reshape2', 'reshape3'),
                 ('reshape3', 'concat'),
+                ('concat', 'detection_output', {'in': 2})
             ])
 
     def replace_pattern(self, graph: Graph, match: Dict[str, Node]):
@@ -80,20 +82,18 @@ class SsdAnchorsReplacer(FrontReplacementPattern):
                 ('slice_like', dict(op='slice_like')),
                 ('reshape0', dict(op='Reshape')),
                 ('concat', dict(op='Concat')),
+                ('detection_output', dict(op='DetectionOutput'))
             ],
             edges=[
                 ('slice_like', 'reshape0'),
                 ('reshape0', 'concat', {'in': 0}),
-        ])
+                ('concat', 'detection_output', {'in': 2})
+            ])
 
     def replace_pattern(self, graph: Graph, match: Dict[str, Node]):
         concat_node = match['concat']
         concat_node['axis'] = 1
         concat_name = concat_node.soft_get('name', concat_node.id)
-        if len(concat_node.out_nodes()[0].out_nodes()) == 0:
-            return
-
-        detection_output_port = concat_node.out_port(0).get_destination()
         concat_node.out_port(0).disconnect()
 
         concat_reshape = create_op_node_with_second_input(graph, Reshape, int64_array([1, 2, -1]), op_attrs=dict(
@@ -144,4 +144,4 @@ class SsdAnchorsReplacer(FrontReplacementPattern):
         concat = Concat(graph, dict(name=reshape_concat_values.name + '/Concat', in_ports_count=2, axis=1)).create_node()
         concat.in_port(0).connect(reshape_concat_values.out_port(0))
         concat.in_port(1).connect(split_node.out_port(1))
-        concat.out_port(0).connect(detection_output_port)
+        concat.out_port(0).connect(match['detection_output'].in_port(2))

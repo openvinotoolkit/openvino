@@ -192,6 +192,7 @@ extensions/front/mxnet/flatten_ext.py
 extensions/front/mxnet/fully_connected_ext.py
 extensions/front/mxnet/gather.py
 extensions/front/mxnet/gather_ext.py
+extensions/front/mxnet/gluoncv_ssd_anchors.py
 extensions/front/mxnet/instance_norm_ext.py
 extensions/front/mxnet/leaky_relu.py
 extensions/front/mxnet/lrn_ext.py
@@ -222,7 +223,6 @@ extensions/front/mxnet/softmax_ext.py
 extensions/front/mxnet/softmax_output_ext.py
 extensions/front/mxnet/squeeze_ext.py
 extensions/front/mxnet/ssd_anchor_reshape.py
-extensions/front/mxnet/ssd_anchors_replacer.py
 extensions/front/mxnet/ssd_detection_output_replacer.py
 extensions/front/mxnet/ssd_pattern_flatten_softmax_activation.py
 extensions/front/mxnet/ssd_pattern_remove_flatten.py
