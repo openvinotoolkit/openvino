@@ -2,9 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <vector>
 #include "single_layer_tests/eltwise.hpp"
 #include "common_test_utils/test_constants.hpp"
+#include <vpu/private_plugin_config.hpp>
+
+#include <vector>
 
 using namespace LayerTestsDefinitions;
 using namespace LayerTestsDefinitions::EltwiseParams;
@@ -16,6 +18,8 @@ std::vector<std::vector<std::vector<size_t>>> inShapes = {
         {{1, 2, 4}},
         {{1, 4, 4}},
         {{1, 4, 4, 1}},
+        {{16, 16, 96}, {96}},
+        {{52, 1, 52, 3, 2}, {2}}
 };
 
 std::vector<InferenceEngine::Precision> netPrecisions = {
@@ -39,7 +43,9 @@ std::vector<ngraph::helpers::EltwiseTypes> eltwiseOpTypes = {
         ngraph::helpers::EltwiseTypes::ADD
 };
 
-std::map<std::string, std::string> additional_config = {};
+std::map<std::string, std::string> additional_config = {
+    {VPU_CONFIG_KEY(DETECT_NETWORK_BATCH), CONFIG_VALUE(NO)}
+};
 
 const auto multiply_params = ::testing::Combine(
         ::testing::ValuesIn(inShapes),
