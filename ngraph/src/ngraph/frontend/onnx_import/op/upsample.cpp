@@ -66,18 +66,14 @@ namespace ngraph
                     const auto mode = node.get_attribute_value<std::string>("mode", "nearest");
                     check_mode_support(node, mode);
 
-                    size_t axes_size = scales.size();
-
-                    AxisSet axes;
-                    for (int ax = 0; ax < axes_size; ++ax)
-                    {
-                        axes.insert(ax);
-                    }
-
                     auto attrs = ngraph::op::v0::InterpolateAttrs();
-                    attrs.axes = axes;
                     attrs.mode = mode;
                     attrs.align_corners = false;
+
+                    for (size_t ax = 0; ax < scales.size(); ++ax)
+                    {
+                        attrs.axes.insert(ax);
+                    }
 
                     if (data_shape.is_static())
                     {
@@ -130,18 +126,16 @@ namespace ngraph
                         (scales_shape.is_static() || data_shape.rank().is_static()),
                         " Data rank or shape of Scales input is required to be static.");
 
-                    size_t axes_size = scales_shape.is_static() ? scales_shape.to_shape().at(0)
-                                                                : data_shape.rank().get_length();
-                    AxisSet axes;
-                    for (int ax = 0; ax < axes_size; ++ax)
-                    {
-                        axes.insert(ax);
-                    }
-
                     auto attrs = ngraph::op::v0::InterpolateAttrs();
-                    attrs.axes = axes;
                     attrs.mode = mode;
                     attrs.align_corners = false;
+
+                    size_t axes_size = scales_shape.is_static() ? scales_shape.to_shape().at(0)
+                                                                : data_shape.rank().get_length();
+                    for (size_t ax = 0; ax < axes_size; ++ax)
+                    {
+                        attrs.axes.insert(ax);
+                    }
 
                     if (scales->is_constant() && data_shape.is_static())
                     {
