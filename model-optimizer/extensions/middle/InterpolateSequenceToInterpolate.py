@@ -143,7 +143,8 @@ def get_interpolate_attributes(node: Node) -> dict:
             'align_corners': 0,
             'antialias': 0,
             'pads_begin': 0,
-            'pads_end': 0
+            'pads_end': 0,
+            'version': 'opset1'
         },
         'opset3': {
             'mode': None,
@@ -152,7 +153,8 @@ def get_interpolate_attributes(node: Node) -> dict:
             'pads_end': int64_array([0]),
             'coordinate_transformation_mode': 'half_pixel',
             'nearest_mode': 'round_prefer_floor',
-            'cube_coeff': -0.75
+            'cube_coeff': -0.75,
+            'version': 'opset3'
         },
     }
     opset = node.get_opset()
