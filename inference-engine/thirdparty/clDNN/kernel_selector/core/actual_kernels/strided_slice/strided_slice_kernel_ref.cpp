@@ -18,6 +18,35 @@
 #include <vector>
 
 namespace kernel_selector {
+
+template<typename T>
+static void makeJitConstForParam(JitConstants& jit, const std::string name, const T& vec) {
+    jit.AddConstant(MakeJitConstant(name + "_SIZES", vec));
+    jit.AddConstant(MakeJitConstant(name + "_BATCH", vec[0]));
+    jit.AddConstant(MakeJitConstant(name + "_FEATURE", vec[1]));
+    if (vec.size() == 5) {  // BFZYX
+        jit.AddConstant(MakeJitConstant(name + "_Z", vec[2]));
+        jit.AddConstant(MakeJitConstant(name + "_Y", vec[3]));
+        jit.AddConstant(MakeJitConstant(name + "_X", vec[4]));
+    } else {  // BFYX
+        jit.AddConstant(MakeJitConstant(name + "_Z", 0));
+        jit.AddConstant(MakeJitConstant(name + "_Y", vec[2]));
+        jit.AddConstant(MakeJitConstant(name + "_X", vec[3]));
+    }
+};
+
+static size_t GetUsedOutDimsCount(const strided_slice_params& params) {
+    auto dims = params.output.GetDims();
+    size_t first_non_unit_dim = 0; // order is xy(z)fb, so by default consider that we use all dims
+    for (size_t i = 0; i < dims.size(); i++) {
+        if (dims[i].v != 1) {
+            break;
+        }
+        first_non_unit_dim = i;
+    }
+    return dims.size() - first_non_unit_dim;
+}
+
 ParamsKey StridedSliceKernelRef::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::F16);
@@ -30,6 +59,33 @@ ParamsKey StridedSliceKernelRef::GetSupportedKey() const {
     k.EnableTensorPitches();
     k.EnableBatching();
     return k;
+}
+
+bool StridedSliceKernelRef::Validate(const Params& p, const optional_params& o) const {
+    if (p.GetType() != KernelType::STRIDED_SLICE || o.GetType() != KernelType::STRIDED_SLICE) {
+        return false;
+    }
+
+    const strided_slice_params& params = static_cast<const strided_slice_params&>(p);
+    if (params.inputs.empty())
+        return false;
+
+    if (params.output.Dimentions() > 5 || params.inputs[0].Dimentions() > 5)
+        return false;
+
+    bool shrink_mode = std::find(params.shrink_axis_mask.begin(), params.shrink_axis_mask.end(), 1) != params.shrink_axis_mask.end();
+    if (shrink_mode) {
+        size_t shrinked_axes = std::count_if(params.shrink_axis_mask.begin(), params.shrink_axis_mask.end(), [](const uint8_t& v) {
+            return v == 1;
+        });
+        size_t used_out_dims = GetUsedOutDimsCount(params);
+
+        // Count of actual output dims + count of shrinked axes shouldn't exceed 5 to be able to find input index correctly
+        if (used_out_dims + shrinked_axes > 5) {
+            return false;
+        }
+    }
+    return true;
 }
 
 CommonDispatchData StridedSliceKernelRef::SetDefault(const strided_slice_params& params, const optional_params&) const {
@@ -57,21 +113,6 @@ CommonDispatchData StridedSliceKernelRef::SetDefault(const strided_slice_params&
 JitConstants StridedSliceKernelRef::GetJitConstants(const strided_slice_params& params) const {
     JitConstants jit = MakeBaseParamsJitConstants(params);
 
-    auto makeJitConstForParam = [](JitConstants& jit, const std::string name, const std::vector<int32_t> vec) {
-        jit.AddConstant(MakeJitConstant(name + "_SIZES", vec));
-        jit.AddConstant(MakeJitConstant(name + "_BATCH", vec[0]));
-        jit.AddConstant(MakeJitConstant(name + "_FEATURE", vec[1]));
-        if (vec.size() == 5) {  // BFZYX
-            jit.AddConstant(MakeJitConstant(name + "_Z", vec[2]));
-            jit.AddConstant(MakeJitConstant(name + "_Y", vec[3]));
-            jit.AddConstant(MakeJitConstant(name + "_X", vec[4]));
-        } else {  // BFYX
-            jit.AddConstant(MakeJitConstant(name + "_Z", 0));
-            jit.AddConstant(MakeJitConstant(name + "_Y", vec[2]));
-            jit.AddConstant(MakeJitConstant(name + "_X", vec[3]));
-        }
-    };
-
     makeJitConstForParam(jit, "SLICE_BEGIN", params.striding_params[0]);
     makeJitConstForParam(jit, "SLICE_END", params.striding_params[1]);
     makeJitConstForParam(jit, "SLICE_STEPS", params.striding_params[2]);
@@ -80,10 +121,47 @@ JitConstants StridedSliceKernelRef::GetJitConstants(const strided_slice_params& 
         "NEW_AXIS_MODE",
         std::find(params.new_axis_mask.begin(), params.new_axis_mask.end(), 1) != params.new_axis_mask.end()));
 
+    bool shrink_mode = std::find(params.shrink_axis_mask.begin(), params.shrink_axis_mask.end(), 1) != params.shrink_axis_mask.end();
+    if (shrink_mode) {
+        jit.AddConstant(MakeJitConstant("SHRINK_MODE", true));
+        makeJitConstForParam(jit, "SHRINK", params.shrink_axis_mask);
+        std::vector<std::string> bfzyx_in_order;
+        if (params.output.Dimentions() == 5)
+            bfzyx_in_order = {"batch", "feature", "z", "y", "x"};
+        else
+            bfzyx_in_order = {"batch", "feature", "y", "x"};
+
+        // Insert zeroes to indices order for shinked axes
+        for (size_t i = 0; i < params.shrink_axis_mask.size(); i++) {
+            if (params.shrink_axis_mask[i] == 1) {
+                bfzyx_in_order.insert(bfzyx_in_order.begin() + i, "0");
+            }
+        }
+
+        auto get_input_idx_order = [&](std::vector<std::string> bfzyx_in_order) -> std::string {
+            return bfzyx_in_order[0] + "," +
+                   bfzyx_in_order[1] + "," +
+                   bfzyx_in_order[2] + "," +
+                   bfzyx_in_order[3] + "," +
+                   bfzyx_in_order[4];
+        };
+        // Erase indices that exceeds 5d tensor. It should be safe, because we check in Validate method that
+        // shrinked axes don't result in too big dims count
+        while (bfzyx_in_order.size() > 5) {
+            bfzyx_in_order.pop_back();
+        }
+
+        jit.AddConstant(MakeJitConstant("INPUT_INDICES_ORDER", get_input_idx_order(bfzyx_in_order)));
+    }
+
     return jit;
 }
 
 KernelsData StridedSliceKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {
+    if (!Validate(params, options)) {
+        return {};
+    }
+
     KernelData kd = KernelData::Default<strided_slice_params>(params);
     strided_slice_params& newParams = *static_cast<strided_slice_params*>(kd.params.get());
 
