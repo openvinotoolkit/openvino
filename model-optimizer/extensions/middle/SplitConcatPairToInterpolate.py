@@ -98,9 +98,11 @@ def replace_interpolate_pattern(graph: Graph, match: dict):
 
     strided_slice_node.out_port(0).connect(mul_node.in_port(0))
 
-    interp_node = Interpolate(graph, dict(name=split_node_name + '/Interpolate_',
-                                          axes=int64_array([axis]),
-                                          mode='nearest')).create_node()
+    interp_node = Interpolate(graph,
+                              dict(name=split_node_name + '/Interpolate_', axes=int64_array([axis]), mode='nearest',
+                                   antialias=0, pads_begin=int64_array([0]), pads_end=int64_array([0]),
+                                   coordinate_transformation_mode='half_pixel', nearest_mode='round_prefer_floor',
+                                   cube_coeff=-0.75, version='opset3')).create_node()
     mul_node.out_port(0).connect(interp_node.in_port(1))
 
     match['concat'].out_port(0).get_connection().set_source(interp_node.out_port(0))

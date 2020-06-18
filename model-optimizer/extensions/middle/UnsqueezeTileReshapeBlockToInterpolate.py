@@ -116,8 +116,8 @@ class UnsqueezeTileReshapeBlockToInterpolate(MiddleReplacementPattern):
         strided_slice_node.out_port(0).connect(mul_node.in_port(0))
 
         interp_node = Interpolate(graph,
-                                  dict(name=unsqueeze_name + '/Interpolate_', axes=int64_array([axis]), mode='nearest',
-                                       antialias=0, convert_to_resample=True, pads_begin=int64_array([0]),
+                                  dict(axes=int64_array([axis]), mode='nearest',
+                                       antialias=0, pads_begin=int64_array([0]),
                                        pads_end=int64_array([0]), coordinate_transformation_mode='half_pixel',
                                        nearest_mode='round_prefer_floor', cube_coeff=-0.75,
                                        version='opset3')).create_node()
