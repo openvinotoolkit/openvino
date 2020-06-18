@@ -53,7 +53,7 @@ testing::AssertionResult test::IE_CPU_Engine::compare_results(const size_t toler
 {
     auto comparison_result = testing::AssertionSuccess();
 
-    for (const auto output : m_network_outputs)
+    for (const auto& output : m_network_outputs)
     {
         InferenceEngine::MemoryBlob::CPtr computed_output_blob =
             InferenceEngine::as<InferenceEngine::MemoryBlob>(m_inference_req.GetBlob(output.first));
