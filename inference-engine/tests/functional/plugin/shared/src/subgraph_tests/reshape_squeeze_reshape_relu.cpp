@@ -17,9 +17,10 @@ namespace LayerTestsDefinitions {
         InferenceEngine::Precision netPrecision;
         std::string targetName;
         bool is_squeeze;
-        std::tie(squeezeShape, netPrecision, targetName, is_squeeze) = obj.param;
+        ngraph::helpers::SqueezeOpType opType;
+        std::tie(squeezeShape, netPrecision, targetName, opType) = obj.param;
         std::ostringstream results;
-
+        results << "OpType=" << opType;
         results << "IS=" << CommonTestUtils::vec2str(squeezeShape.first) << "_";
         results << "indices=" << CommonTestUtils::vec2str(squeezeShape.second) << "_";
         results << "netPRC=" << netPrecision.name() << "_";
@@ -30,8 +31,8 @@ namespace LayerTestsDefinitions {
     void ReshapeSqueezeReshapeRelu::SetUp() {
         SqueezeShape squeezeShape;
         InferenceEngine::Precision netPrecision;
-        bool is_squeeze;
-        std::tie(squeezeShape, netPrecision, targetDevice, is_squeeze) = this->GetParam();
+        ngraph::helpers::SqueezeOpType opType;
+        std::tie(squeezeShape, netPrecision, targetDevice, opType) = this->GetParam();
         const std::size_t input_dim = InferenceEngine::details::product(squeezeShape.first);
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
         std::vector<size_t> shape_input{1, input_dim};
@@ -40,21 +41,15 @@ namespace LayerTestsDefinitions {
                                                                        ngraph::Shape{squeezeShape.first.size()},
                                                                        squeezeShape.first);
         auto reshape1 = std::make_shared<ngraph::op::v1::Reshape>(input[0], reshape1_pattern, false);
-        auto squeeze = [&]() {
-            if (is_squeeze) {
-                return ngraph::builder::makeSqueeze(reshape1, ngPrc, squeezeShape.second);
-            }
-            return ngraph::builder::makeUnsqueeze(reshape1, ngPrc, squeezeShape.second);
-        };
+        auto squeeze = ngraph::builder::makeSqueeze(reshape1, ngPrc, squeezeShape.second, opType);
         auto reshape2_pattern = std::make_shared<ngraph::op::Constant>(ngraph::element::i64,
                                                                        ngraph::Shape{2},
                                                                        std::vector<size_t>{1, input_dim});
-        auto reshape2 = std::make_shared<ngraph::op::v1::Reshape>(squeeze(), reshape2_pattern, false);
+        auto reshape2 = std::make_shared<ngraph::op::v1::Reshape>(squeeze, reshape2_pattern, false);
         auto func = std::make_shared<ngraph::opset1::Relu>(reshape2);
-        if (is_squeeze)
-            function = std::make_shared<ngraph::Function>(func, input, "reshape_squeeze_reshape_relu");
-        else
-            function = std::make_shared<ngraph::Function>(func, input, "reshape_unsqueeze_reshape_relu");
+        std::string squeezeType;
+
+        function = std::make_shared<ngraph::Function>(func, input, "reshape_squeeze_reshape_relu");
     }
 
     TEST_P(ReshapeSqueezeReshapeRelu, CompareWithRefs){

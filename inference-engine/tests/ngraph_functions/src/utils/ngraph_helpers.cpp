@@ -532,5 +532,19 @@ std::ostream& operator<<(std::ostream & os, ngraph::helpers::EltwiseTypes type) 
     return os;
 }
 
+std::ostream& operator<<(std::ostream & os, ngraph::helpers::SqueezeOpType type) {
+    switch (type) {
+        case ngraph::helpers::SqueezeOpType::SQUEEZE:
+            os << "Squeeze";
+            break;
+        case ngraph::helpers::SqueezeOpType::UNSQUEEZE:
+            os << "Unsqueeze";
+            break;
+        default:
+            std::runtime_error("NOT_SUPPORTED_OP_TYPE");
+    }
+    return os;
+}
+
 }  // namespace helpers
 }  // namespace ngraph

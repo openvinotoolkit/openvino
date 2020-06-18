@@ -31,19 +31,16 @@ namespace {
                                                              InferenceEngine::Precision::FP16,
     };
 
+    const std::vector<ngraph::helpers::SqueezeOpType> opTypes = {
+            ngraph::helpers::SqueezeOpType::SQUEEZE,
+            ngraph::helpers::SqueezeOpType::UNSQUEEZE
+    };
+
     INSTANTIATE_TEST_CASE_P(reshape_squeeze_reshape_relu, ReshapeSqueezeReshapeRelu,
                             ::testing::Combine(
                                     ::testing::ValuesIn(inputs),
                                     ::testing::ValuesIn(netPrecisions),
                                     ::testing::Values(CommonTestUtils::DEVICE_GNA),
-                                    ::testing::Values(true)),
-                            ReshapeSqueezeReshapeRelu::getTestCaseName);
-
-    INSTANTIATE_TEST_CASE_P(reshape_unsqueeze_reshape_relu, ReshapeSqueezeReshapeRelu,
-                            ::testing::Combine(
-                                    ::testing::ValuesIn(inputs),
-                                    ::testing::ValuesIn(netPrecisions),
-                                    ::testing::Values(CommonTestUtils::DEVICE_GNA),
-                                    ::testing::Values(false)),
+                                    ::testing::ValuesIn(opTypes)),
                             ReshapeSqueezeReshapeRelu::getTestCaseName);
 }  // namespace

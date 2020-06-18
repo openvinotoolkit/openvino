@@ -14,11 +14,10 @@
 
 namespace LayerTestsDefinitions {
 using SqueezeShape = std::pair<std::vector<size_t>, std::vector<int>>;
-using InputShape = std::vector<size_t>;
-using SqueezeAxes = std::vector<int>;
 
 typedef std::tuple<
-        SqueezeShape,                   // InputShape, Axes vector
+        SqueezeShape,                   // InputShape, Squeeze indexes
+        ngraph::helpers::SqueezeOpType,   // OpType
         InferenceEngine::Precision,     // Net precision
         std::string,                    // Target device name
         bool                            // IsScalar
@@ -28,7 +27,7 @@ class SqueezeLayerTest : public testing::WithParamInterface<squeezeParams>,
                        public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<squeezeParams> obj);
-    static std::vector<SqueezeShape> combineShapes(const std::map<InputShape, std::vector<SqueezeAxes>>& inputShapes);
+    static std::vector<SqueezeShape> combineShapes(const std::map<std::vector<size_t>, std::vector<std::vector<int>>>& inputShapes);
 
 protected:
     void SetUp() override;
