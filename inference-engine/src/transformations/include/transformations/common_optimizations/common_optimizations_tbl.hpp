@@ -17,6 +17,7 @@
 // This pass must be called first in pipeline
 NGRAPH_PASS(InitNodeInfo, ::ngraph::pass)
 NGRAPH_PASS(RemoveFilteringBoxesBySize, ::ngraph::pass) // Resolves dynamism (replaces NonZero), CF needed
+NGRAPH_PASS(UpgradeNMS3ToNMS4, ::ngraph::pass) // replaces v3::NMS with v4::NMS(always dyn output shape) if function has opset3::NonZero operation
 NGRAPH_PASS(ConstantFolding, ::ngraph::pass)
 NGRAPH_PASS(StridedSliceOptimization, ::ngraph::pass) // depends on CF
 NGRAPH_PASS(NopElimination, ::ngraph::pass) // may introduce fake dynamism
