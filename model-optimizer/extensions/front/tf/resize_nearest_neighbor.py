@@ -28,6 +28,12 @@ class ResizeNearestNeighborFrontExtractor(FrontExtractorOp):
             'mode': 'nearest',
             'antialias': 0,
             'axes': int64_array([1, 2]),
+            'pads_begin': int64_array([0]),
+            'pads_end': int64_array([0]),
+            'coordinate_transformation_mode': 'half_pixel',
+            'nearest_mode': 'round_prefer_floor',
+            'cube_coeff': -0.75,
+            'version': 'opset3'
         }
         Interpolate.update_node_stat(node, mapping_rule)
         return cls.enabled
