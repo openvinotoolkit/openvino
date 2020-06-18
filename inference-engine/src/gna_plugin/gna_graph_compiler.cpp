@@ -1424,30 +1424,76 @@ case name:\
 }
 
 void GNAGraphCompiler::PermutePrimitive(InferenceEngine::CNNLayerPtr layer) {
+    if (LayerInfo(layer).isTrivialPermute()) {
+        return;
+    }
     auto layerOrder = layer->GetParamAsInts("order");
+    auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(layer);
+    auto inputs = layer->insData.begin()->lock();
+    auto inputsOrder = inputs->getTensorDesc().getDims();
+    auto outputs = layer->outData.front();
 
-    string dimMessage;
-    if (layerOrder == vector<int>({0, 3, 2, 1})) {
-        return;  // supported case
+    // squeeze order vector
+    SizeVector squeezedInputOrder;
+    for (auto input_shape : inputsOrder) {
+        if (input_shape != 1) squeezedInputOrder.push_back(input_shape);
+    }
+    SizeVector squeezedOutputOrder;
+    for (auto output_shape : layerOrder) {
+        if (output_shape != 0) squeezedOutputOrder.push_back(output_shape);
     }
 
-    if (layerOrder == vector<int>({1, 0, 2})) {
-        IE_ASSERT(!layer->insData.empty());
-        auto inputs = layer->insData.begin()->lock();
-        auto inputs_size = inputs->getTensorDesc().getDims().size();
-        if (inputs_size != layerOrder.size()) {
-            THROW_IE_EXCEPTION << "[GNA plugin] Invalid input tensor size for permute layer " <<
-                               layer->GetParamAsString("order");
-        }
-        auto permuteDim0 = FROM_IR_DIM(inputs, inputs_size);
-        auto permuteDim1 = FROM_IR_DIM(inputs, inputs_size - 1);
-        if (permuteDim0 == 1 || permuteDim1 == 1) {
-            return;  // supported case
-        }
-        dimMessage = " (with first dim = " + to_string(permuteDim0) + ", second dim = " + to_string(permuteDim1) + ")";
+    void* ptr_inputs = nullptr;
+    void* ptr_outputs = nullptr;
+
+    if (squeezedInputOrder.size() > 2) {
+        THROW_GNA_LAYER_EXCEPTION(layer) << "unsupported permute (requested transpose is not 2D)";
     }
-    THROW_IE_EXCEPTION << "[GNA plugin] Unsupported permute order: was " << layer->GetParamAsString("order") <<
-                       dimMessage << ", but only support 1,0,2 (with first or second dim = 1) and 0,3,2,1";
+
+    if (std::min(squeezedInputOrder[0], squeezedInputOrder[1]) > 8) {
+        THROW_GNA_LAYER_EXCEPTION(layer) << "unsupported permute (minor dimension="
+                            << std::min(squeezedInputOrder[0], squeezedInputOrder[1]) << " > 8)";
+    }
+
+    // now this can be run on GNA
+    if (squeezedInputOrder[0] < squeezedInputOrder[1]) {  // interleave case
+        if (ALIGN(squeezedInputOrder[1], 8) != squeezedInputOrder[1]) {
+            THROW_GNA_LAYER_EXCEPTION(layer) << "unsupported permute (row size not a multiple of 8)";
+        } else {
+            auto& currentComponent = dnnComponents.addComponent(layer->name, "interleave");
+            dnn->InitInterleaveComponent(currentComponent,
+                                         squeezedInputOrder[0],
+                                         squeezedInputOrder[1],
+                                         inputs->getPrecision().size(),
+                                         outputs->getPrecision().size(),
+                                         (quantized == nullptr) ? 1.0f : quantized->_dst_quant.scale,
+                                         ptr_inputs,
+                                         ptr_outputs);
+        }
+
+    } else {  // deinterleave case
+        if (ALIGN(squeezedInputOrder[0], 8) != squeezedInputOrder[0]) {
+            THROW_GNA_LAYER_EXCEPTION(layer) << "[GNA plugin] unsupported permute (column size not a multiple of 8)";
+        } else {
+            auto& currentComponent = dnnComponents.addComponent(layer->name, "deinterleave");
+            dnn->InitDeinterleaveComponent(currentComponent,
+                                           squeezedInputOrder[0],
+                                           squeezedInputOrder[1],
+                                           inputs->getPrecision().size(),
+                                           outputs->getPrecision().size(),
+                                           quantized == nullptr ? 1 : quantized->_dst_quant.scale,
+                                           ptr_inputs,
+                                           ptr_outputs);
+        }
+    }
+
+    size_t num_data_bytes_out = ALIGN(InferenceEngine::details::product(
+            begin(outputs->getDims()), end(outputs->getDims())), 8)
+                                * outputs->getPrecision().size();
+    size_t num_data_bytes_in = squeezedInputOrder[0] * squeezedInputOrder[1] * inputs->getPrecision().size();
+
+    connectInput(layer, ptr_inputs, num_data_bytes_in);
+    connectOutput(layer, ptr_outputs, num_data_bytes_out);
 }
 
 void SKIP(GNAGraphCompiler*, CNNLayerPtr) {}
@@ -1807,9 +1853,14 @@ GNAPluginNS::ConnectionDetails GNAGraphCompiler::connectInput(CNNLayerPtr layer,
         return connectInput(prevLayer, ptr, num_data_bytes_in, offset, 0);
     }
 
+    // permute layer resulted in trivial permute
     if (LayerInfo(prevLayer).isPermute()) {
-        gnalog()  << "Skipping permute layer: " << prevLayer->name << "\n";
-        return {connectInput(prevLayer, ptr, num_data_bytes_in, offset, 0).input, true, prevLayer};
+        if (!LayerInfo(prevLayer).isTrivialPermute()) {
+            // we should have GNA primitive for it
+            THROW_GNA_EXCEPTION << "missed gna primitive for permute: " << prevLayer->name;
+        }
+        gnalog()  << "Skipping trivial permute layer: " << prevLayer->name << "\n";
+        return connectInput(prevLayer, ptr, num_data_bytes_in, offset, 0);
     }
 
 
