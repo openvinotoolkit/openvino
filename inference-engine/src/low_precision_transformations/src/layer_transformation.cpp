@@ -354,12 +354,11 @@ LayerTransformation::PrecisionDetails LayerTransformation::getPrecisionDetails(c
 
             const float expectedRatio = quantizationDetails.levels == 256 ? asymmetricIntervalSideRatio256 : -1.f;
             const float actualRatio = quantizationDetails.outputLowValues[i] / quantizationDetails.outputHighValues[i];
-            const float actual = std::fabs(
-                (actualRatio - expectedRatio) /
-                std::max(fabs(quantizationDetails.outputLowValues[i]), fabs(quantizationDetails.outputHighValues[i])));
+            const float actual = std::fabs((actualRatio - expectedRatio) / std::min(actualRatio, expectedRatio));
             if (actual > quantizationIntervalAsymmetryThreshold) {
                 hasZeroPoint = true;
             }
+
 #ifdef LPT_PRINT_DEQUANTIZATION_INFO
             if (hasZeroPoint) {
                 std::cout << "   actual: " << actual << ", threshold: " << quantizationIntervalAsymmetryThreshold << std::endl;
