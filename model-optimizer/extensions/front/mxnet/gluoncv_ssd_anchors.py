@@ -22,8 +22,23 @@ from mo.front.common.partial_infer.utils import int64_array
 from mo.front.common.replacement import FrontReplacementPattern
 from mo.front.tf.graph_utils import create_op_node_with_second_input
 from mo.graph.graph import Graph, Node
+from mo.graph.port import Port
 from mo.ops.concat import Concat
 from mo.ops.reshape import Reshape
+
+
+def get_coords(graph: Graph, value: Node, div_value_port: Port, add_value_port: Port):
+    _min = Sub(graph, dict(name=value.name + '/Sub')).create_node()
+    div = create_op_node_with_second_input(graph, Div, int64_array([2]), op_attrs=dict(name=value.name + '/Div'))
+    div.in_port(0).connect(div_value_port)
+    _min.in_port(0).connect(add_value_port)
+    _min.in_port(1).connect(div.out_port(0))
+
+    _max = Add(graph, dict(name=value.name + '/Add')).create_node()
+    _max.in_port(0).connect(div.out_port(0))
+    _max.in_port(1).connect(add_value_port)
+
+    return _min, _max
 
 
 class SsdAnchorReshape(FrontReplacementPattern):
@@ -106,37 +121,12 @@ class SsdAnchorsReplacer(FrontReplacementPattern):
         value = create_op_node_with_second_input(graph, Split, int64_array(1), op_attrs=dict(
             name=split_node_reshape.name + '/Split', num_splits=4), input_node=split_node_reshape)
 
-        #xmin
-        xmin = Sub(graph, dict(name=value.name + '/Sub_1')).create_node()
-        div_1 = create_op_node_with_second_input(graph, Div, int64_array([2]), op_attrs=dict(
-            name=value.name + '/Div_1'))
-        div_1.in_port(0).connect(value.out_port(2))
-        xmin.in_port(0).connect(value.out_port(0))
-        xmin.in_port(1).connect(div_1.out_port(0))
-
-        #ymin
-        ymin = Sub(graph, dict(name=value.name + '/Sub_2')).create_node()
-        div_2 = create_op_node_with_second_input(graph, Div, int64_array([2]), op_attrs=dict(
-            name=value.name + '/Div_2'))
-        div_2.in_port(0).connect(value.out_port(3))
-        ymin.in_port(0).connect(value.out_port(1))
-        ymin.in_port(1).connect(div_2.out_port(0))
-
-        #xmax
-        xmax = Add(graph, dict(name=value.name + '/Add_1')).create_node()
-        xmax.in_port(0).connect(div_1.out_port(0))
-        xmax.in_port(1).connect(value.out_port(0))
-
-        #ymax
-        ymax = Add(graph, dict(name=value.name + '/Add_2')).create_node()
-        ymax.in_port(0).connect(div_2.out_port(0))
-        ymax.in_port(1).connect(value.out_port(1))
+        xmin, xmax = get_coords(graph, value, div_value_port=value.out_port(2), add_value_port=value.out_port(0))
+        ymin, ymax = get_coords(graph, value, div_value_port=value.out_port(3), add_value_port=value.out_port(1))
 
         concat_slice_value = Concat(graph, dict(name=value.name + '/Concat', in_ports_count=4, axis=1)).create_node()
-        concat_slice_value.in_port(0).connect(xmin.out_port(0))
-        concat_slice_value.in_port(1).connect(ymin.out_port(0))
-        concat_slice_value.in_port(2).connect(xmax.out_port(0))
-        concat_slice_value.in_port(3).connect(ymax.out_port(0))
+        for ind, node in enumerate([xmin, ymin, xmax, ymax]):
+            concat_slice_value.in_port(ind).connect(node.out_port(0))
 
         reshape_concat_values = create_op_node_with_second_input(graph, Reshape, int64_array([1, 1, -1]),
                                                                  op_attrs=dict(name=concat_slice_value.name + '/Reshape'),
