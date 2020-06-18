@@ -23,6 +23,7 @@
 #include "functional_test_utils/plugin_cache.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include "ngraph_functions/subgraph_builders.hpp"
+
 namespace BehaviorTestsDefinitions {
 using InferRequestTests = BehaviorTestsUtils::BehaviorTestsBasic;
 

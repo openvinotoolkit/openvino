@@ -18,6 +18,7 @@
 #include "functional_test_utils/layer_test_utils.hpp"
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
 #include "ngraph_functions/builders.hpp"
+
 namespace BehaviorTestsDefinitions {
 using BehaviorTests = BehaviorTestsUtils::BehaviorTestsBasic;
 

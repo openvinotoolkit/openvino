@@ -19,6 +19,7 @@
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
 #include "functional_test_utils/blob_utils.hpp"
+
 namespace BehaviorTestsDefinitions {
 using ExecGraphTests = BehaviorTestsUtils::BehaviorTestsBasic;
 

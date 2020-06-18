@@ -21,6 +21,7 @@
 #include "ngraph_functions/pass/convert_prc.hpp"
 #include "ngraph_functions/subgraph_builders.hpp"
 #include "behavior/infer_request_callback.hpp"
+
 namespace BehaviorTestsDefinitions {
 using CallbackTests = BehaviorTestsUtils::BehaviorTestsBasic;
 

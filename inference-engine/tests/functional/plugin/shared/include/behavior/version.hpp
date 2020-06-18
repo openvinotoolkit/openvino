@@ -12,6 +12,7 @@
 #include "functional_test_utils/blob_utils.hpp"
 #include "ie_preprocess.hpp"
 #include "functional_test_utils/behavior_test_utils.hpp"
+
 namespace BehaviorTestsDefinitions {
 using VersionTest = BehaviorTestsUtils::BehaviorTestsBasic;
 

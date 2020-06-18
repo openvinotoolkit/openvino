@@ -5,6 +5,7 @@
 #include "multi-device/multi_device_config.hpp"
 
 #include "behavior/infer_request_output.hpp"
+
 using namespace BehaviorTestsDefinitions;
 namespace {
     const std::vector<InferenceEngine::Precision> netPrecisions = {

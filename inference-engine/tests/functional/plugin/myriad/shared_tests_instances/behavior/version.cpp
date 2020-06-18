@@ -5,6 +5,7 @@
 #include "multi-device/multi_device_config.hpp"
 #include "hetero/hetero_plugin_config.hpp"
 #include "behavior/version.hpp"
+
 using namespace BehaviorTestsDefinitions;
 namespace {
     const std::vector<std::map<std::string, std::string>> configs = {

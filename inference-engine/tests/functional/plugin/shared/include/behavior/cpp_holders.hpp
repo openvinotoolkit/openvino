@@ -19,6 +19,7 @@
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "functional_test_utils/precision_utils.hpp"
 #include <ie_core.hpp>
+
 namespace BehaviorTestsDefinitions {
 typedef std::tuple<
         std::string,         // Target device name

@@ -3,6 +3,7 @@
 //
 
 #include "behavior/infer_request.hpp"
+
 using namespace BehaviorTestsDefinitions;
 namespace {
 const std::vector<InferenceEngine::Precision> netPrecisions = {

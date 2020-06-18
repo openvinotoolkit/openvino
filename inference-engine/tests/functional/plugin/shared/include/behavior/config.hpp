@@ -27,6 +27,7 @@
 #include <functional_test_utils/behavior_test_utils.hpp>
 #include "ngraph_functions/pass/convert_prc.hpp"
 #include "ngraph_functions/subgraph_builders.hpp"
+
 namespace BehaviorTestsDefinitions {
     using CorrectConfigTests = BehaviorTestsUtils::BehaviorTestsBasic;
     // Setting empty config doesn't throw
