@@ -53,7 +53,10 @@ void dynamicToStaticShapeSqueeze(std::shared_ptr<ngraph::Node> target) {
     const auto axis = std::make_shared<ngraph::opset3::Constant>(
             ngraph::element::i64, ngraph::Shape{1}, std::vector<int64_t>{0});
     const auto squeeze_output_shape = std::make_shared<ngraph::opset3::Gather>(shape, index, axis);
-    ngraph::replace_node(std::move(target), std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(copied, squeeze_output_shape));
+
+    const auto outDSR = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(copied, squeeze_output_shape);
+    outDSR->set_friendly_name(squeeze->get_friendly_name());
+    ngraph::replace_node(std::move(target), outDSR);
 }
 
 }  // namespace vpu
