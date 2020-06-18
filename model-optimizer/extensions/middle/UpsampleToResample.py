@@ -121,9 +121,15 @@ class UpsampleToResample(MiddleReplacementPattern):
                                 get_height_dim(layout, input_shape_rank),
                                 get_width_dim(layout, input_shape_rank)])
 
-        resample_op = Interpolate(graph, dict(name='Interpolate/{}'.format(upsample.name),
-                                              axes=axes, mode=upsample.attrs()['mode'],
-                                              antialias=0, convert_to_resample=True)).create_node()
+        # resample_op = Interpolate(graph, dict(name='Interpolate/{}'.format(upsample.name),
+        #                                       axes=axes, mode=upsample.attrs()['mode'],
+        #                                       antialias=0, convert_to_resample=True)).create_node()
+        resample_op = Interpolate(graph, dict(name='Interpolate/{}'.format(upsample.name), axes=axes,
+                                              mode=upsample.attrs()['mode'], antialias=0, convert_to_resample=True,
+                                              pads_begin=int64_array([0]), pads_end=int64_array([0]),
+                                              coordinate_transformation_mode='half_pixel',
+                                              nearest_mode='round_prefer_floor', cube_coeff=-0.75,
+                                              version='opset3')).create_node()
 
         upsample.add_input_port(1, skip_if_exist=True)
         assert upsample.in_port(1).disconnected()
