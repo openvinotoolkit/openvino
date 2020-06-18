@@ -157,7 +157,7 @@ void MKLDNNDepthwiseNode::createDescriptor(const std::vector<InferenceEngine::Te
                                            const std::vector<InferenceEngine::TensorDesc> &outputDesc) {
     MKLDNNMemoryDesc in_candidate(inputDesc[0]);
     MKLDNNMemoryDesc out_candidate(inputDesc[0]);
-    MKLDNNDims weightDims({in_candidate.getDims()[1]});
+    MKLDNNDims weightDims({in_candidate.getDims().ndims() == 1 ? in_candidate.getDims()[0] : in_candidate.getDims()[1]});
 
     MKLDNNMemoryDesc wgh_candidate{weightDims, in_candidate.getDataType(), memory::x};
 
