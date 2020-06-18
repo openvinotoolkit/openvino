@@ -82,7 +82,8 @@ class UpsampleToResample(MiddleReplacementPattern):
         if 1 in upsample.in_ports() and not upsample.in_port(1).disconnected():
             upsample.in_port(1).disconnect()
 
-        shape = Shape(graph, {'name': upsample.name + '/0_port'}).create_node()
+        upsample_name = upsample.name
+        shape = Shape(graph, {'name': upsample_name + '/0_port'}).create_node()
 
         layout = graph.graph['layout']
         if input_shape_rank == 4:
@@ -94,14 +95,14 @@ class UpsampleToResample(MiddleReplacementPattern):
         end = Const(graph, {'value': int64_array([get_width_dim(layout, input_shape_rank) + 1])}).create_node()
 
         stride = Const(graph, {'value': int64_array([1])}).create_node()
-        ss = StridedSlice(graph, {'name': upsample.name + '/ss_0_port',
+        ss = StridedSlice(graph, {'name': upsample_name + '/ss_0_port',
                                   'begin_mask': int64_array([1]),
                                   'end_mask': int64_array([1]),
                                   'new_axis_mask': int64_array([0]),
                                   'shrink_axis_mask': int64_array([0]),
                                   'ellipsis_mask': int64_array([0])}).create_node()
 
-        mul = Mul(graph, {'name': upsample.name + '/factor_mul_'}).create_node()
+        mul = Mul(graph, {'name': upsample_name + '/factor_mul_'}).create_node()
 
         source = upsample.in_port(0).get_connection().get_source()
         source.connect(shape.in_port(0))
@@ -134,7 +135,7 @@ class UpsampleToResample(MiddleReplacementPattern):
         upsample.in_port(0).get_connection().set_destination(resample_op.in_port(0))
         upsample.out_port(0).get_connection().set_source(resample_op.out_port(0))
 
-        rename_nodes([(upsample, upsample.name + '/delete_'), (resample_op, upsample.name)])
+        rename_nodes([(upsample, upsample_name + '/delete_'), (resample_op, upsample_name)])
 
         convert_to_float = Cast(graph, dict(dst_type=np.float32)).create_node()
         int_np_type = np.int64 if graph.graph['cmd_params'].generate_experimental_IR_V10 else np.int32

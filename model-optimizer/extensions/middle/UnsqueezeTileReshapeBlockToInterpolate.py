@@ -20,7 +20,7 @@ from extensions.middle.InterpolateSequenceToInterpolate import InterpolateSequen
 from extensions.ops.elementwise import Mul
 from extensions.ops.interpolate import Interpolate
 from mo.front.common.partial_infer.utils import int64_array
-from mo.graph.graph import Graph
+from mo.graph.graph import Graph, rename_nodes
 from mo.middle.replacement import MiddleReplacementPattern
 from mo.ops.const import Const
 from mo.ops.shape import Shape
@@ -115,12 +115,19 @@ class UnsqueezeTileReshapeBlockToInterpolate(MiddleReplacementPattern):
         slice_end.out_port(0).connect(strided_slice_node.in_port(2))
         strided_slice_node.out_port(0).connect(mul_node.in_port(0))
 
-        interp_node = Interpolate(graph, dict(name=unsqueeze_name + '/Interpolate_',
-                                              axes=int64_array([axis]),
-                                              mode='nearest')).create_node()
+        interp_node = Interpolate(graph,
+                                  dict(name=unsqueeze_name + '/Interpolate_', axes=int64_array([axis]), mode='nearest',
+                                       antialias=0, convert_to_resample=True, pads_begin=int64_array([0]),
+                                       pads_end=int64_array([0]), coordinate_transformation_mode='half_pixel',
+                                       nearest_mode='round_prefer_floor', cube_coeff=-0.75,
+                                       version='opset3')).create_node()
         mul_node.out_port(0).connect(interp_node.in_port(1))
 
-        match['reshape'].out_port(0).get_connection().set_source(interp_node.out_port(0))
+        reshape_node = match['reshape']
+
+        reshape_node.out_port(0).get_connection().set_source(interp_node.out_port(0))
+        reshape_name = reshape_node.name
+        rename_nodes([(reshape_node, reshape_name + '/delete'), (interp_node, reshape_name)])
 
         unsqueeze_connection = match['unsqueeze'].in_port(0).get_connection()
         before_unsqueeze = unsqueeze_connection.get_source().node
