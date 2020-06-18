@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2019 Intel Corporation
+// Copyright (c) 2019-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -59,7 +59,7 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x2x2_full) {
     topology.add(data("input2", begin));
     topology.add(data("input3", end));
     topology.add(data("input4", strides));
-    topology.add(strided_slice("strided_slice", "input", "input2", "input3", "input4", {}, {}, {}, {}, {}));
+    topology.add(strided_slice("strided_slice", "input", "input2", "input3", "input4", {}, {}, {}, {}, tensor{2, 2, 2, 2}));
 
     network network(engine, topology);
 
@@ -116,7 +116,7 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x2x2_full) {
     topology.add(data("input2", begin));
     topology.add(data("input3", end));
     topology.add(data("input4", strides));
-    topology.add(strided_slice("strided_slice", "input", "input2", "input3", "input4", {}, {}, {}, {}, {}));
+    topology.add(strided_slice("strided_slice", "input", "input2", "input3", "input4", {}, {}, {}, {}, tensor{2, 2, 2, 2}));
 
     network network(engine, topology);
 
@@ -173,7 +173,7 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x2x2_ignore) {
     topology.add(data("input2", begin));
     topology.add(data("input3", end));
     topology.add(data("input4", strides));
-    topology.add(strided_slice("strided_slice", "input", "input2", "input3", "input4", {0, 0, 0, 0}, {0, 0, 0, 0}, {}, {}, {}));
+    topology.add(strided_slice("strided_slice", "input", "input2", "input3", "input4", {0, 0, 0, 0}, {0, 0, 0, 0}, {}, {}, tensor{2, 2, 2, 2}));
 
     network network(engine, topology);
 
@@ -232,7 +232,7 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x2x2_ignore) {
     topology.add(data("input2", begin));
     topology.add(data("input3", end));
     topology.add(data("input4", strides));
-    topology.add(strided_slice("strided_slice", "input", "input2", "input3", "input4", {0, 0, 0, 0}, {0, 0, 0, 0}, {}, {}, {}));
+    topology.add(strided_slice("strided_slice", "input", "input2", "input3", "input4", {0, 0, 0, 0}, {0, 0, 0, 0}, {}, {}, tensor{2, 2, 2, 2}));
 
     network network(engine, topology);
 
@@ -291,7 +291,7 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x2x2_single) {
     topology.add(data("input2", begin));
     topology.add(data("input3", end));
     topology.add(data("input4", strides));
-    topology.add(strided_slice("strided_slice", "input", "input2", "input3", "input4", {}, {}, {}, {}, {}));
+    topology.add(strided_slice("strided_slice", "input", "input2", "input3", "input4", {}, {}, {}, {}, tensor{1}));
 
     network network(engine, topology);
 
@@ -347,7 +347,7 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x2x2_single) {
     topology.add(data("input2", begin));
     topology.add(data("input3", end));
     topology.add(data("input4", strides));
-    topology.add(strided_slice("strided_slice", "input", "input2", "input3", "input4", {}, {}, {}, {}, {}));
+    topology.add(strided_slice("strided_slice", "input", "input2", "input3", "input4", {}, {}, {}, {}, tensor{1}));
 
     network network(engine, topology);
 
@@ -407,7 +407,7 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x4x3_stride) {
     topology.add(data("input2", begin));
     topology.add(data("input3", end));
     topology.add(data("input4", strides));
-    topology.add(strided_slice("strided_slice", "input", "input2", "input3", "input4", {0, 0, 0, 0}, {0, 0, 0, 0}, {}, {}, {}));
+    topology.add(strided_slice("strided_slice", "input", "input2", "input3", "input4", {0, 0, 0, 0}, {0, 0, 0, 0}, {}, {}, tensor{2, 2, 3, 2}));
 
     network network(engine, topology);
 
@@ -470,7 +470,7 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x4x3_stride) {
     topology.add(data("input2", begin));
     topology.add(data("input3", end));
     topology.add(data("input4", strides));
-    topology.add(strided_slice("strided_slice", "input", "input2", "input3", "input4", {0, 0, 0, 0}, {0, 0, 0, 0}, {}, {}, {}));
+    topology.add(strided_slice("strided_slice", "input", "input2", "input3", "input4", {0, 0, 0, 0}, {0, 0, 0, 0}, {}, {}, tensor{2, 2, 3, 2}));
 
     network network(engine, topology);
 
@@ -546,7 +546,7 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x4x4_part_stride) {
     topology.add(data("input2", begin));
     topology.add(data("input3", end));
     topology.add(data("input4", strides));
-    topology.add(strided_slice("strided_slice", "input", "input2", "input3", "input4", {1, 0, 0, 1}, {}, {}, {}, {}));
+    topology.add(strided_slice("strided_slice", "input", "input2", "input3", "input4", {1, 0, 0, 1}, {}, {}, {}, tensor{1, 2, 2, 4}));
 
     network network(engine, topology);
 
@@ -629,7 +629,7 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x4x4_part_stride) {
     topology.add(data("input2", begin));
     topology.add(data("input3", end));
     topology.add(data("input4", strides));
-    topology.add(strided_slice("strided_slice", "input", "input2", "input3", "input4", {1, 0, 0, 1}, {}, {}, {}, {}));
+    topology.add(strided_slice("strided_slice", "input", "input2", "input3", "input4", {1, 0, 0, 1}, {}, {}, {}, tensor{1, 2, 2, 4}));
 
     network network(engine, topology);
 
@@ -693,7 +693,7 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x4x1_new_axis_mask) {
     topology.add(data("input2", begin));
     topology.add(data("input3", end));
     topology.add(data("input4", strides));
-    topology.add(strided_slice("strided_slice", "input", "input2", "input3", "input4", {}, {}, { 1 }, {}));
+    topology.add(strided_slice("strided_slice", "input", "input2", "input3", "input4", {}, {}, { 1 }, {}, tensor{2, 2, 1, 4}));
 
     network network(engine, topology);
 
@@ -749,7 +749,7 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x4x1_new_axis_mask) {
     topology.add(data("input2", begin));
     topology.add(data("input3", end));
     topology.add(data("input4", strides));
-    topology.add(strided_slice("strided_slice", "input", "input2", "input3", "input4", {}, {}, { 1 }, {}));
+    topology.add(strided_slice("strided_slice", "input", "input2", "input3", "input4", {}, {}, { 1 }, {}, tensor{2, 2, 1, 4}));
 
     network network(engine, topology);
 
@@ -804,7 +804,7 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x1x1_new_axis_mask_2) {
     topology.add(data("input2", begin));
     topology.add(data("input3", end));
     topology.add(data("input4", strides));
-    topology.add(strided_slice("strided_slice", "input", "input2", "input3", "input4", {}, {}, { 1, 0, 1 }, {}));
+    topology.add(strided_slice("strided_slice", "input", "input2", "input3", "input4", {}, {}, { 1, 0, 1 }, {}, tensor{2, 2, 1, 1}));
 
     network network(engine, topology);
 
@@ -858,7 +858,7 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x1x1_new_axis_mask_2) {
     topology.add(data("input2", begin));
     topology.add(data("input3", end));
     topology.add(data("input4", strides));
-    topology.add(strided_slice("strided_slice", "input", "input2", "input3", "input4", {}, {}, { 1, 0, 1 }, {}));
+    topology.add(strided_slice("strided_slice", "input", "input2", "input3", "input4", {}, {}, { 1, 0, 1 }, {}, tensor{2, 2, 1, 1}));
 
     network network(engine, topology);
 
@@ -911,7 +911,7 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x1x1) {
     topology.add(data("input2", begin));
     topology.add(data("input3", end));
     topology.add(data("input4", strides));
-    topology.add(strided_slice("strided_slice", "input", "input2", "input3", "input4", {0,1}, {}, {}, {}));
+    topology.add(strided_slice("strided_slice", "input", "input2", "input3", "input4", {0,1}, {}, {}, {}, tensor{2, 2, 1, 1}));
 
     network network(engine, topology);
 
@@ -964,7 +964,7 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x1x1) {
     topology.add(data("input2", begin));
     topology.add(data("input3", end));
     topology.add(data("input4", strides));
-    topology.add(strided_slice("strided_slice", "input", "input2", "input3", "input4", {0,1}, {}, {}, {}));
+    topology.add(strided_slice("strided_slice", "input", "input2", "input3", "input4", {0,1}, {}, {}, {}, tensor{2, 2, 1, 1}));
 
     network network(engine, topology);
 
@@ -1017,7 +1017,7 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x2x1x1) {
     topology.add(data("input2", begin));
     topology.add(data("input3", end));
     topology.add(data("input4", strides));
-    topology.add(strided_slice("strided_slice", "input", "input2", "input3", "input4", {}, {}, {}, {}));
+    topology.add(strided_slice("strided_slice", "input", "input2", "input3", "input4", {}, {}, {}, {}, tensor{1, 2, 1, 2}));
 
     network network(engine, topology);
 
@@ -1070,7 +1070,7 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x2x1x1) {
     topology.add(data("input2", begin));
     topology.add(data("input3", end));
     topology.add(data("input4", strides));
-    topology.add(strided_slice("strided_slice", "input", "input2", "input3", "input4", {}, {}, {}, {}));
+    topology.add(strided_slice("strided_slice", "input", "input2", "input3", "input4", {}, {}, {}, {}, tensor{1, 2, 1, 2}));
 
     network network(engine, topology);
 
@@ -1123,7 +1123,7 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x2x1x1_2) {
     topology.add(data("input2", begin));
     topology.add(data("input3", end));
     topology.add(data("input4", strides));
-    topology.add(strided_slice("strided_slice", "input", "input2", "input3", "input4", {}, {}, {}, {}));
+    topology.add(strided_slice("strided_slice", "input", "input2", "input3", "input4", {}, {}, {}, {}, tensor{2, 1, 1, 1}));
 
     network network(engine, topology);
 
@@ -1176,7 +1176,7 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x2x1x1_2) {
     topology.add(data("input2", begin));
     topology.add(data("input3", end));
     topology.add(data("input4", strides));
-    topology.add(strided_slice("strided_slice", "input", "input2", "input3", "input4", {}, {}, {}, {}));
+    topology.add(strided_slice("strided_slice", "input", "input2", "input3", "input4", {}, {}, {}, {}, tensor{2, 1, 1, 1}));
 
     network network(engine, topology);
 
@@ -1233,7 +1233,7 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x2x2_full_negative_stride) {
     topology.add(data("input2", begin));
     topology.add(data("input3", end));
     topology.add(data("input4", strides));
-    topology.add(strided_slice("strided_slice", "input", "input2", "input3", "input4", {}, {}, {}, {}, {}));
+    topology.add(strided_slice("strided_slice", "input", "input2", "input3", "input4", {}, {}, {}, {}, tensor{2, 2, 2, 2}));
 
     network network(engine, topology);
 
@@ -1290,7 +1290,7 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x2x2_full_negative_stride) {
     topology.add(data("input2", begin));
     topology.add(data("input3", end));
     topology.add(data("input4", strides));
-    topology.add(strided_slice("strided_slice", "input", "input2", "input3", "input4", {}, {}, {}, {}, {}));
+    topology.add(strided_slice("strided_slice", "input", "input2", "input3", "input4", {}, {}, {}, {}, tensor{2, 2, 2, 2}));
 
     network network(engine, topology);
 
@@ -1343,7 +1343,7 @@ TEST(strided_slice_gpu_f32_i32, test_2x2x2x1x1_2_negative_all) {
     topology.add(data("input2", begin));
     topology.add(data("input3", end));
     topology.add(data("input4", strides));
-    topology.add(strided_slice("strided_slice", "input", "input2", "input3", "input4", {}, {}, {}, {}));
+    topology.add(strided_slice("strided_slice", "input", "input2", "input3", "input4", {}, {}, {}, {}, tensor{2, 1, 1, 1}));
 
     network network(engine, topology);
 
@@ -1396,7 +1396,7 @@ TEST(strided_slice_gpu_f32_i64, test_2x2x2x1x1_2_negative_all) {
     topology.add(data("input2", begin));
     topology.add(data("input3", end));
     topology.add(data("input4", strides));
-    topology.add(strided_slice("strided_slice", "input", "input2", "input3", "input4", {}, {}, {}, {}));
+    topology.add(strided_slice("strided_slice", "input", "input2", "input3", "input4", {}, {}, {}, {}, tensor{2, 1, 1, 1}));
 
     network network(engine, topology);
 

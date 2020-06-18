@@ -1,4 +1,4 @@
-// Copyright (c) 2019 Intel Corporation
+// Copyright (c) 2019-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -49,5 +49,8 @@ public:
     virtual CommonDispatchData SetDefault(const strided_slice_params& params, const optional_params&) const;
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
     ParamsKey GetSupportedKey() const override;
+
+protected:
+    bool Validate(const Params& p, const optional_params& o) const override;
 };
 }  // namespace kernel_selector
