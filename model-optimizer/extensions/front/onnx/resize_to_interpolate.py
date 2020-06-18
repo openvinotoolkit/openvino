@@ -185,19 +185,24 @@ class ResizeToInterpolate3D(FrontReplacementSubgraph):
 
     def replace_sub_graph(self, graph: Graph, match: dict):
         resize_node = match['resize']
+        resize_node_name = resize_node.name
         if match['mul_1'].in_node(1).value != match['mul_2'].in_node(1).value or \
                 match['mul_1'].in_node(1).value != match['mul_3'].in_node(1).value:
-            log.info('Pattern matched around resize op {} has different scale values.'.format(resize_node.name))
+            log.info('Pattern matched around resize op {} has different scale values.'.format(resize_node_name))
             return
 
-        interpolate_node = Interpolate(graph, {'name': resize_node.name + '/Interpolate',
-                                               'mode': resize_node.mode, 'axes': int64_array([2, 3, 4])}).create_node()
+        interpolate_node = Interpolate(graph,
+                                       dict(antialias=0, pads_begin=int64_array([0]), pads_end=int64_array([0]),
+                                            coordinate_transformation_mode='half_pixel',
+                                            nearest_mode='round_prefer_floor', cube_coeff=-0.75, version='opset3',
+                                            name=resize_node_name + '/Interpolate', mode=resize_node.mode,
+                                            axes=int64_array([2, 3, 4]))).create_node()
 
         scale = match['mul_1'].in_node(1).value
         scale_value = int64_array([scale, scale, scale])
-        scale_const = Const(graph, {'value': scale_value, 'name': resize_node.name + '/Scale'}).create_node()
+        scale_const = Const(graph, {'value': scale_value, 'name': resize_node_name + '/Scale'}).create_node()
 
-        interpolated_shape = Mul(graph, {'name': resize_node.name + '/OutputShape'}).create_node()
+        interpolated_shape = Mul(graph, {'name': resize_node_name + '/OutputShape'}).create_node()
         match['slice'].out_port(0).connect(interpolated_shape.in_port(0))
         scale_const.out_port(0).connect(interpolated_shape.in_port(1))
 
