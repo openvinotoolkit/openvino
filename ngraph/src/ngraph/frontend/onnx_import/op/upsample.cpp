@@ -30,7 +30,7 @@ namespace ngraph
             {
                 bool check_mode_support(const onnx_import::Node& node, const std::string mode)
                 {
-                    std::unordered_set<std::string> supported_modes = {"nearest", "linear"};
+                    const std::unordered_set<std::string> supported_modes = {"nearest", "linear"};
                     bool is_mode_supported =
                         (std::find(supported_modes.begin(), supported_modes.end(), mode) !=
                          supported_modes.end());
