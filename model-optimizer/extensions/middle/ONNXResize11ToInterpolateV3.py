@@ -22,7 +22,7 @@ from extensions.ops.interpolate import Interpolate
 from mo.front.common.layout import get_height_dim, get_width_dim, get_depth_dim
 from mo.front.common.partial_infer.utils import int64_array
 from mo.middle.replacement import MiddleReplacementPattern
-from mo.graph.graph import Graph
+from mo.graph.graph import Graph, rename_nodes
 from mo.ops.const import Const
 from mo.ops.shape import Shape
 from mo.ops.strided_slice import StridedSlice
@@ -113,6 +113,8 @@ class ONNXResize11ToInterpolate3(MiddleReplacementPattern):
         else:
             connection_of_sizes = resize.in_port(3).get_connection()
             connection_of_sizes.set_destination(strided_slice.in_port(0))
+
+        rename_nodes([(resize, resize_name + '/delete'), (interpolate_node, resize_name)])
 
         resize.out_port(0).get_connection().set_source(interpolate_node.out_port(0))
 
