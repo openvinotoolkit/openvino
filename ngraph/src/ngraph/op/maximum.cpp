@@ -64,7 +64,6 @@ void op::v0::Maximum::generate_adjoints(autodiff::Adjoints& adjoints, const Outp
         delta * make_shared<op::Convert>(make_shared<op::v0::Greater>(y, x), y.get_element_type()));
 }
 
-#ifdef NGRAPH_EVALUATE_ENABLE
 namespace
 {
     template <element::Type_t ET>
@@ -125,7 +124,6 @@ bool op::v0::Maximum::evaluate(const HostTensorVector& outputs, const HostTensor
 {
     return evaluate_maximum(inputs[0], inputs[1], outputs[0], get_autob());
 }
-#endif
 
 // ------------------------------------ v1 -------------------------------------
 
@@ -164,9 +162,7 @@ void op::v1::Maximum::generate_adjoints(autodiff::Adjoints& adjoints, const Outp
         delta * make_shared<op::Convert>(make_shared<op::v1::Greater>(y, x), y.get_element_type()));
 }
 
-#ifdef NGRAPH_EVALUATE_ENABLE
 bool op::v1::Maximum::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
 {
     return evaluate_maximum(inputs[0], inputs[1], outputs[0], get_autob());
 }
-#endif

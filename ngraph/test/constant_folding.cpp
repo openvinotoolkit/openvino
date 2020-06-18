@@ -49,6 +49,7 @@ typename std::enable_if<std::is_integral<T>::value>::type
     ASSERT_EQ(values_out, values_expected);
 }
 
+#ifdef NGRAPH_EVALUATE_ENABLE
 TEST(constant_folding, acosh)
 {
     Shape shape_in{2, 4, 1};
@@ -163,6 +164,7 @@ TEST(constant_folding, constant_squeeze)
     auto values_out = new_const->get_vector<float>();
     ASSERT_TRUE(test::all_close_f(values_in, values_out, MIN_FLOAT_TOLERANCE_BITS));
 }
+#endif
 
 TEST(constant_folding, constant_unsqueeze)
 {
@@ -395,6 +397,7 @@ TEST(constant_folding, constant_pad_exterior)
     ASSERT_EQ(padded_values, values_out);
 }
 
+#ifdef NGRAPH_EVALUATE_ENABLE
 TEST(constant_folding, constant_unary_binary)
 {
     vector<int> values_a{1, 2, 3, 4};
@@ -533,6 +536,7 @@ TEST(constant_folding, constant_unary_binary)
     ASSERT_EQ(get_result_constant<char>(func, 25), logical_xor_autob_numpy_expected);
     ASSERT_NO_THROW(pass_manager.run_passes(func_error));
 }
+#endif
 
 TEST(constant_folding, const_dequantize)
 {
@@ -1479,6 +1483,7 @@ TEST(constant_folding, const_concat)
     ASSERT_EQ(values_expected, values_out);
 }
 
+#ifdef NGRAPH_EVALUATE_ENABLE
 TEST(constant_folding, const_not)
 {
     auto constant =
@@ -1772,6 +1777,7 @@ TEST(constant_folding, const_floor)
 
     ASSERT_TRUE(test::all_close_f(values_out, values_expected, MIN_FLOAT_TOLERANCE_BITS));
 }
+#endif
 
 TEST(constant_folding, const_gather)
 {
@@ -2822,6 +2828,7 @@ TEST(constant_folding, pass_property)
     ASSERT_TRUE(pass->get_property(pass::PassProperty::CHANGE_DYNAMIC_STATE));
 }
 
+#ifdef NGRAPH_EVALUATE_ENABLE
 TEST(constant_folding, constant_non_zero_0D)
 {
     auto data = op::Constant::create(element::i32, Shape{}, {1});
@@ -3005,6 +3012,7 @@ TEST(constant_folding, constant_non_zero_3D)
     ASSERT_EQ(values_expected, values_out);
     ASSERT_EQ((Shape{3, 12}), new_const->get_shape());
 }
+#endif
 
 TEST(constant_folding, constant_scatter_elements_update_basic)
 {
