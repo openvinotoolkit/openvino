@@ -41,8 +41,9 @@ class CopyFrontExtractor(FrontReplacementOp):
                       }
         indexes_node = Const(graph).create_node(attrs=const_attrs)
 
-        perm_in_1 = Const(graph, {'value': np.array([1, 0], dtype=np.int64), 'shape': [2], 'data_type': np.int64}).create_node()
-        axis_const = Const(graph, {'value': int64_array(0)}).create_node()
+        perm_in_1 = Const(graph, {'value': np.array([1, 0], dtype=np.int64), 'shape': [2], 'data_type': np.int64,
+                                  'name': 'input_order/{}'.format(node.id)}).create_node()
+        axis_const = Const(graph, {'value': int64_array(0), 'name': 'axis/{}'.format(node.id)}).create_node()
         perm1_node = Transpose(graph, {'name': 'input_permute'}).create_node([node.in_node(0)])
         perm1_node.in_port(0).connect(node.in_port(0).get_source())
         perm1_node.in_port(1).connect(perm_in_1.out_port(0))

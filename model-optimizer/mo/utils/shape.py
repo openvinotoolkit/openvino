@@ -65,14 +65,14 @@ def get_range_node_of_idxs(rank: Node, begin: int, end: int,
     end_idx = get_canonical_axis_index_node(rank, end)
 
     if not include_begin:
-        const = Const(graph, {'value': int64_array([1])}).create_node()
+        const = Const(graph, {'value': int64_array([1]), 'name': name + '/exclude_begin/value'}).create_node()
         add = Add(graph, {'name': name + '/exclude_begin'}).create_node()
         start_idx.out_port(0).connect(add.in_port(0))
         const.out_port(0).connect(add.in_port(1))
         start_idx = add
 
     if include_end:
-        const = Const(graph, {'value': int64_array([1])}).create_node()
+        const = Const(graph, {'value': int64_array([1]), 'name': name + '/including_end/value'}).create_node()
         add = Add(graph, {'name': name + '/including_end'}).create_node()
         end_idx.out_port(0).connect(add.in_port(0))
         const.out_port(0).connect(add.in_port(1))
