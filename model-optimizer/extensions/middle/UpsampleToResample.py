@@ -79,15 +79,6 @@ class UpsampleToResample(MiddleReplacementPattern):
             height_scale = upsample['height_scale']
             width_scale = upsample['width_scale']
 
-        if not math.isclose(height_scale, width_scale, rel_tol=1e-5):
-            log.debug('Width and height scales are not equal: {} vs {} for node {}'.format(
-                width_scale, height_scale, upsample.soft_get('name')))
-            return
-        if depth_scale is not None and not math.isclose(height_scale, depth_scale, rel_tol=1e-5):
-            log.debug('Depth and height scales are not equal: {} vs {} for node {}'.format(
-                depth_scale, height_scale, upsample.soft_get('name')))
-            return
-
         if 1 in upsample.in_ports() and not upsample.in_port(1).disconnected():
             upsample.in_port(1).disconnect()
 
