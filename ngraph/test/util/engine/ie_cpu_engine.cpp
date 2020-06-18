@@ -184,8 +184,20 @@ namespace ngraph
             ++m_allocated_inputs;
         }
     }
-
-    // template class InferenceEngine::TBlob<ngraph::bfloat16>;
-    // template class InferenceEngine::TBlob<ngraph::float16>;
-    // template class InferenceEngine::TBlob<unsigned int>;
 }
+
+namespace InferenceEngine 
+{
+#ifdef __clang__
+    template <typename T, typename U>
+    TBlob<T, U>::~TBlob() {
+        free();
+    }
+    
+    template class TBlob<unsigned int>;
+    template class TBlob<bool>;
+    template class TBlob<ngraph::bfloat16>;
+    template class TBlob<ngraph::float16>;
+#endif
+}
+
