@@ -51,10 +51,12 @@ class FlattenONNXToReshape(FrontReplacementSubgraph):
         assert node.has_valid('axis'), 'Flatten {} should have `axis` attribute extracted, but it\'s not'.format(name)
         axis = node.axis
 
+        reshape_node = Reshape(graph, {'name': node.id + '/Reshape'}).create_node()
+
         if axis == 0:
-            dim = Const(graph, {'value': int64_array([1, -1])}).create_node()
+            dim = Const(graph, {'value': int64_array([1, -1]), 'name': reshape_node.name + '/shape'}).create_node()
         elif axis == 1:
-            dim = Const(graph, {'value': int64_array([0, -1])}).create_node()
+            dim = Const(graph, {'value': int64_array([0, -1]), 'name': reshape_node.name + '/shape'}).create_node()
         else:
             shape = Shape(graph, {'name': name + '/input_shape'}).create_node()
 
@@ -62,8 +64,8 @@ class FlattenONNXToReshape(FrontReplacementSubgraph):
 
             axis_shape_portion = node_to_get_shape_value_of_indices(shape, idxs)
             first_dims = create_op_node_with_second_input(graph, ReduceProd, int64_array([0]),
-                                                          {'keep_dims': True})
-            second_dims = Const(graph, {'value': int64_array([-1])}).create_node()
+                                                          {'name': name + '/first_dims', 'keep_dims': True})
+            second_dims = Const(graph, {'value': int64_array([-1]), 'name': name + '/second_dims'}).create_node()
 
             node.in_port(0).get_source().connect(shape.in_port(0))
             axis_shape_portion.out_port(0).connect(first_dims.in_port(0))
@@ -71,8 +73,8 @@ class FlattenONNXToReshape(FrontReplacementSubgraph):
             order_of_dims = [first_dims, second_dims] if axis > 0 else [second_dims, first_dims]
 
             dim = new_shape_node_from_shape_nodes(order_of_dims)
+            dim.name = reshape_node.name + '/shape'
 
-        reshape_node = Reshape(graph, {'name': node.id + '/Reshape'}).create_node()
         reshape_node.in_port(1).connect(dim.out_port(0))
 
         node.out_port(0).get_connection().set_source(reshape_node.out_port(0))

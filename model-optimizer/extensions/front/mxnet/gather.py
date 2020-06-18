@@ -16,8 +16,8 @@
 from extensions.ops.gather import Gather
 from mo.front.common.partial_infer.utils import int64_array
 from mo.front.common.replacement import FrontReplacementOp
+from mo.front.tf.graph_utils import create_op_with_const_inputs
 from mo.graph.graph import Graph
-from mo.ops.const import Const
 
 
 class GatherFrontReplacer(FrontReplacementOp):
@@ -26,10 +26,10 @@ class GatherFrontReplacer(FrontReplacementOp):
 
     def replace_sub_graph(self, graph: Graph, match: dict):
         node = match['op']
-        gather_node = Gather(graph, dict(name=node.id + '/embedding_',
-                                         symbol_dict={'name': node.id + '/embedding_'})).create_node()
-        axis_const = Const(graph, {'value': int64_array(0)}).create_node()
+
+        gather_node = create_op_with_const_inputs(graph, Gather, {2: int64_array(0)}, {'name': node.id + '/embedding_',
+                                         'symbol_dict': {'name': node.id + '/embedding_'}})
+
         node.in_port(0).get_connection().set_destination(gather_node.in_port(1))
         node.in_port(1).get_connection().set_destination(gather_node.in_port(0))
-        axis_const.out_port(0).connect(gather_node.in_port(2))
         node.out_port(0).get_connection().set_source(gather_node.out_port(0))

@@ -16,13 +16,13 @@
 import numpy as np
 
 from extensions.ops.activation_ops import Sigmoid, Tanh
+from extensions.ops.elementwise import Add, Mul
 from extensions.ops.split import Split
 from mo.front.caffe.extractors.utils import input_as_const
 from mo.front.common.replacement import FrontReplacementOp
+from mo.front.tf.graph_utils import create_op_with_const_inputs
 from mo.graph.graph import Node, Graph
 from mo.ops.concat import Concat
-from mo.ops.const import Const
-from extensions.ops.elementwise import Add, Mul
 from mo.ops.scale_shift import ScaleShiftOp
 
 
@@ -40,11 +40,9 @@ class ReplaceLstmNonLinearityPattern(FrontReplacementOp):
 
     def replace_op(self, graph: Graph, node: Node):
         # split input to (i_part, f_part, c_part, o_part, ct_1)
-        split_node_axis = Const(graph, {'value': np.int64(1)}).create_node()
-        split_node = Split(graph, {'name': 'Split_lstm_input_',
-                                   'num_splits': 5}).create_node()
+        split_node = create_op_with_const_inputs(graph, Split, {1: np.int64(1)}, {'name': 'Split_lstm_input_',
+                                   'num_splits': 5})
         node.in_port(0).get_connection().set_destination(split_node.in_port(0))
-        split_node.in_port(1).connect(split_node_axis.out_port(0))
 
         # i_t = Sigmoid(i_part + w_ic*ct_1)
         i_scale_attrs = {'name': 'i_scaleshift',
