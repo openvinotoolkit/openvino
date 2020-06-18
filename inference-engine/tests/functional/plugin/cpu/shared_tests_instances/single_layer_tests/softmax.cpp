@@ -27,7 +27,7 @@ const std::vector<size_t> axis2D = {
     1
 };
 
-const auto params2D = testing::Combine(
+const auto params = testing::Combine(
     testing::ValuesIn(netPrecisions),
     testing::ValuesIn(inputLayouts2D),
     testing::ValuesIn(inputShapes2D),
@@ -37,10 +37,10 @@ const auto params2D = testing::Combine(
 );
 
 INSTANTIATE_TEST_CASE_P(
-    SoftMax2D,
-    SoftMaxLayerTest,
-    params2D,
-    SoftMaxLayerTest::getTestCaseName
+        SoftMax2D,
+        SoftMaxLayerTest,
+        params,
+        SoftMaxLayerTest::getTestCaseName
 );
 
 }  // namespace

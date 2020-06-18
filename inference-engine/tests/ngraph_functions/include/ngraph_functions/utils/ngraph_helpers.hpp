@@ -103,6 +103,19 @@ enum QuantizationGranularity {
     Perchannel
 };
 
+enum ReductionType {
+    Mean,
+    Max,
+    Min,
+    Prod,
+    Sum,
+    LogicalOr,
+    LogicalAnd,
+    LogicalXor
+};
+
+std::ostream &operator<<(std::ostream &os, const ReductionType &m);
+
 inline std::string quantizationGranularityToString(const QuantizationGranularity &granularity) {
     static std::map<QuantizationGranularity, std::string> names = {
             {Pertensor,  "Pertensor"},

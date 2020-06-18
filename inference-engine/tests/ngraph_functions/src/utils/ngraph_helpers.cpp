@@ -15,6 +15,35 @@
 
 namespace ngraph {
 namespace helpers {
+std::ostream &operator<<(std::ostream &os, const ReductionType &m) {
+    switch (m) {
+        case Mean:
+            os << "Mean";
+            break;
+        case Max:
+            os << "Max";
+            break;
+        case Min:
+            os << "Min";
+            break;
+        case Prod:
+            os << "Prod";
+            break;
+        case Sum:
+            os << "Sum";
+            break;
+        case LogicalOr:
+            os << "LogicalOr";
+            break;
+        case LogicalAnd:
+            os << "LogicalAnd";
+            break;
+        case LogicalXor:
+            os << "LogicalXor";
+            break;
+    }
+    return os;
+}
 
 OutputVector convert2OutputVector(const std::vector<std::shared_ptr<Node>> &nodes) {
     OutputVector outs;
