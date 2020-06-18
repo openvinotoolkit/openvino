@@ -381,8 +381,6 @@ StageOutput ModelObj::addStageOutput(
         IE_ASSERT(stage->_parentStageEdge == nullptr);
         IE_ASSERT(consumerEdge->_consumer->_parentStageEdge == nullptr);
         setStagesOrder(stage, consumerEdge->consumer());
-
-        _initialStages.erase(consumerEdge->_consumer);
     }
 
     return edge;
@@ -528,8 +526,6 @@ void ModelObj::replaceStageInput(
         IE_ASSERT(edge->_consumer->_parentStageEdge == nullptr);
         IE_ASSERT(newInput->_producerEdge->_producer->_parentStageEdge == nullptr);
         setStagesOrder(newInput->producerEdge()->producer(), edge->consumer());
-
-        _initialStages.erase(edge->_consumer);
     }
 
     if (edge->_consumer->_prevStages.empty()) {
@@ -628,8 +624,6 @@ void ModelObj::replaceStageOutput(
         IE_ASSERT(edge->_producer->_parentStageEdge == nullptr);
         IE_ASSERT(consumerEdge->_consumer->_parentStageEdge == nullptr);
         setStagesOrder(edge->producer(), consumerEdge->consumer());
-
-        _initialStages.erase(consumerEdge->_consumer);
     }
 }
 
@@ -2020,6 +2014,9 @@ void ModelObj::removeStagesOrder(const Stage& parent, const Stage& child) {
     --childPrevStage->second;
     if (childPrevStage->second <= 0) {
         child->_prevStages.erase(childPrevStage);
+    }
+    if (child->_prevStages.empty()) {
+        _initialStages.emplace(child);
     }
 }
 
