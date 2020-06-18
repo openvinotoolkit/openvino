@@ -66,8 +66,7 @@ TEST_P(IEClassNetworkTestP_VPU, smoke_ImportNetworkNoThrowWithDeviceName) {
     }
 }
 
-// #-29320
-TEST_P(IEClassNetworkTestP_VPU, DISABLED_smoke_ExportUsingFileNameImportFromStreamNoThrowWithDeviceName) {
+TEST_P(IEClassNetworkTestP_VPU, smoke_ExportUsingFileNameImportFromStreamNoThrowWithDeviceName) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     Core ie;
     ExecutableNetwork executableNetwork;
