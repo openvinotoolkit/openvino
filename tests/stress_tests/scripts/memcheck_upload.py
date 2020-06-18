@@ -147,16 +147,21 @@ def query_timeline(records, db_url, db_collection, max_items=20, similarity=TIME
     collection = client[DATABASE][db_collection]
     result = []
     for record in records:
-        query = dict((key, record[key]) for key in similarity)
-        query['commit_date'] = {'$lt': record['commit_date']}
-        pipeline = [
-            {'$match': query},
-            {'$addFields': {'commit_date': {'$dateFromString': {'dateString': '$commit_date'}}}},
-            {'$sort': {'commit_date': -1}},
-            {'$limit': max_items},
-            {'$sort': {'commit_date': 1}},
-        ]
-        items = list(collection.aggregate(pipeline)) + [record]
+        items = []
+        try:
+            query = dict((key, record[key]) for key in similarity)
+            query['commit_date'] = {'$lt': record['commit_date']}
+            pipeline = [
+                {'$match': query},
+                {'$addFields': {'commit_date': {'$dateFromString': {'dateString': '$commit_date'}}}},
+                {'$sort': {'commit_date': -1}},
+                {'$limit': max_items},
+                {'$sort': {'commit_date': 1}},
+            ]
+            items += list(collection.aggregate(pipeline))
+        except KeyError:
+            pass  # keep only the record if timeline failed to generate
+        items += [record]
         timeline = _transpose_dicts(items, template=record)
         result += [timeline]
     return result
