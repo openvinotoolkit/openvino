@@ -161,8 +161,8 @@ void GNAModelSerial::Import(void *basePointer, size_t gnaGraphSize, std::istream
         for (uint32_t i = 0; i < operation->NumberOfParameters; i++) {
             uint32_t paramSize;
             readBits(paramSize, is);
+            IE_ASSERT(operation->Parameters != nullptr);
             if (paramSize == 0) {
-                IE_ASSERT(operation->Parameters != nullptr);
                 operation->Parameters[i] = nullptr;
                 continue;
             }
