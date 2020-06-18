@@ -25,7 +25,6 @@ from mo.ops.const import Const
 class LeakyReLUMutation(BackReplacementPattern):
     enabled = True
     force_clean_up = True
-    graph_condition = [lambda graph: graph.graph['cmd_params'].generate_experimental_IR_V10]
 
     def run_before(self):
         return [ForceStrictPrecision]
