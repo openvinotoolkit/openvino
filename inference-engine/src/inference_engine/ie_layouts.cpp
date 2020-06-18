@@ -9,7 +9,7 @@
 
 using namespace InferenceEngine;
 
-TensorDesc::TensorDesc(const Precision& precision, SizeVector dims, Layout layout)
+TensorDesc::TensorDesc(const Precision& precision, const SizeVector& dims, Layout layout)
     : precision(precision), blockingDesc(dims, layout) {
     this->dims = dims;
     this->layout = layout;
@@ -19,7 +19,7 @@ TensorDesc::TensorDesc(const Precision& precision, Layout layout): precision(pre
     this->layout = layout;
 }
 
-TensorDesc::TensorDesc(const Precision& precision, SizeVector dims, const BlockingDesc& blockDesc)
+TensorDesc::TensorDesc(const Precision& precision, const SizeVector& dims, const BlockingDesc& blockDesc)
     : dims(dims), precision(precision), blockingDesc(blockDesc) {
     if (dims.size() == 0 || blockingDesc.getBlockDims().size() == 0) {
         layout = Layout::SCALAR;
@@ -158,7 +158,7 @@ bool TensorDesc::operator!=(const TensorDesc& rhs) const {
     return !(*this == rhs);
 }
 
-Layout TensorDesc::getLayoutByDims(SizeVector dims) {
+Layout TensorDesc::getLayoutByDims(const SizeVector& dims) {
     switch (dims.size()) {
     case 0:
         return Layout::SCALAR;
@@ -249,7 +249,7 @@ BlockingDesc::BlockingDesc(const SizeVector& blocked_dims, const SizeVector& ord
 }
 
 BlockingDesc::BlockingDesc(const SizeVector& blocked_dims, const SizeVector& order, size_t offset,
-                           SizeVector dimOffsets)
+                           const SizeVector& dimOffsets)
     : BlockingDesc(blocked_dims, order) {
     this->offsetPadding = offset;
     if (blocked_dims.size() != dimOffsets.size())
@@ -258,7 +258,7 @@ BlockingDesc::BlockingDesc(const SizeVector& blocked_dims, const SizeVector& ord
 }
 
 BlockingDesc::BlockingDesc(const SizeVector& blocked_dims, const SizeVector& order, size_t offset,
-                           SizeVector dimOffsets, SizeVector strides)
+                           const SizeVector& dimOffsets, const SizeVector& strides)
     : BlockingDesc(blocked_dims, order) {
     this->offsetPadding = offset;
     if (blocked_dims.size() != strides.size()) THROW_IE_EXCEPTION << "Strides are not initialized for all dimensions.";

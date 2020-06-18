@@ -16,7 +16,6 @@
 
 #include "details/ie_no_copy.hpp"
 #include "ie_api.h"
-#include "ie_error.hpp"
 #include "ie_common.h"
 #include "ie_layouts.h"
 #include "ie_blob.h"
@@ -212,20 +211,6 @@ public:
  */
 class IShapeInferExtension : public InferenceEngine::details::IRelease {
 public:
-    /**
-     * @deprecated IErrorListener is not used anymore. StatusCode is provided in case of unexpected situations
-     * The method will be removed in 2021.1 release.
-     * @brief Sets logging callback.
-     *
-     * Logging is used to track what is going on inside.
-     *
-     * @param listener Logging sink
-     */
-    IE_SUPPRESS_DEPRECATED_START
-    INFERENCE_ENGINE_DEPRECATED("IErrorListener is not used anymore. StatusCode is provided in case of unexpected situations")
-    virtual void SetLogCallback(InferenceEngine::IErrorListener& listener) noexcept { (void)listener; }
-    IE_SUPPRESS_DEPRECATED_END
-
     /**
      * @brief Gets extension version information and stores in versionInfo
      * @param versionInfo Pointer to version info, will be set by plugin

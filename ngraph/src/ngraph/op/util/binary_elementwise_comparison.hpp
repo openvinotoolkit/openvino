@@ -55,7 +55,7 @@ namespace ngraph
             {
             protected:
                 /// \brief Constructs a binary elementwise comparison operation.
-                BinaryElementwiseComparison();
+                BinaryElementwiseComparison(const AutoBroadcastSpec& autob);
 
                 /// \brief Constructs a binary elementwise comparison operation.
                 ///

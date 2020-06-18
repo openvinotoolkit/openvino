@@ -41,7 +41,6 @@ struct IENetwork {
     std::shared_ptr<InferenceEngine::CNNNetwork> actual;
     std::string name;
     std::size_t batch_size;
-    std::string precision;
     PyObject* getFunction();
 
     void setBatch(const size_t size);
@@ -149,31 +148,6 @@ struct IEExecNetwork {
     void createInferRequests(int num_requests);
 };
 
-
-struct IEPlugin {
-    std::unique_ptr<InferenceEnginePython::IEExecNetwork> load(const InferenceEnginePython::IENetwork &net,
-                                                               int num_requests,
-                                                               const std::map<std::string, std::string> &config);
-
-    std::string device_name;
-    std::string version;
-
-    void setConfig(const std::map<std::string, std::string> &);
-
-    void addCpuExtension(const std::string &extension_path);
-
-    void setInitialAffinity(const InferenceEnginePython::IENetwork &net);
-
-    IEPlugin(const std::string &device, const std::vector<std::string> &plugin_dirs);
-
-    IEPlugin() = default;
-
-    std::set<std::string> queryNetwork(const InferenceEnginePython::IENetwork &net);
-
-    IE_SUPPRESS_DEPRECATED_START
-    InferenceEngine::InferencePlugin actual;
-    IE_SUPPRESS_DEPRECATED_END
-};
 
 struct IECore {
     InferenceEngine::Core actual;
