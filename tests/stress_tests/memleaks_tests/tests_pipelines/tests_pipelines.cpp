@@ -60,7 +60,8 @@ TestResult common_test_pipeline(const std::function<void()>& test_pipeline, cons
     log_info("Warming up for " << WARMUP_STEPS << " iterations");
     log_info("i\tVMRSS\tVMHWM\tVMSIZE\tVMPEAK\tTHREADS");
     int measure_count = n;
-    for (size_t iteration = 0; measure_count > 0; iteration++) {
+    size_t iteration = 0;
+    while(1) {
         // Warm up to take reference values
         test_pipeline();
         getVmValues(cur[VMSIZE], cur[VMPEAK], cur[VMRSS], cur[VMHWM]);
@@ -73,9 +74,10 @@ TestResult common_test_pipeline(const std::function<void()>& test_pipeline, cons
         // measure
         if (iteration >= WARMUP_STEPS) {
             // set reference
-            if (WARMUP_STEPS == iteration || (retry_count < MAX_RETRY && (outlier_count[VMRSS] > MAX_OUTLIERS ||
-                                                                          outlier_count[VMHWM] > MAX_OUTLIERS))) {
-                if (0 != retry_count) log_info("Retrying " << retry_count + 1 << " of " << MAX_RETRY);
+            if (WARMUP_STEPS == iteration || (retry_count <= MAX_RETRY && (outlier_count[VMRSS] > MAX_OUTLIERS ||
+                                                                           outlier_count[VMHWM] > MAX_OUTLIERS))) {
+                if (0 != retry_count) log_info("Retrying " << retry_count << " of " << MAX_RETRY);
+
                 retry_count++;
                 measure_count = n;
                 outlier_count = {0};
@@ -100,6 +102,9 @@ TestResult common_test_pipeline(const std::function<void()>& test_pipeline, cons
                          << past_size << " past elements:"
                          << " VMRSS=" << ref[VMRSS] << "(+-" << static_cast<int>(threshold[VMRSS]) << "),"
                          << " VMHWM=" << ref[VMHWM] << "(+-" << static_cast<int>(threshold[VMHWM]) << ")");
+            }
+            else if (measure_count <= 0) {
+                break;
             }
             measure_count--;
             // diff = cur - ref
@@ -126,6 +131,7 @@ TestResult common_test_pipeline(const std::function<void()>& test_pipeline, cons
         }
 
         log_info(progress_str);
+        iteration++;
     }
 
     if (outlier_count[VMRSS] > MAX_OUTLIERS)
