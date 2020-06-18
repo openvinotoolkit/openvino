@@ -186,18 +186,18 @@ namespace ngraph
     }
 }
 
-namespace InferenceEngine 
+namespace InferenceEngine
 {
 #ifdef __clang__
     template <typename T, typename U>
-    TBlob<T, U>::~TBlob() {
+    TBlob<T, U>::~TBlob()
+    {
         free();
     }
-    
+
     template class TBlob<unsigned int>;
     template class TBlob<bool>;
     template class TBlob<ngraph::bfloat16>;
     template class TBlob<ngraph::float16>;
 #endif
 }
-
