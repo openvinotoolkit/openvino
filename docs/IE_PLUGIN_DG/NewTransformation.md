@@ -9,7 +9,7 @@ Let's start from reviewing transformations library structure.
 Transformations library is independent from InferenceEngine target library and located in `inference-engine/src/transformations` directory.
 Transformations root directory contains two folders:
 1. ngraph_ops - legacy opset operations needed for nGraph to CNNNetwork conversion.
-2. transformations - includes all transformations, utils, runtime info attributes and pass managers for conversion between opsets.
+2. transformations - includes all transformations, utils, runtime info attributes and pass managers.
 
 Transformation flow in transformation library has several layers:
 1. Pass managers - executes list of transformations using `*_tbl.hpp` file. For example conversion form OpSetX to OpSetY.
@@ -44,31 +44,9 @@ All other operations hold each other via shared pointers: child operation holds 
 
 Below you can find examples how `ngraph::Function` can be created:
 
-~~~~~~~~~~~~~{.cpp}
-// Basic example with explicit Result operation creation
-// Create opset3::Parameter operation with static shape
-auto data = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::f32, ngraph::Shape{3, 1, 2});
-// Create opset3::Constant operation with value
-auto divide_constant = ngraph::opset3::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {1.5});
-// Create opset3::Power operation that takes two opset3::Constant operations as input
-auto pow = std::make_shared<ngraph::opset3::Power>(divide_constant,
-                                                   ngraph::opset3::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {-1}));                                                   
-auto mul = std::make_shared<ngraph::opset3::Multiply>(data, pow);
-auto res = std::make_shared<ngraph::opset3::Result>(mul);
+@snippet example_ngraph_utils.cpp ngraph_utils:simple_function
 
-auto f = std::make_shared<ngraph::Function>(ngraph::ResultVector{res}, ngraph::ParameterVector{data});
-~~~~~~~~~~~~~
-
-~~~~~~~~~~~~~{.cpp}
-// Advanced example with multioutput operation. Results operation will be created automatically.
-auto data = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 64, 64});
-auto axis_const = ngraph::opset3::Constant::create(ngraph::element::i64, ngraph::Shape{}/*scalar shape*/, {1});
-// Create opset3::Split operation that splits input to three slices across 1st dimension
-auto split = std::make_shared<ngraph::opset3::Split>(data, axis_const, 3);
-auto relu = std::make_shared<ngraph::opset3::Relu>(split->output(1)/*specify explicit output*/);
-// Results operations will be created automatically based on provided OutputVector
-auto f = std::make_shared<ngraph::Function>(ngraph::OutputVector{split->output(0), relu, split->output(2)}, ngraph::ParameterVector{data});
-~~~~~~~~~~~~~
+@snippet example_ngraph_utils.cpp ngraph_utils:advanced_function
 
 ## Transformations types
 
@@ -76,65 +54,27 @@ There are two main transformation types:
 
 `1.` ngraph::pass::FunctionalPass is used for transformations that take entire `ngraph::Function` as input and process it.
 
-~~~~~~~~~~~~~{.cpp}
-// my_transformation.hpp
-// Template for FunctionPass transformation class
-class MyFunctionTransformation: public ngraph::pass::FunctionPass {
-public:
-    MyFunctionTransformation() : FunctionPass() {}
+Template for FunctionPass transformation class
 
-    bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
-};
+@snippet src/template_function_transformation.hpp function_pass:template_transformation_hpp
 
-// my_transformation.cpp
-#include "my_transformation.hpp"
-
-bool ngraph::pass::MyFunctionTransformation::run_on_function(std::shared_ptr<ngraph::Function> f) {
-    // Transformation code
-    return false;
-}
-~~~~~~~~~~~~~
+@snippet src/template_function_transformation.cpp function_pass:template_transformation_cpp
 
 Using ngraph::FunctionPass you need to override `run_on_function` method where you will write transformation code. Return value must be `true` if original function has changed during transformation otherwise it must be `false`. For transformation API please follow [Working with ngraph::Function] section.
 
 `2.` `ngraph::pass::GraphRewrite` is used for pattern based transformations.
 
-~~~~~~~~~~~~~{.cpp}
-// my_transformation.hpp
-// Template for GraphRewrite transformation class
-class MyPatternBasedTransformation: public ngraph::pass::GraphRewrite {
-public:
-    MyPatternBasedTransformation() : GraphRewrite() {
-        transform();
-    }
+Template for GraphRewrite transformation class
+@snippet src/template_pattern_transformation.hpp graph_rewrite:template_transformation_hpp
 
-private:
-    void transform();
-};
-
-// my_transformation.cpp
-#include "my_transformation.hpp"
-
-void ngraph::pass::MyPatternBasedTransformation::transform() {
-    // Pattern example
-    auto input = std::make_shared<pattern::opset3::Parameter>(element::i64, Shape{1});
-    auto shapeof = std::make_shared<ngraph::opset3::ShapeOf>(input);
-
-    ngraph::graph_rewrite_callback callback = [](pattern::Matcher& m) {
-        // Transformation code
-        return false;
-    };
-
-    // Register Pattern and Matcher
-    auto m = std::make_shared<ngraph::pattern::Matcher>(shapeof, "MyPatternBasedTransformation");
-    this->add_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
-}
-~~~~~~~~~~~~~
+@snippet src/template_pattern_transformation.cpp graph_rewrite:template_transformation_cpp
 
 Using `ngraph::GraphRewrite` you need to complete three steps:
 1. Create pattern using nGraph operations.
 2. Implement callback. 
 3. Register pattern and Matcher.
+
+So let's go though each of this steps.
 
 Pattern is a single root ngraph::Function. But the only difference is that you don't need to create function object, you just create and connect nGraph operations then take the last one and put it as a root of the pattern.
 
@@ -201,32 +141,15 @@ Note: node attributes do not participate in pattern matching and needed only for
 Example below shows basic usage of `pattern::op::Label` class.
 Here we construct Multiply pattern with arbitrary first input and Constant as a second input.
 
-~~~~~~~~~~~~~{.cpp}
-auto input = std::make_shared<pattern::op::Label>(element::f32, Shape{1});
-auto value = ngraph::opset3::Constant::create(element::f32, Shape{1}, {0.5});
-auto mul = std::make_shared<opset3::Multiply>(input, value);
-auto m = std::make_shared<pattern::Matcher>(mul, "MultiplyMatcher");
-~~~~~~~~~~~~~
+@snippet example_ngraph_utils.cpp pattern:label_example
 
 This example show how we can construct pattern when operation has arbitrary number of inputs.
 
-~~~~~~~~~~~~~{.cpp}
-// Detect Concat operation with arbitrary number of inputs
-auto concat = std::make_shared<pattern::op::Label>(element::f32, Shape{}, pattern::has_class<opset3::Concat>());
-auto m = std::make_shared<pattern::Matcher>(gelu, "ConcatMatcher");
-~~~~~~~~~~~~~
+@snippet example_ngraph_utils.cpp pattern:concat_example
 
 This example shows how to use predicate to construct pattern where operation has two different types.
 
-~~~~~~~~~~~~~{.cpp}
-// Detect Multiply or Add operation
-auto lin_op = std::make_shared<pattern::op::Label>(element::f32, Shape{}, 
-        [](const std::shared_ptr<Node> & node) -> bool {
-            return std::dynamic_pointer_cast<opset3::Multiply>(node) || 
-                   std::dynamic_pointer_cast<opset3::Add>(node);
-        });
-auto m = std::make_shared<pattern::Matcher>(lin_op, "MultiplyOrAddMatcher");
-~~~~~~~~~~~~~
+@snippet example_ngraph_utils.cpp pattern:predicate_example
 
 TODO: add examples for ngraph::pattern::op::Any
 
@@ -241,26 +164,8 @@ First of all let's talk about `ngraph::Node` input/output ports. Each nGraph ope
 Every port belongs to its node so using port we can access parent node, get shape and type for particular input/output, get all consumers in case of output port and get producer node in case of input port.
 
 Lets look at code example.
-~~~~~~~~~~~~~{.cpp}
-// Let's supose that node is opset3::Convolution operation
-// as we know opset3::Convolution has two input ports (data, weights) and one output port
 
-Input<Node> data = node->input(0);
-Input<Node> weights = node->input(1);
-Output<Node> output = node->output(0);
-
-// Getting shape and type
-auto pshape = data.get_partial_shape();
-auto el_type = data.get_element_type();
-
-// Ggetting parent for input port
-Output<Node> parent_output = data.get_source_output();
-// Another short way to get partent for output port
-Output<Node> parent_output = node->input_value(0);
-
-// Getting all consumers for output port
-auto consumers = output.get_target_inputs();
-~~~~~~~~~~~~~
+@snippet example_ngraph_utils.cpp ngraph:ports_example
 
 You may notice that we usually construct operations in this way:
 ~~~~~~~~~~~~~{.cpp}
@@ -278,19 +183,9 @@ nGraph provides two ways for node replacement: via ngraph helper function and di
 Let's start with nGraph helper functions. The most popular function is `ngraph::replace_node(old_node, new_node)`.
 
 Usage example:
-~~~~~~~~~~~~~{.cpp}
-auto neg = std::dynamic_pointer_cast<ngraph::opset1::Negative> (m.get_match_root());
-if (!neg) {
-    return false;
-}
 
-auto mul = std::make_shared<ngraph::opset1::Multiply>(neg->input_value(0),
-                                                      opset1::Constant::create(neg->get_element_type(), Shape{1}, {-1}));
-mul->set_friendly_name(neg->get_friendly_name());
-ngraph::copy_runtime_info(neg, mul);
-// Replaces Negative operation with Multiply operation
-ngraph::replace_node(neg, mul);
-~~~~~~~~~~~~~ 
+@snippet example_ngraph_utils.cpp ngraph:replace_node
+
 `ngraph::replace_node` has a constraint that number of output ports for both of ops must be the same otherwise it will raise an exception.
 
 
@@ -301,30 +196,12 @@ neg->output(0).replace(mul->output(0));
 ~~~~~~~~~~~~~
 
 Another transformation example is insertion.
-~~~~~~~~~~~~~{.cpp}
-// Lets suppose that we have a node with single output port and we want to insert additional operation new_node after it
-void insert_example(std::shared_ptr<ngraph::Node> node) {
-    // Get all consumers for node
-    auto consumers = node->output(0).get_target_inputs();
-    // Create new node. Let it be opset1::Relu.
-    auto new_node = std::make_shared<ngraph::opset1::Relu>(node);
-    // Reconnect all consumers to new_node
-    for (auto input : consumers) {
-        input.replace_source_output(new_node);
-    }
-}
-~~~~~~~~~~~~~ 
+
+@snippet example_ngraph_utils.cpp ngraph:insert_node
 
 The alternative way to insert operation is to make a node copy and use `replace_node`:
-~~~~~~~~~~~~~{.cpp} 
-void insert_example(std::shared_ptr<ngraph::Node> node) {
-    // Make a node copy 
-    auto node_copy = node->clone_with_new_inputs(node->input_values());
-    // Create new node
-    auto new_node = std::make_shared<ngraph::opset1::Relu>(node_copy);
-    ngraph::replace_node(node, new_node);
-}
-~~~~~~~~~~~~~
+
+@snippet example_ngraph_utils.cpp ngraph:insert_node_with_copy
 
 `3.` ngraph::Node elimination
 
