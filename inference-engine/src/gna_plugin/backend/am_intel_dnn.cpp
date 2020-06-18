@@ -460,6 +460,10 @@ void GNAPluginNS::backend::AMIntelDNN::WriteGraphWizModel(const char *filename) 
 #define IS_DIAG(k)\
     (components[k].operation == kDnnDiagonalOp)
 
+#define IS_POW(k)\
+    (components[k].operation == kDnnPiecewiselinearOp &&\
+     components[k].op.pwl.func_id == kActPow)
+
 #define OUTPUTS(idx)\
     components[idx].ptr_outputs, components[idx].num_rows_out*components[idx].num_columns_out * components[idx].num_bytes_per_output
 
@@ -531,7 +535,10 @@ void GNAPluginNS::backend::AMIntelDNN::WriteGraphWizModel(const char *filename) 
             graph << "  <TR><TD> badr</TD><TD>" <<  components[k].op.affine.ptr_biases<< "</TD></TR>\n";
         }
         if (IS_RELU(k)) {
-            graph << "  <TR><TD> negative_slope</TD><TD>" <<  components[k].op.pwl.func_id.negative_slope<< "</TD></TR>\n";
+            graph << "  <TR><TD> negative_slope</TD><TD>" <<  components[k].op.pwl.func_id.args.leru.negative_slope<< "</TD></TR>\n";
+        }
+        if (IS_POW(k)) {
+            graph << "  <TR><TD> negative_slope</TD><TD>" << components[k].op.pwl.func_id.args.pow.exponent << "</TD></TR>\n";
         }
         if (IS_CONV(k)) {
             auto &conv = components[k].op.conv1D;

@@ -96,7 +96,8 @@ class LayerInfo {
              "abs",
              "neglog",
              "neghalflog",
-             "softsign"};
+             "softsign",
+             "power"};
         return activations.find(layer->type) != activations.end();
     }
 
@@ -121,6 +122,15 @@ class LayerInfo {
     }
     bool isPower() const noexcept {
         return isOfType("power");
+    }
+    float PowerExponent() const noexcept {
+        return dynamic_cast<const InferenceEngine::PowerLayer*>(layer)->power;
+    }
+    float PowerScale() const noexcept {
+        return dynamic_cast<const InferenceEngine::PowerLayer*>(layer)->scale;
+    }
+    float PowerOffset() const noexcept {
+        return dynamic_cast<const InferenceEngine::PowerLayer*>(layer)->offset;
     }
     bool has32BInput() const noexcept {
         IS_VALID();

@@ -32,6 +32,8 @@
 #define LOG_DOMAIN (2981.0)
 #define EXP_DOMAIN (8.0)
 #define EXP_BREAK (0.045)
+#define POW_NUM_SEGMENTS 65
+#define POW_BREAK 0
 
 typedef struct {
     double t;
@@ -61,7 +63,7 @@ double pivot_search(std::vector<pwl_t>& result, double(*f)(const double),
 
 inline std::vector<pwl_t> negative_pwl(const std::vector<pwl_t>& pwl);
 
-std::vector<pwl_t> pwl_search(const DnnActivationType fun,
+std::vector<pwl_t> pwl_search(const DnnActivation& activation_type,
                               const double l_bound,
                               const double u_bound,
                               const double threshold,
@@ -73,7 +75,7 @@ bool split_search(const DnnActivationType fun,
                   const double l_bound,
                   const double u_bound);
 
-double calculate_error_pct(const DnnActivationType fun,
+double calculate_error_pct(const DnnActivation& activation_type,
                            const double l_bound,
                            const double u_bound,
                            const double offset,

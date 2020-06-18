@@ -26,20 +26,33 @@ enum DnnActivationType : uint8_t {
     kActNegLog,
     kActNegHalfLog,
     kActSoftSign,
+    kActPow,
     kActNumType
 };
 
 struct DnnActivation {
     // for prelu
     DnnActivationType type;
-    float negative_slope;
+    union {
+        struct {
+            float negative_slope;
+        } leru;
+        struct {
+            float exponent;
+            float scale;
+            float offset;
+        } pow;
+        struct {
+            float rsvd[3];
+        } other;
+    } args;
     operator DnnActivationType () const noexcept {
         return type;
     }
     static DnnActivation fromType(DnnActivationType type) {
         DnnActivation activation;
         activation.type = type;
-        activation.negative_slope = 0.0f;
+        activation.args = { 0.0f };
         return activation;
     }
 };
@@ -61,7 +74,8 @@ static const char *intel_dnn_activation_name[kActNumType] = {
         "kActNegLog",
         "kActNegHalfLog",
         "kActCustom",
-        "kActSoftSign"
+        "kActSoftSign",
+        "kActPow"
 };
 
 typedef enum DnnSoftmaxType {
