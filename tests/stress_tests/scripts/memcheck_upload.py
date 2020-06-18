@@ -21,10 +21,12 @@ from inspect import getsourcefile
 from glob import glob
 import xml.etree.ElementTree as ET
 import hashlib
+import yaml
 from pymongo import MongoClient
 
 
-DATABASE = 'memcheck'
+PRODUCT_NAME = 'dldt'  # product name from build manifest
+DATABASE = 'memcheck'  # database name for memcheck results
 RE_GTEST_MODEL_XML = re.compile(r'<model[^>]*>')
 RE_GTEST_CUR_MEASURE = re.compile(
     r'Current values of virtual memory consumption')
@@ -42,6 +44,30 @@ def abs_path(relative_path):
     """
     return os.path.realpath(
         os.path.join(os.path.dirname(getsourcefile(lambda: 0)), relative_path))
+
+
+def metadata_from_manifest(manifest):
+    """ Extract commit metadata for memcheck record from manifest
+    """
+    with open(manifest, 'r') as manifest_file:
+        manifest = yaml.safe_load(manifest_file)
+    repo_trigger = next(
+        repo for repo in manifest['components'][PRODUCT_NAME]['repository'] if repo['trigger'])
+    # parse OS name/version
+    product_type_str = manifest['components'][PRODUCT_NAME]['product_type']
+    product_type = product_type_str.split('_')
+    if len(product_type) != 5 or product_type[2] != 'ubuntu':
+        logging.error('Product type %s is not supported', product_type_str)
+        return {}
+    return {
+        'os_name': product_type[2],
+        'os_version': [product_type[3], product_type[4]],
+        'commit_sha': repo_trigger['revision'],
+        'commit_date': repo_trigger['commit_time'],
+        'repo_url': repo_trigger['url'],
+        'target_branch': repo_trigger['target_branch'],
+        'event_type': manifest['components'][PRODUCT_NAME]['build_event'].lower(),
+    }
 
 
 def parse_memcheck_log(log_path):
@@ -151,16 +177,22 @@ def query_timeline(records, db_url, db_collection, max_items=20, similarity=TIME
     collection = client[DATABASE][db_collection]
     result = []
     for record in records:
-        query = dict((key, record[key]) for key in similarity)
-        query['commit_date'] = {'$lt': record['commit_date']}
-        pipeline = [
-            {'$match': query},
-            {'$addFields': {'commit_date': {'$dateFromString': {'dateString': '$commit_date'}}}},
-            {'$sort': {'commit_date': -1}},
-            {'$limit': max_items},
-            {'$sort': {'commit_date': 1}},
-        ]
-        items = list(collection.aggregate(pipeline)) + [record]
+        items = []
+        try:
+            query = dict((key, record[key]) for key in similarity)
+            query['commit_date'] = {'$lt': record['commit_date']}
+            pipeline = [
+                {'$match': query},
+                {'$addFields': {
+                    'commit_date': {'$dateFromString': {'dateString': '$commit_date'}}}},
+                {'$sort': {'commit_date': -1}},
+                {'$limit': max_items},
+                {'$sort': {'commit_date': 1}},
+            ]
+            items += list(collection.aggregate(pipeline))
+        except KeyError:
+            pass  # keep only the record if timeline failed to generate
+        items += [record]
         timeline = _transpose_dicts(items, template=record)
         result += [timeline]
     return result
