@@ -12,7 +12,7 @@ MvncTestsCommon::MvncTestsCommon() {
     // On linux we should use custom path to firmware due to another searching mechanism for library
     strcpy(firmwareDir, "./lib/");
 #else
-    firmwareDir[0] = "./";
+    strcpy(firmwareDir, "./");
 #endif
 }
 
