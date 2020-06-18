@@ -34,14 +34,16 @@ class ONNXResize11ToInterpolate3(MiddleReplacementPattern):
     """
     enabled = False
 
-    @staticmethod
-    def pattern():
+    def run_before(self):
+        from extensions.middle.InterpolateSequenceToInterpolate import InterpolateSequenceToInterpolate
+        return [InterpolateSequenceToInterpolate]
+
+    def pattern(self):
         return dict(
             nodes=[('op', dict(op='ONNXResize11'))],
             edges=[])
 
-    @staticmethod
-    def replace_pattern(graph: Graph, match: dict):
+    def replace_pattern(self, graph: Graph, match: dict):
         log.debug("Converting of ONNX Resize-11 to Interpolate-3 is triggered.")
         resize = match['op']
 
