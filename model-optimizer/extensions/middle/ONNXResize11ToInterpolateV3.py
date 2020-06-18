@@ -32,7 +32,7 @@ class ONNXResize11ToInterpolate3(MiddleReplacementPattern):
     """
     The transformation replaces ONNX Resize 11 with Interpolate-3.
     """
-    enabled = False
+    enabled = True
 
     def run_before(self):
         from extensions.middle.InterpolateSequenceToInterpolate import InterpolateSequenceToInterpolate
