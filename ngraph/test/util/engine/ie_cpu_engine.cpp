@@ -100,3 +100,92 @@ void test::IE_CPU_Engine::reset()
     m_allocated_expected_outputs = 0;
     m_expected_outputs.clear();
 }
+
+namespace ngraph
+{
+    namespace test
+    {
+        template <>
+        void IE_CPU_Engine::add_input<bool>(const Shape& shape, const std::vector<bool>& values)
+        {
+            // Retrieve the next function parameter which has not been set yet.
+            // The params are stored in a vector in the order of their creation.
+            const auto& function_params = m_function->get_parameters();
+            const auto& input_to_allocate = function_params[m_allocated_inputs];
+
+            NGRAPH_CHECK(m_network_inputs.count(input_to_allocate->get_friendly_name()) == 1,
+                         "nGraph function's input number ",
+                         m_allocated_inputs,
+                         " was not found in the CNNNetwork built from it. Function's input name: ",
+                         input_to_allocate->get_friendly_name());
+
+            // Retrieve the corresponding CNNNetwork input using param's friendly name.
+            // Here the inputs are stored in the map and are accessible by a string key.
+            const auto& input_info = m_network_inputs[input_to_allocate->get_friendly_name()];
+
+            auto blob =
+                std::make_shared<InferenceEngine::TBlob<uint8_t>>(input_info->getTensorDesc());
+            blob->allocate();
+            auto* blob_buffer = blob->wmap().template as<uint8_t*>();
+
+            NGRAPH_CHECK(blob->size() == values.size(),
+                         "The allocated blob for input '",
+                         input_to_allocate->get_friendly_name(),
+                         " ' expects ",
+                         blob->size(),
+                         " elements while ",
+                         values.size(),
+                         " were provided.");
+
+            std::copy(values.begin(), values.end(), blob_buffer);
+
+            m_inference_req.SetBlob(input_to_allocate->get_friendly_name(), blob);
+
+            ++m_allocated_inputs;
+        }
+
+        template <>
+        void IE_CPU_Engine::add_input<unsigned int>(const Shape& shape,
+                                                    const std::vector<unsigned int>& values)
+        {
+            // Retrieve the next function parameter which has not been set yet.
+            // The params are stored in a vector in the order of their creation.
+            const auto& function_params = m_function->get_parameters();
+            const auto& input_to_allocate = function_params[m_allocated_inputs];
+
+            NGRAPH_CHECK(m_network_inputs.count(input_to_allocate->get_friendly_name()) == 1,
+                         "nGraph function's input number ",
+                         m_allocated_inputs,
+                         " was not found in the CNNNetwork built from it. Function's input name: ",
+                         input_to_allocate->get_friendly_name());
+
+            // Retrieve the corresponding CNNNetwork input using param's friendly name.
+            // Here the inputs are stored in the map and are accessible by a string key.
+            const auto& input_info = m_network_inputs[input_to_allocate->get_friendly_name()];
+
+            auto blob =
+                std::make_shared<InferenceEngine::TBlob<uint8_t>>(input_info->getTensorDesc());
+            blob->allocate();
+            auto* blob_buffer = blob->wmap().template as<uint8_t*>();
+
+            NGRAPH_CHECK(blob->size() == values.size(),
+                         "The allocated blob for input '",
+                         input_to_allocate->get_friendly_name(),
+                         " ' expects ",
+                         blob->size(),
+                         " elements while ",
+                         values.size(),
+                         " were provided.");
+
+            std::copy(values.begin(), values.end(), blob_buffer);
+
+            m_inference_req.SetBlob(input_to_allocate->get_friendly_name(), blob);
+
+            ++m_allocated_inputs;
+        }
+    }
+
+    // template class InferenceEngine::TBlob<ngraph::bfloat16>;
+    // template class InferenceEngine::TBlob<ngraph::float16>;
+    // template class InferenceEngine::TBlob<unsigned int>;
+}
