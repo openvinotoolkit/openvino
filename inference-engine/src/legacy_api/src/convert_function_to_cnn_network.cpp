@@ -770,7 +770,7 @@ std::shared_ptr<CNNNetworkImpl> convertFunctionToICNNNetwork(const std::shared_p
 
         for (size_t i = 0; i < layer->get_output_size(); i++) {
 
-            bool all_to_read_value = true;
+            bool all_to_read_value = !layer->get_output_inputs(i).empty();
             for (const auto& output_input : layer->get_output_inputs(i)) {
                 all_to_read_value
                     &= std::dynamic_pointer_cast<ngraph::op::ReadValue>(output_input->get_node()) != nullptr;
