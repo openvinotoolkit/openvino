@@ -258,7 +258,7 @@ public:
     }
 
     layout get_bias_layout(T& p) {
-        return layout{ p.default_type, p.default_format, tensor{1, p.out_shape.feature[0], 1, 1} };
+        return layout{ p.default_type, p.default_format, tensor{p.out_shape.feature[0], 1, 1, 1} };
     }
 
     layout get_weights_zp_layout(T& p) {

@@ -2317,7 +2317,7 @@ TEST(deconvolution_f16_fw_gpu, basic_wsiz2x2_in1x2x2x2_fs_b_yx_fsv32_stride1_pad
 
     auto input = memory::allocate(engine, { data_types::f16, format::bfyx,{ 2, 1, 2, 2 } });
     auto weights = memory::allocate(engine, { data_types::f16, format::bfyx,{ 2, 1, 2, 2 } });
-    auto biases = memory::allocate(engine, { data_types::f16, format::bfyx,{ 1, 2, 1, 1 } });
+    auto biases = memory::allocate(engine, { data_types::f16, format::bfyx,{ 2, 1, 1, 1 } });
 
     set_values(input, { FLOAT16(8.f), FLOAT16(0.5f), FLOAT16(6.f), FLOAT16(9.f),
                         FLOAT16(1.f), FLOAT16(3.f), FLOAT16(2.f), FLOAT16(4.f)
