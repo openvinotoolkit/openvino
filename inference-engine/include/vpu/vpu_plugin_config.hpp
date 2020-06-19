@@ -123,16 +123,6 @@ DECLARE_VPU_CONFIG_VALUE(NDHWC);
 DECLARE_VPU_CONFIG_KEY(CUSTOM_LAYERS);
 
 /**
- * @deprecated IR statistic is not available in IR v10.
- * @brief Ignore statistic in IR by plugin.
- * Plugin could use statistic present in IR in order to try to improve calculations precision.
- * If you don't want statistic to be used enable this option.
- * This option should be used with values: CONFIG_VALUE(YES) or CONFIG_VALUE(NO) (default)
- */
-INFERENCE_ENGINE_DEPRECATED("IR statistic is not available in IR v10")
-DECLARE_VPU_CONFIG_KEY(IGNORE_IR_STATISTIC);
-
-/**
  * @brief This option allows to specify protocol.
  */
 DECLARE_VPU_MYRIAD_CONFIG_KEY(PROTOCOL);
