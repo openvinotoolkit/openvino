@@ -249,5 +249,15 @@ std::shared_ptr<ngraph::Node> makeReduce(std::vector<ngraph::Output<Node>> &in,
                                          bool keepDims,
                                          ngraph::helpers::ReductionType reductionType);
 
+std::shared_ptr<Node> makePooling(const ngraph::Output<Node> &in,
+                                  const std::vector<size_t> &strides,
+                                  const std::vector<size_t> &padsBegin,
+                                  const std::vector<size_t> &padsEnd,
+                                  const std::vector<size_t> &kernel,
+                                  const op::RoundingType &roundingType,
+                                  const op::PadType &padType,
+                                  bool excludePad,
+                                  const ngraph::helpers::PoolingTypes &poolType);
+
 }  // namespace builder
 }  // namespace ngraph
