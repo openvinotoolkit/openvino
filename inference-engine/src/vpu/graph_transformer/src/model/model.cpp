@@ -381,8 +381,6 @@ StageOutput ModelObj::addStageOutput(
         IE_ASSERT(stage->_parentStageEdge == nullptr);
         IE_ASSERT(consumerEdge->_consumer->_parentStageEdge == nullptr);
         setStagesOrder(stage, consumerEdge->consumer());
-
-        _initialStages.erase(consumerEdge->_consumer);
     }
 
     return edge;
@@ -528,8 +526,6 @@ void ModelObj::replaceStageInput(
         IE_ASSERT(edge->_consumer->_parentStageEdge == nullptr);
         IE_ASSERT(newInput->_producerEdge->_producer->_parentStageEdge == nullptr);
         setStagesOrder(newInput->producerEdge()->producer(), edge->consumer());
-
-        _initialStages.erase(edge->_consumer);
     }
 
     if (edge->_consumer->_prevStages.empty()) {
@@ -628,8 +624,6 @@ void ModelObj::replaceStageOutput(
         IE_ASSERT(edge->_producer->_parentStageEdge == nullptr);
         IE_ASSERT(consumerEdge->_consumer->_parentStageEdge == nullptr);
         setStagesOrder(edge->producer(), consumerEdge->consumer());
-
-        _initialStages.erase(consumerEdge->_consumer);
     }
 }
 
@@ -1918,8 +1912,10 @@ void ModelObj::cleanUp() {
 
     for (const auto& data : datas()) {
         if (data->_usage == DataUsage::Input) {
-            VPU_THROW_UNLESS(!data->_consumerEdges.empty(),
-                "Input data {} must have at least one consumers, but got zero.", data->name());
+            if (data->childDataToShapeEdges().empty()) {
+                VPU_THROW_UNLESS(!data->_consumerEdges.empty(),
+                    "Input data {} must have at least one consumers, but got zero.", data->name());
+            }
             IE_ASSERT(data->_parentDataToDataEdge == nullptr);
         } else if (data->_usage == DataUsage::Output) {
             IE_ASSERT(data->_producerEdge != nullptr);
@@ -1998,6 +1994,7 @@ void ModelObj::reorderStages(
 void ModelObj::setStagesOrder(const Stage& parent, const Stage& child) {
     ++parent->_nextStages[child];
     ++child->_prevStages[parent];
+    _initialStages.erase(child);
 }
 
 void ModelObj::removeStagesOrder(const Stage& parent, const Stage& child) {
@@ -2017,6 +2014,9 @@ void ModelObj::removeStagesOrder(const Stage& parent, const Stage& child) {
     --childPrevStage->second;
     if (childPrevStage->second <= 0) {
         child->_prevStages.erase(childPrevStage);
+    }
+    if (child->_prevStages.empty()) {
+        _initialStages.emplace(child);
     }
 }
 

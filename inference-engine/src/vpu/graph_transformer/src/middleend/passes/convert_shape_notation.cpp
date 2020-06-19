@@ -66,11 +66,18 @@ void PassImpl::run(const Model& model) {
         }
 
         // In case if data and shape had the same producer
-        // Topological order (nextStages/previousStages) needs to be updated
+        // Topological order (nextStages/previousStages) needs to be updated.
+        // Also it is needed if data is the network Input data.
         for (const auto& dataToShapeEdge : convertedShape->childDataToShapeEdges()) {
             const auto& child = dataToShapeEdge->child();
 
-            if (!child->producer() || child->producer() != shape->producer()) {
+            const auto& childProducer = child->producer();
+            if (!childProducer) {
+                VPU_THROW_UNLESS(child->usage() == DataUsage::Input,
+                        "ConvertShapeNotation pass for shape of name {} failed: if child data of name {} "
+                        "has no producer than it must have Input data usage, actual: {}",
+                        shape->name(), child->name(), child->usage());
+            } else if (child->producer() != shape->producer()) {
                 continue;
             }
 
