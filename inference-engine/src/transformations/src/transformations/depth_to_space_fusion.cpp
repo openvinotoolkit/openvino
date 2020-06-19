@@ -10,8 +10,8 @@
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/rt_info.hpp>
 
-bool check_block_first(const ngraph::Shape& shape_input, const ngraph::Shape& shape_reshape_before,
-                       const ngraph::AxisVector& permutation, const ngraph::Shape& shape_reshape_after,
+bool check_block_first(const std::vector<uint64_t>& shape_input, const std::vector<uint64_t>& shape_reshape_before,
+                       const std::vector<uint64_t>& permutation, const std::vector<uint64_t>& shape_reshape_after,
                        size_t& possible_block_size) {
     bool is_transformation_valid = true;
     uint64_t spatial_dims = shape_input.size() - 2;
@@ -21,7 +21,7 @@ bool check_block_first(const ngraph::Shape& shape_input, const ngraph::Shape& sh
     uint64_t c_dim = shape_input[1] / std::pow(possible_block_size, spatial_dims);
 
     // x' = reshape(data, [N, block_size, block_size, ..., block_size, C / (block_size ^ K), D1, D2, ..., DK])
-    ngraph::Shape expected_shape = {shape_input[0]};
+    std::vector<uint64_t> expected_shape = {shape_input[0]};
     for (uint64_t i = 0; i < spatial_dims; ++i)
         expected_shape.push_back(possible_block_size);
     expected_shape.push_back(c_dim);
@@ -30,7 +30,7 @@ bool check_block_first(const ngraph::Shape& shape_input, const ngraph::Shape& sh
     is_transformation_valid &= (expected_shape == shape_reshape_before);
 
     // x'' = transpose(x', [0,  K + 1,  K + 2, 1, K + 3, 2, K + 4, 3, ..., K + (K + 1), K])
-    ngraph::AxisVector expected_permutation = {0, spatial_dims + 1};
+    std::vector<uint64_t> expected_permutation = {0, spatial_dims + 1};
     for (uint64_t i = 2; i < shape_input.size(); ++i) {
         expected_permutation.push_back(spatial_dims + i);
         expected_permutation.push_back(i - 1);
@@ -46,8 +46,8 @@ bool check_block_first(const ngraph::Shape& shape_input, const ngraph::Shape& sh
     return is_transformation_valid;
 }
 
-bool check_depth_first(const ngraph::Shape& shape_input, const ngraph::Shape& shape_reshape_before,
-                       const ngraph::AxisVector& permutation, const ngraph::Shape& shape_reshape_after,
+bool check_depth_first(const std::vector<uint64_t>& shape_input, const std::vector<uint64_t>& shape_reshape_before,
+                       const std::vector<uint64_t>& permutation, const std::vector<uint64_t>& shape_reshape_after,
                        size_t& possible_block_size) {
     bool is_transformation_valid = true;
     uint64_t spatial_dims = shape_input.size() - 2;
@@ -57,7 +57,7 @@ bool check_depth_first(const ngraph::Shape& shape_input, const ngraph::Shape& sh
     uint64_t c_dim = shape_input[1] / std::pow(possible_block_size, spatial_dims);
 
     // x' = reshape(data, [N, C / (block_size ^ K), block_size, block_size, ..., block_size, D1, D2, ..., DK])
-    ngraph::Shape expected_shape = {shape_input[0], c_dim};
+    std::vector<uint64_t> expected_shape = {shape_input[0], c_dim};
     for (uint64_t i = 0; i < spatial_dims; ++i)
         expected_shape.push_back(possible_block_size);
     for (uint64_t i = 2; i < shape_input.size(); ++i)
@@ -65,7 +65,7 @@ bool check_depth_first(const ngraph::Shape& shape_input, const ngraph::Shape& sh
     is_transformation_valid &= (expected_shape == shape_reshape_before);
 
     // x'' = transpose(x', [0,  1,  K + 2, 2, K + 3, 3, K + 4, 4, ..., K + (K + 1), K + 1])
-    ngraph::AxisVector expected_permutation = {0, 1};
+    std::vector<uint64_t> expected_permutation = {0, 1};
     for (uint64_t i = 2; i < shape_input.size(); ++i) {
         expected_permutation.push_back(spatial_dims + i);
         expected_permutation.push_back(i);
@@ -126,13 +126,13 @@ void ngraph::pass::DepthToSpaceFusion::depth_to_space_fusion() {
         }
 
         // input shape: [ batch, C, spatial_dims], expected_shape = spatial_dims.size() * 2 + 2
-        size_t expected_shape_size = (shape_input.size() - 2) * 2 + 2;
+        uint64_t expected_shape_size = (shape_input.size() - 2) * 2 + 2;
         if (shape_input.size() != shape_reshape_after.size() || shape_reshape_before.size() != expected_shape_size ||
             shape_permute.size() != expected_shape_size) {
             return false;
         }
 
-        ngraph::AxisVector permutation;
+        std::vector<uint64_t> permutation;
         if (auto input_const = std::dynamic_pointer_cast<opset3::Constant>(permute->input_value(1).get_node_shared_ptr())) {
             permutation = input_const->get_axis_vector_val();
         } else {
