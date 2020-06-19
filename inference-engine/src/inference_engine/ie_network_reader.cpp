@@ -179,7 +179,9 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath, const std::string&
                     THROW_IE_EXCEPTION << "Weights file " << bPath << " cannot be opened!";
 
                 // read model with weights
-                return reader->read(modelStream, binStream, exts);
+                auto network = reader->read(modelStream, binStream, exts);
+                modelStream.close();
+                return network;
             }
             // read model without weights
             return reader->read(modelStream, exts);
