@@ -252,9 +252,3 @@ namespace ngraph
         };
     }
 }
-
-/// the following specializations are not usable but they allow the build pass on mac
-// template class InferenceEngine::TBlob<ngraph::bfloat16>;
-// template class InferenceEngine::TBlob<ngraph::float16>;
-// template class InferenceEngine::TBlob<unsigned int>;
-// template class InferenceEngine::TBlob<bool>;

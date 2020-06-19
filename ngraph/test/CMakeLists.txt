@@ -258,7 +258,6 @@ set_source_files_properties(includes.cpp PROPERTIES COMPILE_DEFINITIONS
 if (NGRAPH_IE_ENABLE)
     if (ENABLE_MKL_DNN)
         message(STATUS "NGRAPH_TESTS: IE:CPU enabled")
-        # should this backend be enabled unconditionally?
         set(ACTIVE_BACKEND_LIST ${ACTIVE_BACKEND_LIST} "IE:CPU")
     endif()
      if (ENABLE_CLDNN)

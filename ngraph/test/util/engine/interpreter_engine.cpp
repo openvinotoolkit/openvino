@@ -48,6 +48,15 @@ test::INTERPRETER_Engine test::INTERPRETER_Engine::dynamic(const std::shared_ptr
     return INTERPRETER_Engine{function, DynamicBackendTag{}};
 }
 
+void test::INTERPRETER_Engine::infer()
+{
+    const auto& function_results = m_function->get_results();
+    NGRAPH_CHECK(m_expected_outputs.size() == function_results.size(),
+                 "Expected number of outputs is different from the function's number "
+                 "of results.");
+    m_executable->call_with_validate(m_result_tensors, m_input_tensors);
+}
+
 testing::AssertionResult test::INTERPRETER_Engine::compare_results(const size_t tolerance_bits)
 {
     m_tolerance_bits = tolerance_bits;
