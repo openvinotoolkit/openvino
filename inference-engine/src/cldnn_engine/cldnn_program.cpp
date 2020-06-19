@@ -3518,10 +3518,21 @@ void Program::AddConstantBlobInput(cldnn::topology& topology, InferenceEngine::C
         return false;
     };
 
+    // WA to inconsistency between input and const 1d tensors
+    // For Concat along batch we go with batch interretation
+    bool concat_along_batch = false;
+    auto next = GetNextSingleLayer(layer->outData[0]);
+    if (constDims.size() == 1 && next->type == "Concat") {
+        auto nextConcat = tryAs<InferenceEngine::ConcatLayer*>(next);
+        if (nextConcat->_axis == 0) {
+            concat_along_batch = true;
+        }
+    }
+
     // If quantize on weights has per-channel ranges, we have to swap channel and batch dimensions, because
     // quantization should be applied per output channel of weights
     // TODO: Check if it's still needed once LowPrecisionTransformations ready
-    if (inputToConstQuantize(layer)) {
+    if (inputToConstQuantize(layer) || concat_along_batch) {
         constTensor.batch[0] = constTensor.count();
         constTensor.feature[0] = 1;
     }
