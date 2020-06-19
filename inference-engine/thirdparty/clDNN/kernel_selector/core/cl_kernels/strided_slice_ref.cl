@@ -1,4 +1,4 @@
-// Copyright (c) 2019 Intel Corporation
+// Copyright (c) 2019-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -50,12 +50,28 @@ KERNEL(strided_slice_ref)(const __global UNIT_TYPE* input, __global UNIT_TYPE* o
     const uint y = yx / OUTPUT_SIZE_X;
     const uint x = yx % OUTPUT_SIZE_X;
 #endif
+
+#if SHRINK_MODE
+    const uint in_indices[] = {INPUT_INDICES_ORDER};
+    const uint input_index = INPUT0_OFFSET +
+        (SLICE_BEGIN_BATCH + in_indices[0] * SLICE_STEPS_BATCH) * INPUT0_BATCH_PITCH +
+        (SLICE_BEGIN_FEATURE + in_indices[1] * SLICE_STEPS_FEATURE) * INPUT0_FEATURE_PITCH +
+    #if INPUT0_LAYOUT_BFZYX
+        (SLICE_BEGIN_Z + in_indices[2] * SLICE_STEPS_Z) * INPUT0_Z_PITCH +
+        (SLICE_BEGIN_Y + in_indices[3] * SLICE_STEPS_Y) * INPUT0_Y_PITCH +
+        (SLICE_BEGIN_X + in_indices[4] * SLICE_STEPS_X) * INPUT0_X_PITCH;
+    #else
+        (SLICE_BEGIN_Y + in_indices[2] * SLICE_STEPS_Y) * INPUT0_Y_PITCH +
+        (SLICE_BEGIN_X + in_indices[3] * SLICE_STEPS_X) * INPUT0_X_PITCH;
+    #endif
+#else // SHRINK_MODE
     const uint input_index = INPUT0_OFFSET +
             (SLICE_BEGIN_BATCH + batch * SLICE_STEPS_BATCH) * INPUT0_BATCH_PITCH +
             (SLICE_BEGIN_FEATURE + feature * SLICE_STEPS_FEATURE) * INPUT0_FEATURE_PITCH +
             (SLICE_BEGIN_Z + z * SLICE_STEPS_Z) * INPUT0_Z_PITCH +
             (SLICE_BEGIN_Y + y * SLICE_STEPS_Y) * INPUT0_Y_PITCH +
             (SLICE_BEGIN_X + x * SLICE_STEPS_X) * INPUT0_X_PITCH;
+#endif // SHRINK_MODE
 
     const uint output_index = OUTPUT_OFFSET +
             batch * OUTPUT_BATCH_PITCH +
