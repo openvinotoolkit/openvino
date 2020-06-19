@@ -47,8 +47,12 @@ def abs_path(relative_path):
 def parse_memcheck_log(log_path):
     """ Parse memcheck log
     """
-    with open(log_path, 'r') as log_file:
-        log = log_file.read()
+    try:
+        with open(log_path, 'r') as log_file:
+            log = log_file.read()
+    except FileNotFoundError:
+        # Skip read of broken files
+        return None
 
     passed_match = RE_GTEST_PASSED.search(log)
     failed_match = RE_GTEST_FAILED.search(log)
