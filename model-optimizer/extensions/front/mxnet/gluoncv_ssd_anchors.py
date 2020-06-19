@@ -13,6 +13,8 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
+import numpy as np
+
 from typing import Dict
 
 from extensions.front.mxnet.ssd_detection_output_replacer import SsdPatternDetectionOutputReplacer
@@ -23,13 +25,15 @@ from mo.front.common.replacement import FrontReplacementPattern
 from mo.front.tf.graph_utils import create_op_node_with_second_input
 from mo.graph.graph import Graph, Node
 from mo.graph.port import Port
+from mo.middle.passes.convert_data_type import data_type_str_to_np
 from mo.ops.concat import Concat
 from mo.ops.reshape import Reshape
 
 
 def get_coords(graph: Graph, value: Node, div_value_port: Port, add_value_port: Port):
+    dtype = data_type_str_to_np(graph.graph['cmd_params'].data_type)
     _min = Sub(graph, dict(name=value.name + '/Sub')).create_node()
-    div = create_op_node_with_second_input(graph, Div, int64_array([2]), op_attrs=dict(name=value.name + '/Div'))
+    div = create_op_node_with_second_input(graph, Div, np.array([2], dtype=dtype), op_attrs=dict(name=value.name + '/Div'))
     div.in_port(0).connect(div_value_port)
     _min.in_port(0).connect(add_value_port)
     _min.in_port(1).connect(div.out_port(0))
