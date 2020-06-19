@@ -51,13 +51,14 @@ struct jit_uni_logistic_kernel_f32 : public jit_uni_logistic_kernel, public jit_
         mov(reg_table, l_table);
 
         Xbyak::Label main_loop_label;
+        Xbyak::Label main_loop_end_label;
         Xbyak::Label tail_loop_label;
         Xbyak::Label exit_label;
 
         int step = vlen / sizeof(float);
         L(main_loop_label); {
             cmp(reg_work_amount, step);
-            jl(tail_loop_label, T_NEAR);
+            jl(main_loop_end_label, T_NEAR);
 
             uni_vmovups(vmm_src, ptr[reg_src]);
             compute_kernel();
@@ -69,6 +70,7 @@ struct jit_uni_logistic_kernel_f32 : public jit_uni_logistic_kernel, public jit_
 
             jmp(main_loop_label, T_NEAR);
         }
+        L(main_loop_end_label);
 
         step = 1;
         L(tail_loop_label); {
@@ -85,7 +87,6 @@ struct jit_uni_logistic_kernel_f32 : public jit_uni_logistic_kernel, public jit_
 
             jmp(tail_loop_label, T_NEAR);
         }
-
         L(exit_label);
 
         this->postamble();
