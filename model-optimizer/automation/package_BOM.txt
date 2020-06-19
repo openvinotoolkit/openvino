@@ -144,6 +144,7 @@ extensions/front/image_scaler.py
 extensions/front/input_cut.py
 extensions/front/instance_normalization.py
 extensions/front/InterpolateNormalizer.py
+extensions/front/InterpolateV1ToInterpolateV3.py
 extensions/front/kaldi/__init__.py
 extensions/front/kaldi/add_permute_after_convolution.py
 extensions/front/kaldi/add_reshape_around_convolution.py
