@@ -13,7 +13,7 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-
+import numpy as np
 import unittest
 
 from extensions.front.mxnet.gluoncv_ssd_anchors import SsdAnchorsReplacer
@@ -35,9 +35,9 @@ nodes_attributes = {
     'value': {'kind': 'op', 'op': 'Split', 'num_splits': 4},
     'value_const': {'kind': 'op', 'op': 'Const', 'value': int64_array(1)},
     'div_1': {'kind': 'op', 'op': 'Div'},
-    'div_1_const': {'kind': 'op', 'op': 'Const', 'value': int64_array([2])},
+    'div_1_const': {'kind': 'op', 'op': 'Const', 'value': np.array([2], dtype=np.float32)},
     'div_2': {'kind': 'op', 'op': 'Div'},
-    'div_2_const': {'kind': 'op', 'op': 'Const', 'value': int64_array([2])},
+    'div_2_const': {'kind': 'op', 'op': 'Const', 'value': np.array([2], dtype=np.float32)},
     'xmin': {'kind': 'op', 'op': 'Sub'},
     'ymin': {'kind': 'op', 'op': 'Sub'},
     'xmax': {'kind': 'op', 'op': 'Add'},
@@ -106,6 +106,7 @@ class SsdAnchorsReplacerTest(unittest.TestCase):
             nodes_with_edges_only=True
         )
         graph.stage = 'front'
+        graph.graph['cmd_params'].data_type = 'FP32'
         SsdAnchorsReplacer().find_and_replace_pattern(graph)
         flag, resp = compare_graphs(graph, ref_graph, 'detection_output', check_op_attrs=True)
         self.assertTrue(flag, resp)
