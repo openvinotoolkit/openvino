@@ -139,29 +139,17 @@ namespace
 
         switch (input->get_element_type())
         {
-            TYPE_CASE(i8)(input, output);
-            break;
-            TYPE_CASE(i16)(input, output);
-            break;
             TYPE_CASE(i32)(input, output);
             break;
             TYPE_CASE(i64)(input, output);
-            break;
-            TYPE_CASE(u8)(input, output);
-            break;
-            TYPE_CASE(u16)(input, output);
             break;
             TYPE_CASE(u32)(input, output);
             break;
             TYPE_CASE(u64)(input, output);
             break;
-            TYPE_CASE(bf16)(input, output);
-            break;
             TYPE_CASE(f16)(input, output);
             break;
             TYPE_CASE(f32)(input, output);
-            break;
-            TYPE_CASE(f64)(input, output);
             break;
         default: rc = false; break;
         }

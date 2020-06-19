@@ -127,7 +127,7 @@ option(NGRAPH_WARNINGS_AS_ERRORS "Make all nGraph compile-time warnings into err
 option(NGRAPH_ADDRESS_SANITIZER_ENABLE "Compiles and links with Address Sanitizer" FALSE)
 option(NGRAPH_THREAD_SANITIZER_ENABLE "Compiles and links with Thread Sanitizer" FALSE)
 option(NGRAPH_UB_SANITIZER_ENABLE "Compiles and links with Undefined Behavior Sanitizer" FALSE)
-option(NGRAPH_EVALUATE_ENABLE "Enable compilation of reference implementations for operations" FALSE)
+option(NGRAPH_EVALUATE_ENABLE "Enable compilation of reference implementations for operations" TRUE)
 
 if (NGRAPH_ONNX_IMPORT_ENABLE)
     option(NGRAPH_USE_SYSTEM_PROTOBUF "Use system provided Protobuf shared object" FALSE)

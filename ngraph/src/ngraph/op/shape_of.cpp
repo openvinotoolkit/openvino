@@ -78,17 +78,9 @@ namespace
         output_value->set_shape(Shape{shape.size()});
         switch (output_value->get_element_type())
         {
-            TYPE_CASE(i8)(shape, output_value);
-            break;
-            TYPE_CASE(i16)(shape, output_value);
-            break;
             TYPE_CASE(i32)(shape, output_value);
             break;
             TYPE_CASE(i64)(shape, output_value);
-            break;
-            TYPE_CASE(u8)(shape, output_value);
-            break;
-            TYPE_CASE(u16)(shape, output_value);
             break;
             TYPE_CASE(u32)(shape, output_value);
             break;
