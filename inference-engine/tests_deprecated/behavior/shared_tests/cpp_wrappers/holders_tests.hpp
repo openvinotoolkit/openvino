@@ -3,8 +3,7 @@
 //
 
 #include <gtest/gtest.h>
-#include <cpp/ie_plugin_cpp.hpp>
-#include <cpp/ie_cnn_net_reader.h>
+#include <ie_core.hpp>
 
 #include "common_test_utils/xml_net_builder/xml_net_builder.hpp"
 

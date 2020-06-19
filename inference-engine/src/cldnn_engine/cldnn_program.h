@@ -15,7 +15,6 @@
 #include <cpp/ie_cnn_network.h>
 #include <cpp_interfaces/exception2status.hpp>
 #include <ie_blob.h>
-#include <ie_plugin.hpp>
 
 #include "debug_options.h"
 #include "cldnn_custom_layer.h"

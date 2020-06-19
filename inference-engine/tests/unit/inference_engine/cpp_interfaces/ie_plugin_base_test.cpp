@@ -6,7 +6,7 @@
 #include <gmock/gmock-spec-builders.h>
 
 #include <ie_version.hpp>
-#include <cpp/ie_plugin_cpp.hpp>
+#include <ie_plugin_cpp.hpp>
 #include <cpp_interfaces/base/ie_plugin_base.hpp>
 
 #include "unit_test_utils/mocks/cpp_interfaces/mock_plugin_impl.hpp"

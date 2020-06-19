@@ -13,19 +13,16 @@
 
 #include "details/ie_so_pointer.hpp"
 #include "ie_extension.h"
-#include "ie_plugin.hpp"
+#include "cpp_interfaces/interface/ie_plugin.hpp"
 
 namespace InferenceEngine {
 namespace details {
 
-IE_SUPPRESS_DEPRECATED_START
-
 /**
- * @deprecated Use InferenceEngine::Core instead. This API will be removed in 2021.1 release.
  * @brief This class defines the name of the fabric for creating an IInferencePlugin object in DLL
  */
 template <>
-class INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::Core instead") SOCreatorTrait<IInferencePlugin> {
+class SOCreatorTrait<IInferencePlugin> {
 public:
     /**
      * @brief A name of the fabric for creating IInferencePlugin object in DLL
@@ -41,7 +38,5 @@ public:
  * Implements different interfaces.
  */
 using InferenceEnginePluginPtr = InferenceEngine::details::SOPointer<IInferencePlugin>;
-
-IE_SUPPRESS_DEPRECATED_END
 
 }  // namespace InferenceEngine

@@ -27,11 +27,9 @@
 namespace InferenceEngine {
 
 /**
- * @deprecated Use InferenceEngine::Core instead. Will be removed in 2021.1
  * @brief This class is a main plugin interface
  */
-class INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::Core instead. Will be removed in 2021.1")
-    INFERENCE_ENGINE_API_CLASS(IInferencePlugin)
+class INFERENCE_ENGINE_API_CLASS(IInferencePlugin)
     : public details::IRelease {
 public:
     /**
@@ -113,8 +111,6 @@ public:
  * @param resp Pointer to the response message that holds a description of an error if any occurred
  * @return Status code of the operation. InferenceEngine::OK if succeeded
  */
-IE_SUPPRESS_DEPRECATED_START
 INFERENCE_PLUGIN_API(StatusCode) CreatePluginEngine(IInferencePlugin*& plugin, ResponseDesc* resp) noexcept;
-IE_SUPPRESS_DEPRECATED_END
 
 }  // namespace InferenceEngine

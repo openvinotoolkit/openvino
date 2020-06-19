@@ -19,7 +19,6 @@
 #include "ie_format_parser.h"
 #include "ie_ir_parser.hpp"
 #include "ie_profiling.hpp"
-#include "ie_plugin.hpp"
 #include "parsers.h"
 #include "xml_parse_utils.h"
 
