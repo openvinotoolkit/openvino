@@ -52,6 +52,7 @@ namespace
                   const HostTensorPtr& out,
                   const op::AutoBroadcastSpec& broadcast_spec)
     {
+        std::cout << "AA 12" << std::endl;
         runtime::reference::logical_and(arg0->get_data_ptr<ET>(),
                                         arg1->get_data_ptr<ET>(),
                                         out->get_data_ptr<ET>(),
@@ -104,6 +105,7 @@ namespace
 
 bool op::v1::LogicalAnd::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
 {
+    std::cout << "AA 13" << std::endl;
     return evaluate_logand(inputs[0], inputs[1], outputs[0], get_autob());
 }
 #endif
@@ -133,6 +135,7 @@ shared_ptr<Node> op::v0::And::clone_with_new_inputs(const OutputVector& new_args
 #ifdef NGRAPH_EVALUATE_ENABLE
 bool op::v0::And::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
 {
+    std::cout << "AA 14" << std::endl;
     return evaluate_logand(inputs[0], inputs[1], outputs[0], get_autob());
 }
 #endif

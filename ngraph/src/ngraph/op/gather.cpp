@@ -219,6 +219,7 @@ namespace
                   const HostTensorPtr& out,
                   size_t axis)
     {
+        std::cout << "AA 60" << std::endl;
         using T = typename element_type_traits<ET>::value_type;
         Shape params_shape = arg0->get_shape();
         Shape indices_shape = arg1->get_shape();
@@ -311,12 +312,14 @@ namespace
 #ifdef NGRAPH_EVALUATE_ENABLE
 bool op::v0::Gather::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
 {
+    std::cout << "AA 61" << std::endl;
     return evaluate_gather(inputs[0], inputs[1], outputs[0], get_axis());
 }
 #endif
 
 bool op::v1::Gather::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
 {
+    std::cout << "AA 62" << std::endl;
     int64_t axis = 0;
     switch (inputs[2]->get_element_type())
     {

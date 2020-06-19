@@ -188,6 +188,7 @@ bool op::v3::Broadcast::visit_attributes(AttributeVisitor& visitor)
 
 bool op::v3::Broadcast::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
 {
+    std::cout << "AA 23" << std::endl;
     if (get_broadcast_spec().m_type == op::BroadcastType::BIDIRECTIONAL)
     {
         auto arg_shape = inputs[0]->get_shape();
@@ -266,6 +267,7 @@ bool op::v1::Broadcast::visit_attributes(AttributeVisitor& visitor)
 
 bool op::v1::Broadcast::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
 {
+    std::cout << "AA 25" << std::endl;
     return op::util::BroadcastBase::evaluate(outputs, inputs);
 }
 
@@ -278,6 +280,7 @@ op::v0::Broadcast::Broadcast(const OutputVector& args,
     , m_shape(shape)
     , m_broadcast_axes(broadcast_axes)
 {
+    std::cout << "AA 26" << std::endl;
     constructor_validate_and_infer_types();
 }
 
@@ -417,6 +420,7 @@ namespace
 
 bool op::v0::Broadcast::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
 {
+    std::cout << "AA 27" << std::endl;
     return evaluate_broadcast_v0(inputs[0], outputs[0], get_broadcast_axes(), get_output_shape(0));
 }
 

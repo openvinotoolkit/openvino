@@ -57,6 +57,7 @@ namespace
     template <element::Type_t ET>
     inline bool evaluate(const HostTensorPtr& arg0, const HostTensorPtr& out, const size_t count)
     {
+        std::cout << "AA 75" << std::endl;
         using T = typename element_type_traits<ET>::value_type;
         runtime::reference::log<T>(arg0->get_data_ptr<ET>(), out->get_data_ptr<ET>(), count);
         return true;
@@ -103,6 +104,7 @@ namespace
 
 bool op::Log::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
 {
+    std::cout << "AA 76" << std::endl;
     return evaluate_log(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }
 #endif

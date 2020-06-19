@@ -145,6 +145,7 @@ namespace
                   const HostTensorPtr& out,
                   const int64_t normalized_axis)
     {
+        std::cout << "AA 128" << std::endl;
         using DataType = typename element_type_traits<DT>::value_type;
         using IndicesType = typename element_type_traits<IT>::value_type;
 
@@ -172,6 +173,7 @@ namespace
                   const HostTensorPtr& out,
                   const int64_t normalized_axis)
     {
+        std::cout << "AA 129" << std::endl;
         auto axis_type = arg3->get_element_type();
 
         // Dispatch specialization based on axis data type.
@@ -211,6 +213,7 @@ namespace
                   const HostTensorPtr& out,
                   const int64_t normalized_axis)
     {
+        std::cout << "AA 130" << std::endl;
         auto indices_type = arg1->get_element_type();
 
         // Dispatch specialization based on indicies data type.
@@ -283,6 +286,7 @@ namespace
 bool op::v3::ScatterElementsUpdate::evaluate(const HostTensorVector& outputs,
                                              const HostTensorVector& inputs)
 {
+    std::cout << "AA 131" << std::endl;
     int64_t axis = 0;
     switch (inputs[3]->get_element_type())
     {

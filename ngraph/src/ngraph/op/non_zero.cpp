@@ -118,6 +118,7 @@ namespace
     template <element::Type_t INPUT_ET>
     bool evaluate(const HostTensorPtr& input, const HostTensorPtr& output)
     {
+        std::cout << "AA 97" << std::endl;
         bool rc = true;
         switch (output->get_element_type())
         {
@@ -171,6 +172,7 @@ namespace
 
 bool op::v3::NonZero::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
 {
+    std::cout << "AA 98" << std::endl;
     return evaluate_nonzero(inputs[0], outputs[0]);
 }
 #endif

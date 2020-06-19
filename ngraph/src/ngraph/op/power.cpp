@@ -68,6 +68,7 @@ namespace
                   const HostTensorPtr& out,
                   const op::AutoBroadcastSpec& broadcast_spec)
     {
+        std::cout << "AA 108" << std::endl;
         runtime::reference::power(arg0->get_data_ptr<ET>(),
                                   arg1->get_data_ptr<ET>(),
                                   out->get_data_ptr<ET>(),
@@ -119,6 +120,7 @@ namespace
 #ifdef NGRAPH_EVALUATE_ENABLE
 bool op::v0::Power::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
 {
+    std::cout << "AA 109" << std::endl;
     return evaluate_power(inputs[0], inputs[1], outputs[0], get_autob());
 }
 #endif
@@ -161,5 +163,6 @@ void op::v1::Power::generate_adjoints(autodiff::Adjoints& adjoints, const Output
 
 bool op::v1::Power::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
 {
+    std::cout << "AA 110" << std::endl;
     return evaluate_power(inputs[0], inputs[1], outputs[0], get_autob());
 }

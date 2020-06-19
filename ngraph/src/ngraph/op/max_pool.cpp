@@ -520,6 +520,7 @@ namespace
                          const Shape& padding_below,
                          const Shape& padding_above)
     {
+        std::cout << "AA 83" << std::endl;
         using T = typename element_type_traits<ET>::value_type;
         out->set_shape(out_shape);
         runtime::reference::max_pool<T>(arg->get_data_ptr<ET>(),
@@ -578,6 +579,7 @@ namespace
 
 bool op::v0::MaxPool::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
 {
+    std::cout << "AA 84" << std::endl;
     auto arg_shape = inputs[0]->get_partial_shape();
     auto padding_below_s = get_padding_below();
     auto padding_above_s = get_padding_above();
@@ -603,6 +605,7 @@ bool op::v0::MaxPool::evaluate(const HostTensorVector& outputs, const HostTensor
 
 bool op::v1::MaxPool::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
 {
+    std::cout << "AA 85" << std::endl;
     auto arg_shape = inputs[0]->get_partial_shape();
     auto pads_begin_s = get_pads_begin();
     auto pads_end_s = get_pads_end();
