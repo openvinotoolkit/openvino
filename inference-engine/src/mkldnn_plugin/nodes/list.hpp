@@ -51,12 +51,13 @@ class MKLDNNExtensions : public IExtension {
 public:
     MKLDNNExtensions();
 
-    StatusCode getPrimitiveTypes(char**& types, unsigned int& size, ResponseDesc* resp) noexcept {
+    virtual StatusCode
+    getPrimitiveTypes(char**& types, unsigned int& size, ResponseDesc* resp) noexcept {
         collectTypes(types, size, extensionsHolder->list);
         return OK;
     }
 
-    StatusCode
+    virtual StatusCode
     getFactoryFor(ILayerImplFactory*& factory, const CNNLayer* cnnLayer, ResponseDesc* resp) noexcept {
         auto& factories = extensionsHolder->list;
         if (factories.find(cnnLayer->type) == factories.end()) {

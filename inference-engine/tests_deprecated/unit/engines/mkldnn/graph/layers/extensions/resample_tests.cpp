@@ -38,6 +38,8 @@ static inline float triangleCoeff(float x) {
     return max(0.0f, 1 - std::abs(x));
 }
 
+extern InferenceEngine::IExtensionPtr make_FakeExtensions();
+
 template <typename data_t>
 void ref_resample(const InferenceEngine::TBlob<data_t> &src, InferenceEngine::TBlob<data_t> &dst, resample_test_params prm) {
     const data_t *src_data = src.readOnly();
@@ -251,6 +253,7 @@ protected:
             MKLDNNPlugin::MKLDNNExtensionManager::Ptr extMgr(new MKLDNNPlugin::MKLDNNExtensionManager());
             auto defaultExtensions = std::make_shared<InferenceEngine::Extensions::Cpu::MKLDNNExtensions>();
             extMgr->AddExtension(defaultExtensions);
+            extMgr->AddExtension(make_FakeExtensions());
 
             InferenceEngine::Core core;
             InferenceEngine::CNNNetwork network;

@@ -45,6 +45,8 @@ struct normalize_test_params {
     std::vector<std::function<void(MKLDNNPlugin::PrimitiveDescInfo)>> comp;
 };
 
+extern InferenceEngine::IExtensionPtr make_FakeExtensions();
+
 template <typename data_t>
 void ref_normalize(const InferenceEngine::TBlob<data_t> &src, InferenceEngine::TBlob<data_t> &dst, normalize_test_params prm, const float *weights) {
     int B = static_cast<int>(src.getTensorDesc().getDims()[0]);
@@ -210,6 +212,7 @@ protected:
             MKLDNNPlugin::MKLDNNExtensionManager::Ptr extMgr(new MKLDNNPlugin::MKLDNNExtensionManager());
             auto defaultExtensions = std::make_shared<InferenceEngine::Extensions::Cpu::MKLDNNExtensions>();
             extMgr->AddExtension(defaultExtensions);
+            extMgr->AddExtension(make_FakeExtensions());
 
             size_t weightSize = p.in.c*sizeof(float);
             InferenceEngine::TBlob<uint8_t> *weights = new InferenceEngine::TBlob<uint8_t>({ InferenceEngine::Precision::U8,

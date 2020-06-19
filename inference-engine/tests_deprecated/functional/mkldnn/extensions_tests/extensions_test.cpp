@@ -23,10 +23,44 @@ struct extension_params {
     std::map<std::string, std::string> config;
 };
 
+class FakePrimitiveImpl : public InferenceEngine::ILayerExecImpl {
+public:
+    FakePrimitiveImpl(const InferenceEngine::CNNLayer *layer) {
+        cnnLayer = const_cast<InferenceEngine::CNNLayer *>(layer);
+    }
+    InferenceEngine::StatusCode getSupportedConfigurations(std::vector<InferenceEngine::LayerConfig>& conf, InferenceEngine::ResponseDesc *resp) noexcept override {
+        InferenceEngine::LayerConfig config;
+        config.dynBatchSupport = true;
+        if (cnnLayer->outData.size() != 1 && cnnLayer->insData.size() != 1)
+            return InferenceEngine::GENERAL_ERROR;
+        InferenceEngine::DataConfig cfg;
+        cfg.constant = false;
+        cfg.inPlace = 0;
+        InferenceEngine::SizeVector order;
+        for(size_t i = 0; i < cnnLayer->outData[0]->getTensorDesc().getDims().size(); i++) {
+            order.push_back(i);
+        }
+        cfg.desc = InferenceEngine::TensorDesc(cnnLayer->outData[0]->getTensorDesc().getPrecision(),
+                                               cnnLayer->outData[0]->getTensorDesc().getDims(),
+                                               {cnnLayer->outData[0]->getTensorDesc().getDims(), order});
+        config.outConfs.push_back(cfg);
+        config.inConfs.push_back(cfg);
+        conf.push_back(config);
+        return InferenceEngine::OK;
+    }
+    InferenceEngine::StatusCode init(InferenceEngine::LayerConfig& config, InferenceEngine::ResponseDesc *resp) noexcept override {
+        return InferenceEngine::OK;
+    }
+    InferenceEngine::StatusCode execute(std::vector<InferenceEngine::Blob::Ptr>& inputs, std::vector<InferenceEngine::Blob::Ptr>& outputs, InferenceEngine::ResponseDesc *resp) noexcept override {
+        return InferenceEngine::OK;
+    }
+
+private:
+    InferenceEngine::CNNLayer* cnnLayer;
+};
+
 class TestExtension : public InferenceEngine::IExtension {
 public:
-    TestExtension() {
-    }
     void Release() noexcept override { delete this; }
 
     void GetVersion(const InferenceEngine::Version *&versionInfo) const noexcept override
@@ -36,7 +70,6 @@ public:
     }
 
     void Unload() noexcept override {}
-private:
 };
 
 class NewFakePrimitiveImpl : public InferenceEngine::ILayerExecImpl {
