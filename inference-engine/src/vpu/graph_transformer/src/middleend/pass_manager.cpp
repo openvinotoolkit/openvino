@@ -111,13 +111,6 @@ PassSet::Ptr PassManager::buildMiddleEnd() {
     ADD_PASS(addCopyForOutputsInsideNetwork);
     ADD_DUMP_PASS("addCopyForOutputsInsideNetwork");
 
-    // MyriadInferRequest::GetResult expects output shape data object
-    // to be in IE notation in case of dynamic data object
-    // propagateDynamismToOutputs must be applied after convertShapeNotation
-    // and addCopyForOutputsInsideNetwork to mark shape in IE notation, not MDK notation as output
-    ADD_PASS(propagateDynamismToOutputs);
-    ADD_DUMP_PASS("propagateDynamismToOutputs");
-
     ADD_PASS(initialCheck);
 
     //
@@ -293,6 +286,23 @@ PassSet::Ptr PassManager::buildMiddleEnd() {
 
     ADD_PASS(processSpecialStages);
     ADD_DUMP_PASS("processSpecialStages");
+
+    //
+    // Propagation dynamism from input to output and from output to input
+    // for inserted stages at frontend and middleend.
+    //
+
+    // propagateDynamism must be applied after convertShapeNotation
+    // and addCopyForOutputsInsideNetwork to mark shape in IE notation, not MDK notation as output
+    // and it is processed after all passes include specialStageProcessor to
+    // propagate dynamism for copy stages which are added in passes above.
+    // Also it is needed allocateResources after propagation to connect datas with shapes
+
+    // In cases of dynamic network output MyriadInferRequest::GetResult expects output shape data
+    // object to be in IE notation in case of dynamic data object.
+
+    ADD_PASS(propagateDynamism);
+    ADD_DUMP_PASS("propagateDynamism");
 
     //
     // Data location adjustment
