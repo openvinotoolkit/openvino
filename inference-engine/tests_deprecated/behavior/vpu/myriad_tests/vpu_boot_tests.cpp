@@ -61,19 +61,11 @@ TEST_P(MYRIADBoot, DISABLED_ConnectToAlreadyBootedDevice) {
     bootOneDevice();
     ASSERT_EQ(getAmountOfBootedDevices(), 1);
     {
-        InferenceEnginePluginPtr plugin(make_plugin_name(GetParam().pluginName));
-        CNNNetReader reader;
-        reader.ReadNetwork(GetParam().model_xml_str.data(), GetParam().model_xml_str.length());
-
-        CNNNetwork network = reader.getNetwork();
-        ExecutableNetwork ret;
-
-        sts = plugin->LoadNetwork(ret, network, {
-                {KEY_LOG_LEVEL, LOG_DEBUG},
-                {KEY_VPU_MYRIAD_WATCHDOG, NO},
-        }, &response);
-
-        ASSERT_NE(StatusCode::OK, sts) << response.msg;
+        Core ie;
+        CNNNetwork network = ie.ReadNetwork(GetParam().model_xml_str, Blob::CPtr());
+        ExecutableNetwork net = ie.LoadNetwork(network, GetParam().device,
+            { {KEY_LOG_LEVEL, LOG_DEBUG},
+              {KEY_VPU_MYRIAD_WATCHDOG, NO} });
 
         ASSERT_EQ(getAmountOfBootedDevices(), 1);
     }
@@ -89,19 +81,11 @@ TEST_P(MYRIADBoot, DISABLED_OpenNotBootedDevice) {
     bootOneDevice();
     ASSERT_EQ(getAmountOfBootedDevices(), 1);
     {
-        InferenceEnginePluginPtr plugin(make_plugin_name(GetParam().pluginName));
-        CNNNetReader reader;
-        reader.ReadNetwork(GetParam().model_xml_str.data(), GetParam().model_xml_str.length());
-
-        CNNNetwork network = reader.getNetwork();
-        ExecutableNetwork ret;
-
-        sts = plugin->LoadNetwork(ret, network, {
-                {KEY_LOG_LEVEL, LOG_DEBUG},
-                {KEY_VPU_MYRIAD_WATCHDOG, NO},
-        }, &response);
-
-        ASSERT_NE(StatusCode::OK, sts) << response.msg;
+        Core ie;
+        CNNNetwork network = ie.ReadNetwork(GetParam().model_xml_str, Blob::CPtr());
+        ExecutableNetwork net = ie.LoadNetwork(network, GetParam().device,
+            { {KEY_LOG_LEVEL, LOG_DEBUG},
+              {KEY_VPU_MYRIAD_WATCHDOG, NO} });
 
         ASSERT_EQ(getAmountOfBootedDevices(), 2);
     }

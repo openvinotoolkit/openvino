@@ -16,7 +16,6 @@
 #include <mutex>
 
 #include <ngraph/opsets/opset.hpp>
-#include "cpp/ie_cnn_net_reader.h"
 #include "ie_plugin_cpp.hpp"
 #include "cpp_interfaces/base/ie_plugin_base.hpp"
 #include "details/ie_exception_conversion.hpp"
@@ -126,11 +125,6 @@ Parameter copyParameterValue(const Parameter & value) {
 }
 
 }  // namespace
-
-CNNNetReaderPtr CreateCNNNetReaderPtr() noexcept {
-    auto loader = createCnnReaderLoader();
-    return CNNNetReaderPtr(loader);
-}
 
 IE_SUPPRESS_DEPRECATED_END
 
