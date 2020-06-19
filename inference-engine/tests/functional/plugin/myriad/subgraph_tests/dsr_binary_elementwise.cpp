@@ -2,87 +2,108 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "dsr_tests_common.hpp"
+
 #include <functional_test_utils/layer_test_utils.hpp>
 #include <ngraph_functions/builders.hpp>
 #include <vpu/ngraph/operations/dynamic_shape_resolver.hpp>
 
 namespace {
 
-using DataType = ngraph::element::Type_t;
-using DataDims = ngraph::Shape;
+using namespace LayerTestsUtils::vpu;
 
-using Parameters = std::tuple<
+struct BinaryEltwiseShapes {
+    DataShapeWithUpperBound inputShape0;
+    DataShapeWithUpperBound inputShape1;
+};
+
+using BinaryElementwiseParameters = std::tuple<
     DataType,
-    DataDims,
-    DataDims,
+    BinaryEltwiseShapes,
     ngraph::NodeTypeInfo,
     LayerTestsUtils::TargetDevice
 >;
 
-class DSR_BinaryElementwise : public testing::WithParamInterface<Parameters>,
-        public LayerTestsUtils::LayerTestsCommon {
+class DSR_BinaryElementwiseBase : public testing::WithParamInterface<BinaryElementwiseParameters>,
+                                  public DSR_TestsCommon {
 protected:
-    void SetUp() override {
-        const auto& parameters = GetParam();
-        const auto& dataType = std::get<0>(parameters);
-        const auto& dataDims0 = std::get<1>(parameters);
-        const auto& dataDims1 = std::get<2>(parameters);
-        const auto& eltwiseType = std::get<3>(parameters);
-        targetDevice = std::get<4>(parameters);
+    ngraph::NodeTypeInfo m_eltwiseType{};
+    DataType m_inDataType = ngraph::element::dynamic;
 
-        const auto input0 = std::make_shared<ngraph::opset3::Parameter>(dataType, dataDims0);
-        const auto input1 = std::make_shared<ngraph::opset3::Parameter>(dataType, dataDims1);
-
-        const auto input0_const = ngraph::opset3::Constant::create(ngraph::element::i64, {dataDims0.size()}, dataDims0);
-        const auto input1_const = ngraph::opset3::Constant::create(ngraph::element::i64, {dataDims1.size()}, dataDims1);
-
-        const auto dsr0 = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(input0, input0_const);
-        const auto dsr1 = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(input1, input1_const);
-
-        const auto eltwise = ngraph::helpers::getNodeSharedPtr(eltwiseType, {dsr0, dsr1});
-
-        function = std::make_shared<ngraph::Function>(
-            ngraph::NodeVector{eltwise},
-            ngraph::ParameterVector{input0, input1},
-            eltwiseType.name);
+    InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &info) const override {
+        // Avoid division by zero
+        const auto opForWhichAvoidingIsNecessary =
+                m_eltwiseType == ngraph::opset3::Divide::type_info ||
+                m_eltwiseType == ngraph::opset3::Power::type_info;
+        const auto isDataInput = m_shapes.find(info.name()) == m_shapes.end();
+        if (opForWhichAvoidingIsNecessary && isDataInput) {
+            return FuncTestUtils::createAndFillBlob(info.getTensorDesc(), 5, 1, 1);
+        }
+        return DSR_TestsCommon::GenerateInput(info);
     }
 };
 
-class DSR_BinaryElementwiseSingleDSR : public testing::WithParamInterface<Parameters>,
-        public LayerTestsUtils::LayerTestsCommon {
+class DSR_BinaryElementwise : public DSR_BinaryElementwiseBase {
 protected:
-    void SetUp() override {
+    std::shared_ptr<ngraph::Node> createTestedOp() override {
         const auto& parameters = GetParam();
-        const auto& dataType = std::get<0>(parameters);
-        const auto& dataDims0 = std::get<1>(parameters);
-        const auto& dataDims1 = std::get<2>(parameters);
-        const auto& eltwiseType = std::get<3>(parameters);
-        targetDevice = std::get<4>(parameters);
+        m_inDataType = std::get<0>(parameters);
+        const auto& inDataShapes = std::get<1>(parameters);
+        m_eltwiseType = std::get<2>(parameters);
+        targetDevice = std::get<3>(parameters);
 
-        const auto input0 = std::make_shared<ngraph::opset3::Parameter>(dataType, dataDims0);
-        const auto input1 = std::make_shared<ngraph::opset3::Parameter>(dataType, dataDims1);
+        const auto inputSubgraph0 = createInputSubgraphWithDSR(m_inDataType, inDataShapes.inputShape0);
+        const auto inputSubgraph1 = createInputSubgraphWithDSR(m_inDataType, inDataShapes.inputShape1);
 
-        const auto input0_const = ngraph::opset3::Constant::create(ngraph::element::i64, {dataDims0.size()}, dataDims0);
-        const auto dsr0 = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(input0, input0_const);
+        const auto eltwise = ngraph::helpers::getNodeSharedPtr(m_eltwiseType, {inputSubgraph0, inputSubgraph1});
 
-        const auto eltwise = ngraph::helpers::getNodeSharedPtr(eltwiseType, {dsr0, input1});
-
-        function = std::make_shared<ngraph::Function>(
-            ngraph::NodeVector{eltwise},
-            ngraph::ParameterVector{input0, input1},
-            eltwiseType.name);
+        return eltwise;
     }
+};
+
+class DSR_BinaryElementwiseSingleDSR : public DSR_BinaryElementwiseBase {
+protected:
+    std::shared_ptr<ngraph::Node> createTestedOp() override {
+        const auto& parameters = GetParam();
+        m_inDataType = std::get<0>(parameters);
+        const auto& inDataShapes = std::get<1>(parameters);
+        m_eltwiseType = std::get<2>(parameters);
+        targetDevice = std::get<3>(parameters);
+
+        const auto inputSubgraph0 = createInputSubgraphWithDSR(m_inDataType, inDataShapes.inputShape0);
+        const auto input1 = std::make_shared<ngraph::opset3::Parameter>(m_inDataType, inDataShapes.inputShape1.shape);
+        m_parameterVector.push_back(input1);
+
+        const auto eltwise = ngraph::helpers::getNodeSharedPtr(m_eltwiseType, {inputSubgraph0, input1});
+
+        return eltwise;
+    }
+};
+
+static const std::set<ngraph::NodeTypeInfo> doNotSupportI32 = {
+        ngraph::opset3::Power::type_info,
+        ngraph::opset3::Equal::type_info,
+        ngraph::opset3::Greater::type_info,
 };
 
 TEST_P(DSR_BinaryElementwise, CompareWithReference) {
+    if (doNotSupportI32.count(m_eltwiseType) && m_inDataType == ngraph::element::i32) {
+        SKIP() << "Eltwise Power doesn't support int32_t inputs" << std::endl;
+    }
+
     Run();
 }
 
-INSTANTIATE_TEST_CASE_P(DISABLED_DynamicBinaryElementwise, DSR_BinaryElementwise,
+std::vector<BinaryEltwiseShapes> dataShapesWithUpperBound = {
+        { DataShapeWithUpperBound{DataShape{800, 4}, DataShape{1000, 6}},
+          DataShapeWithUpperBound{DataShape{800, 4}, DataShape{1000, 6}}
+        },
+};
+
+INSTANTIATE_TEST_CASE_P(DynamicBinaryElementwise, DSR_BinaryElementwise,
     ::testing::Combine(
         ::testing::Values(ngraph::element::f16, ngraph::element::f32, ngraph::element::i32),
-        ::testing::Values(ngraph::Shape{1}, ngraph::Shape{1, 1}, ngraph::Shape{1, 1, 1}),
-        ::testing::Values(ngraph::Shape{100}, ngraph::Shape{100, 1}, ngraph::Shape{100, 100}),
+        ::testing::ValuesIn(dataShapesWithUpperBound),
         ::testing::Values(ngraph::opset3::Add::type_info,
                           ngraph::opset3::Multiply::type_info,
                           ngraph::opset3::Divide::type_info,
@@ -93,20 +114,29 @@ INSTANTIATE_TEST_CASE_P(DISABLED_DynamicBinaryElementwise, DSR_BinaryElementwise
         ::testing::Values(CommonTestUtils::DEVICE_MYRIAD)));
 
 TEST_P(DSR_BinaryElementwiseSingleDSR, CompareWithReference) {
+    if (doNotSupportI32.count(m_eltwiseType) && m_inDataType == ngraph::element::i32) {
+        SKIP() << "Eltwise Power doesn't support int32_t inputs" << std::endl;
+    }
+
     Run();
 }
 
-INSTANTIATE_TEST_CASE_P(DISABLED_DynamicBinaryElementwiseSingleDSR, DSR_BinaryElementwiseSingleDSR,
+std::vector<BinaryEltwiseShapes> dataShapesWithUpperBoundSingleDSR = {
+        { DataShapeWithUpperBound{DataShape{100, 100}, DataShape{200, 200}},
+                DataShapeWithUpperBound{DataShape{1}, DataShape{}}
+        },
+};
+
+INSTANTIATE_TEST_CASE_P(DynamicBinaryElementwiseSingleDSR, DSR_BinaryElementwiseSingleDSR,
     ::testing::Combine(
         ::testing::Values(ngraph::element::f16, ngraph::element::f32, ngraph::element::i32),
-        ::testing::Values(ngraph::Shape{1}, ngraph::Shape{1, 1}, ngraph::Shape{1, 1, 1}),
-        ::testing::Values(ngraph::Shape{100}, ngraph::Shape{100, 1}, ngraph::Shape{100, 100}),
+        ::testing::ValuesIn(dataShapesWithUpperBoundSingleDSR),
         ::testing::Values(ngraph::opset3::Add::type_info,
                           ngraph::opset3::Multiply::type_info,
                           ngraph::opset3::Divide::type_info,
                           ngraph::opset3::Subtract::type_info,
-                         ngraph::opset3::Equal::type_info,
-                         ngraph::opset3::Greater::type_info,
+                          ngraph::opset3::Equal::type_info,
+                          ngraph::opset3::Greater::type_info,
                           ngraph::opset3::Power::type_info),
         ::testing::Values(CommonTestUtils::DEVICE_MYRIAD)));
 
