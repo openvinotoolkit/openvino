@@ -9,3 +9,9 @@ INTERPRETER.onnx_top_k_opset_10
 
 reduce_sum_large_1d_to_scalar
 reduce_sum_keep_large_1d_to_scalar
+
+# "Unsupported op 'Interpolate'
+onnx_resize10_down_scales_const_linear
+onnx_resize10_down_scales_const_nearest
+onnx_resize10_up_scales_const_linear
+onnx_resize10_up_scales_const_nearest
