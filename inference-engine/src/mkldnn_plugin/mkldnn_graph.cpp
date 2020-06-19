@@ -29,8 +29,6 @@
 #include <details/ie_cnn_network_tools.h>
 #include <ie_memcpy.h>
 
-#include "cnn_network_int8_normalizer.hpp"
-
 #include "precision_utils.h"
 #include <ie_plugin_config.hpp>
 #include "low_precision_transformations/transformer.hpp"

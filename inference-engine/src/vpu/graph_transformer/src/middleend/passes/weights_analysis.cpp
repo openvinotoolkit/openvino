@@ -156,30 +156,6 @@ int correctShift(int shift, bool firstStage, const std::string& type) {
     return shift;
 }
 
-int maxOutputExponent(const std::string& name, const InferenceEngine::NetworkStatsMap& stats) {
-    auto node_stats_it = stats.find(name);
-    IE_ASSERT(node_stats_it != stats.end());
-
-    auto& max = node_stats_it->second->_maxOutputs;
-    auto& min = node_stats_it->second->_maxOutputs;
-
-    IE_ASSERT(max.size() > 0 && min.size() > 0);
-    auto max_value = *std::max_element(max.begin(), max.end());
-    auto min_value = *std::min_element(min.begin(), min.end());
-
-    max_value = std::max(fabsf(max_value), fabsf(min_value));
-    IE_ASSERT(max_value > 0);
-    int exp = 0;
-
-    // frexp fractions float into two parts:
-    // [0.5, 1)* 2^exp
-    // while float stores value in format
-    // [1, 2) * 2^f_exp
-    // which means exp returned by frexp is f_exp + 1
-    frexp(max_value, &exp);
-    return exp - 1;
-}
-
 void scaleBlobByIdx(const Model& model, const Stage& stage, int index, float scale) {
     const auto& original = stage->input(index);
     IE_ASSERT(original->usage() == DataUsage::Fake || original->usage() == DataUsage::Const);
@@ -231,10 +207,7 @@ public:
 void PassImpl::run(const Model& model) {
     VPU_PROFILE(analyzeWeightableLayers);
 
-    static const int scaleToExp     = 8;  // get from config?
     static const int scaleThreshold = 1;
-
-    auto& stats  = model->nodesStats();
 
     bool isGrowingOutput = checkGrowingOutput(model);
 
@@ -267,16 +240,13 @@ void PassImpl::run(const Model& model) {
             auto meanExp = getMeanValue(exponents);
             shift = std::min(-meanExp, shift);
 
-            if (stats.empty()) {
+            {
                 if (firstStage && shift < 4 && isGrowingOutput && weights->desc().dim(Dim::C) > 1) {
                     normalVal = 5;
                 }
 
                 shift = correctShift(shift, firstStage, stage->origLayer()->type);
                 shift -= normalVal;
-            } else {
-                int outExp = maxOutputExponent(stage->origLayer()->name, stats);  // what if outExp == 15?
-                shift = std::min(scaleToExp - outExp, shift);
             }
 
             firstStage = false;

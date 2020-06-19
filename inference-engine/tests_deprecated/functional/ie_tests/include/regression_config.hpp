@@ -139,7 +139,6 @@ struct RegressionConfig {
     string _device_name;
     string _firmware;
     string _tmp_firmware;
-    string _stat_file;
     vector<string> labels;
     double nearValue = 0.0;
     double nearAvgValue = 0.0;

@@ -675,9 +675,6 @@ TEST(CNNNGraphImplTests, TestCheckStats) {
     }
 
     InferenceEngine::details::CNNNetworkNGraphImpl cnnNet(ngraph);
-    InferenceEngine::ICNNNetworkStats* _stats = nullptr;
-    ASSERT_EQ(NOT_FOUND, cnnNet.getStats(&_stats, nullptr));
-    ASSERT_EQ(nullptr, _stats);
 }
 
 IE_SUPPRESS_DEPRECATED_END

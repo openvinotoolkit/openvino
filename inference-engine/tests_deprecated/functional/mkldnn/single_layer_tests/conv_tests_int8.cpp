@@ -8,11 +8,8 @@
 #include "tests_common.hpp"
 #include "single_layer_common.hpp"
 
-#include <cnn_network_stats_impl.hpp>
-
 #include <string>
 
-#include "network_stats.h"
 #include <format_reader/format_reader_ptr.h>
 #include "common_test_utils/data_utils.hpp"
 
@@ -209,25 +206,6 @@ class smoke_ConvolutionInt8Test: public TestsCommon,
 protected:
     const char* DEFAULT_PATH_P = "./lib";
 
-    std::map<std::string, NetworkNodeStatsPtr> collectStatistics(const void *model, size_t size, const InferenceEngine::TBlob<uint8_t>::Ptr &weights, const std::vector<std::string> outputNodes, const std::vector<std::string> images) {
-        InferenceEngine::Core ie;
-
-        std::shared_ptr<NetworkStatsCollector> netStats = std::shared_ptr<NetworkStatsCollector>(new NetworkStatsCollector(ie, "CPU"));
-
-        size_t batchSize = images.size();
-
-        std::cout << "Batch size: " << batchSize << std::endl;
-
-        std::map<std::string, NetworkNodeStatsPtr> netNodesStats;
-
-        netStats->ReadNetworkAndSetWeights(model, size, weights, batchSize);
-
-        std::cout << "Inferencing and collecting statistics..." << std::endl;
-        netStats->InferAndCollectStats(images, netNodesStats);
-
-        return netNodesStats;
-    }
-
     static void compare_NRMSD(InferenceEngine::Blob &res, InferenceEngine::Blob &ref, float max_nrmsd = 0.01f) {
         float *res_ptr = res.buffer().as<float*>();
         size_t res_size = res.size();
@@ -291,7 +269,6 @@ protected:
             // TODO Load nodes stats from file
             std::string imageFilename = TestDataHelpers::get_data_path() + "/validation_set/224x224/dog.bmp";
             std::cout << "Using image file: " << imageFilename << std::endl;
-            std::map<std::string, NetworkNodeStatsPtr> netNodesStats = collectStatistics(model.data(), model.length(), weights_ptr, { "conv1" }, { imageFilename });
 
             Core ie;
             auto network = ie.ReadNetwork(model, weights_ptr);
@@ -306,10 +283,6 @@ protected:
             // Setting the statistics data
 
             CNNNetwork myNetwork = ie.ReadNetwork(model, weights_ptr);
-
-            ICNNNetworkStats* pstats;
-            ((ICNNNetwork&)myNetwork).getStats(&pstats, nullptr);
-            pstats->setNodesStats(netNodesStats);
 
             SizeVector dims_src = {p.in.w,
                                    p.in.h,

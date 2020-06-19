@@ -123,7 +123,7 @@ class ModelSelector {
     }
 
 
-    Model model, statFile;
+    Model model;
     RegressionConfig config;
     EMean isMean = eValues;
     EPrecision precision = eq78;
@@ -149,16 +149,6 @@ class ModelSelector {
                       << model.fileName() << "_" << precision << isMean << isGroup << "." << model.extension();
 
         return path_to_model.str();
-    }
-
-    std::string prepareStatMatching() {
-        if (statFile.fileName() == "") return "";
-        ModelsPath path_to_stat;
-        path_to_stat << kPathSeparator
-                      << statFile.folderName() << kPathSeparator
-                      << statFile.fileName();
-
-        return path_to_stat.str();
     }
 
     ModelSelector() = default;
@@ -511,14 +501,12 @@ class ModelSelector {
             config.referenceOutput.push_back(v);
         }
         config._path_to_models = prepareModelMatching();
-        config._stat_file = prepareStatMatching();
         return M(config);
     }
 
     M to(Blob::Ptr rhs) {
         config.outputBlob = rhs;
         config._path_to_models = prepareModelMatching();
-        config._stat_file = prepareStatMatching();
         return M(config);
     }
 
@@ -533,7 +521,6 @@ class ModelSelector {
             }
         }
         config._path_to_models = prepareModelMatching();
-        config._stat_file = prepareStatMatching();
         return M(config);
     }
 
@@ -548,14 +535,12 @@ class ModelSelector {
         config.meanRelativeError = meanRelativeError;
         config.maxRelativeError = maxRelativeError;
         config._path_to_models = prepareModelMatching();
-        config._stat_file = prepareStatMatching();
         return M(config);
     }
 
     void equalToReferenceWithDelta(double nearValue) {
         config.nearValue = nearValue;
         config._path_to_models = prepareModelMatching();
-        config._stat_file = prepareStatMatching();
         M(config).to(getReferenceResultsLabel());
     }
 
@@ -565,14 +550,12 @@ class ModelSelector {
             config.referenceOutput.push_back(v);
         }
         config._path_to_models = prepareModelMatching();
-        config._stat_file = prepareStatMatching();
         return M(config, true);
     }
 
     // place holder to run the matcher without providing any reference
     void possible() {
         config._path_to_models = prepareModelMatching();
-        config._stat_file = prepareStatMatching();
         auto tmp = M(config);
         ASSERT_NO_FATAL_FAILURE(tmp.match());
     }

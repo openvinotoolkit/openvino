@@ -359,15 +359,6 @@ ModelPtr FrontEnd::runCommonPasses(ie::ICNNNetwork& network, const UnsupportedLa
     model->attrs().set<int>("index", g_counter.fetch_add(1));
     model->attrs().set<Resources>("resources", env.resources);
 
-    if (!env.config.ignoreIRStatistic) {
-        ie::ICNNNetworkStats* stats = nullptr;
-        // V10 IRs doesn't contain stats
-        if (originalOrConvertNetwork->getStats(&stats, nullptr) == InferenceEngine::OK && !stats->isEmpty()) {
-            env.log->trace("Use node statistics from the IR");
-            model->setNodesStats(stats->getNodesStats());
-        }
-    }
-
     //
     // Update IE Network
     //

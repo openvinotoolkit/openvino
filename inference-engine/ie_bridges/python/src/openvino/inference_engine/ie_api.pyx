@@ -1235,42 +1235,6 @@ cdef class InferRequest:
             self.input_blobs[k].buffer[:] = v
 
 
-## Layer calibration statistic container.
-class LayerStats:
-
-    ## Class constructor
-    #
-    #  @param min: Tuple with per-channel minimum layer activation values
-    #  @param max: Tuple with per-channel maximum layer activation values
-    #  @return An instance of LayerStats class
-    def __init__(self, min: tuple = (), max: tuple = ()):
-        self._min = min
-        self._max = max
-
-    ## Tuple with per-channel minimum layer activation values
-    @property
-    def min(self):
-        return self._min
-
-    ## Tuple with per-channel maximum layer activation values
-    @property
-    def max(self):
-        return self._max
-
-
-## Class inherited from built-in python `dict` class and overrides default `update()`method to allow
-#  to set or modify layers calibration statistics.
-cdef class LayersStatsMap(dict):
-    def update(self, other=None, **kwargs):
-        super(LayersStatsMap, self).update(other, **kwargs)
-        cdef map[string, map[string, vector[float]]] c_stats_map
-        cdef map[string, vector[float]] c_node_stats
-        for k, v in self.items():
-            c_node_stats["min".encode()] = v.min
-            c_node_stats["max".encode()] = v.max
-            c_stats_map[k.encode()] = c_node_stats
-        self.net_impl.setStats(c_stats_map)
-
 ## This class represents a main layer information and providing setters allowing to modify layer properties
 cdef class IENetLayer:
     ## Name of the layer
@@ -1585,33 +1549,6 @@ cdef class IENetwork:
             net_l._ptr = l
             layers[deref(l).name.decode()] = net_l
         return layers
-
-    ## \note This property is deprecated.
-    #  New Calibration Tool doesn't generate statistics
-    #
-    #  Returns `LayersStatsMap` object containing dictionary that maps network layer names to calibration statistics
-    #  represented by `LayerStats`  objects.
-    #
-    #  Usage example:\n
-    #  ```python
-    #  ie = IECore()
-    #  net = ie.read_network(model=path_to_xml_file, weights=path_to_bin_file)
-    #  net.stats.update({"conv1_2d" : LayserStats(min=(-25, -1, 0), max=(63, 124, 70)),
-    #                    "conv2_2d" : LayserStats(min=(-5, -1, 0, 1, -7, 2), max=(63, 124, 70, 174, 99, 106))
-    #                   })
-    #  ```
-    @property
-    def stats(self):
-        warnings.warn("stats property of IENetwork is deprecated.",
-                          DeprecationWarning)
-        cdef map[string, map[string, vector[float]]] c_stats_map = self.impl.getStats()
-        py_stats_map = LayersStatsMap()
-        py_stats_map.net_impl = self.impl
-        for it in c_stats_map:
-            py_stats_map[it.first.decode()] = LayerStats(min=tuple(it.second["min".encode()]),
-                                                         max=tuple(it.second["max".encode()]))
-        return py_stats_map
-
 
     ## Marks any intermediate layer as output layer to retrieve the inference results from the specified layers.
     #  @param outputs: List of layers to be set as model outputs. The list can contain strings with layer names to be set

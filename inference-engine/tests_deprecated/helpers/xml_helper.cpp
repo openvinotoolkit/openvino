@@ -14,7 +14,6 @@
 #include <stdio.h>
 #include "cpp/ie_cnn_network.h"
 #include <gtest/gtest.h>
-#include "ie_icnn_network_stats.hpp"
 #include "xml_helper.hpp"
 
 #include <pugixml.hpp>
@@ -90,60 +89,6 @@ std::string XMLHelper::getXmlPath(const std::string & filePath){
         xmlPath = getParentDir(xmlPath);
     }
     return xmlPath;
-}
-
-InferenceEngine::NetworkStatsMap loadStatisticFromFile(const std::string& xmlPath) {
-    auto splitParseCommas = [&](const std::string& s) ->std::vector<float> {
-        std::vector<float> res;
-        std::stringstream ss(s);
-
-        float val;
-
-        while (ss >> val) {
-            res.push_back(val);
-
-            if (ss.peek() == ',')
-                ss.ignore();
-        }
-
-        return res;
-    };
-
-    InferenceEngine::NetworkStatsMap newNetNodesStats;
-
-    pugi::xml_document doc;
-
-    pugi::xml_parse_result pr = doc.load_file(xmlPath.c_str());
-
-
-    if (!pr) {
-        THROW_IE_EXCEPTION << "Can't load stat file " << xmlPath;
-    }
-
-    auto stats = doc.child("stats");
-    auto layers = stats.child("layers");
-
-    InferenceEngine::NetworkNodeStatsPtr nodeStats;
-    size_t offset;
-    size_t size;
-    size_t count;
-
-    IE_SUPPRESS_DEPRECATED_START
-
-    for (auto layer : layers.children("layer")) {
-        nodeStats = InferenceEngine::NetworkNodeStatsPtr(new InferenceEngine::NetworkNodeStats());
-
-        std::string name = layer.child("name").text().get();
-
-        newNetNodesStats[name] = nodeStats;
-
-        nodeStats->_minOutputs = splitParseCommas(layer.child("min").text().get());
-        nodeStats->_maxOutputs = splitParseCommas(layer.child("max").text().get());
-    }
-
-    IE_SUPPRESS_DEPRECATED_END
-
-    return newNetNodesStats;
 }
 
 }

@@ -76,7 +76,7 @@ std::map<CNNLayer*, bool> getConstLayersMap(const ICNNNetwork& network) {
 
 ICNNNetwork::~ICNNNetwork() {}
 
-CNNNetworkImpl::CNNNetworkImpl(): _stats(new CNNNetworkStatsImpl()) {}
+CNNNetworkImpl::CNNNetworkImpl() {}
 
 CNNNetworkImpl::~CNNNetworkImpl() {
     // In case of cycles, memory leaks occur: Layer holds shared_ptr<Data>, and vice versa.

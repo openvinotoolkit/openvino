@@ -61,10 +61,6 @@ struct IENetwork {
 
     void serialize(const std::string &path_to_xml, const std::string &path_to_bin);
 
-    void setStats(const std::map<std::string, std::map<std::string, std::vector<float>>> &stats);
-
-    const std::map<std::string, std::map<std::string, std::vector<float>>> getStats();
-
     void load_from_buffer(const char* xml, size_t xml_size, uint8_t* bin, size_t bin_size);
 
     IENetwork(const std::string &model, const std::string &weights);

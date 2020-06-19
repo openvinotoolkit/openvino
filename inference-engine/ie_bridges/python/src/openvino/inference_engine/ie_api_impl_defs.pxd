@@ -189,8 +189,6 @@ cdef extern from "ie_api_impl.hpp" namespace "InferenceEnginePython":
         void setLayerParams(map[string, map[string, string]] params_map) except +
         void serialize(const string& path_to_xml, const string& path_to_bin) except +
         void reshape(map[string, vector[size_t]] input_shapes) except +
-        void setStats(map[string, map[string, vector[float]]] & stats) except +
-        map[string, map[string, vector[float]]] getStats() except +
         void load_from_buffer(const char*xml, size_t xml_size, uint8_t*bin, size_t bin_size) except +
         object getFunction() except +
 
