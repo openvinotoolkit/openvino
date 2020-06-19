@@ -14,13 +14,9 @@
  limitations under the License.
 """
 
-import logging as log
-
-from extensions.back.ElementwiseOpsToEltwiseOps import SimpleEltwiseToEltwiseOp
-from extensions.back.ReshapeMutation import ReshapeMutation
 from mo.front.common.partial_infer.utils import int64_array
 from mo.front.common.replacement import FrontReplacementPattern
-from mo.front.tf.graph_utils import create_op_node_with_second_input, create_op_with_const_inputs
+from mo.front.tf.graph_utils import create_op_with_const_inputs
 from mo.graph.graph import Graph
 from mo.ops.reshape import Reshape
 
