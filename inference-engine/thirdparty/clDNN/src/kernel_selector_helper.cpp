@@ -21,7 +21,6 @@
 #include "program_node.h"
 #include "program_impl.h"
 
-#include "training_params.h"
 #include <string>
 #include <vector>
 
@@ -675,21 +674,6 @@ kernel_selector::activation_function get_kernel_selector_activation_param(activa
     }
 }
 
-kernel_selector::activation_function get_kernel_selector_activation_grad_param(
-    activation_grad_func activation_grad_func) {
-    switch (activation_grad_func) {
-        case cldnn::activation_grad_func::none:
-            return kernel_selector::activation_function::NONE_GRAD;
-        case cldnn::activation_grad_func::relu:
-            return kernel_selector::activation_function::RELU_GRAD;
-        case cldnn::activation_grad_func::relu_negative_slope:
-            return kernel_selector::activation_function::RELU_NEGATIVE_SLOPE_GRAD;
-        default:
-            throw std::runtime_error("Unknown activation_grad function");
-            break;
-    }
-}
-
 void set_params(const program_node& node, kernel_selector::params& params) {
     const auto& program = node.get_program();
     const auto& context = program.get_engine().get_context();
@@ -718,18 +702,6 @@ void set_params(const program_node& node, kernel_selector::params& params) {
     if (impl_forcing.count(node.id()) != 0) {
         params.forceImplementation = impl_forcing.at(node.id()).kernel_name;
     }
-}
-
-void set_learning_params(const program_node& node, kernel_selector::training_params& params, bool use_momentum) {
-    const auto learning_params =
-        node.get_program().get_options().template get<build_option_type::learning_config>()->params;
-
-    if (use_momentum) {
-        params.use_momentum = true;
-    }
-
-    params.momentum_factor = learning_params.momentum;
-    params.weights_decay = learning_params.weights_decay;
 }
 
 void set_optional_params(const program_impl& program, kernel_selector::optional_params& params) {
