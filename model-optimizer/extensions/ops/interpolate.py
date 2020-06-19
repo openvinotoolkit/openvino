@@ -133,7 +133,7 @@ def pad_attribute_to_str(node: Node, attr: str):
 def correct_pad(pad, rank):
     pad_len = len(pad)
     if pad_len < rank:
-        return np.pad(pad, (0, rank - pad_len)).astype(np.int64)
+        return np.pad(pad, (0, rank - pad_len), 'constant').astype(np.int64)
     elif pad_len > rank:
         return np.array(pad[: rank]).astype(np.int64)
     else:
