@@ -24,8 +24,7 @@ from collections import OrderedDict
 
 import numpy as np
 
-from extensions.back.SpecialNodesFinalization import RemoveConstOps, CreateConstNodesReplacement, RemoveOutputOps, \
-    NormalizeTI
+from extensions.back.SpecialNodesFinalization import RemoveConstOps, CreateConstNodesReplacement, NormalizeTI
 from mo.utils.get_ov_update_message import get_ov_update_message
 from mo.graph.graph import Graph
 from mo.middle.pattern_match import for_graph_and_each_sub_graph_recursively, for_each_sub_graph_recursively
@@ -240,10 +239,6 @@ def emit_ir(graph: Graph, argv: argparse.Namespace):
     NormalizeTI().find_and_replace_pattern(graph)
     for_graph_and_each_sub_graph_recursively(graph, RemoveConstOps().find_and_replace_pattern)
     for_graph_and_each_sub_graph_recursively(graph, CreateConstNodesReplacement().find_and_replace_pattern)
-    if not graph.graph['cmd_params'].generate_experimental_IR_V10:
-        for_each_sub_graph_recursively(graph, RemoveOutputOps().find_and_replace_pattern)
-    if not graph.graph['cmd_params'].generate_experimental_IR_V10:
-        for_graph_and_each_sub_graph_recursively(graph, RemoveOutputOps().find_and_replace_pattern)
 
     prepare_emit_ir(graph=graph,
                     data_type=graph.graph['cmd_params'].data_type,

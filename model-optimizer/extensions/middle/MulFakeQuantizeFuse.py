@@ -20,7 +20,7 @@ from typing import Dict, List
 import numpy as np
 
 from mo.graph.graph import Graph, Node
-from mo.middle.passes.conv import get_tensor_in_port, get_value_in_port
+from mo.middle.passes.fusing.helpers import get_tensor_in_port, get_value_in_port
 from mo.middle.replacement import MiddleReplacementPattern
 from mo.ops.const import Const
 

@@ -206,7 +206,7 @@ def build_graph(nodes_attrs: dict, edges: list, update_attributes: dict = None, 
         for attr in out_edges.values():
             node.add_output_port(idx=attr['out'])
 
-    graph.graph['cmd_params'] = Namespace(generate_experimental_IR_V10=False, keep_shape_ops=False)
+    graph.graph['cmd_params'] = Namespace(generate_experimental_IR_V10=True, keep_shape_ops=False)
     return graph
 
 

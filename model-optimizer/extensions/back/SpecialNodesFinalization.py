@@ -114,22 +114,6 @@ class CreateConstNodesReplacement(BackReplacementPattern):
                 )
 
 
-class RemoveOutputOps(BackReplacementPattern):
-    enabled = False
-
-    def run_after(self):
-        return [CreateConstNodesReplacement]
-
-    def run_before(self):
-        return []
-
-    def find_and_replace_pattern(self, graph: Graph):
-        for node in list(graph.get_op_nodes(op='Result')):
-            if len(node.in_nodes()) > 0:
-                assert (len(node.in_nodes()) == 1)
-            graph.remove_node(node.id)
-
-
 class RemoveConstToResult(BackReplacementPattern):
     """
     Transformation looks for a sub-graph "Const->Result" and removes Result node.

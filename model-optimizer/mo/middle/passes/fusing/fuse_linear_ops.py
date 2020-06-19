@@ -47,7 +47,7 @@ def _fuse_mul(graph: Graph, node: Node, fuse_nodes: list, backward: bool = True)
 
     for fuse_node in fuse_nodes:
         if fuse_node.soft_get('can_be_fused') is False:
-            log.warning('Node {} can\'t be used in fusing due to user specified attr can_be_fused = False'.format(fuse_node.name))
+            log.warning('Node {} can\'t be used in fusing because attr can_be_fused = False'.format(fuse_node.name))
             return False
 
         if len(fuse_node.in_ports()) < 2:
@@ -59,7 +59,8 @@ def _fuse_mul(graph: Graph, node: Node, fuse_nodes: list, backward: bool = True)
             return False
 
         weights_port = fuse_node.in_port(1)
-        if not weights_port.data.has_valid('output_channel_dim') or not weights_port.data.has_valid('input_channel_dim'):
+        if not weights_port.data.has_valid('output_channel_dim') or \
+                not weights_port.data.has_valid('input_channel_dim'):
             log.warning(
                 'Cannot do fuse_mul for node {} because there is no field ' +
                 'output_channel_dim and/or input_channel_dim in weights.'
@@ -67,7 +68,8 @@ def _fuse_mul(graph: Graph, node: Node, fuse_nodes: list, backward: bool = True)
             )
             return False
 
-        inp_ch, out_ch = weights_port.data.get_attr('input_channel_dim'), weights_port.data.get_attr('output_channel_dim')
+        inp_ch = weights_port.data.get_attr('input_channel_dim')
+        out_ch = weights_port.data.get_attr('output_channel_dim')
         if max(inp_ch, out_ch) >= len(weights_port.data.get_shape()):
             log.warning('Node {} has wrong weights shape'.format(fuse_node.name))
             return False
@@ -80,7 +82,7 @@ def _fuse_mul(graph: Graph, node: Node, fuse_nodes: list, backward: bool = True)
 
         # TODO : ch_dim should be equal to node.in_node(1).value.shape
         # We will multiply weights according output/input channel dimension
-        ch_dim = weights_port.data.get_attr('output_channel_dim') if backward else weights_port.data.get_attr('input_channel_dim')
+        ch_dim = weights_port.data.get_attr('output_channel_dim' if backward else 'input_channel_dim')
         shape = np.array([weights_port.data.get_shape()[ch_dim]])
 
         # Scalar broadcast
@@ -155,7 +157,7 @@ def _fuse_add(graph: Graph, node: Node, fuse_nodes: List[Node], backward: bool =
 
     for fuse_node in fuse_nodes:
         if fuse_node.soft_get('can_be_fused') is False:
-            log.warning('Node {} can\'t be used in fusing due to user specified attr can_be_fused = False'.format(fuse_node.name))
+            log.warning('Node {} can\'t be used in fusing because attr can_be_fused = False'.format(fuse_node.name))
             return False
         if not fuse_node.has_valid('layout'):
             log.warning('Node {} has no layout attr'.format(fuse_node.name))
@@ -187,7 +189,7 @@ def _fuse_add(graph: Graph, node: Node, fuse_nodes: List[Node], backward: bool =
         if fuse_node.in_port(2).disconnected() or fuse_node.in_port(2).data.get_value() is None:
             # Broadcast if scalar
             if value.size == 1:
-                id = weights_port.data.get_attr('output_channel_dim') if backward else weights_port.data.get_attr('input_channel_dim')
+                id = weights_port.data.get_attr('output_channel_dim' if backward else 'input_channel_dim')
                 vshape = weights_port.data.get_shape()[id]
                 value = np.full(vshape, value.item())
 
@@ -233,18 +235,9 @@ def fuse_linear_ops(graph: Graph):
         is_fused = False
 
         # Fuse Mul to Convolution/FC
-        if node.soft_get('op') == 'Mul' and get_value_in_port(node) is not None and node.soft_get('can_be_fused') is True:
+        if node.soft_get('op') == 'Mul' and get_value_in_port(node) is not None and node.has_and_set('can_be_fused'):
             fuse_nodes = backward_bfs(node, [], ['Convolution', 'Deconvolution', 'MatMul'])
             is_fused = _fuse_mul(graph, node, fuse_nodes)
-
-        if hasattr(graph, 'graph') and 'cmd_params' in graph.graph and \
-            not graph.graph['cmd_params'].generate_experimental_IR_V10:
-            # Fuse Add to Convolution/FC
-            if node.soft_get('op') == 'Add'\
-                    and get_value_in_port(node) is not None\
-                    and node.soft_get('can_be_fused') is True:
-                fuse_nodes = backward_bfs(node, [], ['Convolution', 'Deconvolution', 'MatMul'])
-                is_fused = _fuse_add(graph, node, fuse_nodes)
 
         fuse_count += is_fused
 
@@ -254,18 +247,9 @@ def fuse_linear_ops(graph: Graph):
         is_fused = False
 
         # Fuse Mul to Convolution/FC
-        if node.soft_get('op') == 'Mul' and get_value_in_port(node) is not None and node.soft_get('can_be_fused') is True:
+        if node.soft_get('op') == 'Mul' and get_value_in_port(node) is not None and node.has_and_set('can_be_fused'):
             fuse_nodes = forward_bfs(node, [], ['Convolution', 'Deconvolution', 'MatMul'])
             is_fused = _fuse_mul(graph, node, fuse_nodes, False)
-
-        # Fuse Add to Convolution/FC
-        if hasattr(graph, 'graph') and 'cmd_params' in graph.graph and \
-                not graph.graph['cmd_params'].generate_experimental_IR_V10:
-            if node.soft_get('op') == 'Add' and \
-                    get_value_in_port(node) is not None and \
-                    node.soft_get('can_be_fused') is True:
-                fuse_nodes = forward_bfs(node, [], ['MatMul'])
-                is_fused = _fuse_add(graph, node, fuse_nodes, False)
 
         fuse_count += is_fused
 
