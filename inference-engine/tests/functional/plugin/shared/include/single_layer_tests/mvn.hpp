@@ -25,7 +25,6 @@ typedef std::tuple<
 class MvnLayerTest : public testing::WithParamInterface<mvnParams>, public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<mvnParams> obj);
-//    std::map<std::string, std::string> configuration;
 protected:
     void SetUp() override;
 };
