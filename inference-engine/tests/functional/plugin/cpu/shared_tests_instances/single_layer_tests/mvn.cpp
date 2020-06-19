@@ -38,13 +38,19 @@ const std::vector<double> epsilon = {
     0.000000001
 };
 
+const std::vector<std::map<std::string, std::string>> Configs = {
+        {},
+        {{CONFIG_KEY(DYN_BATCH_ENABLED), CONFIG_VALUE(YES)}}
+};
+
 const auto MvnCases = ::testing::Combine(
     ::testing::ValuesIn(inputShapes),
     ::testing::Values(InferenceEngine::Precision::FP32),
     ::testing::ValuesIn(acrossChannels),
     ::testing::ValuesIn(normalizeVariance),
     ::testing::ValuesIn(epsilon),
-    ::testing::Values(CommonTestUtils::DEVICE_CPU)
+    ::testing::Values(CommonTestUtils::DEVICE_CPU),
+    ::testing::ValuesIn(Configs)
 );
 
 INSTANTIATE_TEST_CASE_P(smoke_MKLDNN_TestsMVN, MvnLayerTest, MvnCases, MvnLayerTest::getTestCaseName);
