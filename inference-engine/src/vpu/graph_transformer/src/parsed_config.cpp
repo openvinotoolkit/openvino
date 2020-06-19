@@ -160,7 +160,9 @@ void ParsedConfig::parse(const std::map<std::string, std::string>& config) {
     setOption(_compileConfig.hwExtraSplit,                   switches, config, VPU_CONFIG_KEY(HW_EXTRA_SPLIT));
     setOption(_compileConfig.injectSwOps,                    switches, config, VPU_CONFIG_KEY(HW_INJECT_STAGES));
     setOption(_compileConfig.mergeHwPoolToConv,              switches, config, VPU_CONFIG_KEY(HW_POOL_CONV_MERGE));
+IE_SUPPRESS_DEPRECATED_START
     setOption(_compileConfig.ignoreIRStatistic,              switches, config, VPU_CONFIG_KEY(IGNORE_IR_STATISTIC));
+IE_SUPPRESS_DEPRECATED_END
     setOption(_compileConfig.hwDilation,                     switches, config, VPU_CONFIG_KEY(HW_DILATION));
     setOption(_compileConfig.forceDeprecatedCnnConversion,   switches, config, VPU_CONFIG_KEY(FORCE_DEPRECATED_CNN_CONVERSION));
     setOption(_compileConfig.disableReorder,                 switches, config, VPU_CONFIG_KEY(DISABLE_REORDER));

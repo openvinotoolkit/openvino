@@ -107,6 +107,7 @@ Engine::Engine(std::shared_ptr<IMvnc> mvnc) :
 
     _pluginName = "MYRIAD";
 
+IE_SUPPRESS_DEPRECATED_START
     _config = {
         { KEY_VPU_HW_STAGES_OPTIMIZATION, "ON" },
         { KEY_LOG_LEVEL, "LOG_NONE" },
@@ -120,6 +121,7 @@ Engine::Engine(std::shared_ptr<IMvnc> mvnc) :
         { KEY_CONFIG_FILE, "" },
         { KEY_DEVICE_ID, "" },
     };
+IE_SUPPRESS_DEPRECATED_END
 }
 
 InferenceEngine::ExecutableNetwork Engine::ImportNetwork(
