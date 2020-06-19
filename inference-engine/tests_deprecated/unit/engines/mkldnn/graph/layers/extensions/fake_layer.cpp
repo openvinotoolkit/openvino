@@ -62,21 +62,6 @@ class FakeExtensions : public IExtension {
         factory = factories[cnnLayer->type](cnnLayer);
         return OK;
     }
-    StatusCode getShapeInferTypes(char **&types, unsigned int &size, ResponseDesc *resp) noexcept override {
-        collectTypes(types, size, GetExtensionsHolder()->si_list);
-        return OK;
-    };
-
-    StatusCode getShapeInferImpl(IShapeInferImpl::Ptr &impl, const char *type, ResponseDesc *resp) noexcept override {
-        auto &factories = GetExtensionsHolder()->si_list;
-        if (factories.find(type) == factories.end()) {
-            std::string errorMsg = std::string("Shape Infer Implementation for ") + type + " wasn't found!";
-            if (resp) errorMsg.copy(resp->msg, sizeof(resp->msg) - 1);
-            return NOT_FOUND;
-        }
-        impl = factories[type];
-        return OK;
-    }
 
     template<class T>
     void collectTypes(char **&types, unsigned int &size, const std::map<std::string, T> &factories) {

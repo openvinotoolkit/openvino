@@ -9,6 +9,7 @@
 #include <memory>
 #include <ie_iextension.h>
 #include <ie_layers.h>
+#include "ie_ishape_infer_extension.hpp"
 
 namespace MKLDNNPlugin {
 
@@ -19,7 +20,6 @@ public:
     InferenceEngine::ILayerImpl::Ptr CreateImplementation(const std::shared_ptr<ngraph::Node>& op);
     IE_SUPPRESS_DEPRECATED_START
     std::shared_ptr<InferenceEngine::ILayerImplFactory> CreateExtensionFactory(const InferenceEngine::CNNLayerPtr& Layer);
-    InferenceEngine::IShapeInferImpl::Ptr CreateReshaper(const InferenceEngine::CNNLayerPtr& Layer);
     IE_SUPPRESS_DEPRECATED_END
     void AddExtension(InferenceEngine::IExtensionPtr extension);
 

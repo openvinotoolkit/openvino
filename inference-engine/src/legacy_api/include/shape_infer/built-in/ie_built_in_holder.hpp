@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <ie_iextension.h>
+#include <ie_ishape_infer_extension.hpp>
 
 #include <description_buffer.hpp>
 #include <list>

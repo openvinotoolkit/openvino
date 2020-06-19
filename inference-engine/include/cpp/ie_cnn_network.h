@@ -260,15 +260,6 @@ public:
     size_t size() const;
 
     /**
-     * @deprecated Use Core::AddExtension to add an extension to the library
-     * @brief Registers extension within the plugin
-     *
-     * @param extension Pointer to already loaded reader extension with shape propagation implementations
-     */
-    INFERENCE_ENGINE_DEPRECATED("Use Core::AddExtension to add an extension to the library")
-    void AddExtension(InferenceEngine::IShapeInferExtensionPtr extension);
-
-    /**
      * @brief Helper method to get collect all input shapes with names of corresponding Data objects
      *
      * @return Map of pairs: input name and its dimension.

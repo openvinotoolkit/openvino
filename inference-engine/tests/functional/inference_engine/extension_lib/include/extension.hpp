@@ -77,19 +77,6 @@ public:
         return InferenceEngine::OK;
     }
 
-    InferenceEngine::StatusCode getShapeInferTypes(char**& types, unsigned int& size, InferenceEngine::ResponseDesc* resp) noexcept override {
-        size = 1;
-        return InferenceEngine::OK;
-    }
-
-    InferenceEngine::StatusCode getShapeInferImpl(InferenceEngine::IShapeInferImpl::Ptr& impl, const char* type,
-                                                  InferenceEngine::ResponseDesc* resp) noexcept override {
-        std::string type_str = type;
-        if (type_str != "test")
-            return InferenceEngine::GENERAL_ERROR;
-        return InferenceEngine::OK;
-    }
-
     /**
      * @brief Returns operation sets
      * This method throws an exception if it was not implemented
