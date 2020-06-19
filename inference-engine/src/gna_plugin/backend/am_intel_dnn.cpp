@@ -1584,6 +1584,7 @@ void GNAPluginNS::backend::AMIntelDNN::InitGNAStruct(intel_nnet_type_t *ptr_nnet
             case kDnnPiecewiselinearOp:
 #if  GNA_LIB_VER == 2
                 {
+                    IE_ASSERT(gnaOperation->Operands != nullptr);
                     auto& outputTensor = const_cast<Gna2Tensor&>(*gnaOperation->Operands[OutOpIdx]);
                     outputTensor.Data = comp.ptr_outputs;
                     outputTensor.Type = Gna2DataTypeFromBytes(comp.num_bytes_per_output);
