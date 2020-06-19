@@ -62,7 +62,7 @@ declared in `namespace opset3`.
 * [GroupConvolutionBackpropData](./docs/ops/convolution/GroupConvolutionBackpropData_1.md)
 * [GRUCell](./docs/ops/sequence/GRUCell_3.md)
 * [HardSigmoid](./docs/ops/activation/HardSigmoid_1.md)
-* [Interpolate](./docs/ops/image/Interpolate_1.md)
+* [Interpolate](./docs/ops/image/Interpolate_3.md)
 * [Less](./docs/ops/comparison/Less_1.md)
 * [LessEqual](./docs/ops/comparison/LessEqual_1.md)
 * [Log](./docs/ops/arithmetic/Log_1.md)
