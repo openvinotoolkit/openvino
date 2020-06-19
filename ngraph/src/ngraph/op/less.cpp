@@ -47,6 +47,7 @@ namespace
                   const HostTensorPtr& out,
                   const op::AutoBroadcastSpec& broadcast_spec)
     {
+        std::cout << "AA 69" << std::endl;
         runtime::reference::less(arg0->get_data_ptr<ET>(),
                                  arg1->get_data_ptr<ET>(),
                                  out->get_data_ptr<element::Type_t::boolean>(),
@@ -99,6 +100,7 @@ namespace
 
 bool op::v0::Less::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
 {
+    std::cout << "AA 70" << std::endl;
     return evaluate_less(inputs[0], inputs[1], outputs[0], get_autob());
 }
 
@@ -122,5 +124,6 @@ shared_ptr<Node> op::v1::Less::clone_with_new_inputs(const OutputVector& new_arg
 
 bool op::v1::Less::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
 {
+    std::cout << "AA 71" << std::endl;
     return evaluate_less(inputs[0], inputs[1], outputs[0], get_autob());
 }

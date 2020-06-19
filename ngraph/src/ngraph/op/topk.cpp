@@ -272,6 +272,7 @@ namespace
                   const op::TopK::SortType sort,
                   const element::Type index_et)
     {
+        std::cout << "AA 158" << std::endl;
         bool rc = true;
         switch (index_et)
         {
@@ -396,6 +397,7 @@ Shape op::v0::TopK::compute_output_shape(const Shape input_shape,
 
 bool op::v0::TopK::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
 {
+    std::cout << "AA 159" << std::endl;
     // check data types for arg, k and output element type
     Shape arg_shape = inputs[0]->get_shape();
 
@@ -683,6 +685,7 @@ void op::v1::TopK::set_k(size_t k)
 
 bool op::v1::TopK::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
 {
+    std::cout << "AA 160" << std::endl;
     Shape arg_shape = inputs[0]->get_shape();
     // 1. get axis, mode ( max/min), sort_type
     set_axis(arg_shape.size(), m_axis);
@@ -810,5 +813,6 @@ shared_ptr<Node> op::v3::TopK::clone_with_new_inputs(const OutputVector& new_arg
 
 bool op::v3::TopK::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
 {
+    std::cout << "AA 161" << std::endl;
     return op::v1::TopK::evaluate(outputs, inputs);
 }

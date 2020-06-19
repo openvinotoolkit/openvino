@@ -106,6 +106,7 @@ namespace
     template <element::Type_t ET>
     bool evaluate(const HostTensorPtr& arg0, const HostTensorPtr& out)
     {
+        std::cout << "AA 58" << std::endl;
         runtime::reference::copy(
             arg0->get_data_ptr<ET>(), out->get_data_ptr<ET>(), shape_size(out->get_shape()));
         return true;
@@ -177,5 +178,6 @@ namespace
 
 bool op::v0::Unsqueeze::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
 {
+    std::cout << "AA 59" << std::endl;
     return evaluate_unsqueeze(inputs[0], inputs[1], outputs[0]);
 }

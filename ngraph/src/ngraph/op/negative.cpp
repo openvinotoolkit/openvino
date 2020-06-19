@@ -46,6 +46,7 @@ namespace
     template <element::Type_t ET>
     inline bool evaluate(const HostTensorPtr& arg0, const HostTensorPtr& out, const size_t count)
     {
+        std::cout << "AA 95" << std::endl;
         using T = typename element_type_traits<ET>::value_type;
         runtime::reference::negate<T>(arg0->get_data_ptr<ET>(), out->get_data_ptr<ET>(), count);
         return true;
@@ -92,6 +93,7 @@ namespace
 
 bool op::Negative::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
 {
+    std::cout << "AA 96" << std::endl;
     return evaluate_negative(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }
 

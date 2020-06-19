@@ -90,6 +90,7 @@ namespace
     template <element::Type_t ET>
     bool evaluate(const HostTensorPtr& arg, const HostTensorPtr& out, const AxisSet& axes)
     {
+        std::cout << "AA 86" << std::endl;
         out->set_shape(reduce(arg->get_shape(), axes));
         runtime::reference::min(
             arg->get_data_ptr<ET>(), out->get_data_ptr<ET>(), arg->get_shape(), axes);
@@ -133,6 +134,7 @@ namespace
 
 bool op::v0::Min::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
 {
+    std::cout << "AA 87" << std::endl;
     return evaluate_min(inputs[0], outputs[0], get_reduction_axes());
 }
 
@@ -154,5 +156,6 @@ shared_ptr<Node> op::v1::ReduceMin::clone_with_new_inputs(const OutputVector& ne
 
 bool op::v1::ReduceMin::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
 {
+    std::cout << "AA 88" << std::endl;
     return evaluate_min(inputs[0], outputs[0], get_reduction_axes());
 }

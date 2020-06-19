@@ -314,6 +314,7 @@ bool op::util::BroadcastBase::evaluate(const HostTensorPtr& arg0,
                                        const HostTensorPtr& out,
                                        const AxisSet& broadcast_axes)
 {
+    std::cout << "AA 164" << std::endl;
     using T = typename element_type_traits<ET>::value_type;
     runtime::reference::broadcast<T>((arg0->get_data_ptr<ET>()),
                                      (out->get_data_ptr<ET>()),
@@ -481,6 +482,7 @@ Shape op::util::BroadcastBase::get_target_shape(const HostTensorPtr& input1)
 bool op::util::BroadcastBase::evaluate(const HostTensorVector& outputs,
                                        const HostTensorVector& inputs)
 {
+    std::cout << "AA 165" << std::endl;
     Shape target_shape = get_target_shape(inputs[1]);
 
     PartialShape result_shape;

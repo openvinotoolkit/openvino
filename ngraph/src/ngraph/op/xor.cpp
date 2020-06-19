@@ -51,6 +51,7 @@ namespace
                   const HostTensorPtr& out,
                   const op::AutoBroadcastSpec& broadcast_spec)
     {
+        std::cout << "AA 166" << std::endl;
         runtime::reference::logical_xor(arg0->get_data_ptr<ET>(),
                                         arg1->get_data_ptr<ET>(),
                                         out->get_data_ptr<ET>(),
@@ -103,6 +104,7 @@ namespace
 
 bool op::v1::LogicalXor::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
 {
+    std::cout << "AA 167" << std::endl;
     return evaluate_logxor(inputs[0], inputs[1], outputs[0], get_autob());
 }
 
@@ -124,5 +126,6 @@ shared_ptr<Node> op::v0::Xor::clone_with_new_inputs(const OutputVector& new_args
 
 bool op::v0::Xor::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
 {
+    std::cout << "AA 168" << std::endl;
     return evaluate_logxor(inputs[0], inputs[1], outputs[0], get_autob());
 }

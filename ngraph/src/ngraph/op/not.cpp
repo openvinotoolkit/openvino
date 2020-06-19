@@ -57,6 +57,7 @@ namespace
     template <element::Type_t ET>
     inline bool evaluate(const HostTensorPtr& arg0, const HostTensorPtr& out, const size_t count)
     {
+        std::cout << "AA 99" << std::endl;
         using T = typename element_type_traits<ET>::value_type;
         runtime::reference::logical_not<T>(
             arg0->get_data_ptr<ET>(), out->get_data_ptr<ET>(), count);
@@ -104,6 +105,7 @@ namespace
 
 bool op::v1::LogicalNot::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
 {
+    std::cout << "AA 100" << std::endl;
     return evaluate_not(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }
 
@@ -133,5 +135,6 @@ shared_ptr<Node> op::v0::Not::clone_with_new_inputs(const OutputVector& new_args
 
 bool op::Not::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
 {
+    std::cout << "AA 101" << std::endl;
     return evaluate_not(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }

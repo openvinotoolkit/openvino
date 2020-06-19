@@ -63,6 +63,7 @@ namespace
     bool evaluate(const HostTensorPtr& arg, const HostTensorPtr& out)
 
     {
+        std::cout << "AA 33" << std::endl;
         out->set_shape(arg->get_shape());
         size_t element_count = shape_size(out->get_shape());
         return (INPUT_ET == arg->get_element_type()) && OUTPUT_ET == out->get_element_type() &&
@@ -77,6 +78,7 @@ namespace
     template <element::Type_t INPUT_ET>
     bool evaluate(const HostTensorPtr& arg, const HostTensorPtr& out)
     {
+        std::cout << "AA 34" << std::endl;
         bool rc = true;
 
         switch (out->get_element_type())
@@ -148,5 +150,6 @@ namespace
 bool op::v0::Convert::evaluate(const HostTensorVector& output_values,
                                const HostTensorVector& input_values)
 {
+    std::cout << "AA 35" << std::endl;
     return evaluate_convert(input_values[0], output_values[0]);
 }
