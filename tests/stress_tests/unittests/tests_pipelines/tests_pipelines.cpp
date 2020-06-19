@@ -27,7 +27,7 @@ void test_read_network(const std::string &model, const std::string &target_devic
         if (i == n / 2) {
             log_info("Half of the test have already passed");
         }
-        read_network(model)();
+        create_cnnnetwork(model)();
     }
 }
 

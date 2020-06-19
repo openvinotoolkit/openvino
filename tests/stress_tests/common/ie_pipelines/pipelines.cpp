@@ -22,16 +22,6 @@ std::function<void()> load_unload_plugin(const std::string &target_device) {
     };
 }
 
-std::function<void()> read_network(const std::string &model) {
-    return [&] {
-        IE_SUPPRESS_DEPRECATED_START
-        CNNNetReader netReader;
-        netReader.ReadNetwork(model);
-        netReader.ReadWeights(fileNameNoExt(model) + ".bin");
-        IE_SUPPRESS_DEPRECATED_END
-    };
-}
-
 std::function<void()> create_cnnnetwork(const std::string &model) {
     return [&] {
         Core ie;

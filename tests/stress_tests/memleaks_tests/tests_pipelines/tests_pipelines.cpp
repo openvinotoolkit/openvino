@@ -144,7 +144,7 @@ TestResult test_load_unload_plugin(const std::string& target_device, const int& 
 
 TestResult test_read_network(const std::string& model, const int& n) {
     log_info("Read network: \"" << model << "\" for " << n << " times");
-    return common_test_pipeline(read_network(model), n);
+    return common_test_pipeline(create_cnnnetwork(model), n);
 }
 
 TestResult test_create_cnnnetwork(const std::string& model, const int& n) {
