@@ -182,7 +182,7 @@ TEST(UtilTests, cloneNet) {
 
     {
         auto layer = getLayer(net, "layer1");
-        auto cloned = IE::cloneNet({layer}, nullptr);
+        auto cloned = IE::cloneNet({layer});
         EXPECT_EQ(2, cloned->layerCount());
         auto clonedLayer = getLayer(cloned, "layer1");
         ASSERT_NE(nullptr, clonedLayer);
@@ -200,7 +200,7 @@ TEST(UtilTests, cloneNet) {
     {
         auto layer1 = getLayer(net, "layer1");
         auto layer2 = getLayer(net, "layer2");
-        auto cloned = IE::cloneNet({layer1,layer2}, nullptr);
+        auto cloned = IE::cloneNet({layer1,layer2});
         EXPECT_EQ(4, cloned->layerCount());
         auto clonedLayer1 = getLayer(cloned, "layer1");
         auto clonedLayer2 = getLayer(cloned, "layer2");
@@ -221,7 +221,7 @@ TEST(UtilTests, cloneNet) {
     {
         auto layer4 = getLayer(net, "layer4");
         auto layer5 = getLayer(net, "layer5");
-        auto cloned = IE::cloneNet({layer4,layer5}, nullptr);
+        auto cloned = IE::cloneNet({layer4,layer5});
         EXPECT_EQ(4, cloned->layerCount());
         auto clonedLayer4 = getLayer(cloned, "layer4");
         auto clonedLayer5 = getLayer(cloned, "layer5");
@@ -253,7 +253,7 @@ TEST(UtilTests, cloneNet) {
     }
     {
         auto layer3 = getLayer(net, "layer3");
-        auto cloned = IE::cloneNet({layer3}, nullptr);
+        auto cloned = IE::cloneNet({layer3});
         EXPECT_EQ(2, cloned->layerCount());
         auto clonedLayer3 = getLayer(cloned, "layer3");
         ASSERT_NE(nullptr, clonedLayer3);
@@ -283,7 +283,7 @@ TEST(UtilTests, cloneNet) {
         auto layer5 = getLayer(net, "layer5");
         auto layer6 = getLayer(net, "layer6");
         auto layer7 = getLayer(net, "layer7");
-        auto cloned = IE::cloneNet({layer1,layer2,layer3,layer4,layer5,layer6,layer7}, nullptr);
+        auto cloned = IE::cloneNet({layer1,layer2,layer3,layer4,layer5,layer6,layer7});
         EXPECT_EQ(9, cloned->layerCount());
         auto clonedLayer1 = getLayer(cloned, "layer1");
         auto clonedLayer2 = getLayer(cloned, "layer2");
@@ -414,7 +414,7 @@ TEST(UtilTests, cloneNet_input) {
 
     auto cloned = IE::cloneNet({getLayer(net, "layer1"),
                                 getLayer(net, "layer2"),
-                                getLayer(net, "layer3")}, nullptr);
+                                getLayer(net, "layer3")});
 
     ASSERT_EQ(6, cloned->layerCount());
     ASSERT_NE(nullptr, getLayer(cloned, "input1"));
@@ -468,7 +468,7 @@ TEST(UtilTests, cloneNet_const) {
 
     auto cloned = IE::cloneNet({getLayer(net, "layer1"),
                                 getLayer(net, "layer2"),
-                                getLayer(net, "layer3")}, nullptr);
+                                getLayer(net, "layer3")});
 
     ASSERT_EQ(6, cloned->layerCount());
     ASSERT_NE(nullptr, getLayer(cloned, "input1"));

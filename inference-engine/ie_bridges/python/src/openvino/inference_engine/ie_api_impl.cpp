@@ -295,47 +295,6 @@ void InferenceEnginePython::IENetwork::reshape(const std::map <std::string, std:
     actual->reshape(input_shapes);
 }
 
-const std::map <std::string, std::map<std::string, std::vector < float>>>
-
-InferenceEnginePython::IENetwork::getStats() {
-    IE_SUPPRESS_DEPRECATED_START
-    std::map < std::string, std::map < std::string, std::vector < float >> > map;
-    InferenceEngine::ICNNNetworkStats *pstats = nullptr;
-    InferenceEngine::ResponseDesc response;
-    auto retCode = ((InferenceEngine::ICNNNetwork &) *actual).getStats(&pstats, &response);
-    if (retCode == InferenceEngine::OK) {
-        auto statsMap = pstats->getNodesStats();
-        for (const auto &it : statsMap) {
-            std::map <std::string, std::vector<float>> stats;
-            stats.emplace("min", it.second->_minOutputs);
-            stats.emplace("max", it.second->_maxOutputs);
-            map.emplace(it.first, stats);
-        }
-    }
-    return map;
-    IE_SUPPRESS_DEPRECATED_END
-}
-
-void InferenceEnginePython::IENetwork::setStats(const std::map<std::string, std::map<std::string,
-        std::vector<float>>> &stats) {
-    IE_SUPPRESS_DEPRECATED_START
-    InferenceEngine::ICNNNetworkStats *pstats = nullptr;
-    InferenceEngine::ResponseDesc response;
-    auto retCode = ((InferenceEngine::ICNNNetwork &) *actual).getStats(&pstats, &response);
-    if (retCode == InferenceEngine::OK) {
-        std::map<std::string, InferenceEngine::NetworkNodeStatsPtr> newNetNodesStats;
-        for (const auto &it : stats) {
-            InferenceEngine::NetworkNodeStatsPtr nodeStats = InferenceEngine::NetworkNodeStatsPtr(
-                      new InferenceEngine::NetworkNodeStats());
-            newNetNodesStats.emplace(it.first, nodeStats);
-            nodeStats->_minOutputs = it.second.at("min");
-            nodeStats->_maxOutputs = it.second.at("max");
-        }
-        pstats->setNodesStats(newNetNodesStats);
-    }
-    IE_SUPPRESS_DEPRECATED_END
-}
-
 InferenceEnginePython::IEExecNetwork::IEExecNetwork(const std::string &name, size_t num_requests) :
         infer_requests(num_requests), name(name) {
     request_queue_ptr = std::make_shared<IdleInferRequestQueue>();
