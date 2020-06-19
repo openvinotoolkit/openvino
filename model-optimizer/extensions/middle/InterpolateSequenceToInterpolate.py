@@ -15,6 +15,7 @@
 """
 
 import logging as log
+import numpy as np
 from typing import List
 
 from extensions.ops.interpolate import Interpolate
@@ -82,7 +83,8 @@ class CanBeFused:
         elif fst_opset == 'opset3':
             for attr in self.default_values_for_opset3.keys():
                 default_value = self.default_values_for_opset3[attr]
-                if first.soft_get(attr, default=default_value) != second.soft_get(attr, default=default_value):
+                if not np.array_equal(first.soft_get(attr, default=default_value),
+                                      second.soft_get(attr, default=default_value)):
                     return False
 
             for attr in ['pads_begin', 'pads_end']:
