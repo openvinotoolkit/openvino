@@ -68,10 +68,14 @@ namespace ngraph
         }
 
         SubgraphCache::SubgraphCache(const ONNX_NAMESPACE::GraphProto& graph_proto,
-                                     const std::shared_ptr<GraphCache> parent_graph_cache)
+                                     const GraphCache* parent_graph_cache)
             : GraphCache(graph_proto)
             , m_parent_graph_cache{parent_graph_cache}
         {
+            if (m_parent_graph_cache == nullptr)
+            {
+                throw ngraph_error("Parent graph cache is not initialized");
+            }
         }
 
         std::shared_ptr<ngraph::Node> SubgraphCache::get_node(const std::string& name) const

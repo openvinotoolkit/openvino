@@ -45,12 +45,12 @@ namespace ngraph
             std::shared_ptr<ngraph::Node> get_ng_node_from_cache(const std::string& name) const;
             const std::string& get_name() const { return m_graph_proto->name(); }
             NodeVector make_ng_nodes(const Node& onnx_node) const;
-            const std::shared_ptr<GraphCache> get_graph_cache() const;
+            const GraphCache* get_graph_cache() const;
 
         protected:
             Graph(const ONNX_NAMESPACE::GraphProto& proto,
                   Model& model,
-                  std::shared_ptr<GraphCache>&& cache);
+                  std::unique_ptr<GraphCache>&& cache);
 
             void set_friendly_names(const Node& onnx_node, const NodeVector& ng_node_vector) const;
 
@@ -61,7 +61,7 @@ namespace ngraph
 
         private:
             const ONNX_NAMESPACE::GraphProto* m_graph_proto;
-            std::shared_ptr<GraphCache> m_cache;
+            std::unique_ptr<GraphCache> m_cache;
             std::vector<Node> m_nodes;
             std::vector<ValueInfo> m_inputs;
             std::vector<ValueInfo> m_outputs;

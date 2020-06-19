@@ -88,7 +88,7 @@ namespace ngraph
             /// \param[in]  graph_proto          ONNX protobuf graph representation.
             /// \param[in]  parent_graph_cache   The shared pointer to the parent graph.
             SubgraphCache(const ONNX_NAMESPACE::GraphProto& graph_proto,
-                          const std::shared_ptr<GraphCache> parent_graph_cache);
+                          const GraphCache* parent_graph_cache);
 
             /// \brief      Get the node from the cache (subgraph or parent graph)
             ///
@@ -108,7 +108,7 @@ namespace ngraph
             bool contains(const std::string& name) const override;
 
         private:
-            const std::shared_ptr<GraphCache> m_parent_graph_cache;
+            const GraphCache* m_parent_graph_cache;
         };
 
     } // namespace onnx_import
