@@ -47,4 +47,4 @@ class InterpolateV1ToInterpolateV3(FrontReplacementOp):
         node['pads_begin'] = int64_array([pads_begin] if not isinstance(pads_begin, list) else pads_begin)
         node['pads_end'] = int64_array([pads_end] if not isinstance(pads_end, list) else pads_end)
 
-        node.version = 'opset3'
+        node['version'] = 'opset3'
