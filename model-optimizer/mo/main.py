@@ -293,11 +293,6 @@ def main(cli_parser: argparse.ArgumentParser, framework: str):
             argv.framework = framework
         append_exp_keys_to_namespace(argv)
 
-        # set output precision for operations producing bool values to be I32 as it was for the IRv7
-        if argv.generate_deprecated_IR_V7:
-            from mo.middle.passes.convert_data_type import SUPPORTED_DATA_TYPES
-            SUPPORTED_DATA_TYPES['bool'] = (np.bool, 'I32', 'boolean')
-
         ov_update_message = None
         if not hasattr(argv, 'silent') or not argv.silent:
             ov_update_message = get_ov_update_message()

@@ -240,10 +240,4 @@ def get_ir_version(argv: argparse.Namespace):
     :param argv: the parsed command line arguments
     :return: the IR version
     """
-    if argv.generate_experimental_IR_V10:
-        version = 10
-    elif argv.generate_deprecated_IR_V2:
-        version = 2
-    else:
-        version = 7
-    return version
+    return 10
