@@ -1,4 +1,4 @@
-// Copyright (C) 2019 Intel Corporation
+// Copyright (C) 2019-2020 Intel Corporation
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -34,10 +34,26 @@ typedef std::tuple<
         std::string                     // Device name
 > poolLayerTestParamsSet;
 
+typedef std::tuple<
+        poolSpecificParams,
+        InferenceEngine::Precision,     // Net precision
+        size_t,                         // Channel number
+        std::string                     // Device name
+> globalPoolLayerTestParamsSet;
+
 class PoolingLayerTest : public testing::WithParamInterface<poolLayerTestParamsSet>,
                          public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<poolLayerTestParamsSet> obj);
+
+protected:
+    void SetUp() override;
+};
+
+class GlobalPoolingLayerTest : public testing::WithParamInterface<globalPoolLayerTestParamsSet>,
+                               public LayerTestsUtils::LayerTestsCommon {
+public:
+    static std::string getTestCaseName(testing::TestParamInfo<globalPoolLayerTestParamsSet> obj);
 
 protected:
     void SetUp() override;
