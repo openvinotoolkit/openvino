@@ -727,8 +727,6 @@ NodeVector op::v0::GroupConvolution::decompose_op() const
     auto filters_shape = get_input_shape(1);
     // Split one convolution op to N ops where N is the number of groups
     // and concat results after computation.
-    // reference:
-    // https://github.com/NervanaSystems/ngraph-mxnet/blob/fdd692/src/ngraph/ngraph_emitter.cc#L822-L856
     NodeVector convolution_nodes;
 
     // slice data

@@ -35,6 +35,7 @@
 #include "ngraph_ops/rnn_cell_ie.hpp"
 #include "ngraph_ops/topk_ie.hpp"
 #include "generic_ie.hpp"
+#include "exec_graph_info.hpp"
 
 #include "ie_profiling.hpp"
 #include "ie_cnn_layer_builder_ngraph.h"
@@ -499,7 +500,9 @@ CNNLayerPtr InferenceEngine::details::CNNLayerCreator::create() {
     return res;
 }
 
-std::shared_ptr<CNNNetworkImpl> convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function>& graph, const ICNNNetwork &network) {
+std::shared_ptr<CNNNetworkImpl> convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function> &graph,
+                                                             const ICNNNetwork &network,
+                                                             bool keep_constant_inputs) {
     IE_PROFILING_AUTO_SCOPE(convertFunctionToICNNNetwork)
     const auto createCNNLayer = [](const std::shared_ptr<::ngraph::Node> &node) -> CNNLayerPtr {
         class NGraphCNNLayer: public CNNLayer {
@@ -715,7 +718,7 @@ std::shared_ptr<CNNNetworkImpl> convertFunctionToICNNNetwork(const std::shared_p
     for (const auto &layer : nodes)
         op_names.insert(layer->get_name());
 
-    bool keep_constants = ::ngraph::op::util::has_op_with_type<::ngraph::op::FakeQuantize>(graph);
+    bool keep_constants = keep_constant_inputs || ::ngraph::op::util::has_op_with_type<::ngraph::op::FakeQuantize>(graph);
 
     // Create layers and output data
     for (const auto &layer : nodes) {
@@ -730,7 +733,7 @@ std::shared_ptr<CNNNetworkImpl> convertFunctionToICNNNetwork(const std::shared_p
         // Set originalLayersNames from FusedNames
         std::string originalNames = ::ngraph::getFusedNames(layer);
         if (!originalNames.empty()) {
-            cnnLayer->params["originalLayersNames"] = originalNames;
+            cnnLayer->params[ExecGraphInfoSerialization::ORIGINAL_NAMES] = originalNames;
         }
 
         std::string primitivesPriority = ::ngraph::getPrimitivesPriority(layer);
@@ -870,7 +873,11 @@ std::shared_ptr<CNNNetworkImpl> convertFunctionToICNNNetwork(const std::shared_p
                                    << " is not connected to any data";
             }
         }
-        layer->validateLayer();
+
+        // execution ngraph is fake graph and should not be validated
+        if (layer->params.count(ExecGraphInfoSerialization::PERF_COUNTER) == 0) {
+            layer->validateLayer();
+        }
     }
 
     if (!cnnNetworkImpl) THROW_IE_EXCEPTION << "Cannot convert nGraph function to CNNNetworkImpl!";

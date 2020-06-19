@@ -142,6 +142,7 @@ protected:
     friend class MKLDNNInferRequest;
     friend class MKLDNNGraphlessInferRequest;
     friend std::shared_ptr<InferenceEngine::ICNNNetwork> dump_graph_as_ie_net(const MKLDNNGraph &graph);
+    friend std::shared_ptr<InferenceEngine::ICNNNetwork> dump_graph_as_ie_ngraph_net(const MKLDNNGraph &graph);
 
 private:
     void dumpToDotFile(std::string file) const;

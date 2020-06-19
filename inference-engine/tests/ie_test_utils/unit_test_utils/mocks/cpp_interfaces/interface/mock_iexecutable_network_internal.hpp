@@ -30,7 +30,6 @@ public:
     MOCK_METHOD1(CreateInferRequest, void(IInferRequest::Ptr &));
     MOCK_METHOD1(Export, void(const std::string &));
     void Export(std::ostream &) override {};
-    MOCK_METHOD1(GetMappedTopology, void(std::map<std::string, std::vector<PrimitiveInfo::Ptr>> &));
     MOCK_METHOD0(QueryState, std::vector<IMemoryStateInternal::Ptr>());
     MOCK_METHOD1(GetExecGraphInfo, void(ICNNNetwork::Ptr &));
 

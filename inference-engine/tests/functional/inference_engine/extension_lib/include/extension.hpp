@@ -52,9 +52,6 @@ class TestExtension : public InferenceEngine::IExtension {
 public:
     TestExtension() = default;
     void GetVersion(const InferenceEngine::Version*& versionInfo) const noexcept override;
-    IE_SUPPRESS_DEPRECATED_START
-    void SetLogCallback(InferenceEngine::IErrorListener& /*listener*/) noexcept override {}
-    IE_SUPPRESS_DEPRECATED_END
     void Unload() noexcept override {}
     void Release() noexcept override {
         delete this;
