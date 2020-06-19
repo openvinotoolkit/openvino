@@ -72,7 +72,7 @@ void StaticShapeNonMaxSuppression::validate_and_infer_types() {
 
     set_output_size(2);
     set_output_type(0, m_output_type, out_shape);
-    set_output_type(1, ngraph::element::i64, Shape{2});
+    set_output_type(1, m_output_type, Shape{2});
 }
 
 }  // namespace op
