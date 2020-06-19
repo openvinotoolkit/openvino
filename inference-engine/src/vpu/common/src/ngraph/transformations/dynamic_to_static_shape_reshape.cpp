@@ -33,9 +33,9 @@ void dynamicToStaticShapeReshape(std::shared_ptr<ngraph::Node> target) {
     const auto outShapeOfReshape = std::make_shared<ngraph::vpu::op::OutShapeOfReshape>(
             inDataShape, outShapeDescriptor, reshape->get_special_zero());
 
-    const auto outDSR = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(copied, outShapeOfReshape);
+    auto outDSR = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(copied, outShapeOfReshape);
     outDSR->set_friendly_name(reshape->get_friendly_name());
-    ngraph::replace_node(std::move(target), outDSR);
+    ngraph::replace_node(std::move(target), std::move(outDSR));
 }
 
 }  // namespace vpu

@@ -72,9 +72,9 @@ void dynamicToStaticShapeGather(std::shared_ptr<ngraph::Node> target) {
     }
     const auto output_shape = std::make_shared<ngraph::opset3::Concat>(output_dims, 0);
 
-    const auto outDSR = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(copied, output_shape);
+    auto outDSR = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(copied, output_shape);
     outDSR->set_friendly_name(target->get_friendly_name());
-    ngraph::replace_node(target, outDSR);
+    ngraph::replace_node(target, std::move(outDSR));
 }
 
 }  // namespace vpu
