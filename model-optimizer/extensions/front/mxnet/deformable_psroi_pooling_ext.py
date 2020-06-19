@@ -49,10 +49,5 @@ class DeformablePSROIPoolingFrontExtractor(FrontExtractorOp):
             'pooled_height': pooled_size,
         }
 
-        # update the attributes of the node
-        if not node.graph.graph['cmd_params'].generate_experimental_IR_V10:
-            data.update({'no_trans': no_trans})
-            PSROIPoolingOp.update_node_stat(node, data)
-        else:
-            DeformablePSROIPoolingOp.update_node_stat(node, data)
+        DeformablePSROIPoolingOp.update_node_stat(node, data)
         return cls.enabled

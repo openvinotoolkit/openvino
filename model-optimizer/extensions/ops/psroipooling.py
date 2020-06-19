@@ -38,7 +38,7 @@ class PSROIPoolingOp(Op):
         super().__init__(graph, mandatory_props, attrs)
 
     def supported_attrs(self):
-        attrs = [
+        return [
             'spatial_scale',
             'output_dim',
             ('group_size', lambda node: int(node.group_size)),
@@ -47,10 +47,10 @@ class PSROIPoolingOp(Op):
             'spatial_bins_y',
             'pooled_width',
             'pooled_height',
+            'no_trans',
+            'trans_std',
+            'part_size',
         ]
-        if not self.graph.graph['cmd_params'].generate_experimental_IR_V10:
-            attrs.extend(['no_trans', 'trans_std', 'part_size'])
-        return attrs
 
     @staticmethod
     def psroipooling_infer(node: Node):

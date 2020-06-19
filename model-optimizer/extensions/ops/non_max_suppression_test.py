@@ -43,19 +43,8 @@ class TestNonMaxSuppressionInfer(unittest.TestCase):
             *connect('nms', 'output'),
         ], nodes_with_edges_only=True)
 
-    def test_nms_infer_v7(self):
-        self.graph.graph['cmd_params'] = FakeAttr(generate_experimental_IR_V10=False, ir_version=7)
-
-        nms_node = Node(self.graph, 'nms')
-        nms_node['version'] = 'opset1'
-        NonMaxSuppression.infer(nms_node)
-        NonMaxSuppression.type_infer(nms_node)
-
-        self.assertTrue(np.array_equal(nms_node.out_port(0).data.get_shape(), [100, 3]))
-        self.assertTrue(nms_node.out_port(0).get_data_type() == np.int32)
-
     def test_nms_infer_v10_opset1(self):
-        self.graph.graph['cmd_params'] = FakeAttr(generate_experimental_IR_V10=True, ir_version=10)
+        self.graph.graph['cmd_params'] = FakeAttr(ir_version=10)
 
         nms_node = Node(self.graph, 'nms')
         nms_node['version'] = 'opset1'
@@ -66,7 +55,7 @@ class TestNonMaxSuppressionInfer(unittest.TestCase):
         self.assertTrue(nms_node.out_port(0).get_data_type() == np.int64)
 
     def test_nms_infer_v10_i64_opset3(self):
-        self.graph.graph['cmd_params'] = FakeAttr(generate_experimental_IR_V10=True, ir_version=10)
+        self.graph.graph['cmd_params'] = FakeAttr(ir_version=10)
 
         nms_node = Node(self.graph, 'nms')
         nms_node['version'] = 'opset3'
@@ -78,7 +67,7 @@ class TestNonMaxSuppressionInfer(unittest.TestCase):
         self.assertTrue(nms_node.out_port(0).get_data_type() == np.int64)
 
     def test_nms_infer_v10_i32_opset3(self):
-        self.graph.graph['cmd_params'] = FakeAttr(generate_experimental_IR_V10=True, ir_version=10)
+        self.graph.graph['cmd_params'] = FakeAttr(ir_version=10)
 
         nms_node = Node(self.graph, 'nms')
         nms_node['version'] = 'opset3'

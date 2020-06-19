@@ -146,7 +146,6 @@ extensions/front/kaldi/split_memoryoffsets.py
 extensions/front/kaldi/tanh_component_ext.py
 extensions/front/Log1p.py
 extensions/front/LogSoftmax.py
-extensions/front/LRNReplacer.py
 extensions/front/MatMul_normalizer.py
 extensions/front/MoveEmbeddedInputsToInputs.py
 extensions/front/mxnet/__init__.py
@@ -324,7 +323,6 @@ extensions/front/softmax.py
 extensions/front/softplus.py
 extensions/front/softsign_replacer.py
 extensions/front/split_normalizer.py
-extensions/front/squared_difference.py
 extensions/front/SqueezeNormalize.py
 extensions/front/standalone_const_eraser.py
 extensions/front/sub.py
@@ -503,7 +501,6 @@ extensions/middle/DecomposeBidirectionalRNNSequence.py
 extensions/middle/Deconvolution3rdInputNormalization.py
 extensions/middle/DeleteControlFlowEdges.py
 extensions/middle/DeleteNotExecutable.py
-extensions/middle/DepthToSpace.py
 extensions/middle/DilatedConvolution.py
 extensions/middle/EltwiseChecker.py
 extensions/middle/EltwiseInputNormalization.py
@@ -525,7 +522,6 @@ extensions/middle/LayoutChangeForConstantShapePaths.py
 extensions/middle/LeakyReluPattern.py
 extensions/middle/LSTMRNNSequenceToTensorIterator.py
 extensions/middle/MarkSubgraphsWithCorrectLayout.py
-extensions/middle/MinimumMiddleReplacer.py
 extensions/middle/MulAddToSS.py
 extensions/middle/MulFakeQuantizeFuse.py
 extensions/middle/MXNetRNNSequenceNormalize.py
@@ -557,7 +553,6 @@ extensions/middle/ScaleInput.py
 extensions/middle/SharedWeightsDuplication.py
 extensions/middle/SliceConverter.py
 extensions/middle/SliceLikeToStridedSlice.py
-extensions/middle/space_to_depth.py
 extensions/middle/sparse_reshape.py
 extensions/middle/SplitConcatPairToInterpolate.py
 extensions/middle/ssd_anchors_to_const.py
