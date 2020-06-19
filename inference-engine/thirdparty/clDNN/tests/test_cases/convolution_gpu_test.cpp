@@ -7838,7 +7838,7 @@ public:
         return "conv";
     }
 
-    void run_expect(const VVVVF<OutputT>& expected) {
+    virtual void run_expect(const VVVVF<OutputT>& expected) {
         auto engine = get_test_engine();
 
         auto topo = build_topology(engine);
@@ -8118,6 +8118,135 @@ static std::string to_string_convolution_all_params(const testing::TestParamInfo
 }
 
 template <typename InputT, typename WeightsT, typename OutputT>
+class convolution_random_test_fsv4_input : public convolution_random_test_base<InputT, WeightsT, OutputT> {
+public:
+    using parent = convolution_random_test_base<InputT, WeightsT, OutputT>;
+    topology build_topology(const cldnn::engine& engine) override {
+        auto input_lay = layout(this->input_type(), format::b_fs_yx_fsv4, this->input_size());
+        auto wei_lay = layout(this->weights_type(), format::bfyx, this->weights_size());
+
+        auto wei_mem = memory::allocate(engine, wei_lay);
+        auto wei_flat = flatten_4d(format::bfyx, this->_weights);
+        set_values(wei_mem, wei_flat);
+        layout reordered_layout = layout{this->input_type(), this->input_format(), this->input_size(), this->padding_size()};
+        auto topo = topology();
+        topo.add(input_layout("input", input_lay));
+        topo.add(reorder("input_reorder", "input", reordered_layout));
+        std::string input_id = "input_reorder";
+        if (this->has_input_zp()) {
+            auto input_zp_lay = layout(this->input_type(), format::bfyx, tensor(feature(this->input_features())));
+            auto input_zp_mem = memory::allocate(engine, input_zp_lay);
+            set_values(input_zp_mem, this->_input_zp);
+            topo.add(data("input_zp", input_zp_mem));
+            topo.add(eltwise("input_asymm", { "input_reorder", "input_zp" }, eltwise_mode::sub));
+            input_id = "input_asymm";
+        }
+        topo.add(data("weights", wei_mem));
+        std::string weights_id = "weights";
+        if (this->has_weights_zp()) {
+            auto weights_zp_lay = layout(this->weights_type(), format::bfyx, tensor(batch(this->output_features())));
+            auto weights_zp_mem = memory::allocate(engine, weights_zp_lay);
+            set_values(weights_zp_mem, this->_weights_zp);
+            topo.add(data("weights_zp", weights_zp_mem));
+            topo.add(eltwise("weights_asymm", { "weights", "weights_zp" }, eltwise_mode::sub));
+            weights_id = "weights_asymm";
+        }
+        if (!this->has_bias()) {
+            auto conv_prim = convolution(
+                "conv",
+                input_id,
+                { weights_id },
+                static_cast<uint32_t>(this->groups()),
+                tensor(batch(0), feature(0), spatial(this->_stride_x, this->_stride_y)),
+                tensor(batch(0), feature(0), spatial(this->_offset_x, this->_offset_y)),
+                tensor(batch(0), feature(0), spatial(this->_dilation_x, this->_dilation_y)));
+            conv_prim.output_data_type = this->output_type();
+            topo.add(conv_prim);
+        } else {
+            auto bias_lay = layout(this->output_type(), format::bfyx, tensor(feature(this->output_features())));
+            auto bias_mem = memory::allocate(engine, bias_lay);
+            set_values(bias_mem, this->_bias);
+            topo.add(data("bias", bias_mem));
+            auto conv_prim = convolution(
+                "conv",
+                input_id,
+                { weights_id },
+                { "bias" },
+                static_cast<uint32_t>(this->groups()),
+                tensor(batch(0), feature(0), spatial(this->_stride_x, this->_stride_y)),
+                tensor(batch(0), feature(0), spatial(this->_offset_x, this->_offset_y)),
+                tensor(batch(0), feature(0), spatial(this->_dilation_x, this->_dilation_y)));
+            conv_prim.output_data_type = this->output_type();
+            topo.add(conv_prim);
+        }
+
+        return topo;
+    }
+    void run_expect(const VVVVF<OutputT>& expected) override {
+        auto engine = get_test_engine();
+
+        auto topo = this->build_topology(engine);
+
+        auto build_opts = build_options(
+            build_option::optimize_data(true),
+            build_option::force_implementations({ {"conv", { this->input_format(), ""}} })
+        );
+        auto prog = program(engine, topo, build_opts);
+
+        auto net = network(prog, 0);
+
+        auto input_lay = layout(this->input_type(), format::b_fs_yx_fsv4,  this->input_size());
+        auto input_mem = memory::allocate(engine, input_lay);
+        std::vector<InputT> input_flat(input_lay.get_linear_size(), static_cast<InputT>(0));
+        for (size_t bi = 0; bi < this->batch_num(); ++bi)
+            for (size_t fi = 0; fi < this->input_features(); ++fi)
+                for (size_t yi = 0; yi < this->input_y(); ++yi)
+                    for (size_t xi = 0; xi < this->input_x(); ++xi) {
+                        tensor coords = tensor(batch(bi), feature(fi), spatial(xi, yi, 0, 0));
+                        size_t offset = input_lay.get_linear_offset(coords);
+                        input_flat[offset] = this->_input[bi][fi][yi][xi];
+                    }
+        set_values(input_mem, input_flat);
+
+        net.set_input_data("input", input_mem);
+        auto result = net.execute();
+        auto out_mem = result.at(this->output_primitive_id()).get_memory();
+        auto out_lay = out_mem.get_layout();
+        auto out_ptr = out_mem.cldnn::memory::template pointer<OutputT>();
+
+        std::stringstream description;
+        for (auto i : net.get_primitives_info()) {
+            if (i.original_id == "conv") {
+                std::cout << i.kernel_id << std::endl;
+                description << "  kernel: " << i.kernel_id << std::endl;
+            }
+        }
+        description << "  executed: ";
+        for (auto e : net.get_executed_primitive_ids()) {
+            description << e << ", ";
+        }
+
+        ASSERT_EQ(out_lay.data_type, this->output_type());
+        ASSERT_EQ(out_lay.size.batch[0], expected.size());
+        ASSERT_EQ(out_lay.size.feature[0], expected[0].size());
+        ASSERT_EQ(out_lay.size.spatial[1], expected[0][0].size());
+        ASSERT_EQ(out_lay.size.spatial[0], expected[0][0][0].size());
+
+        for (size_t bi = 0; bi < this->batch_num(); ++bi)
+            for (size_t fi = 0; fi < this->output_features(); ++fi)
+                for (size_t yi = 0; yi < expected[0][0].size(); ++yi)
+                    for (size_t xi = 0; xi < expected[0][0][0].size(); ++xi) {
+                        tensor coords = tensor(batch(bi), feature(fi), spatial(xi, yi, 0, 0));
+                        size_t offset = out_lay.get_linear_offset(coords);
+
+                        ASSERT_EQ(out_ptr[offset], expected[bi][fi][yi][xi])
+                            << "at b= " << bi << ", f= " << fi << ", y= " << yi << ", x= " << xi << std::endl
+                            << description.str();
+                    }
+    }
+};
+
+template <typename InputT, typename WeightsT, typename OutputT>
 class convolution_scale_random_test : public convolution_random_test_base<InputT, WeightsT, OutputT> {
 public:
     using parent = convolution_random_test_base<InputT, WeightsT, OutputT>;
@@ -8171,6 +8300,9 @@ class convolution_random_smoke_test : public testing::TestWithParam<convolution_
 
 using convolution_random_test_s8s8f32 = convolution_random_test_base<int8_t, int8_t, float>;
 using convolution_random_test_u8s8f32 = convolution_random_test_base<uint8_t, int8_t, float>;
+
+using convolution_random_test_fsv4_input_s8s8f32 = convolution_random_test_fsv4_input<int8_t, int8_t, float>;
+using convolution_random_test_fsv4_input_u8s8f32 = convolution_random_test_fsv4_input<uint8_t, int8_t, float>;
 
 using convolution_scale_random_test_s8s8f32 = convolution_scale_random_test<int8_t, int8_t, float>;
 using convolution_scale_random_test_u8s8f32 = convolution_scale_random_test<uint8_t, int8_t, float>;
@@ -8262,6 +8394,16 @@ TEST_P(convolution_random_smoke_test, u8s8f32) {
 
 TEST_P(convolution_random_smoke_test, u8s8f32_scale) {
     convolution_scale_random_test_u8s8f32 test;
+    ASSERT_NO_FATAL_FAILURE(test.run_random(GetParam()));
+}
+
+TEST_P(convolution_random_smoke_test, s8s8f32_fsv4_input) {
+    convolution_random_test_fsv4_input_s8s8f32 test;
+    ASSERT_NO_FATAL_FAILURE(test.run_random(GetParam()));
+}
+
+TEST_P(convolution_random_smoke_test, u8s8f32_fsv4_input) {
+    convolution_random_test_fsv4_input_u8s8f32 test;
     ASSERT_NO_FATAL_FAILURE(test.run_random(GetParam()));
 }
 
