@@ -359,7 +359,7 @@ void GNAPluginNS::backend::AMIntelDNN::InitDeinterleaveComponentPrivate(intel_dn
     comp.operation = kDnnDeinterleaveOp;
     comp.macro_operation = kDnnMacroOpNone;
     comp.orientation_in = kDnnInterleavedOrientation;
-    comp.orientation_out = kDnnNonInterleavedOrientation;
+    comp.orientation_out = kDnnInterleavedOrientation;
     comp.output_scale_factor = output_scale_factor;
     comp.input_scale_factor = output_scale_factor;
     if (!postInitMem) {

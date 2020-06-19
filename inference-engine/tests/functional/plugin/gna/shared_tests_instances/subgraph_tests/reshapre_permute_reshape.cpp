@@ -9,6 +9,7 @@ using namespace LayerTestsDefinitions;
 namespace {
     std::vector<std::vector<std::vector<size_t>>> inputs{
             {{1, 4 , 160}, {0, 2, 1}},
+            {{1, 160, 4}, {0, 2, 1}},
             {{8, 16}, {1, 0}},
             {{1, 1, 4, 16}, {3, 1, 2, 0}},
             {{1, 8, 200}, {0, 2, 1}},
