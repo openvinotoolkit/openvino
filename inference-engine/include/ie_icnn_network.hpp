@@ -218,17 +218,6 @@ public:
     };
 
     /**
-     * @deprecated Use Core::AddExtension to add an extension to the library
-     * @brief Registers extension within the plugin
-     *
-     * @param extension Pointer to already loaded reader extension with shape propagation implementations
-     * @param resp Pointer to the response message that holds a description of an error if any occurred
-     * @return Status code of the operation. InferenceEngine::OK if succeeded
-     */
-    INFERENCE_ENGINE_DEPRECATED("Use Core::AddExtension to add an extension to the library")
-    virtual StatusCode AddExtension(const IShapeInferExtensionPtr& extension, ResponseDesc* resp) noexcept;
-
-    /**
      * @brief Serialize network to IR and weights files.
      *
      * @param xmlPath Path to output IR file.

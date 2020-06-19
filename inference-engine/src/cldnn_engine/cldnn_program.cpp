@@ -3943,11 +3943,13 @@ void Program::CreateStridedSlicePrimitive(cldnn::topology& topology, InferenceEn
     tmp = stridedSliceLayer->GetParamAsUInts("shrink_axis_mask");
     std::vector<uint8_t> shrink_axis_mask(tmp.begin(), tmp.end());
 
+    auto out_size = CldnnTensorFromIEDims(stridedSliceLayer->outData[0]->getTensorDesc().getDims());
+
     std::string stridedSliceLayerName = layer_type_name_ID(layer);
     auto stridedSlicePrim = cldnn::strided_slice(
             stridedSliceLayerName,
             inputPrimitives[0], inputPrimitives[1], inputPrimitives[2], inputPrimitives[3],
-            begin_mask, end_mask, new_axis_mask, shrink_axis_mask);
+            begin_mask, end_mask, new_axis_mask, shrink_axis_mask, out_size);
 
     topology.add(stridedSlicePrim);
     AddPrimitiveToProfiler(stridedSliceLayerName, layer);

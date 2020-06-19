@@ -5,6 +5,7 @@
 #include "vpu/ngraph/transformations/dynamic_to_static_shape_broadcast.hpp"
 #include "vpu/ngraph/transformations/dynamic_to_static_shape_concat.hpp"
 #include "vpu/ngraph/transformations/dynamic_to_static_shape_unary_elementwise.hpp"
+#include "vpu/ngraph/transformations/dynamic_to_static_shape_reduce.hpp"
 #include "vpu/ngraph/transformations/dynamic_to_static_shape_roialign.hpp"
 #include "vpu/ngraph/transformations/dynamic_to_static_shape_topk.hpp"
 #include "vpu/ngraph/transformations/dynamic_to_static_shape_transpose.hpp"
@@ -86,6 +87,15 @@ const Transformations& getDefaultTransformations() {
         {ngraph::opset3::ROIAlign::type_info,  dynamicToStaticShapeROIAlign},
         {ngraph::opset3::Reshape::type_info,   dynamicToStaticShapeReshape},
         {ngraph::opset3::Broadcast::type_info, dynamicToStaticShapeBroadcast},
+
+        // reduction
+        {ngraph::opset3::ReduceLogicalAnd::type_info, dynamicToStaticShapeReduce},
+        {ngraph::opset3::ReduceLogicalOr::type_info, dynamicToStaticShapeReduce},
+        {ngraph::opset3::ReduceMax::type_info, dynamicToStaticShapeReduce},
+        {ngraph::opset3::ReduceMean::type_info, dynamicToStaticShapeReduce},
+        {ngraph::opset3::ReduceMin::type_info, dynamicToStaticShapeReduce},
+        {ngraph::opset3::ReduceProd::type_info, dynamicToStaticShapeReduce},
+        {ngraph::opset3::ReduceSum::type_info, dynamicToStaticShapeReduce},
     };
     return transformations;
 }

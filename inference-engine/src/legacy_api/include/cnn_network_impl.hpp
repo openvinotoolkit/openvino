@@ -10,6 +10,7 @@
 #include <string>
 #include <vector>
 
+#include "ie_ishape_infer_extension.hpp"
 #include "description_buffer.hpp"
 #include "ie_api.h"
 #include "ie_blob.h"
@@ -139,7 +140,7 @@ public:
                        ResponseDesc* resp) noexcept override;
 
     StatusCode AddExtension(const InferenceEngine::IShapeInferExtensionPtr& extension,
-                            InferenceEngine::ResponseDesc* resp) noexcept override;
+                            InferenceEngine::ResponseDesc* resp) noexcept;
 
     StatusCode serialize(const std::string& xmlPath, const std::string& binPath, ResponseDesc* resp) const
         noexcept override;

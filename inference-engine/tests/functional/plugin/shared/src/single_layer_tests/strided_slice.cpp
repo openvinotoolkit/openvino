@@ -36,10 +36,10 @@ std::string StridedSliceLayerTest::getTestCaseName(const testing::TestParamInfo<
     result << "stride=" << CommonTestUtils::vec2str(stride) << "_";
     result << "begin_m=" << CommonTestUtils::vec2str(begin_mask) << "_";
     result << "end_m=" << CommonTestUtils::vec2str(end_mask) << "_";
-    result << "new_axis_m=" << CommonTestUtils::vec2str(new_axis_mask) << "_";
-    result << "shrink_m=" << CommonTestUtils::vec2str(shrink_mask) << "_";
-    result << "ellipsis_m=" << CommonTestUtils::vec2str(ellipsis_mask) << "_";
-    result << "targetDevice=" << targetName << "_";
+    result << "new_axis_m=" << (new_axis_mask.empty() ? "def" : CommonTestUtils::vec2str(new_axis_mask)) << "_";
+    result << "shrink_m=" << (shrink_mask.empty() ? "def" : CommonTestUtils::vec2str(shrink_mask)) << "_";
+    result << "ellipsis_m=" << (ellipsis_mask.empty() ? "def" : CommonTestUtils::vec2str(ellipsis_mask)) << "_";
+    result << "targetDevice=" << targetName;
     return result.str();
 }
 
