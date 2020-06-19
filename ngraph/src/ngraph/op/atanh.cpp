@@ -39,7 +39,6 @@ shared_ptr<Node> op::v3::Atanh::clone_with_new_inputs(const OutputVector& new_ar
     return make_shared<Atanh>(new_args.at(0));
 }
 
-#ifdef NGRAPH_EVALUATE_ENABLE
 namespace
 {
     template <element::Type_t ET>
@@ -92,4 +91,3 @@ bool op::v3::Atanh::evaluate(const HostTensorVector& outputs, const HostTensorVe
     std::cout << "AA 22" << std::endl;
     return evaluate_atanh(inputs[0], outputs[0]);
 }
-#endif

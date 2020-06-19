@@ -102,10 +102,8 @@ namespace ngraph
                 bool get_compute_max() const { return m_compute_max; }
                 SortType get_sort() const { return m_sort; }
                 size_t get_default_output_index() const override { return no_default_index(); }
-#ifdef NGRAPH_EVALUATE_ENABLE
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) override;
-#endif
 
             protected:
                 element::Type m_index_element_type;
@@ -189,10 +187,8 @@ namespace ngraph
                 size_t get_k() const;
                 void set_k(size_t k);
                 size_t get_default_output_index() const override { return no_default_index(); }
-#ifdef NGRAPH_EVALUATE_ENABLE
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) override;
-#endif
 
             protected:
                 int64_t m_axis;
@@ -257,10 +253,8 @@ namespace ngraph
                 virtual std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
 
-#ifdef NGRAPH_EVALUATE_ENABLE
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) override;
-#endif
 
             protected:
                 virtual size_t

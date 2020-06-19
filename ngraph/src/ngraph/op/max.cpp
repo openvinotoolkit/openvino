@@ -85,7 +85,6 @@ shared_ptr<Node> op::v0::Max::get_default_value() const
     }
 }
 
-#ifdef NGRAPH_EVALUATE_ENABLE
 namespace
 {
     template <element::Type_t ET>
@@ -138,7 +137,6 @@ bool op::v0::Max::evaluate(const HostTensorVector& outputs, const HostTensorVect
     std::cout << "AA 78" << std::endl;
     return evaluate_max(inputs[0], outputs[0], get_reduction_axes());
 }
-#endif
 
 constexpr NodeTypeInfo op::v1::ReduceMax::type_info;
 
@@ -156,10 +154,8 @@ shared_ptr<Node> op::v1::ReduceMax::clone_with_new_inputs(const OutputVector& ne
     return make_shared<op::v1::ReduceMax>(new_args.at(0), new_args.at(1), get_keep_dims());
 }
 
-#ifdef NGRAPH_EVALUATE_ENABLE
 bool op::v1::ReduceMax::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
 {
     std::cout << "AA 79" << std::endl;
     return evaluate_max(inputs[0], outputs[0], get_reduction_axes());
 }
-#endif

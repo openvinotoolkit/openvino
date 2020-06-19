@@ -70,10 +70,8 @@ namespace ngraph
                 // Overload collision with method on Node
                 using Node::set_output_type;
 
-#ifdef NGRAPH_EVALUATE_ENABLE
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) override;
-#endif
 
             protected:
                 element::Type m_output_type = element::i64;
