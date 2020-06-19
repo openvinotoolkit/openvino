@@ -23,6 +23,10 @@ class InterpolateV1ToInterpolateV3(FrontReplacementOp):
     op = 'Interpolate'
     enabled = True
 
+    def run_after(self):
+        from extensions.front.InterpolateNormalizer import InterpolateNormalizer
+        return [InterpolateNormalizer]
+
     def replace_sub_graph(self, graph: Graph, match: dict):
         node = match['op']
         opset = node.get_opset()
@@ -31,7 +35,6 @@ class InterpolateV1ToInterpolateV3(FrontReplacementOp):
 
         if int(node.soft_get('align_corners', default=0)):
             node['coordinate_transformation_mode'] = 'align_corners'
-            del node['align_corners']
         else:
             node['coordinate_transformation_mode'] = 'half_pixel'
 
