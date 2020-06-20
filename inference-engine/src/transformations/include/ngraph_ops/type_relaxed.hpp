@@ -19,7 +19,7 @@ namespace op {
 class TypeRelaxedBase {
 public:
     TypeRelaxedBase() {}
-    virtual ~TypeRelaxedBase() {};
+    virtual ~TypeRelaxedBase() {}
 
     TypeRelaxedBase(element::Type use_type) :m_output_data_type(use_type) {
     }
