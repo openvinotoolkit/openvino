@@ -158,7 +158,7 @@ TEST_F(NGraphReaderTests, ConvBiasFusion) {
             });
 }
 
-TEST_F(NGraphReaderTests, ConvBiasFusionFP16) {
+TEST_F(NGraphReaderTests, DISABLED_ConvBiasFusionFP16) {
     std::string model = R"V0G0N(
 <net name="Network" version="10">
     <layers>

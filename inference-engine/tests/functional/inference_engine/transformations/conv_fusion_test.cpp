@@ -144,7 +144,7 @@ INSTANTIATE_TEST_CASE_P(DISABLED_ConvAddFusionNegative, ConvFusionTests,
                         std::make_tuple(InputShape{DYN, 3, 64, 64, 64}, WeightsShape{8, 3, 1, 2, 3}, add::type_info, EltwiseShape{8, 1, 1}, true),
                         std::make_tuple(InputShape{2, DYN, 64, 64, 64}, WeightsShape{9, 3, 2, 3, 1}, add::type_info, EltwiseShape{9, 1, 1, 1, 1}, true)));
 
-INSTANTIATE_TEST_CASE_P(ConvMulFusion, ConvFusionTests,
+INSTANTIATE_TEST_CASE_P(DISABLED_ConvMulFusion, ConvFusionTests,
         testing::Values(std::make_tuple(InputShape{DYN, DYN, DYN, DYN, DYN}, WeightsShape{8, 3, 1, 2, 3}, mul::type_info, EltwiseShape{8, 1, 1, 1}, false),
                         std::make_tuple(InputShape{DYN, 3, 64, 64, 64}, WeightsShape{8, 3, 1, 2, 3}, mul::type_info, EltwiseShape{8, 1, 1, 1}, false),
                         std::make_tuple(InputShape{2, DYN, 64, 64, 64}, WeightsShape{9, 3, 2, 3, 1}, mul::type_info, EltwiseShape{9, 1, 1, 1}, false),
