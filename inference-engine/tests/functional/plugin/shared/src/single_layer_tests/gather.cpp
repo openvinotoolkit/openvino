@@ -1,0 +1,64 @@
+// Copyright (C) 2019 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include <tuple>
+#include <string>
+#include <vector>
+#include <memory>
+#include <functional>
+
+#include "ie_core.hpp"
+
+#include "common_test_utils/common_utils.hpp"
+#include "functional_test_utils/blob_utils.hpp"
+#include "functional_test_utils/precision_utils.hpp"
+#include "functional_test_utils/plugin_cache.hpp"
+#include "functional_test_utils/skip_tests_config.hpp"
+
+#include "single_layer_tests/gather.hpp"
+
+namespace LayerTestsDefinitions {
+
+std::string GatherLayerTest::getTestCaseName(const testing::TestParamInfo<gatherParamsTuple> &obj) {
+    int axis;
+    std::vector<int> indices;
+    std::vector<size_t> indicesShape, inputShape;
+    InferenceEngine::Precision netPrecision;
+    std::string targetName;
+    std::tie(indices, indicesShape, axis, inputShape, netPrecision, targetName) = obj.param;
+    std::ostringstream result;
+    result << "IS=" << CommonTestUtils::vec2str(inputShape) << "_";
+    result << "axis=" << axis << "_";
+    result << "indices=" << CommonTestUtils::vec2str(indices) << "_";
+    result << "indicesShape=" << CommonTestUtils::vec2str(indicesShape) << "_";
+    result << "netPRC=" << netPrecision.name() << "_";
+    result << "targetDevice=" << targetName << "_";
+    return result.str();
+}
+
+void GatherLayerTest::SetUp() {
+    int axis;
+    std::vector<int> indices;
+    std::vector<size_t> indicesShape;
+    std::vector<size_t> inputShape;
+    InferenceEngine::Precision netPrecision;
+    std::tie(indices, indicesShape, axis, inputShape, netPrecision, targetDevice) = this->GetParam();
+    ASSERT_EQ(ngraph::shape_size(indicesShape), indices.size())
+    << "Indices vector size and provided indices shape doesn't fit each other";
+    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+    auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
+    auto paramOuts = ngraph::helpers::convert2OutputVector(
+            ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
+    auto indicesNode = ngraph::opset3::Constant::create(ngraph::element::i64, ngraph::Shape(indicesShape), indices);
+    auto axisNode = ngraph::opset3::Constant::create(ngraph::element::i64, ngraph::Shape({}), {axis});
+    auto gather = std::make_shared<ngraph::opset3::Gather>(paramOuts[0], indicesNode, axisNode);
+    ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(gather)};
+    function = std::make_shared<ngraph::Function>(results, params, "gather");
+}
+
+
+TEST_P(GatherLayerTest, CompareWithRefs) {
+    Run();
+};
+}  // namespace LayerTestsDefinitions

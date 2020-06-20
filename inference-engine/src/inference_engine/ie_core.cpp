@@ -17,12 +17,11 @@
 
 #include <ngraph/opsets/opset.hpp>
 #include "cpp/ie_cnn_net_reader.h"
-#include "cpp/ie_plugin_cpp.hpp"
+#include "ie_plugin_cpp.hpp"
 #include "cpp_interfaces/base/ie_plugin_base.hpp"
 #include "details/ie_exception_conversion.hpp"
 #include "details/ie_so_pointer.hpp"
 #include "ie_icore.hpp"
-#include "ie_plugin.hpp"
 #include "ie_plugin_config.hpp"
 #include "ie_profiling.hpp"
 #include "ie_util_internal.hpp"
@@ -634,11 +633,6 @@ std::map<std::string, Version> Core::GetVersions(const std::string& deviceName) 
 
     return versions;
 }
-
-IE_SUPPRESS_DEPRECATED_START
-void Core::SetLogCallback(IErrorListener&) const {
-}
-IE_SUPPRESS_DEPRECATED_END
 
 CNNNetwork Core::ReadNetwork(const std::string& modelPath, const std::string& binPath) const {
     return _impl->ReadNetwork(modelPath, binPath);

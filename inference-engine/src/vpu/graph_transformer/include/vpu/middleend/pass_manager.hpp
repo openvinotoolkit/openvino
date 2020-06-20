@@ -243,7 +243,7 @@ public:
 
     Pass::Ptr replaceGemmByConv();
 
-    Pass::Ptr propagateDynamismToOutputs();
+    Pass::Ptr propagateDynamism();
 
 protected:
     StageBuilder::Ptr _stageBuilder;

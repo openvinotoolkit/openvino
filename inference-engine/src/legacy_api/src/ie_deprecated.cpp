@@ -12,11 +12,6 @@ IE_SUPPRESS_DEPRECATED_START
 
 namespace InferenceEngine {
 
-Precision CNNNetwork::getPrecision() const {
-    if (actual == nullptr) THROW_IE_EXCEPTION << "CNNNetwork was not initialized.";
-    return actual->getPrecision();
-}
-
 CNNLayerPtr CNNNetwork::getLayerByName(const char* layerName) const {
     CNNLayerPtr layer;
     CALL_STATUS_FNC(getLayerByName, layerName, layer);
@@ -33,16 +28,6 @@ details::CNNNetworkIterator CNNNetwork::end() const {
 
 size_t CNNNetwork::size() const {
     return std::distance(std::begin(*this), std::end(*this));
-}
-
-StatusCode ICNNNetwork::AddExtension(const IShapeInferExtensionPtr& extension, ResponseDesc* resp) noexcept {
-    (void)extension;
-    (void)resp;
-    return NOT_IMPLEMENTED;
-};
-
-void CNNNetwork::AddExtension(InferenceEngine::IShapeInferExtensionPtr extension) {
-    CALL_STATUS_FNC(AddExtension, extension);
 }
 
 CNNLayer::CNNLayer(const LayerParams& prms)

@@ -9,6 +9,7 @@
 #include "transformations/optimize_strided_slice.hpp"
 #include "transformations/convert_scatter_elements_to_scatter.hpp"
 #include "transformations/remove_filtering_boxes_by_size.hpp"
+#include "transformations/convert_nms_3_to_nms_v4.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/mul_add_squence_fusion.hpp"
 #include "transformations/collapse_subgraph.hpp"

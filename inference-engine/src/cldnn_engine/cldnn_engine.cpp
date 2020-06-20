@@ -19,7 +19,6 @@
 #include <description_buffer.hpp>
 #include <memory>
 #include <cpp_interfaces/base/ie_plugin_base.hpp>
-#include "ie_plugin.hpp"
 #include "ie_plugin_config.hpp"
 #include "details/caseless.hpp"
 #include <details/ie_cnn_network_tools.h>
@@ -71,8 +70,8 @@ cldnn::device_info clDNNEngine::GetDeviceInfo(const std::map<std::string, std::s
 }
 
 InferenceEngine::ICNNNetwork::Ptr clDNNEngine::CloneNetwork(const InferenceEngine::ICNNNetwork& network) const {
-    std::shared_ptr<ICNNNetwork> clonedNetwork(nullptr);
-    if (network.getFunction()) {
+    std::shared_ptr<ICNNNetwork> clonedNetwork = cloneNetwork(network);
+    if (clonedNetwork->getFunction()) {
         const auto transformations_callback = [](const std::shared_ptr<const ::ngraph::Node> &node) -> bool {
             // DepthToSpace node implementation supports only equal input/output tensors with rank <= 5
             // Reshape->Permute->Reshape pattern in theory can change output rank, so this check is added to be sure
@@ -85,8 +84,7 @@ InferenceEngine::ICNNNetwork::Ptr clDNNEngine::CloneNetwork(const InferenceEngin
                    std::dynamic_pointer_cast<const ::ngraph::opset3::ShuffleChannels>(node) ||
                    std::dynamic_pointer_cast<const ::ngraph::opset2::BatchToSpace>(node);
         };
-        CNNNetwork net(network.getFunction());
-        auto nGraphFunc = net.getFunction();
+        auto nGraphFunc = clonedNetwork->getFunction();
         // Disable shape inference (WA for generic operations)
         ::ngraph::op::GenericIE::DisableReshape noReshape(nGraphFunc);
 
@@ -95,9 +93,7 @@ InferenceEngine::ICNNNetwork::Ptr clDNNEngine::CloneNetwork(const InferenceEngin
         ngraph::pass::ConvertOpSet3ToOpSet2(transformations_callback).run_on_function(nGraphFunc);
         ngraph::pass::ConvertOpSet2ToOpSet1(transformations_callback).run_on_function(nGraphFunc);
         ngraph::pass::ConvertOpSet1ToLegacy(transformations_callback).run_on_function(nGraphFunc);
-        clonedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(nGraphFunc, network);
-    } else {
-        clonedNetwork = cloneNet(network);
+        clonedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(nGraphFunc, *clonedNetwork);
     }
 
     auto implNetwork = std::dynamic_pointer_cast<InferenceEngine::details::CNNNetworkImpl>(clonedNetwork);
