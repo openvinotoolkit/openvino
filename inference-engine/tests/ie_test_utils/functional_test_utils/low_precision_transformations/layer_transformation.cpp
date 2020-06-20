@@ -212,6 +212,19 @@ std::string LayerTransformation::getTestCaseNameByParams(
     return result.str();
 }
 
+bool LayerTransformation::fakeQuantizeExists(const InferenceEngine::ICNNNetwork& network) {
+    auto it = InferenceEngine::details::CNNNetworkIterator(&network);
+    auto end = details::CNNNetworkIterator();
+    while (it != end) {
+        if (((*it)->type == "FakeQuantize") && (InferenceEngine::details::QuantizationDetails::isSupportedLevel((*it)->GetParamAsUInt("levels")))) {
+            return true;
+        }
+        it++;
+    }
+
+    return false;
+}
+
 ngraph::element::Type toNGraph(const InferenceEngine::Precision precision) {
     switch (precision) {
         case InferenceEngine::Precision::U8: {

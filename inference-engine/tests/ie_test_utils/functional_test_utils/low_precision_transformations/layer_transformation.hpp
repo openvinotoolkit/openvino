@@ -79,12 +79,14 @@ protected:
 
     static ngraph::pass::low_precision::LayerTransformation::Params toNGraph(const InferenceEngine::details::LayerTransformation::Params& params);
 
-    static std::string LayerTransformation::getTestCaseNameByParams(
+    static std::string getTestCaseNameByParams(
         const InferenceEngine::Precision netPrecision,
         const InferenceEngine::SizeVector& inputShapes,
         const std::string targetDevice,
         const InferenceEngine::details::LayerTransformation::Params& params,
         const LayerTestsUtils::LayerTransformation::LptVersion version);
+
+    static bool fakeQuantizeExists(const InferenceEngine::ICNNNetwork& network);
 };
 
 IE_SUPPRESS_DEPRECATED_END

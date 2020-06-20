@@ -9,7 +9,7 @@ namespace ngraph {
 namespace builder {
 namespace subgraph {
 
-FakeQuantizeOnData::FakeQuantizeOnData() {};
+FakeQuantizeOnData::FakeQuantizeOnData() {}
 
 FakeQuantizeOnData::FakeQuantizeOnData(
     const size_t quantizationLevel,
@@ -22,7 +22,7 @@ FakeQuantizeOnData::FakeQuantizeOnData(
     highValues(highValues)
 {}
 
-FakeQuantizeOnData::~FakeQuantizeOnData() {};
+FakeQuantizeOnData::~FakeQuantizeOnData() {}
 
 bool FakeQuantizeOnData::isSigned() const {
     return std::any_of(lowValues.begin(), lowValues.end(), [](const float value) { return value < 0.f; }) ||

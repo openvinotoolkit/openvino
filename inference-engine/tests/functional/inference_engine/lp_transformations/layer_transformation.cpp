@@ -14,6 +14,8 @@
 #include <ngraph/opsets/opset3.hpp>
 
 #include <transformations/low_precision/transformer.hpp>
+// TODO: debug only
+#include <ngraph/pass/visualize_tree.hpp>
 
 using namespace testing;
 using namespace ngraph::pass;
@@ -59,44 +61,44 @@ std::string LayerTransformation::toString(const ngraph::pass::low_precision::Lay
 }
 
 void LayerTransformation::transform(std::shared_ptr<ngraph::Function> function) {
-    // std::vector<std::shared_ptr<ngraph::Function>> module{ actualFunction };
-    // VisualizeTree("C:\\Projects\\temp\\test.original").run_on_module(module);
+    //std::vector<std::shared_ptr<ngraph::Function>> originalModule{ actualFunction };
+    //ngraph::pass::VisualizeTree("C:\\Projects\\temp\\test.original").run_on_module(originalModule);
 
     // TODO: refactor: do you really need anything from here?
-    {
-        const auto transformations_callback = [](const std::shared_ptr<const ::ngraph::Node> &node) -> bool {
-            // DepthToSpace node implementation supports only equal input/output tensors with rank <= 5
-            if (auto dtsOp = std::dynamic_pointer_cast<const ::ngraph::opset3::DepthToSpace>(node)) {
-                return dtsOp->input_value(0).get_shape().size() <= 5lu && dtsOp->input_value(0).get_shape().size() == dtsOp->get_output_shape(0).size();
-            }
+    //{
+    //    const auto transformations_callback = [](const std::shared_ptr<const ::ngraph::Node> &node) -> bool {
+    //        // DepthToSpace node implementation supports only equal input/output tensors with rank <= 5
+    //        if (auto dtsOp = std::dynamic_pointer_cast<const ::ngraph::opset3::DepthToSpace>(node)) {
+    //            return dtsOp->input_value(0).get_shape().size() <= 5lu && dtsOp->input_value(0).get_shape().size() == dtsOp->get_output_shape(0).size();
+    //        }
 
-            // SpaceToDepth node implementation supports only equal input/output tensors with rank <= 5
-            if (auto stdOp = std::dynamic_pointer_cast<const ::ngraph::opset3::SpaceToDepth>(node)) {
-                return stdOp->input_value(0).get_shape().size() <= 5lu && stdOp->input_value(0).get_shape().size() == stdOp->get_output_shape(0).size();
-            }
+    //        // SpaceToDepth node implementation supports only equal input/output tensors with rank <= 5
+    //        if (auto stdOp = std::dynamic_pointer_cast<const ::ngraph::opset3::SpaceToDepth>(node)) {
+    //            return stdOp->input_value(0).get_shape().size() <= 5lu && stdOp->input_value(0).get_shape().size() == stdOp->get_output_shape(0).size();
+    //        }
 
-            return std::dynamic_pointer_cast<const ::ngraph::opset2::Gelu>(node) ||
-                std::dynamic_pointer_cast<const ::ngraph::opset2::BatchToSpace>(node) ||
-                std::dynamic_pointer_cast<const ::ngraph::opset2::SpaceToBatch>(node) ||
-                std::dynamic_pointer_cast<const ::ngraph::opset3::ShuffleChannels>(node);
-        };
+    //        return std::dynamic_pointer_cast<const ::ngraph::opset2::Gelu>(node) ||
+    //            std::dynamic_pointer_cast<const ::ngraph::opset2::BatchToSpace>(node) ||
+    //            std::dynamic_pointer_cast<const ::ngraph::opset2::SpaceToBatch>(node) ||
+    //            std::dynamic_pointer_cast<const ::ngraph::opset3::ShuffleChannels>(node);
+    //    };
 
-        // Disable shape inference (WA for generic operations)
-        ::ngraph::op::GenericIE::DisableReshape noReshape(function);
+    //    // Disable shape inference (WA for generic operations)
+    //    ::ngraph::op::GenericIE::DisableReshape noReshape(function);
 
-        // Note: instead of running all Conversion Transformations you can make up your own transformation pipeline
-        ngraph::pass::CommonOptimizations(transformations_callback).run_on_function(function);
-        ngraph::pass::ConvertOpSet3ToOpSet2(transformations_callback).run_on_function(function);
-        ngraph::pass::ConvertOpSet2ToOpSet1(transformations_callback).run_on_function(function);
-        ngraph::pass::ConvertOpSet1ToLegacy(transformations_callback).run_on_function(function);
-    }
+    //    // Note: instead of running all Conversion Transformations you can make up your own transformation pipeline
+    //    ngraph::pass::CommonOptimizations(transformations_callback).run_on_function(function);
+    //    ngraph::pass::ConvertOpSet3ToOpSet2(transformations_callback).run_on_function(function);
+    //    ngraph::pass::ConvertOpSet2ToOpSet1(transformations_callback).run_on_function(function);
+    //    ngraph::pass::ConvertOpSet1ToLegacy(transformations_callback).run_on_function(function);
+    //}
 
     ngraph::pass::low_precision::LowPrecisionTransformations transformations = ngraph::pass::low_precision::LowPrecisionTransformer::getAllTransformations();
     ngraph::pass::low_precision::LowPrecisionTransformer transformer(transformations);
     transformer.transform(function);
 
-    // std::vector<std::shared_ptr<ngraph::Function>> transformedModule{ actualFunction };
-    // VisualizeTree("C:\\Projects\\temp\\test.transformed").run_on_module(transformedModule);
+    //std::vector<std::shared_ptr<ngraph::Function>> transformedModule{ actualFunction };
+    //ngraph::pass::VisualizeTree("C:\\Projects\\temp\\test.transformed").run_on_module(transformedModule);
 }
 
 std::string LayerTransformation::getTestCaseNameByParams(

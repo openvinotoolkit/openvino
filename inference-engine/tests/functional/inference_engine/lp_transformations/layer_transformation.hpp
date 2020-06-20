@@ -14,10 +14,10 @@ typedef std::tuple<
 
 class LayerTransformation : public CommonTestUtils::TestsCommon {
 public:
-    static ngraph::pass::low_precision::LayerTransformation::Params LayerTransformation::createParamsU8I8();
-    static ngraph::pass::low_precision::LayerTransformation::Params LayerTransformation::createParamsI8I8();
+    static ngraph::pass::low_precision::LayerTransformation::Params createParamsU8I8();
+    static ngraph::pass::low_precision::LayerTransformation::Params createParamsI8I8();
 
-    static std::string LayerTransformation::toString(const ngraph::pass::low_precision::LayerTransformation::Params& params);
+    static std::string toString(const ngraph::pass::low_precision::LayerTransformation::Params& params);
 
     //static std::string getTestCaseName(testing::TestParamInfo<LayerTransformationParams> obj);
     static std::string getTestCaseNameByParams(
