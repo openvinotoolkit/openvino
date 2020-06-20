@@ -126,18 +126,25 @@ class StridedSlice(Op):
         node.ellipsis_mask[idx] = 0
 
         if node.graph.graph['layout'] == 'NHWC' and node.out_port(0).data.get_value() is None:
-            PermuteAttrs.create_permute_attrs(node, attrs=[('shrink_axis_mask', 'input:0', permute_masks),
-                                                           ('new_axis_mask', 'input:0', permute_masks),
-                                                           ('ellipsis_mask', 'input:0', permute_masks),
-                                                           ('begin_mask', 'input:0', permute_masks),
-                                                           ('end_mask', 'input:0', permute_masks),
-                                                           ])
-            # permute inputs
             in_shape = node.in_port(0).get_source().data.get_shape()
             assert in_shape is not None, \
                 'Input shape is unknown for 0 input of node {}'.format(node.name)
             input_rank = len(in_shape)
-            if input_rank > 3:
+            output_rank = len(out_shape)
+            if (input_rank > 3 and output_rank <= 3) or (input_rank <= 3 and output_rank > 3):
+                # case of to execute StridedSlice in NHWC mode
+                # there is a need to execute this operation in the same layout for both input and ouput
+                # so it needs to return >3D tensor to NHWC layout
+                node['reinterp_shape'] = True
+            else:
+                # case of to execute StridedSlice in NCHW mode
+                # permute inputs and attributes
+                PermuteAttrs.create_permute_attrs(node, attrs=[('shrink_axis_mask', 'input:0', permute_masks),
+                                                               ('new_axis_mask', 'input:0', permute_masks),
+                                                               ('ellipsis_mask', 'input:0', permute_masks),
+                                                               ('begin_mask', 'input:0', permute_masks),
+                                                               ('end_mask', 'input:0', permute_masks),
+                                                               ])
                 for i_port in node.in_ports().values():
                     if i_port.idx == 0 or i_port.disconnected():
                         continue

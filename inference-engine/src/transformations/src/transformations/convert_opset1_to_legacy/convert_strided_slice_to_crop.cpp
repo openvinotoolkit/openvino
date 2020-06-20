@@ -113,7 +113,9 @@ void ngraph::pass::ConvertStridedSliceToCrop::convert_strided_slice_to_crop() {
                 } else if (shrink_axis_mask.count(axis)) {
                     // skip this dimension if shrink_axis_mask is set (input_shape_idx++)
                     dim.emplace_back(1);
-                    offset.emplace_back(begin_mask.count(axis) ? 0 : begin[axis]);
+                    // offset for Crop must be non-negative to pass layer validation
+                    auto normalized_begin = (begin[axis] >= 0 ? begin[axis] : input_shape[axis] + begin[axis]);
+                    offset.emplace_back(begin_mask.count(axis) ? 0 : normalized_begin);
                     reshape_pattern.emplace_back(1);
                     input_shape_idx++;
                 } else {

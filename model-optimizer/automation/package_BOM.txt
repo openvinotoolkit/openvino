@@ -508,6 +508,7 @@ extensions/middle/ConcatOptimization.py
 extensions/middle/ConstSwitchResolver.py
 extensions/middle/ConvertGroupedStridedSlice.py
 extensions/middle/ConvertLayoutDependentOperations.py
+extensions/middle/ConvertLayoutPReLU.py
 extensions/middle/ConvertMultiInputConv.py
 extensions/middle/ConvToBinaryConv.py
 extensions/middle/CustomSubgraphCall.py

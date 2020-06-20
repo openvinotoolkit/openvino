@@ -557,3 +557,43 @@ class TestPermutationStridedSlice(unittest.TestCase):
         with self.assertRaises(Error) as error:
             StridedSlice.infer(slice_node)
         self.assertTrue('Strided slice layer supports only constant begin and end inputs' in str(error.exception))
+
+    def test_non_const_infer2(self):
+        # Testing constant path case
+        graph = build_graph(nodes_attributes,
+                            [('input', 'data_1'),
+                             ('begin', 'begin_data'),
+                             ('end', 'end_data'),
+                             ('stride', 'stride_data'),
+                             ('data_1', 'strided_slice', {'in': 0}),
+                             ('begin_data', 'strided_slice', {'in': 1}),
+                             ('end_data', 'strided_slice', {'in': 2}),
+                             ('stride_data', 'strided_slice', {'in': 3}),
+                             ('strided_slice', 'data_2')],
+                            {'data_1': {'shape': np.array([1, 3, 11, 64]), 'value': None},
+                             'begin': {'value': np.array([0, -2, 1, 0]), 'shape': np.array([4])},
+                             'begin_data': {'value': np.array([0, -2, 1, 0]), 'shape': np.array([4])},
+                             'end': {'value': np.array([0, -1, -1, 0]), 'shape': np.array([4])},
+                             'end_data': {'value': np.array([0, -1, -1, 0]), 'shape': np.array([4])},
+                             'stride': {'value': np.array([1, 1, 1, 1]), 'shape': np.array([4])},
+                             'stride_data': {'value': np.array([1, 1, 1, 1]), 'shape': np.array([4])},
+                             'strided_slice': {'begin_mask': np.array([0, 1, 1, 0]),
+                                               'end_mask': np.array([0, 1, 1, 0]),
+                                               'new_axis_mask': np.array([0, 0, 0, 0]),
+                                               'shrink_axis_mask': np.array([0, 1, 0, 0]),
+                                               'ellipsis_mask': np.array([0, 0, 0, 0])
+                                               }
+                             })
+        graph.graph['layout'] = "NHWC"
+
+        slice_node = Node(graph, 'strided_slice')
+        StridedSlice.infer(slice_node)
+
+        # prepare reference results
+        ref_output_shape = np.array([1, 9, 64], dtype=np.int32)
+
+        # get the result
+        res_output_shape = graph.node['data_2']['shape']
+
+        self.assertTrue(np.array_equal(ref_output_shape, res_output_shape),
+                        'values do not match expected: {} and given: {}'.format(ref_output_shape, res_output_shape))
