@@ -133,3 +133,8 @@ void GemmTransformation::transform(TransformationContext& context, CNNLayer& gem
 
     addDequantizationLayer(context, gemm, dequantizationScales, dequantizationShifts);
 }
+
+bool GemmTransformation::isQuantized(const CNNLayer& layer) const noexcept {
+    // weightable layer version overriding
+    return true;
+}

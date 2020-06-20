@@ -21,6 +21,8 @@ public:
     ~GemmTransformation() override {};
     bool canBeTransformed(const TransformationContext& context, const CNNLayer& layer) const override;
     void transform(TransformationContext& context, CNNLayer& layer) const override;
+
+    bool isQuantized(const CNNLayer& layer) const noexcept override;
 };
 
 IE_SUPPRESS_DEPRECATED_END
