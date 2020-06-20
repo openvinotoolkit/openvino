@@ -13,7 +13,7 @@ namespace subgraph {
 
 std::shared_ptr<ngraph::Function> NormalizeL2Function::getOriginal(
     const ngraph::element::Type precision,
-    const const std::pair<ngraph::Shape, ngraph::Shape>& shapes,
+    const std::pair<ngraph::Shape, ngraph::Shape>& shapes,
     const ngraph::element::Type precisionOnActivation,
     const bool fuseMultiply,
     const bool shift) {

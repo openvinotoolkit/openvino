@@ -117,6 +117,9 @@ void NormalizeL2Transformation::transform(TransformationContext &context, ngraph
             newScalesConst = createNewScalesConst<ngraph::element_type_traits<ngraph::element::Type_t::f32>::value_type>(*scalesConst);
             break;
         }
+        default: {
+            THROW_TRANSFORMATION_EXCEPTION << "unexpected element type " << type;
+        }
     }
 
     // TODO: check if shift is not zero then exit

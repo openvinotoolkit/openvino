@@ -26,7 +26,7 @@ const std::vector<LayerTransformation::Params> trasformationParamValues = {
 
 const std::vector<LayerTestsUtils::LayerTransformation::LptVersion> versionValues = {
     LayerTestsUtils::LayerTransformation::LptVersion::cnnNetwork,
-    LayerTestsUtils::LayerTransformation::LptVersion::nGraph
+    // LayerTestsUtils::LayerTransformation::LptVersion::nGraph
 };
 
 const std::vector<bool> fuseMultiplyValues = { true, false };

@@ -81,8 +81,8 @@ TEST_P(NormalizeL2Transformation, CompareFunctions) {
 
     actualFunction->validate_nodes_and_infer_types();
 
-    // auto res = compare_functions(referenceFunction, actualFunction);
-    // ASSERT_TRUE(res.first) << res.second;
+    auto res = compare_functions(referenceFunction, actualFunction);
+    ASSERT_TRUE(res.first) << res.second;
 }
 
 const std::vector<ngraph::element::Type> precisions = {
@@ -105,7 +105,7 @@ const std::vector<bool> fuseMultiply = { true, false };
 const std::vector<bool> shift = { true, false };
 
 INSTANTIATE_TEST_CASE_P(
-    LPT,
+    DISABLED_LPT,
     NormalizeL2Transformation,
     ::testing::Combine(
         ::testing::ValuesIn(precisions),
