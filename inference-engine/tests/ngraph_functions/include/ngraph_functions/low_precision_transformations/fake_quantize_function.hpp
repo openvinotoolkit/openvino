@@ -29,6 +29,6 @@ public:
         const FakeQuantizeOnData& fakeQuantizeOnData);
 };
 
-}
-}
-}
+}  // namespace subgraph
+}  // namespace builder
+}  // namespace ngraph

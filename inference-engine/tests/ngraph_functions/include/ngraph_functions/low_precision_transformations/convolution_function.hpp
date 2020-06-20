@@ -28,6 +28,6 @@ public:
         const FakeQuantizeOnWeights& fakeQuantizeOnWeights);
 };
 
-}
-}
-}
+}  // namespace subgraph
+}  // namespace builder
+}  // namespace ngraph

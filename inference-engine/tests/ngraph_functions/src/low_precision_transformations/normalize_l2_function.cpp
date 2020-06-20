@@ -66,6 +66,6 @@ std::shared_ptr<ngraph::Function> NormalizeL2Function::getReference(
     return nullptr;
 }
 
-}
-}
-}
+}  // namespace subgraph
+}  // namespace builder
+}  // namespace ngraph

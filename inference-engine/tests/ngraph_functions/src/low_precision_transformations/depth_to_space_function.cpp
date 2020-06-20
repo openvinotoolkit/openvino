@@ -46,6 +46,6 @@ std::shared_ptr<ngraph::Function> DepthToSpaceFunction::getReference(
     return nullptr;
 }
 
-}
-}
-}
+}  // namespace subgraph
+}  // namespace builder
+}  // namespace ngraph

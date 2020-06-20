@@ -46,6 +46,6 @@ std::shared_ptr<ngraph::Function> MaxPoolFunction::getReference(
     return nullptr;
 }
 
-}
-}
-}
+}  // namespace subgraph
+}  // namespace builder
+}  // namespace ngraph

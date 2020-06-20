@@ -71,6 +71,6 @@ std::shared_ptr<ngraph::Function> FakeQuantizeFunction::getReference(
     return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "FakeQuantizeFunction");
 }
 
-}
-}
-}
+}  // namespace subgraph
+}  // namespace builder
+}  // namespace ngraph

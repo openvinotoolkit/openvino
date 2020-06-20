@@ -50,6 +50,6 @@ inline std::ostream& operator<<(std::ostream& out, const FakeQuantizeOnData& dat
     return out << "_" << data.constantShape << "_" << data.lowValues << "_" << data.highValues;
 }
 
-}
-}
-}
+}  // namespace subgraph
+}  // namespace builder
+}  // namespace ngraph

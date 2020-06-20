@@ -32,6 +32,6 @@ public:
         const bool shift);
 };
 
-}
-}
-}
+}  // namespace subgraph
+}  // namespace builder
+}  // namespace ngraph

@@ -36,6 +36,6 @@ bool FakeQuantizeOnData::empty() const {
         highValues.empty();
 }
 
-}
-}
-}
+}  // namespace subgraph
+}  // namespace builder
+}  // namespace ngraph

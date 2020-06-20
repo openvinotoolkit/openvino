@@ -23,6 +23,7 @@ bool FakeQuantizeOnWeights::empty() const {
     // TODO: add weights specific logic here
     return FakeQuantizeOnData::empty();
 }
-}
-}
-}
+
+}  // namespace subgraph
+}  // namespace builder
+}  // namespace ngraph

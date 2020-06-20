@@ -21,6 +21,6 @@ public:
     static std::shared_ptr<ngraph::Function> getReference(const ngraph::element::Type ngPrecision, const ngraph::Shape& inputShape);
 };
 
-}
-}
-}
+}  // namespace subgraph
+}  // namespace builder
+}  // namespace ngraph

@@ -32,6 +32,6 @@ inline std::ostream& operator<<(std::ostream& out, const FakeQuantizeOnWeights& 
     return out << "_" << data.constantShape << "_" << data.lowValues << "_" << data.highValues;
 }
 
-}
-}
-}
+}  // namespace subgraph
+}  // namespace builder
+}  // namespace ngraph

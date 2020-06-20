@@ -46,6 +46,6 @@ std::shared_ptr<ngraph::Function> MultiplyAddFunction::getReference(
     return nullptr;
 }
 
-}
-}
-}
+}  // namespace subgraph
+}  // namespace builder
+}  // namespace ngraph
