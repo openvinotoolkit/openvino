@@ -33,8 +33,7 @@ from mo.pipeline.unified import unified_pipeline
 from mo.utils import import_extensions
 from mo.utils.cli_parser import get_placeholder_shapes, get_tuple_values, get_model_name, \
     get_common_cli_options, get_caffe_cli_options, get_tf_cli_options, get_mxnet_cli_options, get_kaldi_cli_options, \
-    get_onnx_cli_options, get_mean_scale_dictionary, parse_tuple_pairs, get_freeze_placeholder_values, \
-    append_exp_keys_to_namespace, get_meta_info
+    get_onnx_cli_options, get_mean_scale_dictionary, parse_tuple_pairs, get_freeze_placeholder_values, get_meta_info
 from mo.utils.error import Error, FrameworkError
 from mo.utils.guess_framework import deduce_framework_by_namespace
 from mo.utils.logger import init_logger
@@ -291,7 +290,6 @@ def main(cli_parser: argparse.ArgumentParser, framework: str):
         argv = cli_parser.parse_args()
         if framework:
             argv.framework = framework
-        append_exp_keys_to_namespace(argv)
 
         ov_update_message = None
         if not hasattr(argv, 'silent') or not argv.silent:

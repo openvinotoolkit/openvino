@@ -20,9 +20,6 @@ from mo.graph.graph import Graph
 
 class DisableQuantizeValuePropagation(FrontReplacementPattern):
     enabled = True
-    graph_condition = [
-        lambda graph: graph.graph['cmd_params'].keep_quantize_ops_in_IR
-    ]
 
     def run_after(self):
         return [FakeQuantWithMinMaxVarsToQuantize]

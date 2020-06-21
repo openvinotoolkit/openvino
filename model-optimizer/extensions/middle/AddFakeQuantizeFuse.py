@@ -39,7 +39,7 @@ class AddFakeQuantizeFuse(MiddleReplacementPattern):
             nodes=[
                 ('preop', dict(op='Add', can_be_fused=True)),
                 ('preoped', dict()),
-                ('quantize', dict(op='FakeQuantize', keep_in_IR=True)),
+                ('quantize', dict(op='FakeQuantize')),
             ],
             edges=[
                 ('preop', 'preoped'),

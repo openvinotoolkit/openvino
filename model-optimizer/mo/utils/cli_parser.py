@@ -641,10 +641,6 @@ def get_all_cli_parser():
     return parser
 
 
-def append_exp_keys_to_namespace(argv: argparse.Namespace):
-    setattr(argv, 'keep_quantize_ops_in_IR', True)
-
-
 def remove_data_type_from_input_value(input_value: str):
     """
     Removes the type specification from the input string. The type specification is a string enclosed with curly braces.

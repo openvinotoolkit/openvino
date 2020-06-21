@@ -18,7 +18,6 @@ extensions/back/CorrectName.py
 extensions/back/CropToStridedSlice.py
 extensions/back/CutMemory.py
 extensions/back/disable_unsupported_ND_operations.py
-extensions/back/DumpFakeQuantStat.py
 extensions/back/EnableConstantStridedSlice.py
 extensions/back/ForceStrictPrecision.py
 extensions/back/fuse_sub_div_min.py
