@@ -23,6 +23,7 @@
 #include <ngraph/opsets/opset2.hpp>
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/op/fused/gelu.hpp>
+#include "ngraph_ops/fully_connected.hpp"
 #include "ngraph_functions/pass/convert_prc.hpp"
 
 #include "common_test_utils/common_utils.hpp"
@@ -70,7 +71,20 @@ std::shared_ptr<InferenceEngine::ICNNNetwork> convert(std::shared_ptr<ngraph::Fu
 
     if (clonedNetwork->getFunction()) {
         const auto transformations_callback = [](const std::shared_ptr<const ::ngraph::Node> &node) -> bool {
+            // DepthToSpace node implementation supports only equal input/output tensors with rank <= 5
+            // Reshape->Permute->Reshape pattern in theory can change output rank, so this check is added to be sure
+            // that DepthToSpace impl will handle fused case
+            if (auto dtsOp = std::dynamic_pointer_cast<const ::ngraph::opset3::DepthToSpace>(node)) {
+                return dtsOp->input_value(0).get_shape().size() <= 5lu && dtsOp->input_value(0).get_shape().size() == dtsOp->get_output_shape(0).size();
+            }
+
+            // TODO: absent in GPU plugin
+            if (auto fc_op = std::dynamic_pointer_cast<const ngraph::op::FullyConnected>(node)) {
+                return fc_op->input_value(0).get_shape().size() == 3ul;
+            }
+
             return std::dynamic_pointer_cast<const ::ngraph::opset2::Gelu>(node) ||
+                std::dynamic_pointer_cast<const ::ngraph::opset3::ShuffleChannels>(node) ||
                 std::dynamic_pointer_cast<const ::ngraph::opset2::BatchToSpace>(node);
         };
         auto nGraphFunc = clonedNetwork->getFunction();
