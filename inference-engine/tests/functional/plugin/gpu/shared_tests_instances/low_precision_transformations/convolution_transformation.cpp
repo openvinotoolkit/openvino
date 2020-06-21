@@ -27,7 +27,7 @@ const std::vector<bool> fqOnActivationsValues = { true, false };
 
 const std::vector<bool> fqOnWeightsValues = { true, false };
 
-INSTANTIATE_TEST_CASE_P(LPT, ConvolutionTransformation,
+INSTANTIATE_TEST_CASE_P(DISABLED_LPT, ConvolutionTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(InferenceEngine::SizeVector({ 1, 3, 16, 16 })),
