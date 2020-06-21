@@ -23,6 +23,7 @@
 #include <ngraph/opsets/opset2.hpp>
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/op/fused/gelu.hpp>
+#include "ngraph_ops/fully_connected.hpp"
 #include "ngraph_functions/pass/convert_prc.hpp"
 
 #include "common_test_utils/common_utils.hpp"
@@ -79,6 +80,10 @@ std::shared_ptr<InferenceEngine::ICNNNetwork> convert(std::shared_ptr<ngraph::Fu
                 return stdOp->input_value(0).get_shape().size() <= 5lu && stdOp->input_value(0).get_shape().size() == stdOp->get_output_shape(0).size();
             }
 
+            if (auto fc_op = std::dynamic_pointer_cast<const ngraph::op::FullyConnected>(node)) {
+                return fc_op->input_value(0).get_shape().size() == 3ul;
+            }
+
             return std::dynamic_pointer_cast<const ::ngraph::opset2::Gelu>(node) ||
                 std::dynamic_pointer_cast<const ::ngraph::opset2::BatchToSpace>(node) ||
                 std::dynamic_pointer_cast<const ::ngraph::opset2::SpaceToBatch>(node) ||
@@ -117,8 +122,10 @@ InferenceEngine::CNNNetwork LayerTransformation::transform(InferenceEngine::deta
     InferenceEngine::NetPass::ConvertPrecision(*implNetwork, InferenceEngine::Precision::FP16, InferenceEngine::Precision::FP32);
     InferenceEngine::NetPass::ConvertPrecision(*implNetwork, InferenceEngine::Precision::BOOL, InferenceEngine::Precision::U8);
 
+    implNetwork->serialize("c:\\Projects\\temp\\test.original.xml", "c:\\Projects\\temp\\test.original.bin", nullptr);
     auto transformer = getLowPrecisionTransformer(params);
     transformer.transform(*implNetwork);
+    implNetwork->serialize("c:\\Projects\\temp\\test.transformed.xml", "c:\\Projects\\temp\\test.transformed.bin", nullptr);
 
     return InferenceEngine::CNNNetwork(implNetwork);
 }

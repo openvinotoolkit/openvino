@@ -4,6 +4,9 @@
 
 #include "ngraph_functions/low_precision_transformations/mat_mul_function.hpp"
 
+#include <queue>
+#include <memory>
+
 #include <ngraph/opsets/opset1.hpp>
 #include "ngraph_functions/subgraph_builders.hpp"
 
@@ -11,38 +14,64 @@ namespace ngraph {
 namespace builder {
 namespace subgraph {
 
+std::vector<std::shared_ptr<ngraph::op::Parameter>> MatMulFunction::getInputs(const std::vector<std::shared_ptr<ngraph::Node>>& nodes) {
+    std::vector<std::shared_ptr<ngraph::op::Parameter>> inputs;
+
+    for (std::shared_ptr<ngraph::Node> node : nodes) {
+        std::queue<std::shared_ptr<ngraph::Node>> q;
+        q.push({ node });
+        while (!q.empty()) {
+            auto currentNode = q.front();
+            q.pop();
+
+            const size_t size = currentNode->inputs().size();
+            if (size == 0) {
+                std::shared_ptr<ngraph::op::Parameter> input = ngraph::as_type_ptr<ngraph::op::Parameter>(currentNode);
+                if (input != nullptr) {
+                    input->set_friendly_name("input" + std::to_string(inputs.size() + 1));
+                    inputs.push_back(input);
+                }
+            }
+
+            for (int i = 0; i < size; ++i) {
+                auto parent = currentNode->get_input_node_shared_ptr(i);
+                q.push(parent);
+            }
+        }
+    }
+
+    return inputs;
+}
+
 std::shared_ptr<ngraph::Function> MatMulFunction::getOriginal(
     const ngraph::element::Type ngPrecision,
-    const ngraph::Shape& inputShape) {
-    const auto input = std::make_shared<ngraph::opset1::Parameter>(ngPrecision, inputShape);
+    const ngraph::Shape& inputShape,
+    const std::vector<std::shared_ptr<ngraph::Node>>& nodes) {
+    const auto matMul = std::make_shared<ngraph::opset1::MatMul>(
+        nodes[0],
+        nodes[1],
+        false,
+        false);
+    matMul->set_friendly_name("matMul");
 
-    const auto fakeQuantize = ngraph::builder::makeFakeQuantize(input, ngPrecision, 256ul, { 1ul });
+    std::shared_ptr<ngraph::opset1::Result> result;
+    if (nodes.size() > 2) {
+        const auto add = std::make_shared<ngraph::opset1::Add>(matMul, nodes[2]);
+        add->set_friendly_name("add");
+        result = std::make_shared<ngraph::opset1::Result>(add);
+    } else {
+        result = std::make_shared<ngraph::opset1::Result>(matMul);
+    }
 
-    const auto shapeReshapeBefore = ngraph::opset1::Constant::create(
-        ngraph::element::i64,
-        ngraph::Shape{ 6ul },
-        ngraph::Shape{ inputShape[0], inputShape[1] / 4ul, 2ul, 2ul, inputShape[2], inputShape[3] });
-    const auto reshapeBefore = std::make_shared<ngraph::opset1::Reshape>(fakeQuantize, shapeReshapeBefore, false);
-    reshapeBefore->set_friendly_name("reshapeBefore");
-
-    const auto permutation = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{ 6 }, { 0, 1, 4, 2, 5, 3 });
-    const auto permute = std::make_shared<ngraph::opset1::Transpose>(reshapeBefore, permutation);
-    permute->set_friendly_name("permute");
-
-    const auto shapeReshapeAfter = ngraph::opset1::Constant::create(
-        ngraph::element::i64,
-        ngraph::Shape{ 4 },
-        ngraph::Shape{ 1, inputShape[1] / 4ul, inputShape[2] * 2, inputShape[3] * 2 });
-    const auto reshapeAfter = std::make_shared<ngraph::opset1::Reshape>(permute, shapeReshapeAfter, false);
-    reshapeAfter->set_friendly_name("reshapeAfter");
-
-    std::shared_ptr<ngraph::Function> function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ reshapeAfter }, ngraph::ParameterVector{ input });
+    std::vector<std::shared_ptr<ngraph::op::Parameter>> inputs = getInputs(nodes);
+    std::shared_ptr<ngraph::Function> function = std::make_shared<ngraph::Function>(ngraph::ResultVector{ result }, inputs, "MatMulTransformation");
     return function;
 }
 
 std::shared_ptr<ngraph::Function> MatMulFunction::getReference(
     const ngraph::element::Type ngPrecision,
-    const ngraph::Shape& inputShape) {
+    const ngraph::Shape& inputShape,
+    const std::vector<std::shared_ptr<ngraph::Node>>& nodes) {
     return nullptr;
 }
 

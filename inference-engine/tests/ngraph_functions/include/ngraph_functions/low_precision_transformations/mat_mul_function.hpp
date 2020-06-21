@@ -13,8 +13,18 @@ namespace subgraph {
 
 class MatMulFunction {
 public:
-    static std::shared_ptr<ngraph::Function> getOriginal(const ngraph::element::Type ngPrecision, const ngraph::Shape& inputShape);
-    static std::shared_ptr<ngraph::Function> getReference(const ngraph::element::Type ngPrecision, const ngraph::Shape& inputShape);
+    // TODO: move to base class
+    static std::vector<std::shared_ptr<ngraph::op::Parameter>> getInputs(const std::vector<std::shared_ptr<ngraph::Node>>& nodes);
+
+    static std::shared_ptr<ngraph::Function> getOriginal(
+        const ngraph::element::Type ngPrecision,
+        const ngraph::Shape& inputShape,
+        const std::vector<std::shared_ptr<ngraph::Node>>& nodes);
+
+    static std::shared_ptr<ngraph::Function> getReference(
+        const ngraph::element::Type ngPrecision,
+        const ngraph::Shape& inputShape,
+        const std::vector<std::shared_ptr<ngraph::Node>>& nodes);
 };
 
 }  // namespace subgraph

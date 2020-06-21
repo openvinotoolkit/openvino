@@ -110,7 +110,7 @@ void NormalizeL2Transformation::transform(TransformationContext &context, ngraph
     const ngraph::element::Type type = scalesConst->get_output_element_type(0);
     switch (type) {
         case ngraph::element::Type_t::f16: {
-            newScalesConst = createNewScalesConst<ngraph::element_type_traits<ngraph::element::Type_t::f32>::value_type>(*scalesConst);
+            newScalesConst = createNewScalesConst<ngraph::element_type_traits<ngraph::element::Type_t::f16>::value_type>(*scalesConst);
             break;
         }
         case ngraph::element::Type_t::f32: {
