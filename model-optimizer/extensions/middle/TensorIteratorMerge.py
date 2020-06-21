@@ -120,21 +120,22 @@ class TensorIteratorMerge(MiddleReplacementPattern):
     def replace_pattern(graph, match: dict):
         # Here we will found all parts of TI: condition, inputs/outputs, back edges, body and create TensorIterator Op
         # and make all checks needed for TensorIteator work
-        cond_data = match['condition'].out_node(0)
-        time_data = match['condition'].out_node(1) if len(match['condition'].out_nodes()) > 1 else None
+        cond_data = match['condition'].out_node(0) if not match['condition'].out_port(0).disconnected() else None
+        time_data = match['condition'].out_node(1) if len(match['condition'].out_nodes()) >= 1 else None
         name = match['condition'].name
 
         back_edges = []
         inputs = []
         outputs = []
 
-        for node in cond_data.out_nodes():
-            if node['kind'] == 'op' and node['op'] == 'TensorIteratorBackEdge':
-                back_edges.append(node.id)
-            elif node['kind'] == 'op' and node['op'] == 'TensorIteratorInput':
-                inputs.append(node.id)
-            elif node['kind'] == 'op' and node['op'] == 'TensorIteratorOutput':
-                outputs.append(node.id)
+        if cond_data is not None:
+            for node in cond_data.out_nodes():
+                if node['kind'] == 'op' and node['op'] == 'TensorIteratorBackEdge':
+                    back_edges.append(node.id)
+                elif node['kind'] == 'op' and node['op'] == 'TensorIteratorInput':
+                    inputs.append(node.id)
+                elif node['kind'] == 'op' and node['op'] == 'TensorIteratorOutput':
+                    outputs.append(node.id)
 
         if time_data is not None:
             for node in time_data.out_nodes():
@@ -147,12 +148,18 @@ class TensorIteratorMerge(MiddleReplacementPattern):
                     assert False
         condition = match['condition']
         tensor_sequence_length = condition.in_node(0)
-        graph.remove_nodes_from([condition.id, cond_data.id, tensor_sequence_length.id])
+        graph.remove_nodes_from([condition.id, tensor_sequence_length.id])
+        if cond_data is not None:
+            graph.remove_nodes_from([condition.id, cond_data.id, tensor_sequence_length.id])
+        else:
+            graph.remove_nodes_from([condition.id, tensor_sequence_length.id])
         if time_data is not None:
             graph.remove_nodes_from([time_data.id])
 
         body_nodes, extra_inputs = get_body(graph, inputs, outputs)
-        body_nodes = list(set(body_nodes) - set([cond_data]))
+
+        if cond_data is not None:
+            body_nodes = list(set(body_nodes) - set([cond_data]))
 
         inputs += extra_inputs
 
