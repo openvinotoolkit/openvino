@@ -22,7 +22,6 @@ class DisableQuantizeValuePropagation(FrontReplacementPattern):
     enabled = True
     graph_condition = [
         lambda graph: graph.graph['cmd_params'].keep_quantize_ops_in_IR
-                      and graph.graph['cmd_params'].blobs_as_inputs
     ]
 
     def run_after(self):

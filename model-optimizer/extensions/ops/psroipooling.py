@@ -25,8 +25,8 @@ class PSROIPoolingOp(Op):
 
     def __init__(self, graph: Graph, attrs: dict):
         mandatory_props = {
-            'type': __class__.op,
-            'op': __class__.op,
+            'type': self.op,
+            'op': self.op,
             'version': 'opset2',
             'mode': 'average',
             'in_ports_count': 2,
@@ -47,9 +47,6 @@ class PSROIPoolingOp(Op):
             'spatial_bins_y',
             'pooled_width',
             'pooled_height',
-            'no_trans',
-            'trans_std',
-            'part_size',
         ]
 
     @staticmethod
@@ -82,8 +79,8 @@ class DeformablePSROIPoolingOp(PSROIPoolingOp):
 
     def __init__(self, graph: Graph, attrs: dict):
         updated_attrs = {
-            'type': __class__.op,
-            'op': __class__.op,
+            'type': self.op,
+            'op': self.op,
             'version': 'opset1',
             'mode': 'bilinear_deformable',
             'in_ports_count': 3,

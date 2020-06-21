@@ -35,10 +35,6 @@ class BlobNormalizer(BackReplacementPattern):
     """
     enabled = True
 
-    graph_condition = [
-        lambda graph: graph.graph['cmd_params'].blobs_as_inputs
-    ]
-
     def run_before(self):
         return []
 
