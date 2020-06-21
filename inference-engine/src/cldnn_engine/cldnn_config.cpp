@@ -181,6 +181,14 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& configMap) 
             } else {
                 THROW_IE_EXCEPTION << NOT_FOUND_str << "Unsupported property value by plugin: " << val;
             }
+        } else if (key.compare(PluginConfigInternalParams::KEY_LP_TRANSFORMS_VERSION) == 0) {
+            if (val == PluginConfigInternalParams::LP_TRANSFORMS_CNNNETWORK)
+                lptVersion = LptVersion::cnnNetwork;
+            else if (val == PluginConfigInternalParams::LP_TRANSFORMS_NGRAPH)
+                // lptVersion = LptVersion::nGraph;
+                THROW_IE_EXCEPTION << NOT_FOUND_str << "Unsupported property value by plugin: " << val;
+            else
+                THROW_IE_EXCEPTION << "Wrong value for property key " << PluginConfigInternalParams::KEY_LP_TRANSFORMS_MODE;
         } else if (key.compare(CLDNNConfigParams::KEY_CLDNN_NV12_TWO_INPUTS) == 0) {
             if (val.compare(PluginConfigParams::YES) == 0) {
                 nv12_two_inputs = true;
