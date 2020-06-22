@@ -131,5 +131,6 @@ protected:
 TEST_P(DSR_MatMul, CompareWithReference) {
     Run();
 }
-INSTANTIATE_TEST_CASE_P(DynamicMatMul, DSR_MatMul, combinations);
+// JIRA: 33997
+INSTANTIATE_TEST_CASE_P(DISABLED_DynamicMatMul, DSR_MatMul, combinations);
 }  // namespace
