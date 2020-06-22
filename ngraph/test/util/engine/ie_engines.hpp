@@ -21,13 +21,14 @@
 #include "util/all_close.hpp"
 #include "util/all_close_f.hpp"
 #include "util/engine/engine_traits.hpp"
+#include "util/engine/test_case_engine.hpp"
 
 namespace ngraph
 {
     namespace test
     {
         /// A generic engine that uses OV objects natively
-        class IE_Engine
+        class IE_Engine : public TestCaseEngine
         {
         public:
             IE_Engine() = delete;
@@ -35,10 +36,12 @@ namespace ngraph
             /// Constructs an IE test engine for a given device (plugin)
             IE_Engine(const std::shared_ptr<Function> function, const char* device);
 
-            void infer();
+            void infer() override;
 
-            testing::AssertionResult
-                compare_results(const size_t tolerance_bits = DEFAULT_FLOAT_TOLERANCE_BITS);
+            testing::AssertionResult compare_results(
+                const size_t tolerance_bits = DEFAULT_FLOAT_TOLERANCE_BITS) override;
+
+            void reset() override;
 
             template <typename T>
             void add_input(const Shape& shape, const std::vector<T>& values)
@@ -128,8 +131,6 @@ namespace ngraph
 
                 ++m_allocated_expected_outputs;
             }
-
-            void reset();
 
         private:
             const std::shared_ptr<Function> m_function;

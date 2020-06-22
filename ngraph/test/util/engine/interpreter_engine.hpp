@@ -21,24 +21,25 @@
 #include "util/all_close.hpp"
 #include "util/all_close_f.hpp"
 #include "util/engine/engine_traits.hpp"
+#include "util/engine/test_case_engine.hpp"
 
 namespace ngraph
 {
     namespace test
     {
-        class INTERPRETER_Engine
+        class INTERPRETER_Engine : public TestCaseEngine
         {
         public:
             INTERPRETER_Engine(const std::shared_ptr<Function> function);
 
             static INTERPRETER_Engine dynamic(const std::shared_ptr<Function> function);
 
-            void infer();
+            void infer() override;
 
-            testing::AssertionResult
-                compare_results(const size_t tolerance_bits = DEFAULT_FLOAT_TOLERANCE_BITS);
+            testing::AssertionResult compare_results(
+                const size_t tolerance_bits = DEFAULT_FLOAT_TOLERANCE_BITS) override;
 
-            void reset();
+            void reset() override;
 
             template <typename T>
             void add_input(const Shape& shape, const std::vector<T>& values)
