@@ -23,6 +23,100 @@
 
 using namespace ngraph;
 
+namespace
+{
+    /// Extracts the data from two blobs and returns them as a pair of vectors.
+    template <typename T>
+    std::pair<std::vector<T>, std::vector<T>>
+        extract_test_results(InferenceEngine::MemoryBlob::CPtr computed,
+                             InferenceEngine::MemoryBlob::CPtr expected)
+    {
+        const auto computed_data = computed->rmap();
+        const auto expected_data = expected->rmap();
+
+        const auto* computed_data_buffer = computed_data.template as<const T*>();
+        const auto* expected_data_buffer = expected_data.template as<const T*>();
+
+        std::vector<T> computed_values(computed_data_buffer,
+                                       computed_data_buffer + computed->size());
+        std::vector<T> expected_values(expected_data_buffer,
+                                       expected_data_buffer + computed->size());
+
+        return std::make_pair(std::move(computed_values), std::move(expected_values));
+    }
+
+    /// Compares two blobs containing floating point elements.
+    template <typename T>
+    typename std::enable_if<std::is_floating_point<T>::value, testing::AssertionResult>::type
+        compare_blobs(InferenceEngine::MemoryBlob::CPtr computed,
+                      InferenceEngine::MemoryBlob::CPtr expected,
+                      const size_t tolerance_bits)
+    {
+        const auto test_results = extract_test_results<T>(computed, expected);
+
+        return ngraph::test::all_close_f(test_results.first, test_results.second, tolerance_bits);
+    }
+
+    /// Compares two blobs containing integer elements.
+    template <typename T>
+    typename std::enable_if<std::is_integral<T>::value, testing::AssertionResult>::type
+        compare_blobs(InferenceEngine::MemoryBlob::CPtr computed,
+                      InferenceEngine::MemoryBlob::CPtr expected,
+                      const size_t tolerance_bits)
+    {
+        const auto test_results = extract_test_results<T>(computed, expected);
+
+        return ngraph::test::all_close<T>(test_results.first, test_results.second);
+    }
+
+    /// Compares two blobs elementwise
+    inline testing::AssertionResult compare_blobs(InferenceEngine::MemoryBlob::CPtr computed,
+                                                  InferenceEngine::MemoryBlob::CPtr expected,
+                                                  const size_t tolerance_bits)
+    {
+        const auto& computed_precision = computed->getTensorDesc().getPrecision();
+        const auto& expected_precision = expected->getTensorDesc().getPrecision();
+
+        if (computed_precision != expected_precision)
+        {
+            return testing::AssertionFailure();
+        }
+
+        switch (static_cast<InferenceEngine::Precision::ePrecision>(computed_precision))
+        {
+        case InferenceEngine::Precision::FP32:
+            return compare_blobs<float>(computed, expected, tolerance_bits);
+            break;
+        case InferenceEngine::Precision::I8:
+            return compare_blobs<int8_t>(computed, expected, tolerance_bits);
+            break;
+        case InferenceEngine::Precision::I16:
+            return compare_blobs<int16_t>(computed, expected, tolerance_bits);
+            break;
+        case InferenceEngine::Precision::I32:
+            return compare_blobs<int32_t>(computed, expected, tolerance_bits);
+            break;
+        case InferenceEngine::Precision::I64:
+            return compare_blobs<int64_t>(computed, expected, tolerance_bits);
+            break;
+        case InferenceEngine::Precision::U8:
+            return compare_blobs<uint8_t>(computed, expected, tolerance_bits);
+            break;
+        case InferenceEngine::Precision::U16:
+            return compare_blobs<uint16_t>(computed, expected, tolerance_bits);
+            break;
+        case InferenceEngine::Precision::U64:
+            return compare_blobs<uint64_t>(computed, expected, tolerance_bits);
+            break;
+        case InferenceEngine::Precision::BOOL:
+            return compare_blobs<uint8_t>(computed, expected, tolerance_bits);
+            break;
+        default: THROW_IE_EXCEPTION << "Not implemented yet";
+        }
+    }
+};
+
+
 test::IE_Engine::IE_Engine(const std::shared_ptr<Function> function, const char* device)
     : m_function{function}
 {
@@ -72,8 +166,8 @@ testing::AssertionResult test::IE_Engine::compare_results(const size_t tolerance
     return comparison_result;
 }
 
-std::shared_ptr<Function> test::IE_Engine::upgrade_and_validate_function(
-    const std::shared_ptr<Function> function) const
+std::shared_ptr<Function>
+    test::IE_Engine::upgrade_and_validate_function(const std::shared_ptr<Function> function) const
 {
     pass::Manager passes;
     passes.register_pass<pass::Opset1Upgrade>();
