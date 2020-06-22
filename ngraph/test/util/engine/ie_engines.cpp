@@ -62,7 +62,7 @@ namespace
     typename std::enable_if<std::is_integral<T>::value, testing::AssertionResult>::type
         compare_blobs(InferenceEngine::MemoryBlob::CPtr computed,
                       InferenceEngine::MemoryBlob::CPtr expected,
-                      const size_t tolerance_bits)
+                      const size_t)
     {
         const auto test_results = extract_test_results<T>(computed, expected);
 
@@ -115,7 +115,6 @@ namespace
         }
     }
 };
-
 
 test::IE_Engine::IE_Engine(const std::shared_ptr<Function> function, const char* device)
     : m_function{function}

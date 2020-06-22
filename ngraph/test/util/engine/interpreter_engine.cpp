@@ -18,6 +18,56 @@
 
 using namespace ngraph;
 
+namespace
+{
+    template <typename T>
+    typename std::enable_if<std::is_floating_point<T>::value, testing::AssertionResult>::type
+        compare_values(const std::shared_ptr<ngraph::op::Constant>& expected_results,
+                       const std::shared_ptr<ngraph::runtime::Tensor>& results,
+                       const size_t tolerance_bits)
+    {
+        const auto expected = expected_results->get_vector<T>();
+        const auto result = read_vector<T>(results);
+
+        return ngraph::test::all_close_f(expected, result, tolerance_bits);
+    }
+
+    template <typename T>
+    typename std::enable_if<std::is_integral<T>::value, testing::AssertionResult>::type
+        compare_values(const std::shared_ptr<ngraph::op::Constant>& expected_results,
+                       const std::shared_ptr<ngraph::runtime::Tensor>& results,
+                       const size_t)
+    {
+        const auto expected = expected_results->get_vector<T>();
+        const auto result = read_vector<T>(results);
+
+        return ngraph::test::all_close(expected, result);
+    }
+
+    // used for float16 and bfloat 16 comparisons
+    template <typename T>
+    typename std::enable_if<std::is_class<T>::value, testing::AssertionResult>::type
+        compare_values(const std::shared_ptr<ngraph::op::Constant>& expected_results,
+                       const std::shared_ptr<ngraph::runtime::Tensor>& results,
+                       const size_t tolerance_bits)
+    {
+        const auto expected = expected_results->get_vector<T>();
+        const auto result = read_vector<T>(results);
+
+        // TODO: add testing infrastructure for float16 and bfloat16 to avoid cast to double
+        std::vector<double> expected_double(expected.size());
+        std::vector<double> result_double(result.size());
+        assert(expected.size() == result.size() && "expected and result size must match");
+        for (int i = 0; i < expected.size(); ++i)
+        {
+            expected_double[i] = static_cast<double>(expected[i]);
+            result_double[i] = static_cast<double>(result[i]);
+        }
+
+        return ngraph::test::all_close_f(expected_double, result_double, tolerance_bits);
+    }
+};
+
 test::INTERPRETER_Engine::INTERPRETER_Engine(const std::shared_ptr<Function> function)
     : m_function{function}
 {
@@ -59,8 +109,6 @@ void test::INTERPRETER_Engine::infer()
 
 testing::AssertionResult test::INTERPRETER_Engine::compare_results(const size_t tolerance_bits)
 {
-    m_tolerance_bits = tolerance_bits;
-
     auto comparison_result = testing::AssertionSuccess();
 
     for (size_t i = 0; i < m_expected_outputs.size(); ++i)
@@ -80,9 +128,64 @@ testing::AssertionResult test::INTERPRETER_Engine::compare_results(const size_t 
             break;
         }
 
-        const auto values_match = m_value_comparators.at(element_type);
-
-        comparison_result = values_match(expected_result_constant, result_tensor);
+        switch (element_type)
+        {
+        case element::Type_t::f16:
+            comparison_result = compare_values<ngraph::float16>(
+                expected_result_constant, result_tensor, tolerance_bits);
+            break;
+        case element::Type_t::bf16:
+            comparison_result = compare_values<ngraph::bfloat16>(
+                expected_result_constant, result_tensor, tolerance_bits);
+            break;
+        case element::Type_t::f32:
+            comparison_result =
+                compare_values<float>(expected_result_constant, result_tensor, tolerance_bits);
+            break;
+        case element::Type_t::f64:
+            comparison_result =
+                compare_values<double>(expected_result_constant, result_tensor, tolerance_bits);
+            break;
+        case element::Type_t::i8:
+            comparison_result =
+                compare_values<int8_t>(expected_result_constant, result_tensor, tolerance_bits);
+            break;
+        case element::Type_t::i16:
+            comparison_result =
+                compare_values<int16_t>(expected_result_constant, result_tensor, tolerance_bits);
+            break;
+        case element::Type_t::i32:
+            comparison_result =
+                compare_values<int32_t>(expected_result_constant, result_tensor, tolerance_bits);
+            break;
+        case element::Type_t::i64:
+            comparison_result =
+                compare_values<int64_t>(expected_result_constant, result_tensor, tolerance_bits);
+            break;
+        case element::Type_t::u8:
+            comparison_result =
+                compare_values<uint8_t>(expected_result_constant, result_tensor, tolerance_bits);
+            break;
+        case element::Type_t::u16:
+            comparison_result =
+                compare_values<uint16_t>(expected_result_constant, result_tensor, tolerance_bits);
+            break;
+        case element::Type_t::u32:
+            comparison_result =
+                compare_values<uint32_t>(expected_result_constant, result_tensor, tolerance_bits);
+            break;
+        case element::Type_t::u64:
+            comparison_result =
+                compare_values<uint64_t>(expected_result_constant, result_tensor, tolerance_bits);
+            break;
+        case element::Type_t::boolean:
+            comparison_result =
+                compare_values<char>(expected_result_constant, result_tensor, tolerance_bits);
+            break;
+        default:
+            comparison_result = testing::AssertionFailure()
+                                << "Unsupported data type encountered in 'compare_results' method";
+        }
 
         if (comparison_result == testing::AssertionFailure())
         {
