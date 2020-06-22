@@ -26,8 +26,8 @@ class KaldiRemoveMemoryOutputBackReplacementPattern(BackReplacementPattern):
         return [BackFinish]
 
     def run_before(self):
-        from extensions.back.SpecialNodesFinalization import RemoveOutputOps
-        return [RemoveOutputOps]
+        from extensions.back.SpecialNodesFinalization import CreateConstNodesReplacement
+        return [CreateConstNodesReplacement]
 
     @staticmethod
     def pattern():
