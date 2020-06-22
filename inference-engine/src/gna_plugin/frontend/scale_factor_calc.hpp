@@ -199,9 +199,17 @@ class ScaleFactorPerLayer<InferenceEngine::CNNLayer *> {
 
         if (cnnLayer->type == "Const") {
             auto blob = cnnLayer->blobs["custom"];
-            if (blob->getTensorDesc().getPrecision() == InferenceEngine::Precision::FP16) {
+            auto blob_precision = blob->getTensorDesc().getPrecision();
+
+            if (blob_precision != InferenceEngine::Precision::FP32 && blob_precision != InferenceEngine::Precision::FP16) {
+                quant->_dst_quant.scale = 1.0f;
+                return true;
+            }
+
+            if (blob_precision == InferenceEngine::Precision::FP16) {
                 blob = make_fp32_blob(blob);
             }
+
             auto max_val = std::numeric_limits<float>::min();
             auto min_val = std::numeric_limits<float>::max();
 

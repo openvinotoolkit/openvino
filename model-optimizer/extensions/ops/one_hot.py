@@ -35,7 +35,7 @@ class OneHot(Op):
             'out_ports_count': 1,
             'in_ports_count': 4,
             'data_type': None,
-            'force_precision_in_ports': {1: 'int64'} if not graph.graph['cmd_params'].generate_deprecated_IR_V7 else None,
+            'force_precision_in_ports': {1: 'int64'},
             'type_infer': self.type_infer,
         }
         super().__init__(graph, mandatory_props, attrs)
@@ -104,7 +104,4 @@ class OneHot(Op):
 
     @staticmethod
     def type_infer(node: Node):
-        if not node.graph.graph['cmd_params'].generate_experimental_IR_V10:
-            node.out_port(0).set_data_type(node.data_type)
-        else:
-            node.out_port(0).set_data_type(node.in_port(2).get_data_type())
+        node.out_port(0).set_data_type(node.in_port(2).get_data_type())

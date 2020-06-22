@@ -120,13 +120,18 @@ void MKLDNNReorderNode::createReorderPrimitive(const mkldnn::memory::desc &srcDe
         // Code block below tries to detect such cases and reinterpret data planar formats (e.g. nchw)
         // as grouped weights planar formats (e.g. goihw) since they have same physical memory layout.
         if (MKLDNNMemory::GetPlainFormat(src_blocked->GetDims()) == src_blocked->GetFormat() &&
-            MKLDNNMemory::IsGroupedFormat(dst_blocked->GetFormat())) {
+            src_blocked->GetDims().size() + 1 == dst_blocked->GetDims().size()) {
             try {
                 mkldnn::memory::dims newDims = dst_blocked->GetDims();
                 mkldnn::memory::format newFormat;
-                newFormat = src_blocked->GetDims().size() == 4 ? memory::goihw :
-                            src_blocked->GetDims().size() == 5 ? memory::goidhw :
-                            src_blocked->GetFormat();
+                if (MKLDNNMemory::IsGroupedFormat(dst_blocked->GetFormat())) {
+                    newFormat = src_blocked->GetDims().size() == 4 ? memory::goihw :
+                                src_blocked->GetDims().size() == 5 ? memory::goidhw :
+                                src_blocked->GetFormat();
+                } else {
+                    newFormat = src_blocked->GetDims().size() == 4 ? memory::ncdhw :
+                                src_blocked->GetFormat();
+                }
 
                 auto newDesc = mkldnn::memory::desc(newDims, src_blocked->GetDataType(), newFormat);
                 src_blocked->Create(newDesc, srcPtr, false);
