@@ -24,7 +24,6 @@ from mo.ops.op import PermuteAttrs
 
 class Deconvolution3rdInputNormalization(MiddleReplacementPattern):
     enabled = True
-    graph_condition = [lambda graph: graph.graph['cmd_params'].generate_experimental_IR_V10]
     force_clean_up = True
 
     @staticmethod

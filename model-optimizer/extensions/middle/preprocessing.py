@@ -13,7 +13,7 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-from extensions.middle.MulAddToSS import MulAddToSS
+from extensions.middle.LeakyReluPattern import LeakyReLU
 from extensions.middle.pass_separator import PostMiddleStart
 from mo.graph.graph import Graph
 from mo.middle.passes.mean_scale_values import move_scaleshift_to_preprocess
@@ -28,7 +28,7 @@ class Preprocessing(MiddleReplacementPattern):
     force_clean_up = True
 
     def run_after(self):
-        return [MulAddToSS]
+        return [LeakyReLU]
 
     def run_before(self):
         return [PostMiddleStart]

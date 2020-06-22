@@ -30,7 +30,6 @@ from mo.ops.strided_slice import StridedSlice
 class ProposalMutation(BackReplacementPattern):
     enabled = True
     force_clean_up = True
-    graph_condition = [lambda graph: graph.graph['cmd_params'].generate_experimental_IR_V10]
 
     def run_before(self):
         return [ReshapeMutation, StridedSliceMasksNormalizer]

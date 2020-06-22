@@ -44,12 +44,14 @@ class DeprecatedStoreTrue(argparse.Action):
         setattr(namespace, self.dest, True)
 
 
-class DeprecatedTensorflowOffloadFeatureAction(argparse.Action):
+class IgnoredAction(argparse.Action):
+    def __init__(self, nargs=0, **kw):
+        super().__init__(nargs=nargs, **kw)
+
     def __call__(self, parser, namespace, values, option_string=None):
-        msg = "Use of deprecated cli option {} detected. Option use in the following releases will be fatal." \
-                  "".format(option_string)
-        log.error(msg, extra={'is_warning': True})
-        setattr(namespace, self.dest, values)
+        dep_msg = "Use of removed cli option '{}' detected. The option is ignored. ".format(option_string)
+        log.error(dep_msg, extra={'is_warning': True})
+        setattr(namespace, self.dest, True)
 
 
 class CanonicalizePathAction(argparse.Action):
@@ -312,9 +314,8 @@ def get_common_cli_parser(parser: argparse.ArgumentParser = None):
                                    'Use --input option to specify a value for freezing.',
                               default=None)
     common_group.add_argument('--generate_deprecated_IR_V7',
-                              help='Force to generate old deprecated IR V7'
-                                   ' with layers from old IR specification.',
-                              action=DeprecatedStoreTrue,
+                              help='Force to generate deprecated IR V7 with layers from old IR specification.',
+                              action=IgnoredAction,
                               default=False)
     common_group.add_argument('--keep_shape_ops',
                               help='[ Experimental feature ] Enables `Shape` operation with all children keeping. '
@@ -638,13 +639,6 @@ def get_all_cli_parser():
     get_onnx_cli_parser(parser=parser)
 
     return parser
-
-
-def append_exp_keys_to_namespace(argv: argparse.Namespace):
-    setattr(argv, 'keep_quantize_ops_in_IR', True)
-    setattr(argv, 'blobs_as_inputs', True)
-    setattr(argv, 'generate_experimental_IR_V10', not argv.generate_deprecated_IR_V7)
-    setattr(argv, 'generate_deprecated_IR_V2', False)
 
 
 def remove_data_type_from_input_value(input_value: str):

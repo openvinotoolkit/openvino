@@ -28,7 +28,6 @@ from mo.ops.unsqueeze import Unsqueeze
 
 class PriorboxMutation(BackReplacementPattern):
     enabled = True
-    graph_condition = [lambda graph: graph.graph['cmd_params'].generate_experimental_IR_V10]
     force_shape_inference = True
 
     def run_before(self):

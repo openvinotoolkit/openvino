@@ -109,8 +109,7 @@ def tf_strided_slice_infer(node):
     for attr in ('shrink_axis_mask', 'new_axis_mask', 'ellipsis_mask', 'begin_mask', 'end_mask'):
         node[attr] = np.array(node[attr], dtype=np.int32)
 
-    data_type_str = 'int64' if node.graph.graph['cmd_params'].generate_experimental_IR_V10 else 'int32'
-    node['force_precision_in_ports'] = {port: data_type_str for port in range(1, len(node.in_nodes()))}
+    node['force_precision_in_ports'] = {port: 'int64' for port in range(1, len(node.in_nodes()))}
 
     node.out_node().value = value.copy() if node.in_node(0).value is not None else None
     node.out_node().shape = np.array(value.shape, dtype=np.int64)

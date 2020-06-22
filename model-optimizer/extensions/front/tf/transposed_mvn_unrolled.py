@@ -19,9 +19,6 @@ import logging as log
 import numpy as np
 
 from extensions.front.PowerToEltwises import PowerToEltwises
-from extensions.front.div import Div
-from extensions.front.squared_difference import SquaredDifference
-from extensions.front.sub import Sub
 from extensions.front.tf.mvn_unrolled import MVNUnrolled
 from extensions.ops.elementwise import Add, Mul
 from extensions.ops.mvn import MVN
@@ -105,7 +102,7 @@ class TransposedMVNUnrolled(FrontReplacementSubgraph):
 
     def run_before(self):
         from extensions.front.tf.mvn import MVNReplacer
-        return [MVNReplacer, MVNUnrolled, Sub, Div, SquaredDifference, PowerToEltwises]
+        return [MVNReplacer, MVNUnrolled, PowerToEltwises]
 
     def pattern(self):
         log.debug('Enabled Transposed MVN replacement')

@@ -15,7 +15,6 @@
 """
 import numpy as np
 
-from extensions.back.ElementwiseOpsToEltwiseOps import SimpleEltwiseToEltwiseOp
 from extensions.back.insert_compatibility_l2normalization import CompatibilityL2NormalizationPattern
 from extensions.ops.elementwise import Mul
 from extensions.ops.normalize_l2 import NormalizeL2Op
@@ -28,10 +27,6 @@ from mo.graph.graph import Graph, rename_node
 class NormalizeToNormalizeL2(BackReplacementPattern):
     enabled = True
     force_clean_up = True
-    graph_condition = [lambda graph: graph.graph['cmd_params'].generate_experimental_IR_V10]
-
-    def run_before(self):
-        return [SimpleEltwiseToEltwiseOp]
 
     def run_after(self):
         return [CompatibilityL2NormalizationPattern]

@@ -24,10 +24,6 @@ class DivScalarFrontReplacer(FrontReplacementOp):
     op = '_div_scalar'
     enabled = True
 
-    def run_before(self):
-        from extensions.front.div import Div
-        return [Div]
-
     def replace_op(self, graph: Graph, node: Node):
         div_node = scalar_ops_replacer(graph, node, Div)
         return [div_node.id]
@@ -90,10 +86,6 @@ class LesserEqualScalarFrontReplacer(FrontReplacementOp):
 class MinusScalarFrontReplacer(FrontReplacementOp):
     op = '_minus_scalar'
     enabled = True
-
-    def run_before(self):
-        from extensions.front.sub import Sub
-        return [Sub]
 
     def replace_op(self, graph: Graph, node: Node):
         sub_node = scalar_ops_replacer(graph, node, Sub)

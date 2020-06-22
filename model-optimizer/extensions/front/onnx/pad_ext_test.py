@@ -40,7 +40,6 @@ class TestPad(BaseExtractorsTestingClass):
             outputs=['b']
         )
         graph = Graph()
-        graph.graph['cmd_params'] = Namespace(generate_experimental_IR_V10=True)
         node = PB({'pb': pb, 'graph': graph})
 
         return node

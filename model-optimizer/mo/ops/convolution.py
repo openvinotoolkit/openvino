@@ -249,9 +249,6 @@ class Convolution(Op):
                         pad_spatial_shape -= output_padding
                         for dim in range(len(pad_spatial_shape)):
                             node.pad_spatial_shape[dim][1] -= pad_spatial_shape[dim]
-                        if not node.graph.graph['cmd_params'].generate_experimental_IR_V10:
-                            node.pad[node.spatial_dims] = node.pad_spatial_shape
-                            node['output_padding'] = None
 
                     float_spatial = Convolution.calc_deconvolution(node, input_spatial_shape, pad_spatial_shape,
                                                                    kernel_extent)

@@ -15,7 +15,6 @@
 """
 import numpy as np
 
-from extensions.back.ParameterToPlaceholder import ParameterToInput
 from extensions.ops.parameter import Parameter
 from mo.back.replacement import BackReplacementPattern
 from mo.graph.graph import Graph
@@ -30,9 +29,6 @@ class CutMemoryInput(BackReplacementPattern):
     enabled = True
     graph_condition = [lambda graph: graph.graph['fw'] == "kaldi" and graph.graph['cmd_params'].remove_memory]
     force_clean_up = True
-
-    def run_before(self):
-        return [ParameterToInput]
 
     @staticmethod
     def pattern():
@@ -66,9 +62,6 @@ class CutMemoryOutput(BackReplacementPattern):
     enabled = True
     graph_condition = [lambda graph: graph.graph['fw'] == "kaldi" and graph.graph['cmd_params'].remove_memory]
     force_clean_up = True
-
-    def run_before(self):
-        return [ParameterToInput]
 
     @staticmethod
     def pattern():

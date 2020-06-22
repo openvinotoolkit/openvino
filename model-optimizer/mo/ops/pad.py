@@ -44,8 +44,8 @@ class Pad(Op):
             'mode': 'constant',
             'fill_value': float(0),
             'force_precision_in_ports': {
-                1: 'int64' if graph.graph['cmd_params'].generate_experimental_IR_V10 else 'int32',
-                2: 'int64' if graph.graph['cmd_params'].generate_experimental_IR_V10 else 'int32',
+                1: 'int64',
+                2: 'int64',
             },
         }, attrs)
 

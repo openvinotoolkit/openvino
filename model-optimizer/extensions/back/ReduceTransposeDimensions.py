@@ -102,8 +102,7 @@ class ReduceTransposeDimensions(BackReplacementPattern):
 
     def run_before(self):
         from extensions.back.ReshapeMutation import ReshapeMutation
-        from extensions.back.TransposeToPermute import TransposeToPermute
-        return [ReshapeMutation, TransposeToPermute]
+        return [ReshapeMutation]
 
     @staticmethod
     def pattern():

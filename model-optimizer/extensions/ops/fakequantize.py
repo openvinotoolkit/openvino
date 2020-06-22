@@ -41,22 +41,18 @@ class FakeQuantize(Op):
 
     def __init__(self, graph: Graph, attrs: dict):
         mandatory_props = {
-            'type': __class__.op,
-            'op': __class__.op,
+            'type': self.op,
+            'op': self.op,
             'version': 'opset1',
             'levels': None,
             'is_eltwise': True,
-            # flag to switch between dumping FakeQuantize as statistics and keeping it as layer in IR
-            'keep_in_IR': None,
-            'infer': __class__.infer,
+            'infer': self.infer,
             'in_ports_count': 5,
             'out_ports_count': 1,
         }
         super().__init__(graph, mandatory_props, attrs)
         if self.attrs['levels'] is None:
             raise Error("FakeQuantize operation has no levels parameter")
-        # TODO remove following lines after FakeQuantize supported for int8 workflow
-        self.attrs['keep_in_IR'] = self.attrs['levels'] == 2 or graph.graph['cmd_params'].keep_quantize_ops_in_IR
 
     def supported_attrs(self):
         return [

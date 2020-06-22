@@ -24,8 +24,7 @@ from collections import OrderedDict
 
 import numpy as np
 
-from extensions.back.SpecialNodesFinalization import RemoveConstOps, CreateConstNodesReplacement, RemoveOutputOps, \
-    NormalizeTI
+from extensions.back.SpecialNodesFinalization import RemoveConstOps, CreateConstNodesReplacement, NormalizeTI
 from mo.utils.get_ov_update_message import get_ov_update_message
 from mo.graph.graph import Graph
 from mo.middle.pattern_match import for_graph_and_each_sub_graph_recursively, for_each_sub_graph_recursively
@@ -34,8 +33,7 @@ from mo.pipeline.unified import unified_pipeline
 from mo.utils import import_extensions
 from mo.utils.cli_parser import get_placeholder_shapes, get_tuple_values, get_model_name, \
     get_common_cli_options, get_caffe_cli_options, get_tf_cli_options, get_mxnet_cli_options, get_kaldi_cli_options, \
-    get_onnx_cli_options, get_mean_scale_dictionary, parse_tuple_pairs, get_freeze_placeholder_values, \
-    append_exp_keys_to_namespace, get_meta_info
+    get_onnx_cli_options, get_mean_scale_dictionary, parse_tuple_pairs, get_freeze_placeholder_values, get_meta_info
 from mo.utils.error import Error, FrameworkError
 from mo.utils.guess_framework import deduce_framework_by_namespace
 from mo.utils.logger import init_logger
@@ -240,10 +238,6 @@ def emit_ir(graph: Graph, argv: argparse.Namespace):
     NormalizeTI().find_and_replace_pattern(graph)
     for_graph_and_each_sub_graph_recursively(graph, RemoveConstOps().find_and_replace_pattern)
     for_graph_and_each_sub_graph_recursively(graph, CreateConstNodesReplacement().find_and_replace_pattern)
-    if not graph.graph['cmd_params'].generate_experimental_IR_V10:
-        for_each_sub_graph_recursively(graph, RemoveOutputOps().find_and_replace_pattern)
-    if not graph.graph['cmd_params'].generate_experimental_IR_V10:
-        for_graph_and_each_sub_graph_recursively(graph, RemoveOutputOps().find_and_replace_pattern)
 
     prepare_emit_ir(graph=graph,
                     data_type=graph.graph['cmd_params'].data_type,
@@ -296,12 +290,6 @@ def main(cli_parser: argparse.ArgumentParser, framework: str):
         argv = cli_parser.parse_args()
         if framework:
             argv.framework = framework
-        append_exp_keys_to_namespace(argv)
-
-        # set output precision for operations producing bool values to be I32 as it was for the IRv7
-        if argv.generate_deprecated_IR_V7:
-            from mo.middle.passes.convert_data_type import SUPPORTED_DATA_TYPES
-            SUPPORTED_DATA_TYPES['bool'] = (np.bool, 'I32', 'boolean')
 
         ov_update_message = None
         if not hasattr(argv, 'silent') or not argv.silent:

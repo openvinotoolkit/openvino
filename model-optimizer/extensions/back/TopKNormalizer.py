@@ -52,10 +52,8 @@ class TopKNormalizer(BackReplacementPattern):
     @staticmethod
     def replace_pattern(graph: Graph, match: dict):
         node = match['result']
-        is_scalar = graph.graph['cmd_params'].generate_experimental_IR_V10
 
-        reshape = create_op_node_with_second_input(graph, Reshape, int64_array([]) if is_scalar else int64_array([1]),
-                                                   {'override_output_shape': True})
+        reshape = create_op_node_with_second_input(graph, Reshape, int64_array([]), {'override_output_shape': True})
         node.in_port(1).get_connection().insert_node(reshape)
 
         TopKNormalizer.normalize_outputs(node)
