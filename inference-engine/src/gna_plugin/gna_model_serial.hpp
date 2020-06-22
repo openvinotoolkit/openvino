@@ -7,7 +7,10 @@
 #include <istream>
 #include <vector>
 #include <utility>
-#include "gna-api.h"
+
+#include <gna-api.h>
+#include "descriptions/gna_input_desc.hpp"
+#include "descriptions/gna_output_desc.hpp"
 #include "gna_plugin_log.hpp"
 #if GNA_LIB_VER == 2
 #include "gna2-model-api.h"
@@ -20,18 +23,19 @@
  * 1.0 - basic support
  * 1.1 - added memory information
  * 2.0 - for use with GNA2 library
+ * 2.1 - multiple i/o support
  */
 #if GNA_LIB_VER == 2
 #define HEADER_MAJOR 2
-#define HEADER_MINOR 0
+#define HEADER_MINOR 1
 #else
 #define HEADER_MAJOR 1
-#define HEADER_MINOR 1
+#define HEADER_MINOR 2
 #endif
 
 
 /**
- * @brief Header version 1.0
+ * @brief Header version 2.1
  */
 struct ModelHeader {
     /**
@@ -74,27 +78,8 @@ struct ModelHeader {
     uint32_t nRotateRows = 0u;
     uint32_t nRotateColumns = 0u;
 
-
-    struct EndPoint {
-        /**
-         * if scale factor is different then pased into infer , network might need to be requantized
-         */
-        float scaleFactor = 0.f;
-        /**
-         * Offset in bytes of pointer descriptor
-         */
-        uint64_t descriptor_offset = 0ull;
-        /**
-         * Endpoint resolution in bytes.
-         */
-        uint32_t element_size = 0u;
-        /**
-         * Number of elements
-         */
-        uint32_t elements_count = 0u;
-    };
-    EndPoint input;
-    EndPoint output;
+    uint32_t nInputs = 0u;
+    uint32_t nOutputs = 0u;
 
     /**
      * Reserved Data might be here
@@ -127,15 +112,23 @@ class GNAModelSerial {
          * Number of elements
          */
         uint32_t elements_count = 0;
+        /**
+         * Offset in bytes of pointer descriptor
+        */
+        uint64_t descriptor_offset = 0ull;
+
+        intel_dnn_orientation_t orientation = kDnnUnknownOrientation;
 
         RuntimeEndPoint() = default;
         RuntimeEndPoint(double scaleFactor,
                     void* descriptor_ptr,
                     uint32_t element_size,
-                    uint32_t elements_count) : scaleFactor(scaleFactor),
+                    uint32_t elements_count,
+                    intel_dnn_orientation_t orientation) : scaleFactor(scaleFactor),
                                     descriptor_ptr(descriptor_ptr),
                                     element_size(element_size),
-                                    elements_count(elements_count) {
+                                    elements_count(elements_count),
+                                    orientation(orientation) {
         }
     };
     using MemoryType = std::vector<std::pair<void*, uint32_t>>;
@@ -146,11 +139,23 @@ private:
 #else
     intel_nnet_type_t *ptr_nnet;
 #endif
-    RuntimeEndPoint input, output;
+    std::vector<RuntimeEndPoint> inputs;
+    std::vector<RuntimeEndPoint> outputs;
     uint32_t nRotateRows = 0;
     uint32_t nRotateColumns = 0;
 
     MemoryType states, *pstates = nullptr;
+    ModelHeader modelHeader;
+
+    void ImportInputs(std::istream &is,
+            void* basePtr,
+            std::shared_ptr<GNAPluginNS::InputDesc> inputsDesc,
+            InferenceEngine::InputsDataMap& dataMap);
+
+    void ImportOutputs(std::istream &is,
+            void* basePtr,
+            std::vector<GNAPluginNS::OutputDesc> &desc,
+            InferenceEngine::OutputsDataMap& dataMap);
 
  public:
 #if GNA_LIB_VER == 2
@@ -160,8 +165,12 @@ private:
 
     GNAModelSerial(
         Gna2Model * model,
-        RuntimeEndPoint input,
-        RuntimeEndPoint output) : gna2Model(model), input(input), output(output) {
+        const std::shared_ptr<GNAPluginNS::InputDesc> inputDesc,
+        const std::vector<GNAPluginNS::OutputDesc>& outputsDesc,
+        const InferenceEngine::InputsDataMap& inputsDataMap,
+        const InferenceEngine::OutputsDataMap& outputsDataMap) : gna2Model(model),
+            inputs(serializeInputs(inputsDataMap, inputDesc)),
+            outputs(serializeOutputs(outputsDataMap, outputsDesc)) {
     }
 
 #else
@@ -183,8 +192,12 @@ private:
       */
      GNAModelSerial(
          intel_nnet_type_t *ptr_nnet,
-         RuntimeEndPoint input,
-         RuntimeEndPoint output) : ptr_nnet(ptr_nnet), input(input), output(output) {
+         const std::shared_ptr<GNAPluginNS::InputDesc> inputDesc,
+         const std::vector<GNAPluginNS::OutputDesc>& outputsDesc,
+         const InferenceEngine::InputsDataMap& inputsDataMap,
+         const InferenceEngine::OutputsDataMap& outputsDataMap) : ptr_nnet(ptr_nnet),
+                                                                  inputs(serializeInputs(inputsDataMap, inputDesc)),
+                                                                  outputs(serializeOutputs(outputsDataMap, outputsDesc)) {
      }
 #endif
 
@@ -219,7 +232,13 @@ private:
      * @param basePointer
      * @param is - stream without header structure - TBD heder might be needed
      */
-    void Import(void *basePointer, size_t gnaGraphSize, std::istream &is);
+    void Import(void *basePointer,
+                                size_t gnaGraphSize,
+                                std::istream & is,
+                                std::shared_ptr<GNAPluginNS::InputDesc> inputsDesc,
+                                std::vector<GNAPluginNS::OutputDesc> &desc,
+                                InferenceEngine::InputsDataMap& inputsDataMap,
+                                InferenceEngine::OutputsDataMap& outputsDataMap);
 
     /**
      * save gna graph to an outpus stream
@@ -231,4 +250,13 @@ private:
     void Export(void *basePtr,
                 size_t gnaGraphSize,
                 std::ostream &os) const;
+
+    static std::vector<GNAModelSerial::RuntimeEndPoint> serializeOutputs(const InferenceEngine::OutputsDataMap& outputsDataMap,
+            const std::vector<GNAPluginNS::OutputDesc>& outputsDesc);
+
+
+    static std::vector<GNAModelSerial::RuntimeEndPoint> serializeInputs(const InferenceEngine::InputsDataMap& inputsDataMap,
+                                                                        const std::shared_ptr<GNAPluginNS::InputDesc>);
+
+    void setHeader(ModelHeader header);
 };

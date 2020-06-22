@@ -80,7 +80,7 @@ static const char *intel_dnn_softmax_name[kSoftmaxNumType] = {
 };
 
 typedef enum {
-    kDnnUnknownOrientation,
+    kDnnUnknownOrientation = 100,
     kDnnInterleavedOrientation,
     kDnnNonInterleavedOrientation,
     kDnnNumOrientation

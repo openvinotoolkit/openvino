@@ -35,11 +35,11 @@ GNA2_API enum Gna2Status Gna2MemoryAlloc(
     uint32_t sizeRequested,
     uint32_t *sizeGranted,
     void **memoryAddress) {
-    if (current != nullptr) {
-        return current->Gna2MemoryAlloc(sizeRequested, sizeGranted, memoryAddress);
-    }
     if (sizeGranted != nullptr) {
         *sizeGranted = sizeRequested;
+    }
+    if (current != nullptr) {
+        return current->Gna2MemoryAlloc(sizeRequested, sizeGranted, memoryAddress);
     }
     *memoryAddress = reinterpret_cast<void*>(1);
     return Gna2StatusSuccess;
