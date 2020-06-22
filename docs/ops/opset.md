@@ -6,9 +6,9 @@ This topic provides a complete list of available sets of operations supported in
 
 | OpenVINO™ Version | Actual Operations Set            | 
 | :---------------- | :------------------------------- | 
-| 2020.4            | [opset3](./docs/ops/opset3.md)   | 
-| 2020.2            | [opset2](./docs/ops/opset2.md)   | 
-| 2020.1            | [opset1](./docs/ops/opset1.md)   | 
+| 2020.4            | [opset3](opset3.md)   | 
+| 2020.2            | [opset2](opset2.md)   | 
+| 2020.1            | [opset1](opset1.md)   | 
 
 ## See Also
-[Deep Learning Network Intermediate Representation and Operations Sets in OpenVINO™](./docs/MO_DG/IR_and_opsets.md)
+[Deep Learning Network Intermediate Representation and Operations Sets in OpenVINO™](../MO_DG/IR_and_opsets.md)
