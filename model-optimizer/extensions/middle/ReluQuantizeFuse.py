@@ -47,7 +47,7 @@ class ReluFakeQuantizeMark(MiddleReplacementPattern):
             nodes=[
                 ('relu', dict(op='ReLU')),
                 ('relu_d', dict()),
-                ('quantize', dict(op='FakeQuantize', keep_in_IR=True)),
+                ('quantize', dict(op='FakeQuantize')),
             ],
             edges=[
                 ('relu', 'relu_d'),
@@ -109,7 +109,7 @@ class ClampQuantizeMark(MiddleReplacementPattern):
             nodes=[
                 ('clamp', dict(op='Clamp')),
                 ('clamp_d', dict()),
-                ('quantize', dict(op='FakeQuantize', keep_in_IR=True)),
+                ('quantize', dict(op='FakeQuantize')),
             ],
             edges=[
                 ('clamp', 'clamp_d'),
@@ -172,7 +172,7 @@ class ReluQuantizeFuse(MiddleReplacementPattern):
             nodes=[
                 ('relu', dict(removable_before_quantize=True)),
                 ('relu_d', dict()),
-                ('quantize', dict(op='FakeQuantize', keep_in_IR=True)),
+                ('quantize', dict(op='FakeQuantize')),
             ],
             edges=[
                 ('relu', 'relu_d'),

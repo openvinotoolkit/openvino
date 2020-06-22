@@ -46,7 +46,7 @@ nodes = {
     'ma_o': {'op': 'Const', 'type': 'Const', 'kind': 'op', 'value': None, 'shape': None},
     'ma_o_data': {'value': np.array([]), 'shape': np.array([]), 'kind': 'data'},
 
-    'quantize': {'type': 'FakeQuantize', 'kind': 'op', 'op': 'FakeQuantize', 'levels': 2, 'keep_in_IR': True},
+    'quantize': {'type': 'FakeQuantize', 'kind': 'op', 'op': 'FakeQuantize', 'levels': 2},
     'quantize_data': {'value': None, 'shape': np.array([1, 64, 56, 56]), 'kind': 'data'},
 
     'output': {'op': 'Result', 'kind': 'op'},

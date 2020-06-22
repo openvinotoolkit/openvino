@@ -103,7 +103,7 @@ std::string PrecisionSelectionMultibranchNotPreservedTestModel::getModel(SingleL
         .convolutionLayer(
             p._network_precision,
             { {p.inputDimensions[0], weightsConstInputDims, biasesConvolutionConstDims },
-            {convOutShape} }, conv, {}, "convolution")
+            {convOutShape} }, conv, "convolution")
         // 15
         .addLayer("Pooling", p._network_precision, &poolingParams, { {dimensions}, {dimensions} })
         .finish(&edges);
