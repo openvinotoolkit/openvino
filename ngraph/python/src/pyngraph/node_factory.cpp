@@ -32,6 +32,9 @@
 #include "ngraph/node.hpp"
 #include "ngraph/opsets/opset.hpp"
 #include "node_factory.hpp"
+#include "tensor_iterator_builder.hpp"
+
+namespace py = pybind11;
 
 namespace
 {
@@ -56,7 +59,14 @@ namespace
                          "Currently NodeFactory doesn't support Constant node: ",
                          op_type_name);
 
-            util::DictAttributeDeserializer visitor(attributes);
+            if (op_type_name == "TensorIterator")
+            {
+                // XXX: How to differentiate opsets?
+                return util::TensorIteratorBuilder(arguments, attributes)
+                    .configure(std::static_pointer_cast<ngraph::op::TensorIterator>(op_node));
+            }
+
+            DictAttributeDeserializer visitor(attributes);
 
             op_node->set_arguments(arguments);
             op_node->visit_attributes(visitor);
@@ -93,8 +103,6 @@ namespace
         const ngraph::OpSet& m_opset{ngraph::get_opset0()};
     };
 }
-
-namespace py = pybind11;
 
 void regclass_pyngraph_NodeFactory(py::module m)
 {

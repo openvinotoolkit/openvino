@@ -17,7 +17,6 @@ import logging as log
 
 import numpy as np
 
-from extensions.back.split_normalizer import SplitNormalizer
 from extensions.ops.gather import Gather
 from extensions.ops.split import Split
 from mo.back.replacement import BackReplacementPattern
@@ -408,9 +407,8 @@ class ApplyReverseChannels(BackReplacementPattern):
     force_clean_up = True
 
     def run_before(self):
-        from extensions.back.ParameterToPlaceholder import ParameterToInput
         from extensions.back.GroupedConvWeightsNormalize import GroupedConvWeightsNormalize
-        return [ParameterToInput, GroupedConvWeightsNormalize, SplitNormalizer]
+        return [GroupedConvWeightsNormalize]
 
     def find_and_replace_pattern(self, graph: Graph):
         """
