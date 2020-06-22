@@ -55,9 +55,9 @@ def control_flow_infer(graph: Graph, node_name: str):
                              if 'control_flow_edge' not in attrs or not attrs['control_flow_edge']]
     in_cf_edges_with_data = [(u, v, attrs) for u, v, attrs in in_edges_with_data
                              if 'control_flow_edge' in attrs and attrs['control_flow_edge']]
-    is_executable_df = all([graph.node[u]['executable'] for u, _, attrs in in_df_edges_with_data]
+    is_executable_df = all([graph.node[u].get('executable', False) for u, _, attrs in in_df_edges_with_data]
                            if len(in_df_edges_with_data) else [True])
-    is_executable_cf = all([graph.node[u]['executable'] for u, _, attrs in in_cf_edges_with_data]
+    is_executable_cf = all([graph.node[u].get('executable', False) for u, _, attrs in in_cf_edges_with_data]
                            if len(in_cf_edges_with_data) else [True])
     is_executable = is_executable_df and is_executable_cf
 

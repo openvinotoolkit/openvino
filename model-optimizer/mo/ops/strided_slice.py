@@ -19,6 +19,7 @@ import numpy as np
 from mo.front.common.partial_infer.slice import tf_strided_slice_infer
 from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Node, Graph
+from mo.ops.const import Const
 from mo.ops.op import Op, PermuteAttrs
 from mo.utils.utils import array_to_str
 
@@ -114,7 +115,10 @@ class StridedSlice(Op):
                                                                    int(i_port.idx == 3)))
             # set_value additionally set_shape and propagate value to Const node
             if not np.array_equal(new_value, old_value):
-                i_port.data.set_value(new_value)
+               i_port.disconnect()
+               new_const = Const(node.graph, {'value': new_value}).create_node()
+               i_port.connect(new_const.out_port(0))
+               new_const.infer(new_const)
 
         # extend masks before removing ellipsis
         for attr in ["new_axis_mask", "shrink_axis_mask", "begin_mask", "end_mask", "ellipsis_mask"]:
@@ -143,4 +147,7 @@ class StridedSlice(Op):
                         continue
                     new_value = permute_array(node, i_port.data.get_value())
                     # set_value additionally set_shape and propagate value to Const node
-                    i_port.data.set_value(new_value)
+                    i_port.disconnect()
+                    new_const = Const(node.graph, {'value': new_value}).create_node()
+                    i_port.connect(new_const.out_port(0))
+                    new_const.infer(new_const)
