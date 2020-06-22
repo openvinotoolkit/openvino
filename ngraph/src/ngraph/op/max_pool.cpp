@@ -509,6 +509,7 @@ void op::v1::MaxPool::generate_adjoints(autodiff::Adjoints& adjoints, const Outp
     adjoints.add_delta(operand, backprop);
 }
 
+#ifdef NGRAPH_EVALUATE_ENABLE
 namespace
 {
     template <element::Type_t ET>
@@ -614,3 +615,4 @@ bool op::v1::MaxPool::evaluate(const HostTensorVector& outputs, const HostTensor
                             get_pads_begin(),
                             get_pads_end());
 }
+#endif

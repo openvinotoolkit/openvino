@@ -54,8 +54,10 @@ namespace ngraph
                     m_destination_type = destination_type;
                 }
 
+#ifdef NGRAPH_EVALUATE_ENABLE
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) override;
+#endif
 
             protected:
                 ngraph::element::Type m_destination_type;

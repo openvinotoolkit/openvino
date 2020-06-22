@@ -144,6 +144,7 @@ void op::Concat::generate_adjoints(autodiff::Adjoints& adjoints, const OutputVec
     }
 }
 
+#ifdef NGRAPH_EVALUATE_ENABLE
 namespace
 {
     template <element::Type_t ET>
@@ -198,3 +199,4 @@ bool op::Concat::evaluate(const HostTensorVector& outputs, const HostTensorVecto
     auto concat_axis = get_axis() < 0 ? get_axis() + inputs[0]->get_shape().size() : get_axis();
     return evaluate_concat(inputs, outputs[0], concat_axis);
 }
+#endif

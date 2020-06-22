@@ -66,6 +66,7 @@ shared_ptr<Node> ngraph::operator+(const Output<Node>& arg0, const Output<Node>&
     return make_shared<op::Add>(arg0, arg1);
 }
 
+#ifdef NGRAPH_EVALUATE_ENABLE
 namespace
 {
     template <element::Type_t ET>
@@ -124,6 +125,7 @@ bool op::v0::Add::evaluate(const HostTensorVector& outputs, const HostTensorVect
 {
     return evaluate_add(inputs[0], inputs[1], outputs[0], get_autob());
 }
+#endif
 
 // ------------------------------- v1 ------------------------------------------
 
@@ -165,7 +167,9 @@ void op::v1::Add::generate_adjoints(autodiff::Adjoints& adjoints, const OutputVe
     adjoints.add_delta(y, delta);
 }
 
+#ifdef NGRAPH_EVALUATE_ENABLE
 bool op::v1::Add::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
 {
     return evaluate_add(inputs[0], inputs[1], outputs[0], get_autob());
 }
+#endif

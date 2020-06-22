@@ -63,6 +63,7 @@ void op::v0::Minimum::generate_adjoints(autodiff::Adjoints& adjoints, const Outp
         y, delta * make_shared<op::Convert>(make_shared<op::v0::Less>(y, x), y.get_element_type()));
 }
 
+#ifdef NGRAPH_EVALUATE_ENABLE
 namespace
 {
     template <element::Type_t ET>
@@ -111,6 +112,7 @@ bool op::v0::Minimum::evaluate(const HostTensorVector& outputs, const HostTensor
 {
     return evaluate_minimum(inputs[0], inputs[1], outputs[0], get_autob());
 }
+#endif
 
 // ------------------------------ v1 -------------------------------------------
 
@@ -148,7 +150,9 @@ void op::v1::Minimum::generate_adjoints(autodiff::Adjoints& adjoints, const Outp
         y, delta * make_shared<op::Convert>(make_shared<op::v1::Less>(y, x), y.get_element_type()));
 }
 
+#ifdef NGRAPH_EVALUATE_ENABLE
 bool op::v1::Minimum::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
 {
     return evaluate_minimum(inputs[0], inputs[1], outputs[0], get_autob());
 }
+#endif

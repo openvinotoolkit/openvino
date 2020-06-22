@@ -101,6 +101,7 @@ shared_ptr<Node> op::Unsqueeze::clone_with_new_inputs(const OutputVector& new_ar
     return make_shared<Unsqueeze>(new_args.at(0), new_args.at(1));
 }
 
+#ifdef NGRAPH_EVALUATE_ENABLE
 namespace
 {
     template <element::Type_t ET>
@@ -167,3 +168,4 @@ bool op::v0::Unsqueeze::evaluate(const HostTensorVector& outputs, const HostTens
 {
     return evaluate_unsqueeze(inputs[0], inputs[1], outputs[0]);
 }
+#endif

@@ -156,6 +156,7 @@ void op::v0::Softmax::generate_adjoints(autodiff::Adjoints& adjoints, const Outp
     adjoints.add_delta(x, adjoint);
 }
 
+#ifdef NGRAPH_EVALUATE_ENABLE
 namespace
 {
     template <element::Type_t ET>
@@ -184,6 +185,7 @@ bool op::v0::Softmax::evaluate(const HostTensorVector& outputs, const HostTensor
     outputs[0]->set_unary(inputs[0]);
     return evaluate_softmax(inputs[0], outputs[0], get_axes());
 }
+#endif
 
 // *** SOFTMAX OP SET V1 ***
 constexpr NodeTypeInfo op::v1::Softmax::type_info;
@@ -224,11 +226,13 @@ shared_ptr<Node> op::v1::Softmax::clone_with_new_inputs(const OutputVector& new_
     return make_shared<op::v1::Softmax>(new_args.at(0), m_axis);
 }
 
+#ifdef NGRAPH_EVALUATE_ENABLE
 bool op::v1::Softmax::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
 {
     outputs[0]->set_unary(inputs[0]);
     return evaluate_softmax(inputs[0], outputs[0], AxisSet{m_axis});
 }
+#endif
 
 void op::v1::Softmax::generate_adjoints(autodiff::Adjoints& /* adjoints */,
                                         const OutputVector& /* deltas */)

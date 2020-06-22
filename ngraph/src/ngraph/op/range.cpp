@@ -236,6 +236,7 @@ shared_ptr<Node> op::v0::Range::clone_with_new_inputs(const OutputVector& new_ar
     return make_shared<Range>(new_args.at(0), new_args.at(1), new_args.at(2));
 }
 
+#ifdef NGRAPH_EVALUATE_ENABLE
 template <element::Type_t ET>
 bool try_evaluate_range(const HostTensorPtr& out,
                         const HostTensorPtr& start,
@@ -291,3 +292,4 @@ bool op::v0::Range::evaluate(const HostTensorVector& outputs, const HostTensorVe
            try_evaluate_range<element::Type_t::bf16>(out, start, stop, step) ||
            try_evaluate_range<element::Type_t::f64>(out, start, stop, step);
 }
+#endif

@@ -60,14 +60,17 @@ namespace ngraph
                 /// \return true and the AxisSet if broadcast axes can be fully determined.
                 virtual std::pair<bool, AxisSet> get_broadcast_axes() const;
 
+#ifdef NGRAPH_EVALUATE_ENABLE
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) override;
+#endif
 
             protected:
                 virtual void generate_adjoints(autodiff::Adjoints& adjoints,
                                                const OutputVector& deltas) override;
                 BroadcastModeSpec m_mode;
 
+#ifdef NGRAPH_EVALUATE_ENABLE
                 bool evaluate_broadcast(const HostTensorPtr& arg0,
                                         const HostTensorPtr& out,
                                         const std::pair<bool, AxisSet> pair_broadcast_axes,
@@ -77,6 +80,7 @@ namespace ngraph
                 bool evaluate(const HostTensorPtr& arg0,
                               const HostTensorPtr& out,
                               const AxisSet& broadcast_axes);
+#endif
 
                 PartialShape
                     get_result_shape_numpy_pdpd(const Shape& arg0_shape,

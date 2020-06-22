@@ -57,6 +57,7 @@ void op::Convert::generate_adjoints(autodiff::Adjoints& adjoints, const OutputVe
     adjoints.add_delta(x, make_shared<op::Convert>(delta, x.get_element_type()));
 }
 
+#ifdef NGRAPH_EVALUATE_ENABLE
 namespace
 {
     template <element::Type_t INPUT_ET, element::Type_t OUTPUT_ET>
@@ -138,3 +139,4 @@ bool op::v0::Convert::evaluate(const HostTensorVector& output_values,
 {
     return evaluate_convert(input_values[0], output_values[0]);
 }
+#endif
