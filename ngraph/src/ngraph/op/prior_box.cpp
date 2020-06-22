@@ -132,18 +132,31 @@ std::vector<float> op::PriorBox::normalized_aspect_ratio(const std::vector<float
 
 bool op::PriorBox::visit_attributes(AttributeVisitor& visitor)
 {
-    visitor.on_attribute("attrs.min_size", m_attrs.min_size);
-    visitor.on_attribute("attrs.max_size", m_attrs.max_size);
-    visitor.on_attribute("attrs.aspect_ratio", m_attrs.aspect_ratio);
-    visitor.on_attribute("attrs.density", m_attrs.density);
-    visitor.on_attribute("attrs.fixed_ratio", m_attrs.fixed_ratio);
-    visitor.on_attribute("attrs.fixed_size", m_attrs.fixed_size);
-    visitor.on_attribute("attrs.clip", m_attrs.clip);
-    visitor.on_attribute("attrs.flip", m_attrs.flip);
-    visitor.on_attribute("attrs.step", m_attrs.step);
-    visitor.on_attribute("attrs.offset", m_attrs.offset);
-    visitor.on_attribute("attrs.variance", m_attrs.variance);
-    visitor.on_attribute("attrs.scale_all_sizes", m_attrs.scale_all_sizes);
+    visitor.on_attribute("attrs", m_attrs);
+    return true;
+}
+
+constexpr DiscreteTypeInfo AttributeAdapter<op::PriorBoxAttrs>::type_info;
+
+AttributeAdapter<op::PriorBoxAttrs>::AttributeAdapter(op::PriorBoxAttrs& ref)
+    : m_ref(ref)
+{
+}
+
+bool AttributeAdapter<op::PriorBoxAttrs>::visit_attributes(AttributeVisitor& visitor)
+{
+    visitor.on_attribute("min_size", m_ref.min_size);
+    visitor.on_attribute("max_size", m_ref.max_size);
+    visitor.on_attribute("aspect_ratio", m_ref.aspect_ratio);
+    visitor.on_attribute("density", m_ref.density);
+    visitor.on_attribute("fixed_ratio", m_ref.fixed_ratio);
+    visitor.on_attribute("fixed_size", m_ref.fixed_size);
+    visitor.on_attribute("clip", m_ref.clip);
+    visitor.on_attribute("flip", m_ref.flip);
+    visitor.on_attribute("step", m_ref.step);
+    visitor.on_attribute("offset", m_ref.offset);
+    visitor.on_attribute("variance", m_ref.variance);
+    visitor.on_attribute("scale_all_sizes", m_ref.scale_all_sizes);
     return true;
 }
 

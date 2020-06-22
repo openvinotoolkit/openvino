@@ -33,12 +33,7 @@ op::v0::Interpolate::Interpolate(const Output<Node>& image,
 
 bool op::v0::Interpolate::visit_attributes(AttributeVisitor& visitor)
 {
-    visitor.on_attribute("attrs.axes", m_attrs.axes);
-    visitor.on_attribute("attrs.mode", m_attrs.mode);
-    visitor.on_attribute("attrs.align_corners", m_attrs.align_corners);
-    visitor.on_attribute("attrs.antialias", m_attrs.antialias);
-    visitor.on_attribute("attrs.pads_begin", m_attrs.pads_begin);
-    visitor.on_attribute("attrs.pads_end", m_attrs.pads_end);
+    visitor.on_attribute("attrs", m_attrs);
     return true;
 }
 
@@ -98,6 +93,24 @@ namespace ngraph
     {
         return s << as_string(type);
     }
+
+    constexpr DiscreteTypeInfo AttributeAdapter<op::v0::InterpolateAttrs>::type_info;
+
+    AttributeAdapter<op::v0::InterpolateAttrs>::AttributeAdapter(op::v0::InterpolateAttrs& ref)
+        : m_ref(ref)
+    {
+    }
+
+    bool AttributeAdapter<op::v0::InterpolateAttrs>::visit_attributes(AttributeVisitor& visitor)
+    {
+        visitor.on_attribute("axes", m_ref.axes);
+        visitor.on_attribute("mode", m_ref.mode);
+        visitor.on_attribute("align_corners", m_ref.align_corners);
+        visitor.on_attribute("antialias", m_ref.antialias);
+        visitor.on_attribute("pads_begin", m_ref.pads_begin);
+        visitor.on_attribute("pads_end", m_ref.pads_end);
+        return true;
+    }
 }
 
 // Interpolate v3
@@ -115,15 +128,7 @@ op::v3::Interpolate::Interpolate(const Output<Node>& image,
 
 bool op::v3::Interpolate::visit_attributes(AttributeVisitor& visitor)
 {
-    visitor.on_attribute("attrs.axes", m_attrs.axes);
-    visitor.on_attribute("attrs.mode", m_attrs.mode);
-    visitor.on_attribute("attrs.coordinate_transformation_mode",
-                         m_attrs.coordinate_transformation_mode);
-    visitor.on_attribute("attrs.nearest_mode", m_attrs.nearest_mode);
-    visitor.on_attribute("attrs.antialias", m_attrs.antialias);
-    visitor.on_attribute("attrs.pads_begin", m_attrs.pads_begin);
-    visitor.on_attribute("attrs.pads_end", m_attrs.pads_end);
-    visitor.on_attribute("attrs.cube_coeff", m_attrs.cube_coeff);
+    visitor.on_attribute("attrs", m_attrs);
     return true;
 }
 
@@ -228,5 +233,28 @@ namespace ngraph
     std::ostream& operator<<(std::ostream& s, const op::v3::Interpolate::NearestMode& type)
     {
         return s << as_string(type);
+    }
+
+    constexpr DiscreteTypeInfo AttributeAdapter<op::v3::Interpolate::InterpolateAttrs>::type_info;
+
+    AttributeAdapter<op::v3::Interpolate::InterpolateAttrs>::AttributeAdapter(
+        op::v3::Interpolate::InterpolateAttrs& ref)
+        : m_ref(ref)
+    {
+    }
+
+    bool AttributeAdapter<op::v3::Interpolate::InterpolateAttrs>::visit_attributes(
+        AttributeVisitor& visitor)
+    {
+        visitor.on_attribute("axes", m_ref.axes);
+        visitor.on_attribute("mode", m_ref.mode);
+        visitor.on_attribute("coordinate_transformation_mode",
+                             m_ref.coordinate_transformation_mode);
+        visitor.on_attribute("nearest_mode", m_ref.nearest_mode);
+        visitor.on_attribute("antialias", m_ref.antialias);
+        visitor.on_attribute("pads_begin", m_ref.pads_begin);
+        visitor.on_attribute("pads_end", m_ref.pads_end);
+        visitor.on_attribute("cube_coeff", m_ref.cube_coeff);
+        return true;
     }
 }

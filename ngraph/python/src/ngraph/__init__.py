@@ -149,6 +149,7 @@ from ngraph.ops import strided_slice
 from ngraph.ops import subtract
 from ngraph.ops import tan
 from ngraph.ops import tanh
+from ngraph.ops import tensor_iterator
 from ngraph.ops import tile
 from ngraph.ops import topk
 from ngraph.ops import transpose
