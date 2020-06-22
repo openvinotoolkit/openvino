@@ -39,7 +39,7 @@ using namespace ngraph;
 
 static std::string s_manifest = "${MANIFEST}";
 
-using TestEngine_t = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
+using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
 using Inputs = std::vector<std::vector<float>>;
 using Outputs = std::vector<std::vector<float>>;
@@ -49,7 +49,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_quantize_linear)
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/quantize_linear.prototxt"));
 
-    auto test_case = test::TestCase<TestEngine_t>(function);
+    auto test_case = test::TestCase<TestEngine>(function);
     test_case.add_input(std::vector<float>{32.25f, 48.34f, 50.f, 83.f});
     test_case.add_input(std::vector<float>{0.5f});
 
@@ -62,7 +62,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_quantize_linear_zero_point)
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/quantize_linear_zero_point.prototxt"));
 
-    auto test_case = test::TestCase<TestEngine_t>(function);
+    auto test_case = test::TestCase<TestEngine>(function);
     test_case.add_input(std::vector<float>{0.f, 2.f, 3.f, 1000.f, -254.f, -1000.f}); // x
     test_case.add_input(std::vector<float>{2.0f});                                   // y_scale
     test_case.add_input(std::vector<std::uint8_t>{128});                             // y_zero_point
@@ -77,7 +77,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_quantize_linear_axis_zero)
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/quantize_linear_axis_zero.prototxt"));
 
-    auto test_case = test::TestCase<TestEngine_t>(function);
+    auto test_case = test::TestCase<TestEngine>(function);
     test_case.add_input(std::vector<float>{
         0.f, 2.f, 3.f, 1000.f, 0.f, 2.f, 3.f, 1000.f, 0.f, 2.f, 3.f, 1000.f}); // x
     test_case.add_input(std::vector<float>{1.f, 2.f, 4.f});                    // y_scale
@@ -96,7 +96,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_quantize_linear_axis_negative)
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/quantize_linear_axis_negative.prototxt"));
 
-    auto test_case = test::TestCase<TestEngine_t>(function);
+    auto test_case = test::TestCase<TestEngine>(function);
     test_case.add_input(std::vector<float>{
         0.f, 2.f, 3.f, 1000.f, 0.f, 2.f, 3.f, 1000.f, 0.f, 2.f, 3.f, 1000.f}); // x
     test_case.add_input(std::vector<float>{1.f, 2.f, 4.f});                    // y_scale
@@ -115,7 +115,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear)
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/dequant_lin.prototxt"));
 
-    auto test_case = test::TestCase<TestEngine_t>(function);
+    auto test_case = test::TestCase<TestEngine>(function);
     test_case.add_input(std::vector<std::uint8_t>{19, 210, 21, 10});
 
     test_case.add_expected_output(std::vector<float>{76.f, 840.f, 84.f, 40.f});
@@ -127,7 +127,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_scalar_zero_scale_uint
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/dequantize_linear_0.prototxt"));
 
-    auto test_case = test::TestCase<TestEngine_t>(function);
+    auto test_case = test::TestCase<TestEngine>(function);
     test_case.add_input(std::vector<uint8_t>{0, 3, 128, 255}); // x
     test_case.add_input(std::vector<float>{2.0f});             // scale
     test_case.add_input(std::vector<uint8_t>{128});            // zero_point
@@ -141,7 +141,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_scalar_zero_scale_int8
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/dequantize_linear_1.prototxt"));
 
-    auto test_case = test::TestCase<TestEngine_t>(function);
+    auto test_case = test::TestCase<TestEngine>(function);
 
     test_case.add_input(std::vector<int8_t>{-30, -3, 100, 127}); // x
     test_case.add_input(std::vector<float>{2.0f});               // scale
@@ -156,7 +156,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_1d_zero_scale_uint8)
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/dequantize_linear_2.prototxt"));
 
-    auto test_case = test::TestCase<TestEngine_t>(function);
+    auto test_case = test::TestCase<TestEngine>(function);
 
     test_case.add_input(std::vector<uint8_t>{0, 1, 2, 3, 0, 1, 2, 3, 0, 10, 20, 30}); // x
     test_case.add_input(std::vector<float>{1.0f, 2.0f, 4.0f});                        // scale
@@ -174,7 +174,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_1d_zero_scale_int8)
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/dequantize_linear_3.prototxt"));
 
-    auto test_case = test::TestCase<TestEngine_t>(function);
+    auto test_case = test::TestCase<TestEngine>(function);
 
     test_case.add_input(std::vector<int8_t>{0, 1, 2, 3, 0, 2, 4, 6, 0, 10, 20, 30}); // x
     test_case.add_input(std::vector<float>{1.0f, 2.0f, 4.0f, 8.0f});                 // scale
@@ -192,7 +192,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_1d_zero_scale_int8_4d)
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/dequantize_linear_4.prototxt"));
 
-    auto test_case = test::TestCase<TestEngine_t>(function);
+    auto test_case = test::TestCase<TestEngine>(function);
 
     test_case.add_input(std::vector<uint8_t>{7, 9, 10, 10, 5, 8, 9, 1, 8, 6, 7, 9, 10, 0, 7, 10, 8,
                                              2, 6, 0,  5,  9, 8, 1, 2, 7, 5, 3, 2, 4,  1, 3, 8,  7,
@@ -216,7 +216,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_1d_zero_scale_uint8_ne
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/dequantize_linear_5.prototxt"));
 
-    auto test_case = test::TestCase<TestEngine_t>(function);
+    auto test_case = test::TestCase<TestEngine>(function);
 
     test_case.add_input(std::vector<uint8_t>{0, 1, 2, 3, 0, 1, 2, 3, 0, 10, 20, 30}); // x
     test_case.add_input(std::vector<float>{1.0f, 2.0f, 4.0f});                        // scale
@@ -257,7 +257,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_quant_conv_linear_2d)
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/qlinear_conv_2d.prototxt"));
 
-    auto test_case = test::TestCase<TestEngine_t>(function);
+    auto test_case = test::TestCase<TestEngine>(function);
 
     test_case.add_input_from_file<uint8_t>(TEST_FILES, "onnx/qlinearconv2d/x.bin");
     test_case.add_input(std::vector<float>{0.00369204697199166f}); // x_scale
@@ -278,7 +278,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_quant_conv_linear_3d)
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/qlinear_conv_3d.prototxt"));
 
-    auto test_case = test::TestCase<TestEngine_t>(function);
+    auto test_case = test::TestCase<TestEngine>(function);
 
     test_case.add_input_from_file<uint8_t>(TEST_FILES, "onnx/qlinearconv3d/x.bin");
     test_case.add_input(std::vector<float>{0.00389225385151803f}); // x_scale
@@ -299,7 +299,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_qlinear_matmul)
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/qlinear_matmul.prototxt"));
 
-    auto test_case = test::TestCase<TestEngine_t>(function);
+    auto test_case = test::TestCase<TestEngine>(function);
 
     test_case.add_input(std::vector<uint8_t>{208, 236, 0, 238, 3, 214, 255, 29}); // T1
     test_case.add_input(std::vector<float>{0.0066f});                             // a_scale
@@ -320,7 +320,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_qlinear_matmul_3d)
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/qlinear_matmul_3d.prototxt"));
 
-    auto test_case = test::TestCase<TestEngine_t>(function);
+    auto test_case = test::TestCase<TestEngine>(function);
 
     test_case.add_input(std::vector<uint8_t>{
         208, 236, 0, 238, 3, 214, 255, 29, 208, 236, 0, 238, 3, 214, 255, 29}); // T1
@@ -344,7 +344,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_conv_integer)
 {
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/conv_integer.prototxt"));
-    auto test_case = test::TestCase<TestEngine_t>(function);
+    auto test_case = test::TestCase<TestEngine>(function);
 
     test_case.add_input(std::vector<uint8_t>{2, 3, 4, 5, 6, 7, 8, 9, 10}); // x
     test_case.add_input(std::vector<uint8_t>{1, 1, 1, 1});                 // w
@@ -358,7 +358,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_conv_integer_zero_point_zero)
 {
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/conv_integer.prototxt"));
-    auto test_case = test::TestCase<TestEngine_t>(function);
+    auto test_case = test::TestCase<TestEngine>(function);
 
     test_case.add_input(std::vector<uint8_t>{1, 2, 3, 4, 5, 6, 7, 8, 9}); // x
     test_case.add_input(std::vector<uint8_t>{1, 1, 1, 1});                // w
@@ -372,7 +372,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_conv_integer_no_zero_point)
 {
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/conv_integer_no_zero_point.prototxt"));
-    auto test_case = test::TestCase<TestEngine_t>(function);
+    auto test_case = test::TestCase<TestEngine>(function);
 
     test_case.add_input(std::vector<uint8_t>{1, 2, 3, 4, 5, 6, 7, 8, 9}); // x
     test_case.add_input(std::vector<uint8_t>{1, 1, 1, 1});                // w
@@ -385,7 +385,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_conv_integer_pads)
 {
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/conv_integer_pads.prototxt"));
-    auto test_case = test::TestCase<TestEngine_t>(function);
+    auto test_case = test::TestCase<TestEngine>(function);
 
     test_case.add_input(std::vector<uint8_t>{2, 3, 4, 5, 6, 7, 8, 9, 10}); // x
     test_case.add_input(std::vector<uint8_t>{1, 1, 1, 1});                 // w
@@ -401,7 +401,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_matmul_integer)
 {
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/matmul_integer.prototxt"));
-    auto test_case = test::TestCase<TestEngine_t>(function);
+    auto test_case = test::TestCase<TestEngine>(function);
 
     test_case.add_input(std::vector<uint8_t>{11, 7, 3, 10, 6, 2, 9, 5, 1, 8, 4, 0}); // a
     test_case.add_input(std::vector<uint8_t>{1, 4, 2, 5, 3, 6});                     // b
@@ -417,7 +417,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_matmul_integer_zero_point_zero)
 {
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/matmul_integer.prototxt"));
-    auto test_case = test::TestCase<TestEngine_t>(function);
+    auto test_case = test::TestCase<TestEngine>(function);
 
     test_case.add_input(std::vector<uint8_t>{11, 7, 3, 10, 6, 2, 9, 5, 1, 8, 4, 0}); // a
     test_case.add_input(std::vector<uint8_t>{1, 4, 2, 5, 3, 6});                     // b
@@ -433,7 +433,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_matmul_integer_no_zero_point)
 {
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/matmul_integer_no_zero_point.prototxt"));
-    auto test_case = test::TestCase<TestEngine_t>(function);
+    auto test_case = test::TestCase<TestEngine>(function);
 
     test_case.add_input(std::vector<uint8_t>{11, 7, 3, 10, 6, 2, 9, 5, 1, 8, 4, 0}); // a
     test_case.add_input(std::vector<uint8_t>{1, 4, 2, 5, 3, 6});                     // b
@@ -447,7 +447,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_matmul_integer_scalar)
 {
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/matmul_integer_scalar.prototxt"));
-    auto test_case = test::TestCase<TestEngine_t>(function);
+    auto test_case = test::TestCase<TestEngine>(function);
 
     test_case.add_input(std::vector<uint8_t>{11}); // a
     test_case.add_input(std::vector<uint8_t>{13}); // b
@@ -462,7 +462,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_matmul_integer_4d)
 {
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/matmul_integer_4d.prototxt"));
-    auto test_case = test::TestCase<TestEngine_t>(function);
+    auto test_case = test::TestCase<TestEngine>(function);
 
     test_case.add_input(std::vector<uint8_t>{0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11,
                                              12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23}); // a
@@ -497,7 +497,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_matmul_integer_4d_zero_point)
 {
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/matmul_integer_4d.prototxt"));
-    auto test_case = test::TestCase<TestEngine_t>(function);
+    auto test_case = test::TestCase<TestEngine>(function);
 
     test_case.add_input(std::vector<uint8_t>{0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11,
                                              12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23}); // a
@@ -532,7 +532,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_matmul_integer_4d_no_zero_point)
 {
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/matmul_integer_4d_no_zero_point.prototxt"));
-    auto test_case = test::TestCase<TestEngine_t>(function);
+    auto test_case = test::TestCase<TestEngine>(function);
 
     test_case.add_input(std::vector<uint8_t>{0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11,
                                              12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23}); // a

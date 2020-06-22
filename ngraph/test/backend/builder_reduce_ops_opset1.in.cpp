@@ -26,7 +26,7 @@ using namespace ngraph::test;
 
 static string s_manifest = "${MANIFEST}";
 
-using TestEngine_t = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
+using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
 NGRAPH_TEST(${BACKEND_NAME}, builder_opset1_mean)
 {
@@ -36,7 +36,7 @@ NGRAPH_TEST(${BACKEND_NAME}, builder_opset1_mean)
     const auto mean_builder = builder::opset1::mean(input, axes);
     auto function = make_shared<Function>(mean_builder, ParameterVector{input});
 
-    auto test_case = test::TestCase<TestEngine_t, TestCaseType::DYNAMIC>(function);
+    auto test_case = test::TestCase<TestEngine, TestCaseType::DYNAMIC>(function);
     vector<float> input_values(shape_size(input_shape));
     iota(begin(input_values), end(input_values), 0);
     test_case.add_input<float>(input_shape, input_values);
@@ -53,7 +53,7 @@ NGRAPH_TEST(${BACKEND_NAME}, builder_opset1_mean_dynamic)
     const auto mean_builder = builder::opset1::mean(input, axes);
     auto function = make_shared<Function>(mean_builder, ParameterVector{input});
 
-    auto test_case = test::TestCase<TestEngine_t, TestCaseType::DYNAMIC>(function);
+    auto test_case = test::TestCase<TestEngine, TestCaseType::DYNAMIC>(function);
     vector<float> input_values(shape_size(input_shape));
     iota(begin(input_values), end(input_values), 0);
     test_case.add_input<float>(input_shape, input_values);
@@ -71,7 +71,7 @@ NGRAPH_TEST(${BACKEND_NAME}, builder_opset1_mean_dynamic_2)
     const auto mean_builder = builder::opset1::mean(input, axes);
     auto function = make_shared<Function>(mean_builder, ParameterVector{input});
 
-    auto test_case = test::TestCase<TestEngine_t, TestCaseType::DYNAMIC>(function);
+    auto test_case = test::TestCase<TestEngine, TestCaseType::DYNAMIC>(function);
     vector<float> input_values(shape_size(input_shape));
     iota(begin(input_values), end(input_values), 0);
     test_case.add_input<float>(input_shape, input_values);

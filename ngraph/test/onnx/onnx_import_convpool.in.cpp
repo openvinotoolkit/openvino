@@ -39,7 +39,7 @@ using namespace ngraph;
 
 static std::string s_manifest = "${MANIFEST}";
 
-using TestEngine_t = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
+using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
 using Inputs = std::vector<std::vector<float>>;
 using Outputs = std::vector<std::vector<float>>;
@@ -73,7 +73,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_conv2d_strides_padding)
                                                       {112.f, 177.f, 124.f}}}})
                                .get_vector();
 
-    auto test_case = test::TestCase<TestEngine_t>(function);
+    auto test_case = test::TestCase<TestEngine>(function);
     test_case.add_multiple_inputs(inputs);
     test_case.add_expected_output(expected_output);
     test_case.run();
@@ -105,7 +105,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_conv2d_strides_no_padding)
     auto expected_output =
         test::NDArray<float, 4>({{{{54.f, 72.f}, {144.f, 162.f}, {234.f, 252.f}}}}).get_vector();
 
-    auto test_case = test::TestCase<TestEngine_t>(function);
+    auto test_case = test::TestCase<TestEngine>(function);
     test_case.add_multiple_inputs(inputs);
     test_case.add_expected_output(expected_output);
     test_case.run();
@@ -138,7 +138,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_conv2d_strides_assymetric_padding)
         test::NDArray<float, 4>({{{{21.f, 33.f}, {99.f, 117.f}, {189.f, 207.f}, {171.f, 183.f}}}})
             .get_vector();
 
-    auto test_case = test::TestCase<TestEngine_t>(function);
+    auto test_case = test::TestCase<TestEngine>(function);
     test_case.add_multiple_inputs(inputs);
     test_case.add_expected_output(expected_output);
     test_case.run();
@@ -180,7 +180,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_conv2d_dilation_assymetric_pads_strides)
                                   {{-0.10154513269662857f, -0.13448859751224518f}}}})
             .get_vector();
 
-    auto test_case = test::TestCase<TestEngine_t>(function);
+    auto test_case = test::TestCase<TestEngine>(function);
     test_case.add_multiple_inputs(inputs);
     test_case.add_expected_output(expected_output);
     test_case.run();
@@ -296,7 +296,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_conv3d_bias)
         -0.39770257472991943f, -0.45317384600639343f, -0.5598302483558655f,  -0.2542789578437805f,
         -0.5359901785850525f,  -0.48090484738349915f, -0.38603779673576355f, -0.4991581439971924f};
 
-    auto test_case = test::TestCase<TestEngine_t>(function);
+    auto test_case = test::TestCase<TestEngine>(function);
     test_case.add_multiple_inputs(inputs);
     test_case.add_expected_output(expected_output);
     test_case.run();
@@ -317,7 +317,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_conv_transpose_w_groups)
 
     std::vector<float> expected_output{28.f, 34.f, 252.f, 274.f, 732.f, 770.f, 1468.f, 1522.f};
 
-    auto test_case = test::TestCase<TestEngine_t>(function);
+    auto test_case = test::TestCase<TestEngine>(function);
     test_case.add_multiple_inputs(inputs);
     test_case.add_expected_output(expected_output);
     test_case.run();
@@ -340,7 +340,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_average_pool_2d)
     // (1, 1, 2, 2)
     auto expected_output = test::NDArray<float, 4>({{{{2.5f, 4.5f}, {10.5f, 12.5f}}}}).get_vector();
 
-    auto test_case = test::TestCase<TestEngine_t>(function);
+    auto test_case = test::TestCase<TestEngine>(function);
     test_case.add_multiple_inputs(inputs);
     test_case.add_expected_output(expected_output);
     test_case.run();
@@ -365,7 +365,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_average_pool_2d_pads)
         test::NDArray<float, 4>({{{{0.f, 1.5f, 3.f}, {6.f, 7.5f, 9.f}, {12.f, 13.5f, 15.f}}}})
             .get_vector();
 
-    auto test_case = test::TestCase<TestEngine_t>(function);
+    auto test_case = test::TestCase<TestEngine>(function);
     test_case.add_multiple_inputs(inputs);
     test_case.add_expected_output(expected_output);
     test_case.run();
@@ -390,7 +390,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_max_pool_2d_pads)
         test::NDArray<float, 4>({{{{0.f, 2.f, 3.f}, {8.f, 10.f, 11.f}, {12.f, 14.f, 15.f}}}})
             .get_vector();
 
-    auto test_case = test::TestCase<TestEngine_t>(function);
+    auto test_case = test::TestCase<TestEngine>(function);
     test_case.add_multiple_inputs(inputs);
     test_case.add_expected_output(expected_output);
     test_case.run();
@@ -406,7 +406,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_global_lp_pool_p0)
 
     std::vector<std::int64_t> expected_output{6, 8};
 
-    auto test_case = test::TestCase<TestEngine_t>(function);
+    auto test_case = test::TestCase<TestEngine>(function);
     test_case.add_input(input);
     test_case.add_expected_output(expected_output);
     test_case.run();
@@ -422,7 +422,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_global_lp_pool_p1)
 
     std::vector<float> expected_output{66.f, 210.f};
 
-    auto test_case = test::TestCase<TestEngine_t>(function);
+    auto test_case = test::TestCase<TestEngine>(function);
     test_case.add_multiple_inputs(inputs);
     test_case.add_expected_output(expected_output);
     test_case.run();
@@ -438,7 +438,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_global_lp_pool_p2)
 
     std::vector<float> expected_output{22.494444f, 61.789967f};
 
-    auto test_case = test::TestCase<TestEngine_t>(function);
+    auto test_case = test::TestCase<TestEngine>(function);
     test_case.add_multiple_inputs(inputs);
     test_case.add_expected_output(expected_output);
     test_case.run();
@@ -454,7 +454,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_global_lp_pool_p3)
 
     std::vector<float> expected_output{16.331620904278438f, 41.56697946707537f};
 
-    auto test_case = test::TestCase<TestEngine_t>(function);
+    auto test_case = test::TestCase<TestEngine>(function);
     test_case.add_multiple_inputs(inputs);
     test_case.add_expected_output(expected_output);
     test_case.run();
@@ -465,7 +465,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_convtranspose_output_shape)
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/convtranspose_output_shape.prototxt"));
 
-    auto test_case = test::TestCase<TestEngine_t>(function);
+    auto test_case = test::TestCase<TestEngine>(function);
 
     test_case.add_input_from_file<float>(TEST_FILES, "onnx/convtranspose_output_shape/x.bin");
     test_case.add_input_from_file<float>(TEST_FILES, "onnx/convtranspose_output_shape/w.bin");
@@ -480,7 +480,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_convtranspose_output_shape_auto_pads_sam
     auto function = onnx_import::import_onnx_model(file_util::path_join(
         SERIALIZED_ZOO, "onnx/convtranspose_output_shape_auto_pads_same_upper.prototxt"));
 
-    auto test_case = test::TestCase<TestEngine_t>(function);
+    auto test_case = test::TestCase<TestEngine>(function);
 
     test_case.add_input<float>(
         {0.f, 0.25f, 0.5f, 0.75f, 1.f, 1.25f, 1.5f, 1.75f, 2.f, 2.25f, 2.5f, 2.75f});
@@ -508,7 +508,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_convtranspose_output_shape_auto_pads_sam
     auto function = onnx_import::import_onnx_model(file_util::path_join(
         SERIALIZED_ZOO, "onnx/convtranspose_output_shape_auto_pads_same_lower.prototxt"));
 
-    auto test_case = test::TestCase<TestEngine_t>(function);
+    auto test_case = test::TestCase<TestEngine>(function);
 
     test_case.add_input<float>(
         {0.f, 0.25f, 0.5f, 0.75f, 1.f, 1.25f, 1.5f, 1.75f, 2.f, 2.25f, 2.5f, 2.75f});
@@ -536,7 +536,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_convtranspose_groups_w_pads)
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/convtranspose_groups_w_pads.prototxt"));
 
-    auto test_case = test::TestCase<TestEngine_t>(function);
+    auto test_case = test::TestCase<TestEngine>(function);
 
     test_case.add_input<float>({
         0.f,
@@ -589,7 +589,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_convtranspose_groups_pads_bias)
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/convtranspose_groups_pads_bias.prototxt"));
 
-    auto test_case = test::TestCase<TestEngine_t>(function);
+    auto test_case = test::TestCase<TestEngine>(function);
 
     test_case.add_input<float>({0.f,
                                 0.25f,

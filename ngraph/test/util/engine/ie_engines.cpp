@@ -179,7 +179,7 @@ std::shared_ptr<Function>
         {
             if (node->get_type_info() == op::GetOutputElement::type_info)
             {
-                // IE currently can handle GetOutuputElement op;
+                // IE currently can handle GetOutputElement op;
                 continue;
             }
             else
