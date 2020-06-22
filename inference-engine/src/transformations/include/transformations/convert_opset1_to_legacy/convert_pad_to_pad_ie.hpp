@@ -19,12 +19,17 @@
 namespace ngraph {
 namespace pass {
 
-class TRANSFORMATIONS_API ConvertPadToPadIEMatcher;
+class TRANSFORMATIONS_API ConvertPadToPadIE;
 
 }  // namespace pass
 }  // namespace ngraph
 
-class ngraph::pass::ConvertPadToPadIEMatcher {
+class ngraph::pass::ConvertPadToPadIE: public ngraph::pass::GraphRewrite {
 public:
-    void register_matcher(std::shared_ptr<ngraph::pass::GraphRewrite> t);
+    ConvertPadToPadIE() : GraphRewrite() {
+        convert_pad();
+    }
+
+private:
+    void convert_pad();
 };

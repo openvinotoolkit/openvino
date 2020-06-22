@@ -12,7 +12,7 @@
 #include <ngraph_ops/proposal_ie.hpp>
 #include <ngraph/rt_info.hpp>
 
-void ngraph::pass::ConvertProposalToProposalIEMatcher::register_matcher(std::shared_ptr<ngraph::pass::GraphRewrite> t) {
+void ngraph::pass::ConvertProposalToProposalIE::convert_proposal() {
     auto input_0 = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1, 1});
     auto input_1 = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1, 1});
     auto input_2 = std::make_shared<pattern::op::Label>(element::f32, Shape{3});
@@ -61,5 +61,5 @@ void ngraph::pass::ConvertProposalToProposalIEMatcher::register_matcher(std::sha
     };
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(proposal, "CPUFusion.ConvertProposalToProposalIE");
-    t->add_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
+    this->add_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
 }

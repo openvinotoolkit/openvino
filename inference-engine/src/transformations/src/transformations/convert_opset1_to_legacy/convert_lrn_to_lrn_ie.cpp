@@ -13,7 +13,7 @@
 
 #include <ngraph_ops/lrn_ie.hpp>
 
-void ngraph::pass::ConvertLRNToLRNIEMatcher::register_matcher(std::shared_ptr<ngraph::pass::GraphRewrite> t) {
+void ngraph::pass::ConvertLRNToLRNIE::convert_lrn() {
     auto input_0 = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1, 1});
     auto input_1 = std::make_shared<pattern::op::Label>(element::i64, Shape{1});
     auto lrn = std::make_shared<ngraph::opset1::LRN>(input_0, input_1, 1, 1, 1, 1);
@@ -63,5 +63,5 @@ void ngraph::pass::ConvertLRNToLRNIEMatcher::register_matcher(std::shared_ptr<ng
     };
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(lrn, "ConvertLRNToLRNIE");
-    t->add_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
+    this->add_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
 }

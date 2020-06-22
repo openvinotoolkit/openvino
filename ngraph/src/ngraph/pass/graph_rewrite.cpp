@@ -188,6 +188,14 @@ void pass::GraphRewrite::add_matcher(const shared_ptr<pattern::Matcher>& m,
     add_matcher(m, callback, {PassProperty::REQUIRE_STATIC_SHAPE});
 }
 
+void pass::GraphRewrite::copy_matchers(const std::shared_ptr<GraphRewrite> & pass)
+{
+    for (auto & m : pass->m_matchers)
+    {
+        m_matchers.push_back(m);
+    }
+}
+
 void pass::RecurrentGraphRewrite::add_matcher(
     const std::shared_ptr<pattern::RecurrentMatcher>& m,
     const ngraph::recurrent_graph_rewrite_callback& callback,

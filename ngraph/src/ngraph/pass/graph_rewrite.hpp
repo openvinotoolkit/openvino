@@ -90,6 +90,8 @@ public:
     void add_matcher(const std::shared_ptr<pattern::Matcher>& m,
                      const ngraph::graph_rewrite_callback& callback);
 
+    void copy_matchers(const std::shared_ptr<GraphRewrite> & pass);
+
     virtual bool run_on_function(std::shared_ptr<ngraph::Function> f);
 
 protected:
