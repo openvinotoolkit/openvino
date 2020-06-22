@@ -56,8 +56,8 @@ class MatMulConstTransposesExtraction(BackReplacementPattern):
         transpose_order = list(range(port_shape.size))
         transpose_order[-1], transpose_order[-2] = transpose_order[-2], transpose_order[-1]
 
-        order = Const(graph, {'value': int64_array(transpose_order)}).create_node()
         transpose = Transpose(graph, {'name': name + '/{}_port_transpose'.format(in_port_idx)}).create_node()
+        order = Const(graph, {'value': int64_array(transpose_order), 'name': transpose.name + '/order'}).create_node()
 
         port_source = in_port.get_source()
         in_port.get_connection().set_source(transpose.out_port(0))

@@ -358,11 +358,7 @@ class DecomposeReverseChannels(BackReplacementPattern):
         axis = node.axis
         order = node.order
 
-        indices = Const(graph, {'name': name + '/reverse_order', 'value': order}).create_node()
-        axis_const = Const(graph, {'value': int64_array(axis)}).create_node()
-        gather = Gather(graph, {'name': name}).create_node()
-        gather.in_port(1).connect(indices.out_port(0))
-        gather.in_port(2).connect(axis_const.out_port(0))
+        gather = create_op_with_const_inputs(graph, Gather, {1: order, 2: int64_array(axis)}, {'name': name})
 
         node.out_port(0).get_connection().set_source(gather.out_port(0))
         node.in_port(0).get_connection().set_destination(gather.in_port(0))

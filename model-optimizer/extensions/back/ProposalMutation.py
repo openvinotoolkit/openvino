@@ -21,6 +21,7 @@ from extensions.back.ReshapeMutation import ReshapeMutation
 from extensions.back.StridedSliceMasksNormalizer import StridedSliceMasksNormalizer
 from mo.back.replacement import BackReplacementPattern
 from mo.front.common.partial_infer.utils import int64_array
+from mo.front.tf.graph_utils import create_op_with_const_inputs
 from mo.graph.graph import Graph
 from mo.ops.const import Const
 from mo.ops.reshape import Reshape
@@ -53,23 +54,20 @@ class ProposalMutation(BackReplacementPattern):
                       'implementation of the Proposal layer uses only 4 first values (indices 0, 1, 2 and 3). '
                       'Elements with indices 4 and 5 will be ignored.'.format(node.soft_get('name', node.id)),
                       extra={'is_warning': True})
-            begin = Const(graph, {'value': np.array([0, 0], dtype=np.int32)}).create_node()
-            end = Const(graph, {'value': np.array([1, 3], dtype=np.int32)}).create_node()
-            stride = Const(graph, {'value': np.array([1, 1], dtype=np.int32)}).create_node()
 
-            cropped_im_info = StridedSlice(graph, {'name': 'cropped_im_info',
-                                                   'begin_mask': int64_array([1, 1]),
-                                                   'end_mask': int64_array([1, 1]),
-                                                   'new_axis_mask': int64_array([0]),
-                                                   'shrink_axis_mask': int64_array([0]),
-                                                   'ellipsis_mask': int64_array([0]),
-                                                   'override_output_shape': True,
-                                                   }).create_node()
+            cropped_im_info = create_op_with_const_inputs(graph, StridedSlice, {1: np.array([0, 0], dtype=np.int32),
+                                                                                2: np.array([1, 3], dtype=np.int32),
+                                                                                3: np.array([1, 1], dtype=np.int32)},
+                                                          {'name': 'cropped_im_info',
+                                                           'begin_mask': int64_array([1, 1]),
+                                                           'end_mask': int64_array([1, 1]),
+                                                           'new_axis_mask': int64_array([0]),
+                                                           'shrink_axis_mask': int64_array([0]),
+                                                           'ellipsis_mask': int64_array([0]),
+                                                           'override_output_shape': True,
+                                                           })
 
             node.in_port(2).get_connection().insert_node(cropped_im_info)
-            begin.out_port(0).connect(cropped_im_info.in_port(1))
-            end.out_port(0).connect(cropped_im_info.in_port(2))
-            stride.out_port(0).connect(cropped_im_info.in_port(3))
 
             # update the im_info_shape so the next 'if' statement become true
             im_info_shape = int64_array([1, 3])

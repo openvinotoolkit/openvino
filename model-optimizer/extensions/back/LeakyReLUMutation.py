@@ -39,11 +39,12 @@ class LeakyReLUMutation(BackReplacementPattern):
     @staticmethod
     def replace_pattern(graph: Graph, match: dict):
         relu = match['leakyrelu']
+        relu_name = relu.soft_get('name', relu.id)
         if not relu.has_valid('negative_slope'):
             return
         # Create PReLU op and reconnect input/output from LeakyReLU to PReLU
-        prelu = PreluOp(graph, dict(name=relu.name)).create_node()
-        const = Const(graph, dict(name=relu.name + "/weights", value=np.array([relu.negative_slope]))).create_node()
+        prelu = PreluOp(graph, dict(name=relu_name)).create_node()
+        const = Const(graph, dict(name=relu_name + "/weights", value=np.array([relu.negative_slope]))).create_node()
 
         relu.in_port(0).get_connection().set_destination(prelu.in_port(0))
         const.out_port(0).connect(prelu.in_port(1))
