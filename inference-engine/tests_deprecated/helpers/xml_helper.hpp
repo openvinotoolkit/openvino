@@ -14,7 +14,6 @@
 #include <stdio.h>
 #include "cpp/ie_cnn_network.h"
 #include <gtest/gtest.h>
-#include <ie_icnn_network_stats.hpp>
 
 namespace testing {
 
@@ -53,7 +52,5 @@ private:
     class impl;
     std::shared_ptr<impl> _impl;
 };
-
-InferenceEngine::NetworkStatsMap loadStatisticFromFile(const std::string& xmlPath);
 
 }

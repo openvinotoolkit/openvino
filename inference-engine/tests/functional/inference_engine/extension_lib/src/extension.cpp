@@ -90,15 +90,3 @@ INFERENCE_EXTENSION_API(InferenceEngine::StatusCode) InferenceEngine::CreateExte
         return InferenceEngine::GENERAL_ERROR;
     }
 }
-
-// Exported function
-INFERENCE_EXTENSION_API(InferenceEngine::StatusCode) InferenceEngine::CreateShapeInferExtension(InferenceEngine::IShapeInferExtension*& ext,
-                                                                                                InferenceEngine::ResponseDesc* resp) noexcept {
-    IExtension * pExt = nullptr;
-    InferenceEngine::StatusCode  result = CreateExtension(pExt, resp);
-    if (result == OK) {
-        ext = pExt;
-    }
-
-    return result;
-}

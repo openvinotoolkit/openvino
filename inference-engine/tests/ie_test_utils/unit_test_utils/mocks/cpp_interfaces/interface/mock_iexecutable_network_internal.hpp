@@ -9,7 +9,6 @@
 #include <vector>
 
 #include <gmock/gmock.h>
-#include "ie_plugin.hpp"
 
 #include "ie_input_info.hpp"
 #include "ie_icnn_network.hpp"

@@ -8,15 +8,12 @@
 #include <string>
 
 #include "mock_plugin.hpp"
-#include "ie_plugin.hpp"
 #include "description_buffer.hpp"
 
 using namespace std;
 using namespace InferenceEngine;
 #define ACTION_IF_NOT_NULL(action) (nullptr == _target) ? NOT_IMPLEMENTED : _target->action
 #define IF_NOT_NULL(action) if (nullptr != _target) {_target->action;}
-
-IE_SUPPRESS_DEPRECATED_START
 
 MockPlugin::MockPlugin(InferenceEngine::IInferencePlugin *target) {
     _target = target;
@@ -73,5 +70,3 @@ INFERENCE_PLUGIN_API(InferenceEngine::IInferencePlugin*)CreatePluginEngineProxy(
 INFERENCE_PLUGIN_API(void) InjectProxyEngine(InferenceEngine::IInferencePlugin *target) {
     __target = target;
 }
-
-IE_SUPPRESS_DEPRECATED_END

@@ -4,7 +4,6 @@
 
 #include "hetero_infer_request.hpp"
 #include <ie_blob.h>
-#include <ie_plugin.hpp>
 #include <ie_util_internal.hpp>
 #include <description_buffer.hpp>
 #include <ie_layouts.h>
