@@ -3768,6 +3768,8 @@ void Program::CreateGatherPrimitive(cldnn::topology& topology, InferenceEngine::
     auto inputLayout = layer->insData[0].lock()->getTensorDesc().getLayout();
     auto inputFormat = FormatFromLayout(inputLayout);
 
+    auto indicesDims = layer->insData[1].lock()->getTensorDesc().getDims();
+
     auto outDimsOriginal = layer->outData[0]->getTensorDesc().getDims();
     auto outputLayoutOriginal = layer->outData[0]->getTensorDesc().getLayout();
     auto outputFormatOriginal = FormatFromLayout(outputLayoutOriginal);
@@ -3805,7 +3807,8 @@ void Program::CreateGatherPrimitive(cldnn::topology& topology, InferenceEngine::
     // clDNN primitive is missing proper support of 5d/6d inputs
     // but we can still fall back to bfyx format in some cases
     bool bfyx_wa = ((inputFormat == cldnn::format::bfzyx || inputFormat == cldnn::format::bfwzyx) &&
-                    (originalRequiredDims.size() == 4));
+                    (originalRequiredDims.size() == 4) &&
+                    (indicesDims.size() == 1));
 
     if (bfyx_wa) {
         // reorder input to bfyx
