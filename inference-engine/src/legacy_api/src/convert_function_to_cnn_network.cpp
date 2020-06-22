@@ -763,7 +763,7 @@ std::shared_ptr<CNNNetworkImpl> convertFunctionToICNNNetwork(const std::shared_p
             // Memory node with index = 1 has no inputs according to the specification.
             // For proper conversion, we must cut off all the layers and data nodes above ReadValue,
             // if they are connected only with this layer.
-            // Now MO generates only constants as input for ReadValue op.
+            // Now MO generates only constants or constant sub-graphs as input to ReadValue op.
             if (std::dynamic_pointer_cast<::ngraph::op::Constant>(layer)) {
                 bool all_to_read_value = !layer->get_output_inputs(i).empty();
                 for (const auto &output_input : layer->output(i).get_target_inputs()) {
@@ -781,7 +781,6 @@ std::shared_ptr<CNNNetworkImpl> convertFunctionToICNNNetwork(const std::shared_p
             std::string outName = layer->get_friendly_name();
             if (layer->get_output_size() != 1) outName += "." + std::to_string(i);
             DataPtr &ptr = cnnNetworkImpl->getData(outName.c_str());
-
             SizeVector dims;
             dims = layer->get_output_shape(i);
             for (const auto &dim : dims) {
