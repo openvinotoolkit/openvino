@@ -143,6 +143,8 @@ namespace
             break;
             TYPE_CASE(i64)(input, output);
             break;
+            TYPE_CASE(u8)(input, output);
+            break;
             TYPE_CASE(u32)(input, output);
             break;
             TYPE_CASE(u64)(input, output);
