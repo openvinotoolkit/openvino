@@ -9,11 +9,11 @@
 
 #pragma once
 
-#include <ie_plugin.hpp>
 #include <map>
 #include <memory>
 #include <string>
 
+#include "cpp_interfaces/interface/ie_plugin.hpp"
 #include "cpp_interfaces/base/ie_inference_plugin_api.hpp"
 #include "cpp_interfaces/exception2status.hpp"
 #include "description_buffer.hpp"
@@ -72,12 +72,6 @@ public:
     void GetVersion(const Version*& versionInfo) noexcept override {
         versionInfo = &_version;
     }
-
-    IE_SUPPRESS_DEPRECATED_START
-    void SetLogCallback(IErrorListener& listener) noexcept override {
-        (void)listener;
-    }
-    IE_SUPPRESS_DEPRECATED_END
 
     StatusCode LoadNetwork(IExecutableNetwork::Ptr& executableNetwork, const ICNNNetwork& network,
                            const std::map<std::string, std::string>& config, ResponseDesc* resp) noexcept override {

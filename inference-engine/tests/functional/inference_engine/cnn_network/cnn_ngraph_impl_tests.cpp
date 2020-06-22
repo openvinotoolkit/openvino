@@ -126,8 +126,8 @@ TEST(CNNNGraphImplTests, TestGetOutputAfterConvertNetwork) {
     }
 
     InferenceEngine::CNNNetwork cnnNet(ngraph);
-    // TODO
-    // cnnNet.begin();
+    // convert to old representation
+    cnnNet.getInputsInfo().begin()->second->getInputData()->getCreatorLayer();
     cnnNet.addOutput(testLayerName);
 
     InferenceEngine::OutputsDataMap outs = cnnNet.getOutputsInfo();
@@ -267,8 +267,8 @@ TEST(CNNNGraphImplTests, TestAddOutputFromConvertedNetwork) {
     cnnNet.addOutput(testLayerName);
     ASSERT_NE(nullptr, cnnNet.getFunction());
     ASSERT_EQ(5, cnnNet.layerCount());
-    // TODO
-    // cnnNet.begin();
+    // convert to old representation
+    cnnNet.getInputsInfo().begin()->second->getInputData()->getCreatorLayer();
     auto outputs = cnnNet.getOutputsInfo();
     ASSERT_EQ(2, outputs.size());
     ASSERT_TRUE(outputs.find("relu2") != outputs.end());
@@ -293,11 +293,8 @@ TEST(CNNNGraphImplTests, ConstantAsInternalAndExternalLayer) {
     }
 
     InferenceEngine::CNNNetwork cnnNet(ngraph);
-    {
-        auto & inetwork = (const InferenceEngine::ICNNNetwork &)cnnNet;
-        InferenceEngine::details::CNNNetworkIterator i(&inetwork);
-        (void)i;
-    }
+    // convert to old representation
+    cnnNet.getInputsInfo().begin()->second->getInputData()->getCreatorLayer();
     ASSERT_EQ(4, cnnNet.layerCount());
 }
 
@@ -415,15 +412,15 @@ TEST(CNNNGraphImplTests, SavePrimitivesPriority) {
     </edges>
 </net>
 )V0G0N";
-        const Core ie;
-        Blob::Ptr weights;
+    const Core ie;
+    Blob::Ptr weights;
 
-        auto network = ie.ReadNetwork(model, weights);
-        auto inputInfo = network.getInputsInfo();
-        auto cnnLayer = inputInfo.begin()->second->getInputData()->getCreatorLayer().lock();
-        ASSERT_TRUE(cnnLayer);
-        ASSERT_NE(cnnLayer->params.find("PrimitivesPriority"), cnnLayer->params.end());
-        ASSERT_EQ("cpu:avx2", cnnLayer->params["PrimitivesPriority"]);
+    auto network = ie.ReadNetwork(model, weights);
+    auto inputInfo = network.getInputsInfo();
+    auto cnnLayer = inputInfo.begin()->second->getInputData()->getCreatorLayer().lock();
+    ASSERT_TRUE(cnnLayer);
+    ASSERT_NE(cnnLayer->params.find("PrimitivesPriority"), cnnLayer->params.end());
+    ASSERT_EQ("cpu:avx2", cnnLayer->params["PrimitivesPriority"]);
 }
 
 TEST(CNNNGraphImplTests, ReadFromCNNNetReader) {
@@ -515,8 +512,8 @@ TEST(CNNNGraphImplTests, CanChangeInputPrecision) {
     {
         SCOPED_TRACE("Convert to old format");
 
-        // TODO
-        // cnnNet.begin();
+        // convert to old representation
+        cnnNet.getInputsInfo().begin()->second->getInputData()->getCreatorLayer();
     }
     {
         SCOPED_TRACE("After conversion");
@@ -562,8 +559,8 @@ TEST(CNNNGraphImplTests, CanChangeInputLayout) {
     {
         SCOPED_TRACE("Convert to old format");
 
-        // TODO
-        // cnnNet.begin();
+        // convert to old representation
+        cnnNet.getInputsInfo().begin()->second->getInputData()->getCreatorLayer();
     }
     {
         SCOPED_TRACE("After conversion");
@@ -609,8 +606,8 @@ TEST(CNNNGraphImplTests, CanChangeOutputPrecision) {
     {
         SCOPED_TRACE("Convert to old format");
 
-        // TODO
-        // cnnNet.begin();
+        // convert to old representation
+        cnnNet.getInputsInfo().begin()->second->getInputData()->getCreatorLayer();
     }
     {
         SCOPED_TRACE("After conversion");
@@ -656,8 +653,8 @@ TEST(CNNNGraphImplTests, CanChangeOutputLayout) {
     {
         SCOPED_TRACE("Convert to old format");
 
-        // TODO
-        // cnnNet.begin();
+        // convert to old representation
+        cnnNet.getInputsInfo().begin()->second->getInputData()->getCreatorLayer();
     }
     {
         SCOPED_TRACE("After conversion");
@@ -685,9 +682,6 @@ TEST(CNNNGraphImplTests, TestCheckStats) {
     }
 
     InferenceEngine::details::CNNNetworkNGraphImpl cnnNet(ngraph);
-    InferenceEngine::ICNNNetworkStats* _stats = nullptr;
-    ASSERT_EQ(NOT_FOUND, cnnNet.getStats(&_stats, nullptr));
-    ASSERT_EQ(nullptr, _stats);
 }
 
 IE_SUPPRESS_DEPRECATED_END

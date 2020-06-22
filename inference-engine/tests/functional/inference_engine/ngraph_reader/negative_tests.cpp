@@ -157,10 +157,4 @@ TEST_F(NGraphReaderTests, ConvertNGraphFromIterator) {
     Core reader;
     auto nGraph = reader.ReadNetwork(model, weights);
     CNNNetwork network(nGraph);
-
-    // size_t layersCount = 0;
-    // IE_SUPPRESS_DEPRECATED_START
-    // for (auto it = network.begin(); it != network.end(); it++, layersCount++) {}
-    // IE_SUPPRESS_DEPRECATED_END
-    // ASSERT_EQ(layersCount, 2);
 }

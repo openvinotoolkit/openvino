@@ -42,9 +42,8 @@ protected:
 
 private:
     void triggerConversionToCNNNetwork() {
-        auto & inetwork = (const InferenceEngine::ICNNNetwork &)cnnNetwork;
-        InferenceEngine::details::CNNNetworkIterator i(&inetwork);
-        (void)i;
+        // convert to old representation
+        cnnNetwork.getInputsInfo().begin()->second->getInputData()->getCreatorLayer();
     }
 
     static const char s_FriendlyName[];

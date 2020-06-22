@@ -97,8 +97,7 @@ class CompressQuantizeWeights(BackReplacementPattern):
             nodes=[
                 ('weights_const', dict(type='Const')),
                 ('weights_d', dict(kind='data')),
-                ('quantize', dict(type='FakeQuantize', keep_in_IR=True, levels=lambda x: x is not None and
-                                                                                         2 < x <= 256)),
+                ('quantize', dict(type='FakeQuantize', levels=lambda x: x is not None and 2 < x <= 256)),
                 ('quantize_d', dict(kind='data')),
                 ('convolution', dict())
             ],

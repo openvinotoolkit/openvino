@@ -79,17 +79,6 @@ public:
     virtual ~CNNNetwork() {}
 
     /**
-     * @deprecated Network precision does not make sence, use precision on egdes. The method will be removed in 2021.1
-     * @copybrief ICNNNetwork::getPrecision
-     *
-     * Wraps ICNNNetwork::getPrecision
-     *
-     * @return A precision type
-     */
-    INFERENCE_ENGINE_DEPRECATED("Network precision does not make sence, use precision on egdes. The method will be removed in 2021.1")
-    virtual Precision getPrecision() const;
-
-    /**
      * @copybrief ICNNNetwork::getOutputsInfo
      *
      * Wraps ICNNNetwork::getOutputsInfo
@@ -237,15 +226,6 @@ public:
      */
     INFERENCE_ENGINE_DEPRECATED("Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1")
     CNNLayerPtr getLayerByName(const char* layerName) const;
-
-    /**
-     * @deprecated Use Core::AddExtension to add an extension to the library
-     * @brief Registers extension within the plugin
-     *
-     * @param extension Pointer to already loaded reader extension with shape propagation implementations
-     */
-    INFERENCE_ENGINE_DEPRECATED("Use Core::AddExtension to add an extension to the library")
-    void AddExtension(InferenceEngine::IShapeInferExtensionPtr extension);
 
     /**
      * @brief Helper method to get collect all input shapes with names of corresponding Data objects

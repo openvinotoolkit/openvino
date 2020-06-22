@@ -15,6 +15,9 @@
 #include "helpers/myriad_devices.hpp"
 #include <details/ie_exception.hpp>
 
+#include <cpp_interfaces/interface/ie_plugin.hpp>
+#include <ie_plugin_ptr.hpp>
+
 using namespace std;
 using namespace ::testing;
 using namespace InferenceEngine;

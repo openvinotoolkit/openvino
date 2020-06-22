@@ -79,6 +79,18 @@ TEST_F(GraphToolsTest, canRunBFS) {
     });
 }
 
+/**
+ * Generic BFS algorithm traverser - with limiting depth
+ * @param layer - starting layer
+ * @param visit - callback to be called upon visiting
+ */
+template <class T>
+inline void CNNNetNBFS(const InferenceEngine::CNNLayerPtr& layer, int maxDept, const T& visit) {
+    if (!layer) {
+        return;
+    }
+    details::BFS(layer, visit, maxDept + 1);
+}
 
 TEST_F(GraphToolsTest, canRunNBFS) {
 

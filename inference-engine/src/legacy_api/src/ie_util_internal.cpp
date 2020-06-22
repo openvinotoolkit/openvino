@@ -22,7 +22,6 @@
 #include "details/os/os_filesystem.hpp"
 #include "file_utils.h"
 #include "graph_tools.hpp"
-#include "ie_icnn_network_stats.hpp"
 #include "net_pass.h"
 #include "precision_utils.h"
 
@@ -193,12 +192,8 @@ details::CNNNetworkImplPtr cloneNet(const ICNNNetwork& origin_network) {
         i++;
     }
 
-    InferenceEngine::ICNNNetworkStats* pstatsSrc = nullptr;
-    if (StatusCode::OK != network.getStats(&pstatsSrc, nullptr)) {
-        pstatsSrc = nullptr;
-    }
     // copy of the network
-    details::CNNNetworkImplPtr net = cloneNet(layers, pstatsSrc);
+    details::CNNNetworkImplPtr net = cloneNet(layers);
     // going over output layers and aligning output ports and outputs
     OutputsDataMap outputs;
     network.getOutputsInfo(outputs);
@@ -237,7 +232,7 @@ details::CNNNetworkImplPtr cloneNet(const ICNNNetwork& origin_network) {
     return net;
 }
 
-details::CNNNetworkImplPtr cloneNet(const std::vector<CNNLayerPtr>& layers, const ICNNNetworkStats* networkStats) {
+details::CNNNetworkImplPtr cloneNet(const std::vector<CNNLayerPtr>& layers) {
     auto net = std::make_shared<InferenceEngine::details::CNNNetworkImpl>();
 
     // Src to cloned data map
@@ -342,15 +337,6 @@ details::CNNNetworkImplPtr cloneNet(const std::vector<CNNLayerPtr>& layers, cons
     }
 
     net->resolveOutput();
-
-    // cloning of statistics
-    InferenceEngine::ICNNNetworkStats* pstatsTarget = nullptr;
-    if (networkStats != nullptr && !networkStats->isEmpty()) {
-        StatusCode st = net->getStats(&pstatsTarget, nullptr);
-        if (st == StatusCode::OK && pstatsTarget) {
-            pstatsTarget->setNodesStats(networkStats->getNodesStats());
-        }
-    }
 
     return net;
 }

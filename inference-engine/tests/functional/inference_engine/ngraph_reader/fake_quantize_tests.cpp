@@ -255,8 +255,4 @@ TEST_F(NGraphReaderTests, ReadFQNetwork) {
 
     Core reader;
     auto cnn = reader.ReadNetwork(model, weights);
-    // TODO
-    // IE_SUPPRESS_DEPRECATED_START
-    // cnn.begin();
-    // IE_SUPPRESS_DEPRECATED_END
 }

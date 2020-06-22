@@ -5,7 +5,6 @@
 #define NOMINMAX
 #include <utility>
 #include <ie_blob.h>
-#include <ie_plugin.hpp>
 #include <description_buffer.hpp>
 #include <ie_layouts.h>
 #include <precision_utils.h>
@@ -147,8 +146,18 @@ static void copyBlobAccordingUpperBound(
     const auto inLayout = in->getTensorDesc().getLayout();
     const auto outLayout = out->getTensorDesc().getLayout();
 
-    const auto& inDims = in->getTensorDesc().getDims();
-    const auto& outDims = out->getTensorDesc().getDims();
+    const auto& inBlockingDesc = in->getTensorDesc().getBlockingDesc();
+    const auto& outBlockingDesc = out->getTensorDesc().getBlockingDesc();
+
+    const auto& inDims = inBlockingDesc.getBlockDims();
+    const auto& outDims = outBlockingDesc.getBlockDims();
+    const auto inTotalDimSize = in->byteSize();
+
+    // Strides in blocking description is presented by elements.
+    // So we need to multiply them by element size
+    auto inStrides = inBlockingDesc.getStrides();
+    std::transform(inStrides.begin(), inStrides.end(), inStrides.begin(),
+                   std::bind(std::multiplies<size_t>(), std::placeholders::_1, in->element_size()));
 
     IE_ASSERT(inLayout == outLayout);
 
@@ -158,22 +167,26 @@ static void copyBlobAccordingUpperBound(
     auto outPtr = out->cbuffer().as<uint8_t *>();
     IE_ASSERT(outPtr != nullptr);
 
-    if (inDims.size() == 1) {
-        std::copy_n(
-            in->cbuffer().as<uint8_t*>(),
-            in->byteSize(),
-            out->buffer().as<uint8_t*>());
-    } else if (inDims.size() == 2) {
-        size_t inLineSize = inDims[1] * in->element_size();
-        size_t outLineSize = outDims[1] * out->element_size();
-        for (size_t n = 0; n < outDims[0]; n++) {
-            std::copy_n(
-                in->cbuffer().as<uint8_t*>() + n * inLineSize,
-                outLineSize,
-                out->buffer().as<uint8_t*>() + n * outLineSize);
+    const auto inLineByteSize = inDims[inDims.size() - 1] * in->element_size();
+    const auto outLineByteSize = outDims[inDims.size() - 1] * out->element_size();
+
+    for (size_t inByteOffset = 0, outByteOffset = 0; inByteOffset < inTotalDimSize; inByteOffset += inLineByteSize) {
+        auto offset = inByteOffset;
+        bool isGarbageLine = false;
+        for (size_t dim = 0; dim < inStrides.size() - 1; ++dim) {
+            const auto coordAlongDim = offset / inStrides[dim];
+            if (coordAlongDim > outDims[dim] - 1) {
+                isGarbageLine = true;
+                break;
+            }
+
+            offset %= inStrides[dim];
         }
-    } else {
-        VPU_THROW_EXCEPTION << "Copying of blobs with dynamic shape and num dims greater than 2 unsupported yet";
+        if (!isGarbageLine) {
+            // We transfer outLineByteSize bytes, so garbage data at the end of the line is not copied.
+            std::copy_n(inPtr + inByteOffset, outLineByteSize, outPtr + outByteOffset);
+            outByteOffset += outLineByteSize;
+        }
     }
 }
 

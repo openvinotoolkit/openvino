@@ -13,7 +13,11 @@
 #include <memory>
 #include <string>
 
-#include <ie_plugin_ptr.hpp>
+#include <ie_parameter.hpp>
+#include <cpp/ie_cnn_network.h>
+#include <cpp/ie_executable_network.hpp>
+#include <ie_core.hpp>  // for QueryNetworkResult
+
 #include "threading/ie_itask_executor.hpp"
 
 namespace InferenceEngine {

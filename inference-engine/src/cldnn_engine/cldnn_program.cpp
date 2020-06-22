@@ -84,7 +84,6 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <exec_graph_info.hpp>
-#include "cnn_network_int8_normalizer.hpp"
 
 #include "low_precision_transformations/transformer.hpp"
 #include "low_precision_transformations/eltwise.hpp"
@@ -3536,10 +3535,25 @@ void Program::AddConstantBlobInput(cldnn::topology& topology, InferenceEngine::C
         return false;
     };
 
+    // WA to inconsistency between input and const 1d tensors
+    // For Concat along batch we go with batch interpretation
+    bool concatAlongBatch = false;
+    if (constDims.size() == 1) {
+        for (auto next : GetNextLayers(layer->outData[0])) {
+            if (LayerTypeFromStr(next->type) == Concatenate) {
+                auto nextConcat = as<InferenceEngine::ConcatLayer*>(next);
+                if (nextConcat->_axis == cldnn::concatenation::concatenation_axis::along_b) {
+                    concatAlongBatch = true;
+                    break;
+                }
+            }
+        }
+    }
+
     // If quantize on weights has per-channel ranges, we have to swap channel and batch dimensions, because
     // quantization should be applied per output channel of weights
     // TODO: Check if it's still needed once LowPrecisionTransformations ready
-    if (inputToConstQuantize(layer)) {
+    if (inputToConstQuantize(layer) || concatAlongBatch) {
         constTensor.batch[0] = constTensor.count();
         constTensor.feature[0] = 1;
     }
@@ -3944,11 +3958,13 @@ void Program::CreateStridedSlicePrimitive(cldnn::topology& topology, InferenceEn
     tmp = stridedSliceLayer->GetParamAsUInts("shrink_axis_mask");
     std::vector<uint8_t> shrink_axis_mask(tmp.begin(), tmp.end());
 
+    auto out_size = CldnnTensorFromIEDims(stridedSliceLayer->outData[0]->getTensorDesc().getDims());
+
     std::string stridedSliceLayerName = layer_type_name_ID(layer);
     auto stridedSlicePrim = cldnn::strided_slice(
             stridedSliceLayerName,
             inputPrimitives[0], inputPrimitives[1], inputPrimitives[2], inputPrimitives[3],
-            begin_mask, end_mask, new_axis_mask, shrink_axis_mask);
+            begin_mask, end_mask, new_axis_mask, shrink_axis_mask, out_size);
 
     topology.add(stridedSlicePrim);
     AddPrimitiveToProfiler(stridedSliceLayerName, layer);

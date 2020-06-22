@@ -179,6 +179,13 @@ TEST_F(IEClassBasicTest, smoke_createMockEngineConfigThrows) {
 #ifdef ENABLE_UNICODE_PATH_SUPPORT
 
 TEST_P(IEClassBasicTestP, smoke_registerPluginsXMLUnicodePath) {
+// TODO: Issue: 31197 Remove this code
+#if defined(_WIN32) || defined(_WIN64)
+    if (deviceName == CommonTestUtils::DEVICE_MYRIAD) {
+        GTEST_SKIP();
+    }
+#endif
+
     std::string pluginXML = TestDataHelpers::get_data_path() + "/ie_class/mock_engine_valid.xml";
 
     for (std::size_t testIndex = 0; testIndex < CommonTestUtils::test_unicode_postfix_vector.size(); testIndex++) {
@@ -315,26 +322,6 @@ TEST_F(IEClassBasicTest, smoke_SetConfigHeteroNoThrow) {
     ASSERT_NO_THROW(ie.SetConfig({ { HETERO_CONFIG_KEY(DUMP_GRAPH_DOT), NO } }, "HETERO"));
     ASSERT_NO_THROW(value = ie.GetConfig("HETERO", HETERO_CONFIG_KEY(DUMP_GRAPH_DOT)).as<bool>());
     ASSERT_FALSE(value);
-}
-
-//
-// LogCallBack
-//
-
-TEST_F(IEClassBasicTest, smoke_LogCallBackNoThrow) {
-    Core ie;
-
-    IE_SUPPRESS_DEPRECATED_START
-    class ConsoleErrorListener : public IErrorListener {
-        void onError(const char *msg) noexcept override {
-            std::clog << "Plugin message: " << msg << std::endl;
-        }
-    };
-
-    ConsoleErrorListener listener;
-
-    ASSERT_NO_THROW(ie.SetLogCallback(listener));
-    IE_SUPPRESS_DEPRECATED_END
 }
 
 //

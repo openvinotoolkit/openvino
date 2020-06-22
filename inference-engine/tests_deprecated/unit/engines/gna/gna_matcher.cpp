@@ -463,6 +463,17 @@ void GNAPluginAOTMatcher :: match() {
 #if GNA_LIB_VER == 1 // TODO: GNA2: handle new API
     EXPECT_CALL(mockApi, GNAAlloc(_,_,_)).WillOnce(DoAll(SetArgPointee<2>(10000), Return(&data.front())));
     EXPECT_CALL(mockApi, GNADeviceOpenSetThreads(_, _)).WillOnce(Return(1));
+#else
+    EXPECT_CALL(mockApi, Gna2MemoryAlloc(_, _, _)).WillOnce(Invoke([&data](
+            uint32_t sizeRequested,
+            uint32_t *sizeGranted,
+            void **memoryAddress
+    ) {
+        data.resize(sizeRequested);
+        *sizeGranted = sizeRequested;
+        *memoryAddress = &data.front();
+        return Gna2StatusSuccess;
+    }));
 #endif
     plugin.LoadNetwork(network);
     plugin.Export(_env.exportedModelFileName);

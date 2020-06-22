@@ -68,13 +68,10 @@ void BehaviorPluginTestInferRequest::_createAndCheckInferRequest(
         ASSERT_NO_THROW(testEnv->core.AddExtension(extension));
     }
 
-    Core ie;
-    testEnv->network = ie.ReadNetwork(param.model_xml_str, param.weights_blob);
-    /* Call conversion from CNNNetwork NgraphImpl to CNNNetwork */
+    testEnv->network = testEnv->core.ReadNetwork(param.model_xml_str, param.weights_blob);
     {
-        auto & inetwork = (const InferenceEngine::ICNNNetwork &)testEnv->network;
-        InferenceEngine::details::CNNNetworkIterator i(&inetwork);
-        (void)i;
+        /* Call conversion from CNNNetwork NgraphImpl to CNNNetwork */
+        testEnv->network.getInputsInfo().begin()->second->getInputData()->getCreatorLayer();
     }
 
     _setInputPrecision(param, testEnv->network, testEnv, expectedNetworkInputs);
@@ -87,8 +84,6 @@ void BehaviorPluginTestInferRequest::_createAndCheckInferRequest(
     full_config[PluginConfigParams::KEY_DUMP_EXEC_GRAPH_AS_DOT] = "behavior_tests_execution_graph_dump";
 #endif
 
-     ResponseDesc response;
-//     ASSERT_NO_THROW(testEnv->exeNetwork = testEnv->core.LoadNetwork(testEnv->network, param.device, full_config));
      try {
          testEnv->exeNetwork = testEnv->core.LoadNetwork(testEnv->network, param.device, full_config);
      } catch (InferenceEngineException ex) {

@@ -10,7 +10,6 @@
 using namespace Regression ;
 using namespace Regression :: Matchers ;
 
-IE_SUPPRESS_DEPRECATED_START
 ClassificationMatcher::ClassificationMatcher(RegressionConfig &config)
     : BaseMatcher(config) {
     // Get file names for files with weights and labels
@@ -22,26 +21,6 @@ ClassificationMatcher::ClassificationMatcher(RegressionConfig &config)
 
     // Try to read labels file
     readLabels(labelFileName);
-
-    if (config._stat_file != "") {
-        InferenceEngine::NetworkStatsMap stat = testing::loadStatisticFromFile(config._stat_file);
-
-        ICNNNetworkStats *pstats;
-        auto & inetwork = (ICNNNetwork&)cnnNetwork;
-        inetwork.getStats(&pstats, nullptr);
-        pstats->setNodesStats(stat);
-
-        // iterating over layers and fixing suppress_normalization->quantization_level
-        // because we have in tests IR which has old name for fp32 layers
-        details::CNNNetworkIterator i(&inetwork), end;
-        for ( ; i != end; ++i) {
-            auto layer = *i;
-            if (layer->params.find("suppress_normalization") != layer->params.end() &&
-                layer->params["suppress_normalization"] == "I8") {
-                layer->params["quantization_level"] = "FP32";
-            }
-        }
-    }
 
     if (config._reshape) {
         auto inputShapes = cnnNetwork.getInputShapes();
@@ -88,7 +67,6 @@ ClassificationMatcher::ClassificationMatcher(RegressionConfig &config)
 
     top = (-1 == config.topKNumbers) ? 5 : config.topKNumbers;
 }
-IE_SUPPRESS_DEPRECATED_END
 
 void ClassificationMatcher::to(const std::vector <Regression::Reference::ClassificationScoringResultsForTests> &expected) {
     checkResultNumber = 0;
