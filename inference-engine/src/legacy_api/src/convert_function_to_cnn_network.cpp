@@ -772,13 +772,16 @@ std::shared_ptr<CNNNetworkImpl> convertFunctionToICNNNetwork(const std::shared_p
             // Memory node with index = 1 has no inputs according to the specification.
             // For proper conversion, we must cut off all the layers and data nodes above ReadValue,
             // if they are connected only with this layer.
-            bool all_to_read_value = !layer->get_output_inputs(i).empty();
-            for (const auto& output_input : layer->get_output_inputs(i)) {
-                all_to_read_value
-                    &= std::dynamic_pointer_cast<ngraph::op::ReadValue>(output_input->get_node()) != nullptr;
+            // Now MO generates only constants as input for ReadValue op.
+            if (std::dynamic_pointer_cast<::ngraph::op::Constant>(layer)) {
+                bool all_to_read_value = !layer->get_output_inputs(i).empty();
+                for (const auto &output_input : layer->output(i).get_target_inputs()) {
+                    all_to_read_value
+                            &= dynamic_cast<ngraph::op::ReadValue *>(output_input.get_node()) != nullptr;
+                }
+                if (all_to_read_value)
+                    continue;
             }
-            if (all_to_read_value)
-                continue;
 
             if (cnnLayer->type == "Memory" && cnnLayer->params["index"] == "0") {
                 cnnLayer->outData.clear();

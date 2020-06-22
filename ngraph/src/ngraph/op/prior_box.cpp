@@ -71,9 +71,7 @@ void op::PriorBox::validate_and_infer_types()
 
         set_output_type(0,
                         element::f32,
-                        Shape{2,
-                              4 * layer_shape[0] * layer_shape[1] *
-                                  static_cast<size_t>(number_of_priors(m_attrs))});
+                        Shape{2, 4 * layer_shape[0] * layer_shape[1] * number_of_priors(m_attrs)});
     }
     else
     {
