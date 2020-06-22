@@ -23,11 +23,10 @@ from mo.ops.reshape import Reshape
 
 class OneHotDepthNormalizer(FrontReplacementPattern):
     """
-    Transformation performs safe replacement of the 0D constants with 1D for a specific operations. This transformation
-    allows to avoid problems with the fact that not all layers correctly handle 0D tensors during the constant folding.
+    Transformation performs squeezeng one-element tensors on 1st input in OneHot into 0D scalars. This transformation
+    allows to avoid problems with some models produced by tf2onnx which have 1D depth in OneHot.
     """
     enabled = True
-    force_clean_up = True
 
     def pattern(self):
         return dict(
@@ -39,5 +38,6 @@ class OneHotDepthNormalizer(FrontReplacementPattern):
     @staticmethod
     def replace_pattern(graph: Graph, match: dict):
         node = match['onehot']
-        reshape = create_op_with_const_inputs(graph, Reshape, {1: int64_array([])})
+        node_name = node.soft_get('name', node.id)
+        reshape = create_op_with_const_inputs(graph, Reshape, {1: int64_array([])}, {'name': node_name + '/Reshape'})
         node.in_port(1).get_connection().insert_node(reshape)
