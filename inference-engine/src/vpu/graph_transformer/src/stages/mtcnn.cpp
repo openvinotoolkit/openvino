@@ -112,10 +112,9 @@ ie::CNNNetwork loadSubNetwork(
     // Load network
     //
 
-    // TODO: replace with ICore interface
+    // ticket 30632 : replace with ICore interface
     InferenceEngine::Core reader;
-    auto binFileName = fileNameNoExt(fileName) + ".bin";
-    auto network = reader.ReadNetwork(fileName, binFileName);
+    auto network = reader.ReadNetwork(fileName);
 
     //
     // Set precision of input/output

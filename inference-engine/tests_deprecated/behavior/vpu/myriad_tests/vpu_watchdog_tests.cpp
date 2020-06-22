@@ -11,6 +11,7 @@
 #include <thread>
 #include <file_utils.h>
 #include "vpu_test_data.hpp"
+#include "functional_test_utils/test_model/test_model.hpp"
 
 #include "helpers/myriad_devices.hpp"
 #include <details/ie_exception.hpp>
@@ -183,7 +184,8 @@ TEST_P(MYRIADWatchdog, watchDogIntervalDefault) {
     auto ctime = Time::now();
     {
         InferenceEngine::Core core;
-        CNNNetwork network = core.ReadNetwork(GetParam().model_xml_str, Blob::CPtr());
+        auto model = FuncTestUtils::TestModel::convReluNormPoolFcModelFP16;
+        CNNNetwork network = core.ReadNetwork(model.model_xml_str, model.weights_blob);
         ASSERT_GE(startup_devices.unbooted, 1);
 
         ExecutableNetwork ret;
@@ -216,7 +218,8 @@ TEST_P(MYRIADWatchdog, canTurnoffWatchDogViaConfig) {
     auto ctime = Time::now();
     {
         InferenceEngine::Core core;
-        CNNNetwork network = core.ReadNetwork(GetParam().model_xml_str, Blob::CPtr());
+        auto model = FuncTestUtils::TestModel::convReluNormPoolFcModelFP16;
+        CNNNetwork network = core.ReadNetwork(model.model_xml_str, model.weights_blob);
         ASSERT_GE(startup_devices.unbooted, 1);
 
         ExecutableNetwork ret;
