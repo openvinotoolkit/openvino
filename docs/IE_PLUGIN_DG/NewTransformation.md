@@ -40,7 +40,7 @@ After you decided where to store your transformation code you can start develop 
 
 nGraph function is a very simple thing: it stores shared pointers to [Result] and [Parameter] operations that are inputs and outputs of the graph. 
 All other operations hold each other via shared pointers: child operation holds its parent (hard link). If operation has no consumers and it's not Result operation
-(shared pointer counter is zero) then it will be destructed and won't be accessible anymore.
+(shared pointer counter is zero) then it will be destructed and won't be accessible anymore. Each operation in `ngraph::Function` is a shared_ptr and has `ngraph::Node` as a base class.
 
 Below you can find examples how `ngraph::Function` can be created:
 
@@ -52,7 +52,9 @@ Below you can find examples how `ngraph::Function` can be created:
 
 There are two main transformation types:
 
-`1.` ngraph::pass::FunctionalPass is used for transformations that take entire `ngraph::Function` as input and process it.
+###1. ngraph::pass::FunctionalPass
+
+ngraph::pass::FunctionalPass is used for transformations that take entire `ngraph::Function` as input and process it.
 
 Template for FunctionPass transformation class
 
@@ -62,7 +64,9 @@ Template for FunctionPass transformation class
 
 Using ngraph::FunctionPass you need to override `run_on_function` method where you will write transformation code. Return value must be `true` if original function has changed during transformation otherwise it must be `false`. For transformation API please follow [Working with ngraph::Function] section.
 
-`2.` `ngraph::pass::GraphRewrite` is used for pattern based transformations.
+###2. ngraph::pass::GraphRewrite
+
+`ngraph::pass::GraphRewrite` is used for pattern based transformations.
 
 Template for GraphRewrite transformation class
 @snippet src/template_pattern_transformation.hpp graph_rewrite:template_transformation_hpp
@@ -76,34 +80,16 @@ Using `ngraph::GraphRewrite` you need to complete three steps:
 
 So let's go though each of this steps.
 
-Pattern is a single root ngraph::Function. But the only difference is that you don't need to create function object, you just create and connect nGraph operations then take the last one and put it as a root of the pattern.
+Pattern is a single root `ngraph::Function`. But the only difference is that you don't need to create function object, you just create and connect nGraph operations then take the last one and put it as a root of the pattern.
 
-~~~~~~~~~~~~~{.cpp}
-// Pattern example
-auto input = std::make_shared<pattern::opset3::Parameter>(element::i64, Shape{1});
-auto shapeof = std::make_shared<ngraph::opset3::ShapeOf>(input);
-
-// Create Matcher with Parameter->ShapeOf pattern
-auto m = std::make_shared<ngraph::pattern::Matcher>(shapeof, "MyPatternBasedTransformation");
-~~~~~~~~~~~~~
+@snippet example_ngraph_utils.cpp pattern:simple_example
 
 You may have noticed that `Parameter` operation in example has type and shape specified. These attributes are needed only to create Parameter operation class and not used in pattern matching. 
 But what if we want to match pattern where `ShapeOf` takes any operation as input? To find an answer to this question please follow [Pattern matching] section.
 
 What is callback? Callback is an action applied to every pattern entrance. In general callback is lambda function that takes Matcher object with detected sub-graph.
 
-~~~~~~~~~~~~~{.cpp}
-ngraph::graph_rewrite_callback callback = [](pattern::Matcher& m) {
-    // Get root node
-    std::shared_ptr<Node> root_node = m.get_match_root();
-    
-    // Get all nodes mathched by pattern
-    NodeVector nodes = m.get_matched_nodes();
-    
-    // Transformation code
-    return false;
-};
-~~~~~~~~~~~~~
+@snippet example_ngraph_utils.cpp pattern:callback_example
 
 Example above shows callback structure and how Matcher can be used for accessing nodes detected by pattern.
 Callback return value must be `true` if something has happened to nodes (replacing/reconnection) otherwise it must be `false`.
@@ -125,7 +111,10 @@ this->add_matcher(m2, callback2, PassProperty::CHANGE_DYNAMIC_STATE);
 
 The last argument `PassProperty::CHANGE_DYNAMIC_STATE` says that callback can be applied for ngraph::Function with dynamic shapes. In case if callback does not support dynamic shapes `PassProperty::REQUIRE_STATIC_SHAPE` can be used.
 
-To run any transformation you need to call `ngraph::pass::MyTransformationClass().run_on_function(f)` where `f` is `ngraph::Function`.
+To run any transformation you need to call `un_on_function(f)` method where `f` is `ngraph::Function`.
+~~~~~~~~~~~~~{.cpp}
+ngraph::pass::MyTransformationClass().run_on_function(f);
+~~~~~~~~~~~~~ 
   
 ## Pattern matching
 
@@ -157,11 +146,12 @@ TODO: add examples for ngraph::pattern::op::Any
 
 In this chapter we will review nGraph API that allows us to manipulate with `ngraph::Function`.
 
-`1.` ngraph::Node input and output ports
+###1. ngraph::Node input and output ports
 
 First of all let's talk about `ngraph::Node` input/output ports. Each nGraph operation has input and output ports except cases when operation has Result, Parameter or Constant type.
 
 Every port belongs to its node so using port we can access parent node, get shape and type for particular input/output, get all consumers in case of output port and get producer node in case of input port.
+With output port we can set inputs for newly created operations. 
 
 Lets look at code example.
 
@@ -176,13 +166,15 @@ auto neg = std::make_shared<ngraph::opset1::Multiply>(data, neg_const);
 In this example `opset3::Multiply` operation takes `Output<Node>` and `std::shared_ptr<Node>` as inputs. But constructor takes both as `Output<Node>`. 
 In this case `std::shared_ptr<Node>` will be automatically converted to `Output<Node>` if node has exactly one output port otherwise conversion will raise an exception.   
 
-`2.` ngraph::Node replacement
+###2. ngraph::Node replacement
 
-nGraph provides two ways for node replacement: via ngraph helper function and directly via port methods. We are going to review both of them.
+nGraph provides two ways for node replacement: via nGraph helper function and directly via port methods. We are going to review both of them.
 
 Let's start with nGraph helper functions. The most popular function is `ngraph::replace_node(old_node, new_node)`.
 
-Usage example:
+We will review real replacement case where Negative operation replaces with Multiply.
+
+![ngraph_replace_node]
 
 @snippet example_ngraph_utils.cpp ngraph:replace_node
 
@@ -197,21 +189,21 @@ neg->output(0).replace(mul->output(0));
 
 Another transformation example is insertion.
 
+![ngraph_insert_node]
+
 @snippet example_ngraph_utils.cpp ngraph:insert_node
 
 The alternative way to insert operation is to make a node copy and use `replace_node`:
 
 @snippet example_ngraph_utils.cpp ngraph:insert_node_with_copy
 
-`3.` ngraph::Node elimination
+###3. ngraph::Node elimination
 
 Another type of node replacement is its elimination.
 
 To eliminate operation nGraph has special method that consider all limitations related to InferenceEngine.
-~~~~~~~~~~~~~{.cpp}
-// Suppose we have a node that we want to remove
-bool success = replace_output_update_name(node->output(0), node->input_value(0));
-~~~~~~~~~~~~~ 
+
+@snippet example_ngraph_utils.cpp ngraph:eliminate_node
 
 `replace_output_update_name` in case of successful replacement it automatically preserves friendly name and runtime info.
   
@@ -220,44 +212,24 @@ bool success = replace_output_update_name(node->output(0), node->input_value(0))
 
 When developing transformation we need to follow next transformation rules:
 
-`1.` dynamic shape and rank: 
+###1. Dynamic Shape and Rank
 
 nGraph has two types for shape representation: 
 `ngraph::Shape` - represents static shape.
 `ngraph::PartialShape` - represents dynamic shape. That means that rank or some of dimensions are dynamic (undefined).
 `ngraph::PartialShape` can be converted to `ngraph::Shape` using `get_shape()` method if all dimensions are static otherwise conversion will raise an exception.
 
-~~~~~~~~~~~~~{.cpp}
-auto partial_shape = node->input(0).get_partial_shape(); // get zero input partial shape
-if (partial_shape.is_dynamic() /* or !partial_shape.is_staic() */) {
-    return false;
-}
-auto static_shape = partial_shape.get_shape();
-~~~~~~~~~~~~~
+@snippet example_ngraph_utils.cpp ngraph:shape
 
 But in most cases before getting static shape using `get_shape()` method you need to check that shape is static.  
 
-Also if your transformation requires only input shape rank or particular dimension value for some reason please do not use `get_shape()` method. See example below how not to use `get_shape()` method. 
+Also if your transformation requires only input shape rank or particular dimension value for some reason please do not use `get_shape()` method. See example below how not to use `get_shape()`
 
-~~~~~~~~~~~~~{.cpp}
-auto partial_shape = node->input(0).get_partial_shape(); // get zero input partial shape
-
-// Check that input shape rank is static
-if (!partial_shape.rank().is_static()) {
-    return false;
-}
-auto rank_size = partial_shape.rank().get_length();
-
-// Check that second dimension is not dynamic
-if (rank_size < 2 || partial_shape[1].is_dynamic()) {
-    return false;
-}
-auto dim = partial_shape[1].get_length();
-~~~~~~~~~~~~~
+@snippet example_ngraph_utils.cpp ngraph:shape_check
 
 Not using `get_shape()` method makes your transformation more flexible and applicable for more cases.
 
-`2.` friendly names:
+###2. Friendly Names
 
 Each `ngraph::Node` has unique name (is used for nGraph internals) and friendly name. In transformations we care only about friendly name because it represents name from IR. 
 Also friendly name is used as output tensor name (until we do not have other way to represent output tensor name) and user code that requests intermediate outputs based on this names.
@@ -274,7 +246,7 @@ ngraph::replace_node(div, mul);
 
 In more advanced cases when replaced operation has several outputs and we add additional consumers to its outputs we make decision how to set friendly name by arrangement.
 
-`3.` runtime info:
+###3. Runtime Info
 
 Runtime info is a map `std::map<std::string, std::shared_ptr<Variant>>` located inside `ngraph::Node` class. It represents additional attributes in `ngraph::Node`. Find more information about runtime info in [Custom attributes in nodes] chapter.
 These attributes can be set by users or by plugins and when executing transformation that changes `ngraph::Function` we need to preserve this attributes as they won't be automatically propagated.
@@ -303,7 +275,7 @@ ngraph::copy_runtime_info({a, b, c}, {e, f});
 
 When transformation has multiple fusions or decompositions `ngraph::copy_runtime_info` must be called multiple times for each case. 
 
-`4.` constant folding:
+###4. Constant Folding
 
 If your transformation inserts constant sub-graphs that needs to be folded do not forget to use `ngraph::pass::ConstantFolding()` after your transformation.
 Example below shows how constant sub-graph can be constructed.
@@ -323,12 +295,13 @@ TODO: deprecated API, duplicates, CF, shape inference, opset versions, get_node_
 ## Using pass manager
 
 `ngraph::pass::Manager` is a container class that can store list of transformations and execute them. The main idea of this class is to have high-level representation for grouped list of transformations.
-For example [ConmmonOptimizations] pass manager register list of transformation related to common optimizations.
+For example `ngraph::pass::CommonOptimizations` pass manager register list of transformation related to common optimizations.
 
-Below you can find basic usage of `ngraph::pass::Manager`
+Example below shows basic usage of `ngraph::pass::Manager`
 ~~~~~~~~~~~~~{.cpp}
 ngraph::pass::Manager pass_manager;
-pass_manager.register_pass<pass::Opset1Upgrade>();
+pass_manager.register_pass<pass::MyTransformationA>();
+pass_manager.register_pass<pass::MyTransformationB>();
 pass_manager.run_passes(f);
 ~~~~~~~~~~~~~
 
@@ -340,29 +313,23 @@ The most popular tool for transformations debugging is `ngraph::pass::VisualizeT
 
 Usage example:
 
-~~~~~~~~~~~~~{.cpp}
-std::vector<std::shared_ptr<ngraph::Function> > g{f};
-// Serialize ngraph::Function to before.svg file before transformation
-ngraph::pass::VisualizeTree("/path/to/file/before.svg").run_on_module(g);
-// Run your transformation
-ngraph::pass::MyTransformation().run_on_function();
-// Serialize ngraph::Function to after.svg file after transformation
-ngraph::pass::VisualizeTree("/path/to/file/after.svg").run_on_module(g);
-~~~~~~~~~~~~~
+@snippet example_ngraph_utils.cpp ngraph:visualize
 
 ngraph::pass::VisualizeTree can be parametrized via environment variables:
 
-`NGRAPH_VISUALIZE_TREE_OUTPUT_SHAPES=1` - visualize shapes
-
-`NGRAPH_VISUALIZE_TREE_OUTPUT_TYPES=1`  - visualize types
+~~~~~~~~~~~~~{.txt}
+NGRAPH_VISUALIZE_TREE_OUTPUT_SHAPES=1 - visualize shapes
+NGRAPH_VISUALIZE_TREE_OUTPUT_TYPES=1  - visualize types
+~~~~~~~~~~~~~
 
 Note: current VisualTree has not user friendly interface and it will be changed in nearest future. The intention is to move visualize abilities inside transformations.
 
 If you are using `ngraph::pass::Manager` to run sequence of transformations you can get additional debug capabilities by using next environment variables:
 
-`NGRAPH_PROFILE_PASS_ENABLE=1` - enables performance measurement for each transformation and prints execution status
-
-`NGRAPH_ENABLE_VISUALIZE_TRACING=1` -  enables visualization after each transformation. By default it saves dot and svg files.
+~~~~~~~~~~~~~{.txt}
+NGRAPH_PROFILE_PASS_ENABLE=1 - enables performance measurement for each transformation and prints execution status
+NGRAPH_ENABLE_VISUALIZE_TRACING=1 -  enables visualization after each transformation. By default it saves dot and svg files.
+~~~~~~~~~~~~~
 
 Note: make sure that you have dot installed on your machine otherwise it will silently save only dot file without svg file.
 
@@ -393,44 +360,15 @@ TODO: link to existing example
 
 ## Transformations testing
 
+If you are developing new transformation inside plugin you need to add test into `template_plugin/tests/functional/transformations` folder.
 We have two types of tests: nGraph reader tests located in `inference-engine/tests/functional/inference_engine/ngraph_reader` and transformation tests located  in `inference-engine/tests/functional/inference_engine/transformations`
 Reader tests are IR based and test end to end conversion from IR to CNNNetwork. Transformation tests test single ngraph transformations or low level functiont that are used inside transformations.
 
 The basic transformation test looks like this:
-~~~~~~~~~~~~~{.cpp}
-TEST(TransformationTests, MyTransformationTest) {
-    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
-    {
-        // Create nGraph function that will be processed by transformation
-        auto data = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{3, 1, 2});
-        auto divide_constant = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {1.5});
-        auto divide = std::make_shared<ngraph::opset1::Divide>(data, divide_constant);
 
-        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{divide}, ngraph::ParameterVector{data});
-        
-        // This pass inits runtime info attributes
-        ngraph::pass::InitNodeInfo().run_on_function(f);
-        // Run transformation
-        ngraph::pass::MyTransformation().run_on_function(f);
-        // Check that runtime info attributes was correctly processed
-        ASSERT_NO_THROW(check_rt_info(f));
-    }
-
-    {
-        // Create reference nGraph function that is excpeted after applying MyTransformation
-        auto data = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{3, 1, 2});
-        auto divide_constant = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {1.5});
-        auto pow = std::make_shared<ngraph::opset1::Power>(divide_constant,
-                                                           ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {-1}));
-        auto mul = std::make_shared<ngraph::opset1::Multiply>(data, pow);
-
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul}, ngraph::ParameterVector{data});
-    }
-
-    // Comparing processed function with expected
-    auto res = compare_functions(f, f_ref);
-    ASSERT_TRUE(res.first) << res.second;
-}
-~~~~~~~~~~~~~
+@snippet tests/functional/transformations/template_transformations_test.cpp transformation:test
 
 TODO: insert advanced transformation tests
+
+[ngraph_replace_node]: ../images/ngraph_replace_node.png
+[ngraph_insert_node]: ../images/ngraph_insert_node.png

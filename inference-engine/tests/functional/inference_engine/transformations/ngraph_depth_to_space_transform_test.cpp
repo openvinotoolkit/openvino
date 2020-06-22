@@ -17,7 +17,7 @@
 #include <transformations/convert_depth_to_space.hpp>
 #include <transformations/convert_space_to_depth.hpp>
 #include <transformations/init_node_info.hpp>
-#include "ngraph_test_utils.hpp"
+#include "common_test_utils/ngraph_test_utils.hpp"
 
 using namespace testing;
 
