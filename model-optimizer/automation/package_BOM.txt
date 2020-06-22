@@ -238,6 +238,7 @@ extensions/front/mxnet/where_ext.py
 extensions/front/mxnet/yolo_v3_mobilenet1_voc.json
 extensions/front/mxnet/zeros_ext.py
 extensions/front/no_op_eraser.py
+extensions/front/OneHotDepthNormalizer.py
 extensions/front/onnx/__init__.py
 extensions/front/onnx/activation_ext.py
 extensions/front/onnx/affine_ext.py
