@@ -103,17 +103,6 @@ public:
     virtual InputInfo::Ptr getInput(const std::string& inputName) const noexcept = 0;
 
     /**
-     * @deprecated Use ICNNNetwork::getName() instead. The method will be removed in 2021.1
-     * @brief Gets the network name. The name is stored in the given pName string.
-     *
-     * @param pName - will receive actual network name, specified in IR file,
-     *     pName should point to valid memory address before invoking this function
-     * @param len - size in bytes of pName buffer, actual name is trimmed by this size
-     */
-    INFERENCE_ENGINE_DEPRECATED("Use ICNNNetwork::getName() instead. The method will be removed in 2021.1")
-    virtual void getName(char* pName, size_t len) const noexcept = 0;
-
-    /**
      * @brief Returns the network name.
      *
      * @return Network name

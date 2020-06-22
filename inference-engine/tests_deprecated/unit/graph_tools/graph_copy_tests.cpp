@@ -62,10 +62,6 @@ TEST_F(GraphCopyTests, copyNetworkPreserveBasicParams) {
     //network was copied not just assigned
     ASSERT_NE(clone.get(), mockNet.get());
     ASSERT_EQ(clone->getPrecision(), Precision::FP16);
-
-    char name[20];
-    clone->getName(name, sizeof(name));
-    ASSERT_STREQ(name, "nm");
 }
 
 TEST_F(GraphCopyTests, canPreserveBatchWhenCopyNetwork) {

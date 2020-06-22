@@ -68,13 +68,6 @@ public:
         _inputData.erase(name);
     }
 
-    void getName(char* pName, size_t len) const noexcept override {
-        // Description buffer will preserve garbage if external pointer not initialized
-        if (len < 1) return;
-        memset(pName, 0, len);
-        DescriptionBuffer(pName, len) << _name;
-    }
-
     const std::string& getName() const noexcept override {
         return _name;
     }
