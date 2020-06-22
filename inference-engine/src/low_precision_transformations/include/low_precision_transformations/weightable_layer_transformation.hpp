@@ -83,6 +83,8 @@ protected:
         const std::vector<float>& originalWeightsDequantizationShifts,
         std::vector<float>& dequantizationScales,
         std::vector<float>& dequantizationShifts) const;
+
+    static bool getDequantizationDimIsSupported(const CNNLayer& weightableLayer);
 };
 
 typedef std::shared_ptr<WeightableLayerTransformation> WeightableLayerTransformationPtr;
