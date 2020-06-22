@@ -84,34 +84,47 @@ namespace ngraph
             void add_expected_output(const ngraph::Shape& expected_shape,
                                      const std::vector<T>& values)
             {
-                const auto& function_output =
-                    m_function->get_results()[m_allocated_expected_outputs];
+                std::string network_out_name;
+                InferenceEngine::DataPtr network_output;
+                if (m_function->get_results().size() == 1)
+                {
+                    network_out_name = m_network_outputs.begin()->first;
+                    network_output = m_network_outputs.begin()->second;
+                }
+                else
+                {
+                    const auto& function_output =
+                        m_function->get_results()[m_allocated_expected_outputs];
 
-                NGRAPH_CHECK(
-                    m_network_outputs.count(function_output->get_friendly_name()) == 1,
-                    "nGraph function's output number ",
-                    m_allocated_expected_outputs,
-                    " was not found in the CNNNetwork built from it. Function's output name: ",
-                    function_output->get_friendly_name());
+                    network_out_name = function_output->get_friendly_name();
 
-                const auto output_info = m_network_outputs[function_output->get_friendly_name()];
+                    NGRAPH_CHECK(
+                        m_network_outputs.count(network_out_name) == 1,
+                        "nGraph function's output number ",
+                        m_allocated_expected_outputs,
+                        " was not found in the CNNNetwork built from it. Function's output name: ",
+                        function_output->get_friendly_name());
+
+                    network_output = m_network_outputs[function_output->get_friendly_name()];
+                }
+
                 auto blob =
-                    std::make_shared<InferenceEngine::TBlob<T>>(output_info->getTensorDesc());
+                    std::make_shared<InferenceEngine::TBlob<T>>(network_output->getTensorDesc());
                 blob->allocate();
-                auto* blob_buffer = blob->wmap().template as<T*>();
 
                 NGRAPH_CHECK(blob->size() == values.size(),
                              "The allocated blob for output '",
-                             function_output->get_friendly_name(),
+                             network_out_name,
                              " ' expects ",
                              blob->size(),
                              " elements while ",
                              values.size(),
                              " were provided.");
 
+                auto* blob_buffer = blob->wmap().template as<T*>();
                 std::copy(values.begin(), values.end(), blob_buffer);
 
-                m_expected_outputs.emplace(function_output->get_friendly_name(), blob);
+                m_expected_outputs.emplace(network_out_name, blob);
 
                 ++m_allocated_expected_outputs;
             }
