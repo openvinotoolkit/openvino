@@ -13,7 +13,6 @@ if (WIN32)
 endif()
 
 set(LAYERS
-    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_activation_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_batchnorm_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_bin_conv_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_concat_node.cpp
@@ -21,7 +20,6 @@ set(LAYERS
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_crop_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_deconv_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_def_conv_node.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_depthwise_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_eltwise_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_fullyconnected_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_gemm_node.cpp
@@ -31,7 +29,6 @@ set(LAYERS
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_memory_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_permute_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_pooling_node.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_power_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_quantize_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_reorder_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_reshape_node.cpp
@@ -98,7 +95,10 @@ set(LAYERS
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/unique.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/unsqueeze.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/common/softmax.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/common/emitter.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/interp.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/jit_eltwise_emitters.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/jit_mkldnn_emitters.cpp
 
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/argmax.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/argmax_imp.cpp
