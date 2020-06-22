@@ -16,9 +16,9 @@
 
 from extensions.middle.pass_separator import PostMiddleStart
 from extensions.ops.transpose import Transpose
+from mo.front.tf.graph_utils import create_op_node_with_second_input
 from mo.graph.graph import Graph, Node
 from mo.middle.replacement import MiddleReplacementPattern
-from mo.ops.const import Const
 from mo.ops.op import PermuteAttrs
 
 
@@ -80,14 +80,11 @@ class InsertLayoutPropagationTranspose(MiddleReplacementPattern):
                 reinterp_shape_node_id, graph.dump_graph_for_graphviz())
             input_shape = reinterp_shape_node.in_node(0).shape
             if self.is_nchw_to_nhwc_transpose_needed(reinterp_shape_node):
-                order_const = Const(graph, {'value': PermuteAttrs().get_nchw_to_nhwc_permutation(len(input_shape)).perm
-                                            }).create_node()
-                permute_node = Transpose(graph,
-                                         {'name': reinterp_shape_node.in_port(0).get_source().node.name + '/Transpose'
-                                          }).create_node()
+                permute_node = create_op_node_with_second_input(
+                    graph, Transpose, PermuteAttrs().get_nchw_to_nhwc_permutation(len(input_shape)).perm,
+                    {'name': reinterp_shape_node.in_port(0).get_source().node.name + '/Transpose'}
+                )
                 reinterp_shape_node.in_port(0).get_connection().insert_node(permute_node)
-                order_const.out_port(0).connect(permute_node.in_port(1))
-                order_const.infer(order_const)
 
                 # do not infer the Transpose node because it should have input data node in NCHW layout (but currently
                 # it is NHWC because data node attributes has not been permuted yet) and produce output in NHWC layout
@@ -107,11 +104,10 @@ class InsertLayoutPropagationTranspose(MiddleReplacementPattern):
                 reinterp_shape_node_id, graph.dump_graph_for_graphviz())
             output_shape = reinterp_shape_node.out_node(0).shape
             if self.is_nhwc_to_nchw_transpose_needed(reinterp_shape_node):
-                order_const = Const(graph, {
-                    'value': PermuteAttrs().get_nhwc_to_nchw_permutation(len(output_shape)).perm}).create_node()
-                permute_node = Transpose(graph, {'name': reinterp_shape_node.id + '/Transpose'}).create_node()
+                permute_node = create_op_node_with_second_input(
+                    graph, Transpose, PermuteAttrs().get_nhwc_to_nchw_permutation(len(output_shape)).perm,
+                    {'name': reinterp_shape_node.id + '/Transpose'})
                 reinterp_shape_node.out_port(0).get_connection().insert_node(permute_node)
-                order_const.out_port(0).connect(permute_node.in_port(1))
 
                 # the Reshape and Transpose operations should work in original (NHWC layout) so the Transpose
                 # will convert it to the NCHW

@@ -16,9 +16,9 @@
 import numpy as np
 
 from extensions.ops.reverse_sequence import ReverseSequence
+from mo.front.tf.graph_utils import create_op_node_with_second_input
 from mo.graph.graph import Graph
 from mo.middle.replacement import MiddleReplacementPattern
-from mo.ops.const import Const
 from mo.utils.error import Error
 
 
@@ -57,14 +57,12 @@ class ReverseToReverseSequence(MiddleReplacementPattern):
 
         # 1. For ReverseSequence 1-port input is seq_lengths => create this input node
         seq_lengths = np.ones(input_data_shape[batch_axis]) * input_data_shape[seq_axis]
-        const = Const(graph, dict(value=seq_lengths)).create_node()
 
         # 2. Create new ReverseSequence node and reconnect all inputs/outputs to it
-        reverse_sequence = ReverseSequence(graph, {'name': reverse.name + '/ReverseSequence/',
-                                                   'seq_axis': seq_axis, 'batch_axis': batch_axis}).create_node()
-
+        reverse_sequence = create_op_node_with_second_input(graph, ReverseSequence, seq_lengths,
+                                                            {'name': reverse.name + '/ReverseSequence/',
+                                                             'seq_axis': seq_axis, 'batch_axis': batch_axis})
         reverse.in_port(0).get_connection().set_destination(reverse_sequence.in_port(0))
-        const.out_port(0).connect(reverse_sequence.in_port(1))
         reverse.out_port(0).get_connection().set_source(reverse_sequence.out_port(0))
 
         # 3. Delete old Reverse node

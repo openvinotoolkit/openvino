@@ -55,6 +55,7 @@ class UpsampleToResample(MiddleReplacementPattern):
     def replace_pattern(self, graph: Graph, match: Dict[str, Node]):
         log.debug('UpsampleToResample is triggered')
         upsample = match['upsample']
+        upsample_name = upsample.soft_get('name', upsample.id)
         input_shape = upsample.in_port(0).data.get_shape()
         input_shape_rank = len(input_shape)
         if input_shape_rank not in [4, 5]:
@@ -67,8 +68,7 @@ class UpsampleToResample(MiddleReplacementPattern):
                 return
             scales = upsample.in_node(1).value
             assert len(scales) in (4, 5), 'Supported scales rank is 4 or 5, but it is {} for node {}'.format(
-                len(scales), upsample.soft_get('name', upsample.id)
-            )
+                len(scales), upsample_name)
             if not (math.isclose(scales[0], 1, rel_tol=1e-5) and math.isclose(scales[1], 1, rel_tol=1e-5)):
                 return
             height_scale = scales[2]
@@ -81,36 +81,43 @@ class UpsampleToResample(MiddleReplacementPattern):
 
         if not math.isclose(height_scale, width_scale, rel_tol=1e-5):
             log.debug('Width and height scales are not equal: {} vs {} for node {}'.format(
-                width_scale, height_scale, upsample.soft_get('name')))
+                width_scale, height_scale, upsample_name))
             return
         if depth_scale is not None and not math.isclose(height_scale, depth_scale, rel_tol=1e-5):
             log.debug('Depth and height scales are not equal: {} vs {} for node {}'.format(
-                depth_scale, height_scale, upsample.soft_get('name')))
+                depth_scale, height_scale, upsample_name))
             return
 
         if 1 in upsample.in_ports() and not upsample.in_port(1).disconnected():
             upsample.in_port(1).disconnect()
 
-        shape = Shape(graph, {'name': upsample.name + '/0_port'}).create_node()
+        shape = Shape(graph, {'name': upsample_name + '/0_port'}).create_node()
 
         layout = graph.graph['layout']
-        if input_shape_rank == 4:
-            begin = Const(graph, {'value': int64_array([get_height_dim(layout, input_shape_rank)])}).create_node()
-            factor = Const(graph, {'value': np.array([height_scale, width_scale])}).create_node()
-        else:
-            begin = Const(graph, {'value': int64_array([get_depth_dim(layout, input_shape_rank)])}).create_node()
-            factor = Const(graph, {'value': np.array([depth_scale, height_scale, width_scale])}).create_node()
-        end = Const(graph, {'value': int64_array([get_width_dim(layout, input_shape_rank) + 1])}).create_node()
-
-        stride = Const(graph, {'value': int64_array([1])}).create_node()
-        ss = StridedSlice(graph, {'name': upsample.name + '/ss_0_port',
+        ss = StridedSlice(graph, {'name': upsample_name + '/ss_0_port',
                                   'begin_mask': int64_array([1]),
                                   'end_mask': int64_array([1]),
                                   'new_axis_mask': int64_array([0]),
                                   'shrink_axis_mask': int64_array([0]),
                                   'ellipsis_mask': int64_array([0])}).create_node()
 
-        mul = Mul(graph, {'name': upsample.name + '/factor_mul_'}).create_node()
+        mul = Mul(graph, {'name': upsample_name + '/factor_mul_'}).create_node()
+
+        if input_shape_rank == 4:
+            begin = Const(graph, {'value': int64_array([get_height_dim(layout, input_shape_rank)]),
+                                  'name': ss.name + '/begin'}).create_node()
+            factor = Const(graph, {'value': np.array([height_scale, width_scale]),
+                                   'name': mul.name + '/const'}).create_node()
+        else:
+            begin = Const(graph, {'value': int64_array([get_depth_dim(layout, input_shape_rank)]),
+                                  'name': ss.name + '/begin'}).create_node()
+            factor = Const(graph, {'value': np.array([depth_scale, height_scale, width_scale]),
+                                   'name': mul.name + '/const'}).create_node()
+        end = Const(graph, {'value': int64_array([get_width_dim(layout, input_shape_rank) + 1]),
+                            'name': ss.name + '/end'}).create_node()
+
+        stride = Const(graph, {'value': int64_array([1]),
+                               'name': ss.name + '/stride'}).create_node()
 
         source = upsample.in_port(0).get_connection().get_source()
         source.connect(shape.in_port(0))
@@ -130,7 +137,7 @@ class UpsampleToResample(MiddleReplacementPattern):
                                 get_height_dim(layout, input_shape_rank),
                                 get_width_dim(layout, input_shape_rank)])
 
-        resample_op = Interpolate(graph, dict(name='Interpolate/{}'.format(upsample.name),
+        resample_op = Interpolate(graph, dict(name='Interpolate/{}'.format(upsample_name),
                                               axes=axes, mode=upsample.attrs()['mode'],
                                               antialias=0, convert_to_resample=True)).create_node()
 

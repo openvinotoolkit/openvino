@@ -106,8 +106,10 @@ class EltwiseInputReshape(MiddleReplacementPattern):
                 # Insert Reshape layer between data node and consumer
                 for shape_key in mapping.keys():
                     shape = list(shape_key)
-                    reshape = Reshape(graph, attrs={'name': 'EltwiseReshapeNormalization'})
-                    reshape_dim = Const(graph, {'value': shape}).create_node_with_data()
+                    reshape_name = 'EltwiseReshapeNormalization'
+                    reshape = Reshape(graph, attrs={'name': reshape_name})
+                    reshape_dim = Const(graph,
+                                        {'value': shape, 'name': reshape_name + '/Shape'}).create_node_with_data()
                     reshape_data = reshape.create_node_with_data(inputs=[node, reshape_dim])
 
                     # Iterate over consumers and reconnect them to Reshape layer output

@@ -19,9 +19,9 @@ import numpy as np
 
 from extensions.ops.gather import Gather
 from mo.front.common.partial_infer.utils import int64_array
+from mo.front.tf.graph_utils import create_op_node_with_second_input, create_op_with_const_inputs
 from mo.graph.graph import Graph
 from mo.middle.replacement import MiddleReplacementPattern
-from mo.ops.const import Const
 from mo.ops.reshape import Reshape
 
 
@@ -68,6 +68,7 @@ class GatherNdNormalize(MiddleReplacementPattern):
 
     def replace_pattern(self, graph: Graph, match: dict):
         gather = match['GatherNd']
+        gather_name = gather.soft_get('name', gather.id)
         input_shape = gather.in_node(0).shape
         indices = gather.in_node(1).value
         if indices is None:
@@ -77,26 +78,23 @@ class GatherNdNormalize(MiddleReplacementPattern):
         # 0. All needed checks that we can replace GatherNd by Gather
         gather_idx = self.indices_check(indices, input_shape)
         if gather_idx is None:
-            log.warning('Node {} with op=GatherNd  can\'t be normalized to op=Gather.'.format(gather.name))
+            log.warning('Node {} with op=GatherNd  can\'t be normalized to op=Gather.'.format(gather_name))
             return
 
         # 1. Add Reshape and connect
         new_shape = int64_array([-1] + list(input_shape[indices.shape[-1]:]))
-        reshape = Reshape(graph, {'name': gather.name + '/Reshape_for_GatherNd/'}).create_node()
-        reshape_const_node = Const(graph, {'name': reshape.name + '/Dim', 'value': new_shape}).create_node()
+        reshape = create_op_node_with_second_input(graph, Reshape, new_shape,
+                                                   {'name': gather_name + '/Reshape_for_GatherNd/'})
         gather.in_port(0).get_connection().set_destination(reshape.in_port(0))
-        reshape.in_port(1).connect(reshape_const_node.out_port(0))
 
         # 2. Change indices from Nd to 1d:
         new_indices = np.reshape(np.take(indices, indices=[gather_idx], axis=-1), [-1])
-        new_indices_const = Const(graph, dict(value=new_indices)).create_node()
-        axis_const = Const(graph, {'value': int64_array(0)}).create_node()
+        new_gather_name = gather_name + '/NewGather'
 
         # 3. Create new Gather operation and reconnect all inputs/outputs
-        new_gather = Gather(graph, {'name': gather.name + '/NewGather/'}).create_node()
+        new_gather = create_op_with_const_inputs(graph, Gather, {1: new_indices, 2: int64_array(0)},
+                                                 {'name': new_gather_name})
         reshape.out_port(0).connect(new_gather.in_port(0))
-        new_indices_const.out_port(0).connect(new_gather.in_port(1))
-        axis_const.out_port(0).connect(new_gather.in_port(2))
 
         gather.out_port(0).get_connection().set_source(new_gather.out_port(0))
 
