@@ -97,6 +97,8 @@ add_library(onnx_importer SHARED
         op/expand.cpp
         op/eye_like.cpp
         op/eye_like.hpp
+        op/fake_quantize.cpp
+        op/fake_quantize.hpp
         op/flatten.cpp
         op/flatten.hpp
         op/floor.hpp
