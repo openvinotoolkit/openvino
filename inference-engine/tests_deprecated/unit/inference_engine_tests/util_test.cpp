@@ -42,22 +42,6 @@ TEST(UtilTests, contains) {
     EXPECT_FALSE(contains(temp_set, 5));
 }
 
-TEST(UtilTests, cloneData) {
-    IE::Data srcData("test", { IE::Precision::FP32, IE::SizeVector{3,2,1}, IE::CHW });
-    IE::CNNLayerPtr layer1 = std::make_shared<IE::CNNLayer>(IE::LayerParams{});
-    IE::CNNLayerPtr layer2 = std::make_shared<IE::CNNLayer>(IE::LayerParams{});
-    srcData.getCreatorLayer() = layer1;
-    srcData.getInputTo().insert({"foo",layer2});
-    auto cloned = IE::cloneData(srcData);
-    ASSERT_NE(nullptr, cloned);
-    EXPECT_EQ(srcData.getName(), cloned->getName());
-    EXPECT_EQ(srcData.getPrecision(), cloned->getPrecision());
-    EXPECT_EQ(srcData.getLayout(), cloned->getLayout());
-    EXPECT_EQ(srcData.getDims(), cloned->getDims());
-    EXPECT_EQ(nullptr, cloned->getCreatorLayer().lock());
-    EXPECT_TRUE(cloned->getInputTo().empty());
-}
-
 namespace {
 template<typename T>
 bool checkLayerCloning() {
@@ -182,7 +166,7 @@ TEST(UtilTests, cloneNet) {
 
     {
         auto layer = getLayer(net, "layer1");
-        auto cloned = IE::cloneNet({layer}, nullptr);
+        auto cloned = IE::cloneNet({layer});
         EXPECT_EQ(2, cloned->layerCount());
         auto clonedLayer = getLayer(cloned, "layer1");
         ASSERT_NE(nullptr, clonedLayer);
@@ -200,7 +184,7 @@ TEST(UtilTests, cloneNet) {
     {
         auto layer1 = getLayer(net, "layer1");
         auto layer2 = getLayer(net, "layer2");
-        auto cloned = IE::cloneNet({layer1,layer2}, nullptr);
+        auto cloned = IE::cloneNet({layer1,layer2});
         EXPECT_EQ(4, cloned->layerCount());
         auto clonedLayer1 = getLayer(cloned, "layer1");
         auto clonedLayer2 = getLayer(cloned, "layer2");
@@ -221,7 +205,7 @@ TEST(UtilTests, cloneNet) {
     {
         auto layer4 = getLayer(net, "layer4");
         auto layer5 = getLayer(net, "layer5");
-        auto cloned = IE::cloneNet({layer4,layer5}, nullptr);
+        auto cloned = IE::cloneNet({layer4,layer5});
         EXPECT_EQ(4, cloned->layerCount());
         auto clonedLayer4 = getLayer(cloned, "layer4");
         auto clonedLayer5 = getLayer(cloned, "layer5");
@@ -253,7 +237,7 @@ TEST(UtilTests, cloneNet) {
     }
     {
         auto layer3 = getLayer(net, "layer3");
-        auto cloned = IE::cloneNet({layer3}, nullptr);
+        auto cloned = IE::cloneNet({layer3});
         EXPECT_EQ(2, cloned->layerCount());
         auto clonedLayer3 = getLayer(cloned, "layer3");
         ASSERT_NE(nullptr, clonedLayer3);
@@ -283,7 +267,7 @@ TEST(UtilTests, cloneNet) {
         auto layer5 = getLayer(net, "layer5");
         auto layer6 = getLayer(net, "layer6");
         auto layer7 = getLayer(net, "layer7");
-        auto cloned = IE::cloneNet({layer1,layer2,layer3,layer4,layer5,layer6,layer7}, nullptr);
+        auto cloned = IE::cloneNet({layer1,layer2,layer3,layer4,layer5,layer6,layer7});
         EXPECT_EQ(9, cloned->layerCount());
         auto clonedLayer1 = getLayer(cloned, "layer1");
         auto clonedLayer2 = getLayer(cloned, "layer2");
@@ -414,7 +398,7 @@ TEST(UtilTests, cloneNet_input) {
 
     auto cloned = IE::cloneNet({getLayer(net, "layer1"),
                                 getLayer(net, "layer2"),
-                                getLayer(net, "layer3")}, nullptr);
+                                getLayer(net, "layer3")});
 
     ASSERT_EQ(6, cloned->layerCount());
     ASSERT_NE(nullptr, getLayer(cloned, "input1"));
@@ -468,7 +452,7 @@ TEST(UtilTests, cloneNet_const) {
 
     auto cloned = IE::cloneNet({getLayer(net, "layer1"),
                                 getLayer(net, "layer2"),
-                                getLayer(net, "layer3")}, nullptr);
+                                getLayer(net, "layer3")});
 
     ASSERT_EQ(6, cloned->layerCount());
     ASSERT_NE(nullptr, getLayer(cloned, "input1"));
@@ -576,71 +560,4 @@ TEST(UtilTests, getRootDataObjects) {
     ASSERT_TRUE(contains(data_names, "data4"));
     ASSERT_TRUE(contains(data_names, "data5"));
     ASSERT_TRUE(contains(data_names, "data6"));
-}
-
-TEST(UtilTests, replaceLayerWithNewLayer) {
-    //
-    // I->L1->L3->O
-    //     \  /
-    //      L2
-    //
-
-    NetBuilder netBuilder;
-    auto net = netBuilder
-               .data("data1", IE::TensorDesc(IE::Precision::UNSPECIFIED, IE::SizeVector{ 1,1,1 }, IE::Layout::CHW))
-               .data("data2", IE::TensorDesc(IE::Precision::UNSPECIFIED, IE::SizeVector{ 1,1,1 }, IE::Layout::CHW))
-               .data("data3", IE::TensorDesc(IE::Precision::UNSPECIFIED, IE::SizeVector{ 1,1,1 }, IE::Layout::CHW))
-               .data("data4", IE::TensorDesc(IE::Precision::UNSPECIFIED, IE::SizeVector{ 1,1,1 }, IE::Layout::CHW))
-               .layer<IE::CNNLayer>(IE::LayerParams{"layer1", "dummy", IE::Precision::UNSPECIFIED})
-               .layer<IE::CNNLayer>(IE::LayerParams{"layer2", "dummy", IE::Precision::UNSPECIFIED})
-               .layer<IE::CNNLayer>(IE::LayerParams{"layer3", "dummy", IE::Precision::UNSPECIFIED})
-               .linkData("data1", "data2", "layer1")
-               .linkData("data2", "data3", "layer2")
-               .linkData("data2", "data4", "layer3")
-               .linkDataTo("data3", "layer3")
-               .finalize();
-
-    const auto& layers = netBuilder.getLayersMap();
-    const auto& data   = netBuilder.getDataMap();
-
-    {   // Replace L1
-        auto newLayer1 = std::make_shared<IE::CNNLayer>(IE::LayerParams{"layer1", "dummy", IE::Precision::UNSPECIFIED});
-        auto layer1    = layers.find("layer1");
-        EXPECT_TRUE(layer1 != layers.end());
-        CNNNetSubstituteLayer(*net, layer1->second, newLayer1);
-        IE::CNNLayerPtr layer1Check = nullptr;
-        net->getLayerByName("layer1", layer1Check, nullptr);
-        ASSERT_EQ(layer1Check, newLayer1);
-        ASSERT_EQ(layer1Check->outData.size(), 1);
-        ASSERT_EQ(layer1Check->outData[0], data.find("data2")->second);
-        ASSERT_EQ(layer1Check->outData[0]->getCreatorLayer().lock(), newLayer1);
-    }
-    {   // Replace L2
-        auto newLayer2 = std::make_shared<IE::CNNLayer>(IE::LayerParams{"layer2", "dummy", IE::Precision::UNSPECIFIED});
-        auto layer2    = layers.find("layer2");
-        EXPECT_TRUE(layer2 != layers.end());
-        CNNNetSubstituteLayer(*net, layer2->second, newLayer2);
-        IE::CNNLayerPtr layer2Check = nullptr;
-        net->getLayerByName("layer2", layer2Check, nullptr);
-        ASSERT_EQ(layer2Check, newLayer2);
-        ASSERT_EQ(layer2Check->outData.size(), 1);
-        ASSERT_EQ(layer2Check->outData[0], data.find("data3")->second);
-        ASSERT_EQ(layer2Check->outData[0]->getCreatorLayer().lock(), newLayer2);
-    }
-    {   // Replace L3
-        auto newLayer3 = std::make_shared<IE::CNNLayer>(IE::LayerParams{"layer3", "dummy", IE::Precision::UNSPECIFIED});
-        auto layer3    = layers.find("layer3");
-        EXPECT_TRUE(layer3 != layers.end());
-        CNNNetSubstituteLayer(*net, layer3->second, newLayer3);
-        IE::CNNLayerPtr layer3Check = nullptr;
-        net->getLayerByName("layer3", layer3Check, nullptr);
-        ASSERT_EQ(layer3Check, newLayer3);
-        ASSERT_EQ(layer3Check->outData.size(), 1);
-        ASSERT_EQ(layer3Check->outData[0], data.find("data4")->second);
-        ASSERT_EQ(layer3Check->outData[0]->getCreatorLayer().lock(), newLayer3);
-        ASSERT_TRUE(layer3Check->insData[0].lock() == data.find("data2")->second ||
-                    layer3Check->insData[0].lock() == data.find("data3")->second);
-        ASSERT_TRUE(layer3Check->insData[1].lock() == data.find("data2")->second ||
-                    layer3Check->insData[1].lock() == data.find("data3")->second);
-    }
 }
