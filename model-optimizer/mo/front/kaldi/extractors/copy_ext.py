@@ -21,9 +21,9 @@ from extensions.ops.transpose import Transpose
 from mo.front.common.partial_infer.utils import int64_array
 from mo.front.common.replacement import FrontReplacementOp
 from mo.front.kaldi.loader.utils import read_binary_integer32_token, read_blob
+from mo.front.tf.graph_utils import create_op_with_const_inputs
 from mo.graph.graph import Node, Graph
 from mo.ops.const import Const
-from mo.front.tf.graph_utils import create_op_node_with_second_input, create_op_with_const_inputs
 
 
 class CopyFrontExtractor(FrontReplacementOp):
