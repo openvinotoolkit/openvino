@@ -26,11 +26,14 @@ namespace ngraph
 {
     namespace test
     {
-        class IE_CPU_Engine
+        /// A generic engine that uses OV objects natively
+        class IE_Engine
         {
         public:
-            IE_CPU_Engine() = delete;
-            IE_CPU_Engine(const std::shared_ptr<Function> function, const char* device);
+            IE_Engine() = delete;
+
+            /// Constructs an IE test engine for a given device (plugin)
+            IE_Engine(const std::shared_ptr<Function> function, const char* device);
 
             void infer();
 
@@ -226,29 +229,40 @@ namespace ngraph
             }
         };
 
-        class IE_GPU_Engine final : public IE_CPU_Engine
+        class IE_CPU_Engine final : public IE_Engine
         {
         public:
-            IE_GPU_Engine(const std::shared_ptr<Function> function, const char* device)
-                : IE_CPU_Engine{function, device}
+            IE_CPU_Engine(const std::shared_ptr<Function> function)
+                : IE_Engine{function, m_device}
             {
             }
+
+        private:
+            static constexpr const char* m_device = "CPU";
+        };
+
+        class IE_GPU_Engine final : public IE_Engine
+        {
+        public:
+            IE_GPU_Engine(const std::shared_ptr<Function> function)
+                : IE_Engine{function, m_device}
+            {
+            }
+
+        private:
+            static constexpr const char* m_device = "GPU";
         };
 
         template <>
-        struct EngineTraits<IE_CPU_Engine>
+        struct supports_devices<IE_CPU_Engine>
         {
-            static constexpr const bool supports_dynamic = false;
-            static constexpr const bool supports_devices = true;
-            static constexpr const char* device = "CPU";
+            static constexpr bool value = true;
         };
 
         template <>
-        struct EngineTraits<IE_GPU_Engine>
+        struct supports_devices<IE_GPU_Engine>
         {
-            static constexpr const bool supports_dynamic = false;
-            static constexpr const bool supports_devices = true;
-            static constexpr const char* device = "GPU";
+            static constexpr bool value = true;
         };
     }
 }

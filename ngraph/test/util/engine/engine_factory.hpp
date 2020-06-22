@@ -34,17 +34,17 @@ namespace ngraph
             /// A factory that can create engines supporting devices but not dynamic backends.
             /// Currently: IE_CPU_Backend and IE_GPU_Backend
             template <typename Engine>
-            typename std::enable_if<EngineTraits<Engine>::supports_devices, Engine>::type
+            typename std::enable_if<supports_devices<Engine>::value, Engine>::type
                 create_engine_impl(const std::shared_ptr<ngraph::Function> function,
                                    const TestCaseType)
             {
-                return Engine{function, EngineTraits<Engine>::device};
+                return Engine{function};
             }
 
             /// A factory that can create engines which support dynamic backends
             /// but do not support devices. Currently: INTERPRETER_Engine
             template <typename Engine>
-            typename std::enable_if<EngineTraits<Engine>::supports_dynamic, Engine>::type
+            typename std::enable_if<supports_dynamic<Engine>::value, Engine>::type
                 create_engine_impl(const std::shared_ptr<ngraph::Function> function,
                                    const TestCaseType tct)
             {

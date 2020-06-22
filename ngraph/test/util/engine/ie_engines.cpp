@@ -14,7 +14,7 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include "ie_cpu_engine.hpp"
+#include "ie_engines.hpp"
 
 #include "ngraph/op/get_output_element.hpp"
 #include "ngraph/opsets/opset.hpp"
@@ -23,7 +23,7 @@
 
 using namespace ngraph;
 
-test::IE_CPU_Engine::IE_CPU_Engine(const std::shared_ptr<Function> function, const char* device)
+test::IE_Engine::IE_Engine(const std::shared_ptr<Function> function, const char* device)
     : m_function{function}
 {
     upgrade_and_validate_function(m_function);
@@ -36,7 +36,7 @@ test::IE_CPU_Engine::IE_CPU_Engine(const std::shared_ptr<Function> function, con
     m_inference_req = exe_network.CreateInferRequest();
 }
 
-void test::IE_CPU_Engine::infer()
+void test::IE_Engine::infer()
 {
     if (m_network_inputs.size() != m_allocated_inputs)
     {
@@ -49,7 +49,7 @@ void test::IE_CPU_Engine::infer()
     }
 }
 
-testing::AssertionResult test::IE_CPU_Engine::compare_results(const size_t tolerance_bits)
+testing::AssertionResult test::IE_Engine::compare_results(const size_t tolerance_bits)
 {
     auto comparison_result = testing::AssertionSuccess();
 
@@ -72,7 +72,7 @@ testing::AssertionResult test::IE_CPU_Engine::compare_results(const size_t toler
     return comparison_result;
 }
 
-std::shared_ptr<Function> test::IE_CPU_Engine::upgrade_and_validate_function(
+std::shared_ptr<Function> test::IE_Engine::upgrade_and_validate_function(
     const std::shared_ptr<Function> function) const
 {
     pass::Manager passes;
@@ -100,7 +100,7 @@ std::shared_ptr<Function> test::IE_CPU_Engine::upgrade_and_validate_function(
     return function;
 }
 
-std::set<NodeTypeInfo> test::IE_CPU_Engine::get_ie_ops() const
+std::set<NodeTypeInfo> test::IE_Engine::get_ie_ops() const
 {
     std::set<NodeTypeInfo> ie_ops = get_opset1().get_type_info_set();
     const auto& opset2 = get_opset2().get_type_info_set();
@@ -110,7 +110,7 @@ std::set<NodeTypeInfo> test::IE_CPU_Engine::get_ie_ops() const
     return ie_ops;
 }
 
-void test::IE_CPU_Engine::reset()
+void test::IE_Engine::reset()
 {
     m_allocated_inputs = 0;
     m_allocated_expected_outputs = 0;

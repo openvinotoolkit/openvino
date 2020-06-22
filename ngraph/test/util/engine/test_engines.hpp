@@ -16,7 +16,7 @@
 
 #pragma once
 
-#include "ie_cpu_engine.hpp"
+#include "ie_engines.hpp"
 #include "interpreter_engine.hpp"
 
 // Builds a class name for a given backend prefix

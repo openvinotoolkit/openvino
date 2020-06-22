@@ -164,10 +164,9 @@ namespace ngraph
         };
 
         template <>
-        struct EngineTraits<INTERPRETER_Engine>
+        struct supports_dynamic<INTERPRETER_Engine>
         {
-            static constexpr const bool supports_dynamic = true;
-            static constexpr const bool supports_devices = false;
+            static constexpr bool value = true;
         };
     }
 }
