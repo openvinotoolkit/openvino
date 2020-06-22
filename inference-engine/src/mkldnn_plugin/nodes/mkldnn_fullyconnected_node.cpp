@@ -3,8 +3,7 @@
 //
 
 #include "mkldnn_fullyconnected_node.h"
-#include "mkldnn_activation_node.h"
-#include "mkldnn_depthwise_node.h"
+#include "mkldnn_eltwise_node.h"
 #include "mkldnn_quantize_node.h"
 #include "desc_iterator.hpp"
 #include <legacy/ie_layers.h>
@@ -199,10 +198,10 @@ void MKLDNNFullyConnectedNode::setPostOps(mkldnn::primitive_attr &attr, bool ini
             continue;
         }
 
-        auto* depthwiseNode = dynamic_cast<MKLDNNDepthwiseNode *>(node.get());
-        if (depthwiseNode) {
+        auto* eltwiseNode = dynamic_cast<MKLDNNEltwiseNode *>(node.get());
+        if (eltwiseNode && (eltwiseNode->getOpType() == MulAdd || eltwiseNode->getOpType() == Prelu)) {
             if (initWeights) {
-                auto* depthwiseLayer = reinterpret_cast<WeightableLayer*>(depthwiseNode->getCnnLayer().get());
+                auto* depthwiseLayer = reinterpret_cast<WeightableLayer*>(eltwiseNode->getCnnLayer().get());
                 int ndims = getParentEdgeAt(0)->getDims().ndims();
                 MKLDNNDims depthwiseDims({static_cast<ptrdiff_t>(rnd_up(ndims == 3 ? getChildEdgeAt(0)->getDims()[2] : getChildEdgeAt(0)->getDims()[1], 16))});
 
@@ -211,7 +210,7 @@ void MKLDNNFullyConnectedNode::setPostOps(mkldnn::primitive_attr &attr, bool ini
                 PostOpsIntBlobMemory[blob_idx]->FillZero();
 
                 // In case ndims == 3 graph optimizer allows fusing only if all weights values are the same
-                if (depthwiseNode->isBroadcast() || ndims == 3) {
+                if (depthwiseLayer->blobs["weights"]->size() == 1 || ndims == 3) {
                     float broadcastValue = static_cast<float *>(depthwiseLayer->_weights->buffer())[0];
                     for (int i = 0; i < PostOpsIntBlobMemory[blob_idx]->GetPrimitiveDescriptor().desc().data.dims[0]; i++) {
                         static_cast<float *>(PostOpsIntBlobMemory[blob_idx]->GetData())[i] = broadcastValue;
@@ -223,13 +222,13 @@ void MKLDNNFullyConnectedNode::setPostOps(mkldnn::primitive_attr &attr, bool ini
                                                             MKLDNNExtensionUtils::sizeOfDataType(memory::data_type::f32));
                 }
 
-                if (depthwiseNode->getAlgorithm() == depthwise_scale_shift) {
+                if (eltwiseNode->getAlgorithm() == depthwise_scale_shift) {
                     PostOpsIntBlobMemory.push_back(MKLDNNMemoryPtr(new MKLDNNMemory(getEngine())));
                     PostOpsIntBlobMemory[blob_idx + 1]->Create(depthwiseDims, memory::data_type::f32, memory::format::x);
                     PostOpsIntBlobMemory[blob_idx + 1]->FillZero();
 
                     // In case ndims == 3 graph optimizer allows fusing only if all biases values are the same
-                    if (depthwiseNode->isBroadcast() || ndims == 3) {
+                    if (depthwiseLayer->blobs["biases"]->size() == 1 || ndims == 3) {
                         float broadcastValue = static_cast<float *>(depthwiseLayer->_biases->buffer())[0];
                         for (int i = 0; i < PostOpsIntBlobMemory[blob_idx + 1]->GetPrimitiveDescriptor().desc().data.dims[0]; i++) {
                             static_cast<float *>(PostOpsIntBlobMemory[blob_idx + 1]->GetData())[i] = broadcastValue;
@@ -241,20 +240,20 @@ void MKLDNNFullyConnectedNode::setPostOps(mkldnn::primitive_attr &attr, bool ini
                                                                     MKLDNNExtensionUtils::sizeOfDataType(memory::data_type::f32));
                     }
 
-                    ops.append_depthwise(depthwiseNode->getAlgorithm(),
+                    ops.append_depthwise(eltwiseNode->getAlgorithm(),
                                          (const float *) PostOpsIntBlobMemory[blob_idx]->GetData(),
                                          (const float *) PostOpsIntBlobMemory[blob_idx + 1]->GetData());
 
                     blob_idx += 2;
                 } else {
-                    ops.append_depthwise(depthwiseNode->getAlgorithm(),
+                    ops.append_depthwise(eltwiseNode->getAlgorithm(),
                                          (const float *) PostOpsIntBlobMemory[blob_idx]->GetData(),
                                          nullptr);
 
                     blob_idx += 1;
                 }
             } else {
-                ops.append_depthwise(depthwiseNode->getAlgorithm(),
+                ops.append_depthwise(eltwiseNode->getAlgorithm(),
                                      nullptr,
                                      nullptr);
             }
@@ -262,11 +261,8 @@ void MKLDNNFullyConnectedNode::setPostOps(mkldnn::primitive_attr &attr, bool ini
             continue;
         }
 
-        auto* activationNode = dynamic_cast<MKLDNNActivationNode *>(node.get());
-        if (activationNode) {
-            ops.append_eltwise(1.0, activationNode->getAlgorithm(), activationNode->getAlpha(), activationNode->getBeta());
-
-            continue;
+        if (eltwiseNode) {
+            eltwiseNode->appendPostOps(ops);
         }
     }
 

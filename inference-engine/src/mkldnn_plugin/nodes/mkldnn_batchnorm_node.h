@@ -25,7 +25,7 @@ public:
                           const std::vector<InferenceEngine::TensorDesc>& outputDesc) override;
     void createPrimitive() override;
     bool created() const override;
-    bool fusedWithScale() const {return fusedWith.size() == 1 && fusedWith[0]->getType() == Depthwise
+    bool fusedWithScale() const {return fusedWith.size() == 1 && fusedWith[0]->getType() == Eltwise
                                         && fusedWith[0]->getCnnLayer()->type == "ScaleShift";}
 
     MKLDNNMemoryDesc getSrcMemDesc(mkldnn::primitive_desc_iterator &primitive_desc_it, size_t idx) override;

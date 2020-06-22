@@ -18,18 +18,12 @@ public:
     void ApplyImplSpecificGraphOptimizations(MKLDNNGraph& graph);
 
 private:
-    void SLTMTransform(MKLDNNGraph& graph);
     void MergeConversions(MKLDNNGraph& graph);
     void MergeGroupConvolution(MKLDNNGraph& graph);
     void MergeTwoEqualScaleShifts(MKLDNNGraph& graph);
-    void MergeSigmoidAndMultiplyToSwish(MKLDNNGraph& graph);
-#if defined(COMPILED_CPU_MKLDNN_ACTIVATION_NODE)
     void FuseConvolutionAndActivation(MKLDNNGraph &graph);
     void FuseFullyConnectedAndSimpleOperation(MKLDNNGraph &graph);
-#endif
-#if defined (COMPILED_CPU_MKLDNN_DEPTHWISE_NODE)
     void FuseConvolutionAndDepthwise(MKLDNNGraph &graph);
-#endif
     void FuseConvolutionAndSimpleOperation(MKLDNNGraph &graph);
     void FuseConvolutionAndDWConvolution(MKLDNNGraph &graph);
 #if defined(COMPILED_CPU_MKLDNN_QUANTIZE_NODE)
