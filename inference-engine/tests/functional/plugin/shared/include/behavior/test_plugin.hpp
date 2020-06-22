@@ -89,8 +89,6 @@ TEST_P(BehaviorTests, pluginDoesNotChangeOriginalNetwork) {
 
     InferenceEngine::CNNNetwork cnnNet(function);
     InferenceEngine::CNNNetwork execGraph;
-    // Get Core from cache
-    auto ie = PluginCache::get().ie();
     cnnNet.serialize(name_a);
 
     ASSERT_NO_THROW(ie->LoadNetwork(cnnNet, targetDevice, configuration));
@@ -106,9 +104,6 @@ using BehaviorTestInput = BehaviorTestsUtils::BehaviorTestsBasic;
 TEST_P(BehaviorTestInput, canSetInputPrecisionForNetwork) {
     InferenceEngine::InputsDataMap inputs_info;
     InferenceEngine::CNNNetwork cnnNet(function);
-    // Get Core from cache
-
-    auto ie = PluginCache::get().ie();
     setInputNetworkPrecision(cnnNet, inputs_info, netPrecision);
 
     // Input image format I16 is not supported yet.
@@ -137,8 +132,6 @@ using BehaviorTestOutput = BehaviorTestsUtils::BehaviorTestsBasic;
 TEST_P(BehaviorTestOutput, canSetOutputPrecisionForNetwork) {
     InferenceEngine::OutputsDataMap output_info;
     InferenceEngine::CNNNetwork cnnNet(function);
-    // Get Core from cache
-    auto ie = PluginCache::get().ie();
     setOutputNetworkPrecision(cnnNet, output_info, netPrecision);
 
     std::string msg;
