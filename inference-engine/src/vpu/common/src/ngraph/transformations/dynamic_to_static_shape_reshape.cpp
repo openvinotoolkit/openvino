@@ -23,7 +23,7 @@ void dynamicToStaticShapeReshape(std::shared_ptr<ngraph::Node> target) {
 
     const auto outShapeDescriptor = target->get_argument(1);
     VPU_THROW_UNLESS(ngraph::as_type_ptr<ngraph::opset3::Constant>(outShapeDescriptor),
-                     "DynamicToStaticShape transformation for {] of type {} expects {} as input with index {}",
+                     "DynamicToStaticShape transformation for {} of type {} expects {} as input with index {}",
                      target->get_friendly_name(), target->get_type_info(), ngraph::opset3::Constant::type_info, 1);
 
     const auto reshape = std::dynamic_pointer_cast<ngraph::opset3::Reshape>(target);

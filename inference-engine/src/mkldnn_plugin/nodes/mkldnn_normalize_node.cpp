@@ -667,7 +667,8 @@ private:
 };
 
 MKLDNNNormalizeNode::MKLDNNNormalizeNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
-        : MKLDNNNode(layer, eng, cache) {}
+        : MKLDNNNode(layer, eng, cache), src_data_size(0lu), dst_data_size(0lu), weights_data_size(0lu),
+        input_prec(Precision::UNSPECIFIED), output_prec(Precision::UNSPECIFIED), weights_prec(Precision::UNSPECIFIED) {}
 
 void MKLDNNNormalizeNode::getSupportedDescriptors() {
     if (!descs.empty())

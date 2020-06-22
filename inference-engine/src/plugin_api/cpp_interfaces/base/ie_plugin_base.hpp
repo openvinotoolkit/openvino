@@ -9,11 +9,11 @@
 
 #pragma once
 
-#include <ie_plugin.hpp>
 #include <map>
 #include <memory>
 #include <string>
 
+#include "cpp_interfaces/interface/ie_plugin.hpp"
 #include "cpp_interfaces/base/ie_inference_plugin_api.hpp"
 #include "cpp_interfaces/exception2status.hpp"
 #include "description_buffer.hpp"
