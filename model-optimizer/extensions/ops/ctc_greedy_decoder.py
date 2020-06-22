@@ -65,9 +65,6 @@ class CTCGreedyDecoderOp(Op):
         assert node.in_port(0).data.get_shape()[1] == node.in_port(0).data.get_shape()[1], \
             'Batch for CTCGreedyDecoder should be the same in both inputs'
         output_shape[0] = node.in_port(0).data.get_shape()[1]
-        if node.graph.graph['layout'] == 'NHWC':
-            output_shape[1] = node.in_port(0).data.get_shape()[0]
-        else:
-            output_shape[2] = node.in_port(0).data.get_shape()[0]
+        output_shape[1] = node.in_port(0).data.get_shape()[0]
 
         node.out_port(0).data.set_shape(output_shape)
