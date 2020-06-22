@@ -28,13 +28,12 @@ After you decided where to store your transformation code you can start develop 
 2. Transformations types
 3. Pattern matching
 4. Working with ngraph::Function
-5. How to debug transformations
-6. Using pass manager
-7. Transformation writing essentials
-8. Disabling/Enabling specific transformations for plugin X
-9. Custom attributes in nodes
-10. Common mistakes in transformations
-11. Transformations testing
+5. Transformation writing essentials
+6. Common mistakes in transformations
+7. Using pass manager
+8. How to debug transformations
+9. Disabling/Enabling specific transformations for plugin X
+10. Transformations testing
 
 ## ngraph::Function and graph representation
 
@@ -212,7 +211,11 @@ To eliminate operation nGraph has special method that consider all limitations r
 
 When developing transformation we need to follow next transformation rules:
 
-###1. Dynamic Shape and Rank
+###1. Operation Set (OpSet)
+
+Which OpSet to use in your transformation? The right answer is latest. An exception is ConvertOpSetXToOpSetY transformations where operations from OpSetX and OpSetY are required to use. 
+
+###2. Dynamic Shape and Rank
 
 nGraph has two types for shape representation: 
 `ngraph::Shape` - represents static shape.
@@ -229,7 +232,7 @@ Also if your transformation requires only input shape rank or particular dimensi
 
 Not using `get_shape()` method makes your transformation more flexible and applicable for more cases.
 
-###2. Friendly Names
+###3. Friendly Names
 
 Each `ngraph::Node` has unique name (is used for nGraph internals) and friendly name. In transformations we care only about friendly name because it represents name from IR. 
 Also friendly name is used as output tensor name (until we do not have other way to represent output tensor name) and user code that requests intermediate outputs based on this names.
@@ -246,7 +249,7 @@ ngraph::replace_node(div, mul);
 
 In more advanced cases when replaced operation has several outputs and we add additional consumers to its outputs we make decision how to set friendly name by arrangement.
 
-###3. Runtime Info
+###4. Runtime Info
 
 Runtime info is a map `std::map<std::string, std::shared_ptr<Variant>>` located inside `ngraph::Node` class. It represents additional attributes in `ngraph::Node`. Find more information about runtime info in [Custom attributes in nodes] chapter.
 These attributes can be set by users or by plugins and when executing transformation that changes `ngraph::Function` we need to preserve this attributes as they won't be automatically propagated.
@@ -275,7 +278,7 @@ ngraph::copy_runtime_info({a, b, c}, {e, f});
 
 When transformation has multiple fusions or decompositions `ngraph::copy_runtime_info` must be called multiple times for each case. 
 
-###4. Constant Folding
+###5. Constant Folding
 
 If your transformation inserts constant sub-graphs that needs to be folded do not forget to use `ngraph::pass::ConstantFolding()` after your transformation.
 Example below shows how constant sub-graph can be constructed.
@@ -290,12 +293,19 @@ auto mul = std::make_shared<ngraph::opset3::Multiply>(input /* not constant inpu
 
 ## Common mistakes in transformations	 
 
-TODO: deprecated API, duplicates, CF, shape inference, opset versions, get_node_shared_ptr() as input
+In transformation development process 
+
+* Do not use deprecated nGraph API. Deprecated methods has `NGRAPH_DEPRECATED` macros in its definition. 
+* Do not pass `shared_ptr<Node>` as input for other node if type of node is unknown or it has multiple outputs. Use explicit output port.
+* If you replace node with another node that produce different shape you need to remember that new shape won't be propagated until first `validate_nodes_and_infer_types` call for `ngraph::Function`. If you are using `pass::Manager` it will automatically call this method after each transformation execution.
+* Do not forget to call `ngraph::ConstantFolding` pass if your transformation creates constant sub-graphs.
+* Use latest OpSet if you are not developing downgrade transformation pass.
 
 ## Using pass manager
 
 `ngraph::pass::Manager` is a container class that can store list of transformations and execute them. The main idea of this class is to have high-level representation for grouped list of transformations.
-For example `ngraph::pass::CommonOptimizations` pass manager register list of transformation related to common optimizations.
+For example `ngraph::pass::CommonOptimizations` pass manager register list of transformation related to common optimizations. Also `ngraph::pass::Manager` after each transformation executes `f->validate_nodes_and_infer_types()` that help to keep function synchronized.
+In addition `ngraph::pass::Manager` has extended debug capabilities (find more information in [How to debug transformations] section). 
 
 Example below shows basic usage of `ngraph::pass::Manager`
 ~~~~~~~~~~~~~{.cpp}
@@ -315,7 +325,7 @@ Usage example:
 
 @snippet example_ngraph_utils.cpp ngraph:visualize
 
-ngraph::pass::VisualizeTree can be parametrized via environment variables:
+`ngraph::pass::VisualizeTree` can be parametrized via environment variables:
 
 ~~~~~~~~~~~~~{.txt}
 NGRAPH_VISUALIZE_TREE_OUTPUT_SHAPES=1 - visualize shapes
