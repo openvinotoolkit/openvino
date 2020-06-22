@@ -699,9 +699,7 @@ TEST(CNNNGraphImplTests, CanSetBatchReadValue) {
     }
 
     InferenceEngine::details::CNNNetworkNGraphImpl cnnNet(ngraph);
-    ResponseDesc response;
-    cnnNet.getCNNNetwork()->setBatchSize(4, &response);
-    std::string msg(response.msg);
-    EXPECT_EQ(msg.empty(), true);
+    auto status = cnnNet.getCNNNetwork()->setBatchSize(4, nullptr);
+    EXPECT_EQ(status, StatusCode::OK);
 }
 IE_SUPPRESS_DEPRECATED_END
