@@ -166,7 +166,7 @@ namespace ngraph
                 add_expected_output<T>(expected_shape, values);
             }
 
-            testing::AssertionResult run(const size_t tolerance_bits = DEFAULT_FLOAT_TOLERANCE_BITS)
+            void run(const size_t tolerance_bits = DEFAULT_FLOAT_TOLERANCE_BITS)
             {
                 m_engine.infer();
                 const auto res = m_engine.compare_results(tolerance_bits);
@@ -181,8 +181,6 @@ namespace ngraph
                 m_engine.reset();
 
                 EXPECT_TRUE(res);
-
-                return res;
             }
 
         private:

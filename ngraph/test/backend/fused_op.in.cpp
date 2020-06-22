@@ -1155,13 +1155,13 @@ NGRAPH_TEST(${BACKEND_NAME}, gemm_broadcast_axes_1_input_C)
 namespace
 {
     template <typename T, test::TestCaseType tct = test::TestCaseType::STATIC>
-    ::testing::AssertionResult clamp_test(const element::Type& type,
-                                          const PartialShape& dynamic_shape,
-                                          const Shape& static_shape,
-                                          const std::vector<T>& input,
-                                          double min,
-                                          double max,
-                                          const std::vector<T>& output)
+    void clamp_test(const element::Type& type,
+                    const PartialShape& dynamic_shape,
+                    const Shape& static_shape,
+                    const std::vector<T>& input,
+                    double min,
+                    double max,
+                    const std::vector<T>& output)
     {
         auto data = make_shared<op::Parameter>(type, dynamic_shape);
         auto clamp = make_shared<op::Clamp>(data, min, max);
@@ -1190,77 +1190,74 @@ NGRAPH_TEST(${BACKEND_NAME}, fused_clamp_double)
     vector<ctype> input{min, max, ninf, pinf, 9.99999, 10.0, 10.000001, 19.999999, 20.0, 20.000001};
 
     // static shape
-    EXPECT_TRUE(clamp_test<ctype>(type,
-                                  sshape,
-                                  sshape,
-                                  {-0.1, 0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8},
-                                  0.2,
-                                  0.6,
-                                  {0.2, 0.2, 0.2, 0.2, 0.3, 0.4, 0.5, 0.6, 0.6, 0.6}));
+    clamp_test<ctype>(type,
+                      sshape,
+                      sshape,
+                      {-0.1, 0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8},
+                      0.2,
+                      0.6,
+                      {0.2, 0.2, 0.2, 0.2, 0.3, 0.4, 0.5, 0.6, 0.6, 0.6});
 
-    EXPECT_TRUE(
-        clamp_test<ctype>(type,
-                          sshape,
-                          sshape,
-                          input,
-                          10.0,
-                          20.0,
-                          {10.0, 20.0, 10.0, 20.0, 10.0, 10.0, 10.000001, 19.999999, 20.0, 20.0}));
+    clamp_test<ctype>(type,
+                      sshape,
+                      sshape,
+                      input,
+                      10.0,
+                      20.0,
+                      {10.0, 20.0, 10.0, 20.0, 10.0, 10.0, 10.000001, 19.999999, 20.0, 20.0});
 
-    EXPECT_TRUE(clamp_test<ctype>(
-        type,
-        sshape,
-        sshape,
-        input,
-        10.0,
-        pinf,
-        {10.0, max, 10.0, pinf, 10.0, 10.0, 10.000001, 19.999999, 20.0, 20.000001}));
+    clamp_test<ctype>(type,
+                      sshape,
+                      sshape,
+                      input,
+                      10.0,
+                      pinf,
+                      {10.0, max, 10.0, pinf, 10.0, 10.0, 10.000001, 19.999999, 20.0, 20.000001});
 
-    EXPECT_TRUE(clamp_test<ctype>(
-        type,
-        sshape,
-        sshape,
-        input,
-        ninf,
-        20.0,
-        {min, 20.0, ninf, 20.0, 9.99999, 10.0, 10.000001, 19.999999, 20.0, 20.0}));
+    clamp_test<ctype>(type,
+                      sshape,
+                      sshape,
+                      input,
+                      ninf,
+                      20.0,
+                      {min, 20.0, ninf, 20.0, 9.99999, 10.0, 10.000001, 19.999999, 20.0, 20.0});
 
     // dynamic shape
-    EXPECT_TRUE((clamp_test<ctype, test::TestCaseType::DYNAMIC>(
+    clamp_test<ctype, test::TestCaseType::DYNAMIC>(
         type,
         dshape,
         sshape,
         {-0.1, 0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8},
         0.2,
         0.6,
-        {0.2, 0.2, 0.2, 0.2, 0.3, 0.4, 0.5, 0.6, 0.6, 0.6})));
+        {0.2, 0.2, 0.2, 0.2, 0.3, 0.4, 0.5, 0.6, 0.6, 0.6});
 
-    EXPECT_TRUE((clamp_test<ctype, test::TestCaseType::DYNAMIC>(
+    clamp_test<ctype, test::TestCaseType::DYNAMIC>(
         type,
         dshape,
         sshape,
         input,
         10.0,
         20.0,
-        {10.0, 20.0, 10.0, 20.0, 10.0, 10.0, 10.000001, 19.999999, 20.0, 20.0})));
+        {10.0, 20.0, 10.0, 20.0, 10.0, 10.0, 10.000001, 19.999999, 20.0, 20.0});
 
-    EXPECT_TRUE((clamp_test<ctype, test::TestCaseType::DYNAMIC>(
+    clamp_test<ctype, test::TestCaseType::DYNAMIC>(
         type,
         dshape,
         sshape,
         input,
         10.0,
         pinf,
-        {10.0, max, 10.0, pinf, 10.0, 10.0, 10.000001, 19.999999, 20.0, 20.000001})));
+        {10.0, max, 10.0, pinf, 10.0, 10.0, 10.000001, 19.999999, 20.0, 20.000001});
 
-    EXPECT_TRUE((clamp_test<ctype, test::TestCaseType::DYNAMIC>(
+    clamp_test<ctype, test::TestCaseType::DYNAMIC>(
         type,
         dshape,
         sshape,
         input,
         ninf,
         20.0,
-        {min, 20.0, ninf, 20.0, 9.99999, 10.0, 10.000001, 19.999999, 20.0, 20.0})));
+        {min, 20.0, ninf, 20.0, 9.99999, 10.0, 10.000001, 19.999999, 20.0, 20.0});
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, fused_clamp_float)
@@ -1279,77 +1276,74 @@ NGRAPH_TEST(${BACKEND_NAME}, fused_clamp_float)
     vector<ctype> input{min, max, ninf, pinf, 9.99999, 10.0, 10.000001, 19.999999, 20.0, 20.000001};
 
     // static shape
-    EXPECT_TRUE(clamp_test<ctype>(type,
-                                  sshape,
-                                  sshape,
-                                  {-0.1, 0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8},
-                                  0.2,
-                                  0.6,
-                                  {0.2, 0.2, 0.2, 0.2, 0.3, 0.4, 0.5, 0.6, 0.6, 0.6}));
+    clamp_test<ctype>(type,
+                      sshape,
+                      sshape,
+                      {-0.1, 0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8},
+                      0.2,
+                      0.6,
+                      {0.2, 0.2, 0.2, 0.2, 0.3, 0.4, 0.5, 0.6, 0.6, 0.6});
 
-    EXPECT_TRUE(
-        clamp_test<ctype>(type,
-                          sshape,
-                          sshape,
-                          input,
-                          10.0,
-                          20.0,
-                          {10.0, 20.0, 10.0, 20.0, 10.0, 10.0, 10.000001, 19.999999, 20.0, 20.0}));
+    clamp_test<ctype>(type,
+                      sshape,
+                      sshape,
+                      input,
+                      10.0,
+                      20.0,
+                      {10.0, 20.0, 10.0, 20.0, 10.0, 10.0, 10.000001, 19.999999, 20.0, 20.0});
 
-    EXPECT_TRUE(clamp_test<ctype>(
-        type,
-        sshape,
-        sshape,
-        input,
-        10.0,
-        pinf,
-        {10.0, max, 10.0, pinf, 10.0, 10.0, 10.000001, 19.999999, 20.0, 20.000001}));
+    clamp_test<ctype>(type,
+                      sshape,
+                      sshape,
+                      input,
+                      10.0,
+                      pinf,
+                      {10.0, max, 10.0, pinf, 10.0, 10.0, 10.000001, 19.999999, 20.0, 20.000001});
 
-    EXPECT_TRUE(clamp_test<ctype>(
-        type,
-        sshape,
-        sshape,
-        input,
-        ninf,
-        20.0,
-        {min, 20.0, ninf, 20.0, 9.99999, 10.0, 10.000001, 19.999999, 20.0, 20.0}));
+    clamp_test<ctype>(type,
+                      sshape,
+                      sshape,
+                      input,
+                      ninf,
+                      20.0,
+                      {min, 20.0, ninf, 20.0, 9.99999, 10.0, 10.000001, 19.999999, 20.0, 20.0});
 
     // dynamic shape
-    EXPECT_TRUE((clamp_test<ctype, test::TestCaseType::DYNAMIC>(
+    clamp_test<ctype, test::TestCaseType::DYNAMIC>(
         type,
         dshape,
         sshape,
         {-0.1, 0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8},
         0.2,
         0.6,
-        {0.2, 0.2, 0.2, 0.2, 0.3, 0.4, 0.5, 0.6, 0.6, 0.6})));
+        {0.2, 0.2, 0.2, 0.2, 0.3, 0.4, 0.5, 0.6, 0.6, 0.6});
 
-    EXPECT_TRUE((clamp_test<ctype, test::TestCaseType::DYNAMIC>(
+    clamp_test<ctype, test::TestCaseType::DYNAMIC>(
         type,
         dshape,
         sshape,
         input,
         10.0,
         20.0,
-        {10.0, 20.0, 10.0, 20.0, 10.0, 10.0, 10.000001, 19.999999, 20.0, 20.0})));
+        {10.0, 20.0, 10.0, 20.0, 10.0, 10.0, 10.000001, 19.999999, 20.0, 20.0});
 
-    EXPECT_TRUE((clamp_test<ctype, test::TestCaseType::DYNAMIC>(
+    clamp_test<ctype, test::TestCaseType::DYNAMIC>(
         type,
         dshape,
         sshape,
         input,
         10.0,
         pinf,
-        {10.0, max, 10.0, pinf, 10.0, 10.0, 10.000001, 19.999999, 20.0, 20.000001})));
+        {10.0, max, 10.0, pinf, 10.0, 10.0, 10.000001, 19.999999, 20.0, 20.000001});
 
-    EXPECT_TRUE((clamp_test<ctype, test::TestCaseType::DYNAMIC>(
+    clamp_test<ctype, test::TestCaseType::DYNAMIC>(
         type,
         dshape,
         sshape,
         input,
         ninf,
         20.0,
-        {min, 20.0, ninf, 20.0, 9.99999, 10.0, 10.000001, 19.999999, 20.0, 20.0})));
+        {min, 20.0, ninf, 20.0, 9.99999, 10.0, 10.000001, 19.999999, 20.0, 20.0});
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, fused_clamp_int8)
@@ -1368,20 +1362,17 @@ NGRAPH_TEST(${BACKEND_NAME}, fused_clamp_int8)
     vector<ctype> input{min, max, 9, 10, 11, 19, 20, 21};
 
     // static shape
-    EXPECT_TRUE(clamp_test<ctype>(
-        type, sshape, sshape, input, 10.0, 20.0, {10, 20, 10, 10, 11, 19, 20, 20}));
-    EXPECT_TRUE(clamp_test<ctype>(
-        type, sshape, sshape, input, 10.0, pinf, {10, max, 10, 10, 11, 19, 20, 21}));
-    EXPECT_TRUE(clamp_test<ctype>(
-        type, sshape, sshape, input, ninf, 20.0, {min, 20, 9, 10, 11, 19, 20, 20}));
+    clamp_test<ctype>(type, sshape, sshape, input, 10.0, 20.0, {10, 20, 10, 10, 11, 19, 20, 20});
+    clamp_test<ctype>(type, sshape, sshape, input, 10.0, pinf, {10, max, 10, 10, 11, 19, 20, 21});
+    clamp_test<ctype>(type, sshape, sshape, input, ninf, 20.0, {min, 20, 9, 10, 11, 19, 20, 20});
 
     // dynamic shape
-    EXPECT_TRUE((clamp_test<ctype, test::TestCaseType::DYNAMIC>(
-        type, dshape, sshape, input, 10.0, 20.0, {10, 20, 10, 10, 11, 19, 20, 20})));
-    EXPECT_TRUE((clamp_test<ctype, test::TestCaseType::DYNAMIC>(
-        type, dshape, sshape, input, 10.0, pinf, {10, max, 10, 10, 11, 19, 20, 21})));
-    EXPECT_TRUE((clamp_test<ctype, test::TestCaseType::DYNAMIC>(
-        type, dshape, sshape, input, ninf, 20.0, {min, 20, 9, 10, 11, 19, 20, 20})));
+    clamp_test<ctype, test::TestCaseType::DYNAMIC>(
+        type, dshape, sshape, input, 10.0, 20.0, {10, 20, 10, 10, 11, 19, 20, 20});
+    clamp_test<ctype, test::TestCaseType::DYNAMIC>(
+        type, dshape, sshape, input, 10.0, pinf, {10, max, 10, 10, 11, 19, 20, 21});
+    clamp_test<ctype, test::TestCaseType::DYNAMIC>(
+        type, dshape, sshape, input, ninf, 20.0, {min, 20, 9, 10, 11, 19, 20, 20});
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, fused_clamp_int16)
@@ -1400,20 +1391,17 @@ NGRAPH_TEST(${BACKEND_NAME}, fused_clamp_int16)
     vector<ctype> input{min, max, 9, 10, 11, 19, 20, 21};
 
     // static shape
-    EXPECT_TRUE(clamp_test<ctype>(
-        type, sshape, sshape, input, 10.0, 20.0, {10, 20, 10, 10, 11, 19, 20, 20}));
-    EXPECT_TRUE(clamp_test<ctype>(
-        type, sshape, sshape, input, 10.0, pinf, {10, max, 10, 10, 11, 19, 20, 21}));
-    EXPECT_TRUE(clamp_test<ctype>(
-        type, sshape, sshape, input, ninf, 20.0, {min, 20, 9, 10, 11, 19, 20, 20}));
+    clamp_test<ctype>(type, sshape, sshape, input, 10.0, 20.0, {10, 20, 10, 10, 11, 19, 20, 20});
+    clamp_test<ctype>(type, sshape, sshape, input, 10.0, pinf, {10, max, 10, 10, 11, 19, 20, 21});
+    clamp_test<ctype>(type, sshape, sshape, input, ninf, 20.0, {min, 20, 9, 10, 11, 19, 20, 20});
 
     // dynamic shape
-    EXPECT_TRUE((clamp_test<ctype, test::TestCaseType::DYNAMIC>(
-        type, dshape, sshape, input, 10.0, 20.0, {10, 20, 10, 10, 11, 19, 20, 20})));
-    EXPECT_TRUE((clamp_test<ctype, test::TestCaseType::DYNAMIC>(
-        type, dshape, sshape, input, 10.0, pinf, {10, max, 10, 10, 11, 19, 20, 21})));
-    EXPECT_TRUE((clamp_test<ctype, test::TestCaseType::DYNAMIC>(
-        type, dshape, sshape, input, ninf, 20.0, {min, 20, 9, 10, 11, 19, 20, 20})));
+    clamp_test<ctype, test::TestCaseType::DYNAMIC>(
+        type, dshape, sshape, input, 10.0, 20.0, {10, 20, 10, 10, 11, 19, 20, 20});
+    clamp_test<ctype, test::TestCaseType::DYNAMIC>(
+        type, dshape, sshape, input, 10.0, pinf, {10, max, 10, 10, 11, 19, 20, 21});
+    clamp_test<ctype, test::TestCaseType::DYNAMIC>(
+        type, dshape, sshape, input, ninf, 20.0, {min, 20, 9, 10, 11, 19, 20, 20});
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, fused_clamp_int32)
@@ -1432,20 +1420,17 @@ NGRAPH_TEST(${BACKEND_NAME}, fused_clamp_int32)
     vector<ctype> input{min, max, 9, 10, 11, 19, 20, 21};
 
     // static shape
-    EXPECT_TRUE(clamp_test<ctype>(
-        type, sshape, sshape, input, 10.0, 20.0, {10, 20, 10, 10, 11, 19, 20, 20}));
-    EXPECT_TRUE(clamp_test<ctype>(
-        type, sshape, sshape, input, 10.0, pinf, {10, max, 10, 10, 11, 19, 20, 21}));
-    EXPECT_TRUE(clamp_test<ctype>(
-        type, sshape, sshape, input, ninf, 20.0, {min, 20, 9, 10, 11, 19, 20, 20}));
+    clamp_test<ctype>(type, sshape, sshape, input, 10.0, 20.0, {10, 20, 10, 10, 11, 19, 20, 20});
+    clamp_test<ctype>(type, sshape, sshape, input, 10.0, pinf, {10, max, 10, 10, 11, 19, 20, 21});
+    clamp_test<ctype>(type, sshape, sshape, input, ninf, 20.0, {min, 20, 9, 10, 11, 19, 20, 20});
 
     // dynamic shape
-    EXPECT_TRUE((clamp_test<ctype, test::TestCaseType::DYNAMIC>(
-        type, dshape, sshape, input, 10.0, 20.0, {10, 20, 10, 10, 11, 19, 20, 20})));
-    EXPECT_TRUE((clamp_test<ctype, test::TestCaseType::DYNAMIC>(
-        type, dshape, sshape, input, 10.0, pinf, {10, max, 10, 10, 11, 19, 20, 21})));
-    EXPECT_TRUE((clamp_test<ctype, test::TestCaseType::DYNAMIC>(
-        type, dshape, sshape, input, ninf, 20.0, {min, 20, 9, 10, 11, 19, 20, 20})));
+    clamp_test<ctype, test::TestCaseType::DYNAMIC>(
+        type, dshape, sshape, input, 10.0, 20.0, {10, 20, 10, 10, 11, 19, 20, 20});
+    clamp_test<ctype, test::TestCaseType::DYNAMIC>(
+        type, dshape, sshape, input, 10.0, pinf, {10, max, 10, 10, 11, 19, 20, 21});
+    clamp_test<ctype, test::TestCaseType::DYNAMIC>(
+        type, dshape, sshape, input, ninf, 20.0, {min, 20, 9, 10, 11, 19, 20, 20});
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, fused_clamp_int64)
@@ -1464,20 +1449,17 @@ NGRAPH_TEST(${BACKEND_NAME}, fused_clamp_int64)
     vector<ctype> input{min, max, 9, 10, 11, 19, 20, 21};
 
     // static shape
-    EXPECT_TRUE(clamp_test<ctype>(
-        type, sshape, sshape, input, 10.0, 20.0, {10, 20, 10, 10, 11, 19, 20, 20}));
-    EXPECT_TRUE(clamp_test<ctype>(
-        type, sshape, sshape, input, 10.0, pinf, {10, max, 10, 10, 11, 19, 20, 21}));
-    EXPECT_TRUE(clamp_test<ctype>(
-        type, sshape, sshape, input, ninf, 20.0, {min, 20, 9, 10, 11, 19, 20, 20}));
+    clamp_test<ctype>(type, sshape, sshape, input, 10.0, 20.0, {10, 20, 10, 10, 11, 19, 20, 20});
+    clamp_test<ctype>(type, sshape, sshape, input, 10.0, pinf, {10, max, 10, 10, 11, 19, 20, 21});
+    clamp_test<ctype>(type, sshape, sshape, input, ninf, 20.0, {min, 20, 9, 10, 11, 19, 20, 20});
 
     // dynamic shape
-    EXPECT_TRUE((clamp_test<ctype, test::TestCaseType::DYNAMIC>(
-        type, dshape, sshape, input, 10.0, 20.0, {10, 20, 10, 10, 11, 19, 20, 20})));
-    EXPECT_TRUE((clamp_test<ctype, test::TestCaseType::DYNAMIC>(
-        type, dshape, sshape, input, 10.0, pinf, {10, max, 10, 10, 11, 19, 20, 21})));
-    EXPECT_TRUE((clamp_test<ctype, test::TestCaseType::DYNAMIC>(
-        type, dshape, sshape, input, ninf, 20.0, {min, 20, 9, 10, 11, 19, 20, 20})));
+    clamp_test<ctype, test::TestCaseType::DYNAMIC>(
+        type, dshape, sshape, input, 10.0, 20.0, {10, 20, 10, 10, 11, 19, 20, 20});
+    clamp_test<ctype, test::TestCaseType::DYNAMIC>(
+        type, dshape, sshape, input, 10.0, pinf, {10, max, 10, 10, 11, 19, 20, 21});
+    clamp_test<ctype, test::TestCaseType::DYNAMIC>(
+        type, dshape, sshape, input, ninf, 20.0, {min, 20, 9, 10, 11, 19, 20, 20});
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, fused_clamp_uint8)
@@ -1499,20 +1481,17 @@ NGRAPH_TEST(${BACKEND_NAME}, fused_clamp_uint8)
     vector<ctype> input{min, max, 9, 10, 11, 19, 20, 21};
 
     // static shape
-    EXPECT_TRUE(clamp_test<ctype>(
-        type, sshape, sshape, input, 10.0, 20.0, {10, 20, 10, 10, 11, 19, 20, 20}));
-    EXPECT_TRUE(clamp_test<ctype>(
-        type, sshape, sshape, input, 10.0, pinf, {10, max, 10, 10, 11, 19, 20, 21}));
-    EXPECT_TRUE(clamp_test<ctype>(
-        type, sshape, sshape, input, ninf, 20.0, {min, 20, 9, 10, 11, 19, 20, 20}));
+    clamp_test<ctype>(type, sshape, sshape, input, 10.0, 20.0, {10, 20, 10, 10, 11, 19, 20, 20});
+    clamp_test<ctype>(type, sshape, sshape, input, 10.0, pinf, {10, max, 10, 10, 11, 19, 20, 21});
+    clamp_test<ctype>(type, sshape, sshape, input, ninf, 20.0, {min, 20, 9, 10, 11, 19, 20, 20});
 
     // dynamic shape
-    EXPECT_TRUE((clamp_test<ctype, test::TestCaseType::DYNAMIC>(
-        type, dshape, sshape, input, 10.0, 20.0, {10, 20, 10, 10, 11, 19, 20, 20})));
-    EXPECT_TRUE((clamp_test<ctype, test::TestCaseType::DYNAMIC>(
-        type, dshape, sshape, input, 10.0, pinf, {10, max, 10, 10, 11, 19, 20, 21})));
-    EXPECT_TRUE((clamp_test<ctype, test::TestCaseType::DYNAMIC>(
-        type, dshape, sshape, input, ninf, 20.0, {min, 20, 9, 10, 11, 19, 20, 20})));
+    clamp_test<ctype, test::TestCaseType::DYNAMIC>(
+        type, dshape, sshape, input, 10.0, 20.0, {10, 20, 10, 10, 11, 19, 20, 20});
+    clamp_test<ctype, test::TestCaseType::DYNAMIC>(
+        type, dshape, sshape, input, 10.0, pinf, {10, max, 10, 10, 11, 19, 20, 21});
+    clamp_test<ctype, test::TestCaseType::DYNAMIC>(
+        type, dshape, sshape, input, ninf, 20.0, {min, 20, 9, 10, 11, 19, 20, 20});
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, fused_clamp_uint16)
@@ -1534,20 +1513,17 @@ NGRAPH_TEST(${BACKEND_NAME}, fused_clamp_uint16)
     vector<ctype> input{min, max, 9, 10, 11, 19, 20, 21};
 
     // static shape
-    EXPECT_TRUE(clamp_test<ctype>(
-        type, sshape, sshape, input, 10.0, 20.0, {10, 20, 10, 10, 11, 19, 20, 20}));
-    EXPECT_TRUE(clamp_test<ctype>(
-        type, sshape, sshape, input, 10.0, pinf, {10, max, 10, 10, 11, 19, 20, 21}));
-    EXPECT_TRUE(clamp_test<ctype>(
-        type, sshape, sshape, input, ninf, 20.0, {min, 20, 9, 10, 11, 19, 20, 20}));
+    clamp_test<ctype>(type, sshape, sshape, input, 10.0, 20.0, {10, 20, 10, 10, 11, 19, 20, 20});
+    clamp_test<ctype>(type, sshape, sshape, input, 10.0, pinf, {10, max, 10, 10, 11, 19, 20, 21});
+    clamp_test<ctype>(type, sshape, sshape, input, ninf, 20.0, {min, 20, 9, 10, 11, 19, 20, 20});
 
     // dynamic shape
-    EXPECT_TRUE((clamp_test<ctype, test::TestCaseType::DYNAMIC>(
-        type, dshape, sshape, input, 10.0, 20.0, {10, 20, 10, 10, 11, 19, 20, 20})));
-    EXPECT_TRUE((clamp_test<ctype, test::TestCaseType::DYNAMIC>(
-        type, dshape, sshape, input, 10.0, pinf, {10, max, 10, 10, 11, 19, 20, 21})));
-    EXPECT_TRUE((clamp_test<ctype, test::TestCaseType::DYNAMIC>(
-        type, dshape, sshape, input, ninf, 20.0, {min, 20, 9, 10, 11, 19, 20, 20})));
+    clamp_test<ctype, test::TestCaseType::DYNAMIC>(
+        type, dshape, sshape, input, 10.0, 20.0, {10, 20, 10, 10, 11, 19, 20, 20});
+    clamp_test<ctype, test::TestCaseType::DYNAMIC>(
+        type, dshape, sshape, input, 10.0, pinf, {10, max, 10, 10, 11, 19, 20, 21});
+    clamp_test<ctype, test::TestCaseType::DYNAMIC>(
+        type, dshape, sshape, input, ninf, 20.0, {min, 20, 9, 10, 11, 19, 20, 20});
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, fused_clamp_uint32)
@@ -1569,20 +1545,17 @@ NGRAPH_TEST(${BACKEND_NAME}, fused_clamp_uint32)
     vector<ctype> input{min, max, 9, 10, 11, 19, 20, 21};
 
     // static shape
-    EXPECT_TRUE(clamp_test<ctype>(
-        type, sshape, sshape, input, 10.0, 20.0, {10, 20, 10, 10, 11, 19, 20, 20}));
-    EXPECT_TRUE(clamp_test<ctype>(
-        type, sshape, sshape, input, 10.0, pinf, {10, max, 10, 10, 11, 19, 20, 21}));
-    EXPECT_TRUE(clamp_test<ctype>(
-        type, sshape, sshape, input, ninf, 20.0, {min, 20, 9, 10, 11, 19, 20, 20}));
+    clamp_test<ctype>(type, sshape, sshape, input, 10.0, 20.0, {10, 20, 10, 10, 11, 19, 20, 20});
+    clamp_test<ctype>(type, sshape, sshape, input, 10.0, pinf, {10, max, 10, 10, 11, 19, 20, 21});
+    clamp_test<ctype>(type, sshape, sshape, input, ninf, 20.0, {min, 20, 9, 10, 11, 19, 20, 20});
 
     // dynamic shape
-    EXPECT_TRUE((clamp_test<ctype, test::TestCaseType::DYNAMIC>(
-        type, dshape, sshape, input, 10.0, 20.0, {10, 20, 10, 10, 11, 19, 20, 20})));
-    EXPECT_TRUE((clamp_test<ctype, test::TestCaseType::DYNAMIC>(
-        type, dshape, sshape, input, 10.0, pinf, {10, max, 10, 10, 11, 19, 20, 21})));
-    EXPECT_TRUE((clamp_test<ctype, test::TestCaseType::DYNAMIC>(
-        type, dshape, sshape, input, ninf, 20.0, {min, 20, 9, 10, 11, 19, 20, 20})));
+    clamp_test<ctype, test::TestCaseType::DYNAMIC>(
+        type, dshape, sshape, input, 10.0, 20.0, {10, 20, 10, 10, 11, 19, 20, 20});
+    clamp_test<ctype, test::TestCaseType::DYNAMIC>(
+        type, dshape, sshape, input, 10.0, pinf, {10, max, 10, 10, 11, 19, 20, 21});
+    clamp_test<ctype, test::TestCaseType::DYNAMIC>(
+        type, dshape, sshape, input, ninf, 20.0, {min, 20, 9, 10, 11, 19, 20, 20});
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, fused_clamp_uint64)
@@ -1604,20 +1577,17 @@ NGRAPH_TEST(${BACKEND_NAME}, fused_clamp_uint64)
     vector<ctype> input{min, max, 9, 10, 11, 19, 20, 21};
 
     // static shape
-    EXPECT_TRUE(clamp_test<ctype>(
-        type, sshape, sshape, input, 10.0, 20.0, {10, 20, 10, 10, 11, 19, 20, 20}));
-    EXPECT_TRUE(clamp_test<ctype>(
-        type, sshape, sshape, input, 10.0, pinf, {10, max, 10, 10, 11, 19, 20, 21}));
-    EXPECT_TRUE(clamp_test<ctype>(
-        type, sshape, sshape, input, ninf, 20.0, {min, 20, 9, 10, 11, 19, 20, 20}));
+    clamp_test<ctype>(type, sshape, sshape, input, 10.0, 20.0, {10, 20, 10, 10, 11, 19, 20, 20});
+    clamp_test<ctype>(type, sshape, sshape, input, 10.0, pinf, {10, max, 10, 10, 11, 19, 20, 21});
+    clamp_test<ctype>(type, sshape, sshape, input, ninf, 20.0, {min, 20, 9, 10, 11, 19, 20, 20});
 
     // dynamic shape
-    EXPECT_TRUE((clamp_test<ctype, test::TestCaseType::DYNAMIC>(
-        type, dshape, sshape, input, 10.0, 20.0, {10, 20, 10, 10, 11, 19, 20, 20})));
-    EXPECT_TRUE((clamp_test<ctype, test::TestCaseType::DYNAMIC>(
-        type, dshape, sshape, input, 10.0, pinf, {10, max, 10, 10, 11, 19, 20, 21})));
-    EXPECT_TRUE((clamp_test<ctype, test::TestCaseType::DYNAMIC>(
-        type, dshape, sshape, input, ninf, 20.0, {min, 20, 9, 10, 11, 19, 20, 20})));
+    clamp_test<ctype, test::TestCaseType::DYNAMIC>(
+        type, dshape, sshape, input, 10.0, 20.0, {10, 20, 10, 10, 11, 19, 20, 20});
+    clamp_test<ctype, test::TestCaseType::DYNAMIC>(
+        type, dshape, sshape, input, 10.0, pinf, {10, max, 10, 10, 11, 19, 20, 21});
+    clamp_test<ctype, test::TestCaseType::DYNAMIC>(
+        type, dshape, sshape, input, ninf, 20.0, {min, 20, 9, 10, 11, 19, 20, 20});
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, fused_clamp_float16)
@@ -1636,77 +1606,74 @@ NGRAPH_TEST(${BACKEND_NAME}, fused_clamp_float16)
     vector<ctype> input{min, max, ninf, pinf, 9.99999, 10.0, 10.000001, 19.999999, 20.0, 20.000001};
 
     // static shape
-    EXPECT_TRUE(clamp_test<ctype>(type,
-                                  sshape,
-                                  sshape,
-                                  {-0.1, 0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8},
-                                  0.2,
-                                  0.6,
-                                  {0.2, 0.2, 0.2, 0.2, 0.3, 0.4, 0.5, 0.6, 0.6, 0.6}));
+    clamp_test<ctype>(type,
+                      sshape,
+                      sshape,
+                      {-0.1, 0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8},
+                      0.2,
+                      0.6,
+                      {0.2, 0.2, 0.2, 0.2, 0.3, 0.4, 0.5, 0.6, 0.6, 0.6});
 
-    EXPECT_TRUE(
-        clamp_test<ctype>(type,
-                          sshape,
-                          sshape,
-                          input,
-                          10.0,
-                          20.0,
-                          {10.0, 20.0, 10.0, 20.0, 10.0, 10.0, 10.000001, 19.999999, 20.0, 20.0}));
+    clamp_test<ctype>(type,
+                      sshape,
+                      sshape,
+                      input,
+                      10.0,
+                      20.0,
+                      {10.0, 20.0, 10.0, 20.0, 10.0, 10.0, 10.000001, 19.999999, 20.0, 20.0});
 
-    EXPECT_TRUE(clamp_test<ctype>(
-        type,
-        sshape,
-        sshape,
-        input,
-        10.0,
-        pinf,
-        {10.0, max, 10.0, pinf, 10.0, 10.0, 10.000001, 19.999999, 20.0, 20.000001}));
+    clamp_test<ctype>(type,
+                      sshape,
+                      sshape,
+                      input,
+                      10.0,
+                      pinf,
+                      {10.0, max, 10.0, pinf, 10.0, 10.0, 10.000001, 19.999999, 20.0, 20.000001});
 
-    EXPECT_TRUE(clamp_test<ctype>(
-        type,
-        sshape,
-        sshape,
-        input,
-        ninf,
-        20.0,
-        {min, 20.0, ninf, 20.0, 9.99999, 10.0, 10.000001, 19.999999, 20.0, 20.0}));
+    clamp_test<ctype>(type,
+                      sshape,
+                      sshape,
+                      input,
+                      ninf,
+                      20.0,
+                      {min, 20.0, ninf, 20.0, 9.99999, 10.0, 10.000001, 19.999999, 20.0, 20.0});
 
     // dynamic shape
-    EXPECT_TRUE((clamp_test<ctype, test::TestCaseType::DYNAMIC>(
+    clamp_test<ctype, test::TestCaseType::DYNAMIC>(
         type,
         dshape,
         sshape,
         {-0.1, 0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8},
         0.2,
         0.6,
-        {0.2, 0.2, 0.2, 0.2, 0.3, 0.4, 0.5, 0.6, 0.6, 0.6})));
+        {0.2, 0.2, 0.2, 0.2, 0.3, 0.4, 0.5, 0.6, 0.6, 0.6});
 
-    EXPECT_TRUE((clamp_test<ctype, test::TestCaseType::DYNAMIC>(
+    clamp_test<ctype, test::TestCaseType::DYNAMIC>(
         type,
         dshape,
         sshape,
         input,
         10.0,
         20.0,
-        {10.0, 20.0, 10.0, 20.0, 10.0, 10.0, 10.000001, 19.999999, 20.0, 20.0})));
+        {10.0, 20.0, 10.0, 20.0, 10.0, 10.0, 10.000001, 19.999999, 20.0, 20.0});
 
-    EXPECT_TRUE((clamp_test<ctype, test::TestCaseType::DYNAMIC>(
+    clamp_test<ctype, test::TestCaseType::DYNAMIC>(
         type,
         dshape,
         sshape,
         input,
         10.0,
         pinf,
-        {10.0, max, 10.0, pinf, 10.0, 10.0, 10.000001, 19.999999, 20.0, 20.000001})));
+        {10.0, max, 10.0, pinf, 10.0, 10.0, 10.000001, 19.999999, 20.0, 20.000001});
 
-    EXPECT_TRUE((clamp_test<ctype, test::TestCaseType::DYNAMIC>(
+    clamp_test<ctype, test::TestCaseType::DYNAMIC>(
         type,
         dshape,
         sshape,
         input,
         ninf,
         20.0,
-        {min, 20.0, ninf, 20.0, 9.99999, 10.0, 10.000001, 19.999999, 20.0, 20.0})));
+        {min, 20.0, ninf, 20.0, 9.99999, 10.0, 10.000001, 19.999999, 20.0, 20.0});
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, fused_clamp_bfloat16)
@@ -1725,77 +1692,74 @@ NGRAPH_TEST(${BACKEND_NAME}, fused_clamp_bfloat16)
     vector<ctype> input{min, max, ninf, pinf, 9.99999, 10.0, 10.000001, 19.999999, 20.0, 20.000001};
 
     // static shape
-    EXPECT_TRUE(clamp_test<ctype>(type,
-                                  sshape,
-                                  sshape,
-                                  {-0.1, 0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8},
-                                  0.2,
-                                  0.6,
-                                  {0.2, 0.2, 0.2, 0.2, 0.3, 0.4, 0.5, 0.6, 0.6, 0.6}));
+    clamp_test<ctype>(type,
+                      sshape,
+                      sshape,
+                      {-0.1, 0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8},
+                      0.2,
+                      0.6,
+                      {0.2, 0.2, 0.2, 0.2, 0.3, 0.4, 0.5, 0.6, 0.6, 0.6});
 
-    EXPECT_TRUE(
-        clamp_test<ctype>(type,
-                          sshape,
-                          sshape,
-                          input,
-                          10.0,
-                          20.0,
-                          {10.0, 20.0, 10.0, 20.0, 10.0, 10.0, 10.000001, 19.999999, 20.0, 20.0}));
+    clamp_test<ctype>(type,
+                      sshape,
+                      sshape,
+                      input,
+                      10.0,
+                      20.0,
+                      {10.0, 20.0, 10.0, 20.0, 10.0, 10.0, 10.000001, 19.999999, 20.0, 20.0});
 
-    EXPECT_TRUE(clamp_test<ctype>(
-        type,
-        sshape,
-        sshape,
-        input,
-        10.0,
-        pinf,
-        {10.0, max, 10.0, pinf, 10.0, 10.0, 10.000001, 19.999999, 20.0, 20.000001}));
+    clamp_test<ctype>(type,
+                      sshape,
+                      sshape,
+                      input,
+                      10.0,
+                      pinf,
+                      {10.0, max, 10.0, pinf, 10.0, 10.0, 10.000001, 19.999999, 20.0, 20.000001});
 
-    EXPECT_TRUE(clamp_test<ctype>(
-        type,
-        sshape,
-        sshape,
-        input,
-        ninf,
-        20.0,
-        {min, 20.0, ninf, 20.0, 9.99999, 10.0, 10.000001, 19.999999, 20.0, 20.0}));
+    clamp_test<ctype>(type,
+                      sshape,
+                      sshape,
+                      input,
+                      ninf,
+                      20.0,
+                      {min, 20.0, ninf, 20.0, 9.99999, 10.0, 10.000001, 19.999999, 20.0, 20.0});
 
     // dynamic shape
-    EXPECT_TRUE((clamp_test<ctype, test::TestCaseType::DYNAMIC>(
+    clamp_test<ctype, test::TestCaseType::DYNAMIC>(
         type,
         dshape,
         sshape,
         {-0.1, 0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8},
         0.2,
         0.6,
-        {0.2, 0.2, 0.2, 0.2, 0.3, 0.4, 0.5, 0.6, 0.6, 0.6})));
+        {0.2, 0.2, 0.2, 0.2, 0.3, 0.4, 0.5, 0.6, 0.6, 0.6});
 
-    EXPECT_TRUE((clamp_test<ctype, test::TestCaseType::DYNAMIC>(
+    clamp_test<ctype, test::TestCaseType::DYNAMIC>(
         type,
         dshape,
         sshape,
         input,
         10.0,
         20.0,
-        {10.0, 20.0, 10.0, 20.0, 10.0, 10.0, 10.000001, 19.999999, 20.0, 20.0})));
+        {10.0, 20.0, 10.0, 20.0, 10.0, 10.0, 10.000001, 19.999999, 20.0, 20.0});
 
-    EXPECT_TRUE((clamp_test<ctype, test::TestCaseType::DYNAMIC>(
+    clamp_test<ctype, test::TestCaseType::DYNAMIC>(
         type,
         dshape,
         sshape,
         input,
         10.0,
         pinf,
-        {10.0, max, 10.0, pinf, 10.0, 10.0, 10.000001, 19.999999, 20.0, 20.000001})));
+        {10.0, max, 10.0, pinf, 10.0, 10.0, 10.000001, 19.999999, 20.0, 20.000001});
 
-    EXPECT_TRUE((clamp_test<ctype, test::TestCaseType::DYNAMIC>(
+    clamp_test<ctype, test::TestCaseType::DYNAMIC>(
         type,
         dshape,
         sshape,
         input,
         ninf,
         20.0,
-        {min, 20.0, ninf, 20.0, 9.99999, 10.0, 10.000001, 19.999999, 20.0, 20.0})));
+        {min, 20.0, ninf, 20.0, 9.99999, 10.0, 10.000001, 19.999999, 20.0, 20.0});
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, mvn_mean_normalization)
