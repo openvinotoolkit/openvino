@@ -52,9 +52,7 @@ void setInputNetworkPrecision(InferenceEngine::CNNNetwork &network, InferenceEng
                               InferenceEngine::Precision input_precision) {
     inputs_info = network.getInputsInfo();
     ASSERT_EQ(1u, inputs_info.size());
-    auto a = inputs_info.begin()->second->getPrecision();
     inputs_info.begin()->second->setPrecision(input_precision);
-    auto b = inputs_info.begin()->second->getPrecision();
 }
 
 void setOutputNetworkPrecision(InferenceEngine::CNNNetwork &network, InferenceEngine::OutputsDataMap &outputs_info,
@@ -94,7 +92,7 @@ TEST_P(BehaviorTests, pluginDoesNotChangeOriginalNetwork) {
     ASSERT_NO_THROW(ie->LoadNetwork(cnnNet, targetDevice, configuration));
     cnnNet.serialize(name_b);
 
-    ASSERT_NO_THROW(compare_two_files_lexicographically(name_a, name_b));
+    compare_two_files_lexicographically(name_a, name_b);
     EXPECT_EQ(0, std::remove(name_a.c_str()));
     EXPECT_EQ(0, std::remove(name_b.c_str()));
 }
