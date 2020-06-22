@@ -84,7 +84,7 @@ void remove_redundant_reorders::run(program_impl& p) {
 
             auto output_padded = static_cast<bool>(output_layout.data_padding);
             auto can_omit_padding = (output_layout.format == format::b_fs_yx_fsv16 || output_layout.format == format::b_fs_yx_fsv32) &&
-                                    input.get_output_layout().format == format::bfyx;
+                                    (input.get_output_layout().format == format::bfyx || input.get_output_layout().format == format::b_fs_yx_fsv4);
 
             if (output_padded && !can_omit_padding) {
                 if (input.get_users().size() != 1)
