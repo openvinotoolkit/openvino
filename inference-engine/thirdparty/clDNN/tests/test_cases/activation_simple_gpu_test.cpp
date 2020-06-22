@@ -1369,3 +1369,52 @@ TEST(activation_i32_fw_gpu, basic_yxfb_i32_funcs)
         }
     }
 }
+
+TEST(activation_f32_fw_gpu, b_fs_yx_fsv16_prelu) {
+    constexpr int b = 1;
+    constexpr int f = 17;
+    constexpr int x = 2;
+    constexpr int y = 2;
+
+    auto eng = get_test_engine();
+
+    auto in_lay = cldnn::layout(cldnn::data_types::f32, cldnn::format::bfyx, cldnn::tensor(b, f, x, y));
+    auto params_lay = cldnn::layout(cldnn::data_types::f32, cldnn::format::bfyx, cldnn::tensor(1, f, 1, 1));
+
+    auto in_mem = cldnn::memory::allocate(eng, in_lay);
+    auto params_mem = cldnn::memory::allocate(eng, params_lay);
+
+    auto in_data = generate_random_4d<float>(b, f, y, x, -1, 1);
+    auto params_data = generate_random_1d<float>(f, -1, 1);
+
+    set_values(params_mem, params_data);
+
+    auto topo = cldnn::topology(
+        cldnn::input_layout("in", in_lay),
+        cldnn::reorder("in_fsv16", "in", cldnn::format::b_fs_yx_fsv16, cldnn::data_types::f32),
+        cldnn::data("actv_params", params_mem),
+        cldnn::activation("actv", "in_fsv16", "actv_params", cldnn::activation_func::relu_negative_slope),
+        cldnn::reorder("out", "actv", cldnn::format::bfyx, cldnn::data_types::f32)
+    );
+
+    auto net = cldnn::network(eng, topo);
+    set_values(in_mem, flatten_4d(format::bfyx, in_data));
+    net.set_input_data("in", in_mem);
+
+    auto result = net.execute();
+    auto out_mem = result.at("out").get_memory();
+
+    std::vector<float> expected = flatten_4d(format::bfyx, in_data);
+    for (size_t i = 0; i < expected.size(); ++i) {
+        if (expected[i] < 0.f) {
+            expected[i] = expected[i] * params_data[i / (x * y) % f];
+        }
+    }
+
+    auto out_ptr = out_mem.pointer<float>();
+    ASSERT_EQ(expected.size(), out_ptr.size());
+
+    for (size_t i = 0; i < expected.size(); ++i) {
+        EXPECT_EQ(expected[i], out_ptr[i]) << "at i=" << i;
+    }
+}
