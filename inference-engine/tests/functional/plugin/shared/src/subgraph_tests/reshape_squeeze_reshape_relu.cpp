@@ -13,7 +13,7 @@
 
 namespace LayerTestsDefinitions {
     std::string ReshapeSqueezeReshapeRelu::getTestCaseName(const testing::TestParamInfo<ReshapeSqueezeReshapeReluTuple> &obj) {
-        SqueezeShape squeezeShape;
+        ShapeAxesTuple squeezeShape;
         InferenceEngine::Precision netPrecision;
         std::string targetName;
         bool is_squeeze;
@@ -29,7 +29,7 @@ namespace LayerTestsDefinitions {
     }
 
     void ReshapeSqueezeReshapeRelu::SetUp() {
-        SqueezeShape squeezeShape;
+        ShapeAxesTuple squeezeShape;
         InferenceEngine::Precision netPrecision;
         ngraph::helpers::SqueezeOpType opType;
         std::tie(squeezeShape, netPrecision, targetDevice, opType) = this->GetParam();
@@ -41,7 +41,7 @@ namespace LayerTestsDefinitions {
                                                                        ngraph::Shape{squeezeShape.first.size()},
                                                                        squeezeShape.first);
         auto reshape1 = std::make_shared<ngraph::op::v1::Reshape>(input[0], reshape1_pattern, false);
-        auto squeeze = ngraph::builder::makeSqueeze(reshape1, ngPrc, squeezeShape.second, opType);
+        auto squeeze = ngraph::builder::makeSqueezeUnsqueeze(reshape1, ngPrc, squeezeShape.second, opType);
         auto reshape2_pattern = std::make_shared<ngraph::op::Constant>(ngraph::element::i64,
                                                                        ngraph::Shape{2},
                                                                        std::vector<size_t>{1, input_dim});

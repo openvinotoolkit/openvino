@@ -7,7 +7,7 @@
 using namespace LayerTestsDefinitions;
 
 namespace {
-    std::vector<SqueezeShape> inputs_squeeze {
+    std::vector<ShapeAxesTuple> inputs_squeeze {
             {{1, 1, 3}, {0, 1}},
             {{1, 1, 3}, {1}},
             {{1, 3, 1}, {0, 2}},
@@ -18,7 +18,7 @@ namespace {
             {{1}, {0}},
     };
 
-    std::vector<SqueezeShape> inputs_unsqueeze{
+    std::vector<ShapeAxesTuple> inputs_unsqueeze{
             {{1}, {0}},
             {{1}, {0, 1}},
             {{1}, {0, 1, 2}},

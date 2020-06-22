@@ -527,7 +527,7 @@ std::ostream& operator<<(std::ostream & os, ngraph::helpers::EltwiseTypes type) 
             os << "Sum";
             break;
         default:
-            std::runtime_error("NOT_SUPPORTED_OP_TYPE");
+            throw std::runtime_error("NOT_SUPPORTED_OP_TYPE");
     }
     return os;
 }
@@ -541,7 +541,7 @@ std::ostream& operator<<(std::ostream & os, ngraph::helpers::SqueezeOpType type)
             os << "Unsqueeze";
             break;
         default:
-            std::runtime_error("NOT_SUPPORTED_OP_TYPE");
+            throw std::runtime_error("NOT_SUPPORTED_OP_TYPE");
     }
     return os;
 }

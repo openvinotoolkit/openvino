@@ -11,10 +11,10 @@
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
 
 namespace LayerTestsDefinitions {
-using SqueezeShape = std::pair<std::vector<size_t>, std::vector<int>>;
+using ShapeAxesTuple = std::pair<std::vector<size_t>, std::vector<int>>;
 
 using ReshapeSqueezeReshapeReluTuple = typename std::tuple<
-    SqueezeShape,                     // Input shapes & squeeze_indices
+    ShapeAxesTuple,                     // Input shapes & squeeze_indices
     InferenceEngine::Precision,       // Network precision
     std::string,                      // Device name
     ngraph::helpers::SqueezeOpType    // SqueezeOpType

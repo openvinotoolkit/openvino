@@ -152,11 +152,10 @@ std::shared_ptr<ngraph::Node> makeMVN(const ngraph::Output<Node> &in,
                                       bool normalizeVariance,
                                       double eps);
 
-std::shared_ptr<ngraph::Node> makeSqueeze(const ngraph::Output<Node> &in,
-                                          const element::Type &type,
-                                          const std::vector<int> &squeeze_indices,
-                                          ngraph::helpers::SqueezeOpType opType,
-                                          bool isScalar = false);
+std::shared_ptr<ngraph::Node> makeSqueezeUnsqueeze(const ngraph::Output<Node> &in,
+                                                   const element::Type &type,
+                                                   const std::vector<int> &squeeze_indices,
+                                                   ngraph::helpers::SqueezeOpType opType);
 
 std::shared_ptr<ngraph::Node> makeProposal(const ngraph::Output<Node> &class_probs,
                                            const ngraph::Output<Node> &class_logits,

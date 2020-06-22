@@ -4,7 +4,7 @@
 
 #include <vector>
 
-#include "single_layer_tests/squeeze.hpp"
+#include "single_layer_tests/squeeze_unsqueeze.hpp"
 #include "common_test_utils/test_constants.hpp"
 
 using namespace LayerTestsDefinitions;
@@ -29,12 +29,11 @@ const std::vector<ngraph::helpers::SqueezeOpType> opTypes = {
         ngraph::helpers::SqueezeOpType::UNSQUEEZE
 };
 
-INSTANTIATE_TEST_CASE_P(Basic, SqueezeLayerTest,
+INSTANTIATE_TEST_CASE_P(Basic, SqueezeUnsqueezeLayerTest,
                         ::testing::Combine(
-                                ::testing::ValuesIn(SqueezeLayerTest::combineShapes(axesVectors)),
+                                ::testing::ValuesIn(SqueezeUnsqueezeLayerTest::combineShapes(axesVectors)),
                                 ::testing::ValuesIn(opTypes),
                                 ::testing::ValuesIn(netPrecisions),
-                                ::testing::Values(CommonTestUtils::DEVICE_CPU),
-                                ::testing::ValuesIn(std::vector<bool>{false, true})),
-                        SqueezeLayerTest::getTestCaseName);
+                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                        SqueezeUnsqueezeLayerTest::getTestCaseName);
 }  // namespace
