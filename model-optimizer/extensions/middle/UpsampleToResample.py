@@ -138,8 +138,7 @@ class UpsampleToResample(MiddleReplacementPattern):
         rename_nodes([(upsample, upsample_name + '/delete_'), (resample_op, upsample_name)])
 
         convert_to_float = Cast(graph, dict(dst_type=np.float32)).create_node()
-        int_np_type = np.int64 if graph.graph['cmd_params'].generate_experimental_IR_V10 else np.int32
-        convert_to_int = Cast(graph, dict(dst_type=int_np_type)).create_node()
+        convert_to_int = Cast(graph, dict(dst_type=np.int64)).create_node()
 
         mul.in_port(0).get_connection().insert_node(convert_to_float)
         mul.out_port(0).get_connection().insert_node(convert_to_int)
