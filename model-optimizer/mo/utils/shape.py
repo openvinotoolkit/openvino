@@ -187,7 +187,10 @@ def new_shape_node_from_shape_nodes(input_shape_nodes: list):
     :return: the node producing concatenated values of nodes from the "input_shape_nodes"
     """
     assert len(input_shape_nodes) > 0, 'The list of input shape nodes should be non-empty'
-    new_shape_node = Concat(input_shape_nodes[0].graph, {'axis': 0}).create_node()
+    new_shape_node = Concat(input_shape_nodes[0].graph,
+                            {'axis': 0,
+                             'name': input_shape_nodes[0].soft_get('name', input_shape_nodes[0].id) + '/shapes_concat'}
+                            ).create_node()
 
     for ind, input_node in enumerate(input_shape_nodes):
         new_shape_node.add_input_port(ind)

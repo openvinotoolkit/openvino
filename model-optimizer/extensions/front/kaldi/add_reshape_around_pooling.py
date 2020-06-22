@@ -78,12 +78,12 @@ class ReplacePoolingReshape(FrontReplacementPattern):
         concat.in_port(3).connect(mul.out_port(0))
         concat.in_port(1).connect(node_pool_stride.out_port(0))
 
-        reshape_in = Reshape(graph, {'name': '/Reshape/' + node_name}).create_node()
+        reshape_in = Reshape(graph, {'name': node_name + '/reshape_in'}).create_node()
         reshape_in.in_port(1).connect(concat.out_port(0))
 
         # create Reshape after Convolution
         reshape_out = create_op_node_with_second_input(graph, Reshape, int64_array([0, -1]),
-                                                       {'name': node_name + '/Reshape/'})
+                                                       {'name': node_name + '/reshape_out'})
 
         # connect input_reshape_node
         source = node.in_port(0).get_source()

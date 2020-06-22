@@ -73,7 +73,6 @@ class FlattenONNXToReshape(FrontReplacementSubgraph):
             order_of_dims = [first_dims, second_dims] if axis > 0 else [second_dims, first_dims]
 
             dim = new_shape_node_from_shape_nodes(order_of_dims)
-            dim.name = reshape_node.name + '/shape'
 
         reshape_node.in_port(1).connect(dim.out_port(0))
 

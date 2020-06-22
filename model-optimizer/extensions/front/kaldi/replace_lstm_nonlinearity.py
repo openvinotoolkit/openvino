@@ -40,8 +40,9 @@ class ReplaceLstmNonLinearityPattern(FrontReplacementOp):
 
     def replace_op(self, graph: Graph, node: Node):
         # split input to (i_part, f_part, c_part, o_part, ct_1)
-        split_node = create_op_with_const_inputs(graph, Split, {1: np.int64(1)}, {'name': 'Split_lstm_input_',
-                                   'num_splits': 5})
+        split_node = create_op_with_const_inputs(graph, Split, {1: np.int64(1)},
+                                                 {'name': node.soft_get('name', node.id) + '/split_lstm_input',
+                                                  'num_splits': 5})
         node.in_port(0).get_connection().set_destination(split_node.in_port(0))
 
         # i_t = Sigmoid(i_part + w_ic*ct_1)

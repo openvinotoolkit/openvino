@@ -27,8 +27,8 @@ class GatherFrontReplacer(FrontReplacementOp):
     def replace_sub_graph(self, graph: Graph, match: dict):
         node = match['op']
 
-        gather_node = create_op_with_const_inputs(graph, Gather, {2: int64_array(0)}, {'name': node.id + '/embedding_',
-                                         'symbol_dict': {'name': node.id + '/embedding_'}})
+        gather_node = create_op_with_const_inputs(graph, Gather, {2: int64_array(0)},
+                                                  {'name': node.soft_get('name', node.id) + '/embedding_'})
 
         node.in_port(0).get_connection().set_destination(gather_node.in_port(1))
         node.in_port(1).get_connection().set_destination(gather_node.in_port(0))
