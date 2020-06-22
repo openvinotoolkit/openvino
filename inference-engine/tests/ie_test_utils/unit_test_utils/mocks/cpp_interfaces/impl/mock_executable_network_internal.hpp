@@ -8,7 +8,6 @@
 #include <string>
 #include <vector>
 
-#include "ie_plugin.hpp"
 #include "ie_input_info.hpp"
 #include "ie_icnn_network.hpp"
 #include "ie_iexecutable_network.hpp"

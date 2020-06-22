@@ -15,11 +15,7 @@ void FrontEnd::parseDSR(const Model& model, const ie::CNNLayerPtr& layer, const 
 
     VPU_THROW_UNLESS(outputs.size() == 1, "Parsing layer {} of type {} failed: got {} outputs, while {} were expected",
          layer->name, layer->type, outputs.size(), 1);
-    const auto& dataOutput = outputs[0];
-
-    const auto dataProducerEdge = data->producerEdge();
-    VPU_THROW_UNLESS(dataProducerEdge != nullptr, "Parsing layer {} of type {} failed: input with index {} (of name {}) must have a producer",
-        layer->name, layer->type, 0, data->name());
+    auto dataOutput = outputs[0];
 
     const auto ngraphNode = layer->getNode();
     VPU_THROW_UNLESS(!ngraphNode || ngraphNode->get_input_source_output(0).get_target_inputs().size() == 1,
@@ -46,25 +42,55 @@ void FrontEnd::parseDSR(const Model& model, const ie::CNNLayerPtr& layer, const 
         "input with index {} (of name {}), actual {} and {} respectively",
         layer->name, layer->type, 0, shape->name(), 1, data->name(), shape->desc().totalDimSize(), data->desc().numDims());
 
+    const auto dataProducerEdge = data->producerEdge();
     const auto shapeProducerEdge = shape->producerEdge();
-    VPU_THROW_UNLESS(shapeProducerEdge != nullptr, "Parsing layer {} of type {} failed: input with index {} (of name {}) must have a producer",
-        layer->name, layer->type, 1, shape->name());
 
-    if (auto dataToShapeEdge = data->parentDataToShapeEdge()) {
-        const auto& parent = dataToShapeEdge->parent();
-        VPU_THROW_UNLESS(parent == shape, "Myriad plugin encountered layer of type \"{}\" and name \"{}\" with input #{} (data input with name \"{}\") that "
-            "already has parent in terms of data to shape connection. The parent is expected to be input #{} (shape input with name \"{}\") of the layer, so "
-            "it's a \"{}\" with already connected inputs, but actual parent is other data object with name \"{}\". The case of connected inputs is considered "
-            "as \"{}\" that goes directly to \"{}\" as a result of some optimization (operation between them has been optimized out). Other cases, when some "
-            "input already has a connection, but with other data object are prohibited.",
-            layer->type, layer->name, 0, data->name(), 1, shape->name(), layer->type, parent->name(), layer->type, layer->type);
-        model->disconnectDatas(dataToShapeEdge);
+    if (dataProducerEdge == nullptr) {
+        VPU_THROW_UNLESS(data->usage() == DataUsage::Input,
+            "Parsing layer {} of type {} failed: if input with index {} (of name {}) has not a producer, it must have Input "
+            "data usage, actual: {}", layer->name, layer->type, 0, data->name(), data->usage());
+        const auto& origData = dataOutput->origData();
+        VPU_THROW_UNLESS(origData != nullptr,
+            "Parsing layer {} of type {} failed: output data {} must have original IE data",
+            layer->name, layer->type, 0, dataOutput->name());
+
+        bindData(data, origData);
+        model->removeUnusedData(dataOutput);
+        dataOutput = data;
+    } else {
+        VPU_THROW_UNLESS(data->usage() == DataUsage::Intermediate,
+            "Parsing layer {} of type {} failed: if input with index {} (of name {}) has a producer, it must have Intermediate "
+            "data usage, actual: ", layer->name, layer->type, 0, data->name(), data->usage());
+
+        if (auto dataToShapeEdge = data->parentDataToShapeEdge()) {
+            const auto& parent = dataToShapeEdge->parent();
+            VPU_THROW_UNLESS(parent == shape,
+                "Myriad plugin encountered layer of type \"{}\" and name \"{}\" with input #{} (data input with name \"{}\") that "
+                "already has parent in terms of data to shape connection. The parent is expected to be input #{} (shape input with "
+                "name \"{}\") of the layer, so it's a \"{}\" with already connected inputs, but actual parent is other data object "
+                "with name \"{}\". The case of connected inputs is considered as \"{}\" that goes directly to \"{}\" as a result of "
+                "some optimization (operation between them has been optimized out). Other cases, when some input already has a "
+                "connection, but with other data object are prohibited.",
+                layer->type, layer->name, 0, data->name(), 1, shape->name(),
+                layer->type, parent->name(), layer->type, layer->type);
+            model->disconnectDatas(dataToShapeEdge);
+        }
+        model->replaceStageOutput(dataProducerEdge, dataOutput);
+        model->removeUnusedData(data);
     }
-    model->replaceStageOutput(dataProducerEdge, dataOutput);
-    model->removeUnusedData(data);
 
+    if (shapeProducerEdge == nullptr) {
+        VPU_THROW_UNLESS(shape->usage() == DataUsage::Input,
+            "Parsing layer {} of type {} failed: if input with index {} (of name {}) has not a producer, it must have Input "
+            "data usage, actual: {}", layer->name, layer->type, 1, shape->name(), shape->usage());
+    } else {
+        VPU_THROW_UNLESS(shape->usage() == DataUsage::Intermediate,
+            "Parsing layer {} of type {} failed: if input with index {} (of name {}) has a producer, it must have Intermediate "
+            "data usage, actual: {}", layer->name, layer->type, 1, shape->name(), shape->usage());
+    }
+
+    auto shapeDataObject = shape;
     if (dataOutput->usage() == DataUsage::Output) {
-        // Create the second output with shape in case of dynamic output
         const auto& shapeOutput = model->addOutputData(dataOutput->name() + "@shape", shape->desc());
 
         bindData(shapeOutput, shape->origData());
@@ -75,13 +101,23 @@ void FrontEnd::parseDSR(const Model& model, const ie::CNNLayerPtr& layer, const 
         for (const auto& dataToShapeEdge : shape->childDataToShapeEdges()) {
             model->replaceDataToShapeParent(dataToShapeEdge, shapeOutput);
         }
-        model->replaceStageOutput(shapeProducerEdge, shapeOutput);
-        model->removeUnusedData(shape);
 
-        model->connectDataWithShape(shapeOutput, dataOutput);
-    } else {
-        model->connectDataWithShape(shape, dataOutput);
+        if (!shapeProducerEdge) {
+            _stageBuilder->addCopyStage(
+                    model,
+                    layer->name + "@copy-for-dynamic-output",
+                    layer,
+                    shape,
+                    shapeOutput,
+                    "DynamicShapeResolver");
+        } else {
+            model->replaceStageOutput(shapeProducerEdge, shapeOutput);
+            model->removeUnusedData(shape);
+        }
+
+        shapeDataObject = shapeOutput;
     }
+    model->connectDataWithShape(shapeDataObject, dataOutput);
 }
 
 }  // namespace vpu

@@ -16,6 +16,7 @@
 
 #pragma once
 
+#include "ngraph/attribute_adapter.hpp"
 #include "ngraph/op/op.hpp"
 #include "ngraph/op/util/attr_types.hpp"
 
@@ -176,6 +177,22 @@ namespace ngraph
         using v0::Interpolate;
     }
 
+    //---------------------------------------- v0 --------------------------------------------------
+
+    template <>
+    class NGRAPH_API AttributeAdapter<op::v0::InterpolateAttrs> : public VisitorAdapter
+    {
+    public:
+        AttributeAdapter(op::v0::InterpolateAttrs& ref);
+
+        virtual bool visit_attributes(AttributeVisitor& visitor) override;
+        static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::v0::InterpolateAttrs>",
+                                                    0};
+        const DiscreteTypeInfo& get_type_info() const override { return type_info; }
+    protected:
+        op::v0::InterpolateAttrs& m_ref;
+    };
+
     NGRAPH_API
     std::ostream& operator<<(std::ostream& s, const op::v0::Interpolate::InterpolateMode& type);
 
@@ -193,6 +210,8 @@ namespace ngraph
             "AttributeAdapter<op::v0::Interpolate::InterpolateMode>", 0};
         const DiscreteTypeInfo& get_type_info() const override { return type_info; }
     };
+
+    //---------------------------------------- v3 --------------------------------------------------
 
     NGRAPH_API
     std::ostream& operator<<(std::ostream& s, const op::v3::Interpolate::InterpolateMode& type);
@@ -247,5 +266,19 @@ namespace ngraph
         static constexpr DiscreteTypeInfo type_info{
             "AttributeAdapter<op::v3::Interpolate::NearestMode>", 3};
         const DiscreteTypeInfo& get_type_info() const override { return type_info; }
+    };
+
+    template <>
+    class NGRAPH_API AttributeAdapter<op::v3::Interpolate::InterpolateAttrs> : public VisitorAdapter
+    {
+    public:
+        AttributeAdapter(op::v3::Interpolate::InterpolateAttrs& ref);
+
+        virtual bool visit_attributes(AttributeVisitor& visitor) override;
+        static constexpr DiscreteTypeInfo type_info{
+            "AttributeAdapter<op::v3::Interpolate::InterpolateAttrs>", 3};
+        const DiscreteTypeInfo& get_type_info() const override { return type_info; }
+    protected:
+        op::v3::Interpolate::InterpolateAttrs& m_ref;
     };
 }

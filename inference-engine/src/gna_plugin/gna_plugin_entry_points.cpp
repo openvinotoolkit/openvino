@@ -3,7 +3,6 @@
 //
 
 #include <memory>
-#include <ie_plugin.hpp>
 #include <cpp_interfaces/base/ie_plugin_base.hpp>
 #include "gna_plugin_internal.hpp"
 

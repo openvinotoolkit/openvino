@@ -49,30 +49,6 @@ TEST(ExtensionTests, testGetPrimitiveTypes) {
     ASSERT_EQ(1, size);
 }
 
-TEST(ExtensionTests, testGetShapeInferTypes) {
-    IShapeInferExtensionPtr extension = make_so_pointer<IShapeInferExtension>(getExtensionPath());
-    ResponseDesc resp;
-    char **types;
-    unsigned int size(0);
-    ASSERT_EQ(OK, extension->getShapeInferTypes(types, size, &resp));
-    ASSERT_EQ(1, size);
-}
-
-TEST(ExtensionTests, testGetShapeInferImpl) {
-    IShapeInferExtensionPtr extension = make_so_pointer<IShapeInferExtension>(getExtensionPath());
-    IShapeInferImpl::Ptr impl;
-    ResponseDesc resp;
-    ASSERT_EQ(OK, extension->getShapeInferImpl(impl, "test", &resp));
-}
-
-TEST(ExtensionTests, testGetIncorrectShapeInferImpl) {
-    IShapeInferExtensionPtr extension = make_so_pointer<IShapeInferExtension>(getExtensionPath());
-    CNNLayer testLayer({"test1", "test", Precision::FP32});
-    IShapeInferImpl::Ptr impl;
-    ResponseDesc resp;
-    ASSERT_NE(OK, extension->getShapeInferImpl(impl, "test_incorrect", &resp));
-}
-
 TEST(ExtensionTests, testGetOpSets) {
     IExtensionPtr extension = make_so_pointer<IExtension>(getExtensionPath());
     auto opsets = extension->getOpSets();

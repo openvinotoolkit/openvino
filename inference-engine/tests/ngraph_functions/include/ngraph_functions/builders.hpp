@@ -51,6 +51,17 @@ std::shared_ptr<ngraph::Node> makeGroupConvolution(const ngraph::Output<Node> &i
                                                    const std::vector<float> &filterWeights = {},
                                                    const std::vector<float> &biasesWeights = {});
 
+std::shared_ptr<ngraph::Node> makeGroupConvolution(const ngraph::Output<Node> &in,
+                                                   const ngraph::Output<Node> &weights,
+                                                   const element::Type &type,
+                                                   const std::vector<size_t> &strides,
+                                                   const std::vector<ptrdiff_t> &padsBegin,
+                                                   const std::vector<ptrdiff_t> &padsEnd,
+                                                   const std::vector<size_t> &dilations,
+                                                   const op::PadType &autoPad,
+                                                   bool addBiases = false,
+                                                   const std::vector<float> &biasesWeights = {});
+
 std::shared_ptr<ngraph::Node> makeConvolutionBackpropData(const ngraph::Output<Node> &in,
                                                           const element::Type &type,
                                                           const std::vector<size_t> &filterSize,
@@ -248,6 +259,16 @@ std::shared_ptr<ngraph::Node> makeReduce(std::vector<ngraph::Output<Node>> &in,
                                          const std::vector<int> &reductionAxes,
                                          bool keepDims,
                                          ngraph::helpers::ReductionType reductionType);
+
+std::shared_ptr<Node> makePooling(const ngraph::Output<Node> &in,
+                                  const std::vector<size_t> &strides,
+                                  const std::vector<size_t> &padsBegin,
+                                  const std::vector<size_t> &padsEnd,
+                                  const std::vector<size_t> &kernel,
+                                  const op::RoundingType &roundingType,
+                                  const op::PadType &padType,
+                                  bool excludePad,
+                                  const ngraph::helpers::PoolingTypes &poolType);
 
 }  // namespace builder
 }  // namespace ngraph

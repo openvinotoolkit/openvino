@@ -18,7 +18,6 @@ import logging as log
 import numpy as np
 
 from extensions.back.ForceStrictPrecision import ForceStrictPrecision
-from extensions.back.ReduceToPooling import ReduceReplacer
 from mo.back.replacement import BackReplacementPattern
 from mo.front.common.partial_infer.utils import int64_array
 from mo.front.tf.graph_utils import create_op_node_with_second_input
@@ -34,9 +33,6 @@ class Reshape0DToSqueeze(BackReplacementPattern):
     enabled = True
     run_not_recursively = True
     force_shape_inference = True
-
-    def run_after(self):
-        return [ReduceReplacer]
 
     def run_before(self):
         return [ForceStrictPrecision]
