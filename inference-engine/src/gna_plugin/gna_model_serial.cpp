@@ -171,7 +171,7 @@ void GNAModelSerial::Import(void *basePointer,
         else
             operation->Parameters = nullptr;
         for (uint32_t i = 0; i < operation->NumberOfParameters; i++) {
-            uint32_t paramSize;
+            uint32_t paramSize = 0;
             readBits(paramSize, is);
             IE_ASSERT(operation->Parameters != nullptr);
             if (paramSize == 0) {
