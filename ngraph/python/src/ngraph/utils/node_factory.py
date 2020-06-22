@@ -43,10 +43,10 @@ class NodeFactory(object):
         all_attributes = node._get_attributes()
         for attr_name in all_attributes.keys():
             setattr(node,
-                    self._normalize_atr_name_getter(attr_name),
+                    self._normalize_attr_name_getter(attr_name),
                     partial(NodeFactory._get_node_attr_value, node, attr_name))
             setattr(node,
-                    self._normalize_atr_name_setter(attr_name),
+                    self._normalize_attr_name_setter(attr_name),
                     partial(NodeFactory._set_node_attr_value, node, attr_name))
 
         # Setup helper members for caching attribute values.
@@ -55,7 +55,7 @@ class NodeFactory(object):
 
         return node
 
-    def _normalize_atr_name_getter(self, attr_name: str) -> str:
+    def _normalize_attr_name_getter(self, attr_name: str) -> str:
         """Normalizes atr name to be suitable for getter function name.
 
         :param      attr_name:  The attribute name to normalize
