@@ -8,6 +8,9 @@
 #include <ios>
 #include <iomanip>
 #include <map>
+#include <ie_algorithm.hpp>
+#include <ie_common.h>
+#include <ie_precision.hpp>
 
 #if defined __INTEL_COMPILER || defined _MSC_VER
 #include <malloc.h>
@@ -119,10 +122,20 @@ const std::map<Gna2OperationType, std::vector<uint32_t>> GnaParamSize{
         sizeof(Gna2Shape),
         sizeof(Gna2Shape)}},
     {Gna2OperationTypeCopy, {sizeof(Gna2Shape)}},
+    {Gna2OperationTypeTransposition, {sizeof(Gna2Shape)}},
 };
 
-void GNAModelSerial::Import(void *basePointer, size_t gnaGraphSize, std::istream & is) {
+void GNAModelSerial::Import(void *basePointer,
+        size_t gnaGraphSize,
+        std::istream & is,
+        std::shared_ptr<GNAPluginNS::InputDesc> inputsDesc,
+        std::vector<GNAPluginNS::OutputDesc> &desc,
+        InferenceEngine::InputsDataMap& inputsDataMap,
+        InferenceEngine::OutputsDataMap& outputsDataMap) {
     is.exceptions(std::istream::failbit);
+
+    ImportInputs(is, basePointer, inputsDesc, inputsDataMap);
+    ImportOutputs(is, basePointer, desc, outputsDataMap);
 
     for (auto operation = gna2Model->Operations; operation != gna2Model->Operations + gna2Model->NumberOfOperations; ++operation) {
         readNBits<32>(operation->Type, is);
@@ -145,11 +158,10 @@ void GNAModelSerial::Import(void *basePointer, size_t gnaGraphSize, std::istream
         case Gna2OperationTypeFullyConnectedAffine:
         case Gna2OperationTypeConvolution:
         case Gna2OperationTypeCopy:
+        case Gna2OperationTypeTransposition:
             break;
         case Gna2OperationTypeRecurrent:
             THROW_GNA_EXCEPTION << "Importing of recurrent operation not supported";
-        case Gna2OperationTypeTransposition:
-            THROW_GNA_EXCEPTION << "Importing of transposition operation not supported";
         default:
             THROW_GNA_EXCEPTION << "Importing of unknown GNA operation type(" << operation->Type << ")  not supported";
         }
@@ -235,11 +247,12 @@ void GNAModelSerial::Export(void * basePointer, size_t gnaGraphSize, std::ostrea
     };
 
     auto convert_to_serial = [getOffsetFromBase](const GNAModelSerial::RuntimeEndPoint& ep) {
-        ModelHeader::EndPoint out;
+        RuntimeEndPoint out;
         out.elements_count = ep.elements_count;
         out.descriptor_offset = offsetFromBase(ep.descriptor_ptr);
         out.scaleFactor = ep.scaleFactor;
         out.element_size = ep.element_size;
+        out.orientation = ep.orientation;
         return out;
     };
     /**
@@ -256,14 +269,20 @@ void GNAModelSerial::Export(void * basePointer, size_t gnaGraphSize, std::ostrea
     header.gnaMemSize = gnaGraphSize;
     header.layersCount = layers.size();
     header.nGroup = guessGrouping(*gna2Model);
-    header.input = convert_to_serial(input);
-    header.output = convert_to_serial(output);
-
+    header.nInputs = inputs.size();
+    header.nOutputs = outputs.size();
     header.nRotateRows = nRotateRows;
     header.nRotateColumns = nRotateColumns;
 
 
     writeBits(header, os);
+
+    for (const auto &input : inputs) {
+        writeBits(convert_to_serial(input), os);
+    }
+    for (const auto &output : outputs) {
+        writeBits(convert_to_serial(output), os);
+    }
 
     for (const auto & layer : layers) {
         writeBits(static_cast<uint32_t>(layer.Type), os);
@@ -284,11 +303,10 @@ void GNAModelSerial::Export(void * basePointer, size_t gnaGraphSize, std::ostrea
         case Gna2OperationTypeFullyConnectedAffine:
         case Gna2OperationTypeConvolution:
         case Gna2OperationTypeCopy:
+        case Gna2OperationTypeTransposition:
             break;
         case Gna2OperationTypeRecurrent:
             THROW_GNA_EXCEPTION << "Exporting of recurrent operation not supported";
-        case Gna2OperationTypeTransposition:
-            THROW_GNA_EXCEPTION << "Exporting of interleave operation not supported";
         default:
             THROW_GNA_EXCEPTION << "Exporting of unknown GNA operation type(" << layer.Type << ")  not supported";
         }
@@ -314,8 +332,17 @@ void GNAModelSerial::Export(void * basePointer, size_t gnaGraphSize, std::ostrea
 }
 #else
 
-void GNAModelSerial::Import(void *basePointer, size_t gnaGraphSize, std::istream & is) {
+void GNAModelSerial::Import(void *basePointer,
+        size_t gnaGraphSize,
+        std::istream & is,
+        std::shared_ptr<GNAPluginNS::InputDesc> inputsDesc,
+        std::vector<GNAPluginNS::OutputDesc> &desc,
+        InferenceEngine::InputsDataMap& inputsDataMap,
+        InferenceEngine::OutputsDataMap& outputsDataMap) {
     is.exceptions(std::istream::failbit);
+
+    ImportInputs(is, basePointer, inputsDesc, inputsDataMap);
+    ImportOutputs(is, basePointer, desc, outputsDataMap);
 
     auto readPwl = [&is, basePointer](intel_pwl_func_t & value) {
         readBits(value.nSegments, is);
@@ -466,11 +493,12 @@ void GNAModelSerial::Export(void * basePointer, size_t gnaGraphSize, std::ostrea
     };
 
     auto convert_to_serial = [getOffsetFromBase](const GNAModelSerial::RuntimeEndPoint& ep){
-        ModelHeader::EndPoint out;
+        RuntimeEndPoint out;
         out.elements_count = ep.elements_count;
         out.element_size = ep.element_size;
         out.descriptor_offset = offsetFromBase(ep.descriptor_ptr);
         out.scaleFactor = ep.scaleFactor;
+        out.orientation = ep.orientation;
         return out;
     };
     /**
@@ -486,14 +514,16 @@ void GNAModelSerial::Export(void * basePointer, size_t gnaGraphSize, std::ostrea
     header.gnaMemSize = gnaGraphSize;
     header.layersCount = layers.size();
     header.nGroup = ptr_nnet->nGroup;
-    header.input  = convert_to_serial(input);
-    header.output = convert_to_serial(output);
+    header.nInputs = 1;
+    header.nOutputs = 1;
     header.headerSize = sizeof(ModelHeader);
     header.nRotateRows = nRotateRows;
     header.nRotateColumns = nRotateColumns;
 
 
     writeBits(header, os);
+    writeBits(convert_to_serial(inputs[0]), os);
+    writeBits(convert_to_serial(outputs[0]), os);
 
     for (auto & layer : layers) {
         writeBits(layer.nInputColumns, os);
@@ -572,3 +602,108 @@ void GNAModelSerial::Export(void * basePointer, size_t gnaGraphSize, std::ostrea
 }
 
 #endif
+
+std::vector<GNAModelSerial::RuntimeEndPoint> GNAModelSerial::serializeOutputs(const InferenceEngine::OutputsDataMap& outputsDataMap,
+        const std::vector<GNAPluginNS::OutputDesc>& outputsDesc) {
+    std::vector<GNAModelSerial::RuntimeEndPoint> endPoints;
+    std::size_t outputIndex = 0;
+    for (auto const &output : outputsDataMap) {
+        auto outputName = output.first;
+        auto inputDims = output.second->getTensorDesc().getDims();
+        uint32_t elementsCount = static_cast<uint32_t>(InferenceEngine::details::product(inputDims.begin(), inputDims.end()));
+
+        GNAModelSerial::RuntimeEndPoint endPoint(outputsDesc[outputIndex].scale_factor,
+                                                 outputsDesc[outputIndex].ptrs[0],
+                                                 outputsDesc[outputIndex].num_bytes_per_element,
+                                                 elementsCount,
+                                                 outputsDesc[outputIndex].orientation);
+        endPoints.push_back(endPoint);
+        outputIndex++;
+    }
+    return endPoints;
+}
+
+std::vector<GNAModelSerial::RuntimeEndPoint> GNAModelSerial::serializeInputs(const InferenceEngine::InputsDataMap& inputsDataMap,
+                                                                             std::shared_ptr<GNAPluginNS::InputDesc> inputDesc) {
+    std::vector<GNAModelSerial::RuntimeEndPoint> endPoints;
+
+    std::size_t inputIndex = 0;
+    for (auto const& input : inputsDataMap) {
+        auto inputName = input.first;
+        auto inputDims = input.second->getTensorDesc().getDims();
+
+        double scaleFactor = inputDesc->getScaleFactor(inputIndex);
+        std::vector<void *> descriptor_ptr = inputDesc->getPtrInputsGlobal(inputName);
+        IE_ASSERT(descriptor_ptr.size() > 0);
+        uint32_t element_size = 2u;
+        uint32_t elementsCount = static_cast<uint32_t>(InferenceEngine::details::product(inputDims.begin(), inputDims.end()));
+        intel_dnn_orientation_t orientation = inputDesc->getOrientation(inputName);
+
+        GNAModelSerial::RuntimeEndPoint endPoint(scaleFactor,
+                                                 descriptor_ptr[0],
+                                                 element_size,
+                                                 elementsCount,
+                                                 orientation);
+        endPoints.push_back(endPoint);
+        inputIndex++;
+    }
+    return endPoints;
+}
+
+void GNAModelSerial::ImportInputs(std::istream &is,
+        void* basePtr,
+        std::shared_ptr<GNAPluginNS::InputDesc> inputsDesc,
+        InferenceEngine::InputsDataMap& dataMap) {
+    dataMap.clear();
+
+    for (auto inputIndex = 0; inputIndex < modelHeader.nInputs; inputIndex++) {
+        std::string name = "input" + std::to_string(inputIndex);
+        RuntimeEndPoint input;
+        is.read(reinterpret_cast<char *>(&input), sizeof(input));
+        inputsDesc->getPtrInputsGlobal(name).push_back(reinterpret_cast<float*>(reinterpret_cast<uint8_t *> (basePtr) + input.descriptor_offset));
+        inputsDesc->orientation_in[name] = input.orientation;
+
+        auto inputDims = InferenceEngine::SizeVector({modelHeader.nGroup, input.elements_count / modelHeader.nGroup});
+
+        dataMap[name] = std::make_shared<InferenceEngine::InputInfo>();
+        dataMap[name]->setInputData(std::make_shared<InferenceEngine::Data>(name,
+                                                            InferenceEngine::TensorDesc(
+                                                                    InferenceEngine::Precision::FP32,
+                                                                    inputDims,
+                                                                    InferenceEngine::Layout::NC)));
+        inputsDesc->inputScaleFactors.push_back(input.scaleFactor);
+    }
+}
+
+void GNAModelSerial::ImportOutputs(std::istream &is,
+        void* basePtr,
+        std::vector<GNAPluginNS::OutputDesc> &desc,
+        InferenceEngine::OutputsDataMap& dataMap) {
+    desc.clear();
+    dataMap.clear();
+    desc.resize(modelHeader.nOutputs);
+
+    for (auto outputIndex = 0; outputIndex < modelHeader.nOutputs; outputIndex++) {
+        std::string name = "output" + std::to_string(outputIndex);
+        RuntimeEndPoint output;
+        is.read(reinterpret_cast<char *>(&output), sizeof(output));
+        GNAPluginNS::OutputDesc description;
+        description.ptrs.push_back(reinterpret_cast<float*>(reinterpret_cast<uint8_t *> (basePtr) + output.descriptor_offset));
+        description.orientation = kDnnInterleavedOrientation;
+        description.orientation = output.orientation;
+        description.num_bytes_per_element = output.element_size;
+        description.scale_factor = output.scaleFactor;
+
+        auto outputDims = InferenceEngine::SizeVector({modelHeader.nGroup, output.elements_count / modelHeader.nGroup});
+        dataMap[name] = std::make_shared<InferenceEngine::Data>(name,
+                                                 InferenceEngine::TensorDesc(
+                                                         InferenceEngine::Precision::FP32,
+                                                         outputDims,
+                                                         InferenceEngine::Layout::NC));
+        desc.at(outputIndex) = description;
+    }
+}
+
+void GNAModelSerial::setHeader(ModelHeader header) {
+    modelHeader = header;
+}
