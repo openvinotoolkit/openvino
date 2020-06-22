@@ -84,9 +84,11 @@ void BackEnd::getMetaData(
             stageMeta.layerName = "<Extra>";
             stageMeta.layerType = "<Extra>";
         } else {
-            stageMeta.layerName = stage->origLayer()->name;
-            stageMeta.layerType = stage->origLayer()->type;
-            visitedLayers.insert(stage->origLayer());
+            const auto& origLayer = stage->origLayer();
+            stageMeta.layerName = origLayer->params.count("originalLayersNames") ? origLayer->params["originalLayersNames"] :
+                                                                                   origLayer->name;
+            stageMeta.layerType = origLayer->type;
+            visitedLayers.insert(origLayer);
         }
 
         return stageMeta;
