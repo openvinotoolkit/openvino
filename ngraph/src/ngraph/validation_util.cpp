@@ -1067,7 +1067,6 @@ void ngraph::evaluate_nodes(std::map<RawNodeOutput, HostTensorPtr>& value_map,
                             std::map<RawNodeOutput, HostTensorPtr>& output_tensor_map,
                             const OutputVector& outputs)
 {
-    std::cout << "AA 169" << std::endl;
     Evaluator<HostTensorPtr> evaluator({}, value_map);
     evaluator.set_univeral_handler(
         [&output_tensor_map](Node* node,
@@ -1088,7 +1087,6 @@ void ngraph::evaluate_nodes(std::map<RawNodeOutput, HostTensorPtr>& value_map,
             }
             if (node->evaluate(output_tensors, input_tensors))
             {
-                std::cout << "AA 170" << std::endl;
                 return output_tensors;
             }
             else

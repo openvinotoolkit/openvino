@@ -274,7 +274,6 @@ bool try_evaluate_range(const HostTensorPtr& out,
 
 bool op::v0::Range::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
 {
-    std::cout << "AA 113" << std::endl;
     HostTensorPtr out = outputs[0];
     HostTensorPtr start = inputs[0];
     HostTensorPtr stop = inputs[1];

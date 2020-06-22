@@ -45,7 +45,6 @@ namespace
     template <element::Type_t ET>
     bool evaluate(const HostTensorPtr& arg0, const HostTensorPtr& out)
     {
-        std::cout << "AA 17" << std::endl;
         runtime::reference::asinh(
             arg0->get_data_ptr<ET>(), out->get_data_ptr<ET>(), shape_size(arg0->get_shape()));
         return true;
@@ -77,7 +76,6 @@ namespace
 
 bool op::v3::Asinh::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
 {
-    std::cout << "AA 18" << std::endl;
     return evaluate_asinh(inputs[0], outputs[0]);
 }
 #endif

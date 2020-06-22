@@ -71,7 +71,6 @@ namespace
                   const HostTensorPtr& out,
                   const op::AutoBroadcastSpec& broadcast_spec)
     {
-        std::cout << "AA 89" << std::endl;
         runtime::reference::minimum(arg0->get_data_ptr<ET>(),
                                     arg1->get_data_ptr<ET>(),
                                     out->get_data_ptr<ET>(),
@@ -110,7 +109,6 @@ namespace
 
 bool op::v0::Minimum::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
 {
-    std::cout << "AA 90" << std::endl;
     return evaluate_minimum(inputs[0], inputs[1], outputs[0], get_autob());
 }
 
@@ -152,6 +150,5 @@ void op::v1::Minimum::generate_adjoints(autodiff::Adjoints& adjoints, const Outp
 
 bool op::v1::Minimum::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
 {
-    std::cout << "AA 91" << std::endl;
     return evaluate_minimum(inputs[0], inputs[1], outputs[0], get_autob());
 }

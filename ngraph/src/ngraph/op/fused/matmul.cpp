@@ -177,7 +177,6 @@ namespace
                   bool transpose_a,
                   bool transpose_b)
     {
-        std::cout << "AA 54" << std::endl;
         using T = typename element_type_traits<ET>::value_type;
 
         Shape arg0_shape = arg0->get_shape();
@@ -229,6 +228,5 @@ namespace
 
 bool op::MatMul::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
 {
-    std::cout << "AA 55" << std::endl;
     return evaluate_matmul(inputs[0], inputs[1], outputs[0], get_transpose_a(), get_transpose_b());
 }

@@ -32,7 +32,6 @@ namespace
     template <element::Type_t ET, typename T>
     bool evaluate(const HostTensorPtr& arg, const HostTensorPtr& out, T min, T max, size_t count)
     {
-        std::cout << "AA 52" << std::endl;
         runtime::reference::clamp<T>(
             arg->get_data_ptr<ET>(), out->get_data_ptr<ET>(), min, max, count);
         return true;
@@ -87,7 +86,6 @@ namespace
 
 bool op::v0::Clamp::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
 {
-    std::cout << "AA 53" << std::endl;
     return evaluate_clamp(
         inputs[0], outputs[0], get_min(), get_max(), shape_size(get_input_shape(0)));
 }

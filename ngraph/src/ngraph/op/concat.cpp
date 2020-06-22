@@ -150,7 +150,6 @@ namespace
     inline bool
         evaluate(const HostTensorVector& args, const HostTensorPtr& out, int64_t concatenation_axis)
     {
-        std::cout << "AA 30" << std::endl;
         using T = typename element_type_traits<ET>::value_type;
         std::vector<const T*> arg_bufs;
         std::vector<Shape> arg_shapes;
@@ -196,7 +195,6 @@ namespace
 
 bool op::Concat::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
 {
-    std::cout << "AA 31" << std::endl;
     auto concat_axis = get_axis() < 0 ? get_axis() + inputs[0]->get_shape().size() : get_axis();
     return evaluate_concat(inputs, outputs[0], concat_axis);
 }

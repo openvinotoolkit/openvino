@@ -1107,7 +1107,6 @@ vector<Output<const Node>> Node::outputs() const
 
 bool Node::evaluate(const HostTensorVector& output_values, const HostTensorVector& input_values)
 {
-    std::cout << "AA 1" << std::endl;
     return false;
 }
 
@@ -1137,7 +1136,6 @@ bool Node::constant_fold(OutputVector& output_values, const OutputVector& input_
     }
     if (evaluate(output_tensors, input_tensors))
     {
-        std::cout << "AA 2" << std::endl;
         for (size_t i = 0; i < output_tensors.size(); ++i)
         {
             output_values[i] = make_shared<op::Constant>(output_tensors[i]);

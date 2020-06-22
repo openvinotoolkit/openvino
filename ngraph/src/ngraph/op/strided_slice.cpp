@@ -239,7 +239,6 @@ namespace
     inline bool evaluate(const HostTensorPtr& in, const SlicePlan& sp, const HostTensorPtr& out)
 
     {
-        std::cout << "AA 147" << std::endl;
         auto in_shape = in->get_shape();
         out->set_shape(sp.reshape_out_shape);
         runtime::reference::strided_slice(
@@ -295,7 +294,6 @@ namespace
 bool op::v1::StridedSlice::evaluate(const HostTensorVector& output_values,
                                     const HostTensorVector& input_values)
 {
-    std::cout << "AA 148" << std::endl;
     return evaluate_strided_slice(input_values[0],
                                   input_values[1],
                                   input_values[2],

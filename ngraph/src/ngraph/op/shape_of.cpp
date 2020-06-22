@@ -66,7 +66,6 @@ namespace
     template <element::Type_t ET>
     inline bool evaluate(const Shape& shape, const HostTensorPtr& output_value)
     {
-        std::cout << "AA 132" << std::endl;
         runtime::reference::shape_of(shape, output_value->get_data_ptr<ET>());
         return true;
     }
@@ -159,7 +158,6 @@ namespace
 bool op::v3::ShapeOf::evaluate(const HostTensorVector& output_values,
                                const HostTensorVector& input_values)
 {
-    std::cout << "AA 133" << std::endl;
     return evaluate_shape_of(output_values[0], input_values[0]);
 }
 
@@ -199,7 +197,6 @@ shared_ptr<Node> op::v0::ShapeOf::clone_with_new_inputs(const OutputVector& new_
 bool op::v0::ShapeOf::evaluate(const HostTensorVector& output_values,
                                const HostTensorVector& input_values)
 {
-    std::cout << "AA 134" << std::endl;
     return evaluate_shape_of(output_values[0], input_values[0]);
 }
 

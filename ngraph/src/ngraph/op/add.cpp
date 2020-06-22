@@ -74,7 +74,6 @@ namespace
                   const HostTensorPtr& out,
                   const op::AutoBroadcastSpec& broadcast_spec)
     {
-        std::cout << "AA 9" << std::endl;
         runtime::reference::add(arg0->get_data_ptr<ET>(),
                                 arg1->get_data_ptr<ET>(),
                                 out->get_data_ptr<ET>(),
@@ -123,7 +122,6 @@ namespace
 
 bool op::v0::Add::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
 {
-    std::cout << "AA 10" << std::endl;
     return evaluate_add(inputs[0], inputs[1], outputs[0], get_autob());
 }
 
@@ -169,6 +167,5 @@ void op::v1::Add::generate_adjoints(autodiff::Adjoints& adjoints, const OutputVe
 
 bool op::v1::Add::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
 {
-    std::cout << "AA 11" << std::endl;
     return evaluate_add(inputs[0], inputs[1], outputs[0], get_autob());
 }

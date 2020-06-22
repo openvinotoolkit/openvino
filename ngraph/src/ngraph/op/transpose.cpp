@@ -109,7 +109,6 @@ namespace
     template <element::Type_t INPUT_ET>
     bool evaluate(const HostTensorPtr& arg1, const HostTensorPtr& arg2, const HostTensorPtr& out)
     {
-        std::cout << "AA 162" << std::endl;
         element::Type_t axis_type = arg2->get_element_type();
 
         std::vector<int64_t> axis_order;
@@ -184,6 +183,5 @@ namespace
 bool op::v1::Transpose::evaluate(const HostTensorVector& output_values,
                                  const HostTensorVector& input_values)
 {
-    std::cout << "AA 163" << std::endl;
     return evaluate_transpose(input_values[0], input_values[1], output_values[0]);
 }

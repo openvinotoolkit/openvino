@@ -54,7 +54,6 @@ namespace
     template <element::Type_t ET>
     bool evaluate(const HostTensorPtr& arg, const HostTensorPtr& out, const AxisSet& axes)
     {
-        std::cout << "AA 111" << std::endl;
         out->set_shape(reduce(arg->get_shape(), axes));
         runtime::reference::product(
             arg->get_data_ptr<ET>(), out->get_data_ptr<ET>(), arg->get_shape(), axes);
@@ -86,7 +85,6 @@ namespace
 
 bool op::v0::Product::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
 {
-    std::cout << "AA 112" << std::endl;
     return evaluate_product(inputs[0], outputs[0], get_reduction_axes());
 }
 #endif

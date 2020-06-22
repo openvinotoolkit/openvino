@@ -64,7 +64,6 @@ void op::Result::generate_adjoints(autodiff::Adjoints& adjoints, const OutputVec
 
 bool op::Result::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
 {
-    std::cout << "AA 125" << std::endl;
     outputs[0]->set_unary(inputs[0]);
     void* output = outputs[0]->get_data_ptr();
     void* input = inputs[0]->get_data_ptr();

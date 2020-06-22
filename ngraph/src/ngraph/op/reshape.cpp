@@ -31,7 +31,6 @@ namespace
     template <element::Type_t ET>
     bool evaluate(const HostTensorPtr& arg0, const HostTensorPtr& out, const AxisVector& order)
     {
-        std::cout << "AA 122" << std::endl;
         auto data_ptr = out->get_data_ptr<ET>();
         runtime::opt_kernel::reshape<typename element_type_traits<ET>::value_type>(
             arg0->get_data_ptr<ET>(), data_ptr, arg0->get_shape(), order, out->get_shape());
@@ -222,7 +221,6 @@ void op::Reshape::generate_adjoints(autodiff::Adjoints& adjoints, const OutputVe
 
 bool op::v0::Reshape::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
 {
-    std::cout << "AA 123" << std::endl;
     return evaluate_reshape(inputs[0], outputs[0], get_input_order());
 }
 
@@ -392,7 +390,6 @@ void op::v1::Reshape::generate_adjoints(autodiff::Adjoints& /* adjoints */,
 
 bool op::v1::Reshape::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
 {
-    std::cout << "AA 124" << std::endl;
     // infer and set output shape if the output shape contain -1
     // and zero value dimension
     size_t output_rank = inputs[1]->get_shape()[0];

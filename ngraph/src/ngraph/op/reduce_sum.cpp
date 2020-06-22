@@ -61,7 +61,6 @@ namespace
     template <element::Type_t ET>
     bool evaluate(const HostTensorPtr& arg, const HostTensorPtr& out, const AxisSet& axes)
     {
-        std::cout << "AA 118" << std::endl;
         out->set_shape(reduce(arg->get_shape(), axes));
         runtime::reference::sum(
             arg->get_data_ptr<ET>(), out->get_data_ptr<ET>(), arg->get_shape(), axes);
@@ -93,7 +92,6 @@ namespace
 
 bool op::v1::ReduceSum::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
 {
-    std::cout << "AA 119" << std::endl;
     return evaluate_sum(inputs[0], outputs[0], get_reduction_axes());
 }
 #endif

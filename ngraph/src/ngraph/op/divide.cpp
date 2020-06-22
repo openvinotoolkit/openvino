@@ -89,7 +89,6 @@ namespace
                   const op::AutoBroadcastSpec& broadcast_spec,
                   bool pythondiv)
     {
-        std::cout << "AA 40" << std::endl;
         runtime::reference::divide(arg0->get_data_ptr<ET>(),
                                    arg1->get_data_ptr<ET>(),
                                    out->get_data_ptr<ET>(),
@@ -130,7 +129,6 @@ namespace
 
 bool op::v0::Divide::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
 {
-    std::cout << "AA 41" << std::endl;
     return evaluate_divide(inputs[0], inputs[1], outputs[0], get_autob(), is_pythondiv());
 }
 
@@ -188,6 +186,5 @@ void op::v1::Divide::generate_adjoints(autodiff::Adjoints& adjoints, const Outpu
 
 bool op::v1::Divide::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
 {
-    std::cout << "AA 42" << std::endl;
     return evaluate_divide(inputs[0], inputs[1], outputs[0], get_autob(), is_pythondiv());
 }
