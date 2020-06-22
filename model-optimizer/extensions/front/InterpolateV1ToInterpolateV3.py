@@ -15,17 +15,22 @@
 """
 
 from mo.front.common.partial_infer.utils import int64_array
-from mo.front.common.replacement import FrontReplacementOp
+from mo.front.common.replacement import FrontReplacementSubgraph
 from mo.graph.graph import Graph
 
 
-class InterpolateV1ToInterpolateV3(FrontReplacementOp):
-    op = 'Interpolate'
+class InterpolateV1ToInterpolateV3(FrontReplacementSubgraph):
     enabled = True
 
     def run_after(self):
         from extensions.front.InterpolateNormalizer import InterpolateNormalizer
         return [InterpolateNormalizer]
+
+    def pattern(self):
+        return dict(
+            nodes=[('op', {'type': 'Interpolate'})],
+            edges=[],
+        )
 
     def replace_sub_graph(self, graph: Graph, match: dict):
         node = match['op']
