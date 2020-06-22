@@ -535,10 +535,12 @@ void GNAPluginNS::backend::AMIntelDNN::WriteGraphWizModel(const char *filename) 
             graph << "  <TR><TD> badr</TD><TD>" <<  components[k].op.affine.ptr_biases<< "</TD></TR>\n";
         }
         if (IS_RELU(k)) {
-            graph << "  <TR><TD> negative_slope</TD><TD>" <<  components[k].op.pwl.func_id.args.leru.negative_slope<< "</TD></TR>\n";
+            graph << "  <TR><TD> negative_slope</TD><TD>" <<  components[k].op.pwl.func_id.args.lrelu.negative_slope<< "</TD></TR>\n";
         }
         if (IS_POW(k)) {
-            graph << "  <TR><TD> negative_slope</TD><TD>" << components[k].op.pwl.func_id.args.pow.exponent << "</TD></TR>\n";
+            graph << "  <TR><TD> exponent</TD><TD>" << components[k].op.pwl.func_id.args.pow.exponent << "</TD></TR>\n";
+            graph << "  <TR><TD> scale</TD><TD>" << components[k].op.pwl.func_id.args.pow.scale << "</TD></TR>\n";
+            graph << "  <TR><TD> offset</TD><TD>" << components[k].op.pwl.func_id.args.pow.offset << "</TD></TR>\n";
         }
         if (IS_CONV(k)) {
             auto &conv = components[k].op.conv1D;

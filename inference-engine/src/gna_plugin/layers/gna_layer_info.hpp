@@ -98,6 +98,11 @@ class LayerInfo {
              "neghalflog",
              "softsign",
              "power"};
+
+        if (isPower() && PowerExponent() == 1.0f) {
+            return false;
+        }
+
         return activations.find(layer->type) != activations.end();
     }
 

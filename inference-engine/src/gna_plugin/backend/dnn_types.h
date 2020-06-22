@@ -36,15 +36,15 @@ struct DnnActivation {
     union {
         struct {
             float negative_slope;
-        } leru;
+        } lrelu;
         struct {
             float exponent;
             float scale;
             float offset;
         } pow;
         struct {
-            float rsvd[3];
-        } other;
+            float reserved[3];
+        };
     } args;
     operator DnnActivationType () const noexcept {
         return type;

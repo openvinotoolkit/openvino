@@ -224,8 +224,8 @@ void make_gna_pwl(const DnnActivation  fun,
             int16_t y_lower = INT16_MIN;
             if (x_lower < y_lower * in_scale / out_scale) x_lower = FLOAT_TO_INT32(y_lower * in_scale / out_scale);
             if (y_lower < x_lower * out_scale / in_scale) y_lower = FLOAT_TO_INT16(x_lower * out_scale / in_scale);
-            gna_pwl[0].yBase = y_lower * fun.args.leru.negative_slope;
-            s = gna_slope(fun.args.leru.negative_slope, in_scale, out_scale);
+            gna_pwl[0].yBase = y_lower * fun.args.lrelu.negative_slope;
+            s = gna_slope(fun.args.lrelu.negative_slope, in_scale, out_scale);
             gna_pwl[0].xBase = (x_lower & XBASEMASK) | s.slope_scale_index;  // zero out the 2 lsb
             gna_pwl[0].slope = FLOAT_TO_INT16(s.slope * s.slope_scale);
 
