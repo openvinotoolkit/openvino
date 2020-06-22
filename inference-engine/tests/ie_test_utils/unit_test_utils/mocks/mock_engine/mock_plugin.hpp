@@ -7,11 +7,9 @@
 #include <map>
 #include <string>
 
-#include <inference_engine.hpp>
-#include <ie_plugin_ptr.hpp>
+#include <cpp_interfaces/interface/ie_plugin.hpp>
 #include <ie_icnn_network.hpp>
 
-IE_SUPPRESS_DEPRECATED_START
 class MockPlugin : public InferenceEngine::IInferencePlugin {
     InferenceEngine::IInferencePlugin * _target = nullptr;
     InferenceEngine::Version version;
@@ -39,5 +37,3 @@ public:
 
     std::map<std::string, std::string> config;
 };
-
-IE_SUPPRESS_DEPRECATED_END

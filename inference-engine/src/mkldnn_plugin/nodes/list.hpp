@@ -21,7 +21,6 @@ using ext_factory = std::function<InferenceEngine::ILayerImplFactory*(const Infe
 
 struct ExtensionsHolder {
     std::map<std::string, ext_factory> list;
-    std::map<std::string, IShapeInferImpl::Ptr> si_list;
 };
 
 class MKLDNNExtensions : public IExtension {
@@ -42,14 +41,6 @@ public:
             return NOT_FOUND;
         }
         factory = factories[cnnLayer->type](cnnLayer);
-        return OK;
-    }
-
-    StatusCode getShapeInferTypes(char**& types, unsigned int& size, ResponseDesc* resp) noexcept override {
-        return OK;
-    }
-
-    StatusCode getShapeInferImpl(IShapeInferImpl::Ptr& impl, const char* type, ResponseDesc* resp) noexcept override {
         return OK;
     }
 

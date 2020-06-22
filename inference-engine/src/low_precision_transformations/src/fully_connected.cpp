@@ -25,15 +25,6 @@
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 
-bool getDequantizationValuesAreBroadcasted(const CNNLayer& fullyConnected) {
-    const DataPtr inputData = fullyConnected.insData[0].lock();
-    if (inputData == nullptr) {
-        THROW_IE_LPT_EXCEPTION(fullyConnected) << "input data is absent";
-    }
-
-    return inputData->getDims().size() == 3ul;
-}
-
 bool FullyConnectedTransformation::canBeTransformed(const TransformationContext& context, const CNNLayer& fullyConnected) const {
     if (!WeightableLayerTransformation::canBeTransformed(context, fullyConnected)) {
         return false;
@@ -72,7 +63,12 @@ bool FullyConnectedTransformation::canBeTransformed(const TransformationContext&
     std::vector<float> dequantizationShifts;
     fillFromDequantizationLayer(*scaleShift, dequantizationScales, dequantizationShifts);
 
-    if ((inTensorDims.size() == 3ul) && (!DequantizationDetails::isPerTensor(dequantizationScales, dequantizationShifts))) {
+    const bool dequantizationDimIsSupported = !getDequantizationDimIsSupported(fullyConnected);
+    if ((!dequantizationDimIsSupported) &&
+        (!DequantizationDetails::isPerTensor(dequantizationScales, dequantizationShifts) ||
+        // if asymmetric quantization is not supported then no shifts for dequantizationDimIsSupported = false case:
+        // in this case we can not dequantize with shifts
+        (!supportAsymmetricQuantization && (dequantizationShifts[0] != 0.f)))) {
         return false;
     }
 
@@ -318,7 +314,7 @@ void FullyConnectedTransformation::calculateDequantizationForSymmetric(
     const auto prevDequantizationScaleBuffer = CNNNetworkHelper::getFloatData(CNNNetworkHelper::getBlob(scaleShift, "weights"));
     const auto prevDequantizationShiftBuffer = CNNNetworkHelper::getFloatData(CNNNetworkHelper::getBlob(scaleShift, "biases"));
 
-    const bool dequantizationValuesAreBroadcasted = getDequantizationValuesAreBroadcasted(fullyConnected);
+    const bool dequantizationValuesAreBroadcasted = !getDequantizationDimIsSupported(fullyConnected);
     for (size_t i = 0; i < outputChannelsCount; ++i) {
         dequantizationScales[i] =
             prevDequantizationScaleBuffer.get()[0] *
@@ -401,7 +397,7 @@ void FullyConnectedTransformation::calculateDequantizationForAsymmetric(
         THROW_IE_EXCEPTION << "Unexpected layer type to calculate quantization values " << scaleShift->type;
     }
 
-    const bool dequantizationValuesAreBroadcasted = getDequantizationValuesAreBroadcasted(fullyConnected);
+    const bool dequantizationValuesAreBroadcasted = !getDequantizationDimIsSupported(fullyConnected);
 
     dequantizationScales.resize(outputChannelsCount);
     dequantizationShifts.resize(outputChannelsCount);
@@ -412,10 +408,10 @@ void FullyConnectedTransformation::calculateDequantizationForAsymmetric(
             prevDequantizationScaleBuffer.get()[0] *
             (originalWeightsDequantizationScales.size() == 0 ?
                 1.0 :
-                (originalWeightsDequantizationScales.size() == 1 ? originalWeightsDequantizationScales[0] : originalWeightsDequantizationScales[i]));
+                originalWeightsDequantizationScales[((originalWeightsDequantizationScales.size() == 1) || dequantizationValuesAreBroadcasted) ? 0 : i]);
     }
 
-    if (CNNNetworkHelper::isQuantizedConstWeights(fullyConnected)) {
+    if (CNNNetworkHelper::isQuantizedConstWeights(fullyConnected) && (!dequantizationValuesAreBroadcasted)) {
         const Blob::Ptr weightsBlob = CNNNetworkHelper::getWeights(fullyConnected, roundQuantizedValues);
         const auto weightsBuffer = CNNNetworkHelper::getFloatData(weightsBlob);
         const Blob::Ptr biasesBlob = CNNNetworkHelper::getBiases(fullyConnected);
@@ -432,7 +428,7 @@ void FullyConnectedTransformation::calculateDequantizationForAsymmetric(
 
             for (size_t w = 0; w < inputChannelsCount; ++w) {
                 const float kernel = weightsBuffer.get()[channel * inputChannelsCount + w];
-                const float shift = dequantizationValuesAreBroadcasted ? prevDequantizationShiftBuffer.get()[0] : prevDequantizationShiftBuffer.get()[w];
+                const float shift = prevDequantizationShiftBuffer.get()[w];
                 sum1 += kernel * shift * weightsDequantizationScale;
                 sum2 += kernel * dataZeroPoints[w] * weightsDequantizationScale;
             }
