@@ -21,13 +21,17 @@
 namespace LayerTestsDefinitions {
 
 std::string StridedSliceLayerTest::getTestCaseName(const testing::TestParamInfo<stridedSliceParamsTuple> &obj) {
-    InferenceEngine::SizeVector inputShape;
-    std::vector<int64_t> begin, end, stride;
-    std::vector<int64_t> begin_mask, new_axis_mask, end_mask, shrink_mask, ellipsis_mask;
+    stridedSliceSpecificParams stridedSliceParams;
     InferenceEngine::Precision netPrc;
     std::string targetName;
-    std::tie(inputShape, begin, end, stride, begin_mask, end_mask, new_axis_mask, shrink_mask, ellipsis_mask, netPrc,
-             targetName) = obj.param;
+    std::tie(stridedSliceParams, netPrc, targetName) = obj.param;
+
+    InferenceEngine::SizeVector inputShape;
+    std::vector<int64_t> begin, end, stride;
+    std::vector<int64_t> begin_mask, end_mask, new_axis_mask, shrink_mask, ellipsis_mask;
+    std::tie(inputShape, begin, end, stride, begin_mask, end_mask,
+             new_axis_mask, shrink_mask, ellipsis_mask) = stridedSliceParams;
+
     std::ostringstream result;
     result << "inShape=" << CommonTestUtils::vec2str(inputShape) << "_";
     result << "netPRC=" << netPrc.name() << "_";
@@ -44,12 +48,15 @@ std::string StridedSliceLayerTest::getTestCaseName(const testing::TestParamInfo<
 }
 
 void StridedSliceLayerTest::SetUp() {
+    stridedSliceSpecificParams stridedSliceParams;
+    InferenceEngine::Precision netPrecision;
+    std::tie(stridedSliceParams, netPrecision, targetDevice) = this->GetParam();
+
     InferenceEngine::SizeVector inputShape;
     std::vector<int64_t> begin, end, stride;
     std::vector<int64_t> begin_mask, end_mask, new_axis_mask, shrink_mask, ellipsis_mask;
-    InferenceEngine::Precision netPrecision;
-    std::tie(inputShape, begin, end, stride, begin_mask, end_mask, new_axis_mask, shrink_mask, ellipsis_mask,
-             netPrecision, targetDevice) = this->GetParam();
+    std::tie(inputShape, begin, end, stride, begin_mask, end_mask,
+             new_axis_mask, shrink_mask, ellipsis_mask) = stridedSliceParams;
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape});

@@ -267,6 +267,10 @@ void PassImpl::run(const Model& model) {
                 subtensorDesc.setDim(previousDim, input->desc().dim(previousDim));
             }
 
+            reshapedDesc.setType(input->desc().type());
+            subtensorDesc.setType(input->desc().type());
+            intermediateOutDesc.setType(input->desc().type());
+
             intermediateOutDesc.setDim(dim, input->desc().dim(dim) / stride);
 
             auto reshapedInputData = model->duplicateData(

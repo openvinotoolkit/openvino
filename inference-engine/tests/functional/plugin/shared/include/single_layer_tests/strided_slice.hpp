@@ -13,7 +13,7 @@
 
 namespace LayerTestsDefinitions {
 
-using stridedSliceParamsTuple = typename std::tuple<
+using stridedSliceSpecificParams = typename std::tuple<
         InferenceEngine::SizeVector,       // Input shape
         std::vector<int64_t>,              // Begin
         std::vector<int64_t>,              // End
@@ -22,9 +22,12 @@ using stridedSliceParamsTuple = typename std::tuple<
         std::vector<int64_t>,              // End mask
         std::vector<int64_t>,              // New axis mask
         std::vector<int64_t>,              // Shrink axis mask
-        std::vector<int64_t>,              // Ellipsis axis mask
+        std::vector<int64_t>>;             // Ellipsis axis mask
+
+using stridedSliceParamsTuple = typename std::tuple<
+        stridedSliceSpecificParams,
         InferenceEngine::Precision,        // Network precision
-        std::string>;                      // Device name>;
+        std::string>;                      // Device name
 
 class StridedSliceLayerTest : public testing::WithParamInterface<stridedSliceParamsTuple>,
                               public LayerTestsUtils::LayerTestsCommon {

@@ -39,14 +39,16 @@ private:
         IE_ASSERT(numOutputs() == 1);
 
         std::vector<EnumSet<DataType>> expectedInputs3Types =
-            { {DataType::FP16}, {DataType::S32}, {DataType::S32} };
+            { {DataType::FP16, DataType::S32}, {DataType::S32}, {DataType::S32} };
         std::vector<EnumSet<DataType>> expectedInputs4Types =
-            { {DataType::FP16}, {DataType::S32}, {DataType::S32}, {DataType::S32} };
+            { {DataType::FP16, DataType::S32}, {DataType::S32}, {DataType::S32}, {DataType::S32} };
+
+        const auto outType = input(0)->desc().type();
 
         assertInputsOutputsTypes(
             this,
             numInputs() == 3 ? expectedInputs3Types : expectedInputs4Types,
-            {{DataType::FP16}});
+            {{outType}});
     }
 
     void serializeParamsImpl(BlobSerializer&) const override {
