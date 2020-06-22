@@ -774,7 +774,7 @@ std::shared_ptr<CNNNetworkImpl> convertFunctionToICNNNetwork(const std::shared_p
             // if they are connected only with this layer.
             // Now MO generates only constants or constant sub-graphs as input to ReadValue op.
             if (std::dynamic_pointer_cast<::ngraph::op::Constant>(layer)) {
-                bool all_to_read_value = !layer->get_output_inputs(i).empty();
+                bool all_to_read_value = !layer->output(i).get_target_inputs().empty();
                 for (const auto &output_input : layer->output(i).get_target_inputs()) {
                     all_to_read_value
                             &= dynamic_cast<ngraph::op::ReadValue *>(output_input.get_node()) != nullptr;
