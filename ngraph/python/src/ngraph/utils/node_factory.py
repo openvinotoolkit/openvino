@@ -64,7 +64,7 @@ class NodeFactory(object):
         """
         return "get_" + attr_name.replace(".", "_")
 
-    def _normalize_atr_name_setter(self, attr_name: str) -> str:
+    def _normalize_attr_name_setter(self, attr_name: str) -> str:
         """Normalizes atr name to be suitable for setter function name.
 
         :param      attr_name:  The attribute name to normalize
