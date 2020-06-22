@@ -350,7 +350,7 @@ void GNAGraphCompiler::PowerPrimitive(InferenceEngine::CNNLayerPtr layer) {
     uint32_t num_columns_in = FROM_IR_DIM(input, 2);
     uint32_t num_rows_out = num_rows_in;
     uint32_t num_padding = ALIGN(num_rows_in, 8) - num_rows_in;
-    
+
     size_t num_data_bytes_out = InferenceEngine::details::product(begin(outputs->getDims()), end(outputs->getDims()))
         * outputs->getPrecision().size();
 
@@ -396,8 +396,7 @@ void GNAGraphCompiler::PowerPrimitive(InferenceEngine::CNNLayerPtr layer) {
             gnamem->readonly().push_value<int16_t>(ptr_weights, quantizedScale, num_rows_out, 64);
             gnamem->readonly().push_value<int32_t>(ptr_biases, quantizedOffset, num_rows_out, 64);
         }
-    }
-    else {
+    } else {
         //use PWL to calculate power
         std::vector<intel_pwl_segment_t> ptr_pwl_segments;
 
@@ -428,8 +427,7 @@ void GNAGraphCompiler::PowerPrimitive(InferenceEngine::CNNLayerPtr layer) {
                     static_cast<uint32_t>(ptr_pwl_segments.size()),
                     input_pwl_scale_factor,
                     output_pwl_scale_factor);
-            }
-            else {
+            } else {
                 PwlDesignOpt16(activation_type,
                     ptr_pwl_segments,
                     input_pwl_scale_factor,

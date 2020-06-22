@@ -144,12 +144,10 @@ double pivot_search(std::vector<pwl_t>& result,
             if (max_epsilon > max_epsilon_prev) {
                 j = j - 1;
                 Delta = Delta / 2;
-            }
-            else if (max_epsilon == max_epsilon_prev) {
+            } else if (max_epsilon == max_epsilon_prev) {
                 if (!same_epsilon) {
                     same_epsilon = true;
-                }
-                else {
+                } else {
                     j = j - 1;
                     Delta = Delta / 2;
                     same_epsilon = false;
@@ -190,7 +188,9 @@ double pivot_search(std::vector<pwl_t>& result, double(*f)(const double),
         return epsilon_final;
     }
 
-    return pivot_search(result, [&f](double x) -> double { return f(x); }, [&first_deriv_f](double x) -> double { return first_deriv_f(x); }, N, alpha_0, alpha_N, threshold, negative);
+    auto fun = [&f](double x) -> double { return f(x); };
+    auto first_deriv = [&first_deriv_f](double x) -> double { return first_deriv_f(x); };
+    return pivot_search(result, fun, first_deriv, N, alpha_0, alpha_N, threshold, negative);
 }
 
 double calculate_error_pct(const DnnActivation& activation_type,
@@ -401,8 +401,7 @@ std::vector<pwl_t> pwl_search(const DnnActivation& activation_type,
                 pwl[1].alpha = pwl[1].t = pwl[1].beta = std::numeric_limits<float>::infinity();
                 pwl[1].m = 1.0;
                 pwl[1].b = 0.0;
-        }
-        else {
+        } else {
             bool negative = false;
 
             switch (activation_type) {
@@ -435,8 +434,12 @@ std::vector<pwl_t> pwl_search(const DnnActivation& activation_type,
                     break;
                 case kActPow: {
                     negative = (fmod(activation_type.args.pow.exponent, 1.0) == 0) ? true : false;
-                    auto args = std::tuple<double, double, double>{ activation_type.args.pow.exponent, activation_type.args.pow.scale, activation_type.args.pow.offset };
-                    err = pivot_search(pwl, [&args](double x) -> double { return power(x, args); }, [&args](double x) -> double { return first_deriv_power(x, args); }, n_segments, l_bound, u_bound, threshold, negative);
+                    auto args = std::tuple<double, double, double>{ activation_type.args.pow.exponent,
+                                                                    activation_type.args.pow.scale,
+                                                                    activation_type.args.pow.offset };
+                    auto fun = [&args](double x) -> double { return power(x, args); };
+                    auto first_deriv = [&args](double x) -> double { return first_deriv_power(x, args); };
+                    err = pivot_search(pwl, fun, first_deriv, n_segments, l_bound, u_bound, threshold, negative);
                     break;
                 }
                 default:
@@ -469,8 +472,12 @@ std::vector<pwl_t> pwl_search(const DnnActivation& activation_type,
                         err = pivot_search(pwl, neghalflog, first_deriv_neghalflog, n_segments, l_bound, u_bound, threshold, negative);
                         break;
                     case kActPow: {
-                        auto args = std::tuple<double, double, double>{ activation_type.args.pow.exponent, activation_type.args.pow.scale, activation_type.args.pow.offset };
-                        err = pivot_search(pwl, [&args](double x) { return power(x, args); }, [&args](double x) { return first_deriv_power(x, args); }, n_segments, l_bound, u_bound, threshold, negative);
+                        auto args = std::tuple<double, double, double>{ activation_type.args.pow.exponent,
+                                                                        activation_type.args.pow.scale,
+                                                                        activation_type.args.pow.offset };
+                        auto fun = [&args](double x) { return power(x, args); };
+                        auto first_deriv = [&args](double x) { return first_deriv_power(x, args); };
+                        err = pivot_search(pwl, fun, first_deriv, n_segments, l_bound, u_bound, threshold, negative);
                         break;
                     }
                     default:
@@ -563,7 +570,7 @@ void PwlDesignOpt16(const DnnActivation activation_type,
             if (activation_type.args.pow.exponent != 0.0f && activation_type.args.pow.exponent != 1.0f) {
                 pwl = pwl_search(activation_type, x_min, x_max, PWL_DESIGN_THRESHOLD, 0.015 * PWL_MAX_ERR_PERCENT, PWL_DESIGN_SAMPLES, err_pct);
             }
-            
+
             make_gna_pwl(activation_type, pwl, x_min, x_max, scale_in, scale_out, ptr_segment);
             break;
         }
@@ -777,8 +784,10 @@ void PwlDesign16(const DnnActivation activation_type,
         {
             gnalog() << "=========================== Pow Segments===========================\n";
             uint32_t num_segment_size = 0;
-            
-            auto args = std::tuple<double, double, double>{ activation_type.args.pow.exponent, activation_type.args.pow.scale, activation_type.args.pow.offset };
+
+            auto args = std::tuple<double, double, double>{ activation_type.args.pow.exponent,
+                                                            activation_type.args.pow.scale,
+                                                            activation_type.args.pow.offset };
 
             double x_min = INT32_MIN / scale_in;
             x_min = x_min < INT16_MIN ? INT16_MIN : x_min;
@@ -942,7 +951,9 @@ void PwlApply32(intel_dnn_component_t *component,
             for (uint32_t i = num_row_start; i <= num_row_end; i++) {
                 for (uint32_t j = num_col_start; j <= num_col_end; j++) {
                     ptr_out[i * num_columns + j] =
-                        (ptr_in[i * num_columns + j] < 0.0f) ? ptr_in[i * num_columns + j] * transform->func_id.args.lrelu.negative_slope : ptr_in[i * num_columns + j];
+                        (ptr_in[i * num_columns + j] < 0.0f) ?
+                            ptr_in[i * num_columns + j] * transform->func_id.args.lrelu.negative_slope :
+                            ptr_in[i * num_columns + j];
                 }
             }
             break;
