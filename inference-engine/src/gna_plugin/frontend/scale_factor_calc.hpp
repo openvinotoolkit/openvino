@@ -106,18 +106,20 @@ class ScaleFactorPerLayer<InferenceEngine::CNNLayer *> {
             // if activation is one from relu family, we need to apply heuristic to avoid activation output overflow
             result = (activation_scale_factor * 0.5);
         } else if (layer.isPower()) {
-            auto x_min = (fmod(layer.PowerExponent(), 1.0) != 0) ? 0.0 : static_cast<double>(std::numeric_limits<int32_t>::min()) / quantizedParams->_src_quant.scale;
+            auto x_min = (fmod(layer.PowerExponent(), 1.0) != 0) ?
+                0.0:
+                static_cast<double>(std::numeric_limits<int32_t>::min()) / quantizedParams->_src_quant.scale;
             x_min = x_min < std::numeric_limits<int16_t>::min()? std::numeric_limits<int16_t>::min() : x_min;
 
             auto x_max = static_cast<double>(std::numeric_limits<int32_t>::max()) / quantizedParams->_src_quant.scale;
             x_max = x_max > std::numeric_limits<int16_t>::max()? std::numeric_limits<int16_t>::max() : x_max;
-            
+
             auto val1 = pow(x_min * layer.PowerScale() + layer.PowerOffset(), layer.PowerExponent());
             auto val2 = pow(x_max * layer.PowerScale() + layer.PowerOffset(), layer.PowerExponent());
 
             auto max_value = std::max(abs(val1), abs(val2));
             result = static_cast<double>(std::numeric_limits<int16_t>::max()) / max_value;
-        } 
+        }
         return result;
     }
 
