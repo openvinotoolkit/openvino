@@ -50,7 +50,6 @@ void op::Exp::generate_adjoints(autodiff::Adjoints& adjoints, const OutputVector
 
     adjoints.add_delta(x, delta * shared_from_this());
 }
-#ifdef NGRAPH_EVALUATE_ENABLE
 namespace
 {
     template <element::Type_t ET>
@@ -92,4 +91,3 @@ bool op::Exp::evaluate(const HostTensorVector& outputs, const HostTensorVector& 
 {
     return evaluate_exp(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }
-#endif

@@ -63,7 +63,6 @@ void op::Atan::generate_adjoints(autodiff::Adjoints& adjoints, const OutputVecto
     adjoints.add_delta(x, delta / (ones + x * x));
 }
 
-#ifdef NGRAPH_EVALUATE_ENABLE
 namespace
 {
     template <element::Type_t ET>
@@ -105,4 +104,3 @@ bool op::Atan::evaluate(const HostTensorVector& outputs, const HostTensorVector&
 {
     return evaluate_atan(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }
-#endif

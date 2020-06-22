@@ -92,7 +92,6 @@ void op::v1::Transpose::generate_adjoints(autodiff::Adjoints& /* adjoints */,
     throw ngraph_error("generate_adjoints not implemented for Transpose");
 }
 
-#ifdef NGRAPH_EVALUATE_ENABLE
 namespace
 {
     template <element::Type_t ET>
@@ -186,4 +185,3 @@ bool op::v1::Transpose::evaluate(const HostTensorVector& output_values,
 {
     return evaluate_transpose(input_values[0], input_values[1], output_values[0]);
 }
-#endif

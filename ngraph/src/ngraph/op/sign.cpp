@@ -41,7 +41,6 @@ shared_ptr<Node> op::Sign::clone_with_new_inputs(const OutputVector& new_args) c
     return make_shared<Sign>(new_args.at(0));
 }
 
-#ifdef NGRAPH_EVALUATE_ENABLE
 namespace
 {
     template <element::Type_t ET>
@@ -83,4 +82,3 @@ bool op::Sign::evaluate(const HostTensorVector& outputs, const HostTensorVector&
 {
     return evaluate_sign(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }
-#endif

@@ -52,7 +52,6 @@ shared_ptr<Node> op::v1::LogicalNot::clone_with_new_inputs(const OutputVector& n
     return make_shared<v1::LogicalNot>(new_args.at(0));
 }
 
-#ifdef NGRAPH_EVALUATE_ENABLE
 namespace
 {
     template <element::Type_t ET>
@@ -95,7 +94,6 @@ bool op::v1::LogicalNot::evaluate(const HostTensorVector& outputs, const HostTen
 {
     return evaluate_not(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }
-#endif
 
 constexpr NodeTypeInfo op::v0::Not::type_info;
 
@@ -121,9 +119,7 @@ shared_ptr<Node> op::v0::Not::clone_with_new_inputs(const OutputVector& new_args
     return make_shared<v0::Not>(new_args.at(0));
 }
 
-#ifdef NGRAPH_EVALUATE_ENABLE
 bool op::Not::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
 {
     return evaluate_not(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }
-#endif

@@ -60,7 +60,6 @@ void op::v0::Power::generate_adjoints(autodiff::Adjoints& adjoints, const Output
     adjoints.add_delta(y, delta * shared_from_this() * log_x);
 }
 
-#ifdef NGRAPH_EVALUATE_ENABLE
 namespace
 {
     template <element::Type_t ET>
@@ -109,7 +108,6 @@ bool op::v0::Power::evaluate(const HostTensorVector& outputs, const HostTensorVe
 {
     return evaluate_power(inputs[0], inputs[1], outputs[0], get_autob());
 }
-#endif
 
 // ------------------------------ v1 -------------------------------------------
 
@@ -147,9 +145,7 @@ void op::v1::Power::generate_adjoints(autodiff::Adjoints& adjoints, const Output
     adjoints.add_delta(y, delta * shared_from_this() * log_x);
 }
 
-#ifdef NGRAPH_EVALUATE_ENABLE
 bool op::v1::Power::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
 {
     return evaluate_power(inputs[0], inputs[1], outputs[0], get_autob());
 }
-#endif

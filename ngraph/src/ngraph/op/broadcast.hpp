@@ -80,10 +80,8 @@ namespace ngraph
 
                 /// \return true and the AxisSet if broadcast axes can be fully determined.
                 std::pair<bool, AxisSet> get_broadcast_axes() const override;
-#ifdef NGRAPH_EVALUATE_ENABLE
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) override;
-#endif
             };
         } // namespace v3
 
@@ -140,10 +138,8 @@ namespace ngraph
                 }
 
                 void validate_and_infer_types() override;
-#ifdef NGRAPH_EVALUATE_ENABLE
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) override;
-#endif
 
             protected:
                 AutoBroadcastSpec m_broadcast_spec;
@@ -185,10 +181,8 @@ namespace ngraph
                 }
                 const Shape& get_broadcast_shape() const { return m_shape; }
                 void set_broadcast_shape(const Shape& shape) { m_shape = shape; }
-#ifdef NGRAPH_EVALUATE_ENABLE
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) override;
-#endif
 
             protected:
                 Broadcast(const OutputVector& args,

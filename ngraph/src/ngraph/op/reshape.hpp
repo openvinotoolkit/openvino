@@ -101,10 +101,8 @@ namespace ngraph
                 void set_output_shape(const Shape& output_shape) { m_output_shape = output_shape; }
                 bool get_is_transpose() const { return m_is_transpose; }
                 void set_is_transpose(bool is_transpose) { m_is_transpose = is_transpose; }
-#ifdef NGRAPH_EVALUATE_ENABLE
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) override;
-#endif
 
             protected:
                 virtual void generate_adjoints(autodiff::Adjoints& adjoints,
@@ -153,10 +151,8 @@ namespace ngraph
 
                 bool get_special_zero() const { return m_special_zero; }
                 void set_special_zero(bool special_zero) { m_special_zero = special_zero; }
-#ifdef NGRAPH_EVALUATE_ENABLE
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) override;
-#endif
 
             protected:
                 virtual void generate_adjoints(autodiff::Adjoints& adjoints,

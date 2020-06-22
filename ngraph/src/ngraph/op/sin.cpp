@@ -52,7 +52,6 @@ void op::Sin::generate_adjoints(autodiff::Adjoints& adjoints, const OutputVector
     adjoints.add_delta(x, delta * (make_shared<op::Cos>(x)));
 }
 
-#ifdef NGRAPH_EVALUATE_ENABLE
 namespace
 {
     template <element::Type_t ET>
@@ -62,6 +61,7 @@ namespace
         runtime::reference::sin<T>(arg0->get_data_ptr<ET>(), out->get_data_ptr<ET>(), count);
         return true;
     }
+
     bool evaluate_sin(const HostTensorPtr& arg0, const HostTensorPtr& out, const size_t count)
     {
         bool rc = true;
@@ -93,4 +93,3 @@ bool op::Sin::evaluate(const HostTensorVector& outputs, const HostTensorVector& 
 {
     return evaluate_sin(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }
-#endif

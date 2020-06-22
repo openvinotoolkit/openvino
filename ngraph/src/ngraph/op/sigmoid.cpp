@@ -39,7 +39,6 @@ op::Sigmoid::Sigmoid(const Output<Node>& arg)
     constructor_validate_and_infer_types();
 }
 
-#ifdef NGRAPH_EVALUATE_ENABLE
 namespace
 {
     template <element::Type_t ET>
@@ -81,7 +80,6 @@ bool op::Sigmoid::evaluate(const HostTensorVector& outputs, const HostTensorVect
 {
     return evaluate_sigmoid(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }
-#endif
 
 op::SigmoidBackprop::SigmoidBackprop(const Output<Node>& arg, const Output<Node>& delta)
     : BinaryElementwiseArithmetic(arg, delta, AutoBroadcastSpec::NONE)

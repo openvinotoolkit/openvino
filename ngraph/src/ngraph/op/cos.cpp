@@ -53,7 +53,6 @@ void op::Cos::generate_adjoints(autodiff::Adjoints& adjoints, const OutputVector
     adjoints.add_delta(x, -delta * (make_shared<op::Sin>(x)));
 }
 
-#ifdef NGRAPH_EVALUATE_ENABLE
 namespace
 {
     template <element::Type_t ET>
@@ -95,4 +94,3 @@ bool op::Cos::evaluate(const HostTensorVector& outputs, const HostTensorVector& 
 {
     return evaluate_cos(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }
-#endif

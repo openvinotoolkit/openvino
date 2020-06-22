@@ -55,7 +55,6 @@ void op::v1::ReduceSum::generate_adjoints(autodiff::Adjoints& adjoints, const Ou
     adjoints.add_delta(x, make_shared<op::Broadcast>(delta, x_shape, get_reduction_axes()));
 }
 
-#ifdef NGRAPH_EVALUATE_ENABLE
 namespace
 {
     template <element::Type_t ET>
@@ -94,4 +93,3 @@ bool op::v1::ReduceSum::evaluate(const HostTensorVector& outputs, const HostTens
 {
     return evaluate_sum(inputs[0], outputs[0], get_reduction_axes());
 }
-#endif

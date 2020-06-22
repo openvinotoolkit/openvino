@@ -39,7 +39,6 @@ shared_ptr<Node> op::v3::Asinh::clone_with_new_inputs(const OutputVector& new_ar
     return make_shared<Asinh>(new_args.at(0));
 }
 
-#ifdef NGRAPH_EVALUATE_ENABLE
 namespace
 {
     template <element::Type_t ET>
@@ -78,4 +77,3 @@ bool op::v3::Asinh::evaluate(const HostTensorVector& outputs, const HostTensorVe
 {
     return evaluate_asinh(inputs[0], outputs[0]);
 }
-#endif

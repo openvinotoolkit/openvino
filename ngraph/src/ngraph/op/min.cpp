@@ -85,7 +85,6 @@ shared_ptr<Node> op::v0::Min::get_default_value() const
     }
 }
 
-#ifdef NGRAPH_EVALUATE_ENABLE
 namespace
 {
     template <element::Type_t ET>
@@ -124,7 +123,6 @@ bool op::v0::Min::evaluate(const HostTensorVector& outputs, const HostTensorVect
 {
     return evaluate_min(inputs[0], outputs[0], get_reduction_axes());
 }
-#endif
 
 constexpr NodeTypeInfo op::v1::ReduceMin::type_info;
 
@@ -142,9 +140,7 @@ shared_ptr<Node> op::v1::ReduceMin::clone_with_new_inputs(const OutputVector& ne
     return make_shared<op::v1::ReduceMin>(new_args.at(0), new_args.at(1), get_keep_dims());
 }
 
-#ifdef NGRAPH_EVALUATE_ENABLE
 bool op::v1::ReduceMin::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
 {
     return evaluate_min(inputs[0], outputs[0], get_reduction_axes());
 }
-#endif

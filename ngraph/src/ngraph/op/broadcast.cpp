@@ -186,7 +186,6 @@ bool op::v3::Broadcast::visit_attributes(AttributeVisitor& visitor)
     return true;
 }
 
-#ifdef NGRAPH_EVALUATE_ENABLE
 bool op::v3::Broadcast::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
 {
     if (get_broadcast_spec().m_type == op::BroadcastType::BIDIRECTIONAL)
@@ -201,7 +200,6 @@ bool op::v3::Broadcast::evaluate(const HostTensorVector& outputs, const HostTens
     }
     return op::util::BroadcastBase::evaluate(outputs, inputs);
 }
-#endif
 
 namespace
 {
@@ -266,12 +264,10 @@ bool op::v1::Broadcast::visit_attributes(AttributeVisitor& visitor)
     return true;
 }
 
-#ifdef NGRAPH_EVALUATE_ENABLE
 bool op::v1::Broadcast::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
 {
     return op::util::BroadcastBase::evaluate(outputs, inputs);
 }
-#endif
 
 constexpr NodeTypeInfo op::v0::Broadcast::type_info;
 
@@ -357,7 +353,6 @@ void op::v0::Broadcast::generate_adjoints(autodiff::Adjoints& adjoints, const Ou
     adjoints.add_delta(x, make_shared<op::Sum>(delta, m_broadcast_axes));
 }
 
-#ifdef NGRAPH_EVALUATE_ENABLE
 namespace
 {
 #define TYPE_CASE_v0(a)                                                                            \
@@ -424,7 +419,6 @@ bool op::v0::Broadcast::evaluate(const HostTensorVector& outputs, const HostTens
 {
     return evaluate_broadcast_v0(inputs[0], outputs[0], get_broadcast_axes(), get_output_shape(0));
 }
-#endif
 
 constexpr NodeTypeInfo op::v0::BroadcastLike::type_info;
 

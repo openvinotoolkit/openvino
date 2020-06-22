@@ -64,7 +64,6 @@ void op::Asin::generate_adjoints(autodiff::Adjoints& adjoints, const OutputVecto
     adjoints.add_delta(x, delta / make_shared<op::Sqrt>(ones - x * x));
 }
 
-#ifdef NGRAPH_EVALUATE_ENABLE
 namespace
 {
     template <element::Type_t ET>
@@ -106,4 +105,3 @@ bool op::Asin::evaluate(const HostTensorVector& outputs, const HostTensorVector&
 {
     return evaluate_asin(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }
-#endif

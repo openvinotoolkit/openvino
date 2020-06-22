@@ -43,7 +43,6 @@ op::Erf::Erf(const Output<Node>& arg)
     constructor_validate_and_infer_types();
 }
 
-#ifdef NGRAPH_EVALUATE_ENABLE
 namespace
 {
     template <element::Type_t ET>
@@ -85,4 +84,3 @@ bool op::Erf::evaluate(const HostTensorVector& outputs, const HostTensorVector& 
 {
     return evaluate_erf(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }
-#endif

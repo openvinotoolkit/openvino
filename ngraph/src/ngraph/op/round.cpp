@@ -37,7 +37,6 @@ shared_ptr<Node> op::Round::clone_with_new_inputs(const OutputVector& new_args) 
     return make_shared<Round>(new_args.at(0));
 }
 
-#ifdef NGRAPH_EVALUATE_ENABLE
 namespace
 {
     // function used by TYPE_CASE
@@ -96,4 +95,3 @@ bool op::Round::evaluate(const HostTensorVector& outputs, const HostTensorVector
 {
     return evaluate_round(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }
-#endif

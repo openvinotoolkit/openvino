@@ -53,10 +53,8 @@ namespace ngraph
                 /// \return The default value for Min.
                 virtual std::shared_ptr<Node> get_default_value() const override;
 
-#ifdef NGRAPH_EVALUATE_ENABLE
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) override;
-#endif
             };
         }
 
@@ -81,10 +79,8 @@ namespace ngraph
                 virtual std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
 
-#ifdef NGRAPH_EVALUATE_ENABLE
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) override;
-#endif
             };
         }
 
