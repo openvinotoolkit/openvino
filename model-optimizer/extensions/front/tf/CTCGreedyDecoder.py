@@ -21,6 +21,15 @@ from mo.front.common.replacement import FrontReplacementSubgraph
 from mo.graph.graph import Node, Graph
 from mo.utils.error import Error
 
+from mo.ops.broadcast import Broadcast
+from mo.ops.const import Const
+from mo.ops.shape import Shape
+from mo.ops.squeeze import Squeeze
+from mo.ops.unsqueeze import Unsqueeze
+from extensions.ops.transpose import Transpose
+from extensions.ops.gather import Gather
+from mo.ops.concat import Concat
+
 
 class CTCGreedyDecoderReplacement(FrontReplacementSubgraph):
     """
@@ -60,6 +69,42 @@ class CTCGreedyDecoderReplacement(FrontReplacementSubgraph):
         graph.remove_edge(decoder_node.id, match['sparse_to_dense'].id)
         graph.remove_edge(decoder_node.id, match['cast'].id)
         match['sparse_to_dense'].replace_node(decoder_node)
+
+        shape = Shape(graph, {}).create_node()
+
+        axis_const_1 = Const(graph, {'value': int64_array([0, 2, 3])}).create_node()
+        # axis_const_2 = Const(graph, {'value': int64_array([0, 2, 3])}).create_node()
+        unsqueeze_1 = Squeeze(graph, {}).create_node()
+        # squeeze = Squeeze(graph, {}).create_node()
+
+        unsqueeze_1.in_port(1).connect(axis_const_1.out_port(0))
+        # squeeze.in_port(1).connect(axis_const_2.out_port(0))
+
+        decoder_node.in_port(0).get_source().connect(shape.in_port(0))
+        shape.out_port(0).connect(unsqueeze_1.in_port(0))
+
+        concat = Concat(graph, {}).create_node()
+        concat.add_input_port(0, skip_if_exist=True)
+        concat.add_input_port(1, skip_if_exist=True)
+
+        port = decoder_node.in_port(1).get_source()
+        port.disconnect()
+        port.connect(concat.in_port(1))
+
+        concat.in_port(0).connect(unsqueeze_1.out_port(0))
+        # concat.in_port(1).connect(squeeze.out_port(0))
+
+        value_const = Const(graph, {'value': int64_array([1])}).create_node()
+        broadcast = Broadcast(graph, {}).create_node()
+        broadcast.in_port(0).connect(value_const.out_port(0))
+
+        transpose = Transpose(graph, {}).create_node()
+
+        broadcast.out_port(0).connect(transpose.in_port(0))
+
+        concat.out_port(0).connect(broadcast.in_port(1))
+
+        transpose.out_port(0).connect(decoder_node.in_port(1))
 
         # update the TensorFlow infer function for the CTCGreedyDecoder to make necessary changes with the second input
         # decoder_node['old_infer'] = decoder_node.infer
