@@ -118,31 +118,6 @@ TEST_F(GraphCopyTests, canPreserveGetData) {
     ASSERT_NE(clone->getData("5"), nullptr);
 }
 
-TEST_F(GraphCopyTests, canPreserveTopology) {
-    auto iclone = CNNNetCopy<MockCopier>(*mockNet, mc);
-    auto clone = CNNNetwork(iclone);
-
-    ASSERT_EQ(clone.layerCount(), 5);
-
-    EXPECT_CALL(*this, visited(1, 0)).Times(1);
-    EXPECT_CALL(*this, visited(2, 1)).Times(1);
-
-    EXPECT_CALL(*this, visited2(3, 0)).Times(1);
-    EXPECT_CALL(*this, visited2(4, AnyOf(1, 2))).Times(1);
-    EXPECT_CALL(*this, visited2(5, AnyOf(1, 2))).Times(1);
-    EXPECT_CALL(*this, visited2(2, 3)).Times(1);
-
-    int idx = 0;
-    CNNNetBFS(clone.getLayerByName("1"), [&](CNNLayerPtr layer) {
-        visited(ID(layer), idx++);
-    });
-
-    idx = 0;
-    CNNNetBFS(clone.getLayerByName("3"), [&](CNNLayerPtr layer) {
-        visited2(ID(layer), idx++);
-    });
-}
-
 #ifdef ENABLE_GNA
 using namespace GNAPluginNS;
 struct _FP32_2_FP32  : public GNAPluginNS::frontend::QuantDescTmpl<float, float, float, float, float> {
