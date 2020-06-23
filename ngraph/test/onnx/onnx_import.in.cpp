@@ -2105,3 +2105,105 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_scatter_elements_import_only)
     EXPECT_EQ(count_ops_of_type<op::v3::ScatterElementsUpdate>(scatter_fn), 1);
     EXPECT_EQ(count_ops_of_type<op::v0::Constant>(scatter_fn), 4);
 }
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_upsample8_import_only)
+{
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/upsample8_nearest.prototxt"));
+
+    // Input data shape (1, 1, 2, 2)
+    // Scales attribute values {1.0, 1.0, 2.0, 3.0}
+
+    const Shape expected_output_shape{1, 1, 4, 6};
+    EXPECT_EQ(function->get_output_size(), 1);
+    EXPECT_EQ(function->get_output_shape(0), expected_output_shape);
+    EXPECT_EQ(count_ops_of_type<onnx_import::default_opset::Interpolate>(function), 1);
+    EXPECT_EQ(count_ops_of_type<onnx_import::default_opset::Constant>(function), 1);
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_upsample8_nearest_infer)
+{
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/upsample8_nearest.prototxt"));
+
+    // Input data shape (1, 1, 2, 2)
+    // Scales attribute values {1.0, 1.0, 2.0, 3.0}
+    // mode: nearest
+
+    const Shape expected_output_shape{1, 1, 4, 6};
+    auto test_case = ngraph::test::NgraphTestCase(function, "${BACKEND_NAME}");
+    test_case.add_input<float>({1.0, 2.0, 3.0, 4.0});
+    test_case.add_expected_output<float>(
+        expected_output_shape, {1.0, 1.0, 1.0, 2.0, 2.0, 2.0, 1.0, 1.0, 1.0, 2.0, 2.0, 2.0,
+                                3.0, 3.0, 3.0, 4.0, 4.0, 4.0, 3.0, 3.0, 3.0, 4.0, 4.0, 4.0});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_upsample8_linear_infer)
+{
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/upsample8_linear.prototxt"));
+
+    // Input data shape (1, 1, 2, 2)
+    // Scales attribute values {1.0, 1.0, 2.0, 2.0}
+    // mode: linear
+
+    const Shape expected_output_shape{1, 1, 4, 4};
+    auto test_case = ngraph::test::NgraphTestCase(function, "${BACKEND_NAME}");
+    test_case.add_input<float>({1.0, 2.0, 3.0, 4.0});
+    test_case.add_expected_output<float>(
+        expected_output_shape,
+        {1.0, 1.5, 2.0, 2.0, 2.0, 2.5, 3.0, 3.0, 3.0, 3.5, 4.0, 4.0, 3.0, 3.5, 4.0, 4.0});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_upsample9_scales_const_import_only)
+{
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/upsample9_scales_const_nearest.prototxt"));
+
+    // Input data shape (1, 1, 2, 2)
+    // Input const scales values {1.0, 1.0, 2.0, 3.0}
+
+    const Shape expected_output_shape{1, 1, 4, 6};
+    EXPECT_EQ(function->get_output_size(), 1);
+    EXPECT_EQ(function->get_output_shape(0), expected_output_shape);
+    EXPECT_EQ(count_ops_of_type<onnx_import::default_opset::Interpolate>(function), 1);
+    EXPECT_EQ(count_ops_of_type<onnx_import::default_opset::Constant>(function), 1);
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_upsample9_scales_const_nearest_infer)
+{
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/upsample9_scales_const_nearest.prototxt"));
+
+    // Input data shape (1, 1, 2, 2)
+    // Input const scales values {1.0, 1.0, 2.0, 3.0}
+    // mode: nearest
+
+    const Shape expected_output_shape{1, 1, 4, 6};
+    auto test_case = ngraph::test::NgraphTestCase(function, "${BACKEND_NAME}");
+    test_case.add_input<float>({1.0, 2.0, 3.0, 4.0});
+    test_case.add_expected_output<float>(
+        expected_output_shape, {1.0, 1.0, 1.0, 2.0, 2.0, 2.0, 1.0, 1.0, 1.0, 2.0, 2.0, 2.0,
+                                3.0, 3.0, 3.0, 4.0, 4.0, 4.0, 3.0, 3.0, 3.0, 4.0, 4.0, 4.0});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_upsample9_scales_const_linear_infer)
+{
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/upsample9_scales_const_linear.prototxt"));
+
+    // Input data shape (1, 1, 2, 2)
+    // Input const scales values {1.0, 1.0, 2.0, 2.0}
+    // mode: linear
+
+    const Shape expected_output_shape{1, 1, 4, 4};
+    auto test_case = ngraph::test::NgraphTestCase(function, "${BACKEND_NAME}");
+    test_case.add_input<float>({1.0, 2.0, 3.0, 4.0});
+    test_case.add_expected_output<float>(
+        expected_output_shape,
+        {1.0, 1.5, 2.0, 2.0, 2.0, 2.5, 3.0, 3.0, 3.0, 3.5, 4.0, 4.0, 3.0, 3.5, 4.0, 4.0});
+    test_case.run();
+}

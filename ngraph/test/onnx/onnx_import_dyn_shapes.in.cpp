@@ -1177,3 +1177,22 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_range_negative_step)
 
     test_case.run();
 }
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_upsample9_scales_input_nearest_infer)
+{
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/upsample9_scales_input_nearest.prototxt"));
+
+    // Input data shape (1, 1, 2, 2)
+    // mode: nearest
+
+    Shape expected_output_shape{1, 1, 4, 6};
+    auto test_case =
+        ngraph::test::NgraphTestCase(function, "${BACKEND_NAME}", test::BackendMode::DYNAMIC);
+    test_case.add_input<float>({1.0, 2.0, 3.0, 4.0});
+    test_case.add_input<float>({1.0, 1.0, 2.0, 3.0});
+    test_case.add_expected_output<float>(
+        expected_output_shape, {1.0, 1.0, 1.0, 2.0, 2.0, 2.0, 1.0, 1.0, 1.0, 2.0, 2.0, 2.0,
+                                3.0, 3.0, 3.0, 4.0, 4.0, 4.0, 3.0, 3.0, 3.0, 4.0, 4.0, 4.0});
+    test_case.run();
+}
