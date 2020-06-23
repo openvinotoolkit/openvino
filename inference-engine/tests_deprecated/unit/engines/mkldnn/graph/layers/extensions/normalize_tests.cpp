@@ -415,7 +415,6 @@ class MKLDNNCPUExtNormalizeTests_Blocked: public TestsCommon, public WithParamIn
         <layer name="normalize" id="2" type="Normalize">
             <data across_spatial="_AS_" channel_shared="_CS_" eps="_EPS_" />
             <weights offset="0" size="_WS_" />
-
             <input>
                 <port id="3">
                     <dim>_IN_</dim>

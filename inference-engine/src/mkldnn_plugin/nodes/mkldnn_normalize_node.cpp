@@ -704,7 +704,7 @@ void MKLDNNNormalizeNode::getSupportedDescriptors() {
         weights_blob = transformer.convertBF16ToFloat(tweights);
     } else {
         // Unknown non supported data type, return an error
-        THROW_IE_EXCEPTION << layer->name << "Weights for layer Normalize wiht name '" << layer->name <<
+        THROW_IE_EXCEPTION << layer->name << "Weights for layer Normalize with name '" << layer->name <<
             "' has unsupported data type " << tweights->getTensorDesc().getPrecision();
     }
 }
