@@ -105,8 +105,6 @@ private:
     }
 };
 
-IE_SUPPRESS_DEPRECATED_END
-
 }  // namespace Cpu
 }  // namespace Extensions
 }  // namespace InferenceEngine
