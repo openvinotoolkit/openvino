@@ -49,6 +49,7 @@ def test_load_network_wrong_device():
     assert 'Device with "BLA" name is not registered in the InferenceEngine' in str(e.value)
 
 
+@pytest.mark.skip(reason="IENetwork.layers return not all layers in case of ngraph representation due to inner conversion into legacy representation")
 def test_query_network(device):
     ie = IECore()
     net = ie.read_network(model=test_net_xml, weights=test_net_bin)

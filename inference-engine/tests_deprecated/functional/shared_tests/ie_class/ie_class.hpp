@@ -79,7 +79,6 @@ public:
         // Quite simple network
         {
             std::shared_ptr<ngraph::Function> fnPtr = ngraph::builder::subgraph::makeSingleConv();
-            fnPtr->set_friendly_name("simpleNetwork");
             ASSERT_NO_THROW(simpleNetwork = CNNNetwork(fnPtr));
         }
 
@@ -844,7 +843,7 @@ TEST_P(IEClassExecutableNetworkGetMetricTest_NETWORK_NAME, GetMetricNoThrow) {
     std::string networkname = p;
 
     std::cout << "Exe network name: " << std::endl << networkname << std::endl;
-    ASSERT_EQ("simpleNetwork", networkname);
+    ASSERT_EQ(simpleNetwork.getName(), networkname);
     ASSERT_EXEC_METRIC_SUPPORTED(EXEC_NETWORK_METRIC_KEY(NETWORK_NAME));
 }
 
@@ -1345,7 +1344,7 @@ TEST_P(IEClassLoadNetworkTest, QueryNetworkMULTIwithHETERONoThrowv7) {
     }
 }
 
-TEST_P(IEClassLoadNetworkTest, QueryNetworkHETEROwithMULTINoThrowv10) {
+TEST_P(IEClassLoadNetworkTest, DISABLED_QueryNetworkHETEROWithMULTINoThrowV10) {
     CHECK_MULTI();
     Core ie;
 
@@ -1358,23 +1357,30 @@ TEST_P(IEClassLoadNetworkTest, QueryNetworkHETEROwithMULTINoThrowv10) {
                 devices += ',';
             }
         }
-
+        auto function = irv10Network.getFunction();
+        ASSERT_NE(nullptr, function);
+        std::unordered_set<std::string> expectedLayers;
+        for (auto&& node : function->get_ops()) {
+            if (!node->is_constant() && !node->is_parameter() && !node->is_output()) {
+                expectedLayers.emplace(node->get_friendly_name());
+            }
+        }
         QueryNetworkResult result;
         ASSERT_NO_THROW(result = ie.QueryNetwork(irv10Network, "HETERO", {
                 {MULTI_CONFIG_KEY(DEVICE_PRIORITIES), devices},
                 { "TARGET_FALLBACK", "MULTI,CPU" }}));
 
+        std::unordered_set<std::string> actualLayers;
         for (auto && layer : result.supportedLayersMap) {
-            IE_SUPPRESS_DEPRECATED_START
-            EXPECT_NO_THROW(irv10Network.getLayerByName(layer.first.c_str()));
-            IE_SUPPRESS_DEPRECATED_END
+            actualLayers.emplace(layer.first);
         }
+        ASSERT_EQ(expectedLayers, actualLayers);
     } else {
         GTEST_SKIP();
     }
 }
 
-TEST_P(IEClassLoadNetworkTest, DISABLED_QueryNetworkMULTIwithHETERONoThrowv10) {
+TEST_P(IEClassLoadNetworkTest, DISABLED_QueryNetworkMULTIWithHETERONoThrowV10) {
     CHECK_MULTI();
     Core ie;
 
@@ -1387,45 +1393,24 @@ TEST_P(IEClassLoadNetworkTest, DISABLED_QueryNetworkMULTIwithHETERONoThrowv10) {
                 devices += ',';
             }
         }
-
-        // TODO: remove once HETERO and MULTI support v10
-        irv10Network.getLayerByName("param0");
-
-        std::vector<std::string> names;
-        if (auto ngraphFunction = irv10Network.getFunction()) {
-            for (auto && op : irv10Network.getFunction()->get_ops()) {
-                names.push_back(op->get_friendly_name());
+        auto function = irv10Network.getFunction();
+        ASSERT_NE(nullptr, function);
+        std::unordered_set<std::string> expectedLayers;
+        for (auto&& node : function->get_ops()) {
+            if (!node->is_constant() && !node->is_parameter() && !node->is_output()) {
+                expectedLayers.emplace(node->get_friendly_name());
             }
-        } else {
-            IE_SUPPRESS_DEPRECATED_START
-            auto i = irv10Network.begin();
-            while (i != irv10Network.end()) {
-                CNNLayerPtr layer = *i;
-                names.push_back(layer->name);
-                ++i;
-            }
-            IE_SUPPRESS_DEPRECATED_END
         }
-
         QueryNetworkResult result;
         ASSERT_NO_THROW(result = ie.QueryNetwork(irv10Network, "MULTI", {
                 {MULTI_CONFIG_KEY(DEVICE_PRIORITIES), devices},
                 { "TARGET_FALLBACK", deviceName + ",CPU" }}));
 
-        // check that all supported layers are in network
+        std::unordered_set<std::string> actualLayers;
         for (auto && layer : result.supportedLayersMap) {
-            EXPECT_NE(std::end(names), std::find(names.begin(), names.end(), layer.first));
+            actualLayers.emplace(layer.first);
         }
-
-        // check that network layers are supported
-        for (auto && name : names) {
-            bool layerIsFound = result.supportedLayersMap.end() !=
-                std::find_if(result.supportedLayersMap.begin(), result.supportedLayersMap.end(),
-                    [&](const std::pair<std::string, std::string> & p) {
-                        return name == p.first;
-                    });
-            EXPECT_TRUE(layerIsFound);
-        }
+        ASSERT_EQ(expectedLayers, actualLayers);
     } else {
         GTEST_SKIP();
     }

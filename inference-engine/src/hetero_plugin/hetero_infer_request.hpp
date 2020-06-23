@@ -13,7 +13,7 @@
 #include <string>
 #include <vector>
 #include <memory>
-#include <unordered_set>
+#include <unordered_map>
 #include <ie_common.h>
 #include <cpp_interfaces/impl/ie_infer_request_internal.hpp>
 #include <cpp_interfaces/impl/ie_executable_network_internal.hpp>
@@ -35,7 +35,8 @@ public:
 
     explicit HeteroInferRequest(InferenceEngine::InputsDataMap networkInputs,
                                 InferenceEngine::OutputsDataMap networkOutputs,
-                                const SubRequestsList &inferRequests);
+                                const SubRequestsList &inferRequests,
+                                const std::unordered_map<std::string, std::string>& blobNameMap);
 
     void InferImpl() override;
 
@@ -46,7 +47,7 @@ public:
     void updateInOutIfNeeded();
 
     SubRequestsList _inferRequests;
-    std::map<std::string, InferenceEngine::Blob::Ptr> _blobs;
+    std::map<std::string, InferenceEngine::Blob::Ptr>   _blobs;
 };
 
 }  // namespace HeteroPlugin

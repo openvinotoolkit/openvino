@@ -41,7 +41,6 @@ public:
     HeteroExecutableNetwork(const InferenceEngine::ICNNNetwork&         network,
                             const std::map<std::string, std::string>&   config,
                             Engine*                                     plugin);
-
     /**
     * @brief Import from opened file constructor
     */
@@ -63,6 +62,10 @@ public:
     void ExportImpl(std::ostream& modelFile) override;
 
 private:
+    void InitCNNImpl(const InferenceEngine::ICNNNetwork&    network);
+
+    void InitNgraph(const InferenceEngine::ICNNNetwork&     network);
+
     struct NetworkDesc {
         std::string                                 _device;
         InferenceEngine::CNNNetwork                 _clonedNetwork;
@@ -73,6 +76,7 @@ private:
     Engine*                             _heteroPlugin;
     std::string                         _name;
     std::map<std::string, std::string>  _config;
+    std::unordered_map<std::string, std::string> _blobNameMap;
 };
 
 }  // namespace HeteroPlugin
