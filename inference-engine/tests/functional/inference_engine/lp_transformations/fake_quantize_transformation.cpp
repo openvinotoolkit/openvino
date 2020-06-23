@@ -13,14 +13,13 @@
 #include <transformations/utils/utils.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/convert_opset1_to_legacy/conv_bias_fusion.hpp>
-
-// TODO: debug only
-#include <ngraph/pass/visualize_tree.hpp>
-
 #include "../transformations/ngraph_test_utils.hpp"
 #include <transformations/low_precision/transformer.hpp>
 #include "transformations/low_precision/fake_quantize.hpp"
 #include "ngraph_functions/low_precision_transformations/fake_quantize_function.hpp"
+
+// TODO: debug only
+#include <ngraph/pass/visualize_tree.hpp>
 
 using namespace testing;
 using namespace ngraph;
@@ -73,10 +72,7 @@ public:
             fakeQuantizeOnData.params,
             fakeQuantizeOnData.actual);
 
-        // {
-        //    std::vector<std::shared_ptr<ngraph::Function>> module{ actualFunction };
-        //    VisualizeTree("C:\\Projects\\temp\\test.original").run_on_module(module);
-        // }
+        // VisualizeTree("C:\\Projects\\temp\\test.original").run_on_module(std::vector<std::shared_ptr<ngraph::Function>>{ actualFunction });
 
         // transform(actualFunction);
 
@@ -88,16 +84,15 @@ public:
         ngraph::pass::low_precision::LowPrecisionTransformer transformer(transformations);
         transformer.transform(actualFunction);
 
+        // VisualizeTree("C:\\Projects\\temp\\test.transformed").run_on_module(std::vector<std::shared_ptr<ngraph::Function>>{ actualFunction });
+
         referenceFunction = ngraph::builder::subgraph::FakeQuantizeFunction::getReference(
             precision,
             shape,
             fakeQuantizeOnData.params,
             fakeQuantizeOnData.expected);
 
-        // {
-        //    std::vector<std::shared_ptr<ngraph::Function>> module{ referenceFunction };
-        //    VisualizeTree("C:\\Projects\\temp\\test.transformed").run_on_module(module);
-        // }
+        // VisualizeTree("C:\\Projects\\temp\\test.transformed").run_on_module(std::vector<std::shared_ptr<ngraph::Function>>{ referenceFunction });
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<FakeQuantizeTransformationParams> obj) {

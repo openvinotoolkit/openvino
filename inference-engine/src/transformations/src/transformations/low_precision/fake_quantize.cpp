@@ -115,12 +115,15 @@ void FakeQuantizeTransformation::transform(TransformationContext& context, ngrap
 
     // To disable application of the same transform twice on the same node
     // TODO: Handle it through node property
-    auto quantize = as_type_ptr<opset1::FakeQuantize>(std::get<0>(QDQ));
-    auto quantizeConvert = as_type_ptr<opset1::Convert>(quantize->get_output_target_inputs(0).begin()->get_node()->shared_from_this());
+    // auto quantize = as_type_ptr<opset1::FakeQuantize>(std::get<0>(QDQ));
+    // auto quantizeConvert = as_type_ptr<opset1::Convert>(quantize->get_output_target_inputs(0).begin()->get_node()->shared_from_this());
 
     // Remove the first Convert and built convert directly to FQ by modifying output type
-    NetworkHelper::setOutDataPrecision(quantize, quantizeConvert->get_output_element_type(0));
-    NetworkHelper::removeLayer(quantizeConvert);
+    // NetworkHelper::setOutDataPrecision(quantize, quantizeConvert->get_output_element_type(0));
+    // NetworkHelper::removeLayer(quantizeConvert);
+
+    // TODO: hardcoded
+    // NetworkHelper::setOutDataPrecision(quantize, element::u8);
 
     auto dequantize = as_type_ptr<ngraph::Node>(std::get<1>(QDQ));
     dequantize->set_friendly_name(layer->get_friendly_name());

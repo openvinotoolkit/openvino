@@ -51,22 +51,24 @@ std::shared_ptr<ngraph::Function> FakeQuantizeFunction::getReference(
         precision, fakeQuantizeOnData.constantShape, fakeQuantizeOnData.lowValues, fakeQuantizeOnData.lowValues.empty());
     auto outputHighNode = ngraph::builder::makeConstant(
         precision, fakeQuantizeOnData.constantShape, fakeQuantizeOnData.highValues, fakeQuantizeOnData.highValues.empty());
-    auto fakeQuantize = std::make_shared<ngraph::opset1::FakeQuantize>(input, inputLowNode, inputHighNode, outputLowNode, outputHighNode, fakeQuantizeOnData.quantizationLevel);
-    // auto fakeQuantize = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::FakeQuantize>>(input, inputLowNode, inputHighNode, outputLowNode, outputHighNode, fakeQuantizeOnData.quantizationLevel);
+    // auto fakeQuantize = std::make_shared<ngraph::opset1::FakeQuantize>(
+    //    input, inputLowNode, inputHighNode, outputLowNode, outputHighNode, fakeQuantizeOnData.quantizationLevel);
+    std::shared_ptr<ngraph::opset1::FakeQuantize> fakeQuantize = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::FakeQuantize>>(
+        input, inputLowNode, inputHighNode, outputLowNode, outputHighNode, fakeQuantizeOnData.quantizationLevel);
 
-    //auto fakeQuantize = ngraph::builder::makeFakeQuantize(
+    // auto fakeQuantize = ngraph::builder::makeFakeQuantize(
     //    input, precision, fakeQuantizeOnData.quantizationLevel, fakeQuantizeOnData.constantShape,
     //    fakeQuantizeOnData.lowValues, fakeQuantizeOnData.highValues, fakeQuantizeOnData.lowValues, fakeQuantizeOnData.highValues);
 
 
-    //auto quantizeConvert = ngraph::pass::low_precision::fold<ngraph::opset1::Convert>(fakeQuantize, expectedPrecision);
-    auto quantizeConvert1 = low_precision::fold<ngraph::opset1::Convert>(fakeQuantize, params.precisionsOnActivations[0]);
-    auto quantizeConvert2 = std::make_shared<ngraph::opset1::Convert>(quantizeConvert1, precision);
+    // auto quantizeConvert = ngraph::pass::low_precision::fold<ngraph::opset1::Convert>(fakeQuantize, expectedPrecision);
+    // auto quantizeConvert1 = low_precision::fold<ngraph::opset1::Convert>(fakeQuantize, params.precisionsOnActivations[0]);
+    auto quantizeConvert2 = std::make_shared<ngraph::opset1::Convert>(fakeQuantize, precision);
 
     // why all children change precision?
-    //auto relaxed_layer = std::dynamic_pointer_cast<ngraph::op::TypeRelaxedBase>(fakeQuantize);
-    //relaxed_layer->set_overriden_output_type(expectedPrecision);
-    //std::dynamic_pointer_cast<ngraph::Node>(fakeQuantize)->validate_and_infer_types();
+    // auto relaxed_layer = std::dynamic_pointer_cast<ngraph::op::TypeRelaxedBase>(fakeQuantize);
+    // relaxed_layer->set_overriden_output_type(expectedPrecision);
+    // std::dynamic_pointer_cast<ngraph::Node>(fakeQuantize)->validate_and_infer_types();
 
     // fakeQuantize = ngraph::pass::low_precision::fold<ngraph::opset1::Convert>(fakeQuantize, precision);
 
@@ -80,10 +82,13 @@ std::shared_ptr<ngraph::Function> FakeQuantizeFunction::getReference(
     // const auto convert = std::make_shared<ngraph::opset1::Convert>(fakeQuantize, precision);
 
     // TODO: MultiplyAdd constant shape is hardcoded
-    auto subtract = std::make_shared<ngraph::op::Subtract>(
-        quantizeConvert2,
+    // auto subtract = std::make_shared<ngraph::op::TypeRelaxed<ngraph::op::Subtract>>(
+    std::shared_ptr<ngraph::opset1::Subtract> subtract = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::Subtract>>(
+        quantizeConvert2, // fakeQuantize
         ngraph::opset1::Constant::create(precision, ngraph::Shape{ }, { 0.f }),
         ngraph::op::AutoBroadcastSpec::NUMPY);
+
+    ngraph::pass::low_precision::NetworkHelper::setOutDataPrecision(subtract, precision);
 
     auto multiply = std::make_shared<ngraph::opset1::Multiply>(
         subtract,
@@ -93,7 +98,7 @@ std::shared_ptr<ngraph::Function> FakeQuantizeFunction::getReference(
     auto outputs = fakeQuantize->get_output_partial_shape(0);
 
     ngraph::pass::low_precision::NetworkHelper::setOutDataPrecision(fakeQuantize, params.precisionsOnActivations[0]);
-    ngraph::pass::low_precision::NetworkHelper::removeLayer(quantizeConvert1);
+    // ngraph::pass::low_precision::NetworkHelper::removeLayer(quantizeConvert1);
 
     ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(multiply) };
     return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "FakeQuantizeFunction");
