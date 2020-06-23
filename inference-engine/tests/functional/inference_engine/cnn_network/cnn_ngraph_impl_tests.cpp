@@ -18,6 +18,7 @@
 #include <ie_core.hpp>
 #include <net_pass.h>
 
+#include <ngraph/opsets/opset3.hpp>
 #include <ngraph/function.hpp>
 #include <ngraph/variant.hpp>
 #include <ngraph/op/maximum.hpp>
@@ -684,4 +685,25 @@ TEST(CNNNGraphImplTests, TestCheckStats) {
     InferenceEngine::details::CNNNetworkNGraphImpl cnnNet(ngraph);
 }
 
+TEST(CNNNGraphImplTests, CanSetBatchReadValue) {
+    std::shared_ptr<ngraph::Function> ngraph;
+    {
+        auto input = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::f32, ngraph::Shape{1, 2});
+        auto constant = std::make_shared<ngraph::opset3::Constant>(ngraph::element::f32, ngraph::Shape{1, 2},
+                std::vector<float>{1, 2});
+
+        auto read_value = std::make_shared<ngraph::opset3::ReadValue>(constant, "variable_id");
+        auto add = std::make_shared<ngraph::opset3::Add>(input, read_value);
+        auto result = std::make_shared<ngraph::op::Result>(add);
+
+        ngraph::ParameterVector params = {input};
+        ngraph::ResultVector results = {result};
+
+        ngraph = std::make_shared<ngraph::Function>(results, params);
+    }
+
+    InferenceEngine::details::CNNNetworkNGraphImpl cnnNet(ngraph);
+    auto status = cnnNet.getCNNNetwork()->setBatchSize(4, nullptr);
+    EXPECT_EQ(status, StatusCode::OK);
+}
 IE_SUPPRESS_DEPRECATED_END
