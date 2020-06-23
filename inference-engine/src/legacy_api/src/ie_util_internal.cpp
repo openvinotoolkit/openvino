@@ -211,9 +211,6 @@ details::CNNNetworkImplPtr cloneNet(const ICNNNetwork& origin_network) {
     for (auto o : outputInfo) {
         net->removeOutput(o.first);
     }
-    IE_SUPPRESS_DEPRECATED_START
-    net->setPrecision(network.getPrecision());
-    IE_SUPPRESS_DEPRECATED_END
     net->setName(network.getName());
 
     InputsDataMap externalInputsData;

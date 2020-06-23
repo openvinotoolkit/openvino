@@ -221,6 +221,8 @@ TEST_F(NGraphReaderTests, ReadReLUScalarNetwork) {
     Core reader;
     auto cnn = reader.ReadNetwork(model, blob);
 
+    IE_SUPPRESS_DEPRECATED_START
     // convert to old representation
     cnn.getInputsInfo().begin()->second->getInputData()->getCreatorLayer();
+    IE_SUPPRESS_DEPRECATED_END
 }

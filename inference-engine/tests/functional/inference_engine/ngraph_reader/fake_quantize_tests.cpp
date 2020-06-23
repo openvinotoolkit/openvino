@@ -256,6 +256,8 @@ TEST_F(NGraphReaderTests, ReadFQNetwork) {
     Core reader;
     auto cnn = reader.ReadNetwork(model, weights);
 
+    IE_SUPPRESS_DEPRECATED_START
     // convert to old representation
     cnn.getInputsInfo().begin()->second->getInputData()->getCreatorLayer();
+    IE_SUPPRESS_DEPRECATED_END
 }
