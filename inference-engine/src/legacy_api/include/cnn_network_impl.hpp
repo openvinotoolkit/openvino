@@ -89,7 +89,7 @@ public:
         return getData(name.c_str());
     }
 
-    void addLayer(const CNNLayerPtr& layer) noexcept override;
+    void addLayer(const CNNLayerPtr& layer) noexcept;
 
     void removeLayer(const std::string& layerName);
 

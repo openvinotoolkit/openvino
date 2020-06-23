@@ -1026,7 +1026,7 @@ void CNNNetworkHelper::replaceLayer(TransformationContext& context, const CNNLay
     }
 
     IE_SUPPRESS_DEPRECATED_START
-    context.network.addLayer(target);
+    // context.network.addLayer(target);
     IE_SUPPRESS_DEPRECATED_END
 }
 

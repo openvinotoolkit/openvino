@@ -466,7 +466,7 @@ bool unrollTI(CNNLayerPtr cur, ICNNNetwork& net) {
         auto holder = body_list[i].inputs.back();
         if (holder->getPrecision() == Precision::UNSPECIFIED) {
             IE_SUPPRESS_DEPRECATED_START
-            for (auto kvp : holder->getInputTo()) net.addLayer(kvp.second);
+            // for (auto kvp : holder->getInputTo()) net.addLayer(kvp.second);
             IE_SUPPRESS_DEPRECATED_END
         }
     }
@@ -1196,7 +1196,7 @@ void restore_net_consistency(ICNNNetwork& net) {
     // At first all layers should be available via findByName() api.
     // In other words all layers should be present in internal map<name, layer>
     IE_SUPPRESS_DEPRECATED_START
-    for (auto& l : TopolSort(net)) net.addLayer(l);
+    // for (auto& l : TopolSort(net)) net.addLayer(l);
     IE_SUPPRESS_DEPRECATED_END
 }
 

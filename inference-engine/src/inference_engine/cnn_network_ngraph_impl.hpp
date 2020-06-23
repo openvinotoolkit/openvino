@@ -66,10 +66,6 @@ public:
 
     std::shared_ptr<ICNNNetwork> getCNNNetwork();
 
-    // This method is not really implemented; don't call it
-    INFERENCE_ENGINE_DEPRECATED("Use ngraph::Function directly")
-    void addLayer(const CNNLayerPtr& layer) noexcept override;
-
     INFERENCE_ENGINE_DEPRECATED("Use ngraph::Function directly")
     StatusCode getLayerByName(const char* layerName, CNNLayerPtr& out, ResponseDesc* resp) const noexcept override;
 

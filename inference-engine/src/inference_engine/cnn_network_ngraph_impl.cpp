@@ -228,17 +228,6 @@ size_t CNNNetworkNGraphImpl::layerCount() const noexcept {
     return _ngraph_function->get_ops().size();
 }
 
-void CNNNetworkNGraphImpl::addLayer(const CNNLayerPtr& layer) noexcept {
-    try {
-        if (!cnnNetwork) {
-            convertToCNNNetworkImpl();
-        }
-        cnnNetwork->addLayer(layer);
-    } catch (...) {
-        return;
-    }
-}
-
 void CNNNetworkNGraphImpl::validate(int version) {
     if (cnnNetwork)
         cnnNetwork->validate();
