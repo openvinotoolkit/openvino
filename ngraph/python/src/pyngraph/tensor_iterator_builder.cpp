@@ -14,8 +14,6 @@
 // limitations under the License.
 //*****************************************************************************
 
-#pragma once
-
 #include <string>
 
 #include "ngraph/check.hpp"
