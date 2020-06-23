@@ -191,7 +191,7 @@ void ConvolutionTestHelper::updatePaddingValues(const CNNNetwork &network) {
     auto found = std::find_if(i, end, [this](const CNNLayer::Ptr &layer) {
         return layer->type == type;
     });
-        ASSERT_NE(found, end);
+    ASSERT_NE(found, end);
 
     auto castedLayer = std::dynamic_pointer_cast<ConvolutionLayer>(*found);
     auto allPad = getPaddings(*castedLayer.get());
@@ -286,7 +286,7 @@ void DeformableConvolutionTestHelper::updatePaddingValues(const CNNNetwork &netw
     auto found = std::find_if(i, end, [this](const CNNLayer::Ptr &layer) {
         return layer->type == type;
     });
-        ASSERT_NE(found, end);
+    ASSERT_NE(found, end);
 
     auto castedLayer = std::dynamic_pointer_cast<ConvolutionLayer>(*found);
     auto allPad = getPaddings(*castedLayer.get());
@@ -358,7 +358,7 @@ void PoolingTestHelper::updatePaddingValues(const InferenceEngine::CNNNetwork &n
     auto found = std::find_if(i, end, [this](const CNNLayer::Ptr &layer) {
         return layer->type == type;
     });
-        ASSERT_NE(found, end);
+    ASSERT_NE(found, end);
 
     auto castedLayer = std::dynamic_pointer_cast<PoolingLayer>(*found);
     auto allPad = getPaddings(*castedLayer.get());

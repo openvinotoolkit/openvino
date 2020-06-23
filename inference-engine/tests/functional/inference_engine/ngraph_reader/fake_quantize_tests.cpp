@@ -255,4 +255,7 @@ TEST_F(NGraphReaderTests, ReadFQNetwork) {
 
     Core reader;
     auto cnn = reader.ReadNetwork(model, weights);
+
+    // convert to old representation
+    cnn.getInputsInfo().begin()->second->getInputData()->getCreatorLayer();
 }
