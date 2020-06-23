@@ -25,7 +25,6 @@ from mo.front.tf.graph_utils import create_op_with_const_inputs
 from mo.graph.graph import Graph
 from mo.graph.graph import Node
 from mo.ops.concat import Concat
-from mo.ops.const import Const
 from mo.ops.op import Op, PermuteAttrs
 
 
