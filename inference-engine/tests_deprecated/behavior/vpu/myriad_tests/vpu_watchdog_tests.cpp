@@ -191,7 +191,7 @@ TEST_P(MYRIADWatchdog, watchDogIntervalDefault) {
         ExecutableNetwork ret;
         ctime = Time::now();
         ASSERT_THROW(ret = core.LoadNetwork(network, GetParam().device, {
-            {KEY_LOG_LEVEL, LOG_INFO}}),
+            {KEY_LOG_LEVEL, LOG_INFO}, {KEY_ENFORCE_BF16, YES} }),
             InferenceEngine::details::InferenceEngineException);
 
         ASSERT_BOOTED_DEVICES_ONE_MORE();
@@ -226,7 +226,8 @@ TEST_P(MYRIADWatchdog, canTurnoffWatchDogViaConfig) {
         ctime = Time::now();
         ASSERT_THROW(ret = core.LoadNetwork(network, GetParam().device, {
             {KEY_LOG_LEVEL, LOG_INFO},
-            {KEY_VPU_MYRIAD_WATCHDOG, NO}}),
+            {KEY_VPU_MYRIAD_WATCHDOG, NO},
+            {KEY_ENFORCE_BF16, YES}}),
             InferenceEngine::details::InferenceEngineException);
 
         ASSERT_BOOTED_DEVICES_ONE_MORE();
