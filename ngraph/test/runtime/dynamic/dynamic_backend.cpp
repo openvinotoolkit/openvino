@@ -96,10 +96,8 @@ bool is_dynamic_op(const std::shared_ptr<Node>& op)
     return is_type<op::Transpose>(op) || is_type<op::DynBroadcast>(op) ||
            is_type<op::DynReplaceSlice>(op) || is_type<op::DynSlice>(op) ||
            is_type<op::v1::Reshape>(op) || is_type<op::Range>(op) ||
-           is_type<op::v1::ConvolutionBackpropData>(op) ||
-           is_type<op::v1::ConvolutionBackpropFilters>(op) ||
-           is_type<op::v1::AvgPoolBackprop>(op) || is_type<op::v1::Broadcast>(op) ||
-           is_type<op::v3::Broadcast>(op) || is_type<op::v1::GenerateMask>(op);
+           is_type<op::v1::ConvolutionBackpropData>(op) || is_type<op::v3::Broadcast>(op) ||
+           is_type<op::v1::GenerateMask>(op);
 }
 
 // Helper for a vile hack in DynamicExecutable::call. See body of that function for details.

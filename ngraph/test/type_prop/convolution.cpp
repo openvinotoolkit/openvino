@@ -63,32 +63,6 @@ TEST(type_prop, conv_1d_back_data_batch_deduce)
     EXPECT_EQ(conv->get_padding_above_forward(), CoordinateDiff{0});
 }
 
-TEST(type_prop, conv_1d_back_filters_deduce)
-{
-    // Deduce type
-    // Shape data_batch_shape{64, 3, 100};
-    Shape filters_shape{128, 3, 10};
-    auto param0 = make_shared<op::Parameter>(element::f32, Shape{64, 3, 100});  // data batch
-    auto param1 = make_shared<op::Parameter>(element::f32, Shape{64, 128, 91}); // output delta
-    auto conv = make_shared<op::ConvolutionBackpropFilters>(param0,
-                                                            filters_shape,
-                                                            param1,
-                                                            Strides{1},
-                                                            Strides{1},
-                                                            CoordinateDiff{0},
-                                                            CoordinateDiff{0},
-                                                            Strides{1});
-    EXPECT_EQ(conv->get_element_type(), element::f32);
-    EXPECT_EQ(conv->get_shape(), filters_shape);
-
-    EXPECT_EQ(conv->get_window_movement_strides_forward(), Strides{1});
-    EXPECT_EQ(conv->get_window_dilation_strides_forward(), Strides{1});
-    EXPECT_EQ(conv->get_data_dilation_strides_forward(), Strides{1});
-
-    EXPECT_EQ(conv->get_padding_below_forward(), CoordinateDiff{0});
-    EXPECT_EQ(conv->get_padding_above_forward(), CoordinateDiff{0});
-}
-
 TEST(type_prop, conv_1d_deduce_padded)
 {
     // Deduce type
@@ -140,36 +114,6 @@ TEST(type_prop, conv_1d_back_data_batch_deduce_padded)
     EXPECT_EQ(conv->get_padding_above_forward(), CoordinateDiff{3});
 }
 
-TEST(type_prop, conv_1d_back_filters_deduce_padded)
-{
-    // Deduce type
-    // Shape data_batch_shape{64, 3, 100};
-    Shape filters_shape{128, 3, 10};
-    auto param0 = make_shared<op::Parameter>(element::f32, Shape{64, 3, 100});  // data batch
-    auto param1 = make_shared<op::Parameter>(element::f32, Shape{64, 128, 96}); // output delta
-    auto move_strides = Strides{1};
-    auto dilation_strides = Strides{1};
-    auto padding_below = CoordinateDiff{2};
-    auto padding_above = CoordinateDiff{3};
-    auto conv = make_shared<op::ConvolutionBackpropFilters>(param0,
-                                                            filters_shape,
-                                                            param1,
-                                                            move_strides,
-                                                            dilation_strides,
-                                                            padding_below,
-                                                            padding_above,
-                                                            Strides{1});
-    EXPECT_EQ(conv->get_element_type(), element::f32);
-    EXPECT_EQ(conv->get_shape(), filters_shape);
-
-    EXPECT_EQ(conv->get_window_movement_strides_forward(), Strides{1});
-    EXPECT_EQ(conv->get_window_dilation_strides_forward(), Strides{1});
-    EXPECT_EQ(conv->get_data_dilation_strides_forward(), Strides{1});
-
-    EXPECT_EQ(conv->get_padding_below_forward(), CoordinateDiff{2});
-    EXPECT_EQ(conv->get_padding_above_forward(), CoordinateDiff{3});
-}
-
 TEST(type_prop, conv_1d_deduce_strided)
 {
     // Deduce type
@@ -205,33 +149,6 @@ TEST(type_prop, conv_1d_back_data_batch_deduce_strided)
                                                          Strides{1});
     EXPECT_EQ(conv->get_element_type(), element::f32);
     EXPECT_EQ(conv->get_shape(), data_batch_shape);
-
-    EXPECT_EQ(conv->get_window_movement_strides_forward(), Strides{2});
-    EXPECT_EQ(conv->get_window_dilation_strides_forward(), Strides{1});
-    EXPECT_EQ(conv->get_data_dilation_strides_forward(), Strides{1});
-
-    EXPECT_EQ(conv->get_padding_below_forward(), CoordinateDiff{0});
-    EXPECT_EQ(conv->get_padding_above_forward(), CoordinateDiff{0});
-}
-
-TEST(type_prop, conv_1d_back_filters_deduce_strided)
-{
-    // Deduce type
-    // Shape data_batch_shape{64, 3, 100};
-    Shape filters_shape{128, 3, 10};
-    auto param0 = make_shared<op::Parameter>(element::f32, Shape{64, 3, 100});  // data batch
-    auto param1 = make_shared<op::Parameter>(element::f32, Shape{64, 128, 46}); // output delta
-    auto move_strides = Strides{2};
-    auto conv = make_shared<op::ConvolutionBackpropFilters>(param0,
-                                                            filters_shape,
-                                                            param1,
-                                                            move_strides,
-                                                            Strides{1},
-                                                            CoordinateDiff{0},
-                                                            CoordinateDiff{0},
-                                                            Strides{1});
-    EXPECT_EQ(conv->get_element_type(), element::f32);
-    EXPECT_EQ(conv->get_shape(), filters_shape);
 
     EXPECT_EQ(conv->get_window_movement_strides_forward(), Strides{2});
     EXPECT_EQ(conv->get_window_dilation_strides_forward(), Strides{1});
@@ -292,36 +209,6 @@ TEST(type_prop, conv_1d_back_data_batch_deduce_strided_padded)
     EXPECT_EQ(conv->get_padding_above_forward(), CoordinateDiff{3});
 }
 
-TEST(type_prop, conv_1d_back_filters_deduce_strided_padded)
-{
-    // Deduce type
-    // Shape data_batch_shape{64, 3, 100};
-    Shape filters_shape{128, 3, 10};
-    auto param0 = make_shared<op::Parameter>(element::f32, Shape{64, 3, 100});  // data batch
-    auto param1 = make_shared<op::Parameter>(element::f32, Shape{64, 128, 48}); // output delta
-    auto move_strides = Strides{2};
-    auto dilation_strides = Strides{1};
-    auto padding_below = CoordinateDiff{2};
-    auto padding_above = CoordinateDiff{3};
-    auto conv = make_shared<op::ConvolutionBackpropFilters>(param0,
-                                                            filters_shape,
-                                                            param1,
-                                                            move_strides,
-                                                            dilation_strides,
-                                                            padding_below,
-                                                            padding_above,
-                                                            Strides{1});
-    EXPECT_EQ(conv->get_element_type(), element::f32);
-    EXPECT_EQ(conv->get_shape(), filters_shape);
-
-    EXPECT_EQ(conv->get_window_movement_strides_forward(), Strides{2});
-    EXPECT_EQ(conv->get_window_dilation_strides_forward(), Strides{1});
-    EXPECT_EQ(conv->get_data_dilation_strides_forward(), Strides{1});
-
-    EXPECT_EQ(conv->get_padding_below_forward(), CoordinateDiff{2});
-    EXPECT_EQ(conv->get_padding_above_forward(), CoordinateDiff{3});
-}
-
 TEST(type_prop, conv_1d_deduce_strided_small_uneven)
 {
     // Deduce type
@@ -357,33 +244,6 @@ TEST(type_prop, conv_1d_back_data_batch_deduce_strided_small_uneven)
                                                          Strides{1});
     EXPECT_EQ(conv->get_element_type(), element::f32);
     EXPECT_EQ(conv->get_shape(), data_batch_shape);
-
-    EXPECT_EQ(conv->get_window_movement_strides_forward(), Strides{2});
-    EXPECT_EQ(conv->get_window_dilation_strides_forward(), Strides{1});
-    EXPECT_EQ(conv->get_data_dilation_strides_forward(), Strides{1});
-
-    EXPECT_EQ(conv->get_padding_below_forward(), CoordinateDiff{0});
-    EXPECT_EQ(conv->get_padding_above_forward(), CoordinateDiff{0});
-}
-
-TEST(type_prop, conv_1d_back_filters_deduce_strided_small_uneven)
-{
-    // Deduce type
-    // Shape data_batch_shape{64, 3, 5};
-    Shape filters_shape{128, 3, 2};
-    auto param0 = make_shared<op::Parameter>(element::f32, Shape{64, 3, 5});   // data batch
-    auto param1 = make_shared<op::Parameter>(element::f32, Shape{64, 128, 2}); // output delta
-    auto move_strides = Strides{2};
-    auto conv = make_shared<op::ConvolutionBackpropFilters>(param0,
-                                                            filters_shape,
-                                                            param1,
-                                                            move_strides,
-                                                            Strides{1},
-                                                            CoordinateDiff{0},
-                                                            CoordinateDiff{0},
-                                                            Strides{1});
-    EXPECT_EQ(conv->get_element_type(), element::f32);
-    EXPECT_EQ(conv->get_shape(), filters_shape);
 
     EXPECT_EQ(conv->get_window_movement_strides_forward(), Strides{2});
     EXPECT_EQ(conv->get_window_dilation_strides_forward(), Strides{1});
@@ -437,33 +297,6 @@ TEST(type_prop, conv_1d_back_data_batch_deduce_strided_small_even)
     EXPECT_EQ(conv->get_padding_above_forward(), CoordinateDiff{0});
 }
 
-TEST(type_prop, conv_1d_back_filters_deduce_strided_small_even)
-{
-    // Deduce type
-    // Shape data_batch_shape{64, 3, 6};
-    Shape filters_shape{128, 3, 2};
-    auto param0 = make_shared<op::Parameter>(element::f32, Shape{64, 3, 6});   // data batch
-    auto param1 = make_shared<op::Parameter>(element::f32, Shape{64, 128, 3}); // output delta
-    auto move_strides = Strides{2};
-    auto conv = make_shared<op::ConvolutionBackpropFilters>(param0,
-                                                            filters_shape,
-                                                            param1,
-                                                            move_strides,
-                                                            Strides{1},
-                                                            CoordinateDiff{0},
-                                                            CoordinateDiff{0},
-                                                            Strides{1});
-    EXPECT_EQ(conv->get_element_type(), element::f32);
-    EXPECT_EQ(conv->get_shape(), filters_shape);
-
-    EXPECT_EQ(conv->get_window_movement_strides_forward(), Strides{2});
-    EXPECT_EQ(conv->get_window_dilation_strides_forward(), Strides{1});
-    EXPECT_EQ(conv->get_data_dilation_strides_forward(), Strides{1});
-
-    EXPECT_EQ(conv->get_padding_below_forward(), CoordinateDiff{0});
-    EXPECT_EQ(conv->get_padding_above_forward(), CoordinateDiff{0});
-}
-
 TEST(type_prop, conv_1d_deduce_window_dilated)
 {
     // Deduce type
@@ -501,34 +334,6 @@ TEST(type_prop, conv_1d_back_data_batch_deduce_window_dilated)
                                                          Strides{1});
     EXPECT_EQ(conv->get_element_type(), element::f32);
     EXPECT_EQ(conv->get_shape(), data_batch_shape);
-
-    EXPECT_EQ(conv->get_window_movement_strides_forward(), Strides{1});
-    EXPECT_EQ(conv->get_window_dilation_strides_forward(), Strides{2});
-    EXPECT_EQ(conv->get_data_dilation_strides_forward(), Strides{1});
-
-    EXPECT_EQ(conv->get_padding_below_forward(), CoordinateDiff{0});
-    EXPECT_EQ(conv->get_padding_above_forward(), CoordinateDiff{0});
-}
-
-TEST(type_prop, conv_1d_back_filters_deduce_window_dilated)
-{
-    // Deduce type
-    // Shape data_batch_shape{64, 3, 100};
-    Shape filters_shape{128, 3, 10};
-    auto param0 = make_shared<op::Parameter>(element::f32, Shape{64, 3, 100});  // data batch
-    auto param1 = make_shared<op::Parameter>(element::f32, Shape{64, 128, 82}); // output delta
-    auto move_strides = Strides{1};
-    auto dilate_strides = Strides{2};
-    auto conv = make_shared<op::ConvolutionBackpropFilters>(param0,
-                                                            filters_shape,
-                                                            param1,
-                                                            move_strides,
-                                                            dilate_strides,
-                                                            CoordinateDiff{0},
-                                                            CoordinateDiff{0},
-                                                            Strides{1});
-    EXPECT_EQ(conv->get_element_type(), element::f32);
-    EXPECT_EQ(conv->get_shape(), filters_shape);
 
     EXPECT_EQ(conv->get_window_movement_strides_forward(), Strides{1});
     EXPECT_EQ(conv->get_window_dilation_strides_forward(), Strides{2});
@@ -589,36 +394,6 @@ TEST(type_prop, conv_1d_back_data_batch_deduce_window_dilated_padded)
     EXPECT_EQ(conv->get_padding_above_forward(), CoordinateDiff{3});
 }
 
-TEST(type_prop, conv_1d_back_filters_deduce_window_dilated_padded)
-{
-    // Deduce type
-    // Shape data_batch_shape{64, 3, 100};
-    Shape filters_shape{128, 3, 10};
-    auto param0 = make_shared<op::Parameter>(element::f32, Shape{64, 3, 100});  // data batch
-    auto param1 = make_shared<op::Parameter>(element::f32, Shape{64, 128, 87}); // output delta
-    auto move_strides = Strides{1};
-    auto dilate_strides = Strides{2};
-    auto padding_below = CoordinateDiff{2};
-    auto padding_above = CoordinateDiff{3};
-    auto conv = make_shared<op::ConvolutionBackpropFilters>(param0,
-                                                            filters_shape,
-                                                            param1,
-                                                            move_strides,
-                                                            dilate_strides,
-                                                            padding_below,
-                                                            padding_above,
-                                                            Strides{1});
-    EXPECT_EQ(conv->get_element_type(), element::f32);
-    EXPECT_EQ(conv->get_shape(), filters_shape);
-
-    EXPECT_EQ(conv->get_window_movement_strides_forward(), Strides{1});
-    EXPECT_EQ(conv->get_window_dilation_strides_forward(), Strides{2});
-    EXPECT_EQ(conv->get_data_dilation_strides_forward(), Strides{1});
-
-    EXPECT_EQ(conv->get_padding_below_forward(), CoordinateDiff{2});
-    EXPECT_EQ(conv->get_padding_above_forward(), CoordinateDiff{3});
-}
-
 TEST(type_prop, conv_1d_deduce_window_dilated_data_dilated_padded)
 {
     // Deduce type
@@ -668,37 +443,6 @@ TEST(type_prop, conv_1d_back_data_batch_deduce_window_dilated_data_dilated_padde
                                                          data_dilate_strides);
     EXPECT_EQ(conv->get_element_type(), element::f32);
     EXPECT_EQ(conv->get_shape(), data_batch_shape);
-
-    EXPECT_EQ(conv->get_window_movement_strides_forward(), Strides{1});
-    EXPECT_EQ(conv->get_window_dilation_strides_forward(), Strides{2});
-    EXPECT_EQ(conv->get_data_dilation_strides_forward(), Strides{3});
-
-    EXPECT_EQ(conv->get_padding_below_forward(), CoordinateDiff{2});
-    EXPECT_EQ(conv->get_padding_above_forward(), CoordinateDiff{3});
-}
-
-TEST(type_prop, conv_1d_back_filters_deduce_window_dilated_data_dilated_padded)
-{
-    // Deduce type
-    // Shape data_batch_shape{64, 3, 100};
-    Shape filters_shape{128, 3, 10};
-    auto param0 = make_shared<op::Parameter>(element::f32, Shape{64, 3, 100});   // data batch
-    auto param1 = make_shared<op::Parameter>(element::f32, Shape{64, 128, 285}); // output delta
-    auto move_strides = Strides{1};
-    auto dilate_strides = Strides{2};
-    auto padding_below = CoordinateDiff{2};
-    auto padding_above = CoordinateDiff{3};
-    auto data_dilate_strides = Strides{3};
-    auto conv = make_shared<op::ConvolutionBackpropFilters>(param0,
-                                                            filters_shape,
-                                                            param1,
-                                                            move_strides,
-                                                            dilate_strides,
-                                                            padding_below,
-                                                            padding_above,
-                                                            data_dilate_strides);
-    EXPECT_EQ(conv->get_element_type(), element::f32);
-    EXPECT_EQ(conv->get_shape(), filters_shape);
 
     EXPECT_EQ(conv->get_window_movement_strides_forward(), Strides{1});
     EXPECT_EQ(conv->get_window_dilation_strides_forward(), Strides{2});
@@ -2803,23 +2547,6 @@ TEST(type_prop, conv_partial_dynamic_et)
     ASSERT_TRUE(conv->get_output_element_type(0).is_dynamic());
     ASSERT_TRUE(conv->get_output_partial_shape(0).same_scheme(
         PartialShape{64, 100, 1, Dimension::dynamic()}));
-}
-
-TEST(type_prop, conv_bprop_filter_v1_output_partial_shape_dynamic)
-{
-    Shape shape_data{64, 3, 100};
-    auto data = make_shared<op::Parameter>(element::f32, shape_data);
-    Shape shape_delta{64, 128, 96};
-    auto deltas = make_shared<op::Parameter>(element::f32, shape_delta);
-    auto filters_shape = make_shared<op::Parameter>(element::i64, Shape{128, 3, 10});
-    auto strides = Strides{1};
-    auto dilations = Strides{1};
-    auto padding_begin = CoordinateDiff{2};
-    auto padding_end = CoordinateDiff{3};
-    auto conv1 = make_shared<op::v1::ConvolutionBackpropFilters>(
-        data, deltas, filters_shape, strides, dilations, padding_begin, padding_end);
-
-    ASSERT_TRUE(conv1->get_output_partial_shape(0).is_dynamic());
 }
 
 TEST(type_prop, conv_bprop_data_v1_output_partial_shape_dynamic)

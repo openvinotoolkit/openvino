@@ -136,9 +136,6 @@ namespace ngraph
                 virtual std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
 
-                virtual void generate_adjoints(autodiff::Adjoints& adjoints,
-                                               const OutputVector& deltas) override;
-
                 /// \return The window shape.
                 const Shape& get_window_shape() const;
                 void set_window_shape(const Shape& window_shape);
@@ -170,49 +167,6 @@ namespace ngraph
                 bool m_include_padding_in_avg_computation{false};
                 PadType m_pad_type{PadType::EXPLICIT};
                 bool m_ceil_mode{false};
-            };
-
-            class NGRAPH_API AvgPoolBackprop : public Op
-            {
-            public:
-                static constexpr NodeTypeInfo type_info{"AvgPoolBackprop", 0};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
-                AvgPoolBackprop() = default;
-                AvgPoolBackprop(const Shape& forward_arg_shape,
-                                const Output<Node>& delta,
-                                const Shape& window_shape,
-                                const Strides& window_movement_strides,
-                                const Shape& padding_below,
-                                const Shape& padding_above,
-                                bool include_padding_in_avg_computation);
-
-                void validate_and_infer_types() override;
-                bool visit_attributes(AttributeVisitor& visitor) override;
-
-                virtual std::shared_ptr<Node>
-                    clone_with_new_inputs(const OutputVector& new_args) const override;
-
-                const Shape& get_forward_arg_shape() const;
-                void set_forward_arg_shape(const Shape& forward_arg_shape);
-                const Shape& get_window_shape() const;
-                void set_window_shape(const Shape& window_shape);
-                const Strides& get_window_movement_strides() const;
-                void set_window_movement_strides(const Strides& window_movement_strides);
-                const Shape& get_padding_below() const;
-                void set_padding_below(const Shape& padding_below);
-                const Shape& get_padding_above() const;
-                void set_padding_above(const Shape& padding_abve);
-                bool get_include_padding_in_avg_computation() const;
-                void
-                    set_include_padding_in_avg_computation(bool include_padding_in_avg_computation);
-
-            protected:
-                Shape m_forward_arg_shape;
-                Shape m_window_shape;
-                Strides m_window_movement_strides;
-                Shape m_padding_below;
-                Shape m_padding_above;
-                bool m_include_padding_in_avg_computation{false};
             };
         } // namespace v0
 
@@ -285,9 +239,6 @@ namespace ngraph
                 virtual std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
 
-                virtual void generate_adjoints(autodiff::Adjoints& adjoints,
-                                               const OutputVector& deltas) override;
-
                 /// \return The kernel shape.
                 const Shape& get_kernel() const;
                 void set_kernel(const Shape& kernel);
@@ -319,50 +270,8 @@ namespace ngraph
                 PadType m_auto_pad{PadType::EXPLICIT};
                 op::RoundingType m_rounding_type{op::RoundingType::FLOOR};
             };
-
-            class NGRAPH_API AvgPoolBackprop : public Op
-            {
-            public:
-                static constexpr NodeTypeInfo type_info{"AvgPoolBackprop", 1};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
-                AvgPoolBackprop() = default;
-                AvgPoolBackprop(const Output<Node>& delta,
-                                const Output<Node>& forward_arg_shape,
-                                const Strides& strides,
-                                const Shape& pads_begin,
-                                const Shape& pads_end,
-                                const Shape& kernel,
-                                bool exclude_pad);
-
-                size_t get_version() const override { return 1; }
-                void validate_and_infer_types() override;
-                bool visit_attributes(AttributeVisitor& visitor) override;
-
-                virtual std::shared_ptr<Node>
-                    clone_with_new_inputs(const OutputVector& new_args) const override;
-
-                const Shape get_forward_arg_shape() const;
-                const Shape& get_kernel() const;
-                void set_kernel(const Shape& kernel);
-                const Strides& get_strides() const;
-                void set_strides(const Strides& strides);
-                const Shape& get_pads_begin() const;
-                void set_pads_begin(const Shape& pads_begin);
-                const Shape& get_pads_end() const;
-                void set_pads_end(const Shape& padding_abve);
-                bool get_exclude_pad() const;
-                void set_exclude_pad(bool exclude_pad);
-
-            protected:
-                Shape m_kernel;
-                Strides m_strides;
-                Shape m_pads_begin;
-                Shape m_pads_end;
-                bool m_exclude_pad{false};
-            };
         } // namespace v1
 
         using v0::AvgPool;
-        using v0::AvgPoolBackprop;
     } // namespace op
 } // namespace ngraph
