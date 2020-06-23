@@ -373,8 +373,6 @@ setup(
     author="Intel Corporation",
     url="https://github.com/openvinotoolkit/openvino",
     license="License :: OSI Approved :: Apache Software License",
-    long_description=open(os.path.join(PYNGRAPH_ROOT_DIR, "README.md")).read(),
-    long_description_content_type="text/markdown",
     ext_modules=ext_modules,
     package_dir={'': 'src'},
     packages=packages,
