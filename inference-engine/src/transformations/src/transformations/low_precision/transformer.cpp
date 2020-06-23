@@ -243,6 +243,7 @@ TypeRelaxedReplacer::TypeRelaxedReplacer() {
     make_matcher_type_relaxed<opset1::Relu>(this);
     make_matcher_type_relaxed<opset1::MaxPool>(this);
     make_matcher_type_relaxed<opset1::Add>(this);
+    make_matcher_type_relaxed<opset1::Subtract>(this);
     make_matcher_type_relaxed<opset1::NormalizeL2>(this);
 }
 
@@ -356,15 +357,10 @@ void LowPrecisionTransformer::transform(std::shared_ptr<Function> network) {
 
 #endif
 
-    //{
-    //    std::vector<std::shared_ptr<ngraph::Function>> module{network};
-    //    ngraph::pass::VisualizeTree("before_ltp.png").run_on_module(module);
-    //}
-
-    {
-        std::vector<std::shared_ptr<ngraph::Function>> module{ network };
-        VisualizeTree("C:\\Projects\\temp\\test.original").run_on_module(module);
-    }
+    // {
+    //    std::vector<std::shared_ptr<ngraph::Function>> module{ network };
+    //    VisualizeTree("C:\\Projects\\temp\\test.original").run_on_module(module);
+    // }
 
     transformations.setParamsManager(this);
     transformations.setLayerTransformationsManager(this);
