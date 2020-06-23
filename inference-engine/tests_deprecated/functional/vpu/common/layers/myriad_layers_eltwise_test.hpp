@@ -191,18 +191,18 @@ SizeVector convertDims(SizeVector dims)
 {
     SizeVector ret(4);
     if (dims.size() == 1) {
-        ret[0] = dims[0];
-        ret[1] = 1;
+        ret[0] = 1;
+        ret[1] = dims[0];
         ret[2] = 1;
         ret[3] = 1;
         return ret;
     }
 
     if (dims.size() == 2) {
-        ret[0] = dims[1];
-        ret[1] = 1;
-        ret[2] = 1;
-        ret[3] = dims[0];
+        ret[0] = 1;
+        ret[1] = dims[1];
+        ret[2] = dims[0];
+        ret[3] = 1;
         return ret;
     }
 
@@ -337,7 +337,12 @@ protected:
                 GTEST_SKIP_("Please look at #-19681");
                 // inpt[2].resize(2);
             } else {
-                inpt[rand()%count].resize(rand()%ndims + 1);
+                const auto inputToResize = rand() % count;
+                const auto newSize = rand() % ndims + 1;
+                inpt[inputToResize].resize(newSize);
+                for (int i = 0; i < newSize; i++) {
+                    inpt[inputToResize][newSize - i - 1] = dims[ndims - i - 1];
+                }
             }
             for (int i = 0; i < count; ++i) {
                 for (int j = 0; j < inpt[i].size(); j++) {
@@ -352,6 +357,9 @@ protected:
         SetOutputTensors({dims});
 
         _config[VPU_CONFIG_KEY(DETECT_NETWORK_BATCH)] = CONFIG_VALUE(NO);
+        if (!CheckMyriadX()) {
+            _config[VPU_CONFIG_KEY(DISABLE_REORDER)] = CONFIG_VALUE(YES);
+        }
 
         ASSERT_NO_FATAL_FAILURE(makeSingleLayerNetwork(LayerInitParams("Eltwise").params(_params)));
         ASSERT_TRUE(Infer());

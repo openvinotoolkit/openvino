@@ -6,7 +6,7 @@
 
 #include "vpu/private_plugin_config.hpp"
 
-#include "../common/myriad_common_test_utils.hpp"
+#include "common/myriad_common_test_utils.hpp"
 #include <functional_test_utils/layer_test_utils.hpp>
 #include <ngraph_functions/builders.hpp>
 

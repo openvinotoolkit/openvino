@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "../common/myriad_common_test_utils.hpp"
+#include "common/myriad_common_test_utils.hpp"
 
 #include <vpu/ngraph/operations/dynamic_shape_resolver.hpp>
 #include <vpu/ngraph/transformations/dynamic_to_static_shape.hpp>
