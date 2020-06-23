@@ -20,7 +20,7 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO: Issue 32023
         R"(.*(QuantGroupConvBackpropData2D)*QG=Pertensor.*)",
         // TODO: Issue 31845
-        R"(.*(FakeQuantize).*)",
+        R"(.*(FakeQuantize/FakeQuantizeLayerTest).*)",
         R"(.*(EltwiseLayerTest).*IS=\(.*\..*\..*\..*\..*\).*secondaryInputType=PARAMETER.*opType=SCALAR.*)",
         // TODO: Issue 32756
         R"(.*Transpose.*inputOrder=\(\).*)",
