@@ -13,14 +13,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ******************************************************************************
-import numpy as np
-import pytest
 import json
 
-import ngraph as ng
-from ngraph.impl import Function
-from ngraph.exceptions import UserInputError
+import numpy as np
+import pytest
 
+import ngraph as ng
+from ngraph.exceptions import UserInputError
+from ngraph.impl import Function
 from tests.util import get_runtime, run_op_node
 
 

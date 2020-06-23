@@ -15,10 +15,10 @@
 # ******************************************************************************
 import numpy as np
 import pytest
+from _pyngraph import PartialShape
 
 import ngraph as ng
 from ngraph.impl import Type
-from _pyngraph import PartialShape
 
 np_types = [np.float32, np.int32]
 integral_np_types = [

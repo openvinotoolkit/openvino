@@ -17,11 +17,11 @@
 import logging
 from typing import Dict, List, Union
 
+from openvino.inference_engine import IECore, IENetwork
 
 from ngraph.exceptions import UserInputError
-from ngraph.impl import Function, Node, Shape, PartialShape, serialize, util
+from ngraph.impl import Function, Node, PartialShape, Shape, serialize, util
 from ngraph.utils.types import NumericData
-from openvino.inference_engine import IECore, IENetwork
 
 log = logging.getLogger(__name__)
 

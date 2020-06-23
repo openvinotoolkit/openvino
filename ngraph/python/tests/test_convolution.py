@@ -17,8 +17,8 @@
 import numpy as np
 
 import ngraph as ng
-from tests.util import get_runtime, run_op_node
 from tests.test_ops import convolution2d
+from tests.util import get_runtime, run_op_node
 
 
 def test_convolution_2d():

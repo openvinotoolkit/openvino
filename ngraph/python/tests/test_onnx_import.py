@@ -15,6 +15,7 @@
 # ******************************************************************************
 
 import os
+
 import numpy as np
 
 from tests.util import get_runtime

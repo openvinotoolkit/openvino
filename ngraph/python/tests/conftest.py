@@ -14,7 +14,8 @@
 # limitations under the License.
 # ******************************************************************************
 import pytest
-import test
+
+import tests
 
 
 def pytest_addoption(parser):
@@ -28,7 +29,7 @@ def pytest_addoption(parser):
 
 def pytest_configure(config):
     backend_name = config.getvalue("backend")
-    test.BACKEND_NAME = backend_name
+    tests.BACKEND_NAME = backend_name
 
 
 def pytest_collection_modifyitems(config, items):

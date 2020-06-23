@@ -17,13 +17,10 @@
 from __future__ import absolute_import
 
 import numpy as np
+
 import ngraph as ng
-
-from ngraph.impl import Shape, AxisSet
-from ngraph.impl import Type, Function
-from ngraph.impl.op import Parameter
-from ngraph.impl.op import Constant
-
+from ngraph.impl import AxisSet, Function, Shape, Type
+from ngraph.impl.op import Constant, Parameter
 from tests.util import get_runtime
 
 
