@@ -9,6 +9,7 @@ addIeTargetTest(
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
         LINK_LIBRARIES
             unitTestUtils
+            inference_engine_transformations
         ADD_CPPLINT
         DEPENDENCIES
             mock_engine
