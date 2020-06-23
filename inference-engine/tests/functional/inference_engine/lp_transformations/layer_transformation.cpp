@@ -61,8 +61,8 @@ std::string LayerTransformation::toString(const ngraph::pass::low_precision::Lay
 }
 
 void LayerTransformation::transform(std::shared_ptr<ngraph::Function> function) {
-    //std::vector<std::shared_ptr<ngraph::Function>> originalModule{ actualFunction };
-    //ngraph::pass::VisualizeTree("C:\\Projects\\temp\\test.original").run_on_module(originalModule);
+    // std::vector<std::shared_ptr<ngraph::Function>> originalModule{ actualFunction };
+    // ngraph::pass::VisualizeTree("C:\\Projects\\temp\\test.original").run_on_module(originalModule);
 
     // TODO: refactor: do you really need anything from here?
     //{
@@ -97,8 +97,8 @@ void LayerTransformation::transform(std::shared_ptr<ngraph::Function> function) 
     ngraph::pass::low_precision::LowPrecisionTransformer transformer(transformations);
     transformer.transform(function);
 
-    //std::vector<std::shared_ptr<ngraph::Function>> transformedModule{ actualFunction };
-    //ngraph::pass::VisualizeTree("C:\\Projects\\temp\\test.transformed").run_on_module(transformedModule);
+    // std::vector<std::shared_ptr<ngraph::Function>> transformedModule{ actualFunction };
+    // ngraph::pass::VisualizeTree("C:\\Projects\\temp\\test.transformed").run_on_module(transformedModule);
 }
 
 std::string LayerTransformation::getTestCaseNameByParams(

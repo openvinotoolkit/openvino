@@ -133,14 +133,21 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::ICNNNetwork &network, const st
                     LayerTransformation::Params(params).setPrecisionsOnActivations({ngraph::element::u8}),
                     "ScaleShift"));
 #endif
+
+            // std::vector<std::shared_ptr<ngraph::Function>> originalModule{ nGraphFunc };
+            // ngraph::pass::VisualizeTree("C:\\Projects\\temp\\test.original").run_on_module(originalModule);
+
             transformer.transform(nGraphFunc);
+
+            // std::vector<std::shared_ptr<ngraph::Function>> transformedModule{ nGraphFunc };
+            // ngraph::pass::VisualizeTree("C:\\Projects\\temp\\test.transformed").run_on_module(transformedModule);
 
             // TODO: Implement remaining part
         }
 
         ngraph::pass::ConvertOpSet1ToLegacy(transformations_callback).run_on_function(nGraphFunc);
 
-        //{
+        // {
         //    std::vector<std::shared_ptr<ngraph::Function>> module{nGraphFunc};
         //    ngraph::pass::VisualizeTree("after_convert_to_legacy.svg").run_on_module(module);
 
@@ -151,7 +158,7 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::ICNNNetwork &network, const st
         //            ngraph::pass::VisualizeTree(subgraph->get_name() + ".svg").run_on_module(module_subgraph);
         //        }
         //    }
-        //}
+        // }
 
         clonedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(nGraphFunc, *clonedNetwork);
     }

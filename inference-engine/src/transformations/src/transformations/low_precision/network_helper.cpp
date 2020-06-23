@@ -521,8 +521,8 @@ std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> decomposeFakeQuantize(s
 
     // Now calculate scales and shifts according to given shapes -- all operations in ngraph
     // TODO: why shape is empty?
-    //auto newMin = make_shared<opset1::Constant>(fq->get_output_element_type(0), Shape{}, min);
-    //auto newMax = make_shared<opset1::Constant>(fq->get_output_element_type(0), Shape{}, max);
+    // auto newMin = make_shared<opset1::Constant>(fq->get_output_element_type(0), Shape{}, min);
+    // auto newMax = make_shared<opset1::Constant>(fq->get_output_element_type(0), Shape{}, max);
 
     auto newMin = make_shared<opset1::Constant>(fq->get_output_element_type(0), Shape{}, min);
     auto newMax = make_shared<opset1::Constant>(fq->get_output_element_type(0), Shape{}, max);
@@ -537,14 +537,14 @@ std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> decomposeFakeQuantize(s
 
     if (precision.is_signed()) {
         //// I8
-        //scale = fold<opset1::Divide>(
+        // scale = fold<opset1::Divide>(
         //        fold<opset1::Subtract>(outputHigh, outputLow),
         //        fold<opset1::Subtract>(newMax, newMin));
 
-        //auto actualLowPartQuantValue = fold<opset1::Abs>(fold<opset1::Divide>(outputLow, newMin));
-        //auto actualHighPartQuantValue = fold<opset1::Abs>(fold<opset1::Divide>(outputHigh, newMax));
+        // auto actualLowPartQuantValue = fold<opset1::Abs>(fold<opset1::Divide>(outputLow, newMin));
+        // auto actualHighPartQuantValue = fold<opset1::Abs>(fold<opset1::Divide>(outputHigh, newMax));
 
-        //shift = fold<opset1::Select>(
+        // shift = fold<opset1::Select>(
         //        fold<opset1::Less>(actualLowPartQuantValue, actualHighPartQuantValue),
         //        fold<opset1::Subtract>(outputLow, fold<opset1::Multiply>(newMin, scale)),
         //        fold<opset1::Subtract>(outputHigh, fold<opset1::Multiply>(newMax, scale)));
@@ -560,13 +560,13 @@ std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> decomposeFakeQuantize(s
             scale);
     } else {
         // U8
-        //scale = fold<opset1::Divide>(
+        // scale = fold<opset1::Divide>(
         //        fold<opset1::Subtract>(outputHigh, outputLow),
         //        fold<opset1::Subtract>(newMax, newMin));
 
         //// TODO: here should be a check for zero point; I've removed it as it always true
         //// if it is really required
-        //shift = outputLow.get_node_shared_ptr();
+        // shift = outputLow.get_node_shared_ptr();
 
         // shift = outputLow.get_node_shared_ptr()->clone_with_new_inputs({});
         shift = outputLow.get_node_shared_ptr();
@@ -574,14 +574,14 @@ std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> decomposeFakeQuantize(s
         // TODO: hardcoded shape values
         // TODO: check FQ const layers shapes - possible don't need
         // TODO: 0D - per tensor (1 x <here> )
-        //shift = fold<opset1::Unsqueeze>(
+        // shift = fold<opset1::Unsqueeze>(
         //    outputLow,
         //    // std::make_shared<opset1::Constant>(ngraph::element::i64, ngraph::Shape({ 4 }), Shape{ 0, 1, 2, 3 }));
         //    std::make_shared<opset1::Constant>(ngraph::element::i64, ngraph::Shape({ 1 }), Shape{ 0 }));
 
         auto shiftShape = shift->get_shape();
 
-        //shift = fold_reshape<opset1::Reshape>(
+        // shift = fold_reshape<opset1::Reshape>(
         //    shift,
         //    std::make_shared<opset1::Constant>(ngraph::element::i64, ngraph::Shape({ 4 }), Shape{ 1, 32, 1, 1 }),
         //    true);
@@ -603,7 +603,7 @@ std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> decomposeFakeQuantize(s
             fq->get_levels(),
             fq->get_auto_broadcast());
 
-    //auto dequantize = make_shared<ngraph::op::MultiplyAdd>(
+    // auto dequantize = make_shared<ngraph::op::MultiplyAdd>(
     //        make_shared<opset1::Convert>(
     //                fold<opset1::Convert>(newFQ, precision),
     //                fq->get_output_element_type(0)), scale, shift);
@@ -612,7 +612,7 @@ std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> decomposeFakeQuantize(s
     // TODO: question: what is difference: fold<opset1::Convert>(...)  VS make_shared<opset1::Convert>?
     auto sub = make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::Subtract>>(
         make_shared<opset1::Convert>(fold<opset1::Convert>(newFQ, precision), fq->get_output_element_type(0)),
-        //fold<opset1::Convert>(newFQ, precision),
+        // fold<opset1::Convert>(newFQ, precision),
         shift);
 
     const auto subShape = sub->get_shape();

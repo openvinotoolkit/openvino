@@ -43,10 +43,14 @@ std::shared_ptr<ngraph::Function> FakeQuantizeFunction::getReference(
 
     // TODO: way to instantiate TypeRelaxed FakeQuantize
     // TODO: use wrapper later
-    auto inputLowNode = ngraph::builder::makeConstant(precision, fakeQuantizeOnData.constantShape, fakeQuantizeOnData.lowValues, fakeQuantizeOnData.lowValues.empty());
-    auto inputHighNode = ngraph::builder::makeConstant(precision, fakeQuantizeOnData.constantShape, fakeQuantizeOnData.highValues, fakeQuantizeOnData.highValues.empty());
-    auto outputLowNode = ngraph::builder::makeConstant(precision, fakeQuantizeOnData.constantShape, fakeQuantizeOnData.lowValues, fakeQuantizeOnData.lowValues.empty());
-    auto outputHighNode = ngraph::builder::makeConstant(precision, fakeQuantizeOnData.constantShape, fakeQuantizeOnData.highValues, fakeQuantizeOnData.highValues.empty());
+    auto inputLowNode = ngraph::builder::makeConstant(
+        precision, fakeQuantizeOnData.constantShape, fakeQuantizeOnData.lowValues, fakeQuantizeOnData.lowValues.empty());
+    auto inputHighNode = ngraph::builder::makeConstant(
+        precision, fakeQuantizeOnData.constantShape, fakeQuantizeOnData.highValues, fakeQuantizeOnData.highValues.empty());
+    auto outputLowNode = ngraph::builder::makeConstant(
+        precision, fakeQuantizeOnData.constantShape, fakeQuantizeOnData.lowValues, fakeQuantizeOnData.lowValues.empty());
+    auto outputHighNode = ngraph::builder::makeConstant(
+        precision, fakeQuantizeOnData.constantShape, fakeQuantizeOnData.highValues, fakeQuantizeOnData.highValues.empty());
     auto fakeQuantize = std::make_shared<ngraph::opset1::FakeQuantize>(input, inputLowNode, inputHighNode, outputLowNode, outputHighNode, fakeQuantizeOnData.quantizationLevel);
     // auto fakeQuantize = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::FakeQuantize>>(input, inputLowNode, inputHighNode, outputLowNode, outputHighNode, fakeQuantizeOnData.quantizationLevel);
 

@@ -39,16 +39,16 @@ void FakeQuantizeTransformation::transform(TransformationContext& context, ngrap
 
     // FakeQuantize on weights are used without dequantization ScaleShifts
     // TODO: include into the transformation pattern?
-    //if (NetworkHelper::onWeights(layer)) {
+    // if (NetworkHelper::onWeights(layer)) {
     //    return;
-    //}
+    // }
 
     if (!QuantizationDetails::outputLayoutIsSupported(layer)) {
         return;
     }
 
     //// Gather Multiply from the data path
-    //if (auto multiply = as_type_ptr<opset1::Multiply>(layer->input_value(0).get_node_shared_ptr())) {
+    // if (auto multiply = as_type_ptr<opset1::Multiply>(layer->input_value(0).get_node_shared_ptr())) {
     //    std::shared_ptr<opset1::Constant> constant = as_type_ptr<opset1::Constant>(multiply->input_value(0).get_node_shared_ptr());
     //    auto data = multiply->input_value(1);
     //    if (!constant) {
@@ -73,14 +73,14 @@ void FakeQuantizeTransformation::transform(TransformationContext& context, ngrap
     //        replace_node(layer, newFQ);
     //        layer = as_type_ptr<opset1::FakeQuantize>(newFQ);
     //    }
-    //}
+    // }
 
     //// TODO: can we handle it by marking FQs that we wanted to exclude in RTinfo
     ////       (in previous passes where quantizedFakeQuantizeNames has been populated)
-    //const std::string layerName = layer->get_friendly_name();
-    //if (context.quantizedFakeQuantizeNames.find(layerName) != context.quantizedFakeQuantizeNames.end()) {
+    // const std::string layerName = layer->get_friendly_name();
+    // if (context.quantizedFakeQuantizeNames.find(layerName) != context.quantizedFakeQuantizeNames.end()) {
     //    return;
-    //}
+    // }
 
     if (!QuantizationDetails::isSupportedLevel(layer->get_levels())) {
         return;

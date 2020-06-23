@@ -67,7 +67,11 @@ public:
         const ngraph::Shape shape = std::get<1>(GetParam());
         const FakeQuantizeOnDataTestValues fakeQuantizeOnData = std::get<3>(GetParam());
 
-        actualFunction = ngraph::builder::subgraph::FakeQuantizeFunction::getOriginal(precision, shape, fakeQuantizeOnData.params, fakeQuantizeOnData.actual);
+        actualFunction = ngraph::builder::subgraph::FakeQuantizeFunction::getOriginal(
+            precision,
+            shape,
+            fakeQuantizeOnData.params,
+            fakeQuantizeOnData.actual);
 
         // {
         //    std::vector<std::shared_ptr<ngraph::Function>> module{ actualFunction };
@@ -78,11 +82,17 @@ public:
 
         ngraph::pass::low_precision::LowPrecisionTransformations transformations(
             {},
-            { { "FakeQuantize", ngraph::pass::low_precision::LayerTransformationPtr(new ngraph::pass::low_precision::FakeQuantizeTransformation(fakeQuantizeOnData.params)) } },
+            { { "FakeQuantize", ngraph::pass::low_precision::LayerTransformationPtr(
+                new ngraph::pass::low_precision::FakeQuantizeTransformation(fakeQuantizeOnData.params)) } },
             {});
         ngraph::pass::low_precision::LowPrecisionTransformer transformer(transformations);
         transformer.transform(actualFunction);
-        referenceFunction = ngraph::builder::subgraph::FakeQuantizeFunction::getReference(precision, shape, fakeQuantizeOnData.params, fakeQuantizeOnData.expected);
+
+        referenceFunction = ngraph::builder::subgraph::FakeQuantizeFunction::getReference(
+            precision,
+            shape,
+            fakeQuantizeOnData.params,
+            fakeQuantizeOnData.expected);
 
         // {
         //    std::vector<std::shared_ptr<ngraph::Function>> module{ referenceFunction };

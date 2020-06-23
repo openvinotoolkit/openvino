@@ -29,7 +29,13 @@ std::string MatMulTransformation::getTestCaseName(testing::TestParamInfo<MatMulT
     std::tie(netPrecision, inputShapes, targetDevice, params, version, nodes) = obj.param;
 
     std::ostringstream result;
-    result << version << "_" << nodes[0]->get_shape() << "_" << nodes[1]->get_shape() << "_" << netPrecision.name() << "_" << targetDevice << "_" << toString(params);
+    result << version << "_" <<
+        nodes[0]->get_shape() << "_" <<
+        nodes[1]->get_shape() << "_" <<
+        netPrecision.name() << "_" <<
+        targetDevice << "_" <<
+        toString(params);
+
     return result.str();
 }
 
