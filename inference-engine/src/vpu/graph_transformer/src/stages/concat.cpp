@@ -266,6 +266,8 @@ void FrontEnd::parseConcat(
         const ie::CNNLayerPtr& layer,
         const DataVector& inputs,
         const DataVector& outputs) const {
+    VPU_THROW_UNLESS(layer != nullptr, "parseConcat expects valid CNNLayerPtr, actually got nullptr");
+
     VPU_THROW_UNLESS(!inputs.empty(),
                      "{} layer with name {} must have no less than 1 input, "
                      "actually provided 0 inputs", layer->type, layer->name);
@@ -275,10 +277,8 @@ void FrontEnd::parseConcat(
 
     auto output = outputs[0];
 
-    auto concat = std::dynamic_pointer_cast<ie::ConcatLayer>(layer);
-    VPU_THROW_UNLESS(layer != nullptr,
-                     "{} layer with name {} must be able to convert to ie::ConcatLayer",
-                     layer->type, layer->name);
+    const auto& concat = std::dynamic_pointer_cast<ie::ConcatLayer>(layer);
+    VPU_THROW_UNLESS(concat != nullptr, "{} layer with name {} must be convertable to ie::ConcatLayer", layer->type, layer->name);
 
     VPU_THROW_UNLESS(concat->_axis < output->desc().numDims(),
                      "{} layer with name {} must have axis attribute no grater than number of "
