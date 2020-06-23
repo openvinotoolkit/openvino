@@ -17,13 +17,6 @@
 #define REGISTER_MATCHER(A, B)
 #endif
 
-// To register new pass you need to define NGRAPH_PASS
-// Usage example:
-//   ngraph::pass:Manager pm;
-//   #define NGRAPH_PASS(NAME, NAMESPACE)   pm.register_pass<NAMESPACE::NAME>();
-//   #include <transformations/transformations_tbl.hpp>
-//   #undef NGRAPH_PASS
-
 NGRAPH_PASS(ConstantFolding, ::ngraph::pass)
 NGRAPH_PASS(ConvertReduceToPooling, ::ngraph::pass)
 NGRAPH_PASS(ConvertMod, ::ngraph::pass)
@@ -49,14 +42,14 @@ NGRAPH_PASS(ReshapeFullyConnected, ::ngraph::pass)
 NGRAPH_PASS(ReshapeFullyConnectedFusion, ::ngraph::pass)
 NGRAPH_PASS(Reshape1DOps, ::ngraph::pass)
 NGRAPH_PASS(ConvertNormalizeL2WithMulToNormalizeIE, ::ngraph::pass)
-NGRAPH_PASS(ConvertNormalizeL2ToNormalizeIE, ::ngraph::pass)
 NGRAPH_PASS(ConstantEltwiseReduction, ::ngraph::pass)
 NGRAPH_PASS(ConvertMulAddToScaleShiftOrPower, ::ngraph::pass)
 NGRAPH_PASS(ConvertMulOrAddFinally, ::ngraph::pass)
 NGRAPH_PASS(ConstantFolding, ::ngraph::pass)
 NGRAPH_PASS(ConvertBroadcastToTiles, ::ngraph::pass)
 
-REGISTER_GRAPH_REWRITE_PASS(ConvertToLegacyOpSet)
+REGISTER_GRAPH_REWRITE_PASS(ConvertOpSet1ToLegacy)
+REGISTER_MATCHER(ConvertNormalizeL2ToNormalizeIE, ::ngraph::pass)
 REGISTER_MATCHER(ConvertTileToIETile, ::ngraph::pass)
 REGISTER_MATCHER(ConvertProposalToProposalIE, ::ngraph::pass)
 REGISTER_MATCHER(ConvertLRNToLRNIE, ::ngraph::pass)

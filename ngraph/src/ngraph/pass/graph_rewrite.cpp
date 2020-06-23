@@ -188,9 +188,9 @@ void pass::GraphRewrite::add_matcher(const shared_ptr<pattern::Matcher>& m,
     add_matcher(m, callback, {PassProperty::REQUIRE_STATIC_SHAPE});
 }
 
-void pass::GraphRewrite::copy_matchers(const std::shared_ptr<GraphRewrite> & pass)
+void pass::GraphRewrite::copy_matchers(const std::shared_ptr<GraphRewrite>& pass)
 {
-    for (auto & m : pass->m_matchers)
+    for (auto& m : pass->m_matchers)
     {
         m_matchers.push_back(m);
     }
