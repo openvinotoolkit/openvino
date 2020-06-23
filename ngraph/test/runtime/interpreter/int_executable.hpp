@@ -554,24 +554,7 @@ protected:
             break;
         }
 
-        case OP_TYPEID::ConvolutionBackpropFilters:
-        {
-            const op::ConvolutionBackpropFilters* c =
-                static_cast<const op::ConvolutionBackpropFilters*>(&node);
-            reference::convolution_backprop_filter<T>(
-                args[0]->get_data_ptr<const T>(), // input
-                args[1]->get_data_ptr<const T>(), // delta_convolution_output
-                out[0]->get_data_ptr<T>(),        // delta_filter
-                c->get_input_shape(0),            // input_shape
-                c->get_input_shape(1),            // convolution_output_shape
-                c->get_filters_shape(),           // filter_shape
-                c->get_window_dilation_strides_forward(),
-                c->get_window_movement_strides_forward(),
-                c->get_padding_below_forward(),
-                c->compute_backward_in_pad_above(),
-                c->get_data_dilation_strides_forward());
-            break;
-        }
+
         case OP_TYPEID::ConvolutionBackpropData:
         {
             // Note that args[1] and args[0] are switched here from the usual order.
@@ -1065,6 +1048,7 @@ protected:
                     qc->get_padding_below(),
                     qc->get_padding_above(),
                     qc->get_data_dilation_strides(),
+                    1,
                     args[2]->get_data_ptr<const float>(),
                     args[3]->get_data_ptr<const uint8_t>(),
                     args[4]->get_data_ptr<const float>(),
@@ -1087,6 +1071,7 @@ protected:
                     qc->get_padding_below(),
                     qc->get_padding_above(),
                     qc->get_data_dilation_strides(),
+                    1,
                     args[2]->get_data_ptr<const float>(),
                     args[3]->get_data_ptr<const uint8_t>(),
                     args[4]->get_data_ptr<const float>(),
@@ -1109,6 +1094,7 @@ protected:
                     qc->get_padding_below(),
                     qc->get_padding_above(),
                     qc->get_data_dilation_strides(),
+                    1,
                     args[2]->get_data_ptr<const float>(),
                     args[3]->get_data_ptr<const uint8_t>(),
                     args[4]->get_data_ptr<const float>(),
@@ -1131,6 +1117,7 @@ protected:
                     qc->get_padding_below(),
                     qc->get_padding_above(),
                     qc->get_data_dilation_strides(),
+                    1,
                     args[2]->get_data_ptr<const float>(),
                     args[3]->get_data_ptr<const uint8_t>(),
                     args[4]->get_data_ptr<const float>(),
@@ -1534,12 +1521,7 @@ protected:
             }
             break;
         }
-        // Ops handled by evaluate
-        case OP_TYPEID::Convolution:
-        case OP_TYPEID::Multiply:
-        case OP_TYPEID::Add:
-        case OP_TYPEID::Relu:
-        case OP_TYPEID::Reshape:
+        case OP_TYPEID::ConvolutionBackpropFilters:
         // Fused Ops are not supported in interpreter. They need to be decomposed before execution
         case OP_TYPEID::BatchMatMulTranspose:
         case OP_TYPEID::ConvolutionBias:
@@ -1592,10 +1574,14 @@ protected:
         case OP_TYPEID::Tile:
         case OP_TYPEID::UnknownOp:
             throw unsupported_op("Unsupported op '" + node.description() + "'");
+        case OP_TYPEID::Add:
+        case OP_TYPEID::Convolution:
+        case OP_TYPEID::Relu:
+        case OP_TYPEID::Reshape:
+        case OP_TYPEID::Concat:
         case OP_TYPEID::And:
         case OP_TYPEID::Broadcast:
         case OP_TYPEID::Clamp:
-        case OP_TYPEID::Concat:
         case OP_TYPEID::Constant:
         case OP_TYPEID::Divide:
         case OP_TYPEID::Equal:
@@ -1628,6 +1614,7 @@ protected:
         case OP_TYPEID::Subtract:
         case OP_TYPEID::Unsqueeze:
         case OP_TYPEID::Xor:
+        case OP_TYPEID::Multiply:
             // These ops are handled by op evaluators so nothing to do
             break;
 #if defined(__GNUC__) && !(__GNUC__ == 4 && __GNUC_MINOR__ == 8)

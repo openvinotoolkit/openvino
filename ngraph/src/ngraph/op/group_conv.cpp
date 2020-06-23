@@ -177,8 +177,10 @@ bool evaluate(const HostTensorPtr& arg0, const HostTensorPtr& out, const void *f
     Strides in_dilation(std::vector<size_t> (in_shape.size() - 2));
     std::fill(in_dilation.begin(), in_dilation.end(), 1);
 
-    runtime::reference::gr<typename element_type_traits<ET>::value_type>(in_data_ptr, filter_data, out_data_ptr,
-                                                                                  in_shape, filter_shape, out_shape, strides, dilation, pad_above, pad_below, in_dilation);
+    runtime::reference::convolution<typename element_type_traits<ET>::value_type>(in_data_ptr, filter_data, out_data_ptr,
+                                                                                  in_shape, filter_shape, out_shape,
+                                                                                  strides, dilation, pad_below, pad_above,
+                                                                                  in_dilation, filter_shape.at(0));
     return true;
 
 }

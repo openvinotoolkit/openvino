@@ -247,7 +247,7 @@ bool op::v1::Convolution::evaluate(const HostTensorVector &output_values, const 
     NGRAPH_CHECK(filter!=nullptr, "Failed to get Convolution filter values!");
     const auto strides = get_strides();
     evaluate_convolution(input_values[0], output_values[0], filter->get_data_ptr(), filter->get_shape(), get_strides(),
-            get_dilations(), get_pads_begin(), get_pads_end());
+                         get_dilations(), get_pads_begin(), get_pads_end());
     return true;
 }
 
