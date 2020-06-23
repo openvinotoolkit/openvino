@@ -31,5 +31,7 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*Reduce.*type=Logical.*)",
         R"(.*Reduce.*axes=\(1\.-1\).*)",
         R"(.*Reduce.*axes=\(0\.3\)_type=Prod.*)",
+        // TODO: Issue 34055
+        R"(.*RangeLayerTest.*)",
     };
 }
