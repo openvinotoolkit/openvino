@@ -104,8 +104,7 @@ static std::shared_ptr<ngraph::Function> makeSplitMultiConvConcat(std::vector<si
     return fnPtr;
 }
 
-static std::shared_ptr<ngraph::Function>
-makeTIwithLSTMcell(InferenceEngine::Precision prc = InferenceEngine::Precision::FP32) {
+static std::shared_ptr<ngraph::Function> makeTIwithLSTMcell(InferenceEngine::Precision prc = InferenceEngine::Precision::FP32) {
     auto ngPRC = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(prc);
     // That which we iterate over
     const size_t N = 32; // Batch size
