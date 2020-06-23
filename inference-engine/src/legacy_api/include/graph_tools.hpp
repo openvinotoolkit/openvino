@@ -452,11 +452,6 @@ template <class Copier>
 inline CNNNetPtr CNNNetCopy(const ICNNNetwork& input, const Copier& cp) {
     auto net = std::make_shared<details::CNNNetworkImpl>();
 
-    // setting base args
-    IE_SUPPRESS_DEPRECATED_START
-    net->setPrecision(input.getPrecision());
-    IE_SUPPRESS_DEPRECATED_END
-
     net->setName(input.getName());
 
     // rest info is layer dependent so have to create graph clone
