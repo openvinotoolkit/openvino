@@ -54,7 +54,7 @@ def node_id(pb):
         return 'NoNamed'
 
 
-def protobuf2nx(graph, pb):
+def protobuf2nx(graph, graph_pb):
     '''Convert proto message with ONNX model to equivalent NX representation.
     All nodes and edges are restored here as ONNX model has op/data representation,
     that means that nodes are connected via tensor names. Name of tensors are defined
@@ -62,13 +62,13 @@ def protobuf2nx(graph, pb):
     # graph = fill_graph_with_nodes(graph, pb.graph.node, get_id=node_id, get_attrs=protobuf_attrs)
     # convert initializers to a NX graph for easier control of model consistency and to use it as a dictionary later
     initializers = Graph()
-    fill_graph_with_nodes(initializers, pb.graph.initializer, get_id=lambda pb: pb.name, get_attrs=protobuf_attrs)
+    fill_graph_with_nodes(initializers, graph_pb.initializer, get_id=lambda pb: pb.name, get_attrs=protobuf_attrs)
 
     # maps a tensor name to a node produced it and the node port: str -> (node_id, node_port)
     data_nodes_map = {}
 
     # first go through all inputs and separate constant from placeholders
-    for inp in pb.graph.input:
+    for inp in graph_pb.input:
         name = str(inp.name)
         if graph.has_node(name):
             raise Error('Name {} of input node already exists, input names are duplicated.', name)
@@ -92,7 +92,7 @@ def protobuf2nx(graph, pb):
 
     # Go through all nodes in the original model order (because data nodes are defined on-the-fly and order is
     # important)
-    for node in pb.graph.node:
+    for node in graph_pb.node:
         # create an NX node
         id = graph.unique_id(node_id(node))
         graph.add_node(id, pb=node, kind='op')
