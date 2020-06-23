@@ -21,7 +21,7 @@ const std::vector<std::map<std::string, std::string>> configs = {
     }
 };
 
-INSTANTIATE_TEST_CASE_P(ConcatQuantization, ConcatQuantization,
+INSTANTIATE_TEST_CASE_P(smoke_ConcatQuantization, ConcatQuantization,
                         ::testing::Combine(
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::Values(CommonTestUtils::DEVICE_GNA),
