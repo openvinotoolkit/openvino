@@ -81,6 +81,8 @@ TEST_P(BehaviorTests, canNotLoadNetworkWithoutWeights) {
 }
 
 TEST_P(BehaviorTests, pluginDoesNotChangeOriginalNetwork) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     const std::string name_a = "a.xml";
     const std::string name_b = "b.xml";
     auto param = GetParam();
@@ -100,6 +102,8 @@ TEST_P(BehaviorTests, pluginDoesNotChangeOriginalNetwork) {
 using BehaviorTestInput = BehaviorTestsUtils::BehaviorTestsBasic;
 
 TEST_P(BehaviorTestInput, canSetInputPrecisionForNetwork) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     InferenceEngine::InputsDataMap inputs_info;
     InferenceEngine::CNNNetwork cnnNet(function);
     setInputNetworkPrecision(cnnNet, inputs_info, netPrecision);
@@ -128,6 +132,8 @@ TEST_P(BehaviorTestInput, canSetInputPrecisionForNetwork) {
 using BehaviorTestOutput = BehaviorTestsUtils::BehaviorTestsBasic;
 
 TEST_P(BehaviorTestOutput, canSetOutputPrecisionForNetwork) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     InferenceEngine::OutputsDataMap output_info;
     InferenceEngine::CNNNetwork cnnNet(function);
     setOutputNetworkPrecision(cnnNet, output_info, netPrecision);
