@@ -253,8 +253,6 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::ICNNNetw
             }
         }
 
-        tempNetwork->setPrecision(network.getPrecision());
-
         // update of pre-processing info
         InputsDataMap clonedInputs;
         tempNetwork->getInputsInfo(clonedInputs);

@@ -32,13 +32,6 @@ class INFERENCE_ENGINE_API_CLASS(CNNNetworkImpl): public ICNNNetwork {
 public:
     CNNNetworkImpl();
     ~CNNNetworkImpl() override;
-    Precision getPrecision() const noexcept override {
-        return precision;
-    }
-
-    void setPrecision(Precision::ePrecision prec) {
-        precision = prec;
-    }
 
     std::shared_ptr<::ngraph::Function> getFunction() noexcept override {
         return nullptr;
@@ -139,7 +132,6 @@ public:
         noexcept override;
 
 protected:
-    Precision precision {Precision::MIXED};
     std::map<std::string, DataPtr> _data;
     std::map<std::string, CNNLayerPtr> _layers;
     InferenceEngine::InputsDataMap _inputData;

@@ -47,8 +47,6 @@ public:
     CNNNetworkNGraphImpl(const std::shared_ptr<::ngraph::Function>& nGraph);
     ~CNNNetworkNGraphImpl() override;
 
-    INFERENCE_ENGINE_DEPRECATED("Use ngraph::Function directly")
-    Precision getPrecision() const noexcept override;
     void getOutputsInfo(std::map<std::string, DataPtr>& out) const noexcept override;
 
     void getInputsInfo(InputsDataMap& inputs) const noexcept override;

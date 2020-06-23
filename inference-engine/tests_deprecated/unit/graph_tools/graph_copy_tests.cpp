@@ -56,16 +56,12 @@ protected:
     }
 };
 
-TEST_F(GraphCopyTests, copyNetworkPreserveBasicParams) {
+TEST_F(GraphCopyTests, canPreserveBatchWhenCopyNetwork) {
     auto clone = CNNNetCopy<MockCopier>(*mockNet, mc);
 
     //network was copied not just assigned
     ASSERT_NE(clone.get(), mockNet.get());
-    ASSERT_EQ(clone->getPrecision(), Precision::FP16);
-}
 
-TEST_F(GraphCopyTests, canPreserveBatchWhenCopyNetwork) {
-    auto clone = CNNNetCopy<MockCopier>(*mockNet, mc);
     ASSERT_EQ(clone->getBatchSize(), 12);
 }
 

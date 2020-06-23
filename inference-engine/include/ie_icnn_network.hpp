@@ -59,17 +59,6 @@ public:
     virtual std::shared_ptr<const ngraph::Function> getFunction() const noexcept = 0;
 
     /**
-     * @deprecated Network precision does not make sence, use precision on egdes. The method will be removed in 2021.1
-     * @brief Returns the main network operating precision.
-     *
-     * This may be MIXED if not homogeneous.
-     *
-     * @return A precision type
-     */
-    INFERENCE_ENGINE_DEPRECATED("Network precision does not make sence, use precision on egdes. The method will be removed in 2021.1")
-    virtual Precision getPrecision() const noexcept = 0;
-
-    /**
      * @brief Gets the network output Data node information. The received info is stored in the given Data node.
      *
      * For single and multiple outputs networks.

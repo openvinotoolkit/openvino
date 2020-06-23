@@ -207,10 +207,6 @@ InputInfo::Ptr CNNNetworkNGraphImpl::getInput(const std::string& inputName) cons
     return it->second;
 }
 
-Precision CNNNetworkNGraphImpl::getPrecision() const noexcept {
-    return Precision::MIXED;
-}
-
 void CNNNetworkNGraphImpl::getOutputsInfo(OutputsDataMap& out) const noexcept {
     if (cnnNetwork) {
         cnnNetwork->getOutputsInfo(out);
