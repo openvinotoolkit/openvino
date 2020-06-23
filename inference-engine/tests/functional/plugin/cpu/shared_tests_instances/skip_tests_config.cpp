@@ -11,14 +11,15 @@ std::vector<std::string> disabledTestPatterns() {
     return {
         // TODO: Issue 26264
         R"(.*(MaxPool|AvgPool).*S\(1\.2\).*Rounding=CEIL.*)",
-        // TODO: Issue 31839
-        R"(.*(QuantConvBackpropData3D).*)",
         // TODO: Issue 31841
         R"(.*(QuantGroupConvBackpropData3D).*)",
         // TODO: Issue 31843
-        R"(.*(QuantGroupConvBackpropData2D)*QG=Perchannel.*)",
-        // TODO: Issue 32023
-        R"(.*(QuantGroupConvBackpropData2D)*QG=Pertensor.*)",
+        R"(.*(QuantConvBackpropData3D).*)",
+        R"(.*(QuantConvBackpropData2D).*(QG=Perchannel).*)",
+        R"(.*(QuantGroupConvBackpropData2D).*(QG=Perchannel).*)",
+        // TODO: Issue 33886
+        R"(.*(QuantGroupConv2D).*)",
+        R"(.*(QuantGroupConv3D).*)",
         // TODO: Issue 31845
         R"(.*(FakeQuantize/FakeQuantizeLayerTest).*)",
         R"(.*(EltwiseLayerTest).*IS=\(.*\..*\..*\..*\..*\).*secondaryInputType=PARAMETER.*opType=SCALAR.*)",

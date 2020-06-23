@@ -51,6 +51,17 @@ std::shared_ptr<ngraph::Node> makeGroupConvolution(const ngraph::Output<Node> &i
                                                    const std::vector<float> &filterWeights = {},
                                                    const std::vector<float> &biasesWeights = {});
 
+std::shared_ptr<ngraph::Node> makeGroupConvolution(const ngraph::Output<Node> &in,
+                                                   const ngraph::Output<Node> &weights,
+                                                   const element::Type &type,
+                                                   const std::vector<size_t> &strides,
+                                                   const std::vector<ptrdiff_t> &padsBegin,
+                                                   const std::vector<ptrdiff_t> &padsEnd,
+                                                   const std::vector<size_t> &dilations,
+                                                   const op::PadType &autoPad,
+                                                   bool addBiases = false,
+                                                   const std::vector<float> &biasesWeights = {});
+
 std::shared_ptr<ngraph::Node> makeConvolutionBackpropData(const ngraph::Output<Node> &in,
                                                           const element::Type &type,
                                                           const std::vector<size_t> &filterSize,
@@ -152,13 +163,10 @@ std::shared_ptr<ngraph::Node> makeMVN(const ngraph::Output<Node> &in,
                                       bool normalizeVariance,
                                       double eps);
 
-std::shared_ptr<ngraph::Node> makeSqueeze(const ngraph::Output<Node> &in,
-                                          const element::Type &type,
-                                          const std::vector<size_t> &squeeze_indices);
-
-std::shared_ptr<ngraph::Node> makeUnsqueeze(const ngraph::Output<Node> &in,
-                                            const element::Type &type,
-                                            const std::vector<size_t> &squeeze_indices);
+std::shared_ptr<ngraph::Node> makeSqueezeUnsqueeze(const ngraph::Output<Node> &in,
+                                                   const element::Type &type,
+                                                   const std::vector<int> &squeeze_indices,
+                                                   ngraph::helpers::SqueezeOpType opType);
 
 std::shared_ptr<ngraph::Node> makeProposal(const ngraph::Output<Node> &class_probs,
                                            const ngraph::Output<Node> &class_logits,
