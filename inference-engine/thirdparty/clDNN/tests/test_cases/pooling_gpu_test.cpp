@@ -2586,7 +2586,7 @@ INSTANTIATE_TEST_CASE_P(
     smoke_low_precision,
     pooling_random_test,
     testing::Combine(testing::Values(1, 2),
-                     testing::Values(3, 8),
+                     testing::Values(3, 8, 64),
                      testing::Values(std::tuple<size_t, size_t>(12, 12), std::tuple<size_t, size_t>(24, 24)),
                      testing::Values(std::tuple<size_t, size_t>(4, 4), std::tuple<size_t, size_t>(2, 2)),
                      testing::Values(std::tuple<int, int>(2, 2)),

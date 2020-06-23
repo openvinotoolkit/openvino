@@ -15,8 +15,7 @@
 """
 from extensions.back.ForceStrictPrecision import ForceStrictPrecision
 from mo.back.replacement import BackReplacementPattern
-from mo.graph.graph import Graph, Node
-from mo.middle.pattern_match import for_each_sub_graph_recursively
+from mo.graph.graph import Graph
 
 
 class ReshapeMutation(BackReplacementPattern):
@@ -39,47 +38,4 @@ class ReshapeMutation(BackReplacementPattern):
         reshape = match['reshape']
 
         if reshape.soft_get('type') == 'Reshape':
-            if graph.graph['cmd_params'].generate_experimental_IR_V10:
-                reshape['force_precision_in_ports'] = {1: 'int64'}
-            else:
-                reshape['force_precision_in_ports'] = {1: 'int32'}
-
-
-class DisableReshapeMutationInTensorIterator(BackReplacementPattern):
-    enabled = True
-    force_clean_up = True
-    run_not_recursively = True
-
-    graph_condition = [lambda graph: not graph.graph['cmd_params'].generate_experimental_IR_V10]
-
-    def run_after(self):
-        return [ReshapeMutation]
-
-    @staticmethod
-    def add_supported_attrs_to_node(node: Node, params: list):
-        node.graph.node[node.id].update({
-            'IE': [(
-                'layer',
-                [('id', lambda node: node.node), 'name', 'precision', 'type', 'version'],
-                [
-                    ('data', params, []),
-                    '@ports',
-                    '@consts'])]
-        })
-
-    def reshapes_with_two_inputs_to_reshape_with_dim(self, graph: Graph):
-        reshapes = graph.get_op_nodes(op='Reshape')
-
-        for reshape in reshapes:
-            in_nodes = reshape.in_nodes()
-
-            assert len(in_nodes) == 2
-            reshape['dim'] = reshape.in_port(1).data.get_value()
-
-            reshape.in_port(1).disconnect()
-
-            params = [('dim', lambda node: ','.join(map(str, node['dim'])))]
-            self.add_supported_attrs_to_node(reshape, params)
-
-    def find_and_replace_pattern(self, graph: Graph):
-        for_each_sub_graph_recursively(graph, self.reshapes_with_two_inputs_to_reshape_with_dim)
+            reshape['force_precision_in_ports'] = {1: 'int64'}

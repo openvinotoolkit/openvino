@@ -14,9 +14,6 @@ namespace {
     };
 
     const std::vector<std::map<std::string, std::string>> Configs = {
-            {{VPU_CONFIG_KEY(IGNORE_IR_STATISTIC), CONFIG_VALUE(YES)}},
-            {{VPU_CONFIG_KEY(IGNORE_IR_STATISTIC), CONFIG_VALUE(NO)}},
-
             {{VPU_MYRIAD_CONFIG_KEY(FORCE_RESET), CONFIG_VALUE(YES)}},
             {{VPU_MYRIAD_CONFIG_KEY(FORCE_RESET), CONFIG_VALUE(NO)}},
 
@@ -64,9 +61,6 @@ namespace {
             {{VPU_MYRIAD_CONFIG_KEY(PROTOCOL), "BLUETOOTH"}},
             {{VPU_MYRIAD_CONFIG_KEY(PROTOCOL), "LAN"}},
 
-            {{VPU_CONFIG_KEY(IGNORE_IR_STATISTIC), "ON"}},
-            {{VPU_CONFIG_KEY(IGNORE_IR_STATISTIC), "OFF"}},
-
             {{VPU_CONFIG_KEY(HW_STAGES_OPTIMIZATION), "ON"}},
             {{VPU_CONFIG_KEY(HW_STAGES_OPTIMIZATION), "OFF"}},
 
@@ -88,8 +82,6 @@ namespace {
              {VPU_CONFIG_KEY(HW_STAGES_OPTIMIZATION), "ON"}},
             {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_MYRIAD},
              {CONFIG_KEY(LOG_LEVEL), "VERBOSE"}},
-            {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_MYRIAD},
-             {VPU_CONFIG_KEY(IGNORE_IR_STATISTIC), "ON"}},
             {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_MYRIAD},
              {VPU_MYRIAD_CONFIG_KEY(PLATFORM), "-1"}},
             {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_MYRIAD},

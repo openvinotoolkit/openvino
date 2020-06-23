@@ -97,7 +97,7 @@ class ReduceOp(Op):
             'in_ports_count': 2,
             'out_ports_count': 1,
             'force_precision_in_ports': {
-                1: 'int64' if graph.graph['cmd_params'].generate_experimental_IR_V10 else 'int32'},
+                1: 'int64'},
         }, attrs)
         assert isinstance(self.attrs['keep_dims'], int) or isinstance(self.attrs['keep_dims'], bool)
         self.attrs['keep_dims'] = bool(self.attrs['keep_dims'])

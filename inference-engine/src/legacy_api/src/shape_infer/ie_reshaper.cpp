@@ -19,7 +19,6 @@
 
 #include "details/caseless.hpp"
 #include "details/ie_cnn_network_tools.h"
-#include "ie_cnn_layer_builder.h"
 #include "ie_reshaper.hpp"
 #include "shape_infer/built-in/ie_built_in_holder.hpp"
 

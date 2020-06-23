@@ -53,12 +53,10 @@ class ConvSum: public TestsCommon, public ::testing::WithParamInterface<conv_elt
         std::vector<float> max_stat(p.in1[1]);
         CommonTestUtils::fill_data_sine(min_stat.data(), p.in1[1], -1, 1, 1);
         CommonTestUtils::fill_data_sine(max_stat.data(), p.in1[1], 1, 1, -1);
-        CommonTestUtils::Statistic in_stat = {min_stat, max_stat};
         std::vector<float> conv_min_stat(convOutShape[1]);
         std::vector<float> conv_max_stat(convOutShape[1]);
         CommonTestUtils::fill_data_sine(conv_min_stat.data(), convOutShape[1], -1, 1, 1);
         CommonTestUtils::fill_data_sine(conv_max_stat.data(), convOutShape[1], 1, 1, -1);
-        CommonTestUtils::Statistic conv_stat = {conv_min_stat, conv_max_stat};
 
         std::map<std::string, std::string> elt_params = {
                 {"operation", "sum"}
@@ -66,10 +64,10 @@ class ConvSum: public TestsCommon, public ::testing::WithParamInterface<conv_elt
         std::vector<std::pair<std::string, std::string>> edges = { {"0,0", "2,2"}, {"2,3", "3,4"}, {"1,1", "3,5"} };
 
         return CommonTestUtils::DefaultNetBuilder::buildNetworkWithOneInput(
-                "Fusion_conv_sum", p.in1, precision, in_stat)
-                .addInputLayer(precision, convOutShape, in_stat)
-                .convolutionLayer(precision, {{p.in1}, {convOutShape}}, p.conv, conv_stat)
-                .addLayer("Eltwise", precision, &elt_params, {{convOutShape, convOutShape}, {convOutShape}}, 0, 0, "data", "", conv_stat)
+                "Fusion_conv_sum", p.in1, precision)
+                .addInputLayer(precision, convOutShape)
+                .convolutionLayer(precision, {{p.in1}, {convOutShape}}, p.conv)
+                .addLayer("Eltwise", precision, &elt_params, {{convOutShape, convOutShape}, {convOutShape}}, 0, 0, "data", "")
                 .finish(&edges);
     }
 
@@ -114,12 +112,10 @@ class ConvSumReLU: public TestsCommon, public ::testing::WithParamInterface<conv
         std::vector<float> max_stat(p.in1[1]);
         CommonTestUtils::fill_data_sine(min_stat.data(), p.in1[1], -1, 1, 1);
         CommonTestUtils::fill_data_sine(max_stat.data(), p.in1[1], 1, 1, -1);
-        CommonTestUtils::Statistic in_stat = {min_stat, max_stat};
         std::vector<float> conv_min_stat(convOutShape[1]);
         std::vector<float> conv_max_stat(convOutShape[1]);
         CommonTestUtils::fill_data_sine(conv_min_stat.data(), convOutShape[1], -1, 1, 1);
         CommonTestUtils::fill_data_sine(conv_max_stat.data(), convOutShape[1], 1, 1, -1);
-        CommonTestUtils::Statistic conv_stat = {conv_min_stat, conv_max_stat};
 
         std::map<std::string, std::string> elt_params = {
                 {"operation", "sum"}
@@ -127,11 +123,11 @@ class ConvSumReLU: public TestsCommon, public ::testing::WithParamInterface<conv
         std::map<std::string, std::string> relu_params = {};
         std::vector<std::pair<std::string, std::string>> edges = { {"0,0", "2,2"}, {"2,3", "3,4"}, {"1,1", "3,5"}, {"3,6", "4,7"} };
         return CommonTestUtils::DefaultNetBuilder::buildNetworkWithOneInput(
-                "Fusion_conv_sum", p.in1, precision, in_stat)
-                .addInputLayer(precision, convOutShape, in_stat)
-                .convolutionLayer(precision, {{p.in1}, {convOutShape}}, p.conv, conv_stat)
-                .addLayer("Eltwise", precision, &elt_params, {{convOutShape, convOutShape}, {convOutShape}}, 0, 0, "data", "", conv_stat)
-                .addLayer("ReLU", precision, &relu_params, {{convOutShape, convOutShape}, {convOutShape}}, 0, 0, "data", "", conv_stat)
+                "Fusion_conv_sum", p.in1, precision)
+                .addInputLayer(precision, convOutShape)
+                .convolutionLayer(precision, {{p.in1}, {convOutShape}}, p.conv)
+                .addLayer("Eltwise", precision, &elt_params, {{convOutShape, convOutShape}, {convOutShape}}, 0, 0, "data", "")
+                .addLayer("ReLU", precision, &relu_params, {{convOutShape, convOutShape}, {convOutShape}}, 0, 0, "data", "")
                 .finish(&edges);
     }
 
@@ -179,23 +175,21 @@ class ConvConvSum: public TestsCommon, public ::testing::WithParamInterface<conv
         std::vector<float> max_stat(p.in1[1]);
         CommonTestUtils::fill_data_sine(min_stat.data(), p.in1[1], -1, 1, 1);
         CommonTestUtils::fill_data_sine(max_stat.data(), p.in1[1], 1, 1, -1);
-        CommonTestUtils::Statistic in_stat = {min_stat, max_stat};
         std::vector<float> conv_min_stat(convOutShape[1]);
         std::vector<float> conv_max_stat(convOutShape[1]);
         CommonTestUtils::fill_data_sine(conv_min_stat.data(), convOutShape[1], -1, 1, 1);
         CommonTestUtils::fill_data_sine(conv_max_stat.data(), convOutShape[1], 1, 1, -1);
-        CommonTestUtils::Statistic conv_stat = {conv_min_stat, conv_max_stat};
 
         std::map<std::string, std::string> elt_params = {
                 {"operation", "sum"}
         };
         std::vector<std::pair<std::string, std::string>> edges = { {"0,0", "2,2"}, {"2,3", "4,6"}, {"1,1", "3,4"}, {"3,5", "4,7"} };
         return CommonTestUtils::DefaultNetBuilder::buildNetworkWithOneInput(
-                "Fusion_conv_sum", p.in1, precision, in_stat)
-                .addInputLayer(precision, p.in1, in_stat)
-                .convolutionLayer(precision, {{p.in1}, {convOutShape}}, p.conv, conv_stat)
-                .convolutionLayer(precision, {{p.in1}, {convOutShape}}, p.conv, conv_stat)
-                .addLayer("Eltwise", precision, &elt_params, {{convOutShape, convOutShape}, {convOutShape}}, 0, 0, "data", "", conv_stat)
+                "Fusion_conv_sum", p.in1, precision)
+                .addInputLayer(precision, p.in1)
+                .convolutionLayer(precision, {{p.in1}, {convOutShape}}, p.conv)
+                .convolutionLayer(precision, {{p.in1}, {convOutShape}}, p.conv)
+                .addLayer("Eltwise", precision, &elt_params, {{convOutShape, convOutShape}, {convOutShape}}, 0, 0, "data", "")
                 .finish(&edges);
     }
 
@@ -242,24 +236,18 @@ class ConvConvSumReLU: public TestsCommon, public ::testing::WithParamInterface<
         getConvOutShape(p.in1, p.conv1, convOutShape1);
         getConvOutShape(p.in2, p.conv2, convOutShape2);
 
-        CommonTestUtils::Statistic in1_stat, in2_stat, conv1_stat, conv2_stat;
-        fillStatistic(in1_stat, p.in1[1], -2, 2);
-        fillStatistic(in2_stat, p.in2[1], -2, 2);
-        fillStatistic(conv1_stat, p.conv1.out_c, -2, 2);
-        fillStatistic(conv2_stat, p.conv2.out_c, -2, 2);
-
         std::map<std::string, std::string> elt_params = {
                 {"operation", "sum"}
         };
         std::map<std::string, std::string> relu_params = {};
         std::vector<std::pair<std::string, std::string>> edges = { {"0,0", "2,2"}, {"2,3", "4,6"}, {"1,1", "3,4"}, {"3,5", "4,7"}, {"4,8", "5,9"} };
         return CommonTestUtils::DefaultNetBuilder::buildNetworkWithOneInput(
-                "Fusion_conv_sum", p.in1, precision, in1_stat)
-                .addInputLayer(precision, p.in2, in2_stat)
-                .convolutionLayer(precision, {{p.in1}, {convOutShape1}}, p.conv1, conv1_stat)
-                .convolutionLayer(precision, {{p.in2}, {convOutShape2}}, p.conv2, conv2_stat)
-                .addLayer("Eltwise", precision, &elt_params, {{convOutShape1, convOutShape2}, {convOutShape1}}, 0, 0, "data", "", conv1_stat)
-                .addLayer("ReLU", precision, &relu_params, {{convOutShape1}, {convOutShape1}}, 0, 0, "data", "", conv1_stat)
+                "Fusion_conv_sum", p.in1, precision)
+                .addInputLayer(precision, p.in2)
+                .convolutionLayer(precision, {{p.in1}, {convOutShape1}}, p.conv1)
+                .convolutionLayer(precision, {{p.in2}, {convOutShape2}}, p.conv2)
+                .addLayer("Eltwise", precision, &elt_params, {{convOutShape1, convOutShape2}, {convOutShape1}}, 0, 0, "data", "")
+                .addLayer("ReLU", precision, &relu_params, {{convOutShape1}, {convOutShape1}}, 0, 0, "data", "")
                 .finish(&edges);
     }
 
@@ -314,14 +302,6 @@ class ConvConvSumReLUPoolConv: public TestsCommon, public ::testing::WithParamIn
         getConvOutShape(convOutShape1, p.conv3, convOutShape3);
         getPoolOutShape(convOutShape1, p.pool, poolOutShape);
 
-        CommonTestUtils::Statistic in1_stat, in2_stat, conv1_stat, conv2_stat, conv3_stat, pool_stat;
-        fillStatistic(in1_stat, p.in1[1], -2.f, 2.f);
-        fillStatistic(in2_stat, p.in2[1], -2.f, 2.f);
-        fillStatistic(conv1_stat, p.conv1.out_c, -2.f, 2.f);
-        fillStatistic(conv2_stat, p.conv2.out_c, -2.f, 2.f);
-        fillStatistic(conv3_stat, p.conv3.out_c, -2.f, 2.f);
-        fillStatistic(pool_stat, poolOutShape[1], 0.f, 3.f);
-
         std::map<std::string, std::string> elt_params = {
                 {"operation", "sum"}
         };
@@ -334,14 +314,14 @@ class ConvConvSumReLUPoolConv: public TestsCommon, public ::testing::WithParamIn
                                                                    {"5,10", "7,13"},
                                                                    {"4,8", "6,11"} };
         return CommonTestUtils::DefaultNetBuilder::buildNetworkWithOneInput(
-                "Fusion_conv_sum", p.in1, precision, in1_stat)
-                .addInputLayer(precision, p.in2, in2_stat)
-                .convolutionLayer(precision, {{p.in1}, {convOutShape1}}, p.conv1, conv1_stat)
-                .convolutionLayer(precision, {{p.in2}, {convOutShape2}}, p.conv2, conv2_stat)
-                .addLayer("Eltwise", precision, &elt_params, {{convOutShape1, convOutShape2}, {convOutShape1}}, 0, 0, "data", "", conv1_stat)
-                .addLayer("ReLU", precision, &relu_params, {{convOutShape1}, {convOutShape1}}, 0, 0, "data", "", pool_stat)
-                .convolutionLayer(precision, {{convOutShape1}, {convOutShape3}}, p.conv3, conv3_stat)
-                .addLayer("Pooling", precision, &relu_params, {{convOutShape1}, {poolOutShape}}, 0, 0, "data", "", pool_stat)
+                "Fusion_conv_sum", p.in1, precision)
+                .addInputLayer(precision, p.in2)
+                .convolutionLayer(precision, {{p.in1}, {convOutShape1}}, p.conv1)
+                .convolutionLayer(precision, {{p.in2}, {convOutShape2}}, p.conv2)
+                .addLayer("Eltwise", precision, &elt_params, {{convOutShape1, convOutShape2}, {convOutShape1}}, 0, 0, "data", "")
+                .addLayer("ReLU", precision, &relu_params, {{convOutShape1}, {convOutShape1}}, 0, 0, "data", "")
+                .convolutionLayer(precision, {{convOutShape1}, {convOutShape3}}, p.conv3)
+                .addLayer("Pooling", precision, &relu_params, {{convOutShape1}, {poolOutShape}}, 0, 0, "data", "")
                 .finish(&edges);
     }
 

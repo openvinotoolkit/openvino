@@ -189,7 +189,7 @@ AllocationResult runAllocator(const Model& model, bool onlyCheckCMX) {
     //
 
     for (auto data : model->datas()) {
-        if (data->usage() != DataUsage::Output) {
+        if (data->usage() != DataUsage::Output && data->usage() != DataUsage::Input) {
             continue;
         }
 

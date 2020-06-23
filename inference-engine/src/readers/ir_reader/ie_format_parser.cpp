@@ -10,7 +10,6 @@
 #include <unordered_set>
 
 #include "ie_blob_proxy.hpp"
-#include "ie_icnn_network_stats.hpp"
 #include "ie_layer_parsers.h"
 #include "ie_profiling.hpp"
 #include "xml_parse_utils.h"
@@ -423,9 +422,6 @@ CNNNetworkImplPtr FormatParser::Parse(pugi::xml_node& root) {
         }
     }
 
-    auto statNode = root.child("statistics");
-    ParseStatisticSection(statNode);
-
     if (!_network->allLayers().size()) THROW_IE_EXCEPTION << "Incorrect model! Network doesn't contain layers.";
 
     size_t inputLayersNum(0);
@@ -775,41 +771,5 @@ void FormatParser::ParsePreProcess(pugi::xml_node& root) {
                            << "\n"
                               "Provided mean image for: "
                            << validMeanImageIds;
-    }
-}
-
-void FormatParser::ParseStatisticSection(const pugi::xml_node& statNode) {
-    auto splitParseCommas = [&](const string& s) -> vector<float> {
-        vector<float> res;
-        stringstream ss(s);
-
-        float val;
-
-        while (ss >> val) {
-            res.push_back(val);
-
-            if (ss.peek() == ',') ss.ignore();
-        }
-
-        return res;
-    };
-
-    map<string, NetworkNodeStatsPtr> newNetNodesStats;
-
-    for (auto layer : statNode.children("layer")) {
-        NetworkNodeStatsPtr nodeStats = NetworkNodeStatsPtr(new NetworkNodeStats());
-
-        string name = layer.child("name").text().get();
-
-        newNetNodesStats[name] = nodeStats;
-
-        nodeStats->_minOutputs = splitParseCommas(layer.child("min").text().get());
-        nodeStats->_maxOutputs = splitParseCommas(layer.child("max").text().get());
-    }
-
-    ICNNNetworkStats* pstats = nullptr;
-    StatusCode s = _network->getStats(&pstats, nullptr);
-    if (s == StatusCode::OK && pstats) {
-        pstats->setNodesStats(newNetNodesStats);
     }
 }

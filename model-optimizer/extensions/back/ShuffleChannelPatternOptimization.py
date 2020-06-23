@@ -16,7 +16,6 @@
 import numpy as np
 
 from extensions.back.FuseTransposesSequence import FuseTransposesSequence
-from extensions.back.TransposeToPermute import TransposeToPermute
 from mo.back.replacement import BackReplacementPattern
 from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Graph
@@ -28,9 +27,6 @@ class ShuffleChannelPatternOptimization(BackReplacementPattern):
 
     def run_after(self):
         return [FuseTransposesSequence]
-
-    def run_before(self):
-        return [TransposeToPermute]
 
     @staticmethod
     def pattern():
