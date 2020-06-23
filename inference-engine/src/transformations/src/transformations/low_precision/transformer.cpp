@@ -244,6 +244,7 @@ TypeRelaxedReplacer::TypeRelaxedReplacer() {
     make_matcher_type_relaxed<opset1::MaxPool>(this);
     make_matcher_type_relaxed<opset1::Add>(this);
     make_matcher_type_relaxed<opset1::Subtract>(this);
+    make_matcher_type_relaxed<ngraph::op::Subtract>(this);
     make_matcher_type_relaxed<opset1::NormalizeL2>(this);
 }
 

@@ -18,20 +18,20 @@ using namespace ngraph::pass::low_precision;
 void TransparentBaseTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) const {
     auto operation = m.get_match_root();
     const std::shared_ptr<Node> dequantization = operation->input_value(0).get_node_shared_ptr();
-    //const std::shared_ptr<Node> dequantizationParent = dequantization->input_value(0).get_node_shared_ptr();
+    // const std::shared_ptr<Node> dequantizationParent = dequantization->input_value(0).get_node_shared_ptr();
 
-    //auto newOperation = operation->copy_with_new_inputs({ dequantizationParent });
-    //const auto newDequantization = dequantization->copy_with_new_inputs({
+    // auto newOperation = operation->copy_with_new_inputs({ dequantizationParent });
+    // const auto newDequantization = dequantization->copy_with_new_inputs({
     //    newOperation,
     //    dequantization->input_value(1),
     //    dequantization->input_value(2) });
 
-    //const std::string friendlyName = operation->get_friendly_name();
+    // const std::string friendlyName = operation->get_friendly_name();
     //// TODO: new operation name has to be unique
-    //newOperation->set_friendly_name(friendlyName + "_original");
-    //newDequantization->set_friendly_name(friendlyName);
+    // newOperation->set_friendly_name(friendlyName + "_original");
+    // newDequantization->set_friendly_name(friendlyName);
 
-    //replace_node(operation, newDequantization);
+    // replace_node(operation, newDequantization);
 
     moveDequantization(operation, dequantization);
 }

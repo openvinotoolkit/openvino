@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <string>
 #include <memory>
+#include <cmath>
 #include <vector>
 
 #include "ngraph_ops/multiply_add.hpp"
