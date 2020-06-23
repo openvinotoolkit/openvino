@@ -63,7 +63,7 @@ bool FullyConnectedTransformation::canBeTransformed(const TransformationContext&
     std::vector<float> dequantizationShifts;
     fillFromDequantizationLayer(*scaleShift, dequantizationScales, dequantizationShifts);
 
-    const bool dequantizationDimIsSupported = getDequantizationDimIsSupported(fullyConnected);
+    const bool dequantizationDimIsSupported = !getDequantizationDimIsSupported(fullyConnected);
     if ((!dequantizationDimIsSupported) &&
         (!DequantizationDetails::isPerTensor(dequantizationScales, dequantizationShifts) ||
         // if asymmetric quantization is not supported then no shifts for dequantizationDimIsSupported = false case:
