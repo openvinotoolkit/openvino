@@ -53,7 +53,7 @@ TEST_P(DepthToSpaceTransformation, CompareFunctions) {
 
 const std::vector<ngraph::element::Type> precisions = {
     ngraph::element::f32,
-    ngraph::element::f16
+    // ngraph::element::f16
 };
 
 const std::vector<ngraph::Shape> shapes = {

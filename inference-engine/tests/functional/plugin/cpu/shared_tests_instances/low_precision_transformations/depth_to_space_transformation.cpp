@@ -23,7 +23,7 @@ const std::vector<LayerTransformation::Params> trasformationParams = {
 
 const std::vector<LayerTestsUtils::LayerTransformation::LptVersion> versions = {
     LayerTestsUtils::LayerTransformation::LptVersion::cnnNetwork,
-    LayerTestsUtils::LayerTransformation::LptVersion::nGraph
+    // LayerTestsUtils::LayerTransformation::LptVersion::nGraph
 };
 
 INSTANTIATE_TEST_CASE_P(LPT, DepthToSpaceTransformation,
