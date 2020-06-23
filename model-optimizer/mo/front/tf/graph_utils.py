@@ -20,8 +20,6 @@ from typing import Dict
 
 import numpy as np
 
-from extensions.middle.InsertLayoutPropagationTransposes import mark_input_as_in_correct_layout, \
-    mark_output_as_in_correct_layout
 from extensions.ops.activation_ops import Sigmoid
 from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Node, Graph
@@ -128,6 +126,11 @@ def add_convolution_to_swap_xy_coordinates(graph: Graph, input_node: Node, coord
 
     input_reshape_4d_node = create_op_node_with_second_input(graph, Reshape, int64_array([-1, 1, 1, coordinates_size]),
                                                              dict(name=input_node.name + '/reshape_4d'), input_node)
+
+    # we need to import these functions here to avoid circular dependent imports
+    from extensions.middle.InsertLayoutPropagationTransposes import mark_input_as_in_correct_layout, \
+        mark_output_as_in_correct_layout
+
     mark_input_as_in_correct_layout(input_reshape_4d_node, 0)
     # do not mark second input because the reshape works in initial model layout and needs to be transformed to NCHW
     mark_output_as_in_correct_layout(input_reshape_4d_node, 0)
