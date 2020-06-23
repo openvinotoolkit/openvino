@@ -61,10 +61,6 @@ namespace LayerTestsDefinitions {
 
     TEST_P(SelectLayerTest, CompareWithRefImpl) {
         Run();
-
-        if (targetDevice == std::string{CommonTestUtils::DEVICE_GPU}) {
-            PluginCache::get().reset();
-        }
     }
 
 }  // namespace LayerTestsDefinitions

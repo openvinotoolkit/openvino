@@ -48,9 +48,7 @@ namespace LayerTestsDefinitions {
         function = std::make_shared<ngraph::Function>(reshape2, input, "reshape_permute_reshape");
     }
 
-    TEST_P(ReshapePermuteReshape, CompareWithRefs){
+    TEST_P(ReshapePermuteReshape, CompareWithRefs) {
         Run();
-        if (targetDevice == std::string{CommonTestUtils::DEVICE_GPU}) {
-            PluginCache::get().reset();
-        }    };
+    }
 } // namespace LayerTestsDefinitions

@@ -117,10 +117,6 @@ void ConvolutionTransformation::validate() {
 
 TEST_P(ConvolutionTransformation, CompareWithRefImpl) {
     Run();
-
-    if (targetDevice == std::string{CommonTestUtils::DEVICE_GPU}) {
-        PluginCache::get().reset();
-    }
 };
 
 }  // namespace LayerTestsDefinitions

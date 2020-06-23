@@ -78,9 +78,6 @@ TEST_P(TestNoRegressionDynBatchFP32, dynBatch) {
                                      outElementsCount, outElementsCount,
                                      FuncTestUtils::CompareType::ABS_AND_REL,
                                      thr1, thr2);
-    if (GetParam().deviceName.find(CommonTestUtils::DEVICE_GPU) != std::string::npos) {
-        PluginCache::get().reset();
-    }
 }
 
 std::string getTestCaseName(TestParamInfo<CommonDynBatchFuncTestParams> obj) {

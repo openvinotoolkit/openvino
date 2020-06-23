@@ -45,9 +45,6 @@ void ExecGraphInputsFusingBinConv::SetUp() {
 }
 
 void ExecGraphInputsFusingBinConv::TearDown() {
-    if (targetDevice.find(CommonTestUtils::DEVICE_GPU) != std::string::npos) {
-        PluginCache::get().reset();
-    }
 }
 
 TEST_P(ExecGraphInputsFusingBinConv, CheckNumInputsInBinConvFusingWithConv) {

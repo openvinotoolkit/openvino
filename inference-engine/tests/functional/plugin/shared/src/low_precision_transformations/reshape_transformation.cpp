@@ -99,10 +99,6 @@ void ReshapeTransformation::validate() {
 
 TEST_P(ReshapeTransformation, CompareWithRefImpl) {
     Run();
-
-    if (targetDevice == std::string{CommonTestUtils::DEVICE_GPU}) {
-        PluginCache::get().reset();
-    }
 };
 
 }  // namespace LayerTestsDefinitions
