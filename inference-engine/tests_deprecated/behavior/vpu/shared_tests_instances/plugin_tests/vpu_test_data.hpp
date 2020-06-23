@@ -49,7 +49,7 @@ const BehTestParams allInputSupportedValues[] = {
         BEH_MYRIAD, BEH_MYRIAD.withIn(Precision::U8), BEH_MYRIAD.withIn(Precision::FP16),
         BEH_MULTI(MYRIAD), BEH_MULTI(MYRIAD).withIn(Precision::U8), BEH_MULTI(MYRIAD).withIn(Precision::FP16),
         // I16 not supported yet
-        // (CVS-7979) [IE myriad] The plugin should support I16 format for Input
+        // (Issue-7979) [IE myriad] The plugin should support I16 format for Input
         //BEH_MYRIAD.withIn(Precision::I16),
 };
 

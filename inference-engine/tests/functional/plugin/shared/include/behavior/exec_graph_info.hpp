@@ -20,6 +20,7 @@
 #include "functional_test_utils/plugin_cache.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 
+namespace BehaviorTestsDefinitions {
 using ExecGraphTests = BehaviorTestsUtils::BehaviorTestsBasic;
 
 inline std::vector<std::string> separateStrToVec(std::string str, const char sep) {
@@ -241,3 +242,4 @@ TEST_P(ExecGraphTests, CheckExecGraphInfoSerialization) {
                      InferenceEngine::details::InferenceEngineException);
     }
 }
+}  // namespace BehaviorTestsDefinitions

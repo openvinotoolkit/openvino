@@ -53,7 +53,7 @@ class MYRIADBoot : public MyriadDevicesInfo,
 /*
  * @brief Boot myriad device through XLink, and then try to connect to it with plugin
  */
-#if !(defined(_WIN32) || defined(_WIN64))   // TODO CVS-15574
+#if !(defined(_WIN32) || defined(_WIN64))   // TODO Issue-15574
 TEST_P(MYRIADBoot, ConnectToAlreadyBootedDevice) {
 #else
 TEST_P(MYRIADBoot, DISABLED_ConnectToAlreadyBootedDevice) {

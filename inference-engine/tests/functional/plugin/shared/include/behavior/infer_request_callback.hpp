@@ -22,6 +22,7 @@
 #include "ngraph_functions/subgraph_builders.hpp"
 #include "behavior/infer_request_callback.hpp"
 
+namespace BehaviorTestsDefinitions {
 using CallbackTests = BehaviorTestsUtils::BehaviorTestsBasic;
 
 TEST_P(CallbackTests, canCallSyncAndAsyncWithCompletionCallback) {
@@ -295,3 +296,4 @@ TEST_P(CallbackTests, returnGeneralErrorIfCallbackThrowException) {
     ASSERT_EQ(InferenceEngine::StatusCode::GENERAL_ERROR, waitStatus);
     ASSERT_NE(std::string(resp.msg).find("returnGeneralErrorIfCallbackThrowException"), std::string::npos);
 }
+}  // namespace BehaviorTestsDefinitions

@@ -4,8 +4,8 @@
 
 #include "behavior/infer_request_input.hpp"
 
+using namespace BehaviorTestsDefinitions;
 namespace {
-
     const std::vector<InferenceEngine::Precision> netPrecisions = {
             InferenceEngine::Precision::U8,
             InferenceEngine::Precision::I16

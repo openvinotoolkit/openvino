@@ -154,8 +154,7 @@ Precision getInputPrecision(const CNNLayer& layer) {
         }
 
         // TODO: workaround for the first Convolution:
-        // https://jira.devtools.intel.com/browse/CVS-26622
-        // CVS-26622: [IE COMMON][LPT] Check if ScaleShift is dequantization ScaleShift(dequantizationLayersNames) before to apply transformation
+        // Issue-26622: [IE COMMON][LPT] Check if ScaleShift is dequantization ScaleShift(dequantizationLayersNames) before to apply transformation
         CNNLayerPtr eltwiseParent = eltwiseParentData->getCreatorLayer().lock();
         if (eltwiseParent->type == "Input") {
             return Precision::U8;
