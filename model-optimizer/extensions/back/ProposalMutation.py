@@ -21,7 +21,7 @@ from extensions.back.ReshapeMutation import ReshapeMutation
 from extensions.back.StridedSliceMasksNormalizer import StridedSliceMasksNormalizer
 from mo.back.replacement import BackReplacementPattern
 from mo.front.common.partial_infer.utils import int64_array
-from mo.front.tf.graph_utils import create_op_with_const_inputs
+from mo.front.tf.graph_utils import create_op_with_const_inputs, create_op_node_with_second_input
 from mo.graph.graph import Graph
 from mo.ops.const import Const
 from mo.ops.reshape import Reshape
@@ -73,10 +73,8 @@ class ProposalMutation(BackReplacementPattern):
             im_info_shape = int64_array([1, 3])
 
         if np.array_equal(im_info_shape, [1, 3]) or np.array_equal(im_info_shape, [1, 4]):
-            reshape = Reshape(graph, dict(name="im_info/Reshape")).create_node()
-            const = Const(graph, dict(value=[im_info_shape[1]])).create_node()
+            reshape = create_op_node_with_second_input(graph, Reshape, [im_info_shape[1]], {'name': 'im_info/Reshape'})
             node.in_port(2).get_connection().set_destination(reshape.in_port(0))
-            const.out_port(0).connect(reshape.in_port(1))
             reshape.out_port(0).connect(node.in_port(2))
 
         if node.has_port('out', 1) and not node.out_port(1).disconnected():
