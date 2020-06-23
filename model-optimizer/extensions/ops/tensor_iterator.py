@@ -256,12 +256,6 @@ class TensorIterator(Op):
             ('to-port', 'to_port'),
         ]
 
-        gen_port_map = lambda node, port_map: self.generate_port_map_v10(node, port_map) \
-            if self.ir_version == 10 else self.generate_port_map(node, port_map)
-
-        gen_back_map = lambda node: self.generate_back_edges_v10(node) \
-            if self.ir_version == 10 else self.generate_back_edges(node)
-
         new_attrs.update({
             'IE': [(
                 'layer',
@@ -270,13 +264,13 @@ class TensorIterator(Op):
                     ('data', self.backend_attrs() + self.default_backend_attrs, []),
                     '@ports',
                     ('port_map', [], [
-                        ('@list', lambda node: gen_port_map(node, node.input_port_map),
+                        ('@list', lambda node: self.generate_port_map(node, node.input_port_map),
                          ('input', port_map_attrs, [])),
-                        ('@list', lambda node: gen_port_map(node, node.output_port_map),
+                        ('@list', lambda node: self.generate_port_map(node, node.output_port_map),
                          ('output', port_map_attrs, [])),
                     ]),
                     ('back_edges', [], [
-                        ('@list', lambda node: gen_back_map(node), ('edge', back_edges_attrs, [])),
+                        ('@list', lambda node: self.generate_back_edges(node), ('edge', back_edges_attrs, [])),
                     ]),
                     ('body', [], [('@network', 'body')]),
                 ])]
@@ -304,23 +298,6 @@ class TensorIterator(Op):
     @staticmethod
     def generate_port_map(node: Node, src_port_map):
         """ Extract port_map attributes from node and node.body attributes.
-        
-            It iterates over src_port_map and substitude external_port_id, internal_port_id and
-            internal_layer_id by real values queried from node ports and node.body attributes.
-        """
-        result_list = []
-        for map_item in src_port_map:
-            result = dict(map_item)
-            assert result is not map_item
-            result['external_port_id'] = __class__.find_port_id(node, result['external_port_id'], 'external_port_id')
-            result['internal_layer_id'], result['internal_port_id'] = __class__.find_internal_layer_and_port(
-                node.body, result['internal_layer_id'], result['internal_port_id'])
-            result_list.append(result)
-        return result_list
-
-    @staticmethod
-    def generate_port_map_v10(node: Node, src_port_map):
-        """ Extract port_map attributes from node and node.body attributes.
 
             It iterates over src_port_map and substitude external_port_id, internal_port_id and
             internal_layer_id by real values queried from node ports and node.body attributes.
@@ -336,20 +313,6 @@ class TensorIterator(Op):
 
     @staticmethod
     def generate_back_edges(node: Node):
-        ''' Extract back_edges attributes from node and node.body attributes. '''
-        result_list = []
-        for back_edge in node.back_edges:
-            result = dict(back_edge)
-            assert result is not back_edge
-            result['from_layer'], result['from_port'] = __class__.find_internal_layer_and_port(
-                node.body, result['from_layer'], result['from_port'])
-            result['to_layer'], result['to_port'] = __class__.find_internal_layer_and_port(
-                node.body, result['to_layer'], result['to_port'])
-            result_list.append(result)
-        return result_list
-
-    @staticmethod
-    def generate_back_edges_v10(node: Node):
         ''' Extract back_edges attributes from node and node.body attributes. '''
         result_list = []
         for back_edge in node.back_edges:
