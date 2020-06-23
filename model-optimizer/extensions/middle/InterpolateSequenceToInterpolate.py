@@ -83,12 +83,12 @@ class CanBeFused:
         elif fst_opset == 'opset3':
             for attr in self.default_values_for_opset3.keys():
                 default_value = self.default_values_for_opset3[attr]
-                if not np.array_equal(first.soft_get(attr, default=default_value),
-                                      second.soft_get(attr, default=default_value)):
+                if first.soft_get(attr, default=default_value) != second.soft_get(attr, default=default_value):
                     return False
 
             for attr in ['pads_begin', 'pads_end']:
-                if first.soft_get(attr, self.default_pads) != second.soft_get(attr, self.default_pads):
+                if not np.array_equal(first.soft_get(attr, default=self.default_pads),
+                                      second.soft_get(attr, default=self.default_pads)):
                     return False
         else:
             fst_name = first.soft_get('name', first.id)
