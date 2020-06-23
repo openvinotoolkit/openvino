@@ -98,6 +98,11 @@ enum EltwiseTypes {
     SUBTRACT
 };
 
+enum SqueezeOpType {
+    SQUEEZE,
+    UNSQUEEZE
+};
+
 enum QuantizationGranularity {
     Pertensor,
     Perchannel
@@ -172,6 +177,8 @@ std::vector<std::uint8_t> convertOutputPrecision(std::vector<std::uint8_t> &outp
                                                  const size_t elementsCount);
 
 std::ostream& operator<<(std::ostream & os, ngraph::helpers::EltwiseTypes type);
+
+std::ostream& operator<<(std::ostream & os, ngraph::helpers::SqueezeOpType type);
 
 }  // namespace helpers
 }  // namespace ngraph
