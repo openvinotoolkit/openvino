@@ -32,13 +32,6 @@ class INFERENCE_ENGINE_API_CLASS(CNNNetworkImpl): public ICNNNetwork {
 public:
     CNNNetworkImpl();
     ~CNNNetworkImpl() override;
-    Precision getPrecision() const noexcept override {
-        return precision;
-    }
-
-    void setPrecision(Precision::ePrecision prec) {
-        precision = prec;
-    }
 
     std::shared_ptr<::ngraph::Function> getFunction() noexcept override {
         return nullptr;
@@ -66,13 +59,6 @@ public:
 
     void removeInputInfo(const std::string& name) {
         _inputData.erase(name);
-    }
-
-    void getName(char* pName, size_t len) const noexcept override {
-        // Description buffer will preserve garbage if external pointer not initialized
-        if (len < 1) return;
-        memset(pName, 0, len);
-        DescriptionBuffer(pName, len) << _name;
     }
 
     const std::string& getName() const noexcept override {
@@ -146,7 +132,6 @@ public:
         noexcept override;
 
 protected:
-    Precision precision {Precision::MIXED};
     std::map<std::string, DataPtr> _data;
     std::map<std::string, CNNLayerPtr> _layers;
     InferenceEngine::InputsDataMap _inputData;
