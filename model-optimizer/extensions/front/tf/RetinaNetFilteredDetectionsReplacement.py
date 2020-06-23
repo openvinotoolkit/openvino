@@ -48,10 +48,6 @@ class RetinaNetFilteredDetectionsReplacement(FrontReplacementFromConfigFileSubGr
     """
     replacement_id = 'RetinaNetFilteredDetectionsReplacement'
 
-    def run_before(self):
-        from extensions.front.sub import Sub
-        return [Sub]
-
     def output_edges_match(self, graph: Graph, match: SubgraphMatch, new_sub_graph: dict):
         return {match.output_node(0)[0].id: new_sub_graph['detection_output_node'].id}
 

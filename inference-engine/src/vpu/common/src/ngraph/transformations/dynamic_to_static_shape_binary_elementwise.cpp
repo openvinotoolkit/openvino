@@ -39,7 +39,7 @@ void dynamicToStaticShapeBinaryEltwise(std::shared_ptr<ngraph::Node> eltwise) {
     const auto diff = std::abs(lhsRank.get_length() - rhsRank.get_length());
     if (diff) {
         auto & broadcastInput = lhsRank.get_length() < rhsRank.get_length() ? lhsInput : rhsInput;
-        const auto broadcastConst = ngraph::opset3::Constant::create(broadcastInput.get_element_type(), {static_cast<uint64_t>(diff)}, {1});
+        const auto broadcastConst = ngraph::opset3::Constant::create(broadcastInput.get_element_type(), {static_cast<size_t>(diff)}, {1});
         broadcastInput = std::make_shared<ngraph::opset3::Concat>(ngraph::OutputVector{broadcastConst, broadcastInput}, 0);
     }
 
