@@ -15,6 +15,7 @@
 """
 import ast
 import logging as log
+import re
 from collections import defaultdict
 from copy import copy
 
@@ -766,46 +767,39 @@ def extract_node_attrs(graph: Graph, extractor: callable):
     return graph
 
 
-def extract_port_from_string(node_name: str):
-    """
-    Extracts port and node name from string
-
-    Raises if node name was not provided in the expected format:
-    NODE:OUT_PORT
-        or
-    IN_PORT:NODE
-
-    :param node_name: string value provided by user
-    :return: node name, input port and output port
-    """
-    parts = node_name.split(':')
-    if len(parts) > 2:
-        raise Error("Please provide only one port number for {}. Expected format is NODE:OUT_PORT or IN_PORT:NODE, "
-                    "where IN_PORT and OUTPUT_PORT are integers".format(node_name))
-    if len(parts) == 1:
-        return node_name, None, None
-    else:
-        in_port, out_port, name = None, None, None
-        try:
-            in_port, name = int(parts[0]), parts[1]
-        except ValueError:
-            try:
-                out_port, name = int(parts[1]), parts[0]
-            except ValueError:
-                raise Error("Non integer port number in {}. Expected format is NODE:OUT_PORT or IN_PORT:NODE, where "
-                            "IN_PORT and OUTPUT_PORT are integers".format(node_name))
-        return name, in_port, out_port
-
-
-def get_node_id_with_ports(graph: Graph, name: str):
+def get_node_id_with_ports(graph: Graph, node_name: str):
     """
     Extracts port and node ID out of user provided name
     :param graph: graph to operate on
-    :param name: user provided node name
+    :param node_name: user provided node name
     :return: node ID, direction of port ('in', 'out', 'port') and port number or None
     """
-    node_name, in_port, out_port = extract_port_from_string(name)
-    node_id = graph.get_node_id_by_name(node_name)
+    node_names = [n.soft_get('name', n.id) for n in graph.get_op_nodes()]
+    found_names = []
+    for name in node_names:
+        regexp = r'(\d*:)?(' + name + r')(:\d*)?'
+        match = re.search(regexp, node_name)
+        if match:
+            if match.group() == node_name:
+                in_port = None
+                out_port = None
+                if match.group(1):
+                    in_port = int(match.group(1).replace(':', ''))
+                if match.group(3):
+                    out_port = int(match.group(3).replace(':', ''))
+                found_names.append((in_port, out_port, name))
+    if len(found_names) == 0:
+        raise Error('No node with name {}'.format(node_name))
+    in_port, out_port, name = None, None, None
+    for _in_port, _out_port, _name in found_names:
+        if in_port is None and out_port is None and name is None:
+            in_port, out_port, name = _in_port, _out_port, _name
+        if in_port is not None and out_port is not None:
+            in_port, out_port, name = _in_port, _out_port, _name
+    if in_port is not None and out_port is not None:
+        raise Error("Please provide only one port number for {}. Expected format is NODE:OUT_PORT or IN_PORT:NODE, "
+                    "where IN_PORT and OUTPUT_PORT are integers".format(node_name))
+    node_id = graph.get_node_id_by_name(name)
     if in_port is not None:
         direction = 'in'
         port = in_port
@@ -1419,7 +1413,6 @@ class CaffePythonFrontExtractorOp:
         for a in attrs:
             if a not in op_cls.supported_attrs(op_cls):
                 log.error('Parameter {} is not recognised, please check correctness.\n List of supported parameters is: {}'.format(a, op_cls.supported_attrs(op_cls)), extra={'is_warning':True})
-
 
     @classmethod
     def class_type(cls):
