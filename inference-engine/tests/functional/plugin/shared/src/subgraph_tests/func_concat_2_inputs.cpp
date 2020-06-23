@@ -50,7 +50,32 @@ void NonTrivialConcat2Inputs::SetUp() {
     auto relu0 = std::make_shared<ngraph::op::v0::Relu>(input0);
     auto relu1 = std::make_shared<ngraph::op::v0::Relu>(input1);
 
-    auto concat = std::make_shared<ngraph::op::Concat>(ngraph::NodeVector{relu0, relu1}, 1);
+    auto reshape_pattern00 = std::make_shared<ngraph::op::Constant>(ngraph::element::i64,
+                                                                   ngraph::Shape{4},
+                                                                   std::vector<size_t>{1, 1, 1, inputShape[0]});
+
+    auto reshape_pattern01 = std::make_shared<ngraph::op::Constant>(ngraph::element::i64,
+                                                                   ngraph::Shape{4},
+                                                                   std::vector<size_t>{1, 1, 1, inputShape[1]});
+
+    auto reshape_pattern0 = std::make_shared<ngraph::op::Constant>(ngraph::element::i64,
+                                                                  ngraph::Shape{2},
+                                                                  std::vector<size_t>{1, inputShape[0]});
+
+
+    auto reshape_pattern1 = std::make_shared<ngraph::op::Constant>(ngraph::element::i64,
+                                                                  ngraph::Shape{2},
+                                                                  std::vector<size_t>{1, inputShape[1]});
+
+
+    auto reshape00 = std::make_shared<ngraph::op::v1::Reshape>(relu0, reshape_pattern00, false);
+    auto reshape10 = std::make_shared<ngraph::op::v1::Reshape>(relu1, reshape_pattern01, false);
+
+    auto reshape01 = std::make_shared<ngraph::op::v1::Reshape>(reshape00, reshape_pattern0, false);
+    auto reshape11 = std::make_shared<ngraph::op::v1::Reshape>(reshape10, reshape_pattern1, false);
+
+
+    auto concat = std::make_shared<ngraph::op::Concat>(ngraph::NodeVector{reshape01, reshape11}, 1);
 
     auto relu3 = std::make_shared<ngraph::op::v0::Relu>(concat);
 
