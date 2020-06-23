@@ -166,12 +166,8 @@ PyObject *parse_parameter(const InferenceEngine::Parameter &param) {
 }
 
 InferenceEnginePython::IENetwork::IENetwork(const std::string &model, const std::string &weights) {
-    IE_SUPPRESS_DEPRECATED_START
-    InferenceEngine::CNNNetReader net_reader;
-    net_reader.ReadNetwork(model);
-    net_reader.ReadWeights(weights);
-    auto net = net_reader.getNetwork();
-    IE_SUPPRESS_DEPRECATED_END
+    InferenceEngine::Core reader;
+    auto net = reader.ReadNetwork(model, weights);
     actual = std::make_shared<InferenceEngine::CNNNetwork>(net);
     name = actual->getName();
     batch_size = actual->getBatchSize();
@@ -198,15 +194,11 @@ InferenceEnginePython::IENetwork::IENetwork(PyObject* network) {
 
 void
 InferenceEnginePython::IENetwork::load_from_buffer(const char *xml, size_t xml_size, uint8_t *bin, size_t bin_size) {
-    IE_SUPPRESS_DEPRECATED_START
-    InferenceEngine::CNNNetReader net_reader;
-    net_reader.ReadNetwork(xml, xml_size);
+    InferenceEngine::Core reader;
     InferenceEngine::TensorDesc tensorDesc(InferenceEngine::Precision::U8, { bin_size }, InferenceEngine::Layout::C);
     auto weights_blob = InferenceEngine::make_shared_blob<uint8_t>(tensorDesc, bin, bin_size);
-    net_reader.SetWeights(weights_blob);
-    name = net_reader.getName();
-    auto net = net_reader.getNetwork();
-    IE_SUPPRESS_DEPRECATED_END
+    auto net = reader.ReadNetwork(std::string(xml, xml + xml_size), weights_blob);
+    name = net.getName();
     actual = std::make_shared<InferenceEngine::CNNNetwork>(net);
     batch_size = actual->getBatchSize();
 }

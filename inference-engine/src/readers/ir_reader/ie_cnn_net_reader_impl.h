@@ -35,22 +35,21 @@ struct INFERENCE_ENGINE_API_CLASS(V2FormatParserCreator) : public FormatParserCr
     std::shared_ptr<IFormatParser> create(size_t version) override;
 };
 
-IE_SUPPRESS_DEPRECATED_START
-class INFERENCE_ENGINE_API_CLASS(CNNNetReaderImpl) : public ICNNNetReader {
+class INFERENCE_ENGINE_API_CLASS(CNNNetReaderImpl) {
 public:
     explicit CNNNetReaderImpl(const FormatParserCreator::Ptr& _creator);
 
-    StatusCode ReadNetwork(const char* filepath, ResponseDesc* resp) noexcept override;
+    StatusCode ReadNetwork(const char* filepath, ResponseDesc* resp) noexcept;
 
-    StatusCode ReadNetwork(const void* model, size_t size, ResponseDesc* resp) noexcept override;
+    StatusCode ReadNetwork(const void* model, size_t size, ResponseDesc* resp) noexcept;
 
     StatusCode ReadNetwork(const pugi::xml_node& root, ResponseDesc* resp);
 
-    StatusCode SetWeights(const TBlob<uint8_t>::Ptr& weights, ResponseDesc* resp) noexcept override;
+    StatusCode SetWeights(const TBlob<uint8_t>::Ptr& weights, ResponseDesc* resp) noexcept;
 
-    StatusCode ReadWeights(const char* filepath, ResponseDesc* resp) noexcept override;
+    StatusCode ReadWeights(const char* filepath, ResponseDesc* resp) noexcept;
 
-    ICNNNetwork* getNetwork(ResponseDesc* resp) noexcept override {
+    ICNNNetwork* getNetwork(ResponseDesc* resp) noexcept {
         IE_PROFILING_AUTO_SCOPE(CNNNetReaderImpl::getNetwork)
         return network.get();
     }
@@ -59,15 +58,15 @@ public:
         return network;
     }
 
-    bool isParseSuccess(ResponseDesc* resp) noexcept override {
+    bool isParseSuccess(ResponseDesc* resp) noexcept {
         return parseSuccess;
     }
 
-    StatusCode getDescription(ResponseDesc* desc) noexcept override {
+    StatusCode getDescription(ResponseDesc* desc) noexcept {
         return DescriptionBuffer(OK, desc) << description;
     }
 
-    StatusCode getName(char* name, size_t len, ResponseDesc* resp) noexcept override {
+    StatusCode getName(char* name, size_t len, ResponseDesc* resp) noexcept {
         if (len > 0) {
             size_t length = std::min(this->name.size(), len - 1);  // cut the name if buffer is too small
             ie_memcpy(name, len, this->name.c_str(), length);
@@ -76,17 +75,17 @@ public:
         return OK;
     }
 
-    int getVersion(ResponseDesc* resp) noexcept override {
+    int getVersion(ResponseDesc* resp) noexcept {
         return _version;
     }
 
-    void Release() noexcept override {
+    void Release() noexcept {
         delete this;
     }
 
-    void addExtensions(const std::vector<InferenceEngine::IExtensionPtr>& ext) override;
+    void addExtensions(const std::vector<InferenceEngine::IExtensionPtr>& ext);
 
-    ~CNNNetReaderImpl() override;
+    ~CNNNetReaderImpl();
 
 private:
     std::shared_ptr<InferenceEngine::details::IFormatParser> _parser;
@@ -104,8 +103,6 @@ private:
     std::shared_ptr<pugi::xml_document> xmlDoc;
     std::vector<InferenceEngine::IExtensionPtr> extensions;
 };
-
-IE_SUPPRESS_DEPRECATED_END
 
 }  // namespace details
 }  // namespace InferenceEngine

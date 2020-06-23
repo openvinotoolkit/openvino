@@ -9,7 +9,7 @@
 #include <vpu/utils/file_system.hpp>
 #include <vpu/model/data_contents/mtcnn_blob_content.hpp>
 
-#include <cpp/ie_cnn_net_reader.h>
+#include <ie_core.hpp>
 
 #include <vector>
 #include <fstream>
@@ -112,15 +112,9 @@ ie::CNNNetwork loadSubNetwork(
     // Load network
     //
 
-    auto binFileName = fileNameNoExt(fileName) + ".bin";
-
-    IE_SUPPRESS_DEPRECATED_START
-    ie::CNNNetReader networkReader;
-    networkReader.ReadNetwork(fileName);
-    networkReader.ReadWeights(binFileName);
-
-    auto network = networkReader.getNetwork();
-    IE_SUPPRESS_DEPRECATED_END
+    // ticket 30632 : replace with ICore interface
+    InferenceEngine::Core reader;
+    auto network = reader.ReadNetwork(fileName);
 
     //
     // Set precision of input/output

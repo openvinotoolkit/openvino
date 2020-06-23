@@ -55,14 +55,6 @@ TEST_P(MemLeaksTestSuiteNoDevice, read_network) {
     test_runner(test_params.numthreads, test);
 }
 
-TEST_P(MemLeaksTestSuiteNoDevice, create_cnnnetwork) {
-    auto test_params = GetParam();
-    auto test = [&] {
-        return test_create_cnnnetwork(test_params.model, test_params.numiters);
-    };
-    test_runner(test_params.numthreads, test);
-}
-
 TEST_P(MemLeaksTestSuiteNoDevice, cnnnetwork_reshape_batch_x2) {
     auto test_params = GetParam();
     auto test = [&] {

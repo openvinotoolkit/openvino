@@ -6,7 +6,6 @@
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 #include "common/validation.hpp"
 #include "tests_common_func.hpp"
-#include <cpp/ie_cnn_net_reader.h>
 
 TBlob<uint8_t>::Ptr SingleLayerTransformationsTest::generateWeights(const CNNNetwork& network) {
     std::vector<Blob::Ptr> blobs;

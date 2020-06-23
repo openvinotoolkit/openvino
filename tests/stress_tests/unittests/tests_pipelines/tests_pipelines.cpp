@@ -27,17 +27,7 @@ void test_read_network(const std::string &model, const std::string &target_devic
         if (i == n / 2) {
             log_info("Half of the test have already passed");
         }
-        read_network(model)();
-    }
-}
-
-void test_create_cnnnetwork(const std::string &model, const std::string &target_device, const int &n) {
-    log_info("Create CNNNetwork from network: \"" << model << "\" for " << n << " times");
-    for (int i = 0; i < n; i++) {
-        if (i == n / 2) {
-            log_info("Half of the test have already passed");
-        }
-        create_cnnnetwork(model)();
+        read_cnnnetwork(model)();
     }
 }
 
