@@ -148,7 +148,7 @@ class RemoveConstToResult(BackReplacementPattern):
             nodes_to_remove.append(const_node.id)
             nodes_to_remove.append(const_data_node.id)
 
-        graph.remove_node(nodes_to_remove)
+        graph.remove_nodes_from(nodes_to_remove)
 
 
 class NormalizeTI(BackReplacementPattern):

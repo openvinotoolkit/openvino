@@ -25,7 +25,7 @@
 #include "gna_plugin_log.hpp"
 
 uint8_t* GNADeviceHelper::alloc(uint32_t size_requested, uint32_t *size_granted) {
-    void * memPtr;
+    void * memPtr = nullptr;
 #if GNA_LIB_VER == 1
     memPtr = GNAAlloc(nGNAHandle, size_requested, size_granted);
 #else
