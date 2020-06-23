@@ -6,7 +6,8 @@ This topic provides a complete list of available sets of operations supported in
 
 | OpenVINO™ Version | Actual Operations Set            | 
 | :---------------- | :------------------------------- | 
-| 2020.4            | [opset3](opset3.md)   | 
+| 2020.4            | [opset3](opset3.md)   |
+| 2020.3            | [opset2](opset2.md)   |
 | 2020.2            | [opset2](opset2.md)   | 
 | 2020.1            | [opset1](opset1.md)   | 
 
