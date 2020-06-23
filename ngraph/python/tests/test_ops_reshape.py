@@ -17,7 +17,7 @@ import numpy as np
 import pytest
 
 import ngraph as ng
-from test.ngraph.util import get_runtime, run_op_node, run_op_numeric_data
+from tests.util import get_runtime, run_op_node, run_op_numeric_data
 
 
 def test_concat():
@@ -175,8 +175,7 @@ def test_strided_slice():
         ellipsis_mask,
     )
 
-    expected = np.array([12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23],
-                        dtype=np.float32).reshape((1, 3, 4))
+    expected = np.array([12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23], dtype=np.float32).reshape((1, 3, 4))
 
     assert np.allclose(result, expected)
 

@@ -17,7 +17,7 @@
 import os
 import numpy as np
 
-from test.ngraph.util import get_runtime
+from tests.util import get_runtime
 
 try:
     from ngraph.impl.onnx_import import import_onnx_model_file

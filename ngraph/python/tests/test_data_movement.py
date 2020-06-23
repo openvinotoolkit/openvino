@@ -16,7 +16,7 @@
 import numpy as np
 
 import ngraph as ng
-from test.ngraph.util import get_runtime, run_op_node
+from tests.util import get_runtime, run_op_node
 
 
 def test_reverse_sequence():
@@ -170,9 +170,7 @@ def test_pad_constant():
     pads_end = np.array([2, 3], dtype=np.int32)
 
     input_param = ng.parameter(input_data.shape, name="input", dtype=np.int64)
-    model = ng.pad(
-        input_param, pads_begin, pads_end, "constant", arg_pad_value=np.array(100, dtype=np.int64)
-    )
+    model = ng.pad(input_param, pads_begin, pads_end, "constant", arg_pad_value=np.array(100, dtype=np.int64))
 
     runtime = get_runtime()
     computation = runtime.computation(model, input_param)

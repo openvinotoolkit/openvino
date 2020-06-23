@@ -1434,11 +1434,10 @@ cdef class IENetwork:
     #   ```
 
     def __cinit__(self, model: [str, bytes] = "", weights: [str, bytes] = "", init_from_buffer: bool = False):
-        # TODO: ucomment when ngraph python api will work
         # Try to create Inference Engine network from capsule
-        # if model.__class__.__name__ == 'PyCapsule' and weights == '' and init_from_buffer is False:
-        #     self.impl = C.IENetwork(model)
-        #     return
+        if model.__class__.__name__ == 'PyCapsule' and weights == '' and init_from_buffer is False:
+            self.impl = C.IENetwork(model)
+            return
         cdef char*xml_buffer = <char*> malloc(len(model)+1)
         cdef uint8_t*bin_buffer = <uint8_t *> malloc(len(weights))
         cdef string model_

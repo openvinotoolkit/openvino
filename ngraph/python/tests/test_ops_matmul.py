@@ -17,7 +17,7 @@ import numpy as np
 import pytest
 
 import ngraph as ng
-from test.ngraph.util import run_op_node
+from tests.util import run_op_node
 
 
 @pytest.mark.parametrize(

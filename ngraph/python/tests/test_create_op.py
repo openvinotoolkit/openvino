@@ -50,14 +50,7 @@ def test_binary_convolution(dtype):
     parameter_input1 = ng.parameter(input1_shape, name="Input1", dtype=dtype)
 
     node = ng.binary_convolution(
-        parameter_input0,
-        parameter_input1,
-        strides,
-        pads_begin,
-        pads_end,
-        dilations,
-        mode,
-        pad_value,
+        parameter_input0, parameter_input1, strides, pads_begin, pads_end, dilations, mode, pad_value,
     )
 
     assert node.get_type_name() == "BinaryConvolution"
@@ -98,13 +91,7 @@ def test_deformable_convolution(dtype):
     parameter_input2 = ng.parameter(input2_shape, name="Input2", dtype=dtype)
 
     node = ng.deformable_convolution(
-        parameter_input0,
-        parameter_input1,
-        parameter_input2,
-        strides,
-        pads_begin,
-        pads_end,
-        dilations,
+        parameter_input0, parameter_input1, parameter_input2, strides, pads_begin, pads_end, dilations,
     )
 
     assert node.get_type_name() == "DeformableConvolution"
@@ -210,13 +197,7 @@ def test_lstm_cell_operator(dtype):
     expected_shape = [1, 128]
 
     node_default = ng.lstm_cell(
-        parameter_X,
-        parameter_H_t,
-        parameter_C_t,
-        parameter_W,
-        parameter_R,
-        parameter_B,
-        hidden_size,
+        parameter_X, parameter_H_t, parameter_C_t, parameter_W, parameter_R, parameter_B, hidden_size,
     )
 
     assert node_default.get_type_name() == "LSTMCell"
@@ -465,9 +446,7 @@ def test_gru_cell_operator():
 
     expected_shape = [1, 128]
 
-    node_default = ng.gru_cell(
-        parameter_X, parameter_H_t, parameter_W, parameter_R, parameter_B, hidden_size
-    )
+    node_default = ng.gru_cell(parameter_X, parameter_H_t, parameter_W, parameter_R, parameter_B, hidden_size)
 
     assert node_default.get_type_name() == "GRUCell"
     assert node_default.get_output_size() == 1
@@ -571,8 +550,7 @@ def test_region_yolo():
     end_axis = 3
     do_softmax = False
 
-    node = ng.region_yolo(data, num_coords, num_classes, num_regions,
-                          do_softmax, mask, axis, end_axis)
+    node = ng.region_yolo(data, num_coords, num_classes, num_regions, do_softmax, mask, axis, end_axis)
 
     assert node.get_type_name() == "RegionYolo"
     assert node.get_output_size() == 1
@@ -765,9 +743,7 @@ def test_detection_output(int_dtype, fp_dtype):
     aux_class_preds = ng.parameter([2, 1, 4, 5], fp_dtype, "aux_class_preds")
     aux_box_preds = ng.parameter([2, 1, 4, 5], fp_dtype, "aux_box_preds")
 
-    node = ng.detection_output(
-        box_logits, class_preds, proposals, attributes, aux_class_preds, aux_box_preds
-    )
+    node = ng.detection_output(box_logits, class_preds, proposals, attributes, aux_class_preds, aux_box_preds)
 
     assert node.get_type_name() == "DetectionOutput"
     assert node.get_output_size() == 1
@@ -840,8 +816,7 @@ def test_tensor_iterator():
     iter_cnt = ng.ops.range(zero, np.int32(16), np.int32(1))
     ti_inputs = [iter_cnt, data, initial_cma, one]
 
-    graph_body = GraphBody([body_timestep, body_data_in, body_prev_cma, body_const_one],
-                           [curr_cma, cma_hist])
+    graph_body = GraphBody([body_timestep, body_data_in, body_prev_cma, body_const_one], [curr_cma, cma_hist])
     ti_slice_input_desc = [
         # timestep
         # input_idx, body_param_idx, start, stride, part_size, end, axis
@@ -868,13 +843,15 @@ def test_tensor_iterator():
         TensorIteratorConcatOutputDesc(1, 1, 0, 1, 1, -1, 0),
     ]
 
-    node = ng.tensor_iterator(ti_inputs,
-                              graph_body,
-                              ti_slice_input_desc,
-                              ti_merged_input_desc,
-                              ti_invariant_input_desc,
-                              ti_body_output_desc,
-                              ti_concat_output_desc)
+    node = ng.tensor_iterator(
+        ti_inputs,
+        graph_body,
+        ti_slice_input_desc,
+        ti_merged_input_desc,
+        ti_invariant_input_desc,
+        ti_body_output_desc,
+        ti_concat_output_desc,
+    )
 
     assert node.get_type_name() == "TensorIterator"
     assert node.get_output_size() == 2
@@ -908,10 +885,10 @@ def test_assign():
 
 def test_extract_image_patches():
     image = ng.parameter([64, 3, 10, 10], name="image", dtype=np.int32)
-    sizes = [3, 3];
-    strides = [5, 5];
-    rates = [1, 1];
-    padding = "VALID";
+    sizes = [3, 3]
+    strides = [5, 5]
+    rates = [1, 1]
+    padding = "VALID"
     node = ng.extract_image_patches(image, sizes, strides, rates, padding)
 
     assert node.get_type_name() == "ExtractImagePatches"

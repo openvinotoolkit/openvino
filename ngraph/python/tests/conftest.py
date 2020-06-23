@@ -20,8 +20,8 @@ import test
 def pytest_addoption(parser):
     parser.addoption(
         "--backend",
-        default="INTERPRETER",
-        choices=["INTERPRETER", "CPU", "IE"],
+        default="CPU",
+        choices=["CPU", "GPU", "VPU"],
         help="Select from available backends",
     )
 
@@ -36,14 +36,14 @@ def pytest_collection_modifyitems(config, items):
 
     keywords = {
         "CPU": "skip_on_cpu",
-        "INTERPRETER": "skip_on_interpreter",
-        "IE": "skip_on_inference_engine",
+        "GPU": "skip_on_gpu",
+        "VPU": "skip_on_vpu",
     }
 
     skip_markers = {
         "CPU": pytest.mark.skip(reason="Skipping test on the CPU backend."),
-        "INTERPRETER": pytest.mark.skip(reason="Skipping test on the INTERPRETER backend."),
-        "IE": pytest.mark.skip(reason="Skipping test on the IE backend."),
+        "GPU": pytest.mark.skip(reason="Skipping test on the GPU backend."),
+        "VPU": pytest.mark.skip(reason="Skipping test on the VPU backend."),
     }
 
     for item in items:
