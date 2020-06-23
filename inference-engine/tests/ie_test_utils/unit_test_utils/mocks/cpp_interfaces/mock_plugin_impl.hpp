@@ -10,7 +10,6 @@
 #include <string>
 #include <vector>
 
-#include "ie_plugin.hpp"
 #include "ie_iexecutable_network.hpp"
 #include "ie_icore.hpp"
 #include "cpp/ie_executable_network.hpp"
@@ -29,9 +28,6 @@ class MockPluginImpl {
     }
     MOCK_METHOD1(AddExtension, void(InferenceEngine::IExtensionPtr ext_ptr));
     MOCK_METHOD1(SetConfig, void(const std::map <std::string, std::string> &));
-    IE_SUPPRESS_DEPRECATED_START
-    MOCK_METHOD1(SetLogCallback, void(InferenceEngine::IErrorListener &));
-    IE_SUPPRESS_DEPRECATED_END
     MOCK_METHOD2(ImportNetwork, InferenceEngine::IExecutableNetwork::Ptr(const std::string &, const std::map<std::string, std::string> &));
     InferenceEngine::ExecutableNetwork ImportNetwork(const std::istream&, const std::map<std::string, std::string> &) {return {};}
     MOCK_QUALIFIED_METHOD0(GetName, const noexcept, std::string(void));

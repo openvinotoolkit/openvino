@@ -9,7 +9,6 @@
 #include <vector>
 
 #include "ie_blob.h"
-#include "ie_plugin.hpp"
 #include "cpp/ie_cnn_network.h"
 #include "debug_options.h"
 

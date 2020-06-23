@@ -112,7 +112,6 @@ Engine::Engine(std::shared_ptr<IMvnc> mvnc) :
         { KEY_LOG_LEVEL, "LOG_NONE" },
         { KEY_VPU_PRINT_RECEIVE_TENSOR_TIME, "OFF" },
         { KEY_VPU_CUSTOM_LAYERS, "" },
-        { KEY_VPU_IGNORE_IR_STATISTIC, "OFF" },
         { KEY_VPU_MYRIAD_FORCE_RESET, "OFF" },
         { KEY_VPU_MYRIAD_PLATFORM, "" },
         { KEY_EXCLUSIVE_ASYNC_REQUESTS, "OFF" },

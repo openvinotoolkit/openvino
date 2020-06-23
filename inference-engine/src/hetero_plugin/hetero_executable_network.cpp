@@ -236,17 +236,12 @@ HeteroExecutableNetwork::HeteroExecutableNetwork(const InferenceEngine::ICNNNetw
         dumpGraph(network, subgraphs, file);
     }
 
-    InferenceEngine::ICNNNetworkStats* networkStats = nullptr;
-    if (StatusCode::OK != network.getStats(&networkStats, nullptr)) {
-        networkStats = nullptr;
-    }
-
     std::vector<NetworkDesc> descs;
     std::vector<CNNLayerPtr> tempLayers;
     for (auto &&subgraph : subgraphs) {
         auto affinity = (*subgraph.begin())->affinity;
         tempLayers.assign(subgraph.begin(), subgraph.end());
-        auto tempNetwork = cloneNet(tempLayers, networkStats);
+        auto tempNetwork = cloneNet(tempLayers);
         auto name = network.getName() + "_" + std::to_string(std::distance(subgraphs.data(), &subgraph));
         tempNetwork->setName(name);
         // restoring some outputs from original net if they are not marked as output automatically

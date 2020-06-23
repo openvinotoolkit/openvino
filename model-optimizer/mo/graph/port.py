@@ -138,16 +138,19 @@ class Port:
             if self.type == 'in':
                 data_node = self.node.in_node(self.idx, control_flow=self.control_flow)
                 const_node = data_node.in_node(control_flow=self.control_flow)
+
                 # Set value to data node
                 data_node.value = value
                 data_node.shape = int64_array(value.shape)
+
                 # Set value to constant producer
-                const_node.value = value
-                const_node.shape = int64_array(value.shape)
+                if const_node.soft_get('type') == 'Const':
+                    const_node.value = value
+                    const_node.shape = int64_array(value.shape)
             else:
                 self.node.out_node(self.idx, control_flow=self.control_flow).value = value
                 self.node.out_node(self.idx, control_flow=self.control_flow).shape = int64_array(value.shape)
-                if self.node.has_valid('type') and self.node.type == 'Const':
+                if self.node.soft_get('type') == 'Const':
                     self.node.value = value
                     self.node.shape = int64_array(value.shape)
 

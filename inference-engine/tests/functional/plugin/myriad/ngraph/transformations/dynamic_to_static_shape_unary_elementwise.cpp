@@ -88,10 +88,12 @@ INSTANTIATE_TEST_CASE_P(NGraph, DynamicToStaticShapeUnaryElementwise, testing::C
         DataDims{3, 128, 256},
         DataDims{2, 3, 128, 256}),
     testing::Values(
+        ngraph::opset3::Exp::type_info,
         ngraph::opset3::Floor::type_info,
         ngraph::opset3::Log::type_info,
         ngraph::opset3::Relu::type_info,
         ngraph::opset3::Sigmoid::type_info,
+        ngraph::opset3::Softmax::type_info,
         ngraph::opset3::Sqrt::type_info)));
 
 }  // namespace

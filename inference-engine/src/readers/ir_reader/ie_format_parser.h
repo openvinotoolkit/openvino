@@ -102,7 +102,6 @@ private:
     DataPtr ParseInputData(pugi::xml_node& root) const;
 
     void ParsePreProcess(pugi::xml_node& node);
-    void ParseStatisticSection(const pugi::xml_node& statNode);
 
     // Generate different set of creators depending on required IR version
     static std::vector<std::shared_ptr<BaseCreator>> generateCreators(int version);

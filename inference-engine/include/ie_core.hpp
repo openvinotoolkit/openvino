@@ -71,20 +71,6 @@ public:
      */
     std::map<std::string, Version> GetVersions(const std::string& deviceName) const;
 
-    /**
-     * @deprecated IErrorListener is not used anymore. An exception is thrown in case of any unexpected situations.
-     * The function will be removed in 2021.1 release.
-     * @brief Sets logging callback
-     *
-     * Logging is used to track what is going on inside the plugins, Inference Engine library
-     *
-     * @param listener Logging sink
-     */
-    IE_SUPPRESS_DEPRECATED_START
-    INFERENCE_ENGINE_DEPRECATED("IErrorListener is not used anymore. An exception is thrown in case of any unexpected situations.")
-    void SetLogCallback(IErrorListener& listener) const;
-    IE_SUPPRESS_DEPRECATED_END
-
 #ifdef ENABLE_UNICODE_PATH_SUPPORT
     /**
      * @brief Reads IR xml and bin files

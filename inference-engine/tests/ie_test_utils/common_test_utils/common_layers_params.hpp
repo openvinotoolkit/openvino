@@ -59,33 +59,6 @@ struct def_conv_common_params : conv_common_params {
     size_t deformable_group;
 };
 
-struct Statistic {
-    std::vector<float> min;
-    std::vector<float> max;
-
-    bool empty() const {
-        return min.empty() || max.empty();
-    }
-
-    std::string serialize_min() const {
-        return serialize(min);
-    }
-
-    std::string serialize_max() const {
-        return serialize(max);
-    }
-
-protected:
-    std::string serialize(const std::vector<float> &in) const {
-        if (in.empty())
-            return "";
-        std::string out = std::to_string(in[0lu]);
-        for (size_t i = 1lu; i < in.size(); i++)
-            out += ", " + std::to_string(in[i]);
-        return out;
-    }
-};
-
 void getConvOutShape(const std::vector<size_t> &inShape,
                      const conv_common_params &params,
                      std::vector<size_t> &outShape);
@@ -122,7 +95,5 @@ void get_common_dims(const InferenceEngine::Blob &blob,
                      int32_t &dimy,
                      int32_t &dimz,
                      int32_t &dimn);
-
-void fillStatistic(Statistic &out, size_t size, float min, float max);
 
 }  // namespace CommonTestUtils
