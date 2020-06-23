@@ -22,7 +22,7 @@ std::function<void()> load_unload_plugin(const std::string &target_device) {
     };
 }
 
-std::function<void()> create_cnnnetwork(const std::string &model) {
+std::function<void()> read_cnnnetwork(const std::string &model) {
     return [&] {
         Core ie;
         CNNNetwork cnnNetwork = ie.ReadNetwork(model);

@@ -7,7 +7,7 @@
 #include <inference_engine.hpp>
 
 std::function<void()> load_unload_plugin(const std::string &target_device);
-std::function<void()> create_cnnnetwork(const std::string &model);
+std::function<void()> read_cnnnetwork(const std::string &model);
 std::function<void()> cnnnetwork_reshape_batch_x2(const std::string &model);
 std::function<void()> set_input_params(const std::string &model);
 std::function<void()> create_exenetwork(const std::string &model, const std::string &target_device);

@@ -88,32 +88,6 @@ void test_read_network_full_pipeline(const std::string &model, const std::string
         Blob::Ptr outputBlob = infer_request.GetBlob(output.first);
 }
 
-void test_create_cnnnetwork_full_pipeline(const std::string &model, const std::string &target_device, const int &n) {
-    log_info("Create CNNNetwork from network: \"" << model << "\" for " << n << " times");
-    Core ie;
-    CNNNetwork cnnNetwork;
-    for (int i = 0; i < n; i++) {
-        if (i == n / 2) {
-            log_info("Half of the test have already passed");
-        }
-        cnnNetwork = ie.ReadNetwork(model);
-    }
-    InputsDataMap inputInfo(cnnNetwork.getInputsInfo());
-    ICNNNetwork::InputShapes shapes = cnnNetwork.getInputShapes();
-    bool doReshape = false;
-    for (auto &input : inputInfo) {
-        setInputParameters();
-        computeShapesToReshape();
-    }
-    reshapeCNNNetwork();
-    ExecutableNetwork exeNetwork = ie.LoadNetwork(cnnNetwork, target_device);
-    InferRequest infer_request = exeNetwork.CreateInferRequest();
-    infer_request.Infer();
-    OutputsDataMap output_info(cnnNetwork.getOutputsInfo());
-    for (auto &output : output_info)
-        Blob::Ptr outputBlob = infer_request.GetBlob(output.first);
-}
-
 void test_set_input_params_full_pipeline(const std::string &model, const std::string &target_device, const int &n) {
     log_info("Apply preprocessing for CNNNetwork from network: \"" << model << "\" for " << n << " times");
     Core ie;
