@@ -23,7 +23,7 @@ import setuptools
 from setuptools import Extension, setup
 from setuptools.command.build_ext import build_ext
 
-__version__ = os.environ.get("NGRAPH_VERSION", "0.0.0-dev")
+__version__ = os.environ.get("NGRAPH_VERSION", "0.0.0.dev0")
 PYNGRAPH_ROOT_DIR = os.path.abspath(os.path.dirname(__file__))
 PYNGRAPH_SRC_DIR = os.path.join(PYNGRAPH_ROOT_DIR, "src")
 NGRAPH_DEFAULT_INSTALL_DIR = os.environ.get("HOME")
@@ -204,10 +204,6 @@ sources = [
     "pyngraph/passes/regmodule_pyngraph_passes.cpp",
     "pyngraph/partial_shape.cpp",
     "pyngraph/pyngraph.cpp",
-    "pyngraph/runtime/backend.cpp",
-    "pyngraph/runtime/executable.cpp",
-    "pyngraph/runtime/regmodule_pyngraph_runtime.cpp",
-    "pyngraph/runtime/tensor.cpp",
     "pyngraph/serializer.cpp",
     "pyngraph/shape.cpp",
     "pyngraph/strides.cpp",
@@ -224,7 +220,6 @@ packages = [
     "ngraph.impl.op",
     "ngraph.impl.op.util",
     "ngraph.impl.passes",
-    "ngraph.impl.runtime",
 ]
 
 sources = [PYNGRAPH_SRC_DIR + "/" + source for source in sources]
@@ -378,10 +373,8 @@ setup(
     author="Intel Corporation",
     url="https://github.com/openvinotoolkit/openvino",
     license="License :: OSI Approved :: Apache Software License",
-    long_description=open(os.path.join(PYNGRAPH_ROOT_DIR, "README.md")).read(),
-    long_description_content_type="text/markdown",
     ext_modules=ext_modules,
-    package_dir={'': PYNGRAPH_SRC_DIR},
+    package_dir={'': 'src'},
     packages=packages,
     cmdclass={"build_ext": BuildExt},
     data_files=data_files,
