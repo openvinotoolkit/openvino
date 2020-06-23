@@ -27,7 +27,7 @@ public:
         const ngraph::Shape shape = std::get<1>(GetParam());
 
         actualFunction = ngraph::builder::subgraph::MaxPoolFunction::getOriginal(precision, shape);
-        transform(actualFunction);
+        // transform(actualFunction);
         referenceFunction = ngraph::builder::subgraph::MaxPoolFunction::getReference(precision, shape);
     }
 
@@ -42,10 +42,10 @@ public:
 };
 
 TEST_P(MaxPoolTransformation, CompareFunctions) {
-    InitNodeInfo().run_on_function(actualFunction);
-    ConvFusion().run_on_function(actualFunction);
+    // InitNodeInfo().run_on_function(actualFunction);
+    // ConvFusion().run_on_function(actualFunction);
 
-    actualFunction->validate_nodes_and_infer_types();
+    // actualFunction->validate_nodes_and_infer_types();
 
     // auto res = compare_functions(referenceFunction, actualFunction);
     // ASSERT_TRUE(res.first) << res.second;
