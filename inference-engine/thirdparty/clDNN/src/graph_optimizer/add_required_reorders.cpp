@@ -44,9 +44,6 @@ void add_required_reorders::add_reorder(program_impl& p, program_node* node, pro
     auto new_reorder = std::make_shared<reorder>(node->id() + "_reorder_" + usr->id(), node->id(), reorder_layout);
     auto& new_reorder_node = p.get_or_create(new_reorder);
 
-    // make sure that new_reorder_node has correct layout
-    new_reorder_node.set_output_layout(reorder_layout, false);
-
     // ToDo: add a method to program_impl class which adds an intermediate node given a node and its user
     auto it = std::find(usr->get_dependencies().begin(), usr->get_dependencies().end(), node);
     if (it == usr->get_dependencies().end()) {
