@@ -23,6 +23,12 @@ from mo.utils.unittest.graph import build_graph
 
 nodes_attributes = {
     'slice_like': {'kind': 'op', 'op': 'slice_like'},
+    'model_reshape0': {'kind': 'op', 'op': 'Reshape'},
+    'model_reshape0_const': {'kind': 'op', 'op': 'Const', 'value': int64_array([1, -1, 4])},
+    'model_reshape1': {'kind': 'op', 'op': 'Reshape'},
+    'model_reshape1_const': {'kind': 'op', 'op': 'Const', 'value': int64_array([1, -1, 4])},
+    'model_reshape2': {'kind': 'op', 'op': 'Reshape'},
+    'model_reshape2_const': {'kind': 'op', 'op': 'Const', 'value': int64_array([1, -1])},
     'reshape0': {'kind': 'op', 'op': 'Reshape'},
     'reshape0_const': {'kind': 'op', 'op': 'Const', 'value': int64_array([1, -1])},
     'concat': {'kind': 'op', 'op': 'Concat'},
@@ -56,7 +62,13 @@ class SsdAnchorsReplacerTest(unittest.TestCase):
         graph = build_graph(
             nodes_attrs=nodes_attributes,
             edges=[
-                ('slice_like', 'reshape0', {'in': 0}),
+                ('slice_like', 'model_reshape0', {'in': 0}),
+                ('model_reshape0_const', 'model_reshape0', {'in': 1}),
+                ('model_reshape0', 'model_reshape1', {'in': 0}),
+                ('model_reshape1_const', 'model_reshape1', {'in': 1}),
+                ('model_reshape1', 'model_reshape2', {'in': 0}),
+                ('model_reshape2_const', 'model_reshape2', {'in': 1}),
+                ('model_reshape2', 'reshape0', {'in': 0}),
                 ('reshape0_const', 'reshape0', {'in': 1}),
                 ('reshape0', 'concat'),
                 ('concat', 'detection_output', {'in': 2})
@@ -67,7 +79,13 @@ class SsdAnchorsReplacerTest(unittest.TestCase):
         ref_graph = build_graph(
             nodes_attrs=nodes_attributes,
             edges=[
-                ('slice_like', 'reshape0', {'in': 0}),
+                ('slice_like', 'model_reshape0', {'in': 0}),
+                ('model_reshape0_const', 'model_reshape0', {'in': 1}),
+                ('model_reshape0', 'model_reshape1', {'in': 0}),
+                ('model_reshape1_const', 'model_reshape1', {'in': 1}),
+                ('model_reshape1', 'model_reshape2', {'in': 0}),
+                ('model_reshape2_const', 'model_reshape2', {'in': 1}),
+                ('model_reshape2', 'reshape0', {'in': 0}),
                 ('reshape0_const', 'reshape0', {'in': 1}),
                 ('reshape0', 'concat'),
                 ('concat', 'reshape1', {'in': 0}),

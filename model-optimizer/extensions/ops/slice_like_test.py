@@ -23,8 +23,8 @@ from mo.graph.graph import Node
 from mo.utils.unittest.graph import build_graph
 
 nodes_attributes = {
-    'input': {'kind': 'op', 'op': 'Const', 'shape': int64_array([3, 4]), 'value': None},
-    'input_data': {'kind': 'data', 'shape': int64_array([3, 4]), 'value': None},
+    'input': {'kind': 'op', 'op': 'Const'},
+    'input_data': {'kind': 'data', 'shape': int64_array([3, 4]), 'value': np.arange(1, 13).reshape([3, 4])},
     'shape_like': {'kind': 'op', 'op': 'Const', 'shape': int64_array([2, 3]), 'value': None},
     'shape_like_data': {'kind': 'data', 'shape': int64_array([2, 3]), 'value': None},
     'slice_like': {'kind': 'op', 'op': 'slice_data'},
@@ -47,29 +47,53 @@ class SliceLikeTest(unittest.TestCase):
         slice_like = Node(graph, 'slice_like')
         SliceLike.infer(slice_like)
         ref_shape = int64_array([2, 3])
+        ref_value = np.array([[1, 2, 3], [5, 6, 7]])
         res_shape = graph.node['out_data']['shape']
+        res_value = graph.node['out_data']['value']
         self.assertTrue(np.array_equal(res_shape, ref_shape))
+        self.assertTrue(np.array_equal(res_value, ref_value))
 
     def test_2(self):
         graph = build_graph(nodes_attributes, edges, {'slice_like': {'axes': (0, 1)}})
         slice_like = Node(graph, 'slice_like')
         SliceLike.infer(slice_like)
         ref_shape = int64_array([2, 3])
+        ref_value = np.array([[1, 2, 3], [5, 6, 7]])
         res_shape = graph.node['out_data']['shape']
+        res_value = graph.node['out_data']['value']
         self.assertTrue(np.array_equal(res_shape, ref_shape))
+        self.assertTrue(np.array_equal(res_value, ref_value))
 
     def test_3(self):
         graph = build_graph(nodes_attributes, edges, {'slice_like': {'axes': (0,)}})
         slice_like = Node(graph, 'slice_like')
         SliceLike.infer(slice_like)
         ref_shape = int64_array([2, 4])
+        ref_value = np.array([[1, 2, 3, 4], [5, 6, 7, 8]])
         res_shape = graph.node['out_data']['shape']
+        res_value = graph.node['out_data']['value']
         self.assertTrue(np.array_equal(res_shape, ref_shape))
+        self.assertTrue(np.array_equal(res_value, ref_value))
 
     def test_4(self):
         graph = build_graph(nodes_attributes, edges, {'slice_like': {'axes': (-1,)}})
         slice_like = Node(graph, 'slice_like')
         SliceLike.infer(slice_like)
         ref_shape = int64_array([3, 3])
+        ref_value = np.array([[1, 2, 3], [5, 6, 7], [9, 10, 11]])
         res_shape = graph.node['out_data']['shape']
+        res_value = graph.node['out_data']['value']
         self.assertTrue(np.array_equal(res_shape, ref_shape))
+        self.assertTrue(np.array_equal(res_value, ref_value))
+
+    def test_5(self):
+        graph = build_graph(nodes_attributes, edges, {'slice_like': {'axes': None}})
+        graph.graph['cmd_params'].keep_shape_ops = True
+        slice_like = Node(graph, 'slice_like')
+        SliceLike.infer(slice_like)
+        ref_shape = int64_array([2, 3])
+        ref_value = None
+        res_shape = graph.node['out_data']['shape']
+        res_value = graph.node['out_data']['value']
+        self.assertTrue(np.array_equal(res_shape, ref_shape))
+        self.assertEqual(ref_value, res_value)

@@ -30,7 +30,19 @@ from mo.ops.concat import Concat
 from mo.ops.reshape import Reshape
 
 
-def get_coords(graph: Graph, value: Node, div_value_port: Port, add_value_port: Port):
+def calculate_prior_box_value(value: Node, div_value_port: Port, add_value_port: Port):
+    """
+    :param value: Split node with value
+    :param div_value_port: Split node output port with values that should be divided by 2
+    :param add_value_port: Split node output port with values that should be added or subtracted by divided values
+    from div_value_port
+    :return: Sub and Add nodes
+
+    The sub-graph can be described by formulas:
+    min = value[add_value_port] - (value[div_value_port] / 2)
+    max = value[add_value_port] + (value[div_value_port] / 2)
+    """
+    graph = value.graph
     dtype = data_type_str_to_np(graph.graph['cmd_params'].data_type)
     _min = Sub(graph, dict(name=value.name + '/Sub')).create_node()
     div = create_op_node_with_second_input(graph, Div, np.array([2], dtype=dtype), op_attrs=dict(name=value.name + '/Div'))
@@ -45,9 +57,18 @@ def get_coords(graph: Graph, value: Node, div_value_port: Port, add_value_port: 
     return _min, _max
 
 
-class SsdAnchorReshape(FrontReplacementPattern):
+class SsdAnchorsReplacer(FrontReplacementPattern):
+    """
+    Replacing sub-graph with all anchors to sub-graph which calculates prior boxes values by formulas:
+
+    value[i] = xmin = value[i] - (value[i + 2] / 2)
+    value[i + 1] = ymin = value[i + 1] - (value[i + 3] / 2)
+    value[i + 2] = xmax = value[i] + (value[i + 2] / 2)
+    value[i + 3] = ymax = value[i + 1] + (value[i + 3] / 2)
+    """
+
     enabled = True
-    graph_condition = [lambda graph: graph.graph['fw'] == 'mxnet' and graph.graph['cmd_params'].enable_ssd_gluoncv]
+    graph_condition = [lambda graph: graph.graph['cmd_params'].enable_ssd_gluoncv]
 
     def run_after(self):
         return [SsdPatternDetectionOutputReplacer]
@@ -68,44 +89,7 @@ class SsdAnchorReshape(FrontReplacementPattern):
                 ('reshape0', 'reshape1'),
                 ('reshape1', 'reshape2'),
                 ('reshape2', 'reshape3'),
-                ('reshape3', 'concat'),
-                ('concat', 'detection_output', {'in': 2})
-            ])
-
-    def replace_pattern(self, graph: Graph, match: Dict[str, Node]):
-        slice_like = match['slice_like']
-        slice_like.out_port(0).disconnect()
-        match['reshape2'].out_port(0).get_connection().set_source(slice_like.out_port(0))
-
-
-class SsdAnchorsReplacer(FrontReplacementPattern):
-
-    """
-    Replacing sub-graph with all anchors to sub-graph which calculates prior boxes values by formulas:
-
-    value[i] = xmin = value[i] - (value[i + 2] / 2)
-    value[i + 1] = ymin = value[i + 1] - (value[i + 3] / 2)
-    value[i + 2] = xmax = value[i] + (value[i + 2] / 2)
-    value[i + 3] = ymax = value[i + 1] + (value[i + 3] / 2)
-    """
-
-    enabled = True
-    graph_condition = [lambda graph: graph.graph['fw'] == 'mxnet' and graph.graph['cmd_params'].enable_ssd_gluoncv]
-
-    def run_after(self):
-        return [SsdAnchorReshape, SsdPatternDetectionOutputReplacer]
-
-    def pattern(self):
-        return dict(
-            nodes=[
-                ('slice_like', dict(op='slice_like')),
-                ('reshape0', dict(op='Reshape')),
-                ('concat', dict(op='Concat')),
-                ('detection_output', dict(op='DetectionOutput'))
-            ],
-            edges=[
-                ('slice_like', 'reshape0'),
-                ('reshape0', 'concat', {'in': 0}),
+                ('reshape3', 'concat', {'in': 0}),
                 ('concat', 'detection_output', {'in': 2})
             ])
 
@@ -125,8 +109,8 @@ class SsdAnchorsReplacer(FrontReplacementPattern):
         value = create_op_node_with_second_input(graph, Split, int64_array(1), op_attrs=dict(
             name=split_node_reshape.name + '/Split', num_splits=4), input_node=split_node_reshape)
 
-        xmin, xmax = get_coords(graph, value, div_value_port=value.out_port(2), add_value_port=value.out_port(0))
-        ymin, ymax = get_coords(graph, value, div_value_port=value.out_port(3), add_value_port=value.out_port(1))
+        xmin, xmax = calculate_prior_box_value(value, div_value_port=value.out_port(2), add_value_port=value.out_port(0))
+        ymin, ymax = calculate_prior_box_value(value, div_value_port=value.out_port(3), add_value_port=value.out_port(1))
 
         concat_slice_value = Concat(graph, dict(name=value.name + '/Concat', in_ports_count=4, axis=1)).create_node()
         for ind, node in enumerate([xmin, ymin, xmax, ymax]):
