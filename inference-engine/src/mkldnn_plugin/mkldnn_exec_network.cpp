@@ -47,12 +47,6 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::ICNNNetwork &network
     // we are cloning network if we have statistics and we can transform network.
     _clonedNetwork = cloneNet(network);
 
-    IE_SUPPRESS_DEPRECATED_START
-    if (Precision::FP16 == network.getPrecision()) {
-        _clonedNetwork->setPrecision(Precision::FP32);
-    }
-    IE_SUPPRESS_DEPRECATED_END
-
     // CPU Plugin doesn't natively support some precision like int64/fp16/bool
     // so will convert all layer/tensors fp16->fp32 , bool->u8.
     // Default int64->int32 conversion is already applied in IE common module.

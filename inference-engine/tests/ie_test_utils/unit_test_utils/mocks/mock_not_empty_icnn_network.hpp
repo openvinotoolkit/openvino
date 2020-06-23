@@ -23,9 +23,6 @@ public:
     static constexpr const char* OUTPUT_BLOB_NAME = "first_output";
     const SizeVector OUTPUT_DIMENTIONS = { 1, 3, 299, 299 };
     const std::string name = "test";
-    Precision getPrecision() const noexcept override {
-        return Precision::FP32;
-    }
     const std::string& getName() const noexcept override {
         return name;
     }

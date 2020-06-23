@@ -956,16 +956,12 @@ CNNLayerPtr CNNNetworkHelper::addLayer(
 
         outData = parent->outData[l1_out_i];
         precision = context.getOriginalLayerPrecision(parent->name, outData->getName());
-        IE_SUPPRESS_DEPRECATED_START
         if (precision == Precision::UNSPECIFIED) {
             if (child != nullptr)
                 precision = child->precision;
-            else if (context.network.getPrecision() != Precision::MIXED)
-                precision = context.network.getPrecision();
             else
                 precision = Precision::FP32;
         }
-        IE_SUPPRESS_DEPRECATED_END
     } else {
         // TODO: FIXME
         precision = Precision::FP32;
@@ -1090,16 +1086,12 @@ CNNLayerPtr CNNNetworkHelper::addScaleShiftBetween(TransformationContext& contex
                                          : name;
 
     Precision ssPrecision = context.getOriginalLayerPrecision(parent->name, outData->getName());
-    IE_SUPPRESS_DEPRECATED_START
     if (ssPrecision == Precision::UNSPECIFIED) {
         if (child != nullptr)
             ssPrecision = child->precision;
-        else if (context.network.getPrecision() != Precision::MIXED)
-            ssPrecision = context.network.getPrecision();
         else
             ssPrecision = Precision::FP32;
     }
-    IE_SUPPRESS_DEPRECATED_END
 
     LayerParams ssCnnLayerParams {layerName, "ScaleShift", ssPrecision};
     CNNLayerPtr ssCnnLayer(new ScaleShiftLayer(ssCnnLayerParams));

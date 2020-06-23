@@ -705,9 +705,6 @@ std::shared_ptr<CNNNetworkImpl> convertFunctionToICNNNetwork(const std::shared_p
     // Create network
     auto cnnNetworkImpl = std::make_shared<details::CNNNetworkImpl>();
     cnnNetworkImpl->setName(graph->get_friendly_name());
-    // In generic case all nGraph functions have MIXED precision
-    // Network precision should be deprecated
-    cnnNetworkImpl->setPrecision(Precision::MIXED);
 
     // Collect all names from current graph
     // It is necessary in order to differentiate outputs from constant layers when we share constants

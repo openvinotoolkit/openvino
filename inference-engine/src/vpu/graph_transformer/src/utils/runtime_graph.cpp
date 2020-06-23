@@ -19,7 +19,6 @@ namespace vpu {
 
     InferenceEngine::ICNNNetwork::Ptr buildRuntimeGraph(GraphMetaInfo &graphMetaInfo, const std::vector<float>& perfInfo) {
         auto net = std::make_shared<InferenceEngine::details::CNNNetworkImpl>();
-        net->setPrecision(Precision::FP16);
         net->setName(graphMetaInfo.graphName);
 
         std::map<size_t, CNNLayerPtr> stageMetaIndexToLayer;
