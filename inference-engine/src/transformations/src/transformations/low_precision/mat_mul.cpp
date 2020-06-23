@@ -23,26 +23,33 @@ void MatMulTransformation::transform(TransformationContext &context, ngraph::pat
         return;
     }
 
-    const std::shared_ptr<ngraph::Node> multiply1 = matMul->input_value(0).get_node_shared_ptr();
-    const std::shared_ptr<ngraph::Node> parent1 = multiply1->get_input_node_shared_ptr(0);
-    const std::shared_ptr<ngraph::Node> multiply1Values = multiply1->get_input_node_shared_ptr(1);
+    // TODO: refactor: getDequantizationOperations()
+    std::shared_ptr<ngraph::Node> multiply1 = matMul->input_value(0).get_node_shared_ptr();
+    std::shared_ptr<ngraph::Node> parent1 = multiply1->get_input_node_shared_ptr(0);
+    std::shared_ptr<ngraph::Node> convert1 = ngraph::as_type_ptr<ngraph::opset1::Convert>(parent1);
+    std::shared_ptr<ngraph::Node> multiply1Values = multiply1->get_input_node_shared_ptr(1);
 
-    const std::shared_ptr<ngraph::Node> multiply2 = matMul->input_value(1).get_node_shared_ptr();
-    const std::shared_ptr<ngraph::Node> parent2 = multiply2->get_input_node_shared_ptr(0);
-    const std::shared_ptr<ngraph::Node> multiply2Values = multiply2->get_input_node_shared_ptr(1);
+    std::shared_ptr<ngraph::Node> multiply2 = matMul->input_value(1).get_node_shared_ptr();
+    std::shared_ptr<ngraph::Node> parent2 = multiply2->get_input_node_shared_ptr(0);
+    std::shared_ptr<ngraph::Node> convert2 = ngraph::as_type_ptr<ngraph::opset1::Convert>(parent1);
+    std::shared_ptr<ngraph::Node> multiply2Values = multiply2->get_input_node_shared_ptr(1);
 
-    // TODO: question (?): why we need 3 different methods if type values should be equal (before type relax)?
-    // layer->get_element_type();
-    // layer->get_output_element_type(i);
-    // layer->get_input_element_type(i);
-    //const ngraph::element::Type precision = matMul->get_element_type();
+    // TODO: precision on branches limitations have to be handled here
+    // TODO: quantization type (per tensor/per channel) has to be checked here
+
+    if (convert1 != nullptr) {
+        parent1 = parent1->get_input_node_shared_ptr(0);
+    }
+
+    if (convert2 != nullptr) {
+        parent2 = parent2->get_input_node_shared_ptr(0);
+    }
 
     const std::shared_ptr<ngraph::Node> resultMultiplyValues = fold<ngraph::opset1::Multiply>(multiply1Values, multiply2Values);
 
-    // TODO: do I need to add any Convert layer routines
-    const std::shared_ptr<opset1::Multiply> newMultiply = std::make_shared<opset1::Multiply>(
-        std::make_shared<opset1::MatMul>(parent1, parent2),
-        resultMultiplyValues);
+    const std::shared_ptr<opset1::MatMul> newMatMul = std::make_shared<ngraph::op::TypeRelaxed<opset1::MatMul>>(parent1, parent2);
+    newMatMul->set_output_type(0, matMul->get_output_element_type(0), matMul->get_output_partial_shape(0));
+    const std::shared_ptr<opset1::Multiply> newMultiply = std::make_shared<opset1::Multiply>(newMatMul, resultMultiplyValues);
     replace_node(matMul, newMultiply);
 
     // TODO: potentially name is not equal

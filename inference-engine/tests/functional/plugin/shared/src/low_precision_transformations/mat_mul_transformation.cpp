@@ -25,13 +25,13 @@ std::string MatMulTransformation::getTestCaseName(testing::TestParamInfo<MatMulT
     std::string targetDevice;
     InferenceEngine::details::LayerTransformation::Params params;
     LayerTestsUtils::LayerTransformation::LptVersion version;
-    std::vector<std::shared_ptr<ngraph::Node>> nodes;
-    std::tie(netPrecision, inputShapes, targetDevice, params, version, nodes) = obj.param;
+    ngraph::builder::subgraph::MatMulFunctionBranches branches;
+    std::tie(netPrecision, inputShapes, targetDevice, params, version, branches) = obj.param;
 
     std::ostringstream result;
     result << version << "_" <<
-        nodes[0]->get_shape() << "_" <<
-        nodes[1]->get_shape() << "_" <<
+        branches.first.shape << "_" <<
+        branches.second.shape << "_" <<
         netPrecision.name() << "_" <<
         targetDevice << "_" <<
         toString(params);
@@ -62,13 +62,13 @@ void MatMulTransformation::SetUp() {
     InferenceEngine::Precision netPrecision;
     InferenceEngine::details::LayerTransformation::Params params;
     LayerTestsUtils::LayerTransformation::LptVersion version;
-    std::vector<std::shared_ptr<ngraph::Node>> nodes;
-    std::tie(netPrecision, inputShape, targetDevice, params, version, nodes) = this->GetParam();
+    ngraph::builder::subgraph::MatMulFunctionBranches branches;
+    std::tie(netPrecision, inputShape, targetDevice, params, version, branches) = this->GetParam();
 
     ConfigurePlugin(version);
 
     const auto ngPrecision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    function = ngraph::builder::subgraph::MatMulFunction::getOriginal(ngPrecision, inputShape, nodes);
+    function = ngraph::builder::subgraph::MatMulFunction::getOriginal(ngPrecision, inputShape, branches);
 
     ngraph::pass::InitNodeInfo().run_on_function(function);
 
@@ -82,8 +82,8 @@ void MatMulTransformation::validate() {
     InferenceEngine::Precision netPrecision;
     InferenceEngine::details::LayerTransformation::Params params;
     LayerTestsUtils::LayerTransformation::LptVersion version;
-    std::vector<std::shared_ptr<ngraph::Node>> nodes;
-    std::tie(netPrecision, inputShape, targetDevice, params, version, nodes) = this->GetParam();
+    ngraph::builder::subgraph::MatMulFunctionBranches branches;
+    std::tie(netPrecision, inputShape, targetDevice, params, version, branches) = this->GetParam();
 
     {
         InferenceEngine::CNNNetwork net(function);
@@ -104,11 +104,11 @@ void MatMulTransformation::validate() {
     const InferenceEngine::CNNLayerPtr outputLayer = it->second->getCreatorLayer().lock();
     EXPECT_TRUE(outputLayer != nullptr);
 
-    const std::vector<std::shared_ptr<ngraph::op::Parameter>> inputs = ngraph::builder::subgraph::MatMulFunction::getInputs(nodes);
-    if ((inputs.size() == 2ul) && (params.precisionsOnActivations[0] == InferenceEngine::Precision::U8)) {
-        // TODO: not completed
-        return;
-    }
+    // const std::vector<std::shared_ptr<ngraph::op::Parameter>> inputs = ngraph::builder::subgraph::MatMulFunction::getInputs(nodes);
+    // if ((inputs.size() == 2ul) && (params.precisionsOnActivations[0] == InferenceEngine::Precision::U8)) {
+    //    // TODO: not completed
+    //    return;
+    // }
 
     EXPECT_EQ("ScaleShift", outputLayer->type);
 
