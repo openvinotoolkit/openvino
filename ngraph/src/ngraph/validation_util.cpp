@@ -609,10 +609,44 @@ void ngraph::infer_auto_padding(const Shape& image_shape,
                                 CoordinateDiff& padding_above,
                                 CoordinateDiff& padding_below)
 {
+    const auto image_dims = std::vector<Dimension>(std::begin(image_shape), std::end(image_shape));
+    // because image_shape is fully known result of try_apply_infer_auto_padding is ignored
+    try_apply_infer_auto_padding(image_dims,
+                                 filter_shape,
+                                 filter_strides,
+                                 filter_dilations,
+                                 pad_type,
+                                 padding_above,
+                                 padding_below);
+}
+
+bool ngraph::try_apply_infer_auto_padding(const PartialShape& image_shape,
+                                          const Shape& filter_shape,
+                                          const Strides& filter_strides,
+                                          const Strides& filter_dilations,
+                                          const op::PadType pad_type,
+                                          CoordinateDiff& padding_above,
+                                          CoordinateDiff& padding_below)
+{
     NGRAPH_CHECK(pad_type == op::PadType::SAME_UPPER || pad_type == op::PadType::SAME_LOWER);
+
+    if (image_shape.rank().is_dynamic())
+    {
+        return false;
+    }
+    const auto image_dims = static_cast<std::vector<Dimension>>(image_shape);
+    const bool are_spatial_dims_dynamic =
+        std::all_of(std::begin(image_dims) + 2, std::end(image_dims), [](const Dimension& dim) {
+            return dim.is_dynamic();
+        });
+    if (are_spatial_dims_dynamic)
+    {
+        return false;
+    }
+
     for (size_t i = 0; i < static_cast<size_t>(filter_shape.size()); i++)
     {
-        int64_t image_size = static_cast<int64_t>(image_shape[i + 2]);
+        int64_t image_size = static_cast<int64_t>(image_dims[i + 2]);
         int64_t filter_size = (static_cast<int64_t>(filter_shape[i]) - 1) * filter_dilations[i] + 1;
         int64_t filter_stride = static_cast<int64_t>(filter_strides[i]);
         auto output_size = (image_size + filter_stride - 1) / filter_stride;
@@ -624,6 +658,7 @@ void ngraph::infer_auto_padding(const Shape& image_shape,
         padding_below.push_back(pad_type == op::PadType::SAME_UPPER ? padding_lhs : padding_rhs);
         padding_above.push_back(pad_type == op::PadType::SAME_UPPER ? padding_rhs : padding_lhs);
     }
+    return true;
 }
 
 PartialShape ngraph::infer_slice_shape(const Node* node,

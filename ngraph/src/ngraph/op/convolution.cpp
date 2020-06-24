@@ -62,6 +62,18 @@ void op::v1::Convolution::validate_and_infer_types()
     const PartialShape& filters_shape = get_input_partial_shape(1);
     element::Type filters_et = get_input_element_type(1);
 
+    auto result_shape = PartialShape::dynamic();
+
+    element::Type result_et;
+    NODE_VALIDATION_CHECK(
+        this,
+        element::Type::merge(result_et, data_batch_et, filters_et),
+        "Element types for data batch and filters do not match (data batch element type: ",
+        data_batch_et,
+        ", filters element type: ",
+        filters_et,
+        ").");
+
     if (m_strides.size() == 0)
     {
         m_strides = conv_default_strides(this, data_batch_shape, filters_shape);
@@ -84,33 +96,27 @@ void op::v1::Convolution::validate_and_infer_types()
 
     if (m_auto_pad == PadType::SAME_UPPER || m_auto_pad == PadType::SAME_LOWER)
     {
-        if (data_batch_shape.is_static() && filters_shape.is_static())
+        bool auto_padding_applied = false;
+        if (filters_shape.is_static())
         {
             m_pads_begin.clear();
             m_pads_end.clear();
             auto filter_shape = filters_shape.to_shape();
             filter_shape.erase(filter_shape.begin(), filter_shape.begin() + 2); // Remove {O,I}
-            infer_auto_padding(data_batch_shape.to_shape(),
-                               filter_shape,
-                               m_strides,
-                               m_dilations,
-                               m_auto_pad,
-                               m_pads_end,
-                               m_pads_begin);
+            auto_padding_applied = try_apply_infer_auto_padding(data_batch_shape,
+                                                                filter_shape,
+                                                                m_strides,
+                                                                m_dilations,
+                                                                m_auto_pad,
+                                                                m_pads_end,
+                                                                m_pads_begin);
+        }
+        if (!auto_padding_applied)
+        {
+            set_output_type(0, result_et, result_shape);
+            return;
         }
     }
-
-    element::Type result_et;
-    PartialShape result_shape;
-
-    NODE_VALIDATION_CHECK(
-        this,
-        element::Type::merge(result_et, data_batch_et, filters_et),
-        "Element types for data batch and filters do not match (data batch element type: ",
-        data_batch_et,
-        ", filters element type: ",
-        filters_et,
-        ").");
 
     result_shape = infer_convolution_forward(this,
                                              data_batch_shape,

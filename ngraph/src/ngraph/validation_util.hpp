@@ -90,6 +90,15 @@ namespace ngraph
                                  const PartialShape& beta_shape);
 
     NGRAPH_API
+    bool try_apply_infer_auto_padding(const PartialShape& image_shape,
+                                      const Shape& filter_shape,
+                                      const Strides& filter_strides,
+                                      const Strides& filter_dilations,
+                                      const op::PadType pad_type,
+                                      CoordinateDiff& padding_above,
+                                      CoordinateDiff& padding_below);
+
+    NGRAPH_API
     void infer_auto_padding(const Shape& image_shape,
                             const Shape& filter_shape,
                             const Strides& filter_strides,

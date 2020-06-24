@@ -301,7 +301,7 @@ namespace ngraph
                 op::RoundingType m_rounding_type{op::RoundingType::FLOOR};
 
             private:
-                void update_auto_padding(const PartialShape& in_shape,
+                bool update_auto_padding(const PartialShape& in_shape,
                                          Shape& new_pads_end,
                                          Shape& new_pads_begin);
             };

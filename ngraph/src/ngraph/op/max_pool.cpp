@@ -130,26 +130,26 @@ void op::v0::MaxPool::update_auto_padding(const PartialShape& in_shape,
     }
 }
 
-void op::v1::MaxPool::update_auto_padding(const PartialShape& in_shape,
+bool op::v1::MaxPool::update_auto_padding(const PartialShape& in_shape,
                                           Shape& new_pads_end,
                                           Shape& new_pads_begin)
 {
+    bool update_auto_padding_succeed = true;
     if (m_auto_pad == PadType::SAME_UPPER || m_auto_pad == PadType::SAME_LOWER)
     {
-        if (in_shape.is_static())
-        {
-            CoordinateDiff pads_end, pads_begin;
-            infer_auto_padding(in_shape.to_shape(),
-                               m_kernel,
-                               m_strides,
-                               Strides(m_kernel.size(), 1), // No dilation
-                               m_auto_pad,
-                               pads_end,
-                               pads_begin);
-            new_pads_end = Shape(pads_end.begin(), pads_end.end());
-            new_pads_begin = Shape(pads_begin.begin(), pads_begin.end());
-        }
+        CoordinateDiff pads_end, pads_begin;
+        update_auto_padding_succeed =
+            try_apply_infer_auto_padding(in_shape,
+                                         m_kernel,
+                                         m_strides,
+                                         Strides(m_kernel.size(), 1), // No dilation
+                                         m_auto_pad,
+                                         pads_end,
+                                         pads_begin);
+        new_pads_end = Shape(pads_end.begin(), pads_end.end());
+        new_pads_begin = Shape(pads_begin.begin(), pads_begin.end());
     }
+    return update_auto_padding_succeed;
 }
 
 op::v0::MaxPool::MaxPool(const Output<Node>& arg,
@@ -364,8 +364,10 @@ void op::v1::MaxPool::validate_and_infer_types()
     }
 
     const PartialShape& arg_shape = get_input_partial_shape(0);
+    auto output_shape = PartialShape::dynamic();
 
-    update_auto_padding(arg_shape, m_pads_end, m_pads_begin);
+    const bool update_auto_padding_succeed =
+        update_auto_padding(arg_shape, m_pads_end, m_pads_begin);
 
     // infer_batched_forward_pooling wants CoordinateDiffs for these, while the pooling ops for
     // now still take Shape (no negative padding).
@@ -374,14 +376,16 @@ void op::v1::MaxPool::validate_and_infer_types()
 
     set_output_type(0,
                     get_input_element_type(0),
-                    infer_batched_pooling_forward(this,
-                                                  arg_shape,
-                                                  pads_begin,
-                                                  pads_end,
-                                                  m_kernel,
-                                                  m_strides,
-                                                  true,
-                                                  m_rounding_type == op::RoundingType::CEIL));
+                    update_auto_padding_succeed
+                        ? infer_batched_pooling_forward(this,
+                                                        arg_shape,
+                                                        pads_begin,
+                                                        pads_end,
+                                                        m_kernel,
+                                                        m_strides,
+                                                        true,
+                                                        m_rounding_type == op::RoundingType::CEIL)
+                        : PartialShape::dynamic());
 }
 
 shared_ptr<Node> op::v1::MaxPool::clone_with_new_inputs(const OutputVector& new_args) const
@@ -594,7 +598,15 @@ bool op::v1::MaxPool::evaluate(const HostTensorVector& outputs, const HostTensor
     auto arg_shape = inputs[0]->get_partial_shape();
     auto pads_begin_s = get_pads_begin();
     auto pads_end_s = get_pads_end();
-    update_auto_padding(arg_shape, pads_begin_s, pads_end_s);
+    const auto update_auto_padding_succeed =
+        update_auto_padding(arg_shape, pads_begin_s, pads_end_s);
+
+    NODE_VALIDATION_CHECK(this,
+                          update_auto_padding_succeed,
+                          "Updating auto padding fails (arg_shape: ",
+                          arg_shape,
+                          ").");
+
     CoordinateDiff pads_begin(pads_begin_s.begin(), pads_begin_s.end());
     CoordinateDiff pads_end(pads_end_s.begin(), pads_end_s.end());
     auto out_shape = infer_batched_pooling_forward(this,
