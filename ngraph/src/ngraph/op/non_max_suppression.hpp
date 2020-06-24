@@ -177,11 +177,64 @@ namespace ngraph
                 BoxEncodingType m_box_encoding = BoxEncodingType::CORNER;
                 bool m_sort_result_descending = true;
                 ngraph::element::Type m_output_type = ngraph::element::i64;
-
-            private:
+                void validate_inputs();
                 int64_t max_boxes_output_from_input() const;
             };
         } // namespace v3
+
+        namespace v4
+        {
+            /// \brief NonMaxSuppression operation
+            ///
+            class NGRAPH_API NonMaxSuppression : public op::v3::NonMaxSuppression
+            {
+            public:
+                static constexpr NodeTypeInfo type_info{"NonMaxSuppression", 4};
+                const NodeTypeInfo& get_type_info() const override { return type_info; }
+                NonMaxSuppression() = default;
+
+                /// \brief Constructs a NonMaxSuppression operation.
+                ///
+                /// \param boxes Node producing the box coordinates
+                /// \param scores Node producing the box scores
+                /// \param max_output_boxes_per_class Node producing maximum number of boxes to be
+                /// selected per class
+                /// \param iou_threshold Node producing intersection over union threshold
+                /// \param score_threshold Node producing minimum score threshold
+                /// \param box_encoding Specifies the format of boxes data encoding
+                /// \param sort_result_descending Specifies whether it is necessary to sort selected
+                /// boxes across batches
+                /// \param output_type Specifies the output tensor type
+                NonMaxSuppression(const Output<Node>& boxes,
+                                  const Output<Node>& scores,
+                                  const Output<Node>& max_output_boxes_per_class,
+                                  const Output<Node>& iou_threshold,
+                                  const Output<Node>& score_threshold,
+                                  const BoxEncodingType box_encoding = BoxEncodingType::CORNER,
+                                  const bool sort_result_descending = true,
+                                  const ngraph::element::Type& output_type = ngraph::element::i64);
+
+                /// \brief Constructs a NonMaxSuppression operation with default values for the last
+                ///        3 inputs
+                ///
+                /// \param boxes Node producing the box coordinates
+                /// \param scores Node producing the box coordinates
+                /// \param box_encoding Specifies the format of boxes data encoding
+                /// \param sort_result_descending Specifies whether it is necessary to sort selected
+                /// boxes across batches
+                /// \param output_type Specifies the output tensor type
+                NonMaxSuppression(const Output<Node>& boxes,
+                                  const Output<Node>& scores,
+                                  const BoxEncodingType box_encoding = BoxEncodingType::CORNER,
+                                  const bool sort_result_descending = true,
+                                  const ngraph::element::Type& output_type = ngraph::element::i64);
+
+                void validate_and_infer_types() override;
+
+                std::shared_ptr<Node>
+                clone_with_new_inputs(const OutputVector& new_args) const override;
+            };
+        } // namespace v4
 
         namespace dynamic
         {
