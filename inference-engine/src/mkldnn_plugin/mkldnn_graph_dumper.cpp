@@ -129,7 +129,6 @@ std::shared_ptr<ICNNNetwork> dump_graph_as_ie_ngraph_net(const MKLDNNGraph &grap
 std::shared_ptr<ICNNNetwork> dump_graph_as_ie_net(const MKLDNNGraph &graph) {
     auto net = std::make_shared<details::CNNNetworkImpl>();
 
-    net->setPrecision(Precision::FP32);
     net->setName(graph._name);
     std::map<MKLDNNNodePtr, CNNLayerPtr> node2layer;
 

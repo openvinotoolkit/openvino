@@ -6,8 +6,9 @@
 
 #include "behavior/infer_request.hpp"
 #include "ie_plugin_config.hpp"
-namespace {
 
+using namespace BehaviorTestsDefinitions;
+namespace {
     const std::vector<InferenceEngine::Precision> netPrecisions = {
             InferenceEngine::Precision::FP32,
             InferenceEngine::Precision::FP16

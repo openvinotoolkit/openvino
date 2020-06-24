@@ -219,9 +219,10 @@ TEST_F(NGraphReaderTests, ReadReLUScalarNetwork) {
 
     Blob::CPtr blob;
     Core reader;
-    auto nGraph = reader.ReadNetwork(model, blob);
-    CNNNetwork cnetwork(nGraph);
+    auto cnn = reader.ReadNetwork(model, blob);
+
     IE_SUPPRESS_DEPRECATED_START
-    cnetwork.begin();
+    // convert to old representation
+    cnn.getInputsInfo().begin()->second->getInputData()->getCreatorLayer();
     IE_SUPPRESS_DEPRECATED_END
 }

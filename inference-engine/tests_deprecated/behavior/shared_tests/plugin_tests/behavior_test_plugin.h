@@ -28,20 +28,6 @@ using namespace InferenceEngine::PluginConfigParams;
 using namespace InferenceEngine::VPUConfigParams;
 using namespace InferenceEngine::GNAConfigParams;
 
-namespace {
-inline std::string getModelName(std::string strXML) {
-    auto itBegin = strXML.find("<net name=\"");
-    auto itEnd = strXML.find(">", itBegin + 1);
-    auto substr = strXML.substr(itBegin + 1, itEnd - itBegin - 1);
-
-    itBegin = substr.find("\"");
-    itEnd = substr.find("\"", itBegin + 1);
-    substr = substr.substr(itBegin + 1, itEnd - itBegin - 1);
-
-    return substr;
-}
-}
-
 class BehTestParams {
 public:
     std::string device;
@@ -85,11 +71,6 @@ public:
         return *this;
     }
 
-    BehTestParams &withConfigItem(std::pair<std::string, std::string> _config_item) {
-        config.insert(_config_item);
-        return *this;
-    }
-
     BehTestParams &withIncorrectConfigItem() {
         config.insert({"some_nonexistent_key", "some_unknown_value"});
         return *this;
@@ -115,114 +96,9 @@ protected:
     StatusCode sts;
     InferenceEngine::ResponseDesc response;
 
-    static Blob::Ptr makeNotAllocatedBlob(Precision eb, Layout l, const SizeVector &dims);
-
-    void setInputNetworkPrecision(CNNNetwork &network, InputsDataMap &inputs_info,
-                                  Precision input_precision);
-
-    void setOutputNetworkPrecision(CNNNetwork &network, OutputsDataMap &outputs_info,
-                                   Precision output_precision);
-};
-
-class BehaviorPluginTestAllUnsupported : public BehaviorPluginTest {
-};
-
-class BehaviorPluginTestTypeUnsupported : public BehaviorPluginTest {
-};
-
-class BehaviorPluginTestBatchUnsupported : public BehaviorPluginTest {
-};
-
-class BehaviorPluginCorrectConfigTest : public BehaviorPluginTest {
-};
-
-class BehaviorPluginIncorrectConfigTest : public BehaviorPluginTest {
-};
-
-class BehaviorPluginIncorrectConfigTestInferRequestAPI : public BehaviorPluginTest {
-};
-
-class BehaviorPluginCorrectConfigTestInferRequestAPI : public BehaviorPluginTest {
-};
-
-class BehaviorPluginTestVersion : public BehaviorPluginTest {
-};
-
-class BehaviorPluginTestInferRequest : public BehaviorPluginTest {
-public:
-    struct TestEnv {
-        // Intentionally defined Core before IInferRequest.
-        // Otherwise plugin will be freed with unloading dll before freeing IInferRequest::Ptr and that will cause memory corruption.
-        // TODO: the same story with IExecutableNetwork and IInferRequest, shared syncEnv object may cause seg fault,
-        // if IExecutableNetwork was freed before IInferRequest
-        InferenceEngine::Core core;
-        InferenceEngine::ExecutableNetwork exeNetwork;
-        IInferRequest::Ptr inferRequest;
-        InferenceEngine::InferRequest actualInferRequest;
-        CNNNetwork network;
-        InputInfo::Ptr networkInput;
-        DataPtr networkOutput;
-        SizeVector inputDims;
-        SizeVector outputDims;
-        std::string inputName;
-        std::string outputName;
-        typedef std::shared_ptr<TestEnv> Ptr;
-    };
-
-    static Blob::Ptr prepareInputBlob(Precision blobPrecision, SizeVector inputDims);
-
-protected:
-    Blob::Ptr _prepareOutputBlob(Precision blobPrecision, SizeVector outputDims);
-
-    void _setInputPrecision(
-            const BehTestParams &param,
-            CNNNetwork &cnnNetwork,
-            TestEnv::Ptr &testEnv,
-            const size_t expectedNetworkInputs = 0);
-
-    void _setOutputPrecision(
-            const BehTestParams &param,
-            CNNNetwork &cnnNetwork,
-            TestEnv::Ptr &testEnv,
-            const size_t expectedNetworkOutputs = 0);
-
-    void _createAndCheckInferRequest(
-            const BehTestParams &param,
-            TestEnv::Ptr &testEnv,
-            const std::map<std::string, std::string> &config = {},
-            const size_t expectedNetworkInputs = 1,
-            const size_t expectedNetworkOutputs = 1,
-            InferenceEngine::IExtensionPtr extension = nullptr);
-
-    bool _wasDeviceBusy(ResponseDesc response);
-
 };
 
 class FPGAHangingTest : public BehaviorPluginTest {
-};
-
-class BehaviorPluginTestInferRequestInput : public BehaviorPluginTestInferRequest {
-};
-
-class BehaviorPluginTestInferRequestOutput : public BehaviorPluginTestInferRequest {
-};
-
-class BehaviorPluginTestInferRequestConfig : public BehaviorPluginTestInferRequest {
-};
-
-class BehaviorPluginTestInferRequestConfigExclusiveAsync : public BehaviorPluginTestInferRequest {
-};
-
-class BehaviorPluginTestInferRequestCallback : public BehaviorPluginTestInferRequest {
-};
-
-class BehaviorPluginTestExecGraphInfo : public BehaviorPluginTestInferRequest {
-};
-
-class BehaviorPluginTestPerfCounters : public BehaviorPluginTestInferRequest {
-};
-
-class BehaviorPluginTestPreProcess : public BehaviorPluginTestInferRequest {
 };
 
 #endif
