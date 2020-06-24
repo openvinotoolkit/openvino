@@ -171,26 +171,6 @@ void CNNNetworkNGraphImpl::setInputInfo(InputInfo::Ptr data) {
     _inputData[data->name()] = data;
 }
 
-DataPtr& CNNNetworkNGraphImpl::getData(const char* name) noexcept {
-    if (cnnNetwork) return cnnNetwork->getData(name);
-    if (_data.find(name) != _data.end()) {
-        return _data[name];
-    } else {
-        try {
-            convertToCNNNetworkImpl();
-            return cnnNetwork->getData(name);
-        } catch (...) {
-            return _data[name];
-        }
-    }
-}
-
-DataPtr& CNNNetworkNGraphImpl::getData(const std::string& name) {
-    IE_SUPPRESS_DEPRECATED_START
-    return getData(name.c_str());
-    IE_SUPPRESS_DEPRECATED_END
-}
-
 const std::string& CNNNetworkNGraphImpl::getName() const noexcept {
     if (cnnNetwork) {
         return cnnNetwork->getName();
