@@ -1088,7 +1088,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_resize10_down_scales_const_linear)
     // mode: nearest
 
     Shape expected_output_shape{1, 1, 1, 2};
-    auto test_case = ngraph::test::NgraphTestCase(function, "${BACKEND_NAME}");
+    auto test_case = test::TestCase<TestEngine>(function);
     test_case.add_input<float>({1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0});
     test_case.add_expected_output<float>(expected_output_shape, {1.0, 2.66666651});
     test_case.run();
@@ -1104,7 +1104,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_resize10_down_scales_const_nearest)
     // mode: linear
 
     Shape expected_output_shape{1, 1, 1, 2};
-    auto test_case = ngraph::test::NgraphTestCase(function, "${BACKEND_NAME}");
+    auto test_case = test::TestCase<TestEngine>(function);
     test_case.add_input<float>({1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0});
     test_case.add_expected_output<float>(expected_output_shape, {1.0, 3.0});
     test_case.run();
@@ -1120,7 +1120,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_resize10_up_scales_const_linear)
     // mode: nearest
 
     Shape expected_output_shape{1, 1, 4, 4};
-    auto test_case = ngraph::test::NgraphTestCase(function, "${BACKEND_NAME}");
+    auto test_case = test::TestCase<TestEngine>(function);
     test_case.add_input<float>({1.0, 2.0, 3.0, 4.0});
     test_case.add_expected_output<float>(
         expected_output_shape,
@@ -1138,7 +1138,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_resize10_up_scales_const_nearest)
     // mode: linear
 
     Shape expected_output_shape{1, 1, 4, 6};
-    auto test_case = ngraph::test::NgraphTestCase(function, "${BACKEND_NAME}");
+    auto test_case = test::TestCase<TestEngine>(function);
     test_case.add_input<float>({1.0, 2.0, 3.0, 4.0});
     test_case.add_expected_output<float>(
         expected_output_shape, {1.0, 1.0, 1.0, 2.0, 2.0, 2.0, 1.0, 1.0, 1.0, 2.0, 2.0, 2.0,
