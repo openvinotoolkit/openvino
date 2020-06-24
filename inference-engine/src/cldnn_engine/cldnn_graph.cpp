@@ -103,7 +103,6 @@ std::shared_ptr<cldnn::network> CLDNNGraph::BuildNetwork(std::shared_ptr<cldnn::
 InferenceEngine::ICNNNetwork::Ptr CLDNNGraph::GetExecGraphInfoByPrimitivesInfo(std::vector<cldnn::primitive_info>& primitives_info,
                                                                                bool filter_const_primitives) {
     auto net = std::make_shared<details::CNNNetworkImpl>();
-    net->setPrecision(Precision::FP32);
     net->setName("runtime_gpu_graph");
     if (m_config.useProfiling) {
         try {
