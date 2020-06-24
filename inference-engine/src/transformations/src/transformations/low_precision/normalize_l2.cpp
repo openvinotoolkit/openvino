@@ -28,7 +28,7 @@ using namespace ngraph::pass::low_precision;
 
 template<typename T>
 void setValue(const size_t i, const T* source, T* target) {
-    target[i] = std::signbit(source[i]) ? -1.f : 1.f;
+    target[i] = source[i] < 0 ? -1.f : 1.f;
 }
 
 template<typename T>
@@ -39,7 +39,7 @@ std::shared_ptr<ngraph::op::Constant> createNewScalesConst(const ngraph::op::Con
     const T* source = originalConst.get_data_ptr<T>();
     std::vector<T> newData(size);
     for (size_t i = 0; i < size; ++i) {
-        newData[i] = std::signbit(source[i]) ? -1 : 1;
+        newData[i] = source[i] < 0 ? -1 : 1;
     }
 
     const ngraph::element::Type type = originalConst.get_output_element_type(0);
