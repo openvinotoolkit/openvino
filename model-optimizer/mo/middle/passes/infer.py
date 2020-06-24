@@ -45,31 +45,6 @@ def control_flow_infer(graph: Graph, node_name: str):
     if graph.node[node_name]['kind'] == 'data':
         return
 
-    # # New version:
-    # def mark_executability(node_id: str, is_executable: bool):
-    #     if is_executable and not graph.node[node_id]['executable']:
-    #         return
-    #     graph.node[node_id]['executable'] = is_executable
-    #
-    # in_edges_with_data = graph.in_edges(node_name, data=True)
-    # in_df_edges_with_data = [(u, v, attrs) for u, v, attrs in in_edges_with_data
-    #                          if 'control_flow_edge' not in attrs or not attrs['control_flow_edge']]
-    # in_cf_edges_with_data = [(u, v, attrs) for u, v, attrs in in_edges_with_data
-    #                          if 'control_flow_edge' in attrs and attrs['control_flow_edge']]
-    # is_executable_df = all([graph.node[u].get('executable', False) for u, _, attrs in in_df_edges_with_data]
-    #                        if len(in_df_edges_with_data) else [True])
-    # is_executable_cf = all([graph.node[u].get('executable', False) for u, _, attrs in in_cf_edges_with_data]
-    #                        if len(in_cf_edges_with_data) else [True])
-    # is_executable = is_executable_df and is_executable_cf
-    #
-    # node = Node(graph, node_name)
-    # if 'cf_infer' in graph.node[node_name] and callable(node.cf_infer):
-    #     node.cf_infer(node, is_executable, mark_executability)
-    # else:
-    #     for _, out_data in graph.out_edges(node_name):
-    #         mark_executability(out_data, is_executable)
-
-    # Old version:
     def mark_executability(node_id: str, is_executable: bool):
         if is_executable and not graph.node[node_id]['executable']:
             return
@@ -80,9 +55,9 @@ def control_flow_infer(graph: Graph, node_name: str):
                              if 'control_flow_edge' not in attrs or not attrs['control_flow_edge']]
     in_cf_edges_with_data = [(u, v, attrs) for u, v, attrs in in_edges_with_data
                              if 'control_flow_edge' in attrs and attrs['control_flow_edge']]
-    is_executable_df = all([graph.node[u]['executable'] for u, _, attrs in in_df_edges_with_data]
+    is_executable_df = all([graph.node[u].get('executable', False) for u, _, attrs in in_df_edges_with_data]
                            if len(in_df_edges_with_data) else [True])
-    is_executable_cf = all([graph.node[u]['executable'] for u, _, attrs in in_cf_edges_with_data]
+    is_executable_cf = all([graph.node[u].get('executable', False) for u, _, attrs in in_cf_edges_with_data]
                            if len(in_cf_edges_with_data) else [True])
     is_executable = is_executable_df and is_executable_cf
 
