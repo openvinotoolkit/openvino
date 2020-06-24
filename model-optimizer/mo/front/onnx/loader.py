@@ -84,7 +84,7 @@ def protobuf2nx(graph, graph_pb):
 
     # go over all initializer and make sure that all of them are added to the graph
     for initializer in initializers.nodes():
-        initializer_id = 'onnx_initializer_node_' + initializer
+        initializer_id = initializer
         if not graph.has_node(initializer_id):
             graph.add_node(initializer_id, kind='op', op='Const', pb=initializers.node[initializer]['pb'],
                            pb_init=initializers.node[initializer]['pb'])

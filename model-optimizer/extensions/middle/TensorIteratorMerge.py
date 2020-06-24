@@ -288,11 +288,7 @@ class TensorIteratorMerge(MiddleReplacementPattern):
                 assert not ext_inp['internal_data_id'].has_valid('value')
                 new_input_data = Op._create_data_node(body, ext_inp['internal_data_id'].name + '/UnsqueezedInput',
                                                       dict(shape=np.insert(shape, ext_inp['axis'], 1)))
-                dim = shape.copy()
-                # try to do it dynamically reshapable along one of the axis
-                # it is practically useful to reshape along batch dimension, but here we cannot detect where it is
-                # so, we are guessing based on other transformations that it is the major dimension
-                dim[0] = -1
+
                 reshape_op = Squeeze(body, dict(name=ext_inp['internal_data_id'].name + '/InputSqueeze'))
                 reshape_dim_data = Const(body, {'name': ext_inp['internal_data_id'].name + '/ReshapeDim',
                                                 'value': ext_inp['axis']}).create_node_with_data()
@@ -325,9 +321,6 @@ class TensorIteratorMerge(MiddleReplacementPattern):
 
             if ext_out['axis'] is not None:
                 # Insert unsqueezing resize at output port that has partitioning
-                dim = ext_out['internal_data_id'].shape.copy()
-                # trying to make it dynamically reshapable (see related comment above for the first Reshape)
-                dim[0] = -1
                 assert not ext_out['internal_data_id'].has_valid('value')
                 reshape_op = Unsqueeze(body, dict(name=ext_out['internal_data_id'].name + '/OutputUnsqueeze'))
                 reshape_dim_data = Const(body, {'name': ext_out['internal_data_id'].name + '/ReshapeDim',
