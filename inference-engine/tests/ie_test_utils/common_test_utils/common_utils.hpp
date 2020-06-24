@@ -46,7 +46,9 @@ inline InferenceEngine::CNNLayerPtr getLayerByName(const InferenceEngine::ICNNNe
         ++i;
     }
 
-    THROW_IE_EXCEPTION << "Layer with name '" << layerName << "' is not found";
+    std::stringstream stream;
+    stream << "Layer " << layerName << " not found in network";
+    throw InferenceEngine::NotFound(stream.str());
     IE_SUPPRESS_DEPRECATED_END
 }
 

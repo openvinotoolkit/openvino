@@ -284,11 +284,14 @@ TEST_F(RemoveLayerTests, canTrimI1andL1) {
     for (auto layer : newLayers) newLayer_names.push_back(layer->name);
 
     ASSERT_EQ(newLayer_names, refNewLayers);
+    IE::CNNLayerPtr layer;
+    ASSERT_EQ(IE::NOT_FOUND, net->getLayerByName("input1", layer, nullptr));
+    ASSERT_EQ(nullptr, layer);
+    ASSERT_EQ(IE::NOT_FOUND, net->getLayerByName("layer1", layer, nullptr));
+    ASSERT_EQ(nullptr, layer);
     IE::CNNNetwork cnnNetwork(net);
-    ASSERT_THROW(CommonTestUtils::getLayerByName(cnnNetwork, "input1"), IE::NotFound);
-    ASSERT_THROW(CommonTestUtils::getLayerByName(cnnNetwork, "layer1"), IE::NotFound);
-    auto newLayerD4 = CommonTestUtils::getLayerByName(cnnNetwork, refNewLayers[0].c_str());
-    auto newLayerD7 = CommonTestUtils::getLayerByName(cnnNetwork, refNewLayers[1].c_str());
+    auto newLayerD4 = CommonTestUtils::getLayerByName(cnnNetwork, refNewLayers[0]);
+    auto newLayerD7 = CommonTestUtils::getLayerByName(cnnNetwork, refNewLayers[1]);
     auto newData4 = net->getData("data4__layer4");
     auto newData7 = net->getData("data7__layer2");
     ASSERT_EQ(newLayerD4->type, "Const");
@@ -1039,7 +1042,9 @@ TEST_F(AdvancedShapeInferTests, MulWithTensorConstInferTest) {
         transformator.foldConstSubgraphs();
         switch(precisionOutData) {
             case IE::Precision::U8: {
-                auto *l = CommonTestUtils::getLayerByName(cnnNetwork, "mulLayer__data3__Const").get()->blobs.at("custom")->cbuffer().as<uint8_t *>();
+                InferenceEngine::CNNLayerPtr layer;
+                ASSERT_EQ(InferenceEngine::OK, net->getLayerByName("mulLayer__data3__Const", layer, nullptr));
+                auto *l = layer->blobs.at("custom")->cbuffer().as<uint8_t *>();
                 ASSERT_EQ(l[0], ref[0]);
                 ASSERT_EQ(l[1], ref[1]);
                 ASSERT_EQ(l[2], ref[2]);
@@ -1047,7 +1052,9 @@ TEST_F(AdvancedShapeInferTests, MulWithTensorConstInferTest) {
                 break;
             }
             case IE::Precision::I32: {
-                auto *l = CommonTestUtils::getLayerByName(cnnNetwork, "mulLayer__data3__Const").get()->blobs.at("custom")->cbuffer().as<int *>();
+                InferenceEngine::CNNLayerPtr layer;
+                ASSERT_EQ(InferenceEngine::OK, net->getLayerByName("mulLayer__data3__Const", layer, nullptr));
+                auto *l = layer->blobs.at("custom")->cbuffer().as<int *>();
                 ASSERT_EQ(l[0], ref[0]);
                 ASSERT_EQ(l[1], ref[1]);
                 ASSERT_EQ(l[2], ref[2]);
@@ -1055,7 +1062,9 @@ TEST_F(AdvancedShapeInferTests, MulWithTensorConstInferTest) {
                 break;
             }
             case IE::Precision::I64: {
-                auto *l = CommonTestUtils::getLayerByName(cnnNetwork, "mulLayer__data3__Const").get()->blobs.at("custom")->cbuffer().as<long long int *>();
+                InferenceEngine::CNNLayerPtr layer;
+                ASSERT_EQ(InferenceEngine::OK, net->getLayerByName("mulLayer__data3__Const", layer, nullptr));
+                auto *l = layer->blobs.at("custom")->cbuffer().as<long long int *>();
                 ASSERT_EQ(l[0], ref[0]);
                 ASSERT_EQ(l[1], ref[1]);
                 ASSERT_EQ(l[2], ref[2]);
@@ -1063,7 +1072,9 @@ TEST_F(AdvancedShapeInferTests, MulWithTensorConstInferTest) {
                 break;
             }
             case IE::Precision::U64: {
-                auto *l = CommonTestUtils::getLayerByName(cnnNetwork, "mulLayer__data3__Const").get()->blobs.at("custom")->cbuffer().as<unsigned long long int *>();
+                InferenceEngine::CNNLayerPtr layer;
+                ASSERT_EQ(InferenceEngine::OK, net->getLayerByName("mulLayer__data3__Const", layer, nullptr));
+                auto *l = layer->blobs.at("custom")->cbuffer().as<unsigned long long int *>();
                 ASSERT_EQ(l[0], ref[0]);
                 ASSERT_EQ(l[1], ref[1]);
                 ASSERT_EQ(l[2], ref[2]);
@@ -1071,7 +1082,9 @@ TEST_F(AdvancedShapeInferTests, MulWithTensorConstInferTest) {
                 break;
             }
             case IE::Precision::FP16: {
-                auto *l = CommonTestUtils::getLayerByName(cnnNetwork, "mulLayer__data3__Const").get()->blobs.at("custom")->cbuffer().as<IE::ie_fp16 *>();
+                InferenceEngine::CNNLayerPtr layer;
+                ASSERT_EQ(InferenceEngine::OK, net->getLayerByName("mulLayer__data3__Const", layer, nullptr));
+                auto *l = layer->blobs.at("custom")->cbuffer().as<IE::ie_fp16 *>();
                 ASSERT_EQ(l[0], ref[0]);
                 ASSERT_EQ(l[1], ref[1]);
                 ASSERT_EQ(l[2], ref[2]);
@@ -1079,7 +1092,9 @@ TEST_F(AdvancedShapeInferTests, MulWithTensorConstInferTest) {
                 break;
             }
             case IE::Precision::FP32: {
-                auto *l = CommonTestUtils::getLayerByName(cnnNetwork, "mulLayer__data3__Const").get()->blobs.at("custom")->cbuffer().as<float *>();
+                InferenceEngine::CNNLayerPtr layer;
+                ASSERT_EQ(InferenceEngine::OK, net->getLayerByName("mulLayer__data3__Const", layer, nullptr));
+                auto *l = layer->blobs.at("custom")->cbuffer().as<float *>();
                 ASSERT_EQ(l[0], ref[0]);
                 ASSERT_EQ(l[1], ref[1]);
                 ASSERT_EQ(l[2], ref[2]);
@@ -1166,7 +1181,9 @@ TEST_F(AdvancedShapeInferTests, MulWithScalarConstInferTest) {
         transformator.foldConstSubgraphs();
         switch(precisionOutData) {
             case IE::Precision::U8: {
-                auto *l = CommonTestUtils::getLayerByName(cnnNetwork, "mulLayer__data3__Const").get()->blobs.at("custom")->cbuffer().as<uint8_t *>();
+                InferenceEngine::CNNLayerPtr layer;
+                ASSERT_EQ(InferenceEngine::OK, net->getLayerByName("mulLayer__data3__Const", layer, nullptr));
+                auto *l = layer->blobs.at("custom")->cbuffer().as<uint8_t *>();
                 ASSERT_EQ(l[0], ref[0]);
                 ASSERT_EQ(l[1], ref[1]);
                 ASSERT_EQ(l[2], ref[2]);
@@ -1174,7 +1191,9 @@ TEST_F(AdvancedShapeInferTests, MulWithScalarConstInferTest) {
                 break;
             }
             case IE::Precision::I32: {
-                auto *l = CommonTestUtils::getLayerByName(cnnNetwork, "mulLayer__data3__Const").get()->blobs.at("custom")->cbuffer().as<int *>();
+                InferenceEngine::CNNLayerPtr layer;
+                ASSERT_EQ(InferenceEngine::OK, net->getLayerByName("mulLayer__data3__Const", layer, nullptr));
+                auto *l = layer->blobs.at("custom")->cbuffer().as<int *>();
                 ASSERT_EQ(l[0], ref[0]);
                 ASSERT_EQ(l[1], ref[1]);
                 ASSERT_EQ(l[2], ref[2]);
@@ -1182,7 +1201,9 @@ TEST_F(AdvancedShapeInferTests, MulWithScalarConstInferTest) {
                 break;
             }
             case IE::Precision::I64: {
-                auto *l = CommonTestUtils::getLayerByName(cnnNetwork, "mulLayer__data3__Const").get()->blobs.at("custom")->cbuffer().as<long long int *>();
+                InferenceEngine::CNNLayerPtr layer;
+                ASSERT_EQ(InferenceEngine::OK, net->getLayerByName("mulLayer__data3__Const", layer, nullptr));
+                auto *l = layer->blobs.at("custom")->cbuffer().as<long long int *>();
                 ASSERT_EQ(l[0], ref[0]);
                 ASSERT_EQ(l[1], ref[1]);
                 ASSERT_EQ(l[2], ref[2]);
@@ -1190,7 +1211,9 @@ TEST_F(AdvancedShapeInferTests, MulWithScalarConstInferTest) {
                 break;
             }
             case IE::Precision::U64: {
-                auto *l = CommonTestUtils::getLayerByName(cnnNetwork, "mulLayer__data3__Const").get()->blobs.at("custom")->cbuffer().as<unsigned long long int *>();
+                InferenceEngine::CNNLayerPtr layer;
+                ASSERT_EQ(InferenceEngine::OK, net->getLayerByName("mulLayer__data3__Const", layer, nullptr));
+                auto *l = layer->blobs.at("custom")->cbuffer().as<unsigned long long int *>();
                 ASSERT_EQ(l[0], ref[0]);
                 ASSERT_EQ(l[1], ref[1]);
                 ASSERT_EQ(l[2], ref[2]);
@@ -1198,7 +1221,9 @@ TEST_F(AdvancedShapeInferTests, MulWithScalarConstInferTest) {
                 break;
             }
             case IE::Precision::FP16: {
-                auto *l = CommonTestUtils::getLayerByName(cnnNetwork, "mulLayer__data3__Const").get()->blobs.at("custom")->cbuffer().as<IE::ie_fp16 *>();
+                InferenceEngine::CNNLayerPtr layer;
+                ASSERT_EQ(InferenceEngine::OK, net->getLayerByName("mulLayer__data3__Const", layer, nullptr));
+                auto *l = layer->blobs.at("custom")->cbuffer().as<IE::ie_fp16 *>();
                 ASSERT_EQ(l[0], ref[0]);
                 ASSERT_EQ(l[1], ref[1]);
                 ASSERT_EQ(l[2], ref[2]);
@@ -1206,7 +1231,9 @@ TEST_F(AdvancedShapeInferTests, MulWithScalarConstInferTest) {
                 break;
             }
             case IE::Precision::FP32: {
-                auto *l = CommonTestUtils::getLayerByName(cnnNetwork, "mulLayer__data3__Const").get()->blobs.at("custom")->cbuffer().as<float *>();
+                InferenceEngine::CNNLayerPtr layer;
+                ASSERT_EQ(InferenceEngine::OK, net->getLayerByName("mulLayer__data3__Const", layer, nullptr));
+                auto *l = layer->blobs.at("custom")->cbuffer().as<float *>();
                 ASSERT_EQ(l[0], ref[0]);
                 ASSERT_EQ(l[1], ref[1]);
                 ASSERT_EQ(l[2], ref[2]);
@@ -1292,7 +1319,9 @@ TEST_F(AdvancedShapeInferTests, AddWithScalarConstInferTest) {
         transformator.foldConstSubgraphs();
         switch(precisionOutData) {
             case IE::Precision::U8: {
-                auto *l = CommonTestUtils::getLayerByName(cnnNetwork, "addLayer__data3__Const").get()->blobs.at("custom")->cbuffer().as<uint8_t *>();
+                InferenceEngine::CNNLayerPtr layer;
+                ASSERT_EQ(InferenceEngine::OK, net->getLayerByName("addLayer__data3__Const", layer, nullptr));
+                auto *l = layer->blobs.at("custom")->cbuffer().as<uint8_t *>();
                 ASSERT_EQ(l[0], ref[0]);
                 ASSERT_EQ(l[1], ref[1]);
                 ASSERT_EQ(l[2], ref[2]);
@@ -1300,7 +1329,9 @@ TEST_F(AdvancedShapeInferTests, AddWithScalarConstInferTest) {
                 break;
             }
             case IE::Precision::I32: {
-                auto *l = CommonTestUtils::getLayerByName(cnnNetwork, "addLayer__data3__Const").get()->blobs.at("custom")->cbuffer().as<int *>();
+                InferenceEngine::CNNLayerPtr layer;
+                ASSERT_EQ(InferenceEngine::OK, net->getLayerByName("addLayer__data3__Const", layer, nullptr));
+                auto *l = layer->blobs.at("custom")->cbuffer().as<int *>();
                 ASSERT_EQ(l[0], ref[0]);
                 ASSERT_EQ(l[1], ref[1]);
                 ASSERT_EQ(l[2], ref[2]);
@@ -1308,7 +1339,9 @@ TEST_F(AdvancedShapeInferTests, AddWithScalarConstInferTest) {
                 break;
             }
             case IE::Precision::I64: {
-                auto *l = CommonTestUtils::getLayerByName(cnnNetwork, "addLayer__data3__Const").get()->blobs.at("custom")->cbuffer().as<long long int *>();
+                InferenceEngine::CNNLayerPtr layer;
+                ASSERT_EQ(InferenceEngine::OK, net->getLayerByName("addLayer__data3__Const", layer, nullptr));
+                auto *l = layer->blobs.at("custom")->cbuffer().as<long long int *>();
                 ASSERT_EQ(l[0], ref[0]);
                 ASSERT_EQ(l[1], ref[1]);
                 ASSERT_EQ(l[2], ref[2]);
@@ -1316,7 +1349,9 @@ TEST_F(AdvancedShapeInferTests, AddWithScalarConstInferTest) {
                 break;
             }
             case IE::Precision::U64: {
-                auto *l = CommonTestUtils::getLayerByName(cnnNetwork, "addLayer__data3__Const").get()->blobs.at("custom")->cbuffer().as<unsigned long long int *>();
+                InferenceEngine::CNNLayerPtr layer;
+                ASSERT_EQ(InferenceEngine::OK, net->getLayerByName("addLayer__data3__Const", layer, nullptr));
+                auto *l = layer->blobs.at("custom")->cbuffer().as<unsigned long long int *>();
                 ASSERT_EQ(l[0], ref[0]);
                 ASSERT_EQ(l[1], ref[1]);
                 ASSERT_EQ(l[2], ref[2]);
@@ -1324,7 +1359,9 @@ TEST_F(AdvancedShapeInferTests, AddWithScalarConstInferTest) {
                 break;
             }
             case IE::Precision::FP16: {
-                auto *l = CommonTestUtils::getLayerByName(cnnNetwork, "addLayer__data3__Const").get()->blobs.at("custom")->cbuffer().as<IE::ie_fp16 *>();
+                InferenceEngine::CNNLayerPtr layer;
+                ASSERT_EQ(InferenceEngine::OK, net->getLayerByName("addLayer__data3__Const", layer, nullptr));
+                auto *l = layer->blobs.at("custom")->cbuffer().as<IE::ie_fp16 *>();
                 ASSERT_EQ(l[0], ref[0]);
                 ASSERT_EQ(l[1], ref[1]);
                 ASSERT_EQ(l[2], ref[2]);
@@ -1332,7 +1369,9 @@ TEST_F(AdvancedShapeInferTests, AddWithScalarConstInferTest) {
                 break;
             }
             case IE::Precision::FP32: {
-                auto *l = CommonTestUtils::getLayerByName(cnnNetwork, "addLayer__data3__Const").get()->blobs.at("custom")->cbuffer().as<float *>();
+                InferenceEngine::CNNLayerPtr layer;
+                ASSERT_EQ(InferenceEngine::OK, net->getLayerByName("addLayer__data3__Const", layer, nullptr));
+                auto *l = layer->blobs.at("custom")->cbuffer().as<float *>();
                 ASSERT_EQ(l[0], ref[0]);
                 ASSERT_EQ(l[1], ref[1]);
                 ASSERT_EQ(l[2], ref[2]);
@@ -1418,7 +1457,9 @@ TEST_F(AdvancedShapeInferTests, AddWithTensorConstInferTest) {
         transformator.foldConstSubgraphs();
         switch(precisionOutData) {
             case IE::Precision::U8: {
-                auto *l = CommonTestUtils::getLayerByName(cnnNetwork, "addLayer__data3__Const").get()->blobs.at("custom")->cbuffer().as<uint8_t *>();
+                InferenceEngine::CNNLayerPtr layer;
+                ASSERT_EQ(InferenceEngine::OK, net->getLayerByName("addLayer__data3__Const", layer, nullptr));
+                auto *l = layer->blobs.at("custom")->cbuffer().as<uint8_t *>();
                 ASSERT_EQ(l[0], ref[0]);
                 ASSERT_EQ(l[1], ref[1]);
                 ASSERT_EQ(l[2], ref[2]);
@@ -1426,7 +1467,9 @@ TEST_F(AdvancedShapeInferTests, AddWithTensorConstInferTest) {
                 break;
             }
             case IE::Precision::I32: {
-                auto *l = CommonTestUtils::getLayerByName(cnnNetwork, "addLayer__data3__Const").get()->blobs.at("custom")->cbuffer().as<int *>();
+                InferenceEngine::CNNLayerPtr layer;
+                ASSERT_EQ(InferenceEngine::OK, net->getLayerByName("addLayer__data3__Const", layer, nullptr));
+                auto *l = layer->blobs.at("custom")->cbuffer().as<int *>();
                 ASSERT_EQ(l[0], ref[0]);
                 ASSERT_EQ(l[1], ref[1]);
                 ASSERT_EQ(l[2], ref[2]);
@@ -1434,7 +1477,9 @@ TEST_F(AdvancedShapeInferTests, AddWithTensorConstInferTest) {
                 break;
             }
             case IE::Precision::I64: {
-                auto *l = CommonTestUtils::getLayerByName(cnnNetwork, "addLayer__data3__Const").get()->blobs.at("custom")->cbuffer().as<long long int *>();
+                InferenceEngine::CNNLayerPtr layer;
+                ASSERT_EQ(InferenceEngine::OK, net->getLayerByName("addLayer__data3__Const", layer, nullptr));
+                auto *l = layer->blobs.at("custom")->cbuffer().as<long long int *>();
                 ASSERT_EQ(l[0], ref[0]);
                 ASSERT_EQ(l[1], ref[1]);
                 ASSERT_EQ(l[2], ref[2]);
@@ -1442,7 +1487,9 @@ TEST_F(AdvancedShapeInferTests, AddWithTensorConstInferTest) {
                 break;
             }
             case IE::Precision::U64: {
-                auto *l = CommonTestUtils::getLayerByName(cnnNetwork, "addLayer__data3__Const").get()->blobs.at("custom")->cbuffer().as<unsigned long long int *>();
+                InferenceEngine::CNNLayerPtr layer;
+                ASSERT_EQ(InferenceEngine::OK, net->getLayerByName("addLayer__data3__Const", layer, nullptr));
+                auto *l = layer->blobs.at("custom")->cbuffer().as<unsigned long long int *>();
                 ASSERT_EQ(l[0], ref[0]);
                 ASSERT_EQ(l[1], ref[1]);
                 ASSERT_EQ(l[2], ref[2]);
@@ -1450,7 +1497,9 @@ TEST_F(AdvancedShapeInferTests, AddWithTensorConstInferTest) {
                 break;
             }
             case IE::Precision::FP16: {
-                auto *l = CommonTestUtils::getLayerByName(cnnNetwork, "addLayer__data3__Const").get()->blobs.at("custom")->cbuffer().as<IE::ie_fp16 *>();
+                InferenceEngine::CNNLayerPtr layer;
+                ASSERT_EQ(InferenceEngine::OK, net->getLayerByName("addLayer__data3__Const", layer, nullptr));
+                auto *l = layer->blobs.at("custom")->cbuffer().as<IE::ie_fp16 *>();
                 ASSERT_EQ(l[0], ref[0]);
                 ASSERT_EQ(l[1], ref[1]);
                 ASSERT_EQ(l[2], ref[2]);
@@ -1458,7 +1507,9 @@ TEST_F(AdvancedShapeInferTests, AddWithTensorConstInferTest) {
                 break;
             }
             case IE::Precision::FP32: {
-                auto *l = CommonTestUtils::getLayerByName(cnnNetwork, "addLayer__data3__Const").get()->blobs.at("custom")->cbuffer().as<float *>();
+                InferenceEngine::CNNLayerPtr layer;
+                ASSERT_EQ(InferenceEngine::OK, net->getLayerByName("addLayer__data3__Const", layer, nullptr));
+                auto *l = layer->blobs.at("custom")->cbuffer().as<float *>();
                 ASSERT_EQ(l[0], ref[0]);
                 ASSERT_EQ(l[1], ref[1]);
                 ASSERT_EQ(l[2], ref[2]);
@@ -1544,7 +1595,9 @@ TEST_F(AdvancedShapeInferTests, AddWithBroadcastingConstInferTest) {
         transformator.foldConstSubgraphs();
         switch(precisionOutData) {
             case IE::Precision::U8: {
-                auto *l = CommonTestUtils::getLayerByName(cnnNetwork, "addLayer__data3__Const").get()->blobs.at("custom")->cbuffer().as<uint8_t *>();
+                InferenceEngine::CNNLayerPtr layer;
+                ASSERT_EQ(InferenceEngine::OK, net->getLayerByName("addLayer__data3__Const", layer, nullptr));
+                auto *l = layer->blobs.at("custom")->cbuffer().as<uint8_t *>();
                 ASSERT_EQ(l[0], ref[0]);
                 ASSERT_EQ(l[1], ref[1]);
                 ASSERT_EQ(l[2], ref[2]);
@@ -1552,7 +1605,9 @@ TEST_F(AdvancedShapeInferTests, AddWithBroadcastingConstInferTest) {
                 break;
             }
             case IE::Precision::I32: {
-                auto *l = CommonTestUtils::getLayerByName(cnnNetwork, "addLayer__data3__Const").get()->blobs.at("custom")->cbuffer().as<int *>();
+                InferenceEngine::CNNLayerPtr layer;
+                ASSERT_EQ(InferenceEngine::OK, net->getLayerByName("addLayer__data3__Const", layer, nullptr));
+                auto *l = layer->blobs.at("custom")->cbuffer().as<int *>();
                 ASSERT_EQ(l[0], ref[0]);
                 ASSERT_EQ(l[1], ref[1]);
                 ASSERT_EQ(l[2], ref[2]);
@@ -1560,7 +1615,9 @@ TEST_F(AdvancedShapeInferTests, AddWithBroadcastingConstInferTest) {
                 break;
             }
             case IE::Precision::I64: {
-                auto *l = CommonTestUtils::getLayerByName(cnnNetwork, "addLayer__data3__Const").get()->blobs.at("custom")->cbuffer().as<long long int *>();
+                InferenceEngine::CNNLayerPtr layer;
+                ASSERT_EQ(InferenceEngine::OK, net->getLayerByName("addLayer__data3__Const", layer, nullptr));
+                auto *l = layer->blobs.at("custom")->cbuffer().as<long long int *>();
                 ASSERT_EQ(l[0], ref[0]);
                 ASSERT_EQ(l[1], ref[1]);
                 ASSERT_EQ(l[2], ref[2]);
@@ -1568,7 +1625,9 @@ TEST_F(AdvancedShapeInferTests, AddWithBroadcastingConstInferTest) {
                 break;
             }
             case IE::Precision::U64: {
-                auto *l = CommonTestUtils::getLayerByName(cnnNetwork, "addLayer__data3__Const").get()->blobs.at("custom")->cbuffer().as<unsigned long long int *>();
+                InferenceEngine::CNNLayerPtr layer;
+                ASSERT_EQ(InferenceEngine::OK, net->getLayerByName("addLayer__data3__Const", layer, nullptr));
+                auto *l = layer->blobs.at("custom")->cbuffer().as<unsigned long long int *>();
                 ASSERT_EQ(l[0], ref[0]);
                 ASSERT_EQ(l[1], ref[1]);
                 ASSERT_EQ(l[2], ref[2]);
@@ -1576,7 +1635,9 @@ TEST_F(AdvancedShapeInferTests, AddWithBroadcastingConstInferTest) {
                 break;
             }
             case IE::Precision::FP16: {
-                auto *l = CommonTestUtils::getLayerByName(cnnNetwork, "addLayer__data3__Const").get()->blobs.at("custom")->cbuffer().as<IE::ie_fp16 *>();
+                InferenceEngine::CNNLayerPtr layer;
+                ASSERT_EQ(InferenceEngine::OK, net->getLayerByName("addLayer__data3__Const", layer, nullptr));
+                auto *l = layer->blobs.at("custom")->cbuffer().as<IE::ie_fp16 *>();
                 ASSERT_EQ(l[0], ref[0]);
                 ASSERT_EQ(l[1], ref[1]);
                 ASSERT_EQ(l[2], ref[2]);
@@ -1584,7 +1645,9 @@ TEST_F(AdvancedShapeInferTests, AddWithBroadcastingConstInferTest) {
                 break;
             }
             case IE::Precision::FP32: {
-                auto *l = CommonTestUtils::getLayerByName(cnnNetwork, "addLayer__data3__Const").get()->blobs.at("custom")->cbuffer().as<float *>();
+                InferenceEngine::CNNLayerPtr layer;
+                ASSERT_EQ(InferenceEngine::OK, net->getLayerByName("addLayer__data3__Const", layer, nullptr));
+                auto *l = layer->blobs.at("custom")->cbuffer().as<float *>();
                 ASSERT_EQ(l[0], ref[0]);
                 ASSERT_EQ(l[1], ref[1]);
                 ASSERT_EQ(l[2], ref[2]);
@@ -1670,7 +1733,9 @@ TEST_F(AdvancedShapeInferTests, MulWithBroadcastingConstInferTest) {
         transformator.foldConstSubgraphs();
         switch(precisionOutData) {
             case IE::Precision::U8: {
-                auto *l = CommonTestUtils::getLayerByName(cnnNetwork, "mulLayer__data3__Const").get()->blobs.at("custom")->cbuffer().as<uint8_t *>();
+                InferenceEngine::CNNLayerPtr layer;
+                ASSERT_EQ(InferenceEngine::OK, net->getLayerByName("mulLayer__data3__Const", layer, nullptr));
+                auto *l = layer->blobs.at("custom")->cbuffer().as<uint8_t *>();
                 ASSERT_EQ(l[0], ref[0]);
                 ASSERT_EQ(l[1], ref[1]);
                 ASSERT_EQ(l[2], ref[2]);
@@ -1678,7 +1743,9 @@ TEST_F(AdvancedShapeInferTests, MulWithBroadcastingConstInferTest) {
                 break;
             }
             case IE::Precision::I32: {
-                auto *l = CommonTestUtils::getLayerByName(cnnNetwork, "mulLayer__data3__Const").get()->blobs.at("custom")->cbuffer().as<int *>();
+                InferenceEngine::CNNLayerPtr layer;
+                ASSERT_EQ(InferenceEngine::OK, net->getLayerByName("mulLayer__data3__Const", layer, nullptr));
+                auto *l = layer->blobs.at("custom")->cbuffer().as<int *>();
                 ASSERT_EQ(l[0], ref[0]);
                 ASSERT_EQ(l[1], ref[1]);
                 ASSERT_EQ(l[2], ref[2]);
@@ -1686,7 +1753,9 @@ TEST_F(AdvancedShapeInferTests, MulWithBroadcastingConstInferTest) {
                 break;
             }
             case IE::Precision::I64: {
-                auto *l = CommonTestUtils::getLayerByName(cnnNetwork, "mulLayer__data3__Const").get()->blobs.at("custom")->cbuffer().as<long long int *>();
+                InferenceEngine::CNNLayerPtr layer;
+                ASSERT_EQ(InferenceEngine::OK, net->getLayerByName("mulLayer__data3__Const", layer, nullptr));
+                auto *l = layer->blobs.at("custom")->cbuffer().as<long long int *>();
                 ASSERT_EQ(l[0], ref[0]);
                 ASSERT_EQ(l[1], ref[1]);
                 ASSERT_EQ(l[2], ref[2]);
@@ -1694,7 +1763,9 @@ TEST_F(AdvancedShapeInferTests, MulWithBroadcastingConstInferTest) {
                 break;
             }
             case IE::Precision::U64: {
-                auto *l = CommonTestUtils::getLayerByName(cnnNetwork, "mulLayer__data3__Const").get()->blobs.at("custom")->cbuffer().as<unsigned long long int *>();
+                InferenceEngine::CNNLayerPtr layer;
+                ASSERT_EQ(InferenceEngine::OK, net->getLayerByName("mulLayer__data3__Const", layer, nullptr));
+                auto *l = layer->blobs.at("custom")->cbuffer().as<unsigned long long int *>();
                 ASSERT_EQ(l[0], ref[0]);
                 ASSERT_EQ(l[1], ref[1]);
                 ASSERT_EQ(l[2], ref[2]);
@@ -1702,7 +1773,9 @@ TEST_F(AdvancedShapeInferTests, MulWithBroadcastingConstInferTest) {
                 break;
             }
             case IE::Precision::FP16: {
-                auto *l = CommonTestUtils::getLayerByName(cnnNetwork, "mulLayer__data3__Const").get()->blobs.at("custom")->cbuffer().as<IE::ie_fp16 *>();
+                InferenceEngine::CNNLayerPtr layer;
+                ASSERT_EQ(InferenceEngine::OK, net->getLayerByName("mulLayer__data3__Const", layer, nullptr));
+                auto *l = layer->blobs.at("custom")->cbuffer().as<IE::ie_fp16 *>();
                 ASSERT_EQ(l[0], ref[0]);
                 ASSERT_EQ(l[1], ref[1]);
                 ASSERT_EQ(l[2], ref[2]);
@@ -1710,7 +1783,9 @@ TEST_F(AdvancedShapeInferTests, MulWithBroadcastingConstInferTest) {
                 break;
             }
             case IE::Precision::FP32: {
-                auto *l = CommonTestUtils::getLayerByName(cnnNetwork, "mulLayer__data3__Const").get()->blobs.at("custom")->cbuffer().as<float *>();
+                InferenceEngine::CNNLayerPtr layer;
+                ASSERT_EQ(InferenceEngine::OK, net->getLayerByName("mulLayer__data3__Const", layer, nullptr));
+                auto *l = layer->blobs.at("custom")->cbuffer().as<float *>();
                 ASSERT_EQ(l[0], ref[0]);
                 ASSERT_EQ(l[1], ref[1]);
                 ASSERT_EQ(l[2], ref[2]);
