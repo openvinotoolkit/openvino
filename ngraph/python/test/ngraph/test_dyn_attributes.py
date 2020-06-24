@@ -184,3 +184,48 @@ def test_dynamic_attr_transitivity(_proposal_node):
     node2.set_attrs_scale(np.array([2.1, 3.2, 3.3, 4.4], dtype=np.float64))
     assert np.allclose(node2.get_attrs_scale(), np.array([2.1, 3.2, 3.3, 4.4], dtype=np.float64))
     assert np.allclose(node.get_attrs_scale(), np.array([2.1, 3.2, 3.3, 4.4], dtype=np.float64))
+
+
+def test_dynamic_attributes_simple():
+    batch_size = 1
+    input_size = 16
+    hidden_size = 128
+
+    X_shape = [batch_size, input_size]
+    H_t_shape = [batch_size, hidden_size]
+    W_shape = [3 * hidden_size, input_size]
+    R_shape = [3 * hidden_size, hidden_size]
+    B_shape = [4 * hidden_size]
+
+    parameter_X = ng.parameter(X_shape, name="X", dtype=np.float32)
+    parameter_H_t = ng.parameter(H_t_shape, name="H_t", dtype=np.float32)
+    parameter_W = ng.parameter(W_shape, name="W", dtype=np.float32)
+    parameter_R = ng.parameter(R_shape, name="R", dtype=np.float32)
+    parameter_B = ng.parameter(B_shape, name="B", dtype=np.float32)
+
+    activations = ["tanh", "relu"]
+    activations_alpha = [1.0, 2.0]
+    activations_beta = [1.0, 2.0]
+    clip = 0.5
+    linear_before_reset = True
+
+    node = ng.gru_cell(
+        parameter_X,
+        parameter_H_t,
+        parameter_W,
+        parameter_R,
+        parameter_B,
+        hidden_size,
+        activations,
+        activations_alpha,
+        activations_beta,
+        clip,
+        linear_before_reset,
+    )
+
+    assert node.get_hidden_size() == hidden_size
+    assert all(map(lambda x, y: x == y, node.get_activations(), activations))
+    assert all(np.equal(node.get_activations_alpha(), activations_alpha))
+    assert all(np.equal(node.get_activations_beta(), activations_beta))
+    assert node.get_linear_before_reset() == linear_before_reset
+    assert np.isclose(node.get_clip(), clip)
