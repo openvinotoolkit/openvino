@@ -54,3 +54,10 @@ INTERPRETER.fused_clamp_uint16
 INTERPRETER.fused_clamp_bfloat16
 INTERPRETER.auto_bcast_binary_elementwise
 INTERPRETER.auto_bcast_binary_elementwise_pdpd
+
+# Unsupported op 'Interpolate'
+INTERPRETER.onnx_upsample8_nearest_infer
+INTERPRETER.onnx_upsample8_linear_infer
+INTERPRETER.onnx_upsample9_scales_const_nearest_infer
+INTERPRETER.onnx_upsample9_scales_const_linear_infer
+INTERPRETER.onnx_upsample9_scales_input_nearest_infer
