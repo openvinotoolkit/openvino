@@ -11,8 +11,8 @@ using namespace InferenceEngine::gpu;
 namespace {
 
 Params params[] = {
-    std::tuple<Device, Config> { CommonTestUtils::DEVICE_GPU, { { CONFIG_KEY(PERF_COUNT), CONFIG_VALUE(YES) } } },
-    std::tuple<Device, Config> { CommonTestUtils::DEVICE_GPU, { { CONFIG_KEY(PERF_COUNT), CONFIG_VALUE(NO) } } },
+    std::tuple<Device, Config>{ CommonTestUtils::DEVICE_GPU, { { CONFIG_KEY(PERF_COUNT), CONFIG_VALUE(YES) }}},
+    std::tuple<Device, Config>{ CommonTestUtils::DEVICE_GPU, { { CONFIG_KEY(PERF_COUNT), CONFIG_VALUE(NO) }}},
 };
 
 }  // namespace
@@ -47,9 +47,10 @@ TEST_P(CoreThreadingTestsWithIterations, smoke_LoadNetwork_RemoteContext) {
     }, numIterations, numThreads);
 }
 
-INSTANTIATE_TEST_CASE_P(GPU, CoreThreadingTests, testing::ValuesIn(params));
+INSTANTIATE_TEST_CASE_P(GPU, CoreThreadingTests, testing::ValuesIn(params), CoreThreadingTests::getTestCaseName);
 
 INSTANTIATE_TEST_CASE_P(GPU, CoreThreadingTestsWithIterations,
     testing::Combine(testing::ValuesIn(params),
                      testing::Values(4),
-                     testing::Values(20)));
+                     testing::Values(20)),
+    CoreThreadingTestsWithIterations::getTestCaseName);
