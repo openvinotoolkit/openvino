@@ -19,7 +19,6 @@
 #include "ie_format_parser.h"
 #include "ie_ir_parser.hpp"
 #include "ie_profiling.hpp"
-#include "ie_plugin.hpp"
 #include "parsers.h"
 #include "xml_parse_utils.h"
 
@@ -27,7 +26,6 @@ using namespace std;
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 
-IE_SUPPRESS_DEPRECATED_START
 CNNNetReaderImpl::CNNNetReaderImpl(const FormatParserCreator::Ptr& _creator)
     : parseSuccess(false), _version(0), parserCreator(_creator) {}
 
@@ -194,11 +192,3 @@ void CNNNetReaderImpl::addExtensions(const std::vector<InferenceEngine::IExtensi
 std::shared_ptr<IFormatParser> V2FormatParserCreator::create(size_t version) {
     return std::make_shared<FormatParser>(version);
 }
-
-INFERENCE_PLUGIN_API(InferenceEngine::StatusCode)
-CreateICNNNetReader(ICNNNetReader *& data, ResponseDesc *resp) noexcept {
-    data = new CNNNetReaderImpl(std::make_shared<V2FormatParserCreator>());
-    return StatusCode::OK;
-}
-
-IE_SUPPRESS_DEPRECATED_END

@@ -455,7 +455,8 @@ if(NGRAPH_ADDRESS_SANITIZER)
 endif()
 
 target_link_libraries(unit-test PRIVATE ngraph_test_util)
-target_link_libraries(unit-test PRIVATE ngraph ngraph_backend libgtest)
+target_link_libraries(unit-test PRIVATE ngraph)
+target_link_libraries(unit-test PRIVATE ngraph_backend libgtest)
 
 if (NGRAPH_ONNX_IMPORT_ENABLE)
     target_include_directories(unit-test

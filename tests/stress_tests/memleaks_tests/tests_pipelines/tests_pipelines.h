@@ -15,7 +15,6 @@
 // tests_pipelines/tests_pipelines.cpp
 TestResult test_load_unload_plugin(const std::string &target_device, const int &n);
 TestResult test_read_network(const std::string &model, const int &n);
-TestResult test_create_cnnnetwork(const std::string &model, const int &n);
 TestResult test_cnnnetwork_reshape_batch_x2(const std::string &model, const int &n);
 TestResult test_set_input_params(const std::string &model, const int &n);
 TestResult test_recreate_exenetwork(InferenceEngine::Core &ie, const std::string &model, const std::string &target_device, const int &n);

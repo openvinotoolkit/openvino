@@ -10,7 +10,6 @@
 #include <string>
 #include <vector>
 
-#include "ie_plugin.hpp"
 #include "ie_iexecutable_network.hpp"
 #include "ie_icore.hpp"
 #include "cpp/ie_executable_network.hpp"

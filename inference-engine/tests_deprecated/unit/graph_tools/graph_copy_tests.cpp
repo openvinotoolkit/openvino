@@ -56,20 +56,12 @@ protected:
     }
 };
 
-TEST_F(GraphCopyTests, copyNetworkPreserveBasicParams) {
+TEST_F(GraphCopyTests, canPreserveBatchWhenCopyNetwork) {
     auto clone = CNNNetCopy<MockCopier>(*mockNet, mc);
 
     //network was copied not just assigned
     ASSERT_NE(clone.get(), mockNet.get());
-    ASSERT_EQ(clone->getPrecision(), Precision::FP16);
 
-    char name[20];
-    clone->getName(name, sizeof(name));
-    ASSERT_STREQ(name, "nm");
-}
-
-TEST_F(GraphCopyTests, canPreserveBatchWhenCopyNetwork) {
-    auto clone = CNNNetCopy<MockCopier>(*mockNet, mc);
     ASSERT_EQ(clone->getBatchSize(), 12);
 }
 
@@ -106,41 +98,6 @@ TEST_F(GraphCopyTests, canPreserveAttributes) {
 
     ASSERT_STREQ(idMemInput.c_str(), idMemOutput.c_str());
     ASSERT_STREQ(idMemInput.c_str(), "r-1-2-3");
-}
-
-TEST_F(GraphCopyTests, canPreserveGetData) {
-    auto clone = CNNNetCopy<MockCopier>(*mockNet, mc);
-
-    ASSERT_NE(clone->getData("1"), nullptr);
-    ASSERT_NE(clone->getData("2"), nullptr);
-    ASSERT_NE(clone->getData("3"), nullptr);
-    ASSERT_NE(clone->getData("4"), nullptr);
-    ASSERT_NE(clone->getData("5"), nullptr);
-}
-
-TEST_F(GraphCopyTests, canPreserveTopology) {
-    auto iclone = CNNNetCopy<MockCopier>(*mockNet, mc);
-    auto clone = CNNNetwork(iclone);
-
-    ASSERT_EQ(clone.layerCount(), 5);
-
-    EXPECT_CALL(*this, visited(1, 0)).Times(1);
-    EXPECT_CALL(*this, visited(2, 1)).Times(1);
-
-    EXPECT_CALL(*this, visited2(3, 0)).Times(1);
-    EXPECT_CALL(*this, visited2(4, AnyOf(1, 2))).Times(1);
-    EXPECT_CALL(*this, visited2(5, AnyOf(1, 2))).Times(1);
-    EXPECT_CALL(*this, visited2(2, 3)).Times(1);
-
-    int idx = 0;
-    CNNNetBFS(clone.getLayerByName("1"), [&](CNNLayerPtr layer) {
-        visited(ID(layer), idx++);
-    });
-
-    idx = 0;
-    CNNNetBFS(clone.getLayerByName("3"), [&](CNNLayerPtr layer) {
-        visited2(ID(layer), idx++);
-    });
 }
 
 #ifdef ENABLE_GNA

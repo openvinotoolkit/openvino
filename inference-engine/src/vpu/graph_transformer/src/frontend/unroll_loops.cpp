@@ -7,6 +7,7 @@
 #include <string>
 
 #include <net_pass.h>
+#include <details/ie_cnn_network_iterator.hpp>
 #include <details/caseless.hpp>
 
 #include <vpu/compile_env.hpp>

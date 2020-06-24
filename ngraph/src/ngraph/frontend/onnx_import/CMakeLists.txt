@@ -236,6 +236,8 @@ add_library(onnx_importer SHARED
         op/transpose.hpp
         op/unsqueeze.cpp
         op/unsqueeze.hpp
+        op/upsample.cpp
+        op/upsample.hpp
         op/where.hpp
         op/xor.hpp
         ops_bridge.cpp
