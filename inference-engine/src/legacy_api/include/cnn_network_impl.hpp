@@ -77,7 +77,7 @@ public:
         return _layers.size();
     }
 
-    DataPtr& getData(const char* name) noexcept override {
+    DataPtr& getData(const char* name) noexcept {
         return _data[name];
     }
 
