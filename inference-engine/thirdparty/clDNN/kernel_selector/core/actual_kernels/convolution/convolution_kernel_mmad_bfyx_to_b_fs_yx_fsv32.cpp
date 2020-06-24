@@ -32,6 +32,7 @@ ParamsKey ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv32::GetSupportedKey() const 
     k.EnableOutputDataType(Datatype::F32);
     k.EnableInputWeightsType(WeightsType::INT8);
     k.EnableInputLayout(DataLayout::bfyx);
+    k.EnableInputLayout(DataLayout::b_fs_yx_fsv4);
     k.EnableOutputLayout(DataLayout::b_fs_yx_fsv32);
     k.EnableOutputLayout(DataLayout::b_fs_yx_fsv16);
     k.EnableTensorOffset();

@@ -27,7 +27,6 @@ class GroupedConvWeightsNormalize(BackReplacementPattern):
     It requires that weights layout will be next: G*O*I,1,H,W
     """
     enabled = True
-    graph_condition = [lambda graph: graph.graph['cmd_params'].generate_experimental_IR_V10]
     force_clean_up = True
 
     def pattern(self):

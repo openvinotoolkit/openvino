@@ -139,6 +139,7 @@ floor_int64
 ceiling_int64
 matmul_2x2x3_2x3x1_int64
 matmul_2x2x3_2x1x3_transpose_int64
+onnx_dyn_shapes_slice_10_3d_input_12_axes
 
 # TopK Incorrect input data/index values precision
 onnx_model_argmax_int32
@@ -164,6 +165,9 @@ bool_init_and
 
 # Incorrect number of 'indices_to_squeeze' input dimensions!
 arg_min_no_keep_dims_dyn_shape
+
+# Dynamic function 'get_shape was called on a descriptor::Tensor with dynamic shape'
+onnx_upsample9_scales_input_nearest_infer
 
 #-------------------------------------------------------------------------------
 #
@@ -1649,6 +1653,8 @@ IE_GPU.onnx_dyn_shapes_model_acosh_1_3
 IE_GPU.onnx_dyn_shapes_model_acosh_3_2
 IE_GPU.onnx_dyn_shapes_model_asinh_1_3
 IE_GPU.onnx_dyn_shapes_model_asinh_3_2
+IE_GPU.onnx_upsample9_scales_input_nearest_infer
+
 IE_GPU.sum_matrix_6d
 IE_GPU.sqrt
 IE_GPU.gather_scalar_indices_no_axis_2d_input
