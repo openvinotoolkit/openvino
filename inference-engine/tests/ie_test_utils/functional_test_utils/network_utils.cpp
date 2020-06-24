@@ -305,13 +305,6 @@ namespace FuncTestUtils {
 
     void compareCNNNetworks(const InferenceEngine::CNNNetwork &network, const InferenceEngine::CNNNetwork &refNetwork,
                             bool sameNetVersions) {
-        if (!sameNetVersions) {
-            IE_SUPPRESS_DEPRECATED_START
-            /* call conversion of the networks to CNNNetImpl to compare CNNLayers one by one */
-            network.begin();
-            refNetwork.begin();
-            IE_SUPPRESS_DEPRECATED_END
-        }
         if (network.getName() != refNetwork.getName())
             THROW_IE_EXCEPTION << "CNNNetworks have different names! " << network.getName()
                                << " and " << refNetwork.getName();
@@ -319,11 +312,6 @@ namespace FuncTestUtils {
         if (network.getBatchSize() != refNetwork.getBatchSize())
             THROW_IE_EXCEPTION << "CNNNetworks have different batch size! " << std::to_string(network.getBatchSize())
                                << " and " << std::to_string(refNetwork.getBatchSize());
-
-        if (network.layerCount() != refNetwork.layerCount())
-            THROW_IE_EXCEPTION << "CNNNetworks have different numbers of layers! "
-                               << std::to_string(network.layerCount())
-                               << " and " << std::to_string(refNetwork.layerCount());
 
         compareLayerByLayer<InferenceEngine::CNNNetwork>(network, refNetwork, sameNetVersions);
         InferenceEngine::InputsDataMap newInput = network.getInputsInfo();

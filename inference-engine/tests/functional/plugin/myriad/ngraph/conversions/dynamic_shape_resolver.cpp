@@ -11,6 +11,7 @@
 #include "ie_common.h"
 
 #include "common_test_utils/test_common.hpp"
+#include "details/ie_cnn_network_iterator.hpp"
 
 #include <gtest/gtest.h>
 
@@ -41,7 +42,8 @@ protected:
 
 private:
     void triggerConversionToCNNNetwork() {
-        cnnNetwork.begin();
+        // convert to old representation
+        cnnNetwork.getInputsInfo().begin()->second->getInputData()->getCreatorLayer();
     }
 
     static const char s_FriendlyName[];

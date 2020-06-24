@@ -18,18 +18,6 @@ CNNLayerPtr CNNNetwork::getLayerByName(const char* layerName) const {
     return layer;
 }
 
-details::CNNNetworkIterator CNNNetwork::begin() const {
-    return details::CNNNetworkIterator(actual);
-}
-
-details::CNNNetworkIterator CNNNetwork::end() const {
-    return details::CNNNetworkIterator();
-}
-
-size_t CNNNetwork::size() const {
-    return std::distance(std::begin(*this), std::end(*this));
-}
-
 CNNLayer::CNNLayer(const LayerParams& prms)
     : node(nullptr), name(prms.name), type(prms.type), precision(prms.precision), userValue({0}) {}
 

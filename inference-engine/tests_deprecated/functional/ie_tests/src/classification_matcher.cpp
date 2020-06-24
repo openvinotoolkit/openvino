@@ -5,11 +5,11 @@
 #include "classification_matcher.hpp"
 #include <gtest/gtest.h>
 #include <xml_helper.hpp>
+#include "details/ie_cnn_network_iterator.hpp"
 
 using namespace Regression ;
 using namespace Regression :: Matchers ;
 
-IE_SUPPRESS_DEPRECATED_START
 ClassificationMatcher::ClassificationMatcher(RegressionConfig &config)
     : BaseMatcher(config) {
     // Get file names for files with weights and labels
@@ -67,7 +67,6 @@ ClassificationMatcher::ClassificationMatcher(RegressionConfig &config)
 
     top = (-1 == config.topKNumbers) ? 5 : config.topKNumbers;
 }
-IE_SUPPRESS_DEPRECATED_END
 
 void ClassificationMatcher::to(const std::vector <Regression::Reference::ClassificationScoringResultsForTests> &expected) {
     checkResultNumber = 0;

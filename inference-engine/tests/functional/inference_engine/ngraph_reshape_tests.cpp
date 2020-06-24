@@ -416,7 +416,6 @@ TEST_F(NGraphReshapeTests, TestInterpParameters) {
                            ngraph::ParameterVector{inp});
 
     CNNNetwork cnn(ngraph_function);
-    cnn.begin();
     std::map<std::string, InferenceEngine::SizeVector> inShape;
     inShape["test"] = {1, 3, 4, 5};
     cnn.reshape(inShape);
