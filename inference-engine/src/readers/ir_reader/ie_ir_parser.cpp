@@ -722,7 +722,7 @@ std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::TensorIterator
             tensor_iterator->get_concatenated_slices(*body_result, start, stride, part_size, end, axis);
 
             if (!is_sliced_input_exists) {
-                tensor_iterator->set_num_iterations((abs(end - start)) / part_size);
+                tensor_iterator->set_num_iterations((std::abs(end - start)) / part_size);
             }
         } else {
             // otherwise create ngraph::TensorIterator::BodyOutput. -1 means last iteration.
