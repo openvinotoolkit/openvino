@@ -70,21 +70,24 @@ namespace ngraph
                         bias.get_element_type(),
                         ").");
 
-                    CHECK_VALID_NODE(node,
-                                     (scale_pshape.rank().is_static() &&
-                                      scale_pshape.rank().get_length() == 1 &&
-                                      data_pshape.rank().is_static() &&
-                                      data_pshape[1].same_scheme(scale_pshape[0])),
-                                     "Scale input must be one dimensional vector of number of "
-                                     "input data channels size.");
+                    if (data_pshape.rank().is_static())
+                    {
+                        CHECK_VALID_NODE(node,
+                                         scale_pshape.is_dynamic() ||
+                                             (scale_pshape.rank().is_static() &&
+                                              scale_pshape.rank().get_length() == 1 &&
+                                              data_pshape[1].same_scheme(scale_pshape[0])),
+                                         "Scale input must be one dimensional vector of number of "
+                                         "input data channels size.");
 
-                    CHECK_VALID_NODE(node,
-                                     (bias_pshape.rank().is_static() &&
-                                      bias_pshape.rank().get_length() == 1 &&
-                                      data_pshape.rank().is_static() &&
-                                      data_pshape[1].same_scheme(bias_pshape[0])),
-                                     "Bias input must be one dimensional vector of number of "
-                                     "input data channels size.");
+                        CHECK_VALID_NODE(node,
+                                         bias_pshape.is_dynamic() ||
+                                             (bias_pshape.rank().is_static() &&
+                                              bias_pshape.rank().get_length() == 1 &&
+                                              data_pshape[1].same_scheme(bias_pshape[0])),
+                                         "Bias input must be one dimensional vector of number of "
+                                         "input data channels size.");
+                    }
 
                     // all dimensions except spatial/feature
                     const auto reduction_axes =
