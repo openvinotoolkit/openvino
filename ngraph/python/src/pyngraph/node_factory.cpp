@@ -66,7 +66,7 @@ namespace
                     .configure(std::static_pointer_cast<ngraph::op::TensorIterator>(op_node));
             }
 
-            DictAttributeDeserializer visitor(attributes);
+            util::DictAttributeDeserializer visitor(attributes);
 
             op_node->set_arguments(arguments);
             op_node->visit_attributes(visitor);

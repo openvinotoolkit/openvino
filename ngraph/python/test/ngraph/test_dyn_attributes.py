@@ -18,6 +18,7 @@ import pytest
 
 import ngraph as ng
 
+
 @pytest.fixture()
 def _proposal_node():
     attributes = {
@@ -36,6 +37,7 @@ def _proposal_node():
     class_logits = ng.parameter([batch_size, 24, 34, 62], np.float64, "class_logits")
     image_shape = ng.parameter([3], np.float64, "image_shape")
     return ng.proposal(class_probs, class_logits, image_shape, attributes)
+
 
 @pytest.mark.parametrize(
     "int_dtype, fp_dtype",
@@ -164,7 +166,7 @@ def test_dynamic_set_attribute_value(int_dtype, fp_dtype):
 def test_dynamic_attr_cache(_proposal_node):
     node = _proposal_node
 
-    assert node._attr_cache_valid
+    assert not node._attr_cache_valid
     node.set_attrs_nms_thresh(1.3453678102)
     assert not node._attr_cache_valid
     assert np.isclose(node.get_attrs_nms_thresh(), np.float64(1.3453678102))

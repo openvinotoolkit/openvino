@@ -50,8 +50,9 @@ class NodeFactory(object):
                     partial(NodeFactory._set_node_attr_value, node, attr_name))
 
         # Setup helper members for caching attribute values.
-        setattr(node, "_attr_cache", all_attributes)
-        setattr(node, "_attr_cache_valid", bool(True))
+        # The cache would be lazily populated at first access attempt.
+        setattr(node, "_attr_cache", dict())
+        setattr(node, "_attr_cache_valid", bool(False))
 
         return node
 
@@ -96,4 +97,4 @@ class NodeFactory(object):
         :param      value:      The new attribute value.
         """
         node._set_attribute(attr_name, value)
-        node._attr_cache_valid = False
+        node._attr_cache[attr_name] = value
