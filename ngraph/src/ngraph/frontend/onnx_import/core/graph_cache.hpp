@@ -34,18 +34,13 @@ namespace ngraph
         class GraphCache
         {
         public:
-            /// \brief      Constructs a GraphCache class object.
-            ///
-            /// \param[in]  graph_proto       ONNX protobuf graph representation.
-            GraphCache(const ONNX_NAMESPACE::GraphProto& graph_proto);
-
             /// \brief      Add node to the cache or override the existing one.
             ///
             /// \note       GraphCahce takes ownership of the node.
             ///
             /// \param[in]  name       The name of node added to the cache.
             /// \param[in]  node       The node added to the cache.
-            void add_node(const std::string& name, std::shared_ptr<ngraph::Node>&& node);
+            void emplace_node(const std::string& name, std::shared_ptr<ngraph::Node>&& node);
 
             /// \brief      Get the node from the cache
             ///
@@ -63,21 +58,8 @@ namespace ngraph
             /// \return     true if the node named `name` exist in the cache, false otherwise.
             virtual bool contains(const std::string& name) const;
 
-            /// \brief      Return the map of graph initializers.
-            ///
-            /// \return     The map of graph initializers from the graph_proto.
-            const std::map<std::string, Tensor>& initializers() const;
-
         private:
-            /// \brief      Add provenance tag to initializer which helps during debuging.
-            ///
-            /// \param[in]  initializer   The tensor initializer used to create provenance tag.
-            /// \param[in]  node          The node to which provenance tag is added.
-            void add_provenance_tag_to_initializer(
-                const Tensor& initializer, std::shared_ptr<default_opset::Constant> node) const;
-
             std::map<std::string, std::shared_ptr<ngraph::Node>> m_graph_cache_map;
-            std::map<std::string, Tensor> m_initializers;
         };
 
         class SubgraphCache : public GraphCache
@@ -85,10 +67,8 @@ namespace ngraph
         public:
             /// \brief      Constructs a SubgraphCache class object.
             ///
-            /// \param[in]  graph_proto          ONNX protobuf graph representation.
             /// \param[in]  parent_graph_cache   The reference to the parent graph.
-            SubgraphCache(const ONNX_NAMESPACE::GraphProto& graph_proto,
-                          const GraphCache& parent_graph_cache);
+            SubgraphCache(const GraphCache& parent_graph_cache);
 
             /// \brief      Get the node from the cache (subgraph or parent graph)
             ///
