@@ -415,7 +415,7 @@ private:
 };
 using fake_ext_factory = std::function<InferenceEngine::ILayerImplFactory*(const InferenceEngine::CNNLayer *)>;
 
-class FakeExtensionFabric : public InferenceEngine::IExtension {
+class FakeExtensionFabric : public InferenceEngine::Extensions::Cpu::MKLDNNExtensions {
 public:
     FakeExtensionFabric() {
         factories["CustomNewConvolution"] = [](const InferenceEngine::CNNLayer * cnnLayer) -> InferenceEngine::ILayerImplFactory* { return new FakeGenericPrimitiveFactory(); };
