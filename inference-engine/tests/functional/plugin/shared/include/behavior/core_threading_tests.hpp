@@ -24,6 +24,7 @@
 #include <mutex>
 #include <chrono>
 #include <fstream>
+#include <functional_test_utils/skip_tests_config.hpp>
 
 using Device = std::string;
 using Config = std::map<std::string, std::string>;
@@ -82,7 +83,23 @@ class CoreThreadingTests : public CoreThreadingTestsBase,
                            public ::testing::TestWithParam<Params> {
 public:
     void SetUp() override {
+        SKIP_IF_CURRENT_TEST_IS_DISABLED()
         std::tie(deviceName, config) = GetParam();
+    }
+
+    static std::string getTestCaseName(testing::TestParamInfo<Params> obj) {
+        unsigned int numThreads, numIterations;
+        std::string deviceName;
+        Config config;
+        std::tie(deviceName, config) = obj.param;
+        char separator('_');
+        std::ostringstream result;
+        result << "targetDevice=" << deviceName << separator;
+        result << "config=";
+        for (auto& confItem : config) {
+            result << confItem.first << ":" << confItem.second << separator;
+        }
+        return result.str();
     }
 };
 
@@ -159,14 +176,35 @@ TEST_P(CoreThreadingTests, smoke_QueryNetwork) {
 
 using Threads = unsigned int;
 using Iterations = unsigned int;
+using CoreThreadingParams = std::tuple<Params, Threads, Iterations>;
 
-class CoreThreadingTestsWithIterations : public ::testing::TestWithParam<std::tuple<Params, Threads, Iterations> >,
+class CoreThreadingTestsWithIterations : public ::testing::TestWithParam<CoreThreadingParams>,
                                          public CoreThreadingTestsBase {
 public:
     void SetUp() override {
+        SKIP_IF_CURRENT_TEST_IS_DISABLED()
         std::tie(deviceName, config) = std::get<0>(GetParam());
         numThreads =  std::get<1>(GetParam());
         numIterations =  std::get<2>(GetParam());
+    }
+
+    static std::string getTestCaseName(testing::TestParamInfo<std::tuple<Params, Threads, Iterations>> obj) {
+        unsigned int numThreads, numIterations;
+        std::string deviceName;
+        Config config;
+        std::tie(deviceName, config) = std::get<0>(obj.param);
+        numThreads =  std::get<1>(obj.param);
+        numIterations =  std::get<2>(obj.param);
+        char separator('_');
+        std::ostringstream result;
+        result << "targetDevice=" << deviceName << separator;
+        result << "config=";
+        for (auto& confItem : config) {
+            result << confItem.first << ":" << confItem.second << separator;
+        }
+        result << "numThreads=" << numThreads << separator;
+        result << "numIter=" << numIterations;
+        return result.str();
     }
 
     unsigned int numIterations;

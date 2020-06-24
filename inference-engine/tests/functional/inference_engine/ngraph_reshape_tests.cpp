@@ -363,22 +363,11 @@ class BadExtension : public InferenceEngine::IExtension {
 public:
     BadExtension() {}
 
-    InferenceEngine::StatusCode
-    getPrimitiveTypes(char**& types, unsigned int& size, InferenceEngine::ResponseDesc* resp) noexcept override {
-        return GENERAL_ERROR;
-    };
-
     void GetVersion(const InferenceEngine::Version*& versionInfo) const noexcept override {};
 
     void Unload() noexcept override {};
 
     void Release() noexcept override {}
-
-    InferenceEngine::StatusCode
-    getFactoryFor(InferenceEngine::ILayerImplFactory*& factory, const InferenceEngine::CNNLayer* cnnLayer,
-                  InferenceEngine::ResponseDesc* resp) noexcept override {
-        return InferenceEngine::StatusCode::NOT_IMPLEMENTED;
-    };
 
     std::map<std::string, ngraph::OpSet> getOpSets() override {
         static std::map<std::string, ngraph::OpSet> opsets;
