@@ -330,18 +330,19 @@ protected:
         }
         case OP_TYPEID::AvgPool:
         {
-            const op::AvgPool* avg_pool = static_cast<const op::AvgPool*>(&node);
-
-            reference::avg_pool<T>(args[0]->get_data_ptr<const T>(),
-                                   out[0]->get_data_ptr<T>(),
-                                   node.get_input_shape(0),
-                                   node.get_output_shape(0),
-                                   avg_pool->get_window_shape(),
-                                   avg_pool->get_window_movement_strides(),
-                                   avg_pool->get_padding_below(),
-                                   avg_pool->get_padding_above(),
-                                   avg_pool->get_include_padding_in_avg_computation());
-            break;
+            throw unsupported_op("Unsupported op '" + node.description() + "'");
+            // const op::AvgPool* avg_pool = static_cast<const op::AvgPool*>(&node);
+            // 
+            // reference::avg_pool<T>(args[0]->get_data_ptr<const T>(),
+            //                        out[0]->get_data_ptr<T>(),
+            //                        node.get_input_shape(0),
+            //                        node.get_output_shape(0),
+            //                        avg_pool->get_window_shape(),
+            //                        avg_pool->get_window_movement_strides(),
+            //                        avg_pool->get_padding_below(),
+            //                        avg_pool->get_padding_above(),
+            //                        avg_pool->get_include_padding_in_avg_computation());
+            // break;
         }
         case OP_TYPEID::GenerateMask:
         {

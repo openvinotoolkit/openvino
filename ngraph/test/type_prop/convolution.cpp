@@ -519,60 +519,6 @@ struct DeduceAutoPadTest
 {
 };
 
-TEST_P(DeduceAutoPadTest, same_upper)
-{
-    auto image_shape = std::get<0>(GetParam());
-    image_shape.insert(image_shape.begin(), {1, 1}); // Add {N, C}
-    auto filter_shape = std::get<1>(GetParam());
-    filter_shape.insert(filter_shape.begin(), {1, 1}); // Add {O, I}
-    auto param0 = make_shared<op::Parameter>(element::f32, image_shape);
-    auto param1 = make_shared<op::Parameter>(element::f32, filter_shape);
-
-    auto conv = make_shared<op::Convolution>(param0,
-                                             param1,
-                                             std::get<2>(GetParam()),
-                                             std::get<3>(GetParam()),
-                                             CoordinateDiff(),
-                                             CoordinateDiff(),
-                                             Strides(),
-                                             op::PadType::SAME_UPPER);
-    EXPECT_EQ(conv->get_padding_below(), std::get<4>(GetParam()));
-    EXPECT_EQ(conv->get_padding_above(), std::get<5>(GetParam()));
-
-    auto no_dilation = std::all_of(std::get<3>(GetParam()).begin(),
-                                   std::get<3>(GetParam()).end(),
-                                   [](size_t i) { return i <= 1; });
-    if (no_dilation)
-    {
-        auto max_pool = make_shared<op::MaxPool>(param0,
-                                                 std::get<1>(GetParam()),
-                                                 std::get<2>(GetParam()),
-                                                 Shape(),
-                                                 Shape(),
-                                                 op::PadType::SAME_UPPER);
-        CoordinateDiff padding_below(max_pool->get_padding_below().begin(),
-                                     max_pool->get_padding_below().end());
-        CoordinateDiff padding_above(max_pool->get_padding_above().begin(),
-                                     max_pool->get_padding_above().end());
-        EXPECT_EQ(padding_below, std::get<4>(GetParam()));
-        EXPECT_EQ(padding_above, std::get<5>(GetParam()));
-
-        auto avg_pool = make_shared<op::AvgPool>(param0,
-                                                 std::get<1>(GetParam()),
-                                                 std::get<2>(GetParam()),
-                                                 Shape(),
-                                                 Shape(),
-                                                 false,
-                                                 op::PadType::SAME_UPPER);
-        CoordinateDiff pad_below(avg_pool->get_padding_below().begin(),
-                                 avg_pool->get_padding_below().end());
-        CoordinateDiff pad_above(avg_pool->get_padding_above().begin(),
-                                 avg_pool->get_padding_above().end());
-        EXPECT_EQ(pad_below, std::get<4>(GetParam()));
-        EXPECT_EQ(pad_above, std::get<5>(GetParam()));
-    }
-}
-
 TEST_P(DeduceAutoPadTest, same_lower)
 {
     auto image_shape = std::get<0>(GetParam());
