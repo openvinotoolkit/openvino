@@ -9,8 +9,6 @@
  */
 #pragma once
 
-#include <ie_icnn_net_reader.h>
-
 #include <details/ie_cnn_network_iterator.hpp>
 #include <details/ie_exception_conversion.hpp>
 #include <ie_icnn_network.hpp>
@@ -57,22 +55,6 @@ public:
      * @param network Pointer to the ngraph::Function object
      */
     explicit CNNNetwork(const std::shared_ptr<const ngraph::Function>& network);
-
-    /**
-     * @brief A constructor from ICNNNetReader object
-     *
-     * @param reader Pointer to the ICNNNetReader object
-     */
-    IE_SUPPRESS_DEPRECATED_START
-    explicit CNNNetwork(CNNNetReaderPtr reader_): reader(reader_) {
-        if (reader == nullptr) {
-            THROW_IE_EXCEPTION << "ICNNNetReader was not initialized.";
-        }
-        if ((actual = reader->getNetwork(nullptr)) == nullptr) {
-            THROW_IE_EXCEPTION << "CNNNetwork was not initialized.";
-        }
-    }
-    IE_SUPPRESS_DEPRECATED_END
 
     /**
      * @brief A destructor
@@ -302,12 +284,6 @@ public:
     }
 
 protected:
-    /**
-     * @brief Reader extra reference, might be nullptr
-     */
-    IE_SUPPRESS_DEPRECATED_START
-    CNNNetReaderPtr reader;
-    IE_SUPPRESS_DEPRECATED_END
     /**
      * @brief Network extra interface, might be nullptr
      */
