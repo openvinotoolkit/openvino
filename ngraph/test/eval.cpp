@@ -1492,7 +1492,8 @@ TEST(eval, evaluate_dynamic_scatter_elements_update_1d_axis)
     ASSERT_EQ(cval, out);
 }
 
-TEST(eval, evaluate_dynamic_scatter_elements_update_3d_i16)
+// Disabled test for disabled reference implementation
+TEST(eval, DISABLED_evaluate_dynamic_scatter_elements_update_3d_i16)
 {
     const Shape data_shape{3, 3, 3};
     const Shape indices_shape{2, 2, 3};

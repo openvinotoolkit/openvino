@@ -175,17 +175,9 @@ namespace
 
         switch (out->get_element_type())
         {
-            TYPE_CASE(i8)(args, out, concatenation_axis);
-            break;
-            TYPE_CASE(i16)(args, out, concatenation_axis);
-            break;
             TYPE_CASE(i32)(args, out, concatenation_axis);
             break;
             TYPE_CASE(i64)(args, out, concatenation_axis);
-            break;
-            TYPE_CASE(u8)(args, out, concatenation_axis);
-            break;
-            TYPE_CASE(u16)(args, out, concatenation_axis);
             break;
             TYPE_CASE(u32)(args, out, concatenation_axis);
             break;
@@ -194,8 +186,6 @@ namespace
             TYPE_CASE(f16)(args, out, concatenation_axis);
             break;
             TYPE_CASE(f32)(args, out, concatenation_axis);
-            break;
-            TYPE_CASE(f64)(args, out, concatenation_axis);
             break;
         default: rc = false; break;
         }
