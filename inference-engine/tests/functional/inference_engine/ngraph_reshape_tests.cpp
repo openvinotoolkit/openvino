@@ -28,6 +28,7 @@
 #include "common_test_utils/test_common.hpp"
 #include "common_test_utils/data_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
+#include "common_test_utils/common_utils.hpp"
 #include "generic_ie.hpp"
 
 IE_SUPPRESS_DEPRECATED_START
@@ -282,7 +283,7 @@ TEST_F(NGraphReshapeTests, ReshapeNewIRWithNewExtension1) {
     SizeVector outDims = output["activation"]->getTensorDesc().getDims();
     ASSERT_EQ(outDims, refAfterReshape);
     // Convert to CNNNetwork
-    auto layer = network.getLayerByName("activation");
+    auto layer = CommonTestUtils::getLayerByName(network, "activation");
     ASSERT_EQ("CustomTestLayer", layer->type);
 }
 
@@ -352,7 +353,7 @@ TEST_F(NGraphReshapeTests, ReshapeNewIRWithNewExtension2) {
     SizeVector outDims = output["activation"]->getTensorDesc().getDims();
     ASSERT_EQ(outDims, refAfterReshape);
     // Convert to CNNNetwork
-    auto layer = network.getLayerByName("activation");
+    auto layer = CommonTestUtils::getLayerByName(network, "activation");
     ASSERT_EQ("CustomTestLayer", layer->type);
     ASSERT_EQ("false", layer->params["test1"]);
     ASSERT_EQ("3", layer->params["test2"]);
