@@ -481,7 +481,7 @@ shared_ptr<Node>
                            ? new_args.at(4)
                            : ngraph::op::Constant::create(element::f32, Shape{}, {.0f});
 
-    return std::make_shared<op::v3::NonMaxSuppression>(new_args.at(0),
+    return std::make_shared<op::v4::NonMaxSuppression>(new_args.at(0),
                                                        new_args.at(1),
                                                        arg2,
                                                        arg3,
