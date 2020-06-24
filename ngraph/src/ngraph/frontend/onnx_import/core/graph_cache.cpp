@@ -16,9 +16,6 @@
 
 #include "graph_cache.hpp"
 #include "except.hpp"
-#include "provenance.hpp"
-#include "tensor.hpp"
-#include "utils/provenance_tag.hpp"
 
 namespace ngraph
 {

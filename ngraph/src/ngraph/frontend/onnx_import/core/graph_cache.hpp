@@ -18,14 +18,9 @@
 
 #include <map>
 #include <memory>
-#include <onnx/onnx_pb.h>
 #include <string>
 
-#include "default_opset.hpp"
 #include "ngraph/node.hpp"
-#include "ngraph/op/constant.hpp"
-#include "tensor.hpp"
-
 namespace ngraph
 {
     namespace onnx_import

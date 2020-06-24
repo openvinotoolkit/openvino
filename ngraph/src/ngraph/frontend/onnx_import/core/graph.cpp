@@ -15,6 +15,8 @@
 //*****************************************************************************
 
 #include <functional>
+#include <numeric>
+#include <sstream>
 
 #include "graph.hpp"
 #include "node.hpp"
@@ -212,6 +214,20 @@ namespace ngraph
             }
         }
 
+        void Graph::add_provenance_tag_to_initializer(
+            const Tensor& tensor, std::shared_ptr<default_opset::Constant> node) const
+        {
+            if (!ngraph::get_provenance_enabled())
+            {
+                return;
+            }
+
+            const std::string tag =
+                detail::build_input_provenance_tag(tensor.get_name(), tensor.get_shape());
+
+            node->add_provenance_tag(tag);
+        }
+
         void Graph::add_provenance_tag_to_input(const ValueInfo& input,
                                                 std::shared_ptr<ngraph::Node> node) const
         {
@@ -241,20 +257,6 @@ namespace ngraph
                 ng_node_vector,
                 [&tag](std::shared_ptr<ngraph::Node> ng_node) { ng_node->add_provenance_tag(tag); },
                 ng_inputs);
-        }
-
-        void Graph::add_provenance_tag_to_initializer(
-            const Tensor& tensor, std::shared_ptr<default_opset::Constant> node) const
-        {
-            if (!ngraph::get_provenance_enabled())
-            {
-                return;
-            }
-
-            const std::string tag =
-                detail::build_input_provenance_tag(tensor.get_name(), tensor.get_shape());
-
-            node->add_provenance_tag(tag);
         }
 
         Subgraph::Subgraph(const ONNX_NAMESPACE::GraphProto& proto,
