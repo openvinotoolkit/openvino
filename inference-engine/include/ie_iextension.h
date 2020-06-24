@@ -145,80 +145,10 @@ public:
 };
 
 /**
- * @deprecated Implement IExtension::getImplTypes and IExtension::getImplementation
- * The interface will be removed in 2021.1 release.
- * @interface ILayerImplFactory
- * @brief This class provides interface for extension factories
- */
-class INFERENCE_ENGINE_DEPRECATED("Implement IExtension::getImplTypes and IExtension::getImplementation") ILayerImplFactory {
-public:
-    /**
-     * @brief A shared pointer to the ILayerImplFactory interface
-     */
-    IE_SUPPRESS_DEPRECATED_START
-    using Ptr = std::shared_ptr<ILayerImplFactory>;
-    IE_SUPPRESS_DEPRECATED_END
-
-    using ImplCreator = std::function<ILayerImpl*()>;
-
-    /**
-     * @brief Destructor
-     */
-    virtual ~ILayerImplFactory() = default;
-
-    /**
-     * @brief Gets all possible implementations for the given cnn Layer
-     *
-     * @param impls the vector with implementations which is ordered by priority
-     * @param resp response descriptor
-     * @return status code
-     */
-    virtual StatusCode getImplementations(std::vector<ILayerImpl::Ptr>& impls, ResponseDesc* resp) noexcept = 0;
-};
-
-/**
  * @brief This class is the main extension interface
  */
 class INFERENCE_ENGINE_API_CLASS(IExtension) : public InferenceEngine::details::IRelease {
 public:
-    /**
-     * @deprecated Use IExtension::getImplementation to get a concrete implementation
-     * The method will be removed in 2021.1 release.
-     * @brief Provides a factory for a specified CNNLayer
-     * @param factory A factory returned from an extension plugin
-     * @param cnnLayer A CNNLayer object to provide factory for
-     * @param resp Response descriptor
-     * @return Status code
-     */
-    IE_SUPPRESS_DEPRECATED_START
-    INFERENCE_ENGINE_DEPRECATED("Use IExtension::getImplementation to get a concrete implementation")
-    virtual StatusCode getFactoryFor(ILayerImplFactory*& factory, const CNNLayer* cnnLayer,
-                                     ResponseDesc* resp) noexcept {
-        (void)factory;
-        (void)cnnLayer;
-        (void)resp;
-        return NOT_IMPLEMENTED;
-    }
-    IE_SUPPRESS_DEPRECATED_END
-
-    /**
-     * @deprecated Use IExtension::getImplTypes to get implementation types for a particular node
-     * The method will be removed in 2021.1 release.
-     * @brief Fills passed array with types of layers which kernel implementations are included in the extension
-     *
-     * @param types Array to store the layer types
-     * @param size Size of the layer types array
-     * @param resp Response descriptor
-     * @return Status code
-     */
-    INFERENCE_ENGINE_DEPRECATED("Use IExtension::getImplTypes to get implementation types for a particular node")
-    virtual StatusCode getPrimitiveTypes(char**& types, unsigned int& size, ResponseDesc* resp) noexcept {
-        (void)types;
-        (void)size;
-        (void)resp;
-        return NOT_IMPLEMENTED;
-    }
-
     /**
      * @brief Returns operation sets
      * This method throws an exception if it was not implemented

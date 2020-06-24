@@ -18,7 +18,7 @@ struct TestExtensionsHolder {
 };
 
 
-class FakeExtensions : public IExtension {
+class FakeExtensions : public Cpu::MKLDNNExtensions {
  public:
     void Unload() noexcept override {};
 

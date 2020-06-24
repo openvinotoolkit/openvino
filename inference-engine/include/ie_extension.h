@@ -38,7 +38,6 @@ public:
 /**
  * @brief This class is a C++ helper to work with objects created using extensions.
  */
-IE_SUPPRESS_DEPRECATED_START_WIN
 class INFERENCE_ENGINE_API_CLASS(Extension) : public IExtension {
 public:
     /**
@@ -68,41 +67,6 @@ public:
      * @brief Does nothing since destruction is done via the regular mechanism
      */
     void Release() noexcept override {}
-
-    /**
-     * @deprecated Use IExtension::getImplTypes to get implementation types for a particular node.
-     * The method will removed in 2021.1 release.
-     * @brief Gets the array with types of layers which are included in the extension
-     *
-     * @param types Types array
-     * @param size Size of the types array
-     * @param resp Response descriptor
-     * @return Status code
-     */
-    INFERENCE_ENGINE_DEPRECATED("Use IExtension::getImplTypes to get implementation types for a particular node")
-    StatusCode getPrimitiveTypes(char**& types, unsigned int& size, ResponseDesc* resp) noexcept override {
-        IE_SUPPRESS_DEPRECATED_START
-        return actual->getPrimitiveTypes(types, size, resp);
-        IE_SUPPRESS_DEPRECATED_END
-    }
-
-    /**
-     * @deprecated Use IExtension::getImplementation to get a concrete implementation.
-     * The method will be removed in 2021.1 release.
-     * @brief Gets the factory with implementations for a given layer
-     *
-     * @param factory Factory with implementations
-     * @param cnnLayer A layer to get the factory for
-     * @param resp Response descriptor
-     * @return Status code
-     */
-    IE_SUPPRESS_DEPRECATED_START
-    INFERENCE_ENGINE_DEPRECATED("Use IExtension::getImplementation to get a concrete implementation")
-    StatusCode getFactoryFor(ILayerImplFactory*& factory, const CNNLayer* cnnLayer,
-                             ResponseDesc* resp) noexcept override {
-        return actual->getFactoryFor(factory, cnnLayer, resp);
-    }
-    IE_SUPPRESS_DEPRECATED_END
 
     /**
      * @brief Returns operation sets
