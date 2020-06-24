@@ -52,7 +52,7 @@ public:
     // return string with operation names separated by coma in alphabetical order
     std::string getNames() const;
 
-    // returns vector of fused names sorted in alphabetical order
+    // return vector of fused names sorted in alphabetical order
     std::vector<std::string> getVectorNames() const;
 };
 
@@ -72,8 +72,16 @@ public:
     std::shared_ptr<ngraph::Variant> init(const std::shared_ptr<ngraph::Node> & node) override;
 };
 
+/**
+ * @ingroup ie_runtime_attr_api
+ * @brief getFusedNames return string with operation names separated by coma in alphabetical order
+ */
 TRANSFORMATIONS_API std::string getFusedNames(const std::shared_ptr<ngraph::Node> & node);
 
+/**
+ * @ingroup ie_runtime_attr_api
+ * @brief getFusedNamesVector return vector of fused names sorted in alphabetical order
+ */
 TRANSFORMATIONS_API std::vector<std::string> getFusedNamesVector(const std::shared_ptr<ngraph::Node> & node);
 
 }  // namespace ngraph

@@ -213,7 +213,9 @@ When developing transformation we need to follow next transformation rules:
 
 ###1. Operation Set (OpSet)
 
-Which OpSet to use in your transformation? The right answer is latest. An exception is ConvertOpSetXToOpSetY transformations where operations from OpSetX and OpSetY are required to use. 
+Which OpSet to use in your transformation? The right answer is latest that exists at the moment. An exception is ConvertOpSetXToOpSetY transformations where operations from OpSetX and OpSetY are required to use.
+
+@snippet example_ngraph_utils.cpp ngraph:include
 
 ###2. Dynamic Shape and Rank
 

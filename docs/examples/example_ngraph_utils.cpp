@@ -4,7 +4,10 @@
 
 #include <memory>
 
+// ! [ngraph:include]
 #include <ngraph/opsets/opset3.hpp>
+// ! [ngraph:include]
+
 #include <ngraph/function.hpp>
 #include <ngraph/pattern/op/label.hpp>
 #include <ngraph/rt_info.hpp>

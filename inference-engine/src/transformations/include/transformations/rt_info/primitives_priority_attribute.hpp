@@ -2,6 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+/**
+ * @brief Defines primitives priority attribute
+ * @file primitives_priority_attribute.hpp
+ */
+
 #include <assert.h>
 #include <functional>
 #include <memory>
@@ -14,15 +19,28 @@
 
 namespace ngraph {
 
+/**
+ * @ingroup ie_runtime_attr_api
+ * @brief PrimitivesPriority class represents runtime info attribute that
+ * can be used for plugins specific primitive choice.
+ */
 class TRANSFORMATIONS_API PrimitivesPriority {
 private:
     std::string primitives_priority;
 
 public:
+    /**
+     * A default constructor
+     */
     PrimitivesPriority() = default;
 
+    /**
+     * @brief      Constructs a new object consisting of a single name     *
+     * @param[in]  name  The primitives priority value
+     */
     explicit PrimitivesPriority(const std::string &primitives_priority) : primitives_priority(primitives_priority) {}
 
+    // return string with primitives priority value
     std::string getPrimitivesPriority() const;
 };
 
@@ -42,6 +60,10 @@ public:
     std::shared_ptr<ngraph::Variant> init(const std::shared_ptr<ngraph::Node> & node) override;
 };
 
+/**
+ * @ingroup ie_runtime_attr_api
+ * @brief getPrimitivesPriority return string with primitive priorities value
+ */
 TRANSFORMATIONS_API std::string getPrimitivesPriority(const std::shared_ptr<ngraph::Node> & node);
 
 }  // namespace ngraph
