@@ -617,6 +617,76 @@ std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> decomposeFakeQuantize(s
     return std::make_tuple(newFQ, dequantize);
 }
 
+void updateFakeQuantize(std::shared_ptr<opset1::FakeQuantize> fq, element::Type precision, float min, float max) {
+    using std::make_shared;
+
+    auto newMin = make_shared<opset1::Constant>(fq->get_output_element_type(0), Shape{}, min);
+    auto newMax = make_shared<opset1::Constant>(fq->get_output_element_type(0), Shape{}, max);
+
+    auto outputLow = fq->input_value(3);
+    auto outputHigh = fq->input_value(4);
+
+    // TODO: question: why we need fold?
+    // auto newFQ = fold_fake_quantize<opset1::FakeQuantize>(
+    std::shared_ptr<opset1::FakeQuantize> newFQ = std::make_shared<ngraph::op::TypeRelaxed<opset1::FakeQuantize>>(
+            fq->input_value(0),
+            fq->input_value(1),
+            fq->input_value(2),
+            newMin->output(0),
+            newMax->output(0),
+            fq->get_levels(),
+            fq->get_auto_broadcast());
+
+    NetworkHelper::setOutDataPrecision(newFQ, precision);
+    replace_node(fq, newFQ);
+
+    newFQ->set_friendly_name(fq->get_friendly_name());
+}
+
+FakeQuantizeDequantization getFakeQuantizeDequantization(std::shared_ptr<opset1::FakeQuantize> fq, element::Type precision, float min, float max) {
+    using std::make_shared;
+
+    auto newMin = make_shared<opset1::Constant>(fq->get_output_element_type(0), Shape{}, min);
+    auto newMax = make_shared<opset1::Constant>(fq->get_output_element_type(0), Shape{}, max);
+
+    auto outputLow = fq->input_value(3);
+    auto outputHigh = fq->input_value(4);
+
+    std::shared_ptr<Node> scale;
+    std::shared_ptr<Node> shift;
+
+    // TODO: threshold values have to used here to avoid shifts
+
+    if (precision.is_signed()) {
+        // I8
+        scale = fold<opset1::Divide>(
+            fold<opset1::Subtract>(outputHigh, outputLow),
+            fold<opset1::Subtract>(newMax, newMin));
+
+        shift = fold<opset1::Divide>(
+            fold<opset1::Divide>(
+                fold<opset1::Subtract>(fold<opset1::Multiply>(newMax, outputLow), fold<opset1::Multiply>(newMin, outputHigh)),
+                fold<opset1::Subtract>(newMin, newMax)),
+            scale);
+    } else {
+        // U8
+        scale = fold<opset1::Divide>(
+            fold<opset1::Subtract>(outputHigh, outputLow),
+            fold<opset1::Subtract>(newMax, newMin));
+
+        shift = fold<opset1::Divide>(outputLow, scale);
+    }
+
+    // TODO: we create input here! we really need it here?
+    const auto input = std::make_shared<ngraph::opset1::Parameter>(precision, fq->get_output_shape(0));
+    std::shared_ptr<ngraph::opset1::Convert> convert =  as_type_ptr<ngraph::opset1::Convert>(fold<opset1::Convert>(input, fq->get_output_element_type(0)));
+
+    std::shared_ptr<ngraph::opset1::Subtract> sub = make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::Subtract>>(convert, shift);
+    std::shared_ptr<ngraph::opset1::Multiply> multiply = make_shared<ngraph::opset1::Multiply>(sub, scale);
+
+    return FakeQuantizeDequantization(fq, convert, sub, multiply);
+}
+
 std::shared_ptr<Node> optimizeAdd(std::shared_ptr<opset1::Add> add) {
     auto convertOnAdd = add->input_value(0).get_node_shared_ptr();
     // TODO: replace assert to condition and omit conversion part if there is no convert

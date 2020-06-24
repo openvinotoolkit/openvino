@@ -21,6 +21,7 @@
 #include "quantization_details.hpp"
 #include "ngraph_ops/multiply_add.hpp"
 #include "transformations/utils/utils.hpp"
+#include "common/fake_quantize_dequantization.hpp"
 
 namespace ngraph {
 namespace pass {
@@ -373,10 +374,12 @@ std::shared_ptr<Node> optimizeMultipliesAfter(std::shared_ptr<Node> multiply);
 
 std::shared_ptr<opset1::Constant> roundWithTolerance(std::shared_ptr<Node> node, element::Type target_type, float tolerance = 1e-5);
 
-std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> decomposeFakeQuantize(std::shared_ptr<opset1::FakeQuantize> fq,
-                                            element::Type precision,
-                                            float min,
-                                            float max);
+
+std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> decomposeFakeQuantize(
+    std::shared_ptr<opset1::FakeQuantize> fq, element::Type precision, float min, float max);
+
+void updateFakeQuantize(std::shared_ptr<opset1::FakeQuantize> fq, element::Type precision, float min, float max);
+FakeQuantizeDequantization getFakeQuantizeDequantization(std::shared_ptr<opset1::FakeQuantize> fq, element::Type precision, float min, float max);
 
 std::shared_ptr<Node> optimizeAdd(std::shared_ptr<opset1::Add> add);
 

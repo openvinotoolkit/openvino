@@ -38,10 +38,10 @@ public:
 
 class TRANSFORMATIONS_API InferenceEngineLptException : public InferenceEngineException {
 public:
-    InferenceEngineLptException(const std::string& filename, const int line, std::shared_ptr<const Node> layer) {
+    InferenceEngineLptException(const std::string& filename, const int line, const Node& layer) {
         *this
             << filename << ":" << line << " Exception during low precision transformation for "
-            << layer << " node with name '" << layer->get_friendly_name() << "'. ";
+            << layer << " node with name '" << layer.get_friendly_name() << "'. ";
     }
 };
 

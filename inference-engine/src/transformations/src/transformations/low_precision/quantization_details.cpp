@@ -136,7 +136,7 @@ void QuantizationDetails::getInputIntervals(
     inputHighValues.insert(inputHighValues.end(), inputHighBlobValues.begin(), inputHighBlobValues.end());
 
     if (inputLowValues.size() != inputHighValues.size()) {
-        THROW_IE_LPT_EXCEPTION(quantize) << "Quantize input values sizes are not equal for layer " << quantize->get_friendly_name();
+        THROW_IE_LPT_EXCEPTION(*quantize) << "Quantize input values sizes are not equal for layer " << quantize->get_friendly_name();
     }
 
     inputIntervalsCount = inputLowValues.size();
@@ -159,7 +159,7 @@ void QuantizationDetails::getOutputIntervals(
     outputHighValues.insert(outputHighValues.end(), outputHighBlobValues.begin(), outputHighBlobValues.end());
 
     if (outputLowValues.size() != outputHighValues.size()) {
-        THROW_IE_LPT_EXCEPTION(quantize) << "Quantize output values sizes are not equal for layer " << quantize->get_friendly_name();
+        THROW_IE_LPT_EXCEPTION(*quantize) << "Quantize output values sizes are not equal for layer " << quantize->get_friendly_name();
     }
 
     outputIntervalsCount = outputLowValues.size();
@@ -179,7 +179,7 @@ QuantizationDetails QuantizationDetails::getDetails(std::shared_ptr<opset1::Fake
 
     const size_t outputChannelsCount = NetworkHelper::getOutputChannelsCount(quantize, NetworkHelper::onWeights(quantize));
     if (!outputLayoutIsSupported(quantize)) {
-        THROW_IE_LPT_EXCEPTION(quantize) << "Expected output channels count " << outputIntervalsCount << " but found " << outputChannelsCount;
+        THROW_IE_LPT_EXCEPTION(*quantize) << "Expected output channels count " << outputIntervalsCount << " but found " << outputChannelsCount;
     }
 
     return QuantizationDetails(

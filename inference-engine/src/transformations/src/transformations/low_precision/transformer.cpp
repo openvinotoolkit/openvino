@@ -19,7 +19,7 @@
 
 
 #include "transformations/low_precision/relu.hpp"
-// #include "low_precision_transformations/concat_multi_channels.hpp"
+#include "transformations/low_precision/concat.hpp"
 // #include "low_precision_transformations/const.hpp"
 #include "transformations/low_precision/convolution.hpp"
 #include "transformations/low_precision/depth_to_space.hpp"
@@ -173,7 +173,7 @@ void LowPrecisionTransformations::setLayerTransformationsManager(
 LowPrecisionTransformations LowPrecisionTransformer::getAllTransformations(const LayerTransformation::Params& params) {
     return LowPrecisionTransformations(
         std::map<std::string, LayerTransformationPtr>({
-            //{ "Concat", LayerTransformationPtr(new ConcatMultiChannelsTransformation(params))}
+            { "Concat", LayerTransformationPtr(new ConcatTransformation(params))}
         }),
         std::map<std::string, LayerTransformationPtr>({
             { "Convolution", LayerTransformationPtr(new ConvolutionTransformation(params)) },
