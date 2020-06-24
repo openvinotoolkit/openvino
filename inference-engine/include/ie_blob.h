@@ -531,6 +531,8 @@ struct ROIData {
     Blob::CPtr original;    // blob used to create this roi blob
 };
 
+bool operator==(const ROI& l, const ROI& r);
+
 /**
  * @brief Represents real host memory allocated for a Tensor/Blob per C type.
  */

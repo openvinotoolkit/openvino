@@ -330,6 +330,29 @@ TEST_F(NV12BlobTests, canCreateNV12BlobFromTwoMovedPlanes) {
     verifyCompoundBlob(nv12_blob);
 }
 
+TEST_F(NV12BlobTests, canCreateROIBlobFromNV12Blob) {
+    Blob::Ptr y_blob = make_shared_blob<uint8_t>(TensorDesc(Precision::U8, {1, 1, 6, 8}, NHWC));
+    Blob::Ptr uv_blob = make_shared_blob<uint8_t>(TensorDesc(Precision::U8, {1, 2, 3, 4}, NHWC));
+    NV12Blob::Ptr nv12_blob = make_shared_blob<NV12Blob>(y_blob, uv_blob);
+    y_blob->allocate();
+    uv_blob->allocate();
+
+    ROI roi{0, 2, 2, 4, 4};
+    Blob::Ptr roi_blob = nv12_blob->CreateROIBlob(roi);
+
+    EXPECT_TRUE(roi_blob->getROI());
+    EXPECT_EQ(roi, roi_blob->getROI()->roi);
+
+    NV12Blob::Ptr nv12_roi_blob = std::dynamic_pointer_cast<NV12Blob>(roi_blob);
+
+    EXPECT_EQ(roi, nv12_roi_blob->y()->getROI()->roi);
+    EXPECT_EQ(nv12_blob->y(), nv12_roi_blob->y()->getROI()->original);
+
+    ROI uvRoi{0, 1, 1, 2, 2};
+    EXPECT_EQ(uvRoi, nv12_roi_blob->uv()->getROI()->roi);
+    EXPECT_EQ(nv12_blob->uv(), nv12_roi_blob->uv()->getROI()->original);
+}
+
 TEST_F(I420BlobTests, canCreateI420BlobFromThreePlanes) {
     Blob::Ptr y_blob = make_shared_blob<uint8_t>(TensorDesc(Precision::U8, {1, 1, 6, 8}, NHWC));
     Blob::Ptr u_blob = make_shared_blob<uint8_t>(TensorDesc(Precision::U8, {1, 1, 3, 4}, NHWC));
@@ -347,6 +370,33 @@ TEST_F(I420BlobTests, canCreateI420BlobFromThreeMovedPlanes) {
         make_shared_blob<uint8_t>(TensorDesc(Precision::U8, {1, 1, 3, 4}, NHWC)),
         make_shared_blob<uint8_t>(TensorDesc(Precision::U8, {1, 1, 3, 4}, NHWC)));
     verifyCompoundBlob(i420_blob);
+}
+
+TEST_F(NV12BlobTests, canCreateROIBlobFromI420Blob) {
+    Blob::Ptr y_blob = make_shared_blob<uint8_t>(TensorDesc(Precision::U8, {1, 1, 6, 8}, NHWC));
+    Blob::Ptr u_blob = make_shared_blob<uint8_t>(TensorDesc(Precision::U8, {1, 1, 3, 4}, NHWC));
+    Blob::Ptr v_blob = make_shared_blob<uint8_t>(TensorDesc(Precision::U8, {1, 1, 3, 4}, NHWC));
+    I420Blob::Ptr i420_blob = make_shared_blob<I420Blob>(y_blob, u_blob, v_blob);
+    y_blob->allocate();
+    u_blob->allocate();
+    v_blob->allocate();
+
+    ROI roi{0, 2, 2, 4, 4};
+    Blob::Ptr roi_blob = i420_blob->CreateROIBlob(roi);
+
+    EXPECT_TRUE(roi_blob->getROI());
+    EXPECT_EQ(roi, roi_blob->getROI()->roi);
+
+    I420Blob::Ptr i420_roi_blob = std::dynamic_pointer_cast<I420Blob>(roi_blob);
+
+    EXPECT_EQ(roi, i420_roi_blob->y()->getROI()->roi);
+    EXPECT_EQ(i420_blob->y(), i420_roi_blob->y()->getROI()->original);
+
+    ROI uvRoi{0, 1, 1, 2, 2};
+    EXPECT_EQ(uvRoi, i420_roi_blob->u()->getROI()->roi);
+    EXPECT_EQ(i420_blob->u(), i420_roi_blob->u()->getROI()->original);
+    EXPECT_EQ(uvRoi, i420_roi_blob->v()->getROI()->roi);
+    EXPECT_EQ(i420_blob->v(), i420_roi_blob->v()->getROI()->original);
 }
 
 TEST_F(I420BlobTests, cannotCreateI420BlobFromNullptrBlobs) {

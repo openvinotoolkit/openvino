@@ -136,7 +136,7 @@ protected:
     Blob* clone() const override;
 
     /**
-     * @brief Setting ROI for the array of blobs is not allowed, exception is raised.
+     * @brief Sets ROI for the blob
      *
      * @param roiData region of interest and original blob
      */
@@ -213,6 +213,15 @@ public:
      * @brief Returns a shared pointer to UV plane
      */
     virtual const Blob::Ptr& uv() const noexcept;
+
+    /**
+     * @brief Creates another Blob, which is copy of current and share the same memory area, but describes only
+     * sub-region of that memory.
+     *
+     * @param roi region of interest
+     * @return Pointer to the copied and modified blob
+     */
+    Blob::Ptr CreateROIBlob(const ROI& roi) const override;
 
 protected:
     /**
@@ -334,6 +343,15 @@ public:
      * @return constant reference to shared pointer object of V plane
      */
     const Blob::Ptr& v() const noexcept;
+
+    /**
+     * @brief Creates another Blob, which is copy of current and share the same memory area, but describes only
+     * sub-region of that memory.
+     *
+     * @param roi region of interest
+     * @return Pointer to the copied and modified blob
+     */
+    Blob::Ptr CreateROIBlob(const ROI& roi) const override;
 
 protected:
     /**

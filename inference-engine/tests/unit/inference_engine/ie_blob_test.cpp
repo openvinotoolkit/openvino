@@ -402,12 +402,6 @@ TEST_F(BlobTests, makeRoiBlobWrongSize) {
     ASSERT_THROW(blob->CreateROIBlob(roi), InferenceEngine::details::InferenceEngineException);
 }
 
-namespace InferenceEngine {
-    bool operator==(const ROI&l, const ROI&r) {
-        return l.id == r.id && l.posX == r.posX && l.posY == r.posY && l.sizeX == r.sizeX && l.sizeY == r.sizeY;
-    }
-}
-
 TEST_F(BlobTests, makeRoiBlobCheckGetROI) {
     // we create main blob with NCHW layout. We will crop ROI from this blob.
     InferenceEngine::SizeVector dims = {1, 3, 4, 8};  // RGB picture of size (WxH) = 8x4

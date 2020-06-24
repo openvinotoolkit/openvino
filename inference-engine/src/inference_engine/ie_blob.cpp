@@ -25,4 +25,8 @@ Blob::Ptr Blob::CreateROIBlob(const ROI& roi) const {
     }
 }
 
+bool operator==(const ROI& l, const ROI& r) {
+    return l.id == r.id && l.posX == r.posX && l.posY == r.posY && l.sizeX == r.sizeX && l.sizeY == r.sizeY;
+}
+
 }  // namespace InferenceEngine

@@ -286,7 +286,7 @@ Blob* CompoundBlob::clone() const {
 }
 
 void CompoundBlob::setROI(const ROIData& roiData) {
-    THROW_IE_EXCEPTION << "Setting ROI for CompoundBlob is not allowed";
+    roiPtr.reset(new ROIData(roiData));
 }
 
 NV12Blob::NV12Blob(const Blob::Ptr& y, const Blob::Ptr& uv) {
@@ -329,6 +329,14 @@ Blob::Ptr& NV12Blob::uv() noexcept {
 const Blob::Ptr& NV12Blob::uv() const noexcept {
     // NOTE: UV plane is a memory blob, which is checked in the constructor
     return _blobs[1];
+}
+
+Blob::Ptr NV12Blob::CreateROIBlob(const ROI& roi) const {
+    NV12Blob::Ptr cloned = std::dynamic_pointer_cast<NV12Blob>(Blob::CreateROIBlob(roi));
+    const ROI uvRoi{roi.id, roi.posX/2, roi.posY/2, roi.sizeX/2, roi.sizeY/2};
+    cloned->y() = cloned->y()->CreateROIBlob(roi);
+    cloned->uv() = cloned->uv()->CreateROIBlob(uvRoi);
+    return cloned;
 }
 
 I420Blob::I420Blob(const Blob::Ptr& y, const Blob::Ptr& u, const Blob::Ptr& v) {
@@ -385,6 +393,15 @@ Blob::Ptr& I420Blob::v() noexcept {
 const Blob::Ptr& I420Blob::v() const noexcept {
     // NOTE: V plane is a memory blob, which is checked in the constructor
     return _blobs[2];
+}
+
+Blob::Ptr I420Blob::CreateROIBlob(const ROI& roi) const {
+    I420Blob::Ptr cloned = std::dynamic_pointer_cast<I420Blob>(Blob::CreateROIBlob(roi));
+    const ROI uvRoi{roi.id, roi.posX/2, roi.posY/2, roi.sizeX/2, roi.sizeY/2};
+    cloned->y() = cloned->y()->CreateROIBlob(roi);
+    cloned->u() = cloned->u()->CreateROIBlob(uvRoi);
+    cloned->v() = cloned->v()->CreateROIBlob(uvRoi);
+    return cloned;
 }
 
 }  // namespace InferenceEngine
