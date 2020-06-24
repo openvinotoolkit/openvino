@@ -2131,7 +2131,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_fake_quantize_const_inputs_infer)
     std::vector<float> input_data(n_elements);
     std::iota(std::begin(input_data), std::end(input_data), 0);
 
-    auto test_case = ngraph::test::NgraphTestCase(function, "${BACKEND_NAME}");
+    auto test_case = test::TestCase<TestEngine>(function);
     test_case.add_input<float>(input_data);
     test_case.add_expected_output<float>(
         data_shape, std::vector<float>{2.f,  2.f,  2.f,  2.f,  2.f,   5.5f,  5.5f,  5.5f,
@@ -2145,13 +2145,12 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_fake_quantize_nonconst_inputs_infer)
     const auto function = onnx_import::import_onnx_model(file_util::path_join(
         SERIALIZED_ZOO, "onnx/quantization/fake_quantize_nonconst_inputs.prototxt"));
 
-    auto test_case = ngraph::test::NgraphTestCase(function, "${BACKEND_NAME}");
-
     const Shape data_shape{1, 2, 3, 4};
     const size_t n_elements = shape_size(data_shape);
     std::vector<float> input_data(n_elements);
     std::iota(std::begin(input_data), std::end(input_data), 0);
 
+    auto test_case = test::TestCase<TestEngine>(function);
     test_case.add_input<float>(input_data);
     // input_low
     test_case.add_input<float>({3.f});
