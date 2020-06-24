@@ -36,9 +36,7 @@ void MKLDNNGenericNode::initSupportedPrimitiveDescriptors() {
 
         std::vector<InferenceEngine::ILayerImpl::Ptr> impls_no_exec;
 
-        IE_SUPPRESS_DEPRECATED_START
         InferenceEngine::StatusCode rc = extFactory->getImplementations(impls_no_exec, &resp);
-        IE_SUPPRESS_DEPRECATED_END
         for (const auto& impl : impls_no_exec) {
             if (auto exec_impl = std::dynamic_pointer_cast<InferenceEngine::ILayerExecImpl>(impl)) {
                 impls.emplace_back(exec_impl);
