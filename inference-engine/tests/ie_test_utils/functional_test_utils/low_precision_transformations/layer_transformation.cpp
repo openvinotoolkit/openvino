@@ -212,6 +212,8 @@ std::string LayerTransformation::getTestCaseNameByParams(
     return result.str();
 }
 
+IE_SUPPRESS_DEPRECATED_START
+
 bool LayerTransformation::fakeQuantizeExists(const InferenceEngine::ICNNNetwork& network) {
     auto it = InferenceEngine::details::CNNNetworkIterator(&network);
     auto end = details::CNNNetworkIterator();
@@ -224,6 +226,8 @@ bool LayerTransformation::fakeQuantizeExists(const InferenceEngine::ICNNNetwork&
 
     return false;
 }
+
+IE_SUPPRESS_DEPRECATED_END
 
 ngraph::element::Type toNGraph(const InferenceEngine::Precision precision) {
     switch (precision) {
