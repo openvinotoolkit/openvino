@@ -85,6 +85,7 @@ void register_implementations_gpu() {
     REGISTER_GPU(shuffle_channels);
     REGISTER_GPU(softmax);
     REGISTER_GPU(softmax_loss_grad);
+    REGISTER_GPU(space_to_batch);
     REGISTER_GPU(space_to_depth);
     REGISTER_GPU(strided_slice);
     REGISTER_GPU(tile);

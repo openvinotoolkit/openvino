@@ -81,6 +81,7 @@ enum class KernelType {
     REDUCE,
     GATHER_TREE,
     SPACE_TO_DEPTH,
+    SPACE_TO_BATCH,
     GRN,
     CTC_GREEDY_DECODER,
     CUM_SUM,

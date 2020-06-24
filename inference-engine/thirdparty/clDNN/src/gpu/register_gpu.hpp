@@ -77,6 +77,7 @@
 #include "api/shuffle_channels.hpp"
 #include "api/softmax.hpp"
 #include "api/softmax_loss_grad.hpp"
+#include "api/space_to_batch.hpp"
 #include "api/strided_slice.hpp"
 #include "api/tile.hpp"
 #include "api/resample.hpp"
@@ -163,6 +164,7 @@ REGISTER_GPU(select);
 REGISTER_GPU(shuffle_channels);
 REGISTER_GPU(softmax);
 REGISTER_GPU(softmax_loss_grad);
+REGISTER_GPU(space_to_batch);
 REGISTER_GPU(space_to_depth);
 REGISTER_GPU(strided_slice);
 REGISTER_GPU(tile);
