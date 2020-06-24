@@ -162,7 +162,7 @@ onnx_model_conv_with_dynamic_batch
 # Segmentation fault
 bool_init_and
 onnx_model_fake_quantize_const_inputs_infer
-onnx_model_fake_quantize_nonconst_intputs_infer
+onnx_model_fake_quantize_nonconst_inputs_infer
 
 # Incorrect number of 'indices_to_squeeze' input dimensions!
 arg_min_no_keep_dims_dyn_shape
