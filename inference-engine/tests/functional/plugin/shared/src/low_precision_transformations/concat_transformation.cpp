@@ -11,7 +11,8 @@
 #include <ie_core.hpp>
 
 #include <transformations/init_node_info.hpp>
-#include "ngraph_functions/builders.hpp"
+#include "ngraph_functions/subgraph_builders.hpp"
+#include "ngraph_functions/low_precision_transformations/concat_function.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -49,45 +50,52 @@ void ConcatTransformation::SetUp() {
 
     ConfigurePlugin(version);
 
-    const auto ngPrecision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+    if (version == LptVersion::nGraph) {
+        // function wihtout FQ is used here - new flow
+        function = ngraph::builder::subgraph::ConcatFunction::getOriginal(
+            FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision),
+            inputShape,
+            toNGraph(params));
+    } else if (version == LptVersion::cnnNetwork) {
+        // function with FQ is used here - to support current flow with FQ
+        const auto ngPrecision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
-    const auto interval = getQuantizationInterval(params.precisionsOnActivations[0]);
-    const float low = interval.first;
-    const float hight = interval.second;
+        const auto interval = getQuantizationInterval(params.precisionsOnActivations[0]);
+        const float low = interval.first;
+        const float hight = interval.second;
 
-    const auto input1 = std::make_shared<ngraph::opset1::Parameter>(ngPrecision, ngraph::Shape(inputShape));
-    input1->set_friendly_name("input1");
-    const auto fakeQuantize1 = ngraph::builder::makeFakeQuantize(
-        input1, ngPrecision, 256ul, { 1ul },
-        { low }, { hight }, { low }, { hight });
+        const auto input1 = std::make_shared<ngraph::opset1::Parameter>(ngPrecision, ngraph::Shape(inputShape));
+        input1->set_friendly_name("input1");
+        const auto fakeQuantize1 = ngraph::builder::makeFakeQuantize(
+            input1, ngPrecision, 256ul, { 1ul },
+            { low }, { hight }, { low }, { hight });
 
-    const std::vector<size_t> inputShape2 = { inputShape[0], inputShape[1], inputShape[2] / 2, inputShape[3] / 2 };
-    const auto input2 = std::make_shared<ngraph::opset1::Parameter>(ngPrecision, ngraph::Shape(inputShape2));
-    input1->set_friendly_name("input2");
-    const auto fakeQuantize2 = ngraph::builder::makeFakeQuantize(
-        input2, ngPrecision, 256ul, { 1ul },
-        { low / 2.f }, { hight / 2.f }, { low / 2.f }, { hight / 2.f });
+        const std::vector<size_t> inputShape2 = { inputShape[0], inputShape[1], inputShape[2] / 2, inputShape[3] / 2 };
+        const auto input2 = std::make_shared<ngraph::opset1::Parameter>(ngPrecision, ngraph::Shape(inputShape2));
+        input1->set_friendly_name("input2");
+        const auto fakeQuantize2 = ngraph::builder::makeFakeQuantize(
+            input2, ngPrecision, 256ul, { 1ul },
+            { low / 2.f }, { hight / 2.f }, { low / 2.f }, { hight / 2.f });
 
-    const auto interpolateShape = std::make_shared<ngraph::op::Constant>(
-        ngraph::element::i64,
-        ngraph::Shape{ 2 },
-        std::vector<int64_t>({ static_cast<int64_t>(inputShape[2]), static_cast<int64_t>(inputShape[3]) }));
-    ngraph::op::InterpolateAttrs interpolateAttrs;
-    interpolateAttrs.align_corners = false;
-    interpolateAttrs.antialias = false;
-    interpolateAttrs.axes = ngraph::AxisSet{2, 3};
-    interpolateAttrs.mode = "nearest";
-    interpolateAttrs.pads_begin = { 0 };
-    interpolateAttrs.pads_end = { 0 };
-    const auto interpolate = std::make_shared<ngraph::opset1::Interpolate>(fakeQuantize2->output(0), interpolateShape, interpolateAttrs);
+        const auto interpolateShape = std::make_shared<ngraph::op::Constant>(
+            ngraph::element::i64,
+            ngraph::Shape{ 2 },
+            std::vector<int64_t>({ static_cast<int64_t>(inputShape[2]), static_cast<int64_t>(inputShape[3]) }));
+        ngraph::op::InterpolateAttrs interpolateAttrs;
+        interpolateAttrs.align_corners = false;
+        interpolateAttrs.antialias = false;
+        interpolateAttrs.axes = ngraph::AxisSet{ 2, 3 };
+        interpolateAttrs.mode = "nearest";
+        interpolateAttrs.pads_begin = { 0 };
+        interpolateAttrs.pads_end = { 0 };
+        const auto interpolate = std::make_shared<ngraph::opset1::Interpolate>(fakeQuantize2->output(0), interpolateShape, interpolateAttrs);
 
-    const std::shared_ptr<ngraph::opset1::Concat> concat = std::make_shared<ngraph::opset1::Concat>(
-        ngraph::OutputVector{ fakeQuantize1->output(0), interpolate->output(0)}, 1);
+        const std::shared_ptr<ngraph::opset1::Concat> concat = std::make_shared<ngraph::opset1::Concat>(
+            ngraph::OutputVector{ fakeQuantize1->output(0), interpolate->output(0) }, 1);
 
-    ngraph::ResultVector results {std::make_shared<ngraph::opset1::Result>(concat)};
-    function = std::make_shared<ngraph::Function>(results, ngraph::ParameterVector { input1, input2 }, "ConcatTransformation");
+        ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(concat) };
+        function = std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input1, input2 }, "ConcatTransformation");
 
-    if (version == LptVersion::cnnNetwork) {
         validate();
     }
 }

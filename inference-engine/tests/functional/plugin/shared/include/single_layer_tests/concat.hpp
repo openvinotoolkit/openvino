@@ -22,6 +22,7 @@ using concatParamsTuple = typename std::tuple<
         InferenceEngine::Precision,        // Network precision
         std::string>;                      // Device name
 
+// Multichannel
 class ConcatLayerTest : public testing::WithParamInterface<concatParamsTuple>,
                         public LayerTestsUtils::LayerTestsCommon {
 public:
