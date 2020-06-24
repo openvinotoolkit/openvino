@@ -314,8 +314,6 @@ def test_squared_difference_operator():
     assert np.allclose(result, expected)
 
 
-@pytest.mark.skip_on_cpu
-@pytest.mark.skip_on_interpreter
 def test_shuffle_channels_operator():
     runtime = get_runtime()
 
@@ -577,8 +575,6 @@ def test_space_to_depth_operator():
     assert np.allclose(result, expected)
 
 
-@pytest.mark.skip_on_cpu
-def test_rnn_cell_operator():
     runtime = get_runtime()
 
     batch_size = 2

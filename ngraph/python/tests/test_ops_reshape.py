@@ -142,7 +142,6 @@ def test_transpose():
     assert np.allclose(result, expected)
 
 
-@pytest.mark.skip_on_interpreter  # unsupported op
 def test_tile():
     input_tensor = np.arange(6).reshape((2, 1, 3))
     repeats = np.array([2, 1])
