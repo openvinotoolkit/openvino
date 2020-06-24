@@ -1,0 +1,117 @@
+﻿// Copyright (c) 2020 Intel Corporation
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+
+#include "fused_conv_eltwise_kernel_b_fs_yx_fsv4.h"
+#include <vector>
+#include <utility>
+#include <algorithm>
+
+namespace kernel_selector {
+constexpr size_t sub_group_size = 16;
+
+fused_conv_eltwise_kernel_b_fs_yx_fsv4::fused_conv_eltwise_kernel_b_fs_yx_fsv4()
+    : fused_conv_eltwise_kernel_base("fused_conv_eltwise_gpu_b_fs_yx_fsv4") {
+}
+
+ParamsKey fused_conv_eltwise_kernel_b_fs_yx_fsv4::GetSupportedKey() const {
+    ParamsKey k;
+    k.EnableInputDataType(Datatype::F16);
+    k.EnableInputWeightsType(WeightsType::F16);
+    k.EnableOutputDataType(Datatype::F16);
+    k.EnableInputLayout(DataLayout::bfyx);
+    k.EnableInputLayout(DataLayout::b_fs_yx_fsv4);
+    k.EnableOutputLayout(DataLayout::bfyx);
+    k.EnableOutputLayout(DataLayout::image_2d_rgba);
+    k.EnableOutputDataType(Datatype::UINT8);
+    k.EnableTensorOffset();
+    k.EnableTensorPitches();
+    k.EnableSubGroup();
+    k.EnableSubGroupShort();
+    k.EnableBiasPerFeature();
+    k.EnableBiasPerOutput();
+    k.EnableNonBiasTerm();
+    k.EnableBatching();
+    k.EnableDifferentTypes();
+    k.EnableFusedConvEltwSplitSupport();
+    k.EnableFusedConvEltwDilation();
+    k.EnableFusedConvEltwTranspose();
+    k.EnableFusedConvEltwiseRWOutOpt();
+    k.EnableFusedConvEltwDepthToSpaceFusing();
+    k.EnableFusedConvEltwInt8Quantization();
+    k.EnableFusedConvEltwOutputCalibration();
+    k.EnableOutputLayout(DataLayout::b_fs_yx_fsv4);
+    k.EnableOutputDataType(Datatype::INT8);
+    k.EnableInputDataType(Datatype::INT8);
+    k.EnableInputWeightsType(WeightsType::INT8);
+    return k;
+}
+
+fused_conv_eltwise_kernel_base::DispatchData fused_conv_eltwise_kernel_b_fs_yx_fsv4::SetDefault(
+    const fused_conv_eltwise_params& cp,
+    int) const {
+    DispatchData runInfo = fused_conv_eltwise_kernel_base::SetDefault(cp);
+
+    runInfo.efficiency = FORCE_PRIORITY_9;
+
+    runInfo.gws0 = CeilDiv(cp.output.X().v, sub_group_size) / 4;
+    runInfo.gws1 = cp.output.Y().v / 2;
+    runInfo.gws2 = sub_group_size;
+
+    runInfo.lws0 = 1;
+    runInfo.lws1 = 1;
+    runInfo.lws2 = sub_group_size;
+
+    return runInfo;
+}
+
+bool fused_conv_eltwise_kernel_b_fs_yx_fsv4::Validate(const Params& p, const optional_params& o) const {
+    //if (!fused_conv_eltwise_kernel_base::Validate(p, o) || !FusedConvolutionEltwiseCheckInput(p, o)) {
+    if (!fused_conv_eltwise_kernel_base::Validate(p, o)) {
+        return false;
+    }
+
+    const auto& params = static_cast<const fused_conv_eltwise_params&>(p);
+    if (params.inputs[0].X().v % 128 || params.inputs[0].Y().v % 2)
+        return false;
+
+    return true;
+}
+
+JitConstants fused_conv_eltwise_kernel_b_fs_yx_fsv4::GetJitConstants(const fused_conv_eltwise_params& params,
+                                                                  const DispatchData& runInfo) const {
+    auto jit = Parent::GetJitConstants(params, runInfo);
+    jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", runInfo.lws2));
+
+    if (!params.fused_ops.empty()) {
+        auto input_dt = Datatype::F16;
+        FusedOpsConfiguration conf0 = { "_0", {"batch", "FILTER_OFM_MAX * iter + ofm + 0", "idy", "idx"}, "res0", input_dt, 1 };
+        FusedOpsConfiguration conf1 = { "_1", {"batch", "FILTER_OFM_MAX * iter + ofm + 1", "idy", "idx"}, "res1", input_dt, 1 };
+        FusedOpsConfiguration conf2 = { "_2", {"batch", "FILTER_OFM_MAX * iter + ofm + 2", "idy", "idx"}, "res2", input_dt, 1 };
+        FusedOpsConfiguration conf3 = { "_3", {"batch", "FILTER_OFM_MAX * iter + ofm + 3", "idy", "idx"}, "res3", input_dt, 1 };
+        FusedOpsConfiguration conf4 = { "_4", {"batch", "FILTER_OFM_MAX * iter + ofm + 0", "idy", "idx"}, "res4", input_dt, 1 };
+        FusedOpsConfiguration conf5 = { "_5", {"batch", "FILTER_OFM_MAX * iter + ofm + 1", "idy", "idx"}, "res5", input_dt, 1 };
+        FusedOpsConfiguration conf6 = { "_6", {"batch", "FILTER_OFM_MAX * iter + ofm + 2", "idy", "idx"}, "res6", input_dt, 1 };
+        FusedOpsConfiguration conf7 = { "_7", {"batch", "FILTER_OFM_MAX * iter + ofm + 3", "idy", "idx"}, "res7", input_dt, 1 };
+        jit.Merge(MakeFusedOpsJitConstants(params, { conf0, conf1, conf2, conf3, conf4, conf5, conf6, conf7 }));
+    }
+    return jit;
+}
+
+KernelsData fused_conv_eltwise_kernel_b_fs_yx_fsv4::GetKernelsData(const Params& params,
+                                                                        const optional_params& options) const {
+    return GetTunedKernelsDataByIndex(params, options);
+}
+
+}  // namespace kernel_selector
