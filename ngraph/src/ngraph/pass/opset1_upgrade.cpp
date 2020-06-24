@@ -53,40 +53,6 @@ namespace
         return op_cast_binary_elementwise_node<op::v0::And, op::v1::LogicalAnd>(node);
     }
 
-    shared_ptr<Node> op_cast(shared_ptr<op::AvgPool> node)
-    {
-        auto rounding_mode =
-            node->get_ceil_mode() ? op::RoundingType::CEIL : op::RoundingType::FLOOR;
-        auto exclude_pad = !node->get_include_padding_in_avg_computation();
-        auto auto_pad = node->get_pad_type();
-        auto pads_begin = node->get_padding_below();
-        auto pads_end = node->get_padding_above();
-        auto strides = node->get_window_movement_strides();
-        auto kernel = node->get_window_shape();
-
-        auto replacement_node = make_shared<op::v1::AvgPool>(node->input_value(0),
-                                                             strides,
-                                                             pads_begin,
-                                                             pads_end,
-                                                             kernel,
-                                                             exclude_pad,
-                                                             rounding_mode,
-                                                             auto_pad);
-#if defined(__clang__) && __clang_major__ == 3
-        // There are some really by clang 3.9 bugs
-        if (node->get_ceil_mode())
-        {
-            replacement_node->set_rounding_type(op::RoundingType::CEIL);
-        }
-        else
-        {
-            replacement_node->set_rounding_type(op::RoundingType::FLOOR);
-        }
-#endif
-        replace_node(node, replacement_node);
-        return replacement_node;
-    }
-
     shared_ptr<Node> op_cast(shared_ptr<op::Broadcast> node)
     {
         auto replacement_node = ngraph::builder::opset1::make_broadcast(

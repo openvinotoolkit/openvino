@@ -1011,27 +1011,6 @@ shared_ptr<Node> JSONDeserializer::deserialize_node(json node_js)
             break;
         }
 
-        case OP_TYPEID::AvgPool:
-        {
-            auto window_shape = node_js.at("window_shape").get<vector<size_t>>();
-            auto window_movement_strides =
-                node_js.at("window_movement_strides").get<vector<size_t>>();
-            auto padding_below = node_js.at("padding_below").get<vector<size_t>>();
-            auto padding_above = node_js.at("padding_above").get<vector<size_t>>();
-            auto include_padding_in_avg_computation =
-                node_js.at("include_padding_in_avg_computation").get<bool>();
-            op::PadType pad_type = read_pad_type(node_js);
-            bool ceil_mode = get_or_default<bool>(node_js, "ceil_mode", false);
-            node = make_shared<op::v0::AvgPool>(args[0],
-                                                window_shape,
-                                                window_movement_strides,
-                                                padding_below,
-                                                padding_above,
-                                                include_padding_in_avg_computation,
-                                                pad_type,
-                                                ceil_mode);
-            break;
-        }
         case OP_TYPEID::BatchMatMul:
         {
             node = make_shared<op::BatchMatMul>(args[0], args[1]);
@@ -2580,21 +2559,6 @@ json JSONSerializer::serialize_node(const Node& n)
         if (tmp->get_autob().m_type != op::AutoBroadcastType::NONE)
         {
             node["autob"] = write_auto_broadcast(tmp->get_autob());
-        }
-        break;
-    }
-    case OP_TYPEID::AvgPool:
-    {
-        auto tmp = static_cast<const op::v0::AvgPool*>(&n);
-        node["window_shape"] = tmp->get_window_shape();
-        node["window_movement_strides"] = tmp->get_window_movement_strides();
-        node["padding_below"] = tmp->get_padding_below();
-        node["padding_above"] = tmp->get_padding_above();
-        node["include_padding_in_avg_computation"] = tmp->get_include_padding_in_avg_computation();
-        node["pad_type"] = tmp->get_pad_type();
-        if (tmp->get_ceil_mode())
-        {
-            node["ceil_mode"] = tmp->get_ceil_mode();
         }
         break;
     }

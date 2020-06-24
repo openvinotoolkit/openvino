@@ -96,29 +96,6 @@ namespace
         return op_cast_binary_elementwise_node<op::v0::Add, op::v1::Add>(node);
     }
 
-    shared_ptr<Node> op_cast(shared_ptr<op::v1::AvgPool> node)
-    {
-        auto const input_arg = node->input_value(0);
-        const auto ceil_mode = static_cast<bool>(node->get_rounding_type());
-        const auto include_padding_in_avg_computation = !node->get_exclude_pad();
-        const auto pad_type = node->get_auto_pad();
-        const auto padding_below = node->get_pads_begin();
-        const auto padding_above = node->get_pads_end();
-        const auto window_movement_strides = node->get_strides();
-        const auto window_shape = node->get_kernel();
-
-        auto replacement_node = make_shared<op::v0::AvgPool>(input_arg,
-                                                             window_shape,
-                                                             window_movement_strides,
-                                                             padding_below,
-                                                             padding_above,
-                                                             include_padding_in_avg_computation,
-                                                             pad_type,
-                                                             ceil_mode);
-        replace_node(node, replacement_node);
-        return replacement_node;
-    }
-
     shared_ptr<Node> op_cast(shared_ptr<op::v1::Broadcast> node)
     {
         auto arg = node->input_value(0);
