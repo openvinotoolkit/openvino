@@ -5,6 +5,7 @@
 #include <gtest/gtest.h>
 
 #include <cnn_network_impl.hpp>
+#include <details/ie_cnn_network_iterator.hpp>
 #include <string>
 #include <sstream>
 #include <fstream>
@@ -17,6 +18,7 @@
 #include <ie_core.hpp>
 #include <net_pass.h>
 
+#include <ngraph/opsets/opset3.hpp>
 #include <ngraph/function.hpp>
 #include <ngraph/variant.hpp>
 #include <ngraph/op/maximum.hpp>
@@ -125,7 +127,8 @@ TEST(CNNNGraphImplTests, TestGetOutputAfterConvertNetwork) {
     }
 
     InferenceEngine::CNNNetwork cnnNet(ngraph);
-    cnnNet.begin();
+    // convert to old representation
+    cnnNet.getInputsInfo().begin()->second->getInputData()->getCreatorLayer();
     cnnNet.addOutput(testLayerName);
 
     InferenceEngine::OutputsDataMap outs = cnnNet.getOutputsInfo();
@@ -265,7 +268,8 @@ TEST(CNNNGraphImplTests, TestAddOutputFromConvertedNetwork) {
     cnnNet.addOutput(testLayerName);
     ASSERT_NE(nullptr, cnnNet.getFunction());
     ASSERT_EQ(5, cnnNet.layerCount());
-    cnnNet.begin();
+    // convert to old representation
+    cnnNet.getInputsInfo().begin()->second->getInputData()->getCreatorLayer();
     auto outputs = cnnNet.getOutputsInfo();
     ASSERT_EQ(2, outputs.size());
     ASSERT_TRUE(outputs.find("relu2") != outputs.end());
@@ -290,7 +294,8 @@ TEST(CNNNGraphImplTests, ConstantAsInternalAndExternalLayer) {
     }
 
     InferenceEngine::CNNNetwork cnnNet(ngraph);
-    cnnNet.begin();
+    // convert to old representation
+    cnnNet.getInputsInfo().begin()->second->getInputData()->getCreatorLayer();
     ASSERT_EQ(4, cnnNet.layerCount());
 }
 
@@ -408,15 +413,15 @@ TEST(CNNNGraphImplTests, SavePrimitivesPriority) {
     </edges>
 </net>
 )V0G0N";
-        const Core ie;
-        Blob::Ptr weights;
+    const Core ie;
+    Blob::Ptr weights;
 
-        auto network = ie.ReadNetwork(model, weights);
-        auto inputInfo = network.getInputsInfo();
-        auto cnnLayer = inputInfo.begin()->second->getInputData()->getCreatorLayer().lock();
-        ASSERT_TRUE(cnnLayer);
-        ASSERT_NE(cnnLayer->params.find("PrimitivesPriority"), cnnLayer->params.end());
-        ASSERT_EQ("cpu:avx2", cnnLayer->params["PrimitivesPriority"]);
+    auto network = ie.ReadNetwork(model, weights);
+    auto inputInfo = network.getInputsInfo();
+    auto cnnLayer = inputInfo.begin()->second->getInputData()->getCreatorLayer().lock();
+    ASSERT_TRUE(cnnLayer);
+    ASSERT_NE(cnnLayer->params.find("PrimitivesPriority"), cnnLayer->params.end());
+    ASSERT_EQ("cpu:avx2", cnnLayer->params["PrimitivesPriority"]);
 }
 
 TEST(CNNNGraphImplTests, ReadFromCNNNetReader) {
@@ -471,8 +476,7 @@ TEST(CNNNGraphImplTests, ReadFromCNNNetReader) {
 )V0G0N";
     InferenceEngine::Core core;
     CNNNetwork network = core.ReadNetwork(model, InferenceEngine::Blob::CPtr());
-    network.begin();
-    ASSERT_EQ(2, network.layerCount());
+    ASSERT_EQ(3, network.layerCount());
 }
 
 TEST(CNNNGraphImplTests, CanChangeInputPrecision) {
@@ -509,7 +513,8 @@ TEST(CNNNGraphImplTests, CanChangeInputPrecision) {
     {
         SCOPED_TRACE("Convert to old format");
 
-        cnnNet.begin();
+        // convert to old representation
+        cnnNet.getInputsInfo().begin()->second->getInputData()->getCreatorLayer();
     }
     {
         SCOPED_TRACE("After conversion");
@@ -555,7 +560,8 @@ TEST(CNNNGraphImplTests, CanChangeInputLayout) {
     {
         SCOPED_TRACE("Convert to old format");
 
-        cnnNet.begin();
+        // convert to old representation
+        cnnNet.getInputsInfo().begin()->second->getInputData()->getCreatorLayer();
     }
     {
         SCOPED_TRACE("After conversion");
@@ -601,7 +607,8 @@ TEST(CNNNGraphImplTests, CanChangeOutputPrecision) {
     {
         SCOPED_TRACE("Convert to old format");
 
-        cnnNet.begin();
+        // convert to old representation
+        cnnNet.getInputsInfo().begin()->second->getInputData()->getCreatorLayer();
     }
     {
         SCOPED_TRACE("After conversion");
@@ -647,7 +654,8 @@ TEST(CNNNGraphImplTests, CanChangeOutputLayout) {
     {
         SCOPED_TRACE("Convert to old format");
 
-        cnnNet.begin();
+        // convert to old representation
+        cnnNet.getInputsInfo().begin()->second->getInputData()->getCreatorLayer();
     }
     {
         SCOPED_TRACE("After conversion");
@@ -677,4 +685,25 @@ TEST(CNNNGraphImplTests, TestCheckStats) {
     InferenceEngine::details::CNNNetworkNGraphImpl cnnNet(ngraph);
 }
 
+TEST(CNNNGraphImplTests, CanSetBatchReadValue) {
+    std::shared_ptr<ngraph::Function> ngraph;
+    {
+        auto input = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::f32, ngraph::Shape{1, 2});
+        auto constant = std::make_shared<ngraph::opset3::Constant>(ngraph::element::f32, ngraph::Shape{1, 2},
+                std::vector<float>{1, 2});
+
+        auto read_value = std::make_shared<ngraph::opset3::ReadValue>(constant, "variable_id");
+        auto add = std::make_shared<ngraph::opset3::Add>(input, read_value);
+        auto result = std::make_shared<ngraph::op::Result>(add);
+
+        ngraph::ParameterVector params = {input};
+        ngraph::ResultVector results = {result};
+
+        ngraph = std::make_shared<ngraph::Function>(results, params);
+    }
+
+    InferenceEngine::details::CNNNetworkNGraphImpl cnnNet(ngraph);
+    auto status = cnnNet.getCNNNetwork()->setBatchSize(4, nullptr);
+    EXPECT_EQ(status, StatusCode::OK);
+}
 IE_SUPPRESS_DEPRECATED_END

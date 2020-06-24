@@ -112,4 +112,7 @@ std::string SplitToConcatWith2By64InputsAlignedNoFCWithOutCopy();
 std::string SplitToConcatWith3By512InputsWithOutCopy();
 
 std::string ReshapeConvolutionLessThan48Filters();
+
+std::string TwoInputsModelForIO();
+std::string PermuteModelForIO();
 }  // namespace GNATestIRs

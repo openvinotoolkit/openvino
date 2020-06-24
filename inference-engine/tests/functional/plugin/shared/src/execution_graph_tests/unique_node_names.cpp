@@ -57,9 +57,6 @@ void ExecGraphUniqueNodeNames::SetUp() {
 }
 
 void ExecGraphUniqueNodeNames::TearDown() {
-    if (targetDevice.find(CommonTestUtils::DEVICE_GPU) != std::string::npos) {
-        PluginCache::get().reset();
-    }
 }
 
 TEST_P(ExecGraphUniqueNodeNames, CheckUniqueNodeNames) {

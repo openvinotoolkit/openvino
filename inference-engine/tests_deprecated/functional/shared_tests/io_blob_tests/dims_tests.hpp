@@ -49,11 +49,7 @@ protected:
     }
 
     void TearDown() override {
-        if (deviceName.find(CommonTestUtils::DEVICE_GPU) != std::string::npos) {
-            PluginCache::get().reset();
-        }
     }
-
 
     std::string ConvNet(const int batch, TBlob<uint8_t>::Ptr &weights) {
         if (netPrc == Precision::FP32) {

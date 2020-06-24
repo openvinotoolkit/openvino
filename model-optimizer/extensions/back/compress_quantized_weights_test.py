@@ -37,12 +37,12 @@ nodes_attributes = {
     'weights_data': {'kind': 'data'},
 
     # quantize
-    'quantize1': {'type': 'FakeQuantize', 'kind': 'op', 'levels': 5, 'keep_in_IR': True},
-    'quantize2': {'type': 'FakeQuantize', 'kind': 'op', 'levels': 2, 'keep_in_IR': True},
-    'quantize3': {'type': 'FakeQuantize', 'kind': 'op', 'levels': None, 'keep_in_IR': True},
-    'quantize4': {'type': 'FakeQuantize', 'kind': 'op', 'levels': 122, 'keep_in_IR': True},
-    'quantize5': {'type': 'FakeQuantize', 'kind': 'op', 'levels': 202, 'keep_in_IR': True},
-    'quantize6': {'type': 'FakeQuantize', 'kind': 'op', 'levels': 257, 'keep_in_IR': True},
+    'quantize1': {'type': 'FakeQuantize', 'kind': 'op', 'levels': 5},
+    'quantize2': {'type': 'FakeQuantize', 'kind': 'op', 'levels': 2},
+    'quantize3': {'type': 'FakeQuantize', 'kind': 'op', 'levels': None},
+    'quantize4': {'type': 'FakeQuantize', 'kind': 'op', 'levels': 122},
+    'quantize5': {'type': 'FakeQuantize', 'kind': 'op', 'levels': 202},
+    'quantize6': {'type': 'FakeQuantize', 'kind': 'op', 'levels': 257},
     'quantize_data': {'kind': 'data'},
     'new_quantize1': {'kind': 'op', 'type': 'FakeQuantize', 'levels': 5},
     'new_quantize4': {'kind': 'op', 'type': 'FakeQuantize', 'levels': 122},
@@ -107,11 +107,9 @@ nodes_attributes = {
     'ac_output_high': {'kind': 'op', 'type': 'Const', 'shape': None, 'value': None, 'infer': Const.infer},
     'ac_output_high_data': {'kind': 'data', 'value': None, 'shape': None},
 
-    'ac_fakeQuantize': {'kind': 'op', 'type': 'FakeQuantize', 'levels': None, 'keep_in_IR': True,
-                        'infer': FakeQuantize.infer},
+    'ac_fakeQuantize': {'kind': 'op', 'type': 'FakeQuantize', 'levels': None, 'infer': FakeQuantize.infer},
     'ac_fakeQuantize_data': {'kind': 'data', 'shape': None, 'value': None},
-    'ac_quantize': {'kind': 'op', 'type': 'fakeQuantize', 'levels': None, 'keep_in_IR': True,
-                    'infer': FakeQuantize.infer},
+    'ac_quantize': {'kind': 'op', 'type': 'fakeQuantize', 'levels': None, 'infer': FakeQuantize.infer},
     'ac_quantize_data': {'kind': 'data', 'shape': None, 'value': None},
 
     'ac_convolution': {'kind': 'op', 'type': 'Convolution'},
@@ -145,7 +143,7 @@ class WeightQuantizeTest(unittest.TestCase):
                              ('add', 'quantize_data'),
                              ('quantize_data', 'convolution')],
                             nodes_with_edges_only=True)
-        graph.graph['cmd_params'] = Namespace(data_type='FP32', keep_quantize_ops_in_IR=True)
+        graph.graph['cmd_params'] = Namespace(data_type='FP32')
 
         graph_ref = build_graph(nodes_attributes,
                                 [('weights_const', 'weights_data'),
@@ -177,7 +175,7 @@ class WeightQuantizeTest(unittest.TestCase):
                              ('quantize_data', 'convolution', {'in': 1})],
                             nodes_with_edges_only=True)
 
-        graph.graph['cmd_params'] = Namespace(data_type='FP32', keep_quantize_ops_in_IR=True)
+        graph.graph['cmd_params'] = Namespace(data_type='FP32')
 
         graph_ref = build_graph(nodes_attributes,
                                 [('weights_const', 'weights_data'),
@@ -214,7 +212,7 @@ class WeightQuantizeTest(unittest.TestCase):
                              ('quantize_data', 'convolution', {'in': 1})],
                             nodes_with_edges_only=True)
 
-        graph.graph['cmd_params'] = Namespace(data_type='FP32', keep_quantize_ops_in_IR=True)
+        graph.graph['cmd_params'] = Namespace(data_type='FP32')
 
         graph_ref = build_graph(nodes_attributes,
                                 [('weights_const', 'weights_data'),
@@ -251,7 +249,7 @@ class WeightQuantizeTest(unittest.TestCase):
                              ('quantize_data', 'convolution', {'in': 1})],
                             nodes_with_edges_only=True)
 
-        graph.graph['cmd_params'] = Namespace(data_type='FP32', keep_quantize_ops_in_IR=True)
+        graph.graph['cmd_params'] = Namespace(data_type='FP32')
 
         graph_ref = build_graph(nodes_attributes,
                                 [('weights_const', 'weights_data'),
@@ -297,7 +295,7 @@ class WeightQuantizeTest(unittest.TestCase):
                              'input_high': {'shape': np.array([1]), 'value': 3},
                              'input_high_data': {'value': 3}},
                             nodes_with_edges_only=True)
-        graph.graph['cmd_params'] = Namespace(data_type='FP32', keep_quantize_ops_in_IR=True)
+        graph.graph['cmd_params'] = Namespace(data_type='FP32')
 
         graph_ref = build_graph(nodes_attributes,
                                 [('weights_const', 'weights_data'),
@@ -355,7 +353,7 @@ class WeightQuantizeTest(unittest.TestCase):
                              'input_high': {'shape': np.array([1]), 'value': 256.1},
                              'input_high_data': {'value': 256.1}},
                             nodes_with_edges_only=True)
-        graph.graph['cmd_params'] = Namespace(data_type='FP32', keep_quantize_ops_in_IR=True)
+        graph.graph['cmd_params'] = Namespace(data_type='FP32')
 
         graph_ref = build_graph(nodes_attributes,
                                 [('weights_const', 'weights_data'),
@@ -414,7 +412,7 @@ class WeightQuantizeTest(unittest.TestCase):
                              'input_high': {'shape': np.array([1]), 'value': -0.42},
                              'input_high_data': {'value': -0.42}},
                             nodes_with_edges_only=True)
-        graph.graph['cmd_params'] = Namespace(data_type='FP32', keep_quantize_ops_in_IR=True)
+        graph.graph['cmd_params'] = Namespace(data_type='FP32')
 
         graph_ref = build_graph(nodes_attributes,
                                 [('weights_const', 'weights_data'),
@@ -529,8 +527,8 @@ class WeightQuantizeTest(unittest.TestCase):
                              },
                             nodes_with_edges_only=True)
 
-        graph.graph['cmd_params'] = Namespace(data_type='FP32', keep_quantize_ops_in_IR=True, keep_shape_ops=True)
-        graph_ref.graph['cmd_params'] = Namespace(keep_quantize_ops_in_IR=True, keep_shape_ops=True)
+        graph.graph['cmd_params'] = Namespace(data_type='FP32', keep_shape_ops=True)
+        graph_ref.graph['cmd_params'] = Namespace(keep_shape_ops=True)
 
         graph.clean_up()
         graph_ref.clean_up()
@@ -622,8 +620,8 @@ class WeightQuantizeTest(unittest.TestCase):
                                  },
                                 nodes_with_edges_only=True)
 
-        graph.graph['cmd_params'] = Namespace(data_type='FP32', keep_quantize_ops_in_IR=True, keep_shape_ops=True)
-        graph_ref.graph['cmd_params'] = Namespace(keep_quantize_ops_in_IR=True, keep_shape_ops=True)
+        graph.graph['cmd_params'] = Namespace(data_type='FP32', keep_shape_ops=True)
+        graph_ref.graph['cmd_params'] = Namespace(keep_shape_ops=True)
 
         graph.clean_up()
         graph_ref.clean_up()
@@ -715,8 +713,8 @@ class WeightQuantizeTest(unittest.TestCase):
                                  },
                                 nodes_with_edges_only=True)
 
-        graph.graph['cmd_params'] = Namespace(data_type='FP32', keep_quantize_ops_in_IR=True, keep_shape_ops=True)
-        graph_ref.graph['cmd_params'] = Namespace(keep_quantize_ops_in_IR=True, keep_shape_ops=True)
+        graph.graph['cmd_params'] = Namespace(data_type='FP32', keep_shape_ops=True)
+        graph_ref.graph['cmd_params'] = Namespace(keep_shape_ops=True)
 
         graph.clean_up()
         graph_ref.clean_up()
@@ -806,8 +804,8 @@ class WeightQuantizeTest(unittest.TestCase):
                                  },
                                 nodes_with_edges_only=True)
 
-        graph.graph['cmd_params'] = Namespace(data_type='FP32', keep_quantize_ops_in_IR=True, keep_shape_ops=True)
-        graph_ref.graph['cmd_params'] = Namespace(keep_quantize_ops_in_IR=True, keep_shape_ops=True)
+        graph.graph['cmd_params'] = Namespace(data_type='FP32', keep_shape_ops=True)
+        graph_ref.graph['cmd_params'] = Namespace(keep_shape_ops=True)
 
         graph.clean_up()
         graph_ref.clean_up()

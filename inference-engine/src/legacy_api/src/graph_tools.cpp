@@ -35,25 +35,4 @@ std::vector<CNNLayerPtr> CNNNetSortTopologically(const ICNNNetwork& network) {
 
 }  // namespace details
 
-void CNNNetSubstituteLayer(InferenceEngine::ICNNNetwork& network, const InferenceEngine::CNNLayerPtr& layer,
-                           const InferenceEngine::CNNLayerPtr& newLayer) {
-    IE_ASSERT(layer->name == newLayer->name);
-
-    // Redirect srd data
-    for (auto& src : layer->insData) {
-        src.lock()->getInputTo()[layer->name] = newLayer;
-    }
-    newLayer->insData = layer->insData;
-
-    // Redirect dst data
-    for (auto& dst : layer->outData) {
-        dst->getCreatorLayer() = newLayer;
-    }
-    newLayer->outData = layer->outData;
-
-    IE_SUPPRESS_DEPRECATED_START
-    network.addLayer(newLayer);
-    IE_SUPPRESS_DEPRECATED_END
-}
-
 }  // namespace InferenceEngine
