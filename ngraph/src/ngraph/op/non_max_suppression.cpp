@@ -422,15 +422,15 @@ namespace ngraph
 
 // ------------------------------ V4 ------------------------------
 
-constexpr NodeTypeInfo op::v4::NonMaxSuppression::type_info;
+constexpr NodeTypeInfo op::dynamic::NonMaxSuppression::type_info;
 
-op::v4::NonMaxSuppression::NonMaxSuppression(
+op::dynamic::NonMaxSuppression::NonMaxSuppression(
     const Output<Node>& boxes,
     const Output<Node>& scores,
     const Output<Node>& max_output_boxes_per_class,
     const Output<Node>& iou_threshold,
     const Output<Node>& score_threshold,
-    const op::v4::NonMaxSuppression::BoxEncodingType box_encoding,
+    const op::dynamic::NonMaxSuppression::BoxEncodingType box_encoding,
     const bool sort_result_descending,
     const element::Type& output_type)
     : op::v3::NonMaxSuppression({boxes,
@@ -445,10 +445,10 @@ op::v4::NonMaxSuppression::NonMaxSuppression(
     constructor_validate_and_infer_types();
 }
 
-op::v4::NonMaxSuppression::NonMaxSuppression(
+op::dynamic::NonMaxSuppression::NonMaxSuppression(
     const Output<Node>& boxes,
     const Output<Node>& scores,
-    const op::v4::NonMaxSuppression::BoxEncodingType box_encoding,
+    const op::dynamic::NonMaxSuppression::BoxEncodingType box_encoding,
     const bool sort_result_descending,
     const element::Type& output_type)
     : op::v3::NonMaxSuppression({boxes,
@@ -464,7 +464,7 @@ op::v4::NonMaxSuppression::NonMaxSuppression(
 }
 
 shared_ptr<Node>
-    op::v4::NonMaxSuppression::clone_with_new_inputs(const OutputVector& new_args) const
+    op::dynamic::NonMaxSuppression::clone_with_new_inputs(const OutputVector& new_args) const
 {
     check_new_args_count(this, new_args);
     NODE_VALIDATION_CHECK(this,
@@ -491,7 +491,7 @@ shared_ptr<Node>
                                                        m_output_type);
 }
 
-void op::v4::NonMaxSuppression::validate_and_infer_types()
+void op::dynamic::NonMaxSuppression::validate_and_infer_types()
 {
     op::v3::NonMaxSuppression::validate_and_infer_types();
 

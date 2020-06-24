@@ -183,14 +183,14 @@ namespace ngraph
             };
         } // namespace v3
 
-        namespace v4
+        namespace dynamic
         {
             /// \brief NonMaxSuppression operation
             ///
             class NGRAPH_API NonMaxSuppression : public op::v3::NonMaxSuppression
             {
             public:
-                static constexpr NodeTypeInfo type_info{"NonMaxSuppression", 4};
+                static constexpr NodeTypeInfo type_info{"NonMaxSuppression", 99};
                 const NodeTypeInfo& get_type_info() const override { return type_info; }
                 NonMaxSuppression() = default;
 
@@ -235,7 +235,7 @@ namespace ngraph
                 std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
             };
-        } // namespace v4
+        } // namespace dynamic
     }     // namespace op
 
     NGRAPH_API

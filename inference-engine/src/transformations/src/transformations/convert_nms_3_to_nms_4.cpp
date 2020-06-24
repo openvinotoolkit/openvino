@@ -23,7 +23,7 @@ bool ngraph::pass::UpgradeNMS3ToNMS4::run_on_function(std::shared_ptr<ngraph::Fu
         if (!nms_3)
             continue;
 
-        const auto box_encoding = static_cast<const op::v4::NonMaxSuppression::BoxEncodingType>(nms_3->get_box_encoding());
+        const auto box_encoding = static_cast<const op::dynamic::NonMaxSuppression::BoxEncodingType>(nms_3->get_box_encoding());
         const auto new_args = nms_3->input_values();
         NODE_VALIDATION_CHECK(nms_3.get(),
                               new_args.size() >= 2 && new_args.size() <= 5,
@@ -32,7 +32,7 @@ bool ngraph::pass::UpgradeNMS3ToNMS4::run_on_function(std::shared_ptr<ngraph::Fu
         const auto& arg3 = new_args.size() > 3 ? new_args.at(3) : ngraph::opset3::Constant::create(element::f32, Shape{}, {.0f});
         const auto& arg4 = new_args.size() > 4 ? new_args.at(4) : ngraph::opset3::Constant::create(element::f32, Shape{}, {.0f});
 
-        const auto nms_4 = std::make_shared<op::v4::NonMaxSuppression>(
+        const auto nms_4 = std::make_shared<op::dynamic::NonMaxSuppression>(
                 new_args.at(0),
                 new_args.at(1),
                 arg2,
