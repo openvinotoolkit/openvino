@@ -392,8 +392,17 @@ inline Stage ModelObj::addNewStage(
 // runAllocator
 //
 
+VPU_DECLARE_ENUM(EnableShapeAllocation,
+                 YES,
+                 NO)
+
+VPU_DECLARE_ENUM(CheckOnlyCMX,
+                 YES,
+                 NO)
+
 AllocationResult runAllocator(
         const Model& model,
-        bool onlyCheckCMX = false);
+        EnableShapeAllocation = EnableShapeAllocation::NO,
+        CheckOnlyCMX = CheckOnlyCMX::NO);
 
 }  // namespace vpu
