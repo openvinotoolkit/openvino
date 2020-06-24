@@ -216,7 +216,7 @@ TEST(constant_folding, constant_reshape)
     ASSERT_TRUE(test::all_close_f(values_in, values_out, MIN_FLOAT_TOLERANCE_BITS));
 }
 
-TEST(constant_folding, constant_reshape_permute)
+TEST(constant_folding, DISABLED_constant_reshape_permute)
 {
     Shape shape_in{2, 4};
     Shape shape_out{4, 2};
@@ -2939,7 +2939,7 @@ TEST(constant_folding, constant_non_zero_2D)
     ASSERT_EQ((Shape{2, 4}), new_const->get_shape());
 }
 
-TEST(constant_folding, constant_non_zero_2D_all_indices)
+TEST(constant_folding, DISABLED_constant_non_zero_2D_all_indices)
 {
     const vector<int8_t> values_in{1, 1, 1, 1, 1, 1, 1, 1, 1};
     const auto data = make_shared<op::Constant>(element::i8, Shape{3, 3}, values_in);
@@ -2962,7 +2962,7 @@ TEST(constant_folding, constant_non_zero_2D_all_indices)
     ASSERT_EQ((Shape{2, values_in.size()}), new_const->get_shape());
 }
 
-TEST(constant_folding, constant_non_zero_2D_all_zeros)
+TEST(constant_folding, DISABLED_constant_non_zero_2D_all_zeros)
 {
     const vector<uint8_t> values_in{0, 0, 0, 0, 0, 0};
     const auto data = make_shared<op::Constant>(element::u8, Shape{2, 3}, values_in);
