@@ -12,7 +12,7 @@ namespace {
 // Common params
 const std::vector<InferenceEngine::Precision> inputPrecisions = {
         InferenceEngine::Precision::FP32
-        // TODO: Fix CVS-27390
+        // TODO: Fix Issue-27390
         // InferenceEngine::Precision::I16,
         // InferenceEngine::Precision::U8
 };

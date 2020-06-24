@@ -43,8 +43,8 @@ class Broadcast(Op):
             'in_ports_count': 3,
             'out_ports_count': 1,
             'force_precision_in_ports':
-                {1: 'int64' if graph.graph['cmd_params'].generate_experimental_IR_V10 else 'int32',
-                 2: 'int64' if graph.graph['cmd_params'].generate_experimental_IR_V10 else 'int32',
+                {1: 'int64',
+                 2: 'int64',
                  },
             'infer': __class__.infer,
         }, attrs)

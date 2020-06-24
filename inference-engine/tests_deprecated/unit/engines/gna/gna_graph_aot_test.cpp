@@ -42,7 +42,7 @@ TEST_F(GNAAOTTests, DISABLED_AffineWith2AffineOutputs_canbe_export_imported) {
 }
 
 
-// Disabled because of random fails: CVS-23611
+// Disabled because of random fails: Issue-23611
 TEST_F(GNAAOTTests, DISABLED_AffineWith2AffineOutputs_canbe_imported_verify_structure) {
 
 #if GNA_LIB_VER == 2
@@ -66,6 +66,42 @@ TEST_F(GNAAOTTests, DISABLED_AffineWith2AffineOutputs_canbe_imported_verify_stru
         .inNotCompactMode().withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR), 1.0f).gna()
         .propagate_forward().called_with().exact_nnet_structure(&nnet_type);
 
+}
+
+TEST_F(GNAAOTTests, TwoInputsModel_canbe_export_imported) {
+#if GNA_LIB_VER == 1
+    GTEST_SKIP();
+#endif
+
+    const std::string X = registerFileForRemove("unit_tests.bin");
+
+    // running export to a file
+    export_network(TwoInputsModelForIO())
+            .inNotCompactMode()
+            .withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR) + std::string("_0"), 1.0f)
+            .withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR) + std::string("_1"), 1.0f)
+            .as().gna().model().to(X);
+
+    // running infer using imported model instead of IR
+    assert_that().onInferModel().importedFrom(X)
+            .inNotCompactMode().gna().propagate_forward().called().once();
+}
+
+TEST_F(GNAAOTTests, PermuteModel_canbe_export_imported) {
+
+#if GNA_LIB_VER == 1
+    GTEST_SKIP();
+#endif
+
+    const std::string X = registerFileForRemove("unit_tests.bin");
+
+    // running export to a file
+    export_network(PermuteModelForIO())
+            .inNotCompactMode().withGNAConfig(GNA_CONFIG_KEY(SCALE_FACTOR), 1.0f).as().gna().model().to(X);
+
+    // running infer using imported model instead of IR
+    assert_that().onInferModel().importedFrom(X)
+            .inNotCompactMode().gna().propagate_forward().called().once();
 }
 
 TEST_F(GNAAOTTests, CanConvertFromAOTtoSueModel) {

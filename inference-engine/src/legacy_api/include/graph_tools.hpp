@@ -322,19 +322,6 @@ inline bool CNNNetForestDFS(const Forest& heads, const T& visit, bool bVisitBefo
 }
 
 /**
- * Generic BFS algorithm traverser - with limiting depth
- * @param layer - starting layer
- * @param visit - callback to be called upon visiting
- */
-template <class T>
-inline void CNNNetNBFS(const InferenceEngine::CNNLayerPtr& layer, int maxDept, const T& visit) {
-    if (!layer) {
-        return;
-    }
-    details::BFS(layer, visit, maxDept + 1);
-}
-
-/**
  * Generic BFS algorithm traverser
  * @param layer - starting layer
  * @param visit - callback to be called upon visiting
@@ -464,11 +451,6 @@ using CNNNetCPtr = std::shared_ptr<const ICNNNetwork>;
 template <class Copier>
 inline CNNNetPtr CNNNetCopy(const ICNNNetwork& input, const Copier& cp) {
     auto net = std::make_shared<details::CNNNetworkImpl>();
-
-    // setting base args
-    IE_SUPPRESS_DEPRECATED_START
-    net->setPrecision(input.getPrecision());
-    IE_SUPPRESS_DEPRECATED_END
 
     net->setName(input.getName());
 
