@@ -96,7 +96,7 @@ namespace ngraph
             ///
             /// \param[in]  name       The name of the node.
             ///
-            /// \return     The node named `name` from subgraph (as first) or from parent graph.
+            /// \return     The node named `name` from subgraph (as present) or from parent graph.
             std::shared_ptr<ngraph::Node> get_node(const std::string& name) const override;
 
             /// \brief      Return true if the node named `name` exist in the cache.

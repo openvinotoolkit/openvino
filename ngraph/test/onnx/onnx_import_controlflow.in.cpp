@@ -74,7 +74,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_scalars_check_model)
     EXPECT_EQ(function->get_output_shape(1), (Shape{3}));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_add_value_from_parent_scope)
+NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_add_value_from_parent_scope)
 {
     const auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/loop_2d_add_parent_scope.prototxt"));
@@ -95,7 +95,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_add_value_from_parent_scope)
     EXPECT_EQ(function->get_output_shape(1), (Shape{3, 2}));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_add_value_access_to_body_scope_exception)
+NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_add_value_access_to_body_scope_exception)
 {
     try
     {
@@ -105,6 +105,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_add_value_access_to_body_scope_exc
     }
     catch (const ngraph_error& e)
     {
+        // patent graph should have no access to subgraph (body Loop) scope
         EXPECT_HAS_SUBSTRING(e.what(),
                              std::string("from_body_scope node not found in graph cache"));
     }
@@ -114,7 +115,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_add_value_access_to_body_scope_exc
     }
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_add_value_the_same_node_from_parent_and_subgraph)
+NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_add_value_the_same_node_from_parent_and_subgraph)
 {
     const auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/loop_2d_add_the_same_name.prototxt"));
