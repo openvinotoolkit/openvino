@@ -147,7 +147,7 @@ namespace ngraph
             }
         }
 
-        const GraphCache* Graph::get_graph_cache() const { return m_cache.get(); }
+        const GraphCache& Graph::get_graph_cache() const { return *m_cache.get(); }
         bool Graph::is_node_in_cache(const std::string& name) const
         {
             return m_cache->contains(name);

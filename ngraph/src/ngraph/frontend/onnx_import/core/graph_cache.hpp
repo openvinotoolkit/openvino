@@ -86,9 +86,9 @@ namespace ngraph
             /// \brief      Constructs a SubgraphCache class object.
             ///
             /// \param[in]  graph_proto          ONNX protobuf graph representation.
-            /// \param[in]  parent_graph_cache   The shared pointer to the parent graph.
+            /// \param[in]  parent_graph_cache   The reference to the parent graph.
             SubgraphCache(const ONNX_NAMESPACE::GraphProto& graph_proto,
-                          const GraphCache* parent_graph_cache);
+                          const GraphCache& parent_graph_cache);
 
             /// \brief      Get the node from the cache (subgraph or parent graph)
             ///
