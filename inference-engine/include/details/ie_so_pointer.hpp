@@ -32,8 +32,6 @@ private:
     std::shared_ptr<Loader> _so_loader;
 
 public:
-    IE_SUPPRESS_DEPRECATED_START
-
     /**
      * @brief The main constructor
      * @param loader Library to load from
@@ -51,7 +49,6 @@ public:
      */
     template <class T>
     T* instantiateSymbol(const std::string& name) const {
-        IE_SUPPRESS_DEPRECATED_START
         T* instance = nullptr;
         ResponseDesc desc;
         StatusCode sts = bind_function<StatusCode(T*&, ResponseDesc*)>(name)(instance, &desc);
@@ -59,7 +56,6 @@ public:
             THROW_IE_EXCEPTION << desc.msg;
         }
         return instance;
-        IE_SUPPRESS_DEPRECATED_END
     }
 
 private:
@@ -73,8 +69,6 @@ private:
         std::function<T> ptr(reinterpret_cast<T*>(_so_loader->get_symbol(functionName.c_str())));
         return ptr;
     }
-
-    IE_SUPPRESS_DEPRECATED_END
 };
 
 /**
@@ -91,7 +85,6 @@ class SOCreatorTrait {};
  */
 template <class T, class Loader = SharedObjectLoader>
 class SOPointer {
-    IE_SUPPRESS_DEPRECATED_START
     template <class U, class W>
     friend class SOPointer;
 
@@ -206,7 +199,6 @@ protected:
      * @brief Gets a smart pointer to the custom object
      */
     std::shared_ptr<T> _pointedObj;
-    IE_SUPPRESS_DEPRECATED_END
 };
 
 }  // namespace details

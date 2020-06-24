@@ -10,8 +10,6 @@ using namespace InferenceEngine;
 using namespace std;
 using namespace GNAPluginNS;
 
-IE_SUPPRESS_DEPRECATED_START
-
 static const Version gnaPluginDescription = {
         {2, 1},
         CI_BUILD_NUMBER

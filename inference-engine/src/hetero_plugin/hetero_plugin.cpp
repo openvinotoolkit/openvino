@@ -274,8 +274,6 @@ Parameter Engine::GetConfig(const std::string& name, const std::map<std::string,
     }
 }
 
-IE_SUPPRESS_DEPRECATED_START
-
 INFERENCE_PLUGIN_API(InferenceEngine::StatusCode) CreatePluginEngine(
         InferenceEngine::IInferencePlugin *&plugin,
         InferenceEngine::ResponseDesc *resp) noexcept {
