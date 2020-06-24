@@ -2109,14 +2109,13 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_scatter_elements_import_only)
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_fake_quantize_import_only)
 {
     const auto function = onnx_import::import_onnx_model(file_util::path_join(
-        SERIALIZED_ZOO, "onnx/quantization/fake_quantize_from_mobilenet.prototxt"));
+        SERIALIZED_ZOO, "onnx/quantization/fake_quantize_const_inputs.prototxt"));
 
-    const Shape expected_output_shape{32, 3, 3, 3};
-
+    const Shape expected_output_shape{1, 2, 3, 4};
     EXPECT_EQ(function->get_output_size(), 1);
     EXPECT_EQ(function->get_output_shape(0), expected_output_shape);
     EXPECT_EQ(count_ops_of_type<op::v0::FakeQuantize>(function), 1);
-    EXPECT_EQ(count_ops_of_type<op::v0::Constant>(function), 3);
+    EXPECT_EQ(count_ops_of_type<op::v0::Constant>(function), 4);
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_fake_quantize_const_inputs_infer)
