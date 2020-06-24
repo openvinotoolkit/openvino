@@ -34,6 +34,7 @@
 #include <vector>
 #include <memory>
 #include <utility>
+#include <iostream>
 
 using namespace cldnn;
 
@@ -741,6 +742,7 @@ layout layout_optimizer::get_expected_layout(layout const& current_layout,
     auto expected_tensor = current_layout.size;
     auto expected_data_type = current_layout.data_type;
     auto expected_format = current_layout.format;
+    auto input_tensor = node.get_dependency(0).get_output_layout().size;
 
     if (_optimization_attributes.b_fs_zyx_fsv16_network &&
         deconvolution_b_fs_zyx_fsv16_opt(current_layout, output_or_weights_layout, prim)) {
@@ -753,11 +755,15 @@ layout layout_optimizer::get_expected_layout(layout const& current_layout,
     } else if (_optimization_attributes.b_fs_yx_fsv16_network &&
                deconvolution_b_fs_yx_fsv16_opt(current_layout, output_or_weights_layout, prim)) {
         expected_tensor = current_layout.size;
-        if (expected_tensor.feature[0] % 16 != 0) {
-            expected_format = cldnn::format::bfyx;
-        } else
+        //std::cout << "feature[0] " << expected_tensor.feature[0] << std::endl;
+        //std::cout << "input[0] " << input_tensor.feature[0] << std::endl;
+        if (expected_tensor.feature[0] % 16 == 0 || input_tensor.feature[0] % 16 == 0) {
             expected_format = cldnn::format::b_fs_yx_fsv16;
+        } else
+            expected_format = cldnn::format::bfyx;
     }
+    //std::cout << expected_format.order() << std::endl;
+    //std::cout << expected_format.internal_order() << std::endl;
     return layout(expected_data_type, expected_format, expected_tensor);
 }
 
