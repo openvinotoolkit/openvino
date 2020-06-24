@@ -138,12 +138,12 @@ void ConcatWithPoolingTestModel::resetTransformation(CNNNetwork& network) const 
 }
 
 float ConcatWithPoolingTestModel::getThreshold(
-    const std::string& pluginName,
+    const std::string& deviceName,
     const Precision precision,
     LayerTransformation::Params& params) const {
     if (params.quantizeOutputs && signedIntervals && shift && (dequantizationIntervalsDifference != 0.f)) {
         return 0.0153;
     }
 
-    return SingleLayerTestModel::getThreshold(pluginName, precision, params);
+    return SingleLayerTestModel::getThreshold(deviceName, precision, params);
 }
