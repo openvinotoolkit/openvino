@@ -82,10 +82,6 @@ TEST_P(ConcatQuantization, CompareWithRefImpl) {
     catch (InferenceEngine::details::InferenceEngineException ex) {
         FAIL() << ex.what();
     }
-
-    if (targetDevice == std::string{CommonTestUtils::DEVICE_GPU}) {
-        PluginCache::get().reset();
-    }
 };
 
 }  // namespace LayerTestsDefinitions

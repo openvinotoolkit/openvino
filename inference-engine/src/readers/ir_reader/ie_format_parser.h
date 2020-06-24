@@ -87,7 +87,7 @@ protected:
 
 private:
     size_t _version;
-    Precision _defPrecision;
+    Precision _defPrecision = Precision::UNSPECIFIED;
     std::vector<std::shared_ptr<BaseCreator>> creators;
     std::map<std::string, DataPtr> _portsToData;
 
@@ -98,8 +98,6 @@ private:
     CNNLayer::Ptr CreateLayer(pugi::xml_node& node, LayerParseParameters& prms) const;
 
     void SetLayerInput(CNNNetworkImpl& network, const std::string& data, CNNLayerPtr& targetLayer, int inputPort);
-
-    DataPtr ParseInputData(pugi::xml_node& root) const;
 
     void ParsePreProcess(pugi::xml_node& node);
 

@@ -454,7 +454,8 @@ if(NGRAPH_ADDRESS_SANITIZER)
 endif()
 
 target_link_libraries(unit-test PRIVATE ngraph_test_util)
-target_link_libraries(unit-test PRIVATE ngraph ngraph_backend libgtest)
+target_link_libraries(unit-test PRIVATE ngraph)
+target_link_libraries(unit-test PRIVATE ngraph_backend libgtest)
 
 if (NGRAPH_ONNX_IMPORT_ENABLE)
     target_include_directories(unit-test
@@ -479,6 +480,10 @@ endif()
 # We should probably split up type_prop.cpp.
 if (MSVC)
     target_compile_options(unit-test PRIVATE "/bigobj")
+endif()
+
+if (TARGET inference_engine)
+    target_link_libraries(unit-test PRIVATE inference_engine)
 endif()
 
 if (NGRAPH_ONNX_IMPORT_ENABLE)

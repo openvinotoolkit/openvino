@@ -176,6 +176,63 @@ inline std::pair<InferenceEngine::CNNLayerPtr, int>  CNNNetCheckNextLayerSkipCer
     return CNNNetCheckNextLayerSkipCertain(outLayer->second, 0, 0, bOnlyCheck, shouldSkip);
 }
 
+/**
+ * @brief return all layers reachable from given one
+ * @param layer
+ * @param oDataIdx - -1 means iterate over all odata indexes
+ * @param shouldSkip
+ * @return
+ */
+    template <class Layer>
+    inline std::vector<CNNLayerPtr> CNNNetGetAllNextLayersSkipCertain(Layer layer, int oDataIdx, const std::function<bool(CNNLayerPtr)> &shouldSkip)  {
+        // TODO: need to have generic function that creates slice of the graph : starting from given layer
+        //  and skipped all non functional - ending up into functional one
+
+        std::list<CNNLayerPtr> currentSet;
+        std::vector<CNNLayerPtr> resultSet;
+
+        std::vector<std::map<std::string, CNNLayerPtr>> start;
+        if (oDataIdx == -1) {
+            for (int i = 0; i != layer->outData.size(); i++) {
+                start.push_back(layer->outData[i]->getInputTo());
+            }
+        } else {
+            start.push_back(layer->outData[oDataIdx]->getInputTo());
+        }
+
+        auto separate_layers = [&currentSet, &resultSet, &shouldSkip](std::map<std::string, CNNLayerPtr>& inputTo) {
+            for (auto &&bfsLayer : inputTo) {
+                if (shouldSkip(bfsLayer.second)) {
+                    currentSet.push_back(bfsLayer.second);
+                    continue;
+                }
+                resultSet.push_back(bfsLayer.second);
+            }
+        };
+
+        int startIdx, endIdx;
+        if (oDataIdx == -1) {
+            startIdx = 0;
+            endIdx = layer->outData.size();
+        } else {
+            startIdx = oDataIdx;
+            endIdx = oDataIdx + 1;
+        }
+
+        for (int i = startIdx; i != endIdx; i++) {
+            separate_layers(layer->outData[i]->getInputTo());
+        }
+
+        while (!currentSet.empty()) {
+            auto currentLayer = currentSet.front();
+            currentSet.pop_front();
+            for (auto && oData : currentLayer->outData) {
+                separate_layers(oData->getInputTo());
+            }
+        }
+        return resultSet;
+    }
+
 /// @brief alias for strict checkNextLayer (false)
 template <class Layer>
 inline std::pair<InferenceEngine::CNNLayerPtr, int>  CNNNetGetNextLayerSkipCertain(Layer layer, int oidx, int iidx,
@@ -474,7 +531,31 @@ inline void CNNNetworkInsertLayer(CNNLayerPtr after,
 }
 
 /**
- * @brief remove givven layer from topology, currently only layers with one input data and one output data supported
+ * @brief returns previous layers and outData index for it
+ * @tparam T
+ * @param origin
+ * @param acceptanceCriteria
+ * @param idx
+ */
+template <class T>
+std::vector<std::pair<CNNLayerPtr, int> > CNNNetGetPrevLayersSkip(CNNLayerPtr origin, const T &acceptanceCriteria, int idx = -1) {
+    std::vector<std::pair<CNNLayerPtr, int> > prevLayers;
+    for (int i = idx == -1 ? 0 : idx; CNNNetHasPrevLayer(origin.get(), i) && (idx == -1 || i == idx); i++) {
+        auto prevLayer = CNNNetPrevLayer(origin, i);
+        if (acceptanceCriteria(prevLayer)) {
+            prevLayers.push_back({prevLayer, CNNLayerFindOutDataIdx(origin, i)});
+        } else {
+            // if for some input we need to look in upper layers - original index not used here intentionally
+            auto prevPrevLayers = CNNNetGetPrevLayersSkip(prevLayer, acceptanceCriteria);
+            prevLayers.insert(prevLayers.end(), prevPrevLayers.begin(), prevPrevLayers.end());
+        }
+    }
+
+    return prevLayers;
+}
+
+/**
+ * @brief remove given layer from topology, currently only layers with one input data and one output data supported
  */
 inline void CNNNetworkRemoveLayer(CNNLayerPtr layer) {
     if (!layer) {

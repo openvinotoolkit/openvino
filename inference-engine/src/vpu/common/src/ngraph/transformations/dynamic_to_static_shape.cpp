@@ -2,24 +2,25 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "vpu/ngraph/transformations/dynamic_to_static_shape.hpp"
+#include "vpu/ngraph/transformations/dynamic_to_static_shape_binary_elementwise.hpp"
 #include "vpu/ngraph/transformations/dynamic_to_static_shape_broadcast.hpp"
 #include "vpu/ngraph/transformations/dynamic_to_static_shape_concat.hpp"
-#include "vpu/ngraph/transformations/dynamic_to_static_shape_unary_elementwise.hpp"
-#include "vpu/ngraph/transformations/dynamic_to_static_shape_reduce.hpp"
-#include "vpu/ngraph/transformations/dynamic_to_static_shape_roialign.hpp"
-#include "vpu/ngraph/transformations/dynamic_to_static_shape_topk.hpp"
-#include "vpu/ngraph/transformations/dynamic_to_static_shape_transpose.hpp"
-#include "vpu/ngraph/transformations/dynamic_to_static_shape_variadic_split.hpp"
+#include "vpu/ngraph/transformations/dynamic_to_static_shape_gather.hpp"
+#include "vpu/ngraph/transformations/dynamic_to_static_shape_matmul.hpp"
 #include "vpu/ngraph/transformations/dynamic_to_static_shape_non_max_suppression.hpp"
 #include "vpu/ngraph/transformations/dynamic_to_static_shape_nonzero.hpp"
-#include "vpu/ngraph/transformations/dynamic_to_static_shape_binary_elementwise.hpp"
-#include "vpu/ngraph/transformations/dynamic_to_static_shape.hpp"
-#include "vpu/ngraph/transformations/dynamic_to_static_shape_strided_slice.hpp"
-#include "vpu/ngraph/transformations/dynamic_to_static_shape_squeeze.hpp"
-#include "vpu/ngraph/transformations/dynamic_to_static_shape_unsqueeze.hpp"
-#include "vpu/ngraph/transformations/dynamic_to_static_shape_gather.hpp"
-#include "vpu/ngraph/transformations/dynamic_to_static_shape_shapeof.hpp"
+#include "vpu/ngraph/transformations/dynamic_to_static_shape_reduce.hpp"
 #include "vpu/ngraph/transformations/dynamic_to_static_shape_reshape.hpp"
+#include "vpu/ngraph/transformations/dynamic_to_static_shape_roialign.hpp"
+#include "vpu/ngraph/transformations/dynamic_to_static_shape_shapeof.hpp"
+#include "vpu/ngraph/transformations/dynamic_to_static_shape_squeeze.hpp"
+#include "vpu/ngraph/transformations/dynamic_to_static_shape_strided_slice.hpp"
+#include "vpu/ngraph/transformations/dynamic_to_static_shape_topk.hpp"
+#include "vpu/ngraph/transformations/dynamic_to_static_shape_transpose.hpp"
+#include "vpu/ngraph/transformations/dynamic_to_static_shape_unary_elementwise.hpp"
+#include "vpu/ngraph/transformations/dynamic_to_static_shape_unsqueeze.hpp"
+#include "vpu/ngraph/transformations/dynamic_to_static_shape_variadic_split.hpp"
 
 #include "vpu/utils/error.hpp"
 
@@ -87,6 +88,7 @@ const Transformations& getDefaultTransformations() {
         {ngraph::opset3::ROIAlign::type_info,  dynamicToStaticShapeROIAlign},
         {ngraph::opset3::Reshape::type_info,   dynamicToStaticShapeReshape},
         {ngraph::opset3::Broadcast::type_info, dynamicToStaticShapeBroadcast},
+        {ngraph::opset3::MatMul::type_info, dynamicToStaticShapeMatMul},
 
         // reduction
         {ngraph::opset3::ReduceLogicalAnd::type_info, dynamicToStaticShapeReduce},
