@@ -1171,8 +1171,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_upsample9_scales_input_nearest_infer)
     // mode: nearest
 
     Shape expected_output_shape{1, 1, 4, 6};
-    auto test_case =
-        ngraph::test::NgraphTestCase(function, "${BACKEND_NAME}", test::BackendMode::DYNAMIC);
+    auto test_case = test::TestCase<TestEngine, TestCaseType::DYNAMIC>(function);
     test_case.add_input<float>({1.0, 2.0, 3.0, 4.0});
     test_case.add_input<float>({1.0, 1.0, 2.0, 3.0});
     test_case.add_expected_output<float>(
