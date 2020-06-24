@@ -273,29 +273,17 @@ namespace
                                                ellipsis_mask);
         switch (in->get_element_type())
         {
-            TYPE_CASE(i8)(in, slice_plan, out);
-            break;
-            TYPE_CASE(i16)(in, slice_plan, out);
-            break;
             TYPE_CASE(i32)(in, slice_plan, out);
             break;
             TYPE_CASE(i64)(in, slice_plan, out);
-            break;
-            TYPE_CASE(u8)(in, slice_plan, out);
-            break;
-            TYPE_CASE(u16)(in, slice_plan, out);
             break;
             TYPE_CASE(u32)(in, slice_plan, out);
             break;
             TYPE_CASE(u64)(in, slice_plan, out);
             break;
-            TYPE_CASE(bf16)(in, slice_plan, out);
-            break;
             TYPE_CASE(f16)(in, slice_plan, out);
             break;
             TYPE_CASE(f32)(in, slice_plan, out);
-            break;
-            TYPE_CASE(f64)(in, slice_plan, out);
             break;
         default: rc = false; break;
         }

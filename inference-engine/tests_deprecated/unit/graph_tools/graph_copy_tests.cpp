@@ -100,16 +100,6 @@ TEST_F(GraphCopyTests, canPreserveAttributes) {
     ASSERT_STREQ(idMemInput.c_str(), "r-1-2-3");
 }
 
-TEST_F(GraphCopyTests, canPreserveGetData) {
-    auto clone = CNNNetCopy<MockCopier>(*mockNet, mc);
-
-    ASSERT_NE(clone->getData("1"), nullptr);
-    ASSERT_NE(clone->getData("2"), nullptr);
-    ASSERT_NE(clone->getData("3"), nullptr);
-    ASSERT_NE(clone->getData("4"), nullptr);
-    ASSERT_NE(clone->getData("5"), nullptr);
-}
-
 #ifdef ENABLE_GNA
 using namespace GNAPluginNS;
 struct _FP32_2_FP32  : public GNAPluginNS::frontend::QuantDescTmpl<float, float, float, float, float> {

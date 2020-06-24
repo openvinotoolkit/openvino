@@ -58,12 +58,6 @@ public:
 
     void setInputInfo(InputInfo::Ptr data);
 
-    INFERENCE_ENGINE_DEPRECATED("Use ngraph::Function directly")
-    DataPtr& getData(const char* name) noexcept override;
-
-    INFERENCE_ENGINE_DEPRECATED("Use ngraph::Function directly")
-    DataPtr& getData(const std::string& name);
-
     std::shared_ptr<ICNNNetwork> getCNNNetwork();
 
     INFERENCE_ENGINE_DEPRECATED("Use ngraph::Function directly")
