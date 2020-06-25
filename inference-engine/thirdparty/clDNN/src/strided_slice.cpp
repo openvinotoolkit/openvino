@@ -31,8 +31,11 @@ primitive_type_id strided_slice::type_id() {
 layout strided_slice_inst::calc_output_layout(strided_slice_node const& node) {
     auto desc = node.get_primitive();
     auto input_layout = node.input(0).get_output_layout();
-    auto input_format = input_layout.format;
-    return layout{input_layout.data_type, input_format, desc->out_size};
+    auto output_format = input_layout.format;
+    if ((output_format == format::bfzyx) && (node.get_primitive()->shrink_axis_mask.size() > 0)) {
+        output_format = format::bfyx;
+    }
+    return layout{input_layout.data_type, output_format, desc->out_size};
 }
 
 std::string strided_slice_inst::to_string(strided_slice_node const& node) {

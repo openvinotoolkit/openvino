@@ -87,6 +87,9 @@ stridedSliceParamsTuple ss_only_test_cases[] = {
         stridedSliceParamsTuple({ 2, 2, 2, 2 }, { 1, 1, 1, 1 }, { 2, 2, 2, 2 }, { 1, 1, 1, 1 },
                                 {0, 0, 0, 0}, {0, 0, 0, 0},  {},  {},  {},
                                 InferenceEngine::Precision::I64, CommonTestUtils::DEVICE_GPU),
+        stridedSliceParamsTuple({ 2, 3, 4, 5, 6 }, { 0, 1, 0, 0, 0 }, { 2, 3, 4, 5, 6 }, { 1, 1, 1, 1, 1 },
+                                {1, 0, 1, 1, 1}, {1, 0, 1, 1, 1},  {},  {0, 1, 0, 0, 0},  {},
+                                InferenceEngine::Precision::FP32, CommonTestUtils::DEVICE_GPU),
 };
 
 INSTANTIATE_TEST_CASE_P(
