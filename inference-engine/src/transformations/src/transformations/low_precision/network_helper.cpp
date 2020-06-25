@@ -381,21 +381,21 @@ std::shared_ptr<ngraph::opset1::Constant> NetworkHelper::quantizeWeights(
 #endif
 }
 
-std::shared_ptr<opset1::Add> decomposeMultiplyAdd(std::shared_ptr<op::MultiplyAdd> multiplyAdd) {
-    using namespace std;
-    using namespace ngraph::op;
-    // FIXME: need to modify data_type on output to be aligned with MultiplyAdd output
-    // it is fundamental limitation of TypeRelaxed approach when constructing new graphs
-    //NetworkHelper::setOutDataPrecision(multiplyAdd->input_value(0).get_node_shared_ptr(), multiplyAdd->get_output_element_type(0));
-    AutoReplaceInputTypes<Node> auto_type(*multiplyAdd, multiplyAdd->get_output_element_type(0));
-    auto multiply = make_shared<TypeRelaxed<opset1::Multiply>>(
-            opset1::Multiply(multiplyAdd->input_value(0), multiplyAdd->input_value(1)), multiplyAdd->get_output_element_type(0));
-    auto add = make_shared<opset1::Add>(multiply, multiplyAdd->input_value(2));
-    copy_runtime_info(multiplyAdd, {multiply, add});
-    add->set_friendly_name(multiplyAdd->get_friendly_name());
-    replace_node(multiplyAdd, add);
-    return add;
-}
+//std::shared_ptr<opset1::Add> decomposeMultiplyAdd(std::shared_ptr<op::MultiplyAdd> multiplyAdd) {
+//    using namespace std;
+//    using namespace ngraph::op;
+//    // FIXME: need to modify data_type on output to be aligned with MultiplyAdd output
+//    // it is fundamental limitation of TypeRelaxed approach when constructing new graphs
+//    //NetworkHelper::setOutDataPrecision(multiplyAdd->input_value(0).get_node_shared_ptr(), multiplyAdd->get_output_element_type(0));
+//    AutoReplaceInputTypes<Node> auto_type(*multiplyAdd, multiplyAdd->get_output_element_type(0));
+//    auto multiply = make_shared<TypeRelaxed<opset1::Multiply>>(
+//            opset1::Multiply(multiplyAdd->input_value(0), multiplyAdd->input_value(1)), multiplyAdd->get_output_element_type(0));
+//    auto add = make_shared<opset1::Add>(multiply, multiplyAdd->input_value(2));
+//    copy_runtime_info(multiplyAdd, {multiply, add});
+//    add->set_friendly_name(multiplyAdd->get_friendly_name());
+//    replace_node(multiplyAdd, add);
+//    return add;
+//}
 
 std::shared_ptr<opset1::Multiply> swapMultiplyAndAdd(std::shared_ptr<opset1::Add> addAfterMultiply) {
     // Multiply --> Add(addAfterMultiply)  ==>  Add(new) --> Multiply(new)
@@ -466,8 +466,8 @@ std::shared_ptr<Node> getConstantInput(std::shared_ptr<Node> node) {
 }
 
 
-std::shared_ptr<Node> optimizeMultipliesAfter(std::shared_ptr<Node> multiply) {
-    multiply = as_type_ptr<opset1::Multiply>(multiply);
+std::shared_ptr<ngraph::opset1::Multiply> optimizeMultipliesAfter(std::shared_ptr<Node> node) {
+    std::shared_ptr<ngraph::opset1::Multiply> multiply = as_type_ptr<opset1::Multiply>(node);
 
     if (multiply && multiply->output(0).get_target_inputs().size() == 1) {
         auto constant1 = getConstantInput(multiply);
@@ -558,8 +558,8 @@ std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> decomposeFakeQuantize(s
     // Build a substitution sub-graph:
 
     // TODO: question: why we need fold?
-    // auto newFQ = fold_fake_quantize<opset1::FakeQuantize>(
-    std::shared_ptr<opset1::FakeQuantize> newFQ = std::make_shared<ngraph::op::TypeRelaxed<opset1::FakeQuantize>>(
+    auto newFQ = fold_fake_quantize<opset1::FakeQuantize>(
+    // std::shared_ptr<opset1::FakeQuantize> newFQ = std::make_shared<ngraph::op::TypeRelaxed<opset1::FakeQuantize>>(
             fq->input_value(0),
             fq->input_value(1),
             fq->input_value(2),
@@ -568,19 +568,21 @@ std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> decomposeFakeQuantize(s
             fq->get_levels(),
             fq->get_auto_broadcast());
 
+    //NetworkHelper::setOutDataPrecision(newFQ, precision);
+
     // auto dequantize = make_shared<ngraph::op::MultiplyAdd>(
     //        make_shared<opset1::Convert>(
     //                fold<opset1::Convert>(newFQ, precision),
     //                fq->get_output_element_type(0)), scale, shift);
 
-    std::shared_ptr<Node> convert = fold<opset1::Convert>(newFQ, fq->get_output_element_type(0));
+    std::shared_ptr<Node> convert = fold<opset1::Convert>(newFQ, precision);
+    //std::shared_ptr<Node> convert = std::make_shared<opset1::Convert>(newFQ, fq->get_output_element_type(0));
 
-    // TODO: should sub const precision be the same?
-    // TODO: question: what is difference: fold<opset1::Convert>(...)  VS make_shared<opset1::Convert>?
     std::shared_ptr<ngraph::opset1::Subtract> sub = make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::Subtract>>(
     // auto sub = make_shared<ngraph::opset1::Subtract>(
-        convert,
-        // make_shared<opset1::Convert>(fold<opset1::Convert>(newFQ, precision), fq->get_output_element_type(0)),
+        // convert,
+        //make_shared<opset1::Convert>(fold<opset1::Convert>(newFQ, precision), fq->get_output_element_type(0)),
+        make_shared<opset1::Convert>(convert, fq->get_output_element_type(0)),
         // newFQ,
         shift);
 
@@ -589,30 +591,13 @@ std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> decomposeFakeQuantize(s
     auto dequantize = make_shared<ngraph::opset1::Multiply>(sub, scale);
 
     auto outputs = newFQ->get_outputs();
-    // TODO: precision is hardcoded
-    NetworkHelper::setOutDataPrecision(newFQ, precision);
+    //NetworkHelper::setOutDataPrecision(newFQ, precision);
 
-    // TODO: precision is hardcoded
-    // TODO: why it's not built?
-    // NetworkHelper::setOutDataPrecision(sub, fq->get_output_element_type(0));
     // sub->set_overriden_output_type(element::f32);
     // std::dynamic_pointer_cast<ngraph::Node>(sub)->validate_and_infer_types();
 
     replace_node(fq, dequantize);
     // Make type-relaxed node
-
-#if 0
-    // FIXME: is it needed?
-    if (fabs(dequantizationScale) < minQuantizationScale) {
-        dequantizationScales[channel] = minQuantizationScale;
-        denormalOutputValuesWasUpdated = true;
-    } else if (fabs(dequantizationScale) > maxQuantizationScale) {
-        dequantizationScales[channel] = dequantizationScale > 0.f ? maxQuantizationScale : -maxQuantizationScale;
-        denormalOutputValuesWasUpdated = true;
-    } else {
-        dequantizationScales[channel] = dequantizationScale;
-    }
-#endif
 
     return std::make_tuple(newFQ, dequantize);
 }
@@ -687,7 +672,28 @@ FakeQuantizeDequantization getFakeQuantizeDequantization(std::shared_ptr<opset1:
     return FakeQuantizeDequantization(precision, fq, convert, sub, multiply);
 }
 
-std::shared_ptr<Node> optimizeAdd(std::shared_ptr<opset1::Add> add) {
+FakeQuantizeDequantization getDequantization(Node& node) {
+    std::shared_ptr<ngraph::opset1::Multiply> multiply = as_type_ptr<ngraph::opset1::Multiply>(node.shared_from_this());
+    if (multiply == nullptr) {
+        return FakeQuantizeDequantization();
+    }
+
+    //if (multiply->get_input_size() != 1ul) {
+    //    return FakeQuantizeDequantization(multiply->);
+    //}
+    //// TODO: we create input here! we really need it here?
+    //const auto input = std::make_shared<ngraph::opset1::Parameter>(precision, fq->get_output_shape(0));
+    //std::shared_ptr<ngraph::opset1::Convert> convert =  as_type_ptr<ngraph::opset1::Convert>(fold<opset1::Convert>(input, fq->get_output_element_type(0)));
+
+    //std::shared_ptr<ngraph::opset1::Subtract> sub = make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::Subtract>>(convert, shift);
+    //std::shared_ptr<ngraph::opset1::Multiply> multiply = make_shared<ngraph::opset1::Multiply>(sub, scale);
+
+    //return FakeQuantizeDequantization(precision, fq, convert, sub, multiply);
+
+    return FakeQuantizeDequantization();
+}
+
+std::shared_ptr<Node> optimizeSubtract(std::shared_ptr<opset1::Subtract> add) {
     auto convertOnAdd = add->input_value(0).get_node_shared_ptr();
     // TODO: replace assert to condition and omit conversion part if there is no convert
     // TODO: also check convertInputType to understand if we really want to propagate type

@@ -48,8 +48,8 @@ inline std::ostream& operator<<(std::ostream& os, const std::vector<float>& valu
 
 inline std::ostream& operator<<(std::ostream& out, const FakeQuantizeOnDataTestValues& testValue) {
     return out << "_" <<
-        testValue.actual.constantShape << "_" << testValue.actual.lowValues << "_" << testValue.actual.highValues << "_" <<
-        testValue.expected.constantShape << "_" << testValue.expected.lowValues << "_" << testValue.expected.highValues;;
+        testValue.actual.constantShape << "_" << testValue.actual.outputLowValues << "_" << testValue.actual.outputHighValues << "_" <<
+        testValue.expected.constantShape << "_" << testValue.expected.outputLowValues << "_" << testValue.expected.outputHighValues;;
 }
 
 
@@ -120,7 +120,7 @@ const std::vector<ngraph::element::Type> precisions = {
 };
 
 const std::vector<builder::subgraph::FakeQuantizeOnData> fakeQuantizeOnDataValues = {
-    { 256ul, {}, { 0.f }, { 2.55f } },
+    { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } },
     // { 256ul, {}, { -1.28f} , { 1.27f } },
 
     // { 256ul, { 1ul }, { 0.f }, { 2.55f } },
@@ -131,25 +131,25 @@ const std::vector<FakeQuantizeOnDataTestValues> fakeQuantizeOnDataTestValues = {
     // U8
     {
         LayerTransformation::createParamsU8I8(),
-        { 256ul, {}, { 0.f }, { 2.55f } },
-        { 256ul, {}, { 0.f }, { 2.55f } }
+        { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } },
+        { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } }
     },
     {
         LayerTransformation::createParamsU8I8(),
-        { 256ul, {}, { -1.28f} , { 1.27f } },
-        { 256ul, {}, { 0.f }, { 2.55f } }
+        { 256ul, {}, { -1.28f} , { 1.27f }, { -1.28f} , { 1.27f } },
+        { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } }
     },
 
     // I8
     {
         LayerTransformation::createParamsI8I8(),
-        { 256ul, {}, { -1.28f} , { 1.27f } },
-        { 256ul, {}, { -1.28f} , { 1.27f } }
+        { 256ul, {}, { -1.28f}, { 1.27f }, { -1.28f}, { 1.27f } },
+        { 256ul, {}, { -1.28f}, { 1.27f }, { -1.28f}, { 1.27f } }
     },
     {
         LayerTransformation::createParamsU8I8(),
-        { 256ul, {}, { 0.f} , { 2.55f } },
-        { 256ul, {}, { -1.28f} , { 1.27f } }
+        { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } },
+        { 256ul, {}, { -1.28f }, { 1.27f }, { -1.28f }, { 1.27f } }
     }
 };
 
