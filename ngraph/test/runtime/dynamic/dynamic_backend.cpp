@@ -15,7 +15,6 @@
 //*****************************************************************************
 
 #include "dynamic_backend.hpp"
-#include "../opset0_downgrade.hpp"
 #include "ngraph/graph_util.hpp"
 #include "ngraph/op/avg_pool.hpp"
 #include "ngraph/op/broadcast.hpp"
@@ -34,6 +33,7 @@
 #include "ngraph/pass/shape_relevance.hpp"
 #include "ngraph/specialize_function.hpp"
 #include "ngraph/util.hpp"
+#include "opset0_downgrade.hpp"
 
 using namespace std;
 using namespace ngraph;

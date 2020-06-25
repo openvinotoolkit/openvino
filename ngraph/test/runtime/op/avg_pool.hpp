@@ -16,6 +16,7 @@
 
 #pragma once
 
+#include "backend_visibility.hpp"
 #include "ngraph/op/op.hpp"
 #include "ngraph/op/util/attr_types.hpp"
 
@@ -27,7 +28,7 @@ namespace ngraph
         {
             /// \brief Batched average pooling operation, with optional padding and window stride.
             ///
-            class NGRAPH_API AvgPool : public Op
+            class BACKEND_API AvgPool : public Op
             {
             public:
                 static constexpr NodeTypeInfo type_info{"AvgPool", 0};

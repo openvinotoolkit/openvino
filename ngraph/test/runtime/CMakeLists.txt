@@ -42,7 +42,7 @@ if (NOT WIN32)
     target_link_libraries(ngraph_backend PRIVATE dl)
 endif()
 target_compile_definitions(ngraph_backend PRIVATE BACKEND_DLL_EXPORTS)
-target_include_directories(ngraph_backend INTERFACE ${CMAKE_CURRENT_SOURCE_DIR})
+target_include_directories(ngraph_backend PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
 add_subdirectory(interpreter)
 
