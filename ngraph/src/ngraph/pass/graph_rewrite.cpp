@@ -64,54 +64,42 @@ using namespace ngraph;
 bool pass::GraphRewrite::run_on_function(shared_ptr<Function> f)
 {
     bool rewritten = false;
-    const size_t NUM_TRIES = 10;
-    size_t tries = NUM_TRIES;
-    vector<MatchClosure> original_matchers{m_matchers};
-    // This check is very expensive and is only needed for experimental features, so we will hide
-    // it behind an environment variable for now. TODO: Find a less expensive way to handle this.
-    static bool s_rerun_dynamic_check = getenv_bool("NGRAPH_GRAPH_REWRITE_RERUN_DYNAMIC_CHECK");
-    bool is_dyn_func = s_rerun_dynamic_check && f->is_dynamic();
-    do
+    for (auto node : f->get_ordered_ops())
     {
-        rewritten = false;
-        // m_matchers may contain newly constructed matchers for matchers
-        // that need multiple passes. See comments above.
-        vector<MatchClosure> matchers_to_run{m_matchers};
-        m_matchers.clear();
-        for (auto node : f->get_ordered_ops())
+        // Temporary keep this GraphRewrite property for backward compatibility
+        if (m_enable_shape_inference)
         {
-            if (m_enable_shape_inference)
+            node->revalidate_and_infer_types();
+        }
+        for (auto& m_pass : m_matchers)
+        {
+            if (m_pass->get_matcher_property().is_set(PassProperty::REQUIRE_STATIC_SHAPE) &&
+                f->is_dynamic())
             {
-                node->revalidate_and_infer_types();
+                NGRAPH_DEBUG << "matcher callback requires static shape but the "
+                                "function is dynamic, skipping this "
+                                "optimization till the shapes are fully "
+                                "materialized";
+                continue;
             }
-            for (auto& closure : matchers_to_run)
+
+            if (!m_has_default_callback)
             {
-                if (is_dyn_func && closure.property[PassProperty::REQUIRE_STATIC_SHAPE])
+                m_pass->set_callback(m_transformation_callback);
+            }
+
+            if (m_pass->apply_matcher(node))
+            {
+                rewritten = true;
+                if (m_pass->get_matcher_property().is_set(PassProperty::REQUIRE_SHAPE_INFERENCE))
                 {
-                    NGRAPH_DEBUG << "matcher callback requires static shape but the "
-                                    "function is dynamic, skipping this "
-                                    "optimization till the shapes are fully "
-                                    "materialized";
-                    continue;
+                    f->validate_nodes_and_infer_types();
                 }
-                if (closure.handler(node))
-                {
-                    rewritten = true;
-                    // If call back may change function's is_dynamic state, we need to
-                    // update the cached value.
-                    if (closure.property.is_set(PassProperty::CHANGE_DYNAMIC_STATE))
-                    {
-                        is_dyn_func = s_rerun_dynamic_check && f->is_dynamic();
-                    }
-                    break;
-                }
+                break;
             }
         }
-
-    } while (rewritten && m_matchers.size() > 0 && tries--);
-
-    m_matchers.assign(original_matchers.begin(), original_matchers.end());
-    return (NUM_TRIES - tries) > 1; // this means a graph was transformed
+    }
+    return rewritten;
 }
 
 static vector<regex> initialize_fusion_regexes()
@@ -153,7 +141,7 @@ void pass::GraphRewriteBase::add_handler(const std::string& name,
 {
     if (is_enabled(name))
     {
-        m_matchers.push_back({name, handler, property});
+        m_matchers.push_back(std::make_shared<MatcherPass>(MatchClosure{name, handler, property}));
         // If any matcher call back may change dynamic state, we need to
         // update the pass property.
         if (property.is_set(PassProperty::CHANGE_DYNAMIC_STATE))
@@ -186,14 +174,6 @@ void pass::GraphRewrite::add_matcher(const shared_ptr<pattern::Matcher>& m,
     // TODO: before deprecate this function, by default expect the
     // callback require static shape.
     add_matcher(m, callback, {PassProperty::REQUIRE_STATIC_SHAPE});
-}
-
-void pass::GraphRewrite::copy_matchers(const std::shared_ptr<GraphRewrite>& pass)
-{
-    for (auto& m : pass->m_matchers)
-    {
-        m_matchers.push_back(m);
-    }
 }
 
 void pass::RecurrentGraphRewrite::add_matcher(
@@ -236,9 +216,10 @@ bool pass::RecurrentGraphRewrite::run_on_function(shared_ptr<Function> f)
         bool is_dyn_func = s_rerun_dynamic_check && f->is_dynamic();
         for (auto node : f->get_ops())
         {
-            for (auto& closure : m_matchers)
+            for (auto& m_pass : m_matchers)
             {
-                if (is_dyn_func && closure.property[PassProperty::REQUIRE_STATIC_SHAPE])
+                if (is_dyn_func &&
+                    m_pass->get_matcher_property().is_set(PassProperty::REQUIRE_STATIC_SHAPE))
                 {
                     NGRAPH_DEBUG << "matcher callback requires static shape but the "
                                     "function is dynamic, skipping this "
@@ -246,11 +227,11 @@ bool pass::RecurrentGraphRewrite::run_on_function(shared_ptr<Function> f)
                                     "materialized";
                     continue;
                 }
-                if (closure.handler(node))
+                if (m_pass->apply_matcher(node))
                 {
                     // If call back may change function's is_dynamic state, we need to
                     // update the cached value.
-                    if (closure.property.is_set(PassProperty::CHANGE_DYNAMIC_STATE))
+                    if (m_pass->get_matcher_property().is_set(PassProperty::CHANGE_DYNAMIC_STATE))
                     {
                         is_dyn_func = s_rerun_dynamic_check && f->is_dynamic();
                     }
@@ -267,4 +248,26 @@ bool pass::RecurrentGraphRewrite::run_on_function(shared_ptr<Function> f)
         i++;
     } while (changed && i < m_num_iters);
     return changed;
+}
+
+void ngraph::pass::MatcherPass::add_matcher(const std::shared_ptr<ngraph::pattern::Matcher>& m,
+                                            const ngraph::graph_rewrite_callback& callback,
+                                            const PassPropertyMask& property)
+{
+    m_matcher = {m->get_name(),
+                 [m, callback](const std::shared_ptr<Node>& node) -> bool {
+                     NGRAPH_DEBUG << "Running matcher " << m->get_name() << " on " << node;
+                     if (m->match(node->output(0)))
+                     {
+                         NGRAPH_DEBUG << "Matcher " << m->get_name() << " matched " << node;
+                         return callback(*m.get());
+                     }
+                     return false;
+                 },
+                 property};
+}
+
+bool ngraph::pass::MatcherPass::apply_matcher(std::shared_ptr<ngraph::Node> node)
+{
+    return m_matcher.handler(node);
 }

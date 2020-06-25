@@ -72,7 +72,7 @@ void ngraph::pass::ConvertNormalizeL2WithMulToNormalizeIE::convert_normalize_l2_
     this->add_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
 }
 
-void ngraph::pass::ConvertNormalizeL2ToNormalizeIE::convert_normalize_l2() {
+void ngraph::pass::ConvertNormalizeL2ToLegacyMatcher::convert_normalize_l2() {
     auto input_0 = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1, 1});
     auto axis = std::make_shared<ngraph::opset1::Constant>(element::i64, Shape{1}, std::vector<int64_t>{0});
     auto normalize = std::make_shared<ngraph::op::NormalizeL2>(input_0, axis, 0, ngraph::op::EpsMode::ADD);

@@ -12,7 +12,7 @@
 #include <ngraph_ops/proposal_ie.hpp>
 #include <ngraph/rt_info.hpp>
 
-void ngraph::pass::ConvertProposalToProposalIE::convert_proposal() {
+void ngraph::pass::ConvertProposalToLegacyMatcher::convert_proposal() {
     auto input_0 = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1, 1});
     auto input_1 = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1, 1});
     auto input_2 = std::make_shared<pattern::op::Label>(element::f32, Shape{3});

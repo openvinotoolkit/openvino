@@ -63,6 +63,12 @@ public:
     /// each registered pass
     /// \param new_state Value "true" enables Validate pass run; "false", otherwise
     void set_per_pass_validation(bool new_state) { m_per_pass_validation = new_state; }
+    void set_callback(param_callback callback)
+    {
+        m_transformation_callback = callback;
+        m_has_default_callback = false;
+    }
+
 private:
     template <typename T, class... Args>
     std::shared_ptr<T> push_pass(Args&&... args)
@@ -71,23 +77,14 @@ private:
         auto pass = std::make_shared<T>(std::forward<Args>(args)...);
         auto pass_base = std::static_pointer_cast<PassBase>(pass);
         m_pass_list.push_back(pass_base);
-        if (m_visualize || m_serialize)
-        {
-#ifdef _WIN32
-            // MSVC produce a human-readable type name like class ngraph::pass::LikeReplacement
-            // by typeid(T).name(). Later ofstream doesn't accept it as a valid file name.
-            //
-            std::string str = typeid(T).name();
-            auto pos = str.find_last_of(":");
-            m_pass_names.push_back(str.substr(pos + 1));
-#elif defined(__linux) || defined(__APPLE__)
-            m_pass_names.push_back(typeid(T).name());
-#endif
-        }
         return pass;
     }
 
-    std::vector<std::string> m_pass_names;
+    param_callback m_transformation_callback = [](const std::shared_ptr<const Node>&) -> bool {
+        return false;
+    };
+    bool m_has_default_callback = true;
+
     std::vector<std::shared_ptr<PassBase>> m_pass_list;
     ManagerState m_state;
     PassConfig m_pass_config;

@@ -11,7 +11,6 @@
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
-#include "transformations/utils/pass_param.hpp"
 
 namespace ngraph {
 namespace pass {
@@ -48,9 +47,9 @@ class TRANSFORMATIONS_API ReshapeFullyConnected;
  *
  */
 
-class ngraph::pass::ReshapeFullyConnected: public ngraph::pass::GraphRewrite, public ngraph::pass::PassParam {
+class ngraph::pass::ReshapeFullyConnected: public ngraph::pass::GraphRewrite {
 public:
-    ReshapeFullyConnected() : GraphRewrite(), PassParam() {
+    ReshapeFullyConnected() : GraphRewrite() {
         reshape_fully_connected();
     }
 

@@ -10,7 +10,6 @@
 #include <transformations_visibility.hpp>
 
 #include <ngraph/pass/graph_rewrite.hpp>
-#include "transformations/utils/pass_param.hpp"
 
 namespace ngraph {
 namespace pass {
@@ -20,9 +19,9 @@ class TRANSFORMATIONS_API ConvertDepthToSpace;
 }  // namespace pass
 }  // namespace ngraph
 
-class ngraph::pass::ConvertDepthToSpace: public ngraph::pass::GraphRewrite, public ngraph::pass::PassParam {
+class ngraph::pass::ConvertDepthToSpace: public ngraph::pass::GraphRewrite {
 public:
-    ConvertDepthToSpace() : GraphRewrite(), PassParam() {
+    ConvertDepthToSpace() : GraphRewrite() {
         convert_depth_to_space();
     }
 

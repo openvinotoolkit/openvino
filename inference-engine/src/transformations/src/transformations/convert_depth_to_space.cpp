@@ -16,7 +16,7 @@ void ngraph::pass::ConvertDepthToSpace::convert_depth_to_space() {
 
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto dts_node = std::dynamic_pointer_cast<ngraph::opset1::DepthToSpace> (m.get_match_root());
-        if (!dts_node || transformation_callback(dts_node)) {
+        if (!dts_node || m_transformation_callback(dts_node)) {
             return false;
         }
 

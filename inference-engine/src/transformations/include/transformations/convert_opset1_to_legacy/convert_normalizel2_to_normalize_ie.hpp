@@ -16,7 +16,7 @@ namespace ngraph {
 namespace pass {
 
 class TRANSFORMATIONS_API ConvertNormalizeL2WithMulToNormalizeIE;
-class TRANSFORMATIONS_API ConvertNormalizeL2ToNormalizeIE;
+class TRANSFORMATIONS_API ConvertNormalizeL2ToLegacyMatcher;
 
 }  // namespace pass
 }  // namespace ngraph
@@ -31,9 +31,9 @@ private:
     void convert_normalize_l2_with_mul();
 };
 
-class ngraph::pass::ConvertNormalizeL2ToNormalizeIE: public ngraph::pass::GraphRewrite {
+class ngraph::pass::ConvertNormalizeL2ToLegacyMatcher: public ngraph::pass::MatcherPass {
 public:
-    ConvertNormalizeL2ToNormalizeIE() : GraphRewrite() {
+    ConvertNormalizeL2ToLegacyMatcher() : MatcherPass() {
         convert_normalize_l2();
     }
 

@@ -10,7 +10,7 @@
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/rt_info.hpp>
 
-void ngraph::pass::ConvertPadToPadIE::convert_pad() {
+void ngraph::pass::ConvertPadToLegacyMatcher::convert_pad() {
     auto pad = std::make_shared<pattern::op::Label>(element::f32, Shape{}, pattern::has_class<ngraph::opset1::Pad>());
 
     ngraph::graph_rewrite_callback callback = [](pattern::Matcher& m) {
@@ -28,6 +28,6 @@ void ngraph::pass::ConvertPadToPadIE::convert_pad() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(pad, "ConvertPadToPadIE");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(pad, "ConvertPadToLegacy");
     this->add_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
 }

@@ -49,23 +49,72 @@
 #include <ngraph/pass/constant_folding.hpp>
 #include <ngraph/pass/manager.hpp>
 
+#include <ngraph/pass/graph_rewrite.hpp>
+
 #include <memory>
 #include <vector>
 
 bool ngraph::pass::ConvertOpSet1ToLegacy::run_on_function(std::shared_ptr<ngraph::Function> f) {
     ngraph::pass::Manager manager;
     std::vector<std::shared_ptr<ngraph::pass::PassBase> > transforms;
-    std::shared_ptr<ngraph::pass::GraphRewrite> anchor;
 
-#include <transformations/utils/define_ngraph_pass.hpp>
-#include <transformations/convert_opset1_to_legacy/convert_opset1_to_legacy_tbl.hpp>
-#include <transformations/utils/undefine_ngraph_pass.hpp>
+    manager.register_pass<ngraph::pass::ConstantFolding>();
+    manager.register_pass<ngraph::pass::ConvertReduceToPooling>();
+    manager.register_pass<ngraph::pass::ConvertMod>();
+    manager.register_pass<ngraph::pass::ConvertMinimum>();
+    manager.register_pass<ngraph::pass::ConvertSubtract>();
+    manager.register_pass<ngraph::pass::ConvertDivide>();
+    manager.register_pass<ngraph::pass::ConvertNegative>();
+    manager.register_pass<ngraph::pass::ConvertDepthToSpace>();
+    manager.register_pass<ngraph::pass::ConvertSpaceToDepth>();
+    manager.register_pass<ngraph::pass::ConvertConvolutions>();
+    manager.register_pass<ngraph::pass::BatchNormDecomposition>();
+    manager.register_pass<ngraph::pass::ConstantFolding>();
+    manager.register_pass<ngraph::pass::MulAddVerification>();
+    manager.register_pass<ngraph::pass::MulAddFusion>();
+    manager.register_pass<ngraph::pass::ConstantFolding>();
+    manager.register_pass<ngraph::pass::ConvertMatMulToFCorGemm>();
+    manager.register_pass<ngraph::pass::PullTransposeThroughFQUp>();
+    manager.register_pass<ngraph::pass::ConstantFolding>();
+    manager.register_pass<ngraph::pass::ConvFusion>();
+    manager.register_pass<ngraph::pass::FullyConnectedBiasFusion>();
+    manager.register_pass<ngraph::pass::ConstantFolding>();
+    manager.register_pass<ngraph::pass::ReshapeFullyConnected>();
+    manager.register_pass<ngraph::pass::ReshapeFullyConnectedFusion>();
+    manager.register_pass<ngraph::pass::Reshape1DOps>();
+    manager.register_pass<ngraph::pass::ConvertNormalizeL2WithMulToNormalizeIE>();
+    manager.register_pass<ngraph::pass::ConstantEltwiseReduction>();
+    manager.register_pass<ngraph::pass::ConvertMulAddToScaleShiftOrPower>();
+    manager.register_pass<ngraph::pass::ConvertMulOrAddFinally>();
+    manager.register_pass<ngraph::pass::ConstantFolding>();
+    manager.register_pass<ngraph::pass::ConvertBroadcastToTiles>();
 
-    for (auto & t : transforms) {
-        if (auto t_param = std::dynamic_pointer_cast<PassParam>(t)) {
-            t_param->setCallback(transformation_callback);
-        }
-    }
+
+    auto anchor = manager.register_pass<ngraph::pass::GraphRewrite>();
+    anchor->add_matcher<ngraph::pass::ConvertNormalizeL2ToLegacyMatcher>();
+    anchor->add_matcher<ngraph::pass::ConvertHardSigmoidToLegacyMatcher>();
+    anchor->add_matcher<ngraph::pass::ConvertProposalToLegacyMatcher>();
+    anchor->add_matcher<ngraph::pass::ConvertTileToLegacyMatcher>();
+    anchor->add_matcher<ngraph::pass::ConvertLRNToLegacyMatcher>();
+    anchor->add_matcher<ngraph::pass::ConvertPadToLegacyMatcher>();
+    anchor->set_name("ngraph::pass::ConvertOpSet1ToLegacy");
+
+    manager.register_pass<ngraph::pass::ConvertCellsToCellsIE>();
+    manager.register_pass<ngraph::pass::ConvertInterpolateToInterpOrResample>();
+    manager.register_pass<ngraph::pass::ConvertStridedSliceToCrop>();
+    manager.register_pass<ngraph::pass::ConvertPowerToPowerIE>();
+    manager.register_pass<ngraph::pass::ConvertSqrtToPowerIE>();
+    manager.register_pass<ngraph::pass::ConvertPReLUToReLUIE>();
+    manager.register_pass<ngraph::pass::ConvertGatherToGatherIE>();
+    manager.register_pass<ngraph::pass::ConvertSeluToSeluIE>();
+    manager.register_pass<ngraph::pass::ConvertOneHotToOneHotIE>();
+    manager.register_pass<ngraph::pass::ConvertGatherTreeToGatherTreeIE>();
+    manager.register_pass<ngraph::pass::ConvertTopKToTopKIE>();
+    manager.register_pass<ngraph::pass::ConvertNMSToNMSIE>();
+
+    manager.register_pass<ngraph::pass::ConstantFolding>();
+
+    manager.set_callback(m_transformation_callback);
     manager.run_passes(f);
     return true;
 }

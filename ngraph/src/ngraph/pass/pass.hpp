@@ -16,6 +16,11 @@
 
 #pragma once
 
+#ifdef _WIN32
+#else
+#include <cxxabi.h>
+#endif
+
 #include <list>
 #include <memory>
 #include <vector>
@@ -53,8 +58,12 @@ namespace ngraph
             // Pass requires node shapes to be static
             REQUIRE_STATIC_SHAPE = 0x1,
             // Pass transformation will change the function's dynamic state
-            CHANGE_DYNAMIC_STATE = 1 << 1
+            CHANGE_DYNAMIC_STATE = 1 << 1,
+            // Pass requires to call shape inference after each application
+            REQUIRE_SHAPE_INFERENCE = 1 << 2
         };
+
+        using param_callback = std::function<bool(const std::shared_ptr<const ::ngraph::Node>)>;
     }
 }
 
@@ -79,14 +88,45 @@ public:
     /// Check if this pass has all the pass properties.
     bool get_property(const PassPropertyMask& prop_mask) const;
 
+    void set_name(const std::string& name) { m_name = name; }
+    std::string get_name() const
+    {
+        if (m_name.empty())
+        {
+            const PassBase* p = this;
+            std::string pass_name = typeid(*p).name();
+#ifndef _WIN32
+            int status;
+            pass_name = abi::__cxa_demangle(pass_name.c_str(), nullptr, nullptr, &status);
+#endif
+            return pass_name;
+        }
+        else
+        {
+            return m_name;
+        }
+    }
+
+    void set_callback(const param_callback& callback)
+    {
+        m_transformation_callback = callback;
+        m_has_default_callback = false;
+    }
+
 protected:
     ManagerState& get_state();
     void set_state(ManagerState&);
     void set_property(const PassPropertyMask& prop, bool value);
 
+    param_callback m_transformation_callback = [](const std::shared_ptr<const Node>&) -> bool {
+        return false;
+    };
+    bool m_has_default_callback = true;
+
 private:
     PassPropertyMask m_property;
     ManagerState* m_state{nullptr};
+    std::string m_name;
 };
 
 class NGRAPH_API ngraph::pass::ModulePass : public PassBase

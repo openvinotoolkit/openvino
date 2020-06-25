@@ -30,12 +30,46 @@ namespace ngraph
         class GraphRewriteBase;
         class GraphRewrite;
         class RecurrentGraphRewrite;
+        class MatcherPass;
     }
 
     using graph_rewrite_callback = std::function<bool(ngraph::pattern::Matcher& m)>;
     using recurrent_graph_rewrite_callback =
         std::function<bool(ngraph::pattern::RecurrentMatcher& m)>;
+
+    struct MatchClosure
+    {
+        std::string name;
+        std::function<bool(const std::shared_ptr<Node>& node)> handler;
+        pass::PassPropertyMask property;
+    };
 }
+
+class NGRAPH_API ngraph::pass::MatcherPass : public ngraph::pass::PassBase
+{
+public:
+    MatcherPass()
+        : PassBase()
+    {
+    }
+
+    explicit MatcherPass(const MatchClosure& match)
+        : PassBase()
+    {
+        m_matcher = match;
+    }
+
+    bool apply_matcher(std::shared_ptr<ngraph::Node> node);
+
+    const std::string& get_matcher_name() const { return m_matcher.name; }
+    const PassPropertyMask get_matcher_property() const { return m_matcher.property; }
+protected:
+    void add_matcher(const std::shared_ptr<pattern::Matcher>& m,
+                     const ngraph::graph_rewrite_callback& callback,
+                     const PassPropertyMask& property);
+
+    MatchClosure m_matcher;
+};
 
 class NGRAPH_API ngraph::pass::GraphRewriteBase : public ngraph::pass::FunctionPass
 {
@@ -60,13 +94,7 @@ protected:
 
     bool is_enabled(const std::string& name) const;
 
-    struct MatchClosure
-    {
-        std::string name;
-        std::function<bool(const std::shared_ptr<Node>& node)> handler;
-        PassPropertyMask property;
-    };
-    std::vector<MatchClosure> m_matchers;
+    std::vector<std::shared_ptr<ngraph::pass::MatcherPass>> m_matchers;
 };
 
 /// \brief GraphRewrite (in tandem with \sa Matcher) performs transformations on specified patterns
@@ -82,6 +110,21 @@ protected:
 class NGRAPH_API ngraph::pass::GraphRewrite : public ngraph::pass::GraphRewriteBase
 {
 public:
+    GraphRewrite()
+        : GraphRewriteBase()
+    {
+    }
+
+    template <typename T, class... Args>
+    std::shared_ptr<T> add_matcher(Args&&... args)
+    {
+        static_assert(std::is_base_of<pass::MatcherPass, T>::value,
+                      "pass not derived from MatcherPass");
+        auto pass = std::make_shared<T>(std::forward<Args>(args)...);
+        m_matchers.push_back(pass);
+        return pass;
+    }
+
     void add_matcher(const std::shared_ptr<pattern::Matcher>& m,
                      const ngraph::graph_rewrite_callback& callback,
                      const PassPropertyMask& property);
@@ -89,8 +132,6 @@ public:
     // TODO: This interface may deprecate after all passes are refactored.
     void add_matcher(const std::shared_ptr<pattern::Matcher>& m,
                      const ngraph::graph_rewrite_callback& callback);
-
-    void copy_matchers(const std::shared_ptr<GraphRewrite>& pass);
 
     virtual bool run_on_function(std::shared_ptr<ngraph::Function> f);
 

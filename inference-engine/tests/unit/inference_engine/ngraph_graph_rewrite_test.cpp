@@ -7,17 +7,18 @@
 #include <transformations/utils/utils.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
 #include <ngraph/opsets/opset1.hpp>
+#include <ngraph/pass/manager.hpp>
 
 using namespace ::testing;
 using namespace std;
 using namespace ngraph;
 
-class TestTransformation : public ngraph::pass::GraphRewrite, public ngraph::pass::PassParam {
+class TestMatcher : public ngraph::pass::MatcherPass {
 public:
-    TestTransformation() : GraphRewrite() {
+    TestMatcher() : MatcherPass() {
         auto divide = std::make_shared<ngraph::pattern::op::Label>(element::f32, Shape{}, pattern::has_class<opset1::Divide>());
         ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
-            if (transformation_callback(m.get_match_root())) {
+            if (m_transformation_callback(m.get_match_root())) {
                 auto relu = std::make_shared<ngraph::opset1::Relu>(m.get_match_root()->input_value(0));
                 ngraph::replace_node(m.get_match_root(), relu);
                 return true;
@@ -35,7 +36,7 @@ public:
     Anchor() : GraphRewrite() {}
 };
 
-TEST(GraphRewriteTest, MultipleMatchers) {
+TEST(GraphRewriteTest, MatcherPassCallback) {
     std::shared_ptr<Function> f;
     {
         auto data = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{3, 1, 2});
@@ -44,15 +45,66 @@ TEST(GraphRewriteTest, MultipleMatchers) {
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{divide}, ngraph::ParameterVector{data});
     }
 
-    auto anchor = std::make_shared<Anchor>();
-    auto pass = std::make_shared<TestTransformation>();
-    {
-        pass->setCallback([](const std::shared_ptr<const Node> & node) -> bool {
-            return (std::dynamic_pointer_cast<const opset1::Divide>(node) != nullptr);
+    Anchor anchor;
+    anchor.add_matcher<TestMatcher>()->set_callback(
+        [](const std::shared_ptr<const Node> & node) -> bool {
+            if (std::dynamic_pointer_cast<const opset1::Divide>(node)) {
+                return true;
+            } else {
+                return false;
+            }
         });
-        anchor->copy_matchers(pass);
+
+    anchor.run_on_function(f);
+    ASSERT_TRUE(ngraph::op::util::has_op_with_type<opset1::Relu>(f));
+}
+
+TEST(GraphRewriteTest, GraphRewriteCallback) {
+    std::shared_ptr<Function> f;
+    {
+        auto data = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{3, 1, 2});
+        auto divide_constant = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {1.5});
+        auto divide = std::make_shared<ngraph::opset1::Divide>(data, divide_constant);
+        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{divide}, ngraph::ParameterVector{data});
     }
 
-    anchor->run_on_function(f);
+    Anchor anchor;
+    anchor.add_matcher<TestMatcher>();
+    anchor.set_callback(
+    [](const std::shared_ptr<const Node> & node) -> bool {
+        if (std::dynamic_pointer_cast<const opset1::Divide>(node)) {
+            return true;
+        } else {
+            return false;
+        }
+    });
+
+    anchor.run_on_function(f);
+    ASSERT_TRUE(ngraph::op::util::has_op_with_type<opset1::Relu>(f));
+}
+
+TEST(GraphRewriteTest, ManagerCallback) {
+    std::shared_ptr<Function> f;
+    {
+        auto data = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{3, 1, 2});
+        auto divide_constant = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{1}, {1.5});
+        auto divide = std::make_shared<ngraph::opset1::Divide>(data, divide_constant);
+        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{divide}, ngraph::ParameterVector{data});
+    }
+
+    pass::Manager manager;
+    auto anchor = manager.register_pass<Anchor>();
+    anchor->add_matcher<TestMatcher>();
+
+    manager.set_callback(
+    [](const std::shared_ptr<const Node> & node) -> bool {
+        if (std::dynamic_pointer_cast<const opset1::Divide>(node)) {
+            return true;
+        } else {
+            return false;
+        }
+    });
+
+    manager.run_passes(f);
     ASSERT_TRUE(ngraph::op::util::has_op_with_type<opset1::Relu>(f));
 }

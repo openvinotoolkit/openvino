@@ -211,7 +211,7 @@ TEST(TransformationTests, ConvertMatMulTest7) {
             return false;
         };
         auto p = ngraph::pass::ReshapeFullyConnected();
-        p.setCallback(callback);
+        p.set_callback(callback);
         p.run_on_function(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }

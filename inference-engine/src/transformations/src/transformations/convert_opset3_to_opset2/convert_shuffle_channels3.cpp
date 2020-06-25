@@ -19,7 +19,7 @@ void ngraph::pass::ConvertShuffleChannels3::convert_shuffle_channels3() {
 
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher &m) {
         auto shuffle_channels = std::dynamic_pointer_cast<::opset3::ShuffleChannels>(m.get_match_root());
-        if (!shuffle_channels || transformation_callback(shuffle_channels)) {
+        if (!shuffle_channels || m_transformation_callback(shuffle_channels)) {
             return false;
         }
         if (shuffle_channels->input_value(0).get_partial_shape().rank().is_dynamic()) {

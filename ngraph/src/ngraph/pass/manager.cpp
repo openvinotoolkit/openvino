@@ -15,10 +15,6 @@
 //*****************************************************************************
 
 #include <algorithm>
-#ifdef _WIN32
-#else
-#include <cxxabi.h>
-#endif
 #include <iomanip>
 #include <iostream>
 #include <memory>
@@ -63,6 +59,10 @@ void pass::Manager::run_passes(shared_ptr<Function> func, bool /* transitive */)
     {
         pass_timer.start();
         pass->set_state(get_state());
+        if (!m_has_default_callback)
+        {
+            pass->set_callback(m_transformation_callback);
+        }
         auto module_pass = dynamic_pointer_cast<ModulePass>(pass);
         auto function_pass = dynamic_pointer_cast<FunctionPass>(pass);
         auto node_pass = dynamic_pointer_cast<NodePass>(pass);
@@ -135,7 +135,7 @@ void pass::Manager::run_passes(shared_ptr<Function> func, bool /* transitive */)
             std::string index_str = std::to_string(index);
             index_str = std::string(num_digits_in_pass_index - index_str.length(), '0') + index_str;
             auto base_filename = f_array.at(0)->get_name() + std::string("_") + index_str +
-                                 std::string("_") + m_pass_names.at(index);
+                                 std::string("_") + pass->get_name();
 
             if (m_visualize)
             {
@@ -156,13 +156,7 @@ void pass::Manager::run_passes(shared_ptr<Function> func, bool /* transitive */)
         pass_timer.stop();
         if (profile_enabled)
         {
-            PassBase* p = pass.get();
-            string name = typeid(*p).name();
-#ifndef _WIN32
-            int status;
-            name = abi::__cxa_demangle(name.c_str(), nullptr, nullptr, &status);
-#endif
-            cout << setw(7) << pass_timer.get_milliseconds() << "ms " << name << "\n";
+            cout << setw(7) << pass_timer.get_milliseconds() << "ms " << pass->get_name() << "\n";
         }
     }
     if (profile_enabled)

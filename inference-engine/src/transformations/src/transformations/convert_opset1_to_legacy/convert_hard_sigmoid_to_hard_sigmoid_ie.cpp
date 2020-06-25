@@ -14,7 +14,7 @@
 #include <ngraph_ops/hard_sigmoid_ie.hpp>
 
 
-void ngraph::pass::ConvertHardSigmoidToHardSigmoidIE::convert_hard_sigmoid() {
+void ngraph::pass::ConvertHardSigmoidToLegacyMatcher::convert_hard_sigmoid() {
     auto input_0 = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1, 1});
     auto input_1 = std::make_shared<pattern::op::Label>(element::f32, Shape{});
     auto input_2 = std::make_shared<pattern::op::Label>(element::f32, Shape{});
@@ -51,6 +51,6 @@ void ngraph::pass::ConvertHardSigmoidToHardSigmoidIE::convert_hard_sigmoid() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(node, "ConvertHardSigmoidToHardSigmoidIE");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(node, "ConvertHardSigmoidToLegacy");
     this->add_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
 }

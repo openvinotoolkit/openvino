@@ -15,18 +15,12 @@
 
 bool ngraph::pass::ConvertOpSet2ToOpSet1::run_on_function(std::shared_ptr<ngraph::Function> f) {
     ngraph::pass::Manager manager;
-    std::vector<std::shared_ptr<ngraph::pass::PassBase> > transforms;
-    std::shared_ptr<ngraph::pass::GraphRewrite> anchor;
 
-#include <transformations/utils/define_ngraph_pass.hpp>
-#include <transformations/convert_opset2_to_opset1/convert_opset2_to_opset1_tbl.hpp>
-#include <transformations/utils/undefine_ngraph_pass.hpp>
+    manager.register_pass<ngraph::pass::ConvertGELU>();
+    manager.register_pass<ngraph::pass::ConvertSpaceToBatch>();
+    manager.register_pass<ngraph::pass::ConvertBatchToSpace>();
 
-    for (auto & t : transforms) {
-        if (auto t_param = std::dynamic_pointer_cast<PassParam>(t)) {
-            t_param->setCallback(transformation_callback);
-        }
-    }
+    manager.set_callback(m_transformation_callback);
     manager.run_passes(f);
     return true;
 }
