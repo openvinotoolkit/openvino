@@ -17,22 +17,7 @@ public:
     ConvolutionTransformation(const Params& params);
     void registerMatcherIn(GraphRewrite& pass, TransformationContext& context) const override;
     void transform(TransformationContext& context, ngraph::pattern::Matcher &m) const override;
-
-private:
-#if 0 // TODO: LPT-TO-NGRAPH
-
-    void calculateDequantizationForAsymmetric(
-        const CNNLayer& convolution,
-        const std::vector<float>& originalDataDequantizationScales,
-        const std::vector<float>& originalDataDequantizationShifts,
-        const std::vector<float>& dataZeroPoints,
-        const std::vector<float>& originalWeightsDequantizationScales,
-        const std::vector<float>& originalWeightsDequantizationShifts,
-        const std::vector<float>& weightsZeroPoints,
-        std::vector<float>& dequantizationScales,
-        std::vector<float>& dequantizationShifts) const;
-
-#endif
+    void transform2(TransformationContext& context, ngraph::pattern::Matcher &m) const;
 };
 
 }// namespace low_precision

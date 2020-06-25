@@ -8,8 +8,16 @@
 #include <memory>
 
 #include "functional_test_utils/low_precision_transformations/layer_transformation.hpp"
+#include "ngraph_functions/low_precision_transformations/common/fake_quantize_on_data.hpp"
+#include "ngraph_functions/low_precision_transformations/common/fake_quantize_on_weights.hpp"
 
 namespace LayerTestsDefinitions {
+
+class ConvolutionTransformationParam {
+public:
+    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData;
+    ngraph::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
+};
 
 typedef std::tuple<
     InferenceEngine::Precision,
@@ -17,8 +25,7 @@ typedef std::tuple<
     std::string,
     InferenceEngine::details::LayerTransformation::Params,
     LayerTestsUtils::LayerTransformation::LptVersion,
-    bool, // fqOnActivations
-    bool  // fqOnWeights
+    ConvolutionTransformationParam
 > ConvolutionTransformationParams;
 
 class ConvolutionTransformation :

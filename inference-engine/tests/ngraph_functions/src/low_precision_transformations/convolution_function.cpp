@@ -23,19 +23,21 @@ std::shared_ptr<ngraph::Function> ConvolutionFunction::getOriginal(
         nullptr :
         ngraph::builder::makeFakeQuantize(
             input, precision, fqOnData.quantizationLevel, fqOnData.constantShape,
-            fqOnData.lowValues, fqOnData.highValues, fqOnData.lowValues, fqOnData.highValues);
+            fqOnData.inputLowValues, fqOnData.inputHighValues, fqOnData.outputLowValues, fqOnData.outputHighValues);
 
+    const size_t inputChannelsCount = inputShape[1];
+    const size_t outputChannelsCount = 2 * inputShape[1];
     const auto weights = ngraph::opset1::Constant::create(
         precision,
-        ngraph::Shape{ inputShape[1], inputShape[1], 1, 1 },
-        std::vector<float>(inputShape[1] * inputShape[1], 1));
+        ngraph::Shape{ outputChannelsCount, inputChannelsCount, 1, 1 },
+        std::vector<float>(outputChannelsCount * inputChannelsCount, 1));
 
     const auto convolution = std::make_shared<ngraph::opset1::Convolution>(
         fqOnData.empty() ? input : fakeQuantizeOnActivations,
         fqOnWeights.empty() ? weights->output(0) :
         ngraph::builder::makeFakeQuantize(
             weights, precision, fqOnWeights.quantizationLevel, fqOnWeights.constantShape,
-            fqOnWeights.lowValues, fqOnWeights.highValues, fqOnWeights.lowValues, fqOnWeights.highValues),
+            fqOnWeights.inputLowValues, fqOnWeights.inputHighValues, fqOnWeights.outputLowValues, fqOnWeights.outputHighValues),
         ngraph::Strides{ 1, 1 },
         ngraph::CoordinateDiff{ 0, 0 },
         ngraph::CoordinateDiff{ 0, 0 },

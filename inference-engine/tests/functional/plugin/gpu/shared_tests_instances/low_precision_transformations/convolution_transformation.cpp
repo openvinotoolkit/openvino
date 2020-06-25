@@ -23,9 +23,12 @@ const std::vector<LayerTestsUtils::LayerTransformation::LptVersion> versions = {
     // LayerTestsUtils::LayerTransformation::LptVersion::nGraph
 };
 
-const std::vector<bool> fqOnActivationsValues = { true, false };
-
-const std::vector<bool> fqOnWeightsValues = { true, false };
+const std::vector<LayerTestsDefinitions::ConvolutionTransformationParam> params = {
+    {
+        { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 255.f } },
+        { 255ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -127.f }, { 127.f } },
+    },
+};
 
 INSTANTIATE_TEST_CASE_P(DISABLED_LPT, ConvolutionTransformation,
     ::testing::Combine(
@@ -34,8 +37,7 @@ INSTANTIATE_TEST_CASE_P(DISABLED_LPT, ConvolutionTransformation,
         ::testing::Values(CommonTestUtils::DEVICE_GPU),
         ::testing::ValuesIn(trasformationParamValues),
         ::testing::ValuesIn(versions),
-        ::testing::ValuesIn(fqOnActivationsValues),
-        ::testing::ValuesIn(fqOnWeightsValues)),
+        ::testing::ValuesIn(params)),
     ConvolutionTransformation::getTestCaseName);
 }  // namespace
 

@@ -16,9 +16,10 @@
 #include "functional_test_utils/layer_test_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include "ngraph_functions/pass/convert_prc.hpp"
-//#include "ngraph_functions/builders.hpp"
 #include "ngraph_functions/low_precision_transformations/convolution_function.hpp"
 
+// TODO: debug only
+#include <ngraph/pass/visualize_tree.hpp>
 
 namespace LayerTestsDefinitions {
 
@@ -28,14 +29,13 @@ std::string ConvolutionTransformation::getTestCaseName(testing::TestParamInfo<Co
     std::string targetDevice;
     InferenceEngine::details::LayerTransformation::Params params;
     LayerTestsUtils::LayerTransformation::LptVersion version;
-    bool fqOnActivations;
-    bool fqOnWeights;
-    std::tie(netPrecision, inputShapes, targetDevice, params, version, fqOnActivations, fqOnWeights) = obj.param;
+    ConvolutionTransformationParam param;
+    std::tie(netPrecision, inputShapes, targetDevice, params, version, param) = obj.param;
 
     std::ostringstream result;
     result << getTestCaseNameByParams(netPrecision, inputShapes, targetDevice, params, version) <<
-        (fqOnActivations ? "" : "_noFqOnActivations") <<
-        (fqOnWeights ? "" : "_noFqOnWeights");
+        (param.fakeQuantizeOnData.empty() ? "_noFqOnActivations" : "") <<
+        (param.fakeQuantizeOnWeights.empty() ? "_noFqOnWeights" : "");
     return result.str();
 }
 
@@ -46,9 +46,8 @@ void ConvolutionTransformation::SetUp() {
     InferenceEngine::SizeVector inputShape;
     InferenceEngine::details::LayerTransformation::Params params;
     LayerTestsUtils::LayerTransformation::LptVersion version;
-    bool fqOnActivations;
-    bool fqOnWeights;
-    std::tie(netPrecision, inputShape, targetDevice, params, version, fqOnActivations, fqOnWeights) = this->GetParam();
+    ConvolutionTransformationParam param;
+    std::tie(netPrecision, inputShape, targetDevice, params, version, param) = this->GetParam();
     auto precision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
     ConfigurePlugin(version);
@@ -58,10 +57,14 @@ void ConvolutionTransformation::SetUp() {
         precision,
         inputShape,
         // TODO: pass from test parameters
-        ngraph::builder::subgraph::FakeQuantizeOnData(),
-        ngraph::builder::subgraph::FakeQuantizeOnWeights());
+        param.fakeQuantizeOnData,
+        param.fakeQuantizeOnWeights);
 
-    validate();
+    // ngraph::pass::VisualizeTree("C:\\Projects\\temp\\test.original").run_on_module(std::vector<std::shared_ptr<ngraph::Function>>{ function });
+
+    if (version == LptVersion::cnnNetwork) {
+        validate();
+    }
 }
 
 void ConvolutionTransformation::validate() {
@@ -70,9 +73,8 @@ void ConvolutionTransformation::validate() {
     std::string targetDevice;
     InferenceEngine::details::LayerTransformation::Params params;
     LayerTestsUtils::LayerTransformation::LptVersion version;
-    bool fqOnActivations;
-    bool fqOnWeights;
-    std::tie(netPrecision, inputShape, targetDevice, params, version, fqOnActivations, fqOnWeights) = this->GetParam();
+    ConvolutionTransformationParam param;
+    std::tie(netPrecision, inputShape, targetDevice, params, version, param) = this->GetParam();
 
     const InferenceEngine::CNNNetwork network = transform(params);
 
@@ -84,9 +86,9 @@ void ConvolutionTransformation::validate() {
     std::map<std::string, InferenceEngine::DataPtr>::iterator it = outputs.begin();
     const InferenceEngine::CNNLayerPtr outputLayer = it->second->getCreatorLayer().lock();
     EXPECT_TRUE(outputLayer != nullptr);
-    EXPECT_EQ(fqOnActivations & fqOnWeights ? "ScaleShift" : "Convolution", outputLayer->type);
+    EXPECT_EQ((!param.fakeQuantizeOnData.empty()) && (!param.fakeQuantizeOnWeights.empty()) ? "ScaleShift" : "Convolution", outputLayer->type);
 
-    if (fqOnActivations & fqOnWeights) {
+    if ((!param.fakeQuantizeOnData.empty()) && (!param.fakeQuantizeOnWeights.empty())) {
         const InferenceEngine::CNNLayerPtr layer = InferenceEngine::details::CNNNetworkHelper::getParent(*outputLayer);
         if (params.updatePrecisions) {
             checkPrecisions(

@@ -55,7 +55,7 @@ bool WeightableLayerTransformation::canBeTransformed(const TransformationContext
     if (!isDepthwiseConvolution) {
         std::cerr << "NOT DEPTHWISE!";
         // TODO: move scale values validation to standalone method for FullyConnected & GEMM
-        const auto ssNode = as_type_ptr<ngraph::op::MultiplyAdd>(layer->input_value(0).get_node_shared_ptr());
+        const auto ssNode = as_type_ptr<opset1::Multiply>(layer->input_value(0).get_node_shared_ptr());
         assert(ssNode);
 
         // SS takes inputs [0: data, 1: scales, 2: shifts], takes scales (index = 1)
@@ -428,13 +428,17 @@ DataPrecision WeightableLayerTransformation::decomposeFakeQuantizeForWeightsPath
     // Obtain quantization details and decide on target precision based on dimension-less FQ parameters
     // This step is shape independent and considers FQ limits as just a set of number
     const QuantizationDetails quantizationDetails = QuantizationDetails::getDetails(fq);
-    const DataPrecision dataPrecision = getDataPrecision(fq, quantizationDetails, true,
-                                                         supportAsymmetricQuantization);
+    const DataPrecision dataPrecision = getDataPrecision(fq, quantizationDetails, true, supportAsymmetricQuantization);
 
     // The second part of this function calculates new FQ limits and corresponding dequantization scale and shift.
     // To maintain all shapes in a consistent way, ngraph ops are used to build constant sub-expressions.
 
-    decomposeFakeQuantize(fq, dataPrecision.precision, dataPrecision.min, dataPrecision.max);
+    auto tuple = decomposeFakeQuantize(fq, dataPrecision.precision, dataPrecision.min, dataPrecision.max);
+    std::shared_ptr<ngraph::Node> fqOnWeights = std::get<0>(tuple);
+    if (as_type_ptr<ngraph::opset1::Constant>(fqOnWeights) == nullptr) {
+        THROW_IE_LPT_EXCEPTION(*fqOnWeights) << "FakeQuantize on weights was not folded to constant";
+    }
+
     return dataPrecision;
 }
 
