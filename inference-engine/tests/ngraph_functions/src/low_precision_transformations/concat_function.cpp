@@ -42,7 +42,7 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getOriginal(
     //const std::vector<size_t> inputShape2 = { inputShape[0], inputShape[1], inputShape[2] / 2, inputShape[3] / 2 };
     const std::vector<size_t> inputShape2 = inputShape;
     const auto input2 = std::make_shared<ngraph::opset1::Parameter>(ngPrecision, ngraph::Shape(inputShape2));
-    input1->set_friendly_name("input2");
+    input2->set_friendly_name("input2");
     const auto fakeQuantize2 = ngraph::builder::makeFakeQuantize(
         input2, ngPrecision, 256ul, { 1ul },
         { low / 2.f }, { hight / 2.f }, { low / 2.f }, { hight / 2.f });

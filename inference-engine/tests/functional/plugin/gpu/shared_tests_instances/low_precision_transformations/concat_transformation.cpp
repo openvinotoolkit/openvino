@@ -21,6 +21,7 @@ const std::vector<LayerTransformation::Params> trasformationParamValues = {
 
 const std::vector<LayerTestsUtils::LayerTransformation::LptVersion> versions = {
     LayerTestsUtils::LayerTransformation::LptVersion::cnnNetwork,
+    // TODO: not tested
     // LayerTestsUtils::LayerTransformation::LptVersion::nGraph
 };
 

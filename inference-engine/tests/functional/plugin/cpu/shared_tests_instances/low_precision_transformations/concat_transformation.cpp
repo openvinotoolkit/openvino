@@ -12,20 +12,21 @@ using namespace InferenceEngine::details;
 
 namespace {
 const std::vector<InferenceEngine::Precision> netPrecisions = {
-        InferenceEngine::Precision::FP32,
-        InferenceEngine::Precision::FP16
+    InferenceEngine::Precision::FP32,
+    // InferenceEngine::Precision::FP16
 };
 
 const std::vector<LayerTransformation::Params> trasformationParamValues = {
     LayerTestsUtils::LayerTransformationParamsFactory::createParams().setUpdatePrecisions(true),
     LayerTestsUtils::LayerTransformationParamsFactory::createParams().setUpdatePrecisions(false),
-    LayerTestsUtils::LayerTransformationParamsFactory::createParamsI8I8(),
+    // CPU doesn't support I8 -> FP32 Convert. Convert will be removed later.
+    // LayerTestsUtils::LayerTransformationParamsFactory::createParamsI8I8(),
     LayerTestsUtils::LayerTransformationParamsFactory::createParamsU8I8()
 };
 
 const std::vector<LayerTestsUtils::LayerTransformation::LptVersion> versions = {
     LayerTestsUtils::LayerTransformation::LptVersion::cnnNetwork,
-    // LayerTestsUtils::LayerTransformation::LptVersion::nGraph
+    LayerTestsUtils::LayerTransformation::LptVersion::nGraph
 };
 
 INSTANTIATE_TEST_CASE_P(LPT, ConcatTransformation,
