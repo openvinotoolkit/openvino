@@ -198,18 +198,6 @@ public:
     }
 
     /**
-     * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
-     * @copybrief ICNNNetwork::getLayerByName
-     *
-     * Wraps ICNNNetwork::getLayerByName
-     *
-     * @param layerName Given name of the layer
-     * @return Status code of the operation. InferenceEngine::OK if succeeded
-     */
-    INFERENCE_ENGINE_DEPRECATED("Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1")
-    CNNLayerPtr getLayerByName(const char* layerName) const;
-
-    /**
      * @brief Helper method to get collect all input shapes with names of corresponding Data objects
      *
      * @return Map of pairs: input name and its dimension.
