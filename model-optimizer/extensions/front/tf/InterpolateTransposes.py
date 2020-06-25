@@ -46,6 +46,10 @@ class InterpolateTranspose(FrontReplacementSubgraph):
             ]
         )
 
+    def run_after(self):
+        from extensions.front.InterpolateNormalizer import InterpolateNormalizer
+        return [InterpolateNormalizer]
+
     def replace_sub_graph(self, graph: Graph, match: dict):
         interpolate = match['interpolate']
         transpose_1 = match['transpose_1']
