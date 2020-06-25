@@ -144,6 +144,7 @@ extensions/front/kaldi/set_ports.py
 extensions/front/kaldi/sigmoid_ext.py
 extensions/front/kaldi/split_memoryoffsets.py
 extensions/front/kaldi/tanh_component_ext.py
+extensions/front/LayerNorm.py
 extensions/front/Log1p.py
 extensions/front/LogSoftmax.py
 extensions/front/MatMul_normalizer.py
