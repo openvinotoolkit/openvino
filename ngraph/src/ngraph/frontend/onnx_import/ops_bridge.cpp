@@ -136,6 +136,7 @@
 #include "op/topk.hpp"
 #include "op/transpose.hpp"
 #include "op/unsqueeze.hpp"
+#include "op/upsample.hpp"
 #include "op/where.hpp"
 #include "op/xor.hpp"
 #include "ops_bridge.hpp"
@@ -385,6 +386,8 @@ namespace ngraph
             REGISTER_OPERATOR("TopK", 11, topk);
             REGISTER_OPERATOR("Transpose", 1, transpose);
             REGISTER_OPERATOR("Unsqueeze", 1, unsqueeze);
+            REGISTER_OPERATOR("Upsample", 1, upsample);
+            REGISTER_OPERATOR("Upsample", 9, upsample);
             REGISTER_OPERATOR("Where", 1, where);
             REGISTER_OPERATOR("Xor", 1, logical_xor);
         }

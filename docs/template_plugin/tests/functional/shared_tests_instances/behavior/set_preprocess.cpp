@@ -6,6 +6,7 @@
 
 #include "behavior/set_preprocess.hpp"
 
+using namespace BehaviorTestsDefinitions;
 namespace {
     const std::vector<InferenceEngine::Precision> netPrecisions = {
             InferenceEngine::Precision::FP32,

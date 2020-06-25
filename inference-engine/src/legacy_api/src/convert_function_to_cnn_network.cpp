@@ -511,7 +511,7 @@ std::shared_ptr<CNNNetworkImpl> convertFunctionToICNNNetwork(const std::shared_p
                 this->node = node;
             }
         };
-        static std::vector<std::shared_ptr<Builder::INodeConverter>> convertors = {
+        const static std::vector<std::shared_ptr<Builder::INodeConverter>> convertors = {
                 std::make_shared<Builder::NodeConverter<::ngraph::op::Abs>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::Acos>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::v1::Add>>(),
@@ -705,9 +705,6 @@ std::shared_ptr<CNNNetworkImpl> convertFunctionToICNNNetwork(const std::shared_p
     // Create network
     auto cnnNetworkImpl = std::make_shared<details::CNNNetworkImpl>();
     cnnNetworkImpl->setName(graph->get_friendly_name());
-    // In generic case all nGraph functions have MIXED precision
-    // Network precision should be deprecated
-    cnnNetworkImpl->setPrecision(Precision::MIXED);
 
     // Collect all names from current graph
     // It is necessary in order to differentiate outputs from constant layers when we share constants

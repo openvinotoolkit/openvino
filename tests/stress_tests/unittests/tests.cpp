@@ -25,10 +25,6 @@ TEST_P(UnitTestSuiteNoDevice, read_network) {
     runTest(test_read_network, GetParam());
 }
 
-TEST_P(UnitTestSuiteNoDevice, create_cnnnetwork) {
-    runTest(test_create_cnnnetwork, GetParam());
-}
-
 TEST_P(UnitTestSuiteNoDevice, cnnnetwork_reshape_batch_x2) {
     runTest(test_cnnnetwork_reshape_batch_x2, GetParam());
 }
@@ -58,10 +54,6 @@ TEST_P(UnitTestSuite, load_unload_plugin_full_pipeline) {
 
 TEST_P(UnitTestSuite, read_network_full_pipeline) {
     runTest(test_read_network_full_pipeline, GetParam());
-}
-
-TEST_P(UnitTestSuite, create_cnnnetwork_full_pipeline) {
-    runTest(test_create_cnnnetwork_full_pipeline, GetParam());
 }
 
 TEST_P(UnitTestSuite, set_input_params_full_pipeline) {
