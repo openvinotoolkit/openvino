@@ -523,7 +523,7 @@ void op::v4::NonMaxSuppression::validate_and_infer_types()
         return;
     }
 
-    op::v3::NonMaxSuppression::validate_and_infer_types();
+    op::v3::NonMaxSuppression::validate_inputs();
 
     const auto num_boxes_boxes = boxes_ps[1];
     const auto max_output_boxes_per_class_node = input_value(2).get_node_shared_ptr();
