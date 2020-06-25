@@ -172,7 +172,8 @@ namespace ngraph
                             target_dims.push_back(1);
                         }
 
-                        target_dims.push_back(0); // copy dimension at axis from input X
+                        // copy dimension at axis from input X
+                        target_dims.push_back(x_shape[axis].get_length());
 
                         for (size_t i = axis + 1; i < x_shape.rank().get_length(); ++i)
                         {
@@ -180,7 +181,7 @@ namespace ngraph
                         }
 
                         const auto target_shape = default_opset::Constant::create(
-                            element::i32, Shape{target_dims.size()}, target_dims);
+                            element::i64, Shape{target_dims.size()}, target_dims);
 
                         return std::make_shared<default_opset::Reshape>(input, target_shape, true);
                     }
