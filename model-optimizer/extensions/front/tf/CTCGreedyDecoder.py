@@ -87,10 +87,12 @@ class CTCGreedyDecoderReplacement(FrontReplacementSubgraph):
         decoder_node.in_port(0).get_source().connect(shape.in_port(0))
         shape.out_port(0).connect(ss.in_port(0))
 
-        unsqueeze_1 = create_op_node_with_second_input(graph, Unsqueeze, int64_array([0, 1]), {'name': decoder_name + '/unsqueeze_1'})
+        unsqueeze_1 = create_op_node_with_second_input(graph, Unsqueeze, int64_array([0, 1]),
+                                                       {'name': decoder_name + '/unsqueeze_1'})
         unsqueeze_1.in_port(0).connect(ss.out_port(0))
 
-        unsqueeze_2 = create_op_node_with_second_input(graph, Unsqueeze, int64_array([0]), {'name': decoder_name + '/unsqueeze_2'})
+        unsqueeze_2 = create_op_node_with_second_input(graph, Unsqueeze, int64_array([0]),
+                                                       {'name': decoder_name + '/unsqueeze_2'})
 
         port = decoder_node.in_port(1).get_source()
         port.disconnect()
@@ -100,12 +102,14 @@ class CTCGreedyDecoderReplacement(FrontReplacementSubgraph):
         concat.add_input_port(0, skip_if_exist=True)
         concat.add_input_port(1, skip_if_exist=True)
 
-        concat.in_port(1).connect(unsqueeze_1.out_port(0))
         concat.in_port(0).connect(unsqueeze_2.out_port(0))
+        concat.in_port(1).connect(unsqueeze_1.out_port(0))
 
-        broadcast = create_op_with_const_inputs(graph, Broadcast, {0: int64_array([1])}, {'name': decoder_name + '/broadcast'})
+        broadcast = create_op_with_const_inputs(graph, Broadcast, {0: int64_array([1])},
+                                                {'name': decoder_name + '/broadcast'})
 
-        squeeze = create_op_node_with_second_input(graph, Squeeze, int64_array([0]), {'name': decoder_name + '/squeeze'})
+        squeeze = create_op_node_with_second_input(graph, Squeeze, int64_array([0]),
+                                                   {'name': decoder_name + '/squeeze'})
         concat.out_port(0).connect(squeeze.in_port(0))
         squeeze.out_port(0).connect(broadcast.in_port(1))
 
