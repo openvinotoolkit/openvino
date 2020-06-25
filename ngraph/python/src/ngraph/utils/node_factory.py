@@ -3,7 +3,7 @@ from typing import Any, Dict, List, Optional
 from _pyngraph import NodeFactory as _NodeFactory
 from ngraph.impl import Node
 
-DEFAULT_OPSET = "opset3"
+DEFAULT_OPSET = "opset4"
 
 
 class NodeFactory(object):
