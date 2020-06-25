@@ -22,13 +22,13 @@ from mo.graph.graph import Node, Graph
 from mo.utils.error import Error
 
 from mo.ops.broadcast import Broadcast
-from mo.ops.const import Const
 from mo.ops.shape import Shape
 from mo.ops.squeeze import Squeeze
 from mo.ops.unsqueeze import Unsqueeze
-from extensions.ops.transpose import Transpose
 from extensions.ops.gather import Gather
 from mo.ops.concat import Concat
+from mo.ops.strided_slice import StridedSlice
+from mo.front.tf.graph_utils import create_op_node_with_second_input, create_op_with_const_inputs
 
 
 class CTCGreedyDecoderReplacement(FrontReplacementSubgraph):
@@ -70,58 +70,45 @@ class CTCGreedyDecoderReplacement(FrontReplacementSubgraph):
         graph.remove_edge(decoder_node.id, match['cast'].id)
         match['sparse_to_dense'].replace_node(decoder_node)
 
-        shape = Shape(graph, {}).create_node()
+        decoder_name = decoder_node.soft_get('name', decoder_node.id)
 
-        axis_const_1 = Const(graph, {'value': int64_array([0, 2, 3])}).create_node()
-        # axis_const_2 = Const(graph, {'value': int64_array([0, 2, 3])}).create_node()
-        unsqueeze_1 = Squeeze(graph, {}).create_node()
-        # squeeze = Squeeze(graph, {}).create_node()
+        shape = Shape(graph, {'name': decoder_name + '/shape'}).create_node()
 
-        unsqueeze_1.in_port(1).connect(axis_const_1.out_port(0))
-        # squeeze.in_port(1).connect(axis_const_2.out_port(0))
+        ss = create_op_with_const_inputs(graph, StridedSlice, {1: int64_array([1]),
+                                                               2: int64_array([2]),
+                                                               3: int64_array([1])},
+                                                               {'name': decoder_name + '/strided_slice',
+                                                                'begin_mask': '1',
+                                                                'ellipsis_mask': '0',
+                                                                'end_mask': '1',
+                                                                'new_axis_mask': '0',
+                                                                'shrink_axis_mask': '1'})
 
         decoder_node.in_port(0).get_source().connect(shape.in_port(0))
-        shape.out_port(0).connect(unsqueeze_1.in_port(0))
+        shape.out_port(0).connect(ss.in_port(0))
 
-        concat = Concat(graph, {}).create_node()
-        concat.add_input_port(0, skip_if_exist=True)
-        concat.add_input_port(1, skip_if_exist=True)
+        unsqueeze_1 = create_op_node_with_second_input(graph, Unsqueeze, int64_array([0, 1]), {'name': decoder_name + '/unsqueeze_1'})
+        unsqueeze_1.in_port(0).connect(ss.out_port(0))
+
+        unsqueeze_2 = create_op_node_with_second_input(graph, Unsqueeze, int64_array([0]), {'name': decoder_name + '/unsqueeze_2'})
 
         port = decoder_node.in_port(1).get_source()
         port.disconnect()
-        port.connect(concat.in_port(1))
+        port.connect(unsqueeze_2.in_port(0))
 
-        concat.in_port(0).connect(unsqueeze_1.out_port(0))
-        # concat.in_port(1).connect(squeeze.out_port(0))
+        concat = Concat(graph, {'name': decoder_name + '/concat'}).create_node()
+        concat.add_input_port(0, skip_if_exist=True)
+        concat.add_input_port(1, skip_if_exist=True)
 
-        value_const = Const(graph, {'value': int64_array([1])}).create_node()
-        broadcast = Broadcast(graph, {}).create_node()
-        broadcast.in_port(0).connect(value_const.out_port(0))
+        concat.in_port(1).connect(unsqueeze_1.out_port(0))
+        concat.in_port(0).connect(unsqueeze_2.out_port(0))
 
-        transpose = Transpose(graph, {}).create_node()
+        broadcast = create_op_with_const_inputs(graph, Broadcast, {0: int64_array([1])}, {'name': decoder_name + '/broadcast'})
 
-        broadcast.out_port(0).connect(transpose.in_port(0))
+        squeeze = create_op_node_with_second_input(graph, Squeeze, int64_array([0]), {'name': decoder_name + '/squeeze'})
+        concat.out_port(0).connect(squeeze.in_port(0))
+        squeeze.out_port(0).connect(broadcast.in_port(1))
 
-        concat.out_port(0).connect(broadcast.in_port(1))
+        broadcast.out_port(0).connect(decoder_node.in_port(1))
 
-        transpose.out_port(0).connect(decoder_node.in_port(1))
-
-        # update the TensorFlow infer function for the CTCGreedyDecoder to make necessary changes with the second input
-        # decoder_node['old_infer'] = decoder_node.infer
-        # decoder_node.infer = __class__.tf_greedy_decoder_infer
         return {}
-
-    @staticmethod
-    def tf_greedy_decoder_infer(node: Node):
-        sequence_length_node = node.in_node(1)
-        if sequence_length_node.value is None:
-            raise Error('The second input to the CTCGreedyDecoder node "{}" is not constant. This case is not '
-                        'supported with the Inference Engine.'.format(node.soft_get('name')))
-        # the batch size is the dimension with index 1 for the layer CTCGreedyDecoder
-        new_value = np.ones([node.in_node(0).shape[1], sequence_length_node.value[0]])
-        new_value[:, 0] = 0
-        new_value = np.transpose(new_value)
-        sequence_length_node.value = new_value
-        sequence_length_node.shape = int64_array(sequence_length_node.value.shape)
-
-        node.old_infer(node)
