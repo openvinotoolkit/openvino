@@ -588,3 +588,54 @@ TEST(type_prop, max_pool_partial_rank_static_dynamic_padded_window_not_too_big)
     ASSERT_TRUE(mp->get_output_partial_shape(0).same_scheme(
         PartialShape{5, Dimension::dynamic(), 1, Dimension::dynamic(), 1, 3}));
 }
+
+TEST(type_prop, max_pool_auto_padding)
+{
+    const PartialShape arg_shape{1, 3, 32, 32};
+    const Strides strides{1, 1};
+    const Shape pads_begin{0, 0};
+    const Shape pads_end{0, 0};
+    const Shape kernel_shape{2, 2};
+    const auto rounding_mode = op::RoundingType::FLOOR;
+    const auto auto_pad = op::PadType::SAME_LOWER;
+
+    auto arg = make_shared<op::Parameter>(element::f32, arg_shape);
+    auto mp = make_shared<op::v1::MaxPool>(
+        arg, strides, pads_begin, pads_end, kernel_shape, rounding_mode, auto_pad);
+
+    ASSERT_TRUE(mp->get_output_partial_shape(0).same_scheme({1, 3, 32, 32}));
+}
+
+TEST(type_prop, max_pool_auto_padding_nc_dims_dynamic)
+{
+    const PartialShape arg_shape{Dimension::dynamic(), Dimension::dynamic(), 32, 32};
+    const Strides strides{1, 1};
+    const Shape pads_begin{0, 0};
+    const Shape pads_end{0, 0};
+    const Shape kernel_shape{2, 2};
+    const auto rounding_mode = op::RoundingType::FLOOR;
+    const auto auto_pad = op::PadType::SAME_LOWER;
+
+    auto arg = make_shared<op::Parameter>(element::f32, arg_shape);
+    auto mp = make_shared<op::v1::MaxPool>(
+        arg, strides, pads_begin, pads_end, kernel_shape, rounding_mode, auto_pad);
+
+    ASSERT_TRUE(mp->get_output_partial_shape(0).same_scheme({Dimension::dynamic(), Dimension::dynamic(), 32, 32}));
+}
+
+TEST(type_prop, max_pool_auto_padding_spatial_dims_dynamic)
+{
+    const PartialShape arg_shape{1, 3, 32, Dimension::dynamic()};
+    const Strides strides{1, 1};
+    const Shape pads_begin{0, 0};
+    const Shape pads_end{0, 0};
+    const Shape kernel_shape{2, 2};
+    const auto rounding_mode = op::RoundingType::FLOOR;
+    const auto auto_pad = op::PadType::SAME_LOWER;
+
+    auto arg = make_shared<op::Parameter>(element::f32, arg_shape);
+    auto mp = make_shared<op::v1::MaxPool>(
+        arg, strides, pads_begin, pads_end, kernel_shape, rounding_mode, auto_pad);
+
+    ASSERT_TRUE(mp->get_output_partial_shape(0).same_scheme({1, 3, Dimension::dynamic(), Dimension::dynamic()}));
+}

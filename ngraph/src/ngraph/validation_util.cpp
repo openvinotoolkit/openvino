@@ -635,11 +635,11 @@ bool ngraph::try_apply_infer_auto_padding(const PartialShape& image_shape,
         return false;
     }
     const auto image_dims = static_cast<std::vector<Dimension>>(image_shape);
-    const bool are_spatial_dims_dynamic =
+    const bool are_spatial_dims_static =
         std::all_of(std::begin(image_dims) + 2, std::end(image_dims), [](const Dimension& dim) {
-            return dim.is_dynamic();
+            return dim.is_static();
         });
-    if (are_spatial_dims_dynamic)
+    if (!are_spatial_dims_static)
     {
         return false;
     }

@@ -62,7 +62,19 @@ void op::v1::Convolution::validate_and_infer_types()
     const PartialShape& filters_shape = get_input_partial_shape(1);
     element::Type filters_et = get_input_element_type(1);
 
-    auto result_shape = PartialShape::dynamic();
+    PartialShape result_shape = PartialShape::dynamic();
+    if(data_batch_shape.rank().is_static())
+    {
+        result_shape = std::vector<Dimension>(data_batch_shape.rank().get_length(), Dimension::dynamic());
+    }
+    if(data_batch_shape.rank().is_static() && data_batch_shape.rank().get_length() > 1)
+    {
+        result_shape[0] = data_batch_shape[0]; // batch size
+    }
+    if(filters_shape.rank().is_static() && filters_shape.rank().get_length() > 1)
+    {
+        result_shape[1] = filters_shape[0]; // filter channel count
+    }
 
     element::Type result_et;
     NODE_VALIDATION_CHECK(

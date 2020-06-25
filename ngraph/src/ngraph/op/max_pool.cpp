@@ -365,6 +365,18 @@ void op::v1::MaxPool::validate_and_infer_types()
 
     const PartialShape& arg_shape = get_input_partial_shape(0);
     auto output_shape = PartialShape::dynamic();
+    if(arg_shape.rank().is_static())
+    {
+        output_shape = std::vector<Dimension>(arg_shape.rank().get_length(), Dimension::dynamic());
+        if(arg_shape.rank().get_length() > 1)
+        {
+            output_shape[0] = arg_shape[0]; // batch size
+        }
+        if(arg_shape.rank().get_length() > 2)
+        {
+            output_shape[1] = arg_shape[1]; // channel count
+        }
+    }
 
     const bool update_auto_padding_succeed =
         update_auto_padding(arg_shape, m_pads_end, m_pads_begin);
@@ -385,7 +397,7 @@ void op::v1::MaxPool::validate_and_infer_types()
                                                         m_strides,
                                                         true,
                                                         m_rounding_type == op::RoundingType::CEIL)
-                        : PartialShape::dynamic());
+                        : output_shape);
 }
 
 shared_ptr<Node> op::v1::MaxPool::clone_with_new_inputs(const OutputVector& new_args) const
