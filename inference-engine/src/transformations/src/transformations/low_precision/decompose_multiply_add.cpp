@@ -28,7 +28,7 @@ void DecomposeMultiplyAddTransformation::registerMatcherIn(GraphRewrite &pass, T
 }
 
 void DecomposeMultiplyAddTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) const {
-    decomposeMultiplyAdd(as_type_ptr<ngraph::op::MultiplyAdd>(m.get_match_root()));
+    // decomposeMultiplyAdd(as_type_ptr<ngraph::op::MultiplyAdd>(m.get_match_root()));
 }
 
 
