@@ -11,10 +11,20 @@
 
 #include "functional_test_utils/layer_test_utils.hpp"
 
+namespace LayerTestsDefinitions {
+namespace MatMulParams {
+enum class InputLayerType {
+    CONSTANT,
+    PARAMETER,
+};
+} // namespace MatMulParams
+}  // namespace LayerTestsDefinitions
+
 typedef std::tuple<
         InferenceEngine::Precision,
         InferenceEngine::SizeVector,
         InferenceEngine::SizeVector,
+        LayerTestsDefinitions::MatMulParams::InputLayerType,
         LayerTestsUtils::TargetDevice
 > MatMulLayerTestParamsSet;
 
