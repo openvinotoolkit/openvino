@@ -47,6 +47,7 @@ private:
     }
 
     void finalCheckImpl() const override {
+        initialCheckImpl();
     }
 
     void serializeParamsImpl(BlobSerializer& serializer) const override {
@@ -90,10 +91,11 @@ void FrontEnd::parseStaticShapeNMS(const Model& model, const ie::CNNLayerPtr& la
     VPU_THROW_UNLESS(sortResultDescending == false,
         "StaticShapeNMS: parameter sortResultDescending=true is not supported on VPU");
     VPU_THROW_UNLESS(boxEncoding == "corner" || boxEncoding == "center",
-        "StaticShapeNMS: boxEncoding currently supports only two values: \"corner\" and \"center\"");
+        "StaticShapeNMS: boxEncoding currently supports only two values: \"corner\" and \"center\" "
+        "while {} was provided", boxEncoding);
 
     DataVector tempInputs = inputs;
-    for (size_t fake = inputs.size(); fake < 5; fake++) {
+    for (auto fake = inputs.size(); fake < 5; fake++) {
         tempInputs.push_back(model->addFakeData());
     }
 
