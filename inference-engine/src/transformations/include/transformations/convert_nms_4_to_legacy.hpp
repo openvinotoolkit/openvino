@@ -14,20 +14,18 @@
 namespace ngraph {
 namespace pass {
 
-class TRANSFORMATIONS_API UpgradeNMS3ToNMS4;
+    class TRANSFORMATIONS_API ConvertNMS4ToLegacy;
 
 }  // namespace pass
 }  // namespace ngraph
 
 /*
  * Description:
- *      UpgradeNMS3ToNMS4 transformation upgrades NonMaxSuppression operations from v3 version to v4
- *      in case function has at least one NonZero operation (dynamism marker).
- *      NMS of version v4 always has dynamic output
+ *      Convert NMS-4 directly to legacy NMS because NMS-3 and NMS-1 have different shape infer function
  */
 
 
-class ngraph::pass::UpgradeNMS3ToNMS4: public ngraph::pass::FunctionPass {
+class ngraph::pass::ConvertNMS4ToLegacy: public ngraph::pass::FunctionPass {
 public:
     bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
 };
