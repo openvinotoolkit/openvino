@@ -393,7 +393,8 @@ void op::v3::NonMaxSuppression::validate_and_infer_types()
 
     const auto num_boxes_boxes = boxes_ps[1];
     const auto max_output_boxes_per_class_node = input_value(2).get_node_shared_ptr();
-    if (num_boxes_boxes.is_static() && scores_ps[1].is_static() && max_output_boxes_per_class_node->is_constant())
+    if (num_boxes_boxes.is_static() && scores_ps[1].is_static() &&
+        max_output_boxes_per_class_node->is_constant())
     {
         const auto num_boxes = num_boxes_boxes.get_length();
         const auto num_classes = scores_ps[1].get_length();
@@ -481,7 +482,8 @@ op::v4::NonMaxSuppression::NonMaxSuppression(
     constructor_validate_and_infer_types();
 }
 
-shared_ptr<Node> op::v4::NonMaxSuppression::clone_with_new_inputs(const OutputVector& new_args) const
+shared_ptr<Node>
+    op::v4::NonMaxSuppression::clone_with_new_inputs(const OutputVector& new_args) const
 {
     check_new_args_count(this, new_args);
     NODE_VALIDATION_CHECK(this,
@@ -528,13 +530,14 @@ void op::v4::NonMaxSuppression::validate_and_infer_types()
     const auto num_boxes_boxes = boxes_ps[1];
     const auto max_output_boxes_per_class_node = input_value(2).get_node_shared_ptr();
     if (num_boxes_boxes.is_static() && scores_ps[0].is_static() && scores_ps[1].is_static() &&
-            max_output_boxes_per_class_node->is_constant())
+        max_output_boxes_per_class_node->is_constant())
     {
         const auto num_boxes = num_boxes_boxes.get_length();
         const auto max_output_boxes_per_class = max_boxes_output_from_input();
         const auto num_classes = scores_ps[1].get_length();
 
-        out_shape[0] = std::min(num_boxes, max_output_boxes_per_class) * num_classes * scores_ps[0].get_length();
+        out_shape[0] = std::min(num_boxes, max_output_boxes_per_class) * num_classes *
+                       scores_ps[0].get_length();
     }
     set_output_type(0, m_output_type, out_shape);
 }
@@ -544,46 +547,46 @@ void op::v4::NonMaxSuppression::validate_and_infer_types()
 constexpr NodeTypeInfo op::dynamic::NonMaxSuppression::type_info;
 
 op::dynamic::NonMaxSuppression::NonMaxSuppression(
-        const Output<Node>& boxes,
-        const Output<Node>& scores,
-        const Output<Node>& max_output_boxes_per_class,
-        const Output<Node>& iou_threshold,
-        const Output<Node>& score_threshold,
-        const op::dynamic::NonMaxSuppression::BoxEncodingType box_encoding,
-        const bool sort_result_descending,
-        const element::Type& output_type)
-        : op::v3::NonMaxSuppression({boxes,
-                                     scores,
-                                     max_output_boxes_per_class,
-                                     iou_threshold,
-                                     score_threshold,
-                                     box_encoding,
-                                     sort_result_descending,
-                                     output_type})
+    const Output<Node>& boxes,
+    const Output<Node>& scores,
+    const Output<Node>& max_output_boxes_per_class,
+    const Output<Node>& iou_threshold,
+    const Output<Node>& score_threshold,
+    const op::dynamic::NonMaxSuppression::BoxEncodingType box_encoding,
+    const bool sort_result_descending,
+    const element::Type& output_type)
+    : op::v3::NonMaxSuppression({boxes,
+                                 scores,
+                                 max_output_boxes_per_class,
+                                 iou_threshold,
+                                 score_threshold,
+                                 box_encoding,
+                                 sort_result_descending,
+                                 output_type})
 {
     constructor_validate_and_infer_types();
 }
 
 op::dynamic::NonMaxSuppression::NonMaxSuppression(
-        const Output<Node>& boxes,
-        const Output<Node>& scores,
-        const op::dynamic::NonMaxSuppression::BoxEncodingType box_encoding,
-        const bool sort_result_descending,
-        const element::Type& output_type)
-        : op::v3::NonMaxSuppression({boxes,
-                                     scores,
-                                     op::Constant::create(element::i64, Shape{}, {0}),
-                                     op::Constant::create(element::f32, Shape{}, {.0f}),
-                                     op::Constant::create(element::f32, Shape{}, {.0f}),
-                                     box_encoding,
-                                     sort_result_descending,
-                                     output_type})
+    const Output<Node>& boxes,
+    const Output<Node>& scores,
+    const op::dynamic::NonMaxSuppression::BoxEncodingType box_encoding,
+    const bool sort_result_descending,
+    const element::Type& output_type)
+    : op::v3::NonMaxSuppression({boxes,
+                                 scores,
+                                 op::Constant::create(element::i64, Shape{}, {0}),
+                                 op::Constant::create(element::f32, Shape{}, {.0f}),
+                                 op::Constant::create(element::f32, Shape{}, {.0f}),
+                                 box_encoding,
+                                 sort_result_descending,
+                                 output_type})
 {
     constructor_validate_and_infer_types();
 }
 
 shared_ptr<Node>
-op::dynamic::NonMaxSuppression::clone_with_new_inputs(const OutputVector& new_args) const
+    op::dynamic::NonMaxSuppression::clone_with_new_inputs(const OutputVector& new_args) const
 {
     check_new_args_count(this, new_args);
     NODE_VALIDATION_CHECK(this,
@@ -591,14 +594,14 @@ op::dynamic::NonMaxSuppression::clone_with_new_inputs(const OutputVector& new_ar
                           "Number of inputs must be 2, 3, 4 or 5");
 
     const auto& arg2 = new_args.size() > 2
-                       ? new_args.at(2)
-                       : ngraph::op::Constant::create(element::i32, Shape{}, {0});
+                           ? new_args.at(2)
+                           : ngraph::op::Constant::create(element::i32, Shape{}, {0});
     const auto& arg3 = new_args.size() > 3
-                       ? new_args.at(3)
-                       : ngraph::op::Constant::create(element::f32, Shape{}, {.0f});
+                           ? new_args.at(3)
+                           : ngraph::op::Constant::create(element::f32, Shape{}, {.0f});
     const auto& arg4 = new_args.size() > 4
-                       ? new_args.at(4)
-                       : ngraph::op::Constant::create(element::f32, Shape{}, {.0f});
+                           ? new_args.at(4)
+                           : ngraph::op::Constant::create(element::f32, Shape{}, {.0f});
 
     return std::make_shared<op::dynamic::NonMaxSuppression>(new_args.at(0),
                                                             new_args.at(1),
