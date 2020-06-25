@@ -86,7 +86,7 @@ bool ngraph::pass::ConvertNMS4ToLegacy::run_on_function(std::shared_ptr<ngraph::
                 throw ngraph_error("NonMaxSuppression layer " + nms_4->get_friendly_name() +
                                    " has unsupported box encoding");
         }
-        const auto nms_legacy = std::make_shared<op::NonMaxSuppressionIE>(
+        const auto nms_legacy = std::make_shared<op::NonMaxSuppressionIE2>(
                 new_args.at(0),
                 new_args.at(1),
                 arg2,
@@ -94,7 +94,6 @@ bool ngraph::pass::ConvertNMS4ToLegacy::run_on_function(std::shared_ptr<ngraph::
                 arg4,
                 center_point_box,
                 nms_4->get_sort_result_descending());
-        nms_legacy->m_converted_from_nms_version = 4;
         new_ops.push_back(nms_legacy);
 
         Output<Node> last;
