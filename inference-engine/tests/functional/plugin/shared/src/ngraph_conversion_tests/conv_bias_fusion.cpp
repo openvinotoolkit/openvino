@@ -58,8 +58,10 @@ TEST_P(ConvBiasFusion, ConvBiasFusion) {
             }
         }
     } else {
+        IE_SUPPRESS_DEPRECATED_START
         auto add_layer = CommonTestUtils::getLayerByName(net, getOutputName());
         ASSERT_EQ(add_layer->params["originalLayersNames"], "add,conv");
+        IE_SUPPRESS_DEPRECATED_END
     }
 }
 
