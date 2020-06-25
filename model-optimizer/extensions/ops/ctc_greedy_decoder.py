@@ -42,25 +42,6 @@ class CTCGreedyDecoderOp(Op):
 
     @staticmethod
     def ctc_greedy_decoder_infer(node: Node):
-
-        if node.graph.graph['cmd_params'].framework == 'tf':
-
-            sequence_length_node = node.in_node(1)
-            # sequence_length_node = node.in_port(1).data
-            # if sequence_length_node.get_value() is None:
-            if sequence_length_node.value is None:
-                raise Error('The second input to the CTCGreedyDecoder node "{}" is not constant. This case is not '
-                            'supported with the Inference Engine.'.format(node.soft_get('name')))
-            # the batch size is the dimension with index 1 for the layer CTCGreedyDecoder
-            new_value = np.ones([node.in_node(0).shape[1], sequence_length_node.value[0]])
-            # new_value = np.ones([node.in_node(0).shape[1], sequence_length_node.get_value()[0]])
-            new_value[:, 0] = 0
-            new_value = np.transpose(new_value)
-            # sequence_length_node.set_value(new_value)
-            # sequence_length_node.set_shape(int64_array(new_value.shape))
-            sequence_length_node.value = new_value
-            sequence_length_node.shape = int64_array(new_value.shape)
-
         output_shape = np.ones(4, dtype=np.int)
         assert node.in_port(0).data.get_shape()[1] == node.in_port(0).data.get_shape()[1], \
             'Batch for CTCGreedyDecoder should be the same in both inputs'
