@@ -29,10 +29,16 @@ namespace low_precision {
 FakeQuantizeDequantization::FakeQuantizeDequantization() {}
 
 FakeQuantizeDequantization::FakeQuantizeDequantization(
+    ngraph::element::Type resultPrecision,
     std::shared_ptr<ngraph::opset1::FakeQuantize> fakeQuantize,
     std::shared_ptr<ngraph::opset1::Convert> convert,
     std::shared_ptr<ngraph::opset1::Subtract> subtract,
-    std::shared_ptr<ngraph::opset1::Multiply> multiply) : fakeQuantize(fakeQuantize), convert(convert), subtract(subtract), multiply(multiply) {
+    std::shared_ptr<ngraph::opset1::Multiply> multiply) :
+    resultPrecision(resultPrecision),
+    fakeQuantize(fakeQuantize),
+    convert(convert),
+    subtract(subtract),
+    multiply(multiply) {
 }
 
 }  // namespace low_precision
