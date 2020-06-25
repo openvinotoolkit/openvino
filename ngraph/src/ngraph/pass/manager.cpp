@@ -23,6 +23,7 @@
 #include "ngraph/function.hpp"
 #include "ngraph/graph_util.hpp"
 #include "ngraph/node.hpp"
+#include "ngraph/pass/graph_rewrite.hpp"
 #include "ngraph/pass/manager.hpp"
 #include "ngraph/pass/pass.hpp"
 #include "ngraph/pass/serialize.hpp"
@@ -67,6 +68,7 @@ void pass::Manager::run_passes(shared_ptr<Function> func, bool /* transitive */)
         auto function_pass = dynamic_pointer_cast<FunctionPass>(pass);
         auto node_pass = dynamic_pointer_cast<NodePass>(pass);
         auto call_graph_pass = dynamic_pointer_cast<CallGraphPass>(pass);
+        auto matcher_pass = dynamic_pointer_cast<MatcherPass>(pass);
         if (module_pass)
         {
             if (auto vt_pass = dynamic_pointer_cast<pass::VisualizeTree>(module_pass))
@@ -74,6 +76,30 @@ void pass::Manager::run_passes(shared_ptr<Function> func, bool /* transitive */)
                 vt_pass->set_ops_to_details(get_state().get_visualize_tree_ops_map());
             }
             module_pass->run_on_module(f_array);
+        }
+        else if (matcher_pass)
+        {
+            for (auto f_pair : fs)
+            {
+                shared_ptr<Function> f = f_pair.first;
+                // This checks is to skip the graph optimization when the graph pass relies on
+                // static shape but the function state is dynamic.
+                // we update the function dynamic state only if we run the graph pass successfully.
+                if (matcher_pass->get_property(PassProperty::REQUIRE_STATIC_SHAPE) && f_pair.second)
+                {
+                    continue;
+                }
+                // GraphRewrite is a temporary container for MatcherPass to make execution
+                // on on entire ngraph::Function
+                bool function_modified = GraphRewrite(matcher_pass).run_on_function(f);
+                // If the pass may change the function's is_dynamic property, we need to
+                // update the cached value.
+                if (function_modified &&
+                    matcher_pass->get_property(PassProperty::CHANGE_DYNAMIC_STATE))
+                {
+                    f_pair.second = f->is_dynamic();
+                }
+            }
         }
         else if (function_pass)
         {

@@ -64,42 +64,56 @@ using namespace ngraph;
 bool pass::GraphRewrite::run_on_function(shared_ptr<Function> f)
 {
     bool rewritten = false;
-    for (auto node : f->get_ordered_ops())
+    const size_t NUM_TRIES = 10;
+    size_t tries = NUM_TRIES;
+    vector<std::shared_ptr<MatcherPass>> original_matchers{m_matchers};
+    do
     {
-        // Temporary keep this GraphRewrite property for backward compatibility
-        if (m_enable_shape_inference)
+        rewritten = false;
+        // m_matchers may contain newly constructed matchers for matchers
+        // that need multiple passes. See comments above.
+        vector<std::shared_ptr<MatcherPass>> matchers_to_run{m_matchers};
+        m_matchers.clear();
+        for (auto node : f->get_ordered_ops())
         {
-            node->revalidate_and_infer_types();
-        }
-        for (auto& m_pass : m_matchers)
-        {
-            if (m_pass->get_matcher_property().is_set(PassProperty::REQUIRE_STATIC_SHAPE) &&
-                f->is_dynamic())
+            // Temporary keep this GraphRewrite property for backward compatibility
+            if (m_enable_shape_inference)
             {
-                NGRAPH_DEBUG << "matcher callback requires static shape but the "
-                                "function is dynamic, skipping this "
-                                "optimization till the shapes are fully "
-                                "materialized";
-                continue;
+                node->revalidate_and_infer_types();
             }
-
-            if (!m_has_default_callback)
+            for (auto& m_pass : matchers_to_run)
             {
-                m_pass->set_callback(m_transformation_callback);
-            }
-
-            if (m_pass->apply_matcher(node))
-            {
-                rewritten = true;
-                if (m_pass->get_matcher_property().is_set(PassProperty::REQUIRE_SHAPE_INFERENCE))
+                if (m_pass->get_matcher_property().is_set(PassProperty::REQUIRE_STATIC_SHAPE) &&
+                    f->is_dynamic())
                 {
-                    f->validate_nodes_and_infer_types();
+                    NGRAPH_DEBUG << "matcher callback requires static shape but the "
+                                    "function is dynamic, skipping this "
+                                    "optimization till the shapes are fully "
+                                    "materialized";
+                    continue;
                 }
-                break;
+
+                if (!m_has_default_callback)
+                {
+                    m_pass->set_callback(m_transformation_callback);
+                }
+
+                if (m_pass->apply_matcher(node))
+                {
+                    rewritten = true;
+                    if (m_pass->get_matcher_property().is_set(
+                            PassProperty::REQUIRE_SHAPE_INFERENCE))
+                    {
+                        f->validate_nodes_and_infer_types();
+                    }
+                    break;
+                }
             }
         }
-    }
-    return rewritten;
+    } while (rewritten && !m_matchers.empty() && tries--);
+
+    m_matchers.assign(original_matchers.begin(), original_matchers.end());
+    return (NUM_TRIES - tries) > 1; // this means a graph was transformed
 }
 
 static vector<regex> initialize_fusion_regexes()
