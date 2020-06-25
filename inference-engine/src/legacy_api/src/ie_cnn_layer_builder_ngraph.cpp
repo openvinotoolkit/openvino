@@ -2113,5 +2113,17 @@ CNNLayer::Ptr NodeConverter<ngraph::op::NonMaxSuppressionIE>::createLayer(const 
     return res;
 }
 
+template <>
+CNNLayer::Ptr NodeConverter<ngraph::op::NonMaxSuppressionIE2>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
+    LayerParams params = {layer->get_friendly_name(), "NonMaxSuppression", Precision::I32};
+
+    auto castedLayer = std::dynamic_pointer_cast<ngraph::op::NonMaxSuppressionIE2>(layer);
+    if (castedLayer == nullptr) THROW_IE_EXCEPTION << "Cannot get " << params.type << " layer " << params.name;
+
+    auto res = std::make_shared<InferenceEngine::NonMaxSuppressionLayer>(params);
+    res->params["sort_result_descending"] = std::to_string(castedLayer->m_sort_result_descending);
+    res->params["center_point_box"] = std::to_string(castedLayer->m_sort_result_descending);
+    return res;
+}
 }  // namespace Builder
 }  // namespace InferenceEngine

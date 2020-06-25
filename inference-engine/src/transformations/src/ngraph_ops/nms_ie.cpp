@@ -59,7 +59,8 @@ op::NonMaxSuppressionIE2::NonMaxSuppressionIE2(const Output<Node> &boxes,
                                                const Output<Node> &score_threshold,
                                                int center_point_box,
                                                bool sort_result_descending)
-        : op::NonMaxSuppressionIE(boxes, scores, max_output_boxes_per_class, iou_threshold, score_threshold, center_point_box, sort_result_descending) {
+        : op::Op({boxes, scores, max_output_boxes_per_class, iou_threshold, score_threshold}), m_center_point_box(center_point_box),
+        m_sort_result_descending(sort_result_descending) {
     constructor_validate_and_infer_types();
 }
 

@@ -35,7 +35,7 @@ public:
     bool m_sort_result_descending = true;
 };
 
-class TRANSFORMATIONS_API NonMaxSuppressionIE2 : public NonMaxSuppressionIE {
+class TRANSFORMATIONS_API NonMaxSuppressionIE2 : public op::Op {
 public:
     static constexpr NodeTypeInfo type_info{"NonMaxSuppressionIE", 2};
     const NodeTypeInfo& get_type_info() const override { return type_info; }
@@ -51,6 +51,9 @@ public:
     void validate_and_infer_types() override;
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector & new_args) const override;
+
+    int m_center_point_box;
+    bool m_sort_result_descending = true;
 };
 
 }  // namespace op
