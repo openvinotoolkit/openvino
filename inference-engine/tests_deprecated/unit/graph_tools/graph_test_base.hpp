@@ -11,6 +11,7 @@
 #include "details/ie_cnn_network_tools.h"
 
 #include "unit_test_utils/mocks/mock_icnn_network.hpp"
+#include "common_test_utils/common_utils.hpp"
 
 namespace GraphTest {
 
@@ -116,7 +117,7 @@ class GraphTestsBase : public ::testing::Test {
         long int nForward = 0;
         CNNLayerPtr layerExist;
         try {
-            layerExist = wrap.getLayerByName(a.c_str());
+            layerExist = CommonTestUtils::getLayerByName(wrap, a.c_str());
             if (!layerExist) {
                 return 0;
             }
@@ -144,7 +145,7 @@ class GraphTestsBase : public ::testing::Test {
     int countBackwardConnections(std::string a, std::string b, int from_port_id=-1) {
         CNNLayerPtr layerExist;
         try {
-            layerExist = wrap.getLayerByName(b.c_str());
+            layerExist = CommonTestUtils::getLayerByName(wrap, b.c_str());
             if (!layerExist) {
                 return 0;
             }

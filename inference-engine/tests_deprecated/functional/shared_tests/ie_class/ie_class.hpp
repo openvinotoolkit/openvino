@@ -22,6 +22,7 @@
 #include <ngraph/op/subtract.hpp>
 
 #include "common_test_utils/file_utils.hpp"
+#include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/unicode_utils.hpp"
 #include "ngraph_functions/subgraph_builders.hpp"
 
@@ -1293,7 +1294,7 @@ TEST_P(IEClassLoadNetworkTest, QueryNetworkHETEROwithMULTINoThrowv7) {
 
         for (auto && layer : result.supportedLayersMap) {
             IE_SUPPRESS_DEPRECATED_START
-            EXPECT_NO_THROW(actualNetwork.getLayerByName(layer.first.c_str()));
+            EXPECT_NO_THROW(CommonTestUtils::getLayerByName(actualNetwork, layer.first));
             IE_SUPPRESS_DEPRECATED_END
         }
     } else {
@@ -1321,7 +1322,7 @@ TEST_P(IEClassLoadNetworkTest, QueryNetworkMULTIwithHETERONoThrowv7) {
 
         for (auto && layer : result.supportedLayersMap) {
             IE_SUPPRESS_DEPRECATED_START
-            EXPECT_NO_THROW(actualNetwork.getLayerByName(layer.first.c_str()));
+            EXPECT_NO_THROW(CommonTestUtils::getLayerByName(actualNetwork, layer.first));
             IE_SUPPRESS_DEPRECATED_END
         }
     } else {

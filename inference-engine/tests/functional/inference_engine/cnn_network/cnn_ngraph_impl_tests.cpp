@@ -30,6 +30,7 @@
 #include <ngraph/op/result.hpp>
 
 #include "common_test_utils/file_utils.hpp"
+#include "common_test_utils/common_utils.hpp"
 #include "transformations/rt_info/primitives_priority_attribute.hpp"
 #include "cnn_network_ngraph_impl.hpp"
 
@@ -205,7 +206,7 @@ TEST(CNNNGraphImplTests, TestSaveAffinity) {
     }
 
     InferenceEngine::CNNNetwork cnnNet(ngraph);
-    auto cnnLayer = cnnNet.getLayerByName("testReLU");
+    auto cnnLayer = CommonTestUtils::getLayerByName(cnnNet, "testReLU");
     ASSERT_NE(nullptr, cnnLayer);
     ASSERT_EQ(cnnLayer->affinity, testAffinity);
 }
@@ -350,15 +351,15 @@ TEST(CNNNGraphImplTests, SaveAttributesAfterConversion) {
     }
 
     InferenceEngine::details::CNNNetworkNGraphImpl cnnNet(ngraph);
-    CNNLayerPtr layer;
-    ASSERT_EQ(OK, cnnNet.getLayerByName(name.c_str(), layer, nullptr));
+    auto * icnnnetwork = static_cast<InferenceEngine::ICNNNetwork*>(&cnnNet);
+    CNNLayerPtr layer = CommonTestUtils::getLayerByName(icnnnetwork, name);
     layer->params["test"] = "2";
-    ASSERT_EQ(OK, cnnNet.getLayerByName(name.c_str(), layer, nullptr));
+    layer = CommonTestUtils::getLayerByName(icnnnetwork, name);
     ASSERT_TRUE(layer->params.find("test") != layer->params.end());
     ASSERT_EQ(layer->params["test"], "2");
 
     cnnNet.convertToCNNNetworkImpl();
-    ASSERT_EQ(OK, cnnNet.getLayerByName(name.c_str(), layer, nullptr));
+    layer = CommonTestUtils::getLayerByName(icnnnetwork, name);
     ASSERT_TRUE(layer->params.find("test") != layer->params.end());
     ASSERT_EQ(layer->params["test"], "2");
 }

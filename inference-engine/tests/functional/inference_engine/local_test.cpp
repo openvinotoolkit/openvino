@@ -6,6 +6,7 @@
 
 #include <ie_core.hpp>
 #include <net_pass.h>
+#include "common_test_utils/common_utils.hpp"
 
 using namespace ::testing;
 using namespace std;
@@ -213,12 +214,12 @@ protected:
 
         IE_SUPPRESS_DEPRECATED_START
         if (!isLSTM) {
-            auto power_layer = dynamic_pointer_cast<PowerLayer>(net.getLayerByName("power"));
+            auto power_layer = dynamic_pointer_cast<PowerLayer>(CommonTestUtils::getLayerByName(net, "power"));
             ASSERT_EQ(power_layer->scale, 0.75f);
             ASSERT_EQ(power_layer->offset, 0.35f);
             ASSERT_EQ(power_layer->power, 0.5f);
 
-            auto sum_layer = dynamic_pointer_cast<EltwiseLayer>(net.getLayerByName("sum"));
+            auto sum_layer = dynamic_pointer_cast<EltwiseLayer>(CommonTestUtils::getLayerByName(net, "sum"));
             std::vector<float> ref_coeff{0.77f, 0.33f};
             ASSERT_EQ(sum_layer->coeff, ref_coeff);
 
@@ -230,7 +231,7 @@ protected:
             InferenceEngine::NetPass::UnrollRNN_if(net, [] (const RNNCellBase& rnn) -> bool { return true; });
             net.serialize("UnrollRNN_if.xml");
             EXPECT_EQ(0, std::remove("UnrollRNN_if.xml"));
-            auto lstmcell_layer = dynamic_pointer_cast<ClampLayer>(net.getLayerByName("LSTMCell:split_clip"));
+            auto lstmcell_layer = dynamic_pointer_cast<ClampLayer>(CommonTestUtils::getLayerByName(net, "LSTMCell:split_clip"));
 
             float ref_coeff = 0.2f;
             ASSERT_EQ(lstmcell_layer->min_value, -ref_coeff);
