@@ -42,9 +42,10 @@ class NodeFactory(object):
         #   node.get_attribute_name()
         #   node.set_attribute_name()
         # For compound (with more than one level of nesting) attributes of form ie.:
-        # node.struct_member_name.some_metric.attr_name:
+        # node.class_member_name.some_metric.attr_name:
         #   node.get_some_metric_attr_name()
         #   node.set_some_metric_attr_name()
+        # Please see test_dyn_attributes.py for more usage examples.
         all_attributes = node._get_attributes()
         for attr_name in all_attributes.keys():
             setattr(node,

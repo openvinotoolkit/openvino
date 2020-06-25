@@ -39,6 +39,16 @@ def _proposal_node():
     return ng.proposal(class_probs, class_logits, image_shape, attributes)
 
 
+def test_dynamic_attributes_softmax():
+    axis = 2
+    data = ng.parameter([1, 2, 3, 4], np.float32, "data_in")
+    node = ng.softmax(data, axis)
+
+    assert node.get_axis() == axis
+    node.set_axis(3)
+    assert node.get_axis() == 3
+
+
 @pytest.mark.parametrize(
     "int_dtype, fp_dtype",
     [
