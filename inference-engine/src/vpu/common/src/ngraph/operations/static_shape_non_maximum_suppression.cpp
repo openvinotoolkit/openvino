@@ -68,7 +68,7 @@ void StaticShapeNonMaxSuppression::validate_and_infer_types() {
 
     const auto out_shape = this->get_output_partial_shape(0);
     NODE_VALIDATION_CHECK(this, out_shape.is_static(),
-                          "StaticShapeTopK output shape is not fully defined: ", out_shape);
+                          "StaticShapeNonMaxSuppression output shape is not fully defined: ", out_shape);
 
     set_output_size(2);
     set_output_type(0, m_output_type, out_shape);
