@@ -114,8 +114,6 @@ namespace
             break;
             TYPE_CASE(f32)(arg0, arg1, out, broadcast_spec);
             break;
-            TYPE_CASE(f64)(arg0, arg1, out, broadcast_spec);
-            break;
         default: rc = false; break;
         }
         return rc;

@@ -39,18 +39,6 @@ public:
     Data(const std::string& name, Precision _precision, Layout layout = NCHW);
 
     /**
-     * @deprecated Use Data(const std::string &name, const TensorDesc& desc)
-     * @brief A full constructor (with dimensions)
-     *
-     * @param name Name of the data node
-     * @param a_dims Data tensor dimensions
-     * @param _precision Precision of the data
-     * @param layout Data layout
-     */
-    INFERENCE_ENGINE_DEPRECATED("Use Data(const std::string &, const TensorDesc&). The ctor will be removed in 2021.1")
-    Data(const std::string& name, const SizeVector& a_dims, Precision _precision, Layout layout = NCHW);
-
-    /**
      * @brief A constructor with tensor descriptor
      *
      * @param name Name of the data node

@@ -23,6 +23,7 @@
 #include <transformations/low_precision/convolution.hpp>
 #include <transformations/convert_opset2_to_opset1/convert_opset2_to_opset1.hpp>
 #include <transformations/convert_opset3_to_opset2/convert_opset3_to_opset2.hpp>
+#include <transformations/rt_info/fused_names_attribute.hpp>
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset2.hpp>
 #include <ngraph/opsets/opset3.hpp>
@@ -55,6 +56,81 @@ Engine::~Engine() {
     ExecutorManager::getInstance()->clear("CPUCallbackExecutor");
 }
 
+static void Transformation(ICNNNetwork::Ptr& clonedNetwork, const Config& conf) {
+    const auto transformations_callback = [](const std::shared_ptr<const ::ngraph::Node> &node) -> bool {
+        // DepthToSpace node implementation supports only equal input/output tensors with rank <= 5
+        if (auto dtsOp = std::dynamic_pointer_cast<const ::ngraph::opset3::DepthToSpace>(node)) {
+            return dtsOp->input_value(0).get_shape().size() <= 5lu && dtsOp->input_value(0).get_shape().size() == dtsOp->get_output_shape(0).size();
+        }
+
+        // SpaceToDepth node implementation supports only equal input/output tensors with rank <= 5
+        if (auto stdOp = std::dynamic_pointer_cast<const ::ngraph::opset3::SpaceToDepth>(node)) {
+            return stdOp->input_value(0).get_shape().size() <= 5lu && stdOp->input_value(0).get_shape().size() == stdOp->get_output_shape(0).size();
+        }
+
+        if (auto fc_op = std::dynamic_pointer_cast<const ngraph::op::FullyConnected>(node)) {
+            return fc_op->input_value(0).get_shape().size() == 3ul;
+        }
+
+        return std::dynamic_pointer_cast<const ::ngraph::opset2::Gelu>(node) ||
+            std::dynamic_pointer_cast<const ::ngraph::opset2::BatchToSpace>(node) ||
+            std::dynamic_pointer_cast<const ::ngraph::opset2::SpaceToBatch>(node);
+    };
+    auto nGraphFunc = clonedNetwork->getFunction();
+    // Disable shape inference (WA for generic operations)
+    ::ngraph::op::GenericIE::DisableReshape noReshape(nGraphFunc);
+
+    // Note: instead of running all Conversion Transformations you can make up your own transformation pipeline
+    ngraph::pass::CommonOptimizations(transformations_callback).run_on_function(nGraphFunc);
+    ngraph::pass::ConvertOpSet3ToOpSet2(transformations_callback).run_on_function(nGraphFunc);
+    ngraph::pass::ConvertOpSet2ToOpSet1(transformations_callback).run_on_function(nGraphFunc);
+
+    using namespace ngraph::pass::low_precision;
+    if ((conf.lptVersion == Config::LptVersion::nGraph) && conf.lpTransformsMode == Config::LPTransformsMode::On) {
+        auto params = LayerTransformation::Params(true,  // updatePrecisions
+                                                    true,  // quantizeOutputs
+                                                    true,  // weightsToConst
+                                                    LayerTransformation::QuantizedTensorAlignment::UpdateLevel,  // quantizedTensorAlignmentOnActivations
+                                                    LayerTransformation::QuantizedTensorAlignment::None,  // quantizedTensorAlignmentOnWeights
+                                                    true,  // roundQuantizedValues
+                                                    true,  // updateBiases
+                                                    true);  // supportAsymmetricQuantization
+        LowPrecisionTransformer transformer(LowPrecisionTransformer::getAllTransformations(params).
+                add<ConvolutionTransformation>(
+                LayerTransformation::Params(params).setPrecisionsOnActivations({ngraph::element::u8}), "Convolution"));
+        #if 0 // TODO LPT-TO-NGRAPH
+        addCleanup<ScaleShiftToConvolutionTransformation>(
+                LayerTransformation::Params(params).setPrecisionsOnActivations({ngraph::element::u8}),
+                "ScaleShift"));
+        #endif
+
+        // std::vector<std::shared_ptr<ngraph::Function>> originalModule{ nGraphFunc };
+        // ngraph::pass::VisualizeTree("C:\\Projects\\temp\\test.original").run_on_module(originalModule);
+
+        transformer.transform(nGraphFunc);
+
+        // std::vector<std::shared_ptr<ngraph::Function>> transformedModule{ nGraphFunc };
+        // ngraph::pass::VisualizeTree("C:\\Projects\\temp\\test.transformed").run_on_module(transformedModule);
+    }
+
+    ngraph::pass::ConvertOpSet1ToLegacy(transformations_callback).run_on_function(nGraphFunc);
+
+    // {
+    //    std::vector<std::shared_ptr<ngraph::Function>> module{nGraphFunc};
+    //    ngraph::pass::VisualizeTree("after_convert_to_legacy.svg").run_on_module(module);
+
+    //    // Output subgraphs as a separagge pictures
+    //    for (auto op : nGraphFunc->get_ops()) {
+    //        if (auto subgraph = ngraph::as_type_ptr<ngraph::op::Subgraph>(op)) {
+    //            std::vector<std::shared_ptr<ngraph::Function>> module_subgraph{subgraph->get_body()};
+    //            ngraph::pass::VisualizeTree(subgraph->get_name() + ".svg").run_on_module(module_subgraph);
+    //        }
+    //    }
+    // }
+
+    clonedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(nGraphFunc, *clonedNetwork);
+}
+
 InferenceEngine::ExecutableNetworkInternal::Ptr
 Engine::LoadExeNetworkImpl(const InferenceEngine::ICNNNetwork &network, const std::map<std::string, std::string> &config) {
     // verification of supported input
@@ -85,84 +161,9 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::ICNNNetwork &network, const st
     }
 
     std::shared_ptr<ICNNNetwork> clonedNetwork = cloneNetwork(network);
-
     if (clonedNetwork->getFunction()) {
-        const auto transformations_callback = [](const std::shared_ptr<const ::ngraph::Node> &node) -> bool {
-            // DepthToSpace node implementation supports only equal input/output tensors with rank <= 5
-            if (auto dtsOp = std::dynamic_pointer_cast<const ::ngraph::opset3::DepthToSpace>(node)) {
-                return dtsOp->input_value(0).get_shape().size() <= 5lu && dtsOp->input_value(0).get_shape().size() == dtsOp->get_output_shape(0).size();
-            }
-
-            // SpaceToDepth node implementation supports only equal input/output tensors with rank <= 5
-            if (auto stdOp = std::dynamic_pointer_cast<const ::ngraph::opset3::SpaceToDepth>(node)) {
-                return stdOp->input_value(0).get_shape().size() <= 5lu && stdOp->input_value(0).get_shape().size() == stdOp->get_output_shape(0).size();
-            }
-
-            if (auto fc_op = std::dynamic_pointer_cast<const ngraph::op::FullyConnected>(node)) {
-                return fc_op->input_value(0).get_shape().size() == 3ul;
-            }
-
-            return std::dynamic_pointer_cast<const ::ngraph::opset2::Gelu>(node) ||
-                std::dynamic_pointer_cast<const ::ngraph::opset2::BatchToSpace>(node) ||
-                std::dynamic_pointer_cast<const ::ngraph::opset2::SpaceToBatch>(node);
-        };
-        auto nGraphFunc = clonedNetwork->getFunction();
-        // Disable shape inference (WA for generic operations)
-        ::ngraph::op::GenericIE::DisableReshape noReshape(nGraphFunc);
-
-        // Note: instead of running all Conversion Transformations you can make up your own transformation pipeline
-        ngraph::pass::CommonOptimizations(transformations_callback).run_on_function(nGraphFunc);
-        ngraph::pass::ConvertOpSet3ToOpSet2(transformations_callback).run_on_function(nGraphFunc);
-        ngraph::pass::ConvertOpSet2ToOpSet1(transformations_callback).run_on_function(nGraphFunc);
-
-        using namespace ngraph::pass::low_precision;
-        if ((conf.lptVersion == Config::LptVersion::nGraph) && conf.lpTransformsMode == Config::LPTransformsMode::On) {
-            auto params = LayerTransformation::Params(true,  // updatePrecisions
-                                                      true,  // quantizeOutputs
-                                                      true,  // weightsToConst
-                                                      LayerTransformation::QuantizedTensorAlignment::UpdateLevel,  // quantizedTensorAlignmentOnActivations
-                                                      LayerTransformation::QuantizedTensorAlignment::None,  // quantizedTensorAlignmentOnWeights
-                                                      true,  // roundQuantizedValues
-                                                      true,  // updateBiases
-                                                      true);  // supportAsymmetricQuantization
-            LowPrecisionTransformer transformer(LowPrecisionTransformer::getAllTransformations(params).
-                    add<ConvolutionTransformation>(
-                    LayerTransformation::Params(params).setPrecisionsOnActivations({ngraph::element::u8}), "Convolution"));
-#if 0 // TODO LPT-TO-NGRAPH
-            addCleanup<ScaleShiftToConvolutionTransformation>(
-                    LayerTransformation::Params(params).setPrecisionsOnActivations({ngraph::element::u8}),
-                    "ScaleShift"));
-#endif
-
-            // std::vector<std::shared_ptr<ngraph::Function>> originalModule{ nGraphFunc };
-            // ngraph::pass::VisualizeTree("C:\\Projects\\temp\\test.original").run_on_module(originalModule);
-
-            transformer.transform(nGraphFunc);
-
-            // std::vector<std::shared_ptr<ngraph::Function>> transformedModule{ nGraphFunc };
-            // ngraph::pass::VisualizeTree("C:\\Projects\\temp\\test.transformed").run_on_module(transformedModule);
-
-            // TODO: Implement remaining part
-        }
-
-        ngraph::pass::ConvertOpSet1ToLegacy(transformations_callback).run_on_function(nGraphFunc);
-
-        // {
-        //    std::vector<std::shared_ptr<ngraph::Function>> module{nGraphFunc};
-        //    ngraph::pass::VisualizeTree("after_convert_to_legacy.svg").run_on_module(module);
-
-        //    // Output subgraphs as a separagge pictures
-        //    for (auto op : nGraphFunc->get_ops()) {
-        //        if (auto subgraph = ngraph::as_type_ptr<ngraph::op::Subgraph>(op)) {
-        //            std::vector<std::shared_ptr<ngraph::Function>> module_subgraph{subgraph->get_body()};
-        //            ngraph::pass::VisualizeTree(subgraph->get_name() + ".svg").run_on_module(module_subgraph);
-        //        }
-        //    }
-        // }
-
-        clonedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(nGraphFunc, *clonedNetwork);
+        Transformation(clonedNetwork, conf);
     }
-
     auto implNetwork = std::dynamic_pointer_cast<details::CNNNetworkImpl>(clonedNetwork);
     if (implNetwork) {
         // valid for CNNNetworkImpl only, while there's no API in ICNNNetwork to change network
@@ -269,18 +270,65 @@ void Engine::AddExtension(InferenceEngine::IExtensionPtr extension) {
 }
 
 void Engine::QueryNetwork(const ICNNNetwork& network, const std::map<std::string, std::string>& config, QueryNetworkResult& res) const {
-    details::CNNNetworkIterator i(&network);
-    while (i != details::CNNNetworkIterator()) {
-        try {
-            mkldnn::engine eng(mkldnn::engine(mkldnn::engine::kind::cpu, 0));
-            MKLDNNWeightsSharing::Ptr fake_w_cache;
-
-            // if we can create and have not thrown exception, then layer is supported
-            std::unique_ptr <MKLDNNNode>(MKLDNNNode::CreateNode(*i, eng, extensionManager, fake_w_cache));
-            res.supportedLayersMap.insert({ (*i)->name, GetName() });
-        } catch (InferenceEngine::details::InferenceEngineException&) {
+    MKLDNNWeightsSharing::Ptr fake_w_cache;
+    auto function = network.getFunction();
+    if (function != nullptr) {
+        std::unordered_set<std::string> originalOps;
+        for (auto&& node : function->get_ops()) {
+            if (!node->is_constant() && !node->is_parameter() && !node->is_output()) {
+                originalOps.emplace(node->get_friendly_name());
+            }
         }
-        i++;
+
+        // TODO: Clarify the behavior of SetConfig method. Skip eng_config or not?
+        Config conf = engConfig;
+        conf.readProperties(config);
+
+        if (conf.enableDynamicBatch) {
+            conf.batchLimit = static_cast<int>(network.getBatchSize());
+        }
+
+        auto clonedNetwork = cloneNetwork(network);
+        Transformation(clonedNetwork, conf);
+        std::unordered_set<std::string> supported;
+        std::unordered_set<std::string> unsupported;
+        for (details::CNNNetworkIterator itLayer{clonedNetwork.get()}; itLayer != details::CNNNetworkIterator(); itLayer++) {
+            auto layerIsSupported = [&] {
+                std::unique_ptr<MKLDNNNode> ptr;
+                try {
+                    ptr.reset(MKLDNNNode::CreateNode(*itLayer, {mkldnn::engine::kind::cpu, 0}, extensionManager, fake_w_cache));
+                } catch (InferenceEngine::details::InferenceEngineException&) {
+                     return false;
+                }
+                return true;
+            } ();
+            for (auto&& fusedLayerName : ngraph::getFusedNamesVector((*itLayer)->getNode())) {
+                if (contains(originalOps, fusedLayerName)) {
+                    if (layerIsSupported) {
+                        supported.emplace(fusedLayerName);
+                    } else {
+                        unsupported.emplace(fusedLayerName);
+                    }
+                }
+            }
+        }
+        for (auto&& layerName : supported) {
+            if (!contains(unsupported, layerName)) {
+                res.supportedLayersMap.emplace(layerName, GetName());
+            }
+        }
+    } else {
+        details::CNNNetworkIterator i(&network);
+        while (i != details::CNNNetworkIterator()) {
+            try {
+                mkldnn::engine eng(mkldnn::engine(mkldnn::engine::kind::cpu, 0));
+                // if we can create and have not thrown exception, then layer is supported
+                std::unique_ptr <MKLDNNNode>(MKLDNNNode::CreateNode(*i, eng, extensionManager, fake_w_cache));
+                res.supportedLayersMap.insert({ (*i)->name, GetName() });
+            } catch (InferenceEngine::details::InferenceEngineException&) {
+            }
+            i++;
+        }
     }
 }
 

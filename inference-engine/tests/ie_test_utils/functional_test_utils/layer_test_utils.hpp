@@ -101,6 +101,7 @@ protected:
     InferenceEngine::ExecutableNetwork executableNetwork;
     std::vector<InferenceEngine::Blob::Ptr> inputs;
     float threshold;
+    InferenceEngine::CNNNetwork cnnNetwork;
 
     virtual void Validate();
 
@@ -112,7 +113,6 @@ private:
     std::vector<InferenceEngine::Blob::Ptr> GetOutputs();
 
     std::shared_ptr<InferenceEngine::Core> core;
-    InferenceEngine::CNNNetwork cnnNetwork;
     InferenceEngine::InferRequest inferRequest;
     RefMode refMode = RefMode::INTERPRETER;
 };

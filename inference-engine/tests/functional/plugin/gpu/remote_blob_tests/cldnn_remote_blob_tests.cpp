@@ -98,8 +98,8 @@ TEST_F(RemoteBlob_Test, canInferOnUserContext) {
 
     auto blob = FuncTestUtils::createAndFillBlob(net.getInputsInfo().begin()->second->getTensorDesc());
 
-    auto ie = InferenceEngine::Core();
-    auto exec_net_regular = ie.LoadNetwork(net, CommonTestUtils::DEVICE_GPU);
+    auto ie = PluginCache::get().ie();
+    auto exec_net_regular = ie->LoadNetwork(net, CommonTestUtils::DEVICE_GPU);
 
     // regular inference
     auto inf_req_regular = exec_net_regular.CreateInferRequest();
@@ -111,8 +111,8 @@ TEST_F(RemoteBlob_Test, canInferOnUserContext) {
 
     // inference using remote blob
     auto ocl_instance = std::make_shared<OpenCL>();
-    auto remote_context = make_shared_context(ie, CommonTestUtils::DEVICE_GPU, ocl_instance->_context.get());
-    auto exec_net_shared = ie.LoadNetwork(net, remote_context);
+    auto remote_context = make_shared_context(*ie, CommonTestUtils::DEVICE_GPU, ocl_instance->_context.get());
+    auto exec_net_shared = ie->LoadNetwork(net, remote_context);
     auto inf_req_shared = exec_net_shared.CreateInferRequest();
     inf_req_shared.SetBlob(net.getInputsInfo().begin()->first, fakeImageData);
 
