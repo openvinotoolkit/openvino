@@ -20,7 +20,7 @@ StaticShapeNonMaxSuppression::StaticShapeNonMaxSuppression(
         const StaticShapeNonMaxSuppression::BoxEncodingType box_encoding,
         const bool sort_result_descending,
         const element::Type& output_type)
-        : ngraph::op::v3::NonMaxSuppression({
+        : ngraph::op::v4::NonMaxSuppression({
             boxes, scores, max_output_boxes_per_class, iou_threshold, score_threshold,
             box_encoding, sort_result_descending, output_type}) {
     constructor_validate_and_infer_types();
@@ -32,7 +32,7 @@ StaticShapeNonMaxSuppression::StaticShapeNonMaxSuppression(
         const StaticShapeNonMaxSuppression::BoxEncodingType box_encoding,
         const bool sort_result_descending,
         const element::Type& output_type)
-        : ngraph::op::v3::NonMaxSuppression({boxes,
+        : ngraph::op::v4::NonMaxSuppression({boxes,
               scores,
               ngraph::opset3::Constant::create(element::i64, Shape{}, {0}),
               ngraph::opset3::Constant::create(element::f32, Shape{}, {.0f}),
@@ -64,7 +64,7 @@ StaticShapeNonMaxSuppression::clone_with_new_inputs(const OutputVector& new_args
 }
 
 void StaticShapeNonMaxSuppression::validate_and_infer_types() {
-    ngraph::op::v3::NonMaxSuppression::validate_and_infer_types();
+    ngraph::op::v4::NonMaxSuppression::validate_and_infer_types();
 
     const auto out_shape = this->get_output_partial_shape(0);
     NODE_VALIDATION_CHECK(this, out_shape.is_static(),
