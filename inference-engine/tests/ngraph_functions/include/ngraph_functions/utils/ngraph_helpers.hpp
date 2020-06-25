@@ -89,7 +89,23 @@ enum ActivationTypes {
     Log,
     Sign,
     Abs,
-    Gelu
+    Gelu,
+    Clamp,
+    Negative,
+    Acos,
+    Asin,
+    Atan,
+    Cos,
+    Cosh,
+    Floor,
+    Sin,
+    Sinh,
+    Sqrt,
+    Tan,
+    Elu,
+    Erf,
+    HardSigmoid,
+    Selu
 };
 
 enum EltwiseTypes {
