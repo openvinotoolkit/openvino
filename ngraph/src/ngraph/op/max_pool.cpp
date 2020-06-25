@@ -374,7 +374,7 @@ void op::v1::MaxPool::validate_and_infer_types()
         }
         if (arg_shape.rank().get_length() > 2)
         {
-            output_shape[1] = arg_shape[1]; // channel count
+            output_shape[1] = arg_shape[1]; // channel size
         }
     }
 
@@ -610,15 +610,7 @@ bool op::v1::MaxPool::evaluate(const HostTensorVector& outputs, const HostTensor
     auto arg_shape = inputs[0]->get_partial_shape();
     auto pads_begin_s = get_pads_begin();
     auto pads_end_s = get_pads_end();
-    const auto update_auto_padding_succeed =
-        update_auto_padding(arg_shape, pads_begin_s, pads_end_s);
-
-    NODE_VALIDATION_CHECK(this,
-                          update_auto_padding_succeed,
-                          "Updating auto padding fails (arg_shape: ",
-                          arg_shape,
-                          ").");
-
+    update_auto_padding(arg_shape, pads_begin_s, pads_end_s);
     CoordinateDiff pads_begin(pads_begin_s.begin(), pads_begin_s.end());
     CoordinateDiff pads_end(pads_end_s.begin(), pads_end_s.end());
     auto out_shape = infer_batched_pooling_forward(this,
