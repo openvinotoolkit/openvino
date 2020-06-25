@@ -620,7 +620,8 @@ TEST(type_prop, max_pool_auto_padding_nc_dims_dynamic)
     auto mp = make_shared<op::v1::MaxPool>(
         arg, strides, pads_begin, pads_end, kernel_shape, rounding_mode, auto_pad);
 
-    ASSERT_TRUE(mp->get_output_partial_shape(0).same_scheme({Dimension::dynamic(), Dimension::dynamic(), 32, 32}));
+    ASSERT_TRUE(mp->get_output_partial_shape(0).same_scheme(
+        {Dimension::dynamic(), Dimension::dynamic(), 32, 32}));
 }
 
 TEST(type_prop, max_pool_auto_padding_spatial_dims_dynamic)
@@ -637,5 +638,6 @@ TEST(type_prop, max_pool_auto_padding_spatial_dims_dynamic)
     auto mp = make_shared<op::v1::MaxPool>(
         arg, strides, pads_begin, pads_end, kernel_shape, rounding_mode, auto_pad);
 
-    ASSERT_TRUE(mp->get_output_partial_shape(0).same_scheme({1, 3, Dimension::dynamic(), Dimension::dynamic()}));
+    ASSERT_TRUE(mp->get_output_partial_shape(0).same_scheme(
+        {1, 3, Dimension::dynamic(), Dimension::dynamic()}));
 }

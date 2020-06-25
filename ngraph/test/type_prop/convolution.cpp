@@ -2897,13 +2897,8 @@ TEST(type_prop, conv_v1_partial_auto_padding_same)
     auto data_batch = make_shared<op::Parameter>(element::f32, data_batch_shape);
     auto filters = make_shared<op::Parameter>(element::f32, filters_shape);
 
-    auto conv = make_shared<op::v1::Convolution>(data_batch,
-                                                 filters,
-                                                 strides,
-                                                 pads_begin,
-                                                 pads_end,
-                                                 dilations,
-                                                 auto_pad);
+    auto conv = make_shared<op::v1::Convolution>(
+        data_batch, filters, strides, pads_begin, pads_end, dilations, auto_pad);
 
     ASSERT_TRUE(conv->get_output_partial_shape(0).same_scheme(PartialShape{1, 1, 5, 5}));
 }
@@ -2921,13 +2916,8 @@ TEST(type_prop, conv_v1_partial_auto_padding_same_nc_dims_dynamic)
     auto data_batch = make_shared<op::Parameter>(element::f32, data_batch_shape);
     auto filters = make_shared<op::Parameter>(element::f32, filters_shape);
 
-    auto conv = make_shared<op::v1::Convolution>(data_batch,
-                                                 filters,
-                                                 strides,
-                                                 pads_begin,
-                                                 pads_end,
-                                                 dilations,
-                                                 auto_pad);
+    auto conv = make_shared<op::v1::Convolution>(
+        data_batch, filters, strides, pads_begin, pads_end, dilations, auto_pad);
 
     ASSERT_TRUE(conv->get_output_partial_shape(0).same_scheme({Dimension::dynamic(), 1, 5, 5}));
 }
@@ -2945,15 +2935,11 @@ TEST(type_prop, conv_v1_partial_auto_padding_same_spatial_dims_dynamic)
     auto data_batch = make_shared<op::Parameter>(element::f32, data_batch_shape);
     auto filters = make_shared<op::Parameter>(element::f32, filters_shape);
 
-    auto conv = make_shared<op::v1::Convolution>(data_batch,
-                                                filters,
-                                                strides,
-                                                pads_begin,
-                                                pads_end,
-                                                dilations,
-                                                auto_pad);
+    auto conv = make_shared<op::v1::Convolution>(
+        data_batch, filters, strides, pads_begin, pads_end, dilations, auto_pad);
 
-    ASSERT_TRUE(conv->get_output_partial_shape(0).same_scheme({1, 1, Dimension::dynamic(), Dimension::dynamic()}));
+    ASSERT_TRUE(conv->get_output_partial_shape(0).same_scheme(
+        {1, 1, Dimension::dynamic(), Dimension::dynamic()}));
 }
 
 TEST(type_prop, deformable_conv_incorrect_group)
