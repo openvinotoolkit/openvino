@@ -274,10 +274,6 @@ bool MKLDNNExecNetwork::CanProcessDynBatch(const InferenceEngine::ICNNNetwork &n
              reshapeLayer->insData[0].lock()->getTensorDesc().getDims()[0])) {
             return;
         }
-        auto MVNLayer = dynamic_cast<InferenceEngine::MVNLayer *>(layer.get());
-        if (MVNLayer && type == MVN) {
-            return;
-        }
 
         if (type != Input &&
             type != Output &&
@@ -296,7 +292,8 @@ bool MKLDNNExecNetwork::CanProcessDynBatch(const InferenceEngine::ICNNNetwork &n
             type != Eltwise &&
             type != Crop &&
             type != BatchNormalization &&
-            type != Copy) {
+            type != Copy &&
+            type != MVN) {
             check_result = false;
         }
     }, false);
