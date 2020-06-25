@@ -57,6 +57,8 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::ICNNNetwork &network
     NetPass::ConvertPrecision(*_clonedNetwork, Precision::BOOL, Precision::U8);
     NetPass::ConvertPrecision(*_clonedNetwork, Precision::U16, Precision::I32);
 
+    // _clonedNetwork->serialize("c:\\Projects\\temp\\cpu.original.xml", "c:\\Projects\\temp\\cpu.original.bin", nullptr);
+
     if ((_cfg.lpTransformsMode == Config::LPTransformsMode::On) && (_cfg.lptVersion == Config::LptVersion::cnnNetwork)) {
         auto params = LayerTransformation::Params(true,  // updatePrecisions
                                                     true,  // quantizeOutputs
@@ -72,6 +74,8 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::ICNNNetwork &network
                 LayerTransformation::Params(params).setPrecisionsOnActivations({ Precision::U8 }),
                 "ScaleShift"));
         transformer.transform(*_clonedNetwork);
+
+        // _clonedNetwork->serialize("c:\\Projects\\temp\\cpu.transformed.xml", "c:\\Projects\\temp\\cpu.transformed.bin", nullptr);
 
         // Check if network is INT8 or Binary.
         // BF16 transformations were disabled since CPU plug-in doesn't support mixed precision execution:

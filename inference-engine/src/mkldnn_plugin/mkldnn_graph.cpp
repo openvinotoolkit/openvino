@@ -43,10 +43,10 @@
  *    additional information to std output.
  *
  *****************************************************/
-//  #define BLOB_DUMP_PATH "mkldnn_dump"
-//  #define PRINT_GRAPH_INFO
-//  #define DUMP_AS_TEXT
- //#define DUMP_INTERNAL_BLOBS
+// #define BLOB_DUMP_PATH "mkldnn_dump"
+// #define PRINT_GRAPH_INFO
+// #define DUMP_AS_TEXT
+// #define DUMP_INTERNAL_BLOBS
 
 #ifdef BLOB_DUMP_PATH
 #   define DUMP_DIR        BLOB_DUMP_PATH

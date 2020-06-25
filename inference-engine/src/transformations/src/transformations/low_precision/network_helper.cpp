@@ -684,7 +684,7 @@ FakeQuantizeDequantization getFakeQuantizeDequantization(std::shared_ptr<opset1:
     std::shared_ptr<ngraph::opset1::Subtract> sub = make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::Subtract>>(convert, shift);
     std::shared_ptr<ngraph::opset1::Multiply> multiply = make_shared<ngraph::opset1::Multiply>(sub, scale);
 
-    return FakeQuantizeDequantization(fq, convert, sub, multiply);
+    return FakeQuantizeDequantization(precision, fq, convert, sub, multiply);
 }
 
 std::shared_ptr<Node> optimizeAdd(std::shared_ptr<opset1::Add> add) {
