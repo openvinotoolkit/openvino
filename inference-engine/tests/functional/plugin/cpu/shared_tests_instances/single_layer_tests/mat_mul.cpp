@@ -7,7 +7,6 @@
 #include "single_layer_tests/mat_mul.hpp"
 
 using namespace LayerTestsDefinitions;
-using namespace LayerTestsDefinitions::MatMulParams;
 
 namespace {
 
@@ -23,9 +22,9 @@ const std::vector<std::vector<size_t>> shapesB = {
         {1, 4, 6, 4}
 };
 
-std::vector<InputLayerType> secondaryInputTypes = {
-        InputLayerType::CONSTANT,
-        InputLayerType::PARAMETER,
+std::vector<ngraph::helpers::InputLayerType> secondaryInputTypes = {
+        ngraph::helpers::InputLayerType::CONSTANT,
+        ngraph::helpers::InputLayerType::PARAMETER,
 };
 
 INSTANTIATE_TEST_CASE_P(MatMul, MatMulTest,

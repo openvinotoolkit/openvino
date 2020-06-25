@@ -546,5 +546,19 @@ std::ostream& operator<<(std::ostream & os, ngraph::helpers::SqueezeOpType type)
     return os;
 }
 
+std::ostream& operator<<(std::ostream& os, ngraph::helpers::InputLayerType type) {
+    switch (type) {
+        case ngraph::helpers::InputLayerType::CONSTANT:
+            os << "CONSTANT";
+            break;
+        case ngraph::helpers::InputLayerType::PARAMETER:
+            os << "PARAMETER";
+            break;
+        default:
+            throw std::runtime_error("NOT_SUPPORTED_INPUT_LAYER_TYPE");
+    }
+    return os;
+}
+
 }  // namespace helpers
 }  // namespace ngraph

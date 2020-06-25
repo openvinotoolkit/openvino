@@ -12,25 +12,12 @@
 #include "ngraph_functions/builders.hpp"
 
 namespace LayerTestsDefinitions {
-std::ostream& operator<<(std::ostream & os, MatMulParams::InputLayerType type) {
-    switch (type) {
-        case MatMulParams::InputLayerType::CONSTANT:
-            os << "CONSTANT";
-            break;
-        case MatMulParams::InputLayerType::PARAMETER:
-            os << "PARAMETER";
-            break;
-        default:
-            THROW_IE_EXCEPTION << "NOT_SUPPORTED_INPUT_LAYER_TYPE";
-    }
-    return os;
-}
 
 std::string MatMulTest::getTestCaseName(const testing::TestParamInfo<MatMulLayerTestParamsSet> &obj) {
     InferenceEngine::Precision netPrecision;
     InferenceEngine::SizeVector inputShape0;
     InferenceEngine::SizeVector inputShape1;
-    MatMulParams::InputLayerType secondaryInputType;
+    ngraph::helpers::InputLayerType secondaryInputType;
     std::string targetDevice;
     std::tie(netPrecision, inputShape0, inputShape1, secondaryInputType, targetDevice) = obj.param;
 
@@ -46,27 +33,15 @@ std::string MatMulTest::getTestCaseName(const testing::TestParamInfo<MatMulLayer
 void MatMulTest::SetUp() {
     InferenceEngine::SizeVector inputShape0;
     InferenceEngine::SizeVector inputShape1;
-    MatMulParams::InputLayerType secondaryInputType;
+    ngraph::helpers::InputLayerType secondaryInputType;
     auto netPrecision = InferenceEngine::Precision::UNSPECIFIED;
     std::tie(netPrecision, inputShape0, inputShape1, secondaryInputType, targetDevice) = this->GetParam();
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     auto params = ngraph::builder::makeParams(ngPrc, {inputShape0});
 
-    std::shared_ptr<ngraph::Node> secondaryInput;
-    switch (secondaryInputType) {
-        case MatMulParams::InputLayerType::CONSTANT: {
-            std::vector<float> data;
-            data.resize(ngraph::shape_size(inputShape1));
-            CommonTestUtils::fill_data_sine(data.data(), data.size(), 0, 10, 1);
-            secondaryInput = ngraph::builder::makeConstant(ngPrc, inputShape1, data);
-            break;
-        }
-        case MatMulParams::InputLayerType::PARAMETER:
-            params.push_back(ngraph::builder::makeParams(ngPrc, {inputShape1})[0]);
-            secondaryInput = params[1];
-            break;
-        default:
-            FAIL() << "Unsupported secondaryInputType";
+    auto secondaryInput = ngraph::builder::makeInputLayer(ngPrc, secondaryInputType, inputShape1);
+    if (secondaryInputType == ngraph::helpers::InputLayerType::PARAMETER) {
+        params.push_back(std::dynamic_pointer_cast<ngraph::opset3::Parameter>(secondaryInput));
     }
     auto paramOuts = ngraph::helpers::convert2OutputVector(
             ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
