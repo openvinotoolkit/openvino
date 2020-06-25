@@ -71,6 +71,34 @@ InferenceEngine::details::LayerTransformation::Params LayerTransformationParamsF
         { InferenceEngine::Precision::I8 });
 }
 
+ngraph::pass::low_precision::LayerTransformation::Params LayerTransformationParamsNGraphFactory::createParamsU8I8() {
+    return ngraph::pass::low_precision::LayerTransformation::Params(
+        true,
+        true,
+        true,
+        ngraph::pass::low_precision::LayerTransformation::QuantizedTensorAlignment::None,
+        ngraph::pass::low_precision::LayerTransformation::QuantizedTensorAlignment::None,
+        false,
+        true,
+        true,
+        { ngraph::element::u8 },
+        { ngraph::element::i8 });
+}
+
+ngraph::pass::low_precision::LayerTransformation::Params LayerTransformationParamsNGraphFactory::createParamsI8I8() {
+    return ngraph::pass::low_precision::LayerTransformation::Params(
+        true,
+        true,
+        true,
+        ngraph::pass::low_precision::LayerTransformation::QuantizedTensorAlignment::None,
+        ngraph::pass::low_precision::LayerTransformation::QuantizedTensorAlignment::None,
+        false,
+        true,
+        true,
+        { ngraph::element::i8 },
+        { ngraph::element::i8 });
+}
+
 LayerTransformation::LayerTransformation() {
     threshold = 0.05;
 }

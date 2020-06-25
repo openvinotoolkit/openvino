@@ -14,8 +14,11 @@ FakeQuantizeOnWeights::FakeQuantizeOnWeights() {}
 FakeQuantizeOnWeights::FakeQuantizeOnWeights(
     const size_t quantizationLevel,
     const ngraph::Shape& constantShape,
-    const std::vector<float>& lowValues,
-    const std::vector<float>& highValues) : FakeQuantizeOnData(quantizationLevel, constantShape, lowValues, highValues) {}
+    const std::vector<float>& inputLowValues,
+    const std::vector<float>& inputHighValues,
+    const std::vector<float>& outputLowValues,
+    const std::vector<float>& outputHighValues) :
+    FakeQuantizeOnData(quantizationLevel, constantShape, inputLowValues, inputHighValues, outputLowValues, outputHighValues) {}
 
 FakeQuantizeOnWeights::~FakeQuantizeOnWeights() {}
 

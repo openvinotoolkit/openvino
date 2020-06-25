@@ -14,26 +14,32 @@ FakeQuantizeOnData::FakeQuantizeOnData() {}
 FakeQuantizeOnData::FakeQuantizeOnData(
     const size_t quantizationLevel,
     const ngraph::Shape& constantShape,
-    const std::vector<float>& lowValues,
-    const std::vector<float>& highValues) :
+    const std::vector<float>& inputLowValues,
+    const std::vector<float>& inputHighValues,
+    const std::vector<float>& outputLowValues,
+    const std::vector<float>& outputHighValues) :
     quantizationLevel(quantizationLevel),
     constantShape(constantShape),
-    lowValues(lowValues),
-    highValues(highValues)
+    inputLowValues(inputLowValues),
+    inputHighValues(inputHighValues),
+    outputLowValues(outputLowValues),
+    outputHighValues(outputHighValues)
 {}
 
 FakeQuantizeOnData::~FakeQuantizeOnData() {}
 
 bool FakeQuantizeOnData::isSigned() const {
-    return std::any_of(lowValues.begin(), lowValues.end(), [](const float value) { return value < 0.f; }) ||
-        std::any_of(highValues.begin(), highValues.end(), [](const float value) { return value < 0.f; });
+    return std::any_of(outputLowValues.begin(), outputLowValues.end(), [](const float value) { return value < 0.f; }) ||
+        std::any_of(outputHighValues.begin(), outputHighValues.end(), [](const float value) { return value < 0.f; });
 }
 
 bool FakeQuantizeOnData::empty() const {
     return (quantizationLevel == 0ul) &&
         constantShape.empty() &&
-        lowValues.empty() &&
-        highValues.empty();
+        inputLowValues.empty() &&
+        inputHighValues.empty() &&
+        outputLowValues.empty() &&
+        outputHighValues.empty();
 }
 
 }  // namespace subgraph

@@ -20,8 +20,10 @@ public:
     FakeQuantizeOnWeights(
         const size_t quantizationLevel,
         const ngraph::Shape& constantShape,
-        const std::vector<float>& lowValues,
-        const std::vector<float>& highValues);
+        const std::vector<float>& inputLowValues,
+        const std::vector<float>& inputHighValues,
+        const std::vector<float>& outputLowValues,
+        const std::vector<float>& outputHighValues);
 
     virtual ~FakeQuantizeOnWeights();
 
@@ -29,7 +31,7 @@ public:
 };
 
 inline std::ostream& operator<<(std::ostream& out, const FakeQuantizeOnWeights& data) {
-    return out << "_" << data.constantShape << "_" << data.lowValues << "_" << data.highValues;
+    return out << "_" << data.constantShape << "_" << data.outputLowValues << "_" << data.outputHighValues;
 }
 
 }  // namespace subgraph

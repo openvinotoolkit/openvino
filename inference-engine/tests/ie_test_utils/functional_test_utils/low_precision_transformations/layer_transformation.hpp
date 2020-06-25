@@ -25,6 +25,12 @@ public:
     static InferenceEngine::details::LayerTransformation::Params createParams();
 };
 
+class LayerTransformationParamsNGraphFactory {
+public:
+    static ngraph::pass::low_precision::LayerTransformation::Params createParamsU8I8();
+    static ngraph::pass::low_precision::LayerTransformation::Params createParamsI8I8();
+};
+
 IE_SUPPRESS_DEPRECATED_START
 
 class LayerTransformation : public LayerTestsUtils::LayerTestsCommon {
@@ -33,6 +39,8 @@ public:
         cnnNetwork,
         nGraph
     };
+
+    static ngraph::pass::low_precision::LayerTransformation::Params toNGraph(const InferenceEngine::details::LayerTransformation::Params& params);
 
 protected:
     LayerTransformation();
@@ -76,8 +84,6 @@ protected:
     static std::string toString(const InferenceEngine::details::LayerTransformation::Params& params);
 
     static InferenceEngine::Precision getDeviceInternalPrecision(const InferenceEngine::Precision precision);
-
-    static ngraph::pass::low_precision::LayerTransformation::Params toNGraph(const InferenceEngine::details::LayerTransformation::Params& params);
 
     static std::string getTestCaseNameByParams(
         const InferenceEngine::Precision netPrecision,
