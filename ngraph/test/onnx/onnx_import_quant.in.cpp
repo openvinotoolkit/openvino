@@ -151,83 +151,83 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_scalar_zero_scale_int8
     test_case.run();
 }
 
-// NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_1d_zero_scale_uint8)
-// {
-//     auto function = onnx_import::import_onnx_model(
-//         file_util::path_join(SERIALIZED_ZOO, "onnx/dequantize_linear_2.prototxt"));
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_1d_zero_scale_uint8)
+{
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/dequantize_linear_2.prototxt"));
 
-//     auto test_case = ngraph::test::NgraphTestCase(function, "${BACKEND_NAME}");
+    auto test_case = ngraph::test::TestCase<TestEngine>(function);
 
-//     test_case.add_input(std::vector<uint8_t>{0, 1, 2, 3, 0, 1, 2, 3, 0, 10, 20, 30}); // x
-//     test_case.add_input(std::vector<float>{1.0f, 2.0f, 4.0f});                        // scale
-//     test_case.add_input(std::vector<uint8_t>{0, 0, 0});                               // zero_point
+    test_case.add_input(std::vector<uint8_t>{0, 1, 2, 3, 0, 1, 2, 3, 0, 10, 20, 30}); // x
+    test_case.add_input(std::vector<float>{1.0f, 2.0f, 4.0f});                        // scale
+    test_case.add_input(std::vector<uint8_t>{0, 0, 0});                               // zero_point
 
-//     test_case.add_expected_output<float>(
-//         {3, 4},
-//         std::vector<float>{
-//             0.0f, 1.0f, 2.0f, 3.0f, 0.0f, 2.0f, 4.0f, 6.0f, 0.0f, 40.0f, 80.0f, 120.0f});
-//     test_case.run();
-// }
+    test_case.add_expected_output<float>(
+        {3, 4},
+        std::vector<float>{
+            0.0f, 1.0f, 2.0f, 3.0f, 0.0f, 2.0f, 4.0f, 6.0f, 0.0f, 40.0f, 80.0f, 120.0f});
+    test_case.run();
+}
 
-// NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_1d_zero_scale_int8)
-// {
-//     auto function = onnx_import::import_onnx_model(
-//         file_util::path_join(SERIALIZED_ZOO, "onnx/dequantize_linear_3.prototxt"));
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_1d_zero_scale_int8)
+{
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/dequantize_linear_3.prototxt"));
 
-//     auto test_case = ngraph::test::NgraphTestCase(function, "${BACKEND_NAME}");
+    auto test_case = ngraph::test::TestCase<TestEngine>(function);
 
-//     test_case.add_input(std::vector<int8_t>{0, 1, 2, 3, 0, 2, 4, 6, 0, 10, 20, 30}); // x
-//     test_case.add_input(std::vector<float>{1.0f, 2.0f, 4.0f, 8.0f});                 // scale
-//     test_case.add_input(std::vector<int8_t>{0, -10, -20, -30});                      // zero_point
+    test_case.add_input(std::vector<int8_t>{0, 1, 2, 3, 0, 2, 4, 6, 0, 10, 20, 30}); // x
+    test_case.add_input(std::vector<float>{1.0f, 2.0f, 4.0f, 8.0f});                 // scale
+    test_case.add_input(std::vector<int8_t>{0, -10, -20, -30});                      // zero_point
 
-//     test_case.add_expected_output<float>(
-//         {3, 4},
-//         std::vector<float>{
-//             0.0f, 22.0f, 88.0f, 264.0f, 0.0f, 24.0f, 96.0f, 288.0f, 0.0f, 40.0f, 160.0f, 480.0f});
-//     test_case.run();
-// }
+    test_case.add_expected_output<float>(
+        {3, 4},
+        std::vector<float>{
+            0.0f, 22.0f, 88.0f, 264.0f, 0.0f, 24.0f, 96.0f, 288.0f, 0.0f, 40.0f, 160.0f, 480.0f});
+    test_case.run();
+}
 
-// NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_1d_zero_scale_int8_4d)
-// {
-//     auto function = onnx_import::import_onnx_model(
-//         file_util::path_join(SERIALIZED_ZOO, "onnx/dequantize_linear_4.prototxt"));
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_1d_zero_scale_int8_4d)
+{
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/dequantize_linear_4.prototxt"));
 
-//     auto test_case = ngraph::test::NgraphTestCase(function, "${BACKEND_NAME}");
+    auto test_case = ngraph::test::TestCase<TestEngine>(function);
 
-//     test_case.add_input(std::vector<uint8_t>{7, 9, 10, 10, 5, 8, 9, 1, 8, 6, 7, 9, 10, 0, 7, 10, 8,
-//                                              2, 6, 0,  5,  9, 8, 1, 2, 7, 5, 3, 2, 4,  1, 3, 8,  7,
-//                                              4, 8, 10, 1,  5, 5, 7, 7, 0, 2, 4, 4, 0,  5}); // x
-//     test_case.add_input(std::vector<float>{1.0f, 10.0f, 7.0f});                             // scale
-//     test_case.add_input(std::vector<uint8_t>{10, 2, 1}); // zero_point
+    test_case.add_input(std::vector<uint8_t>{7, 9, 10, 10, 5, 8, 9, 1, 8, 6, 7, 9, 10, 0, 7, 10, 8,
+                                             2, 6, 0,  5,  9, 8, 1, 2, 7, 5, 3, 2, 4,  1, 3, 8,  7,
+                                             4, 8, 10, 1,  5, 5, 7, 7, 0, 2, 4, 4, 0,  5}); // x
+    test_case.add_input(std::vector<float>{1.0f, 10.0f, 7.0f});                             // scale
+    test_case.add_input(std::vector<uint8_t>{10, 2, 1}); // zero_point
 
-//     test_case.add_expected_output<float>(
-//         {2, 3, 2, 4},
-//         std::vector<float>{-3.0f, -1.0f, 0.0f,  0.0f,   -5.0f, -2.0f, -1.0f, -9.0f,  60.0f, 40.0f,
-//                            50.0f, 70.0f, 80.0f, -20.0f, 50.0f, 80.0f, 49.0f, 7.0f,   35.0f, -7.0f,
-//                            28.0f, 56.0f, 49.0f, 0.0f,   -8.0f, -3.0f, -5.0f, -7.0f,  -8.0f, -6.0f,
-//                            -9.0f, -7.0f, 60.0f, 50.0f,  20.0f, 60.0f, 80.0f, -10.0f, 30.0f, 30.0f,
-//                            42.0f, 42.0f, -7.0f, 7.0f,   21.0f, 21.0f, -7.0f, 28.0f});
+    test_case.add_expected_output<float>(
+        {2, 3, 2, 4},
+        std::vector<float>{-3.0f, -1.0f, 0.0f,  0.0f,   -5.0f, -2.0f, -1.0f, -9.0f,  60.0f, 40.0f,
+                           50.0f, 70.0f, 80.0f, -20.0f, 50.0f, 80.0f, 49.0f, 7.0f,   35.0f, -7.0f,
+                           28.0f, 56.0f, 49.0f, 0.0f,   -8.0f, -3.0f, -5.0f, -7.0f,  -8.0f, -6.0f,
+                           -9.0f, -7.0f, 60.0f, 50.0f,  20.0f, 60.0f, 80.0f, -10.0f, 30.0f, 30.0f,
+                           42.0f, 42.0f, -7.0f, 7.0f,   21.0f, 21.0f, -7.0f, 28.0f});
 
-//     test_case.run();
-// }
+    test_case.run();
+}
 
-// NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_1d_zero_scale_uint8_negative_axis)
-// {
-//     auto function = onnx_import::import_onnx_model(
-//         file_util::path_join(SERIALIZED_ZOO, "onnx/dequantize_linear_5.prototxt"));
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_1d_zero_scale_uint8_negative_axis)
+{
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/dequantize_linear_5.prototxt"));
 
-//     auto test_case = ngraph::test::NgraphTestCase(function, "${BACKEND_NAME}");
+    auto test_case = ngraph::test::TestCase<TestEngine>(function);
 
-//     test_case.add_input(std::vector<uint8_t>{0, 1, 2, 3, 0, 1, 2, 3, 0, 10, 20, 30}); // x
-//     test_case.add_input(std::vector<float>{1.0f, 2.0f, 4.0f});                        // scale
-//     test_case.add_input(std::vector<uint8_t>{0, 0, 0});                               // zero_point
+    test_case.add_input(std::vector<uint8_t>{0, 1, 2, 3, 0, 1, 2, 3, 0, 10, 20, 30}); // x
+    test_case.add_input(std::vector<float>{1.0f, 2.0f, 4.0f});                        // scale
+    test_case.add_input(std::vector<uint8_t>{0, 0, 0});                               // zero_point
 
-//     test_case.add_expected_output<float>(
-//         {3, 4},
-//         std::vector<float>{
-//             0.0f, 1.0f, 2.0f, 3.0f, 0.0f, 2.0f, 4.0f, 6.0f, 0.0f, 40.0f, 80.0f, 120.0f});
-//     test_case.run();
-// }
+    test_case.add_expected_output<float>(
+        {3, 4},
+        std::vector<float>{
+            0.0f, 1.0f, 2.0f, 3.0f, 0.0f, 2.0f, 4.0f, 6.0f, 0.0f, 40.0f, 80.0f, 120.0f});
+    test_case.run();
+}
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_quant_conv_linear)
 {
