@@ -177,26 +177,26 @@ LowPrecisionTransformations LowPrecisionTransformer::getAllTransformations(const
         }),
         std::map<std::string, LayerTransformationPtr>({
             { "Convolution", LayerTransformationPtr(new ConvolutionTransformation(params)) },
-            //{ "GroupConvolution", LayerTransformationPtr(new ConvolutionTransformation(params)) },
-            //{ "AvgPool", LayerTransformationPtr(new AvgPoolTransformation(params)) },
+            // { "GroupConvolution", LayerTransformationPtr(new ConvolutionTransformation(params)) },
+            // { "AvgPool", LayerTransformationPtr(new AvgPoolTransformation(params)) },
             { "MaxPool", LayerTransformationPtr(new MaxPoolTransformation(params)) },
             { "FakeQuantize", LayerTransformationPtr(new FakeQuantizeTransformation(params)) },
-            //{ "Reshape", LayerTransformationPtr(new ReshapeTransformation(params)) },
+            // { "Reshape", LayerTransformationPtr(new ReshapeTransformation(params)) },
             { "MatMul", LayerTransformationPtr(new MatMulTransformation(params)) },
-            //{ "Transpose", LayerTransformationPtr(new TransposeTransformation(params)) },
-            //{ "Squeeze", LayerTransformationPtr(new SqueezeTransformation(params)) },
+            // { "Transpose", LayerTransformationPtr(new TransposeTransformation(params)) },
+            // { "Squeeze", LayerTransformationPtr(new SqueezeTransformation(params)) },
             { "ReLU", LayerTransformationPtr(new ReluTransformation(params)) },
-            //{ "MVN", LayerTransformationPtr(new MvnTransformation(params)) },
+            // { "MVN", LayerTransformationPtr(new MvnTransformation(params)) },
             { "Add", LayerTransformationPtr(new AddTransformation(params)) },
-            //{ "Multiply", LayerTransformationPtr(new MultiplyTransformation(params)) },
-            //{ "Interpolate", LayerTransformationPtr(new InterpolateTransformation(params)) },
+            // { "Multiply", LayerTransformationPtr(new MultiplyTransformation(params)) },
+            // { "Interpolate", LayerTransformationPtr(new InterpolateTransformation(params)) },
             { "DepthToSpace", LayerTransformationPtr(new DepthToSpaceTransformation(params)) },
             { "NormalizeL2", LayerTransformationPtr(new NormalizeL2Transformation(params)) }
         }),
         std::map<std::string, LayerTransformationPtr>({
-            //{ "FakeQuantize", LayerTransformationPtr(new FuseFakeQuantizeAndScaleShiftTransformation(params)) },
-            //{ "ScaleShift", LayerTransformationPtr(new ScaleShiftToConvolutionTransformation(params)) },  // ???
-            { "MultiplyAdd", LayerTransformationPtr(new DecomposeMultiplyAddTransformation(params)) },
+            // { "FakeQuantize", LayerTransformationPtr(new FuseFakeQuantizeAndScaleShiftTransformation(params)) },
+            // { "ScaleShift", LayerTransformationPtr(new ScaleShiftToConvolutionTransformation(params)) },  // ???
+            // { "MultiplyAdd", LayerTransformationPtr(new DecomposeMultiplyAddTransformation(params)) },
         }));
 }
 
@@ -422,10 +422,11 @@ void LowPrecisionTransformer::transform(std::shared_ptr<Function> network) {
         #endif
         #endif
     }
-    //{
+
+    // {
     //    std::vector<std::shared_ptr<ngraph::Function>> module{network};
     //    ngraph::pass::VisualizeTree("after_layers_replacement.svg").run_on_module(module);
-    //}
+    // }
 
 
     { // Step #3: cleanup transformations execution
@@ -434,15 +435,10 @@ void LowPrecisionTransformer::transform(std::shared_ptr<Function> network) {
         pass.run_on_function(network);
     }
 
-    //{
-    //    std::vector<std::shared_ptr<ngraph::Function>> module{network};
-    //    ngraph::pass::VisualizeTree("after_lpt.svg").run_on_module(module);
-    //}
-
-    {
-        std::vector<std::shared_ptr<ngraph::Function>> module{ network };
-        VisualizeTree("C:\\Projects\\temp\\test.transformed").run_on_module(module);
-    }
+    // {
+    //    std::vector<std::shared_ptr<ngraph::Function>> module{ network };
+    //    VisualizeTree("C:\\Projects\\temp\\test.transformed").run_on_module(module);
+    // }
 
 
 #if 0 // TODO LPT-TO-NGRAPH

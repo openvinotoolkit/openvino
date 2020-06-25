@@ -315,7 +315,7 @@ std::shared_ptr<Node> make_op_label() {
             [](std::shared_ptr<Node> n) {return !!as_type_ptr<T>(n); });
 }
 
-std::shared_ptr<opset1::Add> decomposeMultiplyAdd(std::shared_ptr<op::MultiplyAdd> multiplyAdd);
+// std::shared_ptr<opset1::Add> decomposeMultiplyAdd(std::shared_ptr<op::MultiplyAdd> multiplyAdd);
 std::shared_ptr<opset1::Multiply> swapMultiplyAndAdd(std::shared_ptr<opset1::Add> addAfterMultiply);
 bool isScalarLike(std::shared_ptr<opset1::Constant> constant);
 std::shared_ptr<opset1::Constant> distillToScalar(std::shared_ptr<opset1::Constant> constant);
@@ -363,14 +363,32 @@ std::shared_ptr<Node> fold_fake_quantize(Args&&... args) {
             op::util::constantIsEqualTo(as_type_ptr<opset1::Constant>(node->input_value(4).get_node_shared_ptr()), 127)) {
             return fold<opset1::Add>(node->input_value(0), node->input_value(3));
         }
+
+        // distillToScalar
+
+        // if (node->input_value(0).get_node_shared_ptr()->is_constant() &&
+        //    node->input_value(1).get_node_shared_ptr()->is_constant() &&
+        //    node->input_value(2).get_node_shared_ptr()->is_constant() &&
+        //    node->input_value(3).get_node_shared_ptr()->is_constant() &&
+        //    node->input_value(4).get_node_shared_ptr()->is_constant() &&
+        //    op::util::constantIsEqualTo(as_type_ptr<opset1::Constant>(node->input_value(1).get_node_shared_ptr()), -128) &&
+        //    op::util::constantIsEqualTo(as_type_ptr<opset1::Constant>(node->input_value(2).get_node_shared_ptr()), 127) &&
+        //    op::util::constantIsEqualTo(as_type_ptr<opset1::Constant>(node->input_value(3).get_node_shared_ptr()), -128) &&
+        //    op::util::constantIsEqualTo(as_type_ptr<opset1::Constant>(node->input_value(4).get_node_shared_ptr()), 127)) {
+        //    return fold<opset1::Add>(node->input_value(0), node->input_value(3));
+        // }
+
+        // return fold<opset1::Add>(node->input_value(0), node->input_value(3));
+        // return node->input_value(3);
     }
     return node;
 }
 
+
 std::shared_ptr<Node> getConstantInput(std::shared_ptr<Node> node);
 
 // Optimizes the series of multiplies after a given output port
-std::shared_ptr<Node> optimizeMultipliesAfter(std::shared_ptr<Node> multiply);
+std::shared_ptr<ngraph::opset1::Multiply> optimizeMultipliesAfter(std::shared_ptr<Node> multiply);
 
 std::shared_ptr<opset1::Constant> roundWithTolerance(std::shared_ptr<Node> node, element::Type target_type, float tolerance = 1e-5);
 
@@ -380,8 +398,9 @@ std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> decomposeFakeQuantize(
 
 void updateFakeQuantize(std::shared_ptr<opset1::FakeQuantize> fq, element::Type precision, float min, float max);
 FakeQuantizeDequantization getFakeQuantizeDequantization(std::shared_ptr<opset1::FakeQuantize> fq, element::Type precision, float min, float max);
+FakeQuantizeDequantization getDequantization(Node& node);
 
-std::shared_ptr<Node> optimizeAdd(std::shared_ptr<opset1::Add> add);
+std::shared_ptr<Node> optimizeSubtract(std::shared_ptr<opset1::Subtract> add);
 
 void moveDequantization(
     const std::shared_ptr<ngraph::Node> operation,
