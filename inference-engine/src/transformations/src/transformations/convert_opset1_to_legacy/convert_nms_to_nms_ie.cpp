@@ -87,6 +87,7 @@ void ngraph::pass::ConvertNMSToNMSIE::convert_nms_to_nms_ie() {
                                                                          new_score_threshold,
                                                                          center_point_box,
                                                                          nms->get_sort_result_descending());
+        new_nms->m_converted_from_nms_version = 1; // to use v1::NMS shape infer function
         new_ops.push_back(new_nms);
         new_nms->set_friendly_name(nms->get_friendly_name());
         ngraph::copy_runtime_info(nms, new_ops);

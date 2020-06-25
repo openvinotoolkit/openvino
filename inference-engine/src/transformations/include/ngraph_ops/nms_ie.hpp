@@ -32,6 +32,7 @@ public:
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector & new_args) const override;
 
     int m_center_point_box;
+    int m_converted_from_nms_version;
     bool m_sort_result_descending = true;
 };
 
