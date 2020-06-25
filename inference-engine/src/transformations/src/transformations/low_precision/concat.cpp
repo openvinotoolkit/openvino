@@ -256,7 +256,7 @@ void ConcatTransformation::addDequantizationLayers(
                         }
                     }
 
-                    layer->set_output_type(0, layerDequantizations[0].resultPrecision, layer->get_output_partial_shape(0));
+                    layer->set_output_type(0, layerDequantizations[0].precisionBeforeDequantization, layer->get_output_partial_shape(0));
 
                     const auto it = outputs.find(layer->get_friendly_name());
                     if (it != outputs.end()) {
