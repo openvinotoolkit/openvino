@@ -84,23 +84,23 @@ def test_dynamic_get_attribute_value(int_dtype, fp_dtype):
         box_logits, class_preds, proposals, attributes, aux_class_preds, aux_box_preds
     )
 
-    assert node.get_attrs_num_classes() == int_dtype(85)
-    assert node.get_attrs_background_label_id() == int_dtype(13)
-    assert node.get_attrs_top_k() == int_dtype(16)
-    assert node.get_attrs_variance_encoded_in_target() == True
-    assert np.all(np.equal(node.get_attrs_keep_top_k(), np.array([64, 32, 16, 8], dtype=int_dtype)))
-    assert node.get_attrs_code_type() == "pytorch.some_parameter_name"
-    assert node.get_attrs_share_location() == False
-    assert np.isclose(node.get_attrs_nms_threshold(), fp_dtype(0.645))
-    assert np.isclose(node.get_attrs_confidence_threshold(), fp_dtype(0.111))
-    assert node.get_attrs_clip_after_nms() == True
-    assert node.get_attrs_clip_before_nms() == False
-    assert node.get_attrs_decrease_label_id() == True
-    assert node.get_attrs_normalized() == True
-    assert node.get_attrs_input_height() == int_dtype(86)
-    assert node.get_attrs_input_width() == int_dtype(79)
-    assert np.isclose(node.get_attrs_objectness_score(), fp_dtype(0.77))
-    assert node.get_attrs_num_classes() == int_dtype(85)
+    assert node.get_num_classes() == int_dtype(85)
+    assert node.get_background_label_id() == int_dtype(13)
+    assert node.get_top_k() == int_dtype(16)
+    assert node.get_variance_encoded_in_target() == True
+    assert np.all(np.equal(node.get_keep_top_k(), np.array([64, 32, 16, 8], dtype=int_dtype)))
+    assert node.get_code_type() == "pytorch.some_parameter_name"
+    assert node.get_share_location() == False
+    assert np.isclose(node.get_nms_threshold(), fp_dtype(0.645))
+    assert np.isclose(node.get_confidence_threshold(), fp_dtype(0.111))
+    assert node.get_clip_after_nms() == True
+    assert node.get_clip_before_nms() == False
+    assert node.get_decrease_label_id() == True
+    assert node.get_normalized() == True
+    assert node.get_input_height() == int_dtype(86)
+    assert node.get_input_width() == int_dtype(79)
+    assert np.isclose(node.get_objectness_score(), fp_dtype(0.77))
+    assert node.get_num_classes() == int_dtype(85)
 
 
 @pytest.mark.parametrize(
@@ -132,44 +132,44 @@ def test_dynamic_set_attribute_value(int_dtype, fp_dtype):
     image_shape = ng.parameter([3], fp_dtype, "image_shape")
     node = ng.proposal(class_probs, class_logits, image_shape, attributes)
 
-    node.set_attrs_base_size(int_dtype(15))
-    node.set_attrs_pre_nms_topn(int_dtype(7))
-    node.set_attrs_post_nms_topn(int_dtype(33))
-    node.set_attrs_nms_thresh(fp_dtype(1.55))
-    node.set_attrs_feat_stride(int_dtype(8))
-    node.set_attrs_min_size(int_dtype(123))
-    node.set_attrs_ratio(np.array([1.1, 2.5, 3.0, 4.5], dtype=fp_dtype))
-    node.set_attrs_scale(np.array([2.1, 3.2, 3.3, 4.4], dtype=fp_dtype))
-    node.set_attrs_clip_before_nms(True)
-    node.set_attrs_clip_after_nms(True)
-    node.set_attrs_normalize(True)
-    node.set_attrs_box_size_scale(fp_dtype(1.34))
-    node.set_attrs_box_coordinate_scale(fp_dtype(0.88))
-    node.set_attrs_framework("OpenVINO")
+    node.set_base_size(int_dtype(15))
+    node.set_pre_nms_topn(int_dtype(7))
+    node.set_post_nms_topn(int_dtype(33))
+    node.set_nms_thresh(fp_dtype(1.55))
+    node.set_feat_stride(int_dtype(8))
+    node.set_min_size(int_dtype(123))
+    node.set_ratio(np.array([1.1, 2.5, 3.0, 4.5], dtype=fp_dtype))
+    node.set_scale(np.array([2.1, 3.2, 3.3, 4.4], dtype=fp_dtype))
+    node.set_clip_before_nms(True)
+    node.set_clip_after_nms(True)
+    node.set_normalize(True)
+    node.set_box_size_scale(fp_dtype(1.34))
+    node.set_box_coordinate_scale(fp_dtype(0.88))
+    node.set_framework("OpenVINO")
 
-    assert node.get_attrs_base_size() == int_dtype(15)
-    assert node.get_attrs_pre_nms_topn() == int_dtype(7)
-    assert node.get_attrs_post_nms_topn() == int_dtype(33)
-    assert np.isclose(node.get_attrs_nms_thresh(), fp_dtype(1.55))
-    assert node.get_attrs_feat_stride() == int_dtype(8)
-    assert node.get_attrs_min_size() == int_dtype(123)
-    assert np.allclose(node.get_attrs_ratio(), np.array([1.1, 2.5, 3.0, 4.5], dtype=fp_dtype))
-    assert np.allclose(node.get_attrs_scale(), np.array([2.1, 3.2, 3.3, 4.4], dtype=fp_dtype))
-    assert node.get_attrs_clip_before_nms() == True
-    assert node.get_attrs_clip_after_nms() == True
-    assert node.get_attrs_normalize() == True
-    assert np.isclose(node.get_attrs_box_size_scale(), fp_dtype(1.34))
-    assert np.isclose(node.get_attrs_box_coordinate_scale(), fp_dtype(0.88))
-    assert node.get_attrs_framework() == "OpenVINO"
+    assert node.get_base_size() == int_dtype(15)
+    assert node.get_pre_nms_topn() == int_dtype(7)
+    assert node.get_post_nms_topn() == int_dtype(33)
+    assert np.isclose(node.get_nms_thresh(), fp_dtype(1.55))
+    assert node.get_feat_stride() == int_dtype(8)
+    assert node.get_min_size() == int_dtype(123)
+    assert np.allclose(node.get_ratio(), np.array([1.1, 2.5, 3.0, 4.5], dtype=fp_dtype))
+    assert np.allclose(node.get_scale(), np.array([2.1, 3.2, 3.3, 4.4], dtype=fp_dtype))
+    assert node.get_clip_before_nms() == True
+    assert node.get_clip_after_nms() == True
+    assert node.get_normalize() == True
+    assert np.isclose(node.get_box_size_scale(), fp_dtype(1.34))
+    assert np.isclose(node.get_box_coordinate_scale(), fp_dtype(0.88))
+    assert node.get_framework() == "OpenVINO"
 
 
 def test_dynamic_attr_cache(_proposal_node):
     node = _proposal_node
 
     assert not node._attr_cache_valid
-    node.set_attrs_nms_thresh(1.3453678102)
+    node.set_nms_thresh(1.3453678102)
     assert not node._attr_cache_valid
-    assert np.isclose(node.get_attrs_nms_thresh(), np.float64(1.3453678102))
+    assert np.isclose(node.get_nms_thresh(), np.float64(1.3453678102))
     assert node._attr_cache_valid
 
 
@@ -177,13 +177,13 @@ def test_dynamic_attr_transitivity(_proposal_node):
     node = _proposal_node
     node2 = node
 
-    node.set_attrs_ratio(np.array([1.1, 2.5, 3.0, 4.5], dtype=np.float64))
-    assert np.allclose(node.get_attrs_ratio(), np.array([1.1, 2.5, 3.0, 4.5], dtype=np.float64))
-    assert np.allclose(node2.get_attrs_ratio(), np.array([1.1, 2.5, 3.0, 4.5], dtype=np.float64))
+    node.set_ratio(np.array([1.1, 2.5, 3.0, 4.5], dtype=np.float64))
+    assert np.allclose(node.get_ratio(), np.array([1.1, 2.5, 3.0, 4.5], dtype=np.float64))
+    assert np.allclose(node2.get_ratio(), np.array([1.1, 2.5, 3.0, 4.5], dtype=np.float64))
 
-    node2.set_attrs_scale(np.array([2.1, 3.2, 3.3, 4.4], dtype=np.float64))
-    assert np.allclose(node2.get_attrs_scale(), np.array([2.1, 3.2, 3.3, 4.4], dtype=np.float64))
-    assert np.allclose(node.get_attrs_scale(), np.array([2.1, 3.2, 3.3, 4.4], dtype=np.float64))
+    node2.set_scale(np.array([2.1, 3.2, 3.3, 4.4], dtype=np.float64))
+    assert np.allclose(node2.get_scale(), np.array([2.1, 3.2, 3.3, 4.4], dtype=np.float64))
+    assert np.allclose(node.get_scale(), np.array([2.1, 3.2, 3.3, 4.4], dtype=np.float64))
 
 
 def test_dynamic_attributes_simple():

@@ -34,12 +34,17 @@ class NodeFactory(object):
             attributes = {}
         node = self.factory.create(op_type_name, arguments, attributes)
 
+        # Currently we don't support any attribute getters & setters for TensorIterator node.
+        if node.get_type_name() == "TensorIterator":
+            return node
+
         # Set getters and setters for each node's attribute.
         #   node.get_attribute_name()
         #   node.set_attribute_name()
-        # For compound (hierarchical) attributes of form ie.: node.struct_member_name.attr_name:
-        #   node.get_struct_member_name_attr_name()
-        #   node.set_struct_member_name_attr_name()
+        # For compound (with more than one level of nesting) attributes of form ie.:
+        # node.struct_member_name.some_metric.attr_name:
+        #   node.get_some_metric_attr_name()
+        #   node.set_some_metric_attr_name()
         all_attributes = node._get_attributes()
         for attr_name in all_attributes.keys():
             setattr(node,
@@ -56,23 +61,39 @@ class NodeFactory(object):
 
         return node
 
-    def _normalize_attr_name_getter(self, attr_name: str) -> str:
+    @staticmethod
+    def _normalize_attr_name(attr_name: str, prefix: str) -> str:
+        """Normalizes attribute name.
+
+        :param      attr_name:  The attribute name.
+        :param      prefix:     The prefix to attach to attribute name.
+
+        :returns:   The modified attribute name.
+        """
+        # Trim first part of the name if there is only one level of attribute hierarchy.
+        if attr_name.count(".") == 1:
+            attr_name = attr_name[attr_name.find(".") + 1:]
+        return prefix + attr_name.replace(".", "_")
+
+    @classmethod
+    def _normalize_attr_name_getter(cls, attr_name: str) -> str:
         """Normalizes atr name to be suitable for getter function name.
 
         :param      attr_name:  The attribute name to normalize
 
         :returns:   The appropriate getter function name.
         """
-        return "get_" + attr_name.replace(".", "_")
+        return cls._normalize_attr_name(attr_name, "get_")
 
-    def _normalize_attr_name_setter(self, attr_name: str) -> str:
+    @classmethod
+    def _normalize_attr_name_setter(cls, attr_name: str) -> str:
         """Normalizes atr name to be suitable for setter function name.
 
         :param      attr_name:  The attribute name to normalize
 
         :returns:   The appropriate setter function name.
         """
-        return "set_" + attr_name.replace(".", "_")
+        return cls._normalize_attr_name(attr_name, "set_")
 
     @staticmethod
     def _get_node_attr_value(node: Node, attr_name: str) -> Any:
