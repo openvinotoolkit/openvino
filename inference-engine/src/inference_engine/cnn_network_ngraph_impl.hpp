@@ -37,8 +37,6 @@ using ReshaperPtr = std::shared_ptr<Reshaper>;
 
 namespace details {
 
-IE_SUPPRESS_DEPRECATED_START
-
 /**
  * @brief Ngraph-based implementation of the ICNNNetwork interface.
  */
@@ -59,9 +57,6 @@ public:
     void setInputInfo(InputInfo::Ptr data);
 
     std::shared_ptr<ICNNNetwork> getCNNNetwork();
-
-    INFERENCE_ENGINE_DEPRECATED("Use ngraph::Function directly")
-    StatusCode getLayerByName(const char* layerName, CNNLayerPtr& out, ResponseDesc* resp) const noexcept override;
 
     // public version
     StatusCode setBatchSize(size_t size, ResponseDesc* responseDesc) noexcept override;
@@ -134,6 +129,8 @@ protected:
         return _ngraph_function;
     }
 };
+
+IE_SUPPRESS_DEPRECATED_START
 
 /**
  * @brief Special derived class of Data which converts CNNNetworkNGraphImpl to CNNLayer-based representation

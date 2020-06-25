@@ -26,8 +26,6 @@ using ReshaperPtr = std::shared_ptr<Reshaper>;
 }  // namespace ShapeInfer
 namespace details {
 
-IE_SUPPRESS_DEPRECATED_START
-
 class INFERENCE_ENGINE_API_CLASS(CNNNetworkImpl): public ICNNNetwork {
 public:
     CNNNetworkImpl();
@@ -98,7 +96,7 @@ public:
 
     void removeData(const std::string& dataName);
 
-    StatusCode getLayerByName(const char* layerName, CNNLayerPtr& out, ResponseDesc* resp) const noexcept override;
+    StatusCode getLayerByName(const char* layerName, CNNLayerPtr& out, ResponseDesc* resp) const noexcept;
 
     // public version
     StatusCode setBatchSize(size_t size, ResponseDesc* responseDesc) noexcept override;
@@ -140,8 +138,6 @@ protected:
     DataPtr _emptyData;
     ShapeInfer::ReshaperPtr _reshaper;
 };
-
-IE_SUPPRESS_DEPRECATED_END
 
 typedef std::shared_ptr<CNNNetworkImpl> CNNNetworkImplPtr;
 }  // namespace details

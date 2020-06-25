@@ -215,15 +215,6 @@ void CNNNetworkNGraphImpl::validate(int version) {
         _ngraph_function->validate_nodes_and_infer_types();
 }
 
-StatusCode CNNNetworkNGraphImpl::getLayerByName(const char* layerName, CNNLayerPtr& out, ResponseDesc* resp) const
-    noexcept {
-    if (!cnnNetwork) {
-        const_cast<CNNNetworkNGraphImpl *>(this)->convertToCNNNetworkImpl();
-    }
-    if (!cnnNetwork) return GENERAL_ERROR;
-    return cnnNetwork->getLayerByName(layerName, out, resp);
-}
-
 StatusCode CNNNetworkNGraphImpl::addOutput(const std::string& layerName, size_t outputIndex,
                                            ResponseDesc* resp) noexcept {
     IE_PROFILING_AUTO_SCOPE(addOutput)
