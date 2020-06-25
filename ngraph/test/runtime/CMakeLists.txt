@@ -20,11 +20,15 @@ set (SRC
     backend_manager.hpp
     cache.cpp
     cache.hpp
+    opset0_downgrade.cpp
+    opset0_downgrade.hpp
     executable.cpp
     executable.hpp
     performance_counter.hpp
     dynamic/dynamic_backend.cpp
     dynamic/dynamic_backend.hpp
+    op/avg_pool.cpp
+    op/avg_pool.hpp
     )
 
 add_library(ngraph_backend SHARED ${SRC})

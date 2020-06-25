@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include "dynamic_backend.hpp"
+#include "../opset0_downgrade.hpp"
 #include "ngraph/graph_util.hpp"
 #include "ngraph/op/avg_pool.hpp"
 #include "ngraph/op/broadcast.hpp"
@@ -29,7 +30,6 @@
 #include "ngraph/pass/constant_folding.hpp"
 #include "ngraph/pass/dyn_elimination.hpp"
 #include "ngraph/pass/manager.hpp"
-#include "ngraph/pass/opset0_downgrade.hpp"
 #include "ngraph/pass/opset1_downgrade.hpp"
 #include "ngraph/pass/shape_relevance.hpp"
 #include "ngraph/specialize_function.hpp"
