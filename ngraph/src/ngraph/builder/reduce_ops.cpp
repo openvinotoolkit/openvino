@@ -152,6 +152,21 @@ namespace ngraph
                 ->add_provenance_group_members_above({value});
         }
 
+        std::shared_ptr<Node> builder::opset1::mean(const Output<Node>& value,
+                                                    const Output<Node>& reduction_axes,
+                                                    bool keep_dims)
+        {
+            std::shared_ptr<Node> elems_number;
+            const auto value_elem_type = value.get_element_type();
+            const auto value_elems_sum =
+                std::make_shared<ngraph::opset1::ReduceSum>(value, reduction_axes, keep_dims);
+            elems_number = get_num_elements(value, reduction_axes);
+            elems_number = std::make_shared<ngraph::opset1::Convert>(elems_number, value_elem_type);
+
+            return std::make_shared<ngraph::opset1::Divide>(value_elems_sum, elems_number)
+                ->add_provenance_group_members_above({value});
+        }
+
         std::shared_ptr<Node> builder::opset1::variance(const Output<Node>& value,
                                                         const AxisSet& reduction_axes,
                                                         const bool bessel_correction)
@@ -181,6 +196,33 @@ namespace ngraph
                 const auto Nconst = ngraph::opset1::Constant::create(et, Shape{}, {N});
                 result = std::make_shared<ngraph::opset1::Divide>(diff, Nconst);
             }
+            return result->add_provenance_group_members_above({value});
+        }
+
+        std::shared_ptr<Node> builder::opset1::variance(const Output<Node>& value,
+                                                        const Output<Node>& reduction_axes,
+                                                        bool keep_dims,
+                                                        bool bessel_correction)
+        {
+            std::shared_ptr<Node> mu = opset1::mean(value, reduction_axes, keep_dims);
+
+            Output<Node> diff = std::make_shared<ngraph::opset1::Subtract>(value, mu);
+
+            diff = std::make_shared<ngraph::opset1::ReduceSum>(
+                std::make_shared<ngraph::opset1::Multiply>(diff, diff), reduction_axes, keep_dims);
+
+            const auto& et = value.get_element_type();
+            auto N = get_num_elements(value, reduction_axes);
+            N = std::make_shared<ngraph::opset1::Convert>(N, et);
+
+            std::shared_ptr<Node> result;
+            if (bessel_correction)
+            {
+                const auto one = std::make_shared<ngraph::opset1::Constant>(et, Shape{}, 1);
+                N = std::make_shared<ngraph::opset1::Subtract>(N, one);
+            }
+
+            result = std::make_shared<ngraph::opset1::Divide>(diff, N);
             return result->add_provenance_group_members_above({value});
         }
 

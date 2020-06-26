@@ -1162,6 +1162,50 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_range_negative_step)
     test_case.run();
 }
 
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_instance_normalization_dyn_shape)
+{
+    const auto function = onnx_import::import_onnx_model(file_util::path_join(
+        SERIALIZED_ZOO, "onnx/dynamic_shapes/instance_norm_dyn_shape.prototxt"));
+
+    Shape data_shape{1, 2, 3, 4};
+    std::vector<float> data(shape_size(data_shape));
+    std::iota(std::begin(data), std::end(data), 1);
+
+    auto test_case = test::TestCase<TestEngine, TestCaseType::DYNAMIC>(function);
+
+    test_case.add_input<float>(data_shape, data);
+    test_case.add_input<float>(Shape{2}, std::vector<float>{2.134f, 3.256f});
+    test_case.add_input<float>(Shape{2}, std::vector<float>{0.765f, 1.055f});
+    test_case.add_expected_output<float>(
+        data_shape, {-2.6335807f, -2.015657f,  -1.3977331f, -0.77980936f, -0.16188562f, 0.45603812f,
+                     1.0739619f,  1.6918856f,  2.3098092f,  2.927733f,    3.5456567f,   4.1635804f,
+                     -4.130463f,  -3.1876516f, -2.2448401f, -1.3020288f,  -0.35921717f, 0.5835942f,
+                     1.5264057f,  2.469217f,   3.4120288f,  4.35484f,     5.2976513f,   6.240463f});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_instance_normalization_dyn_shape2)
+{
+    const auto function = onnx_import::import_onnx_model(file_util::path_join(
+        SERIALIZED_ZOO, "onnx/dynamic_shapes/instance_norm_dyn_shape2.prototxt"));
+
+    Shape data_shape{1, 2, 3, 4};
+    std::vector<float> data(shape_size(data_shape));
+    std::iota(std::begin(data), std::end(data), 1);
+
+    auto test_case = test::TestCase<TestEngine, TestCaseType::DYNAMIC>(function);
+
+    test_case.add_input<float>(data_shape, data);
+    test_case.add_input<float>(std::vector<float>{2.134f, 3.256f});
+    test_case.add_input<float>(std::vector<float>{0.765f, 1.055f});
+    test_case.add_expected_output<float>(
+        data_shape, {-2.6335807f, -2.015657f,  -1.3977331f, -0.77980936f, -0.16188562f, 0.45603812f,
+                     1.0739619f,  1.6918856f,  2.3098092f,  2.927733f,    3.5456567f,   4.1635804f,
+                     -4.130463f,  -3.1876516f, -2.2448401f, -1.3020288f,  -0.35921717f, 0.5835942f,
+                     1.5264057f,  2.469217f,   3.4120288f,  4.35484f,     5.2976513f,   6.240463f});
+    test_case.run();
+}
+
 NGRAPH_TEST(${BACKEND_NAME}, onnx_upsample9_scales_input_nearest_infer)
 {
     const auto function = onnx_import::import_onnx_model(

@@ -28,7 +28,7 @@
 #include "ngraph/op/multiply.hpp"
 #include "ngraph/op/sqrt.hpp"
 #include "ngraph/op/subtract.hpp"
-#include "ngraph/opsets/opset0.hpp"
+#include "ngraph/partial_shape.hpp"
 #include "utils/common.hpp"
 
 namespace ngraph
@@ -41,46 +41,91 @@ namespace ngraph
             {
                 NodeVector instance_norm(const Node& node)
                 {
-                    const std::shared_ptr<ngraph::Node> data{node.get_ng_inputs().at(0)};
+                    Output<ngraph::Node> data(node.get_ng_inputs().at(0));
                     Output<ngraph::Node> scale(node.get_ng_inputs().at(1));
                     Output<ngraph::Node> bias(node.get_ng_inputs().at(2));
-                    const Shape& data_shape = data->get_shape();
-                    const Shape& scale_shape = scale.get_shape();
-                    const Shape& bias_shape = bias.get_shape();
+                    const PartialShape& data_pshape = data.get_partial_shape();
+                    const PartialShape& scale_pshape = scale.get_partial_shape();
+                    const PartialShape& bias_pshape = bias.get_partial_shape();
                     const float epsilon{node.get_attribute_value<float>("epsilon", 1e-5f)};
+
+                    element::Type result_et;
+                    CHECK_VALID_NODE(
+                        node,
+                        element::Type::merge(
+                            result_et, data.get_element_type(), scale.get_element_type()),
+                        "Element types for data and scale input do not match (data element type: ",
+                        data.get_element_type(),
+                        ", scale element type: ",
+                        scale.get_element_type(),
+                        ").");
 
                     CHECK_VALID_NODE(
                         node,
-                        (scale_shape.size() == 1 && scale_shape[0] == data_shape.at(1)),
-                        "Scale input must be one dimensional vector of number of "
-                        "input data channels size.");
+                        element::Type::merge(
+                            result_et, data.get_element_type(), bias.get_element_type()),
+                        "Element types for data and bias input do not match (data element type: ",
+                        data.get_element_type(),
+                        ", bias element type: ",
+                        bias.get_element_type(),
+                        ").");
 
-                    CHECK_VALID_NODE(node,
-                                     (bias_shape.size() == 1 && bias_shape[0] == data_shape.at(1)),
-                                     "Bias input must be one dimensional vector of number of "
-                                     "input data channels size.");
+                    if (data_pshape.rank().is_static())
+                    {
+                        CHECK_VALID_NODE(node,
+                                         scale_pshape.is_dynamic() ||
+                                             (scale_pshape.rank().is_static() &&
+                                              scale_pshape.rank().get_length() == 1 &&
+                                              data_pshape[1].same_scheme(scale_pshape[0])),
+                                         "Scale input must be one dimensional vector of number of "
+                                         "input data channels size.");
+
+                        CHECK_VALID_NODE(node,
+                                         bias_pshape.is_dynamic() ||
+                                             (bias_pshape.rank().is_static() &&
+                                              bias_pshape.rank().get_length() == 1 &&
+                                              data_pshape[1].same_scheme(bias_pshape[0])),
+                                         "Bias input must be one dimensional vector of number of "
+                                         "input data channels size.");
+                    }
 
                     // all dimensions except spatial/feature
-                    const AxisSet reduction_axes{
-                        common::get_monotonic_range<std::size_t>(data_shape.size(), 2)};
+                    const auto reduction_axes =
+                        common::get_monotonic_range_along_node_rank(data, 2);
 
                     const std::shared_ptr<ngraph::Node> eps_node =
                         std::make_shared<default_opset::Constant>(
-                            data->get_element_type(), data_shape, std::vector<float>{epsilon});
+                            data.get_element_type(), Shape{}, epsilon);
 
-                    scale = ngraph::builder::opset1::make_broadcast(scale, data_shape, 1);
-                    bias = ngraph::builder::opset1::make_broadcast(bias, data_shape, 1);
-
-                    Output<ngraph::Node> mean = builder::opset1::mean(data, reduction_axes);
-                    mean =
-                        ngraph::builder::opset1::make_broadcast(mean, data_shape, reduction_axes);
-
-                    Output<ngraph::Node> variance = builder::opset1::variance(data, reduction_axes);
-                    variance = ngraph::builder::opset1::make_broadcast(
-                        variance, data_shape, reduction_axes);
+                    Output<ngraph::Node> mean = builder::opset1::mean(data, reduction_axes, true);
+                    Output<ngraph::Node> variance =
+                        builder::opset1::variance(data, reduction_axes, true);
 
                     const auto sqrt = std::make_shared<default_opset::Sqrt>(
                         std::make_shared<default_opset::Add>(variance, eps_node));
+
+                    std::shared_ptr<ngraph::Node> data_shape_node;
+                    if (data_pshape.is_static())
+                    {
+                        data_shape_node = std::make_shared<default_opset::Constant>(
+                            element::i64,
+                            Shape{static_cast<size_t>(data_pshape.rank().get_length())},
+                            data_pshape.to_shape());
+                    }
+                    else
+                    {
+                        data_shape_node = std::make_shared<default_opset::ShapeOf>(data);
+                    }
+
+                    // Broadcast preserving channel dimension
+                    scale = std::make_shared<default_opset::Broadcast>(
+                        scale,
+                        data_shape_node,
+                        std::make_shared<default_opset::Constant>(element::i64, Shape{1}, 1));
+                    bias = std::make_shared<default_opset::Broadcast>(
+                        bias,
+                        data_shape_node,
+                        std::make_shared<default_opset::Constant>(element::i64, Shape{1}, 1));
 
                     // scale * (data - mean) / sqrt + bias
                     std::shared_ptr<ngraph::Node> result{
