@@ -438,7 +438,7 @@ TEST_F(BlobTests, makeRoiBlobFromAnotherRoi) {
 
     // create ROI blob based on the already created blob
     InferenceEngine::ROI roi2 = {0, 2, 1, 3, 2};  // cropped picture with: id = 0, (x,y) = (2,1), sizeX (W) = 3, sizeY (H) = 2
-    InferenceEngine::Blob::Ptr roi2Blob = roi1Blob->CreateROIBlob(roi2);
+    InferenceEngine::Blob::Ptr roi2Blob = blob->CreateROIBlob(roi2);
 
     // check that dims are correct for the 2nd ROI blob
     InferenceEngine::SizeVector refDims2 = {1, 3, 2, 3};
@@ -450,7 +450,8 @@ TEST_F(BlobTests, makeRoiBlobFromAnotherRoi) {
 
     // check that roi chain is maintained
     ASSERT_EQ(roi1Blob->getROI()->original, blob);
-    ASSERT_EQ(roi2Blob->getROI()->original, roi1Blob);
+    ASSERT_EQ(roi2Blob->getROI()->original, blob);
+    ASSERT_EQ(roiBlobFromRoiBlob->getROI()->original, roi1Blob);
  }
 
 TEST_F(BlobTests, makeRoiBlobAndRoiBlobShareSameMemory) {
@@ -475,10 +476,20 @@ TEST_F(BlobTests, makeRoiBlobAndRoiBlobShareSameMemory) {
 
     blob = nullptr;
     {
-        InferenceEngine::MemoryBlob::Ptr mb = InferenceEngine::as<InferenceEngine::MemoryBlob>(roiBlob);
-        auto lm = mb->rwmap();
-        for (size_t i = 0; i < roiBlob->byteSize(); ++i) {
+        InferenceEngine::MemoryBlob::CPtr mb = InferenceEngine::as<InferenceEngine::MemoryBlob>(roiBlob->getROI()->original);
+        auto lm = mb->rmap();
+        for (size_t i = 0; i < roiBlob->getROI()->original->byteSize(); ++i) {
             ASSERT_EQ(lm.as<uint8_t*>()[i], static_cast<uint8_t>(i + MAGIC_NUMBER));
+        }
+    }
+    {
+        InferenceEngine::MemoryBlob::CPtr mb = InferenceEngine::as<InferenceEngine::MemoryBlob>(roiBlob);
+        auto lm = mb->rmap();
+        auto roiOffset = roiBlob->getTensorDesc().getBlockingDesc().getOffsetPadding();
+        auto roiPtr = lm.as<uint8_t*>() + roiOffset;
+
+        for (size_t i = 0; i < roiBlob->size(); ++i) {
+            ASSERT_EQ(roiPtr[i], static_cast<uint8_t>(i + roiOffset + MAGIC_NUMBER));
         }
     }
 }

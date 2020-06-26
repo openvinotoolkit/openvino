@@ -532,6 +532,7 @@ struct ROIData {
 };
 
 bool operator==(const ROI& l, const ROI& r);
+bool operator!=(const ROI& l, const ROI& r);
 
 /**
  * @brief Represents real host memory allocated for a Tensor/Blob per C type.
@@ -842,7 +843,7 @@ protected:
      * @return Pointer to the cloned object
      */
     Blob* clone() const override {
-        TBlob* cloned = new TBlob<T>(this->tensorDesc, this->data(), this->byteSize());
+        TBlob* cloned = new TBlob<T>(this->tensorDesc, static_cast<T*>(_handle), this->size());
 
         if (this->roiPtr) {
             cloned->roiPtr = std::unique_ptr<ROIData>(new ROIData(*this->roiPtr));

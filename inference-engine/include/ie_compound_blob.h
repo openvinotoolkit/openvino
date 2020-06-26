@@ -230,6 +230,13 @@ protected:
      * @return Pointer to the cloned object
      */
     Blob* clone() const override;
+
+    /**
+     * @brief Sets ROI for the blob
+     *
+     * @param roiData region of interest and original blob
+     */
+    void setROI(const ROIData& roiData) override;
 };
 
 /**
@@ -360,5 +367,12 @@ protected:
      * @return Pointer to the cloned object
      */
     Blob* clone() const override;
+
+    /**
+     * @brief Sets ROI for the blob
+     *
+     * @param roiData region of interest and original blob
+     */
+    void setROI(const ROIData& roiData) override;
 };
 }  // namespace InferenceEngine

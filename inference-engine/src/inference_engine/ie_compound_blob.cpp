@@ -286,7 +286,7 @@ Blob* CompoundBlob::clone() const {
 }
 
 void CompoundBlob::setROI(const ROIData& roiData) {
-    roiPtr.reset(new ROIData(roiData));
+    THROW_IE_EXCEPTION << "Setting ROI for CompoundBlob is not allowed";
 }
 
 NV12Blob::NV12Blob(const Blob::Ptr& y, const Blob::Ptr& uv) {
@@ -309,6 +309,10 @@ NV12Blob::NV12Blob(Blob::Ptr&& y, Blob::Ptr&& uv) {
 
 Blob* NV12Blob::clone() const {
     return new NV12Blob(*this);
+}
+
+void NV12Blob::setROI(const ROIData& roiData) {
+    roiPtr.reset(new ROIData(roiData));
 }
 
 Blob::Ptr& NV12Blob::y() noexcept {
@@ -363,6 +367,10 @@ I420Blob::~I420Blob() {}
 
 Blob* I420Blob::clone() const {
     return new I420Blob(*this);
+}
+
+void I420Blob::setROI(const ROIData& roiData) {
+    roiPtr.reset(new ROIData(roiData));
 }
 
 Blob::Ptr& I420Blob::y() noexcept {
