@@ -182,6 +182,7 @@ sources = [
     "pyngraph/axis_vector.cpp",
     "pyngraph/coordinate.cpp",
     "pyngraph/coordinate_diff.cpp",
+    "pyngraph/dict_attribute_visitor.cpp",
     "pyngraph/dimension.cpp",
     "pyngraph/function.cpp",
     "pyngraph/node.cpp",
