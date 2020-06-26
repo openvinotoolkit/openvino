@@ -32,7 +32,12 @@ class InterpolateTranspose(FrontReplacementSubgraph):
     def pattern(self):
         return dict(
             nodes=[
-                ('interpolate', {'kind': 'op', 'op': 'Interpolate'}),
+                ('interpolate',
+                 {
+                     'kind': 'op',
+                     'op': 'Interpolate',
+                     'axes': lambda axes: axes is not None and np.array_equal(axes, int64_array([1, 2]))
+                 }),
                 ('transpose_1', {'kind': 'op', 'op': 'Transpose'}),
                 ('transpose_1_order',
                  {
