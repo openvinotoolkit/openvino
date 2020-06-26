@@ -300,13 +300,8 @@ void op::v3::NonMaxSuppression::validate_inputs()
                           m_output_type == element::i64 || m_output_type == element::i32,
                           "Output type must be i32 or i64");
 
-    // NonMaxSuppression produces triplets
-    // that have the following format: [batch_index, class_index, box_index]
-    PartialShape out_shape = {Dimension::dynamic(), 3};
-
     if (boxes_ps.is_dynamic() || scores_ps.is_dynamic())
     {
-        set_output_type(0, m_output_type, out_shape);
         return;
     }
 
@@ -452,14 +447,14 @@ op::v4::NonMaxSuppression::NonMaxSuppression(
     const op::v4::NonMaxSuppression::BoxEncodingType box_encoding,
     const bool sort_result_descending,
     const element::Type& output_type)
-    : op::v3::NonMaxSuppression({boxes,
-                                 scores,
-                                 max_output_boxes_per_class,
-                                 iou_threshold,
-                                 score_threshold,
-                                 box_encoding,
-                                 sort_result_descending,
-                                 output_type})
+    : op::v3::NonMaxSuppression(boxes,
+                                scores,
+                                max_output_boxes_per_class,
+                                iou_threshold,
+                                score_threshold,
+                                box_encoding,
+                                sort_result_descending,
+                                output_type)
 {
     constructor_validate_and_infer_types();
 }
@@ -470,14 +465,14 @@ op::v4::NonMaxSuppression::NonMaxSuppression(
     const op::v4::NonMaxSuppression::BoxEncodingType box_encoding,
     const bool sort_result_descending,
     const element::Type& output_type)
-    : op::v3::NonMaxSuppression({boxes,
+    : op::v3::NonMaxSuppression(boxes,
                                  scores,
                                  op::Constant::create(element::i64, Shape{}, {0}),
                                  op::Constant::create(element::f32, Shape{}, {.0f}),
                                  op::Constant::create(element::f32, Shape{}, {.0f}),
                                  box_encoding,
                                  sort_result_descending,
-                                 output_type})
+                                 output_type)
 {
     constructor_validate_and_infer_types();
 }
@@ -555,14 +550,14 @@ op::dynamic::NonMaxSuppression::NonMaxSuppression(
     const op::dynamic::NonMaxSuppression::BoxEncodingType box_encoding,
     const bool sort_result_descending,
     const element::Type& output_type)
-    : op::v3::NonMaxSuppression({boxes,
-                                 scores,
-                                 max_output_boxes_per_class,
-                                 iou_threshold,
-                                 score_threshold,
-                                 box_encoding,
-                                 sort_result_descending,
-                                 output_type})
+    : op::v3::NonMaxSuppression(boxes,
+                                scores,
+                                max_output_boxes_per_class,
+                                iou_threshold,
+                                score_threshold,
+                                box_encoding,
+                                sort_result_descending,
+                                output_type)
 {
     constructor_validate_and_infer_types();
 }
@@ -573,14 +568,14 @@ op::dynamic::NonMaxSuppression::NonMaxSuppression(
     const op::dynamic::NonMaxSuppression::BoxEncodingType box_encoding,
     const bool sort_result_descending,
     const element::Type& output_type)
-    : op::v3::NonMaxSuppression({boxes,
-                                 scores,
-                                 op::Constant::create(element::i64, Shape{}, {0}),
-                                 op::Constant::create(element::f32, Shape{}, {.0f}),
-                                 op::Constant::create(element::f32, Shape{}, {.0f}),
-                                 box_encoding,
-                                 sort_result_descending,
-                                 output_type})
+    : op::v3::NonMaxSuppression(boxes,
+                                scores,
+                                op::Constant::create(element::i64, Shape{}, {0}),
+                                op::Constant::create(element::f32, Shape{}, {.0f}),
+                                op::Constant::create(element::f32, Shape{}, {.0f}),
+                                box_encoding,
+                                sort_result_descending,
+                                output_type)
 {
     constructor_validate_and_infer_types();
 }
