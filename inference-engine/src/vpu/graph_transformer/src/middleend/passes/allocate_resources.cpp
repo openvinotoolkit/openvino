@@ -25,7 +25,7 @@ namespace vpu {
 // runAllocator
 //
 
-AllocationResult runAllocator(const Model& model, bool onlyCheckCMX) {
+AllocationResult runAllocator(const Model& model, EnableShapeAllocation enableShapeAllocation, CheckOnlyCMX checkOnlyCmx) {
     VPU_PROFILE(runAllocator);
 
     auto& allocator = model->getAllocator();
@@ -40,7 +40,7 @@ AllocationResult runAllocator(const Model& model, bool onlyCheckCMX) {
     // Allocate Const/Input/Output datas.
     //
 
-    if (!onlyCheckCMX) {
+    if (checkOnlyCmx == CheckOnlyCMX::NO) {
         auto result = allocator.preprocess(model);
         if (result.status != vpu::AllocationStatus::OK) {
             return result;
@@ -86,14 +86,14 @@ AllocationResult runAllocator(const Model& model, bool onlyCheckCMX) {
         // Allocate stage outputs.
         //
 
-        const auto allocateStageOutputs = [onlyCheckCMX, &allocator](const Stage& stage) -> AllocationResult {
+        const auto allocateStageOutputs = [checkOnlyCmx, &allocator](const Stage& stage) -> AllocationResult {
             for (const auto& output : stage->outputs()) {
-                if (onlyCheckCMX && output->memReqs() != MemoryType::CMX) {
+                if (checkOnlyCmx == CheckOnlyCMX::YES && output->memReqs() != MemoryType::CMX) {
                     continue;
                 }
 
                 if (!allocator.allocateData(output)) {
-                    if (output->memReqs() == MemoryType::CMX && !onlyCheckCMX) {
+                    if (output->memReqs() == MemoryType::CMX && checkOnlyCmx == CheckOnlyCMX::NO) {
                         if (allocator.removeCMXCandidates(output)) {
                             if (allocator.allocateData(output)) {
                                 continue;
@@ -123,7 +123,7 @@ AllocationResult runAllocator(const Model& model, bool onlyCheckCMX) {
         // Allocate stage temporary buffers.
         //
 
-        if (!onlyCheckCMX) {
+        if (checkOnlyCmx == CheckOnlyCMX::NO) {
             for (const auto& tempBufferEdge : stage->tempBufferEdges()) {
                 if (!allocator.allocateData(tempBufferEdge->tempBuffer())) {
                     allocator.setNeedToAllocNonIntermData();
@@ -157,7 +157,7 @@ AllocationResult runAllocator(const Model& model, bool onlyCheckCMX) {
         //
 
         for (const auto& input : stage->inputs()) {
-            if (onlyCheckCMX && input->memReqs() != MemoryType::CMX) {
+            if (checkOnlyCmx == CheckOnlyCMX::YES && input->memReqs() != MemoryType::CMX) {
                 continue;
             }
 
@@ -168,7 +168,7 @@ AllocationResult runAllocator(const Model& model, bool onlyCheckCMX) {
         // Release stage temporary buffers.
         //
 
-        if (!onlyCheckCMX) {
+        if (checkOnlyCmx == CheckOnlyCMX::NO) {
             for (const auto& tempBufferEdge : stage->tempBufferEdges()) {
                 allocator.freeData(tempBufferEdge->tempBuffer());
             }
@@ -189,13 +189,13 @@ AllocationResult runAllocator(const Model& model, bool onlyCheckCMX) {
     //
 
     for (auto data : model->datas()) {
-        if (data->usage() != DataUsage::Output) {
+        if (data->usage() != DataUsage::Output && data->usage() != DataUsage::Input) {
             continue;
         }
 
         if (const auto& parentEdge = data->parentDataToShapeEdge()) {
             const auto& parent = parentEdge->parent();
-            if (parent->usage() == DataUsage::Intermediate && (!onlyCheckCMX || parent->memReqs() == MemoryType::CMX)) {
+            if (parent->usage() == DataUsage::Intermediate && (checkOnlyCmx == CheckOnlyCMX::NO || parent->memReqs() == MemoryType::CMX)) {
                 allocator.freeData(parent);
             }
         }
@@ -205,9 +205,11 @@ AllocationResult runAllocator(const Model& model, bool onlyCheckCMX) {
     // Allocate shape for all datas
     //
 
-    for (auto data : model->datas()) {
-        const auto shapeLocation = allocator.allocateShape(data);
-        data->setShapeAllocationInfo(shapeLocation);
+    if (enableShapeAllocation == EnableShapeAllocation::YES) {
+        for (auto data : model->datas()) {
+            const auto shapeLocation = allocator.allocateShape(data);
+            data->setShapeAllocationInfo(shapeLocation);
+        }
     }
 
     return AllocationResult();
@@ -233,7 +235,7 @@ void PassImpl::run(const Model& model) {
     // Allocate all resources
     //
 
-    auto allocRes = runAllocator(model);
+    auto allocRes = runAllocator(model, EnableShapeAllocation::YES);
     IE_ASSERT(allocRes.status == AllocationStatus::OK);
 
     //

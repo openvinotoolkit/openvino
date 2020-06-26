@@ -47,37 +47,22 @@ public:
     CNNNetworkNGraphImpl(const std::shared_ptr<::ngraph::Function>& nGraph);
     ~CNNNetworkNGraphImpl() override;
 
-    INFERENCE_ENGINE_DEPRECATED("Use ngraph::Function directly")
-    Precision getPrecision() const noexcept override;
     void getOutputsInfo(std::map<std::string, DataPtr>& out) const noexcept override;
 
     void getInputsInfo(InputsDataMap& inputs) const noexcept override;
 
     InputInfo::Ptr getInput(const std::string& inputName) const noexcept override;
-
-    INFERENCE_ENGINE_DEPRECATED("Use CNNNetworkNGraphImpl::getName() returning std::string")
-    void getName(char* pName, size_t len) const noexcept override;
-
     const std::string& getName() const noexcept override;
 
     size_t layerCount() const noexcept override;
 
     void setInputInfo(InputInfo::Ptr data);
 
-    INFERENCE_ENGINE_DEPRECATED("Use ngraph::Function directly")
-    DataPtr& getData(const char* name) noexcept override;
-
-    INFERENCE_ENGINE_DEPRECATED("Use ngraph::Function directly")
-    DataPtr& getData(const std::string& name);
-
     std::shared_ptr<ICNNNetwork> getCNNNetwork();
 
     // This method is not really implemented; don't call it
     INFERENCE_ENGINE_DEPRECATED("Use ngraph::Function directly")
     void addLayer(const CNNLayerPtr& layer) noexcept override;
-
-    INFERENCE_ENGINE_DEPRECATED("Use ngraph::Function directly")
-    StatusCode getLayerByName(const char* layerName, CNNLayerPtr& out, ResponseDesc* resp) const noexcept override;
 
     // public version
     StatusCode setBatchSize(size_t size, ResponseDesc* responseDesc) noexcept override;
@@ -90,10 +75,6 @@ public:
     StatusCode addOutput(const std::string& layerName, size_t outputIndex, ResponseDesc* resp) noexcept override;
 
     void addOutput(const std::string& dataName);
-
-    StatusCode getStats(ICNNNetworkStats** stats, ResponseDesc* resp) const noexcept override {
-        return StatusCode::NOT_FOUND;
-    }
 
     void Release() noexcept override {
         delete this;
@@ -110,9 +91,6 @@ public:
 
     StatusCode reshape(const std::map<std::string, std::vector<size_t>>& inputShapes,
                        ResponseDesc* resp) noexcept override;
-
-    StatusCode AddExtension(const InferenceEngine::IShapeInferExtensionPtr& extension,
-                            InferenceEngine::ResponseDesc* resp) noexcept override;
 
     StatusCode serialize(const std::string& xmlPath, const std::string& binPath, ResponseDesc* resp) const
         noexcept override;
@@ -139,7 +117,8 @@ private:
 
     friend INFERENCE_ENGINE_API_CPP(std::shared_ptr<CNNNetworkImpl>)
     convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function>& graph,
-                                 const ICNNNetwork& nGraphImpl);
+                                 const ICNNNetwork& nGraphImpl, bool keep_constant_inputs);
+
 
     /**
      * @brief Reshape on the same shape

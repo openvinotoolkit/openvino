@@ -17,7 +17,6 @@
 import logging as log
 
 from extensions.front.PowerToEltwises import PowerToEltwises
-from extensions.front.sub import Sub
 from extensions.ops.prelu import PreluOp
 from mo.front.common.replacement import FrontReplacementSubgraph
 from mo.graph.graph import Graph
@@ -65,9 +64,6 @@ class PReLU(FrontReplacementSubgraph):
 
 class PReLUWithAbs(FrontReplacementSubgraph):
     enabled = True
-
-    def run_before(self):
-        return [Sub]
 
     def pattern(self):
         return dict(

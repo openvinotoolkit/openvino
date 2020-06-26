@@ -28,6 +28,7 @@
 
 #include "ngraph_ops/eltwise.hpp"
 #include "graph_tools.hpp"
+#include "exec_graph_info.hpp"
 #include "graph_transformer.h"
 #include "ie_util_internal.hpp"
 #include "ie_ngraph_utils.hpp"
@@ -170,37 +171,6 @@ void CNNNetworkNGraphImpl::setInputInfo(InputInfo::Ptr data) {
     _inputData[data->name()] = data;
 }
 
-DataPtr& CNNNetworkNGraphImpl::getData(const char* name) noexcept {
-    if (cnnNetwork) return cnnNetwork->getData(name);
-    if (_data.find(name) != _data.end()) {
-        return _data[name];
-    } else {
-        try {
-            convertToCNNNetworkImpl();
-            return cnnNetwork->getData(name);
-        } catch (...) {
-            return _data[name];
-        }
-    }
-}
-
-DataPtr& CNNNetworkNGraphImpl::getData(const std::string& name) {
-    IE_SUPPRESS_DEPRECATED_START
-    return getData(name.c_str());
-    IE_SUPPRESS_DEPRECATED_END
-}
-
-void CNNNetworkNGraphImpl::getName(char* pName, size_t len) const noexcept {
-    if (cnnNetwork) {
-        cnnNetwork->getName(pName, len);
-        return;
-    }
-    // Description buffer will preserve garbage if external pointer not initialized
-    if (len < 1) return;
-    memset(pName, 0, len);
-    DescriptionBuffer(pName, len) << _ngraph_function->get_friendly_name();
-}
-
 const std::string& CNNNetworkNGraphImpl::getName() const noexcept {
     if (cnnNetwork) {
         return cnnNetwork->getName();
@@ -215,10 +185,6 @@ InputInfo::Ptr CNNNetworkNGraphImpl::getInput(const std::string& inputName) cons
         return nullptr;
     }
     return it->second;
-}
-
-Precision CNNNetworkNGraphImpl::getPrecision() const noexcept {
-    return Precision::MIXED;
 }
 
 void CNNNetworkNGraphImpl::getOutputsInfo(OutputsDataMap& out) const noexcept {
@@ -258,15 +224,6 @@ void CNNNetworkNGraphImpl::validate(int version) {
         cnnNetwork->validate();
     else
         _ngraph_function->validate_nodes_and_infer_types();
-}
-
-StatusCode CNNNetworkNGraphImpl::getLayerByName(const char* layerName, CNNLayerPtr& out, ResponseDesc* resp) const
-    noexcept {
-    if (!cnnNetwork) {
-        const_cast<CNNNetworkNGraphImpl *>(this)->convertToCNNNetworkImpl();
-    }
-    if (!cnnNetwork) return GENERAL_ERROR;
-    return cnnNetwork->getLayerByName(layerName, out, resp);
 }
 
 StatusCode CNNNetworkNGraphImpl::addOutput(const std::string& layerName, size_t outputIndex,
@@ -446,18 +403,33 @@ CNNNetworkNGraphImpl::reshape(const std::map<std::string, std::vector<size_t>>& 
     return OK;
 }
 
-StatusCode CNNNetworkNGraphImpl::AddExtension(const InferenceEngine::IShapeInferExtensionPtr& extension,
-                                              InferenceEngine::ResponseDesc* resp) noexcept {
-    if (!cnnNetwork) {
-        ::ngraph::op::GenericIE::addExtension(_ngraph_function, extension);
-    }
-    return cnnNetwork ? cnnNetwork->AddExtension(extension, resp) : OK;
-}
-
 StatusCode CNNNetworkNGraphImpl::serialize(const std::string& xmlPath, const std::string& binPath,
                                            ResponseDesc* resp) const noexcept {
     auto network = cnnNetwork;
     if (!network) {
+        // TODO: once Serialization::Serialize supports true IR v10
+        // remove this conversion and WA for execution graph
+        try {
+            bool isExecutionGraph = true;
+            for (const auto & op : _ngraph_function->get_ops()) {
+                auto & rtInfo = op->get_rt_info();
+                if (rtInfo.find(ExecGraphInfoSerialization::PERF_COUNTER) == rtInfo.end()) {
+                    isExecutionGraph = false;
+                    break;
+                }
+            }
+            if (isExecutionGraph) {
+                Serialization::Serialize(xmlPath, binPath, (InferenceEngine::ICNNNetwork&)*this);
+                return OK;
+            }
+        } catch (const InferenceEngineException& e) {
+            return DescriptionBuffer(GENERAL_ERROR, resp) << e.what();
+        } catch (const std::exception& e) {
+            return DescriptionBuffer(UNEXPECTED, resp) << e.what();
+        } catch (...) {
+            return DescriptionBuffer(UNEXPECTED, resp);
+        }
+
         auto graph = cloneFunction();
         // Disable shape inference (WA for generic operations)
         ::ngraph::op::GenericIE::DisableReshape noReshape(graph);

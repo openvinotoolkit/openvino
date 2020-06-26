@@ -49,6 +49,7 @@
 #include <api/depth_to_space.hpp>
 #include <api/space_to_depth.hpp>
 #include <api/batch_to_space.hpp>
+#include <api/space_to_batch.hpp>
 #include <api/shuffle_channels.hpp>
 #include <api/strided_slice.hpp>
 #include <api/reverse_sequence.hpp>
@@ -84,7 +85,6 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <exec_graph_info.hpp>
-#include "cnn_network_int8_normalizer.hpp"
 
 #include "low_precision_transformations/transformer.hpp"
 #include "low_precision_transformations/eltwise.hpp"
@@ -541,6 +541,7 @@ Program::LayerType Program::LayerTypeFromStr(const std::string &str) {
         { "DepthToSpace" , DepthToSpace },
         { "SpaceToDepth" , SpaceToDepth },
         { "BatchToSpace", BatchToSpace },
+        { "SpaceToBatch" , SpaceToBatch },
         { "ShuffleChannels" , ShuffleChannels },
         { "StridedSlice" , StridedSlice },
         { "ReverseSequence" , ReverseSequence },
@@ -1243,6 +1244,8 @@ void Program::CreateSingleLayerPrimitive(cldnn::topology& topology, InferenceEng
         case SpaceToDepth: CreateSpaceToDepthPrimitive(topology, layer);
             break;
         case BatchToSpace: CreateBatchToSpacePrimitive(topology, layer);
+            break;
+        case SpaceToBatch: CreateSpaceToBatchPrimitive(topology, layer);
             break;
         case ShuffleChannels: CreateShuffleChannelsPrimitive(topology, layer);
             break;
@@ -3536,10 +3539,29 @@ void Program::AddConstantBlobInput(cldnn::topology& topology, InferenceEngine::C
         return false;
     };
 
+    // WA to inconsistency between input and const 1d tensors
+    // For Concat along batch we go with batch interpretation
+    // For Gather input we go with batch interpretation
+    bool needsBatchInterpretation = false;
+    if (constDims.size() == 1) {
+        for (auto next : GetNextLayers(layer->outData[0])) {
+            if (LayerTypeFromStr(next->type) == Concatenate) {
+                auto nextConcat = as<InferenceEngine::ConcatLayer*>(next);
+                if (nextConcat->_axis == cldnn::concatenation::concatenation_axis::along_b) {
+                    needsBatchInterpretation = true;
+                    break;
+                }
+            } else if (LayerTypeFromStr(next->type) == Gather) {
+                needsBatchInterpretation = true;
+                break;
+            }
+        }
+    }
+
     // If quantize on weights has per-channel ranges, we have to swap channel and batch dimensions, because
     // quantization should be applied per output channel of weights
     // TODO: Check if it's still needed once LowPrecisionTransformations ready
-    if (inputToConstQuantize(layer)) {
+    if (inputToConstQuantize(layer) || needsBatchInterpretation) {
         constTensor.batch[0] = constTensor.count();
         constTensor.feature[0] = 1;
     }
@@ -3896,6 +3918,62 @@ void Program::CreateBatchToSpacePrimitive(cldnn::topology& topology, InferenceEn
     AddPrimitiveToProfiler(batchToSpaceName, layer);
 }
 
+void Program::CreateSpaceToBatchPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer) {
+    ValidateLayer(layer, 4);
+
+    auto inputPrimitives = GetPrevLayersPrimitives(layer);
+    auto spaceToBatch = as<InferenceEngine::GenericLayer*> (layer);
+    auto rank = spaceToBatch->input().get()->getTensorDesc().getDims().size();
+    auto format = FormatFromLayout(spaceToBatch->input()->getLayout());
+
+    std::vector<cldnn::tensor> inputs;
+    inputs.reserve(3);
+
+    for (size_t i = 1; i < 4; ++i) {
+        auto defaultIndexInput = layer->insData[i].lock();
+        auto defaultIndexInputCreator = defaultIndexInput->getCreatorLayer().lock();
+        if (defaultIndexInputCreator->blobs.size() == 1) {
+            auto constantBlob = defaultIndexInputCreator->blobs.begin()->second;
+            auto defaultIndexPrecision = constantBlob->getTensorDesc().getPrecision();
+            std::vector<int32_t> sizes;
+            sizes.reserve(rank);
+            int32_t default_size = i == 1 ? 1 : 0;
+            switch (defaultIndexPrecision) {
+                case InferenceEngine::Precision::I32: {
+                    auto data = constantBlob->buffer().as<int32_t*>();
+                    sizes = std::vector<int32_t>(data, data + rank);
+                    break;
+                }
+                case InferenceEngine::Precision::I64: {
+                    auto data = constantBlob->buffer().as<int64_t*>();
+                    std::vector<int64_t> sizes_i64 = std::vector<int64_t>(data, data + rank);
+                    for (size_t j = 0; j < sizes_i64.size(); ++j)
+                        sizes.emplace_back(static_cast<int32_t>(sizes_i64[j]));
+                    break;
+                }
+                default: {
+                    THROW_IE_EXCEPTION << layer->name << "Incorrect SpaceToBatch precision";
+                    break;
+                }
+            }
+            inputs.emplace_back(format, sizes, default_size);
+        }
+    }
+    auto out_size = CldnnTensorFromIEDims(spaceToBatch->outData[0]->getTensorDesc().getDims());
+
+    std::string spaceToBatchName = layer_type_name_ID(layer);
+    auto spaceToBatchPrim = cldnn::space_to_batch(
+            spaceToBatchName,
+            inputPrimitives[0], //input
+            inputs[0], //block_shape
+            inputs[1], //pads_begin
+            inputs[2], //pads_end
+            out_size);
+
+    topology.add(spaceToBatchPrim);
+    AddPrimitiveToProfiler(spaceToBatchName, layer);
+}
+
 void Program::CreateShuffleChannelsPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer) {
     ValidateLayer(layer, 1);
 
@@ -3944,11 +4022,13 @@ void Program::CreateStridedSlicePrimitive(cldnn::topology& topology, InferenceEn
     tmp = stridedSliceLayer->GetParamAsUInts("shrink_axis_mask");
     std::vector<uint8_t> shrink_axis_mask(tmp.begin(), tmp.end());
 
+    auto out_size = CldnnTensorFromIEDims(stridedSliceLayer->outData[0]->getTensorDesc().getDims());
+
     std::string stridedSliceLayerName = layer_type_name_ID(layer);
     auto stridedSlicePrim = cldnn::strided_slice(
             stridedSliceLayerName,
             inputPrimitives[0], inputPrimitives[1], inputPrimitives[2], inputPrimitives[3],
-            begin_mask, end_mask, new_axis_mask, shrink_axis_mask);
+            begin_mask, end_mask, new_axis_mask, shrink_axis_mask, out_size);
 
     topology.add(stridedSlicePrim);
     AddPrimitiveToProfiler(stridedSliceLayerName, layer);

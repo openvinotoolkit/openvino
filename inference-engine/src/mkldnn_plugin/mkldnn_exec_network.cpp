@@ -13,7 +13,6 @@
 #include "bf16transformer.h"
 #include <ie_util_internal.hpp>
 #include <graph_tools.hpp>
-#include <cnn_network_int8_normalizer.hpp>
 #include <threading/ie_executor_manager.hpp>
 #include "low_precision_transformations/convolution.hpp"
 #include "low_precision_transformations/eltwise.hpp"
@@ -29,7 +28,6 @@
 
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
-using InferenceEngine::details::CNNNetworkInt8Normalizer;
 using namespace InferenceEngine::details;
 
 InferenceEngine::InferRequestInternal::Ptr
@@ -46,16 +44,8 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::ICNNNetwork &network
     extensionManager(extMgr),
     _cfg{cfg},
     _name{network.getName()} {
-    ICNNNetworkStats* pstats = nullptr;
-    StatusCode s = network.getStats(&pstats, nullptr);
     // we are cloning network if we have statistics and we can transform network.
     _clonedNetwork = cloneNet(network);
-
-    IE_SUPPRESS_DEPRECATED_START
-    if (Precision::FP16 == network.getPrecision()) {
-        _clonedNetwork->setPrecision(Precision::FP32);
-    }
-    IE_SUPPRESS_DEPRECATED_END
 
     // CPU Plugin doesn't natively support some precision like int64/fp16/bool
     // so will convert all layer/tensors fp16->fp32 , bool->u8.
@@ -66,52 +56,47 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::ICNNNetwork &network
     NetPass::ConvertPrecision(*_clonedNetwork, Precision::BOOL, Precision::U8);
     NetPass::ConvertPrecision(*_clonedNetwork, Precision::U16, Precision::I32);
 
-    if (s == StatusCode::OK && pstats && !pstats->isEmpty()) {
-        CNNNetworkInt8Normalizer cnnorm;
-        cnnorm.NormalizeNetwork(*_clonedNetwork, *pstats);
-    } else {
-        if (_cfg.lpTransformsMode == Config::LPTransformsMode::On) {
-            auto params = LayerTransformation::Params(true,  // updatePrecisions
-                                                      true,  // quantizeOutputs
-                                                      true,  // weightsToConst
-                                                      LayerTransformation::QuantizedTensorAlignment::UpdateLevel,  // quantizedTensorAlignmentOnActivations
-                                                      LayerTransformation::QuantizedTensorAlignment::None,  // quantizedTensorAlignmentOnWeights
-                                                      true,  // roundQuantizedValues
-                                                      true,  // updateBiases
-                                                      true);  // supportAsymmetricQuantization
-            LowPrecisionTransformer transformer(LowPrecisionTransformer::getAllTransformations(params).
-                add<ConvolutionTransformation>(LayerTransformation::Params(params).setPrecisionsOnActivations({ Precision::U8 }), "Convolution").
-                addCleanup<ScaleShiftToConvolutionTransformation>(
-                    LayerTransformation::Params(params).setPrecisionsOnActivations({ Precision::U8 }),
-                    "ScaleShift"));
-            transformer.transform(*_clonedNetwork);
+    if (_cfg.lpTransformsMode == Config::LPTransformsMode::On) {
+        auto params = LayerTransformation::Params(true,  // updatePrecisions
+                                                    true,  // quantizeOutputs
+                                                    true,  // weightsToConst
+                                                    LayerTransformation::QuantizedTensorAlignment::UpdateLevel,  // quantizedTensorAlignmentOnActivations
+                                                    LayerTransformation::QuantizedTensorAlignment::None,  // quantizedTensorAlignmentOnWeights
+                                                    true,  // roundQuantizedValues
+                                                    true,  // updateBiases
+                                                    true);  // supportAsymmetricQuantization
+        LowPrecisionTransformer transformer(LowPrecisionTransformer::getAllTransformations(params).
+            add<ConvolutionTransformation>(LayerTransformation::Params(params).setPrecisionsOnActivations({ Precision::U8 }), "Convolution").
+            addCleanup<ScaleShiftToConvolutionTransformation>(
+                LayerTransformation::Params(params).setPrecisionsOnActivations({ Precision::U8 }),
+                "ScaleShift"));
+        transformer.transform(*_clonedNetwork);
 
-            // Check if network is INT8 or Binary.
-            // BF16 transformations were disabled since CPU plug-in doesn't support mixed precision execution:
-            // BF16 + INT8 or BF16 + BIN.
-            bool isFloatModel = true;
-            CNNNetworkIterator i(&network);
-            while (i != CNNNetworkIterator()) {
-                if (CaselessEq<std::string>()((*i)->type, "FakeQuantize")) {
-                    isFloatModel = false;
-                    break;
-                }
-                i++;
+        // Check if network is INT8 or Binary.
+        // BF16 transformations were disabled since CPU plug-in doesn't support mixed precision execution:
+        // BF16 + INT8 or BF16 + BIN.
+        bool isFloatModel = true;
+        CNNNetworkIterator i(&network);
+        while (i != CNNNetworkIterator()) {
+            if (CaselessEq<std::string>()((*i)->type, "FakeQuantize")) {
+                isFloatModel = false;
+                break;
             }
+            i++;
+        }
 
-            if (with_cpu_x86_bfloat16() && isFloatModel) {
-                BF16Transformer bf16Transformer;
-                CNNNetwork cnnetwork(_clonedNetwork);
-                // If enforceBF16 flag was set, BF16 transformation applies for all layers supported by CPU plugin.
-                // Overwise, only layers marked as BF16 in 'cnnetwork' will be performed in bfloat16 mode.
-                // CPU plugin throws an exception, if marked as BF16 layers have not supported by CPU plugin.
-                if (cfg.enforceBF16 == true)
-                    bf16Transformer.convertToBFloat16(cnnetwork);
-            } else {
-                BF16Transformer bf16Transformer;
-                CNNNetwork cnnetwork(_clonedNetwork);
-                bf16Transformer.convertToFloat(cnnetwork);
-            }
+        if (with_cpu_x86_bfloat16() && isFloatModel) {
+            BF16Transformer bf16Transformer;
+            CNNNetwork cnnetwork(_clonedNetwork);
+            // If enforceBF16 flag was set, BF16 transformation applies for all layers supported by CPU plugin.
+            // Overwise, only layers marked as BF16 in 'cnnetwork' will be performed in bfloat16 mode.
+            // CPU plugin throws an exception, if marked as BF16 layers have not supported by CPU plugin.
+            if (cfg.enforceBF16 == true)
+                bf16Transformer.convertToBFloat16(cnnetwork);
+        } else {
+            BF16Transformer bf16Transformer;
+            CNNNetwork cnnetwork(_clonedNetwork);
+            bf16Transformer.convertToFloat(cnnetwork);
         }
     }
 

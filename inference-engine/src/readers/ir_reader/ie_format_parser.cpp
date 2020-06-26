@@ -10,7 +10,6 @@
 #include <unordered_set>
 
 #include "ie_blob_proxy.hpp"
-#include "ie_icnn_network_stats.hpp"
 #include "ie_layer_parsers.h"
 #include "ie_profiling.hpp"
 #include "xml_parse_utils.h"
@@ -280,7 +279,6 @@ CNNNetworkImplPtr FormatParser::Parse(pugi::xml_node& root) {
     _network.reset(new CNNNetworkImpl());
     _network->setName(GetStrAttr(root, "name", ""));
     _defPrecision = Precision::FromStr(GetStrAttr(root, "precision", "UNSPECIFIED"));
-    _network->setPrecision(_defPrecision);
     // parse the input Data
     DataPtr inputData;
     // parse the graph layers
@@ -288,7 +286,6 @@ CNNNetworkImplPtr FormatParser::Parse(pugi::xml_node& root) {
     std::vector<CNNLayer::Ptr> inputLayers;
     int nodeCnt = 0;
     std::map<int, CNNLayer::Ptr> layerById;
-    bool identifyNetworkPrecision = _defPrecision == Precision::UNSPECIFIED;
     for (auto node = allLayersNode.child("layer"); !node.empty(); node = node.next_sibling("layer")) {
         LayerParseParameters lprms;
         ParseGenericParams(node, lprms);
@@ -303,20 +300,6 @@ CNNNetworkImplPtr FormatParser::Parse(pugi::xml_node& root) {
         if (equal(layer->type, "input")) {
             inputLayers.push_back(layer);
         }
-
-        IE_SUPPRESS_DEPRECATED_START
-
-        if (identifyNetworkPrecision) {
-            if (!_network->getPrecision()) {
-                _network->setPrecision(lprms.prms.precision);
-            }
-            if (_network->getPrecision() != lprms.prms.precision) {
-                _network->setPrecision(Precision::MIXED);
-                identifyNetworkPrecision = false;
-            }
-        }
-
-        IE_SUPPRESS_DEPRECATED_END
 
         for (int i = 0; i < lprms.outputPorts.size(); i++) {
             const auto& outPort = lprms.outputPorts[i];
@@ -422,9 +405,6 @@ CNNNetworkImplPtr FormatParser::Parse(pugi::xml_node& root) {
             }
         }
     }
-
-    auto statNode = root.child("statistics");
-    ParseStatisticSection(statNode);
 
     if (!_network->allLayers().size()) THROW_IE_EXCEPTION << "Incorrect model! Network doesn't contain layers.";
 
@@ -614,22 +594,6 @@ const DataPtr& FormatParser::GetDataBy(int layer_id, int port_id) const {
     return found->second;
 }
 
-DataPtr FormatParser::ParseInputData(pugi::xml_node& root) const {
-    auto inputNode = root.child("input");
-    if (inputNode.empty()) {
-        THROW_IE_EXCEPTION << "No input node in network, missing <input>";
-    }
-
-    auto inputName = GetStrAttr(inputNode, "name", "input");
-    SizeVector inputDims;
-
-    ParseDims(inputDims, inputNode);
-
-    DataPtr& inputData = _network->getData(inputName);
-    inputData.reset(new Data(inputName, {_network->getPrecision(), inputDims, TensorDesc::getLayoutByDims(inputDims)}));
-    return inputData;
-}
-
 void FormatParser::ParsePreProcess(pugi::xml_node& root) {
     /*
        <pre-process mean-precision="FP32">
@@ -775,41 +739,5 @@ void FormatParser::ParsePreProcess(pugi::xml_node& root) {
                            << "\n"
                               "Provided mean image for: "
                            << validMeanImageIds;
-    }
-}
-
-void FormatParser::ParseStatisticSection(const pugi::xml_node& statNode) {
-    auto splitParseCommas = [&](const string& s) -> vector<float> {
-        vector<float> res;
-        stringstream ss(s);
-
-        float val;
-
-        while (ss >> val) {
-            res.push_back(val);
-
-            if (ss.peek() == ',') ss.ignore();
-        }
-
-        return res;
-    };
-
-    map<string, NetworkNodeStatsPtr> newNetNodesStats;
-
-    for (auto layer : statNode.children("layer")) {
-        NetworkNodeStatsPtr nodeStats = NetworkNodeStatsPtr(new NetworkNodeStats());
-
-        string name = layer.child("name").text().get();
-
-        newNetNodesStats[name] = nodeStats;
-
-        nodeStats->_minOutputs = splitParseCommas(layer.child("min").text().get());
-        nodeStats->_maxOutputs = splitParseCommas(layer.child("max").text().get());
-    }
-
-    ICNNNetworkStats* pstats = nullptr;
-    StatusCode s = _network->getStats(&pstats, nullptr);
-    if (s == StatusCode::OK && pstats) {
-        pstats->setNodesStats(newNetNodesStats);
     }
 }

@@ -325,6 +325,9 @@ size_t ngraph::compiler_byte_size(element::Type_t et)
     case element::Type_t::undefined: return 0;
     case element::Type_t::dynamic: return 0;
     }
+
+    throw ngraph_error("compiler_byte_size: Unsupported value of element::Type_t: " +
+                       std::to_string(static_cast<int>(et)));
 }
 
 namespace ngraph

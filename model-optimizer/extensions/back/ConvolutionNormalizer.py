@@ -29,7 +29,6 @@ from mo.ops.strided_slice import StridedSlice
 
 class ConvolutionNormalizer(BackReplacementPattern):
     enabled = True
-    graph_condition = [lambda graph: graph.graph['cmd_params'].generate_experimental_IR_V10]
 
     def pattern(self):
         return dict(
@@ -43,78 +42,6 @@ class ConvolutionNormalizer(BackReplacementPattern):
         node = match['node']
         if node.has_valid('kernel_spatial'):
             del node['kernel_spatial']
-
-
-class ConvolutionReshaper(BackReplacementPattern):
-    """
-        Workarounds absence of 1D Convolution support in Inference Engine by converting it to 2D Convolution
-            - updating shape dependent Convolution parameters with fake H: dilation, kernel, pad, stride
-            - reshape weights from [OIX] -> [OIYX] = [OI1X]
-            - inserting fake H dimension by adding reshapes before and after Convolution: [NCW] -> [NCHW] = [NC1W]
-    """
-    enabled = True
-    graph_condition = [lambda graph: not graph.graph['cmd_params'].generate_experimental_IR_V10]
-
-    def run_before(self):
-        return [ReshapeMutation]
-
-    @staticmethod
-    def pattern():
-        return dict(
-            nodes=[
-                ('conv', dict(type='Convolution'))
-            ],
-            edges=[]
-        )
-
-    def replace_pattern(self, graph: Graph, match: dict):
-        conv = match['conv']
-
-        assert len(conv.out_nodes()) == 1, "Convolution operation {} should have 1 output data node".format(conv.id)
-        out_data = conv.out_node()
-
-        assert out_data.has_valid('shape'), 'Output shape is undefined for {} in back phase'.format(conv.id)
-        out_shape = out_data.shape
-
-        if out_shape.size != 3:
-            return
-
-        assert len(conv.in_nodes()) >= 1, "Convolution operation {} should have more than 1 input data node".format(
-            conv.id)
-        inp_data = conv.in_node()
-
-        assert inp_data.has_valid('shape'), 'Input shape is undefined for {} in back phase'.format(conv.id)
-        inp_shape = inp_data.shape
-        new_inp_shape = np.insert(inp_shape, 2, 1)
-
-        # setting to None to be overwritten by infer function
-        conv.kernel_spatial_idx = None
-        conv.spatial_dims = None
-
-        # inserting fake H dimension
-        conv.dilation = np.insert(conv.dilation, 2, 1)
-        conv.kernel_spatial = np.append([1], conv.kernel_spatial)
-        conv.pad = np.insert(conv.pad, 2, [0, 0], axis=0)
-        conv.stride = np.insert(conv.stride, 2, 1)
-
-        weights_node = conv.in_node(1)
-        weights_node.value = np.reshape(weights_node.value, np.insert(weights_node.value.shape, 2, 1))
-        weights_node.shape = np.array(weights_node.value.shape, dtype=np.int64)
-
-        reshape = Reshape(graph, {'name': conv.name + '/reshape'}).create_node()
-        reshape_dim = Const(graph, {'value': new_inp_shape, 'name': reshape.id + '/Dim'}).create_node()
-        conv.in_port(0).get_connection().insert_node(reshape)
-        reshape.in_port(1).connect(reshape_dim.out_port(0))
-
-        reshape_back = Reshape(graph, {'name': conv.name + '/reshape_back'}).create_node()
-        reshape_back_dim = Const(graph, {'value': out_shape, 'name': reshape.id + '/Dim'}).create_node()
-        conv.out_port(0).get_connection().insert_node(reshape_back)
-        reshape_back.in_port(1).connect(reshape_back_dim.out_port(0))
-
-        # run shape inference manually for several nodes to override shapes of the model nodes which changed behaviour
-        reshape_dim.infer(reshape_dim)
-        reshape.infer(reshape)
-        conv.infer(conv)
 
 
 class V7ConvolutionWithGroupsResolver(BackReplacementPattern):
@@ -206,13 +133,12 @@ class ConvolutionWithGroupsResolver(BackReplacementPattern):
         return [ReshapeMutation]
 
     def run_after(self):
-        return [ConvolutionReshaper, ApplyReverseChannels]
+        return [ApplyReverseChannels]
 
     def find_and_replace_pattern(self, graph: Graph):
         V7ConvolutionWithGroupsResolver().find_and_replace_pattern(graph)
         PullReshapeThroughFQ().find_and_replace_pattern(graph)
-        if graph.graph['cmd_params'].generate_experimental_IR_V10:
-            V10ConvolutionWithGroupsResolver().find_and_replace_pattern(graph)
+        V10ConvolutionWithGroupsResolver().find_and_replace_pattern(graph)
 
 
 class PullReshapeThroughFQ(BackReplacementPattern):
@@ -279,14 +205,13 @@ class PullReshapeThroughFQ(BackReplacementPattern):
 
 class DeconvolutionNormalizer(BackReplacementPattern):
     enabled = True
-    graph_condition = [lambda graph: graph.graph['cmd_params'].generate_experimental_IR_V10]
     force_clean_up = True
 
     def run_before(self):
         return [ReshapeMutation]
 
     def run_after(self):
-        return [ConvolutionReshaper, ApplyReverseChannels]
+        return [ApplyReverseChannels]
 
     @staticmethod
     def pattern():

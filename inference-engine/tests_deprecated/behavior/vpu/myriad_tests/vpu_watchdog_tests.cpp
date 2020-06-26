@@ -11,9 +11,13 @@
 #include <thread>
 #include <file_utils.h>
 #include "vpu_test_data.hpp"
+#include "functional_test_utils/test_model/test_model.hpp"
 
 #include "helpers/myriad_devices.hpp"
 #include <details/ie_exception.hpp>
+
+#include <cpp_interfaces/interface/ie_plugin.hpp>
+#include <ie_plugin_ptr.hpp>
 
 using namespace std;
 using namespace ::testing;
@@ -179,21 +183,15 @@ TEST_P(MYRIADWatchdog, watchDogIntervalDefault) {
     auto startup_devices = queryDevices();
     auto ctime = Time::now();
     {
-
         InferenceEngine::Core core;
-        IE_SUPPRESS_DEPRECATED_START
-        CNNNetReader reader;
-        reader.ReadNetwork(GetParam().model_xml_str.data(), GetParam().model_xml_str.length());
-
-        CNNNetwork network = reader.getNetwork();
-        IE_SUPPRESS_DEPRECATED_END
+        auto model = FuncTestUtils::TestModel::convReluNormPoolFcModelFP16;
+        CNNNetwork network = core.ReadNetwork(model.model_xml_str, model.weights_blob);
         ASSERT_GE(startup_devices.unbooted, 1);
 
         ExecutableNetwork ret;
         ctime = Time::now();
-        ASSERT_THROW(ret = core.LoadNetwork(network, GetParam().device, {
-            {KEY_LOG_LEVEL, LOG_INFO}}),
-            InferenceEngine::details::InferenceEngineException);
+        ret = core.LoadNetwork(network, GetParam().device, {
+            {KEY_LOG_LEVEL, LOG_INFO} });
 
         ASSERT_BOOTED_DEVICES_ONE_MORE();
 
@@ -219,20 +217,15 @@ TEST_P(MYRIADWatchdog, canTurnoffWatchDogViaConfig) {
     auto ctime = Time::now();
     {
         InferenceEngine::Core core;
-        IE_SUPPRESS_DEPRECATED_START
-        CNNNetReader reader;
-        reader.ReadNetwork(GetParam().model_xml_str.data(), GetParam().model_xml_str.length());
-
-        CNNNetwork network = reader.getNetwork();
-        IE_SUPPRESS_DEPRECATED_END
+        auto model = FuncTestUtils::TestModel::convReluNormPoolFcModelFP16;
+        CNNNetwork network = core.ReadNetwork(model.model_xml_str, model.weights_blob);
         ASSERT_GE(startup_devices.unbooted, 1);
 
         ExecutableNetwork ret;
         ctime = Time::now();
-        ASSERT_THROW(ret = core.LoadNetwork(network, GetParam().device, {
+        ret = core.LoadNetwork(network, GetParam().device, {
             {KEY_LOG_LEVEL, LOG_INFO},
-            {KEY_VPU_MYRIAD_WATCHDOG, NO}}),
-            InferenceEngine::details::InferenceEngineException);
+            {KEY_VPU_MYRIAD_WATCHDOG, NO}});
 
         ASSERT_BOOTED_DEVICES_ONE_MORE();
 

@@ -20,7 +20,7 @@ void LayerTestsCommon::Run() {
 }
 
 LayerTestsCommon::~LayerTestsCommon() {
-    if (!configuration.empty() || targetDevice.find(CommonTestUtils::DEVICE_GPU) != std::string::npos) {
+    if (!configuration.empty()) {
         PluginCache::get().reset();
     }
 }

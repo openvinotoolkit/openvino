@@ -23,9 +23,6 @@ public:
     static constexpr const char* OUTPUT_BLOB_NAME = "first_output";
     const SizeVector OUTPUT_DIMENTIONS = { 1, 3, 299, 299 };
     const std::string name = "test";
-    Precision getPrecision() const noexcept override {
-        return Precision::FP32;
-    }
     const std::string& getName() const noexcept override {
         return name;
     }
@@ -81,7 +78,6 @@ public:
     MOCK_QUALIFIED_METHOD0(Release, noexcept, void());
     MOCK_QUALIFIED_METHOD1(getInputShapes, const noexcept, void(ICNNNetwork::InputShapes &));
     MOCK_QUALIFIED_METHOD2(reshape, noexcept, StatusCode(const ICNNNetwork::InputShapes &, ResponseDesc *));
-    MOCK_QUALIFIED_METHOD2(AddExtension, noexcept, StatusCode(const IShapeInferExtensionPtr &, ResponseDesc *));
     MOCK_QUALIFIED_METHOD3(serialize, const noexcept, StatusCode(const std::string &, const std::string &, InferenceEngine::ResponseDesc*));
 };
 

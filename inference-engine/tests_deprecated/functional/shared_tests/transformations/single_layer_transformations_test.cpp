@@ -6,11 +6,10 @@
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 #include "common/validation.hpp"
 #include "tests_common_func.hpp"
-#include <cpp/ie_cnn_net_reader.h>
 
 TBlob<uint8_t>::Ptr SingleLayerTransformationsTest::generateWeights(const CNNNetwork& network) {
     std::vector<Blob::Ptr> blobs;
-    const auto net_precision = network.getPrecision();
+    const auto net_precision = network.getInputsInfo().begin()->second->getPrecision();
 
     std::vector<CNNLayerPtr> sortedLayers = CNNNetSortTopologically(network);
     for (CNNLayerPtr layer : sortedLayers) {
@@ -294,7 +293,7 @@ void SingleLayerTransformationsTest::SetUp() {
                                                 const auto transformedOutput = infer(network, inputBlobs, core, p.device_name, executableNetworkTransformed, inferRequestTransformed);
 
                                                 //compareInDetails(originalOutputMap, *transformedOutput, 70, 0.5);
-                                                auto net_precision = network.getPrecision();
+                                                auto net_precision = network.getInputsInfo().begin()->second->getPrecision();
                                                 for (auto& originalOutput : originalOutputMap) {
                                                     const auto& name = originalOutput.first;
                                                     const auto outSize = originalOutput.second->size();

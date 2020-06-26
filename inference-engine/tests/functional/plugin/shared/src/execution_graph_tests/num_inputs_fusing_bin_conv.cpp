@@ -6,6 +6,9 @@
 
 #include <ie_core.hpp>
 
+#include <ngraph/function.hpp>
+#include <ngraph/variant.hpp>
+
 #include "functional_test_utils/plugin_cache.hpp"
 #include "functional_test_utils/layer_test_utils.hpp"
 
@@ -42,9 +45,6 @@ void ExecGraphInputsFusingBinConv::SetUp() {
 }
 
 void ExecGraphInputsFusingBinConv::TearDown() {
-    if (targetDevice.find(CommonTestUtils::DEVICE_GPU) != std::string::npos) {
-        PluginCache::get().reset();
-    }
 }
 
 TEST_P(ExecGraphInputsFusingBinConv, CheckNumInputsInBinConvFusingWithConv) {
@@ -52,19 +52,43 @@ TEST_P(ExecGraphInputsFusingBinConv, CheckNumInputsInBinConvFusingWithConv) {
     auto ie = PluginCache::get().ie();
     auto execNet = ie->LoadNetwork(cnnNet, targetDevice);
 
-    IE_SUPPRESS_DEPRECATED_START
     InferenceEngine::CNNNetwork execGraphInfo = execNet.GetExecGraphInfo();
-    std::vector<InferenceEngine::CNNLayerPtr> nodes;
-    ASSERT_NO_THROW(nodes = InferenceEngine::Serialization::TopologicalSort(execGraphInfo));
-    for (auto &node : nodes) {
-        if (node->type == "BinaryConvolution") {
-            std::string originalLayersNames = node->params["originalLayersNames"];
-            ASSERT_TRUE(originalLayersNames.find("BinaryConvolution") != std::string::npos);
-            ASSERT_TRUE(originalLayersNames.find("Add") != std::string::npos);
-            ASSERT_EQ(node->insData.size(), 1);
+
+    if (auto function = execGraphInfo.getFunction()) {
+        for (const auto & op : function->get_ops()) {
+            const auto & rtInfo = op->get_rt_info();
+
+            auto getExecValue = [&rtInfo](const std::string & paramName) -> std::string {
+                auto it = rtInfo.find(paramName);
+                IE_ASSERT(rtInfo.end() != it);
+                auto value = std::dynamic_pointer_cast<ngraph::VariantImpl<std::string>>(it->second);
+                IE_ASSERT(nullptr != value);
+
+                return value->get();
+            };
+
+            auto layerType = getExecValue("layerType");
+            if (layerType == "BinaryConvolution") {
+                auto originalLayersNames = getExecValue("originalLayersNames");
+                ASSERT_TRUE(originalLayersNames.find("BinaryConvolution") != std::string::npos);
+                ASSERT_TRUE(originalLayersNames.find("Add") != std::string::npos);
+                ASSERT_EQ(op->get_input_size(), 1);
+            }
         }
+    } else {
+        IE_SUPPRESS_DEPRECATED_START
+        std::vector<InferenceEngine::CNNLayerPtr> nodes;
+        ASSERT_NO_THROW(nodes = InferenceEngine::Serialization::TopologicalSort(execGraphInfo));
+        for (auto &node : nodes) {
+            if (node->type == "BinaryConvolution") {
+                std::string originalLayersNames = node->params["originalLayersNames"];
+                ASSERT_TRUE(originalLayersNames.find("BinaryConvolution") != std::string::npos);
+                ASSERT_TRUE(originalLayersNames.find("Add") != std::string::npos);
+                ASSERT_EQ(node->insData.size(), 1);
+            }
+        }
+        IE_SUPPRESS_DEPRECATED_END
     }
-    IE_SUPPRESS_DEPRECATED_END
 
     fnPtr.reset();
 };

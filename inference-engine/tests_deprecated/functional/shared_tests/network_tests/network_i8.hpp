@@ -51,7 +51,6 @@ struct network_params {
     std::string deviceName;
     std::string modelFile;
     std::string imageName;
-    std::string statFile;
     std::vector<std::pair<int, float>> refValue;
     // optional config (used for multi-device)
     std::map<std::string, std::string> config;
@@ -75,13 +74,6 @@ struct network_params {
         std::string result = TestDataHelpers::get_data_path();
         result += kPathSeparator;
         result += imageName;
-        return result;
-    }
-
-    std::string stat() {
-        ModelsPath result;
-        result += kPathSeparator;
-        result += statFile;
         return result;
     }
 };
@@ -354,13 +346,6 @@ protected:
             network.setBatchSize(batch_size);
 
         ie.SetConfig(p.config);
-        if (p.statFile != "") {
-            InferenceEngine::NetworkStatsMap stat = testing::loadStatisticFromFile(p.stat());
-
-            ICNNNetworkStats *pstats;
-            ((ICNNNetwork&)network).getStats(&pstats, nullptr);
-            pstats->setNodesStats(stat);
-        }
 
         if (transformationsParams.transformationsInTestEnabled) {
             ICNNNetwork& icnnnetwork = network;
@@ -527,7 +512,6 @@ protected:
                 "CPU",
                 transformationsParam.modelParams.irFilePath,
                 transformationsParam.modelParams.dataFilePath,
-                "",
                 referenceValues
         };
 

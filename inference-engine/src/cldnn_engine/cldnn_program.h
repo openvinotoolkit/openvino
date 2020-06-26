@@ -15,7 +15,6 @@
 #include <cpp/ie_cnn_network.h>
 #include <cpp_interfaces/exception2status.hpp>
 #include <ie_blob.h>
-#include <ie_plugin.hpp>
 
 #include "debug_options.h"
 #include "cldnn_custom_layer.h"
@@ -178,6 +177,7 @@ public:
         DepthToSpace,
         SpaceToDepth,
         BatchToSpace,
+        SpaceToBatch,
         ShuffleChannels,
         StridedSlice,
         Broadcast,
@@ -359,6 +359,7 @@ private:
     void CreateDepthToSpacePrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer);
     void CreateSpaceToDepthPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer);
     void CreateBatchToSpacePrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer);
+    void CreateSpaceToBatchPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer);
     void CreateShuffleChannelsPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer);
     void CreateStridedSlicePrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer);
     void CreateBroadcastPrimitive(cldnn::topology &topology, InferenceEngine::CNNLayerPtr &layer);
