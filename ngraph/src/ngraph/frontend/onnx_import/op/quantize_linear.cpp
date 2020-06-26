@@ -16,6 +16,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <numeric>
 
 #include "default_opset.hpp"
 #include "exceptions.hpp"
@@ -74,27 +75,29 @@ namespace ngraph
                         output_high = std::make_shared<default_opset::Constant>(x_et, Shape{}, 255);
                     }
 
-                    std::shared_ptr<ngraph::Node> stop;
+                    std::shared_ptr<ngraph::Node> reduction_axes;
 
                     if (x->get_output_partial_shape(0).rank().is_static())
                     {
-                        stop = std::make_shared<default_opset::Constant>(
-                            element::i32,
-                            Shape{},
-                            x->get_output_partial_shape(0).rank().get_length());
+                        const auto rank =
+                            static_cast<size_t>(x->get_output_partial_shape(0).rank().get_length());
+                        std::vector<int32_t> axes(rank);
+                        std::iota(std::begin(axes), std::end(axes), 0);
+                        reduction_axes = std::make_shared<default_opset::Constant>(
+                            element::i32, Shape{rank}, axes);
                     }
                     else
                     {
-                        stop =
+                        const auto& stop =
                             reshape::interpret_as_scalar(std::make_shared<default_opset::ShapeOf>(
                                 std::make_shared<default_opset::ShapeOf>(x, element::i32),
                                 element::i32));
+                        reduction_axes = std::make_shared<default_opset::Range>(
+                            std::make_shared<default_opset::Constant>(element::i32, Shape{}, 0),
+                            stop,
+                            std::make_shared<default_opset::Constant>(element::i32, Shape{}, 1));
                     }
 
-                    const auto& reduction_axes = std::make_shared<default_opset::Range>(
-                        std::make_shared<default_opset::Constant>(element::i32, Shape{}, 0),
-                        stop,
-                        std::make_shared<default_opset::Constant>(element::i32, Shape{}, 1));
                     const auto& input_low =
                         std::make_shared<default_opset::ReduceMin>(x, reduction_axes);
                     const auto& input_high =

@@ -11,7 +11,7 @@
 #-------------------------------------------------------------------------------
 
 # Quantize layer input 'ReduceMin_9' doesn't have blobs
-onnx_model_quantize_linear
+#onnx_model_quantize_linear
 onnx_model_quantize_linear_zero_point
 
 # Not supported ONNX op: QuantizeLinear
