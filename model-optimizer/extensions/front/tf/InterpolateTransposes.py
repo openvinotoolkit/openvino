@@ -34,9 +34,19 @@ class InterpolateTranspose(FrontReplacementSubgraph):
             nodes=[
                 ('interpolate', {'kind': 'op', 'op': 'Interpolate'}),
                 ('transpose_1', {'kind': 'op', 'op': 'Transpose'}),
-                ('transpose_1_order', {'kind': 'op', 'op': 'Const'}),
+                ('transpose_1_order',
+                 {
+                     'kind': 'op',
+                     'op': 'Const',
+                     'value': lambda value: value is not None and np.array_equal(value, int64_array([0, 2, 3, 1]))
+                 }),
                 ('transpose_2', {'kind': 'op', 'op': 'Transpose'}),
-                ('transpose_2_order', {'kind': 'op', 'op': 'Const'}),
+                ('transpose_2_order',
+                 {
+                     'kind': 'op',
+                     'op': 'Const',
+                     'value': lambda value: value is not None and np.array_equal(value, int64_array([0, 3, 1, 2]))
+                 }),
             ],
             edges=[
                 ('transpose_1', 'interpolate', {'in': 0, 'out': 0}),
@@ -54,17 +64,6 @@ class InterpolateTranspose(FrontReplacementSubgraph):
         interpolate = match['interpolate']
         transpose_1 = match['transpose_1']
         transpose_2 = match['transpose_2']
-        transpose_1_order = match['transpose_1_order']
-        transpose_2_order = match['transpose_2_order']
-
-        if not (transpose_1_order.has_valid('value') and transpose_2_order.has_valid('value')):
-            return
-
-        if not np.array_equal(transpose_1_order.value, int64_array([0, 2, 3, 1])):
-            return
-
-        if not np.array_equal(transpose_2_order.value, int64_array([0, 3, 1, 2])):
-            return
 
         # because we remove Transpose layers the ResizeNearestNeighbor should be updated for NCHW layout
         interpolate.axes = int64_array([2, 3])
