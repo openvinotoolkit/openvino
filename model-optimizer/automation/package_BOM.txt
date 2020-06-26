@@ -239,6 +239,7 @@ extensions/front/onnx/conv_ext.py
 extensions/front/onnx/crop_ext.py
 extensions/front/onnx/cumsum_ext.py
 extensions/front/onnx/deformable_conv_ext.py
+extensions/front/onnx/depth_to_space_ext.py
 extensions/front/onnx/detection_output.py
 extensions/front/onnx/detectionoutput_ext.py
 extensions/front/onnx/dropout_ext.py
