@@ -23,6 +23,7 @@ from openvino.inference_engine import IECore, IENetwork
 from ngraph.exceptions import UserInputError
 from ngraph.impl import Function, Node, PartialShape, Shape, serialize, util
 from ngraph.utils.types import NumericData
+import tests
 
 log = logging.getLogger(__name__)
 
@@ -30,6 +31,11 @@ log = logging.getLogger(__name__)
 def runtime(backend_name: str = "CPU") -> "Runtime":
     """Create a Runtime object (helper factory)."""
     return Runtime(backend_name)
+
+
+def get_runtime():
+    """Return runtime object."""
+    return runtime(backend_name=tests.BACKEND_NAME)
 
 
 class Runtime(object):

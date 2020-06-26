@@ -17,7 +17,7 @@
 import numpy as np
 
 import ngraph as ng
-from tests.test_ngraph.util import get_runtime
+from tests.runtime import get_runtime
 
 
 def test_lrn():

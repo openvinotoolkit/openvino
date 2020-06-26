@@ -17,6 +17,7 @@ import numpy as np
 import pytest
 
 import ngraph as ng
+from tests.runtime import get_runtime
 from tests.test_ngraph.util import run_op_node
 
 
