@@ -10,6 +10,9 @@ INTERPRETER.onnx_top_k_opset_10
 reduce_sum_large_1d_to_scalar
 reduce_sum_keep_large_1d_to_scalar
 
+# ONNX Loop
+onnx_controlflow_loop_2d_add_execution
+
 # Disabled tests for disabled reference implementations
 INTERPRETER.onnx_model_qlinear_matmul_3d
 INTERPRETER.onnx_dyn_shapes_expand_uint16_dyn_shape
