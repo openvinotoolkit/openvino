@@ -23,56 +23,40 @@ from mo.graph.graph import Node
 from mo.utils.unittest.graph import build_graph
 
 nodes_attributes = {'node_1': {'type': 'Identity', 'kind': 'op'},
+                    'node_1_data': {'kind': 'data', 'value': None, 'shape': None},
                     'node_2': {'type': 'Identity', 'kind': 'op'},
+                    'node_2_data': {'kind': 'data', 'value': None, 'shape': None},
                     'ctc': {'type': 'CTCGreedyDecoder', 'kind': 'op'},
+                    'ctc_data': {'kind': 'data', 'value': None, 'shape': None},
                     'node_3': {'type': 'Identity', 'kind': 'op'},
+                    'node_3_data': {'kind': 'data', 'value': None, 'shape': None},
                     'op_output': { 'kind': 'op', 'op': 'Result'},
                     }
 
 
 class TestConcatPartialInfer(unittest.TestCase):
-    def test_tf_ctc_greedy_decoder_nhwc_infer(self):
+    def test_tf_ctc_greedy_decoder_infer(self):
         graph = build_graph(nodes_attributes,
                             [
-                                ('node_1', 'ctc'),
-                                ('node_2', 'ctc'),
-                                ('ctc', 'node_3'),
-                                ('node_3', 'op_output')
+                                ('node_1', 'node_1_data'),
+                                ('node_1_data', 'ctc'),
+                                ('node_2', 'node_2_data'),
+                                ('node_2_data', 'ctc'),
+                                ('ctc', 'ctc_data'),
+                                ('ctc_data', 'node_3'),
+                                ('node_3', 'node_3_data'),
+                                ('node_3_data', 'op_output')
                             ],
                             {
-                                'node_3': {'shape': None},
-                                'node_1': {'shape': np.array([88, 2, 71])},
-                                'node_2': {'shape': np.array([88, 2])},
+                                'node_1_data': {'shape': np.array([88, 2, 71])},
+                                'node_2_data': {'shape': np.array([88, 2])},
                                 'ctc': {'ctc_merge_repeated': 1}
                             })
 
-        graph.graph['layout'] = 'NHWC'
+        graph.stage = 'middle'
         ctc_node = Node(graph, 'ctc')
         CTCGreedyDecoderOp.ctc_greedy_decoder_infer(ctc_node)
         exp_shape = np.array([2, 88, 1, 1])
-        res_shape = graph.node['node_3']['shape']
-        for i in range(0, len(exp_shape)):
-            self.assertEqual(exp_shape[i], res_shape[i])
-
-    def test_tf_ctc_greedy_decoder_nchw_infer(self):
-        graph = build_graph(nodes_attributes,
-                            [
-                                ('node_1', 'ctc'),
-                                ('node_2', 'ctc'),
-                                ('ctc', 'node_3'),
-                                ('node_3', 'op_output')
-                            ],
-                            {
-                                'node_3': {'shape': None},
-                                'node_1': {'shape': np.array([88, 2, 71])},
-                                'node_2': {'shape': np.array([88, 2])},
-                                'ctc': {'ctc_merge_repeated': 1}
-                            })
-
-        graph.graph['layout'] = 'NCHW'
-        ctc_node = Node(graph, 'ctc')
-        CTCGreedyDecoderOp.ctc_greedy_decoder_infer(ctc_node)
-        exp_shape = np.array([2, 1, 88, 1])
-        res_shape = graph.node['node_3']['shape']
+        res_shape = graph.node['ctc_data']['shape']
         for i in range(0, len(exp_shape)):
             self.assertEqual(exp_shape[i], res_shape[i])
