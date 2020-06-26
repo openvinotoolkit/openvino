@@ -14,7 +14,7 @@
 # limitations under the License.
 # ******************************************************************************
 
-set(ONNX_OPSET_VERSION 11 CACHE INTERNAL "Supported version of ONNX operator set")
+set(ONNX_OPSET_VERSION 13 CACHE INTERNAL "Supported version of ONNX operator set")
 
 add_library(onnx_importer SHARED
         core/node.cpp
