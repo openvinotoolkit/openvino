@@ -19,6 +19,7 @@
 #include "ngraph/frontend/onnx_import/default_opset.hpp"
 #include "ngraph/frontend/onnx_import/onnx.hpp"
 #include "ngraph/type/element_type.hpp"
+#include "util/engine/test_engines.hpp"
 #include "util/test_case.hpp"
 #include "util/test_control.hpp"
 #include "util/test_tools.hpp"
@@ -29,6 +30,8 @@ using namespace ngraph::onnx_import;
 using namespace ngraph::test;
 
 static std::string s_manifest = "${MANIFEST}";
+
+using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_add_check_model)
 {
@@ -227,7 +230,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_controlflow_loop_2d_add_execution)
     const auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/loop_2d_add.prototxt"));
 
-    auto test_case = NgraphTestCase(function, "${BACKEND_NAME}");
+    auto test_case = test::TestCase<TestEngine>(function);
 
     // a_init
     test_case.add_input<float>({0.f, 0.f});
