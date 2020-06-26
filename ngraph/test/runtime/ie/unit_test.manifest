@@ -139,6 +139,7 @@ floor_int64
 ceiling_int64
 matmul_2x2x3_2x3x1_int64
 matmul_2x2x3_2x1x3_transpose_int64
+onnx_dyn_shapes_slice_10_3d_input_12_axes
 
 # TopK Incorrect input data/index values precision
 onnx_model_argmax_int32
@@ -1305,6 +1306,8 @@ IE_CPU.onnx_model_conv2d_strides_no_padding
 IE_CPU.onnx_model_conv2d_strides_assymetric_padding
 IE_CPU.onnx_model_conv2d_dilation_assymetric_pads_strides
 IE_CPU.onnx_model_instance_normalization
+IE_CPU.onnx_model_instance_normalization_dyn_shape
+IE_CPU.onnx_model_instance_normalization_dyn_shape2
 IE_CPU.onnx_model_reverse_sequence_1_batch_0
 IE_CPU.onnx_model_reverse_sequence_0_batch_1
 IE_CPU.cum_sum_2dim_default_axis
@@ -1645,6 +1648,8 @@ IE_GPU.onnx_model_hardmax
 IE_GPU.onnx_model_lp_norm_p2
 IE_GPU.onnx_model_lp_norm_default
 IE_GPU.onnx_model_instance_normalization
+IE_GPU.onnx_model_instance_normalization_dyn_shape
+IE_GPU.onnx_model_instance_normalization_dyn_shape2
 IE_GPU.onnx_dyn_shapes_model_acosh_1_3
 IE_GPU.onnx_dyn_shapes_model_acosh_3_2
 IE_GPU.onnx_dyn_shapes_model_asinh_1_3
@@ -1694,3 +1699,6 @@ IE_GPU.matmul_2x2_2x2
 IE_GPU.matmul_2x3_3x3
 IE_GPU.matmul_3x2_3x3_transpose
 IE_GPU.matmul_3x2_2x3_transpose
+
+# ONNX Loop
+onnx_controlflow_loop_2d_add_execution
