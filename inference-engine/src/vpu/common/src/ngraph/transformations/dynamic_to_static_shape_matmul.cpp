@@ -15,10 +15,11 @@
 
 namespace vpu {
 
-void get_normalized_shape(ngraph::Output<ngraph::Node> & shape, size_t actual_rank_value, size_t max_rank_value, bool transpose) {
+void get_normalized_shape(ngraph::Output<ngraph::Node>& shape, size_t actual_rank_value, size_t max_rank_value, bool transpose,
+                          const ngraph::element::Type& elementType) {
     if (const unsigned rank_diff = max_rank_value - actual_rank_value) {
         ngraph::OutputVector extended_shape_parts =
-                {ngraph::opset3::Constant::create(ngraph::element::i64, {rank_diff}, std::vector<int64_t>(rank_diff, 1)), shape};
+                {ngraph::opset3::Constant::create(elementType, {rank_diff}, std::vector<int64_t>(rank_diff, 1)), shape};
         shape = std::make_shared<ngraph::opset3::Concat>(extended_shape_parts, 0);
     }
     if (transpose) {
@@ -36,19 +37,22 @@ void dynamicToStaticShapeMatMul(std::shared_ptr<ngraph::Node> target) {
     VPU_THROW_UNLESS(matmul, "dynamicToStaticShapeMatMul transformation is not applicable for {}, it should be {} instead",
             target, ngraph::opset3::MatMul::type_info);
 
-    auto shapeToConstant = [&target](const ngraph::Output<ngraph::Node> & output) -> std::shared_ptr<ngraph::opset3::Constant> {
+    auto shapeToConstant = [&target](const ngraph::Output<ngraph::Node>& output,
+                                     const ngraph::element::Type& elementType) -> std::shared_ptr<ngraph::opset3::Constant> {
         VPU_THROW_UNLESS(output.get_partial_shape().is_static(),
                          "DynamicToStaticShape transformation for {} of type {} expects static shape on inputs without DSR",
                          target->get_friendly_name(), target->get_type_info());
-        return ngraph::opset3::Constant::create(ngraph::element::i64, {output.get_shape().size()}, output.get_shape());
+        return ngraph::opset3::Constant::create(elementType, {output.get_shape().size()}, output.get_shape());
     };
 
     const auto a_input_DSR = ngraph::as_type_ptr<ngraph::vpu::op::DynamicShapeResolver>(target->input_value(0).get_node_shared_ptr());
     const auto b_input_DSR = ngraph::as_type_ptr<ngraph::vpu::op::DynamicShapeResolver>(target->input_value(1).get_node_shared_ptr());
     VPU_THROW_UNLESS(a_input_DSR || b_input_DSR, "DynamicToStaticShape transformation for {} of type {} expects at least one DSR as input",
                      target->get_friendly_name(), target->get_type_info());
-    ngraph::Output<ngraph::Node> a_input_shape = a_input_DSR ? a_input_DSR->input_value(1) : shapeToConstant(target->input_value(0));
-    ngraph::Output<ngraph::Node> b_input_shape = b_input_DSR ? b_input_DSR->input_value(1) : shapeToConstant(target->input_value(1));
+    const auto shapeElementType = a_input_DSR ? a_input_DSR->get_input_element_type(1) : b_input_DSR->get_input_element_type(1);
+
+    ngraph::Output<ngraph::Node> a_input_shape = a_input_DSR ? a_input_DSR->input_value(1) : shapeToConstant(target->input_value(0), shapeElementType);
+    ngraph::Output<ngraph::Node> b_input_shape = b_input_DSR ? b_input_DSR->input_value(1) : shapeToConstant(target->input_value(1), shapeElementType);
 
     const auto& a_rank = a_input_shape.get_partial_shape();
     const auto& b_rank = b_input_shape.get_partial_shape();
@@ -57,8 +61,8 @@ void dynamicToStaticShapeMatMul(std::shared_ptr<ngraph::Node> target) {
     const auto b_rank_value = b_rank[0].get_length();
     const auto max_rank_value = std::max(ngraph::Dimension::value_type(2), std::max(a_rank_value, b_rank_value));
 
-    get_normalized_shape(a_input_shape, a_rank_value, max_rank_value, matmul->get_transpose_a());
-    get_normalized_shape(b_input_shape, b_rank_value, max_rank_value, matmul->get_transpose_b());
+    get_normalized_shape(a_input_shape, a_rank_value, max_rank_value, matmul->get_transpose_a(), shapeElementType);
+    get_normalized_shape(b_input_shape, b_rank_value, max_rank_value, matmul->get_transpose_b(), shapeElementType);
 
     ngraph::OutputVector output_dims;
     if (max_rank_value > 2) {
