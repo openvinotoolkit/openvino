@@ -16,7 +16,7 @@
 import numpy as np
 
 import ngraph as ng
-from tests.util import get_runtime, run_op_node
+from tests.test_ngraph.util import get_runtime, run_op_node
 
 
 def test_onehot():

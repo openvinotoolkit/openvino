@@ -17,7 +17,7 @@ import numpy as np
 import pytest
 
 import ngraph as ng
-from tests.util import get_runtime
+from tests.test_ngraph.util import get_runtime
 
 
 @pytest.fixture

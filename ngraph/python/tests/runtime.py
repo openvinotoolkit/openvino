@@ -17,6 +17,7 @@
 import logging
 from typing import Dict, List, Union
 
+import numpy as np
 from openvino.inference_engine import IECore, IENetwork
 
 from ngraph.exceptions import UserInputError
@@ -38,9 +39,7 @@ class Runtime(object):
         self.backend_name = backend_name
         # Plugin initialization for specified device and load extensions library if specified
         log.info("Creating Inference Engine")
-        ie = IECore()
-        ie.set_config({}, device_name=backend_name)
-        self.backend = ie
+        self.backend = IECore()
 
     def set_config(self, config: Dict[str, str]) -> None:
         """Set the inference engine configuration."""
@@ -76,8 +75,8 @@ class Computation(object):
         self.results = ng_function.get_results()
 
         capsule = Function.to_capsule(ng_function)
-        cnnNetwork = IENetwork(capsule)
-        self.executable_network = ie.load_network(cnnNetwork, 'CPU')
+        cnn_network = IENetwork(capsule)
+        self.executable_network = ie.load_network(cnn_network, self.runtime.backend_name)
 
     def __repr__(self) -> str:
         params_string = ", ".join([param.name for param in self.parameters])
@@ -85,6 +84,7 @@ class Computation(object):
 
     def __call__(self, *input_values: NumericData) -> List[NumericData]:
         """Run computation on input values and return result."""
+        input_values = [np.array(input_value) for input_value in input_values]
 
         # Input validation
         if len(input_values) != len(self.parameters):
@@ -92,11 +92,12 @@ class Computation(object):
                 "Expected %s parameters, received %s.", len(self.parameters), len(input_values)
             )
         for parameter, input in zip(self.parameters, input_values):
-            if list(parameter.shape) != list(input.shape) and len(input.shape) > 0:
+            parameter_shape = parameter.get_output_shape(0)
+            if list(parameter_shape) != list(input.shape) and len(input.shape) > 0:
                 raise UserInputError(
                     "Provided tensor's shape: %s does not match the expected: %s.",
                     list(input.shape),
-                    list(parameter.shape),
+                    list(parameter_shape),
                 )
 
         request = self.executable_network.requests[0]

@@ -21,7 +21,7 @@ import numpy as np
 import ngraph as ng
 from ngraph.impl import AxisSet, Function, Shape, Type
 from ngraph.impl.op import Constant, Parameter
-from tests.util import get_runtime
+from tests.test_ngraph.util import get_runtime
 
 
 def binary_op(op_str, a, b):
