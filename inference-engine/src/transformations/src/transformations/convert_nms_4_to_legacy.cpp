@@ -7,6 +7,7 @@
 
 #include <ngraph/graph_util.hpp>
 #include <ngraph/opsets/opset1.hpp>
+#include <ngraph/opsets/opset3.hpp>
 #include <ngraph/opsets/opset4.hpp>
 #include <ngraph_ops/nms_ie.hpp>
 #include <ngraph/rt_info.hpp>
@@ -21,7 +22,7 @@ bool ngraph::pass::ConvertNMS4ToLegacy::run_on_function(std::shared_ptr<ngraph::
         if (!nms_4)
             continue;
 
-        const auto box_encoding = static_cast<const op::v4::NonMaxSuppression::BoxEncodingType>(nms_4->get_box_encoding());
+        const auto box_encoding = static_cast<const op::v3::NonMaxSuppression::BoxEncodingType>(nms_4->get_box_encoding());
         const auto new_args = nms_4->input_values();
         NODE_VALIDATION_CHECK(nms_4.get(),
                               new_args.size() >= 2 && new_args.size() <= 5,
@@ -76,10 +77,10 @@ bool ngraph::pass::ConvertNMS4ToLegacy::run_on_function(std::shared_ptr<ngraph::
 
         int center_point_box = 0;
         switch (nms_4->get_box_encoding()) {
-            case ::ngraph::opset4::NonMaxSuppression::BoxEncodingType::CENTER:
+            case ::ngraph::opset3::NonMaxSuppression::BoxEncodingType::CENTER:
                 center_point_box = 1;
                 break;
-            case ::ngraph::opset4::NonMaxSuppression::BoxEncodingType::CORNER:
+            case ::ngraph::opset3::NonMaxSuppression::BoxEncodingType::CORNER:
                 center_point_box = 0;
                 break;
             default:
@@ -89,9 +90,9 @@ bool ngraph::pass::ConvertNMS4ToLegacy::run_on_function(std::shared_ptr<ngraph::
         const auto nms_legacy = std::make_shared<op::NonMaxSuppressionIE2>(
                 new_args.at(0),
                 new_args.at(1),
-                arg2,
-                arg3,
-                arg4,
+                new_max_per_class,
+                new_iou_threshold,
+                new_score_threshold,
                 center_point_box,
                 nms_4->get_sort_result_descending());
         new_ops.push_back(nms_legacy);
