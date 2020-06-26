@@ -100,7 +100,8 @@ class LayerInfo {
              "power"};
 
         if (isPower()) {
-            return as<const InferenceEngine::PowerLayer*>()->power != 1.0f;
+            auto powerLayer = as<const InferenceEngine::PowerLayer*>();
+            return powerLayer != nullptr && powerLayer->power != 1.0f;
         }
 
         return activations.find(layer->type) != activations.end();
