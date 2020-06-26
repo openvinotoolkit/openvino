@@ -49,7 +49,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_quantize_linear)
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/quantize_linear.prototxt"));
 
-    auto test_case = test::TestCase<TestEngine>(function);
+    auto test_case = test::TestCase<TestEngine, test::TestCaseType::DYNAMIC>(function);
     test_case.add_input(std::vector<float>{32.25f, 48.34f, 50.f, 83.f});
     test_case.add_input(std::vector<float>{0.5f});
 
@@ -62,7 +62,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_quantize_linear_zero_point)
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/quantize_linear_zero_point.prototxt"));
 
-    auto test_case = test::TestCase<TestEngine>(function);
+    auto test_case = test::TestCase<TestEngine, test::TestCaseType::DYNAMIC>(function);
     test_case.add_input(std::vector<float>{0.f, 2.f, 3.f, 1000.f, -254.f, -1000.f}); // x
     test_case.add_input(std::vector<float>{2.0f});                                   // y_scale
     test_case.add_input(std::vector<std::uint8_t>{128});                             // y_zero_point

@@ -64,3 +64,7 @@ INTERPRETER.onnx_upsample8_linear_infer
 INTERPRETER.onnx_upsample9_scales_const_nearest_infer
 INTERPRETER.onnx_upsample9_scales_const_linear_infer
 INTERPRETER.onnx_upsample9_scales_input_nearest_infer
+
+# QuantizeLinear expressed in terms of FakeQuantize produce incorrect results.
+onnx_model_quantize_linear
+onnx_model_quantize_linear_zero_point
