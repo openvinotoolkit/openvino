@@ -58,6 +58,8 @@ public:
 
     std::shared_ptr<ICNNNetwork> getCNNNetwork();
 
+    void addLayer(const CNNLayerPtr& layer) noexcept;
+
     // public version
     StatusCode setBatchSize(size_t size, ResponseDesc* responseDesc) noexcept override;
 
@@ -168,6 +170,5 @@ private:
 
 IE_SUPPRESS_DEPRECATED_END
 
-typedef std::shared_ptr<CNNNetworkNGraphImpl> CNNNetworkNGraphImplPtr;
 }  // namespace details
 }  // namespace InferenceEngine
