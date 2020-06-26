@@ -31,7 +31,7 @@ namespace InferenceEngine {
 
 bool isForFakeQuantzie(const CNNLayer& layer) {
     for (const DataPtr data : layer.outData) {
-        for (const auto it : data->getInputTo()) {
+        for (const auto it : getInputTo(data)) {
             const CNNLayerPtr childLayer = it.second;
             if (childLayer->type == "FakeQuantize" || childLayer->type == "Quantize") {
                 return true;
@@ -99,12 +99,12 @@ std::vector<CNNLayerPtr> ConstTransformer::foldConstSubgraphsInternal(const std:
         if (constLayers.find(layer->name) != constLayers.end()) {
             // const layer doesn't need parent connections -> erase them
             for (const auto& insData : layer->insData) {
-                auto& inputTo = insData.lock()->getInputTo();
+                auto& inputTo = getInputTo(insData.lock());
                 inputTo.erase(layer->name);
                 // Note: to resolve corner case above layers can be marked as const with const data, just to be removed
                 // properly.. and maybe this logic wouldn't be needed
                 if (inputTo.empty()) {
-                    auto creator = insData.lock()->getCreatorLayer().lock();
+                    auto creator = getCreatorLayer(insData.lock()).lock();
                     auto it = std::find(creator->outData.begin(), creator->outData.end(), insData.lock());
                     if (it != creator->outData.end()) {
                         data_to_remove.push_back(*it);
@@ -116,7 +116,7 @@ std::vector<CNNLayerPtr> ConstTransformer::foldConstSubgraphsInternal(const std:
 
             if (constLayers.at(layer->name)) {
                 for (const auto& outData : layer->outData) {
-                    for (const auto& inputTo : outData->getInputTo()) {
+                    for (const auto& inputTo : getInputTo(outData)) {
                         CNNLayerPtr inputToLayer;
                         std::string inputToName;
                         std::tie(inputToName, inputToLayer) = inputTo;
@@ -140,7 +140,7 @@ std::vector<CNNLayerPtr> ConstTransformer::foldConstSubgraphsInternal(const std:
                 bool keepConstData = layer->outData.size() == 1;
                 if (keepConstData) {
                     auto outData = layer->outData[0];
-                    for (const auto& inputTo : outData->getInputTo()) {
+                    for (const auto& inputTo : getInputTo(outData)) {
                         if (constLayers.find(inputTo.first) != constLayers.end()) {
                             keepConstData = false;
                         }
@@ -163,7 +163,7 @@ std::vector<CNNLayerPtr> ConstTransformer::foldConstSubgraphsInternal(const std:
                                                      layer->precision};
                             auto newLayer = std::make_shared<CNNLayer>(layerParams);
                             for (const auto& data : layer->outData) {
-                                data->getCreatorLayer() = newLayer;
+                                getCreatorLayer(data) = newLayer;
                             }
                             newLayer->outData = layer->outData;
                             newLayer->blobs["custom"] = layer->blobs["custom"];
@@ -177,7 +177,7 @@ std::vector<CNNLayerPtr> ConstTransformer::foldConstSubgraphsInternal(const std:
                     }
                 } else {
                     for (const auto& outData : layer->outData) {
-                        for (const auto& inputTo : outData->getInputTo()) {
+                        for (const auto& inputTo : getInputTo(outData)) {
                             CNNLayerPtr inputToLayer;
                             std::string inputToName;
                             std::tie(inputToName, inputToLayer) = inputTo;
@@ -204,8 +204,8 @@ std::vector<CNNLayerPtr> ConstTransformer::foldConstSubgraphsInternal(const std:
                                 }
                                 auto newData = std::make_shared<Data>(outData->getName() + "__" + inputToName,
                                                                       outData->getTensorDesc());
-                                newData->getCreatorLayer() = newLayer;
-                                newData->getInputTo()[inputToName] = inputToLayer;
+                                getCreatorLayer(newData) = newLayer;
+                                getInputTo(newData)[inputToName] = inputToLayer;
                                 newLayer->outData = {newData};
                                 layer_to_add.push_back(newLayer);
                                 data_to_add.push_back(newData);
@@ -246,7 +246,7 @@ const std::map<std::string, bool> ConstTransformer::getConstLayers(const std::ve
         } else if (std::find(skipConstInfer.begin(), skipConstInfer.end(), layer->type) == skipConstInfer.end() && !isForFakeQuantzie(*layer)) {
             bool isAllInputsConst = true;
             for (auto const& data : layer->insData) {
-                auto creator = data.lock()->getCreatorLayer().lock();
+                auto creator = getCreatorLayer(data.lock()).lock();
                 if (creator != nullptr) {
                     if (mapConstLayers.find(creator->name) == mapConstLayers.end()) {
                         isAllInputsConst = false;
@@ -270,7 +270,7 @@ const std::map<std::string, bool> ConstTransformer::getConstLayers(const std::ve
         for (int i = 0; i < currentLayer->insData.size(); i++) {
             std::string creatorName;
             if (currentLayer->insData[i].lock() != nullptr) {
-                auto creator = currentLayer->insData[i].lock()->getCreatorLayer().lock();
+                auto creator = getCreatorLayer(currentLayer->insData[i].lock()).lock();
                 if (creator) {
                     creatorName = creator->name;
                 }
@@ -400,7 +400,7 @@ static CNNLayerPtr replace_with_static_reshape(CNNLayerPtr &layer) {
     reshape->shape = std::vector<int>(shape.begin(), shape.end());
 
     // replacement
-    auto &input_to_map = in_data->getInputTo();
+    auto &input_to_map = getInputTo(in_data);
 
     // try to find by name
     auto found_by_name = input_to_map.find(layer->name);
@@ -418,7 +418,7 @@ static CNNLayerPtr replace_with_static_reshape(CNNLayerPtr &layer) {
 
     reshape->insData = {in_data};
     reshape->outData = {out_data};
-    out_data->getCreatorLayer() = reshape;
+    getCreatorLayer(out_data) = reshape;
 
     return reshape;
 }
@@ -428,7 +428,7 @@ void ConstTransformer::trimShapeInputs(const std::vector<CNNLayerPtr>& constLaye
     for (const auto& layer : constLayers) {
         if (layer->outData.size() == 1 && layer->type == "Const" && layer->insData.empty()) {
             auto constData = layer->outData[0];
-            std::map<std::string, CNNLayerPtr> inputToMap = constData->getInputTo();
+            std::map<std::string, CNNLayerPtr> inputToMap = getInputTo(constData);
             for (const auto& inputTo : inputToMap) {
                 CNNLayerPtr inputToLayer = inputTo.second;
                 if (shapeTaking.find(inputToLayer->type) != shapeTaking.end()) {
@@ -438,11 +438,11 @@ void ConstTransformer::trimShapeInputs(const std::vector<CNNLayerPtr>& constLaye
                     });
                     if (it != insData.end() && std::distance(insData.begin(), it) == 1) {
                         inputToLayer->insData.erase(it);
-                        constData->getInputTo().erase(inputTo.first);
+                        getInputTo(constData).erase(inputTo.first);
                     }
                 }
             }
-            if (constData->getInputTo().empty()) {
+            if (getInputTo(constData).empty()) {
                 layer_to_remove.push_back(layer);
                 data_to_remove.push_back(constData);
             }
@@ -485,7 +485,7 @@ void ConstTransformer::cleanup() {
         // Subgraph case
         auto &const_holder = inputs.back();
         if (const_holder->getPrecision() == Precision::UNSPECIFIED) {
-            auto &holder_map = const_holder->getInputTo();
+            auto &holder_map = getInputTo(const_holder);
             // Remove from const holder data object
             for (const auto &layer : layer_to_remove) {
                 auto self_found = std::find_if(holder_map.begin(), holder_map.end(),

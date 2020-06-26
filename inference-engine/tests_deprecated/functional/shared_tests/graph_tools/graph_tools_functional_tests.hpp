@@ -20,7 +20,7 @@ public:
         for (int i = 0; i < sorted.size(); i++) {
             //check that all input already visited:
             for (auto &inputs : sorted[i]->insData) {
-                auto inputName = inputs.lock()->getCreatorLayer().lock()->name;
+                auto inputName = getCreatorLayer(inputs.lock()).lock()->name;
 
                 bool bFound = false;
                 for (int j = 0; j < i; j++) {

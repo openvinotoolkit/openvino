@@ -118,8 +118,8 @@ public:
      * @brief Returns an owner of this data layer, parent layer in di-graph
      * @return A weak pointer to CNNLayer that creates this data
      */
-    INFERENCE_ENGINE_INTERNAL("Migrate to IR v10 and work with ngraph::Function directly")
-    virtual CNNLayerWeakPtr& getCreatorLayer();
+    // INFERENCE_ENGINE_INTERNAL("Migrate to IR v10 and work with ngraph::Function directly")
+    // virtual CNNLayerWeakPtr& getCreatorLayer();
 
     /**
      * @return name of the data object
@@ -139,30 +139,25 @@ public:
      * @brief Privates child layers in di-graph
      * @return A map of child layers
      */
-    INFERENCE_ENGINE_INTERNAL("Migrate to IR v10 and work with ngraph::Function directly")
-    virtual std::map<std::string, CNNLayerPtr>& getInputTo();
+    // INFERENCE_ENGINE_INTERNAL("Migrate to IR v10 and work with ngraph::Function directly")
+    // virtual std::map<std::string, CNNLayerPtr>& getInputTo();
 
     /**
      * @return convenient arbitrary user data holder
      */
     const UserValue& getUserObject() const;
 
-private:
     /**
-     * @brief A pointer to the layer that creates this data element, null for input data elements
+     * @brief An implementation details for Data object
      */
-    CNNLayerWeakPtr creatorLayer;
+    class Impl;
+    std::shared_ptr<Impl> impl;
 
+private:
     /**
      * @brief A unique name that identifies this data node
      */
     std::string name;
-
-    /**
-     * @brief A map of layers that use this node as input.
-     * It is useful for recursive NN graph traversal.
-     */
-    std::map<std::string, CNNLayerPtr> inputTo;
 
     /**
      * @brief A user utility place holder

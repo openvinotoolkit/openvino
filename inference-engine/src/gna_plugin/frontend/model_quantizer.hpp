@@ -74,7 +74,7 @@ class ModelQuantizer {
         copiedNet->getInputsInfo(dm);
         int scaleIndex = 0;
         for (auto &&inputData : dm) {
-            auto inputLayer = inputData.second->getInputData()->getCreatorLayer().lock();
+            auto inputLayer = getCreatorLayer(inputData.second->getInputData()).lock();
             auto quantData = InferenceEngine::getInjectedData<QuantizedLayerParams>(inputLayer);
             if (scaleFactor.size() <= scaleIndex) {
                 THROW_GNA_EXCEPTION << "Scale factors are not set for some of the inputs";

@@ -464,13 +464,13 @@ private:
         return (children.size() == 1) &&
                (children[0]->type == "Convolution") &&
                (children[0]->insData.size() >= 2) &&
-               (children[0]->insData[1].lock()->getCreatorLayer().lock()->name == layer.name);
+               (getCreatorLayer(children[0]->insData[1].lock()).lock()->name == layer.name);
     }
 
     static std::vector<CNNLayerPtr> getChildren(const CNNLayer& layer, const std::string& exceptionLayerName = "") {
         std::vector<CNNLayerPtr> children;
         for (const DataPtr outData : layer.outData) {
-            const std::map<std::string, CNNLayerPtr>& inputTo = outData->getInputTo();
+            const std::map<std::string, CNNLayerPtr>& inputTo = getInputTo(outData);
             for (auto it = inputTo.begin(); it != inputTo.end(); ++it) {
                 CNNLayerPtr child = it->second;
                 if (exceptionLayerName.empty() || child->name != exceptionLayerName) {

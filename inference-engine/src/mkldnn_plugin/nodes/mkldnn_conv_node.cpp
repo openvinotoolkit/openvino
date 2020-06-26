@@ -93,8 +93,8 @@ bool MKLDNNConvolutionNode::canBeExecutedInInt8() {
 
 InferenceEngine::Precision MKLDNNConvolutionNode::fusedEltwisePrecision(MKLDNNEltwiseNode *eltwiseNode, int findex) {
     InferenceEngine::Precision eltwisePrecision;
-    auto parent0 = eltwiseNode->getCnnLayer()->insData[0].lock()->getCreatorLayer().lock();
-    auto parent1 = eltwiseNode->getCnnLayer()->insData[1].lock()->getCreatorLayer().lock();
+    auto parent0 = getCreatorLayer(eltwiseNode->getCnnLayer()->insData[0].lock()).lock();
+    auto parent1 = getCreatorLayer(eltwiseNode->getCnnLayer()->insData[1].lock()).lock();
 
     auto fusedParent = findex != 0 ? fusedWith[findex - 1].get()->getCnnLayer() : this->getCnnLayer();
     eltwisePrecision = fusedParent == parent0 ? eltwiseNode->getCnnLayer()->insData[1].lock()->getPrecision() :

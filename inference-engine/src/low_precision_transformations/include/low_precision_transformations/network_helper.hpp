@@ -222,7 +222,7 @@ private:
         }
 
         IE_SUPPRESS_DEPRECATED_START
-        const CNNLayerPtr blobLayer = data->getCreatorLayer().lock();
+        const CNNLayerPtr blobLayer = getCreatorLayer(data).lock();
         if (blobLayer == nullptr) {
             THROW_IE_EXCEPTION << "parent layer is absent for " << quantize.type << " layer " << quantize.name;
         }

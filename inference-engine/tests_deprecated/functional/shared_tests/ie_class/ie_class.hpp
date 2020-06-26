@@ -89,7 +89,7 @@ public:
         for (auto input : networkInputs) {
             InputInfo::Ptr q = input.second;
             DataPtr p = q->getInputData();
-            layer = p->getInputTo().begin()->second;
+            layer = getInputTo(p).begin()->second;
         }
 
         std::map<std::string, std::string> deviceMapping = {

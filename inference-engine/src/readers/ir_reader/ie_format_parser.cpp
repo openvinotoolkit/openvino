@@ -136,7 +136,7 @@ void FormatParser::SetLayerInput(CNNNetworkImpl& network, const std::string& dat
         THROW_IE_EXCEPTION << "in Layer " << targetLayer->name
                            << ": trying to connect an edge to non existing output port: " << dataId;
 
-    dataPtr->getInputTo()[targetLayer->name] = targetLayer;
+    getInputTo(dataPtr)[targetLayer->name] = targetLayer;
     const LayerParseParameters& parseInfo = layersParseInfo[targetLayer->name];
     if (targetLayer->insData.empty()) {
         targetLayer->insData.resize(parseInfo.inputPorts.size());
@@ -313,11 +313,11 @@ CNNNetworkImplPtr FormatParser::Parse(pugi::xml_node& root) {
             }
             _portsToData[outId] = ptr;
 
-            if (ptr->getCreatorLayer().lock())
+            if (getCreatorLayer(ptr).lock())
                 THROW_IE_EXCEPTION << "two layers set to the same output [" << outName << "], conflict at offset "
                                    << node.offset_debug();
 
-            ptr->getCreatorLayer() = layer;
+            getCreatorLayer(ptr) = layer;
             layer->outData.push_back(ptr);
         }
         nodeCnt++;
@@ -379,7 +379,7 @@ CNNNetworkImplPtr FormatParser::Parse(pugi::xml_node& root) {
                                                   TensorDesc::getLayoutByDims(pars_info.inputPorts[i].dims)}));
 
                 layer->insData[i] = data;
-                data->getInputTo()[layer->name] = layer;
+                getInputTo(data)[layer->name] = layer;
 
                 const auto insId = gen_id(pars_info.layerId, pars_info.inputPorts[i].portId);
                 _portsToData[insId] = data;

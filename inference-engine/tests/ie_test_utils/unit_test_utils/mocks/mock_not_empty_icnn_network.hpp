@@ -28,7 +28,7 @@ public:
     }
     void getOutputsInfo(OutputsDataMap& out) const noexcept override {
         auto data = std::make_shared<Data>(MockNotEmptyICNNNetwork::OUTPUT_BLOB_NAME, Precision::UNSPECIFIED);
-        data->getInputTo()[""] = std::make_shared<CNNLayer>(LayerParams{
+        getInputTo(data)[""] = std::make_shared<CNNLayer>(LayerParams{
             MockNotEmptyICNNNetwork::OUTPUT_BLOB_NAME,
             "FullyConnected",
             Precision::FP32 });
@@ -42,7 +42,7 @@ public:
             MockNotEmptyICNNNetwork::INPUT_BLOB_NAME,
             "Input",
             Precision::FP32 });
-        inData->getInputTo()[MockNotEmptyICNNNetwork::OUTPUT_BLOB_NAME] = inputLayer;
+        getInputTo(inData)[MockNotEmptyICNNNetwork::OUTPUT_BLOB_NAME] = inputLayer;
         inData->setDims(MockNotEmptyICNNNetwork::INPUT_DIMENTIONS);
         inData->setLayout(Layout::NCHW);
         inputInfo->setInputData(inData);
@@ -50,7 +50,7 @@ public:
         auto outData = std::make_shared<Data>(MockNotEmptyICNNNetwork::OUTPUT_BLOB_NAME, Precision::UNSPECIFIED);
         outData->setDims(MockNotEmptyICNNNetwork::OUTPUT_DIMENTIONS);
         outData->setLayout(Layout::NCHW);
-        outData->getInputTo()[""] = std::make_shared<CNNLayer>(LayerParams{
+        getInputTo(outData)[""] = std::make_shared<CNNLayer>(LayerParams{
             MockNotEmptyICNNNetwork::OUTPUT_BLOB_NAME,
             "FullyConnected",
             Precision::FP32 });
