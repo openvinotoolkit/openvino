@@ -9,9 +9,6 @@
  */
 #pragma once
 
-#include <ie_icnn_net_reader.h>
-
-#include <details/ie_cnn_network_iterator.hpp>
 #include <details/ie_exception_conversion.hpp>
 #include <ie_icnn_network.hpp>
 #include <map>
@@ -57,22 +54,6 @@ public:
      * @param network Pointer to the ngraph::Function object
      */
     explicit CNNNetwork(const std::shared_ptr<const ngraph::Function>& network);
-
-    /**
-     * @brief A constructor from ICNNNetReader object
-     *
-     * @param reader Pointer to the ICNNNetReader object
-     */
-    IE_SUPPRESS_DEPRECATED_START
-    explicit CNNNetwork(CNNNetReaderPtr reader_): reader(reader_) {
-        if (reader == nullptr) {
-            THROW_IE_EXCEPTION << "ICNNNetReader was not initialized.";
-        }
-        if ((actual = reader->getNetwork(nullptr)) == nullptr) {
-            THROW_IE_EXCEPTION << "CNNNetwork was not initialized.";
-        }
-    }
-    IE_SUPPRESS_DEPRECATED_END
 
     /**
      * @brief A destructor
@@ -217,49 +198,6 @@ public:
     }
 
     /**
-     * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
-     * @copybrief ICNNNetwork::getLayerByName
-     *
-     * Wraps ICNNNetwork::getLayerByName
-     *
-     * @param layerName Given name of the layer
-     * @return Status code of the operation. InferenceEngine::OK if succeeded
-     */
-    INFERENCE_ENGINE_DEPRECATED("Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1")
-    CNNLayerPtr getLayerByName(const char* layerName) const;
-
-    /**
-     * @deprecated Use CNNNetwork::getFunction() and work with ngraph::Function directly. The method will be removed in 2021.1
-     * @brief Begin layer iterator
-     *
-     * Order of layers is implementation specific,
-     * and can be changed in future
-     *
-     * @return Iterator pointing to a layer
-     */
-    IE_SUPPRESS_DEPRECATED_START
-    INFERENCE_ENGINE_DEPRECATED("Use CNNNetwork::getFunction() and work with ngraph::Function directly. The method will be removed in 2021.1")
-    details::CNNNetworkIterator begin() const;
-
-    /**
-     * @deprecated Use CNNNetwork::getFunction() and work with ngraph::Function directly. The method will be removed in 2021.1
-     * @brief End layer iterator
-     * @return Iterator pointing to a layer
-     */
-    INFERENCE_ENGINE_DEPRECATED("Use CNNNetwork::getFunction() and work with ngraph::Function directly. The method will be removed in 2021.1")
-    details::CNNNetworkIterator end() const;
-    IE_SUPPRESS_DEPRECATED_END
-
-    /**
-     * @deprecated Use CNNNetwork::layerCount() instead. The method will be removed in 2021.1
-     * @brief Number of layers in network object
-     *
-     * @return Number of layers.
-     */
-    INFERENCE_ENGINE_DEPRECATED("Use CNNNetwork::layerCount() instead. The method will be removed in 2021.1")
-    size_t size() const;
-
-    /**
      * @brief Helper method to get collect all input shapes with names of corresponding Data objects
      *
      * @return Map of pairs: input name and its dimension.
@@ -302,12 +240,6 @@ public:
     }
 
 protected:
-    /**
-     * @brief Reader extra reference, might be nullptr
-     */
-    IE_SUPPRESS_DEPRECATED_START
-    CNNNetReaderPtr reader;
-    IE_SUPPRESS_DEPRECATED_END
     /**
      * @brief Network extra interface, might be nullptr
      */

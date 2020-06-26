@@ -405,6 +405,7 @@ set(MULTI_TEST_SRC
 if (NGRAPH_ONNX_IMPORT_ENABLE)
     list(APPEND MULTI_TEST_SRC
             onnx/onnx_import.in.cpp
+            onnx/onnx_import_controlflow.in.cpp
             onnx/onnx_import_const_folding.in.cpp
             onnx/onnx_import_convpool.in.cpp
             onnx/onnx_import_dyn_shapes.in.cpp
@@ -454,7 +455,8 @@ if(NGRAPH_ADDRESS_SANITIZER)
 endif()
 
 target_link_libraries(unit-test PRIVATE ngraph_test_util)
-target_link_libraries(unit-test PRIVATE ngraph ngraph_backend libgtest)
+target_link_libraries(unit-test PRIVATE ngraph)
+target_link_libraries(unit-test PRIVATE ngraph_backend libgtest)
 
 if (NGRAPH_ONNX_IMPORT_ENABLE)
     target_include_directories(unit-test
@@ -479,6 +481,10 @@ endif()
 # We should probably split up type_prop.cpp.
 if (MSVC)
     target_compile_options(unit-test PRIVATE "/bigobj")
+endif()
+
+if (TARGET inference_engine)
+    target_link_libraries(unit-test PRIVATE inference_engine)
 endif()
 
 if (NGRAPH_ONNX_IMPORT_ENABLE)

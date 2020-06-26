@@ -128,6 +128,7 @@ extensions/front/global_pooling_to_reduce.py
 extensions/front/image_scaler.py
 extensions/front/input_cut.py
 extensions/front/instance_normalization.py
+extensions/front/interpolate_reshape.py
 extensions/front/InterpolateNormalizer.py
 extensions/front/kaldi/__init__.py
 extensions/front/kaldi/add_permute_after_convolution.py
@@ -143,6 +144,7 @@ extensions/front/kaldi/set_ports.py
 extensions/front/kaldi/sigmoid_ext.py
 extensions/front/kaldi/split_memoryoffsets.py
 extensions/front/kaldi/tanh_component_ext.py
+extensions/front/LayerNorm.py
 extensions/front/Log1p.py
 extensions/front/LogSoftmax.py
 extensions/front/MatMul_normalizer.py

@@ -11,6 +11,7 @@
 
 #include "unit_test_utils/mocks/mock_icnn_network.hpp"
 #include "unit_test_utils/mocks/mock_iformat_parser.hpp"
+#include "common_test_utils/common_utils.hpp"
 
 using namespace testing;
 using namespace InferenceEngine;
@@ -1748,8 +1749,7 @@ TEST_F(CNNNetReaderImplTest, canRead3DConvolution) {
     ResponseDesc resp;
     auto network = reader.getNetwork(&resp);
 
-    CNNLayerPtr layer;
-    ASSERT_EQ(OK, network->getLayerByName("3D_conv", layer, nullptr));
+    CNNLayerPtr layer = CommonTestUtils::getLayerByName(network, "3D_conv");
     auto* conv = dynamic_cast<ConvolutionLayer*>(layer.get());
     ASSERT_NE(nullptr, conv);
     ASSERT_EQ(conv->_kernel[X_AXIS], 5);
@@ -1816,9 +1816,7 @@ TEST_F(CNNNetReaderImplTest, canRead3DPooling) {
     ResponseDesc resp;
     auto network = reader.getNetwork(&resp);
 
-    CNNLayerPtr layer;
-
-    ASSERT_EQ(OK, network->getLayerByName("3D_pooling", layer, nullptr));
+    CNNLayerPtr layer = CommonTestUtils::getLayerByName(network, "3D_pooling");
     auto* pool = dynamic_cast<PoolingLayer*>(layer.get());
     ASSERT_NE(nullptr, pool);
     ASSERT_EQ(pool->_kernel[X_AXIS], 5);
@@ -2025,9 +2023,7 @@ TEST_F(CNNNetReaderImplTest, canParseSimpleTI) {
     auto network = reader.getNetwork(&resp);
     ASSERT_NE(nullptr, network) << resp.msg;
 
-    CNNLayerPtr layer;
-    sts = network->getLayerByName("SomeTI", layer, &resp);
-    ASSERT_EQ(OK, sts) << resp.msg;
+    CNNLayerPtr layer = CommonTestUtils::getLayerByName(network, "SomeTI");
 
     auto* ti = dynamic_cast<TensorIterator*>(layer.get());
     ASSERT_NE(nullptr, ti);
@@ -2125,9 +2121,7 @@ TEST_F(CNNNetReaderImplTest, canParseScalar) {
     auto net = reader.getNetwork(&resp);
 
     ASSERT_NE(nullptr, net) << resp.msg;
-    CNNLayerPtr layer;
-    sts = net->getLayerByName("scalar", layer, &resp);
-    ASSERT_EQ(OK, sts) << resp.msg;
+    CNNLayerPtr layer = CommonTestUtils::getLayerByName(net, "scalar");
     ASSERT_NE(nullptr, layer.get());
     ASSERT_EQ(layer->type, "Const");
     auto actualBlob = layer->blobs.begin()->second;

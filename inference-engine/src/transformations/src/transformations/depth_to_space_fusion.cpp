@@ -30,7 +30,7 @@ bool check_block_first(const ngraph::Shape& shape_input, const ngraph::Shape& sh
     is_transformation_valid &= (expected_shape == shape_reshape_before);
 
     // x'' = transpose(x', [0,  K + 1,  K + 2, 1, K + 3, 2, K + 4, 3, ..., K + (K + 1), K])
-    ngraph::AxisVector expected_permutation = {0, spatial_dims + 1};
+    ngraph::AxisVector expected_permutation = {0, static_cast<size_t>(spatial_dims + 1)};
     for (uint64_t i = 2; i < shape_input.size(); ++i) {
         expected_permutation.push_back(spatial_dims + i);
         expected_permutation.push_back(i - 1);
@@ -38,7 +38,7 @@ bool check_block_first(const ngraph::Shape& shape_input, const ngraph::Shape& sh
     is_transformation_valid &= (expected_permutation == permutation);
 
     // y = reshape(x'', [N, C / (block_size ^ K), D1 * block_size, D2 * block_size, D3 * block_size, ..., DK * block_size])
-    expected_shape = {shape_input[0], c_dim};
+    expected_shape = {shape_input[0], static_cast<size_t>(c_dim)};
     for (uint64_t i = 2; i < shape_input.size(); ++i)
         expected_shape.push_back(shape_input[i] * possible_block_size);
     is_transformation_valid &= (expected_shape == shape_reshape_after);
@@ -57,7 +57,7 @@ bool check_depth_first(const ngraph::Shape& shape_input, const ngraph::Shape& sh
     uint64_t c_dim = shape_input[1] / std::pow(possible_block_size, spatial_dims);
 
     // x' = reshape(data, [N, C / (block_size ^ K), block_size, block_size, ..., block_size, D1, D2, ..., DK])
-    ngraph::Shape expected_shape = {shape_input[0], c_dim};
+    ngraph::Shape expected_shape = {shape_input[0], static_cast<size_t>(c_dim)};
     for (uint64_t i = 0; i < spatial_dims; ++i)
         expected_shape.push_back(possible_block_size);
     for (uint64_t i = 2; i < shape_input.size(); ++i)
@@ -73,7 +73,7 @@ bool check_depth_first(const ngraph::Shape& shape_input, const ngraph::Shape& sh
     is_transformation_valid &= (expected_permutation == permutation);
 
     // y = reshape(x'', [N, C / (block_size ^ K), D1 * block_size, D2 * block_size, D3 * block_size, ..., DK * block_size])
-    expected_shape = {shape_input[0], c_dim};
+    expected_shape = {shape_input[0], static_cast<size_t>(c_dim)};
     for (uint64_t i = 2; i < shape_input.size(); ++i)
         expected_shape.push_back(shape_input[i] * possible_block_size);
     is_transformation_valid &= (expected_shape == shape_reshape_after);

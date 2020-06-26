@@ -225,15 +225,6 @@ TEST_F(CNNNetworkImplTest, layerDataNotCoresspondEachOtherTwoInputs) {
     ASSERT_THROW(network.validateNetwork(), InferenceEngineException);
 }
 
-TEST_F(CNNNetworkImplTest, canGetName) {
-    InferenceEngine::details::CNNNetworkImpl net;
-    net.setName("myName");
-    const char* p = "33333333333";
-    char name[20];
-    net.getName(name, sizeof(name));
-    ASSERT_STREQ(name, "myName");
-}
-
 TEST_F(CNNNetworkImplTest, canGetNameStr) {
     InferenceEngine::details::CNNNetworkImpl net;
     net.setName("myName");

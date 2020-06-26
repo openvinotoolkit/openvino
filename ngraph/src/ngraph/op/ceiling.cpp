@@ -81,13 +81,9 @@ namespace
             break;
             COPY_TENSOR(u64)(arg0, out, count);
             break;
-            TYPE_CASE(bf16)(arg0, out, count);
-            break;
             TYPE_CASE(f16)(arg0, out, count);
             break;
             TYPE_CASE(f32)(arg0, out, count);
-            break;
-            TYPE_CASE(f64)(arg0, out, count);
             break;
         default: rc = false; break;
         }

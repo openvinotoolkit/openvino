@@ -47,37 +47,22 @@ public:
     CNNNetworkNGraphImpl(const std::shared_ptr<::ngraph::Function>& nGraph);
     ~CNNNetworkNGraphImpl() override;
 
-    INFERENCE_ENGINE_DEPRECATED("Use ngraph::Function directly")
-    Precision getPrecision() const noexcept override;
     void getOutputsInfo(std::map<std::string, DataPtr>& out) const noexcept override;
 
     void getInputsInfo(InputsDataMap& inputs) const noexcept override;
 
     InputInfo::Ptr getInput(const std::string& inputName) const noexcept override;
-
-    INFERENCE_ENGINE_DEPRECATED("Use CNNNetworkNGraphImpl::getName() returning std::string")
-    void getName(char* pName, size_t len) const noexcept override;
-
     const std::string& getName() const noexcept override;
 
     size_t layerCount() const noexcept override;
 
     void setInputInfo(InputInfo::Ptr data);
 
-    INFERENCE_ENGINE_DEPRECATED("Use ngraph::Function directly")
-    DataPtr& getData(const char* name) noexcept override;
-
-    INFERENCE_ENGINE_DEPRECATED("Use ngraph::Function directly")
-    DataPtr& getData(const std::string& name);
-
     std::shared_ptr<ICNNNetwork> getCNNNetwork();
 
     // This method is not really implemented; don't call it
     INFERENCE_ENGINE_DEPRECATED("Use ngraph::Function directly")
     void addLayer(const CNNLayerPtr& layer) noexcept override;
-
-    INFERENCE_ENGINE_DEPRECATED("Use ngraph::Function directly")
-    StatusCode getLayerByName(const char* layerName, CNNLayerPtr& out, ResponseDesc* resp) const noexcept override;
 
     // public version
     StatusCode setBatchSize(size_t size, ResponseDesc* responseDesc) noexcept override;
