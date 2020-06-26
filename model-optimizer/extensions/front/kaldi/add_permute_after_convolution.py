@@ -15,16 +15,15 @@
 """
 from collections import deque
 
-import numpy as np
-
 from extensions.front.MatMul_normalizer import FullyConnectedDecomposer
 from extensions.front.kaldi.add_reshape_around_convolution import ReplaceConvolutionReshape
 from extensions.middle.TensorIteratorMerge import op_type
 from extensions.ops.activation_ops import activation_ops
 from extensions.ops.transpose import Transpose
+from mo.front.common.partial_infer.utils import int64_array
 from mo.front.common.replacement import FrontReplacementSubgraph
+from mo.front.tf.graph_utils import create_op_with_const_inputs
 from mo.graph.graph import Node, Graph
-from mo.ops.const import Const
 
 
 class ReplaceConvolutionTranspose(FrontReplacementSubgraph):
@@ -61,10 +60,9 @@ class ReplaceConvolutionTranspose(FrontReplacementSubgraph):
         convolution_nodes = [node for node in nodes_with_weights if Node(graph, node).op == 'Convolution']
         for convolution_node in convolution_nodes:
             target_node = self.search_target_node(Node(graph, convolution_node))
-            order_const = Const(graph, dict(value=np.array([0, 3, 2, 1]))).create_node()
-            permute_node = Transpose(graph, dict(name=target_node.name + '/Transpose')).create_node()
+            permute_node = create_op_with_const_inputs(graph, Transpose, {1: int64_array([0, 3, 2, 1])},
+                                                       {'name': target_node.name + '/Transpose'})
             target_node.insert_node_after(permute_node, 0)
-            order_const.out_port(0).connect(permute_node.in_port(1))
 
     def run_after(self):
         from extensions.front.flatten_to_reshape import FlattenToReshape

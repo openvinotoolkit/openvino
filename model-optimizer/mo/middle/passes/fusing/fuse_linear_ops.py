@@ -108,9 +108,10 @@ def _fuse_mul(graph: Graph, node: Node, fuse_nodes: list, backward: bool = True)
         value = np.reshape(value, shape)
 
         # Weights multiplication
-        mul_const = Const(graph, {'value': value}).create_node()
-        w_mul = node.copy_node({'in_ports_count': len(node.in_ports()), 'out_ports_count': len(node.out_ports()),
-                                'can_be_fused': False})
+        mul_name = node.name + '_copy'
+        mul_const = Const(graph, {'value': value, 'name': mul_name + '/const'}).create_node()
+        w_mul = node.copy_node({'name': mul_name, 'in_ports_count': len(node.in_ports()),
+                                'out_ports_count': len(node.out_ports()), 'can_be_fused': False})
         w_mul.in_port(const_port.idx).connect(mul_const.out_port(0))
         w_const = weights_port.get_source()
         weights_port.get_connection().set_source(w_mul.out_port(0))
