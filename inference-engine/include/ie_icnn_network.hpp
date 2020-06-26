@@ -126,18 +126,6 @@ public:
                                  ResponseDesc* resp = nullptr) noexcept = 0;
 
     /**
-     * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
-     * @brief Gets network layer with the given name
-     *
-     * @param layerName Given name of the layer
-     * @param out Pointer to the found CNNLayer object with the given name
-     * @param resp Pointer to the response message that holds a description of an error if any occurred
-     * @return Status code of the operation. InferenceEngine::OK if succeeded
-     */
-    INFERENCE_ENGINE_DEPRECATED("Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1")
-    virtual StatusCode getLayerByName(const char* layerName, CNNLayerPtr& out, ResponseDesc* resp) const noexcept = 0;
-
-    /**
      * @brief Changes the inference batch size.
      *
      * @note There are several limitations and it's not recommended to use it. Set batch to the input shape and call
