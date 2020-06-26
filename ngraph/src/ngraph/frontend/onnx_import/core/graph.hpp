@@ -16,11 +16,13 @@
 
 #pragma once
 
+#include <memory>
 #include <onnx/onnx_pb.h>
 #include <string>
 #include <vector>
 
 #include "default_opset.hpp"
+#include "graph_cache.hpp"
 #include "model.hpp"
 #include "ngraph/op/parameter.hpp"
 #include "operator_set.hpp"
@@ -39,14 +41,17 @@ namespace ngraph
             const std::vector<ValueInfo>& get_outputs() const { return m_outputs; }
             NodeVector get_ng_outputs() const;
             const ParameterVector& get_ng_parameters() const { return m_parameters; }
-            std::shared_ptr<ngraph::Node> get_ng_node_from_cache(const std::string& name) const
-            {
-                return m_ng_node_cache.at(name);
-            }
+            bool is_node_in_cache(const std::string& name) const;
+            std::shared_ptr<ngraph::Node> get_ng_node_from_cache(const std::string& name) const;
             const std::string& get_name() const { return m_graph_proto->name(); }
             NodeVector make_ng_nodes(const Node& onnx_node) const;
+            const GraphCache& get_graph_cache() const;
 
         protected:
+            Graph(const ONNX_NAMESPACE::GraphProto& proto,
+                  Model& model,
+                  std::unique_ptr<GraphCache>&& cache);
+
             void set_friendly_names(const Node& onnx_node, const NodeVector& ng_node_vector) const;
 
             void add_provenance_tag_to_initializer(
@@ -59,13 +64,28 @@ namespace ngraph
 
         private:
             const ONNX_NAMESPACE::GraphProto* m_graph_proto;
+            std::unique_ptr<GraphCache> m_cache;
             std::vector<Node> m_nodes;
             std::vector<ValueInfo> m_inputs;
             std::vector<ValueInfo> m_outputs;
             ParameterVector m_parameters;
-            std::map<std::string, std::shared_ptr<ngraph::Node>> m_ng_node_cache;
-            std::map<std::string, Tensor> m_initializers;
             Model* m_model;
+        };
+
+        /// \brief      Representation of ONNX subgraph. It is used for example by ONNX Loop op.
+        ///             It has access for initializers both from subgraph and from parent graph
+        ///             cache.
+        class Subgraph : public Graph
+        {
+        public:
+            /// \brief      Subgraph a GraphCache class object.
+            ///
+            /// \param[in]  proto          The ONNX protobuf graph representation.
+            /// \param[in]  model          The ONNX model object.
+            /// \param[in]  parent_graph   The reference to the parent graph.
+            Subgraph(const ONNX_NAMESPACE::GraphProto& proto,
+                     Model& model,
+                     const Graph& parent_graph);
         };
 
         inline std::ostream& operator<<(std::ostream& outs, const Graph& graph)

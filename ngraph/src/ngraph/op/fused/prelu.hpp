@@ -47,6 +47,8 @@ namespace ngraph
 
                 virtual std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
+
+                void pre_validate_and_infer_types() override;
             };
         }
         using v0::PRelu;
