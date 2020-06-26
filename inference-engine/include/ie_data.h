@@ -47,6 +47,21 @@ public:
     Data(const std::string& name, const TensorDesc& desc);
 
     /**
+     * @brief A copy constructor
+     *
+     * @param data A data object to copy from
+     */
+    Data(const Data& data);
+
+    /**
+     * @brief An assignment operator
+     *
+     * @param data A data object to copy from
+     * @return An assigned object
+     */
+    Data & operator = (const Data& data);
+
+    /**
      * @brief A virtual destructor
      */
     virtual ~Data() = default;

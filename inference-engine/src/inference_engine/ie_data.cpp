@@ -63,6 +63,26 @@ void Data::reshape(const SizeVector& a_dims, Layout a_layout) {
     tensorDesc.reshape(a_dims, a_layout);
 }
 
+Data::Data(const Data& data) :
+    name(data.name), userObject(data.userObject), tensorDesc(data.tensorDesc) {
+    impl = std::make_shared<Impl>();
+    impl->creatorLayer = data.impl->creatorLayer;
+    impl->inputTo = data.impl->inputTo;
+}
+
+Data & Data::operator = (const Data& data) {
+    if (this != &data) {
+        name = data.name;
+        userObject = data.userObject;
+        tensorDesc = data.tensorDesc;
+
+        impl->creatorLayer = data.impl->creatorLayer;
+        impl->inputTo = data.impl->inputTo;
+    }
+
+    return *this;
+}
+
 // CNNLayerWeakPtr& Data::getCreatorLayer() {
 //     return impl->creatorLayer;
 // }
