@@ -14,6 +14,7 @@
 #include <utility>
 
 #include "ie_api.h"
+#include "ie_layers.h"
 #include "ie_icnn_network.hpp"
 #include "ie_locked_memory.hpp"
 

@@ -3,6 +3,7 @@
 //
 
 #include <gtest/gtest.h>
+#include <ie_layers.h>
 #include <details/ie_cnn_network_tools.h>
 #include <cpp/ie_cnn_network.h>
 #include <memory>

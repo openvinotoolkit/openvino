@@ -10,6 +10,7 @@
 #include <memory>
 #include <vector>
 
+#include "ie_layers.h"
 #include "ie_icnn_network.hpp"
 
 namespace InferenceEngine {

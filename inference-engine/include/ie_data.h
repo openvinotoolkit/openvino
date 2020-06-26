@@ -129,14 +129,6 @@ public:
     const SizeVector& getDims() const;
 
     /**
-     * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
-     * @brief Returns an owner of this data layer, parent layer in di-graph
-     * @return A weak pointer to CNNLayer that creates this data
-     */
-    // INFERENCE_ENGINE_INTERNAL("Migrate to IR v10 and work with ngraph::Function directly")
-    // virtual CNNLayerWeakPtr& getCreatorLayer();
-
-    /**
      * @return name of the data object
      */
     const std::string& getName() const;
@@ -148,14 +140,6 @@ public:
      */
 
     void setName(const std::string& newName);
-
-    /**
-     * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
-     * @brief Privates child layers in di-graph
-     * @return A map of child layers
-     */
-    // INFERENCE_ENGINE_INTERNAL("Migrate to IR v10 and work with ngraph::Function directly")
-    // virtual std::map<std::string, CNNLayerPtr>& getInputTo();
 
     /**
      * @return convenient arbitrary user data holder

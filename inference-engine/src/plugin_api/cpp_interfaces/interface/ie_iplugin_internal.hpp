@@ -9,7 +9,9 @@
 
 #pragma once
 
+#include <ie_layers.h>
 
+#include <ie_layers.h>
 #include <ie_iextension.h>
 #include <ie_input_info.hpp>
 #include <ie_icnn_network.hpp>

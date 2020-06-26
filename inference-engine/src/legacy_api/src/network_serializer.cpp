@@ -13,6 +13,7 @@
 #include <unordered_set>
 #include <sstream>
 
+#include "ie_layers.h"
 #include "details/caseless.hpp"
 #include "details/ie_cnn_network_tools.h"
 #include "exec_graph_info.hpp"
