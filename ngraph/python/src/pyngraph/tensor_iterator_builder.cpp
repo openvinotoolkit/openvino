@@ -14,8 +14,6 @@
 // limitations under the License.
 //*****************************************************************************
 
-#pragma once
-
 #include <string>
 
 #include "ngraph/check.hpp"
@@ -78,7 +76,7 @@ std::shared_ptr<ngraph::op::TensorIterator>
     set_tensor_iterator_outputs(ti_node);
     ti_node->constructor_validate_and_infer_types();
 
-    return ti_node;
+    return std::move(ti_node);
 }
 
 void util::TensorIteratorBuilder::check_attribute(const py::dict& attrs,
