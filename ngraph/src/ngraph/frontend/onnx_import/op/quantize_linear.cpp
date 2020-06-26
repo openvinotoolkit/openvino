@@ -17,10 +17,14 @@
 #include <cstdint>
 #include <memory>
 
+#include "default_opset.hpp"
+#include "exceptions.hpp"
 #include "ngraph/axis_set.hpp"
 #include "ngraph/opsets/opset0.hpp"
 #include "ngraph/shape.hpp"
+#include "ngraph/type/element_type.hpp"
 #include "quantize_linear.hpp"
+#include "utils/reshape.hpp"
 
 namespace ngraph
 {
@@ -29,6 +33,82 @@ namespace ngraph
         namespace op
         {
             namespace set_1
+            {
+                NodeVector quantize_linear(const Node& node)
+                {
+                    NodeVector inputs{node.get_ng_inputs()};
+                    const auto& x = inputs.at(0);
+                    std::shared_ptr<ngraph::Node> y_zero_point;
+                    if (inputs.size() > 2)
+                    {
+                        y_zero_point = inputs.at(2);
+                    }
+                    else
+                    {
+                        y_zero_point = std::make_shared<default_opset::Constant>(
+                            element::u8, Shape{}, std::uint8_t(0));
+                    }
+
+                    const auto& y_zero_point_et = y_zero_point->get_element_type();
+                    CHECK_VALID_NODE(
+                        node,
+                        y_zero_point_et.is_static() &&
+                            (y_zero_point_et == element::u8 || y_zero_point_et == element::i8),
+                        "\"y_zero_point\" input data type must be static and of 8-bit "
+                        "integer type.");
+
+                    const element::Type destination_type = y_zero_point_et;
+                    const element::Type x_et = x->get_element_type();
+
+                    std::shared_ptr<ngraph::Node> output_low;
+                    std::shared_ptr<ngraph::Node> output_high;
+
+                    if (destination_type == element::i8)
+                    {
+                        output_low = std::make_shared<default_opset::Constant>(x_et, Shape{}, -128);
+                        output_high = std::make_shared<default_opset::Constant>(x_et, Shape{}, 127);
+                    }
+                    else
+                    {
+                        output_low = std::make_shared<default_opset::Constant>(x_et, Shape{}, 0);
+                        output_high = std::make_shared<default_opset::Constant>(x_et, Shape{}, 255);
+                    }
+
+                    std::shared_ptr<ngraph::Node> stop;
+
+                    if (x->get_output_partial_shape(0).rank().is_static())
+                    {
+                        stop = std::make_shared<default_opset::Constant>(
+                            element::i32,
+                            Shape{},
+                            x->get_output_partial_shape(0).rank().get_length());
+                    }
+                    else
+                    {
+                        stop =
+                            reshape::interpret_as_scalar(std::make_shared<default_opset::ShapeOf>(
+                                std::make_shared<default_opset::ShapeOf>(x, element::i32),
+                                element::i32));
+                    }
+
+                    const auto& reduction_axes = std::make_shared<default_opset::Range>(
+                        std::make_shared<default_opset::Constant>(element::i32, Shape{}, 0),
+                        stop,
+                        std::make_shared<default_opset::Constant>(element::i32, Shape{}, 1));
+                    const auto& input_low =
+                        std::make_shared<default_opset::ReduceMin>(x, reduction_axes);
+                    const auto& input_high =
+                        std::make_shared<default_opset::ReduceMax>(x, reduction_axes);
+                    const std::size_t levels = 1 << destination_type.bitwidth();
+
+                    return {std::make_shared<default_opset::Convert>(
+                        std::make_shared<default_opset::FakeQuantize>(
+                            x, input_low, input_high, output_low, output_high, levels),
+                        destination_type)};
+                }
+            } // namespace set_1
+
+            namespace set_13
             {
                 NodeVector quantize_linear(const Node& node)
                 {
@@ -70,7 +150,7 @@ namespace ngraph
                         ngraph::opset0::Quantize::RoundMode::ROUND_NEAREST_TOWARD_EVEN)};
                 }
 
-            } // namespace set_1
+            } // namespace set_13
 
         } // namespace op
 
