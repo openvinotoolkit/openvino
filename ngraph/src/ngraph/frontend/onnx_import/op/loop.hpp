@@ -16,11 +16,8 @@
 
 #pragma once
 
-#include <memory>
-
 #include "core/node.hpp"
 #include "ngraph/node.hpp"
-#include "ngraph/op/get_output_element.hpp"
 
 namespace ngraph
 {
@@ -30,19 +27,16 @@ namespace ngraph
         {
             namespace set_1
             {
-                inline NodeVector identity(const Node& node)
-                {
-                    auto input = node.get_ng_inputs().at(0);
-                    if (input->get_element_type() == ngraph::element::boolean)
-                    {
-                        const auto logic_zero =
-                            default_opset::Constant::create(ngraph::element::boolean, {}, {false});
-                        return {std::make_shared<default_opset::LogicalOr>(input, logic_zero)};
-                    }
-                    const auto zero =
-                        default_opset::Constant::create(input->get_element_type(), {}, {0});
-                    return {std::make_shared<default_opset::Add>(input, zero)};
-                }
+                /// \brief      Creates nGraph node representing ONNX loop operator.
+                ///
+                /// \note       Details available here:
+                ///             https://github.com/onnx/onnx/blob/master/docs/Operators.md#Loop
+                ///
+                /// \param[in]  node  The input ONNX node representing this operation.
+                ///
+                /// \return     Vector of nodes containting resulting nGraph nodes.
+                ///
+                NodeVector loop(const Node& node);
             } // namespace set_1
 
         } // namespace op
