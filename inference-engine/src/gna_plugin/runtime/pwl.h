@@ -34,6 +34,7 @@
 #define EXP_BREAK (0.045)
 #define POW_NUM_SEGMENTS 65
 #define POW_BREAK 0
+#define POW_DOMAIN (16.0)
 
 typedef struct {
     double t;

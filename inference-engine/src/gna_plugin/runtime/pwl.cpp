@@ -8,6 +8,7 @@
 #include <iostream>
 #include <limits>
 #include <cstdint>
+#include <algorithm>
 
 #ifdef _NO_MKL_
 #include <cmath>
@@ -561,11 +562,18 @@ void PwlDesignOpt16(const DnnActivation activation_type,
             make_gna_pwl(activation_type, pwl, -1.0, 1.0, scale_in, scale_out, ptr_segment);
             break;
         case kActPow: {
-            double x_min = (fmod(activation_type.args.pow.exponent, 1.0) != 0)? 0: INT32_MIN / scale_in;
-            x_min = x_min < INT16_MIN ? INT16_MIN : x_min;
+            auto fp32eq = [](float p1, float p2) -> bool {
+                return (std::abs(p1 - p2) <= 0.00001f * std::min(std::abs(p1), std::abs(p2)));
+            };
 
-            double x_max = INT32_MAX / scale_in;
-            x_max = x_max > INT16_MAX ? INT16_MAX : x_max;
+            auto input_min_value = static_cast<double>(std::numeric_limits<int32_t>::min());
+            auto input_max_value = static_cast<double>(std::numeric_limits<int32_t>::max());
+
+            auto x_min = fp32eq(fmod(activation_type.args.pow.exponent, 1.0), 0.0f) ? input_min_value / scale_in: 0;
+            x_min = std::max(x_min, -POW_DOMAIN);
+
+            auto x_max = input_max_value / scale_in;
+            x_max = std::min(x_max, POW_DOMAIN);
 
             if (activation_type.args.pow.exponent != 0.0f && activation_type.args.pow.exponent != 1.0f) {
                 pwl = pwl_search(activation_type, x_min, x_max, PWL_DESIGN_THRESHOLD, 0.015 * PWL_MAX_ERR_PERCENT, PWL_DESIGN_SAMPLES, err_pct);
@@ -785,20 +793,26 @@ void PwlDesign16(const DnnActivation activation_type,
             gnalog() << "=========================== Pow Segments===========================\n";
             uint32_t num_segment_size = 0;
 
+            auto fp32eq = [](float p1, float p2) -> bool {
+                return (std::abs(p1 - p2) <= 0.00001f * std::min(std::abs(p1), std::abs(p2)));
+            };
+
             auto args = std::tuple<double, double, double>{ activation_type.args.pow.exponent,
                                                             activation_type.args.pow.scale,
                                                             activation_type.args.pow.offset };
 
-            double x_min = INT32_MIN / scale_in;
-            x_min = x_min < INT16_MIN ? INT16_MIN : x_min;
+            auto input_min_value = static_cast<double>(std::numeric_limits<int32_t>::min());
+            auto input_max_value = static_cast<double>(std::numeric_limits<int32_t>::max());
+            double x_min = fp32eq(fmod(activation_type.args.pow.exponent, 1.0), 0.0f)? input_min_value / scale_in: 0.0;
+            x_min = std::max(x_min, -POW_DOMAIN);
 
-            double x_max = INT32_MAX / scale_in;
-            x_max = x_max > INT16_MAX ? INT16_MAX : x_max;
+            double x_max = input_max_value / scale_in;
+            x_max = std::min(x_max, POW_DOMAIN);
 
             double pow_domain = x_max - x_min;
             ptr_segment[0].xBase = static_cast<int32_t>(INT32_MIN & XBASEMASK);  // zero out the 2 lsb
             num_segment_size = static_cast<int32_t>(pow_domain * scale_in / (num_segments - 2) + 0.5);
-            int32_t x_min_scaled = x_min * scale_in;
+            int32_t x_min_scaled = x_min * scale_in + 0.5;
             int32_t offset = x_min_scaled;
             for (uint32_t i = 1; i < num_segments; i++) {
                 ptr_segment[i].xBase = static_cast<int32_t>(offset & XBASEMASK);  // zero out the 2 lsb
