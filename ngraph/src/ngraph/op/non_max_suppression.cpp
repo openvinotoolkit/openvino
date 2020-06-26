@@ -466,13 +466,13 @@ op::v4::NonMaxSuppression::NonMaxSuppression(
     const bool sort_result_descending,
     const element::Type& output_type)
     : op::v3::NonMaxSuppression(boxes,
-                                 scores,
-                                 op::Constant::create(element::i64, Shape{}, {0}),
-                                 op::Constant::create(element::f32, Shape{}, {.0f}),
-                                 op::Constant::create(element::f32, Shape{}, {.0f}),
-                                 box_encoding,
-                                 sort_result_descending,
-                                 output_type)
+                                scores,
+                                op::Constant::create(element::i64, Shape{}, {0}),
+                                op::Constant::create(element::f32, Shape{}, {.0f}),
+                                op::Constant::create(element::f32, Shape{}, {.0f}),
+                                box_encoding,
+                                sort_result_descending,
+                                output_type)
 {
     constructor_validate_and_infer_types();
 }
