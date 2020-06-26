@@ -66,8 +66,12 @@ namespace ngraph
                 class InputDescription
                 {
                 protected:
-                    /// \param input_index Position of the TensorIterator input
-                    /// \param body_parameter Body parameter to receive input
+                    ///
+                    /// \brief      Constructs a new instance.
+                    ///
+                    /// \param      input_index           Position of the TensorIterator input
+                    /// \param      body_parameter_index  Body parameter to receive input
+                    ///
                     InputDescription(uint64_t input_index, uint64_t body_parameter_index);
                     InputDescription() = default;
 
@@ -83,20 +87,26 @@ namespace ngraph
                     uint64_t m_body_parameter_index{0};
                 };
 
-                /// \brief Describes a body input formed from slices of an input to
-                /// TensorIterator.
+                ///
+                /// \brief      Describes a body input formed from slices of an input to
+                ///             TensorIterator.
+                ///
                 class NGRAPH_API SliceInputDescription : public InputDescription
                 {
                 public:
                     static constexpr type_info_t type_info{"SliceInputDescription", 0};
                     const type_info_t& get_type_info() const override { return type_info; }
-                    /// \param input_index Position of the TensorIterator input
-                    /// \param body_parameter_index Body parameter position to receive input
-                    /// \param start First index for slices
-                    /// \param stride Step amount for slices
-                    /// \param part_size Width of slices
-                    /// \param end Last index for slices
-                    /// \param axis Axis being sliced
+                    ///
+                    /// \brief      Constructs a new instance.
+                    ///
+                    /// \param      input_index           Position of the TensorIterator input
+                    /// \param      body_parameter_index  Body parameter position to receive input
+                    /// \param      start                 First index for slices
+                    /// \param      stride                Step amount for slices
+                    /// \param      part_size             Width of slices
+                    /// \param      end                   Last index for slices
+                    /// \param      axis                  Axis being sliced
+                    ///
                     SliceInputDescription(uint64_t input_index,
                                           uint64_t body_parameter_index,
                                           int64_t start,
@@ -114,22 +124,26 @@ namespace ngraph
                     int64_t m_axis{0};
                 };
 
-                /// \brief Describes a body input initialized from a TensorIterator input on the
-                /// first
-                /// iteration, and then a body output thereafter.
+                ///
+                /// \brief      Describes a body input initialized from a TensorIterator input on
+                ///             the first iteration, and then a body output thereafter.
+                ///
                 class NGRAPH_API MergedInputDescription : public InputDescription
                 {
                 public:
                     static constexpr type_info_t type_info{"MergedInputDescription", 0};
                     const type_info_t& get_type_info() const override { return type_info; }
-                    /// \param input_index Position of the TensorIterator input supplying a
-                    /// value to
-                    /// body_parameter
-                    /// for the initial iteration.
-                    /// \param body_parameter_index Body parameter position to receive input.
-                    /// \param body_value_index Body value to supply body_parameter for
+                    ///
+                    /// \brief      Constructs a new instance.
+                    ///
+                    /// \param      input_index           Position of the TensorIterator input
+                    ///                                   supplying a value to body_parameter for
+                    ///                                   the initial iteration.
+                    /// \param      body_parameter_index  Body parameter position to receive input.
+                    /// \param      body_value_index      Body value to supply body_parameter for
                     /// successive
-                    /// iterations.
+                    ///                                   iterations.
+                    ///
                     MergedInputDescription(uint64_t input_index,
                                            uint64_t body_parameter_index,
                                            uint64_t body_value_index);
@@ -158,8 +172,12 @@ namespace ngraph
                 class OutputDescription
                 {
                 protected:
-                    /// \param body_value_index A body value that produces the output
-                    /// \param output_index The TensorIterator output index
+                    ///
+                    /// \brief      Constructs a new instance.
+                    ///
+                    /// \param      body_value_index  A body value that produces the output
+                    /// \param      output_index      The TensorIterator output index
+                    ///
                     OutputDescription(uint64_t body_value_index, uint64_t output_index);
                     OutputDescription() = default;
 
@@ -180,13 +198,17 @@ namespace ngraph
                 public:
                     static constexpr type_info_t type_info{"ConcatOutputDescription", 0};
                     const type_info_t& get_type_info() const override { return type_info; }
-                    /// \param body_value_index A body value that produces the output
-                    /// \param output_index The TensorIterator output index
-                    /// \param start First index for slices
-                    /// \param stride Step amount for slices
-                    /// \param part_size Width of slices
-                    /// \param end Last index for slices
-                    /// \param axis Axis being sliced
+                    ///
+                    /// \brief      Constructs a new instance.
+                    ///
+                    /// \param      body_value_index  A body value that produces the output
+                    /// \param      output_index      The TensorIterator output index
+                    /// \param      start             First index for slices
+                    /// \param      stride            Step amount for slices
+                    /// \param      part_size         Width of slices
+                    /// \param      end               Last index for slices
+                    /// \param      axis              Axis being sliced
+                    ///
                     ConcatOutputDescription(uint64_t body_value_index,
                                             uint64_t output_index,
                                             int64_t start,
@@ -211,10 +233,14 @@ namespace ngraph
                 public:
                     static constexpr type_info_t type_info{"BodyOutputDescription", 0};
                     const type_info_t& get_type_info() const override { return type_info; }
-                    /// \param body_value_index A body value that produces the output
-                    /// \param output_index The TensorIterator output index
-                    /// \param iteration which iteration (typically -1, final) will supply the
-                    /// value
+                    ///
+                    /// \brief      Constructs a new instance.
+                    ///
+                    /// \param      body_value_index  A body value that produces the output
+                    /// \param      output_index      The TensorIterator output index
+                    /// \param      iteration         which iteration (typically -1, final) will
+                    ///                               supply the value
+                    ///
                     BodyOutputDescription(uint64_t body_value_index,
                                           uint64_t output_index,
                                           int64_t iteration);
@@ -224,15 +250,18 @@ namespace ngraph
                     int64_t m_iteration{0};
                 };
 
-                /// \brief Indicate that a body parameter comes from slices of a value
-                /// \param parameter The parameter to receive the slices
-                /// \param value The value to be sliced. This will be added as an input to
-                /// TensorIterator.
-                /// \param start First index on axis of the slicing
-                /// \param stride Stepping of the slice
-                /// \param part_size Size of the slice on axis
-                /// \param end The last index on axis of the slicing
-                /// \param axis The axis to slice along
+                ///
+                /// \brief      Indicate that a body parameter comes from slices of a value
+                ///
+                /// \param      parameter  The parameter to receive the slices
+                /// \param      value      The value to be sliced. This will be added as an input to
+                ///                        TensorIterator.
+                /// \param      start      First index on axis of the slicing
+                /// \param      stride     Stepping of the slice
+                /// \param      part_size  Size of the slice on axis
+                /// \param      end        The last index on axis of the slicing
+                /// \param      axis       The axis to slice along
+                ///
                 void set_sliced_input(const std::shared_ptr<Parameter>& parameter,
                                       const Output<Node>& value,
                                       int64_t start,
@@ -240,38 +269,52 @@ namespace ngraph
                                       int64_t part_size,
                                       int64_t end,
                                       int64_t axis);
-                /// \brief Indicates that a body parameter has an initial value in the first
-                /// iteration
-                /// and computed value thereafter
-                /// \param initial_value Value for the parameter in first iteration. This will
-                /// be added
-                /// as an input to TensorIterator.
-                /// \param successive_value Value for the parameter in successive iterations.
-                /// The
-                /// value is what is active in the most recent completed iteration.
+                ///
+                /// \brief      Indicates that a body parameter has an initial value in the first
+                ///             iteration and computed value thereafter
+                ///
+                /// \param[in]  body_parameter    The body parameter
+                /// \param      initial_value     Value for the parameter in first iteration. This
+                ///                               will be added as an input to TensorIterator.
+                /// \param      successive_value  Value for the parameter in successive iterations.
+                ///                               The value is what is active in the most recent
+                ///                               completed iteration.
+                ///
                 void set_merged_input(const std::shared_ptr<Parameter>& body_parameter,
                                       const Output<Node>& initial_value,
                                       const Output<Node>& successive_value);
-                /// \brief Indicates that a body parameter has an invariant value during
-                /// iteration that
-                /// may depend on values computed outside of the iteration
-                /// \param body_parameter The body parameter
-                /// \param value The value supplied as an input to the block
+                ///
+                /// \brief      Indicates that a body parameter has an invariant value during
+                ///             iteration that may depend on values computed outside of the
+                ///             iteration.
+                ///
+                /// \param      body_parameter  The body parameter
+                /// \param      value           The value supplied as an input to the block
+                ///
                 void set_invariant_input(const std::shared_ptr<Parameter>& body_parameter,
                                          const Output<Node>& value);
-                /// \brief Gets a value for a particular iteration point
-                /// \param body_value The value
-                /// \param iteration The iteration that supplies the value. Negative values are
-                /// from the
-                /// last iteration.
+                ///
+                /// \brief      Gets a value for a particular iteration point
+                ///
+                /// \param      body_value  The value
+                /// \param      iteration   The iteration that supplies the value. Negative values
+                ///                         are from the last iteration.
+                ///
+                /// \return     The iterator value.
+                ///
                 Output<Node> get_iter_value(const Output<Node>& body_value, int64_t iteration);
-                /// \brief Concatenates slices from all iterations
-                /// \param value The value supplying slice values from each iteration.
-                /// \param start First index on axis of the slicing
-                /// \param stride Stepping of the slice
-                /// \param part_size Size of the slice on axis
-                /// \param end The last index on axis of the slicing
-                /// \param axis The axis to slice along
+                ///
+                /// \brief      Concatenates slices from all iterations
+                ///
+                /// \param      value      The value supplying slice values from each iteration.
+                /// \param      start      First index on axis of the slicing
+                /// \param      stride     Stepping of the slice
+                /// \param      part_size  Size of the slice on axis
+                /// \param      end        The last index on axis of the slicing
+                /// \param      axis       The axis to slice along
+                ///
+                /// \return     The concatenated slices.
+                ///
                 Output<Node> get_concatenated_slices(const Output<Node>& value,
                                                      int64_t start,
                                                      int64_t stride,
