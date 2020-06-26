@@ -99,8 +99,8 @@ class LayerInfo {
              "softsign",
              "power"};
 
-        if (isPower() && PowerExponent() == 1.0f) {
-            return false;
+        if (isPower()) {
+            return as<const InferenceEngine::PowerLayer*>()->power != 1.0f;
         }
 
         return activations.find(layer->type) != activations.end();
@@ -127,15 +127,6 @@ class LayerInfo {
     }
     bool isPower() const noexcept {
         return isOfType("power");
-    }
-    float PowerExponent() const noexcept {
-        return dynamic_cast<const InferenceEngine::PowerLayer*>(layer)->power;
-    }
-    float PowerScale() const noexcept {
-        return dynamic_cast<const InferenceEngine::PowerLayer*>(layer)->scale;
-    }
-    float PowerOffset() const noexcept {
-        return dynamic_cast<const InferenceEngine::PowerLayer*>(layer)->offset;
     }
     bool has32BInput() const noexcept {
         IS_VALID();
