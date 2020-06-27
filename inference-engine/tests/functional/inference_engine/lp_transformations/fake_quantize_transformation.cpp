@@ -73,7 +73,7 @@ public:
             fakeQuantizeOnData.params,
             fakeQuantizeOnData.actual);
 
-        VisualizeTree("C:\\Projects\\temp\\test.original").run_on_module(std::vector<std::shared_ptr<ngraph::Function>>{ actualFunction });
+        // VisualizeTree("C:\\Projects\\temp\\test.original").run_on_module(std::vector<std::shared_ptr<ngraph::Function>>{ actualFunction });
 
         // transform(actualFunction);
 
@@ -85,7 +85,7 @@ public:
         ngraph::pass::low_precision::LowPrecisionTransformer transformer(transformations);
         transformer.transform(actualFunction);
 
-        VisualizeTree("C:\\Projects\\temp\\test.transformed").run_on_module(std::vector<std::shared_ptr<ngraph::Function>>{ actualFunction });
+        // VisualizeTree("C:\\Projects\\temp\\test.transformed").run_on_module(std::vector<std::shared_ptr<ngraph::Function>>{ actualFunction });
 
         referenceFunction = ngraph::builder::subgraph::FakeQuantizeFunction::getReference(
             precision,
@@ -94,7 +94,7 @@ public:
             fakeQuantizeOnData.expected,
             fakeQuantizeOnData.expectedSubtractValues);
 
-        VisualizeTree("C:\\Projects\\temp\\test.transformed").run_on_module(std::vector<std::shared_ptr<ngraph::Function>>{ referenceFunction });
+        // VisualizeTree("C:\\Projects\\temp\\test.transformed").run_on_module(std::vector<std::shared_ptr<ngraph::Function>>{ referenceFunction });
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<FakeQuantizeTransformationParams> obj) {
@@ -119,14 +119,6 @@ TEST_P(FakeQuantizeTransformation, CompareFunctions) {
 const std::vector<ngraph::element::Type> precisions = {
     ngraph::element::f32,
     // ngraph::element::f16
-};
-
-const std::vector<builder::subgraph::FakeQuantizeOnData> fakeQuantizeOnDataValues = {
-    { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } },
-    // { 256ul, {}, { -1.28f} , { 1.27f } },
-
-    // { 256ul, { 1ul }, { 0.f }, { 2.55f } },
-    // { 256ul, { 1ul }, { -1.28f} , { 1.27f } }
 };
 
 const std::vector<FakeQuantizeOnDataTestValues> fakeQuantizeOnDataTestValues = {
