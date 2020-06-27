@@ -37,7 +37,8 @@ std::shared_ptr<ngraph::Function> FakeQuantizeFunction::getReference(
     const ngraph::element::Type precision,
     const ngraph::Shape& inputShape,
     const ngraph::pass::low_precision::LayerTransformation::Params& params,
-    const FakeQuantizeOnData& fakeQuantizeOnData) {
+    const FakeQuantizeOnData& fakeQuantizeOnData,
+    const std::vector<float>& expectedSubtractValues) {
     const auto input = std::make_shared<ngraph::opset1::Parameter>(precision, ngraph::Shape(inputShape));
     input->set_friendly_name("input");
 
@@ -83,16 +84,25 @@ std::shared_ptr<ngraph::Function> FakeQuantizeFunction::getReference(
 
     // TODO: MultiplyAdd constant shape is hardcoded
     // auto subtract = std::make_shared<ngraph::op::TypeRelaxed<ngraph::op::Subtract>>(
-    std::shared_ptr<ngraph::opset1::Subtract> subtract = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::Subtract>>(
-        quantizeConvert2, // fakeQuantize
-        ngraph::opset1::Constant::create(precision, ngraph::Shape{ }, { 0.f }),
-        ngraph::op::AutoBroadcastSpec::NUMPY);
+    std::shared_ptr<ngraph::opset1::Subtract> subtract = expectedSubtractValues.empty() ?
+        nullptr :
+        std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::Subtract>>(
+            quantizeConvert2, // fakeQuantize
+            ngraph::opset1::Constant::create(precision, ngraph::Shape{ }, { 0.f }),
+            ngraph::op::AutoBroadcastSpec::NUMPY);
 
-    ngraph::pass::low_precision::NetworkHelper::setOutDataPrecision(subtract, precision);
+    std::shared_ptr<ngraph::opset1::Multiply> multiply;
+    if (subtract != nullptr) {
+        ngraph::pass::low_precision::NetworkHelper::setOutDataPrecision(subtract, precision);
 
-    auto multiply = std::make_shared<ngraph::opset1::Multiply>(
-        subtract,
-        ngraph::opset1::Constant::create(precision, ngraph::Shape{ }, { 1.f }));
+        multiply = std::make_shared<ngraph::opset1::Multiply>(
+            subtract,
+            ngraph::opset1::Constant::create(precision, ngraph::Shape{ }, { 1.f }));
+    } else {
+        multiply = std::make_shared<ngraph::opset1::Multiply>(
+            quantizeConvert2,
+            ngraph::opset1::Constant::create(precision, ngraph::Shape{ }, { 1.f }));
+    }
 
     // TODO: just to debug
     auto outputs = fakeQuantize->get_output_partial_shape(0);

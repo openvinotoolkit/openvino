@@ -32,6 +32,7 @@ public:
     low_precision::LayerTransformation::Params params;
     builder::subgraph::FakeQuantizeOnData actual;
     builder::subgraph::FakeQuantizeOnData expected;
+    std::vector<float> expectedSubtractValues;
 };
 
 inline std::ostream& operator<<(std::ostream& os, const std::vector<float>& values) {
@@ -72,7 +73,7 @@ public:
             fakeQuantizeOnData.params,
             fakeQuantizeOnData.actual);
 
-        // VisualizeTree("C:\\Projects\\temp\\test.original").run_on_module(std::vector<std::shared_ptr<ngraph::Function>>{ actualFunction });
+        VisualizeTree("C:\\Projects\\temp\\test.original").run_on_module(std::vector<std::shared_ptr<ngraph::Function>>{ actualFunction });
 
         // transform(actualFunction);
 
@@ -84,15 +85,16 @@ public:
         ngraph::pass::low_precision::LowPrecisionTransformer transformer(transformations);
         transformer.transform(actualFunction);
 
-        // VisualizeTree("C:\\Projects\\temp\\test.transformed").run_on_module(std::vector<std::shared_ptr<ngraph::Function>>{ actualFunction });
+        VisualizeTree("C:\\Projects\\temp\\test.transformed").run_on_module(std::vector<std::shared_ptr<ngraph::Function>>{ actualFunction });
 
         referenceFunction = ngraph::builder::subgraph::FakeQuantizeFunction::getReference(
             precision,
             shape,
             fakeQuantizeOnData.params,
-            fakeQuantizeOnData.expected);
+            fakeQuantizeOnData.expected,
+            fakeQuantizeOnData.expectedSubtractValues);
 
-        // VisualizeTree("C:\\Projects\\temp\\test.transformed").run_on_module(std::vector<std::shared_ptr<ngraph::Function>>{ referenceFunction });
+        VisualizeTree("C:\\Projects\\temp\\test.transformed").run_on_module(std::vector<std::shared_ptr<ngraph::Function>>{ referenceFunction });
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<FakeQuantizeTransformationParams> obj) {
@@ -132,24 +134,28 @@ const std::vector<FakeQuantizeOnDataTestValues> fakeQuantizeOnDataTestValues = {
     {
         LayerTransformation::createParamsU8I8(),
         { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } },
-        { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } }
+        { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } },
+        {}
     },
     {
         LayerTransformation::createParamsU8I8(),
         { 256ul, {}, { -1.28f} , { 1.27f }, { -1.28f} , { 1.27f } },
-        { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } }
+        { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } },
+        { 1.28f }
     },
 
     // I8
     {
         LayerTransformation::createParamsI8I8(),
         { 256ul, {}, { -1.28f}, { 1.27f }, { -1.28f}, { 1.27f } },
-        { 256ul, {}, { -1.28f}, { 1.27f }, { -1.28f}, { 1.27f } }
+        { 256ul, {}, { -1.28f}, { 1.27f }, { -1.28f}, { 1.27f } },
+        {}
     },
     {
-        LayerTransformation::createParamsU8I8(),
+        LayerTransformation::createParamsI8I8(),
         { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } },
-        { 256ul, {}, { -1.28f }, { 1.27f }, { -1.28f }, { 1.27f } }
+        { 256ul, {}, { -1.28f }, { 1.27f }, { -1.28f }, { 1.27f } },
+        { 1.28f }
     }
 };
 

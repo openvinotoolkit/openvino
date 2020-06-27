@@ -26,7 +26,8 @@ public:
         const ngraph::element::Type precision,
         const ngraph::Shape& inputShape,
         const ngraph::pass::low_precision::LayerTransformation::Params& params,
-        const FakeQuantizeOnData& fakeQuantizeOnData);
+        const FakeQuantizeOnData& fakeQuantizeOnData,
+        const std::vector<float>& expectedSubtractValues);
 };
 
 }  // namespace subgraph
