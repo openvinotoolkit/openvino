@@ -578,17 +578,29 @@ std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> decomposeFakeQuantize(s
     std::shared_ptr<Node> convert = fold<opset1::Convert>(newFQ, precision);
     //std::shared_ptr<Node> convert = std::make_shared<opset1::Convert>(newFQ, fq->get_output_element_type(0));
 
-    std::shared_ptr<ngraph::opset1::Subtract> sub = make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::Subtract>>(
-    // auto sub = make_shared<ngraph::opset1::Subtract>(
-        // convert,
-        //make_shared<opset1::Convert>(fold<opset1::Convert>(newFQ, precision), fq->get_output_element_type(0)),
-        make_shared<opset1::Convert>(convert, fq->get_output_element_type(0)),
-        // newFQ,
-        shift);
+
+    std::shared_ptr<opset1::Constant> shiftConst = as_type_ptr<opset1::Constant>(shift);
+    if (isScalarLike(shiftConst)) {
+        auto scalar = distillToScalar(shiftConst);
+        if (op::util::constantIsEqualTo(scalar, 0)) {
+            shift = nullptr;
+        }
+    }
+
+    // convert,
+    //make_shared<opset1::Convert>(fold<opset1::Convert>(newFQ, precision), fq->get_output_element_type(0)),
+    std::shared_ptr<ngraph::Node> convert2 = make_shared<opset1::Convert>(convert, fq->get_output_element_type(0));
+
+    std::shared_ptr<ngraph::Node> sub = shift == nullptr ? nullptr :
+        make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::Subtract>>(
+        // auto sub = make_shared<ngraph::opset1::Subtract>(
+            convert2,
+            // newFQ,
+            shift);
 
     // const auto subShape = sub->get_shape();
     // const auto scaleShape = scale->get_shape();
-    auto dequantize = make_shared<ngraph::opset1::Multiply>(sub, scale);
+    auto dequantize = make_shared<ngraph::opset1::Multiply>(sub == nullptr ? convert2 : sub, scale);
 
     auto outputs = newFQ->get_outputs();
     //NetworkHelper::setOutDataPrecision(newFQ, precision);
@@ -669,28 +681,28 @@ FakeQuantizeDequantization getFakeQuantizeDequantization(std::shared_ptr<opset1:
     std::shared_ptr<ngraph::opset1::Subtract> sub = make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::Subtract>>(convert, shift);
     std::shared_ptr<ngraph::opset1::Multiply> multiply = make_shared<ngraph::opset1::Multiply>(sub, scale);
 
-    return FakeQuantizeDequantization(precision, fq, convert, sub, multiply);
+    return FakeQuantizeDequantization(fq, convert, sub, multiply);
 }
 
-FakeQuantizeDequantization getDequantization(Node& node) {
-    std::shared_ptr<ngraph::opset1::Multiply> multiply = as_type_ptr<ngraph::opset1::Multiply>(node.shared_from_this());
-    if (multiply == nullptr) {
-        return FakeQuantizeDequantization();
+FakeQuantizeDequantization getDequantization(std::shared_ptr<Node> node) {
+    std::shared_ptr<Node> dataNode = node->input_value(0).get_node_shared_ptr();
+
+    std::shared_ptr<ngraph::opset1::Multiply> multiply = as_type_ptr<ngraph::opset1::Multiply>(dataNode);
+    if (multiply != nullptr) {
+        dataNode = multiply->get_input_node_shared_ptr(0);
     }
 
-    //if (multiply->get_input_size() != 1ul) {
-    //    return FakeQuantizeDequantization(multiply->);
-    //}
-    //// TODO: we create input here! we really need it here?
-    //const auto input = std::make_shared<ngraph::opset1::Parameter>(precision, fq->get_output_shape(0));
-    //std::shared_ptr<ngraph::opset1::Convert> convert =  as_type_ptr<ngraph::opset1::Convert>(fold<opset1::Convert>(input, fq->get_output_element_type(0)));
+    std::shared_ptr<opset1::Subtract> subtract = as_type_ptr<opset1::Subtract>(dataNode);
+    if (subtract != nullptr) {
+        dataNode = subtract->get_input_node_shared_ptr(0);
+    }
 
-    //std::shared_ptr<ngraph::opset1::Subtract> sub = make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::Subtract>>(convert, shift);
-    //std::shared_ptr<ngraph::opset1::Multiply> multiply = make_shared<ngraph::opset1::Multiply>(sub, scale);
+    std::shared_ptr<opset1::Convert> convert = as_type_ptr<opset1::Convert>(dataNode);
+    if (convert != nullptr) {
+        dataNode = convert->get_input_node_shared_ptr(0);
+    }
 
-    //return FakeQuantizeDequantization(precision, fq, convert, sub, multiply);
-
-    return FakeQuantizeDequantization();
+    return FakeQuantizeDequantization(dataNode, convert, subtract, multiply);
 }
 
 std::shared_ptr<Node> optimizeSubtract(std::shared_ptr<opset1::Subtract> add) {
@@ -699,13 +711,15 @@ std::shared_ptr<Node> optimizeSubtract(std::shared_ptr<opset1::Subtract> add) {
     // TODO: also check convertInputType to understand if we really want to propagate type
     assert(as_type_ptr<opset1::Convert>(convertOnAdd));
     auto convertInputType = convertOnAdd->get_input_element_type(0);
+
     auto data = convertOnAdd->input_value(0);
     auto shift = add->input_value(1).get_node_shared_ptr();
     auto roundedShift = roundWithTolerance(shift, convertInputType);
+
     std::shared_ptr<Node> replacement;
     if (roundedShift->get_element_type() == convertInputType) {
         // Propagate convertInputType down
-        replacement = std::make_shared<opset1::Add>(data, roundedShift);
+        replacement = std::make_shared<opset1::Subtract>(data, roundedShift);
         replace_node(add, replacement);
     } else {
         // Try to represent it as data - (-b)
@@ -724,13 +738,14 @@ std::shared_ptr<Node> optimizeSubtract(std::shared_ptr<opset1::Subtract> add) {
     // TODO: check cases when Convert should be preserved
 
     // Try to optimize Add out if constant is zero
-    if (isScalarLike(roundedShift)) {
-        auto scalar = distillToScalar(roundedShift);
-        if (op::util::constantIsEqualTo(scalar, 0)) {
-            replace_node(replacement, replacement->input_value(0).get_node_shared_ptr());
-            replacement = nullptr;
-        }
-    }
+    // TODO: don't remove operation here: don't create this Subtraction operation in FQ decomposition
+    // if (isScalarLike(roundedShift)) {
+    //    auto scalar = distillToScalar(roundedShift);
+    //    if (op::util::constantIsEqualTo(scalar, 0)) {
+    //        replace_node(replacement, replacement->input_value(0).get_node_shared_ptr());
+    //        replacement = nullptr;
+    //    }
+    // }
 
     return replacement;
 }

@@ -244,7 +244,7 @@ void LayerTransformation::fillFromDequantizationLayer(
     std::shared_ptr<Node> dequantizationLayer,
     std::vector<float>& dequantizationScales,
     std::vector<float>& dequantizationShifts) const {
-    std::cerr << "[ ERROR ] NOT IMPLEMENTED METHOD IS CALLED " << __FILE__ << ":" << __LINE__ << "\n";
+    // std::cerr << "[ ERROR ] NOT IMPLEMENTED METHOD IS CALLED " << __FILE__ << ":" << __LINE__ << "\n";
 #if 0 // TODO LPT-TO-NGRAPH
     if (dequantizationLayer.type != "ScaleShift") {
         THROW_TRANSFORMATION_EXCEPTION << "unexpected dequantization layer type " << dequantizationLayer.type;

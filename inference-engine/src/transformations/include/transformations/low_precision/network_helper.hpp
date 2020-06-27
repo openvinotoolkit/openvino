@@ -398,7 +398,7 @@ std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> decomposeFakeQuantize(
 
 void updateFakeQuantize(std::shared_ptr<opset1::FakeQuantize> fq, element::Type precision, float min, float max);
 FakeQuantizeDequantization getFakeQuantizeDequantization(std::shared_ptr<opset1::FakeQuantize> fq, element::Type precision, float min, float max);
-FakeQuantizeDequantization getDequantization(Node& node);
+FakeQuantizeDequantization getDequantization(std::shared_ptr<Node> node);
 
 std::shared_ptr<Node> optimizeSubtract(std::shared_ptr<opset1::Subtract> add);
 

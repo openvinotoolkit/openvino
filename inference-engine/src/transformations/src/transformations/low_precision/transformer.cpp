@@ -26,15 +26,17 @@
 #include "transformations/low_precision/fake_quantize.hpp"
 // #include "low_precision_transformations/fully_connected.hpp"
 // #include "low_precision_transformations/fuse_fake_quantize_and_scale_shift.hpp"
+#include "transformations/low_precision/group_convolution.hpp"
 #include "transformations/low_precision/mat_mul.hpp"
 // #include "low_precision_transformations/mvn.hpp"
 // #include "low_precision_transformations/permute.hpp"
 #include "transformations/low_precision/max_pool.hpp"
 #include "transformations/low_precision/normalize_l2.hpp"
 // #include "low_precision_transformations/resample.hpp"
-// #include "low_precision_transformations/reshape.hpp"
+#include "transformations/low_precision/reshape.hpp"
 // #include "low_precision_transformations/scaleshift_to_convolution.hpp"
 // #include "low_precision_transformations/squeeze.hpp"
+#include "transformations/low_precision/subtract.hpp"
 #include "transformations/low_precision/add.hpp"
 #include "transformations/low_precision/decompose_multiply_add.hpp"
 
@@ -177,26 +179,27 @@ LowPrecisionTransformations LowPrecisionTransformer::getAllTransformations(const
         }),
         std::map<std::string, LayerTransformationPtr>({
             { "Convolution", LayerTransformationPtr(new ConvolutionTransformation(params)) },
-            // { "GroupConvolution", LayerTransformationPtr(new ConvolutionTransformation(params)) },
-            // { "AvgPool", LayerTransformationPtr(new AvgPoolTransformation(params)) },
-            { "MaxPool", LayerTransformationPtr(new MaxPoolTransformation(params)) },
+            // { "GroupConvolution", LayerTransformationPtr(new GroupConvolutionTransformation(params)) },
+            //// { "AvgPool", LayerTransformationPtr(new AvgPoolTransformation(params)) },
+            // { "MaxPool", LayerTransformationPtr(new MaxPoolTransformation(params)) },
             { "FakeQuantize", LayerTransformationPtr(new FakeQuantizeTransformation(params)) },
             // { "Reshape", LayerTransformationPtr(new ReshapeTransformation(params)) },
-            { "MatMul", LayerTransformationPtr(new MatMulTransformation(params)) },
-            // { "Transpose", LayerTransformationPtr(new TransposeTransformation(params)) },
-            // { "Squeeze", LayerTransformationPtr(new SqueezeTransformation(params)) },
-            { "ReLU", LayerTransformationPtr(new ReluTransformation(params)) },
-            // { "MVN", LayerTransformationPtr(new MvnTransformation(params)) },
-            { "Add", LayerTransformationPtr(new AddTransformation(params)) },
-            // { "Multiply", LayerTransformationPtr(new MultiplyTransformation(params)) },
-            // { "Interpolate", LayerTransformationPtr(new InterpolateTransformation(params)) },
-            { "DepthToSpace", LayerTransformationPtr(new DepthToSpaceTransformation(params)) },
-            { "NormalizeL2", LayerTransformationPtr(new NormalizeL2Transformation(params)) }
+            // { "MatMul", LayerTransformationPtr(new MatMulTransformation(params)) },
+            //// { "Transpose", LayerTransformationPtr(new TransposeTransformation(params)) },
+            //// { "Squeeze", LayerTransformationPtr(new SqueezeTransformation(params)) },
+            // { "ReLU", LayerTransformationPtr(new ReluTransformation(params)) },
+            //// { "MVN", LayerTransformationPtr(new MvnTransformation(params)) },
+            // { "Add", LayerTransformationPtr(new AddTransformation(params)) },
+            //// { "Multiply", LayerTransformationPtr(new MultiplyTransformation(params)) },
+            //// { "Interpolate", LayerTransformationPtr(new InterpolateTransformation(params)) },
+            // { "DepthToSpace", LayerTransformationPtr(new DepthToSpaceTransformation(params)) },
+            //{ "NormalizeL2", LayerTransformationPtr(new NormalizeL2Transformation(params)) }
         }),
         std::map<std::string, LayerTransformationPtr>({
             // { "FakeQuantize", LayerTransformationPtr(new FuseFakeQuantizeAndScaleShiftTransformation(params)) },
             // { "ScaleShift", LayerTransformationPtr(new ScaleShiftToConvolutionTransformation(params)) },  // ???
             // { "MultiplyAdd", LayerTransformationPtr(new DecomposeMultiplyAddTransformation(params)) },
+            { "Subtract", LayerTransformationPtr(new SubtractTransformation(params)) },
         }));
 }
 

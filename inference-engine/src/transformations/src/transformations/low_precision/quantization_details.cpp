@@ -112,6 +112,11 @@ bool QuantizationDetails::outputLayoutIsSupported(std::shared_ptr<opset1::FakeQu
     size_t outputIntervalsCount;
     getOutputIntervals(quantize, outputLowValues, outputHighValues, outputIntervalsCount);
 
+    // TODO: FQ on weights - temporary workaround:
+    // if (outputIntervalsCount == quantize->get_output_shape(0)[0]) {
+    //    return true;
+    // }
+
     const size_t outputChannelsCount = NetworkHelper::getOutputChannelsCount(quantize, NetworkHelper::onWeights(quantize));
     if ((outputIntervalsCount != 1ul) && (outputIntervalsCount != outputChannelsCount)) {
         return false;

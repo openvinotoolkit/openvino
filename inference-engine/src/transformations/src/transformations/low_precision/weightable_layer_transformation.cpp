@@ -53,7 +53,6 @@ bool WeightableLayerTransformation::canBeTransformed(const TransformationContext
 
     const bool isDepthwiseConvolution = isDepthwise(layer);
     if (!isDepthwiseConvolution) {
-        std::cerr << "NOT DEPTHWISE!";
         // TODO: move scale values validation to standalone method for FullyConnected & GEMM
         const auto ssNode = as_type_ptr<opset1::Multiply>(layer->input_value(0).get_node_shared_ptr());
         assert(ssNode);
