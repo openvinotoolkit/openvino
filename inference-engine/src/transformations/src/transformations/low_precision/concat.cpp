@@ -256,7 +256,10 @@ void ConcatTransformation::addDequantizationLayers(
                         }
                     }
 
-                    layer->set_output_type(0, layerDequantizations[0].precisionBeforeDequantization, layer->get_output_partial_shape(0));
+                    // layer->set_output_type(0, layerDequantizations[0].precisionBeforeDequantization, layer->get_output_partial_shape(0));
+                    // TODO: why first input is used?
+                    const ngraph::element::Type precision = layerDequantizations[0].dataNode->get_input_element_type(0);
+                    layer->set_output_type(0, precision, layer->get_output_partial_shape(0));
 
                     const auto it = outputs.find(layer->get_friendly_name());
                     if (it != outputs.end()) {
