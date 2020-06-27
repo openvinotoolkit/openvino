@@ -25,7 +25,7 @@
 using namespace testing;
 using namespace ngraph::pass;
 
-class FakeQuantizeOnDataTestValues {
+class MultiplyTransformationTestValues {
 public:
     low_precision::LayerTransformation::Params params;
     ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData;
@@ -35,7 +35,7 @@ public:
 typedef std::tuple<
     ngraph::element::Type,
     ngraph::Shape,
-    FakeQuantizeOnDataTestValues> MultiplyTransformationParams;
+    MultiplyTransformationTestValues> MultiplyTransformationParams;
 
 class MultiplyTransformation : public LayerTransformation, public testing::WithParamInterface<MultiplyTransformationParams> {
 public:
@@ -66,7 +66,7 @@ public:
     static std::string getTestCaseName(testing::TestParamInfo<MultiplyTransformationParams> obj) {
         const ngraph::element::Type precision = std::get<0>(obj.param);
         const ngraph::Shape shape = std::get<1>(obj.param);
-        const FakeQuantizeOnDataTestValues fakeQuantizeOnData = std::get<2>(obj.param);
+        const MultiplyTransformationTestValues fakeQuantizeOnData = std::get<2>(obj.param);
 
         return LayerTransformation::getTestCaseNameByParams(precision, shape, fakeQuantizeOnData.params);
     }
@@ -91,34 +91,30 @@ const std::vector<ngraph::Shape> shapes = {
     { 1, 32, 72, 48 }
 };
 
-const std::vector<FakeQuantizeOnDataTestValues> fakeQuantizeOnDataTestValues = {
+const std::vector<MultiplyTransformationTestValues> fakeQuantizeOnDataTestValues = {
     // U8
     {
         LayerTransformation::createParamsU8I8(),
         { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } },
-        { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } },
         {}
     },
-    {
-        LayerTransformation::createParamsU8I8(),
-        { 256ul, {}, { -1.28f} , { 1.27f }, { -1.28f} , { 1.27f } },
-        { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } },
-        { 1.28f }
-    },
+    // {
+    //    LayerTransformation::createParamsU8I8(),
+    //    { 256ul, {}, { -1.28f} , { 1.27f }, { -1.28f} , { 1.27f } },
+    //    { 1.28f }
+    // },
 
-    // I8
-    {
-        LayerTransformation::createParamsI8I8(),
-        { 256ul, {}, { -1.28f}, { 1.27f }, { -1.28f}, { 1.27f } },
-        { 256ul, {}, { -1.28f}, { 1.27f }, { -1.28f}, { 1.27f } },
-        {}
-    },
-    {
-        LayerTransformation::createParamsI8I8(),
-        { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } },
-        { 256ul, {}, { -1.28f }, { 1.27f }, { -1.28f }, { 1.27f } },
-        { 1.28f }
-    }
+    //// I8
+    // {
+    //    LayerTransformation::createParamsI8I8(),
+    //    { 256ul, {}, { -1.28f}, { 1.27f }, { -1.28f}, { 1.27f } },
+    //    {}
+    // },
+    // {
+    //    LayerTransformation::createParamsI8I8(),
+    //    { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } },
+    //    { 1.28f }
+    // }
 };
 
 INSTANTIATE_TEST_CASE_P(

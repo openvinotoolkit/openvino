@@ -36,10 +36,12 @@ void MultiplyTransformation::registerMatcherIn(GraphRewrite &pass, Transformatio
 }
 
 void MultiplyTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) const {
-    ngraph::pass::VisualizeTree("C:\\Projects\\temp\\test.transformed").run_on_module(std::vector<std::shared_ptr<ngraph::Function>>{ context.network });
+    // ngraph::pass::VisualizeTree("C:\\Projects\\temp\\test.transformed").run_on_module(std::vector<std::shared_ptr<ngraph::Function>>{ context.network });
 
     std::shared_ptr<opset1::Multiply> multiply = as_type_ptr<opset1::Multiply>(m.get_match_root());
+    const std::string multiplyName = multiply->get_friendly_name();
     const ngraph::element::Type originalPrecision = multiply->get_output_element_type(0);
+    std::shared_ptr<Node> lastOperation = multiply;
 
     const FakeQuantizeDequantization dequantization = ngraph::pass::low_precision::getDequantization(multiply);
     if (dequantization.multiply != nullptr) {
@@ -73,6 +75,7 @@ void MultiplyTransformation::transform(TransformationContext& context, ngraph::p
         }));
 
         replace_node(multiply, newSubtract);
+        lastOperation = newSubtract;
     }
 
     if (dequantization.convert != nullptr) {
@@ -95,11 +98,16 @@ void MultiplyTransformation::transform(TransformationContext& context, ngraph::p
             newConvert,
             multiply->get_input_node_shared_ptr(1));
         replace_node(multiply, newMultiply);
+
+        if (dequantization.subtract == nullptr) {
+            lastOperation = newMultiply;
+        }
     }
 
-    ngraph::pass::VisualizeTree("C:\\Projects\\temp\\test.transformed").run_on_module(std::vector<std::shared_ptr<ngraph::Function>>{ context.network });
-
     // TODO: NAMES!
+    lastOperation->set_friendly_name(multiplyName);
+
+    // ngraph::pass::VisualizeTree("C:\\Projects\\temp\\test.transformed").run_on_module(std::vector<std::shared_ptr<ngraph::Function>>{ context.network });
 }
 
 } // namespace low_precision
