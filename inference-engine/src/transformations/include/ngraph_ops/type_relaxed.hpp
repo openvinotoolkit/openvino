@@ -128,7 +128,7 @@ RTTI_DEFINITION_2(BaseOp::get_type_info_static().name, TypeRelaxed<BaseOp>, Base
         template <typename BaseOp>
 std::shared_ptr<Node> TypeRelaxed<BaseOp>::clone_with_new_inputs(const OutputVector& new_args) const {
     // auto clone = make_shared<TypeRelaxed<BaseOp>>();
-    std::cerr << "TypeRelaxed<BaseOp>::copy_with_new_args from my template\n";
+    // std::cerr << "TypeRelaxed<BaseOp>::copy_with_new_args from my template\n";
     // copy then modify inputs
     std::shared_ptr<Node> new_node = std::make_shared<TypeRelaxed<BaseOp>>((BaseOp&)(*this), m_output_data_type);
     for (size_t i = 0; i < new_node->get_input_size(); ++i) {
