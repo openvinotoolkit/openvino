@@ -35,7 +35,7 @@ const std::vector<ngraph::builder::subgraph::FakeQuantizeOnData> fakeQuantizeOnD
     { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } },
     { 256ul, { 1ul }, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } },
     // nGraph: I8->FP32 Convert is not supported
-    // { 256ul, {}, { -1.28f} , { 1.27f } },
+    // { 256ul, {}, { -1.28f} , { 1.27f }, { -1.28f} , { 1.27f } },
     // { 256ul, { 1ul }, { -1.28f} , { 1.27f } }
 };
 

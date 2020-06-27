@@ -18,6 +18,9 @@
 #include "transformations/low_precision/common/ie_lpt_exception.hpp"
 #include "transformations/low_precision/network_helper.hpp"
 
+// TODO: debug only
+#include <ngraph/pass/visualize_tree.hpp>
+
 namespace ngraph {
 namespace pass {
 namespace low_precision {
@@ -28,6 +31,17 @@ void FakeQuantizeTransformation::registerMatcherIn(GraphRewrite& pass, Transform
 
 void FakeQuantizeTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) const {
     auto layer = std::dynamic_pointer_cast<opset1::FakeQuantize>(m.get_match_root());
+
+    //std::unordered_set<std::string> handlingLayers = {
+    //    // 3
+    //    // "InceptionV2/InceptionV2/MaxPool_2a_3x3/MaxPool/fq_input_0",
+    //    // 4
+    //    "InceptionV2/InceptionV2/Conv2d_2c_3x3/Conv2D/fq_input_0"
+    //};
+
+    //if (handlingLayers.find(layer->get_friendly_name()) == handlingLayers.end()) {
+    //    return;
+    //}
 
     const std::deque<descriptor::Output> outputs = layer->get_outputs();
     const ngraph::element::Type precision = outputs.begin()->get_element_type();
@@ -113,11 +127,13 @@ void FakeQuantizeTransformation::transform(TransformationContext& context, ngrap
             dataPrecision.min,
             dataPrecision.max);
 
+    std::vector<std::shared_ptr<ngraph::Function>> transformedModule{ context.network };
+    ngraph::pass::VisualizeTree("C:\\Projects\\temp\\test.transformed").run_on_module(transformedModule);
 
     // To disable application of the same transform twice on the same node
     // TODO: Handle it through node property
-    auto quantize = as_type_ptr<opset1::FakeQuantize>(std::get<0>(QDQ));
-    {
+    std::shared_ptr<opset1::FakeQuantize> quantize = as_type_ptr<opset1::FakeQuantize>(std::get<0>(QDQ));
+    if (quantize != nullptr) {
         auto quantizeConvert = as_type_ptr<opset1::Convert>(quantize->get_output_target_inputs(0).begin()->get_node()->shared_from_this());
 
         // Remove the first Convert and built convert directly to FQ by modifying output type
@@ -135,6 +151,8 @@ void FakeQuantizeTransformation::transform(TransformationContext& context, ngrap
     // TODO: Get rid of this.
     const std::string friendlyName = layer->get_friendly_name();
     context.quantizedFakeQuantizeNames.insert(friendlyName);
+
+    std::cout << "FakeQuantizeTransformation::transform: done: " << layer->get_friendly_name() << std::endl;
 }
 
 bool FakeQuantizeTransformation::isPrecisionPreserved(std::shared_ptr<Node>) const noexcept {
