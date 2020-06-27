@@ -44,8 +44,8 @@ void SubtractTransformation::transform(TransformationContext& context, ngraph::p
     const FakeQuantizeDequantization dequantization = ngraph::pass::low_precision::getDequantization(subtract);
     if (dequantization.multiply != nullptr) {
         // TODO: NO TESTS!!!
-        // before: Y = SC * X - SH, after:  Y = (X - SH') * SC
-        //    SC * X - SH = SC * X - SH' * SC
+        // before: Y = X * SC - SH, after:  Y = (X - SH') * SC
+        //    X * SC - SH = X * SC - SH' * SC
         //    SH' = SH / SC
         std::shared_ptr<opset1::Subtract> newSubtract = as_type_ptr<opset1::Subtract>(subtract->copy_with_new_inputs({
             dequantization.multiply->get_input_node_shared_ptr(0),
