@@ -33,6 +33,11 @@ const std::vector<LayerTestsDefinitions::ConvolutionTransformationParam> params 
         { 255ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -127.f }, { 127.f } },
     },
     // {
+    //    { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { -128.f }, { 127.f }, { -128.f }, { 127.f } },
+    //    { 255ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -127.f }, { 127.f } },
+    // }
+
+    // {
     //    { 256ul, ngraph::Shape {}, { -128.f }, { 127.f } }, { 256ul, ngraph::Shape {6, 1, 1, 1}, { -128.f }, { 127.f } },
     // },
     //{

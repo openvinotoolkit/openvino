@@ -32,25 +32,37 @@ void ConvolutionTransformation::registerMatcherIn(GraphRewrite &pass, Transforma
 
 void ConvolutionTransformation::transform(TransformationContext &context, ngraph::pattern::Matcher &m) const {
     auto convolution = m.get_match_root();
+
+    //std::unordered_set<std::string> handlingLayers = {
+    //    // 3
+    //    // "InceptionV2/InceptionV2/Conv2d_2b_1x1/BatchNorm/FusedBatchNormV3/variance/Fused_Add_",
+    //    // 4
+    //    "InceptionV2/InceptionV2/Conv2d_2c_3x3/Conv2D"
+    //};
+
+    //if (handlingLayers.find(convolution->get_friendly_name()) == handlingLayers.end()) {
+    //    return;
+    //}
+
     // Almost all checks that was in WeightableLayerTransformation now should be included into the pattern in registerMatcherIn
     if (!WeightableLayerTransformation::canBeTransformed(context, convolution)) {
         return;
     }
 
     //// dequantizationOnData
-    //std::shared_ptr<Node> dequantizationOperationOnData = convolution->input_value(0).get_node_shared_ptr();
-    //FakeQuantizeDequantization dequantizationOnData = getDequantization(*dequantizationOperationOnData);
+    // std::shared_ptr<Node> dequantizationOperationOnData = convolution->input_value(0).get_node_shared_ptr();
+    // FakeQuantizeDequantization dequantizationOnData = getDequantization(*dequantizationOperationOnData);
 
     //// dequantizationOnWeights
-    //std::shared_ptr<Node> parentOnWeights = convolution->input_value(1).get_node_shared_ptr();
-    //std::shared_ptr<opset1::FakeQuantize> fakeQuantizeOnWeights = as_type_ptr<opset1::FakeQuantize>(parentOnWeights);
-    //const QuantizationDetails quantizationDetails = QuantizationDetails::getDetails(fakeQuantizeOnWeights);
-    //const DataPrecision dataPrecisionOnWeights = getDataPrecision(
+    // std::shared_ptr<Node> parentOnWeights = convolution->input_value(1).get_node_shared_ptr();
+    // std::shared_ptr<opset1::FakeQuantize> fakeQuantizeOnWeights = as_type_ptr<opset1::FakeQuantize>(parentOnWeights);
+    // const QuantizationDetails quantizationDetails = QuantizationDetails::getDetails(fakeQuantizeOnWeights);
+    // const DataPrecision dataPrecisionOnWeights = getDataPrecision(
     //    fakeQuantizeOnWeights,
     //    quantizationDetails,
     //    true,
     //    supportAsymmetricQuantization);
-    //FakeQuantizeDequantization dequantizationOnWeights = getFakeQuantizeDequantization(
+    // FakeQuantizeDequantization dequantizationOnWeights = getFakeQuantizeDequantization(
     //    fakeQuantizeOnWeights,
     //    dataPrecisionOnWeights.precision,
     //    dataPrecisionOnWeights.min,
@@ -61,12 +73,14 @@ void ConvolutionTransformation::transform(TransformationContext &context, ngraph
     {
         // Move Multiply from Data path immediately to the output
         // Before moving, Multiply should be decoupled and exchanged with Add in MultiplyAdd operation
-        //auto newMultiplyFromData = swapMultiplyAndAdd(
+        // auto newMultiplyFromData = swapMultiplyAndAdd(
         //        decomposeMultiplyAdd(as_type_ptr<ngraph::op::MultiplyAdd>(scaleShiftOnData)));
-        //auto newAdd = optimizeAdd(as_type_ptr<opset1::Add>(newMultiplyFromData->input_value(0).get_node_shared_ptr()));
+        // auto newAdd = optimizeAdd(as_type_ptr<opset1::Add>(newMultiplyFromData->input_value(0).get_node_shared_ptr()));
 
         auto subtract = as_type_ptr<opset1::Subtract>(dequantizationOperationOnData->input_value(0).get_node_shared_ptr());
-        subtract = as_type_ptr<opset1::Subtract>(optimizeSubtract(subtract));
+        if (subtract != nullptr) {
+            subtract = as_type_ptr<opset1::Subtract>(optimizeSubtract(subtract));
+        }
 
         // FIXME: next workaround normalizes shape of newAdd to match CPU plugin expectations
         if (subtract && subtract->get_output_partial_shape(0) != subtract->get_input_partial_shape(1)) {
@@ -88,6 +102,8 @@ void ConvolutionTransformation::transform(TransformationContext &context, ngraph
             // pass::VisualizeTree("C:\\Projects\\temp\\test.transformed").run_on_module(std::vector<std::shared_ptr<ngraph::Function>>{ context.network });
         }
 
+        // pass::VisualizeTree("C:\\Projects\\temp\\test.transformed").run_on_module(std::vector<std::shared_ptr<ngraph::Function>>{ context.network });
+
         std::shared_ptr<ngraph::opset1::Multiply> newMultiplyFromData = as_type_ptr<ngraph::opset1::Multiply>(dequantizationOperationOnData);
 
         // double-check that Multiply is still scalar-like
@@ -97,6 +113,14 @@ void ConvolutionTransformation::transform(TransformationContext &context, ngraph
                 distillToScalar(as_type_ptr<opset1::Constant>(newMultiplyFromData->input_value(1).get_node_shared_ptr())));
         replace_node(convolution, newMultiplyAfter);
         convolution = newMultiplyAfter->input_value(0).get_node_shared_ptr();
+
+        if (is_type<opset1::Convert>(convolution->get_input_node_ptr(0))) {
+            auto newConvolution = convolution->clone_with_new_inputs({
+                convolution->get_input_node_ptr(0)->get_input_node_shared_ptr(0),
+                convolution->get_input_node_shared_ptr(1) });
+            replace_node(convolution, newConvolution);
+            convolution = newConvolution;
+        }
     }
 
     // pass::VisualizeTree("C:\\Projects\\temp\\test.transformed").run_on_module(std::vector<std::shared_ptr<ngraph::Function>>{ context.network });
@@ -125,8 +149,8 @@ void ConvolutionTransformation::transform(TransformationContext &context, ngraph
         // to move to the output
         auto newScaleShape = weightScaleShape;
         newScaleShape.pop_back();   // that's all we need: [C, 1, 1, 1] => [C, 1, 1]
-        std::cerr << newScaleShape << "\n";
-        std::cerr << *newMultiplyFromWeights->input_value(1).get_node_shared_ptr();
+        // std::cerr << newScaleShape << "\n";
+        // std::cerr << *newMultiplyFromWeights->input_value(1).get_node_shared_ptr();
 
         auto newMultiplyAfter = std::make_shared<opset1::Multiply>(
                 convolution->copy_with_new_inputs({convolution->input_value(0), newMultiplyFromWeights->input_value(0)}),
@@ -137,10 +161,20 @@ void ConvolutionTransformation::transform(TransformationContext &context, ngraph
         replace_node(convolution, newMultiplyAfter);
         convolution = newMultiplyAfter->input_value(0).get_node_shared_ptr();
 
+        auto subtract = as_type_ptr<opset1::Subtract>(convolution->input_value(1).get_node_shared_ptr());
+        if (subtract != nullptr) {
+            optimizeSubtract(subtract);
+        }
+
         // pass::VisualizeTree("C:\\Projects\\temp\\test.transformed").run_on_module(std::vector<std::shared_ptr<ngraph::Function>>{ context.network });
 
-        auto subtract = as_type_ptr<opset1::Subtract>(convolution->input_value(1).get_node_shared_ptr());
-        optimizeSubtract(subtract);
+        if (is_type<opset1::Convert>(convolution->get_input_node_ptr(1))) {
+            auto newConvolution = convolution->clone_with_new_inputs({
+                convolution->get_input_node_shared_ptr(0),
+                convolution->get_input_node_ptr(1)->get_input_node_shared_ptr(0) });
+            replace_node(convolution, newConvolution);
+            convolution = newConvolution;
+        }
 
         // pass::VisualizeTree("C:\\Projects\\temp\\test.transformed").run_on_module(std::vector<std::shared_ptr<ngraph::Function>>{ context.network });
     }
@@ -172,6 +206,8 @@ void ConvolutionTransformation::transform(TransformationContext &context, ngraph
     //                    Shape{newScaleShape.size()},
     //                    newScaleShape)->output(0),
     //            false));
+
+    std::cout << "ConvolutionTransformation::transform: done: " << convolution->get_friendly_name() << std::endl;
 }
 
 void ConvolutionTransformation::transform2(TransformationContext &context, ngraph::pattern::Matcher &m) const {
@@ -181,7 +217,7 @@ void ConvolutionTransformation::transform2(TransformationContext &context, ngrap
         return;
     }
 
-    std::cerr << "Match convolution: " << m.get_match_root()->get_friendly_name() << "\n";
+    // std::cerr << "Match convolution: " << m.get_match_root()->get_friendly_name() << "\n";
 
     auto scaleShiftOnData = convolution->input_value(0).get_node_shared_ptr();
     auto parentOnWeights = convolution->input_value(1).get_node_shared_ptr();
@@ -248,8 +284,8 @@ void ConvolutionTransformation::transform2(TransformationContext &context, ngrap
         // to move to the output
         auto newScaleShape = weightScaleShape;
         newScaleShape.pop_back();   // that's all we need: [C, 1, 1, 1] => [C, 1, 1]
-        std::cerr << newScaleShape << "\n";
-        std::cerr << *newMultiplyFromWeights->input_value(1).get_node_shared_ptr();
+        // std::cerr << newScaleShape << "\n";
+        // std::cerr << *newMultiplyFromWeights->input_value(1).get_node_shared_ptr();
 
         auto newMultiplyAfter = std::make_shared<opset1::Multiply>(
                 convolution->copy_with_new_inputs({convolution->input_value(0), newMultiplyFromWeights->input_value(0)}),
