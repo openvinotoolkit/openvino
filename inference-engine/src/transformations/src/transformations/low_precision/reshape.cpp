@@ -63,7 +63,8 @@ void ReshapeTransformation::transform(TransformationContext& context, ngraph::pa
 
     // TODO: dequantization operation handling: insertDequantizationOperations()
 
-    // std::shared_ptr<Node> newReshape = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::Reshape>>(dataNode, reshape->input_value(1).get_node_shared_ptr());
+    // std::shared_ptr<Node> newReshape = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::Reshape>>(
+    //    dataNode, reshape->input_value(1).get_node_shared_ptr());
     std::shared_ptr<Node> newReshape = reshape->copy_with_new_inputs({ dataNode, reshape->input_value(1).get_node_shared_ptr() });
 
     std::shared_ptr<Node> replacement = multiply->copy_with_new_inputs({
