@@ -44,8 +44,6 @@ cdef extern from "<inference_engine.hpp>" namespace "InferenceEngine":
         const Layout getLayout() except +
         void setLayout(Layout layout) except +
         const bool isInitialized() except +
-        weak_ptr[CNNLayer] & getCreatorLayer() except +
-        map[string, shared_ptr[CNNLayer]] & getInputTo() except +
 
     ctypedef shared_ptr[Data] DataPtr
     ctypedef weak_ptr[Data] DataWeakPtr

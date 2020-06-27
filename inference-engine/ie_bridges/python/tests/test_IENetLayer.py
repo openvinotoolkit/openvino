@@ -93,19 +93,6 @@ def test_params_setter():
                                        "strides" : "2,2", "pool-method" : "max",
                                        "originalLayersNames" : "27", 'PrimitivesPriority': 'cpu:ref_any'}
 
-
-def test_layer_parents():
-    ie = IECore()
-    net = ie.read_network(model=test_net_xml, weights=test_net_bin)
-    assert net.layers['27'].parents == ['26']
-
-
-def test_layer_children():
-    ie = IECore()
-    net = ie.read_network(model=test_net_xml, weights=test_net_bin)
-    assert net.layers['27'].children == ['29']
-
-
 def test_layout(recwarn):
     warnings.simplefilter("always")
     ie = IECore()
