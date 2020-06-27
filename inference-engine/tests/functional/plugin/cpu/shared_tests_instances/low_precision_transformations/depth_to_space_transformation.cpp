@@ -26,7 +26,7 @@ const std::vector<LayerTestsUtils::LayerTransformation::LptVersion> versions = {
     // LayerTestsUtils::LayerTransformation::LptVersion::nGraph
 };
 
-INSTANTIATE_TEST_CASE_P(LPT, DepthToSpaceTransformation,
+INSTANTIATE_TEST_CASE_P(DISABLED_LPT, DepthToSpaceTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(recisions),
         ::testing::Values(InferenceEngine::SizeVector({ 1, 32, 72, 48 })),
