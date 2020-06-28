@@ -34,9 +34,14 @@ namespace low_precision {
 
 // TODO: temporary commented : possible it doesn't need
 // static const std::unordered_set<std::string> intermediateLayers{
-//    "Pooling",
+//    "MaxPool",
 //    "Resample"
 // };
+
+// TODO: Resample is skipped
+bool isIntermediate(const ngraph::Node& node) {
+    return is_type<ngraph::opset1::MaxPool>(&node);
+}
 
 bool Subgraph::fillSubgraphForQuantization(ngraph::opset1::FakeQuantize& fakeQuantize, std::unordered_set<std::string>& handledLayers) {
     // TODO: uncomment later
@@ -115,42 +120,40 @@ bool Subgraph::fill(ngraph::Node& layer, std::unordered_set<std::string>& handle
     }
 
     for (size_t index = 0; index < layer.get_output_size(); ++index) {
-        const auto child = layer.get_output_target_inputs(index);
+        const auto childInputs = layer.get_output_target_inputs(index);
+        for (const auto childInput : childInputs) {
+            ngraph::Node& child = *childInput.get_node();
+
+            if (handledLayers.find(child.get_friendly_name()) != handledLayers.end()) {
+                continue;
+            }
+
+            ngraph::opset1::Concat* concatChild = ngraph::as_type<ngraph::opset1::Concat>(&child);
+            if (concatChild != nullptr) {
+                if (!fillSubgraphForConcat(*concatChild, handledLayers)) {
+                    return false;
+                }
+            } else {
+                ngraph::opset1::FakeQuantize* fakeQuantizeChild = ngraph::as_type<ngraph::opset1::FakeQuantize>(&child);
+                if (fakeQuantizeChild != nullptr) {
+                    //
+                } else if (isIntermediate(child)) {
+                    if (!fillSubgraphForIntermediate(child, handledLayers)) {
+                        return false;
+                    }
+                }
+            }
+        }
     }
-
-    //const std::vector<CNNLayerPtr> children = CNNNetworkHelper::getChildren(*layer);
-    //for (const CNNLayerPtr& child : children) {
-    //    if (handledLayers.find(child->name) != handledLayers.end()) {
-    //        continue;
-    //    }
-
-    //    if (child->type == "Concat") {
-    //        if (!fillSubgraphForConcat(child, handledLayers)) {
-    //            return false;
-    //        }
-    //    } else if (child->type == "FakeQuantize") {
-    //        //
-    //    } else if (intermediateLayers.find(child->type) != intermediateLayers.end()) {
-    //        if (!fillSubgraphForIntermediate(child, handledLayers)) {
-    //            return false;
-    //        }
-    //    }
-    //}
 
     return true;
 }
 
 bool Subgraph::fillSubgraphForIntermediate(ngraph::Node& intermediate, std::unordered_set<std::string>& handledLayers) {
-    //if (intermediateLayers.find(intermediate->type) == intermediateLayers.end()) {
-    //    THROW_IE_EXCEPTION << "unexpected layer type " << intermediate->type;
-    //}
+    handledLayers.insert(intermediate.get_friendly_name());
+    layers.emplace(intermediate.get_friendly_name(), &intermediate);
 
-    //handledLayers.insert(intermediate->name);
-    //layers.emplace(intermediate->name, intermediate.get());
-
-    //return fill(intermediate, handledLayers);
-
-    return false;
+    return fill(intermediate, handledLayers);
 }
 
 bool Subgraph::empty() const {
