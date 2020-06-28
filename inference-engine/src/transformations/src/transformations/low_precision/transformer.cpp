@@ -15,11 +15,9 @@
 #include <utility>
 #include <vector>
 
-#include <ngraph/pass/visualize_tree.hpp>
-
-
-#include "transformations/low_precision/relu.hpp"
+#include "transformations/low_precision/add.hpp"
 #include "transformations/low_precision/concat.hpp"
+#include "transformations/low_precision/concat_multi_channels.hpp"
 // #include "low_precision_transformations/const.hpp"
 #include "transformations/low_precision/convolution.hpp"
 #include "transformations/low_precision/depth_to_space.hpp"
@@ -35,15 +33,16 @@
 #include "transformations/low_precision/normalize_l2.hpp"
 // #include "low_precision_transformations/resample.hpp"
 #include "transformations/low_precision/reshape.hpp"
+#include "transformations/low_precision/relu.hpp"
 // #include "low_precision_transformations/scaleshift_to_convolution.hpp"
 // #include "low_precision_transformations/squeeze.hpp"
 #include "transformations/low_precision/subtract.hpp"
-#include "transformations/low_precision/add.hpp"
-#include "transformations/low_precision/decompose_multiply_add.hpp"
-
 
 // uncomment to display precision info during low precision transformations
 // #define DISPLAY_PECISION
+
+// TODO: debug only
+#include <ngraph/pass/visualize_tree.hpp>
 
 namespace ngraph {
 namespace pass {
@@ -177,23 +176,24 @@ LowPrecisionTransformations LowPrecisionTransformer::getAllTransformations(const
     return LowPrecisionTransformations(
         std::map<std::string, LayerTransformationPtr>({
             { "Concat", LayerTransformationPtr(new ConcatTransformation(params))}
+            // { "Concat", LayerTransformationPtr(new ConcatMultiChannelsTransformation(params))}
         }),
         std::map<std::string, LayerTransformationPtr>({
             { "Convolution", LayerTransformationPtr(new ConvolutionTransformation(params)) },
             // { "GroupConvolution", LayerTransformationPtr(new GroupConvolutionTransformation(params)) },
             //// { "AvgPool", LayerTransformationPtr(new AvgPoolTransformation(params)) },
-            // { "MaxPool", LayerTransformationPtr(new MaxPoolTransformation(params)) },
+            { "MaxPool", LayerTransformationPtr(new MaxPoolTransformation(params)) },
             { "FakeQuantize", LayerTransformationPtr(new FakeQuantizeTransformation(params)) },
             // { "Reshape", LayerTransformationPtr(new ReshapeTransformation(params)) },
             // { "MatMul", LayerTransformationPtr(new MatMulTransformation(params)) },
             //// { "Transpose", LayerTransformationPtr(new TransposeTransformation(params)) },
             //// { "Squeeze", LayerTransformationPtr(new SqueezeTransformation(params)) },
-            // { "ReLU", LayerTransformationPtr(new ReluTransformation(params)) },
+            { "ReLU", LayerTransformationPtr(new ReluTransformation(params)) },
             //// { "MVN", LayerTransformationPtr(new MvnTransformation(params)) },
-            // { "Add", LayerTransformationPtr(new AddTransformation(params)) },
+            { "Add", LayerTransformationPtr(new AddTransformation(params)) },
             //// { "Interpolate", LayerTransformationPtr(new InterpolateTransformation(params)) },
             // { "DepthToSpace", LayerTransformationPtr(new DepthToSpaceTransformation(params)) },
-            //{ "NormalizeL2", LayerTransformationPtr(new NormalizeL2Transformation(params)) }
+            // { "NormalizeL2", LayerTransformationPtr(new NormalizeL2Transformation(params)) }
         }),
         std::map<std::string, LayerTransformationPtr>({
             // { "FakeQuantize", LayerTransformationPtr(new FuseFakeQuantizeAndScaleShiftTransformation(params)) },

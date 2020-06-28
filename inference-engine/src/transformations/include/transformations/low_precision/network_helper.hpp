@@ -396,8 +396,19 @@ std::shared_ptr<opset1::Constant> roundWithTolerance(std::shared_ptr<Node> node,
 std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> decomposeFakeQuantize(
     std::shared_ptr<opset1::FakeQuantize> fq, element::Type precision, float min, float max);
 
-void updateFakeQuantize(std::shared_ptr<opset1::FakeQuantize> fq, element::Type precision, float min, float max);
-FakeQuantizeDequantization getFakeQuantizeDequantization(std::shared_ptr<opset1::FakeQuantize> fq, element::Type precision, float min, float max);
+std::shared_ptr<opset1::FakeQuantize> updateFakeQuantize(std::shared_ptr<opset1::FakeQuantize> fq, element::Type precision, float min, float max);
+
+FakeQuantizeDequantization createDequantization(
+    const float dequantizationScale,
+    const float dequantizationShift,
+    const ngraph::element::Type originalPrecision,
+    const ngraph::Shape dataNodeOutputShape,
+    element::Type precision,
+    float min,
+    float max);
+
+FakeQuantizeDequantization createDequantizationFromFakeQuantize(std::shared_ptr<opset1::FakeQuantize> fq, element::Type precision, float min, float max);
+
 FakeQuantizeDequantization getDequantization(std::shared_ptr<Node> node);
 
 std::shared_ptr<Node> optimizeSubtract(std::shared_ptr<opset1::Subtract> add);

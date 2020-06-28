@@ -74,10 +74,14 @@ void NetworkHelper::updateBlobs(std::shared_ptr<opset1::FakeQuantize> quantizeLa
 int NetworkHelper::onWeightsInDepth(std::shared_ptr<Node> layer) {
     const std::vector<std::shared_ptr<Node>> children = consumers(layer);
     for (std::shared_ptr<Node> child : children) {
-        if ((layer->get_type_info().is_castable(opset1::Convolution::get_type_info_static()) ||
-             layer->get_type_info().is_castable(opset1::GroupConvolution::get_type_info_static()) ||
-             layer->get_type_info().is_castable(opset1::MatMul::get_type_info_static())) &&
-             child->inputs().size() >= 2lu) {
+        // TODO: check for is_castable & get_type_info_static
+        // if ((child->get_type_info().is_castable(opset1::Convolution::get_type_info_static()) ||
+        //    child->get_type_info().is_castable(opset1::GroupConvolution::get_type_info_static()) ||
+        //    child->get_type_info().is_castable(opset1::MatMul::get_type_info_static())) &&
+        //    child->inputs().size() >= 2lu) {}
+
+        if ((is_type<opset1::Convolution>(child) || is_type<opset1::GroupConvolution>(child) || is_type<opset1::MatMul>(child)) &&
+            (child->inputs().size() >= 2lu)) {
             const std::vector<std::shared_ptr<Node>> parents = getParentsRecursivelyExceptTypes(child, {}, 1);
             for (auto parent : parents) {
                 // ???
@@ -541,6 +545,7 @@ std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> decomposeFakeQuantize(s
             fold<opset1::Subtract>(outputHigh, outputLow),
             fold<opset1::Subtract>(newMax, newMin));
 
+        // TODO: too complex - double check
         shift = fold<opset1::Divide>(
             fold<opset1::Divide>(
                 fold<opset1::Subtract>(fold<opset1::Multiply>(newMax, outputLow), fold<opset1::Multiply>(newMin, outputHigh)),
@@ -614,14 +619,13 @@ std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> decomposeFakeQuantize(s
     return std::make_tuple(newFQ, dequantize);
 }
 
-void updateFakeQuantize(std::shared_ptr<opset1::FakeQuantize> fq, element::Type precision, float min, float max) {
-    using std::make_shared;
-
-    auto newMin = make_shared<opset1::Constant>(fq->get_output_element_type(0), Shape{}, min);
-    auto newMax = make_shared<opset1::Constant>(fq->get_output_element_type(0), Shape{}, max);
-
-    auto outputLow = fq->input_value(3);
-    auto outputHigh = fq->input_value(4);
+std::shared_ptr<opset1::FakeQuantize> updateFakeQuantize(
+    std::shared_ptr<opset1::FakeQuantize> fq,
+    element::Type precision,
+    float min,
+    float max) {
+    auto newMin = std::make_shared<opset1::Constant>(fq->get_output_element_type(0), Shape{}, min);
+    auto newMax = std::make_shared<opset1::Constant>(fq->get_output_element_type(0), Shape{}, max);
 
     // TODO: question: why we need fold?
     // auto newFQ = fold_fake_quantize<opset1::FakeQuantize>(
@@ -638,9 +642,48 @@ void updateFakeQuantize(std::shared_ptr<opset1::FakeQuantize> fq, element::Type 
     replace_node(fq, newFQ);
 
     newFQ->set_friendly_name(fq->get_friendly_name());
+    return newFQ;
 }
 
-FakeQuantizeDequantization getFakeQuantizeDequantization(std::shared_ptr<opset1::FakeQuantize> fq, element::Type precision, float min, float max) {
+FakeQuantizeDequantization createDequantization(
+    const float dequantizationScale,
+    const float dequantizationShift,
+    const ngraph::element::Type originalPrecision,
+    const ngraph::Shape dataNodeOutputShape,
+    element::Type precision,
+    float min,
+    float max) {
+    // TODO: we create input here! we really need it here?
+    const auto input = std::make_shared<ngraph::opset1::Parameter>(precision, dataNodeOutputShape);
+    std::shared_ptr<ngraph::Node> parent = input;
+
+    // TODO: convert should be optional: where is updatePrecision?
+    std::shared_ptr<ngraph::opset1::Convert> convert;
+    {
+        convert = as_type_ptr<ngraph::opset1::Convert>(fold<opset1::Convert>(
+            input,
+            originalPrecision));
+        parent = convert;
+    }
+
+    std::shared_ptr<ngraph::opset1::Subtract> subtract;
+    if (dequantizationShift != 0.f) {
+        subtract = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::Subtract>>(
+            parent,
+            std::make_shared<ngraph::opset1::Constant>(originalPrecision, ngraph::Shape({}), std::vector<float>({ dequantizationShift })));
+        subtract->set_output_type(0, originalPrecision, subtract->get_output_partial_shape(0));
+        parent = subtract;
+    }
+
+    // mandatory
+    std::shared_ptr<ngraph::opset1::Multiply> multiply = std::make_shared<ngraph::opset1::Multiply>(
+        parent,
+        std::make_shared<ngraph::opset1::Constant>(originalPrecision, ngraph::Shape({}), std::vector<float>({ dequantizationScale })));
+
+    return FakeQuantizeDequantization(precision, dataNodeOutputShape, convert, subtract, multiply);
+}
+
+FakeQuantizeDequantization createDequantizationFromFakeQuantize(std::shared_ptr<opset1::FakeQuantize> fq, element::Type precision, float min, float max) {
     using std::make_shared;
 
     auto newMin = make_shared<opset1::Constant>(fq->get_output_element_type(0), Shape{}, min);
@@ -660,6 +703,7 @@ FakeQuantizeDequantization getFakeQuantizeDequantization(std::shared_ptr<opset1:
             fold<opset1::Subtract>(outputHigh, outputLow),
             fold<opset1::Subtract>(newMax, newMin));
 
+        // TODO: too complex - double check
         shift = fold<opset1::Divide>(
             fold<opset1::Divide>(
                 fold<opset1::Subtract>(fold<opset1::Multiply>(newMax, outputLow), fold<opset1::Multiply>(newMin, outputHigh)),
@@ -679,9 +723,11 @@ FakeQuantizeDequantization getFakeQuantizeDequantization(std::shared_ptr<opset1:
     std::shared_ptr<ngraph::opset1::Convert> convert =  as_type_ptr<ngraph::opset1::Convert>(fold<opset1::Convert>(input, fq->get_output_element_type(0)));
 
     std::shared_ptr<ngraph::opset1::Subtract> sub = make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::Subtract>>(convert, shift);
+    sub->set_output_type(0, fq->get_output_element_type(0), sub->get_output_partial_shape(0));
+
     std::shared_ptr<ngraph::opset1::Multiply> multiply = make_shared<ngraph::opset1::Multiply>(sub, scale);
 
-    return FakeQuantizeDequantization(fq, convert, sub, multiply);
+    return FakeQuantizeDequantization(fq->get_output_element_type(0), fq->get_output_shape(0), convert, sub, multiply);
 }
 
 FakeQuantizeDequantization getDequantization(std::shared_ptr<Node> node) {
@@ -702,7 +748,7 @@ FakeQuantizeDequantization getDequantization(std::shared_ptr<Node> node) {
         dataNode = convert->get_input_node_shared_ptr(0);
     }
 
-    return FakeQuantizeDequantization(dataNode, convert, subtract, multiply);
+    return FakeQuantizeDequantization(dataNode->get_output_element_type(0), dataNode->get_output_shape(0), convert, subtract, multiply);
 }
 
 std::shared_ptr<Node> optimizeSubtract(std::shared_ptr<opset1::Subtract> add) {

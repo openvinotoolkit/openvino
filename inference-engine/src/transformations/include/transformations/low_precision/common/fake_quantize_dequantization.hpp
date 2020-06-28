@@ -19,12 +19,14 @@ public:
     FakeQuantizeDequantization();
 
     FakeQuantizeDequantization(
-        std::shared_ptr<Node> dataNode,
+        ngraph::element::Type dataNodeOutputPrecision,
+        ngraph::Shape dataNodeOutputShape,
         std::shared_ptr<ngraph::opset1::Convert> convert,
         std::shared_ptr<ngraph::opset1::Subtract> subtract,
         std::shared_ptr<ngraph::opset1::Multiply> multiply);
 
-    std::shared_ptr<Node> dataNode;
+    ngraph::element::Type dataNodeOutputPrecision;
+    ngraph::Shape dataNodeOutputShape;
     std::shared_ptr<ngraph::opset1::Convert> convert;
     std::shared_ptr<ngraph::opset1::Subtract> subtract;
     std::shared_ptr<ngraph::opset1::Multiply> multiply;
