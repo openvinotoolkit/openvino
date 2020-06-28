@@ -40,7 +40,7 @@ const std::vector<ngraph::builder::subgraph::FakeQuantizeOnData> fakeQuantizeOnD
 };
 
 // TODO: add something to avoid cleanup and enable
-INSTANTIATE_TEST_CASE_P(LPT, FuseFakeQuantizeTransformation,
+INSTANTIATE_TEST_CASE_P(DISABLED_LPT, FuseFakeQuantizeTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(InferenceEngine::SizeVector({ 1, 32, 72, 48 })),

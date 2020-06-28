@@ -34,7 +34,7 @@ typedef std::tuple <
     bool,
     std::vector<float>,
     std::vector<float>,
-    ngraph::element::Type,
+    ngraph::element::Type
     > FuseFakeQuantizeTransformationParams;
 
 class FuseFakeQuantizeTransformation : public LayerTransformation, public testing::WithParamInterface<FuseFakeQuantizeTransformationParams> {
