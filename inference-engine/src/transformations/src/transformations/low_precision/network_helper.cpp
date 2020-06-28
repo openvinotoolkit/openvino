@@ -572,6 +572,8 @@ std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> decomposeFakeQuantize(s
             newMax->output(0),
             fq->get_levels(),
             fq->get_auto_broadcast());
+    // TODO: for debuging only - remove later
+    newFQ->set_friendly_name(fq->get_friendly_name() + "_original");
 
     //NetworkHelper::setOutDataPrecision(newFQ, precision);
 

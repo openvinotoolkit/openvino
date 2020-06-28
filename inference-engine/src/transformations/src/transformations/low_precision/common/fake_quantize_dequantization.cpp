@@ -41,6 +41,10 @@ FakeQuantizeDequantization::FakeQuantizeDequantization(
     multiply(multiply) {
 }
 
+bool FakeQuantizeDequantization::empty() const {
+    return (convert == nullptr) && (subtract == nullptr) && (multiply == nullptr);
+}
+
 }  // namespace low_precision
 }  // namespace pass
 }  // namespace ngraph

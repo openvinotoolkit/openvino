@@ -23,7 +23,7 @@
 #include "transformations/low_precision/depth_to_space.hpp"
 #include "transformations/low_precision/fake_quantize.hpp"
 // #include "low_precision_transformations/fully_connected.hpp"
-// #include "low_precision_transformations/fuse_fake_quantize_and_scale_shift.hpp"
+#include "transformations/low_precision/fuse_fake_quantize.hpp"
 #include "transformations/low_precision/group_convolution.hpp"
 #include "transformations/low_precision/multiply.hpp"
 #include "transformations/low_precision/mat_mul.hpp"
@@ -196,7 +196,8 @@ LowPrecisionTransformations LowPrecisionTransformer::getAllTransformations(const
             // { "NormalizeL2", LayerTransformationPtr(new NormalizeL2Transformation(params)) }
         }),
         std::map<std::string, LayerTransformationPtr>({
-            // { "FakeQuantize", LayerTransformationPtr(new FuseFakeQuantizeAndScaleShiftTransformation(params)) },
+            // fuse FakeQuantize with dequantization operations BEFORE FakeQuantize, AFTER is not implemented yet
+            { "FakeQuantize", LayerTransformationPtr(new FuseFakeQuantizeTransformation(params)) },
             // { "ScaleShift", LayerTransformationPtr(new ScaleShiftToConvolutionTransformation(params)) },  // ???
             // { "MultiplyAdd", LayerTransformationPtr(new DecomposeMultiplyAddTransformation(params)) },
             // { "Subtract", LayerTransformationPtr(new SubtractTransformation(params)) },

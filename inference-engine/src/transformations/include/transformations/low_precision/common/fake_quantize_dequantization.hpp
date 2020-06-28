@@ -25,6 +25,8 @@ public:
         std::shared_ptr<ngraph::opset1::Subtract> subtract,
         std::shared_ptr<ngraph::opset1::Multiply> multiply);
 
+    bool empty() const;
+
     ngraph::element::Type dataNodeOutputPrecision;
     ngraph::Shape dataNodeOutputShape;
     std::shared_ptr<ngraph::opset1::Convert> convert;
