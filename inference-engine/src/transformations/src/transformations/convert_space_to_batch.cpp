@@ -9,12 +9,13 @@
 
 #include <ngraph/opsets/opset2.hpp>
 #include <ngraph/rt_info.hpp>
+#include <ngraph/builder/reshape.hpp>
 
 void ngraph::pass::ConvertSpaceToBatch::convert_space_to_batch() {
     auto input0 = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1, 1});
-    auto input1 = ngraph::op::Constant::create(element::i64, Shape{4}, Shape{1, 1, 1, 1});
-    auto input2 = ngraph::op::Constant::create(element::i64, Shape{4}, {0, 0, 0, 0});
-    auto input3 = ngraph::op::Constant::create(element::i64, Shape{4}, {0, 0, 0, 0});
+    auto input1 = ngraph::opset2::Constant::create(element::i64, Shape{4}, Shape{1, 1, 1, 1});
+    auto input2 = ngraph::opset2::Constant::create(element::i64, Shape{4}, {0, 0, 0, 0});
+    auto input3 = ngraph::opset2::Constant::create(element::i64, Shape{4}, {0, 0, 0, 0});
     auto space_to_batch = std::make_shared<ngraph::opset2::SpaceToBatch>(input0, input1, input2, input3);
 
     ngraph::graph_rewrite_callback callback = [](pattern::Matcher& m) {
@@ -22,9 +23,77 @@ void ngraph::pass::ConvertSpaceToBatch::convert_space_to_batch() {
         if (!space_to_batch) {
             return false;
         }
-        auto last_node = space_to_batch->decompose_op()[0];
-        last_node->set_friendly_name(space_to_batch->get_friendly_name());
-        ngraph::replace_node(space_to_batch, last_node);
+
+        auto data = space_to_batch->input_value(0);
+        auto block = space_to_batch->input_value(1);
+        auto pads_begin = space_to_batch->input_value(2);
+        auto pads_end = space_to_batch->input_value(3);
+
+        const auto& data_shape = data.get_shape();
+
+        const auto block_const = std::dynamic_pointer_cast<opset2::Constant>(block.get_node_shared_ptr());
+        const auto pads_begin_const = std::dynamic_pointer_cast<opset2::Constant>(pads_begin.get_node_shared_ptr());
+        const auto pads_end_const = std::dynamic_pointer_cast<opset2::Constant>(pads_end.get_node_shared_ptr());
+
+        if (!block_const || !pads_begin_const || !pads_end_const) {
+            return false;
+        }
+
+        std::vector<int64_t> block_values;
+        block_values = block_const->cast_vector<int64_t>();
+
+        //    Zero-pad the start and end of dimensions [D_0, ..., D_{N - 1}] of the input according to
+        //    `pads_begin`
+        //    and `pads_end`:
+        //    note: P_0 for batch dimension is expected to be 0 (no-padding).
+        //      x = [batch + P_0, D_1 + P_1, D_2 + P_2, ..., D_{N - 1} + P_{N - 1}], where P_i =
+        //      pads_begin[i] + pads_end[i]
+        auto out = std::make_shared<opset2::Pad>(data, pads_begin_const, pads_end_const, ngraph::op::PadMode::CONSTANT);
+        auto out_shape = out->get_shape();
+
+        // First we have to disperse the data from spatial dimensions, then
+        // rearrange them so as appropriate chunks of data where close to their
+        // destination place. Finally squeeze data from respective dimensions.
+        Shape dispersed_shape{out_shape.at(0)};
+
+        //    note: B_0 for batch is ignored.
+        //      x' = reshape(x, [batch, (D_1 + P_1) / B_1, B_1, (D_2 + P_2) / B_2, B_2, ...,
+        //      (D_{N - 1} + P_{N - 1}) / B_{N - 1}, B_{N - 1}]), where B_i = block_shape[i]
+        for (size_t i = 1; i < block_values.size(); ++i) {
+            dispersed_shape.push_back(out_shape.at(i) / block_values.at(i));
+            dispersed_shape.push_back(block_values.at(i));
+        }
+        auto flat_node = builder::opset1::reshape(out, dispersed_shape);
+
+        //    x'' = transpose(x',  [2, 4, ..., (N - 1) + (N - 1), 0, 1, 3, ..., N + (N - 1)])
+        std::vector<size_t> axes_order;
+        for (size_t i = 0, j = 2; i < block_values.size() - 1; ++i, j += 2) {
+            axes_order.push_back(j);
+        }
+        axes_order.push_back(0);
+        for (size_t i = 0, j = 1; i < block_values.size() - 1; ++i, j += 2) {
+            axes_order.push_back(j);
+        }
+
+        flat_node = builder::opset1::reorder_axes(flat_node, axes_order);
+        Shape squeezed_shape;
+        int64_t prod = 1;
+        for (const auto& el : block_values) {
+            prod *= el;
+        }
+
+        //    y = reshape(x'', [batch * B_1 * ... * B_{N - 1}, (D_1 + P_1) / B_1, (D_2 + P_2) / B_2, ...
+        //    ,
+        //      (D_{N - 1} + P_{N - 1}) / B_{N - 1}])
+        squeezed_shape.push_back(out_shape.at(0) * prod);
+        for (size_t i = 1; i < block_values.size(); ++i) {
+            squeezed_shape.push_back(out_shape.at(i) / block_values.at(i));
+        }
+        flat_node = ngraph::builder::opset1::reshape(flat_node, squeezed_shape);
+
+        flat_node->set_friendly_name(space_to_batch->get_friendly_name());
+        ngraph::copy_runtime_info(space_to_batch, flat_node);
+        ngraph::replace_node(space_to_batch, flat_node);
         return true;
     };
 
