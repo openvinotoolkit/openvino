@@ -33,17 +33,6 @@ void ConvolutionTransformation::registerMatcherIn(GraphRewrite &pass, Transforma
 void ConvolutionTransformation::transform(TransformationContext &context, ngraph::pattern::Matcher &m) const {
     auto convolution = m.get_match_root();
 
-    //std::unordered_set<std::string> handlingLayers = {
-    //    // 3
-    //    // "InceptionV2/InceptionV2/Conv2d_2b_1x1/BatchNorm/FusedBatchNormV3/variance/Fused_Add_",
-    //    // 4
-    //    "InceptionV2/InceptionV2/Conv2d_2c_3x3/Conv2D"
-    //};
-
-    //if (handlingLayers.find(convolution->get_friendly_name()) == handlingLayers.end()) {
-    //    return;
-    //}
-
     // Almost all checks that was in WeightableLayerTransformation now should be included into the pattern in registerMatcherIn
     if (!WeightableLayerTransformation::canBeTransformed(context, convolution)) {
         return;
@@ -207,7 +196,7 @@ void ConvolutionTransformation::transform(TransformationContext &context, ngraph
     //                    newScaleShape)->output(0),
     //            false));
 
-    std::cout << "ConvolutionTransformation::transform: done: " << convolution->get_friendly_name() << std::endl;
+    // std::cout << "ConvolutionTransformation::transform: done: " << convolution->get_friendly_name() << std::endl;
 }
 
 void ConvolutionTransformation::transform2(TransformationContext &context, ngraph::pattern::Matcher &m) const {
