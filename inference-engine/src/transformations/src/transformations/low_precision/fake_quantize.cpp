@@ -133,6 +133,7 @@ void FakeQuantizeTransformation::transform(TransformationContext& context, ngrap
     // TODO: hardcoded
     // NetworkHelper::setOutDataPrecision(quantize, element::u8);
 
+    // TODO: for debuging only - remove later
     auto dequantize = as_type_ptr<ngraph::Node>(std::get<1>(QDQ));
     dequantize->set_friendly_name(layer->get_friendly_name());
 
