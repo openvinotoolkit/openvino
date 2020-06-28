@@ -179,14 +179,14 @@ void ConvolutionTransformation::transform(TransformationContext &context, ngraph
     // pass::VisualizeTree("C:\\Projects\\temp\\test.transformed").run_on_module(std::vector<std::shared_ptr<ngraph::Function>>{ context.network });
 
 
-    //std::shared_ptr<Node> newParentOnData;
-    //if (dequantizationOnData.subtract != nullptr) {
+    // std::shared_ptr<Node> newParentOnData;
+    // if (dequantizationOnData.subtract != nullptr) {
     //    parent = dequantizationOnData.subtract;
-    //} else {
+    // } else {
     //    dequantizationOnData.convert
-    //}
+    // }
 
-    //std::shared_ptr<ngraph::opset1::Multiply> newMultiplyAfter = std::make_shared<opset1::Multiply>(
+    // std::shared_ptr<ngraph::opset1::Multiply> newMultiplyAfter = std::make_shared<opset1::Multiply>(
     //    convolution->copy_with_new_inputs({convolution->input_value(0), newMultiplyFromWeights->input_value(0)}),
     //    fold_reshape<opset1::Reshape>(
     //            newMultiplyFromWeights->input_value(1),
