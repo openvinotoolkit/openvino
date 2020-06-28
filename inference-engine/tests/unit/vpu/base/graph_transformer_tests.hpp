@@ -81,6 +81,7 @@ class TestModel final {
 public:
     TestModel() = default;
     TestModel(const Model& model);
+    TestModel(const Model& model, const DataDesc& dataDesc);
 
     const Model& getBaseModel() const;
     const DataVector& getInputs() const;
@@ -90,7 +91,14 @@ public:
     void createInputs(std::vector<DataDesc> inputDescs);
     void createOutputs(std::vector<DataDesc> outputDescs);
 
+    void createInputs(int numInputs);
+    void createOutputs(int numOutputs);
+
     Stage addStage(
+            std::initializer_list<InputInfo> curInputInfos,
+            std::initializer_list<OutputInfo> curOutputInfos);
+
+    Stage _addStage(
             std::initializer_list<InputInfo> curInputInfos,
             std::initializer_list<OutputInfo> curOutputInfos);
 
@@ -110,6 +118,7 @@ public:
 
 private:
     Model _model;
+    DataDesc _dataDesc;
 
     DataVector _inputs;
     DataVector _outputs;
@@ -144,6 +153,8 @@ public:
     Model CreateModel();
 
     TestModel CreateTestModel();
+
+    TestModel CreateTestModel(const DataDesc& dataDesc);
 
 private:
     MockICore  _mockCore;

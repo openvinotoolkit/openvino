@@ -108,6 +108,10 @@ void TestStage::serializeDataImpl(BlobSerializer&) const {
 
 TestModel::TestModel(const Model& model) : _model(model) {}
 
+TestModel::TestModel(const Model& model, const DataDesc& dataDesc) :
+        _model(model), _dataDesc(dataDesc) {
+}
+
 const Model& TestModel::getBaseModel() const {
     return _model;
 }
@@ -146,6 +150,24 @@ void TestModel::createOutputs(std::vector<DataDesc> outputDescs) {
     }
 }
 
+void TestModel::createInputs(int numInputs) {
+    _model->attrs().set<int>("numInputs", numInputs);
+    _inputs.resize(numInputs);
+
+    for (int i = 0; i < numInputs; ++i) {
+        _inputs[i] = _model->addInputData(formatString("Input %d", i), _dataDesc);
+    }
+}
+
+void TestModel::createOutputs(int numOutputs) {
+    _model->attrs().set<int>("numOutputs", numOutputs);
+    _outputs.resize(numOutputs);
+
+    for (int i = 0; i < numOutputs; ++i) {
+        _outputs[i] = _model->addOutputData(formatString("Output %d", i), _dataDesc);
+    }
+}
+
 Stage TestModel::addStage(
         std::initializer_list<InputInfo> curInputInfos,
         std::initializer_list<OutputInfo> curOutputInfos) {
@@ -179,6 +201,41 @@ Stage TestModel::addStage(
 
     return stage;
 }
+
+Stage TestModel::_addStage(
+        std::initializer_list<InputInfo> curInputInfos,
+        std::initializer_list<OutputInfo> curOutputInfos) {
+    DataVector curInputs;
+    for (const auto& info : curInputInfos) {
+        if (info.type == InputType::Original) {
+            curInputs.push_back(_inputs.at(info.originalInputInd));
+        } else {
+            curInputs.push_back(_stages.at(info.prevStageInd)->output(info.prevStageOutputInd));
+        }
+    }
+
+    DataVector curOutputs;
+    for (const auto& info : curOutputInfos) {
+        if (info.type == OutputType::Original) {
+            curOutputs.push_back(_outputs.at(info.originalOutputInd));
+        } else {
+            curOutputs.push_back(_model->addNewData(formatString("Data %d / %d", _stages.size(), curOutputs.size()), _dataDesc));
+        }
+    }
+
+    auto stage = _model->addNewStage<TestStage>(
+            formatString("Stage %m%m%d", std::setw(2), std::setfill('0'), _stages.size()),
+            StageType::None,
+            nullptr,
+            curInputs,
+            curOutputs);
+    stage->attrs().set<int>("test_ind", _stages.size());
+
+    _stages.push_back(stage);
+
+    return stage;
+}
+
 void TestModel::setStageDataOrderInfo(
         int stageInd,
         const InOutPortMap<DimsOrder>& inputInfo,
@@ -318,6 +375,10 @@ Model GraphTransformerTest::CreateModel() {
 
 TestModel GraphTransformerTest::CreateTestModel() {
     return TestModel(CreateModel());
+}
+
+TestModel GraphTransformerTest::CreateTestModel(const DataDesc& dataDesc) {
+    return TestModel(CreateModel(), dataDesc);
 }
 
 } // namespace vpu
