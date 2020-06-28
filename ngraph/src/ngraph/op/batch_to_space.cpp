@@ -37,13 +37,14 @@ ngraph::op::v1::BatchToSpace::BatchToSpace(const ngraph::Output<ngraph::Node>& d
     constructor_validate_and_infer_types();
 }
 
-void op::v1::BatchToSpace::validate_and_infer_types() {
+void op::v1::BatchToSpace::validate_and_infer_types()
+{
     PartialShape data_pshape = get_input_partial_shape(0);
 
-    const auto &data_type = get_input_element_type(0);
-    const auto &block_shape_type = get_input_element_type(1);
-    const auto &crops_begin_type = get_input_element_type(2);
-    const auto &crops_end_type = get_input_element_type(3);
+    const auto& data_type = get_input_element_type(0);
+    const auto& block_shape_type = get_input_element_type(1);
+    const auto& crops_begin_type = get_input_element_type(2);
+    const auto& crops_end_type = get_input_element_type(3);
 
     NODE_VALIDATION_CHECK(this,
                           block_shape_type.is_integral_number(),
@@ -68,19 +69,27 @@ void op::v1::BatchToSpace::validate_and_infer_types() {
     auto crops_begin = input_value(2);
     auto crops_end = input_value(3);
 
-    if (block.get_node_shared_ptr()->is_constant() && crops_begin.get_node_shared_ptr()->is_constant() &&
-        crops_end.get_node_shared_ptr()->is_constant() && data_pshape.is_static()) {
-        const auto &data_shape = data.get_shape();
+    if (block.get_node_shared_ptr()->is_constant() &&
+        crops_begin.get_node_shared_ptr()->is_constant() &&
+        crops_end.get_node_shared_ptr()->is_constant() && data_pshape.is_static())
+    {
+        const auto& data_shape = data.get_shape();
 
-        NODE_VALIDATION_CHECK(this,
-                              (data_shape.size() >= 2),
-                              "The data tensor with rank lower than 2 is not supported (data rank: ",
-                              data_shape.size(),
-                              ")");
+        NODE_VALIDATION_CHECK(
+            this,
+            (data_shape.size() >= 2),
+            "The data tensor with rank lower than 2 is not supported (data rank: ",
+            data_shape.size(),
+            ")");
 
-        auto block_val = std::dynamic_pointer_cast<op::Constant>(block.get_node_shared_ptr())->cast_vector<int64_t>();
-        auto crops_begin_val = std::dynamic_pointer_cast<op::Constant>(crops_begin.get_node_shared_ptr())->cast_vector<int64_t>();
-        auto crops_end_val = std::dynamic_pointer_cast<op::Constant>(crops_end.get_node_shared_ptr())->cast_vector<int64_t>();
+        auto block_val = std::dynamic_pointer_cast<op::Constant>(block.get_node_shared_ptr())
+                             ->cast_vector<int64_t>();
+        auto crops_begin_val =
+            std::dynamic_pointer_cast<op::Constant>(crops_begin.get_node_shared_ptr())
+                ->cast_vector<int64_t>();
+        auto crops_end_val =
+            std::dynamic_pointer_cast<op::Constant>(crops_end.get_node_shared_ptr())
+                ->cast_vector<int64_t>();
 
         int64_t block_prod = 1;
         for (long val : block_val)
@@ -100,13 +109,15 @@ void op::v1::BatchToSpace::validate_and_infer_types() {
         Shape output_shape = {static_cast<size_t>(data_shape[0] / block_prod)};
         for (size_t idx = 1; idx < data_shape.size(); ++idx)
         {
-            output_shape.push_back(
-                    static_cast<size_t>(data_shape[idx] * block_val[idx] - crops_begin_val[idx] - crops_end_val[idx]));
+            output_shape.push_back(static_cast<size_t>(data_shape[idx] * block_val[idx] -
+                                                       crops_begin_val[idx] - crops_end_val[idx]));
         }
 
         set_output_size(1);
         set_output_type(0, data_type, output_shape);
-    } else {
+    }
+    else
+    {
         set_output_type(0, data_type, PartialShape::dynamic());
     }
 }

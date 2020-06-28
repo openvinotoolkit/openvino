@@ -67,20 +67,26 @@ void op::v1::SpaceToBatch::validate_and_infer_types()
     auto pads_begin = input_value(2);
     auto pads_end = input_value(3);
 
-    if (block.get_node_shared_ptr()->is_constant() && pads_begin.get_node_shared_ptr()->is_constant() &&
-            pads_end.get_node_shared_ptr()->is_constant() && data_pshape.is_static())
+    if (block.get_node_shared_ptr()->is_constant() &&
+        pads_begin.get_node_shared_ptr()->is_constant() &&
+        pads_end.get_node_shared_ptr()->is_constant() && data_pshape.is_static())
     {
         const auto& data_shape = data.get_shape();
 
-        NODE_VALIDATION_CHECK(this,
-                              (data_shape.size() >= 2),
-                              "The data tensor with rank lower than 2 is not supported (data rank: ",
-                              data_shape.size(),
-                              ")");
+        NODE_VALIDATION_CHECK(
+            this,
+            (data_shape.size() >= 2),
+            "The data tensor with rank lower than 2 is not supported (data rank: ",
+            data_shape.size(),
+            ")");
 
-        auto block_val = std::dynamic_pointer_cast<op::Constant>(block.get_node_shared_ptr())->cast_vector<int64_t>();
-        auto pads_begin_val = std::dynamic_pointer_cast<op::Constant>(pads_begin.get_node_shared_ptr())->cast_vector<int64_t>();
-        auto pads_end_val= std::dynamic_pointer_cast<op::Constant>(pads_end.get_node_shared_ptr())->cast_vector<int64_t>();
+        auto block_val = std::dynamic_pointer_cast<op::Constant>(block.get_node_shared_ptr())
+                             ->cast_vector<int64_t>();
+        auto pads_begin_val =
+            std::dynamic_pointer_cast<op::Constant>(pads_begin.get_node_shared_ptr())
+                ->cast_vector<int64_t>();
+        auto pads_end_val = std::dynamic_pointer_cast<op::Constant>(pads_end.get_node_shared_ptr())
+                                ->cast_vector<int64_t>();
 
         int64_t block_prod = 1;
         for (long idx : block_val)
@@ -90,16 +96,21 @@ void op::v1::SpaceToBatch::validate_and_infer_types()
         for (size_t idx = 1; idx < data_shape.size(); ++idx)
         {
             NODE_VALIDATION_CHECK(
-                    this, block_val.at(idx) > 0, "block_shape values must be greater than 0");
-            NODE_VALIDATION_CHECK(this,
-                                  (pads_begin_val.at(idx) + data_shape.at(idx) + pads_end_val.at(idx)) % block_val.at(idx) == 0,
-                                  "The dimension on position: ",
-                                  idx,
-                                  " equal to: ",
-                                  pads_begin_val.at(idx) + data_shape.at(idx) + pads_end_val.at(idx),
-                                  " must be a multiple of block_values[i]: ",
-                                  block_val.at(idx));
-            output_shape.push_back(static_cast<size_t>(pads_begin_val[idx] + data_shape[idx] + pads_end_val[idx])/block_val[idx]);
+                this, block_val.at(idx) > 0, "block_shape values must be greater than 0");
+            NODE_VALIDATION_CHECK(
+                this,
+                (pads_begin_val.at(idx) + data_shape.at(idx) + pads_end_val.at(idx)) %
+                        block_val.at(idx) ==
+                    0,
+                "The dimension on position: ",
+                idx,
+                " equal to: ",
+                pads_begin_val.at(idx) + data_shape.at(idx) + pads_end_val.at(idx),
+                " must be a multiple of block_values[i]: ",
+                block_val.at(idx));
+            output_shape.push_back(
+                static_cast<size_t>(pads_begin_val[idx] + data_shape[idx] + pads_end_val[idx]) /
+                block_val[idx]);
         }
 
         set_output_size(1);
