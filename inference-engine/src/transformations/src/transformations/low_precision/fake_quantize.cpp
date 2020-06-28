@@ -32,17 +32,6 @@ void FakeQuantizeTransformation::registerMatcherIn(GraphRewrite& pass, Transform
 void FakeQuantizeTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) const {
     auto layer = std::dynamic_pointer_cast<opset1::FakeQuantize>(m.get_match_root());
 
-    //std::unordered_set<std::string> handlingLayers = {
-    //    // 3
-    //    // "InceptionV2/InceptionV2/MaxPool_2a_3x3/MaxPool/fq_input_0",
-    //    // 4
-    //    "InceptionV2/InceptionV2/Conv2d_2c_3x3/Conv2D/fq_input_0"
-    //};
-
-    //if (handlingLayers.find(layer->get_friendly_name()) == handlingLayers.end()) {
-    //    return;
-    //}
-
     const std::deque<descriptor::Output> outputs = layer->get_outputs();
     const ngraph::element::Type precision = outputs.begin()->get_element_type();
     // TODO: extract to separate method (isQuantized)
@@ -128,7 +117,7 @@ void FakeQuantizeTransformation::transform(TransformationContext& context, ngrap
             dataPrecision.max);
 
     std::vector<std::shared_ptr<ngraph::Function>> transformedModule{ context.network };
-    ngraph::pass::VisualizeTree("C:\\Projects\\temp\\test.transformed").run_on_module(transformedModule);
+    // ngraph::pass::VisualizeTree("C:\\Projects\\temp\\test.transformed").run_on_module(transformedModule);
 
     // To disable application of the same transform twice on the same node
     // TODO: Handle it through node property
@@ -152,7 +141,9 @@ void FakeQuantizeTransformation::transform(TransformationContext& context, ngrap
     const std::string friendlyName = layer->get_friendly_name();
     context.quantizedFakeQuantizeNames.insert(friendlyName);
 
-    std::cout << "FakeQuantizeTransformation::transform: done: " << layer->get_friendly_name() << std::endl;
+    // ngraph::pass::VisualizeTree("C:\\Projects\\temp\\test.transformed").run_on_module(transformedModule);
+
+    // std::cout << "FakeQuantizeTransformation::transform: done: " << layer->get_friendly_name() << std::endl;
 }
 
 bool FakeQuantizeTransformation::isPrecisionPreserved(std::shared_ptr<Node>) const noexcept {
