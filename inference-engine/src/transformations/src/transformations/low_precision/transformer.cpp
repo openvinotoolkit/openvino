@@ -16,6 +16,7 @@
 #include <vector>
 
 #include "transformations/low_precision/add.hpp"
+#include "transformations/low_precision/avg_pool.hpp"
 #include "transformations/low_precision/concat.hpp"
 #include "transformations/low_precision/concat_multi_channels.hpp"
 // #include "low_precision_transformations/const.hpp"
@@ -179,6 +180,7 @@ LowPrecisionTransformations LowPrecisionTransformer::getAllTransformations(const
             // { "Concat", LayerTransformationPtr(new ConcatMultiChannelsTransformation(params))}
         }),
         std::map<std::string, LayerTransformationPtr>({
+            { "AvgPool", LayerTransformationPtr(new AvgPoolTransformation(params)) },
             { "Convolution", LayerTransformationPtr(new ConvolutionTransformation(params)) },
             //// { "GroupConvolution", LayerTransformationPtr(new GroupConvolutionTransformation(params)) },
             ////// { "AvgPool", LayerTransformationPtr(new AvgPoolTransformation(params)) },
@@ -243,6 +245,7 @@ public:
 
 TypeRelaxedReplacer::TypeRelaxedReplacer() {
     // List all operations that support polymorphic inputs/outputs
+    make_matcher_type_relaxed<opset1::AvgPool>(this);
     make_matcher_type_relaxed<opset1::FakeQuantize>(this);
     make_matcher_type_relaxed<opset1::Convolution>(this);
     make_matcher_type_relaxed<opset1::Relu>(this);
