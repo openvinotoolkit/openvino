@@ -38,9 +38,6 @@ void AddTransformation::registerMatcherIn(GraphRewrite &pass, TransformationCont
 
 void AddTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) const {
     auto add = as_type_ptr<opset1::Add>(m.get_match_root());
-    if (add->get_friendly_name() == "InceptionV2/InceptionV2/Conv2d_2c_3x3/BatchNorm/FusedBatchNormV3/variance/Fused_Add_") {
-        std::cout << "AddTransformation::transform: " << add->get_friendly_name() << std::endl;
-    }
     // Limited implementation: fuse only Add(Multiply, Const) or Add(Const, Multply), nothing else
 
     // Figure out where SS and where is Constant
