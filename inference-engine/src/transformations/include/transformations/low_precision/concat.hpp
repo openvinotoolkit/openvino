@@ -33,12 +33,12 @@ protected:
             std::vector<FakeQuantizeDequantization>& dequantizationsToConcatenate)> getLayerDequantizationCallback) const;
 
 private:
-    static void fillDequantization(
-        ngraph::Node& layer,
-        const std::unordered_map<std::string, FakeQuantizeDequantization>& dequantizationByFakeQuantize,
-        std::vector<FakeQuantizeDequantization>& dequantizationsToConcatenate);
-
-    static void fillQuantization(const ngraph::Node& layer, std::vector<ngraph::opset1::FakeQuantize*>& fakeQuantizes);
+    size_t getMinQuantizationLevels(
+        const DataPrecision& dataPrecision,
+        const float maxOutputInterval,
+        const std::vector<QuantizationDetails>& quantizationLayersDetails,
+        const float outputLowValue,
+        const float outputHighValue) const;
 };
 
 }// namespace low_precision
