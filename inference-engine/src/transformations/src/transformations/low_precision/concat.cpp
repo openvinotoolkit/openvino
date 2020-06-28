@@ -35,7 +35,10 @@ void ConcatTransformation::registerMatcherIn(GraphRewrite& pass, TransformationC
     //    make_op_pattern<opset1::Concat>({ make_op_label<ngraph::opset1::Multiply>(), make_op_label<ngraph::opset1::Multiply>() }));
 
     // TODO: current way
+
     // TODO: unlimited FQ amount
+    // addSingleNodePattern<opset1::FakeQuantize>(pass, context);
+
     addPattern(
         pass,
         context,
