@@ -180,8 +180,8 @@ LowPrecisionTransformations LowPrecisionTransformer::getAllTransformations(const
         }),
         std::map<std::string, LayerTransformationPtr>({
             { "Convolution", LayerTransformationPtr(new ConvolutionTransformation(params)) },
-            // { "GroupConvolution", LayerTransformationPtr(new GroupConvolutionTransformation(params)) },
-            //// { "AvgPool", LayerTransformationPtr(new AvgPoolTransformation(params)) },
+            //// { "GroupConvolution", LayerTransformationPtr(new GroupConvolutionTransformation(params)) },
+            ////// { "AvgPool", LayerTransformationPtr(new AvgPoolTransformation(params)) },
             { "MaxPool", LayerTransformationPtr(new MaxPoolTransformation(params)) },
             { "FakeQuantize", LayerTransformationPtr(new FakeQuantizeTransformation(params)) },
             // { "Reshape", LayerTransformationPtr(new ReshapeTransformation(params)) },
@@ -250,6 +250,10 @@ TypeRelaxedReplacer::TypeRelaxedReplacer() {
     make_matcher_type_relaxed<opset1::Subtract>(this);
     make_matcher_type_relaxed<ngraph::op::Subtract>(this);
     make_matcher_type_relaxed<opset1::NormalizeL2>(this);
+    make_matcher_type_relaxed<opset1::Concat>(this);
+
+    // can we do it?
+    make_matcher_type_relaxed<opset1::Multiply>(this);
 }
 
 LowPrecisionTransformer::LowPrecisionTransformer(const LowPrecisionTransformations& transformations)
