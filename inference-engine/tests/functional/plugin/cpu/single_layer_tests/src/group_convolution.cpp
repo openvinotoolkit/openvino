@@ -2,83 +2,62 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <single_layer_tests/group_convolution.hpp>
-#include "cpu_test_utils.hpp"
+#include "../include/group_convolution.hpp"
 
-using namespace InferenceEngine;
-using namespace CPUTestUtils;
+using namespace CPUTestUtils::GroupConv;
 
 namespace CPULayerTestsDefinitions {
 
-typedef std::tuple<
-        std::vector<cpu_memory_format_t>,
-        std::vector<cpu_memory_format_t>,
-        std::vector<std::string>,
-        std::string> groupConvCPUSpecificParams;
+std::string GroupConvolutionLayerCPUTest::getTestCaseName(testing::TestParamInfo<groupConvLayerCPUTestParamsSet> obj) {
+    groupConvLayerTestParamsSet basicParamsSet;
+    CPUSpecificParams cpuParams;
+    std::tie(basicParamsSet, cpuParams) = obj.param;
 
-typedef std::tuple<
-        groupConvLayerTestParamsSet,
-        groupConvCPUSpecificParams> groupConvLayerCPUTestParamsSet;
-
-class GroupConvolutionLayerCPUTest : public testing::WithParamInterface<groupConvLayerCPUTestParamsSet>,
-                                     public LayerTestsUtils::LayerTestsCommon {
-public:
-    static std::string getTestCaseName(testing::TestParamInfo<groupConvLayerCPUTestParamsSet> obj) {
-        groupConvLayerTestParamsSet basicParamsSet;
-        groupConvCPUSpecificParams cpuParams;
-        std::tie(basicParamsSet, cpuParams) = obj.param;
-
-        std::ostringstream result;
-        result << LayerTestsDefinitions::GroupConvolutionLayerTest::getTestCaseName(testing::TestParamInfo<groupConvLayerTestParamsSet>(
-                basicParamsSet, 0));
-
-        std::vector<cpu_memory_format_t> inFmts, outFmts;
-        std::vector<std::string> priority;
-        std::string selectedType;
-        std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
-
-        result << "_inFmts=" << CPUTestUtils::fmts2str(inFmts);
-        result << "_outFmts=" << CPUTestUtils::fmts2str(outFmts);
-        result << "_primitive=" << selectedType;
-
-        return result.str();
-    }
-
-protected:
-    void SetUp() {
-        groupConvLayerTestParamsSet basicParamsSet;
-        groupConvCPUSpecificParams cpuParams;
-        std::tie(basicParamsSet, cpuParams) = this->GetParam();
-
-        std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
-
-        groupConvSpecificParams groupConvParams;
-        std::vector<size_t> inputShape;
-        auto netPrecision   = InferenceEngine::Precision::UNSPECIFIED;
-        std::tie(groupConvParams, netPrecision, inputShape, targetDevice) = basicParamsSet;
-
-        ngraph::op::PadType padType;
-        InferenceEngine::SizeVector kernel, stride, dilation;
-        std::vector<ptrdiff_t> padBegin, padEnd;
-        size_t convOutChannels, numGroups;
-        std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, numGroups, padType) = groupConvParams;
-
-        auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-        auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
-        auto paramOuts = ngraph::helpers::convert2OutputVector(
-                ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
-        auto groupConv = std::dynamic_pointer_cast<ngraph::opset1::GroupConvolution>(
-                ngraph::builder::makeGroupConvolution(paramOuts[0], ngPrc, kernel, stride, padBegin,
-                                                      padEnd, dilation, padType, convOutChannels, numGroups));
-        groupConv->get_rt_info() = CPUTestUtils::setCPUInfo(inFmts, outFmts, priority);
-        ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(groupConv)};
-        function = std::make_shared<ngraph::Function>(results, params, "groupConvolution");
-    }
+    std::ostringstream result;
+    result << LayerTestsDefinitions::GroupConvolutionLayerTest::getTestCaseName(testing::TestParamInfo<groupConvLayerTestParamsSet>(
+            basicParamsSet, 0));
 
     std::vector<cpu_memory_format_t> inFmts, outFmts;
     std::vector<std::string> priority;
     std::string selectedType;
-};
+    std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
+
+    result << "_inFmts=" << CPUTestUtils::fmts2str(inFmts);
+    result << "_outFmts=" << CPUTestUtils::fmts2str(outFmts);
+    result << "_primitive=" << selectedType;
+
+    return result.str();
+}
+
+void GroupConvolutionLayerCPUTest::SetUp() {
+    groupConvLayerTestParamsSet basicParamsSet;
+    CPUSpecificParams cpuParams;
+    std::tie(basicParamsSet, cpuParams) = this->GetParam();
+
+    std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
+
+    groupConvSpecificParams groupConvParams;
+    std::vector<size_t> inputShape;
+    auto netPrecision   = InferenceEngine::Precision::UNSPECIFIED;
+    std::tie(groupConvParams, netPrecision, inputShape, targetDevice) = basicParamsSet;
+
+    ngraph::op::PadType padType;
+    InferenceEngine::SizeVector kernel, stride, dilation;
+    std::vector<ptrdiff_t> padBegin, padEnd;
+    size_t convOutChannels, numGroups;
+    std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, numGroups, padType) = groupConvParams;
+
+    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+    auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
+    auto paramOuts = ngraph::helpers::convert2OutputVector(
+            ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
+    auto groupConv = std::dynamic_pointer_cast<ngraph::opset1::GroupConvolution>(
+            ngraph::builder::makeGroupConvolution(paramOuts[0], ngPrc, kernel, stride, padBegin,
+                                                  padEnd, dilation, padType, convOutChannels, numGroups));
+    groupConv->get_rt_info() = CPUTestUtils::setCPUInfo(inFmts, outFmts, priority);
+    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(groupConv)};
+    function = std::make_shared<ngraph::Function>(results, params, "groupConvolution");
+}
 
 TEST_P(GroupConvolutionLayerCPUTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
@@ -88,52 +67,6 @@ TEST_P(GroupConvolutionLayerCPUTest, CompareWithRefs) {
 }
 
 namespace {
-
-/* CPU PARAMS */
-const auto cpuParams_ref_2D = groupConvCPUSpecificParams{{nchw}, {nchw}, {"ref_any"}, "ref_any_FP32"};
-const auto cpuParams_ref_3D = groupConvCPUSpecificParams{{ncdhw}, {ncdhw}, {"ref_any"}, "ref_any_FP32"};
-
-const auto cpuParams_gemm_2D = groupConvCPUSpecificParams{{nchw}, {nchw}, {"gemm_any"}, "jit_gemm_FP32"};
-const auto cpuParams_gemm_3D = groupConvCPUSpecificParams{{ncdhw}, {ncdhw}, {"gemm_any"}, "jit_gemm_FP32"};
-
-const auto cpuParams_sse42_2D = groupConvCPUSpecificParams{{nChw8c}, {nChw8c}, {"jit_sse42"}, "jit_sse42_FP32"};
-const auto cpuParams_sse42_3D = groupConvCPUSpecificParams{{nCdhw8c}, {nCdhw8c}, {"jit_sse42"}, "jit_sse42_FP32"};
-const auto cpuParams_sse42_dw_2D = groupConvCPUSpecificParams{{nChw8c}, {nChw8c}, {"jit_sse42_dw"}, "jit_sse42_dw_FP32"};
-const auto cpuParams_sse42_dw_3D = groupConvCPUSpecificParams{{nCdhw8c}, {nCdhw8c}, {"jit_sse42_dw"}, "jit_sse42_dw_FP32"};
-
-const auto cpuParams_avx2_2D = groupConvCPUSpecificParams{{nChw8c}, {nChw8c}, {"jit_avx2"}, "jit_avx2_FP32"};
-const auto cpuParams_avx2_3D = groupConvCPUSpecificParams{{nCdhw8c}, {nCdhw8c}, {"jit_avx2"}, "jit_avx2_FP32"};
-const auto cpuParams_avx2_dw_2D = groupConvCPUSpecificParams{{nChw8c}, {nChw8c}, {"jit_avx2_dw"}, "jit_avx2_dw_FP32"};
-const auto cpuParams_avx2_dw_3D = groupConvCPUSpecificParams{{nCdhw8c}, {nCdhw8c}, {"jit_avx2_dw"}, "jit_avx2_dw_FP32"};
-
-const auto cpuParams_avx512_2D = groupConvCPUSpecificParams{{nChw16c}, {nChw16c}, {"jit_avx512"}, "jit_avx512_FP32"};
-const auto cpuParams_avx512_3D = groupConvCPUSpecificParams{{nCdhw16c}, {nCdhw16c}, {"jit_avx512"}, "jit_avx512_FP32"};
-const auto cpuParams_avx512_dw_2D = groupConvCPUSpecificParams{{nChw16c}, {nChw16c}, {"jit_avx512_dw"}, "jit_avx512_dw_FP32"};
-const auto cpuParams_avx512_dw_3D = groupConvCPUSpecificParams{{nCdhw16c}, {nCdhw16c}, {"jit_avx512_dw"}, "jit_avx512_dw_FP32"};
-/* ========== */
-
-/* GROUP CONV TEST UTILS */
-std::vector<groupConvCPUSpecificParams> filterCPUInfoForDevice(std::vector<groupConvCPUSpecificParams> CPUParams) {
-    std::vector<groupConvCPUSpecificParams> resCPUParams;
-    const int selectedTypeIndex = 3;
-
-    for (auto param : CPUParams) {
-        auto selectedTypeStr = std::get<selectedTypeIndex>(param);
-
-        if (selectedTypeStr.find("jit") != std::string::npos && !with_cpu_x86_sse42())
-            continue;
-        if (selectedTypeStr.find("sse42") != std::string::npos && !with_cpu_x86_sse42())
-            continue;
-        if (selectedTypeStr.find("avx2") != std::string::npos && !with_cpu_x86_avx2())
-            continue;
-        if (selectedTypeStr.find("avx512") != std::string::npos && !with_cpu_x86_avx512f())
-            continue;
-
-        resCPUParams.push_back(param);
-    }
-
-    return resCPUParams;
-}
 
 std::vector<groupConvLayerCPUTestParamsSet> filterParamsSetForDevice(std::vector<groupConvLayerCPUTestParamsSet> paramsSet) {
     std::vector<groupConvLayerCPUTestParamsSet> resParamsSet;
@@ -158,7 +91,6 @@ std::vector<groupConvLayerCPUTestParamsSet> filterParamsSetForDevice(std::vector
 
     return resParamsSet;
 }
-/* ===================== */
 
 /* COMMON PARAMS */
 /* ============= GroupConvolution params (planar layout) ============= */
@@ -202,10 +134,6 @@ const auto groupConvParams_ExplicitPadding_Planar_2D = ::testing::Combine(
         ::testing::Values(ngraph::op::PadType::EXPLICIT)
 );
 
-const std::vector<groupConvCPUSpecificParams> CPUParams_Planar_2D = {
-        cpuParams_gemm_2D
-};
-
 INSTANTIATE_TEST_CASE_P(GroupConv_2D_Planar_FP32, GroupConvolutionLayerCPUTest,
                         ::testing::Combine(
                                 ::testing::Combine(
@@ -227,10 +155,6 @@ const auto groupConvParams_ExplicitPadding_Planar_3D = ::testing::Combine(
         ::testing::ValuesIn(numGroups_Planar),
         ::testing::Values(ngraph::op::PadType::EXPLICIT)
 );
-
-const std::vector<groupConvCPUSpecificParams> CPUParams_Planar_3D = {
-        cpuParams_gemm_3D
-};
 
 INSTANTIATE_TEST_CASE_P(GroupConv_3D_Planar_FP32, GroupConvolutionLayerCPUTest,
                         ::testing::Combine(
@@ -254,12 +178,6 @@ const auto groupConvParams_ExplicitPadding_Blocked_2D = ::testing::Combine(
         ::testing::Values(ngraph::op::PadType::EXPLICIT)
 );
 
-const std::vector<groupConvCPUSpecificParams> CPUParams_Blocked_2D = {
-        cpuParams_sse42_2D,
-        cpuParams_avx2_2D,
-        cpuParams_avx512_2D
-};
-
 INSTANTIATE_TEST_CASE_P(GroupConv_2D_Blocked_FP32, GroupConvolutionLayerCPUTest,
                         ::testing::Combine(
                                 ::testing::Combine(
@@ -281,12 +199,6 @@ const auto groupConvParams_ExplicitPadding_Blocked_3D = ::testing::Combine(
         ::testing::ValuesIn(numGroups_Blocked),
         ::testing::Values(ngraph::op::PadType::EXPLICIT)
 );
-
-const std::vector<groupConvCPUSpecificParams> CPUParams_Blocked_3D = {
-//        cpuParams_sse42_3D, // not supported jit_sse42 for 3d
-        cpuParams_avx2_3D,
-        cpuParams_avx512_3D
-};
 
 INSTANTIATE_TEST_CASE_P(GroupConv_3D_Blocked_FP32, GroupConvolutionLayerCPUTest,
                         ::testing::Combine(
@@ -310,12 +222,6 @@ const auto groupConvParams_ExplicitPadding_DW_2D = ::testing::Combine(
         ::testing::Values(ngraph::op::PadType::EXPLICIT)
 );
 
-const std::vector<groupConvCPUSpecificParams> CPUParams_DW_2D = {
-        cpuParams_sse42_dw_2D,
-        cpuParams_avx2_dw_2D,
-        cpuParams_avx512_dw_2D
-};
-
 INSTANTIATE_TEST_CASE_P(GroupConv_2D_DW_FP32, GroupConvolutionLayerCPUTest,
                         ::testing::Combine(
                                 ::testing::Combine(
@@ -338,12 +244,6 @@ const auto groupConvParams_ExplicitPadding_DW_3D = ::testing::Combine(
         ::testing::Values(ngraph::op::PadType::EXPLICIT)
 );
 
-const std::vector<groupConvCPUSpecificParams> CPUParams_DW_3D = {
-        cpuParams_sse42_dw_3D,
-        cpuParams_avx2_dw_3D,
-        cpuParams_avx512_dw_3D
-};
-
 INSTANTIATE_TEST_CASE_P(GroupConv_3D_DW_FP32, GroupConvolutionLayerCPUTest,
                         ::testing::Combine(
                                 ::testing::Combine(
@@ -360,7 +260,7 @@ INSTANTIATE_TEST_CASE_P(GroupConv_3D_DW_FP32, GroupConvolutionLayerCPUTest,
 groupConvLayerCPUTestParamsSet makeSingleGroupConvCPUTestCase(SizeVector kernels, SizeVector strides, SizeVector dilations,
                                                         std::vector<ptrdiff_t> padBegins, std::vector<ptrdiff_t> padEnds, ngraph::op::PadType padType,
                                                         int groups, int mb, SizeVector spDims, int inGroupSize, int outGroupSize,
-                                                        groupConvCPUSpecificParams CPUParams) {
+                                                        CPUSpecificParams CPUParams) {
     int inChannels = groups * inGroupSize;
     int outChannels = groups * outGroupSize;
 

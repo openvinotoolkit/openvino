@@ -56,17 +56,7 @@ static std::map<ngraph::helpers::ActivationTypes, std::string> activationNames =
         {ngraph::helpers::ActivationTypes::Elu,         "Elu"},
         {ngraph::helpers::ActivationTypes::Erf,         "Erf"},
         {ngraph::helpers::ActivationTypes::HardSigmoid, "HardSigmoid"},
-        {ngraph::helpers::ActivationTypes::Selu,        "Selu"},
-        {ngraph::helpers::ActivationTypes::Sigmoid,     "Sigmoid"},
-        {ngraph::helpers::ActivationTypes::Tanh,        "Tanh"},
-        {ngraph::helpers::ActivationTypes::Relu,        "Relu"},
-        {ngraph::helpers::ActivationTypes::LeakyRelu,   "LeakyRelu"},
-        {ngraph::helpers::ActivationTypes::Exp,         "Exp"},
-        {ngraph::helpers::ActivationTypes::Log,         "Log"},
-        {ngraph::helpers::ActivationTypes::Sign,        "Sign"},
-        {ngraph::helpers::ActivationTypes::Abs,         "Abs"},
-        {ngraph::helpers::ActivationTypes::Gelu,        "Gelu"},
-        {ngraph::helpers::ActivationTypes::Ceiling,     "Ceiling"}
+        {ngraph::helpers::ActivationTypes::Ceiling,     "Ceiling"},
 };
 
 typedef std::tuple<

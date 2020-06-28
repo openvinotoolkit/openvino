@@ -14,7 +14,9 @@ namespace builder {
 
 std::shared_ptr<ngraph::Node> makeActivation(const ngraph::Output<Node> &in,
                                              const element::Type &type,
-                                             ngraph::helpers::ActivationTypes activationType) {
+                                             ngraph::helpers::ActivationTypes activationType,
+                                             double alpha,
+                                             double beta) {
     auto leaky_slope = std::make_shared<ngraph::op::Constant>(
             ngraph::element::f32,
             ngraph::Shape{1},
@@ -81,6 +83,11 @@ std::shared_ptr<ngraph::Node> makeActivation(const ngraph::Output<Node> &in,
             return std::make_shared<ngraph::op::Selu>(in, selu_alpha, selu_lambda);
         case ngraph::helpers::ActivationTypes::Ceiling:
             return std::make_shared<ngraph::op::Ceiling>(in);
+            // TODO:
+//        case ngraph::helpers::ActivationTypes::Elu:
+//            return std::make_shared<ngraph::op::Elu>(in, alpha);
+//        case ngraph::helpers::ActivationTypes::Clamp:
+//            return std::make_shared<ngraph::op::Clamp>(in, alpha, beta);
         default:
             throw std::runtime_error("Can't create layer for this activation type");
     }
