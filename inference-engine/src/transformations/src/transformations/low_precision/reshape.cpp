@@ -67,6 +67,8 @@ void ReshapeTransformation::transform(TransformationContext& context, ngraph::pa
     //    dataNode, reshape->input_value(1).get_node_shared_ptr());
     std::shared_ptr<Node> newReshape = reshape->copy_with_new_inputs({ dataNode, reshape->input_value(1).get_node_shared_ptr() });
 
+
+    // TODO: Multiply Const has to change shape
     std::shared_ptr<Node> replacement = multiply->copy_with_new_inputs({
         subtract ?
             (convert ?
@@ -74,7 +76,6 @@ void ReshapeTransformation::transform(TransformationContext& context, ngraph::pa
                 subtract->copy_with_new_inputs({newReshape, subtract->get_input_node_shared_ptr(1)})) :
             (convert ? convert->copy_with_new_inputs({newReshape}) : newReshape),
         multiply->input_value(1) });
-
     replace_node(reshape, replacement);
 
     // auto elementType = newReshape->get_input_element_type(0);
@@ -83,6 +84,7 @@ void ReshapeTransformation::transform(TransformationContext& context, ngraph::pa
     // ngraph::pass::VisualizeTree("C:\\Projects\\temp\\test.transformed").run_on_module(std::vector<std::shared_ptr<ngraph::Function>>{ context.network });
 
     // TODO: NAMES!
+    replacement->set_friendly_name(reshape->get_friendly_name());
 }
 
 } // namespace low_precision
