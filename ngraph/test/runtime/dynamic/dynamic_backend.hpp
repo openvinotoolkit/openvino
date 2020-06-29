@@ -21,8 +21,8 @@
 #include <string>
 #include <vector>
 
-#include "../backend.hpp"
-#include "../cache.hpp"
+#include "backend.hpp"
+#include "cache.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/tensor.hpp"
 
