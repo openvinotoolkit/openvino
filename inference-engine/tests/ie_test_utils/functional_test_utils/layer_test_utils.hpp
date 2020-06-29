@@ -102,7 +102,6 @@ protected:
     std::vector<InferenceEngine::Blob::Ptr> inputs;
     float threshold;
     InferenceEngine::CNNNetwork cnnNetwork;
-    bool DynamicBathFlag = false;  // check for dynamic batch
     int bathSize = 1;  // dynamic bath size ( first dimension in inputShapes > 1 !!!)
     virtual void Validate();
 

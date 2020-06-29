@@ -41,7 +41,7 @@ void LayerTestsCommon::Compare(const std::vector<std::uint8_t> &expected, const 
     const auto &precision = actual->getTensorDesc().getPrecision();
     auto resize = 1;
     // With dynamic batch, you need to size
-    if (DynamicBathFlag) {
+    if (configuration.count(InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_ENABLED)) {
         resize = actual->getTensorDesc().getDims()[0];
     }
     const auto &size = (actual->size() * bathSize / resize);
@@ -62,9 +62,6 @@ void LayerTestsCommon::Compare(const std::vector<std::uint8_t> &expected, const 
 void LayerTestsCommon::ConfigurePlugin() {
     if (!configuration.empty()) {
         core->SetConfig(configuration, targetDevice);
-        if (configuration.count(InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_ENABLED)) {
-            DynamicBathFlag = true;
-        }
     }
 }
 
@@ -104,7 +101,7 @@ void LayerTestsCommon::Infer() {
         inferRequest.SetBlob(info->name(), blob);
         inputs.push_back(blob);
     }
-    if (DynamicBathFlag) {
+    if (configuration.count(InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_ENABLED)) {
         bathSize = cnnNetwork.getInputsInfo().begin()->second->getTensorDesc().getDims()[0] / 2;
         inferRequest.SetBatch(bathSize);
     }
