@@ -182,8 +182,7 @@ LowPrecisionTransformations LowPrecisionTransformer::getAllTransformations(const
         std::map<std::string, LayerTransformationPtr>({
             { "AvgPool", LayerTransformationPtr(new AvgPoolTransformation(params)) },
             { "Convolution", LayerTransformationPtr(new ConvolutionTransformation(params)) },
-            //// { "GroupConvolution", LayerTransformationPtr(new GroupConvolutionTransformation(params)) },
-            ////// { "AvgPool", LayerTransformationPtr(new AvgPoolTransformation(params)) },
+            { "GroupConvolution", LayerTransformationPtr(new GroupConvolutionTransformation(params)) },
             { "MaxPool", LayerTransformationPtr(new MaxPoolTransformation(params)) },
             { "FakeQuantize", LayerTransformationPtr(new FakeQuantizeTransformation(params)) },
             // { "Reshape", LayerTransformationPtr(new ReshapeTransformation(params)) },
@@ -246,15 +245,16 @@ public:
 TypeRelaxedReplacer::TypeRelaxedReplacer() {
     // List all operations that support polymorphic inputs/outputs
     make_matcher_type_relaxed<opset1::AvgPool>(this);
-    make_matcher_type_relaxed<opset1::FakeQuantize>(this);
+    make_matcher_type_relaxed<opset1::Concat>(this);
     make_matcher_type_relaxed<opset1::Convolution>(this);
+    make_matcher_type_relaxed<opset1::FakeQuantize>(this);
+    make_matcher_type_relaxed<opset1::GroupConvolution>(this);
     make_matcher_type_relaxed<opset1::Relu>(this);
     make_matcher_type_relaxed<opset1::MaxPool>(this);
     make_matcher_type_relaxed<opset1::Add>(this);
     make_matcher_type_relaxed<opset1::Subtract>(this);
     make_matcher_type_relaxed<ngraph::op::Subtract>(this);
     make_matcher_type_relaxed<opset1::NormalizeL2>(this);
-    make_matcher_type_relaxed<opset1::Concat>(this);
 
     // can we do it?
     make_matcher_type_relaxed<opset1::Multiply>(this);

@@ -424,6 +424,12 @@ DataPrecision WeightableLayerTransformation::decomposeFakeQuantizeForWeightsPath
     // It doesn't rely on parameters shapes and just gathers statistics, so ngraph ops are not required.
 
     auto fq = as_type_ptr<opset1::FakeQuantize>(node->input_value(1).get_node_shared_ptr());
+    // TODO: temporary workaround
+    if (fq == nullptr) {
+        fq = as_type_ptr<opset1::FakeQuantize>(node->get_input_node_ptr(1)->get_input_node_shared_ptr(0));
+    }
+
+
     // Obtain quantization details and decide on target precision based on dimension-less FQ parameters
     // This step is shape independent and considers FQ limits as just a set of number
     const QuantizationDetails quantizationDetails = QuantizationDetails::getDetails(fq);
