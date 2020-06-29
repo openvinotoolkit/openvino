@@ -169,7 +169,8 @@ void op::v1::NonMaxSuppression::validate_and_infer_types()
                           boxes_ps[2]);
 
     const auto max_output_boxes_per_class = input_value(2).get_node_shared_ptr();
-    if (max_output_boxes_per_class->is_constant())
+    if (num_boxes_boxes.is_static() && scores_ps[1].is_static() &&
+        max_output_boxes_per_class->is_constant())
     {
         const auto num_boxes = num_boxes_boxes.get_length();
         const auto max_output_boxes_per_class = max_boxes_output_from_input();
@@ -177,7 +178,6 @@ void op::v1::NonMaxSuppression::validate_and_infer_types()
 
         out_shape[0] = std::min(num_boxes, max_output_boxes_per_class * num_classes);
     }
-    set_output_size(1);
     set_output_type(0, output_element_type, out_shape);
 }
 
@@ -377,17 +377,11 @@ void op::v3::NonMaxSuppression::validate_and_infer_types()
     // that have the following format: [batch_index, class_index, box_index]
     PartialShape out_shape = {Dimension::dynamic(), 3};
 
-    if (boxes_ps.is_dynamic() || scores_ps.is_dynamic())
-    {
-        set_output_type(0, m_output_type, out_shape);
-        return;
-    }
-
     validate();
 
     const auto num_boxes_boxes = boxes_ps[1];
     const auto max_output_boxes_per_class_node = input_value(2).get_node_shared_ptr();
-    if (max_output_boxes_per_class_node->is_constant())
+    if (num_boxes_boxes.is_static() && scores_ps[1].is_static() && max_output_boxes_per_class_node->is_constant())
     {
         const auto num_boxes = num_boxes_boxes.get_length();
         const auto num_classes = scores_ps[1].get_length();
@@ -512,17 +506,12 @@ void op::v4::NonMaxSuppression::validate_and_infer_types()
     // that have the following format: [batch_index, class_index, box_index]
     PartialShape out_shape = {Dimension::dynamic(), 3};
 
-    if (boxes_ps.is_dynamic() || scores_ps.is_dynamic())
-    {
-        set_output_type(0, m_output_type, out_shape);
-        return;
-    }
-
     op::v3::NonMaxSuppression::validate();
 
     const auto num_boxes_boxes = boxes_ps[1];
     const auto max_output_boxes_per_class_node = input_value(2).get_node_shared_ptr();
-    if (max_output_boxes_per_class_node->is_constant())
+    if (num_boxes_boxes.is_static() && scores_ps[0].is_static() && scores_ps[1].is_static() &&
+        max_output_boxes_per_class_node->is_constant())
     {
         const auto num_boxes = num_boxes_boxes.get_length();
         const auto max_output_boxes_per_class = max_boxes_output_from_input();
