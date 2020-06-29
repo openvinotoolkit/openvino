@@ -87,7 +87,6 @@ set(SRC
     opset_pass/logical_xor_opset_pass.cpp
     opset_pass/one_hot_opset_pass.cpp
     opset_pass/gather_opset_pass.cpp
-    opset_pass/generate_mask_opset_pass.cpp
     opset_pass/pad_opset_pass.cpp
     opset_pass/poolings_opset_pass.cpp
     opset_pass/reduction_opset_pass.cpp
@@ -114,7 +113,6 @@ set(SRC
     type_prop/all.cpp
     type_prop/any.cpp
     type_prop/assign.cpp
-    type_prop/avg_pool.cpp
     type_prop/batch_mat_mul.cpp
     type_prop/batch_mat_mul_transpose.cpp
     type_prop/batch_norm.cpp
@@ -311,7 +309,6 @@ set(MULTI_TEST_SRC
     backend/builder_reduce_ops_opset1.in.cpp
     backend/ceiling.in.cpp
     backend/comparison.in.cpp
-    backend/computation_reuse.in.cpp
     backend/concat.in.cpp
     backend/constant.in.cpp
     backend/convert.in.cpp

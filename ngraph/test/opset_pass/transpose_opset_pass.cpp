@@ -19,7 +19,7 @@
 
 #include "ngraph/ngraph.hpp"
 #include "ngraph/pass/manager.hpp"
-#include "ngraph/pass/opset0_downgrade.hpp"
+#include "opset0_downgrade.hpp"
 #include "util/type_prop.hpp"
 
 using namespace std;

@@ -349,42 +349,6 @@ NGRAPH_TEST(${BACKEND_NAME}, conv_bias_3d)
     EXPECT_EQ(expected, read_vector<float>(result0));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, conv_bias_bprop_2d)
-{
-    auto data = make_shared<op::Parameter>(element::f32, Shape{1, 3, 2, 2});
-    auto filters = make_shared<op::Parameter>(element::f32, Shape{2, 3, 1, 1});
-    auto bias = make_shared<op::Parameter>(element::f32, Shape{2});
-    auto delta = make_shared<op::Parameter>(element::f32, Shape{1, 2, 2, 2});
-    auto conv_bprop = make_shared<op::ConvolutionBiasBackpropFiltersBias>(data,
-                                                                          filters->get_shape(),
-                                                                          bias->get_shape(),
-                                                                          delta,
-                                                                          Strides{1, 1},
-                                                                          Strides{1, 1},
-                                                                          CoordinateDiff{0, 0},
-                                                                          CoordinateDiff{0, 0},
-                                                                          Strides{1, 1});
-    auto goe0 = make_shared<op::GetOutputElement>(conv_bprop, 0);
-    auto goe1 = make_shared<op::GetOutputElement>(conv_bprop, 1);
-    auto f0 = make_shared<Function>(NodeVector{goe0, goe1}, ParameterVector{data, delta});
-
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-
-    // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, Shape{1, 3, 2, 2});
-    copy_data(a, vector<float>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12});
-    auto b = backend->create_tensor(element::f32, Shape{1, 2, 2, 2});
-    copy_data(b, vector<float>{1, 2, 3, 4, 5, 6, 7, 8});
-    auto result0 = backend->create_tensor(element::f32, filters->get_shape());
-    auto result1 = backend->create_tensor(element::f32, bias->get_shape());
-    auto handle = backend->compile(f0);
-    handle->call_with_validate({result0, result1}, {a, b});
-    vector<float> expected0{30, 70, 110, 70, 174, 278};
-    vector<float> expected1{10, 26};
-    EXPECT_EQ(expected0, read_vector<float>(result0));
-    EXPECT_EQ(expected1, read_vector<float>(result1));
-}
-
 NGRAPH_TEST(${BACKEND_NAME}, conv_bias_add_2d)
 {
     auto data = make_shared<op::Parameter>(element::f32, Shape{1, 3, 2, 2});

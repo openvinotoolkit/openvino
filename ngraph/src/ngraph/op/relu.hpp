@@ -47,32 +47,8 @@ namespace ngraph
 
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) override;
-
-                virtual void generate_adjoints(autodiff::Adjoints& adjoints,
-                                               const OutputVector& deltas) override;
-            };
-
-            /// \brief Elementwise ReluBackprop operation.
-            ///
-            class NGRAPH_API ReluBackprop : public ngraph::op::util::BinaryElementwiseArithmetic
-            {
-            public:
-                static constexpr NodeTypeInfo type_info{"ReluBackprop", 0};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
-                ReluBackprop()
-                    : BinaryElementwiseArithmetic(AutoBroadcastSpec::NONE)
-                {
-                }
-                /// \brief Constructs a ReluBackprop operation.
-                ///
-                /// \param arg Node that produces the relu forward input tensor.
-                ReluBackprop(const Output<ngraph::Node>& arg, const Output<ngraph::Node>& delta);
-
-                virtual std::shared_ptr<Node>
-                    clone_with_new_inputs(const OutputVector& new_args) const override;
             };
         }
         using v0::Relu;
-        using v0::ReluBackprop;
     }
 }

@@ -220,62 +220,6 @@ namespace ngraph
                 PadType m_auto_pad;
                 CoordinateDiff m_output_padding;
             };
-
-            /// \brief Filters backprop for batched convolution operation.
-            class NGRAPH_API ConvolutionBackpropFilters : public Op
-            {
-            public:
-                static constexpr NodeTypeInfo type_info{"ConvolutionBackpropFilters", 1};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
-                /// \brief Constructs a batched-convolution filter-backprop operation.
-                ConvolutionBackpropFilters() = default;
-                /// \brief Constructs a batched-convolution filter-backprop operation.
-                ///
-                /// \param data_batch The tensor producing the data batch from forward-prop.
-                /// \param filters_shape The shape of the filters from forward-prop.
-                /// \param output_delta The node producing output delta.
-                /// \param strides The strides from forward-prop.
-                /// \param dilations The dilations from forward-prop.
-                /// \param pads_begin The padding-below sizes from forward-prop.
-                /// \param pads_end The padding-above sizes from forward-prop.
-                ConvolutionBackpropFilters(const Output<Node>& data_batch,
-                                           const Output<Node>& output_delta,
-                                           const Output<Node>& filters_shape,
-                                           const Strides& strides,
-                                           const Strides& dilations,
-                                           const CoordinateDiff& pads_begin,
-                                           const CoordinateDiff& pads_end);
-
-                void validate_and_infer_types() override;
-                bool visit_attributes(AttributeVisitor& visitor) override;
-
-                virtual std::shared_ptr<Node>
-                    clone_with_new_inputs(const OutputVector& new_args) const override;
-
-                /// \return The filters tensor shape.
-                const Shape get_filters_shape() const;
-                /// \return The strides from the forward prop.
-                const Strides& get_strides() const { return m_strides; }
-                void set_strides(const Strides& strides) { m_strides = strides; }
-                /// \return The dilations from the forward prop.
-                const Strides& get_dilations() const { return m_dilations; }
-                void set_dilations(const Strides& dilations) { m_dilations = dilations; }
-                /// \return The padding-below sizes (possibly negative) from the forward prop.
-                const CoordinateDiff& get_pads_begin() const { return m_pads_begin; }
-                void set_pads_begin(const CoordinateDiff& pads_begin) { m_pads_begin = pads_begin; }
-                /// \return The padding-above sizes (possibly negative) from the forward prop.
-                const CoordinateDiff& get_pads_end() const { return m_pads_end; }
-                void set_pads_end(const CoordinateDiff& pads_end) { m_pads_end = pads_end; }
-                // Compute the pad_above value to be used if in a convolution
-                CoordinateDiff compute_backward_in_pad_above() const;
-
-            protected:
-                Strides m_strides;
-                Strides m_dilations;
-                CoordinateDiff m_pads_begin;
-                CoordinateDiff m_pads_end;
-            };
-
         } // namespace v1
 
         namespace v0
@@ -566,103 +510,6 @@ namespace ngraph
                 CoordinateDiff m_padding_above_forward;
                 Strides m_data_dilation_strides_forward;
             };
-
-            /// \brief Filters backprop for batched convolution operation.
-            class NGRAPH_API ConvolutionBackpropFilters : public Op
-            {
-            public:
-                static constexpr NodeTypeInfo type_info{"ConvolutionBackpropFilters", 0};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
-                /// \brief Constructs a batched-convolution filter-backprop operation.
-                ConvolutionBackpropFilters() = default;
-                /// \brief Constructs a batched-convolution filter-backprop operation.
-                ///
-                /// \param data_batch The tensor producing the data batch from forward-prop.
-                /// \param filters_shape The shape of the filters from forward-prop.
-                /// \param output_delta The node producing output delta.
-                /// \param window_movement_strides_forward The window movement strides from
-                /// forward-prop. \param window_dilation_strides_forward The window dilation strides
-                /// from forward-prop. \param padding_below_forward The padding-below sizes from
-                /// forward-prop. \param padding_above_forward The padding-above sizes from
-                /// forward-prop. \param data_dilation_strides_forward The data dilation strides
-                /// from forward-prop.
-                ConvolutionBackpropFilters(const Output<Node>& data_batch,
-                                           const Shape& filters_shape,
-                                           const Output<Node>& output_delta,
-                                           const Strides& window_movement_strides_forward,
-                                           const Strides& window_dilation_strides_forward,
-                                           const CoordinateDiff& padding_below_forward,
-                                           const CoordinateDiff& padding_above_forward,
-                                           const Strides& data_dilation_strides_forward);
-
-                void validate_and_infer_types() override;
-                bool visit_attributes(AttributeVisitor& visitor) override;
-
-                virtual std::shared_ptr<Node>
-                    clone_with_new_inputs(const OutputVector& new_args) const override;
-
-                /// \return The filters tensor shape.
-                const Shape& get_filters_shape() const { return m_filters_shape; }
-                /// \return The window movement strides from the forward prop.
-                const Strides& get_window_movement_strides_forward() const
-                {
-                    return m_window_movement_strides_forward;
-                }
-                void set_window_movement_strides_forward(
-                    const Strides& window_movement_strides_forward)
-                {
-                    m_window_movement_strides_forward = window_movement_strides_forward;
-                }
-                /// \return The window dilation strides from the forward prop.
-                const Strides& get_window_dilation_strides_forward() const
-                {
-                    return m_window_dilation_strides_forward;
-                }
-                void set_window_dilation_strides_forward(
-                    const Strides& window_dilation_strides_forward)
-                {
-                    m_window_dilation_strides_forward = window_dilation_strides_forward;
-                }
-                /// \return The padding-below sizes (possibly negative) from the forward prop.
-                const CoordinateDiff& get_padding_below_forward() const
-                {
-                    return m_padding_below_forward;
-                }
-                void set_padding_below_forward(const CoordinateDiff& padding_below_forward)
-                {
-                    m_padding_below_forward = padding_below_forward;
-                }
-                /// \return The padding-above sizes (possibly negative) from the forward prop.
-                const CoordinateDiff& get_padding_above_forward() const
-                {
-                    return m_padding_above_forward;
-                }
-                void set_padding_above_forward(const CoordinateDiff& padding_above_forward)
-                {
-                    m_padding_above_forward = padding_above_forward;
-                }
-                /// \return The data dilation strides from the forward prop.
-                const Strides& get_data_dilation_strides_forward() const
-                {
-                    return m_data_dilation_strides_forward;
-                }
-                void set_data_dilation_strides_forward(const Strides& data_dilation_strides_forward)
-                {
-                    m_data_dilation_strides_forward = data_dilation_strides_forward;
-                }
-
-                // Compute the pad_above value to be used if in a convolution
-                CoordinateDiff compute_backward_in_pad_above() const;
-
-            protected:
-                Shape m_filters_shape;
-                Strides m_window_movement_strides_forward;
-                Strides m_window_dilation_strides_forward;
-                CoordinateDiff m_padding_below_forward;
-                CoordinateDiff m_padding_above_forward;
-                Strides m_data_dilation_strides_forward;
-            };
-
         } // namespace v0
 
         namespace util
@@ -689,6 +536,5 @@ namespace ngraph
 
         using v0::Convolution;
         using v0::ConvolutionBackpropData;
-        using v0::ConvolutionBackpropFilters;
     } // namespace op
 } // namespace ngraph

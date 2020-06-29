@@ -81,9 +81,6 @@ namespace ngraph
                     clone_with_new_inputs(const OutputVector& new_args) const override;
 
             protected:
-                virtual void generate_adjoints(autodiff::Adjoints& adjoints,
-                                               const OutputVector& deltas) override;
-
                 static constexpr size_t INPUT_GAMMA = 0;
                 static constexpr size_t INPUT_BETA = 1;
                 static constexpr size_t INPUT_DATA = 2;
@@ -147,13 +144,6 @@ namespace ngraph
                 std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
 
-            protected:
-                virtual void generate_adjoints(autodiff::Adjoints& /* adjoints */,
-                                               const OutputVector& /* deltas */) override
-                {
-                    throw ngraph_error("Invalid operation");
-                }
-
             private:
                 static constexpr size_t INPUT_GAMMA = 0;
                 static constexpr size_t INPUT_BETA = 1;
@@ -163,53 +153,9 @@ namespace ngraph
 
                 double m_epsilon;
             };
+        } // namespace v0
 
-            class NGRAPH_API BatchNormTrainingBackprop : public Op
-            {
-            public:
-                static constexpr NodeTypeInfo type_info{"BatchNormTrainingBackprop", 0};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
-                BatchNormTrainingBackprop() = default;
-                BatchNormTrainingBackprop(const Output<Node>& input,
-                                          const Output<Node>& gamma,
-                                          const Output<Node>& beta,
-                                          const Output<Node>& mean,
-                                          const Output<Node>& variance,
-                                          const Output<Node>& delta,
-                                          double epsilon);
-
-                bool visit_attributes(AttributeVisitor& visitor) override;
-
-                NGRAPH_DEPRECATED_DOC
-                NGRAPH_DEPRECATED("Use another constructor")
-                BatchNormTrainingBackprop(double epsilon,
-                                          const Output<Node>& gamma,
-                                          const Output<Node>& beta,
-                                          const Output<Node>& input,
-                                          const Output<Node>& mean,
-                                          const Output<Node>& variance,
-                                          const Output<Node>& delta);
-
-                void validate_and_infer_types() override;
-
-                double get_eps_value() const { return m_epsilon; }
-                void set_eps_value(double epsilon) { m_epsilon = epsilon; }
-                std::shared_ptr<Node>
-                    clone_with_new_inputs(const OutputVector& new_args) const override;
-
-            private:
-                static constexpr size_t INPUT_GAMMA = 0;
-                static constexpr size_t INPUT_BETA = 1;
-                static constexpr size_t INPUT_DATA = 2;
-                static constexpr size_t INPUT_MEAN = 3;
-                static constexpr size_t INPUT_VARIANCE = 4;
-                static constexpr size_t INPUT_DELTA = 5;
-
-                double m_epsilon;
-            };
-        }
         using v0::BatchNormInference;
         using v0::BatchNormTraining;
-        using v0::BatchNormTrainingBackprop;
     }
 }

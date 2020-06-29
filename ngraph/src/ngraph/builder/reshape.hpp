@@ -78,6 +78,7 @@ namespace ngraph
         ///
         /// \return     The squeezed node.
         ///
+        NGRAPH_API
         std::shared_ptr<Node> squeeze(const Output<Node>& value,
                                       std::vector<std::size_t> axes = {0});
 

@@ -59,55 +59,13 @@ namespace ngraph
                 const std::vector<int64_t>& get_lower_bounds() const { return m_lower_bounds; }
                 const std::vector<int64_t>& get_upper_bounds() const { return m_upper_bounds; }
                 const AxisVector& get_decrease_axes() const { return m_decrease_axes; }
-            protected:
-                virtual void generate_adjoints(autodiff::Adjoints& adjoints,
-                                               const OutputVector& deltas) override;
-
             private:
                 AxisVector m_axes;
                 std::vector<int64_t> m_lower_bounds;
                 std::vector<int64_t> m_upper_bounds;
                 AxisVector m_decrease_axes;
             };
-
-            /// \brief pdpd slice backprop
-            ///
-            class NGRAPH_API PartialSliceBackprop : public ngraph::op::util::FusedOp
-            {
-            public:
-                static constexpr NodeTypeInfo type_info{"PartialSliceBackprop", 0};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
-                PartialSliceBackprop() = default;
-                /// \brief Constructs an PartialSliceBackprop operation.
-                ///
-                /// \param data Input tensor
-                /// \param dout Onput tensor from fprop
-                /// \param axes Axes that lower and upper bounds apply to
-                /// \param lower_bounds Starting indices of corresponding axis in `axes`
-                /// \param upper_bounds Ending indices of corresponding axis in `axes`
-                PartialSliceBackprop(const Output<Node>& data,
-                                     const Output<Node>& dout,
-                                     const AxisVector& axes,
-                                     const std::vector<int64_t>& lower_bounds,
-                                     const std::vector<int64_t>& upper_bounds);
-
-                virtual NodeVector decompose_op() const override;
-
-                void pre_validate_and_infer_types() override;
-
-                virtual std::shared_ptr<Node>
-                    clone_with_new_inputs(const OutputVector& new_args) const override;
-
-                const AxisVector& get_axes() const { return m_axes; }
-                const std::vector<int64_t>& get_lower_bounds() const { return m_lower_bounds; }
-                const std::vector<int64_t>& get_upper_bounds() const { return m_upper_bounds; }
-            private:
-                AxisVector m_axes;
-                std::vector<int64_t> m_lower_bounds;
-                std::vector<int64_t> m_upper_bounds;
-            };
         }
         using v0::PartialSlice;
-        using v0::PartialSliceBackprop;
     }
 }
