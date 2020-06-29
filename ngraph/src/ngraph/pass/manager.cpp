@@ -29,6 +29,7 @@
 #include "ngraph/pass/serialize.hpp"
 #include "ngraph/pass/visualize_tree.hpp"
 #include "ngraph/util.hpp"
+#include "ngraph/log.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -49,7 +50,6 @@ void pass::Manager::run_passes(shared_ptr<Function> func, bool /* transitive */)
     static bool profile_enabled = getenv_bool("NGRAPH_PROFILE_PASS_ENABLE");
 
     get_state().set_function(func);
-    vector<std::pair<shared_ptr<Function>, bool>> fs{std::make_pair(func, func->is_dynamic())};
     vector<shared_ptr<Function>> f_array{func};
 
     size_t index = 0;
@@ -64,12 +64,8 @@ void pass::Manager::run_passes(shared_ptr<Function> func, bool /* transitive */)
         {
             pass->set_callback(m_transformation_callback);
         }
-        auto module_pass = dynamic_pointer_cast<ModulePass>(pass);
-        auto function_pass = dynamic_pointer_cast<FunctionPass>(pass);
-        auto node_pass = dynamic_pointer_cast<NodePass>(pass);
-        auto call_graph_pass = dynamic_pointer_cast<CallGraphPass>(pass);
-        auto matcher_pass = dynamic_pointer_cast<MatcherPass>(pass);
-        if (module_pass)
+
+        if (auto module_pass = dynamic_pointer_cast<ModulePass>(pass))
         {
             if (auto vt_pass = dynamic_pointer_cast<pass::VisualizeTree>(module_pass))
             {
@@ -77,81 +73,58 @@ void pass::Manager::run_passes(shared_ptr<Function> func, bool /* transitive */)
             }
             module_pass->run_on_module(f_array);
         }
-        else if (matcher_pass)
+        else if (auto matcher_pass = dynamic_pointer_cast<MatcherPass>(pass))
         {
-            for (auto f_pair : fs)
+            // This checks is to skip the graph optimization when the graph pass relies on
+            // static shape but the function state is dynamic.
+            if (matcher_pass->get_property(PassProperty::REQUIRE_STATIC_SHAPE) && func->is_dynamic())
             {
-                shared_ptr<Function> f = f_pair.first;
-                // This checks is to skip the graph optimization when the graph pass relies on
-                // static shape but the function state is dynamic.
-                // we update the function dynamic state only if we run the graph pass successfully.
-                if (matcher_pass->get_property(PassProperty::REQUIRE_STATIC_SHAPE) && f_pair.second)
-                {
-                    continue;
-                }
-                // GraphRewrite is a temporary container for MatcherPass to make execution
-                // on on entire ngraph::Function
-                bool function_modified = GraphRewrite(matcher_pass).run_on_function(f);
-                // If the pass may change the function's is_dynamic property, we need to
-                // update the cached value.
-                if (function_modified &&
-                    matcher_pass->get_property(PassProperty::CHANGE_DYNAMIC_STATE))
-                {
-                    f_pair.second = f->is_dynamic();
-                }
+                NGRAPH_DEBUG << "Pass " << pass->get_name() <<
+                                " requires static shape but the " <<
+                                "function is dynamic. Skipping this transformation";
+                continue;
+            }
+            // GraphRewrite is a temporary container for MatcherPass to make execution
+            // on on entire ngraph::Function
+            GraphRewrite(matcher_pass).run_on_function(func);
+        }
+        else if (auto function_pass = dynamic_pointer_cast<FunctionPass>(pass))
+        {
+            // This checks is to skip the graph optimization when the graph pass relies on
+            // static shape but the function state is dynamic.
+            if (function_pass->get_property(PassProperty::REQUIRE_STATIC_SHAPE) && func->is_dynamic())
+            {
+                NGRAPH_DEBUG << "Pass " << pass->get_name() <<
+                                " requires static shape but the " <<
+                                "function is dynamic. Skipping this transformation";
+                continue;
+            }
+            function_pass->run_on_function(func);
+        }
+        else if (auto node_pass = dynamic_pointer_cast<NodePass>(pass))
+        {
+            if (node_pass->get_property(PassProperty::REQUIRE_STATIC_SHAPE) && func->is_dynamic())
+            {
+                NGRAPH_DEBUG << "Pass " << pass->get_name() <<
+                                " requires static shape but the " <<
+                                "function is dynamic. Skipping this transformation";
+                continue;
+            }
+            for (shared_ptr<Node> n : func->get_ops())
+            {
+                node_pass->run_on_node(n);
             }
         }
-        else if (function_pass)
+        else if (auto call_graph_pass = dynamic_pointer_cast<CallGraphPass>(pass))
         {
-            for (auto f_pair : fs)
+            if (call_graph_pass->get_property(PassProperty::REQUIRE_STATIC_SHAPE) && func->is_dynamic())
             {
-                shared_ptr<Function> f = f_pair.first;
-                // This checks is to skip the graph optimization when the graph pass relies on
-                // static shape but the function state is dynamic.
-                // we update the function dynamic state only if we run the graph pass successfully.
-                if (function_pass->get_property(PassProperty::REQUIRE_STATIC_SHAPE) &&
-                    f_pair.second)
-                {
-                    continue;
-                }
-                bool function_modified = function_pass->run_on_function(f);
-                // If the pass may change the function's is_dynamic property, we need to
-                // update the cached value.
-                if (function_modified &&
-                    function_pass->get_property(PassProperty::CHANGE_DYNAMIC_STATE))
-                {
-                    f_pair.second = f->is_dynamic();
-                }
+                NGRAPH_DEBUG << "Pass " << pass->get_name() <<
+                                " requires static shape but the " <<
+                                "function is dynamic. Skipping this transformation";
+                continue;
             }
-        }
-        else if (node_pass)
-        {
-            for (auto f_pair : fs)
-            {
-                shared_ptr<Function> f = f_pair.first;
-                if (node_pass->get_property(PassProperty::REQUIRE_STATIC_SHAPE) && f_pair.second)
-                {
-                    continue;
-                }
-                for (shared_ptr<Node> n : f->get_ops())
-                {
-                    node_pass->run_on_node(n);
-                }
-            }
-        }
-        else if (call_graph_pass)
-        {
-            for (auto f_pair : fs)
-            {
-                shared_ptr<Function> f = f_pair.first;
-                if (call_graph_pass->get_property(PassProperty::REQUIRE_STATIC_SHAPE) &&
-                    f_pair.second)
-                {
-                    continue;
-                }
-                bool function_modified = call_graph_pass->run_on_call_graph(f->get_ordered_ops());
-                f_pair.second = (function_modified == true) ? f->is_dynamic() : f_pair.second;
-            }
+            call_graph_pass->run_on_call_graph(func->get_ordered_ops());
         }
 
         if (m_visualize || m_serialize)
