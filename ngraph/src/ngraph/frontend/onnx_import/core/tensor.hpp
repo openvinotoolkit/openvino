@@ -49,8 +49,8 @@ namespace ngraph
 #else
                     explicit invalid_data_type(TensorProto_DataType type)
                         : ngraph_error{"invalid data type: " +
-                                    ONNX_NAMESPACE::TensorProto_DataType_Name(
-                                        static_cast<ONNX_NAMESPACE::TensorProto_DataType>(type))}
+                                       ONNX_NAMESPACE::TensorProto_DataType_Name(
+                                           static_cast<ONNX_NAMESPACE::TensorProto_DataType>(type))}
                     {
                     }
 #endif
@@ -66,8 +66,8 @@ namespace ngraph
 #else
                     explicit unsupported_data_type(TensorProto_DataType type)
                         : ngraph_error{"unsupported data type: " +
-                                    ONNX_NAMESPACE::TensorProto_DataType_Name(
-                                        static_cast<ONNX_NAMESPACE::TensorProto_DataType>(type))}
+                                       ONNX_NAMESPACE::TensorProto_DataType_Name(
+                                           static_cast<ONNX_NAMESPACE::TensorProto_DataType>(type))}
                     {
                     }
 #endif

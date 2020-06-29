@@ -53,7 +53,7 @@ namespace ngraph
 #else
                         Attribute(const std::string& msg, AttributeProto_AttributeType type)
                             : ngraph_error{msg + ": " +
-                                        ONNX_NAMESPACE::AttributeProto_AttributeType_Name(type)}
+                                           ONNX_NAMESPACE::AttributeProto_AttributeType_Name(type)}
                         {
                         }
 #endif
