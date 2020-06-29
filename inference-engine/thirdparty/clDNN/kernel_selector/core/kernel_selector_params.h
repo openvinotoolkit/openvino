@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016-2019 Intel Corporation
+// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -440,7 +440,8 @@ struct base_activation_params {
 struct FusedOpsConfiguration {
     enum class LoadType {
         LT_UNALIGNED = 0,
-        LT_ALIGNED_READ = 1
+        LT_ALIGNED_READ = 1,
+        FEATURE_SHUFFLE = 2
     };
 
     enum class BoundaryCheck {
@@ -476,6 +477,8 @@ struct FusedOpsConfiguration {
     // If allow_for_partial_preload is false, then it's required that all fused_ops can be preloaded.
     // If allow_for_partial_preload is true, then not preloaded fused_ops will be loaded in FUSED_OPS_CALC.
     bool allow_for_partial_preload;
+    // Load index for shuffle fused op
+    std::string shuffle_var_name;
 
     FusedOpsConfiguration(std::string suffix,
                           std::vector<std::string> bfzyx_idx_order,
@@ -487,7 +490,8 @@ struct FusedOpsConfiguration {
                           IndexType index_type = IndexType::TENSOR_COORD,
                           Tensor::DataChannelName vec_axis = Tensor::DataChannelName::COUNT,
                           std::vector<Tensor::DataChannelName> loop_axes = {},
-                          bool allow_for_partial_preload = false)
+                          bool allow_for_partial_preload = false,
+                          std::string shuffle_var_name = "")
       : suffix(suffix)
       , bfzyx_idx_order(bfzyx_idx_order)
       , input_var_name(input_var_name)
@@ -498,7 +502,8 @@ struct FusedOpsConfiguration {
       , boundary_check(boundary_check)
       , index_type(index_type)
       , loop_axes(loop_axes)
-      , allow_for_partial_preload(allow_for_partial_preload) { }
+      , allow_for_partial_preload(allow_for_partial_preload)
+      , shuffle_var_name(shuffle_var_name) { }
 
     FusedOpsConfiguration& SetVectorSize(size_t val) { vec_size = val; return *this; }
     FusedOpsConfiguration& SetLoadType(LoadType val) { load_type = val; return *this; }
@@ -509,6 +514,7 @@ struct FusedOpsConfiguration {
         loop_axes = std::move(val);
         allow_for_partial_preload = partial_preload;
         return *this; }
+    FusedOpsConfiguration& SetShuffleVarName(std::string val) { shuffle_var_name = val; return *this; }
 };
 
 // Instance of fused_operation_desc is added to fused_ops vector if a node has been fused to current one using program_impl::fuse_nodes

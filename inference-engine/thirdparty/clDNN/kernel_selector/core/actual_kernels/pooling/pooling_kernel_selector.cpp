@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2019 Intel Corporation
+﻿// Copyright (c) 2019-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -28,6 +28,7 @@
 #include "pooling_kernel_gpu_b_fs_yx_fsv16.h"
 #include "pooling_kernel_gpu_bsv16_fsv16.h"
 #include "pooling_kernel_gpu_b_fs_yx_fsv16_imad.h"
+#include "pooling_kernel_gpu_bs_fs_yx_bsv16_fsv16.h"
 
 namespace kernel_selector {
 
@@ -46,6 +47,7 @@ pooling_kernel_selector::pooling_kernel_selector() {
     Attach<PoolingKernel_b_fs_yx_fsv16>();
     Attach<PoolingKernel_bsv16_fsv16>();
     Attach<PoolingKernelGPU_b_fs_yx_fsv16_imad>();
+    Attach<Pooling_kernel_gpu_bs_fs_yx_bsv_16_fsv16>();
 }
 
 KernelsData pooling_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const {
