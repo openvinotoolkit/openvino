@@ -90,15 +90,24 @@ void FuseFakeQuantizeTransformation::transform(TransformationContext& context, n
         parent = dequantization.convert->get_input_node_shared_ptr(0);
     }
 
-    std::shared_ptr<opset1::FakeQuantize> newFakeQuantize = std::make_shared<ngraph::op::TypeRelaxed<opset1::FakeQuantize>>(
+    // std::shared_ptr<opset1::FakeQuantize> newFakeQuantize = std::make_shared<ngraph::op::TypeRelaxed<opset1::FakeQuantize>>(
+    //    parent,
+    //    inputLowConst,
+    //    inputHightConst,
+    //    fakeQuantize->input_value(3),
+    //    fakeQuantize->input_value(4),
+    //    fakeQuantize->get_levels(),
+    //    fakeQuantize->get_auto_broadcast());
+
+    std::shared_ptr<Node> newFakeQuantize = fakeQuantize->clone_with_new_inputs({
         parent,
         inputLowConst,
         inputHightConst,
         fakeQuantize->input_value(3),
-        fakeQuantize->input_value(4),
-        fakeQuantize->get_levels(),
-        fakeQuantize->get_auto_broadcast());
+        fakeQuantize->input_value(4) });
+
     replace_node(fakeQuantize, newFakeQuantize);
+    // pass::low_precision::NetworkHelper::setOutDataPrecision(newFakeQuantize, fakeQuantize->get_output_element_type(0));
     newFakeQuantize->set_friendly_name(fakeQuantize->get_friendly_name());
 
     // ngraph::pass::VisualizeTree("C:\\Projects\\temp\\test.transformed").run_on_module(std::vector<std::shared_ptr<ngraph::Function>>{ context.network });
