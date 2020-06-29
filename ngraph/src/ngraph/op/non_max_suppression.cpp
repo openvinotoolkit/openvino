@@ -383,7 +383,8 @@ void op::v3::NonMaxSuppression::validate_and_infer_types()
     {
         const auto num_boxes_boxes = boxes_ps[1];
         const auto max_output_boxes_per_class_node = input_value(2).get_node_shared_ptr();
-        if (num_boxes_boxes.is_static() && scores_ps[1].is_static() && max_output_boxes_per_class_node->is_constant())
+        if (num_boxes_boxes.is_static() && scores_ps[1].is_static() &&
+            max_output_boxes_per_class_node->is_constant())
         {
             const auto num_boxes = num_boxes_boxes.get_length();
             const auto num_classes = scores_ps[1].get_length();
@@ -511,15 +512,19 @@ void op::v4::NonMaxSuppression::validate_and_infer_types()
 
     op::v3::NonMaxSuppression::validate();
 
-    if (boxes_ps.rank().is_static() && scores_ps.rank().is_static()) {
+    if (boxes_ps.rank().is_static() && scores_ps.rank().is_static())
+    {
         const auto num_boxes_boxes = boxes_ps[1];
         const auto max_output_boxes_per_class_node = input_value(2).get_node_shared_ptr();
-        if (num_boxes_boxes.is_static() && scores_ps[0].is_static() && scores_ps[1].is_static() && max_output_boxes_per_class_node->is_constant()) {
+        if (num_boxes_boxes.is_static() && scores_ps[0].is_static() && scores_ps[1].is_static() &&
+            max_output_boxes_per_class_node->is_constant())
+        {
             const auto num_boxes = num_boxes_boxes.get_length();
             const auto num_classes = scores_ps[1].get_length();
             const auto max_output_boxes_per_class = max_boxes_output_from_input();
 
-            out_shape[0] = std::min(num_boxes, max_output_boxes_per_class) * num_classes * scores_ps[0].get_length();
+            out_shape[0] = std::min(num_boxes, max_output_boxes_per_class) * num_classes *
+                           scores_ps[0].get_length();
         }
     }
     set_output_type(0, m_output_type, out_shape);
