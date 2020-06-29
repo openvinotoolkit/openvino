@@ -18,7 +18,6 @@
 NGRAPH_PASS(InitNodeInfo, ::ngraph::pass)
 NGRAPH_PASS(RemoveFilteringBoxesBySize, ::ngraph::pass) // Resolves dynamism (replaces NonZero), CF needed
 NGRAPH_PASS(UpgradeNMS4ToNMSDynamic, ::ngraph::pass) // replaces v4::NMS with dynamic::NMS(always dyn output shape) if function has opset3::NonZero operation
-NGRAPH_PASS(ConvertNMS4ToLegacy, ::ngraph::pass) // convert v4::NMS directly to legacy NMS because NMS-1/3 have different shape infer function as NMS-4
 NGRAPH_PASS(ConstantFolding, ::ngraph::pass)
 NGRAPH_PASS(StridedSliceOptimization, ::ngraph::pass) // depends on CF
 NGRAPH_PASS(NopElimination, ::ngraph::pass) // may introduce fake dynamism
