@@ -66,6 +66,7 @@
 #include <api/ctc_greedy_decoder.hpp>
 #include <api/cum_sum.hpp>
 #include <api/embedding_bag.hpp>
+#include <api/extract_image_patches.hpp>
 
 #include <chrono>
 #include <cmath>
@@ -605,6 +606,7 @@ Program::LayerType Program::LayerTypeFromStr(const std::string &str) {
         { "EmbeddingBagPackedSum", EmbeddingBagPackedSum },
         { "EmbeddingBagOffsetsSum", EmbeddingBagOffsetsSum },
         { "EmbeddingSegmentsSum", EmbeddingSegmentsSum },
+        { "ExtractImagePatches" , ExtractImagePatches },
     };
     auto it = LayerNameToType.find(str);
     if (it != LayerNameToType.end())
@@ -1296,6 +1298,8 @@ void Program::CreateSingleLayerPrimitive(cldnn::topology& topology, InferenceEng
         case EmbeddingBagOffsetsSum: CreateEmbeddingBagOffsetsSumPrimitive(topology, layer);
             break;
         case EmbeddingSegmentsSum: CreateEmbeddingSegmentsSumPrimitive(topology, layer);
+            break;
+        case ExtractImagePatches: CreateExtractImagePatchesPrimitive(topology, layer);
             break;
         default: THROW_CLDNN_EXCEPTION("Unknown Layer Type: " << layer->type);
     }
@@ -4887,6 +4891,32 @@ void Program::CreateEmbeddingSegmentsSumPrimitive(cldnn::topology& topology, Inf
 
     topology.add(embeddingBagPrim);
     AddPrimitiveToProfiler(layerName, layer);
+}
+
+void Program::CreateExtractImagePatchesPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr& layer) {
+    ValidateLayer(layer, 1);
+
+    auto inputPrimitives = GetPrevLayersPrimitives(layer);
+    auto eipLayer = as<InferenceEngine::GenericLayer*>(layer);
+
+    std::vector<unsigned int> sizes = eipLayer->GetParamAsUInts("sizes");
+    std::vector<unsigned int> strides = eipLayer->GetParamAsUInts("strides");
+    std::vector<unsigned int> rates = eipLayer->GetParamAsUInts("rates");
+    std::string auto_pad = eipLayer->GetParamAsString("auto_pad");
+
+    std::string eipLayerName = layer_type_name_ID(layer);
+
+    auto extractImagePatchesPrim = cldnn::extract_image_patches(
+        eipLayerName,
+        inputPrimitives[0],
+        sizes,
+        strides,
+        rates,
+        auto_pad,
+        CldnnTensorFromIEDims(eipLayer->outData[0]->getTensorDesc().getDims()));
+
+    topology.add(extractImagePatchesPrim);
+    AddPrimitiveToProfiler(eipLayerName, layer);
 }
 
 bool Program::IsValidSplitConvMerge(const InferenceEngine::SplitLayer *splitLayer) const {

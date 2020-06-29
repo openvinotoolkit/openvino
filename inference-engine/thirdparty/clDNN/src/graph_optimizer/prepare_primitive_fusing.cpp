@@ -53,6 +53,7 @@
 #include "strided_slice_inst.h"
 #include "cum_sum_inst.h"
 #include "embedding_bag_inst.h"
+#include "extract_image_patches_inst.h"
 #include <vector>
 #include <list>
 #include <memory>
@@ -201,9 +202,10 @@ void prepare_primitive_fusing::fuse_activations(program_impl &p) {
                  !input.is_type<permute>() && !input.is_type<pooling>() && !input.is_type<reorder>() &&
                  !input.is_type<reshape>() && !input.is_type<roi_pooling>() && !input.is_type<scale>() &&
                  !input.is_type<softmax>() && !input.is_type<resample>() && !input.is_type<mvn>() &&
-                 !input.is_type<depth_to_space>() && !input.is_type<batch_to_space>() && !input.is_type<space_to_batch>() &&
-                 !input.is_type<gather>() && !input.is_type<shuffle_channels>() && !input.is_type<strided_slice>() &&
-                 !input.is_type<cum_sum>() && !input.is_type<reverse_sequence>() && !input.is_type<embedding_bag>() &&
+                 !input.is_type<depth_to_space>() && !input.is_type<batch_to_space>() &&
+                 !input.is_type<space_to_batch>() && !input.is_type<gather>() && !input.is_type<shuffle_channels>() &&
+                 !input.is_type<strided_slice>() && !input.is_type<cum_sum>() && !input.is_type<reverse_sequence>() &&
+                 !input.is_type<embedding_bag>() && !input.is_type<extract_image_patches>() &&
                  !input.is_type<fused_conv_eltwise>() && !input.is_type<activation>()))
                 return;
 
