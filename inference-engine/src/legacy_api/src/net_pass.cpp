@@ -17,6 +17,8 @@
 
 #include "blob_factory.hpp"
 #include "details/ie_cnn_network_tools.h"
+#include "cnn_network_impl.hpp"
+#include "cnn_network_ngraph_impl.hpp"
 #include "graph_tools.hpp"
 #include "ie_layers_internal.hpp"
 #include "ie_memcpy.h"
@@ -489,6 +491,10 @@ bool convertToRNNSeq(CNNLayerPtr cur, const N& net) {
 }
 
 bool unrollTI(CNNLayerPtr cur, ICNNNetwork& net) {
+    auto inet = dynamic_cast<details::CNNNetworkImpl*>(&net);
+    auto ngraphnet = dynamic_cast<details::CNNNetworkNGraphImpl*>(&net);
+    IE_ASSERT(inet != nullptr || ngraphnet != nullptr);
+
     if (cur->type != "TensorIterator") return true;
 
     auto ti = std::dynamic_pointer_cast<TensorIterator>(cur);
@@ -506,9 +512,10 @@ bool unrollTI(CNNLayerPtr cur, ICNNNetwork& net) {
 
         auto holder = body_list[i].inputs.back();
         if (holder->getPrecision() == Precision::UNSPECIFIED) {
-            IE_SUPPRESS_DEPRECATED_START
-            for (auto kvp : holder->getInputTo()) net.addLayer(kvp.second);
-            IE_SUPPRESS_DEPRECATED_END
+            for (auto kvp : holder->getInputTo()) {
+                if (inet) inet->addLayer(kvp.second);
+                else ngraphnet->addLayer(kvp.second);
+            }
         }
     }
 
@@ -1234,10 +1241,16 @@ std::vector<CNNLayerPtr> TopolSort(const details::CNNSubnet& net) {
 }
 
 void restore_net_consistency(ICNNNetwork& net) {
+    auto inet = dynamic_cast<details::CNNNetworkImpl*>(&net);
+    auto ngraphnet = dynamic_cast<details::CNNNetworkNGraphImpl*>(&net);
+    IE_ASSERT(inet != nullptr || ngraphnet != nullptr);
     // At first all layers should be available via findByName() api.
     // In other words all layers should be present in internal map<name, layer>
     IE_SUPPRESS_DEPRECATED_START
-    for (auto& l : TopolSort(net)) net.addLayer(l);
+    for (auto& l : TopolSort(net)) {
+        if (inet) inet->addLayer(l);
+        else ngraphnet->addLayer(l);
+    }
     IE_SUPPRESS_DEPRECATED_END
 }
 

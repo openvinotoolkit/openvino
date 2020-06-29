@@ -21,8 +21,6 @@
 
 namespace InferenceEngine {
 
-IE_SUPPRESS_DEPRECATED_START
-
 /**
  * @brief Plugin `noexcept` wrapper which accepts IInferencePluginInternal derived instance which can throw exceptions
  * @ingroup ie_dev_api_plugin_api
@@ -30,8 +28,6 @@ IE_SUPPRESS_DEPRECATED_START
  */
 template <class T>
 class PluginBase : public IInferencePluginAPI, public IInferencePlugin {
-    IE_SUPPRESS_DEPRECATED_END
-
     class VersionStore : public Version {
         std::string _dsc;
         std::string _buildNumber;
@@ -146,13 +142,9 @@ private:
     ~PluginBase() override {}
 };
 
-IE_SUPPRESS_DEPRECATED_START
-
 template <class T>
 inline IInferencePlugin* make_ie_compatible_plugin(const Version& reported, std::shared_ptr<T> impl) {
     return new PluginBase<T>(reported, impl);
 }
-
-IE_SUPPRESS_DEPRECATED_END
 
 }  // namespace InferenceEngine

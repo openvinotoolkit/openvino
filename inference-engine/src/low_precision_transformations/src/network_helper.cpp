@@ -1025,9 +1025,7 @@ void CNNNetworkHelper::replaceLayer(TransformationContext& context, const CNNLay
         outData->getInputTo().clear();
     }
 
-    IE_SUPPRESS_DEPRECATED_START
-    context.network.addLayer(target);
-    IE_SUPPRESS_DEPRECATED_END
+    networkImpl->addLayer(target);
 }
 
 CNNLayerPtr CNNNetworkHelper::addScaleShiftBetween(TransformationContext& context, const CNNLayerPtr parent,
