@@ -12,12 +12,6 @@ IE_SUPPRESS_DEPRECATED_START
 
 namespace InferenceEngine {
 
-CNNLayerPtr CNNNetwork::getLayerByName(const char* layerName) const {
-    CNNLayerPtr layer;
-    CALL_STATUS_FNC(getLayerByName, layerName, layer);
-    return layer;
-}
-
 CNNLayer::CNNLayer(const LayerParams& prms)
     : node(nullptr), name(prms.name), type(prms.type), precision(prms.precision), userValue({0}) {}
 

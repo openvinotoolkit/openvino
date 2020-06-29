@@ -28,6 +28,8 @@ add_library(onnx_importer SHARED
         core/attribute.hpp
         core/graph.cpp
         core/graph.hpp
+        core/graph_cache.cpp
+        core/graph_cache.hpp
         core/model.cpp
         core/model.hpp
         core/node.hpp
@@ -128,6 +130,8 @@ add_library(onnx_importer SHARED
         op/log.hpp
         op/log_softmax.cpp
         op/log_softmax.hpp
+        op/loop.cpp
+        op/loop.hpp
         op/lp_norm.cpp
         op/lp_norm.hpp
         op/lp_pool.cpp
@@ -251,6 +255,8 @@ add_library(onnx_importer SHARED
         utils/pooling_factory.hpp
         utils/recurrent.cpp
         utils/recurrent.hpp
+        utils/provenance_tag.cpp
+        utils/provenance_tag.hpp
         utils/reduction.cpp
         utils/reduction.hpp
         utils/reshape.cpp

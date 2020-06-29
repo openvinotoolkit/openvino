@@ -508,7 +508,7 @@ def test_roi_pooling():
     node = ng.roi_pooling(inputs, coords, [6, 6], 0.0625, "Max")
 
     assert node.get_type_name() == "ROIPooling"
-    assert node.get_output_size() == 1
+    assert node.get_output_size() == [6, 6]
     assert list(node.get_output_shape(0)) == [150, 3, 6, 6]
     assert node.get_output_element_type(0) == Type.f32
 
