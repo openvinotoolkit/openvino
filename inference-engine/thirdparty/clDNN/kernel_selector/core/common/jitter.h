@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016-2018 Intel Corporation
+// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -353,7 +353,7 @@ public:
                            bool reuse_index = false, std::string reused_idx = "") const;
     std::string GetIdx(size_t input_id, idx_desc idx, bool should_be_safe) const;
     std::string GetInputPtrName(size_t input_id) const;
-    std::string GetInputVarName(size_t input_id) const;
+    std::string GetInputVarName(size_t input_id, bool is_shuffled = false, std::string shuffle_var = "") const;
     std::string GetOutputVarName(std::string input_var_name) const;
     std::string ConvertToOutputType(std::string var, size_t vec_size = 1) const;
     std::string ConvertToType(std::string var, Datatype dt, size_t vec_size = 1) const;
