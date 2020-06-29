@@ -40,7 +40,9 @@ public:
      */
     explicit PrimitivesPriority(const std::string &primitives_priority) : primitives_priority(primitives_priority) {}
 
-    // return string with primitives priority value
+    /**
+     * @brief return string with primitives priority value
+     */
     std::string getPrimitivesPriority() const;
 };
 
@@ -63,6 +65,7 @@ public:
 /**
  * @ingroup ie_runtime_attr_api
  * @brief getPrimitivesPriority return string with primitive priorities value
+ * @param[in] node The node will be used to get PrimitivesPriority attribute
  */
 TRANSFORMATIONS_API std::string getPrimitivesPriority(const std::shared_ptr<ngraph::Node> & node);
 

@@ -11,14 +11,7 @@
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
-/**
- * @brief ngraph namespace
- */
 namespace ngraph {
-
-/**
- * @brief ngraph::pass namespace
- */
 namespace pass {
 
 class TRANSFORMATIONS_API ConvertScatterElementsToScatter;

@@ -13,14 +13,7 @@
 #include <ngraph/slice_plan.hpp>
 #include <ngraph/util.hpp>
 
-/**
- * @brief ngraph namespace
- */
 namespace ngraph {
-
-/**
- * @brief ngraph::pass namespace
- */
 namespace pass {
 
 class TRANSFORMATIONS_API StridedSliceOptimization;

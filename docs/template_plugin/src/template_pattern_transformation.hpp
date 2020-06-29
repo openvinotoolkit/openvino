@@ -9,9 +9,17 @@
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
+namespace ngraph {
+namespace pass {
+
+class MyPatternBasedTransformation;
+
+}  // namespace pass
+}  // namespace ngraph
+
 // ! [graph_rewrite:template_transformation_hpp]
 // template_pattern_transformation.hpp
-class MyPatternBasedTransformation: public ngraph::pass::GraphRewrite {
+class ngraph::pass::MyPatternBasedTransformation: public ngraph::pass::GraphRewrite {
 public:
     MyPatternBasedTransformation() : GraphRewrite() {
         transform();

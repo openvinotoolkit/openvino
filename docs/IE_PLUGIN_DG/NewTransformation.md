@@ -2,19 +2,21 @@
 
 This guide contains all necessary information that could help you to start writing nGraph transformations.
 
-First of all before writing transformation make sure that there is no transformation with the same functionality in [transformation library].
-To start writing transformation it's good to know how [transformation library] is structured, how transformations are organized and where to put your transformation code.
+First of all before writing transformation make sure that there is no transformation with the same functionality in [Transformation Library](group__ie__transformation__api.html).
+To start writing transformation it's good to know how [Transformation Library](group__ie__transformation__api.html) is structured, how transformations are organized and where to put your transformation code.
 
 Let's start from reviewing transformations library structure.
-Transformations library is independent from InferenceEngine target library and located in `inference-engine/src/transformations` directory.
+Transformations library is independent from InferenceEngine target library named as `inference_engine_transformations` and located in `inference-engine/src/transformations` directory.
 Transformations root directory contains two folders:
 1. ngraph_ops - legacy opset operations needed for nGraph to CNNNetwork conversion.
+> **Note**: this operation are prohibited to use inside new plugins until they are not moved to separate directory with allowed operations.
 2. transformations - includes all transformations, utils, runtime info attributes and pass managers.
+> **Note**: do not use transformation that belongs to `ngraph::pass::ConvertOpSet1ToLegacy` transformations until they are not moved to separate directory with allowed transformations.
 
 Transformation flow in transformation library has several layers:
 1. Pass managers - executes list of transformations using `*_tbl.hpp` file. For example conversion form OpSetX to OpSetY.
-2. Transformations - performs particular transformation algorithm on `ngraph::Funcion` (find more about transformations in [Transformations types]).
-3. Low level functions that takes set of nodes and performs some transformation action. They are not mandatory and all transformation code can be located inside transformation but if some transformation parts can potentially be reused in other transformations we suggest to keep them as a separate functions.
+2. Transformations - performs particular transformation algorithm on `ngraph::Function`. Find more about transformations in [Transformations types](#transformations_types).
+3. Low level functions that takes set of nodes and performs some transformation action. They are not mandatory and all transformation code can be located inside transformation. But if some transformation parts can potentially be reused in other transformations we suggest to keep them as a separate functions.
 
 To decide where to store your transformation code please follow these rules:
 1. If it's plugin specific transformation and can't be reused by other plugins keep source code inside plugin.
@@ -24,20 +26,20 @@ After you decided where to store your transformation code you can start develop 
 
 ## Table of Contents:
 
-1. `ngraph::Function` and graph representation
-2. Transformations types
-3. Pattern matching
-4. Working with ngraph::Function
-5. Transformation writing essentials
-6. Common mistakes in transformations
-7. Using pass manager
-8. How to debug transformations
-9. Disabling/Enabling specific transformations for plugin X
-10. Transformations testing
+1. [`ngraph::Function` and graph representation](#ngraph_function) 
+2. [Transformations types](#transformations_types)
+3. [Pattern matching](#pattern_matching)
+4. [Working with ngraph::Function](#working_with_ngraph_function)
+5. [Transformation writing essentials](#transformation_writing_essentials)
+6. [Common mistakes in transformations](#common_mistakes)
+7. [Using pass manager](#using_pass_manager)
+8. [How to debug transformations](#how_to_debug_transformations)
+9. [Disabling/Enabling specific transformations for plugin X](#disabling_transformation)
+10. [Transformations testing](#transformations_testing)
 
-## ngraph::Function and graph representation
+## ngraph::Function and graph representation <a name="ngraph_function"></a>
 
-nGraph function is a very simple thing: it stores shared pointers to [Result] and [Parameter] operations that are inputs and outputs of the graph. 
+nGraph function is a very simple thing: it stores shared pointers to `ngraph::op::Result` and `ngraph::op::Parameter` operations that are inputs and outputs of the graph. 
 All other operations hold each other via shared pointers: child operation holds its parent (hard link). If operation has no consumers and it's not Result operation
 (shared pointer counter is zero) then it will be destructed and won't be accessible anymore. Each operation in `ngraph::Function` is a shared_ptr and has `ngraph::Node` as a base class.
 
@@ -47,7 +49,7 @@ Below you can find examples how `ngraph::Function` can be created:
 
 @snippet example_ngraph_utils.cpp ngraph_utils:advanced_function
 
-## Transformations types
+## Transformations types <a name="transformations_types"></a>
 
 There are two main transformation types:
 
@@ -61,7 +63,7 @@ Template for FunctionPass transformation class
 
 @snippet src/template_function_transformation.cpp function_pass:template_transformation_cpp
 
-Using ngraph::FunctionPass you need to override `run_on_function` method where you will write transformation code. Return value must be `true` if original function has changed during transformation otherwise it must be `false`. For transformation API please follow [Working with ngraph::Function] section.
+Using `ngraph::FunctionPass` you need to override `run_on_function` method where you will write transformation code. Return value must be `true` if original function has changed during transformation (new operation were added or operations replacement was made or node attributes were changed) otherwise it must be `false`.For transformation API please follow [working with ngraph::Function](#working_with_ngraph_function) section.
 
 ###2. ngraph::pass::GraphRewrite
 
@@ -84,38 +86,39 @@ Pattern is a single root `ngraph::Function`. But the only difference is that you
 @snippet example_ngraph_utils.cpp pattern:simple_example
 
 You may have noticed that `Parameter` operation in example has type and shape specified. These attributes are needed only to create Parameter operation class and not used in pattern matching. 
-But what if we want to match pattern where `ShapeOf` takes any operation as input? To find an answer to this question please follow [Pattern matching] section.
+But what if we want to match pattern where `ShapeOf` takes any operation as input? To find an answer to this question please follow [pattern matching](#pattern_matching) section.
 
 What is callback? Callback is an action applied to every pattern entrance. In general callback is lambda function that takes Matcher object with detected sub-graph.
 
 @snippet example_ngraph_utils.cpp pattern:callback_example
 
 Example above shows callback structure and how Matcher can be used for accessing nodes detected by pattern.
-Callback return value must be `true` if something has happened to nodes (replacing/reconnection) otherwise it must be `false`.
+Callback return value must be `true` if root node was replaced and next pattern can't be applied to the same root node otherwise it must be `false`.
 
 And the last step is to register Matcher and callback inside GraphRewrite pass. And to do this you need to call `add_matcher` method. 
 
-~~~~~~~~~~~~~{.cpp}
+```cpp
 // Register matcher and callback
 this->add_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
-~~~~~~~~~~~~~
+```
 
 Also you can have multiple matchers and callbacks and they can be registered in single Graphrewrite pass. In this case all registered patterns will be applied in a singe graph traversal. 
 
-~~~~~~~~~~~~~{.cpp}
+```cpp
 // Multiple matchers example
 this->add_matcher(m1, callback1, PassProperty::CHANGE_DYNAMIC_STATE);
 this->add_matcher(m2, callback2, PassProperty::CHANGE_DYNAMIC_STATE);
-~~~~~~~~~~~~~
+```
 
 The last argument `PassProperty::CHANGE_DYNAMIC_STATE` says that callback can be applied for ngraph::Function with dynamic shapes. In case if callback does not support dynamic shapes `PassProperty::REQUIRE_STATIC_SHAPE` can be used.
+> **Note**: property mechanism will be deprecated soon and PassProperty::CHANGE_DYNAMIC_STATE is suggested to be used by default.
 
 To run any transformation you need to call `un_on_function(f)` method where `f` is `ngraph::Function`.
-~~~~~~~~~~~~~{.cpp}
+```cpp
 ngraph::pass::MyTransformationClass().run_on_function(f);
-~~~~~~~~~~~~~ 
+``` 
   
-## Pattern matching
+## Pattern matching <a name="pattern_matching"></a>
 
 Sometimes patterns can't be expressed via regular nGraph operations. For example if you want to detect Convolution->Add sub-graph without specifying particular input type for Convolution operation or you want to create pattern where some of operations can have different types.
 And for these cases nGraph provides additional helpers to construct patterns for GraphRewrite transformations. 
@@ -124,7 +127,8 @@ There are two main helpers:
 2. `ngraph::pattern::op::Any` - helps to express intermediate nodes of pattern if their type is unknown.
 
 Let's go through example to have better understanding how it works:
-Note: node attributes do not participate in pattern matching and needed only for operations creation. Only operation types participate in pattern matching.
+
+> **Note**: node attributes do not participate in pattern matching and needed only for operations creation. Only operation types participate in pattern matching.
 
 Example below shows basic usage of `pattern::op::Label` class.
 Here we construct Multiply pattern with arbitrary first input and Constant as a second input.
@@ -141,7 +145,7 @@ This example shows how to use predicate to construct pattern where operation has
 
 TODO: add examples for ngraph::pattern::op::Any
 
-## Working with ngraph::Function
+## Working with ngraph::Function <a name="working_with_ngraph_function"></a>
 
 In this chapter we will review nGraph API that allows us to manipulate with `ngraph::Function`.
 
@@ -157,11 +161,11 @@ Lets look at code example.
 @snippet example_ngraph_utils.cpp ngraph:ports_example
 
 You may notice that we usually construct operations in this way:
-~~~~~~~~~~~~~{.cpp}
+```cpp
 std::shared_ptr<Node> neg_const = opset1::Constant::create(sub->get_input_element_type(1), Shape{1}, {-1}));
 Output<Node> data = node->input_value(0);
 auto neg = std::make_shared<ngraph::opset1::Multiply>(data, neg_const);
-~~~~~~~~~~~~~
+```
 In this example `opset3::Multiply` operation takes `Output<Node>` and `std::shared_ptr<Node>` as inputs. But constructor takes both as `Output<Node>`. 
 In this case `std::shared_ptr<Node>` will be automatically converted to `Output<Node>` if node has exactly one output port otherwise conversion will raise an exception.   
 
@@ -181,10 +185,10 @@ We will review real replacement case where Negative operation replaces with Mult
 
 
 The alternative way to do the same replacement is next:
-~~~~~~~~~~~~~{.cpp}
+```cpp
 // All neg->output(0) consumers will be moved to mul->output(0) port
 neg->output(0).replace(mul->output(0));
-~~~~~~~~~~~~~
+```
 
 Another transformation example is insertion.
 
@@ -207,7 +211,7 @@ To eliminate operation nGraph has special method that consider all limitations r
 `replace_output_update_name` in case of successful replacement it automatically preserves friendly name and runtime info.
   
 
-## Transformation writing essentials
+## Transformation writing essentials <a name="transformation_writing_essentials"></a>
 
 When developing transformation we need to follow next transformation rules:
 
@@ -240,43 +244,43 @@ Each `ngraph::Node` has unique name (is used for nGraph internals) and friendly 
 Also friendly name is used as output tensor name (until we do not have other way to represent output tensor name) and user code that requests intermediate outputs based on this names.
 So not to loose friendly name when replacing node with other node or sub-graph we need to set original friendly name to the latest node in replacing sub-garph. See example below. 
 
-~~~~~~~~~~~~~{.cpp}
+```cpp
 // Replace Div operation with Power and Multiply sub-graph and set original friendly name to Multiply operation
 auto pow = std::make_shared<ngraph::opset1::Power>(div->input(1).get_source_output(),
                                                            op::Constant::create(div->get_input_element_type(1), Shape{1}, {-1}));
 auto mul = std::make_shared<ngraph::opset1::Multiply>(div->input(0).get_source_output(), pow);
 mul->set_friendly_name(div->get_friendly_name());
 ngraph::replace_node(div, mul);
-~~~~~~~~~~~~~
+```
 
 In more advanced cases when replaced operation has several outputs and we add additional consumers to its outputs we make decision how to set friendly name by arrangement.
 
 ###4. Runtime Info
 
-Runtime info is a map `std::map<std::string, std::shared_ptr<Variant>>` located inside `ngraph::Node` class. It represents additional attributes in `ngraph::Node`. Find more information about runtime info in [Custom attributes in nodes] chapter.
+Runtime info is a map `std::map<std::string, std::shared_ptr<Variant>>` located inside `ngraph::Node` class. It represents additional attributes in `ngraph::Node`.
 These attributes can be set by users or by plugins and when executing transformation that changes `ngraph::Function` we need to preserve this attributes as they won't be automatically propagated.
 In most cases transformations has next types: 1:1 (replace node with another node), 1:N (replace node with a sub-graph), N:1 (fuse sub-graph into a single node), N:M (any other transformation).
 Currently there is no mechanism that automatically detects transformation types so we need to propagate this runtime information manually. See examples below.
 
-~~~~~~~~~~~~~{.cpp}
+```cpp
 // Replace Transpose with Reshape operation (1:1)
 ngraph::copy_runtime_info(transpose, reshape);
-~~~~~~~~~~~~~
+```
 
-~~~~~~~~~~~~~{.cpp}
+```cpp
 // Replace Div operation with Power and Multiply sub-graph (1:N)
 ngraph::copy_runtime_info(div, {pow, mul});
-~~~~~~~~~~~~~
+```
 
-~~~~~~~~~~~~~{.cpp}
+```cpp
 // Fuse Convolution with Add operation (N:1)
 ngraph::copy_runtime_info({conv, bias}, {conv_ie});
-~~~~~~~~~~~~~
+```
 
-~~~~~~~~~~~~~{.cpp}
+```cpp
 // Any other transformation that replaces one sub-graph with another sub-graph (N:M)
 ngraph::copy_runtime_info({a, b, c}, {e, f});
-~~~~~~~~~~~~~
+```
 
 When transformation has multiple fusions or decompositions `ngraph::copy_runtime_info` must be called multiple times for each case. 
 
@@ -285,15 +289,15 @@ When transformation has multiple fusions or decompositions `ngraph::copy_runtime
 If your transformation inserts constant sub-graphs that needs to be folded do not forget to use `ngraph::pass::ConstantFolding()` after your transformation.
 Example below shows how constant sub-graph can be constructed.
 
-~~~~~~~~~~~~~{.cpp}
+```cpp
 // After ConstantFolding pass Power will be replaced with Constant 
 auto pow = std::make_shared<ngraph::opset3::Power>(
                     opset3::Constant::create(element::f32, Shape{1}, {2})
                     opset3::Constant::create(element::f32, Shape{1}, {3}));
 auto mul = std::make_shared<ngraph::opset3::Multiply>(input /* not constant input */, pow);
-~~~~~~~~~~~~~ 
+``` 
 
-## Common mistakes in transformations	 
+## Common mistakes in transformations <a name="common_mistakes"></a>
 
 In transformation development process 
 
@@ -303,23 +307,23 @@ In transformation development process
 * Do not forget to call `ngraph::ConstantFolding` pass if your transformation creates constant sub-graphs.
 * Use latest OpSet if you are not developing downgrade transformation pass.
 
-## Using pass manager
+## Using pass manager <a name="using_pass_manager"></a>
 
 `ngraph::pass::Manager` is a container class that can store list of transformations and execute them. The main idea of this class is to have high-level representation for grouped list of transformations.
 For example `ngraph::pass::CommonOptimizations` pass manager register list of transformation related to common optimizations. Also `ngraph::pass::Manager` after each transformation executes `f->validate_nodes_and_infer_types()` that help to keep function synchronized.
-In addition `ngraph::pass::Manager` has extended debug capabilities (find more information in [How to debug transformations] section). 
+In addition `ngraph::pass::Manager` has extended debug capabilities (find more information in [how to debug transformations](#how_to_debug_transformations) section). 
 
 Example below shows basic usage of `ngraph::pass::Manager`
-~~~~~~~~~~~~~{.cpp}
+```cpp
 ngraph::pass::Manager pass_manager;
 pass_manager.register_pass<pass::MyTransformationA>();
 pass_manager.register_pass<pass::MyTransformationB>();
 pass_manager.run_passes(f);
-~~~~~~~~~~~~~
+```
 
 TODO: Advanced pass manager usage.
 
-## How to debug transformations
+## How to debug transformations <a name="how_to_debug_transformations"></a>
 
 The most popular tool for transformations debugging is `ngraph::pass::VisualizeTree` transformation that visualize ngraph::Function.
 
@@ -329,29 +333,29 @@ Usage example:
 
 `ngraph::pass::VisualizeTree` can be parametrized via environment variables:
 
-~~~~~~~~~~~~~{.txt}
+```
 NGRAPH_VISUALIZE_TREE_OUTPUT_SHAPES=1 - visualize shapes
 NGRAPH_VISUALIZE_TREE_OUTPUT_TYPES=1  - visualize types
-~~~~~~~~~~~~~
+```
 
-Note: current VisualTree has not user friendly interface and it will be changed in nearest future. The intention is to move visualize abilities inside transformations.
+> **Note**: current VisualTree has not user friendly interface and it will be changed in nearest future. The intention is to move visualize abilities inside transformations.
 
 If you are using `ngraph::pass::Manager` to run sequence of transformations you can get additional debug capabilities by using next environment variables:
 
-~~~~~~~~~~~~~{.txt}
+```
 NGRAPH_PROFILE_PASS_ENABLE=1 - enables performance measurement for each transformation and prints execution status
 NGRAPH_ENABLE_VISUALIZE_TRACING=1 -  enables visualization after each transformation. By default it saves dot and svg files.
-~~~~~~~~~~~~~
+```
 
-Note: make sure that you have dot installed on your machine otherwise it will silently save only dot file without svg file.
+> **Note**: make sure that you have dot installed on your machine otherwise it will silently save only dot file without svg file.
 
-## Disabling/Enabling specific transformations for plugin X	 
+## Disabling/Enabling specific transformations for plugin X	 <a name="disabling_transformation"></a>
 
 This topic mostly related to conversion to legacy opset and plugins that based on CNNNetwork but still this mechanism can be applied for other cases.
-Let's suppose that plugin X enabled `opset3::StridedSlice` operation support and you want to disable `ConvertStridedSliceToCrop` transformation for plugin X.
+Let's suppose that plugin X enabled `opset3::StridedSlice` operation support and you want to disable `ngraph::pass::ConvertStridedSliceToCrop` transformation for plugin X.
 To do this you need to extend transformation class with `ngraph::pass::PassParam` class. This class extends transformations class with `transformation_callback` that can be set by plugin that uses legacy conversion. 
 
-~~~~~~~~~~~~~{.cpp}
+```cpp
 // Extend transformation class with PassParam
 class ngraph::pass::ConvertStridedSliceToCrop: public ngraph::pass::GraphRewrite, public ngraph::pass::PassParam {
     ...
@@ -366,11 +370,11 @@ ngraph::graph_rewrite_callback callback = [this](pattern::Matcher &m) {
 if (transformation_callback(node)) {
     return false;
 }
-~~~~~~~~~~~~~
+```
 
 TODO: link to existing example
 
-## Transformations testing
+## Transformations testing <a name="transformations_testing"></a>
 
 If you are developing new transformation inside plugin you need to add test into `template_plugin/tests/functional/transformations` folder.
 We have two types of tests: nGraph reader tests located in `inference-engine/tests/functional/inference_engine/ngraph_reader` and transformation tests located  in `inference-engine/tests/functional/inference_engine/transformations`
