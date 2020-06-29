@@ -688,18 +688,6 @@ namespace
         return replacement_node;
     }
 
-    shared_ptr<Node> op_cast(shared_ptr<op::v1::Softmax> node)
-    {
-        const auto axis = node->get_axis();
-        const auto data = node->input(0);
-        const auto data_shape = data.get_shape();
-        std::vector<size_t> axes(data_shape.size() - axis);
-        std::iota(std::begin(axes), std::end(axes), axis);
-        const auto replacement_node = make_shared<op::v0::Softmax>(node->input_value(0), axes);
-        replace_node(node, replacement_node);
-        return replacement_node;
-    }
-
     shared_ptr<Node> op_cast(shared_ptr<op::v1::Split> node)
     {
         const auto num_splits = node->get_num_splits();
