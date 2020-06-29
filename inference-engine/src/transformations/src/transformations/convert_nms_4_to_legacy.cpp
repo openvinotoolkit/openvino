@@ -107,7 +107,7 @@ bool ngraph::pass::ConvertNMS4ToLegacy::run_on_function(std::shared_ptr<ngraph::
         }
 
         last.get_node_shared_ptr()->set_friendly_name(nms_4->get_friendly_name());
-        ngraph::copy_runtime_info(nms_4, last.get_node_shared_ptr());
+        ngraph::copy_runtime_info(nms_4, new_ops);
         ngraph::replace_node(nms_4, last.get_node_shared_ptr());
         rewritten = true;
     }
