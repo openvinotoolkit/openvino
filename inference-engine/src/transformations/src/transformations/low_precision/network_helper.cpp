@@ -755,6 +755,10 @@ FakeQuantizeDequantization getDequantization(std::shared_ptr<Node> node) {
 
 std::shared_ptr<Node> optimizeSubtract(std::shared_ptr<opset1::Subtract> add) {
     auto convertOnAdd = add->input_value(0).get_node_shared_ptr();
+    if (as_type_ptr<opset1::Convert>(convertOnAdd) == nullptr) {
+        return add;
+    }
+
     // TODO: replace assert to condition and omit conversion part if there is no convert
     // TODO: also check convertInputType to understand if we really want to propagate type
     assert(as_type_ptr<opset1::Convert>(convertOnAdd));

@@ -18,6 +18,7 @@
 #include "transformation_context.hpp"
 #include "quantization_details.hpp"
 #include <transformations/low_precision/common/ie_lpt_exception.hpp>
+#include "common/fake_quantize_dequantization.hpp"
 
 /*****************************************************
  * Debug capability
@@ -314,6 +315,10 @@ protected:
         const std::vector<float>& dequantizationScales,
         const std::vector<float>& dequantizationShifts);
 #endif
+    void addDequantizationLayer(
+        TransformationContext& context,
+        const std::shared_ptr<Node> layer,
+        const FakeQuantizeDequantization& dequantization) const;
 
     void fillFromQuantizationDetails(
             const QuantizationDetails& quantizationDetails,

@@ -154,6 +154,13 @@ void LayerTransformation::printDequantizationValues(
 }
 #endif
 
+void LayerTransformation::addDequantizationLayer(
+    TransformationContext& context,
+    const std::shared_ptr<Node> layer,
+    const FakeQuantizeDequantization& dequantization) const {
+    //
+}
+
 void LayerTransformation::fillFromQuantizationDetails(
     const QuantizationDetails& quantizationDetails,
     const DataPrecision& dataPrecision,
@@ -443,7 +450,7 @@ void LayerTransformation::fillAvailablePrecisions(std::shared_ptr<Node> layer, s
         }
 
         // TODO FIXME: try to use NodeTypeInfo
-        const std::vector<element::Type> childPrecisionsOnActivations = paramsManager->getPrecisionsOnActivations(child->get_type_info().name);
+        const std::vector<element::Type> childPrecisionsOnActivations = paramsManager->getPrecisionsOnActivations(*child);
         if (childPrecisionsOnActivations.size() == 0ul) {
             continue;
         }

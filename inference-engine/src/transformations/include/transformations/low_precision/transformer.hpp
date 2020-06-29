@@ -13,6 +13,7 @@
 #include "layer_transformation.hpp"
 #include "iparams_manager.hpp"
 #include "ilayer_transformations_manager.hpp"
+#include "ngraph_ops/type_relaxed.hpp"
 
 namespace ngraph {
 namespace pass {
@@ -21,6 +22,7 @@ namespace low_precision {
 
 class TRANSFORMATIONS_API LowPrecisionTransformations {
 public:
+    LowPrecisionTransformations() {}
     LowPrecisionTransformations(
         const std::map<std::string, LayerTransformationPtr>& branchSpecificTransformations,
         const std::map<std::string, LayerTransformationPtr>& transformations,
@@ -36,40 +38,76 @@ public:
     LowPrecisionTransformations& removeTransformations(const std::string& layerName);
     LowPrecisionTransformations& removeCleanupTransformations(const std::string& layerName);
 
-    template <class T>
-    LowPrecisionTransformations& addBranchSpecific(const LayerTransformation::Params& params, const std::string& transformationName) {
-        const auto it = branchSpecificTransformations.find(transformationName);
+    template <class T, class Operation>
+    LowPrecisionTransformations& addBranchSpecific(const LayerTransformation::Params& params) {
+        const std::string typeName = typeid(ngraph::op::TypeRelaxed<Operation>).name();
+
+        const auto it = branchSpecificTransformations.find(typeName);
         if (it != branchSpecificTransformations.end()) {
             branchSpecificTransformations.erase(it);
         }
 
-        branchSpecificTransformations.emplace(transformationName, std::make_shared<T>(params));
+        branchSpecificTransformations.emplace(typeName, std::make_shared<T>(params));
         return *this;
     }
 
-    template <class T>
-    LowPrecisionTransformations& add(const LayerTransformation::Params& params, const std::string& transformationName) {
-        const auto it = transformations.find(transformationName);
+    template <class T, class Operation>
+    LowPrecisionTransformations& add(const LayerTransformation::Params& params) {
+        const std::string typeName = typeid(ngraph::op::TypeRelaxed<Operation>).name();
+
+        const auto it = transformations.find(typeName);
         if (it != transformations.end()) {
             transformations.erase(it);
         }
 
-        transformations.emplace(transformationName, std::make_shared<T>(params));
+        transformations.emplace(typeName, std::make_shared<T>(params));
         return *this;
     }
 
-    template <class T>
-    LowPrecisionTransformations& addCleanup(const LayerTransformation::Params& params, const std::string& transformationName) {
-        const auto it = cleanupTransformations.find(transformationName);
+    template <class T, class Operation>
+    LowPrecisionTransformations& addCleanup(const LayerTransformation::Params& params) {
+        const std::string typeName = typeid(ngraph::op::TypeRelaxed<Operation>).name();
+
+        const auto it = cleanupTransformations.find(typeName);
         if (it != cleanupTransformations.end()) {
             cleanupTransformations.erase(it);
         }
 
-        cleanupTransformations.emplace(transformationName, std::make_shared<T>(params));
+        cleanupTransformations.emplace(typeName, std::make_shared<T>(params));
         return *this;
     }
 
+    template <class Operation>
+    static std::string getType() {
+        return typeid(ngraph::op::TypeRelaxed<Operation>).name();
+    }
+
+    static std::string getType(const Node& operation) {
+        return typeid(operation).name();
+    }
+
     LayerTransformationPtr find(const std::string& transformationName) const;
+
+    template <class Operation>
+    LayerTransformationPtr find() const {
+        const std::string transformationKey = getType<Operation>();
+        auto it = branchSpecificTransformations.find(transformationKey);
+        if (it != branchSpecificTransformations.end()) {
+            return it->second;
+        }
+
+        it = transformations.find(transformationKey);
+        if (it != transformations.end()) {
+            return it->second;
+        }
+
+        it = cleanupTransformations.find(transformationKey);
+        if (it != cleanupTransformations.end()) {
+            return it->second;
+        }
+
+        return nullptr;
+    }
 
     void setParamsManager(IParamsManager* paramsManager) noexcept;
     void setLayerTransformationsManager(ILayerTransformationsManager* layerTransformationsManager) noexcept;
@@ -102,7 +140,7 @@ public:
 #endif
 
     // IParamsManager interface implementation
-    std::vector<element::Type> getPrecisionsOnActivations(const std::string& layerType) const noexcept override;
+    std::vector<element::Type> getPrecisionsOnActivations(const Node& op) const noexcept override;
 
     // ILayerTransformationsManager interface implementation
     bool isQuantized(std::shared_ptr<Node> layer) const noexcept override;

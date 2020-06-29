@@ -10,10 +10,14 @@
 #include <limits>
 #include <map>
 #include <memory>
+#include <iostream>
 #include <string>
+#include <typeinfo>
 #include <unordered_set>
 #include <utility>
 #include <vector>
+
+#include "ngraph_ops/type_relaxed.hpp"
 
 #include "transformations/low_precision/add.hpp"
 #include "transformations/low_precision/avg_pool.hpp"
@@ -174,36 +178,59 @@ void LowPrecisionTransformations::setLayerTransformationsManager(
 }
 
 LowPrecisionTransformations LowPrecisionTransformer::getAllTransformations(const LayerTransformation::Params& params) {
-    return LowPrecisionTransformations(
-        std::map<std::string, LayerTransformationPtr>({
-            { "Concat", LayerTransformationPtr(new ConcatTransformation(params))}
-            // { "Concat", LayerTransformationPtr(new ConcatMultiChannelsTransformation(params))}
-        }),
-        std::map<std::string, LayerTransformationPtr>({
-            { "AvgPool", LayerTransformationPtr(new AvgPoolTransformation(params)) },
-            { "Convolution", LayerTransformationPtr(new ConvolutionTransformation(params)) },
-            { "GroupConvolution", LayerTransformationPtr(new GroupConvolutionTransformation(params)) },
-            { "MaxPool", LayerTransformationPtr(new MaxPoolTransformation(params)) },
-            { "FakeQuantize", LayerTransformationPtr(new FakeQuantizeTransformation(params)) },
-            // { "Reshape", LayerTransformationPtr(new ReshapeTransformation(params)) },
-            // { "MatMul", LayerTransformationPtr(new MatMulTransformation(params)) },
-            //// { "Transpose", LayerTransformationPtr(new TransposeTransformation(params)) },
-            //// { "Squeeze", LayerTransformationPtr(new SqueezeTransformation(params)) },
-            { "ReLU", LayerTransformationPtr(new ReluTransformation(params)) },
-            //// { "MVN", LayerTransformationPtr(new MvnTransformation(params)) },
-            { "Add", LayerTransformationPtr(new AddTransformation(params)) },
-            //// { "Interpolate", LayerTransformationPtr(new InterpolateTransformation(params)) },
-            // { "DepthToSpace", LayerTransformationPtr(new DepthToSpaceTransformation(params)) },
-            // { "NormalizeL2", LayerTransformationPtr(new NormalizeL2Transformation(params)) }
-        }),
-        std::map<std::string, LayerTransformationPtr>({
-            // fuse FakeQuantize with dequantization operations BEFORE FakeQuantize, AFTER is not implemented yet
-            { "FakeQuantize", LayerTransformationPtr(new FuseFakeQuantizeTransformation(params)) },
-            // { "ScaleShift", LayerTransformationPtr(new ScaleShiftToConvolutionTransformation(params)) },  // ???
-            // { "MultiplyAdd", LayerTransformationPtr(new DecomposeMultiplyAddTransformation(params)) },
-            // { "Subtract", LayerTransformationPtr(new SubtractTransformation(params)) },
-            { "Multiply", LayerTransformationPtr(new MultiplyTransformation(params)) },
-        }));
+    // return LowPrecisionTransformations(
+    //    std::map<std::string, LayerTransformationPtr>({
+    //        { "Concat", LayerTransformationPtr(new ConcatTransformation(params))}
+    //        // { "Concat", LayerTransformationPtr(new ConcatMultiChannelsTransformation(params))}
+    //    }),
+    //    std::map<std::string, LayerTransformationPtr>({
+    //        { "AvgPool", LayerTransformationPtr(new AvgPoolTransformation(params)) },
+    //        { "Convolution", LayerTransformationPtr(new ConvolutionTransformation(params)) },
+    //        { "GroupConvolution", LayerTransformationPtr(new GroupConvolutionTransformation(params)) },
+    //        { "MaxPool", LayerTransformationPtr(new MaxPoolTransformation(params)) },
+    //        { "FakeQuantize", LayerTransformationPtr(new FakeQuantizeTransformation(params)) },
+    //        // { "Reshape", LayerTransformationPtr(new ReshapeTransformation(params)) },
+    //        // { "MatMul", LayerTransformationPtr(new MatMulTransformation(params)) },
+    //        //// { "Transpose", LayerTransformationPtr(new TransposeTransformation(params)) },
+    //        //// { "Squeeze", LayerTransformationPtr(new SqueezeTransformation(params)) },
+    //        { "ReLU", LayerTransformationPtr(new ReluTransformation(params)) },
+    //        //// { "MVN", LayerTransformationPtr(new MvnTransformation(params)) },
+    //        { "Add", LayerTransformationPtr(new AddTransformation(params)) },
+    //        //// { "Interpolate", LayerTransformationPtr(new InterpolateTransformation(params)) },
+    //        // { "DepthToSpace", LayerTransformationPtr(new DepthToSpaceTransformation(params)) },
+    //        // { "NormalizeL2", LayerTransformationPtr(new NormalizeL2Transformation(params)) }
+    //    }),
+    //    std::map<std::string, LayerTransformationPtr>({
+    //        // fuse FakeQuantize with dequantization operations BEFORE FakeQuantize, AFTER is not implemented yet
+    //        { "FakeQuantize", LayerTransformationPtr(new FuseFakeQuantizeTransformation(params)) },
+    //        // { "ScaleShift", LayerTransformationPtr(new ScaleShiftToConvolutionTransformation(params)) },  // ???
+    //        // { "MultiplyAdd", LayerTransformationPtr(new DecomposeMultiplyAddTransformation(params)) },
+    //        // { "Subtract", LayerTransformationPtr(new SubtractTransformation(params)) },
+    //        { "Multiply", LayerTransformationPtr(new MultiplyTransformation(params)) },
+    //    }));
+
+    using namespace pass::low_precision;
+
+    // one operation type => one transformation
+    // TODO: refactor: duplication: declaration & registerMatcherIn
+    return LowPrecisionTransformations().
+        addBranchSpecific<pass::low_precision::ConcatTransformation, opset1::Concat>(params).
+
+        add<AddTransformation, opset1::Add>(params).
+        add<AvgPoolTransformation, opset1::AvgPool>(params).
+        add<ConvolutionTransformation, opset1::Convolution>(params).
+        add<DepthToSpaceTransformation, opset1::DepthToSpace>(params).
+        add<FakeQuantizeTransformation, opset1::FakeQuantize>(params).
+        add<GroupConvolutionTransformation, opset1::GroupConvolution>(params).
+        add<MatMulTransformation, opset1::MatMul>(params).
+        add<MaxPoolTransformation, opset1::MaxPool>(params).
+        add<NormalizeL2Transformation, opset1::NormalizeL2>(params).
+        add<ReluTransformation, opset1::Relu>(params).
+        // Multiply const change is not supported
+        // add<ReshapeTransformation, opset1::Reshape>(params).
+
+        addCleanup<FuseFakeQuantizeTransformation, opset1::FakeQuantize>(params).
+        addCleanup<MultiplyTransformation, opset1::Multiply>(params);
 }
 
 LowPrecisionTransformer::LowPrecisionTransformer(): transformations(LowPrecisionTransformer::getAllTransformations()) {}
@@ -393,7 +420,7 @@ void LowPrecisionTransformer::transform(std::shared_ptr<Function> network) {
     }
 
     { // Step #1: FakeQuantize layer transformation execution
-        LayerTransformationPtr fqTransformation = transformations.find("FakeQuantize");
+        LayerTransformationPtr fqTransformation = transformations.find<opset1::FakeQuantize>();
         if (fqTransformation == nullptr) {
             THROW_TRANSFORMATION_EXCEPTION << "FakeQuantize transformation was not found";
         }
@@ -467,9 +494,8 @@ void LowPrecisionTransformer::transform(std::shared_ptr<Function> network) {
 #endif
 }
 
-std::vector<element::Type> LowPrecisionTransformer::getPrecisionsOnActivations(const std::string& layerType) const noexcept {
-    // TODO(slyalin) FIXME: it is not correct in general to find layerType in a list of transformations
-    const LayerTransformationPtr transformation = transformations.find(layerType);
+std::vector<element::Type> LowPrecisionTransformer::getPrecisionsOnActivations(const Node& op) const noexcept {
+    const LayerTransformationPtr transformation = transformations.find(LowPrecisionTransformations::getType(op));
     if (transformation == nullptr) {
         return std::vector<element::Type>();
     }
@@ -477,8 +503,9 @@ std::vector<element::Type> LowPrecisionTransformer::getPrecisionsOnActivations(c
 }
 
 bool LowPrecisionTransformer::isQuantized(std::shared_ptr<Node> layer) const noexcept {
-    // TODO(slyalin) FIXME: it is not correct in general to find layerType in a list of transformations
-    const LayerTransformationPtr transformation = transformations.find(layer->get_type_info().name);
+    const std::string operantionType = LowPrecisionTransformations::getType(*layer);
+
+    const LayerTransformationPtr transformation = transformations.find(operantionType);
     if (transformation == nullptr) {
         return false;
     }
@@ -486,8 +513,8 @@ bool LowPrecisionTransformer::isQuantized(std::shared_ptr<Node> layer) const noe
 }
 
 bool LowPrecisionTransformer::isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept {
-    // TODO(slyalin) FIXME: it is not correct in general to find layerType in a list of transformations
-    const LayerTransformationPtr transformation = transformations.find(layer->get_type_info().name);
+    const std::string operantionType = LowPrecisionTransformations::getType(*layer);
+    const LayerTransformationPtr transformation = transformations.find(operantionType);
     if (transformation == nullptr) {
         return false;
     }

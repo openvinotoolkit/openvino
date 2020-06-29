@@ -21,7 +21,7 @@ namespace pass {
 class TRANSFORMATIONS_API IParamsManager {
 public:
     // TODO FIXME: it is not correct to have a string as a key here, try to use NodeTypeInfo
-    virtual std::vector<element::Type> getPrecisionsOnActivations(const std::string& layerType) const noexcept = 0;
+    virtual std::vector<element::Type> getPrecisionsOnActivations(const Node& op) const noexcept = 0;
 };
 
 }  // namespace pass

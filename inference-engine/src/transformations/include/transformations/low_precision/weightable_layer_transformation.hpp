@@ -27,11 +27,10 @@ public:
     WeightableLayerTransformation(const Params& params);
     bool canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const override;
 
+    bool isQuantized(std::shared_ptr<Node> layer) const noexcept;
+    bool isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept;
+
 #if 0 // TODO: LPT-TO-NGRAPH
-
-    bool isPrecisionPreserved(const CNNLayer& layer) const noexcept override;
-    bool isQuantized(const CNNLayer& layer) const noexcept override;
-
 protected:
     void updateLayerBiases(
         TransformationContext& context,
@@ -62,12 +61,6 @@ protected:
         const bool onWeights) const;
 
 #endif
-
-    DataPrecision fillDequantizationsForWeightsPath(
-        std::shared_ptr<Node> weightableLayer,
-        const bool supportAsymmetricQuantization,
-        std::vector<float>& dequantizationScales,
-        std::vector<float>& dequantizationShifts) const;
 
     DataPrecision decomposeFakeQuantizeForWeightsPath(
             std::shared_ptr<Node> weightableLayer,
