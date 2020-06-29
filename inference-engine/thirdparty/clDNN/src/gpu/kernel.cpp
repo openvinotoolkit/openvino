@@ -306,7 +306,7 @@ void set_arguments(kernels_cache::kernel_type& kernel,
         }
 
         if (status != CL_SUCCESS) {
-            throw std::runtime_error("Error set args\n");
+            throw std::runtime_error("Error set arg " + std::to_string(i) + ", error code: " + std::to_string(status) + "\n");
         }
     }
 }
