@@ -596,6 +596,18 @@ void op::v0::TensorIterator::validate_and_infer_types()
                 auto axis = concat_output_description->m_axis;
 
                 Shape out_shape{body_value_shape};
+
+                if (body_value_shape.empty())
+                {
+                    NODE_VALIDATION_CHECK(
+                        this,
+                        axis == 0,
+                        "Axis must be equal to 0 if concatenated output tensor slices are scalars. "
+                        "TensorIterator output index: ",
+                        index);
+                    out_shape = Shape(1);
+                }
+
                 if (m_num_iterations != -1)
                 {
                     // for simple RNN case where stride is the same as part_size

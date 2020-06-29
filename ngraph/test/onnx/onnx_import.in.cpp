@@ -1951,6 +1951,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_instance_normalization)
     std::iota(std::begin(data), std::end(data), 1);
 
     auto test_case = test::TestCase<TestEngine>(function);
+
     test_case.add_input<float>(data);
     test_case.add_input<float>(std::vector<float>{2.134f, 3.256f});
     test_case.add_input<float>(std::vector<float>{0.765f, 1.055f});
