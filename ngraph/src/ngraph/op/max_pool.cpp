@@ -139,13 +139,13 @@ bool op::v1::MaxPool::update_auto_padding(const PartialShape& in_shape,
     {
         CoordinateDiff pads_end, pads_begin;
         update_auto_padding_succeed =
-            try_apply_infer_auto_padding(in_shape,
-                                         m_kernel,
-                                         m_strides,
-                                         Strides(m_kernel.size(), 1), // No dilation
-                                         m_auto_pad,
-                                         pads_end,
-                                         pads_begin);
+            try_apply_auto_padding(in_shape,
+                                   m_kernel,
+                                   m_strides,
+                                   Strides(m_kernel.size(), 1), // No dilation
+                                   m_auto_pad,
+                                   pads_end,
+                                   pads_begin);
         new_pads_end = Shape(pads_end.begin(), pads_end.end());
         new_pads_begin = Shape(pads_begin.begin(), pads_begin.end());
     }

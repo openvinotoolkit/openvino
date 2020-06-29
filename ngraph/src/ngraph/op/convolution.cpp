@@ -67,10 +67,11 @@ void op::v1::Convolution::validate_and_infer_types()
     {
         result_shape =
             std::vector<Dimension>(data_batch_shape.rank().get_length(), Dimension::dynamic());
-    }
-    if (data_batch_shape.rank().is_static() && data_batch_shape.rank().get_length() > 1)
-    {
-        result_shape[0] = data_batch_shape[0]; // batch size
+
+        if (data_batch_shape.rank().get_length() > 1)
+        {
+            result_shape[0] = data_batch_shape[0]; // batch size
+        }
     }
     if (filters_shape.rank().is_static() && filters_shape.rank().get_length() > 1)
     {
@@ -116,13 +117,13 @@ void op::v1::Convolution::validate_and_infer_types()
             m_pads_end.clear();
             auto filter_shape = filters_shape.to_shape();
             filter_shape.erase(filter_shape.begin(), filter_shape.begin() + 2); // Remove {O,I}
-            auto_padding_applied = try_apply_infer_auto_padding(data_batch_shape,
-                                                                filter_shape,
-                                                                m_strides,
-                                                                m_dilations,
-                                                                m_auto_pad,
-                                                                m_pads_end,
-                                                                m_pads_begin);
+            auto_padding_applied = try_apply_auto_padding(data_batch_shape,
+                                                          filter_shape,
+                                                          m_strides,
+                                                          m_dilations,
+                                                          m_auto_pad,
+                                                          m_pads_end,
+                                                          m_pads_begin);
         }
         if (!auto_padding_applied)
         {

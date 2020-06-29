@@ -89,14 +89,28 @@ namespace ngraph
                                  const PartialShape& gamma_shape,
                                  const PartialShape& beta_shape);
 
+    /// \brief Apply auto padding to padding_above and padding_below inputs
+    ///        if all needed informations are known.
+    ///
+    /// \param image_shape       The shape of input image.
+    /// \param filter_shape      The shape of filter input.
+    /// \param filter_strides    The strides of applied padding.
+    /// \param filter_dilations  The dilations of applied padding.
+    /// \param pad_type          The type of padding. Auto padding is applied only
+    ///                          for SAME_UPPER and SAME_LOWER mode.
+    /// \param padding_above     The beginning of padding shape.
+    /// \param end               The beginning of padding shape.
+    ///
+    /// \return true if auto padding was applied successfully (all needed informations such as
+    ///         spatial dims are known), false otherwise.
     NGRAPH_API
-    bool try_apply_infer_auto_padding(const PartialShape& image_shape,
-                                      const Shape& filter_shape,
-                                      const Strides& filter_strides,
-                                      const Strides& filter_dilations,
-                                      const op::PadType pad_type,
-                                      CoordinateDiff& padding_above,
-                                      CoordinateDiff& padding_below);
+    bool try_apply_auto_padding(const PartialShape& image_shape,
+                                const Shape& filter_shape,
+                                const Strides& filter_strides,
+                                const Strides& filter_dilations,
+                                const op::PadType pad_type,
+                                CoordinateDiff& padding_above,
+                                CoordinateDiff& padding_below);
 
     NGRAPH_API
     void infer_auto_padding(const Shape& image_shape,
