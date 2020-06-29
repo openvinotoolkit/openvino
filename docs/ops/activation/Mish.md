@@ -6,17 +6,21 @@
 
 **Short description**: Mish a Self Regularized Non-Monotonic Neural Activation Function.
 
-**Detailed description**: [Reference](https://www.tensorflow.org/addons/api_docs/python/tfa/activations/mish)
+**Detailed description**: Mish layer computes self regularized non-monotonic neural activation function: x * tanh(softplus(x))
 
 **Attributes**: operations has no attributes.
 
 **Inputs**:
 
-*   **1**: Input tensor *x* of any floating point type. Required.
+*   **1**: Input tensor *x* of any floating point type T. Required.
 
 **Outputs**:
 
 *   **1**: Result of computes Mish activation. Floating point tensor with shape and type matching the input tensor. Required.
+
+**Types**
+
+* *T*: any floating point type.
 
 **Mathematical Formulation**
 
@@ -35,8 +39,6 @@
             <dim>256</dim>
             <dim>56</dim>
         </port>
-        <port id="1"/>
-        <port id="2"/>
     </input>
     <output>
         <port id="3">
