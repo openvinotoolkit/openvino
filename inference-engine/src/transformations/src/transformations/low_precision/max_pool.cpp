@@ -31,6 +31,8 @@ void MaxPoolTransformation::registerMatcherIn(GraphRewrite &pass, Transformation
 }
 
 void MaxPoolTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) const {
+    // VisualizeTree("C:\\Projects\\temp\\test.original.max_pool").run_on_module(std::vector<std::shared_ptr<Function>>{ context.network });
+
     std::shared_ptr<Node> pooling = m.get_match_root();
 
     // TODO: dequantization operation handling: getDequantizationOperations()
@@ -76,9 +78,13 @@ void MaxPoolTransformation::transform(TransformationContext& context, ngraph::pa
     NetworkHelper::setOutDataPrecision(newPooling, newPooling->get_input_element_type(0));
     replace_node(pooling, replacement);
 
-    // ngraph::pass::VisualizeTree("C:\\Projects\\temp\\test.transformed").run_on_module(std::vector<std::shared_ptr<ngraph::Function>>{ context.network });
+    // VisualizeTree("C:\\Projects\\temp\\test.transformed.max_pool").run_on_module(std::vector<std::shared_ptr<Function>>{ context.network });
 
     // TODO: NAMES!
+}
+
+bool MaxPoolTransformation::isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept {
+    return true;
 }
 
 } // namespace low_precision
