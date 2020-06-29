@@ -40,6 +40,11 @@ bool ngraph::op::v0::PRelu::visit_attributes(AttributeVisitor& visitor)
     return true;
 }
 
+void ngraph::op::v0::PRelu::pre_validate_and_infer_types()
+{
+    set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
+}
+
 NodeVector op::PRelu::decompose_op() const
 {
     auto data = input_value(0);
