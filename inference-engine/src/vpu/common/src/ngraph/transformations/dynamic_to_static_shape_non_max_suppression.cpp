@@ -18,7 +18,7 @@ namespace vpu {
 void dynamicToStaticNonMaxSuppression(std::shared_ptr<ngraph::Node> node) {
     auto nms_dynamic = std::dynamic_pointer_cast<ngraph::op::dynamic::NonMaxSuppression>(node);
     VPU_THROW_UNLESS(nms_dynamic, "dynamicToStaticNonMaxSuppression transformation for {} of type {} expects {} as node for replacement",
-                     node->get_friendly_name(), node->get_type_info(), ngraph::op::v4::NonMaxSuppression::type_info);
+                     node->get_friendly_name(), node->get_type_info(), ngraph::op::dynamic::NonMaxSuppression::type_info);
 
     auto staticShapeNMS = std::make_shared<ngraph::vpu::op::StaticShapeNonMaxSuppression>(
             nms_dynamic->input_value(0),
