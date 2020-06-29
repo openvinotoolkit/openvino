@@ -52,6 +52,9 @@ class SliceLike(Op):
             new_shape = np.copy(shape_like)
 
         node.out_port(0).data.set_shape(new_shape)
+        #  We can calculate the output values of slice_like operation here, but this condition is necessary for
+        #  the Model Optimizer to work with --keep_shape_ops argument. It allows to save operation in the graph after
+        #  PartialInfer, replace it with StridedSlice in the middle phase and keep the model reshape-able
         if node.in_port(0).get_connection().data.get_value() is not None and \
                 not node.graph.graph['cmd_params'].keep_shape_ops:
             out_value = np.copy(node.in_port(0).get_connection().data.get_value())

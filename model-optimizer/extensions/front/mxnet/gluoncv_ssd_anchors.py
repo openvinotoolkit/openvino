@@ -17,6 +17,7 @@ import numpy as np
 
 from typing import Dict
 
+from extensions.front.mxnet.mx_reshape_to_reshape import MXReshapeToReshape
 from extensions.front.mxnet.ssd_detection_output_replacer import SsdPatternDetectionOutputReplacer
 from extensions.ops.elementwise import Div, Add, Sub
 from extensions.ops.split import Split
@@ -30,29 +31,28 @@ from mo.ops.concat import Concat
 from mo.ops.reshape import Reshape
 
 
-def calculate_prior_box_value(value: Node, div_value_port: Port, add_value_port: Port):
+def calculate_prior_box_value(value: Node, value_to_div: Port, value_to_add: Port):
     """
-    :param value: Split node with value
-    :param div_value_port: Split node output port with values that should be divided by 2
-    :param add_value_port: Split node output port with values that should be added or subtracted by divided values
-    from div_value_port
+    :param value: Node with value. Here is supposed the node with op='Split'
+    :param value_to_div: Output port with values to be divided by 2
+    :param value_to_add: Output port with values to be added to values from value_to_div port
     :return: Sub and Add nodes
 
     The sub-graph can be described by formulas:
-    min = value[add_value_port] - (value[div_value_port] / 2)
-    max = value[add_value_port] + (value[div_value_port] / 2)
+    min = value[value_to_add] - (value[value_to_div] / 2)
+    max = value[value_to_add] + (value[value_to_div] / 2)
     """
     graph = value.graph
     dtype = data_type_str_to_np(graph.graph['cmd_params'].data_type)
     _min = Sub(graph, dict(name=value.name + '/Sub')).create_node()
     div = create_op_node_with_second_input(graph, Div, np.array([2], dtype=dtype), op_attrs=dict(name=value.name + '/Div'))
-    div.in_port(0).connect(div_value_port)
-    _min.in_port(0).connect(add_value_port)
+    div.in_port(0).connect(value_to_div)
+    _min.in_port(0).connect(value_to_add)
     _min.in_port(1).connect(div.out_port(0))
 
     _max = Add(graph, dict(name=value.name + '/Add')).create_node()
     _max.in_port(0).connect(div.out_port(0))
-    _max.in_port(1).connect(add_value_port)
+    _max.in_port(1).connect(value_to_add)
 
     return _min, _max
 
@@ -71,7 +71,7 @@ class SsdAnchorsReplacer(FrontReplacementPattern):
     graph_condition = [lambda graph: graph.graph['cmd_params'].enable_ssd_gluoncv]
 
     def run_after(self):
-        return [SsdPatternDetectionOutputReplacer]
+        return [SsdPatternDetectionOutputReplacer, MXReshapeToReshape]
 
     def pattern(self):
         return dict(
@@ -97,10 +97,9 @@ class SsdAnchorsReplacer(FrontReplacementPattern):
         concat_node = match['concat']
         concat_node['axis'] = 1
         concat_name = concat_node.soft_get('name', concat_node.id)
-        concat_node.out_port(0).disconnect()
 
         concat_reshape = create_op_node_with_second_input(graph, Reshape, int64_array([1, 2, -1]), op_attrs=dict(
-            name=concat_name + '/Reshape'), input_node=concat_node)
+            name=concat_name + '/Reshape'))
         split_node = create_op_node_with_second_input(graph, Split, int64_array(1), op_attrs=dict(
             name=concat_name + '/Split', num_splits=2), input_node=concat_reshape)
         split_node_reshape = create_op_node_with_second_input(graph, Reshape, int64_array([-1, 4]), op_attrs=dict(
@@ -109,8 +108,8 @@ class SsdAnchorsReplacer(FrontReplacementPattern):
         value = create_op_node_with_second_input(graph, Split, int64_array(1), op_attrs=dict(
             name=split_node_reshape.name + '/Split', num_splits=4), input_node=split_node_reshape)
 
-        xmin, xmax = calculate_prior_box_value(value, div_value_port=value.out_port(2), add_value_port=value.out_port(0))
-        ymin, ymax = calculate_prior_box_value(value, div_value_port=value.out_port(3), add_value_port=value.out_port(1))
+        xmin, xmax = calculate_prior_box_value(value, value_to_div=value.out_port(2), value_to_add=value.out_port(0))
+        ymin, ymax = calculate_prior_box_value(value, value_to_div=value.out_port(3), value_to_add=value.out_port(1))
 
         concat_slice_value = Concat(graph, dict(name=value.name + '/Concat', in_ports_count=4, axis=1)).create_node()
         for ind, node in enumerate([xmin, ymin, xmax, ymax]):
@@ -122,4 +121,6 @@ class SsdAnchorsReplacer(FrontReplacementPattern):
         concat = Concat(graph, dict(name=reshape_concat_values.name + '/Concat', in_ports_count=2, axis=1)).create_node()
         concat.in_port(0).connect(reshape_concat_values.out_port(0))
         concat.in_port(1).connect(split_node.out_port(1))
-        concat.out_port(0).connect(match['detection_output'].in_port(2))
+
+        match['detection_output'].in_port(2).get_connection().set_source(concat.out_port(0))
+        concat_node.out_port(0).get_connection().set_destination(concat_reshape.in_port(0))
