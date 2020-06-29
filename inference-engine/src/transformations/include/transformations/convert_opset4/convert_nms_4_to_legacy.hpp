@@ -25,8 +25,12 @@ namespace pass {
  */
 
 
-class ngraph::pass::ConvertNMS4ToLegacy: public ngraph::pass::FunctionPass {
+class ngraph::pass::ConvertNMS4ToLegacy: public ngraph::pass::GraphRewrite {
 public:
-    bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
+    ConvertNMS4ToLegacy() : GraphRewrite() {
+        convert_nms4_to_legacy();
+    }
+private:
+    void convert_nms4_to_legacy();
 };
 

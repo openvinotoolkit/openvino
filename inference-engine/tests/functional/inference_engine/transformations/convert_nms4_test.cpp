@@ -10,7 +10,7 @@
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset4.hpp>
 #include <ngraph_ops/nms_ie.hpp>
-#include <transformations/convert_nms_4_to_legacy.hpp>
+#include <transformations/convert_opset4/convert_nms_4_to_legacy.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/utils/utils.hpp>
 

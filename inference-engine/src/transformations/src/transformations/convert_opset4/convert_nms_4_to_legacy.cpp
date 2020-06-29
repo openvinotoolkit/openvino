@@ -13,14 +13,22 @@
 #include <ngraph/rt_info.hpp>
 #include <transformations/utils/utils.hpp>
 
-#include "transformations/convert_nms_4_to_legacy.hpp"
+#include "transformations/convert_opset4/convert_nms_4_to_legacy.hpp"
 
-bool ngraph::pass::ConvertNMS4ToLegacy::run_on_function(std::shared_ptr<ngraph::Function> f) {
-    bool rewritten = false;
-    for (auto &node : f->get_ops()) {
-        auto nms_4 = ngraph::as_type_ptr<opset4::NonMaxSuppression>(node);
-        if (!nms_4)
-            continue;
+void ngraph::pass::ConvertNMS4ToLegacy::convert_nms4_to_legacy() {
+    auto boxes = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1000, 4});
+    auto scores = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1000});
+    auto max_output_boxes_per_class = ngraph::opset4::Constant::create(element::i64, Shape{}, {10});
+    auto iou_threshold = ngraph::opset4::Constant::create(element::f32, Shape{}, {0.75});
+    auto score_threshold = ngraph::opset4::Constant::create(element::f32, Shape{}, {0.7});
+    auto nms = std::make_shared<ngraph::opset4::NonMaxSuppression>(boxes, scores, max_output_boxes_per_class,
+                                                                   iou_threshold, score_threshold);
+
+    ngraph::graph_rewrite_callback callback = [](pattern::Matcher &m) {
+        auto nms_4 = std::dynamic_pointer_cast<ngraph::opset4::NonMaxSuppression>(m.get_match_root());
+        if (!nms_4) {
+            return false;
+        }
 
         const auto box_encoding = static_cast<const op::v3::NonMaxSuppression::BoxEncodingType>(nms_4->get_box_encoding());
         const auto new_args = nms_4->input_values();
@@ -109,7 +117,9 @@ bool ngraph::pass::ConvertNMS4ToLegacy::run_on_function(std::shared_ptr<ngraph::
         last.get_node_shared_ptr()->set_friendly_name(nms_4->get_friendly_name());
         ngraph::copy_runtime_info(nms_4, new_ops);
         ngraph::replace_node(nms_4, last.get_node_shared_ptr());
-        rewritten = true;
-    }
-    return rewritten;
+        return true;
+    };
+
+    auto m = std::make_shared<ngraph::pattern::Matcher>(nms, "ConvertNMS4ToNMSLegacy");
+    this->add_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
 }

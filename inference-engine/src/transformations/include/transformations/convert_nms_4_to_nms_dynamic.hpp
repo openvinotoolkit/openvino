@@ -27,8 +27,14 @@ class TRANSFORMATIONS_API UpgradeNMS4ToNMSDynamic;
  */
 
 
-class ngraph::pass::UpgradeNMS4ToNMSDynamic: public ngraph::pass::FunctionPass {
+class ngraph::pass::UpgradeNMS4ToNMSDynamic: public ngraph::pass::GraphRewrite {
 public:
+    UpgradeNMS4ToNMSDynamic() : GraphRewrite() {
+        upgrade_nms4_to_nms_dynamic();
+    }
     bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
+
+private:
+    void upgrade_nms4_to_nms_dynamic();
 };
 
