@@ -45,33 +45,15 @@ void FuseFakeQuantizeTransformation::registerMatcherIn(GraphRewrite &pass, Trans
 }
 
 void FuseFakeQuantizeTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) const {
-    // ngraph::pass::VisualizeTree("C:\\Projects\\temp\\test.transformed").run_on_module(std::vector<std::shared_ptr<ngraph::Function>>{ context.network });
-
     std::shared_ptr<opset1::FakeQuantize> fakeQuantize = as_type_ptr<ngraph::opset1::FakeQuantize>(m.get_match_root());
     const FakeQuantizeDequantization dequantization = ngraph::pass::low_precision::getDequantization(fakeQuantize->shared_from_this());
     if (dequantization.empty()) {
         return;
     }
 
-    std::cout << "FuseFakeQuantizeTransformation::transform: STARTED: " << fakeQuantize->get_friendly_name() << std::endl;
-
-    //if (dequantization.multiply != nullptr) {
-    //    std::shared_ptr<opset1::Constant> multiplyConst = as_type_ptr<opset1::Constant>(dequantization.multiply->get_input_node_shared_ptr(1));
-
-    //    if (dequantization.multiply->get_input_shape(1).size() > 1ul) {
-    //        if (!multiplyConst->get_all_data_elements_bitwise_identical()) {
-    //            // TODO: can we fuse not only per tensor dequantization values?
-    //            std::cout << "FuseFakeQuantizeTransformation::transform: " << fakeQuantize->get_friendly_name() << ": " << dequantization.multiply->get_input_shape(1) << std::endl;
-    //            return;
-    //        }
-    //    }
-    //}
-
     std::shared_ptr<Node> parent;
     std::shared_ptr<Node> inputLowConst = fakeQuantize->get_input_node_shared_ptr(1);
     std::shared_ptr<Node> inputHightConst = fakeQuantize->get_input_node_shared_ptr(2);
-    // std::shared_ptr<Node> outputLowConst = fakeQuantize->get_input_node_shared_ptr(3);
-    // std::shared_ptr<Node> outputHightConst = fakeQuantize->get_input_node_shared_ptr(4);
 
     if (dequantization.multiply != nullptr) {
         inputLowConst = fold<opset1::Divide>(inputLowConst, dequantization.multiply->get_input_node_shared_ptr(1));
@@ -118,8 +100,6 @@ void FuseFakeQuantizeTransformation::transform(TransformationContext& context, n
         fakeQuantize->get_auto_broadcast());
     replace_node(fakeQuantize, newFakeQuantize);
     newFakeQuantize->set_friendly_name(fakeQuantize->get_friendly_name());
-
-    std::cout << "FuseFakeQuantizeTransformation::transform: DONE: " << fakeQuantize->get_friendly_name() << std::endl;
 
     // ngraph::pass::VisualizeTree("C:\\Projects\\temp\\test.transformed").run_on_module(std::vector<std::shared_ptr<ngraph::Function>>{ context.network });
 }
