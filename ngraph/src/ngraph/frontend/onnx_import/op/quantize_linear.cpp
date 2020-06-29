@@ -75,33 +75,49 @@ namespace ngraph
                         output_high = std::make_shared<default_opset::Constant>(x_et, Shape{}, 255);
                     }
 
-                    std::shared_ptr<ngraph::Node> reduction_axes;
+                    std::shared_ptr<ngraph::Node> input_low;
+                    std::shared_ptr<ngraph::Node> input_high;
 
-                    if (x->get_output_partial_shape(0).rank().is_static())
+                    if (inputs.at(1)->is_constant() && y_zero_point->is_constant())
                     {
-                        const auto rank =
-                            static_cast<size_t>(x->get_output_partial_shape(0).rank().get_length());
-                        std::vector<int32_t> axes(rank);
-                        std::iota(std::begin(axes), std::end(axes), 0);
-                        reduction_axes = std::make_shared<default_opset::Constant>(
-                            element::i32, Shape{rank}, axes);
+                        const auto& zero_point =
+                            std::make_shared<default_opset::Convert>(y_zero_point, x_et);
+                        const auto& y_scale = inputs.at(1);
+                        input_low = std::make_shared<default_opset::Multiply>(
+                            y_scale, std::make_shared<default_opset::Add>(output_low, zero_point));
+                        input_high = std::make_shared<default_opset::Multiply>(
+                            y_scale, std::make_shared<default_opset::Add>(output_high, zero_point));
                     }
                     else
                     {
-                        const auto& stop =
-                            reshape::interpret_as_scalar(std::make_shared<default_opset::ShapeOf>(
-                                std::make_shared<default_opset::ShapeOf>(x, element::i32),
-                                element::i32));
-                        reduction_axes = std::make_shared<default_opset::Range>(
-                            std::make_shared<default_opset::Constant>(element::i32, Shape{}, 0),
-                            stop,
-                            std::make_shared<default_opset::Constant>(element::i32, Shape{}, 1));
+                        std::shared_ptr<ngraph::Node> reduction_axes;
+
+                        if (x->get_output_partial_shape(0).rank().is_static())
+                        {
+                            const auto rank = static_cast<size_t>(
+                                x->get_output_partial_shape(0).rank().get_length());
+                            std::vector<int32_t> axes(rank);
+                            std::iota(std::begin(axes), std::end(axes), 0);
+                            reduction_axes = std::make_shared<default_opset::Constant>(
+                                element::i32, Shape{rank}, axes);
+                        }
+                        else
+                        {
+                            const auto& stop = reshape::interpret_as_scalar(
+                                std::make_shared<default_opset::ShapeOf>(
+                                    std::make_shared<default_opset::ShapeOf>(x, element::i32),
+                                    element::i32));
+                            reduction_axes = std::make_shared<default_opset::Range>(
+                                std::make_shared<default_opset::Constant>(element::i32, Shape{}, 0),
+                                stop,
+                                std::make_shared<default_opset::Constant>(
+                                    element::i32, Shape{}, 1));
+                        }
+
+                        input_low = std::make_shared<default_opset::ReduceMin>(x, reduction_axes);
+                        input_high = std::make_shared<default_opset::ReduceMax>(x, reduction_axes);
                     }
 
-                    const auto& input_low =
-                        std::make_shared<default_opset::ReduceMin>(x, reduction_axes);
-                    const auto& input_high =
-                        std::make_shared<default_opset::ReduceMax>(x, reduction_axes);
                     const std::size_t levels = 1 << destination_type.bitwidth();
 
                     return {std::make_shared<default_opset::Convert>(

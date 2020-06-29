@@ -44,6 +44,18 @@ using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 using Inputs = std::vector<std::vector<float>>;
 using Outputs = std::vector<std::vector<float>>;
 
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_quantize_linear_const_scale_const_zero_p)
+{
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/quantize_linear_const.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_input(std::vector<float>{32.25f, 48.34f, 50.f, 83.f});
+
+    test_case.add_expected_output(std::vector<std::uint8_t>{64, 97, 100, 166});
+    test_case.run();
+}
+
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_quantize_linear)
 {
     auto function = onnx_import::import_onnx_model(
