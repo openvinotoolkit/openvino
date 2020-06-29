@@ -149,7 +149,7 @@ Arguments common_kernel_base::GetArgsDesc(uint32_t num_of_input,
 std::shared_ptr<KernelString> common_kernel_base::GetKernelString(const std::string& name,
                                                                   const std::string& jit,
                                                                   const std::string& entry_point,
-                                                                  const EngineInfo& /*engine_info*/,
+                                                                  const EngineInfo& engine_info,
                                                                   const std::string& exe_mode) const {
     std::shared_ptr<KernelString> kernel_string = std::make_shared<KernelString>();
 
@@ -159,6 +159,10 @@ std::shared_ptr<KernelString> common_kernel_base::GetKernelString(const std::str
         kernel_string->str = codes[0];
         kernel_string->jit = jit;
         kernel_string->options = exe_mode + " -cl-mad-enable";
+        if (engine_info.bOptHintsSupport)
+            kernel_string->options += " -DOPT_HINS_SUPPORTED=1";
+        if (engine_info.bLocalBlockIOSupport)
+            kernel_string->options += " -Dcl_intel_subgroup_local_block_io";
         kernel_string->entry_point = entry_point;
         kernel_string->batch_compilation = true;
     }
