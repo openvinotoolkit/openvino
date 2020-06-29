@@ -36,7 +36,7 @@ protected:
     DispatchData SetDefault(const convolution_params& params, int autoTuneIndex = -1) const override;
     bool NeedPaddedInput() const override { return true; }
     WeightsLayout GetPreferredWeightsLayout(const convolution_params&) const override {
-        return { WeightsLayout::os_is_yx_osv16_isv16 };
+        return WeightsLayout::os_is_yx_osv16_isv16;
     }
 
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
