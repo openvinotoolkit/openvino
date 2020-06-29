@@ -28,6 +28,7 @@
 #include "common_test_utils/test_common.hpp"
 #include "common_test_utils/data_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
+#include "common_test_utils/common_utils.hpp"
 #include "generic_ie.hpp"
 
 IE_SUPPRESS_DEPRECATED_START
@@ -282,7 +283,7 @@ TEST_F(NGraphReshapeTests, ReshapeNewIRWithNewExtension1) {
     SizeVector outDims = output["activation"]->getTensorDesc().getDims();
     ASSERT_EQ(outDims, refAfterReshape);
     // Convert to CNNNetwork
-    auto layer = network.getLayerByName("activation");
+    auto layer = CommonTestUtils::getLayerByName(network, "activation");
     ASSERT_EQ("CustomTestLayer", layer->type);
 }
 
@@ -352,7 +353,7 @@ TEST_F(NGraphReshapeTests, ReshapeNewIRWithNewExtension2) {
     SizeVector outDims = output["activation"]->getTensorDesc().getDims();
     ASSERT_EQ(outDims, refAfterReshape);
     // Convert to CNNNetwork
-    auto layer = network.getLayerByName("activation");
+    auto layer = CommonTestUtils::getLayerByName(network, "activation");
     ASSERT_EQ("CustomTestLayer", layer->type);
     ASSERT_EQ("false", layer->params["test1"]);
     ASSERT_EQ("3", layer->params["test2"]);
@@ -362,22 +363,11 @@ class BadExtension : public InferenceEngine::IExtension {
 public:
     BadExtension() {}
 
-    InferenceEngine::StatusCode
-    getPrimitiveTypes(char**& types, unsigned int& size, InferenceEngine::ResponseDesc* resp) noexcept override {
-        return GENERAL_ERROR;
-    };
-
     void GetVersion(const InferenceEngine::Version*& versionInfo) const noexcept override {};
 
     void Unload() noexcept override {};
 
     void Release() noexcept override {}
-
-    InferenceEngine::StatusCode
-    getFactoryFor(InferenceEngine::ILayerImplFactory*& factory, const InferenceEngine::CNNLayer* cnnLayer,
-                  InferenceEngine::ResponseDesc* resp) noexcept override {
-        return InferenceEngine::StatusCode::NOT_IMPLEMENTED;
-    };
 
     std::map<std::string, ngraph::OpSet> getOpSets() override {
         static std::map<std::string, ngraph::OpSet> opsets;
@@ -416,7 +406,6 @@ TEST_F(NGraphReshapeTests, TestInterpParameters) {
                            ngraph::ParameterVector{inp});
 
     CNNNetwork cnn(ngraph_function);
-    cnn.begin();
     std::map<std::string, InferenceEngine::SizeVector> inShape;
     inShape["test"] = {1, 3, 4, 5};
     cnn.reshape(inShape);

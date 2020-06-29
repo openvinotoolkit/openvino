@@ -54,9 +54,6 @@ class ModelQuantizer {
         // one of solution is to create not copyNet overloads, that accepts 2 functors, one for layer copy
         // and another one for net copy
         auto rawNet = dynamic_cast<InferenceEngine::details::CNNNetworkImpl *>(copiedNet.get());
-        if (rawNet != nullptr) {
-            rawNet->setPrecision(T::mandatory().getNetPrecision());
-        }
 
         // allow client code to access copied topology, to avoid copies if user would like to chain quantisation with
         // another preprocessing

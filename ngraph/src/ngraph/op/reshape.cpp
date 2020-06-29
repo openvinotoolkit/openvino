@@ -49,13 +49,9 @@ namespace
         case element::Type_t::u1:
             rc = false;
             break;
-            TYPE_CASE(bf16)(arg0, out, order);
-            break;
             TYPE_CASE(f16)(arg0, out, order);
             break;
             TYPE_CASE(f32)(arg0, out, order);
-            break;
-            TYPE_CASE(f64)(arg0, out, order);
             break;
             TYPE_CASE(i8)(arg0, out, order);
             break;

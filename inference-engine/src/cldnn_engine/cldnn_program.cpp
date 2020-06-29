@@ -49,6 +49,7 @@
 #include <api/depth_to_space.hpp>
 #include <api/space_to_depth.hpp>
 #include <api/batch_to_space.hpp>
+#include <api/space_to_batch.hpp>
 #include <api/shuffle_channels.hpp>
 #include <api/strided_slice.hpp>
 #include <api/reverse_sequence.hpp>
@@ -65,6 +66,7 @@
 #include <api/ctc_greedy_decoder.hpp>
 #include <api/cum_sum.hpp>
 #include <api/embedding_bag.hpp>
+#include <api/extract_image_patches.hpp>
 
 #include <chrono>
 #include <cmath>
@@ -540,6 +542,7 @@ Program::LayerType Program::LayerTypeFromStr(const std::string &str) {
         { "DepthToSpace" , DepthToSpace },
         { "SpaceToDepth" , SpaceToDepth },
         { "BatchToSpace", BatchToSpace },
+        { "SpaceToBatch" , SpaceToBatch },
         { "ShuffleChannels" , ShuffleChannels },
         { "StridedSlice" , StridedSlice },
         { "ReverseSequence" , ReverseSequence },
@@ -603,6 +606,7 @@ Program::LayerType Program::LayerTypeFromStr(const std::string &str) {
         { "EmbeddingBagPackedSum", EmbeddingBagPackedSum },
         { "EmbeddingBagOffsetsSum", EmbeddingBagOffsetsSum },
         { "EmbeddingSegmentsSum", EmbeddingSegmentsSum },
+        { "ExtractImagePatches" , ExtractImagePatches },
     };
     auto it = LayerNameToType.find(str);
     if (it != LayerNameToType.end())
@@ -1243,6 +1247,8 @@ void Program::CreateSingleLayerPrimitive(cldnn::topology& topology, InferenceEng
             break;
         case BatchToSpace: CreateBatchToSpacePrimitive(topology, layer);
             break;
+        case SpaceToBatch: CreateSpaceToBatchPrimitive(topology, layer);
+            break;
         case ShuffleChannels: CreateShuffleChannelsPrimitive(topology, layer);
             break;
         case StridedSlice: CreateStridedSlicePrimitive(topology, layer);
@@ -1292,6 +1298,8 @@ void Program::CreateSingleLayerPrimitive(cldnn::topology& topology, InferenceEng
         case EmbeddingBagOffsetsSum: CreateEmbeddingBagOffsetsSumPrimitive(topology, layer);
             break;
         case EmbeddingSegmentsSum: CreateEmbeddingSegmentsSumPrimitive(topology, layer);
+            break;
+        case ExtractImagePatches: CreateExtractImagePatchesPrimitive(topology, layer);
             break;
         default: THROW_CLDNN_EXCEPTION("Unknown Layer Type: " << layer->type);
     }
@@ -3914,6 +3922,62 @@ void Program::CreateBatchToSpacePrimitive(cldnn::topology& topology, InferenceEn
     AddPrimitiveToProfiler(batchToSpaceName, layer);
 }
 
+void Program::CreateSpaceToBatchPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer) {
+    ValidateLayer(layer, 4);
+
+    auto inputPrimitives = GetPrevLayersPrimitives(layer);
+    auto spaceToBatch = as<InferenceEngine::GenericLayer*> (layer);
+    auto rank = spaceToBatch->input().get()->getTensorDesc().getDims().size();
+    auto format = FormatFromLayout(spaceToBatch->input()->getLayout());
+
+    std::vector<cldnn::tensor> inputs;
+    inputs.reserve(3);
+
+    for (size_t i = 1; i < 4; ++i) {
+        auto defaultIndexInput = layer->insData[i].lock();
+        auto defaultIndexInputCreator = defaultIndexInput->getCreatorLayer().lock();
+        if (defaultIndexInputCreator->blobs.size() == 1) {
+            auto constantBlob = defaultIndexInputCreator->blobs.begin()->second;
+            auto defaultIndexPrecision = constantBlob->getTensorDesc().getPrecision();
+            std::vector<int32_t> sizes;
+            sizes.reserve(rank);
+            int32_t default_size = i == 1 ? 1 : 0;
+            switch (defaultIndexPrecision) {
+                case InferenceEngine::Precision::I32: {
+                    auto data = constantBlob->buffer().as<int32_t*>();
+                    sizes = std::vector<int32_t>(data, data + rank);
+                    break;
+                }
+                case InferenceEngine::Precision::I64: {
+                    auto data = constantBlob->buffer().as<int64_t*>();
+                    std::vector<int64_t> sizes_i64 = std::vector<int64_t>(data, data + rank);
+                    for (size_t j = 0; j < sizes_i64.size(); ++j)
+                        sizes.emplace_back(static_cast<int32_t>(sizes_i64[j]));
+                    break;
+                }
+                default: {
+                    THROW_IE_EXCEPTION << layer->name << "Incorrect SpaceToBatch precision";
+                    break;
+                }
+            }
+            inputs.emplace_back(format, sizes, default_size);
+        }
+    }
+    auto out_size = CldnnTensorFromIEDims(spaceToBatch->outData[0]->getTensorDesc().getDims());
+
+    std::string spaceToBatchName = layer_type_name_ID(layer);
+    auto spaceToBatchPrim = cldnn::space_to_batch(
+            spaceToBatchName,
+            inputPrimitives[0], //input
+            inputs[0], //block_shape
+            inputs[1], //pads_begin
+            inputs[2], //pads_end
+            out_size);
+
+    topology.add(spaceToBatchPrim);
+    AddPrimitiveToProfiler(spaceToBatchName, layer);
+}
+
 void Program::CreateShuffleChannelsPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer) {
     ValidateLayer(layer, 1);
 
@@ -4827,6 +4891,32 @@ void Program::CreateEmbeddingSegmentsSumPrimitive(cldnn::topology& topology, Inf
 
     topology.add(embeddingBagPrim);
     AddPrimitiveToProfiler(layerName, layer);
+}
+
+void Program::CreateExtractImagePatchesPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr& layer) {
+    ValidateLayer(layer, 1);
+
+    auto inputPrimitives = GetPrevLayersPrimitives(layer);
+    auto eipLayer = as<InferenceEngine::GenericLayer*>(layer);
+
+    std::vector<unsigned int> sizes = eipLayer->GetParamAsUInts("sizes");
+    std::vector<unsigned int> strides = eipLayer->GetParamAsUInts("strides");
+    std::vector<unsigned int> rates = eipLayer->GetParamAsUInts("rates");
+    std::string auto_pad = eipLayer->GetParamAsString("auto_pad");
+
+    std::string eipLayerName = layer_type_name_ID(layer);
+
+    auto extractImagePatchesPrim = cldnn::extract_image_patches(
+        eipLayerName,
+        inputPrimitives[0],
+        sizes,
+        strides,
+        rates,
+        auto_pad,
+        CldnnTensorFromIEDims(eipLayer->outData[0]->getTensorDesc().getDims()));
+
+    topology.add(extractImagePatchesPrim);
+    AddPrimitiveToProfiler(eipLayerName, layer);
 }
 
 bool Program::IsValidSplitConvMerge(const InferenceEngine::SplitLayer *splitLayer) const {

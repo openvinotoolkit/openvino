@@ -150,7 +150,6 @@ TEST(UtilTests, cloneNet) {
 
                .finalize();
 
-    net->setPrecision(IE::Precision::Q78);
     InferenceEngine::ResponseDesc resp;
     net->setName("net");
 
@@ -343,7 +342,6 @@ TEST(UtilTests, cloneNet) {
     }
     {
         auto cloned = IE::cloneNet(*net);
-        EXPECT_TRUE(IE::Precision::Q78        == cloned->getPrecision());
         EXPECT_EQ("net",                         cloned->getName());
     }
     {

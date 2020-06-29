@@ -20,9 +20,6 @@ Blob::Ptr Blob::CreateFromData(const DataPtr& data) {
 Data::Data(const std::string& name, Precision _precision, Layout layout)
     : name(name), userObject({0}), tensorDesc(_precision, layout) {}
 
-Data::Data(const std::string& name, const SizeVector& a_dims, Precision _precision, Layout layout)
-    : name(name), userObject({0}), tensorDesc(_precision, SizeVector(a_dims.rbegin(), a_dims.rend()), layout) {}
-
 Data::Data(const std::string& name, const TensorDesc& desc): name(name), userObject({0}), tensorDesc(desc) {}
 
 const Precision& Data::getPrecision() const {

@@ -11,6 +11,8 @@
 #include "ie_common.h"
 
 #include "common_test_utils/test_common.hpp"
+#include "common_test_utils/common_utils.hpp"
+#include "details/ie_cnn_network_iterator.hpp"
 
 #include <gtest/gtest.h>
 
@@ -35,13 +37,14 @@ public:
 
 protected:
     InferenceEngine::CNNLayerPtr getDynamicShapeResolverLayer() const {
-        return cnnNetwork.getLayerByName(s_FriendlyName);
+        return CommonTestUtils::getLayerByName(cnnNetwork, s_FriendlyName);
     }
     InferenceEngine::CNNNetwork cnnNetwork;
 
 private:
     void triggerConversionToCNNNetwork() {
-        cnnNetwork.begin();
+        // convert to old representation
+        cnnNetwork.getInputsInfo().begin()->second->getInputData()->getCreatorLayer();
     }
 
     static const char s_FriendlyName[];
