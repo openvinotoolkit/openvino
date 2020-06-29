@@ -87,11 +87,7 @@ void ConvolutionTransformation::transform(TransformationContext &context, ngraph
                     broadcastShape));
 
             replace_node(subtract, subtract->clone_with_new_inputs({ subtract->input_value(0).get_node_shared_ptr(), newShift }));
-
-            // pass::VisualizeTree("C:\\Projects\\temp\\test.transformed").run_on_module(std::vector<std::shared_ptr<ngraph::Function>>{ context.network });
         }
-
-        // pass::VisualizeTree("C:\\Projects\\temp\\test.transformed").run_on_module(std::vector<std::shared_ptr<ngraph::Function>>{ context.network });
 
         std::shared_ptr<ngraph::opset1::Multiply> newMultiplyFromData = as_type_ptr<ngraph::opset1::Multiply>(dequantizationOperationOnData);
 
@@ -115,57 +111,86 @@ void ConvolutionTransformation::transform(TransformationContext &context, ngraph
     // pass::VisualizeTree("C:\\Projects\\temp\\test.transformed").run_on_module(std::vector<std::shared_ptr<ngraph::Function>>{ context.network });
 
     {
-        // pass::VisualizeTree("C:\\Projects\\temp\\test.transformed").run_on_module(std::vector<std::shared_ptr<ngraph::Function>>{ context.network });
-
         decomposeFakeQuantizeForWeightsPath(convolution, supportAsymmetricQuantization);
 
-        // pass::VisualizeTree("C:\\Projects\\temp\\test.transformed").run_on_module(std::vector<std::shared_ptr<ngraph::Function>>{ context.network });
-
         // reassign, because the old one is obsolete and replaced
-        auto parentOnWeights = convolution->input_value(1).get_node_shared_ptr();
-        //auto newMultiplyFromWeights = swapMultiplyAndAdd(decomposeMultiplyAdd(as_type_ptr<ngraph::op::MultiplyAdd>(parentOnWeights)));
-        auto newMultiplyFromWeights = parentOnWeights;
 
-        // Check if all dimensions of scale except the first one (which is O-Output channels dimension) are all ones
-        auto weightScaleShape = newMultiplyFromWeights->get_input_shape(1);
-        // FIXME: check for rank and 1D-like multiplier
-        // if (weightScaleShape.size() <= 2 && shape_size(weightScaleShape) != weightScaleShape[0]) {
-        //    // TODO: should we roll back all changes in the network?
-        //    return;
-        // }
+        // TODO: refactor: operate only with dequantization operations here (no Reshape)
 
-        // It has been just checked that weights scale is effectively 1D tensor, so we can reshape it to [X, 1, ..., 1]
-        // to move to the output
-        auto newScaleShape = weightScaleShape;
-        newScaleShape.pop_back();   // that's all we need: [C, 1, 1, 1] => [C, 1, 1]
-        // std::cerr << newScaleShape << "\n";
-        // std::cerr << *newMultiplyFromWeights->input_value(1).get_node_shared_ptr();
+        // TODO: refactor: dequantization operations return from decomposeFakeQuantizeForWeightsPath
+        std::shared_ptr<opset1::Reshape> reshapeFromWeights = as_type_ptr<opset1::Reshape>(convolution->input_value(1).get_node_shared_ptr());
+        std::shared_ptr<opset1::Multiply> multiplyFromWeights = as_type_ptr<opset1::Multiply>(
+            reshapeFromWeights == nullptr ?
+            convolution->input_value(1).get_node_shared_ptr() :
+            convolution->get_input_node_ptr(1)->get_input_node_shared_ptr(0));
+        std::shared_ptr<opset1::Subtract> subtractFromWeights = as_type_ptr<opset1::Subtract>(multiplyFromWeights->get_input_node_shared_ptr(0));
+        std::shared_ptr<opset1::Convert> convertFromWeights = as_type_ptr<opset1::Convert>(subtractFromWeights == nullptr ?
+            multiplyFromWeights->get_input_node_shared_ptr(0) :
+            subtractFromWeights->get_input_node_shared_ptr(0));
 
-        auto newMultiplyAfter = std::make_shared<opset1::Multiply>(
-                convolution->copy_with_new_inputs({convolution->input_value(0), newMultiplyFromWeights->input_value(0)}),
+        {
+            // TODO: temporary workaround
+            // if (multiplyFromWeights == nullptr) {
+            //    multiplyFromWeights = as_type_ptr<opset1::Multiply>(convolution->get_input_node_ptr(1)->get_input_node_shared_ptr(0));
+            // }
+
+            // Check if all dimensions of scale except the first one (which is O-Output channels dimension) are all ones
+            auto weightScaleShape = multiplyFromWeights->get_input_shape(1);
+            // FIXME: check for rank and 1D-like multiplier
+            // if (weightScaleShape.size() <= 2 && shape_size(weightScaleShape) != weightScaleShape[0]) {
+            //    // TODO: should we roll back all changes in the network?
+            //    return;
+            // }
+
+            // It has been just checked that weights scale is effectively 1D tensor, so we can reshape it to [X, 1, ..., 1]
+            // to move to the output
+            auto newScaleShape = weightScaleShape;
+            newScaleShape.pop_back();   // that's all we need: [C, 1, 1, 1] => [C, 1, 1]
+            // std::cerr << newScaleShape << "\n";
+            // std::cerr << *newMultiplyFromWeights->input_value(1).get_node_shared_ptr();
+
+            // pass::VisualizeTree("C:\\Projects\\temp\\test.transformed").run_on_module(std::vector<std::shared_ptr<ngraph::Function>>{ context.network });
+
+            if (reshapeFromWeights != nullptr) {
+                reshapeFromWeights = as_type_ptr<opset1::Reshape>(reshapeFromWeights->copy_with_new_inputs({
+                    multiplyFromWeights->input_value(0),
+                    reshapeFromWeights->input_value(1) }));
+            }
+
+            auto newMultiplyAfter = std::make_shared<opset1::Multiply>(
+                convolution->copy_with_new_inputs({
+                    convolution->input_value(0),
+                    reshapeFromWeights != nullptr ?
+                        reshapeFromWeights :
+                        multiplyFromWeights->input_value(0)
+                    }),
                 fold_reshape<opset1::Reshape>(
-                    newMultiplyFromWeights->input_value(1),
-                    std::make_shared<opset1::Constant>(element::u64, Shape{newScaleShape.size()}, newScaleShape),
+                    multiplyFromWeights->input_value(1),
+                    std::make_shared<opset1::Constant>(element::u64, Shape{ newScaleShape.size() }, newScaleShape),
                     false));
-        replace_node(convolution, newMultiplyAfter);
-        convolution = newMultiplyAfter->input_value(0).get_node_shared_ptr();
-
-        auto subtract = as_type_ptr<opset1::Subtract>(convolution->input_value(1).get_node_shared_ptr());
-        if (subtract != nullptr) {
-            optimizeSubtract(subtract);
+            replace_node(convolution, newMultiplyAfter);
+            convolution = newMultiplyAfter->input_value(0).get_node_shared_ptr();
         }
 
-        // pass::VisualizeTree("C:\\Projects\\temp\\test.transformed").run_on_module(std::vector<std::shared_ptr<ngraph::Function>>{ context.network });
+        if (subtractFromWeights != nullptr) {
+            optimizeSubtract(subtractFromWeights);
+        }
 
-        if (is_type<opset1::Convert>(convolution->get_input_node_ptr(1))) {
+        if (convertFromWeights != nullptr) {
+            // TODO: why childNode is removed Multiply ???
+            // std::shared_ptr<Node> childNode = convertFromWeights->get_output_target_inputs(0).begin()->get_node()->shared_from_this();
+
+            std::shared_ptr<Node> childNode = reshapeFromWeights == nullptr ? convolution : reshapeFromWeights;
+
             auto newConvolution = convolution->clone_with_new_inputs({
                 convolution->get_input_node_shared_ptr(0),
-                convolution->get_input_node_ptr(1)->get_input_node_shared_ptr(0) });
+                childNode.get() == convolution.get() ?
+                    convolution->get_input_node_ptr(1)->get_input_node_shared_ptr(0) :
+                    // TODO: hardcoded inputs
+                    childNode->copy_with_new_inputs({convertFromWeights->input_value(0), childNode->input_value(1)})});
             replace_node(convolution, newConvolution);
             convolution = newConvolution;
         }
-
-        // pass::VisualizeTree("C:\\Projects\\temp\\test.transformed").run_on_module(std::vector<std::shared_ptr<ngraph::Function>>{ context.network });
     }
 
     std::shared_ptr<ngraph::opset1::Multiply> finalDequantization = optimizeMultipliesAfter(
