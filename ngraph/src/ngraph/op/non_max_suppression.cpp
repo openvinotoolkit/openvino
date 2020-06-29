@@ -291,7 +291,7 @@ bool ngraph::op::v3::NonMaxSuppression::visit_attributes(AttributeVisitor& visit
     return true;
 }
 
-void op::v3::NonMaxSuppression::validate_inputs()
+void op::v3::NonMaxSuppression::validate()
 {
     const auto boxes_ps = get_input_partial_shape(0);
     const auto scores_ps = get_input_partial_shape(1);
@@ -384,7 +384,7 @@ void op::v3::NonMaxSuppression::validate_and_infer_types()
         return;
     }
 
-    validate_inputs();
+    validate();
 
     const auto num_boxes_boxes = boxes_ps[1];
     const auto max_output_boxes_per_class_node = input_value(2).get_node_shared_ptr();
@@ -520,7 +520,7 @@ void op::v4::NonMaxSuppression::validate_and_infer_types()
         return;
     }
 
-    op::v3::NonMaxSuppression::validate_inputs();
+    op::v3::NonMaxSuppression::validate();
 
     const auto num_boxes_boxes = boxes_ps[1];
     const auto max_output_boxes_per_class_node = input_value(2).get_node_shared_ptr();

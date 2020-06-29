@@ -177,7 +177,7 @@ namespace ngraph
                 BoxEncodingType m_box_encoding = BoxEncodingType::CORNER;
                 bool m_sort_result_descending = true;
                 ngraph::element::Type m_output_type = ngraph::element::i64;
-                void validate_inputs();
+                void validate();
                 int64_t max_boxes_output_from_input() const;
             };
         } // namespace v3
