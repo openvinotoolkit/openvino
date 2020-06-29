@@ -31,6 +31,8 @@ void AvgPoolTransformation::registerMatcherIn(GraphRewrite &pass, Transformation
 }
 
 void AvgPoolTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) const {
+    // VisualizeTree("C:\\Projects\\temp\\test.original.avg_pool").run_on_module(std::vector<std::shared_ptr<Function>>{ context.network });
+
     std::shared_ptr<Node> pooling = m.get_match_root();
 
     // TODO: mote to TransparentBaseTransformation implementation AFTER TESTS
@@ -39,7 +41,8 @@ void AvgPoolTransformation::transform(TransformationContext& context, ngraph::pa
         return;
     }
 
-    // ngraph::pass::VisualizeTree("C:\\Projects\\temp\\test.transformed").run_on_module(std::vector<std::shared_ptr<ngraph::Function>>{ context.network });
+    // ngraph::pass::VisualizeTree("C:\\Projects\\temp\\test.transformed").run_on_module(
+    //    std::vector<std::shared_ptr<ngraph::Function>>{ context.network });
 
     std::shared_ptr<Node> dataNode =
         dequantization.convert != nullptr ? dequantization.convert->get_input_node_shared_ptr(0) :
@@ -48,45 +51,82 @@ void AvgPoolTransformation::transform(TransformationContext& context, ngraph::pa
             dequantization.multiply->get_input_node_shared_ptr(0));
 
     // removing dequantization operations
-    std::shared_ptr<Node> newPooling = pooling->clone_with_new_inputs({ dataNode });
-    pass::low_precision::NetworkHelper::setOutDataPrecision(newPooling, dequantization.multiply->get_output_element_type(0));
-    replace_node(pooling, newPooling);
-    newPooling->set_friendly_name(pooling->get_friendly_name());
+    // std::shared_ptr<Node> newPooling = pooling->clone_with_new_inputs({ dataNode });
+    // pass::low_precision::NetworkHelper::setOutDataPrecision(newPooling, dequantization.multiply->get_output_element_type(0));
+    // replace_node(pooling, newPooling);
+    // newPooling->set_friendly_name(pooling->get_friendly_name());
 
-    for (int i = 0; i < newPooling->get_output_size(); ++i) {
-        const auto childInputs = newPooling->get_output_target_inputs(i);
-        for (const auto childInput : childInputs) {
-            std::shared_ptr<Node> source = newPooling;
-            std::shared_ptr<Node> destination = childInput.get_node()->shared_from_this();
+    // for (int i = 0; i < newPooling->get_output_size(); ++i) {
+    //    const auto childInputs = newPooling->get_output_target_inputs(i);
+    //    for (const auto childInput : childInputs) {
+    //        std::shared_ptr<Node> source = newPooling;
+    //        std::shared_ptr<Node> destination = childInput.get_node()->shared_from_this();
 
-            if (dequantization.subtract != nullptr) {
-                // TODO: why this line is not working?
-                // insert_new_node_between(source, destination, dequantization.subtract);
+    //        if (dequantization.subtract != nullptr) {
+    //            // TODO: why this line is not working?
+    //            // insert_new_node_between(source, destination, dequantization.subtract);
 
-                std::shared_ptr<ngraph::opset1::Subtract> subtract = std::make_shared<ngraph::opset1::Subtract>(
-                    source,
-                    dequantization.subtract->get_input_node_shared_ptr(1));
+    //            std::shared_ptr<ngraph::opset1::Subtract> subtract = std::make_shared<ngraph::opset1::Subtract>(
+    //                source,
+    //                dequantization.subtract->get_input_node_shared_ptr(1));
 
-                insert_new_node_between(source, destination, subtract);
-                source = dequantization.subtract;
-            }
+    //            insert_new_node_between(source, destination, subtract);
+    //            source = dequantization.subtract;
+    //        }
 
-            if (dequantization.multiply != nullptr) {
-                // TODO: why this line is not working?
-                // insert_new_node_between(source, destination, dequantization.multiply);
+    //        if (dequantization.multiply != nullptr) {
+    //            // TODO: why this line is not working?
+    //            // insert_new_node_between(source, destination, dequantization.multiply);
 
-                std::shared_ptr<ngraph::opset1::Multiply> multiply = std::make_shared<ngraph::opset1::Multiply>(
-                    source,
-                    dequantization.multiply->get_input_node_shared_ptr(1));
+    //            std::shared_ptr<ngraph::opset1::Multiply> multiply = std::make_shared<ngraph::opset1::Multiply>(
+    //                source,
+    //                dequantization.multiply->get_input_node_shared_ptr(1));
 
-                insert_new_node_between(source, destination, multiply);
-            }
-        }
+    //            insert_new_node_between(source, destination, multiply);
+    //        }
+    //    }
+    //}
+
+    std::shared_ptr<Node> newPooling = pooling->copy_with_new_inputs({ dataNode });
+
+    //// move with Convert
+    // std::shared_ptr<Node> replacement = dequantization.multiply->copy_with_new_inputs({
+    //    // parent
+    //    dequantization.subtract ?
+    //        (dequantization.convert ?
+    //            dequantization.subtract->copy_with_new_inputs({
+    //                dequantization.convert->copy_with_new_inputs({newPooling}),
+    //                dequantization.subtract->get_input_node_shared_ptr(1)}) :
+    //            dequantization.subtract->copy_with_new_inputs({
+    //                newPooling,
+    //                dequantization.subtract->get_input_node_shared_ptr(1)})) :
+    //        (dequantization.convert ? dequantization.convert->copy_with_new_inputs({newPooling}) : newPooling),
+    //    // const
+    //    dequantization.multiply->input_value(1) });
+
+    // move without convert
+    std::shared_ptr<Node> replacement = dequantization.multiply->copy_with_new_inputs({
+        // parent
+        dequantization.subtract ?
+            dequantization.subtract->copy_with_new_inputs({
+                newPooling,
+                dequantization.subtract->get_input_node_shared_ptr(1)}) :
+            newPooling,
+        // const
+        dequantization.multiply->input_value(1) });
+
+    if (dequantization.convert != nullptr) {
+        NetworkHelper::setOutDataPrecision(newPooling, dequantization.convert->get_output_element_type(0));
     }
+    replace_node(pooling, replacement);
 
-    // ngraph::pass::VisualizeTree("C:\\Projects\\temp\\test.transformed").run_on_module(std::vector<std::shared_ptr<ngraph::Function>>{ context.network });
+    // VisualizeTree("C:\\Projects\\temp\\test.transformed.avg_pool").run_on_module(std::vector<std::shared_ptr<Function>>{ context.network });
 
     // TODO: NAMES!
+}
+
+bool AvgPoolTransformation::isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept {
+    return false;
 }
 
 } // namespace low_precision
