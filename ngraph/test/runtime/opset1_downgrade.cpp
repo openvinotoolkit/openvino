@@ -18,9 +18,9 @@
 
 #include "ngraph/node.hpp"
 #include "ngraph/ops.hpp"
-#include "ngraph/pass/opset1_downgrade.hpp"
 #include "ngraph/provenance.hpp"
 #include "ngraph/validation_util.hpp"
+#include "opset1_downgrade.hpp"
 
 using namespace std;
 using namespace ngraph;

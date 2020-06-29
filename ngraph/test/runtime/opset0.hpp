@@ -16,23 +16,19 @@
 
 #pragma once
 
-#include "ngraph/pass/pass.hpp"
+#include "ngraph/ops.hpp"
+#include "op/avg_pool.hpp"
 
 namespace ngraph
 {
-    namespace pass
+    namespace opset0
     {
-        class NGRAPH_API Opset1Downgrade : public NodePass
-        {
-        public:
-            ///
-            /// \brief    Constructor for the Opv1 downgrade transformation pass.
-            ///
-            /// \details  This transformation pass iterates over all nodes in a graph
-            /// and updates version 3 ops to their version 1 equivalents.
-            /// All ops in the final graph have op version 1.
-            Opset1Downgrade() = default;
-            bool run_on_node(std::shared_ptr<ngraph::Node> node) override;
-        };
+#ifdef NGRAPH_OP
+#include "opset0_tbl.hpp"
+#else
+#define NGRAPH_OP(a, b) using b::a;
+#include "opset0_tbl.hpp"
+#undef NGRAPH_OP
+#endif
     }
 }
