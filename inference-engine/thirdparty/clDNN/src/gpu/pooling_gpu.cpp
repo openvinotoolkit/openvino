@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2019 Intel Corporation
+// Copyright (c) 2019-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -199,6 +199,8 @@ attach_pooling_gpu::attach_pooling_gpu() {
     implementation_map<pooling>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::bs_fs_zyx_bsv16_fsv16), pooling_gpu::create);
     implementation_map<pooling>::add(std::make_tuple(engine_types::ocl, data_types::f32, format::bs_fs_yx_bsv16_fsv16), pooling_gpu::create);
     implementation_map<pooling>::add(std::make_tuple(engine_types::ocl, data_types::f16, format::bs_fs_yx_bsv16_fsv16), pooling_gpu::create);
+    implementation_map<pooling>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::bs_fs_yx_bsv16_fsv16), pooling_gpu::create);
+    implementation_map<pooling>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::bs_fs_yx_bsv16_fsv16), pooling_gpu::create);
     // MMAD
     implementation_map<pooling>::add(std::make_tuple(engine_types::ocl, data_types::i8, format::byxf_af32), pooling_gpu::create);
     implementation_map<pooling>::add(std::make_tuple(engine_types::ocl, data_types::u8, format::byxf_af32), pooling_gpu::create);

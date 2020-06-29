@@ -83,6 +83,7 @@ ParamsKey ConvolutionKernel_imad::GetSupportedKey() const {
     k.EnableOutputLayout(DataLayout::b_fs_yx_fsv4);
     k.EnableOutputLayout(DataLayout::byxf_af32);
     k.EnableOutputLayout(DataLayout::b_fs_yx_fsv16);
+    k.EnableOutputLayout(DataLayout::bs_fs_yx_bsv16_fsv16);
 
     k.EnableDifferentTypes();
     k.EnableDifferentInputWeightsTypes();
