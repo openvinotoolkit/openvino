@@ -49,6 +49,12 @@ void op::NonMaxSuppressionIE::validate_and_infer_types() {
     set_output_type(0, nms->output(0).get_element_type(), nms->output(0).get_partial_shape());
 }
 
+bool op::NonMaxSuppressionIE::visit_attributes(AttributeVisitor& visitor) {
+    visitor.on_attribute("center_point_box", m_center_point_box);
+    visitor.on_attribute("sort_result_descending", m_sort_result_descending);
+    return true;
+}
+
 // The second version of the operation is different just in the shape infer function (uses v4::NMS)
 constexpr NodeTypeInfo op::NonMaxSuppressionIE2::type_info;
 
@@ -59,8 +65,7 @@ op::NonMaxSuppressionIE2::NonMaxSuppressionIE2(const Output<Node> &boxes,
                                                const Output<Node> &score_threshold,
                                                int center_point_box,
                                                bool sort_result_descending)
-        : op::Op({boxes, scores, max_output_boxes_per_class, iou_threshold, score_threshold}), m_center_point_box(center_point_box),
-        m_sort_result_descending(sort_result_descending) {
+        : op::NonMaxSuppressionIE(boxes, scores, max_output_boxes_per_class, iou_threshold, score_threshold, center_point_box, sort_result_descending) {
     constructor_validate_and_infer_types();
 }
 

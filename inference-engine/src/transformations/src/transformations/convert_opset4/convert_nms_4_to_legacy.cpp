@@ -7,7 +7,6 @@
 
 #include <ngraph/graph_util.hpp>
 #include <ngraph/opsets/opset1.hpp>
-#include <ngraph/opsets/opset3.hpp>
 #include <ngraph/opsets/opset4.hpp>
 #include <ngraph_ops/nms_ie.hpp>
 #include <ngraph/rt_info.hpp>
@@ -30,12 +29,7 @@ void ngraph::pass::ConvertNMS4ToLegacy::convert_nms4_to_legacy() {
             return false;
         }
 
-        const auto box_encoding = static_cast<const op::v3::NonMaxSuppression::BoxEncodingType>(nms_4->get_box_encoding());
         const auto new_args = nms_4->input_values();
-        NODE_VALIDATION_CHECK(nms_4.get(),
-                              new_args.size() >= 2 && new_args.size() <= 5,
-                              "Number of inputs must be 2, 3, 4 or 5");
-
         const auto& arg2 = new_args.size() > 2 ? new_args.at(2) : ngraph::opset4::Constant::create(element::i32, Shape{}, {0});
         const auto& arg3 = new_args.size() > 3 ? new_args.at(3) : ngraph::opset4::Constant::create(element::f32, Shape{}, {.0f});
         const auto& arg4 = new_args.size() > 4 ? new_args.at(4) : ngraph::opset4::Constant::create(element::f32, Shape{}, {.0f});
@@ -85,10 +79,10 @@ void ngraph::pass::ConvertNMS4ToLegacy::convert_nms4_to_legacy() {
 
         int center_point_box = 0;
         switch (nms_4->get_box_encoding()) {
-            case ::ngraph::opset3::NonMaxSuppression::BoxEncodingType::CENTER:
+            case ::ngraph::opset4::NonMaxSuppression::BoxEncodingType::CENTER:
                 center_point_box = 1;
                 break;
-            case ::ngraph::opset3::NonMaxSuppression::BoxEncodingType::CORNER:
+            case ::ngraph::opset4::NonMaxSuppression::BoxEncodingType::CORNER:
                 center_point_box = 0;
                 break;
             default:
