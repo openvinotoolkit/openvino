@@ -8376,6 +8376,25 @@ struct params_generator : std::vector<convolution_random_test_all_params> {
         return *this;
     }
 
+    params_generator& bs_test_params(format::type input_format, bool asymm_weights = false, bool asymm_data = false, bool padded_input = false) {
+        std::vector<int> strides = { 1, 2 };
+        for (auto s : strides) {
+            // 1x1
+            push_back(convolution_random_test_all_params{
+            //      feature   input     filter    stride    offset  dilation  bias  groups
+            //batch in  out   x  y      x  y      x  y      x  y      x  y
+                16, 32, 32, { 4, 4 }, { 1, 1 }, { s, s }, { 0, 0 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input });
+            push_back(convolution_random_test_all_params{
+                16, 32, 32, { 9, 9 }, { 1, 1 }, { s, s }, { 0, 0 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input });
+            // 3x3
+            push_back(convolution_random_test_all_params{
+                16, 32, 32, { 4, 4 }, { 3, 3 }, { s, s }, { 0, 0 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input });
+            push_back(convolution_random_test_all_params{
+                16, 32, 32, { 9, 9 }, { 3, 3 }, { s, s }, { 0, 0 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input });
+        }
+        return *this;
+    }
+
     params_generator& all_test_params(format::type input_format, bool asymm_weights = false, bool asymm_data = false, bool padded_input = false) {
         return smoke_test_params(input_format, asymm_weights, asymm_data, padded_input)
             .extra_test_params(input_format, asymm_weights, asymm_data, padded_input);
@@ -8421,6 +8440,7 @@ INSTANTIATE_TEST_CASE_P(
         .smoke_test_params(format::b_fs_yx_fsv32, false, false, true)
         .smoke_test_params(format::b_fs_yx_fsv16, false, false, true)
         .smoke_test_params(format::b_fs_yx_fsv16)
+        .bs_test_params(format::bs_fs_yx_bsv16_fsv16)
     ),
     to_string_convolution_all_params
 );
