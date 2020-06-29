@@ -151,7 +151,7 @@ namespace ngraph
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) override;
 
-            private:
+            protected:
                 bool m_special_zero;
             };
         }
