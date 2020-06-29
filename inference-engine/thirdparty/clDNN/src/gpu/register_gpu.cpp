@@ -101,6 +101,7 @@ void register_implementations_gpu() {
     REGISTER_GPU(ctc_greedy_decoder);
     REGISTER_GPU(cum_sum);
     REGISTER_GPU(embedding_bag);
+    REGISTER_GPU(extract_image_patches);
 }
 
 }  // namespace gpu

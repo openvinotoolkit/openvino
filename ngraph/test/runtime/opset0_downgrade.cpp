@@ -26,11 +26,12 @@
 #include "ngraph/op/util/attr_types.hpp"
 #include "ngraph/ops.hpp"
 #include "ngraph/pass/implicit_broadcast_elimination.hpp"
-#include "ngraph/pass/opset0_downgrade.hpp"
 #include "ngraph/provenance.hpp"
 #include "ngraph/slice_plan.hpp"
 #include "ngraph/type.hpp"
 #include "ngraph/validation_util.hpp"
+#include "op/avg_pool.hpp"
+#include "opset0_downgrade.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -115,31 +116,6 @@ namespace
                                                              include_padding_in_avg_computation,
                                                              pad_type,
                                                              ceil_mode);
-        replace_node(node, replacement_node);
-        return replacement_node;
-    }
-
-    shared_ptr<Node> op_cast(shared_ptr<op::v1::AvgPoolBackprop> node)
-    {
-        NGRAPH_CHECK(node->input_value(1).get_node_shared_ptr()->is_constant());
-        const auto forward_arg_shape =
-            static_pointer_cast<op::Constant>(node->input_value(1).get_node_shared_ptr())
-                ->get_shape_val();
-        const auto delta = node->input_value(0);
-        const auto include_padding_in_avg_computation = !node->get_exclude_pad();
-        const auto padding_below = node->get_pads_begin();
-        const auto padding_above = node->get_pads_end();
-        const auto window_movement_strides = node->get_strides();
-        const auto window_shape = node->get_kernel();
-
-        auto replacement_node =
-            make_shared<op::v0::AvgPoolBackprop>(forward_arg_shape,
-                                                 delta,
-                                                 window_shape,
-                                                 window_movement_strides,
-                                                 padding_below,
-                                                 padding_above,
-                                                 include_padding_in_avg_computation);
         replace_node(node, replacement_node);
         return replacement_node;
     }
@@ -266,29 +242,6 @@ namespace
                                                          node->get_pads_begin(),
                                                          node->get_pads_end(),
                                                          Strides(num_spatial_dims, 1));
-        replace_node(node, replacement_node);
-        return replacement_node;
-    }
-
-    shared_ptr<Node> op_cast(shared_ptr<op::v1::ConvolutionBackpropFilters> node)
-    {
-        NGRAPH_CHECK(node->input_value(2).get_node_shared_ptr()->is_constant());
-        auto filters_shape =
-            static_pointer_cast<op::Constant>(node->input_value(2).get_node_shared_ptr())
-                ->get_shape_val();
-        const auto data_arg = node->input_value(0);
-        const auto delta_arg = node->input_value(1);
-        const auto strides = node->get_strides();
-        const size_t num_spatial_dims = strides.size();
-        auto replacement_node =
-            make_shared<op::v0::ConvolutionBackpropFilters>(data_arg,
-                                                            filters_shape,
-                                                            delta_arg,
-                                                            node->get_strides(),
-                                                            node->get_dilations(),
-                                                            node->get_pads_begin(),
-                                                            node->get_pads_end(),
-                                                            Strides(num_spatial_dims, 1));
         replace_node(node, replacement_node);
         return replacement_node;
     }
@@ -498,41 +451,6 @@ namespace
                                                              padding_above,
                                                              pad_type,
                                                              ceil_mode);
-        replace_node(node, replacement_node);
-        return replacement_node;
-    }
-
-    shared_ptr<Node> op_cast(shared_ptr<op::v1::MaxPoolBackprop> node)
-    {
-        const auto padding_below = node->get_pads_begin();
-        const auto padding_above = node->get_pads_end();
-        const auto window_movement_strides = node->get_strides();
-        const auto window_shape = node->get_kernel();
-
-        const auto arg_forward = node->input_value(0);
-        const auto delta = node->input_value(1);
-
-        shared_ptr<Node> replacement_node;
-        if (node->get_input_size() == 3)
-        {
-            const auto result_forward = node->input_value(2);
-            replacement_node = make_shared<op::v0::MaxPoolBackprop>(arg_forward,
-                                                                    delta,
-                                                                    result_forward,
-                                                                    window_shape,
-                                                                    window_movement_strides,
-                                                                    padding_below,
-                                                                    padding_above);
-        }
-        else
-        {
-            replacement_node = make_shared<op::v0::MaxPoolBackprop>(arg_forward,
-                                                                    delta,
-                                                                    window_movement_strides,
-                                                                    window_shape,
-                                                                    padding_below,
-                                                                    padding_above);
-        }
         replace_node(node, replacement_node);
         return replacement_node;
     }
@@ -905,8 +823,6 @@ namespace
         static DispatchMap dispatch_map{
 #define NGRAPH_OP(NAME, NAMESPACE) {NAMESPACE::NAME::type_info, op_cast_thunk<NAMESPACE::NAME>},
 #include "ngraph/opsets/opset1_tbl.hpp"
-            NGRAPH_OP(AvgPoolBackprop, op::v1) NGRAPH_OP(ConvolutionBackpropFilters, op::v1)
-                NGRAPH_OP(GenerateMask, op::v1) NGRAPH_OP(MaxPoolBackprop, op::v1)
 #undef NGRAPH_OP
         };
         return dispatch_map;
