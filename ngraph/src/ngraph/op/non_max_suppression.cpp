@@ -379,7 +379,7 @@ void op::v3::NonMaxSuppression::validate_and_infer_types()
 
     validate();
 
-    if (boxes_ps.rank().is_static() and scores_ps.rank().is_static())
+    if (boxes_ps.rank().is_static() && scores_ps.rank().is_static())
     {
         const auto num_boxes_boxes = boxes_ps[1];
         const auto max_output_boxes_per_class_node = input_value(2).get_node_shared_ptr();
@@ -511,7 +511,7 @@ void op::v4::NonMaxSuppression::validate_and_infer_types()
 
     op::v3::NonMaxSuppression::validate();
 
-    if (boxes_ps.rank().is_static() and scores_ps.rank().is_static()) {
+    if (boxes_ps.rank().is_static() && scores_ps.rank().is_static()) {
         const auto num_boxes_boxes = boxes_ps[1];
         const auto max_output_boxes_per_class_node = input_value(2).get_node_shared_ptr();
         if (num_boxes_boxes.is_static() && scores_ps[0].is_static() && scores_ps[1].is_static() && max_output_boxes_per_class_node->is_constant()) {
