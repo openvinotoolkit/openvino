@@ -45,7 +45,7 @@ class NonMaxSuppression(Op):
         }
         super().__init__(graph, mandatory_props, attrs)
 
-    def supported_attrs(self):
+    def backend_attrs(self):
         version = self.get_opset()
         if version in ['opset3', 'opset4']:
             return ['sort_result_descending', 'box_encoding',
