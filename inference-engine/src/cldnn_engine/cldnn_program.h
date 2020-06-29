@@ -222,6 +222,7 @@ public:
         EmbeddingBagPackedSum,
         EmbeddingBagOffsetsSum,
         EmbeddingSegmentsSum,
+        ExtractImagePatches,
         NO_TYPE
     };
     using GenericBlobMap = std::map<cldnn::primitive_id, cldnn::primitive_id>;
@@ -383,6 +384,7 @@ private:
     void CreateEmbeddingBagPackedSumPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr& layer);
     void CreateEmbeddingBagOffsetsSumPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr& layer);
     void CreateEmbeddingSegmentsSumPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr& layer);
+    void CreateExtractImagePatchesPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer);
 };
 
 }  // namespace CLDNNPlugin

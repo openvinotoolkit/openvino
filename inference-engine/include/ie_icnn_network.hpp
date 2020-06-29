@@ -105,15 +105,6 @@ public:
     virtual size_t layerCount() const noexcept = 0;
 
     /**
-     * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
-     * @brief Insert a layer into the network. A user is responsible to connect it to other data elements.
-     *
-     * @param layer Const reference to a layer smart pointer
-     */
-    INFERENCE_ENGINE_DEPRECATED("Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1")
-    virtual void addLayer(const CNNLayerPtr& layer) noexcept = 0;
-
-    /**
      * @brief Adds output to the layer
      *
      * @param layerName Name of the layer

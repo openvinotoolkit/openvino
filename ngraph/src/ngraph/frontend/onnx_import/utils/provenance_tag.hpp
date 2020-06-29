@@ -13,26 +13,28 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //*****************************************************************************
-
 #pragma once
 
-#include "ngraph/pass/pass.hpp"
+#include <string>
+#include <vector>
+
+#include "core/node.hpp"
+#include "ngraph/partial_shape.hpp"
 
 namespace ngraph
 {
-    namespace pass
+    namespace onnx_import
     {
-        class NGRAPH_API Opset0Downgrade : public NodePass
+        namespace detail
         {
-        public:
-            ///
-            /// \brief    Constructor for the Opv1 downgrade transformation pass.
-            ///
-            /// \details  This transformation pass iterates over all nodes in a graph
-            /// and updates version 1 ops to their version 0 equivalents.
-            /// All ops in the final graph have op version 0.
-            Opset0Downgrade() = default;
-            bool run_on_node(std::shared_ptr<ngraph::Node> node) override;
-        };
-    }
-}
+            std::string concat_strings(
+                const std::vector<std::reference_wrapper<const std::string>>& strings);
+
+            std::string build_input_provenance_tag(const std::string& input_name,
+                                                   const PartialShape& shape);
+
+            std::string build_op_provenance_tag(const Node& onnx_node);
+
+        } // namespace detail
+    }     // namespace onnx_import
+} // namespace ngraph
