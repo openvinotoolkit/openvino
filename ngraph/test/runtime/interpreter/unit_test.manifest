@@ -64,6 +64,7 @@ INTERPRETER.onnx_upsample8_linear_infer
 INTERPRETER.onnx_upsample9_scales_const_nearest_infer
 INTERPRETER.onnx_upsample9_scales_const_linear_infer
 INTERPRETER.onnx_upsample9_scales_input_nearest_infer
+
 # Backward conv
 INTERPRETER.convolution_2d_1item
 INTERPRETER.convolution_2d_1item_padded_1_1x1_1
