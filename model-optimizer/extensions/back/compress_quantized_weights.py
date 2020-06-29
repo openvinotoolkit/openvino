@@ -98,14 +98,10 @@ class CompressQuantizeWeights(BackReplacementPattern):
                 ('weights_const', dict(type='Const')),
                 ('weights_d', dict(kind='data')),
                 ('quantize', dict(type='FakeQuantize', levels=lambda x: x is not None and 2 < x <= 256)),
-                ('quantize_d', dict(kind='data')),
-                ('convolution', dict())
             ],
             edges=[
                 ('weights_const', 'weights_d'),
                 ('weights_d', 'quantize', {'in': 0}),
-                ('quantize', 'quantize_d'),
-                ('quantize_d', 'convolution', {'in': 1})
             ]
         )
 
@@ -118,7 +114,9 @@ class CompressQuantizeWeights(BackReplacementPattern):
         initial_fake_quantize.in_port(1).get_connection().set_destination(new_fake_quantize.in_port(1))
         initial_fake_quantize.in_port(2).get_connection().set_destination(new_fake_quantize.in_port(2))
 
-        dst_type = data_type_str_to_np(graph.graph['cmd_params'].data_type)
+        dst_type = match['weights_const'].value.dtype
+        if np.issubdtype(dst_type, np.floating):
+            dst_type = data_type_str_to_np(graph.graph['cmd_params'].data_type)
 
         i_min = np.array([0.], dtype=dst_type)
         i_max = np.array([initial_fake_quantize.levels - 1.], dtype=dst_type)
