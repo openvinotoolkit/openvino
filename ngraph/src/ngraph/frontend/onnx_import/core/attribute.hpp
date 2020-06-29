@@ -45,11 +45,18 @@ namespace ngraph
                 {
                     struct Attribute : ngraph_error
                     {
+#ifdef NGRAPH_USE_PROTOBUF_LITE
                         Attribute(const std::string& msg, AttributeProto_AttributeType type)
-                            : ngraph_error{msg + ": " +
-                                           ONNX_NAMESPACE::AttributeProto_AttributeType_Name(type)}
+                            : ngraph_error{msg}
                         {
                         }
+#else
+                        Attribute(const std::string& msg, AttributeProto_AttributeType type)
+                            : ngraph_error{msg + ": " +
+                                        ONNX_NAMESPACE::AttributeProto_AttributeType_Name(type)}
+                        {
+                        }
+#endif
                     };
 
                 } // namespace detail

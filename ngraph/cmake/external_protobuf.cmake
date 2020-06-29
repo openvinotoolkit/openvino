@@ -35,6 +35,7 @@ set(CMAKE_C_FLAGS_RELEASE "${CMAKE_ORIGINAL_C_FLAGS_RELEASE}")
 set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_ORIGINAL_EXE_LINKER_FLAGS_RELEASE}")
 set(CMAKE_SHARED_LINKER_FLAGS_RELEASE "${CMAKE_ORIGINAL_SHARED_LINKER_FLAGS_RELEASE}")
 set(CMAKE_MODULE_LINKER_FLAGS_RELEASE "${CMAKE_ORIGINAL_MODULE_LINKER_FLAGS_RELEASE}")
+
 if (WIN32)
     string(REPLACE "/W3" "/W0" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 else()
@@ -63,7 +64,7 @@ if(CMAKE_CROSSCOMPILING)
 
     set(protobuf_BUILD_PROTOC_BINARIES OFF CACHE BOOL "Build libprotoc and protoc compiler" FORCE)
 else()
-    set(PROTOC_VERSION "3.7.1")
+    set(PROTOC_VERSION "3.9.2")
 endif()
 
 set(NGRAPH_PROTOBUF_GIT_TAG "v${PROTOC_VERSION}")
@@ -75,78 +76,86 @@ else()
     set(MAKE_UTIL $(MAKE))
 endif()
 
-if(CMAKE_CXX_COMPILER_ID MATCHES ".*[Cc]lang")
-    include(ExternalProject)
-    set(Protobuf_INSTALL_PREFIX ${EXTERNAL_PROJECTS_ROOT}/protobuf)
-    set(Protobuf_PROTOC_EXECUTABLE ${Protobuf_INSTALL_PREFIX}/bin/protoc)
-    set(Protobuf_INCLUDE_DIRS ${Protobuf_INSTALL_PREFIX}/include)
-    set(Protobuf_LIBRARY ${Protobuf_INSTALL_PREFIX}/lib/libprotobuf.a)
-    # Don't manually set compiler on macos since it causes compile error on macos >= 10.14
-    ExternalProject_Add(
-        ext_protobuf
-        PREFIX protobuf
-        GIT_REPOSITORY ${NGRAPH_PROTOBUF_GIT_REPO_URL}
-        GIT_TAG ${NGRAPH_PROTOBUF_GIT_TAG}
-        UPDATE_COMMAND ""
-        PATCH_COMMAND ""
-        CONFIGURE_COMMAND ./autogen.sh COMMAND ./configure --prefix=${EXTERNAL_PROJECTS_ROOT}/protobuf --disable-shared
-        BUILD_COMMAND ${MAKE_UTIL} "CXXFLAGS=-std=c++${NGRAPH_CXX_STANDARD} -fPIC"
-        TMP_DIR "${EXTERNAL_PROJECTS_ROOT}/protobuf/tmp"
-        STAMP_DIR "${EXTERNAL_PROJECTS_ROOT}/protobuf/stamp"
-        DOWNLOAD_DIR "${EXTERNAL_PROJECTS_ROOT}/protobuf/download"
-        SOURCE_DIR "${EXTERNAL_PROJECTS_ROOT}/protobuf/src"
-        BINARY_DIR "${EXTERNAL_PROJECTS_ROOT}/protobuf/src"
-        INSTALL_DIR "${EXTERNAL_PROJECTS_ROOT}/protobuf"
-        EXCLUDE_FROM_ALL TRUE
-        BUILD_BYPRODUCTS ${Protobuf_PROTOC_EXECUTABLE} ${Protobuf_LIBRARY}
-    )
-
-    # -----------------------------------------------------------------------------
-    # Use the interface of FindProtobuf.cmake
-    # -----------------------------------------------------------------------------
-    if (NOT TARGET protobuf::libprotobuf)
-    add_library(protobuf::libprotobuf UNKNOWN IMPORTED)
-    set_target_properties(protobuf::libprotobuf PROPERTIES
-        INTERFACE_SYSTEM_INCLUDE_DIRECTORIES "${Protobuf_INCLUDE_DIR}"
-        IMPORTED_LOCATION "${Protobuf_LIBRARY}")
-    add_dependencies(protobuf::libprotobuf ext_protobuf)
-    endif()
-    set(Protobuf_LIBRARIES protobuf::libprotobuf)
-
-    if (NOT TARGET protobuf::protoc)
-    add_executable(protobuf::protoc IMPORTED)
-    set_target_properties(protobuf::protoc PROPERTIES
-        INTERFACE_SYSTEM_INCLUDE_DIRECTORIES "${Protobuf_PROTOC_EXECUTABLE}"
-        IMPORTED_LOCATION "${Protobuf_PROTOC_EXECUTABLE}")
-    add_dependencies(protobuf::protoc ext_protobuf)
-    endif()
-
-    set(Protobuf_FOUND TRUE)
-    set(PROTOBUF_FOUND TRUE)
-    #add_dependencies(onnx ext_protobuf)
+if(PROTOC_VERSION VERSION_LESS "3.9" AND NGRAPH_USE_PROTOBUF_LITE)
+    message(FATAL_ERROR "Minimum supported version of protobuf-lite library is 3.9.0")
 else()
-    if(PROTOC_VERSION VERSION_GREATER_EQUAL "3.0")
-        FetchContent_Declare(
+    if(CMAKE_CXX_COMPILER_ID MATCHES ".*[Cc]lang")
+        include(ExternalProject)
+        set(Protobuf_INSTALL_PREFIX ${EXTERNAL_PROJECTS_ROOT}/protobuf)
+        set(Protobuf_PROTOC_EXECUTABLE ${Protobuf_INSTALL_PREFIX}/bin/protoc)
+        set(Protobuf_INCLUDE_DIRS ${Protobuf_INSTALL_PREFIX}/include)
+        set(Protobuf_LIBRARY ${Protobuf_INSTALL_PREFIX}/lib/libprotobuf.a)
+        # Don't manually set compiler on macos since it causes compile error on macos >= 10.14
+        ExternalProject_Add(
             ext_protobuf
+            PREFIX protobuf
             GIT_REPOSITORY ${NGRAPH_PROTOBUF_GIT_REPO_URL}
             GIT_TAG ${NGRAPH_PROTOBUF_GIT_TAG}
+            UPDATE_COMMAND ""
+            PATCH_COMMAND ""
+            CONFIGURE_COMMAND ./autogen.sh COMMAND ./configure --prefix=${EXTERNAL_PROJECTS_ROOT}/protobuf --disable-shared
+            BUILD_COMMAND ${MAKE_UTIL} "CXXFLAGS=-std=c++${NGRAPH_CXX_STANDARD} -fPIC"
+            TMP_DIR "${EXTERNAL_PROJECTS_ROOT}/protobuf/tmp"
+            STAMP_DIR "${EXTERNAL_PROJECTS_ROOT}/protobuf/stamp"
+            DOWNLOAD_DIR "${EXTERNAL_PROJECTS_ROOT}/protobuf/download"
+            SOURCE_DIR "${EXTERNAL_PROJECTS_ROOT}/protobuf/src"
+            BINARY_DIR "${EXTERNAL_PROJECTS_ROOT}/protobuf/src"
+            INSTALL_DIR "${EXTERNAL_PROJECTS_ROOT}/protobuf"
+            EXCLUDE_FROM_ALL TRUE
+            BUILD_BYPRODUCTS ${Protobuf_PROTOC_EXECUTABLE} ${Protobuf_LIBRARY}
         )
 
-        FetchContent_GetProperties(ext_protobuf)
-        if(NOT ext_protobuf_POPULATED)
-            FetchContent_Populate(ext_protobuf)
-            set(protobuf_BUILD_SHARED_LIBS OFF CACHE BOOL "Build Shared Libraries")
-            set(protobuf_BUILD_TESTS OFF CACHE BOOL "Build tests")
-            set(protobuf_WITH_ZLIB OFF CACHE BOOL "Build with zlib support")
-            set(Protobuf_USE_STATIC_LIBS ON)
-            add_subdirectory(${ext_protobuf_SOURCE_DIR}/cmake ${ext_protobuf_BINARY_DIR} EXCLUDE_FROM_ALL)
+        # -----------------------------------------------------------------------------
+        # Use the interface of FindProtobuf.cmake
+        # -----------------------------------------------------------------------------
+        if (NOT TARGET protobuf::libprotobuf)
+        add_library(protobuf::libprotobuf UNKNOWN IMPORTED)
+        set_target_properties(protobuf::libprotobuf PROPERTIES
+            INTERFACE_SYSTEM_INCLUDE_DIRECTORIES "${Protobuf_INCLUDE_DIR}"
+            IMPORTED_LOCATION "${Protobuf_LIBRARY}")
+        add_dependencies(protobuf::libprotobuf ext_protobuf)
         endif()
-    else()
-        message(FATAL_ERROR "Minimum supported version of protobuf library is 3.0.0")
-    endif()
+        set(Protobuf_LIBRARIES protobuf::libprotobuf)
 
-    set(Protobuf_INCLUDE_DIRS ${ext_protobuf_SOURCE_DIR})
-    set(Protobuf_LIBRARIES protobuf::libprotobuf)
+        if (NOT TARGET protobuf::protoc)
+        add_executable(protobuf::protoc IMPORTED)
+        set_target_properties(protobuf::protoc PROPERTIES
+            INTERFACE_SYSTEM_INCLUDE_DIRECTORIES "${Protobuf_PROTOC_EXECUTABLE}"
+            IMPORTED_LOCATION "${Protobuf_PROTOC_EXECUTABLE}")
+        add_dependencies(protobuf::protoc ext_protobuf)
+        endif()
+
+        set(Protobuf_FOUND TRUE)
+        set(PROTOBUF_FOUND TRUE)
+        #add_dependencies(onnx ext_protobuf)
+    else()
+        if(PROTOC_VERSION VERSION_GREATER_EQUAL "3.0")
+            FetchContent_Declare(
+                ext_protobuf
+                GIT_REPOSITORY ${NGRAPH_PROTOBUF_GIT_REPO_URL}
+                GIT_TAG ${NGRAPH_PROTOBUF_GIT_TAG}
+            )
+
+            FetchContent_GetProperties(ext_protobuf)
+            if(NOT ext_protobuf_POPULATED)
+                FetchContent_Populate(ext_protobuf)
+                set(protobuf_BUILD_SHARED_LIBS OFF CACHE BOOL "Build Shared Libraries")
+                set(protobuf_BUILD_TESTS OFF CACHE BOOL "Build tests")
+                set(protobuf_WITH_ZLIB OFF CACHE BOOL "Build with zlib support")
+                set(Protobuf_USE_STATIC_LIBS ON)
+                add_subdirectory(${ext_protobuf_SOURCE_DIR}/cmake ${ext_protobuf_BINARY_DIR} EXCLUDE_FROM_ALL)
+            endif()
+        else()
+            message(FATAL_ERROR "Minimum supported version of protobuf library is 3.0.0")
+        endif()
+
+        set(Protobuf_INCLUDE_DIRS ${ext_protobuf_SOURCE_DIR})
+        if(NGRAPH_USE_PROTOBUF_LITE)
+            set(Protobuf_LIBRARIES libprotobuf-lite)
+        else()
+            set(Protobuf_LIBRARIES libprotobuf)
+        endif()
+    endif()
 endif()
 
 # Now make sure we restore the original CMAKE_*_FLAGS for the caller
