@@ -13,7 +13,7 @@
 #include "common_test_utils/xml_net_builder/xml_net_builder.hpp"
 #include "common_test_utils/common_layers_params.hpp"
 #include "common_test_utils/data_utils.hpp"
-
+#include "common_test_utils/common_utils.hpp"
 
 struct conv_eltwise_params {
     std::vector<size_t> in1;
@@ -84,13 +84,12 @@ protected:
 
             InferenceEngine::Core ie;
             auto network = ie.ReadNetwork(model, getConvWeightsBlob(p.in1, p.conv));
-            network.begin();  // Call conversion from CNNNetwork NgraphImpl to CNNNetwork
             std::shared_ptr<MKLDNNPlugin::Engine> score_engine(new MKLDNNPlugin::Engine());
             InferenceEngine::IExecutableNetwork::Ptr exeNetwork1;
             ASSERT_NO_THROW(score_engine->LoadNetwork(exeNetwork1, network, {}));
 
-            auto conv = network.getLayerByName("Convolution2");
-            auto eltwise = network.getLayerByName("Eltwise3");
+            auto conv = CommonTestUtils::getLayerByName(network, "Convolution2");
+            auto eltwise = CommonTestUtils::getLayerByName(network, "Eltwise3");
 
             ASSERT_EQ(conv->precision, InferenceEngine::Precision::I8);
             ASSERT_EQ(conv->outData[0]->getPrecision(), InferenceEngine::Precision::I8);
@@ -144,15 +143,14 @@ protected:
 
             Core ie;
             auto network = ie.ReadNetwork(model, getConvWeightsBlob(p.in1, p.conv));
-            network.begin();  // Call conversion from CNNNetwork NgraphImpl to CNNNetwork
 
             std::shared_ptr<MKLDNNPlugin::Engine> score_engine(new MKLDNNPlugin::Engine());
             InferenceEngine::IExecutableNetwork::Ptr exeNetwork1;
             ASSERT_NO_THROW(score_engine->LoadNetwork(exeNetwork1, network, { }));
 
-            auto conv = network.getLayerByName("Convolution2");
-            auto eltwise = network.getLayerByName("Eltwise3");
-            auto relu4 = network.getLayerByName("ReLU4");
+            auto conv = CommonTestUtils::getLayerByName(network, "Convolution2");
+            auto eltwise = CommonTestUtils::getLayerByName(network, "Eltwise3");
+            auto relu4 = CommonTestUtils::getLayerByName(network, "ReLU4");
 
             ASSERT_EQ(conv->precision, InferenceEngine::Precision::I8);
             ASSERT_EQ(conv->outData[0]->getPrecision(), InferenceEngine::Precision::I8);
@@ -206,15 +204,14 @@ protected:
 
             Core ie;
             auto network = ie.ReadNetwork(model, getConvWeightsBlob(p.in1, p.conv));
-            network.begin();  // Call conversion from CNNNetwork NgraphImpl to CNNNetwork
 
             std::shared_ptr<MKLDNNPlugin::Engine> score_engine(new MKLDNNPlugin::Engine());
             InferenceEngine::IExecutableNetwork::Ptr exeNetwork1;
             ASSERT_NO_THROW(score_engine->LoadNetwork(exeNetwork1, network, { }));
 
-            auto conv2 = network.getLayerByName("Convolution2");
-            auto conv3 = network.getLayerByName("Convolution3");
-            auto eltwise = network.getLayerByName("Eltwise3");
+            auto conv2 = CommonTestUtils::getLayerByName(network, "Convolution2");
+            auto conv3 = CommonTestUtils::getLayerByName(network, "Convolution3");
+            auto eltwise = CommonTestUtils::getLayerByName(network, "Eltwise3");
 
             ASSERT_EQ(conv2->precision, InferenceEngine::Precision::I8);
             ASSERT_EQ(conv2->outData[0]->getPrecision(), InferenceEngine::Precision::I8);
@@ -266,16 +263,15 @@ protected:
             size_t weight_size = getConvWeightsSize(p.in1, p.conv1, "FP32") + getConvBiasesSize(p.conv1, "FP32") +
                                  getConvWeightsSize(p.in2, p.conv2, "FP32") + getConvBiasesSize(p.conv2, "FP32");
             auto network = ie.ReadNetwork(model, CommonTestUtils::getWeightsBlob(weight_size));
-            network.begin();  // Call conversion from CNNNetwork NgraphImpl to CNNNetwork
 
             std::shared_ptr<MKLDNNPlugin::Engine> score_engine(new MKLDNNPlugin::Engine());
             InferenceEngine::IExecutableNetwork::Ptr exeNetwork1;
             ASSERT_NO_THROW(score_engine->LoadNetwork(exeNetwork1, network, { }));
 
-            auto conv2 = network.getLayerByName("Convolution2");
-            auto conv3 = network.getLayerByName("Convolution3");
-            auto eltwise = network.getLayerByName("Eltwise3");
-            auto relu5 = network.getLayerByName("ReLU5");
+            auto conv2 = CommonTestUtils::getLayerByName(network, "Convolution2");
+            auto conv3 = CommonTestUtils::getLayerByName(network, "Convolution3");
+            auto eltwise = CommonTestUtils::getLayerByName(network, "Eltwise3");
+            auto relu5 = CommonTestUtils::getLayerByName(network, "ReLU5");
 
             ASSERT_EQ(conv2->precision, InferenceEngine::Precision::I8);
             ASSERT_EQ(conv2->outData[0]->getPrecision(), InferenceEngine::Precision::I8);
@@ -343,16 +339,15 @@ protected:
                                  getConvWeightsSize(p.in2, p.conv2, "FP32") + getConvBiasesSize(p.conv2, "FP32") +
                                  getConvWeightsSize(convOutShape3, p.conv3, "FP32") + getConvBiasesSize(p.conv3, "FP32");
             auto network = ie.ReadNetwork(model, CommonTestUtils::getWeightsBlob(weight_size));
-            network.begin();  // Call conversion from CNNNetwork NgraphImpl to CNNNetwork
 
             std::shared_ptr<MKLDNNPlugin::Engine> score_engine(new MKLDNNPlugin::Engine());
             InferenceEngine::IExecutableNetwork::Ptr exeNetwork1;
             ASSERT_NO_THROW(score_engine->LoadNetwork(exeNetwork1, network, {}));
 
-            auto conv2 = network.getLayerByName("Convolution2");
-            auto conv3 = network.getLayerByName("Convolution3");
-            auto eltwise = network.getLayerByName("Eltwise3");
-            auto relu5 = network.getLayerByName("ReLU5");
+            auto conv2 = CommonTestUtils::getLayerByName(network, "Convolution2");
+            auto conv3 = CommonTestUtils::getLayerByName(network, "Convolution3");
+            auto eltwise = CommonTestUtils::getLayerByName(network, "Eltwise3");
+            auto relu5 = CommonTestUtils::getLayerByName(network, "ReLU5");
 
             ASSERT_EQ(conv2->precision, InferenceEngine::Precision::I8);
             ASSERT_EQ(conv2->outData[0]->getPrecision(), InferenceEngine::Precision::I8);

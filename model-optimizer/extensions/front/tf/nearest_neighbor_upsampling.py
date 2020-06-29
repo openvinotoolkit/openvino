@@ -82,6 +82,8 @@ class NearestNeighborUpsampling(FrontReplacementSubgraph):
                                    'nearest_mode': 'round_prefer_floor', 'cube_coeff': -0.75, 'version': 'opset3',
                                    'name': reshape2_name + '/Resample_'})
         resample_node = resample_op.create_node([match['op']])
+        const = Const(graph, {'value': np.array([input_height * height_scale, input_width * width_scale]),
+                              'name': resample_node.name + '/target_shape'}).create_node()
 
         match['reshape_2'].replace_node(resample_node)
 
