@@ -2109,7 +2109,7 @@ CNNLayer::Ptr NodeConverter<ngraph::op::NonMaxSuppressionIE>::createLayer(const 
 
     auto res = std::make_shared<InferenceEngine::NonMaxSuppressionLayer>(params);
     res->params["sort_result_descending"] = std::to_string(castedLayer->m_sort_result_descending);
-    res->params["center_point_box"] = std::to_string(castedLayer->m_sort_result_descending);
+    res->params["center_point_box"] = std::to_string(castedLayer->center_point_box);
     return res;
 }
 
@@ -2122,7 +2122,7 @@ CNNLayer::Ptr NodeConverter<ngraph::op::NonMaxSuppressionIE2>::createLayer(const
 
     auto res = std::make_shared<InferenceEngine::NonMaxSuppressionLayer>(params);
     res->params["sort_result_descending"] = std::to_string(castedLayer->m_sort_result_descending);
-    res->params["center_point_box"] = std::to_string(castedLayer->m_sort_result_descending);
+    res->params["center_point_box"] = std::to_string(castedLayer->center_point_box);
     return res;
 }
 }  // namespace Builder
