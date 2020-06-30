@@ -32,7 +32,6 @@ namespace {
 
     std::vector<InferenceEngine::Precision> netPrecisions = {InferenceEngine::Precision::FP32,
                                                              InferenceEngine::Precision::FP16,
-                                                             InferenceEngine::Precision::I16,
     };
 
     INSTANTIATE_TEST_CASE_P(power, PowerLayerTest,
