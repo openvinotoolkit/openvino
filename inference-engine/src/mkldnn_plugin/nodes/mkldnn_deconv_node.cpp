@@ -131,6 +131,7 @@ void MKLDNNDeconvolutionNode::setBiasAsPostOp(const InferenceEngine::Blob::Ptr& 
 
     PostOpsIntBlobMemory.push_back(MKLDNNMemoryPtr(new MKLDNNMemory(getEngine())));
     PostOpsIntBlobMemory[0]->Create(depthwiseDims, memory::data_type::f32, memory::format::x);
+    PostOpsIntBlobMemory[0]->FillZero();
     std::vector<float> weights(biases->size());
     for (int i = 0; i < biases->size(); i++) {
         weights[i] = 1;
@@ -140,6 +141,7 @@ void MKLDNNDeconvolutionNode::setBiasAsPostOp(const InferenceEngine::Blob::Ptr& 
 
     PostOpsIntBlobMemory.push_back(MKLDNNMemoryPtr(new MKLDNNMemory(getEngine())));
     PostOpsIntBlobMemory[1]->Create(depthwiseDims, memory::data_type::f32, memory::format::x);
+    PostOpsIntBlobMemory[1]->FillZero();
     PostOpsIntBlobMemory[1]->SetData(memory::data_type::f32, memory::x, biases->buffer(),
             biases->size() * MKLDNNExtensionUtils::sizeOfDataType(memory::data_type::f32));
 
