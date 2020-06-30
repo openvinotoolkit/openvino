@@ -103,9 +103,6 @@ KernelsData ActivationKernelBase::GetCommonKernelsData(const Params& params, con
     FillCLKernelData(kernel, runInfo, params.engineInfo, kernelName, jit, entry_point,
                      DEFAULT, false, false, 1, GetFusedPrimitiveInputsCount(params));
 
-    if (newParams.gradient)
-        kernel.arguments.push_back({ArgumentDescriptor::Types::INPUT, 1});
-
     if (!newParams.inputActivationParams.empty()) {
         kernel.arguments.push_back({ArgumentDescriptor::Types::SLOPE, 0});
     }
