@@ -46,13 +46,10 @@ public:
 
         // VisualizeTree("C:\\Projects\\temp\\test.original").run_on_module(std::vector<std::shared_ptr<ngraph::Function>>{ actualFunction });
 
-        low_precision::LowPrecisionTransformations transformations(
-            std::map<std::string, low_precision::LayerTransformationPtr>({}),
-            std::map<std::string, low_precision::LayerTransformationPtr>({
-                { "FakeQuantize", ngraph::pass::low_precision::LayerTransformationPtr(new low_precision::FakeQuantizeTransformation(params)) },
-                { "MatMul", ngraph::pass::low_precision::LayerTransformationPtr(new low_precision::MatMulTransformation(params)) },
-            }),
-            std::map<std::string, low_precision::LayerTransformationPtr>({}));;
+        ngraph::pass::low_precision::LowPrecisionTransformations transformations;
+        transformations.add<ngraph::pass::low_precision::FakeQuantizeTransformation, ngraph::opset1::FakeQuantize>(params);
+        transformations.add<ngraph::pass::low_precision::MatMulTransformation, ngraph::opset1::MatMul>(params);
+
         low_precision::LowPrecisionTransformer transformer(transformations);
         transformer.transform(actualFunction);
 
