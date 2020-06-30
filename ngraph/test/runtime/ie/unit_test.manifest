@@ -10,11 +10,14 @@
 #
 #-------------------------------------------------------------------------------
 
-# Quantize layer input 'ReduceMin_9' doesn't have blobs
-#onnx_model_quantize_linear
+# Segmentation fault
+onnx_model_quantize_linear_const_scale_const_zero_p
+
+# Quantize layer input 'Multiply_7' doesn't have blobs
+onnx_model_quantize_linear
 onnx_model_quantize_linear_zero_point
 
-# Not supported ONNX op: QuantizeLinear
+# Error of validate layer: Y with type: FakeQuantize. Y: Incorrect value for parameter levels = 1. Expected to be > 1
 onnx_model_quantize_linear_axis_zero
 onnx_model_quantize_linear_axis_negative
 

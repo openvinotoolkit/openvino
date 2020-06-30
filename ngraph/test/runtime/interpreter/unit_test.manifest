@@ -66,8 +66,11 @@ INTERPRETER.onnx_upsample9_scales_const_linear_infer
 INTERPRETER.onnx_upsample9_scales_input_nearest_infer
 
 # QuantizeLinear expressed in terms of FakeQuantize produce incorrect results.
+onnx_model_quantize_linear_const_scale_const_zero_p
 onnx_model_quantize_linear
 onnx_model_quantize_linear_zero_point
+onnx_model_quantize_linear_axis_zero
+onnx_model_quantize_linear_axis_negative
 
 # Backward conv
 INTERPRETER.convolution_2d_1item
