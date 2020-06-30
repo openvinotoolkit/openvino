@@ -493,9 +493,6 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         LayerParams attrs = {node->get_friendly_name(), "NonMaxSuppression", details::convertPrecision(node->get_output_element_type(0))};
         auto res = std::make_shared<InferenceEngine::NonMaxSuppressionLayer>(attrs);
         res->params = params;
-        if (auto transpose_const = std::dynamic_pointer_cast<ngraph::op::Constant>(node->input_value(1).get_node_shared_ptr())) {
-            res->params["order"] = Builder::asString(transpose_const->cast_vector<int64_t>());
-        }
         return res;
     });
 }
