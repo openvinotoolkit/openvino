@@ -53,7 +53,7 @@ class SliceLike(Op):
         node.out_port(0).data.set_shape(new_shape)
 
         if node.in_port(0).get_connection().data.get_value() is not None:
-            out_value = np.copy(node.in_port(0).get_connection().data.get_value())
+            out_value = np.copy(node.in_port(0).data.get_value())
 
             slice_indexes = []
             for s in out_value.shape:
