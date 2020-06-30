@@ -90,6 +90,9 @@ def mark_undead_nodes(graph, undead_types: list):
     # mark specifically defined with node type set of nodes
     for type in undead_types:
         node_of_specific_type = graph.get_nodes_with_attributes(type=type)
+        #  This condition is necessary for internal operations with type=None
+        if not node_of_specific_type:
+            node_of_specific_type = graph.get_nodes_with_attributes(op=type)
         nx.set_node_attributes(G=graph, name='is_undead', values={n: True for n in node_of_specific_type})
 
     undead_nodes = graph.get_nodes_with_attributes(is_undead=True)
