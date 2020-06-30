@@ -62,15 +62,18 @@ void dynamicToStaticShapeVariadicSplit(std::shared_ptr<ngraph::Node> target) {
     }
     for (auto i = 0; i < split_lengths.size(); ++i) {
         const auto dim = ngraph::opset3::Constant::create(data_shape->get_element_type(), {1}, {split_lengths[i]});
+        auto dsrShapeInput = dim->shared_from_this();
+
         if (!first_shape_part.empty() || !second_shape_part.empty()) {
             ngraph::OutputVector output_dims{dim};
             output_dims.insert(output_dims.begin(), first_shape_part.begin(), first_shape_part.end());
             output_dims.insert(output_dims.end(), second_shape_part.begin(), second_shape_part.end());
-            const auto output_shape = std::make_shared<ngraph::opset3::Concat>(output_dims, 0);
-            target->output(i).replace(std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(copied->output(i), output_shape));
-        } else {
-            target->output(i).replace(std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(copied->output(i), dim));
+            dsrShapeInput = std::make_shared<ngraph::opset3::Concat>(output_dims, 0);
         }
+
+        const auto outDSR = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(copied->output(i), dsrShapeInput);
+        outDSR->set_friendly_name(target->get_friendly_name() + "." + std::to_string(target->output(0).get_index()));
+        target->output(i).replace(outDSR);
     }
 }
 

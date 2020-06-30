@@ -49,7 +49,10 @@ void dynamicToStaticShapeROIAlign(std::shared_ptr<ngraph::Node> target) {
             ngraph::OutputVector{num_rois, c, pooled_h, pooled_w}, 0);
 
     const auto copied = target->clone_with_new_inputs(target->input_values());
-    ngraph::replace_node(target, std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(copied, output_shape));
+
+    auto outDSR = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(copied, output_shape);
+    outDSR->set_friendly_name(roi_align->get_friendly_name());
+    ngraph::replace_node(target, std::move(outDSR));
 }
 
 }  // namespace vpu
