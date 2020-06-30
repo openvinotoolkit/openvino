@@ -446,6 +446,7 @@ void MKLDNNResampleNode::setPostOps(mkldnn::primitive_attr &attr, bool initWeigh
 
                 PostOpsIntBlobMemory.push_back(MKLDNNMemoryPtr(new MKLDNNMemory(getEngine())));
                 PostOpsIntBlobMemory[blob_idx]->Create(depthwiseDims, memory::data_type::f32, memory::format::x);
+                PostOpsIntBlobMemory[blob_idx]->FillZero();
 
                 PostOpsIntBlobMemory[blob_idx]->SetData(memory::data_type::f32, memory::x,
                                                         depthwiseLayer->_weights->buffer(),
@@ -463,6 +464,7 @@ void MKLDNNResampleNode::setPostOps(mkldnn::primitive_attr &attr, bool initWeigh
                     PostOpsIntBlobMemory.push_back(MKLDNNMemoryPtr(new MKLDNNMemory(getEngine())));
                     PostOpsIntBlobMemory[blob_idx + 1]->Create(depthwiseDims, memory::data_type::f32,
                                                                memory::format::x);
+                    PostOpsIntBlobMemory[blob_idx + 1]->FillZero();
                     PostOpsIntBlobMemory[blob_idx + 1]->SetData(memory::data_type::f32, memory::x,
                                                                 depthwiseLayer->_biases->buffer(),
                                                                 depthwiseLayer->_biases->size() *
