@@ -66,7 +66,7 @@ TEST(copy, acos)
 
 TEST(copy, add)
 {
-    ASSERT_TRUE(check_binary<op::Add>());
+    ASSERT_TRUE(check_binary<op::v1::Add>());
 }
 
 TEST(copy, asin)

@@ -34,7 +34,7 @@ TEST(type_prop, DISABLED_benchmark_type_prop_add)
     for (size_t i = 0; i < num_iterations; i++)
     {
         sw.start();
-        auto n = make_shared<op::Add>(p1, p2);
+        auto n = make_shared<op::v1::Add>(p1, p2);
         sw.stop();
 
         total_nanosec += sw.get_nanoseconds();

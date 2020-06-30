@@ -217,7 +217,7 @@ TEST(autobroadcast, make_node_2_args)
     auto lhs = getParamFromShape(s21);
     auto rhs = getParamFromShape(s23);
 
-    shared_ptr<Node> op = builder::make_with_numpy_broadcast<op::Add>(lhs, rhs);
+    shared_ptr<Node> op = builder::make_with_numpy_broadcast<op::v1::Add>(lhs, rhs);
     EXPECT_NE(op, nullptr);
 }
 

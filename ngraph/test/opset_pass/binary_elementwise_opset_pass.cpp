@@ -99,17 +99,6 @@ void test_opset1_comparison_upgrade_pass()
 //                  Test Cases
 //
 //------------------------------------------------------------------------------
-
-TEST(opset_transform, opset0_add_downgrade_pass)
-{
-    test_opset0_arithmetic_downgrade_pass<op::v0::Add, op::v1::Add>();
-}
-
-TEST(opset_transform, opset1_add_upgrade_pass)
-{
-    test_opset1_arithmetic_upgrade_pass<op::v0::Add, op::v1::Add>();
-}
-
 TEST(opset_transform, opset0_divide_downgrade_pass)
 {
     auto A = make_shared<op::Parameter>(element::f32, Shape{1, 3, 2});

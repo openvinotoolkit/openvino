@@ -72,8 +72,8 @@ TEST(CSE, add_add)
     Shape zero_shape{0};
     auto A = std::make_shared<op::Parameter>(element::i32, zero_shape);
     auto B = std::make_shared<op::Parameter>(element::i32, zero_shape);
-    auto add1 = std::make_shared<op::Add>(A, B);
-    auto add2 = std::make_shared<op::Add>(A, B);
+    auto add1 = std::make_shared<op::v1::Add>(A, B);
+    auto add2 = std::make_shared<op::v1::Add>(A, B);
     auto f = std::make_shared<Function>(NodeVector{add1, add2}, ParameterVector{A, B});
     pass::Manager pass_manager;
 
@@ -87,8 +87,8 @@ TEST(CSE, add_add_commutative)
     Shape zero_shape{0};
     auto A = std::make_shared<op::Parameter>(element::i32, zero_shape);
     auto B = std::make_shared<op::Parameter>(element::i32, zero_shape);
-    auto add1 = std::make_shared<op::Add>(A, B);
-    auto add2 = std::make_shared<op::Add>(B, A);
+    auto add1 = std::make_shared<op::v1::Add>(A, B);
+    auto add2 = std::make_shared<op::v1::Add>(B, A);
     auto f = std::make_shared<Function>(NodeVector{add1, add2}, ParameterVector{A, B});
     pass::Manager pass_manager;
 
@@ -104,8 +104,8 @@ TEST(CSE, add_add_negative)
     auto B = std::make_shared<op::Parameter>(element::i32, zero_shape);
     auto C = std::make_shared<op::Parameter>(element::i32, zero_shape);
     auto D = std::make_shared<op::Parameter>(element::i32, zero_shape);
-    auto add1 = std::make_shared<op::Add>(A, B);
-    auto add2 = std::make_shared<op::Add>(C, D);
+    auto add1 = std::make_shared<op::v1::Add>(A, B);
+    auto add2 = std::make_shared<op::v1::Add>(C, D);
     auto f = std::make_shared<Function>(NodeVector{add1, add2}, ParameterVector{A, B, C, D});
     pass::Manager pass_manager;
 
@@ -124,8 +124,8 @@ TEST(CSE, abs_add)
     auto abs_b1 = std::make_shared<op::Abs>(B);
     auto abs_a2 = std::make_shared<op::Abs>(A);
     auto abs_b2 = std::make_shared<op::Abs>(B);
-    auto add1 = std::make_shared<op::Add>(abs_a1, abs_b1);
-    auto add2 = std::make_shared<op::Add>(abs_a2, abs_b2);
+    auto add1 = std::make_shared<op::v1::Add>(abs_a1, abs_b1);
+    auto add2 = std::make_shared<op::v1::Add>(abs_a2, abs_b2);
     auto f = std::make_shared<Function>(NodeVector{add1, add2}, ParameterVector{A, B});
     pass::Manager pass_manager;
 
@@ -143,8 +143,8 @@ TEST(CSE, abs_add_reshape_broadcast)
     auto abs_b1 = std::make_shared<op::Abs>(B);
     auto abs_a2 = std::make_shared<op::Abs>(A);
     auto abs_b2 = std::make_shared<op::Abs>(B);
-    auto add1 = std::make_shared<op::Add>(abs_a1, abs_b1);
-    auto add2 = std::make_shared<op::Add>(abs_a2, abs_b2);
+    auto add1 = std::make_shared<op::v1::Add>(abs_a1, abs_b1);
+    auto add2 = std::make_shared<op::v1::Add>(abs_a2, abs_b2);
     {
         // success case
         auto reshape1 = std::make_shared<op::Reshape>(add1, AxisVector{0}, Shape{1, 1});
@@ -193,13 +193,13 @@ TEST(CSE, abs_add_abs_add)
     auto abs_b1 = std::make_shared<op::Abs>(B);
     auto abs_a2 = std::make_shared<op::Abs>(A);
     auto abs_b2 = std::make_shared<op::Abs>(B);
-    auto add1 = std::make_shared<op::Add>(abs_a1, abs_b1);
-    auto add2 = std::make_shared<op::Add>(abs_a2, abs_b2);
+    auto add1 = std::make_shared<op::v1::Add>(abs_a1, abs_b1);
+    auto add2 = std::make_shared<op::v1::Add>(abs_a2, abs_b2);
     auto abs_add1 = std::make_shared<op::Abs>(add1);
     auto abs_add2 = std::make_shared<op::Abs>(add2);
     auto C = std::make_shared<op::Parameter>(element::i32, zero_shape);
-    auto add3 = std::make_shared<op::Add>(abs_add1, C);
-    auto add4 = std::make_shared<op::Add>(abs_add2, C);
+    auto add3 = std::make_shared<op::v1::Add>(abs_add1, C);
+    auto add4 = std::make_shared<op::v1::Add>(abs_add2, C);
     auto f = std::make_shared<Function>(NodeVector{add3, add4}, ParameterVector{A, B, C});
     pass::Manager pass_manager;
 
@@ -217,14 +217,14 @@ TEST(CSE, abs_add_abs_add_negative)
     auto abs_b1 = std::make_shared<op::Abs>(B);
     auto abs_a2 = std::make_shared<op::Abs>(A);
     auto abs_b2 = std::make_shared<op::Abs>(B);
-    auto add1 = std::make_shared<op::Add>(abs_a1, abs_b1);
-    auto add2 = std::make_shared<op::Add>(abs_a2, abs_b2);
+    auto add1 = std::make_shared<op::v1::Add>(abs_a1, abs_b1);
+    auto add2 = std::make_shared<op::v1::Add>(abs_a2, abs_b2);
     auto abs_add1 = std::make_shared<op::Abs>(add1);
     auto abs_add2 = std::make_shared<op::Abs>(add2);
     auto C = std::make_shared<op::Parameter>(element::i32, zero_shape);
     auto D = std::make_shared<op::Parameter>(element::i32, zero_shape);
-    auto add3 = std::make_shared<op::Add>(abs_add1, C);
-    auto add4 = std::make_shared<op::Add>(abs_add2, D);
+    auto add3 = std::make_shared<op::v1::Add>(abs_add1, C);
+    auto add4 = std::make_shared<op::v1::Add>(abs_add2, D);
     auto f = std::make_shared<Function>(NodeVector{add3, add4}, ParameterVector{A, B, C, D});
     pass::Manager pass_manager;
 

@@ -795,7 +795,7 @@ static bool replace_transpose_with_reshape(shared_ptr<Node> transpose)
 static unordered_map<NodeTypeInfo, function<bool(shared_ptr<Node>)>> initialize_ops_to_simplifiers()
 {
     return unordered_map<NodeTypeInfo, function<bool(shared_ptr<Node>)>>(
-        {{op::v0::Add::type_info, simplify_add},
+        {{op::v1::Add::type_info, simplify_add},
          {op::v0::Multiply::type_info, simplify_multiply},
          {opset3::Gather::type_info, simplify_gather},
          {op::v0::Concat::type_info, simplify_concat},

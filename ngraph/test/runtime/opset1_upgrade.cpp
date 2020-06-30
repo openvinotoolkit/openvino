@@ -25,6 +25,7 @@
 #include "ngraph/graph_util.hpp"
 #include "ngraph/ops.hpp"
 #include "ngraph/provenance.hpp"
+#include "op/add.hpp"
 #include "op/and.hpp"
 #include "op/atan2.hpp"
 #include "op/avg_pool.hpp"
@@ -46,7 +47,7 @@ namespace
 
     // Default is that we didn nothing
     shared_ptr<Node> op_cast(shared_ptr<Node> node) { return nullptr; }
-    shared_ptr<Node> op_cast(shared_ptr<op::Add> node)
+    shared_ptr<Node> op_cast(shared_ptr<op::v0::Add> node)
     {
         return op_cast_binary_elementwise_node<op::v0::Add, op::v1::Add>(node);
     }

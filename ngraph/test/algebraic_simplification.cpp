@@ -80,7 +80,7 @@ TEST(algebraic_simplification, add_types_shapes)
                                                 ParameterVector{a, b, c});
             pass_manager.run_passes(f);
 
-            ASSERT_EQ(count_ops_of_type<op::Add>(f), 0);
+            ASSERT_EQ(count_ops_of_type<op::v1::Add>(f), 0);
             auto expected = ngraph::NodeVector{a, b, a, c, b};
             auto results = f->get_results();
             for (size_t i = 0; i < results.size(); i++)
@@ -154,7 +154,7 @@ TEST(algebraic_simplification, add_broadcast)
                                         ParameterVector{a, b, c});
     pass_manager.run_passes(f);
 
-    ASSERT_EQ(count_ops_of_type<op::Add>(f), 0);
+    ASSERT_EQ(count_ops_of_type<op::v1::Add>(f), 0);
     auto expected = ngraph::NodeVector{a, b, a, c, b};
     auto results = f->get_results();
     for (size_t i = 0; i < results.size(); i++)

@@ -18,24 +18,25 @@
 
 #include <memory>
 
+#include "backend_visibility.hpp"
 #include "ngraph/op/util/binary_elementwise_arithmetic.hpp"
 
 namespace ngraph
 {
     namespace op
     {
-        namespace v1
+        namespace v0
         {
             /// \brief Elementwise addition operation.
             ///
-            class NGRAPH_API Add : public util::BinaryElementwiseArithmetic
+            class BACKEND_API Add : public util::BinaryElementwiseArithmetic
             {
             public:
-                static constexpr NodeTypeInfo type_info{"Add", 1};
+                static constexpr NodeTypeInfo type_info{"Add", 0};
                 const NodeTypeInfo& get_type_info() const override { return type_info; }
                 /// \brief Constructs an uninitialized addition operation
                 Add()
-                    : util::BinaryElementwiseArithmetic(AutoBroadcastSpec::NUMPY)
+                    : util::BinaryElementwiseArithmetic(AutoBroadcastSpec::NONE)
                 {
                 }
 
@@ -45,21 +46,19 @@ namespace ngraph
                 /// `[d0, ...]`
                 /// \param arg1 Output that produces the second input tensor.<br>
                 /// `[d0, ...]`
-                /// \param auto_broadcast Auto broadcast specification. Default is Numpy-style
-                ///                       implicit broadcasting.
+                /// \param auto_broadcast Auto broadcast specification
                 ///
                 /// Output `[d0, ...]`
                 ///
                 Add(const Output<Node>& arg0,
                     const Output<Node>& arg1,
-                    const AutoBroadcastSpec& auto_broadcast =
-                        AutoBroadcastSpec(AutoBroadcastType::NUMPY));
+                    const AutoBroadcastSpec& auto_broadcast = AutoBroadcastSpec());
 
                 std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
+
                 bool visit_attributes(AttributeVisitor& visitor) override;
                 virtual bool is_commutative() const override { return true; }
-                size_t get_version() const override { return 1; }
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) override;
 
@@ -67,9 +66,6 @@ namespace ngraph
                 virtual void generate_adjoints(autodiff::Adjoints& adjoints,
                                                const OutputVector& deltas) override;
             };
-        } // namespace v1
+        } // namespace v0
     }     // namespace op
-
-    NGRAPH_API
-    std::shared_ptr<Node> operator+(const Output<Node>& arg0, const Output<Node>& arg1);
 } // namespace ngraph

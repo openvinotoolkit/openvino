@@ -144,21 +144,6 @@ TEST(serialize, friendly_name)
 }
 #endif
 
-TEST(serialize, existing_models)
-{
-    vector<string> models = {"mxnet/mnist_mlp_forward.json",
-                             "mxnet/10_bucket_LSTM.json",
-                             "mxnet/LSTM_backward.json",
-                             "mxnet/LSTM_forward.json"};
-
-    for (const string& model : models)
-    {
-        const string json_path = file_util::path_join(SERIALIZED_ZOO, model);
-        const string json_string = file_util::read_file_to_string(json_path);
-        shared_ptr<Function> f = ngraph::deserialize(json_string);
-    }
-}
-
 TEST(serialize, default_value)
 {
     json j = {{"test1", 1}, {"test2", 2}};

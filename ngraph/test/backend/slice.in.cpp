@@ -98,11 +98,11 @@ NGRAPH_TEST(${BACKEND_NAME}, slice_matrix_axis_0_overlap)
     Shape shape_a{4, 4};
     auto A = make_shared<op::Parameter>(element::f32, shape_a);
     auto B = make_shared<op::Parameter>(element::f32, shape_a);
-    auto C = make_shared<op::Add>(A, B);
+    auto C = make_shared<op::v1::Add>(A, B);
     Shape shape_r{2, 4};
     auto D = make_shared<op::Slice>(C, Coordinate{0, 0}, Coordinate{2, 4});
     auto E = make_shared<op::Slice>(C, Coordinate{1, 0}, Coordinate{3, 4});
-    auto r = make_shared<op::Add>(D, E);
+    auto r = make_shared<op::v1::Add>(D, E);
     auto f = make_shared<Function>(r, ParameterVector{A, B});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -128,7 +128,7 @@ NGRAPH_TEST(${BACKEND_NAME}, slice_matrix_axis_0_in_place)
     Shape shape_r{2, 4};
     auto D = make_shared<op::Slice>(A, Coordinate{0, 0}, Coordinate{2, 4});
     auto E = make_shared<op::Slice>(A, Coordinate{2, 0}, Coordinate{4, 4});
-    auto r = make_shared<op::Add>(D, E);
+    auto r = make_shared<op::v1::Add>(D, E);
     auto f = make_shared<Function>(r, ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -153,7 +153,7 @@ NGRAPH_TEST(${BACKEND_NAME}, slice_matrix_axis_0_in_place_twice)
     auto B = make_shared<op::Slice>(A, Coordinate{0, 0}, Coordinate{2, 4});
     auto D = make_shared<op::Slice>(B, Coordinate{1, 0}, Coordinate{2, 4});
     auto E = make_shared<op::Slice>(A, Coordinate{2, 0}, Coordinate{3, 4});
-    auto r = make_shared<op::Add>(D, E);
+    auto r = make_shared<op::v1::Add>(D, E);
     auto f = make_shared<Function>(r, ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -177,7 +177,7 @@ NGRAPH_TEST(${BACKEND_NAME}, slice_matrix_axis_0_in_place_twice_overlap)
     auto B = make_shared<op::Slice>(A, Coordinate{1, 0}, Coordinate{5, 4});
     auto D = make_shared<op::Slice>(B, Coordinate{1, 0}, Coordinate{3, 4});
     auto E = make_shared<op::Slice>(B, Coordinate{2, 0}, Coordinate{4, 4});
-    auto r = make_shared<op::Add>(D, E);
+    auto r = make_shared<op::v1::Add>(D, E);
     auto f = make_shared<Function>(r, ParameterVector{A});
 
     auto backend = runtime::Backend::create("${BACKEND_NAME}");

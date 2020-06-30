@@ -79,7 +79,7 @@ NodeVector op::Gemm::decompose_op() const
     // alpha * A' * B' + beta * C
     // The input tensor `C` should be "unidirectionally broadcastable" to the `a_dot_b` tensor.
     auto broadcasted_c = builder::numpy_broadcast(C, a_dot_b->get_shape());
-    return {std::make_shared<op::Add>(a_dot_b, broadcasted_c)};
+    return {std::make_shared<op::v1::Add>(a_dot_b, broadcasted_c)};
 }
 
 shared_ptr<Node> op::Gemm::clone_with_new_inputs(const OutputVector& new_args) const

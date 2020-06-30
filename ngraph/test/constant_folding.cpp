@@ -400,7 +400,7 @@ TEST(constant_folding, constant_unary_binary)
     auto absn = make_shared<op::Abs>(c);
     auto neg = make_shared<op::Negative>(c);
     auto sqrt = make_shared<op::Sqrt>(d);
-    auto add_autob_numpy = make_shared<op::Add>(a, e, op::AutoBroadcastType::NUMPY);
+    auto add_autob_numpy = make_shared<op::v1::Add>(a, e, op::AutoBroadcastType::NUMPY);
     auto sub_autob_numpy = make_shared<op::Subtract>(a, e, op::AutoBroadcastType::NUMPY);
     auto mul_autob_numpy = make_shared<op::Multiply>(a, e, op::AutoBroadcastType::NUMPY);
     auto div_autob_numpy = make_shared<op::Divide>(a, g, op::AutoBroadcastType::NUMPY);

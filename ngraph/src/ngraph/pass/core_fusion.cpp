@@ -134,10 +134,11 @@ void pass::CoreFusion::construct_sigmoid()
     auto exp_neg_input = make_shared<op::Exp>(neg_input);
 
     auto constant = make_shared<pattern::op::Label>(element::f32, Shape{3, 4});
+
     auto skip_broadcast =
         make_shared<pattern::op::Skip>(constant, pattern::has_class<op::Broadcast>());
 
-    auto add_exp = make_shared<op::Add>(exp_neg_input, skip_broadcast);
+    auto add_exp = make_shared<op::v1::Add>(exp_neg_input, skip_broadcast);
     auto divide_1_over_exp = make_shared<op::Divide>(skip_broadcast, add_exp);
 
     // Define a call back that needs to called once the DFG matches the pattern
@@ -221,7 +222,7 @@ void pass::CoreFusion::construct_folded_batch_norm()
         // new biases = -mean * gamma / sqrt(variance + epsilon) + beta
 
         auto bn_eps = op::Constant::create(element::f32, Shape{}, {m_bn->get_eps_value()});
-        auto var_eps = make_shared<op::Add>(
+        auto var_eps = make_shared<op::v1::Add>(
             pattern_map[var],
             make_shared<op::Broadcast>(bn_eps, pattern_map[var]->get_shape(), AxisSet{0}));
         auto sqrt_var_eps = make_shared<op::Sqrt>(var_eps);
@@ -277,7 +278,7 @@ void pass::CoreFusion::construct_conv_affine_folding()
     auto B = make_shared<op::Broadcast>(Bc, Shape{2, 2, 1, 1}, AxisSet{0, 2, 3});
     auto B_label = make_shared<pattern::op::Label>(B, nullptr, NodeVector{B});
     auto multiply = make_shared<op::Multiply>(conv_label, A_label);
-    auto add = make_shared<op::Add>(multiply, B_label);
+    auto add = make_shared<op::v1::Add>(multiply, B_label);
 
     auto callback = [input, filters, conv_label, A_label, B_label](pattern::Matcher& m) {
         NGRAPH_DEBUG << "In callback for conv affine folding against node = "
@@ -512,7 +513,7 @@ void pass::CoreFusion::construct_optimized_strided_conv()
         make_shared<pattern::op::Label>(conv_stride3, nullptr, NodeVector{conv_stride3});
 
     auto broadcast_w3_label = make_shared<pattern::op::Label>(conv_stride3_label, is_bc);
-    auto add_w3 = make_shared<op::Add>(conv_stride3_label, broadcast_w3_label);
+    auto add_w3 = make_shared<op::v1::Add>(conv_stride3_label, broadcast_w3_label);
     auto relu_w3 = make_shared<op::Relu>(add_w3);
 
     auto weights_stride1 = make_shared<pattern::op::Label>(element::f32, win_size_1);
@@ -520,11 +521,11 @@ void pass::CoreFusion::construct_optimized_strided_conv()
     auto conv_stride1_label =
         make_shared<pattern::op::Label>(conv_stride1, nullptr, NodeVector{conv_stride1});
     auto broadcast_w1_label = make_shared<pattern::op::Label>(conv_stride1_label, is_bc);
-    auto add_w1 = make_shared<op::Add>(conv_stride1_label, broadcast_w1_label);
+    auto add_w1 = make_shared<op::v1::Add>(conv_stride1_label, broadcast_w1_label);
 
     auto eltwise_arg_label =
         make_shared<pattern::op::Label>(element::f32, conv_stride1->get_shape());
-    auto add_two_convs = make_shared<op::Add>(add_w1, eltwise_arg_label);
+    auto add_two_convs = make_shared<op::v1::Add>(add_w1, eltwise_arg_label);
 
     auto relu_two_convs = make_shared<op::Relu>(add_two_convs);
 
@@ -648,19 +649,19 @@ void pass::CoreFusion::construct_optimized_strided_conv()
                                                         pad_1,
                                                         pad_1);
 
-        auto new_add_conv_28w3s2 =
-            make_shared<op::Add>(conv_28w3s2, reduce_broadcast(pattern_map[broadcast_w3_label]));
+        auto new_add_conv_28w3s2 = make_shared<op::v1::Add>(
+            conv_28w3s2, reduce_broadcast(pattern_map[broadcast_w3_label]));
         auto new_relu_28w3s2 = make_shared<op::Relu>(new_add_conv_28w3s2);
 
         auto conv_28w1s1 = make_shared<op::Convolution>(
             new_relu_28w3s2, m_conv_stride1->get_argument(1), stride_1, stride_1);
 
-        auto new_add_conv28s1 =
-            make_shared<op::Add>(conv_28w1s1, reduce_broadcast(pattern_map[broadcast_w1_label]));
+        auto new_add_conv28s1 = make_shared<op::v1::Add>(
+            conv_28w1s1, reduce_broadcast(pattern_map[broadcast_w1_label]));
 
         auto maxpool =
             make_shared<op::MaxPool>(pattern_map[eltwise_arg_label], Shape{1, 1}, stride_2);
-        auto new_add_two_convs = make_shared<op::Add>(new_add_conv28s1, maxpool);
+        auto new_add_two_convs = make_shared<op::v1::Add>(new_add_conv28s1, maxpool);
         auto new_relu_two_convs = make_shared<op::Relu>(new_add_two_convs);
 
         for (auto sconv : sconvs)
@@ -1044,7 +1045,7 @@ void pass::CoreFusion::construct_conv_bias_add()
                                                   CoordinateDiff{0, 0},
                                                   Strides{1, 1});
     auto add_input = make_shared<pattern::op::Label>(element::f32, pconv->get_shape());
-    auto padd = make_shared<op::Add>(add_input, pconv);
+    auto padd = make_shared<op::v1::Add>(add_input, pconv);
 
     auto callback = [data_batch, filters](pattern::Matcher& m) {
         NGRAPH_DEBUG << "In a callback for construct_conv_sum against "

@@ -217,7 +217,7 @@ TEST(pattern, graph_rewrite)
         ASSERT_TRUE(graph_b->get_output_target_inputs(0).empty());
 
         auto expected = ngraph::NodeVector{a, b, a, c, b};
-        ASSERT_TRUE(count_ops_of_type<op::Add>(f) == 0);
+        ASSERT_TRUE(count_ops_of_type<op::v1::Add>(f) == 0);
     }
 
     {

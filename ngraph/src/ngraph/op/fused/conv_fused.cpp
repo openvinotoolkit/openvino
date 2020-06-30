@@ -211,8 +211,7 @@ NodeVector op::ConvolutionBias::decompose_op() const
     {
         bcast_axes.insert(i);
     }
-
-    auto conv_bias = make_shared<op::Add>(
+    auto conv_bias = make_shared<op::v1::Add>(
         conv, make_shared<op::Broadcast>(input_value(2), conv->get_shape(), bcast_axes));
     if (m_with_relu)
     {
@@ -336,7 +335,7 @@ NodeVector op::ConvolutionBiasAdd::decompose_op() const
         bcast_axes.insert(i);
     }
 
-    auto conv_bias = make_shared<op::Add>(
+    auto conv_bias = make_shared<op::v1::Add>(
         conv, make_shared<op::Broadcast>(input_value(2), conv->get_shape(), bcast_axes));
     if (m_with_relu)
     {

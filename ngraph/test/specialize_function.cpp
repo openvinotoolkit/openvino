@@ -133,7 +133,7 @@ TEST(specialize_function, et_static_shape_rank_static_dynamic_subst_val)
     ASSERT_EQ(g->get_output_shape(0), (Shape{1, 2, 3}));
     ASSERT_EQ(g->get_output_element_type(0), element::f32);
 
-    auto plus_node = as_type_ptr<op::Add>(g->get_results().at(0)->get_argument(0));
+    auto plus_node = as_type_ptr<op::v1::Add>(g->get_results().at(0)->get_argument(0));
     ASSERT_TRUE(plus_node);
     auto convert_node = as_type_ptr<op::Convert>(plus_node->get_argument(1));
     ASSERT_TRUE(convert_node);
@@ -350,8 +350,8 @@ TEST(specialize_function, share_constants_with_cf)
 
     auto add_const_1 = op::Constant::create(element::f32, Shape{1, 3, 1, 1}, {4, 5, 6});
     auto add_const_2 = op::Constant::create(element::f32, Shape{1, 3, 1, 1}, {1, 2, 3});
-    auto add_const = std::make_shared<op::Add>(add_const_1, add_const_2);
-    auto add = std::make_shared<op::Add>(mul, add_const, op::AutoBroadcastType::NUMPY);
+    auto add_const = std::make_shared<op::v1::Add>(add_const_1, add_const_2);
+    auto add = std::make_shared<op::v1::Add>(mul, add_const, op::AutoBroadcastType::NUMPY);
 
     auto f = std::make_shared<Function>(add, ParameterVector{p0});
 

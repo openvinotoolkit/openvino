@@ -44,50 +44,6 @@
 using namespace ngraph;
 using namespace std;
 
-#ifndef NGRAPH_JSON_DISABLE
-TEST(reshape_elimination, remove_reshape)
-{
-    pass::Manager pass_manager;
-    pass_manager.register_pass<pass::ReshapeElimination>();
-    const string json_path = file_util::path_join(SERIALIZED_ZOO, "mxnet/bn_fprop.json");
-    const string json_string = file_util::read_file_to_string(json_path);
-    stringstream ss(json_string);
-    shared_ptr<Function> func = ngraph::deserialize(ss);
-    size_t count_before = count_ops_of_type<op::Reshape>(func);
-    pass_manager.run_passes(func);
-    size_t count_after = count_ops_of_type<op::Reshape>(func);
-    ASSERT_TRUE(count_after < count_before);
-}
-
-TEST(reshape_elimination, remove_tranpose)
-{
-    pass::Manager pass_manager;
-    pass_manager.register_pass<pass::ReshapeElimination>();
-    const string json_path = file_util::path_join(SERIALIZED_ZOO, "mxnet/tranpose.json");
-    const string json_string = file_util::read_file_to_string(json_path);
-    stringstream ss(json_string);
-    shared_ptr<Function> func = ngraph::deserialize(ss);
-    size_t count_before = count_ops_of_type<op::Reshape>(func);
-    pass_manager.run_passes(func);
-    size_t count_after = count_ops_of_type<op::Reshape>(func);
-    ASSERT_TRUE(count_after < count_before);
-}
-
-TEST(reshape_elimination, bn_bprop_rewrite)
-{
-    pass::Manager pass_manager;
-    pass_manager.register_pass<pass::ReshapeElimination>();
-    const string json_path = file_util::path_join(SERIALIZED_ZOO, "mxnet/bn_bprop.json");
-    const string json_string = file_util::read_file_to_string(json_path);
-    stringstream ss(json_string);
-    shared_ptr<Function> func = ngraph::deserialize(ss);
-    size_t count_before = count_ops_of_type<op::Reshape>(func);
-    pass_manager.run_passes(func);
-    size_t count_after = count_ops_of_type<op::Reshape>(func);
-    ASSERT_TRUE(count_after < count_before);
-}
-#endif
-
 #ifdef NGRAPH_INTERPRETER_ENABLE
 TEST(reshape_elimination, transpose_reshape_pattern_fuse)
 {

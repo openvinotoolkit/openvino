@@ -237,7 +237,7 @@ foreach(HEADER ${NGRAPH_HEADER_LIST})
 endforeach()
 
 if(NGRAPH_JSON_ENABLE)
-    list(APPEND SRC core.cpp serialize.cpp)
+    list(APPEND SRC serialize.cpp)
 endif()
 
 set_source_files_properties(includes.cpp PROPERTIES COMPILE_DEFINITIONS

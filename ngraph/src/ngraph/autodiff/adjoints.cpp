@@ -175,7 +175,7 @@ void autodiff::Adjoints::add_delta(const Output<Node>& x, const Output<Node>& de
     }
     else
     {
-        deltas = std::make_shared<op::Add>(deltas, delta);
+        deltas = std::make_shared<op::v1::Add>(deltas, delta);
     }
 }
 
@@ -205,7 +205,7 @@ void autodiff::Adjoints::add_delta_to_slice(const Output<Node>& x,
     {
         deltas = std::make_shared<op::ReplaceSlice>(
             deltas,
-            std::make_shared<op::Add>(
+            std::make_shared<op::v1::Add>(
                 std::make_shared<op::Slice>(deltas, lower_bounds, upper_bounds, strides), delta),
             lower_bounds,
             upper_bounds,

@@ -18,6 +18,7 @@
 
 #include "ngraph/ngraph.hpp"
 #include "ngraph/util.hpp"
+#include "op/add.hpp"
 #include "test_tools.hpp"
 
 using namespace std;
@@ -65,14 +66,14 @@ shared_ptr<Function> make_test_graph()
     auto arg_4 = make_shared<op::Parameter>(element::f32, Shape{});
     auto arg_5 = make_shared<op::Parameter>(element::f32, Shape{});
 
-    auto t0 = make_shared<op::Add>(arg_0, arg_1);
+    auto t0 = make_shared<op::v1::Add>(arg_0, arg_1);
     auto t1 = make_shared<op::Dot>(t0, arg_2);
     auto t2 = make_shared<op::Multiply>(t0, arg_3);
 
-    auto t3 = make_shared<op::Add>(t1, arg_4);
-    auto t4 = make_shared<op::Add>(t2, arg_5);
+    auto t3 = make_shared<op::v1::Add>(t1, arg_4);
+    auto t4 = make_shared<op::v1::Add>(t2, arg_5);
 
-    auto r0 = make_shared<op::Add>(t3, t4);
+    auto r0 = make_shared<op::v1::Add>(t3, t4);
 
     auto f0 = make_shared<Function>(r0, ParameterVector{arg_0, arg_1, arg_2, arg_3, arg_4, arg_5});
 

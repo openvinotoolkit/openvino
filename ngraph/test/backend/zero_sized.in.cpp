@@ -268,11 +268,6 @@ NGRAPH_TEST(${BACKEND_NAME}, zero_sized_atan)
     make_unary_empty_test<op::Atan>("${BACKEND_NAME}");
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, zero_sized_add)
-{
-    make_binary_empty_test<op::Add>("${BACKEND_NAME}");
-}
-
 NGRAPH_TEST(${BACKEND_NAME}, zero_sized_divide)
 {
     make_binary_empty_test<op::Divide>("${BACKEND_NAME}");

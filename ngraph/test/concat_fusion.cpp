@@ -194,7 +194,7 @@ TEST(concat_fusion, non_fusable_self_concat)
         auto concat_5 = make_shared<op::Concat>(NodeVector{B, B, B, B, B, B, B}, 1);
         auto concat_6 = make_shared<op::Concat>(NodeVector{concat_5, concat_5, concat_5}, 2);
         auto broadcast = make_shared<op::Broadcast>(concat_6, Shape{32, 8, 7, 3}, AxisSet{1});
-        auto add = make_shared<op::Add>(concat_4, broadcast);
+        auto add = make_shared<op::v1::Add>(concat_4, broadcast);
         auto f_concat_1 = make_shared<Function>(NodeVector{add}, ParameterVector{A, B});
         return f_concat_1;
     };

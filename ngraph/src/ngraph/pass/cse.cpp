@@ -193,7 +193,7 @@ static unordered_map<type_index, function<bool(shared_ptr<Node>, shared_ptr<Node
          {TI(op::Sqrt), cse_unarywise},
          {TI(op::Tan), cse_unarywise},
          {TI(op::Tanh), cse_unarywise},
-         {TI(op::Add), cse_binarywise},
+         {TI(op::v1::Add), cse_binarywise},
          {TI(op::Divide), cse_binarywise},
          {TI(op::Maximum), cse_binarywise},
          {TI(op::Minimum), cse_binarywise},

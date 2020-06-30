@@ -106,7 +106,8 @@ runtime::ie::IE_Executable::IE_Executable(shared_ptr<Function> func, string devi
             }
             else
             {
-                cout << "UNSUPPORTED OP DETECTED: " << node->get_type_info().name << endl;
+                cout << "UNSUPPORTED OP DETECTED: " << node->get_type_info().name
+                     << "::" << node->get_type_info().version << endl;
                 THROW_IE_EXCEPTION << "Detected op not belonging to opset1!";
             }
         }
