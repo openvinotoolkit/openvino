@@ -20,15 +20,15 @@ See ONNX documentation for details:
 https://github.com/onnx/onnx/blob/master/docs/Implementing%20an%20ONNX%20backend.md
 """
 
-import onnx
+from typing import Any, Dict, List, Optional, Sequence, Text, Tuple
 
-from onnx.helper import make_tensor_value_info, make_graph, make_model
+import onnx
 from onnx.backend.base import Backend, BackendRep
-from typing import Any, Dict, List, Optional, Sequence, Text, Tuple, Union
+from onnx.helper import make_graph, make_model, make_tensor_value_info
 
 from ngraph.impl import Function
-from tests.runtime import runtime
-from tests.test_onnx.utils.onnx_helpers import np_dtype_to_tensor_type, import_onnx_model
+from tests.runtime import get_runtime
+from tests.test_onnx.utils.onnx_helpers import import_onnx_model, np_dtype_to_tensor_type
 
 
 class OpenVinoOnnxBackendRep(BackendRep):
@@ -36,7 +36,7 @@ class OpenVinoOnnxBackendRep(BackendRep):
         super().__init__()
         self.device = device
         self.ng_model_function = ng_model_function
-        self.runtime = runtime(backend_name=self.device)
+        self.runtime = get_runtime()
         self.computation = self.runtime.computation(ng_model_function)
 
     def run(self, inputs, **kwargs):  # type: (Any, **Any) -> Tuple[Any, ...]
@@ -121,7 +121,7 @@ class OpenVinoOnnxBackend(Backend):
         Checks whether the backend is compiled with particular device support.
         In particular it's used in the testing suite.
         """
-        return True
+        return device != "CUDA"
 
 
 prepare = OpenVinoOnnxBackend.prepare

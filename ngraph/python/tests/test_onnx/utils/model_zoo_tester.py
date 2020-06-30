@@ -20,15 +20,14 @@ import shutil
 import tarfile
 import tempfile
 from collections import defaultdict
-
-from retrying import retry
-from six.moves.urllib.request import urlretrieve, urlopen
-from typing import Type, List, Dict, Optional, Set, Pattern, Text
+from typing import Dict, List, Optional, Pattern, Set, Text, Type
 
 import onnx.backend.test
 from onnx.backend.base import Backend
-from onnx.backend.test.runner import TestItem
 from onnx.backend.test.case.test_case import TestCase as OnnxTestCase
+from onnx.backend.test.runner import TestItem
+from retrying import retry
+from six.moves.urllib.request import urlopen, urlretrieve
 
 
 class ModelZooTestRunner(onnx.backend.test.BackendTest):

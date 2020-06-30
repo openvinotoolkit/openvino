@@ -13,11 +13,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ******************************************************************************
-import onnx
-
 import numpy as np
+import onnx
 import pytest
-from onnx.helper import make_tensor_value_info, make_graph, make_model
+from onnx.helper import make_graph, make_model, make_tensor_value_info
 
 from tests.test_onnx.utils import run_model
 
