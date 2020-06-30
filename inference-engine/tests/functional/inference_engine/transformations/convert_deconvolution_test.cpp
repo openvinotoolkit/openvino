@@ -23,7 +23,7 @@
 #include <ngraph_ops/convolution_ie.hpp>
 #include <ngraph_ops/deconvolution_ie.hpp>
 
-#include "ngraph_test_utils.hpp"
+#include "common_test_utils/ngraph_test_utils.hpp"
 
 using namespace testing;
 

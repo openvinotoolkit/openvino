@@ -868,6 +868,7 @@ EXAMPLE_PATH           = ../template_plugin/src \
 						 ../template_plugin/include \
                          ../template_plugin/src/CMakeLists.txt \
                          ../template_plugin/tests/functional/CMakeLists.txt \
+                         ../template_plugin/tests/functional/transformations \
                          ../examples
 
 # If the value of the EXAMPLE_PATH tag contains directories, you can use the

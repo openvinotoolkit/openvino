@@ -20,7 +20,7 @@
 #include <transformations/convert_opset1_to_legacy/conv_bias_fusion.hpp>
 #include <ngraph/pass/visualize_tree.hpp>
 
-#include "ngraph_test_utils.hpp"
+#include "common_test_utils/ngraph_test_utils.hpp"
 
 using namespace testing;
 

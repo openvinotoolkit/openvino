@@ -18,7 +18,7 @@
 #include <ngraph_ops/fully_connected.hpp>
 #include <transformations/convert_opset1_to_legacy/reshape_fc_fusion.hpp>
 #include <transformations/init_node_info.hpp>
-#include "ngraph_test_utils.hpp"
+#include "common_test_utils/ngraph_test_utils.hpp"
 
 using namespace testing;
 

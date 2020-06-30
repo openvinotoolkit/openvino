@@ -16,7 +16,7 @@
 #include <ngraph_ops/nms_ie.hpp>
 #include <ngraph/pass/constant_folding.hpp>
 
-#include "ngraph_test_utils.hpp"
+#include "common_test_utils/ngraph_test_utils.hpp"
 
 using namespace testing;
 using namespace ngraph;
