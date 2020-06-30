@@ -425,8 +425,6 @@ void MultiDeviceInferencePlugin::SetConfig(const std::map<std::string, std::stri
     }
 }
 
-IE_SUPPRESS_DEPRECATED_START
-
 INFERENCE_PLUGIN_API(InferenceEngine::StatusCode) CreatePluginEngine(
         InferenceEngine::IInferencePlugin *&plugin,
         InferenceEngine::ResponseDesc *resp) noexcept {
@@ -441,8 +439,6 @@ INFERENCE_PLUGIN_API(InferenceEngine::StatusCode) CreatePluginEngine(
         return DescriptionBuffer(GENERAL_ERROR, resp) << ex.what();
     }
 }
-
-IE_SUPPRESS_DEPRECATED_END
 
 MultiDeviceInferencePlugin::MultiDeviceInferencePlugin() {
     _pluginName = "MULTI";
