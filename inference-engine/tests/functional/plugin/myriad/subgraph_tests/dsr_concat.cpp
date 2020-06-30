@@ -59,33 +59,43 @@ std::vector<ngraph::element::Type> dataTypes = {
 };
 
 std::vector<ConcatParam> concatParams = {
-        {DataShapeWithUpperBoundVector{
+        {
+            DataShapeWithUpperBoundVector{
                 DataShapeWithUpperBound{DataShape{128}, DataShape{200}},
                 DataShapeWithUpperBound{DataShape{256}, DataShape{300}},
                 DataShapeWithUpperBound{DataShape{512}, DataShape{600}},
                 DataShapeWithUpperBound{DataShape{1024}, DataShape{1200}}},
-         0},
-        {DataShapeWithUpperBoundVector{
+            0
+        },
+        {
+            DataShapeWithUpperBoundVector{
                 DataShapeWithUpperBound{DataShape{1, 1000}, DataShape{4, 1200}},
                 DataShapeWithUpperBound{DataShape{2, 1000}, DataShape{6, 1200}},
                 DataShapeWithUpperBound{DataShape{4, 1000}, DataShape{8, 1200}}},
-         0},
-        {DataShapeWithUpperBoundVector{
+            0
+        },
+        {
+            DataShapeWithUpperBoundVector{
                 DataShapeWithUpperBound{DataShape{128, 100}, DataShape{256, 101}},
                 DataShapeWithUpperBound{DataShape{128, 200}, DataShape{256, 201}},
                 DataShapeWithUpperBound{DataShape{128, 400}, DataShape{256, 401}},
                 DataShapeWithUpperBound{DataShape{128, 800}, DataShape{256, 801}}},
-                1},
-        {DataShapeWithUpperBoundVector{
+            1
+        },
+        {
+            DataShapeWithUpperBoundVector{
                 DataShapeWithUpperBound{DataShape{3, 64, 128}, DataShape{5, 64, 256}},
                 DataShapeWithUpperBound{DataShape{4, 64, 128}, DataShape{6, 64, 256}},
                 DataShapeWithUpperBound{DataShape{5, 64, 128}, DataShape{7, 64, 256}}},
-                0},
-        {DataShapeWithUpperBoundVector{
+            0
+        },
+        {
+            DataShapeWithUpperBoundVector{
                 DataShapeWithUpperBound{DataShape{3, 64, 128}, DataShape{4, 64, 256}},
                 DataShapeWithUpperBound{DataShape{3, 64, 256}, DataShape{4, 64, 512}},
                 DataShapeWithUpperBound{DataShape{3, 64, 512}, DataShape{4, 64, 1024}}},
-                2},
+            2
+        },
 };
 
 INSTANTIATE_TEST_CASE_P(DynamicConcat, DSR_Concat, ::testing::Combine(
