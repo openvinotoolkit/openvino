@@ -17,13 +17,16 @@
 #include <cstdint>
 #include <memory>
 #include <numeric>
+#include <tuple>
 
 #include "default_opset.hpp"
 #include "exceptions.hpp"
 #include "ngraph/axis_set.hpp"
+#include "ngraph/builder/reshape.hpp"
 #include "ngraph/opsets/opset0.hpp"
 #include "ngraph/shape.hpp"
 #include "ngraph/type/element_type.hpp"
+#include "ngraph/validation_util.hpp"
 #include "quantize_linear.hpp"
 #include "utils/reshape.hpp"
 
@@ -33,111 +36,193 @@ namespace ngraph
     {
         namespace op
         {
+            namespace detail
+            {
+                namespace
+                {
+                    std::shared_ptr<ngraph::Node> get_zero_point(const NodeVector& inputs)
+                    {
+                        if (inputs.size() > 2)
+                        {
+                            return inputs.at(2);
+                        }
+                        else
+                        {
+                            return std::make_shared<default_opset::Constant>(
+                                element::u8, Shape{1}, std::uint8_t(0));
+                        }
+                    }
+
+                    void validate_zero_point_type(const Node& onnx_node,
+                                                  const std::shared_ptr<ngraph::Node>& y_zero_point)
+                    {
+                        const auto& y_zero_point_et = y_zero_point->get_element_type();
+                        CHECK_VALID_NODE(
+                            onnx_node,
+                            y_zero_point_et.is_static() &&
+                                (y_zero_point_et == element::u8 || y_zero_point_et == element::i8),
+                            "\"y_zero_point\" input data type must be static and of 8-bit "
+                            "integer type.");
+                    }
+
+                    std::shared_ptr<ngraph::Node>
+                        validate_scale(const Node& onnx_node,
+                                       const std::shared_ptr<ngraph::Node>& y_scale)
+                    {
+                        const auto& y_scale_et = y_scale->get_element_type();
+                        CHECK_VALID_NODE(onnx_node,
+                                         y_scale_et.is_static(),
+                                         "\"y_scale\" input data type must be static.");
+                        if (y_scale_et != element::f32)
+                        {
+                            return std::make_shared<default_opset::Convert>(y_scale, element::f32);
+                        }
+                        return y_scale;
+                    }
+
+                    std::shared_ptr<ngraph::Node> validate_data(const Node& onnx_node,
+                                                                std::shared_ptr<ngraph::Node>& data)
+                    {
+                        const auto& data_et = data->get_element_type();
+                        CHECK_VALID_NODE(onnx_node,
+                                         data_et.is_static(),
+                                         "\"x\" input data type must be static.");
+
+                        if (data_et != element::f32)
+                        {
+                            return std::make_shared<default_opset::Convert>(data, element::f32);
+                        }
+                        return data;
+                    }
+
+                    std::tuple<std::shared_ptr<ngraph::Node>, std::shared_ptr<ngraph::Node>>
+                        get_output_bands(const element::Type& destination_type,
+                                         const element::Type& data_type)
+                    {
+                        std::shared_ptr<ngraph::Node> output_low;
+                        std::shared_ptr<ngraph::Node> output_high;
+
+                        if (destination_type == element::i8)
+                        {
+                            output_low = std::make_shared<default_opset::Constant>(
+                                data_type, Shape{1}, -128);
+                            output_high =
+                                std::make_shared<default_opset::Constant>(data_type, Shape{1}, 127);
+                        }
+                        else
+                        {
+                            output_low =
+                                std::make_shared<default_opset::Constant>(data_type, Shape{1}, 0);
+                            output_high =
+                                std::make_shared<default_opset::Constant>(data_type, Shape{1}, 255);
+                        }
+
+                        return std::make_tuple(output_low, output_high);
+                    }
+
+                    std::tuple<std::shared_ptr<ngraph::Node>, std::shared_ptr<ngraph::Node>>
+                        get_input_bands(const std::shared_ptr<ngraph::Node>& y_scale,
+                                        const std::shared_ptr<ngraph::Node>& y_zero_point,
+                                        const std::shared_ptr<ngraph::Node>& output_low,
+                                        const std::shared_ptr<ngraph::Node>& output_high,
+                                        const std::shared_ptr<ngraph::Node>& data,
+                                        const element::Type& data_type)
+                    {
+                        std::shared_ptr<ngraph::Node> input_low;
+                        std::shared_ptr<ngraph::Node> input_high;
+                        if (y_scale->is_constant() && y_zero_point->is_constant())
+                        {
+                            const auto& zero_point =
+                                std::make_shared<default_opset::Convert>(y_zero_point, data_type);
+
+                            input_low = std::make_shared<default_opset::Multiply>(
+                                y_scale,
+                                std::make_shared<default_opset::Add>(output_low, zero_point));
+                            input_high = std::make_shared<default_opset::Multiply>(
+                                y_scale,
+                                std::make_shared<default_opset::Add>(output_high, zero_point));
+                        }
+                        else
+                        {
+                            std::shared_ptr<ngraph::Node> reduction_axes;
+
+                            if (data->get_output_partial_shape(0).rank().is_static())
+                            {
+                                const auto rank = static_cast<size_t>(
+                                    data->get_output_partial_shape(0).rank().get_length());
+                                std::vector<int32_t> axes(rank);
+                                std::iota(std::begin(axes), std::end(axes), 0);
+                                reduction_axes = std::make_shared<default_opset::Constant>(
+                                    element::i32, Shape{rank}, axes);
+                            }
+                            else
+                            {
+                                const auto& stop = reshape::interpret_as_scalar(
+                                    std::make_shared<default_opset::ShapeOf>(
+                                        std::make_shared<default_opset::ShapeOf>(data,
+                                                                                 element::i32),
+                                        element::i32));
+                                reduction_axes = std::make_shared<default_opset::Range>(
+                                    std::make_shared<default_opset::Constant>(
+                                        element::i32, Shape{}, 0),
+                                    stop,
+                                    std::make_shared<default_opset::Constant>(
+                                        element::i32, Shape{}, 1));
+                            }
+
+                            input_low =
+                                std::make_shared<default_opset::ReduceMin>(data, reduction_axes);
+                            input_high =
+                                std::make_shared<default_opset::ReduceMax>(data, reduction_axes);
+                        }
+                        return std::make_tuple(input_low, input_high);
+                    }
+
+                    std::shared_ptr<ngraph::Node>
+                        make_fake_quantize(const element::Type& destination_type,
+                                           const element::Type& data_type,
+                                           const std::shared_ptr<ngraph::Node>& y_scale,
+                                           const std::shared_ptr<ngraph::Node>& y_zero_point,
+                                           const std::shared_ptr<ngraph::Node>& data)
+                    {
+                        std::shared_ptr<ngraph::Node> output_low;
+                        std::shared_ptr<ngraph::Node> output_high;
+                        std::tie(output_low, output_high) =
+                            detail::get_output_bands(destination_type, data_type);
+
+                        std::shared_ptr<ngraph::Node> input_low;
+                        std::shared_ptr<ngraph::Node> input_high;
+                        std::tie(input_low, input_high) = detail::get_input_bands(
+                            y_scale, y_zero_point, output_low, output_high, data, data_type);
+
+                        const std::size_t levels = 1 << destination_type.bitwidth();
+
+                        return std::make_shared<default_opset::Convert>(
+                            std::make_shared<default_opset::FakeQuantize>(
+                                data, input_low, input_high, output_low, output_high, levels),
+                            destination_type);
+                    }
+                }
+            }
+
             namespace set_1
             {
                 NodeVector quantize_linear(const Node& node)
                 {
                     NodeVector inputs{node.get_ng_inputs()};
-                    const auto& x = inputs.at(0);
-                    std::shared_ptr<ngraph::Node> y_scale = inputs.at(1);
-                    std::shared_ptr<ngraph::Node> y_zero_point;
-                    if (inputs.size() > 2)
-                    {
-                        y_zero_point = inputs.at(2);
-                    }
-                    else
-                    {
-                        y_zero_point = std::make_shared<default_opset::Constant>(
-                            element::u8, Shape{1}, std::uint8_t(0));
-                    }
+                    auto x = inputs.at(0);
+                    auto y_scale = inputs.at(1);
+                    auto y_zero_point = detail::get_zero_point(inputs);
 
-                    const auto& y_zero_point_et = y_zero_point->get_element_type();
-                    CHECK_VALID_NODE(
-                        node,
-                        y_zero_point_et.is_static() &&
-                            (y_zero_point_et == element::u8 || y_zero_point_et == element::i8),
-                        "\"y_zero_point\" input data type must be static and of 8-bit "
-                        "integer type.");
+                    x = detail::validate_data(node, x);
+                    detail::validate_zero_point_type(node, y_zero_point);
+                    y_scale = detail::validate_scale(node, y_scale);
 
-                    const auto& y_scale_et = y_scale->get_element_type();
-                    CHECK_VALID_NODE(node,
-                                     y_scale_et.is_static(),
-                                     "\"y_scale\" input data type must be static.");
-
-                    const auto& x_et = x->get_element_type();
-
-                    if (y_scale_et != x_et)
-                    {
-                        y_scale = std::make_shared<default_opset::Convert>(y_scale, x_et);
-                    }
-
-                    const auto& destination_type = y_zero_point_et;
-                    std::shared_ptr<ngraph::Node> output_low;
-                    std::shared_ptr<ngraph::Node> output_high;
-
-                    if (destination_type == element::i8)
-                    {
-                        output_low =
-                            std::make_shared<default_opset::Constant>(x_et, Shape{1}, -128);
-                        output_high =
-                            std::make_shared<default_opset::Constant>(x_et, Shape{1}, 127);
-                    }
-                    else
-                    {
-                        output_low = std::make_shared<default_opset::Constant>(x_et, Shape{1}, 0);
-                        output_high =
-                            std::make_shared<default_opset::Constant>(x_et, Shape{1}, 255);
-                    }
-
-                    std::shared_ptr<ngraph::Node> input_low;
-                    std::shared_ptr<ngraph::Node> input_high;
-
-                    if (y_scale->is_constant() && y_zero_point->is_constant())
-                    {
-                        const auto& zero_point =
-                            std::make_shared<default_opset::Convert>(y_zero_point, x_et);
-
-                        input_low = std::make_shared<default_opset::Multiply>(
-                            y_scale, std::make_shared<default_opset::Add>(output_low, zero_point));
-                        input_high = std::make_shared<default_opset::Multiply>(
-                            y_scale, std::make_shared<default_opset::Add>(output_high, zero_point));
-                    }
-                    else
-                    {
-                        std::shared_ptr<ngraph::Node> reduction_axes;
-
-                        if (x->get_output_partial_shape(0).rank().is_static())
-                        {
-                            const auto rank = static_cast<size_t>(
-                                x->get_output_partial_shape(0).rank().get_length());
-                            std::vector<int32_t> axes(rank);
-                            std::iota(std::begin(axes), std::end(axes), 0);
-                            reduction_axes = std::make_shared<default_opset::Constant>(
-                                element::i32, Shape{rank}, axes);
-                        }
-                        else
-                        {
-                            const auto& stop = reshape::interpret_as_scalar(
-                                std::make_shared<default_opset::ShapeOf>(
-                                    std::make_shared<default_opset::ShapeOf>(x, element::i32),
-                                    element::i32));
-                            reduction_axes = std::make_shared<default_opset::Range>(
-                                std::make_shared<default_opset::Constant>(element::i32, Shape{}, 0),
-                                stop,
-                                std::make_shared<default_opset::Constant>(
-                                    element::i32, Shape{}, 1));
-                        }
-
-                        input_low = std::make_shared<default_opset::ReduceMin>(x, reduction_axes);
-                        input_high = std::make_shared<default_opset::ReduceMax>(x, reduction_axes);
-                    }
-
-                    const std::size_t levels = 1 << destination_type.bitwidth();
-
-                    return {std::make_shared<default_opset::Convert>(
-                        std::make_shared<default_opset::FakeQuantize>(
-                            x, input_low, input_high, output_low, output_high, levels),
-                        destination_type)};
+                    return {detail::make_fake_quantize(y_zero_point->get_element_type(),
+                                                       x->get_element_type(),
+                                                       y_scale,
+                                                       y_zero_point,
+                                                       x)};
                 }
             } // namespace set_1
 
@@ -146,41 +231,63 @@ namespace ngraph
                 NodeVector quantize_linear(const Node& node)
                 {
                     NodeVector inputs{node.get_ng_inputs()};
-                    std::shared_ptr<ngraph::Node> x = inputs.at(0);
-                    std::shared_ptr<ngraph::Node> y_scale = inputs.at(1);
-                    std::shared_ptr<ngraph::Node> y_zero_point = inputs.at(2);
+                    auto x = inputs.at(0);
+                    auto y_scale = inputs.at(1);
+                    auto y_zero_point = detail::get_zero_point(inputs);
 
-                    // get axis twice with two default values to see if it is set
-                    int64_t axis_0{node.get_attribute_value<int64_t>("axis", 0)};
-                    int64_t axis_1{node.get_attribute_value<int64_t>("axis", 1)};
+                    detail::validate_zero_point_type(node, y_zero_point);
+                    y_scale = detail::validate_scale(node, y_scale);
+                    x = detail::validate_data(node, x);
 
-                    AxisSet axes;
+                    const auto& x_shape = x->get_output_partial_shape(0);
 
-                    // if axis attribute is set
-                    if (axis_0 == axis_1)
+                    int64_t axis{node.get_attribute_value<int64_t>("axis", 1)};
+                    axis = normalize_axis(node.get_description(), axis, x_shape.rank());
+
+                    const auto& y_scale_shape = y_scale->get_output_partial_shape(0);
+                    const auto& y_zero_point_shape = y_zero_point->get_output_partial_shape(0);
+
+                    if (y_scale_shape.rank().is_static() &&
+                        y_scale_shape.rank().get_length() == 1 && x_shape.rank().is_static() &&
+                        x_shape[axis].is_static())
                     {
-                        // positive axis
-                        if (axis_0 >= 0)
-                        {
-                            axes.insert(axis_0);
-                        }
-                        // negative axis
-                        else if (axis_0 < 0)
-                        {
-                            axes.insert(x->get_shape().size() + axis_0);
-                        }
+                        CHECK_VALID_NODE(
+                            node,
+                            y_scale_shape[0].same_scheme(x_shape[axis]),
+                            "The number of quantization scale elements ",
+                            y_scale_shape[0],
+                            " must match the number of respective input data axis size: ",
+                            x_shape[axis]);
+
+                        Shape target_shape(x_shape.rank().get_length(), 1);
+                        target_shape[axis] = static_cast<size_t>(x_shape[axis].get_length());
+
+                        y_scale = builder::opset1::reshape(y_scale, target_shape);
                     }
 
-                    Shape y_scale_shape = y_scale->get_shape();
-                    Shape y_zero_point_shape = y_zero_point->get_shape();
+                    if (y_zero_point_shape.rank().is_static() &&
+                        y_zero_point_shape.rank().get_length() == 1 && x_shape.rank().is_static() &&
+                        x_shape[axis].is_static())
+                    {
+                        CHECK_VALID_NODE(
+                            node,
+                            y_zero_point_shape[0].same_scheme(x_shape[axis]),
+                            "The number of quantization zero point elements ",
+                            y_zero_point_shape[0],
+                            " must match the number of respective input data axis size: ",
+                            x_shape[axis]);
 
-                    return {std::make_shared<ngraph::opset0::Quantize>(
-                        x,
-                        y_scale,
-                        y_zero_point,
-                        y_zero_point->get_element_type(),
-                        axes,
-                        ngraph::opset0::Quantize::RoundMode::ROUND_NEAREST_TOWARD_EVEN)};
+                        Shape target_shape(x_shape.rank().get_length(), 1);
+                        target_shape[axis] = static_cast<size_t>(x_shape[axis].get_length());
+
+                        y_zero_point = builder::opset1::reshape(y_scale, target_shape);
+                    }
+
+                    return {detail::make_fake_quantize(y_zero_point->get_element_type(),
+                                                       x->get_element_type(),
+                                                       y_scale,
+                                                       y_zero_point,
+                                                       x)};
                 }
 
             } // namespace set_13
