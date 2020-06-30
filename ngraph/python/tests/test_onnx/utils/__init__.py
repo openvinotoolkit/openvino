@@ -28,7 +28,7 @@ from tests.test_onnx.utils.onnx_backend import OpenVinoOnnxBackend
 from tests.test_onnx.utils.onnx_helpers import import_onnx_model
 
 
-def xfail_test(*backends, reason='Mark the test as expected to fail'):
+def xfail_test(*backends, reason="Mark the test as expected to fail"):
     return pytest.mark.xfail(condition=tests.BACKEND_NAME in backends, reason=reason, strict=True)
 
 
@@ -79,13 +79,16 @@ def get_node_model(op_type, *input_data, opset=1, num_outputs=1, **node_attribut
     node_output_names = [ascii_uppercase[num_inputs + idx] for idx in range(num_outputs)]
     onnx_node = make_node(op_type, node_input_names, node_output_names, **node_attributes)
 
-    input_tensors = [make_tensor_value_info(name, onnx.TensorProto.FLOAT, value.shape)
-                     for name, value in zip(onnx_node.input, node_inputs)]
-    output_tensors = [make_tensor_value_info(name, onnx.TensorProto.FLOAT, ())
-                      for name in onnx_node.output]  # type: ignore
+    input_tensors = [
+        make_tensor_value_info(name, onnx.TensorProto.FLOAT, value.shape)
+        for name, value in zip(onnx_node.input, node_inputs)
+    ]
+    output_tensors = [
+        make_tensor_value_info(name, onnx.TensorProto.FLOAT, ()) for name in onnx_node.output
+    ]  # type: ignore
 
-    graph = make_graph([onnx_node], 'compute_graph', input_tensors, output_tensors)
-    model = make_model(graph, producer_name='Ngraph ONNX Importer')
+    graph = make_graph([onnx_node], "compute_graph", input_tensors, output_tensors)
+    model = make_model(graph, producer_name="Ngraph ONNX Importer")
     model.opset_import[0].version = opset
     return model
 
