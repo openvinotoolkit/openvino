@@ -26,7 +26,6 @@ namespace InferenceEngine {
  * @ingroup ie_dev_api_exec_network_api
  * @tparam T Minimal CPP implementation of IExecutableNetworkInternal (e.g. ExecutableNetworkInternal)
  */
-IE_SUPPRESS_DEPRECATED_START_WIN
 template <class T>
 class ExecutableNetworkBase : public IExecutableNetwork {
     std::shared_ptr<T> _impl;
@@ -110,8 +109,6 @@ public:
 private:
     ~ExecutableNetworkBase() = default;
 };
-
-IE_SUPPRESS_DEPRECATED_END_WIN
 
 template <class T>
 inline typename ExecutableNetworkBase<T>::Ptr make_executable_network(std::shared_ptr<T> impl) {

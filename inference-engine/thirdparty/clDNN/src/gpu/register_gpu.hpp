@@ -180,6 +180,7 @@ REGISTER_GPU(grn);
 REGISTER_GPU(ctc_greedy_decoder);
 REGISTER_GPU(cum_sum);
 REGISTER_GPU(embedding_bag);
+REGISTER_GPU(extract_image_patches);
 
 #undef REGISTER_GPU
 
