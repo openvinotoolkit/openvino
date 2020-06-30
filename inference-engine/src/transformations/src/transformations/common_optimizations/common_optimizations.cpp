@@ -10,7 +10,7 @@
 #include "transformations/convert_scatter_elements_to_scatter.hpp"
 #include "transformations/remove_filtering_boxes_by_size.hpp"
 #include "transformations/convert_nms_4_to_nms_dynamic.hpp"
-#include "transformations/convert_opset4/convert_nms_4_to_legacy.hpp"
+#include "transformations/convert_opset1_to_legacy/convert_nms_4_to_legacy.hpp"
 #include "transformations/init_node_info.hpp"
 
 #include <ngraph/pass/manager.hpp>

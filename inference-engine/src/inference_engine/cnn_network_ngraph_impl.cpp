@@ -24,7 +24,6 @@
 #include <transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
 #include <transformations/convert_opset2_to_opset1/convert_opset2_to_opset1.hpp>
 #include <transformations/convert_opset3_to_opset2/convert_opset3_to_opset2.hpp>
-#include <transformations/convert_opset4/convert_opset4.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_one_hot_to_one_hot_ie.hpp>
 
 #include "ngraph_ops/eltwise.hpp"
@@ -436,7 +435,6 @@ StatusCode CNNNetworkNGraphImpl::serialize(const std::string& xmlPath, const std
         ::ngraph::op::GenericIE::DisableReshape noReshape(graph);
 
         ::ngraph::pass::CommonOptimizations().run_on_function(graph);
-        ::ngraph::pass::ConvertOpSet4().run_on_function(graph);
         ::ngraph::pass::ConvertOpSet3ToOpSet2().run_on_function(graph);
         ::ngraph::pass::ConvertOpSet2ToOpSet1().run_on_function(graph);
         ::ngraph::pass::ConvertOpSet1ToLegacy().run_on_function(graph);
@@ -501,7 +499,6 @@ void CNNNetworkNGraphImpl::convertToCNNNetworkImpl() {
     ::ngraph::op::GenericIE::DisableReshape noReshape(graph);
 
     ::ngraph::pass::CommonOptimizations().run_on_function(graph);
-    ::ngraph::pass::ConvertOpSet4().run_on_function(graph);
     ::ngraph::pass::ConvertOpSet3ToOpSet2().run_on_function(graph);
     ::ngraph::pass::ConvertOpSet2ToOpSet1().run_on_function(graph);
     ::ngraph::pass::ConvertOpSet1ToLegacy().run_on_function(graph);

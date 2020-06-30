@@ -54,5 +54,8 @@ void ngraph::pass::UpgradeNMS4ToNMSDynamic::upgrade_nms4_to_nms_dynamic() {
 }
 
 bool ngraph::pass::UpgradeNMS4ToNMSDynamic::run_on_function(std::shared_ptr<ngraph::Function> f) {
-    return ngraph::op::util::has_op_with_type<ngraph::opset4::NonZero>(f);
+    if (ngraph::op::util::has_op_with_type<ngraph::opset4::NonZero>(f)) {
+        return GraphRewrite::run_on_function(f);
+    }
+    return false;
 }

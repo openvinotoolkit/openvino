@@ -12,7 +12,7 @@
 #include <ngraph/rt_info.hpp>
 #include <transformations/utils/utils.hpp>
 
-#include "transformations/convert_opset4/convert_nms_4_to_legacy.hpp"
+#include "transformations/convert_opset1_to_legacy/convert_nms_4_to_legacy.hpp"
 
 void ngraph::pass::ConvertNMS4ToLegacy::convert_nms4_to_legacy() {
     auto boxes = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1000, 4});
