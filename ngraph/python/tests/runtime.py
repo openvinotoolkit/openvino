@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ******************************************************************************
-"""Provide a layer of abstraction for the ngraph++ runtime environment."""
+"""Provide a layer of abstraction for an OpenVINO runtime environment."""
 import logging
 from typing import Dict, List, Union
 
@@ -43,9 +43,11 @@ class Runtime(object):
 
     def __init__(self, backend_name: str) -> None:
         self.backend_name = backend_name
-        # Plugin initialization for specified device and load extensions library if specified
-        log.info("Creating Inference Engine")
+        log.debug("Creating Inference Engine for .".format(backend_name))
         self.backend = IECore()
+        assert backend_name in self.backend.available_devices, (
+            'The requested device "' + backend_name + '" is not supported!'
+        )
 
     def set_config(self, config: Dict[str, str]) -> None:
         """Set the inference engine configuration."""
@@ -99,7 +101,7 @@ class Computation(object):
             )
         for parameter, input in zip(self.parameters, input_values):
             parameter_shape = parameter.get_output_shape(0)
-            if len(input.shape) > 0 and list(parameter.shape) != list(input.shape):
+            if len(input.shape) > 0 and list(parameter_shape) != list(input.shape):
                 raise UserInputError(
                     "Provided tensor's shape: %s does not match the expected: %s.",
                     list(input.shape),

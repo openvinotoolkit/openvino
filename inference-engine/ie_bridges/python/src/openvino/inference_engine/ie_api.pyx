@@ -1618,10 +1618,8 @@ cdef class IENetwork:
             c_input_shapes[input.encode()] = c_shape
         self.impl.reshape(c_input_shapes)
 
-    # TODO: ucomment when ngraph python api will work
-
-    # def get_function(self):
-    #     return self.impl.getFunction()
+    def _get_function_capsule(self):
+        return self.impl.getFunction()
 
 cdef class BlobBuffer:
     """Copy-less accessor for Inference Engine Blob"""
