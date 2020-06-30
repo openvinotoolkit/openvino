@@ -30,6 +30,13 @@ protected:
     std::unordered_map<std::string, DataShape> m_shapes;
     ngraph::ParameterVector m_parameterVector;
 
+    std::shared_ptr<ngraph::opset3::Parameter> createParameter(
+            const ngraph::element::Type& element_type,
+            const ngraph::PartialShape& shape) {
+        m_parameterVector.emplace_back(element_type, shape);
+        return m_parameterVector.back();
+    }
+
     virtual std::shared_ptr<ngraph::Node> createInputSubgraphWithDSR(
             const DataType& inDataType, const DataShapeWithUpperBound& shapes,
             const std::string& suffix = "") {

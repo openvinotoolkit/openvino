@@ -47,8 +47,16 @@ void dynamicToStaticShapeMatMul(std::shared_ptr<ngraph::Node> target) {
 
     const auto a_input_DSR = ngraph::as_type_ptr<ngraph::vpu::op::DynamicShapeResolver>(target->input_value(0).get_node_shared_ptr());
     const auto b_input_DSR = ngraph::as_type_ptr<ngraph::vpu::op::DynamicShapeResolver>(target->input_value(1).get_node_shared_ptr());
+
+    if (a_input_DSR && b_input_DSR) {
+        VPU_THROW_UNLESS(a_input_DSR->get_input_element_type(1) == b_input_DSR->get_input_element_type(1),
+            "DynamicToStaticShape transformation for {} of type {} expects equal shapes data types, actual {} vs {}",
+            matmul->get_friendly_name(), matmul->get_type_info(),
+            a_input_DSR->get_input_element_type(1), b_input_DSR->get_input_element_type(1));
+    }
     VPU_THROW_UNLESS(a_input_DSR || b_input_DSR, "DynamicToStaticShape transformation for {} of type {} expects at least one DSR as input",
                      target->get_friendly_name(), target->get_type_info());
+
     const auto shapeElementType = a_input_DSR ? a_input_DSR->get_input_element_type(1) : b_input_DSR->get_input_element_type(1);
 
     ngraph::Output<ngraph::Node> a_input_shape = a_input_DSR ? a_input_DSR->input_value(1) : shapeToConstant(target->input_value(0), shapeElementType);

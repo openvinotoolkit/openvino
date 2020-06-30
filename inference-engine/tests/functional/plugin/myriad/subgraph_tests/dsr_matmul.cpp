@@ -79,15 +79,11 @@ protected:
             }
             case DYNAMISM_MODE::A_INPUT_DYNAMIC: {
                 inputA = createInputSubgraphWithDSR(data_type, DataShapeWithUpperBound{matmul_setup.A.realShape, matmul_setup.A.upperBoundShape});
-                const auto inputBParam = std::make_shared<ngraph::opset3::Parameter>(data_type, matmul_setup.B.realShape);
-                m_parameterVector.push_back(inputBParam);
-                inputB = inputBParam;
+                inputB = createParameter(data_type, matmul_setup.B.realShape);
                 break;
             }
             case DYNAMISM_MODE::B_INPUT_DYNAMIC: {
-                const auto inputAParam = std::make_shared<ngraph::opset3::Parameter>(data_type, matmul_setup.A.realShape);
-                m_parameterVector.push_back(inputAParam);
-                inputA = inputAParam;
+                inputA = createParameter(data_type, matmul_setup.A.realShape);
                 inputB = createInputSubgraphWithDSR(data_type, DataShapeWithUpperBound{matmul_setup.B.realShape, matmul_setup.B.upperBoundShape});
                 break;
             }
