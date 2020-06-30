@@ -16,25 +16,25 @@
 namespace vpu {
 
 void dynamicToStaticNonMaxSuppression(std::shared_ptr<ngraph::Node> node) {
-    auto nms_4 = std::dynamic_pointer_cast<ngraph::op::v4::NonMaxSuppression>(node);
-    VPU_THROW_UNLESS(nms_4, "dynamicToStaticNonMaxSuppression transformation for {} of type {} expects {} as node for replacement",
-                     node->get_friendly_name(), node->get_type_info(), ngraph::op::v4::NonMaxSuppression::type_info);
+    auto nms_dynamic = std::dynamic_pointer_cast<ngraph::op::dynamic::NonMaxSuppression>(node);
+    VPU_THROW_UNLESS(nms_dynamic, "dynamicToStaticNonMaxSuppression transformation for {} of type {} expects {} as node for replacement",
+                     node->get_friendly_name(), node->get_type_info(), ngraph::op::dynamic::NonMaxSuppression::type_info);
 
     auto staticShapeNMS = std::make_shared<ngraph::vpu::op::StaticShapeNonMaxSuppression>(
-            nms_4->input_value(0),
-            nms_4->input_value(1),
-            nms_4->input_value(2),
-            nms_4->input_value(3),
-            nms_4->input_value(4),
-            nms_4->get_box_encoding(),
-            nms_4->get_sort_result_descending(),
-            nms_4->get_output_type());
+            nms_dynamic->input_value(0),
+            nms_dynamic->input_value(1),
+            nms_dynamic->input_value(2),
+            nms_dynamic->input_value(3),
+            nms_dynamic->input_value(4),
+            nms_dynamic->get_box_encoding(),
+            nms_dynamic->get_sort_result_descending(),
+            nms_dynamic->get_output_type());
 
     auto dynamicShapeResolver = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(
             staticShapeNMS->output(0), staticShapeNMS->output(1));
-    dynamicShapeResolver->set_friendly_name(nms_4->get_friendly_name());
+    dynamicShapeResolver->set_friendly_name(nms_dynamic->get_friendly_name());
 
-    ngraph::replace_node(std::move(nms_4), std::move(dynamicShapeResolver));
+    ngraph::replace_node(std::move(nms_dynamic), std::move(dynamicShapeResolver));
 }
 
 }  // namespace vpu

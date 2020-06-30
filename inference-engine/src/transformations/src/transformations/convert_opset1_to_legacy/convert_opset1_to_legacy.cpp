@@ -20,6 +20,7 @@
 #include <transformations/convert_opset1_to_legacy/convert_mul_or_add_finally.hpp>
 #include <transformations/convert_negative.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_nms_to_nms_ie.hpp>
+#include <transformations/convert_opset1_to_legacy/convert_nms_4_to_legacy.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_normalizel2_to_normalize_ie.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_one_hot_to_one_hot_ie.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_pad_to_pad_ie.hpp>

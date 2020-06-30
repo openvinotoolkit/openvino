@@ -56,7 +56,7 @@ protected:
         const auto dims = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::i64, ngraph::Shape{3});
         const auto dsr = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(scores, dims);
 
-        const auto node = std::make_shared<ngraph::op::v4::NonMaxSuppression>(
+        const auto node = std::make_shared<ngraph::op::dynamic::NonMaxSuppression>(
                 boxes, dsr, max_output_boxes_per_class, iou_threshold, score_threshold);
 
         auto outputShape = node->get_output_partial_shape(0);
