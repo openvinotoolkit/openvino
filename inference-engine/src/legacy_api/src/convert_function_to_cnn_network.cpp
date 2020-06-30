@@ -487,6 +487,14 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
                            << " should be replaced by constant during constant folding.";
         return nullptr;
     });
+
+    addSpecificCreator({"NonMaxSuppressionIE"}, [](const std::shared_ptr<::ngraph::Node>& node,
+                                                 const std::map<std::string, std::string> params) -> CNNLayerPtr {
+        LayerParams attrs = {node->get_friendly_name(), "NonMaxSuppression", details::convertPrecision(node->get_output_element_type(0))};
+        auto res = std::make_shared<InferenceEngine::NonMaxSuppressionLayer>(attrs);
+        res->params = params;
+        return res;
+    });
 }
 
 CNNLayerPtr InferenceEngine::details::CNNLayerCreator::create() {
@@ -560,7 +568,6 @@ std::shared_ptr<CNNNetworkImpl> convertFunctionToICNNNetwork(const std::shared_p
                 std::make_shared<Builder::NodeConverter<::ngraph::op::v1::Minimum>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::v1::Multiply>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::v1::NonMaxSuppression>>(),
-                std::make_shared<Builder::NodeConverter<::ngraph::op::NonMaxSuppressionIE>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::NormalizeL2>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::NormalizeIE>>(),
                 std::make_shared<Builder::NodeConverter<::ngraph::op::OneHotIE>>(),
