@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2018-2019 Intel Corporation
+// Copyright (c) 2018-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -157,6 +157,7 @@ private:
                                         const layout &weights_layout,
                                         std::shared_ptr<const convolution> conv);
     bool convolution_bs_fs_yx_bsv16_fsv16_opt(const layout &input_layout,
+                                              const layout& weights_layout,
                                               std::shared_ptr<const convolution> conv);
     bool convolution_fs_b_yx_fsv32_opt(const layout& input_layout,
                                        const layout& weights_layout,

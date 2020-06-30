@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016-2019 Intel Corporation
+// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -73,6 +73,8 @@
 #include "convolution_kernel_b_fs_yx_fsv16_imad_1x1.h"
 #include "convolution_kernel_b_fs_yx_fsv16_imad.h"
 #include "convolution_kernel_b_fs_yx_fsv_16_32_imad_dw.hpp"
+#include "convolution_kernel_imad_bs_fs_yx_bsv16_fsv16_1x1.h"
+#include "convolution_kernel_imad_bs_fs_yx_bsv16_fsv16_3x3.h"
 
 namespace kernel_selector {
 convolution_kernel_selector::convolution_kernel_selector() {
@@ -93,6 +95,8 @@ convolution_kernel_selector::convolution_kernel_selector() {
 
     // bs_fs_yx_bsv16_fsv16
     Attach<ConvolutionKernel_bfyx_to_bfyx_bsv16_fsv16>();
+    Attach<Convolution_kernel_imad_bs_fs_yx_bsv16_fsv16_1x1>();
+    Attach<Convolution_kernel_imad_bs_fs_yx_bsv16_fsv16_3x3>();
 
     // fs_byx_fsv32
     Attach<ConvolutionKernel_fs_byx_fsv32>();
