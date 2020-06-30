@@ -10,13 +10,13 @@
 #
 #-------------------------------------------------------------------------------
 
-# Not supported ONNX op: QuantizeLinear
+# Unsupported operator detected in the graph: Quantize
 onnx_model_quantize_linear
 onnx_model_quantize_linear_zero_point
 onnx_model_quantize_linear_axis_zero
 onnx_model_quantize_linear_axis_negative
 
-# Not supported ONNX op: DequantizeLinear
+# Unsupported operator detected in the graph: Dequantize
 onnx_model_dequantize_linear
 onnx_model_dequantize_linear_scalar_zero_scale_uint8
 onnx_model_dequantize_linear_scalar_zero_scale_int8
@@ -25,17 +25,13 @@ onnx_model_dequantize_linear_1d_zero_scale_int8
 onnx_model_dequantize_linear_1d_zero_scale_int8_4d
 onnx_model_dequantize_linear_1d_zero_scale_uint8_negative_axis
 
-# Not supported ONNX op: QuantizedDot
-onnx_model_qlinear_matmul
-onnx_model_qlinear_matmul_3d
-
 # Not supported ONNX op: QuantizedConvolution
 onnx_model_conv_integer
 onnx_model_conv_integer_zero_point_zero
 onnx_model_conv_integer_no_zero_point
 onnx_model_conv_integer_pads
 
-# Not supported ONNX op: QuantizedDot
+# Unsupported operator detected in the graph: QuantizedDot
 onnx_model_matmul_integer
 onnx_model_matmul_integer_zero_point_zero
 onnx_model_matmul_integer_no_zero_point
@@ -43,6 +39,8 @@ onnx_model_matmul_integer_scalar
 onnx_model_matmul_integer_4d
 onnx_model_matmul_integer_4d_zero_point
 onnx_model_matmul_integer_4d_no_zero_point
+onnx_model_qlinear_matmul
+onnx_model_qlinear_matmul_3d
 
 # Not supported ONNX op: ScatterND
 onnx_model_scatterND
@@ -52,9 +50,9 @@ onnx_model_gatherND_int32
 onnx_model_gatherND_float
 
 # Not supported ONNX op: Round
-onnx_model_round
+# onnx_model_round
 
-# Cannot cast ngraph node LSTMSequence to CNNLayer
+# LSTMSequence Layer is not instance of RNNLayer class
 onnx_model_lstm_fwd_with_clip
 onnx_model_lstm_fwd_mixed_seq
 onnx_model_lstm_fwd_hardsigmoid_activation
