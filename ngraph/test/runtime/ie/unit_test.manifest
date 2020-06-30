@@ -113,11 +113,6 @@ bool_input_or
 
 # Layer <name> input port 1 is not connected to any data
 onnx_model_conv_transpose_w_groups
-onnx_model_convtranspose_output_shape
-onnx_model_convtranspose_output_shape_auto_pads_same_upper
-onnx_model_convtranspose_output_shape_auto_pads_same_lower
-onnx_model_convtranspose_groups_w_pads
-onnx_model_convtranspose_groups_pads_bias
 onnx_model_prelu
 
 # [NOT_IMPLEMENTED] Input image format I64 is not supported yet...
@@ -141,6 +136,30 @@ matmul_2x2x3_2x3x1_int64
 matmul_2x2x3_2x1x3_transpose_int64
 onnx_dyn_shapes_slice_10_3d_input_12_axes
 IE_CPU.fused_clamp_int64
+IE_CPU.onnx_dyn_shapes_slice_10_default_axes
+onnx_dyn_shapes_ab_plus_c_inference
+onnx_dyn_shapes_dynamic_rank_input_inference
+onnx_dyn_shapes_model_conv_with_dynamic_batch
+onnx_dyn_shapes_expand_1_dyn_shape
+onnx_dyn_shapes_expand_2_dyn_shape
+onnx_dyn_shapes_expand_3_dyn_shape
+onnx_dyn_shapes_expand_4_dyn_shape
+onnx_dyn_shapes_expand_5_dyn_shape
+onnx_dyn_shapes_expand_6_dyn_shape
+onnx_dyn_shapes_expand_uint16_dyn_shape
+onnx_dyn_shapes_model_global_lp_dynamic_hw
+onnx_dyn_shapes_slice_10_2d_input
+onnx_dyn_shapes_slice_10_default_steps
+onnx_dyn_shapes_slice_10_slice_2d_default_steps_dyn_begin_end
+onnx_dyn_shapes_slice_10_clamp_neg_ends
+onnx_dyn_shapes_slice_10_3d_input
+onnx_dyn_shapes_slice_10_3d_input_neg_axes
+onnx_dyn_shapes_slice_10_3d_input_20_axes
+onnx_dyn_shapes_slice_10_4d_input_23_axes
+onnx_dyn_shapes_slice_10_4d_input_0231_axes_ends_max
+onnx_dyn_shapes_slice_10_4d_input_2103_axes_ends_max
+onnx_dyn_shapes_slice_10_4d_input_23_axes_21_steps
+onnx_dyn_shapes_slice_10_3d_input_12_axes
 
 # [NOT_IMPLEMENTED] Input image format U64 is not supported yet...
 IE_CPU.fused_clamp_uint64
@@ -154,6 +173,7 @@ arg_max_dyn_shape
 onnx_top_k_opset_10
 onnx_model_one_hot_with_axis
 onnx_model_one_hot_without_axis
+onnx_dyn_shapes_transpose
 
 # Positive input shape should be the same as negative input shape
 onnx_model_where
@@ -178,7 +198,27 @@ IE_CPU.fused_clamp_int32
 IE_CPU.fused_clamp_int8
 IE_CPU.fused_clamp_float
 IE_CPU.fused_clamp_int16
-
+IE_CPU.onnx_dyn_shapes_model_acosh_1_3
+IE_CPU.onnx_dyn_shapes_model_acosh_3_2
+IE_CPU.onnx_dyn_shapes_model_asinh_1_3
+IE_CPU.onnx_dyn_shapes_model_asinh_3_2
+IE_CPU.onnx_dyn_shapes_model_atanh_1_3
+IE_CPU.onnx_dyn_shapes_model_atanh_3_2
+IE_CPU.onnx_dyn_shapes_avg_pool_dyn_shape
+IE_CPU.onnx_dyn_shapes_max_pool_dyn_shape
+IE_CPU.onnx_dyn_shapes_global_avg_pool_dyn_shape
+IE_CPU.onnx_dyn_shapes_global_max_pool_dyn_shape
+IE_CPU.onnx_dyn_shapes_model_flatten
+IE_CPU.onnx_model_instance_normalization_dyn_shape
+IE_CPU.onnx_model_instance_normalization_dyn_shape2
+onnx_dyn_shapes_arg_max_dyn_shape
+onnx_dyn_shapes_arg_min_no_keep_dims_dyn_shape
+onnx_dyn_shapes_model_tile
+onnx_dyn_shapes_model_convtranspose_dyn_data
+onnx_dyn_shapes_model_convtranspose_dyn_filters
+onnx_dyn_shapes_flatten_axis_0
+onnx_dyn_shapes_flatten_axis
+onnx_dyn_shapes_flatten_neg_axis
 #-------------------------------------------------------------------------------
 #
 #       nGraph backend unit tests
@@ -189,10 +229,6 @@ IE_CPU.fused_clamp_int16
 shape_of_vector
 shape_of_matrix
 shape_of_5d
-mvn_mean_normalization
-mvn_mean_normalization_split_channels
-mvn_mean_variance_normalization
-mvn_mean_variance_normalization_split_channels
 numeric_float_nan
 numeric_float_inf
 numeric_double_nan
@@ -440,6 +476,7 @@ max_pool_int8
 avg_pool_uint8
 avg_pool_int8
 max_to_scalar_int8
+onnx_dyn_shapes_model_tile_static
 
 # Segfault
 gather_4d_indices_no_axis_uint8
@@ -917,8 +954,6 @@ layer_norm_bprop_4d_input
 dyn_group_convolution_backprop_filters
 
 # Layer <op_name> input port 1 is not connected to any data
-v1_group_conv_backprop_data
-v1_group_conv_backprop_data_output_shape
 prelu
 prelu_shared_slope
 prelu_negative_slope
@@ -953,33 +988,24 @@ conv_bias_bprop_2d
 # Cannot cast ngraph node ConvolutionBiasAdd to CNNLayer!
 conv_bias_add_2d
 
-# Unsupported primitive of type: SpaceToBatch
+# Layer has different IN and OUT channels number
 space_to_batch
-
-# Unsupported primitive of type: BatchToSpace
 batch_to_space
 
 # [Validation] Argument must have rank >= 2 and <= 4 (argument shape: {1,2,2,2,3})
 normalize_across_1axis_5d
 normalize_across_123axes_5d
 
-# Cannot cast ngraph node Gemm to CNNLayer!
+# Unsupported operator detected in the graph.
 gemm
 gemm_C
 gemm_broadcast_input_C
 gemm_broadcast_axes_0_input_C
 gemm_broadcast_axes_1_input_C
-
-# Cannot cast ngraph node ScaleShift to CNNLayer!
 scale_shift_no_broadcast
 scale_shift
 
-# Cannot cast ngraph node ShuffleChannels to CNNLayer!
-shuffle_channels_simple
-shuffle_channels_negative_axis
-shuffle_channels_float
-
-# Cannot cast ngraph node LSTMCell to CNNLayer!
+# LSTMCell Layer is not instance of RNNLayer class!
 lstm_cell_no_bias_no_peepholes
 lstm_cell_zero_bias_peepholes
 lstm_cell_zero_bias_peepholes_constant
@@ -988,17 +1014,17 @@ lstm_cell_bias_peepholes
 lstm_cell_bias_peepholes_clip_input_forget
 lstm_cell_activaction_functions
 
-# Cannot cast ngraph node RNNCell to CNNLayer!
+# RNNCell should be converted to RNNCellIE operation!
 rnn_cell_no_bias
 rnn_cell_bias_clip
 rnn_cell_activation_function
 
-# Cannot cast ngraph node GRUCell to CNNLayer!
+# GRUCell should be converted to GRUCellIE operation!
 gru_cell_bias_clip
 gru_cell_linear_before_reset
 gru_cell_activation_function
 
-# Cannot cast ngraph node CrossEntropy to CNNLayer!
+# Detected op not belonging to opset1!
 cross_entropy_with_soft_labels
 cross_entropy_with_one_hot
 
@@ -1245,39 +1271,6 @@ matmul_0x2_2x0
 matmul_3x2_2x0
 matmul_2x3_3x3_int64
 
-onnx_dyn_shapes_ab_plus_c_inference
-onnx_dyn_shapes_dynamic_rank_input_inference
-onnx_dyn_shapes_model_conv_with_dynamic_batch
-onnx_dyn_shapes_arg_max_dyn_shape
-onnx_dyn_shapes_arg_min_no_keep_dims_dyn_shape
-onnx_dyn_shapes_expand_1_dyn_shape
-onnx_dyn_shapes_expand_2_dyn_shape
-onnx_dyn_shapes_expand_3_dyn_shape
-onnx_dyn_shapes_expand_4_dyn_shape
-onnx_dyn_shapes_expand_5_dyn_shape
-onnx_dyn_shapes_expand_6_dyn_shape
-onnx_dyn_shapes_expand_uint16_dyn_shape
-onnx_dyn_shapes_model_tile
-onnx_dyn_shapes_model_tile_static
-onnx_dyn_shapes_model_convtranspose_dyn_data
-onnx_dyn_shapes_model_convtranspose_dyn_filters
-onnx_dyn_shapes_transpose
-onnx_dyn_shapes_flatten_axis_0
-onnx_dyn_shapes_flatten_axis
-onnx_dyn_shapes_flatten_neg_axis
-onnx_dyn_shapes_model_global_lp_dynamic_hw
-onnx_dyn_shapes_slice_10_2d_input
-onnx_dyn_shapes_slice_10_default_steps
-onnx_dyn_shapes_slice_10_slice_2d_default_steps_dyn_begin_end
-onnx_dyn_shapes_slice_10_clamp_neg_ends
-onnx_dyn_shapes_slice_10_3d_input
-onnx_dyn_shapes_slice_10_3d_input_neg_axes
-onnx_dyn_shapes_slice_10_3d_input_20_axes
-onnx_dyn_shapes_slice_10_4d_input_23_axes
-onnx_dyn_shapes_slice_10_4d_input_0231_axes_ends_max
-onnx_dyn_shapes_slice_10_4d_input_2103_axes_ends_max
-onnx_dyn_shapes_slice_10_4d_input_23_axes_21_steps
-
 onnx_bool_const_op
 onnx_bool_init_and
 onnx_bool_input_or
@@ -1313,13 +1306,7 @@ IE_CPU.fused_clamp_uint32
 IE_CPU/FlattenTest.flatten
 
 # Segfault
-IE_CPU.onnx_model_conv2d_strides_padding
-IE_CPU.onnx_model_conv2d_strides_no_padding
-IE_CPU.onnx_model_conv2d_strides_assymetric_padding
-IE_CPU.onnx_model_conv2d_dilation_assymetric_pads_strides
 IE_CPU.onnx_model_instance_normalization
-IE_CPU.onnx_model_instance_normalization_dyn_shape
-IE_CPU.onnx_model_instance_normalization_dyn_shape2
 IE_CPU.onnx_model_reverse_sequence_1_batch_0
 IE_CPU.onnx_model_reverse_sequence_0_batch_1
 IE_CPU.cum_sum_2dim_default_axis
@@ -1342,20 +1329,6 @@ IE_CPU.fused_clamp_bfloat16
 IE_CPU.atanh
 IE_CPU.asinh
 IE_CPU.acosh
-
-# Dynamic backend wrapper stops being used for IE
-IE_CPU.onnx_dyn_shapes_model_acosh_1_3
-IE_CPU.onnx_dyn_shapes_model_acosh_3_2
-IE_CPU.onnx_dyn_shapes_model_asinh_1_3
-IE_CPU.onnx_dyn_shapes_model_asinh_3_2
-IE_CPU.onnx_dyn_shapes_model_atanh_1_3
-IE_CPU.onnx_dyn_shapes_model_atanh_3_2
-IE_CPU.onnx_dyn_shapes_avg_pool_dyn_shape
-IE_CPU.onnx_dyn_shapes_max_pool_dyn_shape
-IE_CPU.onnx_dyn_shapes_global_avg_pool_dyn_shape
-IE_CPU.onnx_dyn_shapes_global_max_pool_dyn_shape
-IE_CPU.onnx_dyn_shapes_model_flatten
-IE_CPU.onnx_dyn_shapes_slice_10_default_axes
 
 # GRUCell operation has a form that is not supported
 IE_CPU.onnx_model_gru_defaults_fwd
