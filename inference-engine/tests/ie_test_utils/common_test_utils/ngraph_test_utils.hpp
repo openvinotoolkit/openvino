@@ -9,7 +9,7 @@
 #include <ngraph/function.hpp>
 #include <ngraph/dimension.hpp>
 
-#include "common_test_utils/test_common.hpp"
+#include "test_common.hpp"
 
 #define DYN ngraph::Dimension::dynamic()
 

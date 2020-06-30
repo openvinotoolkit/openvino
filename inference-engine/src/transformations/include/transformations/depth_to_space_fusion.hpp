@@ -19,15 +19,14 @@ namespace pass {
 }  // namespace pass
 }  // namespace ngraph
 
-/*
- * Description:
- *     DepthToSpaceFusion transformation detects Reshape-Transpose-Reshape pattern and
- *     tries to fuse it into a single DepthToSpace layer.
+/**
+ * @ingroup ie_transformation_common_api
+ * @brief DepthToSpaceFusion transformation detects Reshape-Transpose-Reshape pattern
+ * and tries to fuse it into a single DepthToSpace layer.
  *
- * Usage:
- *     DepthToSpaceFusion transformation is optional and disabled by default.
- *     The transformation can be enabled with callback using setCallback method.
- *     See the example below.
+ * DepthToSpaceFusion transformation is optional and disabled by default.
+ * The transformation can be enabled with callback using setCallback method.
+ * See the example below.
  *
  * Callback example:
  *
