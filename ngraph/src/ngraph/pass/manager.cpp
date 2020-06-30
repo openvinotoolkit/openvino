@@ -22,6 +22,7 @@
 #include "ngraph/env_util.hpp"
 #include "ngraph/function.hpp"
 #include "ngraph/graph_util.hpp"
+#include "ngraph/log.hpp"
 #include "ngraph/node.hpp"
 #include "ngraph/pass/graph_rewrite.hpp"
 #include "ngraph/pass/manager.hpp"
@@ -29,7 +30,6 @@
 #include "ngraph/pass/serialize.hpp"
 #include "ngraph/pass/visualize_tree.hpp"
 #include "ngraph/util.hpp"
-#include "ngraph/log.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -77,11 +77,11 @@ void pass::Manager::run_passes(shared_ptr<Function> func, bool /* transitive */)
         {
             // This checks is to skip the graph optimization when the graph pass relies on
             // static shape but the function state is dynamic.
-            if (matcher_pass->get_property(PassProperty::REQUIRE_STATIC_SHAPE) && func->is_dynamic())
+            if (matcher_pass->get_property(PassProperty::REQUIRE_STATIC_SHAPE) &&
+                func->is_dynamic())
             {
-                NGRAPH_DEBUG << "Pass " << pass->get_name() <<
-                                " requires static shape but the " <<
-                                "function is dynamic. Skipping this transformation";
+                NGRAPH_DEBUG << "Pass " << pass->get_name() << " requires static shape but the "
+                             << "function is dynamic. Skipping this transformation";
                 continue;
             }
             // GraphRewrite is a temporary container for MatcherPass to make execution
@@ -92,11 +92,11 @@ void pass::Manager::run_passes(shared_ptr<Function> func, bool /* transitive */)
         {
             // This checks is to skip the graph optimization when the graph pass relies on
             // static shape but the function state is dynamic.
-            if (function_pass->get_property(PassProperty::REQUIRE_STATIC_SHAPE) && func->is_dynamic())
+            if (function_pass->get_property(PassProperty::REQUIRE_STATIC_SHAPE) &&
+                func->is_dynamic())
             {
-                NGRAPH_DEBUG << "Pass " << pass->get_name() <<
-                                " requires static shape but the " <<
-                                "function is dynamic. Skipping this transformation";
+                NGRAPH_DEBUG << "Pass " << pass->get_name() << " requires static shape but the "
+                             << "function is dynamic. Skipping this transformation";
                 continue;
             }
             function_pass->run_on_function(func);
@@ -105,9 +105,8 @@ void pass::Manager::run_passes(shared_ptr<Function> func, bool /* transitive */)
         {
             if (node_pass->get_property(PassProperty::REQUIRE_STATIC_SHAPE) && func->is_dynamic())
             {
-                NGRAPH_DEBUG << "Pass " << pass->get_name() <<
-                                " requires static shape but the " <<
-                                "function is dynamic. Skipping this transformation";
+                NGRAPH_DEBUG << "Pass " << pass->get_name() << " requires static shape but the "
+                             << "function is dynamic. Skipping this transformation";
                 continue;
             }
             for (shared_ptr<Node> n : func->get_ops())
@@ -117,11 +116,11 @@ void pass::Manager::run_passes(shared_ptr<Function> func, bool /* transitive */)
         }
         else if (auto call_graph_pass = dynamic_pointer_cast<CallGraphPass>(pass))
         {
-            if (call_graph_pass->get_property(PassProperty::REQUIRE_STATIC_SHAPE) && func->is_dynamic())
+            if (call_graph_pass->get_property(PassProperty::REQUIRE_STATIC_SHAPE) &&
+                func->is_dynamic())
             {
-                NGRAPH_DEBUG << "Pass " << pass->get_name() <<
-                                " requires static shape but the " <<
-                                "function is dynamic. Skipping this transformation";
+                NGRAPH_DEBUG << "Pass " << pass->get_name() << " requires static shape but the "
+                             << "function is dynamic. Skipping this transformation";
                 continue;
             }
             call_graph_pass->run_on_call_graph(func->get_ordered_ops());
