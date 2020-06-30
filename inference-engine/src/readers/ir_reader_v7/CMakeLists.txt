@@ -34,10 +34,6 @@ target_include_directories(${TARGET_NAME} PRIVATE "${IE_MAIN_SOURCE_DIR}/src/inf
 target_link_libraries(${TARGET_NAME} PUBLIC inference_engine_reader_api inference_engine_plugin_api ${NGRAPH_LIBRARIES} inference_engine)
 target_link_libraries(${TARGET_NAME} PRIVATE pugixml)
 
-# developer package
-
-ie_developer_export_targets(${TARGET_NAME})
-
 # code style
 
 add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
