@@ -557,8 +557,6 @@ JitConstants MakeActivationJitConstants(ActivationFunction activation_function,
     };
 
     std::string macro_def = name + (use_type_parameter ? "(jit_type, input, m, n)" : "(input, m, n)");
-    std::string macro_def_grad = name + (use_type_parameter ? "(jit_type, input_grad, input, m, n)"
-                                                            : "(input_grad, input, m, n)");
     std::string macro_def_params = use_type_parameter ? "(jit_type, input, params)" : "(input, params)";
 
     jitConstants.AddConstant(MakeJitConstant("ACTIVATION_PARAMS" + suffix, "NL_M" + suffix + ", NL_N" + suffix));
@@ -656,25 +654,6 @@ JitConstants MakeActivationJitConstants(ActivationFunction activation_function,
             jitConstants.AddConstant(MakeJitConstant(macro_def, "(pow(input," + m.str() + "))"));
             break;
         }
-        case ActivationFunction::RELU_GRAD:
-            jitConstants.AddConstant(MakeJitConstant(
-                macro_def_grad,
-                ("input_grad"_jit * ternary(input.gt(zero), one, zero)).str()));
-            macro_def_params = use_type_parameter ? "(jit_type, input_grad, input, params)" : "(input_grad, input, params)";
-            break;
-        case ActivationFunction::RELU_NEGATIVE_SLOPE_GRAD: {
-            const JitTerm slope = disable_type_conversion ? "m"_jit : to_type("m"_jit);
-            jitConstants.AddConstant(MakeJitConstant(
-                macro_def_grad,
-                ("input_grad"_jit * (ternary(input.gt(zero), one, zero) + (to_type(slope) * ternary(input.le(zero), one, zero))))
-                    .str()));
-            macro_def_params = use_type_parameter ? "(jit_type, input_grad, input, params)" : "(input_grad, input, params)";
-            break;
-        }
-        case ActivationFunction::NONE_GRAD:
-            jitConstants.AddConstant(MakeJitConstant(macro_def_grad, "input_grad"));
-            macro_def_params = use_type_parameter ? "(jit_type, input_grad, input, params)" : "(input_grad, input, params)";
-            break;
         case ActivationFunction::TAN:
             jitConstants.AddConstant(MakeJitConstant(macro_def, "(tan(input))"));
             break;
@@ -986,23 +965,14 @@ JitConstants MakeActivationJitConstants(std::vector<kernel_selector::base_activa
         res.Merge(jitConstants);
 
         if (i == 0) {
-            if (params[i].gradient) {
-                activation_params = use_type_parameter ? "(jit_type, input_grad, input, params)" : "(input_grad, input, params)";
-            } else {
-                activation_params = use_type_parameter ? "(jit_type, input, params)" : "(input, params)";
-            }
+            activation_params = use_type_parameter ? "(jit_type, input, params)" : "(input, params)";
             res_activation = "ACTIVATION_FUNC" + activation_suffix + activation_params;
         } else {
             res_activation = "ACTIVATION" + activation_suffix + "(" + (use_type_parameter ? "jit_type, " : "") +
-                             (params[i].gradient ? "input_grad, " : "") +
                              res_activation + ", ACTIVATION_PARAMS" + activation_suffix + ")";
         }
     }
-    if (params[params.size() - 1].gradient) {
-        activation_params = use_type_parameter ? "(jit_type, input_grad, input, params)" : "(input_grad, input, params)";
-    } else {
-        activation_params = use_type_parameter ? "(jit_type, input, params)" : "(input, params)";
-    }
+    activation_params = use_type_parameter ? "(jit_type, input, params)" : "(input, params)";
     res.AddConstant(MakeJitConstant("ACTIVATION_PARAMS" + suffix, "ACTIVATION_PARAMS" + suffix + "_0"));
     res.AddConstant(MakeJitConstant("ACTIVATION" + suffix + activation_params, res_activation));
     return res;

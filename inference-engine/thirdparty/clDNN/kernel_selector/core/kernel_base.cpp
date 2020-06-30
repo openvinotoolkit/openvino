@@ -53,7 +53,6 @@ JitConstants KernelBase::MakeBaseParamsJitConstants(const base_params& params) c
         MakeJitConstant("INT64_UNIT_USED", IsTypeUsedIn(Datatype::INT64, params)),
         MakeJitConstant("UINT8_UNIT_USED", IsTypeUsedIn(Datatype::UINT8, params)),
         MakeJitConstant("UINT32_UNIT_USED", IsTypeUsedIn(Datatype::UINT32, params)),
-        MakeJitConstant("GRADIENT", params.gradient),
     };
 
     // for activation function

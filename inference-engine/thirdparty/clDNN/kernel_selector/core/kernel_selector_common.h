@@ -120,20 +120,15 @@ struct ArgumentDescriptor {
         OUTPUT,
         WEIGHTS,
         BIAS,
-        PREV_WEIGHTS_GRADIENT,
-        PREV_BIAS_GRADIENT,
         SCALE_TABLE,
         SLOPE,
         SPLIT,
         INTERNAL_BUFFER,
         SCALAR,
-        WEIGHTS_QUANTIZATION_FACTORS,
-        OUTPUT_CALIBRATION_FACTORS,
         RECURRENT,  // RNN/LSTM/GRU recurrent weights
         HIDDEN,     // RNN/LSTM/GRU hidden input
         CELL,       // LSTM cell input
         LSTM_PACK,  // LSTM packed output
-        LEARNING_RATE,
         WEIGHTS_ZERO_POINTS,
         ACTIVATIONS_ZERO_POINTS,
         COMPENSATION,

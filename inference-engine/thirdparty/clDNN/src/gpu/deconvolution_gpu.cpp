@@ -101,8 +101,6 @@ public:
                                   (uint32_t)dilation.spatial[1],
                                   (uint32_t)dilation.spatial[2]};
 
-        deconv_params.gradient = primitive->gradient();
-
         auto& kernel_selector = kernel_selector::deconvolution_kernel_selector::Instance();
         auto best_kernels = kernel_selector.GetBestKernels(deconv_params, deconv_optional_params);
 

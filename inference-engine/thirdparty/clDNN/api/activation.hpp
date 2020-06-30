@@ -71,13 +71,6 @@ enum class activation_func {
     gelu                  // (0.5*val*(1 + erf(val / sqrt(2)))
 };
 
-/// @brief activation gradient functions
-enum class activation_grad_func {
-    none,                 // val
-    relu,                 // val * (input > 0)
-    relu_negative_slope,  // val * ((input > 0) + a * (input <= 0)    (a is additional param)
-};
-
 /// @brief activation additional params
 struct activation_additional_params {
     float a, b;

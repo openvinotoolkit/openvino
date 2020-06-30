@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2019 Intel Corporation
+﻿// Copyright (c) 2019-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -82,7 +82,7 @@ KernelsData QuantizeKernelBase::GetKernelsData(const Params& params, const optio
     kernel.workGroups.global = {runInfo.gws0, runInfo.gws1, runInfo.gws2};
     kernel.workGroups.local = {runInfo.lws0, runInfo.lws1, runInfo.lws2};
     kernel.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo, DEFAULT);
-    kernel.arguments = GetArgsDesc(static_cast<int>(newParams.inputs.size()), false, false, false, false);
+    kernel.arguments = GetArgsDesc(static_cast<int>(newParams.inputs.size()), false, false);
 
     kd.estimatedTime = DONT_USE_IF_HAVE_SOMETHING_ELSE;
 

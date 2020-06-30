@@ -30,7 +30,6 @@
 #include <api/detection_output.hpp>
 #include <api/normalize.hpp>
 #include <api/reshape.hpp>
-#include <api/batch_norm.hpp>
 #include <api/permute.hpp>
 #include <api/split.hpp>
 #include <api/resample.hpp>
@@ -1533,49 +1532,11 @@ void Program::CreateBatchNormalizationPrimitive(cldnn::topology& topology, Infer
     cldnn::primitive_id weightID = bnLayerName + "_" + m_scalesTag;
     cldnn::primitive_id biasID = bnLayerName + "_" + m_biasesTag;
 
-#define _SCALE_BN_OPT
-#ifdef _SCALE_BN_OPT
-    // Using scale as an optimization (1 mad instead of mad+rsq)
-    // create new blobs for scale shift
     CreateScaleWeightsAndBiasesFromBN(topology, bnLayer, weightID, biasID);
     auto scalePrim = cldnn::scale(bnLayerName, inputPrimitives[0], weightID, biasID);
 
     topology.add(scalePrim);
-#else
-    cldnn::tensor blobTensor(0);
-    const auto bnDims = bnLayer->outData[0]->getTensorDesc().getDims();
-    switch (bnDims.size()) {
-    case 2:
-        blobTensor = cldnn::feature(TensorValue(bnDims[1]));
-        break;
-    case 4:
-        blobTensor = cldnn::feature(TensorValue(bnDims[1]));
-        break;
-    default:
-        THROW_CLDNN_EXCEPTION("Batch normalization input doesn't have 2 or 4 dimensions in " << bnLayer->name);
-    }
-    cldnn::layout blobLayout(
-        DataTypeFromPrecision(layer->precision),
-        m_defaultFormat,
-        blobTensor);
 
-    // Create variance primitive
-    cldnn::primitive_id varianceID = bnLayerName + "_" + m_weightsTag;
-    varianceID = CreatePrimitiveFromBlob(topology, varianceID, bnLayer->_weights, blobLayout);
-
-    // Create mean primitive
-    cldnn::primitive_id meanID = bnLayerName + "_" + m_biasesTag;
-    meanID = CreatePrimitiveFromBlob(topology, meanID, bnLayer->_biases, blobLayout);
-
-    auto bnPrim = cldnn::batch_norm(
-        bnLayerName,
-        inputPrimitives[0],
-        meanID,
-        varianceID,
-        bnLayer->epsilon);
-
-    topology.add(bnPrim);
-#endif  // _SCALE_BN_OPT
     AddPrimitiveToProfiler(bnLayerName, layer);
 }
 

@@ -113,12 +113,6 @@ struct network {
     /// @brief Provides user-supplied @ref memory for output primitives defined by user in source @ref topology.
     void set_output_memory(const primitive_id& id, const memory& mem) const;
 
-    /// @brief Sets learning rate for training primitives.
-    void set_learning_rate(const float lr);
-
-    /// @brief Return learning rate.
-    float get_learning_rate();
-
     /// @brief Return stream id.
     uint16_t get_stream_id();
 

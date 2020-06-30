@@ -37,13 +37,7 @@ struct fused_conv_eltwise_params : public weight_bias_params {
         uint32_t split = 1;
         bool depthwise_separable_opt = false;
         bool transposed = false;
-        bool int8_quantization = false;
-        bool output_calibration = false;
         bool local_convolution = false;
-        float input_quantization_factor = 1.0f;
-        float output_quantization_factor = 1.0f;
-        MultiDataTensor weights_quantization_factors;
-        MultiDataTensor output_calibration_factors;
 
         std::vector<base_activation_params> activations;
     } conv;
@@ -55,14 +49,8 @@ struct fused_conv_eltwise_params : public weight_bias_params {
         std::vector<uSize> stride;
 
         bool layoutBased = false;
-        bool int8_quantization = false;
-        bool output_calibration = false;
-        float output_quantization_factor = 1.0f;
-
-        MultiDataTensor output_calibration_factors;
     } eltw;
 
-    float non_conv_scale = 1.0f;
     bool second_input_in_output = false;
     bool depth_to_space_already_fused = false;
 

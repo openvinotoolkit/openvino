@@ -28,7 +28,6 @@
 #include "fully_connected_kernel_fb_io_block.h"
 #include "fully_connected_kernel_bf_io_input_spatial.h"
 #include "fully_connected_kernel_mmad.h"
-#include "fully_connected_kernel_mmad_batched.h"
 #include "fully_connected_kernel_imad.h"
 #include "fully_connected_kernel_fs_byx_fsv32.h"
 
@@ -49,7 +48,6 @@ fully_connected_kernel_selector::fully_connected_kernel_selector() {
     Attach<FullyConnected_fb_io_b8_f8>();
     Attach<FullyConnected_bf_io_input_spatial>();
     Attach<FullyConnectedKernelMMAD>();
-    // Attach<FullyConnected_mmad_batched>();
     Attach<FullyConnectedKernelIMAD>();
     Attach<FullyConnected_fs_byx_fsv32>();
 }

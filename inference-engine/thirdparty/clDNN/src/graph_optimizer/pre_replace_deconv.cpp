@@ -60,7 +60,7 @@ void pre_replace_deconv::run(program_impl& p) {
             bool unit_stride = std::all_of(deconv_prim->stride.spatial.begin(),
                                            deconv_prim->stride.spatial.end(),
                                            [](tensor::value_type v) { return v == 1; });
-            if (unit_stride && !deconv_prim->gradient()) {
+            if (unit_stride) {
                 primitive_id deconv_id = node->id();
                 auto& input_node = node->get_dependency(0);
                 auto groups = deconv_node.get_groups();
@@ -201,8 +201,7 @@ void pre_replace_deconv::run(program_impl& p) {
                filter_size.spatial[0] == 9 && filter_size.spatial[1] == 9 &&
                deconv_prim->input_offset.spatial[0] == -4 && deconv_prim->input_offset.spatial[1] == -4 &&
                weights_vec.size() == 1 && deconv_prim->bias.size() == 1 &&
-               node->get_dependency(0).get_output_layout().format == format::bfyx &&
-               !deconv_prim->gradient()) {
+               node->get_dependency(0).get_output_layout().format == format::bfyx) {
                 primitive_id deconv_id = node->id();
                 auto& input_node = node->get_dependency(0);
                 primitive_id input_id = deconv_prim->input[0];

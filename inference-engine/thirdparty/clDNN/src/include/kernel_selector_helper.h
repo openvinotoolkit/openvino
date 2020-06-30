@@ -94,7 +94,6 @@ using params = kernel_selector::Params;
 using weights_reorder_params = kernel_selector::WeightsReorderParams;
 using generic_kernel_params = kernel_selector::GenericKernelParams;
 
-struct training_params;
 }  // namespace kernel_selector
 
 kernel_selector::data_type to_data_type(data_types dt);
@@ -111,8 +110,6 @@ kernel_selector::data_tensor convert_data_tensor(const layout& l, uint32_t split
 kernel_selector::weights_tensor convert_weights_tensor(const layout& l);
 layout from_weights_tensor(const kernel_selector::weights_tensor& t);
 kernel_selector::activation_function get_kernel_selector_activation_param(activation_func activation_func);
-kernel_selector::activation_function get_kernel_selector_activation_grad_param(
-    activation_grad_func activation_grad_func);
 
 template <typename T = std::uint32_t>
 kernel_selector::dim_tensor<T> convert_dim_vector(const tensor& t) {
@@ -149,14 +146,6 @@ inline void convert_new_activation_func(const p_type primitive, std::vector<kern
     params.insert(params.begin(), {get_kernel_selector_activation_param(primitive->activation_function),
                                    primitive->additional_params.a,
                                    primitive->additional_params.b});
-}
-
-template <typename p_type>
-inline void convert_new_activation_grad_func(const p_type primitive, std::vector<kernel_selector::base_activation_params>& params) {
-    params.insert(params.begin(), {get_kernel_selector_activation_grad_param(primitive->activation_grad_function),
-                                   primitive->additional_params.a,
-                                   primitive->additional_params.b,
-                                   true});
 }
 
 void set_params(const program_node& node, kernel_selector::params& params);
@@ -241,15 +230,6 @@ params_t get_weight_bias_zero_point_default_params(const arg_t& arg, uint32_t sp
     return params;
 }
 
-void set_learning_params(const program_node& node, kernel_selector::training_params& params, bool use_momentum);
-
-template <typename params_t, typename arg_t>
-inline params_t get_default_learning_params(const arg_t& arg, uint32_t split = 1) {
-    params_t params = get_weights_bias_default_params<params_t>(arg, split);
-    set_learning_params(arg, params, arg.use_momentum());
-    return params;
-}
-
 void set_optional_params(const program_impl& program, kernel_selector::optional_params& params);
 
 template <typename optional_params_t>
@@ -262,9 +242,4 @@ inline optional_params_t get_default_optional_params(const program_impl& program
 template <typename optional_params_t>
 inline optional_params_t get_default_weights_bias_optional_params(const program_impl& program) {
     return get_default_optional_params<optional_params_t>(program);
-}
-
-template <typename optional_params_t>
-inline optional_params_t get_default_learning_optional_params(const program_impl& program) {
-    return get_default_weights_bias_optional_params<optional_params_t>(program);
 }

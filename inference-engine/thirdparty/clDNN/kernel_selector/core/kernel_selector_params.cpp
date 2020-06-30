@@ -548,10 +548,6 @@ ParamsKey base_params::GetParamsKey() const {
         k.EnableFP16Emulation();
     }
 
-    if (gradient) {
-        k.EnableGradient();
-    }
-
     return k;
 }
 

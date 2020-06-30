@@ -54,14 +54,6 @@ protected:
 
         args.weights = (memory_impl::cptr) &instance.weights_memory(split);
         args.bias = (memory_impl::cptr) (instance.bias_term() ? &instance.bias_memory(split) : nullptr);
-        args.weights_quantization_factors = (memory_impl::cptr) (instance.weights_quantization_factors_term()
-                                                ? &instance.weights_quantization_factors_memory(split)
-                                                : nullptr);
-        args.output_calibration_factors = (memory_impl::cptr) (instance.conv_output_calibration_factors_term()
-                                              ? &instance.output_calibration_factors_memory(split)
-                                              : nullptr);
-        if (instance.eltw_output_calibration_factors_term())
-            args.fused_op_calibration_factors.push_back((memory_impl::cptr) &instance.eltw_output_calibration_factors_memory());
         return args;
     }
 
@@ -112,7 +104,6 @@ public:
 
         fused_params.conv.transposed = transposed;
 
-        fused_params.non_conv_scale = primitive->non_conv_scale;
         fused_params.second_input_in_output = primitive->second_input_in_output;
         fused_params.depth_to_space_already_fused = primitive->depth_to_space_already_fused;
 
@@ -130,38 +121,6 @@ public:
 
         conv_params.stride = {(uint32_t)stride.spatial[0], (uint32_t)stride.spatial[1], (uint32_t)stride.spatial[2]};
         conv_params.dilation = {(uint32_t)dilation.spatial[0], (uint32_t)dilation.spatial[1], (uint32_t)dilation.spatial[2] };
-
-        if (primitive->conv.weights_quantization_factors.size() > 0) {
-            conv_params.int8_quantization = true;
-            conv_params.weights_quantization_factors.push_back(
-                convert_data_tensor(arg.weights_quantization_factors().get_output_layout())
-                    .FlattenFeatureAndSpatials());
-            conv_params.input_quantization_factor = arg.get_conv_input_qf();
-
-            if (primitive->conv.output_calibration_factors.size() > 0) {
-                conv_params.output_calibration = true;
-                conv_params.output_calibration_factors.push_back(
-                    convert_data_tensor(arg.conv_output_calibration_factors().get_output_layout())
-                        .FlattenFeatureAndSpatials());
-            } else {
-                conv_params.output_quantization_factor = arg.get_conv_output_qf();
-            }
-        }
-
-        // eltw params
-        if (primitive->eltw.output_calibration_factors.size() > 0 ||
-            primitive->eltw.output_quantization_factor != 1.0f) {
-            eltw_params.int8_quantization = true;
-
-            if (primitive->eltw.output_calibration_factors.size() > 0) {
-                eltw_params.output_calibration = true;
-                eltw_params.output_calibration_factors.push_back(
-                    convert_data_tensor(arg.eltw_output_calibration_factors().get_output_layout())
-                        .FlattenFeatureAndSpatials());
-            } else {
-                eltw_params.output_quantization_factor = arg.get_eltw_output_qf();
-            }
-        }
 
         // stride
         if (!primitive->eltw.stride.empty()) {

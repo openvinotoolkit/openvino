@@ -33,7 +33,6 @@
 #undef TO_ACCUMULATOR_TYPE
 #endif
 
-#if QUANTIZATION_TERM
 #define ACCUMULATOR_TYPE int
 #define TO_ACCUMULATOR_TYPE(x) convert_int(x)
 #define ACTIVATION_TYPE float
@@ -63,10 +62,6 @@
 #endif // OUTPUT_LAYOUT_B_FS_YX_FSV32
 #else
 #error "convolution_gpu_mmad_bfyx_b_fs_yx_fsv32: Unsupported block size"
-#endif
-
-#else // QUANTIZATION_TERM
-#error "convolution_gpu_mmad_bfyx_b_fs_yx_fsv32: invalid parameters: quantization term is expected to be true"
 #endif
 
 #define AS_TYPE_N_(type, n, x) as_##type##n(x)
