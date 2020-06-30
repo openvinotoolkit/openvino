@@ -39,9 +39,9 @@ void dynamicToStaticShapeGather(std::shared_ptr<ngraph::Node> target) {
                      gather->get_friendly_name(), gather->get_type_info());
     if (dataDSR && idxDSR) {
         VPU_THROW_UNLESS(idxDSR->get_input_element_type(1) == dataDSR->get_input_element_type(1),
-                         "DynamicToStaticShape transformation for {} of type {} expects equal shapes data types, actual {} vs {}",
-                         gather->get_friendly_name(), gather->get_type_info(),
-                         idxDSR->get_input_element_type(1) == dataDSR->get_input_element_type(1));
+                "DynamicToStaticShape transformation for {} of type {} expects equal shapes data types, actual {} vs {}",
+                gather->get_friendly_name(), gather->get_type_info(),
+                idxDSR->get_input_element_type(1), dataDSR->get_input_element_type(1));
     }
     const auto shapeElementType = idxDSR ? idxDSR->get_input_element_type(1) : dataDSR->get_input_element_type(1);
 

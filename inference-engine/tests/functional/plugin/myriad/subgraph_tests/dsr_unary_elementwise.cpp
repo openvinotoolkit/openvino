@@ -34,17 +34,6 @@ protected:
 
         return eltwise;
     }
-
-    InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &info) const override {
-        const auto& parameters = GetParam();
-        const auto& type_info = std::get<2>(parameters);
-
-        // Log(0) = inf, therefore we have to fill data with values starts with 1
-        if (type_info == ngraph::opset3::Log::type_info && m_shapes.find(info.name()) == m_shapes.end()) {
-            return FuncTestUtils::createAndFillBlob(info.getTensorDesc(), 10, 1, 1);
-        }
-        return DSR_TestsCommon::GenerateInput(info);
-    }
 };
 
 TEST_P(DSR_UnaryElementwise, CompareWithReference) {

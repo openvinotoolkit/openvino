@@ -38,7 +38,7 @@ using GatherParameters = std::tuple<
 class DSR_GatherBase : public testing::WithParamInterface<GatherParameters>,
                        public DSR_TestsCommon {
 protected:
-    InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &info) const override {
+    InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo& info) const override {
         const auto& name = info.name();
         const auto suffix = std::string("/indices");
         if (name.compare(name.length() - suffix.length(), suffix.length(), suffix) == 0) {
@@ -56,11 +56,7 @@ protected:
     }
 };
 
-//
-// Data is dynamic, indices is static
-//
-
-class DSR_GatherData : public DSR_GatherBase {
+class DSR_GatherDynamicDataStaticIdx : public DSR_GatherBase {
 protected:
     std::shared_ptr<ngraph::Node> createTestedOp() override {
         const auto& parameters = GetParam();
@@ -82,11 +78,11 @@ protected:
     }
 };
 
-TEST_P(DSR_GatherData, CompareWithReference) {
+TEST_P(DSR_GatherDynamicDataStaticIdx, CompareWithReference) {
     Run();
 }
 
-INSTANTIATE_TEST_CASE_P(DynamicGatherData, DSR_GatherData, testing::Combine(
+INSTANTIATE_TEST_CASE_P(DynamicGatherData, DSR_GatherDynamicDataStaticIdx, testing::Combine(
         testing::ValuesIn(dataTypeVector),
         testing::ValuesIn(idxTypeVector),
         testing::Values(
@@ -95,11 +91,7 @@ INSTANTIATE_TEST_CASE_P(DynamicGatherData, DSR_GatherData, testing::Combine(
         testing::Values(CommonTestUtils::DEVICE_MYRIAD)));
 
 
-//
-// Data is static, indices is dynamic
-//
-
-class DSR_GatherIdx : public DSR_GatherBase {
+class DSR_GatherStaticDataDynamicIdx : public DSR_GatherBase {
 protected:
     std::shared_ptr<ngraph::Node> createTestedOp() override {
         const auto& parameters = GetParam();
@@ -120,11 +112,11 @@ protected:
     }
 };
 
-TEST_P(DSR_GatherIdx, CompareWithReference) {
+TEST_P(DSR_GatherStaticDataDynamicIdx, CompareWithReference) {
     Run();
 }
 
-INSTANTIATE_TEST_CASE_P(DynamicGatherIdx, DSR_GatherIdx, testing::Combine(
+INSTANTIATE_TEST_CASE_P(DynamicGatherIdx, DSR_GatherStaticDataDynamicIdx, testing::Combine(
         testing::ValuesIn(dataTypeVector),
         testing::ValuesIn(idxTypeVector),
         testing::Values(
@@ -133,11 +125,7 @@ INSTANTIATE_TEST_CASE_P(DynamicGatherIdx, DSR_GatherIdx, testing::Combine(
         testing::Values(CommonTestUtils::DEVICE_MYRIAD)));
 
 
-//
-// Data is dynamic, indices is dynamic
-//
-
-class DSR_Gather : public DSR_GatherBase {
+class DSR_GatherDynamicDataDynamicIdx : public DSR_GatherBase {
 protected:
     std::shared_ptr<ngraph::Node> createTestedOp() override {
         const auto& parameters = GetParam();
@@ -157,11 +145,11 @@ protected:
     }
 };
 
-TEST_P(DSR_Gather, CompareWithReference) {
+TEST_P(DSR_GatherDynamicDataDynamicIdx, CompareWithReference) {
     Run();
 }
 
-INSTANTIATE_TEST_CASE_P(DynamicGather, DSR_Gather, testing::Combine(
+INSTANTIATE_TEST_CASE_P(DynamicGather, DSR_GatherDynamicDataDynamicIdx, testing::Combine(
         testing::ValuesIn(dataTypeVector),
         testing::ValuesIn(idxTypeVector),
         testing::Values(

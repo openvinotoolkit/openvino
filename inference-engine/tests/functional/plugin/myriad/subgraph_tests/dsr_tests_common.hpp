@@ -71,10 +71,10 @@ protected:
         ::vpu::DynamicToStaticShape().transform(function);
     }
 
-    InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &info) const override {
+    InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo& info) const override {
         const auto& shapeIt = m_shapes.find(info.name());
         if (shapeIt == m_shapes.end()) {
-            return LayerTestsCommon::GenerateInput(info);
+            return FuncTestUtils::createAndFillBlob(info.getTensorDesc(), 5, 1, 1);
         }
 
         auto blob = make_blob_with_precision(info.getTensorDesc());

@@ -36,8 +36,8 @@ void dynamicToStaticShapeBinaryEltwise(std::shared_ptr<ngraph::Node> eltwise) {
     if (lhsDSR && rhsDSR) {
         VPU_THROW_UNLESS(lhsDSR->get_input_element_type(1) == rhsDSR->get_input_element_type(1),
                 "DynamicToStaticShape transformation for {} of type {} expects equal shapes data types, actual {} vs {}",
-                         eltwise->get_friendly_name(), eltwise->get_type_info(),
-                         lhsDSR->get_input_element_type(1) == rhsDSR->get_input_element_type(1));
+                eltwise->get_friendly_name(), eltwise->get_type_info(),
+                lhsDSR->get_input_element_type(1), rhsDSR->get_input_element_type(1));
     }
     const auto shapeElementType = lhsDSR ? lhsDSR->get_input_element_type(1) : rhsDSR->get_input_element_type(1);
 
