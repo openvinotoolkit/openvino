@@ -212,27 +212,6 @@ protected:
                 args[0]->get_data_ptr<const T>(), out[0]->get_data_ptr<T>(), element_count);
             break;
         }
-        case OP_TYPEID::All:
-        {
-            const op::All* all = static_cast<const op::All*>(&node);
-            reference::all(args[0]->get_data_ptr<const char>(),
-                           out[0]->get_data_ptr<char>(),
-                           node.get_input_shape(0),
-                           node.get_output_shape(0),
-                           all->get_reduction_axes());
-            break;
-        }
-        case OP_TYPEID::AllReduce:
-        {
-            const ngraph::op::AllReduce* allreduce =
-                static_cast<const ngraph::op::AllReduce*>(&node);
-            reference::allreduce<T>(args[0]->get_data_ptr<T>(),
-                                    out[0]->get_data_ptr<T>(),
-                                    node.get_input_element_type(0),
-                                    allreduce->get_reduce_type(),
-                                    static_cast<int>(shape_size(node.get_input_shape(0))));
-            break;
-        }
         case OP_TYPEID::Any:
         {
             const op::Any* any = static_cast<const op::Any*>(&node);

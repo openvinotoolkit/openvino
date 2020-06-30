@@ -121,10 +121,6 @@ set (SRC
     op/acosh.hpp
     op/add.cpp
     op/add.hpp
-    op/all.cpp
-    op/all.hpp
-    op/allreduce.cpp
-    op/allreduce.hpp
     op/and.cpp
     op/and.hpp
     op/any.cpp

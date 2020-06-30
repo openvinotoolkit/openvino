@@ -51,24 +51,6 @@ namespace
         EXPECT_FALSE(node.is_binary_elementwise_logical());
     }
 
-    void op_is_All()
-    {
-        op::All node;
-        EXPECT_FALSE(node.is_unary_elementwise_arithmetic());
-        EXPECT_FALSE(node.is_binary_elementwise_arithmetic());
-        EXPECT_FALSE(node.is_binary_elementwise_comparison());
-        EXPECT_FALSE(node.is_binary_elementwise_logical());
-    }
-
-    void op_is_AllReduce()
-    {
-        op::AllReduce node;
-        EXPECT_FALSE(node.is_unary_elementwise_arithmetic());
-        EXPECT_FALSE(node.is_binary_elementwise_arithmetic());
-        EXPECT_FALSE(node.is_binary_elementwise_comparison());
-        EXPECT_FALSE(node.is_binary_elementwise_logical());
-    }
-
     void op_is_And()
     {
         op::And node;
