@@ -10,7 +10,6 @@
 #
 #-------------------------------------------------------------------------------
 
-
 # Not supported ONNX op: QuantizeLinear
 onnx_model_quantize_linear
 onnx_model_quantize_linear_zero_point
@@ -26,22 +25,17 @@ onnx_model_dequantize_linear_1d_zero_scale_int8
 onnx_model_dequantize_linear_1d_zero_scale_int8_4d
 onnx_model_dequantize_linear_1d_zero_scale_uint8_negative_axis
 
-# Not supported ONNX op: QLinearConv
-onnx_model_quant_conv_linear
-onnx_model_quant_conv_linear_2d
-onnx_model_quant_conv_linear_3d
-
-# Not supported ONNX op: QLinearMatMul
+# Not supported ONNX op: QuantizedDot
 onnx_model_qlinear_matmul
 onnx_model_qlinear_matmul_3d
 
-# Not supported ONNX op: ConvInteger
+# Not supported ONNX op: QuantizedConvolution
 onnx_model_conv_integer
 onnx_model_conv_integer_zero_point_zero
 onnx_model_conv_integer_no_zero_point
 onnx_model_conv_integer_pads
 
-# Not supported ONNX op: MatMulInteger
+# Not supported ONNX op: QuantizedDot
 onnx_model_matmul_integer
 onnx_model_matmul_integer_zero_point_zero
 onnx_model_matmul_integer_no_zero_point
@@ -57,18 +51,8 @@ onnx_model_scatterND
 onnx_model_gatherND_int32
 onnx_model_gatherND_float
 
-# Not supported ONNX op: Range
-onnx_model_range_positive_step
-onnx_model_range_negative_step
-
 # Not supported ONNX op: Round
 onnx_model_round
-
-# Not supported ONNX op: CumSum
-onnx_model_cum_sum_1d
-onnx_model_cum_sum_2d_axis_input
-onnx_model_cum_sum_2d_dynamic_axis_input
-onnx_model_cum_sum_3d_exclusive_reverse
 
 # Cannot cast ngraph node LSTMSequence to CNNLayer
 onnx_model_lstm_fwd_with_clip
@@ -82,20 +66,15 @@ onnx_model_lstm_mixed_seq_reverse
 onnx_model_depth_to_space_chw
 onnx_model_space_to_depth_chw
 onnx_model_split_equal_parts_default
-onnx_model_split_equal_parts_2d
-onnx_model_split_variable_parts_2d
 onnx_model_argmin_no_keepdims
 onnx_model_batch_norm_default
 onnx_model_softmax
 onnx_model_elu
 onnx_model_top_k
-onnx_top_k_opset_10_const_k
-onnx_top_k_opset_11_const_k_smallest
 onnx_model_erf
 onnx_model_addmul_abc
 
 # data [<name>] doesn't exist
-onnx_model_expand_static_shape
 onnx_model_sum_one_input
 onnx_model_shape
 onnx_model_eye_like
@@ -108,11 +87,19 @@ onnx_model_tile
 onnx_model_tile_static
 onnx_model_softmax_0D
 
+# nGraph function's output number 0 was not found in the CNNNetwork built from it.
+onnx_model_split_equal_parts_2d
+onnx_model_split_variable_parts_2d
+onnx_top_k_opset_10_const_k
+onnx_top_k_opset_11_const_k_smallest
+
 # [NOT_IMPLEMENTED] Input image format BOOL is not supported yet...
 bool_input_or
 
 # Layer <name> input port 1 is not connected to any data
 onnx_model_conv_transpose_w_groups
+
+#Incorrect number of inputs
 onnx_model_prelu
 
 # [NOT_IMPLEMENTED] Input image format I64 is not supported yet...
@@ -160,6 +147,8 @@ onnx_dyn_shapes_slice_10_4d_input_0231_axes_ends_max
 onnx_dyn_shapes_slice_10_4d_input_2103_axes_ends_max
 onnx_dyn_shapes_slice_10_4d_input_23_axes_21_steps
 onnx_dyn_shapes_slice_10_3d_input_12_axes
+onnx_top_k_opset_10
+onnx_model_one_hot_without_axis
 
 # [NOT_IMPLEMENTED] Input image format U64 is not supported yet...
 IE_CPU.fused_clamp_uint64
@@ -170,12 +159,9 @@ onnx_model_argmin_int32
 arg_max_dyn_shape
 
 # Constant has zero dimension that is not allowable
-onnx_top_k_opset_10
-onnx_model_one_hot_with_axis
-onnx_model_one_hot_without_axis
 onnx_dyn_shapes_transpose
 
-# Positive input shape should be the same as negative input shape
+# Select layer with name 'y' has 'Mask' input's rank more than broadcasted 'Then' and 'Else' inputs' ranks
 onnx_model_where
 
 # y Incorrect input precision. Only FP32 is supported!
@@ -189,6 +175,7 @@ bool_init_and
 
 # Incorrect number of 'indices_to_squeeze' input dimensions!
 arg_min_no_keep_dims_dyn_shape
+onnx_model_one_hot_with_axis
 
 # Dynamic function 'get_shape was called on a descriptor::Tensor with dynamic shape'
 onnx_upsample9_scales_input_nearest_infer
@@ -219,6 +206,9 @@ onnx_dyn_shapes_model_convtranspose_dyn_filters
 onnx_dyn_shapes_flatten_axis_0
 onnx_dyn_shapes_flatten_axis
 onnx_dyn_shapes_flatten_neg_axis
+onnx_model_range_positive_step
+onnx_model_range_negative_step
+
 #-------------------------------------------------------------------------------
 #
 #       nGraph backend unit tests
@@ -369,7 +359,6 @@ reduce_sum_matrix_to_scalar_zero_by_zero
 reduce_sum_vector_zero
 reduce_sum_matrix_cols_zero
 reduce_sum_matrix_rows_zero
-onnx_model_softmax_0D
 reduce_sum_keep_matrix_to_scalar_zero_by_zero
 reduce_sum_keep_matrix_cols_zero
 reduce_product_matrix_columns
@@ -1027,6 +1016,9 @@ gru_cell_activation_function
 # Detected op not belonging to opset1!
 cross_entropy_with_soft_labels
 cross_entropy_with_one_hot
+onnx_model_quant_conv_linear
+onnx_model_quant_conv_linear_2d
+onnx_model_quant_conv_linear_3d
 
 # Cannot cast ngraph node EmbeddingLookup to CNNLayer!
 embedding_lookup_4x5_reverse
