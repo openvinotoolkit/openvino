@@ -82,7 +82,8 @@ InferenceEngine::ICNNNetwork::Ptr clDNNEngine::CloneNetwork(const InferenceEngin
 
             return std::dynamic_pointer_cast<const ::ngraph::opset2::Gelu>(node) ||
                    std::dynamic_pointer_cast<const ::ngraph::opset3::ShuffleChannels>(node) ||
-                   std::dynamic_pointer_cast<const ::ngraph::opset2::BatchToSpace>(node);
+                   std::dynamic_pointer_cast<const ::ngraph::opset2::BatchToSpace>(node) ||
+                   std::dynamic_pointer_cast<const ::ngraph::opset2::SpaceToBatch>(node);
         };
         auto nGraphFunc = clonedNetwork->getFunction();
         // Disable shape inference (WA for generic operations)
@@ -406,8 +407,6 @@ Parameter clDNNEngine::GetMetric(const std::string& name, const std::map<std::st
 }
 
 };  // namespace CLDNNPlugin
-
-IE_SUPPRESS_DEPRECATED_START
 
 INFERENCE_PLUGIN_API(StatusCode) CreatePluginEngine(IInferencePlugin*& plugin, ResponseDesc* resp) noexcept {
     try {

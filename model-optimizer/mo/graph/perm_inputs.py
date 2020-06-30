@@ -56,9 +56,11 @@ def axis(op_node: Node, port_info: str, input_port: int):
 
     data_node = op_node.in_node(input_port)
 
-    const = Const(graph, {'value': permutation.inv, 'need_shape_inference': True}).create_node_with_data()
-    axis_const = Const(graph, {'value': int64_array(0)}).create_node_with_data()
-    gather = Gather(graph, {'name': op_node.name + '/AxisGather', 'need_shape_inference': True}).create_node_with_data(
+    gather_name = op_node.soft_get('name', op_node.id) + '/AxisGather'
+    const = Const(graph, {'value': permutation.inv, 'name': gather_name + '/const',
+                          'need_shape_inference': True}).create_node_with_data()
+    axis_const = Const(graph, {'value': int64_array(0), 'name': gather_name + '/axis'}).create_node_with_data()
+    gather = Gather(graph, {'name': gather_name, 'need_shape_inference': True}).create_node_with_data(
         [const, data_node, axis_const])
     attrs = graph.get_edge_data(data_node.id, op_node.id, key=0).copy()
     graph.add_edge(gather.id, op_node.id, **attrs)
@@ -103,14 +105,18 @@ def order(op_node: Node, port_info: str, input_port: int):
 
     data_node = op_node.in_node(input_port)
 
-    const = Const(graph, {'value': permutation.perm, 'need_shape_inference': True}).create_node_with_data()
-    axis_const = Const(graph, {'value': int64_array(0)}).create_node_with_data()
-    gather = Gather(graph, {'name': op_node.name + '/OrderGather_1',
+    gather_name = op_node.soft_get('name', op_node.id) + '/OrderGather_1'
+    const = Const(graph, {'value': permutation.perm, 'name': gather_name + '/const',
+                          'need_shape_inference': True}).create_node_with_data()
+    axis_const = Const(graph, {'value': int64_array(0), 'name': gather_name + '/axis'}).create_node_with_data()
+    gather = Gather(graph, {'name': gather_name,
                             'need_shape_inference': True}).create_node_with_data([data_node, const, axis_const])
 
-    const_1 = Const(graph, {'value': permutation.inv, 'need_shape_inference': True}).create_node_with_data()
-    axis_const_1 = Const(graph, {'value': int64_array(0)}).create_node_with_data()
-    gather_1 = Gather(graph, {'name': op_node.name + '/OrderGather_2',
+    gather_1_name = op_node.soft_get('name', op_node.id) + '/OrderGather_2'
+    const_1 = Const(graph, {'value': permutation.inv, 'name': gather_1_name + '/const',
+                            'need_shape_inference': True}).create_node_with_data()
+    axis_const_1 = Const(graph, {'value': int64_array(0), 'name': gather_1_name + '/axis'}).create_node_with_data()
+    gather_1 = Gather(graph, {'name': gather_1_name,
                               'need_shape_inference': True}).create_node_with_data([const_1, gather, axis_const_1])
 
     attrs = graph.get_edge_data(data_node.id, op_node.id, key=0).copy()
@@ -131,9 +137,11 @@ def shape(op_node: Node, port_info: str, input_port: int):
 
     data_node = op_node.in_node(input_port)
 
-    const = Const(graph, {'value': permutation.perm, 'need_shape_inference': True}).create_node_with_data()
-    axis_const = Const(graph, {'value': int64_array(0)}).create_node_with_data()
-    gather = Gather(graph, {'name': op_node.name + '/ShapeGather',
+    gather_name = op_node.soft_get('name', op_node.id) + '/ShapeGather'
+    const = Const(graph, {'value': permutation.perm, 'name': gather_name + '/const',
+                          'need_shape_inference': True}).create_node_with_data()
+    axis_const = Const(graph, {'value': int64_array(0), 'name': gather_name + '/axis'}).create_node_with_data()
+    gather = Gather(graph, {'name': gather_name,
                             'need_shape_inference': True}).create_node_with_data([data_node, const, axis_const])
     attrs = graph.get_edge_data(data_node.id, op_node.id, key=0).copy()
 

@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "common_test_utils/common_utils.hpp"
 #include "ngraph_conversion_tests/conv_bias_fusion.hpp"
 #include <ngraph/variant.hpp>
 
@@ -58,7 +59,7 @@ TEST_P(ConvBiasFusion, ConvBiasFusion) {
         }
     } else {
         IE_SUPPRESS_DEPRECATED_START
-        auto add_layer = net.getLayerByName(getOutputName().c_str());
+        auto add_layer = CommonTestUtils::getLayerByName(net, getOutputName());
         ASSERT_EQ(add_layer->params["originalLayersNames"], "add,conv");
         IE_SUPPRESS_DEPRECATED_END
     }
