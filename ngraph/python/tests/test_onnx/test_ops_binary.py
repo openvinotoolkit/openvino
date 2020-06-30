@@ -13,16 +13,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ******************************************************************************
-
-from __future__ import print_function, division
-
 import onnx
 
 import numpy as np
 import pytest
-from onnx.helper import make_tensor_value_info, make_graph, make_model, make_node
+from onnx.helper import make_tensor_value_info, make_graph, make_model
 
-from tests.test_onnx.utils import run_model, xfail_test, import_onnx_model
+from tests.test_onnx.utils import run_model
 
 
 def import_and_compute(op_type, input_data_left, input_data_right, opset=7, **node_attributes):
