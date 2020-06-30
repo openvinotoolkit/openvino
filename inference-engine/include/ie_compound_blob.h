@@ -133,7 +133,7 @@ protected:
      *
      * @return Pointer to the cloned object
      */
-    Blob* clone() const override;
+    Blob* shallowClone() const override;
 
     /**
      * @brief Sets ROI for the blob
@@ -229,7 +229,7 @@ protected:
      *
      * @return Pointer to the cloned object
      */
-    Blob* clone() const override;
+    Blob* shallowClone() const override;
 
     /**
      * @brief Sets ROI for the blob
@@ -366,7 +366,7 @@ protected:
      *
      * @return Pointer to the cloned object
      */
-    Blob* clone() const override;
+    Blob* shallowClone() const override;
 
     /**
      * @brief Sets ROI for the blob

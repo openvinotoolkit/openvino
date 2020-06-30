@@ -269,7 +269,7 @@ protected:
      *
      * @return Pointer to the cloned object
      */
-    virtual Blob* clone() const = 0;
+    virtual Blob* shallowClone() const = 0;
 
     /**
      * @brief Sets ROI for the blob
@@ -504,7 +504,7 @@ protected:
      *
      * @return Pointer to the cloned object
      */
-    Blob* clone() const override = 0;
+    Blob* shallowClone() const override = 0;
 
     template <typename>
     friend class TBlobProxy;
@@ -842,7 +842,7 @@ protected:
      *
      * @return Pointer to the cloned object
      */
-    Blob* clone() const override {
+    Blob* shallowClone() const override {
         TBlob* cloned = new TBlob<T>(this->tensorDesc, static_cast<T*>(_handle), this->size());
 
         if (this->roiPtr) {

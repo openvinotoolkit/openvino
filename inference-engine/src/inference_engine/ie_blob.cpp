@@ -16,7 +16,7 @@ void Blob::setROI(const ROIData& roiData) {
 }
 
 Blob::Ptr Blob::CreateROIBlob(const ROI& roi) const {
-    Blob::Ptr roiBlob = std::shared_ptr<Blob>(this->clone());
+    Blob::Ptr roiBlob = std::shared_ptr<Blob>(this->shallowClone());
     try {
         roiBlob->setROI(ROIData{roi, this->shared_from_this()});
         return roiBlob->shared_from_this();

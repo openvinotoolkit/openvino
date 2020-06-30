@@ -281,7 +281,7 @@ void* CompoundBlob::getHandle() const noexcept {
     return nullptr;
 }
 
-Blob* CompoundBlob::clone() const {
+Blob* CompoundBlob::shallowClone() const {
     return new CompoundBlob(*this);
 }
 
@@ -307,7 +307,7 @@ NV12Blob::NV12Blob(Blob::Ptr&& y, Blob::Ptr&& uv) {
     tensorDesc = TensorDesc(Precision::U8, {}, Layout::NCHW);
 }
 
-Blob* NV12Blob::clone() const {
+Blob* NV12Blob::shallowClone() const {
     return new NV12Blob(*this);
 }
 
@@ -365,7 +365,7 @@ I420Blob::I420Blob(Blob::Ptr&& y, Blob::Ptr&& u, Blob::Ptr&& v) {
 
 I420Blob::~I420Blob() {}
 
-Blob* I420Blob::clone() const {
+Blob* I420Blob::shallowClone() const {
     return new I420Blob(*this);
 }
 
