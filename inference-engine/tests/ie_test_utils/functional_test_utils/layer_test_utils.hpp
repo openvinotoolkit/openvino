@@ -102,7 +102,6 @@ protected:
     std::vector<InferenceEngine::Blob::Ptr> inputs;
     float threshold;
     InferenceEngine::CNNNetwork cnnNetwork;
-    int bathSize = 1;  // dynamic bath size ( first dimension in inputShapes > 1 !!!)
     virtual void Validate();
 
     virtual std::vector<std::vector<std::uint8_t>> CalculateRefs();
