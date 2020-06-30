@@ -32,11 +32,11 @@ struct Data::Impl {
 
 Data::Data(const std::string& name, Precision _precision, Layout layout)
     : name(name), userObject({0}), tensorDesc(_precision, layout) {
-    impl = std::make_shared<Impl>();
+    _impl = std::make_shared<Impl>();
 }
 
 Data::Data(const std::string& name, const TensorDesc& desc): name(name), userObject({0}), tensorDesc(desc) {
-    impl = std::make_shared<Impl>();
+    _impl = std::make_shared<Impl>();
 }
 
 const Precision& Data::getPrecision() const {
@@ -65,9 +65,9 @@ void Data::reshape(const SizeVector& a_dims, Layout a_layout) {
 
 Data::Data(const Data& data) :
     name(data.name), userObject(data.userObject), tensorDesc(data.tensorDesc) {
-    impl = std::make_shared<Impl>();
-    impl->creatorLayer = data.impl->creatorLayer;
-    impl->inputTo = data.impl->inputTo;
+    _impl = std::make_shared<Impl>();
+    _impl->creatorLayer = data._impl->creatorLayer;
+    _impl->inputTo = data._impl->inputTo;
 }
 
 Data & Data::operator = (const Data& data) {
@@ -76,16 +76,12 @@ Data & Data::operator = (const Data& data) {
         userObject = data.userObject;
         tensorDesc = data.tensorDesc;
 
-        impl->creatorLayer = data.impl->creatorLayer;
-        impl->inputTo = data.impl->inputTo;
+        _impl->creatorLayer = data._impl->creatorLayer;
+        _impl->inputTo = data._impl->inputTo;
     }
 
     return *this;
 }
-
-// CNNLayerWeakPtr& Data::getCreatorLayer() {
-//     return impl->creatorLayer;
-// }
 
 const std::string& Data::getName() const {
     return name;
@@ -94,10 +90,6 @@ const std::string& Data::getName() const {
 void Data::setName(const std::string& newName) {
     name = newName;
 }
-
-// std::map<std::string, CNNLayerPtr>& Data::getInputTo() {
-//     return impl->inputTo;
-// }
 
 const UserValue& Data::getUserObject() const {
     return userObject;
@@ -121,7 +113,7 @@ CNNLayerWeakPtr& InferenceEngine::getCreatorLayer(const DataPtr & data) {
     if (auto ndata = std::dynamic_pointer_cast<details::NGraphData>(data)) {
         return ndata->getCreatorLayer();
     } else {
-        return data->impl->creatorLayer;
+        return data->_impl->creatorLayer;
     }
 }
 
@@ -129,7 +121,7 @@ std::map<std::string, CNNLayerPtr>& InferenceEngine::getInputTo(const DataPtr & 
     if (auto ndata = std::dynamic_pointer_cast<details::NGraphData>(data)) {
         return ndata->getInputTo();
     } else {
-        return data->impl->inputTo;
+        return data->_impl->inputTo;
     }
 }
 
@@ -137,21 +129,21 @@ std::map<std::string, CNNLayerPtr>& InferenceEngine::getInputTo(Data * data) {
     if (auto ndata = dynamic_cast<details::NGraphData *>(data)) {
         return ndata->getInputTo();
     } else {
-        return data->impl->inputTo;
+        return data->_impl->inputTo;
     }
 }
 
 CNNLayerWeakPtr& details::NGraphData::getCreatorLayer() {
-    if (impl->creatorLayer.lock() == nullptr && network != nullptr) {
+    if (_impl->creatorLayer.lock() == nullptr && network != nullptr) {
         network->convertToCNNNetworkImpl();
     }
-    return impl->creatorLayer;
+    return _impl->creatorLayer;
 }
 
 std::map<std::string, CNNLayerPtr>& details::NGraphData::getInputTo() {
-    if (impl->inputTo.empty() && network != nullptr) {
+    if (_impl->inputTo.empty() && network != nullptr) {
         network->convertToCNNNetworkImpl();
     }
 
-    return impl->inputTo;
+    return _impl->inputTo;
 }

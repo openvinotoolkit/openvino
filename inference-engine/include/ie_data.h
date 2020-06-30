@@ -28,6 +28,7 @@ namespace InferenceEngine {
  */
 
 class INFERENCE_ENGINE_API_CLASS(Data) {
+    class Impl;
 public:
     /**
      * @brief An empty constructor (dimensionless)
@@ -147,10 +148,10 @@ public:
     const UserValue& getUserObject() const;
 
     /**
-     * @brief An implementation details for Data object
+     * @private
+     * @brief Don't touch this field. An implementation details for Data object.
      */
-    class Impl;
-    std::shared_ptr<Impl> impl;
+    std::shared_ptr<Impl> _impl;
 
 private:
     /**
