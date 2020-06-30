@@ -29,9 +29,9 @@ std::vector<InferenceEngine::Precision> netPrecisions = {
         InferenceEngine::Precision::FP16,
 };
 
-std::vector<InputLayerType> secondaryInputTypes = {
-        InputLayerType::CONSTANT,
-        InputLayerType::PARAMETER,
+std::vector<ngraph::helpers::InputLayerType> secondaryInputTypes = {
+        ngraph::helpers::InputLayerType::CONSTANT,
+        ngraph::helpers::InputLayerType::PARAMETER,
 };
 
 std::vector<OpType> opTypes = {

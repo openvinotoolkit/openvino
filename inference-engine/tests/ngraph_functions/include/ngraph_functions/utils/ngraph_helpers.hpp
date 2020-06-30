@@ -119,6 +119,11 @@ enum ReductionType {
     LogicalXor
 };
 
+enum class InputLayerType {
+    CONSTANT,
+    PARAMETER,
+};
+
 std::ostream &operator<<(std::ostream &os, const ReductionType &m);
 
 inline std::string quantizationGranularityToString(const QuantizationGranularity &granularity) {
@@ -179,6 +184,8 @@ std::vector<std::uint8_t> convertOutputPrecision(std::vector<std::uint8_t> &outp
 std::ostream& operator<<(std::ostream & os, ngraph::helpers::EltwiseTypes type);
 
 std::ostream& operator<<(std::ostream & os, ngraph::helpers::SqueezeOpType type);
+
+std::ostream& operator<<(std::ostream& os, ngraph::helpers::InputLayerType type);
 
 }  // namespace helpers
 }  // namespace ngraph
