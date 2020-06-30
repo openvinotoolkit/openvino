@@ -385,6 +385,8 @@ struct EngineInfo {
     bool bImageSupport = false;
     bool bIMADSupport = false;
     bool bIMMADSupport = false;
+    bool bOptHintsSupport = false;
+    bool bLocalBlockIOSupport = false;
     uint32_t computeUnitsCount = 0;
     uint64_t maxWorkGroupSize = 0;
     uint64_t maxLocalMemSize = 0;

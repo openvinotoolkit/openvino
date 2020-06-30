@@ -703,6 +703,8 @@ void set_params(const program_node& node, kernel_selector::params& params) {
     params.engineInfo.bIMADSupport = device_info.supports_imad != 0;
     params.engineInfo.bIMMADSupport = device_info.supports_immad != 0;
     params.engineInfo.bImageSupport = device_info.supports_image != 0;
+    params.engineInfo.bOptHintsSupport = device_info.supports_optimization_hints;
+    params.engineInfo.bLocalBlockIOSupport = device_info.supports_local_block_io;
     params.engineInfo.maxWorkGroupSize = device_info.max_work_group_size;
     params.engineInfo.maxLocalMemSize = device_info.max_local_mem_size;
     params.engineInfo.maxImage2dWidth = device_info.max_image2d_width;

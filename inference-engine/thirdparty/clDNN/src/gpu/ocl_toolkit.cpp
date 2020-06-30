@@ -133,7 +133,9 @@ gpu_toolkit::gpu_toolkit(const device_impl& device_impl, const configuration& co
                    << "    local memory size: " << device_info.max_local_mem_size << "\n"
                    << "    fp16: " << std::boolalpha << (device_info.supports_fp16 != 0) << "\n"
                    << "    fp16 denorms: " << std::boolalpha << (device_info.supports_fp16_denorms != 0) << "\n"
-                   << "    subgroups short: " << std::boolalpha << (device_info.supports_subgroups_short != 0) << std::endl;
+                   << "    subgroups short: " << std::boolalpha << (device_info.supports_subgroups_short != 0) << "\n"
+                   << "    local block io: " << std::boolalpha << device_info.supports_local_block_io << "\n"
+                   << "    optimization hints: " << std::boolalpha << device_info.supports_optimization_hints << std::endl;
     }
 }
 
