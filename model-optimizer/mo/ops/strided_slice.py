@@ -115,14 +115,13 @@ class StridedSlice(Op):
                                                                    int(i_port.idx == 3)))
             # set_value additionally set_shape and propagate value to Const node
             if not np.array_equal(new_value, old_value):
-                # New version:
-                i_port.disconnect()
-                new_const = Const(node.graph, {'value': new_value}).create_node()
-                i_port.connect(new_const.out_port(0))
-                new_const.infer(new_const)
-
-                # # Old version:
-                # i_port.data.set_value(new_value)
+                if node.in_port(i_port.idx).get_source().node.op != 'Const':
+                    i_port.disconnect()
+                    new_const = Const(node.graph, {'value': new_value}).create_node()
+                    i_port.connect(new_const.out_port(0))
+                    new_const.infer(new_const)
+                else:
+                    i_port.data.set_value(new_value)
 
         # extend masks before removing ellipsis
         for attr in ["new_axis_mask", "shrink_axis_mask", "begin_mask", "end_mask", "ellipsis_mask"]:
@@ -151,12 +150,10 @@ class StridedSlice(Op):
                         continue
                     new_value = permute_array(node, i_port.data.get_value())
                     # set_value additionally set_shape and propagate value to Const node
-
-                    # New version:
-                    i_port.disconnect()
-                    new_const = Const(node.graph, {'value': new_value}).create_node()
-                    i_port.connect(new_const.out_port(0))
-                    new_const.infer(new_const)
-
-                    # # Old version:
-                    # i_port.data.set_value(new_value)
+                    if node.in_port(i_port.idx).get_source().node.op != 'Const':
+                        i_port.disconnect()
+                        new_const = Const(node.graph, {'value': new_value}).create_node()
+                        i_port.connect(new_const.out_port(0))
+                        new_const.infer(new_const)
+                    else:
+                        i_port.data.set_value(new_value)
