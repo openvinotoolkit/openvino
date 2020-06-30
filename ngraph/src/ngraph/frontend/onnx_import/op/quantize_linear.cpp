@@ -39,6 +39,7 @@ namespace ngraph
                 {
                     NodeVector inputs{node.get_ng_inputs()};
                     const auto& x = inputs.at(0);
+                    std::shared_ptr<ngraph::Node> y_scale = inputs.at(1);
                     std::shared_ptr<ngraph::Node> y_zero_point;
                     if (inputs.size() > 2)
                     {
@@ -47,7 +48,7 @@ namespace ngraph
                     else
                     {
                         y_zero_point = std::make_shared<default_opset::Constant>(
-                            element::u8, Shape{}, std::uint8_t(0));
+                            element::u8, Shape{1}, std::uint8_t(0));
                     }
 
                     const auto& y_zero_point_et = y_zero_point->get_element_type();
@@ -58,31 +59,44 @@ namespace ngraph
                         "\"y_zero_point\" input data type must be static and of 8-bit "
                         "integer type.");
 
-                    const element::Type destination_type = y_zero_point_et;
-                    const element::Type x_et = x->get_element_type();
+                    const auto& y_scale_et = y_scale->get_element_type();
+                    CHECK_VALID_NODE(node,
+                                     y_scale_et.is_static(),
+                                     "\"y_scale\" input data type must be static.");
 
+                    const auto& x_et = x->get_element_type();
+
+                    if (y_scale_et != x_et)
+                    {
+                        y_scale = std::make_shared<default_opset::Convert>(y_scale, x_et);
+                    }
+
+                    const auto& destination_type = y_zero_point_et;
                     std::shared_ptr<ngraph::Node> output_low;
                     std::shared_ptr<ngraph::Node> output_high;
 
                     if (destination_type == element::i8)
                     {
-                        output_low = std::make_shared<default_opset::Constant>(x_et, Shape{}, -128);
-                        output_high = std::make_shared<default_opset::Constant>(x_et, Shape{}, 127);
+                        output_low =
+                            std::make_shared<default_opset::Constant>(x_et, Shape{1}, -128);
+                        output_high =
+                            std::make_shared<default_opset::Constant>(x_et, Shape{1}, 127);
                     }
                     else
                     {
-                        output_low = std::make_shared<default_opset::Constant>(x_et, Shape{}, 0);
-                        output_high = std::make_shared<default_opset::Constant>(x_et, Shape{}, 255);
+                        output_low = std::make_shared<default_opset::Constant>(x_et, Shape{1}, 0);
+                        output_high =
+                            std::make_shared<default_opset::Constant>(x_et, Shape{1}, 255);
                     }
 
                     std::shared_ptr<ngraph::Node> input_low;
                     std::shared_ptr<ngraph::Node> input_high;
 
-                    if (inputs.at(1)->is_constant() && y_zero_point->is_constant())
+                    if (y_scale->is_constant() && y_zero_point->is_constant())
                     {
                         const auto& zero_point =
                             std::make_shared<default_opset::Convert>(y_zero_point, x_et);
-                        const auto& y_scale = inputs.at(1);
+
                         input_low = std::make_shared<default_opset::Multiply>(
                             y_scale, std::make_shared<default_opset::Add>(output_low, zero_point));
                         input_high = std::make_shared<default_opset::Multiply>(
