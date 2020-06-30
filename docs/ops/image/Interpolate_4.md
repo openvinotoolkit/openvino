@@ -1,6 +1,6 @@
 ## Interpolate <a name="Interpolate"></a>
 
-**Versioned name**: *Interpolate-3*
+**Versioned name**: *Interpolate-4*
 
 **Category**: Image processing
 
