@@ -50,7 +50,7 @@ onnx_model_gatherND_int32
 onnx_model_gatherND_float
 
 # Not supported ONNX op: Round
-# onnx_model_round
+onnx_model_round
 
 # LSTMSequence Layer is not instance of RNNLayer class
 onnx_model_lstm_fwd_with_clip
