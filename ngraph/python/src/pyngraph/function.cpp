@@ -71,7 +71,7 @@ void regclass_pyngraph_Function(py::module m)
             throw std::runtime_error("The provided capsule does not contain an ngraph::Function");
         }
     });
-    function.def("to_capsule", [](std::shared_ptr<ngraph::Function>& ngraph_function) {
+    function.def_static("to_capsule", [](std::shared_ptr<ngraph::Function>& ngraph_function) {
         // create a shared pointer on the heap before putting it in the capsule
         // this secures the lifetime of the object transferred by the capsule
         auto* sp_copy = new std::shared_ptr<ngraph::Function>(ngraph_function);
