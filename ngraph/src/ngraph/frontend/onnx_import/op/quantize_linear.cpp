@@ -130,51 +130,16 @@ namespace ngraph
                     {
                         std::shared_ptr<ngraph::Node> input_low;
                         std::shared_ptr<ngraph::Node> input_high;
-                        if (y_scale->is_constant() && y_zero_point->is_constant())
-                        {
-                            const auto& zero_point =
-                                std::make_shared<default_opset::Convert>(y_zero_point, data_type);
+                        const auto& zero_point =
+                            std::make_shared<default_opset::Convert>(y_zero_point, data_type);
 
-                            input_low = std::make_shared<default_opset::Multiply>(
-                                y_scale,
-                                std::make_shared<default_opset::Add>(output_low, zero_point));
-                            input_high = std::make_shared<default_opset::Multiply>(
-                                y_scale,
-                                std::make_shared<default_opset::Add>(output_high, zero_point));
-                        }
-                        else
-                        {
-                            std::shared_ptr<ngraph::Node> reduction_axes;
+                        input_low = std::make_shared<default_opset::Multiply>(
+                            y_scale,
+                            std::make_shared<default_opset::Add>(output_low, zero_point));
+                        input_high = std::make_shared<default_opset::Multiply>(
+                            y_scale,
+                            std::make_shared<default_opset::Add>(output_high, zero_point));
 
-                            if (data->get_output_partial_shape(0).rank().is_static())
-                            {
-                                const auto rank = static_cast<size_t>(
-                                    data->get_output_partial_shape(0).rank().get_length());
-                                std::vector<int32_t> axes(rank);
-                                std::iota(std::begin(axes), std::end(axes), 0);
-                                reduction_axes = std::make_shared<default_opset::Constant>(
-                                    element::i32, Shape{rank}, axes);
-                            }
-                            else
-                            {
-                                const auto& stop = reshape::interpret_as_scalar(
-                                    std::make_shared<default_opset::ShapeOf>(
-                                        std::make_shared<default_opset::ShapeOf>(data,
-                                                                                 element::i32),
-                                        element::i32));
-                                reduction_axes = std::make_shared<default_opset::Range>(
-                                    std::make_shared<default_opset::Constant>(
-                                        element::i32, Shape{}, 0),
-                                    stop,
-                                    std::make_shared<default_opset::Constant>(
-                                        element::i32, Shape{}, 1));
-                            }
-
-                            input_low =
-                                std::make_shared<default_opset::ReduceMin>(data, reduction_axes);
-                            input_high =
-                                std::make_shared<default_opset::ReduceMax>(data, reduction_axes);
-                        }
                         return std::make_tuple(input_low, input_high);
                     }
 
