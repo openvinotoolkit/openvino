@@ -112,8 +112,6 @@ std::string common_kernel_base::CreateJit(const std::string& template_name,
 Arguments common_kernel_base::GetArgsDesc(uint32_t num_of_input,
                                           bool use_weights,
                                           bool use_bias,
-                                          bool use_quantization,
-                                          bool use_output_calibration,
                                           uint32_t number_of_inputs_for_fused_prim) const {
     Arguments args;
 
@@ -129,14 +127,6 @@ Arguments common_kernel_base::GetArgsDesc(uint32_t num_of_input,
 
     if (use_bias) {
         args.push_back({ArgumentDescriptor::Types::BIAS, 0});
-    }
-
-    if (use_quantization && use_weights) {
-        args.push_back({ArgumentDescriptor::Types::WEIGHTS_QUANTIZATION_FACTORS, 0});
-    }
-
-    if (use_output_calibration) {
-        args.push_back({ArgumentDescriptor::Types::OUTPUT_CALIBRATION_FACTORS, 0});
     }
 
     for (uint32_t i = 0; i < number_of_inputs_for_fused_prim; i++) {
@@ -220,6 +210,6 @@ void common_kernel_base::FillCLKernelData(clKernelData& kernel,
     kernel.workGroups.local = {runInfo.lws0, runInfo.lws1, runInfo.lws2};
     kernel.kernelString = GetKernelString(kernelMapName, jit, entryPoint, engine_info, exeMode);
     kernel.arguments =
-        GetArgsDesc(number_of_inputs, weights, bias, false, false, number_of_inputs_for_fused_prims);
+        GetArgsDesc(number_of_inputs, weights, bias, number_of_inputs_for_fused_prims);
 }
 }  // namespace kernel_selector
