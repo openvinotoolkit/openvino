@@ -20,6 +20,7 @@ import numpy as np
 
 import ngraph as ng
 from ngraph.utils.types import NumericData
+from tests.runtime import get_runtime
 
 
 def _get_numpy_dtype(scalar):
