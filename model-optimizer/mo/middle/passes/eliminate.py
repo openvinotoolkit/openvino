@@ -83,16 +83,14 @@ def mark_undead_nodes(graph, undead_types: list):
 
     nx.set_node_attributes(G=graph, name='is_undead', values=False)
 
-    # mark output nodes as undead
-    outputs = graph.get_nodes_with_attributes(op='Result')
-    nx.set_node_attributes(G=graph, name='is_undead', values={n: True for n in outputs})
+    undead_types_with_result = undead_types + ['Result']
+    undead_nodes = []
+    for node in graph.get_op_nodes():
+        node_type = node.soft_get('type', node.op)
+        if node_type in undead_types_with_result:
+            undead_nodes.append(node.id)
 
-    # mark specifically defined with node type set of nodes
-    for type in undead_types:
-        node_of_specific_type = graph.get_nodes_with_attributes(type=type)
-        nx.set_node_attributes(G=graph, name='is_undead', values={n: True for n in node_of_specific_type})
-
-    undead_nodes = graph.get_nodes_with_attributes(is_undead=True)
+    nx.set_node_attributes(G=graph, name='is_undead', values={n: True for n in undead_nodes})
     # propagate 'undead' attribute to children nodes of undead nodes if the node produces constant value
     for node_name in bfs_search(graph, undead_nodes):
         if graph.node[node_name]['is_undead']:
