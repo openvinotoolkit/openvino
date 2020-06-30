@@ -41,7 +41,7 @@ After you decided where to store your transformation code you can start develop 
 
 nGraph function is a very simple thing: it stores shared pointers to `ngraph::op::Result` and `ngraph::op::Parameter` operations that are inputs and outputs of the graph. 
 All other operations hold each other via shared pointers: child operation holds its parent (hard link). If operation has no consumers and it's not Result operation
-(shared pointer counter is zero) then it will be destructed and won't be accessible anymore. Each operation in `ngraph::Function` is a shared_ptr and has `ngraph::Node` as a base class.
+(shared pointer counter is zero) then it will be destructed and won't be accessible anymore. Each operation in `ngraph::Function` has a `std::shared_ptr<ngraph::Node>` type.
 
 Below you can find examples how `ngraph::Function` can be created:
 
@@ -63,7 +63,7 @@ Template for FunctionPass transformation class
 
 @snippet src/template_function_transformation.cpp function_pass:template_transformation_cpp
 
-Using `ngraph::FunctionPass` you need to override `run_on_function` method where you will write transformation code. Return value must be `true` if original function has changed during transformation (new operation were added or operations replacement was made or node attributes were changed) otherwise it must be `false`.For transformation API please follow [working with ngraph::Function](#working_with_ngraph_function) section.
+Using `ngraph::FunctionPass` you need to override `run_on_function` method where you will write transformation code. Return value must be `true` if original function has changed during transformation (new operation were added or operations replacement was made or node attributes were changed) otherwise it must be `false`. For transformation API please follow [working with ngraph::Function](#working_with_ngraph_function) section.
 
 ###2. ngraph::pass::GraphRewrite
 
@@ -151,7 +151,7 @@ In this chapter we will review nGraph API that allows us to manipulate with `ngr
 
 ###1. ngraph::Node input and output ports
 
-First of all let's talk about `ngraph::Node` input/output ports. Each nGraph operation has input and output ports except cases when operation has Result, Parameter or Constant type.
+First of all let's talk about `ngraph::Node` input/output ports. Each nGraph operation has input and output ports except cases when operation has `Result`, `Parameter` or `Constant` type.
 
 Every port belongs to its node so using port we can access parent node, get shape and type for particular input/output, get all consumers in case of output port and get producer node in case of input port.
 With output port we can set inputs for newly created operations. 
