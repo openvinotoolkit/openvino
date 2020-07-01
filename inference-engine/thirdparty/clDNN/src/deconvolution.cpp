@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016 Intel Corporation
+// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -50,10 +50,6 @@ layout deconvolution_inst::calc_output_layout(deconvolution_node const& node) {
     auto group = desc->groups;
 
     auto number_of_features = weights_layout.size.batch[0] * static_cast<int32_t>(group);
-
-    // Deconvolution is used for convolution backward pass, but number of features will differ then
-    if (desc->gradient())
-        number_of_features = weights_layout.size.feature[0] * static_cast<int32_t>(group);
 
     if (desc->with_output_size) {
         CLDNN_ERROR_LESS_OR_EQUAL_THAN(node.id(),
@@ -240,22 +236,12 @@ deconvolution_inst::typed_primitive_inst(network_impl& network, deconvolution_no
                               "expected output batch size",
                               1,
                               "Only one-dimensional features are supported");
-
-        if (node.get_primitive()->gradient()) {
-            CLDNN_ERROR_LESS_THAN(node.id(),
-                                  "Weights feature maps number",
-                                  (input_inst.size.feature[0] - input_offset.feature[0]) / split,
-                                  "input feature maps number",
-                                  filter_inst.size.batch[0],
-                                  "Weights/ifm mimsmatch");
-        } else {
-            CLDNN_ERROR_LESS_THAN(node.id(),
-                                  "Weights feature maps number",
-                                  (input_inst.size.feature[0] - input_offset.feature[0]) / split,
-                                  "input feature maps number",
-                                  filter_inst.size.feature[0],
-                                  "Weights/ifm mimsmatch");
-        }
+        CLDNN_ERROR_LESS_THAN(node.id(),
+                              "Weights feature maps number",
+                              (input_inst.size.feature[0] - input_offset.feature[0]) / split,
+                              "input feature maps number",
+                              filter_inst.size.feature[0],
+                              "Weights/ifm mimsmatch");
     }
 }
 }  // namespace cldnn

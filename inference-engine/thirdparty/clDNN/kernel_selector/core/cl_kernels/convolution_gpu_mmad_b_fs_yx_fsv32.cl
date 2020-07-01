@@ -29,7 +29,6 @@
 #undef TO_ACCUMULATOR_TYPE
 #endif
 
-#if QUANTIZATION_TERM
 #define ACCUMULATOR_TYPE int
 #define TO_ACCUMULATOR_TYPE(x) convert_int(x)
 #define ACTIVATION_TYPE float
@@ -53,10 +52,6 @@
     #define BLOCK_WRITE(ptr, val) intel_sub_group_block_write4((__global uint*)(ptr), as_uint4(val));
 #else
 #error "convolution_gpu_mmad_b_fs_yx_fsv32: Unsupported block size"
-#endif
-
-#else // QUANTIZATION_TERM
-#error "convolution_gpu_mmad_b_fs_yx_fsv32: invalid parameters: quantization term is expected to be true"
 #endif
 
 __attribute__((reqd_work_group_size(8, OW_GROUP, 1)))
