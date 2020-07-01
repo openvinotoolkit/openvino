@@ -31,6 +31,7 @@
 #endif
 
 #define REPLACE_WITH_NUM(SRC, PATTERN, NUM) REPLACE_WITH_STR(SRC, PATTERN, to_string_c_locale(NUM))
+
 #define REPLACE_WITH_NUM_VECTOR(SRC, PATTERN, NUMS) \
     { std::string result; \
         if (NUMS.size() > 0u) { \
@@ -40,6 +41,7 @@
             } \
         } \
     REPLACE_WITH_STR(SRC, PATTERN, result); }
+
 #define REPLACE_WITH_NUM_VECTOR_REVERSE(SRC, PATTERN, NUMS) \
     { std::string result; \
         auto nums_size = NUMS.size(); \
@@ -50,6 +52,7 @@
             } \
         } \
     REPLACE_WITH_STR(SRC, PATTERN, result); }
+
 #define REMOVE_LINE(SRC, PATTERN) REPLACE_WITH_STR(SRC, PATTERN, "")
 
 #define PRETTY_PARAM(name, type)                                                            \
@@ -66,14 +69,6 @@
     {                                                                                       \
         *os << #name ": " << ::testing::PrintToString((name::param_type)(param));           \
     }
-
-struct MapStrStr {
-    std::map<std::string, std::string> data{};
-
-    explicit MapStrStr(std::map<std::string, std::string> _data) : data(std::move(_data)) {}
-
-    MapStrStr() = default;
-};
 
 template<int Version = 3>
 inline InferenceEngine::CNNNetwork
