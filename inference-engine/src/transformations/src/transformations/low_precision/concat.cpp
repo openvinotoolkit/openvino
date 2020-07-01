@@ -322,8 +322,8 @@ void ConcatTransformation::addDequantizationLayers(
                             for (FakeQuantizeDequantization dequantization : layerDequantizations) {
                                 convertNodes.push_back(dequantization.convert);
 
-                                const ngraph::element::Type precision = dequantization.dataNodeOutputPrecision;
-                                ngraph::Shape targetShape = dequantization.dataNodeOutputShape;
+                                const ngraph::element::Type precision = dequantization.data->get_output_element_type(0);
+                                ngraph::Shape targetShape = dequantization.data->get_output_shape(0);
 
                                 // TODO: shape is hardcoded;
                                 if (targetShape.size() != 4ul) {
@@ -408,7 +408,7 @@ void ConcatTransformation::addDequantizationLayers(
 
                     // layer->set_output_type(0, layerDequantizations[0].precisionBeforeDequantization, layer->get_output_partial_shape(0));
                     // TODO: why first input is used?
-                    const ngraph::element::Type precision = layerDequantizations[0].dataNodeOutputPrecision;
+                    const ngraph::element::Type precision = layerDequantizations[0].data->get_output_element_type(0);
                     layer->set_output_type(0, precision, layer->get_output_partial_shape(0));
 
                     const auto it = outputs.find(layer->get_friendly_name());
