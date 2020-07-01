@@ -223,7 +223,7 @@ IE::BlobMap RemoveLayerTests::initConstLayersDiffPrec(const std::vector<std::str
     return customBlobs;
 }
 
-TEST_F(RemoveLayerTests, canTrimL2) {
+TEST_F(RemoveLayerTests, DISABLED_canTrimL2) {
     auto layer1 = getLayer("layer1");
     auto layer4 = getLayer("layer4");
     auto data2 = getData("data2");
@@ -265,7 +265,7 @@ TEST_F(RemoveLayerTests, canTrimL2) {
     ASSERT_EQ(data3->getInputTo().find("layer3")->second, getLayer("layer3"));
 }
 
-TEST_F(RemoveLayerTests, canTrimI1andL1) {
+TEST_F(RemoveLayerTests, DISABLED_canTrimI1andL1) {
     auto layer4 = getLayer("layer4");
     auto layer2 = getLayer("layer2");
     auto data2 = getData("data2");
@@ -399,7 +399,7 @@ TEST_F(RemoveLayerTests, canFindShapeConstLayers2) {
     ASSERT_FALSE(constLayers.at("input2"));
 }
 
-TEST_F(RemoveLayerTests, canTrimShapeInput) {
+TEST_F(RemoveLayerTests, DISABLED_canTrimShapeInput) {
     std::vector<std::string> constLayers = {"input3", "layer3", "input2"};
     for (const auto& name : constLayers) {
         getLayer(name)->type = "Const";
@@ -528,7 +528,7 @@ TEST_F(RemoveLayerTests, canSaveDataWithMultipleInputTo) {
     ASSERT_EQ(layer3->insData[0].lock(), data3);
 }
 
-TEST_F(RemoveLayerTests, canFoldConstSubgraphToConst) {
+TEST_F(RemoveLayerTests, DISABLED_canFoldConstSubgraphToConst) {
     std::vector<std::string> constLayers = {"input1", "input2", "input3"};
     std::vector<std::string> refNewLayers = {"layer5__data9__Const"};
     for (const auto& name : constLayers) {
@@ -551,7 +551,7 @@ TEST_F(RemoveLayerTests, canFoldConstSubgraphToConst) {
     ASSERT_EQ(newLayer->outData[0], getData("data9"));
 }
 
-TEST_F(RemoveLayerTests, canGetConstData) {
+TEST_F(RemoveLayerTests, DISABLED_canGetConstData) {
     std::vector<std::string> constLayers = {"input2", "input3", "layer3"};
     IE::BlobMap refBlobs = initConstLayers(constLayers);
     std::map<std::string, bool> mapConstLayers;
@@ -587,7 +587,7 @@ TEST_F(RemoveLayerTests, canGetConstDataForUnknownImpl) {
     ASSERT_EQ(getData("data9")->getTensorDesc().getDims(), refShape);
 }
 
-TEST_F(RemoveLayerTests, canFoldConstSubgraphs) {
+TEST_F(RemoveLayerTests, DISABLED_canFoldConstSubgraphs) {
     IE::BlobMap refBlobs = initConstLayers({"input1", "input2", "input3"});
     std::vector<std::string> refNewLayers = {"layer5__data9__Const"};
     {   // TODO: method for marking layers
@@ -627,7 +627,7 @@ TEST_F(RemoveLayerTests, canSkipConstCalculation) {
     ASSERT_EQ(net->allLayers().size(), originalLayersNum - 8);
 }
 
-TEST_F(RemoveLayerTests, canFoldConstWithUnknownImplForShapeDefiningLayers) {
+TEST_F(RemoveLayerTests, DISABLED_canFoldConstWithUnknownImplForShapeDefiningLayers) {
     IE::BlobMap refBlobs = initConstLayers({"input1", "input2", "input3"});
     {
         getLayer("layer1")->type = "UNKNOWN";
@@ -646,7 +646,7 @@ TEST_F(RemoveLayerTests, canFoldConstWithUnknownImplForShapeDefiningLayers) {
     ASSERT_EQ(getLayer("layer6")->insData.size(), 1);
 }
 
-TEST_F(RemoveLayerTests, throwErrorOnFoldWithUnknownImplForNotShapeDefiningLayers) {
+TEST_F(RemoveLayerTests, DISABLED_throwErrorOnFoldWithUnknownImplForNotShapeDefiningLayers) {
     IE::BlobMap refBlobs = initConstLayers({"input1", "input2", "input3"});
     {
         getLayer("layer1")->type = "UNKNOWN";
@@ -687,7 +687,7 @@ TEST_F(RemoveLayerTests, canFullTrim) {
     ASSERT_EQ(layer6->insData[0].lock(), getData("data10"));
 }
 
-TEST_F(AdvancedShapeInferTests, canFullTrimConstToReshape) {
+TEST_F(AdvancedShapeInferTests, DISABLED_canFullTrimConstToReshape) {
     //
     //      I2-d2
     //          \
@@ -725,7 +725,7 @@ TEST_F(AdvancedShapeInferTests, canFullTrimConstToReshape) {
     ASSERT_EQ(layer1->insData[0].lock(), getData("data1"));
 }
 
-TEST_F(AdvancedShapeInferTests, canReshape) {
+TEST_F(AdvancedShapeInferTests, DISABLED_canReshape) {
     //
     // I2-d2-Shape
     //         \
@@ -770,7 +770,7 @@ TEST_F(AdvancedShapeInferTests, canReshape) {
     ASSERT_EQ(net->allLayers().size(), originalLayersNum - 1);
 }
 
-TEST_F(AdvancedShapeInferTests, canReshape2) {
+TEST_F(AdvancedShapeInferTests, DISABLED_canReshape2) {
     //
     //                 I3-d3-Shape(L3)-d5
     //                                  \
@@ -845,7 +845,7 @@ TEST_F(AdvancedShapeInferTests, canReshape2) {
     ASSERT_EQ(getData("data8")->getTensorDesc().getDims(), newShape);
 }
 
-TEST_F(AdvancedShapeInferTests, canReshapeConst) {
+TEST_F(AdvancedShapeInferTests, DISABLED_canReshapeConst) {
     //
     //    Const-d2
     //           \
@@ -885,7 +885,7 @@ TEST_F(AdvancedShapeInferTests, canReshapeConst) {
     ASSERT_EQ(getData("data3")->getTensorDesc().getDims(), newOutShape);
 }
 
-TEST_F(AdvancedShapeInferTests, canReshapeCHWConst) {
+TEST_F(AdvancedShapeInferTests, DISABLED_canReshapeCHWConst) {
     //
     //    Const-d1-Tile-d2
     //
@@ -911,7 +911,7 @@ TEST_F(AdvancedShapeInferTests, canReshapeCHWConst) {
     ASSERT_EQ(getData("data2")->getTensorDesc().getDims(), expectedDims);
 }
 
-TEST_F(AdvancedShapeInferTests, canReshapeWithScalar) {
+TEST_F(AdvancedShapeInferTests, DISABLED_canReshapeWithScalar) {
     //
     //   Scalar-d2
     //           \
@@ -951,7 +951,7 @@ TEST_F(AdvancedShapeInferTests, canReshapeWithScalar) {
     ASSERT_EQ(getData("data3")->getTensorDesc().getDims(), newOutShape);
 }
 
-TEST_F(AdvancedShapeInferTests, canFoldConstWithOneHot) {
+TEST_F(AdvancedShapeInferTests, DISABLED_canFoldConstWithOneHot) {
     //   Const-d1-OneHot-d2
     //                     \
     //              I1-d3-Eltw(Sum)-d4
@@ -1006,7 +1006,7 @@ TEST_F(AdvancedShapeInferTests, canFoldConstWithOneHot) {
     testFunc(IE::Precision::U64);
 }
 
-TEST_F(AdvancedShapeInferTests, MulWithTensorConstInferTest) {
+TEST_F(AdvancedShapeInferTests, DISABLED_MulWithTensorConstInferTest) {
 
     auto testFunc = [&](IE::Precision precisionInData1, IE::Precision precisionInData2, IE::Precision precisionOutData) {
 
@@ -1145,7 +1145,7 @@ TEST_F(AdvancedShapeInferTests, MulWithTensorConstInferTest) {
 }
 
 
-TEST_F(AdvancedShapeInferTests, MulWithScalarConstInferTest) {
+TEST_F(AdvancedShapeInferTests, DISABLED_MulWithScalarConstInferTest) {
 
     auto testFunc = [&](IE::Precision precisionInData1, IE::Precision precisionInData2, IE::Precision precisionOutData) {
 
@@ -1283,7 +1283,7 @@ TEST_F(AdvancedShapeInferTests, MulWithScalarConstInferTest) {
     testFunc(IE::Precision::FP32, IE::Precision::FP16, IE::Precision::FP16);
 }
 
-TEST_F(AdvancedShapeInferTests, AddWithScalarConstInferTest) {
+TEST_F(AdvancedShapeInferTests, DISABLED_AddWithScalarConstInferTest) {
 
     auto testFunc = [&](IE::Precision precisionInData1, IE::Precision precisionInData2, IE::Precision precisionOutData) {
 
@@ -1421,7 +1421,7 @@ TEST_F(AdvancedShapeInferTests, AddWithScalarConstInferTest) {
     testFunc(IE::Precision::FP32, IE::Precision::FP16, IE::Precision::FP16);
 }
 
-TEST_F(AdvancedShapeInferTests, AddWithTensorConstInferTest) {
+TEST_F(AdvancedShapeInferTests, DISABLED_AddWithTensorConstInferTest) {
 
     auto testFunc = [&](IE::Precision precisionInData1, IE::Precision precisionInData2, IE::Precision precisionOutData) {
 
@@ -1559,7 +1559,7 @@ TEST_F(AdvancedShapeInferTests, AddWithTensorConstInferTest) {
     testFunc(IE::Precision::FP32, IE::Precision::FP16, IE::Precision::FP16);
 }
 
-TEST_F(AdvancedShapeInferTests, AddWithBroadcastingConstInferTest) {
+TEST_F(AdvancedShapeInferTests, DISABLED_AddWithBroadcastingConstInferTest) {
 
     auto testFunc = [&](IE::Precision precisionInData1, IE::Precision precisionInData2, IE::Precision precisionOutData) {
 
@@ -1697,7 +1697,7 @@ TEST_F(AdvancedShapeInferTests, AddWithBroadcastingConstInferTest) {
     testFunc(IE::Precision::FP32, IE::Precision::FP16, IE::Precision::FP16);
 }
 
-TEST_F(AdvancedShapeInferTests, MulWithBroadcastingConstInferTest) {
+TEST_F(AdvancedShapeInferTests, DISABLED_MulWithBroadcastingConstInferTest) {
 
     auto testFunc = [&](IE::Precision precisionInData1, IE::Precision precisionInData2, IE::Precision precisionOutData) {
 
