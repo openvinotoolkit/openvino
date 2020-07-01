@@ -733,7 +733,7 @@ FakeQuantizeDequantization createDequantizationFromFakeQuantize(std::shared_ptr<
 }
 
 FakeQuantizeDequantization getDequantization(const std::shared_ptr<Node> node, const size_t parentIndex) {
-    const std::shared_ptr<Node> dataNode = node->input_value(parentIndex).get_node_shared_ptr();
+    std::shared_ptr<Node> dataNode = node->input_value(parentIndex).get_node_shared_ptr();
 
     const std::shared_ptr<ngraph::opset1::Multiply> multiply = as_type_ptr<ngraph::opset1::Multiply>(dataNode);
     if (multiply != nullptr) {
