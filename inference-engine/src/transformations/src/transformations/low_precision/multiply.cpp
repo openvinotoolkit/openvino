@@ -86,6 +86,8 @@ void MultiplyTransformation::transform(TransformationContext& context, ngraph::p
         // replace_node(multiply, newMultiply);
         // newMultiply->set_output_type(0, originalPrecision, newMultiply->get_output_partial_shape(0));
 
+        // TODO: workaround has to be removed: ConvertTransformation is used
+
         // TODO: workaround: replace Convert to Sub with zero
         const ngraph::element::Type convertOriginalPrecision = dequantization.convert->get_input_element_type(0);
 
