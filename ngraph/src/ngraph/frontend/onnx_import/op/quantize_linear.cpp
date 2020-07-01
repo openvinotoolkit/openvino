@@ -134,11 +134,9 @@ namespace ngraph
                             std::make_shared<default_opset::Convert>(y_zero_point, data_type);
 
                         input_low = std::make_shared<default_opset::Multiply>(
-                            y_scale,
-                            std::make_shared<default_opset::Add>(output_low, zero_point));
+                            y_scale, std::make_shared<default_opset::Add>(output_low, zero_point));
                         input_high = std::make_shared<default_opset::Multiply>(
-                            y_scale,
-                            std::make_shared<default_opset::Add>(output_high, zero_point));
+                            y_scale, std::make_shared<default_opset::Add>(output_high, zero_point));
 
                         return std::make_tuple(input_low, input_high);
                     }
