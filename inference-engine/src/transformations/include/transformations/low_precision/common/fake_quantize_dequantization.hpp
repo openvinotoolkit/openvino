@@ -19,19 +19,17 @@ public:
     FakeQuantizeDequantization();
 
     FakeQuantizeDequantization(
-        ngraph::element::Type dataNodeOutputPrecision,
-        ngraph::Shape dataNodeOutputShape,
+        std::shared_ptr<Node> data,
         std::shared_ptr<ngraph::opset1::Convert> convert,
         std::shared_ptr<ngraph::opset1::Subtract> subtract,
         std::shared_ptr<ngraph::opset1::Multiply> multiply);
 
     bool empty() const;
 
-    ngraph::element::Type dataNodeOutputPrecision;
-    ngraph::Shape dataNodeOutputShape;
-    std::shared_ptr<ngraph::opset1::Convert> convert;
-    std::shared_ptr<ngraph::opset1::Subtract> subtract;
-    std::shared_ptr<ngraph::opset1::Multiply> multiply;
+    std::shared_ptr<Node> data;
+    std::shared_ptr<opset1::Convert> convert;
+    std::shared_ptr<opset1::Subtract> subtract;
+    std::shared_ptr<opset1::Multiply> multiply;
 };
 
 } // namespace low_precision

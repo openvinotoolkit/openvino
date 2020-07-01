@@ -18,6 +18,7 @@
 #include <ngraph/rt_info.hpp>
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph_ops/multiply_add.hpp>
+#include "ngraph_ops/type_relaxed.hpp"
 
 #include "transformations/low_precision/quantization_details.hpp"
 #include "transformations/low_precision/common/ie_lpt_exception.hpp"
@@ -29,13 +30,11 @@ namespace low_precision {
 FakeQuantizeDequantization::FakeQuantizeDequantization() {}
 
 FakeQuantizeDequantization::FakeQuantizeDequantization(
-    ngraph::element::Type dataNodeOutputPrecision,
-    ngraph::Shape dataNodeOutputShape,
-    std::shared_ptr<ngraph::opset1::Convert> convert,
-    std::shared_ptr<ngraph::opset1::Subtract> subtract,
-    std::shared_ptr<ngraph::opset1::Multiply> multiply) :
-    dataNodeOutputPrecision(dataNodeOutputPrecision),
-    dataNodeOutputShape(dataNodeOutputShape),
+    std::shared_ptr<Node> data,
+    std::shared_ptr<opset1::Convert> convert,
+    std::shared_ptr<opset1::Subtract> subtract,
+    std::shared_ptr<opset1::Multiply> multiply) :
+    data(data),
     convert(convert),
     subtract(subtract),
     multiply(multiply) {

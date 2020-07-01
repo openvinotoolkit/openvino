@@ -24,6 +24,7 @@
 #include "transformations/low_precision/concat.hpp"
 #include "transformations/low_precision/concat_multi_channels.hpp"
 // #include "low_precision_transformations/const.hpp"
+#include "transformations/low_precision/convert.hpp"
 #include "transformations/low_precision/convolution.hpp"
 #include "transformations/low_precision/depth_to_space.hpp"
 #include "transformations/low_precision/fake_quantize.hpp"
@@ -230,7 +231,9 @@ LowPrecisionTransformations LowPrecisionTransformer::getAllTransformations(const
         // add<ReshapeTransformation, opset1::Reshape>(params).
 
         addCleanup<FuseFakeQuantizeTransformation, opset1::FakeQuantize>(params).
-        addCleanup<MultiplyTransformation, opset1::Multiply>(params);
+        addCleanup<MultiplyTransformation, opset1::Multiply>(params).
+        // TODO: workaround: Convert I8 -> FP32 is not supported by CPU plugin
+        addCleanup<ConvertTransformation, opset1::Convert>(params);
 }
 
 LowPrecisionTransformer::LowPrecisionTransformer(): transformations(LowPrecisionTransformer::getAllTransformations()) {}
@@ -283,7 +286,7 @@ TypeRelaxedReplacer::TypeRelaxedReplacer() {
     make_matcher_type_relaxed<ngraph::op::Subtract>(this);
     make_matcher_type_relaxed<opset1::NormalizeL2>(this);
 
-    // can we do it?
+    // TODO: can we do it?
     make_matcher_type_relaxed<opset1::Multiply>(this);
 }
 

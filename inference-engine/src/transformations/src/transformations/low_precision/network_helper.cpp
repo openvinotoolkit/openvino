@@ -656,7 +656,7 @@ FakeQuantizeDequantization createDequantization(
     float min,
     float max) {
     // TODO: we create input here! we really need it here?
-    const auto input = std::make_shared<ngraph::opset1::Parameter>(precision, dataNodeOutputShape);
+    const std::shared_ptr<opset1::Parameter> input = std::make_shared<ngraph::opset1::Parameter>(precision, dataNodeOutputShape);
     std::shared_ptr<ngraph::Node> parent = input;
 
     // TODO: convert should be optional: where is updatePrecision?
@@ -682,7 +682,7 @@ FakeQuantizeDequantization createDequantization(
         parent,
         std::make_shared<ngraph::opset1::Constant>(originalPrecision, ngraph::Shape({}), std::vector<float>({ dequantizationScale })));
 
-    return FakeQuantizeDequantization(precision, dataNodeOutputShape, convert, subtract, multiply);
+    return FakeQuantizeDequantization(input, convert, subtract, multiply);
 }
 
 FakeQuantizeDequantization createDequantizationFromFakeQuantize(std::shared_ptr<opset1::FakeQuantize> fq, element::Type precision, float min, float max) {
@@ -729,28 +729,28 @@ FakeQuantizeDequantization createDequantizationFromFakeQuantize(std::shared_ptr<
 
     std::shared_ptr<ngraph::opset1::Multiply> multiply = make_shared<ngraph::opset1::Multiply>(sub, scale);
 
-    return FakeQuantizeDequantization(fq->get_output_element_type(0), fq->get_output_shape(0), convert, sub, multiply);
+    return FakeQuantizeDequantization(fq, convert, sub, multiply);
 }
 
-FakeQuantizeDequantization getDequantization(std::shared_ptr<Node> node) {
-    std::shared_ptr<Node> dataNode = node->input_value(0).get_node_shared_ptr();
+FakeQuantizeDequantization getDequantization(const std::shared_ptr<Node> node, const size_t parentIndex) {
+    const std::shared_ptr<Node> dataNode = node->input_value(parentIndex).get_node_shared_ptr();
 
-    std::shared_ptr<ngraph::opset1::Multiply> multiply = as_type_ptr<ngraph::opset1::Multiply>(dataNode);
+    const std::shared_ptr<ngraph::opset1::Multiply> multiply = as_type_ptr<ngraph::opset1::Multiply>(dataNode);
     if (multiply != nullptr) {
         dataNode = multiply->get_input_node_shared_ptr(0);
     }
 
-    std::shared_ptr<opset1::Subtract> subtract = as_type_ptr<opset1::Subtract>(dataNode);
+    const std::shared_ptr<opset1::Subtract> subtract = as_type_ptr<opset1::Subtract>(dataNode);
     if (subtract != nullptr) {
         dataNode = subtract->get_input_node_shared_ptr(0);
     }
 
-    std::shared_ptr<opset1::Convert> convert = as_type_ptr<opset1::Convert>(dataNode);
+    const std::shared_ptr<opset1::Convert> convert = as_type_ptr<opset1::Convert>(dataNode);
     if (convert != nullptr) {
         dataNode = convert->get_input_node_shared_ptr(0);
     }
 
-    return FakeQuantizeDequantization(dataNode->get_output_element_type(0), dataNode->get_output_shape(0), convert, subtract, multiply);
+    return FakeQuantizeDequantization(dataNode, convert, subtract, multiply);
 }
 
 std::shared_ptr<Node> optimizeSubtract(std::shared_ptr<opset1::Subtract> add) {

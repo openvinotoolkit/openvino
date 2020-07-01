@@ -409,7 +409,7 @@ FakeQuantizeDequantization createDequantization(
 
 FakeQuantizeDequantization createDequantizationFromFakeQuantize(std::shared_ptr<opset1::FakeQuantize> fq, element::Type precision, float min, float max);
 
-FakeQuantizeDequantization getDequantization(std::shared_ptr<Node> node);
+FakeQuantizeDequantization getDequantization(const std::shared_ptr<Node> node, const size_t parentIndex = 0ul);
 
 std::shared_ptr<Node> optimizeSubtract(std::shared_ptr<opset1::Subtract> add);
 
