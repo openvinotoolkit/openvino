@@ -57,8 +57,8 @@ InferenceEngine::details::LowPrecisionTransformations LayerTransformation::getLo
 ngraph::pass::low_precision::LowPrecisionTransformations LayerTransformation::getLowPrecisionTransformationsNGraph(
     const ngraph::pass::low_precision::LayerTransformation::Params& params) const {
     return ngraph::pass::low_precision::LowPrecisionTransformer::getAllTransformations(params).
-        add<ngraph::pass::low_precision::ConvolutionTransformation>(
-            ngraph::pass::low_precision::LayerTransformation::Params(params).setPrecisionsOnActivations({ ngraph::element::u8 }), "Convolution");
+        add<ngraph::pass::low_precision::ConvolutionTransformation, ngraph::opset1::Convolution>(
+            ngraph::pass::low_precision::LayerTransformation::Params(params).setPrecisionsOnActivations({ ngraph::element::u8 }));
     // addCleanup<ScaleShiftToConvolutionTransformation>(
     //    LayerTransformation::Params(params).setPrecisionsOnActivations({ ngraph::element::u8 }),
     //    "ScaleShift"));
