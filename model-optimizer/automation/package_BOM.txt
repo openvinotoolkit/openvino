@@ -782,7 +782,6 @@ mo/front/kaldi/extractors/pnorm_component_ext.py
 mo/front/kaldi/extractors/rectified_linear_component_ext.py
 mo/front/kaldi/extractors/rescale_ext.py
 mo/front/kaldi/extractors/scale_component_ext.py
-mo/front/kaldi/extractors/slice_ext.py
 mo/front/kaldi/extractors/softmax_ext.py
 mo/front/kaldi/extractors/splice_component_ext.py
 mo/front/kaldi/loader/__init__.py
