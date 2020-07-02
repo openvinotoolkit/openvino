@@ -62,6 +62,23 @@ void op::v1::Convolution::validate_and_infer_types()
     const PartialShape& filters_shape = get_input_partial_shape(1);
     element::Type filters_et = get_input_element_type(1);
 
+    element::Type result_et;
+    NODE_VALIDATION_CHECK(
+        this,
+        element::Type::merge(result_et, data_batch_et, filters_et),
+        "Element types for data batch and filters do not match (data batch element type: ",
+        data_batch_et,
+        ", filters element type: ",
+        filters_et,
+        ").");
+
+    if ((m_auto_pad == PadType::SAME_UPPER || m_auto_pad == PadType::SAME_LOWER) &&
+        (data_batch_shape.is_dynamic() || filters_shape.is_dynamic()))
+    {
+        set_output_type(0, result_et, PartialShape::dynamic(data_batch_shape.rank()));
+        return;
+    }
+
     if (m_strides.size() == 0)
     {
         m_strides = conv_default_strides(this, data_batch_shape, filters_shape);
@@ -100,26 +117,15 @@ void op::v1::Convolution::validate_and_infer_types()
         }
     }
 
-    element::Type result_et;
-    PartialShape result_shape;
-
-    NODE_VALIDATION_CHECK(
-        this,
-        element::Type::merge(result_et, data_batch_et, filters_et),
-        "Element types for data batch and filters do not match (data batch element type: ",
-        data_batch_et,
-        ", filters element type: ",
-        filters_et,
-        ").");
-
-    result_shape = infer_convolution_forward(this,
-                                             data_batch_shape,
-                                             Strides(m_strides.size(), 1), // dummy data dilations
-                                             m_pads_begin,
-                                             m_pads_end,
-                                             filters_shape,
-                                             m_strides,
-                                             m_dilations);
+    PartialShape result_shape =
+        infer_convolution_forward(this,
+                                  data_batch_shape,
+                                  Strides(m_strides.size(), 1), // dummy data dilations
+                                  m_pads_begin,
+                                  m_pads_end,
+                                  filters_shape,
+                                  m_strides,
+                                  m_dilations);
 
     set_output_type(0, result_et, result_shape);
 }
