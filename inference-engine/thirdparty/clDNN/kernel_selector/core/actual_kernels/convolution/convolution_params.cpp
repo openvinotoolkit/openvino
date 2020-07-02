@@ -41,7 +41,7 @@ std::string convolution_params::to_string() const {
 std::string convolution_params::to_cache_string_v2() const {
     std::stringstream s;
 
-    s << weight_bias_params::to_cache_string_v2() << ";";
+    s << parent::to_cache_string_v2() << ";";
     s << filterSize.x << "_" << filterSize.y << "_" << filterSize.z << ";";
     s << stride.x << "_" << stride.y << "_" << stride.z << ";";
     s << dilation.x << "_" << dilation.y << "_" << dilation.z << ";";
