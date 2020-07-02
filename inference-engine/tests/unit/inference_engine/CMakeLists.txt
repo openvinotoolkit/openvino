@@ -10,6 +10,7 @@ addIeTargetTest(
         LINK_LIBRARIES
             unitTestUtils
             inference_engine_transformations
+            inference_engine_ir_reader_v7
         ADD_CPPLINT
         DEPENDENCIES
             mock_engine

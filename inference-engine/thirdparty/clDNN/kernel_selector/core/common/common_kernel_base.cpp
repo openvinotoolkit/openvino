@@ -112,8 +112,6 @@ std::string common_kernel_base::CreateJit(const std::string& template_name,
 Arguments common_kernel_base::GetArgsDesc(uint32_t num_of_input,
                                           bool use_weights,
                                           bool use_bias,
-                                          bool use_quantization,
-                                          bool use_output_calibration,
                                           uint32_t number_of_inputs_for_fused_prim) const {
     Arguments args;
 
@@ -131,14 +129,6 @@ Arguments common_kernel_base::GetArgsDesc(uint32_t num_of_input,
         args.push_back({ArgumentDescriptor::Types::BIAS, 0});
     }
 
-    if (use_quantization && use_weights) {
-        args.push_back({ArgumentDescriptor::Types::WEIGHTS_QUANTIZATION_FACTORS, 0});
-    }
-
-    if (use_output_calibration) {
-        args.push_back({ArgumentDescriptor::Types::OUTPUT_CALIBRATION_FACTORS, 0});
-    }
-
     for (uint32_t i = 0; i < number_of_inputs_for_fused_prim; i++) {
         args.push_back({ArgumentDescriptor::Types::INPUT_OF_FUSED_PRIMITIVE, i});
     }
@@ -149,7 +139,7 @@ Arguments common_kernel_base::GetArgsDesc(uint32_t num_of_input,
 std::shared_ptr<KernelString> common_kernel_base::GetKernelString(const std::string& name,
                                                                   const std::string& jit,
                                                                   const std::string& entry_point,
-                                                                  const EngineInfo& /*engine_info*/,
+                                                                  const EngineInfo& engine_info,
                                                                   const std::string& exe_mode) const {
     std::shared_ptr<KernelString> kernel_string = std::make_shared<KernelString>();
 
@@ -159,6 +149,10 @@ std::shared_ptr<KernelString> common_kernel_base::GetKernelString(const std::str
         kernel_string->str = codes[0];
         kernel_string->jit = jit;
         kernel_string->options = exe_mode + " -cl-mad-enable";
+        if (engine_info.bOptHintsSupport)
+            kernel_string->options += " -DOPT_HINS_SUPPORTED=1";
+        if (engine_info.bLocalBlockIOSupport)
+            kernel_string->options += " -Dcl_intel_subgroup_local_block_io";
         kernel_string->entry_point = entry_point;
         kernel_string->batch_compilation = true;
     }
@@ -216,6 +210,6 @@ void common_kernel_base::FillCLKernelData(clKernelData& kernel,
     kernel.workGroups.local = {runInfo.lws0, runInfo.lws1, runInfo.lws2};
     kernel.kernelString = GetKernelString(kernelMapName, jit, entryPoint, engine_info, exeMode);
     kernel.arguments =
-        GetArgsDesc(number_of_inputs, weights, bias, false, false, number_of_inputs_for_fused_prims);
+        GetArgsDesc(number_of_inputs, weights, bias, number_of_inputs_for_fused_prims);
 }
 }  // namespace kernel_selector

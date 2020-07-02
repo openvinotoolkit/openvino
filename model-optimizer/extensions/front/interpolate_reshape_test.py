@@ -26,23 +26,23 @@ from mo.utils.unittest.graph import build_graph, result, regular_op_with_shaped_
     connect_data
 
 nodes = {
-    **regular_op_with_shaped_data('placeholder', [1, 3, 30, 40], {'type': 'Parameter'}),
+    **regular_op_with_shaped_data('placeholder', [1, 3, 30, 40], {'type': 'Parameter', 'op': 'Parameter'}),
     **valued_const_with_data('out_shape', np.array([60, 160])),
 
     **regular_op_with_shaped_data('interpolate', [1, 3, 60, 160],
-                                  {'type': 'Interpolate', 'axes': int64_array([2, 3])}),
-    **regular_op_with_shaped_data('identity_00', [1, 3, 60, 160], {'identity': True}),
-    **regular_op_with_shaped_data('identity_01', [1, 3, 60, 160], {'identity': True}),
+                                  {'type': 'Interpolate', 'axes': int64_array([2, 3]), 'op': 'Interpolate'}),
+    **regular_op_with_shaped_data('identity_00', [1, 3, 60, 160], {'identity': True, 'op': 'Identity'}),
+    **regular_op_with_shaped_data('identity_01', [1, 3, 60, 160], {'identity': True, 'op': 'Identity'}),
 
-    **regular_op_with_shaped_data('shape', [4], {'type': 'ShapeOf'}),
+    **regular_op_with_shaped_data('shape', [4], {'type': 'ShapeOf', 'op': 'ShapeOf'}),
     **valued_const_with_data('indices', np.array([2, 3])),
     **valued_const_with_data('axis', np.array(0)),
-    **regular_op_with_shaped_data('gather', [2], {'type': 'Gather'}),
+    **regular_op_with_shaped_data('gather', [2], {'type': 'Gather', 'op': 'Gather'}),
 
-    **regular_op_with_shaped_data('placeholder_1', [1, 3, 60, 160], {'type': 'Parameter'}),
-    **regular_op_with_shaped_data('identity_10', [1, 3, 60, 160], {'identity': True}),
-    **regular_op_with_shaped_data('identity_11', [1, 3, 60, 160], {'identity': True}),
-    **regular_op_with_shaped_data('concat', [1, 7, 60, 160], {'type': 'Concat', 'axis': 1}),
+    **regular_op_with_shaped_data('placeholder_1', [1, 3, 60, 160], {'type': 'Parameter', 'op': 'Parameter'}),
+    **regular_op_with_shaped_data('identity_10', [1, 3, 60, 160], {'identity': True, 'op': 'Identity'}),
+    **regular_op_with_shaped_data('identity_11', [1, 3, 60, 160], {'identity': True, 'op': 'Identity'}),
+    **regular_op_with_shaped_data('concat', [1, 7, 60, 160], {'type': 'Concat', 'axis': 1, 'op': 'Concat'}),
 
     **result(),
 }
