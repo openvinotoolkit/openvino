@@ -167,6 +167,7 @@ VPU_DECLARE_ENUM(StageType,
     OutShapeOfReshape = 127,
     Concat = 128,
     Broadcast = 129,
+    StaticShapeNMS = 130,
 )
 
 //
