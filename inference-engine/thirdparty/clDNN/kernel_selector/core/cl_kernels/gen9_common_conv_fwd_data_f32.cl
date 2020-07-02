@@ -53,12 +53,6 @@ KERNEL(gen9_common_conv_fwd_f32_kernel)(
 #if WITH_BIAS
         const __global float *bias,
 #endif
-#if QUANTIZATION_TERM
-    __global float* quantizations,
-#endif
-#if CALIBRATION_TERM
-    __global float* calibrations,
-#endif
 #if HAS_FUSED_OPS_DECLS
     FUSED_OPS_DECLS,
 #endif

@@ -27,7 +27,6 @@
 #include "fully_connected_inst.h"
 #include "detection_output_inst.h"
 #include "binary_convolution_inst.h"
-#include "embed_inst.h"
 #include "lstm_gemm_inst.h"
 #include "generic_layer.hpp"
 

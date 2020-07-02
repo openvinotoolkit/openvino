@@ -13,12 +13,7 @@
 #include <ngraph/opsets/opset3.hpp>
 
 void ngraph::pass::ConvertBroadcast3::convert_broadcast3() {
-    auto weights = std::make_shared<pattern::op::Label>(element::f32, Shape {1});
-    auto shp = std::make_shared<pattern::op::Label>(element::i64, Shape {1});
-    auto axes = std::make_shared<pattern::op::Label>(element::i64, Shape {1});
-    auto broadcast = std::make_shared<ngraph::opset3::Broadcast>(weights, shp, axes);
-
-    auto broadcast_no_axes = std::make_shared<ngraph::opset3::Broadcast>(weights, shp);
+    auto broadcast = std::make_shared<pattern::op::Label>(element::f32, Shape {}, pattern::has_class<opset3::Broadcast>());
 
     ngraph::graph_rewrite_callback callback = [](pattern::Matcher& m) {
         auto broadcast = std::dynamic_pointer_cast<ngraph::opset3::Broadcast>(m.get_match_root());
@@ -55,7 +50,5 @@ void ngraph::pass::ConvertBroadcast3::convert_broadcast3() {
     };
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(broadcast, "ConvertBroadcast3");
-    auto m_no_axes = std::make_shared<ngraph::pattern::Matcher>(broadcast_no_axes, "ConvertBroadcast3NoAxes");
     this->add_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
-    this->add_matcher(m_no_axes, callback, PassProperty::CHANGE_DYNAMIC_STATE);
 }
