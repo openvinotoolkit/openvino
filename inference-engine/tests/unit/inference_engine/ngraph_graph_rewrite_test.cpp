@@ -26,7 +26,7 @@ public:
         };
 
         auto m = std::make_shared<ngraph::pattern::Matcher>(divide, "TestMatcher");
-        this->add_matcher(m, callback, ngraph::pass::PassProperty::CHANGE_DYNAMIC_STATE);
+        this->register_matcher(m, callback);
     }
 };
 
