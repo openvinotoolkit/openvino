@@ -16,13 +16,14 @@
 
 #pragma once
 
+#include "backend_visibility.hpp"
 #include "ngraph/pass/pass.hpp"
 
 namespace ngraph
 {
     namespace pass
     {
-        class NGRAPH_API Opset1Upgrade : public NodePass
+        class BACKEND_API Opset1Upgrade : public NodePass
         {
         public:
             ///
