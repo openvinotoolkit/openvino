@@ -13,8 +13,8 @@ namespace {
 using namespace LayerTestsUtils::vpu;
 
 struct BinaryEltwiseShapes {
-    DataShapeWithUpperBound inputShape0;
-    DataShapeWithUpperBound inputShape1;
+    DataShapeWithUpperBound lhs;
+    DataShapeWithUpperBound rhs;
 };
 
 using BinaryElementwiseParameters = std::tuple<
@@ -25,7 +25,7 @@ using BinaryElementwiseParameters = std::tuple<
 >;
 
 class DSR_BinaryElementwiseBothDSR : public testing::WithParamInterface<BinaryElementwiseParameters>,
-                              public DSR_TestsCommon {
+                                     public DSR_TestsCommon {
 protected:
     std::shared_ptr<ngraph::Node> createTestedOp() override {
         const auto& parameters = GetParam();
@@ -34,8 +34,8 @@ protected:
         const auto& eltwiseType = std::get<2>(parameters);
         targetDevice = std::get<3>(parameters);
 
-        const auto inputSubgraph0 = createInputSubgraphWithDSR(inDataType, inDataShapes.inputShape0);
-        const auto inputSubgraph1 = createInputSubgraphWithDSR(inDataType, inDataShapes.inputShape1);
+        const auto inputSubgraph0 = createInputSubgraphWithDSR(inDataType, inDataShapes.lhs);
+        const auto inputSubgraph1 = createInputSubgraphWithDSR(inDataType, inDataShapes.rhs);
 
         const auto eltwise = ngraph::helpers::getNodeSharedPtr(eltwiseType, {inputSubgraph0, inputSubgraph1});
 
@@ -53,8 +53,8 @@ protected:
         const auto& eltwiseType = std::get<2>(parameters);
         targetDevice = std::get<3>(parameters);
 
-        const auto inputSubgraph0 = createInputSubgraphWithDSR(inDataType, inDataShapes.inputShape0);
-        const auto input1 = std::make_shared<ngraph::opset3::Parameter>(inDataType, inDataShapes.inputShape1.shape);
+        const auto inputSubgraph0 = createInputSubgraphWithDSR(inDataType, inDataShapes.lhs);
+        const auto input1 = std::make_shared<ngraph::opset3::Parameter>(inDataType, inDataShapes.rhs.shape);
         m_parameterVector.push_back(input1);
 
         const auto eltwise = ngraph::helpers::getNodeSharedPtr(eltwiseType, {inputSubgraph0, input1});

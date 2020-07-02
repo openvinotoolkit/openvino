@@ -78,12 +78,6 @@ void dynamicToStaticShapeGather(std::shared_ptr<ngraph::Node> target) {
                 ngraph::opset3::Constant::create(shapeElementType, {1}, {0}));
         output_dims.push_back(second_data_shape_part);
     }
-    const auto outputShapeIsConst = std::all_of(output_dims.begin(), output_dims.end(), [](const ngraph::Output<ngraph::Node>& output) {
-        return ngraph::as_type_ptr<ngraph::opset3::Constant>(output.get_node_shared_ptr()) != nullptr;
-    });
-    if (outputShapeIsConst) {
-        return;
-    }
 
     const auto output_shape = std::make_shared<ngraph::opset3::Concat>(output_dims, 0);
 
