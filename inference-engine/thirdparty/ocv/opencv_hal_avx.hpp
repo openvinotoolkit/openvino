@@ -3009,7 +3009,8 @@ static inline void v_deinterleave(const v_float32x8& low, const v_float32x8& hig
 static inline void v_deinterleave(const v_uint8x32& v0, const v_uint8x32& v1,
                                   const v_uint8x32& v2, const v_uint8x32& v3,
                                         v_uint8x32& a,        v_uint8x32& b,
-                                        v_uint8x32& c,        v_uint8x32& d, v_uint8x32& shuf_mask)
+                                        v_uint8x32& c,        v_uint8x32& d,
+                                        v_uint8x32& shuf_mask)
 {
     /* a0a1a2a3 b0b1b2b3 c0c1c2c3 d0d1d2d3 a16a17a18a19 b16b17b18b19 c16c17c18c19 d16d17d18d19 */
     __m256i u0 = _mm256_shuffle_epi8(v0.val, shuf_mask.val);
@@ -3088,23 +3089,17 @@ static inline void v_deinterleave_expand(const v_uint8x32& src, v_int16x16& even
 
 static inline v_int16x16 v_mulhi(const v_int16x16& a, short b)
 {
-    v_int16x16 r;
-    r.val = _mm256_mulhi_epi16(a.val, _mm256_set1_epi16(b));
-    return r;
+    return v_int16x16(_mm256_mulhi_epi16(a.val, _mm256_set1_epi16(b)));
 }
 
-static inline v_uint16x16 v_mulhi(const v_uint16x16& a, v_uint16x16 b)
+static inline v_uint16x16 v_mulhi(const v_uint16x16& a, v_uint16x16& b)
 {
-    v_uint16x16 r;
-    r.val = _mm256_mulhi_epu16(a.val, b.val);
-    return r;
+    return v_uint16x16(_mm256_mulhi_epu16(a.val, b.val));
 }
 
 static inline v_uint16x16 v_mulhi(const v_uint16x16& a, uint16_t b)
 {
-    v_uint16x16 r;
-    r.val = _mm256_mulhi_epu16(a.val, _mm256_set1_epi16(b));
-    return r;
+    return v_uint16x16(_mm256_mulhi_epu16(a.val, _mm256_set1_epi16(b)));
 }
 
 static inline v_int16x16 v_mulhrs(const v_int16x16& a, const v_int16x16& b)
@@ -3148,11 +3143,9 @@ static inline v_uint8x32 v_shuffle_s8(const v_uint8x32& a, const v_uint8x32& mas
 }
 
 template<int index>
-static inline v_uint8x32 v_insert64(v_uint8x32& a, int64_t i)
+static inline v_uint8x32 v_insert64(v_uint8x32& a, const int64_t& i)
 {
-    v_uint8x32 res;
-    res.val = _mm256_insert_epi64(a.val, i, index);
-    return res;
+    return v_uint8x32(_mm256_insert_epi64(a.val, i, index));
 }
 
 static inline v_uint8x32 v_permutevar8x32(v_uint8x32& a, v_uint32x8& idxs)
