@@ -7,7 +7,6 @@
 #include <gtest/gtest.h>
 
 #include <tests_common.hpp>
-#include <ie_format_parser.h>
 #include <ie_layers_internal.hpp>
 #include <details/ie_cnn_network_iterator.hpp>
 #include <functional_test_utils/plugin_cache.hpp>

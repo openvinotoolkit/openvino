@@ -27,17 +27,38 @@ bool IRReader::supportModel(std::istream& model) const {
     const int header_size = 128;
     std::string header(header_size, ' ');
     model.read(&header[0], header_size);
+
     // find '<net ' substring in the .xml file
-    return (header.find("<net ") != std::string::npos) || (header.find("<Net ") != std::string::npos);
+    bool supports = (header.find("<net ") != std::string::npos) ||
+                    (header.find("<Net ") != std::string::npos);
+
+    if (supports) {
+        pugi::xml_document xmlDoc;
+        model.seekg(0, model.beg);
+        pugi::xml_parse_result res = xmlDoc.load(model);
+        if (res.status != pugi::status_ok) {
+            supports = false;
+        } else {
+            pugi::xml_node root = xmlDoc.document_element();
+            auto version = GetIRVersion(root);
+#ifdef IR_READER_V10
+            supports = version == 10;
+#else
+            supports = version < 10;
+#endif
+        }
+    }
+
+    model.seekg(0, model.beg);
+    return supports;
 }
 
 CNNNetwork IRReader::read(std::istream& model, const std::vector<IExtensionPtr>& exts) const {
     std::istringstream emptyStream;
     return read(model, emptyStream, exts);
 }
+
 CNNNetwork IRReader::read(std::istream& model, std::istream& weights, const std::vector<IExtensionPtr>& exts) const {
-    model.seekg(0, model.beg);
-    weights.seekg(0, weights.beg);
     pugi::xml_document xmlDoc;
     pugi::xml_parse_result res = xmlDoc.load(model);
     if (res.status != pugi::status_ok) {

@@ -496,6 +496,9 @@ Blob::Ptr FormatParser::GetBlobFromSegment(const TBlob<uint8_t>::Ptr& weights, c
 }
 
 void FormatParser::SetWeights(const TBlob<uint8_t>::Ptr& weights) {
+    if (weights == nullptr)
+        return;
+
     for (auto& kvp : _network->allLayers()) {
         auto fit = layersParseInfo.find(kvp.second->name);
         // todo: may check that earlier - while parsing...

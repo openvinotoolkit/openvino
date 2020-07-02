@@ -5,7 +5,6 @@
 
 #include <memory>
 #include <unordered_set>
-#include <xml_helper.hpp>
 
 #include <gtest/gtest.h>
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"

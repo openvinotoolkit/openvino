@@ -27,25 +27,17 @@
 
 #include <cpp/ie_cnn_network.h>
 #include "ie_blob_stream.hpp"
-#include "cnn_network_impl.hpp"
 #include "details/caseless.hpp"
-#include "details/ie_cnn_network_tools.h"
-#include "ie_format_parser.h"
 #include "ie_ngraph_utils.hpp"
 #include "generic_ie.hpp"
 #include "precision_utils.h"
 #include "blob_factory.hpp"
-#include "ie_cnn_net_reader_impl.h"
 
 using namespace InferenceEngine;
 using namespace XMLParseUtils;
 
 IRParser::IRParser(size_t version): IRParser(version, {}) {}
 IRParser::IRParser(size_t version, const std::vector<InferenceEngine::IExtensionPtr>& exts) {
-    if (version < 10) {
-        parser = std::make_shared<CNNParser>();
-        return;
-    }
     switch (version) {
     case 10:
         parser = std::make_shared<V10Parser>(exts);
@@ -71,45 +63,6 @@ public:
                        weights->cbuffer().as<uint8_t*>()),
         originBlob(weights) { }
 };
-
-std::shared_ptr<ICNNNetwork> CNNParser::parse(const pugi::xml_node& root, std::istream& binStream) {
-    auto getBlobStream = [](std::istream& binStream) {
-        details::BlobStream* blobStream = dynamic_cast<details::BlobStream*>(&binStream);
-        if (blobStream == nullptr) {
-            details::BlobStream helper({});
-            std::string typeStream = typeid(binStream).name();
-            std::string typeBlobStream = typeid(helper).name();
-            if (typeStream == typeBlobStream)
-                blobStream = static_cast<details::BlobStream*>(&binStream);
-        }
-        return blobStream;
-    };
-    details::CNNNetReaderImpl reader(std::make_shared<details::V2FormatParserCreator>());
-    ResponseDesc resp;
-    StatusCode ret = reader.ReadNetwork(root, &resp);
-    if (ret != OK)
-        THROW_IE_EXCEPTION << resp.msg;
-    TBlob<uint8_t>::Ptr weightsPtr;
-
-    // Try to get BlobStream to work with original blob
-    details::BlobStream* blobStream = getBlobStream(binStream);
-    if (blobStream != nullptr) {
-        weightsPtr = std::make_shared<WeightsHolderBlob>(blobStream->getBlob());
-    } else {
-        // Allocate a blob for weights
-        binStream.seekg(0, std::ios::end);
-        size_t length = binStream.tellg();
-        weightsPtr = std::make_shared<TBlob<uint8_t>>(TensorDesc(Precision::U8, {length}, Layout::C));
-        weightsPtr->allocate();
-        char* data = weightsPtr->buffer().as<char*>();
-        binStream.seekg(0, std::ios::beg);
-        binStream.read(data, length);
-    }
-    ret = reader.SetWeights(weightsPtr, &resp);
-    if (ret != OK)
-        THROW_IE_EXCEPTION << resp.msg;
-    return reader.getNetwork();
-}
 
 V10Parser::V10Parser(const std::vector<IExtensionPtr>& exts) {
     // Load default opsets

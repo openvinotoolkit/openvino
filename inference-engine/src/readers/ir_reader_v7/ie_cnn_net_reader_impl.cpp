@@ -17,7 +17,6 @@
 #include "cnn_network_ngraph_impl.hpp"
 #include "details/os/os_filesystem.hpp"
 #include "ie_format_parser.h"
-#include "ie_ir_parser.hpp"
 #include "ie_profiling.hpp"
 #include "parsers.h"
 #include "xml_parse_utils.h"
@@ -29,20 +28,13 @@ using namespace InferenceEngine::details;
 CNNNetReaderImpl::CNNNetReaderImpl(const FormatParserCreator::Ptr& _creator)
     : parseSuccess(false), _version(0), parserCreator(_creator) {}
 
-CNNNetReaderImpl::~CNNNetReaderImpl() { }
-
 StatusCode CNNNetReaderImpl::SetWeights(const TBlob<uint8_t>::Ptr& weights, ResponseDesc* desc) noexcept {
     if (!_parser && _version < 10) {
         return DescriptionBuffer(desc) << "network must be read first";
     }
+
     try {
-        if (_version == 10) {
-            // It's time to perform actual reading of V10 network and instantiate CNNNetworkNGraphImpl
-            IRParser parser(_version, extensions);
-            pugi::xml_node root = xmlDoc->document_element();
-            details::BlobStream blobStream(weights);
-            network = parser.parse(root, blobStream);
-        } else if (weights) {
+        if (_version < 10) {
             _parser->SetWeights(weights);
         }
     } catch (const InferenceEngineException& iee) {
@@ -54,7 +46,7 @@ StatusCode CNNNetReaderImpl::SetWeights(const TBlob<uint8_t>::Ptr& weights, Resp
     return OK;
 }
 
-size_t CNNNetReaderImpl::GetFileVersion(pugi::xml_node& root) {
+static size_t GetFileVersion(pugi::xml_node& root) {
     return XMLParseUtils::GetUIntAttr(root, "version", 0);
 }
 
@@ -126,12 +118,8 @@ StatusCode CNNNetReaderImpl::ReadNetwork(const pugi::xml_node& const_root, Respo
         pugi::xml_node root = *const_cast<pugi::xml_node*>(&const_root);
         _version = GetFileVersion(root);
         if (_version < 2) THROW_IE_EXCEPTION << "deprecated IR version: " << _version;
-        if (_version == 10) {
-            // Activate an alternative code path for V10 that should be read into ngraph::Function
-            // We cannot proceed with reading right now, because there is not binary file loaded.
-            // So we are postponing real read until weights are specified.
-            parseSuccess = true;
-        } else if (_version < 10) {
+
+        if (_version < 10) {
             _parser = parserCreator->create(_version);
             InferenceEngine::details::CNNNetworkImplPtr local_network = _parser->Parse(root);
             name = local_network->getName();
@@ -183,10 +171,6 @@ StatusCode CNNNetReaderImpl::ReadNetwork() {
     }
 
     return OK;
-}
-
-void CNNNetReaderImpl::addExtensions(const std::vector<InferenceEngine::IExtensionPtr>& ext) {
-    extensions = ext;
 }
 
 std::shared_ptr<IFormatParser> V2FormatParserCreator::create(size_t version) {
