@@ -16,10 +16,10 @@
 #include <cstdint>
 #include <memory>
 
+#include "default_opset.hpp"
 #include "mean_variance_normalization.hpp"
 #include "ngraph/axis_set.hpp"
 #include "ngraph/op/fused/mvn.hpp"
-#include "ngraph/opsets/opset0.hpp"
 #include "ngraph/validation_util.hpp"
 
 namespace ngraph
@@ -38,7 +38,7 @@ namespace ngraph
                     bool normalize_variance =
                         node.get_attribute_value<std::int64_t>("normalize_variance", 1);
 
-                    return {std::make_shared<ngraph::opset0::MVN>(
+                    return {std::make_shared<default_opset::MVN>(
                         data, across_channels, normalize_variance)};
                 }
 
@@ -53,7 +53,7 @@ namespace ngraph
                     const std::vector<std::size_t> normalized_axes = ngraph::normalize_axes(
                         node.get_description(), axes, data->get_output_partial_shape(0).rank());
 
-                    return {std::make_shared<ngraph::opset0::MVN>(data, AxisSet(normalized_axes))};
+                    return {std::make_shared<default_opset::MVN>(data, AxisSet(normalized_axes))};
                 }
 
             } // namespace set_9

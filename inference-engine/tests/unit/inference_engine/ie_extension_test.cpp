@@ -24,31 +24,6 @@ std::string getExtensionPath() {
             std::string("extension_tests") + IE_BUILD_POSTFIX);
 }
 
-TEST(ExtensionTests, testGetFactoryFor) {
-    IExtensionPtr extension = make_so_pointer<IExtension>(getExtensionPath());
-    CNNLayer testLayer({"test1", "test", Precision::FP32});
-    ILayerImplFactory* factory = nullptr;
-    ResponseDesc resp;
-    ASSERT_EQ(OK, extension->getFactoryFor(factory, &testLayer, &resp));
-}
-
-TEST(ExtensionTests, testGetIncorrectFactoryFor) {
-    IExtensionPtr extension = make_so_pointer<IExtension>(getExtensionPath());
-    CNNLayer testLayer({"test1", "test_incorrect", Precision::FP32});
-    ILayerImplFactory* factory = nullptr;
-    ResponseDesc resp;
-    ASSERT_NE(OK, extension->getFactoryFor(factory, &testLayer, &resp));
-}
-
-TEST(ExtensionTests, testGetPrimitiveTypes) {
-    IExtensionPtr extension = make_so_pointer<IExtension>(getExtensionPath());
-    ResponseDesc resp;
-    char **types;
-    unsigned int size(0);
-    ASSERT_EQ(OK, extension->getPrimitiveTypes(types, size, &resp));
-    ASSERT_EQ(1, size);
-}
-
 TEST(ExtensionTests, testGetOpSets) {
     IExtensionPtr extension = make_so_pointer<IExtension>(getExtensionPath());
     auto opsets = extension->getOpSets();

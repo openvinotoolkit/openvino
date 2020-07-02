@@ -25,7 +25,6 @@
 #include "ngraph/op/fused/group_conv.hpp"
 #include "ngraph/op/slice.hpp"
 #include "ngraph/op/util/attr_types.hpp"
-#include "ngraph/opsets/opset0.hpp"
 #include "utils/convpool.hpp"
 
 namespace ngraph

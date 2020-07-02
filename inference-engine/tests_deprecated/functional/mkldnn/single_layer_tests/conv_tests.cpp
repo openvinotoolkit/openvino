@@ -306,10 +306,12 @@ protected:
     }
 
     void updatePaddings(const CNNNetwork &network, conv_test_params& p) {
-        auto found = std::find_if(network.begin(), network.end(), [](const CNNLayer::Ptr& layer) {
+        auto & inetwork = (const ICNNNetwork &)network;
+        details::CNNNetworkIterator i(&inetwork), end;
+        auto found = std::find_if(i, end, [](const CNNLayer::Ptr& layer) {
             return layer->type == "Convolution";
         });
-        ASSERT_NE(found, network.end());
+        ASSERT_NE(found, end);
         auto convLayer = std::dynamic_pointer_cast<ConvolutionLayer>(*found);
         auto allPad = getPaddings(*convLayer.get());
         p.pads_begin[X_AXIS] = allPad.begin[X_AXIS];

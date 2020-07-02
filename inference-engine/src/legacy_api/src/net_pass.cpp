@@ -17,6 +17,8 @@
 
 #include "blob_factory.hpp"
 #include "details/ie_cnn_network_tools.h"
+#include "cnn_network_impl.hpp"
+#include "cnn_network_ngraph_impl.hpp"
 #include "graph_tools.hpp"
 #include "ie_layers_internal.hpp"
 #include "ie_memcpy.h"
@@ -273,13 +275,56 @@ void CombineData(DataPtr& master, DataPtr& slave) {
 }
 
 /**
+ * Preserve output data name and update output data map of the network
+ *
+ * @param in_data name to update
+ * @param out_data name to preserve
+ * @param net output data map to update with in_data
+ */
+template <typename NET>
+void SaveOutputDataName(InferenceEngine::DataPtr in_data, InferenceEngine::DataPtr out_data, NET &net) {
+    // TODO: update outputs of the network if out_data was output
+    if (out_data->getInputTo().empty()) {
+        auto data_name = out_data->getName();
+        in_data->setName(data_name);
+    }
+}
+
+/**
+ * void SaveOutputDataName(InferenceEngine::DataPtr in_data, InferenceEngine::DataPtr out_data, NET &net), where
+ * NET = ICNNNetwork
+ */
+void SaveOutputDataName(InferenceEngine::DataPtr in_data, InferenceEngine::DataPtr out_data, ICNNNetwork& net) {
+    if (out_data->getInputTo().empty()) {
+        InferenceEngine::OutputsDataMap outputs_data_map;
+        net.getOutputsInfo(outputs_data_map);
+        auto out_data_name = out_data->getName();
+        in_data->setName(out_data_name);
+        if (outputs_data_map.count(out_data_name)) {
+            auto parent_layer_ptr = in_data->getCreatorLayer().lock();
+            IE_ASSERT(parent_layer_ptr != nullptr);
+            auto parent_layer_name = parent_layer_ptr->name;
+            size_t in_data_out_index = 0;
+            for (size_t ind = 0; ind < parent_layer_ptr->outData.size(); ++ind) {
+                if (parent_layer_ptr->outData[ind] == in_data) {
+                    in_data_out_index = ind;
+                }
+            }
+            net.addOutput(parent_layer_name, in_data_out_index);
+        }
+    }
+}
+
+
+/**
  * Remove layer form graph
  * May be applied only for inplace layer. One input, one output,
  * with same tensor descriptors.
  *
  * @param layer to remove from graph
  */
-void RemoveLayer(CNNLayerPtr& layer) {
+template <typename NET>
+void RemoveLayer(CNNLayerPtr& layer, NET &net) {
     IE_ASSERT(layer->insData.size() == 1);
     IE_ASSERT(layer->outData.size() == 1);
 
@@ -299,10 +344,8 @@ void RemoveLayer(CNNLayerPtr& layer) {
     // transfer output connections into parent data
     CombineData(in_data, out_data);
 
-    // Save name for output data
-    if (out_data->getInputTo().empty()) {
-        in_data->setName(out_data->getName());
-    }
+    // save name for output data and update network output
+    SaveOutputDataName(in_data, out_data, net);
 }
 
 /************************************************************/
@@ -448,6 +491,10 @@ bool convertToRNNSeq(CNNLayerPtr cur, const N& net) {
 }
 
 bool unrollTI(CNNLayerPtr cur, ICNNNetwork& net) {
+    auto inet = dynamic_cast<details::CNNNetworkImpl*>(&net);
+    auto ngraphnet = dynamic_cast<details::CNNNetworkNGraphImpl*>(&net);
+    IE_ASSERT(inet != nullptr || ngraphnet != nullptr);
+
     if (cur->type != "TensorIterator") return true;
 
     auto ti = std::dynamic_pointer_cast<TensorIterator>(cur);
@@ -465,9 +512,10 @@ bool unrollTI(CNNLayerPtr cur, ICNNNetwork& net) {
 
         auto holder = body_list[i].inputs.back();
         if (holder->getPrecision() == Precision::UNSPECIFIED) {
-            IE_SUPPRESS_DEPRECATED_START
-            for (auto kvp : holder->getInputTo()) net.addLayer(kvp.second);
-            IE_SUPPRESS_DEPRECATED_END
+            for (auto kvp : holder->getInputTo()) {
+                if (inet) inet->addLayer(kvp.second);
+                else ngraphnet->addLayer(kvp.second);
+            }
         }
     }
 
@@ -1193,10 +1241,16 @@ std::vector<CNNLayerPtr> TopolSort(const details::CNNSubnet& net) {
 }
 
 void restore_net_consistency(ICNNNetwork& net) {
+    auto inet = dynamic_cast<details::CNNNetworkImpl*>(&net);
+    auto ngraphnet = dynamic_cast<details::CNNNetworkNGraphImpl*>(&net);
+    IE_ASSERT(inet != nullptr || ngraphnet != nullptr);
     // At first all layers should be available via findByName() api.
     // In other words all layers should be present in internal map<name, layer>
     IE_SUPPRESS_DEPRECATED_START
-    for (auto& l : TopolSort(net)) net.addLayer(l);
+    for (auto& l : TopolSort(net)) {
+        if (inet) inet->addLayer(l);
+        else ngraphnet->addLayer(l);
+    }
     IE_SUPPRESS_DEPRECATED_END
 }
 
@@ -1371,7 +1425,7 @@ void fixConvertLayers(NET &net) {
         }
     }
     for (auto &layer : to_remove) {
-        RemoveLayer(layer);
+        RemoveLayer(layer, net);
     }
 }
 

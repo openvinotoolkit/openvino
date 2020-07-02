@@ -3,6 +3,7 @@
 //
 
 #include "low_precision_transformer_single_layer_tests.hpp"
+#include "common_test_utils/common_utils.hpp"
 
 std::string FakeQuantizeAsOutputTest::getName() const {
     return "FakeQuantizeAsOutputTest";
@@ -14,7 +15,7 @@ bool FakeQuantizeAsOutputTest::transform(CNNNetwork& network, LayerTransformatio
     LowPrecisionTransformer transformer(LowPrecisionTransformer::getAllTransformations(params));
     transformer.transform(network);
 
-    const auto fq = network.getLayerByName("FakeQuantize12");
+    const auto fq = CommonTestUtils::getLayerByName(network, "FakeQuantize12");
     if (fq == nullptr)
         THROW_IE_EXCEPTION << "Layer 'FakeQuantize12' should not be transformed";
 

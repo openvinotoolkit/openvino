@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2018-2019 Intel Corporation
+// Copyright (c) 2018-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -123,6 +123,7 @@ void prepare_padding::run(program_impl& p) {
         if (conv_layout.format != cldnn::format::bfyx &&
             conv_layout.format != cldnn::format::bf8_xy16 &&
             conv_layout.format != cldnn::format::b_fs_yx_fsv16 &&
+            conv_layout.format != cldnn::format::bs_fs_yx_bsv16_fsv16 &&
             conv_layout.format != cldnn::format::byxf_af32 &&
             conv_layout.format != cldnn::format::fs_bs_yx_bsv4_fsv32 &&
             conv_layout.format != cldnn::format::b_fs_yx_fsv4 &&

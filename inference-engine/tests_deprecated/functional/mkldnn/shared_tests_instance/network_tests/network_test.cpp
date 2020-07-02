@@ -23,6 +23,21 @@
 
 TEST_P(ModelTransformationsTest, LPT) {}
 
+static void checkLayerInputPrecision(const ICNNNetwork& network, const std::string& layerName, Precision expectedPrecision, int inputIndex = -1) {
+    CNNLayerPtr layer = getLayer(network, layerName);
+    if (layer == nullptr) {
+        THROW_IE_EXCEPTION << "layer '" << layerName << "' was not found";
+    }
+    for (size_t index = 0ul; index < layer->insData.size(); ++index) {
+        if ((inputIndex != -1) && (index != inputIndex)) {
+            continue;
+        }
+
+        const DataWeakPtr weakData = layer->insData[index];
+        ASSERT_EQ(expectedPrecision, weakData.lock()->getPrecision()) << " unexpected precision " << weakData.lock()->getPrecision() << " for layer " << layerName;
+    }
+}
+
 ModelParams getModelParams(const std::string modelName) {
 std::map<std::string, ModelParams> modelParams = {
     {
@@ -68,7 +83,7 @@ std::map<std::string, ModelParams> modelParams = {
                         for (const std::pair<std::string, std::string> item : fakeQuantizeAndConcolutionItems) {
                             TestsCommonFunc::checkLayerOuputPrecision(*usedNetwork, item.first, Precision::U8);
                             if (!item.second.empty()) {
-                                TestsCommonFunc::checkLayerInputPrecision(*usedNetwork, item.second, Precision::U8, 0);
+                                checkLayerInputPrecision(*usedNetwork, item.second, Precision::U8, 0);
                             }
                         }
                     }
