@@ -58,14 +58,6 @@ public:
         return network;
     }
 
-    bool isParseSuccess(ResponseDesc* resp) noexcept {
-        return parseSuccess;
-    }
-
-    StatusCode getDescription(ResponseDesc* desc) noexcept {
-        return DescriptionBuffer(OK, desc) << description;
-    }
-
     StatusCode getName(char* name, size_t len, ResponseDesc* resp) noexcept {
         if (len > 0) {
             size_t length = std::min(this->name.size(), len - 1);  // cut the name if buffer is too small
@@ -75,21 +67,8 @@ public:
         return OK;
     }
 
-    int getVersion(ResponseDesc* resp) noexcept {
-        return _version;
-    }
-
-    void Release() noexcept {
-        delete this;
-    }
-
-    void addExtensions(const std::vector<InferenceEngine::IExtensionPtr>& ext);
-
-    ~CNNNetReaderImpl();
-
 private:
     std::shared_ptr<InferenceEngine::details::IFormatParser> _parser;
-    size_t GetFileVersion(pugi::xml_node& root);
     StatusCode ReadNetwork();
 
     std::string description;
@@ -101,7 +80,6 @@ private:
 
     // Stashed xmlDoc that is needed to delayed loading of V10 IR version
     std::shared_ptr<pugi::xml_document> xmlDoc;
-    std::vector<InferenceEngine::IExtensionPtr> extensions;
 };
 
 }  // namespace details
