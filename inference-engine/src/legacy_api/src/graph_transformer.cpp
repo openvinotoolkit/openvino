@@ -152,7 +152,7 @@ std::vector<CNNLayerPtr> ConstTransformer::foldConstSubgraphsInternal(const std:
                             // if there's no const data - set it
                             const auto it = constData.find(outData->getName());
                             if (it != constData.end()) {
-                                layer->blobs["custom"] = it->second; 
+                                layer->blobs["custom"] = it->second;
                             }
                         }
                         if (layer->type != "Const") {
@@ -355,7 +355,7 @@ const BlobMap ConstTransformer::getConstData(const std::map<std::string, bool>& 
                 auto & blobs = layer->blobs;
                 auto it = blobs.find("custom");
                 if (it == blobs.end())
-                    THROW_IE_EXCEPTION << "Missed `custom` blob";
+                    THROW_IE_EXCEPTION << "Missed `custom` blob in Const layer";
 
                 auto dataName = layer->outData[0]->getName();
                 constData[dataName] = (*it).second;
