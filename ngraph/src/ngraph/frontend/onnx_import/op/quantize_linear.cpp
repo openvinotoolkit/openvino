@@ -241,7 +241,7 @@ namespace ngraph
                         Shape target_shape(x_shape.rank().get_length(), 1);
                         target_shape[axis] = static_cast<size_t>(x_shape[axis].get_length());
 
-                        y_zero_point = builder::opset1::reshape(y_scale, target_shape);
+                        y_zero_point = builder::opset1::reshape(y_zero_point, target_shape);
                     }
 
                     return {detail::make_fake_quantize(y_scale, y_zero_point, x)};
