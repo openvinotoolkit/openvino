@@ -50,6 +50,7 @@ static const char *intel_dnn_activation_name[kActNumType] = {
         "kActLeakyRelu",
         "kActIdentity",
         "kActKaldiLstmClipping",
+        "kActCustom",
         "kActExp",
         "kActLog",
         "kActDivByN"
