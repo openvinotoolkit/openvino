@@ -36,7 +36,6 @@ target_link_libraries(${TARGET_NAME} PRIVATE pugixml)
 # code style
 
 add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
-add_clang_format_target(${TARGET_NAME}_clang_format FOR_TARGETS ${TARGET_NAME})
 
 # install
 
