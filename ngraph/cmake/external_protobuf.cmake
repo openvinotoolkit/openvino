@@ -20,6 +20,14 @@ include(FetchContent)
 # Download and install Google Protobuf ...
 #------------------------------------------------------------------------------
 
+message(STATUS "DUMP Protobuf FLAGS ORIGINAL:")
+message(STATUS "CMAKE_CXX_FLAGS: ${CMAKE_CXX_FLAGS}")
+message(STATUS "CMAKE_CXX_FLAGS_RELEASE: ${CMAKE_CXX_FLAGS_RELEASE}")
+message(STATUS "CMAKE_EXE_LINKER_FLAGS_RELEASE: ${CMAKE_EXE_LINKER_FLAGS_RELEASE}")
+message(STATUS "CMAKE_SHARED_LINKER_FLAGS_RELEASE: ${CMAKE_SHARED_LINKER_FLAGS_RELEASE}")
+message(STATUS "CMAKE_MODULE_LINKER_FLAGS_RELEASE: ${CMAKE_MODULE_LINKER_FLAGS_RELEASE}")
+message(STATUS "NGRAPH_FORWARD_CMAKE_ARGS: ${NGRAPH_FORWARD_CMAKE_ARGS}")
+
 # Since this file is going to be modifying CMAKE_*_FLAGS we need to preserve
 # it so we won't overwrite the caller's CMAKE_*_FLAGS
 set(PUSH_CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
