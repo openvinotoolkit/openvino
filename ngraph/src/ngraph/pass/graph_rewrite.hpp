@@ -44,9 +44,11 @@ class NGRAPH_API ngraph::pass::MatcherPass : public ngraph::pass::PassBase
 public:
     MatcherPass() = default;
 
-    explicit MatcherPass(const std::string & name, const handler_callback & handler, const PassPropertyMask & property = PassProperty::CHANGE_DYNAMIC_STATE)
-        : PassBase(),
-        m_handler(handler)
+    explicit MatcherPass(const std::string& name,
+                         const handler_callback& handler,
+                         const PassPropertyMask& property = PassProperty::CHANGE_DYNAMIC_STATE)
+        : PassBase()
+        , m_handler(handler)
     {
         set_name(name);
         set_property(property, true);

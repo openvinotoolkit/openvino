@@ -41,7 +41,7 @@ TEST(TransformationTests, FQTransposeTest1) {
         ngraph::pass::Manager manager;
         manager.register_pass<ngraph::pass::InitNodeInfo>();
         manager.register_pass<ngraph::pass::PullTransposeThroughFQUp>();
-        manager.register_pass<ngraph::pass::InjectionPass>([&](std::shared_ptr<ngraph::Function> f) {
+        manager.register_pass<ngraph::pass::InjectionPass>([](std::shared_ptr<ngraph::Function> f) {
             check_rt_info(f);
         });
         manager.register_pass<ngraph::pass::ConstantFolding>();
