@@ -4,7 +4,9 @@
 
 #pragma once
 
+#include <ngraph/opsets/opset.hpp>
 #include <ie_blob.h>
+#include <ie_icnn_network.hpp>
 #include <ie_iextension.h>
 #include <xml_parse_utils.h>
 
@@ -18,7 +20,6 @@
 #include <string>
 #include <vector>
 
-#include "cnn_network_impl.hpp"
 #include "ie_ngraph_utils.hpp"
 
 namespace InferenceEngine {
