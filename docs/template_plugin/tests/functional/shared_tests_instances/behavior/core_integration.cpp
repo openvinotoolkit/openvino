@@ -6,7 +6,11 @@
 #include <string>
 #include <vector>
 
-#include "ie_class.hpp"
+#include "behavior/core_integration.hpp"
+
+using namespace BehaviorTestsDefinitions;
+
+namespace {
 
 //
 // IE Class Common tests with <pluginName, deviceName params>
@@ -66,12 +70,13 @@ INSTANTIATE_TEST_CASE_P(
 //
 
 using IEClassSetConfigTestHETERO = IEClassNetworkTest;
+
 TEST_F(IEClassSetConfigTestHETERO, nightly_SetConfigNoThrow) {
     {
         Core ie;
         Parameter p;
 
-        ASSERT_NO_THROW(ie.SetConfig({ { HETERO_CONFIG_KEY(DUMP_GRAPH_DOT), CONFIG_VALUE(YES) } }, "HETERO"));
+        ASSERT_NO_THROW(ie.SetConfig({{HETERO_CONFIG_KEY(DUMP_GRAPH_DOT), CONFIG_VALUE(YES)}}, "HETERO"));
         ASSERT_NO_THROW(p = ie.GetConfig("HETERO", HETERO_CONFIG_KEY(DUMP_GRAPH_DOT)));
         bool dump = p.as<bool>();
 
@@ -82,7 +87,7 @@ TEST_F(IEClassSetConfigTestHETERO, nightly_SetConfigNoThrow) {
         Core ie;
         Parameter p;
 
-        ASSERT_NO_THROW(ie.SetConfig({ { HETERO_CONFIG_KEY(DUMP_GRAPH_DOT), CONFIG_VALUE(NO) } }, "HETERO"));
+        ASSERT_NO_THROW(ie.SetConfig({{HETERO_CONFIG_KEY(DUMP_GRAPH_DOT), CONFIG_VALUE(NO)}}, "HETERO"));
         ASSERT_NO_THROW(p = ie.GetConfig("HETERO", HETERO_CONFIG_KEY(DUMP_GRAPH_DOT)));
         bool dump = p.as<bool>();
 
@@ -94,7 +99,7 @@ TEST_F(IEClassSetConfigTestHETERO, nightly_SetConfigNoThrow) {
         Parameter p;
 
         ASSERT_NO_THROW(ie.GetMetric("HETERO", METRIC_KEY(SUPPORTED_CONFIG_KEYS)));
-        ASSERT_NO_THROW(ie.SetConfig({ { HETERO_CONFIG_KEY(DUMP_GRAPH_DOT), CONFIG_VALUE(YES) } }, "HETERO"));
+        ASSERT_NO_THROW(ie.SetConfig({{HETERO_CONFIG_KEY(DUMP_GRAPH_DOT), CONFIG_VALUE(YES)}}, "HETERO"));
         ASSERT_NO_THROW(p = ie.GetConfig("HETERO", HETERO_CONFIG_KEY(DUMP_GRAPH_DOT)));
         bool dump = p.as<bool>();
 
@@ -111,6 +116,7 @@ INSTANTIATE_TEST_CASE_P(
         ::testing::Values("TEMPLATE"));
 
 using IEClassGetConfigTestTEMPLATE = IEClassNetworkTest;
+
 TEST_F(IEClassGetConfigTestTEMPLATE, nightly_GetConfigNoThrow) {
     Core ie;
     Parameter p;
@@ -119,7 +125,7 @@ TEST_F(IEClassGetConfigTestTEMPLATE, nightly_GetConfigNoThrow) {
     ASSERT_NO_THROW(p = ie.GetMetric(deviceName, METRIC_KEY(SUPPORTED_CONFIG_KEYS)));
     std::vector<std::string> configValues = p;
 
-    for (auto && confKey : configValues) {
+    for (auto &&confKey : configValues) {
         if (CONFIG_KEY(DEVICE_ID) == confKey) {
             std::string defaultDeviceID = ie.GetConfig(deviceName, CONFIG_KEY(DEVICE_ID));
             std::cout << CONFIG_KEY(DEVICE_ID) << " : " << defaultDeviceID << std::endl;
@@ -203,3 +209,4 @@ INSTANTIATE_TEST_CASE_P(
         ::testing::Values("TEMPLATE"));
 
 #endif  // ENABLE_MKL_DNN
+} // namespace

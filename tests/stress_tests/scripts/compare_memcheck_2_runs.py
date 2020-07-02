@@ -168,7 +168,12 @@ def cli_parser():
     parser.add_argument('--db_url',
                         help='MongoDB URL in a for "mongodb://server:port".')
     parser.add_argument('--db_collection',
-                        help=f'Collection name in {DATABASE} database to query.',
+                        help=f'Collection name in "{DATABASE}" database to query'
+                             f' data using current source.',
+                        choices=["commit", "nightly", "weekly"])
+    parser.add_argument('--ref_db_collection',
+                        help=f'Collection name in "{DATABASE}" database to query'
+                             f' data using reference source.',
                         choices=["commit", "nightly", "weekly"])
     parser.add_argument('--out_file', dest='output_file', type=Path,
                         help='Path to a file (with name) to save results. '
@@ -181,6 +186,6 @@ def cli_parser():
 
 if __name__ == "__main__":
     args = cli_parser()
-    references = get_memcheck_records(args.ref_source, args.db_collection, DATABASE, args.db_url)
+    references = get_memcheck_records(args.ref_source, args.ref_db_collection, DATABASE, args.db_url)
     cur_values = get_memcheck_records(args.cur_source, args.db_collection, DATABASE, args.db_url)
     compare_memcheck_2_runs(cur_values, references, output_file=args.output_file)
