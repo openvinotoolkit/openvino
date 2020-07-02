@@ -63,6 +63,23 @@ public:
     /// each registered pass
     /// \param new_state Value "true" enables Validate pass run; "false", otherwise
     void set_per_pass_validation(bool new_state) { m_per_pass_validation = new_state; }
+    /// \brief Callback is a lambda function that can be used by registered transformations.
+    /// The main purpose of this callback is to provide a way for plugins to disable/enable
+    /// transformations. In some cases plugins may want not to execute some transformations.
+    /// For example plugin can disable unpleasant decompositions because of performance reasons.
+    /// Callback example:
+    /// auto callback = [](const std::shared_ptr<const ngraph::Node> & node) -> bool {
+    ///     return std::dynamic_pointer_cast<const ngraph::opset3::DepthToSpace>(node) != nullptr;
+    /// };
+    /// This callback returns true in case of DepthToSpace operation. So when execution DepthToSpace
+    /// decomposition pass will check is this decomposition needed or plugin can execute this
+    /// operation directly. And of course on transformation side we need to have a response for this
+    /// callback.
+    /// if (m_transformation_callback(batch_to_space)) {
+    ///     return false;
+    /// }
+    /// \param callback lamda function that returns true in case if node is supported by plugin and
+    /// transformation is not needed
     void set_callback(param_callback callback)
     {
         m_transformation_callback = callback;
