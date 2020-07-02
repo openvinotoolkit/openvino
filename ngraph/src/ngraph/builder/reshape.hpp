@@ -34,6 +34,7 @@ namespace ngraph
         ///
         /// \return     The reshaped value.
         ///
+        NGRAPH_API
         std::shared_ptr<Node> reshape(const Output<Node>& value, const Shape& shape);
 
         /// \brief Permute axes according to specified axes_order parameter.

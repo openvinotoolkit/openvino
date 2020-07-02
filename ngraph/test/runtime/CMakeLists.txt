@@ -22,6 +22,10 @@ set (SRC
     cache.hpp
     opset0_downgrade.cpp
     opset0_downgrade.hpp
+    opset1_downgrade.cpp
+    opset1_downgrade.hpp
+    opset1_upgrade.cpp
+    opset1_upgrade.hpp
     executable.cpp
     executable.hpp
     performance_counter.hpp

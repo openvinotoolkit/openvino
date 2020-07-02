@@ -20,8 +20,8 @@
 #include "default_opset.hpp"
 #include "ngraph/node.hpp"
 #include "ngraph/op/constant.hpp"
+#include "ngraph/op/get_output_element.hpp"
 #include "ngraph/op/topk.hpp"
-#include "ngraph/opsets/opset0.hpp"
 #include "ngraph/shape.hpp"
 #include "ngraph/type/element_type.hpp"
 #include "ngraph/validation_util.hpp"
@@ -55,9 +55,9 @@ namespace
     ngraph::NodeVector get_outputs(const std::shared_ptr<ngraph::Node>& node)
     {
         std::shared_ptr<ngraph::Node> values =
-            std::make_shared<ngraph::opset0::GetOutputElement>(node, 0);
+            std::make_shared<ngraph::op::v0::GetOutputElement>(node, 0);
         std::shared_ptr<ngraph::Node> indices =
-            std::make_shared<ngraph::opset0::GetOutputElement>(node, 1);
+            std::make_shared<ngraph::op::v0::GetOutputElement>(node, 1);
 
         return {values, indices};
     }

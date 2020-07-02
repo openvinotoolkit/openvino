@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //*****************************************************************************
-#include "ngraph/pass/opset1_upgrade.hpp"
+#include "opset1_upgrade.hpp"
 
 #include <functional>
 #include <iterator>
@@ -25,6 +25,7 @@
 #include "ngraph/graph_util.hpp"
 #include "ngraph/ops.hpp"
 #include "ngraph/provenance.hpp"
+#include "op/avg_pool.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -585,7 +586,7 @@ namespace
     {
         static DispatchMap dispatch_map{
 #define NGRAPH_OP(NAME, NAMESPACE) {NAMESPACE::NAME::type_info, op_cast_thunk<NAMESPACE::NAME>},
-#include "ngraph/opsets/opset0_tbl.hpp"
+#include "opset0_tbl.hpp"
 #undef NGRAPH_OP
         };
         return dispatch_map;

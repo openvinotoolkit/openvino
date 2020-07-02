@@ -19,9 +19,9 @@
 #include "ngraph/op/get_output_element.hpp"
 #include "ngraph/opsets/opset.hpp"
 #include "ngraph/pass/manager.hpp"
-#include "ngraph/pass/opset1_upgrade.hpp"
 #include "ngraph/shape.hpp"
 #include "ngraph/type/element_type.hpp"
+#include "opset1_upgrade.hpp"
 
 using namespace std;
 using namespace ngraph;

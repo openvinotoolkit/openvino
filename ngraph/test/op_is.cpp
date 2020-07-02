@@ -1351,6 +1351,6 @@ namespace
 TEST(op_is, check)
 {
 #define NGRAPH_OP(a, b) op_is_##a();
-#include "ngraph/opsets/opset0_tbl.hpp"
+#include "opset0_tbl.hpp"
 #undef NGRAPH_OP
 }
