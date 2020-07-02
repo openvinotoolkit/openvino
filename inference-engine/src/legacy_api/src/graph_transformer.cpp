@@ -153,8 +153,6 @@ std::vector<CNNLayerPtr> ConstTransformer::foldConstSubgraphsInternal(const std:
                             const auto it = constData.find(outData->getName());
                             if (it != constData.end()) {
                                 layer->blobs["custom"] = it->second; 
-                            } else {
-                                std::cout << "Failed to find data for " << outData->getName() << std::endl;
                             }
                         }
                         if (layer->type != "Const") {
@@ -202,8 +200,6 @@ std::vector<CNNLayerPtr> ConstTransformer::foldConstSubgraphsInternal(const std:
                                 const auto it = constData.find(outData->getName());
                                 if (it != constData.end()) {
                                     newLayer->blobs["custom"] = it->second;
-                                } else {
-                                    std::cout << "Failed to find data for " << outData->getName() << std::endl;
                                 }
                                 auto newData = std::make_shared<Data>(outData->getName() + "__" + inputToName,
                                                                       outData->getTensorDesc());
@@ -236,7 +232,8 @@ static std::vector<std::string> skipConstInfer = {
     "FakeQuantize",
     "Quantize",
     "CumSum",     // Const inference function for CumSum is not implemented
-    "Convolution" // Const inference function for Convolution is not implemented
+    "Convolution", // Const inference function for Convolution is not implemented
+    "Eltwise",  // Const inference function for Eltwise is not implemented
 };
 
 const std::map<std::string, bool> ConstTransformer::getConstLayers(const std::vector<CNNLayerPtr>& sortedLayers) {

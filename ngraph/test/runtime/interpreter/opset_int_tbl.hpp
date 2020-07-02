@@ -15,8 +15,7 @@
 //*****************************************************************************
 
 #define ID_SUFFIX(NAME) NAME
-#include "ngraph/opsets/opset0_tbl.hpp"
-NGRAPH_OP(AvgPool, op::v0)
+#include "opset0_tbl.hpp"
 #undef ID_SUFFIX
 
 #define ID_SUFFIX(NAME) NAME##_v1
