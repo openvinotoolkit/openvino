@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2019 Intel Corporation
+﻿// Copyright (c) 2019-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,36 +16,32 @@
 #include "pooling_kernel_selector.h"
 #include "pooling_kernel_gpu_ref.h"
 #include "pooling_kernel_gpu_byxf_opt.h"
-#include "pooling_kernel_gpu_average_opt.h"
 #include "pooling_kernel_gpu_bfyx_block_opt.h"
 #include "pooling_kernel_gpu_byxf_padding_opt.h"
 #include "pooling_kernel_gpu_byxf_af32.h"
 #include "pooling_kernel_gpu_int8_ref.h"
-#include "pooling_kernel_gpu_fs_bs_yx_bsv4_fsv32.h"
 #include "pooling_kernel_gpu_b_fs_yx_fsv4.h"
-#include "pooling_kernel_gpu_fs_bs_yx_bsv4_fsv32_simd32.h"
 #include "pooling_kernel_gpu_fs_b_yx_fsv32.h"
 #include "pooling_kernel_gpu_b_fs_yx_fsv16.h"
 #include "pooling_kernel_gpu_bsv16_fsv16.h"
 #include "pooling_kernel_gpu_b_fs_yx_fsv16_imad.h"
+#include "pooling_kernel_gpu_bs_fs_yx_bsv16_fsv16.h"
 
 namespace kernel_selector {
 
 pooling_kernel_selector::pooling_kernel_selector() {
     Attach<PoolingKernelGPURef>();
-    //Attach<PoolingKernelGPUAverageOpt>(); TODO: fix the kernel as it reads out of bounds now
     Attach<PoolingKernelGPUByxfOpt>();
     Attach<PoolingKernelGPUBfyxBlockOpt>();
     Attach<PoolingKernelGPUByxfPaddingOpt>();
     Attach<PoolingKernelGPUInt8Ref>();
     Attach<PoolingKerneGPU_byxf_af32>();
-    Attach<PoolingKerneGPU_fs_bs_yx_bsv4_fsv32>();
     Attach<PoolingKerneGPU_b_fs_yx_fsv4>();
-    Attach<PoolingKerneGPU_fs_bs_yx_bsv4_fsv32_simd32>();
     Attach<PoolingKerneGPU_fs_b_yx_fsv32>();
     Attach<PoolingKernel_b_fs_yx_fsv16>();
     Attach<PoolingKernel_bsv16_fsv16>();
     Attach<PoolingKernelGPU_b_fs_yx_fsv16_imad>();
+    Attach<Pooling_kernel_gpu_bs_fs_yx_bsv_16_fsv16>();
 }
 
 KernelsData pooling_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const {

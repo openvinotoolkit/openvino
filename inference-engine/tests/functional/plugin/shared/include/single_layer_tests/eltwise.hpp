@@ -17,11 +17,6 @@
 
 namespace LayerTestsDefinitions {
 namespace EltwiseParams {
-enum class InputLayerType {
-    CONSTANT,
-    PARAMETER,
-};
-
 enum class OpType {
     SCALAR,
     VECTOR
@@ -31,7 +26,7 @@ enum class OpType {
 typedef std::tuple<
     std::vector<std::vector<size_t>>,             // input shapes
     ngraph::helpers::EltwiseTypes,                // eltwise op type
-    EltwiseParams::InputLayerType,                // secondary input type
+    ngraph::helpers::InputLayerType,              // secondary input type
     EltwiseParams::OpType,                        // op type
     InferenceEngine::Precision,                   // Net precision
     std::string,                                  // Device name
