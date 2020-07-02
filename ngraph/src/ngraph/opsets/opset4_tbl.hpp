@@ -153,3 +153,4 @@ NGRAPH_OP(TopK, ngraph::op::v3)
 
 // New operations added in opset4
 NGRAPH_OP(NonMaxSuppression, ngraph::op::v4)
+NGRAPH_OP(Mish, ngraph::op::v4)
