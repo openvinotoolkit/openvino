@@ -86,6 +86,8 @@ class InsertLayoutPropagationTranspose(MiddleReplacementPattern):
                 )
                 reinterp_shape_node.in_port(0).get_connection().insert_node(permute_node)
 
+                order_const = permute_node.in_port(1).get_source().node
+                order_const.infer(order_const)
                 # do not infer the Transpose node because it should have input data node in NCHW layout (but currently
                 # it is NHWC because data node attributes has not been permuted yet) and produce output in NHWC layout
                 # (which is true at this moment)

@@ -19,6 +19,7 @@ import numpy as np
 from extensions.ops.transpose import Transpose
 from mo.back.replacement import BackReplacementPattern
 from mo.front.common.partial_infer.utils import int64_array
+from mo.front.tf.graph_utils import create_op_node_with_second_input
 from mo.graph.graph import Graph
 from mo.ops.const import Const
 from mo.ops.unsqueeze import Unsqueeze
@@ -56,13 +57,12 @@ class MatMulConstTransposesExtraction(BackReplacementPattern):
         transpose_order = list(range(port_shape.size))
         transpose_order[-1], transpose_order[-2] = transpose_order[-2], transpose_order[-1]
 
-        transpose = Transpose(graph, {'name': name + '/{}_port_transpose'.format(in_port_idx)}).create_node()
-        order = Const(graph, {'value': int64_array(transpose_order), 'name': transpose.name + '/order'}).create_node()
+        transpose = create_op_node_with_second_input(graph, Transpose, int64_array(transpose_order),
+                                                     {'name': name + '/{}_port_transpose'.format(in_port_idx)})
 
         port_source = in_port.get_source()
         in_port.get_connection().set_source(transpose.out_port(0))
         transpose.in_port(0).connect(port_source)
-        transpose.in_port(1).connect(order.out_port(0))
 
         transpose['override_output_shape'] = True
 

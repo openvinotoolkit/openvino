@@ -234,9 +234,9 @@ class DeconvolutionNormalizer(BackReplacementPattern):
             shape_src = node.in_port(2).get_source()
             node.in_port(2).disconnect()
 
-            ss_0 = create_op_with_const_inputs(graph, StridedSlice, {0: np.array([2], dtype=np.int32),
-                                                                     1: np.array([in_rank], dtype=np.int32),
-                                                                     2: np.array([1], dtype=np.int32)},
+            ss_0 = create_op_with_const_inputs(graph, StridedSlice, {1: np.array([2], dtype=np.int32),
+                                                                     2: np.array([in_rank], dtype=np.int32),
+                                                                     3: np.array([1], dtype=np.int32)},
                                                {'name': node_name + '/ss_0_port',
                                                 'begin_mask': np.array([1], dtype=np.int32),
                                                 'end_mask': np.array([0], dtype=np.int32),

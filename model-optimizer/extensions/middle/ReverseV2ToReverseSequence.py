@@ -60,7 +60,8 @@ class ReverseToReverseSequence(MiddleReplacementPattern):
 
         # 2. Create new ReverseSequence node and reconnect all inputs/outputs to it
         reverse_sequence = create_op_node_with_second_input(graph, ReverseSequence, seq_lengths,
-                                                            {'name': reverse.name + '/ReverseSequence/',
+                                                            {'name': reverse.soft_get('name',
+                                                                                      reverse.id) + '/ReverseSequence/',
                                                              'seq_axis': seq_axis, 'batch_axis': batch_axis})
         reverse.in_port(0).get_connection().set_destination(reverse_sequence.in_port(0))
         reverse.out_port(0).get_connection().set_source(reverse_sequence.out_port(0))

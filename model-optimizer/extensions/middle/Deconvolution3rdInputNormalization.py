@@ -46,7 +46,7 @@ class Deconvolution3rdInputNormalization(MiddleReplacementPattern):
 
             data_node = node.in_node(2)
 
-            name = node.name + '/ShapeGather'
+            name = node.soft_get('name', node.id) + '/ShapeGather'
             const = Const(graph, {'value': permutation.perm, 'name': name + '/Const',
                                   'need_shape_inference': True}).create_node_with_data()
             axis_const = Const(graph, {'value': int64_array(0), 'name': name + '/Axis'}).create_node_with_data()

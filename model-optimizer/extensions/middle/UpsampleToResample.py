@@ -25,9 +25,9 @@ from extensions.ops.elementwise import Mul
 from extensions.ops.interpolate import Interpolate
 from mo.front.common.layout import get_height_dim, get_width_dim, get_depth_dim
 from mo.front.common.partial_infer.utils import int64_array
+from mo.front.tf.graph_utils import create_op_with_const_inputs, create_op_node_with_second_input
 from mo.graph.graph import Graph, Node
 from mo.middle.replacement import MiddleReplacementPattern
-from mo.ops.const import Const
 from mo.ops.shape import Shape
 from mo.ops.strided_slice import StridedSlice
 
@@ -94,39 +94,37 @@ class UpsampleToResample(MiddleReplacementPattern):
         shape = Shape(graph, {'name': upsample_name + '/0_port'}).create_node()
 
         layout = graph.graph['layout']
-        ss = StridedSlice(graph, {'name': upsample_name + '/ss_0_port',
-                                  'begin_mask': int64_array([1]),
-                                  'end_mask': int64_array([1]),
-                                  'new_axis_mask': int64_array([0]),
-                                  'shrink_axis_mask': int64_array([0]),
-                                  'ellipsis_mask': int64_array([0])}).create_node()
-
-        mul = Mul(graph, {'name': upsample_name + '/factor_mul_'}).create_node()
 
         if input_shape_rank == 4:
-            begin = Const(graph, {'value': int64_array([get_height_dim(layout, input_shape_rank)]),
-                                  'name': ss.name + '/begin'}).create_node()
-            factor = Const(graph, {'value': np.array([height_scale, width_scale]),
-                                   'name': mul.name + '/const'}).create_node()
+            begin_value = int64_array([get_height_dim(layout, input_shape_rank)])
+            factor_value = np.array([height_scale, width_scale])
         else:
-            begin = Const(graph, {'value': int64_array([get_depth_dim(layout, input_shape_rank)]),
-                                  'name': ss.name + '/begin'}).create_node()
-            factor = Const(graph, {'value': np.array([depth_scale, height_scale, width_scale]),
-                                   'name': mul.name + '/const'}).create_node()
-        end = Const(graph, {'value': int64_array([get_width_dim(layout, input_shape_rank) + 1]),
-                            'name': ss.name + '/end'}).create_node()
+            begin_value = int64_array([get_depth_dim(layout, input_shape_rank)])
+            factor_value = np.array([depth_scale, height_scale, width_scale])
 
-        stride = Const(graph, {'value': int64_array([1]),
-                               'name': ss.name + '/stride'}).create_node()
+
+
+        ss = create_op_with_const_inputs(graph, StridedSlice,
+                                         {1: begin_value,
+                                          2: int64_array([get_width_dim(layout, input_shape_rank) + 1]),
+                                          3: int64_array([1])
+                                          },
+                                         {'name': upsample_name + '/ss_0_port',
+                                          'begin_mask': int64_array([1]),
+                                          'end_mask': int64_array([1]),
+                                          'new_axis_mask': int64_array([0]),
+                                          'shrink_axis_mask': int64_array([0]),
+                                          'ellipsis_mask': int64_array([0])
+                                          }
+                                         )
+
+        mul = create_op_node_with_second_input(graph, Mul, factor_value, {'name': upsample_name + '/factor_mul_'})
 
         source = upsample.in_port(0).get_connection().get_source()
         source.connect(shape.in_port(0))
         shape.out_port(0).connect(ss.in_port(0))
-        begin.out_port(0).connect(ss.in_port(1))
-        end.out_port(0).connect(ss.in_port(2))
-        stride.out_port(0).connect(ss.in_port(3))
+
         ss.out_port(0).connect(mul.in_port(0))
-        factor.out_port(0).connect(mul.in_port(1))
 
         # Create Interpolate operation
         if input_shape_rank == 4:
@@ -137,7 +135,7 @@ class UpsampleToResample(MiddleReplacementPattern):
                                 get_height_dim(layout, input_shape_rank),
                                 get_width_dim(layout, input_shape_rank)])
 
-        resample_op = Interpolate(graph, dict(name='Interpolate/{}'.format(upsample_name),
+        resample_op = Interpolate(graph, dict(name=upsample_name + '/Interpolate',
                                               axes=axes, mode=upsample.attrs()['mode'],
                                               antialias=0, convert_to_resample=True)).create_node()
 
