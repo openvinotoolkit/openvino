@@ -23,7 +23,7 @@ from memcheck_upload import create_memcheck_records
 from pymongo import MongoClient
 
 # Database arguments
-DATABASE = 'memcheck'
+from memcheck_upload import DATABASE, DB_COLLECTIONS
 
 
 def get_db_memcheck_records(query, db_collection, db_name, db_url):
@@ -170,11 +170,11 @@ def cli_parser():
     parser.add_argument('--db_collection',
                         help=f'Collection name in "{DATABASE}" database to query'
                              f' data using current source.',
-                        choices=["commit", "nightly", "weekly"])
+                        choices=DB_COLLECTIONS)
     parser.add_argument('--ref_db_collection',
                         help=f'Collection name in "{DATABASE}" database to query'
                              f' data using reference source.',
-                        choices=["commit", "nightly", "weekly"])
+                        choices=DB_COLLECTIONS)
     parser.add_argument('--out_file', dest='output_file', type=Path,
                         help='Path to a file (with name) to save results. '
                              'Example: /home/.../file.csv')

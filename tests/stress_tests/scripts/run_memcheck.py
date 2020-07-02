@@ -22,8 +22,8 @@ from memcheck_upload import create_memcheck_records, \
 from compare_memcheck_2_runs import compare_memcheck_2_runs, \
     get_memcheck_records, get_db_memcheck_records
 
-DATABASE = 'memcheck'
-COLLECTIONS = ["commit", "nightly", "weekly"]
+# Database arguments
+from memcheck_upload import DATABASE, DB_COLLECTIONS
 
 
 def run(args, log=None, verbose=True):
@@ -108,7 +108,7 @@ def main():
     parser.add_argument('--db_collection',
                         required=args.timeline_report or args.upload,
                         help=f'use collection name in {DATABASE} database',
-                        choices=COLLECTIONS)
+                        choices=DB_COLLECTIONS)
     parser.add_argument('--manifest',
                         help=f'extract commit information from build manifest')
     parser.add_argument('--metadata',
@@ -122,7 +122,7 @@ def main():
                         required=args.compare and not os.path.isdir(args.compare),
                         help=f'use collection name in {DATABASE} database to query'
                              f' reference data',
-                        choices=COLLECTIONS)
+                        choices=DB_COLLECTIONS)
     parser.add_argument('--comparison_report',
                         required=args.compare,
                         help='create comparison report file name')
