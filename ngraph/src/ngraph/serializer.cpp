@@ -981,20 +981,6 @@ shared_ptr<Node> JSONDeserializer::deserialize_node(json node_js)
             node = make_shared<op::Any>(args[0], reduction_axes);
             break;
         }
-        case OP_TYPEID::ArgMin:
-        {
-            auto axis = node_js.at("axis").get<size_t>();
-            auto target_type = read_element_type(node_js.at("index_element_type"));
-            node = make_shared<op::ArgMin>(args[0], axis, target_type);
-            break;
-        }
-        case OP_TYPEID::ArgMax:
-        {
-            auto axis = node_js.at("axis").get<size_t>();
-            auto target_type = read_element_type(node_js.at("index_element_type"));
-            node = make_shared<op::ArgMax>(args[0], axis, target_type);
-            break;
-        }
         case OP_TYPEID::Asin:
         {
             node = make_shared<op::Asin>(args[0]);
@@ -2510,20 +2496,6 @@ json JSONSerializer::serialize_node(const Node& n)
         {
             node["auto_broadcast"] = write_auto_broadcast(tmp->get_autob());
         }
-        break;
-    }
-    case OP_TYPEID::ArgMin:
-    {
-        auto tmp = static_cast<const op::ArgMin*>(&n);
-        node["axis"] = tmp->get_reduction_axis();
-        node["index_element_type"] = write_element_type(tmp->get_element_type());
-        break;
-    }
-    case OP_TYPEID::ArgMax:
-    {
-        auto tmp = static_cast<const op::ArgMax*>(&n);
-        node["axis"] = tmp->get_reduction_axis();
-        node["index_element_type"] = write_element_type(tmp->get_element_type());
         break;
     }
     case OP_TYPEID::All:

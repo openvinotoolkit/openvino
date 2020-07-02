@@ -129,10 +129,6 @@ set (SRC
     op/and.hpp
     op/any.cpp
     op/any.hpp
-    op/argmax.cpp
-    op/argmax.hpp
-    op/argmin.cpp
-    op/argmin.hpp
     op/asin.cpp
     op/asin.hpp
     op/asinh.cpp

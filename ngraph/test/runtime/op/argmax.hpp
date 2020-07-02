@@ -16,6 +16,7 @@
 
 #pragma once
 
+#include "backend_visibility.hpp"
 #include "ngraph/op/util/index_reduction.hpp"
 
 namespace ngraph
@@ -25,21 +26,20 @@ namespace ngraph
         namespace v0
         {
             /// \brief Computes minimum index along a specified axis for a given tensor
-            class NGRAPH_API ArgMin : public op::util::IndexReduction
+            class BACKEND_API ArgMax : public op::util::IndexReduction
             {
             public:
-                static constexpr NodeTypeInfo type_info{"ArgMin", 0};
+                static constexpr NodeTypeInfo type_info{"ArgMax", 0};
                 const NodeTypeInfo& get_type_info() const override { return type_info; }
-                /// \brief Constructs a ArgMin operation.
-                ArgMin() = default;
-
-                /// \brief Constructs a ArgMin operation.
+                /// \brief Constructs a ArgMax operation.
+                ArgMax() = default;
+                /// \brief Constructs a ArgMax operation.
                 ///
                 /// \param arg The input tensor
-                /// \param axis The axis along which to compute an index for minimum
+                /// \param axis The axis along which to compute an index for maximum
                 /// \param index_element_type produce indices. Currently, only int64 or int32 are
                 ///                           supported
-                ArgMin(const Output<Node>& arg,
+                ArgMax(const Output<Node>& arg,
                        size_t axis,
                        const element::Type& index_element_type);
 
@@ -49,6 +49,5 @@ namespace ngraph
                 virtual std::shared_ptr<Node> get_default_value() const override;
             };
         }
-        using v0::ArgMin;
     }
 }

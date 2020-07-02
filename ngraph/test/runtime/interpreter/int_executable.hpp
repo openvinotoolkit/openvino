@@ -104,6 +104,8 @@
 #include "ngraph/runtime/tensor.hpp"
 #include "ngraph/state/bernoulli_rng_state.hpp"
 #include "ngraph/state/uniform_rng_state.hpp"
+#include "op/argmax.hpp"
+#include "op/argmin.hpp"
 #include "op/avg_pool.hpp"
 
 namespace ngraph
@@ -245,7 +247,7 @@ protected:
         }
         case OP_TYPEID::ArgMin:
         {
-            const op::ArgMin* argmin = static_cast<const op::ArgMin*>(&node);
+            const op::v0::ArgMin* argmin = static_cast<const op::v0::ArgMin*>(&node);
             auto element_type = node.get_output_element_type(0);
             if (element_type == element::i64)
             {
@@ -271,7 +273,7 @@ protected:
         }
         case OP_TYPEID::ArgMax:
         {
-            const op::ArgMax* argmax = static_cast<const op::ArgMax*>(&node);
+            const op::v0::ArgMax* argmax = static_cast<const op::v0::ArgMax*>(&node);
             auto element_type = node.get_output_element_type(0);
             if (element_type == element::i64)
             {

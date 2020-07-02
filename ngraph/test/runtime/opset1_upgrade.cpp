@@ -25,6 +25,8 @@
 #include "ngraph/graph_util.hpp"
 #include "ngraph/ops.hpp"
 #include "ngraph/provenance.hpp"
+#include "op/argmax.hpp"
+#include "op/argmin.hpp"
 #include "op/avg_pool.hpp"
 
 using namespace std;
