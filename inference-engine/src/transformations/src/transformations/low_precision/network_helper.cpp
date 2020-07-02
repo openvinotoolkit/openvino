@@ -257,7 +257,7 @@ size_t NetworkHelper::getGroupsCount(std::shared_ptr<Node> layer) {
     if (as_type_ptr<opset1::Convolution>(layer)) {
         return 1;
     } else if (auto group_convolution = as_type_ptr<opset1::GroupConvolution>(layer)) {
-        return layer->get_input_shape(0)[0];    // input weights for opset1::GC is in format GOI..., see the specification
+        return layer->get_input_shape(1)[0];    // input weights for opset1::GC is in format GOI..., see the specification
     } else {
         THROW_TRANSFORMATION_EXCEPTION << "Invalid layer type of " << layer->get_friendly_name() << "; expected Convolutino or GroupConvolution";
     }
@@ -557,7 +557,9 @@ std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> decomposeFakeQuantize(s
             fold<opset1::Subtract>(outputHigh, outputLow),
             fold<opset1::Subtract>(newMax, newMin));
 
-        shift = fold<opset1::Divide>(outputLow, scale);
+        shift = fold<opset1::Divide>(
+            fold<opset1::Subtract>(std::make_shared<opset1::Constant>(fq->get_output_element_type(0), Shape{}, std::vector<float>({ 0 })), outputLow),
+            scale);
     }
 
     // Build a substitution sub-graph:
@@ -717,7 +719,9 @@ FakeQuantizeDequantization createDequantizationFromFakeQuantize(std::shared_ptr<
             fold<opset1::Subtract>(outputHigh, outputLow),
             fold<opset1::Subtract>(newMax, newMin));
 
-        shift = fold<opset1::Divide>(outputLow, scale);
+        shift = fold<opset1::Divide>(
+            fold<opset1::Subtract>(std::make_shared<opset1::Constant>(fq->get_output_element_type(0), Shape{}, std::vector<float>({ 0 })), outputLow),
+            scale);
     }
 
     // TODO: we create input here! we really need it here?
