@@ -439,7 +439,6 @@ TEST(constant_folding, constant_unary_binary)
     auto greater_eq_autob_numpy = make_shared<op::GreaterEq>(a, g, op::AutoBroadcastType::NUMPY);
     auto less_autob_numpy = make_shared<op::Less>(a, g, op::AutoBroadcastType::NUMPY);
     auto less_eq_autob_numpy = make_shared<op::LessEq>(a, g, op::AutoBroadcastType::NUMPY);
-    auto logical_and_autob_numpy = make_shared<op::And>(h, i, op::AutoBroadcastType::NUMPY);
     auto logical_or_autob_numpy = make_shared<op::Or>(h, i, op::AutoBroadcastType::NUMPY);
     auto logical_xor_autob_numpy = make_shared<op::Xor>(h, i, op::AutoBroadcastType::NUMPY);
 
@@ -468,7 +467,6 @@ TEST(constant_folding, constant_unary_binary)
                                                  greater_eq_autob_numpy,
                                                  less_autob_numpy,
                                                  less_eq_autob_numpy,
-                                                 logical_and_autob_numpy,
                                                  logical_or_autob_numpy,
                                                  logical_xor_autob_numpy},
                                       ParameterVector{});
@@ -501,7 +499,6 @@ TEST(constant_folding, constant_unary_binary)
     vector<char> greater_eq_autob_numpy_expected{1, 0, 1, 1};
     vector<char> less_autob_numpy_expected{0, 1, 0, 0};
     vector<char> less_eq_autob_numpy_expected{1, 1, 0, 1};
-    vector<char> logical_and_autob_numpy_expected{0, 0, 0, 1};
     vector<char> logical_or_autob_numpy_expected{0, 1, 1, 1};
     vector<char> logical_xor_autob_numpy_expected{0, 1, 1, 0};
 
@@ -528,9 +525,8 @@ TEST(constant_folding, constant_unary_binary)
     ASSERT_EQ(get_result_constant<char>(func, 20), greater_eq_autob_numpy_expected);
     ASSERT_EQ(get_result_constant<char>(func, 21), less_autob_numpy_expected);
     ASSERT_EQ(get_result_constant<char>(func, 22), less_eq_autob_numpy_expected);
-    ASSERT_EQ(get_result_constant<char>(func, 23), logical_and_autob_numpy_expected);
-    ASSERT_EQ(get_result_constant<char>(func, 24), logical_or_autob_numpy_expected);
-    ASSERT_EQ(get_result_constant<char>(func, 25), logical_xor_autob_numpy_expected);
+    ASSERT_EQ(get_result_constant<char>(func, 23), logical_or_autob_numpy_expected);
+    ASSERT_EQ(get_result_constant<char>(func, 24), logical_xor_autob_numpy_expected);
     ASSERT_NO_THROW(pass_manager.run_passes(func_error));
 }
 
@@ -1648,31 +1644,6 @@ TEST(constant_folding, const_less_eq)
     auto values_out = new_const->get_vector<char>();
 
     vector<char> values_expected{1, 1, 0, 1, 1, 0};
-
-    ASSERT_EQ(values_expected, values_out);
-}
-
-TEST(constant_folding, const_and)
-{
-    auto constant0 =
-        op::Constant::create(element::boolean, Shape{2, 3}, vector<int32_t>{0, 0, 1, 0, 1, 1});
-    auto constant1 =
-        op::Constant::create(element::boolean, Shape{2, 3}, vector<int32_t>{0, 1, 1, 1, 0, 1});
-    auto eq = make_shared<op::And>(constant0, constant1);
-    auto f = make_shared<Function>(eq, ParameterVector{});
-
-    pass::Manager pass_manager;
-    pass_manager.register_pass<pass::ConstantFolding>();
-    pass_manager.run_passes(f);
-
-    ASSERT_EQ(count_ops_of_type<op::And>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
-
-    auto new_const = as_type_ptr<op::Constant>(f->get_results().at(0)->get_argument(0));
-    ASSERT_TRUE(new_const);
-    auto values_out = new_const->get_vector<char>();
-
-    vector<char> values_expected{0, 0, 1, 0, 0, 1};
 
     ASSERT_EQ(values_expected, values_out);
 }

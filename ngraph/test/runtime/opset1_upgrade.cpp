@@ -25,6 +25,7 @@
 #include "ngraph/graph_util.hpp"
 #include "ngraph/ops.hpp"
 #include "ngraph/provenance.hpp"
+#include "op/and.hpp"
 #include "op/avg_pool.hpp"
 
 using namespace std;
@@ -49,7 +50,7 @@ namespace
         return op_cast_binary_elementwise_node<op::v0::Add, op::v1::Add>(node);
     }
 
-    shared_ptr<Node> op_cast(shared_ptr<op::And> node)
+    shared_ptr<Node> op_cast(shared_ptr<op::v0::And> node)
     {
         return op_cast_binary_elementwise_node<op::v0::And, op::v1::LogicalAnd>(node);
     }
