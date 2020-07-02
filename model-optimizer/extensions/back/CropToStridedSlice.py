@@ -56,7 +56,6 @@ class CropToStridedSlice(BackReplacementPattern):
         node = match['crop']
         assert node.has_valid('axis')
         node.axis = self.list_to_ndarray(node.axis)
-        node_name = node.soft_get('name', node.id)
 
         in_shape = node.in_port(0).data.get_shape()
         shape_rank = in_shape.size
@@ -64,16 +63,16 @@ class CropToStridedSlice(BackReplacementPattern):
         begin_mask = axis_mask.copy()
         end_mask = axis_mask.copy()
 
-        ss = StridedSlice(graph, {'name': node_name + '/strided_slice', 'begin_mask': begin_mask, 'end_mask': end_mask,
-                                  'new_axis_mask': np.array([0]), 'shrink_axis_mask': np.array([0]),
-                                  'ellipsis_mask': np.array([0])}).create_node()
+        ss = StridedSlice(graph, {'name': node.soft_get('name', node.id) + '/strided_slice', 'begin_mask': begin_mask,
+                                  'end_mask': end_mask, 'new_axis_mask': np.array([0]),
+                                  'shrink_axis_mask': np.array([0]), 'ellipsis_mask': np.array([0])}).create_node()
 
         if len(node.in_nodes()) == 2 and node.has_valid('offset'):
             # Crop Type 1
             begin = Const(graph, {'value': self.mask_normalizer(shape_rank, node.axis, node.offset),
                                   'name': ss.name + '/begin'}).create_node()
-            shape = Shape(graph, {'name': node_name + '/shape_of_crop'}).create_node()
-            end = Add(graph, {'name': node_name + '/end'}).create_node()
+            shape = Shape(graph, {'name': ss.name + '/shape_of_crop'}).create_node()
+            end = Add(graph, {'name': ss.name + '/end'}).create_node()
             node.in_port(1).get_connection().get_source().connect(shape.in_port(0))
             node.in_port(1).disconnect()
             shape.out_port(0).connect(end.in_port(0))
