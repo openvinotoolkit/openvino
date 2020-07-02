@@ -75,14 +75,6 @@ void network::set_output_memory(const primitive_id& id, const memory& mem) const
     _impl->set_output_memory(id, *mem.get());
 }
 
-void network::set_learning_rate(const float lr) {
-    _impl->set_learning_rate(lr);
-}
-
-float network::get_learning_rate() {
-    return _impl->get_learning_rate();
-}
-
 uint32_t network::get_id() {
     return _impl->get_id();
 }

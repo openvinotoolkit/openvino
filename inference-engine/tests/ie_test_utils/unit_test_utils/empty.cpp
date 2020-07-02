@@ -6,7 +6,6 @@
 #include "unit_test_utils/mocks/mock_icnn_network.hpp"
 #include "unit_test_utils/mocks/mock_ie_imemory_state.hpp"
 #include "unit_test_utils/mocks/mock_iexecutable_network.hpp"
-#include "unit_test_utils/mocks/mock_iformat_parser.hpp"
 #include "unit_test_utils/mocks/mock_iinfer_request.hpp"
 #include "unit_test_utils/mocks/mock_iinference_plugin.hpp"
 #include "unit_test_utils/mocks/mock_not_empty_icnn_network.hpp"

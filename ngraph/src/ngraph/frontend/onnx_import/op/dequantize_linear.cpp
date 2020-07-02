@@ -23,7 +23,6 @@
 #include "ngraph/builder/make_constant.hpp"
 #include "ngraph/op/convert.hpp"
 #include "ngraph/op/dequantize.hpp"
-#include "ngraph/opsets/opset0.hpp"
 #include "ngraph/shape.hpp"
 #include "ngraph/validation_util.hpp"
 

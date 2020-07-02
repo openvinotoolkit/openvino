@@ -837,7 +837,6 @@ avg_pool_1d_2channel_2image
 
 # Could not eliminate all Dyn nodes
 avg_pool_bprop_2d_2channel_2image_dyn_shape
-dyn_generate_mask
 reshape_v1
 dyn_convolution_backprop_data
 dyn_convolution_backprop_filter
@@ -1153,15 +1152,6 @@ batch_norm_bprop_n4c3h2w2
 batch_norm_fprop_inference_b2c2h2w1
 dyn_batch_norm_fprop_b1c2h2w2
 
-backwards_maxpool_n4_c1_hw4_2x2_max
-backwards_maxpool_n2_c1_hw5_3x3_str2_max
-backwards_maxpool_n2_c1_hw5_3x3_str2_max_pad1x2_2x3
-backwards_avgpool_n1_c1_hw2x2
-backwards_avgpool_n1_c1_hw4x4
-backwards_avgpool_n2_c2_hw4x4
-backwards_avgpool_n2_c2_hw4x4_numeric
-backwards_avgpool_n2_c2_hw4x4_win_2x2_str_1x1_numeric
-backwards_avgpool_n2_c2_hw2x2_win_2x2_str_1x1_padding_numeric
 backwards_abs
 backwards_acos
 backwards_add
@@ -1304,6 +1294,8 @@ IE_CPU.onnx_model_conv2d_strides_no_padding
 IE_CPU.onnx_model_conv2d_strides_assymetric_padding
 IE_CPU.onnx_model_conv2d_dilation_assymetric_pads_strides
 IE_CPU.onnx_model_instance_normalization
+IE_CPU.onnx_model_instance_normalization_dyn_shape
+IE_CPU.onnx_model_instance_normalization_dyn_shape2
 IE_CPU.onnx_model_reverse_sequence_1_batch_0
 IE_CPU.onnx_model_reverse_sequence_0_batch_1
 IE_CPU.cum_sum_2dim_default_axis
@@ -1644,6 +1636,8 @@ IE_GPU.onnx_model_hardmax
 IE_GPU.onnx_model_lp_norm_p2
 IE_GPU.onnx_model_lp_norm_default
 IE_GPU.onnx_model_instance_normalization
+IE_GPU.onnx_model_instance_normalization_dyn_shape
+IE_GPU.onnx_model_instance_normalization_dyn_shape2
 IE_GPU.onnx_dyn_shapes_model_acosh_1_3
 IE_GPU.onnx_dyn_shapes_model_acosh_3_2
 IE_GPU.onnx_dyn_shapes_model_asinh_1_3
@@ -1693,3 +1687,6 @@ IE_GPU.matmul_2x2_2x2
 IE_GPU.matmul_2x3_3x3
 IE_GPU.matmul_3x2_3x3_transpose
 IE_GPU.matmul_3x2_2x3_transpose
+
+# ONNX Loop
+onnx_controlflow_loop_2d_add_execution

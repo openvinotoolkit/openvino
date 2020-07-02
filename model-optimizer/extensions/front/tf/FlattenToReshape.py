@@ -88,7 +88,8 @@ class FlattenToReshapeableReshape(FrontReplacementSubgraph):
                 return
 
         reshape_node.in_port(1).disconnect()
-        reshape_const_node = Const(graph, {'value': int64_array([0, -1])}).create_node()
+        reshape_const_node = Const(graph, {'value': int64_array([0, -1]),
+                                           'name': reshape_node.soft_get('name', reshape_node.id) + '/shape'}).create_node()
         reshape_node.in_port(1).connect(reshape_const_node.out_port(0))
         reshape_node['special_zero'] = True
         log.debug('The node "{}" is actually a Flatten node'.format(reshape_node.soft_get('name')))

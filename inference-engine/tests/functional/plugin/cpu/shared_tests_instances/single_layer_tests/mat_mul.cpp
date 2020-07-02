@@ -22,11 +22,17 @@ const std::vector<std::vector<size_t>> shapesB = {
         {1, 4, 6, 4}
 };
 
+std::vector<ngraph::helpers::InputLayerType> secondaryInputTypes = {
+        ngraph::helpers::InputLayerType::CONSTANT,
+        ngraph::helpers::InputLayerType::PARAMETER,
+};
+
 INSTANTIATE_TEST_CASE_P(MatMul, MatMulTest,
         ::testing::Combine(
                 ::testing::ValuesIn(inputPrecisions),
                 ::testing::ValuesIn(shapesA),
                 ::testing::ValuesIn(shapesB),
+                ::testing::ValuesIn(secondaryInputTypes),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
         MatMulTest::getTestCaseName);
 

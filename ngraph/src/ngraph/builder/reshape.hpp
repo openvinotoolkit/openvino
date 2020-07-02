@@ -34,6 +34,7 @@ namespace ngraph
         ///
         /// \return     The reshaped value.
         ///
+        NGRAPH_API
         std::shared_ptr<Node> reshape(const Output<Node>& value, const Shape& shape);
 
         /// \brief Permute axes according to specified axes_order parameter.
@@ -78,6 +79,7 @@ namespace ngraph
         ///
         /// \return     The squeezed node.
         ///
+        NGRAPH_API
         std::shared_ptr<Node> squeeze(const Output<Node>& value,
                                       std::vector<std::size_t> axes = {0});
 

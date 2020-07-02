@@ -42,7 +42,7 @@
 #include "op/constant.hpp"
 #include "op/constant_of_shape.hpp"
 #include "op/conv.hpp"
-#include "op/conv_integer.hpp"
+// #include "op/conv_integer.hpp"
 #include "op/conv_transpose.hpp"
 #include "op/cos.hpp"
 #include "op/cosh.hpp"
@@ -60,7 +60,7 @@
 #include "op/flatten.hpp"
 #include "op/floor.hpp"
 #include "op/gather.hpp"
-#include "op/gather_nd.hpp"
+// #include "op/gather_nd.hpp"
 #include "op/gemm.hpp"
 #include "op/global_average_pool.hpp"
 #include "op/global_max_pool.hpp"
@@ -74,6 +74,7 @@
 #include "op/less.hpp"
 #include "op/log.hpp"
 #include "op/log_softmax.hpp"
+#include "op/loop.hpp"
 #include "op/lp_norm.hpp"
 #include "op/lp_pool.hpp"
 #include "op/lrn.hpp"
@@ -97,8 +98,8 @@
 #include "op/pow.hpp"
 #include "op/prelu.hpp"
 #include "op/qlinear_matmul.hpp"
-#include "op/quant_conv.hpp"
-#include "op/quantize_linear.hpp"
+// #include "op/quant_conv.hpp"
+// #include "op/quantize_linear.hpp"
 #include "op/range.hpp"
 #include "op/reciprocal.hpp"
 #include "op/reduce.hpp"
@@ -108,9 +109,9 @@
 #include "op/reverse_sequence.hpp"
 #include "op/rnn.hpp"
 #include "op/roi_align.hpp"
-#include "op/round.hpp"
+// #include "op/round.hpp"
 #include "op/scatter_elements.hpp"
-#include "op/scatter_nd.hpp"
+// #include "op/scatter_nd.hpp"
 #include "op/selu.hpp"
 #include "op/shape.hpp"
 #include "op/shrink.hpp"
@@ -270,7 +271,7 @@ namespace ngraph
             REGISTER_OPERATOR("Constant", 1, constant);
             REGISTER_OPERATOR("ConstantOfShape", 1, constant_of_shape);
             REGISTER_OPERATOR("Conv", 1, conv);
-            REGISTER_OPERATOR("ConvInteger", 1, conv_integer);
+            // REGISTER_OPERATOR("ConvInteger", 1, conv_integer);
             REGISTER_OPERATOR("ConvTranspose", 1, conv_transpose);
             REGISTER_OPERATOR("Cos", 1, cos);
             REGISTER_OPERATOR("Cosh", 1, cosh);
@@ -290,7 +291,7 @@ namespace ngraph
             REGISTER_OPERATOR("Flatten", 1, flatten);
             REGISTER_OPERATOR("Floor", 1, floor);
             REGISTER_OPERATOR("Gather", 1, gather);
-            REGISTER_OPERATOR("GatherND", 1, gather_nd);
+            // REGISTER_OPERATOR("GatherND", 1, gather_nd);
             REGISTER_OPERATOR("Gemm", 1, gemm);
             REGISTER_OPERATOR("Gemm", 6, gemm);
             REGISTER_OPERATOR("GlobalAveragePool", 1, global_average_pool);
@@ -306,6 +307,7 @@ namespace ngraph
             REGISTER_OPERATOR("Less", 1, less);
             REGISTER_OPERATOR("Log", 1, log);
             REGISTER_OPERATOR("LogSoftmax", 1, log_softmax);
+            REGISTER_OPERATOR("Loop", 1, loop);
             REGISTER_OPERATOR("LpNormalization", 1, lp_norm);
             REGISTER_OPERATOR("LRN", 1, lrn);
             REGISTER_OPERATOR("LSTM", 1, lstm);
@@ -332,9 +334,9 @@ namespace ngraph
             REGISTER_OPERATOR("Pad", 11, pad);
             REGISTER_OPERATOR("Pow", 1, pow);
             REGISTER_OPERATOR("PRelu", 1, prelu);
-            REGISTER_OPERATOR("QLinearConv", 1, quant_conv);
+            // REGISTER_OPERATOR("QLinearConv", 1, quant_conv);
             REGISTER_OPERATOR("QLinearMatMul", 1, qlinear_matmul);
-            REGISTER_OPERATOR("QuantizeLinear", 1, quantize_linear);
+            // REGISTER_OPERATOR("QuantizeLinear", 1, quantize_linear);
             REGISTER_OPERATOR("Range", 1, range);
             REGISTER_OPERATOR("Reciprocal", 1, reciprocal);
             REGISTER_OPERATOR("ReduceLogSum", 1, reduce_log_sum);
@@ -353,10 +355,10 @@ namespace ngraph
             REGISTER_OPERATOR("ReverseSequence", 1, reverse_sequence);
             REGISTER_OPERATOR("RNN", 1, rnn);
             REGISTER_OPERATOR("RoiAlign", 1, roi_align);
-            REGISTER_OPERATOR("Round", 1, round);
+            // REGISTER_OPERATOR("Round", 1, round);
             REGISTER_OPERATOR("Scatter", 1, scatter_elements);
             REGISTER_OPERATOR("ScatterElements", 1, scatter_elements);
-            REGISTER_OPERATOR("ScatterND", 1, scatter_nd);
+            // REGISTER_OPERATOR("ScatterND", 1, scatter_nd);
             REGISTER_OPERATOR("Selu", 1, selu);
             REGISTER_OPERATOR("Shape", 1, shape);
             REGISTER_OPERATOR("Shrink", 1, shrink);

@@ -28,6 +28,8 @@ add_library(onnx_importer SHARED
         core/attribute.hpp
         core/graph.cpp
         core/graph.hpp
+        core/graph_cache.cpp
+        core/graph_cache.hpp
         core/model.cpp
         core/model.hpp
         core/node.hpp
@@ -76,8 +78,8 @@ add_library(onnx_importer SHARED
         op/constant_of_shape.hpp
         op/conv.cpp
         op/conv.hpp
-        op/conv_integer.cpp
-        op/conv_integer.hpp
+        # op/conv_integer.cpp
+        # op/conv_integer.hpp
         op/conv_transpose.cpp
         op/conv_transpose.hpp
         op/cum_sum.cpp
@@ -101,8 +103,8 @@ add_library(onnx_importer SHARED
         op/flatten.hpp
         op/floor.hpp
         op/gather.hpp
-        op/gather_nd.hpp
-        op/gather_nd.cpp
+        # op/gather_nd.hpp
+        # op/gather_nd.cpp
         op/gemm.cpp
         op/gemm.hpp
         op/global_average_pool.cpp
@@ -126,6 +128,8 @@ add_library(onnx_importer SHARED
         op/log.hpp
         op/log_softmax.cpp
         op/log_softmax.hpp
+        op/loop.cpp
+        op/loop.hpp
         op/lp_norm.cpp
         op/lp_norm.hpp
         op/lp_pool.cpp
@@ -164,10 +168,10 @@ add_library(onnx_importer SHARED
         op/prelu.hpp
         op/qlinear_matmul.cpp
         op/qlinear_matmul.hpp
-        op/quant_conv.cpp
-        op/quant_conv.hpp
-        op/quantize_linear.cpp
-        op/quantize_linear.hpp
+        # op/quant_conv.cpp
+        # op/quant_conv.hpp
+        # op/quantize_linear.cpp
+        # op/quantize_linear.hpp
         op/range.cpp
         op/range.hpp
         op/reciprocal.cpp
@@ -185,10 +189,10 @@ add_library(onnx_importer SHARED
         op/rnn.hpp
         op/roi_align.cpp
         op/roi_align.hpp
-        op/round.cpp
-        op/round.hpp
-        op/scatter_nd.cpp
-        op/scatter_nd.hpp
+        # op/round.cpp
+        # op/round.hpp
+        # op/scatter_nd.cpp
+        # op/scatter_nd.hpp
         op/scatter_elements.cpp
         op/scatter_elements.hpp
         op/selu.cpp
@@ -249,6 +253,8 @@ add_library(onnx_importer SHARED
         utils/pooling_factory.hpp
         utils/recurrent.cpp
         utils/recurrent.hpp
+        utils/provenance_tag.cpp
+        utils/provenance_tag.hpp
         utils/reduction.cpp
         utils/reduction.hpp
         utils/reshape.cpp
