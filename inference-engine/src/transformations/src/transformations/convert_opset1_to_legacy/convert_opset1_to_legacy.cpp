@@ -90,7 +90,6 @@ bool ngraph::pass::ConvertOpSet1ToLegacy::run_on_function(std::shared_ptr<ngraph
     manager.register_pass<ngraph::pass::ConstantFolding>();
     manager.register_pass<ngraph::pass::ConvertBroadcastToTiles>();
 
-
     auto anchor = manager.register_pass<ngraph::pass::GraphRewrite>();
     anchor->add_matcher<ngraph::pass::ConvertNormalizeL2ToLegacyMatcher>();
     anchor->add_matcher<ngraph::pass::ConvertHardSigmoidToLegacyMatcher>();

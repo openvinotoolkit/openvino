@@ -21,10 +21,5 @@ class TRANSFORMATIONS_API ConvertProposalToLegacyMatcher;
 
 class ngraph::pass::ConvertProposalToLegacyMatcher: public ngraph::pass::MatcherPass {
 public:
-    ConvertProposalToLegacyMatcher() : MatcherPass() {
-        convert_proposal();
-    }
-
-private:
-    void convert_proposal();
+    ConvertProposalToLegacyMatcher();
 };

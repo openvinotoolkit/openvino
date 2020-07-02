@@ -36,39 +36,33 @@ namespace ngraph
     using graph_rewrite_callback = std::function<bool(ngraph::pattern::Matcher& m)>;
     using recurrent_graph_rewrite_callback =
         std::function<bool(ngraph::pattern::RecurrentMatcher& m)>;
-
-    struct MatchClosure
-    {
-        std::string name;
-        std::function<bool(const std::shared_ptr<Node>& node)> handler;
-        pass::PassPropertyMask property;
-    };
+    using handler_callback = std::function<bool(const std::shared_ptr<Node>& node)>;
 }
 
 class NGRAPH_API ngraph::pass::MatcherPass : public ngraph::pass::PassBase
 {
 public:
-    MatcherPass()
-        : PassBase()
+    MatcherPass() = default;
+
+    explicit MatcherPass(const std::string & name, const handler_callback & handler, const PassPropertyMask & property = PassProperty::CHANGE_DYNAMIC_STATE)
+        : PassBase(),
+        m_handler(handler)
     {
+        set_name(name);
+        set_property(property, true);
     }
 
-    explicit MatcherPass(const MatchClosure& match)
-        : PassBase()
-    {
-        m_matcher = match;
-    }
+    bool apply(std::shared_ptr<ngraph::Node> node);
 
-    bool apply_matcher(std::shared_ptr<ngraph::Node> node);
-
-    const std::string& get_matcher_name() const { return m_matcher.name; }
-    const PassPropertyMask get_matcher_property() const { return m_matcher.property; }
 protected:
-    void add_matcher(const std::shared_ptr<pattern::Matcher>& m,
-                     const ngraph::graph_rewrite_callback& callback,
-                     const PassPropertyMask& property);
+    void register_matcher(const std::shared_ptr<pattern::Matcher>& m,
+                          const ngraph::graph_rewrite_callback& callback,
+                          const PassPropertyMask& property = PassProperty::CHANGE_DYNAMIC_STATE);
 
-    MatchClosure m_matcher;
+    void register_matcher(const ngraph::handler_callback& callback);
+
+private:
+    handler_callback m_handler;
 };
 
 class NGRAPH_API ngraph::pass::GraphRewriteBase : public ngraph::pass::FunctionPass
@@ -110,10 +104,7 @@ protected:
 class NGRAPH_API ngraph::pass::GraphRewrite : public ngraph::pass::GraphRewriteBase
 {
 public:
-    GraphRewrite()
-        : GraphRewriteBase()
-    {
-    }
+    GraphRewrite() = default;
 
     explicit GraphRewrite(const std::shared_ptr<MatcherPass>& pass)
         : GraphRewriteBase()
@@ -145,7 +136,7 @@ public:
     void add_matcher(const std::shared_ptr<pattern::Matcher>& m,
                      const ngraph::graph_rewrite_callback& callback);
 
-    virtual bool run_on_function(std::shared_ptr<ngraph::Function> f);
+    bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
 
 protected:
     bool m_enable_shape_inference = false;

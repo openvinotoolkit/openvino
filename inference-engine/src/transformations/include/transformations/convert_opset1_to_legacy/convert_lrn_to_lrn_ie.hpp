@@ -22,10 +22,5 @@ class TRANSFORMATIONS_API ConvertLRNToLegacyMatcher;
 
 class ngraph::pass::ConvertLRNToLegacyMatcher: public ngraph::pass::MatcherPass {
 public:
-    ConvertLRNToLegacyMatcher() : MatcherPass() {
-        convert_lrn();
-    }
-
-private:
-    void convert_lrn();
+    ConvertLRNToLegacyMatcher();
 };

@@ -21,10 +21,5 @@ class TRANSFORMATIONS_API ConvertTileToLegacyMatcher;
 
 class ngraph::pass::ConvertTileToLegacyMatcher: public ngraph::pass::MatcherPass {
 public:
-    ConvertTileToLegacyMatcher() : MatcherPass() {
-        convert_tile();
-    }
-
-private:
-    void convert_tile();
+    ConvertTileToLegacyMatcher();
 };

@@ -33,10 +33,5 @@ private:
 
 class ngraph::pass::ConvertNormalizeL2ToLegacyMatcher: public ngraph::pass::MatcherPass {
 public:
-    ConvertNormalizeL2ToLegacyMatcher() : MatcherPass() {
-        convert_normalize_l2();
-    }
-
-private:
-    void convert_normalize_l2();
+    ConvertNormalizeL2ToLegacyMatcher();
 };

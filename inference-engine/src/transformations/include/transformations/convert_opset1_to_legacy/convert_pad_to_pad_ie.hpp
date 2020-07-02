@@ -26,10 +26,5 @@ class TRANSFORMATIONS_API ConvertPadToLegacyMatcher;
 
 class ngraph::pass::ConvertPadToLegacyMatcher: public ngraph::pass::MatcherPass {
 public:
-    ConvertPadToLegacyMatcher() : MatcherPass() {
-        convert_pad();
-    }
-
-private:
-    void convert_pad();
+    ConvertPadToLegacyMatcher();
 };
