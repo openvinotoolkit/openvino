@@ -86,7 +86,6 @@ namespace
             using OpsetFunction = std::function<const ngraph::OpSet&()>;
 
             static const std::map<std::string, OpsetFunction> s_opsets{
-                {"opset0", OpsetFunction(ngraph::get_opset0)},
                 {"opset1", OpsetFunction(ngraph::get_opset1)},
                 {"opset2", OpsetFunction(ngraph::get_opset2)},
                 {"opset3", OpsetFunction(ngraph::get_opset3)},
@@ -101,7 +100,7 @@ namespace
             return it->second();
         }
 
-        const ngraph::OpSet& m_opset{ngraph::get_opset0()};
+        const ngraph::OpSet& m_opset{ngraph::get_opset1()};
     };
 }
 
