@@ -25,6 +25,7 @@ declared in `namespace opset4`.
 * [Broadcast](movement/Broadcast_3.md)
 * [Bucketize](condition/Bucketize_3.md)
 * [CTCGreedyDecoder](sequence/CTCGreedyDecoder_1.md)
+* [CTCLoss](sequence/CTCLoss_4.md)
 * [Ceiling](arithmetic/Ceiling_1.md)
 * [Clamp](activation/Clamp_1.md)
 * [Concat](movement/Concat_1.md)
