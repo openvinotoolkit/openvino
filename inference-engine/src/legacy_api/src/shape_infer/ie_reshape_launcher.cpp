@@ -47,8 +47,8 @@ ReshapeLauncher::ReshapeLauncher(const CNNLayer* layer, const IShapeInferImpl::P
                                  const DefaultInitializer::Ptr& initializer)
     : _layer(layer), _reshapeImpl(impl) {
     initializer->check(layer, impl);
-    // ConstInferHolder holder;
-    // if (layer) _inferImpl = holder.getConstInferImpl(layer->type);
+    ConstInferHolder holder;
+    if (layer) _inferImpl = holder.getConstInferImpl(layer->type);
     try {
         _iController = initializer->createInputController(layer);
         _oController = initializer->createOutputController(layer);

@@ -18,7 +18,9 @@
 #include <algorithm>
 
 #include <cnn_network_ngraph_impl.hpp>
+#include "blob_factory.hpp"
 #include "cnn_network_impl.hpp"
+#include "graph_tools.hpp"
 #include "net_pass.h"
 
 using namespace InferenceEngine;
@@ -26,7 +28,7 @@ using namespace InferenceEngine::details;
 
 namespace InferenceEngine {
 
-bool isForFakeQuantzie(const CNNLayer& layer) {
+bool isForFakeQuantize(const CNNLayer& layer) {
     for (const DataPtr data : layer.outData) {
         for (const auto it : data->getInputTo()) {
             const CNNLayerPtr childLayer = it.second;
@@ -131,6 +133,94 @@ std::vector<CNNLayerPtr> ConstTransformer::foldConstSubgraphsInternal(const std:
                     data_to_remove.push_back(outData);
                 }
                 layer_to_remove.push_back(layer);
+            } else {
+                // if only one output data is not const - do nothing, otherwise - run procedure below
+                // note: multiple const output data requires multiple layers with blob["custom"] to keep const data
+                bool keepConstData = layer->outData.size() == 1;
+                if (keepConstData) {
+                    auto outData = layer->outData[0];
+                    for (const auto& inputTo : outData->getInputTo()) {
+                        if (constLayers.find(inputTo.first) != constLayers.end()) {
+                            keepConstData = false;
+                        }
+                    }
+                }
+                if (keepConstData) {
+                    if (!constLayers.at(layer->name)) {
+                        auto outData = layer->outData[0];
+                        if (layer->blobs.find("custom") == layer->blobs.end()) {
+                            // if there's no const data - set it
+                            const auto it = constData.find(outData->getName());
+                            if (it != constData.end()) {
+                                layer->blobs["custom"] = it->second; 
+                            } else {
+                                std::cout << "Failed to find data for " << outData->getName() << std::endl;
+                            }
+                        }
+                        if (layer->type != "Const") {
+                            // layer was calculated during the Const Propagation, need to hide its semantic (type,
+                            // params)
+                            LayerParams layerParams {layer->name + "__" + outData->getName() + "__Const", "Const",
+                                                     layer->precision};
+                            auto newLayer = std::make_shared<CNNLayer>(layerParams);
+                            for (const auto& data : layer->outData) {
+                                data->getCreatorLayer() = newLayer;
+                            }
+                            newLayer->outData = layer->outData;
+                            newLayer->blobs["custom"] = layer->blobs["custom"];
+                            layer_to_remove.push_back(layer);
+                            layer_to_add.push_back(newLayer);
+                            remainingConstLayers.push_back(newLayer);
+                        } else {
+                            // Layer with `Const` type should be also considered on trimming shape inputs
+                            remainingConstLayers.push_back(layer);
+                        }
+                    }
+                } else {
+                    for (const auto& outData : layer->outData) {
+                        for (const auto& inputTo : outData->getInputTo()) {
+                            CNNLayerPtr inputToLayer;
+                            std::string inputToName;
+                            std::tie(inputToName, inputToLayer) = inputTo;
+                            auto& insData = inputToLayer->insData;
+                            auto insDataIt =
+                                std::find_if(insData.begin(), insData.end(), [&outData](const DataWeakPtr& current) {
+                                    return current.lock()->getName() == outData->getName();
+                                });
+                            // remove connection with const data, because for const child it's not needed, for dynamic -
+                            // new one will be created
+                            if (insDataIt != insData.end()) {
+                                insDataIt = inputToLayer->insData.erase(insDataIt);
+                            }
+                            if (constLayers.find(inputToName) == constLayers.end()) {
+                                // next layer is not const, need to attach const data to it via blobs["custom"] of new
+                                // Const layer
+                                LayerParams layerParams {layer->name + "__" + outData->getName() + "__Const", "Const",
+                                                         layer->precision};
+                                auto newLayer = std::make_shared<CNNLayer>(layerParams);
+                                remainingConstLayers.push_back(newLayer);
+                                const auto it = constData.find(outData->getName());
+                                if (it != constData.end()) {
+                                    newLayer->blobs["custom"] = it->second;
+                                } else {
+                                    std::cout << "Failed to find data for " << outData->getName() << std::endl;
+                                }
+                                auto newData = std::make_shared<Data>(outData->getName() + "__" + inputToName,
+                                                                      outData->getTensorDesc());
+                                newData->getCreatorLayer() = newLayer;
+                                newData->getInputTo()[inputToName] = inputToLayer;
+                                newLayer->outData = {newData};
+                                layer_to_add.push_back(newLayer);
+                                data_to_add.push_back(newData);
+                                inputToLayer->insData.insert(insDataIt, newData);
+                            }
+                        }
+                    }
+                    for (const auto& data : layer->outData) {
+                        data_to_remove.push_back(data);
+                    }
+                    layer_to_remove.push_back(layer);
+                }
             }
         }
         if (NetPass::HasInternalSubnet(layer)) {
@@ -157,7 +247,7 @@ const std::map<std::string, bool> ConstTransformer::getConstLayers(const std::ve
         if (layer->type == "Shape" || layer->type == "Const") {
             mapConstLayers[layer->name] = false;
         } else if (std::find(skipConstInfer.begin(), skipConstInfer.end(), layer->type) == skipConstInfer.end() &&
-                   !isForFakeQuantzie(*layer)) {
+                   !isForFakeQuantize(*layer)) {
             bool isAllInputsConst = true;
             for (auto const& data : layer->insData) {
                 auto creator = data.lock()->getCreatorLayer().lock();
@@ -171,8 +261,7 @@ const std::map<std::string, bool> ConstTransformer::getConstLayers(const std::ve
                     isAllInputsConst = false;
                 }
             }
-            if (isAllInputsConst && !layer->insData.empty())
-                mapConstLayers[layer->name] = false;
+            if (isAllInputsConst && !layer->insData.empty()) mapConstLayers[layer->name] = false;
         }
     }
     // Add mark for const layers, if it's used for shape taking layers as second input
@@ -224,7 +313,59 @@ const std::map<std::string, bool> ConstTransformer::getConstLayers(const std::ve
 
 const BlobMap ConstTransformer::getConstData(const std::map<std::string, bool>& constLayers,
                                              const std::vector<CNNLayerPtr>& sortedLayers) {
-    return {};
+    BlobMap constData;
+    auto getInputBlobs = [&constData](const std::vector<DataWeakPtr>& insData,
+                                      bool isForShape) -> std::vector<Blob::CPtr> {
+        std::vector<Blob::CPtr> inputBlobs;
+        // special case of Const layers: no inputs, no input blobs
+        if (insData.empty()) {
+            return {};
+        }
+        for (const auto& data : insData) {
+            std::string dataName = data.lock()->getName();
+            if (constData.find(dataName) != constData.end()) {
+                // get blobs, inferred before
+                inputBlobs.push_back(constData.at(dataName));
+            } else {
+                // special case of Shape layer: no input data, but blob contains info about dimensions, layout and
+                // etc...
+                auto blob = make_blob_with_precision(data.lock()->getTensorDesc());
+                inputBlobs.push_back(blob);
+            }
+        }
+        return inputBlobs;
+    };
+
+    auto getOutputBlobs = [](const std::vector<DataPtr>& outData) -> std::vector<Blob::Ptr> {
+        std::vector<Blob::Ptr> outputBlobs;
+        for (const auto& data : outData) {
+            auto blob = make_blob_with_precision(data->getTensorDesc());
+            blob->allocate();
+            outputBlobs.push_back(blob);
+        }
+        return outputBlobs;
+    };
+
+    for (const auto& layer : sortedLayers) {
+        if (constLayers.find(layer->name) != constLayers.end()) {
+            std::string layerName = layer->name;
+            bool isForShape = constLayers.at(layerName);
+
+            if (!isForShape && layer->type != "Const")
+                THROW_IE_EXCEPTION << "Failed to find reference implementation for `" + layer->name +
+                                      "` Layer with `" + layer->type + "` Type on constant propagation";
+            if (!isForShape) {
+                auto & blobs = layer->blobs;
+                auto it = blobs.find("custom");
+                if (it == blobs.end())
+                    THROW_IE_EXCEPTION << "Missed `custom` blob";
+
+                auto dataName = layer->outData[0]->getName();
+                constData[dataName] = (*it).second;
+            }
+        }
+    }
+    return constData;
 }
 
 /**
