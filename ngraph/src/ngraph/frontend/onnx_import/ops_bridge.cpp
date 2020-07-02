@@ -99,7 +99,7 @@
 #include "op/prelu.hpp"
 #include "op/qlinear_matmul.hpp"
 // #include "op/quant_conv.hpp"
-// #include "op/quantize_linear.hpp"
+#include "op/quantize_linear.hpp"
 #include "op/range.hpp"
 #include "op/reciprocal.hpp"
 #include "op/reduce.hpp"
@@ -335,8 +335,8 @@ namespace ngraph
             REGISTER_OPERATOR("PRelu", 1, prelu);
             // REGISTER_OPERATOR("QLinearConv", 1, quant_conv);
             REGISTER_OPERATOR("QLinearMatMul", 1, qlinear_matmul);
-            // REGISTER_OPERATOR("QuantizeLinear", 1, quantize_linear);
-            // REGISTER_OPERATOR("QuantizeLinear", 13, quantize_linear);
+            REGISTER_OPERATOR("QuantizeLinear", 1, quantize_linear);
+            REGISTER_OPERATOR("QuantizeLinear", 13, quantize_linear);
             REGISTER_OPERATOR("Range", 1, range);
             REGISTER_OPERATOR("Reciprocal", 1, reciprocal);
             REGISTER_OPERATOR("ReduceLogSum", 1, reduce_log_sum);

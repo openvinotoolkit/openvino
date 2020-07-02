@@ -23,7 +23,6 @@
 #include "exceptions.hpp"
 #include "ngraph/axis_set.hpp"
 #include "ngraph/builder/reshape.hpp"
-#include "ngraph/opsets/opset0.hpp"
 #include "ngraph/shape.hpp"
 #include "ngraph/type/element_type.hpp"
 #include "ngraph/validation_util.hpp"
