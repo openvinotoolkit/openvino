@@ -91,11 +91,11 @@ void ConvolutionTransformation::transform(TransformationContext &context, ngraph
 
         std::shared_ptr<ngraph::opset1::Multiply> newMultiplyFromData = as_type_ptr<ngraph::opset1::Multiply>(dequantizationOperationOnData);
 
-        // double-check that Multiply is still scalar-like
-        // assert(isScalarLike(as_type_ptr<opset1::Constant>(newMultiplyFromData->input_value(1).get_node_shared_ptr())));
         std::shared_ptr<ngraph::opset1::Multiply> newMultiplyAfter = std::make_shared<opset1::Multiply>(
-                convolution->copy_with_new_inputs({newMultiplyFromData->input_value(0), convolution->input_value(1)}),
-                distillToScalar(as_type_ptr<opset1::Constant>(newMultiplyFromData->input_value(1).get_node_shared_ptr())));
+            convolution->copy_with_new_inputs({ newMultiplyFromData->input_value(0), convolution->input_value(1) }),
+            // TODO: workaround: constant is cloning because it's used twice and can not be fused below
+            newMultiplyFromData->input_value(1).get_node_shared_ptr()->clone_with_new_inputs({}));
+
         replace_node(convolution, newMultiplyAfter);
         convolution = newMultiplyAfter->input_value(0).get_node_shared_ptr();
 
@@ -224,103 +224,6 @@ void ConvolutionTransformation::transform(TransformationContext &context, ngraph
     // std::cout << "ConvolutionTransformation::transform: done: " << convolution->get_friendly_name() << std::endl;
 }
 
-void ConvolutionTransformation::transform2(TransformationContext &context, ngraph::pattern::Matcher &m) const {
-    auto convolution = m.get_match_root();
-    // Almost all checks that was in WeightableLayerTransformation now should be included into the pattern in registerMatcherIn
-    if (!WeightableLayerTransformation::canBeTransformed(context, convolution)) {
-        return;
-    }
-
-    // std::cerr << "Match convolution: " << m.get_match_root()->get_friendly_name() << "\n";
-
-    auto scaleShiftOnData = convolution->input_value(0).get_node_shared_ptr();
-    auto parentOnWeights = convolution->input_value(1).get_node_shared_ptr();
-
-    /*
-    std::vector<float> originalDataDequantizationScales;
-    std::vector<float> originalDataDequantizationShifts;
-    fillFromDequantizationLayer(scaleShiftOnData, originalDataDequantizationScales, originalDataDequantizationShifts);
-
-    const bool isDepthwiseConvolution = isDepthwise(layer);
-        // Skip checking as it is already checked in WeightableLayerTransformation::canBeTransformed
-        // TODO: Acknowledge and remove this block
-    }*/
-
-    {
-        // Move Multiply from Data path immediately to the output
-        // Before moving, Multiply should be decoupled and exchanged with Add in MultiplyAdd operation
-        //auto newMultiplyFromData = swapMultiplyAndAdd(
-        //        decomposeMultiplyAdd(as_type_ptr<ngraph::op::MultiplyAdd>(scaleShiftOnData)));
-        //auto newAdd = optimizeAdd(as_type_ptr<opset1::Add>(newMultiplyFromData->input_value(0).get_node_shared_ptr()));
-        //// FIXME: next workaround normalizes shape of newAdd to match CPU plugin expectations
-        //if (newAdd && newAdd->get_output_partial_shape(0) != newAdd->get_input_partial_shape(1)) {
-        //    // Insert explicit broadcast for channel dimension [1] and immediately fold it
-        //    Shape broadcastShape(newAdd->get_output_partial_shape(0).rank().get_length(), 1);
-        //    broadcastShape[1] = newAdd->get_output_shape(0)[1];
-        //    auto newShift = fold<opset1::Broadcast>(newAdd->input_value(1),
-        //            std::make_shared<opset1::Constant>(
-        //                    element::i64,
-        //                    Shape{size_t(newAdd->get_output_partial_shape(0).rank().get_length())},
-        //                    broadcastShape));
-        //    replace_node(newAdd->input_value(1).get_node_shared_ptr(), newShift);
-        //}
-
-        auto newMultiplyFromData = as_type_ptr<ngraph::opset1::Multiply>(scaleShiftOnData);
-        // double-check that Multiply is still scalar-like
-        assert(isScalarLike(as_type_ptr<opset1::Constant>(newMultiplyFromData->input_value(1).get_node_shared_ptr())));
-        auto newMultiplyAfter = std::make_shared<opset1::Multiply>(
-                convolution->copy_with_new_inputs({newMultiplyFromData->input_value(0), convolution->input_value(1)}),
-                distillToScalar(
-                        as_type_ptr<opset1::Constant>(newMultiplyFromData->input_value(1).get_node_shared_ptr())));
-        replace_node(convolution, newMultiplyAfter);
-        convolution = newMultiplyAfter->input_value(0).get_node_shared_ptr();
-    }
-
-    {
-        decomposeFakeQuantizeForWeightsPath(convolution, supportAsymmetricQuantization);
-
-        // pass::VisualizeTree("C:\\Projects\\temp\\test.transformed").run_on_module(std::vector<std::shared_ptr<ngraph::Function>>{ context.network });
-
-        // reassign, because the old one is obsolete and replaced
-        parentOnWeights = convolution->input_value(1).get_node_shared_ptr();
-        //auto newMultiplyFromWeights = swapMultiplyAndAdd(decomposeMultiplyAdd(as_type_ptr<ngraph::op::MultiplyAdd>(parentOnWeights)));
-        auto newMultiplyFromWeights = parentOnWeights;
-
-        // Check if all dimensions of scale except the first one (which is O-Output channels dimension) are all ones
-        auto weightScaleShape = newMultiplyFromWeights->get_input_shape(1);
-        // FIXME: check for rank and 1D-like multiplier
-        // if (weightScaleShape.size() <= 2 && shape_size(weightScaleShape) != weightScaleShape[0]) {
-        //    // TODO: should we roll back all changes in the network?
-        //    return;
-        // }
-
-        // It has been just checked that weights scale is effectively 1D tensor, so we can reshape it to [X, 1, ..., 1]
-        // to move to the output
-        auto newScaleShape = weightScaleShape;
-        newScaleShape.pop_back();   // that's all we need: [C, 1, 1, 1] => [C, 1, 1]
-        // std::cerr << newScaleShape << "\n";
-        // std::cerr << *newMultiplyFromWeights->input_value(1).get_node_shared_ptr();
-
-        auto newMultiplyAfter = std::make_shared<opset1::Multiply>(
-                convolution->copy_with_new_inputs({convolution->input_value(0), newMultiplyFromWeights->input_value(0)}),
-                fold_reshape<opset1::Reshape>(
-                        newMultiplyFromWeights->input_value(1),
-                        std::make_shared<opset1::Constant>(
-                                element::u64,
-                                Shape{newScaleShape.size()},
-                                newScaleShape)->output(0),
-                        false));
-        replace_node(convolution, newMultiplyAfter);
-        convolution = newMultiplyAfter->input_value(0).get_node_shared_ptr();
-
-        // Handle remaining Add
-        auto remainingAdd = as_type_ptr<opset1::Subtract>(convolution->input_value(1).get_node_shared_ptr());
-        optimizeSubtract(remainingAdd);
-    }
-
-    optimizeMultipliesAfter(convolution->output(0).get_target_inputs().begin()->get_node()->shared_from_this());
-}
-
-}// namespace low_precision
-}// namespace pass
-}// namespace ngraph
+} // namespace low_precision
+} // namespace pass
+} // namespace ngraph
