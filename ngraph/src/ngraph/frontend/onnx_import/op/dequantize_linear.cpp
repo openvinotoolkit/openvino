@@ -172,7 +172,14 @@ namespace ngraph
                         }
 
                         // copy dimension at axis from input X
-                        target_dims.push_back(x_shape[axis].get_length());
+                        if (x_shape[axis].is_static())
+                        {
+                            target_dims.push_back(x_shape[axis].get_length());
+                        }
+                        else
+                        {
+                            target_dims.push_back(0);
+                        }
 
                         for (size_t i = axis + 1; i < x_shape.rank().get_length(); ++i)
                         {
