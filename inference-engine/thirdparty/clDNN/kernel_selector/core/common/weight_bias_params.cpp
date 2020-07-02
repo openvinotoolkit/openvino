@@ -15,6 +15,7 @@
 */
 
 #include "weight_bias_params.h"
+#include <sstream>
 
 namespace kernel_selector {
 ParamsKey weight_bias_params::GetParamsKey() const {
@@ -37,4 +38,19 @@ ParamsKey weight_bias_params::GetParamsKey() const {
 
     return k;
 }
+
+std::string weight_bias_zero_point_params::to_cache_string_v2() const {
+    std::stringstream s;
+
+    s << weight_bias_params::to_cache_string_v2();
+    if (!activations_zero_points.empty())
+        s << ";activation_zp";
+    if (!weights_zero_points.empty())
+        s << ";weights_zp";
+    if (HasCompensation())
+        s << ";compensation";
+
+    return s.str();
+}
+
 }  // namespace kernel_selector

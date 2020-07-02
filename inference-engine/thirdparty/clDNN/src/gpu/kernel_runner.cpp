@@ -135,8 +135,9 @@ void kernel_runner::prepare_kernel_args(const kernel_selector::KernelsData& kern
         if (zero_points_exist) {
             const auto& zero_point_params =
                 static_cast<const kernel_selector::weight_bias_zero_point_params&>(weights_bias_params);
-            if (weight_zero_point_buffers.empty()) {
-                for (auto& weight_zero_point : zero_point_params.weights_zero_points) {
+            if (!zero_point_params.weights_zero_points.empty()) {
+                if (weight_zero_point_buffers.empty()) {
+                    auto& weight_zero_point = zero_point_params.weights_zero_points[0];
                     auto num_of_elements = static_cast<int>(weight_zero_point.PhysicalSize());
                     weight_zero_point_buffers.push_back(
                         engine->allocate_memory({
@@ -145,28 +146,33 @@ void kernel_runner::prepare_kernel_args(const kernel_selector::KernelsData& kern
                             tensor(1, num_of_elements, 1, 1) },
                             0));
                 }
+                args.weights_zero_points = weight_zero_point_buffers[0];
             }
-            if (activation_zero_point_buffers.empty()) {
-                for (auto& activation_zero_point : zero_point_params.activations_zero_points) {
+            if (!zero_point_params.activations_zero_points.empty()) {
+                if (activation_zero_point_buffers.empty()) {
+                    auto& activation_zero_point = zero_point_params.activations_zero_points[0];
                     auto num_of_elements = static_cast<int>(activation_zero_point.PhysicalSize());
-                    weight_zero_point_buffers.push_back(
+                    activation_zero_point_buffers.push_back(
                         engine->allocate_memory({
                             from_data_type(activation_zero_point.GetDType()),
                             format::bfyx,
                             tensor(1, num_of_elements, 1, 1) },
                             0));
                 }
+                args.activations_zero_points = activation_zero_point_buffers[0];
             }
-            if (compensation_buffers.empty()) {
-                for (auto& compensation : zero_point_params.compensation) {
+            if (!zero_point_params.compensation.empty()) {
+                if (compensation_buffers.empty()) {
+                    auto& compensation = zero_point_params.compensation[0];
                     auto num_of_elements = static_cast<int>(compensation.PhysicalSize());
-                    weight_zero_point_buffers.push_back(
+                    compensation_buffers.push_back(
                         engine->allocate_memory({
                             from_data_type(compensation.GetDType()),
                             format::bfyx,
                             tensor(1, num_of_elements, 1, 1) },
                             0));
                 }
+                args.compensation = compensation_buffers[0];
             }
         }
     }
@@ -202,19 +208,24 @@ std::vector<std::chrono::nanoseconds> kernel_runner::run_kernels(const kernel_se
         int i = 0;
         for (auto it = batch_start; it < batch_end; it++) {
             std::vector<event_impl::ptr> events;
-            auto kernel_run_time = std::chrono::nanoseconds::zero();
+            auto kernel_run_time = std::chrono::nanoseconds::max();
             int num_of_runs = 0;
 
             for (int iteration = 0; iteration < runs_per_kernel; iteration++) {
                 event_impl::ptr event;
                 try {
                     event = kernels[i].run(0, it->kernels[0], {}, args);
+                } catch (std::exception& e) {
+                    std::cout << "[clDNN] Could not run kernel for auto-tune: " << it->kernelName
+                              << " with auto-tune index " << it->autoTuneIndex << std::endl
+                              << ", error message:" << e.what();
                 } catch (...) {
                     // Could not run this kernel. Push back NULL event (will be ignored later).
+                    std::cout << "[clDNN] Could not run kernel for auto-tune: " << it->kernelName
+                              << " with auto-tune index " << it->autoTuneIndex << std::endl;
                 }
                 events.push_back(event);
             }
-
             context->queue(0).finish();
 
             for (auto& event : events) {
@@ -222,7 +233,7 @@ std::vector<std::chrono::nanoseconds> kernel_runner::run_kernels(const kernel_se
                     auto profiling_intervals = event->get_profiling_info();
                     for (auto const& profiling_interval : profiling_intervals) {
                         if (profiling_interval.name == "executing") {
-                            kernel_run_time += profiling_interval.value->value();
+                            kernel_run_time = std::min(profiling_interval.value->value(), kernel_run_time);
                             num_of_runs++;
                             break;
                         }
@@ -231,7 +242,7 @@ std::vector<std::chrono::nanoseconds> kernel_runner::run_kernels(const kernel_se
             }
 
             if (num_of_runs > 0) {
-                run_times.push_back(kernel_run_time / num_of_runs);
+                run_times.push_back(kernel_run_time);
                 num_of_kernels_run += 1;
             } else {
                 run_times.push_back(std::chrono::nanoseconds::max());
