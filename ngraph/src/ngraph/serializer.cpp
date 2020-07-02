@@ -1024,13 +1024,6 @@ shared_ptr<Node> JSONDeserializer::deserialize_node(json node_js)
                 make_shared<op::BatchMatMulTranspose>(args[0], args[1], transpose_0, transpose_1);
             break;
         }
-        case OP_TYPEID::BatchNormTraining:
-        {
-            auto epsilon = node_js.at("eps").get<double>();
-            // Odd order for back-compatibility
-            node = make_shared<op::BatchNormTraining>(args[2], args[0], args[1], epsilon);
-            break;
-        }
         case OP_TYPEID::BatchNormInference:
         {
             auto epsilon = node_js.at("eps").get<double>();
@@ -2569,12 +2562,6 @@ json JSONSerializer::serialize_node(const Node& n)
         auto tmp = static_cast<const op::BatchMatMulTranspose*>(&n);
         node["transpose_0"] = tmp->get_transpose_arg0();
         node["transpose_1"] = tmp->get_transpose_arg1();
-        break;
-    }
-    case OP_TYPEID::BatchNormTraining:
-    {
-        auto tmp = static_cast<const op::BatchNormTraining*>(&n);
-        node["eps"] = tmp->get_eps_value();
         break;
     }
     case OP_TYPEID::BatchNormInference:
