@@ -114,6 +114,7 @@ FrontEnd::FrontEnd(StageBuilder::Ptr stageBuilder)
         {"DynamicShapeResolver",                               LAYER_PARSER(parseDSR)},
         {"OutShapeOfReshape",                                  LAYER_PARSER(parseOutShapeOfReshape)},
         {"StaticShapeBroadcast",                               LAYER_PARSER(parseBroadcast)},
+        {"StaticShapeNonMaxSuppression",                       LAYER_PARSER(parseStaticShapeNMS)},
     }} {}
 
 ModelPtr FrontEnd::buildInitialModel(ie::ICNNNetwork& network) {
