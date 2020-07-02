@@ -125,7 +125,6 @@ namespace ngraph
                                         const std::shared_ptr<ngraph::Node>& y_zero_point,
                                         const std::shared_ptr<ngraph::Node>& output_low,
                                         const std::shared_ptr<ngraph::Node>& output_high,
-                                        const std::shared_ptr<ngraph::Node>& data,
                                         const element::Type& data_type)
                     {
                         std::shared_ptr<ngraph::Node> input_low;
@@ -134,20 +133,23 @@ namespace ngraph
                             std::make_shared<default_opset::Convert>(y_zero_point, data_type);
 
                         input_low = std::make_shared<default_opset::Multiply>(
-                            y_scale, std::make_shared<default_opset::Add>(output_low, zero_point));
+                            y_scale,
+                            std::make_shared<default_opset::Subtract>(output_low, zero_point));
                         input_high = std::make_shared<default_opset::Multiply>(
-                            y_scale, std::make_shared<default_opset::Add>(output_high, zero_point));
+                            y_scale,
+                            std::make_shared<default_opset::Subtract>(output_high, zero_point));
 
                         return std::make_tuple(input_low, input_high);
                     }
 
                     std::shared_ptr<ngraph::Node>
-                        make_fake_quantize(const element::Type& destination_type,
-                                           const element::Type& data_type,
-                                           const std::shared_ptr<ngraph::Node>& y_scale,
+                        make_fake_quantize(const std::shared_ptr<ngraph::Node>& y_scale,
                                            const std::shared_ptr<ngraph::Node>& y_zero_point,
                                            const std::shared_ptr<ngraph::Node>& data)
                     {
+                        const element::Type& destination_type = y_zero_point->get_element_type();
+                        const element::Type& data_type = data->get_element_type();
+
                         std::shared_ptr<ngraph::Node> output_low;
                         std::shared_ptr<ngraph::Node> output_high;
                         std::tie(output_low, output_high) =
@@ -156,7 +158,7 @@ namespace ngraph
                         std::shared_ptr<ngraph::Node> input_low;
                         std::shared_ptr<ngraph::Node> input_high;
                         std::tie(input_low, input_high) = detail::get_input_bands(
-                            y_scale, y_zero_point, output_low, output_high, data, data_type);
+                            y_scale, y_zero_point, output_low, output_high, data_type);
 
                         const std::size_t levels = 1 << destination_type.bitwidth();
 
@@ -181,11 +183,7 @@ namespace ngraph
                     detail::validate_zero_point_type(node, y_zero_point);
                     y_scale = detail::validate_scale(node, y_scale);
 
-                    return {detail::make_fake_quantize(y_zero_point->get_element_type(),
-                                                       x->get_element_type(),
-                                                       y_scale,
-                                                       y_zero_point,
-                                                       x)};
+                    return {detail::make_fake_quantize(y_scale, y_zero_point, x)};
                 }
             } // namespace set_1
 
@@ -198,9 +196,9 @@ namespace ngraph
                     auto y_scale = inputs.at(1);
                     auto y_zero_point = detail::get_zero_point(inputs);
 
+                    x = detail::validate_data(node, x);
                     detail::validate_zero_point_type(node, y_zero_point);
                     y_scale = detail::validate_scale(node, y_scale);
-                    x = detail::validate_data(node, x);
 
                     const auto& x_shape = x->get_output_partial_shape(0);
 
@@ -246,11 +244,7 @@ namespace ngraph
                         y_zero_point = builder::opset1::reshape(y_scale, target_shape);
                     }
 
-                    return {detail::make_fake_quantize(y_zero_point->get_element_type(),
-                                                       x->get_element_type(),
-                                                       y_scale,
-                                                       y_zero_point,
-                                                       x)};
+                    return {detail::make_fake_quantize(y_scale, y_zero_point, x)};
                 }
 
             } // namespace set_13
