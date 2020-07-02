@@ -49,13 +49,15 @@ typedef std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> FakeQuantizeDeq
 FakeQuantizeDequantizationValues createEmptyValues(const FakeQuantizeDequantization& dequantization) {
     std::shared_ptr<Node> parent = dequantization.convert ? dequantization.convert : dequantization.data;
 
+    std::shared_ptr<Node> multiply1Const = dequantization.multiply ?
+        dequantization.multiply->get_input_node_shared_ptr(1)->clone_with_new_inputs({}) :
+        std::make_shared<opset1::Constant>(parent->get_output_element_type(0), Shape({}), std::vector<float>({ 1.f }));
+
     std::shared_ptr<Node> subtract1Const = dequantization.subtract ?
         dequantization.subtract->get_input_node_shared_ptr(1)->clone_with_new_inputs({}) :
         std::make_shared<opset1::Constant>(parent->get_output_element_type(0), Shape({}), std::vector<float>({ 0.f }));
 
-    std::shared_ptr<Node> multiply1Const = dequantization.multiply ?
-        dequantization.multiply->get_input_node_shared_ptr(1)->clone_with_new_inputs({}) :
-        std::make_shared<opset1::Constant>(parent->get_output_element_type(0), Shape({}), std::vector<float>({ 1.f }));
+    subtract1Const->set_output_type(0, multiply1Const->get_output_element_type(0), subtract1Const->get_output_partial_shape(0));
 
     return FakeQuantizeDequantizationValues(subtract1Const, multiply1Const);
 }
@@ -103,7 +105,6 @@ void AddTransformation::transform(TransformationContext& context, ngraph::patter
         std::shared_ptr<Node> subtract2Values = std::get<0>(dequantizationValues2);
         std::shared_ptr<Node> multiply2Values = std::get<1>(dequantizationValues2);
 
-
         // calculation
         std::shared_ptr<Node> newSubtract2Values = fold<opset1::Add>(
             subtract2Values,
@@ -115,7 +116,7 @@ void AddTransformation::transform(TransformationContext& context, ngraph::patter
 
         std::shared_ptr<Node> newMultiply2Const = fold<opset1::Divide>(multiply2Values, multiply1Values);
 
-        // optimization
+        // result optimization
         {
             // empty Subtract after calculations removing
             std::shared_ptr<opset1::Constant> newSubtract2ConstOp = as_type_ptr<opset1::Constant>(newSubtract2Values);
@@ -130,7 +131,11 @@ void AddTransformation::transform(TransformationContext& context, ngraph::patter
         // graph update
         newMultiply = std::make_shared<opset1::Multiply>(
             std::make_shared<op::TypeRelaxed<opset1::Add>>(
-                dequantization1.convert == nullptr ? dequantization1.data : dequantization1.convert,
+                dequantization1.convert == nullptr ?
+                    ((dequantization1.data->get_output_element_type(0) == newMultiply2Const->get_output_element_type(0)) ?
+                        dequantization1.data :
+                        std::make_shared<op::TypeRelaxed<opset1::Convert>>(dequantization1.data, newMultiply2Const->get_output_element_type(0))) :
+                    dequantization1.convert,
                 std::make_shared<opset1::Multiply>(
                     newSubtract2Values == nullptr ?
                         dequantization2.convert == nullptr ? dequantization2.data : dequantization2.convert :
