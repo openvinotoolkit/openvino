@@ -18,6 +18,7 @@
 #include <transformations/pull_transpose_through_fq.hpp>
 #include <ngraph/pass/constant_folding.hpp>
 #include <transformations/init_node_info.hpp>
+#include <ngraph/pass/manager.hpp>
 #include "common_test_utils/ngraph_test_utils.hpp"
 
 using namespace testing;
@@ -36,10 +37,15 @@ TEST(TransformationTests, FQTransposeTest1) {
         auto transpose = std::make_shared<ngraph::op::Transpose>(fq, transpose_order);
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{transpose}, ngraph::ParameterVector{});
-        ngraph::pass::InitNodeInfo().run_on_function(f);
-        ngraph::pass::PullTransposeThroughFQUp().run_on_function(f);
-        ASSERT_NO_THROW(check_rt_info(f));
-        ngraph::pass::ConstantFolding().run_on_function(f);
+
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<ngraph::pass::PullTransposeThroughFQUp>();
+        manager.register_pass<ngraph::pass::InjectionPass>([&](std::shared_ptr<ngraph::Function> f) {
+            check_rt_info(f);
+        });
+        manager.register_pass<ngraph::pass::ConstantFolding>();
+        ASSERT_NO_THROW(manager.run_passes(f));
     }
     std::vector<size_t> ref_shape{1, 3, 1};
     for (auto op : f->get_ops()) {

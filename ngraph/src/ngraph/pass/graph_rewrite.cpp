@@ -101,10 +101,6 @@ bool pass::GraphRewrite::run_on_function(shared_ptr<Function> f)
                 if (m_pass->apply(node))
                 {
                     rewritten = true;
-                    if (m_pass->get_property(PassProperty::REQUIRE_SHAPE_INFERENCE))
-                    {
-                        f->validate_nodes_and_infer_types();
-                    }
                     break;
                 }
             }
@@ -277,11 +273,6 @@ void ngraph::pass::MatcherPass::register_matcher(const std::shared_ptr<ngraph::p
                      }
                      return false;
                  };
-}
-
-void ngraph::pass::MatcherPass::register_matcher(const ngraph::handler_callback &callback)
-{
-    m_handler = callback;
 }
 
 bool ngraph::pass::MatcherPass::apply(std::shared_ptr<ngraph::Node> node)

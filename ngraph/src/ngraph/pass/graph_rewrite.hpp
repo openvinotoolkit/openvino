@@ -59,8 +59,6 @@ protected:
                           const ngraph::graph_rewrite_callback& callback,
                           const PassPropertyMask& property = PassProperty::CHANGE_DYNAMIC_STATE);
 
-    void register_matcher(const ngraph::handler_callback& callback);
-
 private:
     handler_callback m_handler;
 };

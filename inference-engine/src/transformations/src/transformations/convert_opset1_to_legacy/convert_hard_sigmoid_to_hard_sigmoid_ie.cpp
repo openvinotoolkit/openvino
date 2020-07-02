@@ -15,8 +15,13 @@
 
 
 ngraph::pass::ConvertHardSigmoidToLegacyMatcher::ConvertHardSigmoidToLegacyMatcher() {
-    ngraph::handler_callback callback = [](const std::shared_ptr<Node>& node) {
-        auto hard_sigmoid = std::dynamic_pointer_cast<ngraph::opset1::HardSigmoid>(node);
+    auto input_0 = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1, 1});
+    auto input_1 = std::make_shared<pattern::op::Label>(element::f32, Shape{});
+    auto input_2 = std::make_shared<pattern::op::Label>(element::f32, Shape{});
+    auto node = std::make_shared<ngraph::opset1::HardSigmoid>(input_0, input_1, input_2);
+
+    ngraph::graph_rewrite_callback callback = [](pattern::Matcher& m) {
+        auto hard_sigmoid = std::dynamic_pointer_cast<ngraph::opset1::HardSigmoid> (m.get_match_root());
         if (!hard_sigmoid) {
             return false;
         }
@@ -46,5 +51,6 @@ ngraph::pass::ConvertHardSigmoidToLegacyMatcher::ConvertHardSigmoidToLegacyMatch
         return true;
     };
 
-    this->register_matcher(callback);
+    auto m = std::make_shared<ngraph::pattern::Matcher>(node, "ConvertHardSigmoidToLegacy");
+    this->register_matcher(m, callback);
 }

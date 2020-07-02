@@ -13,8 +13,17 @@
 #include <ngraph/rt_info.hpp>
 
 ngraph::pass::ConvertProposalToLegacyMatcher::ConvertProposalToLegacyMatcher() {
-    ngraph::handler_callback callback = [](const std::shared_ptr<Node>& node) -> bool {
-        auto proposal = std::dynamic_pointer_cast<ngraph::opset1::Proposal>(node);
+    auto input_0 = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1, 1});
+    auto input_1 = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1, 1});
+    auto input_2 = std::make_shared<pattern::op::Label>(element::f32, Shape{3});
+
+    ngraph::op::ProposalAttrs attr = {};
+
+    auto proposal = std::make_shared<ngraph::opset1::Proposal>(input_0, input_1, input_2, attr);
+
+    ngraph::graph_rewrite_callback callback = [](pattern::Matcher& m) {
+        auto proposal = std::dynamic_pointer_cast<ngraph::opset1::Proposal> (m.get_match_root());
+
         if (!proposal) {
             return false;
         }
@@ -51,5 +60,6 @@ ngraph::pass::ConvertProposalToLegacyMatcher::ConvertProposalToLegacyMatcher() {
         return true;
     };
 
-    this->register_matcher(callback);
+    auto m = std::make_shared<ngraph::pattern::Matcher>(proposal, "ConvertProposalToProposalIE");
+    this->register_matcher(m, callback);
 }

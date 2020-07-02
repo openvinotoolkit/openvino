@@ -59,8 +59,6 @@ namespace ngraph
             REQUIRE_STATIC_SHAPE = 0x1,
             // Pass transformation will change the function's dynamic state
             CHANGE_DYNAMIC_STATE = 1 << 1,
-            // Pass requires to call shape inference after each application
-            REQUIRE_SHAPE_INFERENCE = 1 << 2
         };
 
         using param_callback = std::function<bool(const std::shared_ptr<const ::ngraph::Node>)>;

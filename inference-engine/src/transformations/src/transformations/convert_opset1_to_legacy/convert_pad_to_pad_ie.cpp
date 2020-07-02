@@ -11,8 +11,10 @@
 #include <ngraph/rt_info.hpp>
 
 ngraph::pass::ConvertPadToLegacyMatcher::ConvertPadToLegacyMatcher() {
-    ngraph::handler_callback callback = [](const std::shared_ptr<Node>& node) -> bool {
-        auto pad = std::dynamic_pointer_cast<ngraph::opset1::Pad>(node);
+    auto pad = std::make_shared<pattern::op::Label>(element::f32, Shape{}, pattern::has_class<ngraph::opset1::Pad>());
+
+    ngraph::graph_rewrite_callback callback = [](pattern::Matcher& m) {
+        auto pad = std::dynamic_pointer_cast<ngraph::opset1::Pad> (m.get_match_root());
         if (!pad) {
             return false;
         }
@@ -24,5 +26,6 @@ ngraph::pass::ConvertPadToLegacyMatcher::ConvertPadToLegacyMatcher() {
         return true;
     };
 
-    this->register_matcher(callback);
+    auto m = std::make_shared<ngraph::pattern::Matcher>(pad, "ConvertPadToLegacy");
+    this->register_matcher(m, callback);
 }

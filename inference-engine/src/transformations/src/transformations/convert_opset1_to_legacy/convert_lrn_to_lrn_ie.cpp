@@ -14,8 +14,12 @@
 #include <ngraph_ops/lrn_ie.hpp>
 
 ngraph::pass::ConvertLRNToLegacyMatcher::ConvertLRNToLegacyMatcher() {
-    ngraph::handler_callback callback = [](const std::shared_ptr<Node>& node) -> bool {
-        auto lrn = std::dynamic_pointer_cast<ngraph::opset1::LRN>(node);
+    auto input_0 = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1, 1});
+    auto input_1 = std::make_shared<pattern::op::Label>(element::i64, Shape{1});
+    auto lrn = std::make_shared<ngraph::opset1::LRN>(input_0, input_1, 1, 1, 1, 1);
+
+    ngraph::graph_rewrite_callback callback = [](pattern::Matcher& m) {
+        auto lrn = std::dynamic_pointer_cast<ngraph::opset1::LRN> (m.get_match_root());
         if (!lrn) {
             return false;
         }
@@ -58,5 +62,6 @@ ngraph::pass::ConvertLRNToLegacyMatcher::ConvertLRNToLegacyMatcher() {
         return true;
     };
 
-    this->register_matcher(callback);
+    auto m = std::make_shared<ngraph::pattern::Matcher>(lrn, "ConvertLRNToLegacy");
+    this->register_matcher(m, callback);
 }
