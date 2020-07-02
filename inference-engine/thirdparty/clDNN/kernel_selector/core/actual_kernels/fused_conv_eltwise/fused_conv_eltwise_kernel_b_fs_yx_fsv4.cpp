@@ -45,15 +45,10 @@ ParamsKey fused_conv_eltwise_kernel_b_fs_yx_fsv4::GetSupportedKey() const {
     k.EnableNonBiasTerm();
     k.EnableBatching();
     k.EnableDifferentTypes();
-    k.EnableFusedConvEltwSplitSupport();
-    k.EnableFusedConvEltwDilation();
-    k.EnableFusedConvEltwTranspose();
-    k.EnableFusedConvEltwiseRWOutOpt();
     k.EnableFusedConvEltwDepthToSpaceFusing();
     k.EnableFusedConvEltwInt8Quantization();
     k.EnableFusedConvEltwOutputCalibration();
     k.EnableOutputLayout(DataLayout::b_fs_yx_fsv4);
-    k.EnableOutputDataType(Datatype::INT8);
     k.EnableInputDataType(Datatype::INT8);
     k.EnableInputWeightsType(WeightsType::INT8);
     return k;
@@ -78,7 +73,6 @@ fused_conv_eltwise_kernel_base::DispatchData fused_conv_eltwise_kernel_b_fs_yx_f
 }
 
 bool fused_conv_eltwise_kernel_b_fs_yx_fsv4::Validate(const Params& p, const optional_params& o) const {
-    //if (!fused_conv_eltwise_kernel_base::Validate(p, o) || !FusedConvolutionEltwiseCheckInput(p, o)) {
     if (!fused_conv_eltwise_kernel_base::Validate(p, o)) {
         return false;
     }

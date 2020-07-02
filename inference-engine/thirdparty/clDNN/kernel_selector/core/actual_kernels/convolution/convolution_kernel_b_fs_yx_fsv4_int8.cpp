@@ -25,15 +25,11 @@ ParamsKey ConvolutionKernel_b_fs_yx_fsv4_int8::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::F16);
     k.EnableInputWeightsType(WeightsType::F16);
-    //////////////k.EnableOutputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::F32);
     k.EnableInputDataType(Datatype::INT8);
     k.EnableInputWeightsType(WeightsType::INT8);
     k.EnableOutputDataType(Datatype::INT8);
     k.EnableInputDataType(Datatype::UINT8);
-    //k.EnableOutputDataType(Datatype::UINT8);
-    //k.EnableInputLayout(DataLayout::bfyx);
-    ////////////k.EnableOutputLayout(DataLayout::bfyx);
     k.EnableInputLayout(DataLayout::b_fs_yx_fsv4);
     k.EnableOutputLayout(DataLayout::b_fs_yx_fsv4);
     k.EnableTensorOffset();
@@ -51,11 +47,7 @@ ParamsKey ConvolutionKernel_b_fs_yx_fsv4_int8::GetSupportedKey() const {
 ConvolutionKernelBase::DispatchData ConvolutionKernel_b_fs_yx_fsv4_int8::SetDefault(const convolution_params& cp, int) const {
     DispatchData runInfo = ConvolutionKernelBase::SetDefault(cp);
 
-    runInfo.efficiency = FORCE_PRIORITY_1;
-    //if (cp.output.GetFirstElementOffset() == 0)
-    //    runInfo.efficiency = FORCE_PRIORITY_9;
-
-    //runInfo.gws0 = CeilDiv(cp.output.X().v, sub_group_size) / 4;
+    runInfo.efficiency = FORCE_PRIORITY_9;
     runInfo.gws0 = CeilDiv(cp.output.X().v, sub_group_size) / 2;
     runInfo.gws1 = cp.output.Y().v;
     runInfo.gws2 = sub_group_size;
@@ -71,8 +63,6 @@ bool ConvolutionKernel_b_fs_yx_fsv4_int8::Validate(const Params& p, const option
     if (!ConvolutionKernelBase::Validate(p, o) || !CovolutionCheckInput(p, o)) {
         return false;
     }
-
-    
 
     const auto& params = static_cast<const convolution_params&>(p);
     if (params.inputs[0].X().v % 64)
