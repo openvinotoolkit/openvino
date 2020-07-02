@@ -16,6 +16,7 @@
 
 import logging as log
 from copy import deepcopy
+from typing import Callable
 
 import numpy as np
 
@@ -28,6 +29,46 @@ from mo.ops.const import Const
 from mo.ops.op import Op
 from mo.ops.squeeze import Squeeze
 from mo.ops.unsqueeze import Unsqueeze
+
+
+def group_by_with_binary_predicate(xs: list, predicate: Callable) -> list:
+    if not xs:
+        return []
+    prev = xs[0]
+    sequence = [prev]
+    result = []
+    for x in xs[1:]:
+        if predicate(prev, x):
+            sequence.append(x)
+            prev = x
+        else:
+            result.append(sequence)
+            prev = x
+            sequence = [prev]
+    result.append(sequence)
+    return result
+
+
+def unique_by(xs: list, predicate: Callable) -> list:
+    groups = group_by_with_binary_predicate(xs)
+    result = []
+    for group in groups:
+        result.append(group[0])
+    return result
+
+
+def strided_slices_equality(lhs: Node, rhs: Node) -> bool:
+    if not np.array_equal(lhs.slices, rhs.slices):
+        return False
+    for attr in ['begin_mask', 'end_mask', 'ellipsis_mask', 'new_axis_mask', 'shrink_axis_mask']:
+        if not np.array_equal(lhs[attr], rhs[attr]):
+            return False
+    return True
+
+
+def delete_duplicated_strided_slice(nodes):
+    sorted_nodes = sorted(nodes, key=lambda n: n.slices)
+    return unique_by(sorted_nodes, strided_slices_equality)
 
 
 class ConvertGroupedStridedSlice(MiddleReplacementPattern):
