@@ -179,6 +179,8 @@ bool evaluateDynamicShapeResolver(const HostTensorPtr& inputTensor,
             break;
         TYPE_CASE(f64)(inputTensor, inputShapeTensor, outputTensor);
             break;
+        TYPE_CASE(boolean)(inputTensor, inputShapeTensor, outputTensor);
+            break;
         default:
             rc = false;
             break;
