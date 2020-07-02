@@ -28,6 +28,7 @@ fused_conv_eltwise_kernel_b_fs_yx_fsv4::fused_conv_eltwise_kernel_b_fs_yx_fsv4()
 ParamsKey fused_conv_eltwise_kernel_b_fs_yx_fsv4::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::F16);
+    k.EnableInputDataType(Datatype::F32);
     k.EnableInputWeightsType(WeightsType::F16);
     k.EnableOutputDataType(Datatype::F16);
     k.EnableInputLayout(DataLayout::bfyx);

@@ -161,6 +161,23 @@ KERNEL(fused_conv_eltwise_kernel_b_fs_yx_fsv4)(
                         idy_for_image = 2 * idy + 1;
                     }
 #if OUTPUT_LAYOUT_IMAGE_2D_RGBA
+#if INPUT1_IS_FP
+                    float4 tmp_elt0 = as_float4(vload4(0, (__global uint*)(eltw_input + output_idx_eltwise + OUTPUT_OFFSET - idx_adjust + OUTPUT_FEATURE_PITCH * 0)));
+                    float4 tmp_elt1 = as_float4(vload4(0, (__global uint*)(eltw_input + output_idx_eltwise + OUTPUT_OFFSET - idx_adjust + OUTPUT_FEATURE_PITCH * 1)));
+                    float4 tmp_elt2 = as_float4(vload4(0, (__global uint*)(eltw_input + output_idx_eltwise + OUTPUT_OFFSET - idx_adjust + OUTPUT_FEATURE_PITCH * 2)));
+                    half4 output_half1 = {
+                        pack0 + tmp_elt0[0 + idx_adjust],
+                        pack2 + tmp_elt1[0 + idx_adjust],
+                        pack4 + tmp_elt2[0 + idx_adjust],
+                        0 };
+                    IMAGE_WRITE(output, (int2)(idx_for_image, idy_for_image), output_half1);
+                    half4 output_half2 = {
+                        pack1 + tmp_elt0[2 + idx_adjust],
+                        pack3 + tmp_elt1[2 + idx_adjust],
+                        pack5 + tmp_elt2[2 + idx_adjust],
+                        0 };
+                    IMAGE_WRITE(output, (int2)(idx_for_image + 2, idy_for_image), output_half2);
+#else
                     half4 tmp_elt0 = as_half4(vload2(0, (__global uint*)(eltw_input + output_idx_eltwise + OUTPUT_OFFSET - idx_adjust + OUTPUT_FEATURE_PITCH * 0)));
                     half4 tmp_elt1 = as_half4(vload2(0, (__global uint*)(eltw_input + output_idx_eltwise + OUTPUT_OFFSET - idx_adjust + OUTPUT_FEATURE_PITCH * 1)));
                     half4 tmp_elt2 = as_half4(vload2(0, (__global uint*)(eltw_input + output_idx_eltwise + OUTPUT_OFFSET - idx_adjust + OUTPUT_FEATURE_PITCH * 2)));
@@ -176,10 +193,17 @@ KERNEL(fused_conv_eltwise_kernel_b_fs_yx_fsv4)(
                         pack5 + tmp_elt2[2 + idx_adjust],
                         0 };
                     IMAGE_WRITE(output, (int2)(idx_for_image +2, idy_for_image), output_half2);
+#endif
+#else
+#if INPUT1_IS_FP
+                    float4 tmp_elt0 = as_float4(vload4(0, (__global uint*)(eltw_input + output_idx_eltwise + OUTPUT_OFFSET - idx_adjust)));
+                    output[output_idx_eltwise + OUTPUT_OFFSET + 0] = pack0 + TO_ACTIVATION_TYPE(tmp_elt0[0 + idx_adjust]);
+                    output[output_idx_eltwise + OUTPUT_OFFSET + 2] = pack1 + TO_ACTIVATION_TYPE(tmp_elt0[2 + idx_adjust]);
 #else
                     half4 tmp_elt0 = as_half4(vload2(0, (__global uint*)(eltw_input + output_idx_eltwise + OUTPUT_OFFSET - idx_adjust)));
                     output[output_idx_eltwise + OUTPUT_OFFSET + 0] = pack0 + tmp_elt0[0 + idx_adjust];
                     output[output_idx_eltwise + OUTPUT_OFFSET + 2] = pack1 + tmp_elt0[2 + idx_adjust];
+#endif
 #endif
                 }
         }
