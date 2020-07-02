@@ -33,7 +33,7 @@ protected:
     std::shared_ptr<ngraph::opset3::Parameter> createParameter(
             const ngraph::element::Type& element_type,
             const ngraph::PartialShape& shape) {
-        m_parameterVector.emplace_back(element_type, shape);
+        m_parameterVector.push_back(std::make_shared<ngraph::op::Parameter>(element_type, shape));
         return m_parameterVector.back();
     }
 
