@@ -19,7 +19,7 @@
 #include "ngraph/op/get_output_element.hpp"
 #include "ngraph/opsets/opset.hpp"
 #include "ngraph/pass/manager.hpp"
-#include "ngraph/pass/opset1_upgrade.hpp"
+#include "opset1_upgrade.hpp"
 
 using namespace ngraph;
 
