@@ -23,7 +23,6 @@ std::vector<std::string> disabledTestPatterns() {
     return {
     #if defined(_WIN32) || defined(_WIN64)
         // TODO: Issue 31197
-        R"(.*(IEClassBasicTestP).*smoke_registerPluginsXMLUnicodePath.*)",
         R"(.*(myriadLayersTestsProposal_smoke).*Caffe.*)",
         R"(.*(myriadLayersTestsProposal_smoke).*CaffeNoClipBeforeNms.*)",
         R"(.*(myriadLayersTestsProposal_smoke).*CaffeClipAfterNms.*)",

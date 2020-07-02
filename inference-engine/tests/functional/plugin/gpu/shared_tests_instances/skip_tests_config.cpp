@@ -13,6 +13,8 @@ std::vector<std::string> disabledTestPatterns() {
             R"(.*(EltwiseLayerTest).*IS=\(.*\..*\..*\..*\..*\).*secondaryInputType=CONSTANT.*opType=SCALAR.*)",
             R"(.*(EltwiseLayerTest).*IS=\(.*\).*secondaryInputType=CONSTANT.*)",
             // Issues - 34059
-            ".*BehaviorTests\\.pluginDoesNotChangeOriginalNetwork.*"
+            ".*BehaviorTests\\.pluginDoesNotChangeOriginalNetwork.*",
+            //TODO: Issue: 34349
+            R"(.*(IEClassLoadNetwork).*(QueryNetworkMULTIWithHETERONoThrow_V10|QueryNetworkHETEROWithMULTINoThrow_V10).*)",
     };
 }

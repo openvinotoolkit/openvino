@@ -2,10 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ie_class.hpp"
+#include "behavior/core_integration.hpp"
+
+using namespace BehaviorTestsDefinitions;
 
 using namespace InferenceEngine::PluginConfigParams;
 
+namespace {
 //
 // IE Class Common tests with <pluginName, deviceName params>
 //
@@ -132,15 +135,15 @@ INSTANTIATE_TEST_CASE_P(
 
 //////////////////////////////////////////////////////////////////////////////////////////
 
-TEST_F(IEClassBasicTest, smoke_SetConfigAfterCreatedThrow) {
+TEST(IEClassBasicTest, smoke_SetConfigAfterCreatedThrow) {
     Core ie;
-    std::string value = { };
+    std::string value = {};
 
-    ASSERT_NO_THROW(ie.SetConfig({ { KEY_CPU_THREADS_NUM, "1" } }, "CPU"));
+    ASSERT_NO_THROW(ie.SetConfig({{KEY_CPU_THREADS_NUM, "1"}}, "CPU"));
     ASSERT_NO_THROW(value = ie.GetConfig("CPU", KEY_CPU_THREADS_NUM).as<std::string>());
     ASSERT_EQ("1", value);
 
-    ASSERT_NO_THROW(ie.SetConfig({ { KEY_CPU_THREADS_NUM, "4" } }, "CPU"));
+    ASSERT_NO_THROW(ie.SetConfig({{KEY_CPU_THREADS_NUM, "4"}}, "CPU"));
     ASSERT_NO_THROW(value = ie.GetConfig("CPU", KEY_CPU_THREADS_NUM).as<std::string>());
     ASSERT_EQ("4", value);
 }
@@ -156,3 +159,4 @@ INSTANTIATE_TEST_CASE_P(
 INSTANTIATE_TEST_CASE_P(
         smoke_IEClassLoadNetworkTest, IEClassLoadNetworkTest,
         ::testing::Values("CPU"));
+} // namespace
