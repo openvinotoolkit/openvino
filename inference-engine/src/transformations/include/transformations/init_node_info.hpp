@@ -22,16 +22,16 @@
  *
  * @{
  * @defgroup ie_runtime_attr_api Runtime information
- * @brief A machnism of runtime information extension
+ * @brief A mechanism of runtime information extension
  *
  * @defgroup ie_transformation_common_api Common optimization passes
  * @brief A set of common optimization passes
  *
- * @defgroup ie_transformation_to_opset1_api Conversion from opset2 to opset1
- * @brief A set of conversion passes from opset2 to opset1
-
  * @defgroup ie_transformation_to_opset2_api Conversion from opset3 to opset2
- * @brief A set of conversion passes from opset3 to opset2
+ * @brief A set of conversion downgrade passes from opset3 to opset2
+ *
+ * @defgroup ie_transformation_to_opset1_api Conversion from opset2 to opset1
+ * @brief A set of conversion downgrade passes from opset2 to opset1
  * @}
  */
 
@@ -41,7 +41,7 @@
 namespace ngraph {
 
 /**
- * @brief ngraph::passes namespace
+ * @brief ngraph::pass namespace
  */
 namespace pass {
 
@@ -57,7 +57,7 @@ class TRANSFORMATIONS_API InitNodeInfo;
  * Every runtime info attribute that needs to be initialized should be registered
  * in run_on_function method. Also do not forget to override init methods for registered
  * attribute.
- * This transformations should be called first in transformation pipeline. If attrbute was
+ * This transformations should be called first in transformation pipeline. If attribute was
  * already set initialization will be skipped for this node.
  */
 class ngraph::pass::InitNodeInfo: public ngraph::pass::FunctionPass {

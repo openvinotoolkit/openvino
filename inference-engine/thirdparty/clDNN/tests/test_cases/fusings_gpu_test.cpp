@@ -3154,37 +3154,37 @@ INSTANTIATE_TEST_CASE_P(
         activation_test_params{CASE_ACTIVATION_3D_F32_6, 2, 3, "activation_ref"},  // FIXME - accuracy bug
     }), );
 
-class activation_scale_activation_quantize_i8 : public ActivationFusingTest {};
-TEST_P(activation_scale_activation_quantize_i8, basic) {
+class activation_scale_activation_quantize_u8 : public ActivationFusingTest {};
+TEST_P(activation_scale_activation_quantize_u8, basic) {
     auto p = GetParam();
     create_topologies(input_layout("input", get_input_layout(p)),
                       activation("act", "input", activation_func::relu),
                       data("scale_data", get_mem(get_single_element_layout(p), 1.0f / 255)),
-                      data("in_low", get_mem(get_single_element_layout(p), min_random, 0)),
+                      data("in_low", get_mem(get_single_element_layout(p), 0)),
                       data("in_high", get_mem(get_single_element_layout(p), 1, max_random)),
                       data("out_low", get_mem(get_single_element_layout(p), 0)),
                       data("out_high", get_mem(get_single_element_layout(p), 255)),
                       scale("scale", "act", "scale_data"),
                       activation("act2", "scale", activation_func::softsign),
-                      quantize("quant", "act2", "in_low", "in_high", "out_low", "out_high", 255, data_types::i8),
+                      quantize("quant", "act2", "in_low", "in_high", "out_low", "out_high", 256, data_types::u8),
                       reorder("reorder_bfyx", "quant", p.default_format, data_types::f32));
 
     tolerance = 1.f;
     execute(p);
 }
 
-TEST_P(activation_scale_activation_quantize_i8, per_channel) {
+TEST_P(activation_scale_activation_quantize_u8, per_channel) {
     auto p = GetParam();
     create_topologies(input_layout("input", get_input_layout(p)),
                       activation("act", "input", activation_func::relu),
                       data("scale_data", get_mem(get_single_element_layout(p), 1.0f / 255)),
-                      data("in_low", get_mem(get_per_channel_layout(p), min_random, 0)),
+                      data("in_low", get_mem(get_per_channel_layout(p), 0)),
                       data("in_high", get_mem(get_per_channel_layout(p), 1, max_random)),
                       data("out_low", get_mem(get_single_element_layout(p), 0)),
                       data("out_high", get_mem(get_single_element_layout(p), 255)),
                       scale("scale", "act", "scale_data"),
                       activation("act2", "scale", activation_func::softsign),
-                      quantize("quant", "act2", "in_low", "in_high", "out_low", "out_high", 255, data_types::i8),
+                      quantize("quant", "act2", "in_low", "in_high", "out_low", "out_high", 256, data_types::u8),
                       reorder("reorder_bfyx", "quant", p.default_format, data_types::f32));
 
     tolerance = 1.f;
@@ -3193,7 +3193,7 @@ TEST_P(activation_scale_activation_quantize_i8, per_channel) {
 
 INSTANTIATE_TEST_CASE_P(
     fusings_gpu,
-    activation_scale_activation_quantize_i8,
+    activation_scale_activation_quantize_u8,
     ::testing::ValuesIn(std::vector<activation_test_params>{
         // InputDataType = FP32
         activation_test_params{CASE_ACTIVATION_F32_0, 2, 5, "activation_opt"},
@@ -3216,7 +3216,7 @@ INSTANTIATE_TEST_CASE_P(
 
 INSTANTIATE_TEST_CASE_P(
     DISABLED_fusings_gpu,
-    activation_scale_activation_quantize_i8,
+    activation_scale_activation_quantize_u8,
     ::testing::ValuesIn(std::vector<activation_test_params>{
         activation_test_params{CASE_ACTIVATION_3D_F32_5, 2, 5, "activation_ref"},  // FIXME - accuracy bug
         activation_test_params{CASE_ACTIVATION_3D_F32_6, 2, 5, "activation_ref"},  // FIXME - accuracy bug

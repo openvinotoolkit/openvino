@@ -101,6 +101,25 @@ const ngraph::OpSet& ngraph::get_opset3()
     return opset;
 }
 
+const ngraph::OpSet& ngraph::get_opset4()
+{
+    static std::mutex init_mutex;
+    static bool opset_is_initialized = false;
+    static OpSet opset;
+    if (!opset_is_initialized)
+    {
+        std::lock_guard<std::mutex> guard(init_mutex);
+        if (!opset_is_initialized)
+        {
+#define NGRAPH_OP(NAME, NAMESPACE) opset.insert<NAMESPACE::NAME>();
+#include "ngraph/opsets/opset4_tbl.hpp"
+#undef NGRAPH_OP
+            opset_is_initialized = true;
+        }
+    }
+    return opset;
+}
+
 const ngraph::OpSet& ngraph::get_ie_opset()
 {
     static std::mutex init_mutex;
@@ -115,6 +134,7 @@ const ngraph::OpSet& ngraph::get_ie_opset()
 #include "ngraph/opsets/opset1_tbl.hpp"
 #include "ngraph/opsets/opset2_tbl.hpp"
 #include "ngraph/opsets/opset3_tbl.hpp"
+#include "ngraph/opsets/opset4_tbl.hpp"
 #undef NGRAPH_OP
             opset_is_initialized = true;
         }
