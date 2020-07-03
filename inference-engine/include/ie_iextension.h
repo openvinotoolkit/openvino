@@ -19,7 +19,6 @@
 #include "ie_common.h"
 #include "ie_layouts.h"
 #include "ie_blob.h"
-#include "ie_layers.h"
 #include "ie_version.hpp"
 
 /**
