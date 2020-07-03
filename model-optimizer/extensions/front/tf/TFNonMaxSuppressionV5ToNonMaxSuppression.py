@@ -15,7 +15,9 @@
 """
 
 import logging as log
+import numpy as np
 
+from extensions.ops.non_max_suppression import NonMaxSuppression
 from mo.front.common.partial_infer.utils import int64_array
 from mo.front.common.replacement import FrontReplacementSubgraph
 from mo.front.tf.graph_utils import create_op_node_with_second_input
@@ -41,4 +43,12 @@ class TFNonMaxSuppressionV5ToNonMaxSuppression(FrontReplacementSubgraph):
 
     @staticmethod
     def replace_sub_graph(graph: Graph, match: dict, **kwargs):
-        nms = match['tfnms']
+        tf_nms = match['tfnms']
+        tf_nms_name = tf_nms.name
+        nms = NonMaxSuppression(graph,
+                                {
+                                    'name': tf_nms_name + '/NonMaxSuppression_',
+                                    'sort_result_descending': 1,
+                                    'box_encoding': 'corner',
+                                    'output_type': np.int32
+                                }).create_node()
