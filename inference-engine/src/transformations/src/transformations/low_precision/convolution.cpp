@@ -30,6 +30,8 @@ void ConvolutionTransformation::registerMatcherIn(GraphRewrite &pass, Transforma
         make_op_pattern<opset1::Convolution>({ make_op_label<opset1::Multiply>(), make_op_label<opset1::FakeQuantize>()}));
 }
 
+size_t handledCount = 0;
+
 void ConvolutionTransformation::transform(TransformationContext &context, ngraph::pattern::Matcher &m) const {
     auto convolution = m.get_match_root();
 
@@ -57,7 +59,40 @@ void ConvolutionTransformation::transform(TransformationContext &context, ngraph
     //    dataPrecisionOnWeights.min,
     //    dataPrecisionOnWeights.max);
 
+    FakeQuantizeDequantization dequantization = getDequantization(convolution);
+    if (dequantization.isShared()) {
+        std::shared_ptr<Node> parent = dequantization.data;
+        if (dequantization.convert != nullptr) {
+            parent = dequantization.convert->clone_with_new_inputs({ parent });
+            parent->set_friendly_name(parent->get_name() + "_new");
+        }
+
+        if (dequantization.subtract != nullptr) {
+            parent = dequantization.subtract->clone_with_new_inputs({
+                parent,
+                dequantization.subtract->input_value(1) });
+            parent->set_friendly_name(parent->get_name() + "_new");
+        }
+
+        if (dequantization.multiply != nullptr) {
+            parent = dequantization.multiply->clone_with_new_inputs({
+                parent,
+                dequantization.multiply->input_value(1) });
+            parent->set_friendly_name(parent->get_name() + "_new");
+        }
+
+        auto newConvolution = convolution->clone_with_new_inputs({
+            parent,
+            convolution->input_value(1) });
+        replace_node(convolution, newConvolution);
+        newConvolution->set_friendly_name(convolution->get_friendly_name() + "_new");
+        convolution = newConvolution;
+
+        //std::cout << convolution->get_friendly_name() << std::endl;
+    }
+
     std::shared_ptr<Node> dequantizationOperationOnData = convolution->input_value(0).get_node_shared_ptr();
+    std::shared_ptr<opset1::Subtract> subtract = as_type_ptr<opset1::Subtract>(dequantizationOperationOnData->input_value(0).get_node_shared_ptr());
 
     {
         // Move Multiply from Data path immediately to the output
@@ -66,10 +101,13 @@ void ConvolutionTransformation::transform(TransformationContext &context, ngraph
         //        decomposeMultiplyAdd(as_type_ptr<ngraph::op::MultiplyAdd>(scaleShiftOnData)));
         // auto newAdd = optimizeAdd(as_type_ptr<opset1::Add>(newMultiplyFromData->input_value(0).get_node_shared_ptr()));
 
-        auto subtract = as_type_ptr<opset1::Subtract>(dequantizationOperationOnData->input_value(0).get_node_shared_ptr());
+        // pass::VisualizeTree("C:\\Projects\\temp\\test.transformed").run_on_module(std::vector<std::shared_ptr<ngraph::Function>>{ context.network });
+
         if (subtract != nullptr) {
             subtract = as_type_ptr<opset1::Subtract>(optimizeSubtract(subtract));
         }
+
+        // pass::VisualizeTree("C:\\Projects\\temp\\test.transformed").run_on_module(std::vector<std::shared_ptr<ngraph::Function>>{ context.network });
 
         // FIXME: next workaround normalizes shape of newAdd to match CPU plugin expectations
         if (subtract && subtract->get_output_partial_shape(0) != subtract->get_input_partial_shape(1)) {
@@ -86,7 +124,13 @@ void ConvolutionTransformation::transform(TransformationContext &context, ngraph
                     Shape{ length },
                     broadcastShape));
 
-            replace_node(subtract, subtract->clone_with_new_inputs({ subtract->input_value(0).get_node_shared_ptr(), newShift }));
+            const auto newSubtract = as_type_ptr<opset1::Subtract>(subtract->clone_with_new_inputs({
+                subtract->input_value(0).get_node_shared_ptr(),
+                newShift }));
+            replace_node(subtract, newSubtract);
+
+            newSubtract->set_output_type(0, subtract->get_output_element_type(0), newSubtract->get_output_partial_shape(0));
+            subtract = newSubtract;
         }
 
         std::shared_ptr<ngraph::opset1::Multiply> newMultiplyFromData = as_type_ptr<ngraph::opset1::Multiply>(dequantizationOperationOnData);
@@ -201,6 +245,44 @@ void ConvolutionTransformation::transform(TransformationContext &context, ngraph
     convolution->set_friendly_name(originalName + "_original");
     finalDequantization->set_friendly_name(originalName);
 
+
+
+    // pass::VisualizeTree("C:\\Projects\\temp\\test.original").run_on_module(std::vector<std::shared_ptr<ngraph::Function>>{ context.network });
+
+
+
+
+
+
+    //// was moved to top
+    //////auto subtract = as_type_ptr<opset1::Subtract>(convolution->get_input_node_shared_ptr(0));
+    //if (subtract) {
+    //    auto newSubtract = std::make_shared<op::TypeRelaxed<opset1::Subtract>>(
+    //        subtract->get_input_node_shared_ptr(0),
+    //        subtract->get_input_node_ptr(1)->clone_with_new_inputs({}));
+    //    newSubtract->set_output_type(0, subtract->get_output_element_type(0), subtract->get_output_partial_shape(0));
+    //    replace_node(subtract, newSubtract);
+    //    subtract = newSubtract;
+
+    //    if (subtract->get_outputs().begin()->get_inputs().size() != 1) {
+    //        //auto newSubtract = subtract->clone_with_new_inputs({
+    //        auto newSubtract = std::make_shared<op::TypeRelaxed<opset1::Subtract>>(
+    //            subtract->get_input_node_shared_ptr(0),
+    //            subtract->get_input_node_ptr(1)->clone_with_new_inputs({}));
+    //        //const auto precision = convolution->get_output_element_type(0);
+    //        //const auto precision = subtract->get_output_element_type(0);
+    //        newSubtract->set_output_type(0, subtract->get_output_element_type(0), subtract->get_output_partial_shape(0));
+
+    //        auto newConvolution = convolution->clone_with_new_inputs({
+    //            newSubtract,
+    //            convolution->input_value(1) });
+    //        replace_node(convolution, newConvolution);
+    //        convolution = newConvolution;
+    //    }
+    //}
+
+
+
     // pass::VisualizeTree("C:\\Projects\\temp\\test.transformed").run_on_module(std::vector<std::shared_ptr<ngraph::Function>>{ context.network });
 
 
@@ -222,6 +304,7 @@ void ConvolutionTransformation::transform(TransformationContext &context, ngraph
     //            false));
 
     // std::cout << "ConvolutionTransformation::transform: done: " << convolution->get_friendly_name() << std::endl;
+    // std::cout << convolution->get_friendly_name() << std::endl;
 }
 
 } // namespace low_precision
