@@ -39,7 +39,6 @@
 #include "ngraph/runtime/reference/atan.hpp"
 #include "ngraph/runtime/reference/atan2.hpp"
 #include "ngraph/runtime/reference/avg_pool.hpp"
-#include "ngraph/runtime/reference/batch_mat_mul.hpp"
 #include "ngraph/runtime/reference/batch_norm.hpp"
 #include "ngraph/runtime/reference/broadcast.hpp"
 #include "ngraph/runtime/reference/broadcast_distributed.hpp"
@@ -377,16 +376,6 @@ protected:
             size_t element_count = shape_size(node.get_output_shape(0));
             size_t num_bytes = element_count * node.get_output_element_type(0).size();
             std::memcpy(out[0]->get_data_ptr<T>(), args[0]->get_data_ptr<T>(), num_bytes);
-            break;
-        }
-        case OP_TYPEID::BatchMatMul:
-        {
-            reference::batch_mat_mul(args[0]->get_data_ptr<const T>(),
-                                     args[1]->get_data_ptr<const T>(),
-                                     out[0]->get_data_ptr<T>(),
-                                     node.get_input_shape(0),
-                                     node.get_input_shape(1),
-                                     node.get_output_shape(0));
             break;
         }
         case OP_TYPEID::BatchNormInference:
@@ -1462,7 +1451,6 @@ protected:
         }
 
         // Fused Ops are not supported in interpreter. They need to be decomposed before execution
-        case OP_TYPEID::BatchMatMulTranspose:
         case OP_TYPEID::ConvolutionBias:
         case OP_TYPEID::ConvolutionBiasAdd:
         case OP_TYPEID::CropAndResize:

@@ -1026,9 +1026,6 @@ convert_uint16_float32
 # Unsupported primitive of type: Ceiling
 ceiling
 
-# Cannot cast ngraph node BatchMatMul to CNNLayer!
-batch_mat_mul_forward
-
 # Incorrect dimensions for broadcasting for Add
 auto_bcast_binary_elementwise_pdpd_dynamic
 
@@ -1066,10 +1063,6 @@ broadcast_algo_matrix_backward_4
 broadcast_algo_matrix_stride_1
 broadcast_algo_matrix_stride_2
 broadcast_algo_matrix_stride_3
-
-# Cannot cast ngraph node BatchMatMulTranspose_783933 to CNNLayer!
-batch_mat_mul_transpose
-batch_mat_mul_transpose_with_transpose
 
 # Failing from new reason after unblocking more Blob types
 gather_2d_negative_and_positive_indices_no_axis_2d_input
@@ -1313,7 +1306,6 @@ IE_CPU.backwards_log
 
 # Unsupported op detected
 IE_CPU.backwards_batchmatmultranspose_tensor2_tensor2
-IE_CPU.fuse_batch_mat_mul_transpose_forward
 IE_CPU.round_int64
 
 # Can't convert type f16 to IE Precision!

@@ -203,8 +203,6 @@ set (SRC
     op/erf.hpp
     op/exp.cpp
     op/exp.hpp
-    op/experimental/batch_mat_mul.cpp
-    op/experimental/batch_mat_mul.hpp
     op/experimental/dyn_broadcast.cpp
     op/experimental/dyn_broadcast.hpp
     op/experimental/dyn_pad.cpp
@@ -219,26 +217,10 @@ set (SRC
     op/experimental/quantized_conv_bias.hpp
     op/experimental/quantized_conv_relu.cpp
     op/experimental/quantized_conv_relu.hpp
-    op/experimental/range.hpp
-    op/experimental/shape_of.hpp
-    op/experimental/tile.hpp
     op/experimental/quantized_dot_bias.cpp
     op/experimental/quantized_dot_bias.hpp
-    op/experimental/compiled_kernel.cpp
-    op/experimental/compiled_kernel.hpp
-    op/experimental/layers/ctc_greedy_decoder.hpp
-    op/experimental/layers/detection_output.hpp
-    op/experimental/layers/interpolate.hpp
-    op/experimental/layers/prior_box.hpp
-    op/experimental/layers/prior_box_clustered.hpp
-    op/experimental/layers/proposal.hpp
-    op/experimental/layers/psroi_pooling.hpp
-    op/experimental/layers/region_yolo.hpp
-    op/experimental/layers/reorg_yolo.hpp
-    op/experimental/layers/roi_pooling.hpp
     op/experimental/random_uniform.hpp
     op/experimental/random_uniform.cpp
-    op/experimental/transpose.hpp
     op/extractimagepatches.cpp
     op/extractimagepatches.hpp
     op/strided_slice.hpp
@@ -416,8 +398,6 @@ set (SRC
     op/transpose.hpp
     op/xor.cpp
     op/xor.hpp
-    op/fused/batch_mat_mul_transpose.cpp
-    op/fused/batch_mat_mul_transpose.hpp
     op/fused/batch_to_space.cpp
     op/fused/batch_to_space.hpp
     op/fused/clamp.cpp

@@ -113,8 +113,6 @@ set(SRC
     type_prop/all.cpp
     type_prop/any.cpp
     type_prop/assign.cpp
-    type_prop/batch_mat_mul.cpp
-    type_prop/batch_mat_mul_transpose.cpp
     type_prop/batch_norm.cpp
     type_prop/batch_to_space.cpp
     type_prop/binary_elementwise.cpp
@@ -301,7 +299,6 @@ set(MULTI_TEST_SRC
     backend/atanh.in.cpp
     backend/auto_broadcast.in.cpp
     backend/autodiff.in.cpp
-    backend/batch_mat_mul.in.cpp
     backend/batch_norm.in.cpp
     backend/broadcast.in.cpp
     backend/builder_flatten.in.cpp
