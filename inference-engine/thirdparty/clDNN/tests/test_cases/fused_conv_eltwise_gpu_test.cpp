@@ -200,10 +200,6 @@ protected:
     std::vector<InputTy> input_values;
     std::vector<WeightsTy> weights_values;
     std::vector<BiasesTy> biases_values;
-    // Note, not all of the quantization/calibration factors are used in all the
-    // tests. However, I didn't come up with a way to correctly reflect that
-    // while unifying the boileplate testing code.
-    static constexpr float ignore = std::numeric_limits<float>::quiet_NaN();
 
     // Eltw part.
     std::vector<InputTy> non_conv_input_values;
@@ -358,57 +354,6 @@ TEST_F(FusedConvTest_all_float, DISABLED_basic) {
                                eltwise_mode::sum,
                                {"weights"},
                                {"biases"},
-                               {},
-                               {},
-                               1.0f, // conv_i_quantization_factor
-                               1.0f, // non_conv_scale
-                               "",
-                               {{1, 1, 1, 1}}, // eltw_stride
-                               {1, 1, 1, 1},   // stride
-                               {0, 0, 0, 0},   // input_offset
-                               {1, 1, 1, 1},   // dilation
-                               false,          // conv_with_activation
-                               0.0f,           // con_activation_slp
-                               true,           // eltw_activation
-                               0.0f));         // eltw_activation_slp
-}
-
-class FusedConvTest_no_conv_calibration : public FusedConvTest<float, float>
-{};
-
-TEST_F(FusedConvTest_no_conv_calibration, DISABLED_basic) {
-    // That might happen if both conv output and non-conv input happen to be
-    // normalized to the same dynamic range of if tensor-wise (instead of
-    // per-channel) calibration is used. Also, a similar thing might happen for
-    // a convolution with calibration without quantization (which is the real
-    // target of this test, needed for the Inference Engine).
-
-    // add_feature contains data for conv quantization/calibration, but the
-    // primitive won't use it. It's just much easier to unify different tests
-    // this way.
-    add_feature({125.0f, 125.0f, 0.0f, 1.0f}, // input
-                {2.0f, 0.0f, 1.0f},           // weights
-                1.0f,                         // bias
-                {-10.0f, -10.0f},             // non_conv_input
-                {241.0f, 242.0f});            // output_pre_relu
-
-    add_feature({125.0f, 125.0f, 0.0f, 1.0f}, // input
-                {2.0f, 0.0f, 1.0f},           // weights
-                0.0f,                         // bias
-                {-10.0f, -11.0f},             // non_conv_input
-                {480.0f, 480.0f});            // output_pre_relu
-
-    do_test(fused_conv_eltwise("fused_conv",
-                               "input",
-                               "sum_input",
-                               eltwise_mode::sum,
-                               {"weights"},
-                               {"biases"},
-                               {},
-                               {},   // conv_output_calibration
-                               1.0f, // conv_i_quantization_factor
-                               1.0f, // non_conv_scale
-                               "",
                                {{1, 1, 1, 1}}, // eltw_stride
                                {1, 1, 1, 1},   // stride
                                {0, 0, 0, 0},   // input_offset

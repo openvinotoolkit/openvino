@@ -366,52 +366,9 @@ namespace ngraph
                 CoordinateDiff m_padding_above;
                 size_t m_groups;
             };
-
-            /// \brief Group Convolution filters backprop
-            class NGRAPH_API GroupConvolutionBackpropFilters : public ngraph::op::util::FusedOp
-            {
-            public:
-                static constexpr NodeTypeInfo type_info{"GroupConvolutionBackpropFilters", 0};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
-                GroupConvolutionBackpropFilters() = default;
-                GroupConvolutionBackpropFilters(const Output<Node>& data_batch,
-                                                const Output<Node>& filters,
-                                                const Output<Node>& output_delta,
-                                                const Strides& window_movement_strides,
-                                                const Strides& window_dilation_strides,
-                                                const CoordinateDiff& padding_below,
-                                                const CoordinateDiff& padding_above,
-                                                const size_t groups);
-
-                const Strides& get_window_movement_strides() const
-                {
-                    return m_window_movement_strides;
-                }
-                const Strides& get_window_dilation_strides() const
-                {
-                    return m_window_dilation_strides;
-                }
-                const CoordinateDiff& get_padding_below() const { return m_padding_below; }
-                const CoordinateDiff& get_padding_above() const { return m_padding_above; }
-                size_t get_groups() const { return m_groups; }
-                virtual std::shared_ptr<Node>
-                    clone_with_new_inputs(const OutputVector& new_args) const override;
-
-                virtual NodeVector decompose_op() const override;
-
-                virtual void pre_validate_and_infer_types() override;
-
-            protected:
-                Strides m_window_movement_strides;
-                Strides m_window_dilation_strides;
-                CoordinateDiff m_padding_below;
-                CoordinateDiff m_padding_above;
-                size_t m_groups;
-            };
         }
 
         using v0::GroupConvolution;
         using v0::GroupConvolutionBackpropData;
-        using v0::GroupConvolutionBackpropFilters;
     } // namespace op
 } // namespace ngraph

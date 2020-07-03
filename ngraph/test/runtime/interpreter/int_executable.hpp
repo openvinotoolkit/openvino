@@ -104,6 +104,7 @@
 #include "ngraph/runtime/tensor.hpp"
 #include "ngraph/state/bernoulli_rng_state.hpp"
 #include "ngraph/state/uniform_rng_state.hpp"
+#include "op/avg_pool.hpp"
 
 namespace ngraph
 {
@@ -330,7 +331,7 @@ protected:
         }
         case OP_TYPEID::AvgPool:
         {
-            const op::AvgPool* avg_pool = static_cast<const op::AvgPool*>(&node);
+            const op::v0::AvgPool* avg_pool = static_cast<const op::v0::AvgPool*>(&node);
 
             reference::avg_pool<T>(args[0]->get_data_ptr<const T>(),
                                    out[0]->get_data_ptr<T>(),
@@ -414,37 +415,6 @@ protected:
                                                args[4]->get_data_ptr<const T>(),
                                                out[0]->get_data_ptr<T>(),
                                                node.get_input_shape(2));
-            break;
-        }
-        case OP_TYPEID::BatchNormTrainingBackprop:
-        {
-            const ngraph::op::BatchNormTrainingBackprop* bn_bprop =
-                static_cast<const ngraph::op::BatchNormTrainingBackprop*>(&node);
-            reference::batch_norm_backprop(bn_bprop->get_eps_value(),
-                                           args[0]->get_data_ptr<const T>(),
-                                           args[1]->get_data_ptr<const T>(),
-                                           args[2]->get_data_ptr<const T>(),
-                                           args[3]->get_data_ptr<const T>(),
-                                           args[4]->get_data_ptr<const T>(),
-                                           args[5]->get_data_ptr<const T>(),
-                                           out[0]->get_data_ptr<T>(),
-                                           out[1]->get_data_ptr<T>(),
-                                           out[2]->get_data_ptr<T>(),
-                                           node.get_input_shape(2));
-            break;
-        }
-        case OP_TYPEID::AvgPoolBackprop:
-        {
-            const op::AvgPoolBackprop* apb = static_cast<const op::AvgPoolBackprop*>(&node);
-            reference::avg_pool_backprop<T>(args[0]->get_data_ptr<const T>(),
-                                            out[0]->get_data_ptr<T>(),
-                                            node.get_input_shape(0),
-                                            node.get_output_shape(0),
-                                            apb->get_window_shape(),
-                                            apb->get_window_movement_strides(),
-                                            apb->get_padding_below(),
-                                            apb->get_padding_above(),
-                                            apb->get_include_padding_in_avg_computation());
             break;
         }
         case OP_TYPEID::BroadcastDistributed:
@@ -551,6 +521,24 @@ protected:
                 ss << "unsupported element type " << type << " op Convert";
                 throw std::runtime_error(ss.str());
             }
+            break;
+        }
+        case OP_TYPEID::ConvolutionBackpropData:
+        {
+            // Note that args[1] and args[0] are switched here from the usual order.
+            const op::ConvolutionBackpropData* c =
+                static_cast<const op::ConvolutionBackpropData*>(&node);
+            reference::convolution_backprop_in<T>(args[1]->get_data_ptr<const T>(),
+                                                  args[0]->get_data_ptr<const T>(),
+                                                  out[0]->get_data_ptr<T>(),
+                                                  c->get_input_shape(1),
+                                                  c->get_input_shape(0),
+                                                  c->get_data_batch_shape(),
+                                                  c->get_data_dilation_strides_forward(),
+                                                  c->get_window_dilation_strides_forward(),
+                                                  c->compute_backward_delta_out_pad_below(),
+                                                  c->compute_backward_delta_out_pad_above(),
+                                                  c->get_window_movement_strides_forward());
             break;
         }
         case OP_TYPEID::Cos:
@@ -898,22 +886,6 @@ protected:
                               lrn->get_beta(),
                               lrn->get_bias(),
                               lrn->get_nsize());
-            break;
-        }
-        case OP_TYPEID::MaxPoolBackprop:
-        {
-            const op::MaxPoolBackprop* max_pool_backprop =
-                static_cast<const op::MaxPoolBackprop*>(&node);
-
-            reference::max_pool_backprop<T>(args[0]->get_data_ptr<const T>(),
-                                            args[1]->get_data_ptr<const T>(),
-                                            out[0]->get_data_ptr<T>(),
-                                            node.get_input_shape(1),
-                                            node.get_output_shape(0),
-                                            max_pool_backprop->get_window_shape(),
-                                            max_pool_backprop->get_window_movement_strides(),
-                                            max_pool_backprop->get_padding_below(),
-                                            max_pool_backprop->get_padding_above());
             break;
         }
         case OP_TYPEID::Negative:
@@ -1405,15 +1377,6 @@ protected:
                 args[0]->get_data_ptr<const T>(), out[0]->get_data_ptr<T>(), element_count);
             break;
         }
-        case OP_TYPEID::SigmoidBackprop:
-        {
-            size_t element_count = shape_size(node.get_output_shape(0));
-            reference::sigmoid_backprop<T>(args[0]->get_data_ptr<const T>(),
-                                           args[1]->get_data_ptr<const T>(),
-                                           out[0]->get_data_ptr<T>(),
-                                           element_count);
-            break;
-        }
         case OP_TYPEID::Sign:
         {
             size_t element_count = shape_size(node.get_output_shape(0));
@@ -1506,10 +1469,8 @@ protected:
         case OP_TYPEID::BatchMatMulTranspose:
         case OP_TYPEID::ConvolutionBias:
         case OP_TYPEID::ConvolutionBiasAdd:
-        case OP_TYPEID::ConvolutionBiasBackpropFiltersBias:
         case OP_TYPEID::CropAndResize:
         case OP_TYPEID::CrossEntropy:
-        case OP_TYPEID::CrossEntropyBackprop:
         case OP_TYPEID::DepthToSpace:
         case OP_TYPEID::DynBroadcast:
         case OP_TYPEID::DynPad:
@@ -1518,23 +1479,19 @@ protected:
         case OP_TYPEID::FakeQuantize:
         case OP_TYPEID::Gather:
         case OP_TYPEID::Gelu:
-        case OP_TYPEID::GeluBackpropFactor:
         case OP_TYPEID::Gemm:
         case OP_TYPEID::GRN:
         case OP_TYPEID::GroupConvolution:
         case OP_TYPEID::GroupConvolutionBackpropData:
-        case OP_TYPEID::GroupConvolutionBackpropFilters:
         case OP_TYPEID::GRUCell:
         case OP_TYPEID::HardSigmoid:
         case OP_TYPEID::Interpolate:
         case OP_TYPEID::LayerNorm:
-        case OP_TYPEID::LayerNormBackprop:
         case OP_TYPEID::LSTMCell:
         case OP_TYPEID::LSTMSequence:
         case OP_TYPEID::MVN:
         case OP_TYPEID::NormalizeL2:
         case OP_TYPEID::PartialSlice:
-        case OP_TYPEID::PartialSliceBackprop:
         case OP_TYPEID::Passthrough:
         case OP_TYPEID::PRelu:
         case OP_TYPEID::RNNCell:
@@ -1544,7 +1501,6 @@ protected:
         case OP_TYPEID::Selu:
         case OP_TYPEID::ShuffleChannels:
         case OP_TYPEID::SoftmaxCrossEntropy:
-        case OP_TYPEID::SoftmaxCrossEntropyBackprop:
         case OP_TYPEID::SpaceToDepth:
         case OP_TYPEID::Split:
         case OP_TYPEID::SquaredDifference:

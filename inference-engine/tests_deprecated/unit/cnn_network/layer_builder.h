@@ -92,13 +92,15 @@ public:
 
 class CNNLayerValidationTests : public testing::TestWithParam<std::string>{
 public:
+    static InferenceEngine::CNNLayer::Ptr createLayer(const std::string &type);
+
     void SetUp() override {
         auto params = GetParam();
         type = params;
     }
 
     std::shared_ptr<LayerBuilder>& createConcreteLayer(const std::string& type) {
-        layer = std::make_shared<LayerBuilder>(TestsCommon::createLayer(type));
+        layer = std::make_shared<LayerBuilder>(createLayer(type));
         return layer;
     }
 

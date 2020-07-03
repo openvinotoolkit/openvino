@@ -87,7 +87,6 @@ set(SRC
     opset_pass/logical_xor_opset_pass.cpp
     opset_pass/one_hot_opset_pass.cpp
     opset_pass/gather_opset_pass.cpp
-    opset_pass/generate_mask_opset_pass.cpp
     opset_pass/pad_opset_pass.cpp
     opset_pass/poolings_opset_pass.cpp
     opset_pass/reduction_opset_pass.cpp
@@ -114,7 +113,6 @@ set(SRC
     type_prop/all.cpp
     type_prop/any.cpp
     type_prop/assign.cpp
-    type_prop/avg_pool.cpp
     type_prop/batch_mat_mul.cpp
     type_prop/batch_mat_mul_transpose.cpp
     type_prop/batch_norm.cpp
@@ -311,7 +309,6 @@ set(MULTI_TEST_SRC
     backend/builder_reduce_ops_opset1.in.cpp
     backend/ceiling.in.cpp
     backend/comparison.in.cpp
-    backend/computation_reuse.in.cpp
     backend/concat.in.cpp
     backend/constant.in.cpp
     backend/convert.in.cpp
@@ -405,6 +402,7 @@ set(MULTI_TEST_SRC
 if (NGRAPH_ONNX_IMPORT_ENABLE)
     list(APPEND MULTI_TEST_SRC
             onnx/onnx_import.in.cpp
+            onnx/onnx_import_controlflow.in.cpp
             onnx/onnx_import_const_folding.in.cpp
             onnx/onnx_import_convpool.in.cpp
             onnx/onnx_import_dyn_shapes.in.cpp
@@ -454,7 +452,8 @@ if(NGRAPH_ADDRESS_SANITIZER)
 endif()
 
 target_link_libraries(unit-test PRIVATE ngraph_test_util)
-target_link_libraries(unit-test PRIVATE ngraph ngraph_backend libgtest)
+target_link_libraries(unit-test PRIVATE ngraph)
+target_link_libraries(unit-test PRIVATE ngraph_backend libgtest)
 
 if (NGRAPH_ONNX_IMPORT_ENABLE)
     target_include_directories(unit-test
@@ -479,6 +478,10 @@ endif()
 # We should probably split up type_prop.cpp.
 if (MSVC)
     target_compile_options(unit-test PRIVATE "/bigobj")
+endif()
+
+if (TARGET inference_engine)
+    target_link_libraries(unit-test PRIVATE inference_engine)
 endif()
 
 if (NGRAPH_ONNX_IMPORT_ENABLE)

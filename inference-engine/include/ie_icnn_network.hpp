@@ -106,27 +106,6 @@ public:
     virtual size_t layerCount() const noexcept = 0;
 
     /**
-     * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
-     * @brief Returns a smart pointer reference to a Data node given its name.
-     *
-     * If the Data node is missing, returns reference to a default initialized new empty data pointer with given name.
-     *
-     * @param dname Name of the Data node
-     * @return Data node smart pointer
-     */
-    INFERENCE_ENGINE_DEPRECATED("Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1")
-    virtual DataPtr& getData(const char* dname) noexcept = 0;
-
-    /**
-     * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
-     * @brief Insert a layer into the network. A user is responsible to connect it to other data elements.
-     *
-     * @param layer Const reference to a layer smart pointer
-     */
-    INFERENCE_ENGINE_DEPRECATED("Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1")
-    virtual void addLayer(const CNNLayerPtr& layer) noexcept = 0;
-
-    /**
      * @brief Adds output to the layer
      *
      * @param layerName Name of the layer
@@ -136,18 +115,6 @@ public:
      */
     virtual StatusCode addOutput(const std::string& layerName, size_t outputIndex = 0,
                                  ResponseDesc* resp = nullptr) noexcept = 0;
-
-    /**
-     * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
-     * @brief Gets network layer with the given name
-     *
-     * @param layerName Given name of the layer
-     * @param out Pointer to the found CNNLayer object with the given name
-     * @param resp Pointer to the response message that holds a description of an error if any occurred
-     * @return Status code of the operation. InferenceEngine::OK if succeeded
-     */
-    INFERENCE_ENGINE_DEPRECATED("Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1")
-    virtual StatusCode getLayerByName(const char* layerName, CNNLayerPtr& out, ResponseDesc* resp) const noexcept = 0;
 
     /**
      * @brief Changes the inference batch size.

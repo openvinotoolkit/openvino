@@ -17,7 +17,6 @@
 #include "utils/arg_min_max_factory.hpp"
 #include "default_opset.hpp"
 #include "ngraph/op/get_output_element.hpp"
-#include "ngraph/opsets/opset0.hpp"
 #include "ngraph/validation_util.hpp"
 
 namespace ngraph
@@ -51,18 +50,16 @@ namespace ngraph
                 const auto topk = std::make_shared<default_opset::TopK>(
                     m_input_node, k_node, m_axis, mode, default_opset::TopK::SortType::NONE);
 
-                const auto indices = std::make_shared<ngraph::opset0::GetOutputElement>(topk, 1);
-
                 if (m_keep_dims == 0)
                 {
                     const auto axis_to_remove =
                         default_opset::Constant::create(element::u64, Shape{}, {topk->get_axis()});
                     const auto reshaped_indices =
-                        std::make_shared<default_opset::Squeeze>(indices, axis_to_remove);
+                        std::make_shared<default_opset::Squeeze>(topk->output(1), axis_to_remove);
 
                     return std::make_shared<default_opset::Convert>(reshaped_indices, element::i64);
                 }
-                return std::make_shared<default_opset::Convert>(indices, element::i64);
+                return std::make_shared<default_opset::Convert>(topk->output(1), element::i64);
             }
         }
     }

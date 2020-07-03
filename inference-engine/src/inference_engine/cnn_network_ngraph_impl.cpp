@@ -171,26 +171,6 @@ void CNNNetworkNGraphImpl::setInputInfo(InputInfo::Ptr data) {
     _inputData[data->name()] = data;
 }
 
-DataPtr& CNNNetworkNGraphImpl::getData(const char* name) noexcept {
-    if (cnnNetwork) return cnnNetwork->getData(name);
-    if (_data.find(name) != _data.end()) {
-        return _data[name];
-    } else {
-        try {
-            convertToCNNNetworkImpl();
-            return cnnNetwork->getData(name);
-        } catch (...) {
-            return _data[name];
-        }
-    }
-}
-
-DataPtr& CNNNetworkNGraphImpl::getData(const std::string& name) {
-    IE_SUPPRESS_DEPRECATED_START
-    return getData(name.c_str());
-    IE_SUPPRESS_DEPRECATED_END
-}
-
 const std::string& CNNNetworkNGraphImpl::getName() const noexcept {
     if (cnnNetwork) {
         return cnnNetwork->getName();
@@ -244,15 +224,6 @@ void CNNNetworkNGraphImpl::validate(int version) {
         cnnNetwork->validate();
     else
         _ngraph_function->validate_nodes_and_infer_types();
-}
-
-StatusCode CNNNetworkNGraphImpl::getLayerByName(const char* layerName, CNNLayerPtr& out, ResponseDesc* resp) const
-    noexcept {
-    if (!cnnNetwork) {
-        const_cast<CNNNetworkNGraphImpl *>(this)->convertToCNNNetworkImpl();
-    }
-    if (!cnnNetwork) return GENERAL_ERROR;
-    return cnnNetwork->getLayerByName(layerName, out, resp);
 }
 
 StatusCode CNNNetworkNGraphImpl::addOutput(const std::string& layerName, size_t outputIndex,
