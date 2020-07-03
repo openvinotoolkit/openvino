@@ -85,3 +85,22 @@ class NonMaxSuppression(Op):
             node.out_port(0).set_data_type(node.output_type)
         else:
             node.out_port(0).set_data_type(np.int64)
+
+
+class TFNonMaxSuppressionV5(Op):
+    op = 'NonMaxSuppressionV5'
+
+    def __init__(self, graph: Graph, attrs: dict):
+        mandatory_props = {
+            'type': self.op,
+            'op': self.op,
+            'version': 'opset4',
+            'infer': None,
+            'output_type': np.float32,
+            'pad_to_max_output_size': 0,
+            'in_ports_count': 5,
+            'out_ports_count': 2,
+            'sort_result_descending': 1,
+            'type_infer': None,
+        }
+        super().__init__(graph, mandatory_props, attrs)
