@@ -212,10 +212,8 @@ void op::v1::Softmax::validate_and_infer_types()
                               ") is out of bounds (argument shape: ",
                               input_shape,
                               ").");
-    if (input_shape.is_static())
-        set_output_type(0, get_input_element_type(0), input_shape.to_shape());
-    else
-        set_output_type(0, get_input_element_type(0), PartialShape::dynamic());
+
+    set_output_type(0, get_input_element_type(0), input_shape);
 }
 
 shared_ptr<Node> op::v1::Softmax::clone_with_new_inputs(const OutputVector& new_args) const

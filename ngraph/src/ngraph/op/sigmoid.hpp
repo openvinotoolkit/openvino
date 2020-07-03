@@ -36,34 +36,10 @@ namespace ngraph
                 Sigmoid() = default;
                 virtual std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
-                virtual void generate_adjoints(autodiff::Adjoints& adjoints,
-                                               const OutputVector& deltas) override;
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) override;
             };
-
-            /// \brief Elementwise SigmoidBackprop operation.
-            ///
-            class NGRAPH_API SigmoidBackprop : public util::BinaryElementwiseArithmetic
-            {
-            public:
-                static constexpr NodeTypeInfo type_info{"SigmoidBackprop", 0};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
-                SigmoidBackprop()
-                    : util::BinaryElementwiseArithmetic(AutoBroadcastSpec::NONE)
-                {
-                }
-
-                /// \brief Constructs a SigmoidBackprop operation.
-                ///
-                /// \param arg Node that produces the Sigmoid forward input tensor.
-                SigmoidBackprop(const Output<Node>& arg, const Output<Node>& delta);
-
-                virtual std::shared_ptr<Node>
-                    clone_with_new_inputs(const OutputVector& new_args) const override;
-            };
         }
         using v0::Sigmoid;
-        using v0::SigmoidBackprop;
     }
 }

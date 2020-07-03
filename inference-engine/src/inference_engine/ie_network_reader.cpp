@@ -37,7 +37,6 @@ public:
  * @brief This class is a wrapper for reader interfaces
  */
 class Reader: public IReader {
-private:
     InferenceEngine::details::SOPointer<IReader> ptr;
     std::once_flag readFlag;
     std::string name;
@@ -120,10 +119,16 @@ void registerReaders() {
         readers.emplace("prototxt", onnxReader);
     }
 
-    // try to load IR reader if library exists
-    auto irReader = create_if_exists("IR", std::string("inference_engine_ir_reader") + std::string(IE_BUILD_POSTFIX));
-    if (irReader)
-        readers.emplace("xml", irReader);
+    // try to load IR reader v10 if library exists
+    auto irReaderv10 = create_if_exists("IRv10", std::string("inference_engine_ir_reader") + std::string(IE_BUILD_POSTFIX));
+    if (irReaderv10)
+        readers.emplace("xml", irReaderv10);
+
+    // try to load IR reader v7 if library exists
+    auto irReaderv7 = create_if_exists("IRv7", std::string("inference_engine_ir_reader_v7") + std::string(IE_BUILD_POSTFIX));
+    if (irReaderv7)
+        readers.emplace("xml", irReaderv7);
+
     initialized = true;
 }
 

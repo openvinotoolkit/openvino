@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016-2019 Intel Corporation
+// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -83,10 +83,8 @@ public:
                 uint32_t nonBias : 1;
                 uint32_t activationAdditionalParamsAsInput : 1;
                 uint32_t FP16Emulation : 1;
-                uint32_t gradient : 1;
                 uint32_t momentum : 1;
                 uint32_t quantization : 1;
-                uint32_t output_calibration : 1;
                 uint32_t sym_quantization : 1;
                 uint32_t asym_w_quantization : 1;
                 uint32_t asym_d_quantization : 1;
@@ -190,7 +188,6 @@ public:
                     struct eltwise_t {
                         uint32_t stride : 1;
                         uint32_t broadcast : 1;
-                        uint32_t inputs_calibration : 1;
                     } eltwise;
                     struct lstm_gemm_t {
                         uint32_t bias : 1;
@@ -209,8 +206,6 @@ public:
                         uint32_t dilation : 1;
                         uint32_t depthwise_separable_opt : 1;
                         uint32_t transposed : 1;
-                        uint32_t quantization : 1;
-                        uint32_t calibration : 1;
                         uint32_t local : 1;
                         uint32_t grouped : 1;
                         // eltw
@@ -292,7 +287,6 @@ public:
     void EnableTensorOffset() { key.restrict.val.offset = 1; }
     void EnableTensorPitches() { key.restrict.val.pitches = 1; }
     void EnableBatching() { key.restrict.val.batching = 1; }
-    void EnableGradient() { key.restrict.val.gradient = 1; }
     void EnableSubGroup() { key.machineInfo.val.subgroup = 1; }
     void EnableSubGroupShort() { key.machineInfo.val.subgroupShort = 1; }
     void EnableSubGroupChar() { key.machineInfo.val.subgroupChar = 1; }
@@ -317,8 +311,6 @@ public:
     void EnableDepthwiseSeparableOpt() { key.restrict.val.dedicated.conv.depthwise_separable_opt = 1; }
     void EnableLocalConvolution() { key.restrict.val.dedicated.conv.local = 1; }
     void EnableGroupedConvolution() { key.restrict.val.dedicated.conv.grouped = 1; }
-    void EnableInt8Quantization() { key.restrict.val.quantization = 1; }
-    void EnableOutputCalibration() { key.restrict.val.output_calibration = 1; }
     void EnableDeformableMode() { key.restrict.val.dedicated.conv.deformable = 1; }
 
     void EnableFusedConvEltwSplitSupport() { key.restrict.val.dedicated.fused_conv_eltw.split = 1; }
@@ -329,8 +321,6 @@ public:
     void EnableFusedConvEltwLocalConvolution() { key.restrict.val.dedicated.fused_conv_eltw.local = 1; }
     void EnableFusedConvEltwGroupedConvolution() { key.restrict.val.dedicated.fused_conv_eltw.grouped = 1; }
     void EnableFusedConvEltwTranspose() { key.restrict.val.dedicated.fused_conv_eltw.transposed = 1; }
-    void EnableFusedConvEltwInt8Quantization() { key.restrict.val.dedicated.fused_conv_eltw.quantization = 1; }
-    void EnableFusedConvEltwOutputCalibration() { key.restrict.val.dedicated.fused_conv_eltw.calibration = 1; }
     void EnableFusedConvEltwEltwiseStride();
     void EnableFusedConvEltwDepthToSpaceFusing();
 
@@ -344,7 +334,6 @@ public:
     void EnableReampleType(ResampleType a);
     void EnableEltwiseStride();
     void EnableEltwiseBroadcast() { key.restrict.val.dedicated.eltwise.broadcast = 1; }
-    void EnableEltwiseInputsCalibration() { key.restrict.val.dedicated.eltwise.inputs_calibration = 1; }
 
     void EnableLSTMGEMMBias() { key.restrict.val.dedicated.lstm_gemm.bias = 1; }
     void EnableLSTMGEMMHidden() { key.restrict.val.dedicated.lstm_gemm.hidden = 1; }
@@ -385,6 +374,8 @@ struct EngineInfo {
     bool bImageSupport = false;
     bool bIMADSupport = false;
     bool bIMMADSupport = false;
+    bool bOptHintsSupport = false;
+    bool bLocalBlockIOSupport = false;
     uint32_t computeUnitsCount = 0;
     uint64_t maxWorkGroupSize = 0;
     uint64_t maxLocalMemSize = 0;
@@ -425,14 +416,12 @@ struct base_activation_params {
     ActivationFunction function = ActivationFunction::NONE;
     float m = 1.f;
     float n = 0.f;
-    bool gradient = false;
 
     base_activation_params() = default;
     base_activation_params(const float m, const float n) : m(m), n(n) {}
-    base_activation_params(const ActivationFunction f, const float m, const float n, const bool gradinet = false) : function(f),
-                                                                                                                    m(m),
-                                                                                                                    n(n),
-                                                                                                                    gradient(gradinet) {}
+    base_activation_params(const ActivationFunction f, const float m, const float n) : function(f),
+                                                                                       m(m),
+                                                                                       n(n) {}
 
     virtual std::string to_string() const;
 };
@@ -440,7 +429,8 @@ struct base_activation_params {
 struct FusedOpsConfiguration {
     enum class LoadType {
         LT_UNALIGNED = 0,
-        LT_ALIGNED_READ = 1
+        LT_ALIGNED_READ = 1,
+        FEATURE_SHUFFLE = 2
     };
 
     enum class BoundaryCheck {
@@ -476,6 +466,8 @@ struct FusedOpsConfiguration {
     // If allow_for_partial_preload is false, then it's required that all fused_ops can be preloaded.
     // If allow_for_partial_preload is true, then not preloaded fused_ops will be loaded in FUSED_OPS_CALC.
     bool allow_for_partial_preload;
+    // Load index for shuffle fused op
+    std::string shuffle_var_name;
 
     FusedOpsConfiguration(std::string suffix,
                           std::vector<std::string> bfzyx_idx_order,
@@ -487,7 +479,8 @@ struct FusedOpsConfiguration {
                           IndexType index_type = IndexType::TENSOR_COORD,
                           Tensor::DataChannelName vec_axis = Tensor::DataChannelName::COUNT,
                           std::vector<Tensor::DataChannelName> loop_axes = {},
-                          bool allow_for_partial_preload = false)
+                          bool allow_for_partial_preload = false,
+                          std::string shuffle_var_name = "")
       : suffix(suffix)
       , bfzyx_idx_order(bfzyx_idx_order)
       , input_var_name(input_var_name)
@@ -498,7 +491,8 @@ struct FusedOpsConfiguration {
       , boundary_check(boundary_check)
       , index_type(index_type)
       , loop_axes(loop_axes)
-      , allow_for_partial_preload(allow_for_partial_preload) { }
+      , allow_for_partial_preload(allow_for_partial_preload)
+      , shuffle_var_name(shuffle_var_name) { }
 
     FusedOpsConfiguration& SetVectorSize(size_t val) { vec_size = val; return *this; }
     FusedOpsConfiguration& SetLoadType(LoadType val) { load_type = val; return *this; }
@@ -509,6 +503,7 @@ struct FusedOpsConfiguration {
         loop_axes = std::move(val);
         allow_for_partial_preload = partial_preload;
         return *this; }
+    FusedOpsConfiguration& SetShuffleVarName(std::string val) { shuffle_var_name = val; return *this; }
 };
 
 // Instance of fused_operation_desc is added to fused_ops vector if a node has been fused to current one using program_impl::fuse_nodes
@@ -586,7 +581,6 @@ struct base_params : public Params {
     std::vector<fused_operation_desc> fused_ops = {};
     MultiDataTensor inputs;
     DataTensor output;
-    bool gradient = false;
 
     std::string to_string() const override;
     std::string to_cache_string_v2() const override;

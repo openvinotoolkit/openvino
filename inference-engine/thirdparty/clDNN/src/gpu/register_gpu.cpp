@@ -24,20 +24,14 @@ namespace cldnn { namespace gpu {
 
 void register_implementations_gpu() {
     REGISTER_GPU(activation);
-    REGISTER_GPU(activation_grad);
-    REGISTER_GPU(apply_adam);
     REGISTER_GPU(arg_max_min);
     REGISTER_GPU(average_unpooling);
-    REGISTER_GPU(batch_norm);
-    REGISTER_GPU(batch_norm_grad);
     REGISTER_GPU(binary_convolution);
     REGISTER_GPU(border);
     REGISTER_GPU(broadcast);
     REGISTER_GPU(concatenation);
     REGISTER_GPU(condition);
-    REGISTER_GPU(contract);
     REGISTER_GPU(convolution);
-    REGISTER_GPU(convolution_grad_weights);
     REGISTER_GPU(crop);
     REGISTER_GPU(custom_gpu_primitive);
     REGISTER_GPU(data);
@@ -48,15 +42,10 @@ void register_implementations_gpu() {
     REGISTER_GPU(batch_to_space);
     REGISTER_GPU(detection_output);
     REGISTER_GPU(eltwise);
-    REGISTER_GPU(embed);
     REGISTER_GPU(fully_connected);
-    REGISTER_GPU(fully_connected_grad_input);
-    REGISTER_GPU(fully_connected_grad_weights);
     REGISTER_GPU(gather);
     REGISTER_GPU(gemm);
-    REGISTER_GPU(index_select);
     REGISTER_GPU(input_layout);
-    REGISTER_GPU(lookup_table);
     REGISTER_GPU(lrn);
     REGISTER_GPU(lstm_gemm);
     REGISTER_GPU(lstm_elt);
@@ -79,17 +68,13 @@ void register_implementations_gpu() {
     REGISTER_GPU(reverse_sequence);
     REGISTER_GPU(roi_pooling);
     REGISTER_GPU(scale);
-    REGISTER_GPU(scale_grad_input);
-    REGISTER_GPU(scale_grad_weights);
     REGISTER_GPU(select);
     REGISTER_GPU(shuffle_channels);
     REGISTER_GPU(softmax);
-    REGISTER_GPU(softmax_loss_grad);
     REGISTER_GPU(space_to_batch);
     REGISTER_GPU(space_to_depth);
     REGISTER_GPU(strided_slice);
     REGISTER_GPU(tile);
-    REGISTER_GPU(fused_conv_bn_scale);
     REGISTER_GPU(fused_conv_eltwise);
     REGISTER_GPU(lstm_dynamic_input);
     REGISTER_GPU(lstm_dynamic_timeloop);
@@ -101,6 +86,7 @@ void register_implementations_gpu() {
     REGISTER_GPU(ctc_greedy_decoder);
     REGISTER_GPU(cum_sum);
     REGISTER_GPU(embedding_bag);
+    REGISTER_GPU(extract_image_patches);
 }
 
 }  // namespace gpu

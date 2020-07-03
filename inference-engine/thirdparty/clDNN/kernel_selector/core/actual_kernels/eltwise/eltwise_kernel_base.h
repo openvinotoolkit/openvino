@@ -84,14 +84,8 @@ struct eltwise_params : public base_params {
 
     bool layoutBased = false;
     bool int8_quantization = false;
-    bool output_calibration = false;
-    float output_quantization_factor = 1.0f;
-    bool inputs_calibration = false;
     bool broadcast = false;
 
-    MultiDataTensor output_calibration_factors;
-    MultiDataTensor inputs_calibration_factors;
-    std::vector<float> input_quantization_factors;
     virtual ParamsKey GetParamsKey() const;
 };
 
