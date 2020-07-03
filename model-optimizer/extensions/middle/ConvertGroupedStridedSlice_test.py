@@ -990,66 +990,128 @@ class AddReshapeAfterStridedSliceTests(unittest.TestCase):
     # test case with 2 strided slices with the same parameters but different outputs
     def test_1(self):
         graph = build_graph(nodes_attributes,
-                            [('placeholder_1', 'placeholder_1_data'),
-                             ('placeholder_1_data', 'sslice_1'),
-                             ('sslice_1', 'sslice_1_data'),
-                             ('placeholder_1_data', 'sslice_2'),
-                             ('sslice_2', 'sslice_2_data'),
-                             ('placeholder_1_data', 'sslice_3'),
-                             ('sslice_3', 'sslice_3_data'),
-                             ('sslice_1_data', 'concat_1'),
-                             ('sslice_2_data', 'concat_1'),
-                             ('sslice_3_data', 'placeholder_2'),
-                             ('placeholder_2', 'placeholder_2_data'),
-                             ('concat_1', 'concat_1_data'),
-                             ('concat_1_data', 'op_output'),
-                             ('placeholder_2_data', 'op_output')
-                             ],
-                            {'placeholder_1_data': {'shape': np.array([1, 227, 227, 54])},
-
-                             'sslice_1': {'slices': np.array(
-                                 [slice(0, 1, 1), slice(0, 227, 1), slice(0, 227, 1), slice(0, 27, 1)])},
-                             'sslice_1_data': {'shape': np.array([1, 227, 227, 27])},
-
-                             'sslice_2': {'slices': np.array(
-                                 [slice(0, 1, 1), slice(0, 227, 1), slice(0, 227, 1), slice(27, 54, 1)])},
-                             'sslice_2_data': {'shape': np.array([1, 227, 227, 27])},
-
-                             'sslice_3': {'slices': np.array(
-                                 [slice(0, 1, 1), slice(0, 227, 1), slice(0, 227, 1), slice(0, 27, 1)])},
-                             'sslice_3_data': {'shape': np.array([1, 227, 227, 27])},
-
-                             'concat_1_data': {'shape': np.array([1, 227, 227, 54])},
-                             }, nodes_with_edges_only=True)
+                            [
+                                ('placeholder_1', 'placeholder_1_data'),
+                                ('placeholder_1_data', 'sslice_1'),
+                                ('sslice_1', 'sslice_1_data'),
+                                ('placeholder_1_data', 'sslice_2'),
+                                ('sslice_2', 'sslice_2_data'),
+                                ('placeholder_1_data', 'sslice_3'),
+                                ('sslice_3', 'sslice_3_data'),
+                                ('sslice_1_data', 'concat_1'),
+                                ('sslice_2_data', 'concat_1'),
+                                ('sslice_3_data', 'concat_1'),
+                                ('concat_1', 'concat_1_data'),
+                                ('concat_1_data', 'op_output'),
+                            ],
+                            {
+                                'placeholder_1_data': {'shape': np.array([1, 227, 227, 54])},
+                                'sslice_1': {'slices': np.array([slice(0, 1, 1), slice(0, 227, 1), slice(0, 227, 1),
+                                                                 slice(0, 27, 1)])},
+                                'sslice_1_data': {'shape': np.array([1, 227, 227, 27])},
+                                'sslice_2': {'slices': np.array([slice(0, 1, 1), slice(0, 227, 1), slice(0, 227, 1),
+                                                                 slice(27, 54, 1)])},
+                                'sslice_2_data': {'shape': np.array([1, 227, 227, 27])},
+                                'sslice_3': {'slices': np.array([slice(0, 1, 1), slice(0, 227, 1), slice(0, 227, 1),
+                                                                 slice(0, 27, 1)])},
+                                'sslice_3_data': {'shape': np.array([1, 227, 227, 27])},
+                                'concat_1': {'axis': 3},
+                                'concat_1_data': {'shape': np.array([1, 227, 227, 81])},
+                            })
         graph.graph['layout'] = 'NHWC'
-
         graph_ref = build_graph(nodes_attributes,
-                                [('placeholder_1', 'placeholder_1_data'),
-                                 ('placeholder_1_data', 'split_1'),
-                                 ('split_1', 'split_1_data'),
-                                 ('split_1', 'split_2_data'),
-                                 ('split_1_data', 'concat_1'),
-                                 ('split_2_data', 'concat_1'),
-                                 ('split_1_data', 'placeholder_2'),
-                                 ('placeholder_2', 'placeholder_2_data'),
-                                 ('concat_1', 'concat_1_data'),
-                                 ('concat_1_data', 'op_output'),
-                                 ('placeholder_2_data', 'op_output'),
-
-                                 ('axis_const', 'axis_const_data'),
-                                 ('split_dim_const', 'split_dim_const_data'),
-                                 ('axis_const_data', 'split_1', {'in': 1}),
-                                 ('split_dim_const_data', 'split_1', {'in': 2}),
-                                 ],
-                                {'placeholder_1_data': {'shape': np.array([1, 227, 227, 54])},
-                                 'axis_const': {'value': 3},
-                                 'split_1_data': {'shape': np.array([1, 227, 227, 27])},
-                                 'split_2_data': {'shape': np.array([1, 227, 227, 27])},
-                                 'concat_1_data': {'shape': np.array([1, 227, 227, 54])},
-                                 }, nodes_with_edges_only=True)
-
+                                [
+                                    ('placeholder_1', 'placeholder_1_data'),
+                                    ('placeholder_1_data', 'sslice_3'),
+                                    ('sslice_3', 'sslice_3_data'),
+                                    ('placeholder_1_data', 'split_1'),
+                                    ('split_1', 'split_1_data'),
+                                    ('split_1', 'split_2_data'),
+                                    ('axis_const', 'axis_const_data'),
+                                    ('split_dim_const', 'split_dim_const_data'),
+                                    ('axis_const_data', 'split_1', {'in': 1}),
+                                    ('split_dim_const_data', 'split_1', {'in': 2}),
+                                    ('split_1_data', 'concat_1'),
+                                    ('split_2_data', 'concat_1'),
+                                    ('sslice_3_data', 'concat_1'),
+                                    ('concat_1', 'concat_1_data'),
+                                    ('concat_1_data', 'op_output')
+                                ],
+                                {
+                                    'placeholder_1_data': {'shape': np.array([1, 227, 227, 54])},
+                                    'sslice_3': {'slices': np.array([slice(0, 1, 1), slice(0, 227, 1), slice(0, 227, 1),
+                                                                     slice(0, 27, 1)])},
+                                    'sslice_3_data': {'shape': np.array([1, 227, 227, 27])},
+                                    'split_1_data': {'shape': np.array([1, 227, 227, 27])},
+                                    'split_2_data': {'shape': np.array([1, 227, 227, 27])},
+                                    'axis_const': {'op': 'Const', 'type': 'Const', 'value': 3, 'shape': []},
+                                    'axis_const_data': {'value': 3, 'shape': []},
+                                    'split_dim_const': {'op': 'Const', 'type': 'Const', 'value': np.array([27, 27])},
+                                    'split_dim_const_data': {'value': np.array([27, 27])},
+                                    'concat_1': {'axis': 3},
+                                    'concat_1_data': {'shape': np.array([1, 227, 227, 81])}
+                                })
+        # graph = build_graph(nodes_attributes,
+        #                     [('placeholder_1', 'placeholder_1_data'),
+        #                      ('placeholder_1_data', 'sslice_1'),
+        #                      ('sslice_1', 'sslice_1_data'),
+        #                      ('placeholder_1_data', 'sslice_2'),
+        #                      ('sslice_2', 'sslice_2_data'),
+        #                      ('placeholder_1_data', 'sslice_3'),
+        #                      ('sslice_3', 'sslice_3_data'),
+        #                      ('sslice_1_data', 'concat_1'),
+        #                      ('sslice_2_data', 'concat_1'),
+        #                      ('sslice_3_data', 'placeholder_2'),
+        #                      ('placeholder_2', 'placeholder_2_data'),
+        #                      ('concat_1', 'concat_1_data'),
+        #                      ('concat_1_data', 'op_output'),
+        #                      ('placeholder_2_data', 'op_output')
+        #                      ],
+        #                     {'placeholder_1_data': {'shape': np.array([1, 227, 227, 54])},
+        #
+        #                      'sslice_1': {'slices': np.array(
+        #                          [slice(0, 1, 1), slice(0, 227, 1), slice(0, 227, 1), slice(0, 27, 1)])},
+        #                      'sslice_1_data': {'shape': np.array([1, 227, 227, 27])},
+        #
+        #                      'sslice_2': {'slices': np.array(
+        #                          [slice(0, 1, 1), slice(0, 227, 1), slice(0, 227, 1), slice(27, 54, 1)])},
+        #                      'sslice_2_data': {'shape': np.array([1, 227, 227, 27])},
+        #
+        #                      'sslice_3': {'slices': np.array(
+        #                          [slice(0, 1, 1), slice(0, 227, 1), slice(0, 227, 1), slice(0, 27, 1)])},
+        #                      'sslice_3_data': {'shape': np.array([1, 227, 227, 27])},
+        #
+        #                      'concat_1_data': {'shape': np.array([1, 227, 227, 54])},
+        #                      },
+        #                     nodes_with_edges_only=True)
+        # graph.graph['layout'] = 'NHWC'
+        #
+        # graph_ref = build_graph(nodes_attributes,
+        #                         [('placeholder_1', 'placeholder_1_data'),
+        #                          ('placeholder_1_data', 'split_1'),
+        #                          ('split_1', 'split_1_data'),
+        #                          ('split_1', 'split_2_data'),
+        #                          ('split_1_data', 'concat_1'),
+        #                          ('split_2_data', 'concat_1'),
+        #                          ('split_1_data', 'placeholder_2'),
+        #                          ('placeholder_2', 'placeholder_2_data'),
+        #                          ('concat_1', 'concat_1_data'),
+        #                          ('concat_1_data', 'op_output'),
+        #                          ('placeholder_2_data', 'op_output'),
+        #
+        #                          ('axis_const', 'axis_const_data'),
+        #                          ('split_dim_const', 'split_dim_const_data'),
+        #                          ('axis_const_data', 'split_1', {'in': 1}),
+        #                          ('split_dim_const_data', 'split_1', {'in': 2}),
+        #                          ],
+        #                         {'placeholder_1_data': {'shape': np.array([1, 227, 227, 54])},
+        #                          'axis_const': {'value': 3},
+        #                          'split_1_data': {'shape': np.array([1, 227, 227, 27])},
+        #                          'split_2_data': {'shape': np.array([1, 227, 227, 27])},
+        #                          'concat_1_data': {'shape': np.array([1, 227, 227, 54])},
+        #                          }, nodes_with_edges_only=True)
+        #
         ConvertGroupedStridedSlice().find_and_replace_pattern(graph)
-
         (flag, resp) = compare_graphs(graph, graph_ref, 'concat_1_data', check_op_attrs=True)
         self.assertTrue(flag, resp)
 
