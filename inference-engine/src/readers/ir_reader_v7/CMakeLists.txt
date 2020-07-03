@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(TARGET_NAME "inference_engine_ir_reader_v7")
+set(TARGET_NAME "inference_engine_ir_v7_reader")
 
 if(ENABLE_LTO)
     ie_enable_lto()
