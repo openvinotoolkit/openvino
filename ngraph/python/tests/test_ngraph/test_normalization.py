@@ -17,8 +17,7 @@
 import numpy as np
 
 import ngraph as ng
-from test.ngraph.util import get_runtime
-import test
+from tests.runtime import get_runtime
 
 
 def test_lrn():
@@ -26,9 +25,7 @@ def test_lrn():
     input_image = np.arange(int(np.prod(input_image_shape))).reshape(input_image_shape).astype("f")
     axes = np.array([1], dtype=np.int64)
     runtime = get_runtime()
-    model = ng.lrn(
-        ng.constant(input_image), ng.constant(axes), alpha=1.0, beta=2.0, bias=1.0, size=3
-    )
+    model = ng.lrn(ng.constant(input_image), ng.constant(axes), alpha=1.0, beta=2.0, bias=1.0, size=3)
     computation = runtime.computation(model)
     result = computation()
     assert np.allclose(
@@ -36,11 +33,7 @@ def test_lrn():
         np.array(
             [
                 [[[0.0], [0.05325444]], [[0.03402646], [0.01869806]], [[0.06805293], [0.03287071]]],
-                [
-                    [[0.00509002], [0.00356153]],
-                    [[0.00174719], [0.0012555]],
-                    [[0.00322708], [0.00235574]],
-                ],
+                [[[0.00509002], [0.00356153]], [[0.00174719], [0.0012555]], [[0.00322708], [0.00235574]],],
             ],
             dtype=np.float32,
         ),
@@ -55,11 +48,7 @@ def test_lrn():
         np.array(
             [
                 [[[0.0], [0.35355338]], [[0.8944272], [1.0606602]], [[1.7888544], [1.767767]]],
-                [
-                    [[0.93704253], [0.97827977]],
-                    [[1.2493901], [1.2577883]],
-                    [[1.5617375], [1.5372968]],
-                ],
+                [[[0.93704253], [0.97827977]], [[1.2493901], [1.2577883]], [[1.5617375], [1.5372968]],],
             ],
             dtype=np.float32,
         ),
@@ -106,7 +95,7 @@ def test_lrn_factory():
         ],
         dtype=np.float32,
     )
-    result = test.ngraph.util.run_op_node([x, axis], ng.ops.lrn, alpha, beta, bias, nsize)
+    result = util.run_op_node([x, axis], ng.ops.lrn, alpha, beta, bias, nsize)
 
     assert np.allclose(result, excepted)
 
@@ -120,7 +109,5 @@ def test_batch_norm_inference():
     epsilon = 9.99e-06
     excepted = [[2.0, 6.0, 12.0], [-2.0, -6.0, -12.0]]
 
-    result = test.ngraph.util.run_op_node(
-        [data, gamma, beta, mean, variance], ng.ops.batch_norm_inference, epsilon
-    )
+    result = util.run_op_node([data, gamma, beta, mean, variance], ng.ops.batch_norm_inference, epsilon)
     assert np.allclose(result, excepted)

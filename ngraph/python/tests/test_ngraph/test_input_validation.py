@@ -21,8 +21,8 @@ from ngraph.utils.input_validation import (
     _check_value,
     check_valid_attribute,
     check_valid_attributes,
-    is_positive_value,
     is_non_negative_value,
+    is_positive_value,
 )
 
 

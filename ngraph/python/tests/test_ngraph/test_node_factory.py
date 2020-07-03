@@ -14,9 +14,9 @@
 # limitations under the License.
 # ******************************************************************************
 import numpy as np
-import ngraph as ng
-
 from _pyngraph import NodeFactory as _NodeFactory
+
+import ngraph as ng
 
 
 def test_node_factory_add():

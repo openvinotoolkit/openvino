@@ -31,11 +31,11 @@ from ngraph.utils.input_validation import (
 from ngraph.utils.node_factory import NodeFactory
 from ngraph.utils.tensor_iterator_types import (
     GraphBody,
-    TensorIteratorSliceInputDesc,
-    TensorIteratorMergedInputDesc,
-    TensorIteratorInvariantInputDesc,
     TensorIteratorBodyOutputDesc,
     TensorIteratorConcatOutputDesc,
+    TensorIteratorInvariantInputDesc,
+    TensorIteratorMergedInputDesc,
+    TensorIteratorSliceInputDesc,
 )
 from ngraph.utils.types import (
     NodeInput,

@@ -17,7 +17,8 @@ import numpy as np
 import pytest
 
 import ngraph as ng
-from test.ngraph.util import run_op_node, get_runtime
+from tests.runtime import get_runtime
+from tests.test_ngraph.util import run_op_node
 
 
 @pytest.mark.parametrize(
@@ -58,7 +59,6 @@ def test_reduction_ops(ng_api_helper, numpy_function, reduction_axes):
         (ng.reduce_logical_or, np.logical_or.reduce, [0, 1, 2, 3]),
     ],
 )
-@pytest.mark.skip_on_interpreter
 def test_reduction_logical_ops(ng_api_helper, numpy_function, reduction_axes):
     shape = [2, 4, 3, 2]
     np.random.seed(133391)
@@ -89,8 +89,6 @@ def test_topk():
         (ng.reduce_mean, np.mean, [0, 2]),
     ],
 )
-@pytest.mark.skip_on_cpu
-@pytest.mark.skip_on_interpreter
 def test_reduce_mean_op(ng_api_helper, numpy_function, reduction_axes):
     shape = [2, 4, 3, 2]
     np.random.seed(133391)

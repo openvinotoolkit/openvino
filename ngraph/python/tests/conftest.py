@@ -14,21 +14,30 @@
 # limitations under the License.
 # ******************************************************************************
 import pytest
-import test
+
+import tests
 
 
 def pytest_addoption(parser):
     parser.addoption(
         "--backend",
-        default="INTERPRETER",
-        choices=["INTERPRETER", "CPU", "IE"],
-        help="Select from available backends",
+        default="CPU",
+        choices=["CPU", "GPU", "FPGA", "HDDL", "MYRIAD", "HETERO"],
+        help="Select target device",
     )
 
 
 def pytest_configure(config):
     backend_name = config.getvalue("backend")
-    test.BACKEND_NAME = backend_name
+    tests.BACKEND_NAME = backend_name
+
+    # register additional markers
+    config.addinivalue_line("markers", "skip_on_cpu: Skip test on CPU")
+    config.addinivalue_line("markers", "skip_on_gpu: Skip test on GPU")
+    config.addinivalue_line("markers", "skip_on_fpga: Skip test on FPGA")
+    config.addinivalue_line("markers", "skip_on_hddl: Skip test on HDDL")
+    config.addinivalue_line("markers", "skip_on_myriad: Skip test on MYRIAD")
+    config.addinivalue_line("markers", "skip_on_hetero: Skip test on HETERO")
 
 
 def pytest_collection_modifyitems(config, items):
@@ -36,14 +45,20 @@ def pytest_collection_modifyitems(config, items):
 
     keywords = {
         "CPU": "skip_on_cpu",
-        "INTERPRETER": "skip_on_interpreter",
-        "IE": "skip_on_inference_engine",
+        "GPU": "skip_on_gpu",
+        "FPGA": "skip_on_fpga",
+        "HDDL": "skip_on_hddl",
+        "MYRIAD": "skip_on_myriad",
+        "HETERO": "skip_on_hetero",
     }
 
     skip_markers = {
         "CPU": pytest.mark.skip(reason="Skipping test on the CPU backend."),
-        "INTERPRETER": pytest.mark.skip(reason="Skipping test on the INTERPRETER backend."),
-        "IE": pytest.mark.skip(reason="Skipping test on the IE backend."),
+        "GPU": pytest.mark.skip(reason="Skipping test on the GPU backend."),
+        "FPGA": pytest.mark.skip(reason="Skipping test on the FPGA backend."),
+        "HDDL": pytest.mark.skip(reason="Skipping test on the HDDL backend."),
+        "MYRIAD": pytest.mark.skip(reason="Skipping test on the MYRIAD backend."),
+        "HETERO": pytest.mark.skip(reason="Skipping test on the HETERO backend."),
     }
 
     for item in items:

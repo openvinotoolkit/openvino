@@ -17,7 +17,7 @@ import numpy as np
 import pytest
 
 import ngraph as ng
-from test.ngraph.util import get_runtime
+from tests.runtime import get_runtime
 
 
 @pytest.fixture
@@ -106,9 +106,7 @@ def test_max_pool_basic():
     comp = rt.computation(avgpool_node, data_node)
     result = comp(data)
 
-    expected = np.array(
-        [[[[5.5, 6.5, 7.5], [9.5, 10.5, 11.5], [13.5, 14.5, 15.5]]]], dtype=np.float32
-    )
+    expected = np.array([[[[5.5, 6.5, 7.5], [9.5, 10.5, 11.5], [13.5, 14.5, 15.5]]]], dtype=np.float32)
     assert np.allclose(result, expected)
 
 
@@ -238,9 +236,7 @@ def test_max_pool_same_upper_auto_pads():
     auto_pad = "same_upper"
 
     data_node = ng.parameter(data.shape, name="A", dtype=np.float32)
-    avgpool_node = ng.max_pool(
-        data_node, strides, pads_begin, pads_end, kernel_shape, auto_pad=auto_pad
-    )
+    avgpool_node = ng.max_pool(data_node, strides, pads_begin, pads_end, kernel_shape, auto_pad=auto_pad)
     comp = rt.computation(avgpool_node, data_node)
     result = comp(data)
 
@@ -280,23 +276,12 @@ def test_max_pool_same_lower_auto_pads():
     auto_pad = "same_lower"
 
     data_node = ng.parameter(data.shape, name="A", dtype=np.float32)
-    avgpool_node = ng.max_pool(
-        data_node, strides, pads_begin, pads_end, kernel_shape, auto_pad=auto_pad
-    )
+    avgpool_node = ng.max_pool(data_node, strides, pads_begin, pads_end, kernel_shape, auto_pad=auto_pad)
     comp = rt.computation(avgpool_node, data_node)
     result = comp(data)
 
     expected = np.array(
-        [
-            [
-                [
-                    [0.5, 1.5, 2.5, 3.5],
-                    [4.5, 5.5, 6.5, 7.5],
-                    [8.5, 9.5, 10.5, 11.5],
-                    [12.5, 13.5, 14.5, 15.5],
-                ]
-            ]
-        ],
+        [[[[0.5, 1.5, 2.5, 3.5], [4.5, 5.5, 6.5, 7.5], [8.5, 9.5, 10.5, 11.5], [12.5, 13.5, 14.5, 15.5],]]],
         dtype=np.float32,
     )
     assert np.allclose(result, expected)

@@ -14,6 +14,7 @@
 # limitations under the License.
 # ******************************************************************************
 import numpy as np
+
 import ngraph as ng
 from ngraph.impl import Type
 

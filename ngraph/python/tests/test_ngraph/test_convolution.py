@@ -17,8 +17,9 @@
 import numpy as np
 
 import ngraph as ng
-from test.ngraph.util import get_runtime, run_op_node
-from test.test_ops import convolution2d
+from tests.runtime import get_runtime
+from tests.test_ngraph.test_ops import convolution2d
+from tests.test_ngraph.util import run_op_node
 
 
 def test_convolution_2d():
@@ -40,9 +41,9 @@ def test_convolution_2d():
     ).reshape(1, 1, 9, 9)
 
     # filter weights should have shape M x C x kH x kW
-    input_filter = np.array(
-        [[1.0, 0.0, -1.0], [2.0, 0.0, -2.0], [1.0, 0.0, -1.0]], dtype=np.float32
-    ).reshape(1, 1, 3, 3)
+    input_filter = np.array([[1.0, 0.0, -1.0], [2.0, 0.0, -2.0], [1.0, 0.0, -1.0]], dtype=np.float32).reshape(
+        1, 1, 3, 3
+    )
 
     strides = np.array([1, 1])
     pads_begin = np.array([1, 1])
@@ -50,9 +51,7 @@ def test_convolution_2d():
     dilations = np.array([1, 1])
 
     # convolution with padding=1 should produce 9 x 9 output:
-    result = run_op_node(
-        [input_x, input_filter], ng.convolution, strides, pads_begin, pads_end, dilations
-    )
+    result = run_op_node([input_x, input_filter], ng.convolution, strides, pads_begin, pads_end, dilations)
 
     assert np.allclose(
         result,
@@ -81,9 +80,7 @@ def test_convolution_2d():
     pads_begin = np.array([0, 0])
     pads_end = np.array([0, 0])
     dilations = np.array([1, 1])
-    result = run_op_node(
-        [input_x, input_filter], ng.convolution, strides, pads_begin, pads_end, dilations
-    )
+    result = run_op_node([input_x, input_filter], ng.convolution, strides, pads_begin, pads_end, dilations)
     assert np.allclose(
         result,
         np.array(
@@ -110,9 +107,7 @@ def test_convolution_2d():
     dilations = np.array([1, 1])
 
     # convolution with strides=2 should produce 4 x 4 output:
-    result = run_op_node(
-        [input_x, input_filter], ng.convolution, strides, pads_begin, pads_end, dilations
-    )
+    result = run_op_node([input_x, input_filter], ng.convolution, strides, pads_begin, pads_end, dilations)
 
     assert np.allclose(
         result,
@@ -137,9 +132,7 @@ def test_convolution_2d():
     dilations = np.array([2, 2])
 
     # convolution with dilation=2 should produce 5 x 5 output:
-    result = run_op_node(
-        [input_x, input_filter], ng.convolution, strides, pads_begin, pads_end, dilations
-    )
+    result = run_op_node([input_x, input_filter], ng.convolution, strides, pads_begin, pads_end, dilations)
     assert np.allclose(
         result,
         np.array(
@@ -190,9 +183,9 @@ def test_convolution_backprop_data():
         dtype=np.float32,
     )
 
-    filter_data = np.array(
-        [[1.0, 0.0, -1.0], [2.0, 0.0, -2.0], [1.0, 0.0, -1.0]], dtype=np.float32
-    ).reshape(1, 1, 3, 3)
+    filter_data = np.array([[1.0, 0.0, -1.0], [2.0, 0.0, -2.0], [1.0, 0.0, -1.0]], dtype=np.float32).reshape(
+        1, 1, 3, 3
+    )
 
     model = runtime.computation(deconvolution, data_node, filter_node)
     result = model(input_data, filter_data)
@@ -232,9 +225,7 @@ def test_convolution_v1():
     pads_end = np.array([0, 0])
     dilations = np.array([1, 1])
 
-    result = run_op_node(
-        [input_tensor, filters], ng.convolution, strides, pads_begin, pads_end, dilations
-    )
+    result = run_op_node([input_tensor, filters], ng.convolution, strides, pads_begin, pads_end, dilations)
 
     expected = convolution2d(input_tensor[0, 0], filters[0, 0]).reshape(1, 1, 14, 14)
 
