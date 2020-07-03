@@ -14,7 +14,6 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-// TODO: Concat multi-channel
 class TRANSFORMATIONS_API ConcatTransformation : public LayerTransformation {
 public:
     ConcatTransformation(const Params& params) : LayerTransformation(params) {}
@@ -41,6 +40,6 @@ private:
         const float outputHighValue) const;
 };
 
-}// namespace low_precision
-}// namespace pass
-}// namespace ngraph
+} // namespace low_precision
+} // namespace pass
+} // namespace ngraph
