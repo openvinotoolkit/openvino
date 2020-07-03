@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "transformations/convert_opset2_to_opset1/convert_opset2_to_opset1.hpp"
 #include "layer_test_utils.hpp"
 
 namespace LayerTestsUtils {
@@ -135,6 +136,14 @@ std::vector<std::vector<std::uint8_t>> LayerTestsCommon::CalculateRefs() {
         }
         case IE: {
             // reference inference on device with other options and nGraph function has to be implemented here
+            break;
+        }
+        case INTERPRETER_TRANSFORMATIONS: {
+            auto cloned_function = ngraph::clone_function(*function);
+
+            // todo: add functionality to configure the necessary transformations
+            ngraph::pass::ConvertOpSet2ToOpSet1().run_on_function(cloned_function);
+            expectedOutputs = ngraph::helpers::interpreterFunction(cloned_function, referenceInputs, convertType);
             break;
         }
     }
