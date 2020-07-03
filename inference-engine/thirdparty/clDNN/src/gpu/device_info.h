@@ -29,6 +29,8 @@ struct device_info_internal : cldnn::device_info {
     uint32_t dev_type;
     uint32_t vendor_id;
     uint8_t supports_usm;
+    bool supports_optimization_hints;
+    bool supports_local_block_io;
 
     explicit device_info_internal(const cl::Device& device);
 

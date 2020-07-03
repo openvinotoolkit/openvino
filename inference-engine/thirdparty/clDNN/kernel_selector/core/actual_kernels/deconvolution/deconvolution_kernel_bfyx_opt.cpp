@@ -35,7 +35,6 @@ ParamsKey DeconvolutionKernel_bfyx_opt::GetSupportedKey() const {
     k.EnableBatching();
     k.EnableSplitSupport();
     k.EnableDepthwiseSeparableOpt();
-    k.EnableGradient();
     k.EnableGroupedConvolution();
     return k;
 }

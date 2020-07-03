@@ -31,24 +31,24 @@ nodes_attributes = {
     'placeholder_1_data': {'name': 'placeholder_1_data', 'value': None, 'shape': None, 'kind': 'data',
                            'data_type': None},
     # Transpose layers
-    'const_1': {'value': None, 'kind': 'op', 'type': 'Const'},
+    'const_1': {'value': None, 'kind': 'op', 'type': 'Const', 'op': 'Const'},
     'const_1_data': {'value': None, 'shape': None, 'kind': 'data'},
 
     'permute_1': {'type': 'Transpose', 'value': None, 'kind': 'op', 'op': 'Transpose'},
     'permute_1_data': {'value': None, 'shape': None, 'kind': 'data'},
 
-    'const_2': {'value': None, 'kind': 'op', 'type': 'Const'},
+    'const_2': {'value': None, 'kind': 'op', 'type': 'Const', 'op': 'Const'},
     'const_2_data': {'value': None, 'shape': None, 'kind': 'data'},
 
     'permute_2': {'type': 'Transpose', 'value': None, 'kind': 'op', 'op': 'Transpose'},
     'permute_2_data': {'value': None, 'shape': None, 'kind': 'data'},
 
-    'const_3': {'value': None, 'kind': 'op', 'type': 'Const'},
+    'const_3': {'value': None, 'kind': 'op', 'type': 'Const', 'op': 'Const'},
     'const_3_data': {'value': None, 'shape': None, 'kind': 'data'},
 
     'permute_3': {'type': 'Transpose', 'value': None, 'kind': 'op', 'op': 'Transpose'},
     'permute_3_data': {'value': None, 'shape': None, 'kind': 'data'},
-    'op_output': { 'op': 'Result', 'kind': 'op'}
+    'op_output': {'op': 'Result', 'kind': 'op'}
 }
 
 

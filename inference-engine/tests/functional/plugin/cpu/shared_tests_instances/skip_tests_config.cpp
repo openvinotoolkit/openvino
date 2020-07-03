@@ -36,5 +36,7 @@ std::vector<std::string> disabledTestPatterns() {
 #if (defined(_WIN32) || defined(_WIN64))
         R"(.*(CoreThreadingTestsWithIterations).*(smoke_LoadNetworkAccuracy).*(targetDevice=HETERO).*)",
 #endif
+        // TODO: Issue: 34348
+        R"(.*IEClassGetAvailableDevices.*)",
     };
 }
