@@ -222,9 +222,7 @@ KernelsData EltwiseKernel_b_fs_yx_fsv16::GetKernelsData(const Params& params, co
     kernel.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo, DEFAULT);
     kernel.arguments = GetArgsDesc((uint32_t)newParams.inputs.size(),
                                    false,
-                                   false,
-                                   newParams.int8_quantization,
-                                   newParams.output_calibration);
+                                   false);
 
     kd.estimatedTime = runInfo.efficiency;
 
