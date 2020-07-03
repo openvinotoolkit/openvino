@@ -98,7 +98,7 @@ public:
         const auto& consumer = data->singleConsumer();
         EXPECT_EQ(consumer->type(), StageType::None);
         EXPECT_EQ(consumer->attrs().get<int>("test_ind"), testInd);
-        EXPECT_TRUE(consumer->numOutputs() == 1);
+        EXPECT_EQ(consumer->numOutputs(), 1);
         const auto& output = consumer->output(0);
         EXPECT_EQ(output->desc().dim(Dim::N), batch);
         return output;
