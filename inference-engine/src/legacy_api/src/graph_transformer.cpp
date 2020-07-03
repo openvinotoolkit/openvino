@@ -12,7 +12,6 @@
 #include <map>
 #include <utility>
 #include <memory>
-#include <shape_infer/const_infer/ie_const_infer_holder.hpp>
 #include <string>
 #include <vector>
 #include <mutex>
@@ -29,7 +28,7 @@ using namespace InferenceEngine::details;
 
 namespace InferenceEngine {
 
-bool isForFakeQuantzie(const CNNLayer& layer) {
+bool isForFakeQuantize(const CNNLayer& layer) {
     for (const DataPtr data : layer.outData) {
         for (const auto it : data->getInputTo()) {
             const CNNLayerPtr childLayer = it.second;
@@ -233,7 +232,8 @@ static std::vector<std::string> skipConstInfer = {
     "FakeQuantize",
     "Quantize",
     "CumSum",     // Const inference function for CumSum is not implemented
-    "Convolution" // Const inference function for Convolution is not implemented
+    "Convolution", // Const inference function for Convolution is not implemented
+    "Eltwise",  // Const inference function for Eltwise is not implemented
 };
 
 const std::map<std::string, bool> ConstTransformer::getConstLayers(const std::vector<CNNLayerPtr>& sortedLayers) {
@@ -243,7 +243,8 @@ const std::map<std::string, bool> ConstTransformer::getConstLayers(const std::ve
         // Layers with "Shape" and "Const" type are Const by definition
         if (layer->type == "Shape" || layer->type == "Const") {
             mapConstLayers[layer->name] = false;
-        } else if (std::find(skipConstInfer.begin(), skipConstInfer.end(), layer->type) == skipConstInfer.end() && !isForFakeQuantzie(*layer)) {
+        } else if (std::find(skipConstInfer.begin(), skipConstInfer.end(), layer->type) == skipConstInfer.end() &&
+                   !isForFakeQuantize(*layer)) {
             bool isAllInputsConst = true;
             for (auto const& data : layer->insData) {
                 auto creator = data.lock()->getCreatorLayer().lock();
@@ -253,7 +254,7 @@ const std::map<std::string, bool> ConstTransformer::getConstLayers(const std::ve
                     }
                 } else {
                     // Empty creator means that it's a network representation via inputs/outs data collection
-                    // And it's a firs layer in network.
+                    // And it's a first layer in network.
                     isAllInputsConst = false;
                 }
             }
@@ -309,7 +310,6 @@ const std::map<std::string, bool> ConstTransformer::getConstLayers(const std::ve
 
 const BlobMap ConstTransformer::getConstData(const std::map<std::string, bool>& constLayers,
                                              const std::vector<CNNLayerPtr>& sortedLayers) {
-    ShapeInfer::ConstInferHolder holder;
     BlobMap constData;
     auto getInputBlobs = [&constData](const std::vector<DataWeakPtr>& insData,
                                       bool isForShape) -> std::vector<Blob::CPtr> {
@@ -344,30 +344,21 @@ const BlobMap ConstTransformer::getConstData(const std::map<std::string, bool>& 
     };
 
     for (const auto& layer : sortedLayers) {
-        if (std::find(skipConstInfer.begin(), skipConstInfer.end(), layer->type) != skipConstInfer.end()) {
-            continue;
-        }
-
         if (constLayers.find(layer->name) != constLayers.end()) {
             std::string layerName = layer->name;
             bool isForShape = constLayers.at(layerName);
 
-            auto implPtr = holder.getConstInferImpl(layer->type);
-            if (!implPtr && !isForShape)
-                if (std::find(skipConstInfer.begin(), skipConstInfer.end(), layer->type) == skipConstInfer.end())
-                    THROW_IE_EXCEPTION << "Failed to find reference implementation for `" + layer->name +
-                                              "` Layer with `" + layer->type + "` Type on constant propagation";
+            if (!isForShape && layer->type != "Const")
+                THROW_IE_EXCEPTION << "Failed to find reference implementation for `" + layer->name +
+                                      "` Layer with `" + layer->type + "` Type on constant propagation";
             if (!isForShape) {
-                auto outputBlobs = getOutputBlobs(layer->outData);
-                auto inp = getInputBlobs(layer->insData, isForShape);
-                if (std::find(skipConstInfer.begin(), skipConstInfer.end(), layer->type) == skipConstInfer.end())
-                    implPtr->infer(inp, layer->params, layer->blobs, outputBlobs);
-                for (int i = 0; i < layer->outData.size(); i++) {
-                    std::string dataName = layer->outData[i]->getName();
-                    auto shapes = layer->outData[i]->getTensorDesc().getDims();
-                    outputBlobs[i]->getTensorDesc().reshape(shapes, TensorDesc::getLayoutByDims(shapes));
-                    constData[dataName] = outputBlobs[i];
-                }
+                auto & blobs = layer->blobs;
+                auto it = blobs.find("custom");
+                if (it == blobs.end())
+                    THROW_IE_EXCEPTION << "Missed `custom` blob in Const layer";
+
+                auto dataName = layer->outData[0]->getName();
+                constData[dataName] = (*it).second;
             }
         }
     }
