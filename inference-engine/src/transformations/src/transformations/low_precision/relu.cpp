@@ -60,6 +60,6 @@ void ReluTransformation::transform(TransformationContext& context, ngraph::patte
     // std::cout << "ReluTransformation::transform: done: " << relu->get_friendly_name() << std::endl;
 }
 
-}// namespace low_precision
-}// namespace pass
-}// namespace ngraph
+} // namespace low_precision
+} // namespace pass
+} // namespace ngraph
