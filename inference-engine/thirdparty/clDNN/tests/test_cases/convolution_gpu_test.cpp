@@ -6620,6 +6620,106 @@ TEST_P(convolution_depthwise_gpu_fsv16, depthwise_conv_b_fs_yx_fsv16)
                 }
 }
 
+TEST(convolution_depthwise_gpu_fsv16, depthwise_conv_b_fs_yx_fsv16_in_feature_padding) {
+    //  Input:                  1x32x2x1
+    //  Input padding above:    0x16x0x0
+    //  Input padding below:    0x0x0x0
+    //  Groups:                 32
+    //  Filter:                 32x1x1x1x1
+    //  Output:                 1x32x2x1
+
+    auto num_groups = 32;
+    auto input_size = tensor{ 1, num_groups, 1, 2 };
+    auto weights_size = tensor(group(num_groups), batch(1), feature(1), spatial(1, 1));
+    auto bias_size = tensor{ 1, num_groups, 1, 1 };
+    auto stride = tensor{ 1, 1, 1, 1 };
+    auto input_offset = tensor{ 0, 0, 0, 0 };
+    auto dilation = tensor{ 1, 1, 1, 1 };
+    auto output_size = tensor{ 1, num_groups, 1, 2};
+    auto input_lower_sizes = { 0, 16, 0, 0 };
+    auto input_upper_sizes = { 0, 64, 0, 0 };
+
+    const auto& engine = get_test_engine();
+
+    auto input = memory::allocate(engine, { data_types::f32, format::bfyx, input_size });
+    auto weights = memory::allocate(engine, { data_types::f32, format::goiyx, weights_size});
+    auto bias = memory::allocate(engine, { data_types::f32, format::bfyx, bias_size});
+
+    set_values<float>(input, {
+         3, -1, -1, -1,  2, -2,  2,  2,  0,  1, -5,  4, -1,  4,  1,  0,
+        -1,  4, -4,  3, -4,  4,  0,  1, -4,  3,  1,  0, -3, -1,  3,  0,
+         4, -2,  0, -2, -1, -4,  1, -4,  3,  2,  2,  2,  3,  4,  0, -5,
+         3, -5,  2, -3,  0,  3, -3, -4, -1, -4,  2,  4,  3,  4, -5, -5
+    });
+    set_values<float>(weights, {
+        -4, -1, -4, -2,  1,  2,  3, -4, -5, -2, -2,  1,  2,  2, -5,  2,
+        -5,  4, -3,  2, -1, -3,  0, -1, -5, -3, -5, -4,  1, -4,  4,  2
+    });
+    set_values<float>(bias, {
+        -2,  3, -4, -4, -4,  4, -3, -1, -3, -5,  3,  3,  1,  4, -4,  1,
+        -1, -2, -2, -1,  2, -1, -4,  2, -4, -1,  3,  0,  0,  4, -3, -4
+    });
+    std::vector<float> output_vec = {
+        -14,   2,   4,   4, -12,   4,  -8,  -8,  -4,  -3,  -6,  12,  -6,   9,  -5,  -1,
+          2, -23,   3, -11,  11,  -5,   3,   4,  -7,   7,   6,   4,  11,   1,   7,   1,
+        -21,   9,  -2, -10,   1,  10,   1,  -9,  -1,   0,  -7,  -7,  -4,  -4,   2,   7,
+        -19,  21,  -7,   8,   3, -12,  12,  16,  -1,  -4,  -4, -12,   9,  13, -14, -14
+    };
+
+    // reorder input to fsv16 format and introduce feature padding above
+    padding input_padding = padding(input_lower_sizes, input_upper_sizes);
+    layout reordered_input_layout = layout(data_types::f32, format::b_fs_yx_fsv16, input_size, input_padding);
+
+    topology topology(
+        input_layout("input", input.get_layout()),
+        reorder("input_reordered", "input", reordered_input_layout),
+        data("weights", weights),
+        data("bias", bias),
+        convolution("conv", "input_reordered", { "weights" }, { "bias" }, num_groups, stride, input_offset, dilation, output_size, data_types::f32),
+        reorder("out", "conv", format::bfyx, data_types::f32));
+
+    build_options options;
+    options.set_option(build_option::optimize_data(true));
+    implementation_desc conv_impl = { format::b_fs_yx_fsv16, "" };
+    options.set_option(build_option::force_implementations({ {"conv", conv_impl} }));  
+
+    network network(engine, topology, options);
+    network.set_input_data("input", input);
+
+    auto outputs = network.execute();
+    EXPECT_EQ(outputs.size(), size_t(1));
+    EXPECT_EQ(outputs.begin()->first, "out");
+
+    auto output_memory = outputs.at("out").get_memory();
+    auto output_layout = output_memory.get_layout();
+    auto output_ptr = output_memory.pointer<float>();
+
+    int y_size = output_layout.size.spatial[1];
+    int x_size = output_layout.size.spatial[0];
+    int f_size = output_layout.size.feature[0];
+    int b_size = output_layout.size.batch[0];
+
+    EXPECT_EQ(output_layout.format, format::bfyx);
+
+    EXPECT_EQ(y_size, output_size.spatial[1]);    
+    EXPECT_EQ(x_size, output_size.spatial[0]);
+    EXPECT_EQ(f_size, output_size.feature[0]);
+    EXPECT_EQ(b_size, output_size.batch[0]);
+
+    for (int b = 0; b < b_size; ++b) {
+        for (int f = 0; f < f_size; ++f) {
+            for (int y = 0; y < y_size; ++y) {
+                for (int x = 0; x < x_size; ++x) {
+                    EXPECT_EQ(
+                        output_vec[b * f_size * y_size * x_size + f * y_size * x_size + y * x_size + x],
+                        output_ptr[b * f_size * y_size * x_size + f * y_size * x_size + y * x_size + x]
+                    );
+                }
+            }
+        }
+    }
+}
+
 struct convolution_depthwise_gpu_bfyx : public convolution_depthwise_gpu {};
 
 TEST_P(convolution_depthwise_gpu_bfyx, depthwise_conv_bfyx)
