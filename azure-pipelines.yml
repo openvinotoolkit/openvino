@@ -227,6 +227,7 @@ jobs:
     #vmImage: 'vs2017-win2016'
     name: WIN_VMSS_VENV_F8S_WU2
   variables:
+    system.debug: true
     WORKERS_NUMBER: 8
     BUILD_TYPE: Release
     BUILD_DIR: D:\dldt-build

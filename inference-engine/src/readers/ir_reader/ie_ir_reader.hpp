@@ -32,8 +32,6 @@ namespace InferenceEngine {
  */
 class IRReader: public IReader {
 public:
-    IRReader() = default;
-
     void Release() noexcept override {
         delete this;
     }

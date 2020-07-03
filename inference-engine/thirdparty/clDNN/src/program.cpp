@@ -396,9 +396,6 @@ void program_impl::pre_optimize_graph(bool is_internal) {
     // handle symmetric and asymmetric padding for input
     apply_opt_pass<handle_input_padding>();
 
-    // add reshape to input/parameters for some primitives
-    apply_opt_pass<add_reshape_to_primitives>();
-
     processing_order.calculate_BFS_processing_order();  // this method makes sense only for OOOQ (out of order execution queue)
 
     apply_opt_pass<reverse_optional_nodes_outputs>();

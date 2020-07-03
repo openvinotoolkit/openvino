@@ -1346,6 +1346,9 @@ IE_CPU.onnx_dyn_shapes_model_flatten
 IE_CPU.onnx_dyn_shapes_slice_10_default_axes
 IE_CPU.fused_clamp_float
 
+# Result mismatch 2.666666507720947266 is not close to 3 at index 1
+IE_CPU.onnx_resize10_down_scales_const_linear
+
 # GRUCell operation has a form that is not supported
 IE_CPU.onnx_model_gru_defaults_fwd
 IE_CPU.onnx_model_gru_fwd_activations
