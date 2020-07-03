@@ -7,7 +7,7 @@
 **Short description**: SoftPlus takes one input tensor and produces output tensor where the softplus function is applied to the tensor elementwise.
 
 **Detailed description**: For each element from the input tensor calculates corresponding
-element in the output tensor with the following formula: `features[i] = log(exp(features[i]) + 1)`
+element in the output tensor with the following formula: `features[i] = log(exp(features[i]) + 1.0)`
 
 **Attributes**: *SoftPlus* operation has no attributes.
 
@@ -22,7 +22,7 @@ element in the output tensor with the following formula: `features[i] = log(exp(
 
 **Types**
 
-* *T*: any supported type.
+* *T*: arbitrary supported floating point type.
 
 
 **Example**
