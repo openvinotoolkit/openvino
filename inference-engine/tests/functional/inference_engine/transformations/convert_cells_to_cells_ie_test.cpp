@@ -20,7 +20,7 @@
 #include <ngraph_ops/gru_cell_ie.hpp>
 #include <ngraph_ops/rnn_cell_ie.hpp>
 #include <ngraph_ops/lstm_cell_ie.hpp>
-#include "ngraph_test_utils.hpp"
+#include "common_test_utils/ngraph_test_utils.hpp"
 
 using namespace testing;
 

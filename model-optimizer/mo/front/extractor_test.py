@@ -448,11 +448,11 @@ class TestOutputCut(unittest.TestCase):
     # {'embeddings': [{'port': None}]}
     @generate({'C': [{'port': None}]}, {'C': [{'out': 0}]}, {'C': [{'out': 1}]})
     def test_output_port_cut(self, output):
-        nodes = {'A': {'type': 'Identity', 'kind': 'op'},
-                 'B': {'type': 'Identity', 'kind': 'op'},
-                 'C': {'type': 'Identity', 'kind': 'op'},
-                 'D': {'type': 'Identity', 'kind': 'op'},
-                 'E': {'type': 'Identity', 'kind': 'op'},
+        nodes = {'A': {'type': 'Identity', 'kind': 'op', 'op': 'Identity'},
+                 'B': {'type': 'Identity', 'kind': 'op', 'op': 'Identity'},
+                 'C': {'type': 'Identity', 'kind': 'op', 'op': 'Identity'},
+                 'D': {'type': 'Identity', 'kind': 'op', 'op': 'Identity'},
+                 'E': {'type': 'Identity', 'kind': 'op', 'op': 'Identity'},
                  }
         edges = [
             ('A', 'C', {'in': 0, 'out': 0}),
@@ -470,9 +470,9 @@ class TestOutputCut(unittest.TestCase):
     def test_output_port_cut(self, output):
         nodes = {'A': {'op': 'Parameter', 'kind': 'op'},
                  'B': {'op': 'Parameter', 'kind': 'op'},
-                 'C': {'type': 'Identity', 'kind': 'op'},
-                 'D': {'type': 'Identity', 'kind': 'op'},
-                 'E': {'type': 'Identity', 'kind': 'op'},
+                 'C': {'type': 'Identity', 'kind': 'op', 'op': 'Identity'},
+                 'D': {'type': 'Identity', 'kind': 'op', 'op': 'Identity'},
+                 'E': {'type': 'Identity', 'kind': 'op', 'op': 'Identity'},
                  }
         edges = [
             ('A', 'C', {'in': 0, 'out': 0}),
@@ -489,9 +489,9 @@ class TestOutputCut(unittest.TestCase):
 class TestUserDataRepack(unittest.TestCase):
     nodes = {'A': {'name': 'Aa', 'op': 'Parameter', 'kind': 'op'},
              'B': {'name': 'Bb', 'op': 'Parameter', 'kind': 'op'},
-             'C': {'name': 'Cc', 'type': 'Identity', 'value': None, 'kind': 'op'},
-             'D': {'name': 'Dd', 'type': 'Identity', 'value': None, 'kind': 'op'},
-             'E': {'name': 'Ee', 'type': 'Identity', 'value': None, 'kind': 'op'},
+             'C': {'name': 'Cc', 'type': 'Identity', 'value': None, 'kind': 'op', 'op': 'Identity'},
+             'D': {'name': 'Dd', 'type': 'Identity', 'value': None, 'kind': 'op', 'op': 'Identity'},
+             'E': {'name': 'Ee', 'type': 'Identity', 'value': None, 'kind': 'op', 'op': 'Identity'},
              }
     edges = [
         ('A', 'C', {'in': 0, 'out': 0}),

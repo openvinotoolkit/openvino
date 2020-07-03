@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016-2019 Intel Corporation
+// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -35,19 +35,8 @@
 #include "convolution_kernel_winograd_6x3_s1_fused.h"
 #include "convolution_kernel_mmad.h"
 #include "convolution_kernel_mmad_blocks.h"
-#include "convolution_kernel_mmad_1x1_gemm.h"
 #include "convolution_kernel_imad_byxf_af32_depthwise.h"
-#include "convolution_kernel_mmad_batched.h"
 #include "convolution_kernel_bfyx_depthwise_weights_lwg.h"
-#include "convolution_kernel_mmad_slm_2x14_rep4.h"
-#include "convolution_kernel_mmad_slm_7x7_rep4.h"
-#include "convolution_kernel_byxf_fs_bs_yx_bsv4_fsv32.h"
-#include "convolution_kernel_mmad_batched_block.h"
-#include "convolution_kernel_mmad_batched_block_1x1.h"
-#include "convolution_kernel_mmad_32x32sg_128x128wg_slm_int8.h"
-#include "convolution_kernel_mmad_32x32sg_224x128wg_slm_int8.h"
-#include "convolution_kernel_mmad_32x32sg_slm_int8.h"
-#include "convolution_kernel_byx8_f4__fs_bs_yx_bsv4_fsv32.h"
 #include "convolution_kernel_imad.h"
 #include "convolution_kernel_fs_byx_fsv32.h"
 #include "convolution_kernel_fs_byx_fsv32_1x1.h"
@@ -73,6 +62,8 @@
 #include "convolution_kernel_b_fs_yx_fsv16_imad_1x1.h"
 #include "convolution_kernel_b_fs_yx_fsv16_imad.h"
 #include "convolution_kernel_b_fs_yx_fsv_16_32_imad_dw.hpp"
+#include "convolution_kernel_imad_bs_fs_yx_bsv16_fsv16_1x1.h"
+#include "convolution_kernel_imad_bs_fs_yx_bsv16_fsv16_3x3.h"
 
 namespace kernel_selector {
 convolution_kernel_selector::convolution_kernel_selector() {
@@ -93,6 +84,8 @@ convolution_kernel_selector::convolution_kernel_selector() {
 
     // bs_fs_yx_bsv16_fsv16
     Attach<ConvolutionKernel_bfyx_to_bfyx_bsv16_fsv16>();
+    Attach<Convolution_kernel_imad_bs_fs_yx_bsv16_fsv16_1x1>();
+    Attach<Convolution_kernel_imad_bs_fs_yx_bsv16_fsv16_3x3>();
 
     // fs_byx_fsv32
     Attach<ConvolutionKernel_fs_byx_fsv32>();
@@ -130,19 +123,6 @@ convolution_kernel_selector::convolution_kernel_selector() {
     Attach<ConvolutionKernel_mmad_blocks>();
     Attach<ConvolutionKernel_imad_byxf_af32_1x1>();
     Attach<ConvolutionKernel_imad_byxf_af32_depthiwise>();
-    Attach<ConvolutionKernel_mmad_1x1_gemm>();
-
-    // fs_bs_yx_bsv4_fsv32 int8
-    Attach<ConvolutionKernel_mmad_batched>();
-    Attach<ConvolutionKernel_mmad_slm_2x14_rep4>();
-    Attach<ConvolutionKernel_mmad_slm_7x7_rep4>();
-    Attach<ConvolutionKernel_mmad_32x32sg_128x128wg_slm_int8>();
-    Attach<ConvolutionKernel_mmad_32x32sg_224x128wg_slm_int8>();
-    Attach<ConvolutionKernel_byxf_fs_bs_yx_bsv4_fsv32>();
-    Attach<ConvolutionKernel_byx8_f4__fs_bs_yx_bsv4_fsv32>();
-    Attach<ConvolutionKernel_mmad_batched_block>();
-    Attach<ConvolutionKernel_mmad_batched_block_1x1>();
-    // Attach<ConvolutionKernel_mmad_32x32sg_slm_int8>();
 
     // b_fs_yx_fsv4 kernels
     Attach<ConvolutionKernel_imad>();

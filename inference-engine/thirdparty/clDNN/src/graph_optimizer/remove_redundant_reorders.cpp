@@ -321,8 +321,10 @@ void remove_redundant_reorders::run(program_impl& p) {
 
         auto& usr = node->get_users().front();
         auto& dep = node->get_dependency(0);
-        if (!usr->is_type<quantize>() || node->get_output_layout().format != format::bfyx ||
-            (dep.get_output_layout().format != format::b_fs_yx_fsv16 && dep.get_output_layout().format != format::fs_b_yx_fsv32))
+        if (!usr->is_type<quantize>() ||
+            (dep.get_output_layout().format != format::b_fs_yx_fsv16 &&
+             dep.get_output_layout().format != format::fs_b_yx_fsv32 &&
+             dep.get_output_layout().format != format::bfyx))
             continue;
 
         dep.merge_output_padding(node->get_output_layout().data_padding);
