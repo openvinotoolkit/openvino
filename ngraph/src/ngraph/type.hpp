@@ -30,7 +30,7 @@ namespace ngraph
 {
     /// Supports three functions, is_type<Type>, as_type<Type>, and as_type_ptr<Type> for type-safe
     /// dynamic conversions via static_cast/static_ptr_cast without using C++ RTTI.
-    /// Type must have a static constexpr type_info member and a virtual get_type_info() member that
+    /// Type must have a static type_info member and a virtual get_type_info() member that
     /// returns a reference to its type_info member.
 
     /// Type information for a type system without inheritance; instances have exactly one type not
@@ -39,10 +39,10 @@ namespace ngraph
     {
         const char* name;
         uint64_t version;
-        // Used for casting only, not for exact type identification
+        // A pointer to a parent type info; used for casting and inheritance traversal, not for exact type identification
         const DiscreteTypeInfo* parent;
 
-        DiscreteTypeInfo () {}
+        DiscreteTypeInfo () = default;
 
         constexpr DiscreteTypeInfo (const char* _name, uint64_t _version, const DiscreteTypeInfo* _parent = nullptr) :
             name(_name), version(_version), parent(_parent) {}
@@ -78,7 +78,7 @@ namespace ngraph
             return version != b.version || strcmp(name, b.name) != 0;
         }
     };
-#if 0
+
     /// \brief Tests if value is a pointer/shared_ptr that can be statically cast to a
     /// Type*/shared_ptr<Type>
     template <typename Type, typename Value>
@@ -91,14 +91,7 @@ namespace ngraph
     {
         return value->get_type_info().is_castable(Type::type_info);
     }
-#else
-    // Used to determine inheritance relation between types if there is no get_type_info defined
-    template <typename Type, typename Value>
-    bool is_type(Value value)
-    {
-        return !!dynamic_cast<const Type*>(&*value);
-    }
-#endif
+
     /// Casts a Value* to a Type* if it is of type Type, nullptr otherwise
     template <typename Type, typename Value>
     typename std::enable_if<
