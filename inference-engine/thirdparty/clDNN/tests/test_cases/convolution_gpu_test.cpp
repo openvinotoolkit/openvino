@@ -6623,7 +6623,7 @@ TEST_P(convolution_depthwise_gpu_fsv16, depthwise_conv_b_fs_yx_fsv16)
 TEST(convolution_depthwise_gpu_fsv16, depthwise_conv_b_fs_yx_fsv16_in_feature_padding) {
     //  Input:                  1x32x2x1
     //  Input padding above:    0x16x0x0
-    //  Input padding below:    0x0x0x0
+    //  Input padding below:    0x64x0x0
     //  Groups:                 32
     //  Filter:                 32x1x1x1x1
     //  Output:                 1x32x2x1
@@ -6666,7 +6666,7 @@ TEST(convolution_depthwise_gpu_fsv16, depthwise_conv_b_fs_yx_fsv16_in_feature_pa
         -19,  21,  -7,   8,   3, -12,  12,  16,  -1,  -4,  -4, -12,   9,  13, -14, -14
     };
 
-    // reorder input to fsv16 format and introduce feature padding above
+    // reorder input to fsv16 format and introduce feature padding
     padding input_padding = padding(input_lower_sizes, input_upper_sizes);
     layout reordered_input_layout = layout(data_types::f32, format::b_fs_yx_fsv16, input_size, input_padding);
 
