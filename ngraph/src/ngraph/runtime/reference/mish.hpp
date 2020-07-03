@@ -30,7 +30,7 @@ namespace ngraph
             {
                 for (size_t i = 0; i < count; i++)
                 {
-                    out[i] = arg[i] < 0 ?  arg[i] * std::tanh(std::log((std::exp(arg[i]) + 1.0))) : arg[i];
+                    out[i] = arg[i] < 0 ? arg[i] * std::tanh(std::log((std::exp(arg[i]) + 1.0))) : arg[i];
                 }
             }
         }
