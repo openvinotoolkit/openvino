@@ -443,6 +443,7 @@ extensions/front/tf/SwitchMergeOptimization.py
 extensions/front/tf/TensorArrayExtractors.py
 extensions/front/tf/TensorArrayGatherV3.py
 extensions/front/tf/tensorflow_custom_operations_config_update.py
+extensions/front/tf/TFNonMaxSuppressionV5ToNonMaxSuppression.py
 extensions/front/tf/tile_ext.py
 extensions/front/tf/topk_ext.py
 extensions/front/tf/transpose_ext.py
