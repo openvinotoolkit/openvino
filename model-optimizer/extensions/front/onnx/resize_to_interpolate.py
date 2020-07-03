@@ -187,7 +187,7 @@ class ResizeToInterpolate3D(FrontReplacementSubgraph):
         interpolate_node = Interpolate(graph,
                                        dict(antialias=0, pads_begin=int64_array([0]), pads_end=int64_array([0]),
                                             coordinate_transformation_mode='half_pixel',
-                                            nearest_mode='round_prefer_floor', cube_coeff=-0.75, version='opset3',
+                                            nearest_mode='round_prefer_floor', cube_coeff=-0.75, version='opset4',
                                             name=resize_node_name + '/Interpolate', mode=resize_node.mode,
                                             axes=int64_array([2, 3, 4]))).create_node()
 
