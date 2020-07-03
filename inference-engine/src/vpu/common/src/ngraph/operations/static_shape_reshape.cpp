@@ -10,9 +10,13 @@ namespace ngraph { namespace vpu { namespace op {
 
 constexpr NodeTypeInfo StaticShapeReshape::type_info;
 
-StaticShapeReshape::StaticShapeReshape(const std::shared_ptr<ngraph::opset3::Reshape>& reshape)
-    : ::ngraph::opset3::Reshape(reshape->get_argument(0), reshape->get_argument(1), reshape->get_special_zero()) {
+StaticShapeReshape::StaticShapeReshape(const Output<Node>& arg, const Output<Node>& pattern, bool special_zero)
+    : ::ngraph::opset3::Reshape(arg, pattern, special_zero) {
     constructor_validate_and_infer_types();
+}
+
+StaticShapeReshape::StaticShapeReshape(const std::shared_ptr<ngraph::opset3::Reshape>& reshape)
+    : StaticShapeReshape(reshape->get_argument(0), reshape->get_argument(1), reshape->get_special_zero()) {
 }
 
 void StaticShapeReshape::validate_and_infer_types() {
