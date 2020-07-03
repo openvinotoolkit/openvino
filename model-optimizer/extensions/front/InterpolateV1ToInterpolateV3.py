@@ -24,7 +24,7 @@ def correct_pad(pad):
     return int64_array([pad] if not isinstance(pad, list) else pad)
 
 
-class InterpolateV1ToInterpolateV3(FrontReplacementSubgraph):
+class InterpolateV1ToInterpolateV4(FrontReplacementSubgraph):
     """
     This transformation replaces the layer Interpolate-1 with the layer Interpolate-3.
     """
