@@ -13,15 +13,15 @@
 
 using namespace InferenceEngine;
 
-// Number of pipeline runs before it starts measuring
+// Maximum values to compute an average for smoothing
+#define AVERAGE_NUM 5
+// Number of pipeline runs before it starts measuring. Real number will be aliquot to AVERAGE_NUM
 #define WARMUP_STEPS 30
 // Number memory peaks ignored. LibC memory manager can produce peaks with
 // overall flat consumption
 #define MAX_OUTLIERS 5
 // Maximum number of measuring pipeline restarts
 #define MAX_RETRY 3
-// Maximum values to compute an average for reference
-#define MAX_AVERAGE 100
 // Size of log line string to pre-allocate
 #define LOG_LINE_RESERVE 1024
 // A threshold for which memory growth will be considered an error
@@ -43,89 +43,100 @@ void transform(const In1& in1, const In2& in2, Out& out, const Func& func) {
 }  // namespace util
 
 TestResult common_test_pipeline(const std::function<void()>& test_pipeline, const int& n) {
+    if (AVERAGE_NUM > n)
+        return TestResult(TestStatus::TEST_FAILED, "Test failed: number of iterations less than defined AVERAGE_NUM");
+
     int retry_count = 0;
-    float mem_threshold = THRESHOLD;
-    std::array<long, MeasureValueMax> cur = {0};           // measured for current iteration
-    std::array<long, MeasureValueMax> ref = {0};           // recorded reference
-    std::array<long, MeasureValueMax> diff = {0};          // difference between current and reference
-    std::array<bool, MeasureValueMax> outlier = {0};       // flag if current does not fit threshold
-    std::array<int, MeasureValueMax> outlier_count = {0};  // counter for how many times current does not fit threshold
-    std::array<float, MeasureValueMax> threshold = {0};    // ref * THRESHOLD
-    std::vector<std::array<long, MeasureValueMax>> past;   // past measures
+    std::array<long, MeasureValueMax> cur {};               // measured for current iteration
+    std::array<long, MeasureValueMax> ref = {-1};           // recorded reference
+    std::array<long, MeasureValueMax> diff {};              // difference between current and reference
+    std::array<bool, MeasureValueMax> outlier {};           // flag if current does not fit threshold
+    std::array<int, MeasureValueMax> outlier_count {};      // counter for how many times current does not fit threshold
+    std::array<float, MeasureValueMax> threshold {};        // ref * THRESHOLD
+    std::vector<std::array<long, MeasureValueMax>> past;    // past measures
+    std::array<long, MeasureValueMax> sliding_avg {};       // sliding average computed as avg of past AVERAGE_NUM values
     std::string progress_str;
 
     progress_str.reserve(LOG_LINE_RESERVE);
-    past.resize(std::min(n / 2, MAX_AVERAGE));
+    past.resize(AVERAGE_NUM);
 
     log_info("Warming up for " << WARMUP_STEPS << " iterations");
     log_info("i\tVMRSS\tVMHWM\tVMSIZE\tVMPEAK\tTHREADS");
-    int measure_count = n;
-    for (size_t iteration = 0; measure_count > 0; iteration++) {
-        // Warm up to take reference values
+
+    for (size_t iteration = 1, measure_count = n / AVERAGE_NUM; ; iteration++) {
+        // run test pipeline and collect metrics
         test_pipeline();
         getVmValues(cur[VMSIZE], cur[VMPEAK], cur[VMRSS], cur[VMHWM]);
         cur[THREADS] = getThreadsNum();
+
         past[iteration % past.size()] = cur;
-        progress_str = std::to_string(iteration + 1) + "\t" + std::to_string(cur[VMRSS]) + "\t" +
-                       std::to_string(cur[VMHWM]) + "\t" + std::to_string(cur[VMSIZE]) + "\t" +
-                       std::to_string(cur[VMPEAK]) + "\t" + std::to_string(cur[THREADS]);
+        if (iteration % AVERAGE_NUM == 0) {
+            // compute sliding average
+            std::fill(sliding_avg.begin(), sliding_avg.end(), 0);
 
-        // measure
-        if (iteration >= WARMUP_STEPS) {
-            // set reference
-            if (WARMUP_STEPS == iteration || (retry_count < MAX_RETRY && (outlier_count[VMRSS] > MAX_OUTLIERS ||
-                                                                          outlier_count[VMHWM] > MAX_OUTLIERS))) {
-                if (0 != retry_count) log_info("Retrying " << retry_count + 1 << " of " << MAX_RETRY);
-                retry_count++;
-                measure_count = n;
-                outlier_count = {0};
-                // set reference as an average of `past` elements
-                ref = {0};
-                size_t past_size = std::min(iteration + 1, past.size());  // count number of past elements
-                for (size_t i = 0; i < past_size; i++) {
-                    // ref = ref + past
-                    util::transform(ref, past[i], ref, [](long ref_val, long past_val) -> long {
-                        return ref_val + past_val;
+            for (size_t i = 0; i < AVERAGE_NUM; i++) {
+                // sliding_avg = sliding_avg + past
+                util::transform(sliding_avg, past[i], sliding_avg,
+                                [](long sliding_avg_val, long past_val) -> long {
+                                    return sliding_avg_val + past_val;
+                                });
+            }
+            // sliding_avg = sliding_avg / AVERAGE_NUM
+            util::transform(sliding_avg, sliding_avg, [](long sliding_avg_val) -> float {
+                return sliding_avg_val / AVERAGE_NUM;
+            });
+
+            progress_str = std::to_string(iteration) + "\t" + std::to_string(sliding_avg[VMRSS]) + "\t" +
+                           std::to_string(sliding_avg[VMHWM]) + "\t" + std::to_string(sliding_avg[VMSIZE]) + "\t" +
+                           std::to_string(sliding_avg[VMPEAK]) + "\t" + std::to_string(sliding_avg[THREADS]);
+            log_info(progress_str);
+
+            // compute test info
+            if (iteration >= WARMUP_STEPS) {
+                // set reference
+                if ((ref == std::array<long, MeasureValueMax> {-1}) ||
+                        (retry_count <= MAX_RETRY &&
+                        (outlier_count[VMRSS] > MAX_OUTLIERS || outlier_count[VMHWM] > MAX_OUTLIERS))) {
+                    if (0 != retry_count) log_info("Retrying " << retry_count << " of " << MAX_RETRY);
+
+                    retry_count++;
+                    measure_count = n / AVERAGE_NUM;
+                    std::fill(outlier_count.begin(), outlier_count.end(), 0);
+                    // set reference as current `sliding_avg`
+                    ref = sliding_avg;
+                    // threshold = THRESHOLD * ref
+                    util::transform(ref, threshold, [](long ref_val) -> float {
+                        return THRESHOLD * ref_val;
                     });
+                    log_info("Setting thresholds:"
+                             << " VMRSS=" << ref[VMRSS] << "(+-" << static_cast<int>(threshold[VMRSS]) << "),"
+                             << " VMHWM=" << ref[VMHWM] << "(+-" << static_cast<int>(threshold[VMHWM]) << ")");
                 }
-                // ref = ref / past_size
-                util::transform(ref, ref, [&past_size](long ref_val) -> float {
-                    return ref_val / past_size;
-                });
-                // threshold = THRESHOLD * ref
-                util::transform(ref, threshold, [](long ref_val) -> float {
-                    return THRESHOLD * ref_val;
-                });
-                log_info("Setting thresholds to average of "
-                         << past_size << " past elements:"
-                         << " VMRSS=" << ref[VMRSS] << "(+-" << static_cast<int>(threshold[VMRSS]) << "),"
-                         << " VMHWM=" << ref[VMHWM] << "(+-" << static_cast<int>(threshold[VMHWM]) << ")");
-            }
-            measure_count--;
-            // diff = cur - ref
-            util::transform(cur, ref, diff, [](long cur_val, long ref_val) -> long {
-                // no labs() here - ignore cur smaller than ref
-                return cur_val - ref_val;
-            });
-            // outlier = diff > threshold
-            util::transform(diff, threshold, outlier, [](long diff_val, float threshold_val) -> bool {
-                return diff_val > threshold_val;
-            });
-            // outlier_count = outlier_count + (outlier ? 1 : 0)
-            util::transform(outlier, outlier_count, outlier_count,
-                            [](bool outlier_val, long outlier_count_val) -> long {
-                                return outlier_count_val + (outlier_val ? 1 : 0);
-                            });
+                else if (measure_count <= 0) {
+                    // exit from main loop
+                    break;
+                }
+                measure_count--;
 
-            if (outlier[VMRSS]) {
-                progress_str += "\t<-VMRSS outlier";
-            }
-            if (outlier[VMHWM]) {
-                progress_str += "\t<-VMHWM outlier";
+                // diff = sliding_avg - ref
+                util::transform(sliding_avg, ref, diff, [](long sliding_avg_val, long ref_val) -> long {
+                    // no labs() here - ignore cur smaller than ref
+                    return sliding_avg_val - ref_val;
+                });
+                // outlier = diff > threshold
+                util::transform(diff, threshold, outlier, [](long diff_val, float threshold_val) -> bool {
+                    return diff_val > threshold_val;
+                });
+                // outlier_count = outlier_count + (outlier ? 1 : 0)
+                util::transform(outlier, outlier_count, outlier_count,
+                                [](bool outlier_val, long outlier_count_val) -> long {
+                                    return outlier_count_val + (outlier_val ? 1 : 0);
+                                });
+
+                if (outlier[VMRSS]) progress_str += "\t<-VMRSS outlier";
+                if (outlier[VMHWM]) progress_str += "\t<-VMHWM outlier";
             }
         }
-
-        log_info(progress_str);
     }
 
     if (outlier_count[VMRSS] > MAX_OUTLIERS)
