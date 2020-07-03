@@ -42,6 +42,5 @@ namespace ngraph
                               const HostTensorVector& inputs) override;
             };
         }
-        using v4::Mish;
     }
 }
