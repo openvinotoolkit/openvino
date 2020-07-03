@@ -44,7 +44,7 @@ namespace {
 
 void forward(const CNNLayerPtr& layer, std::deque<InferenceEngine::CNNLayerPtr>& layers) {
     for (const auto& out : layer->outData) {
-        for (const auto& out_link : out->getInputTo()) {
+        for (const auto& out_link : getInputTo(out)) {
             const auto& nextLayer = out_link.second;
             if (nullptr != nextLayer) {
                 layers.emplace_back(nextLayer);
@@ -82,7 +82,7 @@ void traverse(InferenceEngine::ICNNNetwork& network,
     network.getInputsInfo(inputs);
     for (const auto& input : inputs) {
         const auto data = input.second->getInputData();
-        for (const auto& to : data->getInputTo()) {
+        for (const auto& to : getInputTo(data)) {
             const auto nextLayer = to.second;
             assert(nullptr != nextLayer);
             layers.emplace_back(nextLayer);
@@ -868,7 +868,7 @@ void HeteroExecutableNetwork::ExportImpl(std::ostream& heteroModel) {
         auto outputInfo = subnetwork._clonedNetwork.getOutputsInfo();
         for (auto&& output : outputInfo) {
             auto outputNode = subnetworkOutputsNode.append_child("output");
-            auto creator = output.second->getCreatorLayer().lock();
+            auto creator = getCreatorLayer(output.second).lock();
             outputNode.append_attribute("creatorName").set_value(creator->name.c_str());
             outputNode.append_attribute("name").set_value(output.first.c_str());
             outputNode.append_attribute("precision").set_value(output.second->getPrecision().name());

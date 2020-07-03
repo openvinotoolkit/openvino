@@ -60,7 +60,7 @@ public:
         auto data = _data[dataName];
 
         nextlayer->insData.push_back(data);
-        data->getInputTo().insert({nextlayerName, nextlayer});
+        getInputTo(data).insert({nextlayerName, nextlayer});
         return *this;
     }
 
@@ -71,10 +71,10 @@ public:
 
         auto prevlayer = _layers[prevlayerName];
         auto data = _data[dataName];
-        assert(nullptr == data->getCreatorLayer().lock());
+        assert(nullptr == getCreatorLayer(data).lock());
 
         prevlayer->outData.push_back(data);
-        data->getCreatorLayer() = prevlayer;
+        getCreatorLayer(data) = prevlayer;
         return *this;
     }
 
@@ -111,7 +111,7 @@ public:
         for (auto&& it: _data) {
             auto& data = it.second;
             net->getData(it.first) = data;
-            if (nullptr == data->getCreatorLayer().lock()) {
+            if (nullptr == getCreatorLayer(data).lock()) {
                 auto input = std::make_shared<IE::InputInfo>();
                 input->setInputData(data);
                 net->setInputInfo(input);

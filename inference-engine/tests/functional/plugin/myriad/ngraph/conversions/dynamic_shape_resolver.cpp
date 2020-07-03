@@ -44,7 +44,7 @@ protected:
 private:
     void triggerConversionToCNNNetwork() {
         // convert to old representation
-        cnnNetwork.getInputsInfo().begin()->second->getInputData()->getCreatorLayer();
+        getCreatorLayer(cnnNetwork.getInputsInfo().begin()->second->getInputData());
     }
 
     static const char s_FriendlyName[];

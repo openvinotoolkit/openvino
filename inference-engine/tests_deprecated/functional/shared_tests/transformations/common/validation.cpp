@@ -121,9 +121,9 @@ void LowPrecisionTransformationValidation::validateWeightsToConst(
     const std::vector<CNNLayerPtr> layers = InferenceEngine::details::CNNNetSortTopologically(network);
     for (const CNNLayerPtr layer : layers) {
         if ((layer->type == "FakeQuantize") && CNNNetworkHelper::onWeights(*layer) && (layer->outData.size() == 1) &&
-            (layer->outData[0]->getInputTo().begin()->second->type == "Convolution")) {
+            (getInputTo(layer->outData[0]).begin()->second->type == "Convolution")) {
             CNNLayerPtr childLayer = CNNNetworkHelper::getChildren(*layer)[0];
-            if (params.quantizeOutputs || (childLayer->outData[0]->getInputTo().size() != 0)) {
+            if (params.quantizeOutputs || (getInputTo(childLayer->outData[0]).size() != 0)) {
                 ASSERT_TRUE(notTransformedLayers.find(childLayer->name) != notTransformedLayers.end()) <<
                     "FakeQuantize on weights was found: " << layer->name <<
                     " for layer " << childLayer->name;
@@ -142,7 +142,7 @@ Precision getInputPrecision(const CNNLayer& layer) {
         THROW_IE_EXCEPTION << "input data is nullable";
     }
 
-    CNNLayerPtr layerParent = layerParentData->getCreatorLayer().lock();
+    CNNLayerPtr layerParent = getCreatorLayer(layerParentData).lock();
     if (layerParent == nullptr) {
         THROW_IE_EXCEPTION << "parent is nullable";
     }
@@ -155,7 +155,7 @@ Precision getInputPrecision(const CNNLayer& layer) {
 
         // TODO: workaround for the first Convolution:
         // Issue-26622: [IE COMMON][LPT] Check if ScaleShift is dequantization ScaleShift(dequantizationLayersNames) before to apply transformation
-        CNNLayerPtr eltwiseParent = eltwiseParentData->getCreatorLayer().lock();
+        CNNLayerPtr eltwiseParent = getCreatorLayer(eltwiseParentData).lock();
         if (eltwiseParent->type == "Input") {
             return Precision::U8;
         }
@@ -185,7 +185,7 @@ void LowPrecisionTransformationValidation::validatePrecision(
             continue;
         }
 
-        if ((!params.quantizeOutputs) && (layer->outData[0]->getInputTo().size() == 0ul)) {
+        if ((!params.quantizeOutputs) && (getInputTo(layer->outData[0]).size() == 0ul)) {
             continue;
         }
 
@@ -199,7 +199,7 @@ void LowPrecisionTransformationValidation::validatePrecision(
 
             if (!params.quantizeOutputs) {
                 const std::vector<CNNLayerPtr> children = CNNNetworkHelper::getChildrenRecursivelyExceptTypes(*layer, { "ScaleShift" });
-                if ((children.size() == 0ul) || (children[0]->outData.size() == 0ul) || (children[0]->outData[0]->getInputTo().size() == 0ul)) {
+                if ((children.size() == 0ul) || (children[0]->outData.size() == 0ul) || (getInputTo(children[0]->outData[0]).size() == 0ul)) {
                     continue;
                 }
             }
@@ -237,7 +237,7 @@ void LowPrecisionTransformationValidation::validatePrecision(
                 ASSERT_TRUE((children[0]->type == "Convolution") || (children[0]->type == "FullyConnected") || (children[0]->type == "GEMM")) <<
                     "unexpected child type " << children[0]->type << " '" << children[0]->name << "' for layer " << layer->type << " '" << layer->name << "' on weights";
 
-                if (children[0]->outData[0]->getInputTo().size() == 0) {
+                if (getInputTo(children[0]->outData[0]).size() == 0) {
                     // output data precision depends on device
                     continue;
                 }
@@ -415,7 +415,7 @@ void LowPrecisionTransformationValidation::validateWithReference(
         }
 
         // TODO: last layer is ignored
-        if ((it->second->outData.size() != 0) && (it->second->outData[0]->getInputTo().size() == 0)) {
+        if ((it->second->outData.size() != 0) && (getInputTo(it->second->outData[0]).size() == 0)) {
             continue;
         }
 
@@ -482,7 +482,7 @@ void LowPrecisionTransformationValidation::validateFakeQuantize(
         const std::vector<CNNLayerPtr> children = CNNNetworkHelper::getChildren(*layer);
         for (const CNNLayerPtr& child : children) {
             for (const DataPtr data : child->outData) {
-                if (data->getInputTo().size() == 0ul) {
+                if (getInputTo(data).size() == 0ul) {
                     return;
                 }
             }

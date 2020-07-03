@@ -169,7 +169,7 @@ CNNLayer::Ptr NodeConverter<ngraph::op::TensorIterator>::createLayer(const std::
         for (const auto& param : parameters) {
             auto info = in_info_map_with_parameters.at(param->get_friendly_name());
             auto data_ptr = info->getInputData();
-            auto input_to = data_ptr->getInputTo();
+            auto input_to = getInputTo(data_ptr);
             for (const auto& next_layer : input_to) {
                 auto port_idx = find_input_idx(next_layer.second, data_ptr);
                 ngraph_parameter_id_to_ie_layer_port[counter].push_back({next_layer.first, port_idx});
@@ -190,7 +190,7 @@ CNNLayer::Ptr NodeConverter<ngraph::op::TensorIterator>::createLayer(const std::
         // This deep copy will hold all unreachable constants. See the comment in CopyTIBody function.
         auto deep_cp_body = InferenceEngine::NetPass::CopyTIBody(temp_body);
         for (const auto& data_ptr : deep_cp_body.inputs) {
-            auto input_to = data_ptr->getInputTo();
+            auto input_to = getInputTo(data_ptr);
             for (const auto& node : input_to) {
                 // Make it compatible with ir v7: delete Input layers in body
                 if (node.second->type != "Input") {
@@ -212,7 +212,7 @@ CNNLayer::Ptr NodeConverter<ngraph::op::TensorIterator>::createLayer(const std::
     for (const auto& input_layer : body_input_layers) {
         // Save all constants to the holder so that they are not deleted.
         if (input_layer->insData.empty()) {
-            holder->getInputTo()[input_layer->name] = input_layer;
+            getInputTo(holder)[input_layer->name] = input_layer;
             continue;
         }
 
@@ -225,7 +225,7 @@ CNNLayer::Ptr NodeConverter<ngraph::op::TensorIterator>::createLayer(const std::
 
                 DataPtr data(new Data(data_name, layer_name_to_tensor_desc[input_layer->name][i]));
                 input_layer->insData[i] = data;
-                data->getInputTo()[input_layer->name] = input_layer;
+                getInputTo(data)[input_layer->name] = input_layer;
                 in_info_map[data_name] = data;
             }
         }
@@ -242,7 +242,7 @@ CNNLayer::Ptr NodeConverter<ngraph::op::TensorIterator>::createLayer(const std::
         res->body.inputs.emplace_back(in.second);
 
         // Fill the map to get the input index by layer and port of the body.
-        auto input_to = in.second->getInputTo();
+        auto input_to = getInputTo(in.second);
         for (const auto& next_layer : input_to) {
             auto port_idx = find_input_idx(next_layer.second, in.second);
             ie_layer_port_to_tensor_iterator_input_id[{next_layer.first, port_idx}] = counter;

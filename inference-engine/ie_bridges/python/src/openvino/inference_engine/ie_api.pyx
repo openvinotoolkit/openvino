@@ -717,7 +717,7 @@ cdef class DataPtr:
 
     @property
     def creator_layer(self):
-        cdef C.CNNLayerWeakPtr _l_ptr = deref(self._ptr).getCreatorLayer()
+        cdef C.CNNLayerWeakPtr _l_ptr = C.getCreatorLayer(self._ptr)
         cdef IENetLayer creator_layer
         creator_layer = IENetLayer()
         if _l_ptr.lock() != NULL:
@@ -728,7 +728,7 @@ cdef class DataPtr:
 
     @property
     def input_to(self):
-        cdef map[string, C.CNNLayerPtr] _l_ptr_map = deref(self._ptr).getInputTo()
+        cdef map[string, C.CNNLayerPtr] _l_ptr_map = C.getInputTo(self._ptr)
         cdef IENetLayer input_to
         input_to_list = []
         for layer in _l_ptr_map:
@@ -759,28 +759,6 @@ cdef class CDataPtr:
     @property
     def initialized(self):
         return deref(self._ptr).isInitialized()
-
-    # TODO: Resolve compilation error
-    # @property
-    # def creator_layer(self):
-    #     cdef C.CNNLayerWeakPtr _l_ptr = deref(self._ptr).getCreatorLayer()
-    #     cdef IENetLayer creator_layer
-    #     creator_layer = IENetLayer()
-    #     if _l_ptr.lock() != NULL:
-    #         creator_layer._ptr = _l_ptr.lock()
-    #     else:
-    #         raise RuntimeError("Creator IENetLayer of DataPtr object with name {} already released!".format(self.name))
-    #     return creator_layer
-    # @property
-    # def input_to(self):
-    #     cdef map[string, C.CNNLayerPtr] _l_ptr_map = deref(self._ptr).getInputTo()
-    #     cdef IENetLayer input_to
-    #     input_to_list = []
-    #     for layer in _l_ptr_map:
-    #         input_to = IENetLayer()
-    #         input_to._ptr = layer.second
-    #         input_to_list.append(input_to)
-    #     return input_to_list
 
 
 ## This class represents a network instance loaded to plugin and ready for inference.
@@ -1293,6 +1271,7 @@ cdef class IENetLayer:
     @params.setter
     def params(self, new_params):
         deref(self._ptr).params = dict_to_c_map(new_params)
+
     ## Returns a list, which contains names of layers preceding this layer
     @property
     def parents(self):
@@ -1312,11 +1291,10 @@ cdef class IENetLayer:
         cdef map[string, C.CNNLayerPtr] _l_ptr_map
         input_to_list = []
         for l in c_outs:
-            _l_ptr_map = deref(l).getInputTo()
+            _l_ptr_map = C.getInputTo(l)
             for layer in _l_ptr_map:
                 input_to_list.append(deref(layer.second).name.decode())
         return input_to_list
-
     ## \note This property is deprecated.
     # Please, use out_data property to access DataPtr objects for all output ports, which contains full
     # information about layer's output data including layout

@@ -1431,7 +1431,7 @@ void SpaceToBatchValidator::parseParams(CNNLayer* layer) {
         if (dataPtr->getTensorDesc().getPrecision() != Precision::I32
                 && dataPtr->getTensorDesc().getPrecision() != Precision::I64)
             THROW_IE_EXCEPTION << "'" << layerName << "' layer has invalid input precision";
-        auto creator = dataPtr->getCreatorLayer().lock();
+        auto creator = getCreatorLayer(dataPtr).lock();
         if (creator == nullptr)
             THROW_IE_EXCEPTION << "'" << layerName << "' layer has nullable input layer";
 
@@ -1497,7 +1497,7 @@ void BatchToSpaceValidator::parseParams(CNNLayer* layer) {
         if (dataPtr->getTensorDesc().getPrecision() != Precision::I32
                 && dataPtr->getTensorDesc().getPrecision() != Precision::I64)
             THROW_IE_EXCEPTION << "'" << layerName << "' layer has invalid input precision";
-        auto creator = dataPtr->getCreatorLayer().lock();
+        auto creator = getCreatorLayer(dataPtr).lock();
         if (creator == nullptr)
             THROW_IE_EXCEPTION << "'" << layerName << "' layer has nullable input layer";
 

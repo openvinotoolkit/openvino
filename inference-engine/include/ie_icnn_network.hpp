@@ -19,7 +19,6 @@
 #include "ie_data.h"
 #include "ie_iextension.h"
 #include "ie_input_info.hpp"
-#include "ie_layers.h"
 #include "ie_preprocess.hpp"
 
 namespace ngraph {

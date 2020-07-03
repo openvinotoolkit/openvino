@@ -111,7 +111,7 @@ void MKLDNNGraph::Replicate(const TensorIterator::Body &subgraph, const MKLDNNEx
     std::unordered_set<DataPtr> unused_data;  // nodes which has no consumers (output or just unused)
 
     auto _parent_port = [] (const DataPtr &data) -> int {
-        auto parent = data->getCreatorLayer().lock();
+        auto parent = getCreatorLayer(data).lock();
         for (int i = 0; parent->outData.size(); i++)
             if (data == parent->outData[i])
                 return i;
@@ -136,7 +136,7 @@ void MKLDNNGraph::Replicate(const TensorIterator::Body &subgraph, const MKLDNNEx
 
         for (int port = 0; port < layer->insData.size(); port++) {
             auto data = layer->insData[port].lock();
-            auto parent_layer = data->getCreatorLayer().lock();
+            auto parent_layer = getCreatorLayer(data).lock();
             if (!parent_layer) continue;  // no parent means that it is input data node (or memory/const layer)
 
             auto parent_node = layer2node[parent_layer];
@@ -146,14 +146,14 @@ void MKLDNNGraph::Replicate(const TensorIterator::Body &subgraph, const MKLDNNEx
             graphEdges.push_back(edge);
         }
         for (auto &out_data : layer->outData) {
-            if (out_data->getInputTo().empty()) {
+            if (getInputTo(out_data).empty()) {
                 unused_data.insert(out_data);
             }
         }
     }
 
     for (const auto &output : subgraph.outputs) {
-        auto parent_layer = output->getCreatorLayer().lock();
+        auto parent_layer = getCreatorLayer(output).lock();
         auto parent_node = layer2node[parent_layer];
 
         CNNLayerPtr layer(new CNNLayer({"out_" + output->getName(), "Output", output->getTensorDesc().getPrecision()}));
@@ -173,7 +173,7 @@ void MKLDNNGraph::Replicate(const TensorIterator::Body &subgraph, const MKLDNNEx
 
     // Add stub output node for unused data
     for (auto to_stub_data : unused_data) {
-        auto parent_layer = to_stub_data->getCreatorLayer().lock();
+        auto parent_layer = getCreatorLayer(to_stub_data).lock();
         auto parent_node = layer2node[parent_layer];
 
         CNNLayerPtr layer(new CNNLayer({"stub_" + parent_layer->name, "Output", to_stub_data->getTensorDesc().getPrecision()}));
@@ -196,7 +196,7 @@ void MKLDNNGraph::Replicate(const TensorIterator::Body &subgraph, const MKLDNNEx
 
         const MKLDNNNodePtr node(MKLDNNNode::CreateNode(layer, getEngine(), extMgr, weightsCache));
 
-        for (auto p : input->getInputTo()) {
+        for (auto p : getInputTo(input)) {
             auto consumer = p.second;
             MKLDNNEdgePtr edge(new MKLDNNEdge(node, layer2node[consumer], 0, _child_port(input, consumer)));
             node->addEdge(edge);
@@ -220,7 +220,7 @@ void MKLDNNGraph::Replicate(const ICNNNetwork &network, const MKLDNNExtensionMan
     // The input layer precision has to be equal to the InputData precision
     std::map<std::string, Precision> changedPrecision;
     for (const auto& input : inputs) {
-        auto inputLayer = input.second->getInputData()->getCreatorLayer().lock();
+        auto inputLayer = getCreatorLayer(input.second->getInputData()).lock();
         if (inputLayer) {
             inputLayer->precision = inputLayer->outData[0]->getTensorDesc().getPrecision();
         }
@@ -230,7 +230,7 @@ void MKLDNNGraph::Replicate(const ICNNNetwork &network, const MKLDNNExtensionMan
     std::unordered_set<DataPtr> unused_data;  // nodes which has no consumers (output or just unused)
 
     auto _parent_port = [] (const DataPtr &data) -> int {
-        auto parent = data->getCreatorLayer().lock();
+        auto parent = getCreatorLayer(data).lock();
         for (int i = 0; parent->outData.size(); i++)
             if (data == parent->outData[i])
                 return i;
@@ -258,7 +258,7 @@ void MKLDNNGraph::Replicate(const ICNNNetwork &network, const MKLDNNExtensionMan
 
         for (int port = 0; port < layer->insData.size(); port++) {
             auto data = layer->insData[port].lock();
-            auto parent_layer = data->getCreatorLayer().lock();
+            auto parent_layer = getCreatorLayer(data).lock();
             if (!parent_layer) continue;  // no parent means that it is input data node (or memory/const layer)
 
             auto parent_node = layer2node[parent_layer];
@@ -268,7 +268,7 @@ void MKLDNNGraph::Replicate(const ICNNNetwork &network, const MKLDNNExtensionMan
             graphEdges.push_back(edge);
         }
         for (auto &out_data : layer->outData) {
-            if (out_data->getInputTo().empty()) {
+            if (getInputTo(out_data).empty()) {
                 unused_data.insert(out_data);
             }
         }
@@ -280,7 +280,7 @@ void MKLDNNGraph::Replicate(const ICNNNetwork &network, const MKLDNNExtensionMan
     for (const auto &output : outputs) {
         const auto data = output.second;
 
-        auto parent_layer = data->getCreatorLayer().lock();
+        auto parent_layer = getCreatorLayer(data).lock();
         auto parent_node = layer2node[parent_layer];
 
         CNNLayerPtr layer(new CNNLayer({"out_" + output.first, "Output", data->getTensorDesc().getPrecision()}));
@@ -300,7 +300,7 @@ void MKLDNNGraph::Replicate(const ICNNNetwork &network, const MKLDNNExtensionMan
 
     // Add stub output node for unused data
     for (auto to_stub_data : unused_data) {
-        auto parent_layer = to_stub_data->getCreatorLayer().lock();
+        auto parent_layer = getCreatorLayer(to_stub_data).lock();
         auto parent_node = layer2node[parent_layer];
 
         CNNLayerPtr layer(new CNNLayer({"stub_" + parent_layer->name, "Output", to_stub_data->getTensorDesc().getPrecision()}));
@@ -316,7 +316,7 @@ void MKLDNNGraph::Replicate(const ICNNNetwork &network, const MKLDNNExtensionMan
 
     // Replicate input nodes
     for (const auto& input : inputs) {
-        auto inputLayer = input.second->getInputData()->getCreatorLayer().lock();
+        auto inputLayer = getCreatorLayer(input.second->getInputData()).lock();
         inputNodes[input.first] = layer2node[inputLayer];
 
         // Loading mean images

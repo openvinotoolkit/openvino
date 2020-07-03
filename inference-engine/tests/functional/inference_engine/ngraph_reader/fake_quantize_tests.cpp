@@ -258,6 +258,6 @@ TEST_F(NGraphReaderTests, ReadFQNetwork) {
 
     IE_SUPPRESS_DEPRECATED_START
     // convert to old representation
-    cnn.getInputsInfo().begin()->second->getInputData()->getCreatorLayer();
+    getCreatorLayer(cnn.getInputsInfo().begin()->second->getInputData());
     IE_SUPPRESS_DEPRECATED_END
 }

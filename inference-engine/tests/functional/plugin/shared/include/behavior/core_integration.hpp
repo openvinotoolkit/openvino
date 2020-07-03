@@ -110,9 +110,7 @@ public:
         for (auto input : networkInputs) {
             InputInfo::Ptr q = input.second;
             DataPtr p = q->getInputData();
-            IE_SUPPRESS_DEPRECATED_START
-            layer = p->getInputTo().begin()->second;
-            IE_SUPPRESS_DEPRECATED_END
+            layer = getInputTo(p).begin()->second;
         }
 
         std::map<std::string, std::string> deviceMapping = {

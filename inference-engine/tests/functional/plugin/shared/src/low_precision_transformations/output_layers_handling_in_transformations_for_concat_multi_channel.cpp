@@ -134,15 +134,15 @@ void OutputLayersHandlingInTransformationsForConcatMultiChannel::validate() {
 
     const auto concatIt = outputs.find("concat");
     EXPECT_TRUE(concatIt != outputs.end());
-    EXPECT_EQ("ScaleShift", concatIt->second->getCreatorLayer().lock()->type);
+    EXPECT_EQ("ScaleShift", getCreatorLayer(concatIt->second).lock()->type);
 
     const auto fakeQuantize2It = outputs.find("fakeQuantize2");
     EXPECT_TRUE(fakeQuantize2It != outputs.end());
-    EXPECT_EQ("ScaleShift", fakeQuantize2It->second->getCreatorLayer().lock()->type);
+    EXPECT_EQ("ScaleShift", getCreatorLayer(fakeQuantize2It->second).lock()->type);
 
     const auto convolutionIt = outputs.find("convolution");
     EXPECT_TRUE(convolutionIt != outputs.end());
-    EXPECT_EQ("ScaleShift", convolutionIt->second->getCreatorLayer().lock()->type);
+    EXPECT_EQ("ScaleShift", getCreatorLayer(convolutionIt->second).lock()->type);
 
     IE_SUPPRESS_DEPRECATED_END
 }

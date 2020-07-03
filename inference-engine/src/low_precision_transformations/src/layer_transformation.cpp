@@ -324,7 +324,7 @@ Precision LayerTransformation::getPrecisionParent(const CNNLayer& layer) {
     }
 
     for (const DataPtr outData : parent->outData) {
-        const auto inputTo = outData->getInputTo();
+        const auto inputTo = getInputTo(outData);
         for (auto it = inputTo.begin(); it != inputTo.end(); ++it) {
             if (it->second->name == layer.name) {
                 return outData->getPrecision();

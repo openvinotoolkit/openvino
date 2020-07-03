@@ -129,7 +129,7 @@ TEST(CNNNGraphImplTests, TestGetOutputAfterConvertNetwork) {
 
     InferenceEngine::CNNNetwork cnnNet(ngraph);
     // convert to old representation
-    cnnNet.getInputsInfo().begin()->second->getInputData()->getCreatorLayer();
+    getCreatorLayer(cnnNet.getInputsInfo().begin()->second->getInputData());
     cnnNet.addOutput(testLayerName);
 
     InferenceEngine::OutputsDataMap outs = cnnNet.getOutputsInfo();
@@ -270,7 +270,7 @@ TEST(CNNNGraphImplTests, TestAddOutputFromConvertedNetwork) {
     ASSERT_NE(nullptr, cnnNet.getFunction());
     ASSERT_EQ(5, cnnNet.layerCount());
     // convert to old representation
-    cnnNet.getInputsInfo().begin()->second->getInputData()->getCreatorLayer();
+    getCreatorLayer(cnnNet.getInputsInfo().begin()->second->getInputData());
     auto outputs = cnnNet.getOutputsInfo();
     ASSERT_EQ(2, outputs.size());
     ASSERT_TRUE(outputs.find("relu2") != outputs.end());
@@ -296,7 +296,7 @@ TEST(CNNNGraphImplTests, ConstantAsInternalAndExternalLayer) {
 
     InferenceEngine::CNNNetwork cnnNet(ngraph);
     // convert to old representation
-    cnnNet.getInputsInfo().begin()->second->getInputData()->getCreatorLayer();
+    getCreatorLayer(cnnNet.getInputsInfo().begin()->second->getInputData());
     ASSERT_EQ(4, cnnNet.layerCount());
 }
 
@@ -419,7 +419,7 @@ TEST(CNNNGraphImplTests, SavePrimitivesPriority) {
 
     auto network = ie.ReadNetwork(model, weights);
     auto inputInfo = network.getInputsInfo();
-    auto cnnLayer = inputInfo.begin()->second->getInputData()->getCreatorLayer().lock();
+    auto cnnLayer = getCreatorLayer(inputInfo.begin()->second->getInputData()).lock();
     ASSERT_TRUE(cnnLayer);
     ASSERT_NE(cnnLayer->params.find("PrimitivesPriority"), cnnLayer->params.end());
     ASSERT_EQ("cpu:avx2", cnnLayer->params["PrimitivesPriority"]);
@@ -515,7 +515,7 @@ TEST(CNNNGraphImplTests, CanChangeInputPrecision) {
         SCOPED_TRACE("Convert to old format");
 
         // convert to old representation
-        cnnNet.getInputsInfo().begin()->second->getInputData()->getCreatorLayer();
+        getCreatorLayer(cnnNet.getInputsInfo().begin()->second->getInputData());
     }
     {
         SCOPED_TRACE("After conversion");
@@ -562,7 +562,7 @@ TEST(CNNNGraphImplTests, CanChangeInputLayout) {
         SCOPED_TRACE("Convert to old format");
 
         // convert to old representation
-        cnnNet.getInputsInfo().begin()->second->getInputData()->getCreatorLayer();
+        getCreatorLayer(cnnNet.getInputsInfo().begin()->second->getInputData());
     }
     {
         SCOPED_TRACE("After conversion");
@@ -609,7 +609,7 @@ TEST(CNNNGraphImplTests, CanChangeOutputPrecision) {
         SCOPED_TRACE("Convert to old format");
 
         // convert to old representation
-        cnnNet.getInputsInfo().begin()->second->getInputData()->getCreatorLayer();
+        getCreatorLayer(cnnNet.getInputsInfo().begin()->second->getInputData());
     }
     {
         SCOPED_TRACE("After conversion");
@@ -656,7 +656,7 @@ TEST(CNNNGraphImplTests, CanChangeOutputLayout) {
         SCOPED_TRACE("Convert to old format");
 
         // convert to old representation
-        cnnNet.getInputsInfo().begin()->second->getInputData()->getCreatorLayer();
+        getCreatorLayer(cnnNet.getInputsInfo().begin()->second->getInputData());
     }
     {
         SCOPED_TRACE("After conversion");

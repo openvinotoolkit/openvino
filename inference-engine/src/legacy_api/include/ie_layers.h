@@ -23,6 +23,14 @@
 #include "ie_data.h"
 #include "ie_layers_property.hpp"
 
+#if defined IMPLEMENT_INFERENCE_ENGINE_API || defined IMPLEMENT_INFERENCE_ENGINE_PLUGIN
+# define INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(...) INFERENCE_ENGINE_API_CLASS(__VA_ARGS__)
+#else
+# define INFERENCE_ENGINE_INTERNAL_CNNLAYER_CLASS(...)                                                                           \
+    INFERENCE_ENGINE_INTERNAL("Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1") \
+    INFERENCE_ENGINE_API_CLASS(__VA_ARGS__)
+#endif
+
 namespace ngraph {
 
 class Node;
@@ -378,6 +386,11 @@ public:
 IE_SUPPRESS_DEPRECATED_START
 using GenericLayer = class CNNLayer;
 IE_SUPPRESS_DEPRECATED_END
+
+INFERENCE_ENGINE_API_CPP(CNNLayerWeakPtr&) getCreatorLayer(const DataPtr & data);
+
+INFERENCE_ENGINE_API_CPP(std::map<std::string, CNNLayerPtr>&) getInputTo(const DataPtr & data);
+INFERENCE_ENGINE_API_CPP(std::map<std::string, CNNLayerPtr>&) getInputTo(Data * data);
 
 IE_SUPPRESS_DEPRECATED_START_WIN
 

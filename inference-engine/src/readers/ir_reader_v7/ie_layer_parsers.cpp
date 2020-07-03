@@ -123,7 +123,7 @@ public:
         // Mark data as network output. Just for check
         for (const auto& kvp : outputs) {
             auto& data = kvp.second;
-            auto layer = data->getCreatorLayer().lock();
+            auto layer = getCreatorLayer(data).lock();
             auto& outs = layer->outData;
             auto o_idx = std::find(outs.begin(), outs.end(), data) - outs.begin();
             auto sts = net->addOutput(layer->name, o_idx, nullptr);
@@ -144,7 +144,7 @@ public:
                 continue;
             if (!holder)
                 holder = std::make_shared<Data>("const_holder", Precision::UNSPECIFIED);
-            holder->getInputTo()[it.first] = layer;
+            getInputTo(holder)[it.first] = layer;
         }
     }
 

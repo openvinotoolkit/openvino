@@ -139,7 +139,7 @@ void OutputController::propagateShapes(const std::set<ReshapeLauncher::Ptr>& lau
     checkCorrespondence();
     unsigned idx = 0;
     for (auto const& outData : _dataVec) {
-        for (auto const& inputTo : outData->getInputTo()) {
+        for (auto const& inputTo : getInputTo(outData)) {
             CNNLayerPtr layer = inputTo.second;
             if (layer == nullptr) {
                 THROW_IE_EXCEPTION << "Failed to propagate shapes for layer (" << inputTo.first
@@ -162,7 +162,7 @@ void OutputController::propagateShapes(const std::set<ReshapeLauncher::Ptr>& lau
 void OutputController::propagateBlobs(const std::set<ReshapeLauncher::Ptr>& launchers) {
     unsigned idx = 0;
     for (auto const& outData : _dataVec) {
-        for (auto const& inputTo : outData->getInputTo()) {
+        for (auto const& inputTo : getInputTo(outData)) {
             CNNLayerPtr layer = inputTo.second;
             if (layer == nullptr) {
                 THROW_IE_EXCEPTION << "Failed to propagate shapes for layer (" << inputTo.first

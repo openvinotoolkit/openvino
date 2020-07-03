@@ -512,7 +512,7 @@ void FrontEnd::getInputAndOutputData(
 
             // Skip adding data if it not utilized
             const bool isNetworkOutput = _ieParsedNetwork.networkOutputs.count(layerOutput->getName()) > 0;
-            const auto isLeaf = layerOutput->getInputTo().empty();
+            const auto isLeaf = getInputTo(layerOutput).empty();
             if (!isNetworkOutput && isLeaf) {
                 outputs[i] = nullptr;
                 continue;

@@ -42,7 +42,7 @@ TEST_P(CNNNetworkSerializerTest, Serialize) {
     {
         IE_SUPPRESS_DEPRECATED_START
         // convert to old representation
-        originalNetwork.getInputsInfo().begin()->second->getInputData()->getCreatorLayer();
+        getCreatorLayer(originalNetwork.getInputsInfo().begin()->second->getInputData());
         IE_SUPPRESS_DEPRECATED_END
     }
     originalNetwork.getInputsInfo().begin()->second->setPrecision(_netPrc);

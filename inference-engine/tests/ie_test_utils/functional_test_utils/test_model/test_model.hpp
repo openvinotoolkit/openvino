@@ -7,6 +7,7 @@
 #include <string>
 #include <vector>
 
+#include "ie_layers.h"
 #include "inference_engine.hpp"
 
 namespace FuncTestUtils {

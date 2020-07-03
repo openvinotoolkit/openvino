@@ -112,11 +112,11 @@ namespace vpu {
             auto parent = stageMetaIndexToLayer[dataMetaData.parentIndex];
             data = std::make_shared<::InferenceEngine::Data>(dataMetaData.name, dataMetaData.desc);
             parent->outData.push_back(data);
-            data->getCreatorLayer() = parent;
+            getCreatorLayer(data) = parent;
 
             for (auto &childMetaIndex : dataMetaData.childrenIndices) {
                 auto child = stageMetaIndexToLayer[childMetaIndex];
-                data->getInputTo()[child->name] = child;
+                getInputTo(data)[child->name] = child;
                 child->insData.push_back(data);
             }
         }

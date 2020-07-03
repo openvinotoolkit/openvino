@@ -70,7 +70,7 @@ intel_dnn_component_t * GNAGraphCompiler::find_first_unused_input(InferenceEngin
     if (inData == nullptr)
         return nullptr;
 
-    auto prev_layer = inData->getCreatorLayer().lock();
+    auto prev_layer = getCreatorLayer(inData).lock();
 
     return dnnComponents.findComponent(prev_layer);
 }
@@ -131,7 +131,7 @@ void GNAGraphCompiler::fillSplitConnections(InferenceEngine::CNNLayerPtr layer) 
     if (!dataInput) {
         THROW_GNA_LAYER_EXCEPTION(layer) << "Input layer pointer is unexpectedly absent";
     }
-    auto ptrSplitLayerInput = dataInput->getCreatorLayer().lock();
+    auto ptrSplitLayerInput = getCreatorLayer(dataInput).lock();
     if (!ptrSplitLayerInput) {
         THROW_GNA_LAYER_EXCEPTION(layer) << "Input layer for is unexpectedly absent";
     }
@@ -141,7 +141,7 @@ void GNAGraphCompiler::fillSplitConnections(InferenceEngine::CNNLayerPtr layer) 
         size_t output_layer_size = 0;
 
 
-        for (int j = 0; j != layer->outData[i]->getInputTo().size(); j++) {
+        for (int j = 0; j != getInputTo(layer->outData[i]).size(); j++) {
             auto outFunctionalLayer = CNNNetGetNextLayerSkipCertain(layer, i, j,  [](CNNLayerPtr l) {
                 return LayerInfo(l).isNonFunctional();
             });
@@ -533,7 +533,7 @@ void GNAGraphCompiler::ConcatPrimitive(InferenceEngine::CNNLayerPtr layer) {
     }
 
     auto& concatLayerInfo = concat_connection.find(concatLayer->name)->second;
-    for (auto &&outLayer : concatLayer->outData.front()->getInputTo()) {
+    for (auto &&outLayer : getInputTo(concatLayer->outData.front())) {
         if ( LayerInfo(outLayer.second).isConcat() ) {
             connectOutput(layer, &concatLayerInfo.gna_ptr, concatLayerInfo.reserved_size);
         }
@@ -555,7 +555,7 @@ void GNAGraphCompiler::ConcatPrimitive(InferenceEngine::CNNLayerPtr layer) {
         }
         IE_ASSERT(it != concatLayerInput->insData.size());
         auto layerInfo = LayerInfo(concatParent);
-        // auto layerInfo = LayerInfo(concatLayerInput->insData[it].lock()->getCreatorLayer().lock());
+        // auto layerInfo = LayerInfo(getCreatorLayer(concatLayerInput->insData[it].lock()).lock());
         if (layerInfo.isInput()) {
             if (concatLayerInfo.input_allocated) {
                 // for concat input allocated only once, so lets mark this specific input layer also as allocated
@@ -632,7 +632,7 @@ void GNAGraphCompiler::CropPrimitive(InferenceEngine::CNNLayerPtr layer) {
         connectInput(layer, &cropLayerInfo->second.gna_ptr, cropOutputSize + cropOffset, cropOffset, 0);
 
         // cases for certain output layers
-        for (auto&& outLayer : layer->outData.front()->getInputTo()) {
+        for (auto&& outLayer : getInputTo(layer->outData.front())) {
             auto& nextLayer = outLayer.second;
             if (LayerInfo(nextLayer).isConcat()) {
                 connectOutput(layer, &cropLayerInfo->second.gna_ptr, cropOutputSize);
@@ -1520,7 +1520,7 @@ void GNAGraphCompiler::connectOutput(InferenceEngine::CNNLayerPtr layer, void *p
     gnalog() << "Connecting output " << layer->name << " ...\n";
     // in case of Memory Layer it's input allocated in meminput layer
     if (layer->outData.size() == 1) {
-        for (int j = 0; j != layer->outData.front()->getInputTo().size(); j++) {
+        for (int j = 0; j != getInputTo(layer->outData.front()).size(); j++) {
             auto isNonFunctional = [](CNNLayerPtr l) {
                 return LayerInfo(l).isNonFunctional();
             };
@@ -1560,7 +1560,7 @@ void GNAGraphCompiler::connectOutput(InferenceEngine::CNNLayerPtr layer, void *p
         // if one of next direct or via split layers is concat...
         auto concatChild = [](CNNLayerPtr layer) {
             CNNLayerPtr concat;
-            for (auto &&outLayer : layer->outData.front()->getInputTo()) {
+            for (auto &&outLayer : getInputTo(layer->outData.front())) {
                 auto nextLayer = outLayer.second;
                 if (LayerInfo(nextLayer).isConcat()) {
                     concat = nextLayer;
@@ -1570,7 +1570,7 @@ void GNAGraphCompiler::connectOutput(InferenceEngine::CNNLayerPtr layer, void *p
         };
         auto splitChild = [](CNNLayerPtr layer) {
             std::list<CNNLayerPtr> split;
-            for (auto &&outLayer : layer->outData.front()->getInputTo()) {
+            for (auto &&outLayer : getInputTo(layer->outData.front())) {
                 auto nextLayer = outLayer.second;
                 if (LayerInfo(nextLayer).isSplit() || LayerInfo(nextLayer).isNonFunctional()) {
                     split.push_back(nextLayer);

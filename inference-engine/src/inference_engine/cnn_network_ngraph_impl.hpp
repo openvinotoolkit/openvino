@@ -149,20 +149,9 @@ public:
         network = nullptr;
     }
 
-    CNNLayerWeakPtr& getCreatorLayer() override {
-        if (Data::getCreatorLayer().lock() == nullptr && network != nullptr) {
-            network->convertToCNNNetworkImpl();
-        }
-        return Data::getCreatorLayer();
-    }
+    CNNLayerWeakPtr& getCreatorLayer();
 
-    std::map<std::string, CNNLayerPtr>& getInputTo() override {
-        if (Data::getInputTo().empty() && network != nullptr) {
-            network->convertToCNNNetworkImpl();
-        }
-
-        return Data::getInputTo();
-    }
+    std::map<std::string, CNNLayerPtr>& getInputTo();
 
 private:
     CNNNetworkNGraphImpl* network;
