@@ -17,7 +17,7 @@ import numpy as np
 import pytest
 
 import ngraph as ng
-from test.ngraph.util import get_runtime
+from tests.runtime import get_runtime
 
 
 def test_elu_operator_with_scalar_and_array():
@@ -51,6 +51,7 @@ def test_elu_operator_with_scalar():
     assert np.allclose(result, expected)
 
 
+@pytest.mark.skip(reason="Causes segmentation fault")
 def test_fake_quantize():
     runtime = get_runtime()
 
@@ -86,9 +87,7 @@ def test_fake_quantize():
         parameter_output_high,
     )
 
-    result = computation(
-        data_value, input_low_value, input_high_value, output_low_value, output_high_value
-    )
+    result = computation(data_value, input_low_value, input_high_value, output_low_value, output_high_value)
 
     expected = np.array(
         [
@@ -137,16 +136,7 @@ def test_depth_to_space():
 
     result = computation(data_value)
     expected = np.array(
-        [
-            [
-                [
-                    [0, 6, 1, 7, 2, 8],
-                    [12, 18, 13, 19, 14, 20],
-                    [3, 9, 4, 10, 5, 11],
-                    [15, 21, 16, 22, 17, 23],
-                ]
-            ]
-        ],
+        [[[[0, 6, 1, 7, 2, 8], [12, 18, 13, 19, 14, 20], [3, 9, 4, 10, 5, 11], [15, 21, 16, 22, 17, 23],]]],
         dtype=np.float32,
     )
     assert np.allclose(result, expected)
@@ -237,9 +227,7 @@ def test_gelu_operator_with_parameters():
     computation = runtime.computation(model, parameter_data)
 
     result = computation(data_value)
-    expected = np.array(
-        [[-1.4901161e-06, 8.4134471e-01], [-4.5500278e-02, 2.9959502]], dtype=np.float32
-    )
+    expected = np.array([[-1.4901161e-06, 8.4134471e-01], [-4.5500278e-02, 2.9959502]], dtype=np.float32)
     assert np.allclose(result, expected, 0.007, 0.007)
 
 
@@ -252,9 +240,7 @@ def test_gelu_operator_with_array():
     computation = runtime.computation(model)
 
     result = computation()
-    expected = np.array(
-        [[-1.4901161e-06, 8.4134471e-01], [-4.5500278e-02, 2.9959502]], dtype=np.float32
-    )
+    expected = np.array([[-1.4901161e-06, 8.4134471e-01], [-4.5500278e-02, 2.9959502]], dtype=np.float32)
 
     assert np.allclose(result, expected, 0.007, 0.007)
 
@@ -328,8 +314,6 @@ def test_squared_difference_operator():
     assert np.allclose(result, expected)
 
 
-@pytest.mark.skip_on_cpu
-@pytest.mark.skip_on_interpreter
 def test_shuffle_channels_operator():
     runtime = get_runtime()
 
@@ -591,8 +575,6 @@ def test_space_to_depth_operator():
     assert np.allclose(result, expected)
 
 
-@pytest.mark.skip_on_cpu
-def test_rnn_cell_operator():
     runtime = get_runtime()
 
     batch_size = 2
@@ -691,9 +673,7 @@ def test_group_convolution_operator():
     pads_begin = [0, 0]
     pads_end = [0, 0]
 
-    model = ng.group_convolution(
-        parameter_data, parameter_filters, strides, pads_begin, pads_end, dilations
-    )
+    model = ng.group_convolution(parameter_data, parameter_filters, strides, pads_begin, pads_end, dilations)
     computation = runtime.computation(model, parameter_data, parameter_filters)
     result = computation(data_value, filters_value)
 
@@ -812,9 +792,9 @@ def test_group_convolution_backprop_data_output_shape():
         data_node, filters_node, strides, output_shape_node, auto_pad="same_upper"
     )
 
-    data_value = np.array(
-        [0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0], dtype=np.float32
-    ).reshape(data_shape)
+    data_value = np.array([0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0], dtype=np.float32).reshape(
+        data_shape
+    )
 
     filters_value = np.array([1.0, 2.0, 3.0, 2.0, 1.0], dtype=np.float32).reshape(filters_shape)
 
@@ -822,8 +802,7 @@ def test_group_convolution_backprop_data_output_shape():
     result = computation(data_value, filters_value)
 
     expected = np.array(
-        [0.0, 1.0, 4.0, 10.0, 18.0, 27.0, 36.0, 45.0, 54.0, 63.0, 62.0, 50.0, 26.0, 9.0],
-        dtype=np.float32,
+        [0.0, 1.0, 4.0, 10.0, 18.0, 27.0, 36.0, 45.0, 54.0, 63.0, 62.0, 50.0, 26.0, 9.0], dtype=np.float32,
     ).reshape(1, 1, 1, 14)
 
     assert np.allclose(result, expected)

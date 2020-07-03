@@ -19,7 +19,8 @@ import numpy as np
 import pytest
 
 import ngraph as ng
-from test.ngraph.util import get_runtime, run_op_node
+from tests.runtime import get_runtime
+from tests.test_ngraph.util import run_op_node
 
 
 @pytest.mark.parametrize(
@@ -95,11 +96,7 @@ def test_binary_op_with_scalar(ng_api_helper, numpy_function):
 
 @pytest.mark.parametrize(
     "ng_api_helper,numpy_function",
-    [
-        (ng.logical_and, np.logical_and),
-        (ng.logical_or, np.logical_or),
-        (ng.logical_xor, np.logical_xor),
-    ],
+    [(ng.logical_and, np.logical_and), (ng.logical_or, np.logical_or), (ng.logical_xor, np.logical_xor),],
 )
 def test_binary_logical_op(ng_api_helper, numpy_function):
     runtime = get_runtime()
@@ -121,11 +118,7 @@ def test_binary_logical_op(ng_api_helper, numpy_function):
 
 @pytest.mark.parametrize(
     "ng_api_helper,numpy_function",
-    [
-        (ng.logical_and, np.logical_and),
-        (ng.logical_or, np.logical_or),
-        (ng.logical_xor, np.logical_xor),
-    ],
+    [(ng.logical_and, np.logical_and), (ng.logical_or, np.logical_or), (ng.logical_xor, np.logical_xor),],
 )
 def test_binary_logical_op_with_scalar(ng_api_helper, numpy_function):
     runtime = get_runtime()
