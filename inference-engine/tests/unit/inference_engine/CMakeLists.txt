@@ -9,7 +9,7 @@ addIeTargetTest(
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
         LINK_LIBRARIES
             unitTestUtils
-            inference_engine_ir_reader_v7
+            inference_engine_ir_v7_reader
         ADD_CPPLINT
         DEPENDENCIES
             mock_engine
