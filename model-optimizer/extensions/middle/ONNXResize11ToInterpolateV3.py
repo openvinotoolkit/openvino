@@ -28,7 +28,7 @@ from mo.ops.shape import Shape
 from mo.ops.strided_slice import StridedSlice
 
 
-class ONNXResize11ToInterpolate3(MiddleReplacementPattern):
+class ONNXResize11ToInterpolate4(MiddleReplacementPattern):
     """
     The transformation replaces ONNX Resize 11 with Interpolate-3.
     """
