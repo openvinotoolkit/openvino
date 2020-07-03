@@ -14,20 +14,17 @@
 # limitations under the License.
 # ******************************************************************************
 
+from typing import Any, Callable, List
+
 import numpy as np
+
 import ngraph as ng
 from ngraph.utils.types import NumericData
-from typing import Any, Callable, List
-import test
+from tests.runtime import get_runtime
 
 
 def _get_numpy_dtype(scalar):
     return np.array([scalar]).dtype
-
-
-def get_runtime():
-    """Return runtime object."""
-    return ng.runtime(backend_name=test.BACKEND_NAME)
 
 
 def run_op_node(input_data, op_fun, *args):

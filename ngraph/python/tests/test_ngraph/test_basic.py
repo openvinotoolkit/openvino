@@ -13,16 +13,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ******************************************************************************
-import numpy as np
-import pytest
 import json
 
-import ngraph as ng
-from ngraph.impl import Function
-from ngraph.exceptions import UserInputError
+import numpy as np
+import pytest
 
-import test
-from test.ngraph.util import get_runtime, run_op_node
+import ngraph as ng
+from ngraph.exceptions import UserInputError
+from ngraph.impl import Function
+from tests.runtime import get_runtime
+from tests.test_ngraph.util import run_op_node
 
 
 def test_ngraph_function_api():
@@ -86,14 +86,13 @@ def test_simple_computation_on_ndarrays(dtype):
 
 def test_serialization():
     dtype = np.float32
-    backend_name = test.BACKEND_NAME
-
     shape = [2, 2]
     parameter_a = ng.parameter(shape, dtype=dtype, name="A")
     parameter_b = ng.parameter(shape, dtype=dtype, name="B")
     parameter_c = ng.parameter(shape, dtype=dtype, name="C")
     model = (parameter_a + parameter_b) * parameter_c
-    runtime = ng.runtime(backend_name=backend_name)
+
+    runtime = get_runtime()
     computation = runtime.computation(model, parameter_a, parameter_b, parameter_c)
     try:
         serialized = computation.serialize(2)
@@ -209,7 +208,7 @@ def test_bad_data_shape():
     A = ng.parameter(shape=[2, 2], name="A", dtype=np.float32)
     B = ng.parameter(shape=[2, 2], name="B")
     model = A + B
-    runtime = ng.runtime(backend_name="INTERPRETER")
+    runtime = get_runtime()
     computation = runtime.computation(model, A, B)
 
     value_a = np.array([[1, 2]], dtype=np.float32)
@@ -240,8 +239,9 @@ def test_constant_get_data_floating_point(data_type):
 @pytest.mark.parametrize("data_type", [np.int64, np.int32, np.int16, np.int8])
 def test_constant_get_data_signed_integer(data_type):
     np.random.seed(133391)
-    input_data = np.random.randint(np.iinfo(data_type).min, np.iinfo(data_type).max,
-                                   size=[2, 3, 4], dtype=data_type)
+    input_data = np.random.randint(
+        np.iinfo(data_type).min, np.iinfo(data_type).max, size=[2, 3, 4], dtype=data_type
+    )
     node = ng.constant(input_data, dtype=data_type)
     retrieved_data = node.get_data()
     assert np.allclose(input_data, retrieved_data)
@@ -252,9 +252,7 @@ def test_constant_get_data_unsigned_integer(data_type):
     np.random.seed(133391)
     input_data = np.random.randn(2, 3, 4).astype(data_type)
     input_data = (
-        np.iinfo(data_type).min
-        + input_data * np.iinfo(data_type).max
-        + input_data * np.iinfo(data_type).max
+        np.iinfo(data_type).min + input_data * np.iinfo(data_type).max + input_data * np.iinfo(data_type).max
     )
     node = ng.constant(input_data, dtype=data_type)
     retrieved_data = node.get_data()
@@ -264,11 +262,12 @@ def test_constant_get_data_unsigned_integer(data_type):
 def test_backend_config():
     dummy_config = {"dummy_option": "dummy_value"}
     # Expect no throw
-    ng.runtime(backend_name=test.BACKEND_NAME).set_config(dummy_config)
+    runtime = get_runtime()
+    runtime.set_config(dummy_config)
 
 
 def test_result():
     node = [[11, 10], [1, 8], [3, 4]]
 
-    result = test.ngraph.util.run_op_node([node], ng.ops.result)
+    result = util.run_op_node([node], ng.ops.result)
     assert np.allclose(result, node)
