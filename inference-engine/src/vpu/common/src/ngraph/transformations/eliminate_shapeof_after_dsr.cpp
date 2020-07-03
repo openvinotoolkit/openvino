@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "vpu/ngraph/transformations/dynamic_to_static_shape_shapeof.hpp"
+#include "vpu/ngraph/transformations/eliminate_shapeof_after_dsr.hpp"
 
 #include <vpu/ngraph/operations/dynamic_shape_resolver.hpp>
 #include <vpu/utils/error.hpp>
@@ -11,7 +11,7 @@
 
 namespace vpu {
 
-DynamicToStaticShapeShapeOf::DynamicToStaticShapeShapeOf() : GraphRewrite() {
+EliminateShapeOfAfterDSR::EliminateShapeOfAfterDSR() : GraphRewrite() {
     // We don't set strict_mode when use pattern Matcher,
     // so we can set any type and shape for input.
     auto inputWithAnyTypeAndShape = std::make_shared<ngraph::pattern::op::Label>(
@@ -33,7 +33,7 @@ DynamicToStaticShapeShapeOf::DynamicToStaticShapeShapeOf() : GraphRewrite() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(shapeOfPattern, "DynamicToStaticShapeShapeOf");
+    auto m = std::make_shared<ngraph::pattern::Matcher>(shapeOfPattern, "EliminateShapeOfAfterDSR");
     this->add_matcher(m, callback, ngraph::pass::PassProperty::CHANGE_DYNAMIC_STATE);
 }
 
