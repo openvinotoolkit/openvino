@@ -81,7 +81,7 @@ class Connection:
         if self.control_flow is True:
             raise Error("Cannot operate with connection with control_flow=True")
 
-        if self.graph.stage == 'front':
+        if self.graph.stage in ['front', None]:
             scr_node = port.node
             # Reconnecting all destinations as consumers to the source port preserving edge attrs
             for dst_port in self.destinations:
@@ -204,7 +204,7 @@ class Connection:
         if self.source is None:
             raise Error("Can not add destination for connection without source port!")
 
-        if self.graph.stage == 'front':
+        if self.graph.stage in ['front', None]:
             node = self.source.node
             self.graph.create_edge(node, port.node, out_port=self.source.idx, in_port=port.idx)
         else:

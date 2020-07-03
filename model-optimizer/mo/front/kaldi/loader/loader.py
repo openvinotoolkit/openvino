@@ -32,7 +32,7 @@ def load_parallel_component(file_descr, graph: Graph, prev_layer_id):
     """
     Load ParallelComponent of the Kaldi model.
     ParallelComponent contains parallel nested networks.
-    Slice is inserted before nested networks.
+    VariadicSplit is inserted before nested networks.
     Outputs of nested networks concatenate with layer Concat.
 
     :param file_descr: descriptor of the model file
@@ -53,13 +53,12 @@ def load_parallel_component(file_descr, graph: Graph, prev_layer_id):
         g = Graph()
         load_kalid_nnet1_model(g, file_descr, 'Nested_net_{}'.format(i))
 
-        input_nodes = [n for n in g.nodes(data=True) if n[1]['op'] == 'Parameter']
-        if len(input_nodes) == 1:
-            shape = input_nodes[0][1]['shape']
-            split_points.append(shape[1])
-            g.remove_node(input_nodes[0][0])
-        else:
-            raise Error('NestedNnet with multiple inputs is not supported')
+        # input to nnet1 models is of a rank 1 but we also insert batch_size to 0th axis
+        # 1st axis contains input_size of the nested subnetwork
+        # we split input from the main network to subnetworks
+        input_node = Node(g, 'Parameter')
+        split_points.append(input_node['shape'][1])
+        g.remove_node(input_node.id)
 
         mapping = {node: graph.unique_id(node) for node in g.nodes(data=False) if node in graph}
         g = nx.relabel_nodes(g, mapping)
@@ -69,26 +68,27 @@ def load_parallel_component(file_descr, graph: Graph, prev_layer_id):
         graph.add_edges_from(g.edges(data=True))
         sorted_nodes = tuple(nx.topological_sort(g))
 
-        outputs.append(sorted_nodes[-1])
-        inputs.append(sorted_nodes[0])
+        outputs.append(Node(graph, sorted_nodes[-1]))
+        inputs.append(Node(graph, sorted_nodes[0]))
 
-    split_id = graph.unique_id(prefix='NestedNets/Split')
-    mapping_rule = {'out_ports_count': nnet_count, 'size_splits': split_points, 'axis': 1, 'name': split_id}
-    split_node = AttributedVariadicSplit(graph, mapping_rule).create_node()
-    Node(graph, prev_layer_id).add_output_port(0)
-    graph.create_edge(Node(graph, prev_layer_id), split_node, 0, 0)
+    split_id = graph.unique_id(prefix='NestedNets/VariadicSplit')
+    attrs = {'out_ports_count': nnet_count, 'size_splits': split_points, 'axis': 1, 'name': split_id}
+    variadic_split_node = AttributedVariadicSplit(graph, attrs).create_node()
+    prev_layer_node  = Node(graph, prev_layer_id)
+    prev_layer_node.add_output_port(0)
+    prev_layer_node.out_port(0).connect(variadic_split_node.in_port(0))
 
     concat_id = graph.unique_id(prefix='Concat')
     graph.add_node(concat_id, parameters=None, op='concat', kind='op')
+    concat_node = Node(graph, concat_id)
 
-    for i, (input, output) in enumerate(zip(inputs, outputs)):
-        # Connect each output of split_node to each subnetwork's inputs in ParallelComponent
-        # and each subnetwork's output to concat_node
-        Node(graph, output).add_output_port(0)
-        Node(graph, concat_id).add_input_port(i)
-        graph.create_edge(Node(graph, output), Node(graph, concat_id), 0, i)
-        graph.create_edge(split_node, Node(graph, input), i, 0)
-
+    # Connect each output of variadic_split_node to each subnetwork's inputs in ParallelComponent
+    # and each subnetwork's output to concat_node
+    for i, (input_node, output_node) in enumerate(zip(inputs, outputs)):
+        output_node.add_output_port(0)
+        concat_node.add_input_port(i)
+        output_node.out_port(0).connect(concat_node.in_port(i))
+        variadic_split_node.out_port(i).connect(input_node.in_port(0))
     return concat_id
 
 
