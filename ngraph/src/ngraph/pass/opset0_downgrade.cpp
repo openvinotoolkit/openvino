@@ -216,42 +216,6 @@ namespace
         return replacement_node;
     }
 
-    shared_ptr<Node> op_cast(shared_ptr<op::v1::ConvolutionBackpropData> node)
-    {
-        const auto data_arg = node->input_value(0);
-        const auto filters_arg = node->input_value(1);
-
-        auto data_pshape = data_arg.get_partial_shape();
-        auto filters_pshape = filters_arg.get_partial_shape();
-
-        NGRAPH_CHECK(data_pshape.rank().is_static() && data_pshape[0].is_static() &&
-                         filters_pshape.rank().is_static() && filters_pshape[1].is_static(),
-                     "Unable to convert ConvolutionBackpropData:v1 to ConvolutionBackpropData:v0 "
-                     "if data shape N and filters shape C dimensions are not static. Node: ",
-                     *node);
-
-        const size_t num_spatial_dims = data_pshape.rank().get_length() - 2;
-
-        const PartialShape output_pshape{node->get_output_partial_shape(0)};
-        NGRAPH_CHECK(output_pshape.is_static(),
-                     "Unable to convert ConvolutionBackpropData:v1 to ConvolutionBackpropData:v0 "
-                     "if output shape is dynamic. Node: ",
-                     *node);
-        Shape output_shape = output_pshape.to_shape();
-
-        auto replacement_node =
-            make_shared<op::v0::ConvolutionBackpropData>(output_shape,
-                                                         filters_arg,
-                                                         data_arg,
-                                                         node->get_strides(),
-                                                         node->get_dilations(),
-                                                         node->get_pads_begin(),
-                                                         node->get_pads_end(),
-                                                         Strides(num_spatial_dims, 1));
-        replace_node(node, replacement_node);
-        return replacement_node;
-    }
-
     shared_ptr<Node> op_cast(shared_ptr<op::v1::ConvolutionBackpropFilters> node)
     {
         NGRAPH_CHECK(node->input_value(2).get_node_shared_ptr()->is_constant());
