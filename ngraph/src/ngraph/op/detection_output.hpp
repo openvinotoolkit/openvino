@@ -22,7 +22,7 @@ namespace ngraph
 {
     namespace op
     {
-        typedef struct
+        typedef struct DetectionOutputAttrs_
         {
             int num_classes;
             int background_label_id = 0;
