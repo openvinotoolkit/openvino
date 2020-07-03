@@ -102,7 +102,7 @@ def replace_interpolate_pattern(graph: Graph, match: dict):
                               dict(name=split_node_name + '/Interpolate_', axes=int64_array([axis]), mode='nearest',
                                    antialias=0, pads_begin=int64_array([0]), pads_end=int64_array([0]),
                                    coordinate_transformation_mode='half_pixel', nearest_mode='round_prefer_floor',
-                                   cube_coeff=-0.75, version='opset3')).create_node()
+                                   cube_coeff=-0.75, version='opset4')).create_node()
     mul_node.out_port(0).connect(interp_node.in_port(1))
 
     match['concat'].out_port(0).get_connection().set_source(interp_node.out_port(0))
