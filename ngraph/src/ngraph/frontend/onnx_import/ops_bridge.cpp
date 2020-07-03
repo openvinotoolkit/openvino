@@ -57,6 +57,7 @@
 #include "op/exp.hpp"
 #include "op/expand.hpp"
 #include "op/eye_like.hpp"
+#include "op/fake_quantize.hpp"
 #include "op/flatten.hpp"
 #include "op/floor.hpp"
 #include "op/gather.hpp"
@@ -392,6 +393,9 @@ namespace ngraph
             REGISTER_OPERATOR("Upsample", 9, upsample);
             REGISTER_OPERATOR("Where", 1, where);
             REGISTER_OPERATOR("Xor", 1, logical_xor);
+
+            // TODO Change the domain
+            m_map[""]["FakeQuantize"].emplace(1, op::set_1::fake_quantize);
         }
 
 #undef REGISTER_OPERATOR
