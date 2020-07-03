@@ -52,7 +52,7 @@ class Interpolate(Op):
                 ('axes', lambda node: ','.join(map(str, node.axes))),
                 'mode', 'align_corners', 'antialias', 'pads_begin', 'pads_end',
             ],
-            'opset3': [
+            'opset4': [
                 ('axes', lambda node: ','.join(map(str, node.axes))),
                 'mode', 'antialias', 'nearest_mode', 'cube_coeff', 'coordinate_transformation_mode',
                 ('pads_begin', lambda node: pad_attribute_to_str(node, 'pads_begin')),
@@ -76,7 +76,7 @@ class Interpolate(Op):
 
         infers = {
             'opset1': Interpolate.infer_for_opset1,
-            'opset3': Interpolate.infer_for_opset3,
+            'opset4': Interpolate.infer_for_opset4,
         }
         if node.has_valid('version') and node.version in infers:
             infer_func = infers[node.version]
@@ -102,7 +102,7 @@ class Interpolate(Op):
         PermuteAttrs.create_permute_attrs(node, attrs=[('axes', 'input:0')])
 
     @staticmethod
-    def infer_for_opset3(node: Node):
+    def infer_for_opset4(node: Node):
         src_shape = node.in_port(0).data.get_shape()
         assert src_shape is not None
 

@@ -52,7 +52,7 @@ class CanBeFused:
         # We need to accumulate set of axes of compared nodes, because there can be a sequence of a set of axes
         #   {i}{j}{i}
         self.accumulated_axes = set()
-        self.default_values_for_opset3 = {
+        self.default_values_for_opset4 = {
             'mode': None,
             'coordinate_transformation_mode': 'half_pixel',
             'nearest_mode': 'round_prefer_floor',
@@ -80,9 +80,9 @@ class CanBeFused:
             for attr in ['mode', 'align_corners', 'antialias', 'pads_begin', 'pads_end']:
                 if first.soft_get(attr, default=op.attrs[attr]) != second.soft_get(attr, default=op.attrs[attr]):
                     return False
-        elif fst_opset == 'opset3':
-            for attr in self.default_values_for_opset3.keys():
-                default_value = self.default_values_for_opset3[attr]
+        elif fst_opset == 'opset4':
+            for attr in self.default_values_for_opset4.keys():
+                default_value = self.default_values_for_opset4[attr]
                 if first.soft_get(attr, default=default_value) != second.soft_get(attr, default=default_value):
                     return False
 
@@ -148,7 +148,7 @@ def get_interpolate_attributes(node: Node) -> dict:
             'pads_end': 0,
             'version': 'opset1'
         },
-        'opset3': {
+        'opset4': {
             'mode': None,
             'antialias': 0,
             'pads_begin': int64_array([0]),
