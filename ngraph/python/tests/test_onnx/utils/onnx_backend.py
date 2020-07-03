@@ -22,6 +22,7 @@ https://github.com/onnx/onnx/blob/master/docs/Implementing%20an%20ONNX%20backend
 
 from typing import Any, Dict, List, Optional, Sequence, Text, Tuple
 
+import numpy
 import onnx
 from onnx.backend.base import Backend, BackendRep
 from onnx.helper import make_graph, make_model, make_tensor_value_info
@@ -40,7 +41,7 @@ class OpenVinoOnnxBackendRep(BackendRep):
         self.computation = self.runtime.computation(ng_model_function)
 
     def run(self, inputs, **kwargs):  # type: (Any, **Any) -> Tuple[Any, ...]
-        """A handle which Backend returns after preparing to execute a model repeatedly."""
+        """Run computation on model."""
         return self.computation(*inputs)
 
 
@@ -48,7 +49,7 @@ class OpenVinoOnnxBackend(Backend):
     @classmethod
     def is_compatible(
         cls,
-        model,  # type: ModelProto
+        model,  # type: onnx.ModelProto
         device="CPU",  # type: Text
         **kwargs  # type: Any
     ):  # type: (...) -> bool
@@ -62,7 +63,7 @@ class OpenVinoOnnxBackend(Backend):
     @classmethod
     def prepare(
         cls,
-        onnx_model,  # type: ModelProto
+        onnx_model,  # type: onnx.ModelProto
         device="CPU",  # type: Text
         **kwargs  # type: Any
     ):  # type: (...) -> OpenVinoOnnxBackendRep
@@ -74,7 +75,7 @@ class OpenVinoOnnxBackend(Backend):
     @classmethod
     def run_model(
         cls,
-        model,  # type: ModelProto
+        model,  # type: onnx.ModelProto
         inputs,  # type: Any
         device="CPU",  # type: Text
         **kwargs  # type: Any
@@ -84,7 +85,7 @@ class OpenVinoOnnxBackend(Backend):
     @classmethod
     def run_node(
         cls,
-        node,  # type: NodeProto
+        node,  # type: onnx.NodeProto
         inputs,  # type: Any
         device="CPU",  # type: Text
         outputs_info=None,  # type: Optional[Sequence[Tuple[numpy.dtype, Tuple[int, ...]]]]
@@ -117,8 +118,8 @@ class OpenVinoOnnxBackend(Backend):
 
     @classmethod
     def supports_device(cls, device):  # type: (Text) -> bool
-        """
-        Checks whether the backend is compiled with particular device support.
+        """Check whether the backend is compiled with particular device support.
+
         In particular it's used in the testing suite.
         """
         return device != "CUDA"

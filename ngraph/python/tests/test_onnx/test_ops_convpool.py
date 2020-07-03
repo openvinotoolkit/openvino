@@ -412,6 +412,6 @@ def test_pool_global_average_3d(ndarray_1x1x4x4):
     x = np.broadcast_to(ndarray_1x1x4x4, (1, 1, 4, 4, 4))
 
     node = onnx.helper.make_node("GlobalAveragePool", inputs=["x"], outputs=["y"])
-    y = np.array([18.5], dtype=np.float32).reshape([test_ops_logical.py])
+    y = np.array([18.5], dtype=np.float32).reshape([1, 1, 1, 1, 1])
     ng_results = run_node(node, [x])
     assert np.array_equal(ng_results, [y])

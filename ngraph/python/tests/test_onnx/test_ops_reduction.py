@@ -218,7 +218,7 @@ def test_reduce_prod():
     )
 
 
-@pytest.mark.parametrize("reduction_axes", [(0,), (0, 2), (0, 1, 2),])
+@pytest.mark.parametrize("reduction_axes", [(0,), (0, 2), (0, 1, 2)])
 def test_reduce_l1(reduction_axes):
     shape = [2, 4, 3, 2]
     np.random.seed(133391)
@@ -255,7 +255,7 @@ def test_reduce_l1_default_axes():
     assert np.allclose(expected, ng_result)
 
 
-@pytest.mark.parametrize("reduction_axes", [(0,), (0, 2), (0, 1, 2),])
+@pytest.mark.parametrize("reduction_axes", [(0,), (0, 2), (0, 1, 2)])
 def test_reduce_l2(reduction_axes):
     shape = [2, 4, 3, 2]
     np.random.seed(133391)
@@ -293,7 +293,7 @@ def test_reduce_l2_default_axes():
     assert np.allclose(expected, ng_result)
 
 
-@pytest.mark.parametrize("reduction_axes", [(0,), (0, 2), (0, 1, 2),])
+@pytest.mark.parametrize("reduction_axes", [(0,), (0, 2), (0, 1, 2)])
 def test_reduce_log_sum(reduction_axes):
     shape = [2, 4, 3, 2]
     np.random.seed(133391)
@@ -367,7 +367,7 @@ def test_reduce_log_sum_exp():
     )
 
 
-@pytest.mark.parametrize("reduction_axes", [(0,), (0, 2), (0, 1, 2),])
+@pytest.mark.parametrize("reduction_axes", [(0,), (0, 2), (0, 1, 2)])
 def test_reduce_sum_square(reduction_axes):
     shape = [2, 4, 3, 2]
     np.random.seed(133391)

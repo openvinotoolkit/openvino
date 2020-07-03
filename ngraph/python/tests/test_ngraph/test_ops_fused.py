@@ -136,7 +136,7 @@ def test_depth_to_space():
 
     result = computation(data_value)
     expected = np.array(
-        [[[[0, 6, 1, 7, 2, 8], [12, 18, 13, 19, 14, 20], [3, 9, 4, 10, 5, 11], [15, 21, 16, 22, 17, 23],]]],
+        [[[[0, 6, 1, 7, 2, 8], [12, 18, 13, 19, 14, 20], [3, 9, 4, 10, 5, 11], [15, 21, 16, 22, 17, 23]]]],
         dtype=np.float32,
     )
     assert np.allclose(result, expected)
@@ -284,13 +284,13 @@ def test_squeeze_operator():
 
     data_shape = [1, 2, 1, 3, 1, 1]
     parameter_data = ng.parameter(data_shape, name="Data", dtype=np.float32)
-    data_value = np.arange(6.0, dtype=np.float32).reshape(1, 2, 1, 3, 1, 1)
+    data_value = np.arange(6.0, dtype=np.float32).reshape([1, 2, 1, 3, 1, 1])
     axes = [2, 4]
     model = ng.squeeze(parameter_data, axes)
     computation = runtime.computation(model, parameter_data)
 
     result = computation(data_value)
-    expected = np.arange(6.0, dtype=np.float32).reshape(1, 2, 3, 1)
+    expected = np.arange(6.0, dtype=np.float32).reshape([1, 2, 3, 1])
     assert np.allclose(result, expected)
 
 
@@ -365,14 +365,14 @@ def test_unsqueeze():
     computation = runtime.computation(model, parameter_data)
 
     result = computation(data_value)
-    expected = np.arange(60.0, dtype=np.float32).reshape(1, 3, 4, 5, 1)
+    expected = np.arange(60.0, dtype=np.float32).reshape([1, 3, 4, 5, 1])
     assert np.allclose(result, expected)
 
 
 def test_grn_operator():
     runtime = get_runtime()
 
-    data_value = np.arange(start=1.0, stop=25.0, dtype=np.float32).reshape(1, 2, 3, 4)
+    data_value = np.arange(start=1.0, stop=25.0, dtype=np.float32).reshape([1, 2, 3, 4])
     bias = np.float32(1e-6)
 
     data_shape = [1, 2, 3, 4]
@@ -573,9 +573,6 @@ def test_space_to_depth_operator():
         dtype=np.float32,
     ).reshape(1, 8, 2, 2)
     assert np.allclose(result, expected)
-
-
-    runtime = get_runtime()
 
     batch_size = 2
     input_size = 3

@@ -48,7 +48,7 @@ def test_reshape_opset5():
     }
     input_data = np.random.random_sample(original_shape).astype(np.float32)
 
-    for test_name, shape in test_cases.items():
+    for _, shape in test_cases.items():
         const_node = make_node(
             "Constant",
             inputs=[],
@@ -198,7 +198,7 @@ def test_concat():
         "3d": ([[[1, 2], [3, 4]], [[5, 6], [7, 8]]], [[[9, 10], [11, 12]], [[13, 14], [15, 16]]]),
     }
 
-    for test_case, values in test_cases.items():
+    for _, values in test_cases.items():
         values = [np.asarray(v) for v in values]
         for i in range(len(values[0].shape)):
             in_args = ["value" + str(k) for k in range(len(values))]

@@ -134,7 +134,7 @@ def test_ceil(input_data):
 
 @pytest.mark.parametrize(
     "min_value, max_value",
-    [(np.finfo(np.float32).min, np.finfo(np.float32).max), (-0.5, 0.5), (0.0, np.finfo(np.float32).max),],
+    [(np.finfo(np.float32).min, np.finfo(np.float32).max), (-0.5, 0.5), (0.0, np.finfo(np.float32).max)],
 )
 def test_clip(min_value, max_value):
     np.random.seed(133391)
@@ -175,7 +175,7 @@ def test_reciprocal(input_data):
     assert np.allclose(ng_results, [expected_output])
 
 
-@pytest.mark.parametrize("axis, dim1, dim2", [(0, 1, 60), (1, 3, 20), (2, 12, 5),])
+@pytest.mark.parametrize("axis, dim1, dim2", [(0, 1, 60), (1, 3, 20), (2, 12, 5)])
 def test_hardmax(axis, dim1, dim2):
     def hardmax_2d(data):
         return np.eye(data.shape[1], dtype=data.dtype)[np.argmax(data, axis=1)]
@@ -220,7 +220,7 @@ def test_hardmax_special_cases():
 
 
 def test_hardsigmoid():
-    def hardsigmoid(data, alpha=float(0.2), beta=float(0.5)):
+    def hardsigmoid(data, alpha=0.2, beta=0.5):
         return np.clip(alpha * data + beta, 0, 1)
 
     np.random.seed(133391)
@@ -370,7 +370,7 @@ def test_identity():
     assert np.array_equal(ng_results[0], expected_result)
 
 
-@pytest.mark.parametrize("val_type, input_data", [(np.dtype(bool), np.zeros((2, 2), dtype=int)),])
+@pytest.mark.parametrize("val_type, input_data", [(np.dtype(bool), np.zeros((2, 2), dtype=int))])
 def test_cast_to_bool(val_type, input_data):
     expected = np.array(input_data, dtype=val_type)
 
@@ -410,7 +410,7 @@ def test_cast_to_int(val_type):
 
 
 @pytest.mark.parametrize(
-    "val_type", [np.dtype(np.uint8), np.dtype(np.uint16), np.dtype(np.uint32), np.dtype(np.uint64),]
+    "val_type", [np.dtype(np.uint8), np.dtype(np.uint16), np.dtype(np.uint32), np.dtype(np.uint64)]
 )
 def test_cast_to_uint(val_type):
     np.random.seed(133391)
@@ -491,7 +491,7 @@ def test_cast_errors():
         import_onnx_model(model)
 
 
-@pytest.mark.parametrize("value_type", [np.float32, np.float64,])
+@pytest.mark.parametrize("value_type", [np.float32, np.float64])
 def test_constant(value_type):
     values = np.random.randn(5, 5).astype(value_type)
     node = onnx.helper.make_node(

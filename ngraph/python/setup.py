@@ -239,6 +239,7 @@ data_files = [
         [
             os.path.join(NGRAPH_CPP_LIBRARY_DIR, library)
             for library in os.listdir(NGRAPH_CPP_LIBRARY_DIR)
+            if os.path.isfile(os.path.join(NGRAPH_CPP_LIBRARY_DIR, library))
         ],
     ),
     (
@@ -361,7 +362,7 @@ setup(
     url="https://github.com/openvinotoolkit/openvino",
     license="License :: OSI Approved :: Apache Software License",
     ext_modules=ext_modules,
-    package_dir={'': 'src'},
+    package_dir={"": "src"},
     packages=packages,
     cmdclass={"build_ext": BuildExt},
     data_files=data_files,
