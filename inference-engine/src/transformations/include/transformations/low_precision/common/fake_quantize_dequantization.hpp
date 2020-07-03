@@ -26,6 +26,8 @@ public:
 
     bool empty() const;
 
+    bool isShared() const;
+
     std::shared_ptr<Node> data;
     std::shared_ptr<opset1::Convert> convert;
     std::shared_ptr<opset1::Subtract> subtract;

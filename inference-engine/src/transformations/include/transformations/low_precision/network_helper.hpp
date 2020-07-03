@@ -394,7 +394,11 @@ std::shared_ptr<opset1::Constant> roundWithTolerance(std::shared_ptr<Node> node,
 
 
 std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> decomposeFakeQuantize(
-    std::shared_ptr<opset1::FakeQuantize> fq, element::Type precision, float min, float max);
+    std::shared_ptr<opset1::FakeQuantize> fq,
+    const element::Type precision,
+    const float min,
+    const float max,
+    const bool updatePrecision);
 
 std::shared_ptr<opset1::FakeQuantize> updateFakeQuantize(std::shared_ptr<opset1::FakeQuantize> fq, element::Type precision, float min, float max);
 

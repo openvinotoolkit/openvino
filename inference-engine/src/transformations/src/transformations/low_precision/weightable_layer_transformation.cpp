@@ -86,23 +86,6 @@ bool WeightableLayerTransformation::canBeTransformed(const TransformationContext
 
     // TODO Implement similar checks in other weightable operaitons
 
-#if 0
-    const CNNLayerPtr parentOnWeights = CNNNetworkHelper::getParent(layer, 1);
-    if (parentOnWeights == nullptr) {
-        return false;
-    }
-
-    OutputsDataMap outputsInfo;
-    context.network.getOutputsInfo(outputsInfo);
-    if (outputsInfo.find(parentOnWeights->name) != outputsInfo.end()) return false;
-
-    const std::vector<CNNLayerPtr> weightsChildren = CNNNetworkHelper::getChildren(*parentOnWeights);
-    if ((weightsChildren.size() != 1lu) || (CaselessEq<std::string>()(parentOnWeights->type, "Const") &&
-                                            (parentOnWeights->outData[0]->getPrecision() != Precision::I8))) {
-        return false;
-    }
-#endif
-
     return true;
 }
 
@@ -137,7 +120,7 @@ DataPrecision WeightableLayerTransformation::decomposeFakeQuantizeForWeightsPath
     // The second part of this function calculates new FQ limits and corresponding dequantization scale and shift.
     // To maintain all shapes in a consistent way, ngraph ops are used to build constant sub-expressions.
 
-    auto tuple = decomposeFakeQuantize(fq, dataPrecision.precision, dataPrecision.min, dataPrecision.max);
+    auto tuple = decomposeFakeQuantize(fq, dataPrecision.precision, dataPrecision.min, dataPrecision.max, updatePrecisions);
     std::shared_ptr<ngraph::Node> fqOnWeights = std::get<0>(tuple);
     if (as_type_ptr<ngraph::opset1::Constant>(fqOnWeights) == nullptr) {
         THROW_IE_LPT_EXCEPTION(*fqOnWeights) << "FakeQuantize on weights was not folded to constant";

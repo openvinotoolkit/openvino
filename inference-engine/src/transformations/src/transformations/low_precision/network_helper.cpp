@@ -482,6 +482,7 @@ std::shared_ptr<ngraph::opset1::Multiply> optimizeMultipliesAfter(std::shared_pt
         auto nextMultiply = as_type_ptr<opset1::Multiply>(nextMultiplyInput.get_node()->shared_from_this());
         if (nextMultiply) {
             auto constant2 = getConstantInput(nextMultiply);
+            auto constant2Inputs = constant2->output(0).get_target_inputs().size();
             if (!constant2 || constant2->output(0).get_target_inputs().size() != 1) {
                 return multiply;
             }
@@ -517,10 +518,12 @@ std::shared_ptr<opset1::Constant> roundWithTolerance(std::shared_ptr<Node> node,
 
 // Decompose FakeQuantize to FakeQuantize with output integer limits (quantize), dequatized MultiplyAdd
 // To align types the resulting sequence is FakeQuantize -> Convert -> Convert -> MultiplyAdd
-std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> decomposeFakeQuantize(std::shared_ptr<opset1::FakeQuantize> fq,
-                                            element::Type precision,
-                                            float min,
-                                            float max) {
+std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> decomposeFakeQuantize(
+    std::shared_ptr<opset1::FakeQuantize> fq,
+    const element::Type precision,
+    const float min,
+    const float max,
+    const bool updatePrecision) {
     using std::make_shared;
 
     // Now calculate scales and shifts according to given shapes -- all operations in ngraph
@@ -539,17 +542,17 @@ std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> decomposeFakeQuantize(s
 
     // TODO: threshold values have to used here to avoid shifts
 
+    // TODO: use general way only
     if (precision.is_signed()) {
         // I8
         scale = fold<opset1::Divide>(
             fold<opset1::Subtract>(outputHigh, outputLow),
             fold<opset1::Subtract>(newMax, newMin));
 
-        // TODO: too complex - double check
         shift = fold<opset1::Divide>(
             fold<opset1::Divide>(
-                fold<opset1::Subtract>(fold<opset1::Multiply>(newMax, outputLow), fold<opset1::Multiply>(newMin, outputHigh)),
-                fold<opset1::Subtract>(newMin, newMax)),
+                fold<opset1::Subtract>(fold<opset1::Multiply>(newMin, outputHigh), fold<opset1::Multiply>(newMax, outputLow)),
+                fold<opset1::Subtract>(outputHigh, outputLow)),
             scale);
     } else {
         // U8
@@ -584,10 +587,6 @@ std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> decomposeFakeQuantize(s
     //                fold<opset1::Convert>(newFQ, precision),
     //                fq->get_output_element_type(0)), scale, shift);
 
-    std::shared_ptr<Node> convert = fold<opset1::Convert>(newFQ, precision);
-    //std::shared_ptr<Node> convert = std::make_shared<opset1::Convert>(newFQ, fq->get_output_element_type(0));
-
-
     std::shared_ptr<opset1::Constant> shiftConst = as_type_ptr<opset1::Constant>(shift);
     if (isScalarLike(shiftConst)) {
         auto scalar = distillToScalar(shiftConst);
@@ -596,20 +595,29 @@ std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> decomposeFakeQuantize(s
         }
     }
 
-    // convert,
-    //make_shared<opset1::Convert>(fold<opset1::Convert>(newFQ, precision), fq->get_output_element_type(0)),
-    std::shared_ptr<ngraph::Node> convert2 = make_shared<opset1::Convert>(convert, fq->get_output_element_type(0));
+    std::shared_ptr<ngraph::Node> convert2;
+    if (updatePrecision) {
+        std::shared_ptr<Node> convert = fold<opset1::Convert>(newFQ, precision);
+        // convert->set_friendly_name("convert1");
+
+        auto pre = fq->get_output_element_type(0);
+        convert2 = make_shared<opset1::Convert>(convert, fq->get_output_element_type(0));
+        // convert2->set_friendly_name("convert2");
+    }
 
     std::shared_ptr<ngraph::Node> sub = shift == nullptr ? nullptr :
         make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::Subtract>>(
-        // auto sub = make_shared<ngraph::opset1::Subtract>(
-            convert2,
-            // newFQ,
+            convert2 == nullptr ? newFQ : convert2,
             shift);
 
     // const auto subShape = sub->get_shape();
     // const auto scaleShape = scale->get_shape();
-    auto dequantize = make_shared<ngraph::opset1::Multiply>(sub == nullptr ? convert2 : sub, scale);
+    // auto dequantize = make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::Multiply>>(
+    auto dequantize = make_shared<ngraph::opset1::Multiply>(
+        sub == nullptr ?
+            convert2 == nullptr ? newFQ : convert2:
+            sub,
+        scale);
 
     auto outputs = newFQ->get_outputs();
     //NetworkHelper::setOutDataPrecision(newFQ, precision);
@@ -701,17 +709,17 @@ FakeQuantizeDequantization createDequantizationFromFakeQuantize(std::shared_ptr<
 
     // TODO: threshold values have to used here to avoid shifts
 
+    // TODO: use general way only
     if (precision.is_signed()) {
         // I8
         scale = fold<opset1::Divide>(
             fold<opset1::Subtract>(outputHigh, outputLow),
             fold<opset1::Subtract>(newMax, newMin));
 
-        // TODO: too complex - double check
         shift = fold<opset1::Divide>(
             fold<opset1::Divide>(
-                fold<opset1::Subtract>(fold<opset1::Multiply>(newMax, outputLow), fold<opset1::Multiply>(newMin, outputHigh)),
-                fold<opset1::Subtract>(newMin, newMax)),
+                fold<opset1::Subtract>(fold<opset1::Multiply>(newMin, outputHigh), fold<opset1::Multiply>(newMax, outputLow)),
+                fold<opset1::Subtract>(outputHigh, outputLow)),
             scale);
     } else {
         // U8
@@ -766,7 +774,8 @@ std::shared_ptr<Node> optimizeSubtract(std::shared_ptr<opset1::Subtract> add) {
     // TODO: replace assert to condition and omit conversion part if there is no convert
     // TODO: also check convertInputType to understand if we really want to propagate type
     assert(as_type_ptr<opset1::Convert>(convertOnAdd));
-    auto convertInputType = convertOnAdd->get_input_element_type(0);
+    const element::Type convertInputType = convertOnAdd->get_input_element_type(0);
+    const element::Type convertOutputType = convertOnAdd->get_output_element_type(0);
 
     auto data = convertOnAdd->input_value(0);
     auto shift = add->input_value(1).get_node_shared_ptr();
@@ -776,6 +785,7 @@ std::shared_ptr<Node> optimizeSubtract(std::shared_ptr<opset1::Subtract> add) {
     if (roundedShift->get_element_type() == convertInputType) {
         // Propagate convertInputType down
         replacement = std::make_shared<opset1::Subtract>(data, roundedShift);
+        replacement->set_output_type(0, convertOutputType, replacement->get_output_partial_shape(0));
         replace_node(add, replacement);
     } else {
         // Try to represent it as data - (-b)
@@ -786,6 +796,7 @@ std::shared_ptr<Node> optimizeSubtract(std::shared_ptr<opset1::Subtract> add) {
             replacement = std::make_shared<op::TypeRelaxed<opset1::Subtract>>(
                     opset1::Subtract(data, roundedShift),
                     convertOnAdd->get_output_element_type(0));
+            replacement->set_output_type(0, convertOutputType, replacement->get_output_partial_shape(0));
             replace_node(add, replacement);
         }
     }
