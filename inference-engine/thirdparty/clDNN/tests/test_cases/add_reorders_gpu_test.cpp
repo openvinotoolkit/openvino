@@ -30,72 +30,15 @@
 #include <api/tile.hpp>
 #include <api/reshape.hpp>
 
-#include <api/batch_norm.hpp>
 #include <api/concatenation.hpp>
 
 using namespace cldnn;
 using namespace tests;
 
 /*
-These tests are inteded to check if additional reorders are being added  properly during 
+These tests are inteded to check if additional reorders are being added  properly during
 add_reorders optimization pass.
 */
-
-//Input has incompatible format
-TEST(add_reorders_gpu, basic1) {
-    const auto& engine = get_test_engine();
-
-    auto input = memory::allocate(engine, { data_types::f32, format::fyxb,{ 2, 2, 3, 2 } }); //format unsupported by batch_norm!
-    auto mean = memory::allocate(engine, { data_types::f32, format::yxfb,{ 1, 2, 1, 1 } });
-    auto variance = memory::allocate(engine, { data_types::f32, format::yxfb,{ 1, 2, 1, 1 } });
-
-    set_values(input, {
-        1.f, 2.f, -10.f,
-        3.f, 4.f, -14.f,
-        5.f, 6.f, -12.f,
-        7.f, 8.f, -16.f,
-        0.f, 0.f, -11.f,
-        0.5f, -0.5f, -15.f,
-        1.5f, 5.2f, -13.f,
-        12.f, 9.f, -17.f
-    });
-
-    set_values(mean, { 0.1f, 0.2f });
-    set_values(variance, { 0.4f, 0.5f });
-
-    float epsilon = 1e-3f;
-    float expected_out[] = {
-        1.42125f,  3.00042f,
-       -0.28256f, -0.28256f,
-      -15.94960f,  4.57958f,
-      -15.82340f,  0.42384f,
-        6.15875f,-22.26620f,
-       -0.98896f,-21.47460f,
-        7.73791f,  9.31708f,
-        1.83664f,  7.06401f,
-       -19.1079f,  10.8962f,
-       -18.6490f,  16.6711f,
-        12.4754f, -25.4246f,
-        12.4327f, -24.3002f};
-    topology topology;
-    topology.add(input_layout("input", input.get_layout()));
-    topology.add(data("mean", mean));
-    topology.add(data("variance", variance));
-    topology.add(batch_norm("batch_norm", "input", "mean", "variance", epsilon));
-
-    network network(engine, topology); // without additional reorders we would get an exception here
-    network.set_input_data("input", input);
-
-    EXPECT_EQ(network.get_all_primitive_org_ids().size(), size_t(5));
-
-    auto outputs = network.execute();
-
-    auto output = outputs.at("batch_norm").get_memory().pointer<float>();
-    for (int i = 0; i < 2 * 2 * 3 * 2; i++)
-    {
-        EXPECT_NEAR(expected_out[i], output[i], epsilon);
-    }
-}
 
 //concatenation of incompatible convolutions
 TEST(add_reorders_gpu, two_convolutions_and_concatenation) {

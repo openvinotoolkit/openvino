@@ -169,7 +169,7 @@ static std::shared_ptr<ngraph::Function> makeSingleConv(std::vector<size_t> inpu
     auto param0 = std::make_shared<ngraph::opset1::Parameter>(type, ngraph::Shape(inputShape));
 
     auto conv1 = ngraph::builder::makeConvolution(param0, type, {3, 3}, {1, 1}, {0, 0}, {0, 0}, {1, 1},
-                                                  ngraph::op::PadType::EXPLICIT, 5);
+                                                  ngraph::op::PadType::EXPLICIT, 4);
     auto result = std::make_shared<ngraph::opset1::Result>(conv1);
     auto fn_ptr = std::make_shared<ngraph::Function>(ngraph::ResultVector{result}, ngraph::ParameterVector{param0});
     fn_ptr->set_friendly_name("SingleConv");
