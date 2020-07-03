@@ -46,8 +46,6 @@ ParamsKey fused_conv_eltwise_kernel_b_fs_yx_fsv4::GetSupportedKey() const {
     k.EnableBatching();
     k.EnableDifferentTypes();
     k.EnableFusedConvEltwDepthToSpaceFusing();
-    k.EnableFusedConvEltwInt8Quantization();
-    k.EnableFusedConvEltwOutputCalibration();
     k.EnableOutputLayout(DataLayout::b_fs_yx_fsv4);
     k.EnableInputDataType(Datatype::INT8);
     k.EnableInputWeightsType(WeightsType::INT8);
