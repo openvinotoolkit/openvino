@@ -52,7 +52,7 @@ void regclass_pyngraph_Function(py::module m)
     function.def("__repr__", [](const ngraph::Function& self) {
         std::string class_name = py::cast(self).get_type().attr("__name__").cast<std::string>();
         std::string shape =
-            py::cast(self.get_output_shape(0)).attr("__str__")().cast<std::string>();
+            py::cast(self.get_output_partial_shape(0)).attr("__str__")().cast<std::string>();
         return "<" + class_name + ": '" + self.get_friendly_name() + "' (" + shape + ")>";
     });
     function.def_static("from_capsule", [](py::object* capsule) {
