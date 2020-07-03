@@ -111,10 +111,11 @@ void FakeQuantizeTransformation::transform(TransformationContext& context, ngrap
 
     // Split FakeQuantize to two parts: Quantize and Dequantize
     auto QDQ = decomposeFakeQuantize(
-            as_type_ptr<opset1::FakeQuantize>(layer),
-            dataPrecision.precision,
-            dataPrecision.min,
-            dataPrecision.max);
+        as_type_ptr<opset1::FakeQuantize>(layer),
+        dataPrecision.precision,
+        dataPrecision.min,
+        dataPrecision.max,
+        updatePrecisions);
 
     std::vector<std::shared_ptr<ngraph::Function>> transformedModule{ context.network };
     // ngraph::pass::VisualizeTree("C:\\Projects\\temp\\test.transformed").run_on_module(transformedModule);
@@ -124,10 +125,11 @@ void FakeQuantizeTransformation::transform(TransformationContext& context, ngrap
     std::shared_ptr<opset1::FakeQuantize> quantize = as_type_ptr<opset1::FakeQuantize>(std::get<0>(QDQ));
     if (quantize != nullptr) {
         auto quantizeConvert = as_type_ptr<opset1::Convert>(quantize->get_output_target_inputs(0).begin()->get_node()->shared_from_this());
-
-        // Remove the first Convert and built convert directly to FQ by modifying output type
-        NetworkHelper::setOutDataPrecision(quantize, quantizeConvert->get_output_element_type(0));
-        NetworkHelper::removeLayer(quantizeConvert);
+        if (quantizeConvert != nullptr) {
+            // Remove the first Convert and built convert directly to FQ by modifying output type
+            NetworkHelper::setOutDataPrecision(quantize, quantizeConvert->get_output_element_type(0));
+            NetworkHelper::removeLayer(quantizeConvert);
+        }
     }
 
     // TODO: hardcoded
@@ -144,7 +146,7 @@ void FakeQuantizeTransformation::transform(TransformationContext& context, ngrap
 
     // ngraph::pass::VisualizeTree("C:\\Projects\\temp\\test.transformed").run_on_module(transformedModule);
 
-    // std::cout << "FakeQuantizeTransformation::transform: done: " << layer->get_friendly_name() << std::endl;
+    // std::cout << "FakeQuantizeTransformation::transform: " << layer->get_friendly_name() << std::endl;
 }
 
 bool FakeQuantizeTransformation::isPrecisionPreserved(std::shared_ptr<Node>) const noexcept {
