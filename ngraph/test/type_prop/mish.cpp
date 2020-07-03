@@ -38,7 +38,7 @@ TEST(type_prop, mish_partial)
         (PartialShape{1, Dimension::dynamic(), 6})));
 
     // rank unknown
-    auto mish_partial =
-        make_shared<op::v4::Mish>(make_shared<op::Parameter>(element::f32, PartialShape::dynamic()));
+    auto mish_partial = make_shared<op::v4::Mish>(
+        make_shared<op::Parameter>(element::f32, PartialShape::dynamic()));
     ASSERT_TRUE(mish_partial->get_output_partial_shape(0).same_scheme(PartialShape::dynamic()));
 }
