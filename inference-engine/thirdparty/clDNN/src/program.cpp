@@ -1165,6 +1165,7 @@ void program_impl::set_layout_optimizer_attributes(layout_optimizer& lo) {
             can_use_fsv16 = false;
 
         // WA to keep fsv16 layout disabled for some topologies where it leads to regressions.
+        // For reshape bfy*x is preferred, fsv16 will introduce reorders
         if (prim.type() == cldnn::crop::type_id()) {
             /*for (auto p : prim.get_dependencies()) {
                 std::cout << "+-- " << p->id() << "  " << type_to_str(p->get_primitive()) << std::endl;
@@ -1172,8 +1173,7 @@ void program_impl::set_layout_optimizer_attributes(layout_optimizer& lo) {
                     std::cout << "+---- " << pp->id() << "  " << type_to_str(pp->get_primitive()) << std::endl;
                 }
             }*/
-            if (prim.get_dependencies()[0]->is_type<reshape>() &&
-                prim.get_dependencies()[0]->get_dependencies()[0]->is_type<permute>()) {
+            if (prim.get_dependencies()[0]->is_type<reshape>()) {
                 //std::cout << "fsv16 suppressed" << std::endl;
                 can_use_fsv16 = false;
             }
