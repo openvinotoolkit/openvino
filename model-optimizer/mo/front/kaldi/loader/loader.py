@@ -76,7 +76,7 @@ def load_parallel_component(file_descr, graph: Graph, prev_layer_id):
     variadic_split_node = AttributedVariadicSplit(graph, attrs).create_node()
     prev_layer_node  = Node(graph, prev_layer_id)
     prev_layer_node.add_output_port(0)
-    prev_layer_node.out_port(0).connect(variadic_split_node.in_port(0))
+    graph.create_edge(prev_layer_node, variadic_split_node, 0, 0)
 
     concat_id = graph.unique_id(prefix='Concat')
     graph.add_node(concat_id, parameters=None, op='concat', kind='op')
@@ -87,8 +87,8 @@ def load_parallel_component(file_descr, graph: Graph, prev_layer_id):
     for i, (input_node, output_node) in enumerate(zip(inputs, outputs)):
         output_node.add_output_port(0)
         concat_node.add_input_port(i)
-        output_node.out_port(0).connect(concat_node.in_port(i))
-        variadic_split_node.out_port(i).connect(input_node.in_port(0))
+        graph.create_edge(output_node, concat_node, 0, i)
+        graph.create_edge(variadic_split_node, input_node, i, 0)
     return concat_id
 
 
