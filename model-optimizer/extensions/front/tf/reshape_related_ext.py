@@ -71,5 +71,5 @@ class SqueezeExtractor(FrontExtractorOp):
 
     @classmethod
     def extract(cls, node: Node):
-        Squeeze.update_node_stat(node, {'squeeze_dims': tf_int_list(node.pb.attr['squeeze_dims'].list)})
+        Squeeze.update_node_stat(node, {'axes': tf_int_list(node.pb.attr['squeeze_dims'].list)})
         return cls.enabled

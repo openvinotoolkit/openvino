@@ -17,11 +17,9 @@
 import numpy as np
 
 from mo.front.caffe.extractors.utils import get_canonical_axis_index
-from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Node
 from mo.graph.perm_inputs import PermuteInputs
 from mo.ops.op import Op
-from mo.utils.error import Error
 
 
 class Squeeze(Op):
@@ -30,53 +28,48 @@ class Squeeze(Op):
 
     def __init__(self, graph, attrs: dict):
         super().__init__(graph, {
-            'op': __class__.op,
-            'type': __class__.op,
+            'op': self.op,
+            'type': self.op,
             'version': 'opset1',
-            'squeeze_dims': None,
+
             'reinterp_shape': True,
-            'keep_at_least_1d': 0,
+            'infer': self.infer,
+
             'in_ports_count': 2,
             'out_ports_count': 1,
-            'infer': __class__.infer,
         }, attrs)
 
     @staticmethod
     def infer(node: Node):
-        real_squeeze_dims = int64_array([])
-        input_shape = node.in_node().shape
-        if input_shape is None:
-            return
+        name = node.soft_get('name', node.id)
 
+        connected_input_ports_num = len([port for port in node.in_ports().values() if not port.disconnected()])
+        assert connected_input_ports_num in [1, 2], \
+            'Squeeze node must have 1 or 2 inputs, but `{}` node has {} inputs'.format(name, connected_input_ports_num)
+
+        input_shape = node.in_port(0).data.get_shape()
+        assert input_shape is not None, 'Squeeze node `{}` input shape is unknown'.format(name)
         output_shape = input_shape.copy()
-        assert len(node.in_nodes()) == 2, 'The Squeeze node {} must have 2 inputs'.format(node.soft_get('name'))
 
-        # TODO remove the following 'if' statement when IE start support 0D tensors
-        squeeze_dims = node.in_port(1).data.get_value()
-        if squeeze_dims.ndim == 0:
-            squeeze_dims = squeeze_dims.reshape([1])
+        if node.is_in_port_connected(1):
+            raw_axes = node.in_port(1).data.get_value()
+            assert raw_axes is not None, 'Squeeze node `{}` 2nd input (axes) value is dynamic. It is not supported'
+            axes = [get_canonical_axis_index(input_shape, i) for i in raw_axes]
+            assert np.all(input_shape[axes] == 1), \
+                'Squeezing non-one dimension is forbidden. Squeeze node `{}` with input_shape={} and axes={}' \
+                ''.format(name, input_shape, raw_axes)
+        else:
+            axes = [i for i, value in enumerate(input_shape) if value == 1]
 
-        for dim in squeeze_dims:
-            if output_shape[dim] == 1:
-                real_squeeze_dims = np.append(real_squeeze_dims, get_canonical_axis_index(output_shape, dim))
-            else:
-                raise Error('Trying to squeeze dimension not equal to 1 for node "{}"'.format(node.soft_get('name')))
-
-        # if squeeze_dims empty then all 1s should be removed (tf specification of Squeeze op)
-        if squeeze_dims.size == 0:
-            for i in range(output_shape.size):
-                if output_shape[i] == 1:
-                    real_squeeze_dims = np.append(real_squeeze_dims, get_canonical_axis_index(output_shape, i))
-
-        output_shape = np.delete(output_shape, real_squeeze_dims)
-        node.out_node().shape = output_shape
-
-        # make dimensions positive to correctly translate from NHWC to NCHW layout
-        if node.in_port(1).get_source().node.op == 'Const':
-            node.in_port(1).data.set_value(real_squeeze_dims)
+        output_shape = np.delete(output_shape, axes)
+        if np.array_equal(output_shape, []) and node.has_and_set('keep_at_least_1d'):
+            # MxNet squeeze keeps at least one dimension for output tensor. Will be resolved on the middle phase
+            output_shape = [1]
 
         if node.in_port(0).data.get_value() is not None:
             node.out_port(0).data.set_value(node.in_port(0).data.get_value().reshape(output_shape))
+        else:
+            node.out_port(0).data.set_shape(output_shape)
 
-        # the squeeze_dim attribute will be converted to the second input in the end of the Middle phase
-        PermuteInputs().set_input_permutation(node.in_node(1), node, 'input:0', 'axis')
+        if node.is_in_port_connected(1):
+            PermuteInputs().set_input_permutation(node.in_node(1), node, 'input:0', 'axis')

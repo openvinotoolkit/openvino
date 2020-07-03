@@ -28,10 +28,7 @@ class SqueezeFrontExtractor(FrontExtractorOp):
     @classmethod
     def extract(cls, node):
         axis = np.array(onnx_attr(node, 'axes', 'ints', default=[]), dtype=np.int64)
-
-        attrs = {
-            'squeeze_dims': axis if len(axis) != 0 else None
-        }
+        attrs = {'axes': axis} if len(axis) != 0 else {}
 
         # update the attributes of the node
         Squeeze.update_node_stat(node, attrs)

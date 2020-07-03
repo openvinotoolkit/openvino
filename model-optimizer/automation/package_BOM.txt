@@ -525,6 +525,7 @@ extensions/middle/LeakyReluPattern.py
 extensions/middle/LSTMRNNSequenceToTensorIterator.py
 extensions/middle/MarkSubgraphsWithCorrectLayout.py
 extensions/middle/MulFakeQuantizeFuse.py
+extensions/middle/mxnet_squeeze_normalizer.py
 extensions/middle/MXNetRNNSequenceNormalize.py
 extensions/middle/MXNetSplitMultiLayers.py
 extensions/middle/MXTileReplacer.py
