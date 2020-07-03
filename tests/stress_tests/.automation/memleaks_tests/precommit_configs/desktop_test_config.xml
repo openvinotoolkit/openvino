@@ -12,7 +12,7 @@
     </iterations>
     <devices>
         <value>CPU</value>
-<!--        <value>GPU</value>-->
+        <value>GPU</value>
     </devices>
     <models>
         <value>public/mobilenet-ssd/FP32/mobilenet-ssd.xml</value>

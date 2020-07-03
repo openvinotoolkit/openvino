@@ -44,23 +44,6 @@ ngraph::Node* ngraph::OpSet::create_insensitive(const std::string& name) const
                : m_factory_registry.create(type_info_it->second);
 }
 
-const ngraph::OpSet& ngraph::get_opset0()
-{
-    static std::mutex init_mutex;
-    static OpSet opset;
-    if (opset.size() == 0)
-    {
-        std::lock_guard<std::mutex> guard(init_mutex);
-        if (opset.size() == 0)
-        {
-#define NGRAPH_OP(NAME, NAMESPACE) opset.insert<NAMESPACE::NAME>();
-#include "ngraph/opsets/opset0_tbl.hpp"
-#undef NGRAPH_OP
-        }
-    }
-    return opset;
-}
-
 const ngraph::OpSet& ngraph::get_opset1()
 {
     static std::mutex init_mutex;
