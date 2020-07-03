@@ -32,6 +32,6 @@ private:
 #endif
 };
 
-}// namespace low_precision
-}// namespace pass
-}// namespace ngraph
+} // namespace low_precision
+} // namespace pass
+} // namespace ngraph
