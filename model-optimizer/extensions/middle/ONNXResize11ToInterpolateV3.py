@@ -86,7 +86,7 @@ class ONNXResize11ToInterpolate3(MiddleReplacementPattern):
         begin_slice.out_port(0).connect(strided_slice.in_port(1))
         end_slice.out_port(0).connect(strided_slice.in_port(2))
 
-        interpolate_node = Interpolate(graph, {'version': 'opset3',
+        interpolate_node = Interpolate(graph, {'version': 'opset4',
                                                'mode': convert_mode(resize.mode),
                                                'coordinate_transformation_mode': resize.coordinate_transformation_mode,
                                                'cube_coeff': resize.cubic_coeff_a,
