@@ -26,7 +26,7 @@ using namespace ngraph;
 constexpr NodeTypeInfo op::v4::Mish::type_info;
 
 op::v4::Mish::Mish(const Output<Node>& arg)
-    : Op({data})
+    : Op({arg})
 {
     constructor_validate_and_infer_types();
 }

@@ -232,6 +232,8 @@ set (SRC
     op/min.hpp
     op/minimum.cpp
     op/minimum.hpp
+    op/mish.cpp
+    op/mish.hpp
     op/multiply.cpp
     op/multiply.hpp
     op/negative.cpp
