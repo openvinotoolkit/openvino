@@ -19,6 +19,6 @@ public:
     void transform(TransformationContext& context, ngraph::pattern::Matcher &m) const override;
 };
 
-}// namespace low_precision
-}// namespace pass
-}// namespace ngraph
+} // namespace low_precision
+} // namespace pass
+} // namespace ngraph
