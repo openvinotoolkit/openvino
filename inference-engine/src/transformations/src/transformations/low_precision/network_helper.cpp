@@ -531,39 +531,24 @@ std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> decomposeFakeQuantize(
     // auto newMin = make_shared<opset1::Constant>(fq->get_output_element_type(0), Shape{}, min);
     // auto newMax = make_shared<opset1::Constant>(fq->get_output_element_type(0), Shape{}, max);
 
-    auto newMin = make_shared<opset1::Constant>(fq->get_output_element_type(0), Shape{}, min);
-    auto newMax = make_shared<opset1::Constant>(fq->get_output_element_type(0), Shape{}, max);
+    const auto newMin = make_shared<opset1::Constant>(fq->get_output_element_type(0), Shape{}, min);
+    const auto newMax = make_shared<opset1::Constant>(fq->get_output_element_type(0), Shape{}, max);
 
-    auto outputLow = fq->input_value(3);
-    auto outputHigh = fq->input_value(4);
-
-    std::shared_ptr<Node> scale;
-    std::shared_ptr<Node> shift;
+    const auto outputLow = fq->input_value(3);
+    const auto outputHigh = fq->input_value(4);
 
     // TODO: threshold values have to used here to avoid shifts
 
-    // TODO: use general way only
-    if (precision.is_signed()) {
-        // I8
-        scale = fold<opset1::Divide>(
-            fold<opset1::Subtract>(outputHigh, outputLow),
-            fold<opset1::Subtract>(newMax, newMin));
+    const std::shared_ptr<Node> scale = fold<opset1::Divide>(
+        fold<opset1::Subtract>(outputHigh, outputLow),
+        fold<opset1::Subtract>(newMax, newMin));
 
-        shift = fold<opset1::Divide>(
-            fold<opset1::Divide>(
-                fold<opset1::Subtract>(fold<opset1::Multiply>(newMin, outputHigh), fold<opset1::Multiply>(newMax, outputLow)),
-                fold<opset1::Subtract>(outputHigh, outputLow)),
-            scale);
-    } else {
-        // U8
-        scale = fold<opset1::Divide>(
-            fold<opset1::Subtract>(outputHigh, outputLow),
-            fold<opset1::Subtract>(newMax, newMin));
+    std::shared_ptr<Node> shift = fold<opset1::Divide>(
+        fold<opset1::Subtract>(fold<opset1::Multiply>(newMin, outputHigh), fold<opset1::Multiply>(newMax, outputLow)),
+        fold<opset1::Subtract>(outputHigh, outputLow));
 
-        shift = fold<opset1::Divide>(
-            fold<opset1::Subtract>(std::make_shared<opset1::Constant>(fq->get_output_element_type(0), Shape{}, std::vector<float>({ 0 })), outputLow),
-            scale);
-    }
+    //auto scaleValues = as_type_ptr<opset1::Constant>(scale)->cast_vector<float>();
+    //auto shiftValues = as_type_ptr<opset1::Constant>(shift)->cast_vector<float>();
 
     // Build a substitution sub-graph:
 
@@ -704,33 +689,15 @@ FakeQuantizeDequantization createDequantizationFromFakeQuantize(std::shared_ptr<
     auto outputLow = fq->input_value(3);
     auto outputHigh = fq->input_value(4);
 
-    std::shared_ptr<Node> scale;
-    std::shared_ptr<Node> shift;
-
     // TODO: threshold values have to used here to avoid shifts
 
-    // TODO: use general way only
-    if (precision.is_signed()) {
-        // I8
-        scale = fold<opset1::Divide>(
-            fold<opset1::Subtract>(outputHigh, outputLow),
-            fold<opset1::Subtract>(newMax, newMin));
+    const std::shared_ptr<Node> scale = fold<opset1::Divide>(
+        fold<opset1::Subtract>(outputHigh, outputLow),
+        fold<opset1::Subtract>(newMax, newMin));
 
-        shift = fold<opset1::Divide>(
-            fold<opset1::Divide>(
-                fold<opset1::Subtract>(fold<opset1::Multiply>(newMin, outputHigh), fold<opset1::Multiply>(newMax, outputLow)),
-                fold<opset1::Subtract>(outputHigh, outputLow)),
-            scale);
-    } else {
-        // U8
-        scale = fold<opset1::Divide>(
-            fold<opset1::Subtract>(outputHigh, outputLow),
-            fold<opset1::Subtract>(newMax, newMin));
-
-        shift = fold<opset1::Divide>(
-            fold<opset1::Subtract>(std::make_shared<opset1::Constant>(fq->get_output_element_type(0), Shape{}, std::vector<float>({ 0 })), outputLow),
-            scale);
-    }
+    const std::shared_ptr<Node> shift = fold<opset1::Divide>(
+        fold<opset1::Subtract>(fold<opset1::Multiply>(newMin, outputHigh), fold<opset1::Multiply>(newMax, outputLow)),
+        fold<opset1::Subtract>(outputHigh, outputLow));
 
     // TODO: we create input here! we really need it here?
     const auto input = std::make_shared<ngraph::opset1::Parameter>(precision, fq->get_output_shape(0));

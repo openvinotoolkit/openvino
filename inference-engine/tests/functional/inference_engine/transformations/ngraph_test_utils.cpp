@@ -8,6 +8,7 @@
 #include <assert.h>
 
 #include <ngraph/function.hpp>
+#include <ngraph/opsets/opset1.hpp>
 #include <ngraph/pass/visualize_tree.hpp>
 
 std::pair<bool, std::string> compare_functions(const std::shared_ptr<ngraph::Function> & f1, const std::shared_ptr<ngraph::Function> & f2) {
@@ -100,4 +101,21 @@ void check_rt_info(const std::shared_ptr<ngraph::Function> & f) {
 void visualize_function(std::shared_ptr<ngraph::Function> f, const std::string & file_name) {
     std::vector<std::shared_ptr<ngraph::Function> > g{f};
     ngraph::pass::VisualizeTree(file_name).run_on_module(g);
+}
+
+bool compare(const std::vector<float>& expectedValues, const std::shared_ptr<ngraph::opset1::Constant>& constant) {
+    const auto actualValues = constant->cast_vector<float>();
+    if (actualValues.size() != expectedValues.size()) {
+        return false;
+    }
+
+    static const float threshold = 1e-4f;
+    for (size_t i = 0; i < expectedValues.size(); ++i) {
+        if (abs(expectedValues[i] - actualValues[i]) > threshold) {
+            std::cout << "expected: " << expectedValues[i] << ", actual: " << actualValues[i] << std::endl;
+            return false;
+        }
+    }
+
+    return true;
 }
