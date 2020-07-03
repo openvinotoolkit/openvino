@@ -931,6 +931,9 @@ std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::v1::Pad>::crea
     }
 
     if (pad_mode == ngraph::op::PadMode::CONSTANT) {
+        if (inputs.size() == 3) {
+            return std::make_shared<ngraph::op::v1::Pad>(inputs[0], inputs[1], inputs[2], pad_mode);
+        }
         checkParameters(inputs, layerParsePrms, 4);
         return std::make_shared<ngraph::op::v1::Pad>(inputs[0], inputs[1], inputs[2], inputs[3], pad_mode);
     }
