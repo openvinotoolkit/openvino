@@ -37,6 +37,6 @@ public:
     const size_t channelsCount;
 };
 
-}// namespace low_precision
-}// namespace pass
-}// namespace ngraph
+} // namespace low_precision
+} // namespace pass
+} // namespace ngraph

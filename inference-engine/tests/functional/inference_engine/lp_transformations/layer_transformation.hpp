@@ -6,6 +6,8 @@
 
 #include "common_test_utils/test_common.hpp"
 #include "transformations/low_precision/layer_transformation.hpp"
+#include "transformations/low_precision/transformation_context.hpp"
+#include "transformations/low_precision/transformer.hpp"
 
 typedef std::tuple<
     ngraph::element::Type,
@@ -27,6 +29,9 @@ public:
 
 protected:
     void transform(std::shared_ptr<ngraph::Function> function);
+    void transform(
+        std::shared_ptr<ngraph::Function> function,
+        std::map<std::string, ngraph::pass::low_precision::LayerTransformationPtr>& transformations);
 
     std::shared_ptr<ngraph::Function> actualFunction;
     std::shared_ptr<ngraph::Function> referenceFunction;

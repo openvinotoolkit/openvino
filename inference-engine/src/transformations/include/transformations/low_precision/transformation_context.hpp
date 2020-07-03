@@ -16,7 +16,7 @@ namespace pass {
 namespace low_precision {
 
 
-class TransformationContext {
+class TRANSFORMATIONS_API TransformationContext {
 public:
     explicit TransformationContext(std::shared_ptr<Function> network);
 
@@ -48,6 +48,6 @@ private:
     std::unordered_map<std::string, std::unordered_map<size_t, ngraph::element::Type>> _original_precisions_map;
 };
 
-}// namespace low_precision
-}// namespace pass
-}// namespace ngraph
+} // namespace low_precision
+} // namespace pass
+} // namespace ngraph

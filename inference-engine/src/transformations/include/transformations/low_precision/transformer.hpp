@@ -158,6 +158,11 @@ private:
         TransformationContext& context);
 };
 
-}// namespace low_precision
-}// namespace pass
-}// namespace ngraph
+class TRANSFORMATIONS_API TypeRelaxedReplacer : public GraphRewrite {
+public:
+    TypeRelaxedReplacer();
+};
+
+} // namespace low_precision
+} // namespace pass
+} // namespace ngraph

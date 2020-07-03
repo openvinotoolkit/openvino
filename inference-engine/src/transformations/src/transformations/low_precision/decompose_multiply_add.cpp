@@ -32,6 +32,6 @@ void DecomposeMultiplyAddTransformation::transform(TransformationContext& contex
 }
 
 
-}// namespace low_precision
-}// namespace pass
-}// namespace ngraph
+} // namespace low_precision
+} // namespace pass
+} // namespace ngraph

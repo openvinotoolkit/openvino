@@ -83,6 +83,6 @@ inline std::ostream &operator << (std::ostream &os, const QuantizationDetails& v
 }
 
 
-}// namespace low_precision
-}// namespace pass
-}// namespace ngraph
+} // namespace low_precision
+} // namespace pass
+} // namespace ngraph

@@ -13,7 +13,8 @@
 #include <ngraph/opsets/opset2.hpp>
 #include <ngraph/opsets/opset3.hpp>
 
-#include <transformations/low_precision/transformer.hpp>
+#include "simple_low_precision_transformer.hpp"
+
 // TODO: debug only
 #include <ngraph/pass/visualize_tree.hpp>
 

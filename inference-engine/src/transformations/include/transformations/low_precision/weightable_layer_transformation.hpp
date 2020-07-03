@@ -80,6 +80,6 @@ protected:
 
 typedef std::shared_ptr<WeightableLayerTransformation> WeightableLayerTransformationPtr;
 
-}// namespace low_precision
-}// namespace pass
-}// namespace ngraph
+} // namespace low_precision
+} // namespace pass
+} // namespace ngraph

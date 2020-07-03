@@ -267,11 +267,6 @@ void make_matcher_type_relaxed(ngraph::pass::GraphRewrite* transformation) {
     transformation->add_matcher(m, callback, ngraph::pass::PassProperty::CHANGE_DYNAMIC_STATE);
 }
 
-class TypeRelaxedReplacer : public GraphRewrite {
-public:
-    TypeRelaxedReplacer();
-};
-
 TypeRelaxedReplacer::TypeRelaxedReplacer() {
     // List all operations that support polymorphic inputs/outputs
     make_matcher_type_relaxed<opset1::AvgPool>(this);
@@ -533,6 +528,6 @@ void LowPrecisionTransformer::registerAllMatchers(
     }
 }
 
-}// namespace low_precision
-}// namespace pass
-}// namespace ngraph
+} // namespace low_precision
+} // namespace pass
+} // namespace ngraph

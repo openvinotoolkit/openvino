@@ -294,6 +294,6 @@ bool QuantizationDetails::isSupportedLevel(const size_t level) {
     return supported_levels.find(level) != supported_levels.end();
 }
 
-}// namespace low_precision
-}// namespace pass
-}// namespace ngraph
+} // namespace low_precision
+} // namespace pass
+} // namespace ngraph
