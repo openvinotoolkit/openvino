@@ -979,7 +979,7 @@ bool Node::match_value(pattern::Matcher* matcher,
 bool Node::match_node(pattern::Matcher* matcher, const Output<Node>& graph_value)
 {
     matcher->add_node(graph_value);
-    return graph_value.get_node_shared_ptr()->get_type_info() == get_type_info() &&
+    return graph_value.get_node_shared_ptr()->get_type_info().is_castable(get_type_info()) &&
            matcher->match_arguments(this, graph_value.get_node_shared_ptr());
 }
 

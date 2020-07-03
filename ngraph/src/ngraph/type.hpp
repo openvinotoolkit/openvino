@@ -39,8 +39,19 @@ namespace ngraph
     {
         const char* name;
         uint64_t version;
+        // Used for casting only, not for exact type identification
+        const DiscreteTypeInfo* parent;
 
-        bool is_castable(const DiscreteTypeInfo& target_type) const { return *this == target_type; }
+        DiscreteTypeInfo () {}
+
+        constexpr DiscreteTypeInfo (const char* _name, uint64_t _version, const DiscreteTypeInfo* _parent = nullptr) :
+            name(_name), version(_version), parent(_parent) {}
+
+        bool is_castable(const DiscreteTypeInfo& target_type) const
+        {
+            return *this == target_type || (parent && parent->is_castable(target_type));
+        }
+
         // For use as a key
         bool operator<(const DiscreteTypeInfo& b) const
         {
@@ -67,7 +78,7 @@ namespace ngraph
             return version != b.version || strcmp(name, b.name) != 0;
         }
     };
-
+#if 0
     /// \brief Tests if value is a pointer/shared_ptr that can be statically cast to a
     /// Type*/shared_ptr<Type>
     template <typename Type, typename Value>
@@ -80,7 +91,14 @@ namespace ngraph
     {
         return value->get_type_info().is_castable(Type::type_info);
     }
-
+#else
+    // Used to determine inheritance relation between types if there is no get_type_info defined
+    template <typename Type, typename Value>
+    bool is_type(Value value)
+    {
+        return !!dynamic_cast<const Type*>(&*value);
+    }
+#endif
     /// Casts a Value* to a Type* if it is of type Type, nullptr otherwise
     template <typename Type, typename Value>
     typename std::enable_if<

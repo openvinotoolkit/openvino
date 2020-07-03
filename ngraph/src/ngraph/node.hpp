@@ -136,6 +136,22 @@ namespace ngraph
 #define TYPE_CASE(a)                                                                               \
     case element::Type_t::a: rc = evaluate<element::Type_t::a>
 
+#define RTTI_DECLARATION \
+    static const ::ngraph::Node::type_info_t type_info;   \
+    static const ::ngraph::Node::type_info_t& get_type_info_static (); \
+    const ::ngraph::Node::type_info_t& get_type_info () const override { return type_info; }
+
+#define RTTI_DEFINITION_1(TYPE_NAME, CLASS, PARENT_CLASS, _VERSION_INDEX)  \
+    const ::ngraph::Node::type_info_t CLASS::type_info{TYPE_NAME, _VERSION_INDEX, &PARENT_CLASS::get_type_info_static()};
+
+#define RTTI_DEFINITION_2(TYPE_NAME, CLASS, PARENT_CLASS, _VERSION_INDEX)  \
+    const ::ngraph::Node::type_info_t& CLASS::get_type_info_static () { return type_info; }
+
+#define RTTI_DEFINITION(TYPE_NAME, CLASS, PARENT_CLASS, _VERSION_INDEX)  \
+    RTTI_DEFINITION_1(TYPE_NAME, CLASS, PARENT_CLASS, _VERSION_INDEX) \
+    RTTI_DEFINITION_2(TYPE_NAME, CLASS, PARENT_CLASS, _VERSION_INDEX)
+
+
     /// Nodes are the backbone of the graph of Value dataflow. Every node has
     /// zero or more nodes as arguments and one value, which is either a tensor
     /// or a (possibly empty) tuple of values.
