@@ -29,11 +29,11 @@
 #include "ngraph/pass/constant_folding.hpp"
 #include "ngraph/pass/dyn_elimination.hpp"
 #include "ngraph/pass/manager.hpp"
-#include "ngraph/pass/opset1_downgrade.hpp"
 #include "ngraph/pass/shape_relevance.hpp"
 #include "ngraph/specialize_function.hpp"
 #include "ngraph/util.hpp"
 #include "opset0_downgrade.hpp"
+#include "opset1_downgrade.hpp"
 
 using namespace std;
 using namespace ngraph;
