@@ -379,6 +379,9 @@ void GNAPlugin::LoadNetwork(ICNNNetwork & _network) {
         if (policy.PermutePolicy != Policy::Permute::DISABLED) {
             passes->registerPass<ReversePermutationsPass>();
         }
+        if (policy.NHWCToNCHWPolicy != Policy::NHWCToNCHW::DISABLED) {
+            passes->registerPass<RemovePermutationsNHWCToNCHWPass>();
+        }
         passes->registerPass<InsertIdentityLayerPass>();
         passes->registerPass<InsertCopyLayerPass>();
         passes->registerPass<InsertDiagonalLayerPass>();
@@ -741,6 +744,7 @@ void GNAPlugin::LoadNetwork(ICNNNetwork & _network) {
         }
     }
 
+    do_rotate_input = dnn->do_rotate_input;
     num_rotate_rows = dnn->num_rotate_rows;
     num_rotate_columns = dnn->num_rotate_columns;
 
@@ -922,7 +926,7 @@ uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap &inputs, Infer
                      is2D ? dims[dims.size() - 1] : dims[dims.size() - 1] * dims[dims.size() - 2] * dims[dims.size() - 3]);
 
         bool isOneChannel = input.second->getTensorDesc().getDims()[1] == 1;
-        if (((inputLayout == Layout::NC || inputLayout == Layout::NCHW)
+        if (do_rotate_input && ((inputLayout == Layout::NC || inputLayout == Layout::NCHW)
             != (inputsDesc->getOrientation(input.first) == kDnnInterleavedOrientation))
             && !isOneChannel) {
             RotateFeatures(reinterpret_cast<uint8_t *>(inputsDesc->getPtrInputsGlobal(input.first)[idx]),
@@ -1022,10 +1026,10 @@ void GNAPlugin::Wait(uint32_t request_idx) {
                          exportOutputDims[exportOutputDims.size() - 1],
                          outputDesc.num_bytes_per_element,
                          sizeof(float));
-        } else if (outputBlob->getTensorDesc().getLayout() != Layout::CN) {
+        } /*else if (outputBlob->getTensorDesc().getLayout() != Layout::CN) {
             THROW_GNA_EXCEPTION << "Expected output blob to have Layout::NC or Layout::CN. But was "
                 << outputBlob->getTensorDesc().getLayout();
-        }
+        }*/
 
         if (gnadevice) {
 #ifdef PLOT
