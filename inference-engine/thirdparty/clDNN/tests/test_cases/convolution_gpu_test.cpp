@@ -5376,13 +5376,13 @@ TEST(convolution_f32_fw_gpu, convolution_int8_b_fs_yx_fsv4) {
     set_values(input, input_data_bfyx);
 
     auto weights_size = tensor(output_f, input_f, filter_xy, filter_xy);
-    auto weights_data = generate_random_4d<INT8>(output_f, input_f, filter_xy, filter_xy, -10, 10);
+    auto weights_data = generate_random_4d<int8_t>(output_f, input_f, filter_xy, filter_xy, -10, 10);
     auto weights_data_bfyx = flatten_4d(format::bfyx, weights_data);
     auto weights = memory::allocate(engine, { data_types::i8, format::bfyx, weights_size });
     set_values(weights, weights_data_bfyx);
 
     auto biases_size = tensor(1, output_f, 1, 1);
-    auto biases_data = generate_random_4d<INT8>(1, output_f, 1, 1, -10, 10);
+    auto biases_data = generate_random_4d<int8_t>(1, output_f, 1, 1, -10, 10);
     auto biases_data_bfyx = flatten_4d(format::bfyx, biases_data);
     auto biases = memory::allocate(engine, { data_types::i8, format::bfyx, biases_size });
     set_values(biases, biases_data_bfyx);
