@@ -99,8 +99,6 @@ class TFNonMaxSuppressionV5(Op):
             'output_type': np.float32,
             'pad_to_max_output_size': 0,
             'in_ports_count': 5,
-            'out_ports_count': 2,
-            'sort_result_descending': 1,
             'type_infer': None,
         }
         super().__init__(graph, mandatory_props, attrs)
