@@ -20,6 +20,6 @@ public:
     void transform2(TransformationContext& context, ngraph::pattern::Matcher &m) const;
 };
 
-}// namespace low_precision
-}// namespace pass
-}// namespace ngraph
+} // namespace low_precision
+} // namespace pass
+} // namespace ngraph
