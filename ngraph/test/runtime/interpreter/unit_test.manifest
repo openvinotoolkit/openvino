@@ -10,6 +10,17 @@ INTERPRETER.onnx_top_k_opset_10
 reduce_sum_large_1d_to_scalar
 reduce_sum_keep_large_1d_to_scalar
 
+# "Unsupported op 'Interpolate'
+INTERPRETER.onnx_resize10_down_scales_const_linear
+INTERPRETER.onnx_resize10_down_scales_const_nearest
+INTERPRETER.onnx_resize10_up_scales_const_linear
+INTERPRETER.onnx_resize10_up_scales_const_nearest
+INTERPRETER.onnx_upsample8_nearest_infer
+INTERPRETER.onnx_upsample8_linear_infer
+INTERPRETER.onnx_upsample9_scales_const_nearest_infer
+INTERPRETER.onnx_upsample9_scales_const_linear_infer
+INTERPRETER.onnx_upsample9_scales_input_nearest_infer
+
 # ONNX Loop
 onnx_controlflow_loop_2d_add_execution
 
@@ -58,12 +69,6 @@ INTERPRETER.fused_clamp_bfloat16
 INTERPRETER.auto_bcast_binary_elementwise
 INTERPRETER.auto_bcast_binary_elementwise_pdpd
 
-# Unsupported op 'Interpolate'
-INTERPRETER.onnx_upsample8_nearest_infer
-INTERPRETER.onnx_upsample8_linear_infer
-INTERPRETER.onnx_upsample9_scales_const_nearest_infer
-INTERPRETER.onnx_upsample9_scales_const_linear_infer
-INTERPRETER.onnx_upsample9_scales_input_nearest_infer
 # Backward conv
 INTERPRETER.convolution_2d_1item
 INTERPRETER.convolution_2d_1item_padded_1_1x1_1
