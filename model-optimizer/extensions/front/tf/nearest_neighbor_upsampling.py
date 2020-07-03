@@ -79,7 +79,7 @@ class NearestNeighborUpsampling(FrontReplacementSubgraph):
         resample_op = Interpolate(graph,
                                   {'axes': axes, 'mode': 'nearest', 'antialias': 0, 'pads_begin': int64_array([0]),
                                    'pads_end': int64_array([0]), 'coordinate_transformation_mode': 'half_pixel',
-                                   'nearest_mode': 'round_prefer_floor', 'cube_coeff': -0.75, 'version': 'opset3',
+                                   'nearest_mode': 'round_prefer_floor', 'cube_coeff': -0.75, 'version': 'opset4',
                                    'name': reshape2_name + '/Resample_'})
         resample_node = resample_op.create_node([match['op']])
         const = Const(graph, {'value': np.array([input_height * height_scale, input_width * width_scale]),
