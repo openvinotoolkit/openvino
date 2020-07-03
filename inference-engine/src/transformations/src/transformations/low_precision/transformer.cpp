@@ -220,19 +220,19 @@ LowPrecisionTransformations LowPrecisionTransformer::getAllTransformations(const
         add<AddTransformation, opset1::Add>(params).
         add<AvgPoolTransformation, opset1::AvgPool>(params).
         add<ConvolutionTransformation, opset1::Convolution>(params).
-        add<DepthToSpaceTransformation, opset1::DepthToSpace>(params).
+        //add<DepthToSpaceTransformation, opset1::DepthToSpace>(params).
         add<FakeQuantizeTransformation, opset1::FakeQuantize>(params).
         add<GroupConvolutionTransformation, opset1::GroupConvolution>(params).
         add<MatMulTransformation, opset1::MatMul>(params).
         add<MaxPoolTransformation, opset1::MaxPool>(params).
-        add<NormalizeL2Transformation, opset1::NormalizeL2>(params).
+        //add<NormalizeL2Transformation, opset1::NormalizeL2>(params).
         add<ReluTransformation, opset1::Relu>(params).
         // Multiply const change is not supported
         // add<ReshapeTransformation, opset1::Reshape>(params).
 
         addCleanup<FuseFakeQuantizeTransformation, opset1::FakeQuantize>(params).
         addCleanup<MultiplyTransformation, opset1::Multiply>(params).
-        // TODO: workaround: Convert I8 -> FP32 is not supported by CPU plugin
+        //// TODO: workaround: Convert I8 -> FP32 is not supported by CPU plugin
         addCleanup<ConvertTransformation, opset1::Convert>(params);
 }
 
