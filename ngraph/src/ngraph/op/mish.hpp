@@ -16,10 +16,8 @@
 
 #pragma once
 
+#include "ngraph/node.hpp"
 #include "ngraph/op/op.hpp"
-#include "ngraph/op/util/binary_elementwise_arithmetic.hpp"
-#include "ngraph/op/util/unary_elementwise_arithmetic.hpp"
-#include "ngraph/util.hpp"
 
 namespace ngraph
 {
@@ -27,18 +25,21 @@ namespace ngraph
     {
         namespace v4
         {
-            class NGRAPH_API Mish : public util::UnaryElementwiseArithmetic
+            class NGRAPH_API Mish : public ngraph::op::Op
             {
             public:
-                static constexpr NodeTypeInfo type_info{"Mish", 0};
+                static constexpr NodeTypeInfo type_info{"Mish", 4};
                 const NodeTypeInfo& get_type_info() const override { return type_info; }
-                Mish(const Output<Node>& arg);
                 Mish() = default;
+                Mish(const Output<Node>& arg);
+                bool visit_attributes(AttributeVisitor& visitor) override;
+                void validate_and_infer_types() override;
+
                 virtual std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
+
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) override;
-                bool visit_attributes(AttributeVisitor& visitor) override;
             };
         }
         using v4::Mish;
