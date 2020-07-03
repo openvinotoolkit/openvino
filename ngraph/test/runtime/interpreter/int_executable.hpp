@@ -30,8 +30,6 @@
 #include "ngraph/runtime/aligned_buffer.hpp"
 #include "ngraph/runtime/reference/abs.hpp"
 #include "ngraph/runtime/reference/acos.hpp"
-#include "ngraph/runtime/reference/all.hpp"
-#include "ngraph/runtime/reference/allreduce.hpp"
 #include "ngraph/runtime/reference/any.hpp"
 #include "ngraph/runtime/reference/argmax.hpp"
 #include "ngraph/runtime/reference/argmin.hpp"

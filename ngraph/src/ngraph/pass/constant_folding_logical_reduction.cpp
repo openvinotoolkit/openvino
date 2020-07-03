@@ -18,7 +18,6 @@
 #include "ngraph/op/any.hpp"
 #include "ngraph/op/reduce_logical_and.hpp"
 #include "ngraph/op/reduce_logical_or.hpp"
-#include "ngraph/runtime/reference/all.hpp"
 #include "ngraph/runtime/reference/any.hpp"
 
 using namespace std;
@@ -57,12 +56,23 @@ static shared_ptr<op::Constant> fold_constant_logical_reduction(shared_ptr<op::C
     {
         const auto reduction_axes = reduce_and->get_reduction_axes();
         const auto input_shape = reduce_and->get_input_shape(0);
+        const char* arg = constant->get_data_ptr<char>();
+        CoordinateTransform output_transform(get_shape_no_keep_dims(reduction_axes, input_shape));
 
-        runtime::reference::all(constant->get_data_ptr<char>(),
-                                data_ptr,
-                                constant->get_output_shape(0),
-                                get_shape_no_keep_dims(reduction_axes, input_shape),
-                                reduction_axes);
+        for (const Coordinate& output_coord : output_transform)
+        {
+            data_ptr[output_transform.index(output_coord)] = 1;
+        }
+
+        CoordinateTransform input_transform(constant->get_output_shape(0));
+
+        for (const Coordinate& input_coord : input_transform)
+        {
+            Coordinate output_coord = reduce(input_coord, reduction_axes);
+            data_ptr[output_transform.index(output_coord)] =
+                data_ptr[output_transform.index(output_coord)] &&
+                arg[input_transform.index(input_coord)];
+        }
     }
     else if (auto reduce_or = as_type_ptr<::ngraph::op::v1::ReduceLogicalOr>(reduction_node))
     {
