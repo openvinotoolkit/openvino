@@ -44,7 +44,7 @@ else:
 
 *   **5**: `output_high` - maximum quantized value. The shape must be broadcastable to the of *X*. Required.
 
-**Inputs**:
+**Outputs**:
 
 *   **1**: `Y` - resulting tensor with shape and type matching the 1st input tensor *X*.
 
