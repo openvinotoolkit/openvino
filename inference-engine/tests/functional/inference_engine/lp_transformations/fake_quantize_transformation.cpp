@@ -4,6 +4,7 @@
 
 #include "layer_transformation.hpp"
 
+#include <map>
 #include <memory>
 #include <sstream>
 #include <string>
@@ -24,13 +25,18 @@ using namespace testing;
 using namespace ngraph;
 using namespace ngraph::pass;
 
+class ExpectedValues {
+public:
+    std::vector<float> subtract;
+    std::vector<float> multiply;
+};
+
 class FakeQuantizeOnDataTestValues {
 public:
     low_precision::LayerTransformation::Params params;
     builder::subgraph::FakeQuantizeOnData actual;
     builder::subgraph::FakeQuantizeOnData expected;
-    std::vector<float> expectedSubtractValues;
-    std::vector<float> expectedMultiplyValues;
+    std::map<ngraph::element::Type, ExpectedValues> expectedValues;
 };
 
 inline std::ostream& operator<<(std::ostream& os, const std::vector<float>& values) {
@@ -62,7 +68,7 @@ public:
     void SetUp() override {
         const ngraph::element::Type precision = std::get<0>(GetParam());
         const ngraph::Shape shape = std::get<1>(GetParam());
-        const FakeQuantizeOnDataTestValues fakeQuantizeOnData = std::get<2>(GetParam());
+        FakeQuantizeOnDataTestValues fakeQuantizeOnData = std::get<2>(GetParam());
 
         actualFunction = ngraph::builder::subgraph::FakeQuantizeFunction::getOriginal(
             precision,
@@ -76,20 +82,20 @@ public:
 
         {
             auto subtractOps = get<opset1::Subtract>(actualFunction);
-            ASSERT_EQ(fakeQuantizeOnData.expectedSubtractValues.empty() ? 0 : 1ul, subtractOps.size());
-            if (!fakeQuantizeOnData.expectedSubtractValues.empty()) {
+            ASSERT_EQ(fakeQuantizeOnData.expectedValues[precision].subtract.empty() ? 0 : 1ul, subtractOps.size());
+            if (!fakeQuantizeOnData.expectedValues[precision].subtract.empty()) {
                 ASSERT_TRUE(compare(
-                    fakeQuantizeOnData.expectedSubtractValues,
+                    fakeQuantizeOnData.expectedValues[precision].subtract,
                     as_type_ptr<ngraph::opset1::Constant>(subtractOps[0]->get_input_node_shared_ptr(1)))) << "Subtract values are not correct";
             }
         }
 
         {
             auto multiplyOps = get<opset1::Multiply>(actualFunction);
-            ASSERT_EQ(fakeQuantizeOnData.expectedMultiplyValues.empty() ? 0 : 1ul, multiplyOps.size());
-            if (!fakeQuantizeOnData.expectedMultiplyValues.empty()) {
+            ASSERT_EQ(fakeQuantizeOnData.expectedValues[precision].multiply.empty() ? 0 : 1ul, multiplyOps.size());
+            if (!fakeQuantizeOnData.expectedValues[precision].multiply.empty()) {
                 ASSERT_TRUE(compare(
-                    fakeQuantizeOnData.expectedMultiplyValues,
+                    fakeQuantizeOnData.expectedValues[precision].multiply,
                     as_type_ptr<ngraph::opset1::Constant>(multiplyOps[0]->get_input_node_shared_ptr(1)))) << "Multiply values are not correct";
             }
         }
@@ -99,8 +105,8 @@ public:
             shape,
             fakeQuantizeOnData.params,
             fakeQuantizeOnData.expected,
-            fakeQuantizeOnData.expectedSubtractValues,
-            fakeQuantizeOnData.expectedMultiplyValues);
+            fakeQuantizeOnData.expectedValues[precision].subtract,
+            fakeQuantizeOnData.expectedValues[precision].multiply);
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<FakeQuantizeTransformationParams> obj) {
@@ -132,22 +138,28 @@ const std::vector<FakeQuantizeOnDataTestValues> fakeQuantizeOnDataTestValues = {
         LayerTransformation::createParamsU8I8(),
         { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } },
         { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } },
-        {},
-        { 0.01f }
+        {
+            { ngraph::element::f32, { {}, { 0.01f }} },
+            { ngraph::element::f16, { {}, { 0.01f }} }
+        }
     },
     {
         LayerTransformation::createParamsU8I8(),
         { 256ul, {}, { -1.23f }, { 2.55f }, { -1.23f }, { 2.55f } },
         { 256ul, {}, { -1.23f }, { 2.55f }, { 0.f }, { 2.55f } },
-        { 82.97619048 },
-        { 0.014823529 }
+        {
+            { ngraph::element::f32, {{ 82.97619048f }, { 0.014823529f }} },
+            { ngraph::element::f16, {{ 83.f }, { 0.014823529f }} }
+        }
     },
     {
         LayerTransformation::createParamsU8I8(),
         { 256ul, {}, { -1.28f} , { 1.27f }, { -1.28f} , { 1.27f } },
         { 256ul, {}, { -1.28f} , { 1.27f }, { 0.f }, { 2.55f } },
-        { 128.f },
-        { 0.01f }
+        {
+            { ngraph::element::f32, {{ 128.f }, { 0.01f }} },
+            { ngraph::element::f16, {{ 128.f }, { 0.01f }} }
+        }
     },
 
     // I8
@@ -155,22 +167,28 @@ const std::vector<FakeQuantizeOnDataTestValues> fakeQuantizeOnDataTestValues = {
         LayerTransformation::createParamsI8I8(),
         { 256ul, {}, { -1.28f}, { 1.27f }, { -1.28f}, { 1.27f } },
         { 256ul, {}, { -1.28f}, { 1.27f }, { -1.28f}, { 1.27f } },
-        {},
-        { 0.01f }
+        {
+            { ngraph::element::f32, {{ }, { 0.01f }} },
+            { ngraph::element::f16, {{ }, { 0.01f }} }
+        }
     },
     {
         LayerTransformation::createParamsI8I8(),
         { 256ul, {}, { -0.12f}, { 1.27f }, { -0.12f}, { 1.27f } },
         { 256ul, {}, { -0.12f}, { 1.27f }, { -128.f}, { 127.f } },
-        { -105.9856115 },
-        { 0.00545098 }
+        {
+            { ngraph::element::f32, {{ -105.9856115f }, { 0.00545098f }} },
+            { ngraph::element::f16, {{ -105.9856115f }, { 0.00545098f }} }
+        }
     },
     {
         LayerTransformation::createParamsI8I8(),
         { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } },
         { 256ul, {}, { 0.f }, { 2.55f }, { -1.28f }, { 1.27f } },
-        { -128.f },
-        { 0.01f }
+        {
+            { ngraph::element::f32, {{ -128.f }, { 0.01f }} },
+            { ngraph::element::f16, {{ -128.f }, { 0.01f }} }
+        }
     }
 };
 
