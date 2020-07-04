@@ -16,7 +16,7 @@
 #include "functional_test_utils/layer_test_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include "ngraph_functions/pass/convert_prc.hpp"
-#include "ngraph_functions/low_precision_transformations/convolution_function.hpp"
+#include "ngraph_functions/low_precision_transformations/fake_quantize_and_convolution_function.hpp"
 
 // TODO: debug only
 #include <ngraph/pass/visualize_tree.hpp>
@@ -52,15 +52,12 @@ void ConvolutionTransformation::SetUp() {
 
     ConfigurePlugin(version);
 
-    // function = ngraph::builder::subgraph::ConvolutionFunction::getOriginal(precision, inputShape, fqOnActivations, fqOnWeights);
-    function = ngraph::builder::subgraph::ConvolutionFunction::getOriginal(
+    function = ngraph::builder::subgraph::FakeQuantizeAndConvolutionFunction::getOriginal(
         precision,
         inputShape,
         // TODO: pass from test parameters
         param.fakeQuantizeOnData,
         param.fakeQuantizeOnWeights);
-
-    // ngraph::pass::VisualizeTree("C:\\Projects\\temp\\test.original").run_on_module(std::vector<std::shared_ptr<ngraph::Function>>{ function });
 
     if (version == LptVersion::cnnNetwork) {
         validate();
