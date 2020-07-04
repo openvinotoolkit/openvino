@@ -24,24 +24,24 @@ using namespace ngraph::pass;
 class GroupConvolutionTransformation : public LayerTransformation, public testing::WithParamInterface<LayerTransformationParams> {
 public:
     void SetUp() override {
-        const ngraph::element::Type precision = std::get<0>(GetParam());
-        const ngraph::Shape shape = std::get<1>(GetParam());
+        //const ngraph::element::Type precision = std::get<0>(GetParam());
+        //const ngraph::Shape shape = std::get<1>(GetParam());
 
-        actualFunction = ngraph::builder::subgraph::ConvolutionFunction::getOriginal(
-            precision,
-            shape,
-            // TODO: pass from test parameters
-            builder::subgraph::FakeQuantizeOnData(),
-            builder::subgraph::FakeQuantizeOnWeights());
+        //actualFunction = ngraph::builder::subgraph::ConvolutionFunction::getOriginal(
+        //    precision,
+        //    shape,
+        //    // TODO: pass from test parameters
+        //    builder::subgraph::FakeQuantizeOnData(),
+        //    builder::subgraph::FakeQuantizeOnWeights());
 
-        transform(actualFunction);
+        //transform(actualFunction);
 
-        referenceFunction = ngraph::builder::subgraph::ConvolutionFunction::getReference(
-            precision,
-            shape,
-            // TODO: pass from test parameters
-            builder::subgraph::FakeQuantizeOnData(),
-            builder::subgraph::FakeQuantizeOnWeights());
+        //referenceFunction = ngraph::builder::subgraph::ConvolutionFunction::getReference(
+        //    precision,
+        //    shape,
+        //    // TODO: pass from test parameters
+        //    builder::subgraph::FakeQuantizeOnData(),
+        //    builder::subgraph::FakeQuantizeOnWeights());
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<LayerTransformationParams> obj) {
