@@ -21,6 +21,7 @@
 #include <transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
 #include <transformations/low_precision/transformer.hpp>
 #include <transformations/low_precision/convolution.hpp>
+#include <transformations/low_precision/group_convolution.hpp>
 #include <transformations/convert_opset2_to_opset1/convert_opset2_to_opset1.hpp>
 #include <transformations/convert_opset3_to_opset2/convert_opset3_to_opset2.hpp>
 #include <transformations/rt_info/fused_names_attribute.hpp>
@@ -86,6 +87,7 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork, const Config& conf) 
     ngraph::pass::ConvertOpSet2ToOpSet1(transformations_callback).run_on_function(nGraphFunc);
 
     using namespace ngraph::pass::low_precision;
+    // std::cout << "nGraph LPT transformations were IGNORED" << std::endl;
     if ((conf.lptVersion == Config::LptVersion::nGraph) && conf.lpTransformsMode == Config::LPTransformsMode::On) {
         auto params = LayerTransformation::Params(true,  // updatePrecisions
                                                     true,  // quantizeOutputs
@@ -95,9 +97,12 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork, const Config& conf) 
                                                     true,  // roundQuantizedValues
                                                     true,  // updateBiases
                                                     true);  // supportAsymmetricQuantization
-        LowPrecisionTransformer transformer(LowPrecisionTransformer::getAllTransformations(params).
-                add<ConvolutionTransformation>(
-                LayerTransformation::Params(params).setPrecisionsOnActivations({ngraph::element::u8}), "Convolution"));
+        LowPrecisionTransformer transformer(LowPrecisionTransformer::getAllTransformations(params)
+            .add<ConvolutionTransformation, ngraph::opset1::Convolution>(
+                LayerTransformation::Params(params).setPrecisionsOnActivations({ngraph::element::u8}))
+            .add<GroupConvolutionTransformation, ngraph::opset1::GroupConvolution>(
+                LayerTransformation::Params(params).setPrecisionsOnActivations({ ngraph::element::u8 }))
+        );
         #if 0 // TODO LPT-TO-NGRAPH
         addCleanup<ScaleShiftToConvolutionTransformation>(
                 LayerTransformation::Params(params).setPrecisionsOnActivations({ngraph::element::u8}),
@@ -108,6 +113,7 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork, const Config& conf) 
         // ngraph::pass::VisualizeTree("C:\\Projects\\temp\\test.original").run_on_module(originalModule);
 
         transformer.transform(nGraphFunc);
+        std::cout << "nGraph LPT transformations were DONE" << std::endl;
 
         // std::vector<std::shared_ptr<ngraph::Function>> transformedModule{ nGraphFunc };
         // ngraph::pass::VisualizeTree("C:\\Projects\\temp\\test.transformed").run_on_module(transformedModule);
