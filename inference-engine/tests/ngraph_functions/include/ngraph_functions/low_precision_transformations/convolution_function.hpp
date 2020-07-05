@@ -22,6 +22,10 @@ public:
     builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
 };
 
+inline std::ostream& operator<<(std::ostream& out, const ActualValues& values) {
+    return out << "_" << values.lowPrecision << "_" << values.fakeQuantizeOnWeights;
+}
+
 class ExpectedValues {
 public:
     ngraph::element::Type activationPrecision;
@@ -32,16 +36,22 @@ public:
     std::vector<float> mutliplyValues;
 };
 
+inline std::ostream& operator<<(std::ostream& out, const ExpectedValues& values) {
+    return out << "_" << values.activationPrecision << "_" << values.weightsPrecision << "_" << values.fakeQuantizeOnWeights;
+}
+
 class ConvolutionFunction {
 public:
     static std::shared_ptr<ngraph::Function> getOriginal(
         const ngraph::element::Type precision,
         const ngraph::Shape& inputShape,
+        const ngraph::pass::low_precision::LayerTransformation::Params& params,
         const ActualValues& actualValues);
 
     static std::shared_ptr<ngraph::Function> getReference(
         const ngraph::element::Type precision,
         const ngraph::Shape& inputShape,
+        const ngraph::pass::low_precision::LayerTransformation::Params& params,
         const ExpectedValues& expectedValues);
 };
 
