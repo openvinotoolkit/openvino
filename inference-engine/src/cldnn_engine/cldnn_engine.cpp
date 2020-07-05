@@ -295,7 +295,7 @@ void clDNNEngine::QueryNetwork(const ICNNNetwork& network, const std::map<std::s
         // take all parrents.
         bool supported = true;
         for (DataWeakPtr insData : concat->insData) {
-            CNNLayerPtr prev = insData.lock()->getCreatorLayer().lock();
+            CNNLayerPtr prev = getCreatorLayer(insData.lock()).lock();
             // verify if previous layer is not supported or if it in the list of not defined layers yet
             // not defined layers are treated as layers which will be assigned to GPU if next layer is assigned to GPU
             if (res.supportedLayersMap.find(prev->name) == res.supportedLayersMap.end()
@@ -315,7 +315,7 @@ void clDNNEngine::QueryNetwork(const ICNNNetwork& network, const std::map<std::s
         cnl++) {
         bool supported = true;
         for (DataPtr out : (*cnl)->outData) {
-            for (auto ol : out->getInputTo()) {
+            for (auto ol : getInputTo(out)) {
                 if (res.supportedLayersMap.find(ol.second->name) == res.supportedLayersMap.end()) {
                     supported = false;
                 }

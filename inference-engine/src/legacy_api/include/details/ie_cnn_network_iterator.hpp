@@ -14,6 +14,7 @@
 #include <utility>
 
 #include "ie_api.h"
+#include "ie_layers.h"
 #include "ie_icnn_network.hpp"
 #include "ie_locked_memory.hpp"
 
@@ -57,7 +58,7 @@ public:
         InputsDataMap inputs;
         network->getInputsInfo(inputs);
         if (!inputs.empty()) {
-            auto& nextLayers = inputs.begin()->second->getInputData()->getInputTo();
+            auto& nextLayers = getInputTo(inputs.begin()->second->getInputData());
             if (!nextLayers.empty()) {
                 currentLayer = nextLayers.begin()->second;
                 nextLayersTovisit.push_back(currentLayer);
@@ -134,7 +135,7 @@ private:
 
         // visit child that not visited
         for (auto&& output : nextLayer->outData) {
-            for (auto&& child : output->getInputTo()) {
+            for (auto&& child : getInputTo(output)) {
                 if (visited.find(child.second.get()) == visited.end()) {
                     nextLayersTovisit.push_back(child.second);
                     visited.insert(child.second.get());
@@ -144,7 +145,7 @@ private:
 
         // visit parents
         for (auto&& parent : nextLayer->insData) {
-            auto parentLayer = parent.lock()->getCreatorLayer().lock();
+            auto parentLayer = getCreatorLayer(parent.lock()).lock();
             if (parentLayer && visited.find(parentLayer.get()) == visited.end()) {
                 nextLayersTovisit.push_back(parentLayer);
                 visited.insert(parentLayer.get());

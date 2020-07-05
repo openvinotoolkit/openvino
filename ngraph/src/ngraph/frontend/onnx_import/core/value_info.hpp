@@ -126,7 +126,7 @@ namespace ngraph
                     {
                         dims.emplace_back(onnx_dim.dim_value());
                     }
-                    else if (onnx_dim.has_dim_param())
+                    else // has_dim_param() == true or it is empty dim
                     {
                         dims.push_back(Dimension::dynamic());
                     }

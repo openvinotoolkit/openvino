@@ -116,7 +116,7 @@ bool ConcatTestModel::transform(CNNNetwork& network, LayerTransformation::Params
             //
         }
     } else if (dims.size() == 2ul) {
-        if (concatLayer->outData[0]->getInputTo().size() != 0ul) {
+        if (getInputTo(concatLayer->outData[0]).size() != 0ul) {
             THROW_IE_EXCEPTION << "2D is not supported";
         }
     }
