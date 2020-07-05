@@ -56,6 +56,15 @@ public:
 
     bool apply(std::shared_ptr<ngraph::Node> node);
 
+    template <typename T, class... Args>
+    std::shared_ptr<T> register_new_node(Args&&... args)
+    {
+        auto node = std::make_shared<T>(std::forward<Args>(args)...);
+        m_new_nodes.push_back(node);
+        return node;
+    }
+
+    std::vector<std::shared_ptr<ngraph::Node>> get_new_nodes() const { return m_new_nodes; }
 protected:
     void register_matcher(const std::shared_ptr<pattern::Matcher>& m,
                           const ngraph::graph_rewrite_callback& callback,
@@ -63,6 +72,7 @@ protected:
 
 private:
     handler_callback m_handler;
+    std::vector<std::shared_ptr<ngraph::Node>> m_new_nodes;
 };
 
 class NGRAPH_API ngraph::pass::GraphRewriteBase : public ngraph::pass::FunctionPass

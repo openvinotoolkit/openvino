@@ -244,6 +244,9 @@ bool pass::VisualizeTree::run_on_module(vector<shared_ptr<Function>>& functions)
 
     render();
 
+    // Clean up local variable not to hold node pointers
+    m_nodes_with_attributes.clear();
+
     return false;
 }
 

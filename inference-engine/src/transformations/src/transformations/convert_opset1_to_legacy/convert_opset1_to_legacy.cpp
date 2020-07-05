@@ -46,6 +46,7 @@
 #include <transformations/convert_opset1_to_legacy/reshape_fully_connected.hpp>
 #include <transformations/pull_transpose_through_fq.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_hard_sigmoid_to_hard_sigmoid_ie.hpp>
+#include <transformations/lin_op_sequence_fusoin.hpp>
 
 #include <ngraph/pass/constant_folding.hpp>
 #include <ngraph/pass/manager.hpp>
@@ -71,9 +72,7 @@ bool ngraph::pass::ConvertOpSet1ToLegacy::run_on_function(std::shared_ptr<ngraph
     manager.register_pass<ngraph::pass::ConvertConvolutions>();
     manager.register_pass<ngraph::pass::BatchNormDecomposition>();
     manager.register_pass<ngraph::pass::ConstantFolding>();
-    manager.register_pass<ngraph::pass::MulAddVerification>();
-    manager.register_pass<ngraph::pass::MulAddFusion>();
-    manager.register_pass<ngraph::pass::ConstantFolding>();
+    manager.register_pass<ngraph::pass::LinOpSequenceFusion>();
     manager.register_pass<ngraph::pass::ConvertMatMulToFCorGemm>();
     manager.register_pass<ngraph::pass::PullTransposeThroughFQUp>();
     manager.register_pass<ngraph::pass::ConstantFolding>();

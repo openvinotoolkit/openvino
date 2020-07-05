@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include <algorithm>
+#include <deque>
 #include <iostream>
 #include <regex>
 #include <unordered_set>
@@ -74,8 +75,15 @@ bool pass::GraphRewrite::run_on_function(shared_ptr<Function> f)
         // that need multiple passes. See comments above.
         vector<std::shared_ptr<MatcherPass>> matchers_to_run{m_matchers};
         m_matchers.clear();
-        for (auto node : f->get_ordered_ops())
+        deque<std::shared_ptr<Node>> nodes_to_run;
+        for (auto& node : f->get_ordered_ops())
         {
+            nodes_to_run.emplace_back(node);
+        }
+        while (!nodes_to_run.empty())
+        {
+            auto node = nodes_to_run.front();
+            nodes_to_run.pop_front();
             // Temporary keep this GraphRewrite property for backward compatibility
             if (m_enable_shape_inference)
             {
@@ -97,7 +105,21 @@ bool pass::GraphRewrite::run_on_function(shared_ptr<Function> f)
                     m_pass->set_callback(m_transformation_callback);
                 }
 
-                if (m_pass->apply(node))
+                // Apply MatcherPass. In case if it returns true no other MatcherPasses will apply
+                // to this node
+                bool status = m_pass->apply(node);
+
+                // In case if MatcherPass registered nodes they will be added to execution queue
+                auto new_nodes = m_pass->get_new_nodes();
+                if (!new_nodes.empty())
+                {
+                    for (auto& new_node : new_nodes)
+                    {
+                        nodes_to_run.emplace_back(new_node);
+                    }
+                }
+
+                if (status)
                 {
                     rewritten = true;
                     break;
@@ -267,7 +289,10 @@ void ngraph::pass::MatcherPass::register_matcher(const std::shared_ptr<ngraph::p
         if (m->match(node->output(0)))
         {
             NGRAPH_DEBUG << "Matcher " << m->get_name() << " matched " << node;
-            return callback(*m.get());
+            bool status = callback(*m.get());
+            // explicitly clear Matcher state because it holds pointers to matched nodes
+            m->clear_state();
+            return status;
         }
         return false;
     };
@@ -275,5 +300,6 @@ void ngraph::pass::MatcherPass::register_matcher(const std::shared_ptr<ngraph::p
 
 bool ngraph::pass::MatcherPass::apply(std::shared_ptr<ngraph::Node> node)
 {
+    m_new_nodes.clear();
     return m_handler(node);
 }
