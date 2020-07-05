@@ -42,7 +42,6 @@
 
 #include <debug.h>
 #include <ngraph/opsets/opset1.hpp>
-#include "transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp"
 #include "transformations/utils/utils.hpp"
 #include "transformations/rt_info/fused_names_attribute.hpp"
 #include "transformations/rt_info/primitives_priority_attribute.hpp"

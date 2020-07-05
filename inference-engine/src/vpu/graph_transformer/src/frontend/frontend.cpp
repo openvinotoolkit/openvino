@@ -20,10 +20,6 @@
 #include <string>
 
 #include <cnn_network_impl.hpp>
-#include <generic_ie.hpp>
-#include <transformations/convert_opset3_to_opset2/convert_opset3_to_opset2.hpp>
-#include <transformations/convert_opset2_to_opset1/convert_opset2_to_opset1.hpp>
-#include <transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
 
 namespace vpu {
 

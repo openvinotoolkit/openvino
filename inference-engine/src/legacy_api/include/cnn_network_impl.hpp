@@ -18,6 +18,7 @@
 #include "ie_common.h"
 #include "ie_data.h"
 #include "ie_input_info.hpp"
+#include "transformations/utils/pass_param.hpp"
 
 namespace InferenceEngine {
 namespace ShapeInfer {
@@ -30,7 +31,9 @@ namespace details {
 class INFERENCE_ENGINE_API_CLASS(CNNNetworkImpl): public ICNNNetwork {
 public:
     CNNNetworkImpl();
-    explicit CNNNetworkImpl(const ICNNNetwork & ngraphImpl);
+    explicit CNNNetworkImpl(const ICNNNetwork & ngraphImpl,
+        const ngraph::pass::PassParam::param_callback & callback = ngraph::pass::PassParam::getDefaultCallback(),
+        bool keep_constant_inputs = false); 
     ~CNNNetworkImpl() override;
 
     std::shared_ptr<::ngraph::Function> getFunction() noexcept override {

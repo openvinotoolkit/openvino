@@ -53,6 +53,9 @@ set_ie_threading_interface_for(${TARGET_NAME})
 
 target_link_libraries(${TARGET_NAME} PRIVATE ${NGRAPH_LIBRARIES} inference_engine_transformations pugixml)
 
+target_include_directories(${TARGET_NAME} PUBLIC
+    $<TARGET_PROPERTY:inference_engine_transformations,INTERFACE_INCLUDE_DIRECTORIES>)
+
 add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME} EXCLUDE_PATTERNS ${CMAKE_CURRENT_BINARY_DIR}/dummy.cpp)
 
 # export targets

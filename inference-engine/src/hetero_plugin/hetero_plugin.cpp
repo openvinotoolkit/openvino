@@ -15,12 +15,6 @@
 #include "hetero/hetero_plugin_config.hpp"
 #include <cpp_interfaces/base/ie_plugin_base.hpp>
 #include "hetero_executable_network.hpp"
-#include "convert_function_to_cnn_network.hpp"
-#include <generic_ie.hpp>
-#include <transformations/common_optimizations/common_optimizations.hpp>
-#include <transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
-#include <transformations/convert_opset2_to_opset1/convert_opset2_to_opset1.hpp>
-#include <transformations/convert_opset3_to_opset2/convert_opset3_to_opset2.hpp>
 
 using namespace InferenceEngine;
 using namespace InferenceEngine::PluginConfigParams;

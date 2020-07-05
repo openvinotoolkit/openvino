@@ -19,10 +19,6 @@
 #include <set>
 #include <string>
 
-#include <transformations/common_optimizations/common_optimizations.hpp>
-#include <transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
-#include <transformations/convert_opset2_to_opset1/convert_opset2_to_opset1.hpp>
-#include <transformations/convert_opset3_to_opset2/convert_opset3_to_opset2.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_one_hot_to_one_hot_ie.hpp>
 
 #include "ngraph_ops/eltwise.hpp"
@@ -34,7 +30,6 @@
 #include "ie_profiling.hpp"
 #include "network_serializer.h"
 #include "generic_ie.hpp"
-#include "convert_function_to_cnn_network.hpp"
 #include <shape_infer/built-in/ie_built_in_holder.hpp>
 
 using namespace std;
