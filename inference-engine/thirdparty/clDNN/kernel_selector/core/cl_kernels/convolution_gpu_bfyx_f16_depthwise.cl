@@ -57,7 +57,6 @@ KERNEL(convolution_depthwise)(
     const uint input_fs_pad_before = INPUT0_PAD_BEFORE_FEATURE_NUM / FEATURE_SLICE_SIZE;
 
     const uint input_offset = b * input_b_pitch +
-                              input_fs_pad_before * input_fs_pitch +
                               INPUT0_PAD_BEFORE_SIZE_Y * input_y_pitch +
                               INPUT0_PAD_BEFORE_SIZE_X * input_x_pitch +
                               (f_block + input_fs_pad_before) * input_fs_pitch;
