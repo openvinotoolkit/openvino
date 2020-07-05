@@ -555,7 +555,7 @@ inline uchar16 FUNC(sub_group_block_read_uchar16)(const __global uchar* ptr) __a
 
 inline uchar16 FUNC(sub_group_block_read_uchar16)(const __local uchar* ptr) __attribute__((overloadable))
 {
-#if defined(cl_intel_subgroup_local_block_io) && defined(cl_intel_subgroups_char)
+#if LOCAL_BLOCK_IO_SUPPORTED && defined(cl_intel_subgroup_local_block_io) && defined(cl_intel_subgroups_char)
     // WA for compiler support
     // return intel_sub_group_block_read_uc16(ptr);
     return (uchar16)(intel_sub_group_block_read_uc8(ptr), intel_sub_group_block_read_uc8(ptr + 8 * get_max_sub_group_size()));
@@ -627,7 +627,7 @@ inline uchar8 FUNC(sub_group_block_read_uchar8)(const __global uchar* ptr) __att
 
 inline uchar8 FUNC(sub_group_block_read_uchar8)(const __local uchar* ptr) __attribute__((overloadable))
 {
-#if defined(cl_intel_subgroup_local_block_io) && defined(cl_intel_subgroups_char)
+#if LOCAL_BLOCK_IO_SUPPORTED && defined(cl_intel_subgroup_local_block_io) && defined(cl_intel_subgroups_char)
     return intel_sub_group_block_read_uc8(ptr);
 #else
     uint idx = get_sub_group_local_id();
@@ -681,7 +681,7 @@ inline uchar4 FUNC(sub_group_block_read_uchar4)(const __global uchar* ptr) __att
 
 inline uchar4 FUNC(sub_group_block_read_uchar4)(const __local uchar* ptr) __attribute__((overloadable))
 {
-#if defined(cl_intel_subgroup_local_block_io) && defined(cl_intel_subgroups_char)
+#if LOCAL_BLOCK_IO_SUPPORTED && defined(cl_intel_subgroup_local_block_io) && defined(cl_intel_subgroups_char)
     return intel_sub_group_block_read_uc4(ptr);
 #else
     uint idx = get_sub_group_local_id();
@@ -727,7 +727,7 @@ inline uchar2 FUNC(sub_group_block_read_uchar2)(const __global uchar* ptr) __att
 
 inline uchar2 FUNC(sub_group_block_read_uchar2)(const __local uchar* ptr) __attribute__((overloadable))
 {
-#if defined(cl_intel_subgroup_local_block_io) && defined(cl_intel_subgroups_char)
+#if LOCAL_BLOCK_IO_SUPPORTED && defined(cl_intel_subgroup_local_block_io) && defined(cl_intel_subgroups_char)
     return intel_sub_group_block_read_uc2(ptr);
 #else
     uint idx = get_sub_group_local_id();
@@ -769,7 +769,7 @@ inline uchar FUNC(sub_group_block_read_uchar)(const __global uchar* ptr) __attri
 
 inline uchar FUNC(sub_group_block_read_uchar)(const __local uchar* ptr) __attribute__((overloadable))
 {
-#if defined(cl_intel_subgroup_local_block_io) && defined(cl_intel_subgroups_char)
+#if LOCAL_BLOCK_IO_SUPPORTED && defined(cl_intel_subgroup_local_block_io) && defined(cl_intel_subgroups_char)
     return intel_sub_group_block_read_uc(ptr);
 #else
     uint idx = get_sub_group_local_id();

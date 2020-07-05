@@ -30,6 +30,50 @@
 namespace cldnn {
 namespace gpu {
 
+namespace {
+
+bool is_local_block_io_supported(const cl::Device& device) {
+    try {
+        cl::Context ctx(device);
+        std::string kernel_code =
+            "__attribute__((intel_reqd_sub_group_size(8)))"
+            "__attribute__((reqd_work_group_size(8, 1, 1)))"
+            "void kernel is_local_block_io_supported(global uchar* dst) {"
+            "    uint lid = get_sub_group_local_id();"
+            "    uchar val = (uchar)lid * 2;"
+            "    __local uchar tmp_slm[8];"
+            "    intel_sub_group_block_write_uc2(tmp_slm, (uchar2)(val));"
+            "    barrier(CLK_LOCAL_MEM_FENCE);"
+            "    uchar2 read = intel_sub_group_block_read_uc2(tmp_slm);"
+            "    dst[lid] = read.s0 + 1;"
+            "}";
+        cl::Program program(ctx, kernel_code);
+        if (program.build({ device }, "-Dcl_intel_subgroup_local_block_io") != CL_SUCCESS)
+            return false;
+        cl::Buffer buffer(ctx, CL_MEM_READ_WRITE, sizeof(uint8_t) * 8);
+        cl::Kernel kernel(program, "is_local_block_io_supported");
+        kernel.setArg(0, buffer);
+
+        cl::Event ev;
+        cl::CommandQueue queue(ctx, device);
+        queue.enqueueNDRangeKernel(kernel, cl::NDRange(), cl::NDRange(8), cl::NDRange(8), nullptr, &ev);
+        ev.wait();
+
+        uint8_t result[8];
+        uint8_t expected[8] = { 1, 3, 5, 7, 9, 11, 13, 15 };
+        queue.enqueueReadBuffer(buffer, CL_TRUE, 0, sizeof(uint8_t) * 8, &result);
+        for (int i = 0; i < 8; ++i) {
+            if (result[i] != expected[i])
+                return false;
+        }
+        return true;
+    } catch (...) {
+        return false;
+    }
+}
+
+}  // namespace
+
 device_info_internal::device_info_internal(const cl::Device& device) {
     dev_name = device.getInfo<CL_DEVICE_NAME>();
     driver_version = device.getInfo<CL_DRIVER_VERSION>();
@@ -70,7 +114,8 @@ device_info_internal::device_info_internal(const cl::Device& device) {
     supports_usm = extensions.find("cl_intel_unified_shared_memory") != std::string::npos;
 
     supports_optimization_hints = false;
-    supports_local_block_io = extensions.find("cl_intel_subgroup_local_block_io") != std::string::npos;
+    supports_local_block_io = extensions.find("cl_intel_subgroup_local_block_io") != std::string::npos &&
+                              is_local_block_io_supported(device);
 }
 }  // namespace gpu
 }  // namespace cldnn
