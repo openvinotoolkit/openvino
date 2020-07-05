@@ -9,7 +9,7 @@ namespace ngraph {
 namespace builder {
 namespace subgraph {
 
-FakeQuantizeOnData::FakeQuantizeOnData() {}
+FakeQuantizeOnData::FakeQuantizeOnData() : quantizationLevel(0) {}
 
 FakeQuantizeOnData::FakeQuantizeOnData(
     const size_t quantizationLevel,

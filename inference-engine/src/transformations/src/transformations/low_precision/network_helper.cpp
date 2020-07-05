@@ -751,7 +751,8 @@ std::shared_ptr<Node> optimizeSubtract(std::shared_ptr<opset1::Subtract> add) {
     std::shared_ptr<Node> replacement;
     if (roundedShift->get_element_type() == convertInputType) {
         // Propagate convertInputType down
-        replacement = std::make_shared<opset1::Subtract>(data, roundedShift);
+        // replacement = std::make_shared<opset1::Subtract>(data, roundedShift);
+        replacement = std::make_shared<op::TypeRelaxed<opset1::Subtract>>(data, roundedShift);
         replacement->set_output_type(0, convertOutputType, replacement->get_output_partial_shape(0));
         replace_node(add, replacement);
     } else {

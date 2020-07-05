@@ -11,7 +11,26 @@
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/pass/visualize_tree.hpp>
 
-std::pair<bool, std::string> compare_functions(const std::shared_ptr<ngraph::Function> & f1, const std::shared_ptr<ngraph::Function> & f2) {
+bool compare(const std::vector<float>& expectedValues, const std::shared_ptr<ngraph::opset1::Constant>& constant) {
+    const auto actualValues = constant->cast_vector<float>();
+    if (actualValues.size() != expectedValues.size()) {
+        return false;
+    }
+
+    static const float threshold = 1e-4f;
+    for (size_t i = 0; i < expectedValues.size(); ++i) {
+        if (abs(expectedValues[i] - actualValues[i]) > threshold) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+std::pair<bool, std::string> compare_functions(
+    const std::shared_ptr<ngraph::Function>& f1,
+    const std::shared_ptr<ngraph::Function>& f2,
+    const bool compareConstValues) {
     /*
      * This function compares two nGraph functions and requires them to have exactly one output
      * + Check nodes types
@@ -51,6 +70,20 @@ std::pair<bool, std::string> compare_functions(const std::shared_ptr<ngraph::Fun
         }
 
         for (int i = 0; i < node1->inputs().size(); ++i) {
+            std::shared_ptr<ngraph::opset1::Constant> const1 = ngraph::as_type_ptr<ngraph::opset1::Constant>(node1->get_input_node_shared_ptr(i));
+            std::shared_ptr<ngraph::opset1::Constant> const2 = ngraph::as_type_ptr<ngraph::opset1::Constant>(node2->get_input_node_shared_ptr(i));
+            if ((const1 != nullptr) && (const2 != nullptr)) {
+                if (!compare(const1->cast_vector<float>(), const2)) {
+                    err_log << "Different Constant values detected" << std::endl
+                        << node1->description() << " Input(" << i << ") and "
+                        << node2->description() << " Input(" << i << ")" << std::endl;
+                }
+
+                // std::cout << "Constant values compared: " << node1->get_friendly_name() << ":" << const1->get_friendly_name() << " & " <<
+                //    node2->get_friendly_name() << ":" << const2->get_friendly_name() << std::endl;
+            }
+
+
             if (node1->input(i).get_element_type() != node2->input(i).get_element_type()) {
                 err_log << "Different element type detected" << std::endl
                     << node1->description() << " Input(" << i << ") " << node1->input(i).get_element_type() << " and "
@@ -101,21 +134,4 @@ void check_rt_info(const std::shared_ptr<ngraph::Function> & f) {
 void visualize_function(std::shared_ptr<ngraph::Function> f, const std::string & file_name) {
     std::vector<std::shared_ptr<ngraph::Function> > g{f};
     ngraph::pass::VisualizeTree(file_name).run_on_module(g);
-}
-
-bool compare(const std::vector<float>& expectedValues, const std::shared_ptr<ngraph::opset1::Constant>& constant) {
-    const auto actualValues = constant->cast_vector<float>();
-    if (actualValues.size() != expectedValues.size()) {
-        return false;
-    }
-
-    static const float threshold = 1e-4f;
-    for (size_t i = 0; i < expectedValues.size(); ++i) {
-        if (abs(expectedValues[i] - actualValues[i]) > threshold) {
-            std::cout << "expected: " << expectedValues[i] << ", actual: " << actualValues[i] << std::endl;
-            return false;
-        }
-    }
-
-    return true;
 }
