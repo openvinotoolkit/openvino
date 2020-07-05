@@ -19,7 +19,7 @@
 #include <utility>
 #include <string>
 
-#include <convert_function_to_cnn_network.hpp>
+#include <cnn_network_impl.hpp>
 #include <generic_ie.hpp>
 #include <transformations/convert_opset3_to_opset2/convert_opset3_to_opset2.hpp>
 #include <transformations/convert_opset2_to_opset1/convert_opset2_to_opset1.hpp>
@@ -371,14 +371,7 @@ ModelPtr FrontEnd::runCommonPasses(ie::ICNNNetwork& network, const UnsupportedLa
         VPU_LOGGER_SECTION(env.log);
 
         auto convertNetwork = [&convertedNetwork, &originalOrConvertNetwork]() {
-            auto nGraphFunc = originalOrConvertNetwork->getFunction();
-            // Disable shape inference (WA for generic operations)
-            ngraph::op::GenericIE::DisableReshape noReshape(nGraphFunc);
-
-            ngraph::pass::ConvertOpSet3ToOpSet2().run_on_function(nGraphFunc);
-            ngraph::pass::ConvertOpSet2ToOpSet1().run_on_function(nGraphFunc);
-            ngraph::pass::ConvertOpSet1ToLegacy().run_on_function(nGraphFunc);
-            convertedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(nGraphFunc, *originalOrConvertNetwork);
+            convertedNetwork = std::make_shared<ie::details::CNNNetworkImpl>(*originalOrConvertNetwork);
             originalOrConvertNetwork = convertedNetwork.get();
         };
 

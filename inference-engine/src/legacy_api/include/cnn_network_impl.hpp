@@ -30,6 +30,7 @@ namespace details {
 class INFERENCE_ENGINE_API_CLASS(CNNNetworkImpl): public ICNNNetwork {
 public:
     CNNNetworkImpl();
+    explicit CNNNetworkImpl(const ICNNNetwork & ngraphImpl);
     ~CNNNetworkImpl() override;
 
     std::shared_ptr<::ngraph::Function> getFunction() noexcept override {

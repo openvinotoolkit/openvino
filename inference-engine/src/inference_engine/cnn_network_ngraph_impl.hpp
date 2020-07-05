@@ -92,10 +92,10 @@ public:
         noexcept override;
 
     void convertToCNNNetworkImpl();
-protected:
-    std::shared_ptr<::ngraph::Function> _ngraph_function;
     virtual std::shared_ptr<::ngraph::Function> cloneFunction(bool constFolding = false, const std::map<std::string,
             std::vector<size_t>>& inputShapes = {}) const;
+protected:
+    std::shared_ptr<::ngraph::Function> _ngraph_function;
 private:
     std::map<std::string, DataPtr> _data;
     InferenceEngine::InputsDataMap _inputData;
@@ -111,9 +111,11 @@ private:
      */
     void createDataForResult(const ::ngraph::Output<::ngraph::Node>& output, const std::string& outName, DataPtr& ptr);
 
-    friend INFERENCE_ENGINE_API_CPP(std::shared_ptr<CNNNetworkImpl>)
+    friend INFERENCE_ENGINE_API_CPP(void)
     convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function>& graph,
-                                 const ICNNNetwork& nGraphImpl, bool keep_constant_inputs);
+                                 const ICNNNetwork& nGraphImpl,
+                                 CNNNetworkImpl* cnnNetworkImpl,
+                                 bool keep_constant_inputs);
 
 
     /**

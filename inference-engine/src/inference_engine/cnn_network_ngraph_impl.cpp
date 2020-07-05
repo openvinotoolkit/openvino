@@ -17,7 +17,6 @@
 #include <ngraph/ngraph.hpp>
 #include <ngraph/pass/get_output_element_elimination.hpp>
 #include <set>
-// #include <shape_infer/ie_reshaper.hpp>
 #include <string>
 
 #include <transformations/common_optimizations/common_optimizations.hpp>
@@ -430,15 +429,7 @@ StatusCode CNNNetworkNGraphImpl::serialize(const std::string& xmlPath, const std
             return DescriptionBuffer(UNEXPECTED, resp);
         }
 
-        auto graph = cloneFunction();
-        // Disable shape inference (WA for generic operations)
-        ::ngraph::op::GenericIE::DisableReshape noReshape(graph);
-
-        ::ngraph::pass::CommonOptimizations().run_on_function(graph);
-        ::ngraph::pass::ConvertOpSet3ToOpSet2().run_on_function(graph);
-        ::ngraph::pass::ConvertOpSet2ToOpSet1().run_on_function(graph);
-        ::ngraph::pass::ConvertOpSet1ToLegacy().run_on_function(graph);
-        network = InferenceEngine::details::convertFunctionToICNNNetwork(graph, *this);
+        network = std::make_shared<details::CNNNetworkImpl>(*this);
     }
     if (!network) return GENERAL_ERROR;
     return network->serialize(xmlPath, binPath, resp);
@@ -492,15 +483,6 @@ StatusCode CNNNetworkNGraphImpl::setBatchSizeReshape(size_t size, ResponseDesc* 
 
 void CNNNetworkNGraphImpl::convertToCNNNetworkImpl() {
     IE_PROFILING_AUTO_SCOPE(convertToCNNNetworkImpl)
-    if (cnnNetwork)
-        return;
-    auto graph = cloneFunction();
-    // Disable shape inference (WA for generic operations)
-    ::ngraph::op::GenericIE::DisableReshape noReshape(graph);
-
-    ::ngraph::pass::CommonOptimizations().run_on_function(graph);
-    ::ngraph::pass::ConvertOpSet3ToOpSet2().run_on_function(graph);
-    ::ngraph::pass::ConvertOpSet2ToOpSet1().run_on_function(graph);
-    ::ngraph::pass::ConvertOpSet1ToLegacy().run_on_function(graph);
-    cnnNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(graph, *this);
+    if (!cnnNetwork)
+        cnnNetwork = std::make_shared<details::CNNNetworkImpl>(*this);
 }
