@@ -16,7 +16,7 @@
 
 from extensions.middle.pass_separator import PostMiddleStart
 from extensions.ops.transpose import Transpose
-from mo.front.tf.graph_utils import create_op_node_with_second_input
+
 from mo.graph.graph import Graph, Node
 from mo.middle.replacement import MiddleReplacementPattern
 from mo.ops.op import PermuteAttrs
@@ -69,6 +69,10 @@ class InsertLayoutPropagationTranspose(MiddleReplacementPattern):
                len(node.out_port(0).data.get_shape()) >= 4
 
     def find_and_replace_pattern(self, graph: Graph):
+
+        # we need to import these functions here to avoid circular dependent imports
+        from mo.front.tf.graph_utils import create_op_node_with_second_input
+
         if graph.graph['layout'] != 'NHWC':
             # we check it here because this transformation is called explicitly from the pipeline
             return
