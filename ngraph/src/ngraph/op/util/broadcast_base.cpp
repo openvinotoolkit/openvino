@@ -138,12 +138,12 @@ void op::util::BroadcastBase::validate_and_infer_types()
     }
 
     PartialShape result_shape{PartialShape::dynamic()};
-    auto input_rank = input_value(0).get_partial_shape().rank();
-    auto output_rank = input_value(1).get_partial_shape();
-    if (input_rank.is_static() && output_rank.is_static() && output_rank[0].is_static())
+    const auto input_rank = input_value(0).get_partial_shape().rank();
+    const auto output_shape = input_value(1).get_partial_shape();
+    if (input_rank.is_static() && output_shape.rank().is_static() && output_shape[0].is_static())
     {
         result_shape =
-            PartialShape::dynamic(std::max(input_rank.get_length(), output_rank[0].get_length()));
+            PartialShape::dynamic(std::max(input_rank.get_length(), output_shape[0].get_length()));
     }
     const auto shape_constant = as_type_ptr<op::v0::Constant>(input_value(1).get_node_shared_ptr());
 
@@ -173,6 +173,14 @@ void op::util::BroadcastBase::validate_and_infer_types()
 
     if (m_mode.m_type == BroadcastType::NONE)
     {
+        if (result_shape.rank().is_dynamic()) // output rank not calculated so far
+        {
+            if (output_shape.rank().is_static() && output_shape[0].is_static())
+            {
+                result_shape = PartialShape::dynamic(output_shape[0].get_length());
+            }
+        }
+
         if (shape_constant)
         {
             result_shape = shape_constant->get_shape_val();
