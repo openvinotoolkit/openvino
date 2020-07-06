@@ -39,14 +39,16 @@ void LayerTestsCommon::Compare(const std::vector<std::uint8_t> &expected, const 
     const auto actualBuffer = lockedMemory.as<const std::uint8_t *>();
 
     const auto &precision = actual->getTensorDesc().getPrecision();
-    auto resize = 1;
-    auto bathSize = 1;
+//    auto halfBatchSize = 1;
+//    auto batchSize = 1;
+    auto bufferSize = actual->size();
     // With dynamic batch, you need to size
     if (configuration.count(InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_ENABLED)) {
-        resize = actual->getTensorDesc().getDims()[0];
-        bathSize = resize > 1 ? resize/ 2 : 1;
+        auto batchSize = actual->getTensorDesc().getDims()[0];
+        auto halfBatchSize = batchSize > 1 ? batchSize/ 2 : 1;
+        bufferSize = (actual->size() * halfBatchSize / batchSize);
     }
-    const auto &size = (actual->size() * bathSize / resize);
+    const auto &size = bufferSize;
     switch (precision) {
         case InferenceEngine::Precision::FP32:
             Compare(reinterpret_cast<const float *>(expectedBuffer), reinterpret_cast<const float *>(actualBuffer),
@@ -103,9 +105,10 @@ void LayerTestsCommon::Infer() {
         inferRequest.SetBlob(info->name(), blob);
         inputs.push_back(blob);
     }
-    if (configuration.count(InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_ENABLED)) {
-        auto bathSize = cnnNetwork.getInputsInfo().begin()->second->getTensorDesc().getDims()[0] / 2;
-        inferRequest.SetBatch(bathSize);
+    if (configuration.count(InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_ENABLED) &&
+        configuration.count(InferenceEngine::PluginConfigParams::YES)) {
+        auto batchSize = cnnNetwork.getInputsInfo().begin()->second->getTensorDesc().getDims()[0] / 2;
+        inferRequest.SetBatch(batchSize);
     }
     inferRequest.Infer();
 }
