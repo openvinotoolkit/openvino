@@ -18,6 +18,7 @@
 
 #include <memory>
 
+#include "backend_visibility.hpp"
 #include "ngraph/op/util/binary_elementwise_arithmetic.hpp"
 
 namespace ngraph
@@ -27,7 +28,7 @@ namespace ngraph
         namespace v0
         {
             /// \brief Elementwise full arctan operation
-            class NGRAPH_API Atan2 : public util::BinaryElementwiseArithmetic
+            class BACKEND_API Atan2 : public util::BinaryElementwiseArithmetic
             {
             public:
                 static constexpr NodeTypeInfo type_info{"Atan2", 0};
@@ -54,6 +55,5 @@ namespace ngraph
                                                const OutputVector& deltas) override;
             };
         }
-        using v0::Atan2;
     }
 }
