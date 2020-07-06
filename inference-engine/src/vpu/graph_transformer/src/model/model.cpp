@@ -492,22 +492,6 @@ void ModelObj::replaceStageInput(
     IE_ASSERT(edge->_childEdge == nullptr);
 
     //
-    // New and old dynamic data must have the same parent shape data
-    //
-
-    if (edge->_input->parentDataToShapeEdge()) {
-        const auto& newParentDataToShapeEdge = newInput->parentDataToShapeEdge();
-        VPU_INTERNAL_CHECK(newParentDataToShapeEdge != nullptr,
-                "Replaced input data with name {} from {} stage with name {} has parentDataToShapeEdge, "
-                "but new input data with name {} has no parentDataToShapeEdge",
-                edge->_input->name(), edge->_consumer->type(), edge->_consumer->name(), newInput->name());
-        VPU_INTERNAL_CHECK(newParentDataToShapeEdge->parent() == edge->_input->parentDataToShapeEdge()->parent(),
-                "Replaced input data with name {} from {} stage with name {} and new input data with name must "
-                "have the same shape data",
-                edge->_input->name(), edge->_consumer->type(), edge->_consumer->name(), newInput->name());
-    }
-
-    //
     // Edge change affects the Stage order.
     //
 
@@ -603,15 +587,20 @@ void ModelObj::replaceStageOutput(
     // New and old dynamic data must have the same parent shape data
     //
 
-    if (edge->_output->parentDataToShapeEdge()) {
+    if (const auto& oldParentDataToShapeEdge = edge->_output->parentDataToShapeEdge()) {
         const auto& newParentDataToShapeEdge = newOutput->parentDataToShapeEdge();
         VPU_INTERNAL_CHECK(newParentDataToShapeEdge != nullptr,
                 "Replaced output data with name {} from {} stage with name {} has parentDataToShapeEdge, "
                 "but new output data with name {} has no parentDataToShapeEdge",
                 edge->_output->name(), edge->_producer->type(), edge->_producer->name(), newOutput->name());
-        VPU_INTERNAL_CHECK(newParentDataToShapeEdge->parent() == edge->_output->parentDataToShapeEdge()->parent(),
+        VPU_INTERNAL_CHECK(newParentDataToShapeEdge->parent() == oldParentDataToShapeEdge->parent(),
                 "Replaced output data with name {} from {} stage with name {} and new output data with name must "
                 "have the same shape data",
+                edge->_output->name(), edge->_producer->type(), edge->_producer->name(), newOutput->name());
+    } else {
+        VPU_INTERNAL_CHECK(newOutput->parentDataToShapeEdge() == nullptr,
+                "Replaced output data with name {} from {} stage with name {} has not parentDataToShapeEdge, "
+                "but new output data with name {} has",
                 edge->_output->name(), edge->_producer->type(), edge->_producer->name(), newOutput->name());
     }
 
