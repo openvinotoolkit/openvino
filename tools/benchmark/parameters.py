@@ -83,7 +83,7 @@ def parse_args():
     args.add_argument('-enforcebf16', '--enforce_bfloat16', type=str2bool, required=False, default=False, nargs='?', const=True,
                       help='Optional. Enforcing of floating point operations execution in bfloat16 precision where it is acceptable.')
     args.add_argument('-nthreads', '--number_threads', type=int, required=False, default=None,
-                      help='Number of threads to use for inference on the CPU '
+                      help='Number of threads to use for inference on the CPU, GNA '
                            '(including HETERO and MULTI cases).')
     args.add_argument('-pin', '--infer_threads_pinning', type=str, required=False, default='YES', choices=['YES', 'NO', 'NUMA'],
                       help='Optional. Enable  threads->cores (\'YES\' is default value), threads->(NUMA)nodes (\'NUMA\') or completely  disable (\'NO\')' 
@@ -107,6 +107,8 @@ def parse_args():
     args.add_argument('-load_config', type=str, required=False, default='',
                       help="Optional. Path to JSON file to load custom IE parameters."
                            " Please note, command line parameters have higher priority then parameters from configuration file.")
+    args.add_argument('-qb', '--quantization_bits', type=int, required=False, default=None, choices=[8, 16],
+                      help="Optional. Weight bits for quantization:  8 (I8) or 16 (I16) ")
     parsed_args = parser.parse_args()
 
     validate_args(parsed_args)

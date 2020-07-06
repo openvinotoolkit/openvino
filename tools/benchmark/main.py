@@ -5,7 +5,7 @@ from datetime import datetime
 from openvino.tools.benchmark.benchmark import Benchmark
 from openvino.tools.benchmark.parameters import parse_args
 from openvino.tools.benchmark.utils.constants import MULTI_DEVICE_NAME, HETERO_DEVICE_NAME, CPU_DEVICE_NAME, \
-    GPU_DEVICE_NAME, MYRIAD_DEVICE_NAME, BIN_EXTENSION, BLOB_EXTENSION
+    GPU_DEVICE_NAME, MYRIAD_DEVICE_NAME, GNA_DEVICE_NAME, BIN_EXTENSION, BLOB_EXTENSION
 from openvino.tools.benchmark.utils.inputs_filling import set_inputs
 from openvino.tools.benchmark.utils.logging import logger
 from openvino.tools.benchmark.utils.progress_bar import ProgressBar
@@ -154,6 +154,14 @@ def run(args):
                     config[device]['CLDNN_PLUGIN_THROTTLE'] = '1'
             elif device == MYRIAD_DEVICE_NAME:
                 config[device]['LOG_LEVEL'] = 'LOG_INFO'
+            elif device == GNA_DEVICE_NAME:
+                if is_flag_set_in_command_line('qb'):
+                    if args.qb == 8:
+                        config[device]['GNA_PRECISION'] = 'I8'
+                    else:
+                        config[device]['GNA_PRECISION'] = 'I16'
+                if args.number_threads and is_flag_set_in_command_line("nthreads"):
+                    config[device]['GNA_LIB_N_THREADS'] = str(args.number_threads)
         perf_counts = perf_counts
 
         benchmark.set_config(config)
