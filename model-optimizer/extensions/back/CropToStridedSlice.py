@@ -79,19 +79,27 @@ class CropToStridedSlice(BackReplacementPattern):
             begin.out_port(0).connect(end.in_port(1))
         elif node.has_valid('dim') and node.has_valid('offset'):
             # Crop Type 2
-            begin = Const(graph, {'value': self.mask_normalizer(shape_rank, node.axis, node.offset),
+            node_dim = self.list_to_ndarray(node.dim)
+            node_offset = self.list_to_ndarray(node.offset)
+            assert node_dim.size == node.offset.size == node.axis.size
+
+            begin = Const(graph, {'value': self.mask_normalizer(shape_rank, node.axis, node_offset),
                                   'name': ss.name + '/begin'}).create_node()
-            end_values = np.array([node.offset[i] + node.dim[i] for i in range(len(node.dim))])
+            end_values = np.array([node_offset[i] + node_dim[i] for i in range(len(node_dim))])
             end = Const(graph, {'value': self.mask_normalizer(shape_rank, node.axis, end_values),
                                 'name': ss.name + '/end'}).create_node()
         elif node.has_valid('crop_begin') and node.has_valid('crop_end'):
             # Crop Type 3
-            begin = Const(graph, {'value': self.mask_normalizer(shape_rank, node.axis, node.crop_begin),
+            node_crop_begin = self.list_to_ndarray(node.crop_begin)
+            node_crop_end = self.list_to_ndarray(node.crop_end)
+            assert len(node_crop_begin) == len(node_crop_end) == len(node.axis)
+
+            begin = Const(graph, {'value': self.mask_normalizer(shape_rank, node.axis, node_crop_begin),
                                   'name': ss.name + '/begin'}).create_node()
             shape = Shape(graph, {'name': ss.name + '/shape'}).create_node()
 
             end = Add(graph, {'name': ss.name + '/end'}).create_node()
-            const = Const(graph, {'value': -1 * self.mask_normalizer(shape_rank, node.axis, node.crop_end),
+            const = Const(graph, {'value': -1 * self.mask_normalizer(shape_rank, node.axis, node_crop_end),
                                   'name': end.name + '/const'}).create_node()
 
             node.in_port(0).get_connection().get_source().connect(shape.in_port(0))

@@ -95,6 +95,8 @@ class GatherNdNormalize(MiddleReplacementPattern):
         # 3. Create new Gather operation and reconnect all inputs/outputs
         new_gather = create_op_with_const_inputs(graph, Gather, {1: new_indices, 2: int64_array(0)},
                                                  {'name': gather_name})
+        rename_node(new_gather, gather_name)
+
         reshape.out_port(0).connect(new_gather.in_port(0))
 
         gather.out_port(0).get_connection().set_source(new_gather.out_port(0))
