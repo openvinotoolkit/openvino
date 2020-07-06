@@ -116,11 +116,11 @@ void OutputLayersHandlingInTransformations::validate() {
         params.precisionsOnActivations.begin(),
         params.precisionsOnActivations.end(),
         [](const float value) { return value == InferenceEngine::Precision::U8; })) {
-        EXPECT_EQ("ScaleShift", fakeQuantizeOnActivationsIt->second->getCreatorLayer().lock()->type);
-        EXPECT_EQ("ScaleShift", convolutionIt->second->getCreatorLayer().lock()->type);
+        EXPECT_EQ("ScaleShift", getCreatorLayer(fakeQuantizeOnActivationsIt->second).lock()->type);
+        EXPECT_EQ("ScaleShift", getCreatorLayer(convolutionIt->second).lock()->type);
     } else {
-        EXPECT_EQ("FakeQuantize", fakeQuantizeOnActivationsIt->second->getCreatorLayer().lock()->type);
-        EXPECT_EQ("Convolution", convolutionIt->second->getCreatorLayer().lock()->type);
+        EXPECT_EQ("FakeQuantize", getCreatorLayer(fakeQuantizeOnActivationsIt->second).lock()->type);
+        EXPECT_EQ("Convolution", getCreatorLayer(convolutionIt->second).lock()->type);
     }
 
     IE_SUPPRESS_DEPRECATED_END

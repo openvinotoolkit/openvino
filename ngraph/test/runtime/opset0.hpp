@@ -18,6 +18,7 @@
 
 #include "ngraph/ops.hpp"
 #include "op/and.hpp"
+#include "op/atan2.hpp"
 #include "op/avg_pool.hpp"
 
 namespace ngraph
