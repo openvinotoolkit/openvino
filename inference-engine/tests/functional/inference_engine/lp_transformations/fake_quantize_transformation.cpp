@@ -29,7 +29,7 @@ public:
     std::vector<float> multiply;
 };
 
-class FakeQuantizeOnDataTestValues {
+class FakeQuantizeTransformationTestValues {
 public:
     low_precision::LayerTransformation::Params params;
     builder::subgraph::FakeQuantizeOnData actual;
@@ -49,7 +49,7 @@ inline std::ostream& operator<<(std::ostream& os, const std::vector<float>& valu
     return os;
 }
 
-inline std::ostream& operator<<(std::ostream& out, const FakeQuantizeOnDataTestValues& testValue) {
+inline std::ostream& operator<<(std::ostream& out, const FakeQuantizeTransformationTestValues& testValue) {
     return out << "_" <<
         testValue.actual.constantShape << "_" << testValue.actual.outputLowValues << "_" << testValue.actual.outputHighValues << "_" <<
         testValue.expected.constantShape << "_" << testValue.expected.outputLowValues << "_" << testValue.expected.outputHighValues;;
@@ -59,7 +59,7 @@ typedef std::tuple<
     ngraph::element::Type,
     ngraph::Shape,
     bool,
-    FakeQuantizeOnDataTestValues> FakeQuantizeTransformationParams;
+    FakeQuantizeTransformationTestValues> FakeQuantizeTransformationParams;
 
 class FakeQuantizeTransformation : public LayerTransformation, public testing::WithParamInterface<FakeQuantizeTransformationParams> {
 public:
@@ -67,7 +67,7 @@ public:
         const ngraph::element::Type precision = std::get<0>(GetParam());
         const ngraph::Shape shape = std::get<1>(GetParam());
         const bool updatePrecision = std::get<2>(GetParam());
-        const FakeQuantizeOnDataTestValues fakeQuantizeOnData = std::get<3>(GetParam());
+        const FakeQuantizeTransformationTestValues fakeQuantizeOnData = std::get<3>(GetParam());
 
         const low_precision::LayerTransformation::Params params = low_precision::LayerTransformation::Params(fakeQuantizeOnData.params).
             setUpdatePrecisions(updatePrecision);
@@ -95,7 +95,7 @@ public:
         ngraph::element::Type precision;
         ngraph::Shape shape;
         bool updatePrecision;
-        FakeQuantizeOnDataTestValues fakeQuantizeOnData;
+        FakeQuantizeTransformationTestValues fakeQuantizeOnData;
         std::tie(precision, shape, updatePrecision, fakeQuantizeOnData) = obj.param;
 
         std::ostringstream result;
@@ -119,7 +119,7 @@ const std::vector<ngraph::element::Type> precisions = {
 
 const std::vector<bool> updatePrecisions = { true, false };
 
-const std::vector<FakeQuantizeOnDataTestValues> fakeQuantizeOnDataTestValues = {
+const std::vector<FakeQuantizeTransformationTestValues> fakeQuantizeTransformationTestValues = {
     // U8
     {
         LayerTransformation::createParamsU8I8(),
@@ -191,5 +191,5 @@ INSTANTIATE_TEST_CASE_P(
         ::testing::ValuesIn(precisions),
         ::testing::ValuesIn(shapes),
         ::testing::ValuesIn(updatePrecisions),
-        ::testing::ValuesIn(fakeQuantizeOnDataTestValues)),
+        ::testing::ValuesIn(fakeQuantizeTransformationTestValues)),
     FakeQuantizeTransformation::getTestCaseName);
