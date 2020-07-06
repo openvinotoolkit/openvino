@@ -85,7 +85,7 @@ void ConvolutionTransformation::transform(TransformationContext &context, ngraph
             parent,
             convolution->input_value(1) });
         replace_node(convolution, newConvolution);
-        newConvolution->set_friendly_name(convolution->get_friendly_name() + "_new");
+        newConvolution->set_friendly_name(convolution->get_friendly_name());
         convolution = newConvolution;
 
         //std::cout << convolution->get_friendly_name() << std::endl;

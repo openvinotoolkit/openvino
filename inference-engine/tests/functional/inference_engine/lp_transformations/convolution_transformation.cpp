@@ -28,8 +28,8 @@ using namespace ngraph::pass;
 class ConvolutionTransformationTestParams {
 public:
     low_precision::LayerTransformation::Params transformationParams;
-    ngraph::builder::subgraph::ActualValues actual;
-    ngraph::builder::subgraph::ExpectedValues expected;
+    ngraph::builder::subgraph::ConvolutionFunction::ActualValues actual;
+    ngraph::builder::subgraph::ConvolutionFunction::ExpectedValues expected;
 };
 
 typedef std::tuple<
