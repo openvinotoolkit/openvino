@@ -41,7 +41,6 @@ ParamsKey fused_conv_eltwise_kernel_b_fs_yx_fsv4::GetSupportedKey() const {
     k.EnableSubGroup();
     k.EnableSubGroupShort();
     k.EnableBiasPerFeature();
-    k.EnableBiasPerOutput();
     k.EnableNonBiasTerm();
     k.EnableBatching();
     k.EnableDifferentTypes();
