@@ -249,9 +249,9 @@ TEST_F(RemoveLayerTests, canTrimL2) {
     ASSERT_EQ(nullptr, net->getData("data7"));
     net->removeData("data7");
     ASSERT_EQ(net->allLayers().size(), originalLayersNum);
-    ASSERT_EQ(data2->getInputTo().size(), 1);
-    ASSERT_EQ(data2->getInputTo().find("layer1")->second, layer1);
-    ASSERT_EQ(data5->getCreatorLayer().lock(), newLayer);
+    ASSERT_EQ(getInputTo(data2).size(), 1);
+    ASSERT_EQ(getInputTo(data2).find("layer1")->second, layer1);
+    ASSERT_EQ(getCreatorLayer(data5).lock(), newLayer);
     ASSERT_EQ(layer4->insData.size(), 2);
     ASSERT_EQ(layer4->insData[1].lock(), data5);
     ASSERT_EQ(layer1->insData.size(), 2);
@@ -261,8 +261,8 @@ TEST_F(RemoveLayerTests, canTrimL2) {
     ASSERT_EQ(layer1->outData[0], getData("data4"));
     ASSERT_EQ(newLayer->outData.size(), 1);
     ASSERT_EQ(newLayer->outData[0], data5);
-    ASSERT_EQ(data3->getInputTo().size(), 1);
-    ASSERT_EQ(data3->getInputTo().find("layer3")->second, getLayer("layer3"));
+    ASSERT_EQ(getInputTo(data3).size(), 1);
+    ASSERT_EQ(getInputTo(data3).find("layer3")->second, getLayer("layer3"));
 }
 
 TEST_F(RemoveLayerTests, canTrimI1andL1) {
@@ -301,10 +301,10 @@ TEST_F(RemoveLayerTests, canTrimI1andL1) {
     ASSERT_EQ(nullptr, net->getData("data1"));
     net->removeData("data1");
     ASSERT_EQ(net->allLayers().size(), originalLayersNum);
-    ASSERT_EQ(data2->getInputTo().size(), 1);
-    ASSERT_EQ(data2->getInputTo().find("layer2")->second, layer2);
-    ASSERT_EQ(newData4->getCreatorLayer().lock(), newLayerD4);
-    ASSERT_EQ(newData7->getCreatorLayer().lock(), newLayerD7);
+    ASSERT_EQ(getInputTo(data2).size(), 1);
+    ASSERT_EQ(getInputTo(data2).find("layer2")->second, layer2);
+    ASSERT_EQ(getCreatorLayer(newData4).lock(), newLayerD4);
+    ASSERT_EQ(getCreatorLayer(newData7).lock(), newLayerD7);
     ASSERT_EQ(newLayerD4->outData.size(), 1);
     ASSERT_EQ(newLayerD7->outData.size(), 1);
     ASSERT_EQ(newLayerD4->outData[0], newData4);
@@ -450,8 +450,8 @@ TEST_F(RemoveLayerTests, canTrimShapeInput2) {
 
     auto data6 = net->getData("data6");
     auto data2 = net->getData("data2");
-    ASSERT_EQ(data2->getInputTo().size(), 1);
-    ASSERT_EQ(data2->getInputTo().at(layer2->name), layer2);
+    ASSERT_EQ(getInputTo(data2).size(), 1);
+    ASSERT_EQ(getInputTo(data2).at(layer2->name), layer2);
     ASSERT_EQ(net->allLayers().size(), originalLayersNum);
     ASSERT_EQ(layer1->insData.size(), 1);
     ASSERT_EQ(layer1->insData[0].lock(), getData("data1"));
@@ -476,8 +476,8 @@ TEST_F(RemoveLayerTests, notTrimFirstConstInput) {
         ASSERT_EQ(net->allLayers().size(), originalLayersNum);
         IE::CNNNetwork cnnNetwork(net);
         auto input4 = CommonTestUtils::getLayerByName(cnnNetwork, constLayer->name.c_str());
-        ASSERT_EQ(data10->getInputTo().size(), 1);
-        ASSERT_EQ(data10->getCreatorLayer().lock(), input4);
+        ASSERT_EQ(getInputTo(data10).size(), 1);
+        ASSERT_EQ(getCreatorLayer(data10).lock(), input4);
         ASSERT_EQ(layer6->insData.size(), 2);
         ASSERT_EQ(layer6->insData[0].lock(), data10);
         ASSERT_EQ(layer6->insData[1].lock(), getData("data9"));
@@ -499,9 +499,9 @@ TEST_F(RemoveLayerTests, canSaveConstForEltWise) {
     ASSERT_EQ(net->allLayers().size(), 10);
     ASSERT_EQ(layer1->insData.size(), 2);
     ASSERT_EQ(layer1->insData[1].lock(), data2);
-    ASSERT_EQ(data2->getInputTo().size(), 2);
-    ASSERT_EQ(data2->getInputTo().at(layer1->name), layer1);
-    ASSERT_EQ(data2->getCreatorLayer().lock(), input2);
+    ASSERT_EQ(getInputTo(data2).size(), 2);
+    ASSERT_EQ(getInputTo(data2).at(layer1->name), layer1);
+    ASSERT_EQ(getCreatorLayer(data2).lock(), input2);
 }
 
 TEST_F(RemoveLayerTests, canSaveDataWithMultipleInputTo) {
@@ -521,9 +521,9 @@ TEST_F(RemoveLayerTests, canSaveDataWithMultipleInputTo) {
     ASSERT_EQ(layer2->insData.size(), 2);
     ASSERT_EQ(layer2->insData[0].lock(), getData("data2"));
     ASSERT_EQ(layer2->insData[1].lock(), getData("data7"));
-    ASSERT_EQ(data3->getInputTo().size(), 1);
-    ASSERT_EQ(data3->getInputTo().at(layer3->name), layer3);
-    ASSERT_EQ(data3->getCreatorLayer().lock(), input3);
+    ASSERT_EQ(getInputTo(data3).size(), 1);
+    ASSERT_EQ(getInputTo(data3).at(layer3->name), layer3);
+    ASSERT_EQ(getCreatorLayer(data3).lock(), input3);
     ASSERT_EQ(layer3->insData.size(), 1);
     ASSERT_EQ(layer3->insData[0].lock(), data3);
 }
