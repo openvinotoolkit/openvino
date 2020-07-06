@@ -12,7 +12,7 @@
 #include <ngraph_ops/nms_ie.hpp>
 #include <ngraph/rt_info.hpp>
 
-void ngraph::pass::ConvertNMSToNMSIE::convert_nms_to_nms_ie() {
+ngraph::pass::ConvertNMSToNMSIEMatcher::ConvertNMSToNMSIEMatcher() {
     auto nms = std::make_shared<pattern::op::Label>(element::f32, Shape{}, pattern::has_class<opset1::NonMaxSuppression>());
 
     ngraph::graph_rewrite_callback callback = [](pattern::Matcher &m) {
@@ -95,5 +95,5 @@ void ngraph::pass::ConvertNMSToNMSIE::convert_nms_to_nms_ie() {
     };
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(nms, "ConvertNMSToNMSIE");
-    this->add_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
+    this->register_matcher(m, callback);
 }

@@ -15,7 +15,7 @@
 namespace ngraph {
 namespace pass {
 
-class TRANSFORMATIONS_API ConvertNMSToNMSIE;
+class TRANSFORMATIONS_API ConvertNMSToNMSIEMatcher;
 
 }  // namespace pass
 }  // namespace ngraph
@@ -28,12 +28,7 @@ class TRANSFORMATIONS_API ConvertNMSToNMSIE;
  *     we insert Unsqueeze operations.
  */
 
-class ngraph::pass::ConvertNMSToNMSIE : public ngraph::pass::GraphRewrite {
+class ngraph::pass::ConvertNMSToNMSIEMatcher : public ngraph::pass::MatcherPass {
 public:
-    ConvertNMSToNMSIE() : GraphRewrite() {
-        convert_nms_to_nms_ie();
-    }
-
-private:
-    void convert_nms_to_nms_ie();
+    ConvertNMSToNMSIEMatcher();
 };

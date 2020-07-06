@@ -15,17 +15,12 @@
 namespace ngraph {
 namespace pass {
 
-class TRANSFORMATIONS_API ConvertSeluToSeluIE;
+class TRANSFORMATIONS_API ConvertSeluToSeluIEMatcher;
 
 }  // namespace pass
 }  // namespace ngraph
 
-class ngraph::pass::ConvertSeluToSeluIE: public ngraph::pass::GraphRewrite {
+class ngraph::pass::ConvertSeluToSeluIEMatcher: public ngraph::pass::MatcherPass {
 public:
-    ConvertSeluToSeluIE() : GraphRewrite() {
-        convert_selu();
-    }
-
-private:
-    void convert_selu();
+    ConvertSeluToSeluIEMatcher();
 };

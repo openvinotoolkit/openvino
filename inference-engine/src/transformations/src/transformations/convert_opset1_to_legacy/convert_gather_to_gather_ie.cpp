@@ -10,7 +10,7 @@
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/rt_info.hpp>
 
-void ngraph::pass::ConvertGatherToGatherIE::convert_gather_to_gather_ie() {
+ngraph::pass::ConvertGatherToGatherIEMatcher::ConvertGatherToGatherIEMatcher() {
     auto gather = std::make_shared<pattern::op::Label>(element::f32, Shape{1}, pattern::has_class<opset1::Gather>());
 
     ngraph::graph_rewrite_callback callback = [](pattern::Matcher &m) {
@@ -63,5 +63,5 @@ void ngraph::pass::ConvertGatherToGatherIE::convert_gather_to_gather_ie() {
     };
 
     auto m1 = std::make_shared<ngraph::pattern::Matcher>(gather, "ConvertGatherToGatherIE");
-    this->add_matcher(m1, callback, PassProperty::CHANGE_DYNAMIC_STATE);
+    this->register_matcher(m1, callback);
 }

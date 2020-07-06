@@ -15,7 +15,7 @@
 #include <ngraph_ops/gru_cell_ie.hpp>
 #include <ngraph_ops/rnn_cell_ie.hpp>
 
-void ngraph::pass::ConvertCellsToCellsIE::convert_lstm_cell() {
+ngraph::pass::ConvertLSTMCellMatcher::ConvertLSTMCellMatcher() {
     // placeholders
     auto input_0 = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1, 1});  // X
     auto input_1 = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1});  // initial_hidden_state
@@ -61,10 +61,10 @@ void ngraph::pass::ConvertCellsToCellsIE::convert_lstm_cell() {
     };
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(lstm_cell_ngraph, "ConvertLSTMCellToLSTMCellIE");
-    this->add_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
+    this->register_matcher(m, callback);
 }
 
-void ngraph::pass::ConvertCellsToCellsIE::convert_gru_cell() {
+ngraph::pass::ConvertGRUCellMatcher::ConvertGRUCellMatcher() {
     // placeholders
     auto input_0 = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1});  // X
     auto input_1 = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1});  // initial_hidden_state
@@ -109,10 +109,10 @@ void ngraph::pass::ConvertCellsToCellsIE::convert_gru_cell() {
     };
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(gru_cell_ngraph, "ConvertGRUCellToGRUCellIE");
-    this->add_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
+    this->register_matcher(m, callback);
 }
 
-void ngraph::pass::ConvertCellsToCellsIE::convert_rnn_cell() {
+ngraph::pass::ConvertRNNCellMatcher::ConvertRNNCellMatcher() {
     // placeholders
     auto input_0 = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1});  // X
     auto input_1 = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1});  // initial_hidden_state
@@ -156,5 +156,5 @@ void ngraph::pass::ConvertCellsToCellsIE::convert_rnn_cell() {
     };
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(rnn_cell_ngraph, "ConvertRNNCellToRNNCellIE");
-    this->add_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
+    this->register_matcher(m, callback);
 }

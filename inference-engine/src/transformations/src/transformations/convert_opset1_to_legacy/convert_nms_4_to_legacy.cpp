@@ -14,7 +14,7 @@
 
 #include "transformations/convert_opset1_to_legacy/convert_nms_4_to_legacy.hpp"
 
-void ngraph::pass::ConvertNMS4ToLegacy::convert_nms4_to_legacy() {
+ngraph::pass::ConvertNMS4ToLegacyMatcher::ConvertNMS4ToLegacyMatcher() {
     auto boxes = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1000, 4});
     auto scores = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1000});
     auto max_output_boxes_per_class = ngraph::opset4::Constant::create(element::i64, Shape{}, {10});
@@ -115,5 +115,5 @@ void ngraph::pass::ConvertNMS4ToLegacy::convert_nms4_to_legacy() {
     };
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(nms, "ConvertNMS4ToNMSLegacy");
-    this->add_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
+    this->register_matcher(m, callback);
 }

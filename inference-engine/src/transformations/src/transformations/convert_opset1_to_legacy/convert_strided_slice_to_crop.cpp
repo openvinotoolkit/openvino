@@ -13,7 +13,7 @@
 #include <ngraph_ops/crop_ie.hpp>
 #include <ngraph/rt_info.hpp>
 
-void ngraph::pass::ConvertStridedSliceToCrop::convert_strided_slice_to_crop() {
+ngraph::pass::ConvertStridedSliceToCropMatcher::ConvertStridedSliceToCropMatcher() {
     auto data = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1, 1});
     auto m_begin = std::make_shared<pattern::op::Label>(element::i64, Shape{2});
     auto m_end = std::make_shared<pattern::op::Label>(element::i64, Shape{2});
@@ -226,5 +226,5 @@ void ngraph::pass::ConvertStridedSliceToCrop::convert_strided_slice_to_crop() {
     };
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(m_slice, "ConvertStridedSliceToCrop");
-    this->add_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
+    this->register_matcher(m, callback);
 }

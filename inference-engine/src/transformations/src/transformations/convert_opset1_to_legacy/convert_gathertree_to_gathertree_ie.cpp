@@ -10,7 +10,7 @@
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/rt_info.hpp>
 
-void ngraph::pass::ConvertGatherTreeToGatherTreeIE::convert() {
+ngraph::pass::ConvertGatherTreeToGatherTreeIEMatcher::ConvertGatherTreeToGatherTreeIEMatcher() {
     auto input0 = std::make_shared<pattern::op::Label>(element::i64, Shape{1, 1, 1});
     auto input1 = std::make_shared<pattern::op::Label>(element::i64, Shape{1, 1, 1});
     auto input2 = std::make_shared<pattern::op::Label>(element::i64, Shape{1});
@@ -34,5 +34,5 @@ void ngraph::pass::ConvertGatherTreeToGatherTreeIE::convert() {
     };
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(gt, "ConvertGatherTreeToGatherTreeIE");
-    this->add_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
+    this->register_matcher(m, callback);
 }

@@ -96,21 +96,22 @@ bool ngraph::pass::ConvertOpSet1ToLegacy::run_on_function(std::shared_ptr<ngraph
     anchor->add_matcher<ngraph::pass::ConvertTileToLegacyMatcher>();
     anchor->add_matcher<ngraph::pass::ConvertLRNToLegacyMatcher>();
     anchor->add_matcher<ngraph::pass::ConvertPadToLegacyMatcher>();
+    anchor->add_matcher<ngraph::pass::ConvertLSTMCellMatcher>();
+    anchor->add_matcher<ngraph::pass::ConvertRNNCellMatcher>();
+    anchor->add_matcher<ngraph::pass::ConvertGRUCellMatcher>();
+    anchor->add_matcher<ngraph::pass::ConvertInterpolateToInterpOrResampleMatcher>();
+    anchor->add_matcher<ngraph::pass::ConvertStridedSliceToCropMatcher>();
+    anchor->add_matcher<ngraph::pass::ConvertPowerToPowerIEMatcher>();
+    anchor->add_matcher<ngraph::pass::ConvertSqrtToPowerIEMatcher>();
+    anchor->add_matcher<ngraph::pass::ConvertPReLUToReLUIEMatcher>();
+    anchor->add_matcher<ngraph::pass::ConvertGatherToGatherIEMatcher>();
+    anchor->add_matcher<ngraph::pass::ConvertSeluToSeluIEMatcher>();
+    anchor->add_matcher<ngraph::pass::ConvertOneHotToOneHotIEMatcher>()->detect_output_type(f);
+    anchor->add_matcher<ngraph::pass::ConvertGatherTreeToGatherTreeIEMatcher>();
+    anchor->add_matcher<ngraph::pass::ConvertTopKToTopKIEMatcher>();
+    anchor->add_matcher<ngraph::pass::ConvertNMSToNMSIEMatcher>();
+    anchor->add_matcher<ngraph::pass::ConvertNMS4ToLegacyMatcher>();
     anchor->set_name("ngraph::pass::ConvertOpSet1ToLegacy");
-
-    manager.register_pass<ngraph::pass::ConvertCellsToCellsIE>();
-    manager.register_pass<ngraph::pass::ConvertInterpolateToInterpOrResample>();
-    manager.register_pass<ngraph::pass::ConvertStridedSliceToCrop>();
-    manager.register_pass<ngraph::pass::ConvertPowerToPowerIE>();
-    manager.register_pass<ngraph::pass::ConvertSqrtToPowerIE>();
-    manager.register_pass<ngraph::pass::ConvertPReLUToReLUIE>();
-    manager.register_pass<ngraph::pass::ConvertGatherToGatherIE>();
-    manager.register_pass<ngraph::pass::ConvertSeluToSeluIE>();
-    manager.register_pass<ngraph::pass::ConvertOneHotToOneHotIE>();
-    manager.register_pass<ngraph::pass::ConvertGatherTreeToGatherTreeIE>();
-    manager.register_pass<ngraph::pass::ConvertTopKToTopKIE>();
-    manager.register_pass<ngraph::pass::ConvertNMSToNMSIE>();
-    manager.register_pass<ngraph::pass::ConvertNMS4ToLegacy>();
 
     manager.register_pass<ngraph::pass::ConstantFolding>();
 

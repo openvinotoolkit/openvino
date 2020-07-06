@@ -17,17 +17,12 @@
 namespace ngraph {
 namespace pass {
 
-class TRANSFORMATIONS_API ConvertGatherTreeToGatherTreeIE;
+class TRANSFORMATIONS_API ConvertGatherTreeToGatherTreeIEMatcher;
 
 }  // namespace pass
 }  // namespace ngraph
 
-class ngraph::pass::ConvertGatherTreeToGatherTreeIE: public ngraph::pass::GraphRewrite {
+class ngraph::pass::ConvertGatherTreeToGatherTreeIEMatcher: public ngraph::pass::MatcherPass {
 public:
-    ConvertGatherTreeToGatherTreeIE() : GraphRewrite() {
-        convert();
-    }
-
-private:
-    void convert();
+    ConvertGatherTreeToGatherTreeIEMatcher();
 };

@@ -13,7 +13,7 @@
 #include <transformations/utils/utils.hpp>
 #include <ngraph/rt_info.hpp>
 
-void ngraph::pass::ConvertSqrtToPowerIE::convert_sqrt() {
+ngraph::pass::ConvertSqrtToPowerIEMatcher::ConvertSqrtToPowerIEMatcher() {
     auto input_0 = std::make_shared<pattern::op::Label>(element::f32, Shape{1});
     auto sqrt = std::make_shared<ngraph::opset1::Sqrt>(input_0);
 
@@ -31,6 +31,6 @@ void ngraph::pass::ConvertSqrtToPowerIE::convert_sqrt() {
     };
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(sqrt, "ConvertPowerToPowerIE");
-    this->add_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
+    this->register_matcher(m, callback);
 }
 
