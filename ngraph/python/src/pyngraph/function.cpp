@@ -51,9 +51,16 @@ void regclass_pyngraph_Function(py::module m)
     function.def("is_dynamic", &ngraph::Function::is_dynamic);
     function.def("__repr__", [](const ngraph::Function& self) {
         std::string class_name = py::cast(self).get_type().attr("__name__").cast<std::string>();
-        std::string shape =
-            py::cast(self.get_output_partial_shape(0)).attr("__str__")().cast<std::string>();
-        return "<" + class_name + ": '" + self.get_friendly_name() + "' (" + shape + ")>";
+        std::stringstream shapes_ss;
+        for (size_t i = 0; i < self.get_output_size(); ++i)
+        {
+            if (i > 0)
+            {
+                shapes_ss << ", ";
+            }
+            shapes_ss << self.get_output_partial_shape(i);
+        }
+        return "<" + class_name + ": '" + self.get_friendly_name() + "' (" + shapes_ss.str() + ")>";
     });
     function.def_static("from_capsule", [](py::object* capsule) {
         // get the underlying PyObject* which is a PyCapsule pointer
