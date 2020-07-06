@@ -24,64 +24,6 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::BatchNormTraining::type_info;
-
-op::BatchNormTraining::BatchNormTraining(const Output<Node>& input,
-                                         const Output<Node>& gamma,
-                                         const Output<Node>& beta,
-                                         double epsilon)
-    : Op({gamma, beta, input})
-    , m_epsilon(epsilon)
-{
-    constructor_validate_and_infer_types();
-}
-
-// DEPRECATED
-op::BatchNormTraining::BatchNormTraining(double eps,
-                                         const Output<Node>& gamma,
-                                         const Output<Node>& beta,
-                                         const Output<Node>& input)
-    : Op({gamma, beta, input})
-    , m_epsilon(eps)
-{
-    constructor_validate_and_infer_types();
-}
-
-bool op::BatchNormTraining::visit_attributes(AttributeVisitor& visitor)
-{
-    visitor.on_attribute("epsilon", m_epsilon);
-    return true;
-}
-
-void op::BatchNormTraining::validate_and_infer_types()
-{
-    element::Type result_et;
-    PartialShape result_batch_shape;
-    PartialShape result_channel_shape;
-
-    set_output_size(3);
-    std::tie(result_et, result_batch_shape, result_channel_shape) =
-        infer_batch_norm_forward(this,
-                                 get_input_element_type(INPUT_DATA),
-                                 get_input_element_type(INPUT_GAMMA),
-                                 get_input_element_type(INPUT_BETA),
-                                 get_input_partial_shape(INPUT_DATA),
-                                 get_input_partial_shape(INPUT_GAMMA),
-                                 get_input_partial_shape(INPUT_BETA));
-
-    set_output_type(0, result_et, result_batch_shape);
-    set_output_type(1, result_et, result_channel_shape);
-    set_output_type(2, result_et, result_channel_shape);
-}
-
-std::shared_ptr<Node>
-    op::BatchNormTraining::clone_with_new_inputs(const OutputVector& new_args) const
-{
-    check_new_args_count(this, new_args);
-    return std::make_shared<BatchNormTraining>(
-        new_args.at(2), new_args.at(0), new_args.at(1), m_epsilon);
-}
-
 constexpr NodeTypeInfo op::BatchNormInference::type_info;
 
 op::BatchNormInference::BatchNormInference(const Output<Node>& input,
