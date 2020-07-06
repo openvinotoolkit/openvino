@@ -523,24 +523,6 @@ protected:
             }
             break;
         }
-        case OP_TYPEID::ConvolutionBackpropData:
-        {
-            // Note that args[1] and args[0] are switched here from the usual order.
-            const op::ConvolutionBackpropData* c =
-                static_cast<const op::ConvolutionBackpropData*>(&node);
-            reference::convolution_backprop_in<T>(args[1]->get_data_ptr<const T>(),
-                                                  args[0]->get_data_ptr<const T>(),
-                                                  out[0]->get_data_ptr<T>(),
-                                                  c->get_input_shape(1),
-                                                  c->get_input_shape(0),
-                                                  c->get_data_batch_shape(),
-                                                  c->get_data_dilation_strides_forward(),
-                                                  c->get_window_dilation_strides_forward(),
-                                                  c->compute_backward_delta_out_pad_below(),
-                                                  c->compute_backward_delta_out_pad_above(),
-                                                  c->get_window_movement_strides_forward());
-            break;
-        }
         case OP_TYPEID::Cos:
         {
             size_t element_count = shape_size(node.get_output_shape(0));
@@ -1227,15 +1209,7 @@ protected:
             break;
         }
 
-        case OP_TYPEID::ReluBackprop:
-        {
-            size_t element_count = shape_size(node.get_output_shape(0));
-            reference::relu_backprop<T>(args[0]->get_data_ptr<const T>(),
-                                        args[1]->get_data_ptr<const T>(),
-                                        out[0]->get_data_ptr<T>(),
-                                        element_count);
-            break;
-        }
+
         case OP_TYPEID::ReplaceSlice:
         {
             const op::ReplaceSlice* slice = static_cast<const op::ReplaceSlice*>(&node);
@@ -1464,7 +1438,6 @@ protected:
             }
             break;
         }
-        case OP_TYPEID::ConvolutionBackpropFilters:
         // Fused Ops are not supported in interpreter. They need to be decomposed before execution
         case OP_TYPEID::BatchMatMulTranspose:
         case OP_TYPEID::ConvolutionBias:

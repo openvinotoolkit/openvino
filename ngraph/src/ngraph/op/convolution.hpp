@@ -213,6 +213,8 @@ namespace ngraph
                                                             const CoordinateDiff& output_padding,
                                                             std::vector<Dimension>& output_spatial_shape);
 
+                bool evaluate(const HostTensorVector& output_values, const HostTensorVector& input_values) override;
+
             protected:
                 Strides m_strides;
                 Strides m_dilations;

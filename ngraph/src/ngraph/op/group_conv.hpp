@@ -245,6 +245,7 @@ namespace ngraph
                 {
                     m_output_padding = output_padding;
                 }
+                bool evaluate(const HostTensorVector &output_values, const HostTensorVector &input_values) override;
 
             protected:
                 Strides m_strides;

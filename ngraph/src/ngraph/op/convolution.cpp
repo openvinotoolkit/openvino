@@ -167,74 +167,64 @@ shared_ptr<Node> op::v1::Convolution::get_default_value() const
 }
 
 namespace {
-template <element::Type_t ET>
-bool evaluate(const HostTensorPtr& arg0, const HostTensorPtr& out, const void *filter,
-              const Shape& filter_shape, const Strides& strides, const Strides& dilation,
-              const CoordinateDiff& pad_above, const CoordinateDiff& pad_below)
-{
-    auto out_data_ptr = out->get_data_ptr<ET>();
-    auto in_data_ptr = arg0->get_data_ptr<ET>();
-    auto out_shape = out->get_shape();
-    auto in_shape = arg0->get_shape();
-    const auto filter_data = reinterpret_cast<const typename element_type_traits<ET>::value_type *>(filter);
-    Strides in_dilation(std::vector<size_t> (in_shape.size() - 2));
-    std::fill(in_dilation.begin(), in_dilation.end(), 1);
+    template<element::Type_t ET>
+    bool try_evaluate_conv(const HostTensorPtr &arg, const HostTensorPtr &out, const void *filter,
+                           const Shape &filter_shape, const Strides &strides, const Strides &dilation,
+                           const CoordinateDiff &pad_above, const CoordinateDiff &pad_below) {
+        if (ET == arg->get_element_type()) {
+            auto out_data_ptr = out->get_data_ptr<ET>();
+            auto in_data_ptr = arg->get_data_ptr<ET>();
+            auto out_shape = out->get_shape();
+            auto in_shape = arg->get_shape();
+            const auto filter_data = reinterpret_cast<const typename element_type_traits<ET>::value_type *>(filter);
+            Strides in_dilation(std::vector<size_t>(in_shape.size() - 2));
+            std::fill(in_dilation.begin(), in_dilation.end(), 1);
+            runtime::reference::convolution<typename element_type_traits<ET>::value_type>(in_data_ptr, filter_data,
+                                                                                          out_data_ptr,
+                                                                                          in_shape, filter_shape,
+                                                                                          out_shape, strides,
+                                                                                          dilation,
+                                                                                          pad_above, pad_below,
+                                                                                          in_dilation);
+            return true;
+        }
+        else {
+            return false;
+        }
 
-    runtime::reference::convolution<typename element_type_traits<ET>::value_type>(in_data_ptr, filter_data, out_data_ptr,
-            in_shape, filter_shape, out_shape, strides, dilation, pad_above, pad_below, in_dilation);
-    return true;
-
-}
-
-bool evaluate_convolution(const HostTensorPtr& arg0, const HostTensorPtr& out, const void *filter,
-                          const Shape& filter_shape, const Strides& strides, const Strides& dilation,
-                          const CoordinateDiff& pad_above, const CoordinateDiff& pad_below)
-{
-    bool rc = true;
-    switch (arg0->get_element_type())
-    {
-        case element::Type_t::undefined: rc = false; break;
-        case element::Type_t::dynamic: rc = false; break;
-        case element::Type_t::u1:
-            rc = false;
-            break;
-// TODO: Arithmetic operators are not defined for bfloat16. Issue 33808
-//        TYPE_CASE(bf16)(arg0, out, filter, filter_shape, strides, dilation, pad_above, pad_below);
-//            break;
-        TYPE_CASE(f16)(arg0, out, filter, filter_shape, strides, dilation, pad_above, pad_below);
-            break;
-        TYPE_CASE(f32)(arg0, out, filter, filter_shape, strides, dilation, pad_above, pad_below);
-            break;
-        TYPE_CASE(f64)(arg0, out, filter, filter_shape, strides, dilation, pad_above, pad_below);
-            break;
-        TYPE_CASE(i8)(arg0, out, filter, filter_shape, strides, dilation, pad_above, pad_below);
-            break;
-        TYPE_CASE(i16)(arg0, out, filter, filter_shape, strides, dilation, pad_above, pad_below);
-            break;
-        TYPE_CASE(i32)(arg0, out, filter, filter_shape, strides, dilation, pad_above, pad_below);
-            break;
-        TYPE_CASE(i64)(arg0, out, filter, filter_shape, strides, dilation, pad_above, pad_below);
-            break;
-        TYPE_CASE(u8)(arg0, out, filter, filter_shape, strides, dilation, pad_above, pad_below);
-            break;
-        TYPE_CASE(u16)(arg0, out, filter, filter_shape, strides, dilation, pad_above, pad_below);
-            break;
-        TYPE_CASE(u32)(arg0, out, filter, filter_shape, strides, dilation, pad_above, pad_below);
-            break;
-        TYPE_CASE(u64)(arg0, out, filter, filter_shape, strides, dilation, pad_above, pad_below);
-            break;
-        TYPE_CASE(boolean)(arg0, out, filter, filter_shape, strides, dilation, pad_above, pad_below);
-            break;
-        default: rc = false; break;
     }
-    return rc;
 
-}
+    bool evaluate_convolution(const HostTensorPtr &arg, const HostTensorPtr &out, const void *filter,
+                              const Shape &filter_shape, const Strides &strides, const Strides &dilation,
+                              const CoordinateDiff &pad_above, const CoordinateDiff &pad_below) {
+// TODO: Arithmetic operators are not defined for bfloat16. Issue 33808
+// try_evaluate_conv><element::Type_t::bf16>(arg, out, filter, filter_shape, strides, dilation, pad_above, pad_below);
+        return try_evaluate_conv<element::Type_t::f16>(arg, out, filter, filter_shape, strides, dilation, pad_above,
+                                                        pad_below) ||
+                try_evaluate_conv<element::Type_t::f32>(arg, out, filter, filter_shape, strides, dilation, pad_above,
+                                                        pad_below) ||
+                try_evaluate_conv<element::Type_t::i8>(arg, out, filter, filter_shape, strides, dilation, pad_above,
+                                                       pad_below) ||
+                try_evaluate_conv<element::Type_t::i16>(arg, out, filter, filter_shape, strides, dilation, pad_above,
+                                                        pad_below) ||
+                try_evaluate_conv<element::Type_t::i32>(arg, out, filter, filter_shape, strides, dilation, pad_above,
+                                                        pad_below) ||
+                try_evaluate_conv<element::Type_t::i64>(arg, out, filter, filter_shape, strides, dilation, pad_above,
+                                                        pad_below) ||
+                try_evaluate_conv<element::Type_t::u8>(arg, out, filter, filter_shape, strides, dilation, pad_above,
+                                                       pad_below) ||
+                try_evaluate_conv<element::Type_t::u16>(arg, out, filter, filter_shape, strides, dilation, pad_above,
+                                                        pad_below) ||
+                try_evaluate_conv<element::Type_t::u32>(arg, out, filter, filter_shape, strides, dilation, pad_above,
+                                                        pad_below) ||
+                try_evaluate_conv<element::Type_t::u64>(arg, out, filter, filter_shape, strides, dilation, pad_above,
+                                                        pad_below);
+    }
 }
 
 bool op::v1::Convolution::evaluate(const HostTensorVector &output_values, const HostTensorVector &input_values) {
     const auto filter = dynamic_pointer_cast<op::Constant>(input_value(1).get_node_shared_ptr());
-    NGRAPH_CHECK(filter!=nullptr, "Failed to get Convolution filter values!");
+    NGRAPH_CHECK(filter != nullptr, "Failed to get Convolution filter values!");
     const auto strides = get_strides();
     evaluate_convolution(input_values[0], output_values[0], filter->get_data_ptr(), filter->get_shape(), get_strides(),
                          get_dilations(), get_pads_begin(), get_pads_end());
@@ -605,6 +595,74 @@ shared_ptr<Node>
 
 // *** Convolution OP SET 0 ***
 constexpr NodeTypeInfo op::v0::Convolution::type_info;
+
+namespace {
+    template<element::Type_t ET>
+    bool try_evaluate_conv_bp(const HostTensorPtr &arg, const HostTensorPtr &out, const void *filter,
+                              const Shape &filter_shape, const Strides &strides, const Strides &dilation,
+                              const CoordinateDiff &pad_above, const CoordinateDiff &pad_below) {
+        if (ET == arg->get_element_type()) {
+            auto out_data_ptr = out->get_data_ptr<ET>();
+            auto in_data_ptr = arg->get_data_ptr<ET>();
+            auto out_shape = out->get_shape();
+            auto in_shape = arg->get_shape();
+            const auto filter_data = reinterpret_cast<const typename element_type_traits<ET>::value_type *>(filter);
+            Strides in_dilation(std::vector<size_t>(in_shape.size() - 2));
+            std::fill(in_dilation.begin(), in_dilation.end(), 1);
+            runtime::reference::convolution_backprop_in<typename element_type_traits<ET>::value_type>(in_data_ptr,
+                                                                                                      filter_data,
+                                                                                                      out_data_ptr,
+                                                                                                      in_shape,
+                                                                                                      filter_shape,
+                                                                                                      out_shape,
+                                                                                                      strides,
+                                                                                                      dilation,
+                                                                                                      pad_above,
+                                                                                                      pad_below,
+                                                                                                      in_dilation);
+            return true;
+        } else {
+            return false;
+        }
+
+    }
+
+    bool evaluate_convolution_backprop_data(const HostTensorPtr &arg, const HostTensorPtr &out, const void *filter,
+                                            const Shape &filter_shape, const Strides &strides, const Strides &dilation,
+                                            const CoordinateDiff &pad_above, const CoordinateDiff &pad_below) {
+// TODO: Arithmetic operators are not defined for bfloat16. Issue 33808
+// try_evaluate_conv_bp><element::Type_t::bf16>(arg, out, filter, filter_shape, strides, dilation, pad_above, pad_below);
+        return try_evaluate_conv_bp<element::Type_t::f16>(arg, out, filter, filter_shape, strides, dilation, pad_above,
+                                                           pad_below) ||
+                try_evaluate_conv_bp<element::Type_t::f32>(arg, out, filter, filter_shape, strides, dilation, pad_above,
+                                                           pad_below) ||
+                try_evaluate_conv_bp<element::Type_t::i8>(arg, out, filter, filter_shape, strides, dilation, pad_above,
+                                                          pad_below) ||
+                try_evaluate_conv_bp<element::Type_t::i16>(arg, out, filter, filter_shape, strides, dilation, pad_above,
+                                                           pad_below) ||
+                try_evaluate_conv_bp<element::Type_t::i32>(arg, out, filter, filter_shape, strides, dilation, pad_above,
+                                                           pad_below) ||
+                try_evaluate_conv_bp<element::Type_t::i64>(arg, out, filter, filter_shape, strides, dilation, pad_above,
+                                                           pad_below) ||
+                try_evaluate_conv_bp<element::Type_t::u8>(arg, out, filter, filter_shape, strides, dilation, pad_above,
+                                                          pad_below) ||
+                try_evaluate_conv_bp<element::Type_t::u16>(arg, out, filter, filter_shape, strides, dilation, pad_above,
+                                                           pad_below) ||
+                try_evaluate_conv_bp<element::Type_t::u32>(arg, out, filter, filter_shape, strides, dilation, pad_above,
+                                                           pad_below) ||
+                try_evaluate_conv_bp<element::Type_t::u64>(arg, out, filter, filter_shape, strides, dilation, pad_above,
+                                                           pad_below);
+    }
+}
+
+
+bool op::v1::ConvolutionBackpropData::evaluate(const HostTensorVector &output_values, const HostTensorVector &input_values) {
+    const auto filter = dynamic_pointer_cast<op::Constant>(input_value(1).get_node_shared_ptr());
+    NGRAPH_CHECK(filter!=nullptr, "Failed to get Convolution filter values!");
+    evaluate_convolution_backprop_data(input_values[0], output_values[0], filter->get_data_ptr(), filter->get_shape(), get_strides(),
+                         get_dilations(), get_pads_begin(), get_pads_end());
+    return true;
+}
 
 op::v0::Convolution::Convolution(const Output<Node>& data_batch,
                                  const Output<Node>& filters,

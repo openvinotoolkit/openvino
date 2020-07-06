@@ -372,7 +372,8 @@ namespace ngraph
                 // starts at 2)
                 std::vector<INPUT> reversed(shape_size(filter_shape));
                 AxisSet reverse_axes;
-                for (size_t i = 2; i < filter_shape.size(); ++i)
+                size_t reverse_axes_start = num_groups == 1 ? 2 : 3;
+                for (size_t i = reverse_axes_start; i < filter_shape.size(); ++i)
                 {
                     reverse_axes.insert(i);
                 }
