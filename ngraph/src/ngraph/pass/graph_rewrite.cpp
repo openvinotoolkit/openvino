@@ -115,7 +115,7 @@ bool pass::GraphRewrite::run_on_function(shared_ptr<Function> f)
                 {
                     for (auto& new_node : new_nodes)
                     {
-                        nodes_to_run.emplace_back(new_node);
+                        nodes_to_run.emplace_front(new_node);
                     }
                 }
 
