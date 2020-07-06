@@ -4,7 +4,6 @@
 
 #include "transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp"
 
-#include <transformations/constant_eltwise_reduction.hpp>
 #include <transformations/convert_broadcast_to_tiles.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_convolutions.hpp>
 #include <transformations/convert_divide.hpp>
@@ -83,7 +82,6 @@ bool ngraph::pass::ConvertOpSet1ToLegacy::run_on_function(std::shared_ptr<ngraph
     manager.register_pass<ngraph::pass::ReshapeFullyConnectedFusion>();
     manager.register_pass<ngraph::pass::Reshape1DOps>();
     manager.register_pass<ngraph::pass::ConvertNormalizeL2WithMulToNormalizeIE>();
-    manager.register_pass<ngraph::pass::ConstantEltwiseReduction>();
     manager.register_pass<ngraph::pass::ConvertMulAddToScaleShiftOrPower>();
     manager.register_pass<ngraph::pass::ConvertMulOrAddFinally>();
     manager.register_pass<ngraph::pass::ConstantFolding>();
