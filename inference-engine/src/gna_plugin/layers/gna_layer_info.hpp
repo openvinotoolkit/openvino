@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <algorithm>
+#include <cctype>
 #include <string>
 #include <memory>
 #include <vector>
@@ -82,6 +84,8 @@ class LayerInfo {
     }
     bool isActivation() const noexcept {
         IS_VALID();
+        std::string lowerLayerType = layer->type;
+        std::transform(lowerLayerType.begin(), lowerLayerType.end(), lowerLayerType.begin(), ::tolower);
         static InferenceEngine::details::caseless_set<std::string> activations =
             {"clamp",
              "sigmoid",
@@ -97,7 +101,7 @@ class LayerInfo {
              "neglog",
              "neghalflog",
              "softsign"};
-        return activations.find(layer->type) != activations.end();
+        return activations.find(lowerLayerType) != activations.end();
     }
 
     bool isWeightable() const noexcept {
