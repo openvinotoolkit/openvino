@@ -147,12 +147,19 @@ class NGraphData : public Data {
 public:
     using Ptr = std::shared_ptr<NGraphData>;
 
-    NGraphData(const std::string& name, const TensorDesc& desc)
-        : Data(name, desc) {}
+    NGraphData(CNNNetworkNGraphImpl* network, const std::string& name, const TensorDesc& desc)
+        : Data(name, desc), network(network) {}
+
+    void reset() {
+        network = nullptr;
+    }
 
     CNNLayerWeakPtr& getCreatorLayer();
 
     std::map<std::string, CNNLayerPtr>& getInputTo();
+
+private:
+    CNNNetworkNGraphImpl* network;
 };
 
 IE_SUPPRESS_DEPRECATED_END

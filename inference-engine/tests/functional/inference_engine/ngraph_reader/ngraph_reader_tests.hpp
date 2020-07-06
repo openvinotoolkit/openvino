@@ -47,6 +47,7 @@ protected:
             ASSERT_NE(nullptr, layer->getNode());
         }
 
+        ASSERT_EQ(nullptr, cnnNetwork.getFunction());
         auto & icnnnetwork = static_cast<const ICNNNetwork&>(cnnNetwork);
         for (auto it = details::CNNNetworkIterator(&icnnnetwork); it != details::CNNNetworkIterator(); it++) {
             InferenceEngine::CNNLayerPtr layer = *it;

@@ -100,7 +100,7 @@ void CNNNetworkNGraphImpl::createDataForResult(const ::ngraph::Output<::ngraph::
     } else {
         const auto precision = details::convertPrecision(output.get_element_type());
         const auto layout = TensorDesc::getLayoutByDims(dims);
-        ptr.reset(new NGraphData(outName, {precision, dims, layout}));
+        ptr.reset(new NGraphData(this, outName, {precision, dims, layout}));
     }
 }
 

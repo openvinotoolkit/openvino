@@ -808,6 +808,7 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
                         nData->getTensorDesc().getLayout() :
                         TensorDesc::getLayoutByDims(dims);
 
+                    nData->reset();
                     nData->reshape(dims, layout);
                 }
                 cnnNetworkImpl->addData(outName.c_str(), ptr);

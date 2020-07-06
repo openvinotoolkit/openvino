@@ -134,9 +134,17 @@ std::map<std::string, CNNLayerPtr>& InferenceEngine::getInputTo(Data * data) {
 }
 
 CNNLayerWeakPtr& details::NGraphData::getCreatorLayer() {
+    if (_impl->inputTo.empty() && network != nullptr) {
+        network->convertToCNNNetworkImpl();
+    }
+
     return _impl->creatorLayer;
 }
 
 std::map<std::string, CNNLayerPtr>& details::NGraphData::getInputTo() {
+    if (_impl->inputTo.empty() && network != nullptr) {
+        network->convertToCNNNetworkImpl();
+    }
+
     return _impl->inputTo;
 }

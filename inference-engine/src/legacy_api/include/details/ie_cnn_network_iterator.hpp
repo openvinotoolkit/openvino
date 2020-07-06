@@ -16,6 +16,7 @@
 #include "ie_api.h"
 #include "ie_layers.h"
 #include "ie_icnn_network.hpp"
+#include "cnn_network_impl.hpp"
 #include "cpp/ie_cnn_network.h"
 #include "ie_locked_memory.hpp"
 
@@ -55,6 +56,7 @@ public:
      * scope.
      */
     explicit CNNNetworkIterator(const ICNNNetwork* network) {
+        IE_ASSERT(dynamic_cast<const details::CNNNetworkImpl*>(network) != nullptr);
         if (network == nullptr) THROW_IE_EXCEPTION << "ICNNNetwork object is nullptr";
         InputsDataMap inputs;
         network->getInputsInfo(inputs);
