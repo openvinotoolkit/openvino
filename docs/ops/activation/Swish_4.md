@@ -7,7 +7,11 @@
 **Short description**: Swish takes one input tensor and produces output tensor where the Swish function is applied to the tensor elementwise.
 
 **Detailed description**: For each element from the input tensor calculates corresponding
-element in the output tensor with the following formula: `features[i] = i * sigmoid(beta * i)`.  
+element in the output tensor with the following formula: 
+
+    \f[
+    Swish( x ) = x*sigmoid{beta*x} where sigmoid{x} = 1.0/{1.0+e^{-x}}.
+    \f]
 
 The Swish operation is introduced in the [article](https://arxiv.org/pdf/1710.05941.pdf).
 
@@ -17,7 +21,7 @@ The Swish operation is introduced in the [article](https://arxiv.org/pdf/1710.05
 
 *   **1**: Multidimensional input tensor of type *T*. **Required**.
 
-*   **2**: Scalar with non-negative floating point value *beta* - multiplication parameter for sigmoid. If not connected, used default value 1.0. **Optional**
+*   **2**: Scalar with non-negative floating point value *beta* - multiplication parameter for the sigmoid. If the input is not connected then the default value 1.0 is used. **Optional**
 
 **Outputs**:
 
