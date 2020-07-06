@@ -1032,9 +1032,6 @@ batch_mat_mul_forward
 # Incorrect dimensions for broadcasting for Add
 auto_bcast_binary_elementwise_pdpd_dynamic
 
-# Unsupported primitive of type: Atan2
-atan2
-
 # Unsupported primitive of type: ArgMin
 argmin_trivial
 argmin_2D_i32
@@ -1161,7 +1158,6 @@ backwards_add
 backwards_add_nested
 backwards_asin
 backwards_atan
-backwards_atan2
 backwards_broadcast0
 backwards_broadcast1
 backwards_concat_vector
