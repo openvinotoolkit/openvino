@@ -37,20 +37,21 @@ class Pad(Op):
         super().__init__(graph, {
             'op': self.op,
             'type': self.op,
+
             'version': 'opset1',
-            'infer': __class__.infer,
-            'in_ports_count': 4,
-            'out_ports_count': 1,
+            'infer': self.infer,
+
             'mode': 'constant',
             'fill_value': float(0),
+
             'force_precision_in_ports': {
                 1: 'int64',
                 2: 'int64',
             },
-        }, attrs)
 
-    def supported_attrs(self):
-        return ['mode', 'fill_value', 'pads']
+            'in_ports_count': 4,
+            'out_ports_count': 1,
+        }, attrs)
 
     def backend_attrs(self):
         return [('pad_mode', 'mode'),
@@ -78,6 +79,9 @@ class Pad(Op):
         assert len(input_shape) == len(pad_end), \
             'Length of end padding "{}" does not correspond to input tensor shape "{}" for node "{}".' \
             ''.format(pad_beg, input_shape, pad_node_name)
+        assert not node.is_in_port_connected(3) or node.in_port(3).data.get_shape().size == 0, \
+            'Optional 3rd input of Pad operation should be scalar, but has shape {} for node {}' \
+            ''.format(node.in_port(3).data.get_shape(), pad_node_name)
 
         node.out_port(0).data.set_shape(input_shape + pad_beg + pad_end)
 

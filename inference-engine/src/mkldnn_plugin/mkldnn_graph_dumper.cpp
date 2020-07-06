@@ -155,12 +155,12 @@ std::shared_ptr<ICNNNetwork> dump_graph_as_ie_net(const MKLDNNGraph &graph) {
                 std::string data_name = node->getName() + "_out" + std::to_string(i);
                 pr->outData[i] = std::make_shared<Data>(data_name, edge->getDesc());
                 data = pr->outData[i];
-                data->getCreatorLayer() = pr;
+                getCreatorLayer(data) = pr;
             } else {
                 data = pr->outData[0];
             }
 
-            data->getInputTo()[ch->name] = ch;
+            getInputTo(data)[ch->name] = ch;
             ch->insData[in_port] = data;
         }
     }
