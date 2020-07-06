@@ -1389,10 +1389,6 @@ protected:
         case OP_TYPEID::CropAndResize:
         case OP_TYPEID::CrossEntropy:
         case OP_TYPEID::DepthToSpace:
-        case OP_TYPEID::DynBroadcast:
-        case OP_TYPEID::DynPad:
-        case OP_TYPEID::DynReplaceSlice:
-        case OP_TYPEID::DynSlice:
         case OP_TYPEID::FakeQuantize:
         case OP_TYPEID::Gather:
         case OP_TYPEID::Gelu:

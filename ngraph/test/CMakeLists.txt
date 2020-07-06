@@ -130,11 +130,7 @@ set(SRC
     type_prop/depth_to_space.cpp
     type_prop/dequantize.cpp
     type_prop/dot.cpp
-    type_prop/dyn_broadcast.cpp
-    type_prop/dyn_pad.cpp
-    type_prop/dyn_replace_slice.cpp
     type_prop/dyn_reshape.cpp
-    type_prop/dyn_slice.cpp
     type_prop/strided_slice.cpp
     type_prop/elu.cpp
     type_prop/embeddingbag_offsetssum.cpp
@@ -300,7 +296,6 @@ set(MULTI_TEST_SRC
     backend/autodiff.in.cpp
     backend/batch_norm.in.cpp
     backend/broadcast.in.cpp
-    backend/builder_flatten.in.cpp
     backend/builder_reduce_ops_opset1.in.cpp
     backend/ceiling.in.cpp
     backend/comparison.in.cpp
@@ -314,10 +309,7 @@ set(MULTI_TEST_SRC
     backend/cum_sum.in.cpp
     backend/divide.in.cpp
     backend/dot.in.cpp
-    backend/dyn_broadcast.in.cpp
-    backend/dyn_replace_slice_reference.in.cpp
     backend/dyn_reshape.in.cpp
-    backend/dyn_slice_reference.in.cpp
     backend/strided_slice.in.cpp
     backend/dynamic.in.cpp
     backend/embedding_lookup.in.cpp

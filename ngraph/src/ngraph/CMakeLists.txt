@@ -201,14 +201,6 @@ set (SRC
     op/erf.hpp
     op/exp.cpp
     op/exp.hpp
-    op/experimental/dyn_broadcast.cpp
-    op/experimental/dyn_broadcast.hpp
-    op/experimental/dyn_pad.cpp
-    op/experimental/dyn_pad.hpp
-    op/experimental/dyn_replace_slice.cpp
-    op/experimental/dyn_replace_slice.hpp
-    op/experimental/dyn_slice.cpp
-    op/experimental/dyn_slice.hpp
     op/extractimagepatches.cpp
     op/extractimagepatches.hpp
     op/strided_slice.hpp
@@ -505,9 +497,7 @@ set (SRC
     pass/constant_folding_arithmetic_reduction.cpp
     pass/constant_folding_convert.cpp
     pass/constant_folding_dequantize.cpp
-    pass/constant_folding_dyn_broadcast.cpp
     pass/constant_folding_dyn_reshape.cpp
-    pass/constant_folding_dyn_slice.cpp
     pass/constant_folding_gather.cpp
     pass/constant_folding_scatter.cpp
     pass/constant_folding_logical_reduction.cpp

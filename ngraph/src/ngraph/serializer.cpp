@@ -1271,53 +1271,6 @@ shared_ptr<Node> JSONDeserializer::deserialize_node(json node_js)
             }
             break;
         }
-        case OP_TYPEID::DynBroadcast:
-        {
-            node = make_shared<op::DynBroadcast>(args[0], args[1], args[2]);
-            break;
-        }
-        case OP_TYPEID::DynPad:
-        {
-            node = make_shared<op::DynPad>(args[0], args[1], args[2], args[3]);
-            break;
-        }
-        case OP_TYPEID::DynReplaceSlice:
-        {
-            auto lower_bounds_mask = node_js.at("lower_bounds_mask").get<set<size_t>>();
-            auto upper_bounds_mask = node_js.at("upper_bounds_mask").get<set<size_t>>();
-            auto new_axis = node_js.at("new_axis").get<set<size_t>>();
-            auto shrink_axis = node_js.at("shrink_axis").get<set<size_t>>();
-            auto ellipsis_mask = node_js.at("ellipsis_mask").get<set<size_t>>();
-            node = make_shared<op::DynReplaceSlice>(args[0],
-                                                    args[1],
-                                                    args[2],
-                                                    args[3],
-                                                    args[4],
-                                                    lower_bounds_mask,
-                                                    upper_bounds_mask,
-                                                    new_axis,
-                                                    shrink_axis,
-                                                    ellipsis_mask);
-            break;
-        }
-        case OP_TYPEID::DynSlice:
-        {
-            auto lower_bounds_mask = node_js.at("lower_bounds_mask").get<set<size_t>>();
-            auto upper_bounds_mask = node_js.at("upper_bounds_mask").get<set<size_t>>();
-            auto new_axis = node_js.at("new_axis").get<set<size_t>>();
-            auto shrink_axis = node_js.at("shrink_axis").get<set<size_t>>();
-            auto ellipsis_mask = node_js.at("ellipsis_mask").get<set<size_t>>();
-            node = make_shared<op::DynSlice>(args[0],
-                                             args[1],
-                                             args[2],
-                                             args[3],
-                                             lower_bounds_mask,
-                                             upper_bounds_mask,
-                                             new_axis,
-                                             shrink_axis,
-                                             ellipsis_mask);
-            break;
-        }
         case OP_TYPEID::Elu:
         {
             auto alpha = node_js.at("alpha").get<double>();
@@ -2677,30 +2630,6 @@ json JSONSerializer::serialize_node(const Node& n)
     {
         auto tmp = static_cast<const op::Dot*>(&n);
         node["reduction_axes_count"] = tmp->get_reduction_axes_count();
-        break;
-    }
-    case OP_TYPEID::DynBroadcast: { break;
-    }
-    case OP_TYPEID::DynPad: { break;
-    }
-    case OP_TYPEID::DynReplaceSlice:
-    {
-        auto tmp = static_cast<const op::DynReplaceSlice*>(&n);
-        node["lower_bounds_mask"] = tmp->get_lower_bounds_mask();
-        node["upper_bounds_mask"] = tmp->get_upper_bounds_mask();
-        node["new_axis"] = tmp->get_new_axis();
-        node["shrink_axis"] = tmp->get_shrink_axis();
-        node["ellipsis_mask"] = tmp->get_ellipsis_mask();
-        break;
-    }
-    case OP_TYPEID::DynSlice:
-    {
-        auto tmp = static_cast<const op::DynSlice*>(&n);
-        node["lower_bounds_mask"] = tmp->get_lower_bounds_mask();
-        node["upper_bounds_mask"] = tmp->get_upper_bounds_mask();
-        node["new_axis"] = tmp->get_new_axis();
-        node["shrink_axis"] = tmp->get_shrink_axis();
-        node["ellipsis_mask"] = tmp->get_ellipsis_mask();
         break;
     }
     case OP_TYPEID::Elu:
