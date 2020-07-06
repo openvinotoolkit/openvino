@@ -152,23 +152,6 @@ NGRAPH_TEST(${BACKEND_NAME}, backwards_atan)
     EXPECT_TRUE(autodiff_numeric_compare<float>(backend.get(), make_graph, {x0}, .01f, .01f));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, backwards_atan2)
-{
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-    Shape shape{30};
-
-    test::Uniform<float> rng(-5.0f, 5.0f);
-    auto y = rng.initialize(backend->create_tensor<float>(shape));
-    auto x = rng.initialize(backend->create_tensor<float>(shape));
-
-    auto make_graph = [shape]() {
-        auto X = make_shared<op::Parameter>(element::f32, shape);
-        auto Y = make_shared<op::Parameter>(element::f32, shape);
-        return make_shared<Function>(make_shared<op::Atan2>(Y, X), ParameterVector{Y, X});
-    };
-    EXPECT_TRUE(autodiff_numeric_compare<float>(backend.get(), make_graph, {y, x}, .01f, .01f));
-}
-
 NGRAPH_TEST(${BACKEND_NAME}, backwards_broadcast0)
 {
     auto backend = runtime::Backend::create("${BACKEND_NAME}");

@@ -25,6 +25,7 @@
 #include "ngraph/graph_util.hpp"
 #include "ngraph/ops.hpp"
 #include "ngraph/provenance.hpp"
+#include "op/atan2.hpp"
 #include "op/avg_pool.hpp"
 
 using namespace std;
