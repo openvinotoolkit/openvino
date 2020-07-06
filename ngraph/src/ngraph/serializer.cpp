@@ -1005,11 +1005,6 @@ shared_ptr<Node> JSONDeserializer::deserialize_node(json node_js)
             node = make_shared<op::Atan>(args[0]);
             break;
         }
-        case OP_TYPEID::Atan2:
-        {
-            node = make_shared<op::Atan2>(args[0], args[1], read_auto_broadcast(node_js, "autob"));
-            break;
-        }
 
         case OP_TYPEID::BatchMatMul:
         {
@@ -1022,13 +1017,6 @@ shared_ptr<Node> JSONDeserializer::deserialize_node(json node_js)
             auto transpose_1 = node_js.at("transpose_1").get<bool>();
             node =
                 make_shared<op::BatchMatMulTranspose>(args[0], args[1], transpose_0, transpose_1);
-            break;
-        }
-        case OP_TYPEID::BatchNormTraining:
-        {
-            auto epsilon = node_js.at("eps").get<double>();
-            // Odd order for back-compatibility
-            node = make_shared<op::BatchNormTraining>(args[2], args[0], args[1], epsilon);
             break;
         }
         case OP_TYPEID::BatchNormInference:
@@ -2553,15 +2541,6 @@ json JSONSerializer::serialize_node(const Node& n)
     }
     case OP_TYPEID::Atan: { break;
     }
-    case OP_TYPEID::Atan2:
-    {
-        auto tmp = dynamic_cast<const op::Atan2*>(&n);
-        if (tmp->get_autob().m_type != op::AutoBroadcastType::NONE)
-        {
-            node["autob"] = write_auto_broadcast(tmp->get_autob());
-        }
-        break;
-    }
     case OP_TYPEID::BatchMatMul: { break;
     }
     case OP_TYPEID::BatchMatMulTranspose:
@@ -2569,12 +2548,6 @@ json JSONSerializer::serialize_node(const Node& n)
         auto tmp = static_cast<const op::BatchMatMulTranspose*>(&n);
         node["transpose_0"] = tmp->get_transpose_arg0();
         node["transpose_1"] = tmp->get_transpose_arg1();
-        break;
-    }
-    case OP_TYPEID::BatchNormTraining:
-    {
-        auto tmp = static_cast<const op::BatchNormTraining*>(&n);
-        node["eps"] = tmp->get_eps_value();
         break;
     }
     case OP_TYPEID::BatchNormInference:
