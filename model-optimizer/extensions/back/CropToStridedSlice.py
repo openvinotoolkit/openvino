@@ -55,11 +55,11 @@ class CropToStridedSlice(BackReplacementPattern):
     def replace_pattern(self, graph: Graph, match: [str, Node]):
         node = match['crop']
         assert node.has_valid('axis')
-        node.axis = self.list_to_ndarray(node.axis)
+        node_axis = self.list_to_ndarray(node.axis)
 
         in_shape = node.in_port(0).data.get_shape()
         shape_rank = in_shape.size
-        axis_mask = int64_array([1 if i in node.axis else 0 for i in range(shape_rank)])
+        axis_mask = int64_array([1 if i in node_axis else 0 for i in range(shape_rank)])
         begin_mask = axis_mask.copy()
         end_mask = axis_mask.copy()
 
@@ -69,7 +69,7 @@ class CropToStridedSlice(BackReplacementPattern):
 
         if len(node.in_nodes()) == 2 and node.has_valid('offset'):
             # Crop Type 1
-            begin = Const(graph, {'value': self.mask_normalizer(shape_rank, node.axis, node.offset),
+            begin = Const(graph, {'value': self.mask_normalizer(shape_rank, node_axis, node.offset),
                                   'name': ss.name + '/begin'}).create_node()
             shape = Shape(graph, {'name': ss.name + '/shape_of_crop'}).create_node()
             end = Add(graph, {'name': ss.name + '/end'}).create_node()
@@ -81,26 +81,26 @@ class CropToStridedSlice(BackReplacementPattern):
             # Crop Type 2
             node_dim = self.list_to_ndarray(node.dim)
             node_offset = self.list_to_ndarray(node.offset)
-            assert node_dim.size == node.offset.size == node.axis.size
+            assert node_dim.size == node_offset.size == node_axis.size
 
-            begin = Const(graph, {'value': self.mask_normalizer(shape_rank, node.axis, node_offset),
+            begin = Const(graph, {'value': self.mask_normalizer(shape_rank, node_axis, node_offset),
                                   'name': ss.name + '/begin'}).create_node()
             end_values = np.array([node_offset[i] + node_dim[i] for i in range(len(node_dim))])
-            end = Const(graph, {'value': self.mask_normalizer(shape_rank, node.axis, end_values),
+            end = Const(graph, {'value': self.mask_normalizer(shape_rank, node_axis, end_values),
                                 'name': ss.name + '/end'}).create_node()
         elif node.has_valid('crop_begin') and node.has_valid('crop_end'):
             # Crop Type 3
             node_crop_begin = self.list_to_ndarray(node.crop_begin)
             node_crop_end = self.list_to_ndarray(node.crop_end)
-            assert len(node_crop_begin) == len(node_crop_end) == len(node.axis)
+            assert len(node_crop_begin) == len(node_crop_end) == len(node_axis)
 
-            begin = Const(graph, {'value': self.mask_normalizer(shape_rank, node.axis, node_crop_begin),
+            begin = Const(graph, {'value': self.mask_normalizer(shape_rank, node_axis, node_crop_begin),
                                   'name': ss.name + '/begin'}).create_node()
             shape = Shape(graph, {'name': ss.name + '/shape'}).create_node()
 
             end = Add(graph, {'name': ss.name + '/end'}).create_node()
-            const = Const(graph, {'value': -1 * self.mask_normalizer(shape_rank, node.axis, node_crop_end),
-                                  'name': end.name + '/const'}).create_node()
+            const = Const(graph, {'value': -1 * self.mask_normalizer(shape_rank, node_axis, node_crop_end),
+                                  'name': ss.name + '/const'}).create_node()
 
             node.in_port(0).get_connection().get_source().connect(shape.in_port(0))
             shape.out_port(0).connect(end.in_port(0))
