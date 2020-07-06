@@ -25,6 +25,7 @@
 #include "ngraph/op/dequantize.hpp"
 #include "ngraph/shape.hpp"
 #include "ngraph/validation_util.hpp"
+#include "utils/common.hpp"
 
 namespace ngraph
 {
@@ -56,31 +57,6 @@ namespace ngraph
             }
             namespace set_1
             {
-                namespace
-                {
-                    void validate_scalar_input(const char* input_name,
-                                               const std::shared_ptr<ngraph::Node> input,
-                                               const std::set<element::Type> allowed_types = {})
-                    {
-                        const auto validated_input_rank = input->get_output_partial_shape(0).rank();
-
-                        NGRAPH_CHECK(validated_input_rank.same_scheme({0}),
-                                     input_name,
-                                     " needs to be a scalar.");
-
-                        if (!allowed_types.empty())
-                        {
-                            const bool data_type_ok =
-                                allowed_types.count(input->get_element_type());
-                            NGRAPH_CHECK(data_type_ok,
-                                         "Incorrect data type of the ",
-                                         input_name,
-                                         " input: ",
-                                         input->get_element_type());
-                        }
-                    }
-                }
-
                 NodeVector dequantize_linear(const Node& node)
                 {
                     const NodeVector inputs{node.get_ng_inputs()};
@@ -94,8 +70,8 @@ namespace ngraph
                     const auto scale = inputs[1];
                     const auto zero_point = get_zero_point(inputs);
 
-                    validate_scalar_input("Dequantization scale", scale, {element::f32});
-                    validate_scalar_input("Zero point", zero_point);
+                    common::validate_scalar_input("Dequantization scale", scale, {element::f32});
+                    common::validate_scalar_input("Zero point", zero_point);
 
                     const auto converted_x =
                         std::make_shared<default_opset::Convert>(x, element::f32);
