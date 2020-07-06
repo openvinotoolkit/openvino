@@ -74,7 +74,7 @@ public:
             return;
         }
         currentIterator++;
-        if (currentIterator != dataCntIteratorCurrent->get()->getInputTo().end()) {
+        if (currentIterator != getInputTo(dataCntIteratorCurrent->get()).end()) {
             return;
         }
 
@@ -90,8 +90,8 @@ protected:
     void moveToNextNonEmptyData() {
         pointingToEnd = true;
         for (; dataCntIteratorCurrent != dataCntIteratorEnd; dataCntIteratorCurrent++) {
-            if (!dataCntIteratorCurrent->get()->getInputTo().empty()) {
-                currentIterator = dataCntIteratorCurrent->get()->getInputTo().begin();
+            if (!getInputTo(dataCntIteratorCurrent->get()).empty()) {
+                currentIterator = getInputTo(dataCntIteratorCurrent->get()).begin();
                 pointingToEnd = false;
                 break;
             }
@@ -183,7 +183,7 @@ inline void UnorderedDFS(std::unordered_set<CNNLayer*>& visited, const Inference
 
         // visit childs
         for (auto& od : cnnLayer->outData) {
-            for (auto nl : od->getInputTo()) {
+            for (auto nl : getInputTo(od)) {
                 layers.push(nl.second);
             }
         }
@@ -194,7 +194,7 @@ inline void UnorderedDFS(std::unordered_set<CNNLayer*>& visited, const Inference
             if (!input.lock()) {
                 THROW_IE_EXCEPTION << "Data " << i << " inserted into layer " << cnnLayer->name << " is nullptr";
             } else {
-                auto creatorLayer = input.lock()->getCreatorLayer().lock();
+                auto creatorLayer = getCreatorLayer(input.lock()).lock();
                 if (creatorLayer) {
                     layers.push(creatorLayer);
                 }
@@ -225,7 +225,7 @@ inline void BFS(InferenceEngine::CNNLayerPtr layer, const T& visit, int maxDepth
     for (; !nextLayers.empty() && maxDepth != 0;) {
         visit(*nextLayers.begin());
         for (auto& od : (*nextLayers.begin())->outData) {
-            for (auto nl : od->getInputTo()) {
+            for (auto nl : getInputTo(od)) {
                 if (visited.find(nl.second.get()) == visited.end()) {
                     nextLayers.push_back(nl.second);
                     visited.insert(nl.second.get());
@@ -269,7 +269,7 @@ template <class T>
 inline bool CNNNetForestDFS(const std::vector<DataPtr>& heads, const T& visit, bool bVisitBefore) {
     std::unordered_map<CNNLayer*, bool> visited;
     for (const auto& in : heads) {
-        for (const auto& to : in->getInputTo()) {
+        for (const auto& to : getInputTo(in)) {
             if (visited.find(to.second.get()) != visited.end()) continue;
             if (!details::DFS(visited, to.second, visit, bVisitBefore)) {
                 return false;
@@ -345,7 +345,7 @@ inline bool CNNNetHasPrevLayer(const InferenceEngine::CNNLayer* layer, int idx =
         return false;
     }
     auto prevData = layer->insData[idx].lock();
-    return !!prevData->getCreatorLayer().lock();
+    return !!getCreatorLayer(prevData).lock();
 }
 
 /**
@@ -376,7 +376,7 @@ inline CNNLayerSet CNNNetGetAllInputLayers(const ICNNNetwork& network) {
     if (inputs.empty()) return inputLayers;
 
     for (const auto& input : inputs) {
-        auto& secondLayers = input.second->getInputData()->getInputTo();
+        auto& secondLayers = getInputTo(input.second->getInputData());
 
         if (secondLayers.empty()) continue;
 
@@ -476,7 +476,7 @@ inline CNNNetPtr CNNNetCopy(const ICNNNetwork& input, const Copier& cp) {
     // internal utility to locate out data idx in layer
     auto findOutDataIdx = [&](DataPtr sourceData) {
         int dataIdx = -1;
-        auto sourceLayer = sourceData->getCreatorLayer().lock();
+        auto sourceLayer = getCreatorLayer(sourceData).lock();
         if (!sourceLayer) {
             THROW_IE_EXCEPTION << "Data " << sourceData->getName() << " has no creator layer";
         }
@@ -515,7 +515,7 @@ inline CNNNetPtr CNNNetCopy(const ICNNNetwork& input, const Copier& cp) {
     // internal utility to locate input data idx in layer
     auto findInsDataIdx = [&](DataPtr sourceData, CNNLayerPtr layer) {
         int dataIdx = -1;
-        auto sourceLayerMap = sourceData->getInputTo();
+        auto sourceLayerMap = getInputTo(sourceData);
         for (auto& layersMapping : sourceLayerMap) {
             if (layersMapping.second.get() != layer.get()) {
                 continue;
@@ -540,13 +540,13 @@ inline CNNNetPtr CNNNetCopy(const ICNNNetwork& input, const Copier& cp) {
             auto newLayer = oldToNewLayers[current.get()];
             // remap output data
             for (size_t i = 0; i != current->outData.size(); i++) {
-                newLayer->outData[i]->getCreatorLayer() = CNNLayerWeakPtr(newLayer);
+                getCreatorLayer(newLayer->outData[i]) = CNNLayerWeakPtr(newLayer);
 
                 // transfer data info for getData routine
                 net->getData(newLayer->outData[i]->getName()) = newLayer->outData[i];
 
-                for (auto inputTo = std::begin(newLayer->outData[i]->getInputTo());
-                     inputTo != std::end(newLayer->outData[i]->getInputTo()); inputTo++) {
+                for (auto inputTo = std::begin(getInputTo(newLayer->outData[i]));
+                     inputTo != std::end(getInputTo(newLayer->outData[i])); inputTo++) {
                     inputTo->second = oldToNewLayers[inputTo->second.get()];
                 }
             }
@@ -554,7 +554,7 @@ inline CNNNetPtr CNNNetCopy(const ICNNNetwork& input, const Copier& cp) {
             for (size_t i = 0; i != current->insData.size(); i++) {
                 // found that data IDX
                 auto sourceData = current->insData[i].lock();
-                auto sourceLayer = sourceData->getCreatorLayer().lock();
+                auto sourceLayer = getCreatorLayer(sourceData).lock();
                 if (!sourceLayer) {
                     THROW_IE_EXCEPTION << "Data " << sourceData->getName() << " has no creator layer";
                 }
@@ -569,7 +569,7 @@ inline CNNNetPtr CNNNetCopy(const ICNNNetwork& input, const Copier& cp) {
     input.getInputsInfo(inputsInfo);
     std::set<DataPtr> insDatas;
     for (auto&& info : inputsInfo) {
-        for (auto secondLayer : info.second->getInputData()->getInputTo()) {
+        for (auto secondLayer : getInputTo(info.second->getInputData())) {
             auto secondLayerNew = oldToNewLayers[secondLayer.second.get()];
             InputInfo::Ptr infoNew = std::make_shared<InputInfo>();
             infoNew->setInputData(
@@ -584,7 +584,7 @@ inline CNNNetPtr CNNNetCopy(const ICNNNetwork& input, const Copier& cp) {
     input.getOutputsInfo(outmap);
     for (auto&& data : outmap) {
         ResponseDesc dsc;
-        if (OK != net->addOutput(data.second->getCreatorLayer().lock()->name, findOutDataIdx(data.second), &dsc)) {
+        if (OK != net->addOutput(getCreatorLayer(data.second).lock()->name, findOutDataIdx(data.second), &dsc)) {
             THROW_IE_EXCEPTION << dsc.msg;
         }
     }
@@ -647,7 +647,7 @@ inline std::vector<DataPtr> CNNSubnetGetAllInputs(const std::vector<DataPtr>& he
 
     // Define all start layers
     for (const auto& data : heads) {
-        auto& secondLayers = data->getInputTo();
+        auto& secondLayers = getInputTo(data);
 
         if (secondLayers.empty()) continue;
 
@@ -666,7 +666,7 @@ inline std::vector<DataPtr> CNNSubnetGetAllInputs(const std::vector<DataPtr>& he
     // layers from head (like const placeholders)
     for (auto& starter : inputLayers) {
         DataPtr holder(new Data(starter->name + ":input_holder", starter->precision));
-        holder->getInputTo()[starter->name] = starter;
+        getInputTo(holder)[starter->name] = starter;
         res.push_back(holder);
     }
 

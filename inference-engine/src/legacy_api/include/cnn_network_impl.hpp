@@ -10,6 +10,7 @@
 #include <string>
 #include <vector>
 
+#include "ie_layers.h"
 #include "ie_ishape_infer_extension.hpp"
 #include "description_buffer.hpp"
 #include "ie_api.h"

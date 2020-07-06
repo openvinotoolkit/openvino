@@ -79,11 +79,6 @@ TEST(copy, atan)
     ASSERT_TRUE(check_unary<op::Atan>());
 }
 
-TEST(copy, atan2)
-{
-    ASSERT_TRUE(check_binary<op::Atan2>());
-}
-
 TEST(copy, broadcast)
 {
     Shape shape1{1};
