@@ -70,19 +70,17 @@ std::pair<bool, std::string> compare_functions(
         }
 
         for (int i = 0; i < node1->inputs().size(); ++i) {
-            std::shared_ptr<ngraph::opset1::Constant> const1 = ngraph::as_type_ptr<ngraph::opset1::Constant>(node1->get_input_node_shared_ptr(i));
-            std::shared_ptr<ngraph::opset1::Constant> const2 = ngraph::as_type_ptr<ngraph::opset1::Constant>(node2->get_input_node_shared_ptr(i));
-            if ((const1 != nullptr) && (const2 != nullptr)) {
-                if (!compare(const1->cast_vector<float>(), const2)) {
-                    err_log << "Different Constant values detected" << std::endl
-                        << node1->description() << " Input(" << i << ") and "
-                        << node2->description() << " Input(" << i << ")" << std::endl;
+            if (compareConstValues) {
+                std::shared_ptr<ngraph::opset1::Constant> const1 = ngraph::as_type_ptr<ngraph::opset1::Constant>(node1->get_input_node_shared_ptr(i));
+                std::shared_ptr<ngraph::opset1::Constant> const2 = ngraph::as_type_ptr<ngraph::opset1::Constant>(node2->get_input_node_shared_ptr(i));
+                if ((const1 != nullptr) && (const2 != nullptr)) {
+                    if (!compare(const1->cast_vector<float>(), const2)) {
+                        err_log << "Different Constant values detected" << std::endl
+                            << node1->description() << " Input(" << i << ") and "
+                            << node2->description() << " Input(" << i << ")" << std::endl;
+                    }
                 }
-
-                // std::cout << "Constant values compared: " << node1->get_friendly_name() << ":" << const1->get_friendly_name() << " & " <<
-                //    node2->get_friendly_name() << ":" << const2->get_friendly_name() << std::endl;
             }
-
 
             if (node1->input(i).get_element_type() != node2->input(i).get_element_type()) {
                 err_log << "Different element type detected" << std::endl
