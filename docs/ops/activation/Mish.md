@@ -16,7 +16,7 @@
 
 **Outputs**:
 
-*   **1**: Result of computes Mish activation. Floating point tensor with shape and type matching the input tensor. Required.
+*   **1**: Floating point tensor with shape and type matching the input tensor. Required.
 
 **Types**
 
