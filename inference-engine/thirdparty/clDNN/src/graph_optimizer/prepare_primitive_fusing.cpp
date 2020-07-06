@@ -526,13 +526,28 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
 
             std::vector<bool> can_fuse_parents = { can_fuse_parent1, can_fuse_parent2 };
 
+            auto p1_raw_size = parent1->get_output_layout().size.raw;
+            auto p2_raw_size = parent2->get_output_layout().size.raw;
+            for (unsigned k = 0; k < p1_raw_size.size(); k++) {
+                if (p1_raw_size[k] < p2_raw_size[k]) {
+                    if (p1_raw_size[k] != 1)
+                        return;
+                    can_fuse_parents[0] = false;
+                }
+                else if (p2_raw_size[k] < p1_raw_size[k]) {
+                    if (p2_raw_size[k] != 1)
+                        return;
+                    can_fuse_parents[1] = false;
+                }
+            }
+
             // We should have at least one node to fuse
-            if (!can_fuse_parent1 && !can_fuse_parent2)
+            if (!can_fuse_parents[0] && !can_fuse_parents[1])
                 return;
 
             // Choose node to fuse
-            size_t fused_idx = can_fuse_parent1 ? 0 : 1;
-            size_t peer_idx  = can_fuse_parent1 ? 1 : 0;
+            size_t fused_idx = can_fuse_parents[0] ? 0 : 1;
+            size_t peer_idx  = can_fuse_parents[0] ? 1 : 0;
 
             int p1_pnum = p.get_processing_order().get_processing_number(parents[fused_idx]);
             int p2_pnum = p.get_processing_order().get_processing_number(parents[peer_idx]);
@@ -558,9 +573,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
             if (parent2->is_type<convolution>() && !conv_supports_fusings(parent2->as<convolution>()))
                 return;
 
-            // This fusing can be extended to support peer node in any layout and with broadcast
-            bool merge_allowed = fused_node->get_users().size() == 1 &&
-                                 fused_node->get_output_layout().size == peer_node->get_output_layout().size;
+            // This fusing can be extended to support peer node in any layout
+            bool merge_allowed = fused_node->get_users().size() == 1;
 
             for (auto& parent : fused_node->get_dependencies())
                 if (parent->id() == peer_node->id())

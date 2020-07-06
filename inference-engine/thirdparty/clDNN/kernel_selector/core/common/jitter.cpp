@@ -1260,15 +1260,13 @@ std::string FusedOpsCodeGenerator::GetJitLoad(const FusedOpsConfiguration& conf,
     auto& input_tensor = desc.tensors[input_id];
     size_t vec_size = 1;
     auto input_dt = input_tensor.GetDType();
-    if (desc.GetType() == KernelType::ELTWISE) {
-        if (input_tensor.LogicalSize() == prim_output.LogicalSize() &&
-            input_tensor.GetLayout() != prim_output.GetLayout() && conf.vec_size > 1) {
-            throw std::runtime_error("[clDNN] Mixed layouts of input tensors are not supported in fused eltwise");
-        }
-        vec_size = conf.vec_size;
+
+    if (desc.GetType() == KernelType::ELTWISE &&
+        input_tensor.GetLayout() != prim_output.GetLayout() && conf.vec_size > 1) {
+        throw std::runtime_error("[clDNN] Mixed layouts of input tensors are not supported in fused eltwise");
     }
 
-    if (conf.vec_axis == Tensor::DataChannelName::FEATURE &&
+    if (conf.vec_axis != Tensor::DataChannelName::COUNT &&
         DataTensor::Extract(input_tensor.GetLayout(), conf.vec_axis, input_tensor.GetDims()).v != 1) {
         vec_size = conf.vec_size;
     }
