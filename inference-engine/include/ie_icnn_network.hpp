@@ -19,7 +19,6 @@
 #include "ie_data.h"
 #include "ie_iextension.h"
 #include "ie_input_info.hpp"
-#include "ie_layers.h"
 #include "ie_preprocess.hpp"
 
 namespace ngraph {
@@ -104,15 +103,6 @@ public:
      * @return The number of layers as an integer value
      */
     virtual size_t layerCount() const noexcept = 0;
-
-    /**
-     * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
-     * @brief Insert a layer into the network. A user is responsible to connect it to other data elements.
-     *
-     * @param layer Const reference to a layer smart pointer
-     */
-    INFERENCE_ENGINE_DEPRECATED("Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1")
-    virtual void addLayer(const CNNLayerPtr& layer) noexcept = 0;
 
     /**
      * @brief Adds output to the layer

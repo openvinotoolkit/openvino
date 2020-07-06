@@ -48,7 +48,7 @@ std::map<CNNLayer*, bool> getConstLayersMap(const ICNNNetwork& network) {
                 THROW_IE_EXCEPTION << "input data is absent";
             }
 
-            const CNNLayerWeakPtr parentWeak = insData->getCreatorLayer();
+            const CNNLayerWeakPtr parentWeak = getCreatorLayer(insData);
             const CNNLayerPtr parent = parentWeak.lock();
             if (parent == nullptr) {
                 THROW_IE_EXCEPTION << "parentLayer is absent";
@@ -92,7 +92,7 @@ CNNNetworkImpl::~CNNNetworkImpl() {
     if (!res) {
         for (const auto& data : _data) {
             if (!data.second) continue;
-            for (auto& input : data.second->getInputTo()) {
+            for (auto& input : getInputTo(data.second)) {
                 if (!input.second) continue;
                 input.second.reset();
             }
@@ -149,7 +149,7 @@ void CNNNetworkImpl::renameLayer(const std::string& currentName, const std::stri
 
     bool wasUpdatedInput = false;
     for (auto inputDataIt = _inputData.begin(); inputDataIt != _inputData.end(); ++inputDataIt) {
-        const CNNLayerPtr inputLayer = inputDataIt->second->getInputData()->getCreatorLayer().lock();
+        const CNNLayerPtr inputLayer = getCreatorLayer(inputDataIt->second->getInputData()).lock();
         if (inputLayer->name == currentName) {
             _inputData.emplace(newName, inputDataIt->second);
             _inputData.erase(inputDataIt);
@@ -160,7 +160,7 @@ void CNNNetworkImpl::renameLayer(const std::string& currentName, const std::stri
 
     if (!wasUpdatedInput) {
         for (auto outputDataIt = _outputData.begin(); outputDataIt != _outputData.end(); ++outputDataIt) {
-            const CNNLayerPtr outputLayer = outputDataIt->second->getCreatorLayer().lock();
+            const CNNLayerPtr outputLayer = getCreatorLayer(outputDataIt->second).lock();
             if (outputLayer->name == currentName) {
                 _outputData.emplace(newName, outputDataIt->second);
                 _outputData.erase(outputDataIt);
@@ -203,14 +203,14 @@ void CNNNetworkImpl::validate(int version) {
             for (auto i : layer->insData) {
                 auto data = i.lock();
                 if (data) {
-                    auto inputTo = data->getInputTo();
+                    auto inputTo = getInputTo(data);
                     auto iter = inputTo.find(layerName);
                     auto dataName = data->getName();
                     if (iter == inputTo.end()) {
                         THROW_IE_EXCEPTION << "Data " << data->getName() << " which inserted into the layer "
                                            << layerName << " does not point at this layer";
                     }
-                    if (!data->getCreatorLayer().lock()) {
+                    if (!getCreatorLayer(data).lock()) {
                         THROW_IE_EXCEPTION << "Data " << dataName << " has no creator layer";
                     }
                 } else {
@@ -218,7 +218,7 @@ void CNNNetworkImpl::validate(int version) {
                 }
             }
             for (auto data : layer->outData) {
-                auto inputTo = data->getInputTo();
+                auto inputTo = getInputTo(data);
                 std::string dataName = data->getName();
                 for (auto layerIter : inputTo) {
                     CNNLayerPtr layerInData = layerIter.second;
@@ -250,7 +250,7 @@ void CNNNetworkImpl::validate(int version) {
 
     std::string inputType = "Input";
     for (auto i : inputs) {
-        CNNLayerPtr layer = i.second->getInputData()->getCreatorLayer().lock();
+        CNNLayerPtr layer = getCreatorLayer(i.second->getInputData()).lock();
         if (layer && !equal(layer->type, inputType)) {
             THROW_IE_EXCEPTION << "Input layer " << layer->name << " should have Input type but actually its type is "
                                << layer->type;
@@ -290,7 +290,7 @@ void CNNNetworkImpl::resolveOutput() {
             THROW_IE_EXCEPTION << "data name [" << kvp.first << "] dimensions is not known";
 
         // data nodes not going to any layer are basically graph output...
-        if (kvp.second->getInputTo().empty()) {
+        if (getInputTo(kvp.second).empty()) {
             _outputData[kvp.first] = kvp.second;
         }
     }
@@ -392,7 +392,7 @@ StatusCode CNNNetworkImpl::setBatchSize(size_t size, ResponseDesc* responseDesc)
         const std::map<CNNLayer*, bool> layersMap = getConstLayersMap(*this);
         for (auto& layer : _data) {
             SizeVector dims = layer.second->getDims();
-            CNNLayerPtr layerT = layer.second->getCreatorLayer().lock();
+            CNNLayerPtr layerT = getCreatorLayer(layer.second).lock();
 
             bool constOrAbsent;
             if (layerT) {

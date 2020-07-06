@@ -138,9 +138,6 @@ namespace ngraph
                               const HostTensorVector& inputs) override;
 
             protected:
-                virtual void generate_adjoints(autodiff::Adjoints& adjoints,
-                                               const OutputVector& deltas) override;
-
                 Shape m_window_shape;
                 Strides m_window_movement_strides;
                 Shape m_padding_below;
@@ -152,61 +149,6 @@ namespace ngraph
                 void update_auto_padding(const PartialShape& in_shape,
                                          Shape& new_padding_above,
                                          Shape& new_padding_below);
-            };
-
-            class NGRAPH_API MaxPoolBackprop : public Op
-            {
-            public:
-                static constexpr NodeTypeInfo type_info{"MaxPoolBackprop", 0};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
-                MaxPoolBackprop() = default;
-
-                MaxPoolBackprop(const Output<Node>& arg_forward,
-                                const Output<Node>& delta,
-                                const Shape& window_shape,
-                                const Strides& window_movement_strides,
-                                const Shape& padding_below,
-                                const Shape& padding_above);
-
-                MaxPoolBackprop(const Output<Node>& arg_forward,
-                                const Output<Node>& delta,
-                                const Output<Node>& result_forward,
-                                const Shape& window_shape,
-                                const Strides& window_movement_strides,
-                                const Shape& padding_below,
-                                const Shape& padding_above);
-
-                virtual std::shared_ptr<Node>
-                    clone_with_new_inputs(const OutputVector& new_args) const override;
-
-                void validate_and_infer_types() override;
-
-                const Shape& get_window_shape() const { return m_window_shape; }
-                void set_window_shape(const Shape& window_shape) { m_window_shape = window_shape; }
-                const Strides& get_window_movement_strides() const
-                {
-                    return m_window_movement_strides;
-                }
-                void set_window_movement_strides(const Strides& window_movement_strides)
-                {
-                    m_window_movement_strides = window_movement_strides;
-                }
-                const Shape& get_padding_below() const { return m_padding_below; }
-                void set_padding_below(const Shape& padding_below)
-                {
-                    m_padding_below = padding_below;
-                }
-                const Shape& get_padding_above() const { return m_padding_above; }
-                void set_padding_above(const Shape& padding_above)
-                {
-                    m_padding_above = padding_above;
-                }
-
-            protected:
-                Shape m_window_shape;
-                Strides m_window_movement_strides;
-                Shape m_padding_below;
-                Shape m_padding_above;
             };
         } // namespace v0
 
@@ -290,9 +232,6 @@ namespace ngraph
                               const HostTensorVector& inputs) override;
 
             protected:
-                virtual void generate_adjoints(autodiff::Adjoints& adjoints,
-                                               const OutputVector& deltas) override;
-
                 Shape m_kernel;
                 Strides m_strides;
                 Shape m_pads_begin;
@@ -305,52 +244,8 @@ namespace ngraph
                                          Shape& new_pads_end,
                                          Shape& new_pads_begin);
             };
-
-            class NGRAPH_API MaxPoolBackprop : public Op
-            {
-            public:
-                static constexpr NodeTypeInfo type_info{"MaxPoolBackprop", 1};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
-                MaxPoolBackprop() = default;
-
-                MaxPoolBackprop(const Output<Node>& arg_forward,
-                                const Output<Node>& delta,
-                                const Strides& strides,
-                                const Shape& pads_begin,
-                                const Shape& pads_end,
-                                const Shape& kernel);
-
-                MaxPoolBackprop(const Output<Node>& arg_forward,
-                                const Output<Node>& delta,
-                                const Output<Node>& result_forward,
-                                const Strides& strides,
-                                const Shape& pads_begin,
-                                const Shape& pads_end,
-                                const Shape& kernel);
-
-                virtual std::shared_ptr<Node>
-                    clone_with_new_inputs(const OutputVector& new_args) const override;
-
-                size_t get_version() const override { return 1; }
-                void validate_and_infer_types() override;
-
-                const Shape& get_kernel() const { return m_kernel; }
-                void set_kernel(const Shape& kernel) { m_kernel = kernel; }
-                const Strides& get_strides() const { return m_strides; }
-                void set_strides(const Strides& strides) { m_strides = strides; }
-                const Shape& get_pads_begin() const { return m_pads_begin; }
-                void set_pads_begin(const Shape& pads_begin) { m_pads_begin = pads_begin; }
-                const Shape& get_pads_end() const { return m_pads_end; }
-                void set_pads_end(const Shape& pads_end) { m_pads_end = pads_end; }
-            protected:
-                Shape m_kernel;
-                Strides m_strides;
-                Shape m_pads_begin;
-                Shape m_pads_end;
-            };
         } // namespace v1
 
         using v0::MaxPool;
-        using v0::MaxPoolBackprop;
     } // namespace op
 } // namespace ngraph

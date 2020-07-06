@@ -18,9 +18,11 @@ std::vector<std::string> disabledTestPatterns() {
         ".*Behavior.*ExecGraphTests.*",
         // TODO: Issue: 26268
         ".*ConcatLayerTest.*axis=0.*",
-#if defined(_WIN32) || defined(_WIN64)
-        //TODO: Issue: 33722
-        ".*DynamicTranspose.*NonZero_Transpose.*",
-#endif
+        // TODO: Issue 31197
+        R"(.*(IEClassBasicTestP).*smoke_registerPluginsXMLUnicodePath.*)",
+        // TODO: Issue: 34206
+        R"(.*(IEClassLoadNetwork).*(QueryNetworkMULTIWithHETERONoThrow_V10|QueryNetworkHETEROWithMULTINoThrow_V10).*)",
+        // TODO: Issue: 34348
+        R"(.*IEClassGetAvailableDevices.*)",
     };
 }
