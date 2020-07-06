@@ -5359,14 +5359,11 @@ TEST(convolution_f32_fw_gpu, convolution_int8_b_fs_yx_fsv4) {
     const int output_f = 12;
     const int input_f = 16;
     const int filter_xy = 5;
-    const int stride = 1;
     const int output_padding = 2;
     const int input_size_x = 1280;
     const int input_size_y = 720;
 
     const auto& engine = get_test_engine();
-
-    const int input_offset = -(filter_xy / 2);
 
     auto input_size = tensor(batch_num, input_f, input_size_x, input_size_y);
     auto input_data = generate_random_4d<float>(batch_num, input_f, input_size_y, input_size_x, -10, 10);
@@ -5430,7 +5427,6 @@ TEST(convolution_f32_fw_gpu, convolution_int8_b_fs_yx_fsv4) {
     EXPECT_EQ(outputs_act.begin()->first, "output");
 
     auto output_memory_act = outputs_act.at("output").get_memory();
-    auto output_layout_act = output_memory_act.get_layout();
     auto output_act_ptr = output_memory_act.pointer<float>();
 
     int y_size = output_layout.size.spatial[1];
