@@ -55,21 +55,15 @@ public:
             params,
             testParams.actual);
 
-        // pass::VisualizeTree("C:\\Projects\\temp\\test.actual").run_on_module(std::vector<std::shared_ptr<ngraph::Function>>{ actualFunction });
-
         SimpleLowPrecisionTransformer transform;
         transform.add<ngraph::pass::low_precision::ConvolutionTransformation, ngraph::opset1::Convolution>(params);
         transform.transform(actualFunction);
-
-        // pass::VisualizeTree("C:\\Projects\\temp\\test.transformed").run_on_module(std::vector<std::shared_ptr<ngraph::Function>>{ actualFunction });
 
         referenceFunction = ngraph::builder::subgraph::ConvolutionFunction::getReference(
             precision,
             shape,
             params,
             testParams.expected);
-
-        // pass::VisualizeTree("C:\\Projects\\temp\\test.reference").run_on_module(std::vector<std::shared_ptr<ngraph::Function>>{ referenceFunction });
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<ConvolutionTransformationParams> obj) {
@@ -129,27 +123,27 @@ const std::vector<ConvolutionTransformationTestParams> testParams = {
             { 0.0002f }  // 0.0002 = 0.02 (on data) * 0.01 (on weights)
         }
     },
-    // TODO: without zero point
-    // {
-    //    LayerTransformation::createParamsU8I8(),
-    //    // ActualValues
-    //    {
-    //        ngraph::element::u8,
-    //        { },
-    //        { 0.02f },
-    //        { 2.f },
-    //        { 255ul, Shape({1, 1, 1, 1}), {0.f}, {254.f}, {-1.27f}, {1.27f} }
-    //    },
-    //    // ExpectedValues
-    //    {
-    //        ngraph::element::u8,
-    //        { },
-    //        ngraph::element::i8,
-    //        { -125.f }, // 2 (in: 0 - 254) => -125 (out: -127 - 127)
-    //        { },
-    //        { 0.0002f }  // 0.0002 = 0.02 (on data) * 0.01 (on weights)
-    //    }
-    // },
+    // without zero point
+    {
+        LayerTransformation::createParamsU8I8(),
+        // ActualValues
+        {
+            ngraph::element::u8,
+            { },
+            { 0.02f },
+            { 2.f },
+            { 255ul, Shape({1, 1, 1, 1}), {0.f}, {254.f}, {-1.27f}, {1.27f} }
+        },
+        // ExpectedValues
+        {
+            ngraph::element::u8,
+            { },
+            ngraph::element::i8,
+            { -125.f }, // 2 (in: 0 - 254) => -125 (out: -127 - 127)
+            { },
+            { 0.0002f }  // 0.0002 = 0.02 (on data) * 0.01 (on weights)
+        }
+    },
 };
 
 INSTANTIATE_TEST_CASE_P(

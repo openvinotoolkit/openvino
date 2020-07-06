@@ -78,16 +78,17 @@ std::shared_ptr<ngraph::Function> ConvolutionFunction::getReference(
     const ngraph::Shape& inputShape,
     const ngraph::pass::low_precision::LayerTransformation::Params& params,
     const ExpectedValues& expectedValues) {
-    const auto input = std::make_shared<ngraph::opset1::Parameter>(
-        params.updatePrecisions ? expectedValues.activationPrecision : precision,
+    std::shared_ptr<ngraph::opset1::Parameter> input = std::make_shared<ngraph::opset1::Parameter>(
+        precision,
         ngraph::Shape(inputShape));
     std::shared_ptr<ngraph::Node> parent = input;
 
+    std::shared_ptr<ngraph::opset1::Subtract> subtract;
     if (!expectedValues.subtractValues.empty()) {
-        const std::shared_ptr<ngraph::opset1::Subtract> subtract = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::Subtract>>(
+        subtract = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::Subtract>>(
             parent,
             std::make_shared<ngraph::opset1::Constant>(
-                params.updatePrecisions ? expectedValues.activationPrecision : precision,
+                precision,
                 // CPU workaround
                 Shape({ 1, inputShape[1], 1, 1 }),
                 expectedValues.subtractValues.size() == 1ul ?
@@ -105,8 +106,6 @@ std::shared_ptr<ngraph::Function> ConvolutionFunction::getReference(
     }
 
     const std::shared_ptr<ngraph::opset1::Constant> weights = ngraph::opset1::Constant::create(
-        // it doesn't work
-        // expectedValues.weightsPrecision,
         precision,
         ngraph::Shape{ outputChannelsCount, inputChannelsCount, 1, 1 },
         expectedValues.weightsValues.size() == 1ul ?
@@ -143,10 +142,25 @@ std::shared_ptr<ngraph::Function> ConvolutionFunction::getReference(
             expectedValues.mutliplyValues));
     parent = multiply;
 
-    // it doesn't work
-    //weights->set_output_type(0, expectedValues.weightsPrecision, weights->get_output_partial_shape(0));
-
     if (params.updatePrecisions) {
+        // this is not working
+        // input->set_output_type(0, expectedValues.activationPrecision, input->get_output_partial_shape(0));
+        input = as_type_ptr<ngraph::opset1::Parameter>(replace_node(
+            input,
+            std::make_shared<ngraph::opset1::Parameter>(
+                params.updatePrecisions ? expectedValues.activationPrecision : precision,
+                ngraph::Shape(inputShape))));
+
+        if (subtract != nullptr) {
+            // this is not working
+            // subtract->get_input_node_shared_ptr(1)->set_output_type(0, expectedValues.activationPrecision, subtract->get_output_partial_shape(0));
+            replace_node(
+                subtract->get_input_node_shared_ptr(1),
+                ngraph::pass::low_precision::fold<ngraph::opset1::Convert>(subtract->get_input_node_shared_ptr(1), expectedValues.activationPrecision));
+        }
+
+        // this is not working
+        // weights->set_output_type(0, expectedValues.weightsPrecision, weights->get_output_partial_shape(0));
         replace_node(
             weights,
             ngraph::pass::low_precision::fold<ngraph::opset1::Convert>(weights, expectedValues.weightsPrecision));

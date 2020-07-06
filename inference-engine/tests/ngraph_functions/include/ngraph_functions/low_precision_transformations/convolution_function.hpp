@@ -23,7 +23,10 @@ public:
 };
 
 inline std::ostream& operator<<(std::ostream& out, const ActualValues& values) {
-    return out << "_" << values.lowPrecision << "_" << values.fakeQuantizeOnWeights;
+    return out << "_" << values.lowPrecision <<
+        "_subtract" << values.subtractValues.size() <<
+        "_mutliply" << values.mutliplyValues.size() << "_" <<
+        values.fakeQuantizeOnWeights;
 }
 
 class ExpectedValues {
@@ -37,7 +40,10 @@ public:
 };
 
 inline std::ostream& operator<<(std::ostream& out, const ExpectedValues& values) {
-    return out << "_" << values.activationPrecision << "_" << values.weightsPrecision << "_" << values.fakeQuantizeOnWeights;
+    return out << "_" << values.activationPrecision <<
+        "_subtract" << values.subtractValues.size() <<
+        "_weightsPrecision" << values.weightsPrecision << "_" <<
+        values.fakeQuantizeOnWeights;
 }
 
 class ConvolutionFunction {
