@@ -114,6 +114,7 @@ FrontEnd::FrontEnd(StageBuilder::Ptr stageBuilder)
         {"DynamicShapeResolver",                               LAYER_PARSER(parseDSR)},
         {"OutShapeOfReshape",                                  LAYER_PARSER(parseOutShapeOfReshape)},
         {"StaticShapeBroadcast",                               LAYER_PARSER(parseBroadcast)},
+        {"StaticShapeNonMaxSuppression",                       LAYER_PARSER(parseStaticShapeNMS)},
     }} {}
 
 ModelPtr FrontEnd::buildInitialModel(ie::ICNNNetwork& network) {
@@ -511,7 +512,7 @@ void FrontEnd::getInputAndOutputData(
 
             // Skip adding data if it not utilized
             const bool isNetworkOutput = _ieParsedNetwork.networkOutputs.count(layerOutput->getName()) > 0;
-            const auto isLeaf = layerOutput->getInputTo().empty();
+            const auto isLeaf = getInputTo(layerOutput).empty();
             if (!isNetworkOutput && isLeaf) {
                 outputs[i] = nullptr;
                 continue;

@@ -254,9 +254,10 @@ TEST_F(NGraphReaderTests, ReadFQNetwork) {
     CommonTestUtils::fill_data(weights->buffer().as<float *>(), weights->size() / sizeof(float));
 
     Core reader;
-    auto nGraph = reader.ReadNetwork(model, weights);
-    CNNNetwork cnn(nGraph);
+    auto cnn = reader.ReadNetwork(model, weights);
+
     IE_SUPPRESS_DEPRECATED_START
-    cnn.begin();
+    // convert to old representation
+    getCreatorLayer(cnn.getInputsInfo().begin()->second->getInputData());
     IE_SUPPRESS_DEPRECATED_END
 }

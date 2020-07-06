@@ -10,6 +10,7 @@
 #include <utility>
 #include <map>
 #include <unordered_map>
+#include <unordered_set>
 
 #include "ie_metric_helpers.hpp"
 #include <ie_api.h>
@@ -424,8 +425,6 @@ void MultiDeviceInferencePlugin::SetConfig(const std::map<std::string, std::stri
     }
 }
 
-IE_SUPPRESS_DEPRECATED_START
-
 INFERENCE_PLUGIN_API(InferenceEngine::StatusCode) CreatePluginEngine(
         InferenceEngine::IInferencePlugin *&plugin,
         InferenceEngine::ResponseDesc *resp) noexcept {
@@ -440,8 +439,6 @@ INFERENCE_PLUGIN_API(InferenceEngine::StatusCode) CreatePluginEngine(
         return DescriptionBuffer(GENERAL_ERROR, resp) << ex.what();
     }
 }
-
-IE_SUPPRESS_DEPRECATED_END
 
 MultiDeviceInferencePlugin::MultiDeviceInferencePlugin() {
     _pluginName = "MULTI";
@@ -472,9 +469,6 @@ ExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadExeNetworkImpl(co
         THROW_IE_EXCEPTION << "Please, work with MULTI device via InferencEngine::Core object";
     }
 
-    // TODO: do we really need a clone?
-    ICNNNetwork::Ptr clonedNetwork = cloneNet(network);
-
     auto fullConfig = mergeConfigs(_config, config);
     auto priorities = fullConfig.find(MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES);
     if (priorities == fullConfig.end()) {
@@ -492,6 +486,7 @@ ExecutableNetworkInternal::Ptr MultiDeviceInferencePlugin::LoadExeNetworkImpl(co
         auto & deviceName = p.first;
         auto & metaDevice = p.second;
         auto & deviceConfig = metaDevice.config;
+        auto clonedNetwork = cloneNetwork(network);
         executableNetworkPerDevice.insert({ deviceName, GetCore()->LoadNetwork(CNNNetwork{clonedNetwork}, deviceName, deviceConfig) });
         multiNetworkConfig.insert(deviceConfig.begin(), deviceConfig.end());
     }
@@ -525,24 +520,22 @@ void MultiDeviceInferencePlugin::QueryNetwork(const ICNNNetwork&                
     }
 
     DeviceMap<DeviceInformation> metaDevices = ParseMetaDevices(priorities->second, fullConfig);
-    std::map<std::string, QueryNetworkResult> queryResults;
-
+    std::unordered_set<std::string> supportedLayers;
     for (auto&& value : metaDevices) {
         auto& deviceName = value.first;
         auto& metaDevice = value.second;
-        queryResults[deviceName] = GetCore()->QueryNetwork(network, deviceName, metaDevice.config);
-    }
-
-    details::CNNNetworkIterator i(&network);
-    while (i != details::CNNNetworkIterator()) {
-        CNNLayer::Ptr layer = *i;
-        bool layerIsInQueryResultsForAllDevices = std::all_of(std::begin(queryResults), std::end(queryResults),
-            [&](const std::map<std::string, QueryNetworkResult>::value_type& qr) {
-                return qr.second.supportedLayersMap.end() != qr.second.supportedLayersMap.find(layer->name);});
-        if (layerIsInQueryResultsForAllDevices) {
-            queryResult.supportedLayersMap[layer->name] = GetName();
+        auto clonedNetwork = cloneNetwork(network);
+        auto deviceQr = GetCore()->QueryNetwork(*clonedNetwork, deviceName, metaDevice.config);
+        std::unordered_set<std::string> deviceSupportedLayers;
+        for (auto&& layerQr : deviceQr.supportedLayersMap) {
+            deviceSupportedLayers.emplace(layerQr.first);
         }
-        i++;
+        supportedLayers = supportedLayers.empty()
+                        ? deviceSupportedLayers : (deviceSupportedLayers.empty()
+                        ? supportedLayers : Intersection(supportedLayers, deviceSupportedLayers));
+    }
+    for (auto&& supportedLayer : supportedLayers) {
+        queryResult.supportedLayersMap[supportedLayer] = GetName();
     }
 }
 }  // namespace MultiDevicePlugin

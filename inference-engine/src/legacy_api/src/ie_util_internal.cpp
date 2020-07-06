@@ -3,6 +3,7 @@
 //
 
 #include "ie_util_internal.hpp"
+#include "details/ie_cnn_network_iterator.hpp"
 
 #include <ie_layers.h>
 
@@ -33,8 +34,8 @@ using namespace details;
 DataPtr cloneData(const InferenceEngine::Data& source) {
     auto cloned = std::make_shared<InferenceEngine::Data>(source);
     if (cloned != nullptr) {
-        cloned->getCreatorLayer().reset();
-        cloned->getInputTo().clear();
+        getCreatorLayer(cloned).reset();
+        getInputTo(cloned).clear();
     }
     return cloned;
 }
@@ -210,9 +211,6 @@ details::CNNNetworkImplPtr cloneNet(const ICNNNetwork& origin_network) {
     for (auto o : outputInfo) {
         net->removeOutput(o.first);
     }
-    IE_SUPPRESS_DEPRECATED_START
-    net->setPrecision(network.getPrecision());
-    IE_SUPPRESS_DEPRECATED_END
     net->setName(network.getName());
 
     InputsDataMap externalInputsData;
@@ -271,22 +269,22 @@ details::CNNNetworkImplPtr cloneNet(const std::vector<CNNLayerPtr>& layers) {
 
             string inputName;
             // Find input name
-            for (auto&& inp : data->getInputTo()) {
+            for (auto&& inp : getInputTo(data)) {
                 if (srcLayer == inp.second) {
                     inputName = inp.first;
                     break;
                 }
             }
             assert(!inputName.empty());
-            clonedData->getInputTo().insert({inputName, clonedLayer});
+            getInputTo(clonedData).insert({inputName, clonedLayer});
             clonedLayer->insData.push_back(clonedData);
         }
 
         for (auto&& data : srcLayer->outData) {
             auto clonedData = createDataImpl(data);
-            clonedData->getCreatorLayer() = clonedLayer;
+            getCreatorLayer(clonedData) = clonedLayer;
             clonedLayer->outData.push_back(clonedData);
-            for (auto&& inp : data->getInputTo()) {
+            for (auto&& inp : getInputTo(data)) {
                 auto layer = inp.second;
                 // TODO(amalyshe) is it the best place to check priorbox and remove
                 // such edge from outputs?
@@ -301,7 +299,7 @@ details::CNNNetworkImplPtr cloneNet(const std::vector<CNNLayerPtr>& layers) {
     }
 
     for (auto&& data : clonedDatas) {
-        auto layer = data->getCreatorLayer().lock();
+        auto layer = getCreatorLayer(data).lock();
         // create an artificial input layer because logic in some algorithms rely
         // on existence of these layers in the network
         if (nullptr == layer) {
@@ -309,13 +307,13 @@ details::CNNNetworkImplPtr cloneNet(const std::vector<CNNLayerPtr>& layers) {
             auto originalData = clonedDataMap[data];
             assert(nullptr != originalData);
 
-            if (auto originalLayer = originalData->getCreatorLayer().lock()) {
+            if (auto originalLayer = getCreatorLayer(originalData).lock()) {
                 if (CaselessEq<string>()(originalLayer->type, "input") ||
                     CaselessEq<string>()(originalLayer->type, "const") ||
                     CaselessEq<string>()(originalLayer->type, "memory")) {
                     layer = cloneLayerImpl(*originalLayer);
                     layer->outData.push_back(data);
-                    data->getCreatorLayer() = layer;
+                    getCreatorLayer(data) = layer;
                 }
             }
 
@@ -324,7 +322,7 @@ details::CNNNetworkImplPtr cloneNet(const std::vector<CNNLayerPtr>& layers) {
                 layer = std::make_shared<CNNLayer>(params);
                 // this place should be transactional
                 layer->outData.push_back(data);
-                data->getCreatorLayer() = layer;
+                getCreatorLayer(data) = layer;
                 net->addLayer(layer);
             }
         }
@@ -528,8 +526,8 @@ struct NodePrinter {
         ss << data->getTensorDesc().getLayout();
         printed_properties.emplace_back("layout", ss.str());
         printed_properties.emplace_back("name", data->getName());
-        if (data->getCreatorLayer().lock() != nullptr)
-            printed_properties.emplace_back("creator layer", data->getCreatorLayer().lock()->name);
+        if (getCreatorLayer(data).lock() != nullptr)
+            printed_properties.emplace_back("creator layer", getCreatorLayer(data).lock()->name);
         printNode(node_name, data->getName(), node_properties, printed_properties);
     }
 

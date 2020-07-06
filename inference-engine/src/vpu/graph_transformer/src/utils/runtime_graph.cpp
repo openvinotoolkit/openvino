@@ -19,7 +19,6 @@ namespace vpu {
 
     InferenceEngine::ICNNNetwork::Ptr buildRuntimeGraph(GraphMetaInfo &graphMetaInfo, const std::vector<float>& perfInfo) {
         auto net = std::make_shared<InferenceEngine::details::CNNNetworkImpl>();
-        net->setPrecision(Precision::FP16);
         net->setName(graphMetaInfo.graphName);
 
         std::map<size_t, CNNLayerPtr> stageMetaIndexToLayer;
@@ -113,11 +112,11 @@ namespace vpu {
             auto parent = stageMetaIndexToLayer[dataMetaData.parentIndex];
             data = std::make_shared<::InferenceEngine::Data>(dataMetaData.name, dataMetaData.desc);
             parent->outData.push_back(data);
-            data->getCreatorLayer() = parent;
+            getCreatorLayer(data) = parent;
 
             for (auto &childMetaIndex : dataMetaData.childrenIndices) {
                 auto child = stageMetaIndexToLayer[childMetaIndex];
-                data->getInputTo()[child->name] = child;
+                getInputTo(data)[child->name] = child;
                 child->insData.push_back(data);
             }
         }

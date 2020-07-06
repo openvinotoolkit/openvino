@@ -143,8 +143,6 @@ set (SRC
     op/atan.hpp
     op/atanh.cpp
     op/atanh.hpp
-    op/atan2.cpp
-    op/atan2.hpp
     op/avg_pool.cpp
     op/avg_pool.hpp
     op/batch_norm.cpp
@@ -589,12 +587,6 @@ set (SRC
     pass/nop_elimination.hpp
     pass/pass.cpp
     pass/pass.hpp
-    pass/opset0_downgrade.cpp
-    pass/opset0_downgrade.hpp
-    pass/opset1_downgrade.cpp
-    pass/opset1_downgrade.hpp
-    pass/opset1_upgrade.cpp
-    pass/opset1_upgrade.hpp
     pass/pass_config.cpp
     pass/pass_config.hpp
     pass/propagate_cacheability.cpp

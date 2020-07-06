@@ -12,6 +12,7 @@
 #include <map>
 #include <vector>
 #include <set>
+#include <list>
 #include <iostream>
 #include <algorithm>
 #include <sstream>
@@ -21,7 +22,8 @@
 #include <mutex>
 
 #include <ie_extension.h>
-#include "inference_engine.hpp"
+#include <ie_layers.h>
+#include <ie_core.hpp>
 
 typedef std::chrono::high_resolution_clock Time;
 typedef std::chrono::nanoseconds ns;

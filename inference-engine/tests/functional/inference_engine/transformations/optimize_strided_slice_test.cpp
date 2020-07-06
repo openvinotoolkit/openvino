@@ -20,7 +20,7 @@
 #include <transformations/optimize_strided_slice.hpp>
 #include <transformations/utils/utils.hpp>
 
-#include "ngraph_test_utils.hpp"
+#include "common_test_utils/ngraph_test_utils.hpp"
 
 using namespace testing;
 

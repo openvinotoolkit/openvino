@@ -103,7 +103,6 @@ std::shared_ptr<cldnn::network> CLDNNGraph::BuildNetwork(std::shared_ptr<cldnn::
 InferenceEngine::ICNNNetwork::Ptr CLDNNGraph::GetExecGraphInfoByPrimitivesInfo(std::vector<cldnn::primitive_info>& primitives_info,
                                                                                bool filter_const_primitives) {
     auto net = std::make_shared<details::CNNNetworkImpl>();
-    net->setPrecision(Precision::FP32);
     net->setName("runtime_gpu_graph");
     if (m_config.useProfiling) {
         try {
@@ -415,7 +414,7 @@ InferenceEngine::ICNNNetwork::Ptr CLDNNGraph::GetExecGraphInfoByPrimitivesInfo(s
                 std::string data_name = pi.original_id + "_out" + std::to_string(i);
                 layer->outData[i] = std::make_shared<Data>(data_name, desc_from_layout(pi.output_layout));
                 data = layer->outData[i];
-                data->getCreatorLayer() = layer;
+                getCreatorLayer(data) = layer;
             } else {
                 data = layer->outData[0];
             }
@@ -432,7 +431,7 @@ InferenceEngine::ICNNNetwork::Ptr CLDNNGraph::GetExecGraphInfoByPrimitivesInfo(s
                 }
 
                 if (dep == pi.original_id && child_layer->insData[in_port_id].lock() == nullptr) {
-                    data->getInputTo()[child_layer->name] = child_layer;
+                    getInputTo(data)[child_layer->name] = child_layer;
                     child_layer->insData[in_port_id] = data;
                     break;
                 }

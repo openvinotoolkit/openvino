@@ -6,6 +6,7 @@
 #include "vpu/vpu_plugin_config.hpp"
 #include "behavior/infer_request_config.hpp"
 
+using namespace BehaviorTestsDefinitions;
 namespace {
     const std::vector<InferenceEngine::Precision> netPrecisions = {
             InferenceEngine::Precision::FP16

@@ -373,6 +373,7 @@ void GNAPlugin::LoadNetwork(ICNNNetwork &network) {
         passes->registerPass<InsertDiagonalLayerPass>();
         passes->registerPass<HandleMultipleActivationsForTheLayerPass>();
         passes->registerPass<SubstituteScaleShiftBroadCastPass>();
+        passes->registerPass<FuseMultipleIdentitiesPass>();
         passIdx = passes->run(passIdx);
     };
 
@@ -520,7 +521,7 @@ void GNAPlugin::LoadNetwork(ICNNNetwork &network) {
     int portId = 0;
     for (auto && outPort : outputsDataMap) {
         // gets output layer pointer in original topology not in cloned
-        auto outLayer = outPort.second->getCreatorLayer().lock();
+        auto outLayer = getCreatorLayer(outPort.second).lock();
 
         // Memory layers are not dnnComponents hence we need to make switch with identity layer
         if (outLayer->type == "Memory") {
@@ -1260,7 +1261,7 @@ void GNAPlugin::QueryNetwork(const InferenceEngine::ICNNNetwork& network,
         THROW_GNA_EXCEPTION << "Network is empty (GNA)\n";
     }
 
-    auto const & secondLayers = inputs.begin()->second->getInputData()->getInputTo();
+    auto const & secondLayers = getInputTo(inputs.begin()->second->getInputData());
     if (secondLayers.empty()) {
         THROW_GNA_EXCEPTION << "Network consists of input layer only (GNA)\n";
     }

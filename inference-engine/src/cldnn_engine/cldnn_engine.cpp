@@ -82,7 +82,8 @@ InferenceEngine::ICNNNetwork::Ptr clDNNEngine::CloneNetwork(const InferenceEngin
 
             return std::dynamic_pointer_cast<const ::ngraph::opset2::Gelu>(node) ||
                    std::dynamic_pointer_cast<const ::ngraph::opset3::ShuffleChannels>(node) ||
-                   std::dynamic_pointer_cast<const ::ngraph::opset2::BatchToSpace>(node);
+                   std::dynamic_pointer_cast<const ::ngraph::opset2::BatchToSpace>(node) ||
+                   std::dynamic_pointer_cast<const ::ngraph::opset2::SpaceToBatch>(node);
         };
         auto nGraphFunc = clonedNetwork->getFunction();
         // Disable shape inference (WA for generic operations)
@@ -289,7 +290,7 @@ void clDNNEngine::QueryNetwork(const ICNNNetwork& network, const std::map<std::s
         // take all parrents.
         bool supported = true;
         for (DataWeakPtr insData : concat->insData) {
-            CNNLayerPtr prev = insData.lock()->getCreatorLayer().lock();
+            CNNLayerPtr prev = getCreatorLayer(insData.lock()).lock();
             // verify if previous layer is not supported or if it in the list of not defined layers yet
             // not defined layers are treated as layers which will be assigned to GPU if next layer is assigned to GPU
             if (res.supportedLayersMap.find(prev->name) == res.supportedLayersMap.end()
@@ -309,7 +310,7 @@ void clDNNEngine::QueryNetwork(const ICNNNetwork& network, const std::map<std::s
         cnl++) {
         bool supported = true;
         for (DataPtr out : (*cnl)->outData) {
-            for (auto ol : out->getInputTo()) {
+            for (auto ol : getInputTo(out)) {
                 if (res.supportedLayersMap.find(ol.second->name) == res.supportedLayersMap.end()) {
                     supported = false;
                 }
@@ -406,8 +407,6 @@ Parameter clDNNEngine::GetMetric(const std::string& name, const std::map<std::st
 }
 
 };  // namespace CLDNNPlugin
-
-IE_SUPPRESS_DEPRECATED_START
 
 INFERENCE_PLUGIN_API(StatusCode) CreatePluginEngine(IInferencePlugin*& plugin, ResponseDesc* resp) noexcept {
     try {

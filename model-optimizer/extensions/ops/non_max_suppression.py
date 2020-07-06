@@ -29,10 +29,10 @@ class NonMaxSuppression(Op):
 
     def __init__(self, graph: Graph, attrs: dict):
         mandatory_props = {
-            'type': __class__.op,
-            'op': __class__.op,
-            'version': 'opset3',
-            'infer': __class__.infer,
+            'type': self.op,
+            'op': self.op,
+            'version': 'opset4',
+            'infer': self.infer,
             'output_type': np.int64,
             'center_point_box': 0,
             'box_encoding': 'corner',
@@ -45,18 +45,15 @@ class NonMaxSuppression(Op):
         }
         super().__init__(graph, mandatory_props, attrs)
 
-    def supported_attrs(self):
-        if self.ir_version < 10:
-            return ['center_point_box']
+    def backend_attrs(self):
+        version = self.get_opset()
+        if version in ['opset3', 'opset4']:
+            return ['sort_result_descending', 'box_encoding',
+                    ('output_type', lambda node: np_data_type_to_destination_type(node.output_type))]
+        elif version == 'opset1':
+            return ['sort_result_descending', 'box_encoding']
         else:
-            version = self.get_opset()
-            if version == 'opset3':
-                return ['sort_result_descending', 'box_encoding',
-                        ('output_type', lambda node: np_data_type_to_destination_type(node.output_type))]
-            elif version == 'opset1':
-                return ['sort_result_descending', 'box_encoding']
-            else:
-                raise Error('Unsupported operation opset version "{}"'.format(version))
+            raise Error('Unsupported operation opset version "{}"'.format(version))
 
     @staticmethod
     def infer(node: Node):
@@ -76,12 +73,15 @@ class NonMaxSuppression(Op):
         num_input_boxes = boxes_shape[1]
         assert scores_shape[2] == num_input_boxes, 'Number of boxes mismatch'
 
-        max_number_of_boxes = min(num_input_boxes, boxes_shape[0] * max_output_boxes_per_class * num_classes)
+        if node.get_opset() == 'opset4':
+            max_number_of_boxes = min(num_input_boxes, max_output_boxes_per_class) * boxes_shape[0] * num_classes
+        else:
+            max_number_of_boxes = min(num_input_boxes, boxes_shape[0] * max_output_boxes_per_class * num_classes)
         node.out_port(0).data.set_shape(int64_array([max_number_of_boxes, 3]))
 
     @staticmethod
     def type_infer(node):
-        if node.get_opset() == 'opset3':
+        if node.get_opset() in ['opset3', 'opset4']:
             node.out_port(0).set_data_type(node.output_type)
         else:
             node.out_port(0).set_data_type(np.int64)
