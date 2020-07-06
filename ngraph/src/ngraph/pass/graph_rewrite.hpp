@@ -122,12 +122,6 @@ public:
         m_matchers.push_back(pass);
     }
 
-    explicit GraphRewrite(const std::vector<std::shared_ptr<MatcherPass>>& passes)
-        : GraphRewriteBase()
-    {
-        m_matchers.insert(m_matchers.end(), passes.begin(), passes.end());
-    }
-
     template <typename T, class... Args>
     std::shared_ptr<T> add_matcher(Args&&... args)
     {
