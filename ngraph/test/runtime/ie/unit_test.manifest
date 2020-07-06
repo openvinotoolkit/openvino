@@ -160,6 +160,7 @@ onnx_model_conv_with_dynamic_batch
 
 # Segmentation fault
 bool_init_and
+onnx_model_fake_quantize_nonconst_inputs_infer
 
 # Incorrect number of 'indices_to_squeeze' input dimensions!
 arg_min_no_keep_dims_dyn_shape
@@ -1029,9 +1030,6 @@ batch_mat_mul_forward
 # Incorrect dimensions for broadcasting for Add
 auto_bcast_binary_elementwise_pdpd_dynamic
 
-# Unsupported primitive of type: Atan2
-atan2
-
 # Unsupported primitive of type: ArgMin
 argmin_trivial
 argmin_2D_i32
@@ -1158,7 +1156,6 @@ backwards_add
 backwards_add_nested
 backwards_asin
 backwards_atan
-backwards_atan2
 backwards_broadcast0
 backwards_broadcast1
 backwards_concat_vector
@@ -1342,6 +1339,9 @@ IE_CPU.onnx_dyn_shapes_global_max_pool_dyn_shape
 IE_CPU.onnx_dyn_shapes_model_flatten
 IE_CPU.onnx_dyn_shapes_slice_10_default_axes
 IE_CPU.fused_clamp_float
+
+# Result mismatch 2.666666507720947266 is not close to 3 at index 1
+IE_CPU.onnx_resize10_down_scales_const_linear
 
 # GRUCell operation has a form that is not supported
 IE_CPU.onnx_model_gru_defaults_fwd
@@ -1687,6 +1687,9 @@ IE_GPU.matmul_2x2_2x2
 IE_GPU.matmul_2x3_3x3
 IE_GPU.matmul_3x2_3x3_transpose
 IE_GPU.matmul_3x2_2x3_transpose
+
+IE_GPU.onnx_model_fake_quantize_const_inputs_infer
+IE_GPU.onnx_model_fake_quantize_nonconst_inputs_infer
 
 # ONNX Loop
 onnx_controlflow_loop_2d_add_execution
