@@ -172,7 +172,6 @@ set(SRC
     type_prop/quantize.cpp
     type_prop/quantized_convolution.cpp
     type_prop/quantized_dot.cpp
-    type_prop/random_uniform.cpp
     type_prop/range.cpp
     type_prop/read_value.cpp
     type_prop/replace_slice.cpp
@@ -329,7 +328,6 @@ set(MULTI_TEST_SRC
     backend/fused_op.in.cpp
     backend/gather.in.cpp
     backend/gelu.in.cpp
-    backend/generate_mask.in.cpp
     backend/group_convolution.in.cpp
     backend/layer_norm.in.cpp
     backend/log.in.cpp
@@ -360,7 +358,6 @@ set(MULTI_TEST_SRC
     backend/quantize_dequantize.in.cpp
     backend/quantized_convolution.in.cpp
     backend/quantized_dot.in.cpp
-    backend/random_uniform.in.cpp
     backend/range.in.cpp
     backend/reduce_max.in.cpp
     backend/reduce_mean.in.cpp

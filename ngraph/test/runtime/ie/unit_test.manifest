@@ -516,8 +516,6 @@ softmax_axis_3d_double
 select_double
 quantize_clamp_int32
 max_3d_to_scalar_double
-generate_mask
-generate_mask2
 argmin_trivial_in_double
 
 # Incorrect precision bf16!
@@ -777,13 +775,6 @@ relu_4Dbackprop
 # data [<name>] doesn't exist
 range
 parameter_as_output
-
-# Cannot cast ngraph node RandomUniform to CNNLayer!
-random_uniform_all_static_seed_unused
-random_uniform_all_static_seed_used
-random_uniform_seed_use_dynamic
-random_uniform_all_static_range_dynamic
-random_uniform_dynamic_shapes
 
 # Cannot cast ngraph node QuantizedDot to CNNLayer!
 quantized_dot_u8u8

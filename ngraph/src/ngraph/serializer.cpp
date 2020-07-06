@@ -1382,20 +1382,6 @@ shared_ptr<Node> JSONDeserializer::deserialize_node(json node_js)
             node = make_shared<op::Gemm>(args[0], args[1], args[2], alpha, beta, transA, transB);
             break;
         }
-        case OP_TYPEID::GenerateMask:
-        {
-            auto type = read_element_type(node_js.at("type"));
-            auto seed = node_js.at("seed").get<unsigned int>();
-            auto probability = node_js.at("probability").get<double>();
-            bool use_seed = get_or_default<bool>(node_js, "use_seed", false);
-
-            auto output_shape = node_js.at("output_shape").get<vector<size_t>>();
-
-            node = make_shared<op::v0::GenerateMask>(
-                args[0], output_shape, type, seed, probability, use_seed);
-
-            break;
-        }
         case OP_TYPEID::GetOutputElement:
         {
             node = make_shared<op::GetOutputElement>(
@@ -1948,12 +1934,6 @@ shared_ptr<Node> JSONDeserializer::deserialize_node(json node_js)
         {
             auto src_id = node_js.at("source_id").get<size_t>();
             node = make_shared<op::Recv>(args[0], src_id);
-            break;
-        }
-        case OP_TYPEID::RandomUniform:
-        {
-            auto fixed_seed = node_js.at("fixed_seed").get<uint64_t>();
-            node = make_shared<op::RandomUniform>(args[0], args[1], args[2], args[3], fixed_seed);
             break;
         }
         case OP_TYPEID::Range:
@@ -2788,16 +2768,6 @@ json JSONSerializer::serialize_node(const Node& n)
         node["transB"] = tmp->get_transB();
         break;
     }
-    case OP_TYPEID::GenerateMask:
-    {
-        auto tmp = static_cast<const op::GenerateMask*>(&n);
-        node["type"] = write_element_type(tmp->get_element_type());
-        node["use_seed"] = tmp->get_use_seed();
-        node["seed"] = tmp->get_seed();
-        node["probability"] = tmp->get_probability();
-        node["output_shape"] = tmp->get_mask_shape();
-        break;
-    }
     case OP_TYPEID::Greater:
     {
         const op::util::BinaryElementwiseComparison* tmp = nullptr;
@@ -3127,12 +3097,6 @@ json JSONSerializer::serialize_node(const Node& n)
         node["input0_axes"] = tmp->get_input0_axes();
         node["input1_axes"] = tmp->get_input1_axes();
         node["output_axes"] = tmp->get_output_axes();
-        break;
-    }
-    case OP_TYPEID::RandomUniform:
-    {
-        auto tmp = static_cast<const op::RandomUniform*>(&n);
-        node["fixed_seed"] = tmp->get_fixed_seed();
         break;
     }
     case OP_TYPEID::Range: { break;

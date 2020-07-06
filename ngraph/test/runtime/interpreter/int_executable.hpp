@@ -63,7 +63,6 @@
 #include "ngraph/runtime/reference/floor.hpp"
 #include "ngraph/runtime/reference/gather.hpp"
 #include "ngraph/runtime/reference/gather_nd.hpp"
-#include "ngraph/runtime/reference/generate_mask.hpp"
 #include "ngraph/runtime/reference/log.hpp"
 #include "ngraph/runtime/reference/lrn.hpp"
 #include "ngraph/runtime/reference/matmul.hpp"
@@ -76,7 +75,6 @@
 #include "ngraph/runtime/reference/pad.hpp"
 #include "ngraph/runtime/reference/product.hpp"
 #include "ngraph/runtime/reference/quantize.hpp"
-#include "ngraph/runtime/reference/random_uniform.hpp"
 #include "ngraph/runtime/reference/recv.hpp"
 #include "ngraph/runtime/reference/relu.hpp"
 #include "ngraph/runtime/reference/replace_slice.hpp"
@@ -341,34 +339,6 @@ protected:
                                    avg_pool->get_padding_below(),
                                    avg_pool->get_padding_above(),
                                    avg_pool->get_include_padding_in_avg_computation());
-            break;
-        }
-        case OP_TYPEID::GenerateMask:
-        {
-            bool use_seed = static_cast<bool>(args[2]->get_data_ptr<const int32_t>()[0]);
-            if (m_states.count(&node) == 0)
-            {
-                const op::GenerateMask* gm = static_cast<const op::GenerateMask*>(&node);
-                auto seed = use_seed ? gm->get_seed() : 0;
-                m_states[&node] = std::unique_ptr<BernoulliRNGState>(
-                    new BernoulliRNGState(seed, gm->get_probability()));
-            }
-
-            bool training = static_cast<bool>(args[0]->get_data_ptr<const T>()[0]);
-            auto state = static_cast<BernoulliRNGState*>(m_states.at(&node).get());
-            size_t element_count = shape_size(node.get_output_shape(0));
-            if (!use_seed)
-            {
-                reference::generate_mask<T>(
-                    out[0]->get_data_ptr<T>(), element_count, state, training);
-            }
-            else
-            {
-                uint64_t seed = static_cast<uint64_t>(args[3]->get_data_ptr<const T>()[0]);
-                double prob = static_cast<double>(args[4]->get_data_ptr<const T>()[0]);
-                reference::generate_mask_no_state<T>(
-                    out[0]->get_data_ptr<T>(), element_count, training, seed, prob);
-            }
             break;
         }
         case OP_TYPEID::GetOutputElement:
@@ -1180,38 +1150,6 @@ protected:
                 args[0]->get_data_ptr<T>(), node.get_input_element_type(0), element_count, src_id);
 
             memcpy(out[0]->get_data_ptr<T>(), args[0]->get_data_ptr<T>(), memSize);
-            break;
-        }
-        case OP_TYPEID::RandomUniform:
-        {
-            const op::RandomUniform* ru = static_cast<const op::RandomUniform*>(&node);
-
-            T min_val = args[0]->get_data_ptr<const T>()[0];
-            T max_val = args[1]->get_data_ptr<const T>()[0];
-            // In INTERPRETER we can ignore arg 2 (output_shape) for now because we only work on
-            // static output shapes anyway.
-            bool use_fixed_seed = static_cast<bool>(args[3]->get_data_ptr<const char>()[0]);
-
-            if (m_states.count(&node) == 0)
-            {
-                m_states[&node] = std::unique_ptr<UniformRNGState>(new UniformRNGState());
-            }
-
-            auto state = static_cast<UniformRNGState*>(m_states.at(&node).get());
-            size_t element_count = shape_size(node.get_output_shape(0));
-            if (!use_fixed_seed)
-            {
-                reference::random_uniform<T>(
-                    out[0]->get_data_ptr<T>(), min_val, max_val, element_count, state);
-            }
-            else
-            {
-                reference::random_uniform_with_fixed_seed<T>(out[0]->get_data_ptr<T>(),
-                                                             min_val,
-                                                             max_val,
-                                                             element_count,
-                                                             ru->get_fixed_seed());
-            }
             break;
         }
         case OP_TYPEID::Relu:

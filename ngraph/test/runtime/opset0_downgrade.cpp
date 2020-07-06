@@ -305,24 +305,6 @@ namespace
         return replacement_node;
     }
 
-    shared_ptr<Node> op_cast(shared_ptr<op::v1::GenerateMask> node)
-    {
-        NGRAPH_CHECK(node->input_value(1).get_node_shared_ptr()->is_constant());
-        auto mask_shape =
-            static_pointer_cast<op::Constant>(node->input_value(1).get_node_shared_ptr())
-                ->get_shape_val();
-        auto seed = node->get_seed();
-        auto use_seed = node->get_use_seed();
-        auto probability = node->get_probability();
-        auto et = node->get_element_type();
-
-        auto replacement_node = make_shared<op::v0::GenerateMask>(
-            node->input_value(0), mask_shape, et, seed, probability, use_seed);
-
-        replace_node(node, replacement_node);
-        return replacement_node;
-    }
-
     shared_ptr<Node> op_cast(shared_ptr<op::v1::Greater> node)
     {
         return op_cast_binary_elementwise_node<op::v0::Greater, op::v1::Greater>(node);
