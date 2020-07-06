@@ -10,6 +10,7 @@
 #include <ie_plugin_config.hpp>
 #include <memory>
 #include <fstream>
+#include <ngraph/variant.hpp>
 #include <hetero/hetero_plugin_config.hpp>
 #include <graph_tools.hpp>
 #include <functional_test_utils/plugin_cache.hpp>
@@ -104,16 +105,7 @@ public:
         }
     }
     void setHeteroNetworkAffinity(const std::string& targetDevice) {
-        InferenceEngine::InputsDataMap networkInputs = actualNetwork.getInputsInfo();
-
-        CNNLayerPtr layer;
-        for (auto input : networkInputs) {
-            InputInfo::Ptr q = input.second;
-            DataPtr p = q->getInputData();
-            layer = getInputTo(p).begin()->second;
-        }
-
-        std::map<std::string, std::string> deviceMapping = {
+        const std::map<std::string, std::string> deviceMapping = {
                 {"Convololution_4", targetDevice},
                 {"Convololution_7", CommonTestUtils::DEVICE_CPU},
                 {"Relu_5",          CommonTestUtils::DEVICE_CPU},
@@ -121,16 +113,13 @@ public:
                 {"Concat_9",        CommonTestUtils::DEVICE_CPU}
         };
 
-        CNNNetDFS(layer, [&](const CNNLayerPtr &layer) {
-            IE_SUPPRESS_DEPRECATED_START
-            auto it = deviceMapping.find(layer->name);
+        for (const auto & op : actualNetwork.getFunction()->get_ops()) {
+            auto it = deviceMapping.find(op->get_friendly_name());
             if (it != deviceMapping.end()) {
-                layer->affinity = it->second;
-            } else {
-                layer->affinity = CommonTestUtils::DEVICE_CPU;
+                std::string affinity = it->second;
+                op->get_rt_info()["affinity"] = std::make_shared<ngraph::VariantWrapper<std::string>>(affinity);
             }
-            IE_SUPPRESS_DEPRECATED_END
-        });
+        }
     }
 };
 
