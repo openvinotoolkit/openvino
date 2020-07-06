@@ -15,7 +15,6 @@
 #include <common/include/vpu/utils/error.hpp>
 
 #include "blob_factory.hpp"
-#include "ie_ir_reader.hpp"
 #include "debug.h"
 #include "vpu_tests_config.hpp"
 

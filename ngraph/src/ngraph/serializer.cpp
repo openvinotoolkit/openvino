@@ -991,11 +991,6 @@ shared_ptr<Node> JSONDeserializer::deserialize_node(json node_js)
             node = make_shared<op::Atan>(args[0]);
             break;
         }
-        case OP_TYPEID::Atan2:
-        {
-            node = make_shared<op::Atan2>(args[0], args[1], read_auto_broadcast(node_js, "autob"));
-            break;
-        }
 
         case OP_TYPEID::BatchMatMul:
         {
@@ -2524,15 +2519,6 @@ json JSONSerializer::serialize_node(const Node& n)
     case OP_TYPEID::Asin: { break;
     }
     case OP_TYPEID::Atan: { break;
-    }
-    case OP_TYPEID::Atan2:
-    {
-        auto tmp = dynamic_cast<const op::Atan2*>(&n);
-        if (tmp->get_autob().m_type != op::AutoBroadcastType::NONE)
-        {
-            node["autob"] = write_auto_broadcast(tmp->get_autob());
-        }
-        break;
     }
     case OP_TYPEID::BatchMatMul: { break;
     }

@@ -19,6 +19,7 @@
 #include "ngraph/ops.hpp"
 #include "op/argmax.hpp"
 #include "op/argmin.hpp"
+#include "op/atan2.hpp"
 #include "op/avg_pool.hpp"
 
 namespace ngraph

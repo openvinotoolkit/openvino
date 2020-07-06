@@ -296,7 +296,6 @@ set(MULTI_TEST_SRC
     backend/asin.in.cpp
     backend/asinh.in.cpp
     backend/atan.in.cpp
-    backend/atan2.in.cpp
     backend/atanh.in.cpp
     backend/auto_broadcast.in.cpp
     backend/autodiff.in.cpp

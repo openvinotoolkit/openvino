@@ -35,6 +35,8 @@ set (SRC
     op/argmax.hpp
     op/argmin.cpp
     op/argmin.hpp
+    op/atan2.cpp
+    op/atan2.hpp
     op/avg_pool.cpp
     op/avg_pool.hpp
     )

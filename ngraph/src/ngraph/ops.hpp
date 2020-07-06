@@ -30,7 +30,6 @@
 #include "ngraph/op/asinh.hpp"
 #include "ngraph/op/assign.hpp"
 #include "ngraph/op/atan.hpp"
-#include "ngraph/op/atan2.hpp"
 #include "ngraph/op/atanh.hpp"
 #include "ngraph/op/avg_pool.hpp"
 #include "ngraph/op/batch_norm.hpp"
