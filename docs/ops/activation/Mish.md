@@ -8,7 +8,7 @@
 
 **Detailed description**: Mish layer computes self regularized non-monotonic neural activation function: x * tanh(softplus(x))
 
-**Attributes**: operations has no attributes.
+**Attributes**: operation has no attributes.
 
 **Inputs**:
 
