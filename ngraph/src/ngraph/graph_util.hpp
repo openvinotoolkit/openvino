@@ -229,7 +229,7 @@ namespace ngraph
     void replace_node(const std::shared_ptr<Node>& target, const OutputVector& replacement_values);
 
     NGRAPH_API
-    void replace_node(std::shared_ptr<Node> target, std::shared_ptr<Node> replacement);
+    std::shared_ptr<Node> replace_node(std::shared_ptr<Node> target, std::shared_ptr<Node> replacement);
 
     /// \brief Replace multiple nodes in a function.
     /// \param f Function where replacement is taking place.

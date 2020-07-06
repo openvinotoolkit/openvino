@@ -219,11 +219,12 @@ void ngraph::replace_node(const std::shared_ptr<Node>& target,
     target->clear_control_dependents();
 }
 
-void ngraph::replace_node(std::shared_ptr<Node> target, std::shared_ptr<Node> replacement)
+std::shared_ptr<Node> ngraph::replace_node(std::shared_ptr<Node> target, std::shared_ptr<Node> replacement)
 {
     auto default_output_order = vector<int64_t>(target->get_output_size());
     std::iota(default_output_order.begin(), default_output_order.end(), 0);
     replace_node(target, replacement, default_output_order);
+    return replacement;
 }
 
 void ngraph::replace_nodes(
