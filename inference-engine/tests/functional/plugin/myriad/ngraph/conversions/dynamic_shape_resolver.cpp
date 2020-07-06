@@ -43,6 +43,7 @@ protected:
 
 private:
     void triggerConversionToCNNNetwork() {
+        // TODO
         // convert to old representation
         getCreatorLayer(cnnNetwork.getInputsInfo().begin()->second->getInputData());
     }
