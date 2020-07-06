@@ -22,6 +22,23 @@ from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
 
 
+class CaffeSlice(Op):
+    op = 'CaffeSlice'
+    enabled = True
+
+    def __init__(self, graph: Graph, attrs: dict):
+        super().__init__(graph, {
+            'type': None,
+            'op': __class__.op,
+            'in_ports_count': 1,
+            'out_ports_count': 1,
+            'infer': None,
+        }, attrs)
+
+    def supported_attrs(self):
+        return ['slice_point', 'axis']
+
+
 class Slice(Op):
     op = 'Slice'
     enabled = True

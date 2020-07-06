@@ -24,7 +24,7 @@ from mo.graph.graph import Graph
 
 
 class SliceToVariadicSplit(FrontReplacementOp):
-    op = "Slice"
+    op = "CaffeSlice"
     enabled = True
 
     def replace_sub_graph(self, graph: Graph, match: dict):
