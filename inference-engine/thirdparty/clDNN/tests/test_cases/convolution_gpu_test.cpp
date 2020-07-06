@@ -5353,7 +5353,7 @@ TEST_P(convolution_gpu_fs_byx_fsv32_crop, fs_byx_fsv32_crop)
                 }
 }
 
-TEST(convolution_f32_fw_gpu, convolution_int8_b_fs_yx_fsv4) {
+TEST(convolution_f32_fw_gpu, convolution_int8_b_fs_yx_fsv4_to_bfyx) {
 
     const int batch_num = 1;
     const int output_f = 12;
