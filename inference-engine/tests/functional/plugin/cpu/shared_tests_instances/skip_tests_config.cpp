@@ -33,8 +33,9 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*Reduce.*axes=\(0\.3\)_type=Prod.*)",
         // TODO: Issue 34055
         R"(.*RangeLayerTest.*)",
+        // TODO: Issue 34092
 #if (defined(_WIN32) || defined(_WIN64))
-        R"(.*(CoreThreadingTestsWithIterations).*(smoke_LoadNetworkAccuracy).*(targetDevice=HETERO).*)",
+        R"(.*(CoreThreadingTestsWithIterations).*(smoke_LoadNetworkAccuracy).*)",
 #endif
         // TODO: Issue: 34348
         R"(.*IEClassGetAvailableDevices.*)",
