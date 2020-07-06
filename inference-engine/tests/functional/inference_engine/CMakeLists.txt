@@ -24,9 +24,14 @@ addIeTargetTest(
         DEPENDENCIES
             extension_tests
             mock_engine
+            inference_engine_ir_reader
         LABELS
             IE
 )
+
+if(TARGET inference_engine_onnx_reader)
+    add_dependencies(${TARGET_NAME} inference_engine_onnx_reader)
+endif()
 
 include(CMakeParseArguments)
 
