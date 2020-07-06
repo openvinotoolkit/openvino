@@ -94,6 +94,17 @@ namespace ngraph
     }
 
     template <typename SHAPE_TYPE>
+    size_t row_major_stride(const SHAPE_TYPE& shape, size_t axis)
+    {
+        size_t s = 1;
+        for (size_t i = shape.size(); i-- > axis + 1;)
+        {
+            s *= shape[i];
+        }
+        return s;
+    }
+
+    template <typename SHAPE_TYPE>
     inline bool is_scalar(const SHAPE_TYPE& shape)
     {
         return 0 == shape.size();

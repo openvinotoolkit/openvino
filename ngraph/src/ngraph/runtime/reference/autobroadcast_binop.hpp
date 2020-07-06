@@ -28,6 +28,55 @@ namespace ngraph
     {
         namespace reference
         {
+            namespace internal
+            {
+                template <int A0, int A1, typename T, typename U, typename Functor>
+                inline void numpy_autobroadcast_binop(const T* arg0,
+                                                      const T* arg1,
+                                                      U* out,
+                                                      const Shape& arg0_shape,
+                                                      const Shape& arg1_shape,
+                                                      const Shape& output_shape,
+                                                      const size_t stride,
+                                                      const size_t axis,
+                                                      Functor elementwise_functor)
+                {
+                    CoordinateTransformBasic arg0_transform(arg0_shape);
+                    CoordinateTransformBasic arg1_transform(arg1_shape);
+
+                    for (CoordinateIterator it(output_shape), ite = CoordinateIterator::end();
+                         it != ite;
+                         it.advance(axis))
+                    {
+                        const Coordinate& output_coord = *it;
+                        size_t const idx0 = arg0_transform.index(output_coord);
+                        size_t const idx1 = arg1_transform.index(output_coord);
+                        for (size_t i = 0; i < stride; ++i)
+                            *out++ = elementwise_functor(arg0[idx0 + i * A0], arg1[idx1 + i * A1]);
+                    }
+                }
+
+                inline void calculate_fixed_idx_and_stride(size_t& arg0_p, // Fixed idx
+                                                           size_t arg1_p,
+                                                           size_t& stride,
+                                                           size_t arg0_shape_padding,
+                                                           size_t arg1_shape_padding,
+                                                           const Shape& arg0_shape,
+                                                           const Shape& arg1_shape)
+                {
+                    while ((arg0_p < arg0_shape_padding ||
+                            arg0_shape[arg0_p - arg0_shape_padding] == 1) &&
+                           (arg0_p >= arg1_shape_padding &&
+                            arg1_shape[arg0_p - arg1_shape_padding] != 1) &&
+                           --arg0_p > arg1_p)
+                        ;
+
+                    stride = arg0_p < arg1_shape_padding
+                                 ? shape_size(arg1_shape)
+                                 : row_major_stride(arg1_shape, arg0_p - arg1_shape_padding);
+                }
+            }
+
             /// \brief Helper function to implement autobroadcasting elementwise binop references.
             ///
             /// \tparam T Element type of the input tensors.
@@ -85,62 +134,132 @@ namespace ngraph
                     //                 ------------
                     //                 [ 3, 2, 6]
                     {
-                        Shape arg0_padded_shape = arg0_shape;
-                        Shape arg1_padded_shape = arg1_shape;
+                        size_t const shape_rank =
+                            std::max(arg0_shape.size(), arg1_shape.size()) + 1;
+                        size_t const arg0_shape_padding = shape_rank - arg0_shape.size();
+                        size_t const arg1_shape_padding = shape_rank - arg1_shape.size();
 
-                        while (arg0_padded_shape.size() < arg1_padded_shape.size())
+                        Shape output_shape(shape_rank, 0);
+
+                        size_t arg0_p = 0, arg1_p = 0;
+
+                        for (size_t i = 0; i < shape_rank; i++)
                         {
-                            arg0_padded_shape.insert(arg0_padded_shape.begin(), 1);
-                        }
+                            Shape::value_type arg0_dim =
+                                i < arg0_shape_padding ? 1 : arg0_shape[i - arg0_shape_padding];
+                            Shape::value_type arg1_dim =
+                                i < arg1_shape_padding ? 1 : arg1_shape[i - arg1_shape_padding];
 
-                        while (arg1_padded_shape.size() < arg0_padded_shape.size())
-                        {
-                            arg1_padded_shape.insert(arg1_padded_shape.begin(), 1);
-                        }
+                            output_shape[i] = arg0_dim == 1 ? arg1_dim : arg0_dim;
 
-                        Shape arg0_squeezed_shape;
-                        Shape arg1_squeezed_shape;
-                        AxisSet arg0_squeezed_axes;
-                        AxisSet arg1_squeezed_axes;
-                        Shape output_shape;
-
-                        for (size_t i = 0; i < arg0_padded_shape.size(); i++)
-                        {
-                            if (arg0_padded_shape[i] == 1)
+                            if (arg0_dim != arg1_dim)
                             {
-                                arg0_squeezed_axes.insert(i);
+                                if (arg0_dim == 1)
+                                    arg0_p = std::max(arg0_p, i);
+
+                                if (arg1_dim == 1)
+                                    arg1_p = std::max(arg1_p, i);
                             }
+                        }
+
+#if 0
+                        // Universal function without optimisations
+                        CoordinateTransformBasic arg0_transform(arg0_shape);
+                        CoordinateTransformBasic arg1_transform(arg1_shape);
+                        U *dst = out;
+
+                        for(CoordinateIterator it(output_shape),
+                            ite = CoordinateIterator::end();
+                            it != ite;
+                            ++it)
+                        {
+                            const Coordinate& output_coord = *it;
+                            size_t const idx0 = arg0_transform.index(output_coord);
+                            size_t const idx1 = arg1_transform.index(output_coord);
+                            *dst++ = elementwise_functor(arg0[idx0], arg1[idx1]);
+                        }
+#else
+                        using internal::numpy_autobroadcast_binop;
+                        using internal::calculate_fixed_idx_and_stride;
+
+                        if (arg0_p < arg1_p)
+                        {
+                            size_t stride =
+                                row_major_stride(arg0_shape, arg1_p - arg0_shape_padding);
+
+                            if (stride > 1)
+                                numpy_autobroadcast_binop<1, 1>(arg0,
+                                                                arg1,
+                                                                out,
+                                                                arg0_shape,
+                                                                arg1_shape,
+                                                                output_shape,
+                                                                stride,
+                                                                arg1_p,
+                                                                elementwise_functor);
                             else
                             {
-                                arg0_squeezed_shape.push_back(arg0_padded_shape[i]);
-                            }
+                                calculate_fixed_idx_and_stride(arg1_p,
+                                                               arg0_p,
+                                                               stride,
+                                                               arg1_shape_padding,
+                                                               arg0_shape_padding,
+                                                               arg1_shape,
+                                                               arg0_shape);
 
-                            if (arg1_padded_shape[i] == 1)
-                            {
-                                arg1_squeezed_axes.insert(i);
+                                numpy_autobroadcast_binop<1, 0>(arg0,
+                                                                arg1,
+                                                                out,
+                                                                arg0_shape,
+                                                                arg1_shape,
+                                                                output_shape,
+                                                                stride,
+                                                                arg1_p,
+                                                                elementwise_functor);
                             }
+                        }
+                        else if (arg0_p > arg1_p)
+                        {
+                            size_t stride =
+                                row_major_stride(arg1_shape, arg0_p - arg1_shape_padding);
+
+                            if (stride > 1)
+                                numpy_autobroadcast_binop<1, 1>(arg0,
+                                                                arg1,
+                                                                out,
+                                                                arg0_shape,
+                                                                arg1_shape,
+                                                                output_shape,
+                                                                stride,
+                                                                arg0_p,
+                                                                elementwise_functor);
                             else
                             {
-                                arg1_squeezed_shape.push_back(arg1_padded_shape[i]);
+                                calculate_fixed_idx_and_stride(arg0_p,
+                                                               arg1_p,
+                                                               stride,
+                                                               arg0_shape_padding,
+                                                               arg1_shape_padding,
+                                                               arg0_shape,
+                                                               arg1_shape);
+
+                                numpy_autobroadcast_binop<0, 1>(arg0,
+                                                                arg1,
+                                                                out,
+                                                                arg0_shape,
+                                                                arg1_shape,
+                                                                output_shape,
+                                                                stride,
+                                                                arg0_p,
+                                                                elementwise_functor);
                             }
-
-                            output_shape.push_back(arg0_padded_shape[i] == 1
-                                                       ? arg1_padded_shape[i]
-                                                       : arg0_padded_shape[i]);
                         }
-
-                        CoordinateTransform arg0_transform(arg0_squeezed_shape);
-                        CoordinateTransform arg1_transform(arg1_squeezed_shape);
-                        CoordinateTransform output_transform(output_shape);
-
-                        for (const Coordinate& output_coord : output_transform)
+                        else
                         {
-                            Coordinate arg0_coord = reduce(output_coord, arg0_squeezed_axes);
-                            Coordinate arg1_coord = reduce(output_coord, arg1_squeezed_axes);
-                            out[output_transform.index(output_coord)] =
-                                elementwise_functor(arg0[arg0_transform.index(arg0_coord)],
-                                                    arg1[arg1_transform.index(arg1_coord)]);
+                            for (size_t i = 0, end = shape_size(output_shape); i < end; ++i)
+                                out[i] = elementwise_functor(arg0[i], arg1[i]);
                         }
+#endif
                     }
                     break;
                 case op::AutoBroadcastType::PDPD:
