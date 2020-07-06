@@ -39,8 +39,6 @@ void LayerTestsCommon::Compare(const std::vector<std::uint8_t> &expected, const 
     const auto actualBuffer = lockedMemory.as<const std::uint8_t *>();
 
     const auto &precision = actual->getTensorDesc().getPrecision();
-//    auto halfBatchSize = 1;
-//    auto batchSize = 1;
     auto bufferSize = actual->size();
     // With dynamic batch, you need to size
     if (configuration.count(InferenceEngine::PluginConfigParams::KEY_DYN_BATCH_ENABLED)) {
