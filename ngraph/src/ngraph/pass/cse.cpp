@@ -29,7 +29,6 @@
 #include "ngraph/op/add.hpp"
 #include "ngraph/op/asin.hpp"
 #include "ngraph/op/atan.hpp"
-#include "ngraph/op/atan2.hpp"
 #include "ngraph/op/broadcast.hpp"
 #include "ngraph/op/ceiling.hpp"
 #include "ngraph/op/constant.hpp"
@@ -176,7 +175,6 @@ static unordered_map<type_index, function<bool(shared_ptr<Node>, shared_ptr<Node
          {TI(op::Acos), cse_unarywise},
          {TI(op::Asin), cse_unarywise},
          {TI(op::Atan), cse_unarywise},
-         {TI(op::Atan2), cse_binarywise},
          {TI(op::Ceiling), cse_unarywise},
          {TI(op::Constant), cse_constant},
          {TI(op::Cos), cse_unarywise},

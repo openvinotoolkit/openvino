@@ -162,7 +162,7 @@ void BF16Transformer::optimizeToFloat(InferenceEngine::CNNNetwork &network) {
         DataPtr tensor = *toAnalyzeTensors.begin();
         toAnalyzeTensors.erase(tensor);
         // look into producer of the tensor
-        auto layer = tensor->getCreatorLayer().lock();
+        auto layer = getCreatorLayer(tensor).lock();
         // if this layer is not from _initbf16 - analyze inputs
         if (_initbf16.find(layer->type) == _initbf16.end()) {
             // for all inputs investigate and modify tensor precision if required
@@ -180,7 +180,7 @@ void BF16Transformer::optimizeToFloat(InferenceEngine::CNNNetwork &network) {
         // Instead of "if they do not go _only_ to the toAnalyzeTensors" we have to apply "if they do not go at least to one of _initbf16"
         // TODO: add test input1->pooling1->conv1 and the same pooling1->relu. for example. now convolution should be returned to fp32
         // after greedy mode, it should be fp32.
-        for (auto inputTo : tensor->getInputTo()) {
+        for (auto inputTo : getInputTo(tensor)) {
             for (size_t o = 0; o < inputTo.second->outData.size(); o++) {
                 if (inputTo.second->outData[o]->getTensorDesc().getPrecision() == Precision::BF16) {
                     bool marked = tryToMarkFP32(inputTo.second->outData[o], immutable);
@@ -207,13 +207,13 @@ bool BF16Transformer::tryToMarkFP32(InferenceEngine::DataPtr data, const std::se
         // if there is one consumer, we can mark its input as float if it does not belong to the list of initial layers
         // in other cases we need to mark tensor which is passed to several l ayers as FP32 only if there is at least one conusmer
         // produces data in FP32. I.e. there should be a way fo getting FP32 from output data to this point
-        if (data->getInputTo().size() == 1) {
-            if (_initbf16.find(data->getInputTo().begin()->second->type) == _initbf16.end()) {
+        if (getInputTo(data).size() == 1) {
+            if (_initbf16.find(getInputTo(data).begin()->second->type) == _initbf16.end()) {
                 marked = true;
             }
         } else {
             // get all consumers
-            for (auto o : data->getInputTo()) {
+            for (auto o : getInputTo(data)) {
                 // if tensor goes to several layers, we will mark it by FP32 only if one of the layer is unknown
                 if (_initbf16.find(o.second->type) == _initbf16.end() &&
                     _complementbf16.find(o.second->type) == _complementbf16.end() &&

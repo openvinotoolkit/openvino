@@ -119,7 +119,7 @@ void FrontEnd::detectNetworkBatch(
             }
 
             // 1. Don't support if DetectionOutput is not the last layer in network
-            if (!layer->outData.front()->getInputTo().empty()) {
+            if (!getInputTo(layer->outData.front()).empty()) {
                 VPU_THROW_FORMAT("Unsupported layer %s configuration : it is not a network output", layer->name);
             }
 

@@ -125,7 +125,7 @@ void registerReaders() {
         readers.emplace("xml", irReaderv10);
 
     // try to load IR reader v7 if library exists
-    auto irReaderv7 = create_if_exists("IRv7", std::string("inference_engine_ir_reader_v7") + std::string(IE_BUILD_POSTFIX));
+    auto irReaderv7 = create_if_exists("IRv7", std::string("inference_engine_ir_v7_reader") + std::string(IE_BUILD_POSTFIX));
     if (irReaderv7)
         readers.emplace("xml", irReaderv7);
 
