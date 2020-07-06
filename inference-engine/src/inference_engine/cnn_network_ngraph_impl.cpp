@@ -104,12 +104,6 @@ void CNNNetworkNGraphImpl::createDataForResult(const ::ngraph::Output<::ngraph::
     }
 }
 
-std::shared_ptr<ICNNNetwork> CNNNetworkNGraphImpl::getCNNNetwork() {
-    if (!cnnNetwork)
-        convertToCNNNetworkImpl();
-    return cnnNetwork;
-}
-
 CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const std::shared_ptr<Function>& nGraph)
     : _ngraph_function(nGraph) {
     // Restore usual attributes for ICNNNetwork
@@ -319,9 +313,7 @@ CNNNetworkNGraphImpl::reshape(const std::map<std::string, std::vector<size_t>>& 
         }
         _ngraph_function->validate_nodes_and_infer_types();
 
-        if (cnnNetwork) {
-            convertToCNNNetworkImpl();
-        } else {
+        {
             auto specialized_ngraph_function = cloneFunction(true, inputShapes);
             // Call this transformation because OneHot IE and nGraph have different output precisions
             {

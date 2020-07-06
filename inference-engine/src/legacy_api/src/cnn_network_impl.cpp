@@ -91,6 +91,7 @@ CNNNetworkImpl::CNNNetworkImpl(const ICNNNetwork & ngraphImpl,
     bool keep_constant_inputs) {
     auto ngraphImplPtr = dynamic_cast<const details::CNNNetworkNGraphImpl*>(&ngraphImpl);
     IE_ASSERT(ngraphImplPtr != nullptr);
+    IE_ASSERT(ngraphImplPtr->getFunction() != nullptr);
     auto graph = ngraphImplPtr->cloneFunction();
     // Disable shape inference (WA for generic operations)
     ::ngraph::op::GenericIE::DisableReshape noReshape(graph);
