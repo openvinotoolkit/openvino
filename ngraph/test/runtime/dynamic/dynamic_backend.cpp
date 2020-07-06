@@ -89,8 +89,7 @@ runtime::dynamic::DynamicExecutable::DynamicExecutable(shared_ptr<Function> wrap
 // count_dyn_nodes.
 bool is_dynamic_op(const std::shared_ptr<Node>& op)
 {
-    return is_type<op::Transpose>(op) ||
-           is_type<op::v1::Reshape>(op) || is_type<op::Range>(op) ||
+    return is_type<op::Transpose>(op) || is_type<op::v1::Reshape>(op) || is_type<op::Range>(op) ||
            is_type<op::v1::ConvolutionBackpropData>(op) || is_type<op::v3::Broadcast>(op);
 }
 
