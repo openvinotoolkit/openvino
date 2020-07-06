@@ -1862,14 +1862,6 @@ shared_ptr<Node> JSONDeserializer::deserialize_node(json node_js)
             node = make_shared<op::Quantize>(args[0], args[1], args[2], type, axes, round_mode);
             break;
         }
-        case OP_TYPEID::QuantizedConvolutionBias: { break;
-        }
-        case OP_TYPEID::QuantizedConvolutionBiasAdd: { break;
-        }
-        case OP_TYPEID::QuantizedConvolutionBiasSignedAdd: { break;
-        }
-        case OP_TYPEID::QuantizedConvolutionRelu: { break;
-        }
         case OP_TYPEID::QuantizedConvolution:
         {
             auto window_movement_strides =
@@ -1903,8 +1895,6 @@ shared_ptr<Node> JSONDeserializer::deserialize_node(json node_js)
                 output_axes);
 
             break;
-        }
-        case OP_TYPEID::QuantizedDotBias: { break;
         }
         case OP_TYPEID::QuantizedDot:
         {
@@ -3065,14 +3055,6 @@ json JSONSerializer::serialize_node(const Node& n)
         node["round_mode"] = tmp->get_round_mode();
         break;
     }
-    case OP_TYPEID::QuantizedConvolutionBias: { break;
-    }
-    case OP_TYPEID::QuantizedConvolutionBiasAdd: { break;
-    }
-    case OP_TYPEID::QuantizedConvolutionBiasSignedAdd: { break;
-    }
-    case OP_TYPEID::QuantizedConvolutionRelu: { break;
-    }
     case OP_TYPEID::QuantizedConvolution:
     {
         auto tmp = static_cast<const op::QuantizedConvolution*>(&n);
@@ -3086,8 +3068,6 @@ json JSONSerializer::serialize_node(const Node& n)
         node["filter_axes"] = tmp->get_filter_axes();
         node["output_axes"] = tmp->get_output_axes();
         break;
-    }
-    case OP_TYPEID::QuantizedDotBias: { break;
     }
     case OP_TYPEID::QuantizedDot:
     {

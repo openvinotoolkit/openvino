@@ -862,54 +862,9 @@ namespace
         EXPECT_FALSE(node.is_binary_elementwise_logical());
     }
 
-    void op_is_QuantizedConvolutionBias()
-    {
-        op::QuantizedConvolutionBias node;
-        EXPECT_FALSE(node.is_unary_elementwise_arithmetic());
-        EXPECT_FALSE(node.is_binary_elementwise_arithmetic());
-        EXPECT_FALSE(node.is_binary_elementwise_comparison());
-        EXPECT_FALSE(node.is_binary_elementwise_logical());
-    }
-
-    void op_is_QuantizedConvolutionBiasAdd()
-    {
-        op::QuantizedConvolutionBiasAdd node;
-        EXPECT_FALSE(node.is_unary_elementwise_arithmetic());
-        EXPECT_FALSE(node.is_binary_elementwise_arithmetic());
-        EXPECT_FALSE(node.is_binary_elementwise_comparison());
-        EXPECT_FALSE(node.is_binary_elementwise_logical());
-    }
-
-    void op_is_QuantizedConvolutionBiasSignedAdd()
-    {
-        op::QuantizedConvolutionBiasSignedAdd node;
-        EXPECT_FALSE(node.is_unary_elementwise_arithmetic());
-        EXPECT_FALSE(node.is_binary_elementwise_arithmetic());
-        EXPECT_FALSE(node.is_binary_elementwise_comparison());
-        EXPECT_FALSE(node.is_binary_elementwise_logical());
-    }
-
-    void op_is_QuantizedConvolutionRelu()
-    {
-        op::QuantizedConvolutionRelu node;
-        EXPECT_FALSE(node.is_unary_elementwise_arithmetic());
-        EXPECT_FALSE(node.is_binary_elementwise_arithmetic());
-        EXPECT_FALSE(node.is_binary_elementwise_comparison());
-        EXPECT_FALSE(node.is_binary_elementwise_logical());
-    }
-
     void op_is_QuantizedDot()
     {
         op::QuantizedDot node;
-        EXPECT_FALSE(node.is_unary_elementwise_arithmetic());
-        EXPECT_FALSE(node.is_binary_elementwise_arithmetic());
-        EXPECT_FALSE(node.is_binary_elementwise_comparison());
-        EXPECT_FALSE(node.is_binary_elementwise_logical());
-    }
-
-    void op_is_QuantizedDotBias()
-    {
-        op::QuantizedDotBias node;
         EXPECT_FALSE(node.is_unary_elementwise_arithmetic());
         EXPECT_FALSE(node.is_binary_elementwise_arithmetic());
         EXPECT_FALSE(node.is_binary_elementwise_comparison());

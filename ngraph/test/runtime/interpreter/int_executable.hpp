@@ -1045,11 +1045,6 @@ protected:
             break;
         }
 
-        case OP_TYPEID::QuantizedConvolutionBias:
-        case OP_TYPEID::QuantizedConvolutionBiasAdd:
-        case OP_TYPEID::QuantizedConvolutionBiasSignedAdd:
-        case OP_TYPEID::QuantizedConvolutionRelu:
-        case OP_TYPEID::QuantizedDotBias:
         case OP_TYPEID::QuantizedDot:
         {
             const op::QuantizedDot* qd = static_cast<const op::QuantizedDot*>(&node);

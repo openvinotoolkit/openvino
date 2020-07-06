@@ -46,8 +46,6 @@ set (SRC
     builder/quantized_conv_builder.hpp
     builder/quantized_dot_builder.cpp
     builder/quantized_dot_builder.hpp
-    builder/quantization/quantized_linear_convolution.cpp
-    builder/quantization/quantized_linear_convolution.hpp
     builder/quantization_utils.hpp
     builder/quantization_utils.cpp
     builder/reduce_ops.cpp
@@ -211,12 +209,6 @@ set (SRC
     op/experimental/dyn_replace_slice.hpp
     op/experimental/dyn_slice.cpp
     op/experimental/dyn_slice.hpp
-    op/experimental/quantized_conv_bias.cpp
-    op/experimental/quantized_conv_bias.hpp
-    op/experimental/quantized_conv_relu.cpp
-    op/experimental/quantized_conv_relu.hpp
-    op/experimental/quantized_dot_bias.cpp
-    op/experimental/quantized_dot_bias.hpp
     op/extractimagepatches.cpp
     op/extractimagepatches.hpp
     op/strided_slice.hpp
