@@ -43,7 +43,7 @@ namespace details {
 class INFERENCE_ENGINE_API_CLASS(CNNNetworkNGraphImpl): public ICNNNetwork {
 public:
     CNNNetworkNGraphImpl(const std::shared_ptr<::ngraph::Function>& nGraph);
-    ~CNNNetworkNGraphImpl() override;
+    ~CNNNetworkNGraphImpl() override = default;
 
     void getOutputsInfo(std::map<std::string, DataPtr>& out) const noexcept override;
 
@@ -147,19 +147,12 @@ class NGraphData : public Data {
 public:
     using Ptr = std::shared_ptr<NGraphData>;
 
-    NGraphData(CNNNetworkNGraphImpl* network, const std::string& name, const TensorDesc& desc)
-        : Data(name, desc), network(network) {}
-
-    void reset() {
-        network = nullptr;
-    }
+    NGraphData(const std::string& name, const TensorDesc& desc)
+        : Data(name, desc) {}
 
     CNNLayerWeakPtr& getCreatorLayer();
 
     std::map<std::string, CNNLayerPtr>& getInputTo();
-
-private:
-    CNNNetworkNGraphImpl* network;
 };
 
 IE_SUPPRESS_DEPRECATED_END

@@ -41,8 +41,8 @@ protected:
 
         FuncTestUtils::compareCNNNetworks(network, cnnNetwork, false);
         IE_SUPPRESS_DEPRECATED_START
-        auto & inetwork = static_cast<const ICNNNetwork&>(network);
-        for (auto it = details::CNNNetworkIterator(&inetwork); it != details::CNNNetworkIterator(); it++) {
+        auto convertedNetwork = std::make_shared<InferenceEngine::details::CNNNetworkImpl>(network);
+        for (auto it = details::CNNNetworkIterator(convertedNetwork.get()); it != details::CNNNetworkIterator(); it++) {
             InferenceEngine::CNNLayerPtr layer = *it;
             ASSERT_NE(nullptr, layer->getNode());
         }

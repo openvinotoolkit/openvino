@@ -5,6 +5,7 @@
 #pragma once
 
 #include "cpp/ie_cnn_network.h"
+#include "cnn_network_impl.hpp"
 #include "details/ie_cnn_network_iterator.hpp"
 
 namespace FuncTestUtils {
@@ -16,12 +17,22 @@ void compareCNNNLayers(const InferenceEngine::CNNLayerPtr &layer, const Inferenc
 IE_SUPPRESS_DEPRECATED_START
 template <class T>
 inline void compareLayerByLayer(const T& network, const T& refNetwork, bool sameNetVersions = true) {
-    auto & inetwork = static_cast<const InferenceEngine::ICNNNetwork&>(network);
-    auto iterator = InferenceEngine::details::CNNNetworkIterator(&inetwork);
+    InferenceEngine::details::CNNNetworkIterator iterator, end;
+    std::shared_ptr<InferenceEngine::details::CNNNetworkImpl> convertedNetwork;
+    if (network.getFunction()) {
+        convertedNetwork = std::make_shared<InferenceEngine::details::CNNNetworkImpl>(network);
+        iterator = InferenceEngine::details::CNNNetworkIterator(convertedNetwork.get());
+    } else {
+        auto & inetwork = static_cast<const InferenceEngine::ICNNNetwork&>(network);
+        iterator = InferenceEngine::details::CNNNetworkIterator(&inetwork);
+    }
+
+    IE_ASSERT(refNetwork.getFunction() == nullptr);
     auto & irefNetwork = static_cast<const InferenceEngine::ICNNNetwork&>(refNetwork);
     auto refIterator = InferenceEngine::details::CNNNetworkIterator(&irefNetwork);
-    auto end = InferenceEngine::details::CNNNetworkIterator();
-    if (network.layerCount() != refNetwork.layerCount())
+    size_t layerCount = convertedNetwork ? convertedNetwork->layerCount() : network.layerCount();
+
+    if (layerCount != refNetwork.layerCount())
         THROW_IE_EXCEPTION << "CNNNetworks have different number of layers: " << network.layerCount() << " vs " << refNetwork.layerCount();
     for (; iterator != end && refIterator != end; iterator++, refIterator++) {
         InferenceEngine::CNNLayerPtr layer = *iterator;
