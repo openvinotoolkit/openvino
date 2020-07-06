@@ -37,8 +37,8 @@ CNNNetworkIterator {
     ICNNNetwork* network = nullptr;
 
     void init(const ICNNNetwork* network) {
-        IE_ASSERT(dynamic_cast<const details::CNNNetworkImpl*>(network) != nullptr);
         if (network == nullptr) THROW_IE_EXCEPTION << "ICNNNetwork object is nullptr";
+        IE_ASSERT(dynamic_cast<const details::CNNNetworkImpl*>(network) != nullptr);
         InputsDataMap inputs;
         network->getInputsInfo(inputs);
         if (!inputs.empty()) {

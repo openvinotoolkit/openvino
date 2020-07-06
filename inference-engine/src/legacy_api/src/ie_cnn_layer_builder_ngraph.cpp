@@ -6,6 +6,7 @@
 #include <cnn_network_ngraph_impl.hpp>
 #include <precision_utils.h>
 #include <cpp/ie_cnn_network.h>
+#include <cnn_network_impl.hpp>
 
 #include <limits>
 #include <cmath>
@@ -151,7 +152,8 @@ CNNLayer::Ptr NodeConverter<ngraph::op::TensorIterator>::createLayer(const std::
     std::map<std::string, std::vector<TensorDesc>> layer_name_to_tensor_desc;
     {
         auto tiBody = std::make_shared<details::TINGraphBody>(std::make_shared<ngraph::Function>(results, parameters));
-        CNNNetwork net(tiBody);
+        CNNNetwork ngraphNet(tiBody);
+        CNNNetwork net(std::make_shared<InferenceEngine::details::CNNNetworkImpl>(ngraphNet));
         // Paranoid check for cycles
         bool res = CNNNetForestDFS(
             CNNNetGetAllInputLayers(net), [](const CNNLayerPtr& layer) {}, false);

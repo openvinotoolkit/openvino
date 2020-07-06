@@ -349,7 +349,7 @@ void compareLayerByLayer(const InferenceEngine::CNNNetwork& network,
         std::shared_ptr<InferenceEngine::details::CNNNetworkImpl> & convertedNet,
         InferenceEngine::details::CNNNetworkIterator & it) {
         if (net.getFunction()) {
-            convertedNet = std::make_shared<InferenceEngine::details::CNNNetworkImpl>(net);
+            convertedNet.reset(new InferenceEngine::details::CNNNetworkImpl(net));
             it = InferenceEngine::details::CNNNetworkIterator(convertedNet.get());
         } else {
             it = InferenceEngine::details::CNNNetworkIterator(net);
@@ -369,6 +369,7 @@ void compareLayerByLayer(const InferenceEngine::CNNNetwork& network,
         InferenceEngine::CNNLayerPtr refLayer = *refIterator;
         compareCNNNLayers(layer, refLayer, sameNetVersions);
     }
+    std::cout << std::endl;
 }
 
 IE_SUPPRESS_DEPRECATED_END
