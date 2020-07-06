@@ -38,121 +38,120 @@ namespace ngraph
     {
         namespace op
         {
-            namespace set_10
+            namespace
             {
-                namespace
+                /// \brief Transform Slice axes input to mask which is attribute of
+                /// StridedSlice:v1 interface.
+                ///
+                /// \note Mask attributes of StridedSlice:10 operator indicates
+                ///       if corresponding begin/end/strides input indices should be applied (0
+                ///       value) or ignored (1 value)
+                ///
+                /// \param[in] axes                 Axes input of ONNX Slice operator
+                /// \param[in] slice_indices_length Lenght of Slice indices
+                ///                                 (starts, ends, steps)
+                ///
+                /// \return Mask attribute in format required by StridedSlice:v1
+                std::vector<int64_t> axes_to_mask(const std::vector<uint64_t>& axes,
+                                                  uint64_t slice_indices_length)
                 {
-                    /// \brief Transform Slice axes input to mask which is attribute of
-                    /// StridedSlice:v1 interface.
-                    ///
-                    /// \note Mask attributes of StridedSlice:10 operator indicates
-                    ///       if corresponding begin/end/strides input indices should be applied (0
-                    ///       value) or ignored (1 value)
-                    ///
-                    /// \param[in] axes                 Axes input of ONNX Slice operator
-                    /// \param[in] slice_indices_length Lenght of Slice indices
-                    ///                                 (starts, ends, steps)
-                    ///
-                    /// \return Mask attribute in format required by StridedSlice:v1
-                    std::vector<int64_t> axes_to_mask(const std::vector<uint64_t>& axes,
-                                                      uint64_t slice_indices_length)
+                    std::vector<int64_t> mask(slice_indices_length, 1);
+                    for (auto axis : axes)
                     {
-                        std::vector<int64_t> mask(slice_indices_length, 1);
-                        for (auto axis : axes)
-                        {
-                            mask[axis] = 0;
-                        }
-                        return mask;
+                        mask[axis] = 0;
                     }
-
-                    /// \brief Adjsut ONNX Slice indices: starts, ends, steps to StridedSlice:v1
-                    /// interface.
-                    ///
-                    /// \note StridedSlice:v1 doesn't support axes paramets.
-                    ///       The axes parameters detrmines to which dimension of input data slice
-                    ///       operation should be applied.
-                    ///       The retuned sub-graph provide proper adjustement of Slice indices if
-                    ///       it is needed.
-                    ///
-                    /// \param[in] indices               Parameters of Slice operator: starts, ends,
-                    ///                                  steps.
-                    /// \param[in] axes                  Determines dimensions on which slice
-                    ///                                  operation should be applied.
-                    /// \param[in] slice_indices_length  Indices length after adjustment
-                    /// \param[in] fill_in_value         Neutral value (`0` for starts and ends,
-                    ///                                  `1` for steps) which is set to indices
-                    ///                                  in order to provide adjustment.
-                    ///
-                    /// \return Sub-graph represents adjusted indices or input indices
-                    ///         if any transformation was needed.
-                    std::shared_ptr<ngraph::Node>
-                        adjust_indices_if_needed(const std::shared_ptr<ngraph::Node>& indices,
-                                                 const std::vector<uint64_t>& axes,
-                                                 uint64_t slice_indices_length,
-                                                 int64_t fill_in_value)
-                    {
-                        const bool are_axes_sorted = std::is_sorted(axes.begin(), axes.end());
-
-                        const auto indices_shape = indices->get_output_partial_shape(0);
-                        // if length of slice indices vector is known
-                        if (indices_shape.rank().is_static() &&
-                            indices_shape.rank().get_length() == 1 && indices_shape[0].is_static())
-                        {
-                            if (indices_shape[0].get_length() >= slice_indices_length &&
-                                are_axes_sorted)
-                            {
-                                // adjusting indices is not needed
-                                return indices;
-                            }
-                        }
-                        // Handle a case when starts/ends/steps lengths are less than provided axes
-                        // in order to ensure compatibility with `StridedSlice:v1` interface
-                        // Example:
-                        // data_shape: {3, 3, 3, 3}
-                        // starts: [1, 1] - after extending --> [0, 0, 1, 1]
-                        // ends: [2, 2] - after extending --> [0, 0, 2, 2]
-                        // steps : [0, 1] - after extending --> [1, 1, 0, 1] (`1` is neutral as a
-                        // strides value)
-                        // axes: [2, 3] - apply slice values to 2 and 3 dimension of input data
-                        // expected_output_shape: {3, 3, 1, 1}
-                        OutputVector adjusted_indices(slice_indices_length);
-                        std::vector<uint64_t> target_axes(axes);
-                        const auto gather_axis =
-                            default_opset::Constant::create(element::i64, {}, {0});
-
-                        int added_indices_number = 0;
-                        for (int i = 0; i < slice_indices_length; ++i)
-                        {
-                            if (std::find(std::begin(axes), std::end(axes), i) == axes.end())
-                            {
-                                adjusted_indices[i] = default_opset::Constant::create(
-                                    element::i64, {1}, {fill_in_value});
-                                target_axes.insert(std::next(target_axes.begin(), i), i);
-                                ++added_indices_number;
-                            }
-                            else
-                            {
-                                adjusted_indices[i] = std::make_shared<default_opset::Gather>(
-                                    indices,
-                                    default_opset::Constant::create(
-                                        element::i64, {1}, {i - added_indices_number}),
-                                    gather_axis);
-                            }
-                        }
-
-                        if (!are_axes_sorted)
-                        {
-                            OutputVector indices_tmp(adjusted_indices);
-                            for (int i = 0; i < target_axes.size(); ++i)
-                            {
-                                adjusted_indices[target_axes[i]] = indices_tmp[i];
-                            }
-                        }
-
-                        return std::make_shared<default_opset::Concat>(adjusted_indices, 0);
-                    }
+                    return mask;
                 }
 
+                /// \brief Adjsut ONNX Slice indices: starts, ends, steps to StridedSlice:v1
+                /// interface.
+                ///
+                /// \note StridedSlice:v1 doesn't support axes paramets.
+                ///       The axes parameters detrmines to which dimension of input data slice
+                ///       operation should be applied.
+                ///       The retuned sub-graph provide proper adjustement of Slice indices if
+                ///       it is needed.
+                ///
+                /// \param[in] indices               Parameters of Slice operator: starts, ends,
+                ///                                  steps.
+                /// \param[in] axes                  Determines dimensions on which slice
+                ///                                  operation should be applied.
+                /// \param[in] slice_indices_length  Indices length after adjustment
+                /// \param[in] fill_in_value         Neutral value (`0` for starts and ends,
+                ///                                  `1` for steps) which is set to indices
+                ///                                  in order to provide adjustment.
+                ///
+                /// \return Sub-graph represents adjusted indices or input indices
+                ///         if any transformation was needed.
+                std::shared_ptr<ngraph::Node>
+                    adjust_indices_if_needed(const std::shared_ptr<ngraph::Node>& indices,
+                                             const std::vector<uint64_t>& axes,
+                                             uint64_t slice_indices_length,
+                                             int64_t fill_in_value)
+                {
+                    const bool are_axes_sorted = std::is_sorted(axes.begin(), axes.end());
+
+                    const auto indices_shape = indices->get_output_partial_shape(0);
+                    // if length of slice indices vector is known
+                    if (indices_shape.rank().is_static() &&
+                        indices_shape.rank().get_length() == 1 && indices_shape[0].is_static())
+                    {
+                        if (indices_shape[0].get_length() >= slice_indices_length &&
+                            are_axes_sorted)
+                        {
+                            // adjusting indices is not needed
+                            return indices;
+                        }
+                    }
+                    // Handle a case when starts/ends/steps lengths are less than provided axes
+                    // in order to ensure compatibility with `StridedSlice:v1` interface
+                    // Example:
+                    // data_shape: {3, 3, 3, 3}
+                    // starts: [1, 1] - after extending --> [0, 0, 1, 1]
+                    // ends: [2, 2] - after extending --> [0, 0, 2, 2]
+                    // steps : [0, 1] - after extending --> [1, 1, 0, 1] (`1` is neutral as a
+                    // strides value)
+                    // axes: [2, 3] - apply slice values to 2 and 3 dimension of input data
+                    // expected_output_shape: {3, 3, 1, 1}
+                    OutputVector adjusted_indices(slice_indices_length);
+                    std::vector<uint64_t> target_axes(axes);
+                    const auto gather_axis = default_opset::Constant::create(element::i64, {}, {0});
+
+                    int added_indices_number = 0;
+                    for (int i = 0; i < slice_indices_length; ++i)
+                    {
+                        if (std::find(std::begin(axes), std::end(axes), i) == axes.end())
+                        {
+                            adjusted_indices[i] =
+                                default_opset::Constant::create(element::i64, {1}, {fill_in_value});
+                            target_axes.insert(std::next(target_axes.begin(), i), i);
+                            ++added_indices_number;
+                        }
+                        else
+                        {
+                            adjusted_indices[i] = std::make_shared<default_opset::Gather>(
+                                indices,
+                                default_opset::Constant::create(
+                                    element::i64, {1}, {i - added_indices_number}),
+                                gather_axis);
+                        }
+                    }
+
+                    if (!are_axes_sorted)
+                    {
+                        OutputVector indices_tmp(adjusted_indices);
+                        for (int i = 0; i < target_axes.size(); ++i)
+                        {
+                            adjusted_indices[target_axes[i]] = indices_tmp[i];
+                        }
+                    }
+
+                    return std::make_shared<default_opset::Concat>(adjusted_indices, 0);
+                }
+            }
+
+            namespace set_10
+            {
                 NodeVector slice(const Node& node)
                 {
                     NodeVector inputs{node.get_ng_inputs()};
@@ -231,51 +230,63 @@ namespace ngraph
                 NodeVector slice(const Node& node)
                 {
                     std::shared_ptr<ngraph::Node> data = node.get_ng_inputs().at(0);
-                    Shape data_shape = data->get_shape();
-                    const auto data_rank = data_shape.size();
+                    const auto data_rank = data->get_output_partial_shape(0).rank();
 
-                    auto starts = node.get_attribute_value<std::vector<int64_t>>("starts");
-                    auto ends = node.get_attribute_value<std::vector<int64_t>>("ends");
+                    const auto starts_atr =
+                        node.get_attribute_value<std::vector<int64_t>>("starts");
+                    const auto ends_atr = node.get_attribute_value<std::vector<int64_t>>("ends");
+
+                    std::shared_ptr<ngraph::Node> starts =
+                        std::make_shared<default_opset::Constant>(
+                            element::i64, Shape{starts_atr.size()}, starts_atr);
+                    std::shared_ptr<ngraph::Node> ends = std::make_shared<default_opset::Constant>(
+                        element::i64, Shape{ends_atr.size()}, ends_atr);
 
                     auto axes = node.get_attribute_value<std::vector<int64_t>>(
-                        "axes", common::get_monotonic_range<int64_t>(data_shape.size()));
+                        "axes", std::vector<int64_t>());
 
-                    Shape lower_bounds(data_rank);
-                    Shape upper_bounds = data_shape;
-
-                    for (size_t idx = 0; idx < axes.size(); ++idx)
+                    if (axes.empty())
                     {
-                        size_t axis = axes.at(idx);
-                        lower_bounds.at(axis) =
-                            get_valid_array_idx(starts.at(idx), data_shape.at(axis));
-                        upper_bounds.at(axis) =
-                            get_valid_array_idx(ends.at(idx), data_shape.at(axis));
+                        NGRAPH_CHECK(data_rank.is_static(),
+                                     "Data rank must be static when axes input is not provided");
+                        axes = common::get_monotonic_range<int64_t>(data_rank.get_length());
                     }
 
-                    // Check for cases when start is greater than end and change them to "empty"
-                    // slice.
-                    for (size_t idx = 0; idx < lower_bounds.size(); ++idx)
+                    std::vector<uint64_t> normalized_axes;
+                    if (data_rank.is_static())
                     {
-                        if (lower_bounds.at(idx) > upper_bounds.at(idx))
-                        {
-                            upper_bounds.at(idx) = lower_bounds.at(idx);
-                        }
+                        const auto normalized_axes_vec =
+                            normalize_axes(node.get_description(), axes, data_rank);
+                        normalized_axes = std::vector<uint64_t>(std::begin(normalized_axes_vec),
+                                                                std::end(normalized_axes_vec));
+                    }
+                    else
+                    {
+                        NGRAPH_CHECK(std::all_of(std::begin(axes),
+                                                 std::end(axes),
+                                                 [](int64_t axis) { return axis >= 0; }),
+                                     "All axes must be positive when data rank is unknown");
+                        normalized_axes = std::vector<uint64_t>(std::begin(axes), std::end(axes));
                     }
 
-                    const auto begin = default_opset::Constant::create(
-                        element::i64, Shape{lower_bounds.size()}, lower_bounds);
-                    const auto end = default_opset::Constant::create(
-                        element::i64, Shape{upper_bounds.size()}, upper_bounds);
-                    const auto strides = default_opset::Constant::create(
-                        element::i64, Shape{data_rank}, std::vector<int64_t>(data_rank, 1));
+                    const uint64_t slice_indices_length =
+                        *std::max_element(std::begin(normalized_axes), std::end(normalized_axes)) +
+                        1;
+                    const auto begin_end_mask = axes_to_mask(normalized_axes, slice_indices_length);
+
+                    std::shared_ptr<ngraph::Node> strides = default_opset::Constant::create(
+                        element::i64,
+                        Shape{slice_indices_length},
+                        std::vector<int64_t>(slice_indices_length, 1));
+
+                    starts =
+                        adjust_indices_if_needed(starts, normalized_axes, slice_indices_length, 0);
+                    ends = adjust_indices_if_needed(ends, normalized_axes, slice_indices_length, 0);
+                    strides =
+                        adjust_indices_if_needed(strides, normalized_axes, slice_indices_length, 1);
 
                     return {std::make_shared<default_opset::StridedSlice>(
-                        data,
-                        begin,
-                        end,
-                        strides,
-                        std::vector<int64_t>(data_rank, 0),
-                        std::vector<int64_t>(data_rank, 0))};
+                        data, starts, ends, strides, begin_end_mask, begin_end_mask)};
                 }
 
             } // namespace set_1
