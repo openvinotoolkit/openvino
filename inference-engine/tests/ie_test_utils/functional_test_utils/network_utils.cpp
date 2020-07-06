@@ -280,7 +280,7 @@ namespace FuncTestUtils {
             return l->name < r->name;
         });
 
-        compareLayerByLayer<std::vector<InferenceEngine::CNNLayerPtr>>(nodes_new, nodes_old, sameNetVersions);
+        compareLayerByLayer(nodes_new, nodes_old, sameNetVersions);
 
         auto get_map = [](
                 const std::vector<InferenceEngine::DataPtr> &data) -> std::map<std::string, InferenceEngine::DataPtr> {
@@ -313,7 +313,7 @@ namespace FuncTestUtils {
             THROW_IE_EXCEPTION << "CNNNetworks have different batch size! " << std::to_string(network.getBatchSize())
                                << " and " << std::to_string(refNetwork.getBatchSize());
 
-        compareLayerByLayer<InferenceEngine::CNNNetwork>(network, refNetwork, sameNetVersions);
+        compareLayerByLayer(network, refNetwork, sameNetVersions);
         InferenceEngine::InputsDataMap newInput = network.getInputsInfo();
         InferenceEngine::InputsDataMap oldInput = refNetwork.getInputsInfo();
         InferenceEngine::OutputsDataMap newOutput = network.getOutputsInfo();
@@ -321,5 +321,56 @@ namespace FuncTestUtils {
         compareInfo<InferenceEngine::InputsDataMap>(newInput, oldInput, "CNNNetworks have different inputs!");
         compareInfo<InferenceEngine::OutputsDataMap>(newOutput, oldOutput, "CNNNetworks have different outputs!");
     }
+
+IE_SUPPRESS_DEPRECATED_START
+
+void compareLayerByLayer(const std::vector<InferenceEngine::CNNLayerPtr>& network,
+                         const std::vector<InferenceEngine::CNNLayerPtr>& refNetwork,
+                         bool sameNetVersions) {
+    auto iterator = network.begin();
+    auto refIterator = refNetwork.begin();
+    if (network.size() != refNetwork.size())
+        THROW_IE_EXCEPTION << "CNNNetworks have different number of layers: " <<
+            network.size() << " vs " << refNetwork.size();
+    for (; iterator != network.end() && refIterator != refNetwork.end(); iterator++, refIterator++) {
+        InferenceEngine::CNNLayerPtr layer = *iterator;
+        InferenceEngine::CNNLayerPtr refLayer = *refIterator;
+        compareCNNNLayers(layer, refLayer, sameNetVersions);
+    }
+}
+
+void compareLayerByLayer(const InferenceEngine::CNNNetwork& network,
+                         const InferenceEngine::CNNNetwork& refNetwork,
+                         bool sameNetVersions) {
+    InferenceEngine::details::CNNNetworkIterator iterator, refIterator, end;
+    std::shared_ptr<InferenceEngine::details::CNNNetworkImpl> convertedNetwork, convertedRefNetwork;
+
+    auto convertNetwork = [] (const InferenceEngine::CNNNetwork & net,
+        std::shared_ptr<InferenceEngine::details::CNNNetworkImpl> & convertedNet,
+        InferenceEngine::details::CNNNetworkIterator & it) {
+        if (net.getFunction()) {
+            convertedNet = std::make_shared<InferenceEngine::details::CNNNetworkImpl>(net);
+            it = InferenceEngine::details::CNNNetworkIterator(convertedNet.get());
+        } else {
+            it = InferenceEngine::details::CNNNetworkIterator(net);
+        }
+    };
+
+    convertNetwork(network, convertedNetwork, iterator);
+    convertNetwork(refNetwork, convertedRefNetwork, refIterator);
+
+    size_t layerCount = convertedNetwork ? convertedNetwork->layerCount() : network.layerCount();
+    size_t layerRefCount = convertedRefNetwork ? convertedRefNetwork->layerCount() : refNetwork.layerCount();
+
+    if (layerCount != layerRefCount)
+        THROW_IE_EXCEPTION << "CNNNetworks have different number of layers: " << layerCount << " vs " << layerRefCount;
+    for (; iterator != end && refIterator != end; iterator++, refIterator++) {
+        InferenceEngine::CNNLayerPtr layer = *iterator;
+        InferenceEngine::CNNLayerPtr refLayer = *refIterator;
+        compareCNNNLayers(layer, refLayer, sameNetVersions);
+    }
+}
+
+IE_SUPPRESS_DEPRECATED_END
 
 }  // namespace FuncTestUtils

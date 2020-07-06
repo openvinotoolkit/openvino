@@ -36,6 +36,21 @@ CNNNetworkIterator {
     InferenceEngine::CNNLayerPtr currentLayer;
     ICNNNetwork* network = nullptr;
 
+    void init(const ICNNNetwork* network) {
+        IE_ASSERT(dynamic_cast<const details::CNNNetworkImpl*>(network) != nullptr);
+        if (network == nullptr) THROW_IE_EXCEPTION << "ICNNNetwork object is nullptr";
+        InputsDataMap inputs;
+        network->getInputsInfo(inputs);
+        if (!inputs.empty()) {
+            auto& nextLayers = getInputTo(inputs.begin()->second->getInputData());
+            if (!nextLayers.empty()) {
+                currentLayer = nextLayers.begin()->second;
+                nextLayersTovisit.push_back(currentLayer);
+                visited.insert(currentLayer.get());
+            }
+        }
+    }
+
 public:
     /**
      * iterator trait definitions
@@ -56,18 +71,12 @@ public:
      * scope.
      */
     explicit CNNNetworkIterator(const ICNNNetwork* network) {
-        IE_ASSERT(dynamic_cast<const details::CNNNetworkImpl*>(network) != nullptr);
-        if (network == nullptr) THROW_IE_EXCEPTION << "ICNNNetwork object is nullptr";
-        InputsDataMap inputs;
-        network->getInputsInfo(inputs);
-        if (!inputs.empty()) {
-            auto& nextLayers = getInputTo(inputs.begin()->second->getInputData());
-            if (!nextLayers.empty()) {
-                currentLayer = nextLayers.begin()->second;
-                nextLayersTovisit.push_back(currentLayer);
-                visited.insert(currentLayer.get());
-            }
-        }
+        init(network);
+    }
+
+    explicit CNNNetworkIterator(const CNNNetwork & network) {
+        const auto & inetwork = static_cast<const InferenceEngine::ICNNNetwork&>(network);
+        init(&inetwork);
     }
 
     /**
