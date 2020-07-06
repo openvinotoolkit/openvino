@@ -63,3 +63,26 @@ Corner cases:
     </output>
 </layer>
 ```
+
+```xml
+<layer id="1" type="ReduceL2" ...>
+    <data keep_dims="False" />
+    <input>
+        <port id="0">
+            <dim>6</dim>
+            <dim>12</dim>
+            <dim>10</dim>
+            <dim>24</dim>
+        </port>
+        <port id="1">
+            <dim>2</dim>         <!-- value is [2, 3] that means independent reduction in each channel and batch -->
+        </port>
+    </input>
+    <output>
+        <port id="2">
+            <dim>6</dim>
+            <dim>12</dim>
+        </port>
+    </output>
+</layer>
+```
