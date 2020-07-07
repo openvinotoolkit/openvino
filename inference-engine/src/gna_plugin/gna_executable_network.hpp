@@ -30,12 +30,7 @@ class GNAExecutableNetwork : public InferenceEngine::ExecutableNetworkThreadSafe
 
     GNAExecutableNetwork(InferenceEngine::ICNNNetwork &network, std::shared_ptr<GNAPlugin> plg)
         : plg(plg) {
-        if (network.getFunction()) {
-            auto convertedNetwork = std::make_shared<InferenceEngine::details::CNNNetworkImpl>(network);
-            plg->LoadNetwork(*convertedNetwork);
-        } else {
-            plg->LoadNetwork(network);
-        }
+        plg->LoadNetwork(network);
     }
 
     GNAExecutableNetwork(const std::string &aotFileName, const std::map<std::string, std::string> &config)

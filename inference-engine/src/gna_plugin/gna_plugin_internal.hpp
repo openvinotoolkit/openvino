@@ -65,12 +65,7 @@ public:
         try {
             plg->SetConfig(config);
         } catch (InferenceEngine::details::InferenceEngineException) {}
-        if (network.getFunction()) {
-            auto convertedNetwork = std::make_shared<InferenceEngine::details::CNNNetworkImpl>(network);
-            plg->QueryNetwork(*convertedNetwork, config, res);
-        } else {
-            plg->QueryNetwork(network, config, res);
-        }
+        plg->QueryNetwork(network, config, res);
     }
 
     InferenceEngine::Parameter GetMetric(const std::string& name,

@@ -338,7 +338,13 @@ void GNAPlugin::InitGNADevice() {
     graphCompiler.setGNAMemoryPtr(gnamem);
 }
 
-void GNAPlugin::LoadNetwork(ICNNNetwork &network) {
+void GNAPlugin::LoadNetwork(ICNNNetwork & _network) {
+    std::shared_ptr<InferenceEngine::details::CNNNetworkImpl> convertedNetwork;
+    if (_network.getFunction()) {
+        convertedNetwork = std::make_shared<InferenceEngine::details::CNNNetworkImpl>(_network);
+    }
+    InferenceEngine::ICNNNetwork &network = convertedNetwork ? *convertedNetwork : _network;
+
     NetPass::ConvertPrecision(network, Precision::I64, Precision::I32);
     NetPass::ConvertPrecision(network, Precision::U64, Precision::I32);
 
@@ -1252,9 +1258,15 @@ void GNAPlugin::UpdateFieldsFromConfig() {
     *gnaFlags = config.gnaFlags;
 }
 
-void GNAPlugin::QueryNetwork(const InferenceEngine::ICNNNetwork& network,
+void GNAPlugin::QueryNetwork(const InferenceEngine::ICNNNetwork& _network,
                              const std::map<std::string, std::string>& config,
                              InferenceEngine::QueryNetworkResult& res) const {
+    std::shared_ptr<InferenceEngine::details::CNNNetworkImpl> convertedNetwork;
+    if (_network.getFunction()) {
+        convertedNetwork = std::make_shared<InferenceEngine::details::CNNNetworkImpl>(_network);
+    }
+    const InferenceEngine::ICNNNetwork &network = convertedNetwork ? *convertedNetwork : _network;
+
     std::unordered_set<CNNLayer *> allLayers;
     InferenceEngine::InputsDataMap inputs;
 
