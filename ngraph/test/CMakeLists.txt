@@ -113,8 +113,6 @@ set(SRC
     type_prop/all.cpp
     type_prop/any.cpp
     type_prop/assign.cpp
-    type_prop/batch_mat_mul.cpp
-    type_prop/batch_mat_mul_transpose.cpp
     type_prop/batch_norm.cpp
     type_prop/batch_to_space.cpp
     type_prop/binary_elementwise.cpp
@@ -132,11 +130,7 @@ set(SRC
     type_prop/depth_to_space.cpp
     type_prop/dequantize.cpp
     type_prop/dot.cpp
-    type_prop/dyn_broadcast.cpp
-    type_prop/dyn_pad.cpp
-    type_prop/dyn_replace_slice.cpp
     type_prop/dyn_reshape.cpp
-    type_prop/dyn_slice.cpp
     type_prop/strided_slice.cpp
     type_prop/elu.cpp
     type_prop/embeddingbag_offsetssum.cpp
@@ -174,7 +168,6 @@ set(SRC
     type_prop/quantize.cpp
     type_prop/quantized_convolution.cpp
     type_prop/quantized_dot.cpp
-    type_prop/random_uniform.cpp
     type_prop/range.cpp
     type_prop/read_value.cpp
     type_prop/replace_slice.cpp
@@ -301,10 +294,8 @@ set(MULTI_TEST_SRC
     backend/atanh.in.cpp
     backend/auto_broadcast.in.cpp
     backend/autodiff.in.cpp
-    backend/batch_mat_mul.in.cpp
     backend/batch_norm.in.cpp
     backend/broadcast.in.cpp
-    backend/builder_flatten.in.cpp
     backend/builder_reduce_ops_opset1.in.cpp
     backend/ceiling.in.cpp
     backend/comparison.in.cpp
@@ -318,10 +309,7 @@ set(MULTI_TEST_SRC
     backend/cum_sum.in.cpp
     backend/divide.in.cpp
     backend/dot.in.cpp
-    backend/dyn_broadcast.in.cpp
-    backend/dyn_replace_slice_reference.in.cpp
     backend/dyn_reshape.in.cpp
-    backend/dyn_slice_reference.in.cpp
     backend/strided_slice.in.cpp
     backend/dynamic.in.cpp
     backend/embedding_lookup.in.cpp
@@ -332,7 +320,6 @@ set(MULTI_TEST_SRC
     backend/fused_op.in.cpp
     backend/gather.in.cpp
     backend/gelu.in.cpp
-    backend/generate_mask.in.cpp
     backend/group_convolution.in.cpp
     backend/layer_norm.in.cpp
     backend/log.in.cpp
@@ -363,7 +350,6 @@ set(MULTI_TEST_SRC
     backend/quantize_dequantize.in.cpp
     backend/quantized_convolution.in.cpp
     backend/quantized_dot.in.cpp
-    backend/random_uniform.in.cpp
     backend/range.in.cpp
     backend/reduce_max.in.cpp
     backend/reduce_mean.in.cpp
