@@ -24,6 +24,9 @@ makeParams(const element::Type &type, const std::vector<std::pair<std::string, s
 std::shared_ptr<ngraph::Node> makeConstant(const element::Type &type, const std::vector<size_t> &shape,
                                            const std::vector<float> &data, bool random = false);
 
+std::shared_ptr<ngraph::Node> makeInputLayer(const element::Type& type, ngraph::helpers::InputLayerType inputType,
+                                             const std::vector<size_t>& shape);
+
 std::shared_ptr<ngraph::Node> makeConvolution(const ngraph::Output<Node> &in,
                                               const element::Type &type,
                                               const std::vector<size_t> &filterSize,

@@ -27,10 +27,12 @@
 #include "ngraph/pass/like_replacement.hpp"
 #include "ngraph/pass/liveness.hpp"
 #include "ngraph/pass/manager.hpp"
-#include "ngraph/pass/opset0_downgrade.hpp"
-#include "ngraph/pass/opset1_downgrade.hpp"
 #include "ngraph/serializer.hpp"
 #include "ngraph/util.hpp"
+#include "op/and.hpp"
+#include "op/atan2.hpp"
+#include "opset0_downgrade.hpp"
+#include "opset1_downgrade.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -197,8 +199,7 @@ bool runtime::interpreter::INTExecutable::call(const vector<shared_ptr<runtime::
 
         // get op type
         element::Type type;
-        if (is_type<op::Convert>(op) || is_type<op::Quantize>(op) || is_type<op::Dequantize>(op) ||
-            is_type<op::ArgMin>(op) || is_type<op::ArgMax>(op))
+        if (is_type<op::Convert>(op) || is_type<op::Quantize>(op) || is_type<op::Dequantize>(op))
         {
             type = op->get_input_element_type(0);
         }

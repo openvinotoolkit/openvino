@@ -13,11 +13,11 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-
 import unittest
 from argparse import Namespace
 
 import numpy as np
+from generator import generator, generate
 
 from extensions.back.compress_quantized_weights import CompressQuantizeWeights
 from extensions.ops.fakequantize import FakeQuantize
@@ -25,7 +25,8 @@ from mo.front.common.partial_infer.eltwise import eltwise_infer
 from mo.graph.graph import Node
 from mo.ops.const import Const
 from mo.utils.ir_engine.compare_graphs import compare_graphs
-from mo.utils.unittest.graph import build_graph
+from mo.utils.unittest.graph import build_graph, regular_op_with_shaped_data, regular_op_with_empty_data, \
+    valued_const_with_data, result, connect
 
 nodes_attributes = {
     # placeholder
@@ -33,36 +34,36 @@ nodes_attributes = {
     'placeholder_data': {'kind': 'data'},
 
     # weights
-    'weights_const': {'type': 'Const', 'kind': 'op'},
+    'weights_const': {'type': 'Const', 'kind': 'op', 'value': np.array([], dtype=np.float32), 'op': 'Const'},
     'weights_data': {'kind': 'data'},
 
     # quantize
-    'quantize1': {'type': 'FakeQuantize', 'kind': 'op', 'levels': 5},
-    'quantize2': {'type': 'FakeQuantize', 'kind': 'op', 'levels': 2},
-    'quantize3': {'type': 'FakeQuantize', 'kind': 'op', 'levels': None},
-    'quantize4': {'type': 'FakeQuantize', 'kind': 'op', 'levels': 122},
-    'quantize5': {'type': 'FakeQuantize', 'kind': 'op', 'levels': 202},
-    'quantize6': {'type': 'FakeQuantize', 'kind': 'op', 'levels': 257},
+    'quantize1': {'type': 'FakeQuantize', 'kind': 'op', 'levels': 5, 'op': 'FakeQuantize'},
+    'quantize2': {'type': 'FakeQuantize', 'kind': 'op', 'levels': 2, 'op': 'FakeQuantize'},
+    'quantize3': {'type': 'FakeQuantize', 'kind': 'op', 'levels': None, 'op': 'FakeQuantize'},
+    'quantize4': {'type': 'FakeQuantize', 'kind': 'op', 'levels': 122, 'op': 'FakeQuantize'},
+    'quantize5': {'type': 'FakeQuantize', 'kind': 'op', 'levels': 202, 'op': 'FakeQuantize'},
+    'quantize6': {'type': 'FakeQuantize', 'kind': 'op', 'levels': 257, 'op': 'FakeQuantize'},
     'quantize_data': {'kind': 'data'},
-    'new_quantize1': {'kind': 'op', 'type': 'FakeQuantize', 'levels': 5},
-    'new_quantize4': {'kind': 'op', 'type': 'FakeQuantize', 'levels': 122},
-    'new_quantize5': {'kind': 'op', 'type': 'FakeQuantize', 'levels': 202},
+    'new_quantize1': {'kind': 'op', 'type': 'FakeQuantize', 'levels': 5, 'op': 'FakeQuantize'},
+    'new_quantize4': {'kind': 'op', 'type': 'FakeQuantize', 'levels': 122, 'op': 'FakeQuantize'},
+    'new_quantize5': {'kind': 'op', 'type': 'FakeQuantize', 'levels': 202, 'op': 'FakeQuantize'},
     'new_quantize_data': {'kind': 'data'},
 
     #  quantize input/output
-    'output_high_init': {'kind': 'op', 'type': 'Const'},
+    'output_high_init': {'kind': 'op', 'type': 'Const', 'op': 'Const'},
     'output_high_init_data': {'kind': 'data', 'value': 3},
-    'output_low_init': {'kind': 'op', 'type': 'Const'},
+    'output_low_init': {'kind': 'op', 'type': 'Const', 'op': 'Const'},
     'output_low_init_data': {'kind': 'data', 'value': -1.5},
 
-    'input_low': {'kind': 'op', 'type': 'Const'},
+    'input_low': {'kind': 'op', 'type': 'Const', 'op': 'Const'},
     'input_low_data': {'kind': 'data'},
-    'input_high': {'kind': 'op', 'type': 'Const'},
+    'input_high': {'kind': 'op', 'type': 'Const', 'op': 'Const'},
     'input_high_data': {'kind': 'data'},
 
-    'output_low': {'kind': 'op', 'type': 'Const'},
+    'output_low': {'kind': 'op', 'type': 'Const', 'op': 'Const'},
     'output_low_data': {'kind': 'data'},
-    'output_high': {'kind': 'op', 'type': 'Const'},
+    'output_high': {'kind': 'op', 'type': 'Const', 'op': 'Const'},
     'output_high_data': {'kind': 'data'},
 
     'output_high_init_data1': {'kind': 'data', 'value': 256.1},
@@ -75,58 +76,58 @@ nodes_attributes = {
     'mul': {'kind': 'op', 'op': 'Mul'},
     'add': {'kind': 'op', 'op': 'Add'},
 
-    'scale': {'kind': 'op', 'type': 'Const', 'value': 1.125},
-    'shift': {'kind': 'op', 'type': 'Const', 'value': -1.5},
-    'scale1': {'kind': 'op', 'type': 'Const', 'value': 1.9735537190082646},
-    'shift1': {'kind': 'op', 'type': 'Const', 'value': 17.3},
-    'scale2': {'kind': 'op', 'type': 'Const', 'value': 0.010711442786069652},
-    'shift2': {'kind': 'op', 'type': 'Const', 'value': -2.573},
+    'scale': {'kind': 'op', 'type': 'Const', 'value': 1.125, 'op': 'Const'},
+    'shift': {'kind': 'op', 'type': 'Const', 'value': -1.5, 'op': 'Const'},
+    'scale1': {'kind': 'op', 'type': 'Const', 'value': 1.9735537190082646, 'op': 'Const'},
+    'shift1': {'kind': 'op', 'type': 'Const', 'value': 17.3, 'op': 'Const'},
+    'scale2': {'kind': 'op', 'type': 'Const', 'value': 0.010711442786069652, 'op': 'Const'},
+    'shift2': {'kind': 'op', 'type': 'Const', 'value': -2.573, 'op': 'Const'},
 
     'shift_data': {'kind': 'data'},
     'scale_data': {'kind': 'data'},
     'mul_data': {'kind': 'data'},
     'add_data': {'kind': 'data'},
 
-    'convolution': {'type': 'Convolution', 'kind': 'op'},
-    'convert': {'type': 'Convert', 'kind': 'op', 'dst_type': np.float32},
+    'convolution': {'type': 'Convolution', 'kind': 'op', 'op': 'Convolution'},
+    'convert': {'type': 'Convert', 'kind': 'op', 'dst_type': np.float32, 'op': 'Cast'},
     'convert_data': {'kind': 'data'},
 
-    'result_data': {'kind':'data'},
+    'result_data': {'kind': 'data'},
     'result': {'kind': 'op', 'op': 'Result'},
 
     # accuracy test
     'ac_weights': {'kind': 'op', 'op': 'Const', 'shape': None, 'value': None, 'infer': Const.infer},
     'ac_weights_data': {'kind': 'data', 'shape': None, 'value': None},
 
-    'ac_input_low': {'kind': 'op', 'type': 'Const', 'shape': None, 'value': None, 'infer': Const.infer},
+    'ac_input_low': {'kind': 'op', 'type': 'Const', 'shape': None, 'value': None, 'infer': Const.infer, 'op': 'Const'},
     'ac_input_low_data': {'kind': 'data', 'value': None, 'shape': None},
-    'ac_input_high': {'kind': 'op', 'type': 'Const', 'shape': None, 'value': None, 'infer': Const.infer},
+    'ac_input_high': {'kind': 'op', 'type': 'Const', 'shape': None, 'value': None, 'infer': Const.infer, 'op': 'Const'},
     'ac_input_high_data': {'kind': 'data', 'value': None, 'shape': None},
-    'ac_output_low': {'kind': 'op', 'type': 'Const', 'shape': None, 'value': None, 'infer': Const.infer},
+    'ac_output_low': {'kind': 'op', 'type': 'Const', 'shape': None, 'value': None, 'infer': Const.infer, 'op': 'Const'},
     'ac_output_low_data': {'kind': 'data', 'value': None, 'shape': None},
-    'ac_output_high': {'kind': 'op', 'type': 'Const', 'shape': None, 'value': None, 'infer': Const.infer},
+    'ac_output_high': {'kind': 'op', 'type': 'Const', 'shape': None, 'value': None, 'infer': Const.infer, 'op': 'Const'},
     'ac_output_high_data': {'kind': 'data', 'value': None, 'shape': None},
 
-    'ac_fakeQuantize': {'kind': 'op', 'type': 'FakeQuantize', 'levels': None, 'infer': FakeQuantize.infer},
+    'ac_fakeQuantize': {'kind': 'op', 'type': 'FakeQuantize', 'levels': None, 'infer': FakeQuantize.infer, 'op': 'FakeQuantize'},
     'ac_fakeQuantize_data': {'kind': 'data', 'shape': None, 'value': None},
-    'ac_quantize': {'kind': 'op', 'type': 'fakeQuantize', 'levels': None, 'infer': FakeQuantize.infer},
+    'ac_quantize': {'kind': 'op', 'type': 'fakeQuantize', 'levels': None, 'infer': FakeQuantize.infer, 'op': 'FakeQuantize'},
     'ac_quantize_data': {'kind': 'data', 'shape': None, 'value': None},
 
-    'ac_convolution': {'kind': 'op', 'type': 'Convolution'},
+    'ac_convolution': {'kind': 'op', 'type': 'Convolution', 'op': 'Convolution'},
 
     'ac_mul': {'kind': 'op', 'op': 'Mul', 'infer': lambda node: eltwise_infer(node, lambda a, b: a * b)},
     'ac_mul_data': {'kind': 'data', 'shape': None, 'value': None},
     'ac_add': {'kind': 'op', 'op': 'Add', 'infer': lambda node: eltwise_infer(node, lambda a, b: a + b)},
     'ac_add_data': {'kind': 'data', 'shape': None, 'value': None},
 
-    'ac_scale': {'kind': 'op', 'type': 'Const', 'shape': None, 'value': None, 'infer': Const.infer},
+    'ac_scale': {'kind': 'op', 'type': 'Const', 'shape': None, 'value': None, 'infer': Const.infer, 'op': 'Const'},
     'ac_scale_data': {'kind': 'data', 'shape': None, 'value': None},
-    'ac_shift': {'kind': 'op', 'type': 'Const', 'shape': None, 'value': None, 'infer': Const.infer},
+    'ac_shift': {'kind': 'op', 'type': 'Const', 'shape': None, 'value': None, 'infer': Const.infer, 'op': 'Const'},
     'ac_shift_data': {'kind': 'data', 'shape': None, 'value': None},
 
-    'ac_output_low_ref': {'kind': 'op', 'type': 'Const', 'shape': None, 'value': None, 'infer': Const.infer},
+    'ac_output_low_ref': {'kind': 'op', 'type': 'Const', 'shape': None, 'value': None, 'infer': Const.infer, 'op': 'Const'},
     'ac_output_low_ref_data': {'kind': 'data', 'shape': None, 'value': None},
-    'ac_output_high_ref': {'kind': 'op', 'type': 'Const', 'shape': None, 'value': None, 'infer': Const.infer},
+    'ac_output_high_ref': {'kind': 'op', 'type': 'Const', 'shape': None, 'value': None, 'infer': Const.infer, 'op': 'Const'},
     'ac_output_high_ref_data': {'kind': 'data', 'shape': None, 'value': None}
 }
 
@@ -446,7 +447,6 @@ class WeightQuantizeTest(unittest.TestCase):
         self.assertTrue(flag, resp)
 
     def test_accuracy_tensor1(self):
-
         """
         [1.0, 2.0, 3.0, 4.0]
         """
@@ -814,3 +814,65 @@ class WeightQuantizeTest(unittest.TestCase):
         w_array_ref = Node(graph_ref, 'ac_weights').out_port(0).get_destination().data.get_value()
 
         self.assertTrue(np.all(w_array == w_array_ref))
+
+
+@generator
+class CompressionDataTypeTest(unittest.TestCase):
+    @generate(*[
+        ('FP32', np.int64),
+        ('FP16', np.int64),
+        ('FP32', np.int32),
+        ('FP16', np.int32),
+        ('FP32', np.float64, np.float32),
+        ('FP16', np.float64, np.float16),
+        ('FP32', np.float32, np.float32),
+        ('FP16', np.float32, np.float16),
+        ('FP32', np.float16, np.float32),
+        ('FP16', np.float16, np.float16),
+        ])
+    def test_data_type(self, model_dtype, original, transformed=None):
+        if transformed is None:
+            transformed = original
+
+        nodes = {
+            **valued_const_with_data('weights', np.ones([1, 2, 3, 4], dtype=original)),
+
+            **valued_const_with_data('int_weights', np.ones([1, 2, 3, 4], dtype=np.uint8)),
+            **regular_op_with_shaped_data('cast', [1, 2, 3, 4], {'type': 'Convert', 'dst_type': transformed,
+                                                                 'op': 'Cast'}),
+
+            **valued_const_with_data('il', np.array([0])),
+            **valued_const_with_data('ih', np.array([254])),
+            **valued_const_with_data('ol', np.array([0])),
+            **valued_const_with_data('oh', np.array([254])),
+
+            **regular_op_with_shaped_data('FQ', [1, 2, 3, 4], {'type': 'FakeQuantize', 'infer': FakeQuantize.infer,
+                                                               'stop_value_propagation': True, 'levels': 255,
+                                                               'op': 'FakeQuantize'}),
+            **result()
+        }
+
+        graph = build_graph(nodes, [
+            *connect('weights:0', '0:FQ'),
+            *connect('il:0', '1:FQ'),
+            *connect('ih:0', '2:FQ'),
+            *connect('ol:0', '3:FQ'),
+            *connect('oh:0', '4:FQ'),
+            *connect('FQ:0', 'output'),
+        ], nodes_with_edges_only=True)
+        graph.graph['cmd_params'] = Namespace(data_type=model_dtype, keep_shape_ops=True)
+
+        CompressQuantizeWeights().find_and_replace_pattern(graph)
+        graph.clean_up()
+
+        graph_ref = build_graph(nodes, [
+            *connect('int_weights:0', '0:cast'),
+            *connect('cast:0', '0:FQ'),
+            *connect('il:0', '1:FQ'),
+            *connect('ih:0', '2:FQ'),
+            *connect('ol:0', '3:FQ'),
+            *connect('oh:0', '4:FQ'),
+            *connect('FQ:0', 'output'),
+        ], nodes_with_edges_only=True)
+        (flag, resp) = compare_graphs(graph, graph_ref, 'output', check_op_attrs=True)
+        self.assertTrue(flag, resp)

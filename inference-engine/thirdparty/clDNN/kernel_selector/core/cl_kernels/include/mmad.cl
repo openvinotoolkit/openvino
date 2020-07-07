@@ -521,9 +521,41 @@ inline void FUNC(sub_group_block_write_uchar16)(__global uchar* outPtr, uchar16 
 #endif
 }
 
-inline uchar16 FUNC(sub_group_block_read_uchar16)(const __global uchar* ptr)
+inline uchar16 FUNC(sub_group_block_read_uchar16)(const __global uchar* ptr) __attribute__((overloadable))
 {
 #ifdef cl_intel_subgroups_char
+    // WA for compiler support
+    // return intel_sub_group_block_read_uc16(ptr);
+    return (uchar16)(intel_sub_group_block_read_uc8(ptr), intel_sub_group_block_read_uc8(ptr + 8 * get_max_sub_group_size()));
+#else
+    uint idx = get_sub_group_local_id();
+
+    uchar16 ret;
+
+    ret.s0 = ptr[idx]; idx += get_max_sub_group_size();
+    ret.s1 = ptr[idx]; idx += get_max_sub_group_size();
+    ret.s2 = ptr[idx]; idx += get_max_sub_group_size();
+    ret.s3 = ptr[idx]; idx += get_max_sub_group_size();
+    ret.s4 = ptr[idx]; idx += get_max_sub_group_size();
+    ret.s5 = ptr[idx]; idx += get_max_sub_group_size();
+    ret.s6 = ptr[idx]; idx += get_max_sub_group_size();
+    ret.s7 = ptr[idx]; idx += get_max_sub_group_size();
+    ret.s8 = ptr[idx]; idx += get_max_sub_group_size();
+    ret.s9 = ptr[idx]; idx += get_max_sub_group_size();
+    ret.sa = ptr[idx]; idx += get_max_sub_group_size();
+    ret.sb = ptr[idx]; idx += get_max_sub_group_size();
+    ret.sc = ptr[idx]; idx += get_max_sub_group_size();
+    ret.sd = ptr[idx]; idx += get_max_sub_group_size();
+    ret.se = ptr[idx]; idx += get_max_sub_group_size();
+    ret.sf = ptr[idx]; idx += get_max_sub_group_size();
+
+    return ret;
+#endif
+}
+
+inline uchar16 FUNC(sub_group_block_read_uchar16)(const __local uchar* ptr) __attribute__((overloadable))
+{
+#if LOCAL_BLOCK_IO_SUPPORTED && defined(cl_intel_subgroup_local_block_io) && defined(cl_intel_subgroups_char)
     // WA for compiler support
     // return intel_sub_group_block_read_uc16(ptr);
     return (uchar16)(intel_sub_group_block_read_uc8(ptr), intel_sub_group_block_read_uc8(ptr + 8 * get_max_sub_group_size()));
@@ -571,7 +603,7 @@ inline void FUNC(sub_group_block_write_uchar8)(__global uchar* outPtr, uchar8 v)
 #endif
 }
 
-inline uchar8 FUNC(sub_group_block_read_uchar8)(const __global uchar* ptr)
+inline uchar8 FUNC(sub_group_block_read_uchar8)(const __global uchar* ptr) __attribute__((overloadable))
 {
 #ifdef cl_intel_subgroups_char
     return intel_sub_group_block_read_uc8(ptr);
@@ -590,7 +622,28 @@ inline uchar8 FUNC(sub_group_block_read_uchar8)(const __global uchar* ptr)
     ret.s7 = ptr[idx]; idx += get_max_sub_group_size();
 
     return ret;
+#endif
+}
 
+inline uchar8 FUNC(sub_group_block_read_uchar8)(const __local uchar* ptr) __attribute__((overloadable))
+{
+#if LOCAL_BLOCK_IO_SUPPORTED && defined(cl_intel_subgroup_local_block_io) && defined(cl_intel_subgroups_char)
+    return intel_sub_group_block_read_uc8(ptr);
+#else
+    uint idx = get_sub_group_local_id();
+
+    uchar8 ret;
+
+    ret.s0 = ptr[idx]; idx += get_max_sub_group_size();
+    ret.s1 = ptr[idx]; idx += get_max_sub_group_size();
+    ret.s2 = ptr[idx]; idx += get_max_sub_group_size();
+    ret.s3 = ptr[idx]; idx += get_max_sub_group_size();
+    ret.s4 = ptr[idx]; idx += get_max_sub_group_size();
+    ret.s5 = ptr[idx]; idx += get_max_sub_group_size();
+    ret.s6 = ptr[idx]; idx += get_max_sub_group_size();
+    ret.s7 = ptr[idx]; idx += get_max_sub_group_size();
+
+    return ret;
 #endif
 }
 
@@ -608,9 +661,27 @@ inline void FUNC(sub_group_block_write_uchar4)(__global uchar* outPtr, uchar4 v)
 #endif
 }
 
-inline uchar4 FUNC(sub_group_block_read_uchar4)(const __global uchar* ptr)
+inline uchar4 FUNC(sub_group_block_read_uchar4)(const __global uchar* ptr) __attribute__((overloadable))
 {
 #ifdef cl_intel_subgroups_char
+    return intel_sub_group_block_read_uc4(ptr);
+#else
+    uint idx = get_sub_group_local_id();
+
+    uchar4 ret;
+
+    ret.s0 = ptr[idx]; idx += get_max_sub_group_size();
+    ret.s1 = ptr[idx]; idx += get_max_sub_group_size();
+    ret.s2 = ptr[idx]; idx += get_max_sub_group_size();
+    ret.s3 = ptr[idx]; idx += get_max_sub_group_size();
+
+    return ret;
+#endif
+}
+
+inline uchar4 FUNC(sub_group_block_read_uchar4)(const __local uchar* ptr) __attribute__((overloadable))
+{
+#if LOCAL_BLOCK_IO_SUPPORTED && defined(cl_intel_subgroup_local_block_io) && defined(cl_intel_subgroups_char)
     return intel_sub_group_block_read_uc4(ptr);
 #else
     uint idx = get_sub_group_local_id();
@@ -638,9 +709,25 @@ inline void FUNC(sub_group_block_write_uchar2)(__global uchar* outPtr, uchar2 v)
 #endif
 }
 
-inline uchar2 FUNC(sub_group_block_read_uchar2)(const __global uchar* ptr)
+inline uchar2 FUNC(sub_group_block_read_uchar2)(const __global uchar* ptr) __attribute__((overloadable))
 {
 #ifdef cl_intel_subgroups_char
+    return intel_sub_group_block_read_uc2(ptr);
+#else
+    uint idx = get_sub_group_local_id();
+
+    uchar2 ret;
+
+    ret.s0 = ptr[idx]; idx += get_max_sub_group_size();
+    ret.s1 = ptr[idx]; idx += get_max_sub_group_size();
+
+    return ret;
+#endif
+}
+
+inline uchar2 FUNC(sub_group_block_read_uchar2)(const __local uchar* ptr) __attribute__((overloadable))
+{
+#if LOCAL_BLOCK_IO_SUPPORTED && defined(cl_intel_subgroup_local_block_io) && defined(cl_intel_subgroups_char)
     return intel_sub_group_block_read_uc2(ptr);
 #else
     uint idx = get_sub_group_local_id();
@@ -665,9 +752,24 @@ inline void FUNC(sub_group_block_write_uchar)(__global uchar* outPtr, uchar v)
 #endif
 }
 
-inline uchar FUNC(sub_group_block_read_uchar)(const __global uchar* ptr)
+inline uchar FUNC(sub_group_block_read_uchar)(const __global uchar* ptr) __attribute__((overloadable))
 {
 #ifdef cl_intel_subgroups_char
+    return intel_sub_group_block_read_uc(ptr);
+#else
+    uint idx = get_sub_group_local_id();
+
+    uchar ret;
+
+    ret = ptr[idx];
+
+    return ret;
+#endif
+}
+
+inline uchar FUNC(sub_group_block_read_uchar)(const __local uchar* ptr) __attribute__((overloadable))
+{
+#if LOCAL_BLOCK_IO_SUPPORTED && defined(cl_intel_subgroup_local_block_io) && defined(cl_intel_subgroups_char)
     return intel_sub_group_block_read_uc(ptr);
 #else
     uint idx = get_sub_group_local_id();

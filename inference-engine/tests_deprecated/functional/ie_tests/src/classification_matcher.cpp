@@ -4,7 +4,7 @@
 
 #include "classification_matcher.hpp"
 #include <gtest/gtest.h>
-#include <xml_helper.hpp>
+#include <fstream>
 #include "details/ie_cnn_network_iterator.hpp"
 
 using namespace Regression ;

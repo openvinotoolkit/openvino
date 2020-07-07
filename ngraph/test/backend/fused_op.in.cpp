@@ -349,42 +349,6 @@ NGRAPH_TEST(${BACKEND_NAME}, conv_bias_3d)
     EXPECT_EQ(expected, read_vector<float>(result0));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, conv_bias_bprop_2d)
-{
-    auto data = make_shared<op::Parameter>(element::f32, Shape{1, 3, 2, 2});
-    auto filters = make_shared<op::Parameter>(element::f32, Shape{2, 3, 1, 1});
-    auto bias = make_shared<op::Parameter>(element::f32, Shape{2});
-    auto delta = make_shared<op::Parameter>(element::f32, Shape{1, 2, 2, 2});
-    auto conv_bprop = make_shared<op::ConvolutionBiasBackpropFiltersBias>(data,
-                                                                          filters->get_shape(),
-                                                                          bias->get_shape(),
-                                                                          delta,
-                                                                          Strides{1, 1},
-                                                                          Strides{1, 1},
-                                                                          CoordinateDiff{0, 0},
-                                                                          CoordinateDiff{0, 0},
-                                                                          Strides{1, 1});
-    auto goe0 = make_shared<op::GetOutputElement>(conv_bprop, 0);
-    auto goe1 = make_shared<op::GetOutputElement>(conv_bprop, 1);
-    auto f0 = make_shared<Function>(NodeVector{goe0, goe1}, ParameterVector{data, delta});
-
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-
-    // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, Shape{1, 3, 2, 2});
-    copy_data(a, vector<float>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12});
-    auto b = backend->create_tensor(element::f32, Shape{1, 2, 2, 2});
-    copy_data(b, vector<float>{1, 2, 3, 4, 5, 6, 7, 8});
-    auto result0 = backend->create_tensor(element::f32, filters->get_shape());
-    auto result1 = backend->create_tensor(element::f32, bias->get_shape());
-    auto handle = backend->compile(f0);
-    handle->call_with_validate({result0, result1}, {a, b});
-    vector<float> expected0{30, 70, 110, 70, 174, 278};
-    vector<float> expected1{10, 26};
-    EXPECT_EQ(expected0, read_vector<float>(result0));
-    EXPECT_EQ(expected1, read_vector<float>(result1));
-}
-
 NGRAPH_TEST(${BACKEND_NAME}, conv_bias_add_2d)
 {
     auto data = make_shared<op::Parameter>(element::f32, Shape{1, 3, 2, 2});
@@ -440,57 +404,6 @@ NGRAPH_TEST(${BACKEND_NAME}, group_conv)
     handle->call_with_validate({result0}, {a, b});
     vector<float> expected{11, 14, 17, 20, 79, 86, 93, 100};
     EXPECT_EQ(expected, read_vector<float>(result0));
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, batch_mat_mul_transpose)
-{
-    Shape shape0 = Shape{2, 2, 3};
-    Shape shape1 = Shape{2, 3, 4};
-    auto arg0 = make_shared<op::Parameter>(element::f32, shape0);
-    auto arg1 = make_shared<op::Parameter>(element::f32, shape1);
-    auto bmmt = make_shared<op::BatchMatMulTranspose>(arg0, arg1, false, false);
-    auto f0 = make_shared<Function>(NodeVector{bmmt}, ParameterVector{arg0, arg1});
-
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-
-    // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape0);
-    copy_data(a, vector<float>{1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4});
-    auto b = backend->create_tensor(element::f32, shape1);
-    copy_data(
-        b, vector<float>{1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3});
-    auto result0 = backend->create_tensor(element::f32, Shape{2, 2, 4});
-
-    auto handle = backend->compile(f0);
-    handle->call_with_validate({result0}, {a, b});
-    vector<float> expected{6, 6, 6, 6, 12, 12, 12, 12, 18, 18, 18, 18, 24, 24, 24, 24};
-    EXPECT_EQ(expected, read_vector<float>(result0));
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, batch_mat_mul_transpose_with_transpose)
-{
-    Shape shape0 = Shape{2, 3, 2};
-    Shape shape1 = Shape{2, 3, 4};
-    auto arg0 = make_shared<op::Parameter>(element::f32, shape0);
-    auto arg1 = make_shared<op::Parameter>(element::f32, shape1);
-    auto bmmt = make_shared<op::BatchMatMulTranspose>(arg0, arg1, true, false);
-    auto f0 = make_shared<Function>(NodeVector{bmmt}, ParameterVector{arg0, arg1});
-
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-
-    // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape0);
-    copy_data(a, vector<float>{1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4});
-    auto b = backend->create_tensor(element::f32, shape1);
-    copy_data(
-        b, vector<float>{1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3});
-    auto result0 = backend->create_tensor(element::f32, Shape{2, 2, 4});
-
-    auto handle = backend->compile(f0);
-    handle->call_with_validate({result0}, {a, b});
-    vector<float> expected{9, 9, 9, 9, 11, 11, 11, 11, 21, 21, 21, 21, 23, 23, 23, 23};
-    EXPECT_EQ(expected, read_vector<float>(result0));
-    auto res = read_vector<float>(result0);
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, group_conv_striding)

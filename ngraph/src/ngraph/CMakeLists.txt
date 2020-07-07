@@ -46,8 +46,6 @@ set (SRC
     builder/quantized_conv_builder.hpp
     builder/quantized_dot_builder.cpp
     builder/quantized_dot_builder.hpp
-    builder/quantization/quantized_linear_convolution.cpp
-    builder/quantization/quantized_linear_convolution.hpp
     builder/quantization_utils.hpp
     builder/quantization_utils.cpp
     builder/reduce_ops.cpp
@@ -129,10 +127,6 @@ set (SRC
     op/and.hpp
     op/any.cpp
     op/any.hpp
-    op/argmax.cpp
-    op/argmax.hpp
-    op/argmin.cpp
-    op/argmin.hpp
     op/asin.cpp
     op/asin.hpp
     op/asinh.cpp
@@ -143,8 +137,6 @@ set (SRC
     op/atan.hpp
     op/atanh.cpp
     op/atanh.hpp
-    op/atan2.cpp
-    op/atan2.hpp
     op/avg_pool.cpp
     op/avg_pool.hpp
     op/batch_norm.cpp
@@ -205,42 +197,6 @@ set (SRC
     op/erf.hpp
     op/exp.cpp
     op/exp.hpp
-    op/experimental/batch_mat_mul.cpp
-    op/experimental/batch_mat_mul.hpp
-    op/experimental/dyn_broadcast.cpp
-    op/experimental/dyn_broadcast.hpp
-    op/experimental/dyn_pad.cpp
-    op/experimental/dyn_pad.hpp
-    op/experimental/dyn_replace_slice.cpp
-    op/experimental/dyn_replace_slice.hpp
-    op/experimental/dyn_slice.cpp
-    op/experimental/dyn_slice.hpp
-    op/experimental/generate_mask.cpp
-    op/experimental/generate_mask.hpp
-    op/experimental/quantized_conv_bias.cpp
-    op/experimental/quantized_conv_bias.hpp
-    op/experimental/quantized_conv_relu.cpp
-    op/experimental/quantized_conv_relu.hpp
-    op/experimental/range.hpp
-    op/experimental/shape_of.hpp
-    op/experimental/tile.hpp
-    op/experimental/quantized_dot_bias.cpp
-    op/experimental/quantized_dot_bias.hpp
-    op/experimental/compiled_kernel.cpp
-    op/experimental/compiled_kernel.hpp
-    op/experimental/layers/ctc_greedy_decoder.hpp
-    op/experimental/layers/detection_output.hpp
-    op/experimental/layers/interpolate.hpp
-    op/experimental/layers/prior_box.hpp
-    op/experimental/layers/prior_box_clustered.hpp
-    op/experimental/layers/proposal.hpp
-    op/experimental/layers/psroi_pooling.hpp
-    op/experimental/layers/region_yolo.hpp
-    op/experimental/layers/reorg_yolo.hpp
-    op/experimental/layers/roi_pooling.hpp
-    op/experimental/random_uniform.hpp
-    op/experimental/random_uniform.cpp
-    op/experimental/transpose.hpp
     op/extractimagepatches.cpp
     op/extractimagepatches.hpp
     op/strided_slice.hpp
@@ -418,8 +374,6 @@ set (SRC
     op/transpose.hpp
     op/xor.cpp
     op/xor.hpp
-    op/fused/batch_mat_mul_transpose.cpp
-    op/fused/batch_mat_mul_transpose.hpp
     op/fused/batch_to_space.cpp
     op/fused/batch_to_space.hpp
     op/fused/clamp.cpp
@@ -539,9 +493,7 @@ set (SRC
     pass/constant_folding_arithmetic_reduction.cpp
     pass/constant_folding_convert.cpp
     pass/constant_folding_dequantize.cpp
-    pass/constant_folding_dyn_broadcast.cpp
     pass/constant_folding_dyn_reshape.cpp
-    pass/constant_folding_dyn_slice.cpp
     pass/constant_folding_gather.cpp
     pass/constant_folding_scatter.cpp
     pass/constant_folding_logical_reduction.cpp
@@ -589,12 +541,6 @@ set (SRC
     pass/nop_elimination.hpp
     pass/pass.cpp
     pass/pass.hpp
-    pass/opset0_downgrade.cpp
-    pass/opset0_downgrade.hpp
-    pass/opset1_downgrade.cpp
-    pass/opset1_downgrade.hpp
-    pass/opset1_upgrade.cpp
-    pass/opset1_upgrade.hpp
     pass/pass_config.cpp
     pass/pass_config.hpp
     pass/propagate_cacheability.cpp

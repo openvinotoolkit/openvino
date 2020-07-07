@@ -129,36 +129,3 @@ NGRAPH_TEST(${BACKEND_NAME}, partial_slice_unkown_rank)
     ASSERT_EQ(t_r->get_shape(), (Shape{1, 2, 2}));
     EXPECT_TRUE(test::all_close_f(v_r, read_vector<float>(t_r)));
 }
-
-NGRAPH_TEST(${BACKEND_NAME}, partial_slice_bprop_unkown_rank)
-{
-    auto pshape_x = PartialShape::dynamic();
-    auto pshape_dout = PartialShape::dynamic();
-    auto x = make_shared<op::Parameter>(element::f32, pshape_x);
-    auto dout = make_shared<op::Parameter>(element::f32, pshape_dout);
-    AxisVector axes{0, 1};
-    vector<int64_t> lower_bounds{1, 0};
-    vector<int64_t> upper_bounds{2, 2};
-    auto f = make_shared<Function>(
-        make_shared<op::PartialSliceBackprop>(x, dout, axes, lower_bounds, upper_bounds),
-        ParameterVector{x, dout});
-
-    auto backend = runtime::Backend::create("${BACKEND_NAME}", true);
-
-    // Create some tensors for input/output
-    Shape shape_x{2, 3, 2};
-    Shape shape_dout{1, 2, 2};
-    auto t_x = backend->create_tensor(element::f32, shape_x);
-    auto t_dout = backend->create_tensor(element::f32, shape_dout);
-    vector<float> v_x{0.f, 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f, 10.f, 11.f};
-    vector<float> v_dout{6.f, 7.f, 8.f, 9.f};
-    copy_data(t_x, v_x);
-    copy_data(t_dout, v_dout);
-    auto t_r = backend->create_dynamic_tensor(element::f32, PartialShape::dynamic());
-
-    auto handle = backend->compile(f);
-    handle->call_with_validate({t_r}, {t_x, t_dout});
-    vector<float> v_r{0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 6.f, 7.f, 8.f, 9.f, 0.f, 0.f};
-    ASSERT_EQ(t_r->get_shape(), (Shape{2, 3, 2}));
-    EXPECT_TRUE(test::all_close_f(v_r, read_vector<float>(t_r)));
-}

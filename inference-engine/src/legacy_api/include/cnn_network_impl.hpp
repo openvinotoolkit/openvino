@@ -10,6 +10,7 @@
 #include <string>
 #include <vector>
 
+#include "ie_layers.h"
 #include "ie_ishape_infer_extension.hpp"
 #include "description_buffer.hpp"
 #include "ie_api.h"
@@ -25,8 +26,6 @@ class Reshaper;
 using ReshaperPtr = std::shared_ptr<Reshaper>;
 }  // namespace ShapeInfer
 namespace details {
-
-IE_SUPPRESS_DEPRECATED_START
 
 class INFERENCE_ENGINE_API_CLASS(CNNNetworkImpl): public ICNNNetwork {
 public:
@@ -89,7 +88,7 @@ public:
         return getData(name.c_str());
     }
 
-    void addLayer(const CNNLayerPtr& layer) noexcept override;
+    void addLayer(const CNNLayerPtr& layer) noexcept;
 
     void removeLayer(const std::string& layerName);
 
@@ -140,8 +139,6 @@ protected:
     DataPtr _emptyData;
     ShapeInfer::ReshaperPtr _reshaper;
 };
-
-IE_SUPPRESS_DEPRECATED_END
 
 typedef std::shared_ptr<CNNNetworkImpl> CNNNetworkImplPtr;
 }  // namespace details

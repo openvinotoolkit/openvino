@@ -979,7 +979,7 @@ class Graph(nx.MultiDiGraph):
             undead_node_types.append('TFCustomSubgraphCall')
 
         if 'cmd_params' in self.graph and getattr(self.graph['cmd_params'], 'keep_shape_ops'):
-            undead_node_types.extend(['ShapeOf', 'Shape'])
+            undead_node_types.extend(['ShapeOf', 'Shape', 'slice_like'])
 
         mark_output_reachable_nodes(self)
         shape_inference(self)
