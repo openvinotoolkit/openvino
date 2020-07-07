@@ -33,8 +33,6 @@
 #include "ngraph/runtime/reference/all.hpp"
 #include "ngraph/runtime/reference/allreduce.hpp"
 #include "ngraph/runtime/reference/any.hpp"
-#include "ngraph/runtime/reference/argmax.hpp"
-#include "ngraph/runtime/reference/argmin.hpp"
 #include "ngraph/runtime/reference/asin.hpp"
 #include "ngraph/runtime/reference/atan.hpp"
 #include "ngraph/runtime/reference/atan2.hpp"
@@ -104,8 +102,6 @@
 #include "ngraph/runtime/tensor.hpp"
 #include "ngraph/state/bernoulli_rng_state.hpp"
 #include "ngraph/state/uniform_rng_state.hpp"
-#include "op/argmax.hpp"
-#include "op/argmin.hpp"
 #include "op/avg_pool.hpp"
 
 namespace ngraph
@@ -243,58 +239,6 @@ protected:
                            node.get_input_shape(0),
                            node.get_output_shape(0),
                            any->get_reduction_axes());
-            break;
-        }
-        case OP_TYPEID::ArgMin:
-        {
-            const op::v0::ArgMin* argmin = static_cast<const op::v0::ArgMin*>(&node);
-            auto element_type = node.get_output_element_type(0);
-            if (element_type == element::i64)
-            {
-                reference::argmin<T, int64_t>(args[0]->get_data_ptr<const T>(),
-                                              out[0]->get_data_ptr<int64_t>(),
-                                              node.get_input_shape(0),
-                                              node.get_output_shape(0),
-                                              argmin->get_reduction_axis());
-            }
-            else if (element_type == element::i32)
-            {
-                reference::argmin<T, int32_t>(args[0]->get_data_ptr<const T>(),
-                                              out[0]->get_data_ptr<int32_t>(),
-                                              node.get_input_shape(0),
-                                              node.get_output_shape(0),
-                                              argmin->get_reduction_axis());
-            }
-            else
-            {
-                throw ngraph_error("Unexpected type");
-            }
-            break;
-        }
-        case OP_TYPEID::ArgMax:
-        {
-            const op::v0::ArgMax* argmax = static_cast<const op::v0::ArgMax*>(&node);
-            auto element_type = node.get_output_element_type(0);
-            if (element_type == element::i64)
-            {
-                reference::argmax<T, int64_t>(args[0]->get_data_ptr<const T>(),
-                                              out[0]->get_data_ptr<int64_t>(),
-                                              node.get_input_shape(0),
-                                              node.get_output_shape(0),
-                                              argmax->get_reduction_axis());
-            }
-            else if (element_type == element::i32)
-            {
-                reference::argmax<T, int32_t>(args[0]->get_data_ptr<const T>(),
-                                              out[0]->get_data_ptr<int32_t>(),
-                                              node.get_input_shape(0),
-                                              node.get_output_shape(0),
-                                              argmax->get_reduction_axis());
-            }
-            else
-            {
-                throw ngraph_error("Unexpected type");
-            }
             break;
         }
         case OP_TYPEID::Asin:

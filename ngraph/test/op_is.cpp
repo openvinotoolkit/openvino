@@ -18,8 +18,6 @@
 
 #include "ngraph/ngraph.hpp"
 #include "ngraph/validation_util.hpp"
-#include "op/argmax.hpp"
-#include "op/argmin.hpp"
 #include "op/atan2.hpp"
 #include "util/test_tools.hpp"
 
@@ -84,24 +82,6 @@ namespace
     void op_is_Any()
     {
         op::Any node;
-        EXPECT_FALSE(node.is_unary_elementwise_arithmetic());
-        EXPECT_FALSE(node.is_binary_elementwise_arithmetic());
-        EXPECT_FALSE(node.is_binary_elementwise_comparison());
-        EXPECT_FALSE(node.is_binary_elementwise_logical());
-    }
-
-    void op_is_ArgMax()
-    {
-        op::v0::ArgMax node;
-        EXPECT_FALSE(node.is_unary_elementwise_arithmetic());
-        EXPECT_FALSE(node.is_binary_elementwise_arithmetic());
-        EXPECT_FALSE(node.is_binary_elementwise_comparison());
-        EXPECT_FALSE(node.is_binary_elementwise_logical());
-    }
-
-    void op_is_ArgMin()
-    {
-        op::v0::ArgMin node;
         EXPECT_FALSE(node.is_unary_elementwise_arithmetic());
         EXPECT_FALSE(node.is_binary_elementwise_arithmetic());
         EXPECT_FALSE(node.is_binary_elementwise_comparison());
