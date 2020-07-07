@@ -109,7 +109,8 @@ void op::v1::GroupConvolution::validate_and_infer_types()
         }
     }
 
-    if (data_batch_shape.rank().is_static() && data_batch_shape.rank().get_length() > 2)
+    if (data_batch_shape.rank().is_static() && data_batch_shape.rank().get_length() > 2 &&
+        data_batch_shape[1].is_static())
     {
         data_batch_shape[1] = Dimension(data_batch_shape[1].get_length() / groups.get_length());
     }
