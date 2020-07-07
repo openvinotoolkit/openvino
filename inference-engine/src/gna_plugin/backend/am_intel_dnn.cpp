@@ -1549,7 +1549,6 @@ void GNAPluginNS::backend::AMIntelDNN::InitGNAStruct(intel_nnet_type_t *ptr_nnet
                     gnalog() << "\tnFilterRows = " << pConvolutionalLayer->nFilterRows << '\n';
                     gnalog() << "~~~\n" << std::flush;
 #endif // GNA_DEBUG
-
                 }
                 AdvanceCnnOperationIfAllApplied(component, i, pLayer);
 #endif
