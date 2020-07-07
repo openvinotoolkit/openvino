@@ -4,9 +4,9 @@
 
 **Category**: *Activation*
 
-**Short description**: Mish a Self Regularized Non-Monotonic Neural Activation Function.
+**Short description**: Mish is a Self Regularized Non-Monotonic Neural Activation Function.
 
-**Detailed description**: Mish layer computes self regularized non-monotonic neural activation function: x * tanh(softplus(x))
+**Detailed description**: Mish layer computes self regularized non-monotonic neural activation function: x * tanh(softplus(x)) [Reference](https://arxiv.org/abs/1908.08681)
 
 **Attributes**: operation has no attributes.
 
@@ -27,7 +27,7 @@
    For each element from the input tensor calculates corresponding
     element in the output tensor with the following formula:
     \f[
-    Mish( x ) = x*tanh{log{1+e^{x}}}
+    Mish( x ) = x*tanh{ln{1+e^{x}}}
     \f]
 
 **Examples**
