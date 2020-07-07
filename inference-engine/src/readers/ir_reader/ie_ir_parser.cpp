@@ -119,14 +119,29 @@ std::shared_ptr<ICNNNetwork> V10Parser::parse(const pugi::xml_node& root, std::i
 
     // Run DFS starting from outputs to get nodes topological order
     std::set<size_t> used;
+    std::deque<size_t> stack;
     std::vector<size_t> order;
-    std::function<void(size_t)> dfs = [&edges, &order, &used, &dfs](const size_t id) {
-        if (used.count(id)) return;
-        used.insert(id);
-        for (auto& edge : edges[id]) {
-            dfs(edge.fromLayerId);
+    std::function<void(size_t)> dfs = [&edges, &order, &stack, &used](const size_t id) {
+        stack.push_back(id);
+
+        while (!stack.empty()) {
+            auto currentId = stack.back();
+            if (used.count(currentId)) {
+                order.push_back(currentId);
+                stack.pop_back();
+            } else {
+                used.insert(currentId);
+            }
+            for (auto& edge : edges[currentId]) {
+                auto edgeId = edge.fromLayerId;
+                if (!used.count(edgeId)) {
+                    stack.push_back(edgeId);
+                } else if (std::find(stack.begin(),stack.end(),edgeId) != stack.end()) {
+                    // Cycle exist
+                    return;
+                }
+            }
         }
-        order.push_back(id);
     };
     std::for_each(outputs.begin(), outputs.end(), dfs);
 

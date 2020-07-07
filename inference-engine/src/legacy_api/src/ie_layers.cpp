@@ -3,6 +3,7 @@
 //
 
 #include <ie_layers.h>
+#include <deque>
 
 using namespace InferenceEngine;
 
@@ -294,7 +295,56 @@ std::vector<std::string> CNNLayer::GetParamAsStrings(const char* param, std::vec
     return result;
 }
 
-CNNLayer::~CNNLayer() {}
+CNNLayer::~CNNLayer() {
+    std::deque<DataPtr> data_deque;
+    std::vector<DataPtr> fresh_data;
+    std::vector<CNNLayerPtr> fresh_layer;
+    bool process_data = false;
+
+    for (auto& data : outData) {
+        if (data.use_count() == 1) {
+            fresh_data.push_back(data);
+            data_deque.push_back(data);
+        }
+    }
+
+    while (fresh_data.size() != 0 || fresh_layer.size() != 0) {
+        if (process_data) {
+            for (auto& data : fresh_data) {
+                for (auto& layer : data->getInputTo()) {
+                    if (layer.second.use_count() == 1) {
+                        fresh_layer.push_back(layer.second);
+                    }
+                }
+            }
+            fresh_data.clear();
+            process_data = false;
+        } else {
+            for (auto& layer : fresh_layer) {
+                for (auto& data : layer->outData) {
+                    if (data.use_count() == 1) {
+                        fresh_data.push_back(data);
+                        data_deque.push_back(data);
+                    }
+                }
+            }
+            fresh_layer.clear();
+            process_data = true;
+        }
+    }
+
+    while (data_deque.size() != 0) {
+        auto current_data = data_deque.back();
+        auto& inputTo = current_data->getInputTo();
+        for (auto& pair : inputTo) {
+            if (pair.second.use_count() == 1) {
+                pair.second.reset();
+            }
+        }
+        data_deque.pop_back();
+    }
+}
+
 WeightableLayer::~WeightableLayer() {}
 ConvolutionLayer::~ConvolutionLayer() {}
 DeconvolutionLayer::~DeconvolutionLayer() {}

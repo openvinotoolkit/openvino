@@ -117,6 +117,41 @@ inline OutInfoWrapper default_order(CNNLayer* layer) {
     return OutInfoWrapper(layer);
 }
 
+template <class T, class Ordering = std::function<OutInfoWrapper(CNNLayer*)>>
+inline bool DFSIterative(std::unordered_map<CNNLayer*, bool>& visited, const InferenceEngine::CNNLayerPtr& layer, const T& visit,
+    bool visitBefore, const Ordering& order = &default_order) {
+    if (layer == nullptr) {
+        return true;
+    }
+    std::deque<InferenceEngine::CNNLayerPtr> layerStack;
+    if (visitBefore) visit(layer);
+    layerStack.push_back(layer);
+
+    while (!layerStack.empty()) {
+        auto currentLayer = layerStack.back();
+        
+        auto i = visited.find(currentLayer.get());
+        if (i != visited.end()) {
+            layerStack.pop_back();
+            if(!visitBefore) visit(currentLayer);
+        }
+        else {
+            visited[currentLayer.get()] = true;
+        }
+
+        for (auto outLayerPtr : order(currentLayer.get())) {
+            auto j = visited.find(outLayerPtr.get());
+            if (j == visited.end()) {
+                if(visitBefore) visit(outLayerPtr);
+                layerStack.push_back(outLayerPtr);
+            } else if (std::find(layerStack.begin(), layerStack.end(),outLayerPtr) != layerStack.end()) {
+                return false;
+            }
+        }
+    }
+
+    return true;
+}
 /**
  * @brief implementation of DFS with visiting checking to avoid multientry
  * @param visited - set to store visited layers
@@ -271,7 +306,7 @@ inline bool CNNNetForestDFS(const std::vector<DataPtr>& heads, const T& visit, b
     for (const auto& in : heads) {
         for (const auto& to : getInputTo(in)) {
             if (visited.find(to.second.get()) != visited.end()) continue;
-            if (!details::DFS(visited, to.second, visit, bVisitBefore)) {
+            if (!details::DFSIterative(visited, to.second, visit, bVisitBefore)) {
                 return false;
             }
         }
@@ -293,7 +328,7 @@ inline bool CNNNetForestDFS(const Forest& heads, const T& visit, bool bVisitBefo
 
     std::unordered_map<CNNLayer*, bool> visited;
     for (auto& layer : heads) {
-        if (!details::DFS(visited, layer, visit, bVisitBefore)) {
+        if (!details::DFSIterative(visited, layer, visit, bVisitBefore)) {
             return false;
         }
     }
@@ -314,7 +349,7 @@ inline bool CNNNetForestDFS(const Forest& heads, const T& visit, bool bVisitBefo
 
     std::unordered_map<CNNLayer*, bool> visited;
     for (auto& layer : heads) {
-        if (!details::DFS(visited, layer, visit, bVisitBefore, order)) {
+        if (!details::DFSIterative(visited, layer, visit, bVisitBefore, order)) {
             return false;
         }
     }

@@ -123,8 +123,10 @@ void GNADeviceHelper::checkGna2Status(Gna2Status status, const Gna2Model& gnaMod
         }
 
         Gna2ModelError error;
-        Gna2ModelGetLastError(&error);
-
+        auto getLastErrorStatus = Gna2ModelGetLastError(&error);
+        if (!Gna2StatusIsSuccessful(getLastErrorStatus)) {
+            THROW_GNA_EXCEPTION << "\nUnsuccessful Gna2Status: (" << status << ") " << gna2StatusBuffer.data();
+        }
         std::stringstream ss;
         ss << "\n GNA Library Error:\n";
         const Gna2ItemType type = error.Source.Type;
