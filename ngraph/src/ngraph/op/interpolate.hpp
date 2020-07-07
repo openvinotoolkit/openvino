@@ -53,6 +53,9 @@ namespace ngraph
             class NGRAPH_API Interpolate : public Op
             {
             public:
+                static constexpr NodeTypeInfo type_info{"Interpolate", 0};
+                const NodeTypeInfo& get_type_info() const override { return type_info; }
+
                 enum class InterpolateMode
                 {
                     nearest,
@@ -61,8 +64,6 @@ namespace ngraph
                     area
                 };
 
-                static constexpr NodeTypeInfo type_info{"Interpolate", 0};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
                 Interpolate() = default;
                 /// \brief Constructs a Interpolate operation
                 ///
@@ -90,6 +91,9 @@ namespace ngraph
             class NGRAPH_API Interpolate : public Op
             {
             public:
+                static constexpr NodeTypeInfo type_info{"Interpolate", 3};
+                const NodeTypeInfo& get_type_info() const override { return type_info; }
+
                 enum class InterpolateMode
                 {
                     nearest,
@@ -150,8 +154,6 @@ namespace ngraph
                     double cube_coeff = -0.75;
                 };
 
-                static constexpr NodeTypeInfo type_info{"Interpolate", 3};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
                 Interpolate() = default;
                 /// \brief Constructs a Interpolate operation
                 ///

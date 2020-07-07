@@ -27,6 +27,9 @@ namespace ngraph
             class NGRAPH_API CropAndResize : public Op
             {
             public:
+                static constexpr NodeTypeInfo type_info{"CropAndResize", 0};
+                const NodeTypeInfo& get_type_info() const override { return type_info; }
+
                 enum class ResizeMethod
                 {
                     unspecified,
@@ -34,8 +37,6 @@ namespace ngraph
                     nearest
                 };
 
-                static constexpr NodeTypeInfo type_info{"CropAndResize", 0};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
                 /// \brief Constructs a crop and resize operation.
                 CropAndResize() = default;
 

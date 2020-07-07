@@ -35,6 +35,9 @@ namespace ngraph
             class NGRAPH_API SpaceToDepth : public ngraph::op::util::FusedOp
             {
             public:
+                static constexpr NodeTypeInfo type_info{"SpaceToDepth", 0};
+                const NodeTypeInfo& get_type_info() const override { return type_info; }
+
                 enum class SpaceToDepthMode
                 {
                     // The output depth is gathered from [block_size, ..., block_size, C]
@@ -43,8 +46,6 @@ namespace ngraph
                     DEPTH_FIRST
                 };
 
-                static constexpr NodeTypeInfo type_info{"SpaceToDepth", 0};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
                 SpaceToDepth() = default;
                 /// \brief Constructs a SpaceToDepth operation.
                 ///
