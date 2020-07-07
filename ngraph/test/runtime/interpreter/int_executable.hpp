@@ -391,20 +391,6 @@ protected:
                                      node.get_output_shape(0));
             break;
         }
-        case OP_TYPEID::BatchNormTraining:
-        {
-            const ngraph::op::BatchNormTraining* bn =
-                static_cast<const ngraph::op::BatchNormTraining*>(&node);
-            reference::batch_norm_training<T>(bn->get_eps_value(),
-                                              args[0]->get_data_ptr<const T>(),
-                                              args[1]->get_data_ptr<const T>(),
-                                              args[2]->get_data_ptr<const T>(),
-                                              out[0]->get_data_ptr<T>(),
-                                              out[1]->get_data_ptr<T>(),
-                                              out[2]->get_data_ptr<T>(),
-                                              node.get_input_shape(2));
-            break;
-        }
         case OP_TYPEID::BatchNormInference:
         {
             const ngraph::op::BatchNormInference* bn =
