@@ -14,7 +14,7 @@
 #include <map>
 
 #include <ngraph/function.hpp>
-#include <ngraph/op/experimental/layers/interpolate.hpp>
+#include <ngraph/op/interpolate.hpp>
 #include <ngraph/op/constant.hpp>
 #include <ngraph/op/parameter.hpp>
 #include <ngraph/op/op.hpp>
