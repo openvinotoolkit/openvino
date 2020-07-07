@@ -24,7 +24,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::Concat::type_info;
+RTTI_DEFINITION("Concat", op::Concat, Node, 0)
 
 op::Concat::Concat(const OutputVector& args, int64_t axis)
     : Op(args)

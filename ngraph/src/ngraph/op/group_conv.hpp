@@ -31,8 +31,8 @@ namespace ngraph
             class NGRAPH_API GroupConvolution : public Op
             {
             public:
-                static constexpr NodeTypeInfo type_info{"GroupConvolution", 1};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
+                RTTI_DECLARATION
+
                 /// \brief Constructs a batched convolution operation.
                 GroupConvolution() = default;
                 /// \brief Constructs a batched convolution operation.
