@@ -136,7 +136,7 @@ std::shared_ptr<ICNNNetwork> V10Parser::parse(const pugi::xml_node& root, std::i
                 auto edgeId = edge.fromLayerId;
                 if (!used.count(edgeId)) {
                     stack.push_back(edgeId);
-                } else if (std::find(stack.begin(),stack.end(),edgeId) != stack.end()) {
+                } else if (std::find(stack.begin(), stack.end(), edgeId) != stack.end()) {
                     // Cycle exist
                     return;
                 }

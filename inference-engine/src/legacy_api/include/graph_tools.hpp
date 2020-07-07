@@ -129,22 +129,21 @@ inline bool DFSIterative(std::unordered_map<CNNLayer*, bool>& visited, const Inf
 
     while (!layerStack.empty()) {
         auto currentLayer = layerStack.back();
-        
+
         auto i = visited.find(currentLayer.get());
         if (i != visited.end()) {
             layerStack.pop_back();
-            if(!visitBefore) visit(currentLayer);
-        }
-        else {
+            if (!visitBefore) visit(currentLayer);
+        } else {
             visited[currentLayer.get()] = true;
         }
 
         for (auto outLayerPtr : order(currentLayer.get())) {
             auto j = visited.find(outLayerPtr.get());
             if (j == visited.end()) {
-                if(visitBefore) visit(outLayerPtr);
+                if (visitBefore) visit(outLayerPtr);
                 layerStack.push_back(outLayerPtr);
-            } else if (std::find(layerStack.begin(), layerStack.end(),outLayerPtr) != layerStack.end()) {
+            } else if (std::find(layerStack.begin(), layerStack.end(), outLayerPtr) != layerStack.end()) {
                 return false;
             }
         }
