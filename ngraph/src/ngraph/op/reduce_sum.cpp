@@ -52,7 +52,7 @@ void op::v1::ReduceSum::generate_adjoints(autodiff::Adjoints& adjoints, const Ou
     auto x = input_value(0);
     auto& x_shape = x.get_shape();
 
-    adjoints.add_delta(x, make_shared<op::Broadcast>(delta, x_shape, get_reduction_axes()));
+    adjoints.add_delta(x, make_shared<op::v0::Broadcast>(delta, x_shape, get_reduction_axes()));
 }
 
 namespace

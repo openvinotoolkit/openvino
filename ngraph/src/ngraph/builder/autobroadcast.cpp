@@ -177,7 +177,7 @@ namespace ngraph
             if (!broadcast_axes.empty())
             {
                 broadcasted_node =
-                    make_shared<op::Broadcast>(broadcasted_node, output_shape, broadcast_axes);
+                    make_shared<op::v0::Broadcast>(broadcasted_node, output_shape, broadcast_axes);
             }
 
             return broadcasted_node;
@@ -232,7 +232,7 @@ namespace ngraph
                     value, get_default_order(value_shape), trimmed_value_shape);
             }
 
-            auto value_bcast = make_shared<op::Broadcast>(trimmed_value, output_shape, axes);
+            auto value_bcast = make_shared<op::v0::Broadcast>(trimmed_value, output_shape, axes);
 
             return move(value_bcast);
         }
@@ -370,7 +370,7 @@ namespace ngraph
             // Move broadcast start axis parameter to right
             start_match_axis += num_ones;
 
-            auto broadcast_right = make_shared<op::Broadcast>(
+            auto broadcast_right = make_shared<op::v0::Broadcast>(
                 reshape_right,
                 left_shape,
                 calculate_broadcast_axes(left_shape, new_right_shape, start_match_axis));

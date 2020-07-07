@@ -77,7 +77,7 @@ NodeVector op::MVN::decompose_op() const
 
     // calculate mean normalization
     auto mean = builder::mean(data, m_reduction_axes);
-    mean = std::make_shared<op::Broadcast>(mean, data_shape, m_reduction_axes);
+    mean = std::make_shared<op::v0::Broadcast>(mean, data_shape, m_reduction_axes);
     auto mean_normalization = data - mean;
 
     if (!m_normalize_variance)
@@ -93,7 +93,7 @@ NodeVector op::MVN::decompose_op() const
         auto eps_node = op::Constant::create(
             data.get_element_type(), Output<Node>(variance).get_shape(), vector<double>{m_eps});
         variance = variance + eps_node;
-        variance = std::make_shared<op::Broadcast>(variance, data_shape, m_reduction_axes);
+        variance = std::make_shared<op::v0::Broadcast>(variance, data_shape, m_reduction_axes);
 
         return as_node_vector({mean_normalization / variance});
     }

@@ -273,7 +273,7 @@ bool ngraph::pass::SelfConcatFusion::replace_patterns(const NodeVector& bounded_
     auto last_bounded_concat_op = bounded_concat_ops.back();
     auto broadcast_out_shape = last_bounded_concat_op->get_shape();
     auto broadcast =
-        std::make_shared<op::Broadcast>(reshape, broadcast_out_shape, concat_axis_vector);
+        std::make_shared<op::v0::Broadcast>(reshape, broadcast_out_shape, concat_axis_vector);
 
     replace_node(last_bounded_concat_op, broadcast);
     return true;

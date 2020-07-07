@@ -116,8 +116,8 @@ static bool cse_broadcast(shared_ptr<Node> a, shared_ptr<Node> b)
 {
     NGRAPH_DEBUG << "In cse_broadcast for " << a->get_name() << " and " << b->get_name();
 
-    const op::Broadcast* broadcast_a = static_cast<ngraph::op::Broadcast*>(a.get());
-    const op::Broadcast* broadcast_b = static_cast<ngraph::op::Broadcast*>(b.get());
+    const op::v0::Broadcast* broadcast_a = static_cast<ngraph::op::v0::Broadcast*>(a.get());
+    const op::v0::Broadcast* broadcast_b = static_cast<ngraph::op::v0::Broadcast*>(b.get());
 
     return (a->input_value(0) == b->input_value(0)) &&
            (broadcast_a->get_broadcast_axes() == broadcast_b->get_broadcast_axes()) &&
@@ -203,7 +203,7 @@ static unordered_map<type_index, function<bool(shared_ptr<Node>, shared_ptr<Node
          {TI(op::Sum), cse_reduction},
          {TI(op::Product), cse_reduction},
          {TI(op::Reshape), cse_reshape},
-         {TI(op::Broadcast), cse_broadcast}});
+         {TI(op::v0::Broadcast), cse_broadcast}});
 }
 
 static unordered_map<type_index, function<bool(shared_ptr<Node>, shared_ptr<Node>)>>

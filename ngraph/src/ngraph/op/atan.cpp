@@ -58,7 +58,7 @@ void op::Atan::generate_adjoints(autodiff::Adjoints& adjoints, const OutputVecto
     AxisSet axes;
     for (size_t i = 0; i < x.get_shape().size(); i++)
         axes.insert(i);
-    auto ones = make_shared<op::Broadcast>(one, x.get_shape(), axes);
+    auto ones = make_shared<op::v0::Broadcast>(one, x.get_shape(), axes);
 
     adjoints.add_delta(x, delta / (ones + x * x));
 }

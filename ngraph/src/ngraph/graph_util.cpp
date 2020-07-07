@@ -574,7 +574,7 @@ std::shared_ptr<Node> ngraph::make_zero(const element::Type& element_type, const
         {
             axes.insert(i);
         }
-        zero = std::make_shared<op::Broadcast>(zero, shape, axes);
+        zero = std::make_shared<op::v0::Broadcast>(zero, shape, axes);
     }
     return zero;
 }

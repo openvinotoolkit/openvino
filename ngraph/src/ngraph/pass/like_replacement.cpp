@@ -37,9 +37,9 @@ static bool replace_broadcast_like(const std::shared_ptr<ngraph::Node>& node)
 {
     // Replace a broadcast like with the broadcast to eliminate the pseudo-dependency on the "like"
     // argument
-    auto broadcast_like = as_type_ptr<op::BroadcastLike>(node);
+    auto broadcast_like = as_type_ptr<op::v0::BroadcastLike>(node);
     replace_node(node,
-                 make_shared<op::Broadcast>(broadcast_like->get_argument(0),
+                 make_shared<op::v0::Broadcast>(broadcast_like->get_argument(0),
                                             broadcast_like->get_broadcast_shape(),
                                             broadcast_like->get_broadcast_axes()));
     return true;
@@ -53,13 +53,13 @@ static bool replace_scalar_constant_like(const std::shared_ptr<Node>& node)
 }
 
 static const map<NodeTypeInfo, function<bool(const shared_ptr<Node>&)>> dispatcher{
-    {op::BroadcastLike::type_info, replace_broadcast_like},
+    {op::v0::BroadcastLike::type_info, replace_broadcast_like},
     {op::ScalarConstantLike::type_info, replace_scalar_constant_like}};
 
 bool pass::LikeReplacement::run_on_function(shared_ptr<Function> function_ptr)
 {
     static const map<NodeTypeInfo, function<bool(const shared_ptr<Node>&)>> dispatcher{
-        {op::BroadcastLike::type_info, replace_broadcast_like},
+        {op::v0::BroadcastLike::type_info, replace_broadcast_like},
         {op::ScalarConstantLike::type_info, replace_scalar_constant_like}};
 
     bool clobbered = false;

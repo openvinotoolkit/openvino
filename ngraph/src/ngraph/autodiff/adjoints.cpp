@@ -37,7 +37,7 @@ using namespace ngraph;
 Output<Node> make_broadcast_zero(const Output<Node>& output)
 {
     Output<Node> zero = std::make_shared<op::ScalarConstantLike>(output, 0.0);
-    Output<Node> bzero = std::make_shared<op::BroadcastLike>(zero, output, AxisSet{});
+    Output<Node> bzero = std::make_shared<op::v0::BroadcastLike>(zero, output, AxisSet{});
     return bzero;
 }
 

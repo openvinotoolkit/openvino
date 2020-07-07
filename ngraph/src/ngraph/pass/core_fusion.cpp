@@ -101,7 +101,7 @@ void pass::CoreFusion::construct_relu()
     auto val = make_shared<pattern::op::Label>(iconst0);
     auto zero = make_shared<pattern::op::Label>(iconst0, nullptr, NodeVector{iconst0});
 
-    auto skip_broadcast = make_shared<pattern::op::Skip>(zero, pattern::has_class<op::Broadcast>());
+    auto skip_broadcast = make_shared<pattern::op::Skip>(zero, pattern::has_class<op::v0::Broadcast>());
     auto max = make_shared<op::Maximum>(skip_broadcast, val);
 
     auto callback = [val, zero](pattern::Matcher& m) {
@@ -135,7 +135,7 @@ void pass::CoreFusion::construct_sigmoid()
 
     auto constant = make_shared<pattern::op::Label>(element::f32, Shape{3, 4});
     auto skip_broadcast =
-        make_shared<pattern::op::Skip>(constant, pattern::has_class<op::Broadcast>());
+        make_shared<pattern::op::Skip>(constant, pattern::has_class<op::v0::Broadcast>());
 
     auto add_exp = make_shared<op::Add>(exp_neg_input, skip_broadcast);
     auto divide_1_over_exp = make_shared<op::Divide>(skip_broadcast, add_exp);
@@ -223,7 +223,7 @@ void pass::CoreFusion::construct_folded_batch_norm()
         auto bn_eps = op::Constant::create(element::f32, Shape{}, {m_bn->get_eps_value()});
         auto var_eps = make_shared<op::Add>(
             pattern_map[var],
-            make_shared<op::Broadcast>(bn_eps, pattern_map[var]->get_shape(), AxisSet{0}));
+            make_shared<op::v0::Broadcast>(bn_eps, pattern_map[var]->get_shape(), AxisSet{0}));
         auto sqrt_var_eps = make_shared<op::Sqrt>(var_eps);
 
         auto mean_gamma = make_shared<op::Multiply>(pattern_map[mean], pattern_map[gamma]);
@@ -232,7 +232,7 @@ void pass::CoreFusion::construct_folded_batch_norm()
         auto weight_scaling = make_shared<op::Divide>(pattern_map[gamma], sqrt_var_eps);
         auto new_weights = make_shared<op::Multiply>(
             pattern_map[filters],
-            make_shared<op::Broadcast>(
+            make_shared<op::v0::Broadcast>(
                 weight_scaling, pattern_map[filters]->get_shape(), AxisSet{1, 2, 3}));
 
         auto conv = make_shared<op::Convolution>(pattern_map[input],
@@ -243,7 +243,7 @@ void pass::CoreFusion::construct_folded_batch_norm()
                                                  m_conv->get_padding_above(),
                                                  m_conv->get_data_dilation_strides());
         auto conv_bias =
-            conv + make_shared<op::Broadcast>(new_biases, conv->get_shape(), AxisSet{0, 2, 3});
+            conv + make_shared<op::v0::Broadcast>(new_biases, conv->get_shape(), AxisSet{0, 2, 3});
         replace_node(m.get_match_root(), conv_bias);
 
         return true;
@@ -271,10 +271,10 @@ void pass::CoreFusion::construct_conv_affine_folding()
     auto conv_label = make_shared<pattern::op::Label>(conv, nullptr, NodeVector{conv});
 
     auto Ac = make_shared<pattern::op::Label>(element::f32, Shape{2});
-    auto A = make_shared<op::Broadcast>(Ac, Shape{2, 2, 1, 1}, AxisSet{0, 2, 3});
+    auto A = make_shared<op::v0::Broadcast>(Ac, Shape{2, 2, 1, 1}, AxisSet{0, 2, 3});
     auto A_label = make_shared<pattern::op::Label>(A, nullptr, NodeVector{A});
     auto Bc = make_shared<pattern::op::Label>(element::f32, Shape{2});
-    auto B = make_shared<op::Broadcast>(Bc, Shape{2, 2, 1, 1}, AxisSet{0, 2, 3});
+    auto B = make_shared<op::v0::Broadcast>(Bc, Shape{2, 2, 1, 1}, AxisSet{0, 2, 3});
     auto B_label = make_shared<pattern::op::Label>(B, nullptr, NodeVector{B});
     auto multiply = make_shared<op::Multiply>(conv_label, A_label);
     auto add = make_shared<op::Add>(multiply, B_label);
@@ -296,11 +296,11 @@ void pass::CoreFusion::construct_conv_affine_folding()
             return false;
         }
 
-        auto A_m = static_pointer_cast<op::Broadcast>(pattern_map[A_label]);
-        auto B_m = static_pointer_cast<op::Broadcast>(pattern_map[B_label]);
+        auto A_m = static_pointer_cast<op::v0::Broadcast>(pattern_map[A_label]);
+        auto B_m = static_pointer_cast<op::v0::Broadcast>(pattern_map[B_label]);
 
         // Check if values are being broadcast along channel (2nd) dimension
-        auto is_channel_bcast = [](const shared_ptr<op::Broadcast>& bcast) {
+        auto is_channel_bcast = [](const shared_ptr<op::v0::Broadcast>& bcast) {
 
             if (bcast->get_input_shape(0).size() == 1 &&
                 bcast->get_broadcast_axes() == AxisSet{0, 2, 3})
@@ -322,7 +322,7 @@ void pass::CoreFusion::construct_conv_affine_folding()
             return false;
         }
 
-        auto get_bcast_input = [](const shared_ptr<op::Broadcast>& bcast) {
+        auto get_bcast_input = [](const shared_ptr<op::v0::Broadcast>& bcast) {
             if (bcast->get_input_shape(0).size() == 1)
             {
                 return bcast->get_argument(0);
@@ -343,7 +343,7 @@ void pass::CoreFusion::construct_conv_affine_folding()
 
         auto filters_n = make_shared<op::Multiply>(
             pattern_map[filters],
-            make_shared<op::Broadcast>(Ac_m, pattern_map[filters]->get_shape(), AxisSet{1, 2, 3}));
+            make_shared<op::v0::Broadcast>(Ac_m, pattern_map[filters]->get_shape(), AxisSet{1, 2, 3}));
 
         auto conv_n = make_shared<op::Convolution>(pattern_map[input],
                                                    filters_n,
@@ -388,12 +388,12 @@ static shared_ptr<Node> reduce_broadcast(shared_ptr<Node> broadcast)
 {
     const size_t H = 2;
     const size_t W = 3;
-    auto matched_broadcast_w1 = static_pointer_cast<op::Broadcast>(broadcast);
+    auto matched_broadcast_w1 = static_pointer_cast<op::v0::Broadcast>(broadcast);
     Shape shape_w1{matched_broadcast_w1->get_shape()};
     shape_w1[H] /= 2;
     shape_w1[W] /= 2;
     auto new_broadcast_w1 =
-        std::make_shared<op::Broadcast>(matched_broadcast_w1->get_argument(0),
+        std::make_shared<op::v0::Broadcast>(matched_broadcast_w1->get_argument(0),
                                         shape_w1,
                                         matched_broadcast_w1->get_broadcast_axes());
     return move(new_broadcast_w1);
@@ -427,14 +427,14 @@ void pass::CoreFusion::construct_reshape_broadcast()
     Shape input_shape{10};
     auto input = make_shared<pattern::op::Label>(element::f32, input_shape);
     auto reshape1 = make_shared<op::Reshape>(input, AxisVector{0}, Shape{10, 1});
-    auto broadcast = make_shared<op::Broadcast>(reshape1, Shape{10, 1, 20}, AxisSet{2});
+    auto broadcast = make_shared<op::v0::Broadcast>(reshape1, Shape{10, 1, 20}, AxisSet{2});
 
     auto callback = [input](pattern::Matcher& m) {
         NGRAPH_DEBUG << "In a callback for construct_reshape_broadcast against "
                      << m.get_match_root()->get_name();
 
         auto pattern_map = m.get_pattern_map();
-        auto broadcast_m = static_pointer_cast<op::Broadcast>(m.get_match_root());
+        auto broadcast_m = static_pointer_cast<op::v0::Broadcast>(m.get_match_root());
         auto reshape1_m = static_pointer_cast<op::Reshape>(broadcast_m->get_argument(0));
         auto input_m = m.get_pattern_value_map()[input];
 
@@ -483,7 +483,7 @@ void pass::CoreFusion::construct_reshape_broadcast()
         }
 
         auto new_broadcast =
-            make_shared<op::Broadcast>(input_m, broadcast_m->get_shape(), new_axes);
+            make_shared<op::v0::Broadcast>(input_m, broadcast_m->get_shape(), new_axes);
         replace_node(m.get_match_root(), new_broadcast);
         return true;
     };
@@ -502,7 +502,7 @@ void pass::CoreFusion::construct_reshape_broadcast()
 void pass::CoreFusion::construct_optimized_strided_conv()
 {
     Shape win_size_1{1, 1, 1, 1};
-    auto is_bc = pattern::has_class<op::Broadcast>();
+    auto is_bc = pattern::has_class<op::v0::Broadcast>();
     auto data_stride3 = make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 128, 128});
     auto weights_stride3 = make_shared<pattern::op::Label>(element::f32, win_size_1);
 
@@ -947,7 +947,7 @@ void pass::CoreFusion::construct_conv_bias()
     auto filters = make_shared<pattern::op::Label>(element::f32, shape);
     auto pbias = make_shared<pattern::op::Label>(element::f32, Shape{});
 
-    auto pbcast = make_shared<op::Broadcast>(pbias, shape, AxisSet{0, 1, 2, 3});
+    auto pbcast = make_shared<op::v0::Broadcast>(pbias, shape, AxisSet{0, 1, 2, 3});
     auto pbcast_label = make_shared<pattern::op::Label>(pbcast, nullptr, NodeVector{pbcast});
     auto reshape_pred = [](shared_ptr<Node> node) -> bool {
         if (auto reshape = as_type_ptr<op::Reshape>(node))
@@ -993,7 +993,7 @@ void pass::CoreFusion::construct_conv_bias()
             return false;
         }
 
-        auto bcast_m = static_pointer_cast<op::Broadcast>(pattern_map[pbcast_label]);
+        auto bcast_m = static_pointer_cast<op::v0::Broadcast>(pattern_map[pbcast_label]);
         // Except for the 2nd axis (channel dimension), we should either be broadcasting
         // to it or the dimension size should be 1.
         auto bcast_axes = bcast_m->get_broadcast_axes();

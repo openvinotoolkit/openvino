@@ -995,12 +995,6 @@ shared_ptr<Node> JSONDeserializer::deserialize_node(json node_js)
             node = make_shared<op::BroadcastDistributed>(args[0]);
             break;
         }
-        case OP_TYPEID::BroadcastLike:
-        {
-            auto initial_axes = deserialize_axis_set(node_js.at("initial_axes"));
-            node = make_shared<op::BroadcastLike>(args[0], args[1], initial_axes);
-            break;
-        }
         case OP_TYPEID::Ceiling:
         {
             node = make_shared<op::Ceiling>(args[0]);
@@ -2401,12 +2395,6 @@ json JSONSerializer::serialize_node(const Node& n)
         break;
     }
     case OP_TYPEID::BroadcastDistributed: { break;
-    }
-    case OP_TYPEID::BroadcastLike:
-    {
-        auto tmp = static_cast<const op::BroadcastLike*>(&n);
-        node["initial_axes"] = serialize_axis_set(tmp->get_initial_broadcast_axes());
-        break;
     }
     case OP_TYPEID::Ceiling: { break;
     }

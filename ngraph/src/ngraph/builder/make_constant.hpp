@@ -110,7 +110,7 @@ namespace ngraph
                 {
                     axes.insert(i);
                 }
-                val = std::make_shared<ngraph::op::Broadcast>(val, shape, axes);
+                val = std::make_shared<ngraph::op::v0::Broadcast>(val, shape, axes);
             }
 
             return val->add_provenance_group_members_above({});

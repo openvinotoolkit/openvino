@@ -187,9 +187,9 @@ void swim(Input<Node> input, shared_ptr<op::Reshape> reshape)
             NGRAPH_DEBUG << "Propagating reshape " << describe_reshape(csw.reshape) << " for "
                          << n->get_name() << " to " << n->get_argument(0);
         }
-        else if (is_type<op::Broadcast>(n))
+        else if (is_type<op::v0::Broadcast>(n))
         {
-            auto old_broadcast = static_pointer_cast<op::Broadcast>(n);
+            auto old_broadcast = static_pointer_cast<op::v0::Broadcast>(n);
             auto broadcast_axes = old_broadcast->get_broadcast_axes();
             auto broadcast_reshape = csw.reshape;
             // swimming can only handle 1 dim change
@@ -241,7 +241,7 @@ void swim(Input<Node> input, shared_ptr<op::Reshape> reshape)
                     make_reshape(broadcast_input, new_source_axis_order, new_arg_shape);
             }
 
-            auto new_broadcast = make_shared<op::Broadcast>(
+            auto new_broadcast = make_shared<op::v0::Broadcast>(
                 broadcast_input, broadcast_reshape->get_shape(), new_broadcast_axes);
             csw.input.replace_source_output(new_broadcast->output(0));
         }

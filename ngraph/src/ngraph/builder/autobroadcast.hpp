@@ -268,7 +268,7 @@ namespace ngraph
         inline std::shared_ptr<Node> make_broadcast_node(const Output<Node>& output,
                                                          Shape new_shape)
         {
-            return std::make_shared<op::Broadcast>(
+            return std::make_shared<op::v0::Broadcast>(
                 output, new_shape, calculate_broadcast_axes(new_shape, output.get_shape()));
         }
 
@@ -276,7 +276,7 @@ namespace ngraph
                                                          const Shape& new_shape,
                                                          std::size_t start_match_axis)
         {
-            return std::make_shared<op::Broadcast>(
+            return std::make_shared<op::v0::Broadcast>(
                 value,
                 new_shape,
                 calculate_broadcast_axes(new_shape, value.get_shape(), start_match_axis));

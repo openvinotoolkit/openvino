@@ -78,7 +78,7 @@ NodeVector op::SoftmaxCrossEntropy::decompose_op() const
         // always reduces the sum on the last axis
         auto max_xj = std::make_shared<ngraph::op::Max>(
             input_to_normalize, AxisSet{static_cast<size_t>(reduction_axis)});
-        auto broadcast_max_xj = std::make_shared<ngraph::op::Broadcast>(
+        auto broadcast_max_xj = std::make_shared<ngraph::op::v0::Broadcast>(
             max_xj, input_to_normalize.get_shape(), AxisSet{1});
         auto subtract =
             std::make_shared<ngraph::op::Subtract>(input_to_normalize, broadcast_max_xj);
@@ -90,7 +90,7 @@ NodeVector op::SoftmaxCrossEntropy::decompose_op() const
 
         auto subtract_max_xj_from_input =
             std::make_shared<ngraph::op::Subtract>(input_to_normalize, broadcast_max_xj);
-        auto broadcast_log = std::make_shared<ngraph::op::Broadcast>(
+        auto broadcast_log = std::make_shared<ngraph::op::v0::Broadcast>(
             log_sum_over_j, subtract_max_xj_from_input->get_shape(), AxisSet{1});
         auto subtract_max_xj_from_input_from_log_sum_over_j =
             std::make_shared<ngraph::op::Subtract>(subtract_max_xj_from_input, broadcast_log);

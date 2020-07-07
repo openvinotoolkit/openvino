@@ -148,7 +148,7 @@ NodeVector op::CrossEntropy::decompose_op() const
         {
             auto reshape_labels = std::make_shared<ngraph::op::Reshape>(
                 labels, AxisVector{0, 1}, Shape{labels.get_shape().at(0)});
-            labels = std::make_shared<ngraph::op::Broadcast>(
+            labels = std::make_shared<ngraph::op::v0::Broadcast>(
                 reshape_labels,
                 input_to_normalize.get_shape(),
                 AxisSet{input_to_normalize.get_shape().size() - 1});
@@ -255,7 +255,7 @@ NodeVector op::CrossEntropyBackprop::decompose_op() const
     // remove trailing ones from delta
     auto delta_reshape = std::make_shared<ngraph::op::Reshape>(
         delta, AxisVector{0, 1}, Shape{delta.get_shape().at(0)});
-    auto delta_bcast = std::make_shared<ngraph::op::Broadcast>(
+    auto delta_bcast = std::make_shared<ngraph::op::v0::Broadcast>(
         delta_reshape, input.get_shape(), AxisSet{rank - 1});
 
     if (!m_soft_label)
@@ -267,7 +267,7 @@ NodeVector op::CrossEntropyBackprop::decompose_op() const
             mask = std::make_shared<ngraph::op::Reshape>(
                 mask, AxisVector{0, 1}, Shape{mask->get_shape().at(0)});
             mask =
-                std::make_shared<ngraph::op::Broadcast>(mask, input.get_shape(), AxisSet{rank - 1});
+                std::make_shared<ngraph::op::v0::Broadcast>(mask, input.get_shape(), AxisSet{rank - 1});
         }
         if (labels.get_shape()[reduction_axis] == 1)
         {

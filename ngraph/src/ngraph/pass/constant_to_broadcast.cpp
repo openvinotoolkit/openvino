@@ -41,7 +41,7 @@ bool pass::ConstantToBroadcast::run_on_node(shared_ptr<Node> node)
                 {
                     broadcast_axes.insert(i);
                 }
-                auto broadcast = make_shared<op::Broadcast>(
+                auto broadcast = make_shared<op::v0::Broadcast>(
                     scalar_constant, constant->get_output_shape(0), broadcast_axes);
                 replace_node(constant, broadcast);
             }

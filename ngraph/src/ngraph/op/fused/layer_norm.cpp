@@ -101,7 +101,7 @@ NodeVector op::LayerNorm::decompose_op() const
     {
         post_axis_set.insert(i);
     }
-    auto b_mean = make_shared<ngraph::op::Broadcast>(mean, shape, post_axis_set);
+    auto b_mean = make_shared<ngraph::op::v0::Broadcast>(mean, shape, post_axis_set);
 
     // Compute variance
     auto var = builder::variance(data, post_reduction_axes);
@@ -109,7 +109,7 @@ NodeVector op::LayerNorm::decompose_op() const
     // Compute standard deviation with epsilon
     auto epsilon = builder::make_constant(var->get_element_type(), var->get_shape(), m_epsilon);
     auto stddev = make_shared<op::Sqrt>(var + epsilon);
-    auto b_stddev = make_shared<op::Broadcast>(stddev, shape, post_axis_set);
+    auto b_stddev = make_shared<op::v0::Broadcast>(stddev, shape, post_axis_set);
 
     // Get normalized input
     auto norm = (data - b_mean) / b_stddev;
@@ -131,8 +131,8 @@ NodeVector op::LayerNorm::decompose_op() const
             scale = make_shared<op::Reshape>(scale, AxisVector{0}, reshape_shape);
             bias = make_shared<op::Reshape>(bias, AxisVector{0}, reshape_shape);
         }
-        auto b_scale = make_shared<op::Broadcast>(scale, shape, pre_axis_set);
-        auto b_bias = make_shared<op::Broadcast>(bias, shape, pre_axis_set);
+        auto b_scale = make_shared<op::v0::Broadcast>(scale, shape, pre_axis_set);
+        auto b_bias = make_shared<op::v0::Broadcast>(bias, shape, pre_axis_set);
         norm = norm * b_scale + b_bias;
     }
 
