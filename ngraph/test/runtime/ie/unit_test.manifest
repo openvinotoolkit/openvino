@@ -17,14 +17,12 @@ onnx_model_quantize_linear_zero_point
 onnx_model_quantize_linear_axis_zero
 onnx_model_quantize_linear_axis_negative
 
-# Not supported ONNX op: DequantizeLinear
-onnx_model_dequantize_linear
-onnx_model_dequantize_linear_scalar_zero_scale_uint8
-onnx_model_dequantize_linear_scalar_zero_scale_int8
-onnx_model_dequantize_linear_1d_zero_scale_uint8
-onnx_model_dequantize_linear_1d_zero_scale_int8
-onnx_model_dequantize_linear_1d_zero_scale_int8_4d
-onnx_model_dequantize_linear_1d_zero_scale_uint8_negative_axis
+# DequantizeLinear:
+# C++ exception with description "Unsupported precisions!
+IE_CPU.onnx_model_dequantize_linear_scalar_zero_scale_int8
+IE_CPU.onnx_model_dequantize_linear_1d_zero_scale_int8
+# C++ exception with description "Input data precision not supported. Expected float.
+IE_CPU.onnx_model_dequantize_linear_1d_zero_scale_int8_4d
 
 # Not supported ONNX op: QLinearConv
 onnx_model_quant_conv_linear
