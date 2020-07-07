@@ -46,28 +46,40 @@ op::util::BroadcastBase::BroadcastBase(const Output<Node>& arg,
 }
 
 PartialShape op::util::BroadcastBase::get_result_shape_numpy_pdpd(
-    const Shape& arg0_shape, const Shape& target_shape, const op::BroadcastModeSpec& broadcast_spec)
+    const PartialShape& arg0_shape,
+    const Shape& target_shape,
+    const op::BroadcastModeSpec& broadcast_spec)
 {
+    if (arg0_shape.rank().is_dynamic())
+    {
+        return PartialShape::dynamic(target_shape.size());
+    }
+    const auto arg_rank_length = arg0_shape.rank().get_length();
     PartialShape result_shape = target_shape;
     auto start_axis = (broadcast_spec.m_type == op::BroadcastType::PDPD)
                           ? broadcast_spec.m_axis
-                          : target_shape.size() - arg0_shape.size();
+                          : target_shape.size() - arg_rank_length;
     NODE_VALIDATION_CHECK(this,
                           start_axis >= 0,
                           "Broadcast target_shape has smaller rank ",
                           target_shape.size(),
                           " than arg shape ",
-                          arg0_shape.size());
+                          arg_rank_length);
     for (auto i = start_axis; i < target_shape.size(); i++)
     {
+        if (arg0_shape[i - start_axis].is_dynamic())
+        {
+            result_shape[i] = Dimension::dynamic();
+            continue;
+        }
+        const size_t arg_dim = arg0_shape[i - start_axis].get_length();
         NODE_VALIDATION_CHECK(this,
-                              arg0_shape[i - start_axis] == 1 || target_shape[i] == 1 ||
-                                  arg0_shape[i - start_axis] == target_shape[i],
+                              arg_dim == 1 || target_shape[i] == 1 || arg_dim == target_shape[i],
                               "Broadcast incorrect target shape. Expecting either 1 or ",
-                              arg0_shape[i - start_axis],
+                              arg_dim,
                               " . Got ",
                               target_shape[i]);
-        result_shape[i] = std::max(arg0_shape[i - start_axis], target_shape[i]);
+        result_shape[i] = std::max(arg_dim, target_shape[i]);
     }
     return result_shape;
 }
@@ -140,11 +152,25 @@ void op::util::BroadcastBase::validate_and_infer_types()
     PartialShape result_shape{PartialShape::dynamic()};
     const auto input_rank = input_value(0).get_partial_shape().rank();
     const auto output_shape = input_value(1).get_partial_shape();
-    if (input_rank.is_static() && output_shape.rank().is_static() && output_shape[0].is_static())
+    const bool is_output_rank_static =
+        output_shape.rank().is_static() && output_shape[0].is_static();
+
+    if (m_mode.m_type == BroadcastType::BIDIRECTIONAL)
     {
-        result_shape =
-            PartialShape::dynamic(std::max(input_rank.get_length(), output_shape[0].get_length()));
+        if (input_rank.is_static() && is_output_rank_static)
+        {
+            result_shape = PartialShape::dynamic(
+                std::max(input_rank.get_length(), output_shape[0].get_length()));
+        }
     }
+    else
+    {
+        if (is_output_rank_static)
+        {
+            result_shape = PartialShape::dynamic(output_shape[0].get_length());
+        }
+    }
+
     const auto shape_constant = as_type_ptr<op::v0::Constant>(input_value(1).get_node_shared_ptr());
 
     if (auto concat = as_type_ptr<op::v0::Concat>(input_value(1).get_node_shared_ptr()))
@@ -173,14 +199,6 @@ void op::util::BroadcastBase::validate_and_infer_types()
 
     if (m_mode.m_type == BroadcastType::NONE)
     {
-        if (result_shape.rank().is_dynamic()) // output rank not calculated so far
-        {
-            if (output_shape.rank().is_static() && output_shape[0].is_static())
-            {
-                result_shape = PartialShape::dynamic(output_shape[0].get_length());
-            }
-        }
-
         if (shape_constant)
         {
             result_shape = shape_constant->get_shape_val();
@@ -212,9 +230,9 @@ void op::util::BroadcastBase::validate_and_infer_types()
     }
     else if (m_mode.m_type == BroadcastType::NUMPY || m_mode.m_type == BroadcastType::PDPD)
     {
-        if (get_input_partial_shape(0).is_static() && get_input_partial_shape(1).is_static())
+        if (get_input_partial_shape(0).rank().is_static() && get_input_partial_shape(1).is_static())
         {
-            auto arg_shape = get_input_shape(0);
+            const auto& arg_shape = get_input_partial_shape(0);
 
             if (shape_constant)
             {

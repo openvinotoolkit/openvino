@@ -620,6 +620,121 @@ TYPED_TEST_P(BroadcastTests, broadcast_explicit_static_target_shape)
     ASSERT_TRUE(bc->get_output_partial_shape(0).is_dynamic());
 }
 
+// NUMPY MODE
+
+TYPED_TEST_P(BroadcastTests, broadcast_numpy_input_shape_dynamic)
+{
+    const auto data = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    // dynamic output shape
+    auto target_shape = make_shared<op::Parameter>(element::i64, PartialShape::dynamic());
+
+    auto bc = make_shared<TypeParam>(data, target_shape, "NUMPY");
+    ASSERT_TRUE(bc->get_output_partial_shape(0).rank().is_dynamic());
+
+    // static rank target shape
+    target_shape = make_shared<op::Parameter>(element::i64, PartialShape::dynamic(1));
+    bc = make_shared<TypeParam>(data, target_shape, "NUMPY");
+    ASSERT_TRUE(bc->get_output_partial_shape(0).rank().is_dynamic());
+}
+
+TYPED_TEST_P(BroadcastTests, broadcast_numpy_target_shape_constant)
+{
+    // dynamic data
+    auto data = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
+    const auto target_shape =
+        make_shared<op::Constant>(element::i64, Shape{3}, vector<int64_t>{1, 2, 3});
+
+    auto bc = make_shared<TypeParam>(data, target_shape, "NUMPY");
+    ASSERT_TRUE(bc->get_output_partial_shape(0).rank().is_static());
+    ASSERT_EQ(bc->get_output_partial_shape(0).rank().get_length(), 3);
+
+    // static rank data
+    data = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(2));
+    bc = make_shared<TypeParam>(data, target_shape, "NUMPY");
+    ASSERT_TRUE(bc->get_output_partial_shape(0).rank().is_static());
+    ASSERT_EQ(bc->get_output_partial_shape(0).rank().get_length(), 3);
+}
+
+TYPED_TEST_P(BroadcastTests, broadcast_numpy_target_shape_dynamic)
+{
+    // static rank data
+    auto data = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(3));
+    const auto target_shape = make_shared<op::Parameter>(element::i64, PartialShape::dynamic());
+
+    auto bc = make_shared<TypeParam>(data, target_shape, "NUMPY");
+    ASSERT_TRUE(bc->get_output_partial_shape(0).rank().is_dynamic());
+
+    // static shape data
+    data = make_shared<op::Parameter>(element::f32, PartialShape{3, 4, 5, 6});
+    bc = make_shared<TypeParam>(data, target_shape, "NUMPY");
+    ASSERT_TRUE(bc->get_output_partial_shape(0).rank().is_dynamic());
+}
+
+TYPED_TEST_P(BroadcastTests, broadcast_numpy_input_target_shape_static_rank)
+{
+    const auto data = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(3));
+    const auto target_shape = make_shared<op::Parameter>(element::i64, PartialShape::dynamic(1));
+
+    const auto bc = make_shared<TypeParam>(data, target_shape, "NUMPY");
+    ASSERT_TRUE(bc->get_output_partial_shape(0).rank().is_dynamic());
+}
+
+TYPED_TEST_P(BroadcastTests, broadcast_numpy_input_static_shape)
+{
+    const auto data = make_shared<op::Parameter>(element::f32, PartialShape{1, 2, 3});
+    // static rank target_shape
+    auto target_shape = make_shared<op::Parameter>(element::i64, PartialShape::dynamic(1));
+
+    auto bc = make_shared<TypeParam>(data, target_shape, "NUMPY");
+    ASSERT_TRUE(bc->get_output_partial_shape(0).rank().is_dynamic());
+
+    // constant target_shape
+    const auto target_shape_const =
+        make_shared<op::Constant>(element::i64, Shape{3}, vector<int64_t>{3, 2, 3});
+    bc = make_shared<TypeParam>(data, target_shape_const, "NUMPY");
+    ASSERT_TRUE(bc->get_output_partial_shape(0).rank().is_static());
+    ASSERT_EQ(bc->get_output_partial_shape(0).rank().get_length(), 3);
+    ASSERT_TRUE(bc->get_output_partial_shape(0).is_static());
+    ASSERT_EQ(bc->get_output_partial_shape(0), (PartialShape{3, 2, 3}));
+}
+
+TYPED_TEST_P(BroadcastTests, broadcast_numpy_input_partially_dynamic)
+{
+    const auto target_shape =
+        make_shared<op::Constant>(element::i64, Shape{4}, vector<int64_t>{1, 2, 3, 4});
+
+    auto data = make_shared<op::Parameter>(element::f32, PartialShape{2, 3, Dimension::dynamic()});
+    auto bc = make_shared<TypeParam>(data, target_shape, "NUMPY");
+    ASSERT_TRUE(bc->get_output_partial_shape(0).rank().is_static());
+    ASSERT_EQ(bc->get_output_partial_shape(0).rank().get_length(), 4);
+    ASSERT_EQ(bc->get_output_partial_shape(0), (PartialShape{1, 2, 3, Dimension::dynamic()}));
+
+    data = make_shared<op::Parameter>(element::f32,
+                                      PartialShape{Dimension::dynamic(), 3, Dimension::dynamic()});
+    bc = make_shared<TypeParam>(data, target_shape, "NUMPY");
+    ASSERT_TRUE(bc->get_output_partial_shape(0).rank().is_static());
+    ASSERT_EQ(bc->get_output_partial_shape(0).rank().get_length(), 4);
+    ASSERT_EQ(bc->get_output_partial_shape(0),
+              (PartialShape{1, Dimension::dynamic(), 3, Dimension::dynamic()}));
+
+    data = make_shared<op::Parameter>(element::f32,
+                                      PartialShape{Dimension::dynamic(), 3, Dimension::dynamic()});
+    bc = make_shared<TypeParam>(data, target_shape, "NUMPY");
+    ASSERT_TRUE(bc->get_output_partial_shape(0).rank().is_static());
+    ASSERT_EQ(bc->get_output_partial_shape(0).rank().get_length(), 4);
+    ASSERT_EQ(bc->get_output_partial_shape(0),
+              (PartialShape{1, Dimension::dynamic(), 3, Dimension::dynamic()}));
+
+    data = make_shared<op::Parameter>(
+        element::f32,
+        PartialShape{Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()});
+    bc = make_shared<TypeParam>(data, target_shape, "NUMPY");
+    ASSERT_TRUE(bc->get_output_partial_shape(0).rank().is_static());
+    ASSERT_EQ(bc->get_output_partial_shape(0).rank().get_length(), 4);
+    ASSERT_EQ(bc->get_output_partial_shape(0),
+              (PartialShape{1, Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()}));
+}
+
 REGISTER_TYPED_TEST_CASE_P(BroadcastTests,
                            broadcast_numpy,
                            broadcast_axes_mapping,
@@ -641,7 +756,13 @@ REGISTER_TYPED_TEST_CASE_P(BroadcastTests,
                            broadcast_explicit_const_target_shape_static_rank_input,
                            broadcast_explicit_static_input_shape,
                            broadcast_explicit_static_input_shape_const_target_shape,
-                           broadcast_explicit_static_target_shape);
+                           broadcast_explicit_static_target_shape,
+                           broadcast_numpy_input_shape_dynamic,
+                           broadcast_numpy_target_shape_constant,
+                           broadcast_numpy_target_shape_dynamic,
+                           broadcast_numpy_input_target_shape_static_rank,
+                           broadcast_numpy_input_static_shape,
+                           broadcast_numpy_input_partially_dynamic);
 
 typedef ::testing::Types<op::v1::Broadcast, op::v3::Broadcast> BroadcastTypes;
 // the last empty argument resolves compiler warning on MAC:

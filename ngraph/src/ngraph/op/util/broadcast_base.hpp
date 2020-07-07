@@ -79,7 +79,7 @@ namespace ngraph
                               const AxisSet& broadcast_axes);
 
                 PartialShape
-                    get_result_shape_numpy_pdpd(const Shape& arg0_shape,
+                    get_result_shape_numpy_pdpd(const PartialShape& arg0_shape,
                                                 const Shape& target_shape,
                                                 const op::BroadcastModeSpec& broadcast_spec);
                 static std::pair<bool, AxisSet>
