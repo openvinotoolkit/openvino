@@ -27,7 +27,7 @@ namespace ngraph
         {
             namespace set_1
             {
-                NodeVector concat(const Node& node);
+                OutputVector concat(const Node& node);
 
             } // namespace set_1
 

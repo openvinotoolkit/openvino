@@ -25,7 +25,7 @@ namespace ngraph
         {
             namespace set_1
             {
-                NodeVector argmin(const Node& node)
+                OutputVector argmin(const Node& node)
                 {
                     const utils::ArgMinMaxFactory arg_factory(node);
                     return {arg_factory.make_arg_min()};

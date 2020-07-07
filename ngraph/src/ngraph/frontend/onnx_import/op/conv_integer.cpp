@@ -31,9 +31,9 @@ namespace ngraph
         {
             namespace set_1
             {
-                NodeVector conv_integer(const Node& node)
+                OutputVector conv_integer(const Node& node)
                 {
-                    const NodeVector& inputs = node.get_ng_inputs();
+                    const OutputVector& inputs = node.get_ng_inputs();
                     auto num_inputs = inputs.size();
                     auto input = inputs.at(0);
                     auto filters = inputs.at(1);
@@ -49,19 +49,19 @@ namespace ngraph
                     ngraph::op::PadType auto_pad_type = convpool::get_auto_pad(node);
                     auto& padding_below = paddings.first;
                     auto& padding_above = paddings.second;
-                    convpool::calculate_auto_pads(input->get_shape(),
-                                                  filters->get_shape(),
+                    convpool::calculate_auto_pads(input.get_shape(),
+                                                  filters.get_shape(),
                                                   window_movement_strides,
                                                   window_dilation_strides,
                                                   auto_pad_type,
                                                   padding_below,
                                                   padding_above);
 
-                    const Strides default_data_dilation_strides(input->get_shape().size() - 2, 1);
+                    const Strides default_data_dilation_strides(input.et_shape().size() - 2, 1);
                     auto scale_one = make_constant(ngraph::element::f32, Shape{}, 1);
-                    auto input_zero_point = make_constant(input->get_element_type(), Shape{}, 0);
+                    auto input_zero_point = make_constant(input.get_element_type(), Shape{}, 0);
                     auto filters_zero_point =
-                        make_constant(filters->get_element_type(), Shape{}, 0);
+                        make_constant(filters.get_element_type(), Shape{}, 0);
                     auto output_zero_point = make_constant(ngraph::element::i32, Shape{}, 0);
 
                     if (num_inputs == 2)

@@ -30,14 +30,14 @@ namespace ngraph
         {
             namespace set_1
             {
-                NodeVector batch_norm(const Node& node)
+                OutputVector batch_norm(const Node& node)
                 {
-                    NodeVector inputs{node.get_ng_inputs()};
+                    OutputVector inputs{node.get_ng_inputs()};
                     auto x = inputs.at(0);
                     auto scale = inputs.at(1);
                     auto bias = inputs.at(2);
-                    std::shared_ptr<ngraph::Node> mean{nullptr};
-                    std::shared_ptr<ngraph::Node> var{nullptr};
+                    Output<ngraph::Node> mean;
+                    Output<ngraph::Node> var;
 
                     std::int64_t is_test{node.get_attribute_value<std::int64_t>("is_test", 1)};
                     double epsilon{node.get_attribute_value<double>("epsilon", 1e-5)};

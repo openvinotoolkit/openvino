@@ -27,7 +27,7 @@ namespace ngraph
         {
             namespace set_1
             {
-                NodeVector cast(const Node& node);
+                OutputVectoror cast(const Node& node);
 
             } // namespace set_1
 

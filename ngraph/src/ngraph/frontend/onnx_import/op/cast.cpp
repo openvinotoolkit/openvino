@@ -28,7 +28,7 @@ namespace ngraph
         {
             namespace set_1
             {
-                NodeVector cast(const Node& node)
+                OutputVector cast(const Node& node)
                 {
                     auto data = node.get_ng_inputs().at(0);
                     int64_t target_type = node.get_attribute_value<int64_t>("to");

@@ -44,9 +44,9 @@ namespace ngraph
             {
                 namespace
                 {
-                    std::shared_ptr<ngraph::Node>
-                        make_group_conv_backprop(const std::shared_ptr<ngraph::Node>& data,
-                                                 const std::shared_ptr<ngraph::Node>& filters,
+                    Output<ngraph::Node>
+                        make_group_conv_backprop(const Output<ngraph::Node>& data,
+                                                 const Output<ngraph::Node>& filters,
                                                  const Strides& strides,
                                                  const Strides& dilations,
                                                  const CoordinateDiff& pads_begin,
@@ -83,9 +83,9 @@ namespace ngraph
                         }
                     }
 
-                    std::shared_ptr<ngraph::Node>
-                        make_conv_backprop(const std::shared_ptr<ngraph::Node>& data,
-                                           const std::shared_ptr<ngraph::Node>& filters,
+                    Output<ngraph::Node>
+                        make_conv_backprop(const Output<ngraph::Node>& data,
+                                           const Output<ngraph::Node>& filters,
                                            const Strides& strides,
                                            const Strides& dilations,
                                            const CoordinateDiff& pads_begin,
@@ -124,8 +124,8 @@ namespace ngraph
                         }
                     }
 
-                    std::shared_ptr<ngraph::Node>
-                        get_reshaped_filters(const std::shared_ptr<ngraph::Node>& filters,
+                    Output<ngraph::Node>
+                        get_reshaped_filters(const Output<ngraph::Node>& filters,
                                              const PartialShape& filters_pshape,
                                              int64_t groups)
                     {
@@ -180,12 +180,12 @@ namespace ngraph
                         }
                     }
 
-                    std::shared_ptr<ngraph::Node>
-                        get_prepared_bias(const std::shared_ptr<ngraph::Node>& bias,
-                                          const std::shared_ptr<ngraph::Node>& conv)
+                    Output<ngraph::Node>
+                        get_prepared_bias(const Output<ngraph::Node>& bias,
+                                          const Output<ngraph::Node>& conv)
                     {
                         // Prepare bias shape [1, C, 1, 1]
-                        const auto& conv_pshape = conv->get_output_partial_shape(0);
+                        const auto& conv_pshape = conv.get_partial_shape();
                         std::shared_ptr<ngraph::Node> bias_shape_node;
 
                         if (conv_pshape.rank().is_static() && conv_pshape[1].is_static())
@@ -231,9 +231,9 @@ namespace ngraph
                     }
                 }
 
-                NodeVector conv_transpose(const Node& node)
+                OutputVector conv_transpose(const Node& node)
                 {
-                    const NodeVector& inputs = node.get_ng_inputs();
+                    const OutputVector& inputs = node.get_ng_inputs();
 
                     CHECK_VALID_NODE(node,
                                      inputs.size() == 2 || inputs.size() == 3,
@@ -243,8 +243,8 @@ namespace ngraph
                     auto data = inputs[0];
                     auto filters = inputs[1];
 
-                    const auto& data_pshape = data->get_output_partial_shape(0);
-                    const auto& filters_pshape = filters->get_output_partial_shape(0);
+                    const auto& data_pshape = data.get_partial_shape();
+                    const auto& filters_pshape = filters.get_partial_shape();
 
                     std::size_t num_spatial_dims = 0;
                     Strides strides, dilations;
@@ -291,7 +291,7 @@ namespace ngraph
                     CHECK_VALID_NODE(
                         node, groups >= 0, "Incorrect value of 'group' attribute: ", groups);
 
-                    std::shared_ptr<ngraph::Node> conv_node;
+                    Output<ngraph::Node> conv_node;
 
                     // reshape filters to match desired shape:
                     // [GROUPS, C_INPUT, C_OUTPUT, K_D, ..., K_1]
@@ -325,7 +325,7 @@ namespace ngraph
                     // no bias param
                     if (inputs.size() < 3)
                     {
-                        return {conv_node};
+                        return as_node_vector({conv_node});
                     }
                     const auto reshaped_bias = get_prepared_bias(inputs[2], conv_node);
 

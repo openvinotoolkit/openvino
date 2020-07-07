@@ -30,9 +30,9 @@ namespace ngraph
         {
             namespace set_1
             {
-                NodeVector asinh(const Node& node)
+                OutputVector asinh(const Node& node)
                 {
-                    std::shared_ptr<ngraph::Node> data{node.get_ng_inputs().at(0)};
+                    Output<ngraph::Node> data{node.get_ng_inputs().at(0)};
 
                     // Define inverse hyperbolic sine in terms of natural logarithm:
                     //
@@ -40,7 +40,7 @@ namespace ngraph
                     //
 
                     const auto one =
-                        default_opset::Constant::create(data->get_element_type(), {}, {1.f});
+                        default_opset::Constant::create(data.get_element_type(), {}, {1.f});
 
                     const auto x_square = std::make_shared<default_opset::Multiply>(data, data);
                     const auto sqrt_args = std::make_shared<default_opset::Add>(x_square, one);

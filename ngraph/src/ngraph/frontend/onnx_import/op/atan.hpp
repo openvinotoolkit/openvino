@@ -30,7 +30,7 @@ namespace ngraph
         {
             namespace set_1
             {
-                inline NodeVector atan(const Node& node)
+                inline OutputVector atan(const Node& node)
                 {
                     return {std::make_shared<default_opset::Atan>(node.get_ng_inputs().at(0))};
                 }
