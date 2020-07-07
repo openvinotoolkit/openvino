@@ -26,8 +26,6 @@
 #include "ngraph/op/allreduce.hpp"
 #include "ngraph/op/and.hpp"
 #include "ngraph/op/any.hpp"
-#include "ngraph/op/argmax.hpp"
-#include "ngraph/op/argmin.hpp"
 #include "ngraph/op/asin.hpp"
 #include "ngraph/op/asinh.hpp"
 #include "ngraph/op/assign.hpp"
