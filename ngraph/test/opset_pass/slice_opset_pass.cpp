@@ -26,45 +26,6 @@
 using namespace std;
 using namespace ngraph;
 
-TEST(opset_transform, opset1_dyn_slice_upgrade_pass)
-{
-    auto arg = make_shared<op::Parameter>(element::f32, Shape{7, 4, 6, 8});
-    Coordinate lower_bounds{2, 1, 4, 0};
-    Coordinate upper_bounds{4, 3, 5, 1};
-    Strides strides{1, 2, 1, 2};
-
-    auto slice_v0 = make_shared<op::v0::Slice>(arg, lower_bounds, upper_bounds, strides);
-
-    const auto result = make_shared<op::Result>(slice_v0);
-    auto f = make_shared<Function>(ResultVector{result}, ParameterVector{arg});
-
-    ngraph::pass::Manager pass_manager;
-    pass_manager.register_pass<pass::Opset1Upgrade>();
-    pass_manager.run_passes(f);
-
-    const auto pass_replacement_node = f->get_result()->get_input_node_shared_ptr(0);
-    const auto strided_slice_v1 = as_type_ptr<op::v1::StridedSlice>(pass_replacement_node);
-    ASSERT_TRUE(strided_slice_v1);
-    auto begin_const =
-        as_type_ptr<op::Constant>(strided_slice_v1->input_value(1).get_node_shared_ptr());
-    ASSERT_TRUE(begin_const);
-    auto end_const =
-        as_type_ptr<op::Constant>(strided_slice_v1->input_value(2).get_node_shared_ptr());
-    ASSERT_TRUE(end_const);
-    auto strides_const =
-        as_type_ptr<op::Constant>(strided_slice_v1->input_value(3).get_node_shared_ptr());
-    ASSERT_TRUE(strides_const);
-
-    EXPECT_EQ(strided_slice_v1->get_begin_mask(), vector<int64_t>(4, 0));
-    EXPECT_EQ(strided_slice_v1->get_end_mask(), vector<int64_t>(4, 0));
-    EXPECT_EQ(begin_const->get_vector<int64_t>(),
-              vector<int64_t>(lower_bounds.begin(), lower_bounds.end()));
-    EXPECT_EQ(end_const->get_vector<int64_t>(),
-              vector<int64_t>(upper_bounds.begin(), upper_bounds.end()));
-    EXPECT_EQ(strides_const->get_vector<int64_t>(),
-              vector<int64_t>(strides.begin(), strides.end()));
-}
-
 TEST(opset_transform, opset1_strided_slice_downgrade_pass)
 {
     auto data = make_shared<op::Parameter>(element::f32, Shape{5, 7, 6, 8});

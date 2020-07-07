@@ -20,8 +20,6 @@
 #include "ngraph/node.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/convert.hpp"
-#include "ngraph/op/experimental/quantized_conv_bias.hpp"
-#include "ngraph/op/experimental/quantized_conv_relu.hpp"
 #include "ngraph/op/quantize.hpp"
 #include "ngraph/op/quantized_convolution.hpp"
 #include "quantization_utils.hpp"
@@ -67,22 +65,6 @@ namespace ngraph
                                             const Output<Node>& min_output,
                                             const Output<Node>& max_output,
                                             const bool with_relu = false);
-
-        NGRAPH_API
-        std::shared_ptr<Node>
-            QuantizedConvolutionReluBuilder(const Output<Node>& input,
-                                            const Output<Node>& filters,
-                                            const Strides& window_movement_strides,
-                                            const Strides& window_dilation_strides,
-                                            const CoordinateDiff& padding_below,
-                                            const CoordinateDiff& padding_above,
-                                            const Strides& data_dilation_strides,
-                                            const Output<Node>& min_input,
-                                            const Output<Node>& max_input,
-                                            const Output<Node>& min_filter,
-                                            const Output<Node>& max_filter,
-                                            const Output<Node>& min_output,
-                                            const Output<Node>& max_output);
 
         NGRAPH_API
         std::shared_ptr<Node>
