@@ -8,7 +8,7 @@
 
 #include <ie_core.hpp>
 #include <ngraph/function.hpp>
-#include <ngraph/op/experimental/layers/detection_output.hpp>
+#include <ngraph/op/detection_output.hpp>
 
 #include <samples/ocv_common.hpp>
 

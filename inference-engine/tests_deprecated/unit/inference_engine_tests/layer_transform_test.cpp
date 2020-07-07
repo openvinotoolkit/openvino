@@ -121,12 +121,12 @@ TEST_F(LayerTransformTest, injectioWillCopyOutData) {
     fc->_out_num = 9;
 
     auto data  = std::make_shared<Data>("N1", Precision::FP32);
-    data->getCreatorLayer() = fc;
+    getCreatorLayer(data) = fc;
     fc->outData.push_back(data);
 
     auto layerWithData = injectData<SomeData>(fc, SomeData({11, "myname", 12.f}));
 
-    ASSERT_EQ(data->getCreatorLayer().lock(), layerWithData->outData[0]->getCreatorLayer().lock());
+    ASSERT_EQ(getCreatorLayer(data).lock(), getCreatorLayer(layerWithData->outData[0]).lock());
     ASSERT_NE(data.get(), layerWithData->outData[0].get());
 }
 
@@ -137,7 +137,7 @@ TEST_F(LayerTransformTest, injectioWillCopyInputData) {
     fc->_out_num = 9;
 
     auto data  = std::make_shared<Data>("N1", Precision::FP32);
-    data->getCreatorLayer() = fc;
+    getCreatorLayer(data) = fc;
     fc->insData.push_back(data);
 
     auto layerWithData = injectData<SomeData>(fc, SomeData({11, "myname", 12.f}));
