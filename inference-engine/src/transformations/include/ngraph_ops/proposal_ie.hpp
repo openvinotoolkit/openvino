@@ -8,7 +8,7 @@
 
 #include <transformations_visibility.hpp>
 
-#include <ngraph/op/experimental/layers/proposal.hpp>
+#include <ngraph/op/proposal.hpp>
 #include "ngraph/op/op.hpp"
 
 namespace ngraph {
