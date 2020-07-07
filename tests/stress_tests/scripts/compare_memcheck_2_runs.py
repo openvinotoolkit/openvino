@@ -14,6 +14,7 @@ import argparse
 import csv
 import json
 import os
+import sys
 from collections import OrderedDict
 from glob import glob
 from operator import itemgetter
@@ -195,4 +196,4 @@ if __name__ == "__main__":
     references = get_memcheck_records(args.ref_source, args.ref_db_collection, DATABASE, args.db_url)
     cur_values = get_memcheck_records(args.cur_source, args.db_collection, DATABASE, args.db_url)
     exit_code = compare_memcheck_2_runs(cur_values, references, output_file=args.output_file)
-    exit(exit_code)
+    sys.exit(exit_code)
