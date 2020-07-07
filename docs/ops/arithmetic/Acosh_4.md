@@ -12,7 +12,7 @@
 
 **Inputs**
 
-* **1**: An tensor of type T. **Required.**
+* **1**: A tensor of type T. **Required.**
 
 **Outputs**
 
@@ -20,7 +20,7 @@
 
 **Types**
 
-* *T*: any numeric type.
+* *T*: any floating point type.
 
 *Acosh* does the following with the input tensor *a*:
 
