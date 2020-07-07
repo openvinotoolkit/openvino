@@ -8,14 +8,6 @@
 
 **Attributes**
 
-* *axes*
-
-  * **Description**: `axes` specify dimension indices where interpolation is applied, and `axes` is any unordered list of indices of different dimensions of input tensor, e.g. `[0, 4]`, `[4, 0]`, `[4, 2, 1]`, `[1, 2, 3]`. These indices should be non-negative integers from `0` to `rank(data) - 1` inclusively.  Other dimensions do not change. The order of elements in `axes` attribute matters, and mapped directly to elements in the 2nd input `target_spatial_shape`. Namely, `output_shape[axes[i]] = target_spatial_shape[i]` for all `i in range(0, len(axes))` and `output_shape[j] = input_shape[j] + pads_begin[j] + pads_end[j]` for `j not in axes`, `j in range(0, rank(data))`.
-  * **Range of values**: list of non-negative integer numbers
-  * **Type**: `int[]`
-  * **Default value**: None
-  * **Required**: *yes*
-
 * *mode*
 
   * **Description**: specifies type of interpolation
@@ -78,7 +70,9 @@
 
 *   **1**: `data` - Input tensor with data for interpolation. Type of elements is any supported floating point type or `int8` type. Required.
 
-*   **2**: `target_spatial_shape` - 1D tensor describing output shape for spatial axes. Number of elements matches the number of indices in *axes* attribute, the order matches as well. Required.
+*   **2**: `target_spatial_shape` - 1D tensor describing output shape for spatial axes. Number of elements matches the number of indices in `axes` input, the order matches as well. Required.
+
+*   **3**: `axes` - 1D tensor specify dimension indices where interpolation is applied, and `axes` is any unordered list of indices of different dimensions of input tensor, e.g. `[0, 4]`, `[4, 0]`, `[4, 2, 1]`, `[1, 2, 3]`. These indices should be non-negative integers from `0` to `rank(data) - 1` inclusively.  Other dimensions do not change. The order of elements in `axes` attribute matters, and mapped directly to elements in the 2nd input `target_spatial_shape`. Namely, `output_shape[axes[i]] = target_spatial_shape[i]` for all `i in range(0, len(axes))` and `output_shape[j] = input_shape[j] + pads_begin[j] + pads_end[j]` for `j not in axes`, `j in range(0, rank(data))`. Required.
 
 **Outputs**
 
@@ -222,7 +216,6 @@ class InterpolateCalculation:
         else:
             self.antialias = attrs['antialias']
 
-        self.axes = np.array(attrs['axes']).astype(np.int64)
         self.get_original_coordinate = self.get_coordinate_transformation_mode()
 
 
@@ -232,7 +225,7 @@ class InterpolateCalculation:
     def shape_infer(self, input_data, target_spatial_shape):
         result = input_data.shape + self.pads_begin + self.pads_end
         for i in range(0, len(self.axes)):
-            result[axes[i]] = target_spatial_shape[i]
+            result[self.axes[i]] = target_spatial_shape[i]
         return result
 
     @staticmethod
@@ -245,11 +238,12 @@ class InterpolateCalculation:
         else:
             return np.array(pad, dtype=np.int64)
 
-    def __call__(self, input_data, target_spatial_shape):
+    def __call__(self, input_data, target_spatial_shape, axes):
         rank = input_data.ndim
         self.pads_begin = InterpolateCalculation.correct_pad(self.pads_begin, rank)
         self.pads_end = InterpolateCalculation.correct_pad(self.pads_end, rank)
         self.pads = list(zip(self.pads_begin, self.pads_end))
+        self.axes = np.array(axes).astype(np.int64)
 
         self.output_shape = self.shape_infer(input_data, target_spatial_shape)
         padded_data = np.pad(input_data, self.pads)
@@ -262,7 +256,7 @@ class InterpolateCalculation:
 
     def cubic_interpolation(self, input_data):
         result = np.zeros(self.output_shape)
-        num_of_axes = len(axes)
+        num_of_axes = len(self.axes)
         indices = np.ndindex(tuple(4 for _ in range(num_of_axes)))
         for coordinates in np.ndindex(self.output_shape):
             for index in indices:
@@ -281,22 +275,22 @@ class InterpolateCalculation:
 
     def linear_interpolation(self, input_data):
         result = np.zeros(self.output_shape)
-        num_of_axes = len(axes)
+        num_of_axes = len(self.axes)
         is_downsample = False
 
         for i in range(num_of_axes):
-            is_downsample = is_downsample or (self.scales[axes[i]] < 1)
+            is_downsample = is_downsample or (self.scales[self.axes[i]] < 1)
 
         antialias = is_downsample and self.antialias
 
         a = np.zeros(num_of_axes)
         for i in range(num_of_axes):
-            a[i] = self.scales[axes[i]] if antialias else 1.0
+            a[i] = self.scales[self.axes[i]] if antialias else 1.0
 
         prod_of_a = np.prod(a)
         r = np.zeros(num_of_axes).astype(np.int64)
         for i in range(num_of_axes):
-            r[i] = 2 if self.scales[axes[i]] > 1.0 else int(math.ceil(2.0/a[i]))
+            r[i] = 2 if self.scales[self.axes[i]] > 1.0 else int(math.ceil(2.0/a[i]))
 
         indices = np.ndindex(2 * r + 1)
 
@@ -306,22 +300,22 @@ class InterpolateCalculation:
 
             icoords = np.array(coordinates).astype(np.float64)
             for i in range(num_of_axes):
-                axis = axes[i]
+                axis = self.axes[i]
                 in_coord = self.get_original_coordinate(coordinates[axis],  self.scales[axis], self.output_shape[axis], self.input_shape[axis])
                 icoords[axis] = in_coord
             icoords_r = np.around(icoords).astype(np.int64)
 
             for index in indices:
-                iarray = np.array(index).astype(np.int64) - r + input_coords[axes]
-                conditions = [iarray[i] >= 0 and iarray[i] < self.input_shape[axes[i]] for i in range(num_of_axes)]
+                iarray = np.array(index).astype(np.int64) - r + input_coords[self.axes]
+                conditions = [iarray[i] >= 0 and iarray[i] < self.input_shape[self.axes[i]] for i in range(num_of_axes)]
                 if not all(conditions):
                     continue
 
-                dz = icoords[axes] - iarray
+                dz = icoords[self.axes] - iarray
                 w = prod_of_a * np.prod(triangle_coeffs(dz))
                 wsum += w
                 input_indices = np.array(coordinates).astype
-                input_indices[axes] = iarray
+                input_indices[self.axes] = iarray
                 sum += w * input_data[input_indices]
 
             result[coordinates] = sum / wsum
@@ -412,11 +406,11 @@ class InterpolateCalculation:
 
         result = np.zeros(self.output_shape)
 
-        num_of_axes = len(axes)
+        num_of_axes = len(self.axes)
         for coordinates in np.ndindex(self.output_shape):
             input_coords = np.array(coordinates, dtype=np.int64)
             for i in range(num_of_axes):
-                axis = axes[i]
+                axis = self.axes[i]
                 in_coord = self.get_original_coordinate(coordinates[axis], self.scales[axis], self.output_shape[axis], self.input_shape[axis])
                 nearest_pixel = self.get_nearest_pixel(in_coord, self.scales[axis] < 1)
                 input_coords[axis] = max(0, min(nearest_pixel, self.input_shape[axis] - 1))
