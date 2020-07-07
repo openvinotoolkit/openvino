@@ -60,36 +60,38 @@ void ConvolutionTransformation::transform(TransformationContext &context, ngraph
     //    dataPrecisionOnWeights.max);
 
     FakeQuantizeDequantization dequantization = getDequantization(convolution);
-    if (dequantization.isShared()) {
-        std::shared_ptr<Node> parent = dequantization.data;
-        if (dequantization.convert != nullptr) {
-            parent = dequantization.convert->clone_with_new_inputs({ parent });
-            parent->set_friendly_name(parent->get_name() + "_new");
-        }
+    convolution = separateInStandaloneBranch(dequantization, convolution);
 
-        if (dequantization.subtract != nullptr) {
-            parent = dequantization.subtract->clone_with_new_inputs({
-                parent,
-                dequantization.subtract->input_value(1) });
-            parent->set_friendly_name(parent->get_name() + "_new");
-        }
+    //if (dequantization.isShared()) {
+    //    std::shared_ptr<Node> parent = dequantization.data;
+    //    if (dequantization.convert != nullptr) {
+    //        parent = dequantization.convert->clone_with_new_inputs({ parent });
+    //        parent->set_friendly_name(parent->get_name() + "_new");
+    //    }
 
-        if (dequantization.multiply != nullptr) {
-            parent = dequantization.multiply->clone_with_new_inputs({
-                parent,
-                dequantization.multiply->input_value(1) });
-            parent->set_friendly_name(parent->get_name() + "_new");
-        }
+    //    if (dequantization.subtract != nullptr) {
+    //        parent = dequantization.subtract->clone_with_new_inputs({
+    //            parent,
+    //            dequantization.subtract->input_value(1) });
+    //        parent->set_friendly_name(parent->get_name() + "_new");
+    //    }
 
-        auto newConvolution = convolution->clone_with_new_inputs({
-            parent,
-            convolution->input_value(1) });
-        replace_node(convolution, newConvolution);
-        newConvolution->set_friendly_name(convolution->get_friendly_name());
-        convolution = newConvolution;
+    //    if (dequantization.multiply != nullptr) {
+    //        parent = dequantization.multiply->clone_with_new_inputs({
+    //            parent,
+    //            dequantization.multiply->input_value(1) });
+    //        parent->set_friendly_name(parent->get_name() + "_new");
+    //    }
 
-        //std::cout << convolution->get_friendly_name() << std::endl;
-    }
+    //    auto newConvolution = convolution->clone_with_new_inputs({
+    //        parent,
+    //        convolution->input_value(1) });
+    //    replace_node(convolution, newConvolution);
+    //    newConvolution->set_friendly_name(convolution->get_friendly_name());
+    //    convolution = newConvolution;
+
+    //    //std::cout << convolution->get_friendly_name() << std::endl;
+    //}
 
     std::shared_ptr<Node> dequantizationOperationOnData = convolution->input_value(0).get_node_shared_ptr();
     std::shared_ptr<opset1::Subtract> subtract = as_type_ptr<opset1::Subtract>(dequantizationOperationOnData->input_value(0).get_node_shared_ptr());
@@ -241,9 +243,9 @@ void ConvolutionTransformation::transform(TransformationContext &context, ngraph
         convolution->output(0).get_target_inputs().begin()->get_node()->shared_from_this());
 
     // TODO: move to base class
-    const std::string originalName = convolution->get_friendly_name();
-    convolution->set_friendly_name(originalName + "_original");
-    finalDequantization->set_friendly_name(originalName);
+    //const std::string originalName = convolution->get_friendly_name();
+    //convolution->set_friendly_name(originalName + "_original");
+    //finalDequantization->set_friendly_name(originalName);
 
 
 
@@ -305,6 +307,9 @@ void ConvolutionTransformation::transform(TransformationContext &context, ngraph
 
     // std::cout << "ConvolutionTransformation::transform: done: " << convolution->get_friendly_name() << std::endl;
     // std::cout << convolution->get_friendly_name() << std::endl;
+
+
+    updateOutput(context, finalDequantization, convolution);
 }
 
 } // namespace low_precision
