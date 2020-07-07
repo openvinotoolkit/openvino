@@ -50,18 +50,18 @@ namespace InferenceEngine {
 namespace gapi {
 namespace kernels {
 
-// Resize (bi-linear, 8U)
-void calcRowLinear_8U(uint8_t *dst[],
-                const uint8_t *src0[],
-                const uint8_t *src1[],
-                const short    alpha[],
-                const short    clone[],  // 4 clones of alpha
-                const short    mapsx[],
-                const short    beta[],
-                      uint8_t  tmp[],
-                const Size   & inSz,
-                const Size   & outSz,
-                      int      lpi) {
+// 8UC1 Resize (bi-linear)
+void calcRowLinear_8UC1(      uint8_t *dst[],
+                        const uint8_t *src0[],
+                        const uint8_t *src1[],
+                        const short    alpha[],
+                        const short    clone[],  // 4 clones of alpha
+                        const short    mapsx[],
+                        const short    beta[],
+                              uint8_t  tmp[],
+                        const Size&    inSz,
+                        const Size&    outSz,
+                              int      lpi) {
     bool xRatioEq1 = inSz.width  == outSz.width;
     bool yRatioEq1 = inSz.height == outSz.height;
 
@@ -650,9 +650,9 @@ void calcRowLinear_8UC_Impl_(std::array<std::array<uint8_t*, 4>, chanNum> &dst,
             GAPI_DbgAssert(inSz.width*chanNum >= half_nlanes);
             for (int w = 0; w < inSz.width*chanNum; ) {
                 for (; w <= inSz.width*chanNum - half_nlanes; w += half_nlanes) {
-                    v_int16x8 s0 = v_reinterpret_as_s16(v_load_expand(&src0[l][w]));
-                    v_int16x8 s1 = v_reinterpret_as_s16(v_load_expand(&src1[l][w]));
-                    v_int16x8 t = v_mulhrs(s0 - s1, beta0) + s1;
+                    v_int16 s0 = v_reinterpret_as_s16(vx_load_expand(&src0[l][w]));
+                    v_int16 s1 = v_reinterpret_as_s16(vx_load_expand(&src1[l][w]));
+                    v_int16 t = v_mulhrs(s0 - s1, beta0) + s1;
                     v_pack_u_store(tmp + w, t);
                 }
 
@@ -666,11 +666,11 @@ void calcRowLinear_8UC_Impl_(std::array<std::array<uint8_t*, 4>, chanNum> &dst,
             for (int x = 0; x < outSz.width; ) {
                 for (; x <= outSz.width - half_nlanes && x >= 0; x += half_nlanes) {
                     for (int c = 0; c < chanNum; c++) {
-                        v_int16x8 a0 = v_load(&alpha[x]);        // as signed Q1.1.14
-                        v_int16x8 sx = v_load(&mapsx[x]);        // as integer (int16)
-                        v_int16x8 t0 = v_gather_chan<chanNum>(tmp, sx, c, 0);
-                        v_int16x8 t1 = v_gather_chan<chanNum>(tmp, sx, c, 1);
-                        v_int16x8 d = v_mulhrs(t0 - t1, a0) + t1;
+                        v_int16 a0 = vx_load(&alpha[x]);        // as signed Q1.1.14
+                        v_int16 sx = vx_load(&mapsx[x]);        // as integer (int16)
+                        v_int16 t0 = v_gather_chan<chanNum>(tmp, sx, c, 0);
+                        v_int16 t1 = v_gather_chan<chanNum>(tmp, sx, c, 1);
+                        v_int16 d = v_mulhrs(t0 - t1, a0) + t1;
                         v_pack_u_store(&dst[c][l][x], d);
                     }
                 }
