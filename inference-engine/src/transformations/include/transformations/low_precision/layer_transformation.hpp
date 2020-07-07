@@ -359,6 +359,15 @@ protected:
     ILayerTransformationsManager* layerTransformationsManager;
 
 protected:
+    std::shared_ptr<ngraph::Node> separateInStandaloneBranch(
+        const FakeQuantizeDequantization& dequantization,
+        std::shared_ptr<ngraph::Node> node) const;
+
+    void updateOutput(
+        TransformationContext &context,
+        std::shared_ptr<ngraph::Node> lastNode,
+        std::shared_ptr<ngraph::Node> originalNode) const;
+
     void addPattern(ngraph::pass::GraphRewrite& pass, TransformationContext& context, std::shared_ptr<Node> patternRoot) const;
 
     template <typename Operation>

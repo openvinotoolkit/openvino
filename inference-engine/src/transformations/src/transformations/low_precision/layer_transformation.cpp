@@ -478,6 +478,73 @@ void LayerTransformation::fillAvailablePrecisions(std::shared_ptr<Node> layer, s
     }
 }
 
+std::shared_ptr<ngraph::Node> LayerTransformation::separateInStandaloneBranch(
+    const FakeQuantizeDequantization& dequantization,
+    std::shared_ptr<ngraph::Node> node) const {
+    if (dequantization.isShared()) {
+        bool nodeInputIndexToChangeWasFound = false;
+        size_t nodeInputIndexToChange;
+        for (size_t i = 0; i < node->get_input_size(); ++i) {
+            if (dequantization.multiply.get() == node->get_input_node_ptr(i)) {
+                nodeInputIndexToChange = i;
+                nodeInputIndexToChangeWasFound = true;
+                break;
+            }
+        }
+        if (!nodeInputIndexToChangeWasFound) {
+            THROW_IE_LPT_EXCEPTION(*node) << " input index for " << dequantization.multiply->get_friendly_name() << " was not found";
+        }
+
+        std::shared_ptr<Node> parent = dequantization.data;
+        if (dequantization.convert != nullptr) {
+            parent = dequantization.convert->clone_with_new_inputs({ parent });
+            parent->set_friendly_name(parent->get_name() + "_new");
+        }
+
+        if (dequantization.subtract != nullptr) {
+            parent = dequantization.subtract->clone_with_new_inputs({
+                parent,
+                dequantization.subtract->input_value(1) });
+            parent->set_friendly_name(parent->get_name() + "_new");
+        }
+
+        if (dequantization.multiply != nullptr) {
+            parent = dequantization.multiply->clone_with_new_inputs({
+                parent,
+                dequantization.multiply->input_value(1) });
+            parent->set_friendly_name(parent->get_name() + "_new");
+        }
+
+        auto newNode = node->clone_with_new_inputs({
+            parent,
+            node->input_value(1) });
+
+        replace_node(node, newNode);
+        newNode->set_friendly_name(node->get_friendly_name());
+
+        return newNode;
+    }
+
+    return node;
+}
+
+void LayerTransformation::updateOutput(
+    TransformationContext &context,
+    std::shared_ptr<ngraph::Node> lastNode,
+    std::shared_ptr<ngraph::Node> originalNode) const {
+    const size_t outputSize = context.network->get_output_size();
+    for (size_t i = 0; i < outputSize; ++i) {
+        std::shared_ptr<ngraph::Node> result = context.network->get_output_op(i);
+        std::shared_ptr<ngraph::Node> outputNode = result->get_input_node_shared_ptr(0);
+        if (outputNode.get() == lastNode.get()) {
+            const std::string originalName = originalNode->get_friendly_name();
+            originalNode->set_friendly_name(originalName + "_original");
+            lastNode->set_friendly_name(originalName);
+            break;
+        }
+    }
+}
+
 void LayerTransformation::addPattern(ngraph::pass::GraphRewrite& pass, TransformationContext& context, std::shared_ptr<Node> patternRoot) const {
     ngraph::graph_rewrite_callback internal_callback = [this, &context](ngraph::pattern::Matcher &m) {
         transform(context, m);
