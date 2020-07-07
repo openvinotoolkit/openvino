@@ -26,7 +26,7 @@ using namespace std;
 using namespace ngraph;
 
 // *** Convolution OP SET 1 ***
-constexpr NodeTypeInfo op::v1::Convolution::type_info;
+RTTI_DEFINITION("Convolution", op::v1::Convolution, Node, 1)
 
 op::v1::Convolution::Convolution(const Output<Node>& data_batch,
                                  const Output<Node>& filters,

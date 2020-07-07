@@ -26,7 +26,7 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::MatMul::type_info;
+RTTI_DEFINITION("MatMul", op::MatMul, Node, 0);
 
 op::MatMul::MatMul(const Output<Node>& A,
                    const Output<Node>& B,

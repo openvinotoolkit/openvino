@@ -181,7 +181,7 @@ shared_ptr<Node> op::v0::MaxPool::get_default_value() const
     return ngraph::make_constant_from_string("0", get_element_type(), get_shape());
 }
 
-constexpr NodeTypeInfo op::v1::MaxPool::type_info;
+RTTI_DEFINITION("MaxPool", op::v1::MaxPool, Node, 1)
 
 op::v1::MaxPool::MaxPool(const Output<Node>& arg,
                          const Strides& strides,

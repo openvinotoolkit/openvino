@@ -74,8 +74,8 @@ namespace ngraph
             class NGRAPH_API Add : public util::BinaryElementwiseArithmetic
             {
             public:
-                static constexpr NodeTypeInfo type_info{"Add", 1};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
+                RTTI_DECLARATION
+
                 /// \brief Constructs an uninitialized addition operation
                 Add()
                     : util::BinaryElementwiseArithmetic(AutoBroadcastSpec::NUMPY)
