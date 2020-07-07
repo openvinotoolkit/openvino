@@ -156,7 +156,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_1d_zero_scale_uint8)
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/dequantize_linear_2.prototxt"));
 
-    auto test_case = test::TestCase<TestEngine>(function);
+    auto test_case = ngraph::test::TestCase<TestEngine>(function);
 
     test_case.add_input(std::vector<uint8_t>{0, 1, 2, 3, 0, 1, 2, 3, 0, 10, 20, 30}); // x
     test_case.add_input(std::vector<float>{1.0f, 2.0f, 4.0f});                        // scale
@@ -174,7 +174,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_1d_zero_scale_int8)
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/dequantize_linear_3.prototxt"));
 
-    auto test_case = test::TestCase<TestEngine>(function);
+    auto test_case = ngraph::test::TestCase<TestEngine>(function);
 
     test_case.add_input(std::vector<int8_t>{0, 1, 2, 3, 0, 2, 4, 6, 0, 10, 20, 30}); // x
     test_case.add_input(std::vector<float>{1.0f, 2.0f, 4.0f, 8.0f});                 // scale
@@ -192,7 +192,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_1d_zero_scale_int8_4d)
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/dequantize_linear_4.prototxt"));
 
-    auto test_case = test::TestCase<TestEngine>(function);
+    auto test_case = ngraph::test::TestCase<TestEngine>(function);
 
     test_case.add_input(std::vector<uint8_t>{7, 9, 10, 10, 5, 8, 9, 1, 8, 6, 7, 9, 10, 0, 7, 10, 8,
                                              2, 6, 0,  5,  9, 8, 1, 2, 7, 5, 3, 2, 4,  1, 3, 8,  7,
@@ -216,7 +216,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_dequantize_linear_1d_zero_scale_uint8_ne
     auto function = onnx_import::import_onnx_model(
         file_util::path_join(SERIALIZED_ZOO, "onnx/dequantize_linear_5.prototxt"));
 
-    auto test_case = test::TestCase<TestEngine>(function);
+    auto test_case = ngraph::test::TestCase<TestEngine>(function);
 
     test_case.add_input(std::vector<uint8_t>{0, 1, 2, 3, 0, 1, 2, 3, 0, 10, 20, 30}); // x
     test_case.add_input(std::vector<float>{1.0f, 2.0f, 4.0f});                        // scale

@@ -31,6 +31,11 @@ namespace ngraph
 
             } // namespace set_1
 
+            namespace set_13
+            {
+                NodeVector dequantize_linear(const Node& node);
+            }
+
         } // namespace op
 
     } // namespace onnx_import
