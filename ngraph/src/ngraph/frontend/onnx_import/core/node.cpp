@@ -40,8 +40,8 @@ namespace ngraph
             }
 
             const std::vector<Attribute>& attributes() const;
-            NodeVector get_ng_nodes(const Node& node) const;
-            NodeVector get_ng_inputs() const;
+            OutputVector get_ng_nodes(const Node& node) const;
+            OutputVector get_ng_inputs() const;
 
             const std::string& domain() const;
             const std::string& op_type() const;
@@ -140,14 +140,14 @@ namespace ngraph
             return it->get_subgraph(graph());
         }
 
-        NodeVector Node::Impl::get_ng_nodes(const Node& node) const
+        OutputVector Node::Impl::get_ng_nodes(const Node& node) const
         {
             return m_graph->make_ng_nodes(node);
         }
 
-        NodeVector Node::Impl::get_ng_inputs() const
+        OutputVector Node::Impl::get_ng_inputs() const
         {
-            NodeVector result;
+            OutputVector result;
             for (const auto& name : m_node_proto->input())
             {
                 if (!name.empty())
@@ -156,7 +156,7 @@ namespace ngraph
                 }
                 else
                 {
-                    result.push_back(std::make_shared<NullNode>());
+                    result.push_back(std::make_shared<NullNode>()->output(0));                
                 }
             }
             return result;
@@ -197,8 +197,8 @@ namespace ngraph
         {
         }
 
-        NodeVector Node::get_ng_inputs() const { return m_pimpl->get_ng_inputs(); }
-        NodeVector Node::get_ng_nodes() const { return m_pimpl->get_ng_nodes(*this); }
+        OutputVector Node::get_ng_inputs() const { return m_pimpl->get_ng_inputs(); }
+        OutputVector Node::get_ng_nodes() const { return m_pimpl->get_ng_nodes(*this); }
         const std::string& Node::domain() const { return m_pimpl->domain(); }
         const std::string& Node::op_type() const { return m_pimpl->op_type(); }
         const std::string& Node::get_description() const { return m_pimpl->description(); }

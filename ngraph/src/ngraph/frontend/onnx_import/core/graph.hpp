@@ -39,12 +39,15 @@ namespace ngraph
             const std::vector<Node>& get_nodes() const { return m_nodes; }
             const std::vector<ValueInfo>& get_inputs() const { return m_inputs; }
             const std::vector<ValueInfo>& get_outputs() const { return m_outputs; }
-            NodeVector get_ng_outputs() const;
+            OutputVector get_ng_outputs() const;
             const ParameterVector& get_ng_parameters() const { return m_parameters; }
             bool is_node_in_cache(const std::string& name) const;
-            std::shared_ptr<ngraph::Node> get_ng_node_from_cache(const std::string& name) const;
+            Output<ngraph::Node> get_ng_node_from_cache(const std::string& name) const
+            {
+                return m_ng_node_cache.at(name);
+            }
             const std::string& get_name() const { return m_graph_proto->name(); }
-            NodeVector make_ng_nodes(const Node& onnx_node) const;
+            OutputVector make_ng_nodes(const Node& onnx_node) const;
             const GraphCache& get_graph_cache() const;
 
         protected:
@@ -52,7 +55,7 @@ namespace ngraph
                   Model& model,
                   std::unique_ptr<GraphCache>&& cache);
 
-            void set_friendly_names(const Node& onnx_node, const NodeVector& ng_node_vector) const;
+            void set_friendly_names(const Node& onnx_node, const OutputVector& ng_node_vector) const;
 
             void add_provenance_tag_to_initializer(
                 const Tensor& initializer, std::shared_ptr<default_opset::Constant> node) const;
@@ -60,7 +63,7 @@ namespace ngraph
             void add_provenance_tag_to_input(const ValueInfo& input,
                                              std::shared_ptr<ngraph::Node> node) const;
 
-            void add_provenance_tags(const Node& onnx_node, const NodeVector& ng_node_vector) const;
+            void add_provenance_tags(const Node& onnx_node, const OutputVector& ng_node_vector) const;
 
         private:
             const ONNX_NAMESPACE::GraphProto* m_graph_proto;
@@ -69,6 +72,7 @@ namespace ngraph
             std::vector<ValueInfo> m_inputs;
             std::vector<ValueInfo> m_outputs;
             ParameterVector m_parameters;
+            std::map<std::string, Output<ngraph::Node>> m_ng_node_cache;
             Model* m_model;
         };
 
