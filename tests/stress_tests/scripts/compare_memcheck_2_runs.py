@@ -151,7 +151,9 @@ def compare_memcheck_2_runs(cur_values, references, output_file=None):
 
     # dump data to file
     if output_file:
-        if os.path.splitext(output_file)[1] == ".csv":
+        if os.path.splitext(output_file)[1] == ".html":
+            orig_data.to_html(output_file)
+        else:
             orig_data.to_csv(output_file)
 
     return returncode
