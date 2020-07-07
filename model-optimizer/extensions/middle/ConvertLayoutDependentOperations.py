@@ -36,6 +36,7 @@ class ConvertLayoutDependentOperations(MiddleReplacementPattern):
     def find_and_replace_pattern(self, graph: Graph):
         for node in list(graph.nodes()):
             node = Node(graph, node)
+            node_name = node.soft_get('name', node.id)
             # Check that node layout mismatch with graph layout
             # For example: NHWC and NCHW or NCDHW and NDHWC
             if node.kind == 'op' and node.has_valid('layout') and node.layout != indices_mapping[len(node.layout)][
@@ -63,8 +64,10 @@ class ConvertLayoutDependentOperations(MiddleReplacementPattern):
                 edge_attrs = graph.get_edge_data(input.id, node.id)[0]
                 graph.remove_edge(input.id, node.id)
 
-                input_order_const = Const(graph, {'value': permutation.perm}).create_node_with_data()
-                input_permute_op = Transpose(graph, dict(name=node.name + '/Transpose_'))
+                input_permute_name = node_name + '/input_transpose'
+                input_order_const = Const(graph, {'name': input_permute_name + '/order',
+                                                  'value': permutation.perm}).create_node_with_data()
+                input_permute_op = Transpose(graph, {'name': input_permute_name})
                 input_permute_data_node = input_permute_op.create_node_with_data([input, input_order_const])
 
                 graph.add_edge(input_permute_data_node.id, node.id, **edge_attrs)
@@ -77,8 +80,10 @@ class ConvertLayoutDependentOperations(MiddleReplacementPattern):
                 input_data_node = Op.create_data_node(graph, node, {'shape': output.shape[permutation.perm]},
                                                       edge_attrs)
 
-                output_order_const = Const(graph, {'value': permutation.inv}).create_node_with_data()
-                output_permute_op = Transpose(graph, dict(name=node.name + '/Transpose_')
+                output_permute_name = node_name + '/output_transpose'
+                output_order_const = Const(graph, {'name': output_permute_name + '/order',
+                                                   'value': permutation.inv}).create_node_with_data()
+                output_permute_op = Transpose(graph, {'name': output_permute_name}
                                               ).create_node_with_data([input_data_node, output_order_const],
                                                                       data_nodes=output)
 
