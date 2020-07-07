@@ -25,6 +25,12 @@
 #include <ngraph/opsets/opset2.hpp>
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/op/fused/gelu.hpp>
+#include <generic_ie.hpp>
+#include <transformations/common_optimizations/common_optimizations.hpp>
+#include <transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
+#include <transformations/convert_opset2_to_opset1/convert_opset2_to_opset1.hpp>
+#include <transformations/convert_opset3_to_opset2/convert_opset3_to_opset2.hpp>
+#include "convert_function_to_cnn_network.hpp"
 
 #undef min
 #undef max
@@ -79,8 +85,16 @@ InferenceEngine::ICNNNetwork::Ptr clDNNEngine::CloneNetwork(const InferenceEngin
                    std::dynamic_pointer_cast<const ::ngraph::opset2::BatchToSpace>(node) ||
                    std::dynamic_pointer_cast<const ::ngraph::opset2::SpaceToBatch>(node);
         };
+        auto nGraphFunc = clonedNetwork->getFunction();
+        // Disable shape inference (WA for generic operations)
+        ::ngraph::op::GenericIE::DisableReshape noReshape(nGraphFunc);
 
-        clonedNetwork = std::make_shared<InferenceEngine::details::CNNNetworkImpl>(*clonedNetwork, transformations_callback);
+        // Note: instead of running all Conversion Transformations you can make up your own transformation pipeline
+        ngraph::pass::CommonOptimizations(transformations_callback).run_on_function(nGraphFunc);
+        ngraph::pass::ConvertOpSet3ToOpSet2(transformations_callback).run_on_function(nGraphFunc);
+        ngraph::pass::ConvertOpSet2ToOpSet1(transformations_callback).run_on_function(nGraphFunc);
+        ngraph::pass::ConvertOpSet1ToLegacy(transformations_callback).run_on_function(nGraphFunc);
+        clonedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(nGraphFunc, *clonedNetwork);
     }
 
     auto implNetwork = std::dynamic_pointer_cast<InferenceEngine::details::CNNNetworkImpl>(clonedNetwork);
@@ -251,7 +265,13 @@ void clDNNEngine::QueryNetwork(const ICNNNetwork& network, const std::map<std::s
     // Verify device id
     GetDeviceInfo(config);
 
-    std::vector<CNNLayerPtr> sortedLayers = CNNNetSortTopologically(network);
+    std::shared_ptr<CNNNetworkImpl> convertedNetwork;  // TODO: fix HETERO mode
+    if (network.getFunction()) {
+        convertedNetwork = std::make_shared<CNNNetworkImpl>(network);
+    }
+
+    std::vector<CNNLayerPtr> sortedLayers = CNNNetSortTopologically(
+        convertedNetwork ? *convertedNetwork : network);
     for (auto layer : sortedLayers) {
         if (CaselessEq<std::string>()(layer->type, "DetectionOutput")) {
         } else if (CaselessEq<std::string>()(layer->type, "PriorBox")) {

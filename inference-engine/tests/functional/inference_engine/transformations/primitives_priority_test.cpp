@@ -52,8 +52,7 @@ TEST(TransformationTests, ConvBiasFusion) {
         }
     }
 
-    auto clonedNetwork = std::make_shared<InferenceEngine::details::CNNNetworkImpl>(
-        static_cast<const InferenceEngine::ICNNNetwork &>(network));
+    auto clonedNetwork = std::make_shared<InferenceEngine::details::CNNNetworkImpl>(network);
 
     IE_SUPPRESS_DEPRECATED_START
     InferenceEngine::CNNLayerPtr conv;

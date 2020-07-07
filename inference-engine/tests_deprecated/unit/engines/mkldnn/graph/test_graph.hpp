@@ -215,7 +215,8 @@ public:
             MKLDNNPlugin::MKLDNNWeightsSharing::Ptr cache = {}) {
         if (network.getFunction()) {
             auto convertedNetwork = std::make_shared<InferenceEngine::details::CNNNetworkImpl>(network);
-            MKLDNNGraph::CreateGraph(network, extMgr, cache);            
+            MKLDNNGraph::CreateGraph(static_cast<InferenceEngine::ICNNNetwork&>(*convertedNetwork),
+                extMgr, cache);            
         } else {
             MKLDNNGraph::CreateGraph(network, extMgr, cache);
         }
@@ -225,7 +226,8 @@ public:
         MKLDNNPlugin::MKLDNNWeightsSharing::Ptr cache;
         if (network.getFunction()) {
             auto convertedNetwork = std::make_shared<InferenceEngine::details::CNNNetworkImpl>(network);
-            MKLDNNGraph::CreateGraph(network, extensionManager, cache);            
+            MKLDNNGraph::CreateGraph(static_cast<InferenceEngine::ICNNNetwork&>(*convertedNetwork),
+                extensionManager, cache);            
         } else {
             MKLDNNGraph::CreateGraph(network, extensionManager, cache);
         }

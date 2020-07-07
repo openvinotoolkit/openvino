@@ -30,6 +30,7 @@
 #include "ngraph/slice_plan.hpp"
 #include "ngraph/type.hpp"
 #include "ngraph/validation_util.hpp"
+#include "op/and.hpp"
 #include "op/avg_pool.hpp"
 #include "opset0_downgrade.hpp"
 

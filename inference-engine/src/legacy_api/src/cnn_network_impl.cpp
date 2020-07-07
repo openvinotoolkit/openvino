@@ -86,9 +86,7 @@ ICNNNetwork::~ICNNNetwork() {}
 
 CNNNetworkImpl::CNNNetworkImpl() {}
 
-CNNNetworkImpl::CNNNetworkImpl(const ICNNNetwork & ngraphImpl,
-    const ngraph::pass::PassParam::param_callback & callback,
-    bool keep_constant_inputs) {
+CNNNetworkImpl::CNNNetworkImpl(const ICNNNetwork & ngraphImpl) {
     auto ngraphImplPtr = dynamic_cast<const details::CNNNetworkNGraphImpl*>(&ngraphImpl);
     IE_ASSERT(ngraphImplPtr != nullptr);
     IE_ASSERT(ngraphImplPtr->getFunction() != nullptr);
@@ -96,11 +94,11 @@ CNNNetworkImpl::CNNNetworkImpl(const ICNNNetwork & ngraphImpl,
     // Disable shape inference (WA for generic operations)
     ::ngraph::op::GenericIE::DisableReshape noReshape(graph);
 
-    ::ngraph::pass::CommonOptimizations(callback).run_on_function(graph);
-    ::ngraph::pass::ConvertOpSet3ToOpSet2(callback).run_on_function(graph);
-    ::ngraph::pass::ConvertOpSet2ToOpSet1(callback).run_on_function(graph);
-    ::ngraph::pass::ConvertOpSet1ToLegacy(callback).run_on_function(graph);
-    InferenceEngine::details::convertFunctionToICNNNetwork(graph, ngraphImpl, this, keep_constant_inputs);
+    ::ngraph::pass::CommonOptimizations().run_on_function(graph);
+    ::ngraph::pass::ConvertOpSet3ToOpSet2().run_on_function(graph);
+    ::ngraph::pass::ConvertOpSet2ToOpSet1().run_on_function(graph);
+    ::ngraph::pass::ConvertOpSet1ToLegacy().run_on_function(graph);
+    InferenceEngine::details::convertFunctionToICNNNetwork(graph, ngraphImpl, this, false);
 }
 
 CNNNetworkImpl::~CNNNetworkImpl() {
