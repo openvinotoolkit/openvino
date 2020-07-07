@@ -19,7 +19,7 @@
 * *mode*
 
   * **Description**: specifies type of interpolation
-  * **Range of values**: one of `nearest`, `linear`, `linear_onnx`, `cubic`, `area`
+  * **Range of values**: one of `nearest`, `linear`, `linear_onnx`, `cubic`
   * **Type**: string
   * **Default value**: none
   * **Required**: *yes*
