@@ -74,7 +74,7 @@ TEST_F(I8QuantisationTest, inputPrecisionIs16Bits){
     auto newNet = q.quantize(network, 1000);
     InputsDataMap inputs;
     newNet->getInputsInfo(inputs);
-    auto inputLayer = inputs.begin()->second->getInputData()->getInputTo().begin()->second->insData.front().lock()->getCreatorLayer().lock();
+    auto inputLayer = getCreatorLayer(getInputTo(inputs.begin()->second->getInputData()).begin()->second->insData.front().lock()).lock();
 
     ASSERT_EQ(inputLayer->precision, Precision::I16);
 }
@@ -105,7 +105,7 @@ TEST_F(I8QuantisationTest, outputAffinePrecisionIs32Bits){
     auto newNet = q.quantize(network, 1000);
     InputsDataMap inputs;
     newNet->getInputsInfo(inputs);
-    auto affineDataPtr = inputs.begin()->second->getInputData()->getInputTo().begin()->second->outData.front();
+    auto affineDataPtr = getInputTo(inputs.begin()->second->getInputData()).begin()->second->outData.front();
 
     ASSERT_EQ(affineDataPtr->getTensorDesc().getPrecision(), Precision::I32);
 }

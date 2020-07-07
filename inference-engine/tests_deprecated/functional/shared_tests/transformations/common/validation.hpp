@@ -143,7 +143,7 @@ private:
 
         for (size_t outDataIndex = 0; outDataIndex < layer->outData.size(); ++outDataIndex) {
             DataPtr outData = layer->outData[outDataIndex];
-            const std::map<std::string, CNNLayerPtr> inputTo = outData->getInputTo();
+            const std::map<std::string, CNNLayerPtr> inputTo = getInputTo(outData);
             const Precision parentOutPrecision = getDataPrecision(precisionByPort, *layer, outDataIndex);
 
             for (auto it = inputTo.begin(); it != inputTo.end(); it++) {

@@ -40,11 +40,6 @@ public:
      */
     void fullTrim();
 
-    /**
-     * @brief move blobs from Constant layers to Convolution or FullyConnected layers attributes
-     */
-    void moveWeights();
-
 protected:
     /**
      * @brief collect all const layers with marking if it defines shape (1 - for shape, 0 - otherwise)
