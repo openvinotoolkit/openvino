@@ -969,12 +969,6 @@ shared_ptr<Node> JSONDeserializer::deserialize_node(json node_js)
             node = make_shared<op::AllReduce>(args[0]);
             break;
         }
-        case OP_TYPEID::And:
-        {
-            node = make_shared<op::And>(
-                args[0], args[1], read_auto_broadcast(node_js, "auto_broadcast"));
-            break;
-        }
         case OP_TYPEID::Any:
         {
             auto reduction_axes = deserialize_axis_set(node_js.at("reduction_axes"));
@@ -2401,15 +2395,6 @@ json JSONSerializer::serialize_node(const Node& n)
         break;
     }
     case OP_TYPEID::AllReduce: { break;
-    }
-    case OP_TYPEID::And:
-    {
-        auto tmp = static_cast<const op::And*>(&n);
-        if (tmp->get_autob().m_type != op::AutoBroadcastType::NONE)
-        {
-            node["auto_broadcast"] = write_auto_broadcast(tmp->get_autob());
-        }
-        break;
     }
     case OP_TYPEID::Any:
     {

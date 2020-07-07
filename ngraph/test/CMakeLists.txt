@@ -81,7 +81,6 @@ set(SRC
     opset_pass/binary_elementwise_opset_pass.cpp
     opset_pass/broadcast_opset_pass.cpp
     opset_pass/convolution_opset_pass.cpp
-    opset_pass/logical_and_opset_pass.cpp
     opset_pass/logical_not_opset_pass.cpp
     opset_pass/logical_or_opset_pass.cpp
     opset_pass/logical_xor_opset_pass.cpp
@@ -321,7 +320,6 @@ set(MULTI_TEST_SRC
     backend/group_convolution.in.cpp
     backend/layer_norm.in.cpp
     backend/log.in.cpp
-    backend/logical_and.in.cpp
     backend/logical_or.in.cpp
     backend/logical_xor.in.cpp
     backend/lrn.in.cpp

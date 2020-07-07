@@ -18,6 +18,7 @@
 
 #include "ngraph/ngraph.hpp"
 #include "ngraph/validation_util.hpp"
+#include "op/and.hpp"
 #include "op/atan2.hpp"
 #include "util/test_tools.hpp"
 
@@ -72,7 +73,7 @@ namespace
 
     void op_is_And()
     {
-        op::And node;
+        op::v0::And node;
         EXPECT_FALSE(node.is_unary_elementwise_arithmetic());
         EXPECT_FALSE(node.is_binary_elementwise_arithmetic());
         EXPECT_FALSE(node.is_binary_elementwise_comparison());

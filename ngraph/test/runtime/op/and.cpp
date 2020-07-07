@@ -14,34 +14,12 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include "ngraph/op/and.hpp"
+#include "and.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/and.hpp"
 
 using namespace std;
 using namespace ngraph;
-
-constexpr NodeTypeInfo op::v1::LogicalAnd::type_info;
-
-op::v1::LogicalAnd::LogicalAnd(const Output<Node>& arg0,
-                               const Output<Node>& arg1,
-                               const AutoBroadcastSpec& auto_broadcast)
-    : BinaryElementwiseLogical(arg0, arg1, auto_broadcast)
-{
-    constructor_validate_and_infer_types();
-}
-
-bool op::v1::LogicalAnd::visit_attributes(AttributeVisitor& visitor)
-{
-    BinaryElementwiseLogical::visit_attributes(visitor);
-    return true;
-}
-
-shared_ptr<Node> op::v1::LogicalAnd::clone_with_new_inputs(const OutputVector& new_args) const
-{
-    check_new_args_count(this, new_args);
-    return make_shared<v1::LogicalAnd>(new_args.at(0), new_args.at(1), this->get_autob());
-}
 
 namespace
 {
@@ -89,7 +67,29 @@ namespace
     }
 }
 
-bool op::v1::LogicalAnd::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
+constexpr NodeTypeInfo op::v0::And::type_info;
+
+op::v0::And::And(const Output<Node>& arg0,
+                 const Output<Node>& arg1,
+                 const AutoBroadcastSpec& auto_broadcast)
+    : BinaryElementwiseLogical(arg0, arg1, auto_broadcast)
+{
+    constructor_validate_and_infer_types();
+}
+
+bool op::v0::And::visit_attributes(AttributeVisitor& visitor)
+{
+    BinaryElementwiseLogical::visit_attributes(visitor);
+    return true;
+}
+
+shared_ptr<Node> op::v0::And::clone_with_new_inputs(const OutputVector& new_args) const
+{
+    check_new_args_count(this, new_args);
+    return make_shared<v0::And>(new_args.at(0), new_args.at(1), this->get_autob());
+}
+
+bool op::v0::And::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
 {
     return evaluate_logand(inputs[0], inputs[1], outputs[0], get_autob());
 }

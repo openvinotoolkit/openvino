@@ -193,14 +193,6 @@ void test_binary_logical(std::string /* node_type */,
     test_binary_good_arguments(tv0_2_4_param_0, tv0_2_4_param_1);
 }
 
-TEST(type_prop, and_bad_arguments)
-{
-    test_binary_logical(
-        "And", [](const shared_ptr<Node>& x, const shared_ptr<Node>& y) -> shared_ptr<Node> {
-            return make_shared<op::And>(x, y);
-        });
-}
-
 TEST(type_prop, or_bad_arguments)
 {
     test_binary_logical(
@@ -235,8 +227,7 @@ void test_binary_eltwise_numpy(const element::Type& et, const op::AutoBroadcastS
 
 TEST(type_prop, eltwise_auto_bcast)
 {
-    test_binary_eltwise_numpy<op::Add>(element::f32, op::AutoBroadcastType::NUMPY);
-    test_binary_eltwise_numpy<op::And>(element::boolean, op::AutoBroadcastType::NUMPY);
+    test_binary_eltwise_numpy<op::v1::Add>(element::f32, op::AutoBroadcastType::NUMPY);
     test_binary_eltwise_numpy<op::Divide>(element::f32, op::AutoBroadcastType::NUMPY);
     test_binary_eltwise_numpy<op::Equal>(element::f32, op::AutoBroadcastType::NUMPY);
     test_binary_eltwise_numpy<op::Greater>(element::f32, op::AutoBroadcastType::NUMPY);
@@ -531,12 +522,6 @@ TEST(type_prop, binary_elementwise_arithmetic_right_et_dynamic)
 
 TEST(type_prop, logic_arith_compare_partial_et)
 {
-    auto test_logic = [](element::Type et0, element::Type et1) -> std::shared_ptr<Node> {
-        auto param0 = std::make_shared<op::Parameter>(et0, Shape{1, 2, 3});
-        auto param1 = std::make_shared<op::Parameter>(et1, Shape{1, 2, 3});
-        return std::make_shared<op::And>(param0, param1);
-    };
-
     auto test_arith = [](element::Type et0, element::Type et1) -> std::shared_ptr<Node> {
         auto param0 = std::make_shared<op::Parameter>(et0, Shape{1, 2, 3});
         auto param1 = std::make_shared<op::Parameter>(et1, Shape{1, 2, 3});
@@ -553,27 +538,6 @@ TEST(type_prop, logic_arith_compare_partial_et)
         auto param = std::make_shared<op::Parameter>(et, Shape{1, 2, 3});
         return std::make_shared<op::Not>(param);
     };
-
-    // Logical ops:
-    //
-    // int int -> !
-    // int boo -> !
-    // int dyn -> !
-    // boo int -> !
-    // boo boo -> boo
-    // boo dyn -> boo
-    // dyn int -> !
-    // dyn boo -> boo
-    // dyn dyn -> boo
-    ASSERT_ANY_THROW({ test_logic(element::i32, element::i32); });
-    ASSERT_ANY_THROW({ test_logic(element::i32, element::boolean); });
-    ASSERT_ANY_THROW({ test_logic(element::i32, element::dynamic); });
-    ASSERT_ANY_THROW({ test_logic(element::boolean, element::i32); });
-    ASSERT_EQ(test_logic(element::boolean, element::boolean)->get_element_type(), element::boolean);
-    ASSERT_EQ(test_logic(element::boolean, element::dynamic)->get_element_type(), element::boolean);
-    ASSERT_ANY_THROW({ test_logic(element::dynamic, element::i32); });
-    ASSERT_EQ(test_logic(element::dynamic, element::boolean)->get_element_type(), element::boolean);
-    ASSERT_EQ(test_logic(element::dynamic, element::dynamic)->get_element_type(), element::boolean);
 
     // Arith ops:
     //
