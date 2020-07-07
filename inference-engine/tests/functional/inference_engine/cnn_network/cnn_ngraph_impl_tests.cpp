@@ -302,39 +302,6 @@ TEST(CNNNGraphImplTests, SaveInputInfoAfterConversion) {
     ASSERT_EQ(inputInfo->getPreProcess().getResizeAlgorithm(), ResizeAlgorithm::RESIZE_AREA);
 }
 
-TEST(CNNNGraphImplTests, SaveAttributesAfterConversion) {
-    std::string name = "prelu";
-    std::shared_ptr<ngraph::Function> ngraph;
-    {
-        ngraph::PartialShape shape({1, 3, 22, 22});
-        ngraph::element::Type type(ngraph::element::Type_t::f32);
-        auto param = std::make_shared<ngraph::op::Parameter>(type, shape);
-        auto constant = ngraph::op::Constant::create(ngraph::element::Type_t::f32, {1}, {2});
-        auto prelu = std::make_shared<ngraph::op::PRelu>(param, constant);
-        prelu->set_friendly_name(name);
-        auto add = std::make_shared<ngraph::op::v1::Maximum>(prelu, constant);
-        auto result = std::make_shared<ngraph::op::Result>(add);
-
-        ngraph::ParameterVector params = {param};
-        ngraph::ResultVector results = {result};
-
-        ngraph = std::make_shared<ngraph::Function>(results, params);
-    }
-
-    InferenceEngine::details::CNNNetworkNGraphImpl cnnNet(ngraph);
-    auto * icnnnetwork = static_cast<InferenceEngine::ICNNNetwork*>(&cnnNet);
-    CNNLayerPtr layer = CommonTestUtils::getLayerByName(icnnnetwork, name);
-    layer->params["test"] = "2";
-    layer = CommonTestUtils::getLayerByName(icnnnetwork, name);
-    ASSERT_TRUE(layer->params.find("test") != layer->params.end());
-    ASSERT_EQ(layer->params["test"], "2");
-
-    // conversion is already triggered, exception is thrown since
-    // the ngraph::Function is obsolete
-    ASSERT_THROW(std::make_shared<details::CNNNetworkImpl>(cnnNet),
-        InferenceEngine::details::InferenceEngineException);
-}
-
 TEST(CNNNGraphImplTests, SavePrimitivesPriority) {
     std::string model = R"V0G0N(
 <net name="Activation" version="10">
