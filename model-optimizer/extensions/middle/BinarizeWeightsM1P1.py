@@ -92,6 +92,8 @@ class BinarizeWeightsM1P1(MiddleReplacementPattern):
         output_low = quantize.in_node(3)
         output_high = quantize.in_node(4)
 
+        quantize_name = quantize.soft_get('name', quantize.id)
+
         if not output_low.has_valid('value') and not output_high.has_valid('value'):
             return
 
@@ -115,8 +117,9 @@ class BinarizeWeightsM1P1(MiddleReplacementPattern):
 
         mult_term = quantize.in_node(3) if np.all(output_high == 0) else quantize.in_node(4)
 
-        new_shape = Const(graph, {'value': int64_array([-1, 1, 1])}).create_node_with_data()
-        reshape = Reshape(graph, {}).create_node_with_data([mult_term, new_shape])
+        new_shape = Const(graph, {'name': quantize_name + '/Reshape/Shape',
+                                  'value': int64_array([-1, 1, 1])}).create_node_with_data()
+        reshape = Reshape(graph, {'name': quantize_name + '/Reshape'}).create_node_with_data([mult_term, new_shape])
 
         # Patch inflow path (by diving by mult_term)
         # Put a new Pow/Mul combination here:
@@ -125,15 +128,16 @@ class BinarizeWeightsM1P1(MiddleReplacementPattern):
         if len(match['quantized'].out_nodes()) > 1:
             log.debug('BinarizeWeightsM1P1: len(match[\'quantized\'].out_nodes()) > 1')
             return
-        power_of_exponent = Const(graph, {'value': np.array(-1.0)}).create_node_with_data()
-        div_op = Pow(graph, {'name': quantize.name + '/DivNormalize'})
+        power_of_exponent = Const(graph, {'name': quantize_name + '/DivNormalize/Power',
+                                          'value': np.array(-1.0)}).create_node_with_data()
+        div_op = Pow(graph, {'name': quantize_name + '/DivNormalize'})
         div_output = div_op.create_node_with_data([mult_term, power_of_exponent])
 
         for i in [3, 4]:
             match['quantize'].insert_node_with_data_before(
                 match['quantize'].in_node(i),
                 Mul,
-                dict(name=quantize.name + '/MulNormalize'),
+                dict(name=quantize_name + '/MulNormalize'),
                 additional_inputs=[div_output],
             )
 
