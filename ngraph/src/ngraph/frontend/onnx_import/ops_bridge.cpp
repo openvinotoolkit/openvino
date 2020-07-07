@@ -48,7 +48,7 @@
 #include "op/cosh.hpp"
 #include "op/cum_sum.hpp"
 #include "op/depth_to_space.hpp"
-// #include "op/dequantize_linear.hpp"
+#include "op/dequantize_linear.hpp"
 #include "op/div.hpp"
 #include "op/dropout.hpp"
 #include "op/elu.hpp"
@@ -278,7 +278,8 @@ namespace ngraph
             REGISTER_OPERATOR("Cosh", 1, cosh);
             REGISTER_OPERATOR("CumSum", 1, cum_sum);
             REGISTER_OPERATOR("DepthToSpace", 1, depth_to_space);
-            // REGISTER_OPERATOR("DequantizeLinear", 1, dequantize_linear);
+            REGISTER_OPERATOR("DequantizeLinear", 1, dequantize_linear);
+            REGISTER_OPERATOR("DequantizeLinear", 13, dequantize_linear);
             REGISTER_OPERATOR("Div", 1, div);
             REGISTER_OPERATOR("Div", 7, div);
             REGISTER_OPERATOR("Dropout", 1, dropout);
