@@ -311,7 +311,7 @@ CNNLayer::~CNNLayer() {
     while (fresh_data.size() != 0 || fresh_layer.size() != 0) {
         if (process_data) {
             for (auto& data : fresh_data) {
-                for (auto& layer : data->getInputTo()) {
+                for (auto& layer : getInputTo(data)) {
                     if (layer.second.use_count() == 1) {
                         fresh_layer.push_back(layer.second);
                     }
@@ -335,7 +335,7 @@ CNNLayer::~CNNLayer() {
 
     while (data_deque.size() != 0) {
         auto current_data = data_deque.back();
-        auto& inputTo = current_data->getInputTo();
+        auto& inputTo = getInputTo(current_data);
         for (auto& pair : inputTo) {
             if (pair.second.use_count() == 1) {
                 pair.second.reset();
