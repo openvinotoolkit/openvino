@@ -86,8 +86,8 @@ add_library(onnx_importer SHARED
         op/cum_sum.hpp
         op/depth_to_space.cpp
         op/depth_to_space.hpp
-        # op/dequantize_linear.cpp
-        # op/dequantize_linear.hpp
+        op/dequantize_linear.cpp
+        op/dequantize_linear.hpp
         op/div.hpp
         op/dropout.hpp
         op/elu.cpp
