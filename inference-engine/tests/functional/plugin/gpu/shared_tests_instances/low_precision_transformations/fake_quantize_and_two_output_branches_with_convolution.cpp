@@ -17,25 +17,20 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
 };
 
 const std::vector<LayerTransformation::Params> trasformationParamValues = {
-    // can not be passed to plugin
-    // nGraph: I8 -> FP32 Convert is not supported
-    // LayerTestsUtils::LayerTransformationParamsFactory::createParams(),
-    // LayerTestsUtils::LayerTransformationParamsFactory::createParamsI8I8(),
     LayerTestsUtils::LayerTransformationParamsFactory::createParamsU8I8()
 };
 
 const std::vector<LayerTestsUtils::LayerTransformation::LptVersion> versionValues = {
-    // CNNNetwork output layer issue
-    // LayerTestsUtils::LayerTransformation::LptVersion::cnnNetwork,
+    LayerTestsUtils::LayerTransformation::LptVersion::cnnNetwork,
     LayerTestsUtils::LayerTransformation::LptVersion::nGraph
 };
 
-const std::vector<ngraph::builder::subgraph::FakeQuantizeOnData> fakeQuantizeOnDataValues = {
-    { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } },
-    { 256ul, { 1ul }, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } },
-    // nGraph: I8->FP32 Convert is not supported
-    // { 256ul, {}, { -1.28f} , { 1.27f }, { -1.28f} , { 1.27f } },
-    // { 256ul, { 1ul }, { -1.28f} , { 1.27f } }
+const std::vector<ngraph::builder::subgraph::FakeQuantizeAndTwoOutputBranchesWithConvolutionFunction::ActualValues> testValues = {
+    {
+        { 256ul, {}, { 0.f }, { 25.5f }, { 0.f }, { 25.5f } },
+        { 255ul, {1, 1, 1, 1}, { 0.f }, { 254.f }, { -127.f }, { 127.f } },
+        { 255ul, {1, 1, 1, 1}, { 0.f }, { 254.f }, { -127.f }, { 127.f } },
+    }
 };
 
 // TODO: add something to avoid cleanup and enable
@@ -46,6 +41,6 @@ INSTANTIATE_TEST_CASE_P(LPT, FakeQuantizeAndTwoOutputBranchesWithConvolutionTran
         ::testing::Values(CommonTestUtils::DEVICE_GPU),
         ::testing::ValuesIn(trasformationParamValues),
         ::testing::ValuesIn(versionValues),
-        ::testing::ValuesIn(fakeQuantizeOnDataValues)),
+        ::testing::ValuesIn(testValues)),
     FakeQuantizeAndTwoOutputBranchesWithConvolutionTransformation::getTestCaseName);
 }  // namespace
