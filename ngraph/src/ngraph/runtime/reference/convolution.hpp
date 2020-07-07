@@ -363,8 +363,8 @@ namespace ngraph
                                          const Shape& in_shape,
                                          const Strides& in_dilation,
                                          const Strides& filter_dilation,
-                                         const CoordinateDiff& backward_delta_out_pad_below,
-                                         const CoordinateDiff& backward_delta_out_pad_above,
+                                         const CoordinateDiff& forward_in_pad_bellow,
+                                         const CoordinateDiff& forward_in_pad_above,
                                          const Strides& stride,
                                          size_t num_groups = 1)
             {
@@ -373,32 +373,58 @@ namespace ngraph
                 std::vector<INPUT> reversed(shape_size(filter_shape));
                 AxisSet reverse_axes;
                 size_t reverse_axes_start = num_groups == 1 ? 2 : 3;
-                for (size_t i = reverse_axes_start; i < filter_shape.size(); ++i)
-                {
+                for (size_t i = reverse_axes_start; i < filter_shape.size(); ++i) {
                     reverse_axes.insert(i);
                 }
                 reverse<FILTER>(filter, &reversed[0], filter_shape, filter_shape, reverse_axes);
                 size_t filter_out_channel_axis = num_groups == 1 ? 1 : 2;
                 size_t filter_in_channel_axis = num_groups == 1 ? 0 : 1;
+
+                // Compute backward pad out pad bellow
+                size_t spatial_dim_count = num_groups == 1 ? static_cast<size_t>(in_shape.size()) - 2 :
+                                                             static_cast<size_t>(in_shape.size()) - 3;
+
+                CoordinateDiff backward_delta_out_pad_below;
+                backward_delta_out_pad_below.resize(spatial_dim_count);
+
+                for (size_t i = 0; i < spatial_dim_count; i++) {
+                    backward_delta_out_pad_below[i] =
+                            (static_cast<ptrdiff_t>(filter_shape[i + 2]) - 1) * filter_dilation[i] -
+                            forward_in_pad_bellow[i];
+                }
+                // Compute backward pad out pad above
+                CoordinateDiff backward_delta_out_pad_above;
+                backward_delta_out_pad_above.resize(spatial_dim_count);
+
+                for (size_t i = 0; i < spatial_dim_count; i++) {
+                    backward_delta_out_pad_above[i] =
+                            (static_cast<ptrdiff_t>(filter_shape[i + 2]) - 1) * filter_dilation[i] +
+                            ((forward_in_pad_bellow[i] + ((in_shape[i + 2]) - 1) * in_dilation[i] +
+                              forward_in_pad_above[i] -
+                              (static_cast<ptrdiff_t>(filter_shape[i + 2]) - 1) * filter_dilation[i]) %
+                             stride[i]) -
+                            forward_in_pad_above[i];
+                }
+
                 general_convolution<OUTPUT, FILTER, INPUT, ACCUMULATION>(
-                    delta_out,
-                    &reversed[0],
-                    delta_in,
-                    out_shape,
-                    filter_shape,
-                    in_shape,
-                    in_dilation,
-                    filter_dilation,
-                    backward_delta_out_pad_below,
-                    backward_delta_out_pad_above,
-                    stride,
-                    num_groups,
-                    0,
-                    1,
-                    filter_out_channel_axis,
-                    filter_in_channel_axis,
-                    0,
-                    1);
+                        delta_out,
+                        &reversed[0],
+                        delta_in,
+                        out_shape,
+                        filter_shape,
+                        in_shape,
+                        in_dilation,
+                        filter_dilation,
+                        backward_delta_out_pad_below,
+                        backward_delta_out_pad_above,
+                        stride,
+                        num_groups,
+                        0,
+                        1,
+                        filter_out_channel_axis,
+                        filter_in_channel_axis,
+                        0,
+                        1);
             }
         } // namespace reference
     }     // namespace runtime

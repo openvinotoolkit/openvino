@@ -615,11 +615,11 @@ namespace {
                                                                                                       in_shape,
                                                                                                       filter_shape,
                                                                                                       out_shape,
-                                                                                                      strides,
+                                                                                                      in_dilation,
                                                                                                       dilation,
                                                                                                       pad_above,
                                                                                                       pad_below,
-                                                                                                      in_dilation);
+                                                                                                      strides);
             return true;
         } else {
             return false;
