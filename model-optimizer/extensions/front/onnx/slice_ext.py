@@ -17,8 +17,9 @@
 import numpy as np
 
 from mo.front.extractor import FrontExtractorOp
+from mo.front.onnx.extractors.utils import get_onnx_opset_version
 from mo.front.onnx.extractors.utils import onnx_attr
-from mo.ops.slice import Slice
+from mo.ops.slice import Slice, AttributedSlice
 
 
 class SliceFrontExtractor(FrontExtractorOp):
@@ -27,17 +28,18 @@ class SliceFrontExtractor(FrontExtractorOp):
 
     @classmethod
     def extract(cls, node):
-        axis = np.array(onnx_attr(node, 'axes', 'ints', default=[]), dtype=np.int64)
-        start = np.array(onnx_attr(node, 'starts', 'ints', default=[]), dtype=np.int64)
-        end = np.array(onnx_attr(node, 'ends', 'ints', default=[]), dtype=np.int64)
+        if get_onnx_opset_version(node) < 10:
+            axis = np.array(onnx_attr(node, 'axes', 'ints', default=[]), dtype=np.int64)
+            start = np.array(onnx_attr(node, 'starts', 'ints', default=[]), dtype=np.int64)
+            end = np.array(onnx_attr(node, 'ends', 'ints', default=[]), dtype=np.int64)
 
-        attrs = {
-            'axis': axis if len(axis) != 0 else None,
-            'start': start if len(start) != 0 else None,
-            'end': end if len(end) != 0 else None,
-            'format': 'onnx'
-        }
-
-        # update the attributes of the node
-        Slice.update_node_stat(node, attrs)
+            attrs = {
+                'axis': axis if len(axis) != 0 else None,
+                'start': start if len(start) != 0 else None,
+                'end': end if len(end) != 0 else None,
+                'format': 'onnx'
+            }
+            AttributedSlice.update_node_stat(node, attrs)
+        else:  # onnx_opset_version >= 10
+            Slice.update_node_stat(node, attrs={'format': 'onnx'})
         return cls.enabled

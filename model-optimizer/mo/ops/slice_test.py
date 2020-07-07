@@ -28,16 +28,6 @@ nodes_attributes = {
         'shape': None,
         'value': None,
     },
-    'begin': {
-        'kind': 'data',
-        'shape': None,
-        'value': None,
-    },
-    'size': {
-        'kind': 'data',
-        'shape': None,
-        'value': None,
-    },
     'starts': {
         'kind': 'data',
         'shape': None,
@@ -69,64 +59,38 @@ class TestSliceOp(unittest.TestCase):
         # Testing constant path case
         graph = build_graph(nodes_attributes,
                             [('data_1', 'slice'),
-                             ('begin', 'slice'),
-                             ('size', 'slice'),
+                             ('starts', 'slice'),
+                             ('ends', 'slice'),
                              ('slice', 'data_2')],
                             {'data_1': {'shape': np.array([4]), 'value': np.array([1, 3, 224, 224])},
-                             'slice': {'start': np.array([1]), 'end': np.array([2])},
-                             'size': {'value': np.array([1])},
-                             'begin': {'value': np.array([1])}})
+                             'starts': {'value': np.array([1])},
+                             'ends': {'value': np.array([2])}})
 
         slice_node = Node(graph, 'slice')
         Slice.infer(slice_node)
 
         self.assertTrue(np.array_equal(slice_node.out_node().value, np.array([3])))
         self.assertTrue(np.array_equal(slice_node.out_node().shape, np.array([1])))
-        self.assertTrue(np.array_equal(slice_node['slices'], np.array([slice(1, 2, 1)])))
 
     def test_slice_infer_non_constant(self):
         # Testing non-constant path case (when value in input is None)
         # with multiply params
         graph = build_graph(nodes_attributes,
                             [('data_1', 'slice'),
-                             ('begin', 'slice'),
-                             ('size', 'slice'),
+                             ('starts', 'slice'),
+                             ('ends', 'slice'),
                              ('slice', 'data_2')],
                             {'data_1': {'shape': np.array([4, 5, 6])},
-                             'slice': {'start': np.array([1, 2]),
-                                       'end': np.array([4, 3])},
-                             'size': {'value': np.array([3, 1])},
-                             'begin': {'value': np.array([1, 2])}})
+                             'starts': {'value': np.array([1, 2])},
+                             'ends': {'value': np.array([4, 3])}})
 
         slice_node = Node(graph, 'slice')
 
         Slice.infer(slice_node)
         self.assertTrue(np.array_equal(slice_node.out_node().value, None))
         self.assertTrue(np.array_equal(slice_node.out_node().shape, np.array([3, 1, 6])))
-        self.assertTrue(np.array_equal(slice_node['slices'], np.array([slice(1, 4, 1), slice(2, 3, 1), slice(0, 6, 1)])))
 
-    def test_slice_infer_multiply_params(self):
-        # Test case for TF when size[i] == -1 (that means all
-        # remaining elements in dimension i are included in the slice)
-        graph = build_graph(nodes_attributes,
-                            [('data_1', 'slice'),
-                             ('begin', 'slice'),
-                             ('size', 'slice'),
-                             ('slice', 'data_2')],
-                            {'data_1': {'shape': np.array([4, 5, 6])},
-                             'slice': {'start': np.array([1, 2]),
-                                       'end': np.array([4, 1])},
-                             'size': {'value': np.array([3, -1])},
-                             'begin': {'value': np.array([1, 2])}})
-
-        slice_node = Node(graph, 'slice')
-
-        Slice.infer(slice_node)
-        self.assertTrue(np.array_equal(slice_node.out_node().value, None))
-        self.assertTrue(np.array_equal(slice_node.out_node().shape, np.array([3, 3, 6])))
-        self.assertTrue(np.array_equal(slice_node['slices'], np.array([slice(1, 4, 1), slice(2, 5, 1), slice(0, 6, 1)])))
-
-    def test_slice_onnx_10_opset_case(self):
+    def test_slice_infer_negative(self):
         # check for negative end value in the case of ONNX 10 opset
         input = np.array([[4, 5, 6, 7], [2, 3, 5, 6], [5, 6, 8, 9], [5, 6, 8, 9]])
         starts = np.array([0, 1])

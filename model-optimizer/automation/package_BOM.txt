@@ -303,6 +303,7 @@ extensions/front/onnx/roifeatureextractor_ext.py
 extensions/front/onnx/scatter_ext.py
 extensions/front/onnx/shape_ext.py
 extensions/front/onnx/slice_ext.py
+extensions/front/onnx/slice_replacers.py
 extensions/front/onnx/softmax_ext.py
 extensions/front/onnx/softmaxONNX_to_softmax.py
 extensions/front/onnx/softplus_ext.py
@@ -424,6 +425,7 @@ extensions/front/tf/select_ext.py
 extensions/front/tf/sign_ext.py
 extensions/front/tf/SizeReplacer.py
 extensions/front/tf/slice_ext.py
+extensions/front/tf/slice_replacers.py
 extensions/front/tf/softmax_ext.py
 extensions/front/tf/softplus_ext.py
 extensions/front/tf/space_to_batch.py
