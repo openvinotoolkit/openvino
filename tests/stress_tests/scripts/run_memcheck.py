@@ -187,7 +187,9 @@ def main():
                 references = get_db_memcheck_records(query=query,
                                                      db_collection=args.ref_db_collection,
                                                      db_name=DATABASE, db_url=args.db_url)
-            compare_memcheck_2_runs(cur_values=records, references=references, output_file=args.comparison_report)
+            compare_retcode = compare_memcheck_2_runs(cur_values=records, references=references,
+                                                      output_file=args.comparison_report)
+            returncode = returncode if returncode else compare_retcode
             logging.info('Created memcheck comparison report %s', args.comparison_report)
 
     sys.exit(returncode)
