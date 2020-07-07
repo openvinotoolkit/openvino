@@ -76,7 +76,7 @@
 
 **Inputs**
 
-*   **1**: `data` - Input tensor with data for interpolation. Type of elements is any supported type. Required.
+*   **1**: `data` - Input tensor with data for interpolation. Type of elements is any supported floating point type or `int8` type. Required.
 
 *   **2**: `target_spatial_shape` - 1D tensor describing output shape for spatial axes. Number of elements matches the number of indices in *axes* attribute, the order matches as well. Required.
 
@@ -163,7 +163,7 @@ class GetOriginalCoordinate:
 
     @staticmethod
     def align_corners_func(resized, x_scale, length_resized, length_original):
-        return length_resized == 1 ? 0 : x_resized * (length_original - 1) / (length_resized - 1)
+        return  0 if length_resized == 1 else  x_resized * (length_original - 1) / (length_resized - 1)
 
 
 def get_cubic_coeff(s, a):
