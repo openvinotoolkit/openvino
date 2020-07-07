@@ -51,17 +51,6 @@ static uint32_t GetNumberOfInputs(EltwiseMode m) {
 
 ParamsKey eltwise_params::GetParamsKey() const {
     ParamsKey k = base_params::GetParamsKey();
-    if (int8_quantization) {
-        k.EnableInt8Quantization();
-    }
-
-    if (output_calibration) {
-        k.EnableOutputCalibration();
-    }
-
-    if (inputs_calibration) {
-        k.EnableEltwiseInputsCalibration();
-    }
 
     if (!stride.empty()) {
         k.EnableEltwiseStride();
@@ -617,9 +606,7 @@ KernelsData EltwiseKernelBase::GetCommonKernelsData(const Params& params, const 
     kernel.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo, DEFAULT);
     kernel.arguments = GetArgsDesc((uint32_t)newParams.inputs.size(),
                                    false,
-                                   false,
-                                   newParams.int8_quantization,
-                                   newParams.output_calibration);
+                                   false);
 
     kd.estimatedTime = DONT_USE_IF_HAVE_SOMETHING_ELSE;
 

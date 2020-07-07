@@ -26,12 +26,9 @@
 #include "quantize_inst.h"
 #include "binary_convolution_inst.h"
 #include "activation_inst.h"
-#include "batch_norm_inst.h"
-#include "batch_norm_grad_inst.h"
 #include "batch_to_space_inst.h"
 #include "crop_inst.h"
 #include "eltwise_inst.h"
-#include "fused_conv_bn_scale_inst.h"
 #include "fused_conv_eltwise_inst.h"
 #include "gemm_inst.h"
 #include "lrn_inst.h"
@@ -43,15 +40,16 @@
 #include "reshape_inst.h"
 #include "softmax_inst.h"
 #include "scale_inst.h"
-#include "scale_grad_weights_inst.h"
 #include "resample_inst.h"
 #include "depth_to_space_inst.h"
 #include "gather_inst.h"
 #include "reverse_sequence_inst.h"
 #include "shuffle_channels_inst.h"
+#include "space_to_batch_inst.h"
 #include "strided_slice_inst.h"
 #include "cum_sum_inst.h"
 #include "embedding_bag_inst.h"
+#include "extract_image_patches_inst.h"
 #include <vector>
 #include <list>
 #include <memory>
@@ -194,16 +192,17 @@ void prepare_primitive_fusing::fuse_activations(program_impl &p) {
                 // TODO: new api needs to be created to read such caps
                 // right now use whitelist so no new primitives will be affected in case of lack of fused activation
                 // support
-                (!input.is_type<batch_norm>() && !input.is_type<concatenation>() && !input.is_type<convolution>() &&
+                (!input.is_type<concatenation>() && !input.is_type<convolution>() &&
                  !input.is_type<crop>() && !input.is_type<deconvolution>() && !input.is_type<eltwise>() &&
                  !input.is_type<fully_connected>() && !input.is_type<lrn>() && !input.is_type<normalize>() &&
                  !input.is_type<permute>() && !input.is_type<pooling>() && !input.is_type<reorder>() &&
                  !input.is_type<reshape>() && !input.is_type<roi_pooling>() && !input.is_type<scale>() &&
                  !input.is_type<softmax>() && !input.is_type<resample>() && !input.is_type<mvn>() &&
-                 !input.is_type<depth_to_space>() && !input.is_type<batch_to_space>() && !input.is_type<gather>() &&
-                 !input.is_type<shuffle_channels>() && !input.is_type<strided_slice>() && !input.is_type<cum_sum>() &&
-                 !input.is_type<reverse_sequence>() && !input.is_type<embedding_bag>() && !input.is_type<fused_conv_eltwise>() &&
-                 !input.is_type<activation>()))
+                 !input.is_type<depth_to_space>() && !input.is_type<batch_to_space>() &&
+                 !input.is_type<space_to_batch>() && !input.is_type<gather>() && !input.is_type<shuffle_channels>() &&
+                 !input.is_type<strided_slice>() && !input.is_type<cum_sum>() && !input.is_type<reverse_sequence>() &&
+                 !input.is_type<embedding_bag>() && !input.is_type<extract_image_patches>() &&
+                 !input.is_type<fused_conv_eltwise>() && !input.is_type<activation>()))
                 return;
 
             if (input.is_type<eltwise>()) {
@@ -527,13 +526,28 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
 
             std::vector<bool> can_fuse_parents = { can_fuse_parent1, can_fuse_parent2 };
 
+            auto p1_raw_size = parent1->get_output_layout().size.raw;
+            auto p2_raw_size = parent2->get_output_layout().size.raw;
+            for (unsigned k = 0; k < p1_raw_size.size(); k++) {
+                if (p1_raw_size[k] < p2_raw_size[k]) {
+                    if (p1_raw_size[k] != 1)
+                        return;
+                    can_fuse_parents[0] = false;
+                }
+                else if (p2_raw_size[k] < p1_raw_size[k]) {
+                    if (p2_raw_size[k] != 1)
+                        return;
+                    can_fuse_parents[1] = false;
+                }
+            }
+
             // We should have at least one node to fuse
-            if (!can_fuse_parent1 && !can_fuse_parent2)
+            if (!can_fuse_parents[0] && !can_fuse_parents[1])
                 return;
 
             // Choose node to fuse
-            size_t fused_idx = can_fuse_parent1 ? 0 : 1;
-            size_t peer_idx  = can_fuse_parent1 ? 1 : 0;
+            size_t fused_idx = can_fuse_parents[0] ? 0 : 1;
+            size_t peer_idx  = can_fuse_parents[0] ? 1 : 0;
 
             int p1_pnum = p.get_processing_order().get_processing_number(parents[fused_idx]);
             int p2_pnum = p.get_processing_order().get_processing_number(parents[peer_idx]);
@@ -559,9 +573,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
             if (parent2->is_type<convolution>() && !conv_supports_fusings(parent2->as<convolution>()))
                 return;
 
-            // This fusing can be extended to support peer node in any layout and with broadcast
-            bool merge_allowed = fused_node->get_users().size() == 1 &&
-                                 fused_node->get_output_layout().size == peer_node->get_output_layout().size;
+            // This fusing can be extended to support peer node in any layout
+            bool merge_allowed = fused_node->get_users().size() == 1;
 
             for (auto& parent : fused_node->get_dependencies())
                 if (parent->id() == peer_node->id())
@@ -765,17 +778,6 @@ void prepare_conv_eltw_fusing::fuse_conv_eltwise(program_impl& p, program_node* 
         new_eltw_strides.push_back(eltw.stride[eltw_second_input_idx]);
     }
 
-    // Get scaling of second eltwise input - only per tensor supported for now
-    float eltw_scale = 1.f;
-
-    if (eltw_node->inputs_quantization_term()) {
-        eltw_scale = eltw.input_quantization_factors[eltw_second_input_idx] /
-                     eltw.input_quantization_factors[eltw_fused_input_idx];
-    }
-
-    if (eltw_node->inputs_calibration_term())
-        return;
-
     auto conv_id = conv_node->id();
     auto eltw_id = eltw_node->id();
 
@@ -791,11 +793,6 @@ void prepare_conv_eltw_fusing::fuse_conv_eltwise(program_impl& p, program_node* 
                                              eltw.mode,
                                              conv.weights,
                                              conv.bias,
-                                             std::vector<primitive_id>{},
-                                             std::vector<primitive_id>{},
-                                             0.0f,
-                                             eltw_scale,  // eltw_scale
-                                             eltw.output_calibration_factors,
                                              new_eltw_strides,
                                              new_conv_stride,
                                              conv.input_offset,
@@ -816,12 +813,6 @@ void prepare_conv_eltw_fusing::fuse_conv_eltwise(program_impl& p, program_node* 
         new_node.add_fused_activation(eltw_node->get_fused_activations_funcs()[i],
                                       eltw_node->get_fused_activations_params()[i]);
 
-    // Copy output calibration factors pointer as replace will remove eltwise node
-    program_node* output_calibration_factors = nullptr;
-    if (eltw_node->output_calibration_term()) {
-        output_calibration_factors = &eltw_node->output_calibration_factors();
-    }
-
     p.replace(*eltw_node, new_node);
 
     // TODO: do it better, now it's done in a very ugly way to have good dependency order
@@ -841,10 +832,6 @@ void prepare_conv_eltw_fusing::fuse_conv_eltwise(program_impl& p, program_node* 
     // Remove dependencies from convolution
     while (conv_node->get_dependencies().size() > 1) {
         conv_node->remove_dependency(1);
-    }
-
-    if (output_calibration_factors != nullptr) {
-        updated_deps.push_back(output_calibration_factors);
     }
 
     new_node.dependencies = updated_deps;

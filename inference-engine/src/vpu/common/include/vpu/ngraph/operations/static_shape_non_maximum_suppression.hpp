@@ -12,9 +12,9 @@
 
 namespace ngraph { namespace vpu { namespace op {
 
-class StaticShapeNonMaxSuppression : public ngraph::op::v3::NonMaxSuppression {
+class StaticShapeNonMaxSuppression : public ngraph::op::v4::NonMaxSuppression {
 public:
-    static constexpr NodeTypeInfo type_info{"StaticShapeStaticShapeNonMaxSuppression", 0};
+    static constexpr NodeTypeInfo type_info{"StaticShapeNonMaxSuppression", 0};
     const NodeTypeInfo& get_type_info() const override { return type_info; }
     StaticShapeNonMaxSuppression() = default;
 

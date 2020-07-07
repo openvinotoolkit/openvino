@@ -10,7 +10,8 @@
 #include <string>
 #include <vector>
 
-#include "cnn_network_stats_impl.hpp"
+#include "ie_layers.h"
+#include "ie_ishape_infer_extension.hpp"
 #include "description_buffer.hpp"
 #include "ie_api.h"
 #include "ie_blob.h"
@@ -26,19 +27,10 @@ using ReshaperPtr = std::shared_ptr<Reshaper>;
 }  // namespace ShapeInfer
 namespace details {
 
-IE_SUPPRESS_DEPRECATED_START
-
 class INFERENCE_ENGINE_API_CLASS(CNNNetworkImpl): public ICNNNetwork {
 public:
     CNNNetworkImpl();
     ~CNNNetworkImpl() override;
-    Precision getPrecision() const noexcept override {
-        return precision;
-    }
-
-    void setPrecision(Precision::ePrecision prec) {
-        precision = prec;
-    }
 
     std::shared_ptr<::ngraph::Function> getFunction() noexcept override {
         return nullptr;
@@ -68,13 +60,6 @@ public:
         _inputData.erase(name);
     }
 
-    void getName(char* pName, size_t len) const noexcept override {
-        // Description buffer will preserve garbage if external pointer not initialized
-        if (len < 1) return;
-        memset(pName, 0, len);
-        DescriptionBuffer(pName, len) << _name;
-    }
-
     const std::string& getName() const noexcept override {
         return _name;
     }
@@ -91,7 +76,7 @@ public:
         return _layers.size();
     }
 
-    DataPtr& getData(const char* name) noexcept override {
+    DataPtr& getData(const char* name) noexcept {
         return _data[name];
     }
 
@@ -103,7 +88,7 @@ public:
         return getData(name.c_str());
     }
 
-    void addLayer(const CNNLayerPtr& layer) noexcept override;
+    void addLayer(const CNNLayerPtr& layer) noexcept;
 
     void removeLayer(const std::string& layerName);
 
@@ -112,7 +97,7 @@ public:
 
     void removeData(const std::string& dataName);
 
-    StatusCode getLayerByName(const char* layerName, CNNLayerPtr& out, ResponseDesc* resp) const noexcept override;
+    StatusCode getLayerByName(const char* layerName, CNNLayerPtr& out, ResponseDesc* resp) const noexcept;
 
     // public version
     StatusCode setBatchSize(size_t size, ResponseDesc* responseDesc) noexcept override;
@@ -130,12 +115,6 @@ public:
 
     void removeOutput(const std::string& dataName);
 
-    StatusCode getStats(ICNNNetworkStats** stats, ResponseDesc* /* resp */) const noexcept override {
-        if (stats == nullptr) return StatusCode::PARAMETER_MISMATCH;
-        *stats = _stats.get();
-        return StatusCode::OK;
-    }
-
     void Release() noexcept override {
         delete this;
     }
@@ -146,13 +125,12 @@ public:
                        ResponseDesc* resp) noexcept override;
 
     StatusCode AddExtension(const InferenceEngine::IShapeInferExtensionPtr& extension,
-                            InferenceEngine::ResponseDesc* resp) noexcept override;
+                            InferenceEngine::ResponseDesc* resp) noexcept;
 
     StatusCode serialize(const std::string& xmlPath, const std::string& binPath, ResponseDesc* resp) const
         noexcept override;
 
 protected:
-    Precision precision {Precision::MIXED};
     std::map<std::string, DataPtr> _data;
     std::map<std::string, CNNLayerPtr> _layers;
     InferenceEngine::InputsDataMap _inputData;
@@ -160,10 +138,7 @@ protected:
     std::string _name;
     DataPtr _emptyData;
     ShapeInfer::ReshaperPtr _reshaper;
-    CNNNetworkStatsImplPtr _stats;
 };
-
-IE_SUPPRESS_DEPRECATED_END
 
 typedef std::shared_ptr<CNNNetworkImpl> CNNNetworkImplPtr;
 }  // namespace details

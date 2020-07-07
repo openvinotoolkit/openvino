@@ -15,3 +15,6 @@ addIeTargetTest(
         LABELS
             IE
 )
+
+target_include_directories(${TARGET_NAME} PRIVATE
+    $<TARGET_PROPERTY:inference_engine_ir_v7_reader,INTERFACE_INCLUDE_DIRECTORIES>)

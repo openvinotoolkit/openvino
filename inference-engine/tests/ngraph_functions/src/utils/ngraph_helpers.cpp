@@ -15,6 +15,35 @@
 
 namespace ngraph {
 namespace helpers {
+std::ostream &operator<<(std::ostream &os, const ReductionType &m) {
+    switch (m) {
+        case Mean:
+            os << "Mean";
+            break;
+        case Max:
+            os << "Max";
+            break;
+        case Min:
+            os << "Min";
+            break;
+        case Prod:
+            os << "Prod";
+            break;
+        case Sum:
+            os << "Sum";
+            break;
+        case LogicalOr:
+            os << "LogicalOr";
+            break;
+        case LogicalAnd:
+            os << "LogicalAnd";
+            break;
+        case LogicalXor:
+            os << "LogicalXor";
+            break;
+    }
+    return os;
+}
 
 OutputVector convert2OutputVector(const std::vector<std::shared_ptr<Node>> &nodes) {
     OutputVector outs;
@@ -498,7 +527,35 @@ std::ostream& operator<<(std::ostream & os, ngraph::helpers::EltwiseTypes type) 
             os << "Sum";
             break;
         default:
-            std::runtime_error("NOT_SUPPORTED_OP_TYPE");
+            throw std::runtime_error("NOT_SUPPORTED_OP_TYPE");
+    }
+    return os;
+}
+
+std::ostream& operator<<(std::ostream & os, ngraph::helpers::SqueezeOpType type) {
+    switch (type) {
+        case ngraph::helpers::SqueezeOpType::SQUEEZE:
+            os << "Squeeze";
+            break;
+        case ngraph::helpers::SqueezeOpType::UNSQUEEZE:
+            os << "Unsqueeze";
+            break;
+        default:
+            throw std::runtime_error("NOT_SUPPORTED_OP_TYPE");
+    }
+    return os;
+}
+
+std::ostream& operator<<(std::ostream& os, ngraph::helpers::InputLayerType type) {
+    switch (type) {
+        case ngraph::helpers::InputLayerType::CONSTANT:
+            os << "CONSTANT";
+            break;
+        case ngraph::helpers::InputLayerType::PARAMETER:
+            os << "PARAMETER";
+            break;
+        default:
+            throw std::runtime_error("NOT_SUPPORTED_INPUT_LAYER_TYPE");
     }
     return os;
 }

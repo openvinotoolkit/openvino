@@ -36,9 +36,7 @@ void MKLDNNGenericNode::initSupportedPrimitiveDescriptors() {
 
         std::vector<InferenceEngine::ILayerImpl::Ptr> impls_no_exec;
 
-        IE_SUPPRESS_DEPRECATED_START
         InferenceEngine::StatusCode rc = extFactory->getImplementations(impls_no_exec, &resp);
-        IE_SUPPRESS_DEPRECATED_END
         for (const auto& impl : impls_no_exec) {
             if (auto exec_impl = std::dynamic_pointer_cast<InferenceEngine::ILayerExecImpl>(impl)) {
                 impls.emplace_back(exec_impl);
@@ -92,7 +90,7 @@ bool MKLDNNGenericNode::created() const {
 
 bool MKLDNNGenericNode::created(const MKLDNNExtensionManager::Ptr &extMgr) {
     if (getCnnLayer() && extMgr) {
-        // We should save extension manager in otder to avoid situation when
+        // We should save extension manager in order to avoid situation when
         // it will destroyed before extensibility primitives
         if (getCnnLayer()->getNode()) {
             auto impl = extMgr->CreateImplementation(getCnnLayer()->getNode());
@@ -101,7 +99,6 @@ bool MKLDNNGenericNode::created(const MKLDNNExtensionManager::Ptr &extMgr) {
         }
         if (impls.empty()) {
             extFactory = extMgr->CreateExtensionFactory(getCnnLayer());
-            extShapeInference = extMgr->CreateReshaper(getCnnLayer());
         }
 
         if (extFactory || !impls.empty())
@@ -136,15 +133,8 @@ void MKLDNNGenericNode::execLayer() {
     }
 
     if (isDynBatch) {
-        if (extShapeInference) {
-            IE_SUPPRESS_DEPRECATED_START
-            auto sts = extShapeInference->inferShapes(constInputs, params, blobs, outputShapes, nullptr);
-            IE_SUPPRESS_DEPRECATED_END
-            if (sts != InferenceEngine::StatusCode::OK)
-                isDynBatch = false;
-        } else {
-            isDynBatch = false;
-        }
+        // TODO: use ngraph-based extension mechnism if needed to recompute shape
+        isDynBatch = false;
     }
 
     if (isDynBatch) {

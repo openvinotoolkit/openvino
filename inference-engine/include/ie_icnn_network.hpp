@@ -17,10 +17,8 @@
 #include "ie_blob.h"
 #include "ie_common.h"
 #include "ie_data.h"
-#include "ie_icnn_network_stats.hpp"
 #include "ie_iextension.h"
 #include "ie_input_info.hpp"
-#include "ie_layers.h"
 #include "ie_preprocess.hpp"
 
 namespace ngraph {
@@ -60,17 +58,6 @@ public:
     virtual std::shared_ptr<const ngraph::Function> getFunction() const noexcept = 0;
 
     /**
-     * @deprecated Network precision does not make sence, use precision on egdes. The method will be removed in 2021.1
-     * @brief Returns the main network operating precision.
-     *
-     * This may be MIXED if not homogeneous.
-     *
-     * @return A precision type
-     */
-    INFERENCE_ENGINE_DEPRECATED("Network precision does not make sence, use precision on egdes. The method will be removed in 2021.1")
-    virtual Precision getPrecision() const noexcept = 0;
-
-    /**
      * @brief Gets the network output Data node information. The received info is stored in the given Data node.
      *
      * For single and multiple outputs networks.
@@ -104,17 +91,6 @@ public:
     virtual InputInfo::Ptr getInput(const std::string& inputName) const noexcept = 0;
 
     /**
-     * @deprecated Use ICNNNetwork::getName() instead. The method will be removed in 2021.1
-     * @brief Gets the network name. The name is stored in the given pName string.
-     *
-     * @param pName - will receive actual network name, specified in IR file,
-     *     pName should point to valid memory address before invoking this function
-     * @param len - size in bytes of pName buffer, actual name is trimmed by this size
-     */
-    INFERENCE_ENGINE_DEPRECATED("Use ICNNNetwork::getName() instead. The method will be removed in 2021.1")
-    virtual void getName(char* pName, size_t len) const noexcept = 0;
-
-    /**
      * @brief Returns the network name.
      *
      * @return Network name
@@ -129,27 +105,6 @@ public:
     virtual size_t layerCount() const noexcept = 0;
 
     /**
-     * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
-     * @brief Returns a smart pointer reference to a Data node given its name.
-     *
-     * If the Data node is missing, returns reference to a default initialized new empty data pointer with given name.
-     *
-     * @param dname Name of the Data node
-     * @return Data node smart pointer
-     */
-    INFERENCE_ENGINE_DEPRECATED("Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1")
-    virtual DataPtr& getData(const char* dname) noexcept = 0;
-
-    /**
-     * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
-     * @brief Insert a layer into the network. A user is responsible to connect it to other data elements.
-     *
-     * @param layer Const reference to a layer smart pointer
-     */
-    INFERENCE_ENGINE_DEPRECATED("Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1")
-    virtual void addLayer(const CNNLayerPtr& layer) noexcept = 0;
-
-    /**
      * @brief Adds output to the layer
      *
      * @param layerName Name of the layer
@@ -159,18 +114,6 @@ public:
      */
     virtual StatusCode addOutput(const std::string& layerName, size_t outputIndex = 0,
                                  ResponseDesc* resp = nullptr) noexcept = 0;
-
-    /**
-     * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
-     * @brief Gets network layer with the given name
-     *
-     * @param layerName Given name of the layer
-     * @param out Pointer to the found CNNLayer object with the given name
-     * @param resp Pointer to the response message that holds a description of an error if any occurred
-     * @return Status code of the operation. InferenceEngine::OK if succeeded
-     */
-    INFERENCE_ENGINE_DEPRECATED("Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1")
-    virtual StatusCode getLayerByName(const char* layerName, CNNLayerPtr& out, ResponseDesc* resp) const noexcept = 0;
 
     /**
      * @brief Changes the inference batch size.
@@ -217,33 +160,6 @@ public:
         (void)resp;
         return NOT_IMPLEMENTED;
     };
-
-    /**
-     * @deprecated Use Core::AddExtension to add an extension to the library
-     * @brief Registers extension within the plugin
-     *
-     * @param extension Pointer to already loaded reader extension with shape propagation implementations
-     * @param resp Pointer to the response message that holds a description of an error if any occurred
-     * @return Status code of the operation. InferenceEngine::OK if succeeded
-     */
-    INFERENCE_ENGINE_DEPRECATED("Use Core::AddExtension to add an extension to the library")
-    virtual StatusCode AddExtension(const IShapeInferExtensionPtr& extension, ResponseDesc* resp) noexcept;
-
-    /**
-     * @deprecated Migrate to IR v10 and use quantization approach with FakeQuantize
-     * @brief Gets the statistics.
-     * @param stats The statistics
-     * @param resp Pointer to the response message that holds a description of an error if any occurred
-     * @return Status code of the operation
-     */
-    IE_SUPPRESS_DEPRECATED_START
-    INFERENCE_ENGINE_INTERNAL("Migrate to IR v10 and use quantization approach with FakeQuantize")
-    virtual StatusCode getStats(ICNNNetworkStats** stats, ResponseDesc* resp) const noexcept {
-        (void)stats;
-        (void)resp;
-        return NOT_IMPLEMENTED;
-    };
-    IE_SUPPRESS_DEPRECATED_END
 
     /**
      * @brief Serialize network to IR and weights files.

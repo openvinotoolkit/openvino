@@ -12,7 +12,6 @@
 #include <map>
 #include <utility>
 #include <memory>
-#include <shape_infer/const_infer/ie_const_infer_holder.hpp>
 #include <string>
 #include <vector>
 #include <mutex>
@@ -29,9 +28,9 @@ using namespace InferenceEngine::details;
 
 namespace InferenceEngine {
 
-bool isForFakeQuantzie(const CNNLayer& layer) {
+bool isForFakeQuantize(const CNNLayer& layer) {
     for (const DataPtr data : layer.outData) {
-        for (const auto it : data->getInputTo()) {
+        for (const auto it : getInputTo(data)) {
             const CNNLayerPtr childLayer = it.second;
             if (childLayer->type == "FakeQuantize" || childLayer->type == "Quantize") {
                 return true;
@@ -99,12 +98,12 @@ std::vector<CNNLayerPtr> ConstTransformer::foldConstSubgraphsInternal(const std:
         if (constLayers.find(layer->name) != constLayers.end()) {
             // const layer doesn't need parent connections -> erase them
             for (const auto& insData : layer->insData) {
-                auto& inputTo = insData.lock()->getInputTo();
+                auto& inputTo = getInputTo(insData.lock());
                 inputTo.erase(layer->name);
                 // Note: to resolve corner case above layers can be marked as const with const data, just to be removed
                 // properly.. and maybe this logic wouldn't be needed
                 if (inputTo.empty()) {
-                    auto creator = insData.lock()->getCreatorLayer().lock();
+                    auto creator = getCreatorLayer(insData.lock()).lock();
                     auto it = std::find(creator->outData.begin(), creator->outData.end(), insData.lock());
                     if (it != creator->outData.end()) {
                         data_to_remove.push_back(*it);
@@ -116,7 +115,7 @@ std::vector<CNNLayerPtr> ConstTransformer::foldConstSubgraphsInternal(const std:
 
             if (constLayers.at(layer->name)) {
                 for (const auto& outData : layer->outData) {
-                    for (const auto& inputTo : outData->getInputTo()) {
+                    for (const auto& inputTo : getInputTo(outData)) {
                         CNNLayerPtr inputToLayer;
                         std::string inputToName;
                         std::tie(inputToName, inputToLayer) = inputTo;
@@ -140,7 +139,7 @@ std::vector<CNNLayerPtr> ConstTransformer::foldConstSubgraphsInternal(const std:
                 bool keepConstData = layer->outData.size() == 1;
                 if (keepConstData) {
                     auto outData = layer->outData[0];
-                    for (const auto& inputTo : outData->getInputTo()) {
+                    for (const auto& inputTo : getInputTo(outData)) {
                         if (constLayers.find(inputTo.first) != constLayers.end()) {
                             keepConstData = false;
                         }
@@ -163,7 +162,7 @@ std::vector<CNNLayerPtr> ConstTransformer::foldConstSubgraphsInternal(const std:
                                                      layer->precision};
                             auto newLayer = std::make_shared<CNNLayer>(layerParams);
                             for (const auto& data : layer->outData) {
-                                data->getCreatorLayer() = newLayer;
+                                getCreatorLayer(data) = newLayer;
                             }
                             newLayer->outData = layer->outData;
                             newLayer->blobs["custom"] = layer->blobs["custom"];
@@ -177,7 +176,7 @@ std::vector<CNNLayerPtr> ConstTransformer::foldConstSubgraphsInternal(const std:
                     }
                 } else {
                     for (const auto& outData : layer->outData) {
-                        for (const auto& inputTo : outData->getInputTo()) {
+                        for (const auto& inputTo : getInputTo(outData)) {
                             CNNLayerPtr inputToLayer;
                             std::string inputToName;
                             std::tie(inputToName, inputToLayer) = inputTo;
@@ -204,8 +203,8 @@ std::vector<CNNLayerPtr> ConstTransformer::foldConstSubgraphsInternal(const std:
                                 }
                                 auto newData = std::make_shared<Data>(outData->getName() + "__" + inputToName,
                                                                       outData->getTensorDesc());
-                                newData->getCreatorLayer() = newLayer;
-                                newData->getInputTo()[inputToName] = inputToLayer;
+                                getCreatorLayer(newData) = newLayer;
+                                getInputTo(newData)[inputToName] = inputToLayer;
                                 newLayer->outData = {newData};
                                 layer_to_add.push_back(newLayer);
                                 data_to_add.push_back(newData);
@@ -232,7 +231,9 @@ std::vector<CNNLayerPtr> ConstTransformer::foldConstSubgraphsInternal(const std:
 static std::vector<std::string> skipConstInfer = {
     "FakeQuantize",
     "Quantize",
-    "CumSum"        // Const inference function for CumSum is not implemented!
+    "CumSum",     // Const inference function for CumSum is not implemented
+    "Convolution", // Const inference function for Convolution is not implemented
+    "Eltwise",  // Const inference function for Eltwise is not implemented
 };
 
 const std::map<std::string, bool> ConstTransformer::getConstLayers(const std::vector<CNNLayerPtr>& sortedLayers) {
@@ -242,17 +243,18 @@ const std::map<std::string, bool> ConstTransformer::getConstLayers(const std::ve
         // Layers with "Shape" and "Const" type are Const by definition
         if (layer->type == "Shape" || layer->type == "Const") {
             mapConstLayers[layer->name] = false;
-        } else if (std::find(skipConstInfer.begin(), skipConstInfer.end(), layer->type) == skipConstInfer.end() && !isForFakeQuantzie(*layer)) {
+        } else if (std::find(skipConstInfer.begin(), skipConstInfer.end(), layer->type) == skipConstInfer.end() &&
+                   !isForFakeQuantize(*layer)) {
             bool isAllInputsConst = true;
             for (auto const& data : layer->insData) {
-                auto creator = data.lock()->getCreatorLayer().lock();
+                auto creator = getCreatorLayer(data.lock()).lock();
                 if (creator != nullptr) {
                     if (mapConstLayers.find(creator->name) == mapConstLayers.end()) {
                         isAllInputsConst = false;
                     }
                 } else {
                     // Empty creator means that it's a network representation via inputs/outs data collection
-                    // And it's a firs layer in network.
+                    // And it's a first layer in network.
                     isAllInputsConst = false;
                 }
             }
@@ -269,7 +271,7 @@ const std::map<std::string, bool> ConstTransformer::getConstLayers(const std::ve
         for (int i = 0; i < currentLayer->insData.size(); i++) {
             std::string creatorName;
             if (currentLayer->insData[i].lock() != nullptr) {
-                auto creator = currentLayer->insData[i].lock()->getCreatorLayer().lock();
+                auto creator = getCreatorLayer(currentLayer->insData[i].lock()).lock();
                 if (creator) {
                     creatorName = creator->name;
                 }
@@ -308,7 +310,6 @@ const std::map<std::string, bool> ConstTransformer::getConstLayers(const std::ve
 
 const BlobMap ConstTransformer::getConstData(const std::map<std::string, bool>& constLayers,
                                              const std::vector<CNNLayerPtr>& sortedLayers) {
-    ShapeInfer::ConstInferHolder holder;
     BlobMap constData;
     auto getInputBlobs = [&constData](const std::vector<DataWeakPtr>& insData,
                                       bool isForShape) -> std::vector<Blob::CPtr> {
@@ -343,30 +344,21 @@ const BlobMap ConstTransformer::getConstData(const std::map<std::string, bool>& 
     };
 
     for (const auto& layer : sortedLayers) {
-        if (std::find(skipConstInfer.begin(), skipConstInfer.end(), layer->type) != skipConstInfer.end()) {
-            continue;
-        }
-
         if (constLayers.find(layer->name) != constLayers.end()) {
             std::string layerName = layer->name;
             bool isForShape = constLayers.at(layerName);
 
-            auto implPtr = holder.getConstInferImpl(layer->type);
-            if (!implPtr && !isForShape)
-                if (std::find(skipConstInfer.begin(), skipConstInfer.end(), layer->type) == skipConstInfer.end())
-                    THROW_IE_EXCEPTION << "Failed to find reference implementation for `" + layer->name +
-                                              "` Layer with `" + layer->type + "` Type on constant propagation";
+            if (!isForShape && layer->type != "Const")
+                THROW_IE_EXCEPTION << "Failed to find reference implementation for `" + layer->name +
+                                      "` Layer with `" + layer->type + "` Type on constant propagation";
             if (!isForShape) {
-                auto outputBlobs = getOutputBlobs(layer->outData);
-                auto inp = getInputBlobs(layer->insData, isForShape);
-                if (std::find(skipConstInfer.begin(), skipConstInfer.end(), layer->type) == skipConstInfer.end())
-                    implPtr->infer(inp, layer->params, layer->blobs, outputBlobs);
-                for (int i = 0; i < layer->outData.size(); i++) {
-                    std::string dataName = layer->outData[i]->getName();
-                    auto shapes = layer->outData[i]->getTensorDesc().getDims();
-                    outputBlobs[i]->getTensorDesc().reshape(shapes, TensorDesc::getLayoutByDims(shapes));
-                    constData[dataName] = outputBlobs[i];
-                }
+                auto & blobs = layer->blobs;
+                auto it = blobs.find("custom");
+                if (it == blobs.end())
+                    THROW_IE_EXCEPTION << "Missed `custom` blob in Const layer";
+
+                auto dataName = layer->outData[0]->getName();
+                constData[dataName] = (*it).second;
             }
         }
     }
@@ -399,7 +391,7 @@ static CNNLayerPtr replace_with_static_reshape(CNNLayerPtr &layer) {
     reshape->shape = std::vector<int>(shape.begin(), shape.end());
 
     // replacement
-    auto &input_to_map = in_data->getInputTo();
+    auto &input_to_map = getInputTo(in_data);
 
     // try to find by name
     auto found_by_name = input_to_map.find(layer->name);
@@ -417,7 +409,7 @@ static CNNLayerPtr replace_with_static_reshape(CNNLayerPtr &layer) {
 
     reshape->insData = {in_data};
     reshape->outData = {out_data};
-    out_data->getCreatorLayer() = reshape;
+    getCreatorLayer(out_data) = reshape;
 
     return reshape;
 }
@@ -427,7 +419,7 @@ void ConstTransformer::trimShapeInputs(const std::vector<CNNLayerPtr>& constLaye
     for (const auto& layer : constLayers) {
         if (layer->outData.size() == 1 && layer->type == "Const" && layer->insData.empty()) {
             auto constData = layer->outData[0];
-            std::map<std::string, CNNLayerPtr> inputToMap = constData->getInputTo();
+            std::map<std::string, CNNLayerPtr> inputToMap = getInputTo(constData);
             for (const auto& inputTo : inputToMap) {
                 CNNLayerPtr inputToLayer = inputTo.second;
                 if (shapeTaking.find(inputToLayer->type) != shapeTaking.end()) {
@@ -437,11 +429,11 @@ void ConstTransformer::trimShapeInputs(const std::vector<CNNLayerPtr>& constLaye
                     });
                     if (it != insData.end() && std::distance(insData.begin(), it) == 1) {
                         inputToLayer->insData.erase(it);
-                        constData->getInputTo().erase(inputTo.first);
+                        getInputTo(constData).erase(inputTo.first);
                     }
                 }
             }
-            if (constData->getInputTo().empty()) {
+            if (getInputTo(constData).empty()) {
                 layer_to_remove.push_back(layer);
                 data_to_remove.push_back(constData);
             }
@@ -484,7 +476,7 @@ void ConstTransformer::cleanup() {
         // Subgraph case
         auto &const_holder = inputs.back();
         if (const_holder->getPrecision() == Precision::UNSPECIFIED) {
-            auto &holder_map = const_holder->getInputTo();
+            auto &holder_map = getInputTo(const_holder);
             // Remove from const holder data object
             for (const auto &layer : layer_to_remove) {
                 auto self_found = std::find_if(holder_map.begin(), holder_map.end(),

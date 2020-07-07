@@ -373,6 +373,7 @@ void GNAPlugin::LoadNetwork(ICNNNetwork &network) {
         passes->registerPass<InsertDiagonalLayerPass>();
         passes->registerPass<HandleMultipleActivationsForTheLayerPass>();
         passes->registerPass<SubstituteScaleShiftBroadCastPass>();
+        passes->registerPass<FuseMultipleIdentitiesPass>();
         passIdx = passes->run(passIdx);
     };
 
@@ -520,7 +521,7 @@ void GNAPlugin::LoadNetwork(ICNNNetwork &network) {
     int portId = 0;
     for (auto && outPort : outputsDataMap) {
         // gets output layer pointer in original topology not in cloned
-        auto outLayer = outPort.second->getCreatorLayer().lock();
+        auto outLayer = getCreatorLayer(outPort.second).lock();
 
         // Memory layers are not dnnComponents hence we need to make switch with identity layer
         if (outLayer->type == "Memory") {
@@ -1140,13 +1141,15 @@ InferenceEngine::IExecutableNetwork::Ptr GNAPlugin::ImportNetwork(const std::str
 #else
     auto serial = GNAModelSerial(&std::get<0>(nnets.back())->obj, mt);
 #endif
-    serial.Import(basePtr, header.gnaMemSize, inputStream);
 
-    inputsDesc->getPtrInputsGlobal("input").push_back(reinterpret_cast<float*>(reinterpret_cast<uint8_t *> (basePtr) + header.input.descriptor_offset));
-    // TODO: import of multioutput network not supported
-    outputsDesc.resize(1);
-    auto &outputDesc = outputsDesc.front();
-    outputDesc.ptrs.push_back(reinterpret_cast<float*>(reinterpret_cast<uint8_t *> (basePtr) + header.output.descriptor_offset));
+    serial.setHeader(header);
+    serial.Import(basePtr,
+            header.gnaMemSize,
+            inputStream,
+            inputsDesc,
+            outputsDesc,
+            inputsDataMap,
+            outputsDataMap);
 
 #if GNA_LIB_VER == 2
     auto getOrientation = [](Gna2Operation & gnaOperation) {
@@ -1160,32 +1163,10 @@ InferenceEngine::IExecutableNetwork::Ptr GNAPlugin::ImportNetwork(const std::str
     };
 #endif
 
-#if GNA_LIB_VER == 2
-    inputsDesc->orientation_in["input"] = getOrientation(std::get<0>(gnaModels.back())->obj.Operations[0]);
-    outputDesc.orientation = getOrientation(std::get<0>(gnaModels.back())->obj.Operations[std::get<0>(gnaModels.back())->obj.NumberOfOperations - 1]);
-#else
+#if GNA_LIB_VER == 1
     inputsDesc->orientation_in["input"] = getOrientation(std::get<0>(nnets.back())->obj.pLayers[0]);
-    outputDesc.orientation = getOrientation(std::get<0>(nnets.back())->obj.pLayers[std::get<0>(nnets.back())->obj.nLayers - 1]);
+    outputsDesc[0].orientation = getOrientation(std::get<0>(nnets.back())->obj.pLayers[std::get<0>(nnets.back())->obj.nLayers - 1]);
 #endif
-    outputDesc.num_bytes_per_element = header.output.element_size;
-
-    auto outputDims = SizeVector({header.nGroup, header.output.elements_count / header.nGroup});
-    auto inputDims = SizeVector({header.nGroup, header.input.elements_count / header.nGroup});
-
-    inputsDataMap["input"] = std::make_shared<InputInfo>();
-    inputsDataMap["input"]->setInputData(make_shared<Data>("input",
-                                                           TensorDesc(
-                                                                   Precision::FP32,
-                                                                   inputDims,
-                                                                   Layout::NC)));
-    outputsDataMap["output"] = make_shared<Data>("output",
-                                                 TensorDesc(
-                                                         Precision::FP32,
-                                                         outputDims,
-                                                         Layout::NC));
-
-    outputDesc.scale_factor = header.output.scaleFactor;
-    inputsDesc->inputScaleFactors.push_back(header.input.scaleFactor);
 
     num_rotate_rows = header.nRotateRows;
     num_rotate_columns = header.nRotateColumns;
@@ -1214,9 +1195,11 @@ void GNAPlugin::Export(const std::string &fileName) {
         THROW_GNA_EXCEPTION << " network not loaded";
     }
 
+#if GNA_LIB_VER == 1
     if (inputsDesc->ptr_inputs_global_id.size() != 1) {
         THROW_GNA_EXCEPTION << " exporting network with multiple inputs not supported";
     }
+#endif
 
     std::fstream outStream(fileName, ios_base::out | ios_base::binary);
 
@@ -1229,19 +1212,16 @@ void GNAPlugin::Export(const std::string &fileName) {
 #endif
     }
 #if GNA_LIB_VER == 2
-    auto serial = GNAModelSerial(&std::get<0>(gnaModels.front())->obj,
+    Gna2Model* modelToSerial = &std::get<0>(gnaModels.front())->obj;
 #else
-    auto serial = GNAModelSerial(&std::get<0>(nnets.front())->obj,
+    intel_nnet_type_t* modelToSerial = &std::get<0>(nnets.front())->obj;
 #endif
-                   {inputsDesc->inputScaleFactors.front(),
-                    inputsDesc->ptr_inputs_global_storage.front()[0],
-                    2,
-                    static_cast<uint32_t>(InferenceEngine::details::product(inputsDataMap.begin()->second->getTensorDesc().getDims()))},
-                   {outputsDesc.front().scale_factor,
-                    outputsDesc.front().ptrs.front(),
-                    outputsDesc.front().num_bytes_per_element,
-                    static_cast<uint32_t>(InferenceEngine::details::product(outputsDataMap.begin()->second->getTensorDesc().getDims()))})
-        .SetInputRotation(dnn->num_rotate_rows, dnn->num_rotate_columns);
+    auto serial = GNAModelSerial(modelToSerial,
+                                 inputsDesc,
+                                 outputsDesc,
+                                 inputsDataMap,
+                                 outputsDataMap)
+                    .SetInputRotation(dnn->num_rotate_rows, dnn->num_rotate_columns);
 
     for (auto && memoryConnection : graphCompiler.memory_connection) {
         serial.AddState(memoryConnection.second.gna_ptr, memoryConnection.second.reserved_size);
@@ -1281,7 +1261,7 @@ void GNAPlugin::QueryNetwork(const InferenceEngine::ICNNNetwork& network,
         THROW_GNA_EXCEPTION << "Network is empty (GNA)\n";
     }
 
-    auto const & secondLayers = inputs.begin()->second->getInputData()->getInputTo();
+    auto const & secondLayers = getInputTo(inputs.begin()->second->getInputData());
     if (secondLayers.empty()) {
         THROW_GNA_EXCEPTION << "Network consists of input layer only (GNA)\n";
     }

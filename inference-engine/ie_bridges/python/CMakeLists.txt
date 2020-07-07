@@ -18,10 +18,10 @@ elseif(ARCH STREQUAL "i386")
 endif()
 
 if(DEFINED IE_MAIN_SOURCE_DIR)
-    set(InferenceEngine_LIBRARIES inference_engine)
+    set(InferenceEngine_LIBRARIES inference_engine inference_engine_plugin_api)
 else()
     find_package(InferenceEngineDeveloperPackage REQUIRED)
-    set(InferenceEngine_LIBRARIES IE::inference_engine)
+    set(InferenceEngine_LIBRARIES IE::inference_engine IE::inference_engine_plugin_api)
 endif()
 
 if(UNIX)

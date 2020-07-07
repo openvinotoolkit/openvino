@@ -45,14 +45,19 @@ public:
 
     /**
      * @brief Unites current set of already fused names with another FusedNames object
-     * @param names[in] Another object to fuse with
+     * @param[in] names Another object to fuse with
      */
     void fuseWith(const FusedNames &names);
 
-    // return string with operation names separated by coma in alphabetical order
+    /**
+     * @brief return string with operation names separated by coma in alphabetical order
+     */
     std::string getNames() const;
 
-    // returns vector of fused names sorted in alphabetical order
+    /**
+     * @brief return vector of fused names sorted in alphabetical order
+     * @return vector if strings
+     */
     std::vector<std::string> getVectorNames() const;
 };
 
@@ -72,8 +77,19 @@ public:
     std::shared_ptr<ngraph::Variant> init(const std::shared_ptr<ngraph::Node> & node) override;
 };
 
+/**
+ * @ingroup ie_runtime_attr_api
+ * @brief getFusedNames return string with operation names separated by coma in alphabetical order
+ * @param[in] node The node will be used to get FusedNames attribute
+ */
 TRANSFORMATIONS_API std::string getFusedNames(const std::shared_ptr<ngraph::Node> & node);
 
+/**
+ * @ingroup ie_runtime_attr_api
+ * @brief getFusedNamesVector return vector of fused names sorted in alphabetical order
+ * @param[in] node The node will be used to get FusedNames attribute
+ * @return vector of strings
+ */
 TRANSFORMATIONS_API std::vector<std::string> getFusedNamesVector(const std::shared_ptr<ngraph::Node> & node);
 
 }  // namespace ngraph

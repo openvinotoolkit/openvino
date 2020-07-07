@@ -48,9 +48,6 @@ cdef class ExecutableNetwork:
     cdef public:
         _requests, _infer_requests
 
-cdef class LayersStatsMap(dict):
-    cdef C.IENetwork net_impl
-
 cdef class IECore:
     cdef C.IECore impl
     cpdef IENetwork read_network(self, model : [str, bytes, Path], weights : [str, bytes, Path] = ?, bool init_from_buffer = ?)

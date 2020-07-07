@@ -208,33 +208,37 @@ void MKLDNNFullyConnectedNode::setPostOps(mkldnn::primitive_attr &attr, bool ini
 
                 PostOpsIntBlobMemory.push_back(MKLDNNMemoryPtr(new MKLDNNMemory(getEngine())));
                 PostOpsIntBlobMemory[blob_idx]->Create(depthwiseDims, memory::data_type::f32, memory::format::x);
+                PostOpsIntBlobMemory[blob_idx]->FillZero();
 
-                PostOpsIntBlobMemory[blob_idx]->SetData(memory::data_type::f32, memory::x,
-                                                        depthwiseLayer->_weights->buffer(),
-                                                        depthwiseLayer->_weights->size() *
-                                                        MKLDNNExtensionUtils::sizeOfDataType(memory::data_type::f32));
-
+                // In case ndims == 3 graph optimizer allows fusing only if all weights values are the same
                 if (depthwiseNode->isBroadcast() || ndims == 3) {
-                    float broadcastValue = static_cast<float *>(PostOpsIntBlobMemory[blob_idx]->GetData())[0];
-                    for (int i = 1; i < PostOpsIntBlobMemory[blob_idx]->GetPrimitiveDescriptor().desc().data.dims[0]; i++) {
+                    float broadcastValue = static_cast<float *>(depthwiseLayer->_weights->buffer())[0];
+                    for (int i = 0; i < PostOpsIntBlobMemory[blob_idx]->GetPrimitiveDescriptor().desc().data.dims[0]; i++) {
                         static_cast<float *>(PostOpsIntBlobMemory[blob_idx]->GetData())[i] = broadcastValue;
                     }
+                } else {
+                    PostOpsIntBlobMemory[blob_idx]->SetData(memory::data_type::f32, memory::x,
+                                                            depthwiseLayer->_weights->buffer(),
+                                                            depthwiseLayer->_weights->size() *
+                                                            MKLDNNExtensionUtils::sizeOfDataType(memory::data_type::f32));
                 }
 
                 if (depthwiseNode->getAlgorithm() == depthwise_scale_shift) {
                     PostOpsIntBlobMemory.push_back(MKLDNNMemoryPtr(new MKLDNNMemory(getEngine())));
-                    PostOpsIntBlobMemory[blob_idx + 1]->Create(depthwiseDims, memory::data_type::f32,
-                                                               memory::format::x);
-                    PostOpsIntBlobMemory[blob_idx + 1]->SetData(memory::data_type::f32, memory::x,
-                                                                depthwiseLayer->_biases->buffer(),
-                                                                depthwiseLayer->_biases->size() *
-                                                                MKLDNNExtensionUtils::sizeOfDataType(memory::data_type::f32));
+                    PostOpsIntBlobMemory[blob_idx + 1]->Create(depthwiseDims, memory::data_type::f32, memory::format::x);
+                    PostOpsIntBlobMemory[blob_idx + 1]->FillZero();
 
+                    // In case ndims == 3 graph optimizer allows fusing only if all biases values are the same
                     if (depthwiseNode->isBroadcast() || ndims == 3) {
-                        float broadcastValue = static_cast<float *>(PostOpsIntBlobMemory[blob_idx + 1]->GetData())[0];
-                        for (int i = 1; i < PostOpsIntBlobMemory[blob_idx + 1]->GetPrimitiveDescriptor().desc().data.dims[0]; i++) {
+                        float broadcastValue = static_cast<float *>(depthwiseLayer->_biases->buffer())[0];
+                        for (int i = 0; i < PostOpsIntBlobMemory[blob_idx + 1]->GetPrimitiveDescriptor().desc().data.dims[0]; i++) {
                             static_cast<float *>(PostOpsIntBlobMemory[blob_idx + 1]->GetData())[i] = broadcastValue;
                         }
+                    } else {
+                        PostOpsIntBlobMemory[blob_idx + 1]->SetData(memory::data_type::f32, memory::x,
+                                                                    depthwiseLayer->_biases->buffer(),
+                                                                    depthwiseLayer->_biases->size() *
+                                                                    MKLDNNExtensionUtils::sizeOfDataType(memory::data_type::f32));
                     }
 
                     ops.append_depthwise(depthwiseNode->getAlgorithm(),

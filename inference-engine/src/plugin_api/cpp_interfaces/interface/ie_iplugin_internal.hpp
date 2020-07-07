@@ -9,12 +9,12 @@
 
 #pragma once
 
-
+#include <ie_layers.h>
 #include <ie_iextension.h>
 #include <ie_input_info.hpp>
 #include <ie_icnn_network.hpp>
 #include <ie_icore.hpp>
-#include <ie_plugin.hpp>
+#include <ie_parameter.hpp>
 #include <ie_iexecutable_network.hpp>
 #include <ie_remote_context.hpp>
 
@@ -68,7 +68,7 @@ static void copyInputOutputInfo(const InputsDataMap & networkInputs, const Outpu
             newPtr.reset(new InputInfo());
             copyPreProcess(it.second->getPreProcess(), newPtr->getPreProcess());
             DataPtr newData(new Data(*it.second->getInputData()));
-            newData->getInputTo().clear();
+            getInputTo(newData).clear();
             newPtr->setInputData(newData);
         }
         _networkInputs[it.first] = newPtr;
@@ -77,7 +77,7 @@ static void copyInputOutputInfo(const InputsDataMap & networkInputs, const Outpu
         DataPtr newData;
         if (it.second) {
             newData.reset(new Data(*it.second));
-            newData->getInputTo().clear();
+            getInputTo(newData).clear();
         }
         _networkOutputs[it.first] = newData;
     }

@@ -22,7 +22,7 @@ public:
  * @param wrongID - data index, which falsely displayed among inputs in y
  */
     void CONNECT_WRONGLY(int x, int y, int wrongID) {
-        datas[x].front()->getInputTo()[std::to_string(y)] = layers[y];
+        getInputTo(datas[x].front())[std::to_string(y)] = layers[y];
         layers[y]->insData.push_back(datas[wrongID].front());
         lhsLayers.insert(layers[x]);
         rhsLayers.insert(layers[y]);
@@ -33,7 +33,7 @@ public:
  * @param y - input layer index
  */
     void CONNECT_WITHOUT_INS_DATA(int x, int y) {
-        datas[x].front()->getInputTo()[std::to_string(y)] = layers[y];
+        getInputTo(datas[x].front())[std::to_string(y)] = layers[y];
         lhsLayers.insert(layers[x]);
         rhsLayers.insert(layers[y]);
     }
@@ -45,7 +45,7 @@ public:
  */
     void CONNECT_WITH_DATA_NAME(int x, int y, int name) {
         datas[x].front()->setName(std::to_string(name));
-        datas[x].front()->getInputTo()[std::to_string(y)] = layers[y];
+        getInputTo(datas[x].front())[std::to_string(y)] = layers[y];
         layers[y]->insData.push_back(datas[x].front());
         lhsLayers.insert(layers[x]);
         rhsLayers.insert(layers[y]);
@@ -58,7 +58,7 @@ public:
  */
     void CONNECT_WITH_LAYER_NAME(int x, int y, int name) {
         layers[y]->name = std::to_string(name);
-        datas[x].front()->getInputTo()[std::to_string(y)] = layers[y];
+        getInputTo(datas[x].front())[std::to_string(y)] = layers[y];
         layers[y]->insData.push_back(datas[x].front());
         lhsLayers.insert(layers[x]);
         rhsLayers.insert(layers[y]);
@@ -69,8 +69,8 @@ public:
  * @param y - input layer index
  */
     void CONNECT_WITHOUT_CREATOR_LAYER_WHICH_EXIST(int x, int y) {
-        datas[x].front()->getInputTo()[std::to_string(y)] = layers[y];
-        datas[x].front()->getCreatorLayer() = std::weak_ptr<CNNLayer>();
+        getInputTo(datas[x].front())[std::to_string(y)] = layers[y];
+        getCreatorLayer(datas[x].front()) = std::weak_ptr<CNNLayer>();
         layers[y]->insData.push_back(datas[x].front());
         lhsLayers.insert(layers[x]);
         rhsLayers.insert(layers[y]);
@@ -81,8 +81,8 @@ public:
  * @param y - input layer index
  */
     void CONNECT_WITHOUT_CREATOR_LAYER(int x, int y) {
-        datas[x].front()->getInputTo()[std::to_string(y)] = layers[y];
-        datas[x].front()->getCreatorLayer() = std::weak_ptr<CNNLayer>();
+        getInputTo(datas[x].front())[std::to_string(y)] = layers[y];
+        getCreatorLayer(datas[x].front()) = std::weak_ptr<CNNLayer>();
         layers[x] = nullptr;
         layers[y]->insData.push_back(datas[x].front());
         rhsLayers.insert(layers[y]);
@@ -93,7 +93,7 @@ public:
  * @param y - input layer index
  */
     void CONNECT_WITH_INPUT_TYPE(int x, int y, std::string type) {
-        datas[x].front()->getInputTo()[std::to_string(y)] = layers[y];
+        getInputTo(datas[x].front())[std::to_string(y)] = layers[y];
         layers[y]->insData.push_back(datas[x].front());
         layers[x]->type = type;
         lhsLayers.insert(layers[x]);
@@ -223,15 +223,6 @@ TEST_F(CNNNetworkImplTest, layerDataNotCoresspondEachOtherTwoInputs) {
         prepareInputs(maps);
     })));
     ASSERT_THROW(network.validateNetwork(), InferenceEngineException);
-}
-
-TEST_F(CNNNetworkImplTest, canGetName) {
-    InferenceEngine::details::CNNNetworkImpl net;
-    net.setName("myName");
-    const char* p = "33333333333";
-    char name[20];
-    net.getName(name, sizeof(name));
-    ASSERT_STREQ(name, "myName");
 }
 
 TEST_F(CNNNetworkImplTest, canGetNameStr) {

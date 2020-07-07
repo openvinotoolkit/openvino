@@ -54,9 +54,6 @@ class ModelQuantizer {
         // one of solution is to create not copyNet overloads, that accepts 2 functors, one for layer copy
         // and another one for net copy
         auto rawNet = dynamic_cast<InferenceEngine::details::CNNNetworkImpl *>(copiedNet.get());
-        if (rawNet != nullptr) {
-            rawNet->setPrecision(T::mandatory().getNetPrecision());
-        }
 
         // allow client code to access copied topology, to avoid copies if user would like to chain quantisation with
         // another preprocessing
@@ -77,7 +74,7 @@ class ModelQuantizer {
         copiedNet->getInputsInfo(dm);
         int scaleIndex = 0;
         for (auto &&inputData : dm) {
-            auto inputLayer = inputData.second->getInputData()->getCreatorLayer().lock();
+            auto inputLayer = getCreatorLayer(inputData.second->getInputData()).lock();
             auto quantData = InferenceEngine::getInjectedData<QuantizedLayerParams>(inputLayer);
             if (scaleFactor.size() <= scaleIndex) {
                 THROW_GNA_EXCEPTION << "Scale factors are not set for some of the inputs";

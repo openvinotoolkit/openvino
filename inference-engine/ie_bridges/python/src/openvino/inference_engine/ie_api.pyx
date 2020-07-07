@@ -717,7 +717,7 @@ cdef class DataPtr:
 
     @property
     def creator_layer(self):
-        cdef C.CNNLayerWeakPtr _l_ptr = deref(self._ptr).getCreatorLayer()
+        cdef C.CNNLayerWeakPtr _l_ptr = C.getCreatorLayer(self._ptr)
         cdef IENetLayer creator_layer
         creator_layer = IENetLayer()
         if _l_ptr.lock() != NULL:
@@ -728,7 +728,7 @@ cdef class DataPtr:
 
     @property
     def input_to(self):
-        cdef map[string, C.CNNLayerPtr] _l_ptr_map = deref(self._ptr).getInputTo()
+        cdef map[string, C.CNNLayerPtr] _l_ptr_map = C.getInputTo(self._ptr)
         cdef IENetLayer input_to
         input_to_list = []
         for layer in _l_ptr_map:
@@ -759,28 +759,6 @@ cdef class CDataPtr:
     @property
     def initialized(self):
         return deref(self._ptr).isInitialized()
-
-    # TODO: Resolve compilation error
-    # @property
-    # def creator_layer(self):
-    #     cdef C.CNNLayerWeakPtr _l_ptr = deref(self._ptr).getCreatorLayer()
-    #     cdef IENetLayer creator_layer
-    #     creator_layer = IENetLayer()
-    #     if _l_ptr.lock() != NULL:
-    #         creator_layer._ptr = _l_ptr.lock()
-    #     else:
-    #         raise RuntimeError("Creator IENetLayer of DataPtr object with name {} already released!".format(self.name))
-    #     return creator_layer
-    # @property
-    # def input_to(self):
-    #     cdef map[string, C.CNNLayerPtr] _l_ptr_map = deref(self._ptr).getInputTo()
-    #     cdef IENetLayer input_to
-    #     input_to_list = []
-    #     for layer in _l_ptr_map:
-    #         input_to = IENetLayer()
-    #         input_to._ptr = layer.second
-    #         input_to_list.append(input_to)
-    #     return input_to_list
 
 
 ## This class represents a network instance loaded to plugin and ready for inference.
@@ -1235,42 +1213,6 @@ cdef class InferRequest:
             self.input_blobs[k].buffer[:] = v
 
 
-## Layer calibration statistic container.
-class LayerStats:
-
-    ## Class constructor
-    #
-    #  @param min: Tuple with per-channel minimum layer activation values
-    #  @param max: Tuple with per-channel maximum layer activation values
-    #  @return An instance of LayerStats class
-    def __init__(self, min: tuple = (), max: tuple = ()):
-        self._min = min
-        self._max = max
-
-    ## Tuple with per-channel minimum layer activation values
-    @property
-    def min(self):
-        return self._min
-
-    ## Tuple with per-channel maximum layer activation values
-    @property
-    def max(self):
-        return self._max
-
-
-## Class inherited from built-in python `dict` class and overrides default `update()`method to allow
-#  to set or modify layers calibration statistics.
-cdef class LayersStatsMap(dict):
-    def update(self, other=None, **kwargs):
-        super(LayersStatsMap, self).update(other, **kwargs)
-        cdef map[string, map[string, vector[float]]] c_stats_map
-        cdef map[string, vector[float]] c_node_stats
-        for k, v in self.items():
-            c_node_stats["min".encode()] = v.min
-            c_node_stats["max".encode()] = v.max
-            c_stats_map[k.encode()] = c_node_stats
-        self.net_impl.setStats(c_stats_map)
-
 ## This class represents a main layer information and providing setters allowing to modify layer properties
 cdef class IENetLayer:
     ## Name of the layer
@@ -1329,6 +1271,7 @@ cdef class IENetLayer:
     @params.setter
     def params(self, new_params):
         deref(self._ptr).params = dict_to_c_map(new_params)
+
     ## Returns a list, which contains names of layers preceding this layer
     @property
     def parents(self):
@@ -1348,11 +1291,10 @@ cdef class IENetLayer:
         cdef map[string, C.CNNLayerPtr] _l_ptr_map
         input_to_list = []
         for l in c_outs:
-            _l_ptr_map = deref(l).getInputTo()
+            _l_ptr_map = C.getInputTo(l)
             for layer in _l_ptr_map:
                 input_to_list.append(deref(layer.second).name.decode())
         return input_to_list
-
     ## \note This property is deprecated.
     # Please, use out_data property to access DataPtr objects for all output ports, which contains full
     # information about layer's output data including layout
@@ -1470,11 +1412,10 @@ cdef class IENetwork:
     #   ```
 
     def __cinit__(self, model: [str, bytes] = "", weights: [str, bytes] = "", init_from_buffer: bool = False):
-        # TODO: ucomment when ngraph python api will work
         # Try to create Inference Engine network from capsule
-        # if model.__class__.__name__ == 'PyCapsule' and weights == '' and init_from_buffer is False:
-        #     self.impl = C.IENetwork(model)
-        #     return
+        if model.__class__.__name__ == 'PyCapsule' and weights == '' and init_from_buffer is False:
+            self.impl = C.IENetwork(model)
+            return
         cdef char*xml_buffer = <char*> malloc(len(model)+1)
         cdef uint8_t*bin_buffer = <uint8_t *> malloc(len(weights))
         cdef string model_
@@ -1586,33 +1527,6 @@ cdef class IENetwork:
             layers[deref(l).name.decode()] = net_l
         return layers
 
-    ## \note This property is deprecated.
-    #  New Calibration Tool doesn't generate statistics
-    #
-    #  Returns `LayersStatsMap` object containing dictionary that maps network layer names to calibration statistics
-    #  represented by `LayerStats`  objects.
-    #
-    #  Usage example:\n
-    #  ```python
-    #  ie = IECore()
-    #  net = ie.read_network(model=path_to_xml_file, weights=path_to_bin_file)
-    #  net.stats.update({"conv1_2d" : LayserStats(min=(-25, -1, 0), max=(63, 124, 70)),
-    #                    "conv2_2d" : LayserStats(min=(-5, -1, 0, 1, -7, 2), max=(63, 124, 70, 174, 99, 106))
-    #                   })
-    #  ```
-    @property
-    def stats(self):
-        warnings.warn("stats property of IENetwork is deprecated.",
-                          DeprecationWarning)
-        cdef map[string, map[string, vector[float]]] c_stats_map = self.impl.getStats()
-        py_stats_map = LayersStatsMap()
-        py_stats_map.net_impl = self.impl
-        for it in c_stats_map:
-            py_stats_map[it.first.decode()] = LayerStats(min=tuple(it.second["min".encode()]),
-                                                         max=tuple(it.second["max".encode()]))
-        return py_stats_map
-
-
     ## Marks any intermediate layer as output layer to retrieve the inference results from the specified layers.
     #  @param outputs: List of layers to be set as model outputs. The list can contain strings with layer names to be set
     #                  as outputs or tuples with layer name as first element and output port id as second element.
@@ -1682,10 +1596,8 @@ cdef class IENetwork:
             c_input_shapes[input.encode()] = c_shape
         self.impl.reshape(c_input_shapes)
 
-    # TODO: ucomment when ngraph python api will work
-
-    # def get_function(self):
-    #     return self.impl.getFunction()
+    def _get_function_capsule(self):
+        return self.impl.getFunction()
 
 cdef class BlobBuffer:
     """Copy-less accessor for Inference Engine Blob"""

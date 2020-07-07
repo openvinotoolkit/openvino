@@ -12,6 +12,7 @@
 #include <map>
 #include <vector>
 #include <set>
+#include <list>
 #include <iostream>
 #include <algorithm>
 #include <sstream>
@@ -21,7 +22,8 @@
 #include <mutex>
 
 #include <ie_extension.h>
-#include "inference_engine.hpp"
+#include <ie_layers.h>
+#include <ie_core.hpp>
 
 typedef std::chrono::high_resolution_clock Time;
 typedef std::chrono::nanoseconds ns;
@@ -60,10 +62,6 @@ struct IENetwork {
     void reshape(const std::map<std::string, std::vector<size_t>> &input_shapes);
 
     void serialize(const std::string &path_to_xml, const std::string &path_to_bin);
-
-    void setStats(const std::map<std::string, std::map<std::string, std::vector<float>>> &stats);
-
-    const std::map<std::string, std::map<std::string, std::vector<float>>> getStats();
 
     void load_from_buffer(const char* xml, size_t xml_size, uint8_t* bin, size_t bin_size);
 

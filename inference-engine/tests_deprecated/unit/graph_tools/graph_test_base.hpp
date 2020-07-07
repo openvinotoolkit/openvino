@@ -11,6 +11,7 @@
 #include "details/ie_cnn_network_tools.h"
 
 #include "unit_test_utils/mocks/mock_icnn_network.hpp"
+#include "common_test_utils/common_utils.hpp"
 
 namespace GraphTest {
 
@@ -51,9 +52,9 @@ class GraphTestsBase : public ::testing::Test {
                     dims.push_back(batchSize);
                     data->setDims(dims);
                     for (auto output : (*layer)->outData) {
-                        data->getInputTo() = output->getInputTo();
+                        getInputTo(data) = getInputTo(output);
                     }
-                    data->getCreatorLayer() = (*layer);
+                    getCreatorLayer(data) = (*layer);
                     info->setInputData(data);
                     inputsMap[(*layer)->name] = info;
                 }
@@ -116,7 +117,7 @@ class GraphTestsBase : public ::testing::Test {
         long int nForward = 0;
         CNNLayerPtr layerExist;
         try {
-            layerExist = wrap.getLayerByName(a.c_str());
+            layerExist = CommonTestUtils::getLayerByName(wrap, a.c_str());
             if (!layerExist) {
                 return 0;
             }
@@ -131,7 +132,7 @@ class GraphTestsBase : public ::testing::Test {
                     continue;
                 }
             }
-            auto &inputMap = outData->getInputTo();
+            auto &inputMap = getInputTo(outData);
             nForward +=
                 std::count_if(inputMap.begin(), inputMap.end(), [&](std::map<std::string, CNNLayerPtr>::value_type &vt) {
                     return vt.second->name == b;
@@ -144,7 +145,7 @@ class GraphTestsBase : public ::testing::Test {
     int countBackwardConnections(std::string a, std::string b, int from_port_id=-1) {
         CNNLayerPtr layerExist;
         try {
-            layerExist = wrap.getLayerByName(b.c_str());
+            layerExist = CommonTestUtils::getLayerByName(wrap, b.c_str());
             if (!layerExist) {
                 return 0;
             }
@@ -153,7 +154,7 @@ class GraphTestsBase : public ::testing::Test {
         }
 
         auto countRef = [&](DataWeakPtr wp) {
-            return wp.lock()->getCreatorLayer().lock()->name == a;
+            return getCreatorLayer(wp.lock()).lock()->name == a;
         };
 
         if (from_port_id == -1) {
@@ -174,7 +175,7 @@ class GraphTestsBase : public ::testing::Test {
         auto newData = std::make_shared<Data>(name, TensorDesc(Precision::FP32, SizeVector({ 1, 1 }), Layout::NC));
 
         CNNLayerPtr newLayer = make_shared<GenericLayer>(LayerParams({name, "Generic_" + std::to_string(numCreated++), Precision::FP32}));
-        newData->getCreatorLayer() = newLayer;
+        getCreatorLayer(newData) = newLayer;
         newLayer->outData.push_back(newData);
 
         return newLayer;
@@ -196,7 +197,7 @@ class GraphTestsBase : public ::testing::Test {
                 dims.push_back(batchSize);
                 data->setDims(dims);
                 for (auto output : (*layer)->outData) {
-                    data->getInputTo() = output->getInputTo();
+                    getInputTo(data) = getInputTo(output);
                 }
                 info->setInputData(data);
                 inputsMap[(*layer)->name] = info;
@@ -212,7 +213,7 @@ class GraphTestsBase : public ::testing::Test {
         for (auto layer = rhsLayers.begin(); layer != rhsLayers.end(); layer++) {
             bool notLast = false;
             for (auto && outData : (*layer)->outData) {
-                if (!outData->getInputTo().empty()) {
+                if (!getInputTo(outData).empty()) {
                     notLast = true;
                     break;
                 }
@@ -237,7 +238,7 @@ class GraphTestsBase : public ::testing::Test {
         for (int i = 0; i < 10; i++) {
             layers.push_back(make_shared<CNNLayer>(LayerParams({std::to_string(i)}, "", Precision::UNSPECIFIED)));
             datas[i].push_back(make_shared<Data>(std::to_string(i), Precision::FP32, Layout::NC));
-            datas[i].back()->getCreatorLayer() = layers[i];
+            getCreatorLayer(datas[i].back()) = layers[i];
 
             SizeVector dims = datas[i].back()->getDims();
             dims.push_back(_batchSize);
@@ -252,7 +253,7 @@ class GraphTestsBase : public ::testing::Test {
         // Reset shared_pointer circular dependencies to mitigate memory leaks.
         for (auto& items : datas) {
             for (auto& data : items) {
-                for (auto& input : data->getInputTo()) {
+                for (auto& input : getInputTo(data)) {
                     input.second.reset();
                 }
             }
@@ -276,7 +277,7 @@ class GraphTestsBase : public ::testing::Test {
      * @param y input layer index
      */
     void CONNECT(int x, int y) {
-        datas[x].front()->getInputTo()[std::to_string(y)] = layers[y];
+        getInputTo(datas[x].front())[std::to_string(y)] = layers[y];
         layers[y]->insData.push_back(datas[x].front());
         lhsLayers.insert(layers[x]);
         rhsLayers.insert(layers[y]);
@@ -285,7 +286,7 @@ class GraphTestsBase : public ::testing::Test {
     void CONNECT_FROM_PORT(int x, int port, int y) {
         if (datas[x].size() <= port) {
             datas[x].push_back(make_shared<Data>(std::string("split_") + std::to_string(datas[x].size()), Precision::FP32, Layout::NC));
-            datas[x].back()->getCreatorLayer() = layers[x];
+            getCreatorLayer(datas[x].back()) = layers[x];
 
             SizeVector dims = datas[x].back()->getDims();
             dims.push_back(_batchSize);
@@ -293,7 +294,7 @@ class GraphTestsBase : public ::testing::Test {
             datas[x].back()->setDims(dims);
             layers[x]->outData.push_back(datas[x].back());
         }
-        datas[x][port]->getInputTo()[std::to_string(y)] = layers[y];
+        getInputTo(datas[x][port])[std::to_string(y)] = layers[y];
         layers[y]->insData.push_back(datas[x][port]);
         lhsLayers.insert(layers[x]);
         rhsLayers.insert(layers[y]);

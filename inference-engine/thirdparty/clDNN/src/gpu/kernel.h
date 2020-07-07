@@ -71,18 +71,13 @@ public:
         memory_impl::cptr hidden;
         memory_impl::cptr cell;
         memory_impl::cptr bias;
-        memory_impl::cptr weights_quantization_factors;
-        memory_impl::cptr output_calibration_factors;
         memory_impl::cptr weights_zero_points;
         memory_impl::cptr activations_zero_points;
         memory_impl::cptr compensation;
         memory_impl::cptr lookup_table;
         memory_impl::cptr scale_table;
         memory_impl::cptr slope;
-        memory_impl::cptr prev_weights_grad;
-        memory_impl::cptr prev_bias_grad;
         // used for fused primitives
-        std::vector<memory_impl::cptr> fused_op_calibration_factors;
         std::vector<memory_impl::cptr> fused_op_inputs;
         int32_t split = 0;
         float lr;

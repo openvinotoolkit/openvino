@@ -166,12 +166,8 @@ PyObject *parse_parameter(const InferenceEngine::Parameter &param) {
 }
 
 InferenceEnginePython::IENetwork::IENetwork(const std::string &model, const std::string &weights) {
-    IE_SUPPRESS_DEPRECATED_START
-    InferenceEngine::CNNNetReader net_reader;
-    net_reader.ReadNetwork(model);
-    net_reader.ReadWeights(weights);
-    auto net = net_reader.getNetwork();
-    IE_SUPPRESS_DEPRECATED_END
+    InferenceEngine::Core reader;
+    auto net = reader.ReadNetwork(model, weights);
     actual = std::make_shared<InferenceEngine::CNNNetwork>(net);
     name = actual->getName();
     batch_size = actual->getBatchSize();
@@ -198,15 +194,11 @@ InferenceEnginePython::IENetwork::IENetwork(PyObject* network) {
 
 void
 InferenceEnginePython::IENetwork::load_from_buffer(const char *xml, size_t xml_size, uint8_t *bin, size_t bin_size) {
-    IE_SUPPRESS_DEPRECATED_START
-    InferenceEngine::CNNNetReader net_reader;
-    net_reader.ReadNetwork(xml, xml_size);
+    InferenceEngine::Core reader;
     InferenceEngine::TensorDesc tensorDesc(InferenceEngine::Precision::U8, { bin_size }, InferenceEngine::Layout::C);
     auto weights_blob = InferenceEngine::make_shared_blob<uint8_t>(tensorDesc, bin, bin_size);
-    net_reader.SetWeights(weights_blob);
-    name = net_reader.getName();
-    auto net = net_reader.getNetwork();
-    IE_SUPPRESS_DEPRECATED_END
+    auto net = reader.ReadNetwork(std::string(xml, xml + xml_size), weights_blob);
+    name = net.getName();
     actual = std::make_shared<InferenceEngine::CNNNetwork>(net);
     batch_size = actual->getBatchSize();
 }
@@ -293,47 +285,6 @@ size_t InferenceEnginePython::IENetwork::getBatch() {
 
 void InferenceEnginePython::IENetwork::reshape(const std::map <std::string, std::vector<size_t>> &input_shapes) {
     actual->reshape(input_shapes);
-}
-
-const std::map <std::string, std::map<std::string, std::vector < float>>>
-
-InferenceEnginePython::IENetwork::getStats() {
-    IE_SUPPRESS_DEPRECATED_START
-    std::map < std::string, std::map < std::string, std::vector < float >> > map;
-    InferenceEngine::ICNNNetworkStats *pstats = nullptr;
-    InferenceEngine::ResponseDesc response;
-    auto retCode = ((InferenceEngine::ICNNNetwork &) *actual).getStats(&pstats, &response);
-    if (retCode == InferenceEngine::OK) {
-        auto statsMap = pstats->getNodesStats();
-        for (const auto &it : statsMap) {
-            std::map <std::string, std::vector<float>> stats;
-            stats.emplace("min", it.second->_minOutputs);
-            stats.emplace("max", it.second->_maxOutputs);
-            map.emplace(it.first, stats);
-        }
-    }
-    return map;
-    IE_SUPPRESS_DEPRECATED_END
-}
-
-void InferenceEnginePython::IENetwork::setStats(const std::map<std::string, std::map<std::string,
-        std::vector<float>>> &stats) {
-    IE_SUPPRESS_DEPRECATED_START
-    InferenceEngine::ICNNNetworkStats *pstats = nullptr;
-    InferenceEngine::ResponseDesc response;
-    auto retCode = ((InferenceEngine::ICNNNetwork &) *actual).getStats(&pstats, &response);
-    if (retCode == InferenceEngine::OK) {
-        std::map<std::string, InferenceEngine::NetworkNodeStatsPtr> newNetNodesStats;
-        for (const auto &it : stats) {
-            InferenceEngine::NetworkNodeStatsPtr nodeStats = InferenceEngine::NetworkNodeStatsPtr(
-                      new InferenceEngine::NetworkNodeStats());
-            newNetNodesStats.emplace(it.first, nodeStats);
-            nodeStats->_minOutputs = it.second.at("min");
-            nodeStats->_maxOutputs = it.second.at("max");
-        }
-        pstats->setNodesStats(newNetNodesStats);
-    }
-    IE_SUPPRESS_DEPRECATED_END
 }
 
 InferenceEnginePython::IEExecNetwork::IEExecNetwork(const std::string &name, size_t num_requests) :

@@ -10,6 +10,7 @@
 #include <memory>
 #include <vector>
 
+#include "ie_layers.h"
 #include "ie_icnn_network.hpp"
 
 namespace InferenceEngine {
@@ -23,15 +24,12 @@ public:
     static constexpr const char* OUTPUT_BLOB_NAME = "first_output";
     const SizeVector OUTPUT_DIMENTIONS = { 1, 3, 299, 299 };
     const std::string name = "test";
-    Precision getPrecision() const noexcept override {
-        return Precision::FP32;
-    }
     const std::string& getName() const noexcept override {
         return name;
     }
     void getOutputsInfo(OutputsDataMap& out) const noexcept override {
         auto data = std::make_shared<Data>(MockNotEmptyICNNNetwork::OUTPUT_BLOB_NAME, Precision::UNSPECIFIED);
-        data->getInputTo()[""] = std::make_shared<CNNLayer>(LayerParams{
+        getInputTo(data)[""] = std::make_shared<CNNLayer>(LayerParams{
             MockNotEmptyICNNNetwork::OUTPUT_BLOB_NAME,
             "FullyConnected",
             Precision::FP32 });
@@ -45,7 +43,7 @@ public:
             MockNotEmptyICNNNetwork::INPUT_BLOB_NAME,
             "Input",
             Precision::FP32 });
-        inData->getInputTo()[MockNotEmptyICNNNetwork::OUTPUT_BLOB_NAME] = inputLayer;
+        getInputTo(inData)[MockNotEmptyICNNNetwork::OUTPUT_BLOB_NAME] = inputLayer;
         inData->setDims(MockNotEmptyICNNNetwork::INPUT_DIMENTIONS);
         inData->setLayout(Layout::NCHW);
         inputInfo->setInputData(inData);
@@ -53,7 +51,7 @@ public:
         auto outData = std::make_shared<Data>(MockNotEmptyICNNNetwork::OUTPUT_BLOB_NAME, Precision::UNSPECIFIED);
         outData->setDims(MockNotEmptyICNNNetwork::OUTPUT_DIMENTIONS);
         outData->setLayout(Layout::NCHW);
-        outData->getInputTo()[""] = std::make_shared<CNNLayer>(LayerParams{
+        getInputTo(outData)[""] = std::make_shared<CNNLayer>(LayerParams{
             MockNotEmptyICNNNetwork::OUTPUT_BLOB_NAME,
             "FullyConnected",
             Precision::FP32 });
@@ -62,7 +60,6 @@ public:
 
         inputs[MockNotEmptyICNNNetwork::INPUT_BLOB_NAME] = inputInfo;
     };
-    void addLayer(const CNNLayerPtr& layer) noexcept override {}
     std::shared_ptr<ngraph::Function> getFunction() noexcept override {
         return nullptr;
     }
@@ -81,7 +78,6 @@ public:
     MOCK_QUALIFIED_METHOD0(Release, noexcept, void());
     MOCK_QUALIFIED_METHOD1(getInputShapes, const noexcept, void(ICNNNetwork::InputShapes &));
     MOCK_QUALIFIED_METHOD2(reshape, noexcept, StatusCode(const ICNNNetwork::InputShapes &, ResponseDesc *));
-    MOCK_QUALIFIED_METHOD2(AddExtension, noexcept, StatusCode(const IShapeInferExtensionPtr &, ResponseDesc *));
     MOCK_QUALIFIED_METHOD3(serialize, const noexcept, StatusCode(const std::string &, const std::string &, InferenceEngine::ResponseDesc*));
 };
 

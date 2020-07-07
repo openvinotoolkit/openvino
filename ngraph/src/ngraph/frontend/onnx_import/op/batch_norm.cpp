@@ -21,7 +21,6 @@
 #include "core/null_node.hpp"
 #include "default_opset.hpp"
 #include "exceptions.hpp"
-#include "ngraph/opsets/opset0.hpp"
 
 namespace ngraph
 {
@@ -65,12 +64,8 @@ namespace ngraph
                                 saved_var};
                     }
 
-                    return {std::make_shared<ngraph::opset0::BatchNormTraining>(
-                                x, scale, bias, epsilon),
-                            after_bn_mean,
-                            after_bn_var,
-                            saved_mean,
-                            saved_var};
+                    throw ngraph_error(
+                        "Cannot create nGraph batch norm with unsupported number of inputs");
                 }
 
             } // namespace set_1

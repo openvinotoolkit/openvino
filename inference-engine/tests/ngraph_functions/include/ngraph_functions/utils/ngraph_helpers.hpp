@@ -98,10 +98,33 @@ enum EltwiseTypes {
     SUBTRACT
 };
 
+enum SqueezeOpType {
+    SQUEEZE,
+    UNSQUEEZE
+};
+
 enum QuantizationGranularity {
     Pertensor,
     Perchannel
 };
+
+enum ReductionType {
+    Mean,
+    Max,
+    Min,
+    Prod,
+    Sum,
+    LogicalOr,
+    LogicalAnd,
+    LogicalXor
+};
+
+enum class InputLayerType {
+    CONSTANT,
+    PARAMETER,
+};
+
+std::ostream &operator<<(std::ostream &os, const ReductionType &m);
 
 inline std::string quantizationGranularityToString(const QuantizationGranularity &granularity) {
     static std::map<QuantizationGranularity, std::string> names = {
@@ -159,6 +182,10 @@ std::vector<std::uint8_t> convertOutputPrecision(std::vector<std::uint8_t> &outp
                                                  const size_t elementsCount);
 
 std::ostream& operator<<(std::ostream & os, ngraph::helpers::EltwiseTypes type);
+
+std::ostream& operator<<(std::ostream & os, ngraph::helpers::SqueezeOpType type);
+
+std::ostream& operator<<(std::ostream& os, ngraph::helpers::InputLayerType type);
 
 }  // namespace helpers
 }  // namespace ngraph

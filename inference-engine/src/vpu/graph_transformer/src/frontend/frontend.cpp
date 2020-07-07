@@ -114,6 +114,7 @@ FrontEnd::FrontEnd(StageBuilder::Ptr stageBuilder)
         {"DynamicShapeResolver",                               LAYER_PARSER(parseDSR)},
         {"OutShapeOfReshape",                                  LAYER_PARSER(parseOutShapeOfReshape)},
         {"StaticShapeBroadcast",                               LAYER_PARSER(parseBroadcast)},
+        {"StaticShapeNonMaxSuppression",                       LAYER_PARSER(parseStaticShapeNMS)},
     }} {}
 
 ModelPtr FrontEnd::buildInitialModel(ie::ICNNNetwork& network) {
@@ -359,15 +360,6 @@ ModelPtr FrontEnd::runCommonPasses(ie::ICNNNetwork& network, const UnsupportedLa
     model->attrs().set<int>("index", g_counter.fetch_add(1));
     model->attrs().set<Resources>("resources", env.resources);
 
-    if (!env.config.ignoreIRStatistic) {
-        ie::ICNNNetworkStats* stats = nullptr;
-        // V10 IRs doesn't contain stats
-        if (originalOrConvertNetwork->getStats(&stats, nullptr) == InferenceEngine::OK && !stats->isEmpty()) {
-            env.log->trace("Use node statistics from the IR");
-            model->setNodesStats(stats->getNodesStats());
-        }
-    }
-
     //
     // Update IE Network
     //
@@ -520,7 +512,7 @@ void FrontEnd::getInputAndOutputData(
 
             // Skip adding data if it not utilized
             const bool isNetworkOutput = _ieParsedNetwork.networkOutputs.count(layerOutput->getName()) > 0;
-            const auto isLeaf = layerOutput->getInputTo().empty();
+            const auto isLeaf = getInputTo(layerOutput).empty();
             if (!isNetworkOutput && isLeaf) {
                 outputs[i] = nullptr;
                 continue;

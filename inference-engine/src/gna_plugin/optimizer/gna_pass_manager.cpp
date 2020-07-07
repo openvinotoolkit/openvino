@@ -85,7 +85,7 @@ static void insertDiagonalLayerBetween(InferenceEngine::CNNLayerPtr prevLayer,
     auto diagonalWithQuant = quantized ?
                              InferenceEngine::injectData<QuantizedLayerParams>(diagLayer) : diagLayer;
 
-    dataPtr->getCreatorLayer() = diagonalWithQuant;
+    getCreatorLayer(dataPtr) = diagonalWithQuant;
     diagonalWithQuant->outData.push_back(dataPtr);
 
     // actual insertion
@@ -108,7 +108,7 @@ static CNNLayerPtr InsertCopyLayer(CNNLayerPtr prevLayer, CNNLayerPtr nextLayer,
     auto copyWithQuant = quantized ?
                          InferenceEngine::injectData<QuantizedLayerParams>(copyLayer) :
                          copyLayer;
-    dataPtr->getCreatorLayer() = copyWithQuant;
+    getCreatorLayer(dataPtr) = copyWithQuant;
     copyWithQuant->outData.push_back(dataPtr);
     CNNNetworkInsertLayer(prevLayer, nextLayer, copyWithQuant);
     return copyWithQuant;
@@ -248,7 +248,7 @@ void HandleMultipleActivationsForTheLayerPass::run() {
         CNNLayerSet activations;
 
         for (auto && odata : l->outData) {
-            for (auto && inputTo : odata->getInputTo()) {
+            for (auto && inputTo : getInputTo(odata)) {
                 LayerInfo info(inputTo.second);
 
                 if (info.isActivation()) {
@@ -291,11 +291,11 @@ void ReorderMaxPoolPass::run() {
 void SubstituteSoftSignPass::run() {
     auto hasNChildren = [](CNNLayerPtr l, int N){
         if (l->outData.size() != 1) return false;
-        if (l->outData.front()->getInputTo().size() != N) return false;
+        if (getInputTo(l->outData.front()).size() != N) return false;
         return true;
     };
     auto getNthChild = [](CNNLayerPtr l, int N) {
-        auto first = l->outData.front()->getInputTo().begin();
+        auto first = getInputTo(l->outData.front()).begin();
         std::advance(first, N);
         return first->second;
     };
@@ -348,14 +348,14 @@ void SubstituteSoftSignPass::run() {
 
         // rebind outdata of mull to be outdata of softsign
         for (auto && data : mulData) {
-            data->getCreatorLayer() = activationLayerWithQuant;
+            getCreatorLayer(data) = activationLayerWithQuant;
             data->setName("softsign_data_" + std::to_string(getPassManager()->getIntVar(softSignLayersCounter)));
             activationLayerWithQuant->outData.push_back(data);
         }
 
         // making connection l->softsign
-        l->outData.front()->getInputTo().clear();
-        l->outData.front()->getInputTo()[layerName] = activationLayerWithQuant;
+        getInputTo(l->outData.front()).clear();
+        getInputTo(l->outData.front())[layerName] = activationLayerWithQuant;
 
         // making back connection softsign->mul
         activationLayerWithQuant->insData.push_back(l->outData.front());
@@ -382,14 +382,14 @@ void SubstitutePReluPass::run() {
         CNNLayer* next = nullptr;
         if (layer == nullptr) return next;
         if (layer->outData.size() != 1) return next;
-        return layer->outData[0]->getInputTo().begin()->second.get();
+        return getInputTo(layer->outData[0]).begin()->second.get();
     };
 
     // TODO: unit tests for bad cases
     for (auto & l : *pLayers) {
         // assume l is starting layer, that is followed by eltwise_sum(relu, negate/relu/scale/negate)
         if (l->outData.size() != 1) continue;
-        auto &outputLayers = l->outData[0]->getInputTo();
+        auto &outputLayers = getInputTo(l->outData[0]);
         if (outputLayers.size() != 2) continue;
 
         // one of followed layers need to be generic relu
@@ -428,11 +428,11 @@ void SubstitutePReluPass::run() {
 
         auto inData_0 = sum->insData[0].lock();
         IE_ASSERT(inData_0 != nullptr);
-        auto creatorLayer_0 = inData_0->getCreatorLayer().lock();
+        auto creatorLayer_0 = getCreatorLayer(inData_0).lock();
         IE_ASSERT(creatorLayer_0 != nullptr);
         auto inData_1 = sum->insData[1].lock();
         IE_ASSERT(inData_1 != nullptr);
-        auto creatorLayer_1 = inData_1->getCreatorLayer().lock();
+        auto creatorLayer_1 = getCreatorLayer(inData_1).lock();
         IE_ASSERT(creatorLayer_1 != nullptr);
 
         auto s1 = creatorLayer_0.get();
@@ -452,10 +452,10 @@ void SubstitutePReluPass::run() {
         // pointing relu to output of eltwise_summ
         relu1->outData = sum->outData;
         // changing creator layer
-        relu1->outData[0]->getCreatorLayer() = relu1;
+        getCreatorLayer(relu1->outData[0]) = relu1;
         // pointing back to relu if any
-        if (!relu1->outData[0]->getInputTo().empty()) {
-            auto summOutputLayer = relu1->outData[0]->getInputTo().begin()->second;
+        if (!getInputTo(relu1->outData[0]).empty()) {
+            auto summOutputLayer = getInputTo(relu1->outData[0]).begin()->second;
             summOutputLayer->insData.clear();
             summOutputLayer->insData.push_back(relu1->outData[0]);
         }
@@ -489,10 +489,10 @@ void ReversePermutationsPass::run() {
         if (layer->outData.empty()) {
             return nullptr;
         }
-        if (layer->outData.front()->getInputTo().size() != 1) {
+        if (getInputTo(layer->outData.front()).size() != 1) {
             return nullptr;
         }
-        auto next = layer->outData.front()->getInputTo().begin()->second;
+        auto next = getInputTo(layer->outData.front()).begin()->second;
 
         if (LayerInfo(next).isNonFunctional()) return nextLayerSkipReshape(next);
 
@@ -582,12 +582,12 @@ void InsertIdentityLayerPass::run() {
             auto activationLayerWithQuant = quantized ?
                                             InferenceEngine::injectData<QuantizedLayerParams>(activationLayer) :
                                             activationLayer;
-            dataPtr->getCreatorLayer() = activationLayerWithQuant;
+            getCreatorLayer(dataPtr) = activationLayerWithQuant;
             activationLayerWithQuant->outData.push_back(dataPtr);
             // wether 1 identity or all outputs TODO possible grouping here, need to implement special groupped inserter
             bool notAll = false;
             for (auto && nextData  : prev->outData) {
-                for (auto && nextLayer : nextData->getInputTo()) {
+                for (auto && nextLayer : getInputTo(nextData)) {
                     if (nextLayer.second.get() == l.get())
                         continue;
                     if (getCandidatesForIdentityInsertion(nextLayer.second).empty()) {
@@ -609,31 +609,6 @@ void InsertIdentityLayerPass::run() {
     }
 }
 
-/**
- * @brief returns previous layers and insData index for it
- * @tparam T
- * @param origin
- * @param acceptanceCriteria
- * @param idx
- */
-// give previous layers while skipping certain layer according to expression
-template <class T>
-std::vector<std::pair<CNNLayerPtr, int> > CNNNetGetPrevLayersSkip(CNNLayerPtr origin, const T &acceptanceCriteria, int idx = -1) {
-    std::vector<std::pair<CNNLayerPtr, int> > prevLayers;
-    for (int i = idx == -1 ? 0 : idx; CNNNetHasPrevLayer(origin.get(), i) && (idx == -1 || i == idx); i++) {
-        auto prevLayer = CNNNetPrevLayer(origin, i);
-        if (acceptanceCriteria(prevLayer)) {
-            prevLayers.push_back({prevLayer, CNNLayerFindOutDataIdx(origin, i)});
-        } else {
-            // if for some input we need to look in upper layers - original index not used here intentionally
-            auto prevPrevLayers = CNNNetGetPrevLayersSkip(prevLayer, acceptanceCriteria);
-            prevLayers.insert(prevLayers.end(), prevPrevLayers.begin(), prevPrevLayers.end());
-        }
-    }
-
-    return prevLayers;
-}
-
 void InsertCopyLayerPass::run() {
     for (auto & l : *pLayers) {
         if (l->insData.empty()) continue;
@@ -647,7 +622,7 @@ void InsertCopyLayerPass::run() {
             if (LayerInfo(l).isMemory()) {
                 if (LayerInfo(prevIndirectLayer).isConcat()) { bInsert = true;}
                 // memory usualy preceded by either activation or split, or other layers in order to have 2b precision
-                for (auto && inputto : prevLayers[i].first->outData[prevLayers[i].second]->getInputTo()) {
+                for (auto && inputto : getInputTo(prevLayers[i].first->outData[prevLayers[i].second])) {
                     // if preceding layer is common for memory and concat
                     if (LayerInfo(inputto.second).isConcat()) {
                         bInsert = true;
@@ -712,7 +687,7 @@ void InsertConcatAligningFilterPass::run() {
             auto useAlignFilterIf = [&concatLayer, &getLayerByIndex](int concat_input_idx) {
                 if (concatLayer->insData.size() <= concat_input_idx) return false;
 
-                auto nextInput = getLayerByIndex(concat_input_idx)->getCreatorLayer().lock();
+                auto nextInput = getCreatorLayer(getLayerByIndex(concat_input_idx)).lock();
 
                 if (LayerInfo(nextInput).isInput()) return false;
 
@@ -722,7 +697,7 @@ void InsertConcatAligningFilterPass::run() {
             // correcting offset by copy layer insertion. This can be improved by collapsing copy and affine or diagonal later-on
             // if next concat inputs requires align filter - then current input also requires either copy or align filter
             if (ALIGN64(offset) != offset || (ALIGN64(outputSize) != outputSize && useAlignFilterIf(input_idx + 1))) {
-                auto prevLayer = concatInput->getCreatorLayer().lock();
+                auto prevLayer = getCreatorLayer(concatInput).lock();
                 // input layer parameters are copied not using GNA-primitives - so nothing to allign here.
                 if (!useAlignFilterIf(input_idx)) continue;
 
@@ -780,7 +755,7 @@ void InsertConcatAligningFilterPass::run() {
                 auto filterWithQuant = quantized ?
                                        InferenceEngine::injectData<QuantizedLayerParams>(concatAligningFilter) :
                                        concatAligningFilter;
-                outData->getCreatorLayer() = filterWithQuant;
+                getCreatorLayer(outData) = filterWithQuant;
                 filterWithQuant->outData.push_back(outData);
 
                 CNNNetworkInsertLayer(prevLayer, l, filterWithQuant);
@@ -809,7 +784,7 @@ void ReorderConcatInputsPass::run() {
         if (l->outData.size() != 1) {
             THROW_GNA_EXCEPTION << "no concat layer after concat aligning layer" << l->name;
         }
-        auto nextLayers = l->outData.front()->getInputTo();
+        auto nextLayers = getInputTo(l->outData.front());
 
         if (nextLayers.size() != 1) {
             THROW_GNA_EXCEPTION << "Invalid concat connection in align filter : " << l->name;
@@ -867,15 +842,15 @@ void ReorderConcatInputsPass::run() {
                                               TensorDesc(Precision::FP32,
                                                          SizeVector({1}),
                                                          Layout::C));
-        linkOutData->getCreatorLayer() = link;
+        getCreatorLayer(linkOutData) = link;
 
         link->outData.push_back(linkOutData);
         link->insData.push_back(l->outData.front());
 
-        linkOutData->getInputTo()[firstInputToConcat->name + ".via.link"] = firstInputToConcat;
+        getInputTo(linkOutData)[firstInputToConcat->name + ".via.link"] = firstInputToConcat;
         firstInputToConcat->insData.push_back(linkOutData);
 
-        l->outData.front()->getInputTo()[linkName] = link;
+        getInputTo(l->outData.front())[linkName] = link;
     }
 }
 
@@ -901,8 +876,8 @@ void InsertSplitAligningFilterPass::run() {
 #ifdef PLOT
                 // getting list of layers attached to current split output
                 gnalog() << "Inserted Affine Filter Layer between: " << l->name << " and ";
-                for (auto &&followingLayers : splitOutput->getInputTo()) {
-                    if (splitOutput->getInputTo().size() != 1) {
+                for (auto &&followingLayers : getInputTo(splitOutput)) {
+                    if (getInputTo(splitOutput).size() != 1) {
                         gnalog() << "\n    ";
                     }
                     gnalog() << followingLayers.second->name;
@@ -956,7 +931,7 @@ void InsertSplitAligningFilterPass::run() {
                 auto filterWithQuant = quantized ?
                                        InferenceEngine::injectData<QuantizedLayerParams>(filterLayer) :
                                        filterLayer;
-                outData->getCreatorLayer() = filterWithQuant;
+                getCreatorLayer(outData) = filterWithQuant;
                 filterWithQuant->outData.push_back(outData);
                 CNNNetworkInsertLayer(l, nullptr, filterWithQuant, splitOutIndex);
             }
@@ -1082,6 +1057,78 @@ void RemoveConstPass::run() {
     }
     ConstTransformer transformer(implNetwork);
     transformer.fullTrim();
+}
+
+void FuseMultipleIdentitiesPass::run() {
+    for (auto &l : *pLayers) {
+        if (l->insData.empty()) continue;
+
+        auto isNonFunctional = [](CNNLayerPtr ptr) {
+            return LayerInfo(ptr).isNonFunctional();
+        };
+        auto eltwise = dynamic_cast<InferenceEngine::EltwiseLayer *>(l.get());
+        auto concat = dynamic_cast<InferenceEngine::ConcatLayer *>(l.get());
+
+        if (LayerInfo(l).isNonFunctional() || LayerInfo(l).has32BInput())
+            continue;
+        gnalog() << "CNNNetPrevLayer skip non functional from :: " << l->name;
+        auto prevLayersReached = CNNNetGetPrevLayersSkip(l, [](CNNLayerPtr ptr) {
+            return !LayerInfo(ptr).isNonFunctional();
+        });
+        prevLayersReached.erase(std::remove_if(prevLayersReached.begin(),
+                                               prevLayersReached.end(),
+                                               [] (const std::pair<CNNLayerPtr, int> & candidate) {
+            return LayerInfo(candidate.first).isLink();
+        }), prevLayersReached.end());
+
+        if (prevLayersReached.size() != 1 && eltwise == nullptr && concat == nullptr) {
+            std::stringstream layers;
+            for (auto && prevLayer : prevLayersReached) {
+                layers << prevLayer.first->name;
+                layers << ", ";
+            }
+            THROW_GNA_LAYER_EXCEPTION(l) << "unsupported case: connected to "
+            << (prevLayersReached.empty() ? "zero" : "multiple") << " outputs : " << layers.str();
+        }
+        auto prevLayer = prevLayersReached.front().first;
+        auto outDataIdx = prevLayersReached.front().second;
+        gnalog() << ", reached " << prevLayer->name << " at " << outDataIdx << std::endl;
+
+        if (!LayerInfo(prevLayer).has32BOutput())
+            continue;
+
+        std::vector<CNNLayerPtr> resultSet = CNNNetGetAllNextLayersSkipCertain(prevLayer, outDataIdx, isNonFunctional);
+
+        // now result set should have all needed layers
+        // checking that result set consist of already identity
+        CNNLayerPtr  alreadyIdentity;
+        for (auto &&res : resultSet) {
+            if (LayerInfo(res).isIdentity()) {
+                alreadyIdentity = res;
+                break;
+            }
+        }
+        if (!alreadyIdentity) {
+            continue;
+        } else {
+            // just figure out how to connect to that "already identity"
+            // 1st stage - disconnect given layer from previous
+            auto directPrev = getCreatorLayer(l->insData.front().lock()).lock();
+            auto oDataIdx = CNNLayerFindOutDataIdx(directPrev, 0);
+            auto &inputTo = getInputTo(directPrev->outData[oDataIdx]);
+            for (auto inIterator = inputTo.begin(); inIterator != inputTo.end(); inIterator++) {
+                if (inIterator->second == l) {
+                    inputTo.erase(inIterator);
+                    break;
+                }
+            }
+            l->insData.clear();
+
+            //2nd stage - now setting up new connection
+            l->insData.push_back(alreadyIdentity->outData.front());
+            getInputTo(alreadyIdentity->outData.front())[l->name] = l;
+        }
+    }
 }
 
 int PassManager::run(int index) {

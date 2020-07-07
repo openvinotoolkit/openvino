@@ -20,6 +20,7 @@
 #include "runtime/backend.hpp"
 #include "util/all_close.hpp"
 #include "util/all_close_f.hpp"
+#include "util/engine/test_engines.hpp"
 #include "util/known_element_types.hpp"
 #include "util/ndarray.hpp"
 #include "util/test_case.hpp"
@@ -30,6 +31,8 @@ using namespace std;
 using namespace ngraph;
 
 static string s_manifest = "${MANIFEST}";
+
+using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
 NGRAPH_TEST(${BACKEND_NAME}, dyn_group_convolution_backprop_data)
 {
@@ -80,56 +83,6 @@ NGRAPH_TEST(${BACKEND_NAME}, dyn_group_convolution_backprop_data)
     EXPECT_FALSE(test::all_close_f(vector<float>{expected_result}, read_vector<float>(result)));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, dyn_group_convolution_backprop_filters)
-{
-    Shape shape_filter{6, 1, 3, 3};
-    auto filters = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
-    Shape shape_delta{2, 6, 3, 3};
-    auto deltas = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
-    Shape shape_data_batch{2, 3, 5, 5};
-    auto data_batch = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
-    auto strides = Strides{1, 1};
-    auto dilations = Strides{1, 1};
-    auto padding_begin = CoordinateDiff{0, 0};
-    auto padding_end = CoordinateDiff{0, 0};
-    size_t groups = 3;
-
-    auto conv_bprop_filters = make_shared<op::GroupConvolutionBackpropFilters>(
-        data_batch, filters, deltas, strides, dilations, padding_begin, padding_end, groups);
-
-    auto f =
-        make_shared<Function>(conv_bprop_filters, ParameterVector{data_batch, filters, deltas});
-
-    auto backend = runtime::Backend::create("${BACKEND_NAME}", true);
-
-    auto handle = backend->compile(f);
-
-    auto result = backend->create_dynamic_tensor(element::f32, PartialShape::dynamic());
-
-    vector<float> filter, delta, data, expected_result;
-
-    for (int i = 0; i < 6 * 1 * 3 * 3; i++)
-        filter.emplace_back(i);
-
-    for (int i = 0; i < 2 * 6 * 3 * 3; i++)
-        delta.emplace_back(i);
-
-    for (int i = 0; i < 2 * 3 * 5 * 5; i++)
-        data.emplace_back(i);
-
-    for (int i = 0; i < 6 * 1 * 3 * 3; i++)
-        expected_result.emplace_back(i);
-
-    auto a = backend->create_tensor(element::f32, shape_data_batch);
-    copy_data(a, data);
-    auto b = backend->create_tensor(element::f32, shape_filter);
-    copy_data(b, filter);
-    auto c = backend->create_tensor(element::f32, shape_delta);
-    copy_data(c, delta);
-    handle->call_with_validate({result}, {a, b, c});
-    EXPECT_FALSE(test::all_close_f(vector<float>{expected_result}, read_vector<float>(result)));
-}
-
 NGRAPH_TEST(${BACKEND_NAME}, v1_group_conv_backprop_data)
 {
     const CoordinateDiff output_padding{1, 1};
@@ -146,7 +99,7 @@ NGRAPH_TEST(${BACKEND_NAME}, v1_group_conv_backprop_data)
         data, filters, strides, pads_begin, pads_end, dilations, auto_pad, output_padding);
 
     auto function = make_shared<Function>(NodeVector{gcbd}, ParameterVector{data, filters});
-    auto test_case = ngraph::test::NgraphTestCase(function, "${BACKEND_NAME}");
+    auto test_case = test::TestCase<TestEngine>(function);
 
     // X
     test_case.add_input<float>(vector<float>{0.16857791f,
@@ -193,7 +146,7 @@ NGRAPH_TEST(${BACKEND_NAME}, v1_group_conv_backprop_data_output_shape)
         data, filters, output_shape, strides, dilations, op::PadType::SAME_UPPER);
 
     auto function = make_shared<Function>(NodeVector{gcbd}, ParameterVector{data, filters});
-    auto test_case = ngraph::test::NgraphTestCase(function, "${BACKEND_NAME}");
+    auto test_case = test::TestCase<TestEngine>(function);
 
     // X
     test_case.add_input<float>(

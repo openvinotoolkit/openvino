@@ -6,7 +6,6 @@
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 #include "common/validation.hpp"
 #include "tests_common_func.hpp"
-#include <cpp/ie_cnn_net_reader.h>
 
 TBlob<uint8_t>::Ptr SingleLayerTransformationsTest::generateWeights(const CNNNetwork& network) {
     std::vector<Blob::Ptr> blobs;
@@ -178,6 +177,35 @@ void SingleLayerTransformationsTest::compareInDetails(
                 ASSERT_TRUE(difference < max_diff);
                 break;
             }
+        }
+    }
+}
+
+static void relative_compare(
+    const float* res,
+    const float* ref,
+    size_t size,
+    float max_diff = 0.01f,
+    const std::string assertDetails = "",
+    float zero_diff = 1e-7f) {
+    for (size_t i = 0lu; i < size; i++) {
+        if (std::isnan(res[i]) && std::isnan(ref[i])) {
+            continue;
+        }
+
+        if ((ref[i] == 0.f) || (res[i] == 0.f)) {
+            const float diff = fabs(res[i] - ref[i]);
+            ASSERT_TRUE(diff < zero_diff) <<
+                "\nAbsolute comparison of values ref: " << ref[i] << " and res: " << res[i] <<
+                ", diff: " << diff <<
+                ", index: " << i << "\n" << assertDetails;
+        } else {
+            const float diff = fabs((res[i] - ref[i]) / (std::max)(ref[i], res[i]));
+            ASSERT_LT(diff, max_diff) <<
+                "\nRelative comparison of values ref: " << ref[i] << " and res: " << res[i] <<
+                ", diff: " << diff <<
+                ", max_diff: " << max_diff <<
+                ", index: " << i << "\n" << assertDetails;
         }
     }
 }

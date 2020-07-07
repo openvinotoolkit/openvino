@@ -4,47 +4,46 @@
 
 #include "hetero_infer_request.hpp"
 #include <ie_blob.h>
-#include <ie_plugin.hpp>
 #include <ie_util_internal.hpp>
 #include <description_buffer.hpp>
 #include <ie_layouts.h>
+#include <ie_algorithm.hpp>
 #include <cassert>
 #include <map>
 #include <string>
 
 using namespace HeteroPlugin;
 using namespace InferenceEngine;
+using namespace InferenceEngine::details;
 
 HeteroInferRequest::HeteroInferRequest(InferenceEngine::InputsDataMap networkInputs,
                                        InferenceEngine::OutputsDataMap networkOutputs,
-                                       const SubRequestsList &inferRequests) :
-        InferRequestInternal(networkInputs, networkOutputs),
-        _inferRequests(inferRequests) {
+                                       const SubRequestsList& inferRequests,
+                                       const std::unordered_map<std::string, std::string>& subgraphInputToOutputBlobNames) :
+    InferRequestInternal(networkInputs, networkOutputs),
+    _inferRequests(inferRequests) {
     if (_networkOutputs.empty() || _networkInputs.empty()) {
         THROW_IE_EXCEPTION << "Internal error: no information about network's output/input";
     }
 
-    auto requestBlob([&](const std::string &e, InferenceEngine::InferRequest::Ptr r) {
-        if (networkInputs.find(e) != networkInputs.end()) {
-            if (_blobs.find(e) != _blobs.end()) {
-                r->SetBlob(e.c_str(), _blobs[e]);
-            } else {
-                _blobs[e] = r->GetBlob(e.c_str());
-                _inputs[e] = _blobs[e];
-            }
-        } else if (networkOutputs.find(e) != networkOutputs.end()) {
-            if (_blobs.find(e) != _blobs.end()) {
-                r->SetBlob(e.c_str(), _blobs[e]);
-            } else {
-                _blobs[e] = r->GetBlob(e.c_str());
-                _outputs[e] = _blobs[e];
+    auto requestBlob([&](const std::string& blobName, InferenceEngine::InferRequest::Ptr r) {
+        std::string intermediateBlobName = blobName;
+        auto itName = subgraphInputToOutputBlobNames.find(blobName);
+        if (itName != subgraphInputToOutputBlobNames.end()) {
+            intermediateBlobName = itName->second;
+        }
+        BlobMap::iterator itBlob;
+        bool emplaced = false;
+        std::tie(itBlob, emplaced) = _blobs.emplace(intermediateBlobName, Blob::Ptr{});
+        if (emplaced) {
+            itBlob->second = r->GetBlob(blobName);
+            if (contains(networkInputs, blobName)) {
+                _inputs[blobName] = itBlob->second;
+            } else if (contains(networkOutputs, blobName)) {
+                _outputs[blobName] = itBlob->second;
             }
         } else {
-            if (_blobs.find(e) != _blobs.end()) {
-                r->SetBlob(e.c_str(), _blobs[e]);
-            } else {
-                _blobs[e] = r->GetBlob(e.c_str());
-            }
+            r->SetBlob(blobName, itBlob->second);
         }
     });
 

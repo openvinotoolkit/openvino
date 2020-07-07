@@ -2586,7 +2586,7 @@ INSTANTIATE_TEST_CASE_P(
     smoke_low_precision,
     pooling_random_test,
     testing::Combine(testing::Values(1, 2),
-                     testing::Values(3, 8),
+                     testing::Values(3, 8, 64),
                      testing::Values(std::tuple<size_t, size_t>(12, 12), std::tuple<size_t, size_t>(24, 24)),
                      testing::Values(std::tuple<size_t, size_t>(4, 4), std::tuple<size_t, size_t>(2, 2)),
                      testing::Values(std::tuple<int, int>(2, 2)),
@@ -2598,6 +2598,20 @@ INSTANTIATE_TEST_CASE_P(
                                      format::b_fs_yx_fsv16,
                                      format::b_fs_yx_fsv32)),
                     testing::internal::DefaultParamName<pooling_random_test_params>);
+
+INSTANTIATE_TEST_CASE_P(
+    batched_low_precision,
+    pooling_random_test,
+    testing::Combine(
+        testing::Values(16),
+        testing::Values(16, 32),
+        testing::Values(std::tuple<size_t, size_t>(3, 3), std::tuple<size_t, size_t>(8, 8)),
+        testing::Values(std::tuple<size_t, size_t>(1, 1), std::tuple<size_t, size_t>(3, 3)),
+        testing::Values(std::tuple<int, int>(1, 1)),
+        testing::Values(std::tuple<int, int>(0, 0)),
+        testing::Values(format::bs_fs_yx_bsv16_fsv16)
+    ),
+    testing::internal::DefaultParamName<pooling_random_test_params>);
 
 template <typename InputT, pooling_mode Mode>
 class pooling_scale_random_test_base : public pooling_random_test_base<InputT, Mode> {

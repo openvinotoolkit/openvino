@@ -9,19 +9,17 @@
 
 #pragma once
 
-#include <ie_plugin.hpp>
 #include <map>
 #include <memory>
 #include <string>
 
+#include "cpp_interfaces/interface/ie_plugin.hpp"
 #include "cpp_interfaces/base/ie_inference_plugin_api.hpp"
 #include "cpp_interfaces/exception2status.hpp"
 #include "description_buffer.hpp"
 #include "ie_common.h"
 
 namespace InferenceEngine {
-
-IE_SUPPRESS_DEPRECATED_START
 
 /**
  * @brief Plugin `noexcept` wrapper which accepts IInferencePluginInternal derived instance which can throw exceptions
@@ -30,8 +28,6 @@ IE_SUPPRESS_DEPRECATED_START
  */
 template <class T>
 class PluginBase : public IInferencePluginAPI, public IInferencePlugin {
-    IE_SUPPRESS_DEPRECATED_END
-
     class VersionStore : public Version {
         std::string _dsc;
         std::string _buildNumber;
@@ -146,13 +142,9 @@ private:
     ~PluginBase() override {}
 };
 
-IE_SUPPRESS_DEPRECATED_START
-
 template <class T>
 inline IInferencePlugin* make_ie_compatible_plugin(const Version& reported, std::shared_ptr<T> impl) {
     return new PluginBase<T>(reported, impl);
 }
-
-IE_SUPPRESS_DEPRECATED_END
 
 }  // namespace InferenceEngine

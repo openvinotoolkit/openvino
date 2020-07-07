@@ -20,7 +20,7 @@ import numpy as np
 
 from mo.front.common.partial_infer.eltwise import eltwise_infer
 from mo.graph.graph import Node
-from mo.middle.passes.fusing.fuse_linear_ops import _fuse_mul, _fuse_add, fuse_linear_ops
+from mo.middle.passes.fusing.fuse_linear_ops import _fuse_mul, fuse_linear_ops
 from mo.utils.ir_engine.compare_graphs import compare_graphs
 from mo.utils.unittest.graph import build_graph
 
@@ -31,27 +31,27 @@ nodes_attributes = {
     'scaleshift_1': {'type': 'ScaleShift', 'kind': 'op', 'op': 'ScaleShift'},
     'scaleshift_1_w': {'value': None, 'shape': None, 'kind': 'data'},
     'scaleshift_1_b': {'value': None, 'shape': None, 'kind': 'data'},
-    'const_scaleshift_1_w': {'value': None, 'shape': None, 'kind': 'op', 'data_type': None},
-    'const_scaleshift_1_b': {'value': None, 'shape': None, 'kind': 'op', 'data_type': None},
+    'const_scaleshift_1_w': {'value': None, 'shape': None, 'kind': 'op', 'data_type': None, 'op': 'Const'},
+    'const_scaleshift_1_b': {'value': None, 'shape': None, 'kind': 'op', 'data_type': None, 'op': 'Const'},
     'scaleshift_1_data': {'value': None, 'shape': None, 'kind': 'data'},
     # Mul and Add operations
     'mul_1': {'type': 'Mul', 'kind': 'op', 'op': 'Mul', 'can_be_fused': True,
               'infer': lambda node: eltwise_infer(node, lambda a, b: a*b)},
     'mul_1_w': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
-    'const_mul_1_w': {'value': None, 'shape': None, 'kind': 'op', 'data_type': None},
+    'const_mul_1_w': {'value': None, 'shape': None, 'kind': 'op', 'data_type': None, 'op': 'Const'},
     'mul_1_data': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
     'add_1': {'type': 'Add', 'kind': 'op', 'op': 'Add', 'can_be_fused': True},
     'add_1_w': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
-    'const_add_1_w': {'value': None, 'shape': None, 'kind': 'op', 'data_type': None},
+    'const_add_1_w': {'value': None, 'shape': None, 'kind': 'op', 'data_type': None, 'op': 'Const'},
     'add_1_data': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
     # Mul2 and Add2 operations
     'mul_2': {'type': 'Mul', 'kind': 'op', 'op': 'Mul', 'can_be_fused': True},
     'mul_2_w': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
-    'const_mul_2_w': {'value': None, 'shape': None, 'kind': 'op', 'data_type': None},
+    'const_mul_2_w': {'value': None, 'shape': None, 'kind': 'op', 'data_type': None, 'op': 'Const'},
     'mul_2_data': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
     'add_2': {'type': 'Add', 'kind': 'op', 'op': 'Add', 'can_be_fused': True},
     'add_2_w': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
-    'const_add_2_w': {'value': None, 'shape': None, 'kind': 'op', 'data_type': None},
+    'const_add_2_w': {'value': None, 'shape': None, 'kind': 'op', 'data_type': None, 'op': 'Const'},
     'add_2_data': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
     # Concat1 operation
     'concat_1': {'type': 'Concat', 'kind': 'op', 'op': 'Concat'},
@@ -60,21 +60,21 @@ nodes_attributes = {
     'conv_1': {'type': 'Convolution', 'kind': 'op', 'op': 'Conv2D', 'layout': 'NHWC'},
     'conv_1_w': {'value': None, 'shape': None, 'kind': 'data'},
     'conv_1_b': {'value': None, 'shape': None, 'kind': 'data'},
-    'const_conv_1_w': {'value': None, 'shape': None, 'kind': 'op', 'data_type': None},
-    'const_conv_1_b': {'value': None, 'shape': None, 'kind': 'op', 'data_type': None},
+    'const_conv_1_w': {'value': None, 'shape': None, 'kind': 'op', 'data_type': None, 'op': 'Const'},
+    'const_conv_1_b': {'value': None, 'shape': None, 'kind': 'op', 'data_type': None, 'op': 'Const'},
     'conv_1_data': {'value': None, 'shape': None, 'kind': 'data'},
     'conv_2': {'type': 'Convolution', 'kind': 'op', 'op': 'Conv2D', 'layout': 'NHWC'},
     'conv_2_w': {'value': None, 'shape': None, 'kind': 'data'},
     'conv_2_b': {'value': None, 'shape': None, 'kind': 'data'},
-    'const_conv_2_w': {'value': None, 'shape': None, 'kind': 'op', 'data_type': None},
-    'const_conv_2_b': {'value': None, 'shape': None, 'kind': 'op', 'data_type': None},
+    'const_conv_2_w': {'value': None, 'shape': None, 'kind': 'op', 'data_type': None, 'op': 'Const'},
+    'const_conv_2_b': {'value': None, 'shape': None, 'kind': 'op', 'data_type': None, 'op': 'Const'},
     'conv_2_data': {'value': None, 'shape': None, 'kind': 'data'},
     # MatMul
-    'fc_1': {'type': 'MatMul', 'kind': 'op', 'layout': 'NHWC'},
+    'fc_1': {'type': 'MatMul', 'kind': 'op', 'layout': 'NHWC', 'op': 'MatMul'},
     'fc_1_w': {'value': None, 'shape': None, 'kind': 'data'},
     'fc_1_b': {'value': None, 'shape': None, 'kind': 'data'},
-    'const_fc_1_w': {'value': None, 'shape': None, 'kind': 'op', 'data_type': None},
-    'const_fc_1_b': {'value': None, 'shape': None, 'kind': 'op', 'data_type': None},
+    'const_fc_1_w': {'value': None, 'shape': None, 'kind': 'op', 'data_type': None, 'op': 'Const'},
+    'const_fc_1_b': {'value': None, 'shape': None, 'kind': 'op', 'data_type': None, 'op': 'Const'},
     'fc_1_data': {'value': None, 'shape': None, 'kind': 'data'},
     # Placeholders
     'placeholder_2': {'shape': None, 'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
@@ -781,246 +781,6 @@ class FuseMulTests(unittest.TestCase):
         graph.clean_up()
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'placeholder_1', 'placeholder_1')
-        self.assertTrue(flag, resp)
-
-
-# Unit tests for fuse_add
-class FuseAddTests(unittest.TestCase):
-    # Add(array)->FC(w+b)
-    def test_fuse_add_to_fc_1(self):
-        # Placeholder->Add->FC
-        graph = build_graph(nodes_attributes,
-                            [('placeholder_1', 'placeholder_1_data'),
-                             ('placeholder_1_data', 'add_1'),
-                             ('const_add_1_w', 'add_1_w'),
-                             ('add_1_w', 'add_1'),
-                             ('add_1', 'add_1_data'),
-                             ('add_1_data', 'fc_1'),
-                             ('const_fc_1_w', 'fc_1_w'),
-                             ('const_fc_1_b', 'fc_1_b'),
-                             ('fc_1_w', 'fc_1'),
-                             ('fc_1_b', 'fc_1'),
-                             ('fc_1', 'fc_1_data'),
-                             ('fc_1_data', 'op_output')
-
-                             ],
-                            {'placeholder_1_data': {'shape': np.array([1, 2048])},
-                             'add_1_data': {'shape': np.array([1, 2048])},
-                             'const_add_1_w': {'shape': np.array([2048]), 'value': np.array([x for x in range(2048)])},
-                             'add_1_w': {'shape': np.array([2048]), 'value': np.array([x for x in range(2048)])},
-                             'const_fc_1_w': {'shape': np.array([10260, 2048]), 'value': np.ones((10260, 2048))},
-                             'fc_1_w': {'shape': np.array([10260, 2048]), 'value': np.ones((10260, 2048)),
-                                        'output_channel_dim': 0, 'input_channel_dim': 1,
-                                        'dims_number': 2},
-                             'const_fc_1_b': {'shape': np.array([10260]), 'value': np.ones(10260)},
-                             'fc_1_b': {'shape': np.array([10260]), 'value': np.ones(10260)},
-                             'fc_1_data': {'shape': np.array([1, 10260])},
-                             })
-        ref_weights = np.ones((10260, 2048))
-        ref_biases = np.ones(10260) + np.dot(np.ones((10260, 2048)), np.array([x for x in range(2048)]))
-
-        graph_ref = build_graph(nodes_attributes,
-                                [('placeholder_1', 'placeholder_1_data'),
-                                 ('placeholder_1_data', 'fc_1'),
-                                 ('const_fc_1_w', 'fc_1_w'),
-                                 ('const_fc_1_b', 'fc_1_b'),
-                                 ('fc_1_w', 'fc_1'),
-                                 ('fc_1_b', 'fc_1'),
-                                 ('fc_1', 'fc_1_data'),
-                                 ('fc_1_data', 'op_output')
-                                 ],
-                                {'placeholder_1_data': {'shape': np.array([1, 2048])},
-                                 'const_fc_1_w': {'shape': ref_weights.shape, 'value': ref_weights},
-                                 'fc_1_w': {'shape': ref_weights.shape, 'value': ref_weights,
-                                            'output_channel_dim': 0, 'input_channel_dim': 1,
-                                            'dims_number': 2},
-                                 'const_fc_1_b': {'shape': ref_biases.shape, 'value': ref_biases},
-                                 'fc_1_b': {'shape': ref_biases.shape, 'value': ref_biases},
-                                 'fc_1_data': {'shape': np.array([1, 10260])},
-                                 })
-
-        _fuse_add(graph, Node(graph, 'add_1'), [Node(graph, 'fc_1')], backward=False)
-        graph.clean_up()
-
-        (flag, resp) = compare_graphs(graph, graph_ref, 'placeholder_1')
-        self.assertTrue(flag, resp)
-
-    # FC(w)->Add(array)
-    def test_fuse_add_to_fc_2(self):
-        # Placeholder->FC->Add
-        graph = build_graph(nodes_attributes,
-                            [('placeholder_1', 'placeholder_1_data'),
-                             ('placeholder_1_data', 'fc_1'),
-                             ('const_fc_1_w', 'fc_1_w'),
-                             ('fc_1_w', 'fc_1'),
-                             ('fc_1', 'fc_1_data'),
-                             ('fc_1_data', 'add_1'),
-                             ('const_add_1_w', 'add_1_w'),
-                             ('add_1_w', 'add_1'),
-                             ('add_1', 'add_1_data'),
-                             ('add_1_data', 'op_output_1')
-                             ],
-                            {'placeholder_1_data': {'shape': np.array([1, 2048])},
-                             'add_1_data': {'shape': np.array([1, 10260])},
-                             'const_add_1_w': {'shape': np.array([10260]), 'value': np.array([x for x in range(10260)])},
-                             'add_1_w': {'shape': np.array([10260]), 'value': np.array([x for x in range(10260)]),
-                                         'data_type': None},
-                             'const_fc_1_w': {'shape': np.array([10260, 2048]), 'value': np.ones((10260, 2048))},
-                             'fc_1_w': {'shape': np.array([10260, 2048]), 'value': np.ones((10260, 2048)),
-                                        'output_channel_dim': 0, 'input_channel_dim': 1,
-                                        'dims_number': 2, 'data_type': None},
-                             'fc_1_data': {'shape': np.array([1, 10260])},
-                             })
-
-        ref_weights = np.ones((10260, 2048))
-        ref_biases = np.array([x for x in range(10260)])
-
-        graph_ref = build_graph(nodes_attributes,
-                                [('placeholder_1', 'placeholder_1_data'),
-                                 ('placeholder_1_data', 'fc_1'),
-                                 ('const_fc_1_w', 'fc_1_w'),
-                                 ('const_fc_1_b', 'fc_1_b'),
-                                 ('fc_1_w', 'fc_1'),
-                                 ('fc_1_b', 'fc_1'),
-                                 ('fc_1', 'fc_1_data'),
-                                 ('fc_1_data', 'op_output')
-                                 ],
-                                {'placeholder_1_data': {'shape': np.array([1, 2048])},
-                                 'const_fc_1_w': {'shape': ref_weights.shape, 'value': ref_weights},
-                                 'fc_1_w': {'shape': ref_weights.shape, 'value': ref_weights,
-                                            'output_channel_dim': 0, 'input_channel_dim': 1,
-                                            'dims_number': 2},
-                                 'const_fc_1_b': {'shape': ref_biases.shape, 'value': ref_biases},
-                                 'fc_1_b': {'shape': ref_biases.shape, 'value': ref_biases},
-                                 'fc_1_data': {'shape': np.array([1, 10260])},
-                                 })
-
-        _fuse_add(graph, Node(graph, 'add_1'), [Node(graph, 'fc_1')], backward=True)
-        graph.clean_up()
-
-        (flag, resp) = compare_graphs(graph, graph_ref, 'placeholder_1')
-        self.assertTrue(flag, resp)
-
-    # FC(w)->Add(scalar)
-    def test_fuse_add_to_fc_3(self):
-        # Placeholder->FC->Add
-        graph = build_graph(nodes_attributes,
-                            [('placeholder_1', 'placeholder_1_data'),
-                             ('placeholder_1_data', 'fc_1'),
-                             ('const_fc_1_w', 'fc_1_w'),
-                             ('fc_1_w', 'fc_1'),
-                             ('fc_1', 'fc_1_data'),
-                             ('fc_1_data', 'add_1'),
-                             ('const_add_1_w', 'add_1_w'),
-                             ('add_1_w', 'add_1'),
-                             ('add_1', 'add_1_data'),
-                             ('add_1_data', 'op_output')
-                             ],
-                            {'placeholder_1_data': {'shape': np.array([1, 2048])},
-                             'add_1_data': {'shape': np.array([1, 10260])},
-                             'const_add_1_w': {'shape': np.array([1]), 'value': 6, 'data_type': None},
-                             'add_1_w': {'shape': np.array([1]), 'value': 6, 'data_type': None},
-                             'const_fc_1_w': {'shape': np.array([10260, 2048]), 'value': np.ones((10260, 2048))},
-                             'fc_1_w': {'shape': np.array([10260, 2048]), 'value': np.ones((10260, 2048)),
-                                        'output_channel_dim': 0, 'input_channel_dim': 1,
-                                        'dims_number': 2, 'data_type': None},
-                             'fc_1_data': {'shape': np.array([1, 10260])},
-                             })
-
-        ref_weights = np.ones((10260, 2048))
-        ref_biases = np.full([10260], 6)
-
-        graph_ref = build_graph(nodes_attributes,
-                                [('placeholder_1', 'placeholder_1_data'),
-                                 ('placeholder_1_data', 'fc_1'),
-                                 ('const_fc_1_w', 'fc_1_w'),
-                                 ('const_fc_1_b', 'fc_1_b'),
-                                 ('fc_1_w', 'fc_1'),
-                                 ('fc_1_b', 'fc_1'),
-                                 ('fc_1', 'fc_1_data'),
-                                 ('fc_1_data', 'op_output')
-
-                                 ],
-                                {'placeholder_1_data': {'shape': np.array([1, 2048])},
-                                 'const_fc_1_w': {'shape': ref_weights.shape, 'value': ref_weights},
-                                 'fc_1_w': {'shape': ref_weights.shape, 'value': ref_weights,
-                                            'output_channel_dim': 0, 'input_channel_dim': 1,
-                                            'dims_number': 2},
-                                 'const_fc_1_b': {'shape': ref_biases.shape, 'value': ref_biases},
-                                 'fc_1_b': {'shape': ref_biases.shape, 'value': ref_biases},
-                                 'fc_1_data': {'shape': np.array([1, 10260])},
-                                 })
-
-        _fuse_add(graph, Node(graph, 'add_1'), [Node(graph, 'fc_1')], backward=True)
-        graph.clean_up()
-
-        (flag, resp) = compare_graphs(graph, graph_ref, 'placeholder_1')
-        self.assertTrue(flag, resp)
-
-    # Add(array)->FC(w+b) can_be_fused = False
-    def test_fuse_add_to_fc_4(self):
-        # Placeholder->Add->FC
-        graph = build_graph(nodes_attributes,
-                            [('placeholder_1', 'placeholder_1_data'),
-                             ('placeholder_1_data', 'add_1'),
-                             ('const_add_1_w', 'add_1_w'),
-                             ('add_1_w', 'add_1'),
-                             ('add_1', 'add_1_data'),
-                             ('add_1_data', 'fc_1'),
-                             ('const_fc_1_w', 'fc_1_w'),
-                             ('const_fc_1_b', 'fc_1_b'),
-                             ('fc_1_w', 'fc_1'),
-                             ('fc_1_b', 'fc_1'),
-                             ('fc_1', 'fc_1_data'),
-                             ('fc_1_data', 'op_output')
-
-                             ],
-                            {'placeholder_1_data': {'shape': np.array([1, 2048])},
-                             'add_1_data': {'shape': np.array([1, 2048])},
-                             'const_add_1_w': {'shape': np.array([2048]), 'value': np.array([x for x in range(2048)])},
-                             'add_1_w': {'shape': np.array([2048]), 'value': np.array([x for x in range(2048)])},
-                             'fc_1': {'can_be_fused': False},
-                             'const_fc_1_w': {'shape': np.array([10260, 2048]), 'value': np.ones((10260, 2048))},
-                             'fc_1_w': {'shape': np.array([10260, 2048]), 'value': np.ones((10260, 2048)),
-                                        'output_channel_dim': 0, 'input_channel_dim': 1,
-                                        'dims_number': 2},
-                             'const_fc_1_b': {'shape': np.array([10260]), 'value': np.ones(10260)},
-                             'fc_1_b': {'shape': np.array([10260]), 'value': np.ones(10260)},
-                             'fc_1_data': {'shape': np.array([1, 10260])},
-                             })
-
-        graph_ref = build_graph(nodes_attributes,
-                                [('placeholder_1', 'placeholder_1_data'),
-                                 ('placeholder_1_data', 'add_1'),
-                                 ('const_add_1_w', 'add_1_w'),
-                                 ('add_1_w', 'add_1'),
-                                 ('add_1', 'add_1_data'),
-                                 ('add_1_data', 'fc_1'),
-                                 ('const_fc_1_w', 'fc_1_w'),
-                                 ('const_fc_1_b', 'fc_1_b'),
-                                 ('fc_1_w', 'fc_1'),
-                                 ('fc_1_b', 'fc_1'),
-                                 ('fc_1', 'fc_1_data'),
-                                 ('fc_1_data', 'op_output')
-                                 ],
-                                {'placeholder_1_data': {'shape': np.array([1, 2048])},
-                                 'add_1_data': {'shape': np.array([1, 2048])},
-                                 'const_add_1_w': {'shape': np.array([2048]), 'value': np.array([x for x in range(2048)])},
-                                 'add_1_w': {'shape': np.array([2048]), 'value': np.array([x for x in range(2048)])},
-                                 'fc_1': {'can_be_fused': False},
-                                 'const_fc_1_w': {'shape': np.array([10260, 2048]), 'value': np.ones((10260, 2048))},
-                                 'fc_1_w': {'shape': np.array([10260, 2048]), 'value': np.ones((10260, 2048)),
-                                            'output_channel_dim': 0, 'input_channel_dim': 1,
-                                            'dims_number': 2},
-                                 'const_fc_1_b': {'shape': np.array([10260]), 'value': np.ones(10260)},
-                                 'fc_1_b': {'shape': np.array([10260]), 'value': np.ones(10260)},
-                                 'fc_1_data': {'shape': np.array([1, 10260])},
-                                 })
-
-        _fuse_add(graph, Node(graph, 'add_1'), [Node(graph, 'fc_1')], backward=False)
-        graph.clean_up()
-
-        (flag, resp) = compare_graphs(graph, graph_ref, 'placeholder_1')
         self.assertTrue(flag, resp)
 
 

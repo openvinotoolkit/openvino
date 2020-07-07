@@ -3,15 +3,12 @@
 //
 
 #include <memory>
-#include <ie_plugin.hpp>
 #include <cpp_interfaces/base/ie_plugin_base.hpp>
 #include "gna_plugin_internal.hpp"
 
 using namespace InferenceEngine;
 using namespace std;
 using namespace GNAPluginNS;
-
-IE_SUPPRESS_DEPRECATED_START
 
 static const Version gnaPluginDescription = {
         {2, 1},
