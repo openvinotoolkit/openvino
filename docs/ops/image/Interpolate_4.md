@@ -27,7 +27,12 @@
 * *nearest_mode*
 
   * **Description**: specifies round mode when `mode == nearest` and is used only when `mode == nearest`.
-  * **Range of values**: one of `round_prefer_floor`, `round_prefer_ceil`, `floor`, `ceil`, `simple`
+  * **Range of values**: name of the round mode in string format:
+    * `round_prefer_floor` - this mode is known as round half down.
+    * `round_prefer_ceil` - it is round half up mode.
+    * `floor` - this mode computes the largest integer value not greater than rounded value.
+    * `ceil` - this mode computes the smallest integer value not less than rounded value.
+    * `simple` - this mode behaves as `ceil` mode when `Interpolate` is downsample, and as dropping the fractional part otherwise.
   * **Type**: string
   * **Default value**: `round_prefer_floor`
   * **Required**: *no*
