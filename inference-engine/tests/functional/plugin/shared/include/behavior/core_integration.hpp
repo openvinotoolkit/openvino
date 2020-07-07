@@ -1314,10 +1314,9 @@ TEST_P(IEClassLoadNetworkTest, QueryNetworkHETEROwithMULTINoThrow_v7) {
                 {MULTI_CONFIG_KEY(DEVICE_PRIORITIES), devices},
                 {"TARGET_FALLBACK",                   targetFallback}}));
 
+        auto convertedActualNetwork = std::make_shared<details::CNNNetworkImpl>(actualNetwork);
         for (auto &&layer : result.supportedLayersMap) {
-//            IE_SUPPRESS_DEPRECATED_START
-            EXPECT_NO_THROW(CommonTestUtils::getLayerByName(actualNetwork, layer.first));
-//            IE_SUPPRESS_DEPRECATED_END
+            EXPECT_NO_THROW(CommonTestUtils::getLayerByName(convertedActualNetwork.get(), layer.first));
         }
     } else {
         GTEST_SKIP();
@@ -1343,10 +1342,9 @@ TEST_P(IEClassLoadNetworkTest, QueryNetworkMULTIwithHETERONoThrowv7) {
                 {MULTI_CONFIG_KEY(DEVICE_PRIORITIES), devices},
                 {"TARGET_FALLBACK",                   deviceName + "," + CommonTestUtils::DEVICE_CPU}}));
 
+        auto convertedActualNetwork = std::make_shared<details::CNNNetworkImpl>(actualNetwork);
         for (auto &&layer : result.supportedLayersMap) {
-            IE_SUPPRESS_DEPRECATED_START
-            EXPECT_NO_THROW(CommonTestUtils::getLayerByName(actualNetwork, layer.first));
-            IE_SUPPRESS_DEPRECATED_END
+            EXPECT_NO_THROW(CommonTestUtils::getLayerByName(convertedActualNetwork.get(), layer.first));
         }
     } else {
         GTEST_SKIP();
