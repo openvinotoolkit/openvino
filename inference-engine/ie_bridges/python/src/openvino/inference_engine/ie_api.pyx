@@ -717,7 +717,7 @@ cdef class DataPtr:
 
     @property
     def creator_layer(self):
-        cdef C.CNNLayerWeakPtr _l_ptr = C.getCreatorLayer(self._ptr)
+        cdef C.CNNLayerWeakPtr _l_ptr = C.getCreatorLayerPython(self._ptr)
         cdef IENetLayer creator_layer
         creator_layer = IENetLayer()
         if _l_ptr.lock() != NULL:
@@ -728,7 +728,7 @@ cdef class DataPtr:
 
     @property
     def input_to(self):
-        cdef map[string, C.CNNLayerPtr] _l_ptr_map = C.getInputTo(self._ptr)
+        cdef map[string, C.CNNLayerPtr] _l_ptr_map = C.getInputToPython(self._ptr)
         cdef IENetLayer input_to
         input_to_list = []
         for layer in _l_ptr_map:
@@ -1291,7 +1291,7 @@ cdef class IENetLayer:
         cdef map[string, C.CNNLayerPtr] _l_ptr_map
         input_to_list = []
         for l in c_outs:
-            _l_ptr_map = C.getInputTo(l)
+            _l_ptr_map = C.getInputToPython(l)
             for layer in _l_ptr_map:
                 input_to_list.append(deref(layer.second).name.decode())
         return input_to_list
