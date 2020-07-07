@@ -107,13 +107,13 @@ protected:
 
     virtual std::vector<std::vector<std::uint8_t>> CalculateRefs();
 
+    InferenceEngine::InferRequest inferRequest;
+
 private:
     void ConfigureNetwork() const;
 
     std::vector<InferenceEngine::Blob::Ptr> GetOutputs();
-
     std::shared_ptr<InferenceEngine::Core> core;
-    InferenceEngine::InferRequest inferRequest;
     RefMode refMode = RefMode::INTERPRETER;
 };
 
