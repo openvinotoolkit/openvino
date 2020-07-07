@@ -120,7 +120,7 @@ namespace
             const size_t arg_shape_dim = arg_shape_vec[i].get_length();
             NODE_VALIDATION_CHECK(this_ptr,
                                   arg_shape_dim == 1 || target_shape[i] == 1 ||
-                                      arg_shape[i] == target_shape[i],
+                                      arg_shape_dim == target_shape[i],
                                   "Broadcast incorrect target shape. Expecting either 1 or ",
                                   arg_shape_dim,
                                   ". Got ",
