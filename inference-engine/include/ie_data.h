@@ -28,6 +28,7 @@ namespace InferenceEngine {
  */
 
 class INFERENCE_ENGINE_API_CLASS(Data) {
+    class Impl;
 public:
     /**
      * @brief An empty constructor (dimensionless)
@@ -45,6 +46,21 @@ public:
      * @param desc Tensor descriptor
      */
     Data(const std::string& name, const TensorDesc& desc);
+
+    /**
+     * @brief A copy constructor
+     *
+     * @param data A data object to copy from
+     */
+    Data(const Data& data);
+
+    /**
+     * @brief An assignment operator
+     *
+     * @param data A data object to copy from
+     * @return An assigned object
+     */
+    Data & operator = (const Data& data);
 
     /**
      * @brief A virtual destructor
@@ -114,14 +130,6 @@ public:
     const SizeVector& getDims() const;
 
     /**
-     * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
-     * @brief Returns an owner of this data layer, parent layer in di-graph
-     * @return A weak pointer to CNNLayer that creates this data
-     */
-    INFERENCE_ENGINE_INTERNAL("Migrate to IR v10 and work with ngraph::Function directly")
-    virtual CNNLayerWeakPtr& getCreatorLayer();
-
-    /**
      * @return name of the data object
      */
     const std::string& getName() const;
@@ -135,34 +143,21 @@ public:
     void setName(const std::string& newName);
 
     /**
-     * @deprecated Migrate to IR v10 and work with ngraph::Function directly. The method will be removed in 2021.1
-     * @brief Privates child layers in di-graph
-     * @return A map of child layers
-     */
-    INFERENCE_ENGINE_INTERNAL("Migrate to IR v10 and work with ngraph::Function directly")
-    virtual std::map<std::string, CNNLayerPtr>& getInputTo();
-
-    /**
      * @return convenient arbitrary user data holder
      */
     const UserValue& getUserObject() const;
 
-private:
     /**
-     * @brief A pointer to the layer that creates this data element, null for input data elements
+     * @private
+     * @brief Don't touch this field. An implementation details for Data object.
      */
-    CNNLayerWeakPtr creatorLayer;
+    std::shared_ptr<Impl> _impl;
 
+private:
     /**
      * @brief A unique name that identifies this data node
      */
     std::string name;
-
-    /**
-     * @brief A map of layers that use this node as input.
-     * It is useful for recursive NN graph traversal.
-     */
-    std::map<std::string, CNNLayerPtr> inputTo;
 
     /**
      * @brief A user utility place holder

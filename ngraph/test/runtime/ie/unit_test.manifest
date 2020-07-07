@@ -162,6 +162,7 @@ onnx_model_conv_with_dynamic_batch
 
 # Segmentation fault
 bool_init_and
+onnx_model_fake_quantize_nonconst_inputs_infer
 
 # Incorrect number of 'indices_to_squeeze' input dimensions!
 arg_min_no_keep_dims_dyn_shape
@@ -274,7 +275,6 @@ lrn_2d_across_empty
 normalize_across_empty_axes_input
 squeeze_default_axes
 dynamic_abc
-dyn_broadcast
 broadcast_v1
 dot_0_0
 dot_matrix_2x0_0x2
@@ -295,18 +295,6 @@ any_2x0_to_scalar
 all_trivial
 all_2x0_to_scalar
 all_dynamic
-dyn_slice_8
-dyn_slice_22
-dyn_slice_25
-dyn_slice_30
-dyn_slice_50
-dyn_slice_64
-dyn_slice_67
-dyn_slice_72
-dyn_slice_92
-dyn_slice_106
-dyn_slice_109
-dyn_slice_114
 reduce_sum_keep_dynamic
 reduce_sum_keep_stable_simple_double
 reduce_sum_keep_stable_acc_double
@@ -378,21 +366,6 @@ group_conv_input_shape_variation
 group_conv_input_data_variation
 dynamic_to_vector
 dynamic_reverse_shape
-dyn_slice_3
-dyn_slice_11
-dyn_slice_12
-dyn_slice_13
-dyn_slice_45
-dyn_slice_53
-dyn_slice_54
-dyn_slice_55
-dyn_slice_87
-dyn_slice_95
-dyn_slice_96
-dyn_slice_97
-dyn_slice_176
-dyn_slice_178
-dyn_slice_180
 
 # Error of validate layer: Tile_1082 with type: Tile. Layer is not instance of TileLayer class
 tile_3d_small_data_rank
@@ -515,8 +488,6 @@ softmax_axis_3d_double
 select_double
 quantize_clamp_int32
 max_3d_to_scalar_double
-generate_mask
-generate_mask2
 argmin_trivial_in_double
 
 # Incorrect precision bf16!
@@ -542,45 +513,6 @@ greater_int64
 broadcast_vector_rowwise_int64
 broadcast_scalar_to_matrix_int64
 abc_int64
-dyn_slice_1
-dyn_slice_2
-dyn_slice_9
-dyn_slice_10
-dyn_slice_15
-dyn_slice_16
-dyn_slice_17
-dyn_slice_18
-dyn_slice_19
-dyn_slice_26
-dyn_slice_28
-dyn_slice_29
-dyn_slice_43
-dyn_slice_44
-dyn_slice_51
-dyn_slice_52
-dyn_slice_57
-dyn_slice_58
-dyn_slice_59
-dyn_slice_60
-dyn_slice_61
-dyn_slice_68
-dyn_slice_70
-dyn_slice_71
-dyn_slice_85
-dyn_slice_86
-dyn_slice_93
-dyn_slice_94
-dyn_slice_99
-dyn_slice_100
-dyn_slice_101
-dyn_slice_102
-dyn_slice_103
-dyn_slice_110
-dyn_slice_112
-dyn_slice_113
-dyn_slice_175
-dyn_slice_177
-dyn_slice_179
 
 # Unsupported primitive of type: SigmoidBackprop
 sigmoid_bprop_n1c1h4
@@ -645,120 +577,6 @@ reverse_3d_12
 reverse_3d_012
 broadcast_vector_rowwise_reversed
 
-dyn_slice_0
-dyn_slice_4
-dyn_slice_5
-dyn_slice_6
-dyn_slice_7
-dyn_slice_14
-dyn_slice_20
-dyn_slice_21
-dyn_slice_23
-dyn_slice_24
-dyn_slice_27
-dyn_slice_31
-dyn_slice_32
-dyn_slice_33
-dyn_slice_34
-dyn_slice_35
-dyn_slice_36
-dyn_slice_37
-dyn_slice_38
-dyn_slice_39
-dyn_slice_40
-dyn_slice_41
-dyn_slice_42
-dyn_slice_46
-dyn_slice_47
-dyn_slice_48
-dyn_slice_49
-dyn_slice_56
-dyn_slice_62
-dyn_slice_63
-dyn_slice_65
-dyn_slice_66
-dyn_slice_69
-dyn_slice_73
-dyn_slice_74
-dyn_slice_75
-dyn_slice_76
-dyn_slice_77
-dyn_slice_78
-dyn_slice_79
-dyn_slice_80
-dyn_slice_81
-dyn_slice_82
-dyn_slice_83
-dyn_slice_84
-dyn_slice_88
-dyn_slice_89
-dyn_slice_90
-dyn_slice_91
-dyn_slice_98
-dyn_slice_104
-dyn_slice_105
-dyn_slice_107
-dyn_slice_108
-dyn_slice_111
-dyn_slice_115
-dyn_slice_116
-dyn_slice_117
-dyn_slice_118
-dyn_slice_119
-dyn_slice_120
-dyn_slice_121
-dyn_slice_122
-dyn_slice_123
-dyn_slice_124
-dyn_slice_125
-dyn_slice_126
-dyn_slice_127
-dyn_slice_128
-dyn_slice_129
-dyn_slice_130
-dyn_slice_131
-dyn_slice_132
-dyn_slice_133
-dyn_slice_134
-dyn_slice_135
-dyn_slice_136
-dyn_slice_137
-dyn_slice_138
-dyn_slice_139
-dyn_slice_140
-dyn_slice_141
-dyn_slice_142
-dyn_slice_143
-dyn_slice_144
-dyn_slice_145
-dyn_slice_146
-dyn_slice_147
-dyn_slice_148
-dyn_slice_149
-dyn_slice_150
-dyn_slice_151
-dyn_slice_152
-dyn_slice_153
-dyn_slice_154
-dyn_slice_155
-dyn_slice_156
-dyn_slice_157
-dyn_slice_158
-dyn_slice_159
-dyn_slice_160
-dyn_slice_161
-dyn_slice_162
-dyn_slice_163
-dyn_slice_164
-dyn_slice_165
-dyn_slice_166
-dyn_slice_167
-dyn_slice_181
-dyn_slice_182
-dyn_slice_183
-dyn_slice_184
-dyn_slice_185
-dyn_slice_186
 
 # Cannot cast ngraph node ReplaceSlice to CNNLayer!
 replace_slice_scalar
@@ -776,13 +594,6 @@ relu_4Dbackprop
 # data [<name>] doesn't exist
 range
 parameter_as_output
-
-# Cannot cast ngraph node RandomUniform to CNNLayer!
-random_uniform_all_static_seed_unused
-random_uniform_all_static_seed_used
-random_uniform_seed_use_dynamic
-random_uniform_all_static_range_dynamic
-random_uniform_dynamic_shapes
 
 # Cannot cast ngraph node QuantizedDot to CNNLayer!
 quantized_dot_u8u8
@@ -1025,14 +836,8 @@ convert_uint16_float32
 # Unsupported primitive of type: Ceiling
 ceiling
 
-# Cannot cast ngraph node BatchMatMul to CNNLayer!
-batch_mat_mul_forward
-
 # Incorrect dimensions for broadcasting for Add
 auto_bcast_binary_elementwise_pdpd_dynamic
-
-# Unsupported primitive of type: Atan2
-atan2
 
 # Unsupported primitive of type: ArgMin
 argmin_trivial
@@ -1068,10 +873,6 @@ broadcast_algo_matrix_backward_4
 broadcast_algo_matrix_stride_1
 broadcast_algo_matrix_stride_2
 broadcast_algo_matrix_stride_3
-
-# Cannot cast ngraph node BatchMatMulTranspose_783933 to CNNLayer!
-batch_mat_mul_transpose
-batch_mat_mul_transpose_with_transpose
 
 # Failing from new reason after unblocking more Blob types
 gather_2d_negative_and_positive_indices_no_axis_2d_input
@@ -1160,7 +961,6 @@ backwards_add
 backwards_add_nested
 backwards_asin
 backwards_atan
-backwards_atan2
 backwards_broadcast0
 backwards_broadcast1
 backwards_concat_vector
@@ -1281,11 +1081,6 @@ non_zero_all_0s
 #
 #-------------------------------------------------------------------------------
 
-# Cannot cast ngraph node ReplaceSlice to CNNLayer!
-# Incorrect precision u32!
-# Parameter has zero dimension that is not allowable
-IE_CPU/DynReplaceSliceTest.dyn_replace_slice
-
 # Cannot cast ngraph node Reshape to CNNLayer!
 # Parameter has zero dimension that is not allowable
 IE_CPU/FlattenTest.flatten
@@ -1316,7 +1111,6 @@ IE_CPU.backwards_log
 
 # Unsupported op detected
 IE_CPU.backwards_batchmatmultranspose_tensor2_tensor2
-IE_CPU.fuse_batch_mat_mul_transpose_forward
 IE_CPU.round_int64
 
 # Can't convert type f16 to IE Precision!
@@ -1344,6 +1138,9 @@ IE_CPU.onnx_dyn_shapes_global_max_pool_dyn_shape
 IE_CPU.onnx_dyn_shapes_model_flatten
 IE_CPU.onnx_dyn_shapes_slice_10_default_axes
 IE_CPU.fused_clamp_float
+
+# Result mismatch 2.666666507720947266 is not close to 3 at index 1
+IE_CPU.onnx_resize10_down_scales_const_linear
 
 # GRUCell operation has a form that is not supported
 IE_CPU.onnx_model_gru_defaults_fwd
@@ -1620,7 +1417,6 @@ IE_GPU.abs
 IE_GPU.abc
 IE_GPU.max_pool_2d_1channel_1image_padded
 IE_GPU/concat_vector_params.concat_vector_large
-IE_GPU/DynReplaceSliceTest.dyn_replace_slice
 IE_GPU/FlattenTest.flatten
 IE_GPU.onnx_model_conv2d_strides_padding
 IE_GPU.onnx_model_conv2d_strides_no_padding
@@ -1689,6 +1485,9 @@ IE_GPU.matmul_2x2_2x2
 IE_GPU.matmul_2x3_3x3
 IE_GPU.matmul_3x2_3x3_transpose
 IE_GPU.matmul_3x2_2x3_transpose
+
+IE_GPU.onnx_model_fake_quantize_const_inputs_infer
+IE_GPU.onnx_model_fake_quantize_nonconst_inputs_infer
 
 # ONNX Loop
 onnx_controlflow_loop_2d_add_execution

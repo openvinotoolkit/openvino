@@ -152,23 +152,6 @@ NGRAPH_TEST(${BACKEND_NAME}, backwards_atan)
     EXPECT_TRUE(autodiff_numeric_compare<float>(backend.get(), make_graph, {x0}, .01f, .01f));
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, backwards_atan2)
-{
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-    Shape shape{30};
-
-    test::Uniform<float> rng(-5.0f, 5.0f);
-    auto y = rng.initialize(backend->create_tensor<float>(shape));
-    auto x = rng.initialize(backend->create_tensor<float>(shape));
-
-    auto make_graph = [shape]() {
-        auto X = make_shared<op::Parameter>(element::f32, shape);
-        auto Y = make_shared<op::Parameter>(element::f32, shape);
-        return make_shared<Function>(make_shared<op::Atan2>(Y, X), ParameterVector{Y, X});
-    };
-    EXPECT_TRUE(autodiff_numeric_compare<float>(backend.get(), make_graph, {y, x}, .01f, .01f));
-}
-
 NGRAPH_TEST(${BACKEND_NAME}, backwards_broadcast0)
 {
     auto backend = runtime::Backend::create("${BACKEND_NAME}");
@@ -500,25 +483,6 @@ NGRAPH_TEST(${BACKEND_NAME}, backwards_dot_tensor3_tensor3)
         return make_shared<Function>(make_shared<op::Dot>(X0, X1, 2),
                                      std::vector<std::shared_ptr<op::Parameter>>{X0, X1});
     };
-    EXPECT_TRUE(autodiff_numeric_compare<float>(backend.get(), make_graph, {x0, x1}, .01f, .01f));
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, backwards_batchmatmul_tensor2_tensor2)
-{
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-    test::Uniform<float> rng(-1.0f, 1.0f);
-    Shape shape0{3, 4, 5};
-    Shape shape1{3, 5, 6};
-    auto x0 = rng.initialize(backend->create_tensor<float>(shape0));
-    auto x1 = rng.initialize(backend->create_tensor<float>(shape1));
-
-    auto make_graph = [shape0, shape1]() {
-        auto X0 = make_shared<op::Parameter>(element::f32, shape0);
-        auto X1 = make_shared<op::Parameter>(element::f32, shape1);
-        return make_shared<Function>(make_shared<op::BatchMatMul>(X0, X1),
-                                     std::vector<std::shared_ptr<op::Parameter>>{X0, X1});
-    };
-
     EXPECT_TRUE(autodiff_numeric_compare<float>(backend.get(), make_graph, {x0, x1}, .01f, .01f));
 }
 
