@@ -26,6 +26,13 @@ from pymongo import MongoClient
 from memcheck_upload import DATABASE, DB_COLLECTIONS
 
 
+class HashableDict(dict):
+    """Dictionary class with defined __hash__ to make it hashable
+       (e.g. use as key in another dictionary)"""
+    def __hash__(self):
+        return hash(tuple(sorted(self.items())))
+
+
 def get_db_memcheck_records(query, db_collection, db_name, db_url):
     """Request MemCheckTests records from database by provided query"""
     client = MongoClient(db_url)
@@ -47,20 +54,24 @@ def get_memcheck_records(source, db_collection=None, db_name=None, db_url=None):
     return items
 
 
-def prepare_comparison_table_csv(data, data_metrics, output_file):
+def prepare_comparison_table_csv(data: dict, output_file):
     """generate .csv file with table based on provided data"""
-    fields = list(data[0].keys())
-    metrics_names = list(data_metrics[0].keys())
-    HEADERS = fields + metrics_names
+    fields_list = list(data.keys())
+    metrics_list = list(data.values())
+    assert isinstance(fields_list[0], HashableDict), \
+        "Data should contain keys with HashableDict type"
+    fields_names = list(fields_list[0].keys())
+    metrics_names = list(metrics_list[0].keys())
+    HEADERS = fields_names + metrics_names
     with open(output_file, 'w', newline="") as csvfile:
         csvwriter = csv.writer(csvfile)
         csvwriter.writerow(HEADERS)
-        for i in range(len(data)):
+        for fields_item, metrics_item in zip(fields_list, metrics_list):
             row = []
-            for field in fields:
-                row.append(data[i][field])
+            for field_name in fields_names:
+                row.append(fields_item[field_name])
             for metric_name in metrics_names:
-                row.append(data_metrics[i][metric_name])
+                row.append(metrics_item[metric_name])
             csvwriter.writerow(row)
 
 
@@ -87,70 +98,46 @@ def compare_memcheck_2_runs(cur_values, references, output_file=None):
         ("ref/cur", lambda x, y: x / y if (x is not None and y is not None) else None)
     ])
 
-    filtered_refs = []
-    filtered_refs_metrics = []
+    filtered_refs = {}
     for record in references:
         filtered_rec = {key: val for key, val in record.items() if key in required_fields}
         filtered_rec_metrics = {key: val for key, val in record["metrics"].items() if key in required_metrics}
-        filtered_refs.append(filtered_rec)
-        filtered_refs_metrics.append(filtered_rec_metrics)
-    assert len(filtered_refs) == len(filtered_refs_metrics), \
-        "Filtered references and metrics should contain equal number of records. " \
-        "References len: {}, metrics len: {}".format(len(filtered_refs), len(filtered_refs_metrics))
+        filtered_refs[HashableDict(filtered_rec)] = filtered_rec_metrics
 
-    filtered_cur_val = []
-    filtered_cur_val_metrics = []
+    filtered_cur_val = {}
     for record in cur_values:
         filtered_rec = {key: val for key, val in record.items() if key in required_fields}
         filtered_rec_metrics = {key: val for key, val in record["metrics"].items() if key in required_metrics}
-        filtered_cur_val.append(filtered_rec)
-        filtered_cur_val_metrics.append(filtered_rec_metrics)
-    assert len(filtered_cur_val) == len(filtered_cur_val_metrics), \
-        "Filtered current values and metrics should contain equal number of records. " \
-        "Current values len: {}, metrics len: {}".format(len(filtered_refs), len(filtered_refs_metrics))
+        filtered_cur_val[HashableDict(filtered_rec)] = filtered_rec_metrics
 
-    comparison_data = []
+    comparison_data_keys = []
     for data in [filtered_refs, filtered_cur_val]:
         for record in data:
             rec = OrderedDict()
             for field in required_fields:
                 rec.update({field: record[field]})
                 rec.move_to_end(field)
-            if rec not in comparison_data:
+            if rec not in comparison_data_keys:
                 # Comparison data should contain unique records combined from references and current values
-                comparison_data.append(rec)
-    comparison_data = sorted(comparison_data, key=itemgetter("model"))
+                comparison_data_keys.append(rec)
+    comparison_data_keys = sorted(comparison_data_keys, key=itemgetter("model"))
 
-    comparison_data_metrics = []
-    for record in comparison_data:
-        try:
-            i = filtered_refs.index(record)
-        except ValueError:
-            i = -1
-
-        try:
-            j = filtered_cur_val.index(record)
-        except ValueError:
-            j = -1
-
+    comparison_data = {}
+    for record in comparison_data_keys:
         metrics_rec = OrderedDict()
         for metric in required_metrics:
-            ref = filtered_refs_metrics[i][metric] if i != -1 and metric in filtered_refs_metrics[i] else None
-            cur = filtered_cur_val_metrics[j][metric] if j != -1 and metric in filtered_cur_val_metrics[j] else None
+            ref = filtered_refs.get(HashableDict(record), {}).get(metric, None)
+            cur = filtered_cur_val.get(HashableDict(record), {}).get(metric, None)
             for op_name, op in ops.items():
                 op_res = op(ref, cur)
                 metric_name = "{} {}".format(metric, op_name)
                 metrics_rec.update({metric_name: op_res})
                 metrics_rec.move_to_end(metric_name)
 
-        comparison_data_metrics.append(metrics_rec)
-
-    assert len(comparison_data) == len(comparison_data_metrics), \
-        "Data and metrics for comparison should contain equal number of records. Data len: {}, metrics len: {}" \
-            .format(len(comparison_data), len(comparison_data_metrics))
+        comparison_data[HashableDict(record)] = metrics_rec
 
     if output_file:
-        prepare_comparison_table_csv(comparison_data, comparison_data_metrics, output_file)
+        prepare_comparison_table_csv(comparison_data, output_file)
 
 
 def cli_parser():
