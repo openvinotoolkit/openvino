@@ -12,20 +12,21 @@
 namespace ngraph {
 namespace pass {
 
-class MyPatternBasedTransformation;
+class DecomposeDivideMatcher;
+class ReluReluFusionMatcher;
 
 }  // namespace pass
 }  // namespace ngraph
 
 // ! [graph_rewrite:template_transformation_hpp]
 // template_pattern_transformation.hpp
-class ngraph::pass::MyPatternBasedTransformation: public ngraph::pass::GraphRewrite {
+class ngraph::pass::DecomposeDivideMatcher: public ngraph::pass::MatcherPass {
 public:
-    MyPatternBasedTransformation() : GraphRewrite() {
-        transform();
-    }
-
-private:
-    void transform();
+    DecomposeDivideMatcher();
 };
 // ! [graph_rewrite:template_transformation_hpp]
+
+class ngraph::pass::ReluReluFusionMatcher: public ngraph::pass::MatcherPass {
+public:
+    ReluReluFusionMatcher();
+};

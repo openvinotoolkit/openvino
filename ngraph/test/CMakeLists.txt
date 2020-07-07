@@ -68,6 +68,7 @@ set(SRC
     input_output_assign.cpp
     intervals.cpp
     main.cpp
+    matcher_pass.cpp
     misc.cpp
     ngraph_api.cpp
     node_input_output.cpp
