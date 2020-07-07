@@ -30,7 +30,6 @@
 #include "ngraph/op/broadcast.hpp"
 #include "ngraph/op/concat.hpp"
 #include "ngraph/op/dot.hpp"
-#include "ngraph/op/fused/batch_mat_mul_transpose.hpp"
 #include "ngraph/op/group_conv.hpp"
 #include "ngraph/op/reshape.hpp"
 #include "ngraph/op/slice.hpp"
@@ -166,81 +165,6 @@ std::shared_ptr<Node> fuse_group_convolution(const std::shared_ptr<Node>& n)
     return move(new_conv);
 }
 
-std::shared_ptr<Node> fuse_batch_mat_mul_transpose(const std::shared_ptr<Node>& n)
-{
-    const int num_op_branches = 2;
-    std::shared_ptr<pattern::op::Label> input[num_op_branches];
-    std::shared_ptr<op::Reshape> reshape[num_op_branches];
-    for (int i = 0; i < num_op_branches; ++i)
-    {
-        input[i] = std::make_shared<pattern::op::Label>(element::f32, Shape{3, 2, 2});
-        auto slice =
-            std::make_shared<op::Slice>(input[i], Coordinate{0, 0, 0}, Coordinate{1, 2, 2});
-        auto skip = std::make_shared<pattern::op::Skip>(slice, pattern::has_class<op::Reshape>());
-        reshape[i] = std::make_shared<op::Reshape>(skip, AxisVector{0, 1, 2}, Shape{2, 2});
-    }
-    auto dot = std::make_shared<op::Dot>(reshape[0], reshape[1]);
-    auto final_reshape = std::make_shared<op::Reshape>(dot, AxisVector{0, 1}, Shape{1, 2, 2});
-
-    auto matcher = std::make_shared<pattern::Matcher>(final_reshape);
-    std::shared_ptr<Node> fuse_input[num_op_branches];
-    bool transpose[num_op_branches] = {false, false};
-    const int num_expected_reshape_with_trans = 3;
-
-    // check each input arg matches the pattern
-    for (auto arg : n->get_arguments())
-    {
-        if (matcher->match(arg))
-        {
-            auto pattern_map = matcher->get_pattern_map();
-            int reshape_count[num_op_branches] = {0, 0};
-            // we found a match, determine whether we have to transpose for each input by
-            // counting the number of reshapes in each branch, if transpose is applied, there
-            // should be 3 reshapes.
-            for (int i = 0; i < num_op_branches; ++i)
-            {
-                auto iter = matcher->get_match_root();
-                auto& input_node = pattern_map[input[i]];
-                do
-                {
-                    if (is_type<op::Reshape>(iter))
-                    {
-                        ++reshape_count[i];
-                        if (reshape_count[i] == num_expected_reshape_with_trans)
-                        {
-                            transpose[i] = true;
-                            break;
-                        }
-                    }
-                    // branch to either input 0 or 1 depending on which one we are traversing
-                    iter =
-                        iter->get_input_size() > 1 ? iter->get_argument(i) : iter->get_argument(0);
-                } while (iter != input_node);
-            }
-            // keep track of the input data, make sure they all match
-            for (int i = 0; i < num_op_branches; ++i)
-            {
-                auto& input_node = pattern_map[input[i]];
-                if (fuse_input[i] == nullptr)
-                {
-                    fuse_input[i] = input_node;
-                }
-                // found different input nodes between different args, can't fuse.
-                else if (fuse_input[i] != input_node)
-                {
-                    return {nullptr};
-                }
-            }
-        }
-    }
-    if (fuse_input[0] && fuse_input[1])
-    {
-        return std::make_shared<op::BatchMatMulTranspose>(
-            fuse_input[0], fuse_input[1], transpose[0], transpose[1]);
-    }
-    return {nullptr};
-}
-
 bool ngraph::pass::BatchFusion::run_on_function(std::shared_ptr<Function> func)
 {
     bool modified = false;
@@ -250,14 +174,6 @@ bool ngraph::pass::BatchFusion::run_on_function(std::shared_ptr<Function> func)
         const Node& node = *n;
         if (TI(node) == TI(op::Concat))
         {
-            if (m_fusion_type.is_set(FusionType::DIFFERENTIABLE_FUSIONS))
-            {
-                if (auto fused_node = fuse_batch_mat_mul_transpose(n))
-                {
-                    func->replace_node(n, fused_node);
-                    modified = true;
-                }
-            }
             if (m_fusion_type.is_set(FusionType::REGULAR_FUSIONS))
             {
                 if (auto fused_conv = fuse_group_convolution(n))
