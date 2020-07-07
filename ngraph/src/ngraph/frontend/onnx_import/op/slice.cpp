@@ -19,6 +19,7 @@
 #include <vector>
 
 #include "default_opset.hpp"
+#include "exceptions.hpp"
 #include "gather.hpp"
 #include "ngraph/node.hpp"
 #include "ngraph/op/constant.hpp"
@@ -40,6 +41,29 @@ namespace ngraph
         {
             namespace
             {
+                std::vector<uint64_t>
+                    get_normalized_axes_vector(const Node& onnx_node,
+                                               const Rank& data_rank,
+                                               const std::vector<int64_t> axes_attr)
+                {
+                    if (data_rank.is_static())
+                    {
+                        const auto normalized_axes_vec =
+                            normalize_axes(onnx_node.get_description(), axes_attr, data_rank);
+                        return std::vector<uint64_t>(std::begin(normalized_axes_vec),
+                                                     std::end(normalized_axes_vec));
+                    }
+                    else
+                    {
+                        CHECK_VALID_NODE(onnx_node,
+                                         std::all_of(std::begin(axes_attr),
+                                                     std::end(axes_attr),
+                                                     [](int64_t axis) { return axis >= 0; }),
+                                         "All axes must be positive when data rank is unknown");
+                        return std::vector<uint64_t>(std::begin(axes_attr), std::end(axes_attr));
+                    }
+                }
+
                 /// \brief Transform Slice axes input to mask which is attribute of
                 /// StridedSlice:v1 interface.
                 ///
@@ -166,12 +190,14 @@ namespace ngraph
                     if (inputs.size() >= 4) // axes input provided
                     {
                         axes = inputs.at(3);
-                        NGRAPH_CHECK(axes->is_constant(), "Axes input must be constant");
+                        CHECK_VALID_NODE(node, axes->is_constant(), "Axes input must be constant");
                     }
                     else
                     {
-                        NGRAPH_CHECK(data_rank.is_static(),
-                                     "Data rank must be static when axes input is not provided");
+                        CHECK_VALID_NODE(
+                            node,
+                            data_rank.is_static(),
+                            "Data rank must be static when axes input is not provided");
                         const size_t data_rank_value = data_rank.get_length();
                         axes = default_opset::Constant::create(
                             element::i64,
@@ -181,23 +207,8 @@ namespace ngraph
 
                     const auto axes_const = as_type_ptr<default_opset::Constant>(axes);
                     auto raw_axes_vec = axes_const->cast_vector<int64_t>();
-                    std::vector<uint64_t> axes_vec;
-                    if (data_rank.is_static())
-                    {
-                        const auto normalized_axes_vec =
-                            normalize_axes(node.get_description(), raw_axes_vec, data_rank);
-                        axes_vec = std::vector<uint64_t>(std::begin(normalized_axes_vec),
-                                                         std::end(normalized_axes_vec));
-                    }
-                    else
-                    {
-                        NGRAPH_CHECK(std::all_of(std::begin(raw_axes_vec),
-                                                 std::end(raw_axes_vec),
-                                                 [](int64_t axis) { return axis >= 0; }),
-                                     "All axes must be positive when data rank is unknown");
-                        axes_vec =
-                            std::vector<uint64_t>(std::begin(raw_axes_vec), std::end(raw_axes_vec));
-                    }
+                    std::vector<uint64_t> axes_vec =
+                        get_normalized_axes_vector(node, data_rank, raw_axes_vec);
 
                     const uint64_t slice_indices_length =
                         *std::max_element(std::begin(axes_vec), std::end(axes_vec)) + 1;
@@ -247,27 +258,15 @@ namespace ngraph
 
                     if (axes.empty())
                     {
-                        NGRAPH_CHECK(data_rank.is_static(),
-                                     "Data rank must be static when axes input is not provided");
+                        CHECK_VALID_NODE(
+                            node,
+                            data_rank.is_static(),
+                            "Data rank must be static when axes input is not provided");
                         axes = common::get_monotonic_range<int64_t>(data_rank.get_length());
                     }
 
-                    std::vector<uint64_t> normalized_axes;
-                    if (data_rank.is_static())
-                    {
-                        const auto normalized_axes_vec =
-                            normalize_axes(node.get_description(), axes, data_rank);
-                        normalized_axes = std::vector<uint64_t>(std::begin(normalized_axes_vec),
-                                                                std::end(normalized_axes_vec));
-                    }
-                    else
-                    {
-                        NGRAPH_CHECK(std::all_of(std::begin(axes),
-                                                 std::end(axes),
-                                                 [](int64_t axis) { return axis >= 0; }),
-                                     "All axes must be positive when data rank is unknown");
-                        normalized_axes = std::vector<uint64_t>(std::begin(axes), std::end(axes));
-                    }
+                    std::vector<uint64_t> normalized_axes =
+                        get_normalized_axes_vector(node, data_rank, axes);
 
                     const uint64_t slice_indices_length =
                         *std::max_element(std::begin(normalized_axes), std::end(normalized_axes)) +
