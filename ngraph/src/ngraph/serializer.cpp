@@ -981,20 +981,6 @@ shared_ptr<Node> JSONDeserializer::deserialize_node(json node_js)
             node = make_shared<op::Any>(args[0], reduction_axes);
             break;
         }
-        case OP_TYPEID::ArgMin:
-        {
-            auto axis = node_js.at("axis").get<size_t>();
-            auto target_type = read_element_type(node_js.at("index_element_type"));
-            node = make_shared<op::ArgMin>(args[0], axis, target_type);
-            break;
-        }
-        case OP_TYPEID::ArgMax:
-        {
-            auto axis = node_js.at("axis").get<size_t>();
-            auto target_type = read_element_type(node_js.at("index_element_type"));
-            node = make_shared<op::ArgMax>(args[0], axis, target_type);
-            break;
-        }
         case OP_TYPEID::Asin:
         {
             node = make_shared<op::Asin>(args[0]);
@@ -1006,19 +992,6 @@ shared_ptr<Node> JSONDeserializer::deserialize_node(json node_js)
             break;
         }
 
-        case OP_TYPEID::BatchMatMul:
-        {
-            node = make_shared<op::BatchMatMul>(args[0], args[1]);
-            break;
-        }
-        case OP_TYPEID::BatchMatMulTranspose:
-        {
-            auto transpose_0 = node_js.at("transpose_0").get<bool>();
-            auto transpose_1 = node_js.at("transpose_1").get<bool>();
-            node =
-                make_shared<op::BatchMatMulTranspose>(args[0], args[1], transpose_0, transpose_1);
-            break;
-        }
         case OP_TYPEID::BatchNormInference:
         {
             auto epsilon = node_js.at("eps").get<double>();
@@ -1222,8 +1195,6 @@ shared_ptr<Node> JSONDeserializer::deserialize_node(json node_js)
                 args[0], args[1], args[2], args[3], resize_method, extrapolation_value);
             break;
         }
-        case OP_TYPEID::CompiledKernel: { break;
-        }
         case OP_TYPEID::CTCGreedyDecoder: { break;
         }
         case OP_TYPEID::DeformableConvolution_v1:
@@ -1284,53 +1255,6 @@ shared_ptr<Node> JSONDeserializer::deserialize_node(json node_js)
             {
                 node = make_shared<op::Dot>(args[0], args[1]);
             }
-            break;
-        }
-        case OP_TYPEID::DynBroadcast:
-        {
-            node = make_shared<op::DynBroadcast>(args[0], args[1], args[2]);
-            break;
-        }
-        case OP_TYPEID::DynPad:
-        {
-            node = make_shared<op::DynPad>(args[0], args[1], args[2], args[3]);
-            break;
-        }
-        case OP_TYPEID::DynReplaceSlice:
-        {
-            auto lower_bounds_mask = node_js.at("lower_bounds_mask").get<set<size_t>>();
-            auto upper_bounds_mask = node_js.at("upper_bounds_mask").get<set<size_t>>();
-            auto new_axis = node_js.at("new_axis").get<set<size_t>>();
-            auto shrink_axis = node_js.at("shrink_axis").get<set<size_t>>();
-            auto ellipsis_mask = node_js.at("ellipsis_mask").get<set<size_t>>();
-            node = make_shared<op::DynReplaceSlice>(args[0],
-                                                    args[1],
-                                                    args[2],
-                                                    args[3],
-                                                    args[4],
-                                                    lower_bounds_mask,
-                                                    upper_bounds_mask,
-                                                    new_axis,
-                                                    shrink_axis,
-                                                    ellipsis_mask);
-            break;
-        }
-        case OP_TYPEID::DynSlice:
-        {
-            auto lower_bounds_mask = node_js.at("lower_bounds_mask").get<set<size_t>>();
-            auto upper_bounds_mask = node_js.at("upper_bounds_mask").get<set<size_t>>();
-            auto new_axis = node_js.at("new_axis").get<set<size_t>>();
-            auto shrink_axis = node_js.at("shrink_axis").get<set<size_t>>();
-            auto ellipsis_mask = node_js.at("ellipsis_mask").get<set<size_t>>();
-            node = make_shared<op::DynSlice>(args[0],
-                                             args[1],
-                                             args[2],
-                                             args[3],
-                                             lower_bounds_mask,
-                                             upper_bounds_mask,
-                                             new_axis,
-                                             shrink_axis,
-                                             ellipsis_mask);
             break;
         }
         case OP_TYPEID::Elu:
@@ -1395,20 +1319,6 @@ shared_ptr<Node> JSONDeserializer::deserialize_node(json node_js)
             auto transA = node_js.at("transA").get<bool>();
             auto transB = node_js.at("transB").get<bool>();
             node = make_shared<op::Gemm>(args[0], args[1], args[2], alpha, beta, transA, transB);
-            break;
-        }
-        case OP_TYPEID::GenerateMask:
-        {
-            auto type = read_element_type(node_js.at("type"));
-            auto seed = node_js.at("seed").get<unsigned int>();
-            auto probability = node_js.at("probability").get<double>();
-            bool use_seed = get_or_default<bool>(node_js, "use_seed", false);
-
-            auto output_shape = node_js.at("output_shape").get<vector<size_t>>();
-
-            node = make_shared<op::v0::GenerateMask>(
-                args[0], output_shape, type, seed, probability, use_seed);
-
             break;
         }
         case OP_TYPEID::GetOutputElement:
@@ -1891,14 +1801,6 @@ shared_ptr<Node> JSONDeserializer::deserialize_node(json node_js)
             node = make_shared<op::Quantize>(args[0], args[1], args[2], type, axes, round_mode);
             break;
         }
-        case OP_TYPEID::QuantizedConvolutionBias: { break;
-        }
-        case OP_TYPEID::QuantizedConvolutionBiasAdd: { break;
-        }
-        case OP_TYPEID::QuantizedConvolutionBiasSignedAdd: { break;
-        }
-        case OP_TYPEID::QuantizedConvolutionRelu: { break;
-        }
         case OP_TYPEID::QuantizedConvolution:
         {
             auto window_movement_strides =
@@ -1933,8 +1835,6 @@ shared_ptr<Node> JSONDeserializer::deserialize_node(json node_js)
 
             break;
         }
-        case OP_TYPEID::QuantizedDotBias: { break;
-        }
         case OP_TYPEID::QuantizedDot:
         {
             size_t reduction_axes_count = node_js["reduction_axes_count"].get<size_t>();
@@ -1963,12 +1863,6 @@ shared_ptr<Node> JSONDeserializer::deserialize_node(json node_js)
         {
             auto src_id = node_js.at("source_id").get<size_t>();
             node = make_shared<op::Recv>(args[0], src_id);
-            break;
-        }
-        case OP_TYPEID::RandomUniform:
-        {
-            auto fixed_seed = node_js.at("fixed_seed").get<uint64_t>();
-            node = make_shared<op::RandomUniform>(args[0], args[1], args[2], args[3], fixed_seed);
             break;
         }
         case OP_TYPEID::Range:
@@ -2500,20 +2394,6 @@ json JSONSerializer::serialize_node(const Node& n)
         }
         break;
     }
-    case OP_TYPEID::ArgMin:
-    {
-        auto tmp = static_cast<const op::ArgMin*>(&n);
-        node["axis"] = tmp->get_reduction_axis();
-        node["index_element_type"] = write_element_type(tmp->get_element_type());
-        break;
-    }
-    case OP_TYPEID::ArgMax:
-    {
-        auto tmp = static_cast<const op::ArgMax*>(&n);
-        node["axis"] = tmp->get_reduction_axis();
-        node["index_element_type"] = write_element_type(tmp->get_element_type());
-        break;
-    }
     case OP_TYPEID::All:
     {
         auto tmp = static_cast<const op::All*>(&n);
@@ -2540,15 +2420,6 @@ json JSONSerializer::serialize_node(const Node& n)
     case OP_TYPEID::Asin: { break;
     }
     case OP_TYPEID::Atan: { break;
-    }
-    case OP_TYPEID::BatchMatMul: { break;
-    }
-    case OP_TYPEID::BatchMatMulTranspose:
-    {
-        auto tmp = static_cast<const op::BatchMatMulTranspose*>(&n);
-        node["transpose_0"] = tmp->get_transpose_arg0();
-        node["transpose_1"] = tmp->get_transpose_arg1();
-        break;
     }
     case OP_TYPEID::BatchNormInference:
     {
@@ -2678,8 +2549,6 @@ json JSONSerializer::serialize_node(const Node& n)
     }
     case OP_TYPEID::CTCGreedyDecoder: { break;
     }
-    case OP_TYPEID::CompiledKernel: { break;
-    }
     case OP_TYPEID::DetectionOutput: { break;
     }
     case OP_TYPEID::PSROIPooling: { break;
@@ -2735,30 +2604,6 @@ json JSONSerializer::serialize_node(const Node& n)
         node["reduction_axes_count"] = tmp->get_reduction_axes_count();
         break;
     }
-    case OP_TYPEID::DynBroadcast: { break;
-    }
-    case OP_TYPEID::DynPad: { break;
-    }
-    case OP_TYPEID::DynReplaceSlice:
-    {
-        auto tmp = static_cast<const op::DynReplaceSlice*>(&n);
-        node["lower_bounds_mask"] = tmp->get_lower_bounds_mask();
-        node["upper_bounds_mask"] = tmp->get_upper_bounds_mask();
-        node["new_axis"] = tmp->get_new_axis();
-        node["shrink_axis"] = tmp->get_shrink_axis();
-        node["ellipsis_mask"] = tmp->get_ellipsis_mask();
-        break;
-    }
-    case OP_TYPEID::DynSlice:
-    {
-        auto tmp = static_cast<const op::DynSlice*>(&n);
-        node["lower_bounds_mask"] = tmp->get_lower_bounds_mask();
-        node["upper_bounds_mask"] = tmp->get_upper_bounds_mask();
-        node["new_axis"] = tmp->get_new_axis();
-        node["shrink_axis"] = tmp->get_shrink_axis();
-        node["ellipsis_mask"] = tmp->get_ellipsis_mask();
-        break;
-    }
     case OP_TYPEID::Elu:
     {
         auto tmp = static_cast<const op::Elu*>(&n);
@@ -2812,16 +2657,6 @@ json JSONSerializer::serialize_node(const Node& n)
         node["beta"] = tmp->get_beta();
         node["transA"] = tmp->get_transA();
         node["transB"] = tmp->get_transB();
-        break;
-    }
-    case OP_TYPEID::GenerateMask:
-    {
-        auto tmp = static_cast<const op::GenerateMask*>(&n);
-        node["type"] = write_element_type(tmp->get_element_type());
-        node["use_seed"] = tmp->get_use_seed();
-        node["seed"] = tmp->get_seed();
-        node["probability"] = tmp->get_probability();
-        node["output_shape"] = tmp->get_mask_shape();
         break;
     }
     case OP_TYPEID::Greater:
@@ -3121,14 +2956,6 @@ json JSONSerializer::serialize_node(const Node& n)
         node["round_mode"] = tmp->get_round_mode();
         break;
     }
-    case OP_TYPEID::QuantizedConvolutionBias: { break;
-    }
-    case OP_TYPEID::QuantizedConvolutionBiasAdd: { break;
-    }
-    case OP_TYPEID::QuantizedConvolutionBiasSignedAdd: { break;
-    }
-    case OP_TYPEID::QuantizedConvolutionRelu: { break;
-    }
     case OP_TYPEID::QuantizedConvolution:
     {
         auto tmp = static_cast<const op::QuantizedConvolution*>(&n);
@@ -3143,8 +2970,6 @@ json JSONSerializer::serialize_node(const Node& n)
         node["output_axes"] = tmp->get_output_axes();
         break;
     }
-    case OP_TYPEID::QuantizedDotBias: { break;
-    }
     case OP_TYPEID::QuantizedDot:
     {
         auto tmp = static_cast<const op::QuantizedDot*>(&n);
@@ -3153,12 +2978,6 @@ json JSONSerializer::serialize_node(const Node& n)
         node["input0_axes"] = tmp->get_input0_axes();
         node["input1_axes"] = tmp->get_input1_axes();
         node["output_axes"] = tmp->get_output_axes();
-        break;
-    }
-    case OP_TYPEID::RandomUniform:
-    {
-        auto tmp = static_cast<const op::RandomUniform*>(&n);
-        node["fixed_seed"] = tmp->get_fixed_seed();
         break;
     }
     case OP_TYPEID::Range: { break;
