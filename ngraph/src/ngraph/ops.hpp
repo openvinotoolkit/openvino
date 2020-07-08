@@ -22,8 +22,6 @@
 #include "ngraph/op/acos.hpp"
 #include "ngraph/op/acosh.hpp"
 #include "ngraph/op/add.hpp"
-#include "ngraph/op/all.hpp"
-#include "ngraph/op/allreduce.hpp"
 #include "ngraph/op/and.hpp"
 #include "ngraph/op/any.hpp"
 #include "ngraph/op/asin.hpp"
