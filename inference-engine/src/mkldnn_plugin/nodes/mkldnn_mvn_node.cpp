@@ -990,7 +990,8 @@ void MKLDNNMVNNode::mvn_blk(const in_data_t* src_data, out_data_t* dst_data, con
     std::vector<float> mean_buffer(aux_buffer_size * threads_num);
     std::vector<float> variance_buffer(aux_buffer_size * threads_num);
 
-    for (size_t b = 0lu; b < N; b++) {
+    int actual_N = batchToProcess();
+    for (size_t b = 0lu; b < actual_N; b++) {
         size_t ccb = is_nhwc ? b * C2 : b * C3;
         if (across_channels) {
             // mean for this instance in batch
