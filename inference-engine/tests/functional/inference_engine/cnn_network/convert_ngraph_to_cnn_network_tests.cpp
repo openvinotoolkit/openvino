@@ -4,8 +4,8 @@
 
 #include <gtest/gtest.h>
 
-#include <convert_function_to_cnn_network.hpp>
 #include <cpp/ie_cnn_network.h>
+#include <cnn_network_impl.hpp>  // deprecated API
 
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset1.hpp>
@@ -30,9 +30,9 @@ TEST(ConvertFunctionToCNNNetworkTests, ConvertPReLUNetwork) {
     }
 
     InferenceEngine::CNNNetwork nGraphImpl(f);
-    ASSERT_ANY_THROW(InferenceEngine::details::convertFunctionToICNNNetwork(f, nGraphImpl));
     try {
-        auto net = InferenceEngine::details::convertFunctionToICNNNetwork(f, nGraphImpl);
+        auto net = std::make_shared<InferenceEngine::details::CNNNetworkImpl>(
+            static_cast<const InferenceEngine::ICNNNetwork &>(nGraphImpl));
     } catch (InferenceEngine::details::InferenceEngineException &err) {
         const std::string ref_msg = "Error of validate layer: prelu with type: PReLU. Number of inputs (2) is not equal to expected ones: 1";
         const std::string resp_msg = err.what();
@@ -60,7 +60,8 @@ TEST(ConvertFunctionToCNNNetworkTests, ConvertConvolutionNetwork) {
 
     InferenceEngine::CNNNetwork nGraphImpl(f);
     try {
-        auto net = InferenceEngine::details::convertFunctionToICNNNetwork(f, nGraphImpl);
+        auto net = std::make_shared<InferenceEngine::details::CNNNetworkImpl>(
+            static_cast<const InferenceEngine::ICNNNetwork &>(nGraphImpl));
     } catch (InferenceEngine::details::InferenceEngineException &err) {
         FAIL();
     }

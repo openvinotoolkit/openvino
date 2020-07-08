@@ -15,12 +15,6 @@
 #include "hetero/hetero_plugin_config.hpp"
 #include <cpp_interfaces/base/ie_plugin_base.hpp>
 #include "hetero_executable_network.hpp"
-#include "convert_function_to_cnn_network.hpp"
-#include <generic_ie.hpp>
-#include <transformations/common_optimizations/common_optimizations.hpp>
-#include <transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
-#include <transformations/convert_opset2_to_opset1/convert_opset2_to_opset1.hpp>
-#include <transformations/convert_opset3_to_opset2/convert_opset3_to_opset2.hpp>
 
 using namespace InferenceEngine;
 using namespace InferenceEngine::PluginConfigParams;
@@ -63,8 +57,7 @@ InferenceEngine::ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(const
     }
     DeviceMetaInformationMap metaDevices = GetDevicePlugins(it->second, tconfig);
 
-    auto function = network.getFunction();
-    if (function != nullptr) {
+    if (auto function = network.getFunction()) {
         auto anyDeviceDoNotSupportNgraph =
         std::any_of(std::begin(metaDevices), std::end(metaDevices),
                     [&] (const DeviceMetaInformationMap::value_type& metaDevice) {
@@ -74,15 +67,9 @@ InferenceEngine::ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(const
                         return (clonedNetwork->getFunction() == nullptr);
                     });
         if (anyDeviceDoNotSupportNgraph) {
-            auto clonedNetwork = cloneNetwork(network);
-            auto function = clonedNetwork->getFunction();
-            ::ngraph::op::GenericIE::DisableReshape noReshape(function);
-            ::ngraph::pass::CommonOptimizations().run_on_function(function);
-            ::ngraph::pass::ConvertOpSet3ToOpSet2().run_on_function(function);
-            ::ngraph::pass::ConvertOpSet2ToOpSet1().run_on_function(function);
-            ::ngraph::pass::ConvertOpSet1ToLegacy().run_on_function(function);
+            auto cnnNetworkImpl = std::make_shared<details::CNNNetworkImpl>(network);
             return std::make_shared<HeteroExecutableNetwork>(
-                *InferenceEngine::details::convertFunctionToICNNNetwork(function, *clonedNetwork),
+                *cnnNetworkImpl,
                 mergeConfigs(_config, config), this);
         } else {
             return std::make_shared<HeteroExecutableNetwork>(*cloneNetwork(network), mergeConfigs(_config, config), this);
