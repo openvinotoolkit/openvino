@@ -27,7 +27,7 @@ namespace ngraph
         {
             namespace set_1
             {
-                NodeVector global_max_pool(const Node& node)
+                OutputVector global_max_pool(const Node& node)
                 {
                     return pooling::GlobalPoolingFactory(node).make_max_pool();
                 }

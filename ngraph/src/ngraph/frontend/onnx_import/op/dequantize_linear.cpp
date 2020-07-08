@@ -35,12 +35,12 @@ namespace ngraph
         {
             namespace set_1
             {
-                NodeVector dequantize_linear(const Node& node)
+                OutputVector dequantize_linear(const Node& node)
                 {
-                    NodeVector inputs{node.get_ng_inputs()};
-                    std::shared_ptr<ngraph::Node> x = inputs.at(0);
-                    std::shared_ptr<ngraph::Node> x_scale = inputs.at(1);
-                    std::shared_ptr<ngraph::Node> zero_point;
+                    OutputVector inputs{node.get_ng_inputs()};
+                    Output<ngraph::Node> x = inputs.at(0);
+                    Output<ngraph::Node> x_scale = inputs.at(1);
+                    Output<ngraph::Node> zero_point;
                     if (inputs.size() == 3 && !inputs.at(2)->is_null())
                     {
                         zero_point = inputs.at(2);
@@ -48,17 +48,17 @@ namespace ngraph
                     else
                     {
                         zero_point =
-                            ngraph::builder::make_constant(x->get_element_type(), Shape{}, 0);
+                            ngraph::builder::make_constant(x.get_element_type(), Shape{}, 0);
                     }
 
-                    Shape y_scale_shape = x_scale->get_shape();
-                    Shape y_zero_point_shape = zero_point->get_shape();
+                    Shape y_scale_shape = x_scale.get_shape();
+                    Shape y_zero_point_shape = zero_point.get_shape();
 
                     // get axis twice with two default values to see if it is set
                     int64_t axis_0{node.get_attribute_value<int64_t>("axis", 0)};
                     int64_t axis_1{node.get_attribute_value<int64_t>("axis", 1)};
 
-                    const auto data_rank = x->get_output_partial_shape(0).rank();
+                    const auto data_rank = x.get_output_partial_shape(0).rank();
                     AxisSet axes;
                     // if axis attribute is set
                     if (axis_0 == axis_1)
@@ -67,14 +67,14 @@ namespace ngraph
                             ngraph::normalize_axis(node.get_description(), axis_0, data_rank));
                     }
 
-                    if (x->get_element_type() != zero_point->get_element_type())
+                    if (x.get_element_type() != zero_point.get_element_type())
                     {
                         zero_point = std::make_shared<default_opset::Convert>(
-                            zero_point, x->get_element_type());
+                            zero_point, x.get_element_type());
                     }
 
                     return {std::make_shared<ngraph::opset0::Dequantize>(
-                        x, x_scale, zero_point, x_scale->get_element_type(), axes)};
+                        x, x_scale, zero_point, x_scale.get_element_type(), axes)};
                 }
 
             } // namespace set_1

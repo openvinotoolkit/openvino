@@ -33,7 +33,7 @@ namespace ngraph
                 ///
                 /// \return The vector containing Ngraph nodes producing output of ONNX quantizied
                 ///         convolution operation.
-                NodeVector quant_conv(const Node& node);
+                OutputVector quant_conv(const Node& node);
 
             } // namespace set_1
 

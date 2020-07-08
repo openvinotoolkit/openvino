@@ -35,7 +35,7 @@ namespace ngraph
                 /// \return The vector containing Ngraph nodes producing output of ONNX MaxPool
                 ///         operation.
                 ///
-                NodeVector max_pool(const Node& node);
+                OutputVector max_pool(const Node& node);
 
             } // namespace set_1
 

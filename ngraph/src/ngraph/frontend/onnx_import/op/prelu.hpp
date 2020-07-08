@@ -27,7 +27,7 @@ namespace ngraph
         {
             namespace set_1
             {
-                NodeVector prelu(const Node& node);
+                OutputVector prelu(const Node& node);
 
             } // namespace set_1
 

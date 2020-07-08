@@ -27,7 +27,7 @@ namespace ngraph
         {
             namespace set_1
             {
-                NodeVector gather_nd(const Node& node);
+                OutputVector gather_nd(const Node& node);
 
             } // namespace set_1
 

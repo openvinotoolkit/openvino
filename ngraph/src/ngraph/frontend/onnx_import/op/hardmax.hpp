@@ -27,7 +27,7 @@ namespace ngraph
         {
             namespace set_1
             {
-                NodeVector hardmax(const Node& node);
+                OutputVector hardmax(const Node& node);
             } // namespace set_1
 
         } // namespace op

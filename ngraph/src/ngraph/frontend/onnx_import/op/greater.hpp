@@ -31,7 +31,7 @@ namespace ngraph
         {
             namespace set_1
             {
-                inline NodeVector greater(const Node& node)
+                inline OutputVector greater(const Node& node)
                 {
                     return {std::make_shared<default_opset::Greater>(node.get_ng_inputs().at(0),
                                                                      node.get_ng_inputs().at(1))};

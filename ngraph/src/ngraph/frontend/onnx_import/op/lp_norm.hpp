@@ -39,7 +39,7 @@ namespace ngraph
                 ///
                 /// \return     Vector of nodes containting resulting nGraph nodes.
                 ///
-                NodeVector lp_norm(const Node& node);
+                OutputVector lp_norm(const Node& node);
             } // namespace set_1
 
         } // namespace op

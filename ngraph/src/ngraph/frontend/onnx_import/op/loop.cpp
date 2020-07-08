@@ -89,17 +89,17 @@ namespace ngraph
                     }
                 }
 
-                NodeVector loop(const Node& node)
+                OutputVector loop(const Node& node)
                 {
                     const auto& ng_inputs = node.get_ng_inputs();
                     // optional inputs
-                    const std::shared_ptr<ngraph::Node> trip_count = ng_inputs.at(0);
-                    const std::shared_ptr<ngraph::Node> loop_cond = ng_inputs.at(1);
+                    const Output<ngraph::Node> trip_count = ng_inputs.at(0);
+                    const Output<ngraph::Node> loop_cond = ng_inputs.at(1);
 
                     // At this moment nGraph TensorIterator doesn't have support for conditional
                     // termination of iterations.
                     CHECK_VALID_NODE(node,
-                                     !trip_count->is_null(),
+                                     !trip_count.get_node_shared_ptr()->is_null(),
                                      "Currently nGraph requires trip count input to be provided.");
 
                     const OutputVector loop_carried_dependencies{std::next(ng_inputs.begin(), 2),
@@ -187,7 +187,7 @@ namespace ngraph
                             *graph_outputs_it, 0, 1, 1, -1, 0));
                     }
 
-                    NodeVector node_outputs;
+                    OutputVector node_outputs;
                     for (const auto& v : final_values)
                     {
                         node_outputs.push_back(v.as_single_output_node());

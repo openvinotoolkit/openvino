@@ -28,10 +28,10 @@ namespace ngraph
         {
             namespace set_1
             {
-                NodeVector eye_like(const Node& node)
+                OutputVector eye_like(const Node& node)
                 {
                     const auto input = node.get_ng_inputs().at(0);
-                    const auto& input_shape = input->get_shape();
+                    const auto& input_shape = input.get_shape();
 
                     std::int64_t dtype;
                     element::Type target_type;
@@ -44,7 +44,7 @@ namespace ngraph
                     }
                     else
                     {
-                        target_type = input->get_element_type();
+                        target_type = input.get_element_type();
                     }
 
                     ASSERT_VALID_ARGUMENT(node, input_shape.size() == 2)

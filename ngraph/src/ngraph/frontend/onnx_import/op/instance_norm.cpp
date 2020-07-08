@@ -39,7 +39,7 @@ namespace ngraph
         {
             namespace set_1
             {
-                NodeVector instance_norm(const Node& node)
+                OutputVector instance_norm(const Node& node)
                 {
                     Output<ngraph::Node> data(node.get_ng_inputs().at(0));
                     Output<ngraph::Node> scale(node.get_ng_inputs().at(1));

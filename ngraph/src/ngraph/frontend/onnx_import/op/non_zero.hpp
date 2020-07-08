@@ -33,7 +33,7 @@ namespace ngraph
                 ///
                 /// \return The vector containing nGraph nodes producing output of ONNX NonZero
                 ///         operation.
-                NodeVector non_zero(const Node& node);
+                OutputVector non_zero(const Node& node);
 
             } // namespace set_1
 

@@ -27,7 +27,7 @@ namespace ngraph
         {
             namespace set_1
             {
-                NodeVector global_average_pool(const Node& node)
+                OutputVector global_average_pool(const Node& node)
                 {
                     return pooling::GlobalPoolingFactory(node).make_avg_pool();
                 }

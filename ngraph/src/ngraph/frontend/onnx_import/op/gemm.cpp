@@ -32,12 +32,12 @@ namespace ngraph
         {
             namespace set_1
             {
-                NodeVector gemm(const Node& node)
+                OutputVector gemm(const Node& node)
                 {
-                    NodeVector inputs{node.get_ng_inputs()};
-                    std::shared_ptr<ngraph::Node> input_a = inputs.at(0);
-                    std::shared_ptr<ngraph::Node> input_b = inputs.at(1);
-                    std::shared_ptr<ngraph::Node> input_c;
+                    OutputVector inputs{node.get_ng_inputs()};
+                    Output<ngraph::Node> input_a = inputs.at(0);
+                    Output<ngraph::Node> input_b = inputs.at(1);
+                    Output<ngraph::Node> input_c;
 
                     if (inputs.size() == 3)
                     {
@@ -46,16 +46,16 @@ namespace ngraph
                     else
                     {
                         input_c = default_opset::Constant::create(
-                            input_b->get_element_type(), ngraph::Shape{}, {0});
+                            input_b.get_element_type(), ngraph::Shape{}, {0});
                     }
 
                     const auto alpha = node.get_attribute_value<float>("alpha", 1);
                     const auto beta = node.get_attribute_value<float>("beta", 1);
 
                     const auto alpha_node = default_opset::Constant::create(
-                        input_b->get_element_type(), Shape{}, {alpha});
+                        input_b.get_element_type(), Shape{}, {alpha});
                     const auto beta_node = default_opset::Constant::create(
-                        input_c->get_element_type(), Shape{}, {beta});
+                        input_c.get_element_type(), Shape{}, {beta});
 
                     const bool trans_a = node.get_attribute_value<int64_t>("transA", 0);
                     const bool trans_b = node.get_attribute_value<int64_t>("transB", 0);
@@ -85,7 +85,7 @@ namespace ngraph
                     auto beta_times_input_c =
                         std::make_shared<default_opset::Multiply>(beta_node, input_c);
 
-                    return NodeVector{
+                    return OutputVector{
                         std::make_shared<default_opset::Add>(matmul_node, beta_times_input_c)};
                 }
 
@@ -93,12 +93,12 @@ namespace ngraph
 
             namespace set_6
             {
-                NodeVector gemm(const Node& node)
+                OutputVector gemm(const Node& node)
                 {
-                    NodeVector inputs{node.get_ng_inputs()};
-                    std::shared_ptr<ngraph::Node> input_a = inputs.at(0);
-                    std::shared_ptr<ngraph::Node> input_b = inputs.at(1);
-                    std::shared_ptr<ngraph::Node> input_c;
+                    OutputVector inputs{node.get_ng_inputs()};
+                    Output<ngraph::Node> input_a = inputs.at(0);
+                    Output<ngraph::Node> input_b = inputs.at(1);
+                    Output<ngraph::Node> input_c;
 
                     if (inputs.size() == 3)
                     {
@@ -107,16 +107,16 @@ namespace ngraph
                     else
                     {
                         input_c = default_opset::Constant::create(
-                            input_b->get_element_type(), ngraph::Shape{}, {0});
+                            input_b.get_element_type(), ngraph::Shape{}, {0});
                     }
 
                     const auto alpha = node.get_attribute_value<float>("alpha", 1);
                     const auto beta = node.get_attribute_value<float>("beta", 1);
 
                     const auto alpha_node = default_opset::Constant::create(
-                        input_b->get_element_type(), Shape{}, {alpha});
+                        input_b.get_element_type(), Shape{}, {alpha});
                     const auto beta_node = default_opset::Constant::create(
-                        input_c->get_element_type(), Shape{}, {beta});
+                        input_c.get_element_type(), Shape{}, {beta});
 
                     const bool trans_a = node.get_attribute_value<int64_t>("transA", 0);
                     const bool trans_b = node.get_attribute_value<int64_t>("transB", 0);
@@ -133,7 +133,7 @@ namespace ngraph
                     auto beta_times_input_c =
                         std::make_shared<default_opset::Multiply>(beta_node, input_c);
 
-                    return NodeVector{
+                    return OutputVector{
                         std::make_shared<default_opset::Add>(matmul_node, beta_times_input_c)};
                 }
 

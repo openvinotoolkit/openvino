@@ -30,12 +30,12 @@ namespace ngraph
         {
             namespace set_1
             {
-                NodeVector quantize_linear(const Node& node)
+                OutputVector quantize_linear(const Node& node)
                 {
-                    NodeVector inputs{node.get_ng_inputs()};
-                    std::shared_ptr<ngraph::Node> x = inputs.at(0);
-                    std::shared_ptr<ngraph::Node> y_scale = inputs.at(1);
-                    std::shared_ptr<ngraph::Node> y_zero_point = inputs.at(2);
+                    OutputVector inputs{node.get_ng_inputs()};
+                    Output<ngraph::Node> x = inputs.at(0);
+                    Output<ngraph::Node> y_scale = inputs.at(1);
+                    Output<ngraph::Node> y_zero_point = inputs.at(2);
 
                     // get axis twice with two default values to see if it is set
                     int64_t axis_0{node.get_attribute_value<int64_t>("axis", 0)};
@@ -54,18 +54,18 @@ namespace ngraph
                         // negative axis
                         else if (axis_0 < 0)
                         {
-                            axes.insert(x->get_shape().size() + axis_0);
+                            axes.insert(x.get_shape().size() + axis_0);
                         }
                     }
 
-                    Shape y_scale_shape = y_scale->get_shape();
+                    Shape y_scale_shape = y_scale.get_shape();
                     Shape y_zero_point_shape = y_zero_point->get_shape();
 
                     return {std::make_shared<ngraph::opset0::Quantize>(
                         x,
                         y_scale,
                         y_zero_point,
-                        y_zero_point->get_element_type(),
+                        y_zero_point.get_element_type(),
                         axes,
                         ngraph::opset0::Quantize::RoundMode::ROUND_NEAREST_TOWARD_EVEN)};
                 }

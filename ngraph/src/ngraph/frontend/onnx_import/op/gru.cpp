@@ -45,9 +45,9 @@ namespace ngraph
                             if (linear_before_reset)
                             {
                                 const auto& ng_inputs = node.get_ng_inputs();
-                                const auto el_type = ng_inputs.at(0)->get_output_element_type(0);
+                                const auto el_type = ng_inputs.at(0).get_element_type();
 
-                                if (ng_inputs.size() > 3 && !ng_inputs.at(3)->is_null())
+                                if (ng_inputs.size() > 3 && !ng_inputs.at(3).get_node()->is_null())
                                 {
                                     auto bias = ng_inputs.at(3);
                                     // gates_count * 2 since B is: [Wb, Rb]
@@ -67,7 +67,7 @@ namespace ngraph
                                     //       ]
                                     m_map[recurrent::OpInput::B] =
                                         std::make_shared<default_opset::Concat>(
-                                            NodeVector{wr_z_bias,
+                                            OutputVector{wr_z_bias,
                                                        wr_r_bias,
                                                        split_bias.at(2),
                                                        split_bias.at(5)},
@@ -109,7 +109,7 @@ namespace ngraph
                     };
                 }
 
-                NodeVector gru(const Node& node)
+                OutputVector gru(const Node& node)
                 {
                     constexpr std::size_t gates_count = 3;
                     GRUInputMap input_map{node, gates_count};

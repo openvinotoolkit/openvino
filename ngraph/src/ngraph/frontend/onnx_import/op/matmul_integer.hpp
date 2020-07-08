@@ -33,7 +33,7 @@ namespace ngraph
                 ///
                 /// \return The vector containing Ngraph nodes producing output of quantized ONNX
                 ///         matrix multiplication operation.
-                NodeVector matmul_integer(const Node& node);
+                OutputVector matmul_integer(const Node& node);
 
             } // namespace set_1
 

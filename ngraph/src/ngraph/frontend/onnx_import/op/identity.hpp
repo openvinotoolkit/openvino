@@ -30,7 +30,7 @@ namespace ngraph
         {
             namespace set_1
             {
-                inline NodeVector identity(const Node& node)
+                inline OutputVector identity(const Node& node)
                 {
                     auto input = node.get_ng_inputs().at(0);
                     if (input->get_element_type() == ngraph::element::boolean)
@@ -40,7 +40,7 @@ namespace ngraph
                         return {std::make_shared<default_opset::LogicalOr>(input, logic_zero)};
                     }
                     const auto zero =
-                        default_opset::Constant::create(input->get_element_type(), {}, {0});
+                        default_opset::Constant::create(input.get_element_type(), {}, {0});
                     return {std::make_shared<default_opset::Add>(input, zero)};
                 }
             } // namespace set_1

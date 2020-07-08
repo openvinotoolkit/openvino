@@ -33,7 +33,7 @@ namespace ngraph
                 ///
                 /// \return The vector containing Ngraph nodes producing output of ONNX
                 ///         GlobalMaxPool operation.
-                NodeVector global_max_pool(const Node& node);
+                OutputVector global_max_pool(const Node& node);
 
             } // namespace set_1
 
