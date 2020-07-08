@@ -6,7 +6,7 @@
 
 **Short description**: Mish is a Self Regularized Non-Monotonic Neural Activation Function.
 
-**Detailed description**: Mish layer computes self regularized non-monotonic neural activation function proposed in the [article](https://arxiv.org/abs/1908.08681).
+**Detailed description**: Mish is a self regularized non-monotonic neural activation function proposed in the [article](https://arxiv.org/abs/1908.08681).
 
 **Attributes**: operation has no attributes.
 

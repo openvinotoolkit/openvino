@@ -15,7 +15,7 @@ Gelu(x)=x*Φ(x), where Φ(x) is the Cumulative Distribution Function for Gaussia
 The following equivalent combination is recognized and fused into single Gelu op: 
 
 \f[
-    Gelu(x) = 0.5*x*(1 + erf((x) / sqrt(2) )
+    Gelu(x) = 0.5*x*(1.0 + erf((x) / \sqrt{2})
 \f]
 
 Similarly, the following Gelu approximation (typical for the TensorFlow*) is recognized and fused into single Gelu op 
