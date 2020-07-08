@@ -350,8 +350,8 @@ protected:
             ICNNNetwork& icnnnetwork = network;
             auto networkNGraph = dynamic_cast<CNNNetworkNGraphImpl*>(&icnnnetwork);
             if (networkNGraph) {
-                std::shared_ptr<ICNNNetwork> networkPtr = networkNGraph->getCNNNetwork();
-                network = CNNNetwork(networkPtr);
+                auto netPtr = std::make_shared<details::CNNNetworkImpl>(*networkNGraph);
+                network = CNNNetwork(netPtr);
             }
 
             auto originalLayersInfo = LowPrecisionTransformationValidation::getLayers(network);
