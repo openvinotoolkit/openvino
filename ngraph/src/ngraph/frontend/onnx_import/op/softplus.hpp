@@ -27,7 +27,7 @@ namespace ngraph
         {
             namespace set_1
             {
-                NodeVector softplus(const Node& node);
+                OutputVector softplus(const Node& node);
 
             } // namespace set_1
 

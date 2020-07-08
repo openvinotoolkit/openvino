@@ -30,7 +30,7 @@ namespace ngraph
         {
             namespace set_1
             {
-                NodeVector unsqueeze(const Node& node)
+                OutputVector unsqueeze(const Node& node)
                 {
                     auto data = node.get_ng_inputs().at(0);
                     auto axes = node.get_attribute_value<std::vector<std::int64_t>>("axes", {});

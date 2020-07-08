@@ -26,14 +26,14 @@ namespace ngraph
         {
             namespace set_1
             {
-                NodeVector resize(const onnx_import::Node& node)
+                OutputVector resize(const onnx_import::Node& node)
                 {
                     const auto inputs = node.get_ng_inputs();
                     const auto data = inputs.at(0);
                     const auto scales = inputs.at(1);
 
-                    const auto data_shape = data->get_output_partial_shape(0);
-                    const auto scales_shape = scales->get_output_partial_shape(0);
+                    const auto data_shape = data.get_partial_shape();
+                    const auto scales_shape = scales.get_partial_shape();
 
                     const auto mode = node.get_attribute_value<std::string>("mode", "nearest");
 
@@ -75,10 +75,10 @@ namespace ngraph
                     attrs.mode = mode;
                     attrs.align_corners = false;
 
-                    if (scales->is_constant() && data_shape.is_static())
+                    if (scales.get_node()->is_constant() && data_shape.is_static())
                     {
                         const auto scales_const =
-                            as_type_ptr<default_opset::Constant>(scales->shared_from_this());
+                            as_type_ptr<default_opset::Constant>(scales.get_node_shared_ptr());
 
                         auto scales_vector = scales_const->cast_vector<float>();
                         auto data_static_shape = data_shape.to_shape();

@@ -27,7 +27,7 @@ namespace ngraph
     {
         namespace
         {
-            std::shared_ptr<ngraph::Node> onnx_softmax(const std::shared_ptr<ngraph::Node> data,
+            std::shared_ptr<ngraph::Node> onnx_softmax(const Output<ngraph::Node> data,
                                                        const int64_t axis)
             {
                 const auto coerced_data = ngraph::builder::opset1::flatten(data, axis);
@@ -45,9 +45,9 @@ namespace ngraph
                     std::make_shared<default_opset::Subtract>(coerced_data, reshaped_max);
 
                 const auto result = std::make_shared<default_opset::Softmax>(data_minus_max, 1);
-                if (data->get_output_partial_shape(0).is_static())
+                if (data.get_partial_shape().is_static())
                 {
-                    return ngraph::builder::opset1::reshape(result, data->get_output_shape(0));
+                    return ngraph::builder::opset1::reshape(result, data.get_shape());
                 }
                 else
                 {
@@ -61,10 +61,10 @@ namespace ngraph
         {
             namespace set_1
             {
-                NodeVector softmax(const Node& node)
+                OutputVector softmax(const Node& node)
                 {
                     const auto data = node.get_ng_inputs().at(0);
-                    const auto data_rank = data->get_output_partial_shape(0).rank();
+                    const auto data_rank = data.get_partial_shape().rank();
                     NGRAPH_CHECK(data_rank.is_static(),
                                  "ONNX Softmax data rank needs to be known (static)");
 
@@ -76,21 +76,21 @@ namespace ngraph
                     case 0:
                     {
                         result =
-                            default_opset::Constant::create(data->get_element_type(), Shape{}, {1});
+                            default_opset::Constant::create(data.get_element_type(), Shape{}, {1});
                         break;
                     }
                     case 1:
                     {
                         // checks if the axis belongs to the allowed values set (-1 and 0 for 1D)
                         ngraph::normalize_axis(
-                            node.get_description(), axis, data->get_output_partial_shape(0).rank());
+                            node.get_description(), axis, data.get_partial_shape().rank());
                         result = std::make_shared<default_opset::Softmax>(data, 0);
                         break;
                     }
                     default:
                     {
                         const auto normalized_axis = ngraph::normalize_axis(
-                            node.get_description(), axis, data->get_output_partial_shape(0).rank());
+                            node.get_description(), axis, data.get_partial_shape().rank());
 
                         result = onnx_softmax(data, normalized_axis);
                         break;

@@ -30,10 +30,10 @@ namespace ngraph
         {
             namespace set_1
             {
-                NodeVector shape(const Node& node)
+                OutputVector shape(const Node& node)
                 {
                     const auto data = node.get_ng_inputs().at(0);
-                    const auto data_shape = data->get_output_partial_shape(0);
+                    const auto data_shape = data.get_partial_shape();
 
                     if (data_shape.is_static())
                     {

@@ -32,7 +32,7 @@ namespace ngraph
                 /// \param node The ONNX node object representing this operation.
                 /// \return The vector containing Ngraph nodes producing output of ONNX TopK
                 ///         operation (both values and indices).
-                NodeVector topk(const Node& node);
+                OutputVector topk(const Node& node);
             }
 
             /// \brief Performs TopK operation from ONNX version 1.5
@@ -41,7 +41,7 @@ namespace ngraph
             /// attribute.
             namespace set_10
             {
-                NodeVector topk(const Node& node);
+                OutputVector topk(const Node& node);
             }
 
             /// \brief Performs TopK operation from ONNX version 1.6
@@ -49,7 +49,7 @@ namespace ngraph
             /// \details ONNX op set 11 added support for `largest` and `sorted` attributes.
             namespace set_11
             {
-                NodeVector topk(const Node& node);
+                OutputVector topk(const Node& node);
             }
 
         } // namespace op

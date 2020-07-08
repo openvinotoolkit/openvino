@@ -27,7 +27,7 @@ namespace ngraph
         {
             namespace set_1
             {
-                NodeVector transpose(const Node& node);
+                OutputVector transpose(const Node& node);
 
             } // namespace set_1
 

@@ -27,7 +27,7 @@ namespace ngraph
         {
             namespace set_1
             {
-                NodeVector size(const Node& node);
+                OutputVector size(const Node& node);
 
             } // namespace set_1
 

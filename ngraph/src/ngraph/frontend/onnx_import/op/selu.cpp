@@ -30,7 +30,7 @@ namespace ngraph
         {
             namespace set_1
             {
-                NodeVector selu(const Node& node)
+                OutputVector selu(const Node& node)
                 {
                     auto data = node.get_ng_inputs().at(0);
                     auto alpha =
@@ -39,10 +39,10 @@ namespace ngraph
                         node.get_attribute_value<double>("gamma", 1.05070102214813232421875);
 
                     auto alpha_node =
-                        default_opset::Constant::create(data->get_element_type(), Shape{}, {alpha});
+                        default_opset::Constant::create(data.get_element_type(), Shape{}, {alpha});
 
                     auto gamma_node =
-                        default_opset::Constant::create(data->get_element_type(), Shape{}, {gamma});
+                        default_opset::Constant::create(data.get_element_type(), Shape{}, {gamma});
 
                     return {std::make_shared<default_opset::Selu>(data, alpha_node, gamma_node)};
                 }

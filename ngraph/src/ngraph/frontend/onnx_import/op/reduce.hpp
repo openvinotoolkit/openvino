@@ -38,7 +38,7 @@ namespace ngraph
                 ///
                 /// \return     The nGraph node equivalent of the ONNX operation.
                 ///
-                NodeVector reduce_log_sum(const Node& node);
+                OutputVector reduce_log_sum(const Node& node);
 
                 /// \brief      Compute the log sum exponent of the input tensor's elements along
                 ///             the provided axes.
@@ -52,7 +52,7 @@ namespace ngraph
                 ///
                 /// \return     The nGraph node equivalent of the ONNX operation.
                 ///
-                NodeVector reduce_log_sum_exp(const Node& node);
+                OutputVector reduce_log_sum_exp(const Node& node);
 
                 /// \brief      Compute the L1 norm of the input tensor's element along the provided
                 ///             axes.
@@ -66,7 +66,7 @@ namespace ngraph
                 ///
                 /// \return     The nGraph node equivalent of the ONNX operation.
                 ///
-                NodeVector reduce_l1(const Node& node);
+                OutputVector reduce_l1(const Node& node);
 
                 /// \brief      Compute the L2 norm of the input tensor's element along the provided
                 ///             axes.
@@ -80,7 +80,7 @@ namespace ngraph
                 ///
                 /// \return     The nGraph node equivalent of the ONNX operation.
                 ///
-                NodeVector reduce_l2(const Node& node);
+                OutputVector reduce_l2(const Node& node);
 
                 /// \brief      Compute the maximum value of the input tensor's elements along the
                 ///             provided axes.
@@ -94,7 +94,7 @@ namespace ngraph
                 ///
                 /// \return     The nGraph node equivalent of the ONNX operation.
                 ///
-                NodeVector reduce_max(const Node& node);
+                OutputVector reduce_max(const Node& node);
 
                 /// \brief      Compute the mean value of the input tensor's elements along the
                 ///             provided axes.
@@ -108,7 +108,7 @@ namespace ngraph
                 ///
                 /// \return     The nGraph node equivalent of the ONNX operation.
                 ///
-                NodeVector reduce_mean(const Node& node);
+                OutputVector reduce_mean(const Node& node);
 
                 /// \brief      Compute the minimum value of the input tensor's elements along the
                 ///             provided axes.
@@ -122,7 +122,7 @@ namespace ngraph
                 ///
                 /// \return     The nGraph node equivalent of the ONNX operation.
                 ///
-                NodeVector reduce_min(const Node& node);
+                OutputVector reduce_min(const Node& node);
 
                 /// \brief      Compute the product of the input tensor's elements along the
                 ///             provided axes.
@@ -136,7 +136,7 @@ namespace ngraph
                 ///
                 /// \return     The nGraph node equivalent of the ONNX operation.
                 ///
-                NodeVector reduce_prod(const Node& node);
+                OutputVector reduce_prod(const Node& node);
 
                 /// \brief      Compute the sum of the input tensor's elements along the provided
                 ///             axes.
@@ -150,7 +150,7 @@ namespace ngraph
                 ///
                 /// \return     The nGraph node equivalent of the ONNX operation.
                 ///
-                NodeVector reduce_sum(const Node& node);
+                OutputVector reduce_sum(const Node& node);
 
                 /// \brief      Compute the sum square of the input tensor's element along the
                 ///             provided axes.
@@ -164,7 +164,7 @@ namespace ngraph
                 ///
                 /// \return     The nGraph node equivalent of the ONNX operation.
                 ///
-                NodeVector reduce_sum_square(const Node& node);
+                OutputVector reduce_sum_square(const Node& node);
 
             } // namespace set_1
 

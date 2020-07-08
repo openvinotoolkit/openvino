@@ -33,7 +33,7 @@ namespace ngraph
                 ///       Input values greater or equal to '-lambd' and less or equal to 'lambd' are
                 ///       zeroed-out. 'Bias' is added to the values that are less than '-lambd'
                 ///       and subtracted from values greater than 'lambd'.
-                NodeVector shrink(const Node& node);
+                OutputVector shrink(const Node& node);
             } // namespace set_1
 
         } // namespace op

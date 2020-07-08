@@ -30,7 +30,7 @@ namespace ngraph
         {
             namespace set_1
             {
-                inline NodeVector sin(const Node& node)
+                inline OutputVector sin(const Node& node)
                 {
                     return {std::make_shared<default_opset::Sin>(node.get_ng_inputs().at(0))};
                 }
