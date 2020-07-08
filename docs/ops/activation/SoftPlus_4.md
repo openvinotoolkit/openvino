@@ -10,7 +10,7 @@
 element in the output tensor with the following formula:
 
     \f[
-    SoftPlus( x ) = log{e^{x} + 1.0}
+    SoftPlus( x ) = ln{e^{x} + 1.0}
     \f]
 
 **Attributes**: *SoftPlus* operation has no attributes.
