@@ -26,6 +26,7 @@
 #include <legacy/transformations/convert_opset1_to_legacy/reshape_fully_connected.hpp>
 #include <legacy/transformations/convert_opset1_to_legacy/convert_nms_5_to_legacy.hpp>
 #include <legacy/transformations/convert_opset1_to_legacy/convert_interpolate_to_interp_or_resample.hpp>
+#include <legacy/transformations/convert_opset1_to_legacy/convert_tile_to_ie_tile.hpp>
 #include <legacy/ngraph_ops/fully_connected.hpp>
 
 #include <transformations/opset_conversions/convert_opset3_to_opset2.hpp>
@@ -60,6 +61,7 @@
 #include <transformations/op_conversions/log_softmax_decomposition.hpp>
 #include <transformations/op_conversions/convert_interpolate1_to_interpolate4.hpp>
 #include <transformations/op_conversions/simplify_ctc_greedy_decoder_seq_len.hpp>
+#include <transformations/op_conversions/convert_broadcast_to_tiles.hpp>
 #include <transformations/convert_precision.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/rt_info/fused_names_attribute.hpp>
@@ -337,6 +339,9 @@ static void Transformation(CNNNetwork& clonedNetwork, const Config& conf) {
     legacyPassConfig->set_callback<ngraph::pass::FakeQuantizeDecomposition>([](const_node_ptr &node) -> bool {
         return !MKLDNNQuantizeNode::isNeedToDecompose(node);
     });
+
+    legacyPassConfig->disable<ngraph::pass::ConvertBroadcastToTiles>();
+    legacyPassConfig->disable<ngraph::pass::ConvertTileToLegacyMatcher>();
 
     legacyPassConfig->set_callback<ngraph::pass::AddMultiplyFusion>([](const_node_ptr &node) -> bool {
         if (auto mul_op = std::dynamic_pointer_cast<const ngraph::opset1::Multiply>(node)) {

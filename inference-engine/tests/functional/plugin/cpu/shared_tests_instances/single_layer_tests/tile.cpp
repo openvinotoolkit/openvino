@@ -11,11 +11,24 @@ using namespace LayerTestsDefinitions;
 namespace {
 
 const std::vector<InferenceEngine::Precision> netPrecisions = {
+        InferenceEngine::Precision::I8,
+        InferenceEngine::Precision::U8,
+        InferenceEngine::Precision::I16,
+        InferenceEngine::Precision::FP16,
+        InferenceEngine::Precision::I32,
         InferenceEngine::Precision::FP32
 };
 
+const std::vector<std::vector<size_t>> inputShapes = {
+        {2, 3, 4},
+        {1, 1, 1},
+};
+
 const std::vector<std::vector<int64_t>> repeats = {
+        {2, 3},
         {1, 2, 3},
+        {1, 1, 2, 3},
+        {1, 2, 1, 3},
         {2, 1, 1},
         {2, 3, 1},
         {2, 2, 2},
@@ -29,9 +42,21 @@ INSTANTIATE_TEST_CASE_P(smoke_Tile, TileLayerTest,
                 ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
                 ::testing::Values(InferenceEngine::Layout::ANY),
                 ::testing::Values(InferenceEngine::Layout::ANY),
-                ::testing::Values(std::vector<size_t>({2, 3, 4})),
+                ::testing::ValuesIn(inputShapes),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
         TileLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_CASE_P(smoke_TileNgraphEvaluate, TileLayerTest,
+                        ::testing::Combine(
+                                ::testing::Values(std::vector<int64_t>({2, 2, 2, 2})),
+                                ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::Values(InferenceEngine::Layout::ANY),
+                                ::testing::Values(std::vector<size_t>({2, 2, 2, 2})),
+                                ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                        TileLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_CASE_P(smoke_Tile6d, TileLayerTest,
         ::testing::Combine(

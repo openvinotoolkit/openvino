@@ -43,6 +43,10 @@ namespace multiplyop
             NGRAPH_TYPE_CASE(evaluate_multiply, f16, arg0, arg1, out, broadcast_spec);
             NGRAPH_TYPE_CASE(evaluate_multiply, f32, arg0, arg1, out, broadcast_spec);
             NGRAPH_TYPE_CASE(evaluate_multiply, bf16, arg0, arg1, out, broadcast_spec);
+            NGRAPH_TYPE_CASE(evaluate_multiply, i8, arg0, arg1, out, broadcast_spec);
+            NGRAPH_TYPE_CASE(evaluate_multiply, u8, arg0, arg1, out, broadcast_spec);
+            NGRAPH_TYPE_CASE(evaluate_multiply, i16, arg0, arg1, out, broadcast_spec);
+            NGRAPH_TYPE_CASE(evaluate_multiply, u16, arg0, arg1, out, broadcast_spec);
         default: rc = false; break;
         }
         return rc;

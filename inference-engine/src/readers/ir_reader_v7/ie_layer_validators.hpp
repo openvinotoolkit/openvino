@@ -167,15 +167,6 @@ public:
     void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
 };
 
-class TileValidator : public LayerValidator {
-public:
-    explicit TileValidator(const std::string& _type);
-
-    void checkParams(const CNNLayer* layer) override;
-
-    void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
-};
-
 class BatchNormalizationValidator : public LayerValidator {
 public:
     explicit BatchNormalizationValidator(const std::string& _type);
@@ -463,15 +454,6 @@ public:
 class FillValidator : public LayerValidator {
 public:
     explicit FillValidator(const std::string& _type);
-
-    void checkParams(const CNNLayer* layer) override;
-
-    void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
-};
-
-class BroadcastValidator : public LayerValidator {
-public:
-    explicit BroadcastValidator(const std::string& _type);
 
     void checkParams(const CNNLayer* layer) override;
 

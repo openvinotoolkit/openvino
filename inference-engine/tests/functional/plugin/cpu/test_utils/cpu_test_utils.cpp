@@ -78,7 +78,6 @@ std::string CPUTestsBase::impls2str(const std::vector<std::string> &priority) {
 
 void CPUTestsBase::CheckPluginRelatedResults(InferenceEngine::ExecutableNetwork &execNet, std::string nodeType) const {
     if (nodeType.empty()) return;
-
     ASSERT_TRUE(!selectedType.empty()) << "Node type is not defined.";
     bool isNodeFound = false;
     InferenceEngine::CNNNetwork execGraphInfo = execNet.GetExecGraphInfo();
@@ -114,14 +113,13 @@ void CPUTestsBase::CheckPluginRelatedResults(InferenceEngine::ExecutableNetwork 
             ASSERT_LE(outFmts.size(), node->get_output_size());
             for (int i = 0; i < inFmts.size(); i++) {
                 const auto parentPort = node->input_values()[i];
-                const auto port = node->inputs()[i];
-                if ((parentPort.get_tensor_ptr() == port.get_tensor_ptr())) {
-                    auto parentNode = parentPort.get_node_shared_ptr();
-                    auto shape = parentNode->get_output_tensor(0).get_shape();
-                    auto actualInputMemoryFormat = getExecValueOutputsLayout(parentNode);
-
-                    if (!should_be_skipped(shape, inFmts[i]))
+                for (const auto & port : node->inputs()) {
+                    if (port.get_tensor_ptr() == parentPort.get_tensor_ptr()) {
+                        auto parentNode = parentPort.get_node_shared_ptr();
+                        auto actualInputMemoryFormat = getExecValueOutputsLayout(parentNode);
                         ASSERT_EQ(inFmts[i], cpu_str2fmt(actualInputMemoryFormat.c_str()));
+                        break;
+                    }
                 }
             }
             for (int i = 0; i < outFmts.size(); i++) {
@@ -132,7 +130,8 @@ void CPUTestsBase::CheckPluginRelatedResults(InferenceEngine::ExecutableNetwork 
                     ASSERT_EQ(outFmts[i], cpu_str2fmt(actualOutputMemoryFormat.c_str()));
             }
             auto primType = getExecValue(ExecGraphInfoSerialization::IMPL_TYPE);
-            ASSERT_EQ(selectedType, primType);
+            auto pos = primType.find(selectedType);
+            ASSERT_TRUE(pos != std::string::npos);
         }
     }
     ASSERT_TRUE(isNodeFound) << "Node type name: \"" << nodeType << "\" has not been found.";

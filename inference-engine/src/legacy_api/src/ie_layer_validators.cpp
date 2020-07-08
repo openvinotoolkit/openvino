@@ -1236,7 +1236,6 @@ LayerValidators::LayerValidators() : _validators() {
     REG_LAYER_VALIDATOR_FOR_TYPE(RNNSequenceValidator<RNNSequenceLayer::RNN>, RNNSequence);
     REG_LAYER_VALIDATOR_FOR_TYPE(RNNSequenceValidator<RNNSequenceLayer::GRU>, GRUSequence);
     REG_LAYER_VALIDATOR_FOR_TYPE(RNNSequenceValidator<RNNSequenceLayer::LSTM>, LSTMSequence);
-    REG_LAYER_VALIDATOR_FOR_TYPE(TileValidator, Tile);
     REG_LAYER_VALIDATOR_FOR_TYPE(OneHotValidator, OneHot);
     REG_LAYER_VALIDATOR_FOR_TYPE(QuantizeValidator, FakeQuantize);
     REG_LAYER_VALIDATOR_FOR_TYPE(BinaryConvolutionValidator, BinaryConvolution);

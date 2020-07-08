@@ -8,9 +8,12 @@
 #include <mkldnn_node.h>
 #include <string>
 
+#include "common/tile_broadcast_utils.h"
+#include <ngraph/op/tile.hpp>
+
 namespace MKLDNNPlugin {
 
-class MKLDNNTileNode : public MKLDNNNode {
+class MKLDNNTileNode : public MKLDNNNode, public TileBroadcastCommon {
 public:
     MKLDNNTileNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache);
     ~MKLDNNTileNode() override = default;
@@ -22,8 +25,7 @@ public:
     bool created() const override;
 
 private:
-    int axis = 0;
-    int tiles = 0;
+    std::shared_ptr<ngraph::Node> tile;
 };
 
 }  // namespace MKLDNNPlugin

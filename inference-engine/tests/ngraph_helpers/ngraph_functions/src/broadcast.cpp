@@ -19,7 +19,7 @@ std::shared_ptr<ngraph::Node> makeBroadcast(const ngraph::Output<Node> &in,
                                                            target_shape,
                                                            axisSetConst,
                                                            mode);
-    } else { // numpy/bidiractional modes
+    } else { // numpy/bidirectional modes
         return std::make_shared<ngraph::opset5::Broadcast>(in,
                                                            target_shape,
                                                            mode);

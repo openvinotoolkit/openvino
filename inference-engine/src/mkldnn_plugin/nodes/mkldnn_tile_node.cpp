@@ -3,115 +3,97 @@
 //
 
 #include "mkldnn_tile_node.h"
-#include <legacy/ie_layers.h>
-#include <string>
-#include <mkldnn_types.h>
-#include <mkldnn_extension_utils.h>
-#include "common/cpu_memcpy.h"
 
-using namespace mkldnn;
-using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
+using namespace MKLDNNPlugin;
 
 MKLDNNTileNode::MKLDNNTileNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache) :
-        MKLDNNNode(layer, eng, cache) {}
+        MKLDNNNode(layer, eng, cache), tile(getCnnLayer()->getNode()) {}
 
 void MKLDNNTileNode::getSupportedDescriptors() {
-    auto * tileLayer = dynamic_cast<TileLayer*>(getCnnLayer().get());
+    if (getParentEdges().size() != 2)
+        IE_THROW() << "Tile node with name " << getName() << " has incorrect number of input edges. "
+                "Expected: 2, Actual: " << getParentEdges().size();
+    if (getChildEdges().empty())
+        IE_THROW() << "Tile node with name " << getName() << " has no output edges.";
+    auto dstDims0 = getChildEdgeAt(0)->getDims();
+    for (int i = 1; i < getChildEdges().size(); i++) {
+        auto DstDims = getChildEdgeAt(i)->getDims();
+        if (DstDims.ndims() != dstDims0.ndims())
+            IE_THROW() << "Output edges 0 and " << i << " have different dims for Tile node with name " << getName();
+        for (int j = 0; j < dstDims0.ndims(); j++) {
+            if (dstDims0[j] != DstDims[j]) {
+                IE_THROW() << "Output edges 0 and " << i << " have different dims for Tile node with name " << getName();
+            }
+        }
+    }
+    if (getParentEdgeAt(0)->getDims().ndims() > getChildEdgeAt(0)->getDims().ndims())
+        IE_THROW() << "Tile node with name " << getName() << " has incorrect input shape. Input shape cannot be more than output shape. "
+                "Actual input shape size: " << getParentEdgeAt(0)->getDims().ndims() << ", output shape size: " << getChildEdgeAt(0)->getDims().ndims();
 
-    if (tileLayer == nullptr)
-        IE_THROW() << "Cannot convert tile layer.";
+    if (getParentEdgeAt(1)->getDims().ndims() != 1)
+        IE_THROW() << "Repeats must be 1D tensor for Tile node with name " << getName();
+    if (!getParentEdgeAt(1)->getParent()->isConstant())
+        IE_THROW() << "Tile node with name " << getName() << " has non constant parent Node on 1-st input. "
+                "This case is currently not supported in CPU plug-in.";
 
-    if (getParentEdges().size() != 1)
-        IE_THROW() << "Incorrect number of input edges for layer " << getName();
-    if (!getChildEdges().size())
-        IE_THROW() << "Incorrect number of output edges for layer " << getName();
+    auto repeatsBlob = getParentEdgeAt(1)->getParent()->getCnnLayer()->blobs["custom"].get();
+    if (repeatsBlob == nullptr)
+        IE_THROW() << "Cannot get repeatsBlob for Tile node with name " << getName();
 
-    axis = tileLayer->axis;
-    tiles = tileLayer->tiles;
+    auto blobPrecision = getParentEdgeAt(1)->getParent()->getCnnLayer()->blobs["custom"]->getTensorDesc().getPrecision();
+    std::vector<int> repeatsData(repeatsBlob->size());
+    if (blobPrecision == Precision::I32) {
+        for (int i = 0; i < repeatsBlob->size(); i++) {
+            repeatsData[i] = repeatsBlob->buffer().as<int *>()[i];
+        }
+    } else if (blobPrecision == Precision::I64) {
+        for (int i = 0; i < repeatsBlob->size(); i++) {
+            repeatsData[i] = repeatsBlob->buffer().as<int64_t *>()[i];
+        }
+    } else {
+        IE_THROW() << "RepeatsBlob has unsupported precision " << blobPrecision.name() << " for Tile node with name " << getName();
+    }
+
+    for (int i = 0; i < getParentEdgeAt(1)->getDims().ToSizeVector()[0]; i++) {
+        repeats.push_back(repeatsData[i]);
+    }
+    while (repeats.size() < getChildEdgeAt(0)->getDims().ndims()) {
+        repeats.insert(repeats.begin(), 1);
+    }
 }
 
 void MKLDNNTileNode::initSupportedPrimitiveDescriptors() {
     if (!supportedPrimitiveDescriptors.empty())
         return;
 
-    InferenceEngine::Precision precision = getCnnLayer()->insData[0].lock()->getPrecision();
-    if (precision.size() != sizeof(PrecisionTrait<Precision::I32>::value_type) &&
-        precision.size() != sizeof(PrecisionTrait<Precision::I16>::value_type) &&
-        precision.size() != sizeof(PrecisionTrait<Precision::I8>::value_type)) {
-        IE_THROW() << "Layer Tile has unsupported input precision: " << precision;
-    }
-    auto inputDataType = MKLDNNExtensionUtils::IEPrecisionToDataType(precision);
-
-    auto& inDims = getParentEdgeAt(0)->getDims();
-    memory::format_tag fmt = MKLDNNMemory::GetPlainFormat(inDims);
-
-    InferenceEngine::LayerConfig config;
-    config.dynBatchSupport = true;
-    config.inConfs.resize(1);
-    config.outConfs.resize(1);
-    config.inConfs[0].inPlace = -1;
-    config.inConfs[0].constant = false;
-    config.inConfs[0].desc = MKLDNNMemoryDesc(getParentEdgeAt(0)->getDims(), inputDataType, fmt);
-    config.outConfs[0].inPlace = -1;
-    config.outConfs[0].constant = false;
-    config.outConfs[0].desc = MKLDNNMemoryDesc(getChildEdgeAt(0)->getDims(), inputDataType, fmt);
-    supportedPrimitiveDescriptors.push_back({config, impl_desc_type::unknown, fmt});
+    supportedPrimitiveDescriptors = getSupportedConfigs(this);
 }
 
 void MKLDNNTileNode::createPrimitive() {
-    auto& dstMemPtr = getChildEdgeAt(0)->getMemoryPtr();
-    auto& srcMemPtr = getParentEdgeAt(0)->getMemoryPtr();
-    if (!dstMemPtr || !dstMemPtr->GetPrimitivePtr())
-        IE_THROW() << "Destination memory didn't allocate.";
-    if (!srcMemPtr || !srcMemPtr->GetPrimitivePtr())
-        IE_THROW() << "Input memory didn't allocate.";
+    for (int i = 0; i < getChildEdges().size(); i++) {
+        auto& dstMemPtr = getChildEdgeAt(i)->getMemoryPtr();
+        if (!dstMemPtr || !dstMemPtr->GetPrimitivePtr())
+            IE_THROW() << "Destination memory " << i << "didn't allocate for Tile node with name " << getName();
+    }
+    for (int i = 0; i < getParentEdges().size(); i++) {
+        auto& srcMemPtr = getParentEdgeAt(i)->getMemoryPtr();
+        if (!srcMemPtr || !srcMemPtr->GetPrimitivePtr())
+            IE_THROW() << "Input memory " << i << "didn't allocate for Tile node with name " << getName();
+    }
     if (getSelectedPrimitiveDescriptor() == nullptr)
-        IE_THROW() << "Preferable primitive descriptor is not set.";
-    if (getParentEdges().size() != 1)
-        IE_THROW() << "Incorrect number of input edges for layer " << getName();
+        IE_THROW() << "Preferable primitive descriptor is not set for Tile node with name " << getName();
+
+    SizeVector srcBlockedDims = getParentEdgeAt(0)->getDesc().getBlockingDesc().getBlockDims();
+    SizeVector dstBlockedDims = getChildEdgeAt(0)->getDesc().getBlockingDesc().getBlockDims();
+    optimizedCase = prepareOptimizedParams(this, srcBlockedDims, dstBlockedDims);
 }
 
 void MKLDNNTileNode::execute(mkldnn::stream strm) {
-    auto& srcMemory = getParentEdgeAt(0)->getMemory();
-
-    const uint8_t* src_ptr = reinterpret_cast<const uint8_t*>(srcMemory.GetPtr());
-    uint8_t* dst_ptr = reinterpret_cast<uint8_t*>(getChildEdgeAt(0)->getMemory().GetPtr());
-
-    int m_inner_dim = 1;
-    int m_outer_dim = 1;
-    memory::dims inDims = srcMemory.GetDims();
-    for (int i=0; i < axis; i++ ) m_outer_dim *= inDims[i];
-    for (int i=axis; i < inDims.size(); i++ ) m_inner_dim *= inDims[i];
-    if (axis > 0) {
-        m_outer_dim /= inDims[0];
-        m_outer_dim *= batchToProcess();
+    if (optimizedCase) {
+        optimizedExecute(this);
     } else {
-        m_inner_dim /= inDims[0];
-        m_inner_dim *= batchToProcess();
-    }
-
-    if (m_inner_dim == 1 && m_outer_dim % 8 == 0 && srcMemory.GetDesc().isBlockedCFormat(8)) {
-        /*
-         * We may enable tile processing directly to appropriate output format (nChw8c)
-         */
-        m_inner_dim *= 8;
-        m_outer_dim /= 8;
-    } else if (m_inner_dim == 1 && m_outer_dim % 16 == 0 && srcMemory.GetDesc().isBlockedCFormat(16)) {
-        /*
-         * We may enable tile processing directly to appropriate output format (nChw16c)
-         */
-        m_inner_dim *= 16;
-        m_outer_dim /= 16;
-    }
-
-    m_inner_dim *= srcMemory.GetDesc().GetElementSize();
-    for (int i = 0; i < m_outer_dim; ++i) {
-        for (int t = 0; t < tiles; ++t) {
-            cpu_memcpy(dst_ptr, src_ptr, m_inner_dim);
-            dst_ptr += m_inner_dim;
-        }
-        src_ptr += m_inner_dim;
+        ngraphExecute(this, tile);
     }
 }
 

@@ -49,10 +49,7 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO: Issue: 32032
         R"(.*ActivationParamLayerTest.*)",
         // TODO: Issue: 38841
-        R"(.*TopKLayerTest.*k=10.*mode=min.*sort=index.*)",
-        R"(.*TopKLayerTest.*k=5.*sort=(none|index).*)",
-        // TODO: Issue: 43314
-        R"(.*Broadcast.*mode=BIDIRECTIONAL.*inNPrec=BOOL.*)",
+        R"(.*TopKLayerTest.*k=5.*sort=none.*)",
         // TODO: Issue 43417 sporadic issue, looks like an issue in test, reproducible only on Windows platform
         R"(.*decomposition1_batch=5_hidden_size=10_input_size=30_.*tanh.relu.*_clip=0_linear_before_reset=1.*_targetDevice=CPU_.*)",
         // Skip platforms that do not support BF16 (i.e. sse, avx, avx2)

@@ -39,6 +39,7 @@
 #include <nodes/mkldnn_tensoriterator_node.h>
 #include <nodes/mkldnn_scatter_update_node.h>
 #include <nodes/mkldnn_interpolate_node.h>
+#include <nodes/mkldnn_broadcast_node.h>
 #include <mkldnn_types.h>
 #include <dnnl_types.h>
 #include "mkldnn_extension_utils.h"
@@ -138,6 +139,7 @@ static const InferenceEngine::details::caseless_unordered_map<std::string, Type>
         { "ReduceSum", ReduceSum},
         { "ReduceSumSquare", ReduceSumSquare},
         { "Erf", Eltwise },
+        { "Broadcast", Broadcast},
 };
 
 Type TypeFromName(const std::string type) {
