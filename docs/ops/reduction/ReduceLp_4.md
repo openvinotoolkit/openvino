@@ -18,11 +18,11 @@
 
 **Inputs**
 
-* **1**: Input tensor x of type T1. **Required.**
+* **1**: Input tensor x of type *T1*. **Required.**
 
-* **2**: Scalar or 1D tensor of type T2 with axis indices for the 1st input along which reduction is performed. Accepted range is `[-r, r-1]` where where `r` is the rank of input tensor. **Required.**
+* **2**: Scalar or 1D tensor of type *T2* with axis indices for the 1st input along which reduction is performed. Accepted range is `[-r, r-1]` where where `r` is the rank of input tensor. **Required.**
 
-* **3**: Scalar of type T2 with value order `p` of the normalization. Possible values: `1` for L1 or `2` for L2. **Required.**
+* **3**: Scalar of type *T2* with value order `p` of the normalization. Possible values: `1` for L1 or `2` for L2. **Required.**
 
 **Outputs**
 
