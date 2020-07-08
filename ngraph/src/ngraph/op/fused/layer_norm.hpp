@@ -54,7 +54,7 @@ namespace ngraph
                           int64_t begin_norm_axis = 1,
                           double epsilon = 1e-5);
 
-                virtual NodeVector decompose_op() const override;
+                virtual OutputVector decompose_op() const override;
 
                 void pre_validate_and_infer_types() override;
 

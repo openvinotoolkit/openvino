@@ -68,7 +68,7 @@ namespace ngraph
                                  AutoBroadcastSpec(AutoBroadcastType::NUMPY));
 
                 bool visit_attributes(AttributeVisitor& visitor) override;
-                virtual NodeVector decompose_op() const override;
+                virtual OutputVector decompose_op() const override;
                 virtual void validate_and_infer_types() override;
 
                 // This is a hack to work around dldt directly calling copy_with_new_args

@@ -88,7 +88,7 @@ bool ngraph::op::v0::FakeQuantize::visit_attributes(AttributeVisitor& visitor)
     return true;
 }
 
-NodeVector op::FakeQuantize::decompose_op() const
+OutputVector op::FakeQuantize::decompose_op() const
 {
     Output<Node> data{input_value(0)};
     Output<Node> input_low{input_value(1)};

@@ -117,7 +117,7 @@ static std::shared_ptr<ngraph::Node>
     return convert;
 }
 
-NodeVector op::CrossEntropy::decompose_op() const
+OutputVector op::CrossEntropy::decompose_op() const
 {
     // we will reshape the labels and input tensor to 2d
     auto input_to_normalize = get_2d_tensor(input_value(0));
@@ -237,7 +237,7 @@ shared_ptr<Node> op::CrossEntropyBackprop::clone_with_new_inputs(const OutputVec
         new_args.at(0), new_args.at(1), new_args.at(2), m_soft_label, m_ignore_index);
 }
 
-NodeVector op::CrossEntropyBackprop::decompose_op() const
+OutputVector op::CrossEntropyBackprop::decompose_op() const
 {
     auto input = get_2d_tensor(input_value(0));
     auto labels = get_2d_tensor(input_value(1));

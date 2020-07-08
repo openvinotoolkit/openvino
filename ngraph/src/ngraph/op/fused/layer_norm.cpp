@@ -64,7 +64,7 @@ op::LayerNorm::LayerNorm(const Output<Node>& data,
 }
 
 // All input shape should be static by this point
-NodeVector op::LayerNorm::decompose_op() const
+OutputVector op::LayerNorm::decompose_op() const
 {
     const PartialShape& data_shape = get_input_partial_shape(0);
     if (data_shape.is_dynamic())
@@ -137,7 +137,7 @@ NodeVector op::LayerNorm::decompose_op() const
     }
 
     // Return output nodes
-    NodeVector retval;
+    OutputVector retval;
     retval.emplace_back(norm);
     if (m_keep_stats)
     {

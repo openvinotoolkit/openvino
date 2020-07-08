@@ -32,7 +32,7 @@ op::ScaleShift::ScaleShift(const Output<Node>& data,
     constructor_validate_and_infer_types();
 }
 
-NodeVector op::ScaleShift::decompose_op() const
+OutputVector op::ScaleShift::decompose_op() const
 {
     auto data = input_value(0);
     auto scale = input_value(1);

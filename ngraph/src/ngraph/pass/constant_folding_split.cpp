@@ -48,7 +48,7 @@ void pass::ConstantFolding::construct_constant_split()
         int index = 0;
         for (auto& output : split->outputs())
         {
-            output.replace(slices[index++]->output(0));
+            output.replace(slices[index++]);
         }
         split->outputs().clear();
         construct_constant_slice();

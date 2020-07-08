@@ -475,7 +475,7 @@ void op::v1::GroupConvolutionBackpropData::pre_validate_and_infer_types()
     set_output_type(0, result_et, output_pshape);
 }
 
-NodeVector op::v1::GroupConvolutionBackpropData::decompose_op() const
+OutputVector op::v1::GroupConvolutionBackpropData::decompose_op() const
 {
     auto data = input_value(0);
     auto filters = input_value(1);
@@ -483,14 +483,14 @@ NodeVector op::v1::GroupConvolutionBackpropData::decompose_op() const
 
     auto groups = filters.get_shape()[0];
     // slice data
-    auto sliced_data = builder::split(data, groups, 1);
+    OutputVector sliced_data = builder::split(data, groups, 1);
     // slice filters
-    auto sliced_filters = builder::split(filters, groups, 0);
+    OutputVector sliced_filters = builder::split(filters, groups, 0);
     // We have to squeeze first empty dimension (groups).
     std::transform(std::begin(sliced_filters),
                    std::end(sliced_filters),
                    std::begin(sliced_filters),
-                   [](const std::shared_ptr<Node>& n) -> std::shared_ptr<Node> {
+                   [](const Output<Node>& n) -> Output<Node> {
                        return builder::opset1::squeeze(n);
                    });
 
@@ -720,7 +720,7 @@ shared_ptr<Node> op::v0::GroupConvolution::clone_with_new_inputs(const OutputVec
     }
 }
 
-NodeVector op::v0::GroupConvolution::decompose_op() const
+OutputVector op::v0::GroupConvolution::decompose_op() const
 {
     auto data = input_value(0);
     auto filters = input_value(1);
@@ -741,7 +741,7 @@ NodeVector op::v0::GroupConvolution::decompose_op() const
             // Remove group dimmension after slicing
             sliced_filter = make_shared<op::Reshape>(
                 sliced_filters[group],
-                get_default_order(sliced_filters[group]->get_shape().size()),
+                get_default_order(sliced_filters[group].get_shape().size()),
                 Shape(std::next(std::begin(filters_shape), 1), std::end(filters_shape)));
         }
         convolution_nodes.push_back(
@@ -833,7 +833,7 @@ shared_ptr<Node>
                                                              get_groups());
 }
 
-NodeVector op::v0::GroupConvolutionBackpropData::decompose_op() const
+OutputVector op::v0::GroupConvolutionBackpropData::decompose_op() const
 {
     auto filters = input_value(1);
     auto output_delta = input_value(2);

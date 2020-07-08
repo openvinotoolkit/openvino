@@ -75,7 +75,7 @@ void op::HardSigmoid::pre_validate_and_infer_types()
         "The element types of both alpha and beta inputs must match the data input type.");
 }
 
-NodeVector op::HardSigmoid::decompose_op() const
+OutputVector op::HardSigmoid::decompose_op() const
 {
     const auto data = input_value(0);
 

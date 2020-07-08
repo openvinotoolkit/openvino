@@ -46,7 +46,7 @@ op::SoftmaxCrossEntropy::SoftmaxCrossEntropy(const Output<Node>& arg1,
     constructor_validate_and_infer_types();
 }
 
-NodeVector op::SoftmaxCrossEntropy::decompose_op() const
+OutputVector op::SoftmaxCrossEntropy::decompose_op() const
 {
     auto input_to_normalize = input_value(0);
     auto labels = input_value(1);

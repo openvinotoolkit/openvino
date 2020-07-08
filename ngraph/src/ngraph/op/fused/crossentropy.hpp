@@ -46,7 +46,7 @@ namespace ngraph
                              bool soft_label = false,
                              int64_t ignore_index = -100);
 
-                virtual NodeVector decompose_op() const override;
+                virtual OutputVector decompose_op() const override;
 
                 void pre_validate_and_infer_types() override;
 
@@ -83,7 +83,7 @@ namespace ngraph
                                      bool soft_label = false,
                                      int64_t ignore_index = -100);
 
-                virtual NodeVector decompose_op() const override;
+                virtual OutputVector decompose_op() const override;
 
                 void pre_validate_and_infer_types() override;
 

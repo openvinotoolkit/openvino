@@ -68,7 +68,7 @@ void op::Stack::pre_validate_and_infer_types()
     }
 }
 
-NodeVector op::Stack::decompose_op() const
+OutputVector op::Stack::decompose_op() const
 {
     auto axis = get_axis();
     std::vector<std::shared_ptr<ngraph::Node>> args;

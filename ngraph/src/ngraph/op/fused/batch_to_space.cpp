@@ -39,7 +39,7 @@ ngraph::op::v1::BatchToSpace::BatchToSpace(const ngraph::Output<ngraph::Node>& d
     constructor_validate_and_infer_types();
 }
 
-NodeVector op::v1::BatchToSpace::decompose_op() const
+OutputVector op::v1::BatchToSpace::decompose_op() const
 {
     auto data = input_value(0);
     auto block = input_value(1);
@@ -141,7 +141,7 @@ NodeVector op::v1::BatchToSpace::decompose_op() const
     vector<int64_t> end_mask(data_shape.size(), 0);
     flat_node = make_shared<op::v1::StridedSlice>(
         flat_node, crops_begin_const, upperbounds, begin_mask, end_mask);
-    return NodeVector{flat_node};
+    return OutputVector{flat_node};
 }
 
 void ngraph::op::v1::BatchToSpace::pre_validate_and_infer_types()

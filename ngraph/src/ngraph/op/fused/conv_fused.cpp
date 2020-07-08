@@ -196,7 +196,7 @@ shared_ptr<Node> op::ConvolutionBias::clone_with_new_inputs(const OutputVector& 
                                         m_with_relu);
 }
 
-NodeVector op::ConvolutionBias::decompose_op() const
+OutputVector op::ConvolutionBias::decompose_op() const
 {
     auto conv = make_shared<op::Convolution>(input_value(0),
                                              input_value(1),
@@ -320,7 +320,7 @@ std::shared_ptr<Node>
                                            m_with_relu);
 }
 
-NodeVector op::ConvolutionBiasAdd::decompose_op() const
+OutputVector op::ConvolutionBiasAdd::decompose_op() const
 {
     auto conv = make_shared<op::Convolution>(input_value(0),
                                              input_value(1),

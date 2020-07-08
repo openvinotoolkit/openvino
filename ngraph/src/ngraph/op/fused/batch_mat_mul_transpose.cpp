@@ -40,7 +40,7 @@ op::BatchMatMulTranspose::BatchMatMulTranspose(const Output<Node>& arg0,
     constructor_validate_and_infer_types();
 }
 
-NodeVector op::BatchMatMulTranspose::decompose_op() const
+OutputVector op::BatchMatMulTranspose::decompose_op() const
 {
     const PartialShape& arg0_pshape = get_input_partial_shape(0);
     const PartialShape& arg1_pshape = get_input_partial_shape(1);

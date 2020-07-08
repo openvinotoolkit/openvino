@@ -110,7 +110,7 @@ namespace ngraph
                     const auto filters = inputs.at(1);
                     const auto groups = node.get_attribute_value<int64_t>("group", 1);
 
-                    NGRAPH_CHECK(data->get_output_partial_shape(0).rank().is_static(),
+                    NGRAPH_CHECK(data.get_partial_shape().rank().is_static(),
                                  "The input data tensor's rank has to be known (static)");
 
                     const auto strides = convpool::get_strides(node);

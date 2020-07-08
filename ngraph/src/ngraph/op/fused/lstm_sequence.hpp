@@ -133,7 +133,7 @@ namespace ngraph
                 }
 
                 bool visit_attributes(AttributeVisitor& visitor) override;
-                virtual NodeVector decompose_op() const override;
+                virtual OutputVector decompose_op() const override;
 
                 virtual std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
@@ -166,7 +166,7 @@ namespace ngraph
                                     std::size_t batch_axis = 0,
                                     const Output<Node>& default_value = Output<Node>()) const;
 
-                NodeVector lstm_pass(bool is_reverse = false) const;
+                OutputVector lstm_pass(bool is_reverse = false) const;
 
                 // Split(bi-directional) and squeeze input data to remove 'num_direction' dimension.
                 std::shared_ptr<Node> prepare_input(Output<Node> node,

@@ -105,7 +105,7 @@ namespace ngraph
                 if (node.get_node()->is_constant())
                 {
                     const auto value =
-                        ngraph::as_type_ptr<default_opset::Constant>(node.get_node_shared_ptr());
+                        ngraph::as_type_ptr<default_opset::Constant>(node.get_node_shared_ptr())->get_data_ptr();
                     return std::make_shared<default_opset::Constant>(
                         node.get_element_type(), ngraph::Shape{}, value);
                 }

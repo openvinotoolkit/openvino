@@ -94,7 +94,7 @@ AxisSet op::NormalizeL2::get_reduction_axes() const
     return axes;
 }
 
-NodeVector op::NormalizeL2::decompose_op() const
+OutputVector op::NormalizeL2::decompose_op() const
 {
     Output<Node> data{input_value(0)};
     const Shape input_shape{data.get_shape()};
@@ -107,7 +107,7 @@ NodeVector op::NormalizeL2::decompose_op() const
 
     data = make_shared<op::Divide>(data, norm, AutoBroadcastSpec(AutoBroadcastType::NUMPY));
 
-    return as_node_vector({data});
+    return OutputVector{data};
 }
 
 shared_ptr<Node> op::NormalizeL2::clone_with_new_inputs(const OutputVector& new_args) const

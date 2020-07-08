@@ -48,7 +48,7 @@ namespace ngraph
                              const std::vector<int64_t>& upper_bounds,
                              const AxisVector& decrease_axes);
 
-                virtual NodeVector decompose_op() const override;
+                virtual OutputVector decompose_op() const override;
 
                 void pre_validate_and_infer_types() override;
 

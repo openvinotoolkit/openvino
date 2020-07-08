@@ -45,7 +45,7 @@ namespace ngraph
                            const Output<Node>& scale,
                            const Output<Node>& shift);
 
-                virtual NodeVector decompose_op() const override;
+                virtual OutputVector decompose_op() const override;
 
                 virtual std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;

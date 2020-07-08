@@ -107,7 +107,7 @@ void op::v0::ScatterND::pre_validate_and_infer_types()
     set_output_type(0, data_et, data_ps);
 }
 
-NodeVector op::ScatterND::decompose_op() const
+OutputVector op::ScatterND::decompose_op() const
 {
     const auto data = input_value(0);
     const auto indices = input_value(1);

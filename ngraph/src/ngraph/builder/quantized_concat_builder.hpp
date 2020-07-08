@@ -32,7 +32,7 @@ namespace ngraph
     namespace builder
     {
         NGRAPH_API
-        std::shared_ptr<Node> QuantizedConcatBuilder(const NodeVector& args,
+        std::shared_ptr<Node> QuantizedConcatBuilder(const OutputVector& args,
                                                      size_t concatenation_axis,
                                                      const NodeVector& mins,
                                                      const NodeVector& maxs);

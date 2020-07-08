@@ -168,7 +168,7 @@ void op::v3::GRUCell::pre_validate_and_infer_types()
         ".");
 }
 
-NodeVector op::v3::GRUCell::decompose_op() const
+OutputVector op::v3::GRUCell::decompose_op() const
 {
     // ------ VARIABLE'S NAMES AND ACRONYM DEFINITIONS ------
     // The names used below are analogous to the one used in ONNX documentation.
@@ -218,10 +218,10 @@ NodeVector op::v3::GRUCell::decompose_op() const
     auto Ht_R = make_shared<op::Dot>(H_t, R_transpose);
 
     // split to gates:
-    NodeVector Xt_W_zrh = builder::split(Xt_W, 3, 1);
-    NodeVector R_zrh = builder::split(R_transpose, 3, 1);
-    NodeVector Ht_R_zrh = builder::split(Ht_R, 3, 1);
-    NodeVector biases_zrh = m_linear_before_reset ? builder::split(B, 4) : builder::split(B, 3);
+    OutputVector Xt_W_zrh = builder::split(Xt_W, 3, 1);
+    OutputVector R_zrh = builder::split(R_transpose, 3, 1);
+    OutputVector Ht_R_zrh = builder::split(Ht_R, 3, 1);
+    OutputVector biases_zrh = m_linear_before_reset ? builder::split(B, 4) : builder::split(B, 3);
 
     // zt = f(Xt*(Wz^T) + Ht-1*(Rz^T) + Wbz + Rbz)
     auto z_t = m_activation_f(clip(add(Xt_W_zrh[0], add(Ht_R_zrh[0], biases_zrh[0]))));
