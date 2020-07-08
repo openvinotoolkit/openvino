@@ -660,8 +660,13 @@ CNNLayer::Ptr NodeConverter<ngraph::op::v1::Add>::createLayer(const std::shared_
 
 template <>
 CNNLayer::Ptr NodeConverter<ngraph::op::v1::Broadcast>::createLayer(const std::shared_ptr<ngraph::Node>& layer) const {
-    THROW_IE_EXCEPTION << "Broadcast operation " << layer->get_friendly_name()
-                       << " should be converted to Tile operation";
+    // TODO: conversion opset1::Broadcast to BroadcastIE
+    LayerParams params = {layer->get_friendly_name(), "Broadcast",
+                          details::convertPrecision(layer->get_output_element_type(0))};
+    auto res = std::make_shared<InferenceEngine::BroadcastLayer>(params);
+    return res;
+//    THROW_IE_EXCEPTION << "Broadcast operation " << layer->get_friendly_name()
+//                       << " should be converted to Tile operation";
 }
 
 template <>

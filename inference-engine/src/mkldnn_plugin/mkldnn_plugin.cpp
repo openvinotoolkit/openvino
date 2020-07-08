@@ -69,7 +69,8 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork) {
 
         return std::dynamic_pointer_cast<const ::ngraph::opset2::Gelu>(node) ||
             std::dynamic_pointer_cast<const ::ngraph::opset2::BatchToSpace>(node) ||
-            std::dynamic_pointer_cast<const ::ngraph::opset2::SpaceToBatch>(node);
+            std::dynamic_pointer_cast<const ::ngraph::opset2::SpaceToBatch>(node); // ||
+//            std::dynamic_pointer_cast<const ::ngraph::opset1::Broadcast>(node);
     };
     auto nGraphFunc = clonedNetwork->getFunction();
     // Disable shape inference (WA for generic operations)

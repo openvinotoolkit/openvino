@@ -270,5 +270,10 @@ std::shared_ptr<Node> makePooling(const ngraph::Output<Node> &in,
                                   bool excludePad,
                                   const ngraph::helpers::PoolingTypes &poolType);
 
+std::shared_ptr<Node> makeBroadcast(const Output<Node> &in,
+                                    const op::BroadcastModeSpec &mode,
+                                    const std::vector<size_t> &targetShape,
+                                    const std::vector<size_t> &axesMapping);
+
 }  // namespace builder
 }  // namespace ngraph

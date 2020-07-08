@@ -16,10 +16,10 @@ void ngraph::pass::ConvertBroadcastToTiles::convert_broadcast_to_tiles() {
     auto axs = std::make_shared<pattern::op::Label>(element::i64, Shape {1});
     auto broadcast = std::make_shared<ngraph::opset1::Broadcast>(weights, shp, axs);
 
-    ngraph::graph_rewrite_callback callback = [](pattern::Matcher& m) {
+    ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto broadcast = std::dynamic_pointer_cast<ngraph::opset1::Broadcast>(m.get_match_root());
 
-        if (!broadcast) {
+        if (!broadcast || transformation_callback(broadcast)) {
             return false;
         }
 
