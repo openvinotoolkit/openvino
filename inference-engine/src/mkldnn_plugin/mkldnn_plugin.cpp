@@ -87,8 +87,7 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork, const Config& conf) 
     ngraph::pass::ConvertOpSet2ToOpSet1(transformations_callback).run_on_function(nGraphFunc);
 
     using namespace ngraph::pass::low_precision;
-    // std::cout << "nGraph LPT transformations were IGNORED" << std::endl;
-    if ((conf.lptVersion == Config::LptVersion::nGraph) && conf.lpTransformsMode == Config::LPTransformsMode::On) {
+    if ((conf.lptVersion == Config::LptVersion::nGraph) && (conf.lpTransformsMode == Config::LPTransformsMode::On)) {
         auto params = LayerTransformation::Params(true,  // updatePrecisions
                                                     true,  // quantizeOutputs
                                                     true,  // weightsToConst
@@ -101,39 +100,12 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork, const Config& conf) 
             .add<ConvolutionTransformation, ngraph::opset1::Convolution>(
                 LayerTransformation::Params(params).setPrecisionsOnActivations({ngraph::element::u8}))
             .add<GroupConvolutionTransformation, ngraph::opset1::GroupConvolution>(
-                LayerTransformation::Params(params).setPrecisionsOnActivations({ ngraph::element::u8 }))
-        );
-        #if 0 // TODO LPT-TO-NGRAPH
-        addCleanup<ScaleShiftToConvolutionTransformation>(
-                LayerTransformation::Params(params).setPrecisionsOnActivations({ngraph::element::u8}),
-                "ScaleShift"));
-        #endif
-
-        // std::vector<std::shared_ptr<ngraph::Function>> originalModule{ nGraphFunc };
-        // ngraph::pass::VisualizeTree("C:\\Projects\\temp\\test.original").run_on_module(originalModule);
+                LayerTransformation::Params(params).setPrecisionsOnActivations({ ngraph::element::u8 })));
 
         transformer.transform(nGraphFunc);
-        std::cout << "nGraph LPT transformations were DONE" << std::endl;
-
-        // std::vector<std::shared_ptr<ngraph::Function>> transformedModule{ nGraphFunc };
-        // ngraph::pass::VisualizeTree("C:\\Projects\\temp\\test.transformed").run_on_module(transformedModule);
     }
 
     ngraph::pass::ConvertOpSet1ToLegacy(transformations_callback).run_on_function(nGraphFunc);
-
-    // {
-    //    std::vector<std::shared_ptr<ngraph::Function>> module{nGraphFunc};
-    //    ngraph::pass::VisualizeTree("after_convert_to_legacy.svg").run_on_module(module);
-
-    //    // Output subgraphs as a separagge pictures
-    //    for (auto op : nGraphFunc->get_ops()) {
-    //        if (auto subgraph = ngraph::as_type_ptr<ngraph::op::Subgraph>(op)) {
-    //            std::vector<std::shared_ptr<ngraph::Function>> module_subgraph{subgraph->get_body()};
-    //            ngraph::pass::VisualizeTree(subgraph->get_name() + ".svg").run_on_module(module_subgraph);
-    //        }
-    //    }
-    // }
-
     clonedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(nGraphFunc, *clonedNetwork);
 }
 
