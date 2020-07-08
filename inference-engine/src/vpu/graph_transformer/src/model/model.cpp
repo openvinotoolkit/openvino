@@ -771,9 +771,9 @@ void ModelObj::removeStageDependency(const StageDependency& edge) {
 }
 
 void ModelObj::removeStageDependency(const Stage& stage, const Data& dependency) {
-    const auto &dependentStagesEdges = dependency->dependentStagesEdges();
+    const auto& dependentStagesEdges = dependency->dependentStagesEdges();
 
-    const auto it = std::find_if(dependentStagesEdges.begin(), dependentStagesEdges.end(), [&stage](const StageDependency &edge) {
+    const auto it = std::find_if(dependentStagesEdges.begin(), dependentStagesEdges.end(), [&stage](const StageDependency& edge) {
         return edge->dependentStage() == stage;
     });
 
