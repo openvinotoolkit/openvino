@@ -27,7 +27,7 @@
    For each element from the input tensor calculates corresponding
     element in the output tensor with the following formula:
     \f[
-    Mish( x ) = x*tanh{ln{1+e^{x}}}
+    Mish(x) = x*tanh(ln(1.0+e^{x}))
     \f]
 
 **Examples**
