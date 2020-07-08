@@ -351,7 +351,9 @@ def read_value(init_value: NodeInput, variable_id: str, name: Optional[str] = No
     :param name:         Optional name for output node.
     :return: ReadValue node
     """
-    return _get_node_factory().create("ReadValue", [as_node(init_value)], {"variable_id": variable_id})
+    return _get_node_factory().create(
+        "ReadValue", [as_node(init_value)], {"variable_id": variable_id}
+    )
 
 
 @nameable_op
@@ -603,4 +605,3 @@ def topk(
         as_nodes(data, k),
         {"axis": axis, "mode": mode, "sort": sort, "index_element_type": index_element_type},
     )
-

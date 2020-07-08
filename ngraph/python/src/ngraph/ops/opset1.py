@@ -940,6 +940,7 @@ def floor_mod(
         "FloorMod", [left_node, right_node], {"auto_broadcast": auto_broadcast.upper()}
     )
 
+
 @nameable_op
 def gather(
     data: NodeInput, indices: NodeInput, axis: NodeInput, name: Optional[str] = None
@@ -1643,6 +1644,7 @@ def minimum(
     return _get_node_factory().create(
         "Minimum", [left_node, right_node], {"auto_broadcast": auto_broadcast.upper()}
     )
+
 
 @binary_op
 def mod(
@@ -2779,8 +2781,7 @@ def tensor_iterator(
     concat_output_desc: List[TensorIteratorConcatOutputDesc],
     name: Optional[str] = None,
 ) -> Node:
-    """
-    Perform recurrent execution of the network described in the body, iterating through the data.
+    """Perform recurrent execution of the network described in the body, iterating through the data.
 
     :param      inputs:                The provided to TensorIterator operator.
     :param      graph_body:            The graph representing the body we execute.
@@ -2810,8 +2811,7 @@ def tensor_iterator(
         "body_output_desc": [desc.serialize() for desc in body_output_desc],
         "concat_output_desc": [desc.serialize() for desc in concat_output_desc],
     }
-
-    return _get_node_factory().create('TensorIterator', as_nodes(*inputs), attributes)
+    return _get_node_factory().create("TensorIterator", as_nodes(*inputs), attributes)
 
 
 @nameable_op

@@ -85,6 +85,25 @@ def batch_to_space(
         "BatchToSpace", as_nodes(data, block_shape, crops_begin, crops_end)
     )
 
+
+@unary_op
+def gelu(node: NodeInput, name: Optional[str] = None) -> Node:
+    r"""Perform Gaussian Error Linear Unit operation element-wise on data from input node.
+
+    Computes GELU function:
+
+    .. math:: f(x) = 0.5\cdot x\cdot(1 + erf( \dfrac{x}{\sqrt{2}})
+
+    For more information refer to:
+    `Gaussian Error Linear Unit (GELU) <https://arxiv.org/pdf/1606.08415.pdf>`_
+
+    :param node: Input tensor. One of: input node, array or scalar.
+    :param name: Optional output node name.
+    :return: The new node performing a GELU operation on its input data element-wise.
+    """
+    return _get_node_factory().create("Gelu", [node])
+
+
 @nameable_op
 def mvn(
     data: Node,
