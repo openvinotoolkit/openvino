@@ -72,6 +72,11 @@ namespace ngraph
                         const NodeVector& subgraph_params = {});
 
     NGRAPH_API
+    void traverse_nodes(const OutputVector& subgraph_results,
+                        std::function<void(std::shared_ptr<Node>)> f,
+                        const OutputVector& subgraph_params = {});
+
+    NGRAPH_API
     void traverse_nodes(const NodeVector& subgraph_results,
                         std::function<void(std::shared_ptr<Node>)> f,
                         bool,
@@ -454,6 +459,9 @@ namespace ngraph
     // or a node that belongs to args
     NGRAPH_API
     NodeVector extract_subgraph(const NodeVector& results, const NodeVector& args);
+
+    NGRAPH_API
+    NodeVector extract_subgraph(const OutputVector& results, const OutputVector& args);
 
     NGRAPH_API
     bool is_one(const Output<Node>& reduce_constant);
