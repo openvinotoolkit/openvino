@@ -145,6 +145,15 @@ CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const std::shared_ptr<Function>& nGra
     }
 }
 
+CNNNetworkNGraphImpl::~CNNNetworkNGraphImpl() {
+    for (auto& data : _data) {
+        if (!data.second) continue;
+        if (auto nData = std::dynamic_pointer_cast<NGraphData>(data.second)) {
+            nData->reset();
+        }
+    }
+}
+
 void CNNNetworkNGraphImpl::setInputInfo(InputInfo::Ptr data) {
     if (cnnNetwork) cnnNetwork->setInputInfo(data);
     _inputData[data->name()] = data;
@@ -461,7 +470,6 @@ StatusCode CNNNetworkNGraphImpl::setBatchSizeReshape(size_t size, ResponseDesc* 
 
 void CNNNetworkNGraphImpl::convertToCNNNetworkImpl() {
     IE_PROFILING_AUTO_SCOPE(convertToCNNNetworkImpl)
-    if (!cnnNetwork) {
+    if (!cnnNetwork)
         cnnNetwork = std::make_shared<details::CNNNetworkImpl>(*this);
-    }
 }
