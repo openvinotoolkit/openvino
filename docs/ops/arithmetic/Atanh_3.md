@@ -1,6 +1,6 @@
 ## Atanh <a name="Atanh"></a>
 
-**Versioned name**: *Atanh-4*
+**Versioned name**: *Atanh-3*
 
 **Category**: Arithmetic unary operation 
 

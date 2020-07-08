@@ -1,6 +1,6 @@
 ## Acosh <a name="Acosh"></a>
 
-**Versioned name**: *Acosh-4*
+**Versioned name**: *Acosh-3*
 
 **Category**: Arithmetic unary operation 
 

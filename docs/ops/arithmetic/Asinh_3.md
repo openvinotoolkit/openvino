@@ -1,6 +1,6 @@
 ## Asinh <a name="Asinh"></a>
 
-**Versioned name**: *Asinh-4*
+**Versioned name**: *Asinh-3*
 
 **Category**: Arithmetic unary operation 
 
