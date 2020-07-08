@@ -17,13 +17,8 @@
 #include <ngraph/ngraph.hpp>
 #include <ngraph/pass/get_output_element_elimination.hpp>
 #include <set>
-// #include <shape_infer/ie_reshaper.hpp>
 #include <string>
 
-#include <transformations/common_optimizations/common_optimizations.hpp>
-#include <transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
-#include <transformations/convert_opset2_to_opset1/convert_opset2_to_opset1.hpp>
-#include <transformations/convert_opset3_to_opset2/convert_opset3_to_opset2.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_one_hot_to_one_hot_ie.hpp>
 
 #include "ngraph_ops/eltwise.hpp"
@@ -35,7 +30,6 @@
 #include "ie_profiling.hpp"
 #include "network_serializer.h"
 #include "generic_ie.hpp"
-#include "convert_function_to_cnn_network.hpp"
 #include <shape_infer/built-in/ie_built_in_holder.hpp>
 
 using namespace std;
@@ -108,12 +102,6 @@ void CNNNetworkNGraphImpl::createDataForResult(const ::ngraph::Output<::ngraph::
         const auto layout = TensorDesc::getLayoutByDims(dims);
         ptr.reset(new NGraphData(this, outName, {precision, dims, layout}));
     }
-}
-
-std::shared_ptr<ICNNNetwork> CNNNetworkNGraphImpl::getCNNNetwork() {
-    if (!cnnNetwork)
-        convertToCNNNetworkImpl();
-    return cnnNetwork;
 }
 
 CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const std::shared_ptr<Function>& nGraph)
@@ -226,15 +214,6 @@ void CNNNetworkNGraphImpl::validate(int version) {
         _ngraph_function->validate_nodes_and_infer_types();
 }
 
-StatusCode CNNNetworkNGraphImpl::getLayerByName(const char* layerName, CNNLayerPtr& out, ResponseDesc* resp) const
-    noexcept {
-    if (!cnnNetwork) {
-        const_cast<CNNNetworkNGraphImpl *>(this)->convertToCNNNetworkImpl();
-    }
-    if (!cnnNetwork) return GENERAL_ERROR;
-    return cnnNetwork->getLayerByName(layerName, out, resp);
-}
-
 StatusCode CNNNetworkNGraphImpl::addOutput(const std::string& layerName, size_t outputIndex,
                                            ResponseDesc* resp) noexcept {
     IE_PROFILING_AUTO_SCOPE(addOutput)
@@ -334,9 +313,7 @@ CNNNetworkNGraphImpl::reshape(const std::map<std::string, std::vector<size_t>>& 
         }
         _ngraph_function->validate_nodes_and_infer_types();
 
-        if (cnnNetwork) {
-            convertToCNNNetworkImpl();
-        } else {
+        {
             auto specialized_ngraph_function = cloneFunction(true, inputShapes);
             // Call this transformation because OneHot IE and nGraph have different output precisions
             {
@@ -439,15 +416,7 @@ StatusCode CNNNetworkNGraphImpl::serialize(const std::string& xmlPath, const std
             return DescriptionBuffer(UNEXPECTED, resp);
         }
 
-        auto graph = cloneFunction();
-        // Disable shape inference (WA for generic operations)
-        ::ngraph::op::GenericIE::DisableReshape noReshape(graph);
-
-        ::ngraph::pass::CommonOptimizations().run_on_function(graph);
-        ::ngraph::pass::ConvertOpSet3ToOpSet2().run_on_function(graph);
-        ::ngraph::pass::ConvertOpSet2ToOpSet1().run_on_function(graph);
-        ::ngraph::pass::ConvertOpSet1ToLegacy().run_on_function(graph);
-        network = InferenceEngine::details::convertFunctionToICNNNetwork(graph, *this);
+        network = std::make_shared<details::CNNNetworkImpl>(*this);
     }
     if (!network) return GENERAL_ERROR;
     return network->serialize(xmlPath, binPath, resp);
@@ -501,15 +470,6 @@ StatusCode CNNNetworkNGraphImpl::setBatchSizeReshape(size_t size, ResponseDesc* 
 
 void CNNNetworkNGraphImpl::convertToCNNNetworkImpl() {
     IE_PROFILING_AUTO_SCOPE(convertToCNNNetworkImpl)
-    if (cnnNetwork)
-        return;
-    auto graph = cloneFunction();
-    // Disable shape inference (WA for generic operations)
-    ::ngraph::op::GenericIE::DisableReshape noReshape(graph);
-
-    ::ngraph::pass::CommonOptimizations().run_on_function(graph);
-    ::ngraph::pass::ConvertOpSet3ToOpSet2().run_on_function(graph);
-    ::ngraph::pass::ConvertOpSet2ToOpSet1().run_on_function(graph);
-    ::ngraph::pass::ConvertOpSet1ToLegacy().run_on_function(graph);
-    cnnNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(graph, *this);
+    if (!cnnNetwork)
+        cnnNetwork = std::make_shared<details::CNNNetworkImpl>(*this);
 }

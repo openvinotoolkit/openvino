@@ -189,9 +189,13 @@ class ConvertGroupedStridedSlice(MiddleReplacementPattern):
                 log.debug("Removed: {}".format(node.id))
 
             # 2. Create Split layer and reorder outputs
-            axis_const = Const(graph, {'value': int64_array(split_channel_dim)}).create_node_with_data()
-            size_splits_const = Const(graph, {'value': int64_array(size_splits)}).create_node_with_data()
-            split = VariadicSplit(graph, dict(name=name_for_future_split + "/Split", out_ports_count=len(size_splits)))
+            name = name_for_future_split + "/Split"
+            axis_const = Const(graph, {'value': int64_array(split_channel_dim),
+                                       'name': name + '/Axis'}).create_node_with_data()
+            size_splits_const = Const(graph, {'value': int64_array(size_splits),
+                                              'name': name + '/Sizes'}).create_node_with_data()
+            split = VariadicSplit(graph, dict(name=name, out_ports_count=len(size_splits)))
+
             split.create_node_with_data(inputs=[input_data, axis_const, size_splits_const],
                                         data_nodes=final_data_nodes_list)
 

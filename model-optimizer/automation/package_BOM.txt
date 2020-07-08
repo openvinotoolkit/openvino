@@ -144,6 +144,7 @@ extensions/front/kaldi/set_ports.py
 extensions/front/kaldi/sigmoid_ext.py
 extensions/front/kaldi/split_memoryoffsets.py
 extensions/front/kaldi/tanh_component_ext.py
+extensions/front/LayerNorm.py
 extensions/front/Log1p.py
 extensions/front/LogSoftmax.py
 extensions/front/MatMul_normalizer.py
@@ -177,6 +178,7 @@ extensions/front/mxnet/flatten_ext.py
 extensions/front/mxnet/fully_connected_ext.py
 extensions/front/mxnet/gather.py
 extensions/front/mxnet/gather_ext.py
+extensions/front/mxnet/gluoncv_ssd_anchors.py
 extensions/front/mxnet/instance_norm_ext.py
 extensions/front/mxnet/leaky_relu.py
 extensions/front/mxnet/lrn_ext.py
@@ -480,7 +482,6 @@ extensions/middle/__init__.py
 extensions/middle/AddFakeQuantizeFuse.py
 extensions/middle/AddIsCyclicAttribute.py
 extensions/middle/AddMeanScaleValues.py
-extensions/middle/AnchorToPriorBox.py
 extensions/middle/ApplyNHWCtoNCHWpermutation.py
 extensions/middle/ApplyPermutations.py
 extensions/middle/ArgMaxToTopK.py
@@ -555,7 +556,6 @@ extensions/middle/SliceConverter.py
 extensions/middle/SliceLikeToStridedSlice.py
 extensions/middle/sparse_reshape.py
 extensions/middle/SplitConcatPairToInterpolate.py
-extensions/middle/ssd_anchors_to_const.py
 extensions/middle/SwapAxesMiddleReplacer.py
 extensions/middle/TensorIterator_utils.py
 extensions/middle/TensorIteratorBackEdge.py

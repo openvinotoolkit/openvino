@@ -310,8 +310,6 @@ void Engine::QueryNetwork(const ICNNNetwork& network, const std::map<std::string
     }
 }
 
-IE_SUPPRESS_DEPRECATED_START
-
 INFERENCE_PLUGIN_API(StatusCode) CreatePluginEngine(IInferencePlugin*& plugin, ResponseDesc *resp) noexcept {
     try {
         plugin = make_ie_compatible_plugin(
@@ -324,5 +322,3 @@ INFERENCE_PLUGIN_API(StatusCode) CreatePluginEngine(IInferencePlugin*& plugin, R
         return DescriptionBuffer(GENERAL_ERROR, resp) << ex.what();
     }
 }
-
-IE_SUPPRESS_DEPRECATED_END

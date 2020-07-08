@@ -128,10 +128,8 @@ namespace ngraph
         std::map<std::string, NodeTypeInfo> m_case_insensitive_type_info_map;
     };
 
-    const NGRAPH_API OpSet& get_opset0();
     const NGRAPH_API OpSet& get_opset1();
     const NGRAPH_API OpSet& get_opset2();
     const NGRAPH_API OpSet& get_opset3();
-    // Every op after opset0
-    const NGRAPH_API OpSet& get_ie_opset();
+    const NGRAPH_API OpSet& get_opset4();
 }

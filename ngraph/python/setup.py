@@ -182,6 +182,7 @@ sources = [
     "pyngraph/axis_vector.cpp",
     "pyngraph/coordinate.cpp",
     "pyngraph/coordinate_diff.cpp",
+    "pyngraph/dict_attribute_visitor.cpp",
     "pyngraph/dimension.cpp",
     "pyngraph/function.cpp",
     "pyngraph/node.cpp",
@@ -364,7 +365,6 @@ class BuildExt(build_ext):
 
 with open(os.path.join(PYNGRAPH_ROOT_DIR, "requirements.txt")) as req:
     requirements = req.read().splitlines()
-    setup_requires = [item for item in requirements if item.strip().startswith("numpy")]
 
 setup(
     name="ngraph-core",
@@ -378,7 +378,6 @@ setup(
     packages=packages,
     cmdclass={"build_ext": BuildExt},
     data_files=data_files,
-    setup_requires=setup_requires,
     install_requires=requirements,
     zip_safe=False,
     extras_require={},

@@ -262,7 +262,7 @@ bool MKLDNNExecNetwork::CanProcessDynBatch(const InferenceEngine::ICNNNetwork &n
     if (inputs.empty())
         return false;
 
-    auto & secondLayers = inputs.begin()->second->getInputData()->getInputTo();
+    auto & secondLayers = getInputTo(inputs.begin()->second->getInputData());
     if (secondLayers.empty())
         return false;
 

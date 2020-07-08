@@ -38,7 +38,6 @@ ParamsKey EltwiseKernelRef::GetSupportedKey() const {
     k.EnableTensorOffset();
     k.EnableTensorPitches();
     k.EnableBatching();
-    k.EnableInt8Quantization();
     k.EnableEltwiseStride();
     k.EnableEltwiseBroadcast();
     return k;

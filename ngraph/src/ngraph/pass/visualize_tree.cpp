@@ -22,7 +22,6 @@
 #include "ngraph/graph_util.hpp"
 #include "ngraph/node.hpp"
 #include "ngraph/op/constant.hpp"
-#include "ngraph/op/experimental/compiled_kernel.hpp"
 #include "ngraph/op/get_output_element.hpp"
 #include "ngraph/op/parameter.hpp"
 #include "ngraph/pass/pass.hpp"
@@ -221,23 +220,6 @@ bool pass::VisualizeTree::run_on_module(vector<shared_ptr<Function>>& functions)
         size_t fake_node_ctr = 0;
 
         traverse_nodes(f, [&](shared_ptr<Node> node) {
-
-            if (auto ck = as_type_ptr<ngraph::op::CompiledKernel>(node))
-            {
-                // print sub-graph
-                auto nodes_list = ck->get_node_list();
-
-                // all nodes inside the CK sub-graph
-                for (auto& ck_node : nodes_list)
-                {
-                    m_ss << add_attributes(ck_node);
-                }
-                // all edges to each node in the sub-graph
-                for (auto& subgraph_node : nodes_list)
-                {
-                    add_node_arguments(subgraph_node, height_maps, fake_node_ctr);
-                }
-            }
             add_node_arguments(node, height_maps, fake_node_ctr);
         });
     }

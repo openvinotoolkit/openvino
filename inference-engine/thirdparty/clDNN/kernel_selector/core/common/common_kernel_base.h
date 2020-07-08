@@ -48,8 +48,6 @@ protected:
     Arguments GetArgsDesc(uint32_t num_of_input,
                           bool use_weights,
                           bool use_bias,
-                          bool use_quantization = false,
-                          bool use_calibration = 0,
                           uint32_t number_of_inputs_for_fused_prim = 0) const;
     std::shared_ptr<KernelString> GetKernelString(const std::string& kernel_name,
                                                   const std::string& jit,

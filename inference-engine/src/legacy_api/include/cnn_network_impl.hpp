@@ -10,6 +10,7 @@
 #include <string>
 #include <vector>
 
+#include "ie_layers.h"
 #include "ie_ishape_infer_extension.hpp"
 #include "description_buffer.hpp"
 #include "ie_api.h"
@@ -26,11 +27,10 @@ using ReshaperPtr = std::shared_ptr<Reshaper>;
 }  // namespace ShapeInfer
 namespace details {
 
-IE_SUPPRESS_DEPRECATED_START
-
 class INFERENCE_ENGINE_API_CLASS(CNNNetworkImpl): public ICNNNetwork {
 public:
     CNNNetworkImpl();
+    explicit CNNNetworkImpl(const ICNNNetwork & ngraphImpl); 
     ~CNNNetworkImpl() override;
 
     std::shared_ptr<::ngraph::Function> getFunction() noexcept override {
@@ -89,7 +89,7 @@ public:
         return getData(name.c_str());
     }
 
-    void addLayer(const CNNLayerPtr& layer) noexcept override;
+    void addLayer(const CNNLayerPtr& layer) noexcept;
 
     void removeLayer(const std::string& layerName);
 
@@ -98,7 +98,7 @@ public:
 
     void removeData(const std::string& dataName);
 
-    StatusCode getLayerByName(const char* layerName, CNNLayerPtr& out, ResponseDesc* resp) const noexcept override;
+    StatusCode getLayerByName(const char* layerName, CNNLayerPtr& out, ResponseDesc* resp) const noexcept;
 
     // public version
     StatusCode setBatchSize(size_t size, ResponseDesc* responseDesc) noexcept override;
@@ -140,8 +140,6 @@ protected:
     DataPtr _emptyData;
     ShapeInfer::ReshaperPtr _reshaper;
 };
-
-IE_SUPPRESS_DEPRECATED_END
 
 typedef std::shared_ptr<CNNNetworkImpl> CNNNetworkImplPtr;
 }  // namespace details

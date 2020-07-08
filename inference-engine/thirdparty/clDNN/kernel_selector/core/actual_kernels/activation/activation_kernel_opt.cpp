@@ -34,7 +34,6 @@ ParamsKey ActivationKernelOpt::GetSupportedKey() const {
     k.EnableAllOutputLayout();
     k.EnableTensorOffset();
     k.EnableBatching();
-    k.EnableGradient();
     return k;
 }
 
