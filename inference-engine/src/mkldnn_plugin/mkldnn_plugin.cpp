@@ -223,8 +223,7 @@ void Engine::AddExtension(InferenceEngine::IExtensionPtr extension) {
 
 void Engine::QueryNetwork(const ICNNNetwork& network, const std::map<std::string, std::string>& config, QueryNetworkResult& res) const {
     MKLDNNWeightsSharing::Ptr fake_w_cache;
-    auto function = network.getFunction();
-    if (function != nullptr) {
+    if (auto function =  network.getFunction()) {
         std::unordered_set<std::string> originalOps;
         for (auto&& node : function->get_ops()) {
             if (!node->is_constant() && !node->is_parameter() && !node->is_output()) {

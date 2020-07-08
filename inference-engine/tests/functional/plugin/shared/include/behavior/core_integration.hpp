@@ -106,8 +106,9 @@ public:
     }
     void setHeteroNetworkAffinity(const std::string& targetDevice) {
         const std::map<std::string, std::string> deviceMapping = {
-                {"Convololution_4", targetDevice},
-                {"Convololution_7", CommonTestUtils::DEVICE_CPU},
+                {"Split_2",         targetDevice},
+                {"Convolution_4",   targetDevice},
+                {"Convolution_7",   CommonTestUtils::DEVICE_CPU},
                 {"Relu_5",          CommonTestUtils::DEVICE_CPU},
                 {"Relu_8",          targetDevice},
                 {"Concat_9",        CommonTestUtils::DEVICE_CPU}

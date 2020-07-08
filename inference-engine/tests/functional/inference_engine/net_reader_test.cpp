@@ -147,6 +147,71 @@ TEST_P(NetReaderTest, ReadCorrectModelWithWeightsUnicodePath) {
 
 #endif
 
+TEST(NetReaderTest, IRSupportModelDetection) {
+    InferenceEngine::Core ie;
+
+    static char const *model = R"V0G0N(<net name="Network" version="10" some_attribute="Test Attribute">
+    <layers>
+        <layer name="in1" type="Parameter" id="0" version="opset1">
+            <data element_type="f32" shape="1,3,22,22"/>
+            <output>
+                <port id="0" precision="FP32">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </output>
+        </layer>
+        <layer name="Abs" id="1" type="Abs" version="experimental">
+            <input>
+                <port id="1" precision="FP32">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </input>
+            <output>
+                <port id="2" precision="FP32">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </output>
+        </layer>
+        <layer name="output" type="Result" id="2" version="opset1">
+            <input>
+                <port id="0" precision="FP32">
+                    <dim>1</dim>
+                    <dim>3</dim>
+                    <dim>22</dim>
+                    <dim>22</dim>
+                </port>
+            </input>
+        </layer>
+    </layers>
+    <edges>
+        <edge from-layer="0" from-port="0" to-layer="1" to-port="1"/>
+        <edge from-layer="1" from-port="2" to-layer="2" to-port="0"/>
+    </edges>
+</net>
+)V0G0N";
+
+    std::string headers[] = {
+        R"()",
+        R"(<!-- <net name="Network" version="100500"> -->)",
+        R"(<!-- <net name="Network" version="10" some_attribute="Test Attribute"> -->)"
+    };
+
+    InferenceEngine::Blob::CPtr weights;
+
+    for (auto header : headers) {
+        ASSERT_NO_THROW(ie.ReadNetwork(header + model, weights));
+    }
+}
+
 std::string getTestCaseName(testing::TestParamInfo<NetReaderTestParams> testParams) {
     InferenceEngine::SizeVector dims;
     InferenceEngine::Precision prc;
