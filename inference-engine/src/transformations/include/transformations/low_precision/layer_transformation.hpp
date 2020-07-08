@@ -287,13 +287,6 @@ public:
 
     virtual bool canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const;
 
-#if 0 // TODO: LPT-TO-NGRAPH
-
-    static element::Type getPrecisionBeforeParentDequantizationScaleShift(std::shared_ptr<Node> layer);
-
-#endif
-
-    static element::Type getPrecisionParent(std::shared_ptr<Node> layer);
     PrecisionDetails getPrecisionDetails(const QuantizationDetails& quantizationDetails) const;
 
     virtual bool isQuantized(std::shared_ptr<Node> layer) const noexcept;
@@ -359,9 +352,7 @@ protected:
     ILayerTransformationsManager* layerTransformationsManager;
 
 protected:
-    std::shared_ptr<ngraph::Node> separateInStandaloneBranch(
-        const FakeQuantizeDequantization& dequantization,
-        std::shared_ptr<ngraph::Node> node) const;
+    std::shared_ptr<ngraph::Node> separateInStandaloneBranch(std::shared_ptr<ngraph::Node> node) const;
 
     void updateOutput(
         TransformationContext &context,

@@ -66,16 +66,7 @@ protected:
             std::shared_ptr<Node> weightableLayer,
             const bool supportAsymmetricQuantization) const;
 
-        static bool isDepthwise(std::shared_ptr<Node> layer);
-
-    void calculateDequantizationForSymmetric(
-        std::shared_ptr<Node> weightableLayer,
-        const std::vector<float>& originalDataDequantizationScales,
-        const std::vector<float>& originalDataDequantizationShifts,
-        const std::vector<float>& originalWeightsDequantizationScales,
-        const std::vector<float>& originalWeightsDequantizationShifts,
-        std::vector<float>& dequantizationScales,
-        std::vector<float>& dequantizationShifts) const;
+    static bool isDepthwise(std::shared_ptr<Node> layer);
 };
 
 typedef std::shared_ptr<WeightableLayerTransformation> WeightableLayerTransformationPtr;

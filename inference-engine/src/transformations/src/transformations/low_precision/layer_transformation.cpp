@@ -290,27 +290,6 @@ void LayerTransformation::setMinQuantizationLevels(const size_t levels) {
     this->minQuantizationLevels = levels;
 }
 
-element::Type LayerTransformation::getPrecisionParent(std::shared_ptr<Node> layer) {
-#if 0   // TODO LPT-TO-NGRAPH
-    const CNNLayerPtr parent = CNNNetworkHelper::getParent(layer, 0);
-    if (parent == nullptr) {
-        THROW_TRANSFORMATION_EXCEPTION << "parent layer is absent";
-    }
-
-    for (const DataPtr outData : parent->outData) {
-        const auto inputTo = outData->getInputTo();
-        for (auto it = inputTo.begin(); it != inputTo.end(); ++it) {
-            if (it->second->name == layer.name) {
-                return outData->getPrecision();
-            }
-        }
-    }
-
-    THROW_TRANSFORMATION_EXCEPTION << "out data from '" << parent->name << "' to '" << layer.name << "' was not found";
-#endif
-    return layer->get_input_element_type(0);
-}
-
 LayerTransformation::PrecisionDetails LayerTransformation::getPrecisionDetails(const QuantizationDetails& quantizationDetails) const {
     const float asymmetricIntervalSideRatio256 = -128.f / 127.f;
     bool hasNegative = false;
@@ -449,7 +428,6 @@ void LayerTransformation::fillAvailablePrecisions(std::shared_ptr<Node> layer, s
             continue;
         }
 
-        // TODO FIXME: try to use NodeTypeInfo
         const std::vector<element::Type> childPrecisionsOnActivations = paramsManager->getPrecisionsOnActivations(*child);
         if (childPrecisionsOnActivations.size() == 0ul) {
             continue;
@@ -478,9 +456,8 @@ void LayerTransformation::fillAvailablePrecisions(std::shared_ptr<Node> layer, s
     }
 }
 
-std::shared_ptr<ngraph::Node> LayerTransformation::separateInStandaloneBranch(
-    const FakeQuantizeDequantization& dequantization,
-    std::shared_ptr<ngraph::Node> node) const {
+std::shared_ptr<ngraph::Node> LayerTransformation::separateInStandaloneBranch(std::shared_ptr<ngraph::Node> node) const {
+    FakeQuantizeDequantization dequantization = getDequantization(node);
     if (dequantization.isShared()) {
         bool nodeInputIndexToChangeWasFound = false;
         size_t nodeInputIndexToChange;

@@ -17,18 +17,11 @@
 #include <cassert>
 
 #include <ngraph/rt_info.hpp>
-
-// #include <ie_common.h>
-// #include <precision_utils.h>
-// #include "cnn_network_impl.hpp"
-// #include "ie_util_internal.hpp"
-// #include "ie_parallel.hpp"
 #include <transformations/low_precision/common/ie_lpt_exception.hpp>
 
 namespace ngraph {
 namespace pass {
 namespace low_precision {
-
 
 // Return true if `type` can be castable to at least one of `type`
 bool is_castable_to_one_of(NodeTypeInfo type, const std::unordered_set<NodeTypeInfo>& types) {
@@ -39,7 +32,6 @@ bool is_castable_to_one_of(NodeTypeInfo type, const std::unordered_set<NodeTypeI
     }
     return false;
 }
-
 
 // Collect and return a vector with all nodes that consumes any of the `node` output
 std::vector<Input<Node>> consumer_inputs(std::shared_ptr<Node> node) {
@@ -57,18 +49,6 @@ std::vector<std::shared_ptr<Node>> consumers(std::shared_ptr<Node> node) {
     std::vector<std::shared_ptr<Node>> result(inputs.size());
     std::transform(inputs.begin(), inputs.end(), result.begin(), [](Input<Node> input){ return input.get_node()->shared_from_this(); });
     return result;
-}
-
-
-void NetworkHelper::updateBlobs(std::shared_ptr<opset1::FakeQuantize> quantizeLayer, int constLayerIndex, float value) {
-    auto constant = std::dynamic_pointer_cast<opset1::Constant>(quantizeLayer->get_input_node_shared_ptr(constLayerIndex));
-    if (!constant) {
-        THROW_TRANSFORMATION_EXCEPTION << "Expected constant at " << constLayerIndex << " input for FakeQuantize node" << *quantizeLayer;
-    }
-
-    auto new_constant = std::make_shared<opset1::Constant>(constant->get_output_element_type(0), constant->get_output_shape(0), value);
-    copy_runtime_info(constant, new_constant);
-    replace_node(constant, new_constant);
 }
 
 int NetworkHelper::onWeightsInDepth(std::shared_ptr<Node> layer) {
@@ -103,72 +83,6 @@ int NetworkHelper::onWeightsInDepth(std::shared_ptr<Node> layer) {
 bool NetworkHelper::onWeights(std::shared_ptr<Node> layer) {
     const int result = onWeightsInDepth(layer);
     return result == 1;
-}
-
-std::vector<std::shared_ptr<ngraph::opset1::Constant>> NetworkHelper::transformFakeQuantizeToConst(TransformationContext& context,
-                                                                        std::shared_ptr<Node> fakeQuantize,
-                                                                        std::shared_ptr<opset1::Constant> weights,
-                                                                        const std::string& constLayerName) {
-    // TODO: update context by deleting removed layer and adding new layer if really needed
-    // TODO: set proper name for a constant
-    std::vector<std::shared_ptr<ngraph::opset1::Constant>> result{weights};
-    copy_runtime_info(fakeQuantize, weights);
-    replace_node(fakeQuantize, weights);
-    return result;
-#if 0 // TODO: LPT-TO-NGRAPH
-    std::vector<CNNLayerPtr> constLayersToRemove;
-    constLayersToRemove.reserve(fakeQuantize->insData.size());
-
-    for (const DataWeakPtr& insDataWeak : fakeQuantize->insData) {
-        const DataPtr insData = insDataWeak.lock();
-        if (insData == nullptr) {
-            THROW_TRANSFORMATION_EXCEPTION << "input data for FakeQuantize '" << fakeQuantize->name << "' is nullable";
-        }
-        const CNNLayerPtr parent = insData->getCreatorLayer().lock();
-        if (parent == nullptr) {
-            THROW_TRANSFORMATION_EXCEPTION << "input layer for FakeQuantize '" << fakeQuantize->name << "' is nullable";
-        }
-        if (!CaselessEq<std::string>()(parent->type, "Const") || (parent->insData.size() != 0lu)) {
-            THROW_TRANSFORMATION_EXCEPTION << "unexpected FakeQuantize input layer type " << parent->type << " for layer '"
-                               << fakeQuantize->name << "' is nullable";
-        }
-
-        constLayersToRemove.push_back(parent);
-    }
-
-    for (const CNNLayerPtr& parent : constLayersToRemove) {
-        NetworkHelper::removeLayer(context.network, parent);
-        context.removeLayer(*parent);
-    }
-
-    if (fakeQuantize->outData.size() != 1lu) {
-        THROW_TRANSFORMATION_EXCEPTION << "FakeQuantize " << fakeQuantize->name << " has several outputs";
-    }
-
-    const DataPtr outData = fakeQuantize->outData[0];
-    if (outData == nullptr) {
-        THROW_TRANSFORMATION_EXCEPTION << "FakeQuantize output data is nullable";
-    }
-
-    // const Precision precision = outData->getPrecision();
-    const auto inputTo = outData->getInputTo();
-    std::vector<CNNLayerPtr> constLayers;
-    for (auto it : inputTo) {
-        const CNNLayerPtr child = it.second;
-        if (child == nullptr) {
-            THROW_TRANSFORMATION_EXCEPTION << "child layer for FakeQuantize " << fakeQuantize->name << " is nullable";
-        }
-
-        constLayers.push_back(
-            NetworkHelper::addConstBetween(context.network, fakeQuantize, child, weights, constLayerName));
-    }
-
-    NetworkHelper::removeLayer(context.network, fakeQuantize);
-    context.removeLayer(*fakeQuantize);
-
-    return constLayers;
-
-#endif
 }
 
 bool NetworkHelper::IsChild(
@@ -272,134 +186,9 @@ Shape alignShapeForChannelDim(const Shape& shape, Rank rank) {
     return result;
 }
 
-std::shared_ptr<Node> NetworkHelper::addScaleShiftBeforeInput(TransformationContext& context,
-                                                   const Input<Node>& input,
-                                                   const DequantizationDetails& dequantizationDetails,
-                                                   const std::string& name) {
-    auto parent = input.get_source_output().get_node_shared_ptr();
-    std::string layerName = name.empty() ? (parent->get_friendly_name() + "_ScaleShift_" + input.get_node()->get_friendly_name()) : name;
-
-    element::Type ssPrecision = context.getOriginalLayerPrecision(parent->get_friendly_name(), input.get_source_output().get_index());
-    // TODO: LPT-TO-NGRAPH, not sure that it covers all valid cases
-    if (ssPrecision == element::undefined) {
-        ssPrecision = input.get_element_type();
-    }
-
-    auto scaleConst = std::make_shared<opset1::Constant>(
-            ssPrecision,
-            alignShapeForChannelDim(Shape{dequantizationDetails.channelsCount}, input.get_partial_shape().rank()),
-            dequantizationDetails.scales);
-    auto shiftConst = std::make_shared<opset1::Constant>(
-            ssPrecision,
-            alignShapeForChannelDim(Shape{dequantizationDetails.channelsCount}, input.get_partial_shape().rank()),
-            dequantizationDetails.shifts);
-
-    auto ssLayer = std::make_shared<ngraph::op::MultiplyAdd>(input.get_source_output(), scaleConst, shiftConst);
-
-    input.get_source_output().remove_target_input(input); // Disconnect source output from input of interest
-    input.replace_source_output(ssLayer->output(0)); // Connect input of interest to just created new node ssLayer output
-
-    NetworkHelper::setOutDataPrecision(ssLayer, ssPrecision);
-    return ssLayer;
-}
-
-void NetworkHelper::addDequantizationAfter(TransformationContext& context,
-                                                              const Output<Node>& output,
-                                                              const DequantizationDetails& dequantizationDetails) {
-    auto node = output.get_node_shared_ptr();
-
-    // TODO: provide consumer_inputs for a single output port and replace here
-    auto children = consumer_inputs(node);
-
-    std::string nameForResult = node->get_friendly_name();
-    for (auto child : children) {
-        std::string nameForDequantize;
-        if (child.get_node()->get_type_info().is_castable(opset1::Result::get_type_info_static())) {
-            if (nameForDequantize.empty()) {
-                // TODO: not a regular situation when we have more than one Result for FQ or we don't have friendly_name for FQ
-            } else {
-                nameForDequantize = nameForResult;
-                nameForResult.clear();  // use only once
-            }
-        }
-        auto dequantizationLayer = addScaleShiftBeforeInput(
-                context,
-                child,
-                dequantizationDetails,
-                nameForDequantize);
-        context.dequantizationLayersNames.insert(dequantizationLayer->get_friendly_name());
-    }
-}
-
-std::vector<std::shared_ptr<Node>> NetworkHelper::getChildrenRecursivelyExceptTypes(
-        std::shared_ptr<Node> layer, const std::unordered_set<NodeTypeInfo>& exceptionLayerTypes) {
-    std::vector<std::shared_ptr<Node>> children;
-    for (auto child : consumers(layer)) {
-        if (is_castable_to_one_of(child->get_type_info(), exceptionLayerTypes)) {
-            const std::vector<std::shared_ptr<Node>> tmpChildren = getChildrenRecursivelyExceptTypes(child, exceptionLayerTypes);
-            children.insert(children.end(), tmpChildren.begin(), tmpChildren.end());
-        }
-        children.push_back(child);
-    }
-    return children;
-}
-
 void NetworkHelper::removeLayer(std::shared_ptr<Node> layer) {
     ngraph::replace_output_update_name(layer->output(0), layer->input_value(0));
 }
-
-std::shared_ptr<ngraph::opset1::Constant> NetworkHelper::quantizeWeights(
-        std::shared_ptr<Node> quantize,
-        const bool roundValues,
-        const ngraph::element::Type precision) {
-    std::cerr << "[ ERROR ] " << __FILE__ << ":" << __LINE__ << '\n';
-    // FIXME: this is just a placeholder
-    return std::make_shared<ngraph::opset1::Constant>(quantize->get_input_element_type(0), quantize->get_input_shape(0), 5);
-#if 0 // TODO: LPT-TO-NGRAPH
-    if (quantize.insData.size() != 5lu) {
-        THROW_TRANSFORMATION_EXCEPTION << "Unexpected inputs count: " << quantize.insData.size();
-    }
-    for (int i = 0; i < quantize.insData.size(); i++)
-        if (quantize.insData[i].lock() == nullptr)
-            THROW_TRANSFORMATION_EXCEPTION << "Invalid input data for layer '" << quantize.name << "' with index " << i;
-
-    const Blob::Ptr sourceBlob = getQuantizeLayerBlob(quantize);
-    if (sourceBlob == nullptr) {
-        THROW_TRANSFORMATION_EXCEPTION << "weights blob is empty for " << quantize.type << " layer " << quantize.name;
-    }
-
-    const auto& sourceBlobTD = sourceBlob->getTensorDesc();
-    const Precision blobPrecision = sourceBlobTD.getPrecision();
-
-    auto targetBlobPrecision = precision == Precision::UNSPECIFIED ? blobPrecision : precision;
-    if (targetBlobPrecision != Precision::FP32 && targetBlobPrecision != Precision::FP16 &&
-        targetBlobPrecision != Precision::I8 && targetBlobPrecision != Precision::U8)
-        THROW_TRANSFORMATION_EXCEPTION << "Unexpected precision: " << precision;
-
-    Blob::Ptr targetBlob = make_blob_with_precision(TensorDesc(targetBlobPrecision, sourceBlobTD.getDims(), sourceBlobTD.getLayout()));
-    targetBlob->allocate();
-
-    quantizeBlob(quantize, targetBlob, roundValues);
-
-    return targetBlob;
-#endif
-}
-
-//std::shared_ptr<opset1::Add> decomposeMultiplyAdd(std::shared_ptr<op::MultiplyAdd> multiplyAdd) {
-//    using namespace std;
-//    using namespace ngraph::op;
-//    // FIXME: need to modify data_type on output to be aligned with MultiplyAdd output
-//    // it is fundamental limitation of TypeRelaxed approach when constructing new graphs
-//    //NetworkHelper::setOutDataPrecision(multiplyAdd->input_value(0).get_node_shared_ptr(), multiplyAdd->get_output_element_type(0));
-//    AutoReplaceInputTypes<Node> auto_type(*multiplyAdd, multiplyAdd->get_output_element_type(0));
-//    auto multiply = make_shared<TypeRelaxed<opset1::Multiply>>(
-//            opset1::Multiply(multiplyAdd->input_value(0), multiplyAdd->input_value(1)), multiplyAdd->get_output_element_type(0));
-//    auto add = make_shared<opset1::Add>(multiply, multiplyAdd->input_value(2));
-//    copy_runtime_info(multiplyAdd, {multiply, add});
-//    add->set_friendly_name(multiplyAdd->get_friendly_name());
-//    replace_node(multiplyAdd, add);
-//    return add;
-//}
 
 std::shared_ptr<opset1::Multiply> swapMultiplyAndAdd(std::shared_ptr<opset1::Add> addAfterMultiply) {
     // Multiply --> Add(addAfterMultiply)  ==>  Add(new) --> Multiply(new)
@@ -440,20 +229,7 @@ std::shared_ptr<opset1::Multiply> swapMultiplyAndAdd(std::shared_ptr<opset1::Add
 }
 
 bool isScalarLike(std::shared_ptr<opset1::Constant> constant) {
-#if 1
     return constant->get_all_data_elements_bitwise_identical();
-#else
-    // FIXME: work for floats only
-    const auto scalesBuffer = constant->cast_vector<float>();
-    size_t scalesBufferSize = shape_size(constant->get_output_shape(0));
-
-    for (size_t i = 1ul; i < scalesBufferSize; ++i) {
-        if (scalesBuffer[i - 1ul] != scalesBuffer[i]) {
-            return false;
-        }
-    }
-    return true;
-#endif
 }
 
 std::shared_ptr<opset1::Constant> distillToScalar(std::shared_ptr<opset1::Constant> constant) {
@@ -468,7 +244,6 @@ std::shared_ptr<Node> getConstantInput(std::shared_ptr<Node> node) {
     }
     return constant1;
 }
-
 
 std::shared_ptr<ngraph::opset1::Multiply> optimizeMultipliesAfter(std::shared_ptr<Node> node) {
     std::shared_ptr<ngraph::opset1::Multiply> multiply = as_type_ptr<opset1::Multiply>(node);
@@ -547,12 +322,8 @@ std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> decomposeFakeQuantize(
         fold<opset1::Subtract>(fold<opset1::Multiply>(newMin, outputHigh), fold<opset1::Multiply>(newMax, outputLow)),
         fold<opset1::Subtract>(outputHigh, outputLow));
 
-    //auto scaleValues = as_type_ptr<opset1::Constant>(scale)->cast_vector<float>();
-    //auto shiftValues = as_type_ptr<opset1::Constant>(shift)->cast_vector<float>();
-
     // Build a substitution sub-graph:
 
-    // TODO: question: why we need fold?
     auto newFQ = fold_fake_quantize<opset1::FakeQuantize>(
     // std::shared_ptr<opset1::FakeQuantize> newFQ = std::make_shared<ngraph::op::TypeRelaxed<opset1::FakeQuantize>>(
             fq->input_value(0),
