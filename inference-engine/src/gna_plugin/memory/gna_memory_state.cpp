@@ -35,7 +35,8 @@ namespace memory {
                 state_precision = InferenceEngine::Precision::I16;
                 break;
             default:
-                THROW_GNA_EXCEPTION << "Incorrect state element size to determine precision";
+                THROW_GNA_EXCEPTION << "Incorrect state element size " << element_size <<
+                    " to determine precision for MemoryState " << name;
             }
         }
 
@@ -43,15 +44,23 @@ namespace memory {
     }
 
     void GNAMemoryState::SetState(InferenceEngine::Blob::Ptr newState) {
+        IE_ASSERT(newState != nullptr);
+
         auto data_ptr = newState->cbuffer().as<void*>();
+        IE_ASSERT(data_ptr != nullptr);
         auto data_size = newState->byteSize();
         auto data_elements = data_size / newState->element_size();
         if (ALIGN64(state->reserved_size) != ALIGN64((data_size / (newState->element_size() / state->elementSizeBytes())))) {
-            THROW_GNA_EXCEPTION << "Failed to SetState. Sizes of new and old states do not match";
+            THROW_GNA_EXCEPTION << "Failed to SetState. Sizes of new and old states do not match. ("
+                << state->reserved_size << " != " << (newState->element_size() / state->elementSizeBytes()) << ")";
         }
 
         InferenceEngine::Precision state_precision = getPrecision();
         auto new_state_precision = newState->getTensorDesc().getPrecision();
+
+        if (state->gna_ptr == data_ptr) {
+            return;
+        }
 
         if (new_state_precision == state_precision) {
             std::memcpy(state->gna_ptr, data_ptr, data_size);
@@ -69,12 +78,16 @@ namespace memory {
                     data_elements,
                     scale_factor);
             } else {
-                THROW_GNA_EXCEPTION << "Failed to SetState. If old state precision is I16 only I16 and FP32 are allowed as new state precisions.";
+                THROW_GNA_EXCEPTION << "Failed to SetState for MemoryState " << name
+                    << ". If old state precision is I16 only I16 and FP32 are allowed as new state precisions."
+                    << " Old state: " << state_precision << " New state: " << new_state_precision;
             }
             break;
         }
         default:
-            THROW_GNA_EXCEPTION << "Failed to SetState. Incorrect new/old precision pair";
+            THROW_GNA_EXCEPTION << "Failed to SetState for MemoryState " << name
+                << ". Incorrect new/old precision pair"
+                << " Old state: " << state_precision << " New state: " << new_state_precision;
         }
     }
 
@@ -102,8 +115,9 @@ namespace memory {
         } else {
             auto result_blob = make_blob_with_precision(InferenceEngine::TensorDesc(state_precision,
                 InferenceEngine::SizeVector({ 1, elements }),
-                InferenceEngine::NC),
-                state->gna_ptr);
+                InferenceEngine::NC));
+            result_blob->allocate();
+            std::memcpy(state->gna_ptr, result_blob->buffer(), state->reserved_size);
 
             return result_blob;
         }

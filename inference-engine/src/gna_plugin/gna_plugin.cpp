@@ -1102,7 +1102,7 @@ std::vector<InferenceEngine::MemoryStateInternal::Ptr>  GNAPlugin::QueryState() 
     if (memoryStates.size() != graphCompiler.memory_connection.size()) {
         memoryStates.clear();
         for (auto& connection : graphCompiler.memory_connection) {
-            auto state = std::make_shared<memory::GNAMemoryState>(connection.first, &connection.second);
+            auto state = std::make_shared<memory::GNAMemoryState>(connection.first, std::make_shared <GNAMemoryLayer>(connection.second));
             memoryStates.emplace_back(state);
         }
     }

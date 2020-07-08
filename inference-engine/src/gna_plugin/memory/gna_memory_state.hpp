@@ -13,8 +13,8 @@ namespace  GNAPluginNS {
 namespace memory {
 class GNAMemoryState : public InferenceEngine::IMemoryStateInternal {
  public:
-    GNAMemoryState(std::string name, GNAMemoryLayer *state)
-        : name(name), state(state) { }
+    GNAMemoryState(std::string name, std::shared_ptr<GNAMemoryLayer> state)
+        : name(name), state(state) { IE_ASSERT(state != nullptr); }
 
     void Reset() override;
     void SetState(InferenceEngine::Blob::Ptr newState) override;
@@ -22,7 +22,7 @@ class GNAMemoryState : public InferenceEngine::IMemoryStateInternal {
     std::string GetName() const override;
 
 private:
-    GNAMemoryLayer* state;
+    std::shared_ptr<GNAMemoryLayer> state;
     std::string name;
 
 /**
