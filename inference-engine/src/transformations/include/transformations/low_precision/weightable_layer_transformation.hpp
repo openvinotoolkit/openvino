@@ -21,7 +21,6 @@ public:
     const element::Type low;
 };
 
-
 class TRANSFORMATIONS_API WeightableLayerTransformation : public LayerTransformation{
 public:
     WeightableLayerTransformation(const Params& params);
@@ -30,41 +29,10 @@ public:
     bool isQuantized(std::shared_ptr<Node> layer) const noexcept;
     bool isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept;
 
-#if 0 // TODO: LPT-TO-NGRAPH
 protected:
-    void updateLayerBiases(
-        TransformationContext& context,
-        const CNNLayer& convolution,
-        std::vector<float>& dequantizationScales,
-        std::vector<float>& dequantizationShifts,
-        std::vector<float>& biasesShifts) const;
-
-    void updateWeights(
-        const CNNLayerPtr fakeQuantize,
-        std::vector<float>& outputLowValues,
-        std::vector<float>& outputHighValues) const;
-
-    void updateToSupportAsymmetricQuantization(
-        TransformationContext& context,
-        const CNNLayer& layer,
-        const PrecisionsInfo& dataPrecisionsInfo,
-        std::vector<float>& dataShifts,
-        const PrecisionsInfo& weightsPrecisionsInfo,
-        std::vector<float>& weightsShifts) const;
-
-    void createAsymmetric(
-        TransformationContext& context,
-        const CNNLayer& parent,
-        const CNNLayer& child,
-        const PrecisionsInfo& precisionsInfo,
-        const std::vector<float>& quantizationShifts,
-        const bool onWeights) const;
-
-#endif
-
     DataPrecision decomposeFakeQuantizeForWeightsPath(
-            std::shared_ptr<Node> weightableLayer,
-            const bool supportAsymmetricQuantization) const;
+        std::shared_ptr<Node> weightableLayer,
+        const bool supportAsymmetricQuantization) const;
 
     static bool isDepthwise(std::shared_ptr<Node> layer);
 };
