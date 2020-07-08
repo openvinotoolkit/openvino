@@ -18,7 +18,10 @@ void FrontEnd::removeConstLayers(ie::ICNNNetwork& network) {
     env.log->trace("Remove const layers");
     VPU_LOGGER_SECTION(env.log);
 
-    ie::ConstTransformer(&network).fullTrim();
+    auto implNetwork = dynamic_cast<ie::details::CNNNetworkImpl *>(&network);
+    VPU_THROW_UNLESS(implNetwork != nullptr, "FrontEnd::removeConstLayers expects CNNNetworkImpl");
+
+    ie::ConstTransformer(implNetwork).fullTrim();
 }
 
 }  // namespace vpu
