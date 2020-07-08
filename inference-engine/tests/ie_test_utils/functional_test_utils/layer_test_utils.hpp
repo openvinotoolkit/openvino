@@ -88,7 +88,9 @@ protected:
 
     void LoadNetwork();
 
-    void Infer();
+    virtual void Infer();
+
+    virtual void Validate();
 
     TargetDevice targetDevice;
     std::shared_ptr<ngraph::Function> function;
@@ -102,16 +104,13 @@ protected:
     std::vector<InferenceEngine::Blob::Ptr> inputs;
     float threshold;
     InferenceEngine::CNNNetwork cnnNetwork;
-    virtual void Validate();
-
     virtual std::vector<std::vector<std::uint8_t>> CalculateRefs();
-
     InferenceEngine::InferRequest inferRequest;
+    std::vector<InferenceEngine::Blob::Ptr> GetOutputs();
 
 private:
     void ConfigureNetwork() const;
 
-    std::vector<InferenceEngine::Blob::Ptr> GetOutputs();
     std::shared_ptr<InferenceEngine::Core> core;
     RefMode refMode = RefMode::INTERPRETER;
 };
