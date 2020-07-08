@@ -21,19 +21,6 @@ TransformationContext::TransformationContext(std::shared_ptr<Function> network)
 #endif
 }
 
-#if 1   // TODO LPT-TO-NGRAPH: not needed?
-void TransformationContext::removeLayer(std::shared_ptr<Node> layer) {
-    std::cerr << "Deprecated function TransformationContext::removeLayer is called at " << __FILE__ << ':' << __LINE__ << '\n';
-//    for (size_t i = 0lu; i < layers.size(); ++i) {
-//        // FIXME: rely on node pointer or names, not on friendly names
-//        if ((layers[i] != nullptr) && (layers[i]->get_friendly_name() == layer->get_friendly_name())) {
-//            layers[i] = nullptr;
-//            break;
-//        }
-//    }
-}
-#endif
-
 }  // namespace low_precision
 }  // namespace pass
 }  // namespace ngraph

@@ -15,23 +15,13 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-
 class TRANSFORMATIONS_API TransformationContext {
 public:
     explicit TransformationContext(std::shared_ptr<Function> network);
 
-    // TODO: not needed?
-    void removeLayer(std::shared_ptr<Node> layer);
-
     std::shared_ptr<Function> network;
     std::unordered_set<std::string> quantizedFakeQuantizeNames;
     std::unordered_set<std::string> dequantizationLayersNames;
-
-    // TODO: not needed?
-//    const std::vector<std::shared_ptr<Node>>& getLayers() {
-//        // WARNING: big vector copying
-//        return layers;
-//    }
 
     inline ngraph::element::Type getOriginalLayerPrecision(const std::string& layer_name, const size_t output_index = 0) {
         const auto& data_map = _original_precisions_map.find(layer_name);
