@@ -173,7 +173,8 @@ void ConcatTransformation::transform(TransformationContext& context, ngraph::pat
             dataPrecision.max);
 
         for (int index = 0; index < subgraph.quantizationLayers.size(); index++) {
-            std::shared_ptr<ngraph::opset1::FakeQuantize> fakeQuantizeLayer = as_type_ptr<ngraph::opset1::FakeQuantize>(subgraph.quantizationLayers[index]->shared_from_this());
+            std::shared_ptr<ngraph::opset1::FakeQuantize> fakeQuantizeLayer = as_type_ptr<ngraph::opset1::FakeQuantize>(
+                subgraph.quantizationLayers[index]->shared_from_this());
             const QuantizationDetails& quantizationDetails = quantizationLayersDetails[index];
 
             switch (quantizedTensorAlignmentOnActivations) {
