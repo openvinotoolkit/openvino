@@ -20,8 +20,8 @@
 
 namespace LayerTestsDefinitions {
 
-std::string StridedSliceLayerTest::getTestCaseName(const testing::TestParamInfo<Parameters> &obj) {
-    StridedSliceParams params;
+std::string StridedSliceLayerTest::getTestCaseName(const testing::TestParamInfo<StridedSliceParams> &obj) {
+    StridedSliceSpecificParams params;
     InferenceEngine::Precision netPrc;
     std::string targetName;
     std::map<std::string, std::string> additionalConfig;
@@ -42,7 +42,7 @@ std::string StridedSliceLayerTest::getTestCaseName(const testing::TestParamInfo<
 }
 
 void StridedSliceLayerTest::SetUp() {
-    StridedSliceParams ssParams;
+    StridedSliceSpecificParams ssParams;
     InferenceEngine::Precision netPrecision;
     std::map<std::string, std::string> additionalConfig;
     std::tie(ssParams, netPrecision, targetDevice, additionalConfig) = this->GetParam();

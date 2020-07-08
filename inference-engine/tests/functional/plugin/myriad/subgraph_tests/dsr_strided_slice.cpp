@@ -10,9 +10,6 @@
 
 namespace {
 
-using DataType = ngraph::element::Type_t;
-using DataDims = ngraph::Shape;
-
 using namespace LayerTestsUtils::vpu;
 
 struct StridedSliceParams {
@@ -42,10 +39,10 @@ protected:
         std::tie(params, netPrecision, targetDevice) = this->GetParam();
 
         const auto input = createInputSubgraphWithDSR(netPrecision, params.inputShape);
-        auto ss = ngraph::builder::makeStridedSlice(input, params.begin, params.end, params.strides, netPrecision, params.beginMask,
+        const auto stridedSlice = ngraph::builder::makeStridedSlice(input, params.begin, params.end, params.strides, netPrecision, params.beginMask,
                                                     params.endMask, params.newAxisMask, params.shrinkAxisMask, params.ellipsisMask);
 
-        return ss;
+        return stridedSlice;
     }
 };
 

@@ -16,7 +16,7 @@ namespace {
 
 typedef std::map<std::string, std::string> Config;
 
-std::vector<StridedSliceParams> testCases = {
+std::vector<StridedSliceSpecificParams> testCases = {
     { { 1, 12, 100 }, { 0, 9, 0 }, { 0, 11, 0 }, { 1, 1, 1 }, { 1, 0, 1 }, { 1, 0, 1 },  { 0, 0, 0 },  { 0, 0, 0 },  { 0, 0, 0 } },
     { { 1, 12, 100 }, { 0, 1, 0 }, { 0, -1, 0 }, { 1, 1, 1 }, { 1, 0, 1 }, { 1, 0, 1 },  { 0, 0, 0 },  { 0, 0, 0 },  { 0, 0, 0 } },
     { { 1, 12, 100 }, { 0, 8, 0 }, { 0, 9, 0 }, { 1, 1, 1 }, { 1, 0, 1 }, { 1, 0, 1 },  {},  {},  {} },

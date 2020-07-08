@@ -13,7 +13,7 @@
 
 namespace LayerTestsDefinitions {
 
-struct StridedSliceParams {
+struct StridedSliceSpecificParams {
     InferenceEngine::SizeVector inputShape;
     std::vector<int64_t> begin;
     std::vector<int64_t> end;
@@ -25,17 +25,17 @@ struct StridedSliceParams {
     std::vector<int64_t> ellipsisAxisMask;
 };
 
-using Parameters = std::tuple<
-        StridedSliceParams,
+using StridedSliceParams = std::tuple<
+        StridedSliceSpecificParams,
         InferenceEngine::Precision,        // Net precision
         std::string,                       // Device name
         std::map<std::string, std::string> // Additional network configuration
 >;
 
-class StridedSliceLayerTest : public testing::WithParamInterface<Parameters>,
+class StridedSliceLayerTest : public testing::WithParamInterface<StridedSliceParams>,
                               public LayerTestsUtils::LayerTestsCommon {
 public:
-    static std::string getTestCaseName(const testing::TestParamInfo<Parameters> &obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<StridedSliceParams> &obj);
 
 protected:
     void SetUp() override;
