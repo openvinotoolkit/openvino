@@ -88,7 +88,8 @@ void TemplatePlugin::ExecutableNetwork::CompileGraph(const std::shared_ptr<const
     // Example: register CommonOptimizations transformation from transformations library
     passManager.register_pass<ngraph::pass::CommonOptimizations>();
     // Example: register plugin specific transformation
-    passManager.register_pass<ngraph::pass::MyPatternBasedTransformation>();
+    passManager.register_pass<ngraph::pass::DecomposeDivideMatcher>();
+    passManager.register_pass<ngraph::pass::ReluReluFusionMatcher>();
     // Register any other transformations
     // ..
 

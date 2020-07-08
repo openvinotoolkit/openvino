@@ -113,9 +113,11 @@ bool pass::GraphRewrite::run_on_function(shared_ptr<Function> f)
                 auto new_nodes = m_pass->get_new_nodes();
                 if (!new_nodes.empty())
                 {
-                    for (auto& new_node : new_nodes)
+                    // Need to push nodes in reverse order as we expect that nodes in new_nodes
+                    // vector are in topological order
+                    for (auto it = new_nodes.rbegin(); it != new_nodes.rend(); it++)
                     {
-                        nodes_to_run.emplace_front(new_node);
+                        nodes_to_run.emplace_front(*it);
                     }
                 }
 

@@ -3,6 +3,7 @@
 //
 
 #include "template_pattern_transformation.hpp"
+#include "template_function_transformation.hpp"
 
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/rt_info.hpp>
@@ -97,11 +98,35 @@ if (ngraph::pass::DecomposeDivideMatcher().apply(node)) {
 void run_matcher_with_manager(std::shared_ptr<ngraph::Function> f) {
 // ! [matcher_pass:manager]
 // Two matchers will run independently (two independent graph traversals)
+// pass::Manager automatically creates GraphRewrite container for each MatcherPass
 pass::Manager manager;
 manager.register_pass<ngraph::pass::DecomposeDivideMatcher>();
 manager.register_pass<ngraph::pass::ReluReluFusionMatcher>();
 manager.run_passes(f);
 // ! [matcher_pass:manager]
+}
+
+void run_matcher_with_manager2(std::shared_ptr<ngraph::Function> f) {
+// ! [matcher_pass:manager2]
+// Register anchor GraphRewrite pass inside manager that will execute two matchers simultaneously
+pass::Manager manager;
+auto anchor = manager.register_pass<ngraph::pass::GraphRewrite>();
+anchor->add_matcher<ngraph::pass::DecomposeDivideMatcher>();
+anchor->add_matcher<ngraph::pass::ReluReluFusionMatcher>();
+manager.run_passes(f);
+// ! [matcher_pass:manager2]
+}
+
+void run_matcher_with_manager3(std::shared_ptr<ngraph::Function> f) {
+// ! [matcher_pass:manager3]
+pass::Manager manager;
+manager.register_pass<ngraph::pass::MyFunctionTransformation>();
+// Two matchers will run independently (two independent graph traversals)
+// pass::Manager automatically creates GraphRewrite container for each MatcherPass
+manager.register_pass<ngraph::pass::DecomposeDivideMatcher>();
+manager.register_pass<ngraph::pass::ReluReluFusionMatcher>();
+manager.run_passes(f);
+// ! [matcher_pass:manager3]
 }
 
 void run_matcher_with_gr(std::shared_ptr<ngraph::Function> f) {

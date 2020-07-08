@@ -25,6 +25,7 @@
 #include <memory>
 #include <vector>
 
+#include "ngraph/deprecated.hpp"
 #include "ngraph/function.hpp"
 #include "ngraph/node.hpp"
 #include "ngraph/pass/manager_state.hpp"
@@ -37,8 +38,8 @@ namespace ngraph
         class PassBase;
         class ModulePass;
         class FunctionPass;
-        class NodePass;
-        class CallGraphPass;
+        class NodePass NGRAPH_DEPRECATED("Use MatcherPass or FunctionPass instead.");
+        class CallGraphPass NGRAPH_DEPRECATED("Use MatcherPass or FunctionPass instead.");
         class Manager;
         enum class FusionType : uint32_t
         {

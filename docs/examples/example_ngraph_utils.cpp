@@ -13,6 +13,7 @@
 #include <ngraph/rt_info.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
 #include <ngraph/pass/visualize_tree.hpp>
+#include <ngraph/pass/manager.hpp>
 
 using namespace ngraph;
 
@@ -65,7 +66,7 @@ std::shared_ptr<ngraph::Function> create_advanced_function() {
 }
 // ! [ngraph_utils:advanced_function]
 
-void pattern_matcher_examples() {
+void pattern_matcher_examples(std::shared_ptr<Node> node) {
 {
 // ! [pattern:simple_example]
 // Pattern example
@@ -115,9 +116,13 @@ auto m = std::make_shared<ngraph::pattern::Matcher>(concat, "ConcatMatcher");
 auto lin_op = std::make_shared<ngraph::pattern::op::Label>(ngraph::element::f32, ngraph::Shape{},
               [](const std::shared_ptr<ngraph::Node> & node) -> bool {
                     return std::dynamic_pointer_cast<ngraph::opset3::Multiply>(node) ||
-                    std::dynamic_pointer_cast<ngraph::opset3::Add>(node);
+                           std::dynamic_pointer_cast<ngraph::opset3::Add>(node);
               });
 auto m = std::make_shared<ngraph::pattern::Matcher>(lin_op, "MultiplyOrAddMatcher");
+// Matcher can be used to match pattern manually on given node
+if (m->match(node->output(0))) {
+    // Successfully matched
+}
 // ! [pattern:predicate_example]
 }
 
@@ -237,15 +242,17 @@ bool success = replace_output_update_name(node->output(0), node->input_value(0))
 
 // ! [ngraph:visualize]
 void visualization_example(std::shared_ptr<ngraph::Function> f) {
-    std::vector<std::shared_ptr<ngraph::Function> > g{f};
+    ngraph::pass::Manager manager;
 
     // Serialize ngraph::Function to before.svg file before transformation
-    ngraph::pass::VisualizeTree("/path/to/file/before.svg").run_on_module(g);
+    manager.register_pass<ngraph::pass::VisualizeTree>("/path/to/file/before.svg");
 
     // Run your transformation
-    // ngraph::pass::MyTransformation().run_on_function();
+    // manager.register_pass<ngraph::pass::MyTransformation>();
 
     // Serialize ngraph::Function to after.svg file after transformation
-    ngraph::pass::VisualizeTree("/path/to/file/after.svg").run_on_module(g);
+    manager.register_pass<ngraph::pass::VisualizeTree>("/path/to/file/after.svg");
+
+    manager.run_passes(f);
 }
 // ! [ngraph:visualize]

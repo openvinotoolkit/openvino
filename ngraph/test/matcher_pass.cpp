@@ -25,28 +25,33 @@
 #include "ngraph/graph_util.hpp"
 #include "ngraph/log.hpp"
 #include "ngraph/ngraph.hpp"
+#include "ngraph/opsets/opset3.hpp"
 #include "ngraph/pass/graph_rewrite.hpp"
 #include "ngraph/pass/manager.hpp"
-#include "ngraph/opsets/opset3.hpp"
 
 using namespace ngraph;
 using namespace std;
 
-class TestMatcher : public pass::MatcherPass {
+class TestMatcher : public pass::MatcherPass
+{
 public:
-    TestMatcher() {
-        auto m_relu1 = std::make_shared<pattern::op::Label>(element::f32, Shape{}, [](std::shared_ptr<Node> node) -> bool {
+    TestMatcher()
+    {
+        auto m_relu1 = std::make_shared<pattern::op::Label>(
+            element::f32, Shape{}, [](std::shared_ptr<Node> node) -> bool {
                 // Check that node has type opset3::Relu and has only one consumer
-                return std::dynamic_pointer_cast<opset3::Relu>(node) && node->output(0).get_target_inputs().size() == 1;
+                return std::dynamic_pointer_cast<opset3::Relu>(node) &&
+                       node->output(0).get_target_inputs().size() == 1;
             });
         auto m_relu2 = std::make_shared<ngraph::opset3::Relu>(m_relu1);
 
         ngraph::graph_rewrite_callback callback = [=](pattern::Matcher& m) {
             // Map that helps to connect labels with matched outputs
-            auto & label_to_output = m.get_pattern_value_map();
+            auto& label_to_output = m.get_pattern_value_map();
 
             // Create new Relu operation and add register it for additional execution
-            auto new_relu = register_new_node<ngraph::opset3::Relu>(label_to_output.at(m_relu1).get_node_shared_ptr()->input_value(0));
+            auto new_relu = register_new_node<ngraph::opset3::Relu>(
+                label_to_output.at(m_relu1).get_node_shared_ptr()->input_value(0));
 
             // Copy runtime info attributes to newly created operation
             ngraph::copy_runtime_info(m.get_matched_nodes(), new_relu);
@@ -89,7 +94,6 @@ TEST(pattern, matcher_pass)
         test_matcher.apply(test_matcher.get_new_nodes()[0]);
         ASSERT_TRUE(test_matcher.get_new_nodes().empty());
     }
-
 
     {
         TestMatcher test_matcher;

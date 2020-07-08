@@ -116,11 +116,15 @@ Example above shows callback structure and how Matcher can be used for accessing
 Callback return value must be `true` if root node was replaced and another pattern can't be applied to the same root node otherwise it must be `false`.
 > **Note**: it's not recommended to manipulate with nodes that are under root node. This may affect GraphRewrite execution as it's expected that all nodes that comes after root node in topological order are valid and can be used in pattern matching. 
 
-MatcherPass also provides functionality that allows to add newly created nodes into GraphRewrite execution list. That means that the same MatcherPass can be applied for nodes that was created in it's previous execution.
+MatcherPass also provides functionality that allows to report which newly created nodes can be used in additional pattern matching.
+If MatcherPass was registered in `pass::Manager` or `pass::GraphRewrite` then this registered nodes will be added for additional pattern matching.
+That means that matcher passes registered in `pass::GraphRewrite` will be applied to this nodes.
 
 Example below shows how single MatcherPass can fuse sequence of operations.
 
 @snippet src/template_pattern_transformation.cpp matcher_pass:relu_fusion
+
+> **Note**: if you register multiple nodes please add them in topological order. We do not topologically sort this nodes as it's time consuming operation.
 
 ### Register pattern and Matcher
 The last step is to register Matcher and callback inside MatcherPass pass. And to do this you need to call `register_matcher` method.
@@ -144,6 +148,7 @@ MatcherPass has multiple ways to be executed:
 
 Sometimes patterns can't be expressed via regular nGraph operations. For example if you want to detect Convolution->Add sub-graph without specifying particular input type for Convolution operation or you want to create pattern where some of operations can have different types.
 And for these cases nGraph provides additional helpers to construct patterns for GraphRewrite transformations. 
+
 There are two main helpers:
 1. `ngraph::pattern::op::Label` - helps to express inputs if their type is undefined.
 2. `ngraph::pattern::op::Any` - helps to express intermediate nodes of pattern if their type is unknown.
@@ -161,9 +166,11 @@ This example show how we can construct pattern when operation has arbitrary numb
 
 @snippet example_ngraph_utils.cpp pattern:concat_example
 
-This example shows how to use predicate to construct pattern where operation has two different types.
+This example shows how to use predicate to construct pattern where operation has two different types. Also it shows how to match pattern manually on given node.
 
 @snippet example_ngraph_utils.cpp pattern:predicate_example
+
+> **Note**: be careful with manual matching because Matcher object holds matched nodes. To clear match use m->clear_state() method.
 
 TODO: add examples for ngraph::pattern::op::Any
 
@@ -328,22 +335,21 @@ In transformation development process
 * If you replace node with another node that produce different shape you need to remember that new shape won't be propagated until first `validate_nodes_and_infer_types` call for `ngraph::Function`. If you are using `pass::Manager` it will automatically call this method after each transformation execution.
 * Do not forget to call `ngraph::ConstantFolding` pass if your transformation creates constant sub-graphs.
 * Use latest OpSet if you are not developing downgrade transformation pass.
+* When developing callback for `ngraph::pass::MatcherPass` do not change nodes that comes after root node in topological order. 
 
 ## Using pass manager <a name="using_pass_manager"></a>
 
 `ngraph::pass::Manager` is a container class that can store list of transformations and execute them. The main idea of this class is to have high-level representation for grouped list of transformations.
-For example `ngraph::pass::CommonOptimizations` pass manager register list of transformation related to common optimizations. Also `ngraph::pass::Manager` after each transformation executes `f->validate_nodes_and_infer_types()` that help to keep function synchronized.
+It can register and apply any [transformation types](#transformations_types) on function.
 In addition `ngraph::pass::Manager` has extended debug capabilities (find more information in [how to debug transformations](#how_to_debug_transformations) section). 
 
 Example below shows basic usage of `ngraph::pass::Manager`
-```cpp
-ngraph::pass::Manager pass_manager;
-pass_manager.register_pass<pass::MyTransformationA>();
-pass_manager.register_pass<pass::MyTransformationB>();
-pass_manager.run_passes(f);
-```
 
-TODO: Advanced pass manager usage.
+@snippet src/template_pattern_transformation.cpp matcher_pass:manager3
+
+Another example how multiple matcher passes can be united into single GraphRewrite.
+
+@snippet src/template_pattern_transformation.cpp matcher_pass:manager2
 
 ## How to debug transformations <a name="how_to_debug_transformations"></a>
 
@@ -375,26 +381,34 @@ NGRAPH_ENABLE_VISUALIZE_TRACING=1 -  enables visualization after each transforma
 
 This topic mostly related to conversion to legacy opset and plugins that based on CNNNetwork but still this mechanism can be applied for other cases.
 Let's suppose that plugin X enabled `opset3::StridedSlice` operation support and you want to disable `ngraph::pass::ConvertStridedSliceToCrop` transformation for plugin X.
-To do this you need to extend transformation class with `ngraph::pass::PassParam` class. This class extends transformations class with `transformation_callback` that can be set by plugin that uses legacy conversion. 
+To do this you need to create callback on plugin side and pass it to transformation. And also you need to update particular transformation to use this callback.  
 
 ```cpp
-// Extend transformation class with PassParam
-class ngraph::pass::ConvertStridedSliceToCrop: public ngraph::pass::GraphRewrite, public ngraph::pass::PassParam {
-    ...
-}
-
-// Update callback to be able to use transformation_callback if this transformation based on GraphRewrite.
+// Update callback to be able to use m_transformation_callback if this transformation based on GraphRewrite.
 ngraph::graph_rewrite_callback callback = [this](pattern::Matcher &m) {
     ...
 }
 
-// Use transformation_callback not to execute transformation
-if (transformation_callback(node)) {
+// Use transformation_callback not to execute transformation if callback returns true fro given node
+if (m_transformation_callback(node)) {
     return false;
 }
-```
 
-TODO: link to existing example
+// Implement transformation callback and pass it directly to transformation or pass::Manager
+const auto transformations_callback = [](const std::shared_ptr<const ::ngraph::Node> &node) -> bool {
+    return std::dynamic_pointer_cast<const ::ngraph::opset3::StridedSlice>(node) != nullptr;
+};
+
+// Register transformations and pass callback to pass::Manager
+ngraph::pass::Manager manager;
+manager.register_pass<ngraph::pass::CommonOptimizations>();
+...
+// ConvertOpSet1ToLegacy contains ConvertStridedSliceToCrop transformation
+manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
+// pass::Manager will set callback to all reistered transformations automatically
+manager.set_callback(transformations_callback);
+manager.run_passes(f);
+```
 
 ## Transformations testing <a name="transformations_testing"></a>
 
