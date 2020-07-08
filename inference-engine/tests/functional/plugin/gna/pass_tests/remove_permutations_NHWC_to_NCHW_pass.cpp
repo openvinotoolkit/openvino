@@ -19,8 +19,6 @@
 
 #include "ngraph_functions/pass/convert_prc.hpp"
 
-//#include "common_test_utils/test_constants.hpp"
-
 typedef std::tuple<
     InferenceEngine::Precision,         // Network Precision
     std::string,                        // Target Device
@@ -28,8 +26,9 @@ typedef std::tuple<
 > removePermutationsPassParams;
 
 namespace LayerTestsDefinitions {
-    class RemovePermutationsNHWCToNCHWPass : public testing::WithParamInterface<removePermutationsPassParams>,
-        public LayerTestsUtils::LayerTestsCommon {
+
+class RemovePermutationsNHWCToNCHWPass : public testing::WithParamInterface<removePermutationsPassParams>,
+                                         public LayerTestsUtils::LayerTestsCommon {
     public:
         static std::string getTestCaseName(testing::TestParamInfo<removePermutationsPassParams> obj) {
             InferenceEngine::Precision netPrecision;
@@ -140,7 +139,6 @@ namespace LayerTestsDefinitions {
             }
 
             Compare(referenceOutputs, actualOutputs);
-
         }
 
     private:
@@ -170,7 +168,7 @@ namespace LayerTestsDefinitions {
             ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(reshape2) };
             return std::make_shared<ngraph::Function>(results, params, "RemovePermutationPassRef");
         }
-    };
+};
 
     TEST_P(RemovePermutationsNHWCToNCHWPass, CompareWithRefImpl) {
         threshold = 9e-1;

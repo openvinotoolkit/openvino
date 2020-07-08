@@ -1026,10 +1026,7 @@ void GNAPlugin::Wait(uint32_t request_idx) {
                          exportOutputDims[exportOutputDims.size() - 1],
                          outputDesc.num_bytes_per_element,
                          sizeof(float));
-        } /*else if (outputBlob->getTensorDesc().getLayout() != Layout::CN) {
-            THROW_GNA_EXCEPTION << "Expected output blob to have Layout::NC or Layout::CN. But was "
-                << outputBlob->getTensorDesc().getLayout();
-        }*/
+        }
 
         if (gnadevice) {
 #ifdef PLOT

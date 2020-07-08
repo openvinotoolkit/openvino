@@ -572,10 +572,10 @@ void RemovePermutationsNHWCToNCHWPass::run() {
             continue;
         }
 
-        if (l->outData.front()->getInputTo().empty()) {
+        if (getInputTo(l->outData.front()).empty()) {
             continue;
         }
-        auto next = l->outData.front()->getInputTo().begin()->second;
+        auto next = getInputTo(l->outData.front()).begin()->second;
         auto prev = CNNNetPrevLayer(l);
 
         if (!LayerInfo(next).isPermute() || !LayerInfo(prev).isPermute()) {
@@ -596,7 +596,7 @@ void RemovePermutationsNHWCToNCHWPass::run() {
     for (auto&& toRemove : permutationsToRemove) {
         gnalog() << toRemove->type << " layer '" << toRemove->name << "' will be removed" << '\n';
 
-        auto next = toRemove->outData.front()->getInputTo().begin()->second;
+        auto next = getInputTo(toRemove->outData.front()).begin()->second;
         if (LayerInfo(next).isConvolution()) {
             next->input()->setDims(toRemove->input()->getDims());
             next->input()->setLayout(Layout::NHWC);
