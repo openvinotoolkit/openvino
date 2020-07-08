@@ -19,7 +19,6 @@
 #include "ngraph/builder/reshape.hpp"
 #include "ngraph/op/one_hot.hpp"
 #include "ngraph/op/topk.hpp"
-#include "ngraph/opsets/opset0.hpp"
 #include "ngraph/validation_util.hpp"
 #include "utils/common.hpp"
 #include "utils/reshape.hpp"
@@ -57,14 +56,12 @@ namespace ngraph
                     row_size = ngraph::onnx_import::reshape::interpret_as_scalar(row_size);
 
                     const auto indices_axis = 1;
-                    const auto max_indices = std::make_shared<opset0::GetOutputElement>(
-                        std::make_shared<default_opset::TopK>(
-                            coerced_tensor,
-                            default_opset::Constant::create(ngraph::element::i64, Shape{}, {1}),
-                            indices_axis,
-                            default_opset::TopK::Mode::MAX,
-                            default_opset::TopK::SortType::NONE),
-                        1);
+                    const auto topk = std::make_shared<default_opset::TopK>(
+                        coerced_tensor,
+                        default_opset::Constant::create(ngraph::element::i64, Shape{}, {1}),
+                        indices_axis,
+                        default_opset::TopK::Mode::MAX,
+                        default_opset::TopK::SortType::NONE);
 
                     const auto on_value =
                         default_opset::Constant::create(ngraph::element::i64, Shape{}, {1});
@@ -72,7 +69,7 @@ namespace ngraph
                         default_opset::Constant::create(ngraph::element::i64, Shape{}, {0});
 
                     const auto results = std::make_shared<default_opset::OneHot>(
-                        max_indices, row_size, on_value, off_value, indices_axis);
+                        topk->output(1), row_size, on_value, off_value, indices_axis);
                     const auto converted_results = std::make_shared<default_opset::Convert>(
                         results, input->get_element_type());
 

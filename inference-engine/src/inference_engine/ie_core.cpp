@@ -34,26 +34,6 @@ namespace InferenceEngine {
 
 namespace {
 
-std::once_flag flag;
-InferenceEngine::details::SharedObjectLoader::Ptr cnnReaderLoader;
-
-InferenceEngine::details::SharedObjectLoader::Ptr createCnnReaderLoader() {
-    std::call_once(flag, [&] () {
-        FileUtils::FilePath libraryName = FileUtils::toFilePath(std::string("inference_engine_ir_reader") + std::string(IE_BUILD_POSTFIX));
-        FileUtils::FilePath irReadersLibraryPath = FileUtils::makeSharedLibraryName(getInferenceEngineLibraryPath(), libraryName);
-
-        if (!FileUtils::fileExist(irReadersLibraryPath)) {
-            THROW_IE_EXCEPTION << "Please, make sure that Inference Engine IR readers library "
-                << FileUtils::fromFilePath(::FileUtils::makeSharedLibraryName({}, libraryName)) << " is in "
-                << getIELibraryPath();
-        }
-        cnnReaderLoader = std::shared_ptr<InferenceEngine::details::SharedObjectLoader>(
-            new InferenceEngine::details::SharedObjectLoader(irReadersLibraryPath.c_str()));
-    });
-
-    return cnnReaderLoader;
-}
-
 IInferencePluginAPI* getInferencePluginAPIInterface(IInferencePlugin* iplugin) {
     return dynamic_cast<IInferencePluginAPI*>(iplugin);
 }
