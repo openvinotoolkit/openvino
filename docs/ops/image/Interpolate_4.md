@@ -19,7 +19,12 @@
 * *coordinate_transformation_mode*
 
   * **Description**: specifies how to transform the coordinate in the resized tensor to the coordinate in the original tensor
-  * **Range of values**: one of `half_pixel`, `pytorch_half_pixel`, `asymmetric`, `tf_half_pixel_for_nn`, `align_corners`
+  * **Range of values**: name of the transformation mode in string format (here `scale[x]` is `output_shape[x] / input_shape[x]` and `x_resized` is a coordinate in axis `x`, for any axis `x` from the input `axes`):
+    * `half_pixel` - the coordinate in the original tensor axis `x` is calculated as `((x_resized + 0.5) / scale[x]) - 0.5`.
+    * `pytorch_half_pixel` -  the coordinate in the original tensor axis `x` is calculated by `(x_resized + 0.5) / scale[x] - 0.5 if  output_shape[x] > 1 else 0.0`.
+    * `asymmetric` - the coordinate in the original tensor axis `x` is calculated according to the formula `x_resized / scale[x]`.
+    * `tf_half_pixel_for_nn` - the coordinate in the original tensor axis `x` is `(x_resized + 0.5) / scale[x]`.
+    * `align_corners` - the coordinate in the original tensor axis `x` is calculated as `0 if output_shape[x] == 1 else  x_resized * (input_shape[x] - 1) / (output_shape[x] - 1)`.
   * **Type**: string
   * **Default value**: `half_pixel`
   * **Required**: *no*
