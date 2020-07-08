@@ -54,12 +54,6 @@ std::vector<std::shared_ptr<Node>> consumers(std::shared_ptr<Node> node) {
 int NetworkHelper::onWeightsInDepth(std::shared_ptr<Node> layer) {
     const std::vector<std::shared_ptr<Node>> children = consumers(layer);
     for (std::shared_ptr<Node> child : children) {
-        // TODO: check for is_castable & get_type_info_static
-        // if ((child->get_type_info().is_castable(opset1::Convolution::get_type_info_static()) ||
-        //    child->get_type_info().is_castable(opset1::GroupConvolution::get_type_info_static()) ||
-        //    child->get_type_info().is_castable(opset1::MatMul::get_type_info_static())) &&
-        //    child->inputs().size() >= 2lu) {}
-
         if ((is_type<opset1::Convolution>(child) || is_type<opset1::GroupConvolution>(child) || is_type<opset1::MatMul>(child)) &&
             (child->inputs().size() >= 2lu)) {
             const std::vector<std::shared_ptr<Node>> parents = getParentsRecursivelyExceptTypes(child, {}, 1);

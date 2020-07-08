@@ -41,7 +41,7 @@ std::vector<std::shared_ptr<T>> get(const std::shared_ptr<ngraph::Function>& f) 
         auto node = q.front();
         q.pop();
 
-        std::shared_ptr<T> op = as_type_ptr<T>(node);
+        std::shared_ptr<T> op = ngraph::as_type_ptr<T>(node);
         if (op != nullptr) {
             nodes.push_back(op);
         }
