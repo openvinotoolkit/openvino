@@ -200,6 +200,8 @@ cdef extern from "ie_api_impl.hpp" namespace "InferenceEnginePython":
         int index;
         void getBlobPtr(const string & blob_name, CBlob.Ptr & blob_ptr) except +
         void setBlob(const string & blob_name, const CBlob.Ptr & blob_ptr) except +
+        void setBlob(const string &blob_name, const CBlob.Ptr &blob_ptr, CPreProcessInfo& info) except +
+        void getPreProcess(const string& blob_name, const CPreProcessInfo** info) except +
         map[string, ProfileInfo] getPerformanceCounts() except +
         void infer() except +
         void infer_async() except +

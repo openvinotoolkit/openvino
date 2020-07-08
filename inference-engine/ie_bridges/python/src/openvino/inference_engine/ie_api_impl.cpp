@@ -368,6 +368,19 @@ void InferenceEnginePython::InferRequestWrap::setBlob(const std::string &blob_na
     IE_CHECK_CALL(request_ptr->SetBlob(blob_name.c_str(), blob_ptr, &response));
 }
 
+void InferenceEnginePython::InferRequestWrap::setBlob(const std::string &blob_name,
+                                                      const InferenceEngine::Blob::Ptr &blob_ptr,
+                                                      const InferenceEngine::PreProcessInfo& info) {
+    InferenceEngine::ResponseDesc response;
+    IE_CHECK_CALL(request_ptr->SetBlob(blob_name.c_str(), blob_ptr, info, &response));
+}
+
+void InferenceEnginePython::InferRequestWrap::getPreProcess(const std::string& blob_name,
+                                                       const InferenceEngine::PreProcessInfo** info) {
+    InferenceEngine::ResponseDesc response;
+    IE_CHECK_CALL(request_ptr->GetPreProcess(blob_name.c_str(), info, &response));
+}
+
 void InferenceEnginePython::InferRequestWrap::getBlobPtr(const std::string &blob_name,
                                                          InferenceEngine::Blob::Ptr &blob_ptr) {
     InferenceEngine::ResponseDesc response;
