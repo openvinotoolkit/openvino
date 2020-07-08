@@ -125,7 +125,6 @@
         <value>intel/person-attributes-recognition-crossroad-0230/FP32/person-attributes-recognition-crossroad-0230.xml</value>
         <value>intel/face-detection-0100/FP32/face-detection-0100.xml</value>
         <value>intel/face-detection-0102/FP32/face-detection-0102.xml</value>
-        <value>intel/person-reidentification-retail-0031/FP32/person-reidentification-retail-0031.xml</value>
         <value>intel/person-reidentification-retail-0300/FP32/person-reidentification-retail-0300.xml</value>
         <value>intel/instance-segmentation-security-0010/FP32/instance-segmentation-security-0010.xml</value>
         <value>intel/instance-segmentation-security-0083/FP32/instance-segmentation-security-0083.xml</value>
