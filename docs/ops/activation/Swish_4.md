@@ -21,7 +21,7 @@ The Swish operation is introduced in the [article](https://arxiv.org/pdf/1710.05
 
 *   **1**: Multidimensional input tensor of type *T*. **Required**.
 
-*   **2**: Scalar with non-negative floating point value *beta* - multiplication parameter for the sigmoid. If the input is not connected then the default value 1.0 is used. **Optional**
+*   **2**: Scalar with non-negative value of type *T*. Multiplication parameter *beta* for the sigmoid. If the input is not connected then the default value 1.0 is used. **Optional**
 
 **Outputs**:
 
