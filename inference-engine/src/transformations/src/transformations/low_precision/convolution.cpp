@@ -72,8 +72,6 @@ void ConvolutionTransformation::transform(TransformationContext &context, ngraph
             subtract = newSubtract;
         }
 
-        // std::shared_ptr<ngraph::opset1::Multiply> newMultiplyFromData = as_type_ptr<ngraph::opset1::Multiply>(dequantizationOperationOnData);
-
         std::shared_ptr<ngraph::opset1::Multiply> newMultiplyAfter = std::make_shared<opset1::Multiply>(
             convolution->copy_with_new_inputs({ dequantization.multiply->input_value(0), convolution->input_value(1) }),
             // workaround: constant is cloning because it's used twice and can not be fused below
@@ -105,18 +103,9 @@ void ConvolutionTransformation::transform(TransformationContext &context, ngraph
             subtractFromWeights->get_input_node_shared_ptr(0));
 
         {
-            // Check if all dimensions of scale except the first one (which is O-Output channels dimension) are all ones
-            auto weightScaleShape = multiplyFromWeights->get_input_shape(1);
-            // FIXME: check for rank and 1D-like multiplier
-            // if (weightScaleShape.size() <= 2 && shape_size(weightScaleShape) != weightScaleShape[0]) {
-            //    // TODO: should we roll back all changes in the network?
-            //    return;
-            // }
-
-            // It has been just checked that weights scale is effectively 1D tensor, so we can reshape it to [X, 1, ..., 1]
-            // to move to the output
-            auto newScaleShape = weightScaleShape;
-            newScaleShape.pop_back();   // that's all we need: [C, 1, 1, 1] => [C, 1, 1]
+            Shape newScaleShape = multiplyFromWeights->get_input_shape(1);
+            // that's all we need: [C, 1, 1, 1] => [C, 1, 1]
+            newScaleShape.pop_back();
 
             if (reshapeFromWeights != nullptr) {
                 reshapeFromWeights = as_type_ptr<opset1::Reshape>(reshapeFromWeights->copy_with_new_inputs({

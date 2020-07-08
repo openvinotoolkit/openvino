@@ -10,7 +10,6 @@
 #include <memory>
 #include <string>
 #include <vector>
-#include <cassert>
 
 namespace ngraph {
 namespace pass {
@@ -60,6 +59,29 @@ bool WeightableLayerTransformation::canBeTransformed(const TransformationContext
     // stronger check from Convolution patter which expects FQ only on weights
 
     // TODO Implement similar checks in other weightable operaitons
+
+
+    std::shared_ptr<opset1::Reshape> reshapeFromWeights = as_type_ptr<opset1::Reshape>(layer->input_value(1).get_node_shared_ptr());
+    std::shared_ptr<opset1::FakeQuantize> fqFromWeights = as_type_ptr<opset1::FakeQuantize>(
+        reshapeFromWeights == nullptr ?
+        layer->input_value(1).get_node_shared_ptr() :
+        layer->get_input_node_ptr(1)->get_input_node_shared_ptr(0));
+
+    if ((fqFromWeights == nullptr) || (fqFromWeights->get_input_size() != 5ul)) {
+        return false;
+    }
+
+    const Shape constOutputShape = fqFromWeights->get_input_node_ptr(3)->get_output_shape(0);
+    if (fqFromWeights->get_input_node_ptr(4)->get_output_shape(0) != constOutputShape) {
+        return false;
+    }
+
+    if ((constOutputShape.size() < 2ul) ||
+        // Check if all dimensions of scale except the first one (which is O-Output channels dimension) are all ones
+        (shape_size(constOutputShape) != constOutputShape[0]) ||
+        ((constOutputShape[0] != 1ul) && (fqFromWeights->get_output_shape(0)[0] != constOutputShape[0]))) {
+        return false;
+    }
 
     return true;
 }
