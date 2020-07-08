@@ -18,10 +18,12 @@ The following equivalent combination is recognized and fused into single Gelu op
     Gelu(x) = 0.5*x*(1 + erf((x) / sqrt(2) )
 \f]
 
-Similarly, the following Gelu approximation (typical for the TensorFlow*) is  recognized and fused into single Gelu op
+Similarly, the following Gelu approximation (typical for the TensorFlow*) is recognized and fused into single Gelu op 
+
 \f[
-    Gelu(x) \approx  0.5*x*(1 + tanh((sqrt(2/pi)) * (x + 0.044715 * x ^ 3))
+    Gelu(x) \approx 0.5x(1 + tanh((sqrt(2/pi)) * (x + 0.044715 * x ^ 3)) 
 \f]
+
 **Inputs**:
 
 *   **1**: Multidimensional input tensor. Required.
