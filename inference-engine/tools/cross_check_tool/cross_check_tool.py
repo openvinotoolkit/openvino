@@ -77,7 +77,7 @@ def get_net_copy_with_output(model: str, output: str, core: IECore):
 def get_model_info(net: IENetwork):
     layers = net.layers
     precision = layers[list(layers.keys())[0]].out_data[0].precision
-    return layers, net.inputs, net.outputs, precision
+    return layers, net.input_info, net.outputs, precision
 
 
 ###
@@ -222,8 +222,8 @@ def two_ir_mode(args):
 def dump_mode(args):
     core = get_plugin(args.device, args.l, args.config)
     net = get_net(model=args.model, core=core)
-    out_layers = get_layers_list(net.layers, net.inputs, net.outputs, args.layers)
-    inputs = input_processing(args.model, net.inputs, args.input)
+    out_layers = get_layers_list(net.layers, net.input_info, net.outputs, args.layers)
+    inputs = input_processing(args.model, net.input_info, args.input)
     dump_dict = {}
     for out_layer in out_layers:
         log.info('Layer {} processing'.format(out_layer))

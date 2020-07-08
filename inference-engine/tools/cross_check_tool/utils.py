@@ -320,7 +320,7 @@ def read_multi_input_file(input_file: str, net_inputs: dict):
                                                         ', '.join(net_inputs.keys())))
         if 'blob' in npz[net_input].item(0):
             just_blob = npz[net_input].item(0)['blob']
-            network_shape = net_inputs[net_input].shape
+            network_shape = net_inputs[net_input].input_data.shape
             log.info('Layer {} shape = {}, input blob from multi-input file shape = {}'
                      ''.format(net_input, network_shape, just_blob.shape))
             try:
@@ -344,7 +344,7 @@ def read_image_file(input_file: str, net_inputs: dict):
         if image is None:
             raise Exception('Can not read input image ' + input_file)
         only_layer_name = list(net_inputs.keys())[0]
-        shape = net_inputs[only_layer_name].shape
+        shape = net_inputs[only_layer_name].input_data.shape
         if len(shape) != 4:
             raise Exception('Can not interpret input shape as image')
         n, c, h, w = shape
@@ -361,7 +361,7 @@ def input_processing(model_path: str, net_inputs: dict, input_file: str, layers_
     inputs = dict()
     if input_file is None:
         for net_input in net_inputs:
-            inputs[net_input] = np.clip(np.random.normal(0.5, 0.1, size=net_inputs[net_input].shape), 0, 1)
+            inputs[net_input] = np.clip(np.random.normal(0.5, 0.1, size=net_inputs[net_input].input_data.shape), 0, 1)
         dump_output_file(model_path + '_random_input_dump.npz', {inp: {'blob': inputs[inp]} for inp in inputs})
         return inputs
     try:
