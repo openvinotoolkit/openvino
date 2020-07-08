@@ -110,9 +110,7 @@ void AddTransformation::transform(TransformationContext& context, ngraph::patter
             subtract2Values,
             fold<opset1::Divide>(
                 fold<opset1::Multiply>(subtract1Values, multiply1Values),
-                multiply2Values
-            )
-        );
+                multiply2Values));
 
         std::shared_ptr<Node> newMultiply2Const = fold<opset1::Divide>(multiply2Values, multiply1Values);
 
