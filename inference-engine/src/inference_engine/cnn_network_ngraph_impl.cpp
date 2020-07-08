@@ -462,7 +462,6 @@ StatusCode CNNNetworkNGraphImpl::setBatchSizeReshape(size_t size, ResponseDesc* 
 void CNNNetworkNGraphImpl::convertToCNNNetworkImpl() {
     IE_PROFILING_AUTO_SCOPE(convertToCNNNetworkImpl)
     if (!cnnNetwork) {
-        std::cout << "Convert CNNNetworkNGraphImpl to CNNNetworkImpl" << std::endl;
         cnnNetwork = std::make_shared<details::CNNNetworkImpl>(*this);
     }
 }
