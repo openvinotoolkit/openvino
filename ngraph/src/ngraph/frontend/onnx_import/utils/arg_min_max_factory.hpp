@@ -44,7 +44,7 @@ namespace ngraph
                 std::shared_ptr<ngraph::Node> make_arg_min() const;
 
             private:
-                std::shared_ptr<ngraph::Node>
+                Output<ngraph::Node>
                     make_topk_subgraph(default_opset::TopK::Mode mode) const;
 
                 const std::int64_t m_keep_dims;

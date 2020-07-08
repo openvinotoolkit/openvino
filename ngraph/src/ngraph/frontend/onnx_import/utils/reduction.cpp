@@ -36,7 +36,7 @@ namespace ngraph
                         node.get_attribute_value<std::vector<std::int64_t>>("axes", {});
 
                     const auto input_rank =
-                        node.get_ng_inputs().at(0)->get_output_partial_shape(0).rank();
+                        node.get_ng_inputs().at(0).get_partial_shape().rank();
 
                     std::vector<std::size_t> normalized_axes =
                         ngraph::normalize_axes(node.get_description(), reduction_axes, input_rank);
@@ -57,10 +57,10 @@ namespace ngraph
 
             std::shared_ptr<ngraph::Node>
                 make_ng_reduction_op(const Node& node,
-                                     const std::shared_ptr<ngraph::Node>& ng_input,
+                                     const Output<ngraph::Node>& ng_input,
                                      ReductionFunction reduction_function)
             {
-                auto data_shape = ng_input->get_shape();
+                auto data_shape = ng_input.get_shape();
 
                 auto reduction_axes = detail::get_reduction_axes(node);
 
@@ -88,10 +88,10 @@ namespace ngraph
 
             std::shared_ptr<ngraph::Node>
                 make_ng_reduction_op(const Node& node,
-                                     const std::shared_ptr<ngraph::Node>& ng_input,
+                                     const Output<ngraph::Node>& ng_input,
                                      RuntimeReductionFunction reduction_function)
             {
-                const auto data_ps = node.get_ng_inputs().at(0)->get_output_partial_shape(0);
+                const auto data_ps = node.get_ng_inputs().at(0).get_partial_shape();
                 NGRAPH_CHECK(data_ps.rank().is_static(),
                              "Reduction operations input rank is required to be static");
 

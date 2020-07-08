@@ -59,8 +59,8 @@ namespace ngraph
             ///
             /// \return     Original node or a node representing a reshape of the original.
             ///
-            std::shared_ptr<ngraph::Node>
-                interpret_as_scalar(const std::shared_ptr<ngraph::Node>& node);
+            Output<ngraph::Node>
+                interpret_as_scalar(const Output<ngraph::Node>& node);
 
         } // namespace  reshape
     }     // namespace onnx_import
