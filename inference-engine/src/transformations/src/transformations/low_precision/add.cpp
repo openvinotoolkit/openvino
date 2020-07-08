@@ -138,10 +138,8 @@ void AddTransformation::transform(TransformationContext& context, ngraph::patter
                     newSubtract2Values == nullptr ?
                         dequantization2.convert == nullptr ? dequantization2.data : dequantization2.convert :
                         std::make_shared<opset1::Subtract>(dequantization2.convert, newSubtract2Values),
-                    newMultiply2Const)
-            ),
-            multiply1Values
-        );
+                    newMultiply2Const)),
+            multiply1Values);
 
         replace_node(add, newMultiply);
     }
