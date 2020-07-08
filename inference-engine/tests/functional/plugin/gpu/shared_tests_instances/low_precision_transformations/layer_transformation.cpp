@@ -102,7 +102,9 @@ InferenceEngine::Precision LayerTransformation::getDeviceInternalPrecision(const
 }
 
 InferenceEngine::CNNNetwork LayerTransformation::transform(const InferenceEngine::details::LowPrecisionTransformations& transformations) {
-    InferenceEngine::details::CNNNetworkImplPtr cnnNetworkImp = cloneNet(InferenceEngine::CNNNetwork(function));
+    // convert to old representation
+    InferenceEngine::CNNNetwork ngraphNetwork(function);
+    auto cnnNetworkImp = std::make_shared<InferenceEngine::details::CNNNetworkImpl>(ngraphNetwork);
 
     InferenceEngine::NetPass::ConvertPrecision(*cnnNetworkImp, InferenceEngine::Precision::FP16, InferenceEngine::Precision::FP32);
 
