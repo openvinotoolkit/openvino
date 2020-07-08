@@ -10,11 +10,7 @@
 
 #include <gtest/gtest.h>
 
-#include <transformations/utils/utils.hpp>
-#include <transformations/init_node_info.hpp>
-#include <transformations/convert_opset1_to_legacy/conv_bias_fusion.hpp>
-
-#include "../transformations/ngraph_test_utils.hpp"
+#include <transformations/low_precision/add.hpp>
 #include "ngraph_functions/low_precision_transformations/add_function.hpp"
 
 using namespace testing;

@@ -12,9 +12,9 @@
 #include <gtest/gtest.h>
 
 #include <ngraph/pass/visualize_tree.hpp>
-#include "transformations/low_precision/fake_quantize.hpp"
-#include "transformations/utils/utils.hpp"
-#include "../transformations/ngraph_test_utils.hpp"
+#include <transformations/low_precision/fake_quantize.hpp>
+
+#include "common_test_utils/ngraph_test_utils.hpp"
 #include "ngraph_functions/low_precision_transformations/fake_quantize_function.hpp"
 
 #include "simple_low_precision_transformer.hpp"

@@ -14,7 +14,7 @@
 #include <transformations/init_node_info.hpp>
 #include <transformations/convert_opset1_to_legacy/conv_bias_fusion.hpp>
 
-#include "../transformations/ngraph_test_utils.hpp"
+#include "common_test_utils/ngraph_test_utils.hpp"
 #include "ngraph_functions/low_precision_transformations/reshape_function.hpp"
 
 using namespace testing;

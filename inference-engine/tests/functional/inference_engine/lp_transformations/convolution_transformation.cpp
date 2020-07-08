@@ -12,11 +12,11 @@
 
 #include <transformations/utils/utils.hpp>
 #include <transformations/init_node_info.hpp>
+#include <transformations/low_precision/convolution.hpp>
 
-#include "../transformations/ngraph_test_utils.hpp"
-#include "ngraph_functions/low_precision_transformations/convolution_function.hpp"
-#include "transformations/low_precision/convolution.hpp"
+#include "common_test_utils/ngraph_test_utils.hpp"
 #include "simple_low_precision_transformer.hpp"
+#include "ngraph_functions/low_precision_transformations/convolution_function.hpp"
 
 // TODO: remove after debugging
 #include <ngraph/pass/visualize_tree.hpp>

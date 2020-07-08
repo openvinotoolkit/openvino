@@ -431,17 +431,17 @@ string pass::VisualizeTree::get_node_name(shared_ptr<Node> node)
     }
     rc += "\n";
     rc += node->get_type_name();
-    if (auto ck = as_type_ptr<ngraph::op::CompiledKernel>(node))
-    {
-        rc += "\\n{";
-        // add sub-graph node names
-        for (auto& ck_node : ck->get_node_list())
-        {
-            rc += ck_node->get_name();
-            rc += ", ";
-        }
-        rc += "}\\n";
-    }
+    // if (auto ck = as_type_ptr<ngraph::op::CompiledKernel>(node))
+    // {
+    //    rc += "\\n{";
+    //    // add sub-graph node names
+    //    for (auto& ck_node : ck->get_node_list())
+    //    {
+    //        rc += ck_node->get_name();
+    //        rc += ", ";
+    //    }
+    //    rc += "}\\n";
+    // }
 
     for (const auto& output : node->outputs())
         rc += "\\n" + to_string(output.get_index()) + ": " +

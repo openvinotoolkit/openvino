@@ -12,9 +12,9 @@
 
 #include <transformations/utils/utils.hpp>
 #include <transformations/init_node_info.hpp>
-#include <transformations/convert_opset1_to_legacy/conv_bias_fusion.hpp>
+#include <transformations/low_precision/group_convolution.hpp>
 
-#include "../transformations/ngraph_test_utils.hpp"
+#include "common_test_utils/ngraph_test_utils.hpp"
 #include "ngraph_functions/low_precision_transformations/convolution_function.hpp"
 
 using namespace testing;
@@ -56,7 +56,6 @@ public:
 
 TEST_P(GroupConvolutionTransformation, CompareFunctions) {
     InitNodeInfo().run_on_function(actualFunction);
-    ConvFusion().run_on_function(actualFunction);
 
     actualFunction->validate_nodes_and_infer_types();
 

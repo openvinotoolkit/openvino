@@ -101,7 +101,7 @@ void MatMulTransformation::validate() {
     EXPECT_EQ(1, outputs.size());
 
     std::map<std::string, InferenceEngine::DataPtr>::iterator it = outputs.begin();
-    const InferenceEngine::CNNLayerPtr outputLayer = it->second->getCreatorLayer().lock();
+    const InferenceEngine::CNNLayerPtr outputLayer = getCreatorLayer(it->second).lock();
     EXPECT_TRUE(outputLayer != nullptr);
 
     // const std::vector<std::shared_ptr<ngraph::op::Parameter>> inputs = ngraph::builder::subgraph::MatMulFunction::getInputs(nodes);
@@ -115,7 +115,7 @@ void MatMulTransformation::validate() {
     EXPECT_EQ(1ul, outputLayer->insData.size());
     const InferenceEngine::DataPtr insData = outputLayer->insData[0].lock();
     EXPECT_TRUE(insData != nullptr);
-    const InferenceEngine::CNNLayerPtr layer = insData->getCreatorLayer().lock();
+    const InferenceEngine::CNNLayerPtr layer = getCreatorLayer(insData).lock();
     EXPECT_TRUE(layer != nullptr);
 
     if (inputs.size() == 2ul) {
