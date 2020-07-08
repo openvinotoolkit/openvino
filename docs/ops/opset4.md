@@ -97,7 +97,7 @@ declared in `namespace opset4`.
 * [Range](generation/Range_1.md)
 * [ReLU](activation/ReLU_1.md)
 * [ReadValue](infrastructure/ReadValue_3.md)
-* [ReduceL2](reduction/ReduceL2_4.md)
+* [ReduceLp](reduction/ReduceLp_4.md)
 * [ReduceLogicalAnd](reduction/ReduceLogicalAnd_1.md)
 * [ReduceLogicalOr](reduction/ReduceLogicalOr_1.md)
 * [ReduceMax](reduction/ReduceMax_1.md)
