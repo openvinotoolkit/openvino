@@ -6,7 +6,7 @@
 
 #include <memory>
 #include <ngraph/ngraph.hpp>
-#include "transformations\low_precision\layer_transformation.hpp"
+#include "transformations/low_precision/layer_transformation.hpp"
 
 namespace ngraph {
 namespace builder {
