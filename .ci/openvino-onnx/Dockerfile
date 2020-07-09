@@ -1,6 +1,6 @@
 FROM ubuntu:20.04
 
-LABEL version=2020.07.03.2
+LABEL version=2020.07.09.1
 
 ARG http_proxy
 ARG https_proxy
@@ -59,10 +59,8 @@ RUN apt-get -y --no-install-recommends install \
 COPY . /openvino/
 WORKDIR /openvino/build
 RUN cmake .. \
-    -DCMAKE_BUILD_TYPE=Debug \
-    -DENABLE_VALIDATION_SET=OFF \
+    -DCMAKE_BUILD_TYPE=Release \
     -DENABLE_VPU=OFF \
-    -DENABLE_DLIA=OFF \
     -DENABLE_GNA=OFF \
     -DENABLE_OPENCV=OFF \
     -DENABLE_CPPLINT=OFF \
@@ -82,7 +80,7 @@ RUN cmake .. \
     -DNGRAPH_DEBUG_ENABLE=OFF \
     -DNGRAPH_DYNAMIC_COMPONENTS_ENABLE=ON \
     -DCMAKE_INSTALL_PREFIX=/openvino/dist
-RUN make -j 88 install
+RUN make -j $(nproc) install
 
 # Run tests via tox
 WORKDIR /openvino/ngraph/python
