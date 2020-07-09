@@ -8,7 +8,7 @@
 #include <memory>
 #include <queue>
 
-#include <ngraph/function.hpp>
+#include <ngraph/ngraph.hpp>
 #include <ngraph/opsets/opset3.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/utils/utils.hpp>
