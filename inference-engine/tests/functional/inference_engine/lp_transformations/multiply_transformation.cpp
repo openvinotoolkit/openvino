@@ -12,115 +12,153 @@
 
 #include <transformations/utils/utils.hpp>
 #include <transformations/init_node_info.hpp>
-#include <transformations/convert_opset1_to_legacy/conv_bias_fusion.hpp>
-#include <transformations/low_precision/transformer.hpp>
-#include <transformations/low_precision/fake_quantize.hpp>
-#include <transformations/low_precision/multiply.hpp>
+#include "transformations/low_precision/multiply.hpp"
 
-#include "common_test_utils/ngraph_test_utils.hpp"
-#include "ngraph_functions/low_precision_transformations/common/fake_quantize_on_data.hpp"
+#include "../transformations/ngraph_test_utils.hpp"
+#include "simple_low_precision_transformer.hpp"
 #include "ngraph_functions/low_precision_transformations/multiply_function.hpp"
+
+// TODO: remove after debugging
+#include <ngraph/pass/visualize_tree.hpp>
 
 using namespace testing;
 using namespace ngraph::pass;
+using namespace ngraph::builder::subgraph;
 
 class MultiplyTransformationTestValues {
 public:
-    low_precision::LayerTransformation::Params params;
-    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData;
-    std::vector<float> expectedSubtractValues;
+    low_precision::LayerTransformation::Params transformationParams;
+    MultiplyActualValues actual;
+    MultiplyExpectedValues expected;
 };
 
 typedef std::tuple<
     ngraph::element::Type,
     ngraph::Shape,
+    bool,
     MultiplyTransformationTestValues> MultiplyTransformationParams;
 
 class MultiplyTransformation : public LayerTransformation, public testing::WithParamInterface<MultiplyTransformationParams> {
 public:
     void SetUp() override {
-        //const ngraph::element::Type precision = std::get<0>(GetParam());
-        //const ngraph::Shape shape = std::get<1>(GetParam());
-        //const FakeQuantizeOnDataTestValues fakeQuantizeOnData = std::get<2>(GetParam());
+        const ngraph::element::Type precision = std::get<0>(GetParam());
+        const ngraph::Shape shape = std::get<1>(GetParam());
+        const bool broadcast = std::get<2>(GetParam());
+        const MultiplyTransformationTestValues testParams = std::get<3>(GetParam());
 
-        //actualFunction = ngraph::builder::subgraph::MultiplyFunction::getOriginal(
-        //    precision,
-        //    shape,
-        //    fakeQuantizeOnData.params,
-        //    fakeQuantizeOnData.actual);
+        actualFunction = ngraph::builder::subgraph::MultiplyFunction::getOriginal(
+            precision,
+            shape,
+            broadcast,
+            testParams.transformationParams,
+            testParams.actual);
 
-        //ngraph::pass::low_precision::LowPrecisionTransformations transformations(
-        //    {},
-        //    { { "FakeQuantize", ngraph::pass::low_precision::LayerTransformationPtr(
-        //        new ngraph::pass::low_precision::FakeQuantizeTransformation(fakeQuantizeOnData.params)) } },
-        //    { { "Multiply", ngraph::pass::low_precision::LayerTransformationPtr(
-        //        new ngraph::pass::low_precision::MultiplyTransformation(fakeQuantizeOnData.params)) } }
-        //);
-        //ngraph::pass::low_precision::LowPrecisionTransformer transformer(transformations);
-        //transformer.transform(actualFunction);
+        SimpleLowPrecisionTransformer transform;
+        transform.add<ngraph::pass::low_precision::MultiplyTransformation, ngraph::opset1::Multiply>(
+            low_precision::LayerTransformation::Params(testParams.transformationParams));
+        transform.transform(actualFunction);
 
-        //referenceFunction = ngraph::builder::subgraph::MultiplyFunction::getReference(precision, shape);
+        referenceFunction = ngraph::builder::subgraph::MultiplyFunction::getReference(
+            precision,
+            shape,
+            broadcast,
+            testParams.transformationParams,
+            testParams.expected);
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<MultiplyTransformationParams> obj) {
-        const ngraph::element::Type precision = std::get<0>(obj.param);
-        const ngraph::Shape shape = std::get<1>(obj.param);
-        const MultiplyTransformationTestValues fakeQuantizeOnData = std::get<2>(obj.param);
+        ngraph::element::Type precision;
+        ngraph::Shape shape;
+        bool broadcast;
+        MultiplyTransformationTestValues params;
+        std::tie(precision, shape, broadcast, params) = obj.param;
 
-        return LayerTransformation::getTestCaseNameByParams(precision, shape, fakeQuantizeOnData.params);
+        std::ostringstream result;
+        result <<
+            LayerTransformation::getTestCaseNameByParams(precision, shape, params.transformationParams) <<
+            (broadcast ? "_broadcast_" : "") << params.actual << params.expected;
+        return result.str();
     }
 };
 
 TEST_P(MultiplyTransformation, CompareFunctions) {
-    // InitNodeInfo().run_on_function(actualFunction);
-    // ConvFusion().run_on_function(actualFunction);
-
-    // actualFunction->validate_nodes_and_infer_types();
-
-    // auto res = compare_functions(referenceFunction, actualFunction);
-    // ASSERT_TRUE(res.first) << res.second;
+    actualFunction->validate_nodes_and_infer_types();
+    auto res = compare_functions(referenceFunction, actualFunction, true);
+    ASSERT_TRUE(res.first) << res.second;
 }
 
 const std::vector<ngraph::element::Type> precisions = {
     ngraph::element::f32,
-    ngraph::element::f16
+    //ngraph::element::f16
 };
 
 const std::vector<ngraph::Shape> shapes = {
     { 1, 32, 72, 48 }
 };
 
-const std::vector<MultiplyTransformationTestValues> fakeQuantizeOnDataTestValues = {
+const std::vector<bool> broadcastValues = {
+    true,
+    false
+};
+
+const std::vector<MultiplyTransformationTestValues> multiplyTransformationTestValues = {
     // U8
     {
         LayerTransformation::createParamsU8I8(),
-        { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } },
-        {}
+        { ngraph::element::u8, { 2.f }, { 10.f }, ngraph::element::u8, { 3.f }, { 7.f } },
+        { ngraph::element::u8, { 2.f }, { 10.f }, ngraph::element::u8, { 3.f }, { 7.f } }
     },
-    // {
-    //    LayerTransformation::createParamsU8I8(),
-    //    { 256ul, {}, { -1.28f} , { 1.27f }, { -1.28f} , { 1.27f } },
-    //    { 1.28f }
-    // },
 
-    //// I8
-    // {
-    //    LayerTransformation::createParamsI8I8(),
-    //    { 256ul, {}, { -1.28f}, { 1.27f }, { -1.28f}, { 1.27f } },
-    //    {}
-    // },
-    // {
-    //    LayerTransformation::createParamsI8I8(),
-    //    { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } },
-    //    { 1.28f }
-    // }
+    {
+        LayerTransformation::createParamsU8I8(),
+        { ngraph::element::u8, { 2.f }, { 10.f }, ngraph::element::u8, { }, { 7.f } },
+        { ngraph::element::u8, { 2.f }, { 70.f }, ngraph::element::u8, { }, { } }
+    },
+
+    {
+        LayerTransformation::createParamsU8I8(),
+        { ngraph::element::u8, {  }, { 10.f }, ngraph::element::u8, { }, { 7.f } },
+        { ngraph::element::u8, {  }, { 70.f }, ngraph::element::u8, { }, { } }
+    },
+
+    {
+        LayerTransformation::createParamsU8I8(),
+        { ngraph::element::u8, { 2.f }, {  }, ngraph::element::u8, { }, { 7.f } },
+        { ngraph::element::u8, { 2.f }, { 7.f }, ngraph::element::u8, { }, { } }
+    },
+
+    // I8
+    {
+        LayerTransformation::createParamsI8I8(),
+        { ngraph::element::i8, { 2.f }, { 10.f }, ngraph::element::i8, { 3.f }, { 7.f } },
+        { ngraph::element::i8, { 2.f }, { 10.f }, ngraph::element::i8, { 3.f }, { 7.f } }
+    },
+
+    {
+        LayerTransformation::createParamsI8I8(),
+        { ngraph::element::i8, { 2.f }, { 10.f }, ngraph::element::i8, { }, { 7.f } },
+        { ngraph::element::i8, { 2.f }, { 70.f }, ngraph::element::i8, { }, { } }
+    },
+
+    {
+        LayerTransformation::createParamsU8I8(),
+        { ngraph::element::i8, {  }, { 10.f }, ngraph::element::i8, { }, { 7.f } },
+        { ngraph::element::i8, {  }, { 70.f }, ngraph::element::i8, { }, { } }
+    },
+
+    {
+        LayerTransformation::createParamsU8I8(),
+        { ngraph::element::i8, { 2.f }, {  }, ngraph::element::i8, { }, { 7.f } },
+        { ngraph::element::i8, { 2.f }, { 7.f }, ngraph::element::i8, { }, { } }
+    },
 };
 
 INSTANTIATE_TEST_CASE_P(
-    DISABLED_LPT,
+    LPT,
     MultiplyTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(precisions),
         ::testing::ValuesIn(shapes),
-        ::testing::ValuesIn(fakeQuantizeOnDataTestValues)),
+        ::testing::ValuesIn(broadcastValues),
+        ::testing::ValuesIn(multiplyTransformationTestValues)),
     MultiplyTransformation::getTestCaseName);

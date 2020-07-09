@@ -9,6 +9,9 @@
 #include <transformations/low_precision/transformation_context.hpp>
 #include <transformations/low_precision/transformer.hpp>
 
+// TODO: remove after debugging
+#include <ngraph/pass/visualize_tree.hpp>
+
 using namespace testing;
 using namespace ngraph::pass;
 

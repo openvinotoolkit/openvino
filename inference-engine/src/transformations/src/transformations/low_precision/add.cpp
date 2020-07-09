@@ -43,23 +43,6 @@ void AddTransformation::registerMatcherIn(GraphRewrite &pass, TransformationCont
     addSingleNodePattern<opset1::Add>(pass, context);
 }
 
-typedef std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> FakeQuantizeDequantizationValues;
-
-FakeQuantizeDequantizationValues createEmptyValues(const FakeQuantizeDequantization& dequantization) {
-    std::shared_ptr<Node> parent = dequantization.convert ? dequantization.convert : dequantization.data;
-
-    std::shared_ptr<Node> multiply1Const = dequantization.multiply ?
-        dequantization.multiply->get_input_node_shared_ptr(1)->clone_with_new_inputs({}) :
-        std::make_shared<opset1::Constant>(parent->get_output_element_type(0), Shape({}), std::vector<float>({ 1.f }));
-
-    std::shared_ptr<Node> subtract1Const = dequantization.subtract ?
-        dequantization.subtract->get_input_node_shared_ptr(1)->clone_with_new_inputs({}) :
-        std::make_shared<opset1::Constant>(parent->get_output_element_type(0), Shape({}), std::vector<float>({ 0.f }));
-
-    subtract1Const->set_output_type(0, multiply1Const->get_output_element_type(0), subtract1Const->get_output_partial_shape(0));
-
-    return FakeQuantizeDequantizationValues(subtract1Const, multiply1Const);
-}
 
 void AddTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) const {
     // TODO: move to handler
