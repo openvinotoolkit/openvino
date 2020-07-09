@@ -43,7 +43,6 @@ namespace ngraph
                     return {std::make_shared<default_opset::Log>(sum_node)};
                 }
 
-
                 OutputVector reduce_log_sum_exp(const Node& node)
                 {
                     auto exp_node =

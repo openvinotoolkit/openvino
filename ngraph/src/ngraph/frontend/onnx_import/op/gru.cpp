@@ -68,9 +68,9 @@ namespace ngraph
                                     m_map[recurrent::OpInput::B] =
                                         std::make_shared<default_opset::Concat>(
                                             OutputVector{wr_z_bias,
-                                                       wr_r_bias,
-                                                       split_bias.at(2),
-                                                       split_bias.at(5)},
+                                                         wr_r_bias,
+                                                         split_bias.at(2),
+                                                         split_bias.at(5)},
                                             1);
                                 }
                                 else

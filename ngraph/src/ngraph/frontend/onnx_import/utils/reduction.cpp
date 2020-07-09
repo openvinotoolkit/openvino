@@ -35,8 +35,7 @@ namespace ngraph
                     auto reduction_axes =
                         node.get_attribute_value<std::vector<std::int64_t>>("axes", {});
 
-                    const auto input_rank =
-                        node.get_ng_inputs().at(0).get_partial_shape().rank();
+                    const auto input_rank = node.get_ng_inputs().at(0).get_partial_shape().rank();
 
                     std::vector<std::size_t> normalized_axes =
                         ngraph::normalize_axes(node.get_description(), reduction_axes, input_rank);
@@ -55,10 +54,9 @@ namespace ngraph
                 }
             } // namespace  detail
 
-            std::shared_ptr<ngraph::Node>
-                make_ng_reduction_op(const Node& node,
-                                     const Output<ngraph::Node>& ng_input,
-                                     ReductionFunction reduction_function)
+            std::shared_ptr<ngraph::Node> make_ng_reduction_op(const Node& node,
+                                                               const Output<ngraph::Node>& ng_input,
+                                                               ReductionFunction reduction_function)
             {
                 auto data_shape = ng_input.get_shape();
 

@@ -34,7 +34,8 @@ namespace ngraph
                 {
                     // First value is actual output of Dropout,
                     // the second one is just a placeholder for optional trailing output.
-                    return {node.get_ng_inputs().at(0).get_node_shared_ptr(), std::make_shared<NullNode>()};
+                    return {node.get_ng_inputs().at(0).get_node_shared_ptr(),
+                            std::make_shared<NullNode>()};
                 }
             } // namespace set_1
 

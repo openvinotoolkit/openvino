@@ -37,7 +37,7 @@ bool pass::FusedOpDecomposition::run_on_node(shared_ptr<Node> node)
             // Op supported by backend. Do not decompose
             return modified;
         }
-        
+
         OutputVector output_vector = node->decompose_op();
         NodeVector subgraph_outputs;
         for (auto output : output_vector)

@@ -156,7 +156,7 @@ namespace ngraph
                 }
                 else
                 {
-                    result.push_back(std::make_shared<NullNode>()->output(0));                
+                    result.push_back(std::make_shared<NullNode>()->output(0));
                 }
             }
             return result;

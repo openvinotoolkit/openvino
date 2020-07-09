@@ -387,7 +387,7 @@ Output<Node> op::v0::TensorIterator::get_concatenated_slices(const Output<Node>&
     return Output<Node>(shared_from_this(), output_index);
 }
 
-OutputVector  op::v0::TensorIterator::decompose_op() const
+OutputVector op::v0::TensorIterator::decompose_op() const
 {
     // Stub
     return OutputVector{};

@@ -487,12 +487,11 @@ OutputVector op::v1::GroupConvolutionBackpropData::decompose_op() const
     // slice filters
     OutputVector sliced_filters = builder::split(filters, groups, 0);
     // We have to squeeze first empty dimension (groups).
-    std::transform(std::begin(sliced_filters),
-                   std::end(sliced_filters),
-                   std::begin(sliced_filters),
-                   [](const Output<Node>& n) -> Output<Node> {
-                       return builder::opset1::squeeze(n);
-                   });
+    std::transform(
+        std::begin(sliced_filters),
+        std::end(sliced_filters),
+        std::begin(sliced_filters),
+        [](const Output<Node>& n) -> Output<Node> { return builder::opset1::squeeze(n); });
 
     for (auto i = 0; i < groups; ++i)
     {

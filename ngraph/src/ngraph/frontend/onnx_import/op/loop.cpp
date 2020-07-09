@@ -47,21 +47,22 @@ namespace ngraph
                     ///
                     /// \return true if termination condition is true and it cannot be changed
                     ///         during Loop iterations, false otherwise.
-                    bool is_termination_condition_always_true(
-                        const Output<ngraph::Node>& loop_cond,
-                        const Output<ngraph::Node>& body_cond)
+                    bool is_termination_condition_always_true(const Output<ngraph::Node>& loop_cond,
+                                                              const Output<ngraph::Node>& body_cond)
                     {
                         bool loop_cond_value = false;
                         if (loop_cond.get_node()->is_constant() &&
                             loop_cond.get_node()->get_element_type() == element::boolean)
                         {
-                            loop_cond_value = as_type_ptr<default_opset::Constant>(loop_cond.get_node_shared_ptr())
+                            loop_cond_value = as_type_ptr<default_opset::Constant>(
+                                                  loop_cond.get_node_shared_ptr())
                                                   ->cast_vector<bool>()
                                                   .at(0);
                         }
                         // According to ONNX skipped cond input (is_null) means
                         // that is has true value
-                        bool is_loop_cond_true = loop_cond.get_node()->is_null() || loop_cond_value == true;
+                        bool is_loop_cond_true =
+                            loop_cond.get_node()->is_null() || loop_cond_value == true;
 
                         if (!is_loop_cond_true)
                         {
@@ -74,8 +75,9 @@ namespace ngraph
                         // input is always false
                         if (is_type<default_opset::LogicalOr>(body_cond.get_node_shared_ptr()))
                         {
-                            const auto second_input =
-                                body_cond.get_node_shared_ptr()->input_value(1).get_node_shared_ptr();
+                            const auto second_input = body_cond.get_node_shared_ptr()
+                                                          ->input_value(1)
+                                                          .get_node_shared_ptr();
                             if (second_input->is_constant() &&
                                 second_input->get_element_type() == element::boolean &&
                                 as_type_ptr<default_opset::Constant>(second_input)

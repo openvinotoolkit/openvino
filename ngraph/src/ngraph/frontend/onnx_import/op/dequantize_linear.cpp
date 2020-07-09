@@ -69,8 +69,8 @@ namespace ngraph
 
                     if (x.get_element_type() != zero_point.get_element_type())
                     {
-                        zero_point = std::make_shared<default_opset::Convert>(
-                            zero_point, x.get_element_type());
+                        zero_point = std::make_shared<default_opset::Convert>(zero_point,
+                                                                              x.get_element_type());
                     }
 
                     return {std::make_shared<ngraph::opset0::Dequantize>(

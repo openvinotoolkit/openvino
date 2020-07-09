@@ -59,8 +59,7 @@ namespace ngraph
             ///
             /// \return     Original node or a node representing a reshape of the original.
             ///
-            Output<ngraph::Node>
-                interpret_as_scalar(const Output<ngraph::Node>& node);
+            Output<ngraph::Node> interpret_as_scalar(const Output<ngraph::Node>& node);
 
         } // namespace  reshape
     }     // namespace onnx_import

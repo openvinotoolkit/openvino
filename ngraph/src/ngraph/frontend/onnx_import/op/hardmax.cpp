@@ -48,11 +48,10 @@ namespace ngraph
 
                     const auto coerced_tensor_shape =
                         std::make_shared<default_opset::ShapeOf>(coerced_tensor);
-                    Output<ngraph::Node> row_size =
-                        std::make_shared<default_opset::Gather>(
-                            coerced_tensor_shape,
-                            default_opset::Constant::create(element::i64, {1}, {1}),
-                            default_opset::Constant::create(element::i64, {}, {0}));
+                    Output<ngraph::Node> row_size = std::make_shared<default_opset::Gather>(
+                        coerced_tensor_shape,
+                        default_opset::Constant::create(element::i64, {1}, {1}),
+                        default_opset::Constant::create(element::i64, {}, {0}));
                     row_size = ngraph::onnx_import::reshape::interpret_as_scalar(row_size);
 
                     const auto indices_axis = 1;
@@ -70,8 +69,8 @@ namespace ngraph
 
                     const auto results = std::make_shared<default_opset::OneHot>(
                         topk->output(1), row_size, on_value, off_value, indices_axis);
-                    const auto converted_results = std::make_shared<default_opset::Convert>(
-                        results, input.get_element_type());
+                    const auto converted_results =
+                        std::make_shared<default_opset::Convert>(results, input.get_element_type());
 
                     if (input_shape.is_static())
                     {

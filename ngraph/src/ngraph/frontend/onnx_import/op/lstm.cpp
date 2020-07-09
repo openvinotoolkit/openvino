@@ -163,10 +163,7 @@ namespace ngraph
                         }
                     }
 
-                    Output<ngraph::Node>& at(const LSTMInput& key)
-                    {
-                        return m_map.at(key);
-                    }
+                    Output<ngraph::Node>& at(const LSTMInput& key) { return m_map.at(key); }
                     container_type m_map;
                 };
 

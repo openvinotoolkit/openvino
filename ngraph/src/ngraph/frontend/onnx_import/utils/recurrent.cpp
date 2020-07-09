@@ -97,11 +97,7 @@ namespace ngraph
             {
             }
 
-            Output<ngraph::Node>& OpInputMap::at(const OpInput& key)
-            {
-                return m_map.at(key);
-            }
-
+            Output<ngraph::Node>& OpInputMap::at(const OpInput& key) { return m_map.at(key); }
             const Output<ngraph::Node>& OpInputMap::at(const OpInput& key) const
             {
                 return m_map.at(key);
@@ -181,8 +177,7 @@ namespace ngraph
                 Output<ngraph::Node> orig_B = m_args.at(OpInput::B);
 
                 Output<ngraph::Node> X = m_args.at(OpInput::X);
-                Output<ngraph::Node> H_t =
-                    prepare_input(m_args.at(OpInput::INIT_H), is_reverse);
+                Output<ngraph::Node> H_t = prepare_input(m_args.at(OpInput::INIT_H), is_reverse);
                 Output<ngraph::Node> W = prepare_input(m_args.at(OpInput::W), is_reverse);
                 Output<ngraph::Node> R = prepare_input(m_args.at(OpInput::R), is_reverse);
                 Output<ngraph::Node> B = prepare_input(m_args.at(OpInput::B), is_reverse);

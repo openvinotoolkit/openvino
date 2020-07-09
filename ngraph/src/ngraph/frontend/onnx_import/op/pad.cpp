@@ -66,8 +66,7 @@ namespace ngraph
                 {
                     auto data = node.get_ng_inputs().at(0);
 
-                    const auto data_rank =
-                        node.get_ng_inputs().at(0).get_partial_shape().rank();
+                    const auto data_rank = node.get_ng_inputs().at(0).get_partial_shape().rank();
                     CHECK_VALID_NODE(
                         node, data_rank.is_static(), "Data rank must be static for pad op");
                     const auto data_rank_value = data_rank.get_length();

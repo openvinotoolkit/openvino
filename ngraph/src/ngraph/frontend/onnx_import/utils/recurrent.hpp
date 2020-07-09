@@ -175,7 +175,7 @@ namespace ngraph
                 /// \return     The node vector with pass results.
                 ///
                 OutputVector recurrent_sequence_pass(const RecurrentCellFunction& kernel,
-                                                   bool is_reverse = false);
+                                                     bool is_reverse = false);
 
                 OpInputMap& m_args;
                 ngraph::op::RecurrentSequenceDirection m_direction;

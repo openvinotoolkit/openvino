@@ -180,7 +180,8 @@ namespace ngraph
                             common::get_monotonic_range<int64_t>(data_rank_value));
                     }
 
-                    const auto axes_const = as_type_ptr<default_opset::Constant>(axes.get_node_shared_ptr());
+                    const auto axes_const =
+                        as_type_ptr<default_opset::Constant>(axes.get_node_shared_ptr());
                     auto raw_axes_vec = axes_const->cast_vector<int64_t>();
                     std::vector<uint64_t> axes_vec;
                     if (data_rank.is_static())

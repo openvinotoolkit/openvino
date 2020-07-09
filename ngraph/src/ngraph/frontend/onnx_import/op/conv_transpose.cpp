@@ -124,10 +124,9 @@ namespace ngraph
                         }
                     }
 
-                    Output<ngraph::Node>
-                        get_reshaped_filters(const Output<ngraph::Node>& filters,
-                                             const PartialShape& filters_pshape,
-                                             int64_t groups)
+                    Output<ngraph::Node> get_reshaped_filters(const Output<ngraph::Node>& filters,
+                                                              const PartialShape& filters_pshape,
+                                                              int64_t groups)
                     {
                         if (filters_pshape.is_static())
                         {
@@ -180,9 +179,8 @@ namespace ngraph
                         }
                     }
 
-                    Output<ngraph::Node>
-                        get_prepared_bias(const Output<ngraph::Node>& bias,
-                                          const Output<ngraph::Node>& conv)
+                    Output<ngraph::Node> get_prepared_bias(const Output<ngraph::Node>& bias,
+                                                           const Output<ngraph::Node>& conv)
                     {
                         // Prepare bias shape [1, C, 1, 1]
                         const auto& conv_pshape = conv.get_partial_shape();

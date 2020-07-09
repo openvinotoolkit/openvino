@@ -30,7 +30,6 @@ op::util::FusedOp::FusedOp(const OutputVector& args)
 {
 }
 
-
 void op::util::FusedOp::validate_and_infer_types()
 {
     pre_validate_and_infer_types();

@@ -52,7 +52,8 @@ namespace ngraph
                   Model& model,
                   std::unique_ptr<GraphCache>&& cache);
 
-            void set_friendly_names(const Node& onnx_node, const OutputVector& ng_node_vector) const;
+            void set_friendly_names(const Node& onnx_node,
+                                    const OutputVector& ng_node_vector) const;
 
             void add_provenance_tag_to_initializer(
                 const Tensor& initializer, std::shared_ptr<default_opset::Constant> node) const;
@@ -60,7 +61,8 @@ namespace ngraph
             void add_provenance_tag_to_input(const ValueInfo& input,
                                              std::shared_ptr<ngraph::Node> node) const;
 
-            void add_provenance_tags(const Node& onnx_node, const OutputVector& ng_node_vector) const;
+            void add_provenance_tags(const Node& onnx_node,
+                                     const OutputVector& ng_node_vector) const;
 
         private:
             const ONNX_NAMESPACE::GraphProto* m_graph_proto;

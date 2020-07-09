@@ -77,12 +77,10 @@ namespace ngraph
                         }
                     }
 
-                    std::shared_ptr<ngraph::Node>
-                        add_bias(const Output<ngraph::Node>& ng_conv,
-                                 const Output<ngraph::Node>& bias)
+                    std::shared_ptr<ngraph::Node> add_bias(const Output<ngraph::Node>& ng_conv,
+                                                           const Output<ngraph::Node>& bias)
                     {
-                        const auto rank_of_conv =
-                            ng_conv.get_partial_shape().rank().get_length();
+                        const auto rank_of_conv = ng_conv.get_partial_shape().rank().get_length();
 
                         // reshape the bias node {M} to {1, M, 1, 1, ..., 1}
                         // this is required by the addition operation that needs to be able

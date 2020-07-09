@@ -60,8 +60,7 @@ namespace ngraph
                     const Strides default_data_dilation_strides(input.et_shape().size() - 2, 1);
                     auto scale_one = make_constant(ngraph::element::f32, Shape{}, 1);
                     auto input_zero_point = make_constant(input.get_element_type(), Shape{}, 0);
-                    auto filters_zero_point =
-                        make_constant(filters.get_element_type(), Shape{}, 0);
+                    auto filters_zero_point = make_constant(filters.get_element_type(), Shape{}, 0);
                     auto output_zero_point = make_constant(ngraph::element::i32, Shape{}, 0);
 
                     if (num_inputs == 2)

@@ -47,11 +47,10 @@ namespace ngraph
                 const OutputVector ng_inputs{node.get_ng_inputs()};
 
                 // Templated binary operation - Creates Add, Minimum, Maximum, etc.
-                const auto binary_operation =
-                    [&auto_broadcast](const Output<ngraph::Node>& arg0,
-                                      const Output<ngraph::Node>& arg1) {
-                        return std::make_shared<T>(arg0, arg1, auto_broadcast);
-                    };
+                const auto binary_operation = [&auto_broadcast](const Output<ngraph::Node>& arg0,
+                                                                const Output<ngraph::Node>& arg1) {
+                    return std::make_shared<T>(arg0, arg1, auto_broadcast);
+                };
 
                 // Create a result node as a series of binary operations
                 const auto result = std::accumulate(
