@@ -23,7 +23,7 @@ namespace ngraph
 {
     namespace op
     {
-        namespace v4
+        namespace v1
         {
             /// \brief A Self Regularized Non-Monotonic Neural Activation Function
             /// x <  0 => f(x) =  x * tanh(log(exp(x) + 1.))
@@ -32,7 +32,7 @@ namespace ngraph
             class NGRAPH_API Mish : public ngraph::op::Op
             {
             public:
-                static constexpr NodeTypeInfo type_info{"Mish", 4};
+                static constexpr NodeTypeInfo type_info{"Mish", 1};
                 const NodeTypeInfo& get_type_info() const override { return type_info; }
                 Mish() = default;
                 /// \brief Constructs an Mish operation.
