@@ -20,14 +20,6 @@ include(FetchContent)
 # Download and install Google Protobuf ...
 #------------------------------------------------------------------------------
 
-message(STATUS "DUMP Protobuf FLAGS ORIGINAL:")
-message(STATUS "CMAKE_CXX_FLAGS: ${CMAKE_CXX_FLAGS}")
-message(STATUS "CMAKE_CXX_FLAGS_RELEASE: ${CMAKE_CXX_FLAGS_RELEASE}")
-message(STATUS "CMAKE_EXE_LINKER_FLAGS_RELEASE: ${CMAKE_EXE_LINKER_FLAGS_RELEASE}")
-message(STATUS "CMAKE_SHARED_LINKER_FLAGS_RELEASE: ${CMAKE_SHARED_LINKER_FLAGS_RELEASE}")
-message(STATUS "CMAKE_MODULE_LINKER_FLAGS_RELEASE: ${CMAKE_MODULE_LINKER_FLAGS_RELEASE}")
-message(STATUS "NGRAPH_FORWARD_CMAKE_ARGS: ${NGRAPH_FORWARD_CMAKE_ARGS}")
-
 # Since this file is going to be modifying CMAKE_*_FLAGS we need to preserve
 # it so we won't overwrite the caller's CMAKE_*_FLAGS
 set(PUSH_CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
@@ -43,14 +35,6 @@ set(CMAKE_C_FLAGS_RELEASE "${CMAKE_ORIGINAL_C_FLAGS_RELEASE}")
 set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_ORIGINAL_EXE_LINKER_FLAGS_RELEASE}")
 set(CMAKE_SHARED_LINKER_FLAGS_RELEASE "${CMAKE_ORIGINAL_SHARED_LINKER_FLAGS_RELEASE}")
 set(CMAKE_MODULE_LINKER_FLAGS_RELEASE "${CMAKE_ORIGINAL_MODULE_LINKER_FLAGS_RELEASE}")
-
-message(STATUS "DUMP Protobuf FLAGS:")
-message(STATUS "CMAKE_CXX_FLAGS: ${CMAKE_CXX_FLAGS}")
-message(STATUS "CMAKE_CXX_FLAGS_RELEASE: ${CMAKE_CXX_FLAGS_RELEASE}")
-message(STATUS "CMAKE_EXE_LINKER_FLAGS_RELEASE: ${CMAKE_EXE_LINKER_FLAGS_RELEASE}")
-message(STATUS "CMAKE_SHARED_LINKER_FLAGS_RELEASE: ${CMAKE_SHARED_LINKER_FLAGS_RELEASE}")
-message(STATUS "CMAKE_MODULE_LINKER_FLAGS_RELEASE: ${CMAKE_MODULE_LINKER_FLAGS_RELEASE}")
-message(STATUS "NGRAPH_FORWARD_CMAKE_ARGS: ${NGRAPH_FORWARD_CMAKE_ARGS}")
 
 if (MSVC)
     string(REPLACE "/W3" "/W0" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
@@ -163,7 +147,7 @@ else()
                 FetchContent_Populate(ext_protobuf)
                 set(protobuf_BUILD_TESTS OFF CACHE BOOL "Build tests")
                 set(protobuf_WITH_ZLIB OFF CACHE BOOL "Build with zlib support")
-                add_subdirectory(${ext_protobuf_SOURCE_DIR}/cmake ${ext_protobuf_SOURCE_DIR} EXCLUDE_FROM_ALL)
+                add_subdirectory(${ext_protobuf_SOURCE_DIR}/cmake ${ext_protobuf_BINARY_DIR} EXCLUDE_FROM_ALL)
             endif()
         else()
             message(FATAL_ERROR "Minimum supported version of protobuf library is 3.0.0")
