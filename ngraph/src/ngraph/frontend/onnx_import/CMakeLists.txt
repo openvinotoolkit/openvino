@@ -14,7 +14,7 @@
 # limitations under the License.
 # ******************************************************************************
 
-set(ONNX_OPSET_VERSION 11 CACHE INTERNAL "Supported version of ONNX operator set")
+set(ONNX_OPSET_VERSION 13 CACHE INTERNAL "Supported version of ONNX operator set")
 
 add_library(onnx_importer SHARED
         core/node.cpp
@@ -86,8 +86,8 @@ add_library(onnx_importer SHARED
         op/cum_sum.hpp
         op/depth_to_space.cpp
         op/depth_to_space.hpp
-        # op/dequantize_linear.cpp
-        # op/dequantize_linear.hpp
+        op/dequantize_linear.cpp
+        op/dequantize_linear.hpp
         op/div.hpp
         op/dropout.hpp
         op/elu.cpp
@@ -99,6 +99,8 @@ add_library(onnx_importer SHARED
         op/expand.cpp
         op/eye_like.cpp
         op/eye_like.hpp
+        op/fake_quantize.cpp
+        op/fake_quantize.hpp
         op/flatten.cpp
         op/flatten.hpp
         op/floor.hpp
@@ -119,6 +121,7 @@ add_library(onnx_importer SHARED
         op/hardmax.cpp
         op/hardmax.hpp
         op/identity.hpp
+        op/image_scaler.cpp
         op/instance_norm.cpp
         op/instance_norm.hpp
         op/leaky_relu.cpp
