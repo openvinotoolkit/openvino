@@ -65,7 +65,7 @@ void regclass_pyngraph_Node(py::module m)
             {
                 shapes_ss << ", ";
             }
-            shapes_ss << py::cast(self.get_output_shape(i)).attr("__str__")().cast<std::string>();
+            shapes_ss << self.get_output_partial_shape(i);
         }
         return "<" + type_name + ": '" + self.get_friendly_name() + "' (" + shapes_ss.str() + ")>";
     });
