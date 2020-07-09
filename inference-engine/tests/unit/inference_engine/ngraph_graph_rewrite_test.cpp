@@ -12,9 +12,9 @@ using namespace ::testing;
 using namespace std;
 using namespace ngraph;
 
-class TestMatcher : public ngraph::pass::MatcherPass {
+class TestMatcherPass : public ngraph::pass::MatcherPass {
 public:
-    TestMatcher() : MatcherPass() {
+    TestMatcherPass() : MatcherPass() {
         auto divide = std::make_shared<ngraph::pattern::op::Label>(element::f32, Shape{}, pattern::has_class<opset3::Divide>());
         ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
             if (m_transformation_callback(m.get_match_root())) {
@@ -56,7 +56,7 @@ TEST(GraphRewriteTest, MatcherPassCallback) {
     auto f = get_function();
 
     Anchor anchor;
-    anchor.add_matcher<TestMatcher>()->set_callback(get_callback());
+    anchor.add_matcher<TestMatcherPass>()->set_callback(get_callback());
     anchor.run_on_function(f);
 
     ASSERT_TRUE(ngraph::op::util::has_op_with_type<opset3::Relu>(f));
@@ -66,7 +66,7 @@ TEST(GraphRewriteTest, GraphRewriteCallback) {
     auto f = get_function();
 
     Anchor anchor;
-    anchor.add_matcher<TestMatcher>();
+    anchor.add_matcher<TestMatcherPass>();
     anchor.set_callback(get_callback());
     anchor.run_on_function(f);
 
@@ -78,7 +78,7 @@ TEST(GraphRewriteTest, ManagerCallback) {
 
     pass::Manager manager;
     auto anchor = manager.register_pass<Anchor>();
-    anchor->add_matcher<TestMatcher>();
+    anchor->add_matcher<TestMatcherPass>();
     manager.set_callback(get_callback());
     manager.run_passes(f);
 
@@ -89,7 +89,7 @@ TEST(GraphRewriteTest, ManagerCallback2) {
     auto f = get_function();
 
     pass::Manager manager;
-    auto anchor = manager.register_pass<TestMatcher>();
+    auto anchor = manager.register_pass<TestMatcherPass>();
     manager.set_callback(get_callback());
     manager.run_passes(f);
 

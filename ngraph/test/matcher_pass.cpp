@@ -32,10 +32,10 @@
 using namespace ngraph;
 using namespace std;
 
-class TestMatcher : public pass::MatcherPass
+class TestMatcherPass : public pass::MatcherPass
 {
 public:
-    TestMatcher()
+    TestMatcherPass()
     {
         auto m_relu1 = std::make_shared<pattern::op::Label>(
             element::f32, Shape{}, [](std::shared_ptr<Node> node) -> bool {
@@ -78,7 +78,7 @@ public:
 TEST(pattern, matcher_pass)
 {
     {
-        TestMatcher test_matcher;
+        TestMatcherPass test_matcher;
         auto a = make_shared<opset3::Parameter>(element::f32, Shape{1});
         auto b = make_shared<opset3::Relu>(a);
         auto c = make_shared<opset3::Relu>(b);
@@ -96,7 +96,7 @@ TEST(pattern, matcher_pass)
     }
 
     {
-        TestMatcher test_matcher;
+        TestMatcherPass test_matcher;
         auto a = make_shared<opset3::Parameter>(element::f32, Shape{1});
         auto b = make_shared<opset3::Relu>(a);
         auto c = make_shared<opset3::Relu>(b);
@@ -116,7 +116,7 @@ TEST(pattern, matcher_pass)
         }
 
         pass::GraphRewrite pass;
-        pass.add_matcher<TestMatcher>();
+        pass.add_matcher<TestMatcherPass>();
         pass.run_on_function(f);
 
         // Parameter->Relu->Result
