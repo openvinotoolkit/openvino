@@ -121,6 +121,7 @@ add_library(onnx_importer SHARED
         op/hardmax.cpp
         op/hardmax.hpp
         op/identity.hpp
+        op/image_scaler.cpp
         op/instance_norm.cpp
         op/instance_norm.hpp
         op/leaky_relu.cpp
