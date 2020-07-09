@@ -69,6 +69,11 @@ struct Ship
 
 namespace ngraph
 {
+    template <typename T>
+    VariantImpl<T>::~VariantImpl()
+    {
+    }
+
     template <>
     class VariantWrapper<Ship> : public VariantImpl<Ship>
     {
