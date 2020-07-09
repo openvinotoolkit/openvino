@@ -211,8 +211,8 @@ namespace ngraph
             catch (...)
             {
                 std::string msg_prefix = error::detail::get_error_msg_prefix(onnx_node);
-                // Since we do not now anything about current exception data type we can only
-                // notify user this way.
+                // Since we do not know anything about current exception data type we can only
+                // notify user in this way.
                 NGRAPH_ERR << msg_prefix + "Unhandled exception type. \n";
                 std::rethrow_exception(std::current_exception());
             }
