@@ -14,32 +14,21 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include "ngraph/variant.hpp"
+#pragma once
 
-using namespace ngraph;
+#include "core/node.hpp"
+#include "ngraph/node.hpp"
 
-// Define variant for std::string
-constexpr VariantTypeInfo VariantWrapper<std::string>::type_info;
-constexpr VariantTypeInfo VariantWrapper<int64_t>::type_info;
-
-Variant::~Variant()
+namespace ngraph
 {
+    namespace onnx_import
+    {
+        namespace op
+        {
+            namespace set_1
+            {
+                NodeVector image_scaler(const Node& node);
+            }
+        }
+    }
 }
-
-std::shared_ptr<ngraph::Variant> Variant::init(const std::shared_ptr<ngraph::Node>& node)
-{
-    return nullptr;
-}
-
-std::shared_ptr<ngraph::Variant> Variant::merge(const ngraph::NodeVector& nodes)
-{
-    return nullptr;
-}
-
-template <typename T>
-VariantImpl<T>::~VariantImpl()
-{
-}
-
-template class ngraph::VariantImpl<std::string>;
-template class ngraph::VariantImpl<int64_t>;
