@@ -28,7 +28,6 @@ using namespace InferenceEngine;
  */
 class MemCheckPipeline {
 private:
-    std::array<std::string, MeasureValueMax> measures_headers = {{"VMRSS", "VMHWM", "VMSIZE", "VMPEAK", "THREADS"}};
     std::array<long, MeasureValueMax> measures;            // current measures
     std::array<long, MeasureValueMax> start_measures;      // measures before run (will be used as baseline)
 public:
@@ -89,19 +88,11 @@ public:
         return str;
     }
 
-    std::string get_measures_headers_as_str() {
-        std::string str = *measures_headers.begin();
-        for (auto it = measures_headers.begin() + 1; it != measures_headers.end(); it++) {
-            str += MEMCHECK_DELIMITER + *it;
-        }
-        return str;
-    }
-
     /**
      * @brief Prints headers and corresponding measurements using hardcoded delimiter
      */
     void print_measures() {
-        log_info(get_measures_headers_as_str());
+        log_info(util::get_measure_values_headers(MEMCHECK_DELIMITER));
         log_info(get_measures_as_str());
     }
 
@@ -124,6 +115,9 @@ public:
 
 TestResult common_test_pipeline(const std::function<std::array<long, MeasureValueMax>()>& test_pipeline,
                                 const std::array<long, MeasureValueMax> &references) {
+    log_info("Reference values of virtual memory consumption:");
+    log_info(util::get_measure_values_headers(MEMCHECK_DELIMITER));
+    log_info(util::get_measure_values_as_str(references, MEMCHECK_DELIMITER));
 
     std::array<long, MeasureValueMax> measures = test_pipeline();
 
@@ -151,11 +145,6 @@ test_create_exenetwork(const std::string &model_name, const std::string &model_p
 
     auto test_pipeline = [&]{
         MemCheckPipeline memCheckPipeline;
-
-        log_info("Reference values of virtual memory consumption:");
-        log_info(memCheckPipeline.get_measures_headers_as_str());
-        log_info(references[VMRSS] << "\t\t" << references[VMHWM] << "\t\t" << references[VMSIZE] << "\t\t"
-                                   << references[VMPEAK] << "\t\t" << references[THREADS]);
 
         log_info("Memory consumption before run:");
         memCheckPipeline.do_measures();
@@ -196,11 +185,6 @@ test_infer_request_inference(const std::string &model_name, const std::string &m
 
     auto test_pipeline = [&]{
         MemCheckPipeline memCheckPipeline;
-
-        log_info("Reference values of virtual memory consumption:");
-        log_info(memCheckPipeline.get_measures_headers_as_str());
-        log_info(references[VMRSS] << "\t\t" << references[VMHWM] << "\t\t" << references[VMSIZE] << "\t\t"
-                                   << references[VMPEAK] << "\t\t" << references[THREADS]);
 
         log_info("Memory consumption before run:");
         memCheckPipeline.do_measures();

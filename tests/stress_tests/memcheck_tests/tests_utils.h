@@ -9,9 +9,27 @@
 #include <pugixml.hpp>
 
 // Measure values
-enum MeasureValue {
-    VMRSS = 0, VMHWM, VMSIZE, VMPEAK, THREADS, MeasureValueMax
-};
+enum MeasureValue { VMRSS = 0, VMHWM, VMSIZE, VMPEAK, THREADS, MeasureValueMax };
+// Measure values headers
+const std::array<std::string, MeasureValueMax> MeasureValueHeader { "VMRSS", "VMHWM", "VMSIZE", "VMPEAK", "THREADS" };
+
+namespace util {
+    template <typename Type>
+    static std::string get_measure_values_as_str(const std::array<Type, MeasureValueMax> & array,
+                                                 const std::string & delimiter = "\t\t") {
+        std::string str = std::to_string(*array.begin());
+        for (auto it = array.begin() + 1; it != array.end(); it++)
+            str += delimiter + std::to_string(*it);
+        return str;
+    }
+
+    static std::string get_measure_values_headers(const std::string & delimiter = "\t\t") {
+        std::string str = *MeasureValueHeader.begin();
+        for (auto it = MeasureValueHeader.begin() + 1; it != MeasureValueHeader.end(); it++)
+            str += delimiter + *it;
+        return str;
+    }
+}
 
 class MemCheckEnvironment {
 private:
