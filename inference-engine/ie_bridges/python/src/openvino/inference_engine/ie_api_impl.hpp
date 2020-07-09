@@ -22,7 +22,8 @@
 #include <mutex>
 
 #include <ie_extension.h>
-#include "inference_engine.hpp"
+#include <ie_layers.h>
+#include <ie_core.hpp>
 
 typedef std::chrono::high_resolution_clock Time;
 typedef std::chrono::nanoseconds ns;
@@ -113,7 +114,12 @@ struct InferRequestWrap {
 
     void setBlob(const std::string &blob_name, const InferenceEngine::Blob::Ptr &blob_ptr);
 
+    void setBlob(const std::string &name, const InferenceEngine::Blob::Ptr &data,
+                 const InferenceEngine::PreProcessInfo& info);
+
     void setBatch(int size);
+
+    void getPreProcess(const std::string& blob_name, const InferenceEngine::PreProcessInfo** info);
 
     std::map<std::string, InferenceEnginePython::ProfileInfo> getPerformanceCounts();
 };

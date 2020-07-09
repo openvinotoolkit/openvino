@@ -71,6 +71,26 @@ namespace ngraph
                     default_opset::Constant::create(element::i64, {}, {step}));
             }
 
+            void validate_scalar_input(const char* input_name,
+                                       const std::shared_ptr<ngraph::Node> input,
+                                       const std::set<element::Type> allowed_types)
+            {
+                const auto validated_input_rank = input->get_output_partial_shape(0).rank();
+
+                NGRAPH_CHECK(
+                    validated_input_rank.same_scheme({0}), input_name, " needs to be a scalar.");
+
+                if (!allowed_types.empty())
+                {
+                    const bool data_type_ok = allowed_types.count(input->get_element_type());
+                    NGRAPH_CHECK(data_type_ok,
+                                 "Incorrect data type of the ",
+                                 input_name,
+                                 " input: ",
+                                 input->get_element_type());
+                }
+            }
+
         } // namespace  common
     }     // namespace onnx_import
 } // namespace ngraph

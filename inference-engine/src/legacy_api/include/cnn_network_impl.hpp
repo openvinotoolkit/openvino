@@ -10,6 +10,7 @@
 #include <string>
 #include <vector>
 
+#include "ie_layers.h"
 #include "ie_ishape_infer_extension.hpp"
 #include "description_buffer.hpp"
 #include "ie_api.h"
@@ -29,6 +30,7 @@ namespace details {
 class INFERENCE_ENGINE_API_CLASS(CNNNetworkImpl): public ICNNNetwork {
 public:
     CNNNetworkImpl();
+    explicit CNNNetworkImpl(const ICNNNetwork & ngraphImpl); 
     ~CNNNetworkImpl() override;
 
     std::shared_ptr<::ngraph::Function> getFunction() noexcept override {

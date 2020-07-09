@@ -73,6 +73,25 @@ struct bc_test_params {
     size_t expected_not_fused_primitives;
 };
 
+struct conv_eltw_test_params {
+    tensor in_shape;
+    tensor out_shape;
+    tensor eltw_shape;
+    tensor kernel;
+    tensor stride;
+    tensor pad;
+    tensor dilation;
+    uint32_t groups;
+    data_types data_type;
+    format input_format;
+    data_types weights_type;
+    format weights_format;
+    data_types default_type;
+    format default_format;
+    size_t expected_fused_primitives;
+    size_t expected_not_fused_primitives;
+};
+
 struct gemm_test_params {
     std::vector<tensor> in_shapes;
     tensor out_shape;
@@ -368,6 +387,30 @@ public:
     }
 };
 
+class ConvEltwTest : public ::BaseFusingTest<conv_eltw_test_params> {
+public:
+
+    void execute(conv_eltw_test_params& p) {
+        auto input_prim = get_mem(get_input_layout(p));
+        network network_not_fused(this->engine, this->topology_non_fused, bo_not_fused);
+        network network_fused(this->engine, this->topology_fused, bo_fused);
+        network_fused.set_input_data("input", input_prim);
+        network_not_fused.set_input_data("input", input_prim);
+
+        compare(network_not_fused, network_fused, p);
+    }
+
+    layout get_input_layout(conv_eltw_test_params& p) {
+        auto pad = p.pad.negate();
+        std::vector<int> pad_ = { 0, 0, pad.spatial[0], pad.spatial[1] };
+        return layout{ p.data_type, p.input_format, p.in_shape, padding{pad_} };
+    }
+
+    layout get_per_channel_layout(conv_eltw_test_params& p) {
+        return layout{ p.default_type, p.default_format, tensor{1, p.out_shape.feature[0], 1, 1} };
+    }
+};
+
 // in_shape; out_shape; kernel; stride; pad; dilation; groups; data_type; input_format; weights_type; weights_format; default_type; default_format;
 #define CASE_CONV_FP32_1 {1, 15, 4, 5}, {1, 30, 2, 3}, {1, 1, 3, 3}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::f32, format::bfyx, data_types::f32, format::oiyx, data_types::f32, format::bfyx
 #define CASE_CONV_FP32_2 {1, 16, 4, 5}, {1, 32, 2, 3}, {1, 1, 3, 3}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::f32, format::b_fs_yx_fsv16, data_types::f32, format::os_is_yx_isv16_osv16, data_types::f32, format::bfyx
@@ -428,10 +471,25 @@ public:
 #define CASE_CONV3D_S8S8_3 {1, 16, 5, 4, 5}, {1, 32, 5, 4, 5}, {1, 1, 1, 1, 1}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::i8, format::bfzyx, data_types::i8, format::bfzyx, data_types::f32, format::bfzyx
 #define CASE_CONV3D_S8S8_4 {1, 17, 5, 4, 5}, {1, 17, 5, 4, 5}, {1, 1, 3, 3, 3}, tensor{1}, tensor{{0, 0, -1, -1, -1}, 0}, tensor{1}, 17, data_types::i8, format::bfzyx, data_types::i8, format::goizyx, data_types::f32, format::bfzyx
 
+// in_shape; out_shape; eltw_shape; kernel; stride; pad; dilation; groups; data_type; input_format; weights_type; weights_format; default_type; default_format;
+#define CASE_CONV_ELTW_FP32_1 {1, 16, 4, 5}, {1, 32, 2, 3}, {1, 32, 1, 1}, {1, 1, 3, 3}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::f32, format::b_fs_yx_fsv16, data_types::f32, format::oiyx, data_types::f32, format::bfyx
+#define CASE_CONV_ELTW_FP32_2 {1, 16, 4, 5}, {1, 32, 2, 3}, {1, 1, 1, 1}, {1, 1, 3, 3}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::f32, format::b_fs_yx_fsv16, data_types::f32, format::os_is_yx_isv16_osv16, data_types::f32, format::bfyx
+#define CASE_CONV_ELTW_FP32_3 {1, 16, 4, 5}, {1, 32, 4, 5}, {1, 32, 4, 5}, {1, 1, 1, 1}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::f32, format::b_fs_yx_fsv16, data_types::f32, format::os_is_yx_isv16_osv16, data_types::f32, format::bfyx
+#define CASE_CONV_ELTW_FP32_4 {1, 32, 4, 5}, {1, 32, 4, 5}, {1, 32, 1, 1}, {1, 1, 3, 3}, tensor{1}, tensor{0}, tensor{1}, 32, data_types::f32, format::b_fs_yx_fsv16, data_types::f32,  format::gs_oiyx_gsv16, data_types::f32, format::bfyx
+#define CASE_CONV_ELTW_FP32_5 {1, 32, 4, 5, 4}, {1, 32, 2, 3, 2}, {1, 32, 2, 1, 1}, {1, 1, 3, 3, 3}, tensor{1}, tensor{0}, tensor{1}, 2, data_types::f32, format::b_fs_zyx_fsv16, data_types::f32, format::os_is_zyx_isv16_osv16, data_types::f32, format::bfzyx
+#define CASE_CONV_ELTW_FP32_6 {1, 32, 4, 5, 4}, {1, 16, 2, 3, 2}, {1, 16, 2, 1, 1}, {1, 1, 3, 3, 3}, tensor{1}, tensor{0}, tensor{1}, 2, data_types::f32, format::b_fs_zyx_fsv16, data_types::f32, format::os_is_zyx_isv16_osv16, data_types::f32, format::bfzyx
+#define CASE_CONV_ELTW_FP32_7 {1, 16, 3, 5}, {1, 32, 1, 3}, {1, 32, 3, 1}, {1, 1, 3, 3}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::f32, format::b_fs_yx_fsv16, data_types::f32, format::os_is_yx_isv16_osv16, data_types::f32, format::bfyx
+#define CASE_CONV_ELTW_FP32_8 {1, 32, 3, 5, 4}, {1, 16, 1, 3, 2}, {1, 1, 2, 1, 1}, {1, 1, 3, 3, 3}, tensor{1}, tensor{0}, tensor{1}, 2, data_types::f32, format::b_fs_zyx_fsv16, data_types::f32, format::os_is_zyx_isv16_osv16, data_types::f32, format::bfzyx
+
+#define CASE_CONV_ELTW_i8_1 {1, 16, 3, 5}, {1, 32, 1, 3}, {1, 32, 3, 1}, {1, 1, 3, 3}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::i8, format::b_fs_yx_fsv16, data_types::i8, format::os_is_yx_osv16_isv16, data_types::f32, format::bfyx
+#define CASE_CONV_ELTW_i8_2 {1, 16, 3, 5, 3}, {1, 32, 2, 4, 2}, {1, 1, 2, 4, 2}, {1, 1, 2, 2, 2}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::i8, format::bfzyx, data_types::i8, format::oiyx, data_types::f32, format::bfzyx
+#define CASE_CONV_ELTW_i8_3 {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::i8, format::bfzyx, data_types::i8, format::oiyx, data_types::f32, format::bfzyx
+#define CASE_CONV_ELTW_i8_4 {1, 16, 1, 4}, {1, 16, 1, 2}, {1, 16, 1, 1}, {1, 1, 1, 3}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::i8, format::b_fs_yx_fsv16, data_types::i8, format::os_is_yx_osv16_isv16, data_types::f32, format::bfyx
+#define CASE_CONV_ELTW_i8_5 {1, 16, 1, 4, 1}, {1, 16, 1, 2, 1}, {1, 16, 2, 1, 1}, {1, 1, 1, 3, 1}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::i8, format::bfzyx, data_types::i8, format::oiyx, data_types::f32, format::bfzyx
+
 #define CASE_BIN_CONV1 {1, 16, 4, 5}, {1, 16, 4, 5}, {1, 1, 3, 3}, tensor{1}, tensor{0, 0, -1, -1, 0, 0}, tensor{1}, 1, data_types::bin, format::b_fs_yx_32fp, data_types::bin, format::os_is_yx_osv32_isv32p, data_types::f32, format::bfyx
 #define CASE_BIN_CONV2 {1, 16, 4, 5}, {1, 30, 4, 5}, {1, 1, 1, 1}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::bin, format::b_fs_yx_32fp, data_types::bin, format::os_is_yx_osv32_isv32p, data_types::f32, format::bfyx
 #define CASE_BIN_CONV3 {1, 184, 12, 21}, {1, 224, 12, 21}, {1, 1, 1, 1}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::bin, format::b_fs_yx_32fp, data_types::bin, format::os_is_yx_osv32_isv32p, data_types::f32, format::bfyx
-
 
 #define CASE_FC_FP32_1 {1, 1, 3, 1}, {1, 4, 1, 1}, {4, 1, 3, 1}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::f32, format::bfyx, data_types::f32, format::oiyx, data_types::f32, format::bfyx
 #define CASE_FC_FP32_2 {2, 1, 3, 1}, {2, 4, 1, 1}, {4, 1, 3, 1}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::f32, format::yxfb, data_types::f32, format::oiyx, data_types::f32, format::bfyx
@@ -550,6 +608,24 @@ TEST_P(conv_fp32_prelu_eltwise, basic) {
                  data("bias", get_mem(get_bias_layout(p))),
                  data("slope_data", get_mem(get_per_channel_layout(p))),
                  data("eltwise_data", get_mem(get_output_layout(p))),
+                 convolution("conv_prim", "input", {"weights"}, {"bias"}, p.groups, p.stride, p.pad, p.dilation),
+                 activation("activation", "conv_prim", "slope_data", activation_func::relu_negative_slope),
+                 eltwise("eltwise", "activation", "eltwise_data", eltwise_mode::sum),
+                 reorder("reorder_bfyx", "eltwise", p.default_format, data_types::f32)
+    );
+
+    tolerance = 1e-5f;
+    execute(p);
+}
+
+TEST_P(conv_fp32_prelu_eltwise, eltw_broadcast) {
+    auto p = GetParam();
+    tensor eltw_shape = p.default_format.spatial_num() == 2 ? tensor{1, 1, 1, 1} : tensor{1, 1, 1, 1, 1};
+    create_topologies(input_layout("input", get_input_layout(p)),
+                 data("weights", get_mem(get_weights_layout(p))),
+                 data("bias", get_mem(get_bias_layout(p))),
+                 data("slope_data", get_mem(get_per_channel_layout(p))),
+                 data("eltwise_data", get_mem(layout{ p.data_type, p.input_format, eltw_shape })),
                  convolution("conv_prim", "input", {"weights"}, {"bias"}, p.groups, p.stride, p.pad, p.dilation),
                  activation("activation", "conv_prim", "slope_data", activation_func::relu_negative_slope),
                  eltwise("eltwise", "activation", "eltwise_data", eltwise_mode::sum),
@@ -928,6 +1004,70 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_fp32_activation_eltwise_in_u8_fp32,
                                 bc_test_params{CASE_CONV_FP32_9, 2, 4},
                                 bc_test_params{CASE_CONV_FP32_10, 2, 4},
                         }), );
+
+class conv_fp32_activation_eltwise_diff_sizes : public ConvEltwTest {};
+TEST_P(conv_fp32_activation_eltwise_diff_sizes, basic) {
+    auto p = GetParam();
+    create_topologies(input_layout("input", get_input_layout(p)),
+                 data("weights", get_mem(get_weights_layout(p))),
+                 data("bias", get_mem(get_bias_layout(p))),
+                 data("eltwise_data", get_mem(layout{ p.data_type, p.input_format, p.eltw_shape })),
+                 convolution("conv_prim", "input", { "weights" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation),
+                 activation("activation", "conv_prim", activation_func::relu_negative_slope),
+                 eltwise("sum", { "activation", "eltwise_data" }, eltwise_mode::sum, data_types::f32),
+                 reorder("reorder_bfyx", "sum", p.default_format, data_types::f32)
+    );
+    tolerance = 1e-5f;
+    execute(p);
+}
+
+INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_fp32_activation_eltwise_diff_sizes,
+                        ::testing::ValuesIn(std::vector<conv_eltw_test_params>{
+                                conv_eltw_test_params{CASE_CONV_ELTW_FP32_1, 2, 4},
+                                conv_eltw_test_params{CASE_CONV_ELTW_FP32_2, 2, 4},
+                                conv_eltw_test_params{CASE_CONV_ELTW_FP32_3, 2, 4},
+                                conv_eltw_test_params{CASE_CONV_ELTW_FP32_4, 2, 4},
+                                conv_eltw_test_params{CASE_CONV_ELTW_FP32_5, 2, 4},
+                                conv_eltw_test_params{CASE_CONV_ELTW_FP32_6, 2, 4},
+                                conv_eltw_test_params{CASE_CONV_ELTW_FP32_7, 3, 4},
+                                conv_eltw_test_params{CASE_CONV_ELTW_FP32_8, 3, 4},
+                        }), );
+
+class conv_scale_activation_eltwise_fp32_quantize_i8 : public ConvEltwTest {};
+TEST_P(conv_scale_activation_eltwise_fp32_quantize_i8, basic) {
+    auto p = GetParam();
+    create_topologies(input_layout("input", get_input_layout(p)),
+                 data("weights", get_mem(get_weights_layout(p))),
+                 data("bias", get_mem(get_bias_layout(p))),
+                 convolution("conv", "input", { "weights" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation),
+                 data("scale_data", get_mem(get_per_channel_layout(p))),
+                 scale("scale", "conv", "scale_data"),
+                 activation("activation", "scale", activation_func::hyperbolic_tan),
+                 data("eltwise_data", get_mem(layout{ p.data_type, p.input_format, p.eltw_shape })),
+                 eltwise("eltw", { "activation", "eltwise_data" }, eltwise_mode::sum, data_types::f32),
+                 data("in_low", get_mem(get_per_channel_layout(p), min_random, 0)),
+                 data("in_high", get_mem(get_per_channel_layout(p), 1, max_random)),
+                 data("out_low", get_mem(get_single_element_layout(p), -127, 127)),
+                 data("out_high", get_mem(get_single_element_layout(p), -127, 127)),
+                 quantize("quant", "eltw", "in_low", "in_high", "out_low", "out_high", 255, data_types::i8),
+                 reorder("reorder_bfyx", "quant", p.default_format, data_types::f32)
+    );
+    tolerance = 1.f;
+    execute(p);
+}
+
+INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_scale_activation_eltwise_fp32_quantize_i8,
+                        ::testing::ValuesIn(std::vector<conv_eltw_test_params>{
+                                conv_eltw_test_params{CASE_CONV_ELTW_FP32_1, 2, 6},
+                                conv_eltw_test_params{CASE_CONV_ELTW_FP32_2, 2, 6},
+                                conv_eltw_test_params{CASE_CONV_ELTW_FP32_3, 2, 6},
+                                conv_eltw_test_params{CASE_CONV_ELTW_FP32_4, 2, 6},
+                                conv_eltw_test_params{CASE_CONV_ELTW_FP32_5, 3, 6},
+                                conv_eltw_test_params{CASE_CONV_ELTW_FP32_6, 3, 6},
+                                conv_eltw_test_params{CASE_CONV_ELTW_FP32_7, 4, 6},
+                                conv_eltw_test_params{CASE_CONV_ELTW_FP32_8, 4, 6},
+                        }), );
+
 
 /* ----------------------------------------------------------------------------------------------------- */
 /* -------------------------------------- binary convolution cases ------------------------------------- */
@@ -2077,6 +2217,32 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_int8_asymmetric_data_and_weights,
                                 bc_test_params{CASE_CONV3D_S8S8_4, 2, 3},
                         }), );
 
+
+class conv_i8_activation_eltwise_diff_sizes : public ConvEltwTest {};
+TEST_P(conv_i8_activation_eltwise_diff_sizes, basic) {
+    auto p = GetParam();
+    create_topologies(input_layout("input", get_input_layout(p)),
+                 data("weights", get_mem(get_weights_layout(p))),
+                 data("bias", get_mem(get_bias_layout(p))),
+                 data("eltwise_data", get_mem(layout{ p.data_type, p.input_format, p.eltw_shape })),
+                 convolution("conv_prim", "input", { "weights" }, { "bias" }, p.groups, p.stride, p.pad, p.dilation),
+                 activation("activation", "conv_prim", activation_func::abs),
+                 eltwise("sum", { "activation", "eltwise_data" }, eltwise_mode::sum, data_types::f32),
+                 reorder("reorder_bfyx", "sum", p.default_format, data_types::f32)
+    );
+    tolerance = 1e-5f;
+    execute(p);
+}
+
+INSTANTIATE_TEST_CASE_P(fusings_gpu, conv_i8_activation_eltwise_diff_sizes,
+                        ::testing::ValuesIn(std::vector<conv_eltw_test_params>{
+                                conv_eltw_test_params{CASE_CONV_ELTW_i8_1, 3, 4},
+                                conv_eltw_test_params{CASE_CONV_ELTW_i8_2, 2, 4},
+                                conv_eltw_test_params{CASE_CONV_ELTW_i8_3, 2, 4},
+                                conv_eltw_test_params{CASE_CONV_ELTW_i8_4, 2, 4},
+                                conv_eltw_test_params{CASE_CONV_ELTW_i8_5, 3, 4},
+                        }), );
+
 /* ----------------------------------------------------------------------------------------------------- */
 /* ---------------------------------------- FC cases --------------------------------------------------- */
 /* ----------------------------------------------------------------------------------------------------- */
@@ -2555,6 +2721,7 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, resample_scale_concat,
 /* ----------------------------------------------------------------------------------------------------- */
 struct mvn_test_params {
     tensor input_size;
+    tensor elwise_size;
     data_types input_type;
     format input_format;
     bool accross_channels;
@@ -2565,26 +2732,39 @@ struct mvn_test_params {
     size_t expected_not_fused_primitives;
 };
 
-#define CASE_MVN_F32_1      {1, 16, 8, 8},    data_types::f32, format::bfyx, false, true, data_types::f32, format::bfyx
-#define CASE_MVN_F32_2      {2, 16, 8, 8},    data_types::f32, format::bfyx, true, true, data_types::f32, format::bfyx
-#define CASE_MVN_3D_F32_1   {1, 16, 8, 8, 8}, data_types::f32, format::bfzyx, false, true, data_types::f32, format::bfzyx
-#define CASE_MVN_3D_F32_2   {2, 16, 8, 8, 8}, data_types::f32, format::bfzyx, true, true, data_types::f32, format::bfzyx
-#define CASE_MVN_F16_1      {1, 16, 8, 8},    data_types::f16, format::bfyx, false, true, data_types::f16, format::bfyx
-#define CASE_MVN_F16_2      {2, 16, 8, 8},    data_types::f16, format::bfyx, true, true, data_types::f16, format::bfyx
-#define CASE_MVN_3D_F16_1   {1, 16, 8, 8, 8}, data_types::f16, format::bfzyx, false, true, data_types::f16, format::bfzyx
-#define CASE_MVN_3D_F16_2   {2, 16, 8, 8, 8}, data_types::f16, format::bfzyx, true, true, data_types::f16, format::bfzyx
-#define CASE_MVN_I8_1       {1, 16, 8, 8},    data_types::i8, format::bfyx, false, true, data_types::f32, format::bfyx
-#define CASE_MVN_I8_2       {2, 16, 8, 8},    data_types::i8, format::bfyx, true, true, data_types::f32, format::bfyx
-#define CASE_MVN_I8_3       {1, 16, 8, 8},    data_types::i8, format::b_fs_yx_fsv16, false, true, data_types::f32, format::bfyx
-#define CASE_MVN_I8_4       {2, 16, 8, 8},    data_types::i8, format::b_fs_yx_fsv16, true, true, data_types::f32, format::bfyx
-#define CASE_MVN_3D_I8_1    {1, 16, 8, 8, 8}, data_types::i8, format::bfzyx, false, true, data_types::f32, format::bfzyx
-#define CASE_MVN_3D_I8_2    {2, 16, 8, 8, 8}, data_types::i8, format::bfzyx, true, true, data_types::f32, format::bfzyx
-#define CASE_MVN_U8_1       {1, 16, 8, 8},    data_types::u8, format::bfyx, false, true, data_types::f32, format::bfyx
-#define CASE_MVN_U8_2       {2, 16, 8, 8},    data_types::u8, format::bfyx, true, true, data_types::f32, format::bfyx
-#define CASE_MVN_U8_3       {1, 16, 8, 8},    data_types::u8, format::b_fs_yx_fsv16, false, true, data_types::f32, format::bfyx
-#define CASE_MVN_U8_4       {2, 16, 8, 8},    data_types::u8, format::b_fs_yx_fsv16, true, true, data_types::f32, format::bfyx
-#define CASE_MVN_3D_U8_1    {1, 16, 8, 8, 8}, data_types::u8, format::bfzyx, false, true, data_types::f32, format::bfzyx
-#define CASE_MVN_3D_U8_2    {2, 16, 8, 8, 8}, data_types::u8, format::bfzyx, true, true, data_types::f32, format::bfzyx
+#define CASE_MVN_F32_1      {1, 16, 8, 8},    {1, 16, 8, 8},    data_types::f32, format::bfyx, false, true, data_types::f32, format::bfyx
+#define CASE_MVN_F32_2      {2, 16, 8, 8},    {2, 16, 8, 8},    data_types::f32, format::bfyx, true, true, data_types::f32, format::bfyx
+#define CASE_MVN_3D_F32_1   {1, 16, 8, 8, 8}, {1, 16, 8, 8, 8}, data_types::f32, format::bfzyx, false, true, data_types::f32, format::bfzyx
+#define CASE_MVN_3D_F32_2   {2, 16, 8, 8, 8}, {2, 16, 8, 8, 8}, data_types::f32, format::bfzyx, true, true, data_types::f32, format::bfzyx
+#define CASE_MVN_3D_F32_3   {2, 8, 4, 4, 4},  {2, 8, 1, 1, 1},  data_types::f32, format::bfzyx, true, true, data_types::f32, format::bfzyx
+#define CASE_MVN_F16_1      {1, 16, 8, 8},    {1, 16, 8, 8},    data_types::f16, format::bfyx, false, true, data_types::f16, format::bfyx
+#define CASE_MVN_F16_2      {2, 16, 8, 8},    {2, 16, 8, 8},    data_types::f16, format::bfyx, true, true, data_types::f16, format::bfyx
+#define CASE_MVN_3D_F16_1   {1, 16, 8, 8, 8}, {1, 16, 8, 8, 8}, data_types::f16, format::bfzyx, false, true, data_types::f16, format::bfzyx
+#define CASE_MVN_3D_F16_2   {2, 16, 8, 8, 8}, {2, 16, 8, 8, 8}, data_types::f16, format::bfzyx, true, true, data_types::f16, format::bfzyx
+#define CASE_MVN_I8_1       {1, 16, 8, 8},    {1, 16, 8, 8},    data_types::i8, format::bfyx, false, true, data_types::f32, format::bfyx
+#define CASE_MVN_I8_2       {2, 16, 8, 8},    {2, 16, 8, 8},    data_types::i8, format::bfyx, true, true, data_types::f32, format::bfyx
+#define CASE_MVN_I8_3       {1, 16, 8, 8},    {1, 16, 8, 8},    data_types::i8, format::b_fs_yx_fsv16, false, true, data_types::f32, format::bfyx
+#define CASE_MVN_I8_4       {2, 16, 8, 8},    {2, 16, 8, 8},    data_types::i8, format::b_fs_yx_fsv16, true, true, data_types::f32, format::bfyx
+#define CASE_MVN_I8_5       {2, 16, 8, 8},    {1, 1, 1, 8},     data_types::i8, format::b_fs_yx_fsv16, false, true, data_types::f32, format::bfyx
+#define CASE_MVN_I8_6       {2, 16, 8, 8},    {1, 1, 1, 1},     data_types::i8, format::b_fs_yx_fsv16, true, true, data_types::f32, format::bfyx
+#define CASE_MVN_I8_7       {2, 16, 1, 8},    {1, 1, 8, 1},     data_types::i8, format::b_fs_yx_fsv16, true, true, data_types::f32, format::bfyx
+#define CASE_MVN_3D_I8_1    {1, 16, 8, 8, 8}, {1, 16, 8, 8, 8}, data_types::i8, format::bfzyx, false, true, data_types::f32, format::bfzyx
+#define CASE_MVN_3D_I8_2    {2, 16, 8, 8, 8}, {2, 16, 8, 8, 8}, data_types::i8, format::bfzyx, true, true, data_types::f32, format::bfzyx
+#define CASE_MVN_3D_I8_3    {2, 16, 8, 8, 8}, {2, 1, 8, 8, 1},  data_types::i8, format::bfzyx, true, true, data_types::f32, format::bfzyx
+#define CASE_MVN_3D_I8_4    {2, 16, 8, 8, 8}, {2, 16, 8, 1, 8}, data_types::i8, format::bfzyx, false, true, data_types::f32, format::bfzyx
+#define CASE_MVN_3D_I8_5    {2, 2, 1, 2, 1},  {2, 2, 2, 2, 2},  data_types::i8, format::bfzyx, false, true, data_types::f32, format::bfzyx
+#define CASE_MVN_U8_1       {1, 16, 8, 8},    {1, 16, 8, 8},    data_types::u8, format::bfyx, false, true, data_types::f32, format::bfyx
+#define CASE_MVN_U8_2       {2, 16, 8, 8},    {2, 16, 8, 8},    data_types::u8, format::bfyx, true, true, data_types::f32, format::bfyx
+#define CASE_MVN_U8_3       {1, 16, 8, 8},    {1, 16, 8, 8},    data_types::u8, format::b_fs_yx_fsv16, false, true, data_types::f32, format::bfyx
+#define CASE_MVN_U8_4       {2, 16, 8, 8},    {2, 16, 8, 8},    data_types::u8, format::b_fs_yx_fsv16, true, true, data_types::f32, format::bfyx
+#define CASE_MVN_U8_5       {2, 16, 8, 8},    {2, 1, 8, 8},     data_types::u8, format::b_fs_yx_fsv16, false, true, data_types::f32, format::bfyx
+#define CASE_MVN_U8_6       {2, 16, 8, 8},    {1, 1, 1, 8},     data_types::u8, format::b_fs_yx_fsv16, true, true, data_types::f32, format::bfyx
+#define CASE_MVN_U8_7       {1, 16, 16, 1},   {1, 16, 1, 16},   data_types::u8, format::b_fs_yx_fsv16, true, true, data_types::f32, format::bfyx
+#define CASE_MVN_3D_U8_1    {1, 16, 8, 8, 8}, {1, 16, 8, 8, 8}, data_types::u8, format::bfzyx, false, true, data_types::f32, format::bfzyx
+#define CASE_MVN_3D_U8_2    {2, 16, 8, 8, 8}, {2, 16, 8, 8, 8}, data_types::u8, format::bfzyx, true, true, data_types::f32, format::bfzyx
+#define CASE_MVN_3D_U8_3    {2, 16, 8, 8, 8}, {2, 1, 1, 1, 1},  data_types::u8, format::bfzyx, true, true, data_types::f32, format::bfzyx
+#define CASE_MVN_3D_U8_4    {2, 16, 8, 8, 8}, {1, 1, 1, 1, 1},  data_types::u8, format::bfzyx, false, true, data_types::f32, format::bfzyx
+#define CASE_MVN_3D_U8_5    {2, 16, 1, 8, 8}, {1, 1, 8, 1, 1},  data_types::u8, format::bfzyx, false, true, data_types::f32, format::bfzyx
 
 class MVNFusingTest : public ::BaseFusingTest<mvn_test_params> {
 public:
@@ -2692,8 +2872,8 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, mvn_scale_quantize_i8,
         mvn_test_params{ CASE_MVN_3D_U8_2, 2, 4 },
 }), );
 
-class mvn_scale_activation_quantize_u8_eltwise_fp32_quantize_i8 : public MVNFusingTest {};
-TEST_P(mvn_scale_activation_quantize_u8_eltwise_fp32_quantize_i8, basic) {
+class mvn_scale_activation_eltwise_fp32_quantize_i8 : public MVNFusingTest {};
+TEST_P(mvn_scale_activation_eltwise_fp32_quantize_i8, basic) {
     auto p = GetParam();
     create_topologies(
         input_layout("input", get_input_layout(p)),
@@ -2701,26 +2881,21 @@ TEST_P(mvn_scale_activation_quantize_u8_eltwise_fp32_quantize_i8, basic) {
         data("scale_data", get_mem(get_per_channel_layout(p))),
         scale("scale", "mvn", "scale_data"),
         activation("act", "scale", activation_func::hyperbolic_tan),
-        data("in_low", get_mem(get_per_channel_layout(p), 0)),
+        data("eltw_data", get_mem(layout{ p.input_type, p.default_format, p.elwise_size })),
+        eltwise("eltw", {"act", "eltw_data"}, eltwise_mode::sum, data_types::f32),
+        data("in_low", get_mem(get_per_channel_layout(p), min_random, 0)),
         data("in_high", get_mem(get_per_channel_layout(p), 1, max_random)),
-        data("out_low", get_mem(get_single_element_layout(p), 0)),
-        data("out_high", get_mem(get_single_element_layout(p), 255)),
-        quantize("quant", "act", "in_low", "in_high", "out_low", "out_high", 256, data_types::u8),
-        data("eltw_data", get_mem(layout{ data_types::i8, p.input_format, p.input_size })),
-        eltwise("eltw", {"quant", "eltw_data"}, eltwise_mode::sum, data_types::f32),
-        data("in_low2", get_mem(get_per_channel_layout(p), min_random, 0)),
-        data("in_high2", get_mem(get_per_channel_layout(p), 1, max_random)),
-        data("out_low2", get_mem(get_single_element_layout(p), -128)),
-        data("out_high2", get_mem(get_single_element_layout(p), 127)),
-        quantize("quant2", "eltw", "in_low2", "in_high2", "out_low2", "out_high2", 256, data_types::i8),
-        reorder("reorder_bfyx", "quant2", format::bfyx, data_types::f32)
+        data("out_low", get_mem(get_single_element_layout(p), -128)),
+        data("out_high", get_mem(get_single_element_layout(p), 127)),
+        quantize("quant", "eltw", "in_low", "in_high", "out_low", "out_high", 256, data_types::i8),
+        reorder("reorder_bfyx", "quant", format::bfyx, data_types::f32)
     );
 
     tolerance = 1.f;
     execute(p);
 }
 
-INSTANTIATE_TEST_CASE_P(fusings_gpu, mvn_scale_activation_quantize_u8_eltwise_fp32_quantize_i8,
+INSTANTIATE_TEST_CASE_P(fusings_gpu, mvn_scale_activation_eltwise_fp32_quantize_i8,
     ::testing::ValuesIn(std::vector<mvn_test_params>{
         // Full using for fp input not supported yet, it may lead to output padding and non-optimal kernel
         // mvn_test_params{ CASE_MVN_F32_1, 2, 7 },
@@ -2731,18 +2906,66 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, mvn_scale_activation_quantize_u8_eltwise_fp
         // mvn_test_params{ CASE_MVN_F16_2, 2, 7 },
         // mvn_test_params{ CASE_MVN_3D_F16_1, 2, 7 },
         // mvn_test_params{ CASE_MVN_3D_F16_2, 2, 7 },
-        mvn_test_params{ CASE_MVN_I8_1, 2, 7 },
-        mvn_test_params{ CASE_MVN_I8_2, 2, 7 },
-        mvn_test_params{ CASE_MVN_I8_3, 2, 7 },
-        mvn_test_params{ CASE_MVN_I8_4, 2, 7 },
-        mvn_test_params{ CASE_MVN_3D_I8_1, 2, 7 },
-        mvn_test_params{ CASE_MVN_3D_I8_2, 2, 7 },
-        mvn_test_params{ CASE_MVN_U8_1, 2, 7 },
-        mvn_test_params{ CASE_MVN_U8_2, 2, 7 },
-        mvn_test_params{ CASE_MVN_U8_3, 2, 7 },
-        mvn_test_params{ CASE_MVN_U8_4, 2, 7 },
-        mvn_test_params{ CASE_MVN_3D_U8_1, 2, 7 },
-        mvn_test_params{ CASE_MVN_3D_U8_2, 2, 7 },
+        mvn_test_params{ CASE_MVN_I8_1, 2, 6 },
+        mvn_test_params{ CASE_MVN_I8_2, 2, 6 },
+        mvn_test_params{ CASE_MVN_I8_3, 2, 6 },
+        mvn_test_params{ CASE_MVN_I8_4, 2, 6 },
+        mvn_test_params{ CASE_MVN_I8_5, 2, 6 },
+        mvn_test_params{ CASE_MVN_I8_6, 2, 6 },
+        mvn_test_params{ CASE_MVN_I8_7, 4, 6 },
+        mvn_test_params{ CASE_MVN_3D_I8_1, 2, 6 },
+        mvn_test_params{ CASE_MVN_3D_I8_2, 2, 6 },
+        mvn_test_params{ CASE_MVN_3D_I8_3, 2, 6 },
+        mvn_test_params{ CASE_MVN_3D_I8_4, 2, 6 },
+        mvn_test_params{ CASE_MVN_3D_I8_5, 4, 6 },
+        mvn_test_params{ CASE_MVN_U8_1, 2, 6 },
+        mvn_test_params{ CASE_MVN_U8_2, 2, 6 },
+        mvn_test_params{ CASE_MVN_U8_3, 2, 6 },
+        mvn_test_params{ CASE_MVN_U8_4, 2, 6 },
+        mvn_test_params{ CASE_MVN_U8_5, 2, 6 },
+        mvn_test_params{ CASE_MVN_U8_6, 2, 6 },
+        mvn_test_params{ CASE_MVN_U8_7, 4, 6 },
+        mvn_test_params{ CASE_MVN_3D_U8_1, 2, 6 },
+        mvn_test_params{ CASE_MVN_3D_U8_2, 2, 6 },
+        mvn_test_params{ CASE_MVN_3D_U8_3, 2, 6 },
+        mvn_test_params{ CASE_MVN_3D_U8_4, 2, 6 },
+        mvn_test_params{ CASE_MVN_3D_U8_5, 4, 6 },
+}), );
+
+class mvn_eltwise : public MVNFusingTest {};
+TEST_P(mvn_eltwise, basic) {
+    auto p = GetParam();
+    create_topologies(input_layout("input", layout{ p.input_type, p.input_format, p.input_size }),
+                 mvn("mvn", "input", false, p.normalize_variance),
+                 data("eltw_data", get_mem(layout{ p.input_type, p.default_format, p.elwise_size })),
+                 eltwise("eltw", {"mvn", "eltw_data"}, eltwise_mode::sum, data_types::f32),
+                 reorder("reorder_bfyx", "eltw", p.default_format, data_types::f32)
+    );
+
+    tolerance = 1e-5f;
+    execute(p);
+}
+
+INSTANTIATE_TEST_CASE_P(fusings_gpu, mvn_eltwise,
+    ::testing::ValuesIn(std::vector<mvn_test_params>{
+        mvn_test_params{ CASE_MVN_I8_5, 2, 3 },
+        mvn_test_params{ CASE_MVN_I8_6, 2, 3 },
+        mvn_test_params{ CASE_MVN_I8_7, 3, 3 },
+        mvn_test_params{ CASE_MVN_3D_I8_3, 2, 3 },
+        mvn_test_params{ CASE_MVN_3D_I8_4, 2, 3 },
+        mvn_test_params{ CASE_MVN_3D_I8_5, 3, 3 },
+        mvn_test_params{ CASE_MVN_U8_1, 2, 3 },
+        mvn_test_params{ CASE_MVN_U8_2, 2, 3 },
+        mvn_test_params{ CASE_MVN_U8_3, 2, 3 },
+        mvn_test_params{ CASE_MVN_U8_4, 2, 3 },
+        mvn_test_params{ CASE_MVN_U8_5, 2, 3 },
+        mvn_test_params{ CASE_MVN_U8_6, 2, 3 },
+        mvn_test_params{ CASE_MVN_U8_7, 3, 3 },
+        mvn_test_params{ CASE_MVN_3D_U8_1, 2, 3 },
+        mvn_test_params{ CASE_MVN_3D_U8_2, 2, 3 },
+        mvn_test_params{ CASE_MVN_3D_U8_3, 2, 3 },
+        mvn_test_params{ CASE_MVN_3D_U8_4, 2, 3 },
+        mvn_test_params{ CASE_MVN_3D_U8_5, 3, 3 },
 }), );
 
 /* ----------------------------------------------------------------------------------------------------- */
@@ -3162,8 +3385,8 @@ TEST_P(activation_scale_activation_quantize_u8, basic) {
                       data("scale_data", get_mem(get_single_element_layout(p), 1.0f / 255)),
                       data("in_low", get_mem(get_single_element_layout(p), 0)),
                       data("in_high", get_mem(get_single_element_layout(p), 1, max_random)),
-                      data("out_low", get_mem(get_single_element_layout(p), 0)),
-                      data("out_high", get_mem(get_single_element_layout(p), 255)),
+                      data("out_low", get_mem(get_single_element_layout(p), -127)),
+                      data("out_high", get_mem(get_single_element_layout(p), 127)),
                       scale("scale", "act", "scale_data"),
                       activation("act2", "scale", activation_func::softsign),
                       quantize("quant", "act2", "in_low", "in_high", "out_low", "out_high", 256, data_types::u8),
@@ -3180,8 +3403,8 @@ TEST_P(activation_scale_activation_quantize_u8, per_channel) {
                       data("scale_data", get_mem(get_single_element_layout(p), 1.0f / 255)),
                       data("in_low", get_mem(get_per_channel_layout(p), 0)),
                       data("in_high", get_mem(get_per_channel_layout(p), 1, max_random)),
-                      data("out_low", get_mem(get_single_element_layout(p), 0)),
-                      data("out_high", get_mem(get_single_element_layout(p), 255)),
+                      data("out_low", get_mem(get_single_element_layout(p), -127)),
+                      data("out_high", get_mem(get_single_element_layout(p), 127)),
                       scale("scale", "act", "scale_data"),
                       activation("act2", "scale", activation_func::softsign),
                       quantize("quant", "act2", "in_low", "in_high", "out_low", "out_high", 256, data_types::u8),
@@ -3383,6 +3606,22 @@ using deconv_test_params = bc_test_params;
 #define CASE_DECONV_U8S8_3D_6 {1, 16, 4, 5, 3}, {1, 32, 9, 11, 7}, {1, 1, 3, 3, 3}, tensor{1, 1, 2, 2, 2}, tensor{0}, tensor{1}, 1, data_types::u8, format::b_fs_zyx_fsv16, data_types::i8, format::oizyx, data_types::f32, format::bfzyx
 #define CASE_DECONV_U8S8_3D_7 {1, 16, 4, 5, 3}, {1, 32, 7, 9, 5}, {1, 1, 1, 1, 1}, tensor{1, 1, 2, 2, 2}, tensor{0}, tensor{1}, 1, data_types::u8, format::b_fs_zyx_fsv16, data_types::i8, format::oizyx, data_types::f32, format::bfzyx
 #define CASE_DECONV_U8S8_3D_8 {1, 32, 4, 5, 3}, {1, 32, 7, 9, 5}, {1, 1, 3, 3, 3}, tensor{1, 1, 2, 2, 2}, tensor{0, 0, -1, -1, -1}, tensor{1}, 32, data_types::u8, format::b_fs_zyx_fsv16, data_types::i8,  format::goizyx, data_types::f32, format::bfzyx
+
+#define CASE_DECONV_ELTW_FP32_1 {1, 16, 4, 5}, {1, 32, 6, 7}, {1, 32, 1, 1}, {1, 1, 3, 3}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::f32, format::b_fs_yx_fsv16, data_types::f32, format::oiyx, data_types::f32, format::bfyx
+#define CASE_DECONV_ELTW_FP32_2 {1, 16, 4, 5}, {1, 32, 6, 7}, {1, 1, 1, 1}, {1, 1, 3, 3}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::f32, format::b_fs_yx_fsv16, data_types::f32, format::os_is_yx_isv16_osv16, data_types::f32, format::bfyx
+#define CASE_DECONV_ELTW_FP32_3 {1, 16, 4, 5}, {1, 32, 4, 5}, {1, 1, 1, 1}, {1, 1, 1, 1}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::f32, format::b_fs_yx_fsv16, data_types::f32, format::is_os_yx_osv16_isv16, data_types::f32, format::bfyx
+#define CASE_DECONV_ELTW_FP32_4 {1, 15, 4, 5, 3}, {1, 30, 6, 7, 5}, {1, 1, 6, 7, 5}, {1, 1, 3, 3, 3}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::f32, format::bfzyx, data_types::f32, format::oizyx, data_types::f32, format::bfzyx
+#define CASE_DECONV_ELTW_FP32_5 {1, 15, 4, 5, 4}, {1, 30, 6, 7, 6}, {1, 30, 6, 1, 6}, {1, 1, 3, 3, 3}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::f32, format::bfzyx, data_types::f32, format::oizyx, data_types::f32, format::bfzyx
+#define CASE_DECONV_ELTW_FP32_6 {1, 32, 2, 2, 2}, {1, 16, 4, 4, 4}, {1, 16, 1, 4, 1}, {1, 1, 3, 3, 3}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::f32, format::b_fs_zyx_fsv16, data_types::f32, format::os_is_zyx_isv16_osv16, data_types::f32, format::bfzyx
+#define CASE_DECONV_ELTW_FP32_7 {1, 16, 3, 5}, {1, 32, 5, 7}, {1, 32, 1, 7}, {1, 1, 3, 3}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::f32, format::b_fs_yx_fsv16, data_types::f32, format::os_is_yx_isv16_osv16, data_types::f32, format::bfyx
+#define CASE_DECONV_ELTW_FP32_8 {1, 32, 4, 5}, {1, 32, 7, 9}, {1, 32, 1, 1}, {1, 1, 3, 3}, tensor{1, 1, 2, 2}, tensor{0, 0, -1, -1, 0, 0}, tensor{1}, 32, data_types::f32, format::b_fs_yx_fsv16, data_types::f32,  format::gs_oiyx_gsv16, data_types::f32, format::bfyx
+
+#define CASE_DECONV_ELTW_i8_1 {1, 16, 3, 5}, {1, 32, 5, 7}, {1, 32, 5, 1}, {1, 1, 3, 3}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::i8, format::b_fs_yx_fsv16, data_types::i8, format::os_is_yx_osv16_isv16, data_types::f32, format::bfyx
+#define CASE_DECONV_ELTW_i8_2 {1, 32, 4, 5, 3}, {1, 32, 6, 7, 5}, {1, 32, 1, 1, 1}, {1, 1, 3, 3, 3}, tensor{1, 1, 2, 2, 2}, tensor{0, 0, -1, -1, -1}, tensor{1}, 32, data_types::u8, format::b_fs_zyx_fsv16, data_types::i8,  format::goizyx, data_types::f32, format::bfzyx
+#define CASE_DECONV_ELTW_i8_3 {1, 5, 5, 5, 5}, {1, 5, 5, 5, 5}, {1, 1, 1, 1, 1}, {1, 1, 1, 1, 1}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::i8, format::bfzyx, data_types::i8, format::oiyx, data_types::f32, format::bfzyx
+#define CASE_DECONV_ELTW_i8_4 {1, 16, 1, 4}, {1, 16, 1, 6}, {1, 16, 1, 1}, {1, 1, 3, 3}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::i8, format::b_fs_yx_fsv16, data_types::i8, format::os_is_yx_osv16_isv16, data_types::f32, format::bfyx
+#define CASE_DECONV_ELTW_i8_5 {1, 16, 2, 4}, {1, 16, 4, 6}, {1, 16, 4, 1}, {1, 1, 3, 3}, tensor{1}, tensor{0}, tensor{1}, 1, data_types::i8, format::b_fs_yx_fsv16, data_types::i8, format::os_is_yx_osv16_isv16, data_types::f32, format::bfyx
+
 
 class DeconvolutionFusingTest : public ::WeightsPrimitiveFusingTest {};
 
@@ -3787,6 +4026,87 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, deconv_scale_actv_quant_u8_eltw_scale_actv_
         deconv_test_params{ CASE_DECONV_S8S8_3D_7, 2, 9 },
         deconv_test_params{ CASE_DECONV_S8S8_3D_8, 2, 9 },
 }), );
+
+class deconv_scale_activation_quantize_i8_eltwise_quantize_u8 : public ConvEltwTest {};
+TEST_P(deconv_scale_activation_quantize_i8_eltwise_quantize_u8, basic) {
+    auto p = GetParam();
+    create_topologies(input_layout("input", get_input_layout(p)),
+                 data("weights", get_mem(get_weights_layout(p))),
+                 deconvolution("deconv_prim", "input", { "weights" }, p.groups, p.stride, p.pad),
+                 data("scale_data", get_mem(get_per_channel_layout(p), 1.f / p.kernel.count())),
+                 scale("scale", "deconv_prim", "scale_data"),
+                 activation("activation", "scale", activation_func::relu),
+                 data("in_low", get_mem(get_per_channel_layout(p), min_random, 0)),
+                 data("in_high", get_mem(get_per_channel_layout(p), 1, max_random)),
+                 data("out_low", get_mem(get_single_element_layout(p), -127)),
+                 data("out_high", get_mem(get_single_element_layout(p), 127)),
+                 quantize("quant", "activation", "in_low", "in_high", "out_low", "out_high", 255, data_types::i8),
+                 data("eltwise_data", get_mem(layout{ p.data_type, p.input_format, p.eltw_shape })),
+                 eltwise("eltw", { "quant", "eltwise_data" }, eltwise_mode::sum, p.default_type),
+                 data("in_low2", get_mem(get_per_channel_layout(p), min_random, 0)),
+                 data("in_high2", get_mem(get_per_channel_layout(p), 1, max_random)),
+                 data("out_low2", get_mem(get_single_element_layout(p), 0)),
+                 data("out_high2", get_mem(get_single_element_layout(p), 255)),
+                 quantize("quant2", "eltw", "in_low2", "in_high2", "out_low2", "out_high2", 256, data_types::u8),
+                 reorder("reorder_bfyx", "quant2", p.default_format, data_types::f32)
+    );
+    tolerance = 1.f;
+    execute(p);
+}
+
+INSTANTIATE_TEST_CASE_P(fusings_gpu, deconv_scale_activation_quantize_i8_eltwise_quantize_u8,
+                        ::testing::ValuesIn(std::vector<conv_eltw_test_params>{
+                                conv_eltw_test_params{CASE_DECONV_ELTW_FP32_1, 5, 7},
+                                conv_eltw_test_params{CASE_DECONV_ELTW_FP32_2, 5, 7},
+                                conv_eltw_test_params{CASE_DECONV_ELTW_FP32_3, 5, 7}, 
+                                conv_eltw_test_params{CASE_DECONV_ELTW_FP32_4, 5, 7},
+                                conv_eltw_test_params{CASE_DECONV_ELTW_FP32_5, 5, 7},
+                                conv_eltw_test_params{CASE_DECONV_ELTW_FP32_6, 5, 7}, 
+                                conv_eltw_test_params{CASE_DECONV_ELTW_FP32_7, 5, 7},
+                                conv_eltw_test_params{CASE_DECONV_ELTW_FP32_8, 5, 7},
+                                
+                                conv_eltw_test_params{CASE_DECONV_ELTW_i8_1, 2, 7},
+                                conv_eltw_test_params{CASE_DECONV_ELTW_i8_2, 2, 7},
+                                conv_eltw_test_params{CASE_DECONV_ELTW_i8_3, 2, 7},
+                                conv_eltw_test_params{CASE_DECONV_ELTW_i8_4, 2, 7},
+                                conv_eltw_test_params{CASE_DECONV_ELTW_i8_5, 2, 7},
+    
+                        }), );
+
+
+class deconv_activation_eltwise_diff_sizes : public ConvEltwTest {};
+TEST_P(deconv_activation_eltwise_diff_sizes, basic) {
+    auto p = GetParam();
+    create_topologies(input_layout("input", get_input_layout(p)),
+                 data("weights", get_mem(get_weights_layout(p))),
+                 data("eltwise_data", get_mem(layout{ p.data_type, p.input_format, p.eltw_shape })),
+                 deconvolution("deconv_prim", "input", { "weights" }, p.groups, p.stride, p.pad),
+                 activation("activation", "deconv_prim", activation_func::relu),
+                 eltwise("sum", { "activation", "eltwise_data" }, eltwise_mode::sum, p.default_type),
+                 reorder("reorder_bfyx", "sum", p.default_format, data_types::f32)
+    );
+
+    tolerance = 1e-5f;
+    execute(p);
+}
+
+INSTANTIATE_TEST_CASE_P(fusings_gpu, deconv_activation_eltwise_diff_sizes,
+                        ::testing::ValuesIn(std::vector<conv_eltw_test_params>{
+                                conv_eltw_test_params{CASE_DECONV_ELTW_FP32_1, 2, 4},
+                                conv_eltw_test_params{CASE_DECONV_ELTW_FP32_2, 2, 4},
+                                conv_eltw_test_params{CASE_DECONV_ELTW_FP32_3, 2, 4},
+                                conv_eltw_test_params{CASE_DECONV_ELTW_FP32_4, 2, 4},
+                                conv_eltw_test_params{CASE_DECONV_ELTW_FP32_5, 2, 4},
+                                conv_eltw_test_params{CASE_DECONV_ELTW_FP32_6, 2, 4},
+                                conv_eltw_test_params{CASE_DECONV_ELTW_FP32_7, 2, 4},
+                                conv_eltw_test_params{CASE_DECONV_ELTW_FP32_8, 2, 4},
+
+                                conv_eltw_test_params{CASE_DECONV_ELTW_i8_1, 2, 4},
+                                conv_eltw_test_params{CASE_DECONV_ELTW_i8_2, 2, 4},
+                                conv_eltw_test_params{CASE_DECONV_ELTW_i8_3, 2, 4},
+                                conv_eltw_test_params{CASE_DECONV_ELTW_i8_4, 2, 4},
+                                conv_eltw_test_params{CASE_DECONV_ELTW_i8_5, 2, 4},
+                        }), );
 
 /* ----------------------------------------------------------------------------------------------------- */
 /* --------------------------------------- Pooling cases ----------------------------------------------- */
