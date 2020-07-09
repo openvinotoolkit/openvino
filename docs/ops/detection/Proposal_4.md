@@ -1,6 +1,6 @@
-## Proposal <a name="Proposal"></a> {#openvino_docs_ops_detection_Proposal_1}
+## Proposal <a name="Proposal"></a>
 
-**Versioned name**: *Proposal-1*
+**Versioned name**: *Proposal-4*
 
 **Category**: *Object detection*
 
@@ -19,7 +19,7 @@
 5.  Takes top *pre_nms_topn* proposals
 6.  Calculates intersections for boxes and filter out all boxes with \f$intersection/union > nms\_thresh\f$
 7.  Takes top *post_nms_topn* proposals
-8.  Returns top proposals
+8.  Returns top proposals and optionally their probabilities 
 
 
 * *base_size*
@@ -145,6 +145,8 @@
 **Outputs**:
 
 *   **1**: Floating point tensor of shape `[batch_size * post_nms_topn, 5]`.
+
+*   **2**: 1D floating point tensor of size `post_nms_topn` with probabilities. *Optional*
 
 **Example**
 
