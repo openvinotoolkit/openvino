@@ -503,6 +503,14 @@ cdef class PreProcessChannel:
 
 ## This class stores pre-process information for the input
 cdef class PreProcessInfo:
+    def __cinit__(self):
+        self._ptr = new CPreProcessInfo()
+        self._user_data  = True
+
+    def __dealloc__(self):
+        if self._user_data:
+            del self._ptr
+
     def __getitem__(self, size_t index):
         cdef CPreProcessChannel.Ptr c_channel = deref(self._ptr)[index]
         channel = PreProcessChannel()
@@ -544,10 +552,18 @@ cdef class PreProcessInfo:
 
     ## Resize Algorithm to be applied for input before inference if needed.
     #
+    #  \note It's need to set your input via the set_blob method.
+    #
     #  Usage example:\n
     #  ```python
     #  net = ie_core.read_network(model=path_to_xml_file, weights=path_to_bin_file)
     #  net.input_info['data'].preprocess_info.resize_algorithm = ResizeAlgorithm.RESIZE_BILINEAR
+    #  exec_net = ie_core.load_network(net, 'CPU')
+    #  tensor_desc = ie.TensorDesc("FP32", [1, 3, image.shape[2], image.shape[3]], "NCHW")
+    #  img_blob = ie.Blob(tensor_desc, image)
+    #  request = exec_net.requests[0]
+    #  request.set_blob('data', img_blob)
+    #  request.infer()
     #  ```
     @property
     def resize_algorithm(self):
@@ -615,6 +631,8 @@ cdef class InputInfoPtr:
     def preprocess_info(self):
         cdef CPreProcessInfo* c_preprocess_info = &deref(self._ptr).getPreProcess()
         preprocess_info = PreProcessInfo()
+        del preprocess_info._ptr
+        preprocess_info._user_data = False
         preprocess_info._ptr = c_preprocess_info
         return preprocess_info
 
@@ -717,7 +735,7 @@ cdef class DataPtr:
 
     @property
     def creator_layer(self):
-        cdef C.CNNLayerWeakPtr _l_ptr = deref(self._ptr).getCreatorLayer()
+        cdef C.CNNLayerWeakPtr _l_ptr = C.getCreatorLayer(self._ptr)
         cdef IENetLayer creator_layer
         creator_layer = IENetLayer()
         if _l_ptr.lock() != NULL:
@@ -728,7 +746,7 @@ cdef class DataPtr:
 
     @property
     def input_to(self):
-        cdef map[string, C.CNNLayerPtr] _l_ptr_map = deref(self._ptr).getInputTo()
+        cdef map[string, C.CNNLayerPtr] _l_ptr_map = C.getInputTo(self._ptr)
         cdef IENetLayer input_to
         input_to_list = []
         for layer in _l_ptr_map:
@@ -759,28 +777,6 @@ cdef class CDataPtr:
     @property
     def initialized(self):
         return deref(self._ptr).isInitialized()
-
-    # TODO: Resolve compilation error
-    # @property
-    # def creator_layer(self):
-    #     cdef C.CNNLayerWeakPtr _l_ptr = deref(self._ptr).getCreatorLayer()
-    #     cdef IENetLayer creator_layer
-    #     creator_layer = IENetLayer()
-    #     if _l_ptr.lock() != NULL:
-    #         creator_layer._ptr = _l_ptr.lock()
-    #     else:
-    #         raise RuntimeError("Creator IENetLayer of DataPtr object with name {} already released!".format(self.name))
-    #     return creator_layer
-    # @property
-    # def input_to(self):
-    #     cdef map[string, C.CNNLayerPtr] _l_ptr_map = deref(self._ptr).getInputTo()
-    #     cdef IENetLayer input_to
-    #     input_to_list = []
-    #     for layer in _l_ptr_map:
-    #         input_to = IENetLayer()
-    #         input_to._ptr = layer.second
-    #         input_to_list.append(input_to)
-    #     return input_to_list
 
 
 ## This class represents a network instance loaded to plugin and ready for inference.
@@ -1050,9 +1046,24 @@ cdef class InferRequest:
             output_blobs[output] = deepcopy(blob)
         return output_blobs
 
+    ## Dictionary that maps input layer names to corresponding preprocessing information
+    @property
+    def preprocess_info(self):
+        preprocess_info = {}
+        cdef const CPreProcessInfo** c_preprocess_info
+        for input_blob in self.input_blobs.keys():
+            preprocess = PreProcessInfo()
+            del preprocess._ptr
+            preprocess._user_data = False
+            c_preprocess_info = <const CPreProcessInfo**>(&preprocess._ptr)
+            deref(self.impl).getPreProcess(input_blob.encode(), c_preprocess_info)
+            preprocess_info[input_blob] = preprocess
+        return preprocess_info
+
     ## Sets user defined Blob for the infer request
     #  @param blob_name: A name of input blob
     #  @param blob: Blob object to set for the infer request
+    #  @param preprocess_info: PreProcessInfo object to set for the infer request.
     #  @return None
     #
     #  Usage example:\n
@@ -1065,8 +1076,11 @@ cdef class InferRequest:
     #  blob = Blob(td, blob_data)
     #  exec_net.requests[0].set_blob(blob_name="input_blob_name", blob=blob),
     #  ```
-    def set_blob(self, blob_name : str, blob : Blob):
-        deref(self.impl).setBlob(blob_name.encode(), blob._ptr)
+    def set_blob(self, blob_name : str, blob : Blob, preprocess_info: PreProcessInfo = None):
+        if preprocess_info:
+            deref(self.impl).setBlob(blob_name.encode(), blob._ptr, deref(preprocess_info._ptr))
+        else:
+            deref(self.impl).setBlob(blob_name.encode(), blob._ptr)
         self._user_blobs[blob_name] = blob
     ## Starts synchronous inference of the infer request and fill outputs array
     #
@@ -1293,6 +1307,7 @@ cdef class IENetLayer:
     @params.setter
     def params(self, new_params):
         deref(self._ptr).params = dict_to_c_map(new_params)
+
     ## Returns a list, which contains names of layers preceding this layer
     @property
     def parents(self):
@@ -1312,11 +1327,10 @@ cdef class IENetLayer:
         cdef map[string, C.CNNLayerPtr] _l_ptr_map
         input_to_list = []
         for l in c_outs:
-            _l_ptr_map = deref(l).getInputTo()
+            _l_ptr_map = C.getInputTo(l)
             for layer in _l_ptr_map:
                 input_to_list.append(deref(layer.second).name.decode())
         return input_to_list
-
     ## \note This property is deprecated.
     # Please, use out_data property to access DataPtr objects for all output ports, which contains full
     # information about layer's output data including layout
