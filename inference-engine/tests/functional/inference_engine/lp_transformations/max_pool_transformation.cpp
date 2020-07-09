@@ -100,7 +100,7 @@ const std::vector<MaxPoolTransformationTestValues> testValues = {
 };
 
 INSTANTIATE_TEST_CASE_P(
-    LPT,
+    DISABLED_LPT,
     MaxPoolTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(precisions),
