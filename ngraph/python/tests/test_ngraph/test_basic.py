@@ -271,3 +271,12 @@ def test_result():
 
     result = run_op_node([node], ng.ops.result)
     assert np.allclose(result, node)
+
+def test_node_output():
+    input_tensor = ng.constant(np.array([0, 1, 2, 3, 4, 5], dtype=np.int32))
+    axis = ng.constant(0, dtype=np.int64)
+    splits = 3
+
+    split_node = ng.split(input_tensor, axis, splits)
+
+    assert len(split_node.outputs()) == split_node.get_output_size()

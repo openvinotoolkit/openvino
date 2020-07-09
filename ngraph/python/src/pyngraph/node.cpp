@@ -14,22 +14,16 @@
 // limitations under the License.
 //*****************************************************************************
 
-// #include <vector>
-#include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
-// #include <pybind11/detail/common.h>
 
 #include "dict_attribute_visitor.hpp"
-#include "ngraph/descriptor/input.hpp"
-#include "ngraph/descriptor/output.hpp"
-#include "ngraph/node_input.hpp"
-#include "ngraph/node_output.hpp"
 #include "ngraph/node.hpp"
 #include "ngraph/op/add.hpp"
 #include "ngraph/op/divide.hpp"
 #include "ngraph/op/multiply.hpp"
 #include "ngraph/op/subtract.hpp"
 #include "pyngraph/node.hpp"
+#include "pyngraph/node_output.hpp"
 
 namespace py = pybind11;
 
@@ -84,8 +78,10 @@ void regclass_pyngraph_Node(py::module m)
     node.def("get_output_partial_shape", &ngraph::Node::get_output_partial_shape);
     node.def("get_type_name", &ngraph::Node::get_type_name);
     node.def("get_unique_name", &ngraph::Node::get_name);
-    node.def("inputs", (std::vector<ngraph::Input<ngraph::Node>> (ngraph::Node::*)()) &ngraph::Node::inputs);
-    node.def("inputs", (std::vector<ngraph::Input<const ngraph::Node>> (ngraph::Node::*)() const) &ngraph::Node::inputs);
+    // node.def("inputs", (std::vector<ngraph::Input<ngraph::Node>> (ngraph::Node::*)()) &ngraph::Node::inputs);
+    // node.def("inputs", (std::vector<ngraph::Input<const ngraph::Node>> (ngraph::Node::*)() const) &ngraph::Node::inputs);
+    node.def("output", (ngraph::Output<ngraph::Node> (ngraph::Node::*)(size_t)) &ngraph::Node::output);
+    node.def("output", (ngraph::Output<const ngraph::Node> (ngraph::Node::*)(size_t) const) &ngraph::Node::output);
     node.def("outputs", (std::vector<ngraph::Output<ngraph::Node>> (ngraph::Node::*)()) &ngraph::Node::outputs);
     node.def("outputs", (std::vector<ngraph::Output<const ngraph::Node>> (ngraph::Node::*)() const) &ngraph::Node::outputs);
 

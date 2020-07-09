@@ -185,6 +185,7 @@ sources = [
     "pyngraph/dimension.cpp",
     "pyngraph/function.cpp",
     "pyngraph/node.cpp",
+    "pyngraph/node_output.cpp",
     "pyngraph/node_factory.cpp",
     "pyngraph/ops/constant.cpp",
     "pyngraph/ops/get_output_element.cpp",
