@@ -75,7 +75,7 @@ std::shared_ptr<ngraph::Function> MultiplyFunction::getReference(
     const auto input1 = std::make_shared<ngraph::opset1::Parameter>(
         expectedValues.precision1,
         ngraph::Shape(inputShape));
-        
+
     std::shared_ptr<ngraph::Node> parent1 = input1;
     //if (!(expectedValues.subtractValues1.empty() && expectedValues.mutliplyValues1.empty())) {
         const std::shared_ptr<ngraph::Node> convert1 = std::make_shared<ngraph::opset1::Convert>(parent1, precision);
