@@ -15,6 +15,7 @@
 # ******************************************************************************
 
 from ngraph.impl import Dimension, PartialShape, Shape
+import os
 
 
 def test_dimension():
@@ -222,3 +223,16 @@ def test_partial_shape_equals():
     shape = Shape([1, 2, 3])
     ps = PartialShape([1, 2, 3])
     assert shape == ps
+
+
+def test_repr_dynamic_shape():
+    from ngraph.impl.onnx_import import import_onnx_model_file
+    model_path = os.path.join(os.path.dirname(__file__), "models/ab_plus_c_dynamic.prototxt")
+    function = import_onnx_model_file(model_path)
+
+    assert repr(function) == "<Function: 'simple_dyn_shapes_graph' ({?,2})>"
+
+    ops = function.get_ordered_ops()
+
+    for op in ops:
+        assert "{?,2}" in repr(op)
