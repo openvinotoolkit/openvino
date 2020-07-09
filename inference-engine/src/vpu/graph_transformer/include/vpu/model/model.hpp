@@ -162,6 +162,7 @@ public:
             const Stage& newDependentStage);
 
     void removeStageDependency(const StageDependency& edge);
+    void removeStageDependency(const Stage& stage, const Data& dependency);
 
     //
     // Stage <-> Stage edges
