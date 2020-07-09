@@ -17,8 +17,7 @@
 #include <threading/ie_executor_manager.hpp>
 #include <details/ie_cnn_network_tools.h>
 
-#include <ngraph/specialize_function.hpp>
-#include <ngraph/pass/manager.hpp>
+#include <ngraph/ngraph.hpp>
 
 #include <transformations/common_optimizations/common_optimizations.hpp>
 

@@ -19,7 +19,7 @@
 #include <cnn_network_impl.hpp>
 #include <threading/ie_itask_executor.hpp>
 
-#include <ngraph/function.hpp>
+#include <ngraph/ngraph.hpp>
 
 #include "template_config.hpp"
 #include "template_infer_request.hpp"

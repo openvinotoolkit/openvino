@@ -5,7 +5,7 @@
 #include "template_pattern_transformation.hpp"
 
 #include <ngraph/opsets/opset3.hpp>
-#include <ngraph/rt_info.hpp>
+#include <ngraph/ngraph.hpp>
 
 using namespace ngraph;
 
