@@ -958,17 +958,6 @@ shared_ptr<Node> JSONDeserializer::deserialize_node(json node_js)
                 args[0], args[1], read_auto_broadcast(node_js, "auto_broadcast"));
             break;
         }
-        case OP_TYPEID::All:
-        {
-            auto reduction_axes = deserialize_axis_set(node_js.at("reduction_axes"));
-            node = make_shared<op::All>(args[0], reduction_axes);
-            break;
-        }
-        case OP_TYPEID::AllReduce:
-        {
-            node = make_shared<op::AllReduce>(args[0]);
-            break;
-        }
         case OP_TYPEID::Any:
         {
             auto reduction_axes = deserialize_axis_set(node_js.at("reduction_axes"));
@@ -2387,14 +2376,6 @@ json JSONSerializer::serialize_node(const Node& n)
             node["auto_broadcast"] = write_auto_broadcast(tmp->get_autob());
         }
         break;
-    }
-    case OP_TYPEID::All:
-    {
-        auto tmp = static_cast<const op::All*>(&n);
-        node["reduction_axes"] = serialize_axis_set(tmp->get_reduction_axes());
-        break;
-    }
-    case OP_TYPEID::AllReduce: { break;
     }
     case OP_TYPEID::Any:
     {
