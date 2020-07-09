@@ -202,9 +202,11 @@ void EltwiseTransformation::transform(TransformationContext& context, CNNLayer& 
         } else if (eltwiseLayer->_operation == EltwiseLayer::eOperation::Prod) {
             for (size_t i = 0ul; i < emptyPathDequantizationScales.size(); ++i) {
                 fullPathDequantizationScales[i] = fullPathDequantizationScales[i] * emptyPathDequantizationScales[i];
+                fullPathDequantizationShifts[i] = fullPathDequantizationShifts[i] * emptyPathDequantizationScales[i];
             }
 
             CNNNetworkHelper::updateBlobs(*fullPathDequantizationLayer, "weights", fullPathDequantizationScales);
+            CNNNetworkHelper::updateBlobs(*fullPathDequantizationLayer, "biases", fullPathDequantizationShifts);
         } else {
             THROW_IE_EXCEPTION << "unexpected operation '" << eltwiseLayer->_operation << "'";
         }
