@@ -14,12 +14,14 @@
 // limitations under the License.
 //*****************************************************************************
 
+#include <exception>
 #include <functional>
 #include <numeric>
 #include <sstream>
 
 #include "exceptions.hpp"
 #include "graph.hpp"
+#include "ngraph/log.hpp"
 #include "node.hpp"
 #include "provenance.hpp"
 #include "utils/common.hpp"
@@ -201,15 +203,18 @@ namespace ngraph
                 // Do nothing OnnxNodeValidationFailure exception already has ONNX node information.
                 throw;
             }
-            catch (const ngraph_error& exc)
+            catch (const std::exception& exc)
             {
                 std::string msg_prefix = error::detail::get_error_msg_prefix(onnx_node);
-                throw ngraph_error(msg_prefix + ":\n " + std::string(exc.what()));
+                throw ngraph_error(msg_prefix + ":\n" + std::string(exc.what()));
             }
             catch (...)
             {
                 std::string msg_prefix = error::detail::get_error_msg_prefix(onnx_node);
-                throw ngraph_error("Unhandled exception type. " + msg_prefix + ":\n");
+                // Since we do not now anything about current exception data type we can only
+                // notify user this way.
+                NGRAPH_ERR << msg_prefix + "Unhandled exception type. \n";
+                std::rethrow_exception(std::current_exception());
             }
             set_friendly_names(onnx_node, ng_node_vector);
             add_provenance_tags(onnx_node, ng_node_vector);

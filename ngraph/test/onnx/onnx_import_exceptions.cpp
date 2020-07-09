@@ -14,6 +14,8 @@
 // limitations under the License.
 //*****************************************************************************
 
+#include <exception>
+
 #include "gtest/gtest.h"
 #include "ngraph/file_util.hpp"
 #include "ngraph/frontend/onnx_import/exceptions.hpp"
@@ -34,15 +36,16 @@ TEST(onnx_importer, exception_msg_ngraph_error)
 {
     try
     {
-        onnx_import::import_onnx_model(file_util::path_join(
-                     SERIALIZED_ZOO, "onnx/depth_to_space_bad_blocksize.prototxt"));
+        onnx_import::import_onnx_model(
+            file_util::path_join(SERIALIZED_ZOO, "onnx/depth_to_space_bad_blocksize.prototxt"));
+        // Should have thrown, so fail if it didn't
+        FAIL() << "ONNX Importer did not detected incorrect model!";
     }
     catch (const ngraph_error& e)
     {
-        EXPECT_HAS_SUBSTRING(
-            e.what(), std::string("While validating ONNX node '<Node(DepthToSpace)"));
-        EXPECT_HAS_SUBSTRING(
-            e.what(), std::string("While validating node 'v0::DepthToSpace"));
+        EXPECT_HAS_SUBSTRING(e.what(),
+                             std::string("While validating ONNX node '<Node(DepthToSpace)"));
+        EXPECT_HAS_SUBSTRING(e.what(), std::string("While validating node 'v0::DepthToSpace"));
     }
     catch (...)
     {
@@ -59,10 +62,32 @@ TEST(onnx_importer, exception_msg_onnx_node_validation_failure)
         // Should have thrown, so fail if it didn't
         FAIL() << "ONNX Importer did not detected incorrect model!";
     }
-    catch (const error::OnnxNodeValidationFailure& e)
+    catch (const onnx_import::error::OnnxNodeValidationFailure& e)
     {
         EXPECT_HAS_SUBSTRING(
             e.what(), std::string("While validating ONNX node '<Node(InstanceNormalization)"));
+    }
+    catch (...)
+    {
+        FAIL() << "The ONNX model importer failed for unexpected reason";
+    }
+}
+
+// This test aims to check for wrapping all std::exception not deriving from ngraph_error.
+// This test should throw a std error because of attempt to access shape from dynamic tensor.
+TEST(onnx_importer, exception_msg_std_err_wrapped)
+{
+    try
+    {
+        onnx_import::import_onnx_model(file_util::path_join(
+            SERIALIZED_ZOO, "onnx/dynamic_shapes/add_opset6_dyn_shape.prototxt"));
+        // Should have thrown, so fail if it didn't
+        FAIL() << "ONNX Importer did not detected incorrect model!";
+    }
+    catch (const std::exception& e)
+    {
+        std::cout << std::endl << e.what() << std::endl;
+        EXPECT_HAS_SUBSTRING(e.what(), std::string("While validating ONNX node '<Node(Add)"));
     }
     catch (...)
     {
