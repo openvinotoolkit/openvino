@@ -1,6 +1,6 @@
 ## Mish <a name="Mish"></a>
 
-**Versioned name**: *Mish-4*
+**Versioned name**: *Mish-1*
 
 **Category**: *Activation*
 
