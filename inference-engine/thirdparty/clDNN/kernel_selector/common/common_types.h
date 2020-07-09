@@ -150,6 +150,7 @@ enum class ActivationFunction {
     SOFTPLUS,
     SOFTSIGN,
     SWISH,
+    MISH,
     GELU
 };
 

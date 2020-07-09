@@ -2280,3 +2280,15 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_upsample9_scales_const_linear_infer)
         {1.0, 1.5, 2.0, 2.0, 2.0, 2.5, 3.0, 3.0, 3.0, 3.5, 4.0, 4.0, 3.0, 3.5, 4.0, 4.0});
     test_case.run();
 }
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_image_scaler)
+{
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/image_scaler.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_input<float>({1.0, 2.0, 3.0, 4.0, 10.0, 20.0, 30.0, 40.0});
+    test_case.add_expected_output<float>(Shape{1, 2, 2, 2},
+                                         {12.0, 14.0, 16.0, 18.0, 21.0, 41.0, 61.0, 81.0});
+    test_case.run();
+}

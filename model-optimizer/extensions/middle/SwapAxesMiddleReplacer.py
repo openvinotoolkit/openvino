@@ -36,7 +36,7 @@ class SwapAxisMiddleReplacer(MiddleReplacementPattern):
         order = swapaxis.order
 
         swapaxis.add_input_port(1)
-        const = Const(graph, {'value': order}).create_node()
+        const = Const(graph, {'value': order, 'name': swapaxis.soft_get('name', swapaxis.id) + '/Order'}).create_node()
         const.out_port(0).connect(swapaxis.in_port(1))
 
         Transpose.update_node_stat(swapaxis, {'need_shape_inference': True})
