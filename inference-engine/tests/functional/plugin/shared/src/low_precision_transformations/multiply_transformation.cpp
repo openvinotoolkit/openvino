@@ -43,7 +43,7 @@ std::string MultiplyTransformation::getTestCaseName(testing::TestParamInfo<Multi
             param.fakeQuantize2.inputHighValues[0] << "_" <<
             param.fakeQuantize2.outputLowValues[0] << "_" <<
             param.fakeQuantize2.outputHighValues[0];
-    };
+    }
     return result.str();
 }
 
