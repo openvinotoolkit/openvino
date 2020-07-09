@@ -60,7 +60,7 @@ namespace ngraph
             ///
             /// \return     nGraph node equivalent of the ONNX operation.
             ///
-            Output<ngraph::Node>
+            std::shared_ptr<ngraph::Node>
                 make_ng_reduction_op(const Node& node,
                                      const Output<ngraph::Node>& ng_input,
                                      ReductionFunction reduction_function);
@@ -75,7 +75,7 @@ namespace ngraph
             ///
             /// \return     nGraph node equivalent of the ONNX operation.
             ///
-            Output<ngraph::Node>
+            std::shared_ptr<ngraph::Node>
                 make_ng_reduction_op(const Node& node,
                                      const Output<ngraph::Node>& ng_input,
                                      RuntimeReductionFunction reduction_function);

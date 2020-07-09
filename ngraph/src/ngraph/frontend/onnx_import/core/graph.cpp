@@ -74,6 +74,7 @@ namespace ngraph
                      std::unique_ptr<GraphCache>&& cache)
             : m_graph_proto{&graph_proto}
             , m_model{&model}
+            , m_cache{std::move(cache)}
         {
             std::map<std::string, Tensor> initializers;
             // Process all initializers in the graph
@@ -87,7 +88,7 @@ namespace ngraph
                     // For each initializer create a Constant node and store it in cache
                     auto ng_constant = tensor.get_ng_constant();
                     add_provenance_tag_to_initializer(tensor, ng_constant);
-                    m_ng_node_cache->emplace(initializer_tensor.name(), std::move(ng_constant));
+                    m_cache->emplace_node(initializer_tensor.name(), std::move(ng_constant));
                 }
             }
 
@@ -97,7 +98,7 @@ namespace ngraph
                 m_inputs.emplace_back(input);
 
                 // Check if a Constant node was already created from an initializer
-                if (m_ng_node_cache.count(input.name()) > 0)
+                if (m_cache->contains(input.name()))
                 {
                     continue;
                 }
@@ -105,7 +106,7 @@ namespace ngraph
                 const auto value_info = m_inputs.back();
                 auto ng_node = value_info.get_ng_node(m_parameters, initializers);
                 add_provenance_tag_to_input(value_info, ng_node);
-                m_ng_node_cache[input.name()] = std::move(ng_node);
+                m_cache->emplace_node(input.name(), std::move(ng_node));
             }
 
             // Process all graph outputs
@@ -159,7 +160,7 @@ namespace ngraph
                 // https://github.com/onnx/onnx/blob/master/docs/IR.md#optional-inputs-and-outputs
                 for (std::size_t i{0}; i < node.get_outputs_size(); ++i)
                 {
-                    m_ng_node_cache[node.output(i)] = ng_nodes.at(i);
+                    m_cache->emplace_node(node.output(i), std::move(ng_nodes.at(i)));
                 }
             }
         }
@@ -170,7 +171,7 @@ namespace ngraph
             return m_cache->contains(name);
         }
 
-        std::shared_ptr<ngraph::Node> Graph::get_ng_node_from_cache(const std::string& name) const
+        Output<ngraph::Node> Graph::get_ng_node_from_cache(const std::string& name) const
         {
             return m_cache->get_node(name);
         }
@@ -255,7 +256,7 @@ namespace ngraph
             ngraph::traverse_nodes(
                 as_node_vector(ng_node_vector),
                 [&tag](std::shared_ptr<ngraph::Node> ng_node) { ng_node->add_provenance_tag(tag); },
-                as_node_vector(ng_inputs);
+                as_node_vector(ng_inputs));
         }
 
         Subgraph::Subgraph(const ONNX_NAMESPACE::GraphProto& proto,

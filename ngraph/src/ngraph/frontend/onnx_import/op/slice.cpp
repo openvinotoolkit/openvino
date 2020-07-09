@@ -86,7 +86,7 @@ namespace ngraph
                     /// \return Sub-graph represents adjusted indices or input indices
                     ///         if any transformation was needed.
                     Output<ngraph::Node>
-                        adjust_indices_if_needed(const Ouptut<ngraph::Node>& indices,
+                        adjust_indices_if_needed(const Output<ngraph::Node>& indices,
                                                  const std::vector<uint64_t>& axes,
                                                  uint64_t slice_indices_length,
                                                  int64_t fill_in_value)
@@ -204,7 +204,7 @@ namespace ngraph
                         *std::max_element(std::begin(axes_vec), std::end(axes_vec)) + 1;
                     const auto begin_end_mask = axes_to_mask(axes_vec, slice_indices_length);
 
-                    Output<ngraph::Node> steps = nullptr;
+                    Output<ngraph::Node> steps;
                     if (inputs.size() == 5) // steps input provided
                     {
                         steps = inputs.at(4);

@@ -48,20 +48,20 @@ namespace ngraph
                     /// \return true if termination condition is true and it cannot be changed
                     ///         during Loop iterations, false otherwise.
                     bool is_termination_condition_always_true(
-                        const std::shared_ptr<ngraph::Node>& loop_cond,
-                        const std::shared_ptr<ngraph::Node>& body_cond)
+                        const Output<ngraph::Node>& loop_cond,
+                        const Output<ngraph::Node>& body_cond)
                     {
                         bool loop_cond_value = false;
-                        if (loop_cond->is_constant() &&
-                            loop_cond->get_element_type() == element::boolean)
+                        if (loop_cond.get_node()->is_constant() &&
+                            loop_cond.get_node()->get_element_type() == element::boolean)
                         {
-                            loop_cond_value = as_type_ptr<default_opset::Constant>(loop_cond)
+                            loop_cond_value = as_type_ptr<default_opset::Constant>(loop_cond.get_node_shared_ptr())
                                                   ->cast_vector<bool>()
                                                   .at(0);
                         }
                         // According to ONNX skipped cond input (is_null) means
                         // that is has true value
-                        bool is_loop_cond_true = loop_cond->is_null() || loop_cond_value == true;
+                        bool is_loop_cond_true = loop_cond.get_node()->is_null() || loop_cond_value == true;
 
                         if (!is_loop_cond_true)
                         {
@@ -72,10 +72,10 @@ namespace ngraph
                         // value of loop_cond - true
                         // Identity op for boolean value is represented by LogicalOr op whose second
                         // input is always false
-                        if (is_type<default_opset::LogicalOr>(body_cond))
+                        if (is_type<default_opset::LogicalOr>(body_cond.get_node_shared_ptr()))
                         {
                             const auto second_input =
-                                body_cond->input_value(1).get_node_shared_ptr();
+                                body_cond.get_node_shared_ptr()->input_value(1).get_node_shared_ptr();
                             if (second_input->is_constant() &&
                                 second_input->get_element_type() == element::boolean &&
                                 as_type_ptr<default_opset::Constant>(second_input)
@@ -107,8 +107,7 @@ namespace ngraph
 
                     // required
                     const Subgraph& body_graph{node.get_attribute_value<Subgraph>("body")};
-                    const auto& graph_outputs =
-                        ngraph::as_output_vector(body_graph.get_ng_outputs());
+                    const auto& graph_outputs = body_graph.get_ng_outputs();
                     const auto& graph_inputs = body_graph.get_ng_parameters();
 
                     CHECK_VALID_NODE(
@@ -149,10 +148,10 @@ namespace ngraph
                     // input.
                     const auto loop_trip_count = std::make_shared<default_opset::Range>(
                         default_opset::Constant::create(
-                            trip_count->get_element_type(), Shape{}, {0}),
+                            trip_count.get_element_type(), Shape{}, {0}),
                         ngraph::onnx_import::reshape::interpret_as_scalar(trip_count),
                         default_opset::Constant::create(
-                            trip_count->get_element_type(), Shape{}, {1}));
+                            trip_count.get_element_type(), Shape{}, {1}));
 
                     // We iterate over trip_count input.
                     // start=0, stride=1, part_size=1, end=-1, axis=0

@@ -76,9 +76,9 @@ namespace ngraph
                                 else
                                 {
                                     const std::size_t hidden_size =
-                                        m_map[recurrent::OpInput::R]->get_shape().back();
+                                        m_map[recurrent::OpInput::R].get_shape().back();
                                     const std::size_t num_directions =
-                                        m_map[recurrent::OpInput::W]->get_shape().front();
+                                        m_map[recurrent::OpInput::W].get_shape().front();
 
                                     m_map[recurrent::OpInput::B] =
                                         std::make_shared<default_opset::Constant>(

@@ -42,10 +42,7 @@ namespace ngraph
             OutputVector get_ng_outputs() const;
             const ParameterVector& get_ng_parameters() const { return m_parameters; }
             bool is_node_in_cache(const std::string& name) const;
-            Output<ngraph::Node> get_ng_node_from_cache(const std::string& name) const
-            {
-                return m_ng_node_cache.at(name);
-            }
+            Output<ngraph::Node> get_ng_node_from_cache(const std::string& name) const;
             const std::string& get_name() const { return m_graph_proto->name(); }
             OutputVector make_ng_nodes(const Node& onnx_node) const;
             const GraphCache& get_graph_cache() const;
@@ -72,7 +69,6 @@ namespace ngraph
             std::vector<ValueInfo> m_inputs;
             std::vector<ValueInfo> m_outputs;
             ParameterVector m_parameters;
-            std::map<std::string, Output<ngraph::Node>> m_ng_node_cache;
             Model* m_model;
         };
 

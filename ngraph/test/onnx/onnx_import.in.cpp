@@ -376,7 +376,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_missing_input)
             Output<ngraph::Node> C = ng_inputs.at(2);
 
             A = A * C;
-            if (!B->is_null())
+            if (!B.get_node()->is_null())
             {
                 B = B / C;
             }

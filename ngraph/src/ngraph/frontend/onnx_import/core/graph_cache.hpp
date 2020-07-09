@@ -35,7 +35,7 @@ namespace ngraph
             ///
             /// \param[in]  name       The name of node added to the cache.
             /// \param[in]  node       The node added to the cache.
-            void emplace_node(const std::string& name, std::shared_ptr<ngraph::Node>&& node);
+            void emplace_node(const std::string& name, Output<ngraph::Node>&& node);
 
             /// \brief      Get the node from the cache
             ///
@@ -44,7 +44,7 @@ namespace ngraph
             /// \param[in]  name       The name of the node.
             ///
             /// \return     The node named `name`.
-            virtual std::shared_ptr<ngraph::Node> get_node(const std::string& name) const;
+            virtual Output<ngraph::Node> get_node(const std::string& name) const;
 
             /// \brief      Return true if the node named `name` exist in the cache.
             ///
@@ -54,7 +54,7 @@ namespace ngraph
             virtual bool contains(const std::string& name) const;
 
         private:
-            std::map<std::string, std::shared_ptr<ngraph::Node>> m_graph_cache_map;
+            std::map<std::string, Output<ngraph::Node>> m_graph_cache_map;
         };
 
         class SubgraphCache : public GraphCache
@@ -72,7 +72,7 @@ namespace ngraph
             /// \param[in]  name       The name of the node.
             ///
             /// \return     The node named `name` from subgraph (as present) or from parent graph.
-            std::shared_ptr<ngraph::Node> get_node(const std::string& name) const override;
+            Output<ngraph::Node> get_node(const std::string& name) const override;
 
             /// \brief      Return true if the node named `name` exist in the cache.
             ///

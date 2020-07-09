@@ -33,7 +33,7 @@ namespace ngraph
             {
                 OutputVector reduce_log_sum(const Node& node)
                 {
-                    std::shared_ptr<ngraph::Node> sum_node{reduction::make_ng_reduction_op(
+                    Output<ngraph::Node> sum_node{reduction::make_ng_reduction_op(
                         node,
                         node.get_ng_inputs().at(0),
                         std::make_shared<default_opset::ReduceSum,
@@ -43,11 +43,12 @@ namespace ngraph
                     return {std::make_shared<default_opset::Log>(sum_node)};
                 }
 
+
                 OutputVector reduce_log_sum_exp(const Node& node)
                 {
                     auto exp_node =
                         std::make_shared<default_opset::Exp>(node.get_ng_inputs().at(0));
-                    std::shared_ptr<ngraph::Node> sum_node{reduction::make_ng_reduction_op(
+                    Output<ngraph::Node> sum_node{reduction::make_ng_reduction_op(
                         node,
                         exp_node,
                         std::make_shared<default_opset::ReduceSum,

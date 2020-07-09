@@ -33,7 +33,7 @@ namespace ngraph
                 inline OutputVector identity(const Node& node)
                 {
                     auto input = node.get_ng_inputs().at(0);
-                    if (input->get_element_type() == ngraph::element::boolean)
+                    if (input.get_element_type() == ngraph::element::boolean)
                     {
                         const auto logic_zero =
                             default_opset::Constant::create(ngraph::element::boolean, {}, {false});

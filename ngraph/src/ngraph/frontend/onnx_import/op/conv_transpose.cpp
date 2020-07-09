@@ -325,7 +325,7 @@ namespace ngraph
                     // no bias param
                     if (inputs.size() < 3)
                     {
-                        return as_node_vector({conv_node});
+                        return {conv_node};
                     }
                     const auto reshaped_bias = get_prepared_bias(inputs[2], conv_node);
 

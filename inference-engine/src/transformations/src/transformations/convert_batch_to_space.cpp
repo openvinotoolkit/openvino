@@ -23,8 +23,8 @@ void ngraph::pass::ConvertBatchToSpace::convert_batch_to_space() {
             return false;
         }
         auto last_node = batch_to_space->decompose_op()[0];
-        last_node->set_friendly_name(batch_to_space->get_friendly_name());
-        ngraph::replace_node(batch_to_space, last_node);
+        last_node.get_node()->set_friendly_name(batch_to_space->get_friendly_name());
+        ngraph::replace_node(batch_to_space, last_node.get_node_shared_ptr());
         return true;
     };
 

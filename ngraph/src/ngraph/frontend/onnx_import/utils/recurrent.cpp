@@ -198,8 +198,7 @@ namespace ngraph
                         X, seq_lengths, 1 /*batch_axis*/, 0 /*seq_axis*/);
                 }
 
-                OutputVector in_seq_steps =
-                    as_output_vector(builder::opset1::split(X, X->get_shape().at(0)));
+                OutputVector in_seq_steps = builder::opset1::split(X, X.get_shape().at(0));
 
                 for (auto& in_x : in_seq_steps)
                 {
@@ -291,7 +290,7 @@ namespace ngraph
                 RecurrentSequence::prepare_input(Output<ngraph::Node> node, bool is_reverse) const
             {
                 // In bidirectional mode inputs are stacked together, so we must split them.
-                std::shared_ptr<ngraph::Node> tmp = node.get_node_shared_ptr();
+                Output<ngraph::Node> tmp = node;
                 if (m_direction == ngraph::op::RecurrentSequenceDirection::BIDIRECTIONAL)
                 {
                     tmp = builder::opset1::split(node, 2).at(is_reverse ? 1 : 0);
