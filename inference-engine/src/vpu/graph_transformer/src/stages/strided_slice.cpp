@@ -104,11 +104,11 @@ void FrontEnd::parseStridedSlice(const Model& model, const ie::CNNLayerPtr& laye
                      "Checking {} with type {} failed: new_axis_mask parameter is not supported",
                      layer->name, layer->type);
     std::string shrinkAxisMask = layer->GetParamAsString("shrink_axis_mask", "");
-    VPU_THROW_UNLESS(maskStrToInt(newAxisMask) == 0,
+    VPU_THROW_UNLESS(maskStrToInt(shrinkAxisMask) == 0,
                      "Checking {} with type {} failed: shrink_axis_mask parameter is not supported",
                      layer->name, layer->type);
     std::string ellipsisMask = layer->GetParamAsString("ellipsis_mask", "");
-    VPU_THROW_UNLESS(maskStrToInt(newAxisMask) == 0,
+    VPU_THROW_UNLESS(maskStrToInt(ellipsisMask) == 0,
                      "Checking {} with type {} failed: ellipsis_mask parameter is not supported",
                      layer->name, layer->type);
 
