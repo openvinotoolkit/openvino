@@ -48,6 +48,8 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_b_fs_yx_fsv4_int8::SetDefa
     DispatchData runInfo = ConvolutionKernelBase::SetDefault(cp);
 
     runInfo.efficiency = FORCE_PRIORITY_9;
+    if (cp.output.X().v > 512 && cp.filterSize.x == 5 && cp.filterSize.y == 5)
+        runInfo.efficiency = FORCE_PRIORITY_2;
     runInfo.gws0 = CeilDiv(cp.output.X().v, sub_group_size) / 2;
     runInfo.gws1 = cp.output.Y().v;
     runInfo.gws2 = sub_group_size;
