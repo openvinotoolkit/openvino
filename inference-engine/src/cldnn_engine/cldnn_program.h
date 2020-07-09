@@ -201,6 +201,7 @@ public:
         SoftPlus,
         SoftSign,
         Swish,
+        Mish,
         Gelu,
         Sin,
         Sinh,
