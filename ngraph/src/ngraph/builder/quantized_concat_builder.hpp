@@ -34,7 +34,7 @@ namespace ngraph
         NGRAPH_API
         std::shared_ptr<Node> QuantizedConcatBuilder(const OutputVector& args,
                                                      size_t concatenation_axis,
-                                                     const NodeVector& mins,
-                                                     const NodeVector& maxs);
+                                                     const OutputVector& mins,
+                                                     const OutputVector& maxs);
     }
 }
