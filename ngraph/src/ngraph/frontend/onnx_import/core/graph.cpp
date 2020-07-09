@@ -18,6 +18,7 @@
 #include <numeric>
 #include <sstream>
 
+#include "exceptions.hpp"
 #include "graph.hpp"
 #include "node.hpp"
 #include "provenance.hpp"
@@ -190,8 +191,26 @@ namespace ngraph
         {
             const auto ng_node_factory =
                 m_model->get_operator(onnx_node.op_type(), onnx_node.domain());
-
-            const auto ng_node_vector = ng_node_factory(onnx_node);
+            NodeVector ng_node_vector;
+            try
+            {
+                ng_node_vector = ng_node_factory(onnx_node);
+            }
+            catch (const ::ngraph::onnx_import::error::OnnxNodeValidationFailure& exc)
+            {
+                // Do nothing OnnxNodeValidationFailure exception already has ONNX node information.
+                throw;
+            }
+            catch (const ngraph_error& exc)
+            {
+                std::string msg_prefix = error::detail::get_error_msg_prefix(onnx_node);
+                throw ngraph_error(msg_prefix + ":\n " + std::string(exc.what()));
+            }
+            catch (...)
+            {
+                std::string msg_prefix = error::detail::get_error_msg_prefix(onnx_node);
+                throw ngraph_error("Unhandled exception type. " + msg_prefix + ":\n");
+            }
             set_friendly_names(onnx_node, ng_node_vector);
             add_provenance_tags(onnx_node, ng_node_vector);
 
