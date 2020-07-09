@@ -1258,14 +1258,12 @@ void GNAPlugin::UpdateFieldsFromConfig() {
     *gnaFlags = config.gnaFlags;
 }
 
-void GNAPlugin::QueryNetwork(const InferenceEngine::ICNNNetwork& _network,
+void GNAPlugin::QueryNetwork(const InferenceEngine::ICNNNetwork& network,
                              const std::map<std::string, std::string>& config,
                              InferenceEngine::QueryNetworkResult& res) const {
-    std::shared_ptr<InferenceEngine::details::CNNNetworkImpl> convertedNetwork;
-    if (_network.getFunction()) {
-        convertedNetwork = std::make_shared<InferenceEngine::details::CNNNetworkImpl>(_network);
+    if (network.getFunction()) {
+        THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str << " ngraph::Function is not supported nativelly";
     }
-    const InferenceEngine::ICNNNetwork &network = convertedNetwork ? *convertedNetwork : _network;
 
     std::unordered_set<CNNLayer *> allLayers;
     InferenceEngine::InputsDataMap inputs;
@@ -1289,4 +1287,4 @@ void GNAPlugin::QueryNetwork(const InferenceEngine::ICNNNetwork& _network,
                                                     res.supportedLayersMap.insert({ layer->name, GetName() });
                                                 }
                                             }, false);
-    }
+}

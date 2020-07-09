@@ -265,13 +265,11 @@ void clDNNEngine::QueryNetwork(const ICNNNetwork& network, const std::map<std::s
     // Verify device id
     GetDeviceInfo(config);
 
-    std::shared_ptr<CNNNetworkImpl> convertedNetwork;  // TODO: fix HETERO mode
     if (network.getFunction()) {
-        convertedNetwork = std::make_shared<CNNNetworkImpl>(network);
+        THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str << " ngraph::Function is not supported nativelly";
     }
 
-    std::vector<CNNLayerPtr> sortedLayers = CNNNetSortTopologically(
-        convertedNetwork ? *convertedNetwork : network);
+    std::vector<CNNLayerPtr> sortedLayers = CNNNetSortTopologically(network);
     for (auto layer : sortedLayers) {
         if (CaselessEq<std::string>()(layer->type, "DetectionOutput")) {
         } else if (CaselessEq<std::string>()(layer->type, "PriorBox")) {

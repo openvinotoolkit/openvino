@@ -84,9 +84,8 @@ void Engine::QueryNetwork(
         VPU_THROW_UNLESS(!(std::find(deviceIDs.begin(), deviceIDs.end(), deviceName) == deviceIDs.end()), "Myriad device: {} not found.", deviceName);
     }
 
-    std::shared_ptr<CNNNetworkImpl> convertedNetwork;  // TODO: fix HETERO mode
     if (network.getFunction()) {
-        convertedNetwork = std::make_shared<CNNNetworkImpl>(network);
+        THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str << " ngraph::Function is not supported nativelly";
     }
 
     const auto log = std::make_shared<Logger>(
@@ -95,7 +94,7 @@ void Engine::QueryNetwork(
         defaultOutput(parsedConfigCopy.compilerLogFilePath()));
 
     const auto layerNames = getSupportedLayers(
-        convertedNetwork ? *convertedNetwork : network,
+        network,
         static_cast<Platform>(parsedConfigCopy.platform()),
         parsedConfigCopy.compileConfig(),
         log);

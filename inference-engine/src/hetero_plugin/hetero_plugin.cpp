@@ -57,20 +57,23 @@ InferenceEngine::ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(const
     }
     DeviceMetaInformationMap metaDevices = GetDevicePlugins(it->second, tconfig);
 
-    if (auto function = network.getFunction()) {
-        auto anyDeviceDoNotSupportNgraph =
-        std::any_of(std::begin(metaDevices), std::end(metaDevices),
-                    [&] (const DeviceMetaInformationMap::value_type& metaDevice) {
+    if (network.getFunction()) {
+        auto allSupportsNgraph =
+        std::all_of(std::begin(metaDevices), std::end(metaDevices),
+                    [&] (const DeviceMetaInformationMap::value_type& metaDevice) -> bool {
                         auto& deviceName = metaDevice.first;
                         auto clonedNetwork = cloneNetwork(network);
-                        GetCore()->QueryNetwork(*clonedNetwork, deviceName, metaDevice.second);
-                        return (clonedNetwork->getFunction() == nullptr);
+                        try { GetCore()->QueryNetwork(network, deviceName, metaDevice.second); }
+                        catch (const InferenceEngine::details::InferenceEngineException & ex) {
+                            std::string message = ex.what();
+                            return message.find(NOT_IMPLEMENTED_str) == std::string::npos;
+                        }
+                        return true;
                     });
-        if (anyDeviceDoNotSupportNgraph) {
+        if (!allSupportsNgraph) {
             auto cnnNetworkImpl = std::make_shared<details::CNNNetworkImpl>(network);
             return std::make_shared<HeteroExecutableNetwork>(
-                *cnnNetworkImpl,
-                mergeConfigs(_config, config), this);
+                *cnnNetworkImpl, mergeConfigs(_config, config), this);
         } else {
             return std::make_shared<HeteroExecutableNetwork>(*cloneNetwork(network), mergeConfigs(_config, config), this);
         }
@@ -205,11 +208,37 @@ void Engine::QueryNetwork(const ICNNNetwork &network, const Configs& config, Que
     DeviceMetaInformationMap metaDevices = GetDevicePlugins(fallbackDevicesStr, tconfig);
 
     std::map<std::string, QueryNetworkResult> queryResults;
-    // go over devices and call query network
-    for (auto&& metaDevice : metaDevices) {
-        auto& deviceName = metaDevice.first;
-        auto clonedNetwork = cloneNetwork(network);
-        queryResults[deviceName] = GetCore()->QueryNetwork(*clonedNetwork, deviceName, metaDevice.second);
+    auto queryNetwork = [&] (const InferenceEngine::ICNNNetwork & networkObject) {
+        // go over devices and call query network
+        for (auto&& metaDevice : metaDevices) {
+            auto& deviceName = metaDevice.first;
+            auto clonedNetwork = cloneNetwork(networkObject);
+            queryResults[deviceName] = GetCore()->QueryNetwork(*clonedNetwork, deviceName, metaDevice.second);
+        }
+        return queryResults;
+    };
+
+    if (network.getFunction()) {
+        auto allSupportsNgraph =
+        std::all_of(std::begin(metaDevices), std::end(metaDevices),
+                    [&] (const DeviceMetaInformationMap::value_type& metaDevice) -> bool {
+                        auto& deviceName = metaDevice.first;
+                        auto clonedNetwork = cloneNetwork(network);
+                        try { GetCore()->QueryNetwork(network, deviceName, metaDevice.second); }
+                        catch (const InferenceEngine::details::InferenceEngineException & ex) {
+                            std::string message = ex.what();
+                            return message.find(NOT_IMPLEMENTED_str) == std::string::npos;
+                        }
+                        return true;
+                    });
+        if (!allSupportsNgraph) {
+            auto cnnNetworkImpl = std::make_shared<details::CNNNetworkImpl>(network);
+            queryNetwork(*cnnNetworkImpl);
+        } else {
+            queryNetwork(*cloneNetwork(network));
+        }
+    } else {
+        queryNetwork(network);
     }
 
     //  WARNING: Here is devices with user set priority
