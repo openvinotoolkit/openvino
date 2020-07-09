@@ -20,8 +20,8 @@ ENV LANG en_US.UTF-8
 ENV LANGUAGE en_US:en
 ENV LC_ALL en_US.UTF-8
 
-# OpenVINO dependencies
 RUN apt-get update && apt-get -y --no-install-recommends install \
+# OpenVINO dependencies
         autoconf \
         automake \
         build-essential \
@@ -32,23 +32,15 @@ RUN apt-get update && apt-get -y --no-install-recommends install \
         ocl-icd-opencl-dev \
         pkg-config \
         unzip \
-        wget && \
-  apt-get clean autoclean && \
-  apt-get autoremove -y
-
+        wget \
 # Python dependencies
-RUN apt-get -y --no-install-recommends install \
         python3 \
         python3-pip \
         python3-dev \
         python3-virtualenv \
         cython3 \
-        tox && \
-    apt-get clean autoclean && \
-    apt-get autoremove -y
-
+        tox \
 # ONNX dependencies
-RUN apt-get -y --no-install-recommends install \
         git-lfs \
         protobuf-compiler \
         libprotobuf-dev && \
