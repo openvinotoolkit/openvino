@@ -170,7 +170,8 @@ void TestModel::createOutputs(int numOutputs) {
 
 Stage TestModel::addStage(
         std::initializer_list<InputInfo> curInputInfos,
-        std::initializer_list<OutputInfo> curOutputInfos) {
+        std::initializer_list<OutputInfo> curOutputInfos,
+        int old_test) {
     DataVector curInputs;
     for (const auto& info : curInputInfos) {
         if (info.type == InputType::Original) {
@@ -185,41 +186,11 @@ Stage TestModel::addStage(
         if (info.type == OutputType::Original) {
             curOutputs.push_back(_outputs.at(info.originalOutputInd));
         } else {
-            curOutputs.push_back(_model->addNewData(formatString("Data %d / %d", _stages.size(), curOutputs.size()), info.desc));
-        }
-    }
-
-    auto stage = _model->addNewStage<TestStage>(
-            formatString("Stage %m%m%d", std::setw(2), std::setfill('0'), _stages.size()),
-            StageType::None,
-            nullptr,
-            curInputs,
-            curOutputs);
-    stage->attrs().set<int>("test_ind", _stages.size());
-
-    _stages.push_back(stage);
-
-    return stage;
-}
-
-Stage TestModel::_addStage(
-        std::initializer_list<InputInfo> curInputInfos,
-        std::initializer_list<OutputInfo> curOutputInfos) {
-    DataVector curInputs;
-    for (const auto& info : curInputInfos) {
-        if (info.type == InputType::Original) {
-            curInputs.push_back(_inputs.at(info.originalInputInd));
-        } else {
-            curInputs.push_back(_stages.at(info.prevStageInd)->output(info.prevStageOutputInd));
-        }
-    }
-
-    DataVector curOutputs;
-    for (const auto& info : curOutputInfos) {
-        if (info.type == OutputType::Original) {
-            curOutputs.push_back(_outputs.at(info.originalOutputInd));
-        } else {
-            curOutputs.push_back(_model->addNewData(formatString("Data %d / %d", _stages.size(), curOutputs.size()), _dataDesc));
+            if (old_test == 0) {
+                curOutputs.push_back(_model->addNewData(formatString("Data %d / %d", _stages.size(), curOutputs.size()), info.desc));
+            } else {
+                curOutputs.push_back(_model->addNewData(formatString("Data %d / %d", _stages.size(), curOutputs.size()), _dataDesc));
+            }
         }
     }
 
