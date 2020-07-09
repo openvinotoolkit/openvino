@@ -18,6 +18,11 @@
 
 namespace ngraph {
 
+template <typename T>
+VariantImpl<T>::~VariantImpl() { }
+
+template class ngraph::VariantImpl<PrimitivesPriority>;
+
 constexpr VariantTypeInfo VariantWrapper<PrimitivesPriority>::type_info;
 
 std::string PrimitivesPriority::getPrimitivesPriority() const {
