@@ -622,7 +622,13 @@ class TestExtractPort(unittest.TestCase):
         self.assertEqual(direction, 'out')
         self.assertEqual(port, 0)
 
-    def test_in_port(self):
+    def test_in_port1(self):
+        node_id, direction, port = get_node_id_with_ports(self.graph, '0:1input1')
+        self.assertEqual(node_id, 'conv_id')
+        self.assertEqual(direction, 'in')
+        self.assertEqual(port, 0)
+
+    def test_in_port2(self):
         node_id, direction, port = get_node_id_with_ports(self.graph, '0:1input1:0')
         self.assertEqual(node_id, 'input_id')
         self.assertEqual(direction, 'in')
@@ -635,10 +641,7 @@ class TestExtractPort(unittest.TestCase):
         self.assertEqual(port, None)
 
     def test_no_port2(self):
-        node_id, direction, port = get_node_id_with_ports(self.graph, '1input1:0')
-        self.assertEqual(node_id, 'input_id')
-        self.assertEqual(direction, 'port')
-        self.assertEqual(port, None)
+        self.assertRaises(Error, get_node_id_with_ports, self.graph, '1input1:0')
 
     def test_non_int(self):
         self.assertRaises(Error, get_node_id_with_ports, self.graph, 'port:1input1')
