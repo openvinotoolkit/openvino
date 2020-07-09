@@ -2146,8 +2146,8 @@ void ModelObj::removeUnusedData(const Data& data) {
         _allocator.setNeedToAllocNonIntermData();
     }
 
-    if (const auto dataToShapeEdge = data->_parentDataToShapeEdge) {
-        const auto& shape = dataToShapeEdge->parent();
+    if (const auto dataToShapeEdge = data->parentDataToShapeEdge()) {
+        const auto shape = dataToShapeEdge->parent();
         disconnectDatas(dataToShapeEdge);
         VPU_INTERNAL_CHECK(!shape->childDataToShapeEdges().empty() || !shape->consumerEdges().empty(),
                 "Removed unused data (with name {}) must have a shape data (with name {}) which is a shape "
