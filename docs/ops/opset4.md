@@ -125,6 +125,7 @@ declared in `namespace opset4`.
 * [Sin](arithmetic/Sin_1.md)
 * [Sinh](arithmetic/Sinh_1.md)
 * [SoftMax](activation/SoftMax_1.md)
+* [SoftPlus](activation/SoftPlus_4.md)
 * [SpaceToBatch](movement/SpaceToBatch_2.md)
 * [SpaceToDepth](movement/SpaceToDepth_1.md)
 * [Split](movement/Split_1.md)
