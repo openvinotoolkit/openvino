@@ -10,7 +10,6 @@
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/pass/visualize_tree.hpp>
-#include <ngraph_ops/type_relaxed.hpp>
 
 bool compare(const std::vector<float>& expectedValues, const std::shared_ptr<ngraph::opset1::Constant>& constant) {
     const auto actualValues = constant->cast_vector<float>();
