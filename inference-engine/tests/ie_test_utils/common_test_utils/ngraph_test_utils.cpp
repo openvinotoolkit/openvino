@@ -10,6 +10,7 @@
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/pass/visualize_tree.hpp>
+#include <ngraph_ops/type_relaxed.hpp>
 
 bool compare(const std::vector<float>& expectedValues, const std::shared_ptr<ngraph::opset1::Constant>& constant) {
     const auto actualValues = constant->cast_vector<float>();
@@ -57,8 +58,11 @@ std::pair<bool, std::string> compare_functions(
         auto node2 = q.front().second;
         q.pop();
 
-        if (node1->get_type_info() != node2->get_type_info()) {
-            return {false, typeInfoToStr(node1->get_type_info()) + " != " + typeInfoToStr(node2->get_type_info())};
+        auto type_info1 = node1->get_type_info();
+        auto type_info2 = node2->get_type_info();
+
+        if (type_info1 != type_info2) {
+            return {false, typeInfoToStr(type_info1) + " != " + typeInfoToStr(type_info2)};
         }
 
         if (node1->inputs().size() != node2->inputs().size()) {
@@ -84,14 +88,14 @@ std::pair<bool, std::string> compare_functions(
 
             if (node1->input(i).get_element_type() != node2->input(i).get_element_type()) {
                 err_log << "Different element type detected" << std::endl
-                    << node1->description() << " Input(" << i << ") " << node1->input(i).get_element_type() << " and "
-                    << node2->description() << " Input(" << i << ") " << node2->input(i).get_element_type() << std::endl;
+                        << node1->get_friendly_name() << " Input(" << i << ") " << node1->input(i).get_element_type() << " and "
+                        << node2->get_friendly_name() << " Input(" << i << ") " << node2->input(i).get_element_type() << std::endl;
             }
 
             if (!node1->input(i).get_partial_shape().same_scheme(node2->input(i).get_partial_shape())) {
                 err_log << "Different shape detected" << std::endl
-                        << node1->description() << " Input(" << i << ") " << node1->input(i).get_partial_shape() << " and "
-                        << node2->description() << " Input(" << i << ") " << node2->input(i).get_partial_shape() << std::endl;
+                        << node1->get_friendly_name() << " Input(" << i << ") " << node1->input(i).get_partial_shape() << " and "
+                        << node2->get_friendly_name() << " Input(" << i << ") " << node2->input(i).get_partial_shape() << std::endl;
             }
 
             q.push({node1->input_value(i).get_node_shared_ptr(), node2->input_value(i).get_node_shared_ptr()});
@@ -100,8 +104,8 @@ std::pair<bool, std::string> compare_functions(
         for (int i = 0; i < node1->outputs().size(); ++i) {
             if (!node1->output(i).get_partial_shape().same_scheme(node2->output(i).get_partial_shape())) {
                 err_log << "Different shape detected" << std::endl
-                        << node1->description() << " Output(" << i << ") " << node1->output(i).get_partial_shape() << " and "
-                        << node2->description() << " Output(" << i << ") " << node2->output(i).get_partial_shape() << std::endl;
+                        << node1->get_friendly_name() << " Output(" << i << ") " << node1->output(i).get_partial_shape() << " and "
+                        << node2->get_friendly_name() << " Output(" << i << ") " << node2->output(i).get_partial_shape() << std::endl;
             }
         }
     }
