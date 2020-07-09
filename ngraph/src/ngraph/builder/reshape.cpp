@@ -23,6 +23,7 @@
 #include "ngraph/builder/reshape.hpp"
 #include "ngraph/op/concat.hpp"
 #include "ngraph/op/constant.hpp"
+#include "ngraph/op/fused/squeeze.hpp"
 #include "ngraph/op/product.hpp"
 #include "ngraph/op/reduce_prod.hpp"
 #include "ngraph/op/reshape.hpp"
@@ -138,13 +139,29 @@ shared_ptr<Node> builder::expand_dims(const Output<Node>& value, size_t axis)
         ->add_provenance_group_members_above({value});
 }
 
+NGRAPH_API
 shared_ptr<Node> builder::opset1::reshape(const Output<Node>& value, const Shape& shape)
 {
-    const auto out_pattern = op::Constant::create(
-        element::i64, Shape{shape.size()}, vector<int64_t>(shape.begin(), shape.end()));
-    const bool special_zero = false;
-    return make_shared<ngraph::opset1::Reshape>(value, out_pattern, special_zero)
-        ->add_provenance_group_members_above({value});
+    if (value.get_partial_shape().same_scheme(shape))
+    {
+        return value.get_node_shared_ptr();
+    }
+    else if (is_scalar(shape))
+    {
+        auto value_rank = value.get_shape().size();
+        AxisVector axes_vector(value_rank);
+        std::iota(axes_vector.begin(), axes_vector.end(), 0);
+        auto axes = op::Constant::create(element::i64, Shape{value_rank}, axes_vector);
+        return std::make_shared<op::Squeeze>(value, axes);
+    }
+    else
+    {
+        auto out_pattern = op::Constant::create(
+            element::i64, Shape{shape.size()}, vector<int64_t>(shape.begin(), shape.end()));
+
+        return make_shared<ngraph::opset1::Reshape>(value, out_pattern, false)
+            ->add_provenance_group_members_above({value});
+    }
 }
 
 shared_ptr<Node> builder::opset1::reorder_axes(const Output<Node>& value, vector<size_t> axes_order)
