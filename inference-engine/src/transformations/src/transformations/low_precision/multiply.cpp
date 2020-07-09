@@ -90,8 +90,7 @@ void MultiplyTransformation::transform(TransformationContext& context, ngraph::p
                 (dequantizationFullPath.convert == nullptr ?
                     dequantizationFullPath.data : dequantizationFullPath.convert) :
                 dequantizationFullPath.subtract,
-            newMultiplyValuesFullPath
-        );
+            newMultiplyValuesFullPath);
 
     std::shared_ptr<Node> newMultiply = std::make_shared<opset1::Multiply>(inputs[0], inputs[1]);
 
