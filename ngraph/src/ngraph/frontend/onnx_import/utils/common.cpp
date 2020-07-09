@@ -43,10 +43,14 @@ namespace ngraph
                 case ONNX_NAMESPACE::TensorProto_DataType_UINT64: return element::u64;
                 case ONNX_NAMESPACE::TensorProto_DataType_UNDEFINED: return element::dynamic;
                 }
+#ifdef NGRAPH_USE_PROTOBUF_LITE
+                throw ngraph_error("unsupported element type");
+#else
                 throw ngraph_error(
                     "unsupported element type: " +
                     ONNX_NAMESPACE::TensorProto_DataType_Name(
                         static_cast<ONNX_NAMESPACE::TensorProto_DataType>(onnx_type)));
+#endif
             }
 
             std::shared_ptr<ngraph::Node> get_monotonic_range_along_node_rank(
