@@ -16,6 +16,7 @@
 
 #include "ngraph/op/pad.hpp"
 #include "ngraph/attribute_visitor.hpp"
+#include "ngraph/except.hpp"
 #include "ngraph/op/broadcast.hpp"
 #include "ngraph/op/constant.hpp"
 
@@ -164,7 +165,7 @@ shared_ptr<Node> op::v0::Pad::clone_with_new_inputs(const OutputVector& new_args
 void op::v0::Pad::generate_adjoints(autodiff::Adjoints& /* adjoints */,
                                     const OutputVector& /* deltas */)
 {
-    throw invalid_argument("Autodiff is not yet implemented for Pad");
+    throw ngraph_error("Autodiff is not yet implemented for Pad");
 }
 
 std::shared_ptr<Node> op::Pad::get_default_value() const
@@ -364,5 +365,5 @@ shared_ptr<Node> op::v1::Pad::clone_with_new_inputs(const OutputVector& new_args
 void op::v1::Pad::generate_adjoints(autodiff::Adjoints& /* adjoints */,
                                     const OutputVector& /* deltas */)
 {
-    throw invalid_argument("Autodiff is not yet implemented for Pad:v1");
+    throw ngraph_error("Autodiff is not yet implemented for Pad:v1");
 }

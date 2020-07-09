@@ -46,7 +46,7 @@ shared_ptr<Node> op::Stack::clone_with_new_inputs(const OutputVector& new_args) 
 
 void op::Stack::generate_adjoints(autodiff::Adjoints& adjoints, const OutputVector& deltas)
 {
-    ngraph_error("Not yet implemented");
+    throw ngraph_error("Not yet implemented");
 }
 
 void op::Stack::pre_validate_and_infer_types()
