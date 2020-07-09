@@ -576,6 +576,25 @@ void moveDequantization(
     replace_node(operation, newDequantization);
 }
 
+std::shared_ptr<opset1::Multiply> insertDequantization(
+    const std::shared_ptr<ngraph::Node>& operation,
+    const FakeQuantizeDequantization& dequantization) {
+    std::shared_ptr<opset1::Multiply> replacement = as_type_ptr<opset1::Multiply>(dequantization.multiply->copy_with_new_inputs({
+        dequantization.subtract ?
+            (dequantization.convert ?
+                dequantization.subtract->copy_with_new_inputs({
+                    dequantization.convert->copy_with_new_inputs({ operation }),
+                    dequantization.subtract->get_input_node_shared_ptr(1)->clone_with_new_inputs({}) }) :
+                dequantization.subtract->copy_with_new_inputs({
+                    operation,
+                    dequantization.subtract->get_input_node_shared_ptr(1)->clone_with_new_inputs({}) })) :
+            (dequantization.convert ? dequantization.convert->copy_with_new_inputs({ operation }) : operation),
+        dequantization.multiply->get_input_node_shared_ptr(1)->clone_with_new_inputs({}) }));
+
+    replace_node(operation, replacement);
+    return replacement;
+}
+
 }  // namespace low_precision
 }  // namespace pass
 }  // namespace ngraph

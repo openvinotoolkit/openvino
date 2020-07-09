@@ -195,6 +195,10 @@ void moveDequantization(
     const std::shared_ptr<ngraph::Node> scalesConst = nullptr,
     const std::shared_ptr<ngraph::Node> shiftsConst = nullptr);
 
+std::shared_ptr<opset1::Multiply> insertDequantization(
+    const std::shared_ptr<ngraph::Node>& operation,
+    const FakeQuantizeDequantization& dequantization);
+
 }  // namespace low_precision
 }  // namespace pass
 }  // namespace ngraph

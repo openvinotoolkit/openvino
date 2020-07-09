@@ -36,7 +36,11 @@ void MaxPoolTransformation::SetUp() {
     ConfigurePlugin(version);
 
     const auto ngPrecision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    function = ngraph::builder::subgraph::MaxPoolFunction::getOriginal(ngPrecision, inputShape);
+    function = ngraph::builder::subgraph::MaxPoolFunction::getOriginal(
+        ngPrecision,
+        inputShape,
+        ngraph::pass::low_precision::LayerTransformation::Params(),
+        { ngraph::element::u8, { 127.f }, { 0.01f } });
 
     ngraph::pass::InitNodeInfo().run_on_function(function);
 
