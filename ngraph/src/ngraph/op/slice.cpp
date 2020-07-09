@@ -130,12 +130,3 @@ shared_ptr<Node> op::Slice::clone_with_new_inputs(const OutputVector& new_args) 
     check_new_args_count(this, new_args);
     return make_shared<Slice>(new_args.at(0), m_lower_bounds, m_upper_bounds, m_strides);
 }
-
-void op::Slice::generate_adjoints(autodiff::Adjoints& adjoints, const OutputVector& deltas)
-{
-    auto delta = deltas.at(0);
-
-    auto x = input_value(0);
-
-    adjoints.add_delta_to_slice(x, delta, m_lower_bounds, m_upper_bounds, m_strides);
-}
