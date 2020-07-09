@@ -393,7 +393,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_missing_input)
 
             for (const auto& ng_input : ng_inputs)
             {
-                if (!ng_input.get_node())
+                if (!ng_input.get_node()->is_null())
                 {
                     result = ng_input * result;
                 }
