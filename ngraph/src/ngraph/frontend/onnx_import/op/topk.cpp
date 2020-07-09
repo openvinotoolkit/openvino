@@ -86,7 +86,7 @@ namespace ngraph
                         default_opset::TopK::SortType::SORT_VALUES,
                         element::i64);
 
-                    return get_outputs(top_k);
+                    return {top_k->output(0), top_k->output(1)};
                 }
             }
 
@@ -106,7 +106,7 @@ namespace ngraph
                         default_opset::TopK::SortType::SORT_VALUES,
                         element::i64);
 
-                    return get_outputs(top_k);
+                    return {top_k->output(0), top_k->output(1)};
                 }
             }
 
@@ -134,7 +134,7 @@ namespace ngraph
                     std::shared_ptr<ngraph::Node> top_k = std::make_shared<default_opset::TopK>(
                         data, k, axis, mode, sort_type, element::i64);
 
-                    return get_outputs(top_k);
+                    return {top_k->output(0), top_k->output(1)};
                 }
             }
 
