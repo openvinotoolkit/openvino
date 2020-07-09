@@ -134,6 +134,7 @@ declared in `namespace opset4`.
 * [Squeeze](shape/Squeeze_1.md)
 * [StridedSlice](movement/StridedSlice_1.md)
 * [Subtract](arithmetic/Subtract_1.md)
+* [Swish](activation/Swish_4.md)
 * [Tan](arithmetic/Tan_1.md)
 * [Tanh](arithmetic/Tanh_1.md)
 * [TensorIterator](infrastructure/TensorIterator_1.md)
