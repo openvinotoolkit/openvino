@@ -82,6 +82,7 @@ std::string toString(ActivationFunction activation) {
         case ActivationFunction::SOFTPLUS:                 method = "SOFTPLUS"; break;
         case ActivationFunction::SOFTSIGN:                 method = "SOFTSIGN"; break;
         case ActivationFunction::SWISH:                    method = "SWISH"; break;
+        case ActivationFunction::MISH:                     method = "MISH"; break;
         case ActivationFunction::GELU:                     method = "GELU"; break;
         default: break;
     }
