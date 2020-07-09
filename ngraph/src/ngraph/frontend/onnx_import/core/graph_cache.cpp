@@ -30,7 +30,7 @@ namespace ngraph
         {
             try
             {
-                return m_graph_cache_map.at(name).get_node_shared_ptr();
+                return m_graph_cache_map.at(name);
             }
             catch (const std::out_of_range&)
             {
