@@ -19,6 +19,14 @@ std::shared_ptr<ngraph::Node> makeActivation(const ngraph::Output<Node> &in,
             ngraph::element::f32,
             ngraph::Shape{1},
             std::vector<float>{0.01f});
+    auto selu_alpha = std::make_shared<ngraph::op::Constant>(
+            type, ngraph::Shape(), 1.6732f);
+    auto selu_lambda = std::make_shared<ngraph::op::Constant>(
+            type, ngraph::Shape(), 1.0507f);
+    auto hard_sigmoid_alpha = std::make_shared<ngraph::op::Constant>(
+            type, ngraph::Shape(), 0.2f);
+    auto hard_sigmoid_beta = std::make_shared<ngraph::op::Constant>(
+            type, ngraph::Shape(), 0.5f);
 
     switch (activationType) {
         case ngraph::helpers::ActivationTypes::Sigmoid:
@@ -39,6 +47,38 @@ std::shared_ptr<ngraph::Node> makeActivation(const ngraph::Output<Node> &in,
             return std::make_shared<ngraph::op::Abs>(in);
         case ngraph::helpers::ActivationTypes::Gelu:
             return std::make_shared<ngraph::op::Gelu>(in);
+        case ngraph::helpers::ActivationTypes::Clamp:
+            return std::make_shared<ngraph::op::Clamp>(in, -2.0, 2.0);
+        case ngraph::helpers::ActivationTypes::Negative:
+            return std::make_shared<ngraph::op::Negative>(in);
+        case ngraph::helpers::ActivationTypes::Acos:
+            return std::make_shared<ngraph::op::Acos>(in);
+        case ngraph::helpers::ActivationTypes::Asin:
+            return std::make_shared<ngraph::op::Asin>(in);
+        case ngraph::helpers::ActivationTypes::Atan:
+            return std::make_shared<ngraph::op::Atan>(in);
+        case ngraph::helpers::ActivationTypes::Cos:
+            return std::make_shared<ngraph::op::Cos>(in);
+        case ngraph::helpers::ActivationTypes::Cosh:
+            return std::make_shared<ngraph::op::Cosh>(in);
+        case ngraph::helpers::ActivationTypes::Floor:
+            return std::make_shared<ngraph::op::Floor>(in);
+        case ngraph::helpers::ActivationTypes::Sin:
+            return std::make_shared<ngraph::op::Sin>(in);
+        case ngraph::helpers::ActivationTypes::Sinh:
+            return std::make_shared<ngraph::op::Sinh>(in);
+        case ngraph::helpers::ActivationTypes::Sqrt:
+            return std::make_shared<ngraph::op::Sqrt>(in);
+        case ngraph::helpers::ActivationTypes::Tan:
+            return std::make_shared<ngraph::op::Tan>(in);
+        case ngraph::helpers::ActivationTypes::Elu:
+            return std::make_shared<ngraph::op::Elu>(in, 0.1);
+        case ngraph::helpers::ActivationTypes::Erf:
+            return std::make_shared<ngraph::op::Erf>(in);
+        case ngraph::helpers::ActivationTypes::HardSigmoid:
+            return std::make_shared<ngraph::op::HardSigmoid>(in, hard_sigmoid_alpha, hard_sigmoid_beta);
+        case ngraph::helpers::ActivationTypes::Selu:
+            return std::make_shared<ngraph::op::Selu>(in, selu_alpha, selu_lambda);
         default:
             throw std::runtime_error("Can't create layer for this activation type");
     }
