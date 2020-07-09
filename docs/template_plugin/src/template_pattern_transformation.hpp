@@ -7,7 +7,7 @@
 #include <vector>
 #include <memory>
 
-#include <ngraph/pass/graph_rewrite.hpp>
+#include <ngraph/ngraph.hpp>
 
 namespace ngraph {
 namespace pass {
