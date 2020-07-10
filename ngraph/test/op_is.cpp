@@ -19,7 +19,6 @@
 #include "ngraph/ngraph.hpp"
 #include "ngraph/validation_util.hpp"
 #include "op/and.hpp"
-#include "op/atan2.hpp"
 #include "util/test_tools.hpp"
 
 using namespace ngraph;
@@ -85,15 +84,6 @@ namespace
         op::Atan node;
         EXPECT_TRUE(node.is_unary_elementwise_arithmetic());
         EXPECT_FALSE(node.is_binary_elementwise_arithmetic());
-        EXPECT_FALSE(node.is_binary_elementwise_comparison());
-        EXPECT_FALSE(node.is_binary_elementwise_logical());
-    }
-
-    void op_is_Atan2()
-    {
-        op::v0::Atan2 node;
-        EXPECT_FALSE(node.is_unary_elementwise_arithmetic());
-        EXPECT_TRUE(node.is_binary_elementwise_arithmetic());
         EXPECT_FALSE(node.is_binary_elementwise_comparison());
         EXPECT_FALSE(node.is_binary_elementwise_logical());
     }

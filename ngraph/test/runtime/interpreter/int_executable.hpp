@@ -227,15 +227,6 @@ protected:
                 args[0]->get_data_ptr<const T>(), out[0]->get_data_ptr<T>(), element_count);
             break;
         }
-        case OP_TYPEID::Atan2:
-        {
-            size_t element_count = shape_size(node.get_output_shape(0));
-            reference::atan2<T>(args[0]->get_data_ptr<const T>(),
-                                args[1]->get_data_ptr<const T>(),
-                                out[0]->get_data_ptr<T>(),
-                                element_count);
-            break;
-        }
         case OP_TYPEID::Elu:
         {
             const op::Elu* elu_node = static_cast<const op::Elu*>(&node);
