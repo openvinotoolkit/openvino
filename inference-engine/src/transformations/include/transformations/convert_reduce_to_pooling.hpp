@@ -64,11 +64,19 @@ void ngraph::pass::ConvertReduceToPooling::convert_reduce_to_pooling() {
 
             auto axes_vector = std::dynamic_pointer_cast<ngraph::opset1::Constant>(axes_node)->template cast_vector<int64_t>();
             const auto input_rank = input.get_partial_shape().rank().get_length();
+            std::cout << "Node name: " << reduce->get_friendly_name() << "\n";
+            std::cout << "Input rank: " << input_rank << "\n";
+            if ((input_rank != 4) && (input_rank != 5)) {
+                return false;
+            }
             // Transform negative axes into non-negative ones
             for (size_t i = 0; i < axes_vector.size(); ++i) {
                 if (axes_vector[i] < 0) {
                     axes_vector[i] += input_rank;
                 }
+//                if ((axes_vector[i] == 0) || (axes_vector[i] == input_rank - 1)) {
+//                    return false;
+//                }
             }
             std::sort(axes_vector.begin(), axes_vector.end());
 
@@ -95,6 +103,7 @@ void ngraph::pass::ConvertReduceToPooling::convert_reduce_to_pooling() {
                 replace_node(reduce, reshape);
                 return true;
             }
+            std::cout << "Node name: " << reduce->get_friendly_name() << "\n";
 
             // Check that axes are consecutive otherwise this transformation is not applicable
             for (size_t i = 1; i < axes_vector.size(); ++i) {
