@@ -14,8 +14,6 @@
 # limitations under the License.
 # ******************************************************************************
 # flake8: noqa
-from __future__ import absolute_import
-
 import numpy as np
 
 import ngraph as ng
