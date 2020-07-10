@@ -105,9 +105,6 @@ namespace ngraph
                               const HostTensorVector& inputs) override;
 
             protected:
-                virtual void generate_adjoints(autodiff::Adjoints& adjoints,
-                                               const OutputVector& deltas) override;
-
                 AxisVector m_input_order;
                 Shape m_output_shape;
                 bool m_is_transpose{false};
@@ -153,10 +150,6 @@ namespace ngraph
                 void set_special_zero(bool special_zero) { m_special_zero = special_zero; }
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) override;
-
-            protected:
-                virtual void generate_adjoints(autodiff::Adjoints& adjoints,
-                                               const OutputVector& deltas) override;
 
             private:
                 bool m_special_zero;

@@ -44,11 +44,3 @@ shared_ptr<Node> op::v1::ConvertLike::clone_with_new_inputs(const OutputVector& 
     check_new_args_count(this, new_args);
     return make_shared<ConvertLike>(new_args.at(0), new_args.at(1));
 }
-
-void op::v1::ConvertLike::generate_adjoints(autodiff::Adjoints& adjoints,
-                                            const OutputVector& deltas)
-{
-    const auto delta = deltas.at(0);
-
-    adjoints.add_delta(input_value(0), make_shared<op::v1::ConvertLike>(delta, input_value(1)));
-}
