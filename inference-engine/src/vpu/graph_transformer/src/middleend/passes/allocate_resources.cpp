@@ -206,10 +206,32 @@ AllocationResult runAllocator(const Model& model, EnableShapeAllocation enableSh
     //
 
     if (enableShapeAllocation == EnableShapeAllocation::YES) {
-        for (auto data : model->datas()) {
-            const auto shapeLocation = allocator.allocateShape(data);
-            data->setShapeAllocationInfo(shapeLocation);
+        DataSet datasWithAllocatedShape;
+
+        for (const auto& stage : model->getStages()) {
+            const auto& allocateShape = [&datasWithAllocatedShape, &allocator](const Data& data) {
+                if (std::find(datasWithAllocatedShape.begin(), datasWithAllocatedShape.end(), data) ==
+                    datasWithAllocatedShape.end()) {
+                    const auto shapeLocation = allocator.allocateShape(data);
+                    data->setShapeAllocationInfo(shapeLocation);
+                    datasWithAllocatedShape.insert(data);
+                }
+            };
+
+            for (const auto& input : stage->inputs()) {
+                allocateShape(input);
+            }
+            for (const auto& output : stage->outputs()) {
+                allocateShape(output);
+            }
+            for (const auto& tempBuffer : stage->tempBuffers()) {
+                allocateShape(tempBuffer);
+            }
         }
+
+        VPU_THROW_UNLESS(model->numDatas() == datasWithAllocatedShape.size(),
+            "Shape allocation failed: shape was allocated for {} datas, while there are {} in the model",
+            datasWithAllocatedShape.size(), model->numDatas());
     }
 
     return AllocationResult();
