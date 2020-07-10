@@ -575,10 +575,12 @@ Program::LayerType Program::LayerTypeFromStr(const std::string &str) {
         { "Sinh" , Sinh },
         { "Cosh" , Cosh },
         { "Swish" , Swish },
+        { "Mish" , Mish },
         { "Gelu" , Gelu },
         { "Atanh" , Atanh },
         { "Floor" , Floor },
         { "Ceil" , Ceil },
+        { "Ceiling" , Ceiling },
         { "Erf" , Erf },
         { "HardSigmoid" , HardSigmoid },
         { "Log" , Log },
@@ -1149,6 +1151,7 @@ void Program::CreateSingleLayerPrimitive(cldnn::topology& topology, InferenceEng
         case Atanh:
         case Floor:
         case Ceil:
+        case Ceiling:
         case Erf:
         case HardSigmoid:
         case Log:
@@ -1159,6 +1162,7 @@ void Program::CreateSingleLayerPrimitive(cldnn::topology& topology, InferenceEng
         case SoftPlus:
         case SoftSign:
         case Swish:
+        case Mish:
         case Gelu:
             CreateActivationPrimitive(topology, layer, LayerTypeFromStr(layer->type));
             break;
@@ -2767,6 +2771,8 @@ void Program::CreateActivationPrimitive(cldnn::topology& topology, InferenceEngi
             activationType = ELU;
         } else if (activation_type == "swish")  {
             activationType = Swish;
+        } else if (activation_type == "mish")  {
+            activationType = Mish;
         } else if (activation_type == "gelu")  {
             activationType = Gelu;
         } else if (activation_type == "relu")  {
@@ -2883,6 +2889,11 @@ void Program::CreateActivationPrimitive(cldnn::topology& topology, InferenceEngi
         func = cldnn::activation_func::ceil;
         break;
     }
+    case Ceiling:
+    {
+        func = cldnn::activation_func::ceil;
+        break;
+    }
     case Erf:
     {
         func = cldnn::activation_func::erf;
@@ -2955,6 +2966,11 @@ void Program::CreateActivationPrimitive(cldnn::topology& topology, InferenceEngi
     case Swish:
     {
         func = cldnn::activation_func::swish;
+        break;
+    }
+    case Mish:
+    {
+        func = cldnn::activation_func::mish;
         break;
     }
     case Gelu:

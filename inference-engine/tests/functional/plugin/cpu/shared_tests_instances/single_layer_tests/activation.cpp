@@ -29,13 +29,30 @@ const std::vector<ActivationTypes> activationTypes = {
         Exp,
         Log,
         Sign,
-        Abs
+        Abs,
+        Clamp,
+        Negative,
+        Acos,
+        Asin,
+        Atan,
+        Cos,
+        Cosh,
+        Floor,
+        Sin,
+        Sinh,
+        Sqrt,
+        Tan,
+        Elu,
+        Erf,
+        HardSigmoid,
+        Selu,
+        Ceiling
 };
 
 const auto basicCases = ::testing::Combine(
         ::testing::ValuesIn(activationTypes),
         ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(std::vector<size_t >({1, 50}), std::vector<size_t >({1, 128})),
+        ::testing::Values(std::vector<size_t>({1, 50}), std::vector<size_t>({1, 128})),
         ::testing::Values(CommonTestUtils::DEVICE_CPU)
 );
 
