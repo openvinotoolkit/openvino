@@ -23,8 +23,6 @@
 #include "ngraph/op/multiply.hpp"
 #include "ngraph/op/subtract.hpp"
 #include "pyngraph/node.hpp"
-#include "pyngraph/node_input.hpp"
-#include "pyngraph/node_output.hpp"
 
 namespace py = pybind11;
 

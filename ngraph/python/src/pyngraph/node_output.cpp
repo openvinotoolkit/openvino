@@ -17,10 +17,7 @@
 #include <pybind11/stl.h>
 
 #include "dict_attribute_visitor.hpp"
-#include "ngraph/node.hpp"
-#include "ngraph/node_input.hpp"
 #include "ngraph/node_output.hpp"
-#include "pyngraph/node_input.hpp"
 #include "pyngraph/node_output.hpp"
 
 namespace py = pybind11;
