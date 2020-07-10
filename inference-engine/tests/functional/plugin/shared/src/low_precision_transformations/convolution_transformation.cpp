@@ -98,7 +98,7 @@ void ConvolutionTransformation::validate() {
     std::map<std::string, InferenceEngine::DataPtr>::iterator it = outputs.begin();
     const InferenceEngine::CNNLayerPtr outputLayer = getCreatorLayer(it->second).lock();
     EXPECT_TRUE(outputLayer != nullptr);
-    EXPECT_EQ(fqOnActivations & fqOnWeights ? "ScaleShift" : "Convolution", outputLayer->type);
+    EXPECT_EQ((fqOnActivations & fqOnWeights) ? "ScaleShift" : "Convolution", outputLayer->type);
 
     if (fqOnActivations & fqOnWeights) {
         const InferenceEngine::CNNLayerPtr layer = InferenceEngine::details::CNNNetworkHelper::getParent(*outputLayer);
