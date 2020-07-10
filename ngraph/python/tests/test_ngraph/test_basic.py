@@ -284,7 +284,7 @@ def test_node_output():
 
     split_node_outputs = split_node.outputs()
 
-    assert len(split_node_outputs) == split_node.get_output_size()
+    assert len(split_node_outputs) == splits
     assert [output_node.get_index() for output_node in split_node_outputs] == [0, 1, 2]
     assert np.equal(
         [output_node.get_element_type() for output_node in split_node_outputs],
