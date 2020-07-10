@@ -86,7 +86,6 @@ TEST(onnx_importer, exception_msg_std_err_wrapped)
     }
     catch (const std::exception& e)
     {
-        std::cout << std::endl << e.what() << std::endl;
         EXPECT_HAS_SUBSTRING(e.what(), std::string("While validating ONNX node '<Node(Add)"));
     }
     catch (...)
