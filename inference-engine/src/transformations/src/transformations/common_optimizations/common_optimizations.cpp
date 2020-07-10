@@ -11,6 +11,7 @@
 #include "transformations/remove_filtering_boxes_by_size.hpp"
 #include "transformations/convert_nms_4_to_nms_dynamic.hpp"
 #include "transformations/init_node_info.hpp"
+#include "transformations/unroll_tensor_iterator.hpp"
 
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/pass/nop_elimination.hpp>

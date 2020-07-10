@@ -84,11 +84,13 @@ void ngraph::pass::UnrollTensorIterator::unroll_tensor_iterator() {
                 // todo checks
 
                 auto split = std::make_shared<ngraph::opset3::Split>(in_data, const_axis, num_iter);
+                auto stride = input_desc->m_stride;
                 // connect to the body
                 for (uint64_t j = 0; j < num_iter; j++) {
+                    auto idx = stride > 0? j: num_iter - j - 1;
                     auto param = body_functions[j]->get_parameters()[input_desc->m_body_parameter_index];
                     for (auto &output : param->outputs()) {
-                        output.replace(split->output(j));
+                        output.replace(split->output(idx));
                     }
                 }
             } else if (type_name == "MergedInputDescription") {
@@ -141,10 +143,12 @@ void ngraph::pass::UnrollTensorIterator::unroll_tensor_iterator() {
                     return false;
                 }
 
-                ngraph::NodeVector to_concat(num_iter);
+                ngraph::OutputVector to_concat(num_iter);
+                auto stride = output_desc->m_stride;
                 for (uint64_t j = 0; j < num_iter; j++) {
-                    auto result = body_functions[j]->get_results()[output_desc->m_body_value_index];
-                    auto input_to_res = result->get_input_node_shared_ptr(0);
+                    auto idx = stride > 0? j: num_iter - j - 1;
+                    std::shared_ptr<op::v0::Result> result = body_functions[idx]->get_results()[output_desc->m_body_value_index];
+                    auto input_to_res = result->get_input_source_output(0);
                     to_concat[j] = input_to_res;
                 }
                 auto concat = std::make_shared<ngraph::opset3::Concat>(to_concat, output_desc->m_axis);
@@ -163,7 +167,7 @@ void ngraph::pass::UnrollTensorIterator::unroll_tensor_iterator() {
                 for (auto &input : ti->output(output_desc->m_output_index).get_target_inputs()) {
                     auto to_res = result->get_input_node_shared_ptr(0);
                     to_res->set_friendly_name(ti->get_friendly_name() + "." + std::to_string(output_desc->m_output_index));
-                    input.replace_source_output(to_res);
+                    input.replace_source_output(result->get_input_source_output(0));
                 }
             } else {
                 // "Incorrect type of the output description."

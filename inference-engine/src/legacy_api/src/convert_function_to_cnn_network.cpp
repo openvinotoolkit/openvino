@@ -92,6 +92,24 @@ public:
         params[name] = std::to_string(adapter.get());
     }
 
+    void on_adapter(const std::string& name, ngraph::ValueAccessor<std::vector<std::string>>& adapter) override {
+        std::vector<std::string> data = adapter.get();
+        for (auto& str : data) {
+            std::transform(str.begin(), str.end(), str.begin(), [](unsigned char c) {
+                return std::tolower(c);
+            });
+        }
+
+        std::stringstream ss;
+        std::copy(data.begin(), data.end(), std::ostream_iterator<std::string>(ss, ","));
+        params[name] = ss.str();
+    }
+
+    void on_adapter(const std::string& name, ngraph::ValueAccessor<std::vector<float>>& adapter) override {
+        auto data = adapter.get();
+        params[name] = joinVec(data);
+    }
+
     void on_adapter(const std::string& name, ::ngraph::ValueAccessor<void>& adapter) override;
 
 private:

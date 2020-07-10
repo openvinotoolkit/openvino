@@ -34,6 +34,7 @@
 #include "ngraph/provenance.hpp"
 #include "ngraph/rt_info.hpp"
 #include "ngraph/util.hpp"
+#include "ops.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -69,7 +70,11 @@ void ngraph::traverse_nodes(const NodeVector& subgraph_results,
     std::stack<Node*, std::vector<Node*>> stack;
     for (auto& node_ptr : subgraph_params)
     {
-        instances_seen.insert(node_ptr.get());
+        auto goe = dynamic_pointer_cast<ngraph::op::GetOutputElement>(node_ptr);
+        if (goe)
+            instances_seen.insert(goe->get_input_node_ptr(0));
+        else
+            instances_seen.insert(node_ptr.get());
     }
     for (auto& node_ptr : subgraph_results)
     {
