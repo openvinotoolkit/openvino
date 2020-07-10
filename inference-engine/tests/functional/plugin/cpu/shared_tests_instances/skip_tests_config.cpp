@@ -44,7 +44,10 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*ConvertLikeLayerTest.*)",
         //TODO: Issue: 34516
         R"(.*ConvertLayerTest.*)",
-        //TODO: Issue: 34805
+        // TODO: Issue: 34055
+        R"(.*ShapeOfLayerTest.*)",
+        R"(.*ReluShapeOfSubgraphTest.*)",
+	//TODO: Issue: 34805
         R"(.*ActivationLayerTest.*Ceiling.*)"
     };
 }
