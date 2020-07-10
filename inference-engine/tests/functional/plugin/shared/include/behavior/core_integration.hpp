@@ -22,6 +22,7 @@
 
 #include <functional_test_utils/skip_tests_config.hpp>
 #include <common_test_utils/common_utils.hpp>
+#include <common_test_utils/test_assertions.hpp>
 
 #ifdef ENABLE_UNICODE_PATH_SUPPORT
 #include <iostream>
@@ -535,6 +536,7 @@ TEST_P(IEClassImportExportTestP, smoke_ExportUsingFileNameImportFromStreamNoThro
 //
 // QueryNetwork
 //
+
 TEST_P(IEClassNetworkTestP, QueryNetworkActualThrows) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     Core ie;
@@ -544,7 +546,13 @@ TEST_P(IEClassNetworkTestP, QueryNetworkActualThrows) {
 TEST_P(IEClassNetworkTestP, QueryNetworkActualNoThrow) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     Core ie;
-    ASSERT_NO_THROW(ie.QueryNetwork(actualNetwork, deviceName));
+
+    try {
+        ie.QueryNetwork(actualNetwork, deviceName);
+    } catch (const InferenceEngine::details::InferenceEngineException & ex) {
+        std::string message = ex.what();
+        ASSERT_STR_CONTAINS(message, "[NOT_IMPLEMENTED]  ngraph::Function is not supported natively");
+    }
 }
 
 TEST_P(IEClassNetworkTestP, QueryNetworkHeteroActualNoThrow) {
@@ -1126,7 +1134,12 @@ TEST_P(IEClassQueryNetworkTest, QueryNetworkWithDeviceID) {
     Core ie;
 
     if (supportsDeviceID(ie, deviceName)) {
-        ASSERT_NO_THROW(ie.QueryNetwork(simpleNetwork, deviceName + ".0"));
+        try {
+            ie.QueryNetwork(simpleNetwork, deviceName + ".0");
+        } catch (const InferenceEngine::details::InferenceEngineException & ex) {
+            std::string message = ex.what();
+            ASSERT_STR_CONTAINS(message, "[NOT_IMPLEMENTED]  ngraph::Function is not supported natively");
+        }
     } else {
         GTEST_SKIP();
     }

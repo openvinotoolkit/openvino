@@ -85,7 +85,7 @@ void Engine::QueryNetwork(
     }
 
     if (network.getFunction()) {
-        THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str << " ngraph::Function is not supported nativelly";
+        THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str << " ngraph::Function is not supported natively";
     }
 
     const auto log = std::make_shared<Logger>(

@@ -1262,7 +1262,7 @@ void GNAPlugin::QueryNetwork(const InferenceEngine::ICNNNetwork& network,
                              const std::map<std::string, std::string>& config,
                              InferenceEngine::QueryNetworkResult& res) const {
     if (network.getFunction()) {
-        THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str << " ngraph::Function is not supported nativelly";
+        THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str << " ngraph::Function is not supported natively";
     }
 
     std::unordered_set<CNNLayer *> allLayers;

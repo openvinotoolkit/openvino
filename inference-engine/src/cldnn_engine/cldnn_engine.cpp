@@ -266,7 +266,7 @@ void clDNNEngine::QueryNetwork(const ICNNNetwork& network, const std::map<std::s
     GetDeviceInfo(config);
 
     if (network.getFunction()) {
-        THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str << " ngraph::Function is not supported nativelly";
+        THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str << " ngraph::Function is not supported natively";
     }
 
     std::vector<CNNLayerPtr> sortedLayers = CNNNetSortTopologically(network);
