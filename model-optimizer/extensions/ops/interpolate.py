@@ -16,6 +16,7 @@
 
 import numpy as np
 
+from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op, PermuteAttrs
 
@@ -41,7 +42,6 @@ class Interpolate(Op):
 
             'force_precision_in_ports': {1: 'int64'},
 
-            'in_ports_count': 2,
             'out_ports_count': 1,
         }
         super().__init__(graph, mandatory_props, attrs)
@@ -53,7 +53,6 @@ class Interpolate(Op):
                 'mode', 'align_corners', 'antialias', 'pads_begin', 'pads_end',
             ],
             'opset4': [
-                ('axes', lambda node: ','.join(map(str, node.axes))),
                 'mode', 'antialias', 'nearest_mode', 'cube_coeff', 'coordinate_transformation_mode',
                 ('pads_begin', lambda node: pad_attribute_to_str(node, 'pads_begin')),
                 ('pads_end', lambda node: pad_attribute_to_str(node, 'pads_end')),
@@ -113,7 +112,16 @@ class Interpolate(Op):
         node['pads_begin'] = pads_begin
         node['pads_end'] = pads_end
 
-        axes = node.axes
+        assert len(node.in_ports()) in [2, 3], \
+            "Interpolate node {} must have 2 or 3 inputs".format(node.soft_get(node.name, node.id))
+
+        if len(node.in_ports()) == 2:
+            axes = list(range(0, input_rank))
+        else:
+            axes = node.in_port(2).get_source().data.get_value()
+            assert axes is not None
+
+        axes = int64_array(axes)
         dst_shape = node.in_port(1).data.get_value()
         assert dst_shape is not None
 
