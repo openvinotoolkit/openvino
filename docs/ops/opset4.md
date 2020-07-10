@@ -27,7 +27,7 @@ declared in `namespace opset4`.
 * [CTCGreedyDecoder](sequence/CTCGreedyDecoder_1.md)
 * [Ceiling](arithmetic/Ceiling_1.md)
 * [Clamp](activation/Clamp_1.md)
-* [Mish](activation/Mish_1.md)
+* [Mish](activation/Mish_4.md)
 * [Concat](movement/Concat_1.md)
 * [Constant](infrastructure/Constant_1.md)
 * [Convert](type/Convert_1.md)
