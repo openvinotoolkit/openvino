@@ -3481,7 +3481,6 @@ def tensor_iterator(
 
     :returns:   Node representing TensorIterator operation.
     """
-
     attributes = {
         "body": graph_body.serialize(),
         "slice_input_desc": [desc.serialize() for desc in slice_input_desc],
@@ -3491,7 +3490,7 @@ def tensor_iterator(
         "concat_output_desc": [desc.serialize() for desc in concat_output_desc],
     }
 
-    return _get_node_factory().create('TensorIterator', as_nodes(*inputs), attributes)
+    return _get_node_factory().create("TensorIterator", as_nodes(*inputs), attributes)
 
 
 @nameable_op
@@ -3515,7 +3514,8 @@ def read_value(init_value: NodeInput, variable_id: str, name: Optional[str] = No
     :param name:         Optional name for output node.
     :return: ReadValue node
     """
-    return _get_node_factory().create("ReadValue", [as_node(init_value)], {"variable_id": variable_id})
+    return _get_node_factory().create("ReadValue", [as_node(init_value)],
+                                      {"variable_id": variable_id})
 
 
 @nameable_op
