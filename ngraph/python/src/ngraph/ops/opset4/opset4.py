@@ -60,13 +60,7 @@ def _get_node_factory(opset_version: Optional[str] = "opset2") -> NodeFactory:
         return NodeFactory()
 
 
-# ------------------------ ops ---------------------------------------------------
-
-@nameable_op
-def get_output_element(data: NodeInput, index: int, name: Optional[str] = None) -> Node:
-    """Return the n-th element of the input tuple."""
-    return GetOutputElement(as_node(data), index)
-
+# -------------------------------------------- ops ------------------------------------------------
 
 @nameable_op
 def non_max_suppression(
