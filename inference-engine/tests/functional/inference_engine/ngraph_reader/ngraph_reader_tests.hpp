@@ -41,14 +41,12 @@ protected:
 
         FuncTestUtils::compareCNNNetworks(network, cnnNetwork, false);
         IE_SUPPRESS_DEPRECATED_START
-        auto & inetwork = static_cast<const ICNNNetwork&>(network);
-        for (auto it = details::CNNNetworkIterator(&inetwork); it != details::CNNNetworkIterator(); it++) {
+        for (auto it = details::CNNNetworkIterator(network); it != details::CNNNetworkIterator(); it++) {
             InferenceEngine::CNNLayerPtr layer = *it;
             ASSERT_NE(nullptr, layer->getNode());
         }
 
-        auto & icnnnetwork = static_cast<const ICNNNetwork&>(cnnNetwork);
-        for (auto it = details::CNNNetworkIterator(&icnnnetwork); it != details::CNNNetworkIterator(); it++) {
+        for (auto it = details::CNNNetworkIterator(cnnNetwork); it != details::CNNNetworkIterator(); it++) {
             InferenceEngine::CNNLayerPtr layer = *it;
             ASSERT_EQ(nullptr, layer->getNode());
         }

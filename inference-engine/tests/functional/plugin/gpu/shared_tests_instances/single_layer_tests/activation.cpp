@@ -40,7 +40,8 @@ const std::vector<ActivationTypes> activationTypes = {
         Elu,
         Erf,
         HardSigmoid,
-        Selu
+        Selu,
+        Ceiling
 };
 
 const auto basicCases = ::testing::Combine(
