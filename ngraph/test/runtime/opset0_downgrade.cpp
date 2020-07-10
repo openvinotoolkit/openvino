@@ -30,7 +30,6 @@
 #include "ngraph/slice_plan.hpp"
 #include "ngraph/type.hpp"
 #include "ngraph/validation_util.hpp"
-#include "op/and.hpp"
 #include "op/avg_pool.hpp"
 #include "opset0_downgrade.hpp"
 
@@ -375,11 +374,6 @@ namespace
     shared_ptr<Node> op_cast(shared_ptr<op::v1::LessEqual> node)
     {
         return op_cast_binary_elementwise_node<op::v0::LessEq, op::v1::LessEqual>(node);
-    }
-
-    shared_ptr<Node> op_cast(shared_ptr<op::v1::LogicalAnd> node)
-    {
-        return op_cast_binary_elementwise_node<op::v0::And, op::v1::LogicalAnd>(node);
     }
 
     shared_ptr<Node> op_cast(shared_ptr<op::v1::LogicalNot> node)

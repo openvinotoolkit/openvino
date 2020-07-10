@@ -116,5 +116,5 @@ namespace ngraph
                                          Shape& new_pads_begin);
             };
         } // namespace v1
-    } // namespace op
+    }     // namespace op
 } // namespace ngraph

@@ -18,7 +18,6 @@
 
 #include "ngraph/ngraph.hpp"
 #include "ngraph/validation_util.hpp"
-#include "op/and.hpp"
 #include "util/test_tools.hpp"
 
 using namespace ngraph;
@@ -50,15 +49,6 @@ namespace
         EXPECT_TRUE(node.is_binary_elementwise_arithmetic());
         EXPECT_FALSE(node.is_binary_elementwise_comparison());
         EXPECT_FALSE(node.is_binary_elementwise_logical());
-    }
-
-    void op_is_And()
-    {
-        op::v0::And node;
-        EXPECT_FALSE(node.is_unary_elementwise_arithmetic());
-        EXPECT_FALSE(node.is_binary_elementwise_arithmetic());
-        EXPECT_FALSE(node.is_binary_elementwise_comparison());
-        EXPECT_TRUE(node.is_binary_elementwise_logical());
     }
 
     void op_is_Any()
