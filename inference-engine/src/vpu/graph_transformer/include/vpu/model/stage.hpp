@@ -58,7 +58,6 @@ VPU_DECLARE_ENUM(StageType,
     Reshape,
     Expand,
     Crop,
-    StridedSlice,
 
     Empty = -1,
 
@@ -168,6 +167,7 @@ VPU_DECLARE_ENUM(StageType,
     Concat = 128,
     Broadcast = 129,
     StaticShapeNMS = 130,
+    StridedSlice = 133,
 )
 
 //
