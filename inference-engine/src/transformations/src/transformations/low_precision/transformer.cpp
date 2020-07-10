@@ -19,36 +19,12 @@
 
 #include "ngraph_ops/type_relaxed.hpp"
 
-#include "transformations/low_precision/add.hpp"
-#include "transformations/low_precision/avg_pool.hpp"
-#include "transformations/low_precision/concat.hpp"
-#include "transformations/low_precision/concat_multi_channels.hpp"
-// #include "low_precision_transformations/const.hpp"
 #include "transformations/low_precision/convert.hpp"
 #include "transformations/low_precision/convolution.hpp"
-#include "transformations/low_precision/depth_to_space.hpp"
 #include "transformations/low_precision/fake_quantize.hpp"
-// #include "low_precision_transformations/fully_connected.hpp"
-#include "transformations/low_precision/fuse_fake_quantize.hpp"
-#include "transformations/low_precision/group_convolution.hpp"
-#include "transformations/low_precision/multiply.hpp"
-#include "transformations/low_precision/mat_mul.hpp"
-// #include "low_precision_transformations/mvn.hpp"
-// #include "low_precision_transformations/permute.hpp"
-#include "transformations/low_precision/max_pool.hpp"
-#include "transformations/low_precision/normalize_l2.hpp"
-// #include "low_precision_transformations/resample.hpp"
-#include "transformations/low_precision/reshape.hpp"
-#include "transformations/low_precision/relu.hpp"
-// #include "low_precision_transformations/scaleshift_to_convolution.hpp"
-// #include "low_precision_transformations/squeeze.hpp"
-#include "transformations/low_precision/subtract.hpp"
 
 // uncomment to display precision info during low precision transformations
 // #define DISPLAY_PECISION
-
-// TODO: debug only
-#include <ngraph/pass/visualize_tree.hpp>
 
 namespace ngraph {
 namespace pass {
@@ -179,60 +155,14 @@ void LowPrecisionTransformations::setLayerTransformationsManager(
 }
 
 LowPrecisionTransformations LowPrecisionTransformer::getAllTransformations(const LayerTransformation::Params& params) {
-    // return LowPrecisionTransformations(
-    //    std::map<std::string, LayerTransformationPtr>({
-    //        { "Concat", LayerTransformationPtr(new ConcatTransformation(params))}
-    //        // { "Concat", LayerTransformationPtr(new ConcatMultiChannelsTransformation(params))}
-    //    }),
-    //    std::map<std::string, LayerTransformationPtr>({
-    //        { "AvgPool", LayerTransformationPtr(new AvgPoolTransformation(params)) },
-    //        { "Convolution", LayerTransformationPtr(new ConvolutionTransformation(params)) },
-    //        { "GroupConvolution", LayerTransformationPtr(new GroupConvolutionTransformation(params)) },
-    //        { "MaxPool", LayerTransformationPtr(new MaxPoolTransformation(params)) },
-    //        { "FakeQuantize", LayerTransformationPtr(new FakeQuantizeTransformation(params)) },
-    //        // { "Reshape", LayerTransformationPtr(new ReshapeTransformation(params)) },
-    //        // { "MatMul", LayerTransformationPtr(new MatMulTransformation(params)) },
-    //        //// { "Transpose", LayerTransformationPtr(new TransposeTransformation(params)) },
-    //        //// { "Squeeze", LayerTransformationPtr(new SqueezeTransformation(params)) },
-    //        { "ReLU", LayerTransformationPtr(new ReluTransformation(params)) },
-    //        //// { "MVN", LayerTransformationPtr(new MvnTransformation(params)) },
-    //        { "Add", LayerTransformationPtr(new AddTransformation(params)) },
-    //        //// { "Interpolate", LayerTransformationPtr(new InterpolateTransformation(params)) },
-    //        // { "DepthToSpace", LayerTransformationPtr(new DepthToSpaceTransformation(params)) },
-    //        // { "NormalizeL2", LayerTransformationPtr(new NormalizeL2Transformation(params)) }
-    //    }),
-    //    std::map<std::string, LayerTransformationPtr>({
-    //        // fuse FakeQuantize with dequantization operations BEFORE FakeQuantize, AFTER is not implemented yet
-    //        { "FakeQuantize", LayerTransformationPtr(new FuseFakeQuantizeTransformation(params)) },
-    //        // { "ScaleShift", LayerTransformationPtr(new ScaleShiftToConvolutionTransformation(params)) },  // ???
-    //        // { "MultiplyAdd", LayerTransformationPtr(new DecomposeMultiplyAddTransformation(params)) },
-    //        // { "Subtract", LayerTransformationPtr(new SubtractTransformation(params)) },
-    //        { "Multiply", LayerTransformationPtr(new MultiplyTransformation(params)) },
-    //    }));
-
     using namespace pass::low_precision;
 
-    // one operation type => one transformation
     // TODO: refactor: duplication: declaration & registerMatcherIn
     return LowPrecisionTransformations().
-        addBranchSpecific<pass::low_precision::ConcatTransformation, opset1::Concat>(params).
-
-        add<AddTransformation, opset1::Add>(params).
-        add<AvgPoolTransformation, opset1::AvgPool>(params).
         add<ConvolutionTransformation, opset1::Convolution>(params).
-        //add<DepthToSpaceTransformation, opset1::DepthToSpace>(params).
         add<FakeQuantizeTransformation, opset1::FakeQuantize>(params).
-        add<GroupConvolutionTransformation, opset1::GroupConvolution>(params).
-        add<MatMulTransformation, opset1::MatMul>(params).
-        add<MaxPoolTransformation, opset1::MaxPool>(params).
-        //add<NormalizeL2Transformation, opset1::NormalizeL2>(params).
-        add<ReluTransformation, opset1::Relu>(params).
-        // Multiply const change is not supported
-        // add<ReshapeTransformation, opset1::Reshape>(params).
 
-        addCleanup<FuseFakeQuantizeTransformation, opset1::FakeQuantize>(params).
-        addCleanup<MultiplyTransformation, opset1::Multiply>(params).
-        //// TODO: workaround: Convert I8 -> FP32 is not supported by CPU plugin
+        // TODO: workaround: Convert I8 -> FP32 is not supported by CPU plugin
         addCleanup<ConvertTransformation, opset1::Convert>(params);
 }
 
@@ -280,126 +210,13 @@ TypeRelaxedReplacer::TypeRelaxedReplacer() {
     make_matcher_type_relaxed<opset1::Subtract>(this);
     make_matcher_type_relaxed<ngraph::op::Subtract>(this);
     make_matcher_type_relaxed<opset1::NormalizeL2>(this);
-
-    // TODO: can we do it?
     make_matcher_type_relaxed<opset1::Multiply>(this);
 }
 
 LowPrecisionTransformer::LowPrecisionTransformer(const LowPrecisionTransformations& transformations)
     : transformations(transformations) {}
 
-#if 0 // TODO LPT-TO-NGRAPH
-void LowPrecisionTransformer::renameLayersByType(const std::vector<CNNLayerPtr>& layers, const std::string& type) {
-    size_t number = 1;
-    for (size_t i = 0; i < layers.size(); ++i) {
-        const CNNLayerPtr layer = layers[i];
-        if (layer->type != type) {
-            continue;
-        }
-
-        layer->name = layer->type + std::to_string(number);
-        ++number;
-    }
-}
-
-void LowPrecisionTransformer::rename(ICNNNetwork& network) const {
-    TransformationContext context(network);
-
-    const std::unordered_set<std::string> standaloneLayerTypes = {"Convolution", "Concat",  "Eltwise",
-                                                                  "Reshape",     "Pooling", "Clamp"};
-    for (const std::string& standaloneLayerType : standaloneLayerTypes) {
-        renameLayersByType(context.getLayers(), standaloneLayerType);
-    }
-
-    size_t fakeQuantizeNumber = 1;
-    for (size_t i = 0lu; i < context.getLayers().size(); ++i) {
-        const CNNLayerPtr layer = context.getLayers()[i];
-        if (layer->type != "FakeQuantize") {
-            continue;
-        }
-
-        const std::vector<CNNLayerPtr> children = CNNNetworkHelper::getChildren(*layer);
-        if ((children.size() == 1) && (children[0]->type == "Convolution")) {
-            const std::string postfix = CNNNetworkHelper::getIndex(*layer) == 0 ? "data" : "weights";
-            layer->name = children[0]->name + "_FakeQuantize_" + postfix;
-        } else {
-            layer->name = layer->type + std::to_string(fakeQuantizeNumber);
-            ++fakeQuantizeNumber;
-        }
-    }
-
-    size_t otherNumber = 1;
-    for (size_t i = 0; i < context.getLayers().size(); ++i) {
-        std::string name;
-        const CNNLayerPtr layer = context.getLayers()[i];
-        if ((standaloneLayerTypes.find(layer->type) != standaloneLayerTypes.end()) || (layer->type == "FakeQuantize")) {
-            continue;
-        }
-
-        if (layer->type == "Const") {
-            const std::vector<CNNLayerPtr> children = CNNNetworkHelper::getChildren(*layer);
-            if (children.size() == 1) {
-                if (children[0]->type == "Convolution") {
-                    const std::string postfix = CNNNetworkHelper::getIndex(*layer) == 1 ? "weights" : "biases";
-                    name = children[0]->name + "_Const_" + postfix;
-                } else if (children[0]->type == "FakeQuantize") {
-                    name = children[0]->name + "_Const_" + std::to_string(CNNNetworkHelper::getIndex(*layer));
-                }
-            }
-        }
-
-        if (name.empty()) {
-            name = layer->type + std::to_string(otherNumber);
-            ++otherNumber;
-        }
-
-        layer->name = name;
-    }
-}
-
-#endif
-
 void LowPrecisionTransformer::transform(std::shared_ptr<Function> network) {
-#if 0 // TODO LPT-TO-NGRAPH
-#ifdef LPT_ORIGINAL_MODEL_PATH
-    ResponseDesc originalModelResponse;
-    network.serialize(
-        std::string(LPT_ORIGINAL_MODEL_PATH) + ".xml",
-        std::string(LPT_ORIGINAL_MODEL_PATH) + ".bin",
-        &originalModelResponse);
-    if (originalModelResponse.msg[0] != '\0') {
-        THROW_TRANSFORMATION_EXCEPTION << "LowPrecisionTransformer::transform: " << LPT_ORIGINAL_MODEL_PATH << ": " << originalModelResponse.msg;
-    }
-#endif
-#endif
-
-#if 0 // TODO Check all FQ.level values are supported (simple); for now it is supposed all are supported
-
-    auto it = details::CNNNetworkIterator(&network);
-    auto end = details::CNNNetworkIterator();
-    bool fqFound = false;
-    bool allFQareUnsupported = true;
-    while (it != end) {
-        if (CaselessEq<std::string>()((*it)->type, "FakeQuantize")) {
-            fqFound = true;
-            if (QuantizationDetails::isSupportedLevel((*it)->GetParamAsUInt("levels"))) {
-                allFQareUnsupported = false;
-                break;
-            }
-        }
-        it++;
-    }
-    // If network does not have FakeQuantize layers
-    // or all found FQ layers are binary - do nothing and return
-    if (!fqFound || allFQareUnsupported) return;
-
-#endif
-
-    // {
-    //    std::vector<std::shared_ptr<ngraph::Function>> module{ network };
-    //    VisualizeTree("C:\\Projects\\temp\\test.original").run_on_module(module);
-    // }
-
     transformations.setParamsManager(this);
     transformations.setLayerTransformationsManager(this);
 
@@ -411,13 +228,15 @@ void LowPrecisionTransformer::transform(std::shared_ptr<Function> network) {
         pass.run_on_function(network);
     }
 
-    { // Branch specific transformations
+    {
+        // Branch specific transformations
         GraphRewrite pass;
         registerAllMatchers(transformations.branchSpecificTransformations, pass, context);
         pass.run_on_function(network);
     }
 
-    { // Step #1: FakeQuantize layer transformation execution
+    {
+        // Step #1: FakeQuantize layer transformation execution
         LayerTransformationPtr fqTransformation = transformations.find<opset1::FakeQuantize>();
         if (fqTransformation == nullptr) {
             THROW_TRANSFORMATION_EXCEPTION << "FakeQuantize transformation was not found";
@@ -427,69 +246,19 @@ void LowPrecisionTransformer::transform(std::shared_ptr<Function> network) {
         pass.run_on_function(network);
     }
 
-    { // Step #2: layer transformations execution
+    {
+        // Step #2: layer transformations execution
         GraphRewrite pass;
         registerAllMatchers(transformations.transformations, pass, context);
         pass.run_on_function(network);
-
-        #if 0 // TODO LPT-TO-NGRAPH
-        // TODO(slyalin) Find a new place for this dump inside nGraph -- it cannot be executed here
-        #ifdef DISPLAY_PECISION
-                CNNLayerPtr transformedLayer = CNNNetworkHelper::getLayer(context.network, layer->name);
-                if (transformedLayer == nullptr) {
-                    if (layer->type == "FakeQuantize") {
-                        std::cout << "Layer " << layer->name << ": " << QuantizationDetails::getDetails(*layer) << std::endl;
-                    }
-
-                    std::cout << "Layer was " << (transformed ? "transformed: " : "skipped: ") << layer->type << ", "
-                            << layer->name << ": [REMOVED]" << std::endl;
-                } else {
-                    if (transformedLayer->type == "FakeQuantize") {
-                        std::cout << "Layer " << transformedLayer->name << ": "
-                                << QuantizationDetails::getDetails(*transformedLayer) << std::endl;
-                    }
-
-                    std::cout << "Layer was " << (transformed ? "transformed: " : "skipped: ") << transformedLayer->type << ", "
-                            << transformedLayer->name << ", output layer precision: "
-                            << ((transformedLayer->outData.size() != 0) ? transformedLayer->outData[0]->getPrecision()
-                                                                        : Precision::UNSPECIFIED)
-                            << std::endl;
-                }
-
-        #endif
-        #endif
     }
 
-    // {
-    //    std::vector<std::shared_ptr<ngraph::Function>> module{network};
-    //    ngraph::pass::VisualizeTree("after_layers_replacement.svg").run_on_module(module);
-    // }
-
-
-    { // Step #3: cleanup transformations execution
+    {
+        // Step #3: cleanup transformations execution
         GraphRewrite pass;
         registerAllMatchers(transformations.cleanupTransformations, pass, context);
         pass.run_on_function(network);
     }
-
-    // {
-    //    std::vector<std::shared_ptr<ngraph::Function>> module{ network };
-    //    VisualizeTree("C:\\Projects\\temp\\test.transformed").run_on_module(module);
-    // }
-
-
-#if 0 // TODO LPT-TO-NGRAPH
-#ifdef LPT_TRANSFORMED_MODEL_PATH
-    ResponseDesc transformedModelResponse;
-    network.serialize(
-        std::string(LPT_TRANSFORMED_MODEL_PATH) + ".xml",
-        std::string(LPT_TRANSFORMED_MODEL_PATH) + ".bin",
-        &transformedModelResponse);
-    if (transformedModelResponse.msg[0] != '\0') {
-        THROW_TRANSFORMATION_EXCEPTION << "LowPrecisionTransformer::transform: " << LPT_TRANSFORMED_MODEL_PATH << ": " << transformedModelResponse.msg;
-    }
-#endif
-#endif
 }
 
 std::vector<element::Type> LowPrecisionTransformer::getPrecisionsOnActivations(const Node& op) const noexcept {
