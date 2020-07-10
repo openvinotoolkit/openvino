@@ -21,8 +21,8 @@
 #include "pyngraph/coordinate_diff.hpp"
 #include "pyngraph/function.hpp"
 #include "pyngraph/node.hpp"
-#include "pyngraph/node_output.hpp"
 #include "pyngraph/node_factory.hpp"
+#include "pyngraph/node_output.hpp"
 #if defined(NGRAPH_ONNX_IMPORT_ENABLE)
 #include "pyngraph/onnx_import/onnx_import.hpp"
 #endif

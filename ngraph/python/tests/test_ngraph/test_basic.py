@@ -20,7 +20,7 @@ import pytest
 
 import ngraph as ng
 from ngraph.exceptions import UserInputError
-from ngraph.impl import Function
+from ngraph.impl import Function, PartialShape, Shape
 from tests.runtime import get_runtime
 from tests.test_ngraph.util import run_op_node
 
@@ -273,10 +273,24 @@ def test_result():
     assert np.allclose(result, node)
 
 def test_node_output():
-    input_tensor = ng.constant(np.array([0, 1, 2, 3, 4, 5], dtype=np.int32))
-    axis = ng.constant(0, dtype=np.int64)
+    input_array = np.array([0, 1, 2, 3, 4, 5])
     splits = 3
+    expected_shape = len(input_array) // splits
 
+    input_tensor = ng.constant(input_array, dtype=np.int32)
+    axis = ng.constant(0, dtype=np.int64)
     split_node = ng.split(input_tensor, axis, splits)
 
-    assert len(split_node.outputs()) == split_node.get_output_size()
+    split_node_outputs = split_node.outputs()
+
+    assert len(split_node_outputs) == split_node.get_output_size()
+    assert [output.get_index() for output in split_node_outputs] == [0, 1, 2]
+    assert all(np.equal([output.get_element_type() for output in split_node_outputs], input_tensor.get_element_type()))
+    assert all(np.equal([output.get_shape() for output in split_node_outputs], Shape([expected_shape])))
+    assert all(np.equal([output.get_partial_shape() for output in split_node_outputs], PartialShape([expected_shape])))
+
+    output0 = split_node.output(0)
+    output1 = split_node.output(1)
+    output2 = split_node.output(2)
+
+    assert [output0.get_index(), output1.get_index(), output2.get_index()] == [0, 1, 2]
