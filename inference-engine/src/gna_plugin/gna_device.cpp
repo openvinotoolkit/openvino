@@ -266,9 +266,12 @@ const std::map <const std::pair<Gna2OperationType, int32_t>, const std::string> 
 };
 #endif
 
-void GNADeviceHelper::wait(uint32_t reqId) {
+bool GNADeviceHelper::wait(uint32_t reqId) {
 #if GNA_LIB_VER == 2
     const auto status = Gna2RequestWait(reqId, GNA_TIMEOUT);
+    if (status == Gna2StatusDriverQoSTimeoutExceeded) {
+        return false;
+    }
     checkGna2Status(status);
 #else
     if (isPerformanceMeasuring) {
@@ -279,6 +282,7 @@ void GNADeviceHelper::wait(uint32_t reqId) {
     checkStatus();
 #endif
     updateGnaPerfCounters();
+    return true;
 }
 
 #if GNA_LIB_VER == 1
