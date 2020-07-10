@@ -109,7 +109,6 @@ set(SRC
     shape.cpp
     specialize_function.cpp
     tensor.cpp
-    type_prop/all.cpp
     type_prop/any.cpp
     type_prop/assign.cpp
     type_prop/batch_norm.cpp
@@ -282,7 +281,6 @@ set(MULTI_TEST_SRC
     backend/acosh.in.cpp
     backend/add.in.cpp
     backend/aliased_output.in.cpp
-    backend/all.in.cpp
     backend/any.in.cpp
     backend/api.in.cpp
     backend/asin.in.cpp
