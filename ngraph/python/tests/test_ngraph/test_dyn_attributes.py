@@ -97,16 +97,16 @@ def test_dynamic_get_attribute_value(int_dtype, fp_dtype):
     assert node.get_num_classes() == int_dtype(85)
     assert node.get_background_label_id() == int_dtype(13)
     assert node.get_top_k() == int_dtype(16)
-    assert node.get_variance_encoded_in_target() == True
+    assert node.get_variance_encoded_in_target()
     assert np.all(np.equal(node.get_keep_top_k(), np.array([64, 32, 16, 8], dtype=int_dtype)))
     assert node.get_code_type() == "pytorch.some_parameter_name"
-    assert node.get_share_location() == False
+    assert not node.get_share_location()
     assert np.isclose(node.get_nms_threshold(), fp_dtype(0.645))
     assert np.isclose(node.get_confidence_threshold(), fp_dtype(0.111))
-    assert node.get_clip_after_nms() == True
-    assert node.get_clip_before_nms() == False
-    assert node.get_decrease_label_id() == True
-    assert node.get_normalized() == True
+    assert node.get_clip_after_nms()
+    assert not node.get_clip_before_nms()
+    assert node.get_decrease_label_id()
+    assert node.get_normalized()
     assert node.get_input_height() == int_dtype(86)
     assert node.get_input_width() == int_dtype(79)
     assert np.isclose(node.get_objectness_score(), fp_dtype(0.77))
@@ -165,9 +165,9 @@ def test_dynamic_set_attribute_value(int_dtype, fp_dtype):
     assert node.get_min_size() == int_dtype(123)
     assert np.allclose(node.get_ratio(), np.array([1.1, 2.5, 3.0, 4.5], dtype=fp_dtype))
     assert np.allclose(node.get_scale(), np.array([2.1, 3.2, 3.3, 4.4], dtype=fp_dtype))
-    assert node.get_clip_before_nms() == True
-    assert node.get_clip_after_nms() == True
-    assert node.get_normalize() == True
+    assert node.get_clip_before_nms()
+    assert node.get_clip_after_nms()
+    assert node.get_normalize()
     assert np.isclose(node.get_box_size_scale(), fp_dtype(1.34))
     assert np.isclose(node.get_box_coordinate_scale(), fp_dtype(0.88))
     assert node.get_framework() == "OpenVINO"
