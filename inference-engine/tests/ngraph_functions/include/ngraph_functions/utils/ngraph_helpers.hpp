@@ -105,7 +105,8 @@ enum ActivationTypes {
     Elu,
     Erf,
     HardSigmoid,
-    Selu
+    Selu,
+    Ceiling
 };
 
 enum EltwiseTypes {
