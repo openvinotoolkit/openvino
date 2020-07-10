@@ -347,3 +347,136 @@ jobs:
     workingDirectory: dldt-build
     displayName: 'IE CAPITests'
     continueOnError: false
+
+- job: Win_IB
+  # About 150% of total time
+  timeoutInMinutes: 120
+  pool:
+    #vmImage: 'vs2017-win2016'
+    name: WIN_VMSS_VENV_F8S_WE2
+  variables:
+    system.debug: true
+    WORKERS_NUMBER: 8
+    BUILD_TYPE: Release
+    BUILD_DIR: D:\dldt-build
+    BIN_DIR: ..\bin\intel64
+    MSVS_VARS_PATH: C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat
+    MSVC_COMPILER_PATH: C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Tools\MSVC\14.24.28314\bin\Hostx64\x64\cl.exe
+  steps:
+  - script: |
+      where python3
+      where python
+      python --version
+      wmic computersystem get TotalPhysicalMemory
+      wmic cpu list
+      wmic logicaldisk get description,name
+      wmic VOLUME list
+      set
+    displayName: 'System properties'
+  - script: |
+      certutil -urlcache -split -f https://github.com/ninja-build/ninja/releases/download/v1.10.0/ninja-win.zip ninja-win.zip
+      powershell -command "Expand-Archive -Force ninja-win.zip"
+    displayName: Install Ninja
+  - script: |
+      certutil -urlcache -split -f https://ibstatic.blob.core.windows.net/ibstaticblob/IBSetupConsole.exe IBSetupConsole.9.4.5.exe
+      call IBSetupConsole.9.4.5.exe /Install /Components=Agent,oneuse /Coordinator=10.2.0.4 /AGENT:OPENFIREWALL=ON /AGENT:AUTOSELECTPORTS=ON  /ADDTOPATH=ON /AGENT:INSTALLADDINS=OFF
+      net start IncrediBuild_Agent
+    displayName: Install IncrediBuild
+  - script: git submodule update --init --recursive --jobs $(WORKERS_NUMBER)
+    displayName: 'Clone submodules'
+  - script: |
+      rd /Q /S $(BUILD_DIR)
+      mkdir $(BUILD_DIR)\bin
+      rd /Q /S dldt-build
+      mkdir dldt-build
+    displayName: 'Create build directory'
+  - script: |
+      set PATH=$(Build.Repository.LocalPath)\ninja-win;%PATH%
+      call "$(MSVS_VARS_PATH)" && cmake -GNinja -DCMAKE_BUILD_TYPE=$(BUILD_TYPE) -DENABLE_TESTS=ON -DCMAKE_C_COMPILER:PATH="$(MSVC_COMPILER_PATH)" -DCMAKE_CXX_COMPILER:PATH="$(MSVC_COMPILER_PATH)" $(Build.Repository.LocalPath)
+    workingDirectory: $(BUILD_DIR)
+    displayName: 'CMake'
+  - script: |
+      set PATH=$(Build.Repository.LocalPath)\ninja-win;%PATH%
+      call "$(MSVS_VARS_PATH)" && "C:\Program Files (x86)\IncrediBuild\BuildConsole.exe" /COMMAND="ninja"
+    workingDirectory: $(BUILD_DIR)
+    displayName: 'Build Win'
+  - script: dir ..\bin\ /s /b
+    workingDirectory: dldt-build
+    displayName: 'List files'
+  - script: |
+      set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
+      $(BIN_DIR)\unit-test --gtest_print_time=1 --gtest_filter=-backend_api.config_unsupported:*IE_GPU*
+    workingDirectory: dldt-build
+    displayName: 'nGraph UT'
+    continueOnError: false
+  - script: |
+      set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
+      $(BIN_DIR)\InferenceEngineUnitTests --gtest_print_time=1
+    workingDirectory: dldt-build
+    displayName: 'IE UT old'
+    continueOnError: false
+  - script: |
+      set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
+      $(BIN_DIR)\ieUnitTests
+    workingDirectory: dldt-build
+    displayName: 'IE UT'
+    continueOnError: false
+  - script: |
+      set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
+      $(BIN_DIR)\cpuUnitTests
+    workingDirectory: dldt-build
+    displayName: 'CPU UT'
+    continueOnError: false
+  - script: |
+      set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
+      $(BIN_DIR)\gnaUnitTests
+    workingDirectory: dldt-build
+    displayName: 'GNA UT'
+    continueOnError: false
+  - script: |
+      set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
+      $(BIN_DIR)\vpuUnitTests
+    workingDirectory: dldt-build
+    displayName: 'VPU UT'
+    continueOnError: false
+  - script: |
+      set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
+      $(BIN_DIR)\ieFuncTests
+    workingDirectory: dldt-build
+    displayName: 'IE FuncTests'
+    continueOnError: false
+  - script: |
+      set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
+      $(BIN_DIR)\cpuFuncTests --gtest_print_time=1
+    workingDirectory: dldt-build
+    displayName: 'CPU FuncTests'
+    continueOnError: false
+  - script: |
+      set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;%PATH%
+      $(BIN_DIR)\MklDnnBehaviorTests
+    workingDirectory: dldt-build
+    displayName: 'MklDnnBehaviorTests'
+    continueOnError: false
+  - script: |
+      git clone https://github.com/openvinotoolkit/testdata.git
+      git clone https://github.com/google/gtest-parallel.git
+    workingDirectory: $(BUILD_DIR)
+    displayName: 'Clone testdata & gtest-parallel'
+    # Add for gtest-parallel, it hangs now (CVS-33386)
+    #python $(BUILD_DIR)\gtest-parallel\gtest-parallel $(BIN_DIR)\MklDnnFunctionalTests --workers=$(WORKERS_NUMBER) --print_test_times --dump_json_test_results=MklDnnFunctionalTests.json --gtest_filter=-smoke_MobileNet/ModelTransformationsTest.LPT/mobilenet_v2_tf_depthwise_batch1_inPluginDisabled_inTestDisabled_asymmetric* -- --gtest_print_time=1
+  - script: |
+      set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;$(Build.Repository.LocalPath)\inference-engine\temp\opencv_4.3.0\opencv\bin;%PATH%
+      set DATA_PATH=$(BUILD_DIR)\testdata
+      set MODELS_PATH=$(BUILD_DIR)\testdata
+      $(BIN_DIR)\MklDnnFunctionalTests --gtest_print_time=1 --gtest_filter=-smoke_MobileNet/ModelTransformationsTest.LPT/mobilenet_v2_tf_depthwise_batch1_inPluginDisabled_inTestDisabled_asymmetric*
+    workingDirectory: dldt-build
+    displayName: 'MklDnnFunctionalTests'
+    continueOnError: false
+  - script: |
+      set PATH=$(Build.Repository.LocalPath)\inference-engine\temp\tbb\bin;$(Build.Repository.LocalPath)\inference-engine\temp\opencv_4.3.0\opencv\bin;%PATH%
+      set DATA_PATH=$(BUILD_DIR)\testdata
+      set MODELS_PATH=$(BUILD_DIR)\testdata
+      $(BIN_DIR)\InferenceEngineCAPITests
+    workingDirectory: dldt-build
+    displayName: 'IE CAPITests'
+    continueOnError: false
