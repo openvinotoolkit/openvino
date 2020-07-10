@@ -115,7 +115,7 @@ public:
     static void checkGna2Status(Gna2Status status);
     static void checkGna2Status(Gna2Status status, const Gna2Model& gnaModel);
 #endif
-    void wait(uint32_t id);
+    bool wait(uint32_t id);
 
     struct DumpResult {
 #if GNA_LIB_VER == 2

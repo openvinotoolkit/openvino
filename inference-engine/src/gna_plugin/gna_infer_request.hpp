@@ -85,8 +85,11 @@ class GNAInferRequest : public InferenceEngine::AsyncInferRequestInternal {
             THROW_IE_EXCEPTION << PARAMETER_MISMATCH_str;
         }
 
-        plg->Wait(inferRequestIdx);
-        return InferenceEngine::OK;
+        if (plg->Wait(inferRequestIdx)) {
+            return InferenceEngine::OK;
+        } else {
+            return InferenceEngine::INFER_NOT_STARTED;
+        }
     }
 };
 }  // namespace GNAPluginNS

@@ -286,7 +286,7 @@ if (ENABLE_GNA)
             set(GNA_VERSION "01.00.00.1401")
         endif()
         if(GNA_LIBRARY_VERSION STREQUAL "GNA2")
-            set(GNA_VERSION "02.00.00.0925")
+            set(GNA_VERSION "02.00.00.0984")
         endif()
         RESOLVE_DEPENDENCY(GNA
                 ARCHIVE_UNIFIED "GNA/GNA_${GNA_VERSION}.zip"

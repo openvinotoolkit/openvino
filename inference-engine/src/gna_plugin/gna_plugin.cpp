@@ -956,16 +956,19 @@ uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap &inputs, Infer
     return idx;
 }
 
-void GNAPlugin::Wait(uint32_t request_idx) {
+bool GNAPlugin::Wait(uint32_t request_idx) {
 #if GNA_LIB_VER == 2
     auto& nnets = gnaRequestConfigToRequestIdMap;
 #endif
-    if (nnets.size() <= request_idx) return;    // TODO: GNA2: check whether necessary
+    if (nnets.size() <= request_idx) return true;    // TODO: GNA2: check whether necessary
     // already synced TODO: might be copy required ???
-    if (std::get<1>(nnets[request_idx]) == -1) return;
+    if (std::get<1>(nnets[request_idx]) == -1) return true;
 
     if (gnadevice) {
-        gnadevice->wait(std::get<1>(nnets[request_idx]));
+        if (!gnadevice->wait(std::get<1>(nnets[request_idx]))) {
+            std::get<1>(nnets[request_idx]) = -1;
+            return false;
+        }
     }
 
     std::get<1>(nnets[request_idx]) = -1;
@@ -1055,6 +1058,7 @@ void GNAPlugin::Wait(uint32_t request_idx) {
         }
         output_idx++;
     }
+    return true;
 }
 
 void GNAPlugin::Reset() {
