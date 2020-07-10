@@ -1109,11 +1109,14 @@ Blob::Ptr GNAPlugin::GetInputBlob(const std::string& name, InferenceEngine::Prec
 }
 
 std::vector<InferenceEngine::MemoryStateInternal::Ptr>  GNAPlugin::QueryState() {
-    if (graphCompiler.memory_connection.empty()) {
-        return {};
+    if (memoryStates.size() != graphCompiler.memory_connection.size()) {
+        memoryStates.clear();
+        for (auto& connection : graphCompiler.memory_connection) {
+            auto state = std::make_shared<memory::GNAMemoryState>(connection.first, std::make_shared <GNAMemoryLayer>(connection.second));
+            memoryStates.emplace_back(state);
+        }
     }
-
-    return {std::make_shared<memory::GNAMemoryState>(shared_from_this())};
+    return memoryStates;
 }
 
 std::string GNAPlugin::GetName() const noexcept {

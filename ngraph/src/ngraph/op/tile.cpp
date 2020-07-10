@@ -93,10 +93,3 @@ shared_ptr<Node> op::Tile::clone_with_new_inputs(const OutputVector& new_args) c
     check_new_args_count(this, new_args);
     return make_shared<Tile>(new_args.at(0), new_args.at(1));
 }
-
-// TODO: This function is not implemented!
-void op::Tile::generate_adjoints(autodiff::Adjoints& /* adjoints */,
-                                 const OutputVector& /* deltas */)
-{
-    throw ngraph_error("generate_adjoints not implemented for Tile");
-}
