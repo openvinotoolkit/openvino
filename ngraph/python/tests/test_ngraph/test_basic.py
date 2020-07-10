@@ -284,16 +284,38 @@ def test_node_output():
     split_node_outputs = split_node.outputs()
 
     assert len(split_node_outputs) == split_node.get_output_size()
-    assert [output.get_index() for output in split_node_outputs] == [0, 1, 2]
-    assert np.equal([output.get_element_type() for output in split_node_outputs], input_tensor.get_element_type()).all()
-    assert np.equal([output.get_shape() for output in split_node_outputs], Shape([expected_shape])).all()
-    assert np.equal([output.get_partial_shape() for output in split_node_outputs], PartialShape([expected_shape])).all()
+    assert [output_node.get_index() for output_node in split_node_outputs] == [0, 1, 2]
+    assert np.equal([output_node.get_element_type() for output_node in split_node_outputs], input_tensor.get_element_type()).all()
+    assert np.equal([output_node.get_shape() for output_node in split_node_outputs], Shape([expected_shape])).all()
+    assert np.equal([output_node.get_partial_shape() for output_node in split_node_outputs], PartialShape([expected_shape])).all()
 
     output0 = split_node.output(0)
     output1 = split_node.output(1)
     output2 = split_node.output(2)
 
     assert [output0.get_index(), output1.get_index(), output2.get_index()] == [0, 1, 2]
+
+def test_node_input():
+    shape = [2, 2]
+    parameter_a = ng.parameter(shape, dtype=np.float32, name="A")
+    parameter_b = ng.parameter(shape, dtype=np.float32, name="B")
+
+    model = (parameter_a + parameter_b)
+
+    model_inputs = model.inputs()
+
+    print([input_node.get_index() for input_node in model_inputs])
+
+    assert len(model_inputs) == 2
+    assert [input_node.get_index() for input_node in model_inputs] == [0, 1]
+    assert np.equal([input_node.get_element_type() for input_node in model_inputs], model.get_element_type()).all()
+    assert np.equal([input_node.get_shape() for input_node in model_inputs], Shape(shape)).all()
+    assert np.equal([input_node.get_partial_shape() for input_node in model_inputs], PartialShape(shape)).all()
+
+    input0 = model.input(0)
+    input1 = model.input(1)
+
+    assert [input0.get_index(), input1.get_index()] == [0, 1]
 
 def test_target_inputs():
     shape = [2, 2]
@@ -317,7 +339,4 @@ def test_target_inputs():
     assert np.equal([out_b_input.get_output_shape(0)], [model.get_output_shape(0)]).all()
 
 def test_soruce_outputs():
-    assert False
-
-def test_node_input():
     assert False
