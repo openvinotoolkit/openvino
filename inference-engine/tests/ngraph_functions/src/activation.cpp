@@ -79,6 +79,8 @@ std::shared_ptr<ngraph::Node> makeActivation(const ngraph::Output<Node> &in,
             return std::make_shared<ngraph::op::HardSigmoid>(in, hard_sigmoid_alpha, hard_sigmoid_beta);
         case ngraph::helpers::ActivationTypes::Selu:
             return std::make_shared<ngraph::op::Selu>(in, selu_alpha, selu_lambda);
+        case ngraph::helpers::ActivationTypes::Ceiling:
+            return std::make_shared<ngraph::op::Ceiling>(in);
         default:
             throw std::runtime_error("Can't create layer for this activation type");
     }
