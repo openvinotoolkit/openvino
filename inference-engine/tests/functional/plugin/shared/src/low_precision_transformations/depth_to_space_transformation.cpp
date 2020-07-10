@@ -10,22 +10,34 @@
 #include <string>
 #include <ie_core.hpp>
 
+#include "common_test_utils/common_utils.hpp"
+#include "functional_test_utils/plugin_cache.hpp"
+#include "functional_test_utils/layer_test_utils.hpp"
+#include "functional_test_utils/blob_utils.hpp"
+
+#include "ngraph_functions/pass/convert_prc.hpp"
+#include "ngraph_functions/builders.hpp"
+
+#include <ngraph/function.hpp>
+#include <ngraph/opsets/opset1.hpp>
+#include <ngraph/pass/constant_folding.hpp>
+#include <ngraph_ops/fully_connected.hpp>
+#include <transformations/utils/utils.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/depth_to_space_fusion.hpp>
-#include "ngraph_functions/low_precision_transformations/depth_to_space_function.hpp"
+#include <ngraph/op/fused/depth_to_space.hpp>
 
 namespace LayerTestsDefinitions {
 
-std::string DepthToSpaceTransformation::getTestCaseName(testing::TestParamInfo<DepthToSpaceTransformationParams> obj) {
+std::string DepthToSpaceTransformation::getTestCaseName(testing::TestParamInfo<LayerTestsUtils::LayerTransformationParams> obj) {
     InferenceEngine::Precision netPrecision;
     InferenceEngine::SizeVector inputShapes;
     std::string targetDevice;
     InferenceEngine::details::LayerTransformation::Params params;
-    LayerTestsUtils::LayerTransformation::LptVersion version;
-    std::tie(netPrecision, inputShapes, targetDevice, params, version) = obj.param;
+    std::tie(netPrecision, inputShapes, targetDevice, params) = obj.param;
 
     std::ostringstream result;
-    result << netPrecision.name() << "_" << targetDevice << "_" << version << "_" << toString(params);
+    result << netPrecision.name() << "_" << targetDevice << "_" << toString(params);
     return result.str();
 }
 
@@ -33,42 +45,45 @@ void DepthToSpaceTransformation::SetUp() {
     InferenceEngine::SizeVector inputShape;
     InferenceEngine::Precision netPrecision;
     InferenceEngine::details::LayerTransformation::Params params;
-    LayerTestsUtils::LayerTransformation::LptVersion version;
-    std::tie(netPrecision, inputShape, targetDevice, params, version) = this->GetParam();
-
+    std::tie(netPrecision, inputShape, targetDevice, params) = this->GetParam();
     if (inputShape.size() != 4ul) {
         THROW_IE_EXCEPTION << "not supported input shape size " << inputShape.size();
     }
 
-    ConfigurePlugin(version);
+    auto ngPrecision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+    const auto input = std::make_shared<ngraph::opset1::Parameter>(ngPrecision, ngraph::Shape(inputShape));
 
-    const auto ngPrecision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    function = ngraph::builder::subgraph::DepthToSpaceFunction::getOriginal(ngPrecision, inputShape);
+    const auto fakeQuantize = ngraph::builder::makeFakeQuantize(input, ngPrecision, 256ul, { 1ul });
+
+    const auto shapeReshapeBefore = ngraph::opset1::Constant::create(
+        ngraph::element::i64,
+        ngraph::Shape{ 6ul },
+        ngraph::Shape{ inputShape[0], inputShape[1] / 4ul, 2ul, 2ul, inputShape[2], inputShape[3] });
+    const auto reshapeBefore = std::make_shared<ngraph::opset1::Reshape>(fakeQuantize, shapeReshapeBefore, false);
+
+    const auto permutation = ngraph::opset1::Constant::create(ngraph::element::i64, ngraph::Shape{ 6 }, { 0, 1, 4, 2, 5, 3 });
+    const auto permute = std::make_shared<ngraph::opset1::Transpose>(reshapeBefore, permutation);
+
+    const auto shapeReshapeAfter = ngraph::opset1::Constant::create(
+        ngraph::element::i64,
+        ngraph::Shape{ 4 },
+        ngraph::Shape{ 1, inputShape[1] / 4ul, inputShape[2] * 2, inputShape[3] * 2 });
+    const auto reshapeAfter = std::make_shared<ngraph::opset1::Reshape>(permute, shapeReshapeAfter, false);
+
+    function = std::make_shared<ngraph::Function>(ngraph::NodeVector{ reshapeAfter }, ngraph::ParameterVector{ input });
 
     ngraph::pass::InitNodeInfo().run_on_function(function);
     ngraph::pass::DepthToSpaceFusion().run_on_function(function);
 
-    switch (version) {
-        case LptVersion::cnnNetwork: {
-            validateCNNNetwork();
-            break;
-        }
-        case LptVersion::nGraph: {
-            validateNGraph();
-            break;
-        }
-        default: {
-            THROW_IE_EXCEPTION << "unexpected LPT version " << version;
-        }
-    }
+    // TODO: move to some another place
+    validate();
 }
 
-void DepthToSpaceTransformation::validateCNNNetwork() {
+void DepthToSpaceTransformation::validate() {
     InferenceEngine::SizeVector inputShape;
     InferenceEngine::Precision netPrecision;
     InferenceEngine::details::LayerTransformation::Params params;
-    LayerTestsUtils::LayerTransformation::LptVersion version;
-    std::tie(netPrecision, inputShape, targetDevice, params, version) = this->GetParam();
+    std::tie(netPrecision, inputShape, targetDevice, params) = this->GetParam();
 
     const InferenceEngine::CNNNetwork network = transform(params);
 
@@ -95,32 +110,6 @@ void DepthToSpaceTransformation::validateCNNNetwork() {
     }
 
     IE_SUPPRESS_DEPRECATED_END
-}
-
-void DepthToSpaceTransformation::validateNGraph() {
-    // TODO: remove: don't need to validate here
-
-    // InferenceEngine::SizeVector inputShape;
-    // InferenceEngine::Precision netPrecision;
-    // InferenceEngine::details::LayerTransformation::Params params;
-    // LayerTestsUtils::LayerTransformation::LptVersion version;
-    // std::tie(netPrecision, inputShape, targetDevice, params, version) = this->GetParam();
-
-    // std::vector<std::shared_ptr<ngraph::Function>> module{ function };
-    // ngraph::pass::VisualizeTree("C:\\Projects\\temp\\test.original").run_on_module(module);
-
-    // std::shared_ptr<ngraph::Function> transformedFunction = transformNGraph(params);
-
-    // std::vector<std::shared_ptr<ngraph::Function>> transformedModule{ transformedFunction };
-    // ngraph::pass::VisualizeTree("C:\\Projects\\temp\\test.transformed").run_on_module(transformedModule);
-
-    // auto ngPrecision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    // auto input = std::make_shared<ngraph::opset3::Parameter>(ngPrecision, ngraph::Shape(inputShape));
-    // auto depthToSpace = std::make_shared<ngraph::opset3::DepthToSpace>(input, ngraph::opset3::DepthToSpace::DepthToSpaceMode::DEPTH_FIRST, 2);
-    // auto referenceFunction = std::make_shared<ngraph::Function>(ngraph::NodeVector{ depthToSpace }, ngraph::ParameterVector{ input });
-
-    // auto res = compare_functions(f, f_ref);
-    // ASSERT_TRUE(res.first) << res.second;
 }
 
 TEST_P(DepthToSpaceTransformation, CompareWithRefImpl) {
