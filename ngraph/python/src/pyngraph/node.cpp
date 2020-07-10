@@ -79,8 +79,7 @@ void regclass_pyngraph_Node(py::module m)
     node.def("get_output_partial_shape", &ngraph::Node::get_output_partial_shape);
     node.def("get_type_name", &ngraph::Node::get_type_name);
     node.def("get_unique_name", &ngraph::Node::get_name);
-    node.def("input",
-            (ngraph::Input<ngraph::Node>(ngraph::Node::*)(size_t)) & ngraph::Node::input);
+    node.def("input", (ngraph::Input<ngraph::Node>(ngraph::Node::*)(size_t)) & ngraph::Node::input);
     node.def("inputs",
              (std::vector<ngraph::Input<ngraph::Node>>(ngraph::Node::*)()) & ngraph::Node::inputs);
     node.def("output",
