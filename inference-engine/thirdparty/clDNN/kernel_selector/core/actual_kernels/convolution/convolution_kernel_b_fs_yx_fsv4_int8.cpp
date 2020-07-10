@@ -23,8 +23,6 @@ constexpr size_t sub_group_size = 16;
 
 ParamsKey ConvolutionKernel_b_fs_yx_fsv4_int8::GetSupportedKey() const {
     ParamsKey k;
-    k.EnableInputDataType(Datatype::F16);
-    k.EnableInputWeightsType(WeightsType::F16);
     k.EnableOutputDataType(Datatype::F32);
     k.EnableInputDataType(Datatype::INT8);
     k.EnableInputWeightsType(WeightsType::INT8);
@@ -87,6 +85,10 @@ JitConstants ConvolutionKernel_b_fs_yx_fsv4_int8::GetJitConstants(const convolut
     auto jit = Parent::GetJitConstants(params, runInfo);
 
     jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", runInfo.lws2));
+
+    jit.Merge(MakeTypeJitConstants(GetAccumulatorType(params), "ACCUMULATOR"));
+    jit.Merge(MakeTypeJitConstants(GetActivationType(params), "ACTIVATION"));
+
 
     if (!params.fused_ops.empty()) {
         auto input_dt = GetActivationType(params);

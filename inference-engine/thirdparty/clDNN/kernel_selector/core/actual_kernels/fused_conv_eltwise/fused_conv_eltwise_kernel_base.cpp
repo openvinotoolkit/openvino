@@ -310,14 +310,6 @@ KernelsData fused_conv_eltwise_kernel_base::GetCommonKernelsData(const Params& p
         kernel.arguments.push_back({ArgumentDescriptor::Types::INPUT, 1});
     }
 
-    uint32_t fused_deps_total = 0;
-    for (auto& fused_dep : newParams.fused_ops) {
-        for (int i = 0; i < static_cast<int>(fused_dep.dep_size); i++) {
-            kernel.arguments.push_back({ ArgumentDescriptor::Types::INPUT_OF_FUSED_PRIMITIVE, fused_deps_total });
-            fused_deps_total++;
-        }
-    }
-
     kd.estimatedTime = runInfo.efficiency;
     kd.autoTuneIndex = autoTuneIndex;
 
