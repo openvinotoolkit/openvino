@@ -75,7 +75,10 @@ enum Type {
     Convert,
     MVN,
     Resample,
-    Normalize
+    Normalize,
+    ScatterUpdate,
+    ScatterElementsUpdate,
+    ScatterNDUpdate
 };
 
 Type TypeFromName(const std::string type);
@@ -158,6 +161,12 @@ static std::string NameFromType(Type type) {
             return "Resample";
         case Normalize:
             return "Normalize";
+        case ScatterUpdate:
+            return "ScatterUpdate";
+        case ScatterElementsUpdate:
+            return "ScatterElementsUpdate";
+        case ScatterNDUpdate:
+            return "ScatterNDUpdate";
         default:
             return "Unknown";
     }
