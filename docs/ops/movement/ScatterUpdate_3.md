@@ -9,7 +9,7 @@
 **Detailed description**: *ScatterUpdate* creates a copy of the first input tensor with updated elements in positions specified with `indices` input
 and values specified with `updates` tensor starting from the dimension with index `axis`. For the `data` tensor of shape `[d_0, d_1, ..., d_n]`,
 `indices` tensor of shape `[i_0, i_1, ..., i_k]` and `updates` tensor of shape
-`[d_0, d_1, ... d_(axis - 1), i_0, i_1, ..., i_k, d_(axis + k + 1), ..., d_n]` the operation computes
+`[d_0, d_1, ... d_(axis - 1), i_0, i_1, ..., i_k, d_(axis + 1), ..., d_n]` the operation computes
 for each `m, n, ..., p` of the `indices` tensor indices:
 
 ```
