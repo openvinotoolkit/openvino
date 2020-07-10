@@ -15,15 +15,6 @@
 // otherwise. Any license under such intellectual property rights must be express
 // and approved by Intel in writing.
 
-JENKINS_GITHUB_CREDENTIAL_ID = "7157091e-bc04-42f0-99fd-dc4da2922a55"
-DOCKER_CONTAINER_PREFIX = "jenkins_ngraph-onnx_ci"
-DOCKER_CONTAINER_NAME="${DOCKER_CONTAINER_PREFIX}_${BUILD_NUMBER}"
-BASE_IMAGE_TAG = "latest"
-DOCKER_HOME = "/home/ci_user"
-CI_FILES_PATH = ".ci/openvino-onnx"
-if(DOCKER_REGISTRY.trim() == "") {throw new Exception("Missing Docker registry url!");}
-
-
 def getGitPrInfo(String project) {
     def gitPrInfo = [
         prAuthorEmail : "",
@@ -65,24 +56,6 @@ def notifyByEmail(def gitPrInfo) {
     }
 }
 
-def gitClone(String label, String address, String branch) {
-    repositoryName = address.split("/").last().replace(".git","")
-
-    sh  label: label,
-        script:
-    """
-        git clone \
-            -b ${branch} \
-            --single-branch \
-            --no-tags \
-            --dissociate \
-            --depth 1 \
-            --verbose \
-            ${address} \
-            ${WORKDIR}/${repositoryName}
-    """
-}
-
 def gitSubmoduleUpdate(String repository_name) {
     dir ("${WORKDIR}/${repository_name}") {
         sh  label: "Init ${repository_name} submodules",
@@ -96,42 +69,11 @@ def gitSubmoduleUpdate(String repository_name) {
     }
 }
 
-def runDockerContainer(String imageName) {
-             CONTAINER_ID = sh (
-                    script: """
-                            docker run -id --privileged \
-                                    --name ${DOCKER_CONTAINER_NAME} \
-                                    --volume ${WORKDIR}:${DOCKER_HOME} \
-                                    ${imageName}:${BASE_IMAGE_TAG} tail -f /dev/null
-                            """,
-                    returnStdout: true
-                    ).trim()
-}
-
 def buildDockerImage() {
     sh """
         docker build --tag=openvino-onnx-ci  --file=.ci/openvino-onnx/Dockerfile \
         --build-arg http_proxy=http://proxy-chain.intel.com:911/ \
         --build-arg https_proxy=http://proxy-chain.intel.com:912/ .
-    """
-}
-
-
-def dockerPull(String imageName) {
-    sh """
-        docker pull ${imageName}:${BASE_IMAGE_TAG}
-    """
-}
-
-def dockerRemove(String container_ID) {
-    sh """
-        docker rm -f ${container_ID} || true
-    """
-}
-
-def runContainerCommand(String command, String dir="${DOCKER_HOME}") {
-    sh """
-        docker exec -w ${dir} ${CONTAINER_ID} ${command}
     """
 }
 
@@ -142,7 +84,6 @@ pipeline {
     environment {
         PROJECT_NAME = "openvino"
         WORKDIR = "${WORKSPACE}/${BUILD_NUMBER}"
-        String imageName = "${DOCKER_REGISTRY}/ubuntu_20_04_onnx.dockerfile"
     }
     options {
         skipDefaultCheckout true
@@ -156,7 +97,7 @@ pipeline {
                 gitSubmoduleUpdate(PROJECT_NAME)
             }
         }
-        stage("Build docker image") {
+        stage("Build docker image with tests") {
             steps{
                 dir("${WORKDIR}") {
                     buildDockerImage()
@@ -172,7 +113,6 @@ pipeline {
             }
         }
         cleanup {
-            dockerRemove("${CONTAINER_ID}")
             deleteDir()
         }
     }
