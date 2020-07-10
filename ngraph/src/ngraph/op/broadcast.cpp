@@ -344,15 +344,6 @@ shared_ptr<Node> op::v0::Broadcast::clone_with_new_inputs(const OutputVector& ne
     return make_shared<v0::Broadcast>(new_args.at(0), m_shape, m_broadcast_axes);
 }
 
-void op::v0::Broadcast::generate_adjoints(autodiff::Adjoints& adjoints, const OutputVector& deltas)
-{
-    auto delta = deltas.at(0);
-
-    auto x = input_value(0);
-
-    adjoints.add_delta(x, make_shared<op::Sum>(delta, m_broadcast_axes));
-}
-
 namespace
 {
 #define TYPE_CASE_v0(a)                                                                            \

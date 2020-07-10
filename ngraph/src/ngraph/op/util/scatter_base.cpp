@@ -137,8 +137,3 @@ bool op::util::ScatterBase::visit_attributes(AttributeVisitor& visitor)
 {
     return true;
 }
-
-void op::util::ScatterBase::generate_adjoints(autodiff::Adjoints&, const OutputVector&)
-{
-    throw ngraph_error("Not yet implemented");
-}

@@ -44,15 +44,6 @@ shared_ptr<Node> op::Cos::clone_with_new_inputs(const OutputVector& new_args) co
     return make_shared<Cos>(new_args.at(0));
 }
 
-void op::Cos::generate_adjoints(autodiff::Adjoints& adjoints, const OutputVector& deltas)
-{
-    auto delta = deltas.at(0);
-
-    auto x = input_value(0);
-
-    adjoints.add_delta(x, -delta * (make_shared<op::Sin>(x)));
-}
-
 namespace
 {
     template <element::Type_t ET>

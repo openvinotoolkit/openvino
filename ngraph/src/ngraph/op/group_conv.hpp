@@ -67,9 +67,6 @@ namespace ngraph
 
                 virtual std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
-                void generate_adjoints(autodiff::Adjoints& adjoints,
-                                       const OutputVector& deltas) override;
-
                 /// \return The strides.
                 const Strides& get_strides() const { return m_strides; }
                 void set_strides(const Strides& strides) { m_strides = strides; }
@@ -214,8 +211,6 @@ namespace ngraph
                 virtual NodeVector decompose_op() const override;
                 virtual void pre_validate_and_infer_types() override;
 
-                void generate_adjoints(autodiff::Adjoints& adjoints,
-                                       const OutputVector& deltas) override;
                 virtual std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
 
@@ -305,9 +300,6 @@ namespace ngraph
 
                 virtual void pre_validate_and_infer_types() override;
                 virtual void post_validate_and_infer_types() override;
-
-                virtual void generate_adjoints(autodiff::Adjoints& adjoints,
-                                               const OutputVector& deltas) override;
 
                 bool has_groups_in_filters() const { return m_groups_in_filters; }
             protected:

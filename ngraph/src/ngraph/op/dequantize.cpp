@@ -156,9 +156,3 @@ shared_ptr<Node> op::Dequantize::clone_with_new_inputs(const OutputVector& new_a
     check_new_args_count(this, new_args);
     return make_shared<Dequantize>(new_args.at(0), new_args.at(1), new_args.at(2), m_type, m_axes);
 }
-
-void op::Dequantize::generate_adjoints(autodiff::Adjoints& /* adjoints */,
-                                       const OutputVector& /* deltas */)
-{
-    throw ngraph_error("Forward-propagation-only operation");
-}

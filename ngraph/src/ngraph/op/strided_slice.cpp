@@ -227,12 +227,6 @@ shared_ptr<Node> op::v1::StridedSlice::clone_with_new_inputs(const OutputVector&
                                          m_ellipsis_mask);
 }
 
-void op::v1::StridedSlice::generate_adjoints(autodiff::Adjoints& /* adjoints */,
-                                             const OutputVector& /* deltas */)
-{
-    throw ngraph_error("generate_adjoints not implemented for StridedSlice");
-}
-
 namespace
 {
     template <element::Type_t ET>

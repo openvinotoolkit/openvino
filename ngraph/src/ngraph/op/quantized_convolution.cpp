@@ -192,9 +192,3 @@ shared_ptr<Node> op::QuantizedConvolution::clone_with_new_inputs(const OutputVec
                                                      m_filter_axes,
                                                      m_output_axes));
 }
-
-void op::QuantizedConvolution::generate_adjoints(autodiff::Adjoints& /* adjoints */,
-                                                 const OutputVector& /* deltas */)
-{
-    throw ngraph_error("Forward-propagation-only operation");
-}

@@ -52,8 +52,6 @@ namespace ngraph
                 NodeVector get_arguments() const override;
 
             protected:
-                virtual void generate_adjoints(autodiff::Adjoints& adjoints,
-                                               const OutputVector& deltas) override;
                 size_t m_n;
             };
         }

@@ -42,14 +42,6 @@ shared_ptr<Node> op::Exp::clone_with_new_inputs(const OutputVector& new_args) co
     return make_shared<Exp>(new_args.at(0));
 }
 
-void op::Exp::generate_adjoints(autodiff::Adjoints& adjoints, const OutputVector& deltas)
-{
-    auto delta = deltas.at(0);
-
-    auto x = input_value(0);
-
-    adjoints.add_delta(x, delta * shared_from_this());
-}
 namespace
 {
     template <element::Type_t ET>

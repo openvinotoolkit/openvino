@@ -19,7 +19,6 @@
 #include <typeindex>
 #include <typeinfo>
 
-#include "ngraph/autodiff/adjoints.hpp"
 #include "ngraph/descriptor/input.hpp"
 #include "ngraph/descriptor/layout/tensor_layout.hpp"
 #include "ngraph/graph_util.hpp"

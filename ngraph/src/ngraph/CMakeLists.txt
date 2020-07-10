@@ -21,8 +21,6 @@ set (SRC
     attribute_adapter.hpp
     attribute_visitor.cpp
     attribute_visitor.hpp
-    autodiff/adjoints.cpp
-    autodiff/adjoints.hpp
     axis_set.cpp
     axis_set.hpp
     axis_vector.cpp

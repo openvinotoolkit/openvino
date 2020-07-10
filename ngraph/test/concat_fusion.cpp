@@ -40,7 +40,6 @@
 #include "ngraph/serializer.hpp"
 #include "ngraph/util.hpp"
 #include "util/all_close.hpp"
-#include "util/autodiff/backprop_function.hpp"
 #include "util/matcher.hpp"
 #include "util/random.hpp"
 #include "util/test_tools.hpp"

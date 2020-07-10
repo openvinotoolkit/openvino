@@ -90,9 +90,6 @@ namespace ngraph
                 virtual std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
 
-                virtual void generate_adjoints(autodiff::Adjoints& adjoints,
-                                               const OutputVector& deltas) override;
-
             protected:
                 Strides m_window_movement_strides;
                 Strides m_window_dilation_strides;

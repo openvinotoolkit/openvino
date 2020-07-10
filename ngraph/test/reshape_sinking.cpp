@@ -21,7 +21,6 @@
 #include <memory>
 
 #include "gtest/gtest.h"
-#include "ngraph/autodiff/adjoints.hpp"
 #include "ngraph/file_util.hpp"
 #include "ngraph/graph_util.hpp"
 #include "ngraph/log.hpp"
@@ -38,8 +37,6 @@
 #include "ngraph/serializer.hpp"
 #include "ngraph/util.hpp"
 #include "util/all_close.hpp"
-#include "util/autodiff/backprop_function.hpp"
-#include "util/autodiff/numeric_compare.hpp"
 #include "util/ndarray.hpp"
 #include "util/random.hpp"
 #include "util/test_tools.hpp"

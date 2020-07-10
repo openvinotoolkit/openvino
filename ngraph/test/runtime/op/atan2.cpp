@@ -39,19 +39,6 @@ shared_ptr<Node> op::v0::Atan2::clone_with_new_inputs(const OutputVector& new_ar
     return make_shared<Atan2>(new_args.at(0), new_args.at(1), this->get_autob());
 }
 
-void op::v0::Atan2::generate_adjoints(autodiff::Adjoints& adjoints, const OutputVector& deltas)
-{
-    if (get_autob().m_type != op::AutoBroadcastType::NONE)
-    {
-        throw ngraph_error("Autodiff not supported with auto broadcasting");
-    }
-    auto y = input_value(0);
-    auto x = input_value(1);
-    auto delta_over_r = deltas.at(0) / (x * x + y * y);
-    adjoints.add_delta(y, x * delta_over_r);
-    adjoints.add_delta(x, -y * delta_over_r);
-}
-
 bool op::v0::Atan2::visit_attributes(AttributeVisitor& visitor)
 {
     BinaryElementwiseArithmetic::visit_attributes(visitor);

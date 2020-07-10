@@ -19,7 +19,6 @@ if(NOT NGRAPH_TEST_UTIL_ENABLE)
 endif()
 
 set (SRC
-    autodiff/backprop_function.cpp
     all_close_f.cpp
     engine/ie_engines.cpp
     engine/interpreter_engine.cpp

@@ -109,8 +109,6 @@ namespace ngraph
                 element::Type m_index_element_type;
                 bool m_compute_max{false};
                 SortType m_sort{SortType::NONE};
-                virtual void generate_adjoints(autodiff::Adjoints& adjoints,
-                                               const OutputVector& deltas) override;
                 Shape compute_output_shape(const Shape input_shape,
                                            const int64_t k,
                                            const size_t axis);
@@ -196,9 +194,6 @@ namespace ngraph
                 Mode m_mode;
                 SortType m_sort;
                 element::Type m_index_element_type{element::i32};
-
-                virtual void generate_adjoints(autodiff::Adjoints& adjoints,
-                                               const OutputVector& deltas) override;
 
                 virtual size_t read_k_from_constant_node(const std::shared_ptr<Node>& node,
                                                          const element::Type& k_element_type) const;

@@ -291,24 +291,6 @@ std::pair<bool, AxisSet> op::util::BroadcastBase::get_broadcast_axes() const
     return std::make_pair(axes_known, broadcast_axes);
 }
 
-void op::util::BroadcastBase::generate_adjoints(autodiff::Adjoints& adjoints,
-                                                const OutputVector& deltas)
-{
-    auto delta = deltas.at(0);
-
-    auto x = input_value(0);
-
-    auto broadcast_axes = get_broadcast_axes();
-    if (broadcast_axes.first)
-    {
-        adjoints.add_delta(x, make_shared<op::Sum>(delta, broadcast_axes.second));
-    }
-    else
-    {
-        throw ngraph_error("Autodiff not supported on dynamic op variants");
-    }
-}
-
 template <element::Type_t ET>
 bool op::util::BroadcastBase::evaluate(const HostTensorPtr& arg0,
                                        const HostTensorPtr& out,

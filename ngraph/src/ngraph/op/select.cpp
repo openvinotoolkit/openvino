@@ -95,26 +95,6 @@ bool op::v1::Select::visit_attributes(AttributeVisitor& visitor)
     return true;
 }
 
-void op::v1::Select::generate_adjoints(autodiff::Adjoints& adjoints, const OutputVector& deltas)
-{
-    if (get_auto_broadcast().m_type != op::AutoBroadcastType::NONE)
-    {
-        throw ngraph_error("Autodiff not supported with auto broadcasting");
-    }
-
-    auto delta = deltas.at(0);
-
-    auto p = input_value(0);
-    auto x = input_value(1);
-    auto y = input_value(2);
-
-    auto p_as_x_type = make_shared<op::Convert>(p, x.get_element_type());
-    auto not_p_as_y_type = make_shared<op::Convert>(make_shared<op::Not>(p), y.get_element_type());
-
-    adjoints.add_delta(x, delta * p_as_x_type);
-    adjoints.add_delta(y, delta * not_p_as_y_type);
-}
-
 constexpr NodeTypeInfo op::v0::Select::type_info;
 
 op::v0::Select::Select(const Output<Node>& arg0, const Output<Node>& arg1, const Output<Node>& arg2)
@@ -155,19 +135,4 @@ shared_ptr<Node> op::v0::Select::clone_with_new_inputs(const OutputVector& new_a
 {
     check_new_args_count(this, new_args);
     return make_shared<v0::Select>(new_args.at(0), new_args.at(1), new_args.at(2));
-}
-
-void op::Select::generate_adjoints(autodiff::Adjoints& adjoints, const OutputVector& deltas)
-{
-    auto delta = deltas.at(0);
-
-    auto p = input_value(0);
-    auto x = input_value(1);
-    auto y = input_value(2);
-
-    auto p_as_x_type = make_shared<op::Convert>(p, x.get_element_type());
-    auto not_p_as_y_type = make_shared<op::Convert>(make_shared<op::Not>(p), y.get_element_type());
-
-    adjoints.add_delta(x, delta * p_as_x_type);
-    adjoints.add_delta(y, delta * not_p_as_y_type);
 }

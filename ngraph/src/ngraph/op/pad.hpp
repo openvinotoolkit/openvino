@@ -81,8 +81,6 @@ namespace ngraph
                 virtual std::shared_ptr<Node> get_default_value() const override;
 
             protected:
-                virtual void generate_adjoints(autodiff::Adjoints& adjoints,
-                                               const OutputVector& deltas) override;
                 CoordinateDiff m_padding_below;
                 CoordinateDiff m_padding_above;
                 Shape m_padding_interior_fake; // LEGACY: This is all zeros.
@@ -150,10 +148,6 @@ namespace ngraph
                 /// \return The padding mode.
                 PadMode get_pad_mode() const { return m_pad_mode; }
                 void set_pad_mode(PadMode pad_mode) { m_pad_mode = pad_mode; }
-            protected:
-                virtual void generate_adjoints(autodiff::Adjoints& adjoints,
-                                               const OutputVector& deltas) override;
-
             private:
                 PadMode m_pad_mode;
             };

@@ -222,12 +222,6 @@ shared_ptr<Node> op::v0::TopK::clone_with_new_inputs(const OutputVector& new_arg
                              m_sort);
 }
 
-void op::v0::TopK::generate_adjoints(autodiff::Adjoints& /* adjoints */,
-                                     const OutputVector& /* deltas */)
-{
-    throw ngraph_error("Forward-propagation-only operation");
-}
-
 namespace
 {
     template <element::Type_t INPUT_ET, element::Type_t INDEX_ET>
@@ -628,12 +622,6 @@ size_t op::v1::TopK::validate_and_get_k(const shared_ptr<op::Constant>& k_consta
                           ").");
 
     return static_cast<size_t>(k_const_contents[0]);
-}
-
-void op::v1::TopK::generate_adjoints(autodiff::Adjoints& /*adjoints*/,
-                                     const OutputVector& /* deltas */)
-{
-    throw ngraph_error("Forward-propagation-only operation");
 }
 
 shared_ptr<Node> op::v1::TopK::clone_with_new_inputs(const OutputVector& new_args) const
