@@ -272,6 +272,7 @@ def test_result():
     result = run_op_node([node], ng.ops.result)
     assert np.allclose(result, node)
 
+
 def test_node_output():
     input_array = np.array([0, 1, 2, 3, 4, 5])
     splits = 3
@@ -285,9 +286,18 @@ def test_node_output():
 
     assert len(split_node_outputs) == split_node.get_output_size()
     assert [output_node.get_index() for output_node in split_node_outputs] == [0, 1, 2]
-    assert np.equal([output_node.get_element_type() for output_node in split_node_outputs], input_tensor.get_element_type()).all()
-    assert np.equal([output_node.get_shape() for output_node in split_node_outputs], Shape([expected_shape])).all()
-    assert np.equal([output_node.get_partial_shape() for output_node in split_node_outputs], PartialShape([expected_shape])).all()
+    assert np.equal(
+        [output_node.get_element_type() for output_node in split_node_outputs],
+        input_tensor.get_element_type(),
+    ).all()
+    assert np.equal(
+        [output_node.get_shape() for output_node in split_node_outputs],
+        Shape([expected_shape]),
+    ).all()
+    assert np.equal(
+        [output_node.get_partial_shape() for output_node in split_node_outputs],
+        PartialShape([expected_shape]),
+    ).all()
 
     output0 = split_node.output(0)
     output1 = split_node.output(1)
@@ -295,35 +305,45 @@ def test_node_output():
 
     assert [output0.get_index(), output1.get_index(), output2.get_index()] == [0, 1, 2]
 
+
 def test_node_input():
     shape = [2, 2]
     parameter_a = ng.parameter(shape, dtype=np.float32, name="A")
     parameter_b = ng.parameter(shape, dtype=np.float32, name="B")
 
-    model = (parameter_a + parameter_b)
+    model = parameter_a + parameter_b
 
     model_inputs = model.inputs()
 
     assert len(model_inputs) == 2
     assert [input_node.get_index() for input_node in model_inputs] == [0, 1]
-    assert np.equal([input_node.get_element_type() for input_node in model_inputs], model.get_element_type()).all()
-    assert np.equal([input_node.get_shape() for input_node in model_inputs], Shape(shape)).all()
-    assert np.equal([input_node.get_partial_shape() for input_node in model_inputs], PartialShape(shape)).all()
+    assert np.equal(
+        [input_node.get_element_type() for input_node in model_inputs],
+        model.get_element_type(),
+    ).all()
+    assert np.equal(
+        [input_node.get_shape() for input_node in model_inputs], Shape(shape)
+    ).all()
+    assert np.equal(
+        [input_node.get_partial_shape() for input_node in model_inputs],
+        PartialShape(shape),
+    ).all()
 
     input0 = model.input(0)
     input1 = model.input(1)
 
     assert [input0.get_index(), input1.get_index()] == [0, 1]
 
+
 def test_node_target_inputs_soruce_output():
     shape = [2, 2]
     parameter_a = ng.parameter(shape, dtype=np.float32, name="A")
     parameter_b = ng.parameter(shape, dtype=np.float32, name="B")
 
-    model = (parameter_a + parameter_b)
+    model = parameter_a + parameter_b
 
-    out_a = (list(parameter_a.output(0).get_target_inputs())[0])
-    out_b = (list(parameter_b.output(0).get_target_inputs())[0])
+    out_a = list(parameter_a.output(0).get_target_inputs())[0]
+    out_b = list(parameter_b.output(0).get_target_inputs())[0]
 
     assert out_a.get_node().name == model.name
     assert out_b.get_node().name == model.name
