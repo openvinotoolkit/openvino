@@ -271,3 +271,13 @@ def test_result():
 
     result = run_op_node([node], ng.ops.result)
     assert np.allclose(result, node)
+
+
+def test_node_friendly_name():
+    dummy_node = ng.parameter(shape=[1], name="dummy_name")
+
+    assert(dummy_node.get_friendly_name() == "dummy_name")
+
+    dummy_node.set_friendly_name("changed_name")
+
+    assert(dummy_node.get_friendly_name() == "changed_name")
