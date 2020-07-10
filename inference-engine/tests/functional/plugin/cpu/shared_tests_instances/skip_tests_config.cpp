@@ -42,12 +42,12 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*IEClassGetAvailableDevices.*)",
         // TODO: Issue: 25533
         R"(.*ConvertLikeLayerTest.*)",
-        //TODO: Issue: 34516
+        // TODO: Issue: 34516
         R"(.*ConvertLayerTest.*)",
         // TODO: Issue: 34055
         R"(.*ShapeOfLayerTest.*)",
         R"(.*ReluShapeOfSubgraphTest.*)",
-	//TODO: Issue: 34805
+	    // TODO: Issue: 34805
         R"(.*ActivationLayerTest.*Ceiling.*)"
     };
 }
