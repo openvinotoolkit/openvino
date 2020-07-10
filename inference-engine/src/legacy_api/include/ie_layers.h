@@ -388,10 +388,8 @@ using GenericLayer = class CNNLayer;
 IE_SUPPRESS_DEPRECATED_END
 
 INFERENCE_ENGINE_API_CPP(CNNLayerWeakPtr&) getCreatorLayer(const DataPtr & data);
-INFERENCE_ENGINE_API_CPP(CNNLayerWeakPtr&) getCreatorLayerPython(const DataPtr & data);
 
 INFERENCE_ENGINE_API_CPP(std::map<std::string, CNNLayerPtr>&) getInputTo(const DataPtr & data);
-INFERENCE_ENGINE_API_CPP(std::map<std::string, CNNLayerPtr>&) getInputToPython(const DataPtr & data);
 INFERENCE_ENGINE_API_CPP(std::map<std::string, CNNLayerPtr>&) getInputTo(Data * data);
 
 IE_SUPPRESS_DEPRECATED_START_WIN

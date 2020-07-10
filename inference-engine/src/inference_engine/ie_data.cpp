@@ -117,38 +117,12 @@ CNNLayerWeakPtr& InferenceEngine::getCreatorLayer(const DataPtr & data) {
     }
 }
 
-CNNLayerWeakPtr& InferenceEngine::getCreatorLayerPython(const DataPtr & data) {
-    if (auto ndata = std::dynamic_pointer_cast<details::NGraphData>(data)) {
-        ndata->convertToCNNNetworkImpl();
-        return ndata->getCreatorLayer();
-    } else {
-        return data->_impl->creatorLayer;
-    }
-}
-
 std::map<std::string, CNNLayerPtr>& InferenceEngine::getInputTo(const DataPtr & data) {
-    if (auto ndata = std::dynamic_pointer_cast<details::NGraphData>(data)) {
-        return ndata->getInputTo();
-    } else {
-        return data->_impl->inputTo;
-    }
-}
-
-std::map<std::string, CNNLayerPtr>& InferenceEngine::getInputToPython(const DataPtr & data) {
-    if (auto ndata = std::dynamic_pointer_cast<details::NGraphData>(data)) {
-        ndata->convertToCNNNetworkImpl();
-        return ndata->getInputTo();
-    } else {
-        return data->_impl->inputTo;
-    }
+    return data->_impl->inputTo;
 }
 
 std::map<std::string, CNNLayerPtr>& InferenceEngine::getInputTo(Data * data) {
-    if (auto ndata = dynamic_cast<details::NGraphData *>(data)) {
-        return ndata->getInputTo();
-    } else {
-        return data->_impl->inputTo;
-    }
+    return data->_impl->inputTo;
 }
 
 CNNLayerWeakPtr& details::NGraphData::getCreatorLayer() {

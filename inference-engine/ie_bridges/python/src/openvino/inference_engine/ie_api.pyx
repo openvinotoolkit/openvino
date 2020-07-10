@@ -651,6 +651,7 @@ cdef class InputInfoPtr:
     def input_data(self):
         cdef C.DataPtr c_data_ptr = deref(self._ptr).getInputData()
         data_ptr = DataPtr()
+        data_ptr._ptr_network = self._ptr_network
         data_ptr._ptr = c_data_ptr
         return data_ptr
 
@@ -694,6 +695,10 @@ cdef class InputInfoCPtr:
 
 ## This class is the layer data representation.
 cdef class DataPtr:
+    ## Default constructor
+    def __init__(self):
+        self._ptr_network = NULL
+
     ## Name of the data object
     @property
     def name(self):
@@ -735,8 +740,13 @@ cdef class DataPtr:
 
     @property
     def creator_layer(self):
-        cdef C.CNNLayerWeakPtr _l_ptr = C.getCreatorLayerPython(self._ptr)
+        cdef C.CNNLayerWeakPtr _l_ptr
         cdef IENetLayer creator_layer
+
+        if self._ptr_network != NULL:
+            deref(self._ptr_network).convertToOldReprentation()
+        _l_ptr = C.getCreatorLayer(self._ptr)
+
         creator_layer = IENetLayer()
         if _l_ptr.lock() != NULL:
             creator_layer._ptr = _l_ptr.lock()
@@ -746,8 +756,13 @@ cdef class DataPtr:
 
     @property
     def input_to(self):
-        cdef map[string, C.CNNLayerPtr] _l_ptr_map = C.getInputToPython(self._ptr)
+        cdef map[string, C.CNNLayerPtr] _l_ptr_map
         cdef IENetLayer input_to
+
+        if self._ptr_network != NULL:
+            deref(self._ptr_network).convertToOldReprentation()
+        _l_ptr_map = C.getInputTo(self._ptr)
+
         input_to_list = []
         for layer in _l_ptr_map:
             input_to = IENetLayer()
@@ -1327,7 +1342,7 @@ cdef class IENetLayer:
         cdef map[string, C.CNNLayerPtr] _l_ptr_map
         input_to_list = []
         for l in c_outs:
-            _l_ptr_map = C.getInputToPython(l)
+            _l_ptr_map = C.getInputTo(l)
             for layer in _l_ptr_map:
                 input_to_list.append(deref(layer.second).name.decode())
         return input_to_list
@@ -1496,6 +1511,7 @@ cdef class IENetwork:
         for input in c_inputs:
             input_info_ptr = InputInfoPtr()
             input_info_ptr._ptr = input.second
+            input_info_ptr._ptr_network = &self.impl
             inputs[input.first.decode()] = input_info_ptr
         return inputs
 
@@ -1514,6 +1530,7 @@ cdef class IENetwork:
         cdef DataPtr data_ptr
         for input in c_inputs:
             data_ptr = DataPtr()
+            data_ptr._ptr_network = &self.impl
             data_ptr._ptr = input.second
             inputs[input.first.decode()] = data_ptr
         return inputs
@@ -1526,6 +1543,7 @@ cdef class IENetwork:
         cdef DataPtr data_ptr
         for output in c_outputs:
             data_ptr = DataPtr()
+            data_ptr._ptr_network = &self.impl
             data_ptr._ptr = output.second
             outputs[output.first.decode()] = data_ptr
         return outputs

@@ -224,7 +224,7 @@ void Engine::QueryNetwork(const ICNNNetwork &network, const Configs& config, Que
                     [&] (const DeviceMetaInformationMap::value_type& metaDevice) -> bool {
                         auto& deviceName = metaDevice.first;
                         auto clonedNetwork = cloneNetwork(network);
-                        try { GetCore()->QueryNetwork(network, deviceName, metaDevice.second); }
+                        try { GetCore()->QueryNetwork(*clonedNetwork, deviceName, metaDevice.second); }
                         catch (const InferenceEngine::details::InferenceEngineException & ex) {
                             std::string message = ex.what();
                             return message.find(NOT_IMPLEMENTED_str) == std::string::npos;
@@ -235,7 +235,7 @@ void Engine::QueryNetwork(const ICNNNetwork &network, const Configs& config, Que
             auto cnnNetworkImpl = std::make_shared<details::CNNNetworkImpl>(network);
             queryNetwork(*cnnNetworkImpl);
         } else {
-            queryNetwork(*cloneNetwork(network));
+            queryNetwork(network);
         }
     } else {
         queryNetwork(network);

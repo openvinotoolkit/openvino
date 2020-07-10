@@ -521,19 +521,49 @@ void MultiDeviceInferencePlugin::QueryNetwork(const ICNNNetwork&                
 
     DeviceMap<DeviceInformation> metaDevices = ParseMetaDevices(priorities->second, fullConfig);
     std::unordered_set<std::string> supportedLayers;
+
+    auto allSupportsNgraph =
+        std::all_of(std::begin(metaDevices), std::end(metaDevices),
+            [&] (const DeviceMap<DeviceInformation>::value_type & value) -> bool {
+                auto& deviceName = value.first;
+                auto& metaDevice = value.second;
+                auto clonedNetwork = cloneNetwork(network);
+                try { GetCore()->QueryNetwork(*clonedNetwork, deviceName, metaDevice.config); }
+                catch (const InferenceEngine::details::InferenceEngineException & ex) {
+                    std::string message = ex.what();
+                    return message.find(NOT_IMPLEMENTED_str) == std::string::npos;
+                }
+                return true;
+            });
+
     for (auto&& value : metaDevices) {
         auto& deviceName = value.first;
         auto& metaDevice = value.second;
-        auto clonedNetwork = cloneNetwork(network);
-        auto deviceQr = GetCore()->QueryNetwork(*clonedNetwork, deviceName, metaDevice.config);
-        std::unordered_set<std::string> deviceSupportedLayers;
-        for (auto&& layerQr : deviceQr.supportedLayersMap) {
-            deviceSupportedLayers.emplace(layerQr.first);
+
+        auto queryNetwork = [&] (const InferenceEngine::ICNNNetwork & networkObject) {
+            auto clonedNetwork = cloneNetwork(networkObject);
+            auto deviceQr = GetCore()->QueryNetwork(*clonedNetwork, deviceName, metaDevice.config);
+            std::unordered_set<std::string> deviceSupportedLayers;
+            for (auto&& layerQr : deviceQr.supportedLayersMap) {
+                deviceSupportedLayers.emplace(layerQr.first);
+            }
+            supportedLayers = supportedLayers.empty()
+                            ? deviceSupportedLayers : (deviceSupportedLayers.empty()
+                            ? supportedLayers : Intersection(supportedLayers, deviceSupportedLayers));
+        };
+
+        if (network.getFunction()) {
+            if (allSupportsNgraph) {
+                auto cnnNetworkImpl = std::make_shared<details::CNNNetworkImpl>(network);
+                queryNetwork(*cnnNetworkImpl);
+            } else {
+                queryNetwork(network);
+            }
+        } else {
+            queryNetwork(network);
         }
-        supportedLayers = supportedLayers.empty()
-                        ? deviceSupportedLayers : (deviceSupportedLayers.empty()
-                        ? supportedLayers : Intersection(supportedLayers, deviceSupportedLayers));
     }
+
     for (auto&& supportedLayer : supportedLayers) {
         queryResult.supportedLayersMap[supportedLayer] = GetName();
     }

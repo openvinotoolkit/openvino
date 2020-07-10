@@ -208,14 +208,18 @@ void InferenceEnginePython::IENetwork::serialize(const std::string &path_to_xml,
     actual->serialize(path_to_xml, path_to_bin);
 }
 
-const std::vector <InferenceEngine::CNNLayerPtr>
-InferenceEnginePython::IENetwork::getLayers() {
-    IE_SUPPRESS_DEPRECATED_START
+void InferenceEnginePython::IENetwork::convertToOldReprentation() {
     if (actual->getFunction()) {
         // convert to old representation
         auto convertedNetwork = std::make_shared<InferenceEngine::details::CNNNetworkImpl>(*actual);
         actual = std::make_shared<InferenceEngine::CNNNetwork>(convertedNetwork);
     }
+}
+
+const std::vector <InferenceEngine::CNNLayerPtr>
+InferenceEnginePython::IENetwork::getLayers() {
+    convertToOldReprentation();
+    IE_SUPPRESS_DEPRECATED_START
     std::vector<InferenceEngine::CNNLayerPtr> result;
     std::vector<InferenceEngine::CNNLayerPtr> sorted_layers = InferenceEngine::details::CNNNetSortTopologically(*actual);
     for (const auto &layer : sorted_layers) {
