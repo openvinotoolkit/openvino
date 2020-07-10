@@ -285,12 +285,39 @@ def test_node_output():
 
     assert len(split_node_outputs) == split_node.get_output_size()
     assert [output.get_index() for output in split_node_outputs] == [0, 1, 2]
-    assert all(np.equal([output.get_element_type() for output in split_node_outputs], input_tensor.get_element_type()))
-    assert all(np.equal([output.get_shape() for output in split_node_outputs], Shape([expected_shape])))
-    assert all(np.equal([output.get_partial_shape() for output in split_node_outputs], PartialShape([expected_shape])))
+    assert np.equal([output.get_element_type() for output in split_node_outputs], input_tensor.get_element_type()).all()
+    assert np.equal([output.get_shape() for output in split_node_outputs], Shape([expected_shape])).all()
+    assert np.equal([output.get_partial_shape() for output in split_node_outputs], PartialShape([expected_shape])).all()
 
     output0 = split_node.output(0)
     output1 = split_node.output(1)
     output2 = split_node.output(2)
 
     assert [output0.get_index(), output1.get_index(), output2.get_index()] == [0, 1, 2]
+
+def test_target_inputs():
+    shape = [2, 2]
+    parameter_a = ng.parameter(shape, dtype=np.float32, name="A")
+    parameter_b = ng.parameter(shape, dtype=np.float32, name="B")
+
+    model = (parameter_a + parameter_b)
+
+    out_a = parameter_a.output(0)
+    out_b = parameter_b.output(0)
+    out_a_input = (list(out_a.get_target_inputs())[0]).get_node()
+    out_b_input = (list(out_b.get_target_inputs())[0]).get_node()
+
+    assert out_a.get_node().name == parameter_a.name
+    assert out_b.get_node().name == parameter_b.name
+    assert np.equal([out_a.get_node().get_output_shape(0)], [parameter_a.get_output_shape(0)]).all()
+    assert np.equal([out_b.get_node().get_output_shape(0)], [parameter_b.get_output_shape(0)]).all()
+    assert out_a_input.name == model.name
+    assert out_b_input.name == model.name
+    assert np.equal([out_a_input.get_output_shape(0)], [model.get_output_shape(0)]).all()
+    assert np.equal([out_b_input.get_output_shape(0)], [model.get_output_shape(0)]).all()
+
+def test_soruce_outputs():
+    assert False
+
+def test_node_input():
+    assert False

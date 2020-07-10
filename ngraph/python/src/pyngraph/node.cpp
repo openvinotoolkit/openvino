@@ -23,6 +23,7 @@
 #include "ngraph/op/multiply.hpp"
 #include "ngraph/op/subtract.hpp"
 #include "pyngraph/node.hpp"
+#include "pyngraph/node_input.hpp"
 #include "pyngraph/node_output.hpp"
 
 namespace py = pybind11;
@@ -78,10 +79,10 @@ void regclass_pyngraph_Node(py::module m)
     node.def("get_output_partial_shape", &ngraph::Node::get_output_partial_shape);
     node.def("get_type_name", &ngraph::Node::get_type_name);
     node.def("get_unique_name", &ngraph::Node::get_name);
-    // node.def("inputs", (std::vector<ngraph::Input<ngraph::Node>> (ngraph::Node::*)())
-    // &ngraph::Node::inputs);
-    // node.def("inputs", (std::vector<ngraph::Input<const ngraph::Node>> (ngraph::Node::*)() const)
-    // &ngraph::Node::inputs);
+    node.def("input",
+            (ngraph::Input<ngraph::Node>(ngraph::Node::*)(size_t)) & ngraph::Node::input);
+    node.def("inputs",
+             (std::vector<ngraph::Input<ngraph::Node>>(ngraph::Node::*)()) & ngraph::Node::inputs);
     node.def("output",
              (ngraph::Output<ngraph::Node>(ngraph::Node::*)(size_t)) & ngraph::Node::output);
     node.def("outputs",

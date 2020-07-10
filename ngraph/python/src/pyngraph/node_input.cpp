@@ -25,16 +25,16 @@
 
 namespace py = pybind11;
 
-void regclass_pyngraph_Output(py::module m)
+void regclass_pyngraph_Input(py::module m)
 {
-    py::class_<ngraph::Output<ngraph::Node>, std::shared_ptr<ngraph::Output<ngraph::Node>>> output(
-        m, "Output", py::dynamic_attr());
-    output.doc() = "ngraph.impl.Output wraps ngraph::Output<Node>";
+    py::class_<ngraph::Input<ngraph::Node>, std::shared_ptr<ngraph::Input<ngraph::Node>>> input(
+        m, "Input", py::dynamic_attr());
+    input.doc() = "ngraph.impl.Input wraps ngraph::Input<Node>";
 
-    output.def("get_node", &ngraph::Output<ngraph::Node>::get_node);
-    output.def("get_index", &ngraph::Output<ngraph::Node>::get_index);
-    output.def("get_element_type", &ngraph::Output<ngraph::Node>::get_element_type);
-    output.def("get_shape", &ngraph::Output<ngraph::Node>::get_shape);
-    output.def("get_partial_shape", &ngraph::Output<ngraph::Node>::get_partial_shape);
-    output.def("get_target_inputs", &ngraph::Output<ngraph::Node>::get_target_inputs);
+    input.def("get_node", &ngraph::Input<ngraph::Node>::get_node);
+    input.def("get_index", &ngraph::Input<ngraph::Node>::get_index);
+    input.def("get_element_type", &ngraph::Input<ngraph::Node>::get_element_type);
+    input.def("get_shape", &ngraph::Input<ngraph::Node>::get_shape);
+    input.def("get_partial_shape", &ngraph::Input<ngraph::Node>::get_partial_shape);
+    input.def("get_source_output", &ngraph::Input<ngraph::Node>::get_source_output);
 }
