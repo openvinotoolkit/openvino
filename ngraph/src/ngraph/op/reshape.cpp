@@ -280,6 +280,10 @@ void op::v1::Reshape::validate_and_infer_types()
         if (!(zero_dims && m_special_zero) && !negative_dims)
         {
             auto output_shape = const_shape->get_shape_val();
+            if (output_shape == Shape{0})
+            {
+                output_shape = Shape{};
+            }
             if (get_input_partial_shape(0).is_static())
             {
                 NODE_VALIDATION_CHECK(this,
