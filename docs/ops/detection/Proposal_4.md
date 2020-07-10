@@ -8,7 +8,7 @@
 
 **Detailed description**
 
-*Proposal* has three inputs: a tensor with probabilities whether particular bounding box corresponds to background and foreground, a tensor with logits for each of the bounding boxes, a tensor with input image size in the [`image_height`, `image_width`, `scale_height_and_width`] or [`image_height`, `image_width`, `scale_height`, `scale_width`] format. The produced tensor has two dimensions `[batch_size * post_nms_topn, 5]`.
+*Proposal* has three inputs: a tensor with probabilities whether particular bounding box corresponds to background and foreground, a tensor with logits for each of the bounding boxes, a tensor with input image size in the [`image_height`, `image_width`, `scale_height_and_width`] or [`image_height`, `image_width`, `scale_height`, `scale_width`] format. Operation produces two tensors: the first mandatory tensor of shape `[batch_size * post_nms_topn, 5]` with proposed boxes and the second optional tensor of shape `[post_nms_topn]` with probabilities.
 *Proposal* layer does the following with the input tensor:
 1.  Generates initial anchor boxes. Left top corner of all boxes is at (0, 0). Width and height of boxes are calculated from *base_size* with *scale* and *ratio* attributes.
 2.  For each point in the first input tensor:
@@ -136,17 +136,21 @@
 
 **Inputs**:
 
-*   **1**: 4D input floating point tensor with class prediction scores. Required.
+*   **1**: tensor of type *T* with class prediction scores. Required.
 
-*   **2**: 4D input floating point tensor with box logits. Required.
+*   **2**: tensor of type *T* with box logits. Required.
 
-*   **3**: 1D input floating tensor 3 or 4 elements:  [`image_height`, `image_width`, `scale_height_and_width`] or [`image_height`, `image_width`, `scale_height`, `scale_width`]. Required.
+*   **3**: tensor of type *T* with 3 or 4 elements:  `[image_height`, `image_width`, `scale_height_and_width]` or `[image_height`, `image_width`, `scale_height`, `scale_width]`. Required.
 
 **Outputs**:
 
-*   **1**: Floating point tensor of shape `[batch_size * post_nms_topn, 5]`.
+*   **1**: tensor of type *T* and shape `[batch_size * post_nms_topn, 5]`.
 
-*   **2**: 1D floating point tensor of size `post_nms_topn` with probabilities. *Optional*
+*   **2**: tensor of type *T* and shape `[post_nms_topn]` with probabilities. *Optional*
+
+**Types**
+
+* *T*: floating point type.
 
 **Example**
 
