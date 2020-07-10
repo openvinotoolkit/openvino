@@ -553,7 +553,7 @@ void MultiDeviceInferencePlugin::QueryNetwork(const ICNNNetwork&                
         };
 
         if (network.getFunction()) {
-            if (allSupportsNgraph) {
+            if (!allSupportsNgraph) {
                 auto cnnNetworkImpl = std::make_shared<details::CNNNetworkImpl>(network);
                 queryNetwork(*cnnNetworkImpl);
             } else {
