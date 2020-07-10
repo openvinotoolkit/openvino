@@ -304,8 +304,6 @@ def test_node_input():
 
     model_inputs = model.inputs()
 
-    print([input_node.get_index() for input_node in model_inputs])
-
     assert len(model_inputs) == 2
     assert [input_node.get_index() for input_node in model_inputs] == [0, 1]
     assert np.equal([input_node.get_element_type() for input_node in model_inputs], model.get_element_type()).all()
@@ -317,26 +315,25 @@ def test_node_input():
 
     assert [input0.get_index(), input1.get_index()] == [0, 1]
 
-def test_target_inputs():
+def test_node_target_inputs_soruce_output():
     shape = [2, 2]
     parameter_a = ng.parameter(shape, dtype=np.float32, name="A")
     parameter_b = ng.parameter(shape, dtype=np.float32, name="B")
 
     model = (parameter_a + parameter_b)
 
-    out_a = parameter_a.output(0)
-    out_b = parameter_b.output(0)
-    out_a_input = (list(out_a.get_target_inputs())[0]).get_node()
-    out_b_input = (list(out_b.get_target_inputs())[0]).get_node()
+    out_a = (list(parameter_a.output(0).get_target_inputs())[0])
+    out_b = (list(parameter_b.output(0).get_target_inputs())[0])
 
-    assert out_a.get_node().name == parameter_a.name
-    assert out_b.get_node().name == parameter_b.name
-    assert np.equal([out_a.get_node().get_output_shape(0)], [parameter_a.get_output_shape(0)]).all()
-    assert np.equal([out_b.get_node().get_output_shape(0)], [parameter_b.get_output_shape(0)]).all()
-    assert out_a_input.name == model.name
-    assert out_b_input.name == model.name
-    assert np.equal([out_a_input.get_output_shape(0)], [model.get_output_shape(0)]).all()
-    assert np.equal([out_b_input.get_output_shape(0)], [model.get_output_shape(0)]).all()
+    assert out_a.get_node().name == model.name
+    assert out_b.get_node().name == model.name
+    assert np.equal([out_a.get_shape()], [model.get_output_shape(0)]).all()
+    assert np.equal([out_b.get_shape()], [model.get_output_shape(0)]).all()
 
-def test_soruce_outputs():
-    assert False
+    in_model0 = model.input(0).get_source_output()
+    in_model1 = model.input(1).get_source_output()
+
+    assert in_model0.get_node().name == parameter_a.name
+    assert in_model1.get_node().name == parameter_b.name
+    assert np.equal([in_model0.get_shape()], [model.get_output_shape(0)]).all()
+    assert np.equal([in_model1.get_shape()], [model.get_output_shape(0)]).all()
