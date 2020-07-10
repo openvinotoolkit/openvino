@@ -113,7 +113,9 @@ pipeline {
             }
         }
         cleanup {
-            deleteDir()
+            dir("${WORKDIR}") {
+                deleteDir()
+            }
         }
     }
 }
