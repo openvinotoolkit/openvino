@@ -580,6 +580,7 @@ Program::LayerType Program::LayerTypeFromStr(const std::string &str) {
         { "Atanh" , Atanh },
         { "Floor" , Floor },
         { "Ceil" , Ceil },
+        { "Ceiling" , Ceiling },
         { "Erf" , Erf },
         { "HardSigmoid" , HardSigmoid },
         { "Log" , Log },
@@ -1150,6 +1151,7 @@ void Program::CreateSingleLayerPrimitive(cldnn::topology& topology, InferenceEng
         case Atanh:
         case Floor:
         case Ceil:
+        case Ceiling:
         case Erf:
         case HardSigmoid:
         case Log:
@@ -2883,6 +2885,11 @@ void Program::CreateActivationPrimitive(cldnn::topology& topology, InferenceEngi
         break;
     }
     case Ceil:
+    {
+        func = cldnn::activation_func::ceil;
+        break;
+    }
+    case Ceiling:
     {
         func = cldnn::activation_func::ceil;
         break;
