@@ -270,5 +270,33 @@ std::shared_ptr<Node> makePooling(const ngraph::Output<Node> &in,
                                   bool excludePad,
                                   const ngraph::helpers::PoolingTypes &poolType);
 
+std::shared_ptr<ngraph::Node> makeScatterUpdate(const ngraph::Output<Node> &in,
+                                                const element::Type& indicesType,
+                                                const std::vector<size_t>& indicesShape,
+                                                const std::vector<size_t>& indices,
+                                                const ngraph::Output<Node> &update,
+                                                std::size_t axis);
+
+std::shared_ptr<ngraph::Node> makeScatterElementsUpdate(const ngraph::Output<Node> &in,
+                                                        const element::Type& indicesType,
+                                                        const std::vector<size_t>& indicesShape,
+                                                        const std::vector<size_t>& indices,
+                                                        const ngraph::Output<Node> &update,
+                                                        int axis);
+
+std::shared_ptr<ngraph::Node> makeScatterNDUpdate(const ngraph::Output<Node> &in,
+                                                  const element::Type& indicesType,
+                                                  const std::vector<size_t>& indicesShape,
+                                                  const std::vector<size_t>& indices,
+                                                  const ngraph::Output<Node> &update);
+
+std::shared_ptr<ngraph::Node> makeComparison(const ngraph::Output<Node> &in0,
+                                             const ngraph::Output<Node> &in1,
+                                             ngraph::helpers::ComparisonTypes comparisonType);
+
+std::shared_ptr<ngraph::Node> makeLogical(const ngraph::Output<Node> &in0,
+                                          const ngraph::Output<Node> &in1,
+                                          ngraph::helpers::LogicalTypes logicalType);
+
 }  // namespace builder
 }  // namespace ngraph

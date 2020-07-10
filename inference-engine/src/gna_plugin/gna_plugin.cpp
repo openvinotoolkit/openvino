@@ -521,7 +521,7 @@ void GNAPlugin::LoadNetwork(ICNNNetwork &network) {
     int portId = 0;
     for (auto && outPort : outputsDataMap) {
         // gets output layer pointer in original topology not in cloned
-        auto outLayer = outPort.second->getCreatorLayer().lock();
+        auto outLayer = getCreatorLayer(outPort.second).lock();
 
         // Memory layers are not dnnComponents hence we need to make switch with identity layer
         if (outLayer->type == "Memory") {
@@ -1099,11 +1099,14 @@ Blob::Ptr GNAPlugin::GetInputBlob(const std::string& name, InferenceEngine::Prec
 }
 
 std::vector<InferenceEngine::MemoryStateInternal::Ptr>  GNAPlugin::QueryState() {
-    if (graphCompiler.memory_connection.empty()) {
-        return {};
+    if (memoryStates.size() != graphCompiler.memory_connection.size()) {
+        memoryStates.clear();
+        for (auto& connection : graphCompiler.memory_connection) {
+            auto state = std::make_shared<memory::GNAMemoryState>(connection.first, std::make_shared <GNAMemoryLayer>(connection.second));
+            memoryStates.emplace_back(state);
+        }
     }
-
-    return {std::make_shared<memory::GNAMemoryState>(shared_from_this())};
+    return memoryStates;
 }
 
 std::string GNAPlugin::GetName() const noexcept {
@@ -1261,7 +1264,7 @@ void GNAPlugin::QueryNetwork(const InferenceEngine::ICNNNetwork& network,
         THROW_GNA_EXCEPTION << "Network is empty (GNA)\n";
     }
 
-    auto const & secondLayers = inputs.begin()->second->getInputData()->getInputTo();
+    auto const & secondLayers = getInputTo(inputs.begin()->second->getInputData());
     if (secondLayers.empty()) {
         THROW_GNA_EXCEPTION << "Network consists of input layer only (GNA)\n";
     }

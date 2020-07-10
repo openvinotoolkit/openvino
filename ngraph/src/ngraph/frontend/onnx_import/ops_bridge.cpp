@@ -48,7 +48,7 @@
 #include "op/cosh.hpp"
 #include "op/cum_sum.hpp"
 #include "op/depth_to_space.hpp"
-// #include "op/dequantize_linear.hpp"
+#include "op/dequantize_linear.hpp"
 #include "op/div.hpp"
 #include "op/dropout.hpp"
 #include "op/elu.hpp"
@@ -57,6 +57,7 @@
 #include "op/exp.hpp"
 #include "op/expand.hpp"
 #include "op/eye_like.hpp"
+#include "op/fake_quantize.hpp"
 #include "op/flatten.hpp"
 #include "op/floor.hpp"
 #include "op/gather.hpp"
@@ -69,6 +70,7 @@
 #include "op/hard_sigmoid.hpp"
 #include "op/hardmax.hpp"
 #include "op/identity.hpp"
+#include "op/image_scaler.hpp"
 #include "op/instance_norm.hpp"
 #include "op/leaky_relu.hpp"
 #include "op/less.hpp"
@@ -277,7 +279,8 @@ namespace ngraph
             REGISTER_OPERATOR("Cosh", 1, cosh);
             REGISTER_OPERATOR("CumSum", 1, cum_sum);
             REGISTER_OPERATOR("DepthToSpace", 1, depth_to_space);
-            // REGISTER_OPERATOR("DequantizeLinear", 1, dequantize_linear);
+            REGISTER_OPERATOR("DequantizeLinear", 1, dequantize_linear);
+            REGISTER_OPERATOR("DequantizeLinear", 13, dequantize_linear);
             REGISTER_OPERATOR("Div", 1, div);
             REGISTER_OPERATOR("Div", 7, div);
             REGISTER_OPERATOR("Dropout", 1, dropout);
@@ -301,6 +304,7 @@ namespace ngraph
             REGISTER_OPERATOR("Hardmax", 1, hardmax);
             REGISTER_OPERATOR("HardSigmoid", 1, hard_sigmoid);
             REGISTER_OPERATOR("Identity", 1, identity);
+            REGISTER_OPERATOR("ImageScaler", 1, image_scaler);
             REGISTER_OPERATOR("InstanceNormalization", 1, instance_norm);
             REGISTER_OPERATOR("LeakyRelu", 1, leaky_relu);
             REGISTER_OPERATOR("Less", 1, less);
@@ -392,6 +396,9 @@ namespace ngraph
             REGISTER_OPERATOR("Upsample", 9, upsample);
             REGISTER_OPERATOR("Where", 1, where);
             REGISTER_OPERATOR("Xor", 1, logical_xor);
+
+            // TODO Change the domain
+            m_map[""]["FakeQuantize"].emplace(1, op::set_1::fake_quantize);
         }
 
 #undef REGISTER_OPERATOR

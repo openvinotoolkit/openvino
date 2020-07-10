@@ -186,39 +186,6 @@ bool op::Reshape::visit_attributes(AttributeVisitor& visitor)
     return true;
 }
 
-void op::Reshape::generate_adjoints(autodiff::Adjoints& adjoints, const OutputVector& deltas)
-{
-    auto delta = deltas.at(0);
-
-    auto x_shape = get_input_shape(0);
-    auto x_rank = x_shape.size();
-    Shape permuted_x_shape(x_rank);
-    AxisVector x_input_order(x_rank);
-    bool is_permuted = false;
-    for (size_t i = 0; i < x_rank; ++i)
-    {
-        size_t permuted_i = m_input_order[i];
-        if (i != permuted_i)
-        {
-            is_permuted = true;
-        }
-        permuted_x_shape[i] = x_shape[permuted_i];
-        x_input_order[permuted_i] = i;
-    }
-    AxisVector input_order(m_output_shape.size());
-    for (size_t i = 0; i < m_output_shape.size(); i++)
-    {
-        input_order[i] = i;
-    }
-    auto reshape = make_shared<op::Reshape>(delta, input_order, permuted_x_shape);
-    if (is_permuted)
-    {
-        reshape = make_shared<op::Reshape>(reshape, x_input_order, x_shape);
-    }
-
-    adjoints.add_delta(input_value(0), reshape);
-}
-
 bool op::v0::Reshape::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
 {
     return evaluate_reshape(inputs[0], outputs[0], get_input_order());
@@ -280,6 +247,10 @@ void op::v1::Reshape::validate_and_infer_types()
         if (!(zero_dims && m_special_zero) && !negative_dims)
         {
             auto output_shape = const_shape->get_shape_val();
+            if (output_shape == Shape{0})
+            {
+                output_shape = Shape{};
+            }
             if (get_input_partial_shape(0).is_static())
             {
                 NODE_VALIDATION_CHECK(this,
@@ -380,12 +351,6 @@ shared_ptr<Node> op::v1::Reshape::clone_with_new_inputs(const OutputVector& new_
 {
     check_new_args_count(this, new_args);
     return make_shared<v1::Reshape>(new_args.at(0), new_args.at(1), m_special_zero);
-}
-
-void op::v1::Reshape::generate_adjoints(autodiff::Adjoints& /* adjoints */,
-                                        const OutputVector& /* deltas */)
-{
-    throw ngraph_error("generate_adjoints not implemented for Reshape");
 }
 
 bool op::v1::Reshape::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)

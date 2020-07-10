@@ -27,7 +27,6 @@ __version__ = os.environ.get("NGRAPH_VERSION", "0.0.0.dev0")
 PYNGRAPH_ROOT_DIR = os.path.abspath(os.path.dirname(__file__))
 PYNGRAPH_SRC_DIR = os.path.join(PYNGRAPH_ROOT_DIR, "src")
 NGRAPH_DEFAULT_INSTALL_DIR = os.environ.get("HOME")
-NGRAPH_ONNX_IMPORT_ENABLE = os.environ.get("NGRAPH_ONNX_IMPORT_ENABLE")
 NGRAPH_PYTHON_DEBUG = os.environ.get("NGRAPH_PYTHON_DEBUG")
 
 
@@ -232,9 +231,6 @@ library_dirs = [NGRAPH_CPP_LIBRARY_DIR]
 libraries = [NGRAPH_CPP_LIBRARY_NAME, ONNX_IMPORTER_CPP_LIBRARY_NAME]
 
 extra_compile_args = []
-if NGRAPH_ONNX_IMPORT_ENABLE in ["TRUE", "ON", True]:
-    extra_compile_args.append("-DNGRAPH_ONNX_IMPORT_ENABLE")
-
 extra_link_args = []
 
 data_files = [
@@ -243,6 +239,7 @@ data_files = [
         [
             os.path.join(NGRAPH_CPP_LIBRARY_DIR, library)
             for library in os.listdir(NGRAPH_CPP_LIBRARY_DIR)
+            if os.path.isfile(os.path.join(NGRAPH_CPP_LIBRARY_DIR, library))
         ],
     ),
     (
@@ -254,15 +251,6 @@ data_files = [
     ),
     ("", [os.path.join(NGRAPH_CPP_DIST_DIR, "LICENSE")],),
 ]
-
-if NGRAPH_ONNX_IMPORT_ENABLE in ["TRUE", "ON", True]:
-    onnx_sources = [
-        "pyngraph/onnx_import/onnx_import.cpp",
-    ]
-    onnx_sources = [PYNGRAPH_SRC_DIR + "/" + source for source in onnx_sources]
-    sources = sources + onnx_sources
-
-    packages.append("ngraph.impl.onnx_import")
 
 ext_modules = [
     Extension(
@@ -365,7 +353,6 @@ class BuildExt(build_ext):
 
 with open(os.path.join(PYNGRAPH_ROOT_DIR, "requirements.txt")) as req:
     requirements = req.read().splitlines()
-    setup_requires = [item for item in requirements if item.strip().startswith("numpy")]
 
 setup(
     name="ngraph-core",
@@ -375,11 +362,10 @@ setup(
     url="https://github.com/openvinotoolkit/openvino",
     license="License :: OSI Approved :: Apache Software License",
     ext_modules=ext_modules,
-    package_dir={'': 'src'},
+    package_dir={"": "src"},
     packages=packages,
     cmdclass={"build_ext": BuildExt},
     data_files=data_files,
-    setup_requires=setup_requires,
     install_requires=requirements,
     zip_safe=False,
     extras_require={},

@@ -41,22 +41,36 @@ namespace ngraph
             {
                 struct invalid_data_type : ngraph_error
                 {
+#ifdef NGRAPH_USE_PROTOBUF_LITE
+                    explicit invalid_data_type(TensorProto_DataType type)
+                        : ngraph_error{"invalid data type"}
+                    {
+                    }
+#else
                     explicit invalid_data_type(TensorProto_DataType type)
                         : ngraph_error{"invalid data type: " +
                                        ONNX_NAMESPACE::TensorProto_DataType_Name(
                                            static_cast<ONNX_NAMESPACE::TensorProto_DataType>(type))}
                     {
                     }
+#endif
                 };
 
                 struct unsupported_data_type : ngraph_error
                 {
+#ifdef NGRAPH_USE_PROTOBUF_LITE
+                    explicit unsupported_data_type(TensorProto_DataType type)
+                        : ngraph_error{"unsupported data type"}
+                    {
+                    }
+#else
                     explicit unsupported_data_type(TensorProto_DataType type)
                         : ngraph_error{"unsupported data type: " +
                                        ONNX_NAMESPACE::TensorProto_DataType_Name(
                                            static_cast<ONNX_NAMESPACE::TensorProto_DataType>(type))}
                     {
                     }
+#endif
                 };
 
                 struct unspecified_name : ngraph_error
@@ -215,11 +229,16 @@ namespace ngraph
                 inline std::vector<ngraph::float16>
                     get_data(const ONNX_NAMESPACE::TensorProto& tensor)
                 {
-                    NGRAPH_CHECK(tensor.data_type() == ONNX_NAMESPACE::TensorProto_DataType_FLOAT16,
-                                 "Expected FLOAT16 data type");
-                    NGRAPH_CHECK(tensor.has_raw_data(), "Expected raw data for FLOAT16 data type");
-                    return detail::__get_raw_data<ngraph::float16>(tensor.raw_data(),
-                                                                   tensor.data_type());
+                    if (tensor.has_raw_data())
+                    {
+                        return detail::__get_raw_data<ngraph::float16>(tensor.raw_data(),
+                                                                       tensor.data_type());
+                    }
+                    if (tensor.data_type() == ONNX_NAMESPACE::TensorProto_DataType_FLOAT16)
+                    {
+                        return detail::__get_data<ngraph::float16>(tensor.int32_data());
+                    }
+                    throw error::tensor::invalid_data_type{tensor.data_type()};
                 }
 
                 template <>

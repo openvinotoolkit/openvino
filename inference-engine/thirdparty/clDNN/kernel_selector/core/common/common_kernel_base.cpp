@@ -152,7 +152,7 @@ std::shared_ptr<KernelString> common_kernel_base::GetKernelString(const std::str
         if (engine_info.bOptHintsSupport)
             kernel_string->options += " -DOPT_HINS_SUPPORTED=1";
         if (engine_info.bLocalBlockIOSupport)
-            kernel_string->options += " -Dcl_intel_subgroup_local_block_io";
+            kernel_string->options += " -Dcl_intel_subgroup_local_block_io -DLOCAL_BLOCK_IO_SUPPORTED=1";
         kernel_string->entry_point = entry_point;
         kernel_string->batch_compilation = true;
     }
