@@ -404,27 +404,6 @@ namespace
         return op_cast_binary_elementwise_node<op::v0::Maximum, op::v1::Maximum>(node);
     }
 
-    shared_ptr<Node> op_cast(shared_ptr<op::v1::MaxPool> node)
-    {
-        auto const input_arg = node->input_value(0);
-        auto ceil_mode = static_cast<bool>(node->get_rounding_type());
-        auto pad_type = node->get_auto_pad();
-        auto padding_below = node->get_pads_begin();
-        auto padding_above = node->get_pads_end();
-        auto window_movement_strides = node->get_strides();
-        auto window_shape = node->get_kernel();
-
-        auto replacement_node = make_shared<op::v0::MaxPool>(input_arg,
-                                                             window_shape,
-                                                             window_movement_strides,
-                                                             padding_below,
-                                                             padding_above,
-                                                             pad_type,
-                                                             ceil_mode);
-        replace_node(node, replacement_node);
-        return replacement_node;
-    }
-
     shared_ptr<Node> op_cast(shared_ptr<op::v1::Minimum> node)
     {
         return op_cast_binary_elementwise_node<op::v0::Minimum, op::v1::Minimum>(node);

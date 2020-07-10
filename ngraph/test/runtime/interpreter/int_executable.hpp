@@ -1301,7 +1301,6 @@ protected:
         case OP_TYPEID::MatMul:
         case OP_TYPEID::Max:
         case OP_TYPEID::Maximum:
-        case OP_TYPEID::MaxPool:
         case OP_TYPEID::Min:
         case OP_TYPEID::Minimum:
         case OP_TYPEID::Multiply:
