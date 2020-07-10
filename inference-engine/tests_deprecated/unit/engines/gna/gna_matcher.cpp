@@ -93,8 +93,7 @@ void GNAPropagateMatcher :: match() {
 
             std::vector<InferenceEngine::CNNLayerPtr> tiBodies;
 
-            const auto & inetwork = static_cast<const ICNNNetwork&>(net_original);
-            for (auto layerIt = details::CNNNetworkIterator(&inetwork), end = details::CNNNetworkIterator();
+            for (auto layerIt = details::CNNNetworkIterator(net_original), end = details::CNNNetworkIterator();
                      layerIt != end; ++layerIt) {
                 auto layer = *layerIt;
                 if (layer->type == "TensorIterator") {

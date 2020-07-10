@@ -16,10 +16,8 @@ void compareCNNNLayers(const InferenceEngine::CNNLayerPtr &layer, const Inferenc
 IE_SUPPRESS_DEPRECATED_START
 template <class T>
 inline void compareLayerByLayer(const T& network, const T& refNetwork, bool sameNetVersions = true) {
-    auto & inetwork = static_cast<const InferenceEngine::ICNNNetwork&>(network);
-    auto iterator = InferenceEngine::details::CNNNetworkIterator(&inetwork);
-    auto & irefNetwork = static_cast<const InferenceEngine::ICNNNetwork&>(refNetwork);
-    auto refIterator = InferenceEngine::details::CNNNetworkIterator(&irefNetwork);
+    auto iterator = InferenceEngine::details::CNNNetworkIterator(network);
+    auto refIterator = InferenceEngine::details::CNNNetworkIterator(refNetwork);
     auto end = InferenceEngine::details::CNNNetworkIterator();
     if (network.layerCount() != refNetwork.layerCount())
         THROW_IE_EXCEPTION << "CNNNetworks have different number of layers: " << network.layerCount() << " vs " << refNetwork.layerCount();

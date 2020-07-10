@@ -185,8 +185,7 @@ std::string LayerTestHelper::propertyToString(const PropertyVector<unsigned int>
 ConvolutionTestHelper::ConvolutionTestHelper(const CommonTestUtils::conv_common_params &_convParams) : LayerTestHelper("Convolution"), convParams(_convParams) {}
 
 void ConvolutionTestHelper::updatePaddingValues(const CNNNetwork &network) {
-    auto & inetwork = (const ICNNNetwork &)network;
-    details::CNNNetworkIterator i(&inetwork), end;
+    details::CNNNetworkIterator i(network), end;
     auto found = std::find_if(i, end, [this](const CNNLayer::Ptr &layer) {
         return layer->type == type;
     });
@@ -280,8 +279,7 @@ void DeformableConvolutionTestHelper::ref_fp16(const std::vector<InferenceEngine
 }
 
 void DeformableConvolutionTestHelper::updatePaddingValues(const CNNNetwork &network) {
-    auto & inetwork = (const ICNNNetwork &)network;
-    details::CNNNetworkIterator i(&inetwork), end;
+    details::CNNNetworkIterator i(network), end;
     auto found = std::find_if(i, end, [this](const CNNLayer::Ptr &layer) {
         return layer->type == type;
     });
@@ -352,8 +350,7 @@ void PoolingTestHelper::ref_fp16(const std::vector<InferenceEngine::Blob::Ptr> s
 }
 
 void PoolingTestHelper::updatePaddingValues(const InferenceEngine::CNNNetwork &network) {
-    auto & inetwork = (const ICNNNetwork &)network;
-    details::CNNNetworkIterator i(&inetwork), end;
+    details::CNNNetworkIterator i(network), end;
     auto found = std::find_if(i, end, [this](const CNNLayer::Ptr &layer) {
         return layer->type == type;
     });
