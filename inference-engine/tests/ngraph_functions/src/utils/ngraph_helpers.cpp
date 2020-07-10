@@ -560,5 +560,51 @@ std::ostream& operator<<(std::ostream& os, ngraph::helpers::InputLayerType type)
     return os;
 }
 
+std::ostream& operator<<(std::ostream & os, ngraph::helpers::ComparisonTypes type) {
+    switch (type) {
+        case ngraph::helpers::ComparisonTypes::EQUAL:
+            os << "Equal";
+            break;
+        case ngraph::helpers::ComparisonTypes::NOT_EQUAL:
+            os << "NotEqual";
+            break;
+        case ngraph::helpers::ComparisonTypes::GREATER:
+            os << "Greater";
+            break;
+        case ngraph::helpers::ComparisonTypes::GREATER_EQUAL:
+            os << "GreaterEqual";
+            break;
+        case ngraph::helpers::ComparisonTypes::LESS:
+            os << "Less";
+            break;
+        case ngraph::helpers::ComparisonTypes::LESS_EQUAL:
+            os << "LessEqual";
+            break;
+        default:
+            throw std::runtime_error("NOT_SUPPORTED_OP_TYPE");
+    }
+    return os;
+}
+
+std::ostream& operator<<(std::ostream & os, ngraph::helpers::LogicalTypes type) {
+    switch (type) {
+        case ngraph::helpers::LogicalTypes::LOGICAL_AND:
+            os << "LogicalAnd";
+            break;
+        case ngraph::helpers::LogicalTypes::LOGICAL_OR:
+            os << "LogicalOr";
+            break;
+        case ngraph::helpers::LogicalTypes::LOGICAL_NOT:
+            os << "LogicalNot";
+            break;
+        case ngraph::helpers::LogicalTypes::LOGICAL_XOR:
+            os << "LogicalXor";
+            break;
+        default:
+            throw std::runtime_error("NOT_SUPPORTED_OP_TYPE");
+    }
+    return os;
+}
+
 }  // namespace helpers
 }  // namespace ngraph

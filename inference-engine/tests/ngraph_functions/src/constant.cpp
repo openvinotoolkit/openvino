@@ -46,6 +46,7 @@ std::shared_ptr<Node> makeConstant(const element::Type &type, const std::vector<
         makeNode(ngraph::element::Type_t::u16);
         makeNode(ngraph::element::Type_t::u32);
         makeNode(ngraph::element::Type_t::u64);
+        makeNode(ngraph::element::Type_t::boolean);
 #undef makeNode
         default:
             throw std::runtime_error("Unhandled precision");

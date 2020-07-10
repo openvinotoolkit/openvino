@@ -290,5 +290,13 @@ std::shared_ptr<ngraph::Node> makeScatterNDUpdate(const ngraph::Output<Node> &in
                                                   const std::vector<size_t>& indices,
                                                   const ngraph::Output<Node> &update);
 
+std::shared_ptr<ngraph::Node> makeComparison(const ngraph::Output<Node> &in0,
+                                             const ngraph::Output<Node> &in1,
+                                             ngraph::helpers::ComparisonTypes comparisonType);
+
+std::shared_ptr<ngraph::Node> makeLogical(const ngraph::Output<Node> &in0,
+                                          const ngraph::Output<Node> &in1,
+                                          ngraph::helpers::LogicalTypes logicalType);
+
 }  // namespace builder
 }  // namespace ngraph
