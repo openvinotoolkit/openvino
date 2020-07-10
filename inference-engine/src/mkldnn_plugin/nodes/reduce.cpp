@@ -21,7 +21,6 @@ class ReduceImpl: public ExtLayerBase {
 public:
     explicit ReduceImpl(const CNNLayer* layer) {
         try {
-            std::cout << "MKLDNN Reduce name is " << layer->name << "\n";
             if (layer->insData.empty() || layer->outData.empty())
                 THROW_IE_EXCEPTION << layer->name << " Incorrect number of input/output edges!";
 
@@ -72,18 +71,12 @@ public:
             srcStrides = layer->insData[REDUCE_DATA].lock()->getTensorDesc().getBlockingDesc().getStrides();
 
             addConfig(layer, { { ConfLayout::PLN, false }, { ConfLayout::PLN, false } }, { { ConfLayout::PLN, false } });
-            std::cout << "MKLDNN Reduce with name " << layer->name << ". End of the constructor.\n";
         } catch (InferenceEngine::details::InferenceEngineException &ex) {
             errorMsg = ex.what();
         }
     }
 
     StatusCode execute(std::vector<Blob::Ptr>& inputs, std::vector<Blob::Ptr>& outputs, ResponseDesc *resp) noexcept override {
-        std::cout <<"idx_dims: [";
-        for (auto d : idx_dims) {
-            std::cout << d << ", ";
-        }
-        std::cout << "]\n";
         int32_t *idx_data = inputs[REDUCE_INDEXES]->cbuffer().as<int32_t *>() +
                             inputs[REDUCE_INDEXES]->getTensorDesc().getBlockingDesc().getOffsetPadding();
         SizeVector axes;
@@ -101,11 +94,6 @@ public:
             }
             axes.push_back(static_cast<size_t>(axis));
         }
-        std::cout << "axes: ";
-        for (auto a : axes) {
-            std::cout  << a << " ";
-        }
-        std::cout << "\n";
 
         size_t reduced_dims_work_amount = 1;
         InferenceEngine::SizeVector our_dims, out_dims, axes_for_reduction;
@@ -149,11 +137,6 @@ public:
             work_amount_dst = stride * dst_dims[0];
         }
 
-//        std::cout << "axes for reduction: ";
-//        for (auto axis :  axes_for_reduction) {
-//            std::cout << axis << " ";
-//        }
-//        std::cout << "\n";
         auto compare = getPrecisionMask(inputs[REDUCE_DATA]->getTensorDesc().getPrecision(), outputs[0]->getTensorDesc().getPrecision());
         switch (compare) {
             case getPrecisionMask(Precision::FP32, Precision::FP32):
