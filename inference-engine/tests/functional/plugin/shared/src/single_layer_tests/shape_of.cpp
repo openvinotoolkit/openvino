@@ -47,6 +47,6 @@ namespace LayerTestsDefinitions {
 
     TEST_P(ShapeOfLayerTest, CompareWithRefs) {
         Run();
-    };
+    }
 
 }  // namespace LayerTestsDefinitions

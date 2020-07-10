@@ -11,14 +11,13 @@ using namespace LayerTestsDefinitions;
 
 namespace {
     const std::vector<InferenceEngine::Precision> netPrecisions = {
-            InferenceEngine::Precision::I32,
-            InferenceEngine::Precision::I64
+            InferenceEngine::Precision::I32
     };
 
     INSTANTIATE_TEST_CASE_P(Check, ShapeOfLayerTest,
                             ::testing::Combine(
                                     ::testing::ValuesIn(netPrecisions),
-                                    ::testing::Values(std::vector<size_t>({10, 10, 10, 10})),
+                                    ::testing::Values(std::vector<size_t>({10, 10, 10})),
                                     ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                             ShapeOfLayerTest::getTestCaseName);
 }  // namespace
