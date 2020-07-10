@@ -117,7 +117,6 @@ set(SRC
     type_prop/broadcast.cpp
     type_prop/bucketize.cpp
     type_prop/clamp.cpp
-    type_prop/compat.cpp
     type_prop/concat.cpp
     type_prop/constant.cpp
     type_prop/convert.cpp
@@ -215,7 +214,6 @@ endif()
 set(DIRECTORIES_IGNORED runtime frontend)
 set(NGRAPH_MAIN_SRC_DIR "${CMAKE_SOURCE_DIR}/src/ngraph")
 file(GLOB_RECURSE LIST_RECURSE
-    "${NGRAPH_MAIN_SRC_DIR}/autodiff/*.hpp"
     "${NGRAPH_MAIN_SRC_DIR}/builder/*.hpp"
     "${NGRAPH_MAIN_SRC_DIR}/codegen/*.hpp"
     "${NGRAPH_MAIN_SRC_DIR}/descriptor/*.hpp"
@@ -288,7 +286,6 @@ set(MULTI_TEST_SRC
     backend/atan.in.cpp
     backend/atanh.in.cpp
     backend/auto_broadcast.in.cpp
-    backend/autodiff.in.cpp
     backend/batch_norm.in.cpp
     backend/broadcast.in.cpp
     backend/builder_reduce_ops_opset1.in.cpp
@@ -297,7 +294,6 @@ set(MULTI_TEST_SRC
     backend/concat.in.cpp
     backend/constant.in.cpp
     backend/convert.in.cpp
-    backend/convolution_reference.in.cpp
     backend/convolution.in.cpp
     backend/cos.in.cpp
     backend/cosh.in.cpp
@@ -395,11 +391,6 @@ if (NGRAPH_ONNX_IMPORT_ENABLE AND NOT NGRAPH_USE_PROTOBUF_LITE)
 endif()
 
 foreach(BACKEND_NAME ${ACTIVE_BACKEND_LIST})
-    # Some---but not all---autodiff tests go through multiple iterations with
-    # different random seeds. On the CPU backend this is currently very slow
-    # because the autodiff tests recompile with each iteration. That behavior
-    # can be changed, but it's a bit involved, so for the time being we just
-    # reduce the number of test iterations on non-INTERPRETER backends.
     if(${BACKEND_NAME} MATCHES ^INTERPRETER$)
         set(TEST_LOOPS 100)
     else()

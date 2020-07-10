@@ -44,11 +44,6 @@ shared_ptr<Node> op::Stack::clone_with_new_inputs(const OutputVector& new_args) 
     return make_shared<Stack>(new_args, m_axis);
 }
 
-void op::Stack::generate_adjoints(autodiff::Adjoints& adjoints, const OutputVector& deltas)
-{
-    throw ngraph_error("Not yet implemented");
-}
-
 void op::Stack::pre_validate_and_infer_types()
 {
     bool is_input_dynamic = false;

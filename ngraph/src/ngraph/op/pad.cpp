@@ -127,47 +127,6 @@ shared_ptr<Node> op::v0::Pad::clone_with_new_inputs(const OutputVector& new_args
         new_args.at(0), new_args.at(1), m_padding_below, m_padding_above, m_pad_mode);
 }
 
-/* The "y" half of this is going to be a bit tricky... best way to handle it, I think,
-   is to ReplaceSlice the non-padded values in the incoming delta tensor with a zero
-   broadcasted to x's shape; then sum that and backprop the result to y.
-
-   For example, let's say we are padding a 2x2 with 1 above and below, and the deltas
-   coming back are:
-
-   d00 d01 d02 d03
-   d10 d11 d12 d13
-   d20 d21 d22 d23
-   d30 d31 d32 d33
-
-   We know that everything but d11, d12, d21, and d22 on the forward prop is just "y".
-   So we mask that off (using the forward-prop padding values to determine start, end,
-   and slice stride):
-
-   d00 d01 d02 d03
-   d10   0   0 d13
-   d20   0   0 d23
-   d30 d31 d32 d33
-
-   Then sum that up:
-
-   d00 + d01 + d02 + d03 +
-   d10 +   0 +   0 + d13 +
-   d20 +   0 +   0 + d23 +
-   d30 + d31 + d32 + d33
-
-   For the "x" backprop it's sort of the opposite; just slice out:
-
-   d11 d12
-   d21 d22
-
-   and push that back.
-*/
-void op::v0::Pad::generate_adjoints(autodiff::Adjoints& /* adjoints */,
-                                    const OutputVector& /* deltas */)
-{
-    throw ngraph_error("Autodiff is not yet implemented for Pad");
-}
-
 std::shared_ptr<Node> op::Pad::get_default_value() const
 {
     AxisSet axes{};
@@ -360,10 +319,4 @@ shared_ptr<Node> op::v1::Pad::clone_with_new_inputs(const OutputVector& new_args
     {
         return make_shared<v1::Pad>(new_args.at(0), new_args.at(1), new_args.at(2), m_pad_mode);
     }
-}
-
-void op::v1::Pad::generate_adjoints(autodiff::Adjoints& /* adjoints */,
-                                    const OutputVector& /* deltas */)
-{
-    throw ngraph_error("Autodiff is not yet implemented for Pad:v1");
 }
