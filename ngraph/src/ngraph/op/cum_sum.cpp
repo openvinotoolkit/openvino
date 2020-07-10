@@ -77,13 +77,6 @@ shared_ptr<Node> op::v0::CumSum::clone_with_new_inputs(const OutputVector& new_a
     return make_shared<op::CumSum>(new_args.at(0), new_args.at(1), m_exclusive, m_reverse);
 }
 
-void op::v0::CumSum::generate_adjoints(autodiff::Adjoints& adjoints, const OutputVector& deltas)
-{
-    auto delta = deltas.at(0);
-    auto input_tensor = input_value(0);
-    adjoints.add_delta(input_tensor, delta);
-}
-
 shared_ptr<Node> op::v0::CumSum::get_default_value() const
 {
     return ngraph::make_constant_from_string("0", get_element_type(), get_shape());
