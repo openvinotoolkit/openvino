@@ -459,19 +459,6 @@ void LayerTransformation::fillAvailablePrecisions(std::shared_ptr<Node> layer, s
 std::shared_ptr<ngraph::Node> LayerTransformation::separateInStandaloneBranch(std::shared_ptr<ngraph::Node> node) const {
     FakeQuantizeDequantization dequantization = getDequantization(node);
     if (dequantization.isShared()) {
-        bool nodeInputIndexToChangeWasFound = false;
-        size_t nodeInputIndexToChange;
-        for (size_t i = 0; i < node->get_input_size(); ++i) {
-            if (dequantization.multiply.get() == node->get_input_node_ptr(i)) {
-                nodeInputIndexToChange = i;
-                nodeInputIndexToChangeWasFound = true;
-                break;
-            }
-        }
-        if (!nodeInputIndexToChangeWasFound) {
-            THROW_IE_LPT_EXCEPTION(*node) << " input index for " << dequantization.multiply->get_friendly_name() << " was not found";
-        }
-
         std::shared_ptr<Node> parent = dequantization.data;
         if (dequantization.convert != nullptr) {
             parent = dequantization.convert->clone_with_new_inputs({ parent });

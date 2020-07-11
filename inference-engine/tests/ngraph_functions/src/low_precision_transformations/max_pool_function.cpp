@@ -5,6 +5,7 @@
 #include "ngraph_functions/low_precision_transformations/max_pool_function.hpp"
 
 #include <ngraph/opsets/opset1.hpp>
+#include <ngraph_ops/type_relaxed.hpp>
 #include "ngraph_functions/subgraph_builders.hpp"
 
 namespace ngraph {

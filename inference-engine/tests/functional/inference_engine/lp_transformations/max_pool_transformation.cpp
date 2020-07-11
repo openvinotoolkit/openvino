@@ -13,10 +13,14 @@
 #include <transformations/utils/utils.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/low_precision/max_pool.hpp>
+#include <transformations/low_precision/transformer.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "simple_low_precision_transformer.hpp"
 #include "ngraph_functions/low_precision_transformations/max_pool_function.hpp"
+
+// TODO: debug only
+#include "ngraph/pass/visualize_tree.hpp"
 
 using namespace testing;
 using namespace ngraph::pass;
@@ -42,12 +46,20 @@ public:
         const MaxPoolTransformationTestValues testValues = std::get<3>(GetParam());
 
         actualFunction = ngraph::builder::subgraph::MaxPoolFunction::getOriginal(precision, shape, params, testValues.actual);
+        // ngraph::pass::VisualizeTree("C:\\Projects\\temp\\test.actual").run_on_module(std::vector<std::shared_ptr<ngraph::Function>>{ actualFunction });
 
         SimpleLowPrecisionTransformer transform;
         transform.add<ngraph::pass::low_precision::MaxPoolTransformation, ngraph::opset1::MaxPool>(params);
         transform.transform(actualFunction);
+        // ngraph::pass::VisualizeTree("C:\\Projects\\temp\\test.transformed").run_on_module(std::vector<std::shared_ptr<ngraph::Function>>{ actualFunction });
 
         referenceFunction = ngraph::builder::subgraph::MaxPoolFunction::getReference(precision, shape, params, testValues.expected);
+        {
+            low_precision::TypeRelaxedReplacer pass;
+            pass.run_on_function(referenceFunction);
+        }
+
+        // ngraph::pass::VisualizeTree("C:\\Projects\\temp\\test.reference").run_on_module(std::vector<std::shared_ptr<ngraph::Function>>{ referenceFunction });
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<MaxPoolTransformationParams> obj) {
@@ -70,7 +82,7 @@ TEST_P(MaxPoolTransformation, CompareFunctions) {
 
 const std::vector<ngraph::element::Type> precisions = {
     ngraph::element::f32,
-    ngraph::element::f16
+    // ngraph::element::f16
 };
 
 const std::vector<ngraph::Shape> shapes = {
@@ -100,7 +112,7 @@ const std::vector<MaxPoolTransformationTestValues> testValues = {
 };
 
 INSTANTIATE_TEST_CASE_P(
-    DISABLED_LPT,
+    LPT,
     MaxPoolTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(precisions),

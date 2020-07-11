@@ -576,23 +576,59 @@ void moveDequantization(
     replace_node(operation, newDequantization);
 }
 
-std::shared_ptr<opset1::Multiply> insertDequantization(
+
+InsertDequantizationResult insertDequantization(
     const std::shared_ptr<ngraph::Node>& operation,
-    const FakeQuantizeDequantization& dequantization) {
+    const FakeQuantizeDequantization& dequantization,
+    const bool updatePrecision) {
+
+    std::vector<Output<Node>> inputs(operation->get_input_size());
+    for (size_t i = 0; i < operation->get_input_size(); ++i) {
+        inputs[i] = operation->get_input_node_shared_ptr(i);
+    }
+
+    const size_t dequantizationIndex = getInputIndex(dequantization.multiply, operation);
+    inputs[dequantizationIndex] = dequantization.data;
+
+    std::shared_ptr<ngraph::Node> newOperation = operation->copy_with_new_inputs(inputs);
+    newOperation->set_friendly_name(operation->get_friendly_name());
+
     std::shared_ptr<opset1::Multiply> replacement = as_type_ptr<opset1::Multiply>(dequantization.multiply->copy_with_new_inputs({
         dequantization.subtract ?
             (dequantization.convert ?
                 dequantization.subtract->copy_with_new_inputs({
-                    dequantization.convert->copy_with_new_inputs({ operation }),
+                    dequantization.convert->copy_with_new_inputs({ newOperation }),
                     dequantization.subtract->get_input_node_shared_ptr(1)->clone_with_new_inputs({}) }) :
                 dequantization.subtract->copy_with_new_inputs({
-                    operation,
+                    newOperation,
                     dequantization.subtract->get_input_node_shared_ptr(1)->clone_with_new_inputs({}) })) :
-            (dequantization.convert ? dequantization.convert->copy_with_new_inputs({ operation }) : operation),
+            (dequantization.convert ? dequantization.convert->copy_with_new_inputs({ newOperation }) : newOperation),
         dequantization.multiply->get_input_node_shared_ptr(1)->clone_with_new_inputs({}) }));
 
     replace_node(operation, replacement);
-    return replacement;
+
+    if (updatePrecision) {
+        NetworkHelper::setOutDataPrecision(newOperation, newOperation->get_input_element_type(0));
+    }
+
+    return InsertDequantizationResult(newOperation, replacement);
+}
+
+size_t getInputIndex(const std::shared_ptr<ngraph::Node>& parent, const std::shared_ptr<ngraph::Node>& child) {
+    bool inputIndexWasFound = false;
+    size_t inputIndex;
+    for (size_t i = 0; i < child->get_input_size(); ++i) {
+        if (parent.get() == child->get_input_node_ptr(i)) {
+            inputIndex = i;
+            inputIndexWasFound = true;
+            break;
+        }
+    }
+    if (!inputIndexWasFound) {
+        THROW_IE_LPT_EXCEPTION(*child) << " input index for " << parent->get_friendly_name() << " was not found";
+    }
+
+    return inputIndex;
 }
 
 }  // namespace low_precision
