@@ -16,7 +16,6 @@
 #include "ngraph_ops/type_relaxed.hpp"
 #include <ngraph/rt_info.hpp>
 
-#include "transformations/low_precision/common/dequantization_details.hpp"
 #include "transformation_context.hpp"
 #include "quantization_details.hpp"
 #include "transformations/utils/utils.hpp"
@@ -36,9 +35,6 @@ std::vector<std::shared_ptr<Node>> consumers(std::shared_ptr<Node> node);
 
 Shape alignShapeForChannelDim(const Shape& shape, Rank rank);
 
-/**
-* @brief NetworkHelper class encapsulates manipulations with CNN Network.
-*/
 class TRANSFORMATIONS_API NetworkHelper {
 public:
     // return true if at least one child uses layer on weights

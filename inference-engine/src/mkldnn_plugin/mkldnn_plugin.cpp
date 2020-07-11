@@ -26,12 +26,10 @@
 #include <ngraph/opsets/opset2.hpp>
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/op/fused/gelu.hpp>
-
 #include <transformations/low_precision/transformer.hpp>
 #include <transformations/low_precision/convolution.hpp>
 
 #include "ngraph_ops/fully_connected.hpp"
-#include "ngraph_ops/subgraph.hpp"
 
 #if !defined(__arm__) && !defined(_M_ARM) && !defined(__aarch64__) && !defined(_M_ARM64)
 #if defined(_WIN32) || defined(WIN32)

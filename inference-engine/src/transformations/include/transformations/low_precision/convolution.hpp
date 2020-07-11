@@ -4,8 +4,9 @@
 
 #pragma once
 
-#include <algorithm>
-#include <vector>
+#include <ngraph/ngraph.hpp>
+#include <ngraph/pass/graph_rewrite.hpp>
+#include "transformation_context.hpp"
 #include "weightable_layer_transformation.hpp"
 
 namespace ngraph {
@@ -17,7 +18,6 @@ public:
     ConvolutionTransformation(const Params& params);
     void registerMatcherIn(GraphRewrite& pass, TransformationContext& context) const override;
     void transform(TransformationContext& context, ngraph::pattern::Matcher &m) const override;
-    void transform2(TransformationContext& context, ngraph::pattern::Matcher &m) const;
 };
 
 } // namespace low_precision

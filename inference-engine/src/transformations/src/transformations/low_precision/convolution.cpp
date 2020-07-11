@@ -25,8 +25,6 @@ void ConvolutionTransformation::registerMatcherIn(GraphRewrite &pass, Transforma
         make_op_pattern<opset1::Convolution>({ make_op_label<opset1::Multiply>(), make_op_label<opset1::FakeQuantize>()}));
 }
 
-size_t handledCount = 0;
-
 void ConvolutionTransformation::transform(TransformationContext &context, ngraph::pattern::Matcher &m) const {
     auto convolution = m.get_match_root();
 
