@@ -11,7 +11,6 @@
 
 #include <gtest/gtest.h>
 
-#include <ngraph/pass/visualize_tree.hpp>
 #include <transformations/low_precision/convolution.hpp>
 #include <transformations/low_precision/fake_quantize.hpp>
 

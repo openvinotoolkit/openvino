@@ -18,9 +18,6 @@
 #include "simple_low_precision_transformer.hpp"
 #include "ngraph_functions/low_precision_transformations/convolution_function.hpp"
 
-// TODO: remove after debugging
-#include <ngraph/pass/visualize_tree.hpp>
-
 using namespace testing;
 using namespace ngraph;
 using namespace ngraph::pass;

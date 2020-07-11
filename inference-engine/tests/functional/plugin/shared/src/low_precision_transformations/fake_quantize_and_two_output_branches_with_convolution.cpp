@@ -17,9 +17,6 @@
 #include "functional_test_utils/blob_utils.hpp"
 #include "ngraph_functions/pass/convert_prc.hpp"
 
-// TODO: debug only
-#include <ngraph/pass/visualize_tree.hpp>
-
 namespace LayerTestsDefinitions {
 
 std::string FakeQuantizeAndTwoOutputBranchesWithConvolutionTransformation::getTestCaseName(

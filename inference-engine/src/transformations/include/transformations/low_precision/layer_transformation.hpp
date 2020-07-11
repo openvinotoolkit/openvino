@@ -20,20 +20,6 @@
 #include <transformations/low_precision/common/ie_lpt_exception.hpp>
 #include "common/fake_quantize_dequantization.hpp"
 
-/*****************************************************
- * Debug capability
- *  - ORIGINAL_MODEL_PATH : Specify with existing folder name
- *    to serialize original model into it (XML & BIN extensions were added)
- *  - TRANSFORMED_MODEL_PATH : Specify with existing folder name
- *    to serialize original model into it (XML & BIN extensions were added)
- *  - LPT_PRINT_DEQUANTIZATION_INFO : Define it to enable
- *    dequantization layers printing
- *
- *****************************************************/
-//#define LPT_ORIGINAL_MODEL_PATH "/localdisk/slyalin/orig.model"
-//#define LPT_TRANSFORMED_MODEL_PATH "/localdisk/slyalin/transformed.model"
-// #define LPT_PRINT_DEQUANTIZATION_INFO
-
 namespace ngraph {
 namespace pass {
 namespace low_precision {
@@ -301,13 +287,6 @@ public:
     void fillAvailablePrecisions(std::shared_ptr<Node> layer, std::vector<element::Type>& availablePrecisions) const;
 
 protected:
-#ifdef LPT_PRINT_DEQUANTIZATION_INFO
-            static void printDequantizationInfo(const CNNLayer& layer);
-    static void printDequantizationInfo(const DataPrecision& dataPrecision);
-    static void printDequantizationValues(
-        const std::vector<float>& dequantizationScales,
-        const std::vector<float>& dequantizationShifts);
-#endif
     void addDequantizationLayer(
         TransformationContext& context,
         const std::shared_ptr<Node> layer,

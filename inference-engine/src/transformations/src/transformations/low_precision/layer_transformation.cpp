@@ -93,66 +93,6 @@ bool LayerTransformation::canBeTransformed(const TransformationContext& context,
     return true;
 }
 
-#if 0 // TODO LPT-TO-NGRAPH
-
-Precision LayerTransformation::getPrecisionBeforeParentDequantizationScaleShift(const CNNLayer& layer) {
-    const CNNLayerPtr scaleShift = CNNNetworkHelper::getParent(layer, 0);
-    if (scaleShift == nullptr) {
-        THROW_TRANSFORMATION_EXCEPTION << "dequantization ScaleShift layer is absent";
-    }
-
-    if (scaleShift->type != "ScaleShift") {
-        THROW_TRANSFORMATION_EXCEPTION << "not expected dequantization layer type " << scaleShift->type;
-    }
-
-    if (scaleShift->insData.size() < 1) {
-        THROW_TRANSFORMATION_EXCEPTION << "is not expected ScaleShift '" << scaleShift->name << "' insert data size "
-                           << scaleShift->insData.size();
-    }
-
-    const DataWeakPtr insDataWeak = scaleShift->insData[0];
-    const DataPtr insData = insDataWeak.lock();
-    if (insData == nullptr) {
-        THROW_TRANSFORMATION_EXCEPTION << "input data is absent";
-    }
-
-    return insData->getPrecision();
-}
-#endif
-
-#ifdef LPT_PRINT_DEQUANTIZATION_INFO
-std::stringstream toStream(const std::vector<float>& dequantizationValues) {
-    std::stringstream ss;
-    const size_t scalesCount = dequantizationValues.size() > 9ul ? 9ul : dequantizationValues.size();
-    ss << "{";
-    for (size_t i = 0ul; i < scalesCount; ++i) {
-        ss << dequantizationValues[i] << (i < (scalesCount - 1) ? "," : "");
-    }
-    ss << "}";
-    return ss;
-}
-
-void LayerTransformation::printDequantizationInfo(const CNNLayer& layer) {
-    const QuantizationDetails quantizationDetails = QuantizationDetails::getDetails(layer);
-    std::cout <<
-        layer.type << (CNNNetworkHelper::onWeights(layer) ? " on weights " : " on activations ") <<
-        layer.name << ":" << std::endl <<
-        "   details  : " << quantizationDetails << std::endl;
-}
-
-void LayerTransformation::printDequantizationInfo(const DataPrecision& dataPrecision) {
-    std::cout << "   precision: " << dataPrecision << std::endl;
-}
-
-void LayerTransformation::printDequantizationValues(
-    const std::vector<float>& dequantizationScales,
-    const std::vector<float>& dequantizationShifts) {
-    std::cout <<
-        "   scales   : " << toStream(dequantizationScales).str() << std::endl <<
-        "   shifts   : " << toStream(dequantizationShifts).str() << std::endl;
-}
-#endif
-
 void LayerTransformation::addDequantizationLayer(
     TransformationContext& context,
     const std::shared_ptr<Node> layer,
@@ -314,28 +254,12 @@ LayerTransformation::PrecisionDetails LayerTransformation::getPrecisionDetails(c
             if (actual > quantizationIntervalAsymmetryThreshold) {
                 hasZeroPoint = true;
             }
-#ifdef LPT_PRINT_DEQUANTIZATION_INFO
-            if (hasZeroPoint) {
-                std::cout << "   actual: " << actual << ", threshold: " << quantizationIntervalAsymmetryThreshold << std::endl;
-                std::cout << "   hasZeroPoint: " << (hasZeroPoint ? "True" : "False") << std::endl;
-            }
-#endif
         } else {
             // unsigned
             signedPrecision = false;
             if (boundaryValuesAreNotZero) {
                 hasZeroPoint = boundaryValuesAreNotZero;
             }
-
-#ifdef LPT_PRINT_DEQUANTIZATION_INFO
-            if (hasZeroPoint) {
-                const float actual = quantizationDetails.outputLowValues[i] > 0.f ?
-                    quantizationDetails.outputLowValues[i] :
-                    quantizationDetails.outputHighValues[i];
-                std::cout << "   actual: " << actual << ", threshold: 0.0" << std::endl;
-                std::cout << "   hasZeroPoint: " << (hasZeroPoint ? "True" : "False") << std::endl;
-            }
-#endif
         }
     }
 
@@ -365,9 +289,6 @@ DataPrecision LayerTransformation::getDataPrecision(
         const QuantizationDetails& quantizationDetails,
         const bool onWeights,
         const bool supportAsymmetricQuantization) const {
-#ifdef LPT_PRINT_DEQUANTIZATION_INFO
-    printDequantizationInfo(layer);
-#endif
     std::vector<element::Type> precisions = onWeights ? precisionsOnWeights : precisionsOnActivations;
     PrecisionDetails precisionDetailsAtOutputIntervals = getPrecisionDetails(quantizationDetails);
     {
@@ -388,10 +309,6 @@ DataPrecision LayerTransformation::getDataPrecision(
                         DataPrecision::getMinValue(resultPrecision, quantizationDetails.levels),
                         DataPrecision::getMaxValue(resultPrecision),
                         foundIt != precisions.end() ? precisionDetailsAtOutputIntervals.hasZeroPoint : true);
-
-#ifdef LPT_PRINT_DEQUANTIZATION_INFO
-                printDequantizationInfo(dataPrecision);
-#endif
                 return dataPrecision;
             }
         }
@@ -404,9 +321,6 @@ DataPrecision LayerTransformation::getDataPrecision(
                                                 DataPrecision::getMinValue(*precisions.begin(), quantizationDetails.levels),
                                                 DataPrecision::getMaxValue(*precisions.begin()),
                                                 true);
-#ifdef LPT_PRINT_DEQUANTIZATION_INFO
-    printDequantizationInfo(dataPrecision);
-#endif
     return dataPrecision;
 }
 

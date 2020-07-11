@@ -18,9 +18,6 @@
 #include "transformations/low_precision/common/ie_lpt_exception.hpp"
 #include "transformations/low_precision/network_helper.hpp"
 
-// TODO: debug only
-#include <ngraph/pass/visualize_tree.hpp>
-
 namespace ngraph {
 namespace pass {
 namespace low_precision {
@@ -57,10 +54,6 @@ void FakeQuantizeTransformation::transform(TransformationContext& context, ngrap
     if (dataPrecision.precision == element::undefined) {
         return;
     }
-
-#ifdef LPT_PRINT_DEQUANTIZATION_INFO
-    printDequantizationValues(dequantizationScales, dequantizationShifts);
-#endif
 
     // Split FakeQuantize to two parts: Quantize and Dequantize
     auto QDQ = decomposeFakeQuantize(

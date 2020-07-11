@@ -18,9 +18,6 @@
 #include "ngraph_functions/pass/convert_prc.hpp"
 #include "ngraph_functions/low_precision_transformations/fake_quantize_and_convolution_function.hpp"
 
-// TODO: debug only
-#include <ngraph/pass/visualize_tree.hpp>
-
 namespace LayerTestsDefinitions {
 
 std::string ConvolutionTransformation::getTestCaseName(testing::TestParamInfo<ConvolutionTransformationParams> obj) {

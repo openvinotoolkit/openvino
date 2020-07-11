@@ -15,9 +15,6 @@
 
 #include "simple_low_precision_transformer.hpp"
 
-// TODO: debug only
-#include <ngraph/pass/visualize_tree.hpp>
-
 using namespace testing;
 using namespace ngraph::pass;
 
