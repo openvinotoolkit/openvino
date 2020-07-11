@@ -496,7 +496,6 @@ void CNNNetworkHelper::setOutDataPrecision(const CNNLayer& layer, const Precisio
     for (const DataPtr& data : layer.outData) {
         data->setPrecision(precision);
     }
-    // std::cout << "Just set precision " << precision << " for node " << layer.name << "\n";
 }
 
 void CNNNetworkHelper::setOutDataPrecision(const std::vector<CNNLayerPtr>& layers, const Precision& precision) {

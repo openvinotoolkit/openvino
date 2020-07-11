@@ -186,6 +186,7 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& configMap) 
                 lptVersion = LptVersion::cnnNetwork;
             else if (val == PluginConfigInternalParams::LP_TRANSFORMS_NGRAPH)
                 // lptVersion = LptVersion::nGraph;
+                // GPU is not ready yet
                 THROW_IE_EXCEPTION << NOT_FOUND_str << "Unsupported property value by plugin: " << val;
             else
                 THROW_IE_EXCEPTION << "Wrong value for property key " << PluginConfigInternalParams::KEY_LP_TRANSFORMS_MODE;

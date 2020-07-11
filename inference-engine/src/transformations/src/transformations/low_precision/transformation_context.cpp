@@ -8,17 +8,7 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-TransformationContext::TransformationContext(std::shared_ptr<Function> network)
-    : network(network) {
-#if 0   // TODO LPT-TO-NGRAPH
-    auto it = details::CNNNetworkIterator(&network);
-    auto end = details::CNNNetworkIterator();
-    while (it != end) {
-        _original_precisions_map[(*it)->name] = {};
-        for (auto data : (*it)->outData) _original_precisions_map[(*it)->name][data->getName()] = data->getPrecision();
-        it++;
-    }
-#endif
+TransformationContext::TransformationContext(std::shared_ptr<Function> network) : network(network) {
 }
 
 }  // namespace low_precision

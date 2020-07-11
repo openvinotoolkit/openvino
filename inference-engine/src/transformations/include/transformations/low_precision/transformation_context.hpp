@@ -33,8 +33,6 @@ public:
     }
 
 private:
-    //std::vector<std::shared_ptr<Node>> layers;
-    // TODO LPT-TO-NGRAPH: change it (replace unordered_map by a vector if no gaps)?
     std::unordered_map<std::string, std::unordered_map<size_t, ngraph::element::Type>> _original_precisions_map;
 };
 
