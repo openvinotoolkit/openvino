@@ -4,13 +4,7 @@
 
 #include "transformations/low_precision/fake_quantize.hpp"
 
-#include <algorithm>
-#include <cmath>
-#include <limits>
-#include <map>
 #include <memory>
-#include <string>
-#include <utility>
 #include <vector>
 
 #include <ngraph/opsets/opset1.hpp>
@@ -35,8 +29,6 @@ void FakeQuantizeTransformation::transform(TransformationContext& context, ngrap
         return;
     }
 
-    // FakeQuantize on weights are used without dequantization ScaleShifts
-    // TODO: include into the transformation pattern?
     if (NetworkHelper::onWeights(layer)) {
         return;
     }

@@ -22,56 +22,6 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-#if 0 // TODO LPT-TO-NGRAPH
-
-class ConstTensorDesc {
-public:
-    static void validate(const Layout layout, const std::vector<size_t>& dims) {
-        switch (layout) {
-        case Layout::SCALAR: {
-            if (dims.size() != 0) {
-                THROW_TRANSFORMATION_EXCEPTION << "unexpected dimensions size " << dims.size() << " for layout " << layout;
-            }
-            break;
-        }
-        case Layout::C: {
-            if (dims.size() != 1) {
-                THROW_TRANSFORMATION_EXCEPTION << "unexpected dimensions size " << dims.size() << " for layout " << layout;
-            }
-            break;
-        }
-        case Layout::NCHW: {
-            if (dims.size() != 4) {
-                THROW_TRANSFORMATION_EXCEPTION << "unexpected dimensions size " << dims.size() << " for layout " << layout;
-            }
-            break;
-        }
-        default: {
-            THROW_TRANSFORMATION_EXCEPTION << "unexpected layout " << layout;
-        }
-        }
-    }
-
-    static size_t getChannelsCount(const Layout layout, const std::vector<size_t>& dims) {
-        switch (layout) {
-        case Layout::SCALAR: {
-            return 1;
-        }
-        case Layout::C: {
-            return dims[0];
-        }
-        case Layout::NCHW: {
-            return dims[1];
-        }
-        default: {
-            THROW_TRANSFORMATION_EXCEPTION << "unexpected layout " << layout;
-        }
-        }
-    }
-};
-
-#endif
-
 QuantizationDetails::QuantizationDetails()
     : levels(),
       inputLowValues({}),
