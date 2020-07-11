@@ -19,7 +19,6 @@
 #include "transformations/low_precision/common/dequantization_details.hpp"
 #include "transformation_context.hpp"
 #include "quantization_details.hpp"
-#include "ngraph_ops/multiply_add.hpp"
 #include "transformations/utils/utils.hpp"
 #include "common/fake_quantize_dequantization.hpp"
 

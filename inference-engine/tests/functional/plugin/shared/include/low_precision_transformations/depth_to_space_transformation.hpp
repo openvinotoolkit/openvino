@@ -30,8 +30,7 @@ protected:
     void SetUp() override;
 
 private:
-    void validateCNNNetwork();
-    void validateNGraph();
+    void validate();
 };
 
 }  // namespace LayerTestsDefinitions

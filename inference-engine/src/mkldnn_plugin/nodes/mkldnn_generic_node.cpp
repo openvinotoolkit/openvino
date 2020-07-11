@@ -158,7 +158,7 @@ void MKLDNNGenericNode::execLayer() {
     InferenceEngine::ResponseDesc resp;
     InferenceEngine::StatusCode rc = impls[0]->execute(inputs, outputs, &resp);
     if (rc != InferenceEngine::OK) {
-        THROW_IE_EXCEPTION << this->getTypeStr() << ":" << this->getName() << ": " << resp.msg;
+        THROW_IE_EXCEPTION << resp.msg;
     }
 }
 

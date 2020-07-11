@@ -49,10 +49,6 @@
 #include "ie_memcpy.h"
 #include "mkldnn_debug.h"
 
-#include "ie_layers.h"
-
-#include "ngraph_ops/subgraph.hpp"
-
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
 
@@ -246,11 +242,6 @@ MKLDNNNode* MKLDNNNode::CreateNode(const InferenceEngine::CNNLayerPtr& layer, co
                                    const MKLDNNExtensionManager::Ptr& extMgr, MKLDNNWeightsSharing::Ptr &w_cache) {
     MKLDNNNode *newNode = nullptr;
     auto nodesHolder = GetNodesHolder();
-
-    auto ngraph_node = layer->getNode();
-    if (auto subgraph = ngraph::as_type_ptr<ngraph::op::Subgraph>(ngraph_node)) {
-        std::cerr << "Subgraph found: " << subgraph->get_name() << ", body has " << subgraph->get_body()->get_ops().size() << " nodes\n";
-    }
 
     if (nodesHolder->nodes.find("Generic") != nodesHolder->nodes.end()) {
         std::unique_ptr<MKLDNNNode> ol(nodesHolder->nodes["Generic"](layer, eng, w_cache));

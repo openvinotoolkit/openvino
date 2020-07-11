@@ -25,7 +25,8 @@ std::string ConcatTransformation::getTestCaseName(testing::TestParamInfo<LayerTe
     InferenceEngine::SizeVector inputShapes;
     std::string targetDevice;
     InferenceEngine::details::LayerTransformation::Params params;
-    std::tie(netPrecision, inputShapes, targetDevice, params) = obj.param;
+    LayerTestsUtils::LayerTransformation::LptVersion version;
+    std::tie(netPrecision, inputShapes, targetDevice, params, version) = obj.param;
 
     std::ostringstream result;
     result << netPrecision.name() << "_" << targetDevice << "_" << toString(params);
@@ -37,7 +38,8 @@ InferenceEngine::Blob::Ptr ConcatTransformation::GenerateInput(const InferenceEn
     InferenceEngine::Precision netPrecision;
     std::string targetDevice;
     InferenceEngine::details::LayerTransformation::Params params;
-    std::tie(netPrecision, inputShape, targetDevice, params) = this->GetParam();
+    LayerTestsUtils::LayerTransformation::LptVersion version;
+    std::tie(netPrecision, inputShape, targetDevice, params, version) = this->GetParam();
 
     const float k = (info.name() == "input1") ? 1.f : (info.name() == "input2" ? 2.f : 3.f);
     return LayerTransformation::GenerateInput(params.precisionsOnActivations[0], info.getTensorDesc(), k);
@@ -49,7 +51,8 @@ void ConcatTransformation::SetUp() {
     InferenceEngine::SizeVector inputShape;
     InferenceEngine::Precision netPrecision;
     InferenceEngine::details::LayerTransformation::Params params;
-    std::tie(netPrecision, inputShape, targetDevice, params) = this->GetParam();
+    LayerTestsUtils::LayerTransformation::LptVersion version;
+    std::tie(netPrecision, inputShape, targetDevice, params, version) = this->GetParam();
     const auto ngPrecision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
     const auto interval = getQuantizationInterval(params.precisionsOnActivations[0]);
@@ -96,7 +99,8 @@ void ConcatTransformation::validate() {
     InferenceEngine::SizeVector inputShape;
     InferenceEngine::Precision netPrecision;
     InferenceEngine::details::LayerTransformation::Params params;
-    std::tie(netPrecision, inputShape, targetDevice, params) = this->GetParam();
+    LayerTestsUtils::LayerTransformation::LptVersion version;
+    std::tie(netPrecision, inputShape, targetDevice, params, version) = this->GetParam();
 
     const InferenceEngine::CNNNetwork network = transform(params);
 

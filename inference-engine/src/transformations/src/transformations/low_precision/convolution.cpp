@@ -8,13 +8,8 @@
 #include <memory>
 #include <string>
 #include <vector>
-#include <cassert>
 
 #include "transformations/low_precision/network_helper.hpp"
-#include "ngraph_ops/multiply_add.hpp"
-
-// TODO: remove after debugging
-#include <ngraph/pass/visualize_tree.hpp>
 
 namespace ngraph {
 namespace pass {

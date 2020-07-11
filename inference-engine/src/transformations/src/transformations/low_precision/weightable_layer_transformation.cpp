@@ -3,13 +3,13 @@
 //
 
 #include "transformations/low_precision/weightable_layer_transformation.hpp"
-#include "transformations/low_precision/network_helper.hpp"
-#include "ngraph_ops/multiply_add.hpp"
 
 #include <algorithm>
 #include <memory>
 #include <string>
 #include <vector>
+
+#include "transformations/low_precision/network_helper.hpp"
 
 namespace ngraph {
 namespace pass {

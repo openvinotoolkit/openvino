@@ -17,7 +17,6 @@
 
 #include <ngraph/rt_info.hpp>
 #include <ngraph/opsets/opset1.hpp>
-#include <ngraph_ops/multiply_add.hpp>
 #include "ngraph_ops/type_relaxed.hpp"
 
 #include "transformations/low_precision/quantization_details.hpp"

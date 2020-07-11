@@ -40,19 +40,6 @@ static void checkLayerInputPrecision(const ICNNNetwork& network, const std::stri
 
 ModelParams getModelParams(const std::string modelName) {
 std::map<std::string, ModelParams> modelParams = {
-    // {
-    //    "inception_v2_tf",
-    //    ModelParams(
-    //            "inception_v2_tf",
-    //            "inception_v2/inception_v2_i8.xml",
-    //            "validation_set/224x224/dog.bmp",
-    //            {{157, 9.49783 },  // 157 row: 'Blenheim spaniel'
-    //            { 219, 7.13866 },  // 219 row: 'Welsh springer spaniel',
-    //            { 216, 5.60607 },  // 153 row: 'Japanese spaniel',
-    //            { 220, 5.23158 }}
-    //    )
-    // },
-
     {
         "inception_v3_tf",
         ModelParams(
@@ -142,8 +129,6 @@ INSTANTIATE_TEST_CASE_P(
         smoke_Inception,
         ModelTransformationsTest,
         ::testing::Values(
-                // TransformationsParams("CPU", getModelParams("inception_v2_tf"), 1ul, true, false, createParam()),
-
                 TransformationsParams("CPU", getModelParams("inception_v3_tf"), 1ul, false, false, createParam(), {}, 3ul),
                 TransformationsParams("CPU", getModelParams("inception_v3_tf"), 1ul, false, true, createParamI8I8(), {}, 0, false),
                 TransformationsParams("CPU", getModelParams("inception_v3_tf"), 1ul, false, true, createParamU8I8(), {}, 0),
