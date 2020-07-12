@@ -63,7 +63,7 @@ void FakeQuantizeTransformation::transform(TransformationContext& context, ngrap
 #endif
 
     // Split FakeQuantize to two parts: Quantize and Dequantize
-    auto QDQ = decomposeFakeQuantize(
+    auto QDQ = NetworkHelper::decomposeFakeQuantize(
         as_type_ptr<opset1::FakeQuantize>(layer),
         dataPrecision.precision,
         dataPrecision.min,

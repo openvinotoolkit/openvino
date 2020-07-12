@@ -30,8 +30,8 @@
  *    dequantization layers printing
  *
  *****************************************************/
-//#define LPT_ORIGINAL_MODEL_PATH "/localdisk/slyalin/orig.model"
-//#define LPT_TRANSFORMED_MODEL_PATH "/localdisk/slyalin/transformed.model"
+// #define LPT_ORIGINAL_MODEL_PATH "/localdisk/slyalin/orig.model"
+// #define LPT_TRANSFORMED_MODEL_PATH "/localdisk/slyalin/transformed.model"
 // #define LPT_PRINT_DEQUANTIZATION_INFO
 
 namespace ngraph {

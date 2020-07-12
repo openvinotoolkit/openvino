@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2020 Intel Corporation
+﻿// Copyright (C) 2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,10 +11,6 @@
 #include <cassert>
 
 #include "transformations/low_precision/network_helper.hpp"
-#include "ngraph_ops/multiply_add.hpp"
-
-// TODO: remove after debugging
-#include <ngraph/pass/visualize_tree.hpp>
 
 namespace ngraph {
 namespace pass {
@@ -42,11 +38,11 @@ void ConvolutionTransformation::transform(TransformationContext &context, ngraph
     convolution = separateInStandaloneBranch(convolution);
 
     {
-        const FakeQuantizeDequantization dequantization = getDequantization(convolution);
+        const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(convolution);
 
         std::shared_ptr<opset1::Subtract> subtract = dequantization.subtract == nullptr ?
             nullptr :
-            as_type_ptr<opset1::Subtract>(optimizeSubtract(dequantization.subtract));
+            as_type_ptr<opset1::Subtract>(NetworkHelper::optimizeSubtract(dequantization.subtract));
 
         // workaround normalizes shape of Subtract to match CPU plugin expectations
         if (subtract && subtract->get_output_partial_shape(0) != subtract->get_input_partial_shape(1)) {
@@ -129,7 +125,7 @@ void ConvolutionTransformation::transform(TransformationContext &context, ngraph
         }
 
         if (subtractFromWeights != nullptr) {
-            optimizeSubtract(subtractFromWeights);
+            NetworkHelper::optimizeSubtract(subtractFromWeights);
         }
 
         if (convertFromWeights != nullptr) {
@@ -145,7 +141,7 @@ void ConvolutionTransformation::transform(TransformationContext &context, ngraph
         }
     }
 
-    std::shared_ptr<ngraph::opset1::Multiply> finalDequantization = optimizeMultipliesAfter(
+    std::shared_ptr<ngraph::opset1::Multiply> finalDequantization = NetworkHelper::optimizeMultipliesAfter(
         convolution->output(0).get_target_inputs().begin()->get_node()->shared_from_this());
 
     updateOutput(context, finalDequantization, convolution);

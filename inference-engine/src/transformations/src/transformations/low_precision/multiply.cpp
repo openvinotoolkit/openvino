@@ -14,7 +14,6 @@
 
 #include "transformations/low_precision/common/ie_lpt_exception.hpp"
 #include "transformations/low_precision/network_helper.hpp"
-#include "ngraph_ops/multiply_add.hpp"
 
 // TODO: remove after debugging
 #include <ngraph/pass/visualize_tree.hpp>
@@ -43,7 +42,7 @@ void MultiplyTransformation::transform(TransformationContext& context, ngraph::p
     const ngraph::element::Type originalPrecision = multiply->get_output_element_type(0);
     std::shared_ptr<Node> lastOperation = multiply;
 
-    const FakeQuantizeDequantization dequantization = ngraph::pass::low_precision::getDequantization(multiply);
+    const FakeQuantizeDequantization dequantization = ngraph::pass::low_precision::NetworkHelper::getDequantization(multiply);
     if (dequantization.multiply != nullptr) {
         // TODO: NO TESTS!!!
         // before: Y = (X - SH) * SC1 * SC2, after:  Y = X * SC1 * SC2 - SH'

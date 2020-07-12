@@ -23,7 +23,7 @@ void AvgPoolTransformation::registerMatcherIn(GraphRewrite &pass, Transformation
 
 void AvgPoolTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) const {
     const std::shared_ptr<Node> pooling = separateInStandaloneBranch(m.get_match_root());
-    moveDequantizationAfter(context, pooling, getDequantization(pooling), false);
+    moveDequantizationAfter(context, pooling, NetworkHelper::getDequantization(pooling), false);
 }
 
 bool AvgPoolTransformation::isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept {

@@ -10,12 +10,9 @@
 #include <unordered_set>
 #include <utility>
 #include <vector>
-#include <cassert>
 
 #include "transformations/low_precision/common/ie_lpt_exception.hpp"
 #include "transformations/low_precision/network_helper.hpp"
-#include "ngraph_ops/multiply_add.hpp"
-
 
 namespace ngraph {
 namespace pass {

@@ -8,7 +8,6 @@
 #include <string>
 #include <vector>
 
-#include "ngraph_ops/multiply_add.hpp"
 #include "transformations/low_precision/network_helper.hpp"
 
 using namespace ngraph;
@@ -50,8 +49,8 @@ bool EltwiseBaseTransformation::canBeTransformed(const TransformationContext& co
         return false;
     }
 
-    FakeQuantizeDequantization dequantization1 = pass::low_precision::getDequantization(operation, 0ul);
-    FakeQuantizeDequantization dequantization2 = pass::low_precision::getDequantization(operation, 1ul);
+    FakeQuantizeDequantization dequantization1 = pass::low_precision::NetworkHelper::getDequantization(operation, 0ul);
+    FakeQuantizeDequantization dequantization2 = pass::low_precision::NetworkHelper::getDequantization(operation, 1ul);
     if (dequantization1.empty() && dequantization2.empty()) {
         return false;
     }
@@ -68,12 +67,12 @@ bool EltwiseBaseTransformation::canBeTransformed(const TransformationContext& co
 }
 
 int EltwiseBaseTransformation::getNotEmpty(const std::shared_ptr<Node>& eltwise) const {
-    FakeQuantizeDequantization dequantization1 = pass::low_precision::getDequantization(eltwise, 0ul);
+    FakeQuantizeDequantization dequantization1 = pass::low_precision::NetworkHelper::getDequantization(eltwise, 0ul);
     if (dequantization1.empty()) {
         return -1;
     }
 
-    FakeQuantizeDequantization dequantization2 = pass::low_precision::getDequantization(eltwise, 1ul);
+    FakeQuantizeDequantization dequantization2 = pass::low_precision::NetworkHelper::getDequantization(eltwise, 1ul);
     if (dequantization2.empty()) {
         return -1;
     }

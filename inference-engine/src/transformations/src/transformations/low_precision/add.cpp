@@ -12,7 +12,6 @@
 #include <vector>
 #include <cassert>
 
-#include "ngraph_ops/multiply_add.hpp"
 #include "ngraph_ops/type_relaxed.hpp"
 
 #include "transformations/low_precision/common/ie_lpt_exception.hpp"
@@ -84,7 +83,7 @@ void AddTransformation::transform(TransformationContext& context, ngraph::patter
 
     std::shared_ptr<opset1::Multiply> newMultiply;
     if ((constant != nullptr) && (multiply != nullptr)) {
-        newMultiply = swapMultiplyAndAdd(add);
+        newMultiply = NetworkHelper::swapMultiplyAndAdd(add);
     } else {
         const int fullPathIndex = getNotEmpty(add);
         if (fullPathIndex == -1) {
@@ -95,12 +94,12 @@ void AddTransformation::transform(TransformationContext& context, ngraph::patter
         // TODO: question: is it reasonable to create Constant? (performance issue?)
         // TODO: question: should we clone constant here?
 
-        FakeQuantizeDequantization dequantization1 = pass::low_precision::getDequantization(add, emptyPathIndex);
+        FakeQuantizeDequantization dequantization1 = pass::low_precision::NetworkHelper::getDequantization(add, emptyPathIndex);
         auto const dequantizationValues1 = createEmptyValues(dequantization1);
         std::shared_ptr<Node> subtract1Values = std::get<0>(dequantizationValues1);
         std::shared_ptr<Node> multiply1Values = std::get<1>(dequantizationValues1);
 
-        FakeQuantizeDequantization dequantization2 = pass::low_precision::getDequantization(add, fullPathIndex);
+        FakeQuantizeDequantization dequantization2 = pass::low_precision::NetworkHelper::getDequantization(add, fullPathIndex);
         auto const dequantizationValues2 = createEmptyValues(dequantization2);
         std::shared_ptr<Node> subtract2Values = std::get<0>(dequantizationValues2);
         std::shared_ptr<Node> multiply2Values = std::get<1>(dequantizationValues2);
@@ -118,8 +117,8 @@ void AddTransformation::transform(TransformationContext& context, ngraph::patter
         {
             // empty Subtract after calculations removing
             std::shared_ptr<opset1::Constant> newSubtract2ConstOp = as_type_ptr<opset1::Constant>(newSubtract2Values);
-            if ((newSubtract2ConstOp != nullptr) && isScalarLike(newSubtract2ConstOp)) {
-                auto scalar = distillToScalar(newSubtract2ConstOp);
+            if ((newSubtract2ConstOp != nullptr) && NetworkHelper::isScalarLike(newSubtract2ConstOp)) {
+                auto scalar = NetworkHelper::distillToScalar(newSubtract2ConstOp);
                 if (op::util::constantIsEqualTo(scalar, 0)) {
                     newSubtract2Values = nullptr;
                 }

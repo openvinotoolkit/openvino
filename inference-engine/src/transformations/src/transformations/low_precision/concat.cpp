@@ -163,7 +163,7 @@ void ConcatTransformation::transform(TransformationContext& context, ngraph::pat
         const float quantizationShift = - dequantizationShift * quantizationScale;
 
         // 1. get data for dequantization. Dequantization data will be used several times later.
-        dequantization = ngraph::pass::low_precision::createDequantization(
+        dequantization = ngraph::pass::low_precision::NetworkHelper::createDequantization(
             dequantizationScale,
             dequantizationShift,
             subgraph.quantizationLayers[0]->get_output_element_type(0),
@@ -203,7 +203,7 @@ void ConcatTransformation::transform(TransformationContext& context, ngraph::pat
                     //        updatePrecisions ? roundf(updatedOutputHighValue) : updatedOutputHighValue));
 
                     // 2. update FakeQuantize - one time action
-                    std::shared_ptr<opset1::FakeQuantize> newFakeQuantizeLayer = ngraph::pass::low_precision::updateFakeQuantize(
+                    std::shared_ptr<opset1::FakeQuantize> newFakeQuantizeLayer = ngraph::pass::low_precision::NetworkHelper::updateFakeQuantize(
                         fakeQuantizeLayer,
                         dataPrecision.precision,
                         updatePrecisions ? roundf(updatedOutputLowValue) : updatedOutputLowValue,

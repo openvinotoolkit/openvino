@@ -85,7 +85,7 @@ bool LayerTransformation::canBeTransformed(const TransformationContext& context,
     }
 
     if (!quantizeOutputs) {
-        for (auto consumer : consumers(layer)) {
+        for (auto consumer : NetworkHelper::consumers(layer)) {
             if (consumer->get_type_info().is_castable(opset1::Result::get_type_info_static())) {
                 return false;
             }
@@ -416,7 +416,7 @@ void LayerTransformation::fillAvailablePrecisions(std::shared_ptr<Node> layer, s
         return;
     }
 
-    const std::vector<std::shared_ptr<Node>> children = consumers(layer);
+    const std::vector<std::shared_ptr<Node>> children = NetworkHelper::consumers(layer);
     for (auto child : children) {
         if (child->get_type_info().is_castable(opset1::FakeQuantize::get_type_info_static())) {
             // FakeQuantize layer updates precision
@@ -457,7 +457,7 @@ void LayerTransformation::fillAvailablePrecisions(std::shared_ptr<Node> layer, s
 }
 
 std::shared_ptr<ngraph::Node> LayerTransformation::separateInStandaloneBranch(std::shared_ptr<ngraph::Node> node) const {
-    FakeQuantizeDequantization dequantization = getDequantization(node);
+    FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(node);
     if (dequantization.isShared()) {
         std::shared_ptr<Node> parent = dequantization.data;
         if (dequantization.convert != nullptr) {
@@ -479,8 +479,8 @@ std::shared_ptr<ngraph::Node> LayerTransformation::separateInStandaloneBranch(st
             parent->set_friendly_name(parent->get_name() + "_new");
         }
 
-        std::vector<Output<Node>> inputs = getInputs(node);
-        const size_t inputIndex = getInputIndex(dequantization.multiply, node);
+        std::vector<Output<Node>> inputs = NetworkHelper::getInputs(node);
+        const size_t inputIndex = NetworkHelper::getInputIndex(dequantization.multiply, node);
         inputs[inputIndex] = parent;
         const std::shared_ptr<Node> newNode = node->clone_with_new_inputs(inputs);
 
@@ -498,7 +498,7 @@ void LayerTransformation::moveDequantizationAfter(
     const std::shared_ptr<ngraph::Node>& operation,
     const FakeQuantizeDequantization& dequantization,
     const bool updatePrecision) const {
-    const auto result = ngraph::pass::low_precision::moveDequantizationAfter(operation, dequantization, updatePrecision);
+    const auto result = ngraph::pass::low_precision::NetworkHelper::moveDequantizationAfter(operation, dequantization, updatePrecision);
     updateOutput(context, result.lastDequantization, result.newOperation);
 }
 

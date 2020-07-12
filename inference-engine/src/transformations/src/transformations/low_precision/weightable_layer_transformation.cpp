@@ -4,7 +4,6 @@
 
 #include "transformations/low_precision/weightable_layer_transformation.hpp"
 #include "transformations/low_precision/network_helper.hpp"
-#include "ngraph_ops/multiply_add.hpp"
 
 #include <algorithm>
 #include <memory>
@@ -59,7 +58,6 @@ bool WeightableLayerTransformation::canBeTransformed(const TransformationContext
     // stronger check from Convolution patter which expects FQ only on weights
 
     // TODO Implement similar checks in other weightable operaitons
-
 
     std::shared_ptr<opset1::Reshape> reshapeFromWeights = as_type_ptr<opset1::Reshape>(layer->input_value(1).get_node_shared_ptr());
     std::shared_ptr<opset1::FakeQuantize> fqFromWeights = as_type_ptr<opset1::FakeQuantize>(
@@ -117,7 +115,7 @@ DataPrecision WeightableLayerTransformation::decomposeFakeQuantizeForWeightsPath
     // The second part of this function calculates new FQ limits and corresponding dequantization scale and shift.
     // To maintain all shapes in a consistent way, ngraph ops are used to build constant sub-expressions.
 
-    auto tuple = decomposeFakeQuantize(fq, dataPrecision.precision, dataPrecision.min, dataPrecision.max, updatePrecisions);
+    auto tuple = NetworkHelper::decomposeFakeQuantize(fq, dataPrecision.precision, dataPrecision.min, dataPrecision.max, updatePrecisions);
     std::shared_ptr<ngraph::Node> fqOnWeights = std::get<0>(tuple);
     if (as_type_ptr<ngraph::opset1::Constant>(fqOnWeights) == nullptr) {
         THROW_IE_LPT_EXCEPTION(*fqOnWeights) << "FakeQuantize on weights was not folded to constant";
@@ -125,7 +123,6 @@ DataPrecision WeightableLayerTransformation::decomposeFakeQuantizeForWeightsPath
 
     return dataPrecision;
 }
-
 
 bool WeightableLayerTransformation::isDepthwise(std::shared_ptr<Node> layer) {
     if (!as_type_ptr<opset1::Convolution>(layer) && !as_type_ptr<opset1::GroupConvolution>(layer)) {

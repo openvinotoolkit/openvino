@@ -121,12 +121,12 @@ void ConcatMultiChannelsTransformation::transform(TransformationContext& context
         // checkAndUpdateDequantizationShiftWithZero(quantizationDetails, dequantizationShifts);
 
         // 1. get data for dequantization. Dequantization data will be used several times later.
-        FakeQuantizeDequantization fakeQuantizeDequantization = ngraph::pass::low_precision::createDequantizationFromFakeQuantize(
+        FakeQuantizeDequantization fakeQuantizeDequantization = ngraph::pass::low_precision::NetworkHelper::createDequantizationFromFakeQuantize(
             fq, dataPrecision.precision, dataPrecision.min, dataPrecision.max);
         dequantizations[fakeQuantizeLayer->get_friendly_name()] = fakeQuantizeDequantization;
 
         // 2. update FakeQuantize - one time action
-        subgraph.quantizationLayers[i] = ngraph::pass::low_precision::updateFakeQuantize(
+        subgraph.quantizationLayers[i] = ngraph::pass::low_precision::NetworkHelper::updateFakeQuantize(
             fq,
             dataPrecision.precision,
             dataPrecision.min,

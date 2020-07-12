@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2020 Intel Corporation
+﻿// Copyright (C) 2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -11,7 +11,6 @@
 #include <cassert>
 
 #include "transformations/low_precision/network_helper.hpp"
-#include "ngraph_ops/multiply_add.hpp"
 
 // TODO: remove after debugging
 #include <ngraph/pass/visualize_tree.hpp>

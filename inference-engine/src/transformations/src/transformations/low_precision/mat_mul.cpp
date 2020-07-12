@@ -9,7 +9,6 @@
 #include <string>
 #include <vector>
 
-#include "ngraph_ops/multiply_add.hpp"
 #include "transformations/low_precision/network_helper.hpp"
 
 using namespace ngraph;

@@ -9,7 +9,6 @@
 #include <string>
 #include <vector>
 
-#include "ngraph_ops/multiply_add.hpp"
 #include "transformations/low_precision/network_helper.hpp"
 
 using namespace ngraph;
@@ -24,7 +23,7 @@ void DepthToSpaceTransformation::registerMatcherIn(GraphRewrite& pass, Transform
     addPattern(
         pass,
         context,
-        make_op_pattern<opset1::DepthToSpace>({ make_op_label<ngraph::op::MultiplyAdd>() }));
+        make_op_pattern<opset1::DepthToSpace>({ make_op_label<ngraph::op::DepthToSpace>() }));
 }
 
 //bool DepthToSpaceTransformation::isPrecisionPreserved(const CNNLayer& layer) const noexcept {

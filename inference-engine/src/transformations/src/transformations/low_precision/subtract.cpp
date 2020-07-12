@@ -10,11 +10,9 @@
 #include <unordered_set>
 #include <utility>
 #include <vector>
-#include <cassert>
 
 #include "transformations/low_precision/common/ie_lpt_exception.hpp"
 #include "transformations/low_precision/network_helper.hpp"
-#include "ngraph_ops/multiply_add.hpp"
 
 // TODO: remove after debugging
 #include <ngraph/pass/visualize_tree.hpp>
@@ -41,7 +39,7 @@ void SubtractTransformation::transform(TransformationContext& context, ngraph::p
     std::shared_ptr<opset1::Subtract> subtract = as_type_ptr<opset1::Subtract>(m.get_match_root());
     const ngraph::element::Type originalPrecision = subtract->get_output_element_type(0);
 
-    const FakeQuantizeDequantization dequantization = ngraph::pass::low_precision::getDequantization(subtract);
+    const FakeQuantizeDequantization dequantization = ngraph::pass::low_precision::NetworkHelper::getDequantization(subtract);
     if (dequantization.multiply != nullptr) {
         // TODO: NO TESTS!!!
         // before: Y = X * SC - SH, after:  Y = (X - SH') * SC
@@ -77,7 +75,7 @@ void SubtractTransformation::transform(TransformationContext& context, ngraph::p
     }
 
     if (dequantization.convert != nullptr) {
-        std::shared_ptr<Node> newSubtract = optimizeSubtract(subtract);
+        std::shared_ptr<Node> newSubtract = NetworkHelper::optimizeSubtract(subtract);
         newSubtract->set_output_type(0, originalPrecision, newSubtract->get_output_partial_shape(0));
 
         replace_node(newSubtract, std::make_shared<op::TypeRelaxed<opset1::Subtract>>(

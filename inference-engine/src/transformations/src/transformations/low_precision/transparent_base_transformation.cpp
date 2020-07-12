@@ -8,7 +8,6 @@
 #include <string>
 #include <vector>
 
-#include "ngraph_ops/multiply_add.hpp"
 #include "transformations/low_precision/network_helper.hpp"
 
 using namespace ngraph;
@@ -33,10 +32,9 @@ void TransparentBaseTransformation::transform(TransformationContext& context, ng
 
     // replace_node(operation, newDequantization);
 
-    moveDequantization(operation, dequantization);
+    NetworkHelper::moveDequantization(operation, dequantization);
 }
 
 bool TransparentBaseTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const {
-    const std::shared_ptr<ngraph::op::MultiplyAdd> dequantization = as_type_ptr<ngraph::op::MultiplyAdd>(layer->input_value(0).get_node_shared_ptr());
-    return dequantization != nullptr;
+    return true;
 }

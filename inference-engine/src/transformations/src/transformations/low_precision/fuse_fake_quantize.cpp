@@ -46,7 +46,7 @@ void FuseFakeQuantizeTransformation::registerMatcherIn(GraphRewrite &pass, Trans
 
 void FuseFakeQuantizeTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) const {
     std::shared_ptr<opset1::FakeQuantize> fakeQuantize = as_type_ptr<ngraph::opset1::FakeQuantize>(m.get_match_root());
-    const FakeQuantizeDequantization dequantization = ngraph::pass::low_precision::getDequantization(fakeQuantize->shared_from_this());
+    const FakeQuantizeDequantization dequantization = ngraph::pass::low_precision::NetworkHelper::getDequantization(fakeQuantize->shared_from_this());
     if (dequantization.empty()) {
         return;
     }

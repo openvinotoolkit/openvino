@@ -10,7 +10,6 @@
 #include <cmath>
 #include <vector>
 
-#include "ngraph_ops/multiply_add.hpp"
 #include "ngraph_ops/normalize_ie.hpp"
 #include "ngraph/type/element_type.hpp"
 #include "ngraph/type/element_type_traits.hpp"
@@ -75,7 +74,7 @@ void NormalizeL2Transformation::registerMatcherIn(GraphRewrite& pass, Transforma
         pass,
         context,
         make_op_pattern<ngraph::op::NormalizeL2>({
-            make_op_label<ngraph::op::MultiplyAdd>(),
+            make_op_label<ngraph::op::Multiply>(),
             make_op_label<ngraph::op::Constant>()
             }));
 
@@ -126,7 +125,7 @@ void NormalizeL2Transformation::transform(TransformationContext &context, ngraph
     // TODO: check if shift is not zero then exit
 
     //moveDequantization(operation, dequantization, newScalesConst);
-    moveDequantization(operation, dequantization);
+    NetworkHelper::moveDequantization(operation, dequantization);
 }
 
 //bool NormalizeTransformation::isPrecisionPreserved(const CNNLayer& layer) const noexcept {

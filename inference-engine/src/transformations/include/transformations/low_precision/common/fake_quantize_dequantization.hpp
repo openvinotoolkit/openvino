@@ -5,9 +5,6 @@
 #pragma once
 
 #include <memory>
-#include <vector>
-
-#include <ngraph/check.hpp>
 #include <ngraph/opsets/opset1.hpp>
 
 namespace ngraph {
