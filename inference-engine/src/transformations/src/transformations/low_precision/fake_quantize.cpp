@@ -4,13 +4,22 @@
 
 #include "transformations/low_precision/fake_quantize.hpp"
 
+#include <algorithm>
+#include <cmath>
+#include <limits>
+#include <map>
 #include <memory>
+#include <string>
+#include <utility>
 #include <vector>
 
 #include <ngraph/opsets/opset1.hpp>
 
 #include "transformations/low_precision/common/ie_lpt_exception.hpp"
 #include "transformations/low_precision/network_helper.hpp"
+
+// TODO: debug only
+#include <ngraph/pass/visualize_tree.hpp>
 
 namespace ngraph {
 namespace pass {
@@ -29,6 +38,8 @@ void FakeQuantizeTransformation::transform(TransformationContext& context, ngrap
         return;
     }
 
+    // FakeQuantize on weights are used without dequantization ScaleShifts
+    // TODO: include into the transformation pattern?
     if (NetworkHelper::onWeights(layer)) {
         return;
     }
@@ -47,8 +58,12 @@ void FakeQuantizeTransformation::transform(TransformationContext& context, ngrap
         return;
     }
 
+#ifdef LPT_PRINT_DEQUANTIZATION_INFO
+    printDequantizationValues(dequantizationScales, dequantizationShifts);
+#endif
+
     // Split FakeQuantize to two parts: Quantize and Dequantize
-    auto QDQ = decomposeFakeQuantize(
+    auto QDQ = NetworkHelper::decomposeFakeQuantize(
         as_type_ptr<opset1::FakeQuantize>(layer),
         dataPrecision.precision,
         dataPrecision.min,

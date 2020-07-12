@@ -1,26 +1,10 @@
-﻿// Copyright (C) 2018-2020 Intel Corporation
+﻿// Copyright (C) 2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include <transformations/low_precision/common/fake_quantize_dequantization.hpp>
-
-#include <algorithm>
-#include <cmath>
-#include <limits>
-#include <map>
 #include <memory>
-#include <string>
-#include <unordered_set>
-#include <utility>
-#include <vector>
-#include <cassert>
-
-#include <ngraph/rt_info.hpp>
 #include <ngraph/opsets/opset1.hpp>
-#include "ngraph_ops/type_relaxed.hpp"
-
-#include "transformations/low_precision/quantization_details.hpp"
-#include "transformations/low_precision/common/ie_lpt_exception.hpp"
 
 namespace ngraph {
 namespace pass {

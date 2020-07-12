@@ -3,6 +3,8 @@
 //
 
 #include <transformations/low_precision/layer_transformation.hpp>
+#include <transformations/low_precision/network_helper.hpp>
+
 
 #include <algorithm>
 #include <cmath>
@@ -14,7 +16,6 @@
 #include <unordered_set>
 #include <vector>
 
-#include <transformations/low_precision/network_helper.hpp>
 
 namespace ngraph {
 namespace pass {
@@ -84,13 +85,193 @@ bool LayerTransformation::canBeTransformed(const TransformationContext& context,
     }
 
     if (!quantizeOutputs) {
-        for (auto consumer : consumers(layer)) {
+        for (auto consumer : NetworkHelper::consumers(layer)) {
             if (consumer->get_type_info().is_castable(opset1::Result::get_type_info_static())) {
                 return false;
             }
         }
     }
     return true;
+}
+
+#if 0 // TODO LPT-TO-NGRAPH
+
+Precision LayerTransformation::getPrecisionBeforeParentDequantizationScaleShift(const CNNLayer& layer) {
+    const CNNLayerPtr scaleShift = CNNNetworkHelper::getParent(layer, 0);
+    if (scaleShift == nullptr) {
+        THROW_TRANSFORMATION_EXCEPTION << "dequantization ScaleShift layer is absent";
+    }
+
+    if (scaleShift->type != "ScaleShift") {
+        THROW_TRANSFORMATION_EXCEPTION << "not expected dequantization layer type " << scaleShift->type;
+    }
+
+    if (scaleShift->insData.size() < 1) {
+        THROW_TRANSFORMATION_EXCEPTION << "is not expected ScaleShift '" << scaleShift->name << "' insert data size "
+                           << scaleShift->insData.size();
+    }
+
+    const DataWeakPtr insDataWeak = scaleShift->insData[0];
+    const DataPtr insData = insDataWeak.lock();
+    if (insData == nullptr) {
+        THROW_TRANSFORMATION_EXCEPTION << "input data is absent";
+    }
+
+    return insData->getPrecision();
+}
+#endif
+
+#ifdef LPT_PRINT_DEQUANTIZATION_INFO
+std::stringstream toStream(const std::vector<float>& dequantizationValues) {
+    std::stringstream ss;
+    const size_t scalesCount = dequantizationValues.size() > 9ul ? 9ul : dequantizationValues.size();
+    ss << "{";
+    for (size_t i = 0ul; i < scalesCount; ++i) {
+        ss << dequantizationValues[i] << (i < (scalesCount - 1) ? "," : "");
+    }
+    ss << "}";
+    return ss;
+}
+
+void LayerTransformation::printDequantizationInfo(const CNNLayer& layer) {
+    const QuantizationDetails quantizationDetails = QuantizationDetails::getDetails(layer);
+    std::cout <<
+        layer.type << (CNNNetworkHelper::onWeights(layer) ? " on weights " : " on activations ") <<
+        layer.name << ":" << std::endl <<
+        "   details  : " << quantizationDetails << std::endl;
+}
+
+void LayerTransformation::printDequantizationInfo(const DataPrecision& dataPrecision) {
+    std::cout << "   precision: " << dataPrecision << std::endl;
+}
+
+void LayerTransformation::printDequantizationValues(
+    const std::vector<float>& dequantizationScales,
+    const std::vector<float>& dequantizationShifts) {
+    std::cout <<
+        "   scales   : " << toStream(dequantizationScales).str() << std::endl <<
+        "   shifts   : " << toStream(dequantizationShifts).str() << std::endl;
+}
+#endif
+
+void LayerTransformation::addDequantizationLayer(
+    TransformationContext& context,
+    const std::shared_ptr<Node> layer,
+    const FakeQuantizeDequantization& dequantization) const {
+    //
+}
+
+void LayerTransformation::fillFromQuantizationDetails(
+    const QuantizationDetails& quantizationDetails,
+    const DataPrecision& dataPrecision,
+    std::vector<float>& dequantizationScales,
+    std::vector<float>& dequantizationShifts) const {
+    // TODO: refactor: make optional
+    const float minQuantizationScale = 1e-32f;
+    const float maxQuantizationScale = 1e32f;
+
+    bool denormalOutputValuesWasUpdated = false;
+    dequantizationScales.resize(quantizationDetails.outputChannelsCount);
+    dequantizationShifts.resize(quantizationDetails.outputChannelsCount);
+
+    for (size_t channel = 0lu; channel < quantizationDetails.outputChannelsCount; ++channel) {
+        float dequantizationScale = 0.f;
+        float dequantizationShift = 0.f;
+        if (dataPrecision.precision.is_signed()) {
+            // I8
+            dequantizationScale =
+                (quantizationDetails.getOutputHighValue(channel) - quantizationDetails.getOutputLowValue(channel)) /
+                (dataPrecision.max - dataPrecision.min);
+            const float quantValue =
+                (quantizationDetails.getOutputHighValue(channel) - quantizationDetails.getOutputLowValue(channel)) /
+                (dataPrecision.max - dataPrecision.min);
+
+            const float actualLowPartQuantValue = std::fabs(quantizationDetails.getOutputLowValue(channel) / dataPrecision.min);
+            const float actualHighPartQuantValue = std::fabs(quantizationDetails.getOutputHighValue(channel) / dataPrecision.max);
+
+            if (dataPrecision.hasZeroPoint) {
+                if (actualLowPartQuantValue < actualHighPartQuantValue) {
+                    dequantizationShift = quantizationDetails.getOutputLowValue(channel) - dataPrecision.min * quantValue;
+                } else {
+                    dequantizationShift = quantizationDetails.getOutputHighValue(channel) - dataPrecision.max * quantValue;
+                }
+            }
+        } else {
+            // U8
+            dequantizationScale =
+                (quantizationDetails.getOutputHighValue(channel) - quantizationDetails.getOutputLowValue(channel)) /
+                (dataPrecision.max - dataPrecision.min);
+            if (dataPrecision.hasZeroPoint) {
+                dequantizationShift = quantizationDetails.getOutputLowValue(channel);
+            }
+        }
+
+        if (fabs(dequantizationScale) < minQuantizationScale) {
+            dequantizationScales[channel] = minQuantizationScale;
+            denormalOutputValuesWasUpdated = true;
+        } else if (fabs(dequantizationScale) > maxQuantizationScale) {
+            dequantizationScales[channel] = dequantizationScale > 0.f ? maxQuantizationScale : -maxQuantizationScale;
+            denormalOutputValuesWasUpdated = true;
+        } else {
+            dequantizationScales[channel] = dequantizationScale;
+        }
+
+        dequantizationShifts[channel] = dequantizationShift;
+    }
+}
+
+void LayerTransformation::checkAndUpdateDequantizationShiftWithZero(
+    const QuantizationDetails& quantizationDetails,
+    std::vector<float>& dequantizationShifts) const {
+    auto compare = [](float value1, float value2) { return (std::fabs(value1) < std::fabs(value2)); };
+
+    const auto maxShiftIt = std::max_element(dequantizationShifts.begin(), dequantizationShifts.end(), compare);
+    if (maxShiftIt == dequantizationShifts.end()) {
+        THROW_TRANSFORMATION_EXCEPTION << "unexpected dequantization shifts max value";
+    }
+
+    const auto maxOutputLowIt = std::max_element(quantizationDetails.outputLowValues.begin(), quantizationDetails.outputLowValues.end(), compare);
+    if (maxOutputLowIt == quantizationDetails.outputLowValues.end()) {
+        THROW_TRANSFORMATION_EXCEPTION << "unexpected dequantization output low value";
+    }
+
+    const auto maxOutputHighIt = std::max_element(quantizationDetails.outputHighValues.begin(), quantizationDetails.outputHighValues.end(), compare);
+    if (maxOutputHighIt == quantizationDetails.outputHighValues.end()) {
+        THROW_TRANSFORMATION_EXCEPTION << "unexpected dequantization output high value";
+    }
+
+    const float maxOutputIt = std::max(std::fabs(*maxOutputLowIt), std::fabs(*maxOutputHighIt));
+    const float relative = std::fabs(*maxShiftIt) / std::fabs(maxOutputIt);
+    if (relative < dequantizationShiftToZeroRatioTreshold) {
+        std::fill(dequantizationShifts.begin(), dequantizationShifts.end(), 0.f);
+    }
+}
+
+void LayerTransformation::fillFromDequantizationLayer(
+    std::shared_ptr<Node> dequantizationLayer,
+    std::vector<float>& dequantizationScales,
+    std::vector<float>& dequantizationShifts) const {
+    // std::cerr << "[ ERROR ] NOT IMPLEMENTED METHOD IS CALLED " << __FILE__ << ":" << __LINE__ << "\n";
+#if 0 // TODO LPT-TO-NGRAPH
+    if (dequantizationLayer.type != "ScaleShift") {
+        THROW_TRANSFORMATION_EXCEPTION << "unexpected dequantization layer type " << dequantizationLayer.type;
+    }
+
+    CNNLayerPtr dequantizationLayerPtr = std::make_shared<CNNLayer>(dequantizationLayer);
+    Blob::Ptr weightsBlob = CNNNetworkHelper::getBlob(dequantizationLayerPtr, "weights");
+    const auto weightsBuffer = CNNNetworkHelper::getFloatData(weightsBlob);
+
+    Blob::Ptr shiftsBlob = CNNNetworkHelper::getBlob(dequantizationLayerPtr, "biases");
+    const auto shiftsBuffer = CNNNetworkHelper::getFloatData(shiftsBlob);
+
+    const size_t inputCannelsCount = CNNNetworkHelper::getInputChannelsCount(dequantizationLayer);
+    dequantizationScales.resize(inputCannelsCount);
+    dequantizationShifts.resize(inputCannelsCount);
+    for (size_t channel = 0; channel < inputCannelsCount; ++channel) {
+        dequantizationScales[channel] = (weightsBlob->size() == 1ul) ? weightsBuffer.get()[0] : weightsBuffer.get()[channel];
+        dequantizationShifts[channel] = (shiftsBlob->size() == 1ul) ? shiftsBuffer.get()[0] : shiftsBuffer.get()[channel];
+    }
+#endif
 }
 
 void LayerTransformation::setQuantizationIntervalAsymmetryThreshold(const float value) {
@@ -134,12 +315,28 @@ LayerTransformation::PrecisionDetails LayerTransformation::getPrecisionDetails(c
             if (actual > quantizationIntervalAsymmetryThreshold) {
                 hasZeroPoint = true;
             }
+#ifdef LPT_PRINT_DEQUANTIZATION_INFO
+            if (hasZeroPoint) {
+                std::cout << "   actual: " << actual << ", threshold: " << quantizationIntervalAsymmetryThreshold << std::endl;
+                std::cout << "   hasZeroPoint: " << (hasZeroPoint ? "True" : "False") << std::endl;
+            }
+#endif
         } else {
             // unsigned
             signedPrecision = false;
             if (boundaryValuesAreNotZero) {
                 hasZeroPoint = boundaryValuesAreNotZero;
             }
+
+#ifdef LPT_PRINT_DEQUANTIZATION_INFO
+            if (hasZeroPoint) {
+                const float actual = quantizationDetails.outputLowValues[i] > 0.f ?
+                    quantizationDetails.outputLowValues[i] :
+                    quantizationDetails.outputHighValues[i];
+                std::cout << "   actual: " << actual << ", threshold: 0.0" << std::endl;
+                std::cout << "   hasZeroPoint: " << (hasZeroPoint ? "True" : "False") << std::endl;
+            }
+#endif
         }
     }
 
@@ -169,6 +366,9 @@ DataPrecision LayerTransformation::getDataPrecision(
         const QuantizationDetails& quantizationDetails,
         const bool onWeights,
         const bool supportAsymmetricQuantization) const {
+#ifdef LPT_PRINT_DEQUANTIZATION_INFO
+    printDequantizationInfo(layer);
+#endif
     std::vector<element::Type> precisions = onWeights ? precisionsOnWeights : precisionsOnActivations;
     PrecisionDetails precisionDetailsAtOutputIntervals = getPrecisionDetails(quantizationDetails);
     {
@@ -189,6 +389,10 @@ DataPrecision LayerTransformation::getDataPrecision(
                         DataPrecision::getMinValue(resultPrecision, quantizationDetails.levels),
                         DataPrecision::getMaxValue(resultPrecision),
                         foundIt != precisions.end() ? precisionDetailsAtOutputIntervals.hasZeroPoint : true);
+
+#ifdef LPT_PRINT_DEQUANTIZATION_INFO
+                printDequantizationInfo(dataPrecision);
+#endif
                 return dataPrecision;
             }
         }
@@ -201,6 +405,9 @@ DataPrecision LayerTransformation::getDataPrecision(
                                                 DataPrecision::getMinValue(*precisions.begin(), quantizationDetails.levels),
                                                 DataPrecision::getMaxValue(*precisions.begin()),
                                                 true);
+#ifdef LPT_PRINT_DEQUANTIZATION_INFO
+    printDequantizationInfo(dataPrecision);
+#endif
     return dataPrecision;
 }
 
@@ -209,7 +416,7 @@ void LayerTransformation::fillAvailablePrecisions(std::shared_ptr<Node> layer, s
         return;
     }
 
-    const std::vector<std::shared_ptr<Node>> children = consumers(layer);
+    const std::vector<std::shared_ptr<Node>> children = NetworkHelper::consumers(layer);
     for (auto child : children) {
         if (child->get_type_info().is_castable(opset1::FakeQuantize::get_type_info_static())) {
             // FakeQuantize layer updates precision
@@ -250,21 +457,8 @@ void LayerTransformation::fillAvailablePrecisions(std::shared_ptr<Node> layer, s
 }
 
 std::shared_ptr<ngraph::Node> LayerTransformation::separateInStandaloneBranch(std::shared_ptr<ngraph::Node> node) const {
-    FakeQuantizeDequantization dequantization = getDequantization(node);
+    FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(node);
     if (dequantization.isShared()) {
-        bool nodeInputIndexToChangeWasFound = false;
-        size_t nodeInputIndexToChange;
-        for (size_t i = 0; i < node->get_input_size(); ++i) {
-            if (dequantization.multiply.get() == node->get_input_node_ptr(i)) {
-                nodeInputIndexToChange = i;
-                nodeInputIndexToChangeWasFound = true;
-                break;
-            }
-        }
-        if (!nodeInputIndexToChangeWasFound) {
-            THROW_IE_LPT_EXCEPTION(*node) << " input index for " << dequantization.multiply->get_friendly_name() << " was not found";
-        }
-
         std::shared_ptr<Node> parent = dequantization.data;
         if (dequantization.convert != nullptr) {
             parent = dequantization.convert->clone_with_new_inputs({ parent });
@@ -285,9 +479,10 @@ std::shared_ptr<ngraph::Node> LayerTransformation::separateInStandaloneBranch(st
             parent->set_friendly_name(parent->get_name() + "_new");
         }
 
-        auto newNode = node->clone_with_new_inputs({
-            parent,
-            node->input_value(1) });
+        std::vector<Output<Node>> inputs = NetworkHelper::getInputs(node);
+        const size_t inputIndex = NetworkHelper::getInputIndex(dequantization.multiply, node);
+        inputs[inputIndex] = parent;
+        const std::shared_ptr<Node> newNode = node->clone_with_new_inputs(inputs);
 
         replace_node(node, newNode);
         newNode->set_friendly_name(node->get_friendly_name());
@@ -296,6 +491,15 @@ std::shared_ptr<ngraph::Node> LayerTransformation::separateInStandaloneBranch(st
     }
 
     return node;
+}
+
+void LayerTransformation::moveDequantizationAfter(
+    TransformationContext &context,
+    const std::shared_ptr<ngraph::Node>& operation,
+    const FakeQuantizeDequantization& dequantization,
+    const bool updatePrecision) const {
+    const auto result = ngraph::pass::low_precision::NetworkHelper::moveDequantizationAfter(operation, dequantization, updatePrecision);
+    updateOutput(context, result.lastDequantization, result.newOperation);
 }
 
 void LayerTransformation::updateOutput(

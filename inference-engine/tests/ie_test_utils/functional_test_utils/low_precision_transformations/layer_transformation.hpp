@@ -41,6 +41,7 @@ public:
     };
 
     static ngraph::pass::low_precision::LayerTransformation::Params toNGraph(const InferenceEngine::details::LayerTransformation::Params& params);
+    static InferenceEngine::details::LayerTransformation::Params toCNNNetwork(const ngraph::pass::low_precision::LayerTransformation::Params& params);
 
 protected:
     LayerTransformation();
@@ -83,13 +84,22 @@ protected:
 
     static std::string toString(const InferenceEngine::details::LayerTransformation::Params& params);
 
+    static std::string toString(const ngraph::pass::low_precision::LayerTransformation::Params& params);
+
     static InferenceEngine::Precision getDeviceInternalPrecision(const InferenceEngine::Precision precision);
 
     static std::string getTestCaseNameByParams(
-        const InferenceEngine::Precision netPrecision,
+        const InferenceEngine::Precision precision,
         const InferenceEngine::SizeVector& inputShapes,
-        const std::string targetDevice,
+        const std::string& targetDevice,
         const InferenceEngine::details::LayerTransformation::Params& params,
+        const LayerTestsUtils::LayerTransformation::LptVersion version);
+
+    static std::string getTestCaseNameByParams(
+        const ngraph::element::Type precision,
+        const ngraph::Shape& inputShapes,
+        const std::string& targetDevice,
+        const ngraph::pass::low_precision::LayerTransformation::Params& params,
         const LayerTestsUtils::LayerTransformation::LptVersion version);
 
     static bool fakeQuantizeExists(const InferenceEngine::ICNNNetwork& network);

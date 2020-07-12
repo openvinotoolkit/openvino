@@ -20,6 +20,20 @@
 #include <transformations/low_precision/common/ie_lpt_exception.hpp>
 #include "common/fake_quantize_dequantization.hpp"
 
+/*****************************************************
+ * Debug capability
+ *  - ORIGINAL_MODEL_PATH : Specify with existing folder name
+ *    to serialize original model into it (XML & BIN extensions were added)
+ *  - TRANSFORMED_MODEL_PATH : Specify with existing folder name
+ *    to serialize original model into it (XML & BIN extensions were added)
+ *  - LPT_PRINT_DEQUANTIZATION_INFO : Define it to enable
+ *    dequantization layers printing
+ *
+ *****************************************************/
+// #define LPT_ORIGINAL_MODEL_PATH "/localdisk/slyalin/orig.model"
+// #define LPT_TRANSFORMED_MODEL_PATH "/localdisk/slyalin/transformed.model"
+// #define LPT_PRINT_DEQUANTIZATION_INFO
+
 namespace ngraph {
 namespace pass {
 namespace low_precision {
@@ -30,10 +44,10 @@ public:
     DataPrecision() : precision(element::undefined), min(0.f), max(0.f), hasZeroPoint(false) {}
 
     DataPrecision(const element::Type precision, const float min, const float max, const bool hasZeroPoint) :
-        precision(precision),
-        min(min),
-        max(max),
-        hasZeroPoint(hasZeroPoint) {}
+            precision(precision),
+            min(min),
+            max(max),
+            hasZeroPoint(hasZeroPoint) {}
 
     static float getMinValue(const element::Type precision, const size_t levels) {
         if (precision == element::i8) {
@@ -82,13 +96,44 @@ public:
     float min;
     float max;
     bool hasZeroPoint;
+
+    static element::Type getPrecision(const std::vector<float>& outputLowValues, const std::vector<float>& outputHighValues) {
+        return (hasNegativeValues(outputLowValues) || hasNegativeValues(outputHighValues)) ? element::i8 : element::u8;
+    }
+
+    static element::Type getPrecision(const size_t /* quantizationLevels */, const bool signedInterval) {
+        return signedInterval ? element::i8 : element::u8;
+    }
+
+    static float getMin(const size_t quantizationLevels, const bool signedInterval) {
+        if (quantizationLevels == 255) {
+            return signedInterval  ? -127.0 : 0.0;
+        } else if (quantizationLevels == 256) {
+            return signedInterval ? -128.0 : 0.0;
+        } else {
+            // THROW_TRANSFORMATION_EXCEPTION << "quantization level " << quantizationLevels << " is not supported";
+            // FIXME: not completed
+            return signedInterval ? -128.0 : 0.0;
+        }
+    }
+
+    static float getMax(const size_t quantizationLevels, const bool signedInterval) {
+        if ((quantizationLevels == 255) || (quantizationLevels == 256)) {
+            return signedInterval ? 127.0 : 255.0;
+        } else {
+            // THROW_TRANSFORMATION_EXCEPTION << "quantization level " << quantizationLevels << " is not supported";
+            // FIXME: not completed
+            // return quantizationLevels - 1.0;
+            return signedInterval ? 127.0 : 255.0;
+        }
+    }
 };
 
 inline bool operator==(const DataPrecision& value1, const DataPrecision& value2) {
     return
-        (value1.precision == value2.precision) &&
-        (value1.min == value1.min) &&
-        (value1.max == value1.max);
+            (value1.precision == value2.precision) &&
+            (value1.min == value1.min) &&
+            (value1.max == value1.max);
 }
 
 inline bool operator!=(const DataPrecision& value1, const DataPrecision& value2) {
@@ -109,7 +154,7 @@ public:
         UpdateIntervals,
         UpdateLevel,
         // UpdateIntervals & UpdateLevel & ...
-        Mixed
+                Mixed
     };
 
     class Params {
@@ -256,6 +301,33 @@ public:
     void fillAvailablePrecisions(std::shared_ptr<Node> layer, std::vector<element::Type>& availablePrecisions) const;
 
 protected:
+#ifdef LPT_PRINT_DEQUANTIZATION_INFO
+            static void printDequantizationInfo(const CNNLayer& layer);
+    static void printDequantizationInfo(const DataPrecision& dataPrecision);
+    static void printDequantizationValues(
+        const std::vector<float>& dequantizationScales,
+        const std::vector<float>& dequantizationShifts);
+#endif
+    void addDequantizationLayer(
+        TransformationContext& context,
+        const std::shared_ptr<Node> layer,
+        const FakeQuantizeDequantization& dequantization) const;
+
+    void fillFromQuantizationDetails(
+            const QuantizationDetails& quantizationDetails,
+            const DataPrecision& dataPrecision,
+            std::vector<float>& dequantizationScales,
+            std::vector<float>& dequantizationShifts) const;
+
+    void checkAndUpdateDequantizationShiftWithZero(
+            const QuantizationDetails& quantizationDetails,
+            std::vector<float>& dequantizationShifts) const;
+
+    void fillFromDequantizationLayer(
+            std::shared_ptr<Node> dequantizationLayer,
+            std::vector<float>& dequantizationScales,
+            std::vector<float>& dequantizationShifts) const;
+
     bool updatePrecisions;
     bool quantizeOutputs;
     bool weightsToConst;
@@ -281,6 +353,12 @@ protected:
 
 protected:
     std::shared_ptr<ngraph::Node> separateInStandaloneBranch(std::shared_ptr<ngraph::Node> node) const;
+
+    void moveDequantizationAfter(
+        TransformationContext &context,
+        const std::shared_ptr<ngraph::Node>& operation,
+        const FakeQuantizeDequantization& dequantization,
+        const bool updatePrecision) const;
 
     void updateOutput(
         TransformationContext &context,
@@ -325,6 +403,20 @@ inline std::ostream &operator << (std::ostream &os, const LayerTransformation::Q
             break;
         }
     }
+    return os;
+}
+
+inline std::ostream &operator << (std::ostream &os, const std::vector<element::Type>& values) {
+    os << "{";
+    for (size_t i = 0; i < values.size(); ++i) {
+        const element::Type& value = values[i];
+        if (i > 0) {
+            os << value;
+        } else {
+            os << ", " << value;
+        }
+    }
+    os << "}";
     return os;
 }
 

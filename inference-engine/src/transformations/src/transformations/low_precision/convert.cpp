@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2020 Intel Corporation
+﻿// Copyright (C) 2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -23,8 +23,6 @@ void ConvertTransformation::registerMatcherIn(GraphRewrite &pass, Transformation
 }
 
 void ConvertTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) const {
-    // ngraph::pass::VisualizeTree("C:\\Projects\\temp\\test.transformed").run_on_module(std::vector<std::shared_ptr<ngraph::Function>>{ context.network });
-
     std::shared_ptr<opset1::Convert> convert = as_type_ptr<opset1::Convert>(m.get_match_root());
 
     const ngraph::element::Type precisionBefore = convert->get_input_element_type(0);
@@ -37,11 +35,7 @@ void ConvertTransformation::transform(TransformationContext& context, ngraph::pa
 
     replace_node(convert, subtract);
 
-
-    // TODO: NAMES!
     subtract->set_friendly_name(convert->get_friendly_name());
-
-    // ngraph::pass::VisualizeTree("C:\\Projects\\temp\\test.transformed").run_on_module(std::vector<std::shared_ptr<ngraph::Function>>{ context.network });
 }
 
 } // namespace low_precision

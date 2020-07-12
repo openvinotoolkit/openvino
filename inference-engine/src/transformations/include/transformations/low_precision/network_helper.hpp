@@ -25,30 +25,28 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-// Return true if `type` can be castable to at least one of `type`
-bool is_castable_to_one_of(NodeTypeInfo type, const std::unordered_set<NodeTypeInfo>& types);
-
-std::vector<Input<Node>> consumer_inputs(std::shared_ptr<Node> node);
-
-// Collect and return a vector with all nodes that consumes any of the `node` output
-std::vector<std::shared_ptr<Node>> consumers(std::shared_ptr<Node> node);
-
-Shape alignShapeForChannelDim(const Shape& shape, Rank rank);
-
+/**
+* @brief NetworkHelper class encapsulates manipulations with nGraph function.
+*/
 class TRANSFORMATIONS_API NetworkHelper {
 public:
+    // Return true if `type` can be castable to at least one of `type`
+    static bool is_castable_to_one_of(NodeTypeInfo type, const std::unordered_set<NodeTypeInfo>& types);
+
+    static std::vector<Input<Node>> consumer_inputs(std::shared_ptr<Node> node);
+
+    // Collect and return a vector with all nodes that consumes any of the `node` output
+    static std::vector<std::shared_ptr<Node>> consumers(std::shared_ptr<Node> node);
+
+    static Shape alignShapeForChannelDim(const Shape& shape, Rank rank);
+
     // return true if at least one child uses layer on weights
     static bool onWeights(std::shared_ptr<Node> layer);
 
     template <typename OperationType>
     static void setOutDataPrecision(std::shared_ptr<OperationType>, const element::Type& precision);
 
-    static bool IsChild(
-        const std::vector<std::shared_ptr<Node>>& children,
-        const std::vector<NodeTypeInfo>& layerTypes,
-        const std::vector<NodeTypeInfo>& ignoreLayerTypes = {});
-
-    static size_t  getOutputChannelsCount(std::shared_ptr<const Node> layer, bool isOnWeights = false);
+    static size_t getOutputChannelsCount(std::shared_ptr<const Node> layer, bool isOnWeights = false);
 
     static std::vector<std::shared_ptr<Node>> getParentsRecursivelyExceptTypes(
         std::shared_ptr<Node> layer,
@@ -61,6 +59,68 @@ public:
 
     // Remove node by connecting its 0th input with 0th output
     static void removeLayer(std::shared_ptr<Node> node);
+
+    static std::shared_ptr<opset1::Multiply> swapMultiplyAndAdd(std::shared_ptr<opset1::Add> addAfterMultiply);
+
+    static bool isScalarLike(std::shared_ptr<opset1::Constant> constant);
+
+    static std::shared_ptr<opset1::Constant> distillToScalar(std::shared_ptr<opset1::Constant> constant);
+
+    static std::shared_ptr<Node> getConstantInput(std::shared_ptr<Node> node);
+
+    // Optimizes the series of multiplies after a given output port
+    static std::shared_ptr<ngraph::opset1::Multiply> optimizeMultipliesAfter(std::shared_ptr<Node> multiply);
+
+    static std::shared_ptr<opset1::Constant> roundWithTolerance(std::shared_ptr<Node> node, element::Type target_type, float tolerance = 1e-5);
+
+    static std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> decomposeFakeQuantize(
+        std::shared_ptr<opset1::FakeQuantize> fq,
+        const element::Type precision,
+        const float min,
+        const float max,
+        const bool updatePrecision);
+
+    static std::shared_ptr<opset1::FakeQuantize> updateFakeQuantize(std::shared_ptr<opset1::FakeQuantize> fq, element::Type precision, float min, float max);
+
+    static FakeQuantizeDequantization createDequantization(
+        const float dequantizationScale,
+        const float dequantizationShift,
+        const ngraph::element::Type originalPrecision,
+        const ngraph::Shape dataNodeOutputShape,
+        element::Type precision,
+        float min,
+        float max);
+
+    static FakeQuantizeDequantization createDequantizationFromFakeQuantize(std::shared_ptr<opset1::FakeQuantize> fq, element::Type precision, float min, float max);
+
+    static FakeQuantizeDequantization getDequantization(const std::shared_ptr<Node> node, const size_t parentIndex = 0ul);
+
+    static std::shared_ptr<Node> optimizeSubtract(std::shared_ptr<opset1::Subtract> add);
+
+    static void moveDequantization(
+        const std::shared_ptr<ngraph::Node> operation,
+        const std::shared_ptr<ngraph::Node> dequantization,
+        const std::shared_ptr<ngraph::Node> scalesConst = nullptr,
+        const std::shared_ptr<ngraph::Node> shiftsConst = nullptr);
+
+    class InsertDequantizationResult {
+    public:
+        InsertDequantizationResult(
+            const std::shared_ptr<Node>& newOperation,
+            const std::shared_ptr<Node>& lastDequantization) : newOperation(newOperation), lastDequantization(lastDequantization) {}
+
+        std::shared_ptr<Node> newOperation;
+        std::shared_ptr<Node> lastDequantization;
+    };
+
+    static InsertDequantizationResult moveDequantizationAfter(
+        const std::shared_ptr<ngraph::Node>& operation,
+        const FakeQuantizeDequantization& dequantization,
+        const bool updatePrecision);
+
+    static size_t getInputIndex(const std::shared_ptr<ngraph::Node>& parent, const std::shared_ptr<ngraph::Node>& child);
+
+    static std::vector<Output<Node>> getInputs(const std::shared_ptr<ngraph::Node>& node);
 
 private:
     // 1  - on weights
@@ -97,12 +157,6 @@ std::shared_ptr<Node> make_op_label() {
             PartialShape{},
             [](std::shared_ptr<Node> n) {return !!as_type_ptr<T>(n); });
 }
-
-std::shared_ptr<opset1::Multiply> swapMultiplyAndAdd(std::shared_ptr<opset1::Add> addAfterMultiply);
-
-bool isScalarLike(std::shared_ptr<opset1::Constant> constant);
-
-std::shared_ptr<opset1::Constant> distillToScalar(std::shared_ptr<opset1::Constant> constant);
 
 template <typename T, typename... Args>
 std::shared_ptr<Node> fold(Args&&... args) {
@@ -150,49 +204,6 @@ std::shared_ptr<Node> fold_fake_quantize(Args&&... args) {
     }
     return node;
 }
-
-
-std::shared_ptr<Node> getConstantInput(std::shared_ptr<Node> node);
-
-// Optimizes the series of multiplies after a given output port
-std::shared_ptr<ngraph::opset1::Multiply> optimizeMultipliesAfter(std::shared_ptr<Node> multiply);
-
-std::shared_ptr<opset1::Constant> roundWithTolerance(std::shared_ptr<Node> node, element::Type target_type, float tolerance = 1e-5);
-
-
-std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> decomposeFakeQuantize(
-    std::shared_ptr<opset1::FakeQuantize> fq,
-    const element::Type precision,
-    const float min,
-    const float max,
-    const bool updatePrecision);
-
-std::shared_ptr<opset1::FakeQuantize> updateFakeQuantize(std::shared_ptr<opset1::FakeQuantize> fq, element::Type precision, float min, float max);
-
-FakeQuantizeDequantization createDequantization(
-    const float dequantizationScale,
-    const float dequantizationShift,
-    const ngraph::element::Type originalPrecision,
-    const ngraph::Shape dataNodeOutputShape,
-    element::Type precision,
-    float min,
-    float max);
-
-FakeQuantizeDequantization createDequantizationFromFakeQuantize(std::shared_ptr<opset1::FakeQuantize> fq, element::Type precision, float min, float max);
-
-FakeQuantizeDequantization getDequantization(const std::shared_ptr<Node> node, const size_t parentIndex = 0ul);
-
-std::shared_ptr<Node> optimizeSubtract(std::shared_ptr<opset1::Subtract> add);
-
-void moveDequantization(
-    const std::shared_ptr<ngraph::Node> operation,
-    const std::shared_ptr<ngraph::Node> dequantization,
-    const std::shared_ptr<ngraph::Node> scalesConst = nullptr,
-    const std::shared_ptr<ngraph::Node> shiftsConst = nullptr);
-
-std::shared_ptr<opset1::Multiply> insertDequantization(
-    const std::shared_ptr<ngraph::Node>& operation,
-    const FakeQuantizeDequantization& dequantization);
 
 }  // namespace low_precision
 }  // namespace pass

@@ -58,7 +58,6 @@ std::shared_ptr<ngraph::Function> FakeQuantizeFunction::getReference(
         parent = convert;
     }
 
-    // TODO: question: why can change FakeQuantize precision here only, not upper
     ngraph::pass::low_precision::NetworkHelper::setOutDataPrecision(fakeQuantize, params.precisionsOnActivations[0]);
 
     const std::shared_ptr<ngraph::opset1::Subtract> subtract = expectedSubtractValues.empty() ?
