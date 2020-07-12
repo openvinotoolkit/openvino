@@ -154,8 +154,6 @@ public:
         network = nullptr;
     }
 
-    void convertToCNNNetworkImpl();
-
     CNNLayerWeakPtr& getCreatorLayer();
 
     std::map<std::string, CNNLayerPtr>& getInputTo();

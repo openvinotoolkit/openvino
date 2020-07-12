@@ -132,9 +132,3 @@ CNNLayerWeakPtr& details::NGraphData::getCreatorLayer() {
 std::map<std::string, CNNLayerPtr>& details::NGraphData::getInputTo() {
     return _impl->inputTo;
 }
-
-void details::NGraphData::convertToCNNNetworkImpl() {
-    if (network != nullptr) {
-        network->convertToCNNNetworkImpl();
-    }
-}
