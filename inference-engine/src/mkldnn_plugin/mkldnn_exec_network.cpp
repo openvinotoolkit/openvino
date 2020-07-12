@@ -56,49 +56,49 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::ICNNNetwork &network
     NetPass::ConvertPrecision(*_clonedNetwork, Precision::BOOL, Precision::U8);
     NetPass::ConvertPrecision(*_clonedNetwork, Precision::U16, Precision::I32);
 
-    if ((_cfg.lpTransformsMode == Config::LPTransformsMode::On) && (_cfg.lptVersion == Config::LptVersion::cnnNetwork)) {
-        auto params = LayerTransformation::Params(true,  // updatePrecisions
-                                                    true,  // quantizeOutputs
-                                                    true,  // weightsToConst
-                                                    LayerTransformation::QuantizedTensorAlignment::UpdateLevel,  // quantizedTensorAlignmentOnActivations
-                                                    LayerTransformation::QuantizedTensorAlignment::None,  // quantizedTensorAlignmentOnWeights
-                                                    true,  // roundQuantizedValues
-                                                    true,  // updateBiases
-                                                    true);  // supportAsymmetricQuantization
-        LowPrecisionTransformer transformer(LowPrecisionTransformer::getAllTransformations(params).
-            add<ConvolutionTransformation>(LayerTransformation::Params(params).setPrecisionsOnActivations({ Precision::U8 }), "Convolution").
-            addCleanup<ScaleShiftToConvolutionTransformation>(
-                LayerTransformation::Params(params).setPrecisionsOnActivations({ Precision::U8 }),
-                "ScaleShift"));
-        transformer.transform(*_clonedNetwork);
+    // if ((_cfg.lpTransformsMode == Config::LPTransformsMode::On) && (_cfg.lptVersion == Config::LptVersion::cnnNetwork)) {
+    //    auto params = LayerTransformation::Params(true,  // updatePrecisions
+    //                                                true,  // quantizeOutputs
+    //                                                true,  // weightsToConst
+    //                                                LayerTransformation::QuantizedTensorAlignment::UpdateLevel,  // quantizedTensorAlignmentOnActivations
+    //                                                LayerTransformation::QuantizedTensorAlignment::None,  // quantizedTensorAlignmentOnWeights
+    //                                                true,  // roundQuantizedValues
+    //                                                true,  // updateBiases
+    //                                                true);  // supportAsymmetricQuantization
+    //    LowPrecisionTransformer transformer(LowPrecisionTransformer::getAllTransformations(params).
+    //        add<ConvolutionTransformation>(LayerTransformation::Params(params).setPrecisionsOnActivations({ Precision::U8 }), "Convolution").
+    //        addCleanup<ScaleShiftToConvolutionTransformation>(
+    //            LayerTransformation::Params(params).setPrecisionsOnActivations({ Precision::U8 }),
+    //            "ScaleShift"));
+    //    transformer.transform(*_clonedNetwork);
 
-        // Check if network is INT8 or Binary.
-        // BF16 transformations were disabled since CPU plug-in doesn't support mixed precision execution:
-        // BF16 + INT8 or BF16 + BIN.
-        bool isFloatModel = true;
-        CNNNetworkIterator i(&network);
-        while (i != CNNNetworkIterator()) {
-            if (CaselessEq<std::string>()((*i)->type, "FakeQuantize")) {
-                isFloatModel = false;
-                break;
-            }
-            i++;
-        }
+    //    // Check if network is INT8 or Binary.
+    //    // BF16 transformations were disabled since CPU plug-in doesn't support mixed precision execution:
+    //    // BF16 + INT8 or BF16 + BIN.
+    //    bool isFloatModel = true;
+    //    CNNNetworkIterator i(&network);
+    //    while (i != CNNNetworkIterator()) {
+    //        if (CaselessEq<std::string>()((*i)->type, "FakeQuantize")) {
+    //            isFloatModel = false;
+    //            break;
+    //        }
+    //        i++;
+    //    }
 
-        if (with_cpu_x86_bfloat16() && isFloatModel) {
-            BF16Transformer bf16Transformer;
-            CNNNetwork cnnetwork(_clonedNetwork);
-            // If enforceBF16 flag was set, BF16 transformation applies for all layers supported by CPU plugin.
-            // Overwise, only layers marked as BF16 in 'cnnetwork' will be performed in bfloat16 mode.
-            // CPU plugin throws an exception, if marked as BF16 layers have not supported by CPU plugin.
-            if (cfg.enforceBF16 == true)
-                bf16Transformer.convertToBFloat16(cnnetwork);
-        } else {
-            BF16Transformer bf16Transformer;
-            CNNNetwork cnnetwork(_clonedNetwork);
-            bf16Transformer.convertToFloat(cnnetwork);
-        }
-    }
+    //    if (with_cpu_x86_bfloat16() && isFloatModel) {
+    //        BF16Transformer bf16Transformer;
+    //        CNNNetwork cnnetwork(_clonedNetwork);
+    //        // If enforceBF16 flag was set, BF16 transformation applies for all layers supported by CPU plugin.
+    //        // Overwise, only layers marked as BF16 in 'cnnetwork' will be performed in bfloat16 mode.
+    //        // CPU plugin throws an exception, if marked as BF16 layers have not supported by CPU plugin.
+    //        if (cfg.enforceBF16 == true)
+    //            bf16Transformer.convertToBFloat16(cnnetwork);
+    //    } else {
+    //        BF16Transformer bf16Transformer;
+    //        CNNNetwork cnnetwork(_clonedNetwork);
+    //        bf16Transformer.convertToFloat(cnnetwork);
+    //    }
+    // }
 
     MKLDNNGraph::ApplyUnrollPasses(static_cast<ICNNNetwork&>(*_clonedNetwork));
 

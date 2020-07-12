@@ -83,22 +83,22 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork, const Config& conf) 
     ngraph::pass::ConvertOpSet3ToOpSet2(transformations_callback).run_on_function(nGraphFunc);
     ngraph::pass::ConvertOpSet2ToOpSet1(transformations_callback).run_on_function(nGraphFunc);
 
-    using namespace ngraph::pass::low_precision;
-    if ((conf.lptVersion == Config::LptVersion::nGraph) && (conf.lpTransformsMode == Config::LPTransformsMode::On)) {
-        auto params = LayerTransformation::Params(true,  // updatePrecisions
-                                                    true,  // quantizeOutputs
-                                                    true,  // weightsToConst
-                                                    LayerTransformation::QuantizedTensorAlignment::UpdateLevel,  // quantizedTensorAlignmentOnActivations
-                                                    LayerTransformation::QuantizedTensorAlignment::None,  // quantizedTensorAlignmentOnWeights
-                                                    true,  // roundQuantizedValues
-                                                    true,  // updateBiases
-                                                    true);  // supportAsymmetricQuantization
-        LowPrecisionTransformer transformer(LowPrecisionTransformer::getAllTransformations(params)
-            .add<ConvolutionTransformation, ngraph::opset1::Convolution>(
-                LayerTransformation::Params(params).setPrecisionsOnActivations({ngraph::element::u8})));
+    // using namespace ngraph::pass::low_precision;
+    // if ((conf.lptVersion == Config::LptVersion::nGraph) && (conf.lpTransformsMode == Config::LPTransformsMode::On)) {
+    //    auto params = LayerTransformation::Params(true,  // updatePrecisions
+    //                                                true,  // quantizeOutputs
+    //                                                true,  // weightsToConst
+    //                                                LayerTransformation::QuantizedTensorAlignment::UpdateLevel,  // quantizedTensorAlignmentOnActivations
+    //                                                LayerTransformation::QuantizedTensorAlignment::None,  // quantizedTensorAlignmentOnWeights
+    //                                                true,  // roundQuantizedValues
+    //                                                true,  // updateBiases
+    //                                                true);  // supportAsymmetricQuantization
+    //    LowPrecisionTransformer transformer(LowPrecisionTransformer::getAllTransformations(params)
+    //        .add<ConvolutionTransformation, ngraph::opset1::Convolution>(
+    //            LayerTransformation::Params(params).setPrecisionsOnActivations({ngraph::element::u8})));
 
-        transformer.transform(nGraphFunc);
-    }
+    //    transformer.transform(nGraphFunc);
+    // }
 
     ngraph::pass::ConvertOpSet1ToLegacy(transformations_callback).run_on_function(nGraphFunc);
     clonedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(nGraphFunc, *clonedNetwork);
