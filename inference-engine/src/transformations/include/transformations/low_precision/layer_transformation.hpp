@@ -354,6 +354,12 @@ protected:
 protected:
     std::shared_ptr<ngraph::Node> separateInStandaloneBranch(std::shared_ptr<ngraph::Node> node) const;
 
+    void moveDequantizationAfter(
+        TransformationContext &context,
+        const std::shared_ptr<ngraph::Node>& operation,
+        const FakeQuantizeDequantization& dequantization,
+        const bool updatePrecision) const;
+
     void updateOutput(
         TransformationContext &context,
         std::shared_ptr<ngraph::Node> lastNode,
@@ -397,6 +403,20 @@ inline std::ostream &operator << (std::ostream &os, const LayerTransformation::Q
             break;
         }
     }
+    return os;
+}
+
+inline std::ostream &operator << (std::ostream &os, const std::vector<element::Type>& values) {
+    os << "{";
+    for (size_t i = 0; i < values.size(); ++i) {
+        const element::Type& value = values[i];
+        if (i > 0) {
+            os << value;
+        } else {
+            os << ", " << value;
+        }
+    }
+    os << "}";
     return os;
 }
 

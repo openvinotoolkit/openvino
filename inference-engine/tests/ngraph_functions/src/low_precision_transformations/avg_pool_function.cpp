@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph_functions/low_precision_transformations/max_pool_function.hpp"
+#include "ngraph_functions/low_precision_transformations/avg_pool_function.hpp"
 
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph_ops/type_relaxed.hpp>
@@ -13,7 +13,7 @@ namespace ngraph {
 namespace builder {
 namespace subgraph {
 
-std::shared_ptr<ngraph::Function> MaxPoolFunction::getOriginal(
+std::shared_ptr<ngraph::Function> AvgPoolFunction::getOriginal(
     const ngraph::element::Type originalFunctionPrecision,
     const ngraph::Shape& inputShape,
     const ActualValues& values) {
@@ -35,19 +35,20 @@ std::shared_ptr<ngraph::Function> MaxPoolFunction::getOriginal(
         std::make_shared<ngraph::opset1::Constant>(originalFunctionPrecision, Shape({ values.mutliplyValues.size() }), values.mutliplyValues));
     parent = multiply;
 
-    const std::shared_ptr<ngraph::Node> maxPool = std::make_shared<ngraph::opset1::MaxPool>(
+    const std::shared_ptr<ngraph::Node> avgPool = std::make_shared<ngraph::opset1::AvgPool>(
         parent,
         Strides{ 1, 1 },
         Shape{ 1, 1 },
         Shape{ 0, 0 },
         Shape{ 2, 2 },
+        true,
         op::RoundingType::FLOOR);
 
-    ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(maxPool) };
-    return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "MaxPoolTransformation");
+    ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(avgPool) };
+    return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "AvgPoolTransformation");
 }
 
-std::shared_ptr<ngraph::Function> MaxPoolFunction::getOriginal(
+std::shared_ptr<ngraph::Function> AvgPoolFunction::getOriginal(
     const ngraph::element::Type originalFunctionPrecision,
     const ngraph::Shape& inputShape,
     const FakeQuantizeOnData& fakeQuantizeOnData) {
@@ -57,45 +58,44 @@ std::shared_ptr<ngraph::Function> MaxPoolFunction::getOriginal(
         input, originalFunctionPrecision, fakeQuantizeOnData.quantizationLevel, fakeQuantizeOnData.constantShape,
         fakeQuantizeOnData.inputLowValues, fakeQuantizeOnData.inputHighValues, fakeQuantizeOnData.outputLowValues, fakeQuantizeOnData.outputHighValues);
 
-    const std::shared_ptr<ngraph::Node> maxPool = std::make_shared<ngraph::opset1::MaxPool>(
+    const std::shared_ptr<ngraph::Node> avgPool = std::make_shared<ngraph::opset1::AvgPool>(
         fakeQuantize,
         Strides{ 1, 1 },
         Shape{ 1, 1 },
         Shape{ 0, 0 },
         Shape{ 2, 2 },
+        true,
         op::RoundingType::FLOOR);
 
-    ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(maxPool) };
-    return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "MaxPoolTransformation");
+    ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(avgPool) };
+    return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "AvgPoolTransformation");
 }
 
-std::shared_ptr<ngraph::Function> MaxPoolFunction::getReference(
+std::shared_ptr<ngraph::Function> AvgPoolFunction::getReference(
     const ngraph::element::Type originalFunctionPrecision,
     const ngraph::Shape& inputShape,
     const ExpectedValues& values) {
     auto input = std::make_shared<ngraph::opset1::Parameter>(originalFunctionPrecision, ngraph::Shape(inputShape));
     std::shared_ptr<ngraph::Node> parent = input;
 
-    const std::shared_ptr<ngraph::Node> maxPool = std::make_shared<op::TypeRelaxed<ngraph::opset1::MaxPool>>(
+    const std::shared_ptr<ngraph::Node> avgPool = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::AvgPool>>(
         parent,
         Strides{ 1, 1 },
         Shape{ 1, 1 },
         Shape{ 0, 0 },
         Shape{ 2, 2 },
+        true,
         op::RoundingType::FLOOR);
-    parent = maxPool;
-
-    const std::shared_ptr<ngraph::Node> convert = std::make_shared<ngraph::opset1::Convert>(parent, originalFunctionPrecision);
-    parent = convert;
+    parent = avgPool;
 
     if (!values.subtractValues.empty()) {
-        const std::shared_ptr<ngraph::Node> subtract = std::make_shared<op::TypeRelaxed<ngraph::opset1::Subtract>>(
+        const std::shared_ptr<ngraph::Node> subtract = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::Subtract>>(
             parent,
             std::make_shared<ngraph::opset1::Constant>(originalFunctionPrecision, Shape({ values.subtractValues.size() }), values.subtractValues));
         parent = subtract;
     }
 
-    const std::shared_ptr<ngraph::Node> multiply = std::make_shared<op::TypeRelaxed<ngraph::opset1::Multiply>>(
+    const std::shared_ptr<ngraph::Node> multiply = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::Multiply>>(
         parent,
         std::make_shared<ngraph::opset1::Constant>(originalFunctionPrecision, Shape({ values.mutliplyValues.size() }), values.mutliplyValues));
 
@@ -103,12 +103,10 @@ std::shared_ptr<ngraph::Function> MaxPoolFunction::getReference(
         input = as_type_ptr<ngraph::opset1::Parameter>(replace_node(
             input,
             std::make_shared<ngraph::opset1::Parameter>(values.activationPrecision, ngraph::Shape(inputShape))));
-
-        ngraph::pass::low_precision::NetworkHelper::setOutDataPrecision(maxPool, values.activationPrecision);
     }
 
     ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(multiply) };
-    return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "MaxPoolTransformation");
+    return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "AvgPoolTransformation");
 }
 
 }  // namespace subgraph

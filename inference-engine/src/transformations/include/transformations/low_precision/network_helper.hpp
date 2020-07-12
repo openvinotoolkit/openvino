@@ -205,12 +205,14 @@ public:
     std::shared_ptr<Node> lastDequantization;
 };
 
-InsertDequantizationResult insertDequantization(
+InsertDequantizationResult moveDequantizationAfter(
     const std::shared_ptr<ngraph::Node>& operation,
     const FakeQuantizeDequantization& dequantization,
     const bool updatePrecision);
 
 size_t getInputIndex(const std::shared_ptr<ngraph::Node>& parent, const std::shared_ptr<ngraph::Node>& child);
+
+std::vector<Output<Node>> getInputs(const std::shared_ptr<ngraph::Node>& node);
 
 }  // namespace low_precision
 }  // namespace pass

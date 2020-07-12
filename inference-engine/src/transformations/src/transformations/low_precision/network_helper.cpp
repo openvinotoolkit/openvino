@@ -14,7 +14,6 @@
 #include <unordered_set>
 #include <utility>
 #include <vector>
-#include <cassert>
 
 #include <ngraph/rt_info.hpp>
 #include <transformations/low_precision/common/ie_lpt_exception.hpp>
@@ -550,6 +549,7 @@ std::shared_ptr<Node> optimizeSubtract(std::shared_ptr<opset1::Subtract> add) {
     return replacement;
 }
 
+// TODO: don't use it
 void moveDequantization(
     const std::shared_ptr<ngraph::Node> operation,
     const std::shared_ptr<ngraph::Node> dequantization,
@@ -577,7 +577,7 @@ void moveDequantization(
 }
 
 
-InsertDequantizationResult insertDequantization(
+InsertDequantizationResult moveDequantizationAfter(
     const std::shared_ptr<ngraph::Node>& operation,
     const FakeQuantizeDequantization& dequantization,
     const bool updatePrecision) {
@@ -593,16 +593,18 @@ InsertDequantizationResult insertDequantization(
     std::shared_ptr<ngraph::Node> newOperation = operation->copy_with_new_inputs(inputs);
     newOperation->set_friendly_name(operation->get_friendly_name());
 
+    const std::shared_ptr<ngraph::opset1::Convert> convert = updatePrecision ? dequantization.convert : nullptr;
+
     std::shared_ptr<opset1::Multiply> replacement = as_type_ptr<opset1::Multiply>(dequantization.multiply->copy_with_new_inputs({
         dequantization.subtract ?
-            (dequantization.convert ?
+            (convert ?
                 dequantization.subtract->copy_with_new_inputs({
-                    dequantization.convert->copy_with_new_inputs({ newOperation }),
+                    convert->copy_with_new_inputs({ newOperation }),
                     dequantization.subtract->get_input_node_shared_ptr(1)->clone_with_new_inputs({}) }) :
                 dequantization.subtract->copy_with_new_inputs({
                     newOperation,
                     dequantization.subtract->get_input_node_shared_ptr(1)->clone_with_new_inputs({}) })) :
-            (dequantization.convert ? dequantization.convert->copy_with_new_inputs({ newOperation }) : newOperation),
+            (convert ? convert->copy_with_new_inputs({ newOperation }) : newOperation),
         dequantization.multiply->get_input_node_shared_ptr(1)->clone_with_new_inputs({}) }));
 
     replace_node(operation, replacement);
@@ -629,6 +631,14 @@ size_t getInputIndex(const std::shared_ptr<ngraph::Node>& parent, const std::sha
     }
 
     return inputIndex;
+}
+
+std::vector<Output<Node>> getInputs(const std::shared_ptr<ngraph::Node>& node) {
+    std::vector<Output<Node>> inputs(node->get_input_size());
+    for (size_t i = 0; i < node->get_input_size(); ++i) {
+        inputs[i] = node->get_input_node_shared_ptr(i);
+    }
+    return inputs;
 }
 
 }  // namespace low_precision

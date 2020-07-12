@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "low_precision_transformations/max_pool_transformation.hpp"
+#include "low_precision_transformations/fake_quantize_and_max_pool_transformation.hpp"
 
 #include <memory>
 #include <tuple>
@@ -11,36 +11,37 @@
 //#include <ie_core.hpp>
 
 #include <transformations/init_node_info.hpp>
+#include "ngraph_functions/low_precision_transformations/common/fake_quantize_on_data.hpp"
 #include "ngraph_functions/low_precision_transformations/max_pool_function.hpp"
 
 namespace LayerTestsDefinitions {
 
-std::string MaxPoolTransformation::getTestCaseName(testing::TestParamInfo<LayerTestsUtils::LayerTransformationParams> obj) {
-    InferenceEngine::Precision netPrecision;
-    InferenceEngine::SizeVector inputShapes;
+std::string FakeQuantizeAndMaxPoolTransformation::getTestCaseName(testing::TestParamInfo<FakeQuantizeAndMaxPoolTransformationParams> obj) {
+    ngraph::element::Type precision;
+    ngraph::Shape inputShapes;
     std::string targetDevice;
-    InferenceEngine::details::LayerTransformation::Params params;
+    ngraph::pass::low_precision::LayerTransformation::Params params;
     LayerTestsUtils::LayerTransformation::LptVersion version;
-    std::tie(netPrecision, inputShapes, targetDevice, params, version) = obj.param;
+    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize;
+    std::tie(precision, inputShapes, targetDevice, params, version, fakeQuantize) = obj.param;
 
-    return getTestCaseNameByParams(netPrecision, inputShapes, targetDevice, params, version);
+    return getTestCaseNameByParams(precision, inputShapes, targetDevice, params, version);
 }
 
-void MaxPoolTransformation::SetUp() {
-    InferenceEngine::SizeVector inputShape;
-    InferenceEngine::Precision netPrecision;
-    InferenceEngine::details::LayerTransformation::Params params;
+void FakeQuantizeAndMaxPoolTransformation::SetUp() {
+    ngraph::element::Type precision;
+    ngraph::Shape inputShape;
+    ngraph::pass::low_precision::LayerTransformation::Params params;
     LayerTestsUtils::LayerTransformation::LptVersion version;
-    std::tie(netPrecision, inputShape, targetDevice, params, version) = this->GetParam();
+    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize;
+    std::tie(precision, inputShape, targetDevice, params, version, fakeQuantize) = this->GetParam();
 
     ConfigurePlugin(version);
 
-    const auto ngPrecision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     function = ngraph::builder::subgraph::MaxPoolFunction::getOriginal(
-        ngPrecision,
+        precision,
         inputShape,
-        ngraph::pass::low_precision::LayerTransformation::Params(),
-        { ngraph::element::u8, { 127.f }, { 0.01f } });
+        fakeQuantize);
 
     ngraph::pass::InitNodeInfo().run_on_function(function);
 
@@ -49,14 +50,15 @@ void MaxPoolTransformation::SetUp() {
     }
 }
 
-void MaxPoolTransformation::validate() {
-    InferenceEngine::SizeVector inputShape;
-    InferenceEngine::Precision netPrecision;
-    InferenceEngine::details::LayerTransformation::Params params;
+void FakeQuantizeAndMaxPoolTransformation::validate() {
+    ngraph::element::Type precision;
+    ngraph::Shape inputShape;
+    ngraph::pass::low_precision::LayerTransformation::Params params;
     LayerTestsUtils::LayerTransformation::LptVersion version;
-    std::tie(netPrecision, inputShape, targetDevice, params, version) = this->GetParam();
+    ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize;
+    std::tie(precision, inputShape, targetDevice, params, version, fakeQuantize) = this->GetParam();
 
-    const InferenceEngine::CNNNetwork network = transform(params);
+    const InferenceEngine::CNNNetwork network = transform(toCNNNetwork(params));
 
     IE_SUPPRESS_DEPRECATED_START
 
@@ -83,7 +85,7 @@ void MaxPoolTransformation::validate() {
     IE_SUPPRESS_DEPRECATED_END
 }
 
-TEST_P(MaxPoolTransformation, CompareWithRefImpl) {
+TEST_P(FakeQuantizeAndMaxPoolTransformation, CompareWithRefImpl) {
     Run();
 };
 

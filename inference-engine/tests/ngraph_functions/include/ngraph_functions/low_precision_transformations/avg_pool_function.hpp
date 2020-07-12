@@ -13,7 +13,7 @@ namespace ngraph {
 namespace builder {
 namespace subgraph {
 
-class MaxPoolFunction {
+class AvgPoolFunction {
 public:
     class ActualValues {
     public:

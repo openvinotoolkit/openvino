@@ -479,9 +479,10 @@ std::shared_ptr<ngraph::Node> LayerTransformation::separateInStandaloneBranch(st
             parent->set_friendly_name(parent->get_name() + "_new");
         }
 
-        auto newNode = node->clone_with_new_inputs({
-            parent,
-            node->input_value(1) });
+        std::vector<Output<Node>> inputs = getInputs(node);
+        const size_t inputIndex = getInputIndex(dequantization.multiply, node);
+        inputs[inputIndex] = parent;
+        const std::shared_ptr<Node> newNode = node->clone_with_new_inputs(inputs);
 
         replace_node(node, newNode);
         newNode->set_friendly_name(node->get_friendly_name());
@@ -490,6 +491,15 @@ std::shared_ptr<ngraph::Node> LayerTransformation::separateInStandaloneBranch(st
     }
 
     return node;
+}
+
+void LayerTransformation::moveDequantizationAfter(
+    TransformationContext &context,
+    const std::shared_ptr<ngraph::Node>& operation,
+    const FakeQuantizeDequantization& dequantization,
+    const bool updatePrecision) const {
+    const auto result = ngraph::pass::low_precision::moveDequantizationAfter(operation, dequantization, updatePrecision);
+    updateOutput(context, result.lastDequantization, result.newOperation);
 }
 
 void LayerTransformation::updateOutput(

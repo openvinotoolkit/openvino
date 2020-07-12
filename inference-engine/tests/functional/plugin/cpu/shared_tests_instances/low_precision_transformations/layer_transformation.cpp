@@ -122,10 +122,8 @@ InferenceEngine::CNNNetwork LayerTransformation::transform(InferenceEngine::deta
     InferenceEngine::NetPass::ConvertPrecision(*implNetwork, InferenceEngine::Precision::FP16, InferenceEngine::Precision::FP32);
     InferenceEngine::NetPass::ConvertPrecision(*implNetwork, InferenceEngine::Precision::BOOL, InferenceEngine::Precision::U8);
 
-    // implNetwork->serialize("c:\\Projects\\temp\\test.original.xml", "c:\\Projects\\temp\\test.original.bin", nullptr);
     auto transformer = getLowPrecisionTransformer(params);
     transformer.transform(*implNetwork);
-    // implNetwork->serialize("c:\\Projects\\temp\\test.transformed.xml", "c:\\Projects\\temp\\test.transformed.bin", nullptr);
 
     return InferenceEngine::CNNNetwork(implNetwork);
 }

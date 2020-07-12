@@ -11,17 +11,17 @@
 
 #include <transformations/utils/utils.hpp>
 #include <transformations/init_node_info.hpp>
-#include <transformations/low_precision/max_pool.hpp>
+#include <transformations/low_precision/avg_pool.hpp>
 #include <transformations/low_precision/transformer.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "simple_low_precision_transformer.hpp"
-#include "ngraph_functions/low_precision_transformations/max_pool_function.hpp"
+#include "ngraph_functions/low_precision_transformations/avg_pool_function.hpp"
 
 using namespace testing;
 using namespace ngraph::pass;
 
-class MaxPoolTransformationTestValues {
+class AvgPoolTransformationTestValues {
 public:
     low_precision::LayerTransformation::Params params;
     std::vector<float> subtractValues;
@@ -31,16 +31,16 @@ public:
 typedef std::tuple<
     ngraph::element::Type,
     ngraph::Shape,
-    MaxPoolTransformationTestValues> MaxPoolTransformationParams;
+    AvgPoolTransformationTestValues> AvgPoolTransformationParams;
 
-class MaxPoolTransformation : public LayerTransformation, public testing::WithParamInterface<MaxPoolTransformationParams> {
+class AvgPoolTransformation : public LayerTransformation, public testing::WithParamInterface<AvgPoolTransformationParams> {
 public:
     void SetUp() override {
         const ngraph::element::Type precision = std::get<0>(GetParam());
         const ngraph::Shape shape = std::get<1>(GetParam());
-        const MaxPoolTransformationTestValues testValues = std::get<2>(GetParam());
+        const AvgPoolTransformationTestValues testValues = std::get<2>(GetParam());
 
-        actualFunction = ngraph::builder::subgraph::MaxPoolFunction::getOriginal(
+        actualFunction = ngraph::builder::subgraph::AvgPoolFunction::getOriginal(
             precision,
             shape,
             {
@@ -50,10 +50,10 @@ public:
             });
 
         SimpleLowPrecisionTransformer transform;
-        transform.add<ngraph::pass::low_precision::MaxPoolTransformation, ngraph::opset1::MaxPool>(testValues.params);
+        transform.add<ngraph::pass::low_precision::AvgPoolTransformation, ngraph::opset1::AvgPool>(testValues.params);
         transform.transform(actualFunction);
 
-        referenceFunction = ngraph::builder::subgraph::MaxPoolFunction::getReference(
+        referenceFunction = ngraph::builder::subgraph::AvgPoolFunction::getReference(
             precision,
             shape,
             {
@@ -63,15 +63,15 @@ public:
             });
     }
 
-    static std::string getTestCaseName(testing::TestParamInfo<MaxPoolTransformationParams> obj) {
+    static std::string getTestCaseName(testing::TestParamInfo<AvgPoolTransformationParams> obj) {
         const ngraph::element::Type precision = std::get<0>(obj.param);
         const ngraph::Shape shape = std::get<1>(obj.param);
-        const MaxPoolTransformationTestValues testValues = std::get<2>(obj.param);
+        const AvgPoolTransformationTestValues testValues = std::get<2>(obj.param);
         return LayerTransformation::getTestCaseNameByParams(precision, shape, testValues.params);
     }
 };
 
-TEST_P(MaxPoolTransformation, CompareFunctions) {
+TEST_P(AvgPoolTransformation, CompareFunctions) {
     InitNodeInfo().run_on_function(actualFunction);
     actualFunction->validate_nodes_and_infer_types();
 
@@ -88,7 +88,7 @@ const std::vector<ngraph::Shape> shapes = {
     { 1, 32, 72, 48 }
 };
 
-const std::vector<MaxPoolTransformationTestValues> testValues = {
+const std::vector<AvgPoolTransformationTestValues> testValues = {
     { LayerTransformation::createParamsU8I8(), { 128 }, { 0.02f } },
     { LayerTransformation::createParamsU8I8().setUpdatePrecisions(false), { 128 }, { 0.02f } },
     { LayerTransformation::createParamsI8I8(), { 128 }, { 0.02f } },
@@ -96,9 +96,9 @@ const std::vector<MaxPoolTransformationTestValues> testValues = {
 
 INSTANTIATE_TEST_CASE_P(
     LPT,
-    MaxPoolTransformation,
+    AvgPoolTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(precisions),
         ::testing::ValuesIn(shapes),
         ::testing::ValuesIn(testValues)),
-    MaxPoolTransformation::getTestCaseName);
+    AvgPoolTransformation::getTestCaseName);
