@@ -8,7 +8,7 @@
 
 **Detailed description**:
 
-This operation is similar to the TensorFlow* operation [CTCLoss](https://www.tensorflow.org/api_docs/python/tf/compat/v1/nn/ctc_loss)
+*CTCLoss* operation is presented in [Connectionist Temporal Classification - Labeling Unsegmented Sequence Data with Recurrent Neural Networks: Graves et al., 2016](http://www.cs.toronto.edu/~graves/icml_2006.pdf)
 
 *CTCLoss* estimates a chance that a target can occur (or is real) for given input sequence of logits.
 Briefly, *CTCLoss* operation finds all sequences aligned with a target sequence `labels[i,:]`, computes log-probabilities of these aligned sequences using `inputs[:,i,:]` of logits
@@ -32,15 +32,15 @@ The decoding merges repeated characters in `S` in case *ctc_merge_repeated* equa
 By default, `blank_index` is equal to `C-1`, where `C` is a number of classes including the blank.
 For example, in case default *ctc_merge_repeated*, *preprocess_collapse_repeated*, *unique*, and `blank_index` a target sequence `(0,3,2,2,-1,-1,-1,-1,-1)` is processed to `(0,3,2,2)` and
 a path `(0,0,4,3,2,2,4,2,4)` is also processed to `(0,3,2,2)`, where `C=5`. There exist other paths that are also aligned, for instance, `0,4,3,3,2,4,2,2,2`.
-Paths checked for alignment with `label[:,i]` must be of length `input_length[i] = L_i`.
-Compute probabilities of these alignments as follows:
+Paths checked for alignment with a target `label[:,i]` must be of length `input_length[i] = L_i`.
+Compute probabilities of these aligned paths (alignments) as follows:
 \f[
 p(S) = \prod_{t=1}^{L_i} p_{t,i,ct}
 \f]
 
-3. Finally sum up logarithms of probabilities of all aligned paths with negative sign:
+3. Finally, compute negative sum of log-probabilities of all alignments:
 \f[
-CTCLoss = - \sum_{S} \ln p(S)
+CTCLoss = \minus \sum_{S} \ln p(S)
 \f]
 
 
@@ -64,7 +64,7 @@ CTCLoss = - \sum_{S} \ln p(S)
 
 * *unique*
 
-  * **Description**: *unique* is a flag to find unique elements for each `labels[i,:]` before matching with potential alignments2.
+  * **Description**: *unique* is a flag to find unique elements for a target `labels[i,:]` before matching with potential alignments.
   * **Range of values**: True or False
   * **Type**: `boolean`
   * **Default value**: False
@@ -78,17 +78,17 @@ CTCLoss = - \sum_{S} \ln p(S)
 
 * **3**: `labels` - 2D tensor with shape `[N, T]` of type *T_IND*. A sequence can be shorter than the size `T` of the tensor, all elements that do not code sequence classes are filled with -1. Required.
 
-* **4**: `blank_index` - Scalar. Set the class index to use for the blank label. Default value is `C-1`. Optional.
+* **4**: `blank_index` - Scalar of type *T_IND*. Set the class index to use for the blank label. Default value is `C-1`. Optional.
 
 **Output**
 
-* **1**: Output tensor with shape `[N]`, negative log of summed up probabilities for aligned paths. Type of elements is *T_F*.
+* **1**: Output tensor with shape `[N]`, negative sum of log-probabilities of alignments. Type of elements is *T_F*.
 
 **Types**
 
 * *T_F*: any supported floating point type.
 
-* *T_IND*: any supported signed integer type.
+* *T_IND*: any supported integer type.
 
 **Example**
 
