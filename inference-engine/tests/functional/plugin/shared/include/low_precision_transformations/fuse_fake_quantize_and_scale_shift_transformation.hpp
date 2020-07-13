@@ -11,7 +11,6 @@
 
 namespace LayerTestsDefinitions {
 
-// ngraph::builder::subgraph::FakeQuantizeOnData
 typedef std::tuple<
     InferenceEngine::Precision,
     InferenceEngine::SizeVector,
