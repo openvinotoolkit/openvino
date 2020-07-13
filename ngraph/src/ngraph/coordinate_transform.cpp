@@ -14,6 +14,7 @@
 // limitations under the License.
 //*****************************************************************************
 
+#include <algorithm>
 #include <cstdio>
 #include <iostream>
 #include <numeric>
@@ -430,18 +431,9 @@ CoordinateIterator::CoordinateIterator(const Shape& target_shape, bool is_end)
 {
     // The case where we have a zero-length axis is a bit special, in that
     // the iterator always starts out of bounds.
-    m_empty = false;
+    bool const empty = std::find(target_shape.begin(), target_shape.end(), 0) != target_shape.end();
 
-    for (auto s : target_shape)
-    {
-        if (s == 0)
-        {
-            m_empty = true;
-            break;
-        }
-    }
-
-    m_oob = is_end || m_empty;
+    m_oob = is_end || empty;
 }
 
 void CoordinateIterator::operator++()
@@ -449,12 +441,14 @@ void CoordinateIterator::operator++()
     advance(m_target_shape.size() - 1);
 }
 
-void CoordinateIterator::advance(size_t axis) noexcept
+size_t CoordinateIterator::advance(size_t axis) noexcept
 {
     m_oob |= m_target_shape.empty();
 
     if (m_oob)
-        return;
+        return m_target_shape.size();
+
+    bool carry_out = false;
 
     // Increment the target coordinate.
     do
@@ -464,17 +458,20 @@ void CoordinateIterator::advance(size_t axis) noexcept
         if (m_coordinate[axis] < m_target_shape[axis])
         {
             // No carry-out, so we are done.
-            return;
+            return axis;
         }
         else
         {
             m_coordinate[axis] = 0;
+            carry_out = true;
         }
     } while (axis-- > 0);
 
     // If we are still here there was carry-out from the most significant axis. We are now out of
     // bounds.
     m_oob = true;
+
+    return m_target_shape.size();
 }
 
 CoordinateIterator CoordinateIterator::operator++(int)
