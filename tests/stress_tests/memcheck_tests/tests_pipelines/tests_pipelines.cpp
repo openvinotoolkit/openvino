@@ -97,6 +97,14 @@ public:
     }
 
     /**
+     * @brief Measures values at the current point of time and prints immediately
+     */
+    void print_actual_measures() {
+        do_measures();
+        print_measures();
+    }
+
+    /**
      * @brief Prepares string used for fast generation of file with references
      */
     std::string get_reference_record_for_test(std::string test_name, std::string model_name,
@@ -147,28 +155,23 @@ test_create_exenetwork(const std::string &model_name, const std::string &model_p
         MemCheckPipeline memCheckPipeline;
 
         log_info("Memory consumption before run:");
-        memCheckPipeline.do_measures();
-        memCheckPipeline.print_measures();
+        memCheckPipeline.print_actual_measures();
 
         Core ie;
         log_info("Memory consumption after Core creation:");
-        memCheckPipeline.do_measures();
-        memCheckPipeline.print_measures();
+        memCheckPipeline.print_actual_measures();
 
         ie.GetVersions(target_device);
         log_info("Memory consumption after GetCPPPluginByName (via GetVersions):");
-        memCheckPipeline.do_measures();
-        memCheckPipeline.print_measures();
+        memCheckPipeline.print_actual_measures();
 
         CNNNetwork cnnNetwork = ie.ReadNetwork(model_path);
         log_info("Memory consumption after ReadNetwork:");
-        memCheckPipeline.do_measures();
-        memCheckPipeline.print_measures();
+        memCheckPipeline.print_actual_measures();
 
         ExecutableNetwork exeNetwork = ie.LoadNetwork(cnnNetwork, target_device);
         log_info("Memory consumption after LoadNetwork:");
-        memCheckPipeline.do_measures();
-        memCheckPipeline.print_measures();
+        memCheckPipeline.print_actual_measures();
 
         log_debug(memCheckPipeline.get_reference_record_for_test("create_exenetwork", model_name, target_device));
         return memCheckPipeline.get_measures();
@@ -187,41 +190,34 @@ test_infer_request_inference(const std::string &model_name, const std::string &m
         MemCheckPipeline memCheckPipeline;
 
         log_info("Memory consumption before run:");
-        memCheckPipeline.do_measures();
-        memCheckPipeline.print_measures();
+        memCheckPipeline.print_actual_measures();
 
         Core ie;
         log_info("Memory consumption after Core creation:");
-        memCheckPipeline.do_measures();
-        memCheckPipeline.print_measures();
+        memCheckPipeline.print_actual_measures();
 
         ie.GetVersions(target_device);
         log_info("Memory consumption after GetCPPPluginByName (via GetVersions):");
-        memCheckPipeline.do_measures();
-        memCheckPipeline.print_measures();
+        memCheckPipeline.print_actual_measures();
 
         CNNNetwork cnnNetwork = ie.ReadNetwork(model_path);
         log_info("Memory consumption after ReadNetwork:");
-        memCheckPipeline.do_measures();
-        memCheckPipeline.print_measures();
+        memCheckPipeline.print_actual_measures();
 
         ExecutableNetwork exeNetwork = ie.LoadNetwork(cnnNetwork, target_device);
         log_info("Memory consumption after LoadNetwork:");
-        memCheckPipeline.do_measures();
-        memCheckPipeline.print_measures();
+        memCheckPipeline.print_actual_measures();
 
         InferRequest inferRequest = exeNetwork.CreateInferRequest();
         log_info("Memory consumption after CreateInferRequest:");
-        memCheckPipeline.do_measures();
-        memCheckPipeline.print_measures();
+        memCheckPipeline.print_actual_measures();
 
         inferRequest.Infer();
         OutputsDataMap output_info(cnnNetwork.getOutputsInfo());
         for (auto &output : output_info)
             Blob::Ptr outputBlob = inferRequest.GetBlob(output.first);
         log_info("Memory consumption after Inference:");
-        memCheckPipeline.do_measures();
-        memCheckPipeline.print_measures();
+        memCheckPipeline.print_actual_measures();
 
         log_debug(memCheckPipeline.get_reference_record_for_test("infer_request_inference", model_name, target_device));
         return memCheckPipeline.get_measures();
