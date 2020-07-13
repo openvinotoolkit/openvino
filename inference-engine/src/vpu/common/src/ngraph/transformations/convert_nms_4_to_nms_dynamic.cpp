@@ -53,10 +53,3 @@ void vpu::UpgradeNMS4ToNMSDynamic::upgrade_nms4_to_nms_dynamic() {
     auto m = std::make_shared<ngraph::pattern::Matcher>(nms, "UpgradeNMS4ToDynamic");
     this->add_matcher(m, callback, ngraph::pass::PassProperty::CHANGE_DYNAMIC_STATE);
 }
-
-bool vpu::UpgradeNMS4ToNMSDynamic::run_on_function(std::shared_ptr<ngraph::Function> f) {
-    if (ngraph::op::util::has_op_with_type<ngraph::opset4::NonZero>(f)) {
-        return GraphRewrite::run_on_function(f);
-    }
-    return false;
-}

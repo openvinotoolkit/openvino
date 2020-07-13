@@ -14,8 +14,6 @@ public:
         upgrade_nms4_to_nms_dynamic();
     }
 
-    bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
-
 private:
     void upgrade_nms4_to_nms_dynamic();
 };
