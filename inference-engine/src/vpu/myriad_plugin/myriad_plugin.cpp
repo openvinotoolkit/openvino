@@ -17,6 +17,7 @@
 #include <vpu/utils/profiling.hpp>
 #include <vpu/utils/error.hpp>
 #include <transformations/common_optimizations/common_optimizations.hpp>
+#include <transformations/convert_nms_4_to_nms_dynamic.hpp>
 
 #include "vpu/ngraph/transformations/dynamic_to_static_shape.hpp"
 #include "vpu/ngraph/transformations/eliminate_shapeof_after_dsr.hpp"
@@ -42,6 +43,7 @@ ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(
     if (auto function = clonedNetwork->getFunction()) {
         ngraph::op::GenericIE::DisableReshape noReshape(function);
         ngraph::pass::CommonOptimizations().run_on_function(function);
+        ngraph::pass::UpgradeNMS4ToNMSDynamic().run_on_function(function);
         vpu::DynamicToStaticShape().transform(function);
         vpu::EliminateShapeOfAfterDSR().run_on_function(function);
     }
