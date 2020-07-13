@@ -193,7 +193,7 @@ cdef extern from "ie_api_impl.hpp" namespace "InferenceEnginePython":
         void reshape(map[string, vector[size_t]] input_shapes) except +
         void load_from_buffer(const char*xml, size_t xml_size, uint8_t*bin, size_t bin_size) except +
         object getFunction() except +
-        void convertToOldReprentation() except +
+        void convertToOldRepresentation() except +
 
     cdef cppclass InferRequestWrap:
         double exec_time;

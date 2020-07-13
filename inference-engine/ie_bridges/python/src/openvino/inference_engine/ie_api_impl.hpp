@@ -73,7 +73,7 @@ struct IENetwork {
 
     IENetwork() = default;
 
-    void convertToOldReprentation();
+    void convertToOldRepresentation();
 };
 
 

@@ -744,7 +744,7 @@ cdef class DataPtr:
         cdef IENetLayer creator_layer
 
         if self._ptr_network != NULL:
-            deref(self._ptr_network).convertToOldReprentation()
+            deref(self._ptr_network).convertToOldRepresentation()
         _l_ptr = C.getCreatorLayer(self._ptr)
 
         creator_layer = IENetLayer()
@@ -760,7 +760,7 @@ cdef class DataPtr:
         cdef IENetLayer input_to
 
         if self._ptr_network != NULL:
-            deref(self._ptr_network).convertToOldReprentation()
+            deref(self._ptr_network).convertToOldRepresentation()
         _l_ptr_map = C.getInputTo(self._ptr)
 
         input_to_list = []
