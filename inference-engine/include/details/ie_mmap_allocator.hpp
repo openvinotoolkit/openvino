@@ -16,6 +16,7 @@
 
 #ifdef _WIN32
 #include <windows.h>
+#define MAP_FAILED nullptr
 #else
 #include <unistd.h>
 #include <fcntl.h>
@@ -33,7 +34,13 @@ class MmapAllocator : public IAllocator {
 public:
     using Ptr = std::shared_ptr<MmapAllocator>;
 
-    MmapAllocator(const char* path, size_t offset = 0, LockOp lock = LOCK_FOR_READ)
+#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+    using path_type = std::wstring;
+#else
+    using path_type = std::string;
+#endif
+
+    MmapAllocator(const path_type& path, size_t offset = 0, LockOp lock = LOCK_FOR_READ)
         : _path(path), _offset(offset), _size(0), _lock(lock), _data(nullptr) {
     }
 
@@ -96,7 +103,7 @@ protected:
         _file = INVALID_HANDLE_VALUE;
     }
 
-    void map(const char* path, size_t offset, size_t size, LockOp lock) {
+    void map(const path_type& path, size_t offset, size_t size, LockOp lock) {
 #ifdef _WIN32
         SYSTEM_INFO SystemInfo;
         GetSystemInfo(&SystemInfo);
@@ -105,8 +112,8 @@ protected:
         const int64_t page_size = sysconf(_SC_PAGE_SIZE);
 #endif
         const int64_t offset_align = offset / page_size * page_size;
-        const int64_t map_size = offset - offset_align + size;
-        size_t file_size;
+
+        int64_t file_size;
 #ifdef _WIN32
         DWORD file_mode;
         DWORD map_mode;
@@ -127,22 +134,29 @@ protected:
                 THROW_IE_EXCEPTION <<  "Unsupported lock option.";
         }
 
-        _file = ::CreateFile(path, file_mode, FILE_SHARE_READ | FILE_SHARE_WRITE,
+#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+        _file = ::CreateFileW(path.c_str(), file_mode, FILE_SHARE_READ | FILE_SHARE_WRITE,
                              0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
+#else
+        _file = ::CreateFileA(path.c_str(), file_mode, FILE_SHARE_READ | FILE_SHARE_WRITE,
+            0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
+#endif
 
         if (_file == INVALID_HANDLE_VALUE) {
             THROW_IE_EXCEPTION << "Can not open file for mapping.";
         }
 
         LARGE_INTEGER file_size_large;
-        if (::GetFileSizeEx(handle, &file_size_large) == 0) {
+        if (::GetFileSizeEx(_file, &file_size_large) == 0) {
             closeFile();
             THROW_IE_EXCEPTION << "Can not get file size.";
         }
 
         file_size = static_cast<int64_t>(file_size_large.QuadPart);
 
-        const int64_t total_file_size = offset + size;
+        const int64_t map_size = offset - offset_align + (size == 0 ? file_size : size);
+
+        const int64_t total_file_size = offset + map_size;
 
         if (total_file_size > file_size) {
             closeFile();
@@ -158,8 +172,6 @@ protected:
             closeFile();
             THROW_IE_EXCEPTION << "Can not create  file mapping.";
         }
-
-        const int64_t map_size = offset - offset_align + size;
 
         _data = ::MapViewOfFile(
             _mapping,
@@ -185,7 +197,7 @@ protected:
         }
 
         struct stat sb = {};
-        _file = open(path, mode);
+        _file = open(path.c_str(), mode);
 
         if (_file == INVALID_HANDLE_VALUE) {
             THROW_IE_EXCEPTION << "Can not open file for mapping.";
@@ -198,19 +210,23 @@ protected:
 
         file_size = (size_t)sb.st_size;
 
-        if (size != 0 && size > file_size) {
+        const int64_t map_size = offset - offset_align + (size == 0 ? file_size : size);
+
+        const int64_t total_file_size = offset + map_size;
+
+        if (total_file_size > file_size) {
             closeFile();
             THROW_IE_EXCEPTION << "File size is less than requested map size.";
         }
 
-        _size = (size == 0) ? (size_t)sb.st_size : size;
-
         _data = mmap(NULL, map_size, prot, MAP_PRIVATE, _file, offset_align);
     #endif
-        if (_data == nullptr) {
+        if (_data == MAP_FAILED) {
             closeFile();
             THROW_IE_EXCEPTION << "Can not create file mapping.";
         }
+
+        _size = map_size;
     }
 
     void unmap() {
@@ -228,7 +244,7 @@ protected:
     }
 
 private:
-    std::string _path;
+    path_type _path;
     size_t _offset;
     size_t _size;
     LockOp _lock;
@@ -248,7 +264,11 @@ private:
  * @param size Number of elements allocated
  * @return A new allocator
  */
+#if defined(ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
+std::shared_ptr<IAllocator> make_mmap_allocator(const wchar_t* path, size_t offset = 0, LockOp lock = LOCK_FOR_READ) {
+#else
 std::shared_ptr<IAllocator> make_mmap_allocator(const char* path, size_t offset = 0, LockOp lock = LOCK_FOR_READ) {
+#endif
     return shared_from_irelease(new MmapAllocator(path, offset, lock));
 }
 
