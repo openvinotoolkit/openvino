@@ -2786,7 +2786,8 @@ def tensor_iterator(
     concat_output_desc: List[TensorIteratorConcatOutputDesc],
     name: Optional[str] = None,
 ) -> Node:
-    """Perform recurrent execution of the network described in the body, iterating through the data.
+    """
+    Perform recurrent execution of the network described in the body, iterating through the data.
 
     :param      inputs:                The provided to TensorIterator operator.
     :param      graph_body:            The graph representing the body we execute.
@@ -2804,7 +2805,6 @@ def tensor_iterator(
     :param      concat_output_desc:    The descriptors describing specified output values through
                                        all the iterations concatenated into one node.
     :param      name:                  The optional name for output node.
-
     :returns:   Node representing TensorIterator operation.
     """
     attributes = {
@@ -2815,6 +2815,7 @@ def tensor_iterator(
         "body_output_desc": [desc.serialize() for desc in body_output_desc],
         "concat_output_desc": [desc.serialize() for desc in concat_output_desc],
     }
+
     return _get_node_factory_opset1().create("TensorIterator", as_nodes(*inputs), attributes)
 
 

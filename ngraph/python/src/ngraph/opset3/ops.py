@@ -399,7 +399,9 @@ def read_value(init_value: NodeInput, variable_id: str, name: Optional[str] = No
     :return: ReadValue node
     """
     return _get_node_factory_opset3().create(
-        "ReadValue", [as_node(init_value)], {"variable_id": variable_id}
+        "ReadValue",
+        [as_node(init_value)],
+        {"variable_id": variable_id}
     )
 
 

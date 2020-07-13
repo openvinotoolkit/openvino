@@ -1946,30 +1946,9 @@ shared_ptr<Node> JSONDeserializer::deserialize_node(json node_js)
             node = make_shared<op::Round>(args[0]);
             break;
         }
-        case OP_TYPEID::ScalarConstantLike:
-        {
-            double value = node_js.at("value").get<double>();
-            node = make_shared<op::ScalarConstantLike>(args[0], value);
-            break;
-        }
         case OP_TYPEID::ScaleShift:
         {
             node = make_shared<op::ScaleShift>(args[0], args[1], args[2]);
-            break;
-        }
-        case OP_TYPEID::ScatterAdd:
-        {
-            node = make_shared<op::ScatterAdd>(args[0], args[1], args[2]);
-            break;
-        }
-        case OP_TYPEID::ScatterND:
-        {
-            node = make_shared<op::ScatterND>(args[0], args[1], args[2]);
-            break;
-        }
-        case OP_TYPEID::ScatterNDAdd:
-        {
-            node = make_shared<op::ScatterNDAdd>(args[0], args[1], args[2]);
             break;
         }
         case OP_TYPEID::Select:
@@ -3000,21 +2979,7 @@ json JSONSerializer::serialize_node(const Node& n)
         node["activations_beta"] = tmp->get_activations_beta();
         break;
     }
-    case OP_TYPEID::ScalarConstantLike:
-    {
-        auto tmp = static_cast<const op::ScalarConstantLike*>(&n);
-        auto constant = tmp->as_constant();
-        char* p_end;
-        node["value"] = strtod(constant->get_value_strings()[0].c_str(), &p_end);
-        break;
-    }
     case OP_TYPEID::ScaleShift: { break;
-    }
-    case OP_TYPEID::ScatterAdd: { break;
-    }
-    case OP_TYPEID::ScatterND: { break;
-    }
-    case OP_TYPEID::ScatterNDAdd: { break;
     }
     case OP_TYPEID::Select: { break;
     }
