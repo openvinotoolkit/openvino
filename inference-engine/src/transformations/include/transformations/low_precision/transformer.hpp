@@ -33,12 +33,16 @@ public:
     void setWeightsToConst(const bool weightsToConst);
     void setQuantizedTensorAlignmentOnActivations(const LayerTransformation::QuantizedTensorAlignment quantizedTensorAlignmentOnActivations);
     void setQuantizedTensorAlignmentOnWeights(const LayerTransformation::QuantizedTensorAlignment quantizedTensorAlignmentOnWeights);
-    LowPrecisionTransformations& remove(const std::string& layerName);
-    LowPrecisionTransformations& removeBranchSpecificTransformations(const std::string& layerName);
-    LowPrecisionTransformations& removeTransformations(const std::string& layerName);
-    LowPrecisionTransformations& removeCleanupTransformations(const std::string& layerName);
+    LowPrecisionTransformations& remove(const std::string& operationType);
+    LowPrecisionTransformations& removeBranchSpecificTransformations(const std::string& operationType);
+    LowPrecisionTransformations& removeTransformations(const std::string& operationType);
+    LowPrecisionTransformations& removeCleanupTransformations(const std::string& operationType);
 
-    template <class T, class Operation>
+    /**
+     * Add branch specific transformation. Transformation type and operation type are required.
+     * Operation type is used to find transformation by operation during precision definition.
+     */
+    template <class Transformation, class Operation>
     LowPrecisionTransformations& addBranchSpecific(const LayerTransformation::Params& params) {
         const std::string typeName = typeid(ngraph::op::TypeRelaxed<Operation>).name();
 
@@ -47,11 +51,15 @@ public:
             branchSpecificTransformations.erase(it);
         }
 
-        branchSpecificTransformations.emplace(typeName, std::make_shared<T>(params));
+        branchSpecificTransformations.emplace(typeName, std::make_shared<Transformation>(params));
         return *this;
     }
 
-    template <class T, class Operation>
+    /**
+     * Add transformation. Transformation type and operation type are required.
+     * Operation type is used to find transformation by operation during precision definition.
+     */
+    template <class Transformation, class Operation>
     LowPrecisionTransformations& add(const LayerTransformation::Params& params) {
         const std::string typeName = typeid(ngraph::op::TypeRelaxed<Operation>).name();
 
@@ -60,11 +68,15 @@ public:
             transformations.erase(it);
         }
 
-        transformations.emplace(typeName, std::make_shared<T>(params));
+        transformations.emplace(typeName, std::make_shared<Transformation>(params));
         return *this;
     }
 
-    template <class T, class Operation>
+    /**
+     * Add cleanup transformation. Transformation type and operation type are required.
+     * Operation type is used to find transformation by operation during precision definition.
+     */
+    template <class Transformation, class Operation>
     LowPrecisionTransformations& addCleanup(const LayerTransformation::Params& params) {
         const std::string typeName = typeid(ngraph::op::TypeRelaxed<Operation>).name();
 
@@ -73,7 +85,7 @@ public:
             cleanupTransformations.erase(it);
         }
 
-        cleanupTransformations.emplace(typeName, std::make_shared<T>(params));
+        cleanupTransformations.emplace(typeName, std::make_shared<Transformation>(params));
         return *this;
     }
 

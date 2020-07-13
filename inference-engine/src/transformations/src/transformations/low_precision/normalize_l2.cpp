@@ -124,8 +124,8 @@ void NormalizeL2Transformation::transform(TransformationContext &context, ngraph
 
     // TODO: check if shift is not zero then exit
 
-    //moveDequantization(operation, dequantization, newScalesConst);
-    NetworkHelper::moveDequantization(operation, dequantization);
+    // moveDequantization(operation, dequantization, newScalesConst);
+    // NetworkHelper::moveDequantization(operation, dequantization);
 }
 
 //bool NormalizeTransformation::isPrecisionPreserved(const CNNLayer& layer) const noexcept {

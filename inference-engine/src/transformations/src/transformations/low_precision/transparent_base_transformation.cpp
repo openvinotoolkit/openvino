@@ -32,7 +32,7 @@ void TransparentBaseTransformation::transform(TransformationContext& context, ng
 
     // replace_node(operation, newDequantization);
 
-    NetworkHelper::moveDequantization(operation, dequantization);
+    // NetworkHelper::moveDequantization(operation, dequantization);
 }
 
 bool TransparentBaseTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const {
