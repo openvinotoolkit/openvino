@@ -111,10 +111,12 @@ ref_graph_edges = [
         ('slice_end_data', 'sslice', {'in': 2}),
         ('sslice', 'sslice_data'),
         ('scales', 'scales_data'),
+        ('axes', 'axes_data'),
         ('sslice_data', 'mul', {'in': 0}),
         ('scales_data', 'mul', {'in': 1}),
         ('mul', 'mul_data'),
         ('mul_data', 'interpolate', {'in': 1}),
+        ('axes_data', 'interpolate', {'in': 2}),
         ('interpolate', 'interpolate_data'),
         ('interpolate_data', 'abs'),
         ('abs', 'abs_data'),
@@ -168,6 +170,14 @@ ref_graph_node_attrs_for_2d_spatial_case_1 = {
         'shape': int64_array([1])
     },
     'scales_data': {'kind': 'data', 'shape': None},
+    'axes': {
+        'type': 'Const',
+        'op': 'Const',
+        'kind': 'op',
+        'value': int64_array([3]),
+        'shape': int64_array([1])
+    },
+    'axes_data': {'kind': 'data', 'shape': None},
     'mul': {'kind': 'op', 'op': 'Mul', 'type': 'Multiply'},
     'mul_data': {'kind': 'data', 'shape': None},
     'interpolate_data': {'value': None, 'shape': int64_array([1, 100, 120, 300]), 'kind': 'data'},
@@ -222,6 +232,14 @@ ref_graph_node_attrs_for_2d_spatial_case_2 = {
         'shape': int64_array([1])
     },
     'scales_data': {'kind': 'data', 'shape': None},
+    'axes': {
+        'type': 'Const',
+        'op': 'Const',
+        'kind': 'op',
+        'value': int64_array([3]),
+        'shape': int64_array([1])
+    },
+    'axes_data': {'kind': 'data', 'shape': None},
     'mul': {'kind': 'op', 'op': 'Mul', 'type': 'Multiply'},
     'mul_data': {'kind': 'data', 'shape': None},
     'interpolate_data': {'value': None, 'shape': int64_array([1, 100, 240, 150]), 'kind': 'data'},
@@ -277,6 +295,14 @@ ref_graph_node_attrs_for_3d_spatial_case_1 = {
         'shape': int64_array([1])
     },
     'scales_data': {'kind': 'data', 'shape': None},
+    'axes': {
+        'type': 'Const',
+        'op': 'Const',
+        'kind': 'op',
+        'value': int64_array([3]),
+        'shape': int64_array([1])
+    },
+    'axes_data': {'kind': 'data', 'shape': None},
     'mul': {'kind': 'op', 'op': 'Mul', 'type': 'Multiply'},
     'mul_data': {'kind': 'data', 'shape': None},
     'interpolate_data': {'value': None, 'shape': int64_array([1, 3, 100, 120, 300]), 'kind': 'data'},
@@ -332,6 +358,14 @@ ref_graph_node_attrs_for_3d_spatial_case_2 = {
         'shape': int64_array([1])
     },
     'scales_data': {'kind': 'data', 'shape': None},
+    'axes': {
+        'type': 'Const',
+        'op': 'Const',
+        'kind': 'op',
+        'value': int64_array([3]),
+        'shape': int64_array([1])
+    },
+    'axes_data': {'kind': 'data', 'shape': None},
     'mul': {'kind': 'op', 'op': 'Mul', 'type': 'Multiply'},
     'mul_data': {'kind': 'data', 'shape': None},
     'interpolate_data': {'value': None, 'shape': int64_array([1, 3, 100, 240, 150]), 'kind': 'data'},
@@ -378,7 +412,10 @@ class SplitConcatPairToInterpolateTest(unittest.TestCase):
         )
         ref_graph = build_graph(
             nodes_attrs=ref_graph_node_attrs_for_2d_spatial_case_2,
-            edges=ref_graph_edges
+            edges=ref_graph_edges,
+            update_attributes={
+                'axes': {'shape': int64_array([1]), 'value': int64_array([2])}
+            }
         )
         SplitConcatPairToInterpolate().find_and_replace_pattern(graph)
         (flag, resp) = compare_graphs(graph, ref_graph, 'output')
@@ -391,7 +428,10 @@ class SplitConcatPairToInterpolateTest(unittest.TestCase):
         )
         ref_graph = build_graph(
             nodes_attrs=ref_graph_node_attrs_for_3d_spatial_case_1,
-            edges=ref_graph_edges
+            edges=ref_graph_edges,
+            update_attributes={
+                'axes': {'shape': int64_array([1]), 'value': int64_array([4])}
+            }
         )
         SplitConcatPairToInterpolate().find_and_replace_pattern(graph)
         (flag, resp) = compare_graphs(graph, ref_graph, 'output')
