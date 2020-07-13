@@ -13,7 +13,6 @@
 #include "vpu/ngraph/transformations/dynamic_to_static_shape_reduce.hpp"
 #include "vpu/ngraph/transformations/dynamic_to_static_shape_reshape.hpp"
 #include "vpu/ngraph/transformations/dynamic_to_static_shape_roialign.hpp"
-#include "vpu/ngraph/transformations/dynamic_to_static_shape_shapeof.hpp"
 #include "vpu/ngraph/transformations/dynamic_to_static_shape_squeeze.hpp"
 #include "vpu/ngraph/transformations/dynamic_to_static_shape_strided_slice.hpp"
 #include "vpu/ngraph/transformations/dynamic_to_static_shape_topk.hpp"
@@ -130,9 +129,6 @@ void DynamicToStaticShape::transform(std::shared_ptr<ngraph::Function> function)
             operation->get_friendly_name(), type, getSupportedTypes(transformations));
         transformation->second(operation);
     }
-
-    // Should be executed after all dynamic-to-static transformations
-    DynamicToStaticShapeShapeOf().run_on_function(function);
 
     function->validate_nodes_and_infer_types();
     validateStaticShapes(*function);
