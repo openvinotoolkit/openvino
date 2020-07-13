@@ -11,7 +11,6 @@ Usage: ./scrips/compare_memcheck_2_runs.py cur_source ref_source \
 # pylint:disable=line-too-long
 
 import argparse
-import csv
 import json
 import os
 import sys
@@ -21,8 +20,8 @@ from operator import itemgetter
 from pathlib import Path
 import logging as log
 
-from memcheck_upload import create_memcheck_records
 from pymongo import MongoClient
+from memcheck_upload import create_memcheck_records
 
 # Database arguments
 from memcheck_upload import DATABASE, DB_COLLECTIONS
@@ -58,8 +57,8 @@ def get_memcheck_records(source, db_collection=None, db_name=None, db_url=None):
 
 def compare_memcheck_2_runs(cur_values, references, output_file=None):
     """Compares 2 MemCheckTests runs and prepares a report on specified path"""
-    import pandas
-    from scipy.stats import gmean
+    import pandas                   # pylint:disable=import-outside-toplevel
+    from scipy.stats import gmean   # pylint:disable=import-outside-toplevel
 
     returncode = 0
 
