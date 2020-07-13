@@ -34,7 +34,7 @@ const std::vector<ngraph::builder::subgraph::FakeQuantizeOnData> fakeQuantizes =
 INSTANTIATE_TEST_CASE_P(LPT, FakeQuantizeAndMaxPoolTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(precisions),
-        ::testing::ValuesIn({ ngraph::Shape{ 1, 32, 72, 48 } }),
+        ::testing::ValuesIn({ ngraph::Shape({ 1, 32, 72, 48 }) }),
         ::testing::Values(CommonTestUtils::DEVICE_GPU),
         ::testing::ValuesIn(trasformationParamValues),
         ::testing::ValuesIn(versionValues),
