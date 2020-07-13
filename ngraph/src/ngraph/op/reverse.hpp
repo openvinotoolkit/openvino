@@ -73,9 +73,6 @@ namespace ngraph
                 }
 
             protected:
-                virtual void generate_adjoints(autodiff::Adjoints& adjoints,
-                                               const OutputVector& deltas) override;
-
                 AxisSet m_reversed_axes;
             };
         }
@@ -119,9 +116,6 @@ namespace ngraph
                 void set_mode(const Mode mode) { m_mode = mode; }
                 virtual size_t get_version() const override { return 1; }
             protected:
-                virtual void generate_adjoints(autodiff::Adjoints& adjoints,
-                                               const OutputVector& deltas) override;
-
                 Mode mode_from_string(const std::string& mode) const;
 
                 /// \brief Indicates how the values from the second input should be interpreted.

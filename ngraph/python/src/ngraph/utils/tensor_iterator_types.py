@@ -29,6 +29,7 @@ class GraphBody(object):
         self.results = results
 
     def serialize(self) -> dict:
+        """Serialize GraphBody as a dictionary."""
         return {
             "parameters": self.parameters,
             "results": self.results,
@@ -43,6 +44,7 @@ class TensorIteratorInputDesc(object):
         self.body_parameter_idx = body_parameter_idx
 
     def serialize(self) -> dict:
+        """Serialize TensorIteratorInputDesc as a dictionary."""
         return {
             "input_idx": self.input_idx,
             "body_parameter_idx": self.body_parameter_idx,
@@ -70,6 +72,7 @@ class TensorIteratorSliceInputDesc(TensorIteratorInputDesc):
         self.axis = axis
 
     def serialize(self) -> dict:
+        """Serialize TensorIteratorSliceInputDesc as a dictionary."""
         output = super().serialize()
         output["start"] = self.start
         output["stride"] = self.stride
@@ -90,6 +93,7 @@ class TensorIteratorMergedInputDesc(TensorIteratorInputDesc):
         self.body_value_idx = body_value_idx
 
     def serialize(self) -> dict:
+        """Serialize TensorIteratorMergedInputDesc as a dictionary."""
         output = super().serialize()
         output["body_value_idx"] = self.body_value_idx
         return output
@@ -110,6 +114,7 @@ class TensorIteratorOutputDesc(object):
         self.output_idx = output_idx
 
     def serialize(self) -> dict:
+        """Serialize TensorIteratorOutputDesc as a dictionary."""
         return {
             "body_value_idx": self.body_value_idx,
             "output_idx": self.output_idx,
@@ -124,6 +129,7 @@ class TensorIteratorBodyOutputDesc(TensorIteratorOutputDesc):
         self.iteration = iteration
 
     def serialize(self) -> dict:
+        """Serialize TensorIteratorBodyOutputDesc as a dictionary."""
         output = super().serialize()
         output["iteration"] = self.iteration
         return output
@@ -150,6 +156,7 @@ class TensorIteratorConcatOutputDesc(TensorIteratorOutputDesc):
         self.axis = axis
 
     def serialize(self) -> dict:
+        """Serialize TensorIteratorConcatOutputDesc as a dictionary."""
         output = super().serialize()
         output["start"] = self.start
         output["stride"] = self.stride

@@ -159,9 +159,3 @@ shared_ptr<Node> op::Quantize::clone_with_new_inputs(const OutputVector& new_arg
     return make_shared<Quantize>(
         new_args.at(0), new_args.at(1), new_args.at(2), m_type, m_axes, m_round_mode);
 }
-
-void op::Quantize::generate_adjoints(autodiff::Adjoints& /* adjoints */,
-                                     const OutputVector& /* deltas */)
-{
-    throw ngraph_error("Forward-propagation-only operation");
-}
