@@ -50,7 +50,9 @@ void AddTransformation::transform(TransformationContext& context, ngraph::patter
         return;
     }
 
-    const std::shared_ptr<ngraph::opset1::Add> add = as_type_ptr<opset1::Add>(m.get_match_root());
+    std::shared_ptr<ngraph::opset1::Add> add = as_type_ptr<opset1::Add>(m.get_match_root());
+
+    add = separateInStandaloneBranch(add);
 
     // pass::VisualizeTree("C:\\Projects\\temp\\test.original").run_on_module(std::vector<std::shared_ptr<Function>>{ context.network });
 
@@ -126,8 +128,7 @@ void AddTransformation::transform(TransformationContext& context, ngraph::patter
         replace_node(add, newMultiply);
     }
 
-    // TODO: FIXME: output names
-    newMultiply->set_friendly_name(add->get_friendly_name());
+    updateOutput(context, newMultiply, add);
 
     // std::cout << "AddTransformation::transform: done: " << newMultiply->get_friendly_name() << std::endl;
 
