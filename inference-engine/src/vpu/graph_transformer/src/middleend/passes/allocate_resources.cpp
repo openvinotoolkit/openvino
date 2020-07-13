@@ -230,7 +230,7 @@ AllocationResult runAllocator(const Model& model, EnableShapeAllocation enableSh
         }
 
         VPU_THROW_UNLESS(model->numDatas() == datasWithAllocatedShape.size(),
-            "Shape allocation failed: shape was allocated for {} datas, while there are {} in the model",
+            "Shape allocation failed: there are still unallocated data objects ({} were allocated, while there are {} in the model)",
             datasWithAllocatedShape.size(), model->numDatas());
     }
 
