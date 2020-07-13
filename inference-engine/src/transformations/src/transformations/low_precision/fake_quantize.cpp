@@ -58,10 +58,6 @@ void FakeQuantizeTransformation::transform(TransformationContext& context, ngrap
         return;
     }
 
-#ifdef LPT_PRINT_DEQUANTIZATION_INFO
-    printDequantizationValues(dequantizationScales, dequantizationShifts);
-#endif
-
     // Split FakeQuantize to two parts: Quantize and Dequantize
     auto QDQ = NetworkHelper::decomposeFakeQuantize(
         as_type_ptr<opset1::FakeQuantize>(layer),
@@ -69,6 +65,25 @@ void FakeQuantizeTransformation::transform(TransformationContext& context, ngrap
         dataPrecision.min,
         dataPrecision.max,
         updatePrecisions);
+
+#ifdef LPT_PRINT_DEQUANTIZATION_INFO
+    {
+        const std::shared_ptr<opset1::Multiply> multiply = as_type_ptr<opset1::Multiply>(std::get<1>(QDQ));
+        const std::shared_ptr<opset1::Constant> multiplyConst = as_type_ptr<opset1::Constant>(multiply->get_input_node_shared_ptr(1));
+        const std::vector<float> dequantizationScales = multiplyConst->cast_vector<float>();
+
+        const std::shared_ptr<opset1::Subtract> subtract = as_type_ptr<opset1::Subtract>(multiply->get_input_node_shared_ptr(0));
+        std::vector<float> dequantizationShifts;
+        if (subtract != nullptr) {
+            const std::shared_ptr<opset1::Constant> subtractConst = as_type_ptr<opset1::Constant>(subtract->get_input_node_shared_ptr(1));
+            dequantizationShifts = subtractConst->cast_vector<float>();
+        } else {
+            dequantizationShifts = std::vector<float>(dequantizationScales.size());
+        }
+
+        printDequantizationValues(dequantizationScales, dequantizationShifts);
+    }
+#endif
 
     std::vector<std::shared_ptr<ngraph::Function>> transformedModule{ context.network };
 

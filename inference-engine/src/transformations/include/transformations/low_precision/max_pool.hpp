@@ -16,6 +16,7 @@ class TRANSFORMATIONS_API MaxPoolTransformation : public LayerTransformation {
 public:
     MaxPoolTransformation(const Params& params);
     void registerMatcherIn(GraphRewrite& pass, TransformationContext& context) const override;
+    bool canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> op) const override;
     void transform(TransformationContext& context, ngraph::pattern::Matcher &m) const override;
     bool isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept override;
 };

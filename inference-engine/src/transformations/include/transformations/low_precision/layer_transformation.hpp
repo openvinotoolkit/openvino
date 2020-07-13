@@ -30,8 +30,8 @@
  *    dequantization layers printing
  *
  *****************************************************/
-// #define LPT_ORIGINAL_MODEL_PATH "/localdisk/slyalin/orig.model"
-// #define LPT_TRANSFORMED_MODEL_PATH "/localdisk/slyalin/transformed.model"
+// #define LPT_ORIGINAL_MODEL_PATH "/localdisk/orig.model"
+// #define LPT_TRANSFORMED_MODEL_PATH "/localdisk/transformed.model"
 // #define LPT_PRINT_DEQUANTIZATION_INFO
 
 namespace ngraph {
@@ -302,7 +302,7 @@ public:
 
 protected:
 #ifdef LPT_PRINT_DEQUANTIZATION_INFO
-            static void printDequantizationInfo(const CNNLayer& layer);
+    static void printDequantizationInfo(const std::shared_ptr<Node>& layer);
     static void printDequantizationInfo(const DataPrecision& dataPrecision);
     static void printDequantizationValues(
         const std::vector<float>& dequantizationScales,

@@ -36,7 +36,7 @@ LayerTransformation::LayerTransformation(const Params& params) :
     precisionsOnWeights(params.precisionsOnWeights),
     layerTransformationsManager(nullptr),
     paramsManager(nullptr),
-    quantizationIntervalAsymmetryThreshold(2.e-4),
+    quantizationIntervalAsymmetryThreshold(0.002f),
     zeroThreshold(1.e-6f),
     dequantizationShiftToZeroRatioTreshold(4.e-4f),
     minQuantizationLevels(2ul) {}
@@ -133,11 +133,11 @@ std::stringstream toStream(const std::vector<float>& dequantizationValues) {
     return ss;
 }
 
-void LayerTransformation::printDequantizationInfo(const CNNLayer& layer) {
-    const QuantizationDetails quantizationDetails = QuantizationDetails::getDetails(layer);
+void LayerTransformation::printDequantizationInfo(const std::shared_ptr<Node>& layer) {
+    const QuantizationDetails quantizationDetails = QuantizationDetails::getDetails(as_type_ptr<opset1::FakeQuantize>(layer));
     std::cout <<
-        layer.type << (CNNNetworkHelper::onWeights(layer) ? " on weights " : " on activations ") <<
-        layer.name << ":" << std::endl <<
+        layer->get_type_name() << (NetworkHelper::onWeights(layer) ? " on weights " : " on activations ") <<
+        layer->get_friendly_name() << ":" << std::endl <<
         "   details  : " << quantizationDetails << std::endl;
 }
 
@@ -309,9 +309,7 @@ LayerTransformation::PrecisionDetails LayerTransformation::getPrecisionDetails(c
 
             const float expectedRatio = quantizationDetails.levels == 256 ? asymmetricIntervalSideRatio256 : -1.f;
             const float actualRatio = quantizationDetails.outputLowValues[i] / quantizationDetails.outputHighValues[i];
-            const float actual = std::fabs(
-                (actualRatio - expectedRatio) /
-                std::max(fabs(quantizationDetails.outputLowValues[i]), fabs(quantizationDetails.outputHighValues[i])));
+            const float actual = std::fabs((actualRatio - expectedRatio) / std::min(actualRatio, expectedRatio));
             if (actual > quantizationIntervalAsymmetryThreshold) {
                 hasZeroPoint = true;
             }
