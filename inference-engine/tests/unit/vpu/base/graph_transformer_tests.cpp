@@ -171,7 +171,7 @@ void TestModel::createOutputs(int numOutputs) {
 Stage TestModel::addStage(
         std::initializer_list<InputInfo> curInputInfos,
         std::initializer_list<OutputInfo> curOutputInfos,
-        int old_test) {
+        bool write_to_dataDesc) {
     DataVector curInputs;
     for (const auto& info : curInputInfos) {
         if (info.type == InputType::Original) {
@@ -186,7 +186,7 @@ Stage TestModel::addStage(
         if (info.type == OutputType::Original) {
             curOutputs.push_back(_outputs.at(info.originalOutputInd));
         } else {
-            if (old_test == 0) {
+            if (!write_to_dataDesc) {
                 curOutputs.push_back(_model->addNewData(formatString("Data %d / %d", _stages.size(), curOutputs.size()), info.desc));
             } else {
                 curOutputs.push_back(_model->addNewData(formatString("Data %d / %d", _stages.size(), curOutputs.size()), _dataDesc));

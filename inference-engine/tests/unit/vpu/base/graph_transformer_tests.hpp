@@ -96,7 +96,7 @@ public:
 
     Stage addStage(
             std::initializer_list<InputInfo> curInputInfos,
-            std::initializer_list<OutputInfo> curOutputInfos, int old_test = 0);
+            std::initializer_list<OutputInfo> curOutputInfos, bool write_to_dataDesc = false);
 
     void setStageDataOrderInfo(
             int stageInd,
