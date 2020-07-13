@@ -428,7 +428,7 @@ extensions/front/tf/sparse_fill_empty_rows_ext.py
 extensions/front/tf/sparse_segment_mean_ext.py
 extensions/front/tf/sparse_segment_sqrtn_ext.py
 extensions/front/tf/sparse_segment_sum_ext.py
-extensions/front/tf/sparse_to_dense_ext.py
+extensions/front/tf/sparse_to_dense_replacer.py
 extensions/front/tf/split_ext.py
 extensions/front/tf/ssd_support.json
 extensions/front/tf/ssd_support_api_v1.14.json
@@ -655,6 +655,7 @@ extensions/ops/RNNCell.py
 extensions/ops/roialign.py
 extensions/ops/roifeatureextractor_onnx.py
 extensions/ops/scatter.py
+extensions/ops/scatternd.py
 extensions/ops/select.py
 extensions/ops/shufflechannel.py
 extensions/ops/simplernms.py
@@ -666,7 +667,6 @@ extensions/ops/sparse_reshape.py
 extensions/ops/sparse_segment_mean.py
 extensions/ops/sparse_segment_sqrtn.py
 extensions/ops/sparse_segment_sum.py
-extensions/ops/sparse_to_dense.py
 extensions/ops/spatial_transformer.py
 extensions/ops/splice.py
 extensions/ops/split.py

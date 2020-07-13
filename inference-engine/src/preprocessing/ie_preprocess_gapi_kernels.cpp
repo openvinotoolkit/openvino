@@ -805,12 +805,32 @@ static void calcRowLinear(const cv::gapi::fluid::View  & in,
         src1[l] = in.InLine<const T>(index1);
         dst[l] = out.OutLine<T>(l);
     }
+#if 1
+    #ifdef HAVE_AVX2
+    if (with_cpu_x86_avx2()) {
+        if (std::is_same<T, uint8_t>::value) {
+            if (inSz.width >= 32 && outSz.width >= 16) {
+                avx::calcRowLinear_8UC1(reinterpret_cast<uint8_t**>(dst),
+                                        reinterpret_cast<const uint8_t**>(src0),
+                                        reinterpret_cast<const uint8_t**>(src1),
+                                        reinterpret_cast<const short*>(alpha),
+                                        reinterpret_cast<const short*>(clone),
+                                        reinterpret_cast<const short*>(mapsx),
+                                        reinterpret_cast<const short*>(beta),
+                                        reinterpret_cast<uint8_t*>(tmp),
+                                        inSz, outSz, lpi);
 
+                return;
+            }
+        }
+    }
+    #endif
+#endif
     #ifdef HAVE_SSE
     if (with_cpu_x86_sse42()) {
         if (std::is_same<T, uint8_t>::value) {
             if (inSz.width >= 16 && outSz.width >= 8) {
-                calcRowLinear_8U(reinterpret_cast<uint8_t**>(dst),
+                calcRowLinear_8UC1(reinterpret_cast<uint8_t**>(dst),
                                  reinterpret_cast<const uint8_t**>(src0),
                                  reinterpret_cast<const uint8_t**>(src1),
                                  reinterpret_cast<const short*>(alpha),

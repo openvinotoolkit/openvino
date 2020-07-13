@@ -18,8 +18,8 @@
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/op/broadcast.hpp"
 #include "ngraph/op/constant.hpp"
-#include "ngraph/op/experimental/shape_of.hpp"
 #include "ngraph/op/gather.hpp"
+#include "ngraph/op/shape_of.hpp"
 #include "ngraph/pass/constant_folding.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/strided_slice.hpp"
@@ -225,12 +225,6 @@ shared_ptr<Node> op::v1::StridedSlice::clone_with_new_inputs(const OutputVector&
                                          m_new_axis_mask,
                                          m_shrink_axis_mask,
                                          m_ellipsis_mask);
-}
-
-void op::v1::StridedSlice::generate_adjoints(autodiff::Adjoints& /* adjoints */,
-                                             const OutputVector& /* deltas */)
-{
-    throw ngraph_error("generate_adjoints not implemented for StridedSlice");
 }
 
 namespace

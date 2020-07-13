@@ -211,8 +211,7 @@ protected:
 
             graph.Infer(srcs, outputBlobs);
 
-            const auto & inetwork = static_cast<const ICNNNetwork&>(network);
-            details::CNNNetworkIterator l(&inetwork), end;
+            details::CNNNetworkIterator l(network), end;
             for ( ; l != end; ++l) {
                 (*l)->params["PrimitivesPriority"] = "cpu:ref,cpu:ref_any";
             }

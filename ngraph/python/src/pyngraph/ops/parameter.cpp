@@ -31,7 +31,8 @@ void regclass_pyngraph_op_Parameter(py::module m)
     parameter.doc() = "ngraph.impl.op.Parameter wraps ngraph::op::Parameter";
     parameter.def("__repr__", [](const ngraph::Node& self) {
         std::string class_name = py::cast(self).get_type().attr("__name__").cast<std::string>();
-        std::string shape = py::cast(self.get_shape()).attr("__str__")().cast<std::string>();
+        std::string shape =
+            py::cast(self.get_output_partial_shape(0)).attr("__str__")().cast<std::string>();
         std::string type = self.get_element_type().c_type_string();
         return "<" + class_name + ": '" + self.get_friendly_name() + "' (" + shape + ", " + type +
                ")>";

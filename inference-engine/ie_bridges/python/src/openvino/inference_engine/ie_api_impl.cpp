@@ -362,6 +362,19 @@ void InferenceEnginePython::InferRequestWrap::setBlob(const std::string &blob_na
     IE_CHECK_CALL(request_ptr->SetBlob(blob_name.c_str(), blob_ptr, &response));
 }
 
+void InferenceEnginePython::InferRequestWrap::setBlob(const std::string &blob_name,
+                                                      const InferenceEngine::Blob::Ptr &blob_ptr,
+                                                      const InferenceEngine::PreProcessInfo& info) {
+    InferenceEngine::ResponseDesc response;
+    IE_CHECK_CALL(request_ptr->SetBlob(blob_name.c_str(), blob_ptr, info, &response));
+}
+
+void InferenceEnginePython::InferRequestWrap::getPreProcess(const std::string& blob_name,
+                                                       const InferenceEngine::PreProcessInfo** info) {
+    InferenceEngine::ResponseDesc response;
+    IE_CHECK_CALL(request_ptr->GetPreProcess(blob_name.c_str(), info, &response));
+}
+
 void InferenceEnginePython::InferRequestWrap::getBlobPtr(const std::string &blob_name,
                                                          InferenceEngine::Blob::Ptr &blob_ptr) {
     InferenceEngine::ResponseDesc response;
@@ -529,8 +542,12 @@ InferenceEnginePython::IECore::readNetwork(const std::string& modelPath, const s
 
 InferenceEnginePython::IENetwork
 InferenceEnginePython::IECore::readNetwork(const std::string& model, uint8_t *bin, size_t bin_size) {
-    InferenceEngine::TensorDesc tensorDesc(InferenceEngine::Precision::U8, { bin_size }, InferenceEngine::Layout::C);
-    auto weights_blob = InferenceEngine::make_shared_blob<uint8_t>(tensorDesc, bin, bin_size);
+    InferenceEngine::Blob::Ptr weights_blob;
+    if(bin_size!=0)
+    {
+        InferenceEngine::TensorDesc tensorDesc(InferenceEngine::Precision::U8, { bin_size }, InferenceEngine::Layout::C);
+        weights_blob = InferenceEngine::make_shared_blob<uint8_t>(tensorDesc, bin, bin_size);
+    }
     InferenceEngine::CNNNetwork net = actual.ReadNetwork(model, weights_blob);
     return IENetwork(std::make_shared<InferenceEngine::CNNNetwork>(net));
 }

@@ -15,13 +15,10 @@
 #include <ngraph/function.hpp>
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/variant.hpp>
-#include <transformations/common_optimizations/common_optimizations.hpp>
-#include <transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
-#include <transformations/convert_opset2_to_opset1/convert_opset2_to_opset1.hpp>
 #include <transformations/utils/utils.hpp>
-#include <convert_function_to_cnn_network.hpp>
-#include <generic_ie.hpp>
 #include <cpp/ie_cnn_network.h>
+#include <cnn_network_impl.hpp>  // deprecated API
+#include <ie_layers.h>  // deprecated API
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 
@@ -47,7 +44,7 @@ TEST(TransformationTests, ConvBiasFusion) {
 
     // Set PrimitivesPriority to all Convolutions
     auto nGraph = network.getFunction();
-    ASSERT_TRUE(nGraph);
+    ASSERT_NE(nullptr, nGraph);
     for (auto & op : nGraph->get_ops()) {
         if (auto conv = std::dynamic_pointer_cast<ngraph::opset1::Convolution>(op)) {
             auto & rtInfo = conv->get_rt_info();
@@ -55,16 +52,7 @@ TEST(TransformationTests, ConvBiasFusion) {
         }
     }
 
-
-    // Force conversion from nGraph to CNNNetwork
-    ngraph::pass::CommonOptimizations().run_on_function(nGraph);
-    ngraph::op::GenericIE::DisableReshape noReshape(f);
-
-    // Note: instead of running all Conversion Transformations you can make up your own transformation pipeline
-    ngraph::pass::CommonOptimizations().run_on_function(nGraph);
-    ngraph::pass::ConvertOpSet2ToOpSet1().run_on_function(nGraph);
-    ngraph::pass::ConvertOpSet1ToLegacy().run_on_function(nGraph);
-    auto clonedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(nGraph, network);
+    auto clonedNetwork = std::make_shared<InferenceEngine::details::CNNNetworkImpl>(network);
 
     IE_SUPPRESS_DEPRECATED_START
     InferenceEngine::CNNLayerPtr conv;
