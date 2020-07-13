@@ -115,8 +115,9 @@ public:
     }
 };
 
-class UnicodeLocationTest
-        : public LayerTestsUtils::LayerTestsCommonDeprecated<activationParams> {
+class UnicodeLocationTest :
+            public testing::WithParamInterface<activationParams>,
+            public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<activationParams> &obj);
 
@@ -129,23 +130,30 @@ protected:
         const std::wstring libPath = InferenceEngine::getIELibraryPathW();
         const std::wstring tempPath = libPath + pathSeparator + testSubdir;
         tempDir.reset(new TemporaryFirmwareDir(tempPath, libPath, getAllFirmwareNames(libPath)));
+
         unicodeSetEnv(L"IE_VPU_FIRMWARE_DIR", tempPath);
     }
 
     void SetUp() override {
         envSetup();
 
-        inputPrecision = InferenceEngine::Precision::FP32;
-        netPrecision = InferenceEngine::Precision::FP32;
+        InferenceEngine::Precision inputPrecision = InferenceEngine::Precision::FP32;
+        InferenceEngine::Precision netPrecision = InferenceEngine::Precision::FP32;
+        ngraph::helpers::ActivationTypes activationType = ngraph::helpers::ActivationTypes::Tanh;
         inputShapes = std::get<1>(GetParam());
         targetDevice = CommonTestUtils::DEVICE_MYRIAD;
+        auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+        auto params = ngraph::builder::makeParams(ngPrc, {inputShapes});
+        auto activation = ngraph::builder::makeActivation(params[0], ngPrc, activationType);
+        function = std::make_shared<ngraph::Function>(ngraph::NodeVector{activation}, params);
+    }
 
-        const auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-        const auto params = ngraph::builder::makeParams(ngPrc, {inputShapes});
-        const auto activation = ngraph::builder::makeActivation(params[0], ngPrc, ngraph::helpers::Tanh);
-        fnPtr = std::make_shared<ngraph::Function>(ngraph::NodeVector{activation}, params);
+    void Run() override {
+        LayerTestsUtils::LayerTestsCommon::Run();
+        UnregisterCertainPlugin("MYRIAD");
     }
 };
+
 class UnicodeLocationTestUnexistent : public UnicodeLocationTest {
     void envSetup() override {
         const std::wstring testSubdir = std::get<0>(GetParam());
@@ -154,55 +162,12 @@ class UnicodeLocationTestUnexistent : public UnicodeLocationTest {
     }
 };
 
-
-TEST_P(UnicodeLocationTest, Basic) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    InferenceEngine::CNNNetwork cnnNet(fnPtr);
-    setNetInOutPrecision(cnnNet, inputPrecision);
-    const std::string inputName = cnnNet.getInputsInfo().begin()->first;
-    const std::string outputName = cnnNet.getOutputsInfo().begin()->first;
-    const auto ie = PluginCache::get().ie();
-    auto execNet = ie->LoadNetwork(cnnNet, targetDevice);
-    const auto a = execNet.GetInputsInfo();
-    auto req = execNet.CreateInferRequest();
-
-    const uint32_t data_range = 20;
-    const int32_t data_start_from = -10;
-
-    InferenceEngine::Blob::Ptr inBlob = FuncTestUtils::createAndFillBlob({inputPrecision,
-                                                                          inputShapes,
-                                                                          InferenceEngine::TensorDesc::getLayoutByDims(
-                                                                          inputShapes)},
-                                                                         data_range,
-                                                                         data_start_from,
-                                                                         32768);
-    req.SetBlob(inputName, inBlob);
-    req.Infer();
-    const auto outBlob = req.GetBlob(outputName);
-    std::vector<const float *> inRawData;
-    InferenceEngine::Blob::Ptr castedBlob = inBlob;
-    inRawData.push_back(castedBlob->cbuffer().as<float *>());
-
-    const auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    convertFuncToF32(fnPtr, netPrecision);
-    const auto refOutData = ngraph::helpers::inferFnWithInterp<ngraph::element::Type_t::f32>(fnPtr, inRawData);
-    const auto thr = FuncTestUtils::GetComparisonThreshold(InferenceEngine::Precision::FP16);
-    const size_t outElementsCount = std::accumulate(begin(fnPtr->get_output_shape(0)), end(fnPtr->get_output_shape(0)), 1,
-                                              std::multiplies<size_t>());
-    FuncTestUtils::compareRawBuffers(outBlob->cbuffer().as<float *>(), *refOutData[0], outElementsCount,
-                                     outElementsCount,
-                                     thr);
-    fnPtr.reset();
+TEST_P(UnicodeLocationTest, CompareWithRefs) {
+    Run();
 }
 
-TEST_P(UnicodeLocationTestUnexistent, Basic) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    InferenceEngine::CNNNetwork cnnNet(fnPtr);
-    setNetInOutPrecision(cnnNet, inputPrecision);
-    const auto ie = PluginCache::get().ie();
-
-    ASSERT_THROW(ie->LoadNetwork(cnnNet, targetDevice),
-                 InferenceEngine::details::InferenceEngineException);
+TEST_P(UnicodeLocationTestUnexistent, CompareWithRefs) {
+    ASSERT_THROW(Run(), InferenceEngine::details::InferenceEngineException);
 }
 
 const auto basicCases = ::testing::Combine(
@@ -210,7 +175,6 @@ const auto basicCases = ::testing::Combine(
     ::testing::Values(std::vector<size_t>({1, 50})));
 
 INSTANTIATE_TEST_CASE_P(Environment, UnicodeLocationTest, basicCases);
-
 INSTANTIATE_TEST_CASE_P(Environment, UnicodeLocationTestUnexistent, basicCases);
 
 #endif

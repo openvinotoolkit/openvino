@@ -60,6 +60,10 @@ public:
 
     virtual void SetRefMode(RefMode mode);
 
+    virtual void UnregisterCertainPlugin(std::string p) {
+        core->UnregisterPlugin(p);
+    }
+
 protected:
     LayerTestsCommon();
 

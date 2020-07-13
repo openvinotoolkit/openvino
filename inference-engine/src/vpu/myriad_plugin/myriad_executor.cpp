@@ -47,7 +47,7 @@ std::string getFirmwareDir() {
     if (utf8_getenv_s(firmwareDirLength - 1, firmware_dir, "IE_VPU_FIRMWARE_DIR")) {
         absPathToFw = firmware_dir;
     }
-    return absPathToFw;
+    return absPathToFw.c_str();
 }
 
 } // namespace
