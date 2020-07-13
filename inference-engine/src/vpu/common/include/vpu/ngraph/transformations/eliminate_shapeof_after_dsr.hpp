@@ -8,9 +8,9 @@
 
 namespace vpu {
 
-class DynamicToStaticShapeShapeOf : public ngraph::pass::GraphRewrite {
+class EliminateShapeOfAfterDSR : public ngraph::pass::GraphRewrite {
 public:
-    DynamicToStaticShapeShapeOf();
+    EliminateShapeOfAfterDSR();
 };
 
 } //namespace vpu

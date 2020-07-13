@@ -68,6 +68,10 @@ namespace ngraph
         {
         }
 
+        /// \brief Constructs a PartialShape with static rank from a vector of dimensions values.
+        /// \param dimensions The Dimension values for the constructed shape.
+        PartialShape(const std::vector<Dimension::value_type>& dimensions);
+
         /// \brief Constructs a static PartialShape with zero rank (the shape of a scalar).
         PartialShape()
             : PartialShape(std::initializer_list<Dimension>{})
