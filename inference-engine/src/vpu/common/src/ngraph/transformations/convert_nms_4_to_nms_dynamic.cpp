@@ -4,6 +4,7 @@
 
 #include "vpu/ngraph/transformations/convert_nms_4_to_nms_dynamic.hpp"
 
+#include <vpu/ngraph/operations/dynamic_non_max_suppression.hpp>
 #include <ngraph/graph_util.hpp>
 #include <ngraph/opsets/opset4.hpp>
 #include <ngraph/rt_info.hpp>
@@ -27,13 +28,13 @@ void vpu::UpgradeNMS4ToNMSDynamic::upgrade_nms4_to_nms_dynamic() {
             return false;
         }
 
-        const auto box_encoding = static_cast<const ngraph::op::dynamic::NonMaxSuppression::BoxEncodingType>(nms_4->get_box_encoding());
+        const auto box_encoding = nms_4->get_box_encoding();
         const auto new_args = nms_4->input_values();
         const auto& arg2 = new_args.size() > 2 ? new_args.at(2) : ngraph::opset4::Constant::create(ngraph::element::i32, ngraph::Shape{}, {0});
         const auto& arg3 = new_args.size() > 3 ? new_args.at(3) : ngraph::opset4::Constant::create(ngraph::element::f32, ngraph::Shape{}, {.0f});
         const auto& arg4 = new_args.size() > 4 ? new_args.at(4) : ngraph::opset4::Constant::create(ngraph::element::f32, ngraph::Shape{}, {.0f});
 
-        const auto nms_dynamic = std::make_shared<ngraph::op::dynamic::NonMaxSuppression>(
+        const auto nms_dynamic = std::make_shared<ngraph::vpu::op::DynamicNonMaxSuppression>(
                 new_args.at(0),
                 new_args.at(1),
                 arg2,
