@@ -49,6 +49,20 @@ ngraph::pass::low_precision::LayerTransformation::Params LayerTransformation::cr
         { ngraph::element::i8 });
 }
 
+ngraph::pass::low_precision::LayerTransformation::Params LayerTransformation::createParamsU8I8AndI8() {
+    return low_precision::LayerTransformation::Params(
+        true,
+        true,
+        true,
+        low_precision::LayerTransformation::QuantizedTensorAlignment::None,
+        low_precision::LayerTransformation::QuantizedTensorAlignment::None,
+        false,
+        true,
+        true,
+        { ngraph::element::u8, ngraph::element::i8 },
+        { ngraph::element::i8 });
+}
+
 std::string LayerTransformation::toString(const ngraph::pass::low_precision::LayerTransformation::Params& params) {
     std::ostringstream result;
     result <<

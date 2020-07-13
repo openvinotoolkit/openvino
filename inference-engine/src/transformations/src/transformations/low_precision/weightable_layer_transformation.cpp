@@ -115,7 +115,14 @@ DataPrecision WeightableLayerTransformation::decomposeFakeQuantizeForWeightsPath
     // The second part of this function calculates new FQ limits and corresponding dequantization scale and shift.
     // To maintain all shapes in a consistent way, ngraph ops are used to build constant sub-expressions.
 
-    auto tuple = NetworkHelper::decomposeFakeQuantize(fq, dataPrecision.precision, dataPrecision.min, dataPrecision.max, updatePrecisions);
+    auto tuple = NetworkHelper::decomposeFakeQuantize(
+        fq,
+        dataPrecision.precision,
+        dataPrecision.min,
+        dataPrecision.max,
+        dataPrecision.hasZeroPoint,
+        updatePrecisions);
+
     std::shared_ptr<ngraph::Node> fqOnWeights = std::get<0>(tuple);
     if (as_type_ptr<ngraph::opset1::Constant>(fqOnWeights) == nullptr) {
         THROW_IE_LPT_EXCEPTION(*fqOnWeights) << "FakeQuantize on weights was not folded to constant";

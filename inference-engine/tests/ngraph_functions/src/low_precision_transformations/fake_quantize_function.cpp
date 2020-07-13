@@ -37,6 +37,7 @@ std::shared_ptr<ngraph::Function> FakeQuantizeFunction::getReference(
     const ngraph::Shape& inputShape,
     const ngraph::pass::low_precision::LayerTransformation::Params& params,
     const FakeQuantizeOnData& fakeQuantizeOnData,
+    const ngraph::element::Type fakeQuantizeOutputPrecision,
     const std::vector<float>& expectedSubtractValues,
     const std::vector<float>& expectedMultiplyValues) {
     const auto input = std::make_shared<ngraph::opset1::Parameter>(precision, ngraph::Shape(inputShape));
@@ -56,9 +57,9 @@ std::shared_ptr<ngraph::Function> FakeQuantizeFunction::getReference(
     if (params.updatePrecisions) {
         const std::shared_ptr<ngraph::opset1::Convert> convert = std::make_shared<ngraph::opset1::Convert>(parent, precision);
         parent = convert;
-    }
 
-    ngraph::pass::low_precision::NetworkHelper::setOutDataPrecision(fakeQuantize, params.precisionsOnActivations[0]);
+        ngraph::pass::low_precision::NetworkHelper::setOutDataPrecision(fakeQuantize, fakeQuantizeOutputPrecision);
+    }
 
     const std::shared_ptr<ngraph::opset1::Subtract> subtract = expectedSubtractValues.empty() ?
         nullptr :

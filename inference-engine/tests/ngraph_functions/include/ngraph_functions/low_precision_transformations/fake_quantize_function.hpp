@@ -27,6 +27,7 @@ public:
         const ngraph::Shape& inputShape,
         const ngraph::pass::low_precision::LayerTransformation::Params& params,
         const FakeQuantizeOnData& fakeQuantizeOnData,
+        const ngraph::element::Type fakeQuantizeOutputPrecision,
         const std::vector<float>& expectedSubtractValues,
         const std::vector<float>& expectedMultiplyValues);
 };

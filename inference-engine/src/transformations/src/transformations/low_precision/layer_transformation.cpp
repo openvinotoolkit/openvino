@@ -21,7 +21,7 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-const char LayerTransformation::lastLayerPrefix[] = "_original";
+const char LayerTransformation::originalLayerPostfix[] = "_original";
 
 LayerTransformation::LayerTransformation(const Params& params) :
     updatePrecisions(params.updatePrecisions),
@@ -510,7 +510,7 @@ void LayerTransformation::updateOutput(
         std::shared_ptr<ngraph::Node> outputNode = result->get_input_node_shared_ptr(0);
         if (outputNode.get() == lastNode.get()) {
             const std::string originalName = originalNode->get_friendly_name();
-            originalNode->set_friendly_name(originalName + "_original");
+            originalNode->set_friendly_name(originalName + LayerTransformation::originalLayerPostfix);
             lastNode->set_friendly_name(originalName);
             break;
         }

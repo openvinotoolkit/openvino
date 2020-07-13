@@ -265,6 +265,7 @@ std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> NetworkHelper::decompos
     const element::Type precision,
     const float min,
     const float max,
+    const bool hasZeroPoint,
     const bool updatePrecision) {
     using std::make_shared;
 
@@ -279,9 +280,11 @@ std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> NetworkHelper::decompos
         fold<opset1::Subtract>(outputHigh, outputLow),
         fold<opset1::Subtract>(newMax, newMin));
 
-    std::shared_ptr<Node> shift = fold<opset1::Divide>(
-        fold<opset1::Subtract>(fold<opset1::Multiply>(newMin, outputHigh), fold<opset1::Multiply>(newMax, outputLow)),
-        fold<opset1::Subtract>(outputHigh, outputLow));
+    std::shared_ptr<Node> shift = hasZeroPoint ?
+        fold<opset1::Divide>(
+            fold<opset1::Subtract>(fold<opset1::Multiply>(newMin, outputHigh), fold<opset1::Multiply>(newMax, outputLow)),
+            fold<opset1::Subtract>(outputHigh, outputLow)) :
+        nullptr;
 
     // Build a substitution sub-graph:
 
@@ -296,11 +299,13 @@ std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> NetworkHelper::decompos
     // TODO: for debuging only - remove later
     newFQ->set_friendly_name(fq->get_friendly_name() + "_original");
 
-    std::shared_ptr<opset1::Constant> shiftConst = as_type_ptr<opset1::Constant>(shift);
-    if (isScalarLike(shiftConst)) {
-        auto scalar = distillToScalar(shiftConst);
-        if (op::util::constantIsEqualTo(scalar, 0)) {
-            shift = nullptr;
+    if (shift != nullptr) {
+        std::shared_ptr<opset1::Constant> shiftConst = as_type_ptr<opset1::Constant>(shift);
+        if (isScalarLike(shiftConst)) {
+            auto scalar = distillToScalar(shiftConst);
+            if (op::util::constantIsEqualTo(scalar, 0)) {
+                shift = nullptr;
+            }
         }
     }
 

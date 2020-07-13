@@ -347,7 +347,7 @@ protected:
     float dequantizationShiftToZeroRatioTreshold;
     size_t minQuantizationLevels;
 
-    static const char lastLayerPrefix[];
+    static const char originalLayerPostfix[];
     IParamsManager* paramsManager;
     ILayerTransformationsManager* layerTransformationsManager;
 

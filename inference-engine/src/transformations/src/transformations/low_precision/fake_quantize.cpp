@@ -64,6 +64,7 @@ void FakeQuantizeTransformation::transform(TransformationContext& context, ngrap
         dataPrecision.precision,
         dataPrecision.min,
         dataPrecision.max,
+        dataPrecision.hasZeroPoint,
         updatePrecisions);
 
 #ifdef LPT_PRINT_DEQUANTIZATION_INFO

@@ -78,6 +78,7 @@ public:
         const element::Type precision,
         const float min,
         const float max,
+        const bool hasZeroPoint,
         const bool updatePrecision);
 
     static std::shared_ptr<opset1::FakeQuantize> updateFakeQuantize(
