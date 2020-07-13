@@ -18,9 +18,11 @@
 from typing import Callable, Iterable, List, Optional, Set, Union
 
 import numpy as np
+from functools import partial
 
 from ngraph.impl import Node, Shape
 from ngraph.impl.op import Constant, GetOutputElement, Parameter
+from ngraph.opset_utils import _get_node_factory
 from ngraph.utils.decorators import binary_op, nameable_op, unary_op
 from ngraph.utils.input_validation import (
     assert_list_of_ints,
@@ -51,16 +53,9 @@ from ngraph.utils.types import (
     make_constant_node,
 )
 
+_get_node_factory_opset3 = partial(_get_node_factory, "opset3")
 
-def _get_node_factory(opset_version: Optional[str] = "opset3") -> NodeFactory:
-    """Return NodeFactory configured to create operators from specified opset version."""
-    if opset_version:
-        return NodeFactory(opset_version)
-    else:
-        return NodeFactory()
-
-
-# ------------------------ ops ---------------------------------------------------
+# -------------------------------------------- ops ------------------------------------------------
 
 @nameable_op
 def assign(new_value: NodeInput, variable_id: str, name: Optional[str] = None) -> Node:
@@ -71,7 +66,7 @@ def assign(new_value: NodeInput, variable_id: str, name: Optional[str] = None) -
     :param name:         Optional name for output node.
     :return: Assign node
     """
-    return _get_node_factory().create("Assign", [as_node(new_value)], {"variable_id": variable_id})
+    return _get_node_factory_opset3().create("Assign", [as_node(new_value)], {"variable_id": variable_id})
 
 
 @nameable_op
@@ -96,7 +91,7 @@ def broadcast(
     inputs = as_nodes(data, target_shape)
     if broadcast_spec.upper() == "EXPLICIT":
         inputs.append(as_node(axes_mapping))
-    return _get_node_factory().create(
+    return _get_node_factory_opset3().create(
         "Broadcast", inputs, {"broadcast_spec": broadcast_spec.upper()}
     )
 
@@ -119,7 +114,7 @@ def bucketize(
     :param name:              Optional name for output node.
     :return: Bucketize node
     """
-    return _get_node_factory().create(
+    return _get_node_factory_opset3().create(
         "Bucketize",
         [data, as_node(buckets)],
         {"output_type": output_type, "with_right_bound": with_right_bound},
@@ -142,7 +137,7 @@ def cum_sum(
     :param reverse: if set to true, will perform the sums in reverse direction
     :return: New node performing the operation
     """
-    return _get_node_factory().create(
+    return _get_node_factory_opset3().create(
         "CumSum", as_nodes(arg, axis), {"exclusive": exclusive, "reverse": reverse}
     )
 
@@ -173,7 +168,7 @@ def embedding_bag_offsets_sum(
     elif default_index is not None:
         inputs.append(default_index)
 
-    return _get_node_factory().create("EmbeddingBagOffsetsSum", inputs, {})
+    return _get_node_factory_opset3().create("EmbeddingBagOffsetsSum", inputs, {})
 
 
 @nameable_op
@@ -198,7 +193,7 @@ def embedding_bag_packed_sum(
     if per_sample_weights is not None:
         inputs.append(as_node(per_sample_weights))
 
-    return _get_node_factory().create("EmbeddingBagPackedSum", inputs, {})
+    return _get_node_factory_opset3().create("EmbeddingBagPackedSum", inputs, {})
 
 
 @nameable_op
@@ -236,7 +231,7 @@ def embedding_segments_sum(
     elif num_segments is not None:
         inputs.append(as_node(num_segments))
 
-    return _get_node_factory().create("EmbeddingSegmentsSum", inputs, {})
+    return _get_node_factory_opset3().create("EmbeddingSegmentsSum", inputs, {})
 
 
 @nameable_op
@@ -258,7 +253,7 @@ def extract_image_patches(
     :param name:      Optional name for output node.
     :return: ExtractImagePatches node
     """
-    return _get_node_factory().create(
+    return _get_node_factory_opset3().create(
         "ExtractImagePatches",
         [as_node(image)],
         {"sizes": sizes, "strides": strides, "rates": rates, "auto_pad": auto_pad},
@@ -327,7 +322,50 @@ def gru_cell(
         "linear_before_reset": linear_before_reset,
         "clip": clip,
     }
-    return _get_node_factory().create("GRUCell", input_nodes, attributes)
+    return _get_node_factory_opset3().create("GRUCell", input_nodes, attributes)
+
+
+@nameable_op
+def non_max_suppression(
+    boxes: NodeInput,
+    scores: NodeInput,
+    max_output_boxes_per_class: Optional[NodeInput] = None,
+    iou_threshold: Optional[NodeInput] = None,
+    score_threshold: Optional[NodeInput] = None,
+    box_encoding: str = "corner",
+    sort_result_descending: bool = True,
+    output_type: str = "i64",
+    name: Optional[str] = None,
+) -> Node:
+    """Return a node which performs NonMaxSuppression.
+
+    :param boxes: Tensor with box coordinates.
+    :param scores: Tensor with box scores.
+    :param max_output_boxes_per_class: Tensor Specifying maximum number of boxes
+                                        to be selected per class.
+    :param iou_threshold: Tensor specifying intersection over union threshold
+    :param score_threshold: Tensor specifying minimum score to consider box for the processing.
+    :param box_encoding: Format of boxes data encoding.
+    :param sort_result_descending: Flag that specifies whenever it is necessary to sort selected
+                                   boxes across batches or not.
+    :param output_type: Output element type.
+    :return: The new node which performs NonMaxSuppression
+    """
+    if max_output_boxes_per_class is None:
+        max_output_boxes_per_class = make_constant_node(0, np.int64)
+    if iou_threshold is None:
+        iou_threshold = make_constant_node(0, np.float32)
+    if score_threshold is None:
+        score_threshold = make_constant_node(0, np.float32)
+
+    inputs = as_nodes(boxes, scores, max_output_boxes_per_class, iou_threshold, score_threshold)
+    attributes = {
+        "box_encoding": box_encoding,
+        "sort_result_descending": sort_result_descending,
+        "output_type": output_type,
+    }
+
+    return _get_node_factory_opset3().create("NonMaxSuppression", inputs, attributes)
 
 
 @nameable_op
@@ -339,7 +377,7 @@ def non_zero(data: NodeInput, output_type: str = "i64", name: Optional[str] = No
 
     :return: The new node which performs NonZero
     """
-    return _get_node_factory().create("NonZero", [as_node(data)], {"output_type": output_type})
+    return _get_node_factory_opset3().create("NonZero", [as_node(data)], {"output_type": output_type})
 
 
 @nameable_op
@@ -351,7 +389,7 @@ def read_value(init_value: NodeInput, variable_id: str, name: Optional[str] = No
     :param name:         Optional name for output node.
     :return: ReadValue node
     """
-    return _get_node_factory().create(
+    return _get_node_factory_opset3().create(
         "ReadValue", [as_node(init_value)], {"variable_id": variable_id}
     )
 
@@ -367,7 +405,7 @@ def reverse(data: NodeInput, axis: NodeInput, mode: str, name: Optional[str] = N
     :param name: The optional name of the output node.
     :return: The new node with reversed axes.
     """
-    return _get_node_factory("opset1").create(
+    return _get_node_factory_opset3("opset1").create(
         "Reverse", as_nodes(data, axis), {"mode": mode.lower()}
     )
 
@@ -427,7 +465,7 @@ def rnn_cell(
         "activations_beta": activations_beta,
         "clip": clip,
     }
-    return _get_node_factory().create("RNNCell", input_nodes, attributes)
+    return _get_node_factory_opset3().create("RNNCell", input_nodes, attributes)
 
 
 @nameable_op
@@ -465,7 +503,7 @@ def roi_align(
         "spatial_scale": spatial_scale,
         "mode": mode,
     }
-    return _get_node_factory().create("ROIAlign", inputs, attributes)
+    return _get_node_factory_opset3().create("ROIAlign", inputs, attributes)
 
 
 @nameable_op
@@ -494,7 +532,7 @@ def scatter_elements_update(
     :param axis:    The axis for scatter.
     :return: ScatterElementsUpdate node
     """
-    return _get_node_factory().create(
+    return _get_node_factory_opset3().create(
         "ScatterElementsUpdate", as_nodes(data, indices, updates, axis)
     )
 
@@ -513,7 +551,7 @@ def scatter_update(
     :param axis:    The axis at which elements will be updated.
     :return: ScatterUpdate node
     """
-    return _get_node_factory().create("ScatterUpdate", as_nodes(data, indices, updates, axis))
+    return _get_node_factory_opset3().create("ScatterUpdate", as_nodes(data, indices, updates, axis))
 
 
 @nameable_op
@@ -524,7 +562,7 @@ def shape_of(data: NodeInput, output_type: str = "i64", name: Optional[str] = No
     :para output_type: Output element type.
     :return: ShapeOf node
     """
-    return _get_node_factory().create("ShapeOf", [as_node(data)], {"output_type": output_type})
+    return _get_node_factory_opset3().create("ShapeOf", [as_node(data)], {"output_type": output_type})
 
 
 @nameable_op
@@ -575,7 +613,7 @@ def shuffle_channels(data: Node, axis: int, groups: int, name: Optional[str] = N
     :return: The new node performing a permutation on data in the channel dimension
              of the input tensor.
     """
-    return _get_node_factory().create(
+    return _get_node_factory_opset3().create(
         "ShuffleChannels", [as_node(data)], {"axis": axis, "groups": groups}
     )
 
@@ -600,7 +638,7 @@ def topk(
     :param index_element_type: Type of output tensor with indices.
     :return: The new node which performs TopK (both indices and values)
     """
-    return _get_node_factory().create(
+    return _get_node_factory_opset3().create(
         "TopK",
         as_nodes(data, k),
         {"axis": axis, "mode": mode, "sort": sort, "index_element_type": index_element_type},

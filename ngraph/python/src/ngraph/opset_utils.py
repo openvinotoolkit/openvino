@@ -14,43 +14,17 @@
 # limitations under the License.
 # ******************************************************************************
 
-"""Factory functions for all ngraph ops."""
-from typing import Callable, Iterable, List, Optional, Set, Union
-
+from typing import Optional
 import numpy as np
 
-from ngraph.impl import Node, Shape
-from ngraph.impl.op import Constant, GetOutputElement, Parameter
-from ngraph.utils.decorators import binary_op, nameable_op, unary_op
-from ngraph.utils.input_validation import (
-    assert_list_of_ints,
-    check_valid_attributes,
-    is_non_negative_value,
-    is_positive_value,
-)
+from ngraph.impl import Node
+from ngraph.impl.op import GetOutputElement
+from ngraph.utils.decorators import nameable_op
 from ngraph.utils.node_factory import NodeFactory
-from ngraph.utils.tensor_iterator_types import (
-    GraphBody,
-    TensorIteratorSliceInputDesc,
-    TensorIteratorMergedInputDesc,
-    TensorIteratorInvariantInputDesc,
-    TensorIteratorBodyOutputDesc,
-    TensorIteratorConcatOutputDesc,
-)
 from ngraph.utils.types import (
-    NodeInput,
-    NumericData,
-    NumericType,
-    ScalarData,
-    TensorShape,
     as_node,
-    as_nodes,
-    get_dtype,
-    get_element_type,
-    get_element_type_str,
-    make_constant_node,
+    NodeInput,
 )
-
 
 def _get_node_factory(opset_version: Optional[str] = None) -> NodeFactory:
     """Return NodeFactory configured to create operators from specified opset version."""

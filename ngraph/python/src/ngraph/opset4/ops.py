@@ -18,9 +18,11 @@
 from typing import Callable, Iterable, List, Optional, Set, Union
 
 import numpy as np
+from functools import partial
 
 from ngraph.impl import Node, Shape
 from ngraph.impl.op import Constant, GetOutputElement, Parameter
+from ngraph.opset_utils import _get_node_factory
 from ngraph.utils.decorators import binary_op, nameable_op, unary_op
 from ngraph.utils.input_validation import (
     assert_list_of_ints,
@@ -51,14 +53,7 @@ from ngraph.utils.types import (
     make_constant_node,
 )
 
-
-def _get_node_factory(opset_version: Optional[str] = "opset4") -> NodeFactory:
-    """Return NodeFactory configured to create operators from specified opset version."""
-    if opset_version:
-        return NodeFactory(opset_version)
-    else:
-        return NodeFactory()
-
+_get_node_factory_opset4 = partial(_get_node_factory, "opset4")
 
 # -------------------------------------------- ops ------------------------------------------------
 
@@ -102,4 +97,4 @@ def non_max_suppression(
         "output_type": output_type,
     }
 
-    return _get_node_factory().create("NonMaxSuppression", inputs, attributes)
+    return _get_node_factory_opset4().create("NonMaxSuppression", inputs, attributes)

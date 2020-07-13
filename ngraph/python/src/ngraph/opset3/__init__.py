@@ -96,7 +96,7 @@ from ngraph.opset1.ops import mod
 from ngraph.opset1.ops import multiply
 from ngraph.opset2.ops import mvn
 from ngraph.opset1.ops import negative
-from ngraph.opset1.ops import non_max_suppression # opset3!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+from ngraph.opset3.ops import non_max_suppression
 from ngraph.opset3.ops import non_zero
 from ngraph.opset1.ops import normalize_l2
 from ngraph.opset1.ops import not_equal

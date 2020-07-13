@@ -18,9 +18,11 @@
 from typing import Callable, Iterable, List, Optional, Set, Union
 
 import numpy as np
+from functools import partial
 
 from ngraph.impl import Node, Shape
 from ngraph.impl.op import Constant, GetOutputElement, Parameter
+from ngraph.opset_utils import _get_node_factory
 from ngraph.utils.decorators import binary_op, nameable_op, unary_op
 from ngraph.utils.input_validation import (
     assert_list_of_ints,
@@ -51,16 +53,9 @@ from ngraph.utils.types import (
     make_constant_node,
 )
 
+_get_node_factory_opset2 = partial(_get_node_factory, "opset2")
 
-def _get_node_factory(opset_version: Optional[str] = "opset2") -> NodeFactory:
-    """Return NodeFactory configured to create operators from specified opset version."""
-    if opset_version:
-        return NodeFactory(opset_version)
-    else:
-        return NodeFactory()
-
-
-# ------------------------ ops ---------------------------------------------------
+# -------------------------------------------- ops ------------------------------------------------
 
 @nameable_op
 def batch_to_space(
@@ -81,7 +76,7 @@ def batch_to_space(
     :param name: Optional output node name.
     :return: The new node performing a BatchToSpace operation.
     """
-    return _get_node_factory().create(
+    return _get_node_factory_opset2().create(
         "BatchToSpace", as_nodes(data, block_shape, crops_begin, crops_end)
     )
 
@@ -101,7 +96,7 @@ def gelu(node: NodeInput, name: Optional[str] = None) -> Node:
     :param name: Optional output node name.
     :return: The new node performing a GELU operation on its input data element-wise.
     """
-    return _get_node_factory().create("Gelu", [node])
+    return _get_node_factory_opset2().create("Gelu", [node])
 
 
 @nameable_op
@@ -126,7 +121,7 @@ def mvn(
     :param name: Optional output node name.
     :return: The new node performing a MVN operation on input tensor.
     """
-    return _get_node_factory().create(
+    return _get_node_factory_opset2().create(
         "MVN",
         [data],
         {"across_channels": across_channels, "normalize_variance": normalize_variance, "eps": eps},
@@ -142,7 +137,7 @@ def reorg_yolo(input: Node, stride: List[int], name: Optional[str] = None) -> No
     :param name:    Optional name for output node.
     :return: ReorgYolo node
     """
-    return _get_node_factory().create("ReorgYolo", [input], {"stride": stride})
+    return _get_node_factory_opset2().create("ReorgYolo", [input], {"stride": stride})
 
 
 @nameable_op
@@ -164,7 +159,7 @@ def roi_pooling(
     :return:               ROIPooling node
     """
     method = method.lower()
-    return _get_node_factory().create(
+    return _get_node_factory_opset2().create(
         "ROIPooling",
         as_nodes(input, coords),
         {"output_size": Shape(output_size), "spatial_scale": spatial_scale, "method": method},
@@ -192,6 +187,6 @@ def space_to_batch(
     :param name: Optional output node name.
     :return: The new node performing a SpaceToBatch operation.
     """
-    return _get_node_factory().create(
+    return _get_node_factory_opset2().create(
         "SpaceToBatch", as_nodes(data, block_shape, pads_begin, pads_end)
     )

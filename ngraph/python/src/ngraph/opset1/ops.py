@@ -18,9 +18,11 @@
 from typing import Callable, Iterable, List, Optional, Set, Union
 
 import numpy as np
+from functools import partial
 
 from ngraph.impl import Node, Shape
 from ngraph.impl.op import Constant, GetOutputElement, Parameter
+from ngraph.opset_utils import _get_node_factory
 from ngraph.utils.decorators import binary_op, nameable_op, unary_op
 from ngraph.utils.input_validation import (
     assert_list_of_ints,
@@ -52,15 +54,9 @@ from ngraph.utils.types import (
 )
 
 
-def _get_node_factory(opset_version: Optional[str] = "opset1") -> NodeFactory:
-    """Return NodeFactory configured to create operators from specified opset version."""
-    if opset_version:
-        return NodeFactory(opset_version)
-    else:
-        return NodeFactory()
+_get_node_factory_opset1 = partial(_get_node_factory, "opset1")
 
-
-# ------------------------ ops ---------------------------------------------------
+# -------------------------------------------- ops ------------------------------------------------
 
 @unary_op
 def absolute(node: NodeInput, name: Optional[str] = None) -> Node:
@@ -70,7 +66,7 @@ def absolute(node: NodeInput, name: Optional[str] = None) -> Node:
     :param name: Optional new name for output node.
     :return: New node with Abs operation applied on it.
     """
-    return _get_node_factory().create("Abs", [node])
+    return _get_node_factory_opset1().create("Abs", [node])
 
 
 @unary_op
@@ -81,7 +77,7 @@ def acos(node: NodeInput, name: Optional[str] = None) -> Node:
     :param name: Optional new name for output node.
     :return: New node with arccos operation applied on it.
     """
-    return _get_node_factory().create("Acos", [node])
+    return _get_node_factory_opset1().create("Acos", [node])
 
 
 @binary_op
@@ -92,7 +88,7 @@ def add(
     name: Optional[str] = None,
 ) -> Node:
     """Return node which applies f(x) = A+B to the input nodes element-wise."""
-    return _get_node_factory().create(
+    return _get_node_factory_opset1().create(
         "Add", [left_node, right_node], {"auto_broadcast": auto_broadcast.upper()}
     )
 
@@ -105,7 +101,7 @@ def asin(node: NodeInput, name: Optional[str] = None) -> Node:
     :param name: Optional new name for output node.
     :return: New node with arcsin operation applied on it.
     """
-    return _get_node_factory().create("Asin", [node])
+    return _get_node_factory_opset1().create("Asin", [node])
 
 
 @unary_op
@@ -116,7 +112,7 @@ def atan(node: NodeInput, name: Optional[str] = None) -> Node:
     :param name: Optional new name for output node.
     :return: New node with arctan operation applied on it.
     """
-    return _get_node_factory().create("Atan", [node])
+    return _get_node_factory_opset1().create("Atan", [node])
 
 
 @nameable_op
@@ -149,7 +145,7 @@ def avg_pool(
     """
     if auto_pad is None:
         auto_pad = "explicit"
-    return _get_node_factory().create(
+    return _get_node_factory_opset1().create(
         "AvgPool",
         [as_node(data_batch)],
         {
@@ -187,7 +183,7 @@ def batch_norm_inference(
     :return: The new node which performs BatchNormInference.
     """
     inputs = as_nodes(gamma, beta, data, mean, variance)
-    return _get_node_factory().create("BatchNormInference", inputs, {"epsilon": epsilon})
+    return _get_node_factory_opset1().create("BatchNormInference", inputs, {"epsilon": epsilon})
 
 
 @nameable_op
@@ -217,7 +213,7 @@ def binary_convolution(
     :param name: The optional new name for output node.
     :return: New node performing binary convolution operation.
     """
-    return _get_node_factory().create(
+    return _get_node_factory_opset1().create(
         "BinaryConvolution",
         as_nodes(data, filters),
         {
@@ -254,7 +250,7 @@ def broadcast(
     inputs = as_nodes(data, target_shape)
     if mode.upper() == "EXPLICIT":
         inputs.append(as_node(axes_mapping))
-    return _get_node_factory().create(
+    return _get_node_factory_opset1().create(
         "Broadcast", inputs, {"mode": mode.upper()}
     )
 
@@ -275,7 +271,7 @@ def ctc_greedy_decoder(
     :return: The new node performing an CTCGreedyDecoder operation on input tensor.
     """
     node_inputs = as_nodes(data, sequence_mask)
-    return _get_node_factory().create(
+    return _get_node_factory_opset1().create(
         "CTCGreedyDecoder", node_inputs, {"ctc_merge_repeated": merge_repeated}
     )
 
@@ -288,7 +284,7 @@ def ceiling(node: NodeInput, name: Optional[str] = None) -> Node:
     :param name: Optional name for output node.
     :return: The node performing element-wise ceiling.
     """
-    return _get_node_factory().create("Ceiling", [node])
+    return _get_node_factory_opset1().create("Ceiling", [node])
 
 
 @nameable_op
@@ -319,7 +315,7 @@ def clamp(
     :param name: Optional output node name.
     :return: The new node performing a clamp operation on its input data element-wise.
     """
-    return _get_node_factory().create(
+    return _get_node_factory_opset1().create(
         "Clamp", [as_node(data)], {"min": min_value, "max": max_value}
     )
 
@@ -333,7 +329,7 @@ def concat(nodes: List[NodeInput], axis: int, name: Optional[str] = None) -> Nod
     :param name: The optional new name for output node.
     :return: Return new node that is a concatenation of input nodes.
     """
-    return _get_node_factory().create("Concat", as_nodes(*nodes), {"axis": axis})
+    return _get_node_factory_opset1().create("Concat", as_nodes(*nodes), {"axis": axis})
 
 
 @nameable_op
@@ -361,7 +357,7 @@ def convert(
     """
     if not isinstance(destination_type, str):
         destination_type = get_element_type_str(destination_type)
-    return _get_node_factory().create(
+    return _get_node_factory_opset1().create(
         "Convert", [as_node(data)], {"destination_type": destination_type.lower()}
     )
 
@@ -375,7 +371,7 @@ def convert_like(data: NodeInput, like: NodeInput, name: Optional[str] = None) -
     :param name: Optional name for the output node.
     :return: New node performing the conversion operation.
     """
-    return _get_node_factory().create("ConvertLike", [data, like])
+    return _get_node_factory_opset1().create("ConvertLike", [data, like])
 
 
 @nameable_op
@@ -401,7 +397,7 @@ def convolution(
     :param name: The optional new name for output node.
     :return: New node performing batched convolution operation.
     """
-    return _get_node_factory().create(
+    return _get_node_factory_opset1().create(
         "Convolution",
         as_nodes(data, filters),
         {
@@ -457,7 +453,7 @@ def convolution_backprop_data(
     if output_shape is not None:
         args.append(as_node(output_shape))
 
-    return _get_node_factory().create(
+    return _get_node_factory_opset1().create(
         "ConvolutionBackpropData",
         args,
         {
@@ -479,7 +475,7 @@ def cos(node: NodeInput, name: Optional[str] = None) -> Node:
     :param name: Optional new name for output node.
     :return: New node with cos operation applied on it.
     """
-    return _get_node_factory().create("Cos", [node])
+    return _get_node_factory_opset1().create("Cos", [node])
 
 
 @unary_op
@@ -490,7 +486,7 @@ def cosh(node: NodeInput, name: Optional[str] = None) -> Node:
     :param name: Optional new name for output node.
     :return: New node with cosh operation applied on it.
     """
-    return _get_node_factory().create("Cosh", [node])
+    return _get_node_factory_opset1().create("Cosh", [node])
 
 
 @nameable_op
@@ -522,7 +518,7 @@ def deformable_convolution(
     :param name: The optional new name for output node.
     :return: New node performing deformable convolution operation.
     """
-    return _get_node_factory().create(
+    return _get_node_factory_opset1().create(
         "DeformableConvolution",
         as_nodes(data, deformable_values, filters),
         {
@@ -575,7 +571,7 @@ def deformable_psroi_pooling(
     if offsets is not None:
         node_inputs.append(as_node(offsets))
 
-    return _get_node_factory().create(
+    return _get_node_factory_opset1().create(
         "DeformablePSROIPooling",
         node_inputs,
         {
@@ -615,7 +611,7 @@ def depth_to_space(node: Node, mode: str, block_size: int = 1, name: str = None)
     :param name: Optional output node name.
     :return: The new node performing an DepthToSpace operation on its input tensor.
     """
-    return _get_node_factory().create(
+    return _get_node_factory_opset1().create(
         "DepthToSpace", [node], {"mode": mode, "block_size": block_size},
     )
 
@@ -780,7 +776,7 @@ def detection_output(
     if aux_box_preds is not None:
         inputs.append(aux_box_preds)
 
-    return _get_node_factory().create("DetectionOutput", inputs, attrs)
+    return _get_node_factory_opset1().create("DetectionOutput", inputs, attrs)
 
 
 @binary_op
@@ -798,7 +794,7 @@ def divide(
     :param name: Optional name for output node.
     :return: The node performing element-wise division.
     """
-    return _get_node_factory().create(
+    return _get_node_factory_opset1().create(
         "Divide", [left_node, right_node], {"auto_broadcast": auto_broadcast.upper()}
     )
 
@@ -818,7 +814,7 @@ def elu(data: NodeInput, alpha: NumericType, name: Optional[str] = None) -> Node
     :param name: Optional output node name.
     :return: The new node performing an ELU operation on its input data element-wise.
     """
-    return _get_node_factory().create("Elu", [as_node(data)], {"alpha": alpha})
+    return _get_node_factory_opset1().create("Elu", [as_node(data)], {"alpha": alpha})
 
 
 @binary_op
@@ -837,7 +833,7 @@ def equal(
     :param name: The optional name for output new node.
     :return: The node performing element-wise equality check.
     """
-    return _get_node_factory().create(
+    return _get_node_factory_opset1().create(
         "Equal", [left_node, right_node], {"auto_broadcast": auto_broadcast.upper()}
     )
 
@@ -850,7 +846,7 @@ def erf(node: NodeInput, name: Optional[str] = None) -> Node:
     :param name: The optional name for new output node.
     :return: The new node performing element-wise Erf operation.
     """
-    return _get_node_factory().create("Erf", [node])
+    return _get_node_factory_opset1().create("Erf", [node])
 
 
 @unary_op
@@ -861,7 +857,7 @@ def exp(node: NodeInput, name: Optional[str] = None) -> Node:
     :param name: The optional name for new output node.
     :return: The new node performing natural exponential operation.
     """
-    return _get_node_factory().create("Exp", [node])
+    return _get_node_factory_opset1().create("Exp", [node])
 
 
 @nameable_op
@@ -903,7 +899,7 @@ def fake_quantize(
                            auto-broadcasting of input tensors.
     :return: New node with quantized value.
     """
-    return _get_node_factory().create(
+    return _get_node_factory_opset1().create(
         "FakeQuantize",
         as_nodes(data, input_low, input_high, output_low, output_high),
         {"levels": levels, "auto_broadcast": auto_broadcast.upper()},
@@ -918,7 +914,7 @@ def floor(node: NodeInput, name: Optional[str] = None) -> Node:
     :param name: The optional name for new output node.
     :return: The node performing element-wise floor operation.
     """
-    return _get_node_factory().create("Floor", [node])
+    return _get_node_factory_opset1().create("Floor", [node])
 
 
 @binary_op
@@ -936,7 +932,7 @@ def floor_mod(
     :param name: Optional name for output node.
     :return: The node performing element-wise FloorMod operation.
     """
-    return _get_node_factory().create(
+    return _get_node_factory_opset1().create(
         "FloorMod", [left_node, right_node], {"auto_broadcast": auto_broadcast.upper()}
     )
 
@@ -954,7 +950,7 @@ def gather(
     :return: The new node performing a Gather operation on the data input tensor.
     """
     node_inputs = as_nodes(data, indices, axis)
-    return _get_node_factory().create("Gather", node_inputs)
+    return _get_node_factory_opset1().create("Gather", node_inputs)
 
 
 @nameable_op
@@ -993,7 +989,7 @@ def gather_tree(
     :return: The new node performing a GatherTree operation.
     """
     node_inputs = as_nodes(step_ids, parent_idx, max_seq_len, end_token)
-    return _get_node_factory().create("GatherTree", node_inputs)
+    return _get_node_factory_opset1().create("GatherTree", node_inputs)
 
 
 @binary_op
@@ -1012,7 +1008,7 @@ def greater(
     :param name: The optional new name for output node.
     :return: The node performing element-wise check whether left_node is greater than right_node.
     """
-    return _get_node_factory().create(
+    return _get_node_factory_opset1().create(
         "Greater", [left_node, right_node], {"auto_broadcast": auto_broadcast.upper()}
     )
 
@@ -1034,7 +1030,7 @@ def greater_equal(
     :return: The node performing element-wise check whether left_node is greater than or equal
              right_node.
     """
-    return _get_node_factory().create(
+    return _get_node_factory_opset1().create(
         "GreaterEqual", [left_node, right_node], {"auto_broadcast": auto_broadcast.upper()}
     )
 
@@ -1051,7 +1047,7 @@ def grn(data: Node, bias: float, name: Optional[str] = None) -> Node:
     :param name: Optional output node name.
     :return: The new node performing a GRN operation on tensor's channels.
     """
-    return _get_node_factory().create("GRN", [data], {"bias": bias})
+    return _get_node_factory_opset1().create("GRN", [data], {"bias": bias})
 
 
 @nameable_op
@@ -1086,7 +1082,7 @@ def group_convolution(
     :param name: Optional output node name.
     :return: The new node performing a Group Convolution operation on tensor from input node.
     """
-    return _get_node_factory().create(
+    return _get_node_factory_opset1().create(
         "GroupConvolution",
         as_nodes(data, filters),
         {
@@ -1161,7 +1157,7 @@ def group_convolution_backprop_data(
         attributes["pads_begin"] = pads_begin
         attributes["pads_end"] = pads_end
 
-    return _get_node_factory().create("GroupConvolutionBackpropData", args, attributes)
+    return _get_node_factory_opset1().create("GroupConvolutionBackpropData", args, attributes)
 
 
 @nameable_op
@@ -1180,7 +1176,7 @@ def hard_sigmoid(data: Node, alpha: NodeInput, beta: NodeInput, name: Optional[s
     :param name: Optional output node name.
     :return: The new node performing a Hard Sigmoid element-wise on input tensor.
     """
-    return _get_node_factory().create("HardSigmoid", [data, as_node(alpha), as_node(beta)])
+    return _get_node_factory_opset1().create("HardSigmoid", [data, as_node(alpha), as_node(beta)])
 
 
 @nameable_op
@@ -1257,7 +1253,7 @@ def interpolate(
 
     check_valid_attributes("Interpolate", attrs, requirements)
 
-    return _get_node_factory().create("Interpolate", [image, as_node(output_shape)], attrs)
+    return _get_node_factory_opset1().create("Interpolate", [image, as_node(output_shape)], attrs)
 
 
 @binary_op
@@ -1276,7 +1272,7 @@ def less(
     :param name: The optional new name for output node.
     :return: The node performing element-wise check whether left_node is less than the right_node.
     """
-    return _get_node_factory().create(
+    return _get_node_factory_opset1().create(
         "Less", [left_node, right_node], {"auto_broadcast": auto_broadcast.upper()}
     )
 
@@ -1298,7 +1294,7 @@ def less_equal(
     :return: The node performing element-wise check whether left_node is less than or equal the
              right_node.
     """
-    return _get_node_factory().create(
+    return _get_node_factory_opset1().create(
         "LessEqual", [left_node, right_node], {"auto_broadcast": auto_broadcast.upper()}
     )
 
@@ -1311,7 +1307,7 @@ def log(node: NodeInput, name: Optional[str] = None) -> Node:
     :param name: The optional new name for output node.
     :return: The new node performing log operation element-wise.
     """
-    return _get_node_factory().create("Log", [node])
+    return _get_node_factory_opset1().create("Log", [node])
 
 
 @binary_op
@@ -1330,7 +1326,7 @@ def logical_and(
     :param name: The optional new name for output node.
     :return: The node performing logical and operation on input nodes corresponding elements.
     """
-    return _get_node_factory().create(
+    return _get_node_factory_opset1().create(
         "LogicalAnd", [left_node, right_node], {"auto_broadcast": auto_broadcast.upper()}
     )
 
@@ -1343,7 +1339,7 @@ def logical_not(node: NodeInput, name: Optional[str] = None) -> Node:
     :param name: The optional new name for output node.
     :return: The node performing element-wise logical NOT operation with given tensor.
     """
-    return _get_node_factory().create("LogicalNot", [node])
+    return _get_node_factory_opset1().create("LogicalNot", [node])
 
 
 @binary_op
@@ -1362,7 +1358,7 @@ def logical_or(
     :param name: The optional new name for output node.
     :return: The node performing logical or operation on input nodes corresponding elements.
     """
-    return _get_node_factory().create(
+    return _get_node_factory_opset1().create(
         "LogicalOr", [left_node, right_node], {"auto_broadcast": auto_broadcast.upper()}
     )
 
@@ -1383,7 +1379,7 @@ def logical_xor(
     :param name: The optional new name for output node.
     :return: The node performing logical or operation on input nodes corresponding elements.
     """
-    return _get_node_factory().create(
+    return _get_node_factory_opset1().create(
         "LogicalXor", [left_node, right_node], {"auto_broadcast": auto_broadcast.upper()}
     )
 
@@ -1409,7 +1405,7 @@ def lrn(
     :return: The new node which performs LRN.
     """
     attributes = {"alpha": alpha, "beta": beta, "bias": bias, "size": size}
-    return _get_node_factory().create("LRN", as_nodes(data, axes), attributes)
+    return _get_node_factory_opset1().create("LRN", as_nodes(data, axes), attributes)
 
 
 @nameable_op
@@ -1473,7 +1469,7 @@ def lstm_cell(
         "weights_format": weights_format,
         "input_forget": input_forget,
     }
-    return _get_node_factory().create("LSTMCell", node_inputs, attributes)
+    return _get_node_factory_opset1().create("LSTMCell", node_inputs, attributes)
 
 
 @nameable_op
@@ -1552,7 +1548,7 @@ def lstm_sequence(
         "weights_format": weights_format,
         "input_forget": input_forget,
     }
-    return _get_node_factory().create("LSTMSequence", node_inputs, attributes)
+    return _get_node_factory_opset1().create("LSTMSequence", node_inputs, attributes)
 
 
 @nameable_op
@@ -1572,7 +1568,7 @@ def matmul(
     :return: MatMul operation node
     """
     print("transpose_a", transpose_a, "transpose_b", transpose_b)
-    return _get_node_factory().create(
+    return _get_node_factory_opset1().create(
         "MatMul", as_nodes(data_a, data_b), {"transpose_a": transpose_a, "transpose_b": transpose_b}
     )
 
@@ -1606,7 +1602,7 @@ def max_pool(
     """
     if auto_pad is None:
         auto_pad = "explicit"
-    return _get_node_factory().create(
+    return _get_node_factory_opset1().create(
         "MaxPool",
         [as_node(data)],
         {
@@ -1628,7 +1624,7 @@ def maximum(
     name: Optional[str] = None,
 ) -> Node:
     """Return node which applies the maximum operation to input nodes elementwise."""
-    return _get_node_factory().create(
+    return _get_node_factory_opset1().create(
         "Maximum", [left_node, right_node], {"auto_broadcast": auto_broadcast.upper()}
     )
 
@@ -1641,7 +1637,7 @@ def minimum(
     name: Optional[str] = None,
 ) -> Node:
     """Return node which applies the minimum operation to input nodes elementwise."""
-    return _get_node_factory().create(
+    return _get_node_factory_opset1().create(
         "Minimum", [left_node, right_node], {"auto_broadcast": auto_broadcast.upper()}
     )
 
@@ -1661,7 +1657,7 @@ def mod(
     :param name: Optional name for output node.
     :return: The node performing element-wise Mod operation.
     """
-    return _get_node_factory().create(
+    return _get_node_factory_opset1().create(
         "Mod", [left_node, right_node], {"auto_broadcast": auto_broadcast.upper()}
     )
 
@@ -1674,7 +1670,7 @@ def multiply(
     name: Optional[str] = None,
 ) -> Node:
     """Return node which applies f(x) = A*B to the input nodes elementwise."""
-    return _get_node_factory().create(
+    return _get_node_factory_opset1().create(
         "Multiply", [left_node, right_node], {"auto_broadcast": auto_broadcast.upper()}
     )
 
@@ -1682,7 +1678,7 @@ def multiply(
 @unary_op
 def negative(node: NodeInput, name: Optional[str] = None) -> Node:
     """Return node which applies f(x) = -x to the input node elementwise."""
-    return _get_node_factory().create("Negative", [node])
+    return _get_node_factory_opset1().create("Negative", [node])
 
 
 @nameable_op
@@ -1722,7 +1718,7 @@ def non_max_suppression(
         "sort_result_descending": sort_result_descending,
     }
 
-    return _get_node_factory().create("NonMaxSuppression", inputs, attributes)
+    return _get_node_factory_opset1().create("NonMaxSuppression", inputs, attributes)
 
 
 @nameable_op
@@ -1737,7 +1733,7 @@ def normalize_l2(
     :param eps_mode: how eps is combined with L2 value (`add` or `max`)
     :return: New node which performs the L2 normalization.
     """
-    return _get_node_factory().create(
+    return _get_node_factory_opset1().create(
         "NormalizeL2", as_nodes(data, axes), {"eps": eps, "mode": eps_mode}
     )
 
@@ -1758,7 +1754,7 @@ def not_equal(
     :param name: The optional name for output new node.
     :return: The node performing element-wise inequality check.
     """
-    return _get_node_factory().create(
+    return _get_node_factory_opset1().create(
         "NotEqual", [left_node, right_node], {"auto_broadcast": auto_broadcast.upper()}
     )
 
@@ -1785,7 +1781,7 @@ def one_hot(
     :param name: The optional name for new output node.
     :return: New node performing one-hot operation.
     """
-    return _get_node_factory().create(
+    return _get_node_factory_opset1().create(
         "OneHot", as_nodes(indices, depth, on_value, off_value), {"axis": axis}
     )
 
@@ -1814,7 +1810,7 @@ def pad(
         input_nodes.append(as_node(arg_pad_value))
 
     pad_mode = pad_mode.upper()
-    return _get_node_factory().create("Pad", input_nodes, {"pad_mode": pad_mode})
+    return _get_node_factory_opset1().create("Pad", input_nodes, {"pad_mode": pad_mode})
 
 
 @nameable_op
@@ -1843,7 +1839,7 @@ def power(
                            auto-broadcasting of input tensors.
     :return: The new node performing element-wise exponentiation operation on input nodes.
     """
-    return _get_node_factory().create(
+    return _get_node_factory_opset1().create(
         "Power", [left_node, right_node], {"auto_broadcast": auto_broadcast.upper()}
     )
 
@@ -1866,7 +1862,7 @@ def prelu(data: NodeInput, slope: NodeInput, name: Optional[str] = None) -> Node
     :param name: Optional output node name.
     :return: The new node performing a PRelu operation on tensor's channels.
     """
-    return _get_node_factory().create("PRelu", as_nodes(data, slope))
+    return _get_node_factory_opset1().create("PRelu", as_nodes(data, slope))
 
 
 @nameable_op
@@ -1950,7 +1946,7 @@ def prior_box_clustered(
 
     check_valid_attributes("PriorBoxClustered", attrs, requirements)
 
-    return _get_node_factory().create(
+    return _get_node_factory_opset1().create(
         "PriorBoxClustered", [output_size, as_node(image_size)], attrs
     )
 
@@ -2067,7 +2063,7 @@ def prior_box(
 
     check_valid_attributes("PriorBox", attrs, requirements)
 
-    return _get_node_factory().create("PriorBox", [layer_shape, as_node(image_shape)], attrs)
+    return _get_node_factory_opset1().create("PriorBox", [layer_shape, as_node(image_shape)], attrs)
 
 
 @nameable_op
@@ -2201,7 +2197,7 @@ def proposal(
 
     check_valid_attributes("Proposal", attrs, requirements)
 
-    return _get_node_factory().create(
+    return _get_node_factory_opset1().create(
         "Proposal", [class_probs, box_logits, as_node(image_shape)], attrs
     )
 
@@ -2231,7 +2227,7 @@ def psroi_pooling(
     :return: PSROIPooling node
     """
     mode = mode.lower()
-    return _get_node_factory().create(
+    return _get_node_factory_opset1().create(
         "PSROIPooling",
         as_nodes(input, coords),
         {
@@ -2255,7 +2251,7 @@ def range(start: Node, stop: NodeInput, step: NodeInput, name: Optional[str] = N
     :param name:   Optional name for output node.
     :return: Range node
     """
-    return _get_node_factory().create("Range", as_nodes(start, stop, step))
+    return _get_node_factory_opset1().create("Range", as_nodes(start, stop, step))
 
 
 @unary_op
@@ -2266,7 +2262,7 @@ def relu(node: NodeInput, name: Optional[str] = None) -> Node:
     :param name: The optional output node name.
     :return: The new node performing relu operation on its input element-wise.
     """
-    return _get_node_factory().create("Relu", [node])
+    return _get_node_factory_opset1().create("Relu", [node])
 
 
 @nameable_op
@@ -2281,7 +2277,7 @@ def reduce_logical_and(
     :param name:           Optional name for output node.
     :return: The new node performing reduction operation.
     """
-    return _get_node_factory().create(
+    return _get_node_factory_opset1().create(
         "ReduceLogicalAnd", as_nodes(node, reduction_axes), {"keep_dims": keep_dims}
     )
 
@@ -2298,7 +2294,7 @@ def reduce_logical_or(
     :param name:           Optional name for output node.
     :return: The new node performing reduction operation.
     """
-    return _get_node_factory().create(
+    return _get_node_factory_opset1().create(
         "ReduceLogicalOr", as_nodes(node, reduction_axes), {"keep_dims": keep_dims}
     )
 
@@ -2314,7 +2310,7 @@ def reduce_max(
     :param keep_dims:      If set to True it holds axes that are used for reduction
     :param name: Optional name for output node.
     """
-    return _get_node_factory().create(
+    return _get_node_factory_opset1().create(
         "ReduceMax", as_nodes(node, reduction_axes), {"keep_dims": keep_dims}
     )
 
@@ -2331,7 +2327,7 @@ def reduce_mean(
     :param name:           Optional name for output node.
     :return: The new node performing mean-reduction operation.
     """
-    return _get_node_factory().create(
+    return _get_node_factory_opset1().create(
         "ReduceMean", as_nodes(node, reduction_axes), {"keep_dims": keep_dims}
     )
 
@@ -2347,7 +2343,7 @@ def reduce_min(
     :param keep_dims:      If set to True it holds axes that are used for reduction
     :param name:           Optional name for output node.
     """
-    return _get_node_factory().create(
+    return _get_node_factory_opset1().create(
         "ReduceMin", as_nodes(node, reduction_axes), {"keep_dims": keep_dims}
     )
 
@@ -2364,7 +2360,7 @@ def reduce_prod(
     :param name:           Optional name for output node.
     :return: The new node performing product-reduction operation.
     """
-    return _get_node_factory().create(
+    return _get_node_factory_opset1().create(
         "ReduceProd", as_nodes(node, reduction_axes), {"keep_dims": keep_dims}
     )
 
@@ -2381,7 +2377,7 @@ def reduce_sum(
     :param name:           The optional new name for output node.
     :return: The new node performing summation along `reduction_axes` element-wise.
     """
-    return _get_node_factory().create(
+    return _get_node_factory_opset1().create(
         "ReduceSum", as_nodes(node, reduction_axes), {"keep_dims": keep_dims}
     )
 
@@ -2416,7 +2412,7 @@ def region_yolo(
     if anchors is None:
         anchors = []
 
-    return _get_node_factory().create(
+    return _get_node_factory_opset1().create(
         "RegionYolo",
         [input],
         {
@@ -2448,7 +2444,7 @@ def reshape(
                          of corresponding dimensions from data.shape into the output shape.
                          Range of values: False or True
     """
-    return _get_node_factory().create(
+    return _get_node_factory_opset1().create(
         "Reshape", as_nodes(node, output_shape), {"special_zero": special_zero}
     )
 
@@ -2460,7 +2456,7 @@ def result(data: NodeInput, name: Optional[str] = None) -> Node:
     :param data: The tensor containing the input data
     :return: Result node
     """
-    return _get_node_factory().create("Result", [data])
+    return _get_node_factory_opset1().create("Result", [data])
 
 
 @nameable_op
@@ -2479,7 +2475,7 @@ def reverse_sequence(
     :param seq_axis: index of the sequence dimension.
     :return: ReverseSequence node
     """
-    return _get_node_factory().create(
+    return _get_node_factory_opset1().create(
         "ReverseSequence",
         as_nodes(input, seq_lengths),
         {"batch_axis": batch_axis, "seq_axis": seq_axis},
@@ -2506,7 +2502,7 @@ def select(
     :return: The new node with values selected according to provided arguments.
     """
     inputs = as_nodes(cond, then_node, else_node)
-    return _get_node_factory().create("Select", inputs, {"auto_broadcast": auto_broadcast.upper()})
+    return _get_node_factory_opset1().create("Select", inputs, {"auto_broadcast": auto_broadcast.upper()})
 
 
 @nameable_op
@@ -2521,7 +2517,7 @@ def selu(
     :param name: The optional output node name.
     :return: The new node performing relu operation on its input element-wise.
     """
-    return _get_node_factory().create("Selu", as_nodes(data, alpha, lambda_value))
+    return _get_node_factory_opset1().create("Selu", as_nodes(data, alpha, lambda_value))
 
 
 @nameable_op
@@ -2531,7 +2527,7 @@ def shape_of(data: NodeInput, name: Optional[str] = None) -> Node:
     :param data: The tensor containing the input data.
     :return: ShapeOf node
     """
-    return _get_node_factory().create("ShapeOf", [as_node(data)])
+    return _get_node_factory_opset1().create("ShapeOf", [as_node(data)])
 
 
 @unary_op
@@ -2541,7 +2537,7 @@ def sigmoid(data: NodeInput, name: Optional[str] = None) -> Node:
     :param data: The tensor containing the input data
     :return: Sigmoid node
     """
-    return _get_node_factory().create("Sigmoid", [data])
+    return _get_node_factory_opset1().create("Sigmoid", [data])
 
 
 @unary_op
@@ -2553,7 +2549,7 @@ def sign(node: NodeInput, name: Optional[str] = None) -> Node:
     :return: The node with mapped elements of the input tensor to -1 (if it is negative),
              0 (if it is zero), or 1 (if it is positive).
     """
-    return _get_node_factory().create("Sign", [node])
+    return _get_node_factory_opset1().create("Sign", [node])
 
 
 @unary_op
@@ -2564,7 +2560,7 @@ def sin(node: NodeInput, name: Optional[str] = None) -> Node:
     :param name: Optional new name for output node.
     :return: New node with sin operation applied on it.
     """
-    return _get_node_factory().create("Sin", [node])
+    return _get_node_factory_opset1().create("Sin", [node])
 
 
 @unary_op
@@ -2575,7 +2571,7 @@ def sinh(node: NodeInput, name: Optional[str] = None) -> Node:
     :param name: Optional new name for output node.
     :return: New node with sin operation applied on it.
     """
-    return _get_node_factory().create("Sinh", [node])
+    return _get_node_factory_opset1().create("Sinh", [node])
 
 
 @nameable_op
@@ -2586,7 +2582,7 @@ def softmax(data: NodeInput, axis: int, name: Optional[str] = None) -> Node:
     :param axis: An axis along which Softmax should be calculated
     :return: The new node with softmax operation applied on each element.
     """
-    return _get_node_factory().create("Softmax", [as_node(data)], {"axis": axis})
+    return _get_node_factory_opset1().create("Softmax", [as_node(data)], {"axis": axis})
 
 
 @nameable_op
@@ -2607,7 +2603,7 @@ def space_to_depth(data: Node, mode: str, block_size: int = 1, name: str = None)
     :param name: Optional output node name.
     :return: The new node performing a SpaceToDepth operation on input tensor.
     """
-    return _get_node_factory().create(
+    return _get_node_factory_opset1().create(
         "SpaceToDepth", [data], {"mode": mode, "block_size": block_size},
     )
 
@@ -2621,7 +2617,7 @@ def split(data: NodeInput, axis: NodeInput, num_splits: int, name: Optional[str]
     :param num_splits: Number of the output tensors that should be produced
     :return: Split node
     """
-    return _get_node_factory().create("Split", as_nodes(data, axis), {"num_splits": num_splits})
+    return _get_node_factory_opset1().create("Split", as_nodes(data, axis), {"num_splits": num_splits})
 
 
 @unary_op
@@ -2632,7 +2628,7 @@ def sqrt(node: NodeInput, name: Optional[str] = None) -> Node:
     :param name: Optional new name for output node.
     :return: The new node with sqrt operation applied element-wise.
     """
-    return _get_node_factory().create("Sqrt", [node])
+    return _get_node_factory_opset1().create("Sqrt", [node])
 
 
 @binary_op
@@ -2650,7 +2646,7 @@ def squared_difference(
     :param name: Optional new name for output node.
     :return: The new node performing a squared difference between two tensors.
     """
-    return _get_node_factory().create(
+    return _get_node_factory_opset1().create(
         "SquaredDifference", [x1, x2], {"auto_broadcast": auto_broadcast.upper()}
     )
 
@@ -2677,7 +2673,7 @@ def squeeze(data: NodeInput, axes: NodeInput, name: Optional[str] = None) -> Nod
     :param name: Optional new name for output node.
     :return: The new node performing a squeeze operation on input tensor.
     """
-    return _get_node_factory().create("Squeeze", as_nodes(data, axes))
+    return _get_node_factory_opset1().create("Squeeze", as_nodes(data, axes))
 
 
 @nameable_op
@@ -2722,7 +2718,7 @@ def strided_slice(
         "ellipsis_mask": ellipsis_mask,
     }
 
-    return _get_node_factory().create(
+    return _get_node_factory_opset1().create(
         "StridedSlice", as_nodes(data, begin, end, strides), attributes
     )
 
@@ -2743,7 +2739,7 @@ def subtract(
     :param name: The optional name for output node.
     :return: The new output node performing subtraction operation on both tensors element-wise.
     """
-    return _get_node_factory().create(
+    return _get_node_factory_opset1().create(
         "Subtract", [left_node, right_node], {"auto_broadcast": auto_broadcast.upper()}
     )
 
@@ -2756,7 +2752,7 @@ def tan(node: NodeInput, name: Optional[str] = None) -> Node:
     :param name: Optional new name for output node.
     :return: New node with tan operation applied on it.
     """
-    return _get_node_factory().create("Tan", [node])
+    return _get_node_factory_opset1().create("Tan", [node])
 
 
 @unary_op
@@ -2767,7 +2763,7 @@ def tanh(node: NodeInput, name: Optional[str] = None) -> Node:
     :param name: Optional new name for output node.
     :return: New node with tanh operation applied on it.
     """
-    return _get_node_factory().create("Tanh", [node])
+    return _get_node_factory_opset1().create("Tanh", [node])
 
 
 @nameable_op
@@ -2811,7 +2807,7 @@ def tensor_iterator(
         "body_output_desc": [desc.serialize() for desc in body_output_desc],
         "concat_output_desc": [desc.serialize() for desc in concat_output_desc],
     }
-    return _get_node_factory().create("TensorIterator", as_nodes(*inputs), attributes)
+    return _get_node_factory_opset1().create("TensorIterator", as_nodes(*inputs), attributes)
 
 
 @nameable_op
@@ -2822,7 +2818,7 @@ def tile(data: NodeInput, repeats: NodeInput, name: Optional[str] = None) -> Nod
     :param repeats: Per-dimension replication factors
     :return: Tile node
     """
-    return _get_node_factory().create("Tile", as_nodes(data, repeats))
+    return _get_node_factory_opset1().create("Tile", as_nodes(data, repeats))
 
 
 @nameable_op
@@ -2843,7 +2839,7 @@ def topk(
     :param sort: Order of output elements (sort by: 'none', 'index' or 'value')
     :return: The new node which performs TopK (both indices and values)
     """
-    return _get_node_factory().create(
+    return _get_node_factory_opset1().create(
         "TopK",
         as_nodes(data, k),
         {"axis": axis, "mode": mode, "sort": sort},
@@ -2858,7 +2854,7 @@ def transpose(data: NodeInput, input_order: NodeInput, name: Optional[str] = Non
     :param input_order: Permutation of axes to be applied to the input tensor
     :return: Transpose node
     """
-    return _get_node_factory().create("Transpose", as_nodes(data, input_order))
+    return _get_node_factory_opset1().create("Transpose", as_nodes(data, input_order))
 
 
 def unsqueeze(data: NodeInput, axes: NodeInput, name: Optional[str] = None) -> Node:
@@ -2876,7 +2872,7 @@ def unsqueeze(data: NodeInput, axes: NodeInput, name: Optional[str] = None) -> N
                   One of: input node or array.
     :return: The new node performing an unsqueeze operation on input tensor.
     """
-    return _get_node_factory().create("Unsqueeze", as_nodes(data, axes))
+    return _get_node_factory_opset1().create("Unsqueeze", as_nodes(data, axes))
 
 
 @nameable_op
@@ -2890,7 +2886,7 @@ def variadic_split(
     :param split_lengths: Sizes of the output tensors along the split axis
     :return: VariadicSplit node
     """
-    return _get_node_factory().create("VariadicSplit", as_nodes(data, axis, split_lengths))
+    return _get_node_factory_opset1().create("VariadicSplit", as_nodes(data, axis, split_lengths))
 
 
 # Extend Node class to support binary operators
