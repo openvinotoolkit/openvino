@@ -404,7 +404,11 @@ FakeQuantizeDequantization NetworkHelper::createDequantization(
     return FakeQuantizeDequantization(input, convert, subtract, multiply);
 }
 
-FakeQuantizeDequantization NetworkHelper::createDequantizationFromFakeQuantize(std::shared_ptr<opset1::FakeQuantize> fq, element::Type precision, float min, float max) {
+FakeQuantizeDequantization NetworkHelper::createDequantizationFromFakeQuantize(
+    std::shared_ptr<opset1::FakeQuantize> fq,
+    element::Type precision,
+    float min,
+    float max) {
     using std::make_shared;
 
     auto newMin = make_shared<opset1::Constant>(fq->get_output_element_type(0), Shape{}, min);

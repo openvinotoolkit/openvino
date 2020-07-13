@@ -80,7 +80,11 @@ public:
         const float max,
         const bool updatePrecision);
 
-    static std::shared_ptr<opset1::FakeQuantize> updateFakeQuantize(std::shared_ptr<opset1::FakeQuantize> fq, element::Type precision, float min, float max);
+    static std::shared_ptr<opset1::FakeQuantize> updateFakeQuantize(
+        std::shared_ptr<opset1::FakeQuantize> fq,
+        element::Type precision,
+        float min,
+        float max);
 
     static FakeQuantizeDequantization createDequantization(
         const float dequantizationScale,
@@ -91,7 +95,11 @@ public:
         float min,
         float max);
 
-    static FakeQuantizeDequantization createDequantizationFromFakeQuantize(std::shared_ptr<opset1::FakeQuantize> fq, element::Type precision, float min, float max);
+    static FakeQuantizeDequantization createDequantizationFromFakeQuantize(
+        std::shared_ptr<opset1::FakeQuantize> fq,
+        element::Type precision,
+        float min,
+        float max);
 
     static FakeQuantizeDequantization getDequantization(const std::shared_ptr<Node> node, const size_t parentIndex = 0ul);
 
