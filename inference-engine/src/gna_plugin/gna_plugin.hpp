@@ -13,7 +13,7 @@
 #include <vector>
 #include <tuple>
 #include <cpp_interfaces/interface/ie_iplugin_internal.hpp>
-#include <cpp_interfaces/interface/ie_imemory_state_internal.hpp>
+#include "cpp_interfaces/impl/ie_memory_state_internal.hpp"
 #include "descriptions/gna_flags.hpp"
 #include "descriptions/gna_input_desc.hpp"
 #include "descriptions/gna_output_desc.hpp"
@@ -83,6 +83,7 @@ class GNAPlugin : public InferenceEngine::IInferencePluginInternal, public std::
 
     InferenceEngine::InputsDataMap inputsDataMap;
     InferenceEngine::OutputsDataMap outputsDataMap;
+    std::vector<InferenceEngine::MemoryStateInternal::Ptr> memoryStates;
 
  public:
     explicit GNAPlugin(const std::map<std::string, std::string>& configMap);

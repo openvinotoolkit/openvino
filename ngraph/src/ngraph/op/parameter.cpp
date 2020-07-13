@@ -55,12 +55,6 @@ shared_ptr<Node> op::Parameter::clone_with_new_inputs(const OutputVector& new_ar
     return make_shared<Parameter>(m_element_type, m_partial_shape);
 }
 
-void op::Parameter::generate_adjoints(autodiff::Adjoints& /* adjoints */,
-                                      const OutputVector& deltas)
-{
-    auto delta = deltas.at(0);
-}
-
 bool op::Parameter::is_relevant_to_shapes() const
 {
     return m_is_relevant_to_shapes;

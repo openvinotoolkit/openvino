@@ -555,14 +555,6 @@ all_change_axis
 # Positive input shape should be the same as negative input shape
 select_v1
 
-# Cannot cast ngraph node ScatterNDAdd to CNNLayer!
-scatter_add_3d_indices
-scatter_add_2d_indices
-scatter_add_1d_indices
-scatter_add_scalar_indices
-scatter_nd_add_batch_2d_to_3d
-scatter_nd_add_2d_to_3d
-
 # Cannot cast ngraph node Reverse to CNNLayer!
 reverse_1d_0
 reverse_2d_0
