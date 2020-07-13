@@ -245,7 +245,7 @@ def get_shape_after_slice(input_shape, slice_idx):
     Calculate shape of a tensor after slicing without actually creating the resulting tensor.
     Is introduced to save memory.
     """
-    output_shape = np.zeros_like(input_shape)
+    output_shape = np.zeros(input_shape.size)
     for i, s in enumerate(slice_idx):
         start, end = check_boundaries(input_shape[i], s.start, s.stop)
         output_shape[i] = (end - start) / s.step
