@@ -28,7 +28,7 @@ protected:
     void SetUp() override;
 
 private:
-    void validate();
+    void validate(const std::string& referenceOutputLayerName);
 };
 
 }  // namespace LayerTestsDefinitions

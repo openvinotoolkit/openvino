@@ -41,10 +41,14 @@ void FuseFakeQuantizeAndScaleShiftTransformation::SetUp() {
 
     ngraph::pass::InitNodeInfo().run_on_function(function);
 
-    validate();
+    EXPECT_EQ(1ul, function->get_output_size());
+    EXPECT_EQ(1ul, function->get_output_op(0)->get_input_size());
+    const std::string referenceOutputLayerName = function->get_output_op(0)->get_input_node_ptr(0)->get_friendly_name();
+
+    validate(referenceOutputLayerName);
 }
 
-void FuseFakeQuantizeAndScaleShiftTransformation::validate() {
+void FuseFakeQuantizeAndScaleShiftTransformation::validate(const std::string& referenceOutputLayerName) {
     InferenceEngine::SizeVector inputShape;
     InferenceEngine::Precision netPrecision;
     InferenceEngine::details::LayerTransformation::Params params;
@@ -63,6 +67,7 @@ void FuseFakeQuantizeAndScaleShiftTransformation::validate() {
     const InferenceEngine::CNNLayerPtr outputLayer = getCreatorLayer(it->second).lock();
     EXPECT_TRUE(outputLayer != nullptr);
     EXPECT_EQ("FakeQuantize", outputLayer->type);
+    EXPECT_EQ(referenceOutputLayerName, outputLayer->name);
 
     IE_SUPPRESS_DEPRECATED_END
 }
