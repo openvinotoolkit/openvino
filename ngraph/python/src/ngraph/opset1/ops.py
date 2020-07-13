@@ -58,6 +58,7 @@ _get_node_factory_opset1 = partial(_get_node_factory, "opset1")
 
 # -------------------------------------------- ops ------------------------------------------------
 
+
 @unary_op
 def absolute(node: NodeInput, name: Optional[str] = None) -> Node:
     """Return node which applies f(x) = abs(x) to the input node element-wise.
@@ -2502,7 +2503,11 @@ def select(
     :return: The new node with values selected according to provided arguments.
     """
     inputs = as_nodes(cond, then_node, else_node)
-    return _get_node_factory_opset1().create("Select", inputs, {"auto_broadcast": auto_broadcast.upper()})
+    return _get_node_factory_opset1().create(
+        "Select",
+        inputs,
+        {"auto_broadcast": auto_broadcast.upper()}
+    )
 
 
 @nameable_op
@@ -2617,7 +2622,11 @@ def split(data: NodeInput, axis: NodeInput, num_splits: int, name: Optional[str]
     :param num_splits: Number of the output tensors that should be produced
     :return: Split node
     """
-    return _get_node_factory_opset1().create("Split", as_nodes(data, axis), {"num_splits": num_splits})
+    return _get_node_factory_opset1().create(
+        "Split",
+        as_nodes(data, axis),
+        {"num_splits": num_splits}
+    )
 
 
 @unary_op
@@ -2798,7 +2807,6 @@ def tensor_iterator(
 
     :returns:   Node representing TensorIterator operation.
     """
-
     attributes = {
         "body": graph_body.serialize(),
         "slice_input_desc": [desc.serialize() for desc in slice_input_desc],

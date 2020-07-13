@@ -57,6 +57,7 @@ _get_node_factory_opset3 = partial(_get_node_factory, "opset3")
 
 # -------------------------------------------- ops ------------------------------------------------
 
+
 @nameable_op
 def assign(new_value: NodeInput, variable_id: str, name: Optional[str] = None) -> Node:
     """Return a node which produces the Assign operation.
@@ -66,7 +67,11 @@ def assign(new_value: NodeInput, variable_id: str, name: Optional[str] = None) -
     :param name:         Optional name for output node.
     :return: Assign node
     """
-    return _get_node_factory_opset3().create("Assign", [as_node(new_value)], {"variable_id": variable_id})
+    return _get_node_factory_opset3().create(
+        "Assign",
+        [as_node(new_value)],
+        {"variable_id": variable_id}
+    )
 
 
 @nameable_op
@@ -377,7 +382,11 @@ def non_zero(data: NodeInput, output_type: str = "i64", name: Optional[str] = No
 
     :return: The new node which performs NonZero
     """
-    return _get_node_factory_opset3().create("NonZero", [as_node(data)], {"output_type": output_type})
+    return _get_node_factory_opset3().create(
+        "NonZero",
+        [as_node(data)],
+        {"output_type": output_type}
+    )
 
 
 @nameable_op
@@ -551,7 +560,10 @@ def scatter_update(
     :param axis:    The axis at which elements will be updated.
     :return: ScatterUpdate node
     """
-    return _get_node_factory_opset3().create("ScatterUpdate", as_nodes(data, indices, updates, axis))
+    return _get_node_factory_opset3().create(
+        "ScatterUpdate",
+        as_nodes(data, indices, updates, axis)
+    )
 
 
 @nameable_op
@@ -562,7 +574,11 @@ def shape_of(data: NodeInput, output_type: str = "i64", name: Optional[str] = No
     :para output_type: Output element type.
     :return: ShapeOf node
     """
-    return _get_node_factory_opset3().create("ShapeOf", [as_node(data)], {"output_type": output_type})
+    return _get_node_factory_opset3().create(
+        "ShapeOf",
+        [as_node(data)],
+        {"output_type": output_type}
+    )
 
 
 @nameable_op

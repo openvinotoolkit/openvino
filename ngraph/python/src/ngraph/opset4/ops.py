@@ -57,6 +57,7 @@ _get_node_factory_opset4 = partial(_get_node_factory, "opset4")
 
 # -------------------------------------------- ops ------------------------------------------------
 
+
 @nameable_op
 def non_max_suppression(
     boxes: NodeInput,

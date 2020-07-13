@@ -23,5 +23,4 @@ try:
 except DistributionNotFound:
     __version__ = "0.0.0.dev0"
 
-
 from ngraph.opset4 import *

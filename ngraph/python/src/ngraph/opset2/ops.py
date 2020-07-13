@@ -57,6 +57,7 @@ _get_node_factory_opset2 = partial(_get_node_factory, "opset2")
 
 # -------------------------------------------- ops ------------------------------------------------
 
+
 @nameable_op
 def batch_to_space(
     data: NodeInput,
