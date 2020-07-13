@@ -269,5 +269,5 @@ def test_backend_config():
 def test_result():
     node = [[11, 10], [1, 8], [3, 4]]
 
-    result = util.run_op_node([node], ng.ops.result)
+    result = util.run_op_node([node], ng.result)
     assert np.allclose(result, node)

@@ -119,7 +119,7 @@ def test_softmax():
     axis = 0
     input_tensor = np.array([[1, 2, 3], [4, 5, 6]], dtype=np.float32)
 
-    result = run_op_node([input_tensor], ng.ops.softmax, axis)
+    result = run_op_node([input_tensor], ng.softmax, axis)
 
     expected = [[0.00426978, 0.01160646, 0.03154963], [0.08576079, 0.23312202, 0.6336913]]
 

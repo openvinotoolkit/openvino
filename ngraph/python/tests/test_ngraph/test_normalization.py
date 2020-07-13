@@ -95,7 +95,7 @@ def test_lrn_factory():
         ],
         dtype=np.float32,
     )
-    result = util.run_op_node([x, axis], ng.ops.lrn, alpha, beta, bias, nsize)
+    result = util.run_op_node([x, axis], ng.lrn, alpha, beta, bias, nsize)
 
     assert np.allclose(result, excepted)
 
@@ -109,5 +109,5 @@ def test_batch_norm_inference():
     epsilon = 9.99e-06
     excepted = [[2.0, 6.0, 12.0], [-2.0, -6.0, -12.0]]
 
-    result = util.run_op_node([data, gamma, beta, mean, variance], ng.ops.batch_norm_inference, epsilon)
+    result = util.run_op_node([data, gamma, beta, mean, variance], ng.batch_norm_inference, epsilon)
     assert np.allclose(result, excepted)
