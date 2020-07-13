@@ -240,7 +240,7 @@ def check_boundaries(size, start, end):
     return start, end
 
 
-def get_shape_after_slice(input_shape, slice_idx: slice):
+def get_shape_after_slice(input_shape, slice_idx):
     """
     Calculate shape of a tensor after slicing without actually creating the resulting tensor.
     Is introduced to save memory.
