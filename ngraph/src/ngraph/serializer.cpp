@@ -1951,21 +1951,6 @@ shared_ptr<Node> JSONDeserializer::deserialize_node(json node_js)
             node = make_shared<op::ScaleShift>(args[0], args[1], args[2]);
             break;
         }
-        case OP_TYPEID::ScatterAdd:
-        {
-            node = make_shared<op::ScatterAdd>(args[0], args[1], args[2]);
-            break;
-        }
-        case OP_TYPEID::ScatterND:
-        {
-            node = make_shared<op::ScatterND>(args[0], args[1], args[2]);
-            break;
-        }
-        case OP_TYPEID::ScatterNDAdd:
-        {
-            node = make_shared<op::ScatterNDAdd>(args[0], args[1], args[2]);
-            break;
-        }
         case OP_TYPEID::Select:
         {
             node = make_shared<op::Select>(args[0], args[1], args[2]);
@@ -2995,12 +2980,6 @@ json JSONSerializer::serialize_node(const Node& n)
         break;
     }
     case OP_TYPEID::ScaleShift: { break;
-    }
-    case OP_TYPEID::ScatterAdd: { break;
-    }
-    case OP_TYPEID::ScatterND: { break;
-    }
-    case OP_TYPEID::ScatterNDAdd: { break;
     }
     case OP_TYPEID::Select: { break;
     }

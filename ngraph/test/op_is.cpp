@@ -899,33 +899,6 @@ namespace
         EXPECT_FALSE(node.is_binary_elementwise_logical());
     }
 
-    void op_is_ScatterAdd()
-    {
-        op::ScatterAdd node;
-        EXPECT_FALSE(node.is_unary_elementwise_arithmetic());
-        EXPECT_FALSE(node.is_binary_elementwise_arithmetic());
-        EXPECT_FALSE(node.is_binary_elementwise_comparison());
-        EXPECT_FALSE(node.is_binary_elementwise_logical());
-    }
-
-    void op_is_ScatterND()
-    {
-        op::ScatterND node;
-        EXPECT_FALSE(node.is_unary_elementwise_arithmetic());
-        EXPECT_FALSE(node.is_binary_elementwise_arithmetic());
-        EXPECT_FALSE(node.is_binary_elementwise_comparison());
-        EXPECT_FALSE(node.is_binary_elementwise_logical());
-    }
-
-    void op_is_ScatterNDAdd()
-    {
-        op::ScatterNDAdd node;
-        EXPECT_FALSE(node.is_unary_elementwise_arithmetic());
-        EXPECT_FALSE(node.is_binary_elementwise_arithmetic());
-        EXPECT_FALSE(node.is_binary_elementwise_comparison());
-        EXPECT_FALSE(node.is_binary_elementwise_logical());
-    }
-
     void op_is_Select()
     {
         op::Select node;
