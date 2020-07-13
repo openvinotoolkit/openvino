@@ -767,6 +767,14 @@ PartialShape ngraph::infer_slice_shape(const Node* node,
                 int64_t lb = begin[axis];
                 int64_t ub = end[axis];
 
+                // set default value for stride or use given value
+                int64_t stride = 1;
+                if (strides.size() > axis)
+                {
+                    stride = strides[axis];
+                }
+                NODE_VALIDATION_CHECK(node, stride != 0, "Stride must be non-zero");
+
                 // convert negative indexes to positive
                 // take max for this case: if abs(lb) > input_shape[input_shape_idx],then after
                 // conversion lb < 0
@@ -778,21 +786,13 @@ PartialShape ngraph::infer_slice_shape(const Node* node,
 
                 if (ub < 0)
                 {
-                    ub = std::max(input_shape[input_shape_idx].get_length() + ub, int64_t(0));
+                    ub = std::max(input_shape[input_shape_idx].get_length() + ub,
+                                  stride > 0 ? int64_t(0) : int64_t(-1));
                 }
 
                 // apply restrictions when begin or end values more than max possible values.
                 lb = std::min(input_shape[input_shape_idx].get_length(), lb);
                 ub = std::min(input_shape[input_shape_idx].get_length(), ub);
-
-                // set default value for stride or use given value
-                int64_t stride = 1;
-                if (strides.size() > axis)
-                {
-                    stride = strides[axis];
-                }
-
-                NODE_VALIDATION_CHECK(node, stride != 0, "Stride must be non-zero");
 
                 int64_t dimension = 0;
                 if (stride < 0)

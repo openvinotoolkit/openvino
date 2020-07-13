@@ -18,7 +18,13 @@ bool ngraph::pass::UselessStridedSliceEraser::run_on_function(std::shared_ptr<ng
             continue;
         if (ss->input(0).get_shape() != ss->output(0).get_shape())
             continue;
-        rewritten |= replace_output_update_name(ss->output(0), ss->input_value(0));
+
+        auto stridesNode = std::dynamic_pointer_cast<ngraph::opset3::Constant>(ss->input_value(3).get_node_shared_ptr());
+        if (stridesNode) {
+            auto strides = stridesNode->cast_vector<int64_t>();
+            if (!std::any_of(strides.begin(), strides.end(), [](int64_t strd) { return strd < 0;}))
+                rewritten |= replace_output_update_name(ss->output(0), ss->input_value(0));
+        }
     }
     return rewritten;
 }
