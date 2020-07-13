@@ -173,9 +173,7 @@ set(SRC
     type_prop/roi_align.cpp
     type_prop/rnn_cell.cpp
     type_prop/scale_shift.cpp
-    type_prop/scatter_add.cpp
     type_prop/scatter_elements_update.cpp
-    type_prop/scatter_nd.cpp
     type_prop/scatter_nd_update.cpp
     type_prop/scatter_update.cpp
     type_prop/select.cpp
@@ -352,7 +350,6 @@ set(MULTI_TEST_SRC
     backend/reverse_sequence.in.cpp
     backend/reverse.in.cpp
     backend/round.in.cpp
-    backend/scatter.in.cpp
     backend/select.in.cpp
     backend/shape_of.in.cpp
     backend/sigmoid.in.cpp
