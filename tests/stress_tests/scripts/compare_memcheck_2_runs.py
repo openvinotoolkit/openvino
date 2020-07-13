@@ -155,6 +155,7 @@ def compare_memcheck_2_runs(cur_values, references, output_file=None):
             orig_data.to_html(output_file)
         else:
             orig_data.to_csv(output_file)
+        log.info('Created memcheck comparison report %s', output_file)
 
     return returncode
 

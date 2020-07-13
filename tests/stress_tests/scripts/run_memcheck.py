@@ -190,7 +190,6 @@ def main():
             compare_retcode = compare_memcheck_2_runs(cur_values=records, references=references,
                                                       output_file=args.comparison_report)
             returncode = returncode if returncode else compare_retcode
-            logging.info('Created memcheck comparison report %s', args.comparison_report)
 
     sys.exit(returncode)
 
