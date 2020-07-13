@@ -64,10 +64,18 @@ void ngraph::pass::ConvertReduceToPooling::convert_reduce_to_pooling() {
 
             auto axes_vector = std::dynamic_pointer_cast<ngraph::opset1::Constant>(axes_node)->template cast_vector<int64_t>();
             const auto input_rank = input.get_partial_shape().rank().get_length();
+            if ((input_rank != 4) && (input_rank != 5)) {
+                // This transformation is applicable only for 4D or 5D tensors, because pooling layers can
+                // have only 4D or 5D inputs.
+                return false;
+            }
             // Transform negative axes into non-negative ones
             for (size_t i = 0; i < axes_vector.size(); ++i) {
                 if (axes_vector[i] < 0) {
                     axes_vector[i] += input_rank;
+                }
+                if ((axes_vector[i] == 0) || (axes_vector[i] == input_rank - 1)) {
+                    return false;
                 }
             }
             std::sort(axes_vector.begin(), axes_vector.end());
