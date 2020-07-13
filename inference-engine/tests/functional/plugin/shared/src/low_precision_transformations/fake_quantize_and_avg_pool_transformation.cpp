@@ -58,7 +58,8 @@ void FakeQuantizeAndAvgPoolTransformation::validate() {
     ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantize;
     std::tie(precision, inputShape, targetDevice, params, version, fakeQuantize) = this->GetParam();
 
-    const InferenceEngine::CNNNetwork network = transform(toCNNNetwork(params));
+    const auto cnnnetworkParams = toCNNNetwork(params);
+    const InferenceEngine::CNNNetwork network = transform(cnnnetworkParams);
 
     IE_SUPPRESS_DEPRECATED_START
 

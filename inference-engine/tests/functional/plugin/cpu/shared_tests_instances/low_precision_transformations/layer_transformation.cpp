@@ -107,7 +107,7 @@ std::shared_ptr<InferenceEngine::ICNNNetwork> convert(std::shared_ptr<ngraph::Fu
     return clonedNetwork;
 }
 
-InferenceEngine::CNNNetwork LayerTransformation::transform(InferenceEngine::details::LayerTransformation::Params& params) {
+InferenceEngine::CNNNetwork LayerTransformation::transform(const InferenceEngine::details::LayerTransformation::Params& params) {
     std::shared_ptr<InferenceEngine::ICNNNetwork> clonedNetwork = convert(function, LayerTransformation::LptVersion::cnnNetwork);
 
     auto implNetwork = std::dynamic_pointer_cast<InferenceEngine::details::CNNNetworkImpl>(clonedNetwork);

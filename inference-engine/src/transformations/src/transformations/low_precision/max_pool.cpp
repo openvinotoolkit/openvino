@@ -14,6 +14,9 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
+MaxPoolTransformation::MaxPoolTransformation(const Params& params) : LayerTransformation(params) {
+}
+
 void MaxPoolTransformation::registerMatcherIn(GraphRewrite &pass, TransformationContext &context) const {
     addPattern(
         pass,
@@ -22,6 +25,10 @@ void MaxPoolTransformation::registerMatcherIn(GraphRewrite &pass, Transformation
 }
 
 void MaxPoolTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) const {
+    if (!LayerTransformation::canBeTransformed(context, m.get_match_root())) {
+        return;
+    }
+
     const std::shared_ptr<Node> pooling = separateInStandaloneBranch(m.get_match_root());
     moveDequantizationAfter(context, pooling, NetworkHelper::getDequantization(pooling), true);
 }
