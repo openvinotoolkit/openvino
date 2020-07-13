@@ -24,6 +24,7 @@
 #include <transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
 #include <transformations/convert_opset2_to_opset1/convert_opset2_to_opset1.hpp>
 #include <transformations/convert_opset3_to_opset2/convert_opset3_to_opset2.hpp>
+#include <transformations/convert_precision.hpp>
 #include <transformations/rt_info/fused_names_attribute.hpp>
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset2.hpp>
@@ -87,6 +88,13 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork) {
     manager.register_pass<ngraph::pass::CommonOptimizations>();
     manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
     manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
+
+    manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::i64, ngraph::element::i32);
+    manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::u64, ngraph::element::i32);
+    manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::u16, ngraph::element::i32);
+    manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::u32, ngraph::element::i32);
+    manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::f16, ngraph::element::f32);
+
     manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
 
     manager.set_callback(transformations_callback);
