@@ -17,9 +17,8 @@
 import unittest
 
 import numpy as np
-from generator import generator, generate
 
-from extensions.front.tf.slice_replacers import SliceFrontReplacer
+from extensions.front.tf.slice_replacers import TFSliceToSliceReplacer
 from mo.utils.ir_engine.compare_graphs import compare_graphs
 from mo.utils.unittest.graph import build_graph, regular_op_with_empty_data, result, const
 
@@ -51,7 +50,7 @@ class SliceReplacerTest(unittest.TestCase):
         ], nodes_with_edges_only=True)
         graph.stage = 'front'
 
-        SliceFrontReplacer().find_and_replace_pattern(graph)
+        TFSliceToSliceReplacer().find_and_replace_pattern(graph)
 
         graph_ref = build_graph(nodes_attrs=nodes, edges=[
             ('input', 'slice', {'out': 0}),

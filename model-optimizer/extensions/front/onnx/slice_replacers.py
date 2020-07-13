@@ -20,7 +20,7 @@ from mo.ops.const import Const
 from mo.ops.slice import Slice
 
 
-class SliceFrontReplacer(FrontReplacementOp):
+class AttributedSliceToSliceReplacer(FrontReplacementOp):
     """
     This class replaces AttributedSlice -> Slice
     """
@@ -41,6 +41,6 @@ class SliceFrontReplacer(FrontReplacementOp):
         slice_node.in_port(2).get_connection().set_source(end_node.out_port(0))
         if node.has_valid('axis'):
             axis_node = Const(graph, {'value': node.axis, 'name': node.id + '/axis_const'}).create_node()
-            slice_node.add_input_port(3, skip_if_exist=True)
+            # slice_node.add_input_port(3, skip_if_exist=True)
             slice_node.in_port(3).get_connection().set_source(axis_node.out_port(0))
 

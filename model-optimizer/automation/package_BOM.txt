@@ -627,7 +627,6 @@ extensions/ops/merge.py
 extensions/ops/mvn.py
 extensions/ops/mxrepeat.py
 extensions/ops/mxreshape.py
-extensions/ops/mxslice.py
 extensions/ops/NextIteration.py
 extensions/ops/non_max_suppression.py
 extensions/ops/non_zero.py

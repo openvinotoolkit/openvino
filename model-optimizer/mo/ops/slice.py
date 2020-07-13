@@ -14,23 +14,36 @@
  limitations under the License.
 """
 
-import logging as log
-
 import numpy as np
 
-from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Node, Graph
 from mo.ops.op import Op
+from mo.utils.error import Error
+from mo.utils.shape import get_shape_after_slice
+
+"""
+In each framework (or in different opsets of the same framework) Slice operation either has different semantic or 
+different parameters, or/and they specified differently in one case as attributes in other case as inputs. To 
+distinguish them and not confuse with OpenVINO Slice these operations were added. OpenVINO Slice operation is same as 
+ONNX Slice in opset >= 10. To unify all of them before middle phase these replacements take place on the front phase:
+    AttributedSlice, TFSlice -> Slice 
+    CaffeSlice -> Split 
+    MXSlice -> StridedSlice 
+"""
 
 
 class AttributedSlice(Op):
+    """
+    AttributedSlice is used in old versions of ONNX models (opset version < 10). This operation is
+    used only for extracting. On the front phase is replaced with Slice.
+    """
     op = 'AttributedSlice'
-    enabled = True
+    enabled = False
 
     def __init__(self, graph: Graph, attrs: dict):
         super().__init__(graph, {
             'type': None,
-            'op': __class__.op,
+            'op': self.op,
             'in_ports_count': 1,
             'out_ports_count': 1,
             'infer': None,
@@ -41,13 +54,18 @@ class AttributedSlice(Op):
 
 
 class CaffeSlice(Op):
+    """
+    Slice in Caffe is equivalent to Split operation in OpenVINO.
+    https://caffe.berkeleyvision.org/tutorial/layers/slice.html
+    After extracting operations on the front phase CaffeSlices are replaced with OpenVINO Splits operation.
+    """
     op = 'CaffeSlice'
-    enabled = True
+    enabled = False
 
     def __init__(self, graph: Graph, attrs: dict):
         super().__init__(graph, {
             'type': None,
-            'op': __class__.op,
+            'op': self.op,
             'in_ports_count': 1,
             'out_ports_count': 1,
             'infer': None,
@@ -56,87 +74,97 @@ class CaffeSlice(Op):
     def supported_attrs(self):
         return ['slice_point', 'axis']
 
+
 class TFSlice(Op):
+    """
+    Slice operation in Tensorflow is different from Slice in ONNX, Caffe and MXNet. It has begin and size inputs while
+    OpenVINO Slice has start, end, step and axis parameters specified as inputs.
+    https://www.tensorflow.org/api_docs/python/tf/slice
+    On the front phase it is replaced with Slice operation. If size[i] == -1 is replaced to int32_max value for the end.
+    """
     op = 'TFSlice'
-    enabled = True
+    enabled = False
 
     def __init__(self, graph: Graph, attrs: dict):
         super().__init__(graph, {
             'type': None,
-            'op': __class__.op,
+            'op': self.op,
             'in_ports_count': 3,
             'out_ports_count': 1,
             'infer': None,
         }, attrs)
 
-    def supported_attrs(self):
-        return []
+
+class MXSlice(Op):
+    """
+    Slice operation in MXNet is different from ONNX, Caffe, Tensorflow. It has begin, end & step attributes
+    https://mxnet.apache.org/versions/1.6/api/python/docs/api/symbol/op/index.html#mxnet.symbol.op.slice
+    """
+    op = 'MXSlice'
+    enabled = False
+
+    def __init__(self, graph: Graph, attrs: dict):
+        super().__init__(graph, {
+            'kind': 'op',
+            'type': None,
+            'op': self.op,
+            'in_ports_count': 1,
+            'out_ports_count': 1,
+            'infer': None
+        }, attrs)
+
 
 class Slice(Op):
+    """
+    Semantic of OpenVINO Slice operation is identical ONNX Slice (opset >= 10).
+    It has start, end, steps and axis inputs. It is not in the OpenVINO opset and is replaced to StridedSlice.
+    """
     op = 'Slice'
-    enabled = True
+    enabled = False
 
     def __init__(self, graph: Graph, attrs: dict):
         super().__init__(graph, {
             'type': None,
             'op': 'Slice',
-            'in_ports_count': 3,
+            'in_ports_count': 4,
             'out_ports_count': 1,
             'infer': __class__.infer
         }, attrs)
 
-    def supported_attrs(self):
-        return []
-
     @staticmethod
     def infer(node: Node):
-        value = node.in_node(0).value
-        input_shape = node.in_node(0).shape
-        axis = None
-        steps = None
+        input_value = node.in_port(0).data.get_value()
+        input_shape = node.in_port(0).data.get_shape()
 
-        first_input = node.in_node(1)
-        second_input = node.in_node(2)
-        if first_input.has_valid('value') and second_input.has_valid('value'):
-            start = int64_array(first_input.value)
-            end = int64_array(second_input.value)
+        start = node.in_port(1).data.get_value()
+        end = node.in_port(2).data.get_value()
+        if start is None or end is None:
+            raise Error('The non-constant start/end values for Slice operation "{}" is not supported'.format(node.name))
+
+        if node.is_in_port_connected(3):
+            axis = node.in_port(3).data.get_value()
+            if axis is None:
+                raise Error('The non-constant axis values for Slice operation "{}" is not supported'.format(node.name))
         else:
-            log.error('Incorrect slice operation: no valid starts and/or ends')
-            return
-
-        if 3 in node.in_nodes():
-            if node.in_node(3).has_valid('value'):
-                axis = np.array(node.in_node(3).value, dtype=np.int64)
-            else:
-                log.warning('Incorrect slice operation: axes should be const')
-                return
-        if 4 in node.in_nodes():
-            if node.in_node(4).has_valid('value'):
-                steps = np.array(node.in_node(4).value, dtype=np.int64)
-            else:
-                log.warning('Incorrect slice operation: steps should be const')
-                return
-
-        if axis is None:
             axis = [x for x in range(len(start))]
 
-        if steps is None:
+        if node.is_in_port_connected(4):
+            steps = node.in_port(4).data.get_value()
+            if steps is None:
+                raise Error('The non-constant steps values for Slice operation "{}" is not supported'.format(node.name))
+        else:
             steps = np.ones(start.size, dtype=np.int64)
 
-        slice_idx = [None for x in range(len(input_shape))]
-        for id in range(len(axis)):
+        slice_idx = [slice(0, in_shape, 1) for in_shape in input_shape]
+        for i in range(len(axis)):
             # Ranged for output value for specified axis
-            slice_idx[axis[id]] = slice(start[id], end[id], steps[id])
+            slice_idx[axis[i]] = slice(start[i], end[i], steps[i])
 
-        # this does not break reshape-ability: values along axes not touched by Slice are copied
-        for axis, s in enumerate(slice_idx):
-            if s is None:
-                slice_idx[axis] = slice(0, input_shape[axis], 1)
-
-        if value is None:
-            value = np.zeros(input_shape)
-
-        value = value[tuple(slice_idx)]
-
-        node.out_node().value = value.copy() if node.in_node(0).value is not None else None
-        node.out_node().shape = np.array(value.shape)
+        if input_value is None:
+            output_shape = get_shape_after_slice(input_shape, slice_idx)
+            if np.any(output_shape == 0):
+                # todo: add unittest for this case
+                raise Error("Output shape ({}) for Slice node {} has zero elements".format(output_shape, node.name))
+            node.out_port(0).data.set_shape(output_shape)
+        else:
+            node.out_port(0).data.set_value(input_value[tuple(slice_idx)])

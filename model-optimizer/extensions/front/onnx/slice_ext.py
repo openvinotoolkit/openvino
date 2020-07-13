@@ -14,8 +14,7 @@
  limitations under the License.
 """
 
-import numpy as np
-
+from mo.front.common.partial_infer.utils import int64_array
 from mo.front.extractor import FrontExtractorOp
 from mo.front.onnx.extractors.utils import get_onnx_opset_version
 from mo.front.onnx.extractors.utils import onnx_attr
@@ -29,17 +28,16 @@ class SliceFrontExtractor(FrontExtractorOp):
     @classmethod
     def extract(cls, node):
         if get_onnx_opset_version(node) < 10:
-            axis = np.array(onnx_attr(node, 'axes', 'ints', default=[]), dtype=np.int64)
-            start = np.array(onnx_attr(node, 'starts', 'ints', default=[]), dtype=np.int64)
-            end = np.array(onnx_attr(node, 'ends', 'ints', default=[]), dtype=np.int64)
+            axis = int64_array(onnx_attr(node, 'axes', 'ints', default=[]))
+            start = int64_array(onnx_attr(node, 'starts', 'ints', default=[]))
+            end = int64_array(onnx_attr(node, 'ends', 'ints', default=[]))
 
             attrs = {
                 'axis': axis if len(axis) != 0 else None,
                 'start': start if len(start) != 0 else None,
                 'end': end if len(end) != 0 else None,
-                'format': 'onnx'
             }
             AttributedSlice.update_node_stat(node, attrs)
         else:  # onnx_opset_version >= 10
-            Slice.update_node_stat(node, attrs={'format': 'onnx'})
+            Slice.update_node_stat(node)
         return cls.enabled

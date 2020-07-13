@@ -16,6 +16,7 @@
 
 from mo.front.extractor import FrontExtractorOp
 from mo.ops.slice import CaffeSlice
+from mo.front.common.partial_infer.utils import int64_array
 
 
 class SliceFrontExtractor(FrontExtractorOp):
@@ -36,7 +37,7 @@ class SliceFrontExtractor(FrontExtractorOp):
 
         update_attrs = {
             'axis': axis,
-            'slice_point': param.slice_point,
+            'slice_point': int64_array(param.slice_point),
             'in_ports_count': 1,
             'out_ports_count': len(param.slice_point) + 1,
         }

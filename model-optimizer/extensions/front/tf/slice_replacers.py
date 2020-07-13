@@ -24,14 +24,14 @@ from mo.ops.slice import Slice
 from extensions.ops.select import Select
 
 
-class SliceFrontReplacer(FrontReplacementOp):
+class TFSliceToSliceReplacer(FrontReplacementOp):
     op = 'TFSlice'
     enabled = True
 
     def replace_sub_graph(self, graph: Graph, match: dict):
         """
         This transformation converts TFSlice to internal Slice operation.
-        In TFSlice ff size[i] is -1, all remaining elements in dimension i are included in the slice.
+        In TFSlice node if size[i] is -1, all remaining elements in dimension i are included in the slice.
         In Slice which is borrowed from ONNX -1 is treated penultimate (shape[i] - 1). Also TFSlice has sizes
         on the second input while Slice has ends. This transformation was added to avoid multiple ifs in the future.
         """

@@ -25,5 +25,5 @@ class SliceExtractor(FrontExtractorOp):
 
     @classmethod
     def extract(cls, node: Node):
-        TFSlice.update_node_stat(node, {'format': 'tf'})
+        TFSlice.update_node_stat(node)
         return cls.enabled

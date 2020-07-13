@@ -24,7 +24,7 @@ from mo.ops.concat import Concat
 from mo.ops.const import Const
 from mo.ops.shape import Shape
 from mo.ops.squeeze import Squeeze
-
+import numpy as np
 
 def get_canonical_axis_index_node(rank: Node, axis: int) -> Node:
     """
@@ -219,3 +219,34 @@ def get_shape_and_rank_nodes_by_port(port: Port, return_as_a_scalar: bool = True
     rank = create_op_node_with_second_input(graph, Squeeze, int64_array([0]), {'name': input_node_name + '/0dRankOf'},
                                             rank_1_d)
     return shape, rank
+
+
+def get_positive_indices(size, val):
+    """converts negative indices of a tensors to positive"""
+    if val < 0:
+        return val + size
+    else:
+        return val
+
+
+def check_boundaries(size, start, end):
+    """if slice starts and/or ends exceed indices bounds of a tensor this routine cuts them to size or 0"""
+    start = get_positive_indices(size, start)
+    end = get_positive_indices(size, end)
+    if end > size:
+        end = size
+    if start < 0:
+        start = 0
+    return start, end
+
+
+def get_shape_after_slice(input_shape, slice_idx: slice):
+    """
+    Calculate shape of a tensor after slicing without actually creating the resulting tensor.
+    Is introduced to save memory.
+    """
+    output_shape = np.zeros_like(input_shape)
+    for i, s in enumerate(slice_idx):
+        start, end = check_boundaries(input_shape[i], s.start, s.stop)
+        output_shape[i] = (end - start) / s.step
+    return output_shape
