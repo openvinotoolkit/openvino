@@ -22,14 +22,12 @@
 #include <memory>
 #include <atomic>
 #include <string>
+#include <unordered_set>
+#include <kernel_selector_common.h>
 
 namespace cl {
 class Kernel;
 class KernelIntel;
-}
-
-namespace kernel_selector {
-struct KernelString;
 }
 
 namespace kernel_selector {
@@ -59,13 +57,32 @@ public:
         std::string id;
         bool dump_custom_program;
         bool one_time_kernel;
+
+        kernel_code(const std::shared_ptr<kernel_selector::kernel_string>& _kernel_strings,
+                    const std::string& _id,
+                    bool _dump_custom_program,
+                    bool _one_time_kernel)
+            : kernel_strings(_kernel_strings),
+              id(_id),
+              dump_custom_program(_dump_custom_program),
+              one_time_kernel(_one_time_kernel) {}
+
+        bool operator == (const kernel_code& c2) const {
+            return kernel_strings->get_hash() == c2.kernel_strings->get_hash();
+        };
+    };
+
+    struct hash_kernel_code {
+        size_t operator()(const kernel_code& x) const {
+            return std::hash<std::string>()(x.kernel_strings->get_hash());
+        }
     };
 
     typedef std::string kernel_id;
     typedef cl::KernelIntel kernel_type;
     using sorted_code = std::map<std::string, program_code>;
     using kernels_map = std::map<std::string, kernel_type>;
-    using kernels_code = std::map<std::string, kernel_code>;
+    using kernels_code = std::unordered_set<kernel_code, hash_kernel_code>;
 
 private:
     gpu_toolkit& _context;
