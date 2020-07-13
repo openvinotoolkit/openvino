@@ -94,7 +94,9 @@ void PassImpl::run(const Model& model) {
         auto curSubGraph = extractNextSubGraph(stagesToSplit);
         IE_ASSERT(!curSubGraph.empty());
 
-        if (curSubGraph.size() <= s_subgraphSizeThreshold) {
+        bool isStaticBatch = (curSubGraph.front()->attrs().get<Data>("batchData")->parentDataToShapeEdge() == nullptr);
+
+        if ((curSubGraph.size() <= s_subgraphSizeThreshold) && isStaticBatch) {
             duplicate(model, curSubGraph);
         } else {
             wrapInLoop(model, curSubGraph);
@@ -134,6 +136,7 @@ void PassImpl::wrapInLoop(const Model& model, const StageList& subgraph) {
 
     DataVector loopStartInputs, loopStartOutputs, loopEndInputs, loopEndOutputs;
     IterationComponents startIterationComponents, endIterationComponents;
+    bool dynamicBatchInputs = false;
 
     for (const auto& stage : subgraph) {
         const auto& batchInfo = stage->getBatchSupportInfo();
@@ -165,6 +168,8 @@ void PassImpl::wrapInLoop(const Model& model, const StageList& subgraph) {
                     loopStartOutputs.push_back(loopStartOutput);
 
                     if (withBatch) {
+                        if (input->parentDataToShapeEdge())
+                            dynamicBatchInputs = true;
                         const auto rule = IterationRule{Dim::N, 0, 1, -1};
                         startIterationComponents.emplace(std::make_pair(loopStartInputs.size() - 1, rule), loopStartOutputs.size() - 1);
                     } else {
@@ -201,10 +206,33 @@ void PassImpl::wrapInLoop(const Model& model, const StageList& subgraph) {
         }
     }
 
+    const auto getBatchDataIndex = [](DataVector& stageInputs, const Data& data) {
+        auto i = 0;
+        for (; i < stageInputs.size(); i++) {
+            if (stageInputs[i] == data)
+                break;
+        }
+        if (i == stageInputs.size())
+            stageInputs.push_back(data);
+        return i;
+    };
+
+    // dynamic case
+    int loopStartBatchIndex = -1;
+    int loopEndBatchIndex = -1;
+    if (dynamicBatchInputs) {
+        loopStartBatchIndex = getBatchDataIndex(loopStartInputs, subgraph.front()->attrs().get<Data>("batchData"));
+        loopEndBatchIndex = getBatchDataIndex(loopEndInputs, subgraph.front()->attrs().get<Data>("batchData"));
+    }
+
     auto loopStart = _stageBuilder->addLoopStartStage(model, formatString("LoopStart@Batch@{}", loopIndex), loopStartInputs, loopStartOutputs);
     auto loopEnd = _stageBuilder->addLoopEndStage(model, formatString("LoopEnd@Batch@{}", loopIndex), loopEndInputs, loopEndOutputs);
     ++loopIndex;
 
+    if (dynamicBatchInputs) {
+        loopStart->attrs().set<uint32_t>("batchId", loopStartBatchIndex);
+        loopEnd->attrs().set<uint32_t>("batchId", loopEndBatchIndex);
+    }
     loopStart->attrs().set("start-iteration-components", startIterationComponents);
     loopEnd->attrs().set("end-iteration-components", endIterationComponents);
     loopStart->attrs().set("loop-end", loopEnd);
@@ -219,6 +247,7 @@ void PassImpl::wrapInLoop(const Model& model, const StageList& subgraph) {
 StageList PassImpl::collectAllStageToSplit(const Model& model) {
     StageList stagesToSplit(&StageNode::posForPassList);
 
+    Data batchData;
     for (const auto& stage : model->getStages()) {
         //
         // Get stage information
@@ -246,6 +275,7 @@ StageList PassImpl::collectAllStageToSplit(const Model& model) {
             if (curReq == BatchSupport::Split) {
                 if (batchSize < 0) {
                     batchSize = inEdge->input()->desc().dim(Dim::N, 1);
+                    batchData = inEdge->input();
                 } else {
                     IE_ASSERT(batchSize == inEdge->input()->desc().dim(Dim::N, 1));
                 }
@@ -264,6 +294,7 @@ StageList PassImpl::collectAllStageToSplit(const Model& model) {
         }
 
         stage->attrs().set("batchSize", batchSize);
+        stage->attrs().set("batchData", batchData);
         stagesToSplit.push_back(stage);
     }
 

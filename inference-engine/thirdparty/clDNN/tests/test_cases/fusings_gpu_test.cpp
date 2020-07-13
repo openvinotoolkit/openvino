@@ -3104,7 +3104,7 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu,
                             lrn_test_params{CASE_LRN_FP32_2, 2, 5, lrn_norm_region_across_channel, "lrn_gpu_across_channel_yxfb_b8_opt"},
                             lrn_test_params{CASE_LRN_FP32_3, 2, 5, lrn_norm_region_within_channel, "lrn_within_channel_byxf_opt"},
                             lrn_test_params{CASE_LRN_FP32_4, 2, 5, lrn_norm_region_across_channel, "lrn_gpu_across_channel_multiple_features"},
-                            lrn_test_params{CASE_LRN_FP32_5, 2, 5, lrn_norm_region_across_channel, "lrn_gpu_across_channel_multiple_features"},
+                            lrn_test_params{CASE_LRN_FP32_5, 2, 5, lrn_norm_region_across_channel, "lrn_gpu_across_channel_multiple_features_fsv16"},
 
                             // InputDataType = FP32   OutputDataType = FP16
                             lrn_test_params{CASE_LRN_FP32_TO_FP16_1, 2, 5, lrn_norm_region_across_channel, "lrn_ref"},
@@ -3114,7 +3114,7 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu,
                             lrn_test_params{CASE_LRN_FP32_TO_FP16_1, 2, 5, lrn_norm_region_within_channel, "lrn_gpu_within_channel"},
                             lrn_test_params{CASE_LRN_FP32_TO_FP16_3, 2, 5, lrn_norm_region_across_channel, "lrn_gpu_across_channel_yxfb_b8_opt"},
                             lrn_test_params{CASE_LRN_FP32_TO_FP16_4, 2, 5, lrn_norm_region_across_channel, "lrn_gpu_across_channel_multiple_features"},
-                            lrn_test_params{CASE_LRN_FP32_TO_FP16_5, 2, 5, lrn_norm_region_across_channel, "lrn_gpu_across_channel_multiple_features"},
+                            lrn_test_params{CASE_LRN_FP32_TO_FP16_5, 2, 5, lrn_norm_region_across_channel, "lrn_gpu_across_channel_multiple_features_fsv16"},
 
                         }), );
 
@@ -3155,7 +3155,7 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu,
                             lrn_test_params{CASE_LRN_FP32_2, 2, 5, lrn_norm_region_across_channel, "lrn_gpu_across_channel_yxfb_b8_opt"},
                             lrn_test_params{CASE_LRN_FP32_3, 2, 5, lrn_norm_region_within_channel, "lrn_within_channel_byxf_opt"},
                             lrn_test_params{CASE_LRN_FP32_4, 2, 5, lrn_norm_region_across_channel, "lrn_gpu_across_channel_multiple_features"},
-                            lrn_test_params{CASE_LRN_FP32_5, 2, 5, lrn_norm_region_across_channel, "lrn_gpu_across_channel_multiple_features"},
+                            lrn_test_params{CASE_LRN_FP32_5, 2, 5, lrn_norm_region_across_channel, "lrn_gpu_across_channel_multiple_features_fsv16"},
 
                             // InputDataType = FP16   OutputDataType = INT8/UINT8 can't be tested for now, because quantize
                             // primitive doesn't support input type FP16 while fusing (prepare_quantization.cpp :114 -> prepare_primitive_fusing.cpp :474)
@@ -3198,7 +3198,7 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu,
                             lrn_test_params{CASE_LRN_FP32_2, 2, 5, lrn_norm_region_across_channel, "lrn_gpu_across_channel_yxfb_b8_opt"},
                             lrn_test_params{CASE_LRN_FP32_3, 2, 5, lrn_norm_region_within_channel, "lrn_within_channel_byxf_opt"},
                             lrn_test_params{CASE_LRN_FP32_4, 2, 5, lrn_norm_region_across_channel, "lrn_gpu_across_channel_multiple_features"},
-                            lrn_test_params{CASE_LRN_FP32_5, 2, 5, lrn_norm_region_across_channel, "lrn_gpu_across_channel_multiple_features"},
+                            lrn_test_params{CASE_LRN_FP32_5, 2, 5, lrn_norm_region_across_channel, "lrn_gpu_across_channel_multiple_features_fsv16"},
                         }), );
 
 class lrn_fp16_scale_activation : public LrnFusingTest {};
@@ -3232,7 +3232,7 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu,
                             lrn_test_params{CASE_LRN_FP16_1, 2, 4, lrn_norm_region_across_channel, "lrn_gpu_across_channel_ref"},
                             lrn_test_params{CASE_LRN_FP16_3, 2, 4, lrn_norm_region_within_channel, "lrn_within_channel_byxf_opt"},
                             lrn_test_params{CASE_LRN_FP16_4, 2, 4, lrn_norm_region_across_channel, "lrn_gpu_across_channel_multiple_features"},
-                            lrn_test_params{CASE_LRN_FP16_5, 2, 4, lrn_norm_region_across_channel, "lrn_gpu_across_channel_multiple_features"},
+                            lrn_test_params{CASE_LRN_FP16_5, 2, 4, lrn_norm_region_across_channel, "lrn_gpu_across_channel_multiple_features_fsv16"},
                         }), );
 
 /* ----------------------------------------------------------------------------------------------------- */
@@ -4058,19 +4058,19 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, deconv_scale_activation_quantize_i8_eltwise
                         ::testing::ValuesIn(std::vector<conv_eltw_test_params>{
                                 conv_eltw_test_params{CASE_DECONV_ELTW_FP32_1, 5, 7},
                                 conv_eltw_test_params{CASE_DECONV_ELTW_FP32_2, 5, 7},
-                                conv_eltw_test_params{CASE_DECONV_ELTW_FP32_3, 5, 7}, 
+                                conv_eltw_test_params{CASE_DECONV_ELTW_FP32_3, 5, 7},
                                 conv_eltw_test_params{CASE_DECONV_ELTW_FP32_4, 5, 7},
                                 conv_eltw_test_params{CASE_DECONV_ELTW_FP32_5, 5, 7},
-                                conv_eltw_test_params{CASE_DECONV_ELTW_FP32_6, 5, 7}, 
+                                conv_eltw_test_params{CASE_DECONV_ELTW_FP32_6, 5, 7},
                                 conv_eltw_test_params{CASE_DECONV_ELTW_FP32_7, 5, 7},
                                 conv_eltw_test_params{CASE_DECONV_ELTW_FP32_8, 5, 7},
-                                
+
                                 conv_eltw_test_params{CASE_DECONV_ELTW_i8_1, 2, 7},
                                 conv_eltw_test_params{CASE_DECONV_ELTW_i8_2, 2, 7},
                                 conv_eltw_test_params{CASE_DECONV_ELTW_i8_3, 2, 7},
                                 conv_eltw_test_params{CASE_DECONV_ELTW_i8_4, 2, 7},
                                 conv_eltw_test_params{CASE_DECONV_ELTW_i8_5, 2, 7},
-    
+
                         }), );
 
 
