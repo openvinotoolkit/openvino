@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2016 Intel Corporation
+// Copyright (c) 2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,26 +15,18 @@
 
 #pragma once
 
-#include <vector>
-#include "lrn_kernel_base.h"
+#include "lrn_kernel_across_channel_multiple_features.h"
 
 namespace kernel_selector {
-class LRNKernelAcrossChannelMultipleFeatures : public LRNKernelBase {
+class LRNKernelAcrossChannelMultipleFeaturesFSV16 : public LRNKernelAcrossChannelMultipleFeatures {
 public:
-    using Parent = LRNKernelBase;
-    LRNKernelAcrossChannelMultipleFeatures(const std::string& s = "lrn_gpu_across_channel_multiple_features") : Parent(s) {}
+    using Parent = LRNKernelAcrossChannelMultipleFeatures;
+    LRNKernelAcrossChannelMultipleFeaturesFSV16() : Parent("lrn_gpu_across_channel_multiple_features_fsv16") {}
 
-    KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
     ParamsKey GetSupportedKey() const override;
 
-protected:
+private:
     DispatchData SetDefault(const lrn_params& params) const override;
-    std::vector<FusedOpType> GetSupportedFusedOps() const override {
-        return { FusedOpType::QUANTIZE,
-                 FusedOpType::SCALE,
-                 FusedOpType::ACTIVATION };
-    }
-    bool Validate(const Params& params, const optional_params& options) const override;
     JitConstants GetJitConstants(const lrn_params& params, const DispatchData& kd) const override;
 };
 }  // namespace kernel_selector
