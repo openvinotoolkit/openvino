@@ -717,6 +717,18 @@ JitConstants MakeActivationJitConstants(ActivationFunction activation_function,
                     (input / (one + exp(neg(input)))).str()));
             break;
         }
+        case ActivationFunction::MISH: {
+            std::string type_suffix = out_dt == Datatype::F32 ? "f" : "h";
+            auto bound = out_dt == Datatype::F32 ? "9.9f"_jit : "4.75h"_jit;
+            const JitTerm two("2." + type_suffix);
+            const JitTerm n((exp(input) + two) * exp(input));
+            const JitTerm common_mish_formula((input * n) / (n + two));
+
+            jitConstants.AddConstant(MakeJitConstant(
+                macro_def,
+                ternary(input.ge(bound), input, common_mish_formula).str()));
+            break;
+        }
         case ActivationFunction::GELU: {
             std::string type_suffix = out_dt == Datatype::F32 ? "f" : "h";
             const JitTerm half{"0.5" + type_suffix};
@@ -1260,15 +1272,13 @@ std::string FusedOpsCodeGenerator::GetJitLoad(const FusedOpsConfiguration& conf,
     auto& input_tensor = desc.tensors[input_id];
     size_t vec_size = 1;
     auto input_dt = input_tensor.GetDType();
-    if (desc.GetType() == KernelType::ELTWISE) {
-        if (input_tensor.LogicalSize() == prim_output.LogicalSize() &&
-            input_tensor.GetLayout() != prim_output.GetLayout() && conf.vec_size > 1) {
-            throw std::runtime_error("[clDNN] Mixed layouts of input tensors are not supported in fused eltwise");
-        }
-        vec_size = conf.vec_size;
+
+    if (desc.GetType() == KernelType::ELTWISE &&
+        input_tensor.GetLayout() != prim_output.GetLayout() && conf.vec_size > 1) {
+        throw std::runtime_error("[clDNN] Mixed layouts of input tensors are not supported in fused eltwise");
     }
 
-    if (conf.vec_axis == Tensor::DataChannelName::FEATURE &&
+    if (conf.vec_axis != Tensor::DataChannelName::COUNT &&
         DataTensor::Extract(input_tensor.GetLayout(), conf.vec_axis, input_tensor.GetDims()).v != 1) {
         vec_size = conf.vec_size;
     }

@@ -174,20 +174,3 @@ shared_ptr<Node> op::ReplaceSlice::clone_with_new_inputs(const OutputVector& new
     return make_shared<ReplaceSlice>(
         new_args.at(0), new_args.at(1), m_lower_bounds, m_upper_bounds, m_strides);
 }
-
-void op::ReplaceSlice::generate_adjoints(autodiff::Adjoints& adjoints, const OutputVector& deltas)
-{
-    auto delta = deltas.at(0);
-
-    auto x = input_value(0);
-    auto y = input_value(1);
-    auto& y_element_type = y.get_element_type();
-    auto y_shape = y.get_shape();
-
-    auto zeros_shaped_like_y = op::Constant::create(y_element_type, y_shape, {0.0});
-
-    adjoints.add_delta(x,
-                       make_shared<op::ReplaceSlice>(
-                           delta, zeros_shaped_like_y, m_lower_bounds, m_upper_bounds, m_strides));
-    adjoints.add_delta(y, make_shared<op::Slice>(delta, m_lower_bounds, m_upper_bounds, m_strides));
-}

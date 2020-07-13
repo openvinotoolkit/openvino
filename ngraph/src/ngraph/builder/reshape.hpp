@@ -62,16 +62,6 @@ namespace ngraph
         NGRAPH_API
         std::shared_ptr<Node> flatten(const Output<Node>& value, int axis);
 
-        /// \brief Flatten a value into a 2D matrix, with a dynamic dividing axis.
-        ///
-        /// \param value The tensor to be flattened.
-        /// \param axis The tensor representing the axis dividing the shape. Must be reshapeable
-        ///             to the shape (1,).
-        ///
-        /// \return The new value will be a 2D matrix representing the flattened input node.
-        NGRAPH_API
-        std::shared_ptr<Node> flatten(const Output<Node>& value, const Output<Node>& axis);
-
         /// \brief      Remove empty axes from input tensor.
         ///
         /// \param[in]  value  The value to be squeezed.

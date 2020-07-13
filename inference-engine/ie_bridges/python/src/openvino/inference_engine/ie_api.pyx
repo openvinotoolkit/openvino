@@ -503,6 +503,14 @@ cdef class PreProcessChannel:
 
 ## This class stores pre-process information for the input
 cdef class PreProcessInfo:
+    def __cinit__(self):
+        self._ptr = new CPreProcessInfo()
+        self._user_data  = True
+
+    def __dealloc__(self):
+        if self._user_data:
+            del self._ptr
+
     def __getitem__(self, size_t index):
         cdef CPreProcessChannel.Ptr c_channel = deref(self._ptr)[index]
         channel = PreProcessChannel()
@@ -544,10 +552,18 @@ cdef class PreProcessInfo:
 
     ## Resize Algorithm to be applied for input before inference if needed.
     #
+    #  \note It's need to set your input via the set_blob method.
+    #
     #  Usage example:\n
     #  ```python
     #  net = ie_core.read_network(model=path_to_xml_file, weights=path_to_bin_file)
     #  net.input_info['data'].preprocess_info.resize_algorithm = ResizeAlgorithm.RESIZE_BILINEAR
+    #  exec_net = ie_core.load_network(net, 'CPU')
+    #  tensor_desc = ie.TensorDesc("FP32", [1, 3, image.shape[2], image.shape[3]], "NCHW")
+    #  img_blob = ie.Blob(tensor_desc, image)
+    #  request = exec_net.requests[0]
+    #  request.set_blob('data', img_blob)
+    #  request.infer()
     #  ```
     @property
     def resize_algorithm(self):
@@ -615,6 +631,8 @@ cdef class InputInfoPtr:
     def preprocess_info(self):
         cdef CPreProcessInfo* c_preprocess_info = &deref(self._ptr).getPreProcess()
         preprocess_info = PreProcessInfo()
+        del preprocess_info._ptr
+        preprocess_info._user_data = False
         preprocess_info._ptr = c_preprocess_info
         return preprocess_info
 
@@ -1028,9 +1046,24 @@ cdef class InferRequest:
             output_blobs[output] = deepcopy(blob)
         return output_blobs
 
+    ## Dictionary that maps input layer names to corresponding preprocessing information
+    @property
+    def preprocess_info(self):
+        preprocess_info = {}
+        cdef const CPreProcessInfo** c_preprocess_info
+        for input_blob in self.input_blobs.keys():
+            preprocess = PreProcessInfo()
+            del preprocess._ptr
+            preprocess._user_data = False
+            c_preprocess_info = <const CPreProcessInfo**>(&preprocess._ptr)
+            deref(self.impl).getPreProcess(input_blob.encode(), c_preprocess_info)
+            preprocess_info[input_blob] = preprocess
+        return preprocess_info
+
     ## Sets user defined Blob for the infer request
     #  @param blob_name: A name of input blob
     #  @param blob: Blob object to set for the infer request
+    #  @param preprocess_info: PreProcessInfo object to set for the infer request.
     #  @return None
     #
     #  Usage example:\n
@@ -1043,8 +1076,11 @@ cdef class InferRequest:
     #  blob = Blob(td, blob_data)
     #  exec_net.requests[0].set_blob(blob_name="input_blob_name", blob=blob),
     #  ```
-    def set_blob(self, blob_name : str, blob : Blob):
-        deref(self.impl).setBlob(blob_name.encode(), blob._ptr)
+    def set_blob(self, blob_name : str, blob : Blob, preprocess_info: PreProcessInfo = None):
+        if preprocess_info:
+            deref(self.impl).setBlob(blob_name.encode(), blob._ptr, deref(preprocess_info._ptr))
+        else:
+            deref(self.impl).setBlob(blob_name.encode(), blob._ptr)
         self._user_blobs[blob_name] = blob
     ## Starts synchronous inference of the infer request and fill outputs array
     #
