@@ -62,7 +62,14 @@ TEST(onnx_importer, exception_msg_onnx_node_validation_failure)
         // Should have thrown, so fail if it didn't
         FAIL() << "ONNX Importer did not detected incorrect model!";
     }
-    catch (const onnx_import::error::OnnxNodeValidationFailure& e)
+    catch (const ::ngraph::onnx_import::error::OnnxNodeValidationFailure& e)
+    {
+        EXPECT_HAS_SUBSTRING(
+            e.what(), std::string("While validating ONNX node '<Node(InstanceNormalization)"));
+    }
+    // On MacOS after we re-throw OnnxNodeValidationFailure exception, we couldn't catch it as is,
+    // thus below workaround.
+    catch (const std::exception& e)
     {
         EXPECT_HAS_SUBSTRING(
             e.what(), std::string("While validating ONNX node '<Node(InstanceNormalization)"));
