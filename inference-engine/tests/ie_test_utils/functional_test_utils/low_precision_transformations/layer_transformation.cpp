@@ -26,6 +26,7 @@
 #include "low_precision_transformations/scaleshift_to_convolution.hpp"
 
 using namespace InferenceEngine;
+using namespace ngraph;
 
 namespace LayerTestsUtils {
 
@@ -373,7 +374,7 @@ ngraph::pass::low_precision::LayerTransformation::Params LayerTransformation::to
         precisionsOnWeights);
 }
 
-InferenceEngine::details::LayerTransformation::Params LayerTransformation::toCNNNetwork(const ngraph::pass::low_precision::LayerTransformation::Params& params) {
+InferenceEngine::details::LayerTransformation::Params LayerTransformation::toCNNNetwork(const pass::low_precision::LayerTransformation::Params& params) {
     const auto precisionsOnActivations = LayerTestsUtils::toCNNNetwork(params.precisionsOnActivations);
     const auto precisionsOnWeights = LayerTestsUtils::toCNNNetwork(params.precisionsOnWeights);
     return InferenceEngine::details::LayerTransformation::Params(
