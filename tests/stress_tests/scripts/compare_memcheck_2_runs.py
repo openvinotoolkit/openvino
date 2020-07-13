@@ -162,8 +162,7 @@ def compare_memcheck_2_runs(cur_values, references, output_file=None):
 
 def cli_parser():
     """parse command-line arguments"""
-    parser = argparse.ArgumentParser(description='Tool to create a table with comparison '
-                                                 'of 2 runs of MemCheckTests')
+    parser = argparse.ArgumentParser(description='Compare 2 runs of MemCheckTests')
     parser.add_argument('cur_source',
                         help='Source of current values of MemCheckTests. '
                              'Should contain path to a folder with logs or '
