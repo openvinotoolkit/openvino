@@ -92,7 +92,7 @@ class UnsqueezeTileReshapeBlockToInterpolate(MiddleReplacementPattern):
             return
 
         scale = int64_array([second_input_of_tile.value[d_idx]])
-        # axis = d_idx - 1
+        axis = d_idx - 1
         axis_node = Const(graph, {'name': unsqueeze_name + '/axis_', 'value': int64_array([axis])}).create_node()
 
         shape_node = Shape(graph, dict(name=unsqueeze_name + '/Shape_')).create_node()
@@ -122,7 +122,8 @@ class UnsqueezeTileReshapeBlockToInterpolate(MiddleReplacementPattern):
                                        antialias=0, pads_begin=int64_array([0]),
                                        pads_end=int64_array([0]), coordinate_transformation_mode='half_pixel',
                                        nearest_mode='round_prefer_floor', cube_coeff=-0.75,
-                                       version='opset4')).create_node()
+                                       version='opset4',
+                                       in_ports_count=3)).create_node()
         mul_node.out_port(0).connect(interp_node.in_port(1))
         axis_node.out_port(0).connect(interp_node.in_port(2))
 
