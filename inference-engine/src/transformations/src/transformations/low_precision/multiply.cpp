@@ -50,54 +50,90 @@ void MultiplyTransformation::transform(TransformationContext& context, ngraph::p
 //         replace_node(multiply, newMultiply);
 //         multiply = newMultiply;
 
+    multiply = separateInStandaloneBranch(multiply);
+    std::shared_ptr<opset1::Multiply> newMultiply = multiply;
+
     const int fullPathIndex = getNotEmpty(multiply);
+
     if (fullPathIndex == -1) {
-        return;
-    }
+        std::shared_ptr<Node> parent1 = multiply->get_input_node_shared_ptr(0);
+        std::shared_ptr<Node> parent2 = multiply->get_input_node_shared_ptr(1);
 
-    const int emptyPathIndex = fullPathIndex == 0 ? 1 : 0;
+        std::shared_ptr<opset1::Constant> constParent = as_type_ptr<opset1::Constant>(parent1);
+        std::shared_ptr<opset1::Multiply> multiplyParent = as_type_ptr<opset1::Multiply>(parent2);
 
-    FakeQuantizeDequantization dequantizationEmptyPath = getDequantization(multiply, emptyPathIndex);
-    if (dequantizationEmptyPath.multiply == nullptr && dequantizationEmptyPath.subtract == nullptr) {
-        return;
-    }
+        if (constParent == nullptr || multiplyParent == nullptr) {
+            constParent = as_type_ptr<opset1::Constant>(parent2);
+            multiplyParent = as_type_ptr<opset1::Multiply>(parent1);
+        }
 
-    auto const dequantizationValuesEmptyPath = createEmptyValues(dequantizationEmptyPath);
-    std::shared_ptr<Node> subtractValuesEmptyPath = std::get<0>(dequantizationValuesEmptyPath);
-    std::shared_ptr<Node> multiplyValuesEmptyPath = std::get<1>(dequantizationValuesEmptyPath);
-
-    // check if empty path shifts are not zero
-    std::shared_ptr<opset1::Constant> subtract1ValuesConst = as_type_ptr<opset1::Constant>(subtractValuesEmptyPath);
-    if (isScalarLike(subtract1ValuesConst)) {
-        auto scalar = distillToScalar(subtract1ValuesConst);
-        if (!op::util::constantIsEqualTo(scalar, 0)) {
+        if (constParent == nullptr || multiplyParent == nullptr) {
             return;
         }
-    }
 
-    FakeQuantizeDequantization dequantizationFullPath = getDequantization(multiply, fullPathIndex);
-    auto const dequantizationValuesFullpath = createEmptyValues(dequantizationFullPath);
-    std::shared_ptr<Node> subtractValuesFullPath = std::get<0>(dequantizationValuesFullpath);
-    std::shared_ptr<Node> multiplyValuesFullPath = std::get<1>(dequantizationValuesFullpath);
+        auto multiplyParentParent1 = multiplyParent->get_input_node_shared_ptr(0);
+        auto multiplyParentParent2 = multiplyParent->get_input_node_shared_ptr(1);
 
-    std::shared_ptr<Node> newMultiplyValuesFullPath = fold<opset1::Multiply>(multiplyValuesEmptyPath, multiplyValuesFullPath);
-    std::vector<std::shared_ptr<Node>> inputs{ {}, {} };
-    inputs[emptyPathIndex] = dequantizationEmptyPath.subtract == nullptr ?
+        auto multiplyParentParent = as_type_ptr<opset1::Multiply>(multiplyParentParent1);
+        auto multiplyParentConst = as_type_ptr<opset1::Constant>(multiplyParentParent2);
+
+        if (multiplyParentConst == nullptr) {
+            multiplyParentParent = as_type_ptr<opset1::Multiply>(multiplyParentParent2);
+            multiplyParentConst = as_type_ptr<opset1::Constant>(multiplyParentParent1);
+        }
+
+        if (multiplyParentConst == nullptr) {
+            return;
+        }
+
+        newMultiply = std::make_shared<opset1::Multiply>(
+            multiplyParentParent,
+            fold<opset1::Multiply>(multiplyParentConst, constParent));
+    } else {
+        const int emptyPathIndex = fullPathIndex == 0 ? 1 : 0;
+
+        FakeQuantizeDequantization dequantizationEmptyPath = getDequantization(multiply, emptyPathIndex);
+        if (dequantizationEmptyPath.multiply == nullptr && dequantizationEmptyPath.subtract == nullptr) {
+            return;
+        }
+
+        auto const dequantizationValuesEmptyPath = createEmptyValues(dequantizationEmptyPath);
+        std::shared_ptr<Node> subtractValuesEmptyPath = std::get<0>(dequantizationValuesEmptyPath);
+        std::shared_ptr<Node> multiplyValuesEmptyPath = std::get<1>(dequantizationValuesEmptyPath);
+
+        // check if empty path shifts are not zero
+        std::shared_ptr<opset1::Constant> subtract1ValuesConst = as_type_ptr<opset1::Constant>(subtractValuesEmptyPath);
+        if (isScalarLike(subtract1ValuesConst)) {
+            auto scalar = distillToScalar(subtract1ValuesConst);
+            if (!op::util::constantIsEqualTo(scalar, 0)) {
+                return;
+            }
+        }
+
+        FakeQuantizeDequantization dequantizationFullPath = getDequantization(multiply, fullPathIndex);
+        auto const dequantizationValuesFullpath = createEmptyValues(dequantizationFullPath);
+        std::shared_ptr<Node> subtractValuesFullPath = std::get<0>(dequantizationValuesFullpath);
+        std::shared_ptr<Node> multiplyValuesFullPath = std::get<1>(dequantizationValuesFullpath);
+
+        std::shared_ptr<Node> newMultiplyValuesFullPath = fold<opset1::Multiply>(multiplyValuesEmptyPath, multiplyValuesFullPath);
+        std::vector<std::shared_ptr<Node>> inputs{ {}, {} };
+        inputs[emptyPathIndex] = dequantizationEmptyPath.subtract == nullptr ?
             dequantizationEmptyPath.multiply->get_input_node_shared_ptr(0) :
             dequantizationEmptyPath.subtract->get_input_node_shared_ptr(0);
-    inputs[fullPathIndex] = std::make_shared<opset1::Multiply>(
+        inputs[fullPathIndex] = std::make_shared<opset1::Multiply>(
             dequantizationFullPath.subtract == nullptr ?
-                (dequantizationFullPath.convert == nullptr ?
-                    dequantizationFullPath.data : dequantizationFullPath.convert) :
-                dequantizationFullPath.subtract,
+            (dequantizationFullPath.convert == nullptr ?
+                dequantizationFullPath.data : dequantizationFullPath.convert) :
+            dequantizationFullPath.subtract,
             newMultiplyValuesFullPath);
 
-    std::shared_ptr<Node> newMultiply = std::make_shared<opset1::Multiply>(inputs[0], inputs[1]);
+        std::shared_ptr<Node> newMultiply = std::make_shared<opset1::Multiply>(inputs[0], inputs[1]);
+
+
+    }
 
     replace_node(multiply, newMultiply);
-
-    // TODO: NAMES!
-    lastOperation->set_friendly_name(multiplyName);
+    updateOutput(context, newMultiply, multiply);
 }
 
 } // namespace low_precision

@@ -100,7 +100,5 @@ int EltwiseBaseTransformation::getNotEmpty(const std::shared_ptr<Node>& eltwise)
 
     int fullPathIndex = 0;
 
-    // TODO: not completed CNNNetworkHelper::getConstParentBranchID(eltwise);
-
     return fullPathIndex;
 }
