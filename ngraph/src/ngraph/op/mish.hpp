@@ -23,11 +23,10 @@ namespace ngraph
 {
     namespace op
     {
-        namespace v1
+        namespace v4
         {
             /// \brief A Self Regularized Non-Monotonic Neural Activation Function
-            /// x <  0 => f(x) =  x * tanh(log(exp(x) + 1.))
-            /// x >= 0 => f(x) = x
+            /// f(x) =  x * tanh(log(exp(x) + 1.))
             ///
             class NGRAPH_API Mish : public ngraph::op::Op
             {

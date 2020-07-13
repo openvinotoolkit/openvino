@@ -23,26 +23,26 @@
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo op::v1::Mish::type_info;
+constexpr NodeTypeInfo op::v4::Mish::type_info;
 
-op::v1::Mish::Mish(const Output<Node>& arg)
+op::v4::Mish::Mish(const Output<Node>& arg)
     : Op({arg})
 {
     constructor_validate_and_infer_types();
 }
 
-bool op::v1::Mish::visit_attributes(AttributeVisitor& visitor)
+bool op::v4::Mish::visit_attributes(AttributeVisitor& visitor)
 {
     return true;
 }
 
-void op::v1::Mish::validate_and_infer_types()
+void op::v4::Mish::validate_and_infer_types()
 {
     set_output_size(1);
     set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
 }
 
-shared_ptr<Node> op::v1::Mish::clone_with_new_inputs(const OutputVector& new_args) const
+shared_ptr<Node> op::v4::Mish::clone_with_new_inputs(const OutputVector& new_args) const
 {
     check_new_args_count(this, new_args);
     return make_shared<Mish>(new_args.at(0));
@@ -75,7 +75,7 @@ namespace
     }
 }
 
-bool op::v1::Mish::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
+bool op::v4::Mish::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
 {
     return evaluate_mish(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }

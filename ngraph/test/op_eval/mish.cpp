@@ -32,7 +32,7 @@ using namespace ngraph;
 TEST(op_eval, mish_0D)
 {
     auto p = make_shared<op::Parameter>(element::f32, Shape{});
-    auto mish = make_shared<op::v1::Mish>(p, element::f32);
+    auto mish = make_shared<op::v4::Mish>(p, element::f32);
     auto fun = make_shared<Function>(OutputVector{mish}, ParameterVector{p});
 
     std::vector<std::vector<float>> inputs{{-1.0}, {1.0}, {20.0}};
