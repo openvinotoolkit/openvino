@@ -54,7 +54,6 @@ public:
 
     void set_function(const std::shared_ptr<Function> function) { m_function = function; }
     std::shared_ptr<Function> get_function() const { return m_function; }
-
 private:
     visualize_tree_ops_map_t m_visualize_tree_ops_map;
     std::shared_ptr<Function> m_function;
