@@ -268,9 +268,9 @@ void MultiDeviceExecutableNetwork::SetConfig(const std::map<std::string, Inferen
         {
             std::lock_guard<std::mutex> lock{_mutex};
             for (auto && device : metaDevices) {
-                if (_devicePriorities.find(device.first) == _devicePriorities.end()) {
+                if (_networksPerDevice.find(device.first) == _networksPerDevice.end()) {
                     THROW_IE_EXCEPTION << NOT_FOUND_str << "You can only change device priorities but not add new devices with"
-                        << " the Network's SetConfig(MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES." << device.first <<
+                        << " the Network's SetConfig(MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES. " << device.first <<
                             " device was not in the original device list!";
                 }
             }
