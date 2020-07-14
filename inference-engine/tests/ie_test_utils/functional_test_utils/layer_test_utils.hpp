@@ -64,6 +64,16 @@ protected:
     template<class T>
     void Compare(const T *expected, const T *actual, std::size_t size, T threshold) {
         std::cout << std::endl;
+        std::cout << "EXPECTED: " << std::endl;
+        for (size_t i = 0; i < size; ++i) {
+            std::cout << expected[i] << " ";
+        }
+        std::cout << std::endl;
+        std::cout << "ACTUAL: " << std::endl;
+        for (size_t i = 0; i < size; ++i) {
+            std::cout << actual[i] << " ";
+        }
+        std::cout << std::endl;
         for (std::size_t i = 0; i < size; ++i) {
             const auto &ref = expected[i];
             const auto &res = actual[i];

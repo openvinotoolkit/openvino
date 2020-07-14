@@ -113,9 +113,6 @@ namespace ngraph
 
                 }
 
-
-
-
                 std::fesetround(FE_TONEAREST);
                 // Comments throughout assume without loss of generality that:
                 //
