@@ -133,12 +133,12 @@ f32tof16Arrays(ie_fp16* dst, const float* src, size_t nelem, float scale = 1.f, 
  *
  * @param      value   Value to be converted
  */
-template <class OutT, class InT>
-inline typename std::enable_if<
+template <class OutT, class InT, typename std::enable_if<
         std::is_integral<OutT>::value && std::is_integral<InT>::value &&
         std::is_signed<InT>::value &&
-        !std::is_same<OutT, InT>::value,
-        OutT>::type saturate_cast(InT value) {
+        !std::is_same<OutT, InT>::value
+        >::type* = nullptr>
+inline OutT saturate_cast(const InT& value) {
     if (std::numeric_limits<OutT>::max() > std::numeric_limits<InT>::max() &&
         std::numeric_limits<OutT>::min() < std::numeric_limits<InT>::min()) {
         return static_cast<OutT>(value);
@@ -159,12 +159,12 @@ inline typename std::enable_if<
  *
  * @param      value   Value to be converted
  */
-template <class OutT, class InT>
-inline typename std::enable_if<
+template <class OutT, class InT, typename std::enable_if<
         std::is_integral<OutT>::value && std::is_integral<InT>::value &&
         std::is_unsigned<InT>::value &&
-        !std::is_same<OutT, InT>::value,
-        OutT>::type saturate_cast(InT value) {
+        !std::is_same<OutT, InT>::value
+        >::type* = nullptr>
+inline OutT saturate_cast(const InT& value) {
     if (std::numeric_limits<OutT>::max() > std::numeric_limits<InT>::max()) {
         return static_cast<OutT>(value);
     }
@@ -183,7 +183,7 @@ inline typename std::enable_if<
  * @param      value   Value to be converted
  */
 template <class InT>
-inline InT saturate_cast(InT value) {
+inline InT saturate_cast(const InT& value) {
     return value;
 }
 
