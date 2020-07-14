@@ -323,7 +323,7 @@
 				<tab type="usergroup" title="DL Workbench Developer Guide" url="@ref workbench_docs_Workbench_DG_Run_Single_Inference">
 					<tab type="usergroup" title="Measure and Interpret Model Performance" url="@ref workbench_docs_Workbench_DG_Run_Single_Inference">
 						<tab type="user" title="Run Single Inference" url="@ref workbench_docs_Workbench_DG_Run_Single_Inference"/>
-						<tab type="user" title="Run Range of Inferences" url="@ref workbench_docs_Workbench_DG_Run_Range_of_Inferences"/>
+						<tab type="user" title="Run Group Inference" url="@ref workbench_docs_Workbench_DG_Run_Range_of_Inferences"/>
 						<tab type="usergroup" title="View Inference Results" url="@ref workbench_docs_Workbench_DG_View_Inference_Results">
 							<tab type="user" title="Visualize Model" url="@ref workbench_docs_Workbench_DG_Visualize_Model"/>
 						</tab>
@@ -346,7 +346,7 @@
 					<tab type="user" title="Build Application with Deployment Package" url="@ref workbench_docs_Workbench_DG_Deployment_Package"/>
 					<tab type="user" title="Deploy and Integrate Performance Criteria into Application" url="@ref workbench_docs_Workbench_DG_Deploy_and_Integrate_Performance_Criteria_into_Application"/>
 				</tab>
-				<tab type="usergroup" title="DL Workbench Security Guide" url="@ref workbench_docs_Workbench_DG_Docker_Container">
+				<tab type="usergroup" title="DL Workbench Security Guide" url="@ref workbench_docs_Workbench_DG_Configure_TLS">
 					<tab type="user" title="Configure Transport Layer Security (TLS)" url="@ref workbench_docs_Workbench_DG_Configure_TLS"/>
 					<tab type="user" title="Configure Authentication Token Saving" url="@ref workbench_docs_Workbench_DG_Configure_Token_Saving"/>
 				</tab>
