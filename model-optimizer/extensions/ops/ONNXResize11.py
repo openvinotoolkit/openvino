@@ -27,7 +27,7 @@ class ONNXResize11Op(Op):
     def __init__(self, graph: Graph, attrs: dict):
         mandatory_props = {
             'op': __class__.op,
-            'version': 'opset3',
+            'version': 'opset4',
             'out_ports_count': 1,
             'infer': ONNXResize11Op.onnx_resize_infer
         }

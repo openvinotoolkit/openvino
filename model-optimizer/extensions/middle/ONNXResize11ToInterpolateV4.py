@@ -86,6 +86,11 @@ class ONNXResize11ToInterpolate4(MiddleReplacementPattern):
         begin_slice.out_port(0).connect(strided_slice.in_port(1))
         end_slice.out_port(0).connect(strided_slice.in_port(2))
 
+        axes_node = Const(graph,
+                          {
+                              'name': resize_name + '/axis_',
+                              'value': int64_array(np.arange(begin_dim, end_dim))
+                          }).create_node()
         interpolate_node = Interpolate(graph, {'version': 'opset4',
                                                'mode': convert_mode(resize.mode),
                                                'coordinate_transformation_mode': resize.coordinate_transformation_mode,
@@ -94,9 +99,10 @@ class ONNXResize11ToInterpolate4(MiddleReplacementPattern):
                                                'pads_begin': int64_array([0]),
                                                'pads_end': int64_array([0]),
                                                'antialias': 0,
-                                               'axes': np.arange(begin_dim, end_dim)}).create_node()
+                                               'in_ports_count': 3}).create_node()
 
         strided_slice.out_port(0).connect(interpolate_node.in_port(1))
+        axes_node.out_port(0).connect(interpolate_node.in_port(2))
 
         connection_of_resize_input = resize.in_port(0).get_connection()
         connection_of_resize_input.set_destination(interpolate_node.in_port(0))
