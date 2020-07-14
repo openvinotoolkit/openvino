@@ -240,8 +240,16 @@ TEST_P(myriadLayersTestsStridedSlice_smoke, TestsStridedSlice) {
 
     // Load network.
     StatusCode st = GENERAL_ERROR;
+
+    std::map<std::string, std::string> config = {
+        { VPU_CONFIG_KEY(DETECT_NETWORK_BATCH), CONFIG_VALUE(NO) }
+    };
+    if (!CheckMyriadX()) {
+        config.insert({ VPU_CONFIG_KEY(DISABLE_REORDER), CONFIG_VALUE(YES) });
+    }
+
     ASSERT_NO_THROW(st = _vpuPluginPtr->LoadNetwork(
-        _exeNetwork, network, { {VPU_CONFIG_KEY(DETECT_NETWORK_BATCH), CONFIG_VALUE(NO)} },
+        _exeNetwork, network, config,
         &_resp));
     ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
     ASSERT_NE(_exeNetwork, nullptr) << _resp.msg;
