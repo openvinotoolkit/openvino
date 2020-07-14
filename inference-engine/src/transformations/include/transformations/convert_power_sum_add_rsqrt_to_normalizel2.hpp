@@ -32,4 +32,5 @@ public:
 
 private:
     void convert_to_normalize_l2();
+    bool is_applicable(pattern::Matcher& m);
 };
