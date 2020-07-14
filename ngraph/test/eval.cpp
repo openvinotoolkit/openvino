@@ -1331,25 +1331,6 @@ TEST(eval, eval_transpose)
     }
 }
 
-TEST(eval, max_pool_v0_dynamic)
-{
-    Shape window_shape{3};
-    auto A = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
-    auto f =
-        make_shared<Function>(make_shared<op::v0::MaxPool>(A, window_shape), ParameterVector{A});
-    auto result_tensor = make_shared<HostTensor>();
-
-    ASSERT_TRUE(f->evaluate({result_tensor},
-                            {make_host_tensor<element::Type_t::f32>(
-                                {1, 1, 14}, {0, 1, 0, 2, 1, 0, 3, 2, 0, 0, 2, 0, 0, 0})}));
-
-    EXPECT_EQ(result_tensor->get_element_type(), element::f32);
-    EXPECT_EQ(result_tensor->get_partial_shape(), (PartialShape{1, 1, 12}));
-    auto cval = read_vector<float>(result_tensor);
-    vector<float> out{1, 2, 2, 2, 3, 3, 3, 2, 2, 2, 2, 0};
-    ASSERT_EQ(cval, out);
-}
-
 TEST(eval, max_pool_v1_dynamic)
 {
     Shape window_shape{3};
