@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "vpu/ngraph/transformations/dynamic_to_static_shape_shapeof.hpp"
+#include "vpu/ngraph/transformations/eliminate_shapeof_after_dsr.hpp"
 
 #include <vpu/ngraph/operations/dynamic_shape_resolver.hpp>
 #include <vpu/ngraph/transformations/dynamic_to_static_shape.hpp>
@@ -20,8 +20,8 @@ namespace {
 using TensorType  = ngraph::element::Type_t;
 using TensorShape = ngraph::Shape;
 
-class DynamicToStaticShapeShapeOfRemoveDSR : public CommonTestUtils::TestsCommon,
-                                             public testing::WithParamInterface<std::tuple<TensorType, TensorShape>> {
+class EliminateShapeOfAfterDSRTest : public CommonTestUtils::TestsCommon,
+                                     public testing::WithParamInterface<std::tuple<TensorType, TensorShape>> {
 public:
     void SetUp() override {
         const auto& parameters = GetParam();
@@ -47,7 +47,7 @@ protected:
                 ngraph::ParameterVector{data, shape},
                 "Actual");
 
-        vpu::DynamicToStaticShapeShapeOf().run_on_function(function);
+        vpu::EliminateShapeOfAfterDSR().run_on_function(function);
         return function;
     }
 
@@ -63,10 +63,10 @@ protected:
     }
 };
 
-TEST_P(DynamicToStaticShapeShapeOfRemoveDSR, CompareFunctions) {
+TEST_P(EliminateShapeOfAfterDSRTest, CompareFunctions) {
 }
 
-INSTANTIATE_TEST_CASE_P(NGraph, DynamicToStaticShapeShapeOfRemoveDSR, testing::Combine(
+INSTANTIATE_TEST_CASE_P(NGraph, EliminateShapeOfAfterDSRTest, testing::Combine(
         testing::Values(
                 ngraph::element::f16,
                 ngraph::element::f32,
@@ -80,8 +80,8 @@ INSTANTIATE_TEST_CASE_P(NGraph, DynamicToStaticShapeShapeOfRemoveDSR, testing::C
                 TensorShape{2, 3, 128, 256})
 ));
 
-class DynamicToStaticShapeShapeOfWithOutRemoveDSR : public CommonTestUtils::TestsCommon,
-                                             public testing::WithParamInterface<std::tuple<TensorType, TensorShape>> {
+class EliminateShapeOfAfterDSRWithoutOutputDSR : public CommonTestUtils::TestsCommon,
+                                                 public testing::WithParamInterface<std::tuple<TensorType, TensorShape>> {
 public:
     void SetUp() override {
         const auto& parameters = GetParam();
@@ -108,7 +108,7 @@ protected:
                 ngraph::ParameterVector{data, shape},
                 "Actual");
 
-        vpu::DynamicToStaticShapeShapeOf().run_on_function(function);
+        vpu::EliminateShapeOfAfterDSR().run_on_function(function);
         return function;
     }
 
@@ -126,10 +126,10 @@ protected:
     }
 };
 
-TEST_P(DynamicToStaticShapeShapeOfWithOutRemoveDSR, CompareFunctions) {
+TEST_P(EliminateShapeOfAfterDSRWithoutOutputDSR, CompareFunctions) {
 }
 
-INSTANTIATE_TEST_CASE_P(NGraph, DynamicToStaticShapeShapeOfWithOutRemoveDSR, testing::Combine(
+INSTANTIATE_TEST_CASE_P(NGraph, EliminateShapeOfAfterDSRWithoutOutputDSR, testing::Combine(
         testing::Values(
                 ngraph::element::f16,
                 ngraph::element::f32,
@@ -143,8 +143,8 @@ INSTANTIATE_TEST_CASE_P(NGraph, DynamicToStaticShapeShapeOfWithOutRemoveDSR, tes
                 TensorShape{2, 3, 128, 256})
 ));
 
-class DynamicToStaticShapeShapeOfKeepDSR : public CommonTestUtils::TestsCommon,
-                                         public testing::WithParamInterface<std::tuple<TensorType, TensorShape>> {
+class EliminateShapeOfAfterDSRKeepDSR : public CommonTestUtils::TestsCommon,
+                                        public testing::WithParamInterface<std::tuple<TensorType, TensorShape>> {
 public:
     void SetUp() override {
         const auto& parameters = GetParam();
@@ -172,7 +172,7 @@ protected:
                 ngraph::ParameterVector{data, shape},
                 "Actual");
 
-        vpu::DynamicToStaticShapeShapeOf().run_on_function(function);
+        vpu::EliminateShapeOfAfterDSR().run_on_function(function);
         return function;
     }
 
@@ -193,10 +193,10 @@ protected:
     }
 };
 
-TEST_P(DynamicToStaticShapeShapeOfKeepDSR, CompareFunctions) {
+TEST_P(EliminateShapeOfAfterDSRKeepDSR, CompareFunctions) {
 }
 
-INSTANTIATE_TEST_CASE_P(NGraph, DynamicToStaticShapeShapeOfKeepDSR, testing::Combine(
+INSTANTIATE_TEST_CASE_P(NGraph, EliminateShapeOfAfterDSRKeepDSR, testing::Combine(
         testing::Values(
                 ngraph::element::f16,
                 ngraph::element::f32,

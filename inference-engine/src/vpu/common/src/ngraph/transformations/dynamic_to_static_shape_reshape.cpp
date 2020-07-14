@@ -12,6 +12,7 @@
 #include "ngraph/opsets/opset3.hpp"
 
 #include <memory>
+#include <vpu/ngraph/operations/static_shape_reshape.hpp>
 
 namespace vpu {
 
@@ -21,19 +22,17 @@ void dynamicToStaticShapeReshape(std::shared_ptr<ngraph::Node> target) {
                      "DynamicToStaticShape transformation for {} of type {} expects {} as input with index {}",
                      target->get_friendly_name(), target->get_type_info(), ngraph::vpu::op::DynamicShapeResolver::type_info, 0);
 
-    const auto outShapeDescriptor = target->get_argument(1);
-    VPU_THROW_UNLESS(ngraph::as_type_ptr<ngraph::opset3::Constant>(outShapeDescriptor),
-                     "DynamicToStaticShape transformation for {} of type {} expects {} as input with index {}",
-                     target->get_friendly_name(), target->get_type_info(), ngraph::opset3::Constant::type_info, 1);
-
     const auto reshape = std::dynamic_pointer_cast<ngraph::opset3::Reshape>(target);
-    const auto copied = reshape->clone_with_new_inputs(target->input_values());
+    const auto outShapeDescriptor = reshape->get_argument(1);
+
+    const auto replacement = ngraph::as_type_ptr<ngraph::opset3::Constant>(outShapeDescriptor)
+        ? reshape->clone_with_new_inputs(reshape->input_values())
+        : std::make_shared<ngraph::vpu::op::StaticShapeReshape>(reshape);
+
     const auto inDataShape = dsr->input(1).get_source_output();
+    const auto outShapeOfReshape = std::make_shared<ngraph::vpu::op::OutShapeOfReshape>(inDataShape, outShapeDescriptor, reshape->get_special_zero());
 
-    const auto outShapeOfReshape = std::make_shared<ngraph::vpu::op::OutShapeOfReshape>(
-            inDataShape, outShapeDescriptor, reshape->get_special_zero());
-
-    auto outDSR = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(copied, outShapeOfReshape);
+    auto outDSR = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(replacement, outShapeOfReshape);
     outDSR->set_friendly_name(reshape->get_friendly_name());
     ngraph::replace_node(std::move(target), std::move(outDSR));
 }
