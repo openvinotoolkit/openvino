@@ -28,6 +28,7 @@ from mo.front.common.partial_infer.utils import int64_array
 from mo.front.tf.graph_utils import create_op_with_const_inputs, create_op_node_with_second_input
 from mo.graph.graph import Graph, Node, rename_nodes
 from mo.middle.replacement import MiddleReplacementPattern
+from mo.ops.const import Const
 from mo.ops.shape import Shape
 from mo.ops.strided_slice import StridedSlice
 
@@ -125,15 +126,18 @@ class UpsampleToResample(MiddleReplacementPattern):
                                 get_height_dim(layout, input_shape_rank),
                                 get_width_dim(layout, input_shape_rank)])
 
-        resample_op = Interpolate(graph, {'axes': axes, 'mode': upsample.attrs()['mode'], 'antialias': 0,
+        axes_node = Const(graph, {'name': upsample_name + '/axis_', 'value': axes}).create_node()
+
+        resample_op = Interpolate(graph, {'mode': upsample.attrs()['mode'], 'antialias': 0,
                                           'convert_to_resample': True, 'pads_begin': int64_array([0]),
                                           'pads_end': int64_array([0]), 'coordinate_transformation_mode': 'half_pixel',
                                           'nearest_mode': 'round_prefer_floor', 'cube_coeff': -0.75,
-                                          'version': 'opset4'}).create_node()
+                                          'version': 'opset4', 'in_ports_count': 3}).create_node()
 
         upsample.add_input_port(1, skip_if_exist=True)
         assert upsample.in_port(1).disconnected()
         mul.out_port(0).connect(resample_op.in_port(1))
+        axes_node.out_port(0).connect(resample_op.in_port(2))
 
         upsample.in_port(0).get_connection().set_destination(resample_op.in_port(0))
         upsample.out_port(0).get_connection().set_source(resample_op.out_port(0))
