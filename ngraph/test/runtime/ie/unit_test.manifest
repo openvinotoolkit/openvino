@@ -10,8 +10,10 @@
 #
 #-------------------------------------------------------------------------------
 
+# Segmentation fault
+onnx_model_quantize_linear_const_scale_const_zero_p
 
-# Not supported ONNX op: QuantizeLinear
+# Quantize layer input 'Multiply_7' doesn't have blobs
 onnx_model_quantize_linear
 onnx_model_quantize_linear_zero_point
 onnx_model_quantize_linear_axis_zero
