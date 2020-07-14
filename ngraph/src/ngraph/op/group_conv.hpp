@@ -40,7 +40,7 @@ namespace ngraph
                 /// \param data_batch The node producing the input data batch tensor.<br>
                 /// `[N, C_IN, D1, ... Df]`
                 /// \param filters The node producing the filters tensor.<br>
-                /// `[C_OUT, C_IN, F1, ... Ff]`
+                /// `[GROUPS, FC_OUT, FC_IN, F1, ... Ff]`
                 /// \param strides The strides.<br>
                 /// `[f]`
                 /// \param dilations The dilations.<br>
@@ -52,7 +52,7 @@ namespace ngraph
                 /// \param auto_pad The pad type for automatically computing padding sizes.<br>
                 /// `[f]`
                 ///
-                /// Output `[N, C_OUT, R1, ... Rf]`
+                /// Output `[N, FC_OUT * GROUPS, R1, ... Rf]`
                 ///
                 GroupConvolution(const Output<Node>& data_batch,
                                  const Output<Node>& filters,

@@ -167,6 +167,8 @@ arg_min_no_keep_dims_dyn_shape
 
 # Dynamic function 'get_shape was called on a descriptor::Tensor with dynamic shape'
 onnx_upsample9_scales_input_nearest_infer
+onnx_dyn_shapes_slice_1_3d_input_21_axes_ends_max
+
 
 #-------------------------------------------------------------------------------
 #
