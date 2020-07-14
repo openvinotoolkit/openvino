@@ -110,3 +110,20 @@ Shape Inference feature is used in [Smart classroom sample](@ref omz_demos_smart
 
 Inference Engine provides a special mechanism that allows to add the support of shape inference for custom operations. 
 This mechanism is described in the [Extensibility documentation](Extensibility_DG/Intro.md)
+
+## Deprecation Notice
+
+<table>
+  <tr>
+    <td><strong>Deprecation Begins</strong></td>
+    <td>June 1, 2020</td>
+  </tr>
+  <tr>
+    <td><strong>Removal Date</strong></td>
+    <td>December 1, 2020</td>
+  </tr>
+</table> 
+
+*Starting with the OpenVINO™ toolkit 2020.2 release, all of the features previously available through nGraph have been merged into the OpenVINO™ toolkit. As a result, all the features previously available through ONNX RT Execution Provider for nGraph have been merged with ONNX RT Execution Provider for OpenVINO™ toolkit.*
+
+*Therefore, ONNX RT Execution Provider for nGraph will be deprecated starting June 1, 2020 and will be completely removed on December 1, 2020. Users are recommended to migrate to the ONNX RT Execution Provider for OpenVINO™ toolkit as the unified solution for all AI inferencing on Intel® hardware.*
