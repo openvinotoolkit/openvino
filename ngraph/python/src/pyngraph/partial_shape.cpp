@@ -43,6 +43,7 @@ void regclass_pyngraph_PartialShape(py::module m)
     shape.def(py::init<const std::initializer_list<ngraph::Dimension>&>());
     shape.def(py::init<const std::vector<ngraph::Dimension>&>());
     shape.def(py::init<const ngraph::Shape&>());
+    shape.def(py::init<const ngraph::PartialShape&>());
 
     shape.def_static("dynamic", &ngraph::PartialShape::dynamic, py::arg("r") = ngraph::Dimension());
 

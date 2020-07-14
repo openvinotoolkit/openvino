@@ -90,9 +90,7 @@ def test_dynamic_get_attribute_value(int_dtype, fp_dtype):
     aux_class_preds = ng.parameter([2, 1, 4, 5], fp_dtype, "aux_class_preds")
     aux_box_preds = ng.parameter([2, 1, 4, 5], fp_dtype, "aux_box_preds")
 
-    node = ng.detection_output(
-        box_logits, class_preds, proposals, attributes, aux_class_preds, aux_box_preds
-    )
+    node = ng.detection_output(box_logits, class_preds, proposals, attributes, aux_class_preds, aux_box_preds)
 
     assert node.get_num_classes() == int_dtype(85)
     assert node.get_background_label_id() == int_dtype(13)
