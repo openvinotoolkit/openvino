@@ -108,6 +108,7 @@ public:
     std::vector<DeviceInformation>                              _devicePriorities;
     const std::vector<DeviceInformation>                        _devicePrioritiesInitial;
     DeviceMap<InferenceEngine::ExecutableNetwork>               _networksPerDevice;
+    DeviceMap<int>                                              _statsPerDevice;
     ThreadSafeQueue<Task>                                       _inferPipelineTasks;
     DeviceMap<ThreadSafeQueue<Task>>                            _inferPipelineTasksDeviceSpecific;
     DeviceMap<NotBusyWorkerRequests>                            _idleWorkerRequests;
