@@ -1687,8 +1687,9 @@ cdef class BlobBuffer:
             'I8': 'b',  # signed char
             'I16': 'h',  # signed short
             'I32': 'i',  # signed int
+            'U32': 'I',  # unsigned int
             'I64': 'q',  # signed long int
-            'U64': 'Q',  # signed long int
+            'U64': 'Q',  # unsigned long int
         }
         if name not in precision_to_format:
             raise ValueError("Unknown Blob precision: {}".format(name))
