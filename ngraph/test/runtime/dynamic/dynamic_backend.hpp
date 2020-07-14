@@ -139,7 +139,6 @@ public:
     virtual const ngraph::Shape& get_shape() const override;
     virtual void write(const void* p, size_t n) override;
     virtual void read(void* p, size_t n) const override;
-    virtual void copy_from(const ngraph::runtime::Tensor& source) override;
     bool has_storage() const;
     void release_storage();
     void make_storage(const element::Type& element_type, const Shape& shape);
