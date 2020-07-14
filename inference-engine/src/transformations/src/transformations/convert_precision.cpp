@@ -44,6 +44,7 @@ bool ngraph::pass::ConvertPrecision::run_on_function(std::shared_ptr<ngraph::Fun
         for (auto &output : node->outputs()) {
         }
     }
+    return true;
 }
 
 bool fuse_type_to_shapeof(std::shared_ptr<Node> node, element::Type to, size_t idx) {
