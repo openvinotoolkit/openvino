@@ -296,7 +296,7 @@
                 <tab type="user" title="Deployment Manager Guide" url="@ref openvino_docs_install_guides_deployment_manager_tool"/>
 			<!-- Workbench -->
 			<tab type="usergroup" title="Deep Learning Workbench" url="@ref workbench_docs_Workbench_DG_Introduction">
-				<tab type="user" title="Introduction" url="@ref workbench_docs_Workbench_DG_Introduction"/>
+				<tab type="user" title="Introduction to DL Workbench" url="@ref workbench_docs_Workbench_DG_Introduction"/>
 				<tab type="usergroup" title="DL Workbench Installation Guide" url="@ref workbench_docs_Workbench_DG_Install_Workbench">
 					<tab type="user" title="Install from Docker Hub*" url="@ref workbench_docs_Workbench_DG_Install_from_Docker_Hub"/>
 					<tab type="user" title="Install from the Intel® Distribution of OpenVINO™ Toolkit Package" url="@ref workbench_docs_Workbench_DG_Install_from_Package"/>
