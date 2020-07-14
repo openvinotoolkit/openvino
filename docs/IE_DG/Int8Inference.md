@@ -9,7 +9,7 @@ Inference Engine with low-precision 8-bit integer inference requires the followi
   - Intel® Advanced Vector Extensions 512 (Intel® AVX-512)
   - Intel® Advanced Vector Extensions 2.0 (Intel® AVX2)
   - Intel® Streaming SIMD Extensions 4.2 (Intel® SSE4.2)
-- A model must be quantized. To quantize the model, you can use the [Post-Training Optimization Toolkit](@ref pot_README) delivered with the Intel® Distribution of OpenVINO™ toolkit release package.
+- A model must be quantized. To quantize the model, you can use the [Post-Training Optimization Tool](@ref pot_README) delivered with the Intel® Distribution of OpenVINO™ toolkit release package.
 
 The 8-bit inference feature was validated on the following topologies:
 * **Classification models:**
@@ -83,17 +83,17 @@ This means that 8-bit inference can only be performed with the CPU plugin on the
 
 ## Low-Precision 8-bit Integer Inference Workflow
 
-For 8-bit integer computations, a model must be quantized. If the model is not quantized then you can use Intel&reg; `Post-Training Optimization Toolkit` tool to quantize the model. The quantization process adds `FakeQuantize` layers on activations and weights for most layers. Read more about mathematical computations under the hood in the [white paper](https://intel.github.io/mkl-dnn/ex_int8_simplenet.html).
+For 8-bit integer computations, a model must be quantized. If the model is not quantized then you can use the [Post-Training Optimization Tool](@ref pot_README) to quantize the model. The quantization process adds `FakeQuantize` layers on activations and weights for most layers. Read more about mathematical computations under the hood in the [white paper](https://intel.github.io/mkl-dnn/ex_int8_simplenet.html).
 
 8-bit inference pipeline includes two stages (also refer to the figure below):
 1. *Offline stage*, or *model quantization*. During this stage, `FakeQuantize` layers are added before most layers to have quantized tensors before layers in a way that low-precision accuracy drop for 8-bit integer inference satisfies the specified threshold. The output of this stage is a quantized model. Quantized model precision is not changed, quantized tensors are in original precision range (`fp32`). `FakeQuantize` layer has `Quantization Levels` attribute whic defines quants count. Quants count defines precision which is used during inference. For `int8` range `Quantization Levels` attribute value has to be 255 or 256.
 
 2. *Run-time stage*. This stage is an internal procedure of the [CPU Plugin](supported_plugins/CPU.md). During this stage, the quantized model is loaded to the plugin. The plugin updates each `FakeQuantize` layer on activations and weights to have `FakeQuantize` output tensor values in low precision range. 
-
+![int8_flow]
 
 ### Offline Stage: Model Quantization
 
-To infer a layer in low precision and get maximum performance, the input tensor for the layer has to be quantized and each value has to be in the target low precision range. For this purpose, `FakeQuantize` layer is used in the OpenVINO™ intermediate representation file (IR). To quantize the model, you can use the [Post-Training Optimization Toolkit](@ref pot_README) delivered with the Intel® Distribution of OpenVINO™ toolkit release package.
+To infer a layer in low precision and get maximum performance, the input tensor for the layer has to be quantized and each value has to be in the target low precision range. For this purpose, `FakeQuantize` layer is used in the OpenVINO™ intermediate representation file (IR). To quantize the model, you can use the [Post-Training Optimization Tool](@ref pot_README) delivered with the Intel® Distribution of OpenVINO™ toolkit release package.
 
 When you pass the calibrated IR to the [CPU plugin](supported_plugins/CPU.md), the plugin automatically recognizes it as a quantized model and performs 8-bit inference. Note, if you pass a quantized model to another plugin that does not support 8-bit inference, the model is inferred in precision that this plugin supports.
 
@@ -123,3 +123,5 @@ inception_5b/pool             EXECUTED       layerType: Pooling            realT
 ```
 
 The `execType` column of the table includes inference primitives with specific suffixes.
+
+[int8_flow]: img/cpu_int8_flow.png
