@@ -79,7 +79,7 @@ protected:
 class NGRAPH_API ngraph::runtime::AlignedBufferPtr : public ngraph::runtime::AlignedBuffer
 {
 public:
-    AlignedBufferPtr(char* data, size_t size) 
+    AlignedBufferPtr(char* data, size_t size)
     {
         m_allocated_buffer = data;
         m_aligned_buffer = data;
