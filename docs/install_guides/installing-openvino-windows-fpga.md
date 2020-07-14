@@ -81,7 +81,7 @@ The development and target platforms have the same requirements, but you can sel
 
 > **NOTE**: With OpenVINO™ 2020.4 release, Intel® Movidius™ Neural Compute Stick is no longer supported.
 
-> **NOTE**: With OpenVINO™ 2020.4 release, Intel® Programmable Acceleration Card (PAC) with Intel® Arria® 10 GX FPGA is no longer supported.
+> **NOTE**: With OpenVINO™ 2020.4 release, Intel® Programmable Acceleration Card (PAC) with Intel® Arria® 10 GX FPGA is no longer supported on Windows.
 
 **Processor Notes:**
 

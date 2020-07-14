@@ -265,8 +265,6 @@
                     <tab type="user" title="Using GPU kernels tuning" url="@ref openvino_docs_IE_DG_GPU_Kernels_Tuning"/>
                     <tab type="usergroup" title="Using Bfloat16 Inference" url="@ref openvino_docs_IE_DG_Bfloat16Inference">
                     </tab>
-                    <tab type="usergroup" title="Using Bfloat16 Inference" url="@ref openvino_docs_IE_DG_Bfloat16Inference">
-                    </tab>
                     <tab type="usergroup" title="Using Low-Precision 8-bit Integer Inference" url="@ref openvino_docs_IE_DG_Int8Inference">
                     </tab>
                     <tab type="usergroup" title="Utilities to Validate Your Converted Model" url="">

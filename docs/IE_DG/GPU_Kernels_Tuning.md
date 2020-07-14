@@ -5,7 +5,7 @@ GPU Kernels Tuning allows you to tune models, so the heavy computational layers 
 hardware, which the tuning was done on. It is required to achieve best performance on GPU.
 > **NOTE** Currently only convolution and fully connected layers undergo tuning process. It means that the performance boost depends on the amount of that layers in the model.
 
-OpenVINO™ releases includes pretuned data (`cache.json` - it is located in the Inference Engine binaries folder) for current state of the art models. It is highly recommended to do the
+OpenVINO™ releases include the `<INSTALL_DIR>/inference_engine/bin/intel64/Release/cache.json` file with pretuned data for current state of the art models. It is highly recommended to do the
 tuning for new kind of models, hardwares or drivers.
 
 ## Tuned data

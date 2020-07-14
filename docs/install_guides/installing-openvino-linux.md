@@ -3,8 +3,7 @@
 > **NOTES**:
 > - These steps apply to Ubuntu\*, CentOS\*, and Yocto\*.
 > - If you are using Intel® Distribution of OpenVINO™ toolkit on Windows\* OS, see the [Installation Guide for Windows*](installing-openvino-windows.md).
-> - For the Intel Distribution of OpenVINO toolkit with FPGA
-support, see [Installation Guide for Linux* with FPGA support](installing-openvino-linux-fpga.md).
+> - For the Intel Distribution of OpenVINO toolkit with FPGA support, see [Installation Guide for Linux* with FPGA support](installing-openvino-linux-fpga.md).
 > - CentOS and Yocto installations will require some modifications that are not covered in this guide.
 > - An internet connection is required to follow the steps in this guide.
 > - [Intel® System Studio](https://software.intel.com/en-us/system-studio) is an all-in-one, cross-platform tool suite, purpose-built to simplify system bring-up and improve system and IoT device application performance on Intel® platforms. If you are using the Intel® Distribution of OpenVINO™ with Intel® System Studio, go to [Get Started with Intel® System Studio](https://software.intel.com/en-us/articles/get-started-with-openvino-and-intel-system-studio-2019).
