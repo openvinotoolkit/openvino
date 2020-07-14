@@ -129,7 +129,7 @@ endif ()
 
 ## TBB package
 if (THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
-    reset_deps_cache(TBBROOT TBB_DIR)
+    reset_deps_cache(TBBROOT)
 
     if(NOT DEFINED TBB_DIR AND NOT DEFINED ENV{TBB_DIR})
         if (WIN32 AND X86_64)
@@ -137,19 +137,16 @@ if (THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
             RESOLVE_DEPENDENCY(TBB
                     ARCHIVE_WIN "tbb2020_20200415_win.zip"
                     TARGET_PATH "${TEMP}/tbb"
-                    ENVIRONMENT "TBBROOT"
-                    VERSION_REGEX ".*_([a-z]*_([a-z0-9]+\\.)*[0-9]+).*")
+                    ENVIRONMENT "TBBROOT")
         elseif(ANDROID)  # Should be before LINUX due LINUX is detected as well
             RESOLVE_DEPENDENCY(TBB
                     ARCHIVE_ANDROID "tbb2020_20200404_android.tgz"
                     TARGET_PATH "${TEMP}/tbb"
-                    ENVIRONMENT "TBBROOT"
-                    VERSION_REGEX ".*_([a-z]*_([a-z0-9]+\\.)*[0-9]+).*")
+                    ENVIRONMENT "TBBROOT")
         elseif(LINUX AND X86_64)
             RESOLVE_DEPENDENCY(TBB
                     ARCHIVE_LIN "tbb2020_20200415_lin_strip.tgz"
-                    TARGET_PATH "${TEMP}/tbb"
-                    ENVIRONMENT "TBBROOT")
+                    TARGET_PATH "${TEMP}/tbb")
         elseif(LINUX AND AARCH64)
             RESOLVE_DEPENDENCY(TBB
                     ARCHIVE_LIN "keembay/tbb2020_38404_kmb.tgz"
@@ -159,8 +156,7 @@ if (THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
             RESOLVE_DEPENDENCY(TBB
                     ARCHIVE_MAC "tbb2020_20200404_mac.tgz"
                     TARGET_PATH "${TEMP}/tbb"
-                    ENVIRONMENT "TBBROOT"
-                    VERSION_REGEX ".*_([a-z]*_([a-z0-9]+\\.)*[0-9]+).*")
+                    ENVIRONMENT "TBBROOT")
         else()
             message(FATAL_ERROR "TBB is not available on current platform")
         endif()
@@ -173,12 +169,11 @@ if (THREADING STREQUAL "TBB" OR THREADING STREQUAL "TBB_AUTO")
     endif()
 
     update_deps_cache(TBBROOT "${TBB}" "Path to TBB root folder")
-    update_deps_cache(TBB_DIR "${TBBROOT}/cmake" "Path to TBB package folder")
 
     if (WIN32)
-        log_rpath_from_dir(TBB "${TBB_DIR}/../bin")
+        log_rpath_from_dir(TBB "${TBB}/bin")
     else ()
-        log_rpath_from_dir(TBB "${TBB_DIR}/../lib")
+        log_rpath_from_dir(TBB "${TBB}/lib")
     endif ()
     debug_message(STATUS "tbb=" ${TBB})
 endif ()
