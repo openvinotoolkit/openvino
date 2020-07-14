@@ -222,12 +222,6 @@ shared_ptr<Node> op::v0::TopK::clone_with_new_inputs(const OutputVector& new_arg
                              m_sort);
 }
 
-void op::v0::TopK::generate_adjoints(autodiff::Adjoints& /* adjoints */,
-                                     const OutputVector& /* deltas */)
-{
-    throw ngraph_error("Forward-propagation-only operation");
-}
-
 namespace
 {
     template <element::Type_t INPUT_ET, element::Type_t INDEX_ET>
@@ -301,29 +295,17 @@ namespace
         bool rc = true;
         switch (arg->get_element_type())
         {
-            TYPE_CASE(i8)(arg, out_indices, out_values, out_shape, axis, k, max, sort, index_et);
-            break;
-            TYPE_CASE(i16)(arg, out_indices, out_values, out_shape, axis, k, max, sort, index_et);
-            break;
             TYPE_CASE(i32)(arg, out_indices, out_values, out_shape, axis, k, max, sort, index_et);
             break;
             TYPE_CASE(i64)(arg, out_indices, out_values, out_shape, axis, k, max, sort, index_et);
-            break;
-            TYPE_CASE(u8)(arg, out_indices, out_values, out_shape, axis, k, max, sort, index_et);
-            break;
-            TYPE_CASE(u16)(arg, out_indices, out_values, out_shape, axis, k, max, sort, index_et);
             break;
             TYPE_CASE(u32)(arg, out_indices, out_values, out_shape, axis, k, max, sort, index_et);
             break;
             TYPE_CASE(u64)(arg, out_indices, out_values, out_shape, axis, k, max, sort, index_et);
             break;
-            TYPE_CASE(bf16)(arg, out_indices, out_values, out_shape, axis, k, max, sort, index_et);
-            break;
             TYPE_CASE(f16)(arg, out_indices, out_values, out_shape, axis, k, max, sort, index_et);
             break;
             TYPE_CASE(f32)(arg, out_indices, out_values, out_shape, axis, k, max, sort, index_et);
-            break;
-            TYPE_CASE(f64)(arg, out_indices, out_values, out_shape, axis, k, max, sort, index_et);
             break;
         default: rc = false; break;
         }
@@ -640,12 +622,6 @@ size_t op::v1::TopK::validate_and_get_k(const shared_ptr<op::Constant>& k_consta
                           ").");
 
     return static_cast<size_t>(k_const_contents[0]);
-}
-
-void op::v1::TopK::generate_adjoints(autodiff::Adjoints& /*adjoints*/,
-                                     const OutputVector& /* deltas */)
-{
-    throw ngraph_error("Forward-propagation-only operation");
 }
 
 shared_ptr<Node> op::v1::TopK::clone_with_new_inputs(const OutputVector& new_args) const

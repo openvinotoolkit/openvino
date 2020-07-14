@@ -58,7 +58,6 @@ VPU_DECLARE_ENUM(StageType,
     Reshape,
     Expand,
     Crop,
-    StridedSlice,
 
     Empty = -1,
 
@@ -104,7 +103,6 @@ VPU_DECLARE_ENUM(StageType,
     HwFcRelayout = 56,
     Clamp = 57,
     RefConvolution = 58,
-    GlobalAvgPool = 59,
     GlobalMaxPool = 60,
     GRN = 61,
     MVN = 62,
@@ -168,6 +166,8 @@ VPU_DECLARE_ENUM(StageType,
     OutShapeOfReshape = 127,
     Concat = 128,
     Broadcast = 129,
+    StaticShapeNMS = 130,
+    StridedSlice = 133,
 )
 
 //

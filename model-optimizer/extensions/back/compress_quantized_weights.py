@@ -97,36 +97,34 @@ class CompressQuantizeWeights(BackReplacementPattern):
             nodes=[
                 ('weights_const', dict(type='Const')),
                 ('weights_d', dict(kind='data')),
-                ('quantize', dict(type='FakeQuantize', keep_in_IR=True, levels=lambda x: x is not None and
-                                                                                         2 < x <= 256)),
-                ('quantize_d', dict(kind='data')),
-                ('convolution', dict())
+                ('quantize', dict(type='FakeQuantize', levels=lambda x: x is not None and 2 < x <= 256)),
             ],
             edges=[
                 ('weights_const', 'weights_d'),
                 ('weights_d', 'quantize', {'in': 0}),
-                ('quantize', 'quantize_d'),
-                ('quantize_d', 'convolution', {'in': 1})
             ]
         )
 
     def replace_pattern(self, graph: Graph, match: Dict[str, Node]):
         initial_fake_quantize = match['quantize']
+        initial_fake_quantize_name = initial_fake_quantize.soft_get('name', initial_fake_quantize.id)
 
-        new_fake_quantize = initial_fake_quantize.copy_node(dict(name=initial_fake_quantize.name + '/Copy',
+        new_fake_quantize = initial_fake_quantize.copy_node(dict(name=initial_fake_quantize_name + '/Copy',
                                                                  stop_value_propagation=False), graph)
 
         initial_fake_quantize.in_port(1).get_connection().set_destination(new_fake_quantize.in_port(1))
         initial_fake_quantize.in_port(2).get_connection().set_destination(new_fake_quantize.in_port(2))
 
-        dst_type = data_type_str_to_np(graph.graph['cmd_params'].data_type)
+        dst_type = match['weights_const'].value.dtype
+        if np.issubdtype(dst_type, np.floating):
+            dst_type = data_type_str_to_np(graph.graph['cmd_params'].data_type)
 
         i_min = np.array([0.], dtype=dst_type)
         i_max = np.array([initial_fake_quantize.levels - 1.], dtype=dst_type)
 
-        new_out_low_node = Const(graph, dict(name=initial_fake_quantize.name + '/Copy/out_low',
+        new_out_low_node = Const(graph, dict(name=initial_fake_quantize_name + '/Copy/out_low',
                                              value=i_min)).create_node()
-        new_out_high_node = Const(graph, dict(name=initial_fake_quantize.name + '/Copy/out_high',
+        new_out_high_node = Const(graph, dict(name=initial_fake_quantize_name + '/Copy/out_high',
                                               value=i_max)).create_node()
 
         new_out_low_node.out_port(0).connect(new_fake_quantize.in_port(3))
@@ -134,7 +132,7 @@ class CompressQuantizeWeights(BackReplacementPattern):
         new_out_low_node.out_port(0).connect(initial_fake_quantize.in_port(1))
         new_out_high_node.out_port(0).connect(initial_fake_quantize.in_port(2))
 
-        cast_node = Cast(graph, dict(name=initial_fake_quantize.name + "/Convert_to_float", dst_type=dst_type,
+        cast_node = Cast(graph, dict(name=initial_fake_quantize_name + "/Convert_to_float", dst_type=dst_type,
                                      stop_value_propagation=True)).create_node()
         new_fake_quantize.out_port(0).connect(cast_node.in_port(0))
         initial_fake_quantize.in_port(0).get_connection().set_destination(new_fake_quantize.in_port(0))

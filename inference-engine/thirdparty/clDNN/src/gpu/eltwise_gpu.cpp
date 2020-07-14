@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2019 Intel Corporation
+// Copyright (c) 2019-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -79,14 +79,8 @@ struct eltwise_gpu : typed_primitive_gpu_impl<eltwise> {
 
 protected:
     kernel::kernel_arguments_data get_arguments(typed_primitive_inst<eltwise>& instance,
-                                                        int32_t split) const override {
+                                                int32_t split) const override {
         kernel::kernel_arguments_data args = parent::get_arguments(instance, split);
-
-        args.output_calibration_factors =
-            (memory_impl::cptr) (instance.output_calibration_factors_term() ? &instance.output_calibration_factors_memory() : nullptr);
-        // TODO Inputs calibration factors - skipping for now as currently they should never be used in eltwise, create
-        // will throw
-
         return args;
     }
 
@@ -157,19 +151,6 @@ public:
             ew_params.broadcast = true;
         }
 
-        if (primitive->output_calibration_factors.size() > 0 || primitive->output_quantization_factor != 1.0f) {
-            ew_params.int8_quantization = true;
-
-            if (primitive->output_calibration_factors.size() > 0) {
-                ew_params.output_calibration = true;
-                ew_params.output_calibration_factors.push_back(
-                    convert_data_tensor(arg.output_calibration_factors().get_output_layout())
-                        .FlattenFeatureAndSpatials());
-            } else {
-                ew_params.output_quantization_factor = arg.get_output_qf();
-            }
-        }
-
         // TODO [LOW PRECISION]: check if this parameter's really needed. Maybe data types are enough
         bool quantization = true;
         for (size_t i = 0; i < arg.inputs_count(); i++) {
@@ -179,35 +160,6 @@ public:
             }
         }
         ew_params.int8_quantization = quantization;
-
-        CLDNN_ERROR_BOOL(arg.id(),
-                         "Eltwise inputs calibration term",
-                         arg.inputs_calibration_term(),
-                         "Eltwise does not yet support inputs calibration, it should be fused with convolution");
-
-        if (arg.inputs_calibration_term()) {
-            ew_params.int8_quantization = true;
-            ew_params.inputs_calibration = true;
-
-            for (size_t i = 0; i < primitive->inputs_calibration_factors.size(); ++i) {
-                auto icf_layout = arg.input_calibration_factors(i).get_output_layout();
-                ew_params.inputs_calibration_factors.push_back(
-                    convert_data_tensor(icf_layout).FlattenFeatureAndSpatials());
-            }
-        }
-
-        CLDNN_ERROR_BOOL(arg.id(),
-                         "Eltwise inputs quantization term",
-                         arg.inputs_quantization_term(),
-                         "Eltwise does not yet support inputs quantization, it should be fused with convolution");
-
-        if (arg.inputs_quantization_term()) {
-            ew_params.int8_quantization = true;
-
-            for (const auto& iqf : primitive->input_quantization_factors) {
-                ew_params.input_quantization_factors.push_back(iqf);
-            }
-        }
 
         auto& kernel_selector = kernel_selector::eltwise_kernel_selector::Instance();
         auto best_kernels = kernel_selector.GetBestKernels(ew_params, ew_optional_params);
@@ -255,6 +207,13 @@ attach_eltwise_gpu::attach_eltwise_gpu() {
          { std::make_tuple(engine_types::ocl, data_types::u8, format::bfzyx), eltwise_gpu::create },
          { std::make_tuple(engine_types::ocl, data_types::i32, format::bfzyx), eltwise_gpu::create },
          { std::make_tuple(engine_types::ocl, data_types::i64, format::bfzyx), eltwise_gpu::create },
+         // 4D
+         { std::make_tuple(engine_types::ocl, data_types::f32, format::bfwzyx), eltwise_gpu::create },
+         { std::make_tuple(engine_types::ocl, data_types::f16, format::bfwzyx), eltwise_gpu::create },
+         { std::make_tuple(engine_types::ocl, data_types::i8, format::bfwzyx), eltwise_gpu::create },
+         { std::make_tuple(engine_types::ocl, data_types::u8, format::bfwzyx), eltwise_gpu::create },
+         { std::make_tuple(engine_types::ocl, data_types::i32, format::bfwzyx), eltwise_gpu::create },
+         { std::make_tuple(engine_types::ocl, data_types::i64, format::bfwzyx), eltwise_gpu::create },
 
          { std::make_tuple(engine_types::ocl, data_types::f32, format::b_fs_zyx_fsv16), eltwise_gpu::create },
          { std::make_tuple(engine_types::ocl, data_types::f16, format::b_fs_zyx_fsv16), eltwise_gpu::create },

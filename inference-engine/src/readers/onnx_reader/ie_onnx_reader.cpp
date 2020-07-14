@@ -13,6 +13,7 @@ bool ONNXReader::supportModel(std::istream& model) const {
     const int header_size = 128;
     std::string header(header_size, ' ');
     model.read(&header[0], header_size);
+    model.seekg(0, model.beg);
     // find 'onnx' substring in the .onnx files
     // find 'ir_version' and 'graph' for prototxt
     // return (header.find("onnx") != std::string::npos) || (header.find("pytorch") != std::string::npos) ||
@@ -21,7 +22,6 @@ bool ONNXReader::supportModel(std::istream& model) const {
 }
 
 CNNNetwork ONNXReader::read(std::istream& model, const std::vector<IExtensionPtr>& exts) const {
-    model.seekg(0, model.beg);
     return CNNNetwork(ngraph::onnx_import::import_onnx_model(model));
 }
 
@@ -30,7 +30,7 @@ INFERENCE_PLUGIN_API(StatusCode) InferenceEngine::CreateReader(IReader*& reader,
         reader = new ONNXReader();
         return OK;
     }
-    catch (std::exception &ex) {
+    catch (std::exception &) {
         return GENERAL_ERROR;
     }
 }

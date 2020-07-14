@@ -42,7 +42,7 @@
 #include "op/constant.hpp"
 #include "op/constant_of_shape.hpp"
 #include "op/conv.hpp"
-#include "op/conv_integer.hpp"
+// #include "op/conv_integer.hpp"
 #include "op/conv_transpose.hpp"
 #include "op/cos.hpp"
 #include "op/cosh.hpp"
@@ -57,22 +57,26 @@
 #include "op/exp.hpp"
 #include "op/expand.hpp"
 #include "op/eye_like.hpp"
+#include "op/fake_quantize.hpp"
 #include "op/flatten.hpp"
 #include "op/floor.hpp"
 #include "op/gather.hpp"
-#include "op/gather_nd.hpp"
+// #include "op/gather_nd.hpp"
 #include "op/gemm.hpp"
 #include "op/global_average_pool.hpp"
 #include "op/global_max_pool.hpp"
 #include "op/greater.hpp"
+#include "op/gru.hpp"
 #include "op/hard_sigmoid.hpp"
 #include "op/hardmax.hpp"
 #include "op/identity.hpp"
+#include "op/image_scaler.hpp"
 #include "op/instance_norm.hpp"
 #include "op/leaky_relu.hpp"
 #include "op/less.hpp"
 #include "op/log.hpp"
 #include "op/log_softmax.hpp"
+#include "op/loop.hpp"
 #include "op/lp_norm.hpp"
 #include "op/lp_pool.hpp"
 #include "op/lrn.hpp"
@@ -96,18 +100,20 @@
 #include "op/pow.hpp"
 #include "op/prelu.hpp"
 #include "op/qlinear_matmul.hpp"
-#include "op/quant_conv.hpp"
-#include "op/quantize_linear.hpp"
+// #include "op/quant_conv.hpp"
+// #include "op/quantize_linear.hpp"
+#include "op/range.hpp"
 #include "op/reciprocal.hpp"
 #include "op/reduce.hpp"
 #include "op/relu.hpp"
 #include "op/reshape.hpp"
 #include "op/resize.hpp"
 #include "op/reverse_sequence.hpp"
+#include "op/rnn.hpp"
 #include "op/roi_align.hpp"
-#include "op/round.hpp"
+// #include "op/round.hpp"
 #include "op/scatter_elements.hpp"
-#include "op/scatter_nd.hpp"
+// #include "op/scatter_nd.hpp"
 #include "op/selu.hpp"
 #include "op/shape.hpp"
 #include "op/shrink.hpp"
@@ -133,6 +139,7 @@
 #include "op/topk.hpp"
 #include "op/transpose.hpp"
 #include "op/unsqueeze.hpp"
+#include "op/upsample.hpp"
 #include "op/where.hpp"
 #include "op/xor.hpp"
 #include "ops_bridge.hpp"
@@ -266,13 +273,14 @@ namespace ngraph
             REGISTER_OPERATOR("Constant", 1, constant);
             REGISTER_OPERATOR("ConstantOfShape", 1, constant_of_shape);
             REGISTER_OPERATOR("Conv", 1, conv);
-            REGISTER_OPERATOR("ConvInteger", 1, conv_integer);
+            // REGISTER_OPERATOR("ConvInteger", 1, conv_integer);
             REGISTER_OPERATOR("ConvTranspose", 1, conv_transpose);
             REGISTER_OPERATOR("Cos", 1, cos);
             REGISTER_OPERATOR("Cosh", 1, cosh);
             REGISTER_OPERATOR("CumSum", 1, cum_sum);
             REGISTER_OPERATOR("DepthToSpace", 1, depth_to_space);
             REGISTER_OPERATOR("DequantizeLinear", 1, dequantize_linear);
+            REGISTER_OPERATOR("DequantizeLinear", 13, dequantize_linear);
             REGISTER_OPERATOR("Div", 1, div);
             REGISTER_OPERATOR("Div", 7, div);
             REGISTER_OPERATOR("Dropout", 1, dropout);
@@ -285,21 +293,24 @@ namespace ngraph
             REGISTER_OPERATOR("Flatten", 1, flatten);
             REGISTER_OPERATOR("Floor", 1, floor);
             REGISTER_OPERATOR("Gather", 1, gather);
-            REGISTER_OPERATOR("GatherND", 1, gather_nd);
+            // REGISTER_OPERATOR("GatherND", 1, gather_nd);
             REGISTER_OPERATOR("Gemm", 1, gemm);
             REGISTER_OPERATOR("Gemm", 6, gemm);
             REGISTER_OPERATOR("GlobalAveragePool", 1, global_average_pool);
             REGISTER_OPERATOR("GlobalLpPool", 1, global_lp_pool);
             REGISTER_OPERATOR("GlobalMaxPool", 1, global_max_pool);
             REGISTER_OPERATOR("Greater", 1, greater);
+            REGISTER_OPERATOR("GRU", 1, gru);
             REGISTER_OPERATOR("Hardmax", 1, hardmax);
             REGISTER_OPERATOR("HardSigmoid", 1, hard_sigmoid);
             REGISTER_OPERATOR("Identity", 1, identity);
+            REGISTER_OPERATOR("ImageScaler", 1, image_scaler);
             REGISTER_OPERATOR("InstanceNormalization", 1, instance_norm);
             REGISTER_OPERATOR("LeakyRelu", 1, leaky_relu);
             REGISTER_OPERATOR("Less", 1, less);
             REGISTER_OPERATOR("Log", 1, log);
             REGISTER_OPERATOR("LogSoftmax", 1, log_softmax);
+            REGISTER_OPERATOR("Loop", 1, loop);
             REGISTER_OPERATOR("LpNormalization", 1, lp_norm);
             REGISTER_OPERATOR("LRN", 1, lrn);
             REGISTER_OPERATOR("LSTM", 1, lstm);
@@ -326,9 +337,10 @@ namespace ngraph
             REGISTER_OPERATOR("Pad", 11, pad);
             REGISTER_OPERATOR("Pow", 1, pow);
             REGISTER_OPERATOR("PRelu", 1, prelu);
-            REGISTER_OPERATOR("QLinearConv", 1, quant_conv);
+            // REGISTER_OPERATOR("QLinearConv", 1, quant_conv);
             REGISTER_OPERATOR("QLinearMatMul", 1, qlinear_matmul);
-            REGISTER_OPERATOR("QuantizeLinear", 1, quantize_linear);
+            // REGISTER_OPERATOR("QuantizeLinear", 1, quantize_linear);
+            REGISTER_OPERATOR("Range", 1, range);
             REGISTER_OPERATOR("Reciprocal", 1, reciprocal);
             REGISTER_OPERATOR("ReduceLogSum", 1, reduce_log_sum);
             REGISTER_OPERATOR("ReduceLogSumExp", 1, reduce_log_sum_exp);
@@ -344,11 +356,12 @@ namespace ngraph
             REGISTER_OPERATOR("Reshape", 1, reshape);
             REGISTER_OPERATOR("Resize", 1, resize);
             REGISTER_OPERATOR("ReverseSequence", 1, reverse_sequence);
+            REGISTER_OPERATOR("RNN", 1, rnn);
             REGISTER_OPERATOR("RoiAlign", 1, roi_align);
-            REGISTER_OPERATOR("Round", 1, round);
+            // REGISTER_OPERATOR("Round", 1, round);
             REGISTER_OPERATOR("Scatter", 1, scatter_elements);
             REGISTER_OPERATOR("ScatterElements", 1, scatter_elements);
-            REGISTER_OPERATOR("ScatterND", 1, scatter_nd);
+            // REGISTER_OPERATOR("ScatterND", 1, scatter_nd);
             REGISTER_OPERATOR("Selu", 1, selu);
             REGISTER_OPERATOR("Shape", 1, shape);
             REGISTER_OPERATOR("Shrink", 1, shrink);
@@ -379,8 +392,13 @@ namespace ngraph
             REGISTER_OPERATOR("TopK", 11, topk);
             REGISTER_OPERATOR("Transpose", 1, transpose);
             REGISTER_OPERATOR("Unsqueeze", 1, unsqueeze);
+            REGISTER_OPERATOR("Upsample", 1, upsample);
+            REGISTER_OPERATOR("Upsample", 9, upsample);
             REGISTER_OPERATOR("Where", 1, where);
             REGISTER_OPERATOR("Xor", 1, logical_xor);
+
+            // TODO Change the domain
+            m_map[""]["FakeQuantize"].emplace(1, op::set_1::fake_quantize);
         }
 
 #undef REGISTER_OPERATOR

@@ -7,9 +7,8 @@
 #include <gtest/gtest.h>
 
 #include <tests_common.hpp>
-#include <ie_format_parser.h>
 #include <ie_layers_internal.hpp>
-#include <ie_layers_internal.hpp>
+#include <details/ie_cnn_network_iterator.hpp>
 #include <functional_test_utils/plugin_cache.hpp>
 
 #include "conv_ref.hpp"
@@ -186,10 +185,11 @@ std::string LayerTestHelper::propertyToString(const PropertyVector<unsigned int>
 ConvolutionTestHelper::ConvolutionTestHelper(const CommonTestUtils::conv_common_params &_convParams) : LayerTestHelper("Convolution"), convParams(_convParams) {}
 
 void ConvolutionTestHelper::updatePaddingValues(const CNNNetwork &network) {
-    auto found = std::find_if(network.begin(), network.end(), [this](const CNNLayer::Ptr &layer) {
+    details::CNNNetworkIterator i(network), end;
+    auto found = std::find_if(i, end, [this](const CNNLayer::Ptr &layer) {
         return layer->type == type;
     });
-    ASSERT_NE(found, network.end());
+    ASSERT_NE(found, end);
 
     auto castedLayer = std::dynamic_pointer_cast<ConvolutionLayer>(*found);
     auto allPad = getPaddings(*castedLayer.get());
@@ -279,10 +279,11 @@ void DeformableConvolutionTestHelper::ref_fp16(const std::vector<InferenceEngine
 }
 
 void DeformableConvolutionTestHelper::updatePaddingValues(const CNNNetwork &network) {
-    auto found = std::find_if(network.begin(), network.end(), [this](const CNNLayer::Ptr &layer) {
+    details::CNNNetworkIterator i(network), end;
+    auto found = std::find_if(i, end, [this](const CNNLayer::Ptr &layer) {
         return layer->type == type;
     });
-    ASSERT_NE(found, network.end());
+    ASSERT_NE(found, end);
 
     auto castedLayer = std::dynamic_pointer_cast<ConvolutionLayer>(*found);
     auto allPad = getPaddings(*castedLayer.get());
@@ -349,10 +350,11 @@ void PoolingTestHelper::ref_fp16(const std::vector<InferenceEngine::Blob::Ptr> s
 }
 
 void PoolingTestHelper::updatePaddingValues(const InferenceEngine::CNNNetwork &network) {
-    auto found = std::find_if(network.begin(), network.end(), [this](const CNNLayer::Ptr &layer) {
+    details::CNNNetworkIterator i(network), end;
+    auto found = std::find_if(i, end, [this](const CNNLayer::Ptr &layer) {
         return layer->type == type;
     });
-    ASSERT_NE(found, network.end());
+    ASSERT_NE(found, end);
 
     auto castedLayer = std::dynamic_pointer_cast<PoolingLayer>(*found);
     auto allPad = getPaddings(*castedLayer.get());

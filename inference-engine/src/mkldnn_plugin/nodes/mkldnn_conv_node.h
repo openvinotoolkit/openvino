@@ -27,6 +27,7 @@ public:
     void initSupportedPrimitiveDescriptors() override;
     void filterSupportedPrimitiveDescriptors() override;
     void filterSupportedDescriptors();
+    bool isPossibleToSkipInitConfig(MKLDNNDescriptor &desc);
     bool created() const override;
     bool canBeInPlace() const override {
         return false;

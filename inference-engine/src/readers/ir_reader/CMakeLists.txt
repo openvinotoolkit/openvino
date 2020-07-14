@@ -24,7 +24,8 @@ source_group("include" FILES ${PUBLIC_HEADERS})
 add_library(${TARGET_NAME} SHARED ${LIBRARY_SRC} ${PUBLIC_HEADERS})
 
 target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_INFERENCE_ENGINE_API
-                                                  IMPLEMENT_INFERENCE_ENGINE_PLUGIN)
+                                                  IMPLEMENT_INFERENCE_ENGINE_PLUGIN
+                                                  IR_READER_V10)
 
 target_include_directories(${TARGET_NAME} PUBLIC ${PUBLIC_HEADERS_DIR})
 target_include_directories(${TARGET_NAME} PRIVATE "${IE_MAIN_SOURCE_DIR}/src/inference_engine")
@@ -35,11 +36,6 @@ target_link_libraries(${TARGET_NAME} PRIVATE pugixml)
 # code style
 
 add_cpplint_target(${TARGET_NAME}_cpplint FOR_TARGETS ${TARGET_NAME})
-add_clang_format_target(${TARGET_NAME}_clang_format FOR_TARGETS ${TARGET_NAME})
-
-# developer package
-
-ie_developer_export_targets(${TARGET_NAME})
 
 # install
 

@@ -11,11 +11,15 @@
 #include <string>
 #include <vector>
 #include <unordered_set>
+#include <sstream>
 
+#include "ie_layers.h"
 #include "details/caseless.hpp"
 #include "details/ie_cnn_network_tools.h"
 #include "exec_graph_info.hpp"
 #include "xml_parse_utils.h"
+#include "ie_ngraph_utils.hpp"
+#include <ngraph/variant.hpp>
 
 namespace InferenceEngine {
 namespace Serialization {
@@ -80,40 +84,6 @@ std::size_t updatePreProcInfo(const InferenceEngine::ICNNNetwork& network, pugi:
         }
     }
     return dataOffset;
-}
-
-void UpdateStatisticsInfo(const InferenceEngine::ICNNNetwork& network, pugi::xml_node& netXml) {
-    // If statistics exists, add it to the file
-    ICNNNetworkStats* netNodesStats = nullptr;
-    auto stats = netXml.append_child("statistics");
-    auto resultCode = network.getStats(&netNodesStats, nullptr);
-    if (resultCode != StatusCode::OK) {
-        THROW_IE_EXCEPTION << InferenceEngine::details::as_status << resultCode
-                           << "Can't get statistics info for serialization of the model";
-    }
-    const NetworkStatsMap statsmap = netNodesStats->getNodesStats();
-
-    auto joinCommas = [&](const std::vector<float>& v) -> std::string {
-        std::string res;
-
-        for (size_t i = 0; i < v.size(); ++i) {
-            res += std::to_string(v[i]);
-            if (i < v.size() - 1) {
-                res += ", ";
-            }
-        }
-
-        return res;
-    };
-
-    for (const auto& itStats : statsmap) {
-        auto layer = stats.append_child("layer");
-
-        layer.append_child("name").text().set(itStats.first.c_str());
-
-        layer.append_child("min").text().set(joinCommas(itStats.second->_minOutputs).c_str());
-        layer.append_child("max").text().set(joinCommas(itStats.second->_maxOutputs).c_str());
-    }
 }
 
 void UpdateStdLayerParams(const CNNLayer::Ptr& layer) {
@@ -344,7 +314,7 @@ std::vector<CNNLayerPtr> TopologicalSort(const ICNNNetwork& network) {
     auto get_consumers = [](const CNNLayerPtr& node) -> std::vector<CNNLayerPtr> {
         std::vector<CNNLayerPtr> consumers;
         for (const auto & output : node->outData) {
-            for (const auto &consumer : output->getInputTo()) {
+            for (const auto &consumer : getInputTo(output)) {
                 consumers.push_back(consumer.second);
             }
         }
@@ -367,7 +337,7 @@ std::vector<CNNLayerPtr> TopologicalSort(const ICNNNetwork& network) {
                 if (!locked_input) {
                     THROW_IE_EXCEPTION << "insData for " << node->name << " is not valid.";
                 }
-                if (auto next_node = locked_input->getCreatorLayer().lock()) {
+                if (auto next_node = getCreatorLayer(locked_input).lock()) {
                     if (!used.count(next_node->name)) {
                         // Check that all consumers were used
                         bool all_consumers_used(true);
@@ -395,14 +365,14 @@ std::vector<CNNLayerPtr> TopologicalSort(const ICNNNetwork& network) {
     // First we run bfs starting from outputs that provides deterministic graph traverse
     for (const auto & output : outputs) {
         if (!used.count(output.first)) {
-            bfs(output.second->getCreatorLayer().lock());
+            bfs(getCreatorLayer(output.second).lock());
         }
     }
 
     // For cases when graph has no outputs we start bfs from inputs to ensure topological sort
     for (const auto & input : inputs) {
         const auto data_ptr = input.second->getInputData();
-        for (const auto & consumer : data_ptr->getInputTo())
+        for (const auto & consumer : getInputTo(data_ptr))
         if (!used.count(consumer.first)) {
             bfs(consumer.second, true);
         }
@@ -412,9 +382,125 @@ std::vector<CNNLayerPtr> TopologicalSort(const ICNNNetwork& network) {
     return ordered;
 }
 
+namespace {
+
+void FillXmlDocWithExecutionNGraph(const InferenceEngine::ICNNNetwork& network,
+                                   pugi::xml_document& doc) {
+    std::shared_ptr<const ngraph::Function> function = network.getFunction();
+    if (function == nullptr) {
+        THROW_IE_EXCEPTION << network.getName() << " does not represent ngraph::Function";
+    }
+
+    std::vector<std::shared_ptr<ngraph::Node>> ordered = function->get_ordered_ops();
+    pugi::xml_node netXml = doc.append_child("net");
+    netXml.append_attribute("name").set_value(network.getName().c_str());
+
+    pugi::xml_node layers = netXml.append_child("layers");
+    std::unordered_map<std::shared_ptr<ngraph::Node>, size_t> matching;
+
+    for (size_t i = 0; i < ordered.size(); ++i) {
+        matching[ordered[i]] = i;
+        const std::shared_ptr<ngraph::Node> node = ordered[i];
+        auto params = node->get_rt_info();
+
+        auto layerTypeVariant = params.find(ExecGraphInfoSerialization::LAYER_TYPE);
+        if (layerTypeVariant == params.end()) {
+            THROW_IE_EXCEPTION << node->get_friendly_name() << " does not define "
+                               << ExecGraphInfoSerialization::LAYER_TYPE << " attribute.";
+        }
+        using VariantString = ngraph::VariantImpl<std::string>;
+        auto layerTypeValueStr = std::dynamic_pointer_cast<VariantString>(layerTypeVariant->second);
+        IE_ASSERT(layerTypeValueStr != nullptr);
+        params.erase(layerTypeVariant);
+
+        pugi::xml_node layer = layers.append_child("layer");
+        layer.append_attribute("name").set_value(node->get_friendly_name().c_str());
+        layer.append_attribute("type").set_value(layerTypeValueStr->get().c_str());
+        layer.append_attribute("id").set_value(i);
+
+        if (!params.empty()) {
+            pugi::xml_node data = layer.append_child("data");
+
+            for (const auto& it : params) {
+                if (auto strValue = std::dynamic_pointer_cast<VariantString>(it.second))
+                    data.append_attribute(it.first.c_str()).set_value(strValue->get().c_str());
+            }
+        }
+
+        if (node->get_input_size() > 0) {
+            pugi::xml_node input = layer.append_child("input");
+
+            for (size_t iport = 0; iport < node->get_input_size(); iport++) {
+                const ngraph::Shape & dims = node->get_input_shape(iport);
+                pugi::xml_node port = input.append_child("port");
+
+                port.append_attribute("id").set_value(iport);
+                for (auto dim : dims) {
+                    port.append_child("dim").text().set(dim);
+                }
+            }
+        }
+        if (node->get_output_size() > 0 &&
+            // ngraph::op::Result still have single output while we should not print it
+            !std::dynamic_pointer_cast<ngraph::op::Result>(node)) {
+            pugi::xml_node output = layer.append_child("output");
+
+            for (size_t oport = 0; oport < node->get_output_size(); oport++) {
+                pugi::xml_node port = output.append_child("port");
+                Precision outputPrecision = details::convertPrecision(node->get_output_element_type(oport));
+
+                port.append_attribute("id").set_value(node->get_input_size() + oport);
+                port.append_attribute("precision").set_value(outputPrecision.name());
+
+                for (const auto dim : node->get_output_shape(oport)) {
+                    port.append_child("dim").text().set(dim);
+                }
+            }
+        }
+    }
+
+    pugi::xml_node edges = netXml.append_child("edges");
+
+    for (const auto& ord : ordered) {
+        const std::shared_ptr<ngraph::Node> parentNode = ord;
+
+        if (parentNode->get_output_size() > 0) {
+            auto itFrom = matching.find(parentNode);
+            if (itFrom == matching.end()) {
+                THROW_IE_EXCEPTION << "Internal error, cannot find " << parentNode->get_friendly_name()
+                                   << " in matching container during serialization of IR";
+            }
+            for (size_t oport = 0; oport < parentNode->get_output_size(); oport++) {
+                ngraph::Output<ngraph::Node> parentPort = parentNode->output(oport);
+                for (const auto& childPort : parentPort.get_target_inputs()) {
+                    ngraph::Node * childNode = childPort.get_node();
+                    for (int iport = 0; iport < childNode->get_input_size(); iport++) {
+                        if (childNode->input_value(iport).get_node() == parentPort.get_node()) {
+                            auto itTo = matching.find(childNode->shared_from_this());
+                            if (itTo == matching.end()) {
+                                THROW_IE_EXCEPTION << "Broken edge form layer "
+                                                   << parentNode->get_friendly_name() << " to layer "
+                                                   << childNode->get_friendly_name()
+                                                   << "during serialization of IR";
+                            }
+                            pugi::xml_node edge = edges.append_child("edge");
+                            edge.append_attribute("from-layer").set_value(itFrom->second);
+                            edge.append_attribute("from-port").set_value(oport + parentNode->get_input_size());
+
+                            edge.append_attribute("to-layer").set_value(itTo->second);
+                            edge.append_attribute("to-port").set_value(iport);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+}  // namespace
 
 std::size_t FillXmlDoc(const InferenceEngine::ICNNNetwork& network, pugi::xml_document& doc,
-                                          const bool execGraphInfoSerialization, const bool dumpWeights) {
+                       const bool execGraphInfoSerialization, const bool dumpWeights) {
     const std::vector<CNNLayerPtr> ordered = TopologicalSort(network);
     pugi::xml_node netXml = doc.append_child("net");
     netXml.append_attribute("name").set_value(network.getName().c_str());
@@ -512,7 +598,7 @@ std::size_t FillXmlDoc(const InferenceEngine::ICNNNetwork& network, pugi::xml_do
             }
             for (size_t oport = 0; oport < node->outData.size(); oport++) {
                 const DataPtr outData = node->outData[oport];
-                for (const auto& inputTo : outData->getInputTo()) {
+                for (const auto& inputTo : getInputTo(outData)) {
                     for (int iport = 0; iport < inputTo.second->insData.size(); iport++) {
                         if (inputTo.second->insData[iport].lock() == outData) {
                             auto itTo = matching.find(inputTo.second);
@@ -531,12 +617,6 @@ std::size_t FillXmlDoc(const InferenceEngine::ICNNNetwork& network, pugi::xml_do
                 }
             }
         }
-    }
-
-    // no need to print this info in case of executable graph info serialization
-    if (!execGraphInfoSerialization) {
-        dataOffset = updatePreProcInfo(network, netXml, dataOffset);
-        UpdateStatisticsInfo(network, netXml);
     }
 
     return dataOffset;
@@ -581,11 +661,35 @@ void SerializeBlobs(std::ostream& stream, const InferenceEngine::ICNNNetwork& ne
 }
 
 void Serialize(const std::string& xmlPath, const std::string& binPath,
-                                  const InferenceEngine::ICNNNetwork& network) {
-    const std::vector<CNNLayerPtr> ordered = TopologicalSort(network);
-
+               const InferenceEngine::ICNNNetwork& network) {
     // A flag for serializing executable graph information (not complete IR)
     bool execGraphInfoSerialization = false;
+    pugi::xml_document doc;
+
+    if (auto function = network.getFunction()) {
+        execGraphInfoSerialization = true;
+
+        // go over all operations and check whether performance stat is set
+        for (const auto & op : function->get_ops()) {
+            auto & rtInfo = op->get_rt_info();
+            if (rtInfo.find(ExecGraphInfoSerialization::PERF_COUNTER) == rtInfo.end()) {
+                execGraphInfoSerialization = false;
+                break;
+            }
+        }
+
+        if (execGraphInfoSerialization) {
+            FillXmlDocWithExecutionNGraph(network, doc);
+
+            if (!doc.save_file(xmlPath.c_str())) {
+                THROW_IE_EXCEPTION << "file '" << xmlPath << "' was not serialized";
+            }
+
+            return;
+        }
+    }
+
+    const std::vector<CNNLayerPtr> ordered = TopologicalSort(network);
     // If first layer has perfCounter parameter set then it's executable graph info serialization.
     // All other layers must also have this parameter set.
     if (ordered[0]->params.find(ExecGraphInfoSerialization::PERF_COUNTER) != ordered[0]->params.end()) {
@@ -599,8 +703,6 @@ void Serialize(const std::string& xmlPath, const std::string& binPath,
     }
 
     bool dumpWeights = !execGraphInfoSerialization & !binPath.empty();
-
-    pugi::xml_document doc;
     FillXmlDoc(network, doc, execGraphInfoSerialization, dumpWeights);
 
     if (!doc.save_file(xmlPath.c_str())) {

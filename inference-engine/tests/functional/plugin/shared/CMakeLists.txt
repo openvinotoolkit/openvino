@@ -27,6 +27,10 @@ addIeTarget(
             ${EXPORT_DEPENDENCIES}
 )
 
+if (TARGET MKLDNNPlugin)
+    add_dependencies(${TARGET_NAME} MKLDNNPlugin)
+endif()
+
 target_include_directories(${TARGET_NAME} PUBLIC
         ${PUBLIC_HEADERS_DIR}
         ${IE_MAIN_SOURCE_DIR}/src/vpu/graph_transformer/include

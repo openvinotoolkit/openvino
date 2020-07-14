@@ -609,10 +609,44 @@ void ngraph::infer_auto_padding(const Shape& image_shape,
                                 CoordinateDiff& padding_above,
                                 CoordinateDiff& padding_below)
 {
+    const auto image_dims = std::vector<Dimension>(std::begin(image_shape), std::end(image_shape));
+    // because image_shape is fully known result of try_apply_infer_auto_padding is ignored
+    try_apply_auto_padding(image_dims,
+                           filter_shape,
+                           filter_strides,
+                           filter_dilations,
+                           pad_type,
+                           padding_above,
+                           padding_below);
+}
+
+bool ngraph::try_apply_auto_padding(const PartialShape& image_shape,
+                                    const Shape& filter_shape,
+                                    const Strides& filter_strides,
+                                    const Strides& filter_dilations,
+                                    const op::PadType pad_type,
+                                    CoordinateDiff& padding_above,
+                                    CoordinateDiff& padding_below)
+{
     NGRAPH_CHECK(pad_type == op::PadType::SAME_UPPER || pad_type == op::PadType::SAME_LOWER);
+
+    if (image_shape.rank().is_dynamic())
+    {
+        return false;
+    }
+    const auto image_dims = static_cast<std::vector<Dimension>>(image_shape);
+    const bool are_spatial_dims_static =
+        std::all_of(std::begin(image_dims) + 2, std::end(image_dims), [](const Dimension& dim) {
+            return dim.is_static();
+        });
+    if (!are_spatial_dims_static)
+    {
+        return false;
+    }
+
     for (size_t i = 0; i < static_cast<size_t>(filter_shape.size()); i++)
     {
-        int64_t image_size = static_cast<int64_t>(image_shape[i + 2]);
+        int64_t image_size = static_cast<int64_t>(image_dims[i + 2]);
         int64_t filter_size = (static_cast<int64_t>(filter_shape[i]) - 1) * filter_dilations[i] + 1;
         int64_t filter_stride = static_cast<int64_t>(filter_strides[i]);
         auto output_size = (image_size + filter_stride - 1) / filter_stride;
@@ -624,6 +658,7 @@ void ngraph::infer_auto_padding(const Shape& image_shape,
         padding_below.push_back(pad_type == op::PadType::SAME_UPPER ? padding_lhs : padding_rhs);
         padding_above.push_back(pad_type == op::PadType::SAME_UPPER ? padding_rhs : padding_lhs);
     }
+    return true;
 }
 
 PartialShape ngraph::infer_slice_shape(const Node* node,
@@ -732,6 +767,14 @@ PartialShape ngraph::infer_slice_shape(const Node* node,
                 int64_t lb = begin[axis];
                 int64_t ub = end[axis];
 
+                // set default value for stride or use given value
+                int64_t stride = 1;
+                if (strides.size() > axis)
+                {
+                    stride = strides[axis];
+                }
+                NODE_VALIDATION_CHECK(node, stride != 0, "Stride must be non-zero");
+
                 // convert negative indexes to positive
                 // take max for this case: if abs(lb) > input_shape[input_shape_idx],then after
                 // conversion lb < 0
@@ -743,21 +786,13 @@ PartialShape ngraph::infer_slice_shape(const Node* node,
 
                 if (ub < 0)
                 {
-                    ub = std::max(input_shape[input_shape_idx].get_length() + ub, int64_t(0));
+                    ub = std::max(input_shape[input_shape_idx].get_length() + ub,
+                                  stride > 0 ? int64_t(0) : int64_t(-1));
                 }
 
                 // apply restrictions when begin or end values more than max possible values.
                 lb = std::min(input_shape[input_shape_idx].get_length(), lb);
                 ub = std::min(input_shape[input_shape_idx].get_length(), ub);
-
-                // set default value for stride or use given value
-                int64_t stride = 1;
-                if (strides.size() > axis)
-                {
-                    stride = strides[axis];
-                }
-
-                NODE_VALIDATION_CHECK(node, stride != 0, "Stride must be non-zero");
 
                 int64_t dimension = 0;
                 if (stride < 0)
@@ -849,8 +884,11 @@ int64_t ngraph::normalize_axis(const std::string& node_description,
     }
 
     const auto tensor_rank_value = tensor_rank.get_length();
-    return normalize_axis(
-        node_description, axis, tensor_rank_value, -tensor_rank_value, tensor_rank_value - 1);
+    return normalize_axis(node_description,
+                          axis,
+                          tensor_rank_value,
+                          -tensor_rank_value,
+                          tensor_rank_value ? (tensor_rank_value - 1) : 0);
 }
 
 int64_t ngraph::normalize_axis(const Node* node,

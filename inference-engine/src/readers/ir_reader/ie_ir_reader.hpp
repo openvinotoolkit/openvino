@@ -29,14 +29,9 @@ namespace InferenceEngine {
 
 /**
  * @brief This class is the main interface to build and parse a network from a given IR
- *
- * All methods here do not throw exceptions and return a StatusCode and ResponseDesc object.
- * Alternatively, to use methods that throw exceptions, refer to the CNNNetReader wrapper class.
  */
 class IRReader: public IReader {
 public:
-    IRReader() = default;
-
     void Release() noexcept override {
         delete this;
     }

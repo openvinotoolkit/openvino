@@ -56,13 +56,16 @@ class ScaleFactorPerLayer<InferenceEngine::CNNLayer *> {
     const float identity_scale_factor = 2049.0f;
     const float k = 5;
     const float k_identity = 6;
+    const double pow_domain = 16;
 
  protected :
     static bool fp32eq(float p1, float p2) {
         return (std::abs(p1 - p2) <= 0.00001f * std::min(std::abs(p1), std::abs(p2)));
     }
 
-    float getActivationScale(GNAPluginNS::LayerInfo const&  layer, QuantizedLayerParams const* quantizedParams) {
+    float getActivationScale(InferenceEngine::CNNLayer const* cnnLayer,
+                             GNAPluginNS::LayerInfo const& layer,
+                             QuantizedLayerParams const* quantizedParams) {
         // todo: calculate proper scale factor where we need to expand it a bit to be safe to stay in int16 weights
         // set the initial value
         float result = activation_scale_factor;
@@ -105,6 +108,31 @@ class ScaleFactorPerLayer<InferenceEngine::CNNLayer *> {
                                                             > std::numeric_limits<int32_t>::max()-1) {
             // if activation is one from relu family, we need to apply heuristic to avoid activation output overflow
             result = (activation_scale_factor * 0.5);
+        } else if (layer.isPower()) {
+            auto powerLayer = dynamic_cast<InferenceEngine::PowerLayer const*>(cnnLayer);
+            if (!powerLayer) {
+                THROW_IE_EXCEPTION << "Incorrect Power Layer pointer \n";
+            }
+
+            auto input_min_value = static_cast<double>(std::numeric_limits<int32_t>::min());
+            auto input_max_value = static_cast<double>(std::numeric_limits<int32_t>::max());
+            auto output_max_value = static_cast<double>(std::numeric_limits<int16_t>::max());
+
+            auto x_min = fp32eq(fmod(powerLayer->power, 1.0), 0) ? input_min_value / quantizedParams->_src_quant.scale : 0.0;
+            x_min = std::max(x_min, -pow_domain);
+
+            auto x_max = input_max_value / quantizedParams->_src_quant.scale;
+            x_max = std::min(x_max, pow_domain);
+
+            auto val1 = pow(x_min * powerLayer->scale + powerLayer->offset, powerLayer->power);
+            auto val2 = pow(x_max * powerLayer->scale + powerLayer->offset, powerLayer->power);
+
+            auto abs_val = std::max(std::abs(val1), std::abs(val2));
+            auto scale_val = output_max_value / abs_val;
+
+            if (!std::isinf(scale_val)) {
+                result = scale_val;
+            }
         }
         return result;
     }
@@ -199,9 +227,17 @@ class ScaleFactorPerLayer<InferenceEngine::CNNLayer *> {
 
         if (cnnLayer->type == "Const") {
             auto blob = cnnLayer->blobs["custom"];
-            if (blob->getTensorDesc().getPrecision() == InferenceEngine::Precision::FP16) {
+            auto blob_precision = blob->getTensorDesc().getPrecision();
+
+            if (blob_precision != InferenceEngine::Precision::FP32 && blob_precision != InferenceEngine::Precision::FP16) {
+                quant->_dst_quant.scale = 1.0f;
+                return true;
+            }
+
+            if (blob_precision == InferenceEngine::Precision::FP16) {
                 blob = make_fp32_blob(blob);
             }
+
             auto max_val = std::numeric_limits<float>::min();
             auto min_val = std::numeric_limits<float>::max();
 
@@ -243,7 +279,7 @@ class ScaleFactorPerLayer<InferenceEngine::CNNLayer *> {
         if (layerInfo.isActivation()) {
             // todo: calculate proper scale factor where we need to expand it a bit to be safe to stay in int16 weights
             // set the initial value
-            quant->_dst_quant.scale = getActivationScale(layerInfo, quant);
+            quant->_dst_quant.scale = getActivationScale(cnnLayer, layerInfo, quant);
         }
         return true;
     }
@@ -405,7 +441,9 @@ class ScaleFactorPerLayer<InferenceEngine::ConcatLayer*> {
                 quantParams1->_dst_quant = quantParams0->_dst_quant;
                 sourceQuantParams = quantParams0;
             } else {
-                THROW_GNA_EXCEPTION << "Concat quantization for this case need to be implemented!!! \n";
+                THROW_GNA_LAYER_EXCEPTION(concatLayer) << "Concat quantization for " << in0->type << ": " << in0->name
+                    << " and " << in1->type << ": " << in1->name
+                    << " as inputs needs to be implemented! None of these inputs is an activation.\n";
             }
         }
 

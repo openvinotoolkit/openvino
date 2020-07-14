@@ -22,7 +22,7 @@ namespace ngraph
 {
     namespace op
     {
-        typedef struct
+        struct DetectionOutputAttrs
         {
             int num_classes;
             int background_label_id = 0;
@@ -40,7 +40,7 @@ namespace ngraph
             size_t input_height = 1;
             size_t input_width = 1;
             float objectness_score = 0;
-        } DetectionOutputAttrs;
+        };
 
         namespace v0
         {
@@ -92,4 +92,18 @@ namespace ngraph
         }
         using v0::DetectionOutput;
     }
+
+    template <>
+    class NGRAPH_API AttributeAdapter<op::DetectionOutputAttrs> : public VisitorAdapter
+    {
+    public:
+        AttributeAdapter(op::DetectionOutputAttrs& ref);
+
+        virtual bool visit_attributes(AttributeVisitor& visitor) override;
+        static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::DetectionOutputAttrs>",
+                                                    0};
+        const DiscreteTypeInfo& get_type_info() const override { return type_info; }
+    protected:
+        op::DetectionOutputAttrs& m_ref;
+    };
 }

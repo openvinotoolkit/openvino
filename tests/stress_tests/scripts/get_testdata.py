@@ -25,6 +25,7 @@ log.basicConfig(format="{file}: [ %(levelname)s ] %(message)s".format(file=os.pa
 
 # Parameters
 OMZ_NUM_ATTEMPTS = 6
+DOWNLOADER_JOBS_NUM = 4
 
 
 def abs_path(relative_path):
@@ -115,46 +116,54 @@ def main():
                         help='Skip errors caused by OMZ while downloading and converting.')
     args = parser.parse_args()
 
-    # Step 0: prepare models list
+    # parse models from test config
     tree = ET.parse(str(args.test_conf))
     root = tree.getroot()
-    models_names = []
+    models_from_cfg = []
     for attributes in root:
         if attributes.tag == "models":
             models = [child.text for child in attributes]
-            models_names = [Path(model).stem for model in models]
+            models_from_cfg = [Path(model).stem for model in models]
             break
 
-    os.makedirs(str(args.omz_models_out_dir), exist_ok=True)
-    models_list_path = args.omz_models_out_dir / "models_list.txt"
-    log.info("List of models from {models_list_path} used for downloader.py and converter.py: "
-             "{models_names}".format(models_list_path=models_list_path, models_names=",".join(models_names)))
-    with open(str(models_list_path), "w") as file:
-        file.writelines([name + "\n" for name in models_names])
-
-    # Step 1: prepare Open Model Zoo
+    # prepare Open Model Zoo
     if args.omz_repo:
         omz_path = Path(args.omz_repo).resolve()
     else:
         omz_path = Path(abs_path('..')) / "_open_model_zoo"
-        # Clone Open Model Zoo into temporary path
+        # clone Open Model Zoo into temporary path
         if os.path.exists(str(omz_path)):
             shutil.rmtree(str(omz_path))
         cmd = 'git clone https://github.com/opencv/open_model_zoo {omz_path}'.format(omz_path=omz_path)
         run_in_subprocess(cmd)
 
-    # Step 3: prepare models
+    # prepare models
     downloader_path = omz_path / "tools" / "downloader" / "downloader.py"
+    models_list_path = args.omz_models_out_dir / "models_list.txt"
     cmd = '{downloader_path} --list {models_list_path}' \
           ' --num_attempts {num_attempts}' \
           ' --output_dir {models_dir}' \
-          ' --cache_dir {cache_dir}'.format(downloader_path=downloader_path, models_list_path=models_list_path,
-                                            num_attempts=OMZ_NUM_ATTEMPTS,
-                                            models_dir=args.omz_models_out_dir,
-                                            cache_dir=args.omz_cache_dir)
+          ' --cache_dir {cache_dir}' \
+          ' --jobs {jobs_num}'.format(downloader_path=downloader_path, models_list_path=models_list_path,
+                                      num_attempts=OMZ_NUM_ATTEMPTS,
+                                      models_dir=args.omz_models_out_dir,
+                                      cache_dir=args.omz_cache_dir,
+                                      jobs_num=DOWNLOADER_JOBS_NUM)
+    models_available = subprocess.check_output(cmd + " --print_all", shell=True, universal_newlines=True).split("\n")
+    models_to_run = set(models_from_cfg).intersection(models_available)
+
+    os.makedirs(str(args.omz_models_out_dir), exist_ok=True)
+    log.info("List of models from {models_list_path} used for downloader.py and converter.py: "
+             "{models_to_run}".format(models_list_path=models_list_path, models_to_run=",".join(models_to_run)))
+    with open(str(models_list_path), "w") as file:
+        file.writelines([name + "\n" for name in models_to_run])
+    if set(models_from_cfg) - models_to_run:
+        log.warning("List of models defined in config but not available in OMZ: {}"
+                    .format(",".join(set(models_from_cfg) - models_to_run)))
+
     run_in_subprocess(cmd, check_call=not args.skip_omz_errors)
 
-    # Step 4: prepare virtual environment and install requirements
+    # prepare virtual environment and install requirements
     python_executable = sys.executable
     if not args.no_venv:
         Venv = VirtualEnv("./.stress_venv")
@@ -168,7 +177,7 @@ def main():
         Venv.create_n_install_requirements(*requirements)
         python_executable = Venv.get_venv_executable()
 
-    # Step 5: convert models to IRs
+    # convert models to IRs
     converter_path = omz_path / "tools" / "downloader" / "converter.py"
     # NOTE: remove --precision if both precisions (FP32 & FP16) required
     cmd = '{executable} {converter_path} --list {models_list_path}' \

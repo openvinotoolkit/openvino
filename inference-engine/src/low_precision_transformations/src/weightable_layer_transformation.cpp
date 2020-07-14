@@ -3,13 +3,15 @@
 //
 
 #include "low_precision_transformations/weightable_layer_transformation.hpp"
-#include "low_precision_transformations/network_helper.hpp"
 
 #include <algorithm>
 #include <details/caseless.hpp>
 #include <memory>
 #include <string>
 #include <vector>
+
+#include "low_precision_transformations/common/ie_lpt_exception.hpp"
+#include "low_precision_transformations/network_helper.hpp"
 
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
@@ -94,25 +96,28 @@ bool WeightableLayerTransformation::isQuantized(const CNNLayer& layer) const noe
         return false;
     }
 
-    const Blob::Ptr weightsBlob = CNNNetworkHelper::getWeights(layer, roundQuantizedValues);
-    if ((weightsBlob == nullptr) || (!CNNNetworkHelper::isBlobPrecisionSupported(weightsBlob->getTensorDesc().getPrecision()))) {
-        return false;
-    }
-
-    const Blob::Ptr biasesBlob = CNNNetworkHelper::getBiases(layer);
-    if ((biasesBlob != nullptr) && (!CNNNetworkHelper::isBlobPrecisionSupported(biasesBlob->getTensorDesc().getPrecision()))) {
-        return false;
-    }
-
-    const CNNLayerPtr parentOnWeights = CNNNetworkHelper::getParent(layer, 1);
-    if (parentOnWeights == nullptr) {
-        return false;
-    }
-
-    if (parentOnWeights->type != "FakeQuantize") {
-        const Precision precision = parentOnWeights->outData[0]->getPrecision();
-        if ((precision != Precision::I8) && (precision != Precision::U8)) {
+    if (CNNNetworkHelper::isQuantizedConstWeights(layer)) {
+        const Blob::Ptr weightsBlob = CNNNetworkHelper::getWeights(layer, roundQuantizedValues);
+        if ((weightsBlob == nullptr) || (!CNNNetworkHelper::isBlobPrecisionSupported(weightsBlob->getTensorDesc().getPrecision()))) {
             return false;
+        }
+
+
+        const Blob::Ptr biasesBlob = CNNNetworkHelper::getBiases(layer);
+        if ((biasesBlob != nullptr) && (!CNNNetworkHelper::isBlobPrecisionSupported(biasesBlob->getTensorDesc().getPrecision()))) {
+            return false;
+        }
+
+        const CNNLayerPtr parentOnWeights = CNNNetworkHelper::getParent(layer, 1);
+        if (parentOnWeights == nullptr) {
+            return false;
+        }
+
+        if (parentOnWeights->type != "FakeQuantize") {
+            const Precision precision = parentOnWeights->outData[0]->getPrecision();
+            if ((precision != Precision::I8) && (precision != Precision::U8)) {
+                return false;
+            }
         }
     }
 
@@ -123,52 +128,126 @@ bool WeightableLayerTransformation::isPrecisionPreserved(const CNNLayer& layer) 
     return false;
 }
 
+bool WeightableLayerTransformation::getDequantizationDimIsSupported(const CNNLayer& fullyConnected) {
+    const DataPtr inputData = fullyConnected.insData[0].lock();
+    if (inputData == nullptr) {
+        THROW_IE_LPT_EXCEPTION(fullyConnected) << "input data is absent";
+    }
+
+    return inputData->getDims().size() != 3ul;
+}
+
 void WeightableLayerTransformation::updateLayerBiases(
     TransformationContext& context,
-    const CNNLayer& convolution,
+    const CNNLayer& weightableLayer,
+    const bool biasesDimsAsOutput,
     std::vector<float>& dequantizationScales,
     std::vector<float>& dequantizationShifts,
     std::vector<float>& biasesShifts) const {
-    if (!std::all_of(dequantizationShifts.begin(), dequantizationShifts.end(), [](float value) { return value == 0.0; })) {
+    const bool dequantizationShiftsAreZero = std::all_of(
+        dequantizationShifts.begin(),
+        dequantizationShifts.end(),
+        [](float value) { return value == 0.0; });
+
+    const bool dequantizationDimIsNotSupported = !getDequantizationDimIsSupported(weightableLayer);
+    CNNLayerPtr biasesLayer = CNNNetworkHelper::getParent(weightableLayer, 2);
+
+    // we need to correct biases if dequantization shifts values are not zero or
+    // dequantization dimention is not supported (as result dequantization shifts can not be calculated)
+    if ((dequantizationDimIsNotSupported && (biasesLayer != nullptr)) || (!dequantizationShiftsAreZero)) {
+        const DataPtr insData = weightableLayer.insData[0].lock();
+        if (insData == nullptr) {
+            THROW_IE_LPT_EXCEPTION(weightableLayer) << "input data is absent";
+        }
+        const std::vector<size_t> insDataDims = insData->getTensorDesc().getDims();
+
         std::shared_ptr<float> biasesBufferPtr;
         Blob::Ptr biasesBlob;
-        CNNLayerPtr biasesLayer = CNNNetworkHelper::getParent(convolution, 2);
         if (biasesLayer == nullptr) {
-            const std::vector<size_t> dims = CaselessEq<std::string>()(convolution.type, "Convolution") ?
-                std::vector<size_t>({ dequantizationShifts.size() }) :
-                std::vector<size_t>({ 1ul, dequantizationShifts.size() });
-            const Layout layout = CaselessEq<std::string>()(convolution.type, "Convolution") ? Layout::C : Layout::NC;
+            if (weightableLayer.outData.size() != 1ul) {
+                THROW_IE_LPT_EXCEPTION(weightableLayer) << "unexpected output data count " << weightableLayer.outData.size();
+            }
+            const DataPtr outData = weightableLayer.outData[0];
+            const std::vector<size_t> biasesDims = biasesDimsAsOutput ?
+                outData->getDims() :
+                std::vector<size_t>({ insDataDims.size() == 3ul ? insDataDims[2] : dequantizationShifts.size() });
+            const Layout biasesLayout = InferenceEngine::TensorDesc::getLayoutByDims(biasesDims);
 
-            biasesBlob = CNNNetworkHelper::makeNewBlobPtr(TensorDesc(Precision::FP32, dims, layout));
+            biasesBlob = CNNNetworkHelper::makeNewBlobPtr(TensorDesc(Precision::FP32, biasesDims, biasesLayout));
             biasesBlob->allocate();
 
             biasesBufferPtr = CNNNetworkHelper::getFloatData(biasesBlob);
             float* biasesBuffer = biasesBufferPtr.get();
             std::fill(biasesBuffer, biasesBuffer + biasesBlob->size(), 0.f);
 
-            LayerParams constLayerParams{ convolution.name + "_Biases", "Const", convolution.outData[0]->getTensorDesc().getPrecision() };
+            LayerParams biasesLayerParams{ weightableLayer.name + "_Biases", "Const", outData->getTensorDesc().getPrecision() };
             biasesLayer = CNNNetworkHelper::addLayer(
                 context,
                 nullptr,
-                std::make_shared<CNNLayer>(convolution),
-                std::make_shared<CNNLayer>(constLayerParams));
+                std::make_shared<CNNLayer>(weightableLayer),
+                std::make_shared<CNNLayer>(biasesLayerParams));
             biasesLayer->blobs["custom"] = biasesBlob;
-            biasesLayer->outData[0]->reshape(dims, layout);
+            biasesLayer->outData[0]->reshape(biasesDims, biasesLayout);
         } else {
             biasesBlob = CNNNetworkHelper::getBlob(biasesLayer, "custom");
-            if (biasesBlob->size() != dequantizationShifts.size()) {
-                THROW_IE_EXCEPTION << "dequantization shifts size " << dequantizationShifts.size() << " is not equal biases blob size " << biasesBlob->size();
+            DataPtr insData = weightableLayer.insData[0].lock();
+            if (insData == nullptr) {
+                THROW_IE_LPT_EXCEPTION(weightableLayer) << "input data is absent";
+            }
+
+            if ((insData->getDims().size() != 3) && (biasesBlob->size() != dequantizationShifts.size())) {
+                THROW_IE_LPT_EXCEPTION(weightableLayer) <<
+                    "dequantization shifts size " << dequantizationShifts.size() <<
+                    " is not equal biases blob size " << biasesBlob->size();
             }
             biasesBufferPtr = CNNNetworkHelper::getFloatData(biasesBlob);
         }
         const float* biasesBuffer = biasesBufferPtr.get();
         std::vector<float> biases(biasesBlob->size());
+        const bool broadcast = insDataDims.size() == 3ul;
         for (size_t channel = 0ul; channel < biases.size(); ++channel) {
-            biases[channel] = (biasesShifts[channel] + biasesBuffer[channel]) / dequantizationScales[channel];
-            dequantizationShifts[channel] = 0.0;
+            biases[channel] = broadcast ?
+                (biasesShifts[0] + biasesBuffer[channel]) / dequantizationScales[0] :
+                (biasesShifts[channel] + biasesBuffer[channel]) / dequantizationScales[channel];
         }
+        std::fill(dequantizationShifts.begin(), dequantizationShifts.end(), 0.f);
         CNNNetworkHelper::updateBlobs(*biasesLayer, "custom", biases);
     }
+}
+
+void WeightableLayerTransformation::updateLayerBiasesFcSpecific(
+    TransformationContext& context,
+    const CNNLayer& weightableLayer,
+    const bool biasesDimsAsOutput,
+    std::vector<float>& dequantizationScales,
+    std::vector<float>& dequantizationShifts,
+    std::vector<float>& biasesShifts) const {
+    CNNLayerPtr biasesLayer = CNNNetworkHelper::getParent(weightableLayer, 2);
+    if (biasesLayer == nullptr) {
+        return;
+    }
+
+    Blob::Ptr biasesBlob = CNNNetworkHelper::getBlob(biasesLayer, "custom");
+    DataPtr insData = weightableLayer.insData[0].lock();
+    if (insData == nullptr) {
+        THROW_IE_LPT_EXCEPTION(weightableLayer) << "input data is absent";
+    }
+
+    if ((insData->getDims().size() != 3) && (biasesBlob->size() != dequantizationShifts.size())) {
+        THROW_IE_LPT_EXCEPTION(weightableLayer) <<
+            "dequantization shifts size " << dequantizationShifts.size() <<
+            " is not equal biases blob size " << biasesBlob->size();
+    }
+    std::shared_ptr<float> biasesBufferPtr = CNNNetworkHelper::getFloatData(biasesBlob);
+
+    const float* biasesBuffer = biasesBufferPtr.get();
+    std::vector<float> biases(biasesBlob->size());
+    for (size_t i = 0ul; i < biases.size(); ++i) {
+        biases[i] = biasesBuffer[i] / dequantizationScales[0];
+    }
+    std::fill(dequantizationShifts.begin(), dequantizationShifts.end(), 0.f);
+
+    CNNNetworkHelper::updateBlobs(*biasesLayer, "custom", biases);
 }
 
 void WeightableLayerTransformation::updateWeights(const CNNLayerPtr parent, std::vector<float>& outputLowValues,
@@ -265,7 +344,8 @@ void WeightableLayerTransformation::updateToSupportAsymmetricQuantization(
             weightsPrecisionsInfo.low);
         if (!std::all_of(weightsConvertedInBlob.get(), weightsConvertedInBlob.get() + weightsShifts.size(), [](float value) { return value == 0.0; })) {
             const CNNLayerPtr parentOnWeights = CNNNetworkHelper::getParent(layer, 1ul);
-            createAsymmetric(context, *parentOnWeights, layer, weightsPrecisionsInfo, weightsShifts, true);
+            const bool onWeights = CNNNetworkHelper::isQuantizedConstWeights(layer);
+            createAsymmetric(context, *parentOnWeights, layer, weightsPrecisionsInfo, weightsShifts, onWeights);
         }
     }
 }
@@ -287,10 +367,9 @@ void WeightableLayerTransformation::createAsymmetric(TransformationContext& cont
         THROW_IE_EXCEPTION << "insert data is absent for layer " << child.name;
     }
 
-    if (insData->getTensorDesc().getLayout() != Layout::NC &&
-        insData->getTensorDesc().getLayout() != Layout::NCHW &&
-        insData->getTensorDesc().getLayout() != Layout::NCDHW) {
-        THROW_IE_EXCEPTION << "unexpected layout '" << insData->getTensorDesc().getLayout() << "' layer " << child.name;
+    const size_t dimsSize = insData->getDims().size();
+    if ((dimsSize != 2ul) && (dimsSize != 3ul) && (dimsSize != 4ul) && (dimsSize != 5ul)) {
+        THROW_IE_EXCEPTION << "unexpected dimensions size " << dimsSize << " layer " << child.type << " " << child.name;
     }
 
     LayerParams eltwiseLayerParams {child.name + "_Sub_" + parent.name, "Eltwise", precisionsInfo.original};
@@ -312,15 +391,15 @@ void WeightableLayerTransformation::createAsymmetric(TransformationContext& cont
     }
 
     const TensorDesc constTensorDesc = constLayer->outData[0]->getTensorDesc();
-    if (constTensorDesc.getLayout() != insData->getTensorDesc().getLayout()) {
+    if ((dimsSize != 3) && (constTensorDesc.getLayout() != insData->getTensorDesc().getLayout())) {
         THROW_IE_EXCEPTION << "unexpected Const layer layout " << constTensorDesc.getLayout();
     }
     const SizeVector& constDims = constTensorDesc.getDims();
-    if (constDims.size() != insData->getTensorDesc().getDims().size()) {
+    if ((dimsSize != 3) && (constDims.size() != insData->getTensorDesc().getDims().size())) {
         THROW_IE_EXCEPTION << "unexpected dimension size " << constDims.size();
     }
 
-    SizeVector dims(insData->getTensorDesc().getDims().size(), 1);
+    SizeVector dims(constLayer->outData[0]->getTensorDesc().getDims().size(), 1);
     if (onWeights) {
         dims[0] = constDims[0];
     } else {
@@ -336,7 +415,9 @@ DataPrecision WeightableLayerTransformation::fillDequantizationsForWeightsPath(
     const bool supportAsymmetricQuantization,
     std::vector<float>& dequantizationScales,
     std::vector<float>& dequantizationShifts) const {
-    if ((weightableLayer.type != "Convolution") && (weightableLayer.type != "FullyConnected") && (weightableLayer.type != "GEMM")) {
+    if ((!CaselessEq<std::string>()(weightableLayer.type, "Convolution")) &&
+        (!CaselessEq<std::string>()(weightableLayer.type, "FullyConnected")) &&
+        (!CaselessEq<std::string>()(weightableLayer.type, "Gemm"))) {
         THROW_IE_EXCEPTION << "layer '" << weightableLayer.name << "' has unexpected type '" << weightableLayer.type << "'";
     }
 

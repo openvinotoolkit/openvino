@@ -36,12 +36,12 @@ def graph_template(weights_initial_shape, new_reshape_shape, limits_initial_shap
     ]
 
     core_nodes = lambda weights_shape, limit_shape, reshape_shape: {
-        **regular_op_with_shaped_data('input', None, {'type': 'Parameter'}),
+        **regular_op_with_shaped_data('input', None, {'type': 'Parameter', 'op': 'Parameter'}),
 
         **valued_const_with_data('weights', np.ones(weights_shape)),
 
         **const_with_data('dim', int64_array(reshape_shape)),
-        **regular_op_with_shaped_data('reshape', reshape_shape, {'type': 'Reshape', 'infer': Reshape.infer}),
+        **regular_op_with_shaped_data('reshape', reshape_shape, {'type': 'Reshape', 'infer': Reshape.infer, 'op': 'Reshape'}),
 
         **valued_const_with_data('il', np.ones(limit_shape)),
         **valued_const_with_data('ih', np.ones(limit_shape)),
@@ -49,9 +49,9 @@ def graph_template(weights_initial_shape, new_reshape_shape, limits_initial_shap
         **valued_const_with_data('oh', np.ones(limit_shape)),
 
         **regular_op_with_shaped_data('FQ', weights_shape, {'type': 'FakeQuantize', 'infer': FakeQuantize.infer,
-                                                            'stop_value_propagation': True, 'levels': 2}),
+                                                            'stop_value_propagation': True, 'levels': 2, 'op': 'FakeQuantize'}),
 
-        **regular_op_with_shaped_data('convolution', None, {'type': 'Convolution'}),
+        **regular_op_with_shaped_data('convolution', None, {'type': 'Convolution', 'op': 'Convolution'}),
 
         **result(),
     }

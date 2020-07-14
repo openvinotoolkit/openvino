@@ -10,6 +10,7 @@
 #include <vector>
 #include <unordered_set>
 
+#include "ie_layers.h"
 #include "cnn_network_impl.hpp"
 
 #include "low_precision_transformations/common/dequantization_details.hpp"
@@ -60,6 +61,8 @@ public:
     // return true if at least one child uses layer on weights
     static bool onWeights(const CNNLayer& layer);
 
+    static bool onConstWeightsPath(const CNNLayer& quantize);
+
     static size_t getIndex(const CNNLayer& layer);
 
     static std::vector<CNNLayerPtr> transformFakeQuantizeToConst(
@@ -89,7 +92,7 @@ public:
 
     static Blob::Ptr getBlob(CNNLayerPtr layer, const std::string& blobName);
 
-    static Blob::Ptr getBlob(CNNLayer* layer, const std::string& blobName);
+    static Blob::Ptr getBlob(const CNNLayer* layer, const std::string& blobName);
 
     static std::shared_ptr<float> getFloatData(const CNNLayerPtr& layer, const std::string& blobName);
 
@@ -191,6 +194,8 @@ public:
         const bool roundValues,
         const Precision precision = Precision::UNSPECIFIED);
 
+    static bool isQuantizedConstWeights(const CNNLayer& quantize);
+
     static int getConstParentBranchID(const CNNLayer& layer);
 
     static Precision getPrecisionParent(const CNNLayer& layer);
@@ -218,7 +223,7 @@ private:
         }
 
         IE_SUPPRESS_DEPRECATED_START
-        const CNNLayerPtr blobLayer = data->getCreatorLayer().lock();
+        const CNNLayerPtr blobLayer = getCreatorLayer(data).lock();
         if (blobLayer == nullptr) {
             THROW_IE_EXCEPTION << "parent layer is absent for " << quantize.type << " layer " << quantize.name;
         }
@@ -226,7 +231,7 @@ private:
 
         checkConstWithBlobs(blobLayer);
 
-        return blobLayer->blobs.begin()->second;;
+        return blobLayer->blobs.begin()->second;
     }
 
     static void quantizeBlob(const CNNLayer& quantize, Blob::Ptr& targetBlob, bool roundValues);

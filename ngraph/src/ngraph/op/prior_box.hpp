@@ -76,6 +76,8 @@ namespace ngraph
                     normalized_aspect_ratio(const std::vector<float>& aspect_ratio, bool flip);
                 const PriorBoxAttrs& get_attrs() const { return m_attrs; }
                 virtual bool visit_attributes(AttributeVisitor& visitor) override;
+                bool evaluate(const HostTensorVector& outputs,
+                              const HostTensorVector& inputs) override;
 
             private:
                 PriorBoxAttrs m_attrs;
@@ -83,4 +85,17 @@ namespace ngraph
         }
         using v0::PriorBox;
     }
+
+    template <>
+    class NGRAPH_API AttributeAdapter<op::PriorBoxAttrs> : public VisitorAdapter
+    {
+    public:
+        AttributeAdapter(op::PriorBoxAttrs& ref);
+
+        virtual bool visit_attributes(AttributeVisitor& visitor) override;
+        static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::PriorBoxAttrs>", 0};
+        const DiscreteTypeInfo& get_type_info() const override { return type_info; }
+    protected:
+        op::PriorBoxAttrs& m_ref;
+    };
 }

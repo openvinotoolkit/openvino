@@ -43,6 +43,7 @@
 #include <nodes/mkldnn_resample_node.h>
 #include <nodes/mkldnn_normalize_node.h>
 #include <nodes/mkldnn_tensoriterator_node.h>
+#include <nodes/mkldnn_scatter_update_node.h>
 #include <mkldnn_types.h>
 #include "mkldnn_extension_utils.h"
 
@@ -115,6 +116,9 @@ static const InferenceEngine::details::caseless_unordered_map<std::string, Type>
         { "MVN", MVN},
         { "Resample", Resample},
         { "Normalize", Normalize},
+        { "ScatterUpdate", ScatterUpdate},
+        { "ScatterElementsUpdate", ScatterElementsUpdate},
+        { "ScatterNDUpdate", ScatterNDUpdate},
 };
 
 Type TypeFromName(const std::string type) {
@@ -573,7 +577,7 @@ void MKLDNNNode::filterSupportedPrimitiveDescriptors() {
                     isSuitableDesc = false;
             }
             if (!isSuitableDesc) {
-                supportedPrimitiveDescriptors.erase(itpd);
+                itpd = supportedPrimitiveDescriptors.erase(itpd);
             } else {
                 itpd++;
             }

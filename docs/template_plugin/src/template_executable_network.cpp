@@ -17,14 +17,13 @@
 #include <threading/ie_executor_manager.hpp>
 #include <details/ie_cnn_network_tools.h>
 
-#include <ngraph/specialize_function.hpp>
-#include <ngraph/pass/manager.hpp>
-#include <ngraph/pass/constant_folding.hpp>
+#include <ngraph/ngraph.hpp>
 
-#include <transformations/convert_divide.hpp>
+#include <transformations/common_optimizations/common_optimizations.hpp>
 
 #include "template_plugin.hpp"
 #include "template_executable_network.hpp"
+#include "template_pattern_transformation.hpp"
 
 using namespace TemplatePlugin;
 
@@ -83,12 +82,12 @@ void TemplatePlugin::ExecutableNetwork::CompileGraph(const std::shared_ptr<const
     auto copyFunction = ngraph::specialize_function(std::const_pointer_cast<ngraph::Function>(ngraphFunction),
         new_types, new_shapes, std::vector<void *>(new_types.size(), nullptr), constFolding, shareConsts);
 
-    // 2. Perform common and device-specific transformations
+    // 2. Perform common optimizations and device-specific transformations
     ngraph::pass::Manager passManager;
-    // Example: register standard ngraph transformation from ngraph::ngraph
-    passManager.register_pass<ngraph::pass::ConstantFolding>();
-    // Example: register inference engine optimization transformation for IE::inference_engine_transformations
-    passManager.register_pass<ngraph::pass::ConvertDivide>();
+    // Example: register CommonOptimizations transformation from transformations library
+    passManager.register_pass<ngraph::pass::CommonOptimizations>();
+    // Example: register plugin specific transformation
+    passManager.register_pass<ngraph::pass::MyPatternBasedTransformation>();
     // Register any other transformations
     // ..
 

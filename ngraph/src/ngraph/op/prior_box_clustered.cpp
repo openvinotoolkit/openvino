@@ -15,8 +15,10 @@
 //*****************************************************************************
 
 #include "ngraph/op/prior_box_clustered.hpp"
-
 #include "ngraph/op/constant.hpp"
+
+#include "ngraph/runtime/host_tensor.hpp"
+#include "ngraph/runtime/reference/prior_box_clustered.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -92,12 +94,77 @@ shared_ptr<Node> op::PriorBoxClustered::clone_with_new_inputs(const OutputVector
 
 bool op::PriorBoxClustered::visit_attributes(AttributeVisitor& visitor)
 {
-    visitor.on_attribute("attrs.widths", m_attrs.widths);
-    visitor.on_attribute("attrs.heights", m_attrs.heights);
-    visitor.on_attribute("attrs.clip", m_attrs.clip);
-    visitor.on_attribute("attrs.step_widths", m_attrs.step_widths);
-    visitor.on_attribute("attrs.step_heights", m_attrs.step_heights);
-    visitor.on_attribute("attrs.offset", m_attrs.offset);
-    visitor.on_attribute("attrs.variances", m_attrs.variances);
+    visitor.on_attribute("attrs", m_attrs);
     return true;
+}
+
+constexpr DiscreteTypeInfo AttributeAdapter<op::PriorBoxClusteredAttrs>::type_info;
+
+AttributeAdapter<op::PriorBoxClusteredAttrs>::AttributeAdapter(op::PriorBoxClusteredAttrs& ref)
+    : m_ref(ref)
+{
+}
+
+bool AttributeAdapter<op::PriorBoxClusteredAttrs>::visit_attributes(AttributeVisitor& visitor)
+{
+    visitor.on_attribute("widths", m_ref.widths);
+    visitor.on_attribute("heights", m_ref.heights);
+    visitor.on_attribute("clip", m_ref.clip);
+    visitor.on_attribute("step_widths", m_ref.step_widths);
+    visitor.on_attribute("step_heights", m_ref.step_heights);
+    visitor.on_attribute("offset", m_ref.offset);
+    visitor.on_attribute("variances", m_ref.variances);
+    return true;
+}
+
+namespace
+{
+    template <element::Type_t ET>
+    bool evaluate(const HostTensorPtr& arg0,
+                  const HostTensorPtr& arg1,
+                  const HostTensorPtr& out,
+                  op::PriorBoxClusteredAttrs attrs)
+    {
+        runtime::reference::prior_box_clustered(arg0->get_data_ptr<ET>(),
+                                                arg1->get_data_ptr<ET>(),
+                                                out->get_data_ptr<float>(),
+                                                out->get_shape(),
+                                                attrs);
+        return true;
+    }
+
+    bool evaluate_prior_box(const HostTensorPtr& arg0,
+                            const HostTensorPtr& arg1,
+                            const HostTensorPtr& out,
+                            const op::PriorBoxClusteredAttrs& attrs)
+    {
+        bool rc = true;
+        switch (arg0->get_element_type())
+        {
+            TYPE_CASE(i8)(arg0, arg1, out, attrs);
+            break;
+            TYPE_CASE(i16)(arg0, arg1, out, attrs);
+            break;
+            TYPE_CASE(i32)(arg0, arg1, out, attrs);
+            break;
+            TYPE_CASE(i64)(arg0, arg1, out, attrs);
+            break;
+            TYPE_CASE(u8)(arg0, arg1, out, attrs);
+            break;
+            TYPE_CASE(u16)(arg0, arg1, out, attrs);
+            break;
+            TYPE_CASE(u32)(arg0, arg1, out, attrs);
+            break;
+            TYPE_CASE(u64)(arg0, arg1, out, attrs);
+            break;
+        default: rc = false; break;
+        }
+        return rc;
+    }
+}
+
+bool op::v0::PriorBoxClustered::evaluate(const HostTensorVector& outputs,
+                                         const HostTensorVector& inputs)
+{
+    return evaluate_prior_box(inputs[0], inputs[1], outputs[0], get_attrs());
 }

@@ -32,33 +32,59 @@
 namespace LayerTestsDefinitions {
 
 static std::map<ngraph::helpers::ActivationTypes, std::string> activationNames = {
-        {ngraph::helpers::ActivationTypes::Sigmoid,   "Sigmoid"},
-        {ngraph::helpers::ActivationTypes::Tanh,      "Tanh"},
-        {ngraph::helpers::ActivationTypes::Relu,      "Relu"},
-        {ngraph::helpers::ActivationTypes::LeakyRelu, "LeakyRelu"},
-        {ngraph::helpers::ActivationTypes::Exp,       "Exp"},
-        {ngraph::helpers::ActivationTypes::Log,       "Log"},
-        {ngraph::helpers::ActivationTypes::Sign,      "Sign"},
-        {ngraph::helpers::ActivationTypes::Abs,       "Abs"},
-        {ngraph::helpers::ActivationTypes::Gelu,      "Gelu"}
+        {ngraph::helpers::ActivationTypes::Sigmoid,     "Sigmoid"},
+        {ngraph::helpers::ActivationTypes::Tanh,        "Tanh"},
+        {ngraph::helpers::ActivationTypes::Relu,        "Relu"},
+        {ngraph::helpers::ActivationTypes::LeakyRelu,   "LeakyRelu"},
+        {ngraph::helpers::ActivationTypes::Exp,         "Exp"},
+        {ngraph::helpers::ActivationTypes::Log,         "Log"},
+        {ngraph::helpers::ActivationTypes::Sign,        "Sign"},
+        {ngraph::helpers::ActivationTypes::Abs,         "Abs"},
+        {ngraph::helpers::ActivationTypes::Gelu,        "Gelu"},
+        {ngraph::helpers::ActivationTypes::Clamp,       "Clamp"},
+        {ngraph::helpers::ActivationTypes::Negative,    "Negative"},
+        {ngraph::helpers::ActivationTypes::Acos,        "Acos"},
+        {ngraph::helpers::ActivationTypes::Asin,        "Asin"},
+        {ngraph::helpers::ActivationTypes::Atan,        "Atan"},
+        {ngraph::helpers::ActivationTypes::Cos,         "Cos"},
+        {ngraph::helpers::ActivationTypes::Cosh,        "Cosh"},
+        {ngraph::helpers::ActivationTypes::Floor,       "Floor"},
+        {ngraph::helpers::ActivationTypes::Sin,         "Sin"},
+        {ngraph::helpers::ActivationTypes::Sinh,        "Sinh"},
+        {ngraph::helpers::ActivationTypes::Sqrt,        "Sqrt"},
+        {ngraph::helpers::ActivationTypes::Tan,         "Tan"},
+        {ngraph::helpers::ActivationTypes::Elu,         "Elu"},
+        {ngraph::helpers::ActivationTypes::Erf,         "Erf"},
+        {ngraph::helpers::ActivationTypes::HardSigmoid, "HardSigmoid"},
+        {ngraph::helpers::ActivationTypes::Selu,        "Selu"},
+        {ngraph::helpers::ActivationTypes::Sigmoid,     "Sigmoid"},
+        {ngraph::helpers::ActivationTypes::Tanh,        "Tanh"},
+        {ngraph::helpers::ActivationTypes::Relu,        "Relu"},
+        {ngraph::helpers::ActivationTypes::LeakyRelu,   "LeakyRelu"},
+        {ngraph::helpers::ActivationTypes::Exp,         "Exp"},
+        {ngraph::helpers::ActivationTypes::Log,         "Log"},
+        {ngraph::helpers::ActivationTypes::Sign,        "Sign"},
+        {ngraph::helpers::ActivationTypes::Abs,         "Abs"},
+        {ngraph::helpers::ActivationTypes::Gelu,        "Gelu"},
+        {ngraph::helpers::ActivationTypes::Ceiling,     "Ceiling"}
 };
 
 typedef std::tuple<
         ngraph::helpers::ActivationTypes,
         InferenceEngine::Precision,
-        InferenceEngine::Precision,
         InferenceEngine::SizeVector,
         std::string> activationParams;
 
-class ActivationLayerTest
-        : public LayerTestsUtils::LayerTestsCommonDeprecated<activationParams> {
+class ActivationLayerTest : public testing::WithParamInterface<activationParams>,
+                            public LayerTestsUtils::LayerTestsCommon {
 public:
-    static std::string getTestCaseName(const testing::TestParamInfo<activationParams> &obj);
-
-protected:
-    InferenceEngine::SizeVector inputShapes;
     ngraph::helpers::ActivationTypes activationType;
 
+    static std::string getTestCaseName(const testing::TestParamInfo<activationParams> &obj);
+
+    virtual InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &info) const;
+
+protected:
     void SetUp();
 };
 

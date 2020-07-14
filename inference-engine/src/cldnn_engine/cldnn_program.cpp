@@ -30,7 +30,6 @@
 #include <api/detection_output.hpp>
 #include <api/normalize.hpp>
 #include <api/reshape.hpp>
-#include <api/batch_norm.hpp>
 #include <api/permute.hpp>
 #include <api/split.hpp>
 #include <api/resample.hpp>
@@ -48,6 +47,8 @@
 #include <api/gather.hpp>
 #include <api/depth_to_space.hpp>
 #include <api/space_to_depth.hpp>
+#include <api/batch_to_space.hpp>
+#include <api/space_to_batch.hpp>
 #include <api/shuffle_channels.hpp>
 #include <api/strided_slice.hpp>
 #include <api/reverse_sequence.hpp>
@@ -63,6 +64,8 @@
 #include <api/grn.hpp>
 #include <api/ctc_greedy_decoder.hpp>
 #include <api/cum_sum.hpp>
+#include <api/embedding_bag.hpp>
+#include <api/extract_image_patches.hpp>
 
 #include <chrono>
 #include <cmath>
@@ -82,7 +85,6 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <exec_graph_info.hpp>
-#include "cnn_network_int8_normalizer.hpp"
 
 #include "low_precision_transformations/transformer.hpp"
 #include "low_precision_transformations/eltwise.hpp"
@@ -178,7 +180,7 @@ bool Program::CanProcessDynBatch(InferenceEngine::ICNNNetwork &network) const {
     if (inputs.empty())
         return false;
 
-    auto & secondLayers = inputs.begin()->second->getInputData()->getInputTo();
+    auto & secondLayers = getInputTo(inputs.begin()->second->getInputData());
     if (secondLayers.empty())
         return false;
 
@@ -341,7 +343,7 @@ std::vector<InferenceEngine::CNNLayerPtr> Program::GetNextLayers(const Inference
     if (data == nullptr) {
         return nextLayers;
     }
-    for (auto nl : data->getInputTo()) {
+    for (auto nl : getInputTo(data)) {
         nextLayers.push_back(nl.second);
     }
     return nextLayers;
@@ -462,6 +464,7 @@ std::shared_ptr<cldnn::program> Program::BuildProgram(InferenceEngine::ICNNNetwo
         infLoopProtection = 0;  // found a layer with all inputs already existing
         CreateSingleLayerPrimitive(topology, currLayer);  // currLayer will be advanced if layer was skipped or merged
         prevPrimitiveIDs[layerName] = GetPrevLayersPrimitives(currLayer);
+        IRToNgraphLayersMap[currLayer->name] = currLayer->params["originalLayersNames"];
 
         push_if(GetNextLayers(currLayer));
     }
@@ -537,6 +540,8 @@ Program::LayerType Program::LayerTypeFromStr(const std::string &str) {
         { "Gather" , Gather },
         { "DepthToSpace" , DepthToSpace },
         { "SpaceToDepth" , SpaceToDepth },
+        { "BatchToSpace", BatchToSpace },
+        { "SpaceToBatch" , SpaceToBatch },
         { "ShuffleChannels" , ShuffleChannels },
         { "StridedSlice" , StridedSlice },
         { "ReverseSequence" , ReverseSequence },
@@ -570,10 +575,12 @@ Program::LayerType Program::LayerTypeFromStr(const std::string &str) {
         { "Sinh" , Sinh },
         { "Cosh" , Cosh },
         { "Swish" , Swish },
+        { "Mish" , Mish },
         { "Gelu" , Gelu },
         { "Atanh" , Atanh },
         { "Floor" , Floor },
         { "Ceil" , Ceil },
+        { "Ceiling" , Ceiling },
         { "Erf" , Erf },
         { "HardSigmoid" , HardSigmoid },
         { "Log" , Log },
@@ -597,6 +604,10 @@ Program::LayerType Program::LayerTypeFromStr(const std::string &str) {
         { "CTCGreedyDecoder", CTCGreedyDecoder },
         { "PriorBoxClustered", PriorBoxClustered },
         { "CumSum", CumSum },
+        { "EmbeddingBagPackedSum", EmbeddingBagPackedSum },
+        { "EmbeddingBagOffsetsSum", EmbeddingBagOffsetsSum },
+        { "EmbeddingSegmentsSum", EmbeddingSegmentsSum },
+        { "ExtractImagePatches" , ExtractImagePatches },
     };
     auto it = LayerNameToType.find(str);
     if (it != LayerNameToType.end())
@@ -904,7 +915,7 @@ void Program::CreateWeightAndBiasPrimitives(cldnn::topology& topology,
     }
 
     if (pWeightsBlob == nullptr) {
-        auto wei_name = layer_type_name_ID(layer->insData[inputs_count].lock()->getCreatorLayer().lock());
+        auto wei_name = layer_type_name_ID(getCreatorLayer(layer->insData[inputs_count].lock()).lock());
         if (primitiveIDs.find(wei_name) != primitiveIDs.end()) {
             weightsPrimID.push_back(primitiveIDs.at(wei_name));
         } else {
@@ -938,7 +949,7 @@ void Program::CreateWeightAndBiasPrimitives(cldnn::topology& topology,
                                          biasesLayout);
         biasesPrimID.push_back(biasID);
     } else if (layer->insData.size() == inputs_count + 2) {
-        auto bias_name = layer_type_name_ID(layer->insData[inputs_count + 1].lock()->getCreatorLayer().lock());
+        auto bias_name = layer_type_name_ID(getCreatorLayer(layer->insData[inputs_count + 1].lock()).lock());
         if (primitiveIDs.find(bias_name) != primitiveIDs.end()) {
             biasesPrimID.push_back(primitiveIDs.at(bias_name));
         } else {
@@ -991,7 +1002,7 @@ void Program::CreateBinaryWeightAndBiasPrimitives(cldnn::topology& topology,
 
     // create weights primitive
     if (pWeightsBlob == nullptr) {
-        auto wei_name = layer_type_name_ID(layer->insData[1].lock()->getCreatorLayer().lock());
+        auto wei_name = layer_type_name_ID(getCreatorLayer(layer->insData[1].lock()).lock());
         weightsPrimID.push_back(wei_name);
     } else {
         cldnn::layout weightsLayout = cldnn::layout(
@@ -1140,6 +1151,7 @@ void Program::CreateSingleLayerPrimitive(cldnn::topology& topology, InferenceEng
         case Atanh:
         case Floor:
         case Ceil:
+        case Ceiling:
         case Erf:
         case HardSigmoid:
         case Log:
@@ -1150,6 +1162,7 @@ void Program::CreateSingleLayerPrimitive(cldnn::topology& topology, InferenceEng
         case SoftPlus:
         case SoftSign:
         case Swish:
+        case Mish:
         case Gelu:
             CreateActivationPrimitive(topology, layer, LayerTypeFromStr(layer->type));
             break;
@@ -1235,6 +1248,10 @@ void Program::CreateSingleLayerPrimitive(cldnn::topology& topology, InferenceEng
             break;
         case SpaceToDepth: CreateSpaceToDepthPrimitive(topology, layer);
             break;
+        case BatchToSpace: CreateBatchToSpacePrimitive(topology, layer);
+            break;
+        case SpaceToBatch: CreateSpaceToBatchPrimitive(topology, layer);
+            break;
         case ShuffleChannels: CreateShuffleChannelsPrimitive(topology, layer);
             break;
         case StridedSlice: CreateStridedSlicePrimitive(topology, layer);
@@ -1278,6 +1295,14 @@ void Program::CreateSingleLayerPrimitive(cldnn::topology& topology, InferenceEng
         case PriorBoxClustered: CreatePriorBoxClusteredPrimitive(topology, layer);
             break;
         case CumSum: CreateCumSumPrimitive(topology, layer);
+            break;
+        case EmbeddingBagPackedSum: CreateEmbeddingBagPackedSumPrimitive(topology, layer);
+            break;
+        case EmbeddingBagOffsetsSum: CreateEmbeddingBagOffsetsSumPrimitive(topology, layer);
+            break;
+        case EmbeddingSegmentsSum: CreateEmbeddingSegmentsSumPrimitive(topology, layer);
+            break;
+        case ExtractImagePatches: CreateExtractImagePatchesPrimitive(topology, layer);
             break;
         default: THROW_CLDNN_EXCEPTION("Unknown Layer Type: " << layer->type);
     }
@@ -1366,8 +1391,13 @@ void Program::CreateProposalPrimitive(cldnn::topology& topology, InferenceEngine
     const bool for_deformable = layer->GetParamAsBool("for_deformable", 0);
 
     if (layer->outData.size() == 2) {
+        auto mutable_precision = layer->outData[1]->getPrecision();
+        if (mutable_precision == Precision::I64) {
+            mutable_precision = Precision::I32;
+        }
+
         cldnn::layout mutableLayout = cldnn::layout(
-                DataTypeFromPrecision(layer->outData[1]->getPrecision()),
+                DataTypeFromPrecision(mutable_precision),
                 m_defaultFormat,
                 CldnnTensorFromIEDims(layer->outData[1]->getDims()));
 
@@ -1506,49 +1536,11 @@ void Program::CreateBatchNormalizationPrimitive(cldnn::topology& topology, Infer
     cldnn::primitive_id weightID = bnLayerName + "_" + m_scalesTag;
     cldnn::primitive_id biasID = bnLayerName + "_" + m_biasesTag;
 
-#define _SCALE_BN_OPT
-#ifdef _SCALE_BN_OPT
-    // Using scale as an optimization (1 mad instead of mad+rsq)
-    // create new blobs for scale shift
     CreateScaleWeightsAndBiasesFromBN(topology, bnLayer, weightID, biasID);
     auto scalePrim = cldnn::scale(bnLayerName, inputPrimitives[0], weightID, biasID);
 
     topology.add(scalePrim);
-#else
-    cldnn::tensor blobTensor(0);
-    const auto bnDims = bnLayer->outData[0]->getTensorDesc().getDims();
-    switch (bnDims.size()) {
-    case 2:
-        blobTensor = cldnn::feature(TensorValue(bnDims[1]));
-        break;
-    case 4:
-        blobTensor = cldnn::feature(TensorValue(bnDims[1]));
-        break;
-    default:
-        THROW_CLDNN_EXCEPTION("Batch normalization input doesn't have 2 or 4 dimensions in " << bnLayer->name);
-    }
-    cldnn::layout blobLayout(
-        DataTypeFromPrecision(layer->precision),
-        m_defaultFormat,
-        blobTensor);
 
-    // Create variance primitive
-    cldnn::primitive_id varianceID = bnLayerName + "_" + m_weightsTag;
-    varianceID = CreatePrimitiveFromBlob(topology, varianceID, bnLayer->_weights, blobLayout);
-
-    // Create mean primitive
-    cldnn::primitive_id meanID = bnLayerName + "_" + m_biasesTag;
-    meanID = CreatePrimitiveFromBlob(topology, meanID, bnLayer->_biases, blobLayout);
-
-    auto bnPrim = cldnn::batch_norm(
-        bnLayerName,
-        inputPrimitives[0],
-        meanID,
-        varianceID,
-        bnLayer->epsilon);
-
-    topology.add(bnPrim);
-#endif  // _SCALE_BN_OPT
     AddPrimitiveToProfiler(bnLayerName, layer);
 }
 
@@ -2647,7 +2639,7 @@ void Program::CreatePoolingPrimitive(cldnn::topology& topology, InferenceEngine:
         int outputOrder = 0;
 
         for (auto out : poolLayer->outData) {
-            auto layersMap = out->getInputTo();
+            auto layersMap = getInputTo(out);
 
             for (auto item : layersMap) {
                 bool isUpooling = (LayerTypeFromStr(item.second->type) == Unpooling);
@@ -2734,6 +2726,8 @@ void Program::CreatePoolingPrimitive(cldnn::topology& topology, InferenceEngine:
             input_offset,
             CldnnTensorFromIEDims(poolLayer->outData[0]->getTensorDesc().getDims()),
             dt);
+        cldnn::tensor pad_end = { 0, 0, -TensorValue(poolLayer->_pads_end[X_AXIS]), -TensorValue(poolLayer->_pads_end[Y_AXIS]), 0 };
+        poolPrim.pad_end = pad_end;
         topology.add(poolPrim);
         primitiveIDs[poolLayerName] = poolLayerName;
     }
@@ -2777,6 +2771,8 @@ void Program::CreateActivationPrimitive(cldnn::topology& topology, InferenceEngi
             activationType = ELU;
         } else if (activation_type == "swish")  {
             activationType = Swish;
+        } else if (activation_type == "mish")  {
+            activationType = Mish;
         } else if (activation_type == "gelu")  {
             activationType = Gelu;
         } else if (activation_type == "relu")  {
@@ -2893,6 +2889,11 @@ void Program::CreateActivationPrimitive(cldnn::topology& topology, InferenceEngi
         func = cldnn::activation_func::ceil;
         break;
     }
+    case Ceiling:
+    {
+        func = cldnn::activation_func::ceil;
+        break;
+    }
     case Erf:
     {
         func = cldnn::activation_func::erf;
@@ -2965,6 +2966,11 @@ void Program::CreateActivationPrimitive(cldnn::topology& topology, InferenceEngi
     case Swish:
     {
         func = cldnn::activation_func::swish;
+        break;
+    }
+    case Mish:
+    {
+        func = cldnn::activation_func::mish;
         break;
     }
     case Gelu:
@@ -3182,7 +3188,7 @@ void Program::CreateTopKPrimitive(cldnn::topology& topology, InferenceEngine::CN
         stype = cldnn::arg_max_min::sort_type::sort_by_indices;
 
     auto topKInput = layer->insData[1].lock();
-    auto topKInputCreator = topKInput->getCreatorLayer().lock();
+    auto topKInputCreator = getCreatorLayer(topKInput).lock();
 
     std::vector<int32_t> topk;
     if (topKInputCreator->blobs.size() == 1) {
@@ -3200,6 +3206,10 @@ void Program::CreateTopKPrimitive(cldnn::topology& topology, InferenceEngine::CN
             auto data = constantBlob->buffer().as<int32_t*>();
             for (size_t i = 0; i < constantBlob->size(); ++i)
                 topk.push_back(data[i]);
+        } else if (axesPrecision == InferenceEngine::Precision::I64) {
+            auto data = constantBlob->buffer().as<int64_t*>();
+            for (size_t i = 0; i < constantBlob->size(); ++i)
+                topk.push_back(static_cast<int32_t>(data[i]));
         } else {
             THROW_IE_EXCEPTION << layer->name << " Incorrect TopK input Precision";
         }
@@ -3239,8 +3249,13 @@ void Program::CreateTopKPrimitive(cldnn::topology& topology, InferenceEngine::CN
     }
 
     if (layer->outData.size() == 2) {
+        auto mutable_precision = layer->outData[1]->getPrecision();
+        if (mutable_precision == Precision::I64) {
+            mutable_precision = Precision::I32;
+        }
+
         cldnn::layout mutableLayout = cldnn::layout(
-                DataTypeFromPrecision(layer->outData[1]->getPrecision()),
+                DataTypeFromPrecision(mutable_precision),
                 defaultFormatForDims(layer->outData[1]->getDims().size()),
                 CldnnTensorFromIEDims(layer->outData[1]->getDims()));
 
@@ -3311,7 +3326,7 @@ void Program::CreateMaxUnpoolingPrimitive(cldnn::topology& topology, InferenceEn
             THROW_CLDNN_EXCEPTION("MaxUnpooling: nonexistent input for layer: " << layer->name);
         }
 
-        auto prevCreator = prevData->getCreatorLayer().lock();
+        auto prevCreator = getCreatorLayer(prevData).lock();
 
         if (prevCreator &&
             (LayerTypeFromStr(prevCreator->type) == Pooling) &&
@@ -3505,10 +3520,29 @@ void Program::AddConstantBlobInput(cldnn::topology& topology, InferenceEngine::C
         return false;
     };
 
+    // WA to inconsistency between input and const 1d tensors
+    // For Concat along batch we go with batch interpretation
+    // For Gather input we go with batch interpretation
+    bool needsBatchInterpretation = false;
+    if (constDims.size() == 1) {
+        for (auto next : GetNextLayers(layer->outData[0])) {
+            if (LayerTypeFromStr(next->type) == Concatenate) {
+                auto nextConcat = as<InferenceEngine::ConcatLayer*>(next);
+                if (nextConcat->_axis == cldnn::concatenation::concatenation_axis::along_b) {
+                    needsBatchInterpretation = true;
+                    break;
+                }
+            } else if (LayerTypeFromStr(next->type) == Gather) {
+                needsBatchInterpretation = true;
+                break;
+            }
+        }
+    }
+
     // If quantize on weights has per-channel ranges, we have to swap channel and batch dimensions, because
     // quantization should be applied per output channel of weights
     // TODO: Check if it's still needed once LowPrecisionTransformations ready
-    if (inputToConstQuantize(layer)) {
+    if (inputToConstQuantize(layer) || needsBatchInterpretation) {
         constTensor.batch[0] = constTensor.count();
         constTensor.feature[0] = 1;
     }
@@ -3721,11 +3755,34 @@ void Program::CreateGatherPrimitive(cldnn::topology& topology, InferenceEngine::
         }
     };
 
+    std::vector<cldnn::primitive_id> reorderedInputs;
+    reorderedInputs.resize(inputPrimitives.size());
+
+    for (size_t portIndex = 0; portIndex < inputPrimitives.size(); portIndex++) {
+        auto inputDataType = DataTypeFromPrecision(layer->insData[portIndex].lock()->getPrecision());
+        if (inputDataType == cldnn::data_types::i64) {
+            // clDNN primitive does not support i64 inputs,
+            // so we need additional reorders to convert them to i32
+            auto reorderPrimName = inputPrimitives[portIndex] + "_" + layer->name + m_preProcessTag;
+            auto targetFormat = FormatFromLayout(layer->insData[portIndex].lock()->getLayout());
+            auto preprocessPrim = cldnn::reorder(
+                reorderPrimName,
+                inputPrimitives[portIndex],
+                targetFormat,
+                cldnn::data_types::i32);
+            topology.add(preprocessPrim);
+            AddInnerPrimitiveToProfiler(reorderPrimName, layer_type_name_ID(layer), layer);
+            reorderedInputs[portIndex] = (reorderPrimName);
+        } else {
+            reorderedInputs[portIndex] = inputPrimitives[portIndex];
+        }
+    }
+
     std::string gatherLayerName = layer_type_name_ID(layer);
     auto gatherPrim = cldnn::gather(
             gatherLayerName,
-            inputPrimitives[0],
-            inputPrimitives[1],
+            reorderedInputs[0],
+            reorderedInputs[1],
             cldnnAxisFromIE(axis),
             CldnnTensorFromIEDims(gatherLayer->outData[0]->getTensorDesc().getDims()));
 
@@ -3738,13 +3795,36 @@ void CLDNNPlugin::Program::CreateGatherTreePrimitive(cldnn::topology & topology,
 
     auto inputPrimitives = GetPrevLayersPrimitives(layer);
 
+    std::vector<cldnn::primitive_id> reorderedInputs;
+    reorderedInputs.resize(inputPrimitives.size());
+
+    for (size_t portIndex = 0; portIndex < inputPrimitives.size(); portIndex++) {
+        auto inputDataType = DataTypeFromPrecision(layer->insData[portIndex].lock()->getPrecision());
+        if (inputDataType == cldnn::data_types::i64) {
+            // clDNN primitive does not support i64 inputs,
+            // so we need additional reorders to convert them to i32
+            auto reorderPrimName = inputPrimitives[portIndex] + "_" + layer->name + m_preProcessTag;
+            auto targetFormat = FormatFromLayout(layer->insData[portIndex].lock()->getLayout());
+            auto preprocessPrim = cldnn::reorder(
+                reorderPrimName,
+                inputPrimitives[portIndex],
+                targetFormat,
+                cldnn::data_types::i32);
+            topology.add(preprocessPrim);
+            AddInnerPrimitiveToProfiler(reorderPrimName, layer_type_name_ID(layer), layer);
+            reorderedInputs[portIndex] = (reorderPrimName);
+        } else {
+            reorderedInputs[portIndex] = inputPrimitives[portIndex];
+        }
+    }
+
     std::string gatherTreeLayerName = layer_type_name_ID(layer);
     auto gatherTreePrim = cldnn::gather_tree(
         gatherTreeLayerName,
-        inputPrimitives[0],
-        inputPrimitives[1],
-        inputPrimitives[2],
-        inputPrimitives[3]);
+        reorderedInputs[0],
+        reorderedInputs[1],
+        reorderedInputs[2],
+        reorderedInputs[3]);
 
     topology.add(gatherTreePrim);
     AddPrimitiveToProfiler(gatherTreeLayerName, layer);
@@ -3757,11 +3837,12 @@ void Program::CreateDepthToSpacePrimitive(cldnn::topology& topology, InferenceEn
     auto depthToSpace = as<InferenceEngine::GenericLayer*> (layer);
 
     size_t blockSize = static_cast<size_t>(depthToSpace->GetParamAsUInt("block_size", 2));
+    std::string mode_s = depthToSpace->GetParamAsString("mode");
+
+    cldnn::depth_to_space_mode mode = mode_s == "depth_first" ? cldnn::depth_to_space_mode::depth_first
+                                                              : cldnn::depth_to_space_mode::blocks_first;
 
     auto inputDim = depthToSpace->input().get()->getTensorDesc().getDims();
-    if (inputDim.size() != 4)
-        THROW_CLDNN_EXCEPTION("Unsupported size of tensor " << inputDim.size());
-
     size_t blockSizeSquare = blockSize * blockSize;
 
     if (inputDim[1] % blockSizeSquare != 0)
@@ -3771,7 +3852,8 @@ void Program::CreateDepthToSpacePrimitive(cldnn::topology& topology, InferenceEn
     auto depthToSpacePrim = cldnn::depth_to_space(
             depthToSpaceName,
             inputPrimitives[0],
-            blockSize);
+            blockSize,
+            mode);
 
     topology.add(depthToSpacePrim);
     AddPrimitiveToProfiler(depthToSpaceName, layer);
@@ -3797,6 +3879,80 @@ void Program::CreateSpaceToDepthPrimitive(cldnn::topology& topology, InferenceEn
 
     topology.add(spaceToDepthPrim);
     AddPrimitiveToProfiler(spaceToDepthName, layer);
+}
+
+void Program::CreateBatchToSpacePrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer) {
+    ValidateLayer(layer, 4);
+
+    auto inputPrimitives = GetPrevLayersPrimitives(layer);
+    auto batchToSpace = as<InferenceEngine::GenericLayer*> (layer);
+
+    std::string batchToSpaceName = layer_type_name_ID(layer);
+    auto batchToSpacePrim = cldnn::batch_to_space(
+            batchToSpaceName,
+            inputPrimitives[0],
+            inputPrimitives[1],
+            inputPrimitives[2],
+            inputPrimitives[3]);
+
+    topology.add(batchToSpacePrim);
+    AddPrimitiveToProfiler(batchToSpaceName, layer);
+}
+
+void Program::CreateSpaceToBatchPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer) {
+    ValidateLayer(layer, 4);
+
+    auto inputPrimitives = GetPrevLayersPrimitives(layer);
+    auto spaceToBatch = as<InferenceEngine::GenericLayer*> (layer);
+    auto rank = spaceToBatch->input().get()->getTensorDesc().getDims().size();
+    auto format = FormatFromLayout(spaceToBatch->input()->getLayout());
+
+    std::vector<cldnn::tensor> inputs;
+    inputs.reserve(3);
+
+    for (size_t i = 1; i < 4; ++i) {
+        auto defaultIndexInput = layer->insData[i].lock();
+        auto defaultIndexInputCreator = getCreatorLayer(defaultIndexInput).lock();
+        if (defaultIndexInputCreator->blobs.size() == 1) {
+            auto constantBlob = defaultIndexInputCreator->blobs.begin()->second;
+            auto defaultIndexPrecision = constantBlob->getTensorDesc().getPrecision();
+            std::vector<int32_t> sizes;
+            sizes.reserve(rank);
+            int32_t default_size = i == 1 ? 1 : 0;
+            switch (defaultIndexPrecision) {
+                case InferenceEngine::Precision::I32: {
+                    auto data = constantBlob->buffer().as<int32_t*>();
+                    sizes = std::vector<int32_t>(data, data + rank);
+                    break;
+                }
+                case InferenceEngine::Precision::I64: {
+                    auto data = constantBlob->buffer().as<int64_t*>();
+                    std::vector<int64_t> sizes_i64 = std::vector<int64_t>(data, data + rank);
+                    for (size_t j = 0; j < sizes_i64.size(); ++j)
+                        sizes.emplace_back(static_cast<int32_t>(sizes_i64[j]));
+                    break;
+                }
+                default: {
+                    THROW_IE_EXCEPTION << layer->name << "Incorrect SpaceToBatch precision";
+                    break;
+                }
+            }
+            inputs.emplace_back(format, sizes, default_size);
+        }
+    }
+    auto out_size = CldnnTensorFromIEDims(spaceToBatch->outData[0]->getTensorDesc().getDims());
+
+    std::string spaceToBatchName = layer_type_name_ID(layer);
+    auto spaceToBatchPrim = cldnn::space_to_batch(
+            spaceToBatchName,
+            inputPrimitives[0], //input
+            inputs[0], //block_shape
+            inputs[1], //pads_begin
+            inputs[2], //pads_end
+            out_size);
+
+    topology.add(spaceToBatchPrim);
+    AddPrimitiveToProfiler(spaceToBatchName, layer);
 }
 
 void Program::CreateShuffleChannelsPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer) {
@@ -3847,11 +4003,13 @@ void Program::CreateStridedSlicePrimitive(cldnn::topology& topology, InferenceEn
     tmp = stridedSliceLayer->GetParamAsUInts("shrink_axis_mask");
     std::vector<uint8_t> shrink_axis_mask(tmp.begin(), tmp.end());
 
+    auto out_size = CldnnTensorFromIEDims(stridedSliceLayer->outData[0]->getTensorDesc().getDims());
+
     std::string stridedSliceLayerName = layer_type_name_ID(layer);
     auto stridedSlicePrim = cldnn::strided_slice(
             stridedSliceLayerName,
             inputPrimitives[0], inputPrimitives[1], inputPrimitives[2], inputPrimitives[3],
-            begin_mask, end_mask, new_axis_mask, shrink_axis_mask);
+            begin_mask, end_mask, new_axis_mask, shrink_axis_mask, out_size);
 
     topology.add(stridedSlicePrim);
     AddPrimitiveToProfiler(stridedSliceLayerName, layer);
@@ -4024,7 +4182,7 @@ void Program::CreateReducePrimitive(cldnn::topology& topology, InferenceEngine::
     size_t reduceDimNumber = input->getTensorDesc().getDims().size();
 
     auto axesInput = layer->insData[1].lock();
-    auto axesInputCreator = axesInput->getCreatorLayer().lock();
+    auto axesInputCreator = getCreatorLayer(axesInput).lock();
 
     std::vector<int32_t> rawAxes;
     if (axesInputCreator->blobs.size() == 1) {
@@ -4038,6 +4196,10 @@ void Program::CreateReducePrimitive(cldnn::topology& topology, InferenceEngine::
             auto data = constantBlob->buffer().as<int32_t*>();
             for (size_t i = 0; i < constantBlob->size(); ++i)
                 rawAxes.push_back(data[i]);
+        } else if (axesPrecision == InferenceEngine::Precision::I64) {
+            auto data = constantBlob->buffer().as<int64_t*>();
+            for (size_t i = 0; i < constantBlob->size(); ++i)
+                rawAxes.push_back(static_cast<int32_t>(data[i]));
         } else {
             THROW_IE_EXCEPTION << layer->name << " Incorrect Reduce axes input Precision";
         }
@@ -4211,24 +4373,50 @@ void Program::CreateNonMaxSuppressionPrimitive(cldnn::topology& topology, Infere
     auto inputPrimitives = GetPrevLayersPrimitives(layer);
     auto nonMaxSupression = as<InferenceEngine::NonMaxSuppressionLayer*>(layer);
 
+    std::vector<cldnn::primitive_id> reorderedInputs;
+    reorderedInputs.resize(inputPrimitives.size());
+
+    for (size_t portIndex = 0; portIndex < inputPrimitives.size(); portIndex++) {
+        auto inputDataType = DataTypeFromPrecision(layer->insData[portIndex].lock()->getPrecision());
+        if ((portIndex == 2) && (inputDataType == cldnn::data_types::i64)) {
+            // clDNN primitive supports only i32 data type for 'max_output_boxes_per_class' input
+            // so we need additional reorder if it's provided as i64
+            auto reorderPrimName = inputPrimitives[portIndex] + "_" + layer->name + m_preProcessTag;
+            auto targetFormat = FormatFromLayout(layer->insData[portIndex].lock()->getLayout());
+            auto preprocessPrim = cldnn::reorder(
+                reorderPrimName,
+                inputPrimitives[portIndex],
+                targetFormat,
+                cldnn::data_types::i32);
+            topology.add(preprocessPrim);
+            AddInnerPrimitiveToProfiler(reorderPrimName, layer_type_name_ID(layer), layer);
+            reorderedInputs[portIndex] = (reorderPrimName);
+        } else {
+            reorderedInputs[portIndex] = inputPrimitives[portIndex];
+        }
+    }
+
+    // clDNN primitive supports only i32 as output data type
+    nonMaxSupression->outData[0]->setPrecision(Precision::I32);
+
     auto centerPointBox = nonMaxSupression->center_point_box;
     auto outputIndices = nonMaxSupression->outData[0]->getTensorDesc().getDims()[0];
 
     auto name = layer_type_name_ID(layer);
     auto prim = cldnn::non_max_suppression(
         name,
-        inputPrimitives[0],
-        inputPrimitives[1],
+        reorderedInputs[0],
+        reorderedInputs[1],
         static_cast<int>(outputIndices),
         centerPointBox);
 
-    switch (inputPrimitives.size()) {
+    switch (reorderedInputs.size()) {
     case 5:
-        prim.score_threshold = inputPrimitives[4];
+        prim.score_threshold = reorderedInputs[4];
     case 4:
-        prim.iou_threshold = inputPrimitives[3];
+        prim.iou_threshold = reorderedInputs[3];
     case 3:
-        prim.num_select_per_class = inputPrimitives[2];
+        prim.num_select_per_class = reorderedInputs[2];
     case 2:
     case 1:
         break;
@@ -4408,15 +4596,48 @@ void Program::CreateCumSumPrimitive(cldnn::topology& topology, InferenceEngine::
     int32_t axis = 0;
     if (inputPrimitives.size() == 2) {
         auto axesInput = layer->insData[1].lock();
-        auto axesInputCreator = axesInput->getCreatorLayer().lock();
+        auto axesInputCreator = getCreatorLayer(axesInput).lock();
         if (axesInputCreator->blobs.size() == 1) {
             auto constantBlob = axesInputCreator->blobs.begin()->second;
             auto axesPrecision = constantBlob->getTensorDesc().getPrecision();
-            if (axesPrecision == InferenceEngine::Precision::I32) {
-                auto data = constantBlob->buffer().as<int32_t*>();
-                axis = data[0];
-            } else {
-                THROW_IE_EXCEPTION << layer->name << " Incorrect CumSum axes input Precision";
+            switch (axesPrecision) {
+                case InferenceEngine::Precision::U8: {
+                    auto data = constantBlob->buffer().as<uint8_t*>();
+                    axis = static_cast<int32_t>(data[0]);
+                    break;
+                }
+                case InferenceEngine::Precision::I8: {
+                    auto data = constantBlob->buffer().as<int8_t*>();
+                    axis = static_cast<int32_t>(data[0]);
+                    break;
+                }
+                case InferenceEngine::Precision::U16: {
+                    auto data = constantBlob->buffer().as<uint16_t*>();
+                    axis = static_cast<int32_t>(data[0]);
+                    break;
+                }
+                case InferenceEngine::Precision::I16: {
+                    auto data = constantBlob->buffer().as<int16_t*>();
+                    axis = static_cast<int32_t>(data[0]);
+                    break;
+                }
+                case InferenceEngine::Precision::I32: {
+                    auto data = constantBlob->buffer().as<int32_t*>();
+                    axis = data[0];
+                    break;
+                }
+                case InferenceEngine::Precision::U64: {
+                    auto data = constantBlob->buffer().as<uint64_t*>();
+                    axis = static_cast<int32_t>(data[0]);
+                    break;
+                }
+                case InferenceEngine::Precision::I64: {
+                    auto data = constantBlob->buffer().as<int64_t*>();
+                    axis = static_cast<int32_t>(data[0]);
+                    break;
+                }
+                default:
+                    THROW_IE_EXCEPTION << layer->name << " Incorrect CumSum axes input Precision";
             }
         }
     }
@@ -4484,11 +4705,202 @@ void Program::CreatePriorBoxClusteredPrimitive(cldnn::topology& topology, Infere
     AddPrimitiveToProfiler(priorBoxLayerName, layer);
 }
 
+void Program::CreateEmbeddingBagPackedSumPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr& layer) {
+    ValidateLayer(layer, {2, 3});
+
+    auto inputPrimitives = GetPrevLayersPrimitives(layer);
+    auto embeddingBag = as<InferenceEngine::GenericLayer*>(layer);
+
+    auto layerName = layer_type_name_ID(layer);
+
+    std::vector<cldnn::primitive_id> reorderedInputs;
+    reorderedInputs.resize(inputPrimitives.size());
+
+    for (size_t portIndex = 0; portIndex < inputPrimitives.size(); portIndex++) {
+        auto inputDataType = DataTypeFromPrecision(layer->insData[portIndex].lock()->getPrecision());
+        if ((portIndex == 1) && (inputDataType == cldnn::data_types::i64)) {
+            // clDNN primitive supports only i32 data type for indices input,
+            // so we need additional reorder if it's provided as i64
+            auto reorderPrimName = inputPrimitives[portIndex] + "_" + layer->name + m_preProcessTag;
+            auto targetFormat = FormatFromLayout(layer->insData[portIndex].lock()->getLayout());
+            auto preprocessPrim = cldnn::reorder(
+                reorderPrimName,
+                inputPrimitives[portIndex],
+                targetFormat,
+                cldnn::data_types::i32);
+            topology.add(preprocessPrim);
+            AddInnerPrimitiveToProfiler(reorderPrimName, layer_type_name_ID(layer), layer);
+            reorderedInputs[portIndex] = (reorderPrimName);
+        } else {
+            reorderedInputs[portIndex] = inputPrimitives[portIndex];
+        }
+    }
+
+    auto embeddingBagPrim = cldnn::embedding_bag(
+            layerName,
+            reorderedInputs,
+            cldnn::embedding_bag::packed_sum,
+            CldnnTensorFromIEDims(embeddingBag->outData[0]->getTensorDesc().getDims()));
+
+    topology.add(embeddingBagPrim);
+    AddPrimitiveToProfiler(layerName, layer);
+}
+
+void Program::CreateEmbeddingBagOffsetsSumPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr& layer) {
+    ValidateLayer(layer, {3, 4, 5});
+
+    auto inputPrimitives = GetPrevLayersPrimitives(layer);
+    auto embeddingBag = as<InferenceEngine::GenericLayer*>(layer);
+
+    int32_t defaultIndex = -1;
+    if (inputPrimitives.size() > 3) {
+        auto defaultIndexInput = layer->insData[3].lock();
+        auto defaultIndexInputCreator = getCreatorLayer(defaultIndexInput).lock();
+        if (defaultIndexInputCreator->blobs.size() == 1) {
+            auto constantBlob = defaultIndexInputCreator->blobs.begin()->second;
+            auto defaultIndexPrecision = constantBlob->getTensorDesc().getPrecision();
+            if (defaultIndexPrecision == InferenceEngine::Precision::I32) {
+                auto data = constantBlob->buffer().as<int32_t*>();
+                defaultIndex = data[0];
+            } else if (defaultIndexPrecision == InferenceEngine::Precision::I64) {
+                auto data = constantBlob->buffer().as<int64_t*>();
+                defaultIndex = static_cast<int32_t>(data[0]);
+            } else {
+                THROW_IE_EXCEPTION << layer->name << "Incorrect EmbeddingBagOfsetsSum default_index precision";
+            }
+        }
+        inputPrimitives.erase(inputPrimitives.begin() + 3); // Remove "default_index"
+    }
+
+    std::vector<cldnn::primitive_id> reorderedInputs;
+    reorderedInputs.resize(inputPrimitives.size());
+
+    for (size_t portIndex = 0; portIndex < inputPrimitives.size(); portIndex++) {
+        auto inputDataType = DataTypeFromPrecision(layer->insData[portIndex].lock()->getPrecision());
+        if (((portIndex == 1) || (portIndex == 2)) && (inputDataType == cldnn::data_types::i64)) {
+            // clDNN primitive supports only i32 data type for indices inputs,
+            // so we need additional reorders if they are provided as i64
+            auto reorderPrimName = inputPrimitives[portIndex] + "_" + layer->name + m_preProcessTag;
+            auto targetFormat = FormatFromLayout(layer->insData[portIndex].lock()->getLayout());
+            auto preprocessPrim = cldnn::reorder(
+                reorderPrimName,
+                inputPrimitives[portIndex],
+                targetFormat,
+                cldnn::data_types::i32);
+            topology.add(preprocessPrim);
+            AddInnerPrimitiveToProfiler(reorderPrimName, layer_type_name_ID(layer), layer);
+            reorderedInputs[portIndex] = (reorderPrimName);
+        } else {
+            reorderedInputs[portIndex] = inputPrimitives[portIndex];
+        }
+    }
+
+    auto layerName = layer_type_name_ID(layer);
+    auto embeddingBagPrim = cldnn::embedding_bag(
+            layerName,
+            reorderedInputs,
+            cldnn::embedding_bag::offsets_sum,
+            CldnnTensorFromIEDims(embeddingBag->outData[0]->getTensorDesc().getDims()),
+            defaultIndex);
+
+    topology.add(embeddingBagPrim);
+    AddPrimitiveToProfiler(layerName, layer);
+}
+
+void Program::CreateEmbeddingSegmentsSumPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr& layer) {
+    ValidateLayer(layer, {4, 5, 6});
+
+    auto inputPrimitives = GetPrevLayersPrimitives(layer);
+    auto embeddingBag = as<InferenceEngine::GenericLayer*>(layer);
+
+    inputPrimitives.erase(inputPrimitives.begin() + 3); // Remove "num_segments"
+
+    int32_t defaultIndex = -1;
+    if (inputPrimitives.size() > 3) {
+        auto defaultIndexInput = layer->insData[4].lock();
+        auto defaultIndexInputCreator = getCreatorLayer(defaultIndexInput).lock();
+        if (defaultIndexInputCreator->blobs.size() == 1) {
+            auto constantBlob = defaultIndexInputCreator->blobs.begin()->second;
+            auto defaultIndexPrecision = constantBlob->getTensorDesc().getPrecision();
+            if (defaultIndexPrecision == InferenceEngine::Precision::I32) {
+                auto data = constantBlob->buffer().as<int32_t*>();
+                defaultIndex = data[0];
+            } else if (defaultIndexPrecision == InferenceEngine::Precision::I64) {
+                auto data = constantBlob->buffer().as<int64_t*>();
+                defaultIndex = static_cast<int32_t>(data[0]);
+            } else {
+                THROW_IE_EXCEPTION << layer->name << "Incorrect EmbeddingBagOfsetsSum default_index precision";
+            }
+        }
+        inputPrimitives.erase(inputPrimitives.begin() + 3); // Remove "default_index"
+    }
+
+    std::vector<cldnn::primitive_id> reorderedInputs;
+    reorderedInputs.resize(inputPrimitives.size());
+
+    for (size_t portIndex = 0; portIndex < inputPrimitives.size(); portIndex++) {
+        auto inputDataType = DataTypeFromPrecision(layer->insData[portIndex].lock()->getPrecision());
+        if (((portIndex == 1) || (portIndex == 2)) && (inputDataType == cldnn::data_types::i64)) {
+            // clDNN primitive supports only i32 data type for indices inputs,
+            // so we need additional reorders if they are provided as i64
+            auto reorderPrimName = inputPrimitives[portIndex] + "_" + layer->name + m_preProcessTag;
+            auto targetFormat = FormatFromLayout(layer->insData[portIndex].lock()->getLayout());
+            auto preprocessPrim = cldnn::reorder(
+                reorderPrimName,
+                inputPrimitives[portIndex],
+                targetFormat,
+                cldnn::data_types::i32);
+            topology.add(preprocessPrim);
+            AddInnerPrimitiveToProfiler(reorderPrimName, layer_type_name_ID(layer), layer);
+            reorderedInputs[portIndex] = (reorderPrimName);
+        } else {
+            reorderedInputs[portIndex] = inputPrimitives[portIndex];
+        }
+    }
+
+    auto layerName = layer_type_name_ID(layer);
+    auto embeddingBagPrim = cldnn::embedding_bag(
+            layerName,
+            reorderedInputs,
+            cldnn::embedding_bag::segments_sum,
+            CldnnTensorFromIEDims(embeddingBag->outData[0]->getTensorDesc().getDims()),
+            defaultIndex);
+
+    topology.add(embeddingBagPrim);
+    AddPrimitiveToProfiler(layerName, layer);
+}
+
+void Program::CreateExtractImagePatchesPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr& layer) {
+    ValidateLayer(layer, 1);
+
+    auto inputPrimitives = GetPrevLayersPrimitives(layer);
+    auto eipLayer = as<InferenceEngine::GenericLayer*>(layer);
+
+    std::vector<unsigned int> sizes = eipLayer->GetParamAsUInts("sizes");
+    std::vector<unsigned int> strides = eipLayer->GetParamAsUInts("strides");
+    std::vector<unsigned int> rates = eipLayer->GetParamAsUInts("rates");
+    std::string auto_pad = eipLayer->GetParamAsString("auto_pad");
+
+    std::string eipLayerName = layer_type_name_ID(layer);
+
+    auto extractImagePatchesPrim = cldnn::extract_image_patches(
+        eipLayerName,
+        inputPrimitives[0],
+        sizes,
+        strides,
+        rates,
+        auto_pad,
+        CldnnTensorFromIEDims(eipLayer->outData[0]->getTensorDesc().getDims()));
+
+    topology.add(extractImagePatchesPrim);
+    AddPrimitiveToProfiler(eipLayerName, layer);
+}
+
 bool Program::IsValidSplitConvMerge(const InferenceEngine::SplitLayer *splitLayer) const {
     if (splitLayer->outData.size() != 2) return false;  // split into 2
 
     for (auto out : splitLayer->outData) {
-        if (out->getInputTo().size() != 1) {
+        if (getInputTo(out).size() != 1) {
             return false;
         }
     }
@@ -4539,7 +4951,7 @@ void Program::AddInputPrimitive(cldnn::topology& topology, InputInfo::Ptr inputI
     const auto inputDims = inputDesc.getDims();
     Layout l = inputDesc.getLayout();
     Precision ip = inputDesc.getPrecision();
-    auto consumers = inputInfo->getInputData()->getInputTo();
+    auto consumers = getInputTo(inputInfo->getInputData());
 
     cldnn::format inputFormat = m_defaultFormat;
     if (InferenceEngine::Layout::BLOCKED == l && 6 == inputDims.size())
@@ -4759,7 +5171,7 @@ std::vector<cldnn::primitive_id> Program::GetPrevLayersPrimitives(const Inferenc
         if (prevData == nullptr) {
             THROW_CLDNN_EXCEPTION("Nonexistent input for layer: " << layer->name);
         }
-        auto prevCreator = prevData->getCreatorLayer().lock();
+        auto prevCreator = getCreatorLayer(prevData).lock();
         std::string prevName;
 
         if (prevCreator) {
@@ -4793,7 +5205,7 @@ void Program::AddOutputPrimitive(cldnn::topology& topology, std::string outputNa
         THROW_CLDNN_EXCEPTION("Unsupported layout (" << outputlayout << ") in output: " << outputName);
     }
 
-    auto outputCreator = outputData->getCreatorLayer().lock();
+    auto outputCreator = getCreatorLayer(outputData).lock();
     std::string outLayerName = layer_type_lower(outputCreator) + ":";
 
     if (outputCreator->outData.size() > 1)
@@ -4806,6 +5218,12 @@ void Program::AddOutputPrimitive(cldnn::topology& topology, std::string outputNa
 
     // Find correct output ID. Start with name stored in IR.
     std::string outputID = outLayerName;
+    // This can happen when an output has invalid connections with previous layer and
+    // it's not handled by CreateSingleLayerPrimitive method
+    if (primitiveIDs.find(outLayerName) == primitiveIDs.end()) {
+        THROW_IE_EXCEPTION << "Can't find output with name " << outLayerName;
+    }
+
     std::string finalID = primitiveIDs.at(outLayerName);
 
     while (outputID != finalID) {

@@ -27,6 +27,7 @@
 #include <details/ie_cnn_network_tools.h>
 
 #include "unit_test_utils/mocks/mock_icnn_network.hpp"
+#include "details/ie_cnn_network_iterator.hpp"
 
 using namespace std;
 using namespace InferenceEngine;
@@ -92,7 +93,9 @@ void GNAPropagateMatcher :: match() {
 
             std::vector<InferenceEngine::CNNLayerPtr> tiBodies;
 
-            for (auto &layer : net_original) {
+            for (auto layerIt = details::CNNNetworkIterator(net_original), end = details::CNNNetworkIterator();
+                     layerIt != end; ++layerIt) {
+                auto layer = *layerIt;
                 if (layer->type == "TensorIterator") {
                     auto tiBody = NetPass::TIBodySortTopologically(std::dynamic_pointer_cast<InferenceEngine::TensorIterator>(layer)->body);
                     tiBodies.insert(tiBodies.end(), tiBody.begin(), tiBody.end());
@@ -459,6 +462,17 @@ void GNAPluginAOTMatcher :: match() {
 #if GNA_LIB_VER == 1 // TODO: GNA2: handle new API
     EXPECT_CALL(mockApi, GNAAlloc(_,_,_)).WillOnce(DoAll(SetArgPointee<2>(10000), Return(&data.front())));
     EXPECT_CALL(mockApi, GNADeviceOpenSetThreads(_, _)).WillOnce(Return(1));
+#else
+    EXPECT_CALL(mockApi, Gna2MemoryAlloc(_, _, _)).WillOnce(Invoke([&data](
+            uint32_t sizeRequested,
+            uint32_t *sizeGranted,
+            void **memoryAddress
+    ) {
+        data.resize(sizeRequested);
+        *sizeGranted = sizeRequested;
+        *memoryAddress = &data.front();
+        return Gna2StatusSuccess;
+    }));
 #endif
     plugin.LoadNetwork(network);
     plugin.Export(_env.exportedModelFileName);

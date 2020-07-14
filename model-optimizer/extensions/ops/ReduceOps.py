@@ -24,6 +24,7 @@ from mo.ops.op import Op
 reduce_map = {
     'ReduceSum': np.sum,
     'ReduceProd': np.prod,
+    'ReduceL2': lambda x, axis, keepdims: np.sqrt(np.sum(a=np.square(x), axis=axis, keepdims=keepdims)),
     'ReduceMax': np.max,
     'ReduceMin': np.min,
     'ReduceMean': np.mean,
@@ -96,7 +97,7 @@ class ReduceOp(Op):
             'in_ports_count': 2,
             'out_ports_count': 1,
             'force_precision_in_ports': {
-                1: 'int64' if graph.graph['cmd_params'].generate_experimental_IR_V10 else 'int32'},
+                1: 'int64'},
         }, attrs)
         assert isinstance(self.attrs['keep_dims'], int) or isinstance(self.attrs['keep_dims'], bool)
         self.attrs['keep_dims'] = bool(self.attrs['keep_dims'])
@@ -134,6 +135,12 @@ class ReduceMax(ReduceOp):
 class ReduceMean(ReduceOp):
     op = 'ReduceMean'
     op_type = 'ReduceMean'
+    enabled = True
+
+
+class ReduceL2(ReduceOp):
+    op = 'ReduceL2'
+    op_type = None
     enabled = True
 
 

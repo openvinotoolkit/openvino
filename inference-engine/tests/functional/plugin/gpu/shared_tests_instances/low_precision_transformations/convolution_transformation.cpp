@@ -11,8 +11,7 @@ using namespace LayerTestsDefinitions;
 
 namespace {
 const std::vector<InferenceEngine::Precision> netPrecisions = {
-        InferenceEngine::Precision::FP32,
-        InferenceEngine::Precision::FP16
+        InferenceEngine::Precision::FP32
 };
 
 const std::vector<InferenceEngine::details::LayerTransformation::Params> trasformationParamValues = {

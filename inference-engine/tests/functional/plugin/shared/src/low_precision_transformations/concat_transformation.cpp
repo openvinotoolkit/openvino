@@ -32,6 +32,17 @@ std::string ConcatTransformation::getTestCaseName(testing::TestParamInfo<LayerTe
     return result.str();
 }
 
+InferenceEngine::Blob::Ptr ConcatTransformation::GenerateInput(const InferenceEngine::InputInfo &info) const {
+    InferenceEngine::SizeVector inputShape;
+    InferenceEngine::Precision netPrecision;
+    std::string targetDevice;
+    InferenceEngine::details::LayerTransformation::Params params;
+    std::tie(netPrecision, inputShape, targetDevice, params) = this->GetParam();
+
+    const float k = (info.name() == "input1") ? 1.f : (info.name() == "input2" ? 2.f : 3.f);
+    return LayerTransformation::GenerateInput(params.precisionsOnActivations[0], info.getTensorDesc(), k);
+}
+
 void ConcatTransformation::SetUp() {
     SetRefMode(LayerTestsUtils::RefMode::IE);
 
@@ -41,12 +52,22 @@ void ConcatTransformation::SetUp() {
     std::tie(netPrecision, inputShape, targetDevice, params) = this->GetParam();
     const auto ngPrecision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
-    const auto paramNode1 = std::make_shared<ngraph::opset1::Parameter>(ngPrecision, ngraph::Shape(inputShape));
-    const auto fakeQuantize1 = ngraph::builder::makeFakeQuantize(paramNode1, ngPrecision, 256ul, { 1ul });
+    const auto interval = getQuantizationInterval(params.precisionsOnActivations[0]);
+    const float low = interval.first;
+    const float hight = interval.second;
+
+    const auto input1 = std::make_shared<ngraph::opset1::Parameter>(ngPrecision, ngraph::Shape(inputShape));
+    input1->set_friendly_name("input1");
+    const auto fakeQuantize1 = ngraph::builder::makeFakeQuantize(
+        input1, ngPrecision, 256ul, { 1ul },
+        { low }, { hight }, { low }, { hight });
 
     const std::vector<size_t> inputShape2 = { inputShape[0], inputShape[1], inputShape[2] / 2, inputShape[3] / 2 };
-    const auto paramNode2 = std::make_shared<ngraph::opset1::Parameter>(ngPrecision, ngraph::Shape(inputShape2));
-    const auto fakeQuantize2 = ngraph::builder::makeFakeQuantize(paramNode2, ngPrecision, 256ul, { 1ul });
+    const auto input2 = std::make_shared<ngraph::opset1::Parameter>(ngPrecision, ngraph::Shape(inputShape2));
+    input1->set_friendly_name("input2");
+    const auto fakeQuantize2 = ngraph::builder::makeFakeQuantize(
+        input2, ngPrecision, 256ul, { 1ul },
+        { low / 2.f }, { hight / 2.f }, { low / 2.f }, { hight / 2.f });
 
     const auto interpolateShape = std::make_shared<ngraph::op::Constant>(
         ngraph::element::i64,
@@ -65,7 +86,7 @@ void ConcatTransformation::SetUp() {
         ngraph::OutputVector{ fakeQuantize1->output(0), interpolate->output(0)}, 1);
 
     ngraph::ResultVector results {std::make_shared<ngraph::opset1::Result>(concat)};
-    function = std::make_shared<ngraph::Function>(results, ngraph::ParameterVector { paramNode1, paramNode2 }, "ConcatTransformation");
+    function = std::make_shared<ngraph::Function>(results, ngraph::ParameterVector { input1, input2 }, "ConcatTransformation");
 
     // TODO: move to some another place
     validate();
@@ -85,11 +106,18 @@ void ConcatTransformation::validate() {
     EXPECT_EQ(1, outputs.size());
 
     std::map<std::string, InferenceEngine::DataPtr>::iterator it = outputs.begin();
-    const InferenceEngine::CNNLayerPtr outputLayer = it->second->getCreatorLayer().lock();
+    const InferenceEngine::CNNLayerPtr outputLayer = getCreatorLayer(it->second).lock();
     EXPECT_TRUE(outputLayer != nullptr);
     EXPECT_EQ("ScaleShift", outputLayer->type);
 
-    checkParentPrecision(outputLayer, params.updatePrecisions);
+    const InferenceEngine::CNNLayerPtr layer = InferenceEngine::details::CNNNetworkHelper::getParent(*outputLayer);
+    if (params.updatePrecisions) {
+        const auto interval = getQuantizationInterval(params.precisionsOnActivations[0]);
+        const InferenceEngine::Precision expectedPrecision = interval.first >= 0.f ? InferenceEngine::Precision::U8 : InferenceEngine::Precision::I8;
+        checkPrecisions(*layer, { { expectedPrecision }, { expectedPrecision } }, { { expectedPrecision } });
+    } else {
+        checkPrecisions(*layer, netPrecision);
+    }
 
     IE_SUPPRESS_DEPRECATED_END
 }

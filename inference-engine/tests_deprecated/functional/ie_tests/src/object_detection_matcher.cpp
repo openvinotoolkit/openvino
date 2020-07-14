@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <xml_helper.hpp>
 #include "object_detection_matcher.hpp"
+#include "details/ie_cnn_network_iterator.hpp"
 
 #include <algorithm>
 
@@ -181,25 +181,6 @@ void ObjectDetectionMatcher::match(const ScoreFunction& score_function) {
     // Read network
     string binFileName = testing::FileUtils::fileNameNoExt(config._path_to_models) + ".bin";
     auto cnnNetwork = config.ie_core->ReadNetwork(config._path_to_models, binFileName);
-
-    if (!config._stat_file.empty()) {
-        InferenceEngine::NetworkStatsMap stat = testing::loadStatisticFromFile(config._stat_file);
-
-        IE_SUPPRESS_DEPRECATED_START
-        ICNNNetworkStats *pstats;
-        ((ICNNNetwork&)cnnNetwork).getStats(&pstats, nullptr);
-        pstats->setNodesStats(stat);
-
-        // iterating over layers and fixing suppress_normalization->quantization_level
-        // because we have in tests IR which has old name for fp32 layers
-        for (auto layer : cnnNetwork) {
-            if (layer->params.find("suppress_normalization") != layer->params.end() &&
-                layer->params["suppress_normalization"] == "I8") {
-                layer->params["quantization_level"] = "FP32";
-            }
-        }
-        IE_SUPPRESS_DEPRECATED_END
-    }
 
     if (config._reshape) {
         auto inputShapes = cnnNetwork.getInputShapes();

@@ -45,16 +45,6 @@ shared_ptr<Node> op::v1::ReduceSum::clone_with_new_inputs(const OutputVector& ne
     return make_shared<ReduceSum>(new_args.at(0), new_args.at(1), get_keep_dims());
 }
 
-void op::v1::ReduceSum::generate_adjoints(autodiff::Adjoints& adjoints, const OutputVector& deltas)
-{
-    auto delta = deltas.at(0);
-
-    auto x = input_value(0);
-    auto& x_shape = x.get_shape();
-
-    adjoints.add_delta(x, make_shared<op::Broadcast>(delta, x_shape, get_reduction_axes()));
-}
-
 namespace
 {
     template <element::Type_t ET>
@@ -71,25 +61,17 @@ namespace
         bool rc = true;
         switch (arg->get_element_type())
         {
-            TYPE_CASE(i8)(arg, out, axes);
-            break;
-            TYPE_CASE(i16)(arg, out, axes);
-            break;
             TYPE_CASE(i32)(arg, out, axes);
             break;
             TYPE_CASE(i64)(arg, out, axes);
-            break;
-            TYPE_CASE(u8)(arg, out, axes);
-            break;
-            TYPE_CASE(u16)(arg, out, axes);
             break;
             TYPE_CASE(u32)(arg, out, axes);
             break;
             TYPE_CASE(u64)(arg, out, axes);
             break;
-            TYPE_CASE(f32)(arg, out, axes);
+            TYPE_CASE(f16)(arg, out, axes);
             break;
-            TYPE_CASE(f64)(arg, out, axes);
+            TYPE_CASE(f32)(arg, out, axes);
             break;
         default: rc = false; break;
         }

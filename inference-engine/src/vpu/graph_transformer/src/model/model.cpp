@@ -186,6 +186,10 @@ Data ModelObj::duplicateData(
     newData->_desc  = newDesc.numDims() != 0 ? newDesc : origData->desc();
     newData->_model = this;
 
+    if (const auto& parentDataToShapeEdge = origData->parentDataToShapeEdge()) {
+        connectDataWithShape(parentDataToShapeEdge->parent(), newData);
+    }
+
     if (newDataUsage == DataUsage::Const) {
         const auto& content = newContent != nullptr ? newContent : origData->content();
         const auto& desc = newDesc != DataDesc() ? newDesc : origData->desc();
@@ -381,8 +385,6 @@ StageOutput ModelObj::addStageOutput(
         IE_ASSERT(stage->_parentStageEdge == nullptr);
         IE_ASSERT(consumerEdge->_consumer->_parentStageEdge == nullptr);
         setStagesOrder(stage, consumerEdge->consumer());
-
-        _initialStages.erase(consumerEdge->_consumer);
     }
 
     return edge;
@@ -494,6 +496,27 @@ void ModelObj::replaceStageInput(
     IE_ASSERT(edge->_childEdge == nullptr);
 
     //
+    // New and old dynamic data must have the same parent shape data
+    //
+
+    if (const auto& oldParentDataToShapeEdge = edge->input()->parentDataToShapeEdge()) {
+        const auto& newParentDataToShapeEdge = newInput->parentDataToShapeEdge();
+        VPU_THROW_UNLESS(newParentDataToShapeEdge != nullptr,
+                "Replaced input data with name {} from {} stage with name {} has parentDataToShapeEdge, "
+                "but new input data with name {} has no parentDataToShapeEdge",
+                edge->input()->name(), edge->consumer()->type(), edge->consumer()->name(), newInput->name());
+        VPU_THROW_UNLESS(newParentDataToShapeEdge->parent() == oldParentDataToShapeEdge->parent(),
+                "Replaced input data with name {} from {} stage with name {} and new input data with name must "
+                "have the same shape data",
+                edge->input()->name(), edge->consumer()->type(), edge->consumer()->name(), newInput->name());
+    } else {
+        VPU_THROW_UNLESS(newInput->parentDataToShapeEdge() == nullptr,
+                "Replaced input data with name {} from {} stage with name {} has not parentDataToShapeEdge, "
+                "but new input data with name {} has",
+                edge->input()->name(), edge->consumer()->type(), edge->consumer()->name(), newInput->name());
+    }
+
+    //
     // Edge change affects the Stage order.
     //
 
@@ -528,8 +551,6 @@ void ModelObj::replaceStageInput(
         IE_ASSERT(edge->_consumer->_parentStageEdge == nullptr);
         IE_ASSERT(newInput->_producerEdge->_producer->_parentStageEdge == nullptr);
         setStagesOrder(newInput->producerEdge()->producer(), edge->consumer());
-
-        _initialStages.erase(edge->_consumer);
     }
 
     if (edge->_consumer->_prevStages.empty()) {
@@ -588,6 +609,27 @@ void ModelObj::replaceStageOutput(
     IE_ASSERT(edge->_childEdge == nullptr);
 
     //
+    // New and old dynamic data must have the same parent shape data
+    //
+
+    if (const auto& oldParentDataToShapeEdge = edge->output()->parentDataToShapeEdge()) {
+        const auto& newParentDataToShapeEdge = newOutput->parentDataToShapeEdge();
+        VPU_THROW_UNLESS(newParentDataToShapeEdge != nullptr,
+                "Replaced output data with name {} from {} stage with name {} has parentDataToShapeEdge, "
+                "but new output data with name {} has no parentDataToShapeEdge",
+                edge->output()->name(), edge->producer()->type(), edge->producer()->name(), newOutput->name());
+        VPU_THROW_UNLESS(newParentDataToShapeEdge->parent() == oldParentDataToShapeEdge->parent(),
+                "Replaced output data with name {} from {} stage with name {} and new output data with name must "
+                "have the same shape data",
+                edge->output()->name(), edge->producer()->type(), edge->producer()->name(), newOutput->name());
+    } else {
+        VPU_THROW_UNLESS(newOutput->parentDataToShapeEdge() == nullptr,
+                "Replaced output data with name {} from {} stage with name {} has not parentDataToShapeEdge, "
+                "but new output data with name {} has",
+                edge->output()->name(), edge->producer()->type(), edge->producer()->name(), newOutput->name());
+    }
+
+    //
     // Edge change affects the Stage order.
     //
 
@@ -628,8 +670,6 @@ void ModelObj::replaceStageOutput(
         IE_ASSERT(edge->_producer->_parentStageEdge == nullptr);
         IE_ASSERT(consumerEdge->_consumer->_parentStageEdge == nullptr);
         setStagesOrder(edge->producer(), consumerEdge->consumer());
-
-        _initialStages.erase(consumerEdge->_consumer);
     }
 }
 
@@ -728,6 +768,19 @@ void ModelObj::removeStageDependency(const StageDependency& edge) {
         dependency->name(), dependency->usage(), dependentStage->name(), dependentStage->type());
 
     _stageDependencyEdgePtrList.erase(edge->_ptrPosInModel);
+}
+
+void ModelObj::removeStageDependency(const Stage& stage, const Data& dependency) {
+    const auto& dependentStagesEdges = dependency->dependentStagesEdges();
+
+    const auto it = std::find_if(dependentStagesEdges.begin(), dependentStagesEdges.end(), [&stage](const StageDependency& edge) {
+        return edge->dependentStage() == stage;
+    });
+
+    if (it != dependentStagesEdges.end()) {
+        const auto stageDependencyEdge = *it;
+        removeStageDependency(stageDependencyEdge);
+    }
 }
 
 ModelObj::InjectStageHelper::~InjectStageHelper() {
@@ -1662,18 +1715,8 @@ void ModelObj::replaceDataToShapeParent(
     newParent->_childDataToShapeEdges.push_back(edge);
 
     const auto& childProducer = child->producer();
-
     if (childProducer != nullptr) {
-        const auto& dependentStagesEdges = oldParent->dependentStagesEdges();
-
-        const auto it = std::find_if(dependentStagesEdges.begin(), dependentStagesEdges.end(), [&childProducer](const StageDependency& edge) {
-            return edge->dependentStage() == childProducer;
-        });
-
-        if (it != dependentStagesEdges.end()) {
-            const auto edge = *it;
-            removeStageDependency(edge);
-        }
+        removeStageDependency(childProducer, oldParent);
 
         if (isStageDependencyNeeded(childProducer, newParent)) {
             // Shape and data are produced from different stages, make sure that shape is calculated before data
@@ -1698,18 +1741,8 @@ void ModelObj::replaceDataToShapeChild(
     newChild->_parentDataToShapeEdge = edge;
 
     const auto& oldChildProducer = oldChild->producer();
-
     if (oldChildProducer != nullptr) {
-        const auto &dependentStagesEdges = parent->dependentStagesEdges();
-
-        const auto it = std::find_if(dependentStagesEdges.begin(), dependentStagesEdges.end(), [&oldChildProducer](const StageDependency &edge) {
-            return edge->dependentStage() == oldChildProducer;
-        });
-
-        if (it != dependentStagesEdges.end()) {
-            const auto edge = *it;
-            removeStageDependency(edge);
-        }
+        removeStageDependency(oldChildProducer, parent);
     }
 
     const auto& newChildProducer = newChild->producer();
@@ -1798,18 +1831,8 @@ void ModelObj::disconnectDatas(const DataToShapeAllocation& edge) {
     _shapeEdgePtrList.erase(edge->_ptrPosInModel);
 
     const auto& childProducer = child->producer();
-
     if (childProducer != nullptr) {
-        const auto &dependentStagesEdges = parent->dependentStagesEdges();
-
-        const auto it = std::find_if(dependentStagesEdges.begin(), dependentStagesEdges.end(), [&childProducer](const StageDependency &edge) {
-            return edge->dependentStage() == childProducer;
-        });
-
-        if (it != dependentStagesEdges.end()) {
-            const auto edge = *it;
-            removeStageDependency(edge);
-        }
+        removeStageDependency(childProducer, parent);
     }
 }
 
@@ -1860,6 +1883,11 @@ void ModelObj::disconnectStage(const Stage& stage) {
     //
 
     for (const auto& outEdge : stage->_outputEdges) {
+        // Disconnect from dependency
+        if (const auto& dataToShapeEdge = outEdge->output()->parentDataToShapeEdge()) {
+            removeStageDependency(stage, dataToShapeEdge->parent());
+        }
+        // Disconnect from consumers
         for (const auto& consumerEdge : outEdge->_output->_consumerEdges) {
             auto it1 = consumerEdge->_consumer->_prevStages.find(outEdge->_producer);
             IE_ASSERT(it1 != consumerEdge->_consumer->_prevStages.end());
@@ -1914,12 +1942,10 @@ void ModelObj::removeStage(const Stage& stage) {
 }
 
 void ModelObj::cleanUp() {
-    bool needAllocatorPreprocess = false;
-
     for (const auto& data : datas()) {
         if (data->_usage == DataUsage::Input) {
-            VPU_THROW_UNLESS(!data->_consumerEdges.empty(),
-                "Input data {} must have at least one consumers, but got zero.", data->name());
+            VPU_THROW_UNLESS(!data->_consumerEdges.empty() || !data->childDataToShapeEdges().empty(),
+                    "Input data {} must either have at least one consumer (but got zero) or be a shape data.", data->name());
             IE_ASSERT(data->_parentDataToDataEdge == nullptr);
         } else if (data->_usage == DataUsage::Output) {
             IE_ASSERT(data->_producerEdge != nullptr);
@@ -1933,21 +1959,9 @@ void ModelObj::cleanUp() {
             }
         } else {
             if (data->_consumerEdges.empty() && data->_producerEdge == nullptr) {
-                if (data->usage() != DataUsage::Intermediate &&
-                    data->usage() != DataUsage::Temp) {
-                    needAllocatorPreprocess = true;
-                }
-
-                _dataList.erase(data);
-
-                IE_ASSERT(data->_ptrPosInModel != _dataPtrList.end());
-                _dataPtrList.erase(data->_ptrPosInModel);
+                removeUnusedData(data);
             }
         }
-    }
-
-    if (needAllocatorPreprocess) {
-        _allocator.setNeedToAllocNonIntermData();
     }
 }
 
@@ -1998,6 +2012,7 @@ void ModelObj::reorderStages(
 void ModelObj::setStagesOrder(const Stage& parent, const Stage& child) {
     ++parent->_nextStages[child];
     ++child->_prevStages[parent];
+    _initialStages.erase(child);
 }
 
 void ModelObj::removeStagesOrder(const Stage& parent, const Stage& child) {
@@ -2017,6 +2032,9 @@ void ModelObj::removeStagesOrder(const Stage& parent, const Stage& child) {
     --childPrevStage->second;
     if (childPrevStage->second <= 0) {
         child->_prevStages.erase(childPrevStage);
+    }
+    if (child->_prevStages.empty()) {
+        _initialStages.emplace(child);
     }
 }
 
@@ -2126,6 +2144,14 @@ void ModelObj::removeUnusedData(const Data& data) {
     if (data->usage() != DataUsage::Intermediate &&
         data->usage() != DataUsage::Temp) {
         _allocator.setNeedToAllocNonIntermData();
+    }
+
+    if (const auto dataToShapeEdge = data->parentDataToShapeEdge()) {
+        const auto shape = dataToShapeEdge->parent();
+        disconnectDatas(dataToShapeEdge);
+        VPU_INTERNAL_CHECK(!shape->childDataToShapeEdges().empty() || !shape->consumerEdges().empty(),
+                "Removed unused data (with name {}) must have a shape data (with name {}) which is a shape "
+                "for other data or has consumer", data->name(), shape->name());
     }
 
     _dataList.erase(data);

@@ -4,7 +4,7 @@ import warnings
 import numpy as np
 
 from openvino.inference_engine import IECore, IENetwork, IENetLayer, DataPtr, \
-    LayersStatsMap, LayerStats, InputInfoPtr, PreProcessInfo
+    InputInfoPtr, PreProcessInfo
 from conftest import model_path
 
 
@@ -62,7 +62,7 @@ def test_inputs_deprecated():
     assert "'inputs' property of IENetwork class is deprecated. " \
                "To access DataPtrs user need to use 'input_data' property " \
                "of InputInfoPtr objects which " \
-               "can be acessed by 'input_info' property." in str(w[-1].message)
+               "can be accessed by 'input_info' property." in str(w[-1].message)
 
 
 def test_input_info():
@@ -188,54 +188,6 @@ def test_layers():
     assert sorted(layers_name) == ['19/Fused_Add_', '21', '22', '23', '24/Fused_Add_',
                                    '26', '27', '29', 'data', 'fc_out']
     assert isinstance(net.layers['19/Fused_Add_'], IENetLayer)
-
-
-def test_get_stats_deprecated():
-    with warnings.catch_warnings(record=True) as w:
-        ie = IECore()
-        net = ie.read_network(model=test_net_xml, weights=test_net_bin)
-        stats = net.stats
-        assert isinstance(stats, LayersStatsMap)
-        assert len(w) == 1
-        assert issubclass(w[-1].category, DeprecationWarning)
-        assert "stats property of IENetwork is deprecated." in str(w[-1].message)
-
-
-@pytest.mark.skip(reason="Test is failed due-to ngraph conversion")
-def test_set_new_stats_deprecated():
-    with warnings.catch_warnings(record=True) as w:
-        ie = IECore()
-        net = ie.read_network(model=test_net_xml, weights=test_net_bin)
-        new_stats = LayerStats(min=(1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0),
-                               max=(10.0, 20.0, 30.0, 40.0, 50.0, 60.0, 70.0, 80.0, 90.0, 100.0))
-        stats = net.stats
-        stats.update({"fc_out": new_stats})
-        assert net.stats["fc_out"].min == new_stats.min
-        assert net.stats["fc_out"].max == new_stats.max
-        assert len(w) == 3
-        for warns in w:
-            assert issubclass(warns.category, DeprecationWarning)
-            assert "stats property of IENetwork is deprecated." in str(warns.message)
-
-
-@pytest.mark.skip(reason="Test is failed due-to ngraph conversion")
-def test_update_stats_deprecated():
-    with warnings.catch_warnings(record=True) as w:
-        ie = IECore()
-        net = ie.read_network(model=test_net_xml, weights=test_net_bin)
-        initial_stats = LayerStats(min=(1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0),
-                                   max=(10.0, 20.0, 30.0, 40.0, 50.0, 60.0, 70.0, 80.0, 90.0, 100.0))
-        stats = net.stats
-        stats.update({"fc_out": initial_stats})
-        new_stats = LayerStats(min=(10.0, 20.0, 30.0, 40.0, 50.0, 60.0, 70.0, 80.0, 90.0, 100.0),
-                               max=(10.0, 20.0, 30.0, 40.0, 50.0, 60.0, 70.0, 80.0, 90.0, 100.0))
-        stats.update({"fc_out": new_stats})
-        assert net.stats["fc_out"].min == new_stats.min
-        assert net.stats["fc_out"].max == new_stats.max
-        assert len(w) == 3
-        for warns in w:
-            assert issubclass(warns.category, DeprecationWarning)
-            assert "stats property of IENetwork is deprecated." in str(warns.message)
 
 
 @pytest.mark.skip(reason="Test is failed due-to ngraph conversion")

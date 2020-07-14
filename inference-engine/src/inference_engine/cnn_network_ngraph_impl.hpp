@@ -37,8 +37,6 @@ using ReshaperPtr = std::shared_ptr<Reshaper>;
 
 namespace details {
 
-IE_SUPPRESS_DEPRECATED_START
-
 /**
  * @brief Ngraph-based implementation of the ICNNNetwork interface.
  */
@@ -47,37 +45,18 @@ public:
     CNNNetworkNGraphImpl(const std::shared_ptr<::ngraph::Function>& nGraph);
     ~CNNNetworkNGraphImpl() override;
 
-    INFERENCE_ENGINE_DEPRECATED("Use ngraph::Function directly")
-    Precision getPrecision() const noexcept override;
     void getOutputsInfo(std::map<std::string, DataPtr>& out) const noexcept override;
 
     void getInputsInfo(InputsDataMap& inputs) const noexcept override;
 
     InputInfo::Ptr getInput(const std::string& inputName) const noexcept override;
-
-    INFERENCE_ENGINE_DEPRECATED("Use CNNNetworkNGraphImpl::getName() returning std::string")
-    void getName(char* pName, size_t len) const noexcept override;
-
     const std::string& getName() const noexcept override;
 
     size_t layerCount() const noexcept override;
 
     void setInputInfo(InputInfo::Ptr data);
 
-    INFERENCE_ENGINE_DEPRECATED("Use ngraph::Function directly")
-    DataPtr& getData(const char* name) noexcept override;
-
-    INFERENCE_ENGINE_DEPRECATED("Use ngraph::Function directly")
-    DataPtr& getData(const std::string& name);
-
-    std::shared_ptr<ICNNNetwork> getCNNNetwork();
-
-    // This method is not really implemented; don't call it
-    INFERENCE_ENGINE_DEPRECATED("Use ngraph::Function directly")
-    void addLayer(const CNNLayerPtr& layer) noexcept override;
-
-    INFERENCE_ENGINE_DEPRECATED("Use ngraph::Function directly")
-    StatusCode getLayerByName(const char* layerName, CNNLayerPtr& out, ResponseDesc* resp) const noexcept override;
+    void addLayer(const CNNLayerPtr& layer) noexcept;
 
     // public version
     StatusCode setBatchSize(size_t size, ResponseDesc* responseDesc) noexcept override;
@@ -90,10 +69,6 @@ public:
     StatusCode addOutput(const std::string& layerName, size_t outputIndex, ResponseDesc* resp) noexcept override;
 
     void addOutput(const std::string& dataName);
-
-    StatusCode getStats(ICNNNetworkStats** stats, ResponseDesc* resp) const noexcept override {
-        return StatusCode::NOT_FOUND;
-    }
 
     void Release() noexcept override {
         delete this;
@@ -111,17 +86,14 @@ public:
     StatusCode reshape(const std::map<std::string, std::vector<size_t>>& inputShapes,
                        ResponseDesc* resp) noexcept override;
 
-    StatusCode AddExtension(const InferenceEngine::IShapeInferExtensionPtr& extension,
-                            InferenceEngine::ResponseDesc* resp) noexcept override;
-
     StatusCode serialize(const std::string& xmlPath, const std::string& binPath, ResponseDesc* resp) const
         noexcept override;
 
-    void convertToCNNNetworkImpl();
-protected:
-    std::shared_ptr<::ngraph::Function> _ngraph_function;
     virtual std::shared_ptr<::ngraph::Function> cloneFunction(bool constFolding = false, const std::map<std::string,
             std::vector<size_t>>& inputShapes = {}) const;
+protected:
+    std::shared_ptr<::ngraph::Function> _ngraph_function;
+
 private:
     std::map<std::string, DataPtr> _data;
     InferenceEngine::InputsDataMap _inputData;
@@ -137,9 +109,18 @@ private:
      */
     void createDataForResult(const ::ngraph::Output<::ngraph::Node>& output, const std::string& outName, DataPtr& ptr);
 
-    friend INFERENCE_ENGINE_API_CPP(std::shared_ptr<CNNNetworkImpl>)
+    /**
+     * @brief Converts ngraph::Function to old CNNNetworkImpl representation
+     */
+    void convertToCNNNetworkImpl();
+
+    friend INFERENCE_ENGINE_API_CPP(void)
     convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function>& graph,
-                                 const ICNNNetwork& nGraphImpl);
+                                 const ICNNNetwork& nGraphImpl,
+                                 CNNNetworkImpl* cnnNetworkImpl,
+                                 bool keep_constant_inputs);
+
+    friend class NGraphData;
 
     /**
      * @brief Reshape on the same shape
@@ -151,11 +132,12 @@ class TINGraphBody : public CNNNetworkNGraphImpl {
 public:
     explicit TINGraphBody(const std::shared_ptr<::ngraph::Function>& func): CNNNetworkNGraphImpl(func) {}
 
-protected:
     std::shared_ptr<::ngraph::Function> cloneFunction(bool constFolding, const std::map<std::string, std::vector<size_t>>& inputShapes) const override {
         return _ngraph_function;
     }
 };
+
+IE_SUPPRESS_DEPRECATED_START
 
 /**
  * @brief Special derived class of Data which converts CNNNetworkNGraphImpl to CNNLayer-based representation
@@ -172,20 +154,9 @@ public:
         network = nullptr;
     }
 
-    CNNLayerWeakPtr& getCreatorLayer() override {
-        if (Data::getCreatorLayer().lock() == nullptr && network != nullptr) {
-            network->convertToCNNNetworkImpl();
-        }
-        return Data::getCreatorLayer();
-    }
+    CNNLayerWeakPtr& getCreatorLayer();
 
-    std::map<std::string, CNNLayerPtr>& getInputTo() override {
-        if (Data::getInputTo().empty() && network != nullptr) {
-            network->convertToCNNNetworkImpl();
-        }
-
-        return Data::getInputTo();
-    }
+    std::map<std::string, CNNLayerPtr>& getInputTo();
 
 private:
     CNNNetworkNGraphImpl* network;
@@ -193,6 +164,5 @@ private:
 
 IE_SUPPRESS_DEPRECATED_END
 
-typedef std::shared_ptr<CNNNetworkNGraphImpl> CNNNetworkNGraphImplPtr;
 }  // namespace details
 }  // namespace InferenceEngine

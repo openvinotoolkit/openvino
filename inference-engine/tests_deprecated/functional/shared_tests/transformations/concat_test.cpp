@@ -5,6 +5,7 @@
 #include "low_precision_transformer_single_layer_tests.hpp"
 #include "low_precision_transformations/concat.hpp"
 #include "low_precision_transformations/eltwise.hpp"
+#include "common_test_utils/common_utils.hpp"
 
 ConcatTestModel::ConcatTestModel(
     const bool signedIntervals,
@@ -39,17 +40,18 @@ std::string ConcatTestModel::getModel(SingleLayerTransformationsTestParams& p) c
         {"10,15", "12,22"}, {"11,21", "12,23"} // FakeQuantize to Concat
     };
 
+    size_t constSize = std::accumulate(constInputDimentions.begin(), constInputDimentions.end(), 1lu, std::multiplies<size_t>());
     return CommonTestUtils::DefaultNetBuilder::buildNetworkWithOneInput(
             "Concat_transformations_", p.inputDimensions[0], p._network_precision)
         .addInputLayer(p._network_precision, p.inputDimensions[1])
-        .addLayer("Const", p._network_precision, &const_params, {{}, {constInputDimentions}}, type_size, 0)
-        .addLayer("Const", p._network_precision, &const_params, {{}, {constInputDimentions}}, type_size, 0)
-        .addLayer("Const", p._network_precision, &const_params, {{}, {constInputDimentions}}, type_size, 0)
-        .addLayer("Const", p._network_precision, &const_params, {{}, {constInputDimentions}}, type_size, 0)
-        .addLayer("Const", p._network_precision, &const_params, {{}, {constInputDimentions}}, type_size, 0)
-        .addLayer("Const", p._network_precision, &const_params, {{}, {constInputDimentions}}, type_size, 0)
-        .addLayer("Const", p._network_precision, &const_params, {{}, {constInputDimentions}}, type_size, 0)
-        .addLayer("Const", p._network_precision, &const_params, {{}, {constInputDimentions}}, type_size, 0)
+        .addLayer("Const", p._network_precision, &const_params, {{}, {constInputDimentions}}, type_size*constSize, 0)
+        .addLayer("Const", p._network_precision, &const_params, {{}, {constInputDimentions}}, type_size*constSize, 0)
+        .addLayer("Const", p._network_precision, &const_params, {{}, {constInputDimentions}}, type_size*constSize, 0)
+        .addLayer("Const", p._network_precision, &const_params, {{}, {constInputDimentions}}, type_size*constSize, 0)
+        .addLayer("Const", p._network_precision, &const_params, {{}, {constInputDimentions}}, type_size*constSize, 0)
+        .addLayer("Const", p._network_precision, &const_params, {{}, {constInputDimentions}}, type_size*constSize, 0)
+        .addLayer("Const", p._network_precision, &const_params, {{}, {constInputDimentions}}, type_size*constSize, 0)
+        .addLayer("Const", p._network_precision, &const_params, {{}, {constInputDimentions}}, type_size*constSize, 0)
         .addLayer(
             "FakeQuantize",
             p._network_precision,
@@ -90,14 +92,14 @@ bool ConcatTestModel::transform(CNNNetwork& network, LayerTransformation::Params
     LowPrecisionTransformer transformer(transformations);
     transformer.transform(network);
 
-    const CNNLayerPtr concatLayer = network.getLayerByName("concat");
+    const CNNLayerPtr concatLayer = CommonTestUtils::getLayerByName(network, "concat");
     if (concatLayer == nullptr) {
         THROW_IE_EXCEPTION << "concat layer was not found";
     }
 
     const std::vector<size_t> dims = concatLayer->outData[0]->getDims();
     if (dims.size() == 4ul) {
-        const CNNLayerPtr fakeQuantizeLayer1 = network.getLayerByName("fakeQuantize1");
+        const CNNLayerPtr fakeQuantizeLayer1 = CommonTestUtils::getLayerByName(network, "fakeQuantize1");
         QuantizeLayer* fakeQuantize1 = dynamic_cast<QuantizeLayer*>(fakeQuantizeLayer1.get());
         if (fakeQuantize1 == nullptr) {
             THROW_IE_EXCEPTION << "incorrect type for layer " << fakeQuantizeLayer1->name;
@@ -106,7 +108,7 @@ bool ConcatTestModel::transform(CNNNetwork& network, LayerTransformation::Params
             //
         }
 
-        const CNNLayerPtr fakeQuantizeLayer2 = network.getLayerByName("fakeQuantize2");
+        const CNNLayerPtr fakeQuantizeLayer2 = CommonTestUtils::getLayerByName(network, "fakeQuantize2");
         QuantizeLayer* fakeQuantize2 = dynamic_cast<QuantizeLayer*>(fakeQuantizeLayer2.get());
         if (fakeQuantize2 == nullptr) {
             THROW_IE_EXCEPTION << "incorrect type for layer " << fakeQuantizeLayer2->name;
@@ -115,7 +117,7 @@ bool ConcatTestModel::transform(CNNNetwork& network, LayerTransformation::Params
             //
         }
     } else if (dims.size() == 2ul) {
-        if (concatLayer->outData[0]->getInputTo().size() != 0ul) {
+        if (getInputTo(concatLayer->outData[0]).size() != 0ul) {
             THROW_IE_EXCEPTION << "2D is not supported";
         }
     }

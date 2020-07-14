@@ -151,8 +151,4 @@ class Deconvolution(Op):
                                      node.get_weights_permute if node.has_valid('get_weights_permute') else None)
         PermuteInputs().set_input_permutation(node.in_node(2), node, 'input:0', 'shape')
 
-        if not node.graph.graph['cmd_params'].generate_experimental_IR_V10:
-            node.graph.remove_edge(node.in_node(2).id, node.id)
-            node['shape_input'] = False
-        else:
-            node['force_precision_in_ports'] = {2: 'int64'}
+        node['force_precision_in_ports'] = {2: 'int64'}

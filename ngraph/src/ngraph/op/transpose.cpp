@@ -84,14 +84,6 @@ shared_ptr<Node> op::v1::Transpose::copy_with_new_args(const NodeVector& new_arg
     return make_shared<v1::Transpose>(new_args[0], new_args[1]);
 }
 
-// TODO(amprocte): This will require some way of inverting the permutation in-graph. (TensorFlow,
-// for example, has an InvertPermutation op, but that doesn't feel very nGraph-y somehow.)
-void op::v1::Transpose::generate_adjoints(autodiff::Adjoints& /* adjoints */,
-                                          const OutputVector& /* deltas */)
-{
-    throw ngraph_error("generate_adjoints not implemented for Transpose");
-}
-
 namespace
 {
     template <element::Type_t ET>
@@ -163,29 +155,17 @@ namespace
 
         switch (arg1->get_element_type())
         {
-            TYPE_CASE(i8)(arg1, arg2, out);
-            break;
-            TYPE_CASE(i16)(arg1, arg2, out);
-            break;
             TYPE_CASE(i32)(arg1, arg2, out);
             break;
             TYPE_CASE(i64)(arg1, arg2, out);
-            break;
-            TYPE_CASE(u8)(arg1, arg2, out);
-            break;
-            TYPE_CASE(u16)(arg1, arg2, out);
             break;
             TYPE_CASE(u32)(arg1, arg2, out);
             break;
             TYPE_CASE(u64)(arg1, arg2, out);
             break;
-            TYPE_CASE(bf16)(arg1, arg2, out);
-            break;
             TYPE_CASE(f16)(arg1, arg2, out);
             break;
             TYPE_CASE(f32)(arg1, arg2, out);
-            break;
-            TYPE_CASE(f64)(arg1, arg2, out);
             break;
         default: rc = false; break;
         }

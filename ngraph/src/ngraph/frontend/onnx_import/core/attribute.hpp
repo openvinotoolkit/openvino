@@ -27,6 +27,7 @@ namespace ngraph
     {
         // forward declarations
         class Graph;
+        class Subgraph;
         class Model;
 
         // Detecting automatically the underlying type used to store the information
@@ -44,11 +45,18 @@ namespace ngraph
                 {
                     struct Attribute : ngraph_error
                     {
+#ifdef NGRAPH_USE_PROTOBUF_LITE
+                        Attribute(const std::string& msg, AttributeProto_AttributeType type)
+                            : ngraph_error{msg}
+                        {
+                        }
+#else
                         Attribute(const std::string& msg, AttributeProto_AttributeType type)
                             : ngraph_error{msg + ": " +
                                            ONNX_NAMESPACE::AttributeProto_AttributeType_Name(type)}
                         {
                         }
+#endif
                     };
 
                 } // namespace detail
@@ -285,7 +293,7 @@ namespace ngraph
             float get_float() const { return m_attribute_proto->f(); }
             int64_t get_integer() const { return m_attribute_proto->i(); }
             const std::string& get_string() const { return m_attribute_proto->s(); }
-            Graph get_graph(Model&) const;
+            Subgraph get_subgraph(const Graph& parent_graph) const;
 
             std::vector<Tensor> get_tensor_array() const
             {

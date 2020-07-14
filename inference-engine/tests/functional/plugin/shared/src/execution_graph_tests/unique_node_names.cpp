@@ -10,6 +10,9 @@
 #include <functional>
 
 #include <ie_core.hpp>
+#include <ngraph/function.hpp>
+#include <exec_graph_info.hpp>
+#include <ngraph/variant.hpp>
 
 #include "common_test_utils/common_utils.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
@@ -54,9 +57,6 @@ void ExecGraphUniqueNodeNames::SetUp() {
 }
 
 void ExecGraphUniqueNodeNames::TearDown() {
-    if (targetDevice.find(CommonTestUtils::DEVICE_GPU) != std::string::npos) {
-        PluginCache::get().reset();
-    }
 }
 
 TEST_P(ExecGraphUniqueNodeNames, CheckUniqueNodeNames) {
@@ -66,20 +66,41 @@ TEST_P(ExecGraphUniqueNodeNames, CheckUniqueNodeNames) {
     auto execNet = ie->LoadNetwork(cnnNet, targetDevice);
 
     InferenceEngine::CNNNetwork execGraphInfo = execNet.GetExecGraphInfo();
-    auto nodes = InferenceEngine::Serialization::TopologicalSort(execGraphInfo);
 
     int numReorders = 0;
     int expectedReorders = 2;
     std::unordered_set<std::string> names;
-    for (auto &node : nodes) {
-        IE_SUPPRESS_DEPRECATED_START
-        ASSERT_TRUE(names.find(node->name) == names.end()) << "Node with name " << node->name << "already exists";
-        names.insert(node->name);
-        if (node->type == "Reorder") {
-            numReorders++;
+
+    if (auto function = execGraphInfo.getFunction()) {
+        for (const auto & op : function->get_ops()) {
+            ASSERT_TRUE(names.find(op->get_friendly_name()) == names.end()) <<
+                "Node with name " << op->get_friendly_name() << "already exists";
+            names.insert(op->get_friendly_name());
+
+            const auto & rtInfo = op->get_rt_info();
+            auto it = rtInfo.find(ExecGraphInfoSerialization::LAYER_TYPE);
+            ASSERT_NE(rtInfo.end(), it);
+            auto opType = std::dynamic_pointer_cast<ngraph::VariantImpl<std::string>>(it->second);
+            ASSERT_NE(nullptr, opType);
+
+            if (opType->get() == "Reorder") {
+                numReorders++;
+            }
         }
-        IE_SUPPRESS_DEPRECATED_END
+    } else {
+        auto nodes = InferenceEngine::Serialization::TopologicalSort(execGraphInfo);
+        for (auto &node : nodes) {
+            IE_SUPPRESS_DEPRECATED_START
+            ASSERT_TRUE(names.find(node->name) == names.end()) <<
+                "Node with name " << node->name << "already exists";
+            names.insert(node->name);
+            if (node->type == "Reorder") {
+                numReorders++;
+            }
+            IE_SUPPRESS_DEPRECATED_END
+        }
     }
+
     ASSERT_TRUE(numReorders == expectedReorders) << "Expected reorders: " << expectedReorders << ", actual reorders: " << numReorders;
 
     fnPtr.reset();

@@ -216,7 +216,7 @@ TEST(constant_folding, constant_reshape)
     ASSERT_TRUE(test::all_close_f(values_in, values_out, MIN_FLOAT_TOLERANCE_BITS));
 }
 
-TEST(constant_folding, constant_reshape_permute)
+TEST(constant_folding, DISABLED_constant_reshape_permute)
 {
     Shape shape_in{2, 4};
     Shape shape_out{4, 2};
@@ -263,32 +263,6 @@ TEST(constant_folding, constant_broadcast)
     auto values_out = new_const->get_vector<int>();
 
     vector<int> values_expected{0, 0, 0, 0, 1, 1, 1, 1};
-    ASSERT_EQ(values_expected, values_out);
-}
-
-TEST(constant_folding, constant_dyn_broadcast)
-{
-    vector<int32_t> values_in{0, 1};
-    auto constant_in = make_shared<op::Constant>(element::i32, Shape{2}, values_in);
-    vector<int64_t> shape_in{2, 4};
-    auto constant_shape = make_shared<op::Constant>(element::i64, Shape{2}, shape_in);
-    vector<int64_t> axes_in{1};
-    auto constant_axes = make_shared<op::Constant>(element::i64, Shape{1}, axes_in);
-    auto dyn_broadcast = make_shared<op::DynBroadcast>(constant_in, constant_shape, constant_axes);
-    auto f = make_shared<Function>(dyn_broadcast, ParameterVector{});
-
-    pass::Manager pass_manager;
-    pass_manager.register_pass<pass::ConstantFolding>();
-    pass_manager.run_passes(f);
-
-    ASSERT_EQ(count_ops_of_type<op::DynBroadcast>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
-
-    auto new_const = as_type_ptr<op::Constant>(f->get_results().at(0)->get_argument(0));
-    ASSERT_TRUE(new_const);
-    auto values_out = new_const->get_vector<int32_t>();
-
-    vector<int32_t> values_expected{0, 0, 0, 0, 1, 1, 1, 1};
     ASSERT_EQ(values_expected, values_out);
 }
 
@@ -439,7 +413,6 @@ TEST(constant_folding, constant_unary_binary)
     auto greater_eq_autob_numpy = make_shared<op::GreaterEq>(a, g, op::AutoBroadcastType::NUMPY);
     auto less_autob_numpy = make_shared<op::Less>(a, g, op::AutoBroadcastType::NUMPY);
     auto less_eq_autob_numpy = make_shared<op::LessEq>(a, g, op::AutoBroadcastType::NUMPY);
-    auto logical_and_autob_numpy = make_shared<op::And>(h, i, op::AutoBroadcastType::NUMPY);
     auto logical_or_autob_numpy = make_shared<op::Or>(h, i, op::AutoBroadcastType::NUMPY);
     auto logical_xor_autob_numpy = make_shared<op::Xor>(h, i, op::AutoBroadcastType::NUMPY);
 
@@ -468,7 +441,6 @@ TEST(constant_folding, constant_unary_binary)
                                                  greater_eq_autob_numpy,
                                                  less_autob_numpy,
                                                  less_eq_autob_numpy,
-                                                 logical_and_autob_numpy,
                                                  logical_or_autob_numpy,
                                                  logical_xor_autob_numpy},
                                       ParameterVector{});
@@ -501,7 +473,6 @@ TEST(constant_folding, constant_unary_binary)
     vector<char> greater_eq_autob_numpy_expected{1, 0, 1, 1};
     vector<char> less_autob_numpy_expected{0, 1, 0, 0};
     vector<char> less_eq_autob_numpy_expected{1, 1, 0, 1};
-    vector<char> logical_and_autob_numpy_expected{0, 0, 0, 1};
     vector<char> logical_or_autob_numpy_expected{0, 1, 1, 1};
     vector<char> logical_xor_autob_numpy_expected{0, 1, 1, 0};
 
@@ -528,9 +499,8 @@ TEST(constant_folding, constant_unary_binary)
     ASSERT_EQ(get_result_constant<char>(func, 20), greater_eq_autob_numpy_expected);
     ASSERT_EQ(get_result_constant<char>(func, 21), less_autob_numpy_expected);
     ASSERT_EQ(get_result_constant<char>(func, 22), less_eq_autob_numpy_expected);
-    ASSERT_EQ(get_result_constant<char>(func, 23), logical_and_autob_numpy_expected);
-    ASSERT_EQ(get_result_constant<char>(func, 24), logical_or_autob_numpy_expected);
-    ASSERT_EQ(get_result_constant<char>(func, 25), logical_xor_autob_numpy_expected);
+    ASSERT_EQ(get_result_constant<char>(func, 23), logical_or_autob_numpy_expected);
+    ASSERT_EQ(get_result_constant<char>(func, 24), logical_xor_autob_numpy_expected);
     ASSERT_NO_THROW(pass_manager.run_passes(func_error));
 }
 
@@ -1283,31 +1253,6 @@ TEST(constant_folding, const_reducemean_keepdims)
     ASSERT_EQ(values_expected, values_out);
 }
 
-TEST(constant_folding, const_all)
-{
-    Shape input_shape{3, 3};
-
-    vector<char> values_in{0, 1, 1, 0, 1, 0, 1, 1, 1};
-    auto constant = op::Constant::create(element::boolean, input_shape, values_in);
-    auto convert = make_shared<op::All>(constant, AxisSet{1});
-    auto f = make_shared<Function>(convert, ParameterVector{});
-
-    pass::Manager pass_manager;
-    pass_manager.register_pass<pass::ConstantFolding>();
-    pass_manager.run_passes(f);
-
-    ASSERT_EQ(count_ops_of_type<op::All>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
-
-    auto new_const = as_type_ptr<op::Constant>(f->get_results().at(0)->get_argument(0));
-    ASSERT_TRUE(new_const);
-    auto values_out = new_const->get_vector<char>();
-
-    vector<char> values_expected{0, 0, 1};
-
-    ASSERT_EQ(values_expected, values_out);
-}
-
 TEST(constant_folding, const_reduce_logical_and__no_keepdims)
 {
     const Shape input_shape{3, 3};
@@ -1648,31 +1593,6 @@ TEST(constant_folding, const_less_eq)
     auto values_out = new_const->get_vector<char>();
 
     vector<char> values_expected{1, 1, 0, 1, 1, 0};
-
-    ASSERT_EQ(values_expected, values_out);
-}
-
-TEST(constant_folding, const_and)
-{
-    auto constant0 =
-        op::Constant::create(element::boolean, Shape{2, 3}, vector<int32_t>{0, 0, 1, 0, 1, 1});
-    auto constant1 =
-        op::Constant::create(element::boolean, Shape{2, 3}, vector<int32_t>{0, 1, 1, 1, 0, 1});
-    auto eq = make_shared<op::And>(constant0, constant1);
-    auto f = make_shared<Function>(eq, ParameterVector{});
-
-    pass::Manager pass_manager;
-    pass_manager.register_pass<pass::ConstantFolding>();
-    pass_manager.run_passes(f);
-
-    ASSERT_EQ(count_ops_of_type<op::And>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
-
-    auto new_const = as_type_ptr<op::Constant>(f->get_results().at(0)->get_argument(0));
-    ASSERT_TRUE(new_const);
-    auto values_out = new_const->get_vector<char>();
-
-    vector<char> values_expected{0, 0, 1, 0, 0, 1};
 
     ASSERT_EQ(values_expected, values_out);
 }
@@ -2073,45 +1993,6 @@ TEST(constant_folding, const_slice)
     pass_manager.run_passes(f);
 
     ASSERT_EQ(count_ops_of_type<op::Slice>(f), 0);
-    ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
-
-    auto new_const = as_type_ptr<op::Constant>(f->get_results().at(0)->get_argument(0));
-    ASSERT_TRUE(new_const);
-    auto values_out = new_const->get_vector<int>();
-
-    vector<int> sliced_values{3, 6, 9, 12, 15};
-    ASSERT_EQ(sliced_values, values_out);
-}
-
-TEST(constant_folding, const_dyn_slice)
-{
-    Shape shape_in{16};
-
-    vector<int> values_in{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
-    auto constant_data = make_shared<op::Constant>(element::i32, shape_in, values_in);
-    vector<int> values_lb{2};
-    auto constant_lb = make_shared<op::Constant>(element::i64, Shape{1}, values_lb);
-    vector<int> values_ub{15};
-    auto constant_ub = make_shared<op::Constant>(element::i64, Shape{1}, values_ub);
-    vector<int> values_strides{3};
-    auto constant_strides = make_shared<op::Constant>(element::i64, Shape{1}, values_strides);
-    auto dyn_slice = make_shared<op::DynSlice>(constant_data,
-                                               constant_lb,
-                                               constant_ub,
-                                               constant_strides,
-                                               AxisSet{},
-                                               AxisSet{},
-                                               AxisSet{},
-                                               AxisSet{},
-                                               AxisSet{});
-
-    auto f = make_shared<Function>(dyn_slice, ParameterVector{});
-
-    pass::Manager pass_manager;
-    pass_manager.register_pass<pass::ConstantFolding>();
-    pass_manager.run_passes(f);
-
-    ASSERT_EQ(count_ops_of_type<op::DynSlice>(f), 0);
     ASSERT_EQ(count_ops_of_type<op::Constant>(f), 1);
 
     auto new_const = as_type_ptr<op::Constant>(f->get_results().at(0)->get_argument(0));
@@ -2939,7 +2820,7 @@ TEST(constant_folding, constant_non_zero_2D)
     ASSERT_EQ((Shape{2, 4}), new_const->get_shape());
 }
 
-TEST(constant_folding, constant_non_zero_2D_all_indices)
+TEST(constant_folding, DISABLED_constant_non_zero_2D_all_indices)
 {
     const vector<int8_t> values_in{1, 1, 1, 1, 1, 1, 1, 1, 1};
     const auto data = make_shared<op::Constant>(element::i8, Shape{3, 3}, values_in);
@@ -2962,7 +2843,7 @@ TEST(constant_folding, constant_non_zero_2D_all_indices)
     ASSERT_EQ((Shape{2, values_in.size()}), new_const->get_shape());
 }
 
-TEST(constant_folding, constant_non_zero_2D_all_zeros)
+TEST(constant_folding, DISABLED_constant_non_zero_2D_all_zeros)
 {
     const vector<uint8_t> values_in{0, 0, 0, 0, 0, 0};
     const auto data = make_shared<op::Constant>(element::u8, Shape{2, 3}, values_in);

@@ -1,4 +1,4 @@
-// Copyright (c) 2016-2019 Intel Corporation
+// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -21,7 +21,6 @@
 #include "program_node.h"
 #include "program_impl.h"
 
-#include "training_params.h"
 #include <string>
 #include <vector>
 
@@ -206,6 +205,8 @@ cldnn::format from_data_layout(kernel_selector::data_layout l) {
             return cldnn::format::bfwzyx;
         case kernel_selector::data_layout::b_fs_yx_fsv4:
             return cldnn::format::b_fs_yx_fsv4;
+        case kernel_selector::data_layout::bs_fs_yx_bsv16_fsv16:
+            return cldnn::format::bs_fs_yx_bsv16_fsv16;
         case kernel_selector::data_layout::nv12:
             return cldnn::format::nv12;
         case kernel_selector::data_layout::image_2d_rgba:
@@ -665,25 +666,12 @@ kernel_selector::activation_function get_kernel_selector_activation_param(activa
             return kernel_selector::activation_function::HARD_SIGMOID;
         case cldnn::activation_func::swish:
             return kernel_selector::activation_function::SWISH;
+        case cldnn::activation_func::mish:
+            return kernel_selector::activation_function::MISH;
         case cldnn::activation_func::gelu:
             return kernel_selector::activation_function::GELU;
         default:
             throw std::runtime_error("Unknown activation function");
-            break;
-    }
-}
-
-kernel_selector::activation_function get_kernel_selector_activation_grad_param(
-    activation_grad_func activation_grad_func) {
-    switch (activation_grad_func) {
-        case cldnn::activation_grad_func::none:
-            return kernel_selector::activation_function::NONE_GRAD;
-        case cldnn::activation_grad_func::relu:
-            return kernel_selector::activation_function::RELU_GRAD;
-        case cldnn::activation_grad_func::relu_negative_slope:
-            return kernel_selector::activation_function::RELU_NEGATIVE_SLOPE_GRAD;
-        default:
-            throw std::runtime_error("Unknown activation_grad function");
             break;
     }
 }
@@ -701,6 +689,8 @@ void set_params(const program_node& node, kernel_selector::params& params) {
     params.engineInfo.bIMADSupport = device_info.supports_imad != 0;
     params.engineInfo.bIMMADSupport = device_info.supports_immad != 0;
     params.engineInfo.bImageSupport = device_info.supports_image != 0;
+    params.engineInfo.bOptHintsSupport = device_info.supports_optimization_hints;
+    params.engineInfo.bLocalBlockIOSupport = device_info.supports_local_block_io;
     params.engineInfo.maxWorkGroupSize = device_info.max_work_group_size;
     params.engineInfo.maxLocalMemSize = device_info.max_local_mem_size;
     params.engineInfo.maxImage2dWidth = device_info.max_image2d_width;
@@ -716,18 +706,6 @@ void set_params(const program_node& node, kernel_selector::params& params) {
     if (impl_forcing.count(node.id()) != 0) {
         params.forceImplementation = impl_forcing.at(node.id()).kernel_name;
     }
-}
-
-void set_learning_params(const program_node& node, kernel_selector::training_params& params, bool use_momentum) {
-    const auto learning_params =
-        node.get_program().get_options().template get<build_option_type::learning_config>()->params;
-
-    if (use_momentum) {
-        params.use_momentum = true;
-    }
-
-    params.momentum_factor = learning_params.momentum;
-    params.weights_decay = learning_params.weights_decay;
 }
 
 void set_optional_params(const program_impl& program, kernel_selector::optional_params& params) {

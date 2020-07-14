@@ -44,8 +44,6 @@ cdef extern from "<inference_engine.hpp>" namespace "InferenceEngine":
         const Layout getLayout() except +
         void setLayout(Layout layout) except +
         const bool isInitialized() except +
-        weak_ptr[CNNLayer] & getCreatorLayer() except +
-        map[string, shared_ptr[CNNLayer]] & getInputTo() except +
 
     ctypedef shared_ptr[Data] DataPtr
     ctypedef weak_ptr[Data] DataWeakPtr
@@ -143,6 +141,11 @@ cdef extern from "<inference_engine.hpp>" namespace "InferenceEngine":
         CN
         BLOCKED
 
+
+cdef extern from "<ie_layers.h>" namespace "InferenceEngine":
+    cdef weak_ptr[CNNLayer] getCreatorLayer(const shared_ptr[Data] & data)
+    map[string, shared_ptr[CNNLayer]] & getInputTo(const shared_ptr[Data] & data)
+
 cdef extern from "ie_api_impl.hpp" namespace "InferenceEnginePython":
 
     cdef cppclass ProfileInfo:
@@ -189,27 +192,16 @@ cdef extern from "ie_api_impl.hpp" namespace "InferenceEnginePython":
         void setLayerParams(map[string, map[string, string]] params_map) except +
         void serialize(const string& path_to_xml, const string& path_to_bin) except +
         void reshape(map[string, vector[size_t]] input_shapes) except +
-        void setStats(map[string, map[string, vector[float]]] & stats) except +
-        map[string, map[string, vector[float]]] getStats() except +
         void load_from_buffer(const char*xml, size_t xml_size, uint8_t*bin, size_t bin_size) except +
         object getFunction() except +
-
-    cdef cppclass IEPlugin:
-        IEPlugin() except +
-        IEPlugin(const string &, const vector[string] &) except +
-        unique_ptr[IEExecNetwork] load(IENetwork & net, int num_requests, const map[string, string]& config) except +
-        void addCpuExtension(const string &) except +
-        void setConfig(const map[string, string] &) except +
-        void setInitialAffinity(IENetwork & net) except +
-        set[string] queryNetwork(const IENetwork & net) except +
-        string device_name
-        string version
 
     cdef cppclass InferRequestWrap:
         double exec_time;
         int index;
         void getBlobPtr(const string & blob_name, CBlob.Ptr & blob_ptr) except +
         void setBlob(const string & blob_name, const CBlob.Ptr & blob_ptr) except +
+        void setBlob(const string &blob_name, const CBlob.Ptr &blob_ptr, CPreProcessInfo& info) except +
+        void getPreProcess(const string& blob_name, const CPreProcessInfo** info) except +
         map[string, ProfileInfo] getPerformanceCounts() except +
         void infer() except +
         void infer_async() except +

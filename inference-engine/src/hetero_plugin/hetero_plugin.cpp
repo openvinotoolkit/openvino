@@ -50,8 +50,33 @@ InferenceEngine::ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(const
     if (GetCore() == nullptr) {
         THROW_IE_EXCEPTION << "Please, work with HETERO device via InferencEngine::Core object";
     }
+    auto tconfig = mergeConfigs(_config, config);
+    auto it = tconfig.find("TARGET_FALLBACK");
+    if (it == tconfig.end()) {
+        THROW_IE_EXCEPTION << "The 'TARGET_FALLBACK' option was not defined for heterogeneous plugin";
+    }
+    DeviceMetaInformationMap metaDevices = GetDevicePlugins(it->second, tconfig);
 
-    return std::make_shared<HeteroExecutableNetwork>(*cloneNet(network), mergeConfigs(_config, config), this);
+    if (auto function = network.getFunction()) {
+        auto anyDeviceDoNotSupportNgraph =
+        std::any_of(std::begin(metaDevices), std::end(metaDevices),
+                    [&] (const DeviceMetaInformationMap::value_type& metaDevice) {
+                        auto& deviceName = metaDevice.first;
+                        auto clonedNetwork = cloneNetwork(network);
+                        GetCore()->QueryNetwork(*clonedNetwork, deviceName, metaDevice.second);
+                        return (clonedNetwork->getFunction() == nullptr);
+                    });
+        if (anyDeviceDoNotSupportNgraph) {
+            auto cnnNetworkImpl = std::make_shared<details::CNNNetworkImpl>(network);
+            return std::make_shared<HeteroExecutableNetwork>(
+                *cnnNetworkImpl,
+                mergeConfigs(_config, config), this);
+        } else {
+            return std::make_shared<HeteroExecutableNetwork>(*cloneNetwork(network), mergeConfigs(_config, config), this);
+        }
+    } else {
+        return std::make_shared<HeteroExecutableNetwork>(network, mergeConfigs(_config, config), this);
+    }
 }
 
 ExecutableNetwork Engine::ImportNetworkImpl(std::istream& heteroModel, const Configs& config) {
@@ -183,23 +208,17 @@ void Engine::QueryNetwork(const ICNNNetwork &network, const Configs& config, Que
     // go over devices and call query network
     for (auto&& metaDevice : metaDevices) {
         auto& deviceName = metaDevice.first;
-        queryResults[deviceName] = GetCore()->QueryNetwork(network, deviceName, metaDevice.second);
+        auto clonedNetwork = cloneNetwork(network);
+        queryResults[deviceName] = GetCore()->QueryNetwork(*clonedNetwork, deviceName, metaDevice.second);
     }
 
     //  WARNING: Here is devices with user set priority
     auto fallbackDevices = InferenceEngine::DeviceIDParser::getHeteroDevices(fallbackDevicesStr);
 
-    details::CNNNetworkIterator i(&network);
-    while (i != details::CNNNetworkIterator()) {
-        CNNLayer::Ptr layer = *i;
-        for (auto&& deviceName : fallbackDevices) {
-            auto& deviceQueryResult = queryResults[deviceName];
-            if (deviceQueryResult.supportedLayersMap.find(layer->name) != deviceQueryResult.supportedLayersMap.end()) {
-                qr.supportedLayersMap[layer->name] = deviceName;
-                break;
-            }
+    for (auto&& deviceName : fallbackDevices) {
+        for (auto&& layerQueryResult : queryResults[deviceName].supportedLayersMap) {
+            qr.supportedLayersMap.emplace(layerQueryResult);
         }
-        i++;
     }
 
     // set OK status
@@ -241,8 +260,6 @@ Parameter Engine::GetConfig(const std::string& name, const std::map<std::string,
         THROW_IE_EXCEPTION << "Unsupported config key: " << name;
     }
 }
-
-IE_SUPPRESS_DEPRECATED_START
 
 INFERENCE_PLUGIN_API(InferenceEngine::StatusCode) CreatePluginEngine(
         InferenceEngine::IInferencePlugin *&plugin,

@@ -13,9 +13,9 @@
 #include <algorithm>
 
 #include <cpp/ie_cnn_network.h>
+#include <ie_layers.h>
 #include <cpp_interfaces/exception2status.hpp>
 #include <ie_blob.h>
-#include <ie_plugin.hpp>
 
 #include "debug_options.h"
 #include "cldnn_custom_layer.h"
@@ -90,6 +90,7 @@ public:
 
     std::map<std::string, cldnn::primitive_id> primitiveIDs;
     std::map<cldnn::primitive_id, std::vector<std::string>> primitivesToIRLayersMap;
+    std::map<cldnn::primitive_id, std::string> IRToNgraphLayersMap;
     std::map<std::string, std::vector<cldnn::primitive_id>> prevPrimitiveIDs;
     std::map<cldnn::primitive_id, std::pair<std::string, PerfCounter>> perfMap;
 
@@ -176,6 +177,8 @@ public:
         Gather,
         DepthToSpace,
         SpaceToDepth,
+        BatchToSpace,
+        SpaceToBatch,
         ShuffleChannels,
         StridedSlice,
         Broadcast,
@@ -188,6 +191,7 @@ public:
         TopK,
         Floor,
         Ceil,
+        Ceiling,
         Erf,
         HardSigmoid,
         Log,
@@ -198,6 +202,7 @@ public:
         SoftPlus,
         SoftSign,
         Swish,
+        Mish,
         Gelu,
         Sin,
         Sinh,
@@ -216,6 +221,10 @@ public:
         CTCGreedyDecoder,
         PriorBoxClustered,
         CumSum,
+        EmbeddingBagPackedSum,
+        EmbeddingBagOffsetsSum,
+        EmbeddingSegmentsSum,
+        ExtractImagePatches,
         NO_TYPE
     };
     using GenericBlobMap = std::map<cldnn::primitive_id, cldnn::primitive_id>;
@@ -353,6 +362,8 @@ private:
     void CreateGatherPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer);
     void CreateDepthToSpacePrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer);
     void CreateSpaceToDepthPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer);
+    void CreateBatchToSpacePrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer);
+    void CreateSpaceToBatchPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer);
     void CreateShuffleChannelsPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer);
     void CreateStridedSlicePrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer);
     void CreateBroadcastPrimitive(cldnn::topology &topology, InferenceEngine::CNNLayerPtr &layer);
@@ -372,6 +383,10 @@ private:
     void CreateCTCGreedyDecoderPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr& layer);
     void CreatePriorBoxClusteredPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr& layer);
     void CreateCumSumPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr& layer);
+    void CreateEmbeddingBagPackedSumPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr& layer);
+    void CreateEmbeddingBagOffsetsSumPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr& layer);
+    void CreateEmbeddingSegmentsSumPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr& layer);
+    void CreateExtractImagePatchesPrimitive(cldnn::topology& topology, InferenceEngine::CNNLayerPtr &layer);
 };
 
 }  // namespace CLDNNPlugin

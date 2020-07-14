@@ -21,7 +21,6 @@
 #include <memory>
 
 #include "gtest/gtest.h"
-#include "ngraph/autodiff/adjoints.hpp"
 #include "ngraph/file_util.hpp"
 #include "ngraph/graph_util.hpp"
 #include "ngraph/log.hpp"
@@ -38,8 +37,6 @@
 #include "ngraph/serializer.hpp"
 #include "ngraph/util.hpp"
 #include "util/all_close.hpp"
-#include "util/autodiff/backprop_function.hpp"
-#include "util/autodiff/numeric_compare.hpp"
 #include "util/ndarray.hpp"
 #include "util/random.hpp"
 #include "util/test_tools.hpp"
@@ -105,93 +102,6 @@ TEST(reshape_sinking, broadcast_swimming)
     ASSERT_EQ(add->get_shape(), conv_nchw);
     ASSERT_EQ(add->get_input_shape(0), conv_nchw);
     ASSERT_EQ(add->get_argument(1), conv);
-}
-
-#ifndef NGRAPH_JSON_DISABLE
-TEST(reshape_sinking, mnist_conv)
-{
-    const string json_path = file_util::path_join(SERIALIZED_ZOO, "tf_conv_mnist_nhwc.json");
-    const string json_string = file_util::read_file_to_string(json_path);
-    stringstream ss(json_string);
-    shared_ptr<Function> func = ngraph::deserialize(ss);
-    pass::Manager pass_manager;
-    size_t before_count = count_ops_of_type<op::Reshape>(func);
-    pass_manager.register_pass<pass::ReshapeSinking>();
-    pass_manager.register_pass<pass::ReshapeElimination>();
-    pass_manager.register_pass<pass::CommonSubexpressionElimination>();
-    // pass_manager.register_pass<pass::CoreFusion>();
-    // pass_manager.register_pass<runtime::cpu::pass::CPUFusion>();
-    pass_manager.run_passes(func);
-    size_t before_after = count_ops_of_type<op::Reshape>(func);
-    ASSERT_LE(before_after, before_count);
-}
-#endif
-
-TEST(reshape_sinking, nasnet_pooladd)
-{
-    Shape input_shape{1, 3, 3, 1};
-
-    auto input_type = element::f32;
-    auto output_type = element::f32;
-
-    auto X = make_shared<op::Parameter>(input_type, input_shape);
-    auto c_weights = op::Constant::create(input_type, Shape{1, 1, 1, 1}, {3});
-    auto reshape1 = make_shared<op::Reshape>(X, AxisVector{0, 3, 1, 2}, Shape{1, 1, 3, 3});
-    auto avgpool =
-        make_shared<op::AvgPool>(reshape1, Shape{1, 1}, Strides{1, 1}, Shape{0, 0}, Shape{0, 0});
-    auto reshape2 = make_shared<op::Reshape>(avgpool, AxisVector{0, 2, 3, 1}, Shape{1, 3, 3, 1});
-    auto maxpool =
-        make_shared<op::MaxPool>(reshape1, Shape{1, 1}, Strides{1, 1}, Shape{0, 0}, Shape{0, 0});
-    auto reshape3 = make_shared<op::Reshape>(maxpool, AxisVector{0, 2, 3, 1}, Shape{1, 3, 3, 1});
-    auto const1 = op::Constant::create(input_type, Shape{1, 3, 3, 1}, {3});
-    auto add1 = make_shared<op::Add>(reshape3, const1);
-    auto add2 = make_shared<op::Add>(add1, reshape2);
-    auto func = make_shared<Function>(add2, ParameterVector{X});
-
-    pass::Manager pass_manager;
-    size_t before_count = count_ops_of_type<op::Reshape>(func);
-    pass_manager.register_pass<pass::ReshapeSinking>();
-    pass_manager.register_pass<pass::ReshapeElimination>();
-    pass_manager.register_pass<pass::CommonSubexpressionElimination>();
-    pass_manager.run_passes(func);
-    size_t before_after = count_ops_of_type<op::Reshape>(func);
-    ASSERT_LE(before_after, before_count);
-}
-
-TEST(reshape_sinking, slice_pad)
-{
-    Shape shape_a{100, 8, 8, 1};
-
-    AxisVector to_nhwc{0, 2, 3, 1};
-    AxisVector to_nchw{0, 3, 1, 2};
-
-    auto A = make_shared<op::Parameter>(element::f32, shape_a);
-    auto pad_value = op::Constant::create<float>(element::f32, Shape{}, std::vector<float>{0.0f});
-
-    CoordinateDiff padding_below{0, 0, 0, 0};
-    CoordinateDiff padding_above{0, 1, 1, 0};
-
-    auto reshape1 = make_shared<op::Reshape>(A, to_nchw, Shape{100, 1, 8, 8});
-    auto maxpool =
-        make_shared<op::MaxPool>(reshape1, Shape{1, 1}, Strides{2, 2}, Shape{0, 0}, Shape{0, 0});
-    auto reshape2 = make_shared<op::Reshape>(maxpool, to_nhwc, Shape{100, 4, 4, 1});
-    auto pad = make_shared<op::Pad>(reshape2, pad_value, padding_below, padding_above);
-    auto slice = make_shared<op::Slice>(
-        pad, Coordinate{0, 1, 1, 0}, Coordinate{100, 5, 5, 1}, Strides{1, 1, 1, 1});
-
-    auto reshape3 = make_shared<op::Reshape>(slice, to_nchw, Shape{100, 1, 4, 4});
-    auto avgpool = make_shared<op::AvgPool>(reshape3, Shape{1, 1}, Strides{2, 2});
-    auto reshape4 = make_shared<op::Reshape>(avgpool, to_nhwc, Shape{100, 1, 2, 2});
-    auto f = make_shared<Function>(reshape4, ParameterVector{A});
-
-    pass::Manager pass_manager;
-    size_t before_count = count_ops_of_type<op::Reshape>(f);
-    pass_manager.register_pass<pass::ReshapeSinking>();
-    pass_manager.register_pass<pass::ReshapeElimination>();
-    pass_manager.register_pass<pass::CommonSubexpressionElimination>();
-    pass_manager.run_passes(f);
-    size_t before_after = count_ops_of_type<op::Reshape>(f);
-    ASSERT_LE(before_after, before_count);
 }
 
 TEST(reshape_sinking, concat)

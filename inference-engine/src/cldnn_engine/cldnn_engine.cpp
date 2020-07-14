@@ -19,7 +19,6 @@
 #include <description_buffer.hpp>
 #include <memory>
 #include <cpp_interfaces/base/ie_plugin_base.hpp>
-#include "ie_plugin.hpp"
 #include "ie_plugin_config.hpp"
 #include "details/caseless.hpp"
 #include <details/ie_cnn_network_tools.h>
@@ -71,25 +70,31 @@ cldnn::device_info clDNNEngine::GetDeviceInfo(const std::map<std::string, std::s
 }
 
 InferenceEngine::ICNNNetwork::Ptr clDNNEngine::CloneNetwork(const InferenceEngine::ICNNNetwork& network) const {
-    std::shared_ptr<ICNNNetwork> clonedNetwork(nullptr);
-    if (network.getFunction()) {
+    std::shared_ptr<ICNNNetwork> clonedNetwork = cloneNetwork(network);
+    if (clonedNetwork->getFunction()) {
         const auto transformations_callback = [](const std::shared_ptr<const ::ngraph::Node> &node) -> bool {
+            // DepthToSpace node implementation supports only equal input/output tensors with rank <= 5
+            // Reshape->Permute->Reshape pattern in theory can change output rank, so this check is added to be sure
+            // that DepthToSpace impl will handle fused case
+            if (auto dtsOp = std::dynamic_pointer_cast<const ::ngraph::opset3::DepthToSpace>(node)) {
+                return dtsOp->input_value(0).get_shape().size() <= 5lu && dtsOp->input_value(0).get_shape().size() == dtsOp->get_output_shape(0).size();
+            }
+
             return std::dynamic_pointer_cast<const ::ngraph::opset2::Gelu>(node) ||
-                   std::dynamic_pointer_cast<const ::ngraph::opset3::ShuffleChannels>(node);
+                   std::dynamic_pointer_cast<const ::ngraph::opset3::ShuffleChannels>(node) ||
+                   std::dynamic_pointer_cast<const ::ngraph::opset2::BatchToSpace>(node) ||
+                   std::dynamic_pointer_cast<const ::ngraph::opset2::SpaceToBatch>(node);
         };
-        CNNNetwork net(network.getFunction());
-        auto nGraphFunc = net.getFunction();
+        auto nGraphFunc = clonedNetwork->getFunction();
         // Disable shape inference (WA for generic operations)
         ::ngraph::op::GenericIE::DisableReshape noReshape(nGraphFunc);
 
         // Note: instead of running all Conversion Transformations you can make up your own transformation pipeline
-        ngraph::pass::CommonOptimizations().run_on_function(nGraphFunc);
+        ngraph::pass::CommonOptimizations(transformations_callback).run_on_function(nGraphFunc);
         ngraph::pass::ConvertOpSet3ToOpSet2(transformations_callback).run_on_function(nGraphFunc);
         ngraph::pass::ConvertOpSet2ToOpSet1(transformations_callback).run_on_function(nGraphFunc);
         ngraph::pass::ConvertOpSet1ToLegacy(transformations_callback).run_on_function(nGraphFunc);
-        clonedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(nGraphFunc, network);
-    } else {
-        clonedNetwork = cloneNet(network);
+        clonedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(nGraphFunc, *clonedNetwork);
     }
 
     auto implNetwork = std::dynamic_pointer_cast<InferenceEngine::details::CNNNetworkImpl>(clonedNetwork);
@@ -142,7 +147,8 @@ auto check_inputs = [](InferenceEngine::InputsDataMap _networkInputs) {
         auto input_precision = ii.second->getTensorDesc().getPrecision();
         if (input_precision != InferenceEngine::Precision::FP16 && input_precision != InferenceEngine::Precision::I16
             && input_precision != InferenceEngine::Precision::FP32 && input_precision != InferenceEngine::Precision::U8
-            && input_precision != InferenceEngine::Precision::I32 && input_precision != InferenceEngine::Precision::BOOL) {
+            && input_precision != InferenceEngine::Precision::I32 && input_precision != InferenceEngine::Precision::I64
+            && input_precision != InferenceEngine::Precision::BOOL) {
             THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str
                 << "Input image format " << input_precision << " is not supported yet...";
         }
@@ -284,7 +290,7 @@ void clDNNEngine::QueryNetwork(const ICNNNetwork& network, const std::map<std::s
         // take all parrents.
         bool supported = true;
         for (DataWeakPtr insData : concat->insData) {
-            CNNLayerPtr prev = insData.lock()->getCreatorLayer().lock();
+            CNNLayerPtr prev = getCreatorLayer(insData.lock()).lock();
             // verify if previous layer is not supported or if it in the list of not defined layers yet
             // not defined layers are treated as layers which will be assigned to GPU if next layer is assigned to GPU
             if (res.supportedLayersMap.find(prev->name) == res.supportedLayersMap.end()
@@ -304,7 +310,7 @@ void clDNNEngine::QueryNetwork(const ICNNNetwork& network, const std::map<std::s
         cnl++) {
         bool supported = true;
         for (DataPtr out : (*cnl)->outData) {
-            for (auto ol : out->getInputTo()) {
+            for (auto ol : getInputTo(out)) {
                 if (res.supportedLayersMap.find(ol.second->name) == res.supportedLayersMap.end()) {
                     supported = false;
                 }
@@ -401,8 +407,6 @@ Parameter clDNNEngine::GetMetric(const std::string& name, const std::map<std::st
 }
 
 };  // namespace CLDNNPlugin
-
-IE_SUPPRESS_DEPRECATED_START
 
 INFERENCE_PLUGIN_API(StatusCode) CreatePluginEngine(IInferencePlugin*& plugin, ResponseDesc* resp) noexcept {
     try {

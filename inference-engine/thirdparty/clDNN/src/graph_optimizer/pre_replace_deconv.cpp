@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2018-2019 Intel Corporation
+// Copyright (c) 2018-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -60,7 +60,7 @@ void pre_replace_deconv::run(program_impl& p) {
             bool unit_stride = std::all_of(deconv_prim->stride.spatial.begin(),
                                            deconv_prim->stride.spatial.end(),
                                            [](tensor::value_type v) { return v == 1; });
-            if (unit_stride && !deconv_prim->gradient()) {
+            if (unit_stride) {
                 primitive_id deconv_id = node->id();
                 auto& input_node = node->get_dependency(0);
                 auto groups = deconv_node.get_groups();
@@ -201,8 +201,7 @@ void pre_replace_deconv::run(program_impl& p) {
                filter_size.spatial[0] == 9 && filter_size.spatial[1] == 9 &&
                deconv_prim->input_offset.spatial[0] == -4 && deconv_prim->input_offset.spatial[1] == -4 &&
                weights_vec.size() == 1 && deconv_prim->bias.size() == 1 &&
-               node->get_dependency(0).get_output_layout().format == format::bfyx &&
-               !deconv_prim->gradient()) {
+               node->get_dependency(0).get_output_layout().format == format::bfyx) {
                 primitive_id deconv_id = node->id();
                 auto& input_node = node->get_dependency(0);
                 primitive_id input_id = deconv_prim->input[0];
@@ -324,7 +323,7 @@ void pre_replace_deconv::run(program_impl& p) {
                     p.inputs.push_back(weights_node_conv_rpl_ptr.get());
                 }
 
-                auto pixel_shuffle_prim = std::make_shared<depth_to_space>(deconv_id, deconv_id_conv, 2);
+                auto pixel_shuffle_prim = std::make_shared<depth_to_space>(deconv_id, deconv_id_conv, 2, depth_to_space_mode::blocks_first);
 
                 p.get_or_create(pixel_shuffle_prim);
                 auto pixel_shuffle_node_ptr = p.nodes_map.find(deconv_id)->second;

@@ -62,6 +62,32 @@ void op::v1::Convolution::validate_and_infer_types()
     const PartialShape& filters_shape = get_input_partial_shape(1);
     element::Type filters_et = get_input_element_type(1);
 
+    PartialShape result_shape = PartialShape::dynamic();
+    if (data_batch_shape.rank().is_static())
+    {
+        result_shape =
+            std::vector<Dimension>(data_batch_shape.rank().get_length(), Dimension::dynamic());
+
+        if (data_batch_shape.rank().get_length() > 1)
+        {
+            result_shape[0] = data_batch_shape[0]; // batch size
+        }
+    }
+    if (filters_shape.rank().is_static() && filters_shape.rank().get_length() > 1)
+    {
+        result_shape[1] = filters_shape[0]; // filter channel size
+    }
+
+    element::Type result_et;
+    NODE_VALIDATION_CHECK(
+        this,
+        element::Type::merge(result_et, data_batch_et, filters_et),
+        "Element types for data batch and filters do not match (data batch element type: ",
+        data_batch_et,
+        ", filters element type: ",
+        filters_et,
+        ").");
+
     if (m_strides.size() == 0)
     {
         m_strides = conv_default_strides(this, data_batch_shape, filters_shape);
@@ -84,33 +110,27 @@ void op::v1::Convolution::validate_and_infer_types()
 
     if (m_auto_pad == PadType::SAME_UPPER || m_auto_pad == PadType::SAME_LOWER)
     {
-        if (data_batch_shape.is_static() && filters_shape.is_static())
+        bool auto_padding_applied = false;
+        if (filters_shape.is_static())
         {
             m_pads_begin.clear();
             m_pads_end.clear();
             auto filter_shape = filters_shape.to_shape();
             filter_shape.erase(filter_shape.begin(), filter_shape.begin() + 2); // Remove {O,I}
-            infer_auto_padding(data_batch_shape.to_shape(),
-                               filter_shape,
-                               m_strides,
-                               m_dilations,
-                               m_auto_pad,
-                               m_pads_end,
-                               m_pads_begin);
+            auto_padding_applied = try_apply_auto_padding(data_batch_shape,
+                                                          filter_shape,
+                                                          m_strides,
+                                                          m_dilations,
+                                                          m_auto_pad,
+                                                          m_pads_end,
+                                                          m_pads_begin);
+        }
+        if (!auto_padding_applied)
+        {
+            set_output_type(0, result_et, result_shape);
+            return;
         }
     }
-
-    element::Type result_et;
-    PartialShape result_shape;
-
-    NODE_VALIDATION_CHECK(
-        this,
-        element::Type::merge(result_et, data_batch_et, filters_et),
-        "Element types for data batch and filters do not match (data batch element type: ",
-        data_batch_et,
-        ", filters element type: ",
-        filters_et,
-        ").");
 
     result_shape = infer_convolution_forward(this,
                                              data_batch_shape,
@@ -134,39 +154,6 @@ shared_ptr<Node> op::v1::Convolution::clone_with_new_inputs(const OutputVector& 
                                         m_pads_end,
                                         m_dilations,
                                         m_auto_pad);
-}
-
-void op::v1::Convolution::generate_adjoints(autodiff::Adjoints& adjoints,
-                                            const OutputVector& deltas)
-{
-    auto delta = deltas.at(0);
-
-    auto x = input_value(0);
-    const auto x_shape = x.get_shape();
-
-    auto f = input_value(1);
-    const auto f_shape = f.get_shape();
-
-    adjoints.add_delta(x,
-                       make_shared<op::v1::ConvolutionBackpropData>(
-                           delta,
-                           f,
-                           op::Constant::create(element::i64, Shape{x_shape.size()}, x_shape),
-                           m_strides,
-                           m_pads_begin,
-                           m_pads_end,
-                           m_dilations,
-                           m_auto_pad));
-
-    adjoints.add_delta(f,
-                       make_shared<op::v1::ConvolutionBackpropFilters>(
-                           x,
-                           delta,
-                           op::Constant::create(element::i64, Shape{x_shape.size()}, f_shape),
-                           m_strides,
-                           m_dilations,
-                           m_pads_begin,
-                           m_pads_end));
 }
 
 constexpr NodeTypeInfo op::v1::ConvolutionBackpropData::type_info;
@@ -443,71 +430,6 @@ void op::v1::ConvolutionBackpropData::validate_and_infer_types()
     set_output_type(0, result_et, output_pshape);
 }
 
-void op::v1::ConvolutionBackpropData::generate_adjoints(autodiff::Adjoints& adjoints,
-                                                        const OutputVector& deltas)
-{
-    auto delta = deltas.at(0);
-
-    auto x = input_value(0);
-    const auto x_shape = x.get_shape();
-
-    auto f = input_value(1);
-    const auto f_shape = f.get_shape();
-
-    auto data_conv = make_shared<op::v1::Convolution>(
-        delta, f, m_strides, m_pads_begin, m_pads_end, m_dilations, m_auto_pad);
-
-    adjoints.add_delta(x, data_conv);
-
-    Strides strides = m_dilations;
-    CoordinateDiff pads_begin;
-    CoordinateDiff pads_end;
-    const Shape& filters_shape = get_input_shape(1);
-    for (size_t i = 0; i < f_shape.size() - 2; i++)
-    {
-        ptrdiff_t pads_begin_backward =
-            (static_cast<ptrdiff_t>(filters_shape[i + 2]) - 1) - m_pads_begin[i];
-        pads_begin.push_back(pads_begin_backward);
-
-        ptrdiff_t pads_end_backward =
-            (static_cast<ptrdiff_t>(filters_shape[i + 2]) - 1) * m_dilations[i] +
-            ((m_pads_begin[i] + (get_output_shape()[i].get_length() - 1) * m_strides[i] +
-              m_pads_end[i] - (static_cast<ptrdiff_t>(filters_shape[i + 2]) - 1) * m_dilations[i]) %
-             m_strides[i]) -
-            m_pads_end[i];
-
-        pads_end.push_back(pads_end_backward -
-                           (pads_begin_backward + (x_shape[i + 2] - 1) * m_strides[i] +
-                            pads_end_backward - (f_shape[i + 2] - 1) * m_dilations[i]) %
-                               m_strides[i]);
-    }
-
-    auto swap_NC = [](const Output<Node>& n) {
-        AxisVector ax_order = ngraph::get_default_order(n.get_shape());
-        ax_order[0] = 1;
-        ax_order[1] = 0;
-
-        auto new_shape = n.get_shape();
-        new_shape[0] = n.get_shape()[1];
-        new_shape[1] = n.get_shape()[0];
-
-        return make_shared<op::Reshape>(n, ax_order, new_shape);
-    };
-
-    delta = swap_NC(delta);
-    x = swap_NC(x);
-
-    shared_ptr<Node> filter_deconv_bprop = make_shared<op::v1::Convolution>(
-        x, delta, strides, pads_begin, pads_end, Strides(x.get_shape().size() - 2, 1), m_auto_pad);
-    AxisSet axes;
-    for (size_t i = 2; i < filter_deconv_bprop->get_shape().size(); ++i)
-    {
-        axes.insert(i);
-    }
-    filter_deconv_bprop = make_shared<ngraph::op::Reverse>(filter_deconv_bprop, axes);
-    adjoints.add_delta(f, filter_deconv_bprop);
-}
-
 shared_ptr<Node>
     op::v1::ConvolutionBackpropData::clone_with_new_inputs(const OutputVector& new_args) const
 {
@@ -535,160 +457,6 @@ shared_ptr<Node>
                                                         m_auto_pad,
                                                         m_output_padding);
     }
-}
-
-constexpr NodeTypeInfo op::v1::ConvolutionBackpropFilters::type_info;
-
-op::v1::ConvolutionBackpropFilters::ConvolutionBackpropFilters(const Output<Node>& data_batch,
-                                                               const Output<Node>& output_delta,
-                                                               const Output<Node>& filters_shape,
-                                                               const Strides& strides,
-                                                               const Strides& dilations,
-                                                               const CoordinateDiff& pads_begin,
-                                                               const CoordinateDiff& pads_end)
-    : Op({data_batch, output_delta, filters_shape})
-    , m_strides(strides)
-    , m_dilations(dilations)
-    , m_pads_begin(pads_begin)
-    , m_pads_end(pads_end)
-{
-    constructor_validate_and_infer_types();
-}
-
-bool op::v1::ConvolutionBackpropFilters::visit_attributes(AttributeVisitor& visitor)
-{
-    visitor.on_attribute("strides", m_strides);
-    visitor.on_attribute("dilations", m_dilations);
-    visitor.on_attribute("pads_begin", m_pads_begin);
-    visitor.on_attribute("pads_end", m_pads_end);
-    return true;
-}
-
-const Shape op::v1::ConvolutionBackpropFilters::get_filters_shape() const
-{
-    Shape shape;
-    if (auto const_op = as_type<op::Constant>(input_value(2).get_node()))
-    {
-        shape = const_op->get_shape_val();
-    }
-    return shape;
-}
-
-void op::v1::ConvolutionBackpropFilters::validate_and_infer_types()
-{
-    // Backprop to filters is itself convolution, with inputs/outputs/attributes transmogrified as
-    // follows.
-    //
-    //                          Forward   Backward
-    // "N" axis for data batch  0         1
-    // "C" axis for data batch  1         0
-    // "Co" axis for filters    0         0
-    // "Ci" axis for filters    1         1
-    // "N" axis for output      0         1
-    // "C" axis for output      1         0
-    // Data batch               x         x
-    // Data batch shape         S_x       S_x
-    // Filters                  f         delta
-    // Filters shape            S_f       S_f
-    // Window movement strides  q_x       p_f
-    // Window dilation strides  p_f       q_x
-    // Padding below            a_x       a_x
-    // Padding above            b_x       b_x - (a_x + (S_x - 1)p_x + b_x - (S_f - 1)p_f) % q_x
-    // Output shape             S_o       S_f
-    //
-    // To _validate_, we simply need to check/infer the output shape of the forward convolution,
-    // then check to make sure that the incoming delta has the same shape as the forward output.
-    //
-    // We will also compute and store the various parameters in the "backward" column above, since
-    // some backends need them. (TODO(amprocte): Is it just because of the way the reference works
-    // that this stuff is needed? If so, we can probably get rid of it and have conv_backprop
-    // reference kernels that do the calculations of the backward parameters internally, or supply
-    // utility functions to do it.)
-
-    const PartialShape& data_batch_shape = get_input_partial_shape(0);
-    element::Type data_batch_et = get_input_element_type(0);
-    const PartialShape& delta_shape = get_input_partial_shape(1);
-    element::Type delta_et = get_input_element_type(1);
-
-    element::Type forward_result_et;
-    PartialShape forward_result_shape;
-    PartialShape filters_shape{PartialShape::dynamic()};
-
-    if (input_value(2).get_node_shared_ptr()->is_constant())
-    {
-        filters_shape = get_filters_shape();
-    }
-
-    NODE_VALIDATION_CHECK(
-        this,
-        element::Type::merge(forward_result_et, data_batch_et, delta_et),
-        "Element types for data batch and filters do not match (data batch element type: ",
-        data_batch_et,
-        ", filters element type: ",
-        delta_et,
-        ").");
-
-    if (input_value(1).get_node_shared_ptr()->is_constant())
-    {
-        forward_result_shape =
-            infer_convolution_forward(this,
-                                      data_batch_shape,
-                                      Strides(data_batch_shape.rank().get_length() - 2, 1),
-                                      m_pads_begin,
-                                      m_pads_end,
-                                      filters_shape,
-                                      m_strides,
-                                      m_dilations);
-
-        NODE_VALIDATION_CHECK(this,
-                              forward_result_shape.compatible(delta_shape),
-                              "Inferred forward output shape (",
-                              forward_result_shape,
-                              ") does not match shape of ",
-                              "delta (",
-                              delta_shape,
-                              ").");
-    }
-
-    set_input_is_relevant_to_shape(2);
-    set_output_type(0, forward_result_et, filters_shape);
-}
-
-shared_ptr<Node>
-    op::v1::ConvolutionBackpropFilters::clone_with_new_inputs(const OutputVector& new_args) const
-{
-    check_new_args_count(this, new_args);
-    return make_shared<v1::ConvolutionBackpropFilters>(new_args.at(0),
-                                                       new_args.at(1),
-                                                       new_args.at(2),
-                                                       m_strides,
-                                                       m_dilations,
-                                                       m_pads_begin,
-                                                       m_pads_end);
-}
-
-CoordinateDiff op::v1::ConvolutionBackpropFilters::compute_backward_in_pad_above() const
-{
-    const auto& in_shape = get_input_shape(0);
-    const auto& out_shape = get_input_shape(1);
-    const auto& filter_shape = get_filters_shape();
-    const auto& in_pad_above = get_pads_end();
-    const auto& in_pad_below = get_pads_begin();
-    const auto& filter_dilation = get_dilations();
-    const auto& stride = get_strides();
-    size_t spatial_dim_count = static_cast<size_t>(out_shape.size()) - 2;
-    CoordinateDiff backward_in_pad_above;
-    backward_in_pad_above.resize(spatial_dim_count);
-
-    for (size_t i = 0; i < spatial_dim_count; i++)
-    {
-        backward_in_pad_above[i] =
-            in_pad_above[i] -
-            (in_pad_below[i] + (static_cast<ptrdiff_t>(in_shape[i + 2]) - 1) + in_pad_above[i] -
-             (filter_shape[i + 2] - 1) * filter_dilation[i]) %
-                stride[i];
-    }
-    return backward_in_pad_above;
 }
 
 // *** Convolution OP SET 0 ***
@@ -858,38 +626,6 @@ shared_ptr<Node> op::v0::Convolution::clone_with_new_inputs(const OutputVector& 
                                         m_pad_type);
 }
 
-void op::v0::Convolution::generate_adjoints(autodiff::Adjoints& adjoints,
-                                            const OutputVector& deltas)
-{
-    auto delta = deltas.at(0);
-
-    auto x = input_value(0);
-    const auto x_shape = x.get_shape();
-
-    auto f = input_value(1);
-    const auto f_shape = f.get_shape();
-
-    adjoints.add_delta(x,
-                       make_shared<op::v0::ConvolutionBackpropData>(x_shape,
-                                                                    f,
-                                                                    delta,
-                                                                    m_window_movement_strides,
-                                                                    m_window_dilation_strides,
-                                                                    m_padding_below,
-                                                                    m_padding_above,
-                                                                    m_data_dilation_strides));
-
-    adjoints.add_delta(f,
-                       make_shared<op::v0::ConvolutionBackpropFilters>(x,
-                                                                       f_shape,
-                                                                       delta,
-                                                                       m_window_movement_strides,
-                                                                       m_window_dilation_strides,
-                                                                       m_padding_below,
-                                                                       m_padding_above,
-                                                                       m_data_dilation_strides));
-}
-
 constexpr NodeTypeInfo op::v0::ConvolutionBackpropData::type_info;
 shared_ptr<Node> op::v0::Convolution::get_default_value() const
 {
@@ -993,89 +729,6 @@ void op::v0::ConvolutionBackpropData::validate_and_infer_types()
     set_output_type(0, forward_result_et, m_data_batch_shape);
 }
 
-void op::v0::ConvolutionBackpropData::generate_adjoints(autodiff::Adjoints& adjoints,
-                                                        const OutputVector& deltas)
-{
-    auto delta = deltas.at(0);
-
-    auto x = input_value(1);
-    const auto x_shape = x.get_shape();
-
-    auto f = input_value(0);
-    const auto f_shape = f.get_shape();
-
-    auto data_conv = make_shared<op::v0::Convolution>(delta,
-                                                      f,
-                                                      m_window_movement_strides_forward,
-                                                      m_window_dilation_strides_forward,
-                                                      m_padding_below_forward,
-                                                      m_padding_above_forward,
-                                                      m_data_dilation_strides_forward);
-
-    adjoints.add_delta(x, data_conv);
-
-    Strides window_movement_strides = m_window_dilation_strides_forward;
-    Strides window_dilation_strides = m_data_dilation_strides_forward;
-    Strides data_dilation_strides = m_window_movement_strides_forward;
-    CoordinateDiff padding_below;
-    CoordinateDiff padding_above;
-    const Shape& filters_shape = get_input_shape(0);
-    for (size_t i = 0; i < f_shape.size() - 2; i++)
-    {
-        ptrdiff_t padding_below_backward =
-            (static_cast<ptrdiff_t>(filters_shape[i + 2]) - 1) * window_dilation_strides[i] -
-            m_padding_below_forward[i];
-        padding_below.push_back(padding_below_backward);
-
-        ptrdiff_t padding_above_backward =
-            (static_cast<ptrdiff_t>(filters_shape[i + 2]) - 1) *
-                m_window_dilation_strides_forward[i] +
-            ((m_padding_below_forward[i] +
-              ((m_data_batch_shape[i + 2]) - 1) * m_data_dilation_strides_forward[i] +
-              m_padding_above_forward[i] -
-              (static_cast<ptrdiff_t>(filters_shape[i + 2]) - 1) *
-                  m_window_dilation_strides_forward[i]) %
-             m_window_movement_strides_forward[i]) -
-            m_padding_above_forward[i];
-
-        padding_above.push_back(
-            padding_above_backward -
-            (padding_below_backward + (x_shape[i + 2] - 1) * m_window_movement_strides_forward[i] +
-             padding_above_backward - (f_shape[i + 2] - 1) * m_window_dilation_strides_forward[i]) %
-                m_data_dilation_strides_forward[i]);
-    }
-
-    auto swap_NC = [](const Output<Node>& n) {
-        AxisVector ax_order = ngraph::get_default_order(n.get_shape());
-        ax_order[0] = 1;
-        ax_order[1] = 0;
-
-        auto new_shape = n.get_shape();
-        new_shape[0] = n.get_shape()[1];
-        new_shape[1] = n.get_shape()[0];
-
-        return make_shared<op::Reshape>(n, ax_order, new_shape);
-    };
-
-    delta = swap_NC(delta);
-    x = swap_NC(x);
-
-    shared_ptr<Node> filter_deconv_bprop = make_shared<op::v0::Convolution>(x,
-                                                                            delta,
-                                                                            window_movement_strides,
-                                                                            window_dilation_strides,
-                                                                            padding_below,
-                                                                            padding_above,
-                                                                            data_dilation_strides);
-    AxisSet axes;
-    for (size_t i = 2; i < filter_deconv_bprop->get_shape().size(); ++i)
-    {
-        axes.insert(i);
-    }
-    filter_deconv_bprop = make_shared<ngraph::op::Reverse>(filter_deconv_bprop, axes);
-    adjoints.add_delta(f, filter_deconv_bprop);
-}
-
 shared_ptr<Node>
     op::v0::ConvolutionBackpropData::clone_with_new_inputs(const OutputVector& new_args) const
 {
@@ -1134,148 +787,6 @@ CoordinateDiff op::v0::ConvolutionBackpropData::compute_backward_delta_out_pad_a
             in_pad_above[i];
     }
     return backward_delta_out_pad_above;
-}
-
-constexpr NodeTypeInfo op::v0::ConvolutionBackpropFilters::type_info;
-
-op::v0::ConvolutionBackpropFilters::ConvolutionBackpropFilters(
-    const Output<Node>& data_batch,
-    const Shape& filters_shape,
-    const Output<Node>& output_delta,
-    const Strides& window_movement_strides_forward,
-    const Strides& window_dilation_strides_forward,
-    const CoordinateDiff& padding_below_forward,
-    const CoordinateDiff& padding_above_forward,
-    const Strides& data_dilation_strides_forward)
-    : Op({data_batch, output_delta})
-    , m_filters_shape(filters_shape)
-    , m_window_movement_strides_forward(window_movement_strides_forward)
-    , m_window_dilation_strides_forward(window_dilation_strides_forward)
-    , m_padding_below_forward(padding_below_forward)
-    , m_padding_above_forward(padding_above_forward)
-    , m_data_dilation_strides_forward(data_dilation_strides_forward)
-{
-    constructor_validate_and_infer_types();
-}
-
-bool op::v0::ConvolutionBackpropFilters::visit_attributes(AttributeVisitor& visitor)
-{
-    visitor.on_attribute("m_filters_shape", m_filters_shape);
-    visitor.on_attribute("window_movement_strides_forward", m_window_movement_strides_forward);
-    visitor.on_attribute("window_dilation_strides_forward", m_window_dilation_strides_forward);
-    visitor.on_attribute("padding_below_forward", m_padding_below_forward);
-    visitor.on_attribute("padding_above_forward", m_padding_above_forward);
-    visitor.on_attribute("data_dilation_strides_forward", m_data_dilation_strides_forward);
-    return true;
-}
-
-void op::v0::ConvolutionBackpropFilters::validate_and_infer_types()
-{
-    // Backprop to filters is itself convolution, with inputs/outputs/attributes transmogrified as
-    // follows.
-    //
-    //                          Forward   Backward
-    // "N" axis for data batch  0         1
-    // "C" axis for data batch  1         0
-    // "Co" axis for filters    0         0
-    // "Ci" axis for filters    1         1
-    // "N" axis for output      0         1
-    // "C" axis for output      1         0
-    // Data batch               x         x
-    // Data batch shape         S_x       S_x
-    // Filters                  f         delta
-    // Filters shape            S_f       S_f
-    // Window movement strides  q_x       p_f
-    // Window dilation strides  p_f       q_x
-    // Padding below            a_x       a_x
-    // Padding above            b_x       b_x - (a_x + (S_x - 1)p_x + b_x - (S_f - 1)p_f) % q_x
-    // Data dilation strides    p_x       p_x
-    // Output shape             S_o       S_f
-    //
-    // To _validate_, we simply need to check/infer the output shape of the forward convolution,
-    // then check to make sure that the incoming delta has the same shape as the forward output.
-    //
-    // We will also compute and store the various parameters in the "backward" column above, since
-    // some backends need them. (TODO(amprocte): Is it just because of the way the reference works
-    // that this stuff is needed? If so, we can probably get rid of it and have conv_backprop
-    // reference kernels that do the calculations of the backward parameters internally, or supply
-    // utility functions to do it.)
-
-    const PartialShape& data_batch_shape = get_input_partial_shape(0);
-    element::Type data_batch_et = get_input_element_type(0);
-    const PartialShape& delta_shape = get_input_partial_shape(1);
-    element::Type delta_et = get_input_element_type(1);
-
-    element::Type forward_result_et;
-    PartialShape forward_result_shape;
-
-    NODE_VALIDATION_CHECK(
-        this,
-        element::Type::merge(forward_result_et, data_batch_et, delta_et),
-        "Element types for data batch and filters do not match (data batch element type: ",
-        data_batch_et,
-        ", filters element type: ",
-        delta_et,
-        ").");
-
-    forward_result_shape = infer_convolution_forward(this,
-                                                     data_batch_shape,
-                                                     m_data_dilation_strides_forward,
-                                                     m_padding_below_forward,
-                                                     m_padding_above_forward,
-                                                     m_filters_shape,
-                                                     m_window_movement_strides_forward,
-                                                     m_window_dilation_strides_forward);
-
-    NODE_VALIDATION_CHECK(this,
-                          forward_result_shape.compatible(delta_shape),
-                          "Inferred forward output shape (",
-                          forward_result_shape,
-                          ") does not match shape of ",
-                          "delta (",
-                          delta_shape,
-                          ").");
-
-    set_output_type(0, forward_result_et, m_filters_shape);
-}
-
-shared_ptr<Node>
-    op::v0::ConvolutionBackpropFilters::clone_with_new_inputs(const OutputVector& new_args) const
-{
-    check_new_args_count(this, new_args);
-    return make_shared<v0::ConvolutionBackpropFilters>(new_args.at(0),
-                                                       m_filters_shape,
-                                                       new_args.at(1),
-                                                       m_window_movement_strides_forward,
-                                                       m_window_dilation_strides_forward,
-                                                       m_padding_below_forward,
-                                                       m_padding_above_forward,
-                                                       m_data_dilation_strides_forward);
-}
-
-CoordinateDiff op::v0::ConvolutionBackpropFilters::compute_backward_in_pad_above() const
-{
-    const auto& in_shape = get_input_shape(0);
-    const auto& out_shape = get_input_shape(1);
-    const auto& filter_shape = get_filters_shape();
-    const auto& in_pad_above = get_padding_above_forward();
-    const auto& in_pad_below = get_padding_below_forward();
-    const auto& in_dilation = get_data_dilation_strides_forward();
-    const auto& filter_dilation = get_window_dilation_strides_forward();
-    const auto& stride = get_window_movement_strides_forward();
-    size_t spatial_dim_count = static_cast<size_t>(out_shape.size()) - 2;
-    CoordinateDiff backward_in_pad_above;
-    backward_in_pad_above.resize(spatial_dim_count);
-
-    for (size_t i = 0; i < spatial_dim_count; i++)
-    {
-        backward_in_pad_above[i] =
-            in_pad_above[i] -
-            (in_pad_below[i] + (static_cast<ptrdiff_t>(in_shape[i + 2]) - 1) * in_dilation[i] +
-             in_pad_above[i] - (filter_shape[i + 2] - 1) * filter_dilation[i]) %
-                stride[i];
-    }
-    return backward_in_pad_above;
 }
 
 //

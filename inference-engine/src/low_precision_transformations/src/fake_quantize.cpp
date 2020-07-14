@@ -38,7 +38,7 @@ void FakeQuantizeTransformation::transform(TransformationContext& context, CNNLa
     // CNNNetworkHelper::invertFakeQuantize(layer);
 
     // FakeQuantize on weights are used without dequantization ScaleShifts
-    const bool onWeights = CNNNetworkHelper::onWeights(layer);
+    const bool onWeights = CNNNetworkHelper::onConstWeightsPath(layer) && CNNNetworkHelper::onWeights(layer);
     if (onWeights) {
         return;
     }
@@ -85,24 +85,7 @@ void FakeQuantizeTransformation::transform(TransformationContext& context, CNNLa
         CNNNetworkHelper::setOutDataPrecision(layer, dataPrecision.precision);
     }
 
-    const std::vector<CNNLayerPtr> children = CNNNetworkHelper::getChildren(layer);
-    if (children.size() == 0) {
-        const std::string originalName = layer.name;
-        CNNNetworkHelper::renameLayer(context.network, layer.name, layer.name + LayerTransformation::lastLayerPrefix);
-
-        CNNLayerPtr dequantizationLayer = CNNNetworkHelper::addScaleShiftBetween(
-            context, std::make_shared<CNNLayer>(layer), nullptr,
-            DequantizationDetails(dequantizationScales, dequantizationShifts, dequantizationShifts.size()),
-            originalName);
-        context.dequantizationLayersNames.insert(dequantizationLayer->name);
-    } else {
-        for (const CNNLayerPtr& child : children) {
-            CNNLayerPtr dequantizationLayer = CNNNetworkHelper::addScaleShiftBetween(
-                context, std::make_shared<CNNLayer>(layer), child,
-                DequantizationDetails(dequantizationScales, dequantizationShifts, dequantizationShifts.size()));
-            context.dequantizationLayersNames.insert(dequantizationLayer->name);
-        }
-    }
+    addDequantizationLayer(context, layer, dequantizationScales, dequantizationShifts);
 
     context.quantizedFakeQuantizeNames.insert(layer.name);
 }

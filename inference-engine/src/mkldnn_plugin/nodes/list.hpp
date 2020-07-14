@@ -13,28 +13,52 @@
 #include <algorithm>
 
 namespace InferenceEngine {
+
+class ILayerImplFactory {
+public:
+    /**
+     * @brief A shared pointer to the ILayerImplFactory interface
+     */
+    using Ptr = std::shared_ptr<ILayerImplFactory>;
+
+    using ImplCreator = std::function<ILayerImpl*()>;
+
+    /**
+     * @brief Destructor
+     */
+    virtual ~ILayerImplFactory() = default;
+
+    /**
+     * @brief Gets all possible implementations for the given cnn Layer
+     *
+     * @param impls the vector with implementations which is ordered by priority
+     * @param resp response descriptor
+     * @return status code
+     */
+    virtual StatusCode getImplementations(std::vector<ILayerImpl::Ptr>& impls, ResponseDesc* resp) noexcept = 0;
+};
+
 namespace Extensions {
 namespace Cpu {
 
-IE_SUPPRESS_DEPRECATED_START
 using ext_factory = std::function<InferenceEngine::ILayerImplFactory*(const InferenceEngine::CNNLayer*)>;
 
 struct ExtensionsHolder {
     std::map<std::string, ext_factory> list;
-    std::map<std::string, IShapeInferImpl::Ptr> si_list;
 };
 
 class MKLDNNExtensions : public IExtension {
 public:
     MKLDNNExtensions();
 
-    StatusCode getPrimitiveTypes(char**& types, unsigned int& size, ResponseDesc* resp) noexcept override {
+    virtual StatusCode
+    getPrimitiveTypes(char**& types, unsigned int& size, ResponseDesc* resp) noexcept {
         collectTypes(types, size, extensionsHolder->list);
         return OK;
     }
 
-    StatusCode
-    getFactoryFor(ILayerImplFactory*& factory, const CNNLayer* cnnLayer, ResponseDesc* resp) noexcept override {
+    virtual StatusCode
+    getFactoryFor(ILayerImplFactory*& factory, const CNNLayer* cnnLayer, ResponseDesc* resp) noexcept {
         auto& factories = extensionsHolder->list;
         if (factories.find(cnnLayer->type) == factories.end()) {
             std::string errorMsg = std::string("Factory for ") + cnnLayer->type + " wasn't found!";
@@ -42,14 +66,6 @@ public:
             return NOT_FOUND;
         }
         factory = factories[cnnLayer->type](cnnLayer);
-        return OK;
-    }
-
-    StatusCode getShapeInferTypes(char**& types, unsigned int& size, ResponseDesc* resp) noexcept override {
-        return OK;
-    }
-
-    StatusCode getShapeInferImpl(IShapeInferImpl::Ptr& impl, const char* type, ResponseDesc* resp) noexcept override {
         return OK;
     }
 
@@ -88,8 +104,6 @@ private:
         size = count;
     }
 };
-
-IE_SUPPRESS_DEPRECATED_END
 
 }  // namespace Cpu
 }  // namespace Extensions

@@ -8,6 +8,7 @@
 #include "tests_common.hpp"
 #include "ir_gen_helper.hpp"
 #include <ie_core.hpp>
+#include "details/ie_cnn_network_iterator.hpp"
 
 using namespace ::testing;
 using namespace std;
@@ -210,8 +211,9 @@ protected:
 
             graph.Infer(srcs, outputBlobs);
 
-            for (auto& layer : network) {
-                layer->params["PrimitivesPriority"] = "cpu:ref,cpu:ref_any";
+            details::CNNNetworkIterator l(network), end;
+            for ( ; l != end; ++l) {
+                (*l)->params["PrimitivesPriority"] = "cpu:ref,cpu:ref_any";
             }
             MKLDNNGraphTestClass graph2;
             graph2.CreateGraph(network);

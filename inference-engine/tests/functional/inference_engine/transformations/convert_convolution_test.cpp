@@ -22,14 +22,14 @@
 #include <transformations/convert_opset1_to_legacy/convert_convolutions.hpp>
 #include <ngraph_ops/convolution_ie.hpp>
 
-#include "ngraph_test_utils.hpp"
+#include "common_test_utils/ngraph_test_utils.hpp"
 
 using namespace testing;
 
 using InputShape = ngraph::PartialShape;
 using WeightsShape = ngraph::Shape;
 
-class ConvertConvolutionsTest: public CommonTestUtils::TestsCommon,
+class ConvertConvolutionTest: public CommonTestUtils::TestsCommon,
                                public testing::WithParamInterface<std::tuple<InputShape, WeightsShape> > {
 public:
     std::shared_ptr<ngraph::Function> f, f_ref;
@@ -66,7 +66,7 @@ private:
     }
 };
 
-TEST_P(ConvertConvolutionsTest, CompareFunctions) {
+TEST_P(ConvertConvolutionTest, CompareFunctions) {
     const auto & orig_shape = f->get_output_partial_shape(0);
     ngraph::pass::InitNodeInfo().run_on_function(f);
     ngraph::pass::ConvertConvolutions().run_on_function(f);
@@ -76,7 +76,7 @@ TEST_P(ConvertConvolutionsTest, CompareFunctions) {
     ASSERT_TRUE(orig_shape.same_scheme(f->get_output_partial_shape(0))) << "Shape " << orig_shape << " is not equal to " << f->get_output_partial_shape(0);
 }
 
-INSTANTIATE_TEST_CASE_P(ConvertConvolution, ConvertConvolutionsTest,
+INSTANTIATE_TEST_CASE_P(ConvertConvolution, ConvertConvolutionTest,
         testing::Values(std::make_tuple(InputShape{DYN, DYN, DYN, DYN, DYN}, WeightsShape{8, 3, 1, 2, 3}),
                         std::make_tuple(InputShape{DYN, 3, 64, 64, 64}, WeightsShape{8, 3, 1, 2, 3}),
                         std::make_tuple(InputShape{2, DYN, 64, 64, 64}, WeightsShape{9, 3, 2, 3, 1}),

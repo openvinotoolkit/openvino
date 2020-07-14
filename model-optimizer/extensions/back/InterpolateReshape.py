@@ -72,7 +72,7 @@ class InterpolateConcat(BackReplacementPattern):
         if concat_axis in interp_axes:
             return
 
-        concat_srcs = [port.get_source() for port in concat.in_ports().values()]
+        concat_srcs = [port.get_source() for port in concat.in_ports().values() if not port.disconnected()]
         non_interp_concat_srcs = [src for src in concat_srcs if src.node.soft_get('type') != 'Interpolate']
         if len(non_interp_concat_srcs) == 0:
             return

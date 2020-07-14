@@ -667,7 +667,8 @@ private:
 };
 
 MKLDNNNormalizeNode::MKLDNNNormalizeNode(const InferenceEngine::CNNLayerPtr& layer, const mkldnn::engine& eng, MKLDNNWeightsSharing::Ptr &cache)
-        : MKLDNNNode(layer, eng, cache) {}
+        : MKLDNNNode(layer, eng, cache), src_data_size(0lu), dst_data_size(0lu), weights_data_size(0lu),
+        input_prec(Precision::UNSPECIFIED), output_prec(Precision::UNSPECIFIED), weights_prec(Precision::UNSPECIFIED) {}
 
 void MKLDNNNormalizeNode::getSupportedDescriptors() {
     if (!descs.empty())
@@ -703,7 +704,7 @@ void MKLDNNNormalizeNode::getSupportedDescriptors() {
         weights_blob = transformer.convertBF16ToFloat(tweights);
     } else {
         // Unknown non supported data type, return an error
-        THROW_IE_EXCEPTION << layer->name << "Weights for layer Normalize wiht name '" << layer->name <<
+        THROW_IE_EXCEPTION << layer->name << "Weights for layer Normalize with name '" << layer->name <<
             "' has unsupported data type " << tweights->getTensorDesc().getPrecision();
     }
 }
@@ -806,6 +807,7 @@ void MKLDNNNormalizeNode::setPostOps(mkldnn::primitive_attr &attr, bool initWeig
 
                 PostOpsIntBlobMemory.push_back(MKLDNNMemoryPtr(new MKLDNNMemory(getEngine())));
                 PostOpsIntBlobMemory[blob_idx]->Create(depthwiseDims, memory::data_type::f32, memory::format::x);
+                PostOpsIntBlobMemory[blob_idx]->FillZero();
 
                 PostOpsIntBlobMemory[blob_idx]->SetData(memory::data_type::f32, memory::x,
                                                         depthwiseLayer->_weights->buffer(),
@@ -823,6 +825,7 @@ void MKLDNNNormalizeNode::setPostOps(mkldnn::primitive_attr &attr, bool initWeig
                     PostOpsIntBlobMemory.push_back(MKLDNNMemoryPtr(new MKLDNNMemory(getEngine())));
                     PostOpsIntBlobMemory[blob_idx + 1]->Create(depthwiseDims, memory::data_type::f32,
                                                                memory::format::x);
+                    PostOpsIntBlobMemory[blob_idx + 1]->FillZero();
                     PostOpsIntBlobMemory[blob_idx + 1]->SetData(memory::data_type::f32, memory::x,
                                                                 depthwiseLayer->_biases->buffer(),
                                                                 depthwiseLayer->_biases->size() *

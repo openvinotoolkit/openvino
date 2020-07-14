@@ -33,6 +33,7 @@ ParamsKey QuantizeKernelScaleShift::GetSupportedKey() const {
     k.EnableOutputDataType(Datatype::INT8);
     k.EnableInputLayout(DataLayout::bfyx);
     k.EnableInputLayout(DataLayout::yxfb);
+    k.EnableInputLayout(DataLayout::byxf);
     k.EnableInputLayout(DataLayout::bfzyx);
     k.EnableInputLayout(DataLayout::b_fs_yx_fsv16);
     k.EnableInputLayout(DataLayout::b_fs_zyx_fsv16);
@@ -40,6 +41,7 @@ ParamsKey QuantizeKernelScaleShift::GetSupportedKey() const {
     k.EnableInputLayout(DataLayout::b_fs_yx_fsv32);
     k.EnableInputLayout(DataLayout::b_fs_zyx_fsv32);
     k.EnableInputLayout(DataLayout::byxf_af32);
+    k.EnableInputLayout(DataLayout::bs_fs_yx_bsv16_fsv16);
     k.EnableOutputLayout(DataLayout::bfyx);
     k.EnableOutputLayout(DataLayout::yxfb);
     k.EnableOutputLayout(DataLayout::bfzyx);
@@ -49,6 +51,7 @@ ParamsKey QuantizeKernelScaleShift::GetSupportedKey() const {
     k.EnableOutputLayout(DataLayout::b_fs_yx_fsv4);
     k.EnableOutputLayout(DataLayout::b_fs_yx_fsv32);
     k.EnableOutputLayout(DataLayout::b_fs_zyx_fsv32);
+    k.EnableOutputLayout(DataLayout::bs_fs_yx_bsv16_fsv16);
     k.EnableTensorOffset();
     k.EnableTensorPitches();
     k.EnableBatching();

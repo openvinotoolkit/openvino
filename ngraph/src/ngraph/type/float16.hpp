@@ -50,12 +50,37 @@ namespace ngraph
 
         std::string to_string() const;
         size_t size() const;
-        bool operator==(const float16& other) const;
-        bool operator!=(const float16& other) const { return !(*this == other); }
-        bool operator<(const float16& other) const;
-        bool operator<=(const float16& other) const;
-        bool operator>(const float16& other) const;
-        bool operator>=(const float16& other) const;
+        template <typename T>
+        bool operator==(const T& other) const;
+        template <typename T>
+        bool operator!=(const T& other) const
+        {
+            return !(*this == other);
+        }
+        template <typename T>
+        bool operator<(const T& other) const;
+        template <typename T>
+        bool operator<=(const T& other) const;
+        template <typename T>
+        bool operator>(const T& other) const;
+        template <typename T>
+        bool operator>=(const T& other) const;
+        template <typename T>
+        float16 operator+(const T& other) const;
+        template <typename T>
+        float16 operator+=(const T& other);
+        template <typename T>
+        float16 operator-(const T& other) const;
+        template <typename T>
+        float16 operator-=(const T& other);
+        template <typename T>
+        float16 operator*(const T& other) const;
+        template <typename T>
+        float16 operator*=(const T& other);
+        template <typename T>
+        float16 operator/(const T& other) const;
+        template <typename T>
+        float16 operator/=(const T& other);
         operator float() const;
 
         static constexpr float16 from_bits(uint16_t bits) { return float16(bits, true); }
@@ -86,6 +111,91 @@ namespace ngraph
 
         uint16_t m_value;
     };
+
+    template <typename T>
+    bool float16::operator==(const T& other) const
+    {
+#if defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wfloat-equal"
+#endif
+        return (static_cast<float>(*this) == static_cast<float>(other));
+#if defined(__GNUC__)
+#pragma GCC diagnostic pop
+#endif
+    }
+
+    template <typename T>
+    bool float16::operator<(const T& other) const
+    {
+        return (static_cast<float>(*this) < static_cast<float>(other));
+    }
+
+    template <typename T>
+    bool float16::operator<=(const T& other) const
+    {
+        return (static_cast<float>(*this) <= static_cast<float>(other));
+    }
+
+    template <typename T>
+    bool float16::operator>(const T& other) const
+    {
+        return (static_cast<float>(*this) > static_cast<float>(other));
+    }
+
+    template <typename T>
+    bool float16::operator>=(const T& other) const
+    {
+        return (static_cast<float>(*this) >= static_cast<float>(other));
+    }
+
+    template <typename T>
+    float16 float16::operator+(const T& other) const
+    {
+        return {static_cast<float>(*this) + static_cast<float>(other)};
+    }
+
+    template <typename T>
+    float16 float16::operator+=(const T& other)
+    {
+        return *this = *this + other;
+    }
+
+    template <typename T>
+    float16 float16::operator-(const T& other) const
+    {
+        return {static_cast<float>(*this) - static_cast<float>(other)};
+    }
+
+    template <typename T>
+    float16 float16::operator-=(const T& other)
+    {
+        return *this = *this - other;
+    }
+
+    template <typename T>
+    float16 float16::operator*(const T& other) const
+    {
+        return {static_cast<float>(*this) * static_cast<float>(other)};
+    }
+
+    template <typename T>
+    float16 float16::operator*=(const T& other)
+    {
+        return *this = *this * other;
+    }
+
+    template <typename T>
+    float16 float16::operator/(const T& other) const
+    {
+        return {static_cast<float>(*this) / static_cast<float>(other)};
+    }
+
+    template <typename T>
+    float16 float16::operator/=(const T& other)
+    {
+        return *this = *this / other;
+    }
 }
 
 namespace std

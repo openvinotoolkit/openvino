@@ -17,6 +17,8 @@
 
 #include "blob_factory.hpp"
 #include "details/ie_cnn_network_tools.h"
+#include "cnn_network_impl.hpp"
+#include "cnn_network_ngraph_impl.hpp"
 #include "graph_tools.hpp"
 #include "ie_layers_internal.hpp"
 #include "ie_memcpy.h"
@@ -44,7 +46,7 @@ static std::vector<DataPtr> getAllInputs(const std::vector<DataPtr>& heads) {
 
     // Define all start layers
     for (const auto& data : heads) {
-        auto& secondLayers = data->getInputTo();
+        auto& secondLayers = getInputTo(data);
 
         if (secondLayers.empty()) continue;
 
@@ -63,7 +65,7 @@ static std::vector<DataPtr> getAllInputs(const std::vector<DataPtr>& heads) {
     // layers from head (like const placeholders)
     for (auto& starter : inputLayers) {
         DataPtr holder(new Data(starter->name + ":input_holder", starter->precision));
-        holder->getInputTo()[starter->name] = starter;
+        getInputTo(holder)[starter->name] = starter;
         res.push_back(holder);
     }
 
@@ -100,7 +102,7 @@ TensorIterator::Body CopyTIBody(const TensorIterator::Body& body, std::string su
     std::unordered_map<Data*, DataPtr> old2new_d;
     for (auto& in : body.inputs) {
         auto new_data = std::make_shared<Data>(*in.get());
-        for (auto& to : new_data->getInputTo()) to.second = old2new_l[to.second.get()];
+        for (auto& to : getInputTo(new_data)) to.second = old2new_l[to.second.get()];
 
         old2new_d[in.get()] = new_data;
     }
@@ -111,10 +113,10 @@ TensorIterator::Body CopyTIBody(const TensorIterator::Body& body, std::string su
         for (int i = 0; i < old->outData.size(); i++) {
             auto old_data = old->outData[i];
             auto new_data = new_one->outData[i];
-            new_data->getCreatorLayer() = CNNLayerWeakPtr(new_one);
+            getCreatorLayer(new_data) = CNNLayerWeakPtr(new_one);
             old2new_d[old_data.get()] = new_data;
 
-            for (auto& to : new_data->getInputTo()) to.second = old2new_l[to.second.get()];
+            for (auto& to : getInputTo(new_data)) to.second = old2new_l[to.second.get()];
         }
         // remap input data
         for (int i = 0; i < old->insData.size(); i++) {
@@ -131,8 +133,8 @@ TensorIterator::Body CopyTIBody(const TensorIterator::Body& body, std::string su
             auto old_name = layer->name;
             layer->name += suffix;
             for (auto& ins : layer->insData) {
-                ins.lock()->getInputTo().erase(old_name);
-                ins.lock()->getInputTo()[layer->name] = layer;
+                getInputTo(ins.lock()).erase(old_name);
+                getInputTo(ins.lock())[layer->name] = layer;
             }
         }
         for (auto& kvp : old2new_d) kvp.second->setName(kvp.second->getName() + suffix);
@@ -158,7 +160,7 @@ TensorIterator::Body CopyTIBody(const TensorIterator::Body& body, std::string su
     for (auto &in : res.inputs) {
         // fake holder Data should have UNSPECIFIED precision
         if (in->getPrecision() == Precision::UNSPECIFIED) {
-            for (const auto &kvp : in->getInputTo()) {
+            for (const auto &kvp : getInputTo(in)) {
                 already_on_hold.emplace(kvp.second);
             }
         }
@@ -179,7 +181,7 @@ TensorIterator::Body CopyTIBody(const TensorIterator::Body& body, std::string su
 
         auto holder = res.inputs.back();
         for (auto layer : to_hold) {
-            holder->getInputTo()[layer->name] = layer;
+            getInputTo(holder)[layer->name] = layer;
         }
     }
     return res;
@@ -261,16 +263,58 @@ static RuleClassSet classifyOutputRules(const TensorIterator& ti) {
  * @param slave
  */
 void CombineData(DataPtr& master, DataPtr& slave) {
-    for (auto& kvp : slave->getInputTo()) {
+    for (auto& kvp : getInputTo(slave)) {
         auto& slave_layer = kvp.second;
         for (auto& slv_ins_wptr : slave_layer->insData) {
             auto slv_ins = slv_ins_wptr.lock();
             // Replace slave ptr with master
             if (slv_ins == slave) slv_ins_wptr = master;
         }
-        master->getInputTo()[slave_layer->name] = slave_layer;
+        getInputTo(master)[slave_layer->name] = slave_layer;
     }
 }
+
+/**
+ * Preserve output data name and update output data map of the network
+ *
+ * @param in_data name to update
+ * @param out_data name to preserve
+ * @param net output data map to update with in_data
+ */
+template <typename NET>
+void SaveOutputDataName(InferenceEngine::DataPtr in_data, InferenceEngine::DataPtr out_data, NET &net) {
+    // TODO: update outputs of the network if out_data was output
+    if (getInputTo(out_data).empty()) {
+        auto data_name = out_data->getName();
+        in_data->setName(data_name);
+    }
+}
+
+/**
+ * void SaveOutputDataName(InferenceEngine::DataPtr in_data, InferenceEngine::DataPtr out_data, NET &net), where
+ * NET = ICNNNetwork
+ */
+void SaveOutputDataName(InferenceEngine::DataPtr in_data, InferenceEngine::DataPtr out_data, ICNNNetwork& net) {
+    if (getInputTo(out_data).empty()) {
+        InferenceEngine::OutputsDataMap outputs_data_map;
+        net.getOutputsInfo(outputs_data_map);
+        auto out_data_name = out_data->getName();
+        in_data->setName(out_data_name);
+        if (outputs_data_map.count(out_data_name)) {
+            auto parent_layer_ptr = getCreatorLayer(in_data).lock();
+            IE_ASSERT(parent_layer_ptr != nullptr);
+            auto parent_layer_name = parent_layer_ptr->name;
+            size_t in_data_out_index = 0;
+            for (size_t ind = 0; ind < parent_layer_ptr->outData.size(); ++ind) {
+                if (parent_layer_ptr->outData[ind] == in_data) {
+                    in_data_out_index = ind;
+                }
+            }
+            net.addOutput(parent_layer_name, in_data_out_index);
+        }
+    }
+}
+
 
 /**
  * Remove layer form graph
@@ -279,7 +323,8 @@ void CombineData(DataPtr& master, DataPtr& slave) {
  *
  * @param layer to remove from graph
  */
-void RemoveLayer(CNNLayerPtr& layer) {
+template <typename NET>
+void RemoveLayer(CNNLayerPtr& layer, NET &net) {
     IE_ASSERT(layer->insData.size() == 1);
     IE_ASSERT(layer->outData.size() == 1);
 
@@ -287,7 +332,7 @@ void RemoveLayer(CNNLayerPtr& layer) {
     auto out_data = layer->outData[0];
 
     IE_ASSERT(in_data->getTensorDesc() == out_data->getTensorDesc());
-    auto &input_to_map = in_data->getInputTo();
+    auto &input_to_map = getInputTo(in_data);
     auto self_found = std::find_if(input_to_map.begin(), input_to_map.end(),
             [&layer] (const std::pair<std::string, CNNLayerPtr> &kvp) {
         return kvp.second == layer;
@@ -298,6 +343,9 @@ void RemoveLayer(CNNLayerPtr& layer) {
 
     // transfer output connections into parent data
     CombineData(in_data, out_data);
+
+    // save name for output data and update network output
+    SaveOutputDataName(in_data, out_data, net);
 }
 
 /************************************************************/
@@ -348,8 +396,8 @@ bool convertToRNNSeq(CNNLayerPtr cur, const N& net) {
     IE_ASSERT(cell->insData.size() == NS + 1);  // {data, state1, [state2]}
     IE_ASSERT(cell->outData.size() == NS);      // {state1, [state2]}
 
-    if (cell->insData[0].lock()->getCreatorLayer().lock() != rsp1 ||
-        cell->outData[0]->getInputTo().begin()->second != rsp2)
+    if (getCreatorLayer(cell->insData[0].lock()).lock() != rsp1 ||
+        getInputTo(cell->outData[0]).begin()->second != rsp2)
         return false;
 
     // Check port mapping
@@ -430,19 +478,23 @@ bool convertToRNNSeq(CNNLayerPtr cur, const N& net) {
 
     for (int i : i_order) {
         auto in_data = ti->insData[i].lock();
-        in_data->getInputTo().erase(ti->name);
-        in_data->getInputTo()[rnn->name] = rnn;
+        getInputTo(in_data).erase(ti->name);
+        getInputTo(in_data)[rnn->name] = rnn;
         rnn->insData.push_back(in_data);
     }
     for (int i : o_order) {
         rnn->outData.push_back(ti->outData[i]);
-        rnn->outData.back()->getCreatorLayer() = rnn;
+        getCreatorLayer(rnn->outData.back()) = rnn;
     }
 
     return true;
 }
 
 bool unrollTI(CNNLayerPtr cur, ICNNNetwork& net) {
+    auto inet = dynamic_cast<details::CNNNetworkImpl*>(&net);
+    auto ngraphnet = dynamic_cast<details::CNNNetworkNGraphImpl*>(&net);
+    IE_ASSERT(inet != nullptr || ngraphnet != nullptr);
+
     if (cur->type != "TensorIterator") return true;
 
     auto ti = std::dynamic_pointer_cast<TensorIterator>(cur);
@@ -460,9 +512,10 @@ bool unrollTI(CNNLayerPtr cur, ICNNNetwork& net) {
 
         auto holder = body_list[i].inputs.back();
         if (holder->getPrecision() == Precision::UNSPECIFIED) {
-            IE_SUPPRESS_DEPRECATED_START
-            for (auto kvp : holder->getInputTo()) net.addLayer(kvp.second);
-            IE_SUPPRESS_DEPRECATED_END
+            for (auto kvp : getInputTo(holder)) {
+                if (inet) inet->addLayer(kvp.second);
+                else ngraphnet->addLayer(kvp.second);
+            }
         }
     }
 
@@ -470,8 +523,8 @@ bool unrollTI(CNNLayerPtr cur, ICNNNetwork& net) {
     std::tie(first_class, second_class, third_class) = classifyInputRules(*ti);
 
     /** Clean links on TI */
-    for (auto& ins : ti->insData) ins.lock()->getInputTo().erase(ti->name);
-    for (auto& outs : ti->outData) outs->getCreatorLayer().reset();
+    for (auto& ins : ti->insData) getInputTo(ins.lock()).erase(ti->name);
+    for (auto& outs : ti->outData) getCreatorLayer(outs).reset();
 
     /** FIRST class comes */
     for (int i = 0; i < first_class.size(); i++) {
@@ -483,12 +536,12 @@ bool unrollTI(CNNLayerPtr cur, ICNNNetwork& net) {
         split->_axis = rule.axis;
         split->outData.resize(num);
         split->insData.emplace_back(in_data);
-        in_data->getInputTo()[split->name] = split;
+        getInputTo(in_data)[split->name] = split;
 
         for (int j = 0; j < num; j++) {
             auto body_idx = rule.stride == 1 ? j : num - 1 - j;
             auto& chunk = body_list[body_idx].inputs[rule.to];
-            chunk->getCreatorLayer() = split;
+            getCreatorLayer(chunk) = split;
             split->outData[j] = chunk;
         }
     }
@@ -533,12 +586,12 @@ bool unrollTI(CNNLayerPtr cur, ICNNNetwork& net) {
         concat->_axis = rule.axis;
         concat->insData.resize(num);
         concat->outData.emplace_back(out_data);
-        out_data->getCreatorLayer() = concat;
+        getCreatorLayer(out_data) = concat;
 
         for (int j = 0; j < num; j++) {
             auto body_idx = rule.stride == 1 ? j : num - 1 - j;
             auto& chunk = body_list[body_idx].outputs[rule.to];
-            chunk->getInputTo()[concat->name] = concat;
+            getInputTo(chunk)[concat->name] = concat;
             concat->insData[j] = chunk;
         }
     }
@@ -559,9 +612,9 @@ bool unrollTI(CNNLayerPtr cur, ICNNNetwork& net) {
         auto& from_data = ti->outData[rule.from];
         auto& to_data = body_list[num - 1].outputs[rule.to];
 
-        auto parent = to_data->getCreatorLayer().lock();
+        auto parent = getCreatorLayer(to_data).lock();
         std::replace(parent->outData.begin(), parent->outData.end(), to_data, from_data);
-        from_data->getCreatorLayer() = parent;
+        getCreatorLayer(from_data) = parent;
 
         CombineData(from_data, to_data);
     }
@@ -580,7 +633,7 @@ static CNNLayerPtr _concat(std::string name, Precision prc, SizeVector dims, int
     res->outData.resize(1);
 
     auto out_data = DataPtr(new Data(name, TensorDesc {prc, dims, TensorDesc::getLayoutByDims(dims)}));
-    out_data->getCreatorLayer() = res;
+    getCreatorLayer(out_data) = res;
 
     res->outData[0] = out_data;
     return res;
@@ -597,7 +650,7 @@ static CNNLayerPtr _split(std::string name, Precision prc, SizeVector dims, int 
     for (int i = 0; i < num; i++) {
         auto out_data = DataPtr(
             new Data(name + "_part_" + std::to_string(i), TensorDesc {prc, dims, TensorDesc::getLayoutByDims(dims)}));
-        out_data->getCreatorLayer() = res;
+        getCreatorLayer(out_data) = res;
 
         res->outData[i] = out_data;
     }
@@ -618,7 +671,7 @@ static CNNLayerPtr _fc(std::string name, Precision prc, SizeVector dims, Blob::P
     res->outData.resize(1);
 
     auto out_data = DataPtr(new Data(name, TensorDesc {prc, dims, TensorDesc::getLayoutByDims(dims)}));
-    out_data->getCreatorLayer() = res;
+    getCreatorLayer(out_data) = res;
 
     res->outData[0] = out_data;
     return res;
@@ -633,7 +686,7 @@ static std::shared_ptr<ClampLayer> _act(std::string name, Precision prc, SizeVec
     res->outData.resize(1);
 
     auto out_data = DataPtr(new Data(name, TensorDesc {prc, dims, TensorDesc::getLayoutByDims(dims)}));
-    out_data->getCreatorLayer() = res;
+    getCreatorLayer(out_data) = res;
 
     res->outData[0] = out_data;
     return res;
@@ -653,7 +706,7 @@ static CNNLayerPtr _pwr(std::string name, Precision prc, SizeVector dims, float 
     res->outData.resize(1);
 
     auto out_data = DataPtr(new Data(name, TensorDesc {prc, dims, TensorDesc::getLayoutByDims(dims)}));
-    out_data->getCreatorLayer() = res;
+    getCreatorLayer(out_data) = res;
 
     res->outData[0] = out_data;
     return res;
@@ -669,7 +722,7 @@ static CNNLayerPtr _eltw(std::string name, Precision prc, SizeVector dims, std::
     res->outData.resize(1);
 
     auto out_data = DataPtr(new Data(name, TensorDesc {prc, dims, TensorDesc::getLayoutByDims(dims)}));
-    out_data->getCreatorLayer() = res;
+    getCreatorLayer(out_data) = res;
 
     res->outData[0] = out_data;
     return res;
@@ -682,7 +735,7 @@ static std::shared_ptr<ReshapeLayer> _resh(std::string name, Precision prc, Size
     res->outData.resize(1);
 
     auto out_data = DataPtr(new Data(name, TensorDesc {prc, dims, TensorDesc::getLayoutByDims(dims)}));
-    out_data->getCreatorLayer() = res;
+    getCreatorLayer(out_data) = res;
 
     res->outData[0] = out_data;
     return res;
@@ -712,13 +765,13 @@ static std::shared_ptr<RNNCellBase> _cell(std::string name, Precision prc, SizeV
 
     auto out_data =
         DataPtr(new Data(name + ":out_data", TensorDesc {prc, data_dims, TensorDesc::getLayoutByDims(data_dims)}));
-    out_data->getCreatorLayer() = res;
+    getCreatorLayer(out_data) = res;
     res->outData[0] = out_data;
 
     for (size_t i = 0; i < NS; i++) {
         auto out_state = DataPtr(new Data(name + ":out_state_" + std::to_string(i),
                                           TensorDesc {prc, state_dims, TensorDesc::getLayoutByDims(state_dims)}));
-        out_state->getCreatorLayer() = res;
+        getCreatorLayer(out_state) = res;
         res->outData[i] = out_state;
     }
 
@@ -736,12 +789,12 @@ static std::shared_ptr<TensorIterator> _ti(std::string name, Precision prc, size
 
 static void _link(CNNLayerPtr src, CNNLayerPtr dst, size_t src_port = 0, size_t dst_port = 0) {
     auto data = src->outData[src_port];
-    data->getInputTo()[dst->name] = dst;
+    getInputTo(data)[dst->name] = dst;
     dst->insData[dst_port] = data;
 }
 
 static void _link(DataPtr& data, CNNLayerPtr dst, size_t dst_port = 0) {
-    data->getInputTo()[dst->name] = dst;
+    getInputTo(data)[dst->name] = dst;
     dst->insData[dst_port] = data;
 }
 
@@ -833,8 +886,8 @@ static bool unrollRNNCellBody(CNNLayerPtr cur) {
     auto prc = cell->precision;
 
     /** Release links on TI */
-    for (auto& ins : cell->insData) ins.lock()->getInputTo().erase(cell->name);
-    for (auto& outs : cell->outData) outs->getCreatorLayer().reset();
+    for (auto& ins : cell->insData) getInputTo(ins.lock()).erase(cell->name);
+    for (auto& outs : cell->outData) getCreatorLayer(outs).reset();
 
     // operations
     auto concat = _concat(name + ":concat", prc, {N, D + S}, 2);
@@ -849,7 +902,7 @@ static bool unrollRNNCellBody(CNNLayerPtr cur) {
 
     // Output
     act->outData[0] = out_h_state;
-    out_h_state->getCreatorLayer() = act;
+    getCreatorLayer(out_h_state) = act;
 
     return true;
 }
@@ -879,8 +932,8 @@ static bool unrollLSTMCellBody(CNNLayerPtr cur) {
     auto prc = cell->precision;
 
     /** Release links on TI */
-    for (auto& ins : cell->insData) ins.lock()->getInputTo().erase(cell->name);
-    for (auto& outs : cell->outData) outs->getCreatorLayer().reset();
+    for (auto& ins : cell->insData) getInputTo(ins.lock()).erase(cell->name);
+    for (auto& outs : cell->outData) getCreatorLayer(outs).reset();
 
     // operations
     auto concat = _concat(name + ":concat", prc, {N, D + S}, 2);
@@ -928,11 +981,11 @@ static bool unrollLSTMCellBody(CNNLayerPtr cur) {
 
     // Output
     mul->outData[0] = out_h_state;
-    out_h_state->getCreatorLayer() = mul;
+    getCreatorLayer(out_h_state) = mul;
 
     CombineData(out_c_state, sum->outData[0]);
     sum->outData[0] = out_c_state;
-    out_c_state->getCreatorLayer() = sum;
+    getCreatorLayer(out_c_state) = sum;
 
     return true;
 }
@@ -969,8 +1022,8 @@ static bool unrollGRUCellBody(CNNLayerPtr cur, bool linear_before_reset = false)
     auto prc = cell->precision;
 
     /** Release links on TI */
-    for (auto& ins : cell->insData) ins.lock()->getInputTo().erase(cell->name);
-    for (auto& outs : cell->outData) outs->getCreatorLayer().reset();
+    for (auto& ins : cell->insData) getInputTo(ins.lock()).erase(cell->name);
+    for (auto& outs : cell->outData) getCreatorLayer(outs).reset();
 
     // operations
     auto concat = _concat(name + ":concat", prc, {N, D + S}, 2);
@@ -1044,7 +1097,7 @@ static bool unrollGRUCellBody(CNNLayerPtr cur, bool linear_before_reset = false)
 
     // Output
     sum->outData[0] = out_h_state;
-    out_h_state->getCreatorLayer() = sum;
+    getCreatorLayer(out_h_state) = sum;
 
     return true;
 }
@@ -1085,8 +1138,8 @@ static bool unrollSeq(CNNLayerPtr cur) {
     const auto prc = seq->precision;
 
     /** Release links on Seq */
-    for (auto& ins : seq->insData) ins.lock()->getInputTo().erase(seq->name);
-    for (auto& outs : seq->outData) outs->getCreatorLayer().reset();
+    for (auto& ins : seq->insData) getInputTo(ins.lock()).erase(seq->name);
+    for (auto& outs : seq->outData) getCreatorLayer(outs).reset();
 
     /** Body subgraph*/
     auto in_d_body_dims = in_d_dims;
@@ -1129,7 +1182,7 @@ static bool unrollSeq(CNNLayerPtr cur) {
     _link(in_data, ti, 0);
 
     ti->outData[0] = out_data;
-    out_data->getCreatorLayer() = ti;
+    getCreatorLayer(out_data) = ti;
 
     ti->body.inputs.push_back(body_in_data);
     ti->body.outputs.push_back(resh2->outData[0]);
@@ -1146,7 +1199,7 @@ static bool unrollSeq(CNNLayerPtr cur) {
 
         auto out_state = seq->outData[1 + i];
         ti->outData[1 + i] = out_state;
-        out_state->getCreatorLayer() = ti;
+        getCreatorLayer(out_state) = ti;
 
         auto body_in_state = DataPtr(new Data(name + ":state_in_" + std::to_string(i),
                                               TensorDesc {prc, state_dims, TensorDesc::getLayoutByDims(state_dims)}));
@@ -1188,10 +1241,16 @@ std::vector<CNNLayerPtr> TopolSort(const details::CNNSubnet& net) {
 }
 
 void restore_net_consistency(ICNNNetwork& net) {
+    auto inet = dynamic_cast<details::CNNNetworkImpl*>(&net);
+    auto ngraphnet = dynamic_cast<details::CNNNetworkNGraphImpl*>(&net);
+    IE_ASSERT(inet != nullptr || ngraphnet != nullptr);
     // At first all layers should be available via findByName() api.
     // In other words all layers should be present in internal map<name, layer>
     IE_SUPPRESS_DEPRECATED_START
-    for (auto& l : TopolSort(net)) net.addLayer(l);
+    for (auto& l : TopolSort(net)) {
+        if (inet) inet->addLayer(l);
+        else ngraphnet->addLayer(l);
+    }
     IE_SUPPRESS_DEPRECATED_END
 }
 
@@ -1271,13 +1330,28 @@ bool UnrollRNN_if(TensorIterator::Body& net, const std::function<bool(const RNNC
 
 namespace {
 
+template <typename TO, typename FROM>
+bool isConversionNarrowing(FROM from) {
+    return from == (static_cast<FROM>(static_cast<TO>(from)));
+}
+
+template <typename TO, typename FROM>
+TO saturatedCast(FROM from) {
+    FROM max = isConversionNarrowing<FROM>(std::numeric_limits<TO>::max()) ? std::numeric_limits<FROM>::max() :
+                                                                             static_cast<FROM>(std::numeric_limits<TO>::max());
+    FROM min = isConversionNarrowing<FROM>(std::numeric_limits<TO>::min()) ? std::numeric_limits<FROM>::min() :
+                                                                             static_cast<FROM>(std::numeric_limits<TO>::min());
+
+    return static_cast<TO>(std::min(std::max(from, min), max));
+}
+
 template <Precision::ePrecision PREC_FROM, Precision::ePrecision PREC_TO>
 void convertArrayPrecision(typename PrecisionTrait<PREC_TO>::value_type* dst,
                            const typename PrecisionTrait<PREC_FROM>::value_type* src, size_t nelem) {
     using dst_type = typename PrecisionTrait<PREC_TO>::value_type;
 
     for (size_t i = 0; i < nelem; i++) {
-        dst[i] = static_cast<dst_type>(src[i]);
+        dst[i] = saturatedCast<dst_type>(src[i]);
     }
 }
 
@@ -1366,7 +1440,7 @@ void fixConvertLayers(NET &net) {
         }
     }
     for (auto &layer : to_remove) {
-        RemoveLayer(layer);
+        RemoveLayer(layer, net);
     }
 }
 
@@ -1414,6 +1488,9 @@ void ConvertPrecision(ICNNNetwork& net, Precision from, Precision to) {
             break;
         case getPrecisionMask(Precision::U8, Precision::I32):
             convertPrecisionForAll<Precision::U8, Precision::I32>(net);
+            break;
+        case getPrecisionMask(Precision::U16, Precision::I32):
+            convertPrecisionForAll<Precision::U16, Precision::I32>(net);
             break;
         default:
             THROW_IE_EXCEPTION << "Precision conversion from " << from << " to " << to

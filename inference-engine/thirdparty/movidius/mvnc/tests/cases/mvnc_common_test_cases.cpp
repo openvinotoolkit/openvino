@@ -10,9 +10,9 @@
 MvncTestsCommon::MvncTestsCommon() {
 #if !(defined(_WIN32) || defined(_WIN64))
     // On linux we should use custom path to firmware due to another searching mechanism for library
-    strcpy(firmwarePath, "./lib");
+    strcpy(firmwareDir, "./lib/");
 #else
-    firmwarePath[0] = 0;
+    strcpy(firmwareDir, "./");
 #endif
 }
 
@@ -24,7 +24,7 @@ void MvncTestsCommon::SetUp() {
     ASSERT_EQ(WD_ERRNO, watchdog_create(&m_watchdogHndl));
 
     m_ncDeviceOpenParams.watchdogInterval = watchdogInterval;
-    m_ncDeviceOpenParams.customFirmwareDirectory = firmwarePath;
+    m_ncDeviceOpenParams.customFirmwareDirectory = firmwareDir;
     m_ncDeviceOpenParams.watchdogHndl = m_watchdogHndl;
 }
 
@@ -71,7 +71,39 @@ void MvncTestsCommon::bootOneDevice(ncDeviceProtocol_t deviceProtocol) {
     if (deviceProtocol == NC_PCIE) {
         GTEST_FATAL_FAILURE_("Boot doesn't supported for PCIe protocol\n");
     }
-    ASSERT_NO_ERROR(ncDeviceLoadFirmware(NC_ANY_PLATFORM, firmwarePath));
+    ASSERT_NO_ERROR(ncDeviceLoadFirmware(NC_ANY_PLATFORM, firmwareDir));
+}
+
+
+std::string MvncTestsCommon::getMyriadUSBFirmwarePath(const std::string& deviceName) {
+    if (deviceName.find('-') == std::string::npos) {
+        throw std::invalid_argument("Invalid device address");
+    }
+
+    std::string firmwareName = "usb-ma2450.mvcmd";
+    if (deviceName.find("ma2480") != std::string::npos) {
+        firmwareName = "usb-ma2x8x.mvcmd";
+    }
+
+    return firmwareDir + firmwareName;
+}
+
+std::string MvncTestsCommon::getMyriadFirmwarePath(const deviceDesc_t& in_deviceDesc) {
+    if(in_deviceDesc.protocol != X_LINK_USB_VSC &&
+       in_deviceDesc.protocol != X_LINK_PCIE) {
+        throw std::invalid_argument("Device protocol must be specified");
+    }
+
+    if(in_deviceDesc.protocol == X_LINK_PCIE) {
+#if defined(_WIN32)
+        const std::string extension = "elf";
+#else
+        const std::string extension = "mvcmd";
+#endif
+        return firmwareDir + std::string("pcie-ma248x.") + extension;
+    }
+
+    return getMyriadUSBFirmwarePath(in_deviceDesc.name);
 }
 
 //------------------------------------------------------------------------------

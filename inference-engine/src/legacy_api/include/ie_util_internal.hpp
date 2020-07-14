@@ -5,6 +5,7 @@
 #pragma once
 
 #include <cpp/ie_cnn_network.h>
+#include "details/ie_cnn_network_iterator.hpp"
 
 #include <ie_icnn_network.hpp>
 #include <cnn_network_impl.hpp>
@@ -46,7 +47,7 @@ INFERENCE_ENGINE_API_CPP(CNNLayerPtr) clonelayer(const CNNLayer& source);
  * @return Cloned network
  */
 INFERENCE_ENGINE_API_CPP(InferenceEngine::details::CNNNetworkImplPtr)
-cloneNet(const std::vector<InferenceEngine::CNNLayerPtr>& layers, const ICNNNetworkStats* networkStats);
+cloneNet(const std::vector<InferenceEngine::CNNLayerPtr>& layers);
 
 IE_SUPPRESS_DEPRECATED_END
 

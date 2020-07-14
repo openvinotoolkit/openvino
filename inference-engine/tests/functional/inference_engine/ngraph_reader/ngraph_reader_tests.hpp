@@ -9,6 +9,7 @@
 #include <sstream>
 
 #include <ie_core.hpp>
+#include <details/ie_cnn_network_iterator.hpp>
 
 #include "common_test_utils/test_common.hpp"
 #include "common_test_utils/file_utils.hpp"
@@ -40,12 +41,12 @@ protected:
 
         FuncTestUtils::compareCNNNetworks(network, cnnNetwork, false);
         IE_SUPPRESS_DEPRECATED_START
-        for (auto it = network.begin(); it != network.end(); it++) {
+        for (auto it = details::CNNNetworkIterator(network); it != details::CNNNetworkIterator(); it++) {
             InferenceEngine::CNNLayerPtr layer = *it;
             ASSERT_NE(nullptr, layer->getNode());
         }
 
-        for (auto it = cnnNetwork.begin(); it != cnnNetwork.end(); it++) {
+        for (auto it = details::CNNNetworkIterator(cnnNetwork); it != details::CNNNetworkIterator(); it++) {
             InferenceEngine::CNNLayerPtr layer = *it;
             ASSERT_EQ(nullptr, layer->getNode());
         }

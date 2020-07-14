@@ -51,11 +51,11 @@ void ScaleShiftToConvolutionTransformation::transform(TransformationContext& con
         return;
     }
 
-    if (outData->getInputTo().size() == 1ul && parents[0]->type != "Concat") {
+    if (getInputTo(outData).size() == 1ul && parents[0]->type != "Concat") {
         return;
     }
 
-    if (layer.outData[0]->getInputTo().size() == 0ul) {
+    if (getInputTo(layer.outData[0]).size() == 0ul) {
         return;
     }
 
@@ -115,31 +115,10 @@ void ScaleShiftToConvolutionTransformation::transform(TransformationContext& con
 
         if (this->updateBiases) {
             std::vector<float> biasesShifts(dequantizationShifts.size(), 0.f);
-            updateLayerBiases(context, *convolutionLayerPtr, dequantizationScales, dequantizationShifts, biasesShifts);
+            updateLayerBiases(context, *convolutionLayerPtr, false, dequantizationScales, dequantizationShifts, biasesShifts);
         }
 
-        const std::vector<CNNLayerPtr> children = CNNNetworkHelper::getChildren(*convolutionLayerPtr);
-        if (children.size() == 0) {
-            const std::string originalName = convolutionLayerPtr->name;
-            CNNNetworkHelper::renameLayer(context.network, convolutionLayerPtr->name, convolutionLayerPtr->name + LayerTransformation::lastLayerPrefix);
-
-            const CNNLayerPtr dequantizationLayer = CNNNetworkHelper::addScaleShiftBetween(
-                context,
-                convolutionLayerPtr,
-                nullptr,
-                DequantizationDetails(dequantizationScales, dequantizationShifts, channelsCount),
-                originalName);
-            context.dequantizationLayersNames.insert(dequantizationLayer->name);
-        } else {
-            for (const CNNLayerPtr& child : children) {
-                const CNNLayerPtr dequantizationLayer = CNNNetworkHelper::addScaleShiftBetween(
-                    context,
-                    convolutionLayerPtr,
-                    child,
-                    DequantizationDetails(dequantizationScales, dequantizationShifts, channelsCount));
-                context.dequantizationLayersNames.insert(dequantizationLayer->name);
-            }
-        }
+        addDequantizationLayer(context, *convolutionLayerPtr, dequantizationScales, dequantizationShifts);
     }
 }
 

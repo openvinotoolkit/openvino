@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2018 Intel Corporation
+// Copyright (c) 2018-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -84,7 +84,7 @@ void remove_redundant_reorders::run(program_impl& p) {
 
             auto output_padded = static_cast<bool>(output_layout.data_padding);
             auto can_omit_padding = (output_layout.format == format::b_fs_yx_fsv16 || output_layout.format == format::b_fs_yx_fsv32) &&
-                                    input.get_output_layout().format == format::bfyx;
+                                    (input.get_output_layout().format == format::bfyx || input.get_output_layout().format == format::b_fs_yx_fsv4);
 
             if (output_padded && !can_omit_padding) {
                 if (input.get_users().size() != 1)
@@ -179,14 +179,27 @@ void remove_redundant_reorders::run(program_impl& p) {
         // but pads need to be handled correctly.
         if (i_layout.format == format::b_fs_yx_fsv16 && o_layout.format == format::bfyx && !r_node.is_output() &&
             i_layout.size.spatial[0] == 1 && i_layout.size.spatial[1] == 1 &&
-            o_layout.data_padding.upper_size() == (tensor)0 && o_layout.data_padding.lower_size() == (tensor)0) {
+            i_layout.data_padding.upper_size().spatial[0] == 0 && i_layout.data_padding.lower_size().spatial[0] == 0 &&
+            i_layout.data_padding.upper_size().spatial[1] == 0 && i_layout.data_padding.lower_size().spatial[1] == 0 &&
+            o_layout.data_padding.upper_size() == (tensor)0 && o_layout.data_padding.lower_size() == (tensor)0 &&
+            i_layout.data_type == o_layout.data_type) {
             r_node.can_be_optimized(true);
+            r_node.requires_reinterpret(true);
+
+            auto pad_lo = o_layout.data_padding.lower_size();
+            auto pad_hi = o_layout.data_padding.upper_size();
+
+            pad_lo.batch[0] = i_layout.data_padding.lower_size().batch[0];
+            pad_hi.batch[0] = i_layout.data_padding.upper_size().batch[0];
+
+            pad_lo.feature[0] = i_layout.data_padding.lower_size().feature[0];
+            pad_hi.feature[0] = i_layout.data_padding.upper_size().feature[0];
+
             if (i_layout.size.feature[0] % 16 != 0) {
-                auto pad_lo = o_layout.data_padding.lower_size();
-                auto pad_hi = o_layout.data_padding.upper_size();
-                pad_hi.feature[0] = i_layout.size.feature[0] % 16;
-                r_node.merge_output_padding(padding{pad_lo.sizes(), pad_hi.sizes()});
+                pad_hi.feature[0] += 16 - i_layout.size.feature[0] % 16;
             }
+
+            r_node.merge_output_padding(padding{pad_lo.sizes(), pad_hi.sizes()});
             continue;
         }
 
@@ -199,7 +212,13 @@ void remove_redundant_reorders::run(program_impl& p) {
         r_node.can_be_optimized(true);
         r_node.requires_reinterpret(!ident.first);
         if (ident.first) {  // no need of reshape
-            p.add_optimized_primitive_info(r_node.get_primitive()->id);
+            if (r_node.is_output()) {
+                // if removed reorder is output, we need to add it's dependency id to the optimized primitives list,
+                // because it's name will be changed after extract_and_remove call
+                p.add_optimized_primitive_info(r_node.get_dependency(0).get_primitive()->id, {r_node.get_primitive()->id});
+            } else {
+                p.add_optimized_primitive_info(r_node.get_primitive()->id);
+            }
             p.extract_and_remove(
                 r_node);  // try to remove if possible (with respect to r_node not being marked as output)
         }
@@ -302,8 +321,10 @@ void remove_redundant_reorders::run(program_impl& p) {
 
         auto& usr = node->get_users().front();
         auto& dep = node->get_dependency(0);
-        if (!usr->is_type<quantize>() || node->get_output_layout().format != format::bfyx ||
-            (dep.get_output_layout().format != format::b_fs_yx_fsv16 && dep.get_output_layout().format != format::fs_b_yx_fsv32))
+        if (!usr->is_type<quantize>() ||
+            (dep.get_output_layout().format != format::b_fs_yx_fsv16 &&
+             dep.get_output_layout().format != format::fs_b_yx_fsv32 &&
+             dep.get_output_layout().format != format::bfyx))
             continue;
 
         dep.merge_output_padding(node->get_output_layout().data_padding);

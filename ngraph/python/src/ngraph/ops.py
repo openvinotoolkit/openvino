@@ -29,6 +29,14 @@ from ngraph.utils.input_validation import (
     is_positive_value,
 )
 from ngraph.utils.node_factory import NodeFactory
+from ngraph.utils.tensor_iterator_types import (
+    GraphBody,
+    TensorIteratorBodyOutputDesc,
+    TensorIteratorConcatOutputDesc,
+    TensorIteratorInvariantInputDesc,
+    TensorIteratorMergedInputDesc,
+    TensorIteratorSliceInputDesc,
+)
 from ngraph.utils.types import (
     NodeInput,
     NumericData,
@@ -3437,4 +3445,100 @@ def proposal(
 
     return _get_node_factory().create(
         "Proposal", [class_probs, box_logits, as_node(image_shape)], attrs
+    )
+
+
+@nameable_op
+def tensor_iterator(
+    inputs: List[Node],
+    graph_body: GraphBody,
+    slice_input_desc: List[TensorIteratorSliceInputDesc],
+    merged_input_desc: List[TensorIteratorMergedInputDesc],
+    invariant_input_desc: List[TensorIteratorInvariantInputDesc],
+    body_output_desc: List[TensorIteratorBodyOutputDesc],
+    concat_output_desc: List[TensorIteratorConcatOutputDesc],
+    name: Optional[str] = None,
+) -> Node:
+    """
+    Perform recurrent execution of the network described in the body, iterating through the data.
+
+    :param      inputs:                The provided to TensorIterator operator.
+    :param      graph_body:            The graph representing the body we execute.
+    :param      slice_input_desc:      The descriptors describing sliced inputs, that is nodes
+                                       representing tensors we iterate through, processing single
+                                       data slice in one iteration.
+    :param      merged_input_desc:     The descriptors describing merged inputs, that is nodes
+                                       representing variables with initial value at first iteration,
+                                       which may be changing through iterations.
+    :param      invariant_input_desc:  The descriptors describing invariant inputs, that is nodes
+                                       representing variable with persistent value through all
+                                       iterations.
+    :param      body_output_desc:      The descriptors describing body outputs from specified
+                                       iteration.
+    :param      concat_output_desc:    The descriptors describing specified output values through
+                                       all the iterations concatenated into one node.
+    :param      name:                  The optional name for output node.
+
+    :returns:   Node representing TensorIterator operation.
+    """
+    attributes = {
+        "body": graph_body.serialize(),
+        "slice_input_desc": [desc.serialize() for desc in slice_input_desc],
+        "merged_input_desc": [desc.serialize() for desc in merged_input_desc],
+        "invariant_input_desc": [desc.serialize() for desc in invariant_input_desc],
+        "body_output_desc": [desc.serialize() for desc in body_output_desc],
+        "concat_output_desc": [desc.serialize() for desc in concat_output_desc],
+    }
+
+    return _get_node_factory().create("TensorIterator", as_nodes(*inputs), attributes)
+
+
+@nameable_op
+def assign(new_value: NodeInput, variable_id: str, name: Optional[str] = None) -> Node:
+    """Return a node which produces the Assign operation.
+
+    :param new_value:    Node producing a value to be assigned to a variable.
+    :param variable_id:  Id of a variable to be updated.
+    :param name:         Optional name for output node.
+    :return: Assign node
+    """
+    return _get_node_factory().create("Assign", [as_node(new_value)], {"variable_id": variable_id})
+
+
+@nameable_op
+def read_value(init_value: NodeInput, variable_id: str, name: Optional[str] = None) -> Node:
+    """Return a node which produces the Assign operation.
+
+    :param init_value:   Node producing a value to be returned instead of an unassigned variable.
+    :param variable_id:  Id of a variable to be read.
+    :param name:         Optional name for output node.
+    :return: ReadValue node
+    """
+    return _get_node_factory().create("ReadValue", [as_node(init_value)],
+                                      {"variable_id": variable_id})
+
+
+@nameable_op
+def extract_image_patches(
+    image: NodeInput,
+    sizes: TensorShape,
+    strides: List[int],
+    rates: TensorShape,
+    auto_pad: str,
+    name: Optional[str] = None,
+) -> Node:
+    """Return a node which produces the ExtractImagePatches operation.
+
+    :param image:     4-D Input data to extract image patches.
+    :param sizes:     Patch size in the format of [size_rows, size_cols].
+    :param strides:   Patch movement stride in the format of [stride_rows, stride_cols]
+    :param rates:     Element seleciton rate for creating a patch.
+    :param auto_pad:  Padding type.
+    :param name:      Optional name for output node.
+    :return: ExtractImagePatches node
+    """
+    return _get_node_factory().create(
+        "ExtractImagePatches",
+        [as_node(image)],
+        {"sizes": sizes, "strides": strides, "rates": rates, "auto_pad": auto_pad},
     )

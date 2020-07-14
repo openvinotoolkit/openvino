@@ -19,6 +19,8 @@
 #include <onnx/onnx_pb.h>
 
 #include "default_opset.hpp"
+#include "ngraph/op/constant.hpp"
+#include "ngraph/op/parameter.hpp"
 #include "ngraph/partial_shape.hpp"
 #include "ngraph/type/element_type.hpp"
 #include "node.hpp"
@@ -97,14 +99,15 @@ namespace ngraph
             }
 
         protected:
-            std::shared_ptr<op::Parameter> get_ng_parameter() const
+            std::shared_ptr<ngraph::op::Parameter> get_ng_parameter() const
             {
-                auto parameter = std::make_shared<op::Parameter>(get_element_type(), get_shape());
+                auto parameter =
+                    std::make_shared<ngraph::op::Parameter>(get_element_type(), get_shape());
                 parameter->set_friendly_name(get_name());
                 return parameter;
             }
 
-            std::shared_ptr<op::Constant> get_ng_constant(const Tensor& tensor) const
+            std::shared_ptr<ngraph::op::Constant> get_ng_constant(const Tensor& tensor) const
             {
                 return tensor.get_ng_constant();
             }
@@ -123,7 +126,7 @@ namespace ngraph
                     {
                         dims.emplace_back(onnx_dim.dim_value());
                     }
-                    else if (onnx_dim.has_dim_param())
+                    else // has_dim_param() == true or it is empty dim
                     {
                         dims.push_back(Dimension::dynamic());
                     }

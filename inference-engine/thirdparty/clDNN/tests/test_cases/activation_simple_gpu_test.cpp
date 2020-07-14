@@ -655,6 +655,46 @@ TEST(activation_f32_fw_gpu, relu_basic_bfzyx) {
     }
 }
 
+TEST(activation_f16_fw_gpu, basic_yxfb_mish) {
+    const auto& engine = get_test_engine();
+
+    auto input = memory::allocate(engine, { data_types::f16, format::yxfb, { 1, 1, 5, 4 } });
+    set_values(input,
+    { FLOAT16(0.0f), FLOAT16(-2.0f), FLOAT16(-3.0f), FLOAT16(4.0f), FLOAT16(5.0f),
+      FLOAT16(2.0f), FLOAT16(2.0f), FLOAT16(3.0f), FLOAT16(4.0f), FLOAT16(-6.0f),
+      FLOAT16(3.0f), FLOAT16(-3.0f), FLOAT16(3.0f), FLOAT16(5.0f), FLOAT16(1.0f),
+      FLOAT16(1.0f), FLOAT16(1.0f), FLOAT16(1.0f), FLOAT16(-1.0f), FLOAT16(1.0f) });
+
+    topology topology(
+        input_layout("input", input.get_layout()),
+        activation("mish", "input", activation_func::mish));
+    network network(engine, topology);
+    network.set_input_data("input", input);
+    auto outputs = network.execute();
+    EXPECT_EQ(outputs.size(), size_t(1));
+    EXPECT_EQ(outputs.begin()->first, "mish");
+
+    auto output_memory = outputs.at("mish").get_memory();
+    auto output_layout = output_memory.get_layout();
+    auto output_ptr = output_memory.pointer<FLOAT16>();
+    auto input_ptr = input.pointer<FLOAT16>();
+
+    int y_size = output_layout.size.spatial[1];
+    int x_size = output_layout.size.spatial[0];
+    int f_size = output_layout.size.feature[0];
+    int b_size = output_layout.size.batch[0];
+    EXPECT_EQ(output_layout.format, format::yxfb);
+    EXPECT_EQ(y_size, 4);
+    EXPECT_EQ(x_size, 5);
+    EXPECT_EQ(f_size, 1);
+    EXPECT_EQ(b_size, 1);
+
+    for (size_t i = 0; i < output_layout.get_linear_size(); ++i) {
+        EXPECT_NEAR((FLOAT16)((float)input_ptr[i] * std::tanh(std::log(1.f + std::exp((float)input_ptr[i])))),
+                    output_ptr[i], 1e-2f);
+    }
+}
+
 TEST(activation_f32_fw_gpu, basic_yxfb_all_functions)
 {
     //  Input:
@@ -700,6 +740,7 @@ TEST(activation_f32_fw_gpu, basic_yxfb_all_functions)
         activation_func::negative,
         activation_func::abs,
         activation_func::swish,
+        activation_func::mish,
         activation_func::gelu
     };
 
@@ -816,6 +857,10 @@ TEST(activation_f32_fw_gpu, basic_yxfb_all_functions)
                     break;
                 case activation_func::swish:
                     EXPECT_FLOAT_EQ((float)input_ptr[i] / (1.f + std::exp((float)(-input_ptr[i]))), output_ptr[i]);
+                    break;
+                case activation_func::mish:
+                    EXPECT_NEAR((float)input_ptr[i] * std::tanh(std::log(1.f + std::exp((float)input_ptr[i]))),
+                                output_ptr[i], 1e-5f);
                     break;
                 case activation_func::gelu:
                     EXPECT_NEAR(0.5f * (float)input_ptr[i] * (1.f + std::erf((float)(input_ptr[i]) / std::sqrt(2.0f))),
@@ -1367,5 +1412,54 @@ TEST(activation_i32_fw_gpu, basic_yxfb_i32_funcs)
                 break;
             }
         }
+    }
+}
+
+TEST(activation_f32_fw_gpu, b_fs_yx_fsv16_prelu) {
+    constexpr int b = 1;
+    constexpr int f = 17;
+    constexpr int x = 2;
+    constexpr int y = 2;
+
+    auto eng = get_test_engine();
+
+    auto in_lay = cldnn::layout(cldnn::data_types::f32, cldnn::format::bfyx, cldnn::tensor(b, f, x, y));
+    auto params_lay = cldnn::layout(cldnn::data_types::f32, cldnn::format::bfyx, cldnn::tensor(1, f, 1, 1));
+
+    auto in_mem = cldnn::memory::allocate(eng, in_lay);
+    auto params_mem = cldnn::memory::allocate(eng, params_lay);
+
+    auto in_data = generate_random_4d<float>(b, f, y, x, -1, 1);
+    auto params_data = generate_random_1d<float>(f, -1, 1);
+
+    set_values(params_mem, params_data);
+
+    auto topo = cldnn::topology(
+        cldnn::input_layout("in", in_lay),
+        cldnn::reorder("in_fsv16", "in", cldnn::format::b_fs_yx_fsv16, cldnn::data_types::f32),
+        cldnn::data("actv_params", params_mem),
+        cldnn::activation("actv", "in_fsv16", "actv_params", cldnn::activation_func::relu_negative_slope),
+        cldnn::reorder("out", "actv", cldnn::format::bfyx, cldnn::data_types::f32)
+    );
+
+    auto net = cldnn::network(eng, topo);
+    set_values(in_mem, flatten_4d(format::bfyx, in_data));
+    net.set_input_data("in", in_mem);
+
+    auto result = net.execute();
+    auto out_mem = result.at("out").get_memory();
+
+    std::vector<float> expected = flatten_4d(format::bfyx, in_data);
+    for (size_t i = 0; i < expected.size(); ++i) {
+        if (expected[i] < 0.f) {
+            expected[i] = expected[i] * params_data[i / (x * y) % f];
+        }
+    }
+
+    auto out_ptr = out_mem.pointer<float>();
+    ASSERT_EQ(expected.size(), out_ptr.size());
+
+    for (size_t i = 0; i < expected.size(); ++i) {
+        EXPECT_EQ(expected[i], out_ptr[i]) << "at i=" << i;
     }
 }

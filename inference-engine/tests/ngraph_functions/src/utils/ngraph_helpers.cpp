@@ -15,6 +15,35 @@
 
 namespace ngraph {
 namespace helpers {
+std::ostream &operator<<(std::ostream &os, const ReductionType &m) {
+    switch (m) {
+        case Mean:
+            os << "Mean";
+            break;
+        case Max:
+            os << "Max";
+            break;
+        case Min:
+            os << "Min";
+            break;
+        case Prod:
+            os << "Prod";
+            break;
+        case Sum:
+            os << "Sum";
+            break;
+        case LogicalOr:
+            os << "LogicalOr";
+            break;
+        case LogicalAnd:
+            os << "LogicalAnd";
+            break;
+        case LogicalXor:
+            os << "LogicalXor";
+            break;
+    }
+    return os;
+}
 
 OutputVector convert2OutputVector(const std::vector<std::shared_ptr<Node>> &nodes) {
     OutputVector outs;
@@ -484,6 +513,97 @@ std::vector<std::uint8_t> convertOutputPrecision(std::vector<std::uint8_t> &outp
         default:
             throw std::runtime_error("convertOutputPrecision can't convert from: " + element::Type(fromPrecision).get_type_name() + " precision");
     }
+}
+
+std::ostream& operator<<(std::ostream & os, ngraph::helpers::EltwiseTypes type) {
+    switch (type) {
+        case ngraph::helpers::EltwiseTypes::SUBTRACT:
+            os << "Sub";
+            break;
+        case ngraph::helpers::EltwiseTypes::MULTIPLY:
+            os << "Prod";
+            break;
+        case ngraph::helpers::EltwiseTypes::ADD:
+            os << "Sum";
+            break;
+        default:
+            throw std::runtime_error("NOT_SUPPORTED_OP_TYPE");
+    }
+    return os;
+}
+
+std::ostream& operator<<(std::ostream & os, ngraph::helpers::SqueezeOpType type) {
+    switch (type) {
+        case ngraph::helpers::SqueezeOpType::SQUEEZE:
+            os << "Squeeze";
+            break;
+        case ngraph::helpers::SqueezeOpType::UNSQUEEZE:
+            os << "Unsqueeze";
+            break;
+        default:
+            throw std::runtime_error("NOT_SUPPORTED_OP_TYPE");
+    }
+    return os;
+}
+
+std::ostream& operator<<(std::ostream& os, ngraph::helpers::InputLayerType type) {
+    switch (type) {
+        case ngraph::helpers::InputLayerType::CONSTANT:
+            os << "CONSTANT";
+            break;
+        case ngraph::helpers::InputLayerType::PARAMETER:
+            os << "PARAMETER";
+            break;
+        default:
+            throw std::runtime_error("NOT_SUPPORTED_INPUT_LAYER_TYPE");
+    }
+    return os;
+}
+
+std::ostream& operator<<(std::ostream & os, ngraph::helpers::ComparisonTypes type) {
+    switch (type) {
+        case ngraph::helpers::ComparisonTypes::EQUAL:
+            os << "Equal";
+            break;
+        case ngraph::helpers::ComparisonTypes::NOT_EQUAL:
+            os << "NotEqual";
+            break;
+        case ngraph::helpers::ComparisonTypes::GREATER:
+            os << "Greater";
+            break;
+        case ngraph::helpers::ComparisonTypes::GREATER_EQUAL:
+            os << "GreaterEqual";
+            break;
+        case ngraph::helpers::ComparisonTypes::LESS:
+            os << "Less";
+            break;
+        case ngraph::helpers::ComparisonTypes::LESS_EQUAL:
+            os << "LessEqual";
+            break;
+        default:
+            throw std::runtime_error("NOT_SUPPORTED_OP_TYPE");
+    }
+    return os;
+}
+
+std::ostream& operator<<(std::ostream & os, ngraph::helpers::LogicalTypes type) {
+    switch (type) {
+        case ngraph::helpers::LogicalTypes::LOGICAL_AND:
+            os << "LogicalAnd";
+            break;
+        case ngraph::helpers::LogicalTypes::LOGICAL_OR:
+            os << "LogicalOr";
+            break;
+        case ngraph::helpers::LogicalTypes::LOGICAL_NOT:
+            os << "LogicalNot";
+            break;
+        case ngraph::helpers::LogicalTypes::LOGICAL_XOR:
+            os << "LogicalXor";
+            break;
+        default:
+            throw std::runtime_error("NOT_SUPPORTED_OP_TYPE");
+    }
+    return os;
 }
 
 }  // namespace helpers

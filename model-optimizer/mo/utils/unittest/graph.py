@@ -206,7 +206,7 @@ def build_graph(nodes_attrs: dict, edges: list, update_attributes: dict = None, 
         for attr in out_edges.values():
             node.add_output_port(idx=attr['out'])
 
-    graph.graph['cmd_params'] = Namespace(generate_experimental_IR_V10=False, keep_shape_ops=False)
+    graph.graph['cmd_params'] = Namespace(keep_shape_ops=False)
     return graph
 
 
@@ -277,7 +277,7 @@ regular_op_with_empty_data = lambda name, kwargs: {**regular_op(name, kwargs), *
 
 # constants
 const = lambda name, value: {name: {'kind': 'op', 'value': value, 'shape': int64_array(value.shape),
-                                    'type': 'Const', 'infer': Const.infer}}
+                                    'type': 'Const', 'infer': Const.infer, 'op': 'Const'}}
 fake_const = lambda name, shape: {name: {'kind': 'op', 'value': None, 'infer': Const.infer,
                                          'shape': int64_array(shape) if shape is not None else None}}
 shaped_const_with_data = lambda name, shape: {**fake_const(name, shape), **shaped_data(name + '_d', shape)}

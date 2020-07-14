@@ -6,11 +6,10 @@
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 #include "common/validation.hpp"
 #include "tests_common_func.hpp"
-#include <cpp/ie_cnn_net_reader.h>
 
 TBlob<uint8_t>::Ptr SingleLayerTransformationsTest::generateWeights(const CNNNetwork& network) {
     std::vector<Blob::Ptr> blobs;
-    const auto net_precision = network.getPrecision();
+    const auto net_precision = network.getInputsInfo().begin()->second->getPrecision();
 
     std::vector<CNNLayerPtr> sortedLayers = CNNNetSortTopologically(network);
     for (CNNLayerPtr layer : sortedLayers) {
@@ -182,6 +181,35 @@ void SingleLayerTransformationsTest::compareInDetails(
     }
 }
 
+static void relative_compare(
+    const float* res,
+    const float* ref,
+    size_t size,
+    float max_diff = 0.01f,
+    const std::string assertDetails = "",
+    float zero_diff = 1e-7f) {
+    for (size_t i = 0lu; i < size; i++) {
+        if (std::isnan(res[i]) && std::isnan(ref[i])) {
+            continue;
+        }
+
+        if ((ref[i] == 0.f) || (res[i] == 0.f)) {
+            const float diff = fabs(res[i] - ref[i]);
+            ASSERT_TRUE(diff < zero_diff) <<
+                "\nAbsolute comparison of values ref: " << ref[i] << " and res: " << res[i] <<
+                ", diff: " << diff <<
+                ", index: " << i << "\n" << assertDetails;
+        } else {
+            const float diff = fabs((res[i] - ref[i]) / (std::max)(ref[i], res[i]));
+            ASSERT_LT(diff, max_diff) <<
+                "\nRelative comparison of values ref: " << ref[i] << " and res: " << res[i] <<
+                ", diff: " << diff <<
+                ", max_diff: " << max_diff <<
+                ", index: " << i << "\n" << assertDetails;
+        }
+    }
+}
+
 void SingleLayerTransformationsTest::SetUp() {
     try {
         const SingleLayerTransformationsTestParams p = ::testing::WithParamInterface<SingleLayerTransformationsTestParams>::GetParam();
@@ -210,7 +238,7 @@ void SingleLayerTransformationsTest::SetUp() {
         Core core;
         ExecutableNetwork executableNetwork;
         InferRequest inferRequest;
-        const auto originalOutputMap = infer(network, inputBlobs, core, 
+        const auto originalOutputMap = infer(network, inputBlobs, core,
                 p.device_name, executableNetwork, inferRequest);
 
         const std::vector<bool> updatePrecisionsValues = { false };
@@ -294,7 +322,7 @@ void SingleLayerTransformationsTest::SetUp() {
                                                 const auto transformedOutput = infer(network, inputBlobs, core, p.device_name, executableNetworkTransformed, inferRequestTransformed);
 
                                                 //compareInDetails(originalOutputMap, *transformedOutput, 70, 0.5);
-                                                auto net_precision = network.getPrecision();
+                                                auto net_precision = network.getInputsInfo().begin()->second->getPrecision();
                                                 for (auto& originalOutput : originalOutputMap) {
                                                     const auto& name = originalOutput.first;
                                                     const auto outSize = originalOutput.second->size();
@@ -304,7 +332,7 @@ void SingleLayerTransformationsTest::SetUp() {
 
                                                     const float threshold = p.model->getThreshold(p.device_name, net_precision, param);
                                                     const float zeroThreshold = p.model->getZeroThreshold();
-                                                    
+
                                                     const auto outName = transformedOutput.find(name);
                                                     if (outName == transformedOutput.end()) {
                                                         THROW_IE_EXCEPTION << "Original output name " + name + " doesn't exist in transformed model";

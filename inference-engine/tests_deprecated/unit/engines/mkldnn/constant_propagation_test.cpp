@@ -79,7 +79,7 @@ private:
 
 using fake_ext_factory = std::function<InferenceEngine::ILayerImplFactory*(const InferenceEngine::CNNLayer *)>;
 
-class FakeConstExtensionFabric : public InferenceEngine::IExtension {
+class FakeConstExtensionFabric : public InferenceEngine::Extensions::Cpu::MKLDNNExtensions {
 public:
     FakeConstExtensionFabric() {
         factories["ConstLayer"] = [](const InferenceEngine::CNNLayer * cnnLayer) -> InferenceEngine::ILayerImplFactory* { return new ConstLayerFactory(cnnLayer); };
@@ -90,7 +90,6 @@ public:
     }
 
     void GetVersion(const InferenceEngine::Version *&versionInfo) const noexcept override {}
-    void SetLogCallback(InferenceEngine::IErrorListener &listener) noexcept override {}
     void Unload() noexcept override {}
     void Release() noexcept override {
         delete this;
@@ -115,11 +114,6 @@ public:
         }
         factory = factories[cnnLayer->type](cnnLayer);
         return InferenceEngine::OK;
-    }
-
-    InferenceEngine::StatusCode getShapeInferImpl(InferenceEngine::IShapeInferImpl::Ptr& impl, const char* type,
-                                                  InferenceEngine::ResponseDesc* resp) noexcept override {
-        return InferenceEngine::NOT_IMPLEMENTED;
     }
 
 private:

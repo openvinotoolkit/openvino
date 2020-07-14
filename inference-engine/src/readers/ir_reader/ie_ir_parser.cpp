@@ -27,25 +27,17 @@
 
 #include <cpp/ie_cnn_network.h>
 #include "ie_blob_stream.hpp"
-#include "cnn_network_impl.hpp"
 #include "details/caseless.hpp"
-#include "details/ie_cnn_network_tools.h"
-#include "ie_format_parser.h"
 #include "ie_ngraph_utils.hpp"
 #include "generic_ie.hpp"
 #include "precision_utils.h"
 #include "blob_factory.hpp"
-#include "ie_cnn_net_reader_impl.h"
 
 using namespace InferenceEngine;
 using namespace XMLParseUtils;
 
 IRParser::IRParser(size_t version): IRParser(version, {}) {}
 IRParser::IRParser(size_t version, const std::vector<InferenceEngine::IExtensionPtr>& exts) {
-    if (version < 10) {
-        parser = std::make_shared<CNNParser>();
-        return;
-    }
     switch (version) {
     case 10:
         parser = std::make_shared<V10Parser>(exts);
@@ -72,36 +64,12 @@ public:
         originBlob(weights) { }
 };
 
-std::shared_ptr<ICNNNetwork> CNNParser::parse(const pugi::xml_node& root, const Blob::CPtr& weights) {
-    auto getBlobStream = [](std::istream& binStream) {
-        details::BlobStream* blobStream = dynamic_cast<details::BlobStream*>(&binStream);
-        if (blobStream == nullptr) {
-            details::BlobStream helper({});
-            std::string typeStream = typeid(binStream).name();
-            std::string typeBlobStream = typeid(helper).name();
-            if (typeStream == typeBlobStream)
-                blobStream = static_cast<details::BlobStream*>(&binStream);
-        }
-        return blobStream;
-    };
-    details::CNNNetReaderImpl reader(std::make_shared<details::V2FormatParserCreator>());
-    ResponseDesc resp;
-    StatusCode ret = reader.ReadNetwork(root, &resp);
-    if (ret != OK)
-        THROW_IE_EXCEPTION << resp.msg;
-    TBlob<uint8_t>::Ptr weightsPtr = TBlob<uint8_t>::Ptr(new WeightsHolderBlob(weights));
-
-    ret = reader.SetWeights(weightsPtr, &resp);
-    if (ret != OK)
-        THROW_IE_EXCEPTION << resp.msg;
-    return reader.getNetwork();
-}
-
 V10Parser::V10Parser(const std::vector<IExtensionPtr>& exts) {
     // Load default opsets
     opsets["opset1"] = ngraph::get_opset1();
     opsets["opset2"] = ngraph::get_opset2();
     opsets["opset3"] = ngraph::get_opset3();
+    opsets["opset4"] = ngraph::get_opset4();
 
     // Load custom opsets
     for (const auto& ext : exts) {
@@ -399,6 +367,16 @@ std::shared_ptr<ngraph::Node> V10Parser::createNode(const std::vector<ngraph::Ou
         std::make_shared<LayerCreator<ngraph::op::v1::ReduceLogicalOr>>("ReduceLogicalOr"),
     };
 
+    // Check that operation in default opsets
+    auto isDefaultOpSet = [](const std::string& version) -> bool {
+        for (size_t i = 1; i <= 3; i++) {
+            std::string opset_name = "opset" + std::to_string(i);
+            if (version == opset_name)
+                return true;
+        }
+        return false;
+    };
+
     for (size_t i = 0; i < inputs.size(); i++) {
         if (!inputs[i].get_node())
             THROW_IE_EXCEPTION << params.type << " layer " << params.name << " with id: " << params.layerId
@@ -409,21 +387,23 @@ std::shared_ptr<ngraph::Node> V10Parser::createNode(const std::vector<ngraph::Ou
     }
 
     std::shared_ptr<ngraph::Node> ngraphNode;
-    // Try to create operation from creators
-    for (const auto& creator : creators) {
-        if (creator->shouldCreate(params.type)) {
-            bool useCreator = false;
-            // Check that opset is registered
-            useCreator |= opsets.find(params.version) == opsets.end();
-            if (!useCreator) {
-                // Check that creator can create operation with the version from opset
-                const auto opset = opsets.at(params.version);
-                // Opset should contains the same version of operation or doesn't contain operation with current type
-                useCreator |= opset.contains_type(creator->getNodeType()) || !opset.contains_type(params.type);
+    if (isDefaultOpSet(params.version)) {
+        // Try to create operation from creators
+        for (const auto& creator : creators) {
+            if (creator->shouldCreate(params.type)) {
+                bool useCreator = false;
+                // Check that opset is registered
+                useCreator |= opsets.find(params.version) == opsets.end();
+                if (!useCreator) {
+                    // Check that creator can create operation with the version from opset
+                    const auto opset = opsets.at(params.version);
+                    // Opset should contains the same version of operation or doesn't contain operation with current type
+                    useCreator |= opset.contains_type(creator->getNodeType()) || !opset.contains_type(params.type);
+                }
+                if (useCreator)
+                    ngraphNode = creator->createLayer(inputs, node, weights, params);
+                break;
             }
-            if (useCreator)
-                ngraphNode = creator->createLayer(inputs, node, weights, params);
-            break;
         }
     }
 
@@ -690,7 +670,7 @@ std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::TensorIterator
             tensor_iterator->get_concatenated_slices(*body_result, start, stride, part_size, end, axis);
 
             if (!is_sliced_input_exists) {
-                tensor_iterator->set_num_iterations((abs(end - start)) / part_size);
+                tensor_iterator->set_num_iterations((std::abs(end - start)) / part_size);
             }
         } else {
             // otherwise create ngraph::TensorIterator::BodyOutput. -1 means last iteration.
@@ -945,6 +925,9 @@ std::shared_ptr<ngraph::Node> V10Parser::LayerCreator<ngraph::op::v1::Pad>::crea
     }
 
     if (pad_mode == ngraph::op::PadMode::CONSTANT) {
+        if (inputs.size() == 3) {
+            return std::make_shared<ngraph::op::v1::Pad>(inputs[0], inputs[1], inputs[2], pad_mode);
+        }
         checkParameters(inputs, layerParsePrms, 4);
         return std::make_shared<ngraph::op::v1::Pad>(inputs[0], inputs[1], inputs[2], inputs[3], pad_mode);
     }

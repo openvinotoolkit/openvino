@@ -49,7 +49,7 @@ const BehTestParams allInputSupportedValues[] = {
         BEH_MYRIAD, BEH_MYRIAD.withIn(Precision::U8), BEH_MYRIAD.withIn(Precision::FP16),
         BEH_MULTI(MYRIAD), BEH_MULTI(MYRIAD).withIn(Precision::U8), BEH_MULTI(MYRIAD).withIn(Precision::FP16),
         // I16 not supported yet
-        // (CVS-7979) [IE myriad] The plugin should support I16 format for Input
+        // (Issue-7979) [IE myriad] The plugin should support I16 format for Input
         //BEH_MYRIAD.withIn(Precision::I16),
 };
 
@@ -85,9 +85,6 @@ const std::vector<BehTestParams> deviceSpecificConfigurations = {
 };
 
 const std::vector<BehTestParams> deviceAgnosticConfigurations = {
-    BEH_MYRIAD.withConfig({{VPU_CONFIG_KEY(IGNORE_IR_STATISTIC), CONFIG_VALUE(YES)}}),
-    BEH_MYRIAD.withConfig({{VPU_CONFIG_KEY(IGNORE_IR_STATISTIC), CONFIG_VALUE(NO)}}),
-
     BEH_MYRIAD.withConfig({{VPU_MYRIAD_CONFIG_KEY(FORCE_RESET), CONFIG_VALUE(YES)}}),
     BEH_MYRIAD.withConfig({{VPU_MYRIAD_CONFIG_KEY(FORCE_RESET), CONFIG_VALUE(NO)}}),
 
@@ -112,6 +109,9 @@ const std::vector<BehTestParams> deviceAgnosticConfigurations = {
         {MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, "MYRIAD"},
         {VPU_CONFIG_KEY(HW_STAGES_OPTIMIZATION), CONFIG_VALUE(YES)}
     }),
+
+    // Please do not use other types of DDR in tests with a real device, because it may hang.
+    BEH_MYRIAD.withConfig({{VPU_MYRIAD_CONFIG_KEY(MOVIDIUS_DDR_TYPE), VPU_MYRIAD_CONFIG_VALUE(DDR_AUTO)}}),
 };
 
 const std::vector<BehTestParams> withCorrectConfValuesPluginOnly = {
@@ -123,9 +123,6 @@ const std::vector<BehTestParams> withCorrectConfValuesNetworkOnly = {
 const BehTestParams withIncorrectConfValues[] = {
     BEH_MYRIAD.withConfig({{VPU_MYRIAD_CONFIG_KEY(PROTOCOL), "BLUETOOTH"}}),
     BEH_MYRIAD.withConfig({{VPU_MYRIAD_CONFIG_KEY(PROTOCOL), "LAN"}}),
-
-    BEH_MYRIAD.withConfig({{VPU_CONFIG_KEY(IGNORE_IR_STATISTIC), "ON"}}),
-    BEH_MYRIAD.withConfig({{VPU_CONFIG_KEY(IGNORE_IR_STATISTIC), "OFF"}}),
 
     BEH_MYRIAD.withConfig({{VPU_CONFIG_KEY(HW_STAGES_OPTIMIZATION), "ON"}}),
     BEH_MYRIAD.withConfig({{VPU_CONFIG_KEY(HW_STAGES_OPTIMIZATION), "OFF"}}),
@@ -147,13 +144,14 @@ const BehTestParams withIncorrectConfValues[] = {
     BEH_MULTI_CONFIG.withConfig({{MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, "MYRIAD"},
                                  {CONFIG_KEY(LOG_LEVEL), "VERBOSE"}}),
     BEH_MULTI_CONFIG.withConfig({{MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, "MYRIAD"},
-                                 {VPU_CONFIG_KEY(IGNORE_IR_STATISTIC), "ON"}}),
-    BEH_MULTI_CONFIG.withConfig({{MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, "MYRIAD"},
                                  {VPU_MYRIAD_CONFIG_KEY(PLATFORM), "-1"}}),
     BEH_MULTI_CONFIG.withConfig({{MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, "MYRIAD"},
                                  {VPU_MYRIAD_CONFIG_KEY(PLATFORM), "0"}}),
     BEH_MULTI_CONFIG.withConfig({{MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, "MYRIAD"},
                                  {VPU_MYRIAD_CONFIG_KEY(PLATFORM), "1"}}),
+
+    BEH_MYRIAD.withConfig({{VPU_MYRIAD_CONFIG_KEY(MOVIDIUS_DDR_TYPE), "-1"}}),
+    BEH_MYRIAD.withConfig({{VPU_MYRIAD_CONFIG_KEY(MOVIDIUS_DDR_TYPE), "MICRON"}}),
 };
 
 const BehTestParams withIncorrectConfKeys[] = {

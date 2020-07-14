@@ -44,16 +44,6 @@ shared_ptr<Node> op::Sum::clone_with_new_inputs(const OutputVector& new_args) co
     return make_shared<op::v0::Sum>(new_args.at(0), new_args.at(1));
 }
 
-void op::v0::Sum::generate_adjoints(autodiff::Adjoints& adjoints, const OutputVector& deltas)
-{
-    auto delta = deltas.at(0);
-
-    auto x = input_value(0);
-    auto& x_shape = x.get_shape();
-
-    adjoints.add_delta(x, make_shared<op::Broadcast>(delta, x_shape, get_reduction_axes()));
-}
-
 shared_ptr<Node> op::v0::Sum::get_default_value() const
 {
     return ngraph::make_constant_from_string("0", get_element_type(), get_shape());
@@ -75,25 +65,17 @@ namespace
         bool rc = true;
         switch (arg->get_element_type())
         {
-            TYPE_CASE(i8)(arg, out, axes);
-            break;
-            TYPE_CASE(i16)(arg, out, axes);
-            break;
             TYPE_CASE(i32)(arg, out, axes);
             break;
             TYPE_CASE(i64)(arg, out, axes);
-            break;
-            TYPE_CASE(u8)(arg, out, axes);
-            break;
-            TYPE_CASE(u16)(arg, out, axes);
             break;
             TYPE_CASE(u32)(arg, out, axes);
             break;
             TYPE_CASE(u64)(arg, out, axes);
             break;
-            TYPE_CASE(f32)(arg, out, axes);
+            TYPE_CASE(f16)(arg, out, axes);
             break;
-            TYPE_CASE(f64)(arg, out, axes);
+            TYPE_CASE(f32)(arg, out, axes);
             break;
         default: rc = false; break;
         }

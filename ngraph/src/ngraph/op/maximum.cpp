@@ -45,25 +45,6 @@ shared_ptr<Node> op::v0::Maximum::clone_with_new_inputs(const OutputVector& new_
     return make_shared<op::v0::Maximum>(new_args.at(0), new_args.at(1), this->get_autob());
 }
 
-void op::v0::Maximum::generate_adjoints(autodiff::Adjoints& adjoints, const OutputVector& deltas)
-{
-    if (get_autob().m_type != op::AutoBroadcastType::NONE)
-    {
-        throw ngraph_error("Autodiff not supported with auto broadcasting");
-    }
-
-    auto delta = deltas.at(0);
-
-    auto x = input_value(0);
-    auto y = input_value(1);
-    adjoints.add_delta(
-        x,
-        delta * make_shared<op::Convert>(make_shared<op::v0::Greater>(x, y), x.get_element_type()));
-    adjoints.add_delta(
-        y,
-        delta * make_shared<op::Convert>(make_shared<op::v0::Greater>(y, x), y.get_element_type()));
-}
-
 namespace
 {
     template <element::Type_t ET>
@@ -90,25 +71,17 @@ namespace
         out->set_broadcast(broadcast_spec, arg0, arg1);
         switch (arg0->get_element_type())
         {
-            TYPE_CASE(i8)(arg0, arg1, out, broadcast_spec);
-            break;
-            TYPE_CASE(i16)(arg0, arg1, out, broadcast_spec);
-            break;
             TYPE_CASE(i32)(arg0, arg1, out, broadcast_spec);
             break;
             TYPE_CASE(i64)(arg0, arg1, out, broadcast_spec);
-            break;
-            TYPE_CASE(u8)(arg0, arg1, out, broadcast_spec);
-            break;
-            TYPE_CASE(u16)(arg0, arg1, out, broadcast_spec);
             break;
             TYPE_CASE(u32)(arg0, arg1, out, broadcast_spec);
             break;
             TYPE_CASE(u64)(arg0, arg1, out, broadcast_spec);
             break;
-            TYPE_CASE(f32)(arg0, arg1, out, broadcast_spec);
+            TYPE_CASE(f16)(arg0, arg1, out, broadcast_spec);
             break;
-            TYPE_CASE(f64)(arg0, arg1, out, broadcast_spec);
+            TYPE_CASE(f32)(arg0, arg1, out, broadcast_spec);
             break;
         default: rc = false; break;
         }
@@ -137,25 +110,6 @@ shared_ptr<Node> op::v1::Maximum::clone_with_new_inputs(const OutputVector& new_
 {
     check_new_args_count(this, new_args);
     return make_shared<op::v1::Maximum>(new_args.at(0), new_args.at(1), this->get_autob());
-}
-
-void op::v1::Maximum::generate_adjoints(autodiff::Adjoints& adjoints, const OutputVector& deltas)
-{
-    if (get_autob().m_type != op::AutoBroadcastType::NONE)
-    {
-        throw ngraph_error("Autodiff not supported with auto broadcasting");
-    }
-
-    auto delta = deltas.at(0);
-
-    auto x = input_value(0);
-    auto y = input_value(1);
-    adjoints.add_delta(
-        x,
-        delta * make_shared<op::Convert>(make_shared<op::v1::Greater>(x, y), x.get_element_type()));
-    adjoints.add_delta(
-        y,
-        delta * make_shared<op::Convert>(make_shared<op::v1::Greater>(y, x), y.get_element_type()));
 }
 
 bool op::v1::Maximum::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)

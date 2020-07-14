@@ -20,43 +20,40 @@
 
 namespace LayerTestsDefinitions {
 
-std::string StridedSliceLayerTest::getTestCaseName(const testing::TestParamInfo<stridedSliceParamsTuple> &obj) {
-    InferenceEngine::SizeVector inputShape;
-    std::vector<int64_t> begin, end, stride;
-    std::vector<int64_t> begin_mask, new_axis_mask, end_mask, shrink_mask, ellipsis_mask;
+std::string StridedSliceLayerTest::getTestCaseName(const testing::TestParamInfo<StridedSliceParams> &obj) {
+    StridedSliceSpecificParams params;
     InferenceEngine::Precision netPrc;
     std::string targetName;
-    std::tie(inputShape, begin, end, stride, begin_mask, end_mask, new_axis_mask, shrink_mask, ellipsis_mask, netPrc,
-             targetName) = obj.param;
+    std::map<std::string, std::string> additionalConfig;
+    std::tie(params, netPrc, targetName, additionalConfig) = obj.param;
     std::ostringstream result;
-    result << "inShape=" << CommonTestUtils::vec2str(inputShape) << "_";
+    result << "inShape=" << CommonTestUtils::vec2str(params.inputShape) << "_";
     result << "netPRC=" << netPrc.name() << "_";
-    result << "begin=" << CommonTestUtils::vec2str(begin) << "_";
-    result << "end=" << CommonTestUtils::vec2str(end) << "_";
-    result << "stride=" << CommonTestUtils::vec2str(stride) << "_";
-    result << "begin_m=" << CommonTestUtils::vec2str(begin_mask) << "_";
-    result << "end_m=" << CommonTestUtils::vec2str(end_mask) << "_";
-    result << "new_axis_m=" << CommonTestUtils::vec2str(new_axis_mask) << "_";
-    result << "shrink_m=" << CommonTestUtils::vec2str(shrink_mask) << "_";
-    result << "ellipsis_m=" << CommonTestUtils::vec2str(ellipsis_mask) << "_";
-    result << "targetDevice=" << targetName << "_";
+    result << "begin=" << CommonTestUtils::vec2str(params.begin) << "_";
+    result << "end=" << CommonTestUtils::vec2str(params.end) << "_";
+    result << "stride=" << CommonTestUtils::vec2str(params.strides) << "_";
+    result << "begin_m=" << CommonTestUtils::vec2str(params.beginMask) << "_";
+    result << "end_m=" << CommonTestUtils::vec2str(params.endMask) << "_";
+    result << "new_axis_m=" << (params.newAxisMask.empty() ? "def" : CommonTestUtils::vec2str(params.newAxisMask)) << "_";
+    result << "shrink_m=" << (params.shrinkAxisMask.empty() ? "def" : CommonTestUtils::vec2str(params.shrinkAxisMask)) << "_";
+    result << "ellipsis_m=" << (params.ellipsisAxisMask.empty() ? "def" : CommonTestUtils::vec2str(params.ellipsisAxisMask)) << "_";
+    result << "targetDevice=" << targetName;
     return result.str();
 }
 
 void StridedSliceLayerTest::SetUp() {
-    InferenceEngine::SizeVector inputShape;
-    std::vector<int64_t> begin, end, stride;
-    std::vector<int64_t> begin_mask, end_mask, new_axis_mask, shrink_mask, ellipsis_mask;
+    StridedSliceSpecificParams ssParams;
     InferenceEngine::Precision netPrecision;
-    std::tie(inputShape, begin, end, stride, begin_mask, end_mask, new_axis_mask, shrink_mask, ellipsis_mask,
-             netPrecision, targetDevice) = this->GetParam();
+    std::map<std::string, std::string> additionalConfig;
+    std::tie(ssParams, netPrecision, targetDevice, additionalConfig) = this->GetParam();
+    configuration.insert(additionalConfig.begin(), additionalConfig.end());
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
+    auto params = ngraph::builder::makeParams(ngPrc, {ssParams.inputShape});
     auto paramOuts = ngraph::helpers::convert2OutputVector(
             ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
-    auto ss = ngraph::builder::makeStridedSlice(paramOuts[0], begin, end, stride, ngPrc, begin_mask, end_mask,
-                                                new_axis_mask, shrink_mask, ellipsis_mask);
+    auto ss = ngraph::builder::makeStridedSlice(paramOuts[0], ssParams.begin, ssParams.end, ssParams.strides, ngPrc, ssParams.beginMask,
+                                                ssParams.endMask, ssParams.newAxisMask, ssParams.shrinkAxisMask, ssParams.ellipsisAxisMask);
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(ss)};
     function = std::make_shared<ngraph::Function>(results, params, "StridedSlice");
 }

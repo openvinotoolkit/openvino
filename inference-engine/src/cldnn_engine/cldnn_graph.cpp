@@ -55,6 +55,7 @@ CLDNNGraph::CLDNNGraph(std::shared_ptr<CLDNNGraph> graph, uint16_t stream_id)
 void CLDNNGraph::UpdateLayersMaps() {
     primitiveIDs = m_program->primitiveIDs;
     primitivesToIRLayersMap = m_program->primitivesToIRLayersMap;
+    IRToNgraphLayersMap = m_program->IRToNgraphLayersMap;
     prevPrimitiveIDs = m_program->prevPrimitiveIDs;
     profilingIDs = m_program->profilingIDs;
     perfMap = m_program->perfMap;
@@ -102,7 +103,6 @@ std::shared_ptr<cldnn::network> CLDNNGraph::BuildNetwork(std::shared_ptr<cldnn::
 InferenceEngine::ICNNNetwork::Ptr CLDNNGraph::GetExecGraphInfoByPrimitivesInfo(std::vector<cldnn::primitive_info>& primitives_info,
                                                                                bool filter_const_primitives) {
     auto net = std::make_shared<details::CNNNetworkImpl>();
-    net->setPrecision(Precision::FP32);
     net->setName("runtime_gpu_graph");
     if (m_config.useProfiling) {
         try {
@@ -121,6 +121,7 @@ InferenceEngine::ICNNNetwork::Ptr CLDNNGraph::GetExecGraphInfoByPrimitivesInfo(s
             case cldnn::data_types::f32: return Precision::FP32;
             case cldnn::data_types::f16: return Precision::FP16;
             case cldnn::data_types::i32: return Precision::I32;
+            case cldnn::data_types::i64: return Precision::I64;
             case cldnn::data_types::u8: return Precision::U8;
             case cldnn::data_types::i8: return Precision::I8;
             default: return Precision::UNSPECIFIED;
@@ -206,6 +207,25 @@ InferenceEngine::ICNNNetwork::Ptr CLDNNGraph::GetExecGraphInfoByPrimitivesInfo(s
         return res;
     };
 
+    auto split_string = [](std::string src, std::string delimiter = ",") -> std::vector<std::string> {
+        std::vector<std::string> tokens;
+        std::string tokenBuf;
+        size_t prev = 0, pos = 0, srcLength = src.length(), delimLength = delimiter.length();
+        do {
+            pos = src.find(delimiter, prev);
+            if (pos == std::string::npos) {
+                pos = srcLength;
+            }
+            tokenBuf = src.substr(prev, pos - prev);
+            if (!tokenBuf.empty()) {
+                tokens.push_back(tokenBuf);
+            }
+            prev = pos + delimLength;
+        } while (pos < srcLength && prev < srcLength);
+
+        return tokens;
+    };
+
     auto remove_type_from_name = [](const std::string& name) -> std::string {
         auto it = std::find(name.begin(), name.end(), ':');
         if (it == name.end() || (it + 1) == name.end())
@@ -218,7 +238,18 @@ InferenceEngine::ICNNNetwork::Ptr CLDNNGraph::GetExecGraphInfoByPrimitivesInfo(s
         if (primitivesToIRLayersMap.find(name) == primitivesToIRLayersMap.end())
             return {};
 
-        return primitivesToIRLayersMap.at(name);
+        auto cnn_names = primitivesToIRLayersMap.at(name);
+        std::vector<std::string> res;
+
+        for (auto& cnn_name : cnn_names) {
+            if (IRToNgraphLayersMap.find(cnn_name) != IRToNgraphLayersMap.end()) {
+                auto ngraph_names = split_string(IRToNgraphLayersMap.at(cnn_name));
+                res.insert(res.end(), ngraph_names.begin(), ngraph_names.end());
+            } else {
+                res.push_back(cnn_name);
+            }
+        }
+        return res;
     };
 
     auto create_layer = [&](const cldnn::primitive_info& prim_info) -> CNNLayer::Ptr {
@@ -383,7 +414,7 @@ InferenceEngine::ICNNNetwork::Ptr CLDNNGraph::GetExecGraphInfoByPrimitivesInfo(s
                 std::string data_name = pi.original_id + "_out" + std::to_string(i);
                 layer->outData[i] = std::make_shared<Data>(data_name, desc_from_layout(pi.output_layout));
                 data = layer->outData[i];
-                data->getCreatorLayer() = layer;
+                getCreatorLayer(data) = layer;
             } else {
                 data = layer->outData[0];
             }
@@ -400,7 +431,7 @@ InferenceEngine::ICNNNetwork::Ptr CLDNNGraph::GetExecGraphInfoByPrimitivesInfo(s
                 }
 
                 if (dep == pi.original_id && child_layer->insData[in_port_id].lock() == nullptr) {
-                    data->getInputTo()[child_layer->name] = child_layer;
+                    getInputTo(data)[child_layer->name] = child_layer;
                     child_layer->insData[in_port_id] = data;
                     break;
                 }

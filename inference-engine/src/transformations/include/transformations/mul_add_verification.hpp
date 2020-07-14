@@ -6,13 +6,12 @@
 
 #include <memory>
 
-#include <ie_api.h>
+#include <transformations_visibility.hpp>
 
 #include <ngraph/ngraph.hpp>
 
 #include "ngraph/pattern/matcher.hpp"
 #include "ngraph/op/broadcast.hpp"
-#include "ngraph/op/experimental/dyn_broadcast.hpp"
 #include "ngraph/op/fused/conv_fused.hpp"
 #include "ngraph/op/reshape.hpp"
 #include "ngraph/op/add.hpp"
@@ -27,7 +26,7 @@
 namespace ngraph {
 namespace pass {
 
-class INFERENCE_ENGINE_API_CLASS(MulAddVerification);
+class TRANSFORMATIONS_API MulAddVerification;
 
 }  // namespace pass
 }  // namespace ngraph

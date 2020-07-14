@@ -19,6 +19,8 @@
 #include <transformations/common_optimizations/common_optimizations.hpp>
 
 #include "vpu/ngraph/transformations/dynamic_to_static_shape.hpp"
+#include "vpu/ngraph/transformations/eliminate_shapeof_after_dsr.hpp"
+
 #include "generic_ie.hpp"
 
 #include "myriad_plugin.h"
@@ -41,6 +43,7 @@ ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(
         ngraph::op::GenericIE::DisableReshape noReshape(function);
         ngraph::pass::CommonOptimizations().run_on_function(function);
         vpu::DynamicToStaticShape().transform(function);
+        vpu::EliminateShapeOfAfterDSR().run_on_function(function);
     }
 
     return std::make_shared<ExecutableNetwork>(*clonedNetwork, _mvnc, _devicePool, parsedConfigCopy);
@@ -112,7 +115,6 @@ Engine::Engine(std::shared_ptr<IMvnc> mvnc) :
         { KEY_LOG_LEVEL, "LOG_NONE" },
         { KEY_VPU_PRINT_RECEIVE_TENSOR_TIME, "OFF" },
         { KEY_VPU_CUSTOM_LAYERS, "" },
-        { KEY_VPU_IGNORE_IR_STATISTIC, "OFF" },
         { KEY_VPU_MYRIAD_FORCE_RESET, "OFF" },
         { KEY_VPU_MYRIAD_PLATFORM, "" },
         { KEY_EXCLUSIVE_ASYNC_REQUESTS, "OFF" },

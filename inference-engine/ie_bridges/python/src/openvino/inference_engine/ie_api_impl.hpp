@@ -12,6 +12,7 @@
 #include <map>
 #include <vector>
 #include <set>
+#include <list>
 #include <iostream>
 #include <algorithm>
 #include <sstream>
@@ -21,7 +22,8 @@
 #include <mutex>
 
 #include <ie_extension.h>
-#include "inference_engine.hpp"
+#include <ie_layers.h>
+#include <ie_core.hpp>
 
 typedef std::chrono::high_resolution_clock Time;
 typedef std::chrono::nanoseconds ns;
@@ -41,7 +43,6 @@ struct IENetwork {
     std::shared_ptr<InferenceEngine::CNNNetwork> actual;
     std::string name;
     std::size_t batch_size;
-    std::string precision;
     PyObject* getFunction();
 
     void setBatch(const size_t size);
@@ -61,10 +62,6 @@ struct IENetwork {
     void reshape(const std::map<std::string, std::vector<size_t>> &input_shapes);
 
     void serialize(const std::string &path_to_xml, const std::string &path_to_bin);
-
-    void setStats(const std::map<std::string, std::map<std::string, std::vector<float>>> &stats);
-
-    const std::map<std::string, std::map<std::string, std::vector<float>>> getStats();
 
     void load_from_buffer(const char* xml, size_t xml_size, uint8_t* bin, size_t bin_size);
 
@@ -117,7 +114,12 @@ struct InferRequestWrap {
 
     void setBlob(const std::string &blob_name, const InferenceEngine::Blob::Ptr &blob_ptr);
 
+    void setBlob(const std::string &name, const InferenceEngine::Blob::Ptr &data,
+                 const InferenceEngine::PreProcessInfo& info);
+
     void setBatch(int size);
+
+    void getPreProcess(const std::string& blob_name, const InferenceEngine::PreProcessInfo** info);
 
     std::map<std::string, InferenceEnginePython::ProfileInfo> getPerformanceCounts();
 };
@@ -149,31 +151,6 @@ struct IEExecNetwork {
     void createInferRequests(int num_requests);
 };
 
-
-struct IEPlugin {
-    std::unique_ptr<InferenceEnginePython::IEExecNetwork> load(const InferenceEnginePython::IENetwork &net,
-                                                               int num_requests,
-                                                               const std::map<std::string, std::string> &config);
-
-    std::string device_name;
-    std::string version;
-
-    void setConfig(const std::map<std::string, std::string> &);
-
-    void addCpuExtension(const std::string &extension_path);
-
-    void setInitialAffinity(const InferenceEnginePython::IENetwork &net);
-
-    IEPlugin(const std::string &device, const std::vector<std::string> &plugin_dirs);
-
-    IEPlugin() = default;
-
-    std::set<std::string> queryNetwork(const InferenceEnginePython::IENetwork &net);
-
-    IE_SUPPRESS_DEPRECATED_START
-    InferenceEngine::InferencePlugin actual;
-    IE_SUPPRESS_DEPRECATED_END
-};
 
 struct IECore {
     InferenceEngine::Core actual;

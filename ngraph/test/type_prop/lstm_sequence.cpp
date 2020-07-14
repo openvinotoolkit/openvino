@@ -23,11 +23,11 @@ using namespace ngraph;
 
 TEST(type_prop, lstm_sequence_forward)
 {
-    const auto batch_size = 8;
-    const auto num_directions = 1;
-    const auto seq_length = 6;
-    const auto input_size = 4;
-    const auto hidden_size = 128;
+    const size_t batch_size = 8;
+    const size_t num_directions = 1;
+    const size_t seq_length = 6;
+    const size_t input_size = 4;
+    const size_t hidden_size = 128;
 
     const auto X =
         make_shared<op::Parameter>(element::f32, Shape{batch_size, seq_length, input_size});
@@ -42,7 +42,7 @@ TEST(type_prop, lstm_sequence_forward)
                                               Shape{num_directions, 4 * hidden_size, hidden_size});
     const auto B = make_shared<op::Parameter>(element::f32, Shape{num_directions, 4 * hidden_size});
 
-    const auto lstm_direction = op::LSTMSequence::direction::FORWARD;
+    const auto lstm_direction = op::RecurrentSequenceDirection::FORWARD;
 
     const auto lstm_sequence = make_shared<op::LSTMSequence>(X,
                                                              initial_hidden_state,
@@ -53,8 +53,9 @@ TEST(type_prop, lstm_sequence_forward)
                                                              B,
                                                              hidden_size,
                                                              lstm_direction);
+
     EXPECT_EQ(lstm_sequence->get_hidden_size(), hidden_size);
-    EXPECT_EQ(lstm_sequence->get_direction(), op::LSTMSequence::direction::FORWARD);
+    EXPECT_EQ(lstm_sequence->get_direction(), op::RecurrentSequenceDirection::FORWARD);
     EXPECT_EQ(lstm_sequence->get_weights_format(), op::LSTMWeightsFormat::IFCO);
     EXPECT_TRUE(lstm_sequence->get_activations_alpha().empty());
     EXPECT_TRUE(lstm_sequence->get_activations_beta().empty());
@@ -74,11 +75,11 @@ TEST(type_prop, lstm_sequence_forward)
 
 TEST(type_prop, lstm_sequence_bidirectional)
 {
-    const auto batch_size = 24;
-    const auto num_directions = 2;
-    const auto seq_length = 12;
-    const auto input_size = 8;
-    const auto hidden_size = 256;
+    const size_t batch_size = 24;
+    const size_t num_directions = 2;
+    const size_t seq_length = 12;
+    const size_t input_size = 8;
+    const size_t hidden_size = 256;
 
     const auto X =
         make_shared<op::Parameter>(element::f32, Shape{batch_size, seq_length, input_size});

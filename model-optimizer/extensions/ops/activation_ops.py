@@ -205,10 +205,23 @@ class LogicalNot(Activation):
 
     @staticmethod
     def type_infer(node: Node):
-        output_data_type = np.int32 if node.graph.graph['cmd_params'].generate_deprecated_IR_V7 else np.bool
-        node.out_port(0).set_data_type(output_data_type)
+        node.out_port(0).set_data_type(np.bool)
 
 
 class Log(Activation):
     op = 'Log'
     operation = staticmethod(lambda x: np.log(x))
+
+
+class SoftPlus(Op):
+    op = 'SoftPlus'
+
+    def __init__(self, graph: Graph, attrs: dict):
+        mandatory_props = {
+            'op': self.op,
+            'type': None,
+            'in_ports_count': 1,
+            'out_ports_count': 1,
+            'infer': None
+        }
+        super().__init__(graph, mandatory_props, attrs)

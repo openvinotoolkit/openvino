@@ -45,22 +45,6 @@ bool op::v0::Add::visit_attributes(AttributeVisitor& visitor)
     return true;
 }
 
-void op::v0::Add::generate_adjoints(autodiff::Adjoints& adjoints, const OutputVector& deltas)
-{
-    if (get_autob().m_type != op::AutoBroadcastType::NONE)
-    {
-        throw ngraph_error("Autodiff not supported with auto broadcasting");
-    }
-
-    auto delta = deltas.at(0);
-
-    auto x = input_value(0);
-    auto y = input_value(1);
-
-    adjoints.add_delta(x, delta);
-    adjoints.add_delta(y, delta);
-}
-
 shared_ptr<Node> ngraph::operator+(const Output<Node>& arg0, const Output<Node>& arg1)
 {
     return make_shared<op::Add>(arg0, arg1);
@@ -108,9 +92,11 @@ namespace
             break;
             TYPE_CASE(u64)(arg0, arg1, out, broadcast_spec);
             break;
-            TYPE_CASE(f32)(arg0, arg1, out, broadcast_spec);
+            TYPE_CASE(bf16)(arg0, arg1, out, broadcast_spec);
             break;
-            TYPE_CASE(f64)(arg0, arg1, out, broadcast_spec);
+            TYPE_CASE(f16)(arg0, arg1, out, broadcast_spec);
+            break;
+            TYPE_CASE(f32)(arg0, arg1, out, broadcast_spec);
             break;
         default: rc = false; break;
         }
@@ -145,22 +131,6 @@ shared_ptr<Node> op::v1::Add::clone_with_new_inputs(const OutputVector& new_args
 {
     check_new_args_count(this, new_args);
     return make_shared<op::v1::Add>(new_args.at(0), new_args.at(1), this->get_autob());
-}
-
-void op::v1::Add::generate_adjoints(autodiff::Adjoints& adjoints, const OutputVector& deltas)
-{
-    if (get_autob().m_type != op::AutoBroadcastType::NONE)
-    {
-        throw ngraph_error("Autodiff not supported with auto broadcasting");
-    }
-
-    auto delta = deltas.at(0);
-
-    auto x = input_value(0);
-    auto y = input_value(1);
-
-    adjoints.add_delta(x, delta);
-    adjoints.add_delta(y, delta);
 }
 
 bool op::v1::Add::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)

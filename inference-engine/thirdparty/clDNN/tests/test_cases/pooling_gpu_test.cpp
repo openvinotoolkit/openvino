@@ -1,5 +1,5 @@
 /*
-// Copyright (c) 2016-2019 Intel Corporation
+// Copyright (c) 2016-2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -30,6 +30,14 @@
 
 using namespace cldnn;
 using namespace tests;
+
+namespace cldnn {
+template <>
+struct type_to_data_type<FLOAT16> {
+    static const data_types value = data_types::f16;
+};
+}  // namespace cldnn
+
 
 template <typename InputT, pooling_mode Mode>
 struct pooling_mode_output {
@@ -71,7 +79,7 @@ template <typename InputT>
 struct pooling_accumulator<InputT, pooling_mode::max> {
     using output_t = typename pooling_mode_output<InputT, pooling_mode::max>::type;
 
-    pooling_accumulator() : _acc(std::numeric_limits<InputT>::min()) {}
+    pooling_accumulator() : _acc(std::numeric_limits<InputT>::lowest()) {}
 
     void accumulate(const InputT& val) {
         using std::max;
@@ -82,7 +90,7 @@ struct pooling_accumulator<InputT, pooling_mode::max> {
         return static_cast<output_t>(_acc);
     }
 
-    void reset() { _acc = std::numeric_limits<InputT>::min(); }
+    void reset() { _acc = std::numeric_limits<InputT>::lowest(); }
 
     InputT _acc;
 };
@@ -121,7 +129,7 @@ struct pooling_accumulator<InputT, pooling_mode::average> {
     }
 
     output_t get(size_t pool_x, size_t pool_y) {
-        return static_cast<output_t>(_acc / (pool_x * pool_y));
+        return static_cast<output_t>(_acc / static_cast<InputT>(pool_x * pool_y));
     }
 
     void reset() {
@@ -2351,6 +2359,7 @@ public:
         auto input_lay = layout(input_type(),
                                 input_format(),
                                 input_size);
+
         auto topo = topology(
             input_layout("input", input_lay),
             pooling("pool",
@@ -2397,11 +2406,22 @@ public:
         auto out_lay = out_mem.get_layout();
         auto out_ptr = out_mem.cldnn::memory::template pointer<output_t>();
 
+        std::string kernel;
+        for (auto i : net.get_primitives_info()) {
+            if (i.original_id == "pool") {
+                kernel = i.kernel_id;
+            }
+        }
+        std::cout << kernel << std::endl;
+        SCOPED_TRACE("\nkernel: " + kernel);
+
         ASSERT_EQ(out_lay.data_type, output_type());
         ASSERT_EQ(out_lay.size.batch[0], expected.size());
         ASSERT_EQ(out_lay.size.feature[0], expected[0].size());
         ASSERT_EQ(out_lay.size.spatial[1], expected[0][0].size());
         ASSERT_EQ(out_lay.size.spatial[0], expected[0][0][0].size());
+
+        bool compare_with_tolerance = input_type() == data_types::f16;
 
         for (size_t bi = 0; bi < batch_num(); ++bi)
             for (size_t fi = 0; fi < expected[0].size(); ++fi)
@@ -2411,9 +2431,14 @@ public:
                         size_t offset = out_lay.get_linear_offset(coords);
                         auto ref_val = static_cast<float>(expected[bi][fi][yi][xi]);
                         auto actual_val = static_cast<float>(out_ptr[offset]);
-
-                        EXPECT_TRUE(are_equal(ref_val, actual_val))
-                            << "at b= " << bi << ", f= " << fi << ", y= " << yi << ", x= " << xi;
+                        if (compare_with_tolerance) {
+                            auto tolerance = 1;
+                            ASSERT_NEAR(ref_val, actual_val, tolerance)
+                                << "at b= " << bi << ", f= " << fi << ", y= " << yi << ", x= " << xi;
+                        } else {
+                            EXPECT_TRUE(are_equal(ref_val, actual_val))
+                                << "at b= " << bi << ", f= " << fi << ", y= " << yi << ", x= " << xi;
+                        }
                     }
 
     }
@@ -2560,14 +2585,31 @@ TEST_P(pooling_random_test, avg_u8) {
 INSTANTIATE_TEST_CASE_P(
     smoke_low_precision,
     pooling_random_test,
+    testing::Combine(testing::Values(1, 2),
+                     testing::Values(3, 8, 64),
+                     testing::Values(std::tuple<size_t, size_t>(12, 12), std::tuple<size_t, size_t>(24, 24)),
+                     testing::Values(std::tuple<size_t, size_t>(4, 4), std::tuple<size_t, size_t>(2, 2)),
+                     testing::Values(std::tuple<int, int>(2, 2)),
+                     testing::Values(std::tuple<int, int>(0, 0)),
+                     testing::Values(format::yxfb,
+                                     format::bfyx,
+                                     format::byxf_af32,
+                                     format::b_fs_yx_fsv4,
+                                     format::b_fs_yx_fsv16,
+                                     format::b_fs_yx_fsv32)),
+                    testing::internal::DefaultParamName<pooling_random_test_params>);
+
+INSTANTIATE_TEST_CASE_P(
+    batched_low_precision,
+    pooling_random_test,
     testing::Combine(
-        testing::Values(1, 2),
-        testing::Values(3, 32),
+        testing::Values(16),
+        testing::Values(16, 32),
         testing::Values(std::tuple<size_t, size_t>(3, 3), std::tuple<size_t, size_t>(8, 8)),
         testing::Values(std::tuple<size_t, size_t>(1, 1), std::tuple<size_t, size_t>(3, 3)),
         testing::Values(std::tuple<int, int>(1, 1)),
         testing::Values(std::tuple<int, int>(0, 0)),
-        testing::Values(format::bfyx, format::b_fs_yx_fsv4, format::byxf_af32, format::b_fs_yx_fsv32)
+        testing::Values(format::bs_fs_yx_bsv16_fsv16)
     ),
     testing::internal::DefaultParamName<pooling_random_test_params>);
 
@@ -2619,30 +2661,44 @@ private:
     VF<output_t> _shift;
 };
 
-using pooling_scale_random_test = pooling_random_test;
+using pooling_random_test_fp16_fp32 = pooling_random_test;
 
-TEST_P(pooling_scale_random_test, avg_i8) {
-    auto test_case = pooling_scale_random_test_base<int8_t, pooling_mode::average>();
+TEST_P(pooling_random_test_fp16_fp32, avg_fp16) {
+    auto test_case = pooling_random_test_base<FLOAT16, pooling_mode::average>();
     ASSERT_NO_FATAL_FAILURE(test_case.run_random(GetParam()));
 }
 
-TEST_P(pooling_scale_random_test, avg_u8) {
-    auto test_case = pooling_scale_random_test_base<uint8_t, pooling_mode::average>();
+TEST_P(pooling_random_test_fp16_fp32, max_fp16) {
+    auto test_case = pooling_random_test_base<FLOAT16, pooling_mode::max>();
+    ASSERT_NO_FATAL_FAILURE(test_case.run_random(GetParam()));
+}
+
+TEST_P(pooling_random_test_fp16_fp32, avg_fp32) {
+    auto test_case = pooling_random_test_base<float, pooling_mode::average>();
+    ASSERT_NO_FATAL_FAILURE(test_case.run_random(GetParam()));
+}
+
+TEST_P(pooling_random_test_fp16_fp32, max_fp32) {
+    auto test_case = pooling_random_test_base<float, pooling_mode::max>();
     ASSERT_NO_FATAL_FAILURE(test_case.run_random(GetParam()));
 }
 
 INSTANTIATE_TEST_CASE_P(
     smoke_low_precision,
-    pooling_scale_random_test,
-    testing::Combine(
-        testing::Values(1, 2),
-        testing::Values(3, 32),
-        testing::Values(std::tuple<size_t, size_t>(3, 3), std::tuple<size_t, size_t>(8, 8)),
-        testing::Values(std::tuple<size_t, size_t>(1, 1), std::tuple<size_t, size_t>(3, 3)),
-        testing::Values(std::tuple<int, int>(1, 1)),
-        testing::Values(std::tuple<int, int>(0, 0)),
-        testing::Values(format::bfyx, format::b_fs_yx_fsv4, format::byxf_af32, format::b_fs_yx_fsv32)
-    ),
+    pooling_random_test_fp16_fp32,
+    testing::Combine(testing::Values(1, 2),
+                     testing::Values(3, 8),
+                     testing::Values(std::tuple<size_t, size_t>(12, 12), std::tuple<size_t, size_t>(24, 24)),
+                     testing::Values(std::tuple<size_t, size_t>(4, 4), std::tuple<size_t, size_t>(2, 2)),
+                     testing::Values(std::tuple<int, int>(2, 2)),
+                     testing::Values(std::tuple<int, int>(0, 0)),
+                     testing::Values(format::yxfb,
+                                     format::bfyx,
+                                     format::byxf,
+                                     format::b_fs_yx_fsv16,
+                                     format::fs_b_yx_fsv32,
+                                     format::b_fs_yx_fsv32,
+                                     format::fs_bs_yx_bsv4_fsv32)),
     testing::internal::DefaultParamName<pooling_random_test_params>);
 
 TEST(pooling_forward_gpu, bsv16_fsv16_max_16x16x8x8_input_2x2_pool_2x2_stride)

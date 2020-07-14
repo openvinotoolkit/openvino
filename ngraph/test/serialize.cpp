@@ -197,26 +197,6 @@ TEST(serialize, constant)
     EXPECT_TRUE(found);
 }
 
-TEST(benchmark, serialize)
-{
-    stopwatch timer;
-    string model = "mxnet/LSTM_backward.json";
-
-    const string json_path = file_util::path_join(SERIALIZED_ZOO, model);
-    timer.start();
-    const string json_string = file_util::read_file_to_string(json_path);
-    timer.stop();
-    cout << "file read took " << timer.get_milliseconds() << "ms\n";
-    timer.start();
-    shared_ptr<Function> f = ngraph::deserialize(json_string);
-    timer.stop();
-    cout << "deserialize took " << timer.get_milliseconds() << "ms\n";
-
-    WithSerializeOutputShapesEnabled serialize_outputs(true);
-    ofstream out("test.json");
-    out << serialize(f, 4);
-}
-
 MATCHER_P2(IsOutputShape, type, shape, "")
 {
     return std::get<0>(arg) == type && std::get<1>(arg).to_shape() == shape;

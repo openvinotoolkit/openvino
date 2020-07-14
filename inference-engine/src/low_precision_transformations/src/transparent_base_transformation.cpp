@@ -3,12 +3,14 @@
 //
 
 #include "low_precision_transformations/transparent_base_transformation.hpp"
-#include "low_precision_transformations/network_helper.hpp"
 
 #include <algorithm>
 #include <memory>
 #include <string>
 #include <vector>
+
+#include "low_precision_transformations/common/ie_lpt_exception.hpp"
+#include "low_precision_transformations/network_helper.hpp"
 
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
@@ -29,38 +31,22 @@ void TransparentBaseTransformation::transform(TransformationContext& context, CN
             CNNNetworkHelper::setOutDataPrecision(layer, getPrecisionBeforeParentDequantizationScaleShift(layer));
         }
 
-        const Blob::Ptr weights_blob = CNNNetworkHelper::getBlob(scaleShift, "weights");
-        auto weights = CNNNetworkHelper::getFloatData(weights_blob);
-        const std::vector<float> scales = std::vector<float>(weights.get(), weights.get() + weights_blob->size());
+        std::vector<float> scales;
+        std::vector<float> shifts;
+        fillFromDequantizationLayer(*scaleShift, scales, shifts);
 
-        const Blob::Ptr biases_blob = CNNNetworkHelper::getBlob(scaleShift, "biases");
-        auto biases = CNNNetworkHelper::getFloatData(biases_blob);
-        const std::vector<float> shifts = std::vector<float>(biases.get(), biases.get() + biases_blob->size());
+        const size_t outputChannelsCount = CNNNetworkHelper::getOutputChannelsCount(layer);
+        if (outputChannelsCount != CNNNetworkHelper::getInputChannelsCount(layer)) {
+            if (!DequantizationDetails::isPerTensor(scales, shifts)) {
+                THROW_IE_LPT_EXCEPTION(layer) << "input and output channels count values are different for per channel quantization";
+            }
+            scales = std::vector<float>(outputChannelsCount, scales[0]);
+            shifts = std::vector<float>(outputChannelsCount, shifts[0]);
+        }
 
         CNNNetworkHelper::removeLayer(context.network, scaleShift);
         context.removeLayer(*scaleShift);
 
-        const std::vector<CNNLayerPtr> children = CNNNetworkHelper::getChildren(layer);
-        if (children.size() == 0) {
-            const std::string originalName = layer.name;
-            CNNNetworkHelper::renameLayer(context.network, layer.name, layer.name + LayerTransformation::lastLayerPrefix);
-
-            CNNLayerPtr dequantizationLayer = CNNNetworkHelper::addScaleShiftBetween(
-                context,
-                std::make_shared<CNNLayer>(layer),
-                nullptr,
-                DequantizationDetails(scales, shifts),
-                originalName);
-            context.dequantizationLayersNames.insert(dequantizationLayer->name);
-        } else {
-            for (const CNNLayerPtr& child : children) {
-                CNNLayerPtr dequantizationLayer = CNNNetworkHelper::addScaleShiftBetween(
-                    context,
-                    std::make_shared<CNNLayer>(layer),
-                    child,
-                    DequantizationDetails(scales, shifts));
-                context.dequantizationLayersNames.insert(dequantizationLayer->name);
-            }
-        }
+        addDequantizationLayer(context, layer, scales, shifts);
     }
 }

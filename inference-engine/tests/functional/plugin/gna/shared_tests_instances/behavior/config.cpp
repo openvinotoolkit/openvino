@@ -2,14 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "multi-device/multi_device_config.hpp"
 #include "gna/gna_config.hpp"
 #include "behavior/config.hpp"
 
-using namespace LayerTestsDefinitions;
-
+using namespace BehaviorTestsDefinitions;
 namespace {
-
     const std::vector<InferenceEngine::Precision> netPrecisions = {
             InferenceEngine::Precision::FP32,
             InferenceEngine::Precision::FP16

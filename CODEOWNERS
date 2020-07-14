@@ -14,7 +14,8 @@ azure-pipelines.yml  @openvinotoolkit/openvino-admins
 
 # IE Core:
 /inference-engine/  @openvinotoolkit/openvino-ie-maintainers
-/inference-engine/src/transformations/  @GlebKazantaev @ichuraev
+/inference-engine/ie_bridges/python @openvinotoolkit/openvino-ie-python-api-maintainers
+/inference-engine/src/transformations/  @GlebKazantaev @ilyachur
 /inference-engine/src/legacy_api/  @openvinotoolkit/openvino-ngraph-maintainers
 /inference-engine/src/readers/  @openvinotoolkit/openvino-ngraph-maintainers
 

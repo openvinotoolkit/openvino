@@ -208,27 +208,17 @@ namespace
 
         switch (arg0->get_element_type())
         {
-            TYPE_CASE(i8)(arg0, arg1, output, transpose_a, transpose_b);
-            break;
-            TYPE_CASE(i16)(arg0, arg1, output, transpose_a, transpose_b);
-            break;
             TYPE_CASE(i32)(arg0, arg1, output, transpose_a, transpose_b);
             break;
             TYPE_CASE(i64)(arg0, arg1, output, transpose_a, transpose_b);
-            break;
-            TYPE_CASE(u8)(arg0, arg1, output, transpose_a, transpose_b);
-            break;
-            TYPE_CASE(u16)(arg0, arg1, output, transpose_a, transpose_b);
             break;
             TYPE_CASE(u32)(arg0, arg1, output, transpose_a, transpose_b);
             break;
             TYPE_CASE(u64)(arg0, arg1, output, transpose_a, transpose_b);
             break;
-            TYPE_CASE(bf16)(arg0, arg1, output, transpose_a, transpose_b);
+            TYPE_CASE(f16)(arg0, arg1, output, transpose_a, transpose_b);
             break;
             TYPE_CASE(f32)(arg0, arg1, output, transpose_a, transpose_b);
-            break;
-            TYPE_CASE(f64)(arg0, arg1, output, transpose_a, transpose_b);
             break;
         default: rc = false; break;
         }

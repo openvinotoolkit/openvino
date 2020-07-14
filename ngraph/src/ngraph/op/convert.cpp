@@ -48,15 +48,6 @@ shared_ptr<Node> op::Convert::clone_with_new_inputs(const OutputVector& new_args
     return make_shared<Convert>(new_args.at(0), m_destination_type);
 }
 
-void op::Convert::generate_adjoints(autodiff::Adjoints& adjoints, const OutputVector& deltas)
-{
-    auto delta = deltas.at(0);
-
-    auto x = input_value(0);
-
-    adjoints.add_delta(x, make_shared<op::Convert>(delta, x.get_element_type()));
-}
-
 namespace
 {
     template <element::Type_t INPUT_ET, element::Type_t OUTPUT_ET>
@@ -99,6 +90,8 @@ namespace
             break;
             TYPE_OUT_CASE(bf16)(arg, out);
             break;
+            TYPE_OUT_CASE(f16)(arg, out);
+            break;
             TYPE_OUT_CASE(f32)(arg, out);
             break;
             TYPE_OUT_CASE(f64)(arg, out);
@@ -114,27 +107,17 @@ namespace
 
         switch (arg->get_element_type())
         {
-            TYPE_CASE(i8)(arg, out);
-            break;
-            TYPE_CASE(i16)(arg, out);
-            break;
             TYPE_CASE(i32)(arg, out);
             break;
             TYPE_CASE(i64)(arg, out);
-            break;
-            TYPE_CASE(u8)(arg, out);
-            break;
-            TYPE_CASE(u16)(arg, out);
             break;
             TYPE_CASE(u32)(arg, out);
             break;
             TYPE_CASE(u64)(arg, out);
             break;
-            TYPE_CASE(bf16)(arg, out);
+            TYPE_CASE(f16)(arg, out);
             break;
             TYPE_CASE(f32)(arg, out);
-            break;
-            TYPE_CASE(f64)(arg, out);
             break;
         default: rc = false; break;
         }

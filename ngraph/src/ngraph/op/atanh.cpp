@@ -55,25 +55,17 @@ namespace
         out->set_unary(arg0);
         switch (arg0->get_element_type())
         {
-            TYPE_CASE(i8)(arg0, out);
-            break;
-            TYPE_CASE(i16)(arg0, out);
-            break;
             TYPE_CASE(i32)(arg0, out);
             break;
             TYPE_CASE(i64)(arg0, out);
-            break;
-            TYPE_CASE(u8)(arg0, out);
-            break;
-            TYPE_CASE(u16)(arg0, out);
             break;
             TYPE_CASE(u32)(arg0, out);
             break;
             TYPE_CASE(u64)(arg0, out);
             break;
-            TYPE_CASE(f32)(arg0, out);
+            TYPE_CASE(f16)(arg0, out);
             break;
-            TYPE_CASE(f64)(arg0, out);
+            TYPE_CASE(f32)(arg0, out);
             break;
         default: rc = false; break;
         }

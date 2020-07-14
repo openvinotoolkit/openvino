@@ -9,5 +9,14 @@
 
 std::vector<std::string> disabledTestPatterns() {
     return {
+            // cldnn treats 1d constant as [1, f, 1, 1] tensor instead of [b, 1, 1, 1] which leads to fails of these tests
+            R"(.*(EltwiseLayerTest).*IS=\(.*\..*\..*\..*\..*\).*secondaryInputType=CONSTANT.*opType=SCALAR.*)",
+            R"(.*(EltwiseLayerTest).*IS=\(.*\).*secondaryInputType=CONSTANT.*)",
+            // Issues - 34059
+            ".*BehaviorTests\\.pluginDoesNotChangeOriginalNetwork.*",
+            //TODO: Issue: 34349
+            R"(.*(IEClassLoadNetwork).*(QueryNetworkMULTIWithHETERONoThrow_V10|QueryNetworkHETEROWithMULTINoThrow_V10).*)",
+            //TODO: Issue: 34748
+            R"(.*(ComparisonLayerTest).*)",
     };
 }

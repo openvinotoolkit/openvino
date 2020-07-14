@@ -1371,9 +1371,9 @@ void DepthToSpaceValidator::checkShapes(const CNNLayer* layer, const vector<Size
 
     if (casted->block_size == 0) THROW_IE_EXCEPTION << layer->name << " Incorrect block_size parameter is zero!";
 
-    if (inShapes[0][inShapes[0].size() - 3] % (casted->block_size * casted->block_size))
-        THROW_IE_EXCEPTION << layer->name
-                           << " block_size parameter is incompatible with input tensor Color dimension size!";
+    size_t numSpatialDims = inShapes[0].size() - 2;
+    if (inShapes[0][1] % static_cast<size_t>(std::pow(casted->block_size, numSpatialDims)))
+        THROW_IE_EXCEPTION << layer->name << " block_size parameter is incompatible with input tensor Color dimension size!";
 }
 
 SpaceToDepthValidator::SpaceToDepthValidator(const std::string& _type): LayerValidator(_type) {}
@@ -1431,7 +1431,7 @@ void SpaceToBatchValidator::parseParams(CNNLayer* layer) {
         if (dataPtr->getTensorDesc().getPrecision() != Precision::I32
                 && dataPtr->getTensorDesc().getPrecision() != Precision::I64)
             THROW_IE_EXCEPTION << "'" << layerName << "' layer has invalid input precision";
-        auto creator = dataPtr->getCreatorLayer().lock();
+        auto creator = getCreatorLayer(dataPtr).lock();
         if (creator == nullptr)
             THROW_IE_EXCEPTION << "'" << layerName << "' layer has nullable input layer";
 
@@ -1497,7 +1497,7 @@ void BatchToSpaceValidator::parseParams(CNNLayer* layer) {
         if (dataPtr->getTensorDesc().getPrecision() != Precision::I32
                 && dataPtr->getTensorDesc().getPrecision() != Precision::I64)
             THROW_IE_EXCEPTION << "'" << layerName << "' layer has invalid input precision";
-        auto creator = dataPtr->getCreatorLayer().lock();
+        auto creator = getCreatorLayer(dataPtr).lock();
         if (creator == nullptr)
             THROW_IE_EXCEPTION << "'" << layerName << "' layer has nullable input layer";
 

@@ -33,7 +33,6 @@
 #undef TO_ACCUMULATOR_TYPE
 #endif
 
-#if QUANTIZATION_TERM
 #define ACCUMULATOR_TYPE int
 #define TO_ACCUMULATOR_TYPE(x) convert_int(x)
 #define ACTIVATION_TYPE float
@@ -63,10 +62,6 @@
 #endif // OUTPUT_LAYOUT_B_FS_YX_FSV32
 #else
 #error "convolution_gpu_mmad_bfyx_b_fs_yx_fsv32: Unsupported block size"
-#endif
-
-#else // QUANTIZATION_TERM
-#error "convolution_gpu_mmad_bfyx_b_fs_yx_fsv32: invalid parameters: quantization term is expected to be true"
 #endif
 
 #define AS_TYPE_N_(type, n, x) as_##type##n(x)
@@ -114,7 +109,19 @@ KERNEL(convolution_mmad_bfyx_to_b_fs_yx_fsv32)(
 #if ASYMMETRIC_WEIGHTS_QUANTIZATION
     ACCUMULATOR_TYPE_VEC acc_assym_weights = 0;
 #endif
+
+#if INPUT0_LAYOUT_BFYX
     const int input_offset = b*INPUT0_BATCH_PITCH + INPUT0_OFFSET + input_y * INPUT0_Y_PITCH;
+#elif INPUT0_LAYOUT_B_FS_YX_FSV4
+    const int fsv = 4;
+    const int input_x_pitch = fsv;
+    const int input_y_pitch = input_x_pitch * (INPUT0_PAD_BEFORE_SIZE_X + INPUT0_SIZE_X + INPUT0_PAD_AFTER_SIZE_X);
+    const int input_fs_pitch = input_y_pitch * (INPUT0_PAD_BEFORE_SIZE_Y + INPUT0_SIZE_Y + INPUT0_PAD_AFTER_SIZE_Y);
+    const int input_total_f_size = INPUT0_PAD_BEFORE_FEATURE_NUM + INPUT0_FEATURE_NUM + INPUT0_PAD_AFTER_FEATURE_NUM;
+    const int input_b_pitch = input_fs_pitch * ((input_total_f_size + fsv - 1) / fsv);
+    const int input_offset = b * input_b_pitch + input_y * input_y_pitch;
+#endif
+
     int filter_idx = fg * FILTER_SIZE_X * FILTER_SIZE_Y * ISV * OSV;
 #if ASYMMETRIC_WEIGHTS_QUANTIZATION
     char4 multiplier;
@@ -156,6 +163,7 @@ KERNEL(convolution_mmad_bfyx_to_b_fs_yx_fsv32)(
                 bool x_cross_fm = x_chunk + lid < 0 || x_chunk + lid >= INPUT0_SIZE_X;
 
                 if (!x_cross_fm) {
+                #if INPUT0_LAYOUT_BFYX
                     MAKE_VECTOR_TYPE(INPUT0_TYPE, ISV) src = 0;
                     __attribute__((opencl_unroll_hint(INPUT0_FEATURE_NUM)))
                     for (int i = 0; i < INPUT0_FEATURE_NUM; i++) {
@@ -164,6 +172,11 @@ KERNEL(convolution_mmad_bfyx_to_b_fs_yx_fsv32)(
                                                     + (x_chunk + lid)* INPUT0_X_PITCH];
                     }
                     slm_block[c + lid] = AS_PACKED_IN_TYPE(src);
+                #elif INPUT0_LAYOUT_B_FS_YX_FSV4
+                    const __global uint* ptr = input + input_offset + kh * DILATION_SIZE_Y * input_y_pitch + (x_chunk + lid) * input_x_pitch;
+                    PACKED_IN_TYPE src = AS_PACKED_IN_TYPE(ptr[0]);
+                    slm_block[c + lid] = src;
+                #endif
                 } else {
 #if ASYMMETRIC_DATA_QUANTIZATION
                     slm_block[c + lid] = AS_PACKED_IN_TYPE(zp);
@@ -178,6 +191,7 @@ KERNEL(convolution_mmad_bfyx_to_b_fs_yx_fsv32)(
                 const int x_chunk = x_wg_start + LWS1*SLM_CHUNK_SIZE;
                 bool x_cross_fm = x_chunk + lid >= INPUT0_SIZE_X;
                 if (!x_cross_fm) {
+                #if INPUT0_LAYOUT_BFYX
                     MAKE_VECTOR_TYPE(INPUT0_TYPE, ISV) src = 0;
                     __attribute__((opencl_unroll_hint(INPUT0_FEATURE_NUM)))
                     for (int i = 0; i < INPUT0_FEATURE_NUM; i++) {
@@ -186,6 +200,11 @@ KERNEL(convolution_mmad_bfyx_to_b_fs_yx_fsv32)(
                                                     + (x_chunk + lid)* INPUT0_X_PITCH];
                     }
                     slm_block_tail[lid] = AS_PACKED_IN_TYPE(src);
+                #elif INPUT0_LAYOUT_B_FS_YX_FSV4
+                    const __global uint* ptr = input + input_offset + kh * DILATION_SIZE_Y * input_y_pitch + (x_chunk + lid) * input_x_pitch;
+                    PACKED_IN_TYPE src = AS_PACKED_IN_TYPE(ptr[0]);
+                    slm_block_tail[lid] = src;
+                #endif
                 } else {
 #if ASYMMETRIC_DATA_QUANTIZATION
                     slm_block_tail[lid] = AS_PACKED_IN_TYPE(zp);

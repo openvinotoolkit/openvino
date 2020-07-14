@@ -70,7 +70,7 @@ intel_dnn_component_t * GNAGraphCompiler::find_first_unused_input(InferenceEngin
     if (inData == nullptr)
         return nullptr;
 
-    auto prev_layer = inData->getCreatorLayer().lock();
+    auto prev_layer = getCreatorLayer(inData).lock();
 
     return dnnComponents.findComponent(prev_layer);
 }
@@ -131,7 +131,7 @@ void GNAGraphCompiler::fillSplitConnections(InferenceEngine::CNNLayerPtr layer) 
     if (!dataInput) {
         THROW_GNA_LAYER_EXCEPTION(layer) << "Input layer pointer is unexpectedly absent";
     }
-    auto ptrSplitLayerInput = dataInput->getCreatorLayer().lock();
+    auto ptrSplitLayerInput = getCreatorLayer(dataInput).lock();
     if (!ptrSplitLayerInput) {
         THROW_GNA_LAYER_EXCEPTION(layer) << "Input layer for is unexpectedly absent";
     }
@@ -141,7 +141,7 @@ void GNAGraphCompiler::fillSplitConnections(InferenceEngine::CNNLayerPtr layer) 
         size_t output_layer_size = 0;
 
 
-        for (int j = 0; j != layer->outData[i]->getInputTo().size(); j++) {
+        for (int j = 0; j != getInputTo(layer->outData[i]).size(); j++) {
             auto outFunctionalLayer = CNNNetGetNextLayerSkipCertain(layer, i, j,  [](CNNLayerPtr l) {
                 return LayerInfo(l).isNonFunctional();
             });
@@ -338,8 +338,8 @@ void GNAGraphCompiler::PowerPrimitive(InferenceEngine::CNNLayerPtr layer) {
     auto& power = dynamic_cast<PowerLayer&>(*layer.get());
     auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(layer);
 
-    if (power.power != 1.0) {
-        THROW_IE_EXCEPTION << "[GNA plugin] unsupported power factor, expected 1 but was " << power.power;
+    if (power.power < 0.0f || power.power > 2.8f) {
+        THROW_IE_EXCEPTION << "[GNA plugin] unsupported power factor, expected be in <0, 2.8> range but was " << power.power;
     }
 
     auto input = layer->insData[0].lock();
@@ -351,64 +351,117 @@ void GNAGraphCompiler::PowerPrimitive(InferenceEngine::CNNLayerPtr layer) {
     uint32_t num_rows_out = num_rows_in;
     uint32_t num_padding = ALIGN(num_rows_in, 8) - num_rows_in;
 
-    void* ptr_inputs = nullptr;
-    void* ptr_outputs = nullptr;
-    void* ptr_weights = nullptr;
-    void* ptr_biases = nullptr;
-
-    auto& currentComponent = dnnComponents.addComponent(layer->name, "power");
-
-    dnn->InitAffineComponent(currentComponent,
-        num_rows_in + num_padding,
-        num_columns_in,
-        num_rows_out + num_padding,
-        input->getPrecision().size(),
-        outputs->getPrecision().size(),
-        // TODO: only fp32 and Int16 tested
-        quantized == nullptr ? input->getPrecision().size() : 2,
-        quantized == nullptr ? input->getPrecision().size() : 4,
-        quantized == nullptr ? 1 : quantized->_weights_quant.scale,
-        quantized == nullptr ? 1 : quantized->_dst_quant.scale,
-        ptr_inputs,
-        ptr_outputs,
-        ptr_weights,
-        ptr_biases,
-        true);
-
     size_t num_data_bytes_out = InferenceEngine::details::product(begin(outputs->getDims()), end(outputs->getDims()))
         * outputs->getPrecision().size();
 
     size_t num_data_bytes_in = InferenceEngine::details::product(begin(input->getDims()), end(input->getDims()))
         * input->getPrecision().size();
 
-    connectOutput(layer, ptr_outputs, num_data_bytes_out);
-    connectInput(layer, ptr_inputs, num_data_bytes_in, 0, 0);
+    if (power.power == 1.0f) {
+        void* ptr_inputs = nullptr;
+        void* ptr_outputs = nullptr;
+        void* ptr_weights = nullptr;
+        void* ptr_biases = nullptr;
 
-    if (gnaFlags->sw_fp32) {
-        gnamem->readonly().push_value(ptr_weights, power.scale, num_rows_out, 64);
-        gnamem->readonly().push_value(ptr_biases, power.scale, num_rows_out, 64);
-    } else {
-        auto weightsScaledIdentity = power.scale;
-        auto biasesScaledIdentity = power.scale;
-        if (quantized != nullptr) {
-            weightsScaledIdentity = quantized->_weights_quant.scale * weightsScaledIdentity;
-            biasesScaledIdentity = quantized->_bias_quant.scale * biasesScaledIdentity;
-        }
+        auto& currentComponent = dnnComponents.addComponent(layer->name, "power");
 
-        auto weightQuantizedIdentity = FLOAT_TO_INT16(std::min(weightsScaledIdentity, static_cast<float>(INT16_MAX)));
-        auto biasesQuantizedIdentity = FLOAT_TO_INT16(std::min(biasesScaledIdentity, static_cast<float>(INT16_MAX)));
-        gnamem->readonly().push_value<int16_t>(ptr_weights, weightQuantizedIdentity, num_rows_out, 64);
-        gnamem->readonly().push_value<int32_t>(ptr_biases, biasesQuantizedIdentity, num_rows_out, 64);
-    }
+        dnn->InitAffineComponent(currentComponent,
+            num_rows_in + num_padding,
+            num_columns_in,
+            num_rows_out + num_padding,
+            input->getPrecision().size(),
+            outputs->getPrecision().size(),
+            // TODO: only fp32 and Int16 tested
+            quantized == nullptr ? input->getPrecision().size() : 2,
+            quantized == nullptr ? input->getPrecision().size() : 4,
+            quantized == nullptr ? 1 : quantized->_weights_quant.scale,
+            quantized == nullptr ? 1 : quantized->_dst_quant.scale,
+            ptr_inputs,
+            ptr_outputs,
+            ptr_weights,
+            ptr_biases,
+            true);
 
-    if (power.offset != 0.0f) {
-        if (quantized == nullptr) {
-            gnamem->readonly().push_value(ptr_biases, 0.0f, num_rows_out, 64);
+        connectOutput(layer, ptr_outputs, num_data_bytes_out);
+        connectInput(layer, ptr_inputs, num_data_bytes_in, 0, 0);
+
+        if (gnaFlags->sw_fp32) {
+            gnamem->readonly().push_value(ptr_weights, power.scale, num_rows_out, 64);
+            gnamem->readonly().push_value(ptr_biases, power.offset, num_rows_out, 64);
         } else {
-            gnamem->readonly().push_value<int32_t>(ptr_biases, 0, num_rows_out, 64);
+            auto quantizedScale = FLOAT_TO_INT16(std::min(quantized->_weights_quant.scale * power.scale,
+                static_cast<float>(INT16_MAX)));
+            auto quantizedOffset = FLOAT_TO_INT32(std::min(quantized->_dst_quant.scale * power.offset,
+                static_cast<float>(INT32_MAX)));
+            gnamem->readonly().push_value<int16_t>(ptr_weights, quantizedScale, num_rows_out, 64);
+            gnamem->readonly().push_value<int32_t>(ptr_biases, quantizedOffset, num_rows_out, 64);
         }
     } else {
-        gnamem->readonly().push_value(ptr_biases, 0.0f, num_rows_out, 64);
+        //use PWL to calculate power
+        std::vector<intel_pwl_segment_t> ptr_pwl_segments;
+
+        auto orientation = kDnnInterleavedOrientation;
+
+        auto activation_type = DnnActivation::fromType(kActPow);
+        activation_type.args.pow.exponent = power.power;
+        activation_type.args.pow.scale = power.scale;
+        activation_type.args.pow.offset = power.offset;
+
+        auto& pwlComponent = dnnComponents.addComponent(layer->name, "power");
+
+        intel_pwl_segment_t* ptr_pwl_segments_target = nullptr;
+
+        float output_pwl_scale_factor = quantized != nullptr ? quantized->_dst_quant.scale : 1.0f;
+        float input_pwl_scale_factor = quantized != nullptr ? quantized->_src_quant.scale : 1.0f;
+
+        if (!gnaFlags->sw_fp32) {
+            if (gnaFlags->uniformPwlDesign) {
+                uint32_t num_segments = POW_NUM_SEGMENTS;
+                if (activation_type.args.pow.exponent == 0.0f || activation_type.args.pow.exponent == 1.0f) {
+                    num_segments = 3;
+                }
+                ptr_pwl_segments.resize(num_segments);
+
+                PwlDesign16(activation_type,
+                    &*ptr_pwl_segments.begin(),
+                    static_cast<uint32_t>(ptr_pwl_segments.size()),
+                    input_pwl_scale_factor,
+                    output_pwl_scale_factor);
+            } else {
+                PwlDesignOpt16(activation_type,
+                    ptr_pwl_segments,
+                    input_pwl_scale_factor,
+                    output_pwl_scale_factor);
+            }
+        }
+
+        ptr_pwl_segments_target = reinterpret_cast<intel_pwl_segment_t*>(&ptr_pwl_segments_target);
+
+        void* ptr_pwl_input = nullptr;
+        void* ptr_pwl_outputs = nullptr;
+        dnn->InitPiecewiseLinearComponent(pwlComponent,
+            activation_type,
+            orientation,
+            num_rows_in + num_padding,
+            num_columns_in,
+            input->getPrecision().size(),
+            outputs->getPrecision().size(),
+            ptr_pwl_segments.size(),
+            output_pwl_scale_factor,
+            output_pwl_scale_factor,
+            ptr_pwl_input,
+            ptr_pwl_outputs,
+            ptr_pwl_segments_target);
+
+        connectOutput(layer, ptr_pwl_outputs, num_data_bytes_out);
+        connectInput(layer, ptr_pwl_input, num_data_bytes_in, 0, 0);
+
+        if (ptr_pwl_segments_target != nullptr) {
+            gnamem->readonly().push_local_ptr(ptr_pwl_segments_target,
+                &ptr_pwl_segments.front(),
+                ptr_pwl_segments.size() * sizeof(intel_pwl_segment_t),
+                64);
+        }
     }
 }
 
@@ -548,7 +601,7 @@ void GNAGraphCompiler::ConcatPrimitive(InferenceEngine::CNNLayerPtr layer) {
     }
 
     auto& concatLayerInfo = concat_connection.find(concatLayer->name)->second;
-    for (auto &&outLayer : concatLayer->outData.front()->getInputTo()) {
+    for (auto &&outLayer : getInputTo(concatLayer->outData.front())) {
         if ( LayerInfo(outLayer.second).isConcat() ) {
             connectOutput(layer, &concatLayerInfo.gna_ptr, concatLayerInfo.reserved_size);
         }
@@ -570,7 +623,7 @@ void GNAGraphCompiler::ConcatPrimitive(InferenceEngine::CNNLayerPtr layer) {
         }
         IE_ASSERT(it != concatLayerInput->insData.size());
         auto layerInfo = LayerInfo(concatParent);
-        // auto layerInfo = LayerInfo(concatLayerInput->insData[it].lock()->getCreatorLayer().lock());
+        // auto layerInfo = LayerInfo(getCreatorLayer(concatLayerInput->insData[it].lock()).lock());
         if (layerInfo.isInput()) {
             if (concatLayerInfo.input_allocated) {
                 // for concat input allocated only once, so lets mark this specific input layer also as allocated
@@ -647,7 +700,7 @@ void GNAGraphCompiler::CropPrimitive(InferenceEngine::CNNLayerPtr layer) {
         connectInput(layer, &cropLayerInfo->second.gna_ptr, cropOutputSize + cropOffset, cropOffset, 0);
 
         // cases for certain output layers
-        for (auto&& outLayer : layer->outData.front()->getInputTo()) {
+        for (auto&& outLayer : getInputTo(layer->outData.front())) {
             auto& nextLayer = outLayer.second;
             if (LayerInfo(nextLayer).isConcat()) {
                 connectOutput(layer, &cropLayerInfo->second.gna_ptr, cropOutputSize);
@@ -1315,9 +1368,9 @@ void GNAGraphCompiler::PWLPrimitive(InferenceEngine::CNNLayerPtr layer) {
     auto activation_type = DnnActivation::fromType(it->second);
     if (it->second == kActRelu) {
         auto reluLayer = dynamic_cast<ReLULayer*>(layer.get());
-        activation_type.negative_slope = reluLayer != nullptr ? reluLayer->negative_slope : 0.0f;
+        activation_type.args.lrelu.negative_slope = reluLayer != nullptr ? reluLayer->negative_slope : 0.0f;
     } else {
-        activation_type.negative_slope = 0.0f;
+        activation_type.args.lrelu.negative_slope = 0.0f;
     }
 
     string actName = "unknown";
@@ -1412,30 +1465,76 @@ case name:\
 }
 
 void GNAGraphCompiler::PermutePrimitive(InferenceEngine::CNNLayerPtr layer) {
+    if (LayerInfo(layer).isTrivialPermute()) {
+        return;
+    }
     auto layerOrder = layer->GetParamAsInts("order");
+    auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(layer);
+    auto inputs = layer->insData.begin()->lock();
+    auto inputsOrder = inputs->getTensorDesc().getDims();
+    auto outputs = layer->outData.front();
 
-    string dimMessage;
-    if (layerOrder == vector<int>({0, 3, 2, 1})) {
-        return;  // supported case
+    // squeeze order vector
+    SizeVector squeezedInputOrder;
+    for (auto input_shape : inputsOrder) {
+        if (input_shape != 1) squeezedInputOrder.push_back(input_shape);
+    }
+    SizeVector squeezedOutputOrder;
+    for (auto output_shape : layerOrder) {
+        if (output_shape != 0) squeezedOutputOrder.push_back(output_shape);
     }
 
-    if (layerOrder == vector<int>({1, 0, 2})) {
-        IE_ASSERT(!layer->insData.empty());
-        auto inputs = layer->insData.begin()->lock();
-        auto inputs_size = inputs->getTensorDesc().getDims().size();
-        if (inputs_size != layerOrder.size()) {
-            THROW_IE_EXCEPTION << "[GNA plugin] Invalid input tensor size for permute layer " <<
-                               layer->GetParamAsString("order");
-        }
-        auto permuteDim0 = FROM_IR_DIM(inputs, inputs_size);
-        auto permuteDim1 = FROM_IR_DIM(inputs, inputs_size - 1);
-        if (permuteDim0 == 1 || permuteDim1 == 1) {
-            return;  // supported case
-        }
-        dimMessage = " (with first dim = " + to_string(permuteDim0) + ", second dim = " + to_string(permuteDim1) + ")";
+    void* ptr_inputs = nullptr;
+    void* ptr_outputs = nullptr;
+
+    if (squeezedInputOrder.size() > 2) {
+        THROW_GNA_LAYER_EXCEPTION(layer) << "unsupported permute (requested transpose is not 2D)";
     }
-    THROW_IE_EXCEPTION << "[GNA plugin] Unsupported permute order: was " << layer->GetParamAsString("order") <<
-                       dimMessage << ", but only support 1,0,2 (with first or second dim = 1) and 0,3,2,1";
+
+    if (std::min(squeezedInputOrder[0], squeezedInputOrder[1]) > 8) {
+        THROW_GNA_LAYER_EXCEPTION(layer) << "unsupported permute (minor dimension="
+                            << std::min(squeezedInputOrder[0], squeezedInputOrder[1]) << " > 8)";
+    }
+
+    // now this can be run on GNA
+    if (squeezedInputOrder[0] < squeezedInputOrder[1]) {  // interleave case
+        if (ALIGN(squeezedInputOrder[1], 8) != squeezedInputOrder[1]) {
+            THROW_GNA_LAYER_EXCEPTION(layer) << "unsupported permute (row size not a multiple of 8)";
+        } else {
+            auto& currentComponent = dnnComponents.addComponent(layer->name, "interleave");
+            dnn->InitInterleaveComponent(currentComponent,
+                                         squeezedInputOrder[0],
+                                         squeezedInputOrder[1],
+                                         inputs->getPrecision().size(),
+                                         outputs->getPrecision().size(),
+                                         (quantized == nullptr) ? 1.0f : quantized->_dst_quant.scale,
+                                         ptr_inputs,
+                                         ptr_outputs);
+        }
+
+    } else {  // deinterleave case
+        if (ALIGN(squeezedInputOrder[0], 8) != squeezedInputOrder[0]) {
+            THROW_GNA_LAYER_EXCEPTION(layer) << "[GNA plugin] unsupported permute (column size not a multiple of 8)";
+        } else {
+            auto& currentComponent = dnnComponents.addComponent(layer->name, "deinterleave");
+            dnn->InitDeinterleaveComponent(currentComponent,
+                                           squeezedInputOrder[0],
+                                           squeezedInputOrder[1],
+                                           inputs->getPrecision().size(),
+                                           outputs->getPrecision().size(),
+                                           quantized == nullptr ? 1 : quantized->_dst_quant.scale,
+                                           ptr_inputs,
+                                           ptr_outputs);
+        }
+    }
+
+    size_t num_data_bytes_out = ALIGN(InferenceEngine::details::product(
+            begin(outputs->getDims()), end(outputs->getDims())), 8)
+                                * outputs->getPrecision().size();
+    size_t num_data_bytes_in = squeezedInputOrder[0] * squeezedInputOrder[1] * inputs->getPrecision().size();
+
+    connectInput(layer, ptr_inputs, num_data_bytes_in);
+    connectOutput(layer, ptr_outputs, num_data_bytes_out);
 }
 
 void SKIP(GNAGraphCompiler*, CNNLayerPtr) {}
@@ -1489,7 +1588,7 @@ void GNAGraphCompiler::connectOutput(InferenceEngine::CNNLayerPtr layer, void *p
     gnalog() << "Connecting output " << layer->name << " ...\n";
     // in case of Memory Layer it's input allocated in meminput layer
     if (layer->outData.size() == 1) {
-        for (int j = 0; j != layer->outData.front()->getInputTo().size(); j++) {
+        for (int j = 0; j != getInputTo(layer->outData.front()).size(); j++) {
             auto isNonFunctional = [](CNNLayerPtr l) {
                 return LayerInfo(l).isNonFunctional();
             };
@@ -1529,7 +1628,7 @@ void GNAGraphCompiler::connectOutput(InferenceEngine::CNNLayerPtr layer, void *p
         // if one of next direct or via split layers is concat...
         auto concatChild = [](CNNLayerPtr layer) {
             CNNLayerPtr concat;
-            for (auto &&outLayer : layer->outData.front()->getInputTo()) {
+            for (auto &&outLayer : getInputTo(layer->outData.front())) {
                 auto nextLayer = outLayer.second;
                 if (LayerInfo(nextLayer).isConcat()) {
                     concat = nextLayer;
@@ -1539,7 +1638,7 @@ void GNAGraphCompiler::connectOutput(InferenceEngine::CNNLayerPtr layer, void *p
         };
         auto splitChild = [](CNNLayerPtr layer) {
             std::list<CNNLayerPtr> split;
-            for (auto &&outLayer : layer->outData.front()->getInputTo()) {
+            for (auto &&outLayer : getInputTo(layer->outData.front())) {
                 auto nextLayer = outLayer.second;
                 if (LayerInfo(nextLayer).isSplit() || LayerInfo(nextLayer).isNonFunctional()) {
                     split.push_back(nextLayer);
@@ -1795,9 +1894,14 @@ GNAPluginNS::ConnectionDetails GNAGraphCompiler::connectInput(CNNLayerPtr layer,
         return connectInput(prevLayer, ptr, num_data_bytes_in, offset, 0);
     }
 
+    // permute layer resulted in trivial permute
     if (LayerInfo(prevLayer).isPermute()) {
-        gnalog()  << "Skipping permute layer: " << prevLayer->name << "\n";
-        return {connectInput(prevLayer, ptr, num_data_bytes_in, offset, 0).input, true, prevLayer};
+        if (!LayerInfo(prevLayer).isTrivialPermute()) {
+            // we should have GNA primitive for it
+            THROW_GNA_EXCEPTION << "missed gna primitive for permute: " << prevLayer->name;
+        }
+        gnalog()  << "Skipping trivial permute layer: " << prevLayer->name << "\n";
+        return connectInput(prevLayer, ptr, num_data_bytes_in, offset, 0);
     }
 
 

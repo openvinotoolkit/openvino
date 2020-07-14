@@ -47,22 +47,6 @@ shared_ptr<Node> op::Atan::clone_with_new_inputs(const OutputVector& new_args) c
     return make_shared<Atan>(new_args.at(0));
 }
 
-void op::Atan::generate_adjoints(autodiff::Adjoints& adjoints, const OutputVector& deltas)
-{
-    auto delta = deltas.at(0);
-
-    auto x = input_value(0);
-
-    auto one = make_shared<op::Constant>(x.get_element_type(), Shape{}, vector<string>{"1"});
-
-    AxisSet axes;
-    for (size_t i = 0; i < x.get_shape().size(); i++)
-        axes.insert(i);
-    auto ones = make_shared<op::Broadcast>(one, x.get_shape(), axes);
-
-    adjoints.add_delta(x, delta / (ones + x * x));
-}
-
 namespace
 {
     template <element::Type_t ET>
@@ -82,29 +66,17 @@ namespace
         {
             TYPE_CASE(boolean)(arg0, out, count);
             break;
-            TYPE_CASE(i8)(arg0, out, count);
-            break;
-            TYPE_CASE(i16)(arg0, out, count);
-            break;
             TYPE_CASE(i32)(arg0, out, count);
             break;
             TYPE_CASE(i64)(arg0, out, count);
-            break;
-            TYPE_CASE(u8)(arg0, out, count);
-            break;
-            TYPE_CASE(u16)(arg0, out, count);
             break;
             TYPE_CASE(u32)(arg0, out, count);
             break;
             TYPE_CASE(u64)(arg0, out, count);
             break;
-            TYPE_CASE(bf16)(arg0, out, count);
-            break;
             TYPE_CASE(f16)(arg0, out, count);
             break;
             TYPE_CASE(f32)(arg0, out, count);
-            break;
-            TYPE_CASE(f64)(arg0, out, count);
             break;
         default: rc = false; break;
         }

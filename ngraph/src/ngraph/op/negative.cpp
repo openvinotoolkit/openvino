@@ -60,29 +60,17 @@ namespace
         {
             TYPE_CASE(boolean)(arg0, out, count);
             break;
-            TYPE_CASE(i8)(arg0, out, count);
-            break;
-            TYPE_CASE(i16)(arg0, out, count);
-            break;
             TYPE_CASE(i32)(arg0, out, count);
             break;
             TYPE_CASE(i64)(arg0, out, count);
-            break;
-            TYPE_CASE(u8)(arg0, out, count);
-            break;
-            TYPE_CASE(u16)(arg0, out, count);
             break;
             TYPE_CASE(u32)(arg0, out, count);
             break;
             TYPE_CASE(u64)(arg0, out, count);
             break;
-            TYPE_CASE(bf16)(arg0, out, count);
-            break;
             TYPE_CASE(f16)(arg0, out, count);
             break;
             TYPE_CASE(f32)(arg0, out, count);
-            break;
-            TYPE_CASE(f64)(arg0, out, count);
             break;
         default: rc = false; break;
         }
@@ -93,15 +81,6 @@ namespace
 bool op::Negative::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
 {
     return evaluate_negative(inputs[0], outputs[0], shape_size(get_output_shape(0)));
-}
-
-void op::Negative::generate_adjoints(autodiff::Adjoints& adjoints, const OutputVector& deltas)
-{
-    auto delta = deltas.at(0);
-
-    auto x = input_value(0);
-
-    adjoints.add_delta(x, -delta);
 }
 
 shared_ptr<Node> ngraph::operator-(const Output<Node>& arg0)

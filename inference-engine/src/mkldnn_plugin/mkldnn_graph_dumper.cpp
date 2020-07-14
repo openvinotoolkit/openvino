@@ -5,8 +5,11 @@
 #include "mkldnn_graph_dumper.h"
 #include "cnn_network_impl.hpp"
 #include "ie_util_internal.hpp"
+#include "ie_ngraph_utils.hpp"
 #include "exec_graph_info.hpp"
 #include "mkldnn_debug.h"
+#include "generic_ie.hpp"
+#include <ngraph/variant.hpp>
 
 #include <vector>
 #include <string>
@@ -17,12 +20,19 @@ using namespace InferenceEngine;
 
 namespace MKLDNNPlugin {
 
-static void copy_node_metadata(const MKLDNNNodePtr &, CNNLayer::Ptr &);
-static void drawer_callback(const InferenceEngine::CNNLayerPtr, ordered_properties &, ordered_properties &);
+namespace {
 
-CNNLayer::Ptr convert_node(const MKLDNNNodePtr &node) {
-    CNNLayer::Ptr layer(new CNNLayer({"name", "type", Precision::FP32}));
-    copy_node_metadata(node, layer);
+std::map<std::string, std::string> extract_node_metadata(const MKLDNNNodePtr &);
+void drawer_callback(const InferenceEngine::CNNLayerPtr, ordered_properties &, ordered_properties &);
+
+}  // namespace
+
+CNNLayer::Ptr create_cnnlayer(const MKLDNNNodePtr &node) {
+    CNNLayer::Ptr layer(new CNNLayer({node->getName(), "type", Precision::FP32}));
+
+    layer->params = extract_node_metadata(node);
+    layer->type = layer->params[ExecGraphInfoSerialization::LAYER_TYPE];
+    layer->params.erase(ExecGraphInfoSerialization::LAYER_TYPE);
 
     auto &cfg = node->getSelectedPrimitiveDescriptor()->getConfig();
     layer->insData.resize(cfg.inConfs.size());
@@ -31,16 +41,100 @@ CNNLayer::Ptr convert_node(const MKLDNNNodePtr &node) {
     return layer;
 }
 
+std::shared_ptr<ICNNNetwork> dump_graph_as_ie_ngraph_net(const MKLDNNGraph &graph) {
+    std::map<MKLDNNNodePtr, std::shared_ptr<ngraph::Node> > node2layer;
+
+    ngraph::ResultVector results;
+    ngraph::ParameterVector params;
+
+    auto get_inputs = [&] (const MKLDNNNodePtr & node) {
+        auto pr_edges = node->getParentEdges();
+        ngraph::OutputVector inputs(pr_edges.size());
+
+        for (int i = 0; i < pr_edges.size(); i++) {
+            auto edge = node->getParentEdgeAt(i);
+            int pr_port = edge->getInputNum();
+            int ch_port = edge->getOutputNum();
+            auto pr_node = edge->getParent();
+
+            IE_ASSERT(node2layer.count(pr_node) == 1);
+            auto pr = node2layer[pr_node];
+
+            inputs[ch_port] = pr->output(pr_port);
+        }
+
+        return inputs;
+    };
+
+    auto create_ngraph_node = [&](const MKLDNNNodePtr &node) {
+        bool is_input = false, is_output = false;
+        for (auto && kvp : graph.inputNodes) {
+            if (kvp.second == node) {
+                is_input = true;
+                break;
+            }
+        }
+
+        for (auto && onode : graph.outputNodes) {
+            if (onode == node) {
+                is_output = true;
+                break;
+            }
+        }
+
+        auto meta_data = extract_node_metadata(node);
+        std::shared_ptr<ngraph::Node> return_node;
+        if (is_input) {
+            auto desc = node->getChildEdgeAt(0)->getDesc();
+            auto param = std::make_shared<ngraph::op::Parameter>(
+                details::convertPrecision(desc.getPrecision()),
+                ngraph::PartialShape(desc.getDims()));
+            return_node = param;
+            params.push_back(param);
+        } else if (is_output) {
+            results.emplace_back(std::make_shared<ngraph::op::Result>(get_inputs(node).back()));
+            return_node = results.back();
+        } else {
+            return_node = std::make_shared<ExecGraphInfoSerialization::ExecutionNode>(
+                get_inputs(node), node->getSelectedPrimitiveDescriptor()->getConfig().outConfs.size());
+
+            for (size_t port = 0; port < return_node->get_output_size(); ++port) {
+                auto desc = node->getChildEdgeAt(port)->getDesc();
+                return_node->set_output_type(port,
+                    details::convertPrecision(desc.getPrecision()),
+                    ngraph::PartialShape(desc.getDims()));
+            }
+        }
+
+        for (auto && kvp : meta_data)
+            return_node->get_rt_info()[kvp.first] = std::make_shared<::ngraph::VariantWrapper<std::string>>(kvp.second);
+        return_node->set_friendly_name(node->getName());
+
+        return return_node;
+    };
+
+    ngraph::NodeVector nodes;
+    nodes.reserve(graph.graphNodes.size());
+    for (auto &node : graph.graphNodes) {  // important: graph.graphNodes are in topological order
+        nodes.emplace_back(create_ngraph_node(node));
+        node2layer[node] = nodes.back();
+    }
+
+    ngraph::op::GenericIE::DisableReshape reshape(nodes);
+    auto function = std::make_shared<ngraph::Function>(results, params, graph._name);
+    InferenceEngine::CNNNetwork net(function);
+    return net;
+}
+
 std::shared_ptr<ICNNNetwork> dump_graph_as_ie_net(const MKLDNNGraph &graph) {
     auto net = std::make_shared<details::CNNNetworkImpl>();
 
-    net->setPrecision(Precision::FP32);
     net->setName(graph._name);
     std::map<MKLDNNNodePtr, CNNLayerPtr> node2layer;
 
     // Copy all nodes to network
     for (auto &node : graph.graphNodes) {
-        auto layer = convert_node(node);
+        auto layer = create_cnnlayer(node);
         node2layer[node] = layer;
         net->addLayer(layer);
     }
@@ -61,12 +155,12 @@ std::shared_ptr<ICNNNetwork> dump_graph_as_ie_net(const MKLDNNGraph &graph) {
                 std::string data_name = node->getName() + "_out" + std::to_string(i);
                 pr->outData[i] = std::make_shared<Data>(data_name, edge->getDesc());
                 data = pr->outData[i];
-                data->getCreatorLayer() = pr;
+                getCreatorLayer(data) = pr;
             } else {
                 data = pr->outData[0];
             }
 
-            data->getInputTo()[ch->name] = ch;
+            getInputTo(data)[ch->name] = ch;
             ch->insData[in_port] = data;
         }
     }
@@ -95,26 +189,26 @@ void dump_graph_as_dot(const MKLDNNGraph &graph, std::ostream &out) {
 // Special converters of meta data
 //**********************************
 
-static const char BLUE[]  = "#D8D9F1";
-static const char GREEN[] = "#D9EAD3";
+namespace {
 
-void copy_node_metadata(const MKLDNNNodePtr &node, CNNLayer::Ptr &layer) {
+std::map<std::string, std::string> extract_node_metadata(const MKLDNNNodePtr &node) {
+    std::map<std::string, std::string> serialization_info;
+
     if (node->getType() == Input && node->isConstant()) {
         // We need to separate Input and Const layers
-        layer->type = "Const";
+        serialization_info[ExecGraphInfoSerialization::LAYER_TYPE] = "Const";
     } else if (node->getType() == Generic) {
         // Path to print actual name for extension layers
-        layer->type = node->getTypeStr();
+        serialization_info[ExecGraphInfoSerialization::LAYER_TYPE] = node->getTypeStr();
     } else {
-        layer->type = NameFromType(node->getType());
+        serialization_info[ExecGraphInfoSerialization::LAYER_TYPE] = NameFromType(node->getType());
     }
-    layer->name = node->getName();
 
     // Original layers
-    layer->params[ExecGraphInfoSerialization::ORIGINAL_NAMES] = node->getOriginalLayers();
+    serialization_info[ExecGraphInfoSerialization::ORIGINAL_NAMES] = node->getOriginalLayers();
 
     // Implementation type name
-    layer->params[ExecGraphInfoSerialization::IMPL_TYPE] = node->getPrimitiveDescriptorType();
+    serialization_info[ExecGraphInfoSerialization::IMPL_TYPE] = node->getPrimitiveDescriptorType();
 
     std::string outputPrecisionsStr;
     if (!node->getChildEdges().empty()) {
@@ -139,7 +233,7 @@ void copy_node_metadata(const MKLDNNNodePtr &node, CNNLayer::Ptr &layer) {
             outputPrecisionsStr = node->getParentEdgeAt(0)->getDesc().getPrecision().name();
         }
     }
-    layer->params[ExecGraphInfoSerialization::OUTPUT_PRECISIONS] = outputPrecisionsStr;
+    serialization_info[ExecGraphInfoSerialization::OUTPUT_PRECISIONS] = outputPrecisionsStr;
 
     std::string outputLayoutsStr;
     auto outLayouts = node->getSelectedPrimitiveDescriptor()->getOutputLayouts();
@@ -162,21 +256,26 @@ void copy_node_metadata(const MKLDNNNodePtr &node, CNNLayer::Ptr &layer) {
     } else {
         outputLayoutsStr = mkldnn_fmt2str(mkldnn_format_undef);
     }
-    layer->params[ExecGraphInfoSerialization::OUTPUT_LAYOUTS] = outputLayoutsStr;
+    serialization_info[ExecGraphInfoSerialization::OUTPUT_LAYOUTS] = outputLayoutsStr;
 
     // Performance
     if (node->PerfCounter().avg() != 0) {
-        layer->params[ExecGraphInfoSerialization::PERF_COUNTER] = std::to_string(node->PerfCounter().avg());
+        serialization_info[ExecGraphInfoSerialization::PERF_COUNTER] = std::to_string(node->PerfCounter().avg());
     } else {
-        layer->params[ExecGraphInfoSerialization::PERF_COUNTER] = "not_executed";  // it means it was not calculated yet
+        serialization_info[ExecGraphInfoSerialization::PERF_COUNTER] = "not_executed";  // it means it was not calculated yet
     }
 
-    layer->params[ExecGraphInfoSerialization::EXECUTION_ORDER] = std::to_string(node->getExecIndex());
+    serialization_info[ExecGraphInfoSerialization::EXECUTION_ORDER] = std::to_string(node->getExecIndex());
+
+    return serialization_info;
 }
 
+const char BLUE[]  = "#D8D9F1";
+const char GREEN[] = "#D9EAD3";
+
 void drawer_callback(const InferenceEngine::CNNLayerPtr layer,
-        ordered_properties &printed_properties,
-        ordered_properties &node_properties) {
+                     ordered_properties &printed_properties,
+                     ordered_properties &node_properties) {
     const auto &params = layer->params;
 
     // Implementation
@@ -203,5 +302,7 @@ void drawer_callback(const InferenceEngine::CNNLayerPtr layer,
     auto perf = layer->params.find(ExecGraphInfoSerialization::PERF_COUNTER);
     node_properties.push_back({"xlabel", (perf != layer->params.end()) ? perf->second : ""});
 }
+
+}  // namespace
 
 }  // namespace MKLDNNPlugin

@@ -54,8 +54,6 @@ std::string toString(ActivationFunction activation) {
         case ActivationFunction::SQRT:                     method = "SQRT"; break;
         case ActivationFunction::LINEAR:                   method = "LINEAR"; break;
         case ActivationFunction::ELU:                      method = "ELU"; break;
-        case ActivationFunction::RELU_GRAD:                method = "RELU_GRAD"; break;
-        case ActivationFunction::RELU_NEGATIVE_SLOPE_GRAD: method = "RELU_NEGATIVE_SLOPE_GRAD"; break;
         case ActivationFunction::SIN:                      method = "SIN"; break;
         case ActivationFunction::ASIN:                     method = "ASIN"; break;
         case ActivationFunction::SINH:                     method = "SINH"; break;
@@ -70,7 +68,6 @@ std::string toString(ActivationFunction activation) {
         case ActivationFunction::NOT:                      method = "NOT"; break;
         case ActivationFunction::POW:                      method = "POW"; break;
         case ActivationFunction::NONE:                     method = "NONE"; break;
-        case ActivationFunction::NONE_GRAD:                method = "NONE_GRAD"; break;
         case ActivationFunction::TAN:                      method = "TAN"; break;
         case ActivationFunction::ATAN:                     method = "ATAN"; break;
         case ActivationFunction::ATANH:                    method = "ATANH"; break;
@@ -85,6 +82,7 @@ std::string toString(ActivationFunction activation) {
         case ActivationFunction::SOFTPLUS:                 method = "SOFTPLUS"; break;
         case ActivationFunction::SOFTSIGN:                 method = "SOFTSIGN"; break;
         case ActivationFunction::SWISH:                    method = "SWISH"; break;
+        case ActivationFunction::MISH:                     method = "MISH"; break;
         case ActivationFunction::GELU:                     method = "GELU"; break;
         default: break;
     }
@@ -307,6 +305,8 @@ std::string toString(WeightsLayout layout) {
         case WeightsLayout::yxio:                                        return "YXIO";
         case WeightsLayout::os_is_yx_isv16_osv16:                        return "OS_IS_YX_ISV16_OSV16";
         case WeightsLayout::os_is_yx_osv16_isv16:                        return "OS_IS_YX_OSV16_ISV16";
+        case WeightsLayout::os_is_zyx_osv32_isv16:                       return "OS_IS_ZYX_OSV32_ISV16";
+        case WeightsLayout::os_is_zyx_osv64_isv16:                       return "OS_IS_ZYX_OSV64_ISV16";
         case WeightsLayout::os_iyx_osv16:                                return "OS_IYX_OSV16";
         case WeightsLayout::os_iyx_osv32:                                return "OS_IYX_OSV32";
         case WeightsLayout::os_iyx_osv32__ai32:                          return "OS_IYX_OSV32__AI32";

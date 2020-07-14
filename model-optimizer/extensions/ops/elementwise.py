@@ -139,8 +139,7 @@ class Pow(Elementwise):
 class LogicalElementwise(Elementwise):
     @staticmethod
     def type_infer(node):
-        output_data_type = np.int32 if node.graph.graph['cmd_params'].generate_deprecated_IR_V7 else np.bool
-        node.out_port(0).set_data_type(output_data_type)
+        node.out_port(0).set_data_type(np.bool)
 
 
 class Greater(LogicalElementwise):

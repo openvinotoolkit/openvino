@@ -12,9 +12,7 @@
 #include <ie_iextension.h>
 #include <ie_blob.h>
 
-#include <ngraph/op/op.hpp>
-#include <ngraph/node.hpp>
-#include <ngraph/opsets/opset.hpp>
+#include <ngraph/ngraph.hpp>
 
 #define CUSTOM_RELU_TYPE "CustomReLU"
 
@@ -127,7 +125,7 @@ constexpr ngraph::NodeTypeInfo CustomReluOp::type_info;
 class InPlaceExtension : public InferenceEngine::IExtension {
 public:
     InPlaceExtension() {
-        impls["CustomReLU"] = [](const std::shared_ptr<ngraph::Node>& node) -> InferenceEngine::ILayerImpl::Ptr {
+        impls[CUSTOM_RELU_TYPE] = [](const std::shared_ptr<ngraph::Node>& node) -> InferenceEngine::ILayerImpl::Ptr {
             return std::make_shared<CustomReLUImpl>(node);
         };
     }

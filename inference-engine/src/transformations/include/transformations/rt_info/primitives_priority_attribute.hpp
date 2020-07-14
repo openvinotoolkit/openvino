@@ -2,6 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+/**
+ * @brief Defines primitives priority attribute
+ * @file primitives_priority_attribute.hpp
+ */
+
 #include <assert.h>
 #include <functional>
 #include <memory>
@@ -10,24 +15,41 @@
 
 #include <ngraph/node.hpp>
 #include <ngraph/variant.hpp>
-#include <ie_api.h>
+#include <transformations_visibility.hpp>
 
 namespace ngraph {
 
-class INFERENCE_ENGINE_API_CLASS(PrimitivesPriority) {
+/**
+ * @ingroup ie_runtime_attr_api
+ * @brief PrimitivesPriority class represents runtime info attribute that
+ * can be used for plugins specific primitive choice.
+ */
+class TRANSFORMATIONS_API PrimitivesPriority {
 private:
     std::string primitives_priority;
 
 public:
+    /**
+     * A default constructor
+     */
     PrimitivesPriority() = default;
 
+    /**
+     * @brief      Constructs a new object consisting of a single name     *
+     * @param[in]  name  The primitives priority value
+     */
     explicit PrimitivesPriority(const std::string &primitives_priority) : primitives_priority(primitives_priority) {}
 
+    /**
+     * @brief return string with primitives priority value
+     */
     std::string getPrimitivesPriority() const;
 };
 
+extern template class TRANSFORMATIONS_API VariantImpl<PrimitivesPriority>;
+
 template<>
-class INFERENCE_ENGINE_API_CLASS(VariantWrapper<PrimitivesPriority>) : public VariantImpl<PrimitivesPriority> {
+class TRANSFORMATIONS_API VariantWrapper<PrimitivesPriority> : public VariantImpl<PrimitivesPriority> {
 public:
     static constexpr VariantTypeInfo type_info{"Variant::RuntimeAttribute::PrimitivesPriority", 0};
 
@@ -42,6 +64,11 @@ public:
     std::shared_ptr<ngraph::Variant> init(const std::shared_ptr<ngraph::Node> & node) override;
 };
 
-INFERENCE_ENGINE_API_CPP(std::string) getPrimitivesPriority(const std::shared_ptr<ngraph::Node> & node);
+/**
+ * @ingroup ie_runtime_attr_api
+ * @brief getPrimitivesPriority return string with primitive priorities value
+ * @param[in] node The node will be used to get PrimitivesPriority attribute
+ */
+TRANSFORMATIONS_API std::string getPrimitivesPriority(const std::shared_ptr<ngraph::Node> & node);
 
 }  // namespace ngraph

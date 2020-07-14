@@ -7,17 +7,15 @@
 #include <map>
 #include <string>
 
-#include "ie_plugin.hpp"
+#include "cpp_interfaces/interface/ie_plugin.hpp"
 #include <gmock/gmock.h>
 
-IE_SUPPRESS_DEPRECATED_START
 class MockIInferencePlugin : public InferenceEngine :: IInferencePlugin {
 public:
     MOCK_QUALIFIED_METHOD2(AddExtension, noexcept, InferenceEngine::StatusCode(InferenceEngine::IExtensionPtr,
                                                                                InferenceEngine::ResponseDesc *resp));
     MOCK_QUALIFIED_METHOD1(GetVersion, noexcept, void(const InferenceEngine::Version *&));
     MOCK_QUALIFIED_METHOD0(Release, noexcept, void());
-    MOCK_QUALIFIED_METHOD1(SetLogCallback, noexcept, void(InferenceEngine::IErrorListener &));
     MOCK_QUALIFIED_METHOD2(LoadNetwork, noexcept, InferenceEngine::StatusCode(
             const InferenceEngine::ICNNNetwork &, InferenceEngine::ResponseDesc *resp));
     MOCK_QUALIFIED_METHOD4(LoadNetwork, noexcept, InferenceEngine::StatusCode(
@@ -33,4 +31,3 @@ public:
     MOCK_QUALIFIED_METHOD2(SetConfig, noexcept, InferenceEngine::StatusCode(const std::map<std::string, std::string> &,
                                                                             InferenceEngine::ResponseDesc *resp));
 };
-IE_SUPPRESS_DEPRECATED_END

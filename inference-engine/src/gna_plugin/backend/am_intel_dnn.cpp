@@ -311,6 +311,65 @@ void GNAPluginNS::backend::AMIntelDNN::InitPiecewiseLinearComponentPrivate(intel
     }
 }
 
+void GNAPluginNS::backend::AMIntelDNN::InitInterleaveComponentPrivate(intel_dnn_component_t &comp,
+                                                                      uint32_t num_rows_in,
+                                                                      uint32_t num_columns_in,
+                                                                      uint32_t num_bytes_per_input,
+                                                                      uint32_t num_bytes_per_output,
+                                                                      float output_scale_factor,
+                                                                      void *&ptr_inputs,
+                                                                      void *&ptr_outputs,
+                                                                      bool postInitMem) {
+    comp.num_rows_in = num_rows_in;
+    comp.num_columns_in = num_columns_in;
+    comp.num_rows_out = num_columns_in;
+    comp.num_columns_out = num_rows_in;
+    comp.num_bytes_per_input = num_bytes_per_input;
+    comp.num_bytes_per_output = num_bytes_per_output;
+    comp.operation = kDnnInterleaveOp;
+    comp.macro_operation = kDnnMacroOpNone;
+    comp.orientation_in = kDnnNonInterleavedOrientation;
+    comp.orientation_out = kDnnInterleavedOrientation;
+    comp.output_scale_factor = output_scale_factor;
+    comp.input_scale_factor = output_scale_factor;
+    if (!postInitMem) {
+        comp.ptr_inputs = ptr_inputs;
+        comp.ptr_outputs = ptr_outputs;
+    } else {
+        ptr_inputs = &comp.ptr_inputs;
+        ptr_outputs = &comp.ptr_outputs;
+    }
+}
+
+void GNAPluginNS::backend::AMIntelDNN::InitDeinterleaveComponentPrivate(intel_dnn_component_t &comp,
+                                                                        uint32_t num_rows_in,
+                                                                        uint32_t num_columns_in,
+                                                                        uint32_t num_bytes_per_input,
+                                                                        uint32_t num_bytes_per_output,
+                                                                        float output_scale_factor,
+                                                                        void *&ptr_inputs,
+                                                                        void *&ptr_outputs,
+                                                                        bool postInitMem) {
+    comp.num_rows_in = num_rows_in;
+    comp.num_columns_in = num_columns_in;
+    comp.num_rows_out = num_columns_in;
+    comp.num_columns_out = num_rows_in;
+    comp.num_bytes_per_input = num_bytes_per_input;
+    comp.num_bytes_per_output = num_bytes_per_output;
+    comp.operation = kDnnDeinterleaveOp;
+    comp.macro_operation = kDnnMacroOpNone;
+    comp.orientation_in = kDnnInterleavedOrientation;
+    comp.orientation_out = kDnnInterleavedOrientation;
+    comp.output_scale_factor = output_scale_factor;
+    comp.input_scale_factor = output_scale_factor;
+    if (!postInitMem) {
+        comp.ptr_inputs = ptr_inputs;
+        comp.ptr_outputs = ptr_outputs;
+    } else {
+        ptr_inputs = &comp.ptr_inputs;
+        ptr_outputs = &comp.ptr_outputs;
+    }
+}
 
 void GNAPluginNS::backend::AMIntelDNN::Propagate() {
     for (uint32_t i = 0; i < component.size(); i++) {
@@ -401,6 +460,10 @@ void GNAPluginNS::backend::AMIntelDNN::WriteGraphWizModel(const char *filename) 
 #define IS_DIAG(k)\
     (components[k].operation == kDnnDiagonalOp)
 
+#define IS_POW(k)\
+    (components[k].operation == kDnnPiecewiselinearOp &&\
+     components[k].op.pwl.func_id == kActPow)
+
 #define OUTPUTS(idx)\
     components[idx].ptr_outputs, components[idx].num_rows_out*components[idx].num_columns_out * components[idx].num_bytes_per_output
 
@@ -472,7 +535,12 @@ void GNAPluginNS::backend::AMIntelDNN::WriteGraphWizModel(const char *filename) 
             graph << "  <TR><TD> badr</TD><TD>" <<  components[k].op.affine.ptr_biases<< "</TD></TR>\n";
         }
         if (IS_RELU(k)) {
-            graph << "  <TR><TD> negative_slope</TD><TD>" <<  components[k].op.pwl.func_id.negative_slope<< "</TD></TR>\n";
+            graph << "  <TR><TD> negative_slope</TD><TD>" <<  components[k].op.pwl.func_id.args.lrelu.negative_slope<< "</TD></TR>\n";
+        }
+        if (IS_POW(k)) {
+            graph << "  <TR><TD> exponent</TD><TD>" << components[k].op.pwl.func_id.args.pow.exponent << "</TD></TR>\n";
+            graph << "  <TR><TD> scale</TD><TD>" << components[k].op.pwl.func_id.args.pow.scale << "</TD></TR>\n";
+            graph << "  <TR><TD> offset</TD><TD>" << components[k].op.pwl.func_id.args.pow.offset << "</TD></TR>\n";
         }
         if (IS_CONV(k)) {
             auto &conv = components[k].op.conv1D;
