@@ -14,7 +14,7 @@
 Briefly, *CTCLoss* operation finds all sequences aligned with a target `labels[i,:]`, computes log-probabilities of the aligned sequences using `logits[:,i,:]`
 and computes a negative sum of these log-probabilies.
 
-Input sequences of logits `logits` can have different length. The length of each sequence `logits[:,i,:]` equals `logit_length[i]`.
+Input sequences of logits `logits` can have different lengths. The length of each sequence `logits[:,i,:]` equals `logit_length[i]`.
 A length of target sequence `labels[i,:]` equals `label_length[i]`. The length of the target sequence must not be greater than the length of corresponding input sequence `logits[:,i,:]`.
 Otherwise, the operation behaviour is undefined.
 
@@ -44,12 +44,13 @@ p(S) = \prod_{t=1}^{L_i} p_{t,i,ct}
 CTCLoss = \minus \sum_{S} \ln p(S)
 \f]
 
+**Note**:  This calculation scheme does not provide steps for optimal implementation and primarily serves for better explanation.
 
 **Attributes**
 
 * *preprocess_collapse_repeated*
 
-  * **Description**: *preprocess_collapse_repeated* is a flag for a preprocessing step before loss calculation, wherein repeated labels passed to the loss are merged into single labels.
+  * **Description**: *preprocess_collapse_repeated* is a flag for a preprocessing step before loss calculation, wherein repeated labels in `labels[i,:]` passed to the loss are merged into single labels.
   * **Range of values**: True or False
   * **Type**: `boolean`
   * **Default value**: False
@@ -57,7 +58,7 @@ CTCLoss = \minus \sum_{S} \ln p(S)
 
 * *ctc_merge_repeated*
 
-  * **Description**: *ctc_merge_repeated* is a flag for merging repeated labels during the CTC loss calculation.
+  * **Description**: *ctc_merge_repeated* is a flag for merging repeated characters in a potential alignment during the CTC loss calculation.
   * **Range of values**: True or False
   * **Type**: `boolean`
   * **Default value**: True
@@ -113,7 +114,7 @@ CTCLoss = \minus \sum_{S} \ln p(S)
         <port id="3">
             <dim>8</dim>
         </port>
-        <port id="4">  <!-- blan_index value is: 120 -->
+        <port id="4">  <!-- blank_index value is: 120 -->
     </input>
     <output>
         <port id="0">
