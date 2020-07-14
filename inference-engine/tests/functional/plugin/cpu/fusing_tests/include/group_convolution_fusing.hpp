@@ -28,6 +28,7 @@ protected:
     std::string selectedType;
 
     std::shared_ptr<ngraph::Function> postFunction;
+    std::vector<std::shared_ptr<ngraph::Node>> postNodes;
     std::vector<std::string> fusedOps;
 };
 

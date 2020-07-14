@@ -28,10 +28,15 @@ std::string GroupConvolutionLayerFusingTest::getTestCaseName(testing::TestParamI
     result << "_primitive=" << selectedType;
 
     std::shared_ptr<ngraph::Function> postFunction;
+    std::vector<std::shared_ptr<ngraph::Node>> postNodes;
     std::vector<std::string> fusedOps;
-    std::tie(postFunction, fusedOps) = fusingParams;
+    std::tie(postFunction, postNodes, fusedOps) = fusingParams;
 
-    result << "_Fused=" << postFunction->get_friendly_name();
+    if (postFunction) {
+        result << "_Fused=" << postFunction->get_friendly_name();
+    } else {
+        result << "_Fused=" << FusingTestUtils::postNodes2str(postNodes);
+    }
 
     return result.str();
 }
@@ -43,7 +48,7 @@ void GroupConvolutionLayerFusingTest::SetUp() {
     std::tie(basicParamsSet, cpuParams, fusingParams) = this->GetParam();
 
     std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
-    std::tie(postFunction, fusedOps) = fusingParams;
+    std::tie(postFunction, postNodes, fusedOps) = fusingParams;
 
     groupConvSpecificParams groupConvParams;
     std::vector<size_t> inputShape;
@@ -56,18 +61,8 @@ void GroupConvolutionLayerFusingTest::SetUp() {
     size_t convOutChannels, numGroups;
     std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, numGroups, padType) = groupConvParams;
 
-    auto clonedPostFunction = clone_function(*postFunction);
-    clonedPostFunction->set_friendly_name(postFunction->get_friendly_name());
-
-    auto patternName = clonedPostFunction->get_friendly_name();
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    ngraph::ParameterVector params;
-    if (patternName == "Sum") {
-        params = ngraph::builder::makeParams(ngPrc, {inputShape, clonedPostFunction->get_parameters()[1]->get_partial_shape().get_shape()});
-    } else {
-        params = ngraph::builder::makeParams(ngPrc, {inputShape});
-    }
-
+    ngraph::ParameterVector params = ngraph::builder::makeParams(ngPrc, {inputShape});
     auto paramOuts = ngraph::helpers::convert2OutputVector(
             ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
     auto groupConv = std::dynamic_pointer_cast<ngraph::opset1::GroupConvolution>(
@@ -75,13 +70,11 @@ void GroupConvolutionLayerFusingTest::SetUp() {
                                                   padEnd, dilation, padType, convOutChannels, numGroups));
     groupConv->get_rt_info() = CPUTestUtils::setCPUInfo(inFmts, outFmts, priority);
 
-    clonedPostFunction->replace_node(clonedPostFunction->get_parameters()[0], groupConv);
-    if (patternName == "Sum") {
-        clonedPostFunction->replace_node(clonedPostFunction->get_parameters()[1], params[1]);
+    if (postFunction) {
+        function = makeNgraphFunction(ngPrc, params, groupConv, postFunction);
+    } else {
+        function = makeNgraphFunction(ngPrc, params, groupConv, postNodes);
     }
-    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(clonedPostFunction->get_result()->get_input_node_shared_ptr(0))};
-
-    function = std::make_shared<ngraph::Function>(results, params, "groupConvolutionFusing");
 }
 
 TEST_P(GroupConvolutionLayerFusingTest, CompareWithRefs) {
@@ -94,24 +87,27 @@ TEST_P(GroupConvolutionLayerFusingTest, CompareWithRefs) {
 
 namespace {
 
-std::vector<fusingSpecificParams> fusingParamsSet(std::vector<size_t> shape) {
+std::vector<fusingSpecificParams> fusingParamsSet {
+    // activations
+    fusingRelu,
+    fusingElu,
+    fusingSigmoid,
+    fusingClamp,
+    fusingPRelu,
+    // other patterns
+    fusingReluScaleShift,
+//    fusingFakeQuantizeRelu, // todo: failed test
+    fusingSum,
+};
+
+std::vector<fusingSpecificParams> makeFusingParamsSetWithShape(std::vector<size_t> shape) {
     std::vector<fusingSpecificParams> paramsSet;
 
-    // activations
-    paramsSet.push_back({makeActivationPattern(shape, ngraph::helpers::Relu), {"Relu"}});
-    paramsSet.push_back({makeActivationPattern(shape, ngraph::helpers::Elu, 2.0f), {"Elu"}});
-    paramsSet.push_back({makeActivationPattern(shape, ngraph::helpers::Sigmoid), {"Sigmoid"}});
-    paramsSet.push_back({makeActivationPattern(shape, ngraph::helpers::Clamp, 3.0f, 6.0f), {"Clamp"}});
-    paramsSet.push_back({makeActivationPattern(shape, ngraph::helpers::LeakyRelu), {"PRelu"}});
-
-    // other patterns
-    paramsSet.push_back({makeSwishPattern(shape), {"Swish"}});
-    paramsSet.push_back({makeActivationScaleShiftPattern(ngraph::helpers::Relu, shape), {"Add"}});
-    paramsSet.push_back({makeFakeQuantizeActivationPattern(256, ngraph::helpers::Relu, shape), {"FakeQuantize", "Relu"}});
-    paramsSet.push_back({makeSumPattern(shape), {"Add"}});
+    paramsSet.push_back({makeSwishPattern(shape), {}, {"Swish"}});
+    paramsSet.push_back({makeFakeQuantizeActivationPattern(256, ngraph::helpers::Relu, shape), {}, {"FakeQuantize", "Relu"}});
 
     return paramsSet;
-    }
+}
 
 /* INSTANCES */
 /* ============= GroupConvolution (Planar 2D) ============= */
@@ -134,7 +130,18 @@ INSTANTIATE_TEST_CASE_P(GroupConvFusing_Planar_2D, GroupConvolutionLayerFusingTe
                                         ::testing::Values(std::vector<size_t >{1, 10, 5, 5}),
                                         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                                 ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_Planar_2D)),
-                                ::testing::ValuesIn(fusingParamsSet({1, 4, 3, 3}))),
+                                ::testing::ValuesIn(fusingParamsSet)),
+                        GroupConvolutionLayerFusingTest::getTestCaseName);
+
+INSTANTIATE_TEST_CASE_P(GroupConvFusing_HardCases_Planar_2D, GroupConvolutionLayerFusingTest,
+                        ::testing::Combine(
+                                ::testing::Combine(
+                                        groupConvParams_ExplicitPadding_Planar_2D,
+                                        ::testing::Values(Precision::FP32),
+                                        ::testing::Values(std::vector<size_t >{1, 10, 5, 5}),
+                                        ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_Planar_2D)),
+                                ::testing::ValuesIn(makeFusingParamsSetWithShape({1, 4, 3, 3}))),
                         GroupConvolutionLayerFusingTest::getTestCaseName);
 
 /* ============= GroupConvolution (Planar 3D) ============= */
@@ -157,7 +164,18 @@ INSTANTIATE_TEST_CASE_P(GroupConvFusing_Planar_3D, GroupConvolutionLayerFusingTe
                                         ::testing::Values(std::vector<size_t >{1, 10, 5, 5, 5}),
                                         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                                 ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_Planar_3D)),
-                                ::testing::ValuesIn(fusingParamsSet({1, 4, 3, 3, 3}))),
+                                ::testing::ValuesIn(fusingParamsSet)),
+                        GroupConvolutionLayerFusingTest::getTestCaseName);
+
+INSTANTIATE_TEST_CASE_P(GroupConvFusing_HardCases_Planar_3D, GroupConvolutionLayerFusingTest,
+                        ::testing::Combine(
+                                ::testing::Combine(
+                                        groupConvParams_ExplicitPadding_Planar_3D,
+                                        ::testing::Values(Precision::FP32),
+                                        ::testing::Values(std::vector<size_t >{1, 10, 5, 5, 5}),
+                                        ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_Planar_3D)),
+                                ::testing::ValuesIn(makeFusingParamsSetWithShape({1, 4, 3, 3, 3}))),
                         GroupConvolutionLayerFusingTest::getTestCaseName);
 
 /* ============= GroupConvolution (Blocked 2D) ============= */
@@ -180,7 +198,18 @@ INSTANTIATE_TEST_CASE_P(GroupConvFusing_Blocked_2D, GroupConvolutionLayerFusingT
                                         ::testing::Values(std::vector<size_t >{1, 32, 5, 5}),
                                         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                                 ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_Blocked_2D)),
-                                ::testing::ValuesIn(fusingParamsSet({1, 32, 3, 3}))),
+                                ::testing::ValuesIn(fusingParamsSet)),
+                        GroupConvolutionLayerFusingTest::getTestCaseName);
+
+INSTANTIATE_TEST_CASE_P(GroupConvFusing_HardCases_Blocked_2D, GroupConvolutionLayerFusingTest,
+                        ::testing::Combine(
+                                ::testing::Combine(
+                                        groupConvParams_ExplicitPadding_Blocked_2D,
+                                        ::testing::Values(Precision::FP32),
+                                        ::testing::Values(std::vector<size_t >{1, 32, 5, 5}),
+                                        ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_Blocked_2D)),
+                                ::testing::ValuesIn(makeFusingParamsSetWithShape({1, 4, 3, 3}))),
                         GroupConvolutionLayerFusingTest::getTestCaseName);
 
 /* ============= GroupConvolution (Blocked 3D) ============= */
@@ -203,7 +232,18 @@ INSTANTIATE_TEST_CASE_P(GroupConvFusing_Blocked_3D, GroupConvolutionLayerFusingT
                                         ::testing::Values(std::vector<size_t >{1, 32, 5, 5, 5}),
                                         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                                 ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_Blocked_3D)),
-                                ::testing::ValuesIn(fusingParamsSet({1, 32, 3, 3, 3}))),
+                                ::testing::ValuesIn(fusingParamsSet)),
+                        GroupConvolutionLayerFusingTest::getTestCaseName);
+
+INSTANTIATE_TEST_CASE_P(GroupConvFusing_HardCases_Blocked_3D, GroupConvolutionLayerFusingTest,
+                        ::testing::Combine(
+                                ::testing::Combine(
+                                        groupConvParams_ExplicitPadding_Blocked_3D,
+                                        ::testing::Values(Precision::FP32),
+                                        ::testing::Values(std::vector<size_t >{1, 32, 5, 5, 5}),
+                                        ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_Blocked_3D)),
+                                ::testing::ValuesIn(makeFusingParamsSetWithShape({1, 4, 3, 3, 3}))),
                         GroupConvolutionLayerFusingTest::getTestCaseName);
 
 /* ============= GroupConvolution (DW 2D) ============= */
@@ -226,7 +266,18 @@ INSTANTIATE_TEST_CASE_P(GroupConvFusing_DW_2D, GroupConvolutionLayerFusingTest,
                                         ::testing::Values(std::vector<size_t >{1, 32, 5, 5}),
                                         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                                 ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_DW_2D)),
-                                ::testing::ValuesIn(fusingParamsSet({1, 32, 3, 3}))),
+                                ::testing::ValuesIn(fusingParamsSet)),
+                        GroupConvolutionLayerFusingTest::getTestCaseName);
+
+INSTANTIATE_TEST_CASE_P(GroupConvFusing_HardCases_DW_2D, GroupConvolutionLayerFusingTest,
+                        ::testing::Combine(
+                                ::testing::Combine(
+                                        groupConvParams_ExplicitPadding_DW_2D,
+                                        ::testing::Values(Precision::FP32),
+                                        ::testing::Values(std::vector<size_t >{1, 32, 5, 5}),
+                                        ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_DW_2D)),
+                                ::testing::ValuesIn(makeFusingParamsSetWithShape({1, 32, 3, 3}))),
                         GroupConvolutionLayerFusingTest::getTestCaseName);
 
 /* ============= GroupConvolution (DW 3D) ============= */
@@ -241,12 +292,6 @@ const auto groupConvParams_ExplicitPadding_DW_3D = ::testing::Combine(
         ::testing::Values(ngraph::op::PadType::EXPLICIT)
 );
 
-const std::vector<CPUSpecificParams> CPUParams_DW_3D = {
-        cpuParams_sse42_dw_3D,
-        cpuParams_avx2_dw_3D,
-        cpuParams_avx512_dw_3D
-};
-
 INSTANTIATE_TEST_CASE_P(GroupConvFusing_DW_3D, GroupConvolutionLayerFusingTest,
                         ::testing::Combine(
                                 ::testing::Combine(
@@ -255,7 +300,18 @@ INSTANTIATE_TEST_CASE_P(GroupConvFusing_DW_3D, GroupConvolutionLayerFusingTest,
                                         ::testing::Values(std::vector<size_t >{1, 32, 5, 5, 5}),
                                         ::testing::Values(CommonTestUtils::DEVICE_CPU)),
                                 ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_DW_3D)),
-                                ::testing::ValuesIn(fusingParamsSet({1, 32, 3, 3, 3}))),
+                                ::testing::ValuesIn(fusingParamsSet)),
+                        GroupConvolutionLayerFusingTest::getTestCaseName);
+
+INSTANTIATE_TEST_CASE_P(GroupConvFusing_HardCases_DW_3D, GroupConvolutionLayerFusingTest,
+                        ::testing::Combine(
+                                ::testing::Combine(
+                                        groupConvParams_ExplicitPadding_DW_3D,
+                                        ::testing::Values(Precision::FP32),
+                                        ::testing::Values(std::vector<size_t >{1, 32, 5, 5, 5}),
+                                        ::testing::Values(CommonTestUtils::DEVICE_CPU)),
+                                ::testing::ValuesIn(filterCPUInfoForDevice(CPUParams_DW_3D)),
+                                ::testing::ValuesIn(makeFusingParamsSetWithShape({1, 32, 3, 3, 3}))),
                         GroupConvolutionLayerFusingTest::getTestCaseName);
 /* ========= */
 
