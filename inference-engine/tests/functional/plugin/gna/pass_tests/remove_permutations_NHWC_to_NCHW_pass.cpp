@@ -145,7 +145,7 @@ class RemovePermutationsNHWCToNCHWPass : public testing::WithParamInterface<remo
         std::shared_ptr<ngraph::Function> CreateGraphWithoutPermutation() {
             //      Reshape ([1, 336] -> [1, 2, 1, 168])
             //          |
-            //      Convolution (weights: [1, 12, 1, 8])
+            //      Convolution (weights: [2, 12, 1, 8])
             //          |
             //      Reshape ([1, 12, 161, 1] -> [1, 1932])
             InferenceEngine::Precision netPrecision;
@@ -171,29 +171,26 @@ class RemovePermutationsNHWCToNCHWPass : public testing::WithParamInterface<remo
 };
 
     TEST_P(RemovePermutationsNHWCToNCHWPass, CompareWithRefImpl) {
-        threshold = 9e-1;
+        threshold = 5e-1;
         Run();
     };
 
     TEST_P(RemovePermutationsNHWCToNCHWPass, CompareWithRefPassImpl) {
-        threshold = 4e-1;
+        threshold = 6e-1;
         RunModelWithoutPermutation();
     };
 
     const std::vector<InferenceEngine::Precision> netPrecisions = {
         InferenceEngine::Precision::FP32,
-        InferenceEngine::Precision::FP16,
-        /*InferenceEngine::Precision::I16,
-        InferenceEngine::Precision::U8*/
+        InferenceEngine::Precision::FP16
     };
 
     const std::vector<std::map<std::string, std::string>> configs = {
         {
             {"GNA_DEVICE_MODE", "GNA_SW_EXACT"},
-            {"GNA_SCALE_FACTOR_0", "16000"}
+            {"GNA_SCALE_FACTOR_0", "1638.4"}
         }
     };
-
 
     INSTANTIATE_TEST_CASE_P(PermutationPass, RemovePermutationsNHWCToNCHWPass,
         ::testing::Combine(

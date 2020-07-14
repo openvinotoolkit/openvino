@@ -219,19 +219,13 @@ void  GNAGraphCompiler::ConstPrimitive(InferenceEngine::CNNLayerPtr constLayer) 
  */
 void GNAGraphCompiler::ConvolutionPrimitive(InferenceEngine::CNNLayerPtr layer) {
     auto& convolution = dynamic_cast<ConvolutionLayer&>(*layer.get());
-    printConvolutionLayer(convolution);
+
+    IE_ASSERT(!layer->insData.empty());
+    IE_ASSERT(!layer->outData.empty());
     if (convolution._stride_x != 1 && convolution._stride_y != 1) {
         THROW_GNA_LAYER_EXCEPTION(layer) << "with 2D stride is not supported on GNA";
     }
-    if (!convolution._auto_pad.empty()) {
-        THROW_GNA_LAYER_EXCEPTION(layer) << "auto pad is not supported";
-    }
-    if (layer->insData.empty()) {
-        THROW_GNA_LAYER_EXCEPTION(layer) << "layer input data is empty";
-    }
-    if (layer->outData.empty()) {
-        THROW_GNA_LAYER_EXCEPTION(layer) << "layer output data is empty";
-    }
+    printConvolutionLayer(convolution);
 
     IE_ASSERT(!layer->insData.empty());
     IE_ASSERT(!layer->outData.empty());
@@ -336,15 +330,16 @@ void GNAGraphCompiler::ConvolutionPrimitive(InferenceEngine::CNNLayerPtr layer) 
     uint32_t num_filter_coefficients = single_conv_kernel_size + num_conv_kernel_padding;
     uint32_t num_filter_rows = (num_filter_coefficients - num_conv_kernel_padding) / num_feature_map_columns;
     uint32_t num_columns_in = num_inputs + num_input_padding;
-    uint32_t num_columns_out = (((num_inputs + num_input_padding - num_filter_coefficients) / num_feature_map_columns) + 1) * convolution._out_depth;
-    uint32_t num_columns_out_unpadded = (((num_inputs - single_conv_kernel_size) / num_feature_map_columns) + 1) * convolution._out_depth;
+    uint32_t num_columns_out = (((num_inputs - single_conv_kernel_size) / num_feature_map_columns) + 1) * convolution._out_depth;
+    //(((num_inputs + num_input_padding - num_filter_coefficients) / num_feature_map_columns) + 1) * convolution._out_depth;
+   // uint32_t num_columns_out_unpadded = (((num_inputs - single_conv_kernel_size) / num_feature_map_columns) + 1) * convolution._out_depth;
 
-    // if kernel padding to multiple of 8 will cause missed outputs, need to pad further
-    while (num_columns_out < out_batch * out_channels * out_height * out_width) {
-        num_input_padding += 8;
-        num_columns_in = num_inputs + num_input_padding;
-        num_columns_out = (((num_inputs + num_input_padding - num_filter_coefficients) / num_feature_map_columns) + 1) * convolution._out_depth;
-    }
+    //// if kernel padding to multiple of 8 will cause missed outputs, need to pad further
+    //while (num_columns_out < out_batch * out_channels * out_height * out_width) {
+    //    num_input_padding += 8;
+    //    num_columns_in = num_inputs + num_input_padding;
+    //    num_columns_out = (((num_inputs + num_input_padding - num_filter_coefficients) / num_feature_map_columns) + 1) * convolution._out_depth;
+    //}
 
     if (num_input_padding == 0) {
         gnalog() << LAYER_NAME(layer) << "Inputs are aligned \n";
@@ -353,7 +348,7 @@ void GNAGraphCompiler::ConvolutionPrimitive(InferenceEngine::CNNLayerPtr layer) 
     }
     // In most cases CNN padded to meet GNA constraints produces extra outputs that must be ignored
     // so here we only check that the unpadded size matches.
-    if (num_columns_out_unpadded != out_batch * out_channels * out_height * out_width) {
+    if (num_columns_out != out_batch * out_channels * out_height * out_width) {
         THROW_GNA_LAYER_EXCEPTION(layer) << "number columns out not equal to output tensor size";
     }
 
