@@ -24,8 +24,8 @@ namespace LayerTestsDefinitions {
         std::tie(inputPrecision, inputShapes, targetDevice) = this->GetParam();
         auto inType = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inputPrecision);
         auto param = ngraph::builder::makeParams(inType, {inputShapes});
-        auto relu = std::make_shared<ngraph::opset1::Relu>(param[0]);
-        auto shapeOf = std::make_shared<ngraph::op::v3::ShapeOf>(relu, inType);
+        auto relu = std::make_shared<ngraph::opset3::Relu>(param[0]);
+        auto shapeOf = std::make_shared<ngraph::opset3::ShapeOf>(relu, inType);
         const ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(shapeOf)};
         function = std::make_shared<ngraph::Function>(results, param, "ReluShapeOf");
     }
