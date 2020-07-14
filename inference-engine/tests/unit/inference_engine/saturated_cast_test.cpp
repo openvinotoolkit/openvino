@@ -5,96 +5,110 @@
 #include <gtest/gtest.h>
 #include "common_test_utils/test_common.hpp"
 
-#include "saturated_cast.hpp"
-
+#include "precision_utils.h"
 #include "ie_precision.hpp"
+
+#include <opencv2/core.hpp>
 
 using namespace InferenceEngine;
 
-class SaturatedCastTestsI64ToI32 : public CommonTestUtils::TestsCommon {
+class SaturateCastTestsI64ToI32 : public CommonTestUtils::TestsCommon {
 public:
     using fromType = typename PrecisionTrait<Precision::I64>::value_type;
     using toType = typename PrecisionTrait<Precision::I32>::value_type;
 };
 
-TEST_F(SaturatedCastTestsI64ToI32, I64ToI32NonNarrowingPositive) {
-    EXPECT_EQ(saturated_cast<toType>(fromType{42}), toType{42});
+TEST_F(SaturateCastTestsI64ToI32, I64ToI32NonNarrowingPositive) {
+    const auto value = fromType{42};
+    EXPECT_EQ(PrecisionUtils::saturate_cast<toType>(value), cv::saturate_cast<toType>(value));
 }
 
-TEST_F(SaturatedCastTestsI64ToI32, I64ToI32NonNarrowingNegative) {
-    EXPECT_EQ(saturated_cast<toType>(fromType{-42}), toType{-42});
+TEST_F(SaturateCastTestsI64ToI32, I64ToI32NonNarrowingNegative) {
+    const auto value = fromType{-42};
+    EXPECT_EQ(PrecisionUtils::saturate_cast<toType>(value), cv::saturate_cast<toType>(value));
 }
 
-TEST_F(SaturatedCastTestsI64ToI32, I64ToI32NarrowingMaxToMax) {
-    EXPECT_EQ(saturated_cast<toType>(std::numeric_limits<fromType>::max()), std::numeric_limits<toType>::max());
+TEST_F(SaturateCastTestsI64ToI32, I64ToI32NarrowingMaxToMax) {
+    const auto value = std::numeric_limits<fromType>::max();
+    EXPECT_EQ(PrecisionUtils::saturate_cast<toType>(value), cv::saturate_cast<toType>(value));
 }
 
-TEST_F(SaturatedCastTestsI64ToI32, I64ToI32NarrowingNonMaxToMax) {
-    EXPECT_EQ(saturated_cast<toType>(std::numeric_limits<fromType>::max() - 1), std::numeric_limits<toType>::max());
+TEST_F(SaturateCastTestsI64ToI32, I64ToI32NarrowingNonMaxToMax) {
+    const auto value = std::numeric_limits<fromType>::max() - 1;
+    EXPECT_EQ(PrecisionUtils::saturate_cast<toType>(value), cv::saturate_cast<toType>(value));
 }
 
-TEST_F(SaturatedCastTestsI64ToI32, I64ToI32NarrowingMinToMin) {
-    EXPECT_EQ(saturated_cast<toType>(std::numeric_limits<fromType>::min()), std::numeric_limits<toType>::min());
+TEST_F(SaturateCastTestsI64ToI32, I64ToI32NarrowingMinToMin) {
+    const auto value = std::numeric_limits<fromType>::min();
+    EXPECT_EQ(PrecisionUtils::saturate_cast<toType>(value), cv::saturate_cast<toType>(value));
 }
 
-TEST_F(SaturatedCastTestsI64ToI32, I64ToI32NarrowingNonMinToMin) {
-    EXPECT_EQ(saturated_cast<toType>(std::numeric_limits<fromType>::min() + 1), std::numeric_limits<toType>::min());
+TEST_F(SaturateCastTestsI64ToI32, I64ToI32NarrowingNonMinToMin) {
+    const auto value = std::numeric_limits<fromType>::min() + 1;
+    EXPECT_EQ(PrecisionUtils::saturate_cast<toType>(value), cv::saturate_cast<toType>(value));
 }
 
-class SaturatedCastTestsU64ToI32 : public CommonTestUtils::TestsCommon {
+class SaturateCastTestsU64ToI32 : public CommonTestUtils::TestsCommon {
 public:
     using fromType = typename PrecisionTrait<Precision::U64>::value_type;
     using toType = typename PrecisionTrait<Precision::I32>::value_type;
 };
 
-TEST_F(SaturatedCastTestsU64ToI32, U64ToI32NonNarrowing) {
-    EXPECT_EQ(saturated_cast<toType>(fromType{42}), toType{42});
+TEST_F(SaturateCastTestsU64ToI32, U64ToI32NonNarrowing) {
+    const auto value = fromType{42};
+    EXPECT_EQ(PrecisionUtils::saturate_cast<toType>(value), cv::saturate_cast<toType>(value));
 }
 
-TEST_F(SaturatedCastTestsU64ToI32, U64ToI32NarrowingMaxToMax) {
-    EXPECT_EQ(saturated_cast<toType>(std::numeric_limits<fromType>::max()), std::numeric_limits<toType>::max());
+TEST_F(SaturateCastTestsU64ToI32, U64ToI32NarrowingMaxToMax) {
+    const auto value = std::numeric_limits<fromType>::max();
+    EXPECT_EQ(PrecisionUtils::saturate_cast<toType>(value), cv::saturate_cast<toType>(value));
 }
 
-TEST_F(SaturatedCastTestsU64ToI32, U64ToI32NarrowingNonMaxToMax) {
-    EXPECT_EQ(saturated_cast<toType>(std::numeric_limits<fromType>::max() - 1), std::numeric_limits<toType>::max());
+TEST_F(SaturateCastTestsU64ToI32, U64ToI32NarrowingNonMaxToMax) {
+    const auto value = std::numeric_limits<fromType>::max() - 1;
+    EXPECT_EQ(PrecisionUtils::saturate_cast<toType>(value), cv::saturate_cast<toType>(value));
 }
 
-class SaturatedCastTestsBoolToU8 : public CommonTestUtils::TestsCommon {
+class SaturateCastTestsBoolToU8 : public CommonTestUtils::TestsCommon {
 public:
     using fromType = typename PrecisionTrait<Precision::BOOL>::value_type;
     using toType = typename PrecisionTrait<Precision::U8>::value_type;
 };
 
-TEST_F(SaturatedCastTestsBoolToU8, BOOLtoU8MaxToNonMax) {
-    EXPECT_EQ(saturated_cast<toType>(std::numeric_limits<fromType>::max()), toType{std::numeric_limits<fromType>::max()});
+TEST_F(SaturateCastTestsBoolToU8, BOOLtoU8MaxToNonMax) {
+    const auto value = std::numeric_limits<fromType>::max();
+    EXPECT_EQ(PrecisionUtils::saturate_cast<toType>(value), cv::saturate_cast<toType>(value));
 }
 
-class SaturatedCastTestsBoolToI32 : public CommonTestUtils::TestsCommon {
+class SaturateCastTestsBoolToI32 : public CommonTestUtils::TestsCommon {
 public:
     using fromType = typename PrecisionTrait<Precision::BOOL>::value_type;
     using toType = typename PrecisionTrait<Precision::I32>::value_type;
 };
 
-TEST_F(SaturatedCastTestsBoolToI32, BOOLtoI32MaxToNonMax) {
-    EXPECT_EQ(saturated_cast<toType>(std::numeric_limits<fromType>::max()), toType{std::numeric_limits<fromType>::max()});
+TEST_F(SaturateCastTestsBoolToI32, BOOLtoI32MaxToNonMax) {
+    const auto value = std::numeric_limits<fromType>::max();
+    EXPECT_EQ(PrecisionUtils::saturate_cast<toType>(value), cv::saturate_cast<toType>(value));
 }
 
-class SaturatedCastTestsU8ToI32 : public CommonTestUtils::TestsCommon {
+class SaturateCastTestsU8ToI32 : public CommonTestUtils::TestsCommon {
 public:
     using fromType = typename PrecisionTrait<Precision::U8>::value_type;
     using toType = typename PrecisionTrait<Precision::I32>::value_type;
 };
 
-TEST_F(SaturatedCastTestsU8ToI32, U8toI32FMaxToNonMax) {
-    EXPECT_EQ(saturated_cast<toType>(std::numeric_limits<fromType>::max()), toType{std::numeric_limits<fromType>::max()});
+TEST_F(SaturateCastTestsU8ToI32, U8toI32FMaxToNonMax) {
+    const auto value = std::numeric_limits<fromType>::max();
+    EXPECT_EQ(PrecisionUtils::saturate_cast<toType>(value), cv::saturate_cast<toType>(value));
 }
 
-class SaturatedCastTestsU16ToI32 : public CommonTestUtils::TestsCommon {
+class SaturateCastTestsU16ToI32 : public CommonTestUtils::TestsCommon {
 public:
     using fromType = typename PrecisionTrait<Precision::U8>::value_type;
     using toType = typename PrecisionTrait<Precision::I32>::value_type;
 };
 
-TEST_F(SaturatedCastTestsU16ToI32, U16toI32FMaxToNonMax) {
-    EXPECT_EQ(saturated_cast<toType>(std::numeric_limits<fromType>::max()), toType{std::numeric_limits<fromType>::max()});
+TEST_F(SaturateCastTestsU16ToI32, U16toI32FMaxToNonMax) {
+    const auto value = std::numeric_limits<fromType>::max();
+    EXPECT_EQ(PrecisionUtils::saturate_cast<toType>(value), cv::saturate_cast<toType>(value));
 }

@@ -23,7 +23,6 @@
 #include "ie_layers_internal.hpp"
 #include "ie_memcpy.h"
 #include "precision_utils.h"
-#include "saturated_cast.hpp"
 
 namespace InferenceEngine {
 namespace NetPass {
@@ -1337,7 +1336,7 @@ void convertArrayPrecision(typename PrecisionTrait<PREC_TO>::value_type* dst,
     using dst_type = typename PrecisionTrait<PREC_TO>::value_type;
 
     for (size_t i = 0; i < nelem; i++) {
-        dst[i] = saturated_cast<dst_type>(src[i]);
+        dst[i] = PrecisionUtils::saturate_cast<dst_type>(src[i]);
     }
 }
 
