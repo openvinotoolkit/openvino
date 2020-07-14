@@ -227,15 +227,6 @@ protected:
                 args[0]->get_data_ptr<const T>(), out[0]->get_data_ptr<T>(), element_count);
             break;
         }
-        case OP_TYPEID::Atan2:
-        {
-            size_t element_count = shape_size(node.get_output_shape(0));
-            reference::atan2<T>(args[0]->get_data_ptr<const T>(),
-                                args[1]->get_data_ptr<const T>(),
-                                out[0]->get_data_ptr<T>(),
-                                element_count);
-            break;
-        }
         case OP_TYPEID::Elu:
         {
             const op::Elu* elu_node = static_cast<const op::Elu*>(&node);
@@ -1283,7 +1274,6 @@ protected:
         case OP_TYPEID::UnknownOp:
             throw unsupported_op("Unsupported op '" + node.description() + "'");
         case OP_TYPEID::Add:
-        case OP_TYPEID::And:
         case OP_TYPEID::Broadcast:
         case OP_TYPEID::Clamp:
         case OP_TYPEID::Concat:
@@ -1301,7 +1291,6 @@ protected:
         case OP_TYPEID::MatMul:
         case OP_TYPEID::Max:
         case OP_TYPEID::Maximum:
-        case OP_TYPEID::MaxPool:
         case OP_TYPEID::Min:
         case OP_TYPEID::Minimum:
         case OP_TYPEID::Multiply:
