@@ -18,6 +18,7 @@ from extensions.ops.interpolate import Interpolate
 from mo.front.common.partial_infer.utils import int64_array
 from mo.front.common.replacement import FrontReplacementSubgraph
 from mo.graph.graph import Graph
+from mo.ops.const import Const
 
 
 def correct_pad(pad):
@@ -49,9 +50,9 @@ class InterpolateV1ToInterpolateV4(FrontReplacementSubgraph):
         transformation_mode = 'align_corners' if int(node.soft_get('align_corners', 0)) else 'half_pixel'
         input_node = node.in_port(0).get_source().node
         sizes = node.in_port(1).get_source().node
+        axes_node = Const(graph, {'name': node.name + '/axis_', 'value': int64_array(node.axes)}).create_node()
         interpolate4 = Interpolate(graph,
                                    {
-                                       'axes': node.axes,
                                        'mode': node.mode,
                                        'antialias': node.antialias,
                                        'coordinate_transformation_mode': transformation_mode,
@@ -60,5 +61,6 @@ class InterpolateV1ToInterpolateV4(FrontReplacementSubgraph):
                                        'nearest_mode': 'round_prefer_floor',
                                        'cube_coeff': -0.75,
                                        'version': 'opset4',
-                                   }).create_node([input_node, sizes])
+                                       'in_ports_count': 3,
+                                   }).create_node([input_node, sizes, axes_node])
         node.replace_node(interpolate4)
