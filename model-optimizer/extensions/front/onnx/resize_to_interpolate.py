@@ -187,12 +187,14 @@ class ResizeToInterpolate3D(FrontReplacementSubgraph):
             log.info('Pattern matched around resize op {} has different scale values.'.format(resize_node_name))
             return
 
+        axes_node = Const(graph, {'name': resize_node_name + '/axis_', 'value': int64_array([2, 3, 4])}).create_node()
+
         interpolate_node = Interpolate(graph,
                                        dict(antialias=0, pads_begin=int64_array([0]), pads_end=int64_array([0]),
                                             coordinate_transformation_mode='half_pixel',
                                             nearest_mode='round_prefer_floor', cube_coeff=-0.75, version='opset4',
                                             name=resize_node_name + '/Interpolate', mode=resize_node.mode,
-                                            axes=int64_array([2, 3, 4]))).create_node()
+                                            in_ports_count=3)).create_node()
 
         scale = match['mul_1'].in_node(1).value
         scale_value = int64_array([scale, scale, scale])
@@ -204,4 +206,5 @@ class ResizeToInterpolate3D(FrontReplacementSubgraph):
 
         resize_node.in_port(0).get_connection().set_destination(interpolate_node.in_port(0))
         interpolated_shape.out_port(0).connect(interpolate_node.in_port(1))
+        axes_node.out_port(0).connect(interpolate_node.in_port(2))
         resize_node.out_port(0).get_connection().set_source(interpolate_node.out_port(0))
