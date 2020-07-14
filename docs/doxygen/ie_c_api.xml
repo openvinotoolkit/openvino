@@ -4,10 +4,10 @@
   <navindex>
     <tab type="mainpage" title="OpenVINO Home" url="../index.html"/>
     <tab type="user" title="GETTING STARTED" url="../index.html"/>
-    <tab type="user" title="HOW TOs" url="../dldt_docs_how_tos_how_to_links.html"/>
-    <tab type="user" title="GUIDES" url="../dldt_docs_IE_DG_Introduction.html"/>
-    <tab type="user" title="RESOURCES" url="../dldt_docs_resources_introduction.html"/>
-    <tab type="user" title="PERFORMANCE BENCHMARKS" url="../_docs_performance_benchmarks.html"/>
+    <tab type="user" title="HOW TOs" url="../openvino_docs_how_tos_how_to_links.html"/>
+    <tab type="user" title="GUIDES" url="../openvino_docs_IE_DG_Introduction.html"/>
+    <tab type="user" title="RESOURCES" url="../openvino_docs_resources_introduction.html"/>
+    <tab type="user" title="PERFORMANCE BENCHMARKS" url="../openvino_docs_performance_benchmarks.html"/>
     <tab type="usergroup" title="API REFERENCES" url="../usergroup14.html">
       <!-- OpenVX -->
       <tab type="user" title="OpenVX Developer Guide" url="https://khronos.org/openvx"/>
