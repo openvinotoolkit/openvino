@@ -33,11 +33,3 @@ def _get_node_factory(opset_version: Optional[str] = None) -> NodeFactory:
         return NodeFactory(opset_version)
     else:
         return NodeFactory()
-
-
-# -------------------------------------------- ops ------------------------------------------------
-
-@nameable_op
-def get_output_element(data: NodeInput, index: int, name: Optional[str] = None) -> Node:
-    """Return the n-th element of the input tuple."""
-    return GetOutputElement(as_node(data), index)

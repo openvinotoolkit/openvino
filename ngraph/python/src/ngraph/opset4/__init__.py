@@ -70,7 +70,6 @@ from ngraph.opset1.ops import floor_mod
 from ngraph.opset1.ops import gather
 from ngraph.opset1.ops import gather_tree
 from ngraph.opset2.ops import gelu
-from ngraph.opset_utils import get_output_element
 from ngraph.opset1.ops import greater
 from ngraph.opset1.ops import greater_equal
 from ngraph.opset1.ops import grn
