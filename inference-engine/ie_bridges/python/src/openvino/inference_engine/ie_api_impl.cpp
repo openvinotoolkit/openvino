@@ -14,9 +14,10 @@ std::map <std::string, InferenceEngine::Precision> precision_map = {{"FP32", Inf
                                                                     {"I16",  InferenceEngine::Precision::I16},
                                                                     {"I32",  InferenceEngine::Precision::I32},
                                                                     {"I64",  InferenceEngine::Precision::I64},
-                                                                    {"U64",  InferenceEngine::Precision::U64},
+                                                                    {"U8",   InferenceEngine::Precision::U8},
                                                                     {"U16",  InferenceEngine::Precision::U16},
-                                                                    {"U8",   InferenceEngine::Precision::U8}};
+                                                                    {"U32",  InferenceEngine::Precision::U32},
+                                                                    {"U64",  InferenceEngine::Precision::U64}};
 
 std::map <std::string, InferenceEngine::Layout> layout_map = {{"ANY",     InferenceEngine::Layout::ANY},
                                                               {"NCHW",    InferenceEngine::Layout::NCHW},

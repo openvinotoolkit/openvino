@@ -4626,6 +4626,11 @@ void Program::CreateCumSumPrimitive(cldnn::topology& topology, InferenceEngine::
                     axis = data[0];
                     break;
                 }
+                case InferenceEngine::Precision::U32: {
+                    auto data = constantBlob->buffer().as<uint32_t*>();
+                    axis = static_cast<int32_t>(data[0]);
+                    break;
+                }
                 case InferenceEngine::Precision::U64: {
                     auto data = constantBlob->buffer().as<uint64_t*>();
                     axis = static_cast<int32_t>(data[0]);

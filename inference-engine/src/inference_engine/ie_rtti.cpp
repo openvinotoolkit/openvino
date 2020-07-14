@@ -109,12 +109,14 @@ TBlob<T, U>::~TBlob() {
 
 template class InferenceEngine::TBlob<float>;
 template class InferenceEngine::TBlob<double>;
-template class InferenceEngine::TBlob<int16_t>;
-template class InferenceEngine::TBlob<uint16_t>;
 template class InferenceEngine::TBlob<int8_t>;
 template class InferenceEngine::TBlob<uint8_t>;
-template class InferenceEngine::TBlob<int>;
+template class InferenceEngine::TBlob<int16_t>;
+template class InferenceEngine::TBlob<uint16_t>;
+template class InferenceEngine::TBlob<int32_t>;
+template class InferenceEngine::TBlob<uint32_t>;
 template class InferenceEngine::TBlob<long>;
 template class InferenceEngine::TBlob<long long>;
-template class InferenceEngine::TBlob<uint64_t>;
+template class InferenceEngine::TBlob<unsigned long>;
+template class InferenceEngine::TBlob<unsigned long long>;
 #endif  // __clang__

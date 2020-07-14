@@ -136,6 +136,8 @@ enum precision_e{
 
 ​    U64 = 73,   /**< 64bit unsigned integer value */
 
+​    U32 = 74,   /**< 32bit unsigned integer value */
+
 ​    BIN = 71,   /**< 1bit integer value */
 
 ​    CUSTOM = 80 /**< custom precision has it's own name and size of elements */
