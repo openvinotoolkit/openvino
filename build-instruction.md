@@ -52,14 +52,15 @@ as a part of [Intel® Distribution of OpenVINO™].
 ## Build on Linux\* Systems
 
 The software was validated on:
+- Ubuntu\* 18.04 (64-bit) with default GCC\* 7.5.0
 - Ubuntu\* 16.04 (64-bit) with default GCC\* 5.4.0
 - CentOS\* 7.4 (64-bit) with default GCC\* 4.8.5
 
 ### Software Requirements
 - [CMake]\* 3.11 or higher
 - GCC\* 4.8 or higher to build the Inference Engine
-- Python 2.7 or higher for Inference Engine Python API wrapper
-- (Optional) [Install Intel® Graphics Compute Runtime for OpenCL™ Driver package 20.13.16352].
+- Python 3.5 or higher for Inference Engine Python API wrapper
+- (Optional) [Install Intel® Graphics Compute Runtime for OpenCL™ Driver package 19.41.14441].
 
 ### Build Steps
 1. Clone submodules:
@@ -77,7 +78,7 @@ The software was validated on:
    ```
 3. By default, the build enables the Inference Engine GPU plugin to infer models
    on your Intel® Processor Graphics. This requires you to
-   [Install Intel® Graphics Compute Runtime for OpenCL™ Driver package 20.13.16352]
+   [Install Intel® Graphics Compute Runtime for OpenCL™ Driver package 19.41.14441]
    before running the build. If you don't want to use the GPU plugin, use the
    `-DENABLE_CLDNN=OFF` CMake build option and skip the installation of the
    Intel® Graphics Compute Runtime for OpenCL™ Driver.
@@ -202,7 +203,7 @@ Native compilation of the Inference Engine is the most straightforward solution.
 
   This compilation was tested on the following configuration:
 
-  * Host: Ubuntu\* 16.04 (64-bit, Intel® Core™ i7-6700K CPU @ 4.00GHz × 8)
+  * Host: Ubuntu\* 18.04 (64-bit, Intel® Core™ i7-6700K CPU @ 4.00GHz × 8)
   * Target: Raspbian\* Stretch (32-bit, ARMv7, Raspberry Pi\* 3)
 
 1. Install Docker\*:
@@ -337,7 +338,7 @@ The software was validated on:
 - [CMake]\*3.11 or higher
 - Microsoft\* Visual Studio 2017, 2019 or [Intel® C++ Compiler] 18.0
 - (Optional) Intel® Graphics Driver for Windows* (26.20) [driver package].
-- Python 3.4 or higher for Inference Engine Python API wrapper
+- Python 3.5 or higher for Inference Engine Python API wrapper
 
 ### Build Steps
 
@@ -454,7 +455,7 @@ The software was validated on:
 
 - [CMake]\* 3.11 or higher
 - Clang\* compiler from Xcode\* 10.1 or higher
-- Python\* 3.4 or higher for the Inference Engine Python API wrapper
+- Python\* 3.5 or higher for the Inference Engine Python API wrapper
 
 ### Build Steps
 
@@ -574,8 +575,7 @@ This section describes how to build Inference Engine for Android x86 (64-bit) op
 
 ## Use Custom OpenCV Builds for Inference Engine
 
-> **NOTE**: The recommended and tested version of OpenCV is 4.3. The minimum
-supported version is 3.4.0.
+> **NOTE**: The recommended and tested version of OpenCV is 4.4.0.
 
 Required versions of OpenCV packages are downloaded automatically during the
 building Inference Engine library. If the build script can not find and download
@@ -691,7 +691,7 @@ This target collects all dependencies, prepares the nGraph package and copies it
 
 [Intel® Distribution of OpenVINO™]:https://software.intel.com/en-us/openvino-toolkit
 [CMake]:https://cmake.org/download/
-[Install Intel® Graphics Compute Runtime for OpenCL™ Driver package 20.13.16352]:https://github.com/intel/compute-runtime/releases/tag/20.13.16352
+[Install Intel® Graphics Compute Runtime for OpenCL™ Driver package 19.41.14441]:https://github.com/intel/compute-runtime/releases/tag/19.41.14441
 [MKL-DNN repository]:https://github.com/intel/mkl-dnn/releases/download/v0.19/mklml_lnx_2019.0.5.20190502.tgz
 [MKL-DNN repository for Windows]:(https://github.com/intel/mkl-dnn/releases/download/v0.19/mklml_win_2019.0.5.20190502.zip)
 [OpenBLAS]:https://sourceforge.net/projects/openblas/files/v0.2.14/OpenBLAS-v0.2.14-Win64-int64.zip/download
