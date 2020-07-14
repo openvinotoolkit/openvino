@@ -19,6 +19,7 @@ TEST_F(PrecisionTests, ShowsCorrectPrecisionNames) {
     ASSERT_STREQ(Precision(Precision::FP32).name(), "FP32");
     ASSERT_STREQ(Precision(Precision::I16).name(), "I16");
     ASSERT_STREQ(Precision(Precision::I32).name(), "I32");
+    ASSERT_STREQ(Precision(Precision::U32).name(), "U32");
     ASSERT_STREQ(Precision(Precision::U16).name(), "U16");
     ASSERT_STREQ(Precision(Precision::I8).name(), "I8");
     ASSERT_STREQ(Precision(Precision::Q78).name(), "Q78");
@@ -35,6 +36,7 @@ TEST_F(PrecisionTests, sizeIsCorrect) {
     ASSERT_EQ(Precision(Precision::FP16).size(), 2);
     ASSERT_EQ(Precision(Precision::FP32).size(), 4);
     ASSERT_EQ(Precision(Precision::I32).size(), 4);
+    ASSERT_EQ(Precision(Precision::U32).size(), 4);
     ASSERT_EQ(Precision(Precision::I16).size(), 2);
     ASSERT_EQ(Precision(Precision::U16).size(), 2);
     ASSERT_EQ(Precision(Precision::I8).size(), 1);
@@ -51,6 +53,7 @@ TEST_F(PrecisionTests, is_float) {
     ASSERT_FALSE(Precision(Precision::I64).is_float());
     ASSERT_FALSE(Precision(Precision::U64).is_float());
     ASSERT_FALSE(Precision(Precision::I32).is_float());
+    ASSERT_FALSE(Precision(Precision::U32).is_float());
     ASSERT_FALSE(Precision(Precision::I16).is_float());
     ASSERT_FALSE(Precision(Precision::U16).is_float());
     ASSERT_FALSE(Precision(Precision::I8).is_float());
@@ -68,6 +71,7 @@ TEST_F(PrecisionTests, constructFromSTR) {
     ASSERT_EQ(Precision(Precision::FP16), Precision::FromStr("FP16"));
     ASSERT_EQ(Precision(Precision::FP32), Precision::FromStr("FP32"));
     ASSERT_EQ(Precision(Precision::I32), Precision::FromStr("I32"));
+    ASSERT_EQ(Precision(Precision::U32), Precision::FromStr("U32"));
     ASSERT_EQ(Precision(Precision::I16), Precision::FromStr("I16"));
     ASSERT_EQ(Precision(Precision::U16), Precision::FromStr("U16"));
     ASSERT_EQ(Precision(Precision::I8), Precision::FromStr("I8"));
