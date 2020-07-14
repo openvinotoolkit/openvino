@@ -197,7 +197,7 @@ void pass::CoreFusion::construct_folded_batch_norm()
     auto beta = make_shared<pattern::op::Label>(element::f32, beta_shape);
     double eps = 0.001;
     auto shape_r = Shape{1, 2, 2, 2};
-    auto bn = make_shared<op::BatchNormInference>(eps, gamma, beta, pconv, mean, var);
+    auto bn = make_shared<op::BatchNormInference>(pconv, gamma, beta, mean, var, eps);
 
     auto callback = [input, filters, mean, var, gamma, beta](pattern::Matcher& m) {
         NGRAPH_DEBUG << "In callback for folded batch norm against node = "
