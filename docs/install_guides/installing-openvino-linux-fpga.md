@@ -291,6 +291,23 @@ Congratulations, you have finished the Intel® Distribution of OpenVINO™ toolk
 
 Refer to the [OpenVINO™ with FPGA Hello World Face Detection Exercise](https://github.com/intel-iot-devkit/openvino-with-fpga-hello-world-face-detection).
 
+## Troubleshooting
+
+PRC developers might encounter pip installation related issues during OpenVINO™ installation. To resolve the issues, you may use one of the following options at your discretion:
+* Add the download source with `-i` parameter in the `pip` command. For example: 
+```
+pip install numpy.py -i https://mirrors.aliyun.com/pypi/simple/
+```
+Use the `--trusted-host` parameter if the URL above is `http` instead of `https`.
+
+* Modify or create `~/.pip/pip.conf` file to change the default download source with the content below:
+```
+[global]
+index-url = http://mirrors.aliyun.com/pypi/simple/
+[install]
+trusted-host = mirrors.aliyun.com
+```
+
 **Additional Resources**
 
 - Intel® Distribution of OpenVINO™ toolkit home page: [https://software.intel.com/en-us/openvino-toolkit](https://software.intel.com/en-us/openvino-toolkit)
