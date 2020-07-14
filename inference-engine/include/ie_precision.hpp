@@ -34,6 +34,7 @@ public:
         I8 = 50,           /**< 8bit signed integer value */
         U16 = 60,          /**< 16bit unsigned integer value */
         I32 = 70,          /**< 32bit signed integer value */
+        U32 = 74,          /**< 32bit unsigned integer value */
         I64 = 72,          /**< 64bit signed integer value */
         U64 = 73,          /**< 64bit unsigned integer value */
         BIN = 71,          /**< 1bit integer value */
@@ -108,13 +109,14 @@ public:
                 CASE(FP32, float);
                 CASE2(FP16, int16_t, uint16_t);
                 CASE2(BF16, int16_t, uint16_t);
+                CASE(I8, int8_t);
                 CASE(I16, int16_t);
                 CASE(I32, int32_t);
                 CASE(I64, int64_t);
-                CASE(U64, uint64_t);
-                CASE(U16, uint16_t);
                 CASE(U8, uint8_t);
-                CASE(I8, int8_t);
+                CASE(U16, uint16_t);
+                CASE(U32, uint32_t);
+                CASE(U64, uint64_t);
                 CASE(BOOL, uint8_t);
                 CASE2(Q78, int16_t, uint16_t);
                 CASE2(BIN, int8_t, uint8_t);
@@ -182,10 +184,10 @@ public:
     static Precision FromStr(const std::string& str) {
         static std::unordered_map<std::string, ePrecision> names = {
 #define PRECISION_NAME(s) {#s, s}
-            PRECISION_NAME(Q78),  PRECISION_NAME(U8),    PRECISION_NAME(I8),    PRECISION_NAME(I16),
-            PRECISION_NAME(I32),  PRECISION_NAME(I64),   PRECISION_NAME(U64),    PRECISION_NAME(U16),
+            PRECISION_NAME(Q78),  PRECISION_NAME(BOOL),  PRECISION_NAME(BF16),
+            PRECISION_NAME(I8),   PRECISION_NAME(I16),   PRECISION_NAME(I32),  PRECISION_NAME(I64),
+            PRECISION_NAME(U8),   PRECISION_NAME(U16),   PRECISION_NAME(U32),  PRECISION_NAME(U64),
             PRECISION_NAME(FP32), PRECISION_NAME(FP16),  PRECISION_NAME(MIXED), PRECISION_NAME(BIN),
-            PRECISION_NAME(BOOL), PRECISION_NAME(BF16),
 #undef PRECISION_NAME
         };
         auto i = names.find(str);
@@ -263,13 +265,14 @@ protected:
             CASE(FP32);
             CASE(FP16);
             CASE(BF16);
+            CASE(I8);
             CASE(I16);
             CASE(I32);
             CASE(I64);
-            CASE(U64);
-            CASE(U16);
             CASE(U8);
-            CASE(I8);
+            CASE(U16);
+            CASE(U32);
+            CASE(U64);
             CASE(Q78);
             CASE(MIXED);
             CASE(BIN);
@@ -328,6 +331,10 @@ struct PrecisionTrait<Precision::BOOL> {
 template <>
 struct PrecisionTrait<Precision::I32> {
     using value_type = int32_t;
+};
+template <>
+struct PrecisionTrait<Precision::U32> {
+    using value_type = uint32_t;
 };
 template <>
 struct PrecisionTrait<Precision::I64> {

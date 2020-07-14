@@ -31,8 +31,6 @@ set (SRC
     performance_counter.hpp
     dynamic/dynamic_backend.cpp
     dynamic/dynamic_backend.hpp
-    op/atan2.cpp
-    op/atan2.hpp
     op/avg_pool.cpp
     op/avg_pool.hpp
     )

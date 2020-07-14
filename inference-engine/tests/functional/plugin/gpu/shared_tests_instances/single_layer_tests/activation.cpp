@@ -24,7 +24,24 @@ const std::vector<ActivationTypes> activationTypes = {
         Log,
         Sign,
         Abs,
-        Gelu
+        Gelu,
+        Clamp,
+        Negative,
+        Acos,
+        Asin,
+        Atan,
+        Cos,
+        Cosh,
+        Floor,
+        Sin,
+        Sinh,
+        Sqrt,
+        Tan,
+        Elu,
+        Erf,
+        HardSigmoid,
+        Selu,
+        Ceiling
 };
 
 const auto basicCases = ::testing::Combine(

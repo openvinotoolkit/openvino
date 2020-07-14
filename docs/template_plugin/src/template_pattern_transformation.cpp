@@ -5,9 +5,8 @@
 #include "template_pattern_transformation.hpp"
 #include "template_function_transformation.hpp"
 
+#include <ngraph/ngraph.hpp>
 #include <ngraph/opsets/opset3.hpp>
-#include <ngraph/rt_info.hpp>
-#include <ngraph/pass/manager.hpp>
 
 using namespace ngraph;
 

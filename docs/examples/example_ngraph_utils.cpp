@@ -5,15 +5,9 @@
 #include <memory>
 
 // ! [ngraph:include]
+#include <ngraph/ngraph.hpp>
 #include <ngraph/opsets/opset3.hpp>
 // ! [ngraph:include]
-
-#include <ngraph/function.hpp>
-#include <ngraph/pattern/op/label.hpp>
-#include <ngraph/rt_info.hpp>
-#include <ngraph/pass/graph_rewrite.hpp>
-#include <ngraph/pass/visualize_tree.hpp>
-#include <ngraph/pass/manager.hpp>
 
 using namespace ngraph;
 

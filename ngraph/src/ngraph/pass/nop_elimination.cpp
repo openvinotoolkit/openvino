@@ -26,12 +26,12 @@
 #include "ngraph/op/concat.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/convert.hpp"
-#include "ngraph/op/experimental/shape_of.hpp"
 #include "ngraph/op/fused/squeeze.hpp"
 #include "ngraph/op/fused/unsqueeze.hpp"
 #include "ngraph/op/non_zero.hpp"
 #include "ngraph/op/pad.hpp"
 #include "ngraph/op/reshape.hpp"
+#include "ngraph/op/shape_of.hpp"
 #include "ngraph/op/slice.hpp"
 #include "ngraph/op/stop_gradient.hpp"
 #include "ngraph/op/sum.hpp"
@@ -343,7 +343,15 @@ static bool eliminate_squeeze(const std::shared_ptr<Node>& node)
     // eliminate redundant unsqueeze->squeeze
     if (auto unsqueeze = as_type_ptr<opset3::Unsqueeze>(input))
     {
-        auto data_shape = input->input(0).get_partial_shape();
+        PartialShape data_shape;
+        if (input->is_parameter())
+        {
+            data_shape = unsqueeze->input(0).get_partial_shape();
+        }
+        else
+        {
+            data_shape = input->input(0).get_partial_shape();
+        }
         if (ngraph::compare_constants(unsqueeze->input_value(1).get_node_shared_ptr(),
                                       squeeze->input_value(1).get_node_shared_ptr()))
         {
@@ -384,7 +392,15 @@ static bool eliminate_squeeze(const std::shared_ptr<Node>& node)
     // eliminate redundant squeeze->squeeze
     if (auto squeeze_i = as_type_ptr<opset3::Squeeze>(input))
     {
-        auto data_shape = input->input(0).get_partial_shape();
+        PartialShape data_shape;
+        if (input->is_parameter())
+        {
+            data_shape = squeeze_i->input(0).get_partial_shape();
+        }
+        else
+        {
+            data_shape = input->input(0).get_partial_shape();
+        }
         if (data_shape.rank().is_dynamic() || out_shape.rank().is_dynamic())
         {
             return false;

@@ -4,7 +4,7 @@
 
 #include "template_function_transformation.hpp"
 
-#include <ngraph/opsets/opset3.hpp>
+#include <ngraph/ngraph.hpp>
 
 using namespace ngraph;
 
