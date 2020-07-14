@@ -46,7 +46,15 @@ const std::vector<ActivationTypes> activationTypes = {
         Erf,
         HardSigmoid,
         Selu,
-        Ceiling
+        Ceiling,
+        PReLu
+};
+
+const std::vector<ActivationTypes> activationParamTypes = {
+        PReLu,
+        LeakyRelu,
+        Selu,
+        HardSigmoid,
 };
 
 const auto basicCases = ::testing::Combine(
@@ -56,7 +64,16 @@ const auto basicCases = ::testing::Combine(
         ::testing::Values(CommonTestUtils::DEVICE_CPU)
 );
 
+const auto basicParamCases = ::testing::Combine(
+        ::testing::ValuesIn(activationParamTypes),
+        ::testing::ValuesIn(netPrecisions),
+        ::testing::Values(std::vector<size_t>({1, 50}), std::vector<size_t>({1, 128})),
+        ::testing::Values(CommonTestUtils::DEVICE_CPU)
+);
+
 
 INSTANTIATE_TEST_CASE_P(Activation_Basic, ActivationLayerTest, basicCases, ActivationLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_CASE_P(Activation_Basic, ActivationParamLayerTest, basicParamCases, ActivationLayerTest::getTestCaseName);
 
 }  // namespace

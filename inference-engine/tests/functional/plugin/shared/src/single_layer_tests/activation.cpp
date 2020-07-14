@@ -97,7 +97,96 @@ InferenceEngine::Blob::Ptr ActivationLayerTest::GenerateInput(const InferenceEng
                                             32768);
 }
 
+ngraph::ParameterVector ActivationParamLayerTest::createActivationParams(ngraph::element::Type ngPrc) {
+    switch (activationType) {
+        case ngraph::helpers::ActivationTypes::PReLu: {
+            auto negativeSlopeParam = ngraph::builder::makeParams(ngPrc, {ngraph::Shape{1}});
+            negativeSlopeParam[0]->set_friendly_name("negativeSlope");
+            return negativeSlopeParam;
+        }
+        case ngraph::helpers::ActivationTypes::LeakyRelu: {
+            auto leakySlopeParam = ngraph::builder::makeParams(ngPrc, {ngraph::Shape{1}});
+            leakySlopeParam[0]->set_friendly_name("leakySlope");
+            return leakySlopeParam;
+        }
+        case ngraph::helpers::ActivationTypes::HardSigmoid: {
+            auto hardSigmoidParam = ngraph::builder::makeParams(ngPrc, {ngraph::Shape{}, ngraph::Shape{}});
+            hardSigmoidParam[0]->set_friendly_name("alpha");
+            hardSigmoidParam[1]->set_friendly_name("beta");
+            return hardSigmoidParam;
+        }
+        case ngraph::helpers::ActivationTypes::Selu: {
+            auto seluParam = ngraph::builder::makeParams(ngPrc, {ngraph::Shape{}, ngraph::Shape{}});
+            seluParam[0]->set_friendly_name("alpha");
+            seluParam[1]->set_friendly_name("lambda");
+            return seluParam;
+        }
+        default:
+            THROW_IE_EXCEPTION << "Unsupported activation type for Params test type";
+    }
+}
+
+void ActivationParamLayerTest::generateActivationBlob() {
+    switch (activationType) {
+        case ngraph::helpers::ActivationTypes::PReLu: {
+            auto blobNegativeSlope = inferRequest.GetBlob("negativeSlope");
+            float negativeSlope = -0.01f;
+            blobNegativeSlope = FuncTestUtils::createAndFillBlobWithFloatArray(blobNegativeSlope->getTensorDesc(), &negativeSlope, 1);
+        }
+        case ngraph::helpers::ActivationTypes::LeakyRelu: {
+            auto blobLeakySlope = inferRequest.GetBlob("leakySlope");
+            float leakySlope = 0.01f;
+            blobLeakySlope = FuncTestUtils::createAndFillBlobWithFloatArray(blobLeakySlope->getTensorDesc(), &leakySlope, 1);
+        }
+        case ngraph::helpers::ActivationTypes::HardSigmoid: {
+            auto blobHardSigmoidAlpha = inferRequest.GetBlob("alpha");
+            auto blobHardSigmoidBeta = inferRequest.GetBlob("beta");
+            float alpha = 0.2f, beta = 0.5f;
+            blobHardSigmoidAlpha = FuncTestUtils::createAndFillBlobWithFloatArray(blobHardSigmoidAlpha->getTensorDesc(), &alpha, 1);
+            blobHardSigmoidBeta = FuncTestUtils::createAndFillBlobWithFloatArray(blobHardSigmoidBeta->getTensorDesc(), &beta, 1);
+        }
+        case ngraph::helpers::ActivationTypes::Selu: {
+            auto blobHardSigmoidAlpha = inferRequest.GetBlob("alpha");
+            auto blobHardSigmoidLambda = inferRequest.GetBlob("lambda");
+            float alpha = 1.6732f, lambda = 1.0507f;
+            blobHardSigmoidAlpha = FuncTestUtils::createAndFillBlobWithFloatArray(blobHardSigmoidAlpha->getTensorDesc(), &alpha, 1);
+            blobHardSigmoidLambda = FuncTestUtils::createAndFillBlobWithFloatArray(blobHardSigmoidLambda->getTensorDesc(), &lambda, 1);
+        }
+        default:
+            THROW_IE_EXCEPTION << "Unsupported activation type";
+    }
+}
+
+void ActivationParamLayerTest::Infer() {
+    inferRequest = executableNetwork.CreateInferRequest();
+    inputs.clear();
+    auto blobInput = inferRequest.GetBlob("Input");
+    blobInput = FuncTestUtils::createAndFillBlobFloat(blobInput->getTensorDesc());
+
+    generateActivationBlob();
+
+    inferRequest.Infer();
+}
+
+
+void ActivationParamLayerTest::SetUp() {
+    InferenceEngine::Precision netPrecision;
+    InferenceEngine::SizeVector inputShapes;
+    std::tie(activationType, netPrecision, inputShapes, targetDevice) = GetParam();
+    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+    auto params = ngraph::builder::makeParams(ngPrc, {inputShapes});
+    auto activationParams = createActivationParams(ngPrc);
+    params[0]->set_friendly_name("Input");
+    params.insert(params.end(), activationParams.begin(), activationParams.end());
+    auto activation = ngraph::builder::makeActivation(params, ngPrc, activationType);
+    function = std::make_shared<ngraph::Function>(ngraph::NodeVector{activation}, params);
+}
+
 TEST_P(ActivationLayerTest, CompareWithRefs) {
+    Run();
+}
+
+TEST_P(ActivationParamLayerTest, CompareWithRefs) {
     Run();
 }
 

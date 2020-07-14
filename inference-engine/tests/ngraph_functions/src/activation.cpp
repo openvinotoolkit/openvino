@@ -28,6 +28,11 @@ std::shared_ptr<ngraph::Node> makeActivation(const ngraph::Output<Node> &in,
     auto hard_sigmoid_beta = std::make_shared<ngraph::op::Constant>(
             type, ngraph::Shape(), 0.5f);
 
+    auto negative_slope = std::make_shared<ngraph::op::Constant>(
+            ngraph::element::f32,
+            ngraph::Shape{1},
+            std::vector<float>{-0.01f});
+
     switch (activationType) {
         case ngraph::helpers::ActivationTypes::Sigmoid:
             return std::make_shared<ngraph::op::Sigmoid>(in);
@@ -81,6 +86,25 @@ std::shared_ptr<ngraph::Node> makeActivation(const ngraph::Output<Node> &in,
             return std::make_shared<ngraph::op::Selu>(in, selu_alpha, selu_lambda);
         case ngraph::helpers::ActivationTypes::Ceiling:
             return std::make_shared<ngraph::op::Ceiling>(in);
+        case ngraph::helpers::ActivationTypes::PReLu:
+            return std::make_shared<ngraph::op::PRelu>(in, negative_slope);
+        default:
+            throw std::runtime_error("Can't create layer for this activation type");
+    }
+}
+
+std::shared_ptr<ngraph::Node> makeActivation(const ngraph::ParameterVector &parameters,
+                                             const element::Type &type,
+                                             ngraph::helpers::ActivationTypes activationType) {
+    switch (activationType) {
+        case ngraph::helpers::ActivationTypes::LeakyRelu:
+            return std::make_shared<ngraph::op::PRelu>(parameters[0], parameters[1]);
+        case ngraph::helpers::ActivationTypes::HardSigmoid:
+            return std::make_shared<ngraph::op::HardSigmoid>(parameters[0], parameters[1], parameters[2]);
+        case ngraph::helpers::ActivationTypes::Selu:
+            return std::make_shared<ngraph::op::Selu>(parameters[0], parameters[1], parameters[2]);
+        case ngraph::helpers::ActivationTypes::PReLu:
+            return std::make_shared<ngraph::op::PRelu>(parameters[0], parameters[1]);
         default:
             throw std::runtime_error("Can't create layer for this activation type");
     }

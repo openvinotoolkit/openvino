@@ -66,7 +66,8 @@ static std::map<ngraph::helpers::ActivationTypes, std::string> activationNames =
         {ngraph::helpers::ActivationTypes::Sign,        "Sign"},
         {ngraph::helpers::ActivationTypes::Abs,         "Abs"},
         {ngraph::helpers::ActivationTypes::Gelu,        "Gelu"},
-        {ngraph::helpers::ActivationTypes::Ceiling,     "Ceiling"}
+        {ngraph::helpers::ActivationTypes::Ceiling,     "Ceiling"},
+        {ngraph::helpers::ActivationTypes::PReLu,       "PReLu"},
 };
 
 typedef std::tuple<
@@ -86,6 +87,16 @@ public:
 
 protected:
     void SetUp();
+};
+
+class ActivationParamLayerTest : public ActivationLayerTest {
+public:
+    void Infer();
+protected:
+    void SetUp();
+private:
+    void generateActivationBlob();
+    ngraph::ParameterVector createActivationParams(ngraph::element::Type ngPrc);
 };
 
 }  // namespace LayerTestsDefinitions
