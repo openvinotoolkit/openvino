@@ -52,6 +52,7 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::ICNNNetwork &network
     // Default int64->int32 conversion is already applied in IE common module.
     NetPass::ConvertPrecision(*_clonedNetwork, Precision::I64, Precision::I32);
     NetPass::ConvertPrecision(*_clonedNetwork, Precision::U64, Precision::I32);
+    NetPass::ConvertPrecision(*_clonedNetwork, Precision::U32, Precision::I32);
     NetPass::ConvertPrecision(*_clonedNetwork, Precision::FP16, Precision::FP32);
     NetPass::ConvertPrecision(*_clonedNetwork, Precision::BOOL, Precision::U8);
     NetPass::ConvertPrecision(*_clonedNetwork, Precision::U16, Precision::I32);

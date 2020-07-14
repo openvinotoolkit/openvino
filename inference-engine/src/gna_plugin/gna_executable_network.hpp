@@ -33,6 +33,7 @@ class GNAExecutableNetwork : public InferenceEngine::ExecutableNetworkThreadSafe
         : plg(plg) {
         InferenceEngine::NetPass::ConvertPrecision(network, InferenceEngine::Precision::I64, InferenceEngine::Precision::I32);
         InferenceEngine::NetPass::ConvertPrecision(network, InferenceEngine::Precision::U64, InferenceEngine::Precision::I32);
+        InferenceEngine::NetPass::ConvertPrecision(network, InferenceEngine::Precision::U32, InferenceEngine::Precision::I32);
         plg->LoadNetwork(network);
     }
 
