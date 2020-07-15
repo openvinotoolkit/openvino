@@ -141,8 +141,10 @@ def main():
     # prepare models
     downloader_path = omz_path / "tools" / "downloader" / "downloader.py"
     models_list_path = args.omz_models_out_dir / "models_list.txt"
+    # NOTE: remove --precision if both precisions (FP32 & FP16) required
     cmd = '{downloader_path} --list {models_list_path}' \
           ' --num_attempts {num_attempts}' \
+          ' --precision=FP32' \
           ' --output_dir {models_dir}' \
           ' --cache_dir {cache_dir}' \
           ' --jobs {jobs_num}'.format(downloader_path=downloader_path, models_list_path=models_list_path,
