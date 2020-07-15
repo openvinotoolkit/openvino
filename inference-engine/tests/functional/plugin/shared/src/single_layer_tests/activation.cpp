@@ -47,8 +47,36 @@ void ActivationLayerTest::SetUp() {
 
 InferenceEngine::Blob::Ptr ActivationLayerTest::GenerateInput(const InferenceEngine::InputInfo &info) const {
     bool inPrcSigned = function->get_parameters()[0]->get_element_type().is_signed();
-    uint32_t data_range = 20;
-    int32_t data_start_from = activationType == ngraph::helpers::ActivationTypes::Log ? 1 : -10;
+    int32_t data_start_from;
+    uint32_t data_range;
+
+    switch (activationType) {
+        case ngraph::helpers::ActivationTypes::Log: {
+            data_start_from = 1;
+            data_range = 20;
+            break;
+        }
+        case ngraph::helpers::ActivationTypes::Sqrt: {
+            data_start_from = 0;
+            data_range = 20;
+            break;
+        }
+        case ngraph::helpers::ActivationTypes::Asin: {
+            data_start_from = -1;
+            data_range = 2;
+            break;
+        }
+        case ngraph::helpers::ActivationTypes::Acos: {
+            data_start_from = -1;
+            data_range = 2;
+            break;
+        }
+        default: {
+            data_start_from = -10;
+            data_range = 20;
+            break;
+        }
+    }
     if (!inPrcSigned) {
         data_range = 15;
         data_start_from = 0;

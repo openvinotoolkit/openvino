@@ -87,7 +87,6 @@ set(SRC
     opset_pass/one_hot_opset_pass.cpp
     opset_pass/gather_opset_pass.cpp
     opset_pass/pad_opset_pass.cpp
-    opset_pass/poolings_opset_pass.cpp
     opset_pass/reduction_opset_pass.cpp
     opset_pass/reverse_opset_pass.cpp
     opset_pass/select_opset_pass.cpp
@@ -117,7 +116,6 @@ set(SRC
     type_prop/broadcast.cpp
     type_prop/bucketize.cpp
     type_prop/clamp.cpp
-    type_prop/compat.cpp
     type_prop/concat.cpp
     type_prop/constant.cpp
     type_prop/convert.cpp
@@ -174,9 +172,7 @@ set(SRC
     type_prop/roi_align.cpp
     type_prop/rnn_cell.cpp
     type_prop/scale_shift.cpp
-    type_prop/scatter_add.cpp
     type_prop/scatter_elements_update.cpp
-    type_prop/scatter_nd.cpp
     type_prop/scatter_nd_update.cpp
     type_prop/scatter_update.cpp
     type_prop/select.cpp
@@ -215,7 +211,6 @@ endif()
 set(DIRECTORIES_IGNORED runtime frontend)
 set(NGRAPH_MAIN_SRC_DIR "${CMAKE_SOURCE_DIR}/src/ngraph")
 file(GLOB_RECURSE LIST_RECURSE
-    "${NGRAPH_MAIN_SRC_DIR}/autodiff/*.hpp"
     "${NGRAPH_MAIN_SRC_DIR}/builder/*.hpp"
     "${NGRAPH_MAIN_SRC_DIR}/codegen/*.hpp"
     "${NGRAPH_MAIN_SRC_DIR}/descriptor/*.hpp"
@@ -288,7 +283,6 @@ set(MULTI_TEST_SRC
     backend/atan.in.cpp
     backend/atanh.in.cpp
     backend/auto_broadcast.in.cpp
-    backend/autodiff.in.cpp
     backend/batch_norm.in.cpp
     backend/broadcast.in.cpp
     backend/builder_reduce_ops_opset1.in.cpp
@@ -297,7 +291,6 @@ set(MULTI_TEST_SRC
     backend/concat.in.cpp
     backend/constant.in.cpp
     backend/convert.in.cpp
-    backend/convolution_reference.in.cpp
     backend/convolution.in.cpp
     backend/cos.in.cpp
     backend/cosh.in.cpp
@@ -338,7 +331,6 @@ set(MULTI_TEST_SRC
     backend/pad.in.cpp
     backend/parameter_as_output.in.cpp
     backend/partial_slice.in.cpp
-    backend/pool.in.cpp
     backend/power.in.cpp
     backend/product.in.cpp
     backend/quantize_dequantize.in.cpp
@@ -356,7 +348,6 @@ set(MULTI_TEST_SRC
     backend/reverse_sequence.in.cpp
     backend/reverse.in.cpp
     backend/round.in.cpp
-    backend/scatter.in.cpp
     backend/select.in.cpp
     backend/shape_of.in.cpp
     backend/sigmoid.in.cpp
@@ -378,7 +369,7 @@ set(MULTI_TEST_SRC
     backend/zero_sized.in.cpp
 )
 
-if (NGRAPH_ONNX_IMPORT_ENABLE)
+if (NGRAPH_ONNX_IMPORT_ENABLE AND NOT NGRAPH_USE_PROTOBUF_LITE)
     list(APPEND MULTI_TEST_SRC
             onnx/onnx_import.in.cpp
             onnx/onnx_import_controlflow.in.cpp
@@ -390,14 +381,11 @@ if (NGRAPH_ONNX_IMPORT_ENABLE)
             onnx/onnx_import_reshape.in.cpp
             onnx/onnx_import_rnn.in.cpp
             onnx/onnx_import_quant.in.cpp)
+    list(APPEND SRC
+            onnx/onnx_import_exceptions.cpp)
 endif()
 
 foreach(BACKEND_NAME ${ACTIVE_BACKEND_LIST})
-    # Some---but not all---autodiff tests go through multiple iterations with
-    # different random seeds. On the CPU backend this is currently very slow
-    # because the autodiff tests recompile with each iteration. That behavior
-    # can be changed, but it's a bit involved, so for the time being we just
-    # reduce the number of test iterations on non-INTERPRETER backends.
     if(${BACKEND_NAME} MATCHES ^INTERPRETER$)
         set(TEST_LOOPS 100)
     else()
@@ -434,9 +422,11 @@ target_link_libraries(unit-test PRIVATE ngraph_test_util)
 target_link_libraries(unit-test PRIVATE ngraph)
 target_link_libraries(unit-test PRIVATE ngraph_backend libgtest)
 
-if (NGRAPH_ONNX_IMPORT_ENABLE)
+# Protobuf-lite does not support parsing files from prototxt format
+# Since most of the onnx models are stored in this format it have to be disabled
+if (NGRAPH_ONNX_IMPORT_ENABLE AND NOT NGRAPH_USE_PROTOBUF_LITE)
     target_include_directories(unit-test
-        SYSTEM PRIVATE ${ONNX_INCLUDE_DIR} ${ONNX_PROTO_INCLUDE_DIR} ${Protobuf_INCLUDE_DIR})
+        SYSTEM PRIVATE ${ONNX_INCLUDE_DIR} ${ONNX_PROTO_INCLUDE_DIR} ${Protobuf_INCLUDE_DIRS})
     target_link_libraries(unit-test PRIVATE ${Protobuf_LIBRARIES} ${ONNX_LIBRARIES})
 endif()
 

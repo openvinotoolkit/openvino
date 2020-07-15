@@ -29,8 +29,6 @@
 #include "ngraph/pass/manager.hpp"
 #include "ngraph/serializer.hpp"
 #include "ngraph/util.hpp"
-#include "op/and.hpp"
-#include "op/atan2.hpp"
 #include "opset0_downgrade.hpp"
 #include "opset1_downgrade.hpp"
 

@@ -47,8 +47,7 @@ namespace
         }
         else
         {
-            throw ngraph::onnx_import::error::InvalidArgument("Unsupported padding mode: [" + mode +
-                                                              "]");
+            throw ngraph::ngraph_error("Unsupported padding mode: [" + mode + "]");
         }
 
         return pad_mode;

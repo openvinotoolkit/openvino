@@ -257,8 +257,7 @@ TEST_F(GraphToolsTest, canIterateOverCNNNetwork) {
     })));
 
     std::vector<CNNLayerPtr> resultedOrder;
-    const auto & inetwork = static_cast<const ICNNNetwork&>(wrap);
-    details::CNNNetworkIterator l(&inetwork), end;
+    details::CNNNetworkIterator l(wrap), end;
     for ( ; l != end; ++l) {
         resultedOrder.push_back(*l);
     }
@@ -285,8 +284,7 @@ TEST_F(GraphToolsTest, canIterateOverCNNNetworkWithCycle) {
     })));
 
     std::vector<CNNLayerPtr> resultedOrder;
-    const auto & inetwork = static_cast<const ICNNNetwork&>(wrap);
-    details::CNNNetworkIterator l(&inetwork), end;
+    details::CNNNetworkIterator l(wrap), end;
     for (; l != end; ++l) {
         resultedOrder.push_back(*l);
     }
@@ -306,8 +304,7 @@ TEST_F(GraphToolsTest, canCompareCNNNetworkIterators) {
         prepareInputs(maps);
     })));
 
-    const auto & inetwork = static_cast<const ICNNNetwork&>(wrap);
-    details::CNNNetworkIterator i(&inetwork);
+    details::CNNNetworkIterator i(wrap);
     auto i2 = i;
     i2++;
 
@@ -324,8 +321,7 @@ TEST_F(GraphToolsTest, canIterateOverEmptyNetwork) {
         prepareInputs(maps);
     })));
 
-    const auto & inetwork = static_cast<const ICNNNetwork&>(wrap);
-    details::CNNNetworkIterator beg(&inetwork), end;
+    details::CNNNetworkIterator beg(wrap), end;
     ASSERT_EQ(beg, end);
 }
 
