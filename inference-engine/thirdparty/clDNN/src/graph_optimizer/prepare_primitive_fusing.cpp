@@ -51,6 +51,7 @@
 #include "cum_sum_inst.h"
 #include "embedding_bag_inst.h"
 #include "extract_image_patches_inst.h"
+#include "reduce_inst.h"
 #include <vector>
 #include <list>
 #include <memory>
@@ -367,6 +368,15 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
             return true;
         };
 
+        auto reduce_supports_fusings = [](reduce_node& node) -> bool {
+            auto keep_dims = node.as<reduce>().get_primitive()->keep_dims;
+
+            if (keep_dims)
+                return true;
+
+            return false;
+        };
+
         auto fuse_activation_f = [&](activation_node& activation_node) {
             auto& input_data = activation_node.get_dependency(0);
             if (input_data.get_users().size() != 1 || activation_node.get_dependencies().size() >= 3)
@@ -407,6 +417,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
             should_fuse |= input_data.is_type<batch_to_space>();
 
             should_fuse |= input_data.is_type<space_to_batch>();
+
+            should_fuse |= input_data.is_type<reduce>() && reduce_supports_fusings(input_data.as<reduce>());
 
             if (!should_fuse)
                 return;
@@ -458,6 +470,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
             should_fuse |= input_data.is_type<batch_to_space>();
 
             should_fuse |= input_data.is_type<space_to_batch>();
+
+            should_fuse |= input_data.is_type<reduce>() && reduce_supports_fusings(input_data.as<reduce>());
 
             if (!should_fuse)
                 return;
@@ -543,6 +557,10 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
 
             should_fuse |= input_data.is_type<eltwise>() && quantize_node.get_scale_shift_opt();
 
+            should_fuse |= input_data.is_type<reduce>() &&
+                           reduce_supports_fusings(input_data.as<reduce>())
+                           && quantize_node.get_scale_shift_opt();
+
             if (!should_fuse)
                 return;
 
@@ -573,7 +591,9 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
                                     (parent1->is_type<space_to_depth>()) ||
                                     (parent1->is_type<gemm>() && gemm_supports_fusings(parent1->as<gemm>())) ||
                                     (parent1->is_type<batch_to_space>()) || (parent1->is_type<space_to_batch>()) ||
-                                    (parent1->is_type<depth_to_space>() && dts_supports_fusings(parent1->as<depth_to_space>()));
+                                    (parent1->is_type<depth_to_space>() && dts_supports_fusings(parent1->as<depth_to_space>())) ||
+                                    (parent1->is_type<batch_to_space>()) || (parent1->is_type<space_to_batch>()) ||
+                                    (parent1->is_type<reduce>() && reduce_supports_fusings(parent1->as<reduce>()));
 
             bool can_fuse_parent2 = (parent2->is_type<convolution>() && conv_supports_fusings(parent2->as<convolution>())) ||
                                     (parent2->is_type<mvn>() && mvn_supports_fusings(parent2->as<mvn>())) ||
@@ -581,7 +601,9 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
                                     (parent2->is_type<space_to_depth>()) ||
                                     (parent2->is_type<gemm>() && gemm_supports_fusings(parent2->as<gemm>())) ||
                                     (parent2->is_type<batch_to_space>()) || (parent2->is_type<space_to_batch>()) ||
-                                    (parent2->is_type<depth_to_space>() && dts_supports_fusings(parent2->as<depth_to_space>()));
+                                    (parent2->is_type<depth_to_space>() && dts_supports_fusings(parent2->as<depth_to_space>())) ||
+                                    (parent2->is_type<batch_to_space>()) || (parent2->is_type<space_to_batch>()) ||
+                                    (parent2->is_type<reduce>() && reduce_supports_fusings(parent2->as<reduce>()));
 
             std::vector<bool> can_fuse_parents = { can_fuse_parent1, can_fuse_parent2 };
 
