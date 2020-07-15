@@ -79,8 +79,6 @@
 #include "ngraph/runtime/reference/reverse.hpp"
 #include "ngraph/runtime/reference/reverse_sequence.hpp"
 #include "ngraph/runtime/reference/round.hpp"
-#include "ngraph/runtime/reference/scatter_add.hpp"
-#include "ngraph/runtime/reference/scatter_nd_add.hpp"
 #include "ngraph/runtime/reference/select.hpp"
 #include "ngraph/runtime/reference/send.hpp"
 #include "ngraph/runtime/reference/sigmoid.hpp"
@@ -227,15 +225,6 @@ protected:
             size_t element_count = shape_size(node.get_output_shape(0));
             reference::atan<T>(
                 args[0]->get_data_ptr<const T>(), out[0]->get_data_ptr<T>(), element_count);
-            break;
-        }
-        case OP_TYPEID::Atan2:
-        {
-            size_t element_count = shape_size(node.get_output_shape(0));
-            reference::atan2<T>(args[0]->get_data_ptr<const T>(),
-                                args[1]->get_data_ptr<const T>(),
-                                out[0]->get_data_ptr<T>(),
-                                element_count);
             break;
         }
         case OP_TYPEID::Elu:
@@ -1126,66 +1115,6 @@ protected:
                 args[0]->get_data_ptr<const T>(), out[0]->get_data_ptr<T>(), element_count);
             break;
         }
-        case OP_TYPEID::ScatterAdd:
-        {
-            if (node.get_input_element_type(1) == element::i64)
-            {
-                reference::scatter_add<T, int64_t>(args[0]->get_data_ptr<T>(),
-                                                   args[1]->get_data_ptr<int64_t>(),
-                                                   args[2]->get_data_ptr<T>(),
-                                                   out[0]->get_data_ptr<T>(),
-                                                   node.get_input_shape(0),
-                                                   node.get_input_shape(1),
-                                                   node.get_input_shape(2),
-                                                   node.get_output_shape(0));
-            }
-            else if (node.get_input_element_type(1) == element::i32)
-            {
-                reference::scatter_add<T, int32_t>(args[0]->get_data_ptr<T>(),
-                                                   args[1]->get_data_ptr<int32_t>(),
-                                                   args[2]->get_data_ptr<T>(),
-                                                   out[0]->get_data_ptr<T>(),
-                                                   node.get_input_shape(0),
-                                                   node.get_input_shape(1),
-                                                   node.get_input_shape(2),
-                                                   node.get_output_shape(0));
-            }
-            else
-            {
-                throw ngraph_error("Unexpected type");
-            }
-            break;
-        }
-        case OP_TYPEID::ScatterNDAdd:
-        {
-            if (node.get_input_element_type(1) == element::i64)
-            {
-                reference::scatter_nd_add<T, int64_t>(args[0]->get_data_ptr<T>(),
-                                                      args[1]->get_data_ptr<int64_t>(),
-                                                      args[2]->get_data_ptr<T>(),
-                                                      out[0]->get_data_ptr<T>(),
-                                                      node.get_input_shape(0),
-                                                      node.get_input_shape(1),
-                                                      node.get_input_shape(2),
-                                                      node.get_output_shape(0));
-            }
-            else if (node.get_input_element_type(1) == element::i32)
-            {
-                reference::scatter_nd_add<T, int32_t>(args[0]->get_data_ptr<T>(),
-                                                      args[1]->get_data_ptr<int32_t>(),
-                                                      args[2]->get_data_ptr<T>(),
-                                                      out[0]->get_data_ptr<T>(),
-                                                      node.get_input_shape(0),
-                                                      node.get_input_shape(1),
-                                                      node.get_input_shape(2),
-                                                      node.get_output_shape(0));
-            }
-            else
-            {
-                throw ngraph_error("Unexpected type");
-            }
-            break;
-        }
         case OP_TYPEID::Select:
         {
             size_t element_count = shape_size(node.get_output_shape(0));
@@ -1331,9 +1260,7 @@ protected:
         case OP_TYPEID::Passthrough:
         case OP_TYPEID::PRelu:
         case OP_TYPEID::RNNCell:
-        case OP_TYPEID::ScalarConstantLike:
         case OP_TYPEID::ScaleShift:
-        case OP_TYPEID::ScatterND:
         case OP_TYPEID::Selu:
         case OP_TYPEID::ShuffleChannels:
         case OP_TYPEID::SoftmaxCrossEntropy:
@@ -1347,7 +1274,6 @@ protected:
         case OP_TYPEID::UnknownOp:
             throw unsupported_op("Unsupported op '" + node.description() + "'");
         case OP_TYPEID::Add:
-        case OP_TYPEID::And:
         case OP_TYPEID::Broadcast:
         case OP_TYPEID::Clamp:
         case OP_TYPEID::Concat:
@@ -1365,7 +1291,6 @@ protected:
         case OP_TYPEID::MatMul:
         case OP_TYPEID::Max:
         case OP_TYPEID::Maximum:
-        case OP_TYPEID::MaxPool:
         case OP_TYPEID::Min:
         case OP_TYPEID::Minimum:
         case OP_TYPEID::Multiply:

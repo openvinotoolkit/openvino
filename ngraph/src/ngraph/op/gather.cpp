@@ -94,12 +94,6 @@ void op::v0::Gather::validate_and_infer_types()
     set_output_type(0, result_et, result_shape);
 }
 
-void op::v0::Gather::generate_adjoints(autodiff::Adjoints& /* adjoints */,
-                                       const OutputVector& /* deltas */)
-{
-    throw ngraph_error("Not yet implemented");
-}
-
 constexpr NodeTypeInfo op::v1::Gather::type_info;
 const int64_t op::v1::Gather::AXIS_NOT_SET_VALUE;
 
@@ -197,12 +191,6 @@ int64_t op::v1::Gather::get_axis() const
         }
     }
     return axis;
-}
-
-void op::v1::Gather::generate_adjoints(autodiff::Adjoints& /* adjoints */,
-                                       const OutputVector& /* deltas */)
-{
-    throw ngraph_error("Not yet implemented");
 }
 
 shared_ptr<Node> op::v1::Gather::clone_with_new_inputs(const OutputVector& new_args) const

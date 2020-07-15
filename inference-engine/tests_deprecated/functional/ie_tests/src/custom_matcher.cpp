@@ -210,7 +210,9 @@ void Regression::Matchers::CustomMatcher::matchCustom() {
                 if (fetchResult.reset) {
                     auto states = executableApi.QueryState();
                     ASSERT_FALSE(states.empty());
-                    states.front().Reset();
+                    for(auto& state : states) {
+                        state.Reset();
+                    }
                     // also store reset indicator for comparison routine
                     auto &outputs = ctx.newOutputs();
                     outputs["reset"] = nullptr;

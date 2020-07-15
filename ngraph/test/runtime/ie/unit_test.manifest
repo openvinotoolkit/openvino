@@ -10,7 +10,7 @@
 #
 #-------------------------------------------------------------------------------
 
-# Unsupported operator detected in the graph: Quantize
+# Quantize layer input 'Multiply_7' doesn't have blobs
 onnx_model_quantize_linear
 onnx_model_quantize_linear_zero_point
 onnx_model_quantize_linear_axis_zero
@@ -169,6 +169,7 @@ onnx_model_conv_with_dynamic_batch
 # Segmentation fault
 bool_init_and
 onnx_model_fake_quantize_nonconst_inputs_infer
+onnx_model_quantize_linear_const_scale_const_zero_p
 
 # Incorrect number of 'indices_to_squeeze' input dimensions!
 arg_min_no_keep_dims_dyn_shape
@@ -176,25 +177,25 @@ onnx_model_one_hot_with_axis
 
 # Dynamic function 'get_shape was called on a descriptor::Tensor with dynamic shape'
 onnx_upsample9_scales_input_nearest_infer
-IE_CPU.fused_clamp_uint16
-IE_CPU.fused_clamp_uint8
-IE_CPU.fused_clamp_int32
-IE_CPU.fused_clamp_int8
-IE_CPU.fused_clamp_float
-IE_CPU.fused_clamp_int16
-IE_CPU.onnx_dyn_shapes_model_acosh_1_3
-IE_CPU.onnx_dyn_shapes_model_acosh_3_2
-IE_CPU.onnx_dyn_shapes_model_asinh_1_3
-IE_CPU.onnx_dyn_shapes_model_asinh_3_2
-IE_CPU.onnx_dyn_shapes_model_atanh_1_3
-IE_CPU.onnx_dyn_shapes_model_atanh_3_2
-IE_CPU.onnx_dyn_shapes_avg_pool_dyn_shape
-IE_CPU.onnx_dyn_shapes_max_pool_dyn_shape
-IE_CPU.onnx_dyn_shapes_global_avg_pool_dyn_shape
-IE_CPU.onnx_dyn_shapes_global_max_pool_dyn_shape
-IE_CPU.onnx_dyn_shapes_model_flatten
-IE_CPU.onnx_model_instance_normalization_dyn_shape
-IE_CPU.onnx_model_instance_normalization_dyn_shape2
+fused_clamp_uint16
+fused_clamp_uint8
+fused_clamp_int32
+fused_clamp_int8
+fused_clamp_float
+fused_clamp_int16
+onnx_dyn_shapes_model_acosh_1_3
+onnx_dyn_shapes_model_acosh_3_2
+onnx_dyn_shapes_model_asinh_1_3
+onnx_dyn_shapes_model_asinh_3_2
+onnx_dyn_shapes_model_atanh_1_3
+onnx_dyn_shapes_model_atanh_3_2
+onnx_dyn_shapes_avg_pool_dyn_shape
+onnx_dyn_shapes_max_pool_dyn_shape
+onnx_dyn_shapes_global_avg_pool_dyn_shape
+onnx_dyn_shapes_global_max_pool_dyn_shape
+onnx_dyn_shapes_model_flatten
+onnx_model_instance_normalization_dyn_shape
+onnx_model_instance_normalization_dyn_shape2
 onnx_dyn_shapes_arg_max_dyn_shape
 onnx_dyn_shapes_arg_min_no_keep_dims_dyn_shape
 onnx_dyn_shapes_model_tile
@@ -205,6 +206,7 @@ onnx_dyn_shapes_flatten_axis
 onnx_dyn_shapes_flatten_neg_axis
 onnx_model_range_positive_step
 onnx_model_range_negative_step
+onnx_dyn_shapes_slice_1_3d_input_21_axes_ends_max
 
 #-------------------------------------------------------------------------------
 #
@@ -587,14 +589,6 @@ all_change_axis
 
 # Positive input shape should be the same as negative input shape
 select_v1
-
-# Cannot cast ngraph node ScatterNDAdd to CNNLayer!
-scatter_add_3d_indices
-scatter_add_2d_indices
-scatter_add_1d_indices
-scatter_add_scalar_indices
-scatter_nd_add_batch_2d_to_3d
-scatter_nd_add_2d_to_3d
 
 # Cannot cast ngraph node Reverse to CNNLayer!
 reverse_1d_0
