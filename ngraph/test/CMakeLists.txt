@@ -88,7 +88,6 @@ set(SRC
     opset_pass/one_hot_opset_pass.cpp
     opset_pass/gather_opset_pass.cpp
     opset_pass/pad_opset_pass.cpp
-    opset_pass/poolings_opset_pass.cpp
     opset_pass/reduction_opset_pass.cpp
     opset_pass/reverse_opset_pass.cpp
     opset_pass/select_opset_pass.cpp
@@ -334,7 +333,6 @@ set(MULTI_TEST_SRC
     backend/pad.in.cpp
     backend/parameter_as_output.in.cpp
     backend/partial_slice.in.cpp
-    backend/pool.in.cpp
     backend/power.in.cpp
     backend/product.in.cpp
     backend/quantize_dequantize.in.cpp

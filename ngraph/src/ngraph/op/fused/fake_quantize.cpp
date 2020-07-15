@@ -149,7 +149,7 @@ NodeVector op::FakeQuantize::decompose_op() const
                                   zero_point,
                                   element::i32,
                                   axes,
-                                  op::Quantize::RoundMode::ROUND_NEAREST_TOWARD_INFINITY);
+                                  op::Quantize::RoundMode::ROUND_NEAREST_TOWARD_EVEN);
 
     quantized_data = make_shared<op::Convert>(quantized_data, input_data_type);
 
