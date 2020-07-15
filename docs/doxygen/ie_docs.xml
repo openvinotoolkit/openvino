@@ -470,23 +470,23 @@
                     <tab type="user" title="Caffe* Installation Tips" url="@ref omz_tools_accuracy_checker_accuracy_checker_launcher_caffe_installation_readme"/>
                 </tab>
                 <tab type="usergroup" title="Post-Training Optimization Tool" url="@ref pot_README">
-                    <tab type="usergroup" title="Quantization" url="@ref pot_compression_algorithms_quantization_README">
-                        <tab type="user" title="DefaultQuantization Algorithm" url="@ref pot_compression_algorithms_quantization_default_README"/>
-                        <tab type="user" title="AccuracyAwareQuantization Algorithm" url="@ref pot_compression_algorithms_quantization_accuracy_aware_README"/>
-                        <tab type="user" title="TunableQuantization Algorithm" url="@ref pot_compression_algorithms_quantization_tunable_quantization_README"/>
+                  <tab type="usergroup" title="Quantization" url="@ref pot_compression_algorithms_quantization_README">
+                    <tab type="user" title="DefaultQuantization Algorithm" url="@ref pot_compression_algorithms_quantization_default_README"/>
+                    <tab type="user" title="AccuracyAwareQuantization Algorithm" url="@ref pot_compression_algorithms_quantization_accuracy_aware_README"/>
+                    <tab type="user" title="TunableQuantization Algorithm" url="@ref pot_compression_algorithms_quantization_tunable_quantization_README"/>
+                  </tab>
+                  <tab type="usergroup" title="Quantization Hyperparameters Optimization" url="@ref pot_compression_optimization_README">
+                    <tab type="usergroup" title="Tree-structured Parzen Estimator (TPE)" url="@ref pot_compression_optimization_tpe_README">
+                      <tab type="user" title="TPE Multiple Node Configuration Based on MongoDB Database" url="@ref pot_compression_optimization_tpe_multinode"/>
                     </tab>
-                    <tab type="usergroup" title="Quantization Hyperparameters Optimization" url="@ref pot_compression_optimization_README">
-                        <tab type="usergroup" title="Tree-structured Parzen Estimator (TPE)" url="@ref pot_compression_optimization_tpe_README">
-                            <tab type="user" title="TPE Multiple Node Configuration Based on MongoDB Database" url="@ref pot_compression_optimization_tpe_multinode"/>
-                        </tab>
-                    </tab>
-                    <tab type="usergroup" title="Low Precision Optimization Guide" url="@ref pot_docs_LowPrecisionOptimizationGuide">
-                        <tab type="user" title="Post-Training Optimization Best Practices" url="@ref pot_docs_BestPractices"/>
-                    </tab>
-                    <tab type="user" title="Use Post-Training Optimization Toolkit API" url="@ref pot_sample_README"/>
-                    <tab type="usergroup" title="Define Configuration Files" url="@ref pot_configs_README">
-                        <tab type="user" title="Examples of Configuration Files" url="@ref pot_configs_examples_README"/>
-                    </tab>
+                  </tab>
+                  <tab type="usergroup" title="Low Precision Optimization Guide" url="@ref pot_docs_LowPrecisionOptimizationGuide">
+                    <tab type="user" title="Post-Training Optimization Best Practices" url="@ref pot_docs_BestPractices"/>
+                  </tab>
+                  <tab type="user" title="Use Post-Training Optimization Toolkit API" url="@ref pot_compression_api_README"/>
+                  <tab type="usergroup" title="Define Configuration Files" url="@ref pot_configs_README">
+                    <tab type="user" title="Examples of Configuration Files" url="@ref pot_configs_examples_README"/>
+                  </tab>
                 </tab>
                 <tab type="user" title="Model Downloader" url="@ref omz_tools_downloader_README"/>
                 <tab type="user" title="Compile Tool" url="@ref openvino_inference_engine_tools_compile_tool_README"/>
@@ -758,10 +758,20 @@
               <tab type="user" title="INT8 vs. FP32 Comparison on Select Networks and Platforms" url="@ref openvino_docs_performance_int8_vs_fp32"/>
             </tab>
             <tab type="user" title="Performance Best Practices" url="@ref openvino_docs_optimization_guide_dldt_optimization_guide"/>
-            <tab type="usergroup" title="Post-Training Optimization" url="@ref pot_README">
-              <tab type="user" title="Quantization" url="@ref pot_compression_algorithms_quantization_README"/>
-              <tab type="user" title="DefaultQuantization Algorithm" url="@ref pot_compression_algorithms_quantization_default_README"/>
-              <tab type="user" title="AccuracyAwareQuantization Algorithm" url="@ref pot_compression_algorithms_quantization_accuracy_aware_README"/>
+            <tab type="usergroup" title="Post-Training Optimization Tool" url="@ref pot_README">
+              <tab type="usergroup" title="Quantization" url="@ref pot_compression_algorithms_quantization_README">
+                <tab type="user" title="DefaultQuantization Algorithm" url="@ref pot_compression_algorithms_quantization_default_README"/>
+                <tab type="user" title="AccuracyAwareQuantization Algorithm" url="@ref pot_compression_algorithms_quantization_accuracy_aware_README"/>
+                <tab type="user" title="TunableQuantization Algorithm" url="@ref pot_compression_algorithms_quantization_tunable_quantization_README"/>
+              </tab>
+              <tab type="usergroup" title="Quantization Hyperparameters Optimization" url="@ref pot_compression_optimization_README">
+                <tab type="usergroup" title="Tree-structured Parzen Estimator (TPE)" url="@ref pot_compression_optimization_tpe_README">
+                  <tab type="user" title="TPE Multiple Node Configuration Based on MongoDB Database" url="@ref pot_compression_optimization_tpe_multinode"/>
+                </tab>
+              </tab>
+              <tab type="usergroup" title="Low Precision Optimization Guide" url="@ref pot_docs_LowPrecisionOptimizationGuide">
+                <tab type="user" title="Post-Training Optimization Best Practices" url="@ref pot_docs_BestPractices"/>
+              </tab>
               <tab type="user" title="Use Post-Training Optimization Toolkit API" url="@ref pot_compression_api_README"/>
               <tab type="usergroup" title="Define Configuration Files" url="@ref pot_configs_README">
                 <tab type="user" title="Examples of Configuration Files" url="@ref pot_configs_examples_README"/>
