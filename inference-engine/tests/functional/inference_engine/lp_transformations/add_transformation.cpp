@@ -54,14 +54,10 @@ public:
             testParams.transformationParams,
             testParams.actual);
 
-        ngraph::pass::VisualizeTree("C:\\Users\\vzinovie\\Documents\\model.original").run_on_module(std::vector<std::shared_ptr<ngraph::Function> > { actualFunction });
-
         SimpleLowPrecisionTransformer transform;
         transform.add<ngraph::pass::low_precision::AddTransformation, ngraph::opset1::Add>(
             low_precision::LayerTransformation::Params(testParams.transformationParams));
         transform.transform(actualFunction);
-
-        ngraph::pass::VisualizeTree("C:\\Users\\vzinovie\\Documents\\model.transformed").run_on_module(std::vector<std::shared_ptr<ngraph::Function> > { actualFunction });
 
         referenceFunction = AddFunction::getReference(
             precision,
@@ -69,9 +65,6 @@ public:
             broadcast,
             testParams.transformationParams,
             testParams.expected);
-
-        ngraph::pass::VisualizeTree("C:\\Users\\vzinovie\\Documents\\model.reference").run_on_module(std::vector<std::shared_ptr<ngraph::Function> > { referenceFunction });
-
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<AddTransformationParams> obj) {
