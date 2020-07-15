@@ -424,6 +424,8 @@ set (SRC
     op/util/binary_elementwise_logical.hpp
     op/util/broadcast_base.cpp
     op/util/broadcast_base.hpp
+    op/util/elementwise_args.cpp
+    op/util/elementwise_args.hpp
     op/util/embeddingbag_packed_base.cpp
     op/util/embeddingbag_packed_base.hpp
     op/util/embeddingbag_offsets_base.cpp

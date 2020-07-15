@@ -153,13 +153,6 @@ namespace ngraph
         using type_info_t = DiscreteTypeInfo;
 
     protected:
-        std::tuple<element::Type, PartialShape> validate_and_infer_elementwise_args(
-            const op::AutoBroadcastSpec& autob = op::AutoBroadcastSpec());
-        void validate_and_infer_elementwise_arithmetic(
-            const op::AutoBroadcastSpec& autob = op::AutoBroadcastSpec());
-        void validate_and_infer_elementwise_logical(
-            const op::AutoBroadcastSpec& autob = op::AutoBroadcastSpec());
-
         /// \brief Construct an unitialized Node
         Node() {}
         /// \brief Construct an unitialized Node
