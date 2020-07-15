@@ -121,13 +121,7 @@ void TemplatePlugin::ExecutableNetwork::CreateInferRequest(IInferRequest::Ptr& a
 
 // ! [executable_network:get_config]
 void TemplatePlugin::ExecutableNetwork::GetConfig(const std::string &name, Parameter &result, ResponseDesc *resp) const {
-    // TODO: return more supported values for config keys
-    if (name == CONFIG_KEY(DEVICE_ID) ||
-        name == CONFIG_KEY(PERF_COUNT)) {
-        result = _cfg.Get(name);
-    } else {
-        THROW_IE_EXCEPTION << "Unsupported ExecutableNetwork config key: " << name;
-    }
+    result = _cfg.Get(name);
 }
 // ! [executable_network:get_config]
 

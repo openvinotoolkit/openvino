@@ -73,6 +73,8 @@ std::shared_ptr<ngraph::Function> Plugin::Transform(const std::shared_ptr<const 
     auto copyFunction = ngraph::specialize_function(std::const_pointer_cast<ngraph::Function>(ngraphFunction),
         new_types, new_shapes, std::vector<void *>(new_types.size(), nullptr), constFolding, shareConsts);
 
+    copyFunction->set_friendly_name(function->get_friendly_name());
+
     // 2. Perform common optimizations and device-specific transformations
     ngraph::pass::Manager passManager;
     // Example: register CommonOptimizations transformation from transformations library
@@ -230,10 +232,17 @@ InferenceEngine::Parameter Plugin::GetMetric(const std::string& name, const std:
             METRIC_KEY(RANGE_FOR_ASYNC_INFER_REQUESTS) };
         IE_SET_METRIC_RETURN(SUPPORTED_METRICS, supportedMetrics);
     } else if (METRIC_KEY(SUPPORTED_CONFIG_KEYS) == name) {
-        std::vector<std::string> confiKeys = {
+        std::vector<std::string> configKeys = {
             CONFIG_KEY(DEVICE_ID),
-            CONFIG_KEY(PERF_COUNT) };
-        IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, confiKeys);
+            CONFIG_KEY(PERF_COUNT),
+            TEMPLATE_CONFIG_KEY(THROUGHPUT_STREAMS)};
+        auto streamExecutorConfigKeys = IStreamsExecutor::Config{}.SupportedKeys();
+        for (auto&& configKey : streamExecutorConfigKeys) {
+            if (configKey != InferenceEngine::PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS) {
+                configKeys.emplace_back(configKey);
+            }
+        }
+        IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, configKeys);
     } else if (METRIC_KEY(AVAILABLE_DEVICES) == name) {
         // TODO: fill list of available devices
         std::vector<std::string> availableDevices = { "" };
@@ -243,7 +252,7 @@ InferenceEngine::Parameter Plugin::GetMetric(const std::string& name, const std:
         IE_SET_METRIC_RETURN(FULL_DEVICE_NAME, name);
     } else if (METRIC_KEY(OPTIMIZATION_CAPABILITIES) == name) {
         // TODO: fill actual list of supported capabilities: e.g. Template device supports only FP32
-        std::vector<std::string> capabilities = { METRIC_VALUE(FP32), TEMPLATE_METRIC_VALUE(HARDWARE_CONVOLUTION) };
+        std::vector<std::string> capabilities = { METRIC_VALUE(FP32) /*, TEMPLATE_METRIC_VALUE(HARDWARE_CONVOLUTION)*/ };
         IE_SET_METRIC_RETURN(OPTIMIZATION_CAPABILITIES, capabilities);
     } else if (METRIC_KEY(RANGE_FOR_ASYNC_INFER_REQUESTS) == name) {
         // TODO: fill with actual values

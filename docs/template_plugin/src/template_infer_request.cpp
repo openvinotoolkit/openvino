@@ -19,8 +19,6 @@
 #include <ie_memcpy.h>
 #include <precision_utils.h>
 
-#include <half.hpp>
-
 #include "template/template_config.hpp"
 #include "template_infer_request.hpp"
 #include "template_executable_network.hpp"
@@ -82,9 +80,6 @@ static void AllocateImpl(const BlobDataMap& blobDataMap,
         case Precision::U8: {
             blob = InferenceEngine::make_shared_blob<std::uint8_t>({precision, dims, layout});
         } break;
-        case Precision::FP16 : {
-            blob = InferenceEngine::make_shared_blob<std::uint16_t>({precision, dims, layout});
-        } break;
         case Precision::FP32 : {
             blob = InferenceEngine::make_shared_blob<float>({precision, dims, layout});
         } break;
@@ -96,13 +91,6 @@ static void AllocateImpl(const BlobDataMap& blobDataMap,
         auto networkPresion = GetNetworkPrecision(blobData.first);
         Blob::Ptr networkBlob;
         switch (networkPresion) {
-        case ngraph::element::Type_t::f16 : {
-            if (precision == Precision::FP16) {
-                networkBlob = blob;
-            } else {
-                networkBlob = InferenceEngine::make_shared_blob<std::uint16_t>({Precision::FP16, dims, layout});
-            }
-        } break;
         case ngraph::element::Type_t::f32 : {
             if (precision == Precision::FP32) {
                 networkBlob = blob;
@@ -153,21 +141,8 @@ static void blobCopy(const Blob::Ptr& src, const Blob::Ptr& dst) {
     switch (src->getTensorDesc().getPrecision()) {
         case Precision::U8 : {
             switch (dst->getTensorDesc().getPrecision()) {
-                case Precision::FP16 : {
-                    blobCopy<std::uint8_t, half_float::half>(src, dst);
-                } break;
                 case Precision::FP32 : {
                     blobCopy<std::uint8_t, float>(src, dst);
-                } break;
-            }
-        } break;
-        case Precision::FP16 : {
-            switch (dst->getTensorDesc().getPrecision()) {
-                case Precision::U8 : {
-                    blobCopy<half_float::half, std::uint8_t>(src, dst);
-                } break;
-                case Precision::FP32 : {
-                    blobCopy<half_float::half, float>(src, dst);
                 } break;
             }
         } break;
@@ -175,9 +150,6 @@ static void blobCopy(const Blob::Ptr& src, const Blob::Ptr& dst) {
             switch (dst->getTensorDesc().getPrecision()) {
                 case Precision::U8 : {
                     blobCopy<float, std::uint8_t>(src, dst);
-                } break;
-                case Precision::FP16 : {
-                    blobCopy<float, half_float::half>(src, dst);
                 } break;
             }
         } break;

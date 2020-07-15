@@ -9,6 +9,7 @@
 
 #include <ie_util_internal.hpp>
 #include <ie_plugin_config.hpp>
+#include <cpp_interfaces/interface/ie_internal_plugin_config.hpp>
 #include <file_utils.h>
 #include <cpp_interfaces/exception2status.hpp>
 
@@ -34,6 +35,9 @@ Configuration::Configuration(const ConfigMap& config, const Configuration & defa
             _streamsExecutorConfig.SetConfig(key, value);
         } else if (CONFIG_KEY(DEVICE_ID) == key) {
             deviceId = std::stoi(value);
+            if (deviceId > 0) {
+                THROW_IE_EXCEPTION << "Device ID " << deviceId << " is not supported";
+            }
         } else if (CONFIG_KEY(PERF_COUNT) == key) {
             perfCount = (CONFIG_VALUE(YES) == value);
         } else if (throwOnUnsupported) {
@@ -47,9 +51,15 @@ InferenceEngine::Parameter Configuration::Get(const std::string& name) const {
         return {std::to_string(deviceId)};
     } else if (name == CONFIG_KEY(PERF_COUNT)) {
         return {perfCount};
-    } else if (name == TEMPLATE_CONFIG_KEY(THROUGHPUT_STREAMS)) {
+    } else if (name == TEMPLATE_CONFIG_KEY(THROUGHPUT_STREAMS) || name == CONFIG_KEY(CPU_THROUGHPUT_STREAMS)) {
         return {std::to_string(_streamsExecutorConfig._streams)};
-    }  else {
+    } else if (name == CONFIG_KEY(CPU_BIND_THREAD)) {
+        return const_cast<InferenceEngine::IStreamsExecutor::Config&>(_streamsExecutorConfig).GetConfig(name);
+    } else if (name == CONFIG_KEY(CPU_THREADS_NUM)) {
+        return {std::to_string(_streamsExecutorConfig._threads)};
+    } else if (name == CONFIG_KEY_INTERNAL(CPU_THREADS_PER_STREAM)) {
+        return {std::to_string(_streamsExecutorConfig._threadsPerStream)};
+    } else {
         THROW_IE_EXCEPTION << NOT_FOUND_str << ": " << name;
     }
 }
