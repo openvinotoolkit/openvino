@@ -86,9 +86,9 @@ TEST(algebraic_simplification, add_types_shapes)
             for (size_t i = 0; i < results.size(); i++)
             {
                 ASSERT_EQ(expected.at(i),
-                          (results.at(i)->get_argument(0)->input_values().size()
-                               ? results.at(i)->get_argument(0)->get_argument(0)
-                               : results.at(i)->get_argument(0)));
+                          (results.at(i)->input_value(0).get_node_shared_ptr()->input_values().size()
+                               ? results.at(i)->input_value(0).get_node_shared_ptr()->input_value(0).get_node_shared_ptr()
+                               : results.at(i)->input_value(0).get_node_shared_ptr()));
             }
         }
     }
@@ -125,9 +125,9 @@ TEST(algebraic_simplification, DISABLED_add_v1_types_shapes)
             for (size_t i = 0; i < results.size(); i++)
             {
                 ASSERT_EQ(expected.at(i),
-                          (results.at(i)->get_argument(0)->input_values().size()
-                               ? results.at(i)->get_argument(0)->get_argument(0)
-                               : results.at(i)->get_argument(0)));
+                          (results.at(i)->input_value(0).get_node_shared_ptr()->input_values().size()
+                               ? results.at(i)->input_value(0).get_node_shared_ptr()->input_value(0).get_node_shared_ptr()
+                               : results.at(i)->input_value(0).get_node_shared_ptr()));
             }
         }
     }
@@ -160,9 +160,9 @@ TEST(algebraic_simplification, add_broadcast)
     for (size_t i = 0; i < results.size(); i++)
     {
         ASSERT_EQ(expected.at(i),
-                  (results.at(i)->get_argument(0)->input_values().size()
-                       ? results.at(i)->get_argument(0)->get_argument(0)
-                       : results.at(i)->get_argument(0)));
+                  (results.at(i)->input_value(0).get_node_shared_ptr()->input_values().size()
+                   ? results.at(i)->input_value(0).get_node_shared_ptr()->input_value(0).get_node_shared_ptr()
+                   : results.at(i)->input_value(0).get_node_shared_ptr()));
     }
 }
 
@@ -194,9 +194,9 @@ TEST(algebraic_simplification, DISABLED_add_v1_broadcast_v1)
     for (size_t i = 0; i < results.size(); i++)
     {
         ASSERT_EQ(expected.at(i),
-                  (results.at(i)->get_argument(0)->input_values().size()
-                       ? results.at(i)->get_argument(0)->get_argument(0)
-                       : results.at(i)->get_argument(0)));
+                  (results.at(i)->input_value(0).get_node_shared_ptr()->input_values().size()
+                   ? results.at(i)->input_value(0).get_node_shared_ptr()->input_value(0).get_node_shared_ptr()
+                   : results.at(i)->input_value(0).get_node_shared_ptr()));
     }
 }
 
@@ -227,9 +227,9 @@ TEST(algebraic_simplification, multiply_broadcast_0)
     for (size_t i = 0; i < results.size(); i++)
     {
         ASSERT_EQ(expected.at(i),
-                  (results.at(i)->get_argument(0)->input_values().size()
-                       ? results.at(i)->get_argument(0)->get_argument(0)
-                       : results.at(i)->get_argument(0)));
+                  (results.at(i)->input_value(0).get_node_shared_ptr()->input_values().size()
+                   ? results.at(i)->input_value(0).get_node_shared_ptr()->input_value(0).get_node_shared_ptr()
+                   : results.at(i)->input_value(0).get_node_shared_ptr()));
     }
 }
 
@@ -260,9 +260,9 @@ TEST(algebraic_simplification, DISABLED_multiply_v1_broadcast_v1_0)
     for (size_t i = 0; i < results.size(); i++)
     {
         ASSERT_EQ(expected.at(i),
-                  (results.at(i)->get_argument(0)->input_values().size()
-                       ? results.at(i)->get_argument(0)->get_argument(0)
-                       : results.at(i)->get_argument(0)));
+                  (results.at(i)->input_value(0).get_node_shared_ptr()->input_values().size()
+                   ? results.at(i)->input_value(0).get_node_shared_ptr()->input_value(0).get_node_shared_ptr()
+                   : results.at(i)->input_value(0).get_node_shared_ptr()));
     }
 }
 
@@ -291,9 +291,9 @@ TEST(algebraic_simplification, multiply_broadcast_1)
     for (size_t i = 0; i < results.size(); i++)
     {
         ASSERT_EQ(expected.at(i),
-                  (results.at(i)->get_argument(0)->input_values().size()
-                       ? results.at(i)->get_argument(0)->get_argument(0)
-                       : results.at(i)->get_argument(0)));
+                  (results.at(i)->input_value(0).get_node_shared_ptr()->input_values().size()
+                   ? results.at(i)->input_value(0).get_node_shared_ptr()->input_value(0).get_node_shared_ptr()
+                   : results.at(i)->input_value(0).get_node_shared_ptr()));
     }
 }
 
@@ -322,9 +322,9 @@ TEST(algebraic_simplification, DISABLED_multiply_v1_broadcast_v1_1)
     for (size_t i = 0; i < results.size(); i++)
     {
         ASSERT_EQ(expected.at(i),
-                  (results.at(i)->get_argument(0)->input_values().size()
-                       ? results.at(i)->get_argument(0)->get_argument(0)
-                       : results.at(i)->get_argument(0)));
+                  (results.at(i)->input_value(0).get_node_shared_ptr()->input_values().size()
+                   ? results.at(i)->input_value(0).get_node_shared_ptr()->input_value(0).get_node_shared_ptr()
+                   : results.at(i)->input_value(0).get_node_shared_ptr()));
     }
 }
 
@@ -348,8 +348,8 @@ TEST(algebraic_simplification, zero_plus_zero_commutativity)
                                         ParameterVector{a, b, c});
     pass_manager.run_passes(f);
 
-    ASSERT_TRUE(ngraph::is_zero(f->get_results().at(2)->get_argument(0)->get_argument(0)));
-    ASSERT_EQ(f->get_results().at(4)->get_argument(0)->get_argument(0), b);
+    ASSERT_TRUE(ngraph::is_zero(f->get_results().at(2)->input_value(0).get_node_shared_ptr()->input_value(0).get_node_shared_ptr()));
+    ASSERT_EQ(f->get_results().at(4)->input_value(0).get_node_shared_ptr()->input_value(0).get_node_shared_ptr(), b);
 }
 
 TEST(algebraic_simplification, DISABLED_zero_plus_zero_commutativity_v1)
@@ -372,8 +372,8 @@ TEST(algebraic_simplification, DISABLED_zero_plus_zero_commutativity_v1)
                                         ParameterVector{a, b, c});
     pass_manager.run_passes(f);
 
-    ASSERT_TRUE(ngraph::is_zero(f->get_results().at(2)->get_argument(0)->get_argument(0)));
-    ASSERT_EQ(f->get_results().at(4)->get_argument(0)->get_argument(0), b);
+    ASSERT_TRUE(ngraph::is_zero(f->get_results().at(2)->input_value(0).get_node_shared_ptr()->input_value(0).get_node_shared_ptr()));
+    ASSERT_EQ(f->get_results().at(4)->input_value(0).get_node_shared_ptr()->input_value(0).get_node_shared_ptr(), b);
 }
 
 TEST(algebraic_simplification, zero_multiply_zero_one)
@@ -395,8 +395,8 @@ TEST(algebraic_simplification, zero_multiply_zero_one)
                                         ParameterVector{a, b, c});
     pass_manager.run_passes(f);
 
-    ASSERT_TRUE(ngraph::is_zero(f->get_results().at(2)->get_argument(0)->get_argument(0)));
-    ASSERT_TRUE(ngraph::is_zero(f->get_results().at(4)->get_argument(0)->get_argument(0)));
+    ASSERT_TRUE(ngraph::is_zero(f->get_results().at(2)->input_value(0).get_node_shared_ptr()->input_value(0).get_node_shared_ptr()));
+    ASSERT_TRUE(ngraph::is_zero(f->get_results().at(4)->input_value(0).get_node_shared_ptr()->input_value(0).get_node_shared_ptr()));
 }
 
 TEST(algebraic_simplification, DISABLED_zero_multiply_zero_one_v1)
@@ -418,8 +418,8 @@ TEST(algebraic_simplification, DISABLED_zero_multiply_zero_one_v1)
                                         ParameterVector{a, b, c});
     pass_manager.run_passes(f);
 
-    ASSERT_TRUE(ngraph::is_zero(f->get_results().at(2)->get_argument(0)->get_argument(0)));
-    ASSERT_TRUE(ngraph::is_zero(f->get_results().at(4)->get_argument(0)->get_argument(0)));
+    ASSERT_TRUE(ngraph::is_zero(f->get_results().at(2)->input_value(0).get_node_shared_ptr()->input_value(0).get_node_shared_ptr()));
+    ASSERT_TRUE(ngraph::is_zero(f->get_results().at(4)->input_value(0).get_node_shared_ptr()->input_value(0).get_node_shared_ptr()));
 }
 
 TEST(algebraic_simplification, add_negative_tests)
@@ -447,7 +447,7 @@ TEST(algebraic_simplification, add_negative_tests)
     auto results = f->get_results();
     for (size_t i = 0; i < results.size(); i++)
     {
-        ASSERT_EQ(expected.at(i), results.at(i)->get_argument(0));
+        ASSERT_EQ(expected.at(i), results.at(i)->input_value(0).get_node_shared_ptr());
     }
 }
 
@@ -476,7 +476,7 @@ TEST(algebraic_simplification, DISABLED_add_negative_tests_v1)
     auto results = f->get_results();
     for (size_t i = 0; i < results.size(); i++)
     {
-        ASSERT_EQ(expected.at(i), results.at(i)->get_argument(0));
+        ASSERT_EQ(expected.at(i), results.at(i)->input_value(0).get_node_shared_ptr());
     }
 }
 
@@ -505,7 +505,7 @@ TEST(algebraic_simplification, DISABLED_multiply_negative_tests_v1)
     auto results = f->get_results();
     for (size_t i = 0; i < results.size(); i++)
     {
-        ASSERT_EQ(expected.at(i), results.at(i)->get_argument(0));
+        ASSERT_EQ(expected.at(i), results.at(i)->input_value(0).get_node_shared_ptr());
     }
 }
 
@@ -534,7 +534,7 @@ TEST(algebraic_simplification, multiply_negative_tests)
     auto results = f->get_results();
     for (size_t i = 0; i < results.size(); i++)
     {
-        ASSERT_EQ(expected.at(i), results.at(i)->get_argument(0));
+        ASSERT_EQ(expected.at(i), results.at(i)->input_value(0).get_node_shared_ptr());
     }
 }
 
@@ -549,9 +549,9 @@ TEST(algebraic_simplification, multiply_prod_vector_one)
 
     auto f = std::make_shared<Function>(ngraph::NodeVector{prod_fconst1}, ParameterVector{});
     pass_manager.run_passes(f);
-    auto new_broadcast = as_type_ptr<op::Broadcast>(f->get_results().at(0)->get_argument(0));
+    auto new_broadcast = as_type_ptr<op::Broadcast>(f->get_results().at(0)->input_value(0).get_node_shared_ptr());
     ASSERT_TRUE(new_broadcast);
-    auto new_const = as_type_ptr<op::Constant>(new_broadcast->get_argument(0));
+    auto new_const = as_type_ptr<op::Constant>(new_broadcast->input_value(0).get_node_shared_ptr());
     auto values = new_const->get_vector<double>();
     ASSERT_EQ(values.size(), 1);
     ASSERT_EQ(values.at(0), 32);
@@ -568,7 +568,7 @@ TEST(algebraic_simplification, multiply_prod_scalar_one)
 
     auto f = std::make_shared<Function>(ngraph::NodeVector{prod_fconst1}, ParameterVector{});
     pass_manager.run_passes(f);
-    auto new_const = as_type_ptr<op::Constant>(f->get_results().at(0)->get_argument(0));
+    auto new_const = as_type_ptr<op::Constant>(f->get_results().at(0)->input_value(0).get_node_shared_ptr());
     ASSERT_TRUE(new_const);
     auto values = new_const->get_vector<double>();
     ASSERT_EQ(values.size(), 1);
@@ -586,7 +586,7 @@ TEST(algebraic_simplification, multiply_prod_negative)
 
     auto f = std::make_shared<Function>(ngraph::NodeVector{prod_fconst1}, ParameterVector{});
     pass_manager.run_passes(f);
-    auto f_prod = f->get_results().at(0)->get_argument(0);
+    auto f_prod = f->get_results().at(0)->input_value(0).get_node_shared_ptr();
     ASSERT_EQ(f_prod, prod_fconst1);
 }
 
@@ -601,7 +601,7 @@ TEST(algebraic_simplification, multiply_sum_scalar_one)
 
     auto f = std::make_shared<Function>(ngraph::NodeVector{sum_fconst1}, ParameterVector{});
     pass_manager.run_passes(f);
-    auto new_const = as_type_ptr<op::Constant>(f->get_results().at(0)->get_argument(0));
+    auto new_const = as_type_ptr<op::Constant>(f->get_results().at(0)->input_value(0).get_node_shared_ptr());
     ASSERT_TRUE(new_const);
     auto values = new_const->get_vector<double>();
     ASSERT_EQ(values.size(), 1);
@@ -619,9 +619,9 @@ TEST(algebraic_simplification, multiply_sum_vector_one)
 
     auto f = std::make_shared<Function>(ngraph::NodeVector{sum_fconst1}, ParameterVector{});
     pass_manager.run_passes(f);
-    auto new_broadcast = as_type_ptr<op::Broadcast>(f->get_results().at(0)->get_argument(0));
+    auto new_broadcast = as_type_ptr<op::Broadcast>(f->get_results().at(0)->input_value(0).get_node_shared_ptr());
     ASSERT_TRUE(new_broadcast);
-    auto new_const = as_type_ptr<op::Constant>(new_broadcast->get_argument(0));
+    auto new_const = as_type_ptr<op::Constant>(new_broadcast->input_value(0).get_node_shared_ptr());
     auto values = new_const->get_vector<double>();
     ASSERT_EQ(values.size(), 1);
     ASSERT_EQ(values.at(0), 5);
@@ -638,7 +638,7 @@ TEST(algebraic_simplification, multiply_sum_negative)
 
     auto f = std::make_shared<Function>(ngraph::NodeVector{sum_fconst1}, ParameterVector{});
     pass_manager.run_passes(f);
-    auto f_sum = f->get_results().at(0)->get_argument(0);
+    auto f_sum = f->get_results().at(0)->input_value(0).get_node_shared_ptr();
     ASSERT_EQ(f_sum, sum_fconst1);
 }
 
@@ -661,7 +661,7 @@ TEST(algebraic_simplification, concat_reshape_slice)
 
     auto f = std::make_shared<Function>(ngraph::NodeVector{concat}, ParameterVector{a});
     pass_manager.run_passes(f);
-    ASSERT_TRUE(is_type<op::Reshape>(f->get_results().at(0)->get_argument(0)));
+    ASSERT_TRUE(is_type<op::Reshape>(f->get_results().at(0)->input_value(0).get_node_shared_ptr()));
 }
 
 TEST(algebraic_simplification, concat_slice)
@@ -679,7 +679,7 @@ TEST(algebraic_simplification, concat_slice)
 
     auto f = std::make_shared<Function>(ngraph::NodeVector{concat}, ParameterVector{a});
     pass_manager.run_passes(f);
-    ASSERT_EQ(f->get_results().at(0)->get_argument(0), a);
+    ASSERT_EQ(f->get_results().at(0)->input_value(0).get_node_shared_ptr(), a);
 }
 
 TEST(algebraic_simplification, concat_parameter_slice)
@@ -697,7 +697,7 @@ TEST(algebraic_simplification, concat_parameter_slice)
 
     auto f = std::make_shared<Function>(ngraph::NodeVector{concat}, ParameterVector{a});
     pass_manager.run_passes(f);
-    ASSERT_EQ(f->get_results().at(0)->get_argument(0), a);
+    ASSERT_EQ(f->get_results().at(0)->input_value(0).get_node_shared_ptr(), a);
 }
 
 TEST(algebraic_simplification, concat_parameter_slices_reversed)
@@ -715,7 +715,7 @@ TEST(algebraic_simplification, concat_parameter_slices_reversed)
 
     auto f = std::make_shared<Function>(ngraph::NodeVector{concat}, ParameterVector{a});
     pass_manager.run_passes(f);
-    ASSERT_EQ(f->get_results().at(0)->get_argument(0), concat);
+    ASSERT_EQ(f->get_results().at(0)->input_value(0).get_node_shared_ptr(), concat);
 }
 
 TEST(algebraic_simplification, concat_parameter_slices_element_count)
@@ -734,7 +734,7 @@ TEST(algebraic_simplification, concat_parameter_slices_element_count)
 
     auto f = std::make_shared<Function>(ngraph::NodeVector{concat}, ParameterVector{a});
     pass_manager.run_passes(f);
-    ASSERT_EQ(f->get_results().at(0)->get_argument(0), concat);
+    ASSERT_EQ(f->get_results().at(0)->input_value(0).get_node_shared_ptr(), concat);
 }
 
 TEST(algebraic_simplification, concat_parameter_non_uniform_slices)
@@ -752,7 +752,7 @@ TEST(algebraic_simplification, concat_parameter_non_uniform_slices)
 
     auto f = std::make_shared<Function>(ngraph::NodeVector{concat}, ParameterVector{a});
     pass_manager.run_passes(f);
-    ASSERT_EQ(f->get_results().at(0)->get_argument(0), concat);
+    ASSERT_EQ(f->get_results().at(0)->input_value(0).get_node_shared_ptr(), concat);
 }
 
 TEST(algebraic_simplification, concat_different_inputs)
@@ -775,7 +775,7 @@ TEST(algebraic_simplification, concat_different_inputs)
 
     auto f = std::make_shared<Function>(ngraph::NodeVector{concat}, ParameterVector{a});
     pass_manager.run_passes(f);
-    ASSERT_EQ(f->get_results().at(0)->get_argument(0), concat);
+    ASSERT_EQ(f->get_results().at(0)->input_value(0).get_node_shared_ptr(), concat);
 }
 
 TEST(algebraic_simplification, log_neg_neg)
@@ -796,12 +796,12 @@ TEST(algebraic_simplification, log_neg_neg)
 
     auto f = std::make_shared<Function>(ngraph::NodeVector{neg4}, ParameterVector{a, b});
     pass_manager.run_passes(f);
-    auto sub = as_type_ptr<op::Subtract>(neg_inner->get_argument(0));
+    auto sub = as_type_ptr<op::Subtract>(neg_inner->input_value(0).get_node_shared_ptr());
     ASSERT_TRUE(sub != nullptr);
-    ASSERT_EQ(sub->get_argument(0), a);
-    auto new_log = as_type_ptr<op::Log>(sub->get_argument(1));
+    ASSERT_EQ(sub->input_value(0).get_node_shared_ptr(), a);
+    auto new_log = as_type_ptr<op::Log>(sub->input_value(1).get_node_shared_ptr());
     ASSERT_TRUE(new_log != nullptr);
-    ASSERT_EQ(new_log->get_argument(0), b);
+    ASSERT_EQ(new_log->input_value(0).get_node_shared_ptr(), b);
 }
 
 TEST(algebraic_simplification, log_no_exp)
@@ -822,7 +822,7 @@ TEST(algebraic_simplification, log_no_exp)
 
     auto f = std::make_shared<Function>(ngraph::NodeVector{neg4}, ParameterVector{a, b});
     pass_manager.run_passes(f);
-    ASSERT_EQ(neg_inner->get_argument(0), log_div);
+    ASSERT_EQ(neg_inner->input_value(0).get_node_shared_ptr(), log_div);
 }
 
 TEST(algebraic_simplification, log_no_divide)
@@ -843,7 +843,7 @@ TEST(algebraic_simplification, log_no_divide)
 
     auto f = std::make_shared<Function>(ngraph::NodeVector{neg4}, ParameterVector{a, b});
     pass_manager.run_passes(f);
-    ASSERT_EQ(neg_inner->get_argument(0), log_mul);
+    ASSERT_EQ(neg_inner->input_value(0).get_node_shared_ptr(), log_mul);
 }
 
 TEST(algebraic_simplification, pass_property)
@@ -1093,17 +1093,17 @@ TEST(algebraic_simplification, gather_shapeof)
 
         ASSERT_EQ(count_ops_of_type<op::v1::Gather>(baseline_f), 1) << casename;
 
-        auto last_node = optimized_f->get_results()[0]->get_argument(0);
+        auto last_node = optimized_f->get_results()[0]->input_value(0).get_node_shared_ptr();
         if (is_scalar_index)
         {
             ASSERT_EQ(count_ops_of_type<op::v3::ShapeOf>(optimized_f), 1) << casename;
             ASSERT_EQ(count_ops_of_type<op::v1::Gather>(optimized_f), 1) << casename;
-            EXPECT_TRUE(as_type_ptr<op::v1::Gather>(last_node->get_argument(0))) << casename;
+            EXPECT_TRUE(as_type_ptr<op::v1::Gather>(last_node->input_value(0).get_node_shared_ptr())) << casename;
         }
         else
         {
             ASSERT_EQ(count_ops_of_type<op::v0::Concat>(optimized_f), 1) << casename;
-            EXPECT_TRUE(as_type_ptr<op::v0::Concat>(last_node->get_argument(0))) << casename;
+            EXPECT_TRUE(as_type_ptr<op::v0::Concat>(last_node->input_value(0).get_node_shared_ptr())) << casename;
         }
     };
 

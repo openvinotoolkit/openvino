@@ -23,8 +23,8 @@ void ngraph::pass::ConvertTileToIETile::convert_tile() {
             return false;
         }
 
-        auto data_node = tile->get_argument(0);
-        auto tiles_node = std::dynamic_pointer_cast<ngraph::opset1::Constant> (tile->get_argument(1));
+        auto data_node = tile->input_value(0).get_node_shared_ptr();
+        auto tiles_node = std::dynamic_pointer_cast<ngraph::opset1::Constant> (tile->input_value(1).get_node_shared_ptr());
         if (!data_node || !tiles_node) return false;
 
         auto tiles = tiles_node->get_vector<int64_t>();
