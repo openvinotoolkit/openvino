@@ -58,16 +58,18 @@ public:
     static std::shared_ptr<ngraph::Function> getOriginal(
         const ngraph::element::Type precision,
         const ngraph::Shape& inputShape,
-        const bool broadcast,
+        const bool& broadcast,
         const ngraph::pass::low_precision::LayerTransformation::Params& params,
-        const MultiplyActualValues& actualValues);
+        const MultiplyActualValues& actualValues,
+        const bool& constInput);
 
     static std::shared_ptr<ngraph::Function> getReference(
         const ngraph::element::Type precision,
         const ngraph::Shape& inputShape,
-        const bool broadcast,
+        const bool& broadcast,
         const ngraph::pass::low_precision::LayerTransformation::Params& params,
-        const MultiplyExpectedValues& actualValues);
+        const MultiplyExpectedValues& actualValues,
+        const bool& constInput);
 };
 
 }  // namespace subgraph

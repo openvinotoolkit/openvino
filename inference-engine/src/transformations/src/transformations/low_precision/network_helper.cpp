@@ -157,12 +157,17 @@ void NetworkHelper::removeLayer(std::shared_ptr<Node> layer) {
     ngraph::replace_output_update_name(layer->output(0), layer->input_value(0));
 }
 
-std::shared_ptr<opset1::Multiply> NetworkHelper::swapMultiplyAndAdd(std::shared_ptr<Node> addAfterMultiply) {
+std::shared_ptr<opset1::Multiply> NetworkHelper::swapMultiplyAndAdd(std::shared_ptr<Node> addAfterMultiply, const std::pair<int, int> multiplyBranch) {
+    // multiplyBranch.first - index of multiply branch
+    // multiplyBranch.second - index of activation branch on multiply branch
+    //
     // Multiply --> Add(addAfterMultiply)  ==>  Add(new) --> Multiply(new)
     // That means x*a + b ==> (x + b/a)*a; tries to fold b/a
-    auto x = addAfterMultiply->input_value(0).get_node()->input_value(0);
-    auto a = addAfterMultiply->input_value(0).get_node()->input_value(1);
-    auto b = addAfterMultiply->input_value(1);
+    const int constBranch = multiplyBranch.first == 0 ? 1 : 0;
+    const int multiplyConstBranch = multiplyBranch.second == 0 ? 1 : 0;
+    auto x = addAfterMultiply->input_value(multiplyBranch.first).get_node()->input_value(multiplyBranch.second);
+    auto a = addAfterMultiply->input_value(multiplyBranch.first).get_node()->input_value(multiplyConstBranch);
+    auto b = addAfterMultiply->input_value(constBranch);
     auto bDivA = std::make_shared<opset1::Divide>(b, a);
     OutputVector foldedTerm;
     if (bDivA->constant_fold(foldedTerm)) {
@@ -181,11 +186,14 @@ std::shared_ptr<opset1::Multiply> NetworkHelper::swapMultiplyAndAdd(std::shared_
     } else {
         foldedTerm = {bDivA->output(0)};
     }
-    op::AutoReplaceInputTypes<Node> auto_type(*addAfterMultiply->input_value(0).get_node(), addAfterMultiply->get_output_element_type(0));
+    op::AutoReplaceInputTypes<Node> auto_type(
+        *addAfterMultiply->input_value(multiplyBranch.first).get_node(),
+        addAfterMultiply->get_output_element_type(multiplyBranch.first));
     Output<Node> newMultiplyInput;
     if (!foldedTerm.empty()) {
-        auto newAdd = std::make_shared<op::TypeRelaxed<opset1::Add>>(opset1::Add(x, foldedTerm[0]),
-                                                                     addAfterMultiply->get_output_element_type(0));
+        auto newAdd = std::make_shared<op::TypeRelaxed<opset1::Add>>(
+            opset1::Add(x, foldedTerm[0]),
+            addAfterMultiply->get_output_element_type(multiplyBranch.first));
         newMultiplyInput = newAdd->output(0);
     } else {
         newMultiplyInput = x;
@@ -479,6 +487,24 @@ FakeQuantizeDequantizationValues NetworkHelper::createEmptyValues(const FakeQuan
     subtract1Const->set_output_type(0, multiply1Const->get_output_element_type(0), subtract1Const->get_output_partial_shape(0));
 
     return FakeQuantizeDequantizationValues(subtract1Const, multiply1Const);
+}
+
+bool NetworkHelper::isZeroConst(const std::shared_ptr<Node>& node) {
+    std::shared_ptr<opset1::Constant> constant = as_type_ptr<opset1::Constant>(node);
+
+    if (constant == nullptr)
+        return false;
+
+    if (NetworkHelper::isScalarLike(constant)) {
+        auto scalar = NetworkHelper::distillToScalar(constant);
+        if (op::util::constantIsEqualTo(scalar, 0)) {
+            return true;
+        } else {
+            return false;
+        }
+    } else {
+        return false;
+    }
 }
 
 std::shared_ptr<Node> NetworkHelper::optimizeSubtract(std::shared_ptr<opset1::Subtract> add) {

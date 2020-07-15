@@ -35,35 +35,15 @@ void MultiplyTransformation::transform(TransformationContext& context, ngraph::p
     const int fullPathIndex = getNotEmpty(multiply);
 
     if (fullPathIndex == -1) {
-        std::shared_ptr<Node> parent1 = multiply->get_input_node_shared_ptr(0);
-        std::shared_ptr<Node> parent2 = multiply->get_input_node_shared_ptr(1);
+        const auto multiplyBranch = getMultiplyConstBranch(multiply);
 
-        std::shared_ptr<opset1::Constant> constParent = as_type_ptr<opset1::Constant>(parent1);
-        std::shared_ptr<opset1::Multiply> multiplyParent = as_type_ptr<opset1::Multiply>(parent2);
-
-        if (constParent == nullptr || multiplyParent == nullptr) {
-            constParent = as_type_ptr<opset1::Constant>(parent2);
-            multiplyParent = as_type_ptr<opset1::Multiply>(parent1);
-        }
-
-        if (constParent == nullptr || multiplyParent == nullptr) {
+        if (multiplyBranch.first == -1 || multiplyBranch.second == -1)
             return;
-        }
 
-        auto multiplyParentParent1 = multiplyParent->get_input_node_shared_ptr(0);
-        auto multiplyParentParent2 = multiplyParent->get_input_node_shared_ptr(1);
-
-        auto multiplyParentParent = as_type_ptr<opset1::Multiply>(multiplyParentParent1);
-        auto multiplyParentConst = as_type_ptr<opset1::Constant>(multiplyParentParent2);
-
-        if (multiplyParentConst == nullptr) {
-            multiplyParentParent = as_type_ptr<opset1::Multiply>(multiplyParentParent2);
-            multiplyParentConst = as_type_ptr<opset1::Constant>(multiplyParentParent1);
-        }
-
-        if (multiplyParentConst == nullptr) {
-            return;
-        }
+        auto multiplyParent = multiply->get_input_node_shared_ptr(multiplyBranch.first);
+        auto constParent = multiply->get_input_node_shared_ptr(multiplyBranch.first == 0 ? 1 : 0);
+        auto multiplyParentParent = multiplyParent->get_input_node_shared_ptr(multiplyBranch.second);
+        auto multiplyParentConst = multiplyParent->get_input_node_shared_ptr(multiplyBranch.second == 0 ? 1 : 0);
 
         newMultiply = std::make_shared<opset1::Multiply>(
             multiplyParentParent,
@@ -80,14 +60,9 @@ void MultiplyTransformation::transform(TransformationContext& context, ngraph::p
         std::shared_ptr<Node> multiplyValuesEmptyPath;
         std::tie(subtractValuesEmptyPath, multiplyValuesEmptyPath) = NetworkHelper::createEmptyValues(dequantizationEmptyPath);
 
-
         // check if empty path shifts are not zero
-        std::shared_ptr<opset1::Constant> subtract1ValuesConst = as_type_ptr<opset1::Constant>(subtractValuesEmptyPath);
-        if (NetworkHelper::isScalarLike(subtract1ValuesConst)) {
-            auto scalar = NetworkHelper::distillToScalar(subtract1ValuesConst);
-            if (!op::util::constantIsEqualTo(scalar, 0)) {
-                return;
-            }
+        if (!NetworkHelper::isZeroConst(subtractValuesEmptyPath)) {
+            return;
         }
 
         FakeQuantizeDequantization dequantizationFullPath = NetworkHelper::getDequantization(multiply, fullPathIndex);
@@ -95,6 +70,10 @@ void MultiplyTransformation::transform(TransformationContext& context, ngraph::p
         std::shared_ptr<Node> multiplyValuesFullPath;
         std::tie(subtractValuesFullPath, multiplyValuesFullPath) = NetworkHelper::createEmptyValues(dequantizationFullPath);
 
+
+        // before: Y = (SC1 * (X1 - SH1)) * (SC2 * X2)
+        // after : Y = (SC1' * (X1 - SH1)) * (X2) , where :
+        //         SC1' = SC1 * SC2
         std::shared_ptr<Node> newMultiplyValuesFullPath = fold<opset1::Multiply>(multiplyValuesEmptyPath, multiplyValuesFullPath);
         std::vector<std::shared_ptr<Node>> inputs{ {}, {} };
         inputs[emptyPathIndex] = dequantizationEmptyPath.subtract == nullptr ?

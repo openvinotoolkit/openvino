@@ -24,6 +24,7 @@ public:
 
 protected:
     int getNotEmpty(const std::shared_ptr<Node>& eltwise) const;
+    std::pair<int, int> getMultiplyConstBranch(const std::shared_ptr<Node>& eltwise) const;
 };
 
 }  // namespace low_precision

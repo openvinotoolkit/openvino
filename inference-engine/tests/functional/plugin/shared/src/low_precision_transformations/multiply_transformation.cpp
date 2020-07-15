@@ -48,8 +48,6 @@ std::string MultiplyTransformation::getTestCaseName(testing::TestParamInfo<Multi
 }
 
 void MultiplyTransformation::SetUp() {
-    threshold = 0.01f;
-
     InferenceEngine::Precision netPrecision;
     InferenceEngine::SizeVector inputShape1;
     InferenceEngine::details::LayerTransformation::Params params;
@@ -111,7 +109,7 @@ void MultiplyTransformation::validate() {
 
     IE_SUPPRESS_DEPRECATED_START
 
-        InferenceEngine::OutputsDataMap outputs = network.getOutputsInfo();
+    InferenceEngine::OutputsDataMap outputs = network.getOutputsInfo();
     EXPECT_EQ(1, outputs.size());
 
     std::map<std::string, InferenceEngine::DataPtr>::iterator it = outputs.begin();

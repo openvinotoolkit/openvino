@@ -60,7 +60,7 @@ public:
     // Remove node by connecting its 0th input with 0th output
     static void removeLayer(std::shared_ptr<Node> node);
 
-    static std::shared_ptr<opset1::Multiply> swapMultiplyAndAdd(std::shared_ptr<Node> addAfterMultiply);
+    static std::shared_ptr<opset1::Multiply> swapMultiplyAndAdd(std::shared_ptr<Node> addAfterMultiply, const std::pair<int, int> multiplyBranch);
 
     static bool isScalarLike(std::shared_ptr<opset1::Constant> constant);
 
@@ -133,6 +133,7 @@ public:
 
     static FakeQuantizeDequantizationValues createEmptyValues(const FakeQuantizeDequantization& dequantization);
 
+    static bool isZeroConst(const std::shared_ptr<Node>& node);
 private:
     // 1  - on weights
     // 0  - weightable layer was not found

@@ -102,3 +102,43 @@ int EltwiseBaseTransformation::getNotEmpty(const std::shared_ptr<Node>& eltwise)
 
     return fullPathIndex;
 }
+
+std::pair<int, int> EltwiseBaseTransformation::getMultiplyConstBranch(const std::shared_ptr<Node>& eltwise) const {
+    std::shared_ptr<Node> parent1 = eltwise->get_input_node_shared_ptr(0);
+    std::shared_ptr<Node> parent2 = eltwise->get_input_node_shared_ptr(1);
+
+    std::shared_ptr<opset1::Constant> constParent = as_type_ptr<opset1::Constant>(parent1);
+    std::shared_ptr<opset1::Multiply> multiplyParent = as_type_ptr<opset1::Multiply>(parent2);
+    int multiplyBranch = 1;
+
+
+    if (constParent == nullptr || multiplyParent == nullptr) {
+        constParent = as_type_ptr<opset1::Constant>(parent2);
+        multiplyParent = as_type_ptr<opset1::Multiply>(parent1);
+        multiplyBranch = 0;
+    }
+
+    if (constParent == nullptr || multiplyParent == nullptr) {
+        return {-1, -1};
+    }
+
+    auto multiplyParentParent1 = multiplyParent->get_input_node_shared_ptr(0);
+    auto multiplyParentParent2 = multiplyParent->get_input_node_shared_ptr(1);
+
+    auto multiplyParentParent = as_type_ptr<opset1::Multiply>(multiplyParentParent1);
+    auto multiplyParentConst = as_type_ptr<opset1::Constant>(multiplyParentParent2);
+    int multiplyActBranch = 0;
+
+
+    if (multiplyParentConst == nullptr) {
+        multiplyParentParent = as_type_ptr<opset1::Multiply>(multiplyParentParent2);
+        multiplyParentConst = as_type_ptr<opset1::Constant>(multiplyParentParent1);
+        multiplyActBranch = 1;
+    }
+
+    if (multiplyParentConst == nullptr) {
+        return { multiplyBranch, -1 };
+    }
+
+    return { multiplyBranch, multiplyActBranch };
+}

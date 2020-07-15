@@ -27,6 +27,7 @@ using namespace ngraph::builder::subgraph;
 
 class MultiplyTransformationTestValues {
 public:
+    bool constInput;
     low_precision::LayerTransformation::Params transformationParams;
     MultiplyActualValues actual;
     MultiplyExpectedValues expected;
@@ -51,7 +52,8 @@ public:
             shape,
             broadcast,
             testParams.transformationParams,
-            testParams.actual);
+            testParams.actual,
+            testParams.constInput);
 
         SimpleLowPrecisionTransformer transform;
         transform.add<ngraph::pass::low_precision::MultiplyTransformation, ngraph::opset1::Multiply>(
@@ -63,7 +65,8 @@ public:
             shape,
             broadcast,
             testParams.transformationParams,
-            testParams.expected);
+            testParams.expected,
+            testParams.constInput);
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<MultiplyTransformationParams> obj) {
@@ -76,7 +79,7 @@ public:
         std::ostringstream result;
         result <<
             LayerTransformation::getTestCaseNameByParams(precision, shape, params.transformationParams) <<
-            (broadcast ? "_broadcast_" : "") << params.actual << params.expected;
+            (broadcast ? "_broadcast_" : "") << (params.constInput ? "_constInput_" : "") << params.actual << params.expected;
         return result.str();
     }
 };
@@ -104,24 +107,28 @@ const std::vector<bool> broadcastValues = {
 const std::vector<MultiplyTransformationTestValues> multiplyTransformationTestValues = {
     // U8
     {
+        false,
         LayerTransformation::createParamsU8I8(),
         { ngraph::element::u8, { 2.f }, { 10.f }, ngraph::element::u8, { 3.f }, { 7.f } },
         { ngraph::element::u8, { 2.f }, { 10.f }, ngraph::element::u8, { 3.f }, { 7.f } }
     },
 
     {
+        false,
         LayerTransformation::createParamsU8I8(),
         { ngraph::element::u8, { 2.f }, { 10.f }, ngraph::element::u8, { }, { 7.f } },
         { ngraph::element::u8, { 2.f }, { 70.f }, ngraph::element::u8, { }, { } }
     },
 
     {
+        false,
         LayerTransformation::createParamsU8I8(),
         { ngraph::element::u8, {  }, { 10.f }, ngraph::element::u8, { }, { 7.f } },
         { ngraph::element::u8, {  }, { 70.f }, ngraph::element::u8, { }, { } }
     },
 
     {
+        false,
         LayerTransformation::createParamsU8I8(),
         { ngraph::element::u8, { 2.f }, {  }, ngraph::element::u8, { }, { 7.f } },
         { ngraph::element::u8, { 2.f }, { 7.f }, ngraph::element::u8, { }, { } }
@@ -129,27 +136,46 @@ const std::vector<MultiplyTransformationTestValues> multiplyTransformationTestVa
 
     // I8
     {
+        false,
         LayerTransformation::createParamsI8I8(),
         { ngraph::element::i8, { 2.f }, { 10.f }, ngraph::element::i8, { 3.f }, { 7.f } },
         { ngraph::element::i8, { 2.f }, { 10.f }, ngraph::element::i8, { 3.f }, { 7.f } }
     },
 
     {
+        false,
         LayerTransformation::createParamsI8I8(),
         { ngraph::element::i8, { 2.f }, { 10.f }, ngraph::element::i8, { }, { 7.f } },
         { ngraph::element::i8, { 2.f }, { 70.f }, ngraph::element::i8, { }, { } }
     },
 
     {
-        LayerTransformation::createParamsU8I8(),
+        false,
+        LayerTransformation::createParamsI8I8(),
         { ngraph::element::i8, {  }, { 10.f }, ngraph::element::i8, { }, { 7.f } },
         { ngraph::element::i8, {  }, { 70.f }, ngraph::element::i8, { }, { } }
     },
 
     {
-        LayerTransformation::createParamsU8I8(),
+        false,
+        LayerTransformation::createParamsI8I8(),
         { ngraph::element::i8, { 2.f }, {  }, ngraph::element::i8, { }, { 7.f } },
         { ngraph::element::i8, { 2.f }, { 7.f }, ngraph::element::i8, { }, { } }
+    },
+
+    // constInput test
+    {
+        true,
+        LayerTransformation::createParamsU8I8(),
+        { ngraph::element::i8, { }, { 10.f }, ngraph::element::f32, { }, { 7.f } },
+        { ngraph::element::i8, { }, { }, ngraph::element::f32, { }, { 70.f } }
+    },
+
+    {
+        true,
+        LayerTransformation::createParamsU8I8(),
+        { ngraph::element::i8, { 1.8f }, { 10.f }, ngraph::element::f32, { }, { 7.f } },
+        { ngraph::element::i8, { 1.8f }, { }, ngraph::element::f32, { }, { 70.f } }
     },
 };
 

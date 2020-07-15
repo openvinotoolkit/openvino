@@ -52,85 +52,74 @@ void AddTransformation::transform(TransformationContext& context, ngraph::patter
 
     add = separateInStandaloneBranch(add);
 
-    // pass::VisualizeTree("C:\\Projects\\temp\\test.original").run_on_module(std::vector<std::shared_ptr<Function>>{ context.network });
-
-    // Figure out where SS and where is Constant
-    std::shared_ptr<opset1::Constant> constant = as_type_ptr<opset1::Constant>(add->input_value(0).get_node_shared_ptr());
-    std::shared_ptr<opset1::Multiply> multiply;
-    if (constant) {
-        multiply = as_type_ptr<opset1::Multiply>(add->input_value(1).get_node_shared_ptr());
-    } else {
-        constant = as_type_ptr<opset1::Constant>(add->input_value(1).get_node_shared_ptr());
-        multiply = as_type_ptr<opset1::Multiply>(add->input_value(0).get_node_shared_ptr());
-    }
+    const int fullPathIndex = getNotEmpty(add);
 
     std::shared_ptr<opset1::Multiply> newMultiply;
-    if ((constant != nullptr) && (multiply != nullptr)) {
-        newMultiply = NetworkHelper::swapMultiplyAndAdd(add);
-    } else {
-        const int fullPathIndex = getNotEmpty(add);
-        if (fullPathIndex == -1) {
+
+    if (fullPathIndex == -1) {
+        const auto multiplyBranch = getMultiplyConstBranch(add);
+
+        if (multiplyBranch.first == -1 || multiplyBranch.second == -1)
             return;
-        }
+
+        newMultiply = NetworkHelper::swapMultiplyAndAdd(add, multiplyBranch);
+    } else {
         const int emptyPathIndex = fullPathIndex == 0 ? 1 : 0;
 
         // TODO: question: is it reasonable to create Constant? (performance issue?)
         // TODO: question: should we clone constant here?
 
-        FakeQuantizeDequantization dequantization1 = NetworkHelper::getDequantization(add, emptyPathIndex);
-        std::shared_ptr<Node> subtract1Values;
-        std::shared_ptr<Node> multiply1Values;
-        std::tie(subtract1Values, multiply1Values) = NetworkHelper::createEmptyValues(dequantization1);
+        FakeQuantizeDequantization dequantizationEmptyPath = NetworkHelper::getDequantization(add, emptyPathIndex);
+        std::shared_ptr<Node> subtractEmptyPathValues;
+        std::shared_ptr<Node> multiplyEmptyPathValues;
+        std::tie(subtractEmptyPathValues, multiplyEmptyPathValues) = NetworkHelper::createEmptyValues(dequantizationEmptyPath);
 
-        FakeQuantizeDequantization dequantization2 = NetworkHelper::getDequantization(add, fullPathIndex);
-        std::shared_ptr<Node> subtract2Values;
-        std::shared_ptr<Node> multiply2Values;
-        std::tie(subtract2Values, multiply2Values) = NetworkHelper::createEmptyValues(dequantization2);
+        FakeQuantizeDequantization dequantizationFullPath = NetworkHelper::getDequantization(add, fullPathIndex);
+        std::shared_ptr<Node> subtractFullPathValues;
+        std::shared_ptr<Node> multiplyFullPathValues;
+        std::tie(subtractFullPathValues, multiplyFullPathValues) = NetworkHelper::createEmptyValues(dequantizationFullPath);
 
         // calculation
-        std::shared_ptr<Node> newSubtract2Values = fold<opset1::Add>(
-            subtract2Values,
+        // before: Y = (SC1 * (X1 - SH1)) + (SC2 * (X2 - SH2))
+        // after : Y = SC2 * ( SC1' * (X1 - SH1') + X2 ) , where :
+        //         SC1' = SC1 / SC2
+        //         SH1' = SH1 + SC2 * SH2 / SC1
+        std::shared_ptr<Node> newSubtractFullPathValues = fold<opset1::Add>(
+            subtractFullPathValues,
             fold<opset1::Divide>(
-                fold<opset1::Multiply>(subtract1Values, multiply1Values),
-                multiply2Values));
+                fold<opset1::Multiply>(subtractEmptyPathValues, multiplyEmptyPathValues),
+                multiplyFullPathValues));
 
-        std::shared_ptr<Node> newMultiply2Const = fold<opset1::Divide>(multiply2Values, multiply1Values);
+        std::shared_ptr<Node> newMultiplyFullPathValues = fold<opset1::Divide>(multiplyFullPathValues, multiplyEmptyPathValues);
 
-        // result optimization
-        {
-            // empty Subtract after calculations removing
-            std::shared_ptr<opset1::Constant> newSubtract2ConstOp = as_type_ptr<opset1::Constant>(newSubtract2Values);
-            if ((newSubtract2ConstOp != nullptr) && NetworkHelper::isScalarLike(newSubtract2ConstOp)) {
-                auto scalar = NetworkHelper::distillToScalar(newSubtract2ConstOp);
-                if (op::util::constantIsEqualTo(scalar, 0)) {
-                    newSubtract2Values = nullptr;
-                }
-            }
+        if (NetworkHelper::isZeroConst(newSubtractFullPathValues)) {
+            newSubtractFullPathValues = nullptr;
         }
 
         // graph update
+        std::vector<std::shared_ptr<Node>> inputs{ {}, {} };
+        auto fullPathInput = dequantizationFullPath.convert == nullptr ? dequantizationFullPath.data : dequantizationFullPath.convert;
+
+        inputs[emptyPathIndex] = dequantizationEmptyPath.convert == nullptr ?
+            ((dequantizationEmptyPath.data->get_output_element_type(0) == newMultiplyFullPathValues->get_output_element_type(0)) ?
+                dequantizationEmptyPath.data :
+                std::make_shared<op::TypeRelaxed<opset1::Convert>>(
+                    dequantizationEmptyPath.data, newMultiplyFullPathValues->get_output_element_type(0))) :
+            dequantizationEmptyPath.convert;
+        inputs[fullPathIndex] = std::make_shared<opset1::Multiply>(
+            newSubtractFullPathValues == nullptr ?
+                fullPathInput :
+                std::make_shared<opset1::Subtract>(fullPathInput, newSubtractFullPathValues),
+            newMultiplyFullPathValues);
+
         newMultiply = std::make_shared<opset1::Multiply>(
-            std::make_shared<op::TypeRelaxed<opset1::Add>>(
-                dequantization1.convert == nullptr ?
-                    ((dequantization1.data->get_output_element_type(0) == newMultiply2Const->get_output_element_type(0)) ?
-                        dequantization1.data :
-                        std::make_shared<op::TypeRelaxed<opset1::Convert>>(dequantization1.data, newMultiply2Const->get_output_element_type(0))) :
-                    dequantization1.convert,
-                std::make_shared<opset1::Multiply>(
-                    newSubtract2Values == nullptr ?
-                        dequantization2.convert == nullptr ? dequantization2.data : dequantization2.convert :
-                        std::make_shared<opset1::Subtract>(dequantization2.convert, newSubtract2Values),
-                    newMultiply2Const)),
-            multiply1Values);
+            std::make_shared<op::TypeRelaxed<opset1::Add>>(inputs[0], inputs[1]),
+            multiplyEmptyPathValues);
 
         replace_node(add, newMultiply);
     }
 
     updateOutput(context, newMultiply, add);
-
-    // std::cout << "AddTransformation::transform: done: " << newMultiply->get_friendly_name() << std::endl;
-
-    // pass::VisualizeTree("C:\\Projects\\temp\\test.transformed").run_on_module(std::vector<std::shared_ptr<Function>>{ context.network });
 }
 
 } // namespace low_precision
