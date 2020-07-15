@@ -11,9 +11,10 @@
 
 #include <ngraph_ops/nms_ie.hpp>
 #include <ngraph/rt_info.hpp>
+#include <ngraph/pattern/op/any_type.hpp>
 
 ngraph::pass::ConvertNMSToNMSIEMatcher::ConvertNMSToNMSIEMatcher() {
-    auto nms = std::make_shared<pattern::op::Label>(element::f32, Shape{}, pattern::has_class<opset1::NonMaxSuppression>());
+    auto nms = ngraph::pattern::create_node<opset1::NonMaxSuppression>();
 
     ngraph::graph_rewrite_callback callback = [](pattern::Matcher &m) {
         auto nms = std::dynamic_pointer_cast<opset1::NonMaxSuppression>(m.get_match_root());

@@ -9,9 +9,10 @@
 
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/rt_info.hpp>
+#include <ngraph/pattern/op/any_type.hpp>
 
 ngraph::pass::ConvertGatherToGatherIEMatcher::ConvertGatherToGatherIEMatcher() {
-    auto gather = std::make_shared<pattern::op::Label>(element::f32, Shape{1}, pattern::has_class<opset1::Gather>());
+    auto gather = ngraph::pattern::create_node<opset1::Gather>();
 
     ngraph::graph_rewrite_callback callback = [](pattern::Matcher &m) {
         auto gather = std::dynamic_pointer_cast<ngraph::opset1::Gather>(m.get_match_root());
