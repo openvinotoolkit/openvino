@@ -2896,22 +2896,3 @@ def variadic_split(
     :return: VariadicSplit node
     """
     return _get_node_factory_opset1().create("VariadicSplit", as_nodes(data, axis, split_lengths))
-
-
-# Extend Node class to support binary operators
-Node.__add__ = add
-Node.__sub__ = subtract
-Node.__mul__ = multiply
-Node.__div__ = divide
-Node.__truediv__ = divide
-Node.__radd__ = lambda left, right: add(right, left)
-Node.__rsub__ = lambda left, right: subtract(right, left)
-Node.__rmul__ = lambda left, right: multiply(right, left)
-Node.__rdiv__ = lambda left, right: divide(right, left)
-Node.__rtruediv__ = lambda left, right: divide(right, left)
-Node.__eq__ = equal
-Node.__ne__ = not_equal
-Node.__lt__ = less
-Node.__le__ = less_equal
-Node.__gt__ = greater
-Node.__ge__ = greater_equal

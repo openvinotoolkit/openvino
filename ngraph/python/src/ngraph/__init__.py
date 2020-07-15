@@ -23,6 +23,8 @@ try:
 except DistributionNotFound:
     __version__ = "0.0.0.dev0"
 
+from ngraph.impl import Node
+
 from ngraph.opset4 import absolute
 from ngraph.opset4 import absolute as abs
 from ngraph.opset4 import acos
@@ -154,3 +156,22 @@ from ngraph.opset4 import topk
 from ngraph.opset4 import transpose
 from ngraph.opset4 import unsqueeze
 from ngraph.opset4 import variadic_split
+
+
+# Extend Node class to support binary operators
+Node.__add__ = add
+Node.__sub__ = subtract
+Node.__mul__ = multiply
+Node.__div__ = divide
+Node.__truediv__ = divide
+Node.__radd__ = lambda left, right: add(right, left)
+Node.__rsub__ = lambda left, right: subtract(right, left)
+Node.__rmul__ = lambda left, right: multiply(right, left)
+Node.__rdiv__ = lambda left, right: divide(right, left)
+Node.__rtruediv__ = lambda left, right: divide(right, left)
+Node.__eq__ = equal
+Node.__ne__ = not_equal
+Node.__lt__ = less
+Node.__le__ = less_equal
+Node.__gt__ = greater
+Node.__ge__ = greater_equal
