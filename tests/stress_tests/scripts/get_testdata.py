@@ -18,6 +18,7 @@ import subprocess
 import sys
 from inspect import getsourcefile
 from pathlib import Path
+from shutil import copytree
 from xml.etree import ElementTree as ET
 
 log.basicConfig(format="{file}: [ %(levelname)s ] %(message)s".format(file=os.path.basename(__file__)),
@@ -163,6 +164,11 @@ def main():
 
     run_in_subprocess(cmd, check_call=not args.skip_omz_errors)
 
+    # copy IRs downloaded within OMZ downloader.py to converter.py output folder to have all IRs in none folder
+    for ir_src_path in args.omz_models_out_dir.rglob("*.xml"):
+        ir_dst_path = args.omz_irs_out_dir / os.path.relpath(ir_src_path, args.omz_models_out_dir)
+        copytree(ir_src_path.parent, ir_dst_path.parent)
+    
     # prepare virtual environment and install requirements
     python_executable = sys.executable
     if not args.no_venv:
