@@ -23,14 +23,14 @@ const std::vector<LayerTestsUtils::LayerTransformation::LptVersion> versions = {
     // LayerTestsUtils::LayerTransformation::LptVersion::nGraph
 };
 
-INSTANTIATE_TEST_CASE_P(DISABLED_LPT, MultiplyTransformation,
-    ::testing::Combine(
-        ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(InferenceEngine::SizeVector({ 1, 3, 16, 16 })),
-        ::testing::Values(CommonTestUtils::DEVICE_GPU),
-        ::testing::ValuesIn(trasformationParamValues),
-        ::testing::ValuesIn(versions)),
-    MultiplyTransformation::getTestCaseName);
+//INSTANTIATE_TEST_CASE_P(DISABLED_LPT, MultiplyTransformation,
+//    ::testing::Combine(
+//        ::testing::ValuesIn(netPrecisions),
+//        ::testing::Values(InferenceEngine::SizeVector({ 1, 3, 16, 16 })),
+//        ::testing::Values(CommonTestUtils::DEVICE_GPU),
+//        ::testing::ValuesIn(trasformationParamValues),
+//        ::testing::ValuesIn(versions)),
+//    MultiplyTransformation::getTestCaseName);
 }  // namespace
 
 
