@@ -120,7 +120,7 @@ MatcherPass also provides functionality that allows to report which newly create
 If MatcherPass was registered in `pass::Manager` or `pass::GraphRewrite` then this registered nodes will be added for additional pattern matching.
 That means that matcher passes registered in `pass::GraphRewrite` will be applied to this nodes.
 
-Example below shows how single MatcherPass can fuse sequence of operations.
+Example below shows how single MatcherPass can fuse sequence of operations using `register_new_node` method.
 
 @snippet src/template_pattern_transformation.cpp matcher_pass:relu_fusion
 
@@ -143,6 +143,17 @@ MatcherPass has multiple ways to be executed:
 3. Run on `ngraph::Function` using `pass::Manager` - this approach helps you to register MatcherPass for execution on `ngraph::Function` as another transformation types.
 @snippet src/template_pattern_transformation.cpp matcher_pass:manager
 
+
+###3. ngraph::pass::GraphRewrite <a name="graph_rewrite_pass"></a>
+
+GraphRewrite pass serves for running multiple matcher passes on `ngraph::Function` in a single graph traversal. 
+Example:
+
+@snippet src/template_pattern_transformation.cpp matcher_pass:graph_rewrite
+
+In addition GraphRewrite handles nodes that were registered by MatcherPasses during their execution. This nodes will be added to the beginning of sequence with nodes for pattern matching.
+
+> **Note**: when using `pass::Manager` temporary GraphRewrite is used to execute single MatcherPass. 
 
 ## Pattern matching <a name="pattern_matching"></a>
 
