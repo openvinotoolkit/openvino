@@ -3,6 +3,7 @@
 //
 
 #include "transformations/unroll_tensor_iterator.hpp"
+#include "transformations/utils/utils.hpp"
 
 #include <memory>
 #include <vector>
@@ -12,22 +13,21 @@
 #include <ngraph/graph_util.hpp>
 #include <ngraph/specialize_function.hpp>
 
-
 void ngraph::pass::UnrollTensorIterator::unroll_tensor_iterator() {
     auto X = std::make_shared<pattern::op::Label>(element::f32, Shape{32, 40, 10});
     auto Y = std::make_shared<pattern::op::Label>(element::f32, Shape{32, 40, 10});
     auto M = std::make_shared<pattern::op::Label>(element::f32, Shape{32, 2, 10});
 
-    auto Xi = std::make_shared<op::Parameter>(element::f32, Shape{32, 2, 10});
-    auto Yi = std::make_shared<op::Parameter>(element::f32, Shape{32, 2, 10});
-    auto M_body = std::make_shared<op::Parameter>(element::f32, Shape{32, 2, 10});
+    auto Xi = std::make_shared<opset3::Parameter>(element::f32, Shape{32, 2, 10});
+    auto Yi = std::make_shared<opset3::Parameter>(element::f32, Shape{32, 2, 10});
+    auto M_body = std::make_shared<opset3::Parameter>(element::f32, Shape{32, 2, 10});
 
     // Body
     auto Zo = (Xi + Yi) * M_body;
-    auto body = std::make_shared<op::TensorIterator::BodyLambda>(OutputVector{Zo},
+    auto body = std::make_shared<opset3::TensorIterator::BodyLambda>(OutputVector{Zo},
                                                             ParameterVector{Xi, Yi, M_body});
 
-    auto tensor_iterator = std::make_shared<op::TensorIterator>();
+    auto tensor_iterator = std::make_shared<opset3::TensorIterator>();
     tensor_iterator->set_body(body);
 
     tensor_iterator->set_sliced_input(Xi, X, 0, 2, 2, 39, 1);
@@ -63,7 +63,7 @@ void ngraph::pass::UnrollTensorIterator::unroll_tensor_iterator() {
             body_functions[idx] = specialize_function(function, paramElementTypes, paramShapes,
                                                       inBuffers, false, true);
             for (auto &node : body_functions[idx]->get_ops()) {
-                node->set_friendly_name(node->get_friendly_name() + "/" + std::to_string(idx));
+                node->set_friendly_name("TensorIterator/" + std::to_string(idx + 1) + "/" + node->get_friendly_name());
             }
         }
 
@@ -72,16 +72,15 @@ void ngraph::pass::UnrollTensorIterator::unroll_tensor_iterator() {
             std::string type_name = desc->get_type_info().name;
 
             if (type_name == "SliceInputDescription") {
-                auto input_desc = std::dynamic_pointer_cast<ngraph::op::TensorIterator::SliceInputDescription>(desc);
+                auto input_desc = std::dynamic_pointer_cast<ngraph::opset3::TensorIterator::SliceInputDescription>(desc);
                 if (!input_desc) {
                     return false;
                 }
 
                 auto in_data = ti->input_values()[input_desc->m_input_index].get_node_shared_ptr();
-                const auto const_axis = op::Constant::create(element::i64, Shape{}, {input_desc->m_axis});
+                const auto const_axis = opset3::Constant::create(element::i64, Shape{}, {input_desc->m_axis});
                 in_data->get_outputs().clear();
                 in_data->set_output_size(1);
-                // todo checks
 
                 auto split = std::make_shared<ngraph::opset3::Split>(in_data, const_axis, num_iter);
                 auto stride = input_desc->m_stride;
@@ -94,7 +93,7 @@ void ngraph::pass::UnrollTensorIterator::unroll_tensor_iterator() {
                     }
                 }
             } else if (type_name == "MergedInputDescription") {
-                auto input_desc = std::dynamic_pointer_cast<ngraph::op::TensorIterator::MergedInputDescription>(desc);
+                auto input_desc = std::dynamic_pointer_cast<ngraph::opset3::TensorIterator::MergedInputDescription>(desc);
                 if (!input_desc) {
                     return false;
                 }
@@ -110,11 +109,11 @@ void ngraph::pass::UnrollTensorIterator::unroll_tensor_iterator() {
                     auto cur_param = body_functions[j]->get_parameters()[input_desc->m_body_parameter_index];
                     auto prev_val = body_functions[j - 1]->get_results()[input_desc->m_body_value_index];
                     for (auto &output : cur_param->outputs()) {
-                        output.replace(prev_val->get_input_node_shared_ptr(0));
+                        output.replace(prev_val->get_input_source_output(0));
                     }
                 }
             } else if (type_name == "InvariantInputDescription") {
-                auto input_desc = std::dynamic_pointer_cast<ngraph::op::TensorIterator::InvariantInputDescription>(
+                auto input_desc = std::dynamic_pointer_cast<ngraph::opset3::TensorIterator::InvariantInputDescription>(
                         desc);
                 if (!input_desc) {
                     return false;
@@ -138,7 +137,7 @@ void ngraph::pass::UnrollTensorIterator::unroll_tensor_iterator() {
         for (const auto& desc : ti->get_output_descriptions()) {
             std::string type_name = desc->get_type_info().name;
             if (type_name == "ConcatOutputDescription") {
-                auto output_desc = std::dynamic_pointer_cast<ngraph::op::TensorIterator::ConcatOutputDescription>(desc);
+                auto output_desc = std::dynamic_pointer_cast<ngraph::opset3::TensorIterator::ConcatOutputDescription>(desc);
                 if (!output_desc) {
                     return false;
                 }
@@ -147,26 +146,26 @@ void ngraph::pass::UnrollTensorIterator::unroll_tensor_iterator() {
                 auto stride = output_desc->m_stride;
                 for (uint64_t j = 0; j < num_iter; j++) {
                     auto idx = stride > 0? j: num_iter - j - 1;
-                    std::shared_ptr<op::v0::Result> result = body_functions[idx]->get_results()[output_desc->m_body_value_index];
+                    std::shared_ptr<opset3::Result> result = body_functions[idx]->get_results()[output_desc->m_body_value_index];
                     auto input_to_res = result->get_input_source_output(0);
                     to_concat[j] = input_to_res;
                 }
                 auto concat = std::make_shared<ngraph::opset3::Concat>(to_concat, output_desc->m_axis);
-                concat->set_friendly_name(ti->get_friendly_name() + "." + std::to_string(output_desc->m_output_index));
+                //concat->set_friendly_name(op::util::create_ie_output_name(concat));
                 for (auto &input : ti->output(output_desc->m_output_index).get_target_inputs()) {
                     input.replace_source_output(concat);
                 }
             } else if (type_name == "BodyOutputDescription") {
-                auto output_desc = std::dynamic_pointer_cast<ngraph::op::TensorIterator::BodyOutputDescription>(desc);
+                auto output_desc = std::dynamic_pointer_cast<ngraph::opset3::TensorIterator::BodyOutputDescription>(desc);
                 if (!output_desc) {
                     return false;
                 }
                 auto iter = output_desc->m_iteration;
                 iter = iter >= 0? iter: num_iter - 1;
                 std::shared_ptr<opset3::Result> result = body_functions[iter]->get_results()[output_desc->m_body_value_index];
-                for (auto &input : ti->output(output_desc->m_output_index).get_target_inputs()) {
-                    auto to_res = result->get_input_node_shared_ptr(0);
-                    to_res->set_friendly_name(ti->get_friendly_name() + "." + std::to_string(output_desc->m_output_index));
+                const auto& in_value = result->input_value(0);
+                in_value.get_node_shared_ptr()->set_friendly_name(in_value.get_node_shared_ptr()->get_friendly_name());
+                for (const auto &input : ti->output(output_desc->m_output_index).get_target_inputs()) {
                     input.replace_source_output(result->get_input_source_output(0));
                 }
             } else {

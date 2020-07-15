@@ -853,12 +853,9 @@ std::shared_ptr<CNNNetworkImpl> convertFunctionToICNNNetwork(const std::shared_p
         if (std::dynamic_pointer_cast<::ngraph::op::ReadValue>(layer))
             continue;
         if (std::dynamic_pointer_cast<::ngraph::op::Result>(layer)) {
-            IE_ASSERT(layer->get_inputs().size() == 1);
+            IE_ASSERT(layer->get_input_size() == 1);
             const auto &input = layer->input_value(0);
-            std::string outName = input.get_node_shared_ptr()->get_friendly_name();
-            if (input.get_node_shared_ptr()->get_output_size() != 1)
-                outName += "." + std::to_string(input.get_index());
-            cnnNetworkImpl->addOutput(outName);
+            cnnNetworkImpl->addOutput(ngraph::op::util::create_ie_output_name(input));
             continue;
         }
 

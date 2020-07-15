@@ -20,6 +20,7 @@
 // #include <shape_infer/ie_reshaper.hpp>
 #include <string>
 
+#include <transformations/utils/utils.hpp>
 #include <transformations/common_optimizations/common_optimizations.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
 #include <transformations/convert_opset2_to_opset1/convert_opset2_to_opset1.hpp>
@@ -377,22 +378,17 @@ CNNNetworkNGraphImpl::reshape(const std::map<std::string, std::vector<size_t>>& 
             std::unordered_set<std::string> opName;
             for (const auto & layer : specialized_ngraph_function->get_ordered_ops()) {
                 if (std::dynamic_pointer_cast<::ngraph::op::Result>(layer)) {
-                    IE_ASSERT(layer->get_inputs().size() == 1);
-                    const auto& input = layer->get_inputs()[0];
-                    std::string outName = input.get_output().get_node()->get_friendly_name();
-                    if (input.get_output().get_node()->get_output_size() != 1)
-                        outName += "." + std::to_string(input.get_output().get_index());
-                    addOutput(outName);
+                    IE_ASSERT(layer->get_input_size() == 1);
+                    const auto &input = layer->input_value(0);
+                    addOutput(ngraph::op::util::create_ie_output_name(input));
                     continue;
                 }
                 if (opName.find(layer->get_friendly_name()) != opName.end())
                     THROW_IE_EXCEPTION << "All operations in nGraph function should have unique friendly names!";
                 opName.insert(layer->get_friendly_name());
                 for (const auto& output : layer->outputs()) {
-                    std::string outName = layer->get_friendly_name();
-                    if (layer->outputs().size() != 1)
-                        outName += "." + std::to_string(output.get_index());
-                    createDataForResult(output, outName, _data[outName]);
+                    auto out_name = ngraph::op::util::create_ie_output_name(output);
+                    createDataForResult(output, out_name, _data[out_name]);
                 }
             }
         }
