@@ -575,10 +575,12 @@ Program::LayerType Program::LayerTypeFromStr(const std::string &str) {
         { "Sinh" , Sinh },
         { "Cosh" , Cosh },
         { "Swish" , Swish },
+        { "Mish" , Mish },
         { "Gelu" , Gelu },
         { "Atanh" , Atanh },
         { "Floor" , Floor },
         { "Ceil" , Ceil },
+        { "Ceiling" , Ceiling },
         { "Erf" , Erf },
         { "HardSigmoid" , HardSigmoid },
         { "Log" , Log },
@@ -1149,6 +1151,7 @@ void Program::CreateSingleLayerPrimitive(cldnn::topology& topology, InferenceEng
         case Atanh:
         case Floor:
         case Ceil:
+        case Ceiling:
         case Erf:
         case HardSigmoid:
         case Log:
@@ -1159,6 +1162,7 @@ void Program::CreateSingleLayerPrimitive(cldnn::topology& topology, InferenceEng
         case SoftPlus:
         case SoftSign:
         case Swish:
+        case Mish:
         case Gelu:
             CreateActivationPrimitive(topology, layer, LayerTypeFromStr(layer->type));
             break;
@@ -2767,6 +2771,8 @@ void Program::CreateActivationPrimitive(cldnn::topology& topology, InferenceEngi
             activationType = ELU;
         } else if (activation_type == "swish")  {
             activationType = Swish;
+        } else if (activation_type == "mish")  {
+            activationType = Mish;
         } else if (activation_type == "gelu")  {
             activationType = Gelu;
         } else if (activation_type == "relu")  {
@@ -2883,6 +2889,11 @@ void Program::CreateActivationPrimitive(cldnn::topology& topology, InferenceEngi
         func = cldnn::activation_func::ceil;
         break;
     }
+    case Ceiling:
+    {
+        func = cldnn::activation_func::ceil;
+        break;
+    }
     case Erf:
     {
         func = cldnn::activation_func::erf;
@@ -2955,6 +2966,11 @@ void Program::CreateActivationPrimitive(cldnn::topology& topology, InferenceEngi
     case Swish:
     {
         func = cldnn::activation_func::swish;
+        break;
+    }
+    case Mish:
+    {
+        func = cldnn::activation_func::mish;
         break;
     }
     case Gelu:
@@ -3739,6 +3755,8 @@ void Program::CreateGatherPrimitive(cldnn::topology& topology, InferenceEngine::
         }
     };
 
+    auto gatherLayerName = layer_type_name_ID(layer);
+
     std::vector<cldnn::primitive_id> reorderedInputs;
     reorderedInputs.resize(inputPrimitives.size());
 
@@ -3755,23 +3773,134 @@ void Program::CreateGatherPrimitive(cldnn::topology& topology, InferenceEngine::
                 targetFormat,
                 cldnn::data_types::i32);
             topology.add(preprocessPrim);
-            AddInnerPrimitiveToProfiler(reorderPrimName, layer_type_name_ID(layer), layer);
-            reorderedInputs[portIndex] = (reorderPrimName);
+            AddInnerPrimitiveToProfiler(reorderPrimName, gatherLayerName, layer);
+            reorderedInputs[portIndex] = reorderPrimName;
         } else {
             reorderedInputs[portIndex] = inputPrimitives[portIndex];
         }
     }
 
-    std::string gatherLayerName = layer_type_name_ID(layer);
+    auto indicesDims = layer->insData[1].lock()->getTensorDesc().getDims();
+    auto indicesLayout = layer->insData[1].lock()->getTensorDesc().getLayout();
+    auto indicesFormat = FormatFromLayout(indicesLayout);
+
+    auto inputDims = layer->insData[0].lock()->getTensorDesc().getDims();
+    auto inputLayout = layer->insData[0].lock()->getTensorDesc().getLayout();
+    auto inputFormat = FormatFromLayout(inputLayout);
+
+    auto outDimsOriginal = layer->outData[0]->getTensorDesc().getDims();
+    auto outputLayoutOriginal = layer->outData[0]->getTensorDesc().getLayout();
+    auto outputFormatOriginal = FormatFromLayout(outputLayoutOriginal);
+
+    auto outDims = outDimsOriginal;
+    auto targetDatatype = DataTypeFromPrecision(layer->precision);
+
+    auto nonNegativeAxis = (axis >= 0) ? axis : axis + 3;
+
+    // following vector is needed just to check if we can apply bfyx WA
+    SizeVector originalRequiredDims;
+    for (size_t d = 0; d < inputDims.size(); d++) {
+        if ((d == nonNegativeAxis) || (inputDims[d] > 1)) {
+            originalRequiredDims.push_back(d);
+        }
+    }
+
+    if (originalRequiredDims.size() < 4) {
+        // make sure that we will have at least 4 required dimensions
+        auto originalAxesIt = originalRequiredDims.begin();
+        for (size_t i = 0; i < 4; i++) {
+            int dimFoundAtIndex = -1;
+            for (size_t j = 0; j < originalRequiredDims.size(); j++) {
+                if (originalRequiredDims[j] == i) {
+                    dimFoundAtIndex = j;
+                }
+            }
+            if (dimFoundAtIndex == -1) {
+                originalAxesIt = originalRequiredDims.insert(originalAxesIt, i);
+            }
+            originalAxesIt++;
+        }
+    }
+
+    // clDNN primitive is missing proper support of 5d/6d inputs
+    // but we can still fall back to bfyx format in some cases
+    bool bfyx_wa = ((inputFormat == cldnn::format::bfzyx || inputFormat == cldnn::format::bfwzyx) &&
+                    (originalRequiredDims.size() == 4) &&
+                    (indicesFormat == cldnn::format::bfyx));
+
+    if (bfyx_wa) {
+        if (indicesDims.size() > 1) {
+            // reshape the indices dims to 1D (along batch axis)
+            size_t indDimAcc = std::accumulate(indicesDims.begin(), indicesDims.end(), 1, std::multiplies<size_t>());
+            SizeVector targetIndDims{ indDimAcc, 1, 1, 1 };
+
+            auto reshapeName = reorderedInputs[1] + "_" + layer->name + "_reshape";
+            auto targetTensor = CldnnTensorFromIEDims(targetIndDims);
+            auto reshapePrim = cldnn::reshape(reshapeName, reorderedInputs[1], CldnnTensorFromIEDims(targetIndDims));
+            topology.add(reshapePrim);
+            AddInnerPrimitiveToProfiler(reshapeName, gatherLayerName, layer);
+            reorderedInputs[1] = reshapeName;
+
+            // adjust expected output dims
+            outDims[nonNegativeAxis] = indDimAcc;
+            outDims.erase(outDims.begin() + nonNegativeAxis + 1, outDims.begin() + nonNegativeAxis + indicesDims.size());
+        }
+
+        // reorder input to bfyx
+        auto reorderName = reorderedInputs[0] + "_" + layer->name + "_format_reorder";
+        auto reorderPrim = cldnn::reorder(reorderName, reorderedInputs[0], cldnn::format::bfyx, targetDatatype);
+        topology.add(reorderPrim);
+        AddInnerPrimitiveToProfiler(reorderName, gatherLayerName, layer);
+        reorderedInputs[0] = reorderName;
+
+        // calculate new input/output dims in bfyx format
+        SizeVector targetInDims(4);
+        SizeVector targetOutDims(4);
+        for (size_t d = 0; d < 4; d++) {
+            targetInDims[d] = inputDims[originalRequiredDims[d]];
+            targetOutDims[d] = outDims[originalRequiredDims[d]];
+        }
+        outDims = targetOutDims;
+
+        // calculate new axis in bfyx format
+        for (size_t d = 0; d < originalRequiredDims.size(); d++) {
+            if (originalRequiredDims[d] == nonNegativeAxis) {
+                axis = d;
+            }
+        }
+
+        // reshape the input dims to the ones expected in bfyx format
+        auto reshapeName = reorderedInputs[0] + "_" + layer->name + "_reshape";
+        auto targetTensor = CldnnTensorFromIEDims(targetInDims);
+        auto reshapePrim = cldnn::reshape(reshapeName, reorderedInputs[0], CldnnTensorFromIEDims(targetInDims));
+        topology.add(reshapePrim);
+        AddInnerPrimitiveToProfiler(reshapeName, gatherLayerName, layer);
+        reorderedInputs[0] = reshapeName;
+    }
+
     auto gatherPrim = cldnn::gather(
-            gatherLayerName,
-            reorderedInputs[0],
-            reorderedInputs[1],
-            cldnnAxisFromIE(axis),
-            CldnnTensorFromIEDims(gatherLayer->outData[0]->getTensorDesc().getDims()));
+        gatherLayerName,
+        reorderedInputs[0],
+        reorderedInputs[1],
+        cldnnAxisFromIE(axis),
+        CldnnTensorFromIEDims(outDims));
 
     topology.add(gatherPrim);
     AddPrimitiveToProfiler(gatherLayerName, layer);
+
+    if (bfyx_wa) {
+        // reorder output back to original format
+        auto reorderName = gatherLayerName + "_" + layer->name + "_format_reorder";
+        auto reorderPrim = cldnn::reorder(reorderName, gatherPrim, outputFormatOriginal, targetDatatype);
+        topology.add(reorderPrim);
+        AddInnerPrimitiveToProfiler(reorderName, gatherLayerName, layer);
+
+        // reshape output back to original dims
+        auto reshapeName = gatherLayerName + "_" + layer->name + "_reshape";
+        auto reshapePrim = cldnn::reshape(reshapeName, reorderName, CldnnTensorFromIEDims(outDimsOriginal));
+        topology.add(reshapePrim);
+        AddInnerPrimitiveToProfiler(reshapeName, gatherLayerName, layer);
+    }
 }
 
 void CLDNNPlugin::Program::CreateGatherTreePrimitive(cldnn::topology & topology, InferenceEngine::CNNLayerPtr & layer) {
@@ -4608,6 +4737,11 @@ void Program::CreateCumSumPrimitive(cldnn::topology& topology, InferenceEngine::
                 case InferenceEngine::Precision::I32: {
                     auto data = constantBlob->buffer().as<int32_t*>();
                     axis = data[0];
+                    break;
+                }
+                case InferenceEngine::Precision::U32: {
+                    auto data = constantBlob->buffer().as<uint32_t*>();
+                    axis = static_cast<int32_t>(data[0]);
                     break;
                 }
                 case InferenceEngine::Precision::U64: {

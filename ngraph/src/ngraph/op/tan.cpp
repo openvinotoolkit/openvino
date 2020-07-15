@@ -44,17 +44,6 @@ shared_ptr<Node> op::Tan::clone_with_new_inputs(const OutputVector& new_args) co
     return make_shared<Tan>(new_args.at(0));
 }
 
-void op::Tan::generate_adjoints(autodiff::Adjoints& adjoints, const OutputVector& deltas)
-{
-    auto delta = deltas.at(0);
-
-    auto x = input_value(0);
-
-    auto c = make_shared<op::Cos>(x);
-
-    adjoints.add_delta(x, delta / (c * c));
-}
-
 namespace
 {
     template <element::Type_t ET>

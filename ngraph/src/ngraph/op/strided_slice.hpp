@@ -106,10 +106,6 @@ namespace ngraph
                 bool evaluate(const HostTensorVector& output_values,
                               const HostTensorVector& input_values) override;
 
-            protected:
-                void generate_adjoints(autodiff::Adjoints& adjoints,
-                                       const OutputVector& deltas) override;
-
             private:
                 AxisSet convert_mask_to_axis_set(const std::vector<int64_t>& mask) const;
 

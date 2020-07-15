@@ -42,15 +42,6 @@ shared_ptr<Node> op::Log::clone_with_new_inputs(const OutputVector& new_args) co
     return make_shared<Log>(new_args.at(0));
 }
 
-void op::Log::generate_adjoints(autodiff::Adjoints& adjoints, const OutputVector& deltas)
-{
-    auto delta = deltas.at(0);
-
-    auto x = input_value(0);
-
-    adjoints.add_delta(x, delta / x);
-}
-
 namespace
 {
     template <element::Type_t ET>

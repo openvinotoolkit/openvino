@@ -1557,44 +1557,6 @@ shared_ptr<Node> JSONDeserializer::deserialize_node(json node_js)
             node = make_shared<op::Max>(args[0], reduction_axes);
             break;
         }
-        case OP_TYPEID::MaxPool:
-        {
-            auto window_shape = node_js.at("window_shape").get<vector<size_t>>();
-            auto window_movement_strides =
-                node_js.at("window_movement_strides").get<vector<size_t>>();
-            // For backwards compatibility, both (but not just one) of the padding_ fields may
-            // be omitted.
-            auto padding_below_maybe = get_or_default(node_js, "padding_below", json{});
-            auto padding_above_maybe = get_or_default(node_js, "padding_above", json{});
-            op::PadType pad_type = read_pad_type(node_js);
-            if (padding_below_maybe.empty() && !padding_above_maybe.empty())
-            {
-                throw runtime_error(
-                    "MaxPool: padding_below is absent but padding_above is present");
-            }
-            else if (!padding_below_maybe.empty() && padding_above_maybe.empty())
-            {
-                throw runtime_error(
-                    "MaxPool: padding_below is present but padding_above is absent");
-            }
-            else if (!padding_below_maybe.empty() && !padding_above_maybe.empty())
-            {
-                auto padding_below = padding_below_maybe.get<vector<size_t>>();
-                auto padding_above = padding_above_maybe.get<vector<size_t>>();
-                node = make_shared<op::v0::MaxPool>(args[0],
-                                                    window_shape,
-                                                    window_movement_strides,
-                                                    padding_below,
-                                                    padding_above,
-                                                    pad_type);
-            }
-            else
-            {
-                node = make_shared<op::v0::MaxPool>(args[0], window_shape, window_movement_strides);
-            }
-
-            break;
-        }
         case OP_TYPEID::Maximum:
         {
             node = make_shared<op::v0::Maximum>(
@@ -1946,30 +1908,9 @@ shared_ptr<Node> JSONDeserializer::deserialize_node(json node_js)
             node = make_shared<op::Round>(args[0]);
             break;
         }
-        case OP_TYPEID::ScalarConstantLike:
-        {
-            double value = node_js.at("value").get<double>();
-            node = make_shared<op::ScalarConstantLike>(args[0], value);
-            break;
-        }
         case OP_TYPEID::ScaleShift:
         {
             node = make_shared<op::ScaleShift>(args[0], args[1], args[2]);
-            break;
-        }
-        case OP_TYPEID::ScatterAdd:
-        {
-            node = make_shared<op::ScatterAdd>(args[0], args[1], args[2]);
-            break;
-        }
-        case OP_TYPEID::ScatterND:
-        {
-            node = make_shared<op::ScatterND>(args[0], args[1], args[2]);
-            break;
-        }
-        case OP_TYPEID::ScatterNDAdd:
-        {
-            node = make_shared<op::ScatterNDAdd>(args[0], args[1], args[2]);
             break;
         }
         case OP_TYPEID::Select:
@@ -2755,16 +2696,6 @@ json JSONSerializer::serialize_node(const Node& n)
         node["reduction_axes"] = serialize_axis_set(tmp->get_reduction_axes());
         break;
     }
-    case OP_TYPEID::MaxPool:
-    {
-        auto tmp = static_cast<const op::v0::MaxPool*>(&n);
-        node["window_shape"] = tmp->get_window_shape();
-        node["window_movement_strides"] = tmp->get_window_movement_strides();
-        node["padding_below"] = tmp->get_padding_below();
-        node["padding_above"] = tmp->get_padding_above();
-        node["pad_type"] = tmp->get_pad_type();
-        break;
-    }
     case OP_TYPEID::Maximum:
     {
         const op::util::BinaryElementwiseArithmetic* tmp = nullptr;
@@ -3000,21 +2931,7 @@ json JSONSerializer::serialize_node(const Node& n)
         node["activations_beta"] = tmp->get_activations_beta();
         break;
     }
-    case OP_TYPEID::ScalarConstantLike:
-    {
-        auto tmp = static_cast<const op::ScalarConstantLike*>(&n);
-        auto constant = tmp->as_constant();
-        char* p_end;
-        node["value"] = strtod(constant->get_value_strings()[0].c_str(), &p_end);
-        break;
-    }
     case OP_TYPEID::ScaleShift: { break;
-    }
-    case OP_TYPEID::ScatterAdd: { break;
-    }
-    case OP_TYPEID::ScatterND: { break;
-    }
-    case OP_TYPEID::ScatterNDAdd: { break;
     }
     case OP_TYPEID::Select: { break;
     }

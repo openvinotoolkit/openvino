@@ -105,13 +105,30 @@ enum ActivationTypes {
     Elu,
     Erf,
     HardSigmoid,
-    Selu
+    Selu,
+    Ceiling
 };
 
 enum EltwiseTypes {
     ADD,
     MULTIPLY,
     SUBTRACT
+};
+
+enum ComparisonTypes {
+    EQUAL,
+    NOT_EQUAL,
+    LESS,
+    LESS_EQUAL,
+    GREATER,
+    GREATER_EQUAL
+};
+
+enum LogicalTypes {
+    LOGICAL_AND,
+    LOGICAL_OR,
+    LOGICAL_XOR,
+    LOGICAL_NOT
 };
 
 enum SqueezeOpType {
@@ -202,6 +219,10 @@ std::ostream& operator<<(std::ostream & os, ngraph::helpers::EltwiseTypes type);
 std::ostream& operator<<(std::ostream & os, ngraph::helpers::SqueezeOpType type);
 
 std::ostream& operator<<(std::ostream& os, ngraph::helpers::InputLayerType type);
+
+std::ostream& operator<<(std::ostream & os, ngraph::helpers::ComparisonTypes type);
+
+std::ostream& operator<<(std::ostream & os, ngraph::helpers::LogicalTypes type);
 
 }  // namespace helpers
 }  // namespace ngraph

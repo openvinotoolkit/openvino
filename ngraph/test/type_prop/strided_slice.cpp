@@ -188,3 +188,20 @@ TEST(type_prop, strided_slice_default_stride_dynamic_shape_input)
         FAIL() << "Deduced type check failed for unexpected reason";
     }
 }
+
+TEST(type_prop, strided_slice_reverse_out_of_bounds)
+{
+    auto data = std::make_shared<op::Parameter>(ngraph::element::f32, ngraph::Shape{3, 4, 5});
+    auto begin = op::Constant::create(ngraph::element::i64, ngraph::Shape{3}, {100});
+    auto end = op::Constant::create(ngraph::element::i64, ngraph::Shape{3}, {-100});
+    auto stride = op::Constant::create(ngraph::element::i64, ngraph::Shape{3}, {-1});
+
+    std::vector<int64_t> begin_mask = {0, 0, 0, 0};
+    std::vector<int64_t> end_mask = {0, 0, 0, 0};
+
+    auto ss =
+        std::make_shared<op::v1::StridedSlice>(data, begin, end, stride, begin_mask, end_mask);
+
+    Shape expected{3, 4, 5};
+    EXPECT_EQ(ss->get_output_shape(0), expected);
+}
