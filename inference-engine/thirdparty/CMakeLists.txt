@@ -53,28 +53,12 @@ function(build_with_lto)
 
     target_include_directories(pugixml INTERFACE "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/pugixml/src>")
 
-    add_library(half INTERFACE)
-    target_include_directories(half INTERFACE "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/half/include>")
-    target_compile_definitions(half INTERFACE
-        HALF_ERRHANDLING_FLAGS=1
-        HALF_ERRHANDLING_ERRNO=0
-        HALF_ERRHANDLING_FENV=0
-        HALF_ERRHANDLING_THROWS=0
-    )
-
-    if (ENABLE_AVX2)
-        target_compile_definitions(half INTERFACE HALF_ENABLE_F16C_INTRINSICS=1)
-        target_compile_options(half INTERFACE -mf16c)
-    else()
-        target_compile_definitions(half INTERFACE HALF_ENABLE_F16C_INTRINSICS=0)
-    endif()
-
     set_target_properties(pugixml ade fluid stb_image
                           PROPERTIES FOLDER thirdparty)
 
     # developer package
 
-    ie_developer_export_targets(ade fluid pugixml half)
+    ie_developer_export_targets(ade fluid pugixml)
     if(TARGET pugixml_mt)
         ie_developer_export_targets(pugixml_mt)
         set_target_properties(pugixml_mt PROPERTIES FOLDER thirdparty)
@@ -87,4 +71,3 @@ function(build_with_lto)
 endfunction()
 
 build_with_lto()
- 
