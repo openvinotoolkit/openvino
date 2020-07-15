@@ -33,6 +33,8 @@ inline ::ngraph::element::Type convertPrecision(const Precision& precision) {
         return ::ngraph::element::Type(::ngraph::element::Type_t::i16);
     case Precision::I32:
         return ::ngraph::element::Type(::ngraph::element::Type_t::i32);
+    case Precision::U32:
+        return ::ngraph::element::Type(::ngraph::element::Type_t::u32);
     case Precision::I64:
         return ::ngraph::element::Type(::ngraph::element::Type_t::i64);
     case Precision::U64:
@@ -103,14 +105,16 @@ inline Precision convertPrecision(const ::ngraph::element::Type& precision) {
         return Precision(Precision::I32);
     case ::ngraph::element::Type_t::i64:
         return Precision(Precision::I64);
-    case ::ngraph::element::Type_t::u64:
-        return Precision(Precision::U64);
-    case ::ngraph::element::Type_t::u1:
-        return Precision(Precision::BIN);
     case ::ngraph::element::Type_t::u8:
         return Precision(Precision::U8);
     case ::ngraph::element::Type_t::u16:
         return Precision(Precision::U16);
+    case ::ngraph::element::Type_t::u32:
+        return Precision(Precision::U32);
+    case ::ngraph::element::Type_t::u64:
+        return Precision(Precision::U64);
+    case ::ngraph::element::Type_t::u1:
+        return Precision(Precision::BIN);
     case ::ngraph::element::Type_t::boolean:
         return Precision(Precision::BOOL);
     default:
