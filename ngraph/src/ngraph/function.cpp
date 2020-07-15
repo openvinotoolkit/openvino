@@ -21,8 +21,8 @@
 #include "ngraph/function.hpp"
 #include "ngraph/graph_util.hpp"
 #include "ngraph/log.hpp"
-#include "ngraph/util.hpp"
 #include "ngraph/op/util/op_types.hpp"
+#include "ngraph/util.hpp"
 
 using namespace std;
 using namespace ngraph;

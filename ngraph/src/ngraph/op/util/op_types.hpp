@@ -19,9 +19,12 @@
 #include "ngraph/ngraph_visibility.hpp"
 #include "ngraph/node.hpp"
 
-namespace ngraph {
-    namespace op {
-        namespace util {
+namespace ngraph
+{
+    namespace op
+    {
+        namespace util
+        {
             NGRAPH_API
             bool is_unary_elementwise_arithmetic(const ngraph::Node* node);
             NGRAPH_API

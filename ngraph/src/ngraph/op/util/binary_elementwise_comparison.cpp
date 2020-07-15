@@ -15,8 +15,8 @@
 //*****************************************************************************
 
 #include "ngraph/op/util/binary_elementwise_comparison.hpp"
-#include "ngraph/op/util/elementwise_args.hpp"
 #include "ngraph/attribute_visitor.hpp"
+#include "ngraph/op/util/elementwise_args.hpp"
 
 using namespace std;
 using namespace ngraph;

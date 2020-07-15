@@ -19,7 +19,8 @@
 using namespace ngraph;
 
 std::tuple<element::Type, PartialShape>
-ngraph::op::util::validate_and_infer_elementwise_args(Node* node, const op::AutoBroadcastSpec& autob)
+    ngraph::op::util::validate_and_infer_elementwise_args(Node* node,
+                                                          const op::AutoBroadcastSpec& autob)
 {
     NGRAPH_CHECK(node != nullptr, "nGraph node is empty! Cannot validate eltwise arguments.");
     element::Type element_type = node->get_input_element_type(0);
@@ -30,22 +31,23 @@ ngraph::op::util::validate_and_infer_elementwise_args(Node* node, const op::Auto
         for (size_t i = 1; i < node->get_input_size(); ++i)
         {
             NODE_VALIDATION_CHECK(
-                                  node,
-                                  element::Type::merge(element_type, element_type, node->get_input_element_type(i)),
-                                  "Argument element types are inconsistent.");
+                node,
+                element::Type::merge(element_type, element_type, node->get_input_element_type(i)),
+                "Argument element types are inconsistent.");
 
             if (autob.m_type == op::AutoBroadcastType::NONE)
             {
-                NODE_VALIDATION_CHECK(node,
-                                      PartialShape::merge_into(pshape, node->get_input_partial_shape(i)),
-                                      "Argument shapes are inconsistent.");
+                NODE_VALIDATION_CHECK(
+                    node,
+                    PartialShape::merge_into(pshape, node->get_input_partial_shape(i)),
+                    "Argument shapes are inconsistent.");
             }
             else if (autob.m_type == op::AutoBroadcastType::NUMPY ||
                      autob.m_type == op::AutoBroadcastType::PDPD)
             {
-                NODE_VALIDATION_CHECK(
-                                      node,
-                                      PartialShape::broadcast_merge_into(pshape, node->get_input_partial_shape(i), autob),
+                NODE_VALIDATION_CHECK(node,
+                                      PartialShape::broadcast_merge_into(
+                                          pshape, node->get_input_partial_shape(i), autob),
                                       "Argument shapes are inconsistent.");
             }
             else

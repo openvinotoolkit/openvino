@@ -18,10 +18,10 @@
 
 #include "ngraph/builder/autobroadcast.hpp"
 #include "ngraph/graph_util.hpp"
-#include "ngraph/op/util/op_types.hpp"
 #include "ngraph/op/util/binary_elementwise_arithmetic.hpp"
 #include "ngraph/op/util/binary_elementwise_comparison.hpp"
 #include "ngraph/op/util/binary_elementwise_logical.hpp"
+#include "ngraph/op/util/op_types.hpp"
 
 using namespace std;
 using namespace ngraph;

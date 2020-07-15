@@ -84,6 +84,7 @@ namespace ngraph
                 }
 
                 ValuePredicate get_predicate() const;
+
             protected:
                 ValuePredicate m_predicate;
             };

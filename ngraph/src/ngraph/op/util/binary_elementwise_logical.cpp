@@ -15,8 +15,8 @@
 //*****************************************************************************
 
 #include "ngraph/op/util/binary_elementwise_logical.hpp"
-#include "ngraph/op/util/elementwise_args.hpp"
 #include "ngraph/attribute_visitor.hpp"
+#include "ngraph/op/util/elementwise_args.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -33,7 +33,8 @@ op::util::BinaryElementwiseLogical::BinaryElementwiseLogical(const Output<Node>&
 {
 }
 
-void op::util::BinaryElementwiseLogical::validate_and_infer_elementwise_logical(const op::AutoBroadcastSpec& autob)
+void op::util::BinaryElementwiseLogical::validate_and_infer_elementwise_logical(
+    const op::AutoBroadcastSpec& autob)
 {
     auto args_et_pshape = op::util::validate_and_infer_elementwise_args(this, autob);
     element::Type& args_et = std::get<0>(args_et_pshape);

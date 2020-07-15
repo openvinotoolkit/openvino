@@ -15,8 +15,8 @@
 //*****************************************************************************
 
 #include "ngraph/op/util/binary_elementwise_arithmetic.hpp"
-#include "ngraph/op/util/elementwise_args.hpp"
 #include "ngraph/attribute_visitor.hpp"
+#include "ngraph/op/util/elementwise_args.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -34,7 +34,8 @@ op::util::BinaryElementwiseArithmetic::BinaryElementwiseArithmetic(const Output<
 {
 }
 
-void op::util::BinaryElementwiseArithmetic::validate_and_infer_elementwise_arithmetic(const op::AutoBroadcastSpec& autob)
+void op::util::BinaryElementwiseArithmetic::validate_and_infer_elementwise_arithmetic(
+    const op::AutoBroadcastSpec& autob)
 {
     auto args_et_pshape = op::util::validate_and_infer_elementwise_args(this, autob);
     element::Type& args_et = std::get<0>(args_et_pshape);

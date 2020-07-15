@@ -58,6 +58,7 @@ namespace ngraph
             public:
                 void validate_and_infer_types() override;
                 bool visit_attributes(AttributeVisitor& visitor) override;
+
             private:
                 void validate_and_infer_elementwise_arithmetic();
             };
