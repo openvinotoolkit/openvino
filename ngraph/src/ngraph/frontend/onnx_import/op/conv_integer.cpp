@@ -39,9 +39,11 @@ namespace ngraph
                     auto filters = inputs.at(1);
 
                     int64_t groups{node.get_attribute_value<int64_t>("group", 1)};
-                    ASSERT_VALID_ARGUMENT(node, (groups == 1))
-                        << "Only value of 1 for 'group' supported for ConvInteger. Given: "
-                        << groups;
+                    CHECK_VALID_NODE(
+                        node,
+                        groups == 1,
+                        "Only value of 1 for 'group' supported for ConvInteger. Given: ",
+                        groups);
 
                     auto window_movement_strides = convpool::get_strides(node);
                     auto window_dilation_strides = convpool::get_dilations(node);

@@ -44,7 +44,7 @@ namespace ngraph
 
                     // TODO: Implement learning mode support
                     // float momentum{node.get_attribute_value<float>("momentum", 0.9f)};
-                    ASSERT_IS_SUPPORTED(node, is_test) << "only 'is_test' mode is supported.";
+                    CHECK_VALID_NODE(node, is_test, "only 'is_test' mode is supported.");
 
                     // optional outputs
                     auto after_bn_mean = std::make_shared<NullNode>();

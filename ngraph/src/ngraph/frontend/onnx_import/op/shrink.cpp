@@ -34,8 +34,11 @@ namespace ngraph
                     const float bias = node.get_attribute_value<float>("bias", 0.0f);
                     const float lambd = node.get_attribute_value<float>("lambd", 0.5f);
 
-                    ASSERT_VALID_ARGUMENT(node, !(lambd < 0.0f))
-                        << " The provided 'lambd' value:" << lambd << " must not be negative.";
+                    CHECK_VALID_NODE(node,
+                                     !(lambd < 0.0f),
+                                     " The provided 'lambd' value: ",
+                                     lambd,
+                                     " must not be negative.");
 
                     std::shared_ptr<default_opset::Constant> negative_lambd;
                     const auto input_element_type = input->get_element_type();
