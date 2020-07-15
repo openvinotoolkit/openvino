@@ -22,12 +22,6 @@ MemCheckPipeline::MemCheckPipeline() {
     std::copy(start_measures.begin(), start_measures.end(), measures.begin());
 }
 
-MemCheckPipeline::~MemCheckPipeline() {
-    // message required for DB data upload
-    log_info("Current values of virtual memory consumption:");
-    print_measures();
-}
-
 void MemCheckPipeline::do_measures() {
     measures[VMRSS] = (long) getVmRSSInKB();
     measures[VMHWM] = (long) getVmHWMInKB();
@@ -58,9 +52,20 @@ void MemCheckPipeline::print_measures() {
     log_info(get_measures_as_str());
 }
 
+void MemCheckPipeline::upload_measures(const std::string & step_name) {
+    log_debug("[ MEASURE ] " << MEMCHECK_DELIMITER << step_name);
+    log_info(util::get_measure_values_headers(MEMCHECK_DELIMITER));
+    log_info(get_measures_as_str());
+}
+
 void MemCheckPipeline::print_actual_measures() {
     do_measures();
     print_measures();
+}
+
+void MemCheckPipeline::upload_actual_measures(const std::string & step_name) {
+    do_measures();
+    upload_measures(step_name);
 }
 
 std::string MemCheckPipeline::get_reference_record_for_test(std::string test_name, std::string model_name,

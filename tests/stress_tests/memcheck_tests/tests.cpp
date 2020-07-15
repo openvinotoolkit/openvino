@@ -60,7 +60,7 @@ TEST_P(MemCheckTestSuite, create_exenetwork) {
 
         ExecutableNetwork exeNetwork = ie.LoadNetwork(cnnNetwork, test_params.device);
         log_info("Memory consumption after LoadNetwork:");
-        memCheckPipeline.print_actual_measures();
+        memCheckPipeline.upload_actual_measures("create_exenetwork");
 
         log_debug(memCheckPipeline.get_reference_record_for_test(test_name, test_params.model_name, test_params.device));
         return memCheckPipeline.get_measures();
@@ -111,7 +111,7 @@ TEST_P(MemCheckTestSuite, infer_request_inference) {
         for (auto &output : output_info)
             Blob::Ptr outputBlob = inferRequest.GetBlob(output.first);
         log_info("Memory consumption after Inference:");
-        memCheckPipeline.print_actual_measures();
+        memCheckPipeline.upload_actual_measures("infer_request_inference");
 
         log_debug(memCheckPipeline.get_reference_record_for_test(test_name, test_params.model_name, test_params.device));
         return memCheckPipeline.get_measures();

@@ -32,11 +32,6 @@ public:
     MemCheckPipeline();
 
     /**
-     * @brief Destructs MemCheckPipeline object and prints the latest measurements
-     */
-    ~MemCheckPipeline();
-
-    /**
      * @brief Measures values at the current point of time
      */
     void do_measures();
@@ -57,9 +52,19 @@ public:
     void print_measures();
 
     /**
+     * @brief Upload to DataBase headers and corresponding collected measurements using hardcoded delimiter
+     */
+    void upload_measures(const std::string & step_name);
+
+    /**
      * @brief Measures values at the current point of time and prints immediately
      */
     void print_actual_measures();
+
+    /**
+     * @brief Measures values at the current point of time and upload to DataBase immediately
+     */
+    void upload_actual_measures(const std::string & step_name);
 
     /**
      * @brief Prepares string used for fast generation of file with references
