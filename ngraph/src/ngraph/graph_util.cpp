@@ -465,7 +465,6 @@ pair<shared_ptr<op::Result>, shared_ptr<op::Parameter>>
     // Make parameter node
     shared_ptr<op::Parameter> par_node = make_shared<op::Parameter>(
         src_node->get_output_element_type(0), src_node->get_output_shape(0));
-    par_node->set_placement(dst_node->get_placement());
 
     // Fix input / output among src, dst and par
     std::vector<Input<Node>> dst_inputs = get_inputs_from(*src_node, *dst_node);
@@ -489,7 +488,6 @@ pair<shared_ptr<op::Result>, shared_ptr<op::Parameter>>
     // Add res node
     // Add [4], [5], [6], [7]
     shared_ptr<op::Result> res_node = make_shared<op::Result>(src_node);
-    res_node->set_placement(src_node->get_placement());
 
     return make_pair(res_node, par_node);
 }

@@ -28,7 +28,6 @@
 #include "ngraph/op/parameter.hpp"
 #include "ngraph/op/result.hpp"
 #include "ngraph/pattern/matcher.hpp"
-#include "ngraph/placement.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -337,16 +336,6 @@ const std::string& Node::get_name() const
 void Node::set_friendly_name(const string& name)
 {
     m_friendly_name = name;
-}
-
-Placement Node::get_placement() const
-{
-    return m_placement;
-}
-
-void Node::set_placement(Placement placement)
-{
-    m_placement = placement;
 }
 
 void Node::add_provenance_group_member(const shared_ptr<Node>& node)

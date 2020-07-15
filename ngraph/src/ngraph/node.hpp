@@ -42,7 +42,6 @@
 #include "ngraph/op/util/attr_types.hpp"
 #include "ngraph/op/util/op_annotations.hpp"
 #include "ngraph/output_vector.hpp"
-#include "ngraph/placement.hpp"
 #include "ngraph/strides.hpp"
 #include "ngraph/type.hpp"
 
@@ -440,12 +439,6 @@ namespace ngraph
         /// True if this and node have one output with same element type and shape
         bool has_same_type(std::shared_ptr<const Node> node) const;
 
-        /// Get device placement
-        Placement get_placement() const;
-
-        /// Set device placement
-        void set_placement(Placement placement);
-
         using RTMap = std::map<std::string, std::shared_ptr<Variant>>;
 
         RTMap& get_rt_info() { return m_rt_info; }
@@ -557,7 +550,6 @@ namespace ngraph
         std::set<std::shared_ptr<Node>> m_provenance_group;
         std::deque<descriptor::Input> m_inputs;
         std::deque<descriptor::Output> m_outputs;
-        Placement m_placement = Placement::DEFAULT;
         std::shared_ptr<ngraph::op::util::OpAnnotations> m_op_annotations;
         std::map<std::string, std::shared_ptr<Variant>> m_rt_info;
     };
