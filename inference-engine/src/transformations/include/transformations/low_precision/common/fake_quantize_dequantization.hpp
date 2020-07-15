@@ -11,6 +11,8 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
+typedef std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> FakeQuantizeDequantizationValues;
+
 class FakeQuantizeDequantization {
 public:
     FakeQuantizeDequantization();
