@@ -19,24 +19,10 @@
 #include "ngraph/op/reduce_logical_and.hpp"
 #include "ngraph/op/reduce_logical_or.hpp"
 #include "ngraph/runtime/reference/any.hpp"
+#include "ngraph/runtime/reference/logical_reduction.hpp"
 
 using namespace std;
 using namespace ngraph;
-
-static Shape get_shape_no_keep_dims(const AxisSet& reduction_axes, const Shape& input_shape)
-{
-    Shape shape_no_keep_dims;
-
-    for (size_t i = 0; i < input_shape.size(); i++)
-    {
-        if (reduction_axes.count(i) == 0)
-        {
-            shape_no_keep_dims.push_back(input_shape[i]);
-        }
-    }
-
-    return shape_no_keep_dims;
-}
 
 static shared_ptr<op::Constant> fold_constant_logical_reduction(shared_ptr<op::Constant> constant,
                                                                 shared_ptr<Node> reduction_node)
@@ -57,33 +43,19 @@ static shared_ptr<op::Constant> fold_constant_logical_reduction(shared_ptr<op::C
         const auto reduction_axes = reduce_and->get_reduction_axes();
         const auto input_shape = reduce_and->get_input_shape(0);
         const char* arg = constant->get_data_ptr<char>();
-        CoordinateTransform output_transform(get_shape_no_keep_dims(reduction_axes, input_shape));
 
-        for (const Coordinate& output_coord : output_transform)
-        {
-            data_ptr[output_transform.index(output_coord)] = 1;
-        }
-
-        CoordinateTransform input_transform(constant->get_output_shape(0));
-
-        for (const Coordinate& input_coord : input_transform)
-        {
-            Coordinate output_coord = reduce(input_coord, reduction_axes);
-            data_ptr[output_transform.index(output_coord)] =
-                data_ptr[output_transform.index(output_coord)] &&
-                arg[input_transform.index(input_coord)];
-        }
+        runtime::reference::reduce_logical_and(arg, data_ptr, input_shape, reduction_axes);
     }
     else if (auto reduce_or = as_type_ptr<::ngraph::op::v1::ReduceLogicalOr>(reduction_node))
     {
         const auto reduction_axes = reduce_or->get_reduction_axes();
         const auto input_shape = reduce_or->get_input_shape(0);
 
-        runtime::reference::any(constant->get_data_ptr<char>(),
-                                data_ptr,
-                                constant->get_output_shape(0),
-                                get_shape_no_keep_dims(reduction_axes, input_shape),
-                                reduction_axes);
+        // runtime::reference::any(constant->get_data_ptr<char>(),
+        //                         data_ptr,
+        //                         constant->get_output_shape(0),
+        //                         get_shape_no_keep_dims(reduction_axes, input_shape),
+        //                         reduction_axes);
     }
     else
     {
