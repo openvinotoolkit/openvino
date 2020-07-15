@@ -181,4 +181,4 @@ INSTANTIATE_TEST_CASE_P(
         ::testing::ValuesIn(fakeQuantizeTransformationTestValues)),
     FakeQuantizePrecisionSelectionTransformation::getTestCaseName);
 
-}
+} // namespace
