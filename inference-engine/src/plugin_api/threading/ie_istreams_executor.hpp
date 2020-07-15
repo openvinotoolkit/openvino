@@ -69,7 +69,7 @@ public:
         Parameter GetConfig(const std::string& key);
 
         /**
-        * @brief Create appropriate maltythreaded configuration
+        * @brief Create appropriate multithreaded configuration
         *        filing unconfigured values from initial configuration using hardware properties
         * @param initial Inital configuration
         * @return configured values
