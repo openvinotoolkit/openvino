@@ -30,24 +30,26 @@ std::shared_ptr<ngraph::Function> MultiplyFunction::getOriginal(
     if (!actualValues.subtractValues1.empty()) {
         const std::shared_ptr<ngraph::Node> subtract1 = std::make_shared< ngraph::opset1::Subtract >(
             parent1,
-            std::make_shared<ngraph::opset1::Constant>(precision, Shape({ actualValues.subtractValues1.size() }), actualValues.subtractValues1));
+            std::make_shared<ngraph::opset1::Constant>(
+                precision, Shape({ actualValues.subtractValues1.size() }), actualValues.subtractValues1));
         parent1 = subtract1;
     }
 
     if (!actualValues.mutliplyValues1.empty()) {
         const std::shared_ptr<ngraph::Node> multiply1 = std::make_shared< ngraph::opset1::Multiply >(
             parent1,
-            std::make_shared<ngraph::opset1::Constant>(precision, Shape({ actualValues.mutliplyValues1.size() }), actualValues.mutliplyValues1));
+            std::make_shared<ngraph::opset1::Constant>(
+                precision, Shape({ actualValues.mutliplyValues1.size() }), actualValues.mutliplyValues1));
         parent1 = multiply1;
     }
 
     std::shared_ptr<ngraph::Node> parent2;
     std::shared_ptr<ngraph::opset1::Parameter> input2;
     if (constInput) {
-        const auto const2 = std::make_shared<ngraph::opset1::Constant>(actualValues.precision2, Shape({ actualValues.mutliplyValues2.size() }), actualValues.mutliplyValues2);
+        const auto const2 = std::make_shared<ngraph::opset1::Constant>(
+            actualValues.precision2, Shape({ actualValues.mutliplyValues2.size() }), actualValues.mutliplyValues2);
         parent2 = const2;
-    }
-    else {
+    } else {
         input2 = std::make_shared<ngraph::opset1::Parameter>(
             actualValues.precision2,
             ngraph::Shape(inputShape));
@@ -59,14 +61,16 @@ std::shared_ptr<ngraph::Function> MultiplyFunction::getOriginal(
         if (!actualValues.subtractValues2.empty()) {
             const std::shared_ptr<ngraph::Node> subtract2 = std::make_shared< ngraph::opset1::Subtract >(
                 parent2,
-                std::make_shared<ngraph::opset1::Constant>(precision, Shape({ actualValues.subtractValues2.size() }), actualValues.subtractValues2));
+                std::make_shared<ngraph::opset1::Constant>(
+                    precision, Shape({ actualValues.subtractValues2.size() }), actualValues.subtractValues2));
             parent2 = subtract2;
         }
 
         if (!actualValues.mutliplyValues2.empty()) {
             const std::shared_ptr<ngraph::Node> multiply2 = std::make_shared< ngraph::opset1::Multiply >(
                 parent2,
-                std::make_shared<ngraph::opset1::Constant>(precision, Shape({ actualValues.mutliplyValues2.size() }), actualValues.mutliplyValues2));
+                std::make_shared<ngraph::opset1::Constant>(
+                    precision, Shape({ actualValues.mutliplyValues2.size() }), actualValues.mutliplyValues2));
             parent2 = multiply2;
         }
     }
@@ -99,24 +103,26 @@ std::shared_ptr<ngraph::Function> MultiplyFunction::getReference(
     if (!expectedValues.subtractValues1.empty()) {
         const std::shared_ptr<ngraph::Node> subtract1 = std::make_shared<ngraph::opset1::Subtract>(
             parent1,
-            std::make_shared<ngraph::opset1::Constant>(precision, Shape({ expectedValues.subtractValues1.size() }), expectedValues.subtractValues1));
+            std::make_shared<ngraph::opset1::Constant>(
+                precision, Shape({ expectedValues.subtractValues1.size() }), expectedValues.subtractValues1));
         parent1 = subtract1;
     }
 
     if (!expectedValues.mutliplyValues1.empty()) {
         const std::shared_ptr<ngraph::Node> multiply1 = std::make_shared<ngraph::opset1::Multiply>(
             parent1,
-            std::make_shared<ngraph::opset1::Constant>(precision, Shape({ expectedValues.mutliplyValues1.size() }), expectedValues.mutliplyValues1));
+            std::make_shared<ngraph::opset1::Constant>(
+                precision, Shape({ expectedValues.mutliplyValues1.size() }), expectedValues.mutliplyValues1));
         parent1 = multiply1;
     }
 
     std::shared_ptr<ngraph::Node> parent2;
     std::shared_ptr<ngraph::opset1::Parameter> input2;
     if (constInput) {
-        const auto const2 = std::make_shared<ngraph::opset1::Constant>(expectedValues.precision2, Shape({ expectedValues.mutliplyValues2.size() }), expectedValues.mutliplyValues2);
+        const auto const2 = std::make_shared<ngraph::opset1::Constant>(
+            expectedValues.precision2, Shape({ expectedValues.mutliplyValues2.size() }), expectedValues.mutliplyValues2);
         parent2 = const2;
-    }
-    else {
+    } else {
         input2 = std::make_shared<ngraph::opset1::Parameter>(
             expectedValues.precision2,
             ngraph::Shape(inputShape));
@@ -130,14 +136,16 @@ std::shared_ptr<ngraph::Function> MultiplyFunction::getReference(
         if (!expectedValues.subtractValues2.empty()) {
             const std::shared_ptr<ngraph::Node> subtract2 = std::make_shared<ngraph::opset1::Subtract>(
                 parent2,
-                std::make_shared<ngraph::opset1::Constant>(precision, Shape({ expectedValues.subtractValues2.size() }), expectedValues.subtractValues2));
+                std::make_shared<ngraph::opset1::Constant>(
+                    precision, Shape({ expectedValues.subtractValues2.size() }), expectedValues.subtractValues2));
             parent2 = subtract2;
         }
 
         if (!expectedValues.mutliplyValues2.empty()) {
             const std::shared_ptr<ngraph::Node> multiply2 = std::make_shared<ngraph::opset1::Multiply>(
                 parent2,
-                std::make_shared<ngraph::opset1::Constant>(precision, Shape({ expectedValues.mutliplyValues2.size() }), expectedValues.mutliplyValues2));
+                std::make_shared<ngraph::opset1::Constant>(
+                    precision, Shape({ expectedValues.mutliplyValues2.size() }), expectedValues.mutliplyValues2));
             parent2 = multiply2;
         }
     }

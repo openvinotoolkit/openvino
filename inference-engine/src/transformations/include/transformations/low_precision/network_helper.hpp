@@ -134,6 +134,7 @@ public:
     static FakeQuantizeDequantizationValues createEmptyValues(const FakeQuantizeDequantization& dequantization);
 
     static bool isZeroConst(const std::shared_ptr<Node>& node);
+
 private:
     // 1  - on weights
     // 0  - weightable layer was not found
