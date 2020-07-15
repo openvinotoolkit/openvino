@@ -86,6 +86,7 @@ std::map<IE::Precision, precision_e> precision_map = {{IE::Precision::UNSPECIFIE
                                                         {IE::Precision::I8, precision_e::I8},
                                                         {IE::Precision::U16, precision_e::U16},
                                                         {IE::Precision::I32, precision_e::I32},
+                                                        {IE::Precision::U32, precision_e::U32},
                                                         {IE::Precision::I64, precision_e::I64},
                                                         {IE::Precision::U64, precision_e::U64},
                                                         {IE::Precision::BIN, precision_e::BIN},
@@ -1424,6 +1425,8 @@ IEStatusCode ie_blob_make_memory(const tensor_desc_t *tensorDesc, ie_blob_t **bl
             _blob->object = IE::make_shared_blob<int16_t>(tensor);
         } else if (prec == IE::Precision::I32) {
             _blob->object = IE::make_shared_blob<int32_t>(tensor);
+        } else if (prec == IE::Precision::U32) {
+            _blob->object = IE::make_shared_blob<uint32_t>(tensor);
         } else if (prec == IE::Precision::I64) {
             _blob->object = IE::make_shared_blob<int64_t>(tensor);
         } else if (prec == IE::Precision::U64) {
@@ -1489,6 +1492,9 @@ IEStatusCode ie_blob_make_memory_from_preallocated(const tensor_desc_t *tensorDe
             _blob->object = IE::make_shared_blob(tensor, p, size);
         } else if (prec == IE::Precision::I32) {
             int32_t *p = reinterpret_cast<int32_t *>(ptr);
+            _blob->object = IE::make_shared_blob(tensor, p, size);
+        } else if (prec == IE::Precision::U32) {
+            uint32_t *p = reinterpret_cast<uint32_t *>(ptr);
             _blob->object = IE::make_shared_blob(tensor, p, size);
         } else if (prec == IE::Precision::I64) {
             int64_t *p = reinterpret_cast<int64_t *>(ptr);

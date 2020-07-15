@@ -84,6 +84,12 @@ std::vector<StridedSliceParams> ss_only_test_cases = {
         StridedSliceParams{ { { 2, 3, 4, 5, 6 }, { 0, 1, 0, 0, 0 }, { 2, 3, 4, 5, 6 }, { 1, 1, 1, 1, 1 },
                             {1, 0, 1, 1, 1}, {1, 0, 1, 1, 1},  {},  {0, 1, 0, 0, 0},  {} },
                             InferenceEngine::Precision::FP32, CommonTestUtils::DEVICE_GPU, {}},
+        StridedSliceParams{ { { 10, 12 }, { -1, 1 }, { -9999, 0 }, { -1, 1 },
+                                { 0, 1 }, { 0, 1 },  { 0, 0 },  { 0, 0 },  { 0, 0 } },
+                                InferenceEngine::Precision::FP32, CommonTestUtils::DEVICE_GPU, {}},
+        StridedSliceParams{ { { 5, 5, 5, 5 }, { -1, 0, -1, 0 }, { -50, 0, -60, 0 }, { -1, 1, -1, 1 },
+                                { 0, 0, 0, 0 }, { 0, 1, 0, 1 },  { 0, 0, 0, 0 },  { 0, 0, 0, 0 },  { 0, 0, 0, 0 } },
+                                InferenceEngine::Precision::FP32, CommonTestUtils::DEVICE_GPU, {}}
 };
 
 INSTANTIATE_TEST_CASE_P(
