@@ -201,6 +201,12 @@ def main():
 
     run_in_subprocess(cmd, check_call=not args.skip_omz_errors)
 
+    # Open Model Zoo doesn't copy downloaded IRs to converter.py output folder where IRs should be stored.
+    # Do it manually to have only one folder with IRs
+    for ir_src_path in args.omz_models_out_dir.rglob("*.xml"):
+        ir_dst_path = args.omz_irs_out_dir / os.path.relpath(ir_src_path, args.omz_models_out_dir)
+        shutil.copytree(ir_src_path.parent, ir_dst_path.parent)
+    
     # prepare virtual environment and install requirements
     python_executable = sys.executable
     if not args.no_venv:
