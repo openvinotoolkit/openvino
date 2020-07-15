@@ -166,10 +166,6 @@ kernels_cache& gpu_toolkit::get_kernels_cache(uint32_t prog_id) {
     return get_program_state(prog_id)._kernels_cache;
 }
 
-void gpu_toolkit::store_binaries(kernels_binaries_vector binaries, uint32_t prog_id) {
-    get_program_state(prog_id)._binaries.push_back(binaries);
-}
-
 void gpu_toolkit::add_network(uint32_t net_id) {
     std::lock_guard<std::mutex> lock(toolkit_mutex);
     command_queues_builder queue_builder(context(), device(), _device->get_platform());

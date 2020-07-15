@@ -45,22 +45,13 @@ static bool replace_broadcast_like(const std::shared_ptr<ngraph::Node>& node)
     return true;
 }
 
-static bool replace_scalar_constant_like(const std::shared_ptr<Node>& node)
-{
-    auto scalar_constant_like = as_type_ptr<op::ScalarConstantLike>(node);
-    replace_node(node, scalar_constant_like->as_constant());
-    return true;
-}
-
 static const map<NodeTypeInfo, function<bool(const shared_ptr<Node>&)>> dispatcher{
-    {op::BroadcastLike::type_info, replace_broadcast_like},
-    {op::ScalarConstantLike::type_info, replace_scalar_constant_like}};
+    {op::BroadcastLike::type_info, replace_broadcast_like}};
 
 bool pass::LikeReplacement::run_on_function(shared_ptr<Function> function_ptr)
 {
     static const map<NodeTypeInfo, function<bool(const shared_ptr<Node>&)>> dispatcher{
-        {op::BroadcastLike::type_info, replace_broadcast_like},
-        {op::ScalarConstantLike::type_info, replace_scalar_constant_like}};
+        {op::BroadcastLike::type_info, replace_broadcast_like}};
 
     bool clobbered = false;
     for (const auto& n : function_ptr->get_ops())

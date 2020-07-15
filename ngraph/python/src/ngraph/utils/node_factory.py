@@ -58,14 +58,14 @@ class NodeFactory(object):
 
         # Setup helper members for caching attribute values.
         # The cache would be lazily populated at first access attempt.
-        setattr(node, "_attr_cache", dict())
-        setattr(node, "_attr_cache_valid", bool(False))
+        node._attr_cache = {}
+        node._attr_cache_valid = False
 
         return node
 
     @staticmethod
     def _normalize_attr_name(attr_name: str, prefix: str) -> str:
-        """Normalizes attribute name.
+        """Normalize attribute name.
 
         :param      attr_name:  The attribute name.
         :param      prefix:     The prefix to attach to attribute name.
@@ -79,7 +79,7 @@ class NodeFactory(object):
 
     @classmethod
     def _normalize_attr_name_getter(cls, attr_name: str) -> str:
-        """Normalizes atr name to be suitable for getter function name.
+        """Normalize atr name to be suitable for getter function name.
 
         :param      attr_name:  The attribute name to normalize
 
@@ -89,7 +89,7 @@ class NodeFactory(object):
 
     @classmethod
     def _normalize_attr_name_setter(cls, attr_name: str) -> str:
-        """Normalizes atr name to be suitable for setter function name.
+        """Normalize attribute name to be suitable for setter function name.
 
         :param      attr_name:  The attribute name to normalize
 
@@ -99,7 +99,7 @@ class NodeFactory(object):
 
     @staticmethod
     def _get_node_attr_value(node: Node, attr_name: str) -> Any:
-        """Gets provided node attribute value.
+        """Get provided node attribute value.
 
         :param      node:       The node we retrieve attribute value from.
         :param      attr_name:  The attribute name.
@@ -113,7 +113,7 @@ class NodeFactory(object):
 
     @staticmethod
     def _set_node_attr_value(node: Node, attr_name: str, value: Any) -> None:
-        """Sets the node attribute value.
+        """Set the node attribute value.
 
         :param      node:       The node we change attribute value for.
         :param      attr_name:  The attribute name.

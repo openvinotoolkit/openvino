@@ -44,16 +44,6 @@ shared_ptr<Node> op::Sum::clone_with_new_inputs(const OutputVector& new_args) co
     return make_shared<op::v0::Sum>(new_args.at(0), new_args.at(1));
 }
 
-void op::v0::Sum::generate_adjoints(autodiff::Adjoints& adjoints, const OutputVector& deltas)
-{
-    auto delta = deltas.at(0);
-
-    auto x = input_value(0);
-    auto& x_shape = x.get_shape();
-
-    adjoints.add_delta(x, make_shared<op::Broadcast>(delta, x_shape, get_reduction_axes()));
-}
-
 shared_ptr<Node> op::v0::Sum::get_default_value() const
 {
     return ngraph::make_constant_from_string("0", get_element_type(), get_shape());

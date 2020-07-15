@@ -42,7 +42,6 @@
 
 #include <debug.h>
 #include <ngraph/opsets/opset1.hpp>
-#include "transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp"
 #include "transformations/utils/utils.hpp"
 #include "transformations/rt_info/fused_names_attribute.hpp"
 #include "transformations/rt_info/primitives_priority_attribute.hpp"
@@ -526,9 +525,10 @@ CNNLayerPtr InferenceEngine::details::CNNLayerCreator::create() {
     return res;
 }
 
-std::shared_ptr<CNNNetworkImpl> convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function> &graph,
-                                                             const ICNNNetwork &network,
-                                                             bool keep_constant_inputs) {
+void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function> &graph,
+                                 const ICNNNetwork &network,
+                                 CNNNetworkImpl* cnnNetworkImpl,
+                                 bool keep_constant_inputs) {
     IE_PROFILING_AUTO_SCOPE(convertFunctionToICNNNetwork)
     const auto createCNNLayer = [](const std::shared_ptr<::ngraph::Node> &node) -> CNNLayerPtr {
         class NGraphCNNLayer: public CNNLayer {
@@ -716,7 +716,7 @@ std::shared_ptr<CNNNetworkImpl> convertFunctionToICNNNetwork(const std::shared_p
         return ::ngraph::as_type_ptr<::ngraph::op::Result>(node) != nullptr;
     };
 
-    const auto keep_input_info = [](std::shared_ptr<details::CNNNetworkImpl> &network, const DataPtr &inData) {
+    const auto keep_input_info = [](CNNNetworkImpl *network, const DataPtr &inData) {
         InputInfo::Ptr info(new InputInfo());
         info->setInputData(inData);
         network->setInputInfo(info);
@@ -727,8 +727,7 @@ std::shared_ptr<CNNNetworkImpl> convertFunctionToICNNNetwork(const std::shared_p
     InputsDataMap thisInputDataMap;
     network.getInputsInfo(thisInputDataMap);
 
-    // Create network
-    auto cnnNetworkImpl = std::make_shared<details::CNNNetworkImpl>();
+    // Construct network
     cnnNetworkImpl->setName(graph->get_friendly_name());
 
     // Collect all names from current graph
@@ -928,7 +927,15 @@ std::shared_ptr<CNNNetworkImpl> convertFunctionToICNNNetwork(const std::shared_p
     for (const auto &ext : ::ngraph::op::GenericIE::getExtensions(graph)) {
         cnnNetworkImpl->AddExtension(ext, nullptr);
     }
+}
+
+std::shared_ptr<CNNNetworkImpl> convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function> &graph,
+                                                             const ICNNNetwork &network,
+                                                             bool keep_constant_inputs) {
+    auto cnnNetworkImpl = std::make_shared<details::CNNNetworkImpl>();
+    convertFunctionToICNNNetwork(graph, network, cnnNetworkImpl.get(), keep_constant_inputs);
     return cnnNetworkImpl;
 }
+
 }  // namespace details
 }  // namespace InferenceEngine
