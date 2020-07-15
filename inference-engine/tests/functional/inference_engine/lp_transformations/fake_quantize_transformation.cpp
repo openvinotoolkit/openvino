@@ -75,7 +75,6 @@ public:
         actualFunction = ngraph::builder::subgraph::FakeQuantizeFunction::getOriginal(
             precision,
             shape,
-            params,
             fakeQuantizeOnData.actual);
 
         SimpleLowPrecisionTransformer transform;
@@ -85,7 +84,7 @@ public:
         referenceFunction = ngraph::builder::subgraph::FakeQuantizeFunction::getReference(
             precision,
             shape,
-            params,
+            params.updatePrecisions,
             fakeQuantizeOnData.expected,
             fakeQuantizeOnData.expectedFakeQuantizeOnDataPrecision,
             fakeQuantizeOnData.expectedValues.find(precision)->second.subtract,

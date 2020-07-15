@@ -52,7 +52,7 @@ public:
         actualFunction = ngraph::builder::subgraph::ConvolutionFunction::getOriginal(
             precision,
             shape,
-            params,
+            params.updatePrecisions,
             testParams.actual);
 
         SimpleLowPrecisionTransformer transform;
@@ -62,7 +62,7 @@ public:
         referenceFunction = ngraph::builder::subgraph::ConvolutionFunction::getReference(
             precision,
             shape,
-            params,
+            params.updatePrecisions,
             testParams.expected);
     }
 

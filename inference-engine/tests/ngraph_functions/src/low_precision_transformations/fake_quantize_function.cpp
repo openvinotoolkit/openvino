@@ -18,7 +18,6 @@ using namespace ngraph::pass;
 std::shared_ptr<ngraph::Function> FakeQuantizeFunction::getOriginal(
     const ngraph::element::Type precision,
     const ngraph::Shape& inputShape,
-    const ngraph::pass::low_precision::LayerTransformation::Params& params,
     const FakeQuantizeOnData& fakeQuantizeOnData) {
     const auto input = std::make_shared<ngraph::opset1::Parameter>(precision, ngraph::Shape(inputShape));
     input->set_friendly_name("input");
@@ -35,7 +34,7 @@ std::shared_ptr<ngraph::Function> FakeQuantizeFunction::getOriginal(
 std::shared_ptr<ngraph::Function> FakeQuantizeFunction::getReference(
     const ngraph::element::Type precision,
     const ngraph::Shape& inputShape,
-    const ngraph::pass::low_precision::LayerTransformation::Params& params,
+    const bool updatePrecisions,
     const FakeQuantizeOnData& fakeQuantizeOnData,
     const ngraph::element::Type fakeQuantizeOutputPrecision,
     const std::vector<float>& expectedSubtractValues,
@@ -54,7 +53,7 @@ std::shared_ptr<ngraph::Function> FakeQuantizeFunction::getReference(
         fakeQuantizeOnData.outputHighValues));
     std::shared_ptr<Node> parent = fakeQuantize;
 
-    if (params.updatePrecisions) {
+    if (updatePrecisions) {
         const std::shared_ptr<ngraph::opset1::Convert> convert = std::make_shared<ngraph::opset1::Convert>(parent, precision);
         parent = convert;
 

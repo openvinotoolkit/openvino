@@ -6,7 +6,6 @@
 
 #include <memory>
 #include <ngraph/ngraph.hpp>
-#include "ngraph_functions/low_precision_transformations/common/fake_quantize_on_data.hpp"
 #include "ngraph_functions/low_precision_transformations/common/fake_quantize_on_weights.hpp"
 
 namespace ngraph {
@@ -37,13 +36,13 @@ public:
     static std::shared_ptr<ngraph::Function> getOriginal(
         const ngraph::element::Type precision,
         const ngraph::Shape& inputShape,
-        const ngraph::pass::low_precision::LayerTransformation::Params& params,
+        const bool updatePrecisions,
         const ActualValues& actualValues);
 
     static std::shared_ptr<ngraph::Function> getReference(
         const ngraph::element::Type precision,
         const ngraph::Shape& inputShape,
-        const ngraph::pass::low_precision::LayerTransformation::Params& params,
+        const bool updatePrecisions,
         const ExpectedValues& expectedValues);
 };
 

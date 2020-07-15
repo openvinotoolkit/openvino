@@ -202,6 +202,15 @@ std::shared_ptr<Node> makeFakeQuantize(const ngraph::Output<Node> &in,
                                        const std::vector<float> &outputLowData,
                                        const std::vector<float> &outputHighData);
 
+std::shared_ptr<Node> makeFakeQuantizeTypeRelaxed(const ngraph::Output<Node> &in,
+    const element::Type &type,
+    std::size_t levels,
+    std::vector<size_t> constShapes,
+    const std::vector<float> &inputLowData,
+    const std::vector<float> &inputHighData,
+    const std::vector<float> &outputLowData,
+    const std::vector<float> &outputHighData);
+
 std::shared_ptr<Node> makeFakeQuantize(const ngraph::Output<Node> &in,
                                        const element::Type &type,
                                        std::size_t levels,

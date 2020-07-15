@@ -41,7 +41,6 @@ void FakeQuantizeTransformation::SetUp() {
     function = ngraph::builder::subgraph::FakeQuantizeFunction::getOriginal(
         FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision),
         inputShape,
-        toNGraph(params),
         fakeQuantizeOnData);
 
     ngraph::pass::InitNodeInfo().run_on_function(function);
