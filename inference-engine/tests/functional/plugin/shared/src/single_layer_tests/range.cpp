@@ -54,10 +54,6 @@ void RangeLayerTest::SetUp() {
     std::tie(start, stop, step, netPrecision, targetDevice) = GetParam();
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
-    auto start_constant = std::make_shared<ngraph::opset1::Constant>(ngPrc, ngraph::Shape{}, start);
-    auto stop_constant = std::make_shared<ngraph::opset1::Constant>(ngPrc, ngraph::Shape{}, stop);
-    auto step_constant = std::make_shared<ngraph::opset1::Constant>(ngPrc, ngraph::Shape{}, step);
-
     auto params = ngraph::builder::makeParams(ngPrc, {std::vector<size_t>(), std::vector<size_t>(), std::vector<size_t>()});
     params[0]->set_friendly_name("start");
     params[1]->set_friendly_name("stop");
