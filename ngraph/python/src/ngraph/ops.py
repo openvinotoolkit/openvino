@@ -19,11 +19,10 @@ from typing import Callable, Iterable, List, Optional, Set, Union
 
 import numpy as np
 
-from ngraph.impl import Node, Shape
+from ngraph.impl import Node, PartialShape, Shape
 from ngraph.impl.op import Constant, GetOutputElement, Parameter
 from ngraph.utils.decorators import binary_op, nameable_op, unary_op
 from ngraph.utils.input_validation import (
-    assert_list_of_ints,
     check_valid_attributes,
     is_non_negative_value,
     is_positive_value,
@@ -65,9 +64,8 @@ def parameter(
     shape: TensorShape, dtype: NumericType = np.float32, name: Optional[str] = None
 ) -> Parameter:
     """Return an ngraph Parameter object."""
-    assert_list_of_ints(shape, "Parameter shape must be a list of integer values.")
     element_type = get_element_type(dtype)
-    return Parameter(element_type, Shape(shape))
+    return Parameter(element_type, PartialShape(shape))
 
 
 @nameable_op
