@@ -132,12 +132,11 @@ Engine::Engine(std::shared_ptr<IMvnc> mvnc) :
     _pluginName = "MYRIAD";
 
     _config = {
-        { KEY_VPU_HW_STAGES_OPTIMIZATION, "ON" },
+        { MYRIAD_ENABLE_HW_ACCELERATION, "ON" },
         { KEY_LOG_LEVEL, "LOG_NONE" },
-        { KEY_VPU_PRINT_RECEIVE_TENSOR_TIME, "OFF" },
-        { KEY_VPU_CUSTOM_LAYERS, "" },
-        { KEY_VPU_MYRIAD_FORCE_RESET, "OFF" },
-        { KEY_VPU_MYRIAD_PLATFORM, "" },
+        { MYRIAD_ENABLE_RECEIVING_TENSOR_TIME, "OFF" },
+        { MYRIAD_CUSTOM_LAYERS, "" },
+        { MYRIAD_FORCE_RESET, "OFF" },
         { KEY_EXCLUSIVE_ASYNC_REQUESTS, "OFF" },
         { KEY_PERF_COUNT, "OFF" },
         { KEY_CONFIG_FILE, "" },
