@@ -70,18 +70,19 @@ class NearestNeighborUpsampling(FrontReplacementSubgraph):
             log.warning('Failed to determine scaling parameters from the topology. Do not apply pattern.')
             return
 
-        axes = int64_array([2, 3]) if graph.graph['layout'] == 'NCHW' else int64_array([1, 2])
-
-        const = Const(graph,
-                      {'value': np.array([input_height * height_scale, input_width * width_scale])}).create_node()
-
         reshape2_name = match['reshape_2'].name
         resample_op = Interpolate(graph,
-                                  {'axes': axes, 'mode': 'nearest', 'antialias': 0, 'pads_begin': int64_array([0]),
+                                  {'mode': 'nearest', 'antialias': 0, 'pads_begin': int64_array([0]),
                                    'pads_end': int64_array([0]), 'coordinate_transformation_mode': 'half_pixel',
                                    'nearest_mode': 'round_prefer_floor', 'cube_coeff': -0.75, 'version': 'opset4',
-                                   'name': reshape2_name + '/Resample_'})
+                                   'name': reshape2_name + '/Resample_',
+                                   'in_ports_count': 3})
         resample_node = resample_op.create_node([match['op']])
+        axes_node = Const(graph,
+                          {
+                              'name': resample_node.name + '/axes_',
+                              'value': int64_array([2, 3]) if graph.graph['layout'] == 'NCHW' else int64_array([1, 2])
+                          }).create_node()
         const = Const(graph, {'value': np.array([input_height * height_scale, input_width * width_scale]),
                               'name': resample_node.name + '/target_shape'}).create_node()
 
@@ -90,5 +91,6 @@ class NearestNeighborUpsampling(FrontReplacementSubgraph):
         resample_node.add_input_port(1, skip_if_exist=True)
         assert resample_node.in_port(1).disconnected()
         const.out_port(0).connect(resample_node.in_port(1))
+        axes_node.out_port(0).connect(resample_node.in_port(2))
 
         graph.remove_nodes_from([node.id for node in match.values() if node.id != match['op'].id])
