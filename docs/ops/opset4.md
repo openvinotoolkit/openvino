@@ -77,6 +77,7 @@ declared in `namespace opset4`.
 * [MaxPool](pooling/MaxPool_1.md)
 * [Maximum](arithmetic/Maximum_1.md)
 * [Minimum](arithmetic/Minimum_1.md)
+* [Mish](activation/Mish_4.md)
 * [Mod](arithmetic/Mod_1.md)
 * [MVN](normalization/MVN_1.md)
 * [Multiply](arithmetic/Multiply_1.md)
