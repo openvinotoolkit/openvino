@@ -24,8 +24,6 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-using namespace ngraph;
-
 void AddTransformation::registerMatcherIn(GraphRewrite &pass, TransformationContext &context) const {
     // addPattern(
     //        pass,
@@ -50,7 +48,7 @@ void AddTransformation::transform(TransformationContext& context, ngraph::patter
         return;
     }
 
-    std::shared_ptr<ngraph::opset1::Add> add = as_type_ptr<opset1::Add>(m.get_match_root());
+    auto add = m.get_match_root();
 
     add = separateInStandaloneBranch(add);
 
@@ -79,15 +77,15 @@ void AddTransformation::transform(TransformationContext& context, ngraph::patter
         // TODO: question: is it reasonable to create Constant? (performance issue?)
         // TODO: question: should we clone constant here?
 
-        FakeQuantizeDequantization dequantization1 = pass::low_precision::NetworkHelper::getDequantization(add, emptyPathIndex);
-        auto const dequantizationValues1 = createEmptyValues(dequantization1);
-        std::shared_ptr<Node> subtract1Values = std::get<0>(dequantizationValues1);
-        std::shared_ptr<Node> multiply1Values = std::get<1>(dequantizationValues1);
+        FakeQuantizeDequantization dequantization1 = NetworkHelper::getDequantization(add, emptyPathIndex);
+        std::shared_ptr<Node> subtract1Values;
+        std::shared_ptr<Node> multiply1Values;
+        std::tie(subtract1Values, multiply1Values) = NetworkHelper::createEmptyValues(dequantization1);
 
-        FakeQuantizeDequantization dequantization2 = pass::low_precision::NetworkHelper::getDequantization(add, fullPathIndex);
-        auto const dequantizationValues2 = createEmptyValues(dequantization2);
-        std::shared_ptr<Node> subtract2Values = std::get<0>(dequantizationValues2);
-        std::shared_ptr<Node> multiply2Values = std::get<1>(dequantizationValues2);
+        FakeQuantizeDequantization dequantization2 = NetworkHelper::getDequantization(add, fullPathIndex);
+        std::shared_ptr<Node> subtract2Values;
+        std::shared_ptr<Node> multiply2Values;
+        std::tie(subtract2Values, multiply2Values) = NetworkHelper::createEmptyValues(dequantization2);
 
         // calculation
         std::shared_ptr<Node> newSubtract2Values = fold<opset1::Add>(
