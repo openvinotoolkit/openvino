@@ -65,7 +65,8 @@ typedef std::tuple<
     bool,
     FakeQuantizePrecisionSelectionTransformationTestValues> FakeQuantizePrecisionSelectionTransformationParams;
 
-class FakeQuantizePrecisionSelectionTransformation : public LayerTransformation, public testing::WithParamInterface<FakeQuantizePrecisionSelectionTransformationParams> {
+class FakeQuantizePrecisionSelectionTransformation : public LayerTransformation,
+    public testing::WithParamInterface<FakeQuantizePrecisionSelectionTransformationParams> {
 public:
     void SetUp() override {
         const ngraph::element::Type precision = std::get<0>(GetParam());
