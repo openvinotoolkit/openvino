@@ -30,6 +30,12 @@ namespace ngraph {
             bool is_binary_elementwise_comparison(const ngraph::Node* node);
             NGRAPH_API
             bool is_binary_elementwise_logical(const ngraph::Node* node);
+
+            NGRAPH_API
+            bool supports_auto_broadcast(const ngraph::Node* node);
+
+            NGRAPH_API
+            bool supports_decompose(const ngraph::Node* node);
         }
     }
 }

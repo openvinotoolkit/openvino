@@ -171,12 +171,8 @@ namespace ngraph
         virtual ~Node();
 
         virtual bool visit_attributes(AttributeVisitor& visitor) { return false; }
-        /// \returns true if node supports autobroadcast operations
-        virtual bool supports_auto_broadcast() const { return false; }
         /// \returns the autobroadcasr spec
         virtual const op::AutoBroadcastSpec& get_autob() const;
-        /// \returns true if the node can decompose
-        virtual bool supports_decompose() const { return false; }
         /// \brief Evaluates the op on input_values putting results in output_values
         /// \returns true if successful
         virtual bool evaluate(const HostTensorVector& output_values,

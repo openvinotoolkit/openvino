@@ -69,7 +69,6 @@ namespace ngraph
 
                 const AutoBroadcastSpec& get_autob() const override { return m_autob; }
                 void set_autob(const AutoBroadcastSpec& autob) { m_autob = autob; }
-                bool supports_auto_broadcast() const override { return true; }
                 bool visit_attributes(AttributeVisitor& visitor) override;
 
             private:

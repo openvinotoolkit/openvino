@@ -16,6 +16,7 @@
 #include "ngraph/pass/fused_op_decomposition.hpp"
 #include "ngraph/graph_util.hpp"
 #include "ngraph/op/get_output_element.hpp"
+#include "ngraph/op/util/op_types.hpp"
 #include "ngraph/provenance.hpp"
 
 using namespace std;
@@ -30,7 +31,7 @@ bool pass::FusedOpDecomposition::run_on_node(shared_ptr<Node> node)
 {
     bool modified = false;
 
-    if (node->supports_decompose())
+    if (op::util::supports_decompose(node.get()))
     {
         if (m_has_direct_support && m_has_direct_support(*node))
         {
