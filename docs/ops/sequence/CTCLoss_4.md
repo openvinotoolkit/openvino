@@ -76,13 +76,13 @@ CTCLoss = \minus \sum_{S} \ln p(S)
 
 * **1**: `logits` - Input tensor with a batch of sequences of logits. Type of elements is *T_F*. Shape of the tensor is `[N, T, C]`, where `N` is the batch size, `T` is the maximum sequence length and `C` is the number of classes including the blank. Required.
 
-* **2**: `logit_length` - 1D input tensor of type *T_IND* and of a shape `[N]`. The tensor must consist of non-negative values not greater than `T`. Lengths of input sequences of logits `logits[i,:,:]`. Required.
+* **2**: `logit_length` - 1D input tensor of type *T1* and of a shape `[N]`. The tensor must consist of non-negative values not greater than `T`. Lengths of input sequences of logits `logits[i,:,:]`. Required.
 
-* **3**: `labels` - 2D tensor with shape `[N, T]` of type *T_IND*. A length of a target sequence `labels[i,:]` is equal to `label_length[i]` and must contain of integers from a range `[0; C-1]` except `blank_index`. Required.
+* **3**: `labels` - 2D tensor with shape `[N, T]` of type *T2*. A length of a target sequence `labels[i,:]` is equal to `label_length[i]` and must contain of integers from a range `[0; C-1]` except `blank_index`. Required.
 
-* **4**: `label_length` - 1D tensor of type *T_IND* and of a shape `[N]`. The tensor must consist of non-negative values not greater than `T` and `label_length[i] <= logit_length[i]` for all possible `i`.  Required.
+* **4**: `label_length` - 1D tensor of type *T1* and of a shape `[N]`. The tensor must consist of non-negative values not greater than `T` and `label_length[i] <= logit_length[i]` for all possible `i`.  Required.
 
-* **5**: `blank_index` - Scalar of type *T_IND*. Set the class index to use for the blank label. Default value is `C-1`. Optional.
+* **5**: `blank_index` - Scalar of type *T2*. Set the class index to use for the blank label. Default value is `C-1`. Optional.
 
 **Output**
 
@@ -92,7 +92,7 @@ CTCLoss = \minus \sum_{S} \ln p(S)
 
 * *T_F*: any supported floating point type.
 
-* *T_IND*: any supported integer type.
+* *T1*, *T2*: `int32` or `int64`.
 
 **Example**
 
