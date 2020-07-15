@@ -31,16 +31,20 @@ std::shared_ptr<ngraph::Function> FakeQuantizePrecisionSelectionFunction::getOri
         values.fakeQuantizeOnData.inputHighValues,
         values.fakeQuantizeOnData.outputLowValues,
         values.fakeQuantizeOnData.outputHighValues);
-    parent = fakeQuantize;
+    fakeQuantize->set_friendly_name("fakeQuantize");
 
-    std::shared_ptr<ngraph::Node> branch1Parent;
+    std::shared_ptr<ngraph::Node> branch1Last;
     {
         // branch with limitation precision operation (Convolution)
-        const std::shared_ptr<ngraph::Node> pooling = as_type_ptr<ngraph::Node>(std::make_shared<ngraph::opset1::MaxPool>(
-            fakeQuantize,
-            Strides{ 1, 1 }, Shape{ 1, 1 }, Shape{ 0, 0 }, Shape{ 2, 2 },
-            op::RoundingType::FLOOR));
-        parent = pooling;
+        std::shared_ptr<ngraph::Node> pooling = values.operationBeforeLimitedOperationIsPrecisionTransparent ?
+            as_type_ptr<ngraph::Node>(std::make_shared<ngraph::opset1::MaxPool>(
+                fakeQuantize,
+                Strides{ 1, 1 }, Shape{ 1, 1 }, Shape{ 0, 0 }, Shape{ 2, 2 },
+                op::RoundingType::FLOOR)) :
+            std::make_shared<op::TypeRelaxed<ngraph::opset1::AvgPool>>(
+                fakeQuantize,
+                Strides{ 1, 1 }, Shape{ 1, 1 }, Shape{ 0, 0 }, Shape{ 2, 2 }, true,
+                op::RoundingType::FLOOR);
 
         const size_t inputChannelsCount = inputShape[1];
         const size_t outputChannelsCount = 2 * inputShape[1];
@@ -50,8 +54,8 @@ std::shared_ptr<ngraph::Function> FakeQuantizePrecisionSelectionFunction::getOri
             ngraph::Shape{ outputChannelsCount, inputChannelsCount, 1, 1 },
             std::vector<float>(outputChannelsCount * inputChannelsCount, 1.f));
 
-        branch1Parent = std::make_shared<ngraph::opset1::Convolution>(
-            parent,
+        std::shared_ptr<ngraph::opset1::Convolution> convolution = std::make_shared<ngraph::opset1::Convolution>(
+            pooling,
             values.fakeQuantizeOnWeights.empty() ?
                 weights->output(0) :
                 ngraph::builder::makeFakeQuantize(
@@ -67,19 +71,21 @@ std::shared_ptr<ngraph::Function> FakeQuantizePrecisionSelectionFunction::getOri
             ngraph::CoordinateDiff{ 0, 0 },
             ngraph::CoordinateDiff{ 0, 0 },
             ngraph::Strides{ 1, 1 });
+
+        branch1Last = convolution;
     }
 
-    std::shared_ptr<ngraph::Node> branch2Parent;
+    std::shared_ptr<ngraph::Node> branch2Last;
     {
         // just another branch
-        branch2Parent = std::make_shared<ngraph::opset1::AvgPool>(
+        branch2Last = std::make_shared<ngraph::opset1::AvgPool>(
             fakeQuantize,
             Strides{ 1, 1 }, Shape{ 1, 1 }, Shape{ 0, 0 }, Shape{ 2, 2 }, true,
             op::RoundingType::FLOOR);
     }
 
     const std::shared_ptr<ngraph::opset1::Concat> concat = std::make_shared<ngraph::opset1::Concat>(
-        ngraph::OutputVector{ branch1Parent->output(0), branch2Parent->output(0) }, 1);
+        ngraph::OutputVector{ branch1Last->output(0), branch2Last->output(0) }, 1);
 
     ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(concat) };
     return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "FakeQuantizePrecisionSelectionFunction");
@@ -101,11 +107,10 @@ std::shared_ptr<ngraph::Function> FakeQuantizePrecisionSelectionFunction::getRef
         values.fakeQuantizeOnData.inputHighValues,
         values.fakeQuantizeOnData.outputLowValues,
         values.fakeQuantizeOnData.outputHighValues);
-
+    fakeQuantize->set_friendly_name("fakeQuantize");
 
     // branch with limitation precision operation (Convolution)
-    const bool isTransparentPrecisionOperationBeforeLimited = true;
-    std::shared_ptr<ngraph::Node> branch1Pooling = isTransparentPrecisionOperationBeforeLimited ?
+    std::shared_ptr<ngraph::Node> branch1Pooling = values.operationBeforeLimitedOperationIsPrecisionTransparent ?
         as_type_ptr<ngraph::Node>(std::make_shared<op::TypeRelaxed<ngraph::opset1::MaxPool>>(
             fakeQuantize,
             Strides{ 1, 1 }, Shape{ 1, 1 }, Shape{ 0, 0 }, Shape{ 2, 2 },
@@ -159,7 +164,9 @@ std::shared_ptr<ngraph::Function> FakeQuantizePrecisionSelectionFunction::getRef
     if (values.fakeQuantizeOnDataOutPrecision != precision) {
         ngraph::pass::low_precision::NetworkHelper::setOutDataPrecision(fakeQuantize, values.fakeQuantizeOnDataOutPrecision);
 
-        ngraph::pass::low_precision::NetworkHelper::setOutDataPrecision(branch1Pooling, values.fakeQuantizeOnDataOutPrecision);
+        if (values.operationBeforeLimitedOperationIsPrecisionTransparent) {
+            ngraph::pass::low_precision::NetworkHelper::setOutDataPrecision(branch1Pooling, values.fakeQuantizeOnDataOutPrecision);
+        }
 
         if (values.fakeQuantizeOnWeights.empty()) {
             replace_node(

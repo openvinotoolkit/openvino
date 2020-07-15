@@ -15,10 +15,7 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
     // InferenceEngine::Precision::FP16
 };
 
-// TODO: not used
 const std::vector<InferenceEngine::details::LayerTransformation::Params> trasformationParamValues = {
-    // LayerTestsUtils::LayerTransformationParamsFactory::createParams().setUpdatePrecisions(true),
-    // LayerTestsUtils::LayerTransformationParamsFactory::createParams().setUpdatePrecisions(false),
     LayerTestsUtils::LayerTransformationParamsFactory::createParamsU8I8()
 };
 

@@ -26,7 +26,6 @@ std::shared_ptr<ngraph::opset1::Convolution> createConvolution(
         std::vector<float>(outputChannelsCount * inputChannelsCount, 1));
 
     const std::shared_ptr<ngraph::opset1::Convolution> convolution = typeRelaxed ?
-        // workaround to avoid fail during nGraph function creation in INT
         std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::Convolution>>(
             parent,
             fqOnWeights.empty() ? weights->output(0) :
@@ -37,7 +36,6 @@ std::shared_ptr<ngraph::opset1::Convolution> createConvolution(
             ngraph::CoordinateDiff{ 0, 0 },
             ngraph::CoordinateDiff{ 0, 0 },
             ngraph::Strides{ 1, 1 }) :
-        // workaround to avoid fail during reference inference
         std::make_shared<ngraph::opset1::Convolution>(
             parent,
             fqOnWeights.empty() ? weights->output(0) :
@@ -105,18 +103,6 @@ std::shared_ptr<ngraph::Function> FakeQuantizeAndTwoOutputBranchesWithConvolutio
             values.fqOnData.inputHighValues,
             values.fqOnData.outputLowValues,
             values.fqOnData.outputHighValues));
-
-    // TODO: nGraph workaround
-    if (fakeQuantizeOnActivations != nullptr) {
-        fakeQuantizeOnActivations = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::FakeQuantize>>(
-            fakeQuantizeOnActivations->input_value(0),
-            fakeQuantizeOnActivations->input_value(1),
-            fakeQuantizeOnActivations->input_value(2),
-            fakeQuantizeOnActivations->input_value(3),
-            fakeQuantizeOnActivations->input_value(4),
-            fakeQuantizeOnActivations->get_levels(),
-            fakeQuantizeOnActivations->get_auto_broadcast());
-    }
 
     const std::shared_ptr<ngraph::opset1::Convolution> convolution1 = createConvolution(
         precision,

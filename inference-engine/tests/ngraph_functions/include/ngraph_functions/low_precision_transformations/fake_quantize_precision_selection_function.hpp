@@ -20,13 +20,14 @@ class FakeQuantizePrecisionSelectionFunction {
 public:
     class ActualValues {
     public:
-        // bool isBeforeLimitPrecisionTransparentOperation;
+        bool operationBeforeLimitedOperationIsPrecisionTransparent;
         builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData;
         builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
     };
 
     class ExpectedValues {
     public:
+        bool operationBeforeLimitedOperationIsPrecisionTransparent;
         ngraph::element::Type fakeQuantizeOnDataOutPrecision;
         builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData;
         builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;

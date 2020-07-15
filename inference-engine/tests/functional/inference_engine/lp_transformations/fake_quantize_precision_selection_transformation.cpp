@@ -43,6 +43,7 @@ class FakeQuantizePrecisionSelectionTransformationTestValues {
 public:
     std::vector<element::Type> precisionsOnActivations;
     std::vector<element::Type> precisionsOnActivationForLimitedOperation;
+    bool operationBeforeLimitedOperationIsPrecisionTransparent;
     ActualValues actual;
     ExpectedValues expected;
 };
@@ -84,7 +85,13 @@ public:
         actualFunction = ngraph::builder::subgraph::FakeQuantizePrecisionSelectionFunction::getOriginal(
             precision,
             shape,
-            { testValues.actual.fakeQuantizeOnData, testValues.actual.fakeQuantizeOnWeights });
+            {
+                testValues.operationBeforeLimitedOperationIsPrecisionTransparent,
+                testValues.actual.fakeQuantizeOnData,
+                testValues.actual.fakeQuantizeOnWeights
+            });
+
+        VisualizeTree("C:\\Projects\\temp\\test.actual").run_on_module(std::vector<std::shared_ptr<ngraph::Function>>{ actualFunction });
 
         SimpleLowPrecisionTransformer transform;
         transform.add<ngraph::pass::low_precision::AvgPoolTransformation, ngraph::opset1::AvgPool>(params);
@@ -94,14 +101,19 @@ public:
         transform.add<ngraph::pass::low_precision::MaxPoolTransformation, ngraph::opset1::MaxPool>(params);
         transform.transform(actualFunction);
 
+        VisualizeTree("C:\\Projects\\temp\\test.transformed").run_on_module(std::vector<std::shared_ptr<ngraph::Function>>{ actualFunction });
+
         referenceFunction = ngraph::builder::subgraph::FakeQuantizePrecisionSelectionFunction::getReference(
             precision,
             shape,
             {
+                testValues.operationBeforeLimitedOperationIsPrecisionTransparent,
                 updatePrecision ? testValues.expected.fakeQuantizeOnDataOutPrecision : precision,
                 testValues.expected.fakeQuantizeOnData,
                 testValues.expected.fakeQuantizeOnWeights
             });
+
+        VisualizeTree("C:\\Projects\\temp\\test.reference").run_on_module(std::vector<std::shared_ptr<ngraph::Function>>{ referenceFunction });
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<FakeQuantizePrecisionSelectionTransformationParams> obj) {
@@ -132,16 +144,13 @@ const std::vector<ngraph::element::Type> precisions = {
     // ngraph::element::f16
 };
 
-const std::vector<bool> updatePrecisions = {
-    true,
-    false
-};
+const std::vector<bool> updatePrecisions = { true, false };
 
 const std::vector<FakeQuantizePrecisionSelectionTransformationTestValues> fakeQuantizeTransformationTestValues = {
-    // U8
     {
         { element::u8, element::i8 },
         { element::u8 },
+        true,
         {
             { 256ul, { }, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } },
             { 255ul, { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -1.27f }, { 1.27f } }
@@ -155,6 +164,7 @@ const std::vector<FakeQuantizePrecisionSelectionTransformationTestValues> fakeQu
     {
         { element::u8, element::i8 },
         { element::i8 },
+        true,
         {
             { 256ul, { }, { -1.28f }, { 1.27f }, { -1.28f }, { 1.27f } },
             { 255ul, { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -1.27f }, { 1.27f } }
@@ -164,7 +174,25 @@ const std::vector<FakeQuantizePrecisionSelectionTransformationTestValues> fakeQu
             { 256ul, { }, { -1.28f }, { 1.27f }, { -128.f }, { 127.f } },
             { }
         },
-    }
+    },
+    // {
+    //    { element::u8, element::i8 },
+    //    { element::i8 },
+    //    // INT8 is not available for limited operation (Convolution)
+    //    false,
+    //    {
+    //        { 256ul, { }, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } },
+    //        { 255ul, { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -1.27f }, { 1.27f } }
+    //    },
+    //    {
+    //        // original precision is used
+    //        element::u8,
+    //        // FakeQuantize has to select the first available: U8, not limited operation required I8 but this fact doesn't affect
+    //        { 256ul, { }, { 0.f }, { 2.55f }, { 0.f }, { 255.f } },
+    //        // FakeQuantize on weights is not changed
+    //        { 255ul, { 1, 1, 1, 1 }, { 0.f }, { 254.f }, { -1.27f }, { 1.27f } }
+    //    },
+    // },
 };
 
 const std::vector<ngraph::Shape> shapes = {
