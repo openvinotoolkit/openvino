@@ -38,6 +38,7 @@
 #include "ngraph/op/subtract.hpp"
 #include "ngraph/op/sum.hpp"
 #include "ngraph/op/transpose.hpp"
+#include "ngraph/op/util/op_types.hpp"
 #include "ngraph/opsets/opset2.hpp"
 #include "ngraph/opsets/opset3.hpp"
 #include "ngraph/pattern/matcher.hpp"
@@ -818,7 +819,7 @@ bool pass::AlgebraicSimplification::run_on_function(shared_ptr<Function> f)
     bool replaced = false;
     for (auto n : f->get_ordered_ops())
     {
-        if (n->is_output() || n->is_parameter())
+        if (n->is_output() || op::util::is_parameter(n.get()))
         {
             continue;
         }

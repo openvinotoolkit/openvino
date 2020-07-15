@@ -58,6 +58,7 @@
 #include "ngraph/op/sum.hpp"
 #include "ngraph/op/tan.hpp"
 #include "ngraph/op/tanh.hpp"
+#include "ngraph/op/util/op_types.hpp"
 #include "ngraph/pattern/matcher.hpp"
 
 using namespace std;
@@ -301,7 +302,7 @@ bool ngraph::pass::CommonSubexpressionElimination::run_on_function(shared_ptr<ng
 
     for (auto n : f->get_ordered_ops())
     {
-        if (n->is_output() || n->is_parameter())
+        if (n->is_output() || op::util::is_parameter(n.get()))
         {
             continue;
         }

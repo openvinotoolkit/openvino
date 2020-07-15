@@ -33,7 +33,7 @@ TEST(op, is_op)
 {
     auto arg0 = make_shared<op::Parameter>(element::f32, Shape{1});
     ASSERT_NE(nullptr, arg0);
-    EXPECT_TRUE(arg0->is_parameter());
+    EXPECT_TRUE(op::util::is_parameter(arg0.get()));
 }
 
 TEST(op, is_parameter)
@@ -42,7 +42,7 @@ TEST(op, is_parameter)
     ASSERT_NE(nullptr, arg0);
     auto t0 = make_shared<op::Add>(arg0, arg0);
     ASSERT_NE(nullptr, t0);
-    EXPECT_FALSE(t0->is_parameter());
+    EXPECT_FALSE(op::util::is_parameter(t0.get()));
 }
 
 TEST(op, provenance_tag)

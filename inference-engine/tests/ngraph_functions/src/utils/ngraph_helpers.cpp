@@ -8,6 +8,7 @@
 
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset3.hpp>
+#include <ngraph/op/util/op_types.hpp>
 #include <ngraph/specialize_function.hpp>
 
 #include <ngraph_functions/utils/ngraph_helpers.hpp>
@@ -126,7 +127,7 @@ std::shared_ptr<Function> foldFunction(const std::shared_ptr<Function> &function
 
     const auto &foldedFunc = specialize_function(function, paramElementTypes, paramShapes, inBuffers, true, true);
     for (const auto &op : foldedFunc->get_ops()) {
-        NGRAPH_CHECK(op->is_constant() || op->is_output() || op->is_parameter(),
+        NGRAPH_CHECK(op->is_constant() || op->is_output() || op::util::is_parameter(op.get()),
                      "Function was not fully folded to constant state!\n",
                      "At least one non constant node with type ", op->get_type_name(),
                      " present in function.");

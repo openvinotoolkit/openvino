@@ -29,6 +29,7 @@
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/parameter.hpp"
 #include "ngraph/op/result.hpp"
+#include "ngraph/op/util/op_types.hpp"
 #include "ngraph/pass/manager.hpp"
 #include "ngraph/pass/visualize_tree.hpp"
 #include "ngraph/provenance.hpp"
@@ -673,7 +674,7 @@ bool ngraph::possibly_overwritten(Node* node)
     {
         for (auto& input : output.get_target_inputs())
         {
-            if (input.get_node()->is_op())
+            if (op::util::is_op(input.get_node()))
             {
                 auto op = static_cast<ngraph::op::Op*>(input.get_node());
                 if (auto op_annotations = op->get_op_annotations())

@@ -21,6 +21,7 @@
 #include "ngraph/descriptor/layout/dense_tensor_layout.hpp"
 #include "ngraph/except.hpp"
 #include "ngraph/ops.hpp"
+#include "ngraph/op/util/op_types.hpp"
 #include "ngraph/pass/assign_layout.hpp"
 #include "ngraph/pass/core_fusion.hpp"
 #include "ngraph/pass/fused_op_decomposition.hpp"
@@ -164,7 +165,7 @@ bool runtime::interpreter::INTExecutable::call(const vector<shared_ptr<runtime::
     for (auto op : m_nodes)
     {
         event::Duration d2(op->description(), "Interpreter");
-        if (op->is_parameter())
+        if (op::util::is_parameter(op.get()))
         {
             continue;
         }

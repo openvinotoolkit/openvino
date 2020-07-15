@@ -20,6 +20,8 @@
 #include "ngraph/op/util/binary_elementwise_comparison.hpp"
 #include "ngraph/op/util/binary_elementwise_logical.hpp"
 #include "ngraph/op/util/fused_op.hpp"
+#include "ngraph/op/op.hpp"
+#include "ngraph/op/parameter.hpp"
 #include "ngraph/type.hpp"
 
 bool ngraph::op::util::is_unary_elementwise_arithmetic(const ngraph::Node* node) {
@@ -47,4 +49,12 @@ bool ngraph::op::util::supports_auto_broadcast(const ngraph::Node* node) {
 
 bool ngraph::op::util::supports_decompose(const ngraph::Node* node) {
     return dynamic_cast<const ngraph::op::util::FusedOp*>(node) != nullptr;
+}
+
+bool ngraph::op::util::is_op(const ngraph::Node* node) {
+    return dynamic_cast<const ngraph::op::Op*>(node) != nullptr;
+}
+
+bool ngraph::op::util::is_parameter(const ngraph::Node* node) {
+    return dynamic_cast<const ngraph::op::Parameter*>(node) != nullptr;
 }

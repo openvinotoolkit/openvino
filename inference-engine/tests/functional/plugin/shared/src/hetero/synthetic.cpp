@@ -4,6 +4,7 @@
 //
 
 #include "hetero/synthetic.hpp"
+#include <ngraph/op/util/op_types.hpp>
 #include <ngraph/variant.hpp>
 #include "ngraph_functions/builders.hpp"
 #include "ngraph_functions/subgraph_builders.hpp"
@@ -22,7 +23,7 @@ std::vector<FunctionParameter> HeteroSyntheticTest::_singleMajorNodeFunctions{[]
     for (auto&& builder : builders) {
         auto function = builder();
         for (auto&& node : function->get_ordered_ops()) {
-            if (!(node->is_constant()) && !(node->is_parameter()) && !(node->is_output())) {
+            if (!(node->is_constant()) && !(op::util::is_parameter(node.get())) && !(node->is_output())) {
                 result.push_back(FunctionParameter{{node->get_friendly_name()}, function});
             }
         }
@@ -41,7 +42,7 @@ std::vector<FunctionParameter> HeteroSyntheticTest::_randomMajorNodeFunctions{[]
             for (std::size_t i = 0; i < ordered_ops.size(); ++i) {
                 std::unordered_set<std::string> majorPluginNodeIds;
                 for (auto&& node : ordered_ops) {
-                    if (!(node->is_constant()) && !(node->is_parameter()) && !(node->is_output()) && d(e)) {
+                    if (!(node->is_constant()) && !(op::util::is_parameter(node.get())) && !(node->is_output()) && d(e)) {
                         majorPluginNodeIds.emplace(node->get_friendly_name());
                     }
                 }
@@ -117,7 +118,7 @@ std::string HeteroSyntheticTest::SetUpAffinity() {
     auto& pluginParameters = std::get<Plugin>(param);
     affinities += "\n{\n";
     for (auto&& node : std::get<Function>(param)._function->get_ordered_ops()) {
-        if (!(node->is_constant()) && !(node->is_parameter()) && !(node->is_output())) {
+        if (!(node->is_constant()) && !(op::util::is_parameter(node.get())) && !(node->is_output())) {
             std::string affinity;
             if (std::get<Function>(param)._majorPluginNodeIds.end() !=
                 std::get<Function>(param)._majorPluginNodeIds.find(node->get_friendly_name())) {

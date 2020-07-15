@@ -167,5 +167,6 @@
 #include "ngraph/op/topk.hpp"
 #include "ngraph/op/transpose.hpp"
 #include "ngraph/op/util/attr_types.hpp"
+#include "ngraph/op/util/op_types.hpp"
 #include "ngraph/op/variadic_split.hpp"
 #include "ngraph/op/xor.hpp"

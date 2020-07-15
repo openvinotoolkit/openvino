@@ -29,6 +29,7 @@
 #include "ngraph/op/product.hpp"
 #include "ngraph/op/replace_slice.hpp"
 #include "ngraph/op/sum.hpp"
+#include "ngraph/op/util/op_types.hpp"
 #include "ngraph/type.hpp"
 #include "zero_dim_tensor_elimination.hpp"
 
@@ -46,7 +47,7 @@ static bool verify_no_internal_zero_length_ops(shared_ptr<Function> f)
     set<Output<Node>> zero_length_source_outputs;
     for (auto n : f->get_ordered_ops())
     {
-        if (n->is_output() || n->is_parameter() || n->is_constant() || n->get_output_size() > 1)
+        if (n->is_output() || op::util::is_parameter(n.get()) || n->is_constant() || n->get_output_size() > 1)
         {
             continue;
         }
@@ -92,7 +93,7 @@ bool pass::ZeroDimTensorElimination::run_on_function(shared_ptr<Function> f)
         // if any `GetOutputElement` is zero-length
         // we replace it w/ a signalling constant
         // so we don't have to deal w/ multi-output nodes directly
-        if (n->is_output() || n->is_parameter() || n->get_output_size() > 1)
+        if (n->is_output() || op::util::is_parameter(n.get()) || n->get_output_size() > 1)
         {
             continue;
         }

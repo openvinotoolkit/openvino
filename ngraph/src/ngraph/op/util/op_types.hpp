@@ -36,6 +36,11 @@ namespace ngraph {
 
             NGRAPH_API
             bool supports_decompose(const ngraph::Node* node);
+
+            NGRAPH_API
+            bool is_op(const ngraph::Node* node);
+            NGRAPH_API
+            bool is_parameter(const ngraph::Node* node);
         }
     }
 }

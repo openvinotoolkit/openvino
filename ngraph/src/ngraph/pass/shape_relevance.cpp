@@ -17,6 +17,7 @@
 #include "ngraph/pass/shape_relevance.hpp"
 #include "ngraph/graph_util.hpp"
 #include "ngraph/op/constant.hpp"
+#include "ngraph/op/util/op_types.hpp"
 
 using namespace ngraph;
 
@@ -91,7 +92,7 @@ bool pass::ShapeRelevance::run_on_function(std::shared_ptr<Function> f)
             shape_determinants.insert(node);
             already_visited.insert(node);
 
-            if (node->is_parameter())
+            if (op::util::is_parameter(node))
             {
                 auto node_as_param = static_cast<op::Parameter*>(node);
                 if (!node_as_param->is_relevant_to_shapes())
