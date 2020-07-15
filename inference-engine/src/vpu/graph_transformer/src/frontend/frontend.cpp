@@ -24,6 +24,7 @@
 #include <transformations/convert_opset3_to_opset2/convert_opset3_to_opset2.hpp>
 #include <transformations/convert_opset2_to_opset1/convert_opset2_to_opset1.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
+#include <vpu/ngraph/transformations/merge_subsequent_dsr_operations.hpp>
 
 namespace vpu {
 
@@ -379,6 +380,9 @@ ModelPtr FrontEnd::runCommonPasses(ie::ICNNNetwork& network, const UnsupportedLa
             ngraph::pass::ConvertOpSet3ToOpSet2().run_on_function(nGraphFunc);
             ngraph::pass::ConvertOpSet2ToOpSet1().run_on_function(nGraphFunc);
             ngraph::pass::ConvertOpSet1ToLegacy().run_on_function(nGraphFunc);
+
+            vpu::MergeSubsequentDSROperations().run_on_function(nGraphFunc);
+
             convertedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(nGraphFunc, *originalOrConvertNetwork);
             originalOrConvertNetwork = convertedNetwork.get();
         };
