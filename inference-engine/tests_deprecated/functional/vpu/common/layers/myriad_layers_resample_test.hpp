@@ -114,7 +114,7 @@ TEST_P(myriadResampleLayerTests_smoke, Resample) {
         GTEST_SKIP() << "Custom layers for MYRIAD2 not supported";
     }
 
-    _config[VPU_CONFIG_KEY(CUSTOM_LAYERS)] = customConfig;
+    _config[InferenceEngine::MYRIAD_CUSTOM_LAYERS] = customConfig;
 
     const auto outputDims = SizeVector{inputDims[0],
                                        inputDims[1],

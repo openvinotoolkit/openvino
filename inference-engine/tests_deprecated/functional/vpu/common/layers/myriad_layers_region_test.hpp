@@ -34,7 +34,7 @@ TEST_P(myriadLayersTestsRegionYolo_smoke, RegionYolo) {
         GTEST_SKIP() << "Custom layers for MYRIAD2 not supported";
     }
 
-    _config[VPU_CONFIG_KEY(CUSTOM_LAYERS)] = customConfig;
+    _config[InferenceEngine::MYRIAD_CUSTOM_LAYERS] = customConfig;
 
     const auto mask = [&] {
         std::string mask;
