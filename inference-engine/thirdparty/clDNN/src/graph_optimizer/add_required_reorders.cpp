@@ -75,19 +75,19 @@ void add_required_reorders::run(program_impl& p) {
 
         for (auto& node : usr->get_dependencies()) {
             if (!node->is_in_data_flow() && !weights_data) {
-                /*
-                    ToDo: Here we should handle also the situation where primitive usr has data inputs in different
-                   formats
-                */
-                layout current_layout(usr->get_output_layout().data_type,
-                                      node->get_output_layout().format,
-                                      usr->get_output_layout().size);
-                usr->set_output_layout(current_layout, false);
-                if (usr->type()->does_possible_implementation_exist(p.get_engine(), *usr)) {
-                    correct_layout_selected = true;
-                    break;
-                } else {
-                    if (original_layout.data_type == data_types::i64) {
+                if (cldnn::format::dimension(original_layout.format) == cldnn::format::dimension(node->get_output_layout().format)) {
+                    /*
+                        ToDo: Here we should handle also the situation where primitive usr has data inputs in different
+                       formats
+                    */
+                    layout current_layout(original_layout.data_type,
+                                          node->get_output_layout().format,
+                                          original_layout.size);
+                    usr->set_output_layout(current_layout, false);
+                    if (usr->type()->does_possible_implementation_exist(p.get_engine(), *usr)) {
+                        correct_layout_selected = true;
+                        break;
+                    } else if (original_layout.data_type == data_types::i64) {
                         // goal of this section is to use int32 implementation
                         // if int64 is not available for usr primitive
                         current_layout = original_layout;
@@ -139,7 +139,7 @@ void add_required_reorders::run(program_impl& p) {
 
         if (!correct_layout_selected) {
             std::vector<cldnn::format> preffered_layout_formats;
-            size_t max_in_dims = 4;
+            size_t max_in_dims = std::max(cldnn::format::dimension(original_layout.format), static_cast<size_t>(4));
             for (auto& node : usr->get_dependencies()) {
                 max_in_dims = std::max(cldnn::format::dimension(node->get_output_layout().format), max_in_dims);
             }
@@ -157,9 +157,9 @@ void add_required_reorders::run(program_impl& p) {
             }
 
             for (auto new_layout_format : preffered_layout_formats) {
-                layout current_layout(usr->get_output_layout().data_type,
+                layout current_layout(original_layout.data_type,
                                       new_layout_format,
-                                      usr->get_output_layout().size);
+                                      original_layout.size);
                 usr->set_output_layout(current_layout, false);
                 if (usr->type()->does_possible_implementation_exist(p.get_engine(), *usr)) {
                     correct_layout_selected = true;
