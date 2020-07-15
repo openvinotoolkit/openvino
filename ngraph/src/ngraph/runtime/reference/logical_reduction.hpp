@@ -19,6 +19,7 @@
 #include <cmath>
 
 #include "ngraph/coordinate_transform.hpp"
+#include "ngraph/runtime/reference/any.hpp"
 #include "ngraph/shape_util.hpp"
 
 namespace ngraph
@@ -67,6 +68,18 @@ namespace ngraph
                         out[output_transform.index(output_coord)] &&
                         arg[input_transform.index(input_coord)];
                 }
+            }
+
+            static inline void reduce_logical_or(const char* arg,
+                                                 char* out,
+                                                 const Shape& input_shape,
+                                                 const AxisSet& reduction_axes)
+            {
+                runtime::reference::any(arg,
+                                        out,
+                                        input_shape,
+                                        get_shape_no_keep_dims(reduction_axes, input_shape),
+                                        reduction_axes);
             }
         }
     }

@@ -50,12 +50,9 @@ static shared_ptr<op::Constant> fold_constant_logical_reduction(shared_ptr<op::C
     {
         const auto reduction_axes = reduce_or->get_reduction_axes();
         const auto input_shape = reduce_or->get_input_shape(0);
+        const char* arg = constant->get_data_ptr<char>();
 
-        // runtime::reference::any(constant->get_data_ptr<char>(),
-        //                         data_ptr,
-        //                         constant->get_output_shape(0),
-        //                         get_shape_no_keep_dims(reduction_axes, input_shape),
-        //                         reduction_axes);
+        runtime::reference::reduce_logical_or(arg, data_ptr, input_shape, reduction_axes);
     }
     else
     {
