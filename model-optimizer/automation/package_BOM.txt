@@ -671,6 +671,7 @@ extensions/ops/splice.py
 extensions/ops/split.py
 extensions/ops/stop_gradient.py
 extensions/ops/swapaxis.py
+extensions/ops/Swish.py
 extensions/ops/switch.py
 extensions/ops/tensor_iterator.py
 extensions/ops/TensorArray.py
