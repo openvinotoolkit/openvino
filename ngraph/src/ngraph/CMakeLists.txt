@@ -447,6 +447,8 @@ set (SRC
     op/util/unary_elementwise_arithmetic.cpp
     op/util/unary_elementwise_arithmetic.hpp
     op/util/variable.hpp
+    op/util/op_types.cpp
+    op/util/op_types.hpp
     ops.hpp
     opsets/opset.cpp
     partial_shape.cpp

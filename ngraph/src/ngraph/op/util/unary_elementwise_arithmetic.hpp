@@ -57,7 +57,6 @@ namespace ngraph
 
             public:
                 void validate_and_infer_types() override;
-                bool is_unary_elementwise_arithmetic() const override { return true; }
                 bool visit_attributes(AttributeVisitor& visitor) override;
             private:
                 void validate_and_infer_elementwise_arithmetic();

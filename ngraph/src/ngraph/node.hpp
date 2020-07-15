@@ -171,10 +171,6 @@ namespace ngraph
         virtual ~Node();
 
         virtual bool visit_attributes(AttributeVisitor& visitor) { return false; }
-        virtual bool is_unary_elementwise_arithmetic() const { return false; }
-        virtual bool is_binary_elementwise_arithmetic() const { return false; }
-        virtual bool is_binary_elementwise_comparison() const { return false; }
-        virtual bool is_binary_elementwise_logical() const { return false; }
         /// \returns true if node supports autobroadcast operations
         virtual bool supports_auto_broadcast() const { return false; }
         /// \returns the autobroadcasr spec

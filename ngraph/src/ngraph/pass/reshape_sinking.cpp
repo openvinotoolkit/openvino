@@ -35,6 +35,7 @@
 #include "ngraph/op/reshape.hpp"
 #include "ngraph/op/slice.hpp"
 #include "ngraph/op/util/binary_elementwise_arithmetic.hpp"
+#include "ngraph/op/util/op_types.hpp"
 #include "ngraph/op/util/unary_elementwise_arithmetic.hpp"
 #include "ngraph/pattern/op/label.hpp"
 #include "ngraph/util.hpp"
@@ -181,7 +182,7 @@ void swim(Input<Node> input, shared_ptr<op::Reshape> reshape)
             continue;
         }
         NGRAPH_DEBUG << "Processing (swimming) " << n->get_name();
-        if (n->is_unary_elementwise_arithmetic())
+        if (op::util::is_unary_elementwise_arithmetic(n.get()))
         {
             Swimmer nsw{n->input(0), csw.reshape};
             work_queue.push_back(nsw);
@@ -558,11 +559,11 @@ bool ngraph::pass::ReshapeSinking::run_on_function(shared_ptr<ngraph::Function> 
         {
             sink_reshape(reshape, reorders, reshapes_to_delete);
         }
-        else if (n->is_unary_elementwise_arithmetic())
+        else if (op::util::is_unary_elementwise_arithmetic(n.get()))
         {
             sink_unary(n, reorders, reshapes_to_delete);
         }
-        else if (n->is_binary_elementwise_arithmetic())
+        else if (op::util::is_binary_elementwise_arithmetic(n.get()))
         {
             sink_binary(n, reorders, reshapes_to_delete);
         }
