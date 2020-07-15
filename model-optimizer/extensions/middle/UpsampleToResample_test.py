@@ -43,6 +43,62 @@ graph_edges = [
     ('upsample_data', 'output'),
 ]
 
+new_ref_graph_node_attr = {
+    'placeholder': {'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
+    'placeholder_data': {'value': None, 'shape': None, 'kind': 'data', 'data_type': np.float32},
+    'ss_begin': {'kind': 'op', 'op': 'Const', 'type': 'Const', 'value': int64_array([2]), 'shape': int64_array([1])},
+    'ss_begin_data': {'kind': 'data', 'value': int64_array([2]), 'shape': int64_array([1])},
+    'ss_end': {'kind': 'op', 'op': 'Const', 'type': 'Const', 'value': int64_array([4]), 'shape': int64_array([1])},
+    'ss_end_data': {'kind': 'data', 'value': int64_array([4]), 'shape': int64_array([1])},
+    'ss_stride': {'kind': 'op', 'op': 'Const', 'type': 'Const', 'value': int64_array([1]), 'shape': int64_array([1])},
+    'ss_stride_data': {'kind': 'data', 'value': int64_array([1]), 'shape': int64_array([1])},
+    'strided_slice': {'type': 'StridedSlice', 'kind': 'op', 'op': 'StridedSlice'},
+    'strided_slice_data': {'kind': 'data', 'shape': None, 'value': None},
+    'cast_to_float': {'kind': 'op', 'op': 'Cast', 'type': 'Convert', 'dst_type': np.float},
+    'cast_to_float_d': {'kind': 'data', 'value': None, 'shape': None},
+    'factor': {'kind': 'op', 'op': 'Const', 'type': 'Const', 'value': int64_array([5, 5]), 'shape': int64_array([2])},
+    'factor_data': {'kind': 'data', 'value': None, 'shape': None},
+    'shapeof': {'type': 'ShapeOf', 'kind': 'op', 'op': 'ShapeOf'},
+    'shapeof_data': {'kind': 'data', 'shape': None, 'value': None},
+    'mul': {'type': 'Multiply', 'kind': 'op', 'op': 'Multiply'},
+    'mul_data': {'kind': 'data', 'shape': None, 'value': None},
+    'cast_to_int': {'kind': 'op', 'op': 'Cast', 'type': 'Convert', 'dst_type': np.int32},
+    'cast_to_int_d': {'kind': 'data', 'shape': None, 'value': None},
+    'axes_const': {'kind': 'op', 'op': 'Const', 'type': 'Const', 'value': None, 'shape': None},
+    'axes_const_data': {'kind': 'data', 'value': None, 'shape': None},
+    'interpolate': {'type': 'Interpolate', 'kind': 'op', 'op': 'Interpolate', 'axes': None},
+    'interpolate_data': {'kind': 'data', 'shape': None, 'value': None},
+    'output': {'kind': 'op', 'op': 'Result', 'type': 'Result'},
+}
+
+new_ref_graph_edges = [
+    ('placeholder', 'placeholder_data'),
+    ('placeholder_data', 'shapeof', {'in': 0, 'out': 0}),
+    ('placeholder_data', 'interpolate', {'in': 0, 'out': 0}),
+    ('ss_begin', 'ss_begin_data'),
+    ('ss_begin_data', 'strided_slice', {'in': 1, 'out': 0}),
+    ('ss_end', 'ss_end_data'),
+    ('ss_end_data', 'strided_slice', {'in': 2, 'out': 0}),
+    ('ss_stride', 'ss_stride_data'),
+    ('ss_stride_data', 'strided_slice', {'in': 3, 'out': 0}),
+    ('strided_slice', 'strided_slice_data'),
+    ('strided_slice_data', 'cast_to_float'),
+    ('cast_to_float', 'cast_to_float_d'),
+    ('shapeof', 'shapeof_data'),
+    ('shapeof_data', 'strided_slice', {'in': 0, 'out': 0}),
+    ('factor', 'factor_data'),
+    ('cast_to_float_d', 'mul', {'in': 0, 'out': 0}),
+    ('factor_data', 'mul', {'in': 1, 'out': 0}),
+    ('mul', 'mul_data'),
+    ('mul_data', 'cast_to_int'),
+    ('cast_to_int', 'cast_to_int_d'),
+    ('cast_to_int_d', 'interpolate', {'in': 1, 'out': 0}),
+    ('axes_const', 'axes_const_data'),
+    ('axes_const_data', 'interpolate', {'in': 2, 'out': 0}),
+    ('interpolate', 'interpolate_data'),
+    ('interpolate_data', 'output')
+]
+
 ref_graph_node_attrs = {
     'placeholder': {'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
     'placeholder_data': {'value': None, 'shape': None, 'kind': 'data', 'data_type': np.float32},
@@ -98,25 +154,35 @@ ref_graph_edges = [
 
 @generator
 class UpsampleToResampleTest(unittest.TestCase):
-    @generate(*[([2, 10, 20, 30], [1, 1, 5, 5],),
-                ([2, 20, 30, 40], [1, 1, 3, 3],),
-                ([2, 3, 20, 30, 40], [1, 1, 3, 3, 3],)
+    @generate(*[([2, 10, 20, 30], [1, 1, 5, 5], [2, 3]),
+                ([2, 20, 30, 40], [1, 1, 3, 3], [2, 3]),
+                ([2, 3, 20, 30, 40], [1, 1, 3, 3, 3], [2, 3, 4])
                 ])
-    def test_conversion(self, input_shape, scales):
-        graph = build_graph(graph_node_attrs, graph_edges,
-                            {'placeholder_data': {'shape': int64_array(input_shape)},
-                             'scales': {'value': int64_array(scales), 'shape': int64_array(scales).shape},
-                             'scales_data': {'value': int64_array(scales), 'shape': int64_array(scales).shape},
-                             'upsample_data': {'shape': int64_array(input_shape) * int64_array(scales)}})
+    def test_conversion(self, input_shape, scales, axes):
+        graph = build_graph(graph_node_attrs,
+                            graph_edges,
+                            {
+                                'placeholder_data': {'shape': int64_array(input_shape)},
+                                'scales': {'value': int64_array(scales), 'shape': int64_array(scales).shape},
+                                'scales_data': {'value': int64_array(scales), 'shape': int64_array(scales).shape},
+                                'upsample_data': {'shape': int64_array(input_shape) * int64_array(scales)}
+                            })
         graph.graph['layout'] = 'NCHW'
-
-        ref_graph = build_graph(ref_graph_node_attrs, ref_graph_edges,
-                                {'placeholder_data': {'shape': int64_array(input_shape)},
-                                 'factor': {'value': int64_array(scales)[2:], 'shape': int64_array(scales[2:]).shape},
-                                 'interpolate_data': {'shape': int64_array(input_shape) * int64_array(scales)},
-                                 'interpolate': {'axes': list(range(2, len(input_shape)))}}
-                                )
-
+        ref_graph = build_graph(new_ref_graph_node_attr,
+                                new_ref_graph_edges,
+                                {
+                                    'placeholder_data': {'shape': int64_array(input_shape)},
+                                    'ss_begin': {'value': int64_array([axes[0]])},
+                                    'ss_end': {'value': int64_array([axes[-1] + 1])},
+                                    'ss_begin_data': {'value': int64_array([axes[0]])},
+                                    'ss_end_data': {'value': int64_array([axes[-1] + 1])},
+                                    'factor': {'value': int64_array(scales)[2:],
+                                               'shape': int64_array(scales[2:]).shape},
+                                    'factor_data': {'value': int64_array(scales)[2:],
+                                                    'shape': int64_array(scales[2:]).shape},
+                                    'axes_const': {'value': int64_array(axes), 'shape': int64_array(axes).shape},
+                                    'interpolate_data': {'shape': int64_array(input_shape) * int64_array(scales)},
+                                })
         UpsampleToResample().find_and_replace_pattern(graph)
         (flag, resp) = compare_graphs(graph, ref_graph, 'output')
         self.assertTrue(flag, resp)
