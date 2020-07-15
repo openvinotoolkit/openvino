@@ -30,7 +30,7 @@
 
 **Types**
 
-* *T1*: any supported type.
+* *T1*: any supported numeric type.
 * *T2*: any supported integer type.
 
 **Detailed Description**
@@ -42,7 +42,7 @@ Each element in the output is the result of reduction with finding a Lp norm ope
 Where indices i0, ..., iN run through all valid indices for the 1st input and finding the Lp norm `Lp[j0, ..., jN]` have `jk = ik` for those dimensions `k` that are not in the set of indices specified by the 2nd input of the operation. 
 Corner cases:
     1. When the 2nd input is an empty list, then this operation does nothing, it is an identity. 
-    2. When the 2nd input contains all dimensions of the 1st input, this means that a single reduction value is calculated for entire input tensor. 
+    2. When the 2nd input contains all dimensions of the 1st input, this means that a single reduction scalar value is calculated for entire input tensor. 
 
 **Example**
 
