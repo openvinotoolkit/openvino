@@ -10,19 +10,19 @@
 
 *CTCLoss* operation is presented in [Connectionist Temporal Classification - Labeling Unsegmented Sequence Data with Recurrent Neural Networks: Graves et al., 2016](http://www.cs.toronto.edu/~graves/icml_2006.pdf)
 
-*CTCLoss* estimates likelyhood that a target `labels[i,:]` can occur (or is real) for given input sequence of logits `logits[:,i,:]`.
-Briefly, *CTCLoss* operation finds all sequences aligned with a target `labels[i,:]`, computes log-probabilities of the aligned sequences using `logits[:,i,:]`
+*CTCLoss* estimates likelyhood that a target `labels[i,:]` can occur (or is real) for given input sequence of logits `logits[i,:,:]`.
+Briefly, *CTCLoss* operation finds all sequences aligned with a target `labels[i,:]`, computes log-probabilities of the aligned sequences using `logits[i,:,:]`
 and computes a negative sum of these log-probabilies.
 
-Input sequences of logits `logits` can have different lengths. The length of each sequence `logits[:,i,:]` equals `logit_length[i]`.
-A length of target sequence `labels[i,:]` equals `label_length[i]`. The length of the target sequence must not be greater than the length of corresponding input sequence `logits[:,i,:]`.
+Input sequences of logits `logits` can have different lengths. The length of each sequence `logits[i,:,:]` equals `logit_length[i]`.
+A length of target sequence `labels[i,:]` equals `label_length[i]`. The length of the target sequence must not be greater than the length of corresponding input sequence `logits[i,:,:]`.
 Otherwise, the operation behaviour is undefined.
 
 *CTCLoss* calculation scheme:
 
 1. Compute probability of `j`-th character at time step `t` for `i`-th input sequence from `logits` using softmax formula:
 \f[
-p_{t,i,j} = \frac{\exp(logits[t,i,j])}{\sum^{K}_{k=0}{\exp(logits[t,i,k])}}
+p_{t,i,j} = \frac{\exp(logits[i,t,j])}{\sum^{K}_{k=0}{\exp(logits[i,t,k])}}
 \f]
 
 2. For a given `i`-th target from `labels[i,:]` find all aligned paths.
@@ -66,7 +66,7 @@ CTCLoss = \minus \sum_{S} \ln p(S)
 
 * *unique*
 
-  * **Description**: *unique* is a flag to find unique elements for a target `labels[i,:]` before matching with potential alignments.
+  * **Description**: *unique* is a flag to find unique elements for a target `labels[i,:]` before matching with potential alignments. Unique elements in the processed `labels[i,:]` are sorted in the order of their occurence in original `labels[i,:]`. For example, the processed sequence for `labels[i,:]=(0,1,1,0,1,3,3,2,2,3)` of length `label_length[i]=10` will be `(0,1,3,2)` in case *unique* equal to True.
   * **Range of values**: True or False
   * **Type**: `boolean`
   * **Default value**: False
@@ -74,9 +74,9 @@ CTCLoss = \minus \sum_{S} \ln p(S)
 
 **Inputs**
 
-* **1**: `logits` - Input tensor with a batch of sequences of logits. Type of elements is *T_F*. Shape of the tensor is `[T, N, C]`, where `T` is the maximum sequence length, `N` is the batch size and `C` is the number of classes including the blank. Required.
+* **1**: `logits` - Input tensor with a batch of sequences of logits. Type of elements is *T_F*. Shape of the tensor is `[N, T, C]`, where `N` is the batch size, `T` is the maximum sequence length and `C` is the number of classes including the blank. Required.
 
-* **2**: `logit_length` - 1D input tensor of type *T_IND* and of a shape `[N]`. The tensor must consist of non-negative values not greater than `T`. Lengths of input sequences of logits `logits[:,i,:]`. Required.
+* **2**: `logit_length` - 1D input tensor of type *T_IND* and of a shape `[N]`. The tensor must consist of non-negative values not greater than `T`. Lengths of input sequences of logits `logits[i,:,:]`. Required.
 
 * **3**: `labels` - 2D tensor with shape `[N, T]` of type *T_IND*. A length of a target sequence `labels[i,:]` is equal to `label_length[i]` and must contain of integers from a range `[0; C-1]` except `blank_index`. Required.
 
@@ -100,8 +100,8 @@ CTCLoss = \minus \sum_{S} \ln p(S)
 <layer ... type="CTCLoss" ...>
     <input>
         <port id="0">
-            <dim>20</dim>
             <dim>8</dim>
+            <dim>20</dim>
             <dim>128</dim>
         </port>
         <port id="1">
