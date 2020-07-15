@@ -20,7 +20,6 @@
 using namespace std;
 using namespace ngraph;
 
-
 constexpr NodeTypeInfo pattern::op::AnyType::type_info;
 
 const NodeTypeInfo& pattern::op::AnyType::get_type_info() const
@@ -32,12 +31,16 @@ bool pattern::op::AnyType::match_value(Matcher* matcher,
                                        const Output<Node>& pattern_value,
                                        const Output<Node>& graph_value)
 {
-    if (graph_value.get_node_shared_ptr()->get_type_info() == m_wrapped_type && m_predicate(graph_value))
+    if (graph_value.get_node_shared_ptr()->get_type_info() == get_wrapped_type() &&
+        m_predicate(graph_value))
     {
-        auto &pattern_map = matcher->get_pattern_value_map();
+        auto& pattern_map = matcher->get_pattern_value_map();
         pattern_map[shared_from_this()] = graph_value;
         matcher->add_node(graph_value);
-        return (get_input_size() == 0 ? true : matcher->match_arguments(pattern_value.get_node(), graph_value.get_node_shared_ptr()));
+        return (get_input_size() == 0
+                    ? true
+                    : matcher->match_arguments(pattern_value.get_node(),
+                                               graph_value.get_node_shared_ptr()));
     }
     return false;
 }

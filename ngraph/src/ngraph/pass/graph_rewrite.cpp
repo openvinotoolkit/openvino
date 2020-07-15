@@ -17,6 +17,7 @@
 #include <algorithm>
 #include <deque>
 #include <iostream>
+#include <pattern/op/any_type.hpp>
 #include <regex>
 #include <unordered_set>
 #include <vector>
@@ -65,139 +66,143 @@ using namespace ngraph;
 bool pass::GraphRewrite::run_on_function(shared_ptr<Function> f)
 {
     bool rewritten = false;
-    const size_t NUM_TRIES = 10;
-    size_t tries = NUM_TRIES;
-    vector<std::shared_ptr<MatcherPass>> original_matchers{m_matchers};
-    do
+
+    // Initialize execution queue with nodes
+    deque<std::shared_ptr<Node>> nodes_to_run;
+    for (auto& node : f->get_ordered_ops())
     {
-        rewritten = false;
-        // m_matchers may contain newly constructed matchers for matchers
-        // that need multiple passes. See comments above.
-        vector<std::shared_ptr<MatcherPass>> matchers_to_run{m_matchers};
-        m_matchers.clear();
-        deque<std::shared_ptr<Node>> nodes_to_run;
-        for (auto& node : f->get_ordered_ops())
+        nodes_to_run.emplace_back(node);
+    }
+
+    // Check that all Matchers in MatcherPasses has type bases root node
+    bool all_roots_has_type = true;
+    std::unordered_map<NodeTypeInfo, std::vector<std::shared_ptr<MatcherPass>>> type_to_matcher;
+    for (auto& m : m_matchers)
+    {
+        auto matcher = m->get_matcher();
+        if (!matcher)
         {
-            nodes_to_run.emplace_back(node);
+            all_roots_has_type = false;
+            break;
         }
-        while (!nodes_to_run.empty())
+
+        auto root = matcher->get_pattern_value().get_node_shared_ptr();
+        if (auto p = dynamic_pointer_cast<pattern::op::Pattern>(root))
         {
-            auto node = nodes_to_run.front();
-            nodes_to_run.pop_front();
-            // Temporary keep this GraphRewrite property for backward compatibility
-            if (m_enable_shape_inference)
+            if (auto any_type = as_type_ptr<pattern::op::AnyType>(p))
             {
-                node->revalidate_and_infer_types();
+                type_to_matcher[any_type->get_wrapped_type()].push_back(m);
             }
-            for (auto& m_pass : matchers_to_run)
+            else
             {
-                if (m_pass->get_property(PassProperty::REQUIRE_STATIC_SHAPE) && f->is_dynamic())
-                {
-                    NGRAPH_DEBUG << "matcher callback requires static shape but the "
-                                    "function is dynamic, skipping this "
-                                    "optimization till the shapes are fully "
-                                    "materialized";
-                    continue;
-                }
+                all_roots_has_type = false;
+                break;
+            }
+        }
+        else
+        {
+            type_to_matcher[root->get_type_info()].push_back(m);
+        }
+    }
 
-                if (!m_has_default_callback)
-                {
-                    m_pass->set_callback(m_transformation_callback);
-                }
+    auto run_matcher_pass = [&](std::shared_ptr<MatcherPass> m_pass,
+                                std::shared_ptr<Node> node) -> bool {
+        if (m_pass->get_property(PassProperty::REQUIRE_STATIC_SHAPE) && f->is_dynamic())
+        {
+            NGRAPH_DEBUG << "matcher callback requires static shape but the "
+                            "function is dynamic, skipping this "
+                            "optimization till the shapes are fully "
+                            "materialized";
+            return false;
+        }
 
-                // Apply MatcherPass. In case if it returns true no other MatcherPasses will apply
-                // to this node
-                bool status = m_pass->apply(node);
+        if (!m_has_default_callback)
+        {
+            m_pass->set_callback(m_transformation_callback);
+        }
 
-                // In case if MatcherPass registered nodes they will be added to execution queue
-                auto new_nodes = m_pass->get_new_nodes();
-                if (!new_nodes.empty())
+        // Apply MatcherPass. In case if it returns true no other MatcherPasses will apply
+        // to this node
+        bool status = m_pass->apply(node);
+
+        // In case if MatcherPass registered nodes they will be added to execution queue
+        auto new_nodes = m_pass->get_new_nodes();
+        m_pass->clear_new_nodes();
+
+        if (!new_nodes.empty())
+        {
+            // Need to push nodes in reverse order as we expect that nodes in new_nodes
+            // vector are in topological order
+            for (auto it = new_nodes.rbegin(); it != new_nodes.rend(); it++)
+            {
+                nodes_to_run.emplace_front(*it);
+            }
+        }
+        return status;
+    };
+
+    while (!nodes_to_run.empty())
+    {
+        auto node = nodes_to_run.front();
+        nodes_to_run.pop_front();
+        // Temporary keep this GraphRewrite property for backward compatibility
+        if (m_enable_shape_inference)
+        {
+            node->revalidate_and_infer_types();
+        }
+        // If all Matchers in MatcherPasses has type based root node then we apply efficient
+        // algorithm for finding matchers
+        if (all_roots_has_type)
+        {
+            auto node_type_info = node->get_type_info();
+            if (type_to_matcher.count(node_type_info))
+            {
+                for (auto& m_pass : type_to_matcher[node_type_info])
                 {
-                    // Need to push nodes in reverse order as we expect that nodes in new_nodes
-                    // vector are in topological order
-                    for (auto it = new_nodes.rbegin(); it != new_nodes.rend(); it++)
+                    if (run_matcher_pass(m_pass, node))
                     {
-                        nodes_to_run.emplace_front(*it);
+                        rewritten = true;
+                        break;
                     }
                 }
-
-                if (status)
+            }
+        }
+        else
+        {
+            for (auto& m_pass : m_matchers)
+            {
+                if (run_matcher_pass(m_pass, node))
                 {
                     rewritten = true;
                     break;
                 }
             }
         }
-    } while (rewritten && !m_matchers.empty() && tries--);
-
-    m_matchers.assign(original_matchers.begin(), original_matchers.end());
-    return (NUM_TRIES - tries) > 1; // this means a graph was transformed
-}
-
-static vector<regex> initialize_fusion_regexes()
-{
-    static const string nsf = getenv_string("NGRAPH_DISABLED_FUSIONS");
-    vector<regex> regexes;
-    if (!nsf.empty())
-    {
-        const auto sregexes = split(nsf, ';');
-
-        transform(sregexes.begin(),
-                  sregexes.end(),
-                  back_inserter(regexes),
-                  [](const string& c) -> regex { return regex(c); });
     }
-    return regexes;
-}
-
-bool pass::GraphRewriteBase::is_enabled(const std::string& name) const
-{
-    // note, regexes are static to avoid re-initialization
-    static const auto regexes = initialize_fusion_regexes();
-
-    for (const auto& regex : regexes)
-    {
-        if (regex_match(name, regex))
-        {
-            NGRAPH_DEBUG << "Disabling matcher " << name;
-            return false;
-        }
-    }
-
-    return true;
-}
-
-void pass::GraphRewriteBase::add_handler(const std::string& name,
-                                         handler_callback handler,
-                                         const PassPropertyMask& property)
-{
-    if (is_enabled(name))
-    {
-        m_matchers.push_back(std::make_shared<MatcherPass>(name, handler, property));
-        // If any matcher call back may change dynamic state, we need to
-        // update the pass property.
-        if (property.is_set(PassProperty::CHANGE_DYNAMIC_STATE))
-        {
-            set_property(PassProperty::CHANGE_DYNAMIC_STATE, true);
-        }
-    }
+    return rewritten;
 }
 
 void pass::GraphRewrite::add_matcher(const shared_ptr<pattern::Matcher>& m,
                                      const graph_rewrite_callback& callback,
                                      const PassPropertyMask& property)
 {
-    add_handler(m->get_name(),
-                [m, callback](const std::shared_ptr<Node>& node) -> bool {
-                    NGRAPH_DEBUG << "Running matcher " << m->get_name() << " on " << node;
-                    if (m->match(node->output(0)))
-                    {
-                        NGRAPH_DEBUG << "Matcher " << m->get_name() << " matched " << node;
-                        return callback(*m.get());
-                    }
-                    return false;
-                },
-                property);
+    m_matchers.push_back(std::make_shared<MatcherPass>(
+        m->get_name(),
+        m,
+        [m, callback](const std::shared_ptr<Node>& node) -> bool {
+            NGRAPH_DEBUG << "Running matcher " << m->get_name() << " on " << node;
+            if (m->match(node->output(0)))
+            {
+                NGRAPH_DEBUG << "Matcher " << m->get_name() << " matched " << node;
+                bool status = callback(*m.get());
+                // explicitly clear Matcher state because it holds pointers to matched nodes
+                m->clear_state();
+                return status;
+            }
+            m->clear_state();
+            return false;
+        },
+        property));
 }
 
 void pass::GraphRewrite::add_matcher(const shared_ptr<pattern::Matcher>& m,
@@ -213,17 +218,19 @@ void pass::RecurrentGraphRewrite::add_matcher(
     const ngraph::recurrent_graph_rewrite_callback& callback,
     const PassPropertyMask& property)
 {
-    add_handler("Reurrent matcher",
-                [m, callback](const std::shared_ptr<Node>& node) {
-                    NGRAPH_DEBUG << "Running recurrent matcher on " << node;
-                    if (m->match(node->output(0)))
-                    {
-                        NGRAPH_DEBUG << "Recurrent matcher matched " << m.get();
-                        return callback(*m.get());
-                    }
-                    return false;
-                },
-                property);
+    m_matchers.push_back(std::make_shared<MatcherPass>(
+        "Recurrent matcher",
+        nullptr,
+        [m, callback](const std::shared_ptr<Node>& node) {
+            NGRAPH_DEBUG << "Running recurrent matcher on " << node;
+            if (m->match(node->output(0)))
+            {
+                NGRAPH_DEBUG << "Recurrent matcher matched " << m.get();
+                return callback(*m.get());
+            }
+            return false;
+        },
+        property));
 }
 
 void pass::RecurrentGraphRewrite::add_matcher(
@@ -287,6 +294,7 @@ void ngraph::pass::MatcherPass::register_matcher(const std::shared_ptr<ngraph::p
 {
     set_name(m->get_name());
     set_property(property, true);
+    m_matcher = m;
     m_handler = [m, callback](const std::shared_ptr<Node>& node) -> bool {
         if (m->match(node->output(0)))
         {
@@ -296,6 +304,7 @@ void ngraph::pass::MatcherPass::register_matcher(const std::shared_ptr<ngraph::p
             m->clear_state();
             return status;
         }
+        m->clear_state();
         return false;
     };
 }

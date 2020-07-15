@@ -48,10 +48,12 @@ public:
     MatcherPass& operator=(const MatcherPass&) = delete;
 
     explicit MatcherPass(const std::string& name,
+                         const std::shared_ptr<pattern::Matcher>& m,
                          const handler_callback& handler,
                          const PassPropertyMask& property = PassProperty::CHANGE_DYNAMIC_STATE)
         : PassBase()
         , m_handler(handler)
+        , m_matcher(m)
     {
         set_name(name);
         set_property(property, true);
@@ -67,7 +69,9 @@ public:
         return node;
     }
 
-    std::vector<std::shared_ptr<ngraph::Node>> get_new_nodes() const { return m_new_nodes; }
+    std::vector<std::shared_ptr<ngraph::Node>> get_new_nodes() { return m_new_nodes; }
+    void clear_new_nodes() { m_new_nodes.clear(); }
+    std::shared_ptr<pattern::Matcher> get_matcher() { return m_matcher; }
 protected:
     void register_matcher(const std::shared_ptr<pattern::Matcher>& m,
                           const ngraph::graph_rewrite_callback& callback,
@@ -75,33 +79,8 @@ protected:
 
 private:
     handler_callback m_handler;
+    std::shared_ptr<pattern::Matcher> m_matcher;
     std::vector<std::shared_ptr<ngraph::Node>> m_new_nodes;
-};
-
-class NGRAPH_API ngraph::pass::GraphRewriteBase : public ngraph::pass::FunctionPass
-{
-public:
-    /// \brief Add an arbitrary handler for nodes
-    /// \param name The name of the handler
-    /// \param handler Function responsible for deciding if the graph should be changed and making
-    /// the changes. Returns true if changes are made.
-    void add_handler(const std::string& name,
-                     std::function<bool(const std::shared_ptr<Node>& node)> handler,
-                     const PassPropertyMask& property);
-
-protected:
-    GraphRewriteBase()
-        : FunctionPass()
-    {
-        // Being explicit:
-        // Setting REQUIRE_STATIC_SHAPE to false because we will check if each
-        // callback needs static shape during run_on_function().
-        set_property(PassProperty::REQUIRE_STATIC_SHAPE, false);
-    }
-
-    bool is_enabled(const std::string& name) const;
-
-    std::vector<std::shared_ptr<ngraph::pass::MatcherPass>> m_matchers;
 };
 
 /// \brief GraphRewrite (in tandem with \sa Matcher) performs transformations on specified patterns
@@ -114,13 +93,13 @@ protected:
 /// Patterns can be added by using \sa add_matcher
 /// Callbacks should use \sa replace_node to transform matched sub graphs
 
-class NGRAPH_API ngraph::pass::GraphRewrite : public ngraph::pass::GraphRewriteBase
+class NGRAPH_API ngraph::pass::GraphRewrite : public ngraph::pass::FunctionPass
 {
 public:
     GraphRewrite() = default;
 
     explicit GraphRewrite(const std::shared_ptr<MatcherPass>& pass)
-        : GraphRewriteBase()
+        : FunctionPass()
     {
         m_matchers.push_back(pass);
     }
@@ -138,22 +117,25 @@ public:
     void add_matcher(const std::shared_ptr<pattern::Matcher>& m,
                      const ngraph::graph_rewrite_callback& callback,
                      const PassPropertyMask& property);
+    NGRAPH_DEPRECATED("Use MatcherPass instead");
 
-    // TODO: This interface may deprecate after all passes are refactored.
     void add_matcher(const std::shared_ptr<pattern::Matcher>& m,
-                     const ngraph::graph_rewrite_callback& callback);
+                     const ngraph::graph_rewrite_callback& callback)
+        NGRAPH_DEPRECATED("Use MatcherPass instead");
 
     bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
 
 protected:
     bool m_enable_shape_inference = false;
+
+    std::vector<std::shared_ptr<ngraph::pass::MatcherPass>> m_matchers;
 };
 
-class NGRAPH_API ngraph::pass::RecurrentGraphRewrite : public ngraph::pass::GraphRewriteBase
+class NGRAPH_API ngraph::pass::RecurrentGraphRewrite : public ngraph::pass::FunctionPass
 {
 public:
     RecurrentGraphRewrite(size_t num_iters = 10)
-        : GraphRewriteBase()
+        : FunctionPass()
         , m_num_iters(num_iters)
     {
     }
@@ -170,4 +152,6 @@ public:
 
 private:
     size_t m_num_iters;
+
+    std::vector<std::shared_ptr<ngraph::pass::MatcherPass>> m_matchers;
 };
