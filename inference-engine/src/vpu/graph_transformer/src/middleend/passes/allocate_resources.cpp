@@ -210,8 +210,7 @@ AllocationResult runAllocator(const Model& model, EnableShapeAllocation enableSh
 
         for (const auto& stage : model->getStages()) {
             const auto& allocateShape = [&datasWithAllocatedShape, &allocator](const Data& data) {
-                if (std::find(datasWithAllocatedShape.begin(), datasWithAllocatedShape.end(), data) ==
-                    datasWithAllocatedShape.end()) {
+                if (datasWithAllocatedShape.count(data) == 0) {
                     const auto shapeLocation = allocator.allocateShape(data);
                     data->setShapeAllocationInfo(shapeLocation);
                     datasWithAllocatedShape.insert(data);
