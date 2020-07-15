@@ -62,7 +62,7 @@ declared in `namespace opset4`.
 * [GroupConvolutionBackpropData](convolution/GroupConvolutionBackpropData_1.md)
 * [GRUCell](sequence/GRUCell_3.md)
 * [HardSigmoid](activation/HardSigmoid_1.md)
-* [Interpolate](image/Interpolate_1.md)
+* [Interpolate](image/Interpolate_4.md)
 * [Less](comparison/Less_1.md)
 * [LessEqual](comparison/LessEqual_1.md)
 * [Log](arithmetic/Log_1.md)
