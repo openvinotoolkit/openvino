@@ -137,7 +137,7 @@ class InterpolateReshapeWA(BackReplacementPattern):
     @staticmethod
     def make_interpolate_reshapeable(interpolate):
         assert interpolate.soft_get('type') == 'Interpolate'
-        axes = interpolate.axes
+        axes = Interpolate.get_axes(interpolate)
         input_shape = interpolate.in_port(0).data.get_shape()
         output_shape = interpolate.out_port(0).data.get_shape()
         if not np.all(np.remainder(output_shape, input_shape) == 0) and \
@@ -155,5 +155,9 @@ class InterpolateReshapeWA(BackReplacementPattern):
 
     def find_and_replace_pattern(self, graph: Graph):
         for interpolate in graph.get_op_nodes(type='Interpolate'):
-            if interpolate.in_port(1).get_source().node.soft_get('type') == 'Const':
-                self.make_interpolate_reshapeable(interpolate)
+            num_inputs = len([p for p in interpolate.in_ports().values() if not p.disconnected()])
+            if interpolate.in_port(1).get_source().node.soft_get('type') != 'Const':
+                continue
+            if num_inputs == 3 and interpolate.in_port(2).get_source().node.soft_get('type') != 'Const':
+                continue
+            self.make_interpolate_reshapeable(interpolate)
