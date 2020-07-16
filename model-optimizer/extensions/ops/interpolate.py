@@ -94,6 +94,22 @@ class Interpolate(Op):
         PermuteAttrs.create_permute_attrs(node, attrs=[('axes', 'input:0')])
 
     @staticmethod
+    def get_axes(node: Node) -> np.ndarray:
+        opset = node.get_opset()
+        if opset == 'opset1':
+            return int64_array(node.axes)
+
+        src_shape = node.in_port(0).data.get_shape()
+        assert src_shape is not None
+        input_rank = len(src_shape)
+
+        if len(node.in_ports()) == 2:
+            axes = list(range(0, input_rank))
+        else:
+            axes = node.in_port(2).get_source().data.get_value()
+        return int64_array(axes)
+
+    @staticmethod
     def infer_for_opset4(node: Node):
         assert len([p for p in node.in_ports().values() if not p.disconnected()]) in [2, 3], \
             "Interpolate node {} must have 2 or 3 inputs".format(node.soft_get(node.name, node.id))
