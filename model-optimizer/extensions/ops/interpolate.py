@@ -26,6 +26,23 @@ class Interpolate(Op):
     enabled = False
 
     def __init__(self, graph: Graph, attrs: dict):
+        self.infers = {
+            'opset1': Interpolate.infer_for_opset1,
+            'opset4': Interpolate.infer_for_opset4
+        }
+
+        self.attributes_for_opsets = {
+            'opset1': [
+                ('axes', lambda node: ','.join(map(str, node.axes))),
+                'mode', 'align_corners', 'antialias', 'pads_begin', 'pads_end',
+            ],
+            'opset4': [
+                'mode', 'antialias', 'nearest_mode', 'cube_coeff', 'coordinate_transformation_mode',
+                ('pads_begin', lambda node: pad_attribute_to_str(node, 'pads_begin')),
+                ('pads_end', lambda node: pad_attribute_to_str(node, 'pads_end')),
+            ]
+        }
+
         mandatory_props = {
             'op': self.op,
             'type': self.op,
@@ -47,45 +64,21 @@ class Interpolate(Op):
         super().__init__(graph, mandatory_props, attrs)
 
     def supported_attrs(self):
-        attributes_for_opsets = {
-            'opset1': [
-                ('axes', lambda node: ','.join(map(str, node.axes))),
-                'mode', 'align_corners', 'antialias', 'pads_begin', 'pads_end',
-            ],
-            'opset4': [
-                'mode', 'antialias', 'nearest_mode', 'cube_coeff', 'coordinate_transformation_mode',
-                ('pads_begin', lambda node: pad_attribute_to_str(node, 'pads_begin')),
-                ('pads_end', lambda node: pad_attribute_to_str(node, 'pads_end')),
-            ]
-        }
-
         opset = self.get_opset()
-        if opset in attributes_for_opsets:
-            attributes = attributes_for_opsets[opset]
-        else:
-            attributes = attributes_for_opsets['opset1']
+        key = opset if opset in self.attributes_for_opsets else 'opset1'
+        return self.attributes_for_opsets[key]
 
-        return attributes
+    def infer(self, node: Node):
+        opset = self.get_opset()
+        key = opset if opset in self.infers else 'opset1'
+        self.infers[key](node)
 
     @staticmethod
-    def infer(node: Node):
+    def infer_for_opset1(node: Node):
         assert len([p for p in node.in_ports().values() if not p.disconnected()]) == 2
         assert node.has_valid('mode')
         assert node.has_valid('axes')
 
-        infers = {
-            'opset1': Interpolate.infer_for_opset1,
-            'opset4': Interpolate.infer_for_opset4,
-        }
-        if node.has_valid('version') and node.version in infers:
-            infer_func = infers[node.version]
-        else:
-            infer_func = infers['opset1']
-
-        infer_func(node)
-
-    @staticmethod
-    def infer_for_opset1(node: Node):
         src_shape = node.in_port(0).data.get_shape()
 
         assert src_shape is not None
@@ -99,9 +92,12 @@ class Interpolate(Op):
         node.out_port(0).data.set_shape(output_shape)
 
         PermuteAttrs.create_permute_attrs(node, attrs=[('axes', 'input:0')])
-
+        
     @staticmethod
     def infer_for_opset4(node: Node):
+        assert len([p for p in node.in_ports().values() if not p.disconnected()]) in [2, 3], \
+            "Interpolate node {} must have 2 or 3 inputs".format(node.soft_get(node.name, node.id))
+        assert node.has_valid('mode')
         src_shape = node.in_port(0).data.get_shape()
         assert src_shape is not None
 
@@ -111,9 +107,6 @@ class Interpolate(Op):
         pads_end = correct_pad(node.soft_get('pads_end', [0]), input_rank)
         node['pads_begin'] = pads_begin
         node['pads_end'] = pads_end
-
-        assert len(node.in_ports()) in [2, 3], \
-            "Interpolate node {} must have 2 or 3 inputs".format(node.soft_get(node.name, node.id))
 
         if len(node.in_ports()) == 2:
             axes = list(range(0, input_rank))
@@ -131,8 +124,6 @@ class Interpolate(Op):
 
         node.out_port(0).data.set_shape(output_shape)
 
-        PermuteAttrs.create_permute_attrs(node, attrs=[('axes', 'input:0')])
-
 
 def pad_attribute_to_str(node: Node, attr: str):
     return ','.join(map(str, node[attr])) if node.has_valid(attr) else None
@@ -146,4 +137,3 @@ def correct_pad(pad, rank):
         return np.array(pad[: rank]).astype(np.int64)
     else:
         return np.array(pad, dtype=np.int64)
-
