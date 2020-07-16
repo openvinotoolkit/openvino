@@ -145,7 +145,7 @@ class LayerInfo {
         return false;
     }
     bool isConst() const noexcept {
-        return isOfType("const");
+        return isOfType("const") || isOfType("Const");
     }
     bool isScaleShift() const noexcept {
         IS_VALID();

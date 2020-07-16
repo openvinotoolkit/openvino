@@ -1181,6 +1181,58 @@ void FuseMultipleIdentitiesPass::run() {
     }
 }
 
+void BroadcastConstPass::run() {
+    for (auto& constLayer : *pLayers) {
+        if (!LayerInfo(constLayer).isConst()) {
+            continue;
+        }
+        auto isNonFunctional = [](CNNLayerPtr l) {
+            return LayerInfo(l).isNonFunctional();
+        };
+        if (!CNNNetHasNextLayerSkipCertain(constLayer, 0, 0, isNonFunctional)) {
+            continue;
+        }
+
+        auto nextLayer = CNNNetGetNextLayerSkipCertain(constLayer, 0, 0, isNonFunctional).first;
+
+        if (!LayerInfo(nextLayer).isEltwise()) {
+            continue;
+        }
+
+        auto mulVector = [](TensorDesc desc) {
+            std::size_t result = 1;
+            for (int i = 0; i < desc.getDims().size(); ++i) {
+                result *= desc.getDims()[i];
+            }
+            return result;
+        };
+        auto constDims = mulVector(constLayer->outData.front()->getTensorDesc());
+        auto eltwiseDims = mulVector(nextLayer->outData.front()->getTensorDesc());
+
+        if (constDims == eltwiseDims) {
+            continue;
+        }
+        if (eltwiseDims % constDims != 0) {
+            continue;
+        }
+
+        auto currentConstBlob = constLayer->blobs.begin()->second;
+        auto newConstBlob = make_blob_with_precision(nextLayer->outData.front()->getTensorDesc());
+        newConstBlob->allocate();
+        std::size_t offset = 0;
+        for (std::size_t i = 0; i < (eltwiseDims / constDims); ++i) {
+            ie_memcpy(newConstBlob->cbuffer().as<char*>() + (i * currentConstBlob->byteSize()),
+                currentConstBlob->byteSize(),
+                currentConstBlob->cbuffer(),
+                currentConstBlob->byteSize());
+        }
+        constLayer->blobs.begin()->second->deallocate();
+        constLayer->blobs.begin()->second = newConstBlob;
+        constLayer->outData.front()->setDims(nextLayer->outData.front()->getDims());
+        gnalog() << "Const layer '" << constLayer->name << "' was changed to match output of '" << nextLayer->name << "'\n";
+    }
+}
+
 int PassManager::run(int index) {
 // #define PLOT
 #ifdef PLOT
