@@ -96,14 +96,6 @@ void ngraph::traverse_nodes(const NodeVector& subgraph_results,
     }
 }
 
-void ngraph::traverse_nodes(const NodeVector& subgraph_results,
-                            std::function<void(std::shared_ptr<Node>)> f,
-                            bool,
-                            const NodeVector& subgraph_params)
-{
-    traverse_nodes(subgraph_results, f, subgraph_params);
-}
-
 NodeVector ngraph::find_common_args(std::shared_ptr<Node> node1, std::shared_ptr<Node> node2)
 {
     std::unordered_set<std::shared_ptr<Node>> node1_args;
@@ -875,12 +867,6 @@ bool ngraph::check_for_cycles(const ngraph::Function* func,
     }
     // no cycles
     return false;
-}
-
-void ngraph::traverse_functions(std::shared_ptr<Function> p,
-                                std::function<void(std::shared_ptr<Function>)> f)
-{
-    f(p);
 }
 
 bool ngraph::replace_output_update_name(Output<Node> output, const Output<Node>& replacement)

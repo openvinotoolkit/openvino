@@ -383,13 +383,6 @@ void runtime::dynamic::DynamicTensor::read(void* p, size_t n) const
     m_wrapped_tensor->read(p, n);
 }
 
-void runtime::dynamic::DynamicTensor::copy_from(const ngraph::runtime::Tensor& source)
-{
-    NGRAPH_CHECK(m_wrapped_tensor != nullptr,
-                 "tried to copy_from to a dynamic tensor with no allocated storage");
-    m_wrapped_tensor->copy_from(source);
-}
-
 bool runtime::dynamic::DynamicTensor::has_storage() const
 {
     return m_wrapped_tensor != nullptr;
