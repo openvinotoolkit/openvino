@@ -44,6 +44,7 @@ IE_SUPPRESS_DEPRECATED_START
 
         VPU_CONFIG_KEY(NUMBER_OF_SHAVES),
         VPU_CONFIG_KEY(NUMBER_OF_CMX_SLICES),
+        VPU_CONFIG_KEY(TILING_CMX_LIMIT_KB),
 
         VPU_CONFIG_KEY(TENSOR_STRIDES),
 
@@ -180,9 +181,28 @@ void ParsedConfig::parse(const std::map<std::string, std::string>& config) {
         setOption(_compileConfig.customLayers, config, CONFIG_KEY(CONFIG_FILE));
     }
 
-    setOption(_compileConfig.numSHAVEs, config, VPU_CONFIG_KEY(NUMBER_OF_SHAVES), parseInt);
-    setOption(_compileConfig.numCMXSlices, config, VPU_CONFIG_KEY(NUMBER_OF_CMX_SLICES), parseInt);
-    setOption(_compileConfig.numExecutors, config, VPU_MYRIAD_CONFIG_KEY(THROUGHPUT_STREAMS), parseInt);
+    auto isPositive = [](int value) {
+        return value >= 0;
+    };
+
+    auto isDefaultValue = [](int value) {
+        return value == -1;
+    };
+
+    auto preprocessCompileOption = [&](const std::string& src) {
+        int value = parseInt(src);
+
+        if (isPositive(value) || isDefaultValue(value)) {
+            return value;
+        }
+
+        throw std::invalid_argument("Value must be positive or default(-1).");
+    };
+
+    setOption(_compileConfig.numSHAVEs, config, VPU_CONFIG_KEY(NUMBER_OF_SHAVES), preprocessCompileOption);
+    setOption(_compileConfig.numCMXSlices, config, VPU_CONFIG_KEY(NUMBER_OF_CMX_SLICES), preprocessCompileOption);
+    setOption(_compileConfig.numExecutors, config, VPU_MYRIAD_CONFIG_KEY(THROUGHPUT_STREAMS), preprocessCompileOption);
+    setOption(_compileConfig.tilingCMXLimitKB, config, VPU_CONFIG_KEY(TILING_CMX_LIMIT_KB), preprocessCompileOption);
 
     if ((_compileConfig.numSHAVEs < 0 && _compileConfig.numCMXSlices >= 0) ||
         (_compileConfig.numSHAVEs >= 0 && _compileConfig.numCMXSlices < 0)) {
@@ -214,7 +234,10 @@ IE_SUPPRESS_DEPRECATED_END
         _compileConfig.dumpAllPasses = std::stoi(envVar) != 0;
     }
     if (const auto envVar = std::getenv("IE_VPU_NUMBER_OF_SHAVES_AND_CMX_SLICES")) {
-        _compileConfig.numSHAVEs = _compileConfig.numCMXSlices = std::stoi(envVar);
+        _compileConfig.numSHAVEs = _compileConfig.numCMXSlices = preprocessCompileOption(envVar);
+    }
+    if (const auto envVar = std::getenv("IE_VPU_TILING_CMX_LIMIT_KB")) {
+        _compileConfig.tilingCMXLimitKB = preprocessCompileOption(envVar);
     }
 #endif
 }
