@@ -79,7 +79,12 @@ namespace ngraph
         {
             if (!stream.good())
             {
-                throw detail::error::stream_corrupted();
+                stream.clear();
+                stream.seekg(0);
+                if (!stream.good())
+                {
+                    throw detail::error::stream_corrupted();
+                }
             }
 
             ONNX_NAMESPACE::ModelProto model_proto;
