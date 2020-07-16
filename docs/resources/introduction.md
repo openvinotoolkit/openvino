@@ -18,4 +18,4 @@
 ## Pre-Trained Models
 
 - [Intel's Pre-trained Models from Open Model Zoo](@ref omz_models_intel_index)
-- [Public Pre-trained Models Available with OpenVINO™ from Open Model Zoo](@ref omz_demos_README)
+- [Public Pre-trained Models Available with OpenVINO™ from Open Model Zoo](@ref omz_models_public_index)
