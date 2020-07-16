@@ -106,7 +106,7 @@ void TestStage::serializeParamsImpl(BlobSerializer&) const {
 void TestStage::serializeDataImpl(BlobSerializer&) const {
 }
 
-TestModel::TestModel(const Model& model) : _model(model) {}
+TestModel::TestModel(const Model& model) : _model(model), _dataDesc() {}
 
 TestModel::TestModel(const Model& model, const DataDesc& dataDesc) :
         _model(model), _dataDesc(dataDesc) {
@@ -186,11 +186,12 @@ Stage TestModel::addStage(
         if (info.type == OutputType::Original) {
             curOutputs.push_back(_outputs.at(info.originalOutputInd));
         } else {
-            if (!write_to_dataDesc) {
-                curOutputs.push_back(_model->addNewData(formatString("Data %d / %d", _stages.size(), curOutputs.size()), info.desc));
-            } else {
-                curOutputs.push_back(_model->addNewData(formatString("Data %d / %d", _stages.size(), curOutputs.size()), _dataDesc));
-            }
+            // if (!write_to_dataDesc) {
+            //     curOutputs.push_back(_model->addNewData(formatString("Data %d / %d", _stages.size(), curOutputs.size()), info.desc));
+            // } else {
+            //     curOutputs.push_back(_model->addNewData(formatString("Data %d / %d", _stages.size(), curOutputs.size()), _dataDesc));
+            // }
+            curOutputs.push_back(_model->addNewData(formatString("Data %d / %d", _stages.size(), curOutputs.size()), info.desc == DataDesc() ? _dataDesc : info.desc));
         }
     }
 
