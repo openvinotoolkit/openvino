@@ -73,16 +73,14 @@ static std::map<ngraph::helpers::ActivationTypes, std::string> activationNames =
 typedef std::tuple<
         ngraph::helpers::ActivationTypes,
         InferenceEngine::Precision,
-        InferenceEngine::SizeVector,
+        std::pair<std::vector<size_t>, std::vector<size_t>>,
         std::string> activationParams;
 
 class ActivationLayerTest : public testing::WithParamInterface<activationParams>,
                             public LayerTestsUtils::LayerTestsCommon {
 public:
     ngraph::helpers::ActivationTypes activationType;
-
     static std::string getTestCaseName(const testing::TestParamInfo<activationParams> &obj);
-
     virtual InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &info) const;
 
 protected:
@@ -92,11 +90,13 @@ protected:
 class ActivationParamLayerTest : public ActivationLayerTest {
 public:
     void Infer();
+
 protected:
     void SetUp();
+
 private:
     void generateActivationBlob();
-    ngraph::ParameterVector createActivationParams(ngraph::element::Type ngPrc);
+    ngraph::ParameterVector createActivationParams(ngraph::element::Type ngPrc, std::vector<size_t> inShape = {});
 };
 
 }  // namespace LayerTestsDefinitions

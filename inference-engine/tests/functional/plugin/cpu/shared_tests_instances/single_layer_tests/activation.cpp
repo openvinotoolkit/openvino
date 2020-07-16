@@ -47,33 +47,41 @@ const std::vector<ActivationTypes> activationTypes = {
         HardSigmoid,
         Selu,
         Ceiling,
-        PReLu
 };
 
 const std::vector<ActivationTypes> activationParamTypes = {
         PReLu,
         LeakyRelu,
-        Selu,
-        HardSigmoid,
+};
+
+std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> basic = {
+        {{1, 50}, {{}}},
+        {{1, 128}, {{}}},
+};
+
+std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> preluBasic = {
+        {{1, 50}, {{1}, {50}}},
+        {{1, 128}, {{1}, {128}}},
 };
 
 const auto basicCases = ::testing::Combine(
         ::testing::ValuesIn(activationTypes),
         ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(std::vector<size_t>({1, 50}), std::vector<size_t>({1, 128})),
+        ::testing::ValuesIn(CommonTestUtils::combineShapes<size_t>(basic)),
         ::testing::Values(CommonTestUtils::DEVICE_CPU)
 );
 
-const auto basicParamCases = ::testing::Combine(
+const auto basicPreluCases = ::testing::Combine(
         ::testing::ValuesIn(activationParamTypes),
         ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(std::vector<size_t>({1, 50}), std::vector<size_t>({1, 128})),
+        ::testing::ValuesIn(CommonTestUtils::combineShapes<size_t>(preluBasic)),
         ::testing::Values(CommonTestUtils::DEVICE_CPU)
 );
 
 
 INSTANTIATE_TEST_CASE_P(Activation_Basic, ActivationLayerTest, basicCases, ActivationLayerTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(Activation_Basic_Prelu, ActivationLayerTest, basicPreluCases, ActivationLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(Activation_Basic, ActivationParamLayerTest, basicParamCases, ActivationLayerTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(Activation_Basic, ActivationParamLayerTest, basicPreluCases, ActivationLayerTest::getTestCaseName);
 
 }  // namespace

@@ -21,15 +21,16 @@ namespace LayerTestsDefinitions {
 
 std::string ActivationLayerTest::getTestCaseName(const testing::TestParamInfo<activationParams> &obj) {
     InferenceEngine::Precision netPrecision;
-    InferenceEngine::SizeVector inputShapes;
+    std::pair<std::vector<size_t>, std::vector<size_t>> shapes;
     std::string targetDevice;
     ngraph::helpers::ActivationTypes activationType;
-    std::tie(activationType, netPrecision, inputShapes, targetDevice) = obj.param;
+    std::tie(activationType, netPrecision, shapes, targetDevice) = obj.param;
 
     std::ostringstream result;
     const char separator = '_';
     result << activationNames[activationType] << separator;
-    result << "IS=" << CommonTestUtils::vec2str(inputShapes) << separator;
+    result << "IS=" << CommonTestUtils::vec2str(shapes.first) << separator;;
+    result << "AS=" << CommonTestUtils::vec2str(shapes.second) << separator;;
     result << "netPRC=" << netPrecision.name() << separator;
     result << "targetDevice=" << targetDevice;
     return result.str();
@@ -37,11 +38,11 @@ std::string ActivationLayerTest::getTestCaseName(const testing::TestParamInfo<ac
 
 void ActivationLayerTest::SetUp() {
     InferenceEngine::Precision netPrecision;
-    InferenceEngine::SizeVector inputShapes;
-    std::tie(activationType, netPrecision, inputShapes, targetDevice) = GetParam();
+    std::pair<std::vector<size_t>, std::vector<size_t>> shapes;
+    std::tie(activationType, netPrecision, shapes, targetDevice) = GetParam();
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto params = ngraph::builder::makeParams(ngPrc, {inputShapes});
-    auto activation = ngraph::builder::makeActivation(params[0], ngPrc, activationType);
+    auto params = ngraph::builder::makeParams(ngPrc, {shapes.first});
+    auto activation = ngraph::builder::makeActivation(params[0], ngPrc, activationType, shapes.second);
     function = std::make_shared<ngraph::Function>(ngraph::NodeVector{activation}, params);
 }
 
@@ -97,26 +98,26 @@ InferenceEngine::Blob::Ptr ActivationLayerTest::GenerateInput(const InferenceEng
                                             32768);
 }
 
-ngraph::ParameterVector ActivationParamLayerTest::createActivationParams(ngraph::element::Type ngPrc) {
+ngraph::ParameterVector ActivationParamLayerTest::createActivationParams(ngraph::element::Type ngPrc, std::vector<size_t> inShape) {
     switch (activationType) {
         case ngraph::helpers::ActivationTypes::PReLu: {
-            auto negativeSlopeParam = ngraph::builder::makeParams(ngPrc, {ngraph::Shape{1}});
+            auto negativeSlopeParam = ngraph::builder::makeParams(ngPrc, {inShape});
             negativeSlopeParam[0]->set_friendly_name("negativeSlope");
             return negativeSlopeParam;
         }
         case ngraph::helpers::ActivationTypes::LeakyRelu: {
-            auto leakySlopeParam = ngraph::builder::makeParams(ngPrc, {ngraph::Shape{1}});
+            auto leakySlopeParam = ngraph::builder::makeParams(ngPrc, {inShape});
             leakySlopeParam[0]->set_friendly_name("leakySlope");
             return leakySlopeParam;
         }
         case ngraph::helpers::ActivationTypes::HardSigmoid: {
-            auto hardSigmoidParam = ngraph::builder::makeParams(ngPrc, {ngraph::Shape{}, ngraph::Shape{}});
+            auto hardSigmoidParam = ngraph::builder::makeParams(ngPrc, {inShape, inShape});
             hardSigmoidParam[0]->set_friendly_name("alpha");
             hardSigmoidParam[1]->set_friendly_name("beta");
             return hardSigmoidParam;
         }
         case ngraph::helpers::ActivationTypes::Selu: {
-            auto seluParam = ngraph::builder::makeParams(ngPrc, {ngraph::Shape{}, ngraph::Shape{}});
+            auto seluParam = ngraph::builder::makeParams(ngPrc, {inShape, inShape});
             seluParam[0]->set_friendly_name("alpha");
             seluParam[1]->set_friendly_name("lambda");
             return seluParam;
@@ -153,7 +154,7 @@ void ActivationParamLayerTest::generateActivationBlob() {
             blobHardSigmoidLambda = FuncTestUtils::createAndFillBlobWithFloatArray(blobHardSigmoidLambda->getTensorDesc(), &lambda, 1);
         }
         default:
-            THROW_IE_EXCEPTION << "Unsupported activation type";
+            THROW_IE_EXCEPTION << "Unsupported activation type for Params test type";
     }
 }
 
@@ -171,10 +172,10 @@ void ActivationParamLayerTest::Infer() {
 
 void ActivationParamLayerTest::SetUp() {
     InferenceEngine::Precision netPrecision;
-    InferenceEngine::SizeVector inputShapes;
-    std::tie(activationType, netPrecision, inputShapes, targetDevice) = GetParam();
+    std::pair<std::vector<size_t>, std::vector<size_t>> shapes;
+    std::tie(activationType, netPrecision, shapes, targetDevice) = GetParam();
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    auto params = ngraph::builder::makeParams(ngPrc, {inputShapes});
+    auto params = ngraph::builder::makeParams(ngPrc, {shapes.first});
     auto activationParams = createActivationParams(ngPrc);
     params[0]->set_friendly_name("Input");
     params.insert(params.end(), activationParams.begin(), activationParams.end());
