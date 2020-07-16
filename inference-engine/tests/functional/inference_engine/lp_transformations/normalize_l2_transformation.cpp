@@ -47,8 +47,7 @@ public:
             precision,
             shape,
             epsMode,
-            params.actual
-            );
+            params.actual);
 
         SimpleLowPrecisionTransformer transform;
         transform.add<low_precision::NormalizeL2Transformation, ngraph::opset1::NormalizeL2>(
@@ -59,8 +58,7 @@ public:
             precision,
             shape,
             epsMode,
-            params.expected
-        );
+            params.expected);
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<NormalizeL2TransformationParams> obj) {
