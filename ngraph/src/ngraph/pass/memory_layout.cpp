@@ -68,7 +68,7 @@ bool pass::MemoryLayout::run_on_function(shared_ptr<Function> function)
                         if ((node->liveness_free_list.count(input) != 0 ||
                              is_type<op::GetOutputElement>(node) ||
                              (m_disable_memory_sharing && !oi_pair.destructive &&
-                              !op::util::is_parameter(input_node) && !input_node->is_constant())) &&
+                              !op::util::is_parameter(input_node) && !op::util::is_constant(input_node))) &&
                             node->liveness_new_list.count(output) != 0)
 
                         {

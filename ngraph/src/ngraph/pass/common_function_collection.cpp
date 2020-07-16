@@ -49,7 +49,7 @@ bool pass::CommonFunctionCollection::run_on_module(vector<shared_ptr<Function>>&
     {
         for (const shared_ptr<Node>& n : current_function->get_ordered_ops())
         {
-            if (n->is_constant() || op::util::is_parameter(n.get()))
+            if (op::util::is_constant(n.get()) || op::util::is_parameter(n.get()))
             {
                 continue;
             }

@@ -23,6 +23,7 @@
 #include "gather.hpp"
 #include "ngraph/node.hpp"
 #include "ngraph/op/constant.hpp"
+#include "ngraph/op/util/op_types.hpp"
 #include "utils/common.hpp"
 
 namespace
@@ -190,7 +191,7 @@ namespace ngraph
                     if (inputs.size() >= 4) // axes input provided
                     {
                         axes = inputs.at(3);
-                        CHECK_VALID_NODE(node, axes->is_constant(), "Axes input must be constant");
+                        CHECK_VALID_NODE(node, ngraph::op::util::is_constant(axes.get()), "Axes input must be constant");
                     }
                     else
                     {

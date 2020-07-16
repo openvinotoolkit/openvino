@@ -260,8 +260,6 @@ namespace ngraph
                              const element::Type& element_type,
                              const PartialShape& pshape);
 
-        virtual bool is_output() const;
-        virtual bool is_constant() const;
         virtual bool is_null() const { return false; }
         virtual bool is_commutative() const { return false; }
         virtual bool is_dynamic() const;

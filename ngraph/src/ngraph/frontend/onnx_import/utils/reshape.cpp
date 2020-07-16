@@ -22,6 +22,7 @@
 #include "default_opset.hpp"
 #include "ngraph/builder/make_constant.hpp"
 #include "ngraph/builder/reshape.hpp"
+#include "ngraph/op/util/op_types.hpp"
 #include "ngraph/shape.hpp"
 #include "reshape.hpp"
 
@@ -102,7 +103,7 @@ namespace ngraph
                              node_shape);
 
                 // If node is a Constant, recreate as Constant with Shape{}
-                if (node->is_constant())
+                if (ngraph::op::util::is_constant(node.get()))
                 {
                     const auto value =
                         ngraph::as_type_ptr<default_opset::Constant>(node)->get_data_ptr();

@@ -1383,7 +1383,7 @@ TEST_P(IEClassLoadNetworkTest, QueryNetworkHETEROWithMULTINoThrow_V10) {
         ASSERT_NE(nullptr, function);
         std::unordered_set<std::string> expectedLayers;
         for (auto &&node : function->get_ops()) {
-            if (!node->is_constant() && !op::util::is_parameter(node.get()) && !node->is_output()) {
+            if (!ngraph::op::util::is_constant(node.get()) && !ngraph::op::util::is_parameter(node.get()) && !ngraph::op::util::is_output(node.get())) {
                 expectedLayers.emplace(node->get_friendly_name());
             }
         }
@@ -1420,7 +1420,7 @@ TEST_P(IEClassLoadNetworkTest, QueryNetworkMULTIWithHETERONoThrow_V10) {
         ASSERT_NE(nullptr, function);
         std::unordered_set<std::string> expectedLayers;
         for (auto &&node : function->get_ops()) {
-            if (!node->is_constant() && !op::util::is_parameter(node.get()) && !node->is_output()) {
+            if (!ngraph::op::util::is_constant(node.get()) && !ngraph::op::util::is_parameter(node.get()) && !ngraph::op::util::is_output(node.get())) {
                 expectedLayers.emplace(node->get_friendly_name());
             }
         }

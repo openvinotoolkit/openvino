@@ -10,6 +10,7 @@
 
 #include <transformations_visibility.hpp>
 
+#include <ngraph/op/util/op_types.hpp>
 #include <ngraph/pass/graph_rewrite.hpp>
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/validation_util.hpp>
@@ -58,7 +59,7 @@ void ngraph::pass::ConvertReduceToPooling::convert_reduce_to_pooling() {
             auto input = reduce->input_value(0);
 
             auto axes_node = reduce->input_value(1).get_node_shared_ptr();
-            if (!axes_node->is_constant()) {
+            if (!ngraph::op::util::is_constant(axes_node.get())) {
                 return false;
             }
 

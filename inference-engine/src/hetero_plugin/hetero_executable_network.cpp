@@ -365,7 +365,7 @@ void HeteroExecutableNetwork::InitNgraph(const InferenceEngine::ICNNNetwork& net
     auto orderedOps = function->get_ordered_ops();
     orderedOps.erase(
         std::remove_if(std::begin(orderedOps), std::end(orderedOps), [] (const std::shared_ptr<ngraph::Node>& node) {
-            return node->is_constant();
+            return ngraph::op::util::is_constant(node.get());
         }),
         std::end(orderedOps));
     bool allEmpty = true;
@@ -402,7 +402,7 @@ void HeteroExecutableNetwork::InitNgraph(const InferenceEngine::ICNNNetwork& net
     auto NoConstants = [] (std::vector<ngraph::Input<ngraph::Node>>&& inputs) {
         std::vector<ngraph::Input<ngraph::Node>> result;
         for (auto&& input : inputs) {
-            if (!(input.get_source_output().get_node()->is_constant())) {
+            if (!(ngraph::op::util::is_constant(input.get_source_output().get_node()))) {
                 result.emplace_back(std::move(input));
             }
         }
@@ -551,7 +551,7 @@ void HeteroExecutableNetwork::InitNgraph(const InferenceEngine::ICNNNetwork& net
             }
             auto& nodeSubgraphCyclicInputDependency = nodeSubgraphCyclicInputDependencies[node.get()];
             for (auto&& subgraphInput : allNodeSubgraphInputs) {
-                if (ngraph::op::util::is_parameter(subgraphInput.get_node().get()) &&
+                if (ngraph::op::util::is_parameter(subgraphInput.get_node()) &&
                         subgraphIds[node.get()] == subgraphIds[InputNode(subgraphInput)]) {
                     nodeSubgraphCyclicInputDependency.emplace(subgraphInput);
                 }
@@ -587,7 +587,7 @@ void HeteroExecutableNetwork::InitNgraph(const InferenceEngine::ICNNNetwork& net
     NodeMap<ngraph::Node*> subgraphParameterToPrevResult;
     std::vector<std::shared_ptr<ngraph::op::Result>> results;
     for (auto&& input : subgraphInputs) {
-        if (!ngraph::op::util::is_parameter(input.get_node().get())) {
+        if (!ngraph::op::util::is_parameter(input.get_node())) {
             auto output = input.get_source_output();
             output.remove_target_input(input);
             auto result = std::make_shared<ngraph::op::Result>(output);
@@ -616,10 +616,10 @@ void HeteroExecutableNetwork::InitNgraph(const InferenceEngine::ICNNNetwork& net
     for (auto&& subgraphIdPtrValue : subgraphIds) {
         auto node = subgraphIdPtrValue.first;
         auto& subgraph = subgraphs[subgraphIdPtrValue.second];
-        if (node->is_output()) {
+        if (ngraph::op::util::is_output(node)) {
             subgraph._results.emplace_back(
                 std::dynamic_pointer_cast<ngraph::op::v0::Result>(node->shared_from_this()));
-        } else if (ngraph::op::util::is_parameter(node.get())) {
+        } else if (ngraph::op::util::is_parameter(node)) {
             subgraph._parameters.emplace_back(
                 std::dynamic_pointer_cast<ngraph::op::v0::Parameter>(node->shared_from_this()));
         }

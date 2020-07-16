@@ -228,7 +228,7 @@ void Engine::QueryNetwork(const ICNNNetwork& network, const std::map<std::string
     if (function != nullptr) {
         std::unordered_set<std::string> originalOps;
         for (auto&& node : function->get_ops()) {
-            if (!node->is_constant() && !ngraph::op::util::is_parameter(node.get()) && !node->is_output()) {
+            if (!ngraph::op::util::is_constant(node.get()) && !ngraph::op::util::is_parameter(node.get()) && !ngraph::op::util::is_output(node.get())) {
                 originalOps.emplace(node->get_friendly_name());
             }
         }

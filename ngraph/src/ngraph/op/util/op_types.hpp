@@ -44,6 +44,10 @@ namespace ngraph
             bool is_op(const ngraph::Node* node);
             NGRAPH_API
             bool is_parameter(const ngraph::Node* node);
+            NGRAPH_API
+            bool is_output(const ngraph::Node* node);
+            NGRAPH_API
+            bool is_constant(const ngraph::Node* node);
         }
     }
 }

@@ -131,7 +131,7 @@ void ngraph::replace_node(std::shared_ptr<Node> target,
                           std::shared_ptr<Node> replacement,
                           const std::vector<int64_t>& output_order)
 {
-    if (target->is_output())
+    if (ngraph::op::util::is_output(target.get()))
     {
         throw ngraph_error("Result nodes cannot be replaced.");
     }
@@ -186,7 +186,7 @@ void ngraph::replace_node(std::shared_ptr<Node> target,
 void ngraph::replace_node(const std::shared_ptr<Node>& target,
                           const OutputVector& replacement_values)
 {
-    if (target->is_output())
+    if (ngraph::op::util::is_output(target.get()))
     {
         throw ngraph_error("Result nodes cannot be replaced.");
     }
@@ -259,7 +259,7 @@ bool ngraph::is_post_dominated(Node* X, Node* Y)
     {
         ngraph::Node* curr = stack.top();
         visited.insert(curr);
-        if (curr->is_output())
+        if (ngraph::op::util::is_output(curr))
         {
             return false;
         }
@@ -640,7 +640,7 @@ bool ngraph::is_used(Node* node)
         ngraph::Node* n = stack.top();
         if (instances_seen.count(n) == 0)
         {
-            if (n->is_output())
+            if (ngraph::op::util::is_output(n))
             {
                 return true;
             }
@@ -713,7 +713,7 @@ bool ngraph::is_valid_rank(const std::shared_ptr<Node>& node, std::vector<size_t
 
 bool ngraph::compare_constants(const std::shared_ptr<Node>& n1, const std::shared_ptr<Node>& n2)
 {
-    if (!(n1->is_constant() && n2->is_constant()))
+    if (!(op::util::is_constant(n1.get()) && op::util::is_constant(n2.get())))
     {
         return false;
     }

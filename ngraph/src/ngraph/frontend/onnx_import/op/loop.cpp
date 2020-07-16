@@ -22,6 +22,7 @@
 #include "default_opset.hpp"
 #include "exceptions.hpp"
 #include "ngraph/function.hpp"
+#include "ngraph/op/util/op_types.hpp"
 #include "utils/reshape.hpp"
 
 namespace ngraph
@@ -52,7 +53,7 @@ namespace ngraph
                         const std::shared_ptr<ngraph::Node>& body_cond)
                     {
                         bool loop_cond_value = false;
-                        if (loop_cond->is_constant() &&
+                        if (ngraph::op::util::is_constant(loop_cond.get()) &&
                             loop_cond->get_element_type() == element::boolean)
                         {
                             loop_cond_value = as_type_ptr<default_opset::Constant>(loop_cond)
@@ -76,7 +77,7 @@ namespace ngraph
                         {
                             const auto second_input =
                                 body_cond->input_value(1).get_node_shared_ptr();
-                            if (second_input->is_constant() &&
+                            if (ngraph::op::util::is_constant(second_input.get()) &&
                                 second_input->get_element_type() == element::boolean &&
                                 as_type_ptr<default_opset::Constant>(second_input)
                                         ->cast_vector<bool>()

@@ -302,7 +302,7 @@ bool ngraph::pass::CommonSubexpressionElimination::run_on_function(shared_ptr<ng
 
     for (auto n : f->get_ordered_ops())
     {
-        if (n->is_output() || op::util::is_parameter(n.get()))
+        if (op::util::is_output(n.get()) || op::util::is_parameter(n.get()))
         {
             continue;
         }

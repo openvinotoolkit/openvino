@@ -17,6 +17,8 @@
 #include "ngraph/op/op.hpp"
 #include "ngraph/op/parameter.hpp"
 #include "ngraph/op/select.hpp"
+#include "ngraph/op/result.hpp"
+#include "ngraph/op/constant.hpp"
 #include "ngraph/op/util/binary_elementwise_arithmetic.hpp"
 #include "ngraph/op/util/binary_elementwise_comparison.hpp"
 #include "ngraph/op/util/binary_elementwise_logical.hpp"
@@ -65,4 +67,14 @@ bool ngraph::op::util::is_op(const ngraph::Node* node)
 bool ngraph::op::util::is_parameter(const ngraph::Node* node)
 {
     return dynamic_cast<const ngraph::op::Parameter*>(node) != nullptr;
+}
+
+bool ngraph::op::util::is_output(const ngraph::Node* node)
+{
+    return dynamic_cast<const ngraph::op::Result*>(node) != nullptr;
+}
+
+bool ngraph::op::util::is_constant(const ngraph::Node* node)
+{
+    return dynamic_cast<const ngraph::op::Constant*>(node) != nullptr;
 }

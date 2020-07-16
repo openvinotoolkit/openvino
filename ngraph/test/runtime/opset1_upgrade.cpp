@@ -23,6 +23,7 @@
 #include "ngraph/builder/autobroadcast.hpp"
 #include "ngraph/builder/reshape.hpp"
 #include "ngraph/graph_util.hpp"
+#include "ngraph/op/util/op_types.hpp"
 #include "ngraph/ops.hpp"
 #include "ngraph/provenance.hpp"
 #include "op/avg_pool.hpp"
@@ -404,7 +405,7 @@ namespace
 
     shared_ptr<Node> op_cast(shared_ptr<op::Softmax> node)
     {
-        NGRAPH_CHECK(node->input_value(1).get_node_shared_ptr()->is_constant(),
+        NGRAPH_CHECK(op::util::is_constant(node->input_value(1).get_node()),
                      "axes parameter is expected to be a static constant");
 
         AxisSet axes = node->get_axes();
@@ -487,9 +488,9 @@ namespace
 
     shared_ptr<Node> op_cast(shared_ptr<op::TopK> node)
     {
-        NGRAPH_CHECK(node->input_value(1).get_node_shared_ptr()->is_constant(),
+        NGRAPH_CHECK(op::util::is_constant(node->input_value(1).get_node()),
                      "parameter k is expected to be a static constant");
-        NGRAPH_CHECK(node->input_value(2).get_node_shared_ptr()->is_constant(),
+        NGRAPH_CHECK(op::util::is_constant(node->input_value(2).get_node()),
                      "parameter top_k_axis is expected to be a static constant");
 
         const auto k = node->get_k();

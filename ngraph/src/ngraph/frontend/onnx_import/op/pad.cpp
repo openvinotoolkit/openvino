@@ -23,6 +23,7 @@
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/convert.hpp"
 #include "ngraph/op/pad.hpp"
+#include "ngraph/op/util/op_types.hpp"
 #include "ngraph/shape.hpp"
 #include "pad.hpp"
 #include "utils/convpool.hpp"
@@ -112,7 +113,7 @@ namespace ngraph
                             data->get_element_type(), ngraph::Shape{}, {0});
                     }
 
-                    if (pads->is_constant())
+                    if (ngraph::op::util::is_constant(pads.get()))
                     {
                         std::vector<std::int64_t> pads_vector =
                             ngraph::as_type_ptr<default_opset::Constant>(pads)
