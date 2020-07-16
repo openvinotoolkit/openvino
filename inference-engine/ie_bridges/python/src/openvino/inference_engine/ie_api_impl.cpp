@@ -6,6 +6,7 @@
 #include "hetero/hetero_plugin_config.hpp"
 #include "ie_iinfer_request.hpp"
 #include "details/ie_cnn_network_tools.h"
+#include "cnn_network_impl.hpp"
 
 const std::string EXPORTED_NETWORK_NAME = "undefined";
 std::map <std::string, InferenceEngine::Precision> precision_map = {{"FP32", InferenceEngine::Precision::FP32},
@@ -208,8 +209,17 @@ void InferenceEnginePython::IENetwork::serialize(const std::string &path_to_xml,
     actual->serialize(path_to_xml, path_to_bin);
 }
 
+void InferenceEnginePython::IENetwork::convertToOldRepresentation() {
+    if (actual->getFunction()) {
+        // convert to old representation
+        auto convertedNetwork = std::make_shared<InferenceEngine::details::CNNNetworkImpl>(*actual);
+        actual = std::make_shared<InferenceEngine::CNNNetwork>(convertedNetwork);
+    }
+}
+
 const std::vector <InferenceEngine::CNNLayerPtr>
 InferenceEnginePython::IENetwork::getLayers() {
+    convertToOldRepresentation();
     IE_SUPPRESS_DEPRECATED_START
     std::vector<InferenceEngine::CNNLayerPtr> result;
     std::vector<InferenceEngine::CNNLayerPtr> sorted_layers = InferenceEngine::details::CNNNetSortTopologically(*actual);

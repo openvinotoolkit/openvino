@@ -8,6 +8,7 @@
 #include "ngraph/function.hpp"
 
 #include "cpp/ie_cnn_network.h"
+#include "cnn_network_impl.hpp"
 #include "ie_common.h"
 
 #include "common_test_utils/test_common.hpp"
@@ -43,8 +44,8 @@ protected:
 
 private:
     void triggerConversionToCNNNetwork() {
-        // convert to old representation
-        getCreatorLayer(cnnNetwork.getInputsInfo().begin()->second->getInputData());
+        cnnNetwork = InferenceEngine::CNNNetwork(
+            std::make_shared<InferenceEngine::details::CNNNetworkImpl>(cnnNetwork));
     }
 
     static const char s_FriendlyName[];
