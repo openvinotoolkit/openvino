@@ -96,8 +96,9 @@ class Interpolate(Op):
     @staticmethod
     def get_axes(node: Node) -> np.ndarray:
         opset = node.get_opset()
-        if opset == 'opset1':
-            return int64_array(node.axes)
+        if opset in ['opset1', 'extension']:
+            interp_axes = node.soft_get('axes', None)
+            return interp_axes if interp_axes is None else int64_array(interp_axes)
 
         src_shape = node.in_port(0).data.get_shape()
         assert src_shape is not None
