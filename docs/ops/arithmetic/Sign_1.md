@@ -1,4 +1,4 @@
-## Sign <a name="Sign"></a>
+## Sign <a name="Sign"></a> {#openvino_docs_ops_arithmetic_Sign_1}
 
 **Versioned name**: *Sign-1*
 

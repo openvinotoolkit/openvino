@@ -1,4 +1,4 @@
-## GroupConvolution <a name="GroupConvolution"></a>
+## GroupConvolution <a name="GroupConvolution"></a> {#openvino_docs_ops_convolution_GroupConvolution_1}
 
 **Versioned name**: *GroupConvolution-1*
 

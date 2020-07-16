@@ -1,4 +1,4 @@
-## GatherTree <a name="GatherTree"></a>
+## GatherTree <a name="GatherTree"></a> {#openvino_docs_ops_movement_GatherTree_1}
 
 **Versioned name**: *GatherTree-1*
 

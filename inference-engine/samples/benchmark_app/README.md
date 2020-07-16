@@ -1,15 +1,15 @@
-# Benchmark C++ Tool
+# Benchmark C++ Tool {#openvino_inference_engine_samples_benchmark_app_README}
 
 This topic demonstrates how to use the Benchmark C++ Tool to estimate deep learning inference performance on supported devices. Performance can be measured for two inference modes: synchronous (latency-oriented) and asynchronous (throughput-oriented).
 
-> **NOTE:** This topic describes usage of C++ implementation of the Benchmark Tool. For the Python* implementation, refer to [Benchmark Python* Tool](./inference-engine/tools/benchmark_tool/README.md).
+> **NOTE:** This topic describes usage of C++ implementation of the Benchmark Tool. For the Python* implementation, refer to [Benchmark Python* Tool](../../tools/benchmark_tool/README.md).
 
 
 ## How It Works
 
 Upon start-up, the application reads command-line parameters and loads a network and images/binary files to the Inference Engine plugin, which is chosen depending on a specified device. The number of infer requests and execution approach depend on the mode defined with the `-api` command-line parameter.
 
-> **NOTE**: By default, Inference Engine samples, tools and demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channels order in the sample or demo application or reconvert your model using the Model Optimizer tool with `--reverse_input_channels` argument specified. For more information about the argument, refer to **When to Reverse Input Channels** section of [Converting a Model Using General Conversion Parameters](./docs/MO_DG/prepare_model/convert_model/Converting_Model_General.md).
+> **NOTE**: By default, Inference Engine samples, tools and demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channels order in the sample or demo application or reconvert your model using the Model Optimizer tool with `--reverse_input_channels` argument specified. For more information about the argument, refer to **When to Reverse Input Channels** section of [Converting a Model Using General Conversion Parameters](../../../docs/MO_DG/prepare_model/convert_model/Converting_Model_General.md).
 
 If you run the application in the synchronous mode, it creates one infer request and executes the `Infer` method.
 If you run the application in the asynchronous mode, it creates as many infer requests as specified in the `-nireq` command-line parameter and executes the `StartAsync` method for each of them. If `-nireq` is not set, the application will use the default value for specified device.
@@ -38,23 +38,23 @@ enable statistics dumping by setting the `-report_type` parameter to one of the 
 Depending on the type, the report is stored to `benchmark_no_counters_report.csv`, `benchmark_average_counters_report.csv`,
 or `benchmark_detailed_counters_report.csv` file located in the path specified in `-report_folder`.
 
-The application also saves executable graph information serialized to a XML file if you specify a path to it with the
+The application also saves executable graph information serialized to an XML file if you specify a path to it with the
 `-exec_graph_path` parameter.
 
 
 ## Run the Tool
-Notice that the benchmark_app usually produces optimal performance for any device out of the box.
+Note that the benchmark_app usually produces optimal performance for any device out of the box.
 
 **So in most cases you don't need to play the app options explicitly and the plain device name is enough**, for example, for CPU:
 ```sh
 ./benchmark_app -m <model> -i <input> -d CPU
 ```
 
-But it is still may be non-optimal for some cases, especially for very small networks. More details can read in [Introduction to Performance Topics](./docs/IE_DG/Intro_to_Performance.md).
+But it is still may be non-optimal for some cases, especially for very small networks. More details can read in [Introduction to Performance Topics](../../../docs/IE_DG/Intro_to_Performance.md).
 
-As explained in the  [Introduction to Performance Topics](./docs/IE_DG/Intro_to_Performance.md) section, for all devices, including new [MULTI device](./docs/IE_DG/supported_plugins/MULTI.md) it is preferable to use the FP16 IR for the model.
+As explained in the  [Introduction to Performance Topics](../../../docs/IE_DG/Intro_to_Performance.md) section, for all devices, including new [MULTI device](../../../docs/IE_DG/supported_plugins/MULTI.md) it is preferable to use the FP16 IR for the model.
 Also if latency of the CPU inference on the multi-socket machines is of concern, please refer to the same
-[Introduction to Performance Topics](./docs/IE_DG/Intro_to_Performance.md) document.
+[Introduction to Performance Topics](../../../docs/IE_DG/Intro_to_Performance.md) document.
 
 Running the application with the `-h` option yields the following usage message:
 ```
@@ -82,7 +82,7 @@ Options:
     -nireq "<integer>"        Optional. Number of infer requests. Default value is determined automatically for a device.
     -b "<integer>"            Optional. Batch size value. If not specified, the batch size value is determined from Intermediate Representation.
     -stream_output            Optional. Print progress as a plain text. When specified, an interactive progress bar is replaced with a multiline output.
-    -t                        Optional. Time in seconds to execute topology.
+    -t                        Optional. Time, in seconds, to execute topology.
     -progress                 Optional. Show progress bar (can affect performance measurement). Default values is "false".
     -shape                    Optional. Set shape for input. For example, "input1[1,3,224,224],input2[1,4]" or "[1,3,224,224]" in case of one input size.
 
@@ -93,7 +93,7 @@ Options:
                               Please note that although the automatic selection usually provides a reasonable performance, 
                               it still may be non-optimal for some cases, especially for very small networks.
     -nthreads "<integer>"     Optional. Number of threads to use for inference on the CPU (including HETERO and MULTI cases).
-    -enforcebf16              Optional. Enforcing of floating point operations execution in bfloat16 precision where it is acceptable.
+    -enforcebf16              Optional. Enforcing of floating point operations execution in bfloat16 precision on platforms with native bfloat16 support. By default, this key sets "true" on platforms with native bfloat16 support and "false" for other platforms. Use "-enforcebf16=false" to disable this feature.
     -pin "YES"/"NO"/"NUMA"    Optional. Enable threads->cores ("YES", default), threads->(NUMA)nodes ("NUMA") or completely disable ("NO") CPU threads pinning for CPU-involved inference.
 
 
@@ -108,14 +108,14 @@ Options:
 
 Running the application with the empty list of options yields the usage message given above and an error message.
 
-Application supports topologies with one or more inputs. If a topology is not data sensitive, you can skip the input parameter. In this case, inputs are filled with random values.
-If a model has only image input(s), please a provide folder with images or a path to an image as input.
-If a model has some specific input(s) (not images), please prepare a binary file(s), which is filled with data of appropriate precision and provide a path to them as input.
+Application supports topologies with one or more inputs. If a topology is not data-sensitive, you can skip the input parameter. In this case, inputs are filled with random values.
+If a model has only image input(s), please provide a folder with images or a path to an image as input.
+If a model has some specific input(s) (not images), please prepare a binary file(s) that is filled with data of appropriate precision and provide a path to them as input.
 If a model has mixed input types, input folder should contain all required files. Image inputs are filled with image files one by one. Binary inputs are filled with binary inputs one by one.
 
-To run the tool, you can use public or Intel's pre-trained models. To download the models, use the OpenVINO [Model Downloader](./tools/downloader/README.md) or go to [https://download.01.org/opencv/](https://download.01.org/opencv/).
+To run the tool, you can use public or Intel's pre-trained models. To download the models, use the OpenVINO [Model Downloader](@ref omz_tools_downloader_README) or go to [https://download.01.org/opencv/](https://download.01.org/opencv/).
 
-> **NOTE**: Before running the tool with a trained model, make sure the model is converted to the Inference Engine format (\*.xml + \*.bin) using the [Model Optimizer tool](./docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
+> **NOTE**: Before running the tool with a trained model, make sure the model is converted to the Inference Engine format (\*.xml + \*.bin) using the [Model Optimizer tool](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
 
 ## Examples of Running the Tool
 
@@ -148,7 +148,7 @@ This section provides step-by-step instructions on how to run the Benchmark Tool
    ./benchmark_app -m <ir_dir>/googlenet-v1.xml -d HETERO:FPGA,CPU -api async -i <INSTALL_DIR>/deployment_tools/demo/car.png --progress true
    ```
 
-The application outputs the number of executed iterations, total duration of execution, latency and throughput.
+The application outputs the number of executed iterations, total duration of execution, latency, and throughput.
 Additionally, if you set the `-report_type` parameter, the application outputs statistics report. If you set the `-pc` parameter, the application outputs performance counters. If you set `-exec_graph_path`, the application reports executable graph information serialized. All measurements including per-layer PM counters are reported in milliseconds.
 
 Below are fragments of sample output for CPU and FPGA devices: 
@@ -181,6 +181,6 @@ Below are fragments of sample output for CPU and FPGA devices:
    ```
 
 ## See Also
-* [Using Inference Engine Samples](./docs/IE_DG/Samples_Overview.md)
-* [Model Optimizer](./docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
-* [Model Downloader](./tools/downloader/README.md)
+* [Using Inference Engine Samples](../../../docs/IE_DG/Samples_Overview.md)
+* [Model Optimizer](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
+* [Model Downloader](@ref omz_tools_downloader_README)

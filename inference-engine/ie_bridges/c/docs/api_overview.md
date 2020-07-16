@@ -1,4 +1,4 @@
-# Overview of Inference Engine C* API
+# Overview of Inference Engine C* API {#openvino_inference_engine_ie_bridges_c_docs_api_overview}
 
 > **NOTE**: It is a preview version of the Inference Engine C* API for evaluation purpose only.
 > Module structure and API itself may be changed in future releases.

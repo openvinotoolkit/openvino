@@ -1,4 +1,4 @@
-## RegionYolo <a name="RegionYolo"></a>
+## RegionYolo <a name="RegionYolo"></a> {#openvino_docs_ops_detection_RegionYolo_1}
 
 **Versioned name**: *RegionYolo-1*
 

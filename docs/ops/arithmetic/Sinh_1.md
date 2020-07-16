@@ -1,4 +1,4 @@
-## Sinh <a name="Sinh"></a>
+## Sinh <a name="Sinh"></a> {#openvino_docs_ops_arithmetic_Sinh_1}
 
 **Versioned name**: *Sinh-1*
 

@@ -1,4 +1,4 @@
-## Squeeze<a name="Squeeze"></a>
+## Squeeze<a name="Squeeze"></a> {#openvino_docs_ops_shape_Squeeze_1}
 
 **Versioned name**: *Squeeze-1*
 
