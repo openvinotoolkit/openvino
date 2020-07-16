@@ -1,14 +1,14 @@
-# Configuration Guide for Intel® Distribution of OpenVINO™ toolkit 2020.3 and the Intel® Programmable Acceleration Card with Intel® Arria® 10 FPGA GX on CentOS or Ubuntu* {#openvino_docs_install_guides_PAC_Configure}
+# Configuration Guide for Intel® Distribution of OpenVINO™ toolkit 2020.4 and the Intel® Programmable Acceleration Card with Intel® Arria® 10 GX FPGA on CentOS or Ubuntu* {#openvino_docs_install_guides_PAC_Configure}
 
-> **NOTE**: For previous versions, see [Configuration Guide for OpenVINO 2020.2](https://docs.openvinotoolkit.org/2020.2/_docs_install_guides_PAC_Configure.html), [Configuration Guide for OpenVINO 2019R1/2019R2/2019R3](https://docs.openvinotoolkit.org/2019_R3.1/_docs_install_guides_PAC_Configure_2019RX.html), [Configuration Guide for OpenVINO 2018R5](https://docs.openvinotoolkit.org/2019_R1/_docs_install_guides_PAC_Configure_2018R5.html).
+> **NOTE**: For previous versions, see [Configuration Guide for OpenVINO 2020.3](https://docs.openvinotoolkit.org/2020.3/_docs_install_guides_PAC_Configure.html), [Configuration Guide for OpenVINO 2020.2](https://docs.openvinotoolkit.org/2020.2/_docs_install_guides_PAC_Configure.html), [Configuration Guide for OpenVINO 2019R1/2019R2/2019R3](https://docs.openvinotoolkit.org/2019_R3.1/_docs_install_guides_PAC_Configure_2019RX.html), [Configuration Guide for OpenVINO 2018R5](https://docs.openvinotoolkit.org/2019_R1/_docs_install_guides_PAC_Configure_2018R5.html).
 
 ## Get Started
 
 The following describes the set-up of the Intel® Distribution of OpenVINO™ toolkit on CentOS* 7.4 or Ubuntu* 16.04, kernel 4.15.  This is based upon a completely fresh install of the OS with developer tools included.  Official Intel® documentation for the install process can be found in the following locations and it is highly recommended that these are read, especially for new users. This document serves as a guide, and in some cases, adds additional detail where necessary.
 
-[Intel® Acceleration Stack for FPGAs Quick Start Guide](https://www.intel.com/content/dam/altera-www/global/en_US/pdfs/literature/ug/ug-qs-ias-v1-1.pdf)
+[Intel® Acceleration Stack for FPGAs Quick Start Guide](https://www.intel.com/content/dam/www/programmable/us/en/pdfs/literature/ug/ug-qs-ias-v1-2-1.pdf)
 
-[OpenCL™ on Intel® PAC Quick Start Guide](https://www.intel.com/content/dam/altera-www/global/en_US/pdfs/literature/ug/ug-qs-ias-opencl-a10-v1-1.pdf)
+[OpenCL™ on Intel® PAC Quick Start Guide](https://www.intel.com/content/dam/altera-www/global/en_US/pdfs/literature/ug/ug-qs-ias-opencl-a10.pdf)
 
 [Installing the Intel® Distribution of OpenVINO™ toolkit for Linux*](https://docs.openvinotoolkit.org/latest/_docs_install_guides_installing_openvino_linux.html)
 
@@ -22,8 +22,8 @@ sudo yum -y install ntfs-3g
 
 ## Install Intel® PAC and the Intel® Programmable Acceleration Card Stack
 
-1. Download version 1.2 of the Acceleration Stack for Runtime from the [Intel FPGA Acceleration Hub](https://www.altera.com/solutions/acceleration-hub/downloads.html). 
-This downloads as `a10_gx_pac_ias_1_2_pv_rte_installer.tar.gz`. Let it download to `~/Downloads`.
+1. Download version 1.2.1 of the Acceleration Stack for Runtime from the [Intel FPGA Acceleration Hub](https://www.altera.com/solutions/acceleration-hub/downloads.html). 
+This downloads as `a10_gx_pac_ias_1_2_1_pv_rte.tar.gz`. Let it download to `~/Downloads`.
 
 2. Create a new directory to install to:
 ```sh
@@ -35,10 +35,10 @@ mkdir -p ~/tools/intelrtestack
 cd ~/Downloads
 ```
 ```sh
-tar xf a10_gx_pac_ias_1_2_pv_rte_installer.tar.gz
+tar xf a10_gx_pac_ias_1_2_1_pv_rte.tar.gz
 ```
 ```sh
-cd a10_gx_pac_ias_1_2_pv_rte_installer
+cd a10_gx_pac_ias_1_2_1_pv_rte_installer
 ```
 ```sh
 ./setup.sh
@@ -48,14 +48,14 @@ cd a10_gx_pac_ias_1_2_pv_rte_installer
 
 5. Tools are installed to the following directories:
    * OpenCL™ Run-time Environment: `~/tools/intelrtestack/opencl_rte/aclrte-linux64`
-   * Intel® Acceleration Stack for FPGAs: `~/tools/intelrtestack/a10_gx_pac_ias_1_2_pv`
+   * Intel® Acceleration Stack for FPGAs: `~/tools/intelrtestack/a10_gx_pac_ias_1_2_1_pv`
   
 7. Check the version of the FPGA Interface Manager firmware on the PAC board.
 ```sh
 sudo fpgainfo fme
 ```
 
-8. If the reported `Pr Interface Id` is not `69528db6-eb31-577a-8c36-68f9faa081f6` then follow the instructions in section 4 of the [Intel® Acceleration Stack for FPGAs Quick Start Guide](https://www.intel.com/content/dam/altera-www/global/en_US/pdfs/literature/ug/ug-qs-ias-v1-2.pdf) to update the FME.
+8. If the reported FIM (`Pr Interface Id`) is not `38d782e3-b612-5343-b934-2433e348ac4c` then follow the instructions in Appendix A: Updating the FIM and BMC Firmware of the [Intel® Acceleration Stack for FPGAs Quick Start Guide](https://www.intel.com/content/dam/www/programmable/us/en/pdfs/literature/ug/ug-qs-ias-v1-2-1.pdf) to update the FIM and BMC.
 
 9. Run the built in self-test to verify operation of the Acceleration Stack and Intel® PAC in a non-virtualized environment.
 ```sh
@@ -185,14 +185,14 @@ source ~/init_openvino.sh
 
 The bitstream you program should correspond to the topology you want to deploy. In this section, you program a SqueezeNet bitstream and deploy the classification sample with a SqueezeNet model.
 
-> **IMPORTANT**: Only use bitstreams from the installed version of the Intel® Distribution of OpenVINO™ toolkit. Bitstreams from older versions of the Intel® Distribution of OpenVINO™ toolkit are incompatible with later versions. For example, you cannot use the `1-0-1_RC_FP16_Generic` bitstream, when the Intel® Distribution of OpenVINO™ toolkit supports the `2-0-1_RC_FP16_Generic bitstream`.
+> **IMPORTANT**: Only use bitstreams from the installed version of the Intel® Distribution of OpenVINO™ toolkit. Bitstreams from older versions of the Intel® Distribution of OpenVINO™ toolkit are incompatible with later versions. For example, you cannot use the `2020-3_RC_FP16_AlexNet_GoogleNet_Generic` bitstream, when the Intel® Distribution of OpenVINO™ toolkit supports the `2020-4_RC_FP16_AlexNet_GoogleNet_Generic bitstream`.
 
 There are different folders for each FPGA card type which were downloaded in the Intel® Distribution of OpenVINO™ toolkit package. 
 For the Intel® Programmable Acceleration Card with Intel® Arria® 10 FPGA GX, the pre-trained bitstreams are in the `/opt/intel/openvino/bitstreams/a10_dcp_bitstreams` directory. This example uses a SqueezeNet bitstream with low precision for the classification sample.
 
 Program the bitstream for Intel® Programmable Acceleration Card with Intel® Arria® 10 FPGA GX.
 ```sh
-aocl program acl0 /opt/intel/openvino/bitstreams/a10_dcp_bitstreams/2020-3_RC_FP11_InceptionV1_SqueezeNet_VGG_YoloV3.aocx
+aocl program acl0 /opt/intel/openvino/bitstreams/a10_dcp_bitstreams/2020-4_RC_FP11_InceptionV1_ResNet_SqueezeNet_TinyYolo_YoloV3.aocx
 ```
 
 ## Use the Intel® Distribution of OpenVINO™ toolkit
