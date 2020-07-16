@@ -27,7 +27,10 @@ namespace ngraph
         {
             namespace set_1
             {
-                NodeVector acosh(const Node& node);
+                inline NodeVector acosh(const Node& node)
+                {
+                    return {std::make_shared<default_opset::Acosh>(node.get_ng_inputs().at(0))};
+                }
             } // namespace set_1
 
         } // namespace op
