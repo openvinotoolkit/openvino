@@ -199,10 +199,19 @@ TEST(NetReaderTest, IRSupportModelDetection) {
 </net>
 )V0G0N";
 
+    // For supported model detection the IRReader uses first 512 bytes from model.
+    // These headers shifts the trim place.
+
     std::string headers[] = {
         R"()",
-        R"(<!-- <net name="Network" version="100500"> -->)",
-        R"(<!-- <net name="Network" version="10" some_attribute="Test Attribute"> -->)"
+        R"(<!-- <net name="Network" version="10" some_attribute="Test Attribute"> -->)",
+        R"(<!-- <net name="Network" version="10" some_attribute="Test Attribute"> -->
+<!-- <net name="Network" version="10" some_attribute="Test Attribute"> -->
+<!-- <net name="Network" version="10" some_attribute="Test Attribute"> -->
+<!-- <net name="Network" version="10" some_attribute="Test Attribute"> -->
+<!-- The quick brown fox jumps over the lazy dog -->
+<!-- The quick brown fox jumps over the lazy dog -->
+<!-- The quick brown fox jumps over the lazy dog -->)"
     };
 
     InferenceEngine::Blob::CPtr weights;

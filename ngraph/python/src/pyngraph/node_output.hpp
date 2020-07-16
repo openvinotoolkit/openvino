@@ -14,18 +14,10 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include "ngraph/op/scatter_nd_add.hpp"
-#include "ngraph/shape.hpp"
+#pragma once
 
-using namespace std;
-using namespace ngraph;
+#include <pybind11/pybind11.h>
 
-constexpr NodeTypeInfo op::ScatterNDAdd::type_info;
+namespace py = pybind11;
 
-shared_ptr<Node> op::ScatterNDAdd::clone_with_new_inputs(const OutputVector& new_args) const
-{
-    check_new_args_count(this, new_args);
-    return make_shared<ScatterNDAdd>(new_args.at(op::util::ScatterNDBase::INPUTS),
-                                     new_args.at(op::util::ScatterNDBase::INDICES),
-                                     new_args.at(op::util::ScatterNDBase::UPDATES));
-}
+void regclass_pyngraph_Output(py::module m);

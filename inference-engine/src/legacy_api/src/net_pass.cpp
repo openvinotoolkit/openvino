@@ -1330,28 +1330,13 @@ bool UnrollRNN_if(TensorIterator::Body& net, const std::function<bool(const RNNC
 
 namespace {
 
-template <typename TO, typename FROM>
-bool isConversionNarrowing(FROM from) {
-    return from == (static_cast<FROM>(static_cast<TO>(from)));
-}
-
-template <typename TO, typename FROM>
-TO saturatedCast(FROM from) {
-    FROM max = isConversionNarrowing<FROM>(std::numeric_limits<TO>::max()) ? std::numeric_limits<FROM>::max() :
-                                                                             static_cast<FROM>(std::numeric_limits<TO>::max());
-    FROM min = isConversionNarrowing<FROM>(std::numeric_limits<TO>::min()) ? std::numeric_limits<FROM>::min() :
-                                                                             static_cast<FROM>(std::numeric_limits<TO>::min());
-
-    return static_cast<TO>(std::min(std::max(from, min), max));
-}
-
 template <Precision::ePrecision PREC_FROM, Precision::ePrecision PREC_TO>
 void convertArrayPrecision(typename PrecisionTrait<PREC_TO>::value_type* dst,
                            const typename PrecisionTrait<PREC_FROM>::value_type* src, size_t nelem) {
     using dst_type = typename PrecisionTrait<PREC_TO>::value_type;
 
     for (size_t i = 0; i < nelem; i++) {
-        dst[i] = saturatedCast<dst_type>(src[i]);
+        dst[i] = PrecisionUtils::saturate_cast<dst_type>(src[i]);
     }
 }
 
@@ -1471,6 +1456,9 @@ details::CNNSubnet GetInternalSubnet(const CNNLayerPtr &layer) {
 void ConvertPrecision(ICNNNetwork& net, Precision from, Precision to) {
     auto compare = getPrecisionMask(from, to);
     switch (compare) {
+        case getPrecisionMask(Precision::U32, Precision::I32):
+            convertPrecisionForAll<Precision::U32, Precision::I32>(net);
+            break;
         case getPrecisionMask(Precision::U64, Precision::I32):
             convertPrecisionForAll<Precision::U64, Precision::I32>(net);
             break;

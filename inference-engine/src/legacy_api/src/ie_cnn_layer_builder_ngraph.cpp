@@ -403,14 +403,17 @@ CNNLayer::Ptr NodeConverter<ngraph::op::Convert>::createLayer(const std::shared_
     case Precision::I64:
         precision_str = "I64";
         break;
-    case Precision::U64:
-        precision_str = "U64";
-        break;
     case Precision::U8:
         precision_str = "U8";
         break;
     case Precision::U16:
         precision_str = "U16";
+        break;
+    case Precision::U32:
+        precision_str = "U32";
+        break;
+    case Precision::U64:
+        precision_str = "U64";
         break;
     case Precision::BOOL:
         precision_str = "BOOL";

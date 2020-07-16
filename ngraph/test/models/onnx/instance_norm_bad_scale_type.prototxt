@@ -1,88 +1,92 @@
 ir_version: 3
 producer_name: "nGraph ONNX Importer"
-model_version: 1
 graph {
   node {
-    name: "multiplication"
-    input: "A"
-    input: "B"
-    output: "mul_out"
-    op_type: "Mul"
-  }
-  node {
-    name: "addition"
-    input: "mul_out"
-    input: "C"
-    output: "add_out"
-    op_type: "Add"
-  }
-  input {
-    name: "A"
-    type {
-      tensor_type {
-        elem_type: 7
-        shape {
-          dim {
-            dim_param: "batch"
-          }
-          dim {
-            dim_value: 2
-          }
-        }
-      }
+    input: "x"
+    input: "scale"
+    input: "bias"
+    output: "y"
+    op_type: "InstanceNormalization"
+    attribute {
+      name: "epsilon"
+      f: 0.01
+      type: FLOAT
     }
   }
+  name: "instance_norm_graph"
   input {
-    name: "B"
-    type {
-      tensor_type {
-        elem_type: 7
-        shape {
-          dim {
-            dim_param: "batch"
-          }
-          dim {
-            dim_value: 2
-          }
-        }
-      }
-    }
-  }
-  input {
-    name: "C"
-    type {
-      tensor_type {
-        elem_type: 7
-        shape {
-          dim {
-            dim_param: "batch"
-          }
-          dim {
-            dim_value: 2
-          }
-        }
-      }
-    }
-  }
-  output {
-    name: "add_out"
+    name: "x"
     type {
       tensor_type {
         elem_type: 1
         shape {
           dim {
-            dim_param: "batch"
+            dim_value: 1
           }
           dim {
             dim_value: 2
+          }
+          dim {
+            dim_value: 3
+          }
+          dim {
+            dim_value: 4
           }
         }
       }
     }
   }
-  name: "simple_dyn_shapes_graph"
+  input {
+    name: "scale"
+    type {
+      tensor_type {
+        elem_type: 4
+        shape {
+          dim {
+            dim_value: 2
+          }
+
+        }
+      }
+    }
+  }
+  input {
+    name: "bias"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 2
+          }
+
+        }
+      }
+    }
+  }
+  output {
+    name: "y"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 3
+          }
+          dim {
+            dim_value: 4
+          }
+        }
+      }
+    }
+  }
 }
 opset_import {
-  domain: ""
-  version: 7
+  version: 1
 }

@@ -347,6 +347,7 @@ void GNAPlugin::LoadNetwork(ICNNNetwork & _network) {
 
     NetPass::ConvertPrecision(network, Precision::I64, Precision::I32);
     NetPass::ConvertPrecision(network, Precision::U64, Precision::I32);
+    NetPass::ConvertPrecision(network, Precision::U32, Precision::I32);
 
     // move blobs from Constant layers to Convolution, Deconvolution, FullyConnected layers attributes
     BlobTransformation blobsTransformation;
