@@ -83,17 +83,17 @@ struct ShapeLocation final {
     Location stridesLocation;
     int stridesOffset;
 
-    bool operator==(const ShapeLocation& shapeLocation) {
+    bool operator==(const ShapeLocation& shapeLocation) const {
         return std::tie(dimsLocation, dimsOffset, stridesLocation, stridesOffset) ==
                std::tie(shapeLocation.dimsLocation, shapeLocation.dimsOffset, shapeLocation.stridesLocation, shapeLocation.stridesOffset);
     }
 
-    bool operator!=(const ShapeLocation& shapeLocation) {
+    bool operator!=(const ShapeLocation& shapeLocation) const {
         return !(*this == shapeLocation);
     }
 };
 
-static const ShapeLocation defaultShapeLocation = {
+static constexpr ShapeLocation defaultShapeLocation = {
     Location::None, 0, Location::None, 0
 };
 
@@ -260,7 +260,7 @@ public:
 
     void setShapeAllocationInfo(const ShapeLocation& shapeLocation);
 
-    bool isShapeAllocated();
+    bool isShapeAllocated() const;
 
     //
     // Backend utilities

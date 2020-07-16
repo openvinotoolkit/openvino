@@ -176,7 +176,7 @@ void DataNode::setShapeAllocationInfo(const ShapeLocation& shapeLocation) {
     _shapeLocation = shapeLocation;
 }
 
-bool DataNode::isShapeAllocated() {
+bool DataNode::isShapeAllocated() const {
     return _shapeLocation != defaultShapeLocation;
 }
 
