@@ -245,7 +245,7 @@ cdef class IECore:
         return versions
 
     ## Reads a network from the Intermediate Representation (IR) and creates an `IENetwork`.
-    #  @param model: A `.xml` file of the IR or string with IR.
+    #  @param model: A `.xml`, `.onnx`or `.prototxt` model file or string with IR.
     #  @param weights: A `.bin` file of the IR. Depending on `init_from_buffer` value, can be a string path or
     #                  bytes with file content.
     #  @param init_from_buffer: Defines the way of how `model` and `weights` attributes are interpreted.
@@ -274,10 +274,10 @@ cdef class IECore:
             free(xml_buffer)
         else:
             weights_ = "".encode()
-            if isinstance(model, Path) and isinstance(weights, Path):
+            if isinstance(model, Path) and (isinstance(weights, Path) or not weights):
                 if not model.is_file():
                     raise Exception("Path to the model {} doesn't exist or it's a directory".format(model))
-                if model.suffix != ".onnx":
+                if model.suffix not in [ ".onnx", ".prototxt"]:
                     if not weights.is_file():
                         raise Exception("Path to the weights {} doesn't exist or it's a directory".format(weights))
                     weights_ = bytes(weights)
@@ -285,7 +285,7 @@ cdef class IECore:
             else:
                 if not os.path.isfile(model):
                     raise Exception("Path to the model {} doesn't exist or it's a directory".format(model))
-                if not fnmatch(model, "*.onnx"):
+                if not (fnmatch(model, "*.onnx") or fnmatch(model, "*.prototxt")):
                     if not os.path.isfile(weights):
                         raise Exception("Path to the weights {} doesn't exist or it's a directory".format(weights))
                     weights_ = weights.encode()

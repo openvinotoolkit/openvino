@@ -753,7 +753,14 @@ layout layout_optimizer::get_expected_layout(layout const& current_layout,
     } else if (_optimization_attributes.b_fs_yx_fsv16_network &&
                deconvolution_b_fs_yx_fsv16_opt(current_layout, output_or_weights_layout, prim)) {
         expected_tensor = current_layout.size;
-        expected_format = cldnn::format::b_fs_yx_fsv16;
+        auto input_tensor = node.get_dependency(0).get_output_layout().size;
+        int input_features = input_tensor.feature[0];
+        int output_features = expected_tensor.feature[0];
+        float r = float(input_features * output_features) / (align_to(input_features, 16) * align_to(output_features, 16));
+        if (r > 0.5f)
+            expected_format = cldnn::format::b_fs_yx_fsv16;
+        else
+            expected_format = cldnn::format::bfyx;
     }
     return layout(expected_data_type, expected_format, expected_tensor);
 }
