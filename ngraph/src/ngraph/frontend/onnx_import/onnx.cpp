@@ -43,17 +43,45 @@ namespace ngraph
 
                 struct stream_parse : ngraph_error
                 {
-                    explicit stream_parse(std::istream&)
-                        : ngraph_error{"Failure parsing data from the provided input stream"}
+                    explicit stream_parse(const std::string& stream_type)
+                        : ngraph_error{"Failure parsing data from the provided input " +
+                                       stream_type + "."}
+                    {
+                    }
+                };
+
+                struct stream_corrupted : ngraph_error
+                {
+                    explicit stream_corrupted()
+                        : ngraph_error{"Provided input stream is in incorrect state."}
                     {
                     }
                 };
 
             } // namespace error
-        }     // namespace detail
+
+            std::shared_ptr<Function> get_ng_function(const ONNX_NAMESPACE::ModelProto& model_proto)
+            {
+                Model model{model_proto};
+                Graph graph{model_proto.graph(), model};
+                auto function = std::make_shared<Function>(
+                    graph.get_ng_outputs(), graph.get_ng_parameters(), graph.get_name());
+                for (std::size_t i{0}; i < function->get_output_size(); ++i)
+                {
+                    function->get_output_op(i)->set_friendly_name(
+                        graph.get_outputs().at(i).get_name());
+                }
+                return function;
+            }
+        } // namespace detail
 
         std::shared_ptr<Function> import_onnx_model(std::istream& stream)
         {
+            if (!stream.good())
+            {
+                throw detail::error::stream_corrupted();
+            }
+
             ONNX_NAMESPACE::ModelProto model_proto;
             // Try parsing input as a binary protobuf message
             if (!model_proto.ParseFromIstream(&stream))
@@ -68,20 +96,11 @@ namespace ngraph
                 // Try parsing input as a prototxt message
                 if (!google::protobuf::TextFormat::Parse(&iistream, &model_proto))
                 {
-                    throw detail::error::stream_parse{stream};
+                    throw detail::error::stream_parse{"std::istream"};
                 }
 #endif
             }
-
-            Model model{model_proto};
-            Graph graph{model_proto.graph(), model};
-            auto function = std::make_shared<Function>(
-                graph.get_ng_outputs(), graph.get_ng_parameters(), graph.get_name());
-            for (std::size_t i{0}; i < function->get_output_size(); ++i)
-            {
-                function->get_output_op(i)->set_friendly_name(graph.get_outputs().at(i).get_name());
-            }
-            return function;
+            return detail::get_ng_function(model_proto);
         }
 
         std::shared_ptr<Function> import_onnx_model(const std::string& file_path)
