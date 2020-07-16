@@ -217,6 +217,7 @@ extensions/front/mxnet/ssd_pattern_remove_transpose.py
 extensions/front/mxnet/ssd_reorder_detection_out_inputs.py
 extensions/front/mxnet/stack_ext.py
 extensions/front/mxnet/swapaxis_ext.py
+extensions/front/mxnet/Swish_ext.py
 extensions/front/mxnet/tile_ext.py
 extensions/front/mxnet/tile_replacer.py
 extensions/front/mxnet/transpose_ext.py
@@ -438,7 +439,7 @@ extensions/front/tf/ssd_toolbox_multihead_detection_output.json
 extensions/front/tf/ssd_v2_support.json
 extensions/front/tf/SSDToolboxDetectionOutput.py
 extensions/front/tf/swap_deconv_inputs.py
-extensions/front/tf/swish.py
+extensions/front/tf/swish_ext.py
 extensions/front/tf/SwitchMergeOptimization.py
 extensions/front/tf/TensorArrayExtractors.py
 extensions/front/tf/TensorArrayGatherV3.py
