@@ -16,7 +16,7 @@ static const char help_message[] = "Print a usage message";
 static const char input_message[] = "Optional. Path to a folder with images and/or binaries or to specific image or binary file.";
 
 /// @brief message for model argument
-static const char model_message[] = "Required. Path to an .xml file with a trained model or to a .blob files with a trained compiled model";
+static const char model_message[] = "Required. Path to an .xml/.onnx/.prototxt file with a trained model or to a .blob files with a trained compiled model.";
 
 /// @brief message for execution mode
 static const char api_message[] = "Optional. Enable Sync/Async API. Default value is \"async\".";
