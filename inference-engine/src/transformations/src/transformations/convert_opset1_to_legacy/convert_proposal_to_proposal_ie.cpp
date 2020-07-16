@@ -21,7 +21,7 @@ ngraph::pass::ConvertProposalToLegacyMatcher::ConvertProposalToLegacyMatcher() {
 
     auto proposal = std::make_shared<ngraph::opset1::Proposal>(input_0, input_1, input_2, attr);
 
-    ngraph::graph_rewrite_callback callback = [](pattern::Matcher& m) {
+    ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
         auto proposal = std::dynamic_pointer_cast<ngraph::opset1::Proposal> (m.get_match_root());
 
         if (!proposal) {

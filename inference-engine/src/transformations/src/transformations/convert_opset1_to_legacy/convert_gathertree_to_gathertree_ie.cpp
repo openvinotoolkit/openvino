@@ -17,7 +17,7 @@ ngraph::pass::ConvertGatherTreeToGatherTreeIEMatcher::ConvertGatherTreeToGatherT
     auto input3 = std::make_shared<pattern::op::Label>(element::i64, Shape{});
     auto gt = std::make_shared<ngraph::opset1::GatherTree>(input0, input1, input2, input3);
 
-    ngraph::graph_rewrite_callback callback = [](pattern::Matcher& m) {
+    ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
         auto gt = std::dynamic_pointer_cast<ngraph::opset1::GatherTree> (m.get_match_root());
         if (!gt) {
             return false;

@@ -19,7 +19,7 @@ ngraph::pass::ConvertPReLUToReLUIEMatcher::ConvertPReLUToReLUIEMatcher() {
     auto prelu = std::make_shared<ngraph::opset1::PRelu>(input_0, input_1);
 
 
-    ngraph::graph_rewrite_callback callback = [](pattern::Matcher& m) {
+    ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
         auto prelu = std::dynamic_pointer_cast<ngraph::opset1::PRelu> (m.get_match_root());
         if (!prelu) {
             return false;

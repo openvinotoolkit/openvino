@@ -14,7 +14,7 @@
 ngraph::pass::ConvertGatherToGatherIEMatcher::ConvertGatherToGatherIEMatcher() {
     auto gather = ngraph::pattern::wrap_type<opset1::Gather>();
 
-    ngraph::graph_rewrite_callback callback = [](pattern::Matcher &m) {
+    ngraph::matcher_pass_callback callback = [](pattern::Matcher &m) {
         auto gather = std::dynamic_pointer_cast<ngraph::opset1::Gather>(m.get_match_root());
         if (!gather) {
             return false;

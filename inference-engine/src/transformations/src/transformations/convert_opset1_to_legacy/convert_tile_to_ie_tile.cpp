@@ -17,7 +17,7 @@ ngraph::pass::ConvertTileToLegacyMatcher::ConvertTileToLegacyMatcher() {
     auto shp = std::make_shared<pattern::op::Label>(element::i64, Shape{4});
     auto tile = std::make_shared<ngraph::opset1::Tile>(data, shp);
 
-    ngraph::graph_rewrite_callback callback = [](pattern::Matcher& m) {
+    ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
         auto tile = std::dynamic_pointer_cast<ngraph::opset1::Tile> (m.get_match_root());
         if (!tile) {
             return false;

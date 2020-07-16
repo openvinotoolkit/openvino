@@ -14,7 +14,7 @@
 ngraph::pass::ConvertPadToLegacyMatcher::ConvertPadToLegacyMatcher() {
     auto m_pad = ngraph::pattern::wrap_type<ngraph::opset1::Pad>();
 
-    ngraph::graph_rewrite_callback callback = [](pattern::Matcher& m) {
+    ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
         auto pad = std::dynamic_pointer_cast<ngraph::opset1::Pad> (m.get_match_root());
         if (!pad) {
             return false;

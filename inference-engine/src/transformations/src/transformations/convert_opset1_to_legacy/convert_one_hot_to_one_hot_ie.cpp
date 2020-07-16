@@ -20,7 +20,7 @@ ngraph::pass::ConvertOneHotToOneHotIEMatcher::ConvertOneHotToOneHotIEMatcher() {
     auto off_value = std::make_shared<pattern::op::Label>(element::f32, Shape{});
     auto one_hot = std::make_shared<ngraph::opset1::OneHot>(input, depth, on_value, off_value, 1);
 
-    ngraph::graph_rewrite_callback callback = [=](pattern::Matcher& m) {
+    ngraph::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         auto one_hot = std::dynamic_pointer_cast<ngraph::opset1::OneHot> (m.get_match_root());
         if (!one_hot) {
             return false;

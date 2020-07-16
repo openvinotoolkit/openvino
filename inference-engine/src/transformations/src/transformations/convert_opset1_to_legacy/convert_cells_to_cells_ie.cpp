@@ -19,7 +19,7 @@
 ngraph::pass::ConvertLSTMCellMatcher::ConvertLSTMCellMatcher() {
     auto lstm_cell_ngraph = ngraph::pattern::wrap_type<ngraph::opset1::LSTMCell>();
 
-    ngraph::graph_rewrite_callback callback = [](pattern::Matcher& m) {
+    ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
         auto lstm_cell = std::dynamic_pointer_cast<ngraph::opset1::LSTMCell> (m.get_match_root());
         if (!lstm_cell) {
             return false;
@@ -60,7 +60,7 @@ ngraph::pass::ConvertLSTMCellMatcher::ConvertLSTMCellMatcher() {
 ngraph::pass::ConvertGRUCellMatcher::ConvertGRUCellMatcher() {
     auto gru_cell_ngraph = ngraph::pattern::wrap_type<ngraph::opset3::GRUCell>();
 
-    ngraph::graph_rewrite_callback callback = [](pattern::Matcher& m) {
+    ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
         auto gru_cell = std::dynamic_pointer_cast<ngraph::opset3::GRUCell> (m.get_match_root());
         if (!gru_cell) {
             return false;
@@ -101,7 +101,7 @@ ngraph::pass::ConvertGRUCellMatcher::ConvertGRUCellMatcher() {
 ngraph::pass::ConvertRNNCellMatcher::ConvertRNNCellMatcher() {
     auto rnn_cell_ngraph = ngraph::pattern::wrap_type<ngraph::opset3::RNNCell>();
 
-    ngraph::graph_rewrite_callback callback = [](pattern::Matcher& m) {
+    ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
         auto rnn_cell = std::dynamic_pointer_cast<ngraph::opset3::RNNCell> (m.get_match_root());
         if (!rnn_cell) {
             return false;

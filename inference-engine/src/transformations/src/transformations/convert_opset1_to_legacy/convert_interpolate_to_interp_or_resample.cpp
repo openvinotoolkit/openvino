@@ -20,7 +20,7 @@ ngraph::pass::ConvertInterpolateToInterpOrResampleMatcher::ConvertInterpolateToI
     auto shp = std::make_shared<pattern::op::Label>(element::i64, Shape{2});
     auto interpolate = std::make_shared<ngraph::opset1::Interpolate>(data, shp, ngraph::op::InterpolateAttrs());
 
-    ngraph::graph_rewrite_callback callback = [](pattern::Matcher& m) {
+    ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
         auto interpolate = std::dynamic_pointer_cast<ngraph::opset1::Interpolate> (m.get_match_root());
         if (!interpolate)
             return false;

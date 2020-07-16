@@ -77,7 +77,7 @@ ngraph::pass::ConvertNormalizeL2ToLegacyMatcher::ConvertNormalizeL2ToLegacyMatch
     auto axis = std::make_shared<ngraph::opset1::Constant>(element::i64, Shape{1}, std::vector<int64_t>{0});
     auto normalize = std::make_shared<ngraph::op::NormalizeL2>(input_0, axis, 0, ngraph::op::EpsMode::ADD);
 
-    ngraph::graph_rewrite_callback callback = [](pattern::Matcher& m) {
+    ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
         auto normalize = std::dynamic_pointer_cast<ngraph::op::NormalizeL2> (m.get_match_root());
         if (!normalize) return false;
 

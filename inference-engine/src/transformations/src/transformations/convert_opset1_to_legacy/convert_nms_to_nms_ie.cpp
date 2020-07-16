@@ -16,7 +16,7 @@
 ngraph::pass::ConvertNMSToNMSIEMatcher::ConvertNMSToNMSIEMatcher() {
     auto nms = ngraph::pattern::wrap_type<opset1::NonMaxSuppression>();
 
-    ngraph::graph_rewrite_callback callback = [](pattern::Matcher &m) {
+    ngraph::matcher_pass_callback callback = [](pattern::Matcher &m) {
         auto nms = std::dynamic_pointer_cast<opset1::NonMaxSuppression>(m.get_match_root());
         if (!nms) {
             return false;

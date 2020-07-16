@@ -17,7 +17,7 @@
 ngraph::pass::ConvertTopKToTopKIEMatcher::ConvertTopKToTopKIEMatcher() {
     auto topk = ngraph::pattern::wrap_type<opset1::TopK>();
 
-    ngraph::graph_rewrite_callback callback = [](pattern::Matcher &m) {
+    ngraph::matcher_pass_callback callback = [](pattern::Matcher &m) {
         auto topk = std::dynamic_pointer_cast<opset1::TopK>(m.get_match_root());
         if (!topk || topk->input(1).get_partial_shape().rank().is_dynamic()) {
             return false;

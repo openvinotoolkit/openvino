@@ -18,7 +18,7 @@ ngraph::pass::ConvertSqrtToPowerIEMatcher::ConvertSqrtToPowerIEMatcher() {
     auto sqrt = std::make_shared<ngraph::opset1::Sqrt>(input_0);
 
 
-    ngraph::graph_rewrite_callback callback = [](pattern::Matcher& m) {
+    ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
         auto sqrt = std::dynamic_pointer_cast<ngraph::opset1::Sqrt>(m.get_match_root());
         if (!sqrt) {
             return false;

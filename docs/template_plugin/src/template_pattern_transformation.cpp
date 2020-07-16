@@ -19,7 +19,7 @@ ngraph::pass::DecomposeDivideMatcher::DecomposeDivideMatcher() {
     auto input1 = std::make_shared<pattern::op::Label>(element::f32, Shape{});
     auto div = std::make_shared<ngraph::opset3::Divide>(input0, input1);
 
-    ngraph::graph_rewrite_callback callback = [](pattern::Matcher& m) {
+    ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
         auto div = std::dynamic_pointer_cast<ngraph::opset3::Divide> (m.get_match_root());
         // We can not apply this transformation in case with integer input data type
         if (!div || div->input(0).get_element_type().is_integral()) {
@@ -57,7 +57,7 @@ ngraph::pass::ReluReluFusionMatcher::ReluReluFusionMatcher() {
     auto m_relu1 = ngraph::pattern::wrap_type<ngraph::opset3::Relu>(pattern::consumers_count(1));
     auto m_relu2 = ngraph::pattern::wrap_type<ngraph::opset3::Relu>({m_relu1});
 
-    ngraph::graph_rewrite_callback callback = [=](pattern::Matcher& m) {
+    ngraph::matcher_pass_callback callback = [=](pattern::Matcher& m) {
         // Map that helps to connect labels with matched outputs
         auto& node_to_output = m.get_pattern_value_map();
 

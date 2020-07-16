@@ -18,7 +18,7 @@ ngraph::pass::ConvertLRNToLegacyMatcher::ConvertLRNToLegacyMatcher() {
     auto input_1 = std::make_shared<pattern::op::Label>(element::i64, Shape{1});
     auto lrn = std::make_shared<ngraph::opset1::LRN>(input_0, input_1, 1, 1, 1, 1);
 
-    ngraph::graph_rewrite_callback callback = [](pattern::Matcher& m) {
+    ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
         auto lrn = std::dynamic_pointer_cast<ngraph::opset1::LRN> (m.get_match_root());
         if (!lrn) {
             return false;

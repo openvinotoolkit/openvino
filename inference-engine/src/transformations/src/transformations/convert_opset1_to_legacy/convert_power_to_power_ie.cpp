@@ -19,7 +19,7 @@ ngraph::pass::ConvertPowerToPowerIEMatcher::ConvertPowerToPowerIEMatcher() {
     auto power = std::make_shared<ngraph::opset1::Power>(input_0, input_1);
 
 
-    ngraph::graph_rewrite_callback callback = [](pattern::Matcher& m) {
+    ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
         auto power = std::dynamic_pointer_cast<ngraph::opset1::Power> (m.get_match_root());
         if (!power) {
             return false;

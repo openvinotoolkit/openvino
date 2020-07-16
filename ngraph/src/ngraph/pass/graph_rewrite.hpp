@@ -33,6 +33,7 @@ namespace ngraph
         class MatcherPass;
     }
 
+    using matcher_pass_callback = std::function<bool(ngraph::pattern::Matcher& m)>;
     using graph_rewrite_callback = std::function<bool(ngraph::pattern::Matcher& m)>;
     using recurrent_graph_rewrite_callback =
         std::function<bool(ngraph::pattern::RecurrentMatcher& m)>;
@@ -116,8 +117,7 @@ public:
 
     void add_matcher(const std::shared_ptr<pattern::Matcher>& m,
                      const ngraph::graph_rewrite_callback& callback,
-                     const PassPropertyMask& property);
-    NGRAPH_DEPRECATED("Use MatcherPass instead");
+                     const PassPropertyMask& property) NGRAPH_DEPRECATED("Use MatcherPass instead");
 
     void add_matcher(const std::shared_ptr<pattern::Matcher>& m,
                      const ngraph::graph_rewrite_callback& callback)

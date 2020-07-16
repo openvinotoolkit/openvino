@@ -23,7 +23,7 @@ ngraph::pass::ConvertNMS4ToLegacyMatcher::ConvertNMS4ToLegacyMatcher() {
     auto nms = std::make_shared<ngraph::opset4::NonMaxSuppression>(boxes, scores, max_output_boxes_per_class,
                                                                    iou_threshold, score_threshold);
 
-    ngraph::graph_rewrite_callback callback = [](pattern::Matcher &m) {
+    ngraph::matcher_pass_callback callback = [](pattern::Matcher &m) {
         auto nms_4 = std::dynamic_pointer_cast<ngraph::opset4::NonMaxSuppression>(m.get_match_root());
         if (!nms_4) {
             return false;
