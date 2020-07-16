@@ -278,7 +278,7 @@ namespace std
 
             // TODO: Do we need another map, so we could
             // specify how to compute hash for each op?
-            if (p_this.is_commutative())
+            if (ngraph::op::util::is_commutative(&p_this))
             {
                 sort(begin(cargs), end(cargs));
             }

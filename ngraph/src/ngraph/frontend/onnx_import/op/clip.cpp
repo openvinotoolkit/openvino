@@ -20,6 +20,7 @@
 #include "clip.hpp"
 #include "default_opset.hpp"
 #include "ngraph/builder/make_constant.hpp"
+#include "ngraph/frontend/onnx_import/core/null_node.hpp"
 
 namespace ngraph
 {
@@ -57,7 +58,7 @@ namespace ngraph
 
                     // If second input is provided, assign to min input, otherwise set lowest
                     // numeric limit of double as min input.
-                    if (inputs.size() > 1 && !inputs.at(1)->is_null())
+                    if (inputs.size() > 1 && !ngraph::op::util::is_null(inputs.at(1).get()))
                     {
                         min = inputs.at(1);
                     }
@@ -69,7 +70,7 @@ namespace ngraph
 
                     // If third input is provided, assign to max input, otherwise set maximum
                     // numeric limit of double as max input.
-                    if (inputs.size() == 3 && !inputs.at(2)->is_null())
+                    if (inputs.size() == 3 && !ngraph::op::util::is_null(inputs.at(2).get()))
                     {
                         max = inputs.at(2);
                     }

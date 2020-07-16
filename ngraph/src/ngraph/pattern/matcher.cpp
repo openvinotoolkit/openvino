@@ -23,6 +23,7 @@
 #include "ngraph/log.hpp"
 #include "ngraph/op/get_output_element.hpp"
 #include "ngraph/op/parameter.hpp"
+#include "ngraph/op/util/op_types.hpp"
 
 namespace ngraph
 {
@@ -187,7 +188,7 @@ namespace ngraph
                 return false;
             }
 
-            if (graph_node->is_commutative())
+            if (ngraph::op::util::is_commutative(graph_node.get()))
             {
                 // TODO: [nikolayk] we don't really have to use lexicographically-based perms,
                 // heap's algo should be faster

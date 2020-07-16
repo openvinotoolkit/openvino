@@ -260,10 +260,7 @@ namespace ngraph
                              const element::Type& element_type,
                              const PartialShape& pshape);
 
-        virtual bool is_null() const { return false; }
-        virtual bool is_commutative() const { return false; }
         virtual bool is_dynamic() const;
-        virtual bool has_state() const { return false; }
         size_t get_instance_id() const { return m_instance_id; }
         /// \brief Writes a description of a node to a stream
         /// \param os The stream; should be returned

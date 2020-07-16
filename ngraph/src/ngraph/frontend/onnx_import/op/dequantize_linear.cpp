@@ -21,6 +21,7 @@
 #include "dequantize_linear.hpp"
 #include "ngraph/axis_set.hpp"
 #include "ngraph/builder/make_constant.hpp"
+#include "ngraph/frontend/onnx_import/core/null_node.hpp"
 #include "ngraph/op/convert.hpp"
 #include "ngraph/op/dequantize.hpp"
 #include "ngraph/shape.hpp"
@@ -37,7 +38,7 @@ namespace ngraph
             {
                 std::shared_ptr<ngraph::Node> get_zero_point(const NodeVector& inputs)
                 {
-                    if (inputs.size() == 3 && !inputs[2]->is_null())
+                    if (inputs.size() == 3 && !ngraph::op::util::is_null(inputs[2].get()))
                     {
                         auto zero_point = inputs[2];
 

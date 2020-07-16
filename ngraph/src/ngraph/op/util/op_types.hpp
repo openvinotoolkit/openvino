@@ -48,6 +48,8 @@ namespace ngraph
             bool is_output(const ngraph::Node* node);
             NGRAPH_API
             bool is_constant(const ngraph::Node* node);
+            NGRAPH_API
+            bool is_commutative(const ngraph::Node* node);
         }
     }
 }

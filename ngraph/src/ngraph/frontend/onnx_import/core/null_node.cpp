@@ -31,3 +31,8 @@ namespace ngraph
         }
     } // namespace onnx_import
 } // namespace ngraph
+
+bool ngraph::op::util::is_null(const ngraph::Node* node)
+{
+    return dynamic_cast<const ngraph::onnx_import::NullNode*>(node) != nullptr;
+}
