@@ -24,17 +24,10 @@ class ResizeBilinearFrontExtractor(FrontExtractorOp):
 
     @classmethod
     def extract(cls, node):
-        transformation_mode = 'align_corners' if int(node.pb.attr['align_corners'].b) else 'half_pixel'
-        node_attributes = {
-            'axes': int64_array([1, 2]),
+        mapping_rule = {
+            'align_corners': int(node.pb.attr['align_corners'].b),
             'mode': 'linear',
-            'antialias': 0,
-            'pads_begin': int64_array([0]),
-            'pads_end': int64_array([0]),
-            'coordinate_transformation_mode': transformation_mode,
-            'nearest_mode': 'round_prefer_floor',
-            'cube_coeff': -0.75,
-            'version': 'opset3'
+            'axes': int64_array([1, 2]),
         }
-        Interpolate.update_node_stat(node, node_attributes)
+        Interpolate.update_node_stat(node, mapping_rule)
         return cls.enabled
