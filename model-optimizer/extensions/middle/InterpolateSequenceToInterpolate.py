@@ -61,6 +61,67 @@ class CanBeFused:
         }
         self.default_pads = int64_array([0])
 
+    def _compare_attributes_of_interpolate1(self, first: Node, second: Node) -> bool:
+        """
+        This function checks whether attributes of Interpolate-1 nodes first and second are identical
+        (except attribute 'axes').
+        :param first: the first of compared nodes
+        :param second: the second of compared nodes
+        :return: True, if attributes of nodes are identical and False otherwise
+        """
+        # If some of attributes 'mode', 'align_corners', 'antialias', 'pads_begin', 'pads_end' are different,
+        # then attributes of nodes are not identical.
+        op = Interpolate(graph=first.graph, attrs={})
+        for attr in ['mode', 'align_corners', 'antialias', 'pads_begin', 'pads_end']:
+            if first.soft_get(attr, default=op.attrs[attr]) != second.soft_get(attr, default=op.attrs[attr]):
+                return False
+        return True
+
+    def _compare_attributes_of_interpolate4(self, first: Node, second: Node) -> bool:
+        """
+        This function checks whether attributes of Interpolate-4 nodes first and second are identical.
+        :param first: the first of compared nodes
+        :param second: the second of compared nodes
+        :return: True, if attributes of nodes are identical and False otherwise
+        """
+        # If some of attributes 'mode', 'coordinate_transformation_mode', 'nearest_mode', 'antialias', 'cube_coeff'
+        # are different, then attributes of first and second are not identical.
+        for attr in self.default_values_for_opset4.keys():
+            default_value = self.default_values_for_opset4[attr]
+            if first.soft_get(attr, default=default_value) != second.soft_get(attr, default=default_value):
+                return False
+
+        # If attributes 'pads_begin' or 'pads_end' of nodes first and second are different, then attributes
+        # of first and second are not identical.
+        for attr in ['pads_begin', 'pads_end']:
+            if not np.array_equal(first.soft_get(attr, default=self.default_pads),
+                                  second.soft_get(attr, default=self.default_pads)):
+                return False
+        return True
+
+    def _compare_attributes(self, first: Node, second: Node) -> bool:
+        """
+        This function checks whether attributes of nodes first and second are identical (except attribute 'axes').
+        :param first: the first of compared nodes
+        :param second: the second of compared nodes
+        :return: True, if attributes of nodes are identical and False otherwise
+        """
+        # If opsets of nodes are different, then nodes have different attributes.
+        fst_opset = first.get_opset()
+        snd_opset = second.get_opset()
+        if fst_opset != snd_opset:
+            return False
+
+        if fst_opset not in ['opset1', 'opset4']:
+            fst_name = first.soft_get('name', first.id)
+            snd_name = second.soft_get('name', second.id)
+            raise Error('Unsupported opset {} for nodes with names {} and {}'.format(fst_opset, fst_name, snd_name))
+
+        if fst_opset == 'opset1':
+            return self._compare_attributes_of_interpolate1(first, second)
+        else:
+            return self._compare_attributes_of_interpolate4(first, second)
+
     def __call__(self, first: Node, second: Node) -> bool:
         """
         This function checks whether Interpolate nodes 'first' and 'second' can be fused.
@@ -68,35 +129,11 @@ class CanBeFused:
         :param second: the second of fused nodes
         :return: True, if nodes can be fused, and False otherwise
         """
-        # If some of attributes 'mode', 'align_corners', 'antialias', 'pads_begin', 'pads_end', 'version' are different,
-        # then nodes cannot be fused, because fused result will be incorrect.
-        fst_opset = first.get_opset()
-        snd_opset = second.get_opset()
-        if fst_opset != snd_opset:
+        if not self._compare_attributes(first, second):
             return False
 
-        if fst_opset == 'opset1':
-            op = Interpolate(graph=first.graph, attrs={})
-            for attr in ['mode', 'align_corners', 'antialias', 'pads_begin', 'pads_end']:
-                if first.soft_get(attr, default=op.attrs[attr]) != second.soft_get(attr, default=op.attrs[attr]):
-                    return False
-        elif fst_opset == 'opset4':
-            for attr in self.default_values_for_opset4.keys():
-                default_value = self.default_values_for_opset4[attr]
-                if first.soft_get(attr, default=default_value) != second.soft_get(attr, default=default_value):
-                    return False
-
-            for attr in ['pads_begin', 'pads_end']:
-                if not np.array_equal(first.soft_get(attr, default=self.default_pads),
-                                      second.soft_get(attr, default=self.default_pads)):
-                    return False
-        else:
-            fst_name = first.soft_get('name', first.id)
-            snd_name = second.soft_get('name', second.id)
-            raise Error('Unsupported opset {} for nodes with names {} and {}'.format(fst_opset, fst_name, snd_name))
-
-        fst_axes = set([a for a in first.axes])
-        snd_axes = set([a for a in second.axes])
+        fst_axes = set([a for a in Interpolate.get_axes(first)])
+        snd_axes = set([a for a in Interpolate.get_axes(second)])
 
         self.accumulated_axes = self.accumulated_axes | fst_axes
 
