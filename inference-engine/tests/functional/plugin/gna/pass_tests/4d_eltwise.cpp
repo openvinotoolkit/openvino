@@ -70,7 +70,6 @@ class Eltwise4dBroadcast : public testing::WithParamInterface<eltwiseParams>,
 
             ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(reshape2) };
             function = std::make_shared<ngraph::Function>(results, params, "Eltwise4dBroadcast");
-
         }
 };
 
