@@ -33,22 +33,7 @@ namespace ngraph
             {
                 NodeVector acosh(const Node& node)
                 {
-                    std::shared_ptr<ngraph::Node> data{node.get_ng_inputs().at(0)};
-
-                    // Define inverse hyperbolic cosine in terms of natural logarithm:
-                    //
-                    // arccosh(x) = ln(x + sqrt(x^2 - 1))
-                    //
-
-                    const auto one =
-                        default_opset::Constant::create(data->get_element_type(), {}, {1.f});
-
-                    const auto x_square = std::make_shared<default_opset::Multiply>(data, data);
-                    const auto sqrt_args = std::make_shared<default_opset::Subtract>(x_square, one);
-                    const auto sqrt_node = std::make_shared<default_opset::Sqrt>(sqrt_args);
-                    const auto log_args = std::make_shared<default_opset::Add>(data, sqrt_node);
-
-                    return {std::make_shared<default_opset::Log>(log_args)};
+                    return {std::make_shared<default_opset::Acosh>(node.get_ng_inputs().at(0))};
                 }
 
             } // namespace set_1
