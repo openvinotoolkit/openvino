@@ -38,8 +38,8 @@ class TestMatcherPass : public pass::MatcherPass
 public:
     TestMatcherPass()
     {
-        auto m_relu1 = ngraph::pattern::wrap_type<opset3::Relu>(
-            [](Output<Node> output) -> bool { return output.get_target_inputs().size() == 1; });
+        auto m_relu1 =
+            ngraph::pattern::wrap_type<ngraph::opset3::Relu>(pattern::consumers_count(1));
         auto m_relu2 = ngraph::pattern::wrap_type<ngraph::opset3::Relu>({m_relu1});
 
         ngraph::graph_rewrite_callback callback = [=](pattern::Matcher& m) {

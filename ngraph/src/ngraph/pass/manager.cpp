@@ -56,7 +56,8 @@ void pass::Manager::run_passes(shared_ptr<Function> func, bool /* transitive */)
     stopwatch pass_timer;
     stopwatch overall_timer;
     overall_timer.start();
-    for (shared_ptr<PassBase> pass : m_pass_list)
+    bool function_changed = false;
+    for (auto& pass : m_pass_list)
     {
         pass_timer.start();
         pass->set_state(get_state());
@@ -71,7 +72,7 @@ void pass::Manager::run_passes(shared_ptr<Function> func, bool /* transitive */)
             {
                 vt_pass->set_ops_to_details(get_state().get_visualize_tree_ops_map());
             }
-            module_pass->run_on_module(f_array);
+            function_changed = module_pass->run_on_module(f_array);
         }
         else if (auto matcher_pass = dynamic_pointer_cast<MatcherPass>(pass))
         {
@@ -86,7 +87,7 @@ void pass::Manager::run_passes(shared_ptr<Function> func, bool /* transitive */)
             }
             // GraphRewrite is a temporary container for MatcherPass to make execution
             // on on entire ngraph::Function
-            GraphRewrite(matcher_pass).run_on_function(func);
+            function_changed = GraphRewrite(matcher_pass).run_on_function(func);
         }
         else if (auto function_pass = dynamic_pointer_cast<FunctionPass>(pass))
         {
@@ -99,7 +100,19 @@ void pass::Manager::run_passes(shared_ptr<Function> func, bool /* transitive */)
                              << "function is dynamic. Skipping this transformation";
                 continue;
             }
-            function_pass->run_on_function(func);
+
+            if (dynamic_pointer_cast<Validate>(pass))
+            {
+                if (function_changed)
+                {
+                    function_pass->run_on_function(func);
+                    function_changed = false;
+                }
+            }
+            else
+            {
+                function_changed = function_pass->run_on_function(func);
+            }
         }
         else if (auto node_pass = dynamic_pointer_cast<NodePass>(pass))
         {
@@ -111,7 +124,7 @@ void pass::Manager::run_passes(shared_ptr<Function> func, bool /* transitive */)
             }
             for (shared_ptr<Node> n : func->get_ops())
             {
-                node_pass->run_on_node(n);
+                function_changed |= node_pass->run_on_node(n);
             }
         }
         else if (auto call_graph_pass = dynamic_pointer_cast<CallGraphPass>(pass))
@@ -123,7 +136,7 @@ void pass::Manager::run_passes(shared_ptr<Function> func, bool /* transitive */)
                              << "function is dynamic. Skipping this transformation";
                 continue;
             }
-            call_graph_pass->run_on_call_graph(func->get_ordered_ops());
+            function_changed = call_graph_pass->run_on_call_graph(func->get_ordered_ops());
         }
 
         if (m_visualize || m_serialize)

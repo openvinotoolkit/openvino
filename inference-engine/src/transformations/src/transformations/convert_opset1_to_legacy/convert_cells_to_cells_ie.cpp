@@ -10,21 +10,14 @@
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/rt_info.hpp>
+#include <ngraph/pattern/op/wrap_type.hpp>
 
 #include <ngraph_ops/lstm_cell_ie.hpp>
 #include <ngraph_ops/gru_cell_ie.hpp>
 #include <ngraph_ops/rnn_cell_ie.hpp>
 
 ngraph::pass::ConvertLSTMCellMatcher::ConvertLSTMCellMatcher() {
-    // placeholders
-    auto input_0 = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1, 1});  // X
-    auto input_1 = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1});  // initial_hidden_state
-    auto input_2 = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1});  // initial_cell_state
-    auto input_3 = std::make_shared<pattern::op::Label>(element::f32, Shape{4, 1});  // W
-    auto input_4 = std::make_shared<pattern::op::Label>(element::f32, Shape{4, 1});  // R
-    auto input_5 = std::make_shared<pattern::op::Label>(element::f32, Shape{4});     // B
-
-    auto lstm_cell_ngraph = std::make_shared<ngraph::opset1::LSTMCell>(input_0, input_1, input_2, input_3, input_4, input_5, 1);
+    auto lstm_cell_ngraph = ngraph::pattern::wrap_type<ngraph::opset1::LSTMCell>();
 
     ngraph::graph_rewrite_callback callback = [](pattern::Matcher& m) {
         auto lstm_cell = std::dynamic_pointer_cast<ngraph::opset1::LSTMCell> (m.get_match_root());
@@ -65,14 +58,7 @@ ngraph::pass::ConvertLSTMCellMatcher::ConvertLSTMCellMatcher() {
 }
 
 ngraph::pass::ConvertGRUCellMatcher::ConvertGRUCellMatcher() {
-    // placeholders
-    auto input_0 = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1});  // X
-    auto input_1 = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1});  // initial_hidden_state
-    auto input_2 = std::make_shared<pattern::op::Label>(element::f32, Shape{3, 1});  // W
-    auto input_3 = std::make_shared<pattern::op::Label>(element::f32, Shape{3, 1});  // R
-    auto input_4 = std::make_shared<pattern::op::Label>(element::f32, Shape{3});     // B
-
-    auto gru_cell_ngraph = std::make_shared<ngraph::opset3::GRUCell>(input_0, input_1, input_2, input_3, input_4, 1);
+    auto gru_cell_ngraph = ngraph::pattern::wrap_type<ngraph::opset3::GRUCell>();
 
     ngraph::graph_rewrite_callback callback = [](pattern::Matcher& m) {
         auto gru_cell = std::dynamic_pointer_cast<ngraph::opset3::GRUCell> (m.get_match_root());
@@ -113,14 +99,7 @@ ngraph::pass::ConvertGRUCellMatcher::ConvertGRUCellMatcher() {
 }
 
 ngraph::pass::ConvertRNNCellMatcher::ConvertRNNCellMatcher() {
-    // placeholders
-    auto input_0 = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1});  // X
-    auto input_1 = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1});  // initial_hidden_state
-    auto input_2 = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1});  // W
-    auto input_3 = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1});  // R
-    auto input_4 = std::make_shared<pattern::op::Label>(element::f32, Shape{1});     // B
-
-    auto rnn_cell_ngraph = std::make_shared<ngraph::opset3::RNNCell>(input_0, input_1, input_2, input_3, input_4, 1);
+    auto rnn_cell_ngraph = ngraph::pattern::wrap_type<ngraph::opset3::RNNCell>();
 
     ngraph::graph_rewrite_callback callback = [](pattern::Matcher& m) {
         auto rnn_cell = std::dynamic_pointer_cast<ngraph::opset3::RNNCell> (m.get_match_root());

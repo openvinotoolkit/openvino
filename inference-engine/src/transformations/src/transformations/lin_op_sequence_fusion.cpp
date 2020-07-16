@@ -36,9 +36,11 @@ ngraph::pass::AddMultiplyFusion::AddMultiplyFusion() {
     auto m_mul = ngraph::pattern::wrap_type<opset3::Multiply>({m_add, m_mul_constant});
 
     ngraph::graph_rewrite_callback callback = [=](ngraph::pattern::Matcher & m) -> bool {
-        auto mul = m.get_match_root();
-
         auto & label_to_output = m.get_pattern_value_map();
+
+        auto mul = label_to_output[m_mul].get_node_shared_ptr();
+        auto add = label_to_output[m_add].get_node_shared_ptr();
+
         Output<Node> input = label_to_output[m_data];
         Output<Node> mul_const = label_to_output[m_mul_constant];
         Output<Node> add_const = label_to_output[m_add_constant];
@@ -51,7 +53,7 @@ ngraph::pass::AddMultiplyFusion::AddMultiplyFusion() {
         // Add two constants using opset3::Add constant folding and create new Add operation
         auto new_add = std::make_shared<opset3::Add>(new_mul, eltwise_fold<opset3::Multiply>(add_const, mul_const));
 
-        copy_runtime_info(mul, {new_mul, new_add});
+        copy_runtime_info({add, mul}, {new_mul, new_add});
         new_add->set_friendly_name(mul->get_friendly_name());
         replace_node(mul, new_add);
         return true;
@@ -70,9 +72,11 @@ ngraph::pass::AddAddFusion::AddAddFusion() {
     auto m_add2 = ngraph::pattern::wrap_type<opset3::Add>({m_add1, m_add2_constant});
 
     ngraph::graph_rewrite_callback callback = [=](ngraph::pattern::Matcher & m) -> bool {
-        auto add2 = m.get_match_root();
-
         auto & label_to_output = m.get_pattern_value_map();
+
+        auto add1 = label_to_output[m_add1].get_node_shared_ptr();
+        auto add2 = label_to_output[m_add2].get_node_shared_ptr();
+
         Output<Node> input = label_to_output[m_data];
         Output<Node> add1_const = label_to_output[m_add1_constant];
         Output<Node> add2_const = label_to_output[m_add2_constant];
@@ -81,7 +85,7 @@ ngraph::pass::AddAddFusion::AddAddFusion() {
         // Add operation will be added to the list of ops requested for pattern matching
         auto new_add = register_new_node<opset3::Add>(input, eltwise_fold<opset3::Add>(add1_const, add2_const));
 
-        copy_runtime_info(add2, new_add);
+        copy_runtime_info({add1, add2}, new_add);
         new_add->set_friendly_name(add2->get_friendly_name());
         replace_node(add2, new_add);
         return true;
@@ -100,9 +104,11 @@ ngraph::pass::MultiplyMultiplyFusion::MultiplyMultiplyFusion() {
     auto m_mul2 = ngraph::pattern::wrap_type<ngraph::opset3::Multiply>({m_mul1, m_mul2_constant});
 
     ngraph::graph_rewrite_callback callback = [=](ngraph::pattern::Matcher & m) -> bool {
-        auto mul2 = m.get_match_root();
-
         auto & label_to_output = m.get_pattern_value_map();
+
+        auto mul1 = label_to_output[m_mul1].get_node_shared_ptr();
+        auto mul2 = label_to_output[m_mul2].get_node_shared_ptr();
+
         Output<Node> input = label_to_output[m_data];
         Output<Node> mul1_const = label_to_output[m_mul1_constant];
         Output<Node> mul2_const = label_to_output[m_mul2_constant];
@@ -111,7 +117,7 @@ ngraph::pass::MultiplyMultiplyFusion::MultiplyMultiplyFusion() {
         // Multiply operation will be added to the list of ops requested for pattern matching
         auto new_mul = register_new_node<opset3::Multiply>(input, eltwise_fold<opset3::Multiply>(mul1_const, mul2_const));
 
-        copy_runtime_info(mul2, new_mul);
+        copy_runtime_info({mul1, mul2}, new_mul);
         new_mul->set_friendly_name(mul2->get_friendly_name());
         replace_node(mul2, new_mul);
         return true;
