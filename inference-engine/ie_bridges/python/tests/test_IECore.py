@@ -5,10 +5,12 @@ import numpy as np
 from pathlib import Path
 
 from openvino.inference_engine import IENetwork, IECore, ExecutableNetwork
-from conftest import model_path, plugins_path, model_onnx_path
+from conftest import model_path, plugins_path, model_onnx_path, model_prototxt_path
 
 
 test_net_xml, test_net_bin = model_path()
+test_net_onnx = model_onnx_path()
+test_net_prototxt = model_prototxt_path()
 plugins_xml, plugins_win_xml, plugins_osx_xml = plugins_path()
 
 
@@ -159,9 +161,23 @@ def test_read_network_as_path():
 
 def test_read_network_from_onnx():
     ie = IECore()
-    net = ie.read_network(model=model_onnx_path())
+    net = ie.read_network(model=test_net_onnx)
     assert isinstance(net, IENetwork)
 
+def test_read_network_from_onnx_as_path():
+    ie = IECore()
+    net = ie.read_network(model=Path(test_net_onnx))
+    assert isinstance(net, IENetwork)
+
+def test_read_network_from_prototxt():
+    ie = IECore()
+    net = ie.read_network(model=test_net_prototxt)
+    assert isinstance(net, IENetwork)
+
+def test_read_network_from_prototxt_as_path():
+    ie = IECore()
+    net = ie.read_network(model=Path(test_net_prototxt))
+    assert isinstance(net, IENetwork)
 
 def test_incorrect_xml():
     ie = IECore()
