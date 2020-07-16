@@ -15,17 +15,12 @@ namespace subgraph {
 
 class FakeQuantizeAndConvolutionFunction {
 public:
+    // TODO: move to ConvolutionFunction
     static std::shared_ptr<ngraph::Function> getOriginal(
         const ngraph::element::Type precision,
         const ngraph::Shape& inputShape,
         const FakeQuantizeOnData& fakeQuantizeOnData,
         const FakeQuantizeOnWeights& fakeQuantizeOnWeights);
-
-    // static std::shared_ptr<ngraph::Function> getReference(
-    //    const ngraph::element::Type precision,
-    //    const ngraph::Shape& inputShape,
-    //    const FakeQuantizeOnData& fakeQuantizeOnData,
-    //    const FakeQuantizeOnWeights& fakeQuantizeOnWeights);
 };
 
 }  // namespace subgraph

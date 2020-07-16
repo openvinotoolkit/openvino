@@ -21,8 +21,43 @@ bool WeightableLayerTransformation::canBeTransformed(const TransformationContext
         return false;
     }
 
-    const bool isDepthwiseConvolution = isDepthwise(layer);
-    if (!isDepthwiseConvolution) {
+    if (isGroup(layer)) {
+        FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(layer);
+        std::shared_ptr<opset1::Constant> multiplyConst = as_type_ptr<opset1::Constant>(dequantization.multiply->get_input_node_shared_ptr(1));
+        const ngraph::Shape constShape = multiplyConst->get_output_shape(0);
+        if ((constShape.size() != 0) && (constShape.size() != 1ul) && (constShape.size() != 3ul) && (constShape.size() != 4ul)) {
+            return false;
+        }
+
+        const ngraph::Shape inputShape = layer->get_input_shape(0);
+
+        const std::vector<float> scales = multiplyConst->cast_vector<float>();
+        if (scales.size() != 1ul) {
+            if ((scales.size() != 1) && (scales.size() != inputShape[1])) {
+                return false;
+            }
+
+            if ((inputShape.size() != 4ul) && (inputShape.size() != 5ul)) {
+                return false;
+            }
+
+            const size_t groupsCount = NetworkHelper::getGroupsCount(layer);
+            const size_t inputChannelsInGroup = inputShape[1] / groupsCount;
+            for (size_t group = 0; group < groupsCount; ++group) {
+                for (size_t i = 0; i < inputChannelsInGroup; ++i) {
+                    size_t index = group * inputChannelsInGroup + i;
+                    if (scales[group * inputChannelsInGroup] != scales[group * inputChannelsInGroup + i]) {
+                        return false;
+                    }
+                }
+            }
+
+            const ngraph::Shape outputShape = layer->get_output_shape(0);
+            if ((outputShape.size() != 4ul) && (outputShape.size() != 5ul)) {
+                return false;
+            }
+        }
+    } else {
         // TODO: move scale values validation to standalone method for FullyConnected & GEMM
         const std::shared_ptr<opset1::Multiply> multiply = as_type_ptr<opset1::Multiply>(layer->input_value(0).get_node_shared_ptr());
         if (multiply == nullptr) {
@@ -131,7 +166,16 @@ DataPrecision WeightableLayerTransformation::decomposeFakeQuantizeForWeightsPath
     return dataPrecision;
 }
 
-bool WeightableLayerTransformation::isDepthwise(std::shared_ptr<Node> layer) {
+bool WeightableLayerTransformation::isGroup(const std::shared_ptr<Node>& layer) {
+    if (!as_type_ptr<opset1::Convolution>(layer) && !as_type_ptr<opset1::GroupConvolution>(layer)) {
+        return false;
+    }
+
+    const size_t group = NetworkHelper::getGroupsCount(layer);
+    return group != 1ul;
+}
+
+bool WeightableLayerTransformation::isDepthwise(const std::shared_ptr<Node>& layer) {
     if (!as_type_ptr<opset1::Convolution>(layer) && !as_type_ptr<opset1::GroupConvolution>(layer)) {
         return false;
     }

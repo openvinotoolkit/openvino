@@ -16,26 +16,26 @@
 #include "functional_test_utils/layer_test_utils.hpp"
 #include "functional_test_utils/blob_utils.hpp"
 #include "ngraph_functions/pass/convert_prc.hpp"
-#include "ngraph_functions/low_precision_transformations/fake_quantize_and_convolution_function.hpp"
-
-// TODO: debug only
-#include <ngraph/pass/visualize_tree.hpp>
+#include "ngraph_functions/low_precision_transformations/group_convolution_function.hpp"
 
 namespace LayerTestsDefinitions {
 
 std::string GroupConvolutionTransformation::getTestCaseName(testing::TestParamInfo<GroupConvolutionTransformationParams> obj) {
     InferenceEngine::Precision netPrecision;
-    InferenceEngine::SizeVector inputShapes;
     std::string targetDevice;
     InferenceEngine::details::LayerTransformation::Params params;
     LayerTestsUtils::LayerTransformation::LptVersion version;
     GroupConvolutionTransformationParam param;
-    std::tie(netPrecision, inputShapes, targetDevice, params, version, param) = obj.param;
+    std::tie(netPrecision, targetDevice, params, version, param) = obj.param;
 
     std::ostringstream result;
-    result << getTestCaseNameByParams(netPrecision, inputShapes, targetDevice, params, version) <<
-        (param.fakeQuantizeOnData.empty() ? "_noFqOnActivations" : "") <<
-        (param.fakeQuantizeOnWeights.empty() ? "_noFqOnWeights" : "");
+    result <<
+        getTestCaseNameByParams(netPrecision, param.inputShape, targetDevice, params, version) << "_" <<
+        param.inputShape << "_" <<
+        param.outputShape << "_" <<
+        param.group << "_" <<
+        param.fakeQuantizeOnData << "_" <<
+        param.fakeQuantizeOnWeights;
     return result.str();
 }
 
@@ -43,19 +43,19 @@ void GroupConvolutionTransformation::SetUp() {
     threshold = 0.1f;
 
     InferenceEngine::Precision netPrecision;
-    InferenceEngine::SizeVector inputShape;
     InferenceEngine::details::LayerTransformation::Params params;
     LayerTestsUtils::LayerTransformation::LptVersion version;
     GroupConvolutionTransformationParam param;
-    std::tie(netPrecision, inputShape, targetDevice, params, version, param) = this->GetParam();
+    std::tie(netPrecision, targetDevice, params, version, param) = this->GetParam();
     auto precision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
     ConfigurePlugin(version);
 
-    function = ngraph::builder::subgraph::FakeQuantizeAndConvolutionFunction::getOriginal(
+    function = ngraph::builder::subgraph::GroupConvolutionFunction::getOriginal(
         precision,
-        inputShape,
-        // TODO: pass from test parameters
+        param.inputShape,
+        param.outputShape,
+        param.group,
         param.fakeQuantizeOnData,
         param.fakeQuantizeOnWeights);
 
@@ -66,12 +66,11 @@ void GroupConvolutionTransformation::SetUp() {
 
 void GroupConvolutionTransformation::validate() {
     InferenceEngine::Precision netPrecision;
-    InferenceEngine::SizeVector inputShape;
     std::string targetDevice;
     InferenceEngine::details::LayerTransformation::Params params;
     LayerTestsUtils::LayerTransformation::LptVersion version;
     GroupConvolutionTransformationParam param;
-    std::tie(netPrecision, inputShape, targetDevice, params, version, param) = this->GetParam();
+    std::tie(netPrecision, targetDevice, params, version, param) = this->GetParam();
 
     const InferenceEngine::CNNNetwork network = transform(params);
 

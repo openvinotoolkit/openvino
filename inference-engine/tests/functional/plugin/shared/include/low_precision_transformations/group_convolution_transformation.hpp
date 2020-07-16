@@ -15,13 +15,15 @@ namespace LayerTestsDefinitions {
 
 class GroupConvolutionTransformationParam {
 public:
+    ngraph::Shape inputShape;
+    ngraph::Shape outputShape;
+    size_t group;
     ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData;
     ngraph::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights;
 };
 
 typedef std::tuple<
     InferenceEngine::Precision,
-    InferenceEngine::SizeVector,
     std::string,
     InferenceEngine::details::LayerTransformation::Params,
     LayerTestsUtils::LayerTransformation::LptVersion,

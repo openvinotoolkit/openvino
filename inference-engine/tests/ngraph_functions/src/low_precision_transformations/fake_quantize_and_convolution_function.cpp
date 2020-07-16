@@ -47,14 +47,6 @@ std::shared_ptr<ngraph::Function> FakeQuantizeAndConvolutionFunction::getOrigina
     return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "FakeQuantizeAndConvolutionFunction");
 }
 
-//std::shared_ptr<ngraph::Function> FakeQuantizeAndConvolutionFunction::getReference(
-//    const ngraph::element::Type precision,
-//    const ngraph::Shape& inputShape,
-//    const FakeQuantizeOnData& fakeQuantizeOnData,
-//    const FakeQuantizeOnWeights& fakeQuantizeOnWeights) {
-//    return nullptr;
-//}
-
 }  // namespace subgraph
 }  // namespace builder
 }  // namespace ngraph
