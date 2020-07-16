@@ -18,7 +18,6 @@
 
 #include <pybind11/pybind11.h>
 #include "pyngraph/ops/constant.hpp"
-#include "pyngraph/ops/get_output_element.hpp"
 #include "pyngraph/ops/parameter.hpp"
 #include "pyngraph/ops/result.hpp"
 

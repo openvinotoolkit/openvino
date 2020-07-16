@@ -189,7 +189,6 @@ sources = [
     "pyngraph/node_output.cpp",
     "pyngraph/node_factory.cpp",
     "pyngraph/ops/constant.cpp",
-    "pyngraph/ops/get_output_element.cpp",
     "pyngraph/ops/op.cpp",
     "pyngraph/ops/parameter.cpp",
     "pyngraph/ops/regmodule_pyngraph_op.cpp",
