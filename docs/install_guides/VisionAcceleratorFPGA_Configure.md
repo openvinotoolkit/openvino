@@ -1,4 +1,4 @@
-# Configuration Guide for the Intel® Distribution of OpenVINO™ toolkit 2020.3 and the Intel® Vision Accelerator Design with an Intel® Arria® 10 FPGA SG2 (IEI's Mustang-F100-A10) on Linux* {#openvino_docs_install_guides_VisionAcceleratorFPGA_Configure}
+# Configuration Guide for the Intel® Distribution of OpenVINO™ toolkit 2020.4 and the Intel® Vision Accelerator Design with an Intel® Arria® 10 FPGA SG2 (IEI's Mustang-F100-A10) on Linux* {#openvino_docs_install_guides_VisionAcceleratorFPGA_Configure}
 
 > **NOTE**: Intel® Arria® 10 FPGA (Mustang-F100-A10) Speed Grade 1 is not available since the OpenVINO 2020.3 release. If you use Intel® Vision Accelerator Design with an Intel® Arria 10 FPGA (Mustang-F100-A10) Speed Grade 1, we recommend continuing to use the [Intel® Distribution of OpenVINO™ toolkit 2020.1](https://docs.openvinotoolkit.org/2020.1/_docs_install_guides_VisionAcceleratorFPGA_Configure.html) release.
 For previous versions, see [Configuration Guide for OpenVINO 2019R3](https://docs.openvinotoolkit.org/2019_R3.1/_docs_install_guides_VisionAcceleratorFPGA_Configure_2019R3.html), [Configuration Guide for OpenVINO 2019R1](https://docs.openvinotoolkit.org/2019_R3.1/_docs_install_guides_VisionAcceleratorFPGA_Configure_2019R1.html), [Configuration Guide for OpenVINO 2018R5](https://docs.openvinotoolkit.org/2019_R3.1/_docs_install_guides_VisionAcceleratorFPGA_Configure_2018R5.html).
@@ -92,7 +92,7 @@ source /opt/intel/openvino/bin/setupvars.sh
 source /home/<user>/init_openvino.sh
 ```
 
-7. Uninstall any previous BSP before installing the OpenCL BSP for the 2020.3 BSP. Enter **Y** when prompted to uninstall (Enter sudo credentials when prompted):
+7. Uninstall any previous BSP before installing the OpenCL BSP for the 2020.4 BSP. Enter **Y** when prompted to uninstall (Enter sudo credentials when prompted):
 ```sh
 aocl uninstall
 ```
@@ -250,7 +250,7 @@ cd /home/<user>
 	
 4. Program the bitstream for the Intel® Vision Accelerator Design with Intel® Arria® 10 FPGA SG2:
 ```sh
-aocl program acl0 /opt/intel/openvino/bitstreams/a10_vision_design_sg2_bitstreams/2020-3_PL2_FP16_SqueezeNet_TinyYolo_VGG.aocx
+aocl program acl0 /opt/intel/openvino/bitstreams/a10_vision_design_sg2_bitstreams/2020-4_PL2_FP16_SqueezeNet_TinyYolo_VGG.aocx
 ```
 
 ## 3. Set up a Sample Neural Network Model for FPGA
