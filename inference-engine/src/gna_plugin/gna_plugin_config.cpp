@@ -225,6 +225,10 @@ void Config::AdjustKeyMapValues() {
         key_config_map[GNA_CONFIG_KEY(SCALE_FACTOR) + std::string("_") + std::to_string(n)] =
                 std::to_string(inputScaleFactors[n]);
     }
+    for (const auto &keyValue : extraMemoryMap) {
+        key_config_map[GNA_CONFIG_KEY(SCALE_FACTOR) + std::string("_") + keyValue.first] =
+                "SAME_AS_" + keyValue.second;
+    }
     key_config_map[GNA_CONFIG_KEY(FIRMWARE_MODEL_IMAGE)] = dumpXNNPath;
     key_config_map[GNA_CONFIG_KEY(FIRMWARE_MODEL_IMAGE_GENERATION)] = dumpXNNGeneration;
 
