@@ -39,9 +39,13 @@ using namespace ngraph;
 //
 // The topological order would be : `Constant1`, `Abs2`, `Neg3`, `Add4`, `Result5`
 // Note, `Abs2` comes before `Neg3` as `Abs2`'s id = 2 is *less* than `Neg3`'s one (id = 3)
-// Next, GraphRewrite will invoke matchers registered in an order registered in a c-tor
-// i.e. if a c-tor calls `construct_m1()`; `construct_m2()`; `construct_m3()`;
-// Matchers will be called as follows: `m1`, `m2`, `m3`
+// Next, GraphRewrite will invoke matchers passes registered in add_matcher order.
+// For example:
+//     ngraph::pass::GraphRewrite pass;
+//     pass.add_matcher<m1>();
+//     pass.add_matcher<m2>();
+//     pass.add_matcher<m3>();
+// Matcher passes will be called as follows: `m1`, `m2`, `m3`
 // Matchers should only replace nodes in the graph that come before the current root
 // node in the topological order. For example, if Matcher matches Neg3, it should only
 // replace nodes `Abs2` and `Constant1` if needed
@@ -49,25 +53,19 @@ using namespace ngraph;
 // and `m2` folds `Neg3(Constant1)` when `m3` is called on `Add4` it will discover that
 // both `Abs2` and `Neg3` were already replaced by constants, so `Add4` will also be folded into
 // one.
-// If any Matcher succeeds the rest of the matchers will **not** be called.
+// If any matcher passes succeeds the rest of the matchers will **not** be called.
 // E.g. if `m1` succeeds and replaces `Abs2` with a new constant, nor `m2` or `m3` will be called
 // However, sometimes, you will need more than one fusion occur on the same node.
-// In this case, you should be able to request another pass of GraphRewrite.
-// To request another pass, you will need to register fusions in a callback:
-// i.e. you will need to pass `this` into a callback and then call `this->construct_X`
-// This will schedule another pass of GraphRewrite with the following fusion.
-// This approach should only be used if you are either:
-// a) need more than one fusion occur on the same node
-// b) you are modifying nodes after the current node in the topological order
-// c) there's no linear order of fusions which will give
-//    the correct final fusion. i.e. the same fusion needs to occur before and after some other
-//    fusion
+// In this case, you need to register nodes in MatcherPass manually using register_new_node method.
+// GraphRewrite will automatically add this nodes in the beginning of execution queue.
+// If MatcherPass register more than one node make sure that this nodes are registered in
+// topological order.
 
 bool pass::GraphRewrite::run_on_function(shared_ptr<Function> f)
 {
     bool rewritten = false;
 
-    // Initialize execution queue with nodes
+    // Initialize execution queue with nodes in topological order
     deque<std::shared_ptr<Node>> nodes_to_run;
     for (auto& node : f->get_ordered_ops())
     {
@@ -87,11 +85,24 @@ bool pass::GraphRewrite::run_on_function(shared_ptr<Function> f)
         }
 
         auto root = matcher->get_pattern_value().get_node_shared_ptr();
+        // pattern::op::AnyOutput operation automatically appends for multi output operations inside
+        // Matcher and
+        // to gen actual root node we need to take it's parent.
+        if (auto any_type = dynamic_pointer_cast<pattern::op::AnyOutput>(root))
+        {
+            root = any_type->input_value(0).get_node_shared_ptr();
+        }
+
+        // if root is an operation from opset or has pattern::op::WrapType type then we can extract
+        // it's type
+        // and use it in unordered_map as key for fast MatcherPass search. Otherwise type is unknown
+        // and default algorithm is used.
+        NodeTypeInfo root_type_info = root->get_type_info();
         if (auto p = dynamic_pointer_cast<pattern::op::Pattern>(root))
         {
-            if (auto any_type = as_type_ptr<pattern::op::WrapType>(p))
+            if (auto any_type = dynamic_pointer_cast<pattern::op::WrapType>(p))
             {
-                type_to_matcher[any_type->get_wrapped_type()].push_back(m);
+                root_type_info = any_type->get_wrapped_type();
             }
             else
             {
@@ -99,14 +110,16 @@ bool pass::GraphRewrite::run_on_function(shared_ptr<Function> f)
                 break;
             }
         }
-        else
-        {
-            type_to_matcher[root->get_type_info()].push_back(m);
-        }
+        type_to_matcher[root_type_info].push_back(m);
     }
 
+    // This lambda preforms execution of particular MatcherPass on given node.
+    // It automatically handles nodes registered by MatcherPass during transformation and set
+    // transformation callback.
     auto run_matcher_pass = [&](std::shared_ptr<MatcherPass> m_pass,
                                 std::shared_ptr<Node> node) -> bool {
+        // Keep this property check for backward compatibility. In future transformation property
+        // will be deprecated and removed.
         if (m_pass->get_property(PassProperty::REQUIRE_STATIC_SHAPE) && f->is_dynamic())
         {
             NGRAPH_DEBUG << "matcher callback requires static shape but the "
@@ -125,7 +138,8 @@ bool pass::GraphRewrite::run_on_function(shared_ptr<Function> f)
         // to this node
         bool status = m_pass->apply(node);
 
-        // In case if MatcherPass registered nodes they will be added to execution queue
+        // In case if MatcherPass registered nodes they will be added to the beginning of execution
+        // queue
         auto new_nodes = m_pass->get_new_nodes();
         m_pass->clear_new_nodes();
 
@@ -167,6 +181,7 @@ bool pass::GraphRewrite::run_on_function(shared_ptr<Function> f)
                 }
             }
         }
+        // Otherwise we use default algorithm that iterates over all registered matcher passes
         else
         {
             for (auto& m_pass : m_matchers)
