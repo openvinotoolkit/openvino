@@ -80,10 +80,6 @@ class ResizeToInterpolate2D(FrontReplacementSubgraph):
         resize_node = match['resize']
         resize_node_name = resize_node.name
 
-        if match['mul_1'].in_node(1).value != match['mul_2'].in_node(1).value:
-            log.info('Pattern matched around resize op {} has different scale values.'.format(resize_node_name))
-            return
-
         axes_node = Const(graph, {'name': resize_node_name + '/axis_', 'value': int64_array([2, 3])}).create_node()
 
         interpolate_node = Interpolate(graph,
@@ -93,8 +89,10 @@ class ResizeToInterpolate2D(FrontReplacementSubgraph):
                                             version='opset4', name=resize_node_name + '/Interpolate',
                                             mode=resize_node.mode, in_ports_count=3)).create_node()
 
-        scale = match['mul_1'].in_node(1).value
-        scale_value = int64_array([scale, scale])
+        height_scale = match['mul_1'].in_node(1).value
+        width_scale = match['mul_2'].in_node(1).value
+        scale_value = int64_array([height_scale, width_scale])
+
         scale_const = Const(graph, {'value': scale_value, 'name': resize_node_name + '/Scale'}).create_node()
 
         interpolated_shape = Mul(graph, {'name': resize_node_name + '/OutputShape'}).create_node()
@@ -182,10 +180,6 @@ class ResizeToInterpolate3D(FrontReplacementSubgraph):
     def replace_sub_graph(self, graph: Graph, match: dict):
         resize_node = match['resize']
         resize_node_name = resize_node.name
-        if match['mul_1'].in_node(1).value != match['mul_2'].in_node(1).value or \
-                match['mul_1'].in_node(1).value != match['mul_3'].in_node(1).value:
-            log.info('Pattern matched around resize op {} has different scale values.'.format(resize_node_name))
-            return
 
         axes_node = Const(graph, {'name': resize_node_name + '/axis_', 'value': int64_array([2, 3, 4])}).create_node()
 
@@ -196,8 +190,11 @@ class ResizeToInterpolate3D(FrontReplacementSubgraph):
                                             name=resize_node_name + '/Interpolate', mode=resize_node.mode,
                                             in_ports_count=3)).create_node()
 
-        scale = match['mul_1'].in_node(1).value
-        scale_value = int64_array([scale, scale, scale])
+        depth_scale = match['mul_1'].in_node(1).value
+        height_scale = match['mul_2'].in_node(1).value
+        width_scale = match['mul_3'].in_node(1).value
+        scale_value = int64_array([depth_scale, height_scale, width_scale])
+
         scale_const = Const(graph, {'value': scale_value, 'name': resize_node_name + '/Scale'}).create_node()
 
         interpolated_shape = Mul(graph, {'name': resize_node_name + '/OutputShape'}).create_node()
