@@ -206,14 +206,11 @@ AllocationResult runAllocator(const Model& model, EnableShapeAllocation enableSh
     //
 
     if (enableShapeAllocation == EnableShapeAllocation::YES) {
-        DataSet datasWithAllocatedShape;
-
         for (const auto& stage : model->getStages()) {
-            const auto& allocateShape = [&datasWithAllocatedShape, &allocator](const Data& data) {
-                if (datasWithAllocatedShape.count(data) == 0) {
+            const auto& allocateShape = [&allocator](const Data& data) {
+                if (!data->isShapeAllocated()) {
                     const auto shapeLocation = allocator.allocateShape(data);
                     data->setShapeAllocationInfo(shapeLocation);
-                    datasWithAllocatedShape.insert(data);
                 }
             };
 
@@ -227,10 +224,6 @@ AllocationResult runAllocator(const Model& model, EnableShapeAllocation enableSh
                 allocateShape(tempBuffer);
             }
         }
-
-        VPU_THROW_UNLESS(model->numDatas() == datasWithAllocatedShape.size(),
-            "Shape allocation failed: there are still unallocated data objects ({} were allocated, while there are {} in the model)",
-            datasWithAllocatedShape.size(), model->numDatas());
     }
 
     return AllocationResult();
