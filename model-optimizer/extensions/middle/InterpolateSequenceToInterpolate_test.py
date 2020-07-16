@@ -22,6 +22,96 @@ from mo.front.common.partial_infer.utils import int64_array
 from mo.utils.ir_engine.compare_graphs import compare_graphs
 from mo.utils.unittest.graph import build_graph
 
+graph_node_attrs_for_2d_case_1_opset4_case = {
+    'placeholder': {'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
+    'placeholder_data': {
+        'value': None,
+        'shape': int64_array([1, 4, 220, 350]),
+        'kind': 'data',
+        'data_type': None
+    },
+    'scale_1': {
+        'kind': 'op', 'op': 'Const', 'type': 'Const', 'value': int64_array([660])
+    },
+    'scale_1_data': {'value': None, 'shape': [1], 'kind': 'data'},
+    'axes_1': {
+        'kind': 'op', 'op': 'Const', 'type': 'Const', 'value': int64_array([2])
+    },
+    'axes_1_data': {'value': None, 'shape': [1], 'kind': 'data'},
+    'interpolate_1': {
+        'type': 'Interpolate',
+        'kind': 'op',
+        'op': 'Interpolate',
+        'mode': 'nearest',
+        'version': 'opset4'
+    },
+    'interpolate_1_data': {'value': None, 'shape': int64_array([1, 4, 660, 350]), 'kind': 'data'},
+    'scale_2': {
+        'kind': 'op', 'op': 'Const', 'type': 'Const', 'value': int64_array([700])
+    },
+    'scale_2_data': {'value': None, 'shape': [1], 'kind': 'data'},
+    'axes_2': {
+        'kind': 'op', 'op': 'Const', 'type': 'Const', 'value': int64_array([3])
+    },
+    'axes_2_data': {'value': None, 'shape': [1], 'kind': 'data'},
+    'interpolate_2': {
+        'type': 'Interpolate',
+        'kind': 'op',
+        'op': 'Interpolate',
+        'mode': 'nearest',
+        'version': 'opset4'
+    },
+    'interpolate_2_data': {'value': None, 'shape': int64_array([1, 4, 660, 700]), 'kind': 'data'},
+    'scale_3': {
+        'kind': 'op', 'op': 'Const', 'type': 'Const', 'value': int64_array([1320])
+    },
+    'scale_3_data': {'value': None, 'shape': [1], 'kind': 'data'},
+    'axes_3': {
+        'kind': 'op', 'op': 'Const', 'type': 'Const', 'value': int64_array([2])
+    },
+    'axes_3_data': {'value': None, 'shape': [1], 'kind': 'data'},
+    'interpolate_3': {
+        'type': 'Interpolate',
+        'kind': 'op',
+        'op': 'Interpolate',
+        'mode': 'nearest',
+        'version': 'opset4'
+    },
+    'interpolate_3_data': {'value': None, 'shape': int64_array([1, 4, 1320, 700]), 'kind': 'data'},
+    'abs': {'type': 'Abs', 'kind': 'op', 'op': 'Abs'},
+    'abs_data': {'value': None, 'shape': int64_array([1, 4, 1320, 700]), 'kind': 'data'},
+    'output': {'kind': 'op', 'op': 'Result'},
+}
+
+edges_for_2d_case_1_opset4_case = [
+    ('placeholder', 'placeholder_data'),
+
+    ('placeholder_data', 'interpolate_1', {'in': 0}),
+    ('scale_1', 'scale_1_data'),
+    ('axes_1', 'axes_1_data'),
+    ('scale_1_data', 'interpolate_1', {'in': 1}),
+    ('axes_1_data', 'interpolate_1', {'in': 2}),
+    ('interpolate_1', 'interpolate_1_data'),
+
+    ('interpolate_1_data', 'interpolate_2', {'in': 0}),
+    ('scale_2', 'scale_2_data'),
+    ('axes_2', 'axes_2_data'),
+    ('scale_2_data', 'interpolate_2', {'in': 1}),
+    ('axes_2_data', 'interpolate_2', {'in': 2}),
+    ('interpolate_2', 'interpolate_2_data'),
+
+    ('interpolate_2_data', 'interpolate_3', {'in': 0}),
+    ('scale_3', 'scale_3_data'),
+    ('axes_3', 'axes_3_data'),
+    ('scale_3_data', 'interpolate_3', {'in': 1}),
+    ('axes_3_data', 'interpolate_3', {'in': 2}),
+    ('interpolate_3', 'interpolate_3_data'),
+
+    ('interpolate_3_data', 'abs'),
+    ('abs', 'abs_data'),
+    ('abs_data', 'output'),
+]
+
 graph_node_attrs_for_2d_case_1 = {
     'placeholder': {'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
     'placeholder_data': {
@@ -562,6 +652,70 @@ class InterpolateSequenceToInterpolateTest(unittest.TestCase):
         InterpolateSequenceToInterpolate().find_and_replace_pattern(graph)
         (flag, resp) = compare_graphs(graph, ref_graph, 'output')
         self.assertTrue(flag, resp)
+
+    def test_2d_interpolate_sequence_1_opset4_case(self):
+        graph = build_graph(
+            nodes_attrs=graph_node_attrs_for_2d_case_1_opset4_case,
+            edges=edges_for_2d_case_1_opset4_case
+        )
+
+        # ref_graph = build_graph(
+        #     nodes_attrs={
+        #         'placeholder': {'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
+        #         'placeholder_data': {
+        #             'value': None,
+        #             'shape': int64_array([1, 4, 220, 350]),
+        #             'kind': 'data',
+        #             'data_type': None
+        #         },
+        #         'scale_1': {
+        #             'kind': 'op', 'op': 'Const', 'type': 'Const', 'value': int64_array([660, 700])
+        #         },
+        #         'scale_1_data': {'value': None, 'shape': None, 'kind': 'data'},
+        #         'interpolate_1': {
+        #             'type': 'Interpolate',
+        #             'kind': 'op',
+        #             'op': 'Interpolate',
+        #             'axes': int64_array([2, 3]),
+        #             'mode': 'nearest',
+        #             'version': 'opset1'
+        #         },
+        #         'interpolate_1_data': {'value': None, 'shape': int64_array([1, 4, 660, 700]), 'kind': 'data'},
+        #         'scale_2': {
+        #             'kind': 'op', 'op': 'Const', 'type': 'Const', 'value': int64_array([1320])
+        #         },
+        #         'scale_2_data': {'value': None, 'shape': None, 'kind': 'data'},
+        #         'interpolate_2': {
+        #             'type': 'Interpolate',
+        #             'kind': 'op',
+        #             'op': 'Interpolate',
+        #             'axes': int64_array([2]),
+        #             'mode': 'nearest',
+        #             'version': 'opset1'
+        #         },
+        #         'interpolate_2_data': {'value': None, 'shape': int64_array([1, 4, 1320, 700]), 'kind': 'data'},
+        #         'abs': {'type': 'Abs', 'kind': 'op', 'op': 'Abs'},
+        #         'abs_data': {'value': None, 'shape': int64_array([1, 4, 1320, 700]), 'kind': 'data'},
+        #         'output': {'kind': 'op', 'op': 'Result'},
+        #     },
+        #     edges=[
+        #         ('placeholder', 'placeholder_data'),
+        #         ('placeholder_data', 'interpolate_1', {'in': 0}),
+        #         ('scale_1', 'scale_1_data'),
+        #         ('scale_1_data', 'interpolate_1', {'in': 1}),
+        #         ('interpolate_1', 'interpolate_1_data'),
+        #         ('scale_2', 'scale_2_data'),
+        #         ('interpolate_2', 'interpolate_2_data'),
+        #         ('interpolate_1_data', 'interpolate_2', {'in': 0}),
+        #         ('scale_2_data', 'interpolate_2', {'in': 1}),
+        #         ('interpolate_2_data', 'abs'),
+        #         ('abs', 'abs_data'),
+        #         ('abs_data', 'output'),
+        #     ]
+        # )
+        # InterpolateSequenceToInterpolate().find_and_replace_pattern(graph)
+        # (flag, resp) = compare_graphs(graph, ref_graph, 'output')
+        # self.assertTrue(flag, resp)
 
     def test_2d_interpolate_sequence_2(self):
         graph = build_graph(
