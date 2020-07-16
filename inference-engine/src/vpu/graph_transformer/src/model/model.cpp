@@ -28,6 +28,7 @@ namespace vpu {
 void printTo(std::ostream& os, const Resources& res) {
     os << "[" << std::endl;
 
+    os << "tilingCMXLimit=" << res.tilingCMXLimit << std::endl;
     os << "numCMXSlices=" << res.numCMXSlices << std::endl;
     os << "numSHAVEs=" << res.numSHAVEs << std::endl;
 
@@ -36,6 +37,7 @@ void printTo(std::ostream& os, const Resources& res) {
 
 void printTo(DotLabel& lbl, const Resources& res) {
     DotLabel subLbl(lbl);
+    subLbl.appendPair("tilingCMXLimit", res.tilingCMXLimit);
     subLbl.appendPair("numCMXSlices", res.numCMXSlices);
     subLbl.appendPair("numSHAVEs", res.numSHAVEs);
 }

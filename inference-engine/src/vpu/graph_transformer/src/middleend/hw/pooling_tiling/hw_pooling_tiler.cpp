@@ -315,8 +315,7 @@ std::vector<TilingOption> HWPoolingTilingSearcher::selectBetterTiling() const {
 
     const auto& splitOver = dirTiling.splitOverTensorDims();
     const auto direction = dirTiling.getDirection();
-
-    const auto cmxLimit = tilingCMXLimit(env.resources.numCMXSlices);
+    const auto cmxLimit = env.resources.tilingCMXLimit;
 
     for (int numBatchTiles = 1; numBatchTiles <= maxNumBatchTiles; numBatchTiles++) {
         //

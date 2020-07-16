@@ -26,6 +26,7 @@
 #include "ngraph_functions/subgraph_builders.hpp"
 
 namespace BehaviorTestsDefinitions {
+// TODO: rename to SetupInferWithConfigTests
 using InferConfigTests = BehaviorTestsUtils::BehaviorTestsBasic;
 
 TEST_P(InferConfigTests, canSetExclusiveAsyncRequests) {
@@ -83,6 +84,7 @@ TEST_P(InferConfigTests, withoutExclusiveAsyncRequests) {
     }
 }
 
+// TODO: rename to InferWithConfigTests
 using InferConfigInTests = BehaviorTestsUtils::BehaviorTestsBasic;
 
 TEST_P(InferConfigInTests, CanInferWithConfig) {

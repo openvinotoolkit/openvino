@@ -43,6 +43,7 @@ struct CompilationConfig final {
     int numSHAVEs = -1;
     int numCMXSlices = -1;
     int numExecutors = -1;
+    int tilingCMXLimitKB = -1;
 
     bool hwOptimization = true;
     bool hwExtraSplit = false;

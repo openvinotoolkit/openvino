@@ -136,6 +136,5 @@ void printTo(DotLabel& lbl, const HwPaddingInfo& hwPad);
 //
 
 int calculateHwBufferSize(const DimValues& dims, const DimsOrder& order = DimsOrder());
-int tilingCMXLimit(int numSlices);
 
 }  // namespace vpu
