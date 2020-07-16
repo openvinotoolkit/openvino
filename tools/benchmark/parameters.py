@@ -1,7 +1,6 @@
 import sys,argparse
 from fnmatch import fnmatch
 
-from openvino.tools.benchmark.utils.constants import XML_EXTENSION_PATTERN, BLOB_EXTENSION_PATTERN
 from openvino.tools.benchmark.utils.utils import show_available_devices
 
 def str2bool(v):
@@ -12,15 +11,11 @@ def str2bool(v):
     else:
         raise argparse.ArgumentTypeError('Boolean value expected.')
 
-
-def validate_args(args):
-    if args.number_iterations is not None and args.number_iterations < 0:
-        raise Exception("Number of iterations should be positive (invalid -niter option value)")
-    if args.number_infer_requests and args.number_infer_requests < 0:
-        raise Exception("Number of inference requests should be positive (invalid -nireq option value)")
-    if not (fnmatch(args.path_to_model, XML_EXTENSION_PATTERN) or fnmatch(args.path_to_model, BLOB_EXTENSION_PATTERN)):
-        raise Exception('Path {} is not xml or blob file.')
-
+def check_positive(value):
+    ivalue = int(value)
+    if ivalue <= 0:
+        raise argparse.ArgumentTypeError("%s is an invalid positive int value" % value)
+    return ivalue
 
 class print_help(argparse.Action):
     def __call__(self, parser, namespace, values, option_string=None):
@@ -37,7 +32,7 @@ def parse_args():
                       help='Optional. '
                            'Path to a folder with images and/or binaries or to specific image or binary file.')
     args.add_argument('-m', '--path_to_model', type=str, required=True,
-                      help='Required. Path to an .xml file with a trained model or '
+                      help='Required. Path to an .xml/.onnx/.prototxt file with a trained model or '
                            'to a .blob file with a trained compiled model.')
     args.add_argument('-d', '--target_device', type=str, required=False, default='CPU',
                       help='Optional. Specify a target device to infer on (the list of available devices is shown below). '
@@ -52,10 +47,10 @@ def parse_args():
                            'kernels description.')
     args.add_argument('-api', '--api_type', type=str, required=False, default='async', choices=['sync', 'async'],
                       help='Optional. Enable using sync/async API. Default value is async.')
-    args.add_argument('-niter', '--number_iterations', type=int, required=False, default=None,
+    args.add_argument('-niter', '--number_iterations', type=check_positive, required=False, default=None,
                       help='Optional. Number of iterations. '
                            'If not specified, the number of iterations is calculated depending on a device.')
-    args.add_argument('-nireq', '--number_infer_requests', type=int, required=False, default=None,
+    args.add_argument('-nireq', '--number_infer_requests', type=check_positive, required=False, default=None,
                       help='Optional. Number of infer requests. Default value is determined automatically for device.')
     args.add_argument('-b', '--batch_size', type=int, required=False, default=0,
                       help='Optional. ' +
@@ -110,7 +105,5 @@ def parse_args():
     args.add_argument('-qb', '--quantization_bits', type=int, required=False, default=None, choices=[8, 16],
                       help="Optional. Weight bits for quantization:  8 (I8) or 16 (I16) ")
     parsed_args = parser.parse_args()
-
-    validate_args(parsed_args)
 
     return parsed_args

@@ -69,7 +69,7 @@ Options:
 
     -h, --help                Print a usage message
     -i "<path>"               Optional. Path to a folder with images and/or binaries or to specific image or binary file.
-    -m "<path>"               Required. Path to an .xml file with a trained model.
+    -m "<path>"               Required. Path to an .xml/.onnx/.prototxt file with a trained model or to a .blob files with a trained compiled model.
     -d "<device>"             Optional. Specify a target device to infer on (the list of available devices is shown below). Default value is CPU.
                               Use "-d HETERO:<comma-separated_devices_list>" format to specify HETERO plugin.
                               Use "-d MULTI:<comma-separated_devices_list>" format to specify MULTI plugin. 

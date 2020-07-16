@@ -18,6 +18,10 @@ def model_onnx_path():
     test_onnx = os.path.join(path_to_repo, "models", "test_model", 'test_model.onnx')
     return test_onnx
 
+def model_prototxt_path():
+    path_to_repo = os.environ["MODELS_PATH"]
+    test_prototxt = os.path.join(path_to_repo, "models", "test_model", 'test_model.prototxt')
+    return test_prototxt
 
 def image_path():
     path_to_repo = os.environ["DATA_PATH"]
