@@ -17,7 +17,7 @@
 #include <algorithm>
 #include <deque>
 #include <iostream>
-#include <pattern/op/any_type.hpp>
+#include <pattern/op/wrap_type.hpp>
 #include <regex>
 #include <unordered_set>
 #include <vector>
@@ -89,7 +89,7 @@ bool pass::GraphRewrite::run_on_function(shared_ptr<Function> f)
         auto root = matcher->get_pattern_value().get_node_shared_ptr();
         if (auto p = dynamic_pointer_cast<pattern::op::Pattern>(root))
         {
-            if (auto any_type = as_type_ptr<pattern::op::AnyType>(p))
+            if (auto any_type = as_type_ptr<pattern::op::WrapType>(p))
             {
                 type_to_matcher[any_type->get_wrapped_type()].push_back(m);
             }

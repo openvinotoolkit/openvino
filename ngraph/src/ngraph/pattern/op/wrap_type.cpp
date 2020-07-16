@@ -14,22 +14,22 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include "ngraph/pattern/op/any_type.hpp"
+#include "ngraph/pattern/op/wrap_type.hpp"
 #include "ngraph/pattern/matcher.hpp"
 
 using namespace std;
 using namespace ngraph;
 
-constexpr NodeTypeInfo pattern::op::AnyType::type_info;
+constexpr NodeTypeInfo pattern::op::WrapType::type_info;
 
-const NodeTypeInfo& pattern::op::AnyType::get_type_info() const
+const NodeTypeInfo& pattern::op::WrapType::get_type_info() const
 {
     return type_info;
 }
 
-bool pattern::op::AnyType::match_value(Matcher* matcher,
-                                       const Output<Node>& pattern_value,
-                                       const Output<Node>& graph_value)
+bool pattern::op::WrapType::match_value(Matcher* matcher,
+                                        const Output<Node>& pattern_value,
+                                        const Output<Node>& graph_value)
 {
     if (graph_value.get_node_shared_ptr()->get_type_info() == get_wrapped_type() &&
         m_predicate(graph_value))

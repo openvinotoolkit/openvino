@@ -562,8 +562,6 @@ set (SRC
     pattern/op/any_output.cpp
     pattern/op/any_output.hpp
     pattern/op/any_of.cpp
-    pattern/op/any_type.hpp
-    pattern/op/any_type.cpp
     pattern/op/any_of.hpp
     pattern/op/branch.cpp
     pattern/op/branch.hpp
@@ -579,6 +577,8 @@ set (SRC
     pattern/op/skip.hpp
     pattern/op/true.cpp
     pattern/op/true.hpp
+    pattern/op/wrap_type.hpp
+    pattern/op/wrap_type.cpp
     placement.cpp
     placement.hpp
     provenance.cpp

@@ -19,6 +19,7 @@
 #include <iostream>
 #include <list>
 #include <memory>
+#include <ngraph/pattern/op/wrap_type.hpp>
 #include <ngraph/rt_info.hpp>
 
 #include "gtest/gtest.h"
@@ -37,21 +38,17 @@ class TestMatcherPass : public pass::MatcherPass
 public:
     TestMatcherPass()
     {
-        auto m_relu1 = std::make_shared<pattern::op::Label>(
-            element::f32, Shape{}, [](std::shared_ptr<Node> node) -> bool {
-                // Check that node has type opset3::Relu and has only one consumer
-                return std::dynamic_pointer_cast<opset3::Relu>(node) &&
-                       node->output(0).get_target_inputs().size() == 1;
-            });
-        auto m_relu2 = std::make_shared<ngraph::opset3::Relu>(m_relu1);
+        auto m_relu1 = ngraph::pattern::wrap_type<opset3::Relu>(
+            [](Output<Node> output) -> bool { return output.get_target_inputs().size() == 1; });
+        auto m_relu2 = ngraph::pattern::wrap_type<ngraph::opset3::Relu>({m_relu1});
 
         ngraph::graph_rewrite_callback callback = [=](pattern::Matcher& m) {
             // Map that helps to connect labels with matched outputs
-            auto& label_to_output = m.get_pattern_value_map();
+            auto& node_to_output = m.get_pattern_value_map();
 
             // Create new Relu operation and add register it for additional execution
             auto new_relu = register_new_node<ngraph::opset3::Relu>(
-                label_to_output.at(m_relu1).get_node_shared_ptr()->input_value(0));
+                node_to_output.at(m_relu1).get_node_shared_ptr()->input_value(0));
 
             // Copy runtime info attributes to newly created operation
             ngraph::copy_runtime_info(m.get_matched_nodes(), new_relu);
@@ -67,12 +64,10 @@ public:
         };
 
         // Register pattern with Divide operation as a pattern root node
-        m = std::make_shared<ngraph::pattern::Matcher>(m_relu2, "ReluReluFusion");
+        auto m = std::make_shared<ngraph::pattern::Matcher>(m_relu2, "ReluReluFusion");
         // Register Matcher
         this->register_matcher(m, callback);
     }
-
-    std::shared_ptr<ngraph::pattern::Matcher> m;
 };
 
 TEST(pattern, matcher_pass)
@@ -84,10 +79,10 @@ TEST(pattern, matcher_pass)
         auto c = make_shared<opset3::Relu>(b);
         auto f = std::make_shared<Function>(ngraph::NodeVector{c}, ParameterVector{a});
 
-        ASSERT_TRUE(test_matcher.m->match(c->output(0)));
-        ASSERT_TRUE(test_matcher.m->get_matched_nodes().size() == 2);
-        test_matcher.m->clear_state();
-        ASSERT_TRUE(test_matcher.m->get_matched_nodes().empty());
+        ASSERT_TRUE(test_matcher.get_matcher()->match(c->output(0)));
+        ASSERT_TRUE(test_matcher.get_matcher()->get_matched_nodes().size() == 2);
+        test_matcher.get_matcher()->clear_state();
+        ASSERT_TRUE(test_matcher.get_matcher()->get_matched_nodes().empty());
 
         test_matcher.apply(c);
         ASSERT_TRUE(test_matcher.get_new_nodes().size() == 1);
@@ -102,7 +97,7 @@ TEST(pattern, matcher_pass)
         auto c = make_shared<opset3::Relu>(b);
         auto f = std::make_shared<Function>(ngraph::NodeVector{b, c}, ParameterVector{a});
 
-        ASSERT_FALSE(test_matcher.m->match(c->output(0)));
+        ASSERT_FALSE(test_matcher.get_matcher()->match(c->output(0)));
     }
 
     {

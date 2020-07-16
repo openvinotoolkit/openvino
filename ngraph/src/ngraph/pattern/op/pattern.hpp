@@ -49,6 +49,9 @@ namespace ngraph
             return pred;
         }
 
+        NGRAPH_API
+        std::function<bool(Output<Node>)> consumers_count(size_t n);
+
         namespace op
         {
             using NodePredicate = std::function<bool(std::shared_ptr<Node>)>;

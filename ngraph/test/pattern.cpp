@@ -19,7 +19,7 @@
 #include <iostream>
 #include <list>
 #include <memory>
-#include <ngraph/pattern/op/any_type.hpp>
+#include <ngraph/pattern/op/wrap_type.hpp>
 
 #include "gtest/gtest.h"
 #include "ngraph/file_util.hpp"
@@ -769,7 +769,7 @@ TEST(pattern, any_type)
     auto c = make_shared<op::Relu>(a);
 
     {
-        auto m = pattern::create_node<op::Abs>();
+        auto m = pattern::wrap_type<op::Abs>();
         auto matcher = std::make_shared<pattern::Matcher>(m, "AbsMatcher");
         ASSERT_TRUE(matcher->match(static_pointer_cast<Node>(b)));
         ASSERT_EQ(matcher->get_matched_nodes().size(), 1);
@@ -778,8 +778,8 @@ TEST(pattern, any_type)
         ASSERT_FALSE(matcher->match(static_pointer_cast<Node>(c)));
     }
     {
-        auto m1 = pattern::create_node<op::Parameter>();
-        auto m2 = pattern::create_node<op::Abs>({m1});
+        auto m1 = pattern::wrap_type<op::Parameter>();
+        auto m2 = pattern::wrap_type<op::Abs>({m1});
         auto matcher = std::make_shared<pattern::Matcher>(m2, "ParamAbsMatcher");
         ASSERT_TRUE(matcher->match(static_pointer_cast<Node>(b)));
         ASSERT_EQ(matcher->get_matched_nodes().size(), 2);

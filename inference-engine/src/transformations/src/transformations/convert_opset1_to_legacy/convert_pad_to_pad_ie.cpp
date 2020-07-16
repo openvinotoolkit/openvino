@@ -9,10 +9,10 @@
 
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/rt_info.hpp>
-#include <ngraph/pattern/op/any_type.hpp>
+#include <ngraph/pattern/op/wrap_type.hpp>
 
 ngraph::pass::ConvertPadToLegacyMatcher::ConvertPadToLegacyMatcher() {
-    auto m_pad = ngraph::pattern::create_node<ngraph::opset1::Pad>();
+    auto m_pad = ngraph::pattern::wrap_type<ngraph::opset1::Pad>();
 
     ngraph::graph_rewrite_callback callback = [](pattern::Matcher& m) {
         auto pad = std::dynamic_pointer_cast<ngraph::opset1::Pad> (m.get_match_root());

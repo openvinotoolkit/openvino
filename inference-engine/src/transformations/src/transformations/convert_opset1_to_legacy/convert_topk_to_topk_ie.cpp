@@ -12,10 +12,10 @@
 
 #include <ngraph_ops/topk_ie.hpp>
 #include <ngraph/rt_info.hpp>
-#include <ngraph/pattern/op/any_type.hpp>
+#include <ngraph/pattern/op/wrap_type.hpp>
 
 ngraph::pass::ConvertTopKToTopKIEMatcher::ConvertTopKToTopKIEMatcher() {
-    auto topk = ngraph::pattern::create_node<opset1::TopK>();
+    auto topk = ngraph::pattern::wrap_type<opset1::TopK>();
 
     ngraph::graph_rewrite_callback callback = [](pattern::Matcher &m) {
         auto topk = std::dynamic_pointer_cast<opset1::TopK>(m.get_match_root());

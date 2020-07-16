@@ -10,6 +10,7 @@
 
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/rt_info.hpp>
+#include <ngraph/pattern/op/wrap_type.hpp>
 
 using namespace ngraph;
 
@@ -28,15 +29,11 @@ Output<Node> eltwise_fold(const Output<Node> & input0, const Output<Node> & inpu
 
 ngraph::pass::AddMultiplyFusion::AddMultiplyFusion() {
     // Create Add->Multiply pattern where Add has exactly one consumer
-    auto m_data = std::make_shared<pattern::op::Label>(element::f32, Shape{});
-    auto m_add_constant = std::make_shared<pattern::op::Label>(element::f32, Shape{}, pattern::has_class<opset3::Constant>());
-    auto m_add = std::make_shared<pattern::op::Any>(element::f32, Shape{},
-            [](std::shared_ptr<Node> node) {
-                // Check that node has type opset3::Add and node has only one consumer
-                return std::dynamic_pointer_cast<opset3::Add>(node) && node->output(0).get_target_inputs().size() == 1;
-            }, NodeVector{m_data, m_add_constant});
-    auto m_mul_constant = std::make_shared<pattern::op::Label>(element::f32, Shape{}, pattern::has_class<opset3::Constant>());
-    auto m_mul = std::make_shared<ngraph::opset3::Multiply>(m_add, m_mul_constant);
+    auto m_data = std::make_shared<pattern::op::Label>();
+    auto m_add_constant = ngraph::pattern::wrap_type<opset3::Constant>();
+    auto m_add = ngraph::pattern::wrap_type<opset3::Add>({m_data, m_add_constant}, pattern::consumers_count(1));
+    auto m_mul_constant = ngraph::pattern::wrap_type<opset3::Constant>();
+    auto m_mul = ngraph::pattern::wrap_type<opset3::Multiply>({m_add, m_mul_constant});
 
     ngraph::graph_rewrite_callback callback = [=](ngraph::pattern::Matcher & m) -> bool {
         auto mul = m.get_match_root();
@@ -66,15 +63,11 @@ ngraph::pass::AddMultiplyFusion::AddMultiplyFusion() {
 
 ngraph::pass::AddAddFusion::AddAddFusion() {
     // Create Add->Add pattern where first Add has exactly one consumer
-    auto m_data = std::make_shared<pattern::op::Label>(element::f32, Shape{});
-    auto m_add1_constant = std::make_shared<pattern::op::Label>(element::f32, Shape{}, pattern::has_class<opset3::Constant>());
-    auto m_add1 = std::make_shared<pattern::op::Any>(element::f32, Shape{},
-            [](std::shared_ptr<Node> node) {
-                // Check that node has type opset3::Add and node has only one consumer
-                return std::dynamic_pointer_cast<opset3::Add>(node) && node->output(0).get_target_inputs().size() == 1;
-            }, NodeVector{m_data, m_add1_constant});
-    auto m_add2_constant = std::make_shared<pattern::op::Label>(element::f32, Shape{}, pattern::has_class<opset3::Constant>());
-    auto m_add2 = std::make_shared<ngraph::opset3::Add>(m_add1, m_add2_constant);
+    auto m_data = std::make_shared<pattern::op::Label>();
+    auto m_add1_constant = ngraph::pattern::wrap_type<opset3::Constant>();
+    auto m_add1 = ngraph::pattern::wrap_type<opset3::Add>({m_data, m_add1_constant}, pattern::consumers_count(1));
+    auto m_add2_constant = ngraph::pattern::wrap_type<opset3::Constant>();
+    auto m_add2 = ngraph::pattern::wrap_type<opset3::Add>({m_add1, m_add2_constant});
 
     ngraph::graph_rewrite_callback callback = [=](ngraph::pattern::Matcher & m) -> bool {
         auto add2 = m.get_match_root();
@@ -100,15 +93,11 @@ ngraph::pass::AddAddFusion::AddAddFusion() {
 
 ngraph::pass::MultiplyMultiplyFusion::MultiplyMultiplyFusion() {
     // Create Multiply->Multiply pattern where first Multiply has exactly one consumer
-    auto m_data = std::make_shared<pattern::op::Label>(element::f32, Shape{});
-    auto m_mul1_constant = std::make_shared<pattern::op::Label>(element::f32, Shape{}, pattern::has_class<opset3::Constant>());
-    auto m_mul1 = std::make_shared<pattern::op::Any>(element::f32, Shape{},
-            [](std::shared_ptr<Node> node) {
-                // Check that node has type opset3::Multiply and node has only one consumer
-                return std::dynamic_pointer_cast<opset3::Multiply>(node) && node->output(0).get_target_inputs().size() == 1;
-            }, NodeVector{m_data, m_mul1_constant});
-    auto m_mul2_constant = std::make_shared<pattern::op::Label>(element::f32, Shape{}, pattern::has_class<opset3::Constant>());
-    auto m_mul2 = std::make_shared<ngraph::opset3::Multiply>(m_mul1, m_mul2_constant);
+    auto m_data = std::make_shared<pattern::op::Label>();
+    auto m_mul1_constant = ngraph::pattern::wrap_type<opset3::Constant>();
+    auto m_mul1 = ngraph::pattern::wrap_type<opset3::Multiply>({m_data, m_mul1_constant}, pattern::consumers_count(1));
+    auto m_mul2_constant = ngraph::pattern::wrap_type<opset3::Constant>();
+    auto m_mul2 = ngraph::pattern::wrap_type<ngraph::opset3::Multiply>({m_mul1, m_mul2_constant});
 
     ngraph::graph_rewrite_callback callback = [=](ngraph::pattern::Matcher & m) -> bool {
         auto mul2 = m.get_match_root();
