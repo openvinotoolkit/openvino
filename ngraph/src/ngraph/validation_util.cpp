@@ -646,7 +646,7 @@ bool ngraph::try_apply_auto_padding(const PartialShape& image_shape,
 
     for (size_t i = 0; i < static_cast<size_t>(filter_shape.size()); i++)
     {
-        int64_t image_size = static_cast<int64_t>(image_dims[i + 2]);
+        int64_t image_size = static_cast<int64_t>(image_dims[i + 2].get_length());
         int64_t filter_size = (static_cast<int64_t>(filter_shape[i]) - 1) * filter_dilations[i] + 1;
         int64_t filter_stride = static_cast<int64_t>(filter_strides[i]);
         auto output_size = (image_size + filter_stride - 1) / filter_stride;
