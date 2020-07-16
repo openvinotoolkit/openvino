@@ -27,7 +27,7 @@ class SoftPlus(FrontReplacementOp):
     The transformation replaces SoftPlus(x) with log(1.0 + exp(x)).
     """
     op = 'SoftPlus'
-    enabled = True
+    enabled = False
 
     def replace_sub_graph(self, graph: Graph, match: dict):
         softplus = match['op']

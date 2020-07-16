@@ -213,15 +213,12 @@ class Log(Activation):
     operation = staticmethod(lambda x: np.log(x))
 
 
-class SoftPlus(Op):
+class SoftPlus(Activation):
     op = 'SoftPlus'
 
     def __init__(self, graph: Graph, attrs: dict):
-        mandatory_props = {
-            'op': self.op,
-            'type': None,
-            'in_ports_count': 1,
-            'out_ports_count': 1,
-            'infer': None
-        }
-        super().__init__(graph, mandatory_props, attrs)
+        sp_attrs = {'version': 'opset4'}
+        sp_attrs.update(attrs)
+        super().__init__(graph, sp_attrs)
+
+    operation = staticmethod(lambda x: np.ln(np.exp(x) + 1.0))
