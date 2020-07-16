@@ -60,7 +60,7 @@ bool NormalizeL2Transformation::canBeTransformed(const TransformationContext& co
     const size_t size = ngraph::shape_size(outputShape);
     const size_t channels = operation->get_output_shape(0)[1];
 
-    if (size != channels || size != 1) {
+    if (size != channels && size != 1) {
         return false;
     }
 
@@ -82,13 +82,12 @@ void NormalizeL2Transformation::registerMatcherIn(GraphRewrite& pass, Transforma
 }
 
 void NormalizeL2Transformation::transform(TransformationContext &context, ngraph::pattern::Matcher &m) const {
-    std::shared_ptr<ngraph::Node> operation = m.get_match_root();
+    std::shared_ptr<Node> operation = m.get_match_root();
     if (!canBeTransformed(context, operation)) {
         return;
     }
 
     auto normalize = as_type_ptr<opset1::NormalizeL2>(operation);
-
     normalize = as_type_ptr<opset1::NormalizeL2>(separateInStandaloneBranch(normalize));
 
     const auto axes = as_type_ptr<opset1::Constant>(normalize->get_input_node_shared_ptr(1));
@@ -98,7 +97,7 @@ void NormalizeL2Transformation::transform(TransformationContext &context, ngraph
         scalesConst = as_type_ptr<opset1::Constant>(dequantization.multiply->get_input_node_shared_ptr(0));
     }
 
-    std::shared_ptr<ngraph::opset1::Constant> newScalesConst;
+    std::shared_ptr<opset1::Constant> newScalesConst;
     const auto type = scalesConst->get_output_element_type(0);
     switch (type) {
         case ngraph::element::Type_t::f16: {
@@ -114,14 +113,25 @@ void NormalizeL2Transformation::transform(TransformationContext &context, ngraph
         }
     }
 
-
-    const auto newMultiply = std::make_shared<opset1::Multiply>(
-        std::make_shared<opset1::NormalizeL2>(
-            dequantization.subtract == nullptr ?
-                dequantization.data : dequantization.subtract,
+    std::shared_ptr<Node> output;
+    if (dequantization.subtract == nullptr) {
+        output = std::make_shared<opset1::Convert>(
+            std::make_shared<opset1::NormalizeL2>(
+                dequantization.data,
+                axes,
+                normalize->get_eps(),
+                normalize->get_eps_mode()),
+            normalize->get_output_element_type(0));
+    } else {
+        output = std::make_shared<opset1::NormalizeL2>(
+            dequantization.subtract,
             axes,
             normalize->get_eps(),
-            normalize->get_eps_mode()),
+            normalize->get_eps_mode());
+    }
+
+    const auto newMultiply = std::make_shared< ngraph::op::TypeRelaxed<opset1::Multiply>>(
+        output,
         newScalesConst);
 
     replace_node(normalize, newMultiply);

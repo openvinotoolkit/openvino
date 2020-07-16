@@ -47,7 +47,7 @@ public:
         const bool broadcast = std::get<2>(GetParam());
         const MultiplyTransformationTestValues testParams = std::get<3>(GetParam());
 
-        actualFunction = ngraph::builder::subgraph::MultiplyFunction::getOriginal(
+        actualFunction = MultiplyFunction::getOriginal(
             precision,
             shape,
             broadcast,
@@ -56,11 +56,11 @@ public:
             testParams.constInput);
 
         SimpleLowPrecisionTransformer transform;
-        transform.add<ngraph::pass::low_precision::MultiplyTransformation, ngraph::opset1::Multiply>(
+        transform.add<low_precision::MultiplyTransformation, ngraph::opset1::Multiply>(
             low_precision::LayerTransformation::Params(testParams.transformationParams));
         transform.transform(actualFunction);
 
-        referenceFunction = ngraph::builder::subgraph::MultiplyFunction::getReference(
+        referenceFunction = MultiplyFunction::getReference(
             precision,
             shape,
             broadcast,
