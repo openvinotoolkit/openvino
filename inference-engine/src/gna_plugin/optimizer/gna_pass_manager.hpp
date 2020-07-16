@@ -29,6 +29,7 @@ class IPassManager {
 public:
     virtual ~IPassManager() = default;
     virtual int &getIntVar(std::string name) = 0;
+    virtual std::string &getStringVar(std::string name) = 0;
     virtual const Policy &getPolicy() const = 0;
     virtual const InferenceEngine::CNNNetPtr &getNetwork() const = 0;
 };
@@ -135,6 +136,11 @@ DECL_PASS(InsertConcatAligningFilter);
 DECL_PASS(ReorderConcatInputs);
 
 /**
+* @brief replaces input layers with memory layers, and attach output memory layers to specific  ports
+*/
+DECL_PASS(MakeExtraMemoryLayers);
+
+/**
 * @brief unrolled LSTM cell layer in supported GNA primitives
 */
 DECL_PASS_BEFORE_COPY(UnrollLSTMCell);
@@ -158,6 +164,8 @@ struct PassManagerSettings {
     Policy policy;
     /// @brief whether to run passes before copy
     bool runBeforeCopy;
+    /// @brief pass manager has dedicated pass to inject memory layers where they need to be injected
+    std::map<std::string, std::string> syntheticMemoryLayers;
 };
 
 
@@ -178,6 +186,9 @@ public:
     }
     int & getIntVar(std::string name) override {
         return intMap[name];
+    }
+    std::string & getStringVar(std::string name) override {
+        return settings.syntheticMemoryLayers[name];
     }
     const Policy & getPolicy() const override {
         return settings.policy;

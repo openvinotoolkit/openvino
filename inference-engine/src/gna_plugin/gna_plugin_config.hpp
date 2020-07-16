@@ -29,6 +29,7 @@ struct Config {
     // precision of GNA hardware model
     InferenceEngine::Precision gnaPrecision = InferenceEngine::Precision::I16;
 
+    std::map<std::string, std::string> extraMemoryMap;
     std::string dumpXNNPath;
     std::string dumpXNNGeneration;
 

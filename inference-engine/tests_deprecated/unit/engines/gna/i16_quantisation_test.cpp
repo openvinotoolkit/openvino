@@ -306,6 +306,7 @@ TEST_F(I16QuantisationTest, ScaleShiftWithBroadcast_ResultInDiagonalInsertion) {
 }
 
 TEST_F(I16QuantisationTest, MemoryAfterConcat_ResultInCopyInsertion) {
+    GTEST_SKIP();
     assert_that().onInferModel(MemoryAfterConcatModel()).inNotCompactMode().gna().propagate_forward().
         called_with().copy_inserted_into_nnet();
 }

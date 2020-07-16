@@ -68,6 +68,10 @@ public:
         _inputData.erase(name);
     }
 
+    void removeOutputInfo(const std::string& name) {
+        _outputData.erase(name);
+    }
+
     void getName(char* pName, size_t len) const noexcept override {
         // Description buffer will preserve garbage if external pointer not initialized
         if (len < 1) return;
