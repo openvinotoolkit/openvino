@@ -640,7 +640,7 @@ void GNAGraphCompiler::ConcatPrimitive(InferenceEngine::CNNLayerPtr layer) {
 
             concatLayerInfo.input_allocated = true;
         } else  if (layerInfo.isMemory()) {
-            connectInput(layer, &concatLayerInfo.gna_ptr, concatLayerInfo.reserved_size, -static_cast<int>(inputLayer.offset), idx);
+            connectInput(layer, &concatLayerInfo.gna_ptr, concatLayerInfo.reserved_size, inputLayer.offset, idx);
 
             concatLayerInfo.input_allocated = true;
         }
