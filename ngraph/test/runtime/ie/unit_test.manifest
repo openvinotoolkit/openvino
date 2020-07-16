@@ -10,8 +10,10 @@
 #
 #-------------------------------------------------------------------------------
 
+# Segmentation fault
+onnx_model_quantize_linear_const_scale_const_zero_p
 
-# Not supported ONNX op: QuantizeLinear
+# Quantize layer input 'Multiply_7' doesn't have blobs
 onnx_model_quantize_linear
 onnx_model_quantize_linear_zero_point
 onnx_model_quantize_linear_axis_zero
@@ -167,6 +169,8 @@ arg_min_no_keep_dims_dyn_shape
 
 # Dynamic function 'get_shape was called on a descriptor::Tensor with dynamic shape'
 onnx_upsample9_scales_input_nearest_infer
+onnx_dyn_shapes_slice_1_3d_input_21_axes_ends_max
+
 
 #-------------------------------------------------------------------------------
 #
@@ -552,14 +556,6 @@ all_change_axis
 
 # Positive input shape should be the same as negative input shape
 select_v1
-
-# Cannot cast ngraph node ScatterNDAdd to CNNLayer!
-scatter_add_3d_indices
-scatter_add_2d_indices
-scatter_add_1d_indices
-scatter_add_scalar_indices
-scatter_nd_add_batch_2d_to_3d
-scatter_nd_add_2d_to_3d
 
 # Cannot cast ngraph node Reverse to CNNLayer!
 reverse_1d_0

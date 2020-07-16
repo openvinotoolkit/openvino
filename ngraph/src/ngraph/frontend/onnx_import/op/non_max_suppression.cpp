@@ -79,8 +79,10 @@ namespace ngraph
                     const auto center_point_box =
                         node.get_attribute_value<std::int64_t>("center_point_box", 0);
 
-                    ASSERT_IS_SUPPORTED(node, center_point_box == 0 || center_point_box == 1)
-                        << "Allowed values of the 'center_point_box' attribute are 0 and 1.";
+                    CHECK_VALID_NODE(
+                        node,
+                        center_point_box == 0 || center_point_box == 1,
+                        "Allowed values of the 'center_point_box' attribute are 0 and 1.");
 
                     const auto box_encoding =
                         center_point_box == 0

@@ -34,22 +34,6 @@ namespace ngraph
                 std::string get_error_msg_prefix(const Node& node);
             }
 
-            struct NotSupported : AssertionFailure
-            {
-                explicit NotSupported(const std::string& what_arg)
-                    : AssertionFailure(what_arg)
-                {
-                }
-            };
-
-            struct InvalidArgument : AssertionFailure
-            {
-                explicit InvalidArgument(const std::string& what_arg)
-                    : AssertionFailure(what_arg)
-                {
-                }
-            };
-
             class OnnxNodeValidationFailure : public CheckFailure
             {
             public:
@@ -66,14 +50,6 @@ namespace ngraph
     } // namespace  onnx_import
 
 } // namespace  ngraph
-
-#define ASSERT_IS_SUPPORTED(node_, cond_)                                                          \
-    NGRAPH_ASSERT_STREAM_DO_NOT_USE_IN_NEW_CODE(ngraph::onnx_import::error::NotSupported, cond_)   \
-        << (node_) << " "
-#define ASSERT_VALID_ARGUMENT(node_, cond_)                                                        \
-    NGRAPH_ASSERT_STREAM_DO_NOT_USE_IN_NEW_CODE(ngraph::onnx_import::error::InvalidArgument,       \
-                                                cond_)                                             \
-        << (node_) << " "
 
 #define CHECK_VALID_NODE(node_, cond_, ...)                                                        \
     NGRAPH_CHECK_HELPER(                                                                           \

@@ -40,17 +40,18 @@ std::string ConcatTestModel::getModel(SingleLayerTransformationsTestParams& p) c
         {"10,15", "12,22"}, {"11,21", "12,23"} // FakeQuantize to Concat
     };
 
+    size_t constSize = std::accumulate(constInputDimentions.begin(), constInputDimentions.end(), 1lu, std::multiplies<size_t>());
     return CommonTestUtils::DefaultNetBuilder::buildNetworkWithOneInput(
             "Concat_transformations_", p.inputDimensions[0], p._network_precision)
         .addInputLayer(p._network_precision, p.inputDimensions[1])
-        .addLayer("Const", p._network_precision, &const_params, {{}, {constInputDimentions}}, type_size, 0)
-        .addLayer("Const", p._network_precision, &const_params, {{}, {constInputDimentions}}, type_size, 0)
-        .addLayer("Const", p._network_precision, &const_params, {{}, {constInputDimentions}}, type_size, 0)
-        .addLayer("Const", p._network_precision, &const_params, {{}, {constInputDimentions}}, type_size, 0)
-        .addLayer("Const", p._network_precision, &const_params, {{}, {constInputDimentions}}, type_size, 0)
-        .addLayer("Const", p._network_precision, &const_params, {{}, {constInputDimentions}}, type_size, 0)
-        .addLayer("Const", p._network_precision, &const_params, {{}, {constInputDimentions}}, type_size, 0)
-        .addLayer("Const", p._network_precision, &const_params, {{}, {constInputDimentions}}, type_size, 0)
+        .addLayer("Const", p._network_precision, &const_params, {{}, {constInputDimentions}}, type_size*constSize, 0)
+        .addLayer("Const", p._network_precision, &const_params, {{}, {constInputDimentions}}, type_size*constSize, 0)
+        .addLayer("Const", p._network_precision, &const_params, {{}, {constInputDimentions}}, type_size*constSize, 0)
+        .addLayer("Const", p._network_precision, &const_params, {{}, {constInputDimentions}}, type_size*constSize, 0)
+        .addLayer("Const", p._network_precision, &const_params, {{}, {constInputDimentions}}, type_size*constSize, 0)
+        .addLayer("Const", p._network_precision, &const_params, {{}, {constInputDimentions}}, type_size*constSize, 0)
+        .addLayer("Const", p._network_precision, &const_params, {{}, {constInputDimentions}}, type_size*constSize, 0)
+        .addLayer("Const", p._network_precision, &const_params, {{}, {constInputDimentions}}, type_size*constSize, 0)
         .addLayer(
             "FakeQuantize",
             p._network_precision,

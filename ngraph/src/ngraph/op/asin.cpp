@@ -48,22 +48,6 @@ shared_ptr<Node> op::Asin::clone_with_new_inputs(const OutputVector& new_args) c
     return make_shared<Asin>(new_args.at(0));
 }
 
-void op::Asin::generate_adjoints(autodiff::Adjoints& adjoints, const OutputVector& deltas)
-{
-    auto delta = deltas.at(0);
-
-    auto x = input_value(0);
-
-    auto one = make_shared<op::Constant>(x.get_element_type(), Shape{}, vector<string>{"1"});
-
-    AxisSet axes;
-    for (size_t i = 0; i < x.get_shape().size(); i++)
-        axes.insert(i);
-    auto ones = make_shared<op::Broadcast>(one, x.get_shape(), axes);
-
-    adjoints.add_delta(x, delta / make_shared<op::Sqrt>(ones - x * x));
-}
-
 namespace
 {
     template <element::Type_t ET>

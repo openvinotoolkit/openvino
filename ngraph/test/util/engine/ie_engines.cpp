@@ -105,6 +105,9 @@ namespace
         case InferenceEngine::Precision::U16:
             return compare_blobs<uint16_t>(computed, expected, tolerance_bits);
             break;
+        case InferenceEngine::Precision::U32:
+            return compare_blobs<uint32_t>(computed, expected, tolerance_bits);
+            break;
         case InferenceEngine::Precision::U64:
             return compare_blobs<uint64_t>(computed, expected, tolerance_bits);
             break;

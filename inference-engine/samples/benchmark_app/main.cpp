@@ -75,7 +75,7 @@ static void next_step(const std::string additional_info = "") {
             { 1, "Parsing and validating input arguments" },
             { 2, "Loading Inference Engine" },
             { 3, "Setting device configuration" },
-            { 4, "Reading the Intermediate Representation network" },
+            { 4, "Reading network files" },
             { 5, "Resizing network to match image sizes and given batch" },
             { 6, "Configuring input of the model" },
             { 7, "Loading the model to the device" },

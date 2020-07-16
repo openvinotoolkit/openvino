@@ -20,6 +20,7 @@
 
 #include <low_precision_transformations/blob_transformation.hpp>
 #include <graph_tools.hpp>
+#include <net_pass.h>
 #include <debug.h>
 #include <gna/gna_config.hpp>
 #include "gna_plugin_config.hpp"
@@ -337,7 +338,17 @@ void GNAPlugin::InitGNADevice() {
     graphCompiler.setGNAMemoryPtr(gnamem);
 }
 
-void GNAPlugin::LoadNetwork(ICNNNetwork &network) {
+void GNAPlugin::LoadNetwork(ICNNNetwork & _network) {
+    std::shared_ptr<InferenceEngine::details::CNNNetworkImpl> convertedNetwork;
+    if (_network.getFunction()) {
+        convertedNetwork = std::make_shared<InferenceEngine::details::CNNNetworkImpl>(_network);
+    }
+    InferenceEngine::ICNNNetwork &network = convertedNetwork ? *convertedNetwork : _network;
+
+    NetPass::ConvertPrecision(network, Precision::I64, Precision::I32);
+    NetPass::ConvertPrecision(network, Precision::U64, Precision::I32);
+    NetPass::ConvertPrecision(network, Precision::U32, Precision::I32);
+
     // move blobs from Constant layers to Convolution, Deconvolution, FullyConnected layers attributes
     BlobTransformation blobsTransformation;
     blobsTransformation.transform(network, true);
@@ -1099,11 +1110,14 @@ Blob::Ptr GNAPlugin::GetInputBlob(const std::string& name, InferenceEngine::Prec
 }
 
 std::vector<InferenceEngine::MemoryStateInternal::Ptr>  GNAPlugin::QueryState() {
-    if (graphCompiler.memory_connection.empty()) {
-        return {};
+    if (memoryStates.size() != graphCompiler.memory_connection.size()) {
+        memoryStates.clear();
+        for (auto& connection : graphCompiler.memory_connection) {
+            auto state = std::make_shared<memory::GNAMemoryState>(connection.first, std::make_shared <GNAMemoryLayer>(connection.second));
+            memoryStates.emplace_back(state);
+        }
     }
-
-    return {std::make_shared<memory::GNAMemoryState>(shared_from_this())};
+    return memoryStates;
 }
 
 std::string GNAPlugin::GetName() const noexcept {
@@ -1251,6 +1265,10 @@ void GNAPlugin::UpdateFieldsFromConfig() {
 void GNAPlugin::QueryNetwork(const InferenceEngine::ICNNNetwork& network,
                              const std::map<std::string, std::string>& config,
                              InferenceEngine::QueryNetworkResult& res) const {
+    if (network.getFunction()) {
+        THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str << " ngraph::Function is not supported natively";
+    }
+
     std::unordered_set<CNNLayer *> allLayers;
     InferenceEngine::InputsDataMap inputs;
 
@@ -1273,4 +1291,4 @@ void GNAPlugin::QueryNetwork(const InferenceEngine::ICNNNetwork& network,
                                                     res.supportedLayersMap.insert({ layer->name, GetName() });
                                                 }
                                             }, false);
-    }
+}

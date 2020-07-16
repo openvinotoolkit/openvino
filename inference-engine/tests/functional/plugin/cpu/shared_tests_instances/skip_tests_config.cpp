@@ -21,7 +21,7 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*(QuantGroupConv2D).*)",
         R"(.*(QuantGroupConv3D).*)",
         // TODO: Issue 31845
-        R"(.*(FakeQuantize).*)",
+        R"(.*(FakeQuantizeLayerTest).*)",
         R"(.*(EltwiseLayerTest).*IS=\(.*\..*\..*\..*\..*\).*secondaryInputType=PARAMETER.*opType=SCALAR.*)",
         // TODO: Issue 32756
         R"(.*Transpose.*inputOrder=\(\).*)",
@@ -42,9 +42,14 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*IEClassGetAvailableDevices.*)",
         // TODO: Issue: 25533
         R"(.*ConvertLikeLayerTest.*)",
-        //TODO: Issue: 34516
+        // TODO: Issue: 34516
         R"(.*ConvertLayerTest.*)",
-        //TODO: Issue: 34805
-        R"(.*ActivationLayerTest.*Ceiling.*)"
+        // TODO: Issue: 34055
+        R"(.*ShapeOfLayerTest.*)",
+        R"(.*ReluShapeOfSubgraphTest.*)",
+        // TODO: Issue: 34805
+        R"(.*ActivationLayerTest.*Ceiling.*)",
+        // TODO: Issue: 32032
+        R"(.*ActivationParamLayerTest.*)",
     };
 }
