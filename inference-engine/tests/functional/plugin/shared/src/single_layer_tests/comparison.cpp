@@ -37,17 +37,6 @@ std::string ComparisonLayerTest::getTestCaseName(testing::TestParamInfo<Comparis
     return results.str();
 }
 
-std::vector<InputShapesTuple> ComparisonLayerTest::combineShapes(const std::map<std::vector<size_t>, std::vector<std::vector<size_t >>>& inputShapes) {
-    std::vector<InputShapesTuple> resVec;
-    for (auto& inputShape : inputShapes) {
-        for (auto& item : inputShape.second) {
-            resVec.push_back({inputShape.first, item});
-        }
-    }
-    return resVec;
-}
-
-
 void ComparisonLayerTest::SetUp() {
     InputShapesTuple inputShapes;
     InferenceEngine::Precision inputsPrecision;

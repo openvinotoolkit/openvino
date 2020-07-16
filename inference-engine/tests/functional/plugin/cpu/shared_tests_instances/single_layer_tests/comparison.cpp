@@ -11,7 +11,7 @@ using namespace LayerTestsDefinitions::ComparisonParams;
 
 namespace {
 
-std::map<std::vector<size_t>, std::vector<std::vector<size_t >>> inputShapes = {
+std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> inputShapes = {
         {{1}, {{1}, {17}, {1, 1}, {2, 18}, {1, 1, 2}, {2, 2, 3}, {1, 1, 2, 3}}},
         {{5}, {{1}, {1, 1}, {2, 5}, {1, 1, 1}, {2, 2, 5}}},
         {{2, 200}, {{1}, {200}, {1, 200}, {2, 200}, {2, 2, 200}}},
@@ -45,7 +45,7 @@ std::vector<InferenceEngine::Precision> netPrecisions = {
 std::map<std::string, std::string> additional_config = {};
 
 const auto ComparisonTestParams = ::testing::Combine(
-        ::testing::ValuesIn(ComparisonLayerTest::combineShapes(inputShapes)),
+        ::testing::ValuesIn(CommonTestUtils::combineShapes<size_t>(inputShapes)),
         ::testing::ValuesIn(inputsPrecisions),
         ::testing::ValuesIn(comparisonOpTypes),
         ::testing::ValuesIn(secondInputTypes),

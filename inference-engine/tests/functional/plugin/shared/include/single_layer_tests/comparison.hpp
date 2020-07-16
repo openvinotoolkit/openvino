@@ -35,6 +35,5 @@ protected:
 
 public:
     static std::string getTestCaseName(testing::TestParamInfo<ComparisonTestParams> obj);
-    static std::vector<ComparisonParams::InputShapesTuple> combineShapes(const std::map<std::vector<size_t>, std::vector<std::vector<size_t >>>& inputShapes);
 };
 } // namespace LayerTestsDefinitions
