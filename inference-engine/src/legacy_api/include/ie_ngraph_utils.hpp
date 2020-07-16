@@ -88,7 +88,7 @@ inline ::ngraph::element::Type convertPrecision(const std::string& precision) {
 }
 
 inline Precision convertPrecision(const ::ngraph::element::Type& precision) {
-    switch (precision.get_type_enum()) {
+    switch (precision) {
     case ::ngraph::element::Type_t::undefined:
         return Precision(Precision::UNSPECIFIED);
     case ::ngraph::element::Type_t::f16:
