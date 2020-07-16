@@ -29,11 +29,16 @@ IE_SUPPRESS_DEPRECATED_START
 
         CONFIG_KEY(CONFIG_FILE),
 
-        VPU_CONFIG_KEY(HW_STAGES_OPTIMIZATION),
         ie::MYRIAD_ENABLE_HW_ACCELERATION,
-        VPU_CONFIG_KEY(CUSTOM_LAYERS),
         ie::MYRIAD_CUSTOM_LAYERS,
         ie::MYRIAD_THROUGHPUT_STREAMS,
+
+        //
+        // Public deprecated
+        //
+
+        VPU_CONFIG_KEY(HW_STAGES_OPTIMIZATION),
+        VPU_CONFIG_KEY(CUSTOM_LAYERS),
 
         //
         // Private options

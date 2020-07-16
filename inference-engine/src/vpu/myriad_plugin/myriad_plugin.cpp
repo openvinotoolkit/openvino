@@ -132,13 +132,13 @@ Engine::Engine(std::shared_ptr<IMvnc> mvnc) :
     _pluginName = "MYRIAD";
 
     _config = {
-        { MYRIAD_ENABLE_HW_ACCELERATION, "ON" },
-        { KEY_LOG_LEVEL, "LOG_NONE" },
-        { MYRIAD_ENABLE_RECEIVING_TENSOR_TIME, "OFF" },
+        { MYRIAD_ENABLE_HW_ACCELERATION, CONFIG_VALUE(YES) },
+        { KEY_LOG_LEVEL, CONFIG_VALUE(LOG_NONE) },
+        { MYRIAD_ENABLE_RECEIVING_TENSOR_TIME, CONFIG_VALUE(NO) },
         { MYRIAD_CUSTOM_LAYERS, "" },
-        { MYRIAD_FORCE_RESET, "OFF" },
-        { KEY_EXCLUSIVE_ASYNC_REQUESTS, "OFF" },
-        { KEY_PERF_COUNT, "OFF" },
+        { MYRIAD_FORCE_RESET, CONFIG_VALUE(NO) },
+        { KEY_EXCLUSIVE_ASYNC_REQUESTS, CONFIG_VALUE(NO) },
+        { KEY_PERF_COUNT, CONFIG_VALUE(NO) },
         { KEY_CONFIG_FILE, "" },
         { KEY_DEVICE_ID, "" },
     };

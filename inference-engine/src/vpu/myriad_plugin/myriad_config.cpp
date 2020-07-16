@@ -31,10 +31,8 @@ IE_SUPPRESS_DEPRECATED_START
     static const std::unordered_set<std::string> options = merge(ParsedConfig::getRunTimeOptions(), {
         CONFIG_KEY(DEVICE_ID),
 
-        VPU_MYRIAD_CONFIG_KEY(FORCE_RESET),
         ie::MYRIAD_FORCE_RESET,
-        VPU_MYRIAD_CONFIG_KEY(PLATFORM),
-        VPU_MYRIAD_CONFIG_KEY(PROTOCOL),
+
         ie::MYRIAD_PROTOCOL,
         ie::MYRIAD_WATCHDOG,
         ie::MYRIAD_THROUGHPUT_STREAMS,
@@ -43,8 +41,13 @@ IE_SUPPRESS_DEPRECATED_START
         ie::MYRIAD_PLUGIN_LOG_FILE_PATH,
         ie::MYRIAD_DEVICE_CONNECT_TIMEOUT,
 
-        VPU_MYRIAD_CONFIG_KEY(MOVIDIUS_DDR_TYPE),
         ie::MYRIAD_DDR_TYPE,
+
+        // Deprecated
+        VPU_MYRIAD_CONFIG_KEY(FORCE_RESET),
+        VPU_MYRIAD_CONFIG_KEY(PLATFORM),
+        VPU_MYRIAD_CONFIG_KEY(PROTOCOL),
+        VPU_MYRIAD_CONFIG_KEY(MOVIDIUS_DDR_TYPE),
     });
 IE_SUPPRESS_DEPRECATED_END
 
@@ -67,14 +70,14 @@ IE_SUPPRESS_DEPRECATED_END
 void MyriadConfig::parse(const std::map<std::string, std::string>& config) {
 IE_SUPPRESS_DEPRECATED_START
     static const std::unordered_map<std::string, ncDevicePlatform_t> platformsDeprecated = {
-        { VPU_MYRIAD_CONFIG_VALUE(2450),   NC_MYRIAD_2 },
-        { VPU_MYRIAD_CONFIG_VALUE(2480),   NC_MYRIAD_X },
-        { std::string(),                      NC_ANY_PLATFORM }
+        { VPU_MYRIAD_CONFIG_VALUE(2450), NC_MYRIAD_2 },
+        { VPU_MYRIAD_CONFIG_VALUE(2480), NC_MYRIAD_X },
+        { std::string(),                 NC_ANY_PLATFORM }
     };
 
     static const std::unordered_map<std::string, ncDeviceProtocol_t> protocolsDeprecated = {
-        { VPU_MYRIAD_CONFIG_VALUE(USB),     NC_USB},
-        { VPU_MYRIAD_CONFIG_VALUE(PCIE),    NC_PCIE},
+        { VPU_MYRIAD_CONFIG_VALUE(USB),  NC_USB},
+        { VPU_MYRIAD_CONFIG_VALUE(PCIE), NC_PCIE},
         { std::string(),                 NC_ANY_PROTOCOL}
     };
 
@@ -90,7 +93,7 @@ IE_SUPPRESS_DEPRECATED_END
     static const std::unordered_map<std::string, ncDeviceProtocol_t> protocols = {
         { ie::MYRIAD_USB,     NC_USB},
         { ie::MYRIAD_PCIE,    NC_PCIE},
-        { std::string(),   NC_ANY_PROTOCOL}
+        { std::string(),      NC_ANY_PROTOCOL}
     };
 
     static const std::unordered_map<std::string, std::chrono::milliseconds> watchdogIntervals = {
