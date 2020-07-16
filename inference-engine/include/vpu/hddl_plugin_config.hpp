@@ -48,94 +48,94 @@ namespace InferenceEngine {
 namespace Metrics {
 
 /**
-* @deprecated  Use MYRIAD_METRIC_KEY(DEVICE_NUM) instead
+* @deprecated  Use InferenceEngine::METRIC_MYRIAD_DEVICE_NUM instead
 * @brief Metric to get a int of the device number, String value is METRIC_VPU_HDDL_DEVICE_NUM
 */
-INFERENCE_ENGINE_DEPRECATED("Use MYRIAD_METRIC_KEY(DEVICE_NUM) instead")
+INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::METRIC_MYRIAD_DEVICE_NUM instead")
 DECLARE_VPU_HDDL_METRIC(DEVICE_NUM, int);
 
 /**
-* @deprecated  Use MYRIAD_METRIC_KEY(DEVICE_NAME) instead
+* @deprecated  Use InferenceEngine::METRIC_MYRIAD_DEVICE_NAME instead
 * @brief Metric to get a std::vector<std::string> of device names, String value is METRIC_VPU_HDDL_DEVICE_NAME
 */
-INFERENCE_ENGINE_DEPRECATED("Use MYRIAD_METRIC_KEY(DEVICE_NAME) instead")
+INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::METRIC_MYRIAD_DEVICE_NAME instead")
 DECLARE_VPU_HDDL_METRIC(DEVICE_NAME, std::vector<std::string>);
 
 /**
-* @deprecated  Use MYRIAD_METRIC_KEY(DEVICE_THERMAL) instead
+* @deprecated  Use InferenceEngine::METRIC_MYRIAD_DEVICE_THERMAL instead
 * @brief  Metric to get a std::vector<float> of device thermal, String value is METRIC_VPU_HDDL_DEVICE_THERMAL
 */
-INFERENCE_ENGINE_DEPRECATED("Use MYRIAD_METRIC_KEY(DEVICE_THERMAL) instead")
+INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::METRIC_MYRIAD_DEVICE_THERMAL instead")
 DECLARE_VPU_HDDL_METRIC(DEVICE_THERMAL, std::vector<float>);
 
 /**
-* @deprecated  Use MYRIAD_METRIC_KEY(DEVICE_ID) instead
+* @deprecated  Use InferenceEngine::METRIC_MYRIAD_DEVICE_ID instead
 * @brief  Metric to get a std::vector<uint32> of device ids, String value is METRIC_VPU_HDDL_DEVICE_ID
 */
-INFERENCE_ENGINE_DEPRECATED("Use MYRIAD_METRIC_KEY(DEVICE_ID) instead")
+INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::METRIC_MYRIAD_DEVICE_ID instead")
 DECLARE_VPU_HDDL_METRIC(DEVICE_ID, std::vector<unsigned int>);
 
 /**
-* @deprecated  Use MYRIAD_METRIC_KEY(DEVICE_SUBCLASS) instead
+* @deprecated  Use InferenceEngine::METRIC_MYRIAD_DEVICE_SUBCLASS instead
 * @brief  Metric to get a std::vector<int> of device subclasses, String value is METRIC_VPU_HDDL_DEVICE_SUBCLASS
 */
-INFERENCE_ENGINE_DEPRECATED("Use MYRIAD_METRIC_KEY(DEVICE_SUBCLASS) instead")
+INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::METRIC_MYRIAD_DEVICE_SUBCLASS instead")
 DECLARE_VPU_HDDL_METRIC(DEVICE_SUBCLASS, std::vector<int>);
 
 /**
-* @deprecated  Use MYRIAD_METRIC_KEY(DEVICE_MEMORY_TOTAL) instead
+* @deprecated  Use InferenceEngine::METRIC_MYRIAD_DEVICE_MEMORY_TOTAL instead
 * @brief  Metric to get a std::vector<uint32> of device total memory, String value is METRIC_VPU_HDDL_MEMORY_TOTAL
 */
-INFERENCE_ENGINE_DEPRECATED("Use MYRIAD_METRIC_KEY(DEVICE_MEMORY_TOTAL) instead")
+INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::METRIC_MYRIAD_DEVICE_MEMORY_TOTAL instead")
 DECLARE_VPU_HDDL_METRIC(DEVICE_MEMORY_TOTAL, std::vector<unsigned int>);
 
 /**
-* @deprecated  Use MYRIAD_METRIC_KEY(DEVICE_MEMORY_USED) instead
+* @deprecated  Use InferenceEngine::METRIC_MYRIAD_DEVICE_MEMORY_USED instead
 * @brief  Metric to get a std::vector<uint32> of device used memory, String value is METRIC_VPU_HDDL_DEVICE_MEMORY_USED
 */
-INFERENCE_ENGINE_DEPRECATED("Use MYRIAD_METRIC_KEY(DEVICE_MEMORY_USED) instead")
+INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::METRIC_MYRIAD_DEVICE_MEMORY_USED instead")
 DECLARE_VPU_HDDL_METRIC(DEVICE_MEMORY_USED, std::vector<unsigned int>);
 
 /**
-* @deprecated  Use MYRIAD_METRIC_KEY(DEVICE_UTILIZATION) instead
+* @deprecated  Use InferenceEngine::METRIC_MYRIAD_DEVICE_UTILIZATION instead
 * @brief  Metric to get a std::vector<float> of device utilization, String value is METRIC_VPU_HDDL_DEVICE_UTILIZATION
 */
-INFERENCE_ENGINE_DEPRECATED("Use MYRIAD_METRIC_KEY(DEVICE_UTILIZATION) instead")
+INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::METRIC_MYRIAD_DEVICE_UTILIZATION instead")
 DECLARE_VPU_HDDL_METRIC(DEVICE_UTILIZATION, std::vector<float>);
 
 /**
-* @deprecated  Use MYRIAD_METRIC_KEY(STREAM_ID) instead
+* @deprecated  Use InferenceEngine::METRIC_MYRIAD_STREAM_ID instead
 * @brief  Metric to get a std::vector<std::string> of stream ids, String value is METRIC_VPU_HDDL_DEVICE_STREAM_ID
 */
-INFERENCE_ENGINE_DEPRECATED("Use MYRIAD_METRIC_KEY(STREAM_ID) instead")
+INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::METRIC_MYRIAD_STREAM_ID instead")
 DECLARE_VPU_HDDL_METRIC(STREAM_ID, std::vector<std::string>);
 
 /**
-* @deprecated  Use MYRIAD_METRIC_KEY(DEVICE_TAG) instead
+* @deprecated  Use InferenceEngine::METRIC_MYRIAD_DEVICE_TAG instead
 * @brief  Metric to get a std::vector<std::string> of device tags, String value is METRIC_VPU_HDDL_DEVICE_TAG
 */
-INFERENCE_ENGINE_DEPRECATED("Use MYRIAD_METRIC_KEY(DEVICE_TAG) instead")
+INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::METRIC_MYRIAD_DEVICE_TAG instead")
 DECLARE_VPU_HDDL_METRIC(DEVICE_TAG, std::vector<std::string>);
 
 /**
-* @deprecated  Use MYRIAD_METRIC_KEY(GROUP_ID) instead
+* @deprecated  Use InferenceEngine::METRIC_MYRIAD_GROUP_ID instead
 * @brief  Metric to get a std::vector<int> of group ids, String value is METRIC_VPU_HDDL_GROUP_ID
 */
-INFERENCE_ENGINE_DEPRECATED("Use MYRIAD_METRIC_KEY(GROUP_ID) instead")
+INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::METRIC_MYRIAD_GROUP_ID instead")
 DECLARE_VPU_HDDL_METRIC(GROUP_ID, std::vector<int>);
 
 /**
-* @deprecated  Use MYRIAD_METRIC_KEY(DEVICE_GROUP_USING_NUM) instead
+* @deprecated  Use InferenceEngine::METRIC_MYRIAD_DEVICE_GROUP_USING_NUM instead
 * @brief  Metric to get a int number of device be using for group, String value is METRIC_VPU_HDDL_DEVICE_GROUP_USING_NUM
 */
-INFERENCE_ENGINE_DEPRECATED("Use MYRIAD_METRIC_KEY(DEVICE_GROUP_USING_NUM) instead")
+INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::METRIC_MYRIAD_DEVICE_GROUP_USING_NUM instead")
 DECLARE_VPU_HDDL_METRIC(DEVICE_GROUP_USING_NUM, int);
 
 /**
-* @deprecated  Use MYRIAD_METRIC_KEY(DEVICE_TOTAL_NUM) instead
+* @deprecated  Use InferenceEngine::METRIC_MYRIAD_DEVICE_TOTAL_NUM instead
 * @brief  Metric to get a int number of total device, String value is METRIC_VPU_HDDL_DEVICE_TOTAL_NUM
 */
-INFERENCE_ENGINE_DEPRECATED("Use MYRIAD_METRIC_KEY(DEVICE_TOTAL_NUM) instead")
+INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::METRIC_MYRIAD_DEVICE_TOTAL_NUM instead")
 DECLARE_VPU_HDDL_METRIC(DEVICE_TOTAL_NUM, int);
 
 }  // namespace Metrics
