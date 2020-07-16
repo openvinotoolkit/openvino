@@ -42,7 +42,7 @@ void op::util::FusedOp::validate_and_infer_types()
     auto subgraph_outputs = decompose_op();
     NodeVector nodes;
     for (auto& val : input_values())
-         nodes.emplace_back(val.get_node_shared_ptr());
+        nodes.emplace_back(val.get_node_shared_ptr());
     auto subgraph = extract_subgraph(subgraph_outputs, nodes);
     validate_nodes_and_infer_types(subgraph);
 

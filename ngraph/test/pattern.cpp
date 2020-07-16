@@ -101,9 +101,10 @@ public:
 
             size_t const_node_index =
                 m.get_match_root()->input_value(0).get_node_shared_ptr() == pattern_map[pattern];
-            auto const_node =
-                as_type_ptr<op::Constant>(m.get_match_root()->input_value(const_node_index).get_node_shared_ptr());
-            auto second_node = m.get_match_root()->input_value(const_node_index).get_node_shared_ptr();
+            auto const_node = as_type_ptr<op::Constant>(
+                m.get_match_root()->input_value(const_node_index).get_node_shared_ptr());
+            auto second_node =
+                m.get_match_root()->input_value(const_node_index).get_node_shared_ptr();
             NGRAPH_DEBUG << "second_node = " << second_node->get_name()
                          << " , pattern = " << pattern_map[pattern]->get_name();
 
@@ -147,9 +148,10 @@ public:
 
             size_t const_node_index =
                 m.get_match_root()->input_value(0).get_node_shared_ptr() == pattern_map[pattern];
-            auto const_node =
-                as_type_ptr<op::Constant>(m.get_match_root()->input_value(const_node_index).get_node_shared_ptr());
-            auto second_node = m.get_match_root()->input_value(const_node_index).get_node_shared_ptr();
+            auto const_node = as_type_ptr<op::Constant>(
+                m.get_match_root()->input_value(const_node_index).get_node_shared_ptr());
+            auto second_node =
+                m.get_match_root()->input_value(const_node_index).get_node_shared_ptr();
             NGRAPH_DEBUG << "second_node = " << second_node->get_name()
                          << " , pattern = " << pattern_map[pattern]->get_name();
 

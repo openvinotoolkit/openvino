@@ -86,7 +86,8 @@ static shared_ptr<op::Reshape> combine_reshapes(shared_ptr<op::Reshape> r1,
     auto default_order = ngraph::get_default_order(r1->get_shape());
     auto perm_r1 = apply_permutation(default_order, r1->get_input_order());
     auto perm_r2 = apply_permutation(perm_r1, r2->get_input_order());
-    auto rreshape = make_reshape(r2->input_value(0).get_node_shared_ptr(), perm_r2, r2->get_shape());
+    auto rreshape =
+        make_reshape(r2->input_value(0).get_node_shared_ptr(), perm_r2, r2->get_shape());
     NGRAPH_DEBUG << "Combining " << describe_reshape(r1) << " and " << describe_reshape(r2)
                  << " into " << describe_reshape(rreshape);
     return rreshape;
@@ -432,8 +433,11 @@ static void sink_pad(shared_ptr<op::Pad> n,
 
     auto new_lower = ngraph::apply_permutation(n->get_padding_below(), def_order);
     auto new_upper = ngraph::apply_permutation(n->get_padding_above(), def_order);
-    auto new_pad = make_shared<op::Pad>(
-        dummy_correct_shape, n->input_value(1).get_node_shared_ptr(), new_lower, new_upper, n->get_pad_mode());
+    auto new_pad = make_shared<op::Pad>(dummy_correct_shape,
+                                        n->input_value(1).get_node_shared_ptr(),
+                                        new_lower,
+                                        new_upper,
+                                        n->get_pad_mode());
     ngraph::replace_node(dummy_correct_shape, n->input_value(0).get_node_shared_ptr());
     NGRAPH_DEBUG << "Replacing " << n->get_name() << " with " << new_pad->get_name();
     ngraph::replace_node(n, new_pad);
@@ -620,7 +624,8 @@ bool ngraph::pass::ReshapeSinking::run_on_function(shared_ptr<ngraph::Function> 
     for (auto r : results)
     {
         NGRAPH_CHECK(r->get_shape() == r->get_input_shape(0) &&
-                         r->get_element_type() == r->input_value(0).get_node_shared_ptr()->get_element_type(),
+                         r->get_element_type() ==
+                             r->input_value(0).get_node_shared_ptr()->get_element_type(),
                      " op::Result = ",
                      *r,
                      ", Arg = ",

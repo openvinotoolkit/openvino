@@ -62,7 +62,8 @@ TEST(reshape_sinking, edge_splitting)
     pass_manager.register_pass<pass::CommonSubexpressionElimination>();
     pass_manager.run_passes(func);
     ASSERT_EQ(func->get_results().at(1)->input_value(0).get_node_shared_ptr(), sum);
-    auto new_reshape = as_type_ptr<op::Reshape>(func->get_results().at(0)->input_value(0).get_node_shared_ptr());
+    auto new_reshape =
+        as_type_ptr<op::Reshape>(func->get_results().at(0)->input_value(0).get_node_shared_ptr());
     ASSERT_TRUE(new_reshape);
     ASSERT_EQ(new_reshape->get_shape(), shape_nchw);
 }

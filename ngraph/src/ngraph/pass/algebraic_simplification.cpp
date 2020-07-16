@@ -662,7 +662,8 @@ static bool simplify_reduction(shared_ptr<Node> n)
     auto cnst = as_type_ptr<op::Constant>(broadcast->input_value(0).get_node_shared_ptr());
     if (!cnst || cnst->get_shape().size() > 0 /*not a scalar*/)
     {
-        NGRAPH_DEBUG << broadcast->input_value(0).get_node_shared_ptr()->get_name() << " isn't a scalar constant";
+        NGRAPH_DEBUG << broadcast->input_value(0).get_node_shared_ptr()->get_name()
+                     << " isn't a scalar constant";
         return false;
     }
 

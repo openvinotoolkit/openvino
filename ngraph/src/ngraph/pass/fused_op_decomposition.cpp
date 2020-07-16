@@ -76,7 +76,8 @@ bool pass::FusedOpDecomposition::run_on_node(shared_ptr<Node> node)
                     if (auto goe = as_type<op::GetOutputElement>(fop_user->get_raw_pointer_node()))
                     {
                         Output<Node> goe_output = goe->get_as_output();
-                        if (goe_output.get_index() == i && !goe->output(0).get_target_inputs().empty())
+                        if (goe_output.get_index() == i &&
+                            !goe->output(0).get_target_inputs().empty())
                         {
                             // Replace GOE users
                             set<descriptor::Input*> goe_users{
