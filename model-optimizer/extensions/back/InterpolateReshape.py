@@ -17,6 +17,7 @@ import numpy as np
 
 from extensions.ops.elementwise import Mul
 from extensions.ops.gather import Gather
+from extensions.ops.interpolate import Interpolate
 from mo.back.replacement import BackReplacementPattern
 from mo.front.caffe.extractors.utils import get_canonical_axis_index
 from mo.front.common.partial_infer.utils import int64_array
@@ -67,7 +68,7 @@ class InterpolateConcat(BackReplacementPattern):
 
         output_shape = interpolate.out_port(0).data.get_shape()
 
-        interp_axes = [get_canonical_axis_index(output_shape, axis) for axis in interpolate.axes]
+        interp_axes = [get_canonical_axis_index(output_shape, axis) for axis in Interpolate.get_axes(interpolate)]
         concat_axis = get_canonical_axis_index(output_shape, concat.axis)
         if concat_axis in interp_axes:
             return
@@ -82,13 +83,17 @@ class InterpolateConcat(BackReplacementPattern):
 
         shape = Shape(graph, {'name': src.node.soft_get('name', src.node.id) + '/Shape'}).create_node()
         shape.in_port(0).connect(src)
-        gather = create_op_with_const_inputs(graph, Gather, {1: np.array(interpolate.axes, dtype=np.int32), 2: int64_array(0)},
+        gather = create_op_with_const_inputs(graph, Gather,
+                                             {1: np.array(interp_axes, dtype=np.int32), 2: int64_array(0)},
                                              {'name': shape.name + '/Gathered'}, shape)
         interpolate.in_port(1).get_connection().set_source(gather.out_port(0))
 
     def find_and_replace_pattern(self, graph: Graph):
         for interpolate in graph.get_op_nodes(type='Interpolate'):
+            num_inputs = len([p for p in interpolate.in_ports().values() if not p.disconnected()])
             if interpolate.in_port(1).get_source().node.soft_get('type') != 'Const':
+                continue
+            if num_inputs == 3 and interpolate.in_port(2).get_source().node.soft_get('type') != 'Const':
                 continue
             dsts = interpolate.out_port(0).get_destinations()
             if len(dsts) == 1 and dsts[0].node.soft_get('type') == 'Concat':
