@@ -5,7 +5,6 @@
 
 #include <fstream>
 #include <xml_parse_utils.h>
-#include <array>
 
 namespace InferenceEngine {
 namespace details {
@@ -20,14 +19,14 @@ inline size_t GetIRVersion(pugi::xml_node& root) {
  * @return IR version, 0 if model does represent IR
  */
 size_t GetIRVersion(std::istream& model) {
-    std::array<char, 512> header = {};
-
     model.seekg(0, model.beg);
-    model.read(header.data(), header.size());
+    const int header_size = 128;
+    std::string header(header_size, ' ');
+    model.read(&header[0], header_size);
     model.seekg(0, model.beg);
 
     pugi::xml_document doc;
-    auto res = doc.load_buffer(header.data(), header.size(), pugi::parse_default | pugi::parse_fragment, pugi::encoding_utf8);
+    auto res = doc.load_string(header.c_str(), pugi::parse_default | pugi::parse_fragment);
 
     if (res == pugi::status_ok) {
         pugi::xml_node root = doc.document_element();
