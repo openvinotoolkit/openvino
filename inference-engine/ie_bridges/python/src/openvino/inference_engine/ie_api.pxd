@@ -57,6 +57,7 @@ cdef class IECore:
 
 cdef class DataPtr:
     cdef C.DataPtr _ptr
+    cdef C.IENetwork * _ptr_network
 
 cdef class CDataPtr:
     cdef C.CDataPtr _ptr
@@ -69,6 +70,7 @@ cdef class TensorDesc:
 
 cdef class InputInfoPtr:
     cdef InputInfo.Ptr _ptr
+    cdef C.IENetwork * _ptr_network
 
 cdef class InputInfoCPtr:
     cdef InputInfo.CPtr _ptr

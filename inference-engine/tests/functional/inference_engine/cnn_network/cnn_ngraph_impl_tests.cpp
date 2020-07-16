@@ -107,11 +107,13 @@ TEST(CNNNGraphImplTests, TestGetOutputAfterConvertNetwork) {
 
     InferenceEngine::CNNNetwork cnnNet(ngraph);
     // convert to old representation
-    getCreatorLayer(cnnNet.getInputsInfo().begin()->second->getInputData());
-    cnnNet.addOutput(testLayerName);
+    InferenceEngine::CNNNetwork convertedNetwork(std::make_shared<details::CNNNetworkImpl>(cnnNet));
+    convertedNetwork.addOutput(testLayerName);
 
     InferenceEngine::OutputsDataMap outs = cnnNet.getOutputsInfo();
-    ASSERT_EQ(2, outs.size());
+    InferenceEngine::OutputsDataMap convertedOuts = convertedNetwork.getOutputsInfo();
+    ASSERT_EQ(1, outs.size());
+    ASSERT_EQ(2, convertedOuts.size());
 }
 
 TEST(CNNNGraphImplTests, TestSetCurrentBatch) {
@@ -178,7 +180,8 @@ TEST(CNNNGraphImplTests, TestSaveAffinity) {
     }
 
     InferenceEngine::CNNNetwork cnnNet(ngraph);
-    auto cnnLayer = CommonTestUtils::getLayerByName(cnnNet, "testReLU");
+    auto convertedNetwork = std::make_shared<InferenceEngine::details::CNNNetworkImpl>(cnnNet);
+    auto cnnLayer = CommonTestUtils::getLayerByName(convertedNetwork.get(), "testReLU");
     ASSERT_NE(nullptr, cnnLayer);
     ASSERT_EQ(cnnLayer->affinity, testAffinity);
 }
@@ -242,8 +245,8 @@ TEST(CNNNGraphImplTests, TestAddOutputFromConvertedNetwork) {
     ASSERT_NE(nullptr, cnnNet.getFunction());
     ASSERT_EQ(5, cnnNet.layerCount());
     // convert to old representation
-    getCreatorLayer(cnnNet.getInputsInfo().begin()->second->getInputData());
-    auto outputs = cnnNet.getOutputsInfo();
+    InferenceEngine::CNNNetwork convertedNetwork(std::make_shared<InferenceEngine::details::CNNNetworkImpl>(cnnNet));
+    auto outputs = convertedNetwork.getOutputsInfo();
     ASSERT_EQ(2, outputs.size());
     ASSERT_TRUE(outputs.find("relu2") != outputs.end());
     ASSERT_TRUE(outputs.find(testLayerName) != outputs.end());
@@ -267,9 +270,8 @@ TEST(CNNNGraphImplTests, ConstantAsInternalAndExternalLayer) {
     }
 
     InferenceEngine::CNNNetwork cnnNet(ngraph);
-    // convert to old representation
-    getCreatorLayer(cnnNet.getInputsInfo().begin()->second->getInputData());
-    ASSERT_EQ(4, cnnNet.layerCount());
+    auto convertedNetwork = std::make_shared<InferenceEngine::details::CNNNetworkImpl>(cnnNet);
+    ASSERT_EQ(4, convertedNetwork->layerCount());
 }
 
 TEST(CNNNGraphImplTests, SaveInputInfoAfterConversion) {
@@ -357,8 +359,9 @@ TEST(CNNNGraphImplTests, SavePrimitivesPriority) {
 
     auto network = ie.ReadNetwork(model, weights);
     auto inputInfo = network.getInputsInfo();
+    auto convertedNetwork = std::make_shared<InferenceEngine::details::CNNNetworkImpl>(network);
     auto cnnLayer = getCreatorLayer(inputInfo.begin()->second->getInputData()).lock();
-    ASSERT_TRUE(cnnLayer);
+    ASSERT_NE(nullptr, cnnLayer);
     ASSERT_NE(cnnLayer->params.find("PrimitivesPriority"), cnnLayer->params.end());
     ASSERT_EQ("cpu:avx2", cnnLayer->params["PrimitivesPriority"]);
 }
@@ -449,16 +452,18 @@ TEST(CNNNGraphImplTests, CanChangeInputPrecision) {
 
         inputsInfo.at("input")->setPrecision(Precision::FP16);
     }
+    InferenceEngine::CNNNetwork convertedNetwork;
     {
         SCOPED_TRACE("Convert to old format");
 
         // convert to old representation
-        getCreatorLayer(cnnNet.getInputsInfo().begin()->second->getInputData());
+        convertedNetwork = InferenceEngine::CNNNetwork(
+            std::make_shared<InferenceEngine::details::CNNNetworkImpl>(cnnNet));
     }
     {
         SCOPED_TRACE("After conversion");
 
-        const auto inputsInfo = cnnNet.getInputsInfo();
+        const auto inputsInfo = convertedNetwork.getInputsInfo();
 
         ASSERT_EQ(inputsInfo.at("input")->getPrecision(), Precision::FP16)
                 << "Manually set presision should be left unchanged";
@@ -496,16 +501,18 @@ TEST(CNNNGraphImplTests, CanChangeInputLayout) {
 
         inputsInfo.at("input")->setLayout(Layout::NHWC);
     }
+    InferenceEngine::CNNNetwork convertedNetwork;
     {
         SCOPED_TRACE("Convert to old format");
 
         // convert to old representation
-        getCreatorLayer(cnnNet.getInputsInfo().begin()->second->getInputData());
+        convertedNetwork = InferenceEngine::CNNNetwork(
+            std::make_shared<InferenceEngine::details::CNNNetworkImpl>(cnnNet));
     }
     {
         SCOPED_TRACE("After conversion");
 
-        const auto inputsInfo = cnnNet.getInputsInfo();
+        const auto inputsInfo = convertedNetwork.getInputsInfo();
 
         ASSERT_EQ(inputsInfo.at("input")->getLayout(), Layout::NHWC)
                 << "Manually set layout should be left unchanged";
@@ -543,16 +550,18 @@ TEST(CNNNGraphImplTests, CanChangeOutputPrecision) {
 
         outputsInfo.at("output")->setPrecision(Precision::FP16);
     }
+    InferenceEngine::CNNNetwork convertedNetwork;
     {
         SCOPED_TRACE("Convert to old format");
 
         // convert to old representation
-        getCreatorLayer(cnnNet.getInputsInfo().begin()->second->getInputData());
+        convertedNetwork = InferenceEngine::CNNNetwork(
+            std::make_shared<InferenceEngine::details::CNNNetworkImpl>(cnnNet));
     }
     {
         SCOPED_TRACE("After conversion");
 
-        const auto outputsInfo = cnnNet.getOutputsInfo();
+        const auto outputsInfo = convertedNetwork.getOutputsInfo();
 
         ASSERT_EQ(outputsInfo.at("output")->getPrecision(), Precision::FP16)
                 << "Manually set presision should be left unchanged";
@@ -590,16 +599,18 @@ TEST(CNNNGraphImplTests, CanChangeOutputLayout) {
 
         outputsInfo.at("output")->setLayout(Layout::NHWC);
     }
+    InferenceEngine::CNNNetwork convertedNetwork;
     {
         SCOPED_TRACE("Convert to old format");
 
         // convert to old representation
-        getCreatorLayer(cnnNet.getInputsInfo().begin()->second->getInputData());
+        convertedNetwork = InferenceEngine::CNNNetwork(
+            std::make_shared<InferenceEngine::details::CNNNetworkImpl>(cnnNet));
     }
     {
         SCOPED_TRACE("After conversion");
 
-        const auto outputsInfo = cnnNet.getOutputsInfo();
+        const auto outputsInfo = convertedNetwork.getOutputsInfo();
 
         ASSERT_EQ(outputsInfo.at("output")->getLayout(), Layout::NHWC)
                 << "Manually set layout should be left unchanged";
