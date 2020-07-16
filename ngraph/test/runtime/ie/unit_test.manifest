@@ -1135,6 +1135,7 @@ IE_CPU.fused_clamp_float
 
 # Result mismatch 2.666666507720947266 is not close to 3 at index 1
 IE_CPU.onnx_resize10_down_scales_const_linear
+IE_CPU.onnx_resize11_scales_down_linear
 
 # GRUCell operation has a form that is not supported
 IE_CPU.onnx_model_gru_defaults_fwd

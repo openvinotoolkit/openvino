@@ -24,18 +24,20 @@ namespace ngraph
     {
         namespace op
         {
-            namespace set_1
+            namespace
             {
-                NodeVector resize(const onnx_import::Node& node)
+                NodeVector build_resize(const Node& node,
+                                        std::size_t data_input_index,
+                                        std::size_t scales_input_index)
                 {
                     const auto inputs = node.get_ng_inputs();
-                    const auto data = inputs.at(0);
-                    const auto scales = inputs.at(1);
+                    const auto data = inputs.at(data_input_index);
+                    const auto scales = inputs.at(scales_input_index);
+
+                    const auto mode = node.get_attribute_value<std::string>("mode", "nearest");
 
                     const auto data_shape = data->get_output_partial_shape(0);
                     const auto scales_shape = scales->get_output_partial_shape(0);
-
-                    const auto mode = node.get_attribute_value<std::string>("mode", "nearest");
 
                     std::unordered_set<std::string> supported_modes = {"nearest", "linear"};
                     bool is_mode_supported =
@@ -104,6 +106,64 @@ namespace ngraph
                         std::make_shared<default_opset::Floor>(multiply), ngraph::element::i64);
                     return {
                         std::make_shared<default_opset::Interpolate>(data, output_shape, attrs)};
+                }
+            }
+
+            namespace set_11
+            {
+                // optional sizes input is NOT handled - note section
+                // roi input is ignored
+                // TODO check cubic mode
+                // extrapolation_value is ignored
+                NodeVector resize(const onnx_import::Node& node)
+                {
+                    const auto coordinate_transformation_mode =
+                        node.get_attribute_value<std::string>("coordinate_transformation_mode",
+                                                              "half_pixel");
+                    CHECK_VALID_NODE(
+                        node,
+                        coordinate_transformation_mode == "asymmetric",
+                        coordinate_transformation_mode,
+                        " - this type of coordinate transformation mode is not supported."
+                        " Only asymmetric mode is supported by current version.");
+
+                    const auto exclude_outside =
+                        node.get_attribute_value<int64_t>("exclude_outside ", 0);
+                    CHECK_VALID_NODE(node,
+                                     exclude_outside == 0,
+                                     "Expected exclude_outside=",
+                                     exclude_outside,
+                                     " mode is not supported. ",
+                                     "Current version supports only exclude_outside equals `0`.");
+
+                    const auto mode = node.get_attribute_value<std::string>("mode", "nearest");
+                    if (mode == "nearest")
+                    {
+                        const auto nearest_mode = node.get_attribute_value<std::string>(
+                            "nearest_mode", "round_prefer_floor");
+                        CHECK_VALID_NODE(
+                            node,
+                            nearest_mode == "floor",
+                            "Expected nearest_mode=",
+                            nearest_mode,
+                            " mode is not supported. ",
+                            "Current version support only nearest_mode equals `floor`");
+                    }
+
+                    const std::size_t data_input_index = 0;
+                    const std::size_t scales_input_index = 2;
+
+                    return build_resize(node, data_input_index, scales_input_index);
+                } // namespace set_11
+            }
+            namespace set_1
+            {
+                NodeVector resize(const onnx_import::Node& node)
+                {
+                    const std::size_t data_input_index = 0;
+                    const std::size_t scales_input_index = 1;
+
+                    return build_resize(node, data_input_index, scales_input_index);
                 }
 
             } // namespace set_1
