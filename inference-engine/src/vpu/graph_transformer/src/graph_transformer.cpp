@@ -98,6 +98,12 @@ void CompileEnv::init(Platform platform, const CompilationConfig& config, const 
         R"(Value of configuration option ("{}") must be in the range [{}, {}], actual is "{}")",
         VPU_CONFIG_KEY(NUMBER_OF_CMX_SLICES), 1, DeviceResources::numSlices(platform), numSlices);
 
+    int defaultCmxLimit = DefaultAllocation::tilingCMXLimit(numSlices);
+    const auto tilingCMXLimit  = config.tilingCMXLimitKB != -1 ? std::min(config.tilingCMXLimitKB * 1024, defaultCmxLimit) : defaultCmxLimit;
+    VPU_THROW_UNLESS(tilingCMXLimit >= 0,
+        R"(Value of configuration option ("{}") must be greater than {}, actual is "{}")",
+        VPU_CONFIG_KEY(TILING_CMX_LIMIT_KB), 0, tilingCMXLimit);
+
     const auto numShaves = config.numSHAVEs != -1 ? config.numSHAVEs : DefaultAllocation::numShaves(platform, numExecutors, numSlices);
     VPU_THROW_UNLESS(numShaves >= 1 && numShaves <= DeviceResources::numShaves(platform),
         R"(Value of configuration option ("{}") must be in the range [{}, {}], actual is "{}")",
@@ -114,6 +120,7 @@ void CompileEnv::init(Platform platform, const CompilationConfig& config, const 
     g_compileEnv->resources.numSHAVEs = numShaves;
     g_compileEnv->resources.numCMXSlices = numSlices;
     g_compileEnv->resources.numExecutors = numExecutors;
+    g_compileEnv->resources.tilingCMXLimit = tilingCMXLimit;
     g_compileEnv->initialized = true;
 }
 
@@ -297,6 +304,10 @@ int DefaultAllocation::numShaves(const Platform& platform, int numStreams, int n
     const auto numUnusedShaves = numAllocatedSlices - numAvailableShaves;
     const auto numShavesForAllocation = numAvailableShaves - numUnusedShaves;
     return numShavesForAllocation / numStreams;
+}
+
+int DefaultAllocation::tilingCMXLimit(int numSlices) {
+    return (numSlices / 2) * CMX_SLICE_SIZE + CMX_SLICE_SIZE / 2;
 }
 
 }  // namespace vpu

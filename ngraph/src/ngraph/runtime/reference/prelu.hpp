@@ -1,5 +1,5 @@
 //*****************************************************************************
-// Copyright 2017-2020 Intel Corporation
+// Copyright 2020 Intel Corporation
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,25 +16,33 @@
 
 #pragma once
 
-#include <string>
+#include <cmath>
+#include <cstddef>
+#include <op/util/attr_types.hpp>
+#include <shape.hpp>
 
-#include "ngraph/node.hpp"
+#include "ngraph/runtime/reference/autobroadcast_binop.hpp"
 
 namespace ngraph
 {
-    namespace op
+    namespace runtime
     {
-        /// Root of all actual ops
-        class NGRAPH_API Op : public Node
+        namespace reference
         {
-        public:
-            virtual bool is_op() const override { return true; }
-        protected:
-            Op()
-                : Node()
+            template <typename T>
+            void prelu(const T* arg,
+                       const T* slope,
+                       T* out,
+                       const Shape& arg_shape,
+                       const Shape& slope_shape)
             {
+                int cnt = 0;
+                for (size_t i = 0; i < shape_size(arg_shape); ++i)
+                {
+                    out[i] =
+                        arg[i] < T(0) ? T(arg[i] * slope[cnt++ % shape_size(slope_shape)]) : arg[i];
+                }
             }
-            Op(const OutputVector& arguments);
-        };
+        }
     }
 }

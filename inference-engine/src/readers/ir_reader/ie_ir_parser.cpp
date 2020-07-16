@@ -381,7 +381,7 @@ std::shared_ptr<ngraph::Node> V10Parser::createNode(const std::vector<ngraph::Ou
         if (!inputs[i].get_node())
             THROW_IE_EXCEPTION << params.type << " layer " << params.name << " with id: " << params.layerId
                 << " has incorrect input with index " << i << "!";
-        if (inputs[i].get_element_type().get_type_enum() == ngraph::element::Type_t::undefined)
+        if (ngraph::element::Type_t::undefined == inputs[i].get_element_type())
             THROW_IE_EXCEPTION << params.type << " layer " << params.name << " with id: " << params.layerId
                 << " has undefined element type for input with index " << i << "!";
     }
