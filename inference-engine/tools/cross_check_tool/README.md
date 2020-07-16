@@ -1,4 +1,4 @@
-# Cross Check Tool
+# Cross Check Tool {#openvino_inference_engine_tools_cross_check_tool_README}
 
 Cross Check Tool is a console application that enables comparing accuracy and performance metrics for two successive 
 model inferences that are performed on two different supported Intel&reg; devices or with different precisions.
