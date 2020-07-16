@@ -52,7 +52,8 @@ void op::v0::Split::pre_validate_and_infer_types()
     NODE_VALIDATION_CHECK(this, is_scalar(axis_shape), "The 'axis' input node must be scalar");
 
     const auto axis_node = input_value(1).get_node_shared_ptr();
-    NODE_VALIDATION_CHECK(this, op::util::is_constant(axis_node.get()), "The 'axis' input node must be constant");
+    NODE_VALIDATION_CHECK(
+        this, op::util::is_constant(axis_node.get()), "The 'axis' input node must be constant");
     const auto axis_node_const = as_type_ptr<op::Constant>(axis_node);
     m_axis = axis_node_const->get_data_ptr<int64_t>()[0];
 

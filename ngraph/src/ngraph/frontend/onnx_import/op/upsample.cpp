@@ -18,8 +18,8 @@
 
 #include "default_opset.hpp"
 #include "exceptions.hpp"
-#include "upsample.hpp"
 #include "ngraph/op/util/op_types.hpp"
+#include "upsample.hpp"
 
 namespace ngraph
 {

@@ -23,8 +23,9 @@
 
 namespace ngraph
 {
-    namespace op {
-        namespace util 
+    namespace op
+    {
+        namespace util
         {
             ONNX_IMPORTER_API
             bool is_null(const ngraph::Node* node);

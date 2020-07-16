@@ -14,25 +14,25 @@
 // limitations under the License.
 //*****************************************************************************
 #include "ngraph/op/util/op_types.hpp"
-#include "ngraph/op/op.hpp"
-#include "ngraph/op/parameter.hpp"
-#include "ngraph/op/select.hpp"
-#include "ngraph/op/result.hpp"
-#include "ngraph/op/constant.hpp"
-#include "ngraph/op/maximum.hpp"
-#include "ngraph/op/equal.hpp"
-#include "ngraph/op/multiply.hpp"
 #include "ngraph/op/add.hpp"
 #include "ngraph/op/and.hpp"
-#include "ngraph/op/xor.hpp"
-#include "ngraph/op/not_equal.hpp"
+#include "ngraph/op/constant.hpp"
+#include "ngraph/op/equal.hpp"
+#include "ngraph/op/maximum.hpp"
 #include "ngraph/op/minimum.hpp"
+#include "ngraph/op/multiply.hpp"
+#include "ngraph/op/not_equal.hpp"
+#include "ngraph/op/op.hpp"
 #include "ngraph/op/or.hpp"
+#include "ngraph/op/parameter.hpp"
+#include "ngraph/op/result.hpp"
+#include "ngraph/op/select.hpp"
 #include "ngraph/op/util/binary_elementwise_arithmetic.hpp"
 #include "ngraph/op/util/binary_elementwise_comparison.hpp"
 #include "ngraph/op/util/binary_elementwise_logical.hpp"
 #include "ngraph/op/util/fused_op.hpp"
 #include "ngraph/op/util/unary_elementwise_arithmetic.hpp"
+#include "ngraph/op/xor.hpp"
 #include "ngraph/type.hpp"
 
 bool ngraph::op::util::is_unary_elementwise_arithmetic(const ngraph::Node* node)
@@ -91,20 +91,20 @@ bool ngraph::op::util::is_constant(const ngraph::Node* node)
 bool ngraph::op::util::is_commutative(const ngraph::Node* node)
 {
     return dynamic_cast<const ngraph::op::v0::Add*>(node) != nullptr ||
-        dynamic_cast<const ngraph::op::v1::Add*>(node) != nullptr ||
-        dynamic_cast<const ngraph::op::v0::Maximum*>(node) != nullptr ||
-        dynamic_cast<const ngraph::op::v1::Maximum*>(node) != nullptr ||
-        dynamic_cast<const ngraph::op::v0::Equal*>(node) != nullptr ||
-        dynamic_cast<const ngraph::op::v1::Equal*>(node) != nullptr ||
-        dynamic_cast<const ngraph::op::v0::NotEqual*>(node) != nullptr ||
-        dynamic_cast<const ngraph::op::v1::NotEqual*>(node) != nullptr ||
-        dynamic_cast<const ngraph::op::v1::LogicalAnd*>(node) != nullptr ||
-        dynamic_cast<const ngraph::op::v0::Xor*>(node) != nullptr ||
-        dynamic_cast<const ngraph::op::v1::LogicalXor*>(node) != nullptr ||
-        dynamic_cast<const ngraph::op::v0::Minimum*>(node) != nullptr ||
-        dynamic_cast<const ngraph::op::v1::Minimum*>(node) != nullptr ||
-        dynamic_cast<const ngraph::op::v0::Multiply*>(node) != nullptr ||
-        dynamic_cast<const ngraph::op::v1::Multiply*>(node) != nullptr ||
-        dynamic_cast<const ngraph::op::v0::Or*>(node) != nullptr ||
-        dynamic_cast<const ngraph::op::v1::LogicalOr*>(node) != nullptr;
+           dynamic_cast<const ngraph::op::v1::Add*>(node) != nullptr ||
+           dynamic_cast<const ngraph::op::v0::Maximum*>(node) != nullptr ||
+           dynamic_cast<const ngraph::op::v1::Maximum*>(node) != nullptr ||
+           dynamic_cast<const ngraph::op::v0::Equal*>(node) != nullptr ||
+           dynamic_cast<const ngraph::op::v1::Equal*>(node) != nullptr ||
+           dynamic_cast<const ngraph::op::v0::NotEqual*>(node) != nullptr ||
+           dynamic_cast<const ngraph::op::v1::NotEqual*>(node) != nullptr ||
+           dynamic_cast<const ngraph::op::v1::LogicalAnd*>(node) != nullptr ||
+           dynamic_cast<const ngraph::op::v0::Xor*>(node) != nullptr ||
+           dynamic_cast<const ngraph::op::v1::LogicalXor*>(node) != nullptr ||
+           dynamic_cast<const ngraph::op::v0::Minimum*>(node) != nullptr ||
+           dynamic_cast<const ngraph::op::v1::Minimum*>(node) != nullptr ||
+           dynamic_cast<const ngraph::op::v0::Multiply*>(node) != nullptr ||
+           dynamic_cast<const ngraph::op::v1::Multiply*>(node) != nullptr ||
+           dynamic_cast<const ngraph::op::v0::Or*>(node) != nullptr ||
+           dynamic_cast<const ngraph::op::v1::LogicalOr*>(node) != nullptr;
 }

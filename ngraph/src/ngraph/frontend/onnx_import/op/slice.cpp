@@ -191,7 +191,9 @@ namespace ngraph
                     if (inputs.size() >= 4) // axes input provided
                     {
                         axes = inputs.at(3);
-                        CHECK_VALID_NODE(node, ngraph::op::util::is_constant(axes.get()), "Axes input must be constant");
+                        CHECK_VALID_NODE(node,
+                                         ngraph::op::util::is_constant(axes.get()),
+                                         "Axes input must be constant");
                     }
                     else
                     {

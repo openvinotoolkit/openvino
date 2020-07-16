@@ -17,8 +17,8 @@
 #include <numeric>
 
 #include "ngraph/op/constant.hpp"
-#include "ngraph/op/variadic_split.hpp"
 #include "ngraph/op/util/op_types.hpp"
+#include "ngraph/op/variadic_split.hpp"
 #include "ngraph/validation_util.hpp"
 
 using namespace std;

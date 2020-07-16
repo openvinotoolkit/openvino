@@ -63,7 +63,8 @@ namespace ngraph
                         }
                         // According to ONNX skipped cond input (is_null) means
                         // that is has true value
-                        bool is_loop_cond_true = ngraph::op::util::is_null(loop_cond.get()) || loop_cond_value == true;
+                        bool is_loop_cond_true =
+                            ngraph::op::util::is_null(loop_cond.get()) || loop_cond_value == true;
 
                         if (!is_loop_cond_true)
                         {

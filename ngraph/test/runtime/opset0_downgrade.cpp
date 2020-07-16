@@ -251,8 +251,8 @@ namespace
 
         const auto target_shape_input = node->input_value(1).get_node_shared_ptr();
         const auto input_rank = node->get_input_partial_shape(0).rank();
-        if (op::util::is_constant(target_shape_input.get()) && node->get_output_partial_shape(0).is_static() &&
-            input_rank.is_static())
+        if (op::util::is_constant(target_shape_input.get()) &&
+            node->get_output_partial_shape(0).is_static() && input_rank.is_static())
         {
             const auto output_shape = node->get_output_shape(0);
             replacement_node = make_shared<op::Reshape>(

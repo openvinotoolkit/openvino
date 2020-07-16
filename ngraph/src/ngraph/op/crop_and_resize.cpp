@@ -95,7 +95,8 @@ void op::CropAndResize::validate_and_infer_types()
     auto& crop_size_et = crop_size.get_element_type();
     NODE_VALIDATION_CHECK(this, crop_size_et.is_integral(), "crops_size must be integral");
     auto crop_size_node = crop_size.get_node_shared_ptr();
-    NODE_VALIDATION_CHECK(this, ngraph::op::util::is_constant(crop_size_node.get()), "crop_size must be a constant");
+    NODE_VALIDATION_CHECK(
+        this, ngraph::op::util::is_constant(crop_size_node.get()), "crop_size must be a constant");
     auto crop_size_const = static_pointer_cast<op::Constant>(crop_size_node);
     if (crop_size_et == element::i8)
     {
