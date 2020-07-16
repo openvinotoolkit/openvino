@@ -93,6 +93,7 @@
                 <!-- IR -->
                 <tab type="usergroup" title="Intermediate Representation and Operations Sets" url="@ref openvino_docs_MO_DG_IR_and_opsets">
                     <tab type="usergroup" title="Available Operations Sets" url="@ref openvino_docs_ops_opset">
+                        <tab type="user" title="opset4 Specification" url="@ref openvino_docs_ops_opset4"/>
                         <tab type="user" title="opset3 Specification" url="@ref openvino_docs_ops_opset3"/>
                         <tab type="user" title="opset2 Specification" url="@ref openvino_docs_ops_opset2"/>
                         <tab type="user" title="opset1 Specification" url="@ref openvino_docs_ops_opset1"/>
