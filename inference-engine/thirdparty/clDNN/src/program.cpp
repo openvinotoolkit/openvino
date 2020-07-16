@@ -1164,11 +1164,12 @@ void program_impl::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::mutable_data::type_id())
             can_use_fsv16 = false;
 
-        // WA to keep bfyx_f16 layout disabled for some topologies where it leads to regressions.
-        // Detects if given crop layer is located in the very beginning of the graph.
+        // WA to keep fsv16 layout disabled for some topologies where it leads to regressions.
+        // For reshape bfy*x is preferred, as fsv16 introduces extra reorders
         if (prim.type() == cldnn::crop::type_id()) {
-            if (!prim.get_dependencies()[0]->is_type<reorder>() || !prim.get_dependencies()[0]->get_dependencies()[0]->is_input())
+            if (prim.get_dependencies()[0]->is_type<reshape>() || prim.get_dependencies()[0]->is_type<concatenation>()) {
                 can_use_fsv16 = false;
+            }
         }
 
         if (prim.is_in_data_flow() &&
