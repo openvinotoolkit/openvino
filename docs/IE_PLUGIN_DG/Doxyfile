@@ -847,7 +847,6 @@ EXCLUDE_PATTERNS       = cnn_network_ngraph_impl.hpp \
                          ie_imemory_state_internal.hpp \
                          ie_memory_state_internal.hpp \
                          ie_memory_state_base.hpp \
-                         convert_function_to_cnn_network.hpp \
                          generic_ie.hpp
 
 # The EXCLUDE_SYMBOLS tag can be used to specify one or more symbol names
