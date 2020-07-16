@@ -126,4 +126,17 @@ Parameter IStreamsExecutor::Config::GetConfig(const std::string& key) {
     return {};
 }
 
+IStreamsExecutor::Config IStreamsExecutor::Config::MakeDefaultMultiThreaded(const IStreamsExecutor::Config& initial) {
+    const auto envThreads = parallel_get_env_threads();
+    const auto& numaNodes = getAvailableNUMANodes();
+    const auto numaNodesNum = numaNodes.size();
+    auto streamExecutorConfig = initial;
+    const auto hwCores = streamExecutorConfig._streams > 1 && numaNodesNum == 1 ? parallel_get_max_threads() : getNumberOfCPUCores();
+    const auto threads = streamExecutorConfig._threads ? streamExecutorConfig._threads : (envThreads ? envThreads : hwCores);
+    streamExecutorConfig._threadsPerStream = streamExecutorConfig._streams
+                                            ? std::max(1, threads/streamExecutorConfig._streams)
+                                            : threads;
+    return streamExecutorConfig;
+}
+
 }  //  namespace InferenceEngine
