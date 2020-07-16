@@ -92,7 +92,7 @@ class Interpolate(Op):
         node.out_port(0).data.set_shape(output_shape)
 
         PermuteAttrs.create_permute_attrs(node, attrs=[('axes', 'input:0')])
-        
+
     @staticmethod
     def infer_for_opset4(node: Node):
         assert len([p for p in node.in_ports().values() if not p.disconnected()]) in [2, 3], \
