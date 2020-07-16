@@ -81,6 +81,7 @@ class GNAPlugin : public InferenceEngine::IInferencePluginInternal, public std::
      */
     uint32_t rwSegmentSize = 0;
 
+    InferenceEngine::InputsDataMap inputsDataMapOriginal;
     InferenceEngine::InputsDataMap inputsDataMap;
     InferenceEngine::OutputsDataMap outputsDataMap;
     std::vector<InferenceEngine::MemoryStateInternal::Ptr> memoryStates;

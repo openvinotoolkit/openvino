@@ -21,6 +21,13 @@ class LogStreamEndLine { };
 
 static constexpr LogStreamEndLine endl;
 
+/**
+ * @class LogStreamTab
+ * @brief The LogStreamTab class inserts an offset to match log stream tag size
+ */
+class LogStreamTab { };
+static constexpr LogStreamTab tab;
+
 
 /**
  * @class LogStreamBoolAlpha
@@ -46,7 +53,7 @@ public:
      * @param prefix The prefix to print
      */
     LogStream(const std::string &prefix, std::ostream& log_stream)
-            : _prefix(prefix), _new_line(true) {
+            : _prefix("[ " + prefix + " ] "), _new_line(true) {
         _log_stream = &log_stream;
     }
 
@@ -57,7 +64,7 @@ public:
     template<class T>
     LogStream &operator<<(const T &arg) {
         if (_new_line) {
-            (*_log_stream) << "[ " << _prefix << " ] ";
+            (*_log_stream) << _prefix;
             _new_line = false;
         }
 
@@ -70,6 +77,14 @@ public:
         _new_line = true;
 
         (*_log_stream) << std::endl;
+        return *this;
+    }
+
+    // Specializing for LogStreamTab to support slog::tab
+    LogStream& operator<< (const LogStreamTab &/*arg*/) {
+        std::string s(_prefix.length(), ' ');
+
+        this->operator << (s);
         return *this;
     }
 

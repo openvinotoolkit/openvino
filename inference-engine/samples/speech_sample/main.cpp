@@ -404,7 +404,22 @@ void sumPerformanceCounters(std::map<std::string, InferenceEngine::InferenceEngi
     }
 }
 
-std::vector<std::string> ParseScaleFactors(const std::string& str) {
+float legacy_ie_parse_float(const std::string& str) {
+    if (str == "-inf") {
+        return -std::numeric_limits<float>::infinity();
+    } else if (str == "inf") {
+        return std::numeric_limits<float>::infinity();
+    } else {
+        float res;
+        std::stringstream val_stream(str);
+        val_stream.imbue(std::locale("C"));
+        val_stream >> res;
+        if (!val_stream.eof()) THROW_IE_EXCEPTION;
+        return res;
+    }
+}
+
+std::vector<std::string> ParseScaleFactors(const std::string & str) {
     std::vector<std::string> scaleFactorInput;
 
     if (!str.empty()) {
@@ -412,18 +427,46 @@ std::vector<std::string> ParseScaleFactors(const std::string& str) {
         std::istringstream stream(str);
         int i = 0;
         while (getline(stream, outStr, ',')) {
-            auto floatScaleFactor  = std::stof(outStr);
-            if (floatScaleFactor <= 0.0f) {
-                throw std::logic_error("Scale factor for input #" + std::to_string(i)
-                    + " (counting from zero) is out of range (must be positive).");
+            if (outStr.find("SAME_AS_") == 0 ||
+                outStr ==  "CALC") {
+                scaleFactorInput.push_back(outStr);
+            } else {
+                auto floatScaleFactor  = legacy_ie_parse_float(outStr);
+                if (floatScaleFactor <= 0.0f) {
+                    throw std::logic_error("Scale factor for " + std::to_string(i) + " input out of range (must be non-negative).");
+                }
+                scaleFactorInput.push_back(outStr);
             }
-            scaleFactorInput.push_back(outStr);
-            i++;
         }
     } else {
-        throw std::logic_error("Scale factor need to be specified via -sf option if you are using -q user");
+        throw std::logic_error("Scale factor need to be specified via -sf option");
     }
+
     return scaleFactorInput;
+}
+
+std::pair<std::string, int> ParseLayerName(std::string arg) {
+    if (arg.empty()) {
+        throw std::logic_error("Layer name is empty");
+    }
+    auto portPos = arg.rfind("/");
+    if (std::string::npos == portPos) {
+        throw std::logic_error("layer port for \"" + arg + "\" should placed after layer name and prefixed by \"/\"");
+    }
+    auto port = arg.substr(portPos + 1);
+    bool err = false;
+    std::stringstream istream(port);
+    int portId = 0;
+    try {
+        istream >> portId;
+    } catch(...) {
+        err = true;
+    }
+    if (err || portId < 0) {
+        throw std::logic_error("for layer: \"" + arg + "\" port value should be non negative integer, but was: " + port);
+    }
+
+    return {arg.substr(0, portPos), portId};
 }
 
 bool ParseAndCheckCommandLine(int argc, char *argv[]) {
@@ -475,6 +518,8 @@ bool ParseAndCheckCommandLine(int argc, char *argv[]) {
         throw std::logic_error("Specified device is not supported.");
     }
 
+    ParseScaleFactors(FLAGS_sf);
+
     uint32_t batchSize = (uint32_t) FLAGS_bs;
     if ((batchSize < 1) || (batchSize > 8)) {
         throw std::logic_error("Batch size out of range (1..8).");
@@ -522,18 +567,17 @@ int main(int argc, char *argv[]) {
             return 0;
         }
 
-        if (FLAGS_l.empty()) {
-            slog::info << "No extensions provided" << slog::endl;
-        }
-
         auto isFeature = [&](const std::string xFeature) { return FLAGS_d.find(xFeature) != std::string::npos; };
 
         bool useGna = isFeature("GNA");
         bool useHetero = isFeature("HETERO");
         std::string deviceStr =
                 useHetero && useGna ? "HETERO:GNA,CPU" : FLAGS_d.substr(0, (FLAGS_d.find("_")));
+        auto scaleFactorInput = ParseScaleFactors(FLAGS_sf);
         uint32_t batchSize = (FLAGS_cw_r > 0 || FLAGS_cw_l > 0) ? 1 : (uint32_t) FLAGS_bs;
-
+        std::map<int, std::string> memoryBlobs;
+        std::vector<std::string> batchBlobs;
+        std::string outputBlobName;
         std::vector<std::string> inputArkFiles;
         std::vector<uint32_t> numBytesThisUtterance;
         uint32_t numUtterances(0);
@@ -571,17 +615,18 @@ int main(int argc, char *argv[]) {
         slog::info << "Loading network files" << slog::endl;
 
         CNNNetwork network;
+        OutputsDataMap outputInfo;
         if (!FLAGS_m.empty()) {
             /** Read network model **/
             network = ie.ReadNetwork(FLAGS_m);
-            CheckNumberOfInputs(network.getInputsInfo().size(), numInputArkFiles);
             // -------------------------------------------------------------------------------------------------
 
             // --------------------------- 3. Set batch size ---------------------------------------------------
             /** Set batch size.  Unlike in imaging, batching in time (rather than space) is done for speech recognition. **/
-            network.setBatchSize(batchSize);
+            // network.setBatchSize(batchSize);
             slog::info << "Batch size is " << std::to_string(network.getBatchSize())
                        << slog::endl;
+            outputInfo = network.getOutputsInfo();
         }
 
         // -----------------------------------------------------------------------------------------------------
@@ -602,23 +647,23 @@ int main(int argc, char *argv[]) {
         }
 
         if (FLAGS_q.compare("user") == 0) {
-            auto scaleFactorInput = ParseScaleFactors(FLAGS_sf);
-            if (numInputArkFiles != scaleFactorInput.size()) {
-                std::string errMessage("Incorrect command line for multiple inputs: "
-                    + std::to_string(scaleFactorInput.size()) + " scale factors provided for "
-                    + std::to_string(numInputArkFiles) + " input files.");
+            if (scaleFactorInput.size() != network.getInputsInfo().size()) {
+                std::string errMessage("Incorrect command line for multiple inputs. Please make sure you provide scale factor for every input out of "
+                                       + std::to_string(network.getInputsInfo().size()));
                 throw std::logic_error(errMessage);
             }
+        }
 
-            for (size_t i = 0; i < scaleFactorInput.size(); ++i) {
-                slog::info << "For input " << i << " using scale factor of " << scaleFactorInput[i] << slog::endl;
-                std::string scaleFactorConfigKey = GNA_CONFIG_KEY(SCALE_FACTOR) + std::string("_") + std::to_string(i);
-                gnaPluginConfig[scaleFactorConfigKey] = scaleFactorInput[i];
-            }
-        } else {
-            // "static" quantization with calculated scale factor
-            for (size_t i = 0; i < numInputArkFiles; i++) {
-                auto inputArkName = inputArkFiles[i].c_str();
+        /// index of ark files in order of appearing in command line
+        int arkInputIdx = 0;
+        for (size_t i = 0; i < network.getInputsInfo().size(); i++) {
+            std::string scaleFactorConfigKey =
+                    GNA_CONFIG_KEY(SCALE_FACTOR) + std::string("_") + std::to_string(i);
+
+            if (FLAGS_q.compare("static") == 0 ||
+                (FLAGS_q.compare("user") == 0 && scaleFactorInput[i] == "CALC")) {
+                // squese non ark inputs
+                auto inputArkName = inputArkFiles[arkInputIdx].c_str();
                 std::string name;
                 std::vector<uint8_t> ptrFeatures;
                 uint32_t numArrays(0), numBytes(0), numFrames(0), numFrameElements(0), numBytesPerElement(0);
@@ -632,11 +677,44 @@ int main(int argc, char *argv[]) {
                                   &numFrameElements,
                                   &numBytesPerElement);
                 auto floatScaleFactor =
-                        ScaleFactorForQuantization(ptrFeatures.data(), MAX_VAL_2B_FEAT, numFrames * numFrameElements);
-                slog::info << "Using scale factor of " << floatScaleFactor << " calculated from first utterance."
-                           << slog::endl;
-                std::string scaleFactorConfigKey = GNA_CONFIG_KEY(SCALE_FACTOR) + std::string("_") + std::to_string(i);
+                        ScaleFactorForQuantization(ptrFeatures.data(), MAX_VAL_2B_FEAT,
+                                                   numFrames * numFrameElements);
+                slog::info << "For input "<< i << " using scale factor of " << floatScaleFactor
+                           << " calculated from first utterance of " << inputArkName << slog::endl;
                 gnaPluginConfig[scaleFactorConfigKey] = std::to_string(floatScaleFactor);
+                auto iinfo = network.getInputsInfo();
+                auto beg = iinfo.begin();
+                std::advance(beg, i);
+                batchBlobs.push_back(beg->second->name());
+            } else if (FLAGS_q.compare("user") == 0 &&
+                       scaleFactorInput[i].find("SAME_AS_") == 0) {
+                slog::info << "For input "<< i << " using same scale factor as output of layer " << scaleFactorInput[i].substr(8) << slog::endl;
+                gnaPluginConfig[scaleFactorConfigKey] = scaleFactorInput[i];
+                auto layerAndPort = ParseLayerName(scaleFactorInput[i].substr(8));
+
+                auto currentOutputInfo = network.getOutputsInfo();
+                network.addOutput(layerAndPort.first, layerAndPort.second);
+                auto newOutputInfo = network.getOutputsInfo();
+
+                auto expected_output_name = layerAndPort.first + "." + std::to_string(layerAndPort.second);
+
+                std::string newOutputName;
+                for (auto && newOutput : newOutputInfo) {
+                    if (!currentOutputInfo.count(newOutput.first) || expected_output_name == newOutput.first) {
+                        newOutputName = newOutput.first;
+                        break;
+                    }
+                }
+                if (newOutputName.empty()) {
+                    throw std::logic_error("cannot detect new addOutput layer: " + layerAndPort.first + std::to_string(layerAndPort.second));
+                }
+
+                memoryBlobs[i] = newOutputName;
+            } else if (FLAGS_q.compare("user") == 0) {
+                // scale factor for given ark file provided no need to calc
+                slog::info << "For input "<< i << " using scale factor of " << scaleFactorInput[i] << slog::endl;
+                gnaPluginConfig[scaleFactorConfigKey] = scaleFactorInput[i];
+                arkInputIdx++;
             }
         }
 
@@ -698,18 +776,59 @@ int main(int argc, char *argv[]) {
         std::vector<InferRequestStruct> inferRequests((FLAGS_cw_r > 0 || FLAGS_cw_l > 0) ? 1 : FLAGS_nthreads);
         for (auto& inferRequest : inferRequests) {
             inferRequest = {executableNet.CreateInferRequest(), -1, batchSize};
+            // binding blobs
+            auto iinfo = network.getInputsInfo();
+
+            // internal connection for memory blobs
+            for (auto & mblob : memoryBlobs) {
+                auto iinfoIt = iinfo.begin();
+                std::advance(iinfoIt, mblob.first);
+
+                inferRequest.inferRequest.SetBlob(iinfoIt->first, inferRequest.inferRequest.GetBlob(mblob.second));
+
+                // now input and output blobs are same
+                auto outputBlob  = inferRequest.inferRequest.GetBlob(mblob.second);
+                auto inputBlob = inferRequest.inferRequest.GetBlob(iinfoIt->first);
+
+                slog::info << "binded input : " << iinfoIt->first.c_str() << " ptr=" << inputBlob.get()->buffer().as<void*>() << "\n" << slog::tab;
+                slog::info << "to output blob : " << mblob.second.c_str() << " ptr=" << outputBlob.get()->buffer().as<void*>() << slog::endl;
+
+                // reset state analog
+                MemoryBlob::Ptr minput = as<MemoryBlob>(inputBlob);
+                if (!minput) {
+                    slog::err << "We expect \"" << mblob.second << "\"  to be inherited from MemoryBlob, " << slog::endl;
+                    return 1;
+                }
+                // locked memory holder should be alive all time while access to its buffer happens
+                auto minputHolder = minput->wmap();
+
+                std::memset(minputHolder.as<void*>(), 0, minput->byteSize());
+            }
         }
         // -----------------------------------------------------------------------------------------------------
 
         // --------------------------- 8. Prepare input blobs --------------------------------------------------
         /** Taking information about all topology inputs **/
         ConstInputsDataMap cInputInfo = executableNet.GetInputsInfo();
-        CheckNumberOfInputs(cInputInfo.size(), numInputArkFiles);
+
+        size_t arksInput = 0;
+        for (auto scaleFactor : scaleFactorInput) {
+            if (scaleFactor.find("SAME_AS_") == 0) continue;
+            // in case of user scale factor and keyword CALC - data is taken from ark file
+            // in case of user scale factor and floating point we consider this still as data input
+            arksInput++;
+        }
+        if ((FLAGS_q == "user" && numInputArkFiles != arksInput) ||
+            (FLAGS_q == "static" && numInputArkFiles != cInputInfo.size())) {
+            throw std::logic_error("Number of network inputs("
+                + std::to_string(cInputInfo.size()) + ") is not equal to number of ark files("
+                + std::to_string(numInputArkFiles) + ")");
+        }
 
         /** Stores all input blobs data **/
         std::vector<Blob::Ptr> ptrInputBlobs;
-        for (auto& input : cInputInfo) {
-            ptrInputBlobs.push_back(inferRequests.begin()->inferRequest.GetBlob(input.first));
+        for (auto& input : batchBlobs) {
+            ptrInputBlobs.push_back(inferRequests.begin()->inferRequest.GetBlob(input));
         }
 
         InputsDataMap inputInfo;
@@ -726,12 +845,8 @@ int main(int argc, char *argv[]) {
 
         // --------------------------- 9. Prepare output blobs -------------------------------------------------
         ConstOutputsDataMap cOutputInfo(executableNet.GetOutputsInfo());
-        OutputsDataMap outputInfo;
-        if (!FLAGS_m.empty()) {
-            outputInfo = network.getOutputsInfo();
-        }
 
-        Blob::Ptr ptrOutputBlob = inferRequests.begin()->inferRequest.GetBlob(cOutputInfo.rbegin()->first);
+        Blob::Ptr ptrOutputBlob = inferRequests.begin()->inferRequest.GetBlob(outputInfo.rbegin()->first);
 
         for (auto &item : outputInfo) {
             DataPtr outData = item.second;
@@ -794,13 +909,23 @@ int main(int argc, char *argv[]) {
             }
 
             int i = 0;
-            for (auto& ptrInputBlob : ptrInputBlobs) {
-                if (ptrInputBlob->size() != numFrameElementsInput[i++] * batchSize) {
-                    throw std::logic_error("network input size(" + std::to_string(ptrInputBlob->size()) +
-                                           ") mismatch to ark file size (" +
-                                           std::to_string(numFrameElementsInput[i-1] * batchSize) + ")");
+            arksInput = 0;
+            for (auto scaleFactor : scaleFactorInput) {
+                i++;
+                if (scaleFactor.find("SAME_AS_") == 0) continue;
+
+                // in case of user scale factor and keyword CALC - data is taken from ark file
+                // in case of user scale factor and floating point we consider this still as data input
+                auto ptrInputBlob = ptrInputBlobs[arksInput];
+                if (ptrInputBlob->size() != numFrameElementsInput[arksInput] * batchSize) {
+                    throw std::logic_error(std::to_string(i - 1) + " - network input size(" + std::to_string(ptrInputBlob->size()) +
+                        ") mismatch to ark file size \"" + inputArkFiles[arksInput] + "\" (" +
+                        std::to_string(numFrameElementsInput[arksInput] * batchSize) + ")");
                 }
+
+                arksInput++;
             }
+
 
             ptrScores.resize(numFrames * numScoresPerFrame * sizeof(float));
             if (!FLAGS_r.empty()) {
@@ -869,7 +994,9 @@ int main(int argc, char *argv[]) {
                             if (!FLAGS_o.empty()) {
                                 outputFrame =
                                         &ptrScores.front() + numScoresPerFrame * sizeof(float) * (inferRequest.frameIndex);
-                                MemoryBlob::CPtr moutput = as<MemoryBlob>(inferRequest.inferRequest.GetBlob(cOutputInfo.rbegin()->first));
+
+                                MemoryBlob::CPtr moutput = as<MemoryBlob>(ptrOutputBlob);
+
                                 if (!moutput) {
                                     throw std::logic_error("We expect output to be inherited from MemoryBlob, "
                                                            "but by fact we were not able to cast output to MemoryBlob");
@@ -915,8 +1042,8 @@ int main(int argc, char *argv[]) {
                     }
 
                     ptrInputBlobs.clear();
-                    for (auto& input : cInputInfo) {
-                        ptrInputBlobs.push_back(inferRequest.inferRequest.GetBlob(input.first));
+                    for (auto& input : batchBlobs) {
+                        ptrInputBlobs.push_back(inferRequest.inferRequest.GetBlob(input));
                     }
 
                     for (size_t i = 0; i < numInputArkFiles; ++i) {

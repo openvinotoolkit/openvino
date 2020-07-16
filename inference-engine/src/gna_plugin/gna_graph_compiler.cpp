@@ -1878,6 +1878,18 @@ GNAPluginNS::ConnectionDetails GNAGraphCompiler::connectInput(CNNLayerPtr layer,
                 }
                 gnamem->bind_ptr(&memoryLayer.gna_ptr, ptr, -offset);
             }
+            if (num_data_bytes_in < memorySize) {
+                THROW_GNA_EXCEPTION << "Memory layer : " << layer->name <<" invalid allocation request of "
+                                    << num_data_bytes_in << " is less then tensor size of" << memorySize;
+            }
+
+            // negative offset used for  indicate that memory layer should be bound to given buffer
+            if (offset >= 0) {
+                gnamem->reserve_ptr(&memoryLayer.gna_ptr, ALIGN64(num_data_bytes_in), 64);
+                gnamem->bind_ptr(ptr, &memoryLayer.gna_ptr, offset);
+            } else {
+                gnamem->bind_ptr(&memoryLayer.gna_ptr, ptr, -offset);
+            }
 
             memoryLayer.reserved_size = ALIGN64(memorySize);
         } else {

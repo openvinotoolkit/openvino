@@ -24,6 +24,7 @@
 #include <ie_util_internal.hpp>
 #include <graph_tools.hpp>
 #include <net_pass.h>
+#include <cmath>
 
 #include "gna_plugin_log.hpp"
 #include "frontend/quantized_layer_params.hpp"
@@ -50,6 +51,7 @@ std::shared_ptr<IPassManager> BasePass::getPassManager() {
 // indexes stored in pass manager
 static const char diagonalLayersCounterName[] = "diagonalLayerCounter";
 static const char copyLayersCounter[] = "numCopyLayers";
+static const char memoryLayersCounter[] = "numMemoryLayers";
 static const char softSignLayersCounter[] = "numSoftSignLayers";
 
 /**
@@ -90,6 +92,40 @@ static void insertDiagonalLayerBetween(InferenceEngine::CNNLayerPtr prevLayer,
 
     // actual insertion
     CNNNetworkInsertLayer(prevLayer, nextLayer, diagonalWithQuant);
+}
+
+static void InsertMemoryLayer(InferenceEngine::CNNLayerPtr prevLayer,
+                              size_t portId,
+                              std::shared_ptr<IPassManager> passmanager,
+                              std::string id) {
+    auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(prevLayer);
+    auto memoryName = std::string("SyntheticMemory_") + std::to_string(passmanager->getIntVar(memoryLayersCounter)++);
+    if (prevLayer != nullptr) {
+        gnalog() << "Inserted Memory layer " << memoryName << " after: " << prevLayer->name << "." << portId;
+    } else {
+        THROW_GNA_EXCEPTION << "cannot attach memory layer to nullptr, parent layer need to be specified";
+    }
+
+    auto memoryLayer = std::make_shared<CNNLayer>(LayerParams({memoryName, "Memory", Precision::FP32}));
+    if (prevLayer->outData.size() <= portId) {
+        THROW_GNA_EXCEPTION << "cannot attach memory layer to " << prevLayer->name << " at port " << portId
+                            << ", since there are only " << prevLayer->outData.size() << " ports";
+    }
+    auto dataPtr = std::make_shared<Data>(memoryName, prevLayer->outData[portId]->getTensorDesc());
+
+    auto memoryLayerWithQuant = quantized ? InferenceEngine::injectData<QuantizedLayerParams>(memoryLayer) : memoryLayer;
+
+    InferenceEngine::getCreatorLayer(dataPtr) = memoryLayerWithQuant;
+    memoryLayerWithQuant->outData.push_back(dataPtr);
+
+    // TODO: insert layer algo doesn't support inserting between given layer and void if there are active connection
+    // CNNNetworkInsertLayer(prevLayer, nullptr, memoryLayer, portId);
+
+    InferenceEngine::getInputTo(prevLayer->outData[portId])[memoryName] = memoryLayerWithQuant;
+    memoryLayerWithQuant->insData.push_back(prevLayer->outData[portId]);
+    memoryLayerWithQuant->params["id"] = id;
+    memoryLayerWithQuant->params["index"] = "0";
+    memoryLayerWithQuant->params["size"] = "2";
 }
 
 /**
@@ -145,10 +181,9 @@ static std::vector<CNNLayerPtr> getCandidatesForIdentityInsertion(const CNNLayer
         // for  mul if we have 4-4 - there 2 options
         //          option 1 both inputs came from single outdata  - we will insert 1 identity  to just convert single input into 2 bytes
         //          option 2 each input came from it's own outdata - we need to insert 2 identities activations to convert both and feed weights and inputs
-
+        // TODO: skip non functional
         auto prev0 = PrevFunctionalLayer(l, 0);
         auto prev1 = PrevFunctionalLayer(l, 1);
-
         switch (eltwise->_operation) {
             case EltwiseLayer::Sub:
             case EltwiseLayer::Sum:
@@ -194,7 +229,10 @@ static std::vector<CNNLayerPtr> getCandidatesForIdentityInsertion(const CNNLayer
         if (LayerInfo(l).isNonFunctional() || LayerInfo(l).has32BInput())
             return prevLayers;
 
-        auto prevLayer = PrevFunctionalLayer(l, 0);
+        gnalog() << "CNNNetPrevLayerSkipCertain for :: " << l->name << std::endl;
+        auto prevLayer = CNNNetPrevLayerSkipCertain(l, 0, [](CNNLayerPtr ptr) {
+            return LayerInfo(ptr).isNonFunctional();
+        });
 
         if (!LayerInfo(prevLayer).has32BOutput())
             return prevLayers;
@@ -1128,6 +1166,81 @@ void FuseMultipleIdentitiesPass::run() {
             l->insData.push_back(alreadyIdentity->outData.front());
             getInputTo(alreadyIdentity->outData.front())[l->name] = l;
         }
+    }
+}
+
+void MakeExtraMemoryLayersPass::run() {
+    auto network = getPassManager()->getNetwork();
+    InputsDataMap iinfo;
+    network->getInputsInfo(iinfo);
+
+    OutputsDataMap outputsInfo;
+    network->getOutputsInfo(outputsInfo);
+
+    auto* implNetwork = dynamic_cast<details::CNNNetworkImpl*>(network.get());
+    if (!implNetwork) {
+        THROW_GNA_EXCEPTION << "[" << getName()<< "]" << " can only work on cnnnetworkimpl type";
+    }
+
+    int idx = 0;
+    for (auto & input : iinfo) {
+        // we have a new input -> output pair
+        pass_trace() << "input layer name="<< input.first <<"\n";
+        auto outLayerName = getPassManager()->getStringVar(std::to_string(idx++));
+        pass_trace() << "output layer name="<< outLayerName <<"\n";
+
+        if (outLayerName.empty()) continue;
+
+        auto portPos = outLayerName.rfind("/");
+        if (std::string::npos == portPos) {
+            THROW_GNA_EXCEPTION << "output layer port for \"" << outLayerName << "\" should placed after layer name and prefixed by \"/\"";
+        }
+        auto port = outLayerName.substr(portPos + 1);
+        bool err = false;
+        float portId;
+        try {
+            portId = CNNLayer::ie_parse_float(port);
+            if (portId == 0.0 && port != "0") {
+                err = true;
+            }
+        } catch(...) {
+            err = true;
+        }
+        if (err || std::ceil(portId) != portId || portId < 0) {
+            THROW_GNA_EXCEPTION << "for layer: \"" << outLayerName << "\" port value should be non negative integer, but was: " << port;
+        }
+        int iPortId = static_cast<int>(std::ceil(portId));
+        auto layerName = outLayerName.substr(0, portPos);
+        auto encodedLayerAndPort = layerName + "." + std::to_string(iPortId);
+
+        auto outputIt = outputsInfo.find(encodedLayerAndPort);
+        if (outputIt == outputsInfo.end()) {
+            outputIt = outputsInfo.find(layerName);
+            if (outputIt == outputsInfo.end()) {
+                THROW_GNA_EXCEPTION << "Cannot create memory layer pair for \"" << layerName << "\" : \"" << port
+                                    << "\" layer not an output in topology";
+            }
+        }
+
+        // checking that index for given out data might changed during previous transformations
+        auto parent = InferenceEngine::getCreatorLayer(outputIt->second).lock();
+        auto outDataIt = std::find(parent->outData.begin(), parent->outData.end(), outputIt->second);
+        auto outDataIdxActual = std::distance(parent->outData.begin(), outDataIt);
+        // real insertion of memory layer
+        auto id = std::string("synth_") + std::to_string(getPassManager()->getIntVar(memoryLayersCounter));
+        InsertMemoryLayer(parent, outDataIdxActual, getPassManager(), id);
+
+        // replacing type of input layer to be memory layer
+        auto firtstLayerAfterInput = InferenceEngine::getInputTo(input.second->getInputData()).begin()->second;
+        auto insDataIdx = CNNLayerFindInsDataIdxes(input.second->getInputData(), firtstLayerAfterInput);
+        auto inputLayer = InferenceEngine::getCreatorLayer(firtstLayerAfterInput->insData[insDataIdx.front()].lock()).lock();
+        inputLayer->type = "Memory";
+        inputLayer->params["id"] = id;
+        inputLayer->params["index"] = "1";
+        inputLayer->params["size"] = "2";
+
+        // removing input info semantics completely
+        implNetwork->removeInputInfo(input.first);
     }
 }
 

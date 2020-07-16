@@ -359,14 +359,19 @@ void GNAPlugin::LoadNetwork(ICNNNetwork & _network) {
         THROW_GNA_EXCEPTION << error.c_str();
     }
 
+    // storing original inputs mapping - we can modify then inside pluin
+    network.getInputsInfo(inputsDataMapOriginal);
+
     // network optimisation phases
     int passIdx = 0;
     auto run_passes = [&] (const CNNNetPtr& network, bool runBeforeCopy) {
-        auto passes = make_shared<PassManager>(PassManagerSettings{policy, runBeforeCopy}, network);
+        auto passes = make_shared<PassManager>(PassManagerSettings{policy, runBeforeCopy, config.extraMemoryMap}, network);
         passes->registerPass<RemoveConstPass>();
         passes->registerPass<UnrollTIPass>();
         passes->registerPass<RemoveConstPass>();
         passes->registerPass<UnrollLSTMCellPass>();
+
+        passes->registerPass<MakeExtraMemoryLayersPass>();
 
         passes->registerPass<SubstitutePReluPass>();
         passes->registerPass<SubstituteSoftSignPass>();
@@ -877,17 +882,24 @@ uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap &inputs, Infer
     int inputNum = 0;
     for (auto &input : inputs) {
         auto inputLayout = input.second->getTensorDesc().getLayout();
-        if (inputLayout != Layout::NC && inputLayout != Layout::CN && inputLayout != NCHW) {
+        if (inputLayout != Layout::NC && inputLayout != Layout::CN && inputLayout != Layout::CHW && inputLayout != NCHW) {
             THROW_GNA_EXCEPTION << "Expected input blob to have Layout::NC or Layout::CN, but was: "
                                 << input.second->getTensorDesc().getLayout();
         }
-        if (inputLayout == NCHW) {
+        if (inputLayout != !NC) {
             inputLayout = NC;
         }
         auto is2D = input.second->getTensorDesc().getLayout() == Layout::NC || input.second->getTensorDesc().getLayout() == Layout::CN;
+        // specific case that can be squesed to 2d
+        auto is3D = input.second->getTensorDesc().getLayout() == Layout::CHW;
 
         if (!inputsDesc->ptr_inputs_global_id.count(input.first)) {
             // should not happen in user code however might happen if there any non executable network based integration of GNAPlugin instance
+            if (inputsDataMapOriginal.count(input.first) != 0 && inputsDataMap.count(input.first) == 0) {
+                // this input ignored by the plugin - data converted to memory-state
+                gnalog() << "Skip input tensor from: " << input.first << "\n";
+                continue;
+            }
             THROW_GNA_EXCEPTION << "network not loaded : input pointer for " << input.first << " not set";
         }
 
@@ -995,7 +1007,8 @@ void GNAPlugin::Wait(uint32_t request_idx) {
     for (auto && outputBlobIt : request) {
         auto & outputBlob = outputBlobIt.second;
         auto & outputDesc = outputsDesc[output_idx];
-        if (outputBlob->getTensorDesc().getLayout() == Layout::NC) {
+        if (outputBlob->getTensorDesc().getLayout() == Layout::NC ||
+            outputBlob->getTensorDesc().getLayout() == Layout::CHW) {
             // TODO: rotate can be incorporated with exporting - used only in unit tests so far
             // TODO: restore:
 //        if (orientation_out != kDnnInterleavedOrientation) {
@@ -1023,8 +1036,8 @@ void GNAPlugin::Wait(uint32_t request_idx) {
                          outputDesc.num_bytes_per_element,
                          sizeof(float));
         } else if (outputBlob->getTensorDesc().getLayout() != Layout::CN) {
-            THROW_GNA_EXCEPTION << "Expected output blob to have Layout::NC or Layout::CN. But was "
-                << outputBlob->getTensorDesc().getLayout();
+//            THROW_GNA_EXCEPTION << "Expected output blob to have Layout::NC or Layout::CN. But was "
+//                << outputBlob->getTensorDesc().getLayout();
         }
 
         if (gnadevice) {
@@ -1094,17 +1107,21 @@ Blob::Ptr GNAPlugin::GetOutputBlob(const std::string& name, InferenceEngine::Pre
     // need to have intermediate blob for interleave conversion
     InferenceEngine::Blob::Ptr outputBlob;
     auto outputDims = outputsDataMap[name]->getTensorDesc().getDims();
-    outputBlob = make_blob_with_precision(TensorDesc(precision, outputDims, outputDims.size() == 2 ? NC : NCHW));
+    outputBlob = make_blob_with_precision(
+        TensorDesc(precision, outputDims, outputDims.size() == 2 ? NC :
+            (outputDims.size() == 3 ? CHW : NCHW)));
     outputBlob->allocate();
     return outputBlob;
 }
 
 Blob::Ptr GNAPlugin::GetInputBlob(const std::string& name, InferenceEngine::Precision precision) {
     InferenceEngine::Blob::Ptr inputBlob;
+
     // need to have intermediate blob for interleave conversion
     // TODO: NCHW format support is experimental = c++ MO did insert reshape, while TF mo - not
-    auto inputDims = inputsDataMap[name]->getTensorDesc().getDims();
-    inputBlob = make_blob_with_precision(TensorDesc(precision, inputDims, inputDims.size() == 2 ? NC : NCHW));
+    auto inputDims = inputsDataMapOriginal[name]->getTensorDesc().getDims();
+    inputBlob = make_blob_with_precision(TensorDesc(precision, inputDims,
+        inputDims.size() == 2 ? NC : (inputDims.size() == 3 ? CHW : NCHW)));
     inputBlob->allocate();
     return inputBlob;
 }

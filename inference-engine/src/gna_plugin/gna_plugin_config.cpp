@@ -80,6 +80,12 @@ void Config::UpdateFromMap(const std::map<std::string, std::string>& config) {
                     THROW_GNA_EXCEPTION << "Index of input scale factor must be in the range [0..99], " << key << " provided";
                 }
             }
+
+            // special case for user level blobs restriction - in plugin we will create memory layers in place of them
+            if (value.find("SAME_AS_") == 0) {
+                extraMemoryMap[std::to_string(input_index)] = value.substr(8);
+                continue;
+            }
             auto scale_factor = InferenceEngine::CNNLayer::ie_parse_float(value);
             if (fp32eq(scale_factor, 0.0f)) {
                 THROW_GNA_EXCEPTION << "input scale factor of 0.0f not supported";
