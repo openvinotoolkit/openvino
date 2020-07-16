@@ -135,10 +135,7 @@ class InterpolateWithConcat(FrontReplacementPattern):
                 sources.append(in_port.get_connection().get_source())
         return sources
 
-    def make_interpolate_reshape_able(self, interpolate: Node, concat: Node):
-        assert interpolate.soft_get('type') == 'Interpolate'
-        assert concat.soft_get('type') == 'Concat'
-
+    def make_interpolate1_reshape_able(self, interpolate: Node, concat: Node):
         interp_axes = interpolate.soft_get('axes', None)
         interp_axes = interp_axes if interp_axes is None else int64_array(interp_axes)
         concat_axis = self.get_concat_axis(concat)
@@ -164,9 +161,29 @@ class InterpolateWithConcat(FrontReplacementPattern):
                                              {'name': shape.name + '/Gathered'}, input_node=shape)
         interpolate.in_port(1).get_connection().set_source(gather.out_port(0))
 
+    def make_interpolate4_reshape_able(self, interpolate: Node, concat: Node):
+        pass
+
+    def make_interpolate_reshape_able(self, interpolate: Node, concat: Node):
+        assert interpolate.soft_get('type') == 'Interpolate'
+        assert concat.soft_get('type') == 'Concat'
+        opset = interpolate.get_opset()
+        assert opset in ['opset1', 'opset4', 'extension'], \
+            'Node Interpolate with name {} has unsupported opset'.format(interpolate.soft_get(interpolate.name,
+                                                                                              interpolate.id))
+        {
+            'opset1': self.make_interpolate1_reshape_able,
+            'opset4': self.make_interpolate4_reshape_able,
+            'extension': self.make_interpolate1_reshape_able
+        }[opset](interpolate, concat)
+
+
     def find_and_replace_pattern(self, graph: Graph):
         for interpolate in graph.get_op_nodes(type='Interpolate'):
+            num_inputs = len([p for p in interpolate.in_ports().values() if not p.disconnected()])
             if interpolate.in_port(1).get_source().node.soft_get('type') != 'Const':
+                continue
+            if num_inputs == 3 and interpolate.in_port(2).get_source().node.soft_get('type') != 'Const':
                 continue
 
             # Interpolate could be connected to Concat through identity operations, skipping them
