@@ -42,7 +42,7 @@ class ResizeExtractor(FrontExtractorOp):
             attrs = {
                 'mode': mode, 'coordinate_transformation_mode': transformation_mode,
                 'nearest_mode': nearest_mode, 'extrapolation_value': extrapolation_value,
-                'exclude_outside': exclude_outside, 'cubic_coeff_a': cubic_coeff_a
+                'exclude_outside': exclude_outside, 'cube_coeff': cubic_coeff_a
             }
             ONNXResize11Op.update_node_stat(node, attrs)
         else:
