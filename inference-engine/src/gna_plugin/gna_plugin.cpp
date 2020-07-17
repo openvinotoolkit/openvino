@@ -361,6 +361,7 @@ void GNAPlugin::LoadNetwork(ICNNNetwork & _network) {
 
     // storing original inputs mapping - we can modify then inside pluin
     network.getInputsInfo(inputsDataMapOriginal);
+    network.getOutputsInfo(outputsDataMapOriginal);
 
     // network optimisation phases
     int passIdx = 0;
@@ -1181,6 +1182,9 @@ InferenceEngine::IExecutableNetwork::Ptr GNAPlugin::ImportNetwork(const std::str
             outputsDesc,
             inputsDataMap,
             outputsDataMap);
+
+    inputsDataMapOriginal = inputsDataMap;
+    outputsDataMapOriginal = outputsDataMap;
 
 #if GNA_LIB_VER == 2
     auto getOrientation = [](Gna2Operation & gnaOperation) {

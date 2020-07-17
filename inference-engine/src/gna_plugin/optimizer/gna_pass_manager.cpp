@@ -1230,6 +1230,9 @@ void MakeExtraMemoryLayersPass::run() {
         auto id = std::string("synth_") + std::to_string(getPassManager()->getIntVar(memoryLayersCounter));
         InsertMemoryLayer(parent, outDataIdxActual, getPassManager(), id);
 
+        // removing output_info from network
+        implNetwork->removeOutputInfo(outDataIt->get()->getName());
+
         // replacing type of input layer to be memory layer
         auto firtstLayerAfterInput = InferenceEngine::getInputTo(input.second->getInputData()).begin()->second;
         auto insDataIdx = CNNLayerFindInsDataIdxes(input.second->getInputData(), firtstLayerAfterInput);

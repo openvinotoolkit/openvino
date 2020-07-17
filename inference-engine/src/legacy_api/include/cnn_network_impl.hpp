@@ -61,6 +61,10 @@ public:
         _inputData.erase(name);
     }
 
+    void removeOutputInfo(const std::string& name) {
+        _outputData.erase(name);
+    }
+
     const std::string& getName() const noexcept override {
         return _name;
     }
