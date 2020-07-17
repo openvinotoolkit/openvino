@@ -72,18 +72,6 @@ class ModelZooTestRunner(onnx.backend.test.BackendTest):
         etag_file_path = os.path.join(model_dir, "source_tar_etag")
         open(etag_file_path, "w").write(etag_value)
 
-    @staticmethod
-    def _backup_old_version(model_dir):  # type: (str) -> None
-        if os.path.exists(model_dir):
-            backup_index = 0
-            while True:
-                dest = "{}.old.{}".format(model_dir, backup_index)
-                if os.path.exists(dest):
-                    backup_index += 1
-                    continue
-                shutil.move(model_dir, dest)
-                break
-
     @classmethod
     @retry
     def prepare_model_data(cls, model_test):  # type: (OnnxTestCase) -> Text
@@ -98,9 +86,6 @@ class ModelZooTestRunner(onnx.backend.test.BackendTest):
                 model_dir
             ):
                 return model_dir
-
-            # If model does exist, but is not current, backup directory
-            ModelZooTestRunner._backup_old_version(model_dir)
 
         # Download and extract model and data
         download_file = tempfile.NamedTemporaryFile(delete=False)
