@@ -75,7 +75,7 @@ void test_binary(std::string /* node_type */,
 
     auto test_binary_good_arguments = [&](const shared_ptr<Node>& x, const shared_ptr<Node>& y) {
         auto node = f(x, y);
-        EXPECT_TRUE(node->has_same_type(node->get_arguments()[0]));
+        EXPECT_TRUE(node->has_same_type(node->input_values()[0].get_node_shared_ptr()));
     };
     test_binary_good_arguments(tv0_2_4_param_0, tv0_2_4_param_1);
 }
@@ -188,7 +188,7 @@ void test_binary_logical(std::string /* node_type */,
 
     auto test_binary_good_arguments = [&](const shared_ptr<Node>& x, const shared_ptr<Node>& y) {
         auto node = f(x, y);
-        EXPECT_TRUE(node->has_same_type(node->get_arguments()[0]));
+        EXPECT_TRUE(node->has_same_type(node->input_values()[0].get_node_shared_ptr()));
     };
     test_binary_good_arguments(tv0_2_4_param_0, tv0_2_4_param_1);
 }
