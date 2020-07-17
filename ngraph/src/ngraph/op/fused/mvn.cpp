@@ -123,14 +123,14 @@ namespace {
     template<element::Type_t ET>
     inline bool
     evaluate(const HostTensorPtr &arg, const HostTensorPtr &out, bool normalize_variance,
-             AxisSet reduction_axes, double eps) {
+             const AxisSet& reduction_axes, double eps) {
         using T = typename element_type_traits<ET>::value_type;
         runtime::reference::mvn<T>(arg->get_data_ptr<ET>(), out->get_data_ptr<ET>(), arg->get_shape(), normalize_variance,
                                    reduction_axes, eps);
         return true;
     }
 
-    bool evaluate_mvn(const HostTensorPtr &args, const HostTensorPtr &out, bool normalize_variance, AxisSet reduction_axes,
+    bool evaluate_mvn(const HostTensorPtr &args, const HostTensorPtr &out, bool normalize_variance, const AxisSet& reduction_axes,
                       double eps) {
         bool rc = true;
 

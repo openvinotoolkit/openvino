@@ -72,6 +72,7 @@ namespace ngraph
                 size_t get_nsize() const { return m_size; }
                 void set_nsize(size_t size) { m_size = size; }
                 AxisSet get_reduction_axes() const;
+                bool evaluate(const HostTensorVector& output_values, const HostTensorVector& input_values) override;
 
             protected:
                 virtual void generate_adjoints(autodiff::Adjoints& adjoints,

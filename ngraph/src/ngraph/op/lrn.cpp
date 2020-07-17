@@ -18,6 +18,7 @@
 #include "ngraph/attribute_visitor.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/multiply.hpp"
+#include "ngraph/runtime/reference/lrn.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -131,4 +132,42 @@ void op::LRN::generate_adjoints(autodiff::Adjoints& /* adjoints */,
                                 const OutputVector& /* deltas */)
 {
     throw ngraph_error("NYI");
+}
+
+namespace {
+    template<element::Type_t ET>
+    inline bool
+    evaluate(const HostTensorPtr &arg, const HostTensorPtr &out, const AxisSet &reduction_axes,
+             double alpha, double beta, double bias, size_t size) {
+        using T = typename element_type_traits<ET>::value_type;
+        runtime::reference::lrn<T>(arg->get_data_ptr<ET>(), reduction_axes, out->get_data_ptr<ET>(), arg->get_shape(),
+                                   alpha, beta, bias, size);
+        return true;
+    }
+
+    bool evaluate_lrn(const HostTensorPtr &args, const HostTensorPtr &out, const AxisSet &reduction_axes,
+                      double alpha, double beta, double bias, size_t size) {
+        bool rc = true;
+
+        switch (out->get_element_type()) {
+            TYPE_CASE(i8)(args, out, reduction_axes, alpha, beta, bias, size);
+                break;
+            TYPE_CASE(i32)(args, out, reduction_axes, alpha, beta, bias, size);
+                break;
+            TYPE_CASE(u8)(args, out, reduction_axes, alpha, beta, bias, size);
+                break;
+            TYPE_CASE(f16)(args, out, reduction_axes, alpha, beta, bias, size);
+                break;
+            TYPE_CASE(f32)(args, out, reduction_axes, alpha, beta, bias, size);
+                break;
+            default:
+                rc = false;
+                break;
+        }
+        return rc;
+    }
+}
+
+bool op::LRN::evaluate(const HostTensorVector &outputs, const HostTensorVector &inputs) {
+    return evaluate_lrn(inputs[0], outputs[0], get_reduction_axes(), m_alpha, m_beta, m_bias, m_size);
 }
