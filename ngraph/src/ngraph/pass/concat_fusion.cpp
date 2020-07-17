@@ -37,8 +37,10 @@ namespace
 {
     bool check_self_concat_op(const std::shared_ptr<Node>& op)
     {
-        auto input_args = op->get_arguments();
-        std::set<std::shared_ptr<Node>> input_args_set(input_args.begin(), input_args.end());
+        auto input_vals = op->input_values();
+        std::set<std::shared_ptr<Node>> input_args_set;
+        for (auto val : input_vals)
+            input_args_set.emplace(val.get_node_shared_ptr());
         return (input_args_set.size() == 1);
     }
 
@@ -213,7 +215,7 @@ void ngraph::pass::SelfConcatFusion::update_concat_pattern_vectors(
     for (auto& concat_pattern_vec : this->m_concat_pattern_vectors)
     {
         auto last_op_in_pattern_vec = concat_pattern_vec.back();
-        if ((concat_op->get_argument(0) == last_op_in_pattern_vec) &&
+        if ((concat_op->input_value(0).get_node_shared_ptr() == last_op_in_pattern_vec) &&
             (check_concat_has_no_fan_out(last_op_in_pattern_vec)))
         {
             concat_pattern_vec.push_back(concat_op);
@@ -264,7 +266,7 @@ bool ngraph::pass::SelfConcatFusion::replace_patterns(const NodeVector& bounded_
     auto concat_axis_vector = get_concatenation_axis_vector(bounded_concat_ops);
 
     auto& first_bounded_concat = (*bounded_concat_ops.begin());
-    auto driver_op = first_bounded_concat->get_argument(0);
+    auto driver_op = first_bounded_concat->input_value(0);
     const Shape& input_shape = first_bounded_concat->get_input_shape(0);
 
     auto scalarized_shape = scalarize_dim(concat_axis_vector, input_shape);

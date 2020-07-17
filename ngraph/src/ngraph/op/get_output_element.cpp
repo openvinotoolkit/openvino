@@ -54,11 +54,6 @@ Output<Node> op::GetOutputElement::get_as_output() const
     return input_value(0);
 }
 
-NodeVector op::GetOutputElement::get_arguments() const
-{
-    return NodeVector{input_value(0).get_node_shared_ptr()};
-}
-
 NodeVector op::get_output_elements(const shared_ptr<Node>& mon)
 {
     NodeVector goes(mon->get_output_size());
