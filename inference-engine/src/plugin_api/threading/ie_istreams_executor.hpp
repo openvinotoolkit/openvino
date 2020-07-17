@@ -68,6 +68,14 @@ public:
         */
         Parameter GetConfig(const std::string& key);
 
+        /**
+        * @brief Create appropriate multithreaded configuration
+        *        filing unconfigured values from initial configuration using hardware properties
+        * @param initial Inital configuration
+        * @return configured values
+        */
+        static Config MakeDefaultMultiThreaded(const Config& initial);
+
         std::string        _name;  //!< Used by `ITT` to name executor threads
         int                _streams                 = 1;  //!< Number of streams.
         int                _threadsPerStream        = 0;  //!< Number of threads per stream that executes `ie_parallel` calls

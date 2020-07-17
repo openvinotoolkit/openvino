@@ -215,6 +215,7 @@ void SingleLayerTransformationsTest::SetUp() {
         const SingleLayerTransformationsTestParams p = ::testing::WithParamInterface<SingleLayerTransformationsTestParams>::GetParam();
         // TODO: ONNX enabling
         CNNNetwork network = createNetwork();
+        ASSERT_EQ(nullptr, network.getFunction());
 
         const auto inputsInfo = network.getInputsInfo();
         std::unordered_map<std::string, Blob::Ptr> inputBlobs;

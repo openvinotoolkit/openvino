@@ -16,7 +16,7 @@ StaticShapeReshape::StaticShapeReshape(const Output<Node>& arg, const Output<Nod
 }
 
 StaticShapeReshape::StaticShapeReshape(const std::shared_ptr<ngraph::opset3::Reshape>& reshape)
-    : StaticShapeReshape(reshape->get_argument(0), reshape->get_argument(1), reshape->get_special_zero()) {
+    : StaticShapeReshape(reshape->input_value(0), reshape->input_value(1), reshape->get_special_zero()) {
 }
 
 void StaticShapeReshape::validate_and_infer_types() {

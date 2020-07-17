@@ -76,9 +76,17 @@ void regclass_pyngraph_Node(py::module m)
     node.def("get_output_shape", &ngraph::Node::get_output_shape);
     node.def("get_output_partial_shape", &ngraph::Node::get_output_partial_shape);
     node.def("get_type_name", &ngraph::Node::get_type_name);
-    node.def("get_name", &ngraph::Node::get_name);
+    node.def("get_unique_name", &ngraph::Node::get_name);
     node.def("get_friendly_name", &ngraph::Node::get_friendly_name);
     node.def("set_friendly_name", &ngraph::Node::set_friendly_name);
+    node.def("input", (ngraph::Input<ngraph::Node>(ngraph::Node::*)(size_t)) & ngraph::Node::input);
+    node.def("inputs",
+             (std::vector<ngraph::Input<ngraph::Node>>(ngraph::Node::*)()) & ngraph::Node::inputs);
+    node.def("output",
+             (ngraph::Output<ngraph::Node>(ngraph::Node::*)(size_t)) & ngraph::Node::output);
+    node.def("outputs",
+             (std::vector<ngraph::Output<ngraph::Node>>(ngraph::Node::*)()) &
+                 ngraph::Node::outputs);
 
     node.def_property_readonly("shape", &ngraph::Node::get_shape);
     node.def_property_readonly("name", &ngraph::Node::get_name);
