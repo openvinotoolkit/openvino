@@ -49,33 +49,6 @@ namespace ngraph
 
                 bool visit_attributes(AttributeVisitor& visitor) override;
 
-                NGRAPH_DEPRECATED_DOC
-                /// In this version of BatchNorm:
-                ///
-                /// MEAN AND VARIANCE: provided by the 'mean' and 'variance' parameters.
-                ///
-                /// OUTPUT VALUE: a single tensor with the normalized value of 'input'.
-                ///
-                /// AUTODIFF SUPPORT:
-                ///   - 'generate_adjoints(...) may throw an exception.
-                ///
-                /// SHAPE DETAILS:
-                ///   gamma:    must have rank 1, with the same span as input's channel axis.
-                ///   beta:     must have rank 1, with the same span as input's channel axis.
-                ///   input:    must have rank >= 2. The second dimension represents the channel
-                ///   axis
-                ///             and must have a span of at least 1.
-                ///   mean:     must have rank 1, with the same span as input's channel axis.
-                ///   variance: must have rank 1, with the same span as input's channel axis.
-                ///   output:   shall have the same shape as 'input'.
-                NGRAPH_DEPRECATED("Use another constructor")
-                BatchNormInference(double eps,
-                                   const Output<Node>& gamma,
-                                   const Output<Node>& beta,
-                                   const Output<Node>& input,
-                                   const Output<Node>& mean,
-                                   const Output<Node>& variance);
-
                 void validate_and_infer_types() override;
 
                 double get_eps_value() const { return m_epsilon; }

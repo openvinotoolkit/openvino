@@ -16,6 +16,7 @@
 
 #include "ngraph/op/pad.hpp"
 #include "ngraph/attribute_visitor.hpp"
+#include "ngraph/except.hpp"
 #include "ngraph/op/broadcast.hpp"
 #include "ngraph/op/constant.hpp"
 

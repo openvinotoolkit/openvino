@@ -42,7 +42,8 @@ TEST_P(CNNNetworkSerializerTest, Serialize) {
     {
         IE_SUPPRESS_DEPRECATED_START
         // convert to old representation
-        getCreatorLayer(originalNetwork.getInputsInfo().begin()->second->getInputData());
+        originalNetwork = InferenceEngine::CNNNetwork(
+            std::make_shared<InferenceEngine::details::CNNNetworkImpl>(originalNetwork));
         IE_SUPPRESS_DEPRECATED_END
     }
     originalNetwork.getInputsInfo().begin()->second->setPrecision(_netPrc);
@@ -68,7 +69,8 @@ TEST_P(CNNNetworkSerializerTest, Serialize) {
 
 TEST_P(CNNNetworkSerializerTest, TopoSortResultUnique) {
     InferenceEngine::CNNNetwork network(ngraph::builder::subgraph::makeConvPoolRelu());
-    auto sorted = InferenceEngine::Serialization::TopologicalSort(network);
+    auto convertedNetwork = std::make_shared<InferenceEngine::details::CNNNetworkImpl>(network);
+    auto sorted = InferenceEngine::Serialization::TopologicalSort(*convertedNetwork);
 
     std::vector<std::string> actualLayerNames;
     for (auto&& layer : sorted) {
@@ -77,8 +79,9 @@ TEST_P(CNNNetworkSerializerTest, TopoSortResultUnique) {
         IE_SUPPRESS_DEPRECATED_END
     }
 
-    std::vector<std::string> expectedLayerNames = {
-            "Param_1", "Const_1", "Reshape_1", "Conv_1", "Pool_1", "Relu_1", "Const_2", "Reshape_2"
+    const std::vector<std::string> expectedLayerNames = {
+        "Param_1", "Const_1", "Reshape_1", "Conv_1",
+        "Pool_1", "Relu_1", "Const_2", "Reshape_2"
     };
 
     ASSERT_EQ(expectedLayerNames, actualLayerNames);

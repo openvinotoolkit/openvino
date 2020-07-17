@@ -39,7 +39,7 @@ void ngraph::pass::ConvertOneHotToOneHotIE::convert_one_hot() {
         auto on_value = std::stof(on_value_node->convert_value_to_string(0));
         auto off_value = std::stof(off_value_node->convert_value_to_string(0));
 
-        auto one_hot_ie = std::make_shared<ngraph::op::OneHotIE>(one_hot->get_argument(0),
+        auto one_hot_ie = std::make_shared<ngraph::op::OneHotIE>(one_hot->input_value(0),
                                                                  one_hot->get_axis(), depth_value, on_value, off_value, output_type);
         one_hot_ie->set_friendly_name(one_hot->get_friendly_name());
 
