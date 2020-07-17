@@ -8,6 +8,7 @@ CODEOWNERS  @openvinotoolkit/openvino-admins @openvinotoolkit/openvino-maintaine
 Jenkinsfile  @openvinotoolkit/openvino-admins
 azure-pipelines.yml  @openvinotoolkit/openvino-admins
 /.github/  @openvinotoolkit/openvino-admins
+/.ci/  @openvinotoolkit/openvino-admins
 
 # QA Tests:
 /tests/  @openvinotoolkit/openvino-tests-maintainers
@@ -65,3 +66,7 @@ azure-pipelines.yml  @openvinotoolkit/openvino-admins
 
 # Tools
 /tools/  @openvinotoolkit/openvino-tools-maintainers
+
+# Documentation
+/docs/  @openvinotoolkit/openvino-docs-maintainers
+*.md  @openvinotoolkit/openvino-docs-maintainers
