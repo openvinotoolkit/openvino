@@ -348,6 +348,131 @@ graph_node_attrs_for_2d_case_3 = {
 edges_for_2d_case_3 = edges_for_2d_case_1
 
 
+graph_node_attrs_for_2d_case_4_opset4_case = {
+    'placeholder': {'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
+    'placeholder_data': {
+        'value': None,
+        'shape': int64_array([1, 4, 220, 350]),
+        'kind': 'data',
+        'data_type': None
+    },
+    'scale_1': {
+        'kind': 'op', 'op': 'Const', 'type': 'Const', 'value': int64_array([2200])
+    },
+    'scale_1_data': {'value': None, 'shape': [1], 'kind': 'data'},
+    'axes_1': {
+        'kind': 'op', 'op': 'Const', 'type': 'Const', 'value': int64_array([2])
+    },
+    'axes_1_data': {'value': int64_array([2]), 'shape': [1], 'kind': 'data'},
+    'interpolate_1': {
+        'type': 'Interpolate',
+        'kind': 'op',
+        'op': 'Interpolate',
+        'mode': 'linear',
+        'coordinate_transformation_mode': 'asymmetric',
+        'nearest_mode': 'simple',
+        'cube_coeff': -0.4,
+        'antialias': 1,
+        'version': 'opset4'
+    },
+    'interpolate_1_data': {'value': None, 'shape': int64_array([1, 4, 2200, 350]), 'kind': 'data'},
+    'scale_2': {
+        'kind': 'op', 'op': 'Const', 'type': 'Const', 'value': int64_array([700])
+    },
+    'scale_2_data': {'value': None, 'shape': [1], 'kind': 'data'},
+    'axes_2': {
+        'kind': 'op', 'op': 'Const', 'type': 'Const', 'value': int64_array([3])
+    },
+    'axes_2_data': {'value': int64_array([3]), 'shape': [1], 'kind': 'data'},
+    'interpolate_2': {
+        'type': 'Interpolate',
+        'kind': 'op',
+        'op': 'Interpolate',
+        'mode': 'linear',
+        'coordinate_transformation_mode': 'asymmetric',
+        'nearest_mode': 'simple',
+        'cube_coeff': -0.4,
+        'antialias': 1,
+        'version': 'opset4'
+    },
+    'interpolate_2_data': {'value': None, 'shape': int64_array([1, 4, 2200, 700]), 'kind': 'data'},
+    'abs': {'type': 'Abs', 'kind': 'op', 'op': 'Abs'},
+    'abs_data': {'value': None, 'shape': int64_array([1, 4, 2200, 700]), 'kind': 'data'},
+    'output': {'kind': 'op', 'op': 'Result'},
+}
+
+edges_for_2d_case_4_opset4_case = [
+    ('placeholder', 'placeholder_data'),
+
+    ('placeholder_data', 'interpolate_1', {'in': 0}),
+    ('scale_1', 'scale_1_data'),
+    ('scale_1_data', 'interpolate_1', {'in': 1}),
+    ('axes_1', 'axes_1_data'),
+    ('axes_1_data', 'interpolate_1', {'in': 2}),
+    ('interpolate_1', 'interpolate_1_data'),
+
+    ('interpolate_1_data', 'interpolate_2', {'in': 0}),
+    ('scale_2', 'scale_2_data'),
+    ('scale_2_data', 'interpolate_2', {'in': 1}),
+    ('axes_2', 'axes_2_data'),
+    ('axes_2_data', 'interpolate_2', {'in': 2}),
+    ('interpolate_2', 'interpolate_2_data'),
+
+    ('interpolate_2_data', 'abs'),
+    ('abs', 'abs_data'),
+    ('abs_data', 'output'),
+]
+
+
+ref_graph_node_attrs_for_2d_case_4_opset4_case = {
+    'placeholder': {'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
+    'placeholder_data': {
+        'value': None,
+        'shape': int64_array([1, 4, 220, 350]),
+        'kind': 'data',
+        'data_type': None
+    },
+    'scale': {
+        'kind': 'op', 'op': 'Const', 'type': 'Const', 'value': int64_array([2200, 700])
+    },
+    'scale_data': {'value': None, 'shape': None, 'kind': 'data'},
+    'axes': {
+        'kind': 'op', 'op': 'Const', 'type': 'Const', 'value': int64_array([2, 3]),
+    },
+    'axes_data': {'value': None, 'shape': None, 'kind': 'data'},
+    'interpolate': {
+        'type': 'Interpolate',
+        'kind': 'op',
+        'op': 'Interpolate',
+        'mode': 'linear',
+        'coordinate_transformation_mode': 'asymmetric',
+        'nearest_mode': 'simple',
+        'cube_coeff': -0.4,
+        'antialias': 1,
+        'version': 'opset4'
+
+    },
+    'interpolate_data': {'value': None, 'shape': int64_array([1, 4, 2200, 700]), 'kind': 'data'},
+    'abs': {'type': 'Abs', 'kind': 'op', 'op': 'Abs'},
+    'abs_data': {'value': None, 'shape': int64_array([1, 4, 2200, 700]), 'kind': 'data'},
+    'output': {'kind': 'op', 'op': 'Result'},
+}
+
+ref_edges_for_2d_case_4_opset4_case = [
+    ('placeholder', 'placeholder_data'),
+
+    ('placeholder_data', 'interpolate', {'in': 0}),
+    ('scale', 'scale_data'),
+    ('scale_data', 'interpolate', {'in': 1}),
+    ('axes', 'axes_data'),
+    ('axes_data', 'interpolate', {'in': 2}),
+    ('interpolate', 'interpolate_data'),
+
+    ('interpolate_data', 'abs'),
+    ('abs', 'abs_data'),
+    ('abs_data', 'output'),
+]
+
 graph_node_attrs_for_2d_case_4 = {
     'placeholder': {'type': 'Parameter', 'kind': 'op', 'op': 'Parameter'},
     'placeholder_data': {
@@ -808,6 +933,21 @@ class InterpolateSequenceToInterpolateTest(unittest.TestCase):
                 ('abs', 'abs_data'),
                 ('abs_data', 'output'),
             ]
+        )
+
+        InterpolateSequenceToInterpolate().find_and_replace_pattern(graph)
+        (flag, resp) = compare_graphs(graph, ref_graph, 'output')
+        self.assertTrue(flag, resp)
+
+    def test_2d_interpolate_sequence_4_opset4_case(self):
+        graph = build_graph(
+            nodes_attrs=graph_node_attrs_for_2d_case_4_opset4_case,
+            edges=edges_for_2d_case_4_opset4_case
+        )
+
+        ref_graph = build_graph(
+            nodes_attrs=ref_graph_node_attrs_for_2d_case_4_opset4_case,
+            edges=ref_edges_for_2d_case_4_opset4_case
         )
 
         InterpolateSequenceToInterpolate().find_and_replace_pattern(graph)
