@@ -16,6 +16,7 @@
 
 #include "ngraph/op/reduce_logical_and.hpp"
 #include "ngraph/log.hpp"
+#include "ngraph/op/util/eval_helpers.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/logical_reduction.hpp"
 
@@ -40,29 +41,13 @@ shared_ptr<Node> op::v1::ReduceLogicalAnd::clone_with_new_inputs(const OutputVec
 
 namespace
 {
-    AxisSet extract_reduction_axes(const HostTensorPtr& axes)
-    {
-        const auto axes_count = axes->get_element_count();
-        const auto axes_buffer = axes->get_data_ptr<int64_t>();
-
-        const bool negative_axis_received = std::any_of(
-            axes_buffer, axes_buffer + axes_count, [](const int64_t axis) { return axis < 0; });
-
-        NGRAPH_CHECK(
-            !negative_axis_received,
-            "Negative axis value received in the ReduceLogicalAnd evaluation. This case is not "
-            "supported.");
-
-        return AxisSet(std::vector<AxisSet::value_type>(axes_buffer, axes_buffer + axes_count));
-    }
-
     bool evaluate_reduce_logical_and(const HostTensorPtr& data,
                                      const HostTensorPtr& axes,
                                      const HostTensorPtr& out)
     {
         try
         {
-            const AxisSet reduction_axes = extract_reduction_axes(axes);
+            const AxisSet reduction_axes = eval::extract_reduction_axes(axes, "ReduceLogicalAnd");
 
             runtime::reference::reduce_logical_and(data->get_data_ptr<char>(),
                                                    out->get_data_ptr<char>(),
