@@ -100,8 +100,9 @@ std::shared_ptr<Node> fuse_group_convolution(const std::shared_ptr<Node>& n)
         return {nullptr};
     }
 
-    for (auto arg : n->get_arguments())
+    for (auto val : n->input_values())
     {
+        auto arg = val.get_node_shared_ptr();
         if (!matcher->match(arg))
         {
             NGRAPH_DEBUG << arg->get_name() << " doesn't match";
@@ -160,7 +161,7 @@ std::shared_ptr<Node> fuse_group_convolution(const std::shared_ptr<Node>& n)
                                                            sconv->get_padding_below(),
                                                            sconv->get_padding_above(),
                                                            sconv->get_data_dilation_strides(),
-                                                           n->get_arguments().size());
+                                                           n->input_values().size());
 
     return move(new_conv);
 }
