@@ -34,16 +34,6 @@ std::string SqueezeUnsqueezeLayerTest::getTestCaseName(testing::TestParamInfo<sq
     return result.str();
 }
 
-std::vector<ShapeAxesTuple> SqueezeUnsqueezeLayerTest::combineShapes(const std::map<std::vector<size_t>, std::vector<std::vector<int>>>& inputShapes) {
-    std::vector<ShapeAxesTuple> resVec;
-    for (auto& inputShape : inputShapes) {
-        for (auto& item : inputShape.second) {
-            resVec.push_back({inputShape.first, item});
-        }
-    }
-    return resVec;
-}
-
 void SqueezeUnsqueezeLayerTest::SetUp() {
     InferenceEngine::Precision netPrecision;
     std::vector<size_t> inputShapes;

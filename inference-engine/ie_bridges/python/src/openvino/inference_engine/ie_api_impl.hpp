@@ -72,6 +72,8 @@ struct IENetwork {
     IENetwork(PyObject* network);
 
     IENetwork() = default;
+
+    void convertToOldRepresentation();
 };
 
 

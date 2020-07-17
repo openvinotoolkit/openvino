@@ -35,12 +35,6 @@ namespace ngraph
             {
             }
             Op(const OutputVector& arguments);
-            // To only be removed by OpenVINO
-            NGRAPH_DEPRECATED("Use OutputVector constructor instead")
-            Op(const NodeVector& nodes)
-                : Op(as_output_vector(nodes))
-            {
-            }
         };
     }
 }

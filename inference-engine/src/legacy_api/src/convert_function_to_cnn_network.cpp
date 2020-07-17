@@ -136,6 +136,9 @@ void InferenceEngine::details::CNNLayerCreator::on_adapter(const std::string& na
     } else if (auto a = ::ngraph::as_type<::ngraph::AttributeAdapter<::ngraph::Strides>>(&adapter)) {
         auto shape = static_cast<::ngraph::Strides&>(*a);
         params[name] = joinVec(shape);
+    } else {
+        THROW_IE_EXCEPTION << "Error converting ngraph to CNN network. "
+                              "Attribute adapter can not be found for " << name << " parameter";
     }
 }
 
