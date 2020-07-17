@@ -6,7 +6,7 @@
 #include "../mkldnn_extension_utils.h"
 #include <string>
 #include "caseless.hpp"
-#include "ie_memcpy.h"
+#include "common/cpu_memcpy.h"
 
 using namespace mkldnn;
 using namespace MKLDNNPlugin;
@@ -110,7 +110,7 @@ void MKLDNNInputNode::execute(mkldnn::stream strm) {
         const int8_t *srcData = constBlob->cbuffer().as<int8_t *>();
         int8_t *dstData = dstBlob->buffer();
 
-        ie_memcpy(dstData, dstBlob->byteSize(), srcData, constBlob->byteSize());
+        cpu_memcpy_s(dstData, dstBlob->byteSize(), srcData, constBlob->byteSize());
     } else {
         switch (precision.size()) {
             case 1: {
