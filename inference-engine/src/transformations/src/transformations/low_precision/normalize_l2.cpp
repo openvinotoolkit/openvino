@@ -48,11 +48,11 @@ bool NormalizeL2Transformation::canBeTransformed(const TransformationContext& co
 
     // TODO: Expand transformation for all cases of axes values
     const auto axes = as_type_ptr<opset1::Constant>(operation->get_input_node_shared_ptr(1));
-    const std::vector<int64_t> axesAcrossChannels = { 1, 2, 3 };
-    const std::vector<int64_t> axesByChannels = { 2, 3 };
+    const std::vector<int64_t> axesAcrossSpatial = { 1 };
+    const std::vector<int64_t> axesByChannels = { 1, 2, 3 };
 
     std::vector<int64_t> axesValues = axes->cast_vector<int64_t>();
-    if (!(axesValues == axesAcrossChannels || axesValues == axesByChannels)) {
+    if (!(axesValues == axesAcrossSpatial || axesValues == axesByChannels)) {
         return false;
     }
 
@@ -64,7 +64,7 @@ bool NormalizeL2Transformation::canBeTransformed(const TransformationContext& co
         return false;
     }
 
-    if (axesValues == axesAcrossChannels && size == channels && !NetworkHelper::isScalarLike(scalesConst)) {
+    if (!NetworkHelper::isScalarLike(scalesConst)) {
         return false;
     }
 
@@ -79,6 +79,15 @@ void NormalizeL2Transformation::registerMatcherIn(GraphRewrite& pass, Transforma
             make_op_label<ngraph::opset1::Multiply>(),
             make_op_label<ngraph::opset1::Constant>()
             }));
+
+    //TODO: uncomment when getDequantization will be expanded
+    //addPattern(
+    //    pass,
+    //    context,
+    //    make_op_pattern<ngraph::opset1::NormalizeL2>({
+    //        make_op_label<ngraph::opset1::Constant>(),
+    //        make_op_label<ngraph::opset1::Multiply>()
+    //        }));
 }
 
 void NormalizeL2Transformation::transform(TransformationContext &context, ngraph::pattern::Matcher &m) const {
@@ -87,8 +96,7 @@ void NormalizeL2Transformation::transform(TransformationContext &context, ngraph
         return;
     }
 
-    auto normalize = as_type_ptr<opset1::NormalizeL2>(operation);
-    normalize = as_type_ptr<opset1::NormalizeL2>(separateInStandaloneBranch(normalize));
+    auto normalize = as_type_ptr<opset1::NormalizeL2>(separateInStandaloneBranch(operation));
 
     const auto axes = as_type_ptr<opset1::Constant>(normalize->get_input_node_shared_ptr(1));
     FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(normalize);
@@ -113,25 +121,17 @@ void NormalizeL2Transformation::transform(TransformationContext &context, ngraph
         }
     }
 
-    std::shared_ptr<Node> output;
-    if (dequantization.subtract == nullptr) {
-        output = std::make_shared<opset1::Convert>(
-            std::make_shared<opset1::NormalizeL2>(
-                dequantization.data,
-                axes,
-                normalize->get_eps(),
-                normalize->get_eps_mode()),
-            normalize->get_output_element_type(0));
-    } else {
-        output = std::make_shared<opset1::NormalizeL2>(
-            dequantization.subtract,
+    //TODO: delete convert when u8 input precision will be supported
+
+    auto newMultiply = std::make_shared<op::TypeRelaxed<opset1::Multiply>>(
+        std::make_shared<opset1::NormalizeL2>(
+            dequantization.subtract == nullptr ?
+                dequantization.convert == nullptr ?
+                    dequantization.data : dequantization.convert :
+                dequantization.subtract,
             axes,
             normalize->get_eps(),
-            normalize->get_eps_mode());
-    }
-
-    const auto newMultiply = std::make_shared< ngraph::op::TypeRelaxed<opset1::Multiply>>(
-        output,
+            normalize->get_eps_mode()),
         newScalesConst);
 
     replace_node(normalize, newMultiply);

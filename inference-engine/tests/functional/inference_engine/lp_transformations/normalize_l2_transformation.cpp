@@ -100,8 +100,8 @@ const std::vector<NormalizeL2TransformationTestValues> normalizeL2Transformation
     // U8
     {
         LayerTransformation::createParamsU8I8(),
-        { ngraph::element::u8, { 2, 3 }, { 2.f }, { 12.3f, -12.3f, -7.f, 3.4f }},
-        { ngraph::element::u8, { 2, 3 }, { 2.f }, { 1.f,   -1.f,   -1.f, 1.f}}
+        { ngraph::element::u8, { 1 }, { 2.f }, { -12.3f, -12.3f, -12.3f, -12.3f }},
+        { ngraph::element::u8, { 1 }, { 2.f }, { -1.f,   -1.f,   -1.f, -1.f}}
     },
 
     {
@@ -113,8 +113,8 @@ const std::vector<NormalizeL2TransformationTestValues> normalizeL2Transformation
     // I8
     {
         LayerTransformation::createParamsI8I8(),
-        { ngraph::element::i8, { 2, 3 }, { 2.f }, { 12.3f, -12.3f, -7.f, 3.4f }},
-        { ngraph::element::i8, { 2, 3 }, { 2.f }, { 1.f,   -1.f,   -1.f, 1.f}}
+        { ngraph::element::i8, { 1 }, { 2.f }, { -12.3f, -12.3f, -12.3f, -12.3f }},
+        { ngraph::element::i8, { 1 }, { 2.f }, { -1.f,   -1.f,   -1.f, -1.f}}
     },
 
     {

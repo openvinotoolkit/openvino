@@ -49,6 +49,14 @@ class NormalizeL2Function {
 public:
     static std::shared_ptr<ngraph::Function> getOriginal(
         const ngraph::element::Type precision,
+        const std::pair<ngraph::Shape, ngraph::Shape>& shapes,
+        const ngraph::element::Type precisionOnActivation,
+        const std::vector<uint64_t>& axes,
+        const bool fuseMultiply,
+        const bool shift);
+
+    static std::shared_ptr<ngraph::Function> getOriginal(
+        const ngraph::element::Type precision,
         const ngraph::Shape& shape,
         const ngraph::op::EpsMode& epsMode,
         const NormalizeL2ActualValues& actualValues);
