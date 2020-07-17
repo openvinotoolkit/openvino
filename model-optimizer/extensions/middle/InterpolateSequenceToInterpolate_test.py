@@ -979,6 +979,31 @@ class InterpolateSequenceToInterpolateTest(unittest.TestCase):
         (flag, resp) = compare_graphs(graph, ref_graph, 'output')
         self.assertTrue(flag, resp)
 
+    def test_2d_interpolate_sequence_5_opset4_case(self):
+        graph = build_graph(
+            nodes_attrs=graph_node_attrs_for_2d_case_4_opset4_case,
+            edges=edges_for_2d_case_4_opset4_case,
+            update_attributes={
+                'interpolate_1': {
+                    'antialias': 0, 'cube_coeff': -0.1
+                }
+            }
+        )
+
+        ref_graph = build_graph(
+            nodes_attrs=graph_node_attrs_for_2d_case_4_opset4_case,
+            edges=edges_for_2d_case_4_opset4_case,
+            update_attributes={
+                'interpolate_1': {
+                    'antialias': 0, 'cube_coeff': -0.1
+                }
+            }
+        )
+
+        InterpolateSequenceToInterpolate().find_and_replace_pattern(graph)
+        (flag, resp) = compare_graphs(graph, ref_graph, 'output')
+        self.assertTrue(flag, resp)
+
     def test_2d_interpolate_sequence_6(self):
         graph = build_graph(
             nodes_attrs=graph_node_attrs_for_2d_case_6,
