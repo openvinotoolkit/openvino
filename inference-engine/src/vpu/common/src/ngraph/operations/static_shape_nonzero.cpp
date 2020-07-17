@@ -63,8 +63,8 @@ void evaluateStaticShapeNonZero(const Shape& inputShape,
     const auto outShapeBuffer = outShape->get_data_ptr<OutType>();
 
     const auto totalInputSize = shape_size(inputShape);
-    const auto inputRank = static_cast<ngraph::Dimension::value_type>(nonZeroOutput->get_partial_shape()[0]);
-    const auto nonZeroCount = static_cast<ngraph::Dimension::value_type>(nonZeroOutput->get_partial_shape()[1]);
+    const auto inputRank = nonZeroOutput->get_partial_shape()[0].get_length();
+    const auto nonZeroCount = nonZeroOutput->get_partial_shape()[1].get_length();
 
     for (size_t i = 0; i < inputRank; ++i) {
         for (size_t j = 0; j < nonZeroCount; j++) {

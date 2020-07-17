@@ -61,8 +61,9 @@ protected:
     void compareWithRef(const InferenceEngine::CNNNetwork &network,
                         const std::vector<InferenceEngine::CNNLayerPtr> &refLayersVec) {
         IE_SUPPRESS_DEPRECATED_START
-        ASSERT_NO_THROW(FuncTestUtils::compareLayerByLayer<std::vector<InferenceEngine::CNNLayerPtr>>(
-                InferenceEngine::details::CNNNetSortTopologically(network),
+        auto convertedNetwork = std::make_shared<InferenceEngine::details::CNNNetworkImpl>(network);
+        ASSERT_NO_THROW(FuncTestUtils::compareLayerByLayer(
+                InferenceEngine::details::CNNNetSortTopologically(*convertedNetwork),
                 refLayersVec, false));
         IE_SUPPRESS_DEPRECATED_END
     }

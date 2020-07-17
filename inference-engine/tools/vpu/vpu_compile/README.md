@@ -36,6 +36,7 @@ myriad_compile [OPTIONS]
                                              This option must be used in order to compile blob without a connected Myriad device.
     -VPU_NUMBER_OF_SHAVES        <value>     Optional. Specifies number of shaves. Should be set with "VPU_NUMBER_OF_CMX_SLICES". Overwrites value from config.
     -VPU_NUMBER_OF_CMX_SLICES    <value>     Optional. Specifies number of CMX slices. Should be set with "VPU_NUMBER_OF_SHAVES". Overwrites value from config.
+    -VPU_TILING_CMX_LIMIT_KB     <value>     Optional. Specifies CMX limit for data tiling in kB. Value should be equal or greater than -1, where -1 means default value of limit. Overwrites value from config.
 ```
 
 Running the application with the empty list of options yields an error message.

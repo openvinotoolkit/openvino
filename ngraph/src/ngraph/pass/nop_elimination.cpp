@@ -171,7 +171,7 @@ static bool replace_squeeze_unsqueeze(const std::shared_ptr<Node>& node)
         }
         else
         {
-            target_shape.emplace_back(shape_ps[i]);
+            target_shape.emplace_back(shape_ps[i].get_length());
         }
     }
 
