@@ -114,10 +114,6 @@ namespace ngraph
 
             namespace set_11
             {
-                // optional sizes input is NOT handled - note section
-                // roi input is ignored
-                // TODO check cubic mode
-                // extrapolation_value is ignored
                 NodeVector resize(const onnx_import::Node& node)
                 {
                     const auto coordinate_transformation_mode =
@@ -153,6 +149,8 @@ namespace ngraph
                             "Current version support only nearest_mode equals `floor`");
                     }
 
+                    // roi input (inputs.at(2)) is ignored because it is used only
+                    // in "tf_crop_and_resize" which is not handled now
                     const auto inputs = node.get_ng_inputs();
                     const auto& data = inputs.at(0);
                     const auto& data_shape = data->get_output_partial_shape(0);
