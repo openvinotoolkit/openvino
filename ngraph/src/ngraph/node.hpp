@@ -394,10 +394,6 @@ namespace ngraph
             "use &node->output(i).get_tensor() instead; insert a check that the node has only one "
             "output, or update calling code not to assume only one output");
 
-        /// Returns the set of inputs using output i
-        const std::vector<descriptor::Input*>& get_output_inputs(size_t i) const
-            NGRAPH_DEPRECATED("use node->output(i).get_target_inputs() instead");
-
         std::set<Input<Node>> get_output_target_inputs(size_t i) const;
 
         /// Returns the number of inputs for the op
@@ -420,10 +416,6 @@ namespace ngraph
 
         std::unordered_set<descriptor::Tensor*> liveness_new_list;
         std::unordered_set<descriptor::Tensor*> liveness_free_list;
-
-        virtual NodeVector get_arguments() const NGRAPH_DEPRECATED("Use input_values().");
-        std::shared_ptr<Node> get_argument(size_t index) const
-            NGRAPH_DEPRECATED("use input_value(i).");
 
         Node* get_input_node_ptr(size_t index) const;
         std::shared_ptr<Node> get_input_node_shared_ptr(size_t index) const;
@@ -663,11 +655,11 @@ namespace ngraph
     void check_new_args_count(const Node* node, T new_args)
     {
         NODE_VALIDATION_CHECK(node,
-                              new_args.size() == node->get_arguments().size(),
+                              new_args.size() == node->input_values().size(),
                               "copy_with_new_args() expected ",
-                              node->get_arguments().size(),
+                              node->input_values().size(),
                               " argument",
-                              (node->get_arguments().size() == 1 ? "" : "s"),
+                              (node->input_values().size() == 1 ? "" : "s"),
                               " but got ",
                               new_args.size());
     }
