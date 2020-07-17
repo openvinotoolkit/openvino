@@ -71,7 +71,7 @@ public:
                         genNode->doReshape(false);
                         genericOps.emplace_back(genNode);
                     }
-                }, true, nParams);
+                }, nParams);
             }
         }
     };

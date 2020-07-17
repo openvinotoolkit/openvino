@@ -47,9 +47,11 @@ namespace ngraph
                         target_type = input->get_element_type();
                     }
 
-                    ASSERT_VALID_ARGUMENT(node, input_shape.size() == 2)
-                        << "The provided shape rank: " << input_shape.size()
-                        << " is unsupported, only 2D shapes are supported";
+                    CHECK_VALID_NODE(node,
+                                     input_shape.size() == 2,
+                                     "The provided shape rank: ",
+                                     input_shape.size(),
+                                     " is unsupported, only 2D shapes are supported");
 
                     std::shared_ptr<ngraph::Node> eye_like_matrix =
                         common::shifted_square_identity(input_shape, target_type, shift);

@@ -13,7 +13,6 @@
 #include <details/ie_cnn_network_iterator.hpp>
 
 namespace CommonTestUtils {
-
 template<typename vecElementType>
 inline std::string vec2str(const std::vector<vecElementType> &vec) {
     if (!vec.empty()) {
@@ -56,6 +55,18 @@ inline InferenceEngine::CNNLayerPtr getLayerByName(const InferenceEngine::CNNNet
                                                    const std::string & layerName) {
     const InferenceEngine::ICNNNetwork & icnnnetwork = static_cast<const InferenceEngine::ICNNNetwork&>(network);
     return getLayerByName(&icnnnetwork, layerName);
+}
+
+template <typename elementTypeVector>
+std::vector<std::pair<std::vector<size_t>, std::vector<elementTypeVector>>>
+        combineShapes(const std::map<std::vector<size_t>, std::vector<std::vector<elementTypeVector>>>& inputShapes) {
+    std::vector<std::pair<std::vector<size_t>, std::vector<elementTypeVector>>> resVec;
+    for (auto& inputShape : inputShapes) {
+        for (auto& item : inputShape.second) {
+            resVec.push_back({inputShape.first, item});
+        }
+    }
+    return resVec;
 }
 
 }  // namespace CommonTestUtils
