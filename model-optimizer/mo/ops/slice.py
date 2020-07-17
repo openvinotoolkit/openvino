@@ -50,7 +50,7 @@ class AttributedSlice(Op):
         }, attrs)
 
     def supported_attrs(self):
-        return ['axis', 'start', 'end']
+        return ['axes', 'starts', 'ends']
 
 
 class CaffeSlice(Op):
@@ -122,11 +122,11 @@ class Slice(Op):
     op = 'Slice'
     enabled = False
 
-    def __init__(self, graph: Graph, attrs: dict):
+    def __init__(self, graph: Graph, attrs: dict = None):
         super().__init__(graph, {
             'type': None,
             'op': 'Slice',
-            'in_ports_count': 4,
+            'in_ports_count': 5,
             'out_ports_count': 1,
             'infer': __class__.infer
         }, attrs)
@@ -136,29 +136,29 @@ class Slice(Op):
         input_value = node.in_port(0).data.get_value()
         input_shape = node.in_port(0).data.get_shape()
 
-        start = node.in_port(1).data.get_value()
-        end = node.in_port(2).data.get_value()
-        if start is None or end is None:
-            raise Error('The non-constant start/end values for Slice operation "{}" is not supported'.format(node.name))
+        starts = node.in_port(1).data.get_value()
+        ends = node.in_port(2).data.get_value()
+        if starts is None or ends is None:
+            raise Error('The non-constant start/end values for Slice operation "{}" are not supported'.format(node.name))
 
         if node.is_in_port_connected(3):
-            axis = node.in_port(3).data.get_value()
-            if axis is None:
-                raise Error('The non-constant axis values for Slice operation "{}" is not supported'.format(node.name))
+            axes = node.in_port(3).data.get_value()
+            if axes is None:
+                raise Error('The non-constant axes values for Slice operation "{}" is not supported'.format(node.name))
         else:
-            axis = [x for x in range(len(start))]
+            axes = [x for x in range(len(starts))]
 
         if node.is_in_port_connected(4):
             steps = node.in_port(4).data.get_value()
             if steps is None:
                 raise Error('The non-constant steps values for Slice operation "{}" is not supported'.format(node.name))
         else:
-            steps = np.ones(start.size, dtype=np.int64)
+            steps = np.ones(len(starts), dtype=np.int64)
 
         slice_idx = [slice(0, in_shape, 1) for in_shape in input_shape]
-        for i in range(len(axis)):
+        for i in range(len(axes)):
             # Ranged for output value for specified axis
-            slice_idx[axis[i]] = slice(start[i], end[i], steps[i])
+            slice_idx[axes[i]] = slice(starts[i], ends[i], steps[i])
 
         if input_value is None:
             output_shape = get_shape_after_slice(input_shape, slice_idx)

@@ -28,14 +28,14 @@ class SliceFrontExtractor(FrontExtractorOp):
     @classmethod
     def extract(cls, node):
         if get_onnx_opset_version(node) < 10:
-            axis = int64_array(onnx_attr(node, 'axes', 'ints', default=[]))
-            start = int64_array(onnx_attr(node, 'starts', 'ints', default=[]))
-            end = int64_array(onnx_attr(node, 'ends', 'ints', default=[]))
+            axes = int64_array(onnx_attr(node, 'axes', 'ints', default=[]))
+            starts = int64_array(onnx_attr(node, 'starts', 'ints', default=[]))
+            ends = int64_array(onnx_attr(node, 'ends', 'ints', default=[]))
 
             attrs = {
-                'axis': axis if len(axis) != 0 else None,
-                'start': start if len(start) != 0 else None,
-                'end': end if len(end) != 0 else None,
+                'axes': axes if len(axes) != 0 else None,
+                'starts': starts if len(starts) != 0 else None,
+                'ends': ends if len(ends) != 0 else None,
             }
             AttributedSlice.update_node_stat(node, attrs)
         else:  # onnx_opset_version >= 10

@@ -14,9 +14,11 @@
  limitations under the License.
 """
 
+import numpy as np
+
 from mo.front.common.replacement import FrontReplacementOp
-from mo.graph.graph import Graph
-from mo.ops.const import Const
+from mo.front.tf.graph_utils import create_op_with_const_inputs
+from mo.graph.graph import Graph, rename_nodes
 from mo.ops.slice import Slice
 
 
@@ -29,18 +31,12 @@ class AttributedSliceToSliceReplacer(FrontReplacementOp):
 
     def replace_sub_graph(self, graph: Graph, match: dict):
         node = match['op']
+        slice_name = node.soft_get('name', node.id)
 
-        slice_node = Slice(graph, {'name': node.id + '/slice_'}).create_node()
+        axes = node.axes if node.has_valid('axes') else np.arange(len(node.starts), dtype=np.int32)
+
+        slice_node = create_op_with_const_inputs(graph, Slice, {1: node.starts, 2: node.ends, 3: axes})
+        rename_nodes([(node, slice_name + '/to_be_removed'), (slice_node, slice_name)])
+
         node.in_port(0).get_connection().set_destination(slice_node.in_port(0))
         node.out_port(0).get_connection().set_source(slice_node.out_port(0))
-
-        start_node = Const(graph, {'value': node.start, 'name': node.id + '/start_const'}).create_node()
-        end_node = Const(graph, {'value': node.end, 'name': node.id + '/end_const'}).create_node()
-
-        slice_node.in_port(1).get_connection().set_source(start_node.out_port(0))
-        slice_node.in_port(2).get_connection().set_source(end_node.out_port(0))
-        if node.has_valid('axis'):
-            axis_node = Const(graph, {'value': node.axis, 'name': node.id + '/axis_const'}).create_node()
-            # slice_node.add_input_port(3, skip_if_exist=True)
-            slice_node.in_port(3).get_connection().set_source(axis_node.out_port(0))
-

@@ -27,19 +27,55 @@ nodes = {
     **regular_op_with_empty_data('tfslice', {'op': 'TFSlice', 'type': None}),
     **const('begin', np.array(0)),
     **const('size', np.array([-1])),
+    **regular_op_with_empty_data('john_doe', {'op': 'Sum', 'type': None}),
     **result(),
 
     # nodes after replacement
     **const('minus_one', np.array(-1)),
     **const('int32_max', np.array(np.iinfo(np.int32).max)),
-    **regular_op_with_empty_data('end_const', {'op': 'Add', 'type': 'Eltwise'}),
-    **regular_op_with_empty_data('equal', {'op': 'Equal', 'type': 'Eltwise'}),
+    **regular_op_with_empty_data('end_const', {'op': 'Add', 'type': 'Add'}),
+    **regular_op_with_empty_data('equal', {'op': 'Equal', 'type': 'Equal'}),
     **regular_op_with_empty_data('select', {'op': 'Select', 'type': 'Select'}),
     **regular_op_with_empty_data('slice', {'op': 'Slice', 'type': None}),
 }
 
 
 class SliceReplacerTest(unittest.TestCase):
+
+    def test_slice_replacer_begin_with_2_inputs(self):
+        graph = build_graph(nodes_attrs=nodes, edges=[
+            ('input', 'tfslice', {'out': 0}),
+            ('begin', 'tfslice', {'out': 0, 'in': 1}),
+            ('begin', 'john_doe', {'out': 0, 'in': 0}),
+            ('size', 'tfslice', {'out': 0, 'in': 2}),
+            ('tfslice', 'output', {'out': 0}),
+        ], nodes_with_edges_only=True)
+        graph.stage = 'front'
+
+        TFSliceToSliceReplacer().find_and_replace_pattern(graph)
+
+        graph_ref = build_graph(nodes_attrs=nodes, edges=[
+            ('input', 'slice', {'out': 0}),
+            ('begin', 'slice', {'out': 0, 'in': 1}),
+            ('begin', 'john_doe', {'out': 0, 'in': 1}),
+
+            ('begin', 'end_const', {'out': 0, 'in': 0}),
+            ('size', 'end_const', {'out': 0, 'in': 1}),
+            ('size', 'equal', {'out': 0, 'in': 0}),
+
+            ('int32_max', 'select', {'out': 0, 'in': 1}),
+            ('minus_one', 'equal', {'out': 0, 'in': 1}),
+
+            ('equal', 'select', {'out': 0, 'in': 0}),
+
+            ('end_const', 'select', {'out': 0, 'in': 2}),
+            ('select', 'slice', {'out': 0, 'in': 2}),
+
+            ('slice', 'output', {'out': 0}),
+        ], nodes_with_edges_only=True)
+
+        (flag, resp) = compare_graphs(graph, graph_ref, 'output', check_op_attrs=True)
+        self.assertTrue(flag, resp)
 
     def test_slice_replacer(self):
         graph = build_graph(nodes_attrs=nodes, edges=[

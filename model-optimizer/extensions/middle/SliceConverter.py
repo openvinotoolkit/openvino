@@ -83,7 +83,7 @@ class ConvertSlice(MiddleReplacementPattern):
         ss_end_mask = np.zeros(len(input_shape), dtype=np.int32)
         ss_begin = np.zeros(len(input_shape), dtype=np.int32)
         ss_end = np.zeros(len(input_shape), dtype=np.int32)
-        ss_steps = np.ones(len(input_shape), dtype=np.int32)
+        ss_step = np.ones(len(input_shape), dtype=np.int32)
 
         # prepare inputs and attributes for the StridedSlice layer
         for i, axis in enumerate(axes):
@@ -94,13 +94,13 @@ class ConvertSlice(MiddleReplacementPattern):
             ss_end_mask[axis] = 1
             ss_end[axis] = ends[i]
 
-            ss_steps[axis] = steps[i]
+            ss_step[axis] = steps[i]
 
         slice_node_name = node.soft_get('name', node.id)
 
         begin_node = Const(graph, {'value': ss_begin, 'name': slice_node_name + '/begin'}).create_node()
         end_node = Const(graph, {'value': ss_end, 'name': slice_node_name + '/end'}).create_node()
-        strides_node = Const(graph, {'value': ss_steps, 'name': slice_node_name + '/stride'}).create_node()
+        strides_node = Const(graph, {'value': ss_step, 'name': slice_node_name + '/stride'}).create_node()
 
         ss = StridedSlice(graph, dict(new_axis_mask=np.zeros(len(output_shape), dtype=np.int32),
                                       shrink_axis_mask=np.zeros(len(output_shape), dtype=np.int32),

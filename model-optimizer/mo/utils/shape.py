@@ -26,6 +26,7 @@ from mo.ops.shape import Shape
 from mo.ops.squeeze import Squeeze
 import numpy as np
 
+
 def get_canonical_axis_index_node(rank: Node, axis: int) -> Node:
     """
     Returns positive axis value
@@ -221,22 +222,32 @@ def get_shape_and_rank_nodes_by_port(port: Port, return_as_a_scalar: bool = True
     return shape, rank
 
 
-def get_positive_indices(size, val):
-    """converts negative indices of a tensors to positive"""
+def convert_negative_indices(size, val):
+    """
+    Converts negative indices of a tensors: e.g. if val == -1 then convert it to size
+    Note: not necessary returns positive value and it's expected behaviour
+    """
     if val < 0:
-        return val + size
+        return val + size + 1
     else:
         return val
 
 
-def check_boundaries(size, start, end):
+def check_ind_boundaries(size, val):
     """if slice starts and/or ends exceed indices bounds of a tensor this routine cuts them to size or 0"""
-    start = get_positive_indices(size, start)
-    end = get_positive_indices(size, end)
-    if end > size:
-        end = size
-    if start < 0:
-        start = 0
+    if val >= size:
+        return size
+    elif val < 0:
+        return 0
+    else:
+        return val
+
+
+def check_values(size, start, end):
+    start = convert_negative_indices(size, start)
+    end = convert_negative_indices(size, end)
+    start = check_ind_boundaries(size, start)
+    end = check_ind_boundaries(size, end)
     return start, end
 
 
@@ -245,8 +256,8 @@ def get_shape_after_slice(input_shape, slice_idx):
     Calculate shape of a tensor after slicing without actually creating the resulting tensor.
     Is introduced to save memory.
     """
-    output_shape = np.zeros(input_shape.size)
+    output_shape = np.zeros(len(input_shape))
     for i, s in enumerate(slice_idx):
-        start, end = check_boundaries(input_shape[i], s.start, s.stop)
+        start, end = check_values(input_shape[i], s.start, s.stop)
         output_shape[i] = (end - start) / s.step
     return output_shape

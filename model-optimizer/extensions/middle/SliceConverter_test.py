@@ -62,7 +62,7 @@ class ConvertSliceTests(unittest.TestCase):
         'steps': {'type': 'Const', 'kind': 'op', 'op': 'Const'},
         'steps_data': {'value': None, 'shape': None, 'kind': 'data', 'data_type': None},
         # Slice layer
-        'slice': {'type': 'Slice', 'kind': 'op', 'op': 'Slice', 'format': 'onnx', 'end': None, 'name': 'slice_node'},
+        'slice': {'type': 'Slice', 'kind': 'op', 'op': 'Slice', 'name': 'slice_node'},
         'slice_data': {'value': None, 'shape': None, 'kind': 'data'},
         # Output operation
         'output_op': {'type': 'Const', 'kind': 'op', 'op': 'Const'},
