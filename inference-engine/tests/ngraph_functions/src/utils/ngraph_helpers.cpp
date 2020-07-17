@@ -142,7 +142,7 @@ std::vector<std::vector<std::uint8_t>> getConstData(const std::shared_ptr<Functi
         const auto &output = function->output(i).get_node_shared_ptr();
         NGRAPH_CHECK(output->inputs().size() == 1);
         auto parrentNode = output->input_value(0).get_node_shared_ptr();
-        NGRAPH_CHECK(op::is_parameter(parrentNode), "Function was not fully folded to constant state!\n",
+        NGRAPH_CHECK(op::is_constant(parrentNode), "Function was not fully folded to constant state!\n",
                      "Parent node of one of results is not constant and has type ", parrentNode->get_type_name());
 
         const auto data = std::dynamic_pointer_cast<opset1::Constant>(parrentNode)->get_data_ptr<std::uint8_t>();
