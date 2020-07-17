@@ -116,6 +116,8 @@ namespace ngraph
             {
                 NodeVector resize(const onnx_import::Node& node)
                 {
+                    // cubic_coeff_a, extrapolation_value attributes are ignored
+                    // (they do not have influence on supported modes)
                     const auto coordinate_transformation_mode =
                         node.get_attribute_value<std::string>("coordinate_transformation_mode",
                                                               "half_pixel");
