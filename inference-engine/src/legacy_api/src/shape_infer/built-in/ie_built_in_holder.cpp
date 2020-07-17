@@ -62,8 +62,6 @@
 #include "ie_bucketize_shape_infer.hpp"
 #include "ie_squeeze_shape_infer.hpp"
 #include "ie_sparse_weighted_reduce_shape_infer.hpp"
-#include "ie_strided_slice_shape_infer.hpp"
-#include "ie_tensor_iterator_shape_infer.hpp"
 #include "ie_tile_shape_infer.hpp"
 #include "ie_topk_shape_infer.hpp"
 #include "ie_unique_shape_infer.hpp"
@@ -181,12 +179,10 @@ REG_SHAPE_INFER_FOR_TYPE(RNNShapeProp, LSTMSequence);
 REG_SHAPE_INFER_FOR_TYPE(RNNCellShapeProp, RNNCell);
 REG_SHAPE_INFER_FOR_TYPE(GRUCellShapeProp, GRUCell);
 REG_SHAPE_INFER_FOR_TYPE(LSTMCellShapeProp, LSTMCell);
-REG_SHAPE_INFER_FOR_TYPE(TensorIteratorShapeProp, TensorIterator);
 REG_SHAPE_INFER_FOR_TYPE(ArgMaxShapeProp, ArgMax);
 REG_SHAPE_INFER_FOR_TYPE(GemmShapeProp, Gemm);
 REG_SHAPE_INFER_FOR_TYPE(PadShapeProp, Pad);
 REG_SHAPE_INFER_FOR_TYPE(GatherShapeProp, Gather);
-REG_SHAPE_INFER_FOR_TYPE(StridedSliceShapeProp, StridedSlice);
 REG_SHAPE_INFER_FOR_TYPE(ShuffleChannelsShapeProp, ShuffleChannels);
 REG_SHAPE_INFER_FOR_TYPE(DepthToSpaceShapeProp, DepthToSpace);
 REG_SHAPE_INFER_FOR_TYPE(SpaceToDepthShapeProp, SpaceToDepth);

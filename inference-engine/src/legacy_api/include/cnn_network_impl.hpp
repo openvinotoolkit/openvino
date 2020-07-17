@@ -20,11 +20,6 @@
 #include "ie_input_info.hpp"
 
 namespace InferenceEngine {
-namespace ShapeInfer {
-class Reshaper;
-
-using ReshaperPtr = std::shared_ptr<Reshaper>;
-}  // namespace ShapeInfer
 namespace details {
 
 class INFERENCE_ENGINE_API_CLASS(CNNNetworkImpl): public ICNNNetwork {
@@ -138,7 +133,6 @@ protected:
     std::map<std::string, DataPtr> _outputData;
     std::string _name;
     DataPtr _emptyData;
-    ShapeInfer::ReshaperPtr _reshaper;
 };
 
 typedef std::shared_ptr<CNNNetworkImpl> CNNNetworkImplPtr;

@@ -11,7 +11,6 @@
 #include <map>
 #include <memory>
 #include <set>
-#include <shape_infer/ie_reshaper.hpp>
 #include <string>
 #include <vector>
 #include <unordered_set>
@@ -356,32 +355,12 @@ size_t CNNNetworkImpl::getBatchSize() const noexcept {
 
 StatusCode CNNNetworkImpl::reshape(const std::map<std::string, std::vector<size_t>>& inputShapes,
                                    ResponseDesc* responseDesc) noexcept {
-    try {
-        if (!_reshaper) _reshaper = std::make_shared<ShapeInfer::Reshaper>(*this);
-        _reshaper->run(inputShapes);
-    } catch (const InferenceEngineException& e) {
-        return DescriptionBuffer(GENERAL_ERROR, responseDesc) << e.what();
-    } catch (const std::exception& e) {
-        return DescriptionBuffer(UNEXPECTED, responseDesc) << e.what();
-    } catch (...) {
-        return DescriptionBuffer(UNEXPECTED, responseDesc);
-    }
-    return OK;
+    return NOT_IMPLEMENTED;
 }
 
 StatusCode CNNNetworkImpl::AddExtension(const InferenceEngine::IShapeInferExtensionPtr& extension,
                                         InferenceEngine::ResponseDesc* resp) noexcept {
-    try {
-        if (!_reshaper) _reshaper = std::make_shared<ShapeInfer::Reshaper>(*this);
-        _reshaper->AddExtension(extension);
-    } catch (const InferenceEngineException& e) {
-        return DescriptionBuffer(GENERAL_ERROR, resp) << e.what();
-    } catch (const std::exception& e) {
-        return DescriptionBuffer(UNEXPECTED, resp) << e.what();
-    } catch (...) {
-        return DescriptionBuffer(UNEXPECTED, resp);
-    }
-    return OK;
+    return NOT_IMPLEMENTED;
 }
 
 StatusCode CNNNetworkImpl::serialize(const std::string& xmlPath, const std::string& binPath, ResponseDesc* resp) const

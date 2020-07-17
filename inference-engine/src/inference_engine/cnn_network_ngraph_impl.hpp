@@ -29,12 +29,6 @@
 #include "ie_input_info.hpp"
 
 namespace InferenceEngine {
-namespace ShapeInfer {
-class Reshaper;
-
-using ReshaperPtr = std::shared_ptr<Reshaper>;
-}  // namespace ShapeInfer
-
 namespace details {
 
 /**
