@@ -28,10 +28,10 @@ void ngraph::pass::ConvertStridedSliceToCrop::convert_strided_slice_to_crop() {
             return false;
         }
 
-        auto data_node = slice->get_argument(0);
-        auto begin_node = std::dynamic_pointer_cast<ngraph::opset1::Constant>(slice->get_argument(1));
-        auto end_node = std::dynamic_pointer_cast<ngraph::opset1::Constant>(slice->get_argument(2));
-        auto stride_node = std::dynamic_pointer_cast<ngraph::opset1::Constant>(slice->get_argument(3));
+        auto data_output = slice->input_value(0);
+        auto begin_node = std::dynamic_pointer_cast<ngraph::opset1::Constant>(slice->input_value(1).get_node_shared_ptr());
+        auto end_node = std::dynamic_pointer_cast<ngraph::opset1::Constant>(slice->input_value(2).get_node_shared_ptr());
+        auto stride_node = std::dynamic_pointer_cast<ngraph::opset1::Constant>(slice->input_value(3).get_node_shared_ptr());
 
         auto partial_input_shape = slice->get_input_partial_shape(0);
 
@@ -192,19 +192,20 @@ void ngraph::pass::ConvertStridedSliceToCrop::convert_strided_slice_to_crop() {
         if (!new_axis_mask.empty()) {
             auto new_shape = std::make_shared<ngraph::opset1::Constant>(element::i64,
                                                                     ngraph::Shape{reshape_pattern.size()}, reshape_pattern);
-            data_node = std::make_shared<ngraph::opset1::Reshape>(data_node, new_shape, true);
+            auto data_node = std::make_shared<ngraph::opset1::Reshape>(data_output, new_shape, true);
             data_node->set_friendly_name(slice->get_friendly_name() + "/Reshape_before");
             new_ops.push_back(data_node);
+            data_output = data_node->output(0);
         }
 
-        auto data_node_shape = data_node->get_output_shape(0);
+        auto data_node_shape = data_output.get_shape();
         // MKLDNN: "Crop supports only 2d, 4d and 5d blobs."
         if (data_node_shape.size() != 2 && data_node_shape.size() != 4 && data_node_shape.size() != 5) {
             return false;
         }
 
         // Crop
-        data_node = std::make_shared<ngraph::op::CropIE> (data_node, axes, dim, offset);
+        std::shared_ptr<ngraph::Node> data_node = std::make_shared<ngraph::op::CropIE> (data_output, axes, dim, offset);
         data_node->set_friendly_name(slice->get_friendly_name());
         new_ops.push_back(data_node);
 
@@ -214,7 +215,7 @@ void ngraph::pass::ConvertStridedSliceToCrop::convert_strided_slice_to_crop() {
         if (!shrink_axis_mask.empty()) {
             auto new_shape = std::make_shared<ngraph::opset1::Constant>(element::i64, ngraph::Shape{output_shape.size()},
                                                                     output_shape);
-            data_node = std::make_shared<ngraph::opset1::Reshape>(data_node, new_shape, true);
+            data_node = std::make_shared<ngraph::opset1::Reshape>(data_node->output(0), new_shape, true);
             crop_data_node->set_friendly_name(slice->get_friendly_name() + "/Crop");
             data_node->set_friendly_name(slice->get_friendly_name());
             new_ops.push_back(data_node);

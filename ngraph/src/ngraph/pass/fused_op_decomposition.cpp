@@ -55,7 +55,10 @@ bool pass::FusedOpDecomposition::run_on_node(shared_ptr<Node> node)
         }
 
         // Run recursively until no more fused ops
-        auto subgraph = extract_subgraph(subgraph_outputs, node->get_arguments());
+        NodeVector nodes;
+        for (auto& val : node->input_values())
+            nodes.emplace_back(val.get_node_shared_ptr());
+        auto subgraph = extract_subgraph(subgraph_outputs, nodes);
         for (auto subgraph_node : subgraph)
         {
             run_on_node(subgraph_node);
@@ -73,7 +76,8 @@ bool pass::FusedOpDecomposition::run_on_node(shared_ptr<Node> node)
                     if (auto goe = as_type<op::GetOutputElement>(fop_user->get_raw_pointer_node()))
                     {
                         Output<Node> goe_output = goe->get_as_output();
-                        if (goe_output.get_index() == i && !goe->get_output_inputs(0).empty())
+                        if (goe_output.get_index() == i &&
+                            !goe->output(0).get_target_inputs().empty())
                         {
                             // Replace GOE users
                             set<descriptor::Input*> goe_users{

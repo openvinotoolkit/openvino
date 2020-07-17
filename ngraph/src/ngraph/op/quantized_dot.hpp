@@ -58,8 +58,8 @@ namespace ngraph
                              const AxisSet& input1_axes = ngraph::AxisSet{},
                              const AxisSet& output_axes = ngraph::AxisSet{});
 
-                std::shared_ptr<Node> get_input0() { return get_argument(0); }
-                std::shared_ptr<Node> get_input1() { return get_argument(1); }
+                std::shared_ptr<Node> get_input0() { return input_value(0).get_node_shared_ptr(); }
+                std::shared_ptr<Node> get_input1() { return input_value(1).get_node_shared_ptr(); }
                 const ngraph::element::Type& get_output_type() const { return m_output_type; }
                 const ngraph::AxisSet& get_input0_axes() const { return m_input0_axes; }
                 const ngraph::AxisSet& get_input1_axes() const { return m_input1_axes; }

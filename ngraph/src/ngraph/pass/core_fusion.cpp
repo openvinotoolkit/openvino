@@ -205,7 +205,8 @@ void pass::CoreFusion::construct_folded_batch_norm()
         auto pattern_map = m.get_pattern_map();
 
         auto m_bn = static_pointer_cast<op::BatchNormInference>(m.get_match_root());
-        auto m_conv = static_pointer_cast<op::Convolution>(m_bn->get_argument(2));
+        auto m_conv =
+            static_pointer_cast<op::Convolution>(m_bn->input_value(2).get_node_shared_ptr());
 
         if (m_conv->get_users().size() > 1)
         {
@@ -325,13 +326,13 @@ void pass::CoreFusion::construct_conv_affine_folding()
         auto get_bcast_input = [](const shared_ptr<op::Broadcast>& bcast) {
             if (bcast->get_input_shape(0).size() == 1)
             {
-                return bcast->get_argument(0);
+                return bcast->input_value(0).get_node_shared_ptr();
             }
             if (bcast->get_input_shape(0).size() == 2)
             {
                 Shape bshape{bcast->get_input_shape(0)[1]};
                 return static_pointer_cast<Node>(
-                    make_shared<op::Reshape>(bcast->get_argument(0), AxisVector{0, 1}, bshape));
+                    make_shared<op::Reshape>(bcast->input_value(0), AxisVector{0, 1}, bshape));
             }
             throw ngraph_error("Unexpected shape for bcast input");
         };
@@ -392,10 +393,8 @@ static shared_ptr<Node> reduce_broadcast(shared_ptr<Node> broadcast)
     Shape shape_w1{matched_broadcast_w1->get_shape()};
     shape_w1[H] /= 2;
     shape_w1[W] /= 2;
-    auto new_broadcast_w1 =
-        std::make_shared<op::Broadcast>(matched_broadcast_w1->get_argument(0),
-                                        shape_w1,
-                                        matched_broadcast_w1->get_broadcast_axes());
+    auto new_broadcast_w1 = std::make_shared<op::Broadcast>(
+        matched_broadcast_w1->input_value(0), shape_w1, matched_broadcast_w1->get_broadcast_axes());
     return move(new_broadcast_w1);
 }
 
@@ -435,7 +434,8 @@ void pass::CoreFusion::construct_reshape_broadcast()
 
         auto pattern_map = m.get_pattern_map();
         auto broadcast_m = static_pointer_cast<op::Broadcast>(m.get_match_root());
-        auto reshape1_m = static_pointer_cast<op::Reshape>(broadcast_m->get_argument(0));
+        auto reshape1_m =
+            static_pointer_cast<op::Reshape>(broadcast_m->input_value(0).get_node_shared_ptr());
         auto input_m = m.get_pattern_value_map()[input];
 
         // it doesn't seem to make sense to support shapes : [0] or [1]
@@ -507,8 +507,10 @@ void pass::CoreFusion::construct_reshape_softmax_reshape()
 
         auto pattern_map = m.get_pattern_map();
         auto reshape2_m = static_pointer_cast<op::Reshape>(m.get_match_root());
-        auto softmax_m = static_pointer_cast<op::Softmax>(reshape2_m->get_argument(0));
-        auto reshape1_m = static_pointer_cast<op::Reshape>(softmax_m->get_argument(0));
+        auto softmax_m =
+            static_pointer_cast<op::Softmax>(reshape2_m->input_value(0).get_node_shared_ptr());
+        auto reshape1_m =
+            static_pointer_cast<op::Reshape>(softmax_m->input_value(0).get_node_shared_ptr());
         auto input_m = m.get_pattern_map()[input];
 
         if (!reshape2_m->get_is_transpose() || !reshape1_m->get_is_transpose())
@@ -794,11 +796,13 @@ void pass::CoreFusion::construct_conv_bias()
                      << m.get_match_root()->get_name();
         auto pattern_map = m.get_pattern_map();
 
-        auto conv_m = as_type_ptr<op::Convolution>(m.get_match_root()->get_argument(0));
+        auto conv_m =
+            as_type_ptr<op::Convolution>(m.get_match_root()->input_value(0).get_node_shared_ptr());
 
         if (conv_m == nullptr)
         {
-            conv_m = static_pointer_cast<op::Convolution>(m.get_match_root()->get_argument(1));
+            conv_m = static_pointer_cast<op::Convolution>(
+                m.get_match_root()->input_value(1).get_node_shared_ptr());
         }
 
         if (conv_m->get_shape().size() > 5 || conv_m->get_element_type() != element::f32)
@@ -819,7 +823,7 @@ void pass::CoreFusion::construct_conv_bias()
             }
         }
 
-        auto bias = bcast_m->get_argument(0);
+        auto bias = bcast_m->input_value(0).get_node_shared_ptr();
         if (bias->get_shape().size() > 1)
         {
             NGRAPH_DEBUG << "mpattern = " << m.get_match_root()->get_name()
@@ -866,13 +870,14 @@ void pass::CoreFusion::construct_conv_bias_add()
 
         auto add_m = m.get_match_root();
         auto pattern_map = m.get_pattern_map();
-        auto conv_m = as_type_ptr<op::ConvolutionBias>(add_m->get_argument(1));
-        auto add_input_m = add_m->get_argument(0);
+        auto conv_m = as_type_ptr<op::ConvolutionBias>(add_m->input_value(1).get_node_shared_ptr());
+        auto add_input_m = add_m->input_value(0).get_node_shared_ptr();
 
         if (!conv_m)
         {
-            conv_m = static_pointer_cast<op::ConvolutionBias>(add_m->get_argument(0));
-            add_input_m = add_m->get_argument(1);
+            conv_m = static_pointer_cast<op::ConvolutionBias>(
+                add_m->input_value(0).get_node_shared_ptr());
+            add_input_m = add_m->input_value(1).get_node_shared_ptr();
         }
 
         if (get_user_count(conv_m.get()) > 1)

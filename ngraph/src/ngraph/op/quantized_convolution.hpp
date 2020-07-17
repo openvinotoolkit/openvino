@@ -80,8 +80,11 @@ namespace ngraph
                 const CoordinateDiff& get_padding_below() const { return m_padding_below; }
                 const CoordinateDiff& get_padding_above() const { return m_padding_above; }
                 const Strides& get_data_dilation_strides() const { return m_data_dilation_strides; }
-                std::shared_ptr<Node> get_filters() { return get_argument(1); }
-                std::shared_ptr<Node> get_data_batch() { return get_argument(0); }
+                std::shared_ptr<Node> get_filters() { return input_value(1).get_node_shared_ptr(); }
+                std::shared_ptr<Node> get_data_batch()
+                {
+                    return input_value(0).get_node_shared_ptr();
+                }
                 const ngraph::element::Type& get_output_type() const { return m_output_type; }
                 const ngraph::AxisSet& get_input_axes() const { return m_input_axes; }
                 const ngraph::AxisSet& get_filter_axes() const { return m_filter_axes; }

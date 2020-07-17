@@ -52,6 +52,6 @@ TEST(input_output, simple_output)
     ASSERT_EQ(2, add->get_input_size());
     for (size_t i = 0; i < add->get_input_size(); i++)
     {
-        ASSERT_EQ(add->get_argument(i), nodes.at(i));
+        ASSERT_EQ(add->input_value(i).get_node_shared_ptr(), nodes.at(i));
     }
 }

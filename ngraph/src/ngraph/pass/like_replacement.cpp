@@ -39,7 +39,7 @@ static bool replace_broadcast_like(const std::shared_ptr<ngraph::Node>& node)
     // argument
     auto broadcast_like = as_type_ptr<op::BroadcastLike>(node);
     replace_node(node,
-                 make_shared<op::Broadcast>(broadcast_like->get_argument(0),
+                 make_shared<op::Broadcast>(broadcast_like->input_value(0),
                                             broadcast_like->get_broadcast_shape(),
                                             broadcast_like->get_broadcast_axes()));
     return true;

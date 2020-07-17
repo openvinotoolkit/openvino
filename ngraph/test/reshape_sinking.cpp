@@ -61,8 +61,9 @@ TEST(reshape_sinking, edge_splitting)
     pass_manager.register_pass<pass::ReshapeElimination>();
     pass_manager.register_pass<pass::CommonSubexpressionElimination>();
     pass_manager.run_passes(func);
-    ASSERT_EQ(func->get_results().at(1)->get_argument(0), sum);
-    auto new_reshape = as_type_ptr<op::Reshape>(func->get_results().at(0)->get_argument(0));
+    ASSERT_EQ(func->get_results().at(1)->input_value(0).get_node_shared_ptr(), sum);
+    auto new_reshape =
+        as_type_ptr<op::Reshape>(func->get_results().at(0)->input_value(0).get_node_shared_ptr());
     ASSERT_TRUE(new_reshape);
     ASSERT_EQ(new_reshape->get_shape(), shape_nchw);
 }
@@ -101,7 +102,7 @@ TEST(reshape_sinking, broadcast_swimming)
 
     ASSERT_EQ(add->get_shape(), conv_nchw);
     ASSERT_EQ(add->get_input_shape(0), conv_nchw);
-    ASSERT_EQ(add->get_argument(1), conv);
+    ASSERT_EQ(add->input_value(1).get_node_shared_ptr(), conv);
 }
 
 TEST(reshape_sinking, concat)
