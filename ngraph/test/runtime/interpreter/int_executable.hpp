@@ -1236,38 +1236,29 @@ protected:
         }
 
         // Fused Ops are not supported in interpreter. They need to be decomposed before execution
-        case OP_TYPEID::ConvolutionBias:
-        case OP_TYPEID::ConvolutionBiasAdd:
         case OP_TYPEID::CropAndResize:
-        case OP_TYPEID::CrossEntropy:
         case OP_TYPEID::DepthToSpace:
         case OP_TYPEID::FakeQuantize:
         case OP_TYPEID::Gather:
         case OP_TYPEID::Gelu:
-        case OP_TYPEID::Gemm:
         case OP_TYPEID::GRN:
         case OP_TYPEID::GroupConvolution:
         case OP_TYPEID::GroupConvolutionBackpropData:
         case OP_TYPEID::GRUCell:
         case OP_TYPEID::HardSigmoid:
         case OP_TYPEID::Interpolate:
-        case OP_TYPEID::LayerNorm:
         case OP_TYPEID::LSTMCell:
         case OP_TYPEID::LSTMSequence:
         case OP_TYPEID::MVN:
         case OP_TYPEID::NormalizeL2:
-        case OP_TYPEID::PartialSlice:
         case OP_TYPEID::Passthrough:
         case OP_TYPEID::PRelu:
         case OP_TYPEID::RNNCell:
-        case OP_TYPEID::ScaleShift:
         case OP_TYPEID::Selu:
         case OP_TYPEID::ShuffleChannels:
-        case OP_TYPEID::SoftmaxCrossEntropy:
         case OP_TYPEID::SpaceToDepth:
         case OP_TYPEID::Split:
         case OP_TYPEID::SquaredDifference:
-        case OP_TYPEID::Stack:
         case OP_TYPEID::StopGradient:
         case OP_TYPEID::TensorIterator:
         case OP_TYPEID::Tile:

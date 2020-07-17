@@ -186,24 +186,6 @@ namespace
         EXPECT_FALSE(node.is_binary_elementwise_logical());
     }
 
-    void op_is_ConvolutionBias()
-    {
-        op::ConvolutionBias node;
-        EXPECT_FALSE(node.is_unary_elementwise_arithmetic());
-        EXPECT_FALSE(node.is_binary_elementwise_arithmetic());
-        EXPECT_FALSE(node.is_binary_elementwise_comparison());
-        EXPECT_FALSE(node.is_binary_elementwise_logical());
-    }
-
-    void op_is_ConvolutionBiasAdd()
-    {
-        op::ConvolutionBiasAdd node;
-        EXPECT_FALSE(node.is_unary_elementwise_arithmetic());
-        EXPECT_FALSE(node.is_binary_elementwise_arithmetic());
-        EXPECT_FALSE(node.is_binary_elementwise_comparison());
-        EXPECT_FALSE(node.is_binary_elementwise_logical());
-    }
-
     void op_is_Cos()
     {
         op::Cos node;
@@ -217,15 +199,6 @@ namespace
     {
         op::Cosh node;
         EXPECT_TRUE(node.is_unary_elementwise_arithmetic());
-        EXPECT_FALSE(node.is_binary_elementwise_arithmetic());
-        EXPECT_FALSE(node.is_binary_elementwise_comparison());
-        EXPECT_FALSE(node.is_binary_elementwise_logical());
-    }
-
-    void op_is_CrossEntropy()
-    {
-        op::CrossEntropy node;
-        EXPECT_FALSE(node.is_unary_elementwise_arithmetic());
         EXPECT_FALSE(node.is_binary_elementwise_arithmetic());
         EXPECT_FALSE(node.is_binary_elementwise_comparison());
         EXPECT_FALSE(node.is_binary_elementwise_logical());
@@ -429,15 +402,6 @@ namespace
         EXPECT_FALSE(node.is_binary_elementwise_logical());
     }
 
-    void op_is_Gemm()
-    {
-        op::Gemm node;
-        EXPECT_FALSE(node.is_unary_elementwise_arithmetic());
-        EXPECT_FALSE(node.is_binary_elementwise_arithmetic());
-        EXPECT_FALSE(node.is_binary_elementwise_comparison());
-        EXPECT_FALSE(node.is_binary_elementwise_logical());
-    }
-
     void op_is_GetOutputElement()
     {
         op::GetOutputElement node;
@@ -495,15 +459,6 @@ namespace
     void op_is_Interpolate()
     {
         op::Interpolate node;
-        EXPECT_FALSE(node.is_unary_elementwise_arithmetic());
-        EXPECT_FALSE(node.is_binary_elementwise_arithmetic());
-        EXPECT_FALSE(node.is_binary_elementwise_comparison());
-        EXPECT_FALSE(node.is_binary_elementwise_logical());
-    }
-
-    void op_is_LayerNorm()
-    {
-        op::LayerNorm node;
         EXPECT_FALSE(node.is_unary_elementwise_arithmetic());
         EXPECT_FALSE(node.is_binary_elementwise_arithmetic());
         EXPECT_FALSE(node.is_binary_elementwise_comparison());
@@ -699,15 +654,6 @@ namespace
         EXPECT_FALSE(node.is_binary_elementwise_logical());
     }
 
-    void op_is_PartialSlice()
-    {
-        op::PartialSlice node;
-        EXPECT_FALSE(node.is_unary_elementwise_arithmetic());
-        EXPECT_FALSE(node.is_binary_elementwise_arithmetic());
-        EXPECT_FALSE(node.is_binary_elementwise_comparison());
-        EXPECT_FALSE(node.is_binary_elementwise_logical());
-    }
-
     void op_is_Passthrough()
     {
         op::Passthrough node;
@@ -861,15 +807,6 @@ namespace
         EXPECT_FALSE(node.is_binary_elementwise_logical());
     }
 
-    void op_is_ScaleShift()
-    {
-        op::ScaleShift node;
-        EXPECT_FALSE(node.is_unary_elementwise_arithmetic());
-        EXPECT_FALSE(node.is_binary_elementwise_arithmetic());
-        EXPECT_FALSE(node.is_binary_elementwise_comparison());
-        EXPECT_FALSE(node.is_binary_elementwise_logical());
-    }
-
     void op_is_Select()
     {
         op::Select node;
@@ -969,15 +906,6 @@ namespace
         EXPECT_FALSE(node.is_binary_elementwise_logical());
     }
 
-    void op_is_SoftmaxCrossEntropy()
-    {
-        op::SoftmaxCrossEntropy node;
-        EXPECT_FALSE(node.is_unary_elementwise_arithmetic());
-        EXPECT_FALSE(node.is_binary_elementwise_arithmetic());
-        EXPECT_FALSE(node.is_binary_elementwise_comparison());
-        EXPECT_FALSE(node.is_binary_elementwise_logical());
-    }
-
     void op_is_SpaceToDepth()
     {
         op::SpaceToDepth node;
@@ -1027,15 +955,6 @@ namespace
     {
         op::StopGradient node;
         EXPECT_TRUE(node.is_unary_elementwise_arithmetic());
-        EXPECT_FALSE(node.is_binary_elementwise_arithmetic());
-        EXPECT_FALSE(node.is_binary_elementwise_comparison());
-        EXPECT_FALSE(node.is_binary_elementwise_logical());
-    }
-
-    void op_is_Stack()
-    {
-        op::Stack node;
-        EXPECT_FALSE(node.is_unary_elementwise_arithmetic());
         EXPECT_FALSE(node.is_binary_elementwise_arithmetic());
         EXPECT_FALSE(node.is_binary_elementwise_comparison());
         EXPECT_FALSE(node.is_binary_elementwise_logical());

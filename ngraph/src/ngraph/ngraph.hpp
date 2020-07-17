@@ -72,7 +72,6 @@ namespace ngraph
 #include "ngraph/builder/numpy_transpose.hpp"
 #include "ngraph/builder/quantize_builder.hpp"
 #include "ngraph/builder/quantized_concat_builder.hpp"
-#include "ngraph/builder/quantized_conv_builder.hpp"
 #include "ngraph/builder/quantized_dot_builder.hpp"
 #include "ngraph/builder/reduce_ops.hpp"
 #include "ngraph/builder/reshape.hpp"
