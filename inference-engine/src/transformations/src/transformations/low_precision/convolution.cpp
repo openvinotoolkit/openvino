@@ -68,10 +68,43 @@ void ConvolutionTransformation::transform(TransformationContext &context, ngraph
             subtract = newSubtract;
         }
 
+        const size_t groupsCount = NetworkHelper::getGroupsCount(convolution);
+        std::shared_ptr<Node> newMultiplyAfterConst;
+        if (groupsCount > 1ul) {
+            std::shared_ptr<opset1::Constant> multiplyConst = as_type_ptr<opset1::Constant>(dequantization.multiply->get_input_node_shared_ptr(1));
+
+            const std::vector<float> scales = multiplyConst->cast_vector<float>();
+            if (scales.size() == 1ul) {
+                newMultiplyAfterConst = dequantization.multiply->input_value(1).get_node_shared_ptr()->clone_with_new_inputs({});
+            } else {
+                const ngraph::Shape inputShape = convolution->get_input_shape(0);
+                const size_t inputChannelsInGroup = inputShape[1] / groupsCount;
+                const ngraph::Shape outputShape = convolution->get_output_shape(0);
+                std::vector<float> outputScales(outputShape[1]);
+
+                const size_t outputChannelsInGroup = outputShape[1] / groupsCount;
+                for (size_t group = 0; group < groupsCount; ++group) {
+                    const float scaleValue = scales[group * inputChannelsInGroup];
+
+                    for (size_t i = 0; i < outputChannelsInGroup; ++i) {
+                        size_t index = group * outputChannelsInGroup + i;
+                        outputScales[index] = scaleValue;
+                    }
+                }
+
+                newMultiplyAfterConst = std::make_shared<opset1::Constant>(
+                    dequantization.multiply->get_output_element_type(0),
+                    Shape{ outputScales.size(), 1, 1 },
+                    outputScales);
+            }
+        } else {
+            // workaround: constant is cloning because it's used twice and can not be fused below
+            newMultiplyAfterConst = dequantization.multiply->input_value(1).get_node_shared_ptr()->clone_with_new_inputs({});
+        }
+
         std::shared_ptr<ngraph::opset1::Multiply> newMultiplyAfter = std::make_shared<opset1::Multiply>(
             convolution->copy_with_new_inputs({ dequantization.multiply->input_value(0), convolution->input_value(1) }),
-            // workaround: constant is cloning because it's used twice and can not be fused below
-            dequantization.multiply->input_value(1).get_node_shared_ptr()->clone_with_new_inputs({}));
+            newMultiplyAfterConst);
 
         replace_node(convolution, newMultiplyAfter);
         convolution = newMultiplyAfter->input_value(0).get_node_shared_ptr();
@@ -138,6 +171,17 @@ void ConvolutionTransformation::transform(TransformationContext &context, ngraph
                     childNode->copy_with_new_inputs({convertFromWeights->input_value(0), childNode->input_value(1)})});
             replace_node(convolution, newConvolution);
             convolution = newConvolution;
+
+
+            reshapeFromWeights = as_type_ptr<opset1::Reshape>(convolution->get_input_node_shared_ptr(1));
+            if (reshapeFromWeights != nullptr) {
+                const std::shared_ptr<Node> newWeights = fold_reshape<opset1::Reshape>(
+                    reshapeFromWeights->input_value(0),
+                    reshapeFromWeights->input_value(1),
+                    false);
+
+                replace_node(reshapeFromWeights, newWeights);
+            }
         }
     }
 
