@@ -80,18 +80,12 @@ void TemplatePlugin::ExecutableNetwork::CompileGraph() {
 
 // ! [executable_network:init_executor]
 void TemplatePlugin::ExecutableNetwork::InitExecutor() {
-    const int envThreads = parallel_get_env_threads();
-    const auto& numaNodes = getAvailableNUMANodes();
-    const auto numaNodesNum = numaNodes.size();
-    auto streamsExecutorConfig = _cfg._streamsExecutorConfig;
-    const int hwCores = streamsExecutorConfig._streams > 1 && numaNodesNum == 1 ? parallel_get_max_threads() : getNumberOfCPUCores();
-    const int threads = streamsExecutorConfig._threads ? streamsExecutorConfig._threads : (envThreads ? envThreads : hwCores);
-    streamsExecutorConfig._threadsPerStream = streamsExecutorConfig._streams
-                                            ? std::max(1, threads/streamsExecutorConfig._streams)
-                                            : threads;
+    // Default mutlitthreaded configuration is balanced for throughtput and latency cases and takes into account
+    // real hardware cores and NUMA nodes.
+    auto streamsExecutorConfig = InferenceEngine::IStreamsExecutor::Config::MakeDefaultMultiThreaded(_cfg._streamsExecutorConfig);
     streamsExecutorConfig._name = "TemplateStreamsExecutor";
     // As Inference Engine CPU Streams Executor creates some additional therads
-    // it is better to avoid threads recreateion as some OS memory allocator can not manage such usage case
+    // it is better to avoid threads recreateion as some OSs memory allocator can not manage such usage cases
     // and memory consumption can be larger than it is expected.
     // So Inference Engone provides executors cache.
     _taskExecutor = ExecutorManager::getInstance()->getIdleCPUStreamsExecutor(streamsExecutorConfig);
