@@ -31,7 +31,9 @@ class MemCheckTestSuite : public ::testing::TestWithParam<TestCase> {
 
 // tests_pipelines/tests_pipelines.cpp
 TEST_P(MemCheckTestSuite, create_exenetwork) {
-    std::string test_name = "create_exenetwork";
+    const ::testing::TestInfo* const test_info = ::testing::UnitTest::GetInstance()->current_test_info();
+    const std::string test_name = std::string(test_info->name()).substr(0, std::string(test_info->name()).find('/'));
+    //const std::string full_test_name = std::string(test_info->test_case_name()) + "." + std::string(test_info->name());
     auto test_params = GetParam();
 
     TestReferences test_refs;
@@ -49,7 +51,7 @@ TEST_P(MemCheckTestSuite, create_exenetwork) {
         ExecutableNetwork exeNetwork = ie.LoadNetwork(cnnNetwork, test_params.device);
 
         log_info("Memory consumption after LoadNetwork:");
-        memCheckPipeline.record_measures("create_exenetwork");
+        memCheckPipeline.record_measures(test_name);
 
         log_debug(memCheckPipeline.get_reference_record_for_test(test_name, test_params.model_name, test_params.device));
         return memCheckPipeline.measure();
@@ -60,7 +62,9 @@ TEST_P(MemCheckTestSuite, create_exenetwork) {
 }
 
 TEST_P(MemCheckTestSuite, infer_request_inference) {
-    std::string test_name = "infer_request_inference";
+    const ::testing::TestInfo* const test_info = ::testing::UnitTest::GetInstance()->current_test_info();
+    const std::string test_name = std::string(test_info->name()).substr(0, std::string(test_info->name()).find('/'));
+    //const std::string full_test_name = std::string(test_info->test_case_name()) + "." + std::string(test_info->name());
     auto test_params = GetParam();
 
     TestReferences test_refs;
@@ -83,7 +87,7 @@ TEST_P(MemCheckTestSuite, infer_request_inference) {
             Blob::Ptr outputBlob = inferRequest.GetBlob(output.first);
 
         log_info("Memory consumption after Inference:");
-        memCheckPipeline.record_measures("infer_request_inference");
+        memCheckPipeline.record_measures(test_name);
 
         log_debug(memCheckPipeline.get_reference_record_for_test(test_name, test_params.model_name, test_params.device));
         return memCheckPipeline.measure();
