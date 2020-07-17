@@ -102,12 +102,15 @@
                         <tab type="user" title="Abs-1" url="@ref openvino_docs_ops_arithmetic_Abs_1"/>
                         <tab type="user" title="Acos-1" url="@ref openvino_docs_ops_arithmetic_Acos_1"/>
                         <tab type="user" title="Acosh-1" url="@ref openvino_docs_ops_arithmetic_Acosh_1"/>
+                        <tab type="user" title="Acosh-3" url="@ref openvino_docs_ops_arithmetic_Acosh_3"/>
                         <tab type="user" title="Add-1" url="@ref openvino_docs_ops_arithmetic_Add_1"/>
                         <tab type="user" title="Asin-1" url="@ref openvino_docs_ops_arithmetic_Asin_1"/>
                         <tab type="user" title="Asinh-1" url="@ref openvino_docs_ops_arithmetic_Asinh_1"/>
+                        <tab type="user" title="Asinh-3" url="@ref openvino_docs_ops_arithmetic_Asinh_3"/>
                         <tab type="user" title="Assign-3" url="@ref openvino_docs_ops_infrastructure_Assign_3"/>
                         <tab type="user" title="Atan-1" url="@ref openvino_docs_ops_arithmetic_Atan_1"/>
                         <tab type="user" title="Atanh-1" url="@ref openvino_docs_ops_arithmetic_Atanh_1"/>
+                        <tab type="user" title="Atanh-3" url="@ref openvino_docs_ops_arithmetic_Atanh_3"/>
                         <tab type="user" title="AvgPool-1" url="@ref openvino_docs_ops_pooling_AvgPool_1"/>
                         <tab type="user" title="BatchNormInference-1" url="@ref openvino_docs_ops_normalization_BatchNormInference_1"/>
                         <tab type="user" title="BatchToSpace-2" url="@ref openvino_docs_ops_movement_BatchToSpace_2"/>
@@ -126,6 +129,7 @@
                         <tab type="user" title="Convolution-1" url="@ref openvino_docs_ops_convolution_Convolution_1"/>
                         <tab type="user" title="Cos-1" url="@ref openvino_docs_ops_arithmetic_Cos_1"/>
                         <tab type="user" title="Cosh-1" url="@ref openvino_docs_ops_arithmetic_Cosh_1"/>
+                        <tab type="user" title="CTCLoss-4" url="@ref openvino_docs_ops_sequence_CTCLoss_4"/>
                         <tab type="user" title="CumSum" url="@ref openvino_docs_ops_arithmetic_CumSum_3"/>
                         <tab type="user" title="DeformableConvolution-1" url="@ref openvino_docs_ops_convolution_DeformableConvolution_1"/>
                         <tab type="user" title="DeformablePSROIPooling-1" url="@ref openvino_docs_ops_detection_DeformablePSROIPooling_1"/>
@@ -154,6 +158,7 @@
                         <tab type="user" title="GroupConvolution-1" url="@ref openvino_docs_ops_convolution_GroupConvolution_1"/>
                         <tab type="user" title="HardSigmoid-1" url="@ref openvino_docs_ops_activation_HardSigmoid_1"/>
                         <tab type="user" title="Interpolate-1" url="@ref openvino_docs_ops_image_Interpolate_1"/>
+                        <tab type="user" title="Interpolate-1" url="@ref openvino_docs_ops_image_Interpolate_4"/>
                         <tab type="user" title="LRN-1" url="@ref openvino_docs_ops_normalization_LRN_1"/>
                         <tab type="user" title="LSTMCell-1" url="@ref openvino_docs_ops_sequence_LSTMCell_1"/>
                         <tab type="user" title="LSTMSequence-1" url="@ref openvino_docs_ops_sequence_LSTMSequence_1"/>
@@ -169,11 +174,13 @@
                         <tab type="user" title="MaxPool-1" url="@ref openvino_docs_ops_pooling_MaxPool_1"/>
                         <tab type="user" title="Maximum-1" url="@ref openvino_docs_ops_arithmetic_Maximum_1"/>
                         <tab type="user" title="Minimum-1" url="@ref openvino_docs_ops_arithmetic_Minimum_1"/>
+                        <tab type="user" title="Mish-4" url="@ref openvino_docs_ops_activation_Mish_4"/>
                         <tab type="user" title="Mod-1" url="@ref openvino_docs_ops_arithmetic_Mod_1"/>
                         <tab type="user" title="Multiply-1" url="@ref openvino_docs_ops_arithmetic_Multiply_1"/>
                         <tab type="user" title="Negative-1" url="@ref openvino_docs_ops_arithmetic_Negative_1"/>
                         <tab type="user" title="NonMaxSuppression-1" url="@ref openvino_docs_ops_sort_NonMaxSuppression_1"/>
                         <tab type="user" title="NonMaxSuppression-3" url="@ref openvino_docs_ops_sort_NonMaxSuppression_3"/>
+                        <tab type="user" title="NonMaxSuppression-4" url="@ref openvino_docs_ops_sort_NonMaxSuppression_4"/>
                         <tab type="user" title="NonZero-3" url="@ref openvino_docs_ops_condition_NonZero_3"/>
                         <tab type="user" title="NormalizeL2-1" url="@ref openvino_docs_ops_normalization_NormalizeL2_1"/>
                         <tab type="user" title="NotEqual-1" url="@ref openvino_docs_ops_comparison_NotEqual_1"/>
@@ -218,6 +225,7 @@
                         <tab type="user" title="Sin-1" url="@ref openvino_docs_ops_arithmetic_Sin_1"/>
                         <tab type="user" title="Sinh-1" url="@ref openvino_docs_ops_arithmetic_Sinh_1"/>
                         <tab type="user" title="SoftMax-1" url="@ref openvino_docs_ops_activation_SoftMax_1"/>
+                        <tab type="user" title="SoftPlus-4" url="@ref openvino_docs_ops_activation_SoftPlus_4"/>
                         <tab type="user" title="SpaceToBatch-2" url="@ref openvino_docs_ops_movement_SpaceToBatch_2"/>
                         <tab type="user" title="SpaceToDepth-1" url="@ref openvino_docs_ops_movement_SpaceToDepth_1"/>
                         <tab type="user" title="Split-1" url="@ref openvino_docs_ops_movement_Split_1"/>
@@ -226,6 +234,7 @@
                         <tab type="user" title="Squeeze-1" url="@ref openvino_docs_ops_shape_Squeeze_1"/>
                         <tab type="user" title="StridedSlice-1" url="@ref openvino_docs_ops_movement_StridedSlice_1"/>
                         <tab type="user" title="Subtract-1" url="@ref openvino_docs_ops_arithmetic_Subtract_1"/>
+                        <tab type="user" title="Swish-4" url="@ref openvino_docs_ops_activation_Swish_4"/>
                         <tab type="user" title="Tan-1" url="@ref openvino_docs_ops_arithmetic_Tan_1"/>
                         <tab type="user" title="Tanh-1" url="@ref openvino_docs_ops_arithmetic_Tanh_1"/>
                         <tab type="user" title="TensorIterator-1" url="@ref openvino_docs_ops_infrastructure_TensorIterator_1"/>
