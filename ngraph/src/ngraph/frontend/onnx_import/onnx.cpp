@@ -45,7 +45,7 @@ namespace ngraph
 
                 struct stream_parse_binary : ngraph_error
                 {
-                    explicit stream_parse()
+                    explicit stream_parse_binary()
                         : ngraph_error{
                               "Error during import of ONNX model provided as input stream "
                               " with binary protobuf message."}
@@ -55,7 +55,7 @@ namespace ngraph
 
                 struct stream_parse_text : ngraph_error
                 {
-                    explicit stream_parse()
+                    explicit stream_parse_text()
                         : ngraph_error{
                               "Error during import of ONNX model provided as input stream "
                               " with prototxt protobuf message."}
