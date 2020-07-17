@@ -68,6 +68,8 @@ std::shared_ptr<Node> createWeightsOriginal(
 std::shared_ptr<ngraph::Function> GroupConvolutionFunction::getOriginal(
     const ngraph::element::Type precision,
     const ngraph::Shape& inputShape,
+    const ngraph::Shape& outputShape,
+    const size_t groupCount,
     const bool updatePrecisions,
     const ActualValues& actualValues) {
     const auto input = std::make_shared<ngraph::opset1::Parameter>(
@@ -94,8 +96,7 @@ std::shared_ptr<ngraph::Function> GroupConvolutionFunction::getOriginal(
     parent = multiply;
 
     const size_t inputChannelsCount = inputShape[1];
-    const size_t outputChannelsCount = 24ul;
-    const size_t groupCount = 3ul;
+    const size_t outputChannelsCount = outputShape[1];
     const size_t kernelSize = 7ul;
 
     if ((actualValues.weightsValues.size() != 1ul) && (actualValues.weightsValues.size() != (inputChannelsCount * outputChannelsCount))) {
@@ -178,6 +179,8 @@ std::shared_ptr<ngraph::Function> GroupConvolutionFunction::getOriginal(
 std::shared_ptr<ngraph::Function> GroupConvolutionFunction::getReference(
     const ngraph::element::Type precision,
     const ngraph::Shape& inputShape,
+    const ngraph::Shape& outputShape,
+    const size_t groupCount,
     const bool updatePrecisions,
     const ExpectedValues& expectedValues) {
     std::shared_ptr<ngraph::opset1::Parameter> input = std::make_shared<ngraph::opset1::Parameter>(
@@ -202,9 +205,7 @@ std::shared_ptr<ngraph::Function> GroupConvolutionFunction::getReference(
 
     const size_t inputChannelsCount = inputShape[1];
 
-    // TODO: pass as argument
-    const size_t groupCount = 3ul;
-    const size_t outputChannelsCount = 24ul;
+    const size_t outputChannelsCount = outputShape[1];
     const size_t kernelSize = 7ul;
     const size_t inputChannelsInGroup = inputChannelsCount / groupCount;
     const size_t outputChannelsInGroup = outputChannelsCount / groupCount;

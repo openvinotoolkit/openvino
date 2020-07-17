@@ -171,17 +171,16 @@ void ConvolutionTransformation::transform(TransformationContext &context, ngraph
                     childNode->copy_with_new_inputs({convertFromWeights->input_value(0), childNode->input_value(1)})});
             replace_node(convolution, newConvolution);
             convolution = newConvolution;
+        }
 
+        reshapeFromWeights = as_type_ptr<opset1::Reshape>(convolution->get_input_node_shared_ptr(1));
+        if (reshapeFromWeights != nullptr) {
+            const std::shared_ptr<Node> newWeights = fold_reshape<opset1::Reshape>(
+                reshapeFromWeights->input_value(0),
+                reshapeFromWeights->input_value(1),
+                false);
 
-            reshapeFromWeights = as_type_ptr<opset1::Reshape>(convolution->get_input_node_shared_ptr(1));
-            if (reshapeFromWeights != nullptr) {
-                const std::shared_ptr<Node> newWeights = fold_reshape<opset1::Reshape>(
-                    reshapeFromWeights->input_value(0),
-                    reshapeFromWeights->input_value(1),
-                    false);
-
-                replace_node(reshapeFromWeights, newWeights);
-            }
+            replace_node(reshapeFromWeights, newWeights);
         }
     }
 

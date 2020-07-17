@@ -36,6 +36,8 @@ public:
     static std::shared_ptr<ngraph::Function> getOriginal(
         const ngraph::element::Type precision,
         const ngraph::Shape& inputShape,
+        const ngraph::Shape& outputShape,
+        const size_t groupCount,
         const bool updatePrecisions,
         const ActualValues& actualValues);
 
@@ -50,6 +52,8 @@ public:
     static std::shared_ptr<ngraph::Function> getReference(
         const ngraph::element::Type precision,
         const ngraph::Shape& inputShape,
+        const ngraph::Shape& outputShape,
+        const size_t groupCount,
         const bool updatePrecisions,
         const ExpectedValues& expectedValues);
 };
