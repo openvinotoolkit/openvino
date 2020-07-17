@@ -17,13 +17,17 @@
  * Current class measures only in scope of it's lifetime. In this case need
  * to note that deletion of objects created before class creation may lead
  * to negative values because of alignment on starting values.
- * Also deletion  of objects created in scope of class lifetime may decrease
+ * Also deletion of objects created in scope of class lifetime may decrease
  * values computed on previous measure.
  */
 class MemCheckPipeline {
 private:
-    std::array<long, MeasureValueMax> measures;            // current measures
     std::array<long, MeasureValueMax> start_measures;      // measures before run (will be used as baseline)
+
+    /**
+     * @brief Measures values at the current point of time
+     */
+    std::array<long, MeasureValueMax> _measure();
 public:
     /**
      * @brief Constructs MemCheckPipeline object and
@@ -32,39 +36,16 @@ public:
     MemCheckPipeline();
 
     /**
-     * @brief Measures values at the current point of time
+     * @brief Measures values at the current point of time and
+     *        returns measurements aligned on a baseline
      */
-    void do_measures();
+    std::array<long, MeasureValueMax> measure();
 
     /**
-     * @brief Returns measurements aligned on a baseline
+     * @brief Measures values and records aligned measurements using provided identifier
+     *        provided identifier
      */
-    std::array<long, MeasureValueMax> get_measures();
-
-    /**
-     * @brief Returns measurements as string separated within hardcoded delimiter
-     */
-    std::string get_measures_as_str();
-
-    /**
-     * @brief Prints headers and corresponding collected measurements using hardcoded delimiter
-     */
-    void print_measures();
-
-    /**
-     * @brief Upload to DataBase headers and corresponding collected measurements using hardcoded delimiter
-     */
-    void upload_measures(const std::string & step_name);
-
-    /**
-     * @brief Measures values at the current point of time and prints immediately
-     */
-    void print_actual_measures();
-
-    /**
-     * @brief Measures values at the current point of time and upload to DataBase immediately
-     */
-    void upload_actual_measures(const std::string & step_name);
+    void record_measures(const std::string & id);
 
     /**
      * @brief Prepares string used for fast generation of file with references

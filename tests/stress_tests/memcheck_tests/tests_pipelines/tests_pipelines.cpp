@@ -18,58 +18,37 @@ MemCheckPipeline::MemCheckPipeline() {
     start_measures[VMSIZE] = (long) getVmSizeInKB();
     start_measures[VMPEAK] = start_measures[VMSIZE];
     start_measures[THREADS] = (long) getThreadsNum();
-
-    std::copy(start_measures.begin(), start_measures.end(), measures.begin());
 }
 
-void MemCheckPipeline::do_measures() {
+std::array<long, MeasureValueMax> MemCheckPipeline::_measure() {
+    std::array<long, MeasureValueMax> measures;
     measures[VMRSS] = (long) getVmRSSInKB();
     measures[VMHWM] = (long) getVmHWMInKB();
     measures[VMSIZE] = (long) getVmSizeInKB();
     measures[VMPEAK] = (long) getVmPeakInKB();
     measures[THREADS] = (long) getThreadsNum();     // TODO: resolve *-32295
+    return measures;
 }
 
-std::array<long, MeasureValueMax> MemCheckPipeline::get_measures() {
-    std::array<long, MeasureValueMax> temp;
-    std::transform(std::begin(measures), std::end(measures), std::begin(start_measures), std::begin(temp),
+std::array<long, MeasureValueMax> MemCheckPipeline::measure() {
+    std::array<long, MeasureValueMax> measures = _measure();
+    std::transform(std::begin(measures), std::end(measures), std::begin(start_measures), std::begin(measures),
                    [](long measure, long start_measure) -> long {
                        return measure - start_measure;
                    });
-    return temp;
+    return measures;
 }
 
- std::string MemCheckPipeline::get_measures_as_str() {
-    std::array<long, MeasureValueMax> temp = get_measures();
-    std::string str = std::to_string(*temp.begin());
-    for (auto it = temp.begin() + 1; it != temp.end(); it++)
-        str += MEMCHECK_DELIMITER + std::to_string(*it);
-    return str;
-}
-
-void MemCheckPipeline::print_measures() {
+void MemCheckPipeline::record_measures(const std::string & id) {
+    std::array<long, MeasureValueMax> measures = measure();
+    log_debug("[ MEASURE ] " << MEMCHECK_DELIMITER << id);
     log_info(util::get_measure_values_headers(MEMCHECK_DELIMITER));
-    log_info(get_measures_as_str());
-}
-
-void MemCheckPipeline::upload_measures(const std::string & step_name) {
-    log_debug("[ MEASURE ] " << MEMCHECK_DELIMITER << step_name);
-    log_info(util::get_measure_values_headers(MEMCHECK_DELIMITER));
-    log_info(get_measures_as_str());
-}
-
-void MemCheckPipeline::print_actual_measures() {
-    do_measures();
-    print_measures();
-}
-
-void MemCheckPipeline::upload_actual_measures(const std::string & step_name) {
-    do_measures();
-    upload_measures(step_name);
+    log_info(util::get_measure_values_as_str(measures, MEMCHECK_DELIMITER));
 }
 
 std::string MemCheckPipeline::get_reference_record_for_test(std::string test_name, std::string model_name,
                                               std::string target_device) {
+    std::array<long, MeasureValueMax> measures = measure();
     std::stringstream ss;
     ss << "Record to update reference config: "
        << "<model path=\"" << model_name << "\"" <<
