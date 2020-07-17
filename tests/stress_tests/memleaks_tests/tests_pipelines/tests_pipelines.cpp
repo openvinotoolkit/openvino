@@ -92,6 +92,27 @@ TestResult common_test_pipeline(const std::function<void()>& test_pipeline, cons
 
             // compute test info
             if (iteration >= WARMUP_STEPS) {
+                if (ref != std::array<long, MeasureValueMax> {-1}) {
+                    // diff = sliding_avg - ref
+                    util::transform(sliding_avg, ref, diff, [](long sliding_avg_val, long ref_val) -> long {
+                        // no labs() here - ignore cur smaller than ref
+                        return sliding_avg_val - ref_val;
+                    });
+                    // outlier = diff > threshold
+                    util::transform(diff, threshold, outlier, [](long diff_val, float threshold_val) -> bool {
+                        return diff_val > threshold_val;
+                    });
+                    // outlier_count = outlier_count + (outlier ? 1 : 0)
+                    util::transform(outlier, outlier_count, outlier_count,
+                                    [](bool outlier_val, long outlier_count_val) -> long {
+                                        return outlier_count_val + (outlier_val ? 1 : 0);
+                                    });
+
+                    if (outlier[VMRSS]) progress_str += "\t<-VMRSS outlier";
+                    if (outlier[VMHWM]) progress_str += "\t<-VMHWM outlier";
+                }
+                log_info(progress_str);
+
                 // set reference
                 if ((ref == std::array<long, MeasureValueMax> {-1}) ||
                         (retry_count <= MAX_RETRY &&
@@ -116,26 +137,7 @@ TestResult common_test_pipeline(const std::function<void()>& test_pipeline, cons
                     break;
                 }
                 measure_count--;
-
-                // diff = sliding_avg - ref
-                util::transform(sliding_avg, ref, diff, [](long sliding_avg_val, long ref_val) -> long {
-                    // no labs() here - ignore cur smaller than ref
-                    return sliding_avg_val - ref_val;
-                });
-                // outlier = diff > threshold
-                util::transform(diff, threshold, outlier, [](long diff_val, float threshold_val) -> bool {
-                    return diff_val > threshold_val;
-                });
-                // outlier_count = outlier_count + (outlier ? 1 : 0)
-                util::transform(outlier, outlier_count, outlier_count,
-                                [](bool outlier_val, long outlier_count_val) -> long {
-                                    return outlier_count_val + (outlier_val ? 1 : 0);
-                                });
-
-                if (outlier[VMRSS]) progress_str += "\t<-VMRSS outlier";
-                if (outlier[VMHWM]) progress_str += "\t<-VMHWM outlier";
             }
-            log_info(progress_str);
         }
     }
 
