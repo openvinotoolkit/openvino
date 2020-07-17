@@ -51,7 +51,7 @@ static string describe_reshape(shared_ptr<Node> node)
     ss << reshape->get_name()
        << " ( axis order = " << ngraph::vector_to_string(reshape->get_input_order())
        << " , shape = " << vector_to_string(reshape->get_shape()) << " ) "
-       << " , child = " << reshape->get_argument(0)->get_name();
+       << " , child = " << reshape->input_value(0).get_node_shared_ptr()->get_name();
 
     return ss.str();
 }
@@ -86,7 +86,8 @@ static shared_ptr<op::Reshape> combine_reshapes(shared_ptr<op::Reshape> r1,
     auto default_order = ngraph::get_default_order(r1->get_shape());
     auto perm_r1 = apply_permutation(default_order, r1->get_input_order());
     auto perm_r2 = apply_permutation(perm_r1, r2->get_input_order());
-    auto rreshape = make_reshape(r2->get_argument(0), perm_r2, r2->get_shape());
+    auto rreshape =
+        make_reshape(r2->input_value(0).get_node_shared_ptr(), perm_r2, r2->get_shape());
     NGRAPH_DEBUG << "Combining " << describe_reshape(r1) << " and " << describe_reshape(r2)
                  << " into " << describe_reshape(rreshape);
     return rreshape;
@@ -109,7 +110,7 @@ static void delete_reshape(shared_ptr<Node> reshape)
     NGRAPH_DEBUG << "Removing reshape " << reshape->get_name();
     if (!reshape->get_users().empty())
     {
-        ngraph::replace_node(reshape, reshape->get_argument(0));
+        ngraph::replace_node(reshape, reshape->input_value(0).get_node_shared_ptr());
     }
 }
 
@@ -185,7 +186,7 @@ void swim(Input<Node> input, shared_ptr<op::Reshape> reshape)
             Swimmer nsw{n->input(0), csw.reshape};
             work_queue.push_back(nsw);
             NGRAPH_DEBUG << "Propagating reshape " << describe_reshape(csw.reshape) << " for "
-                         << n->get_name() << " to " << n->get_argument(0);
+                         << n->get_name() << " to " << n->input_value(0).get_node_shared_ptr();
         }
         else if (is_type<op::Broadcast>(n))
         {
@@ -218,7 +219,7 @@ void swim(Input<Node> input, shared_ptr<op::Reshape> reshape)
                 }
             }
 
-            auto broadcast_input = old_broadcast->get_argument(0);
+            auto broadcast_input = old_broadcast->input_value(0).get_node_shared_ptr();
             if (!in_order)
             {
                 AxisVector new_source_axes_sorted{new_source_axes};
@@ -289,10 +290,10 @@ static void materialize_shapes(shared_ptr<Node> n,
         return;
     }
 
-    for (size_t i = 0; i < n->get_arguments().size(); i++)
+    for (size_t i = 0; i < n->input_values().size(); i++)
     {
         // materialize all pending reshapes, flush pending reshapes
-        auto arg = n->get_argument(i);
+        auto arg = n->input_value(i).get_node_shared_ptr();
         if (reorders.count(arg) != 0)
         {
             auto arg_reshape = reorders.at(arg);
@@ -316,7 +317,7 @@ static void sink_reshape(shared_ptr<op::Reshape> reshape,
                          set<shared_ptr<Node>>& reshapes_to_delete)
 {
     NGRAPH_DEBUG << "Sinking Reshape :" << describe_reshape(reshape);
-    auto orig_reshape = reorders.at(reshape->get_argument(0));
+    auto orig_reshape = reorders.at(reshape->input_value(0).get_node_shared_ptr());
     // 1) Not a Transpose or 2) Rank changing operation.
     if ((reshape->get_output_shape(0).size() != reshape->get_input_order().size()) ||
         (!reshape->get_is_transpose()))
@@ -345,7 +346,7 @@ static void sink_unary(shared_ptr<Node> n,
                        ReshapeMap& reorders,
                        set<shared_ptr<Node>>& /* reshapes_to_delete */)
 {
-    auto arg_reshape = read_reshapemap(reorders, n->get_argument(0));
+    auto arg_reshape = read_reshapemap(reorders, n->input_value(0).get_node_shared_ptr());
     NGRAPH_DEBUG << "Propagating " << describe_reshape(arg_reshape) << " for " << n->get_name();
     write_reshapemap(reorders, n, arg_reshape);
 }
@@ -354,8 +355,8 @@ static void sink_binary(shared_ptr<Node> binary,
                         ReshapeMap& reorders,
                         set<shared_ptr<Node>>& reshapes_to_delete)
 {
-    auto left = binary->get_argument(0);
-    auto right = binary->get_argument(1);
+    auto left = binary->input_value(0).get_node_shared_ptr();
+    auto right = binary->input_value(1).get_node_shared_ptr();
 
     if (reorders.at(left)->get_input_order() == reorders.at(right)->get_input_order())
     {
@@ -392,7 +393,7 @@ static void sink_slice(shared_ptr<op::Slice> n,
                        ReshapeMap& reorders,
                        set<shared_ptr<Node>>& /* reshapes_to_delete */)
 {
-    auto arg_reshape = reorders.at(n->get_argument(0));
+    auto arg_reshape = reorders.at(n->input_value(0).get_node_shared_ptr());
     auto order = arg_reshape->get_input_order();
 
     // we need the correct input shape to produce the right output shape
@@ -407,7 +408,7 @@ static void sink_slice(shared_ptr<op::Slice> n,
     auto new_upper = ngraph::apply_permutation(n->get_upper_bounds(), def_order);
     auto new_strides = ngraph::apply_permutation(n->get_strides(), def_order);
     auto new_slice = make_shared<op::Slice>(dummy_correct_shape, new_lower, new_upper, new_strides);
-    ngraph::replace_node(dummy_correct_shape, n->get_argument(0));
+    ngraph::replace_node(dummy_correct_shape, n->input_value(0).get_node_shared_ptr());
     NGRAPH_DEBUG << "Replacing " << n->get_name() << " with " << new_slice->get_name();
     ngraph::replace_node(n, new_slice);
 
@@ -420,7 +421,7 @@ static void sink_pad(shared_ptr<op::Pad> n,
                      ReshapeMap& reorders,
                      set<shared_ptr<Node>>& /* reshapes_to_delete */)
 {
-    auto arg_reshape = reorders.at(n->get_argument(0));
+    auto arg_reshape = reorders.at(n->input_value(0).get_node_shared_ptr());
     auto order = arg_reshape->get_input_order();
     // we need the correct input shape to produce the right output shape
     // we are going to create a label of the right input shape,
@@ -432,9 +433,12 @@ static void sink_pad(shared_ptr<op::Pad> n,
 
     auto new_lower = ngraph::apply_permutation(n->get_padding_below(), def_order);
     auto new_upper = ngraph::apply_permutation(n->get_padding_above(), def_order);
-    auto new_pad = make_shared<op::Pad>(
-        dummy_correct_shape, n->get_argument(1), new_lower, new_upper, n->get_pad_mode());
-    ngraph::replace_node(dummy_correct_shape, n->get_argument(0));
+    auto new_pad = make_shared<op::Pad>(dummy_correct_shape,
+                                        n->input_value(1).get_node_shared_ptr(),
+                                        new_lower,
+                                        new_upper,
+                                        n->get_pad_mode());
+    ngraph::replace_node(dummy_correct_shape, n->input_value(0).get_node_shared_ptr());
     NGRAPH_DEBUG << "Replacing " << n->get_name() << " with " << new_pad->get_name();
     ngraph::replace_node(n, new_pad);
     auto new_reshape = make_reshape(new_pad, order, n->get_shape());
@@ -445,12 +449,12 @@ static void sink_quantize(shared_ptr<op::Quantize> quantize,
                           ReshapeMap& reorders,
                           set<shared_ptr<Node>>& /* reshapes_to_delete */)
 {
-    auto arg_reshape = reorders.at(quantize->get_argument(0));
+    auto arg_reshape = reorders.at(quantize->input_value(0).get_node_shared_ptr());
     AxisSet axes_in_def_order =
         get_quantization_axes_in_default_order(arg_reshape, quantize->get_axes());
-    auto new_quantize = make_shared<op::Quantize>(quantize->get_argument(0),
-                                                  quantize->get_argument(1),
-                                                  quantize->get_argument(2),
+    auto new_quantize = make_shared<op::Quantize>(quantize->input_value(0),
+                                                  quantize->input_value(1),
+                                                  quantize->input_value(2),
                                                   quantize->get_element_type(),
                                                   axes_in_def_order,
                                                   quantize->get_round_mode());
@@ -463,7 +467,7 @@ static void sink_concat(shared_ptr<op::Concat> n,
                         ReshapeMap& reorders,
                         set<shared_ptr<Node>>& reshapes_to_delete)
 {
-    auto arg_reshape = reorders.at(n->get_argument(0));
+    auto arg_reshape = reorders.at(n->input_value(0).get_node_shared_ptr());
     auto order = arg_reshape->get_input_order();
     // we need the correct input shape to produce the right output shape
     // we are going to create a label of the right input shape,
@@ -478,7 +482,7 @@ static void sink_concat(shared_ptr<op::Concat> n,
 
     for (size_t i = 1; i < n->get_input_size(); i++)
     {
-        auto iarg_reshape = reorders.at(n->get_argument(i));
+        auto iarg_reshape = reorders.at(n->input_value(i).get_node_shared_ptr());
         auto iorder = iarg_reshape->get_input_order();
         if (iorder != order)
         {
@@ -498,7 +502,7 @@ static void sink_concat(shared_ptr<op::Concat> n,
     // put back the original arguments
     for (size_t i = 0; i < new_concat->get_input_size(); i++)
     {
-        ngraph::replace_node(new_args.at(i), n->get_argument(i));
+        ngraph::replace_node(new_args.at(i), n->input_value(i).get_node_shared_ptr());
     }
     NGRAPH_DEBUG << "Replacing " << n->get_name() << " with " << new_concat->get_name();
     ngraph::replace_node(n, new_concat);
@@ -512,12 +516,12 @@ static void sink_dequantize(shared_ptr<op::Dequantize> dequantize,
                             ReshapeMap& reorders,
                             set<shared_ptr<Node>>& /* reshapes_to_delete */)
 {
-    auto arg_reshape = reorders.at(dequantize->get_argument(0));
+    auto arg_reshape = reorders.at(dequantize->input_value(0).get_node_shared_ptr());
     AxisSet axes_in_def_order =
         get_quantization_axes_in_default_order(arg_reshape, dequantize->get_axes());
-    auto new_dequantize = make_shared<op::Dequantize>(dequantize->get_argument(0),
-                                                      dequantize->get_argument(1),
-                                                      dequantize->get_argument(2),
+    auto new_dequantize = make_shared<op::Dequantize>(dequantize->input_value(0),
+                                                      dequantize->input_value(1),
+                                                      dequantize->input_value(2),
                                                       dequantize->get_element_type(),
                                                       axes_in_def_order);
 
@@ -586,7 +590,7 @@ bool ngraph::pass::ReshapeSinking::run_on_function(shared_ptr<ngraph::Function> 
             // significant time increase on graphs with many slice ops,
             // so for now we are removing "true" check and let backend
             // handle reshape sinking for slice operation.
-            if (slice->get_argument(0)->get_users().size() == 1)
+            if (slice->input_value(0).get_node_shared_ptr()->get_users().size() == 1)
             {
                 sink_slice(slice, reorders, reshapes_to_delete);
             }
@@ -620,11 +624,12 @@ bool ngraph::pass::ReshapeSinking::run_on_function(shared_ptr<ngraph::Function> 
     for (auto r : results)
     {
         NGRAPH_CHECK(r->get_shape() == r->get_input_shape(0) &&
-                         r->get_element_type() == r->get_argument(0)->get_element_type(),
+                         r->get_element_type() ==
+                             r->input_value(0).get_node_shared_ptr()->get_element_type(),
                      " op::Result = ",
                      *r,
                      ", Arg = ",
-                     *r->get_argument(0));
+                     *r->input_value(0).get_node_shared_ptr());
     }
 
     // STEP 3: fix wrong shape info wholesale
