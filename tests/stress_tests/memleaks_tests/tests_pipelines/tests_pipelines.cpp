@@ -120,7 +120,7 @@ TestResult common_test_pipeline(const std::function<void()>& test_pipeline, cons
                     if (0 != retry_count) log_info("Retrying " << retry_count << " of " << MAX_RETRY);
 
                     retry_count++;
-                    measure_count = n / AVERAGE_NUM;
+                    measure_count = n / AVERAGE_NUM + bool(n % AVERAGE_NUM);
                     std::fill(outlier_count.begin(), outlier_count.end(), 0);
                     // set reference as current `sliding_avg`
                     ref = sliding_avg;
