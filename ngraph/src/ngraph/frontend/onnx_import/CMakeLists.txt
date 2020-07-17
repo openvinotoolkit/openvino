@@ -90,6 +90,8 @@ add_library(onnx_importer SHARED
         op/dequantize_linear.hpp
         op/div.hpp
         op/dropout.hpp
+        op/dynamic_quantize_linear.cpp
+        op/dynamic_quantize_linear.hpp
         op/elu.cpp
         op/elu.hpp
         op/equal.hpp
@@ -192,8 +194,8 @@ add_library(onnx_importer SHARED
         op/rnn.hpp
         op/roi_align.cpp
         op/roi_align.hpp
-        # op/round.cpp
-        # op/round.hpp
+        op/round.cpp
+        op/round.hpp
         # op/scatter_nd.cpp
         # op/scatter_nd.hpp
         op/scatter_elements.cpp
@@ -251,6 +253,8 @@ add_library(onnx_importer SHARED
         utils/common.hpp
         utils/convpool.cpp
         utils/convpool.hpp
+        utils/onnx_function_helper.cpp
+        utils/onnx_function_helper.hpp
         utils/onnx_importer_visibility.hpp
         utils/pooling_factory.cpp
         utils/pooling_factory.hpp

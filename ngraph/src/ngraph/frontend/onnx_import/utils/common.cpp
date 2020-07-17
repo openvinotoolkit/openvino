@@ -53,6 +53,28 @@ namespace ngraph
 #endif
             }
 
+            const int64_t get_proto_element_type(ngraph::element::Type& ngraph_type)
+            {
+                switch (ngraph_type)
+                {
+                case element::Type_t::boolean: return ONNX_NAMESPACE::TensorProto_DataType_BOOL;
+                case element::Type_t::f64: return ONNX_NAMESPACE::TensorProto_DataType_DOUBLE;
+                case element::Type_t::f16: return ONNX_NAMESPACE::TensorProto_DataType_FLOAT16;
+                case element::Type_t::f32: return ONNX_NAMESPACE::TensorProto_DataType_FLOAT;
+                case element::Type_t::i8: return ONNX_NAMESPACE::TensorProto_DataType_INT8;
+                case element::Type_t::i16: return ONNX_NAMESPACE::TensorProto_DataType_INT16;
+                case element::Type_t::i32: return ONNX_NAMESPACE::TensorProto_DataType_INT32;
+                case element::Type_t::i64: return ONNX_NAMESPACE::TensorProto_DataType_INT64;
+                case element::Type_t::u8: return ONNX_NAMESPACE::TensorProto_DataType_UINT8;
+                case element::Type_t::u16: return ONNX_NAMESPACE::TensorProto_DataType_UINT16;
+                case element::Type_t::u32: return ONNX_NAMESPACE::TensorProto_DataType_UINT32;
+                case element::Type_t::u64: return ONNX_NAMESPACE::TensorProto_DataType_UINT64;
+                case element::Type_t::dynamic:
+                    return ONNX_NAMESPACE::TensorProto_DataType_UNDEFINED;
+                }
+                throw ngraph_error("unsupported element type: " + ngraph_type.get_type_name());
+            }
+
             std::shared_ptr<ngraph::Node> get_monotonic_range_along_node_rank(
                 const Output<ngraph::Node>& value, int64_t start_value, int64_t step)
             {

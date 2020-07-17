@@ -118,7 +118,7 @@ NGRAPH_OP(ReverseSequence, ngraph::op::v0)
 
 // Moved out of opset2, it was added to opset1 by mistake
 // NGRAPH_OP(RNNCell, ngraph::op::v0)
-
+NGRAPH_OP(Round, ngraph::op::v0)
 NGRAPH_OP(ROIPooling, ngraph::op::v0) // Missing in opset1
 
 NGRAPH_OP(Select, ngraph::op::v1)

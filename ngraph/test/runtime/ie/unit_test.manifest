@@ -18,6 +18,7 @@ onnx_model_quantize_linear
 onnx_model_quantize_linear_zero_point
 onnx_model_quantize_linear_axis_zero
 onnx_model_quantize_linear_axis_negative
+model_dynamic_quantize_linear
 
 # DequantizeLinear:
 # C++ exception with description "Unsupported precisions!

@@ -51,6 +51,7 @@
 #include "op/dequantize_linear.hpp"
 #include "op/div.hpp"
 #include "op/dropout.hpp"
+#include "op/dynamic_quantize_linear.hpp"
 #include "op/elu.hpp"
 #include "op/equal.hpp"
 #include "op/erf.hpp"
@@ -111,7 +112,7 @@
 #include "op/reverse_sequence.hpp"
 #include "op/rnn.hpp"
 #include "op/roi_align.hpp"
-// #include "op/round.hpp"
+#include "op/round.hpp"
 #include "op/scatter_elements.hpp"
 // #include "op/scatter_nd.hpp"
 #include "op/selu.hpp"
@@ -284,6 +285,7 @@ namespace ngraph
             REGISTER_OPERATOR("Div", 1, div);
             REGISTER_OPERATOR("Div", 7, div);
             REGISTER_OPERATOR("Dropout", 1, dropout);
+            REGISTER_OPERATOR("DynamicQuantizeLinear", 1, dynamic_quantize_linear);
             REGISTER_OPERATOR("Elu", 1, elu);
             REGISTER_OPERATOR("Equal", 1, equal);
             REGISTER_OPERATOR("Erf", 1, erf);
@@ -359,7 +361,7 @@ namespace ngraph
             REGISTER_OPERATOR("ReverseSequence", 1, reverse_sequence);
             REGISTER_OPERATOR("RNN", 1, rnn);
             REGISTER_OPERATOR("RoiAlign", 1, roi_align);
-            // REGISTER_OPERATOR("Round", 1, round);
+            REGISTER_OPERATOR("Round", 1, round);
             REGISTER_OPERATOR("Scatter", 1, scatter_elements);
             REGISTER_OPERATOR("ScatterElements", 1, scatter_elements);
             // REGISTER_OPERATOR("ScatterND", 1, scatter_nd);

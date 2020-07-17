@@ -2292,3 +2292,16 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_image_scaler)
                                          {12.0, 14.0, 16.0, 18.0, 21.0, 41.0, 61.0, 81.0});
     test_case.run();
 }
+
+NGRAPH_TEST(${BACKEND_NAME}, model_dynamic_quantize_linear)
+{
+    const auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/quantization/dynamicquantizelinear.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_input<float>({-1.f, -2.1f, -1.3f, -2.5f, -3.34f, -4.f});
+    test_case.add_expected_output<uint8_t>(Shape{6}, {191, 121, 172, 96, 42, 0});
+    test_case.add_expected_output<float>(Shape{}, {0.0156862754});
+    test_case.add_expected_output<uint8_t>(Shape{}, {255});
+    test_case.run();
+}

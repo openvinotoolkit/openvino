@@ -14,10 +14,10 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include <memory>
+#pragma once
 
-#include "default_opset.hpp"
-#include "round.hpp"
+#include "core/node.hpp"
+#include "ngraph/node.hpp"
 
 namespace ngraph
 {
@@ -27,11 +27,8 @@ namespace ngraph
         {
             namespace set_1
             {
-                NodeVector round(const Node& node)
-                {
-                    const std::shared_ptr<ngraph::Node> data{node.get_ng_inputs().at(0)};
-                    return {std::make_shared<default_opset::Round>(data)};
-                }
+                NodeVector dynamic_quantize_linear(const Node& node);
+
             } // namespace set_1
 
         } // namespace op

@@ -66,6 +66,7 @@ namespace ngraph
 
             NodeVector get_ng_inputs() const;
             NodeVector get_ng_nodes() const;
+            const ONNX_NAMESPACE::NodeProto& node_proto() const;
             const std::string& domain() const;
             const std::string& op_type() const;
             const std::string& get_name() const;

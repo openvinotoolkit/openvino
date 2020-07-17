@@ -16,13 +16,14 @@
 
 #pragma once
 
-#include <algorithm>   // std::generate
-#include <cmath>       // std::floor, std::min
-#include <cstddef>     // std::size_t
-#include <cstdint>     // std::int64_t
-#include <iterator>    // std::begin, std::end
-#include <memory>      // std::shared_ptr, std::make_shared
-#include <type_traits> // std::enable_if
+#include <algorithm>      // std::generate
+#include <cmath>          // std::floor, std::min
+#include <cstddef>        // std::size_t
+#include <cstdint>        // std::int64_t
+#include <iterator>       // std::begin, std::end
+#include <memory>         // std::shared_ptr, std::make_shared
+#include <onnx/onnx_pb.h> // proto types
+#include <type_traits>    // std::enable_if
 #include <vector>
 
 #include "core/node.hpp"
@@ -38,6 +39,8 @@ namespace ngraph
         namespace common
         {
             const ngraph::element::Type& get_ngraph_element_type(std::int64_t onnx_type);
+
+            const int64_t get_proto_element_type(ngraph::element::Type& ngraph_type);
 
             /// \brief      Return a monotonic sequence.
             ///

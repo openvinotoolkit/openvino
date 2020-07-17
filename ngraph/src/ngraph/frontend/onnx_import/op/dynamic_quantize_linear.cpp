@@ -16,8 +16,8 @@
 
 #include <memory>
 
-#include "default_opset.hpp"
-#include "round.hpp"
+#include "dynamic_quantize_linear.hpp"
+#include "utils/onnx_function_helper.hpp"
 
 namespace ngraph
 {
@@ -27,10 +27,9 @@ namespace ngraph
         {
             namespace set_1
             {
-                NodeVector round(const Node& node)
+                NodeVector dynamic_quantize_linear(const Node& node)
                 {
-                    const std::shared_ptr<ngraph::Node> data{node.get_ng_inputs().at(0)};
-                    return {std::make_shared<default_opset::Round>(data)};
+                    return utils::expand_onnx_function(node);
                 }
             } // namespace set_1
 
