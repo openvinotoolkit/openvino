@@ -74,7 +74,7 @@ namespace ngraph
                 }
 
                 NodeVector build_resize(const Node& node,
-                                        const std::shared_ptr<ngraph::Node> output_shape,
+                                        const std::shared_ptr<ngraph::Node>& output_shape,
                                         const AxisSet& axes)
                 {
                     const auto mode = node.get_attribute_value<std::string>("mode", "nearest");
@@ -173,7 +173,7 @@ namespace ngraph
                         return build_resize(node, sizes, generate_axis_set(axes_size));
                     }
 
-                    const auto& scales = inputs.at(1);
+                    const auto& scales = inputs.at(2);
                     const auto& scales_shape = scales->get_output_partial_shape(0);
 
                     CHECK_VALID_NODE(
