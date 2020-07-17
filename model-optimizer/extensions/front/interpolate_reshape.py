@@ -163,7 +163,6 @@ class InterpolateWithConcat(FrontReplacementPattern):
                                              {'name': shape.name + '/Gathered'}, input_node=shape)
         interpolate.in_port(1).get_connection().set_source(gather.out_port(0))
 
-
     def find_and_replace_pattern(self, graph: Graph):
         for interpolate in graph.get_op_nodes(type='Interpolate'):
             num_inputs = len([p for p in interpolate.in_ports().values() if not p.disconnected()])
