@@ -15,7 +15,6 @@ protected:
     TestModel testModel;
 
 public:
-
     void SetUp() override {
         ASSERT_NO_FATAL_FAILURE(GraphTransformerTest::SetUp());
 

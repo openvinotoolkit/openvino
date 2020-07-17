@@ -186,12 +186,8 @@ Stage TestModel::addStage(
         if (info.type == OutputType::Original) {
             curOutputs.push_back(_outputs.at(info.originalOutputInd));
         } else {
-            // if (!write_to_dataDesc) {
-            //     curOutputs.push_back(_model->addNewData(formatString("Data %d / %d", _stages.size(), curOutputs.size()), info.desc));
-            // } else {
-            //     curOutputs.push_back(_model->addNewData(formatString("Data %d / %d", _stages.size(), curOutputs.size()), _dataDesc));
-            // }
-            curOutputs.push_back(_model->addNewData(formatString("Data %d / %d", _stages.size(), curOutputs.size()), info.desc == DataDesc() ? _dataDesc : info.desc));
+            auto data = (info.desc == DataDesc())? _dataDesc : info.desc;
+            curOutputs.push_back(_model->addNewData(formatString("Data %d / %d", _stages.size(), curOutputs.size()), data));
         }
     }
 
