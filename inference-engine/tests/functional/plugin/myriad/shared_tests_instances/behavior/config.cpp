@@ -14,8 +14,8 @@ namespace {
     };
 
     const std::vector<std::map<std::string, std::string>> Configs = {
-            {{InferenceEngine::MYRIAD_FORCE_RESET, CONFIG_VALUE(YES)}},
-            {{InferenceEngine::MYRIAD_FORCE_RESET, CONFIG_VALUE(NO)}},
+            {{InferenceEngine::MYRIAD_ENABLE_FORCE_RESET, CONFIG_VALUE(YES)}},
+            {{InferenceEngine::MYRIAD_ENABLE_FORCE_RESET, CONFIG_VALUE(NO)}},
 
             {{CONFIG_KEY(LOG_LEVEL), CONFIG_VALUE(LOG_NONE)}},
             {{CONFIG_KEY(LOG_LEVEL), CONFIG_VALUE(LOG_ERROR)}},
@@ -65,8 +65,8 @@ namespace {
             {{InferenceEngine::MYRIAD_ENABLE_HW_ACCELERATION, "ON"}},
             {{InferenceEngine::MYRIAD_ENABLE_HW_ACCELERATION, "OFF"}},
 
-            {{InferenceEngine::MYRIAD_FORCE_RESET, "ON"}},
-            {{InferenceEngine::MYRIAD_FORCE_RESET, "OFF"}},
+            {{InferenceEngine::MYRIAD_ENABLE_FORCE_RESET, "ON"}},
+            {{InferenceEngine::MYRIAD_ENABLE_FORCE_RESET, "OFF"}},
 
             {{CONFIG_KEY(LOG_LEVEL), "VERBOSE"}},
 

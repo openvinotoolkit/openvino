@@ -24,7 +24,7 @@ namespace InferenceEngine {
  * @brief The flag to reset stalled devices: CONFIG_VALUE(YES) or CONFIG_VALUE(NO) (default)
  * This is a plugin scope option and must be used with the plugin's SetConfig method
  */
-DECLARE_MYRIAD_CONFIG_KEY(FORCE_RESET);
+DECLARE_MYRIAD_CONFIG_KEY(ENABLE_FORCE_RESET);
 
 /**
  * @brief This option allows to specify device memory type.

@@ -194,7 +194,7 @@ TEST_F(myriadConfigsWithBlobImportTests_smoke, TryingToSetRuntimeOptionDoesNotPr
                                                   {CONFIG_KEY(PERF_COUNT), CONFIG_VALUE(YES)},
                                                   {InferenceEngine::MYRIAD_ENABLE_RECEIVING_TENSOR_TIME, CONFIG_VALUE(YES)} };
     if (vpu::tests::deviceForceReset()) {
-        config.insert({InferenceEngine::MYRIAD_FORCE_RESET, CONFIG_VALUE(NO)});
+        config.insert({InferenceEngine::MYRIAD_ENABLE_FORCE_RESET, CONFIG_VALUE(NO)});
     }
 
     InferenceEngine::IExecutableNetwork::Ptr importedNetworkPtr;

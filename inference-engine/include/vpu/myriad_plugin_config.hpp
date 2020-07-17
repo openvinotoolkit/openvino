@@ -33,11 +33,11 @@ namespace InferenceEngine {
 namespace VPUConfigParams {
 
 /**
- * @deprecated Use InferenceEngine::MYRIAD_FORCE_RESET instead.
+ * @deprecated Use InferenceEngine::MYRIAD_ENABLE_FORCE_RESET instead.
  * @brief The flag to reset stalled devices: CONFIG_VALUE(YES) or CONFIG_VALUE(NO) (default)
  * This is a plugin scope option and must be used with the plugin's SetConfig method
  */
-INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::MYRIAD_FORCE_RESET instead")
+INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::MYRIAD_ENABLE_FORCE_RESET instead")
 DECLARE_VPU_MYRIAD_CONFIG_KEY(FORCE_RESET);
 
 /**

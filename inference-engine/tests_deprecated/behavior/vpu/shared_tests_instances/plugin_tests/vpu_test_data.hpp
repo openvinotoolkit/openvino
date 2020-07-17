@@ -82,8 +82,8 @@ const std::vector<BehTestParams> deviceSpecificConfigurations = {
 };
 
 const std::vector<BehTestParams> deviceAgnosticConfigurations = {
-    BEH_MYRIAD.withConfig({{InferenceEngine::MYRIAD_FORCE_RESET, CONFIG_VALUE(YES)}}),
-    BEH_MYRIAD.withConfig({{InferenceEngine::MYRIAD_FORCE_RESET, CONFIG_VALUE(NO)}}),
+    BEH_MYRIAD.withConfig({{InferenceEngine::MYRIAD_ENABLE_FORCE_RESET, CONFIG_VALUE(YES)}}),
+    BEH_MYRIAD.withConfig({{InferenceEngine::MYRIAD_ENABLE_FORCE_RESET, CONFIG_VALUE(NO)}}),
 
     BEH_MYRIAD.withConfig({{CONFIG_KEY(LOG_LEVEL), CONFIG_VALUE(LOG_NONE)}}),
     BEH_MYRIAD.withConfig({{CONFIG_KEY(LOG_LEVEL), CONFIG_VALUE(LOG_ERROR)}}),
@@ -124,8 +124,8 @@ const BehTestParams withIncorrectConfValues[] = {
     BEH_MYRIAD.withConfig({{InferenceEngine::MYRIAD_ENABLE_HW_ACCELERATION, "ON"}}),
     BEH_MYRIAD.withConfig({{InferenceEngine::MYRIAD_ENABLE_HW_ACCELERATION, "OFF"}}),
 
-    BEH_MYRIAD.withConfig({{InferenceEngine::MYRIAD_FORCE_RESET, "ON"}}),
-    BEH_MYRIAD.withConfig({{InferenceEngine::MYRIAD_FORCE_RESET, "OFF"}}),
+    BEH_MYRIAD.withConfig({{InferenceEngine::MYRIAD_ENABLE_FORCE_RESET, "ON"}}),
+    BEH_MYRIAD.withConfig({{InferenceEngine::MYRIAD_ENABLE_FORCE_RESET, "OFF"}}),
 
     BEH_MYRIAD.withConfig({{CONFIG_KEY(LOG_LEVEL), "VERBOSE"}}),
 
