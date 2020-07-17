@@ -156,9 +156,32 @@
 
 ```xml
 <layer ... type="Proposal" ... >
-    <data base_size="16" feat_stride="16" min_size="16" nms_thresh="0.6" post_nms_topn="200" pre_nms_topn="6000"
-     ratio="2.67" scale="4.0,6.0,9.0,16.0,24.0,32.0"/>
-    <input> ... </input>
-    <output> ... </output>
+    <data base_size="16" feat_stride="8" for_deformable="0" min_size="16" nms_thresh="1.0" normalize="0" post_nms_topn="1000" pre_nms_topn="1000" ratio="1" scale="1,2"/>
+    <input>
+        <port id="0">
+            <dim>1</dim>
+            <dim>4</dim>
+            <dim>28</dim>
+            <dim>28</dim>
+        </port>
+        <port id="1">
+            <dim>1</dim>
+            <dim>8</dim>
+            <dim>28</dim>
+            <dim>28</dim>
+        </port>
+        <port id="2">
+            <dim>3</dim>
+        </port>
+    </input>
+    <output>
+        <port id="3" precision="FP32">
+            <dim>1000</dim>
+            <dim>5</dim>
+        </port>
+        <port id="4" precision="FP32">
+            <dim>1000</dim>
+        </port>
+    </output>
 </layer>
 ```
