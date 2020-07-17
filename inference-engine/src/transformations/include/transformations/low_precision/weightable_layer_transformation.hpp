@@ -23,7 +23,8 @@ public:
 
 protected:
     DataPrecision decomposeFakeQuantizeForWeightsPath(std::shared_ptr<Node> weightableLayer, const bool supportAsymmetricQuantization) const;
-    static bool isDepthwise(std::shared_ptr<Node> layer);
+    static bool isGroup(const std::shared_ptr<Node>& node);
+    static bool isDepthwise(const std::shared_ptr<Node>& node);
 };
 
 } // namespace low_precision

@@ -16,10 +16,10 @@ namespace subgraph {
 std::shared_ptr<ngraph::Function> ConvolutionFunction::getOriginal(
     const ngraph::element::Type precision,
     const ngraph::Shape& inputShape,
-    const ngraph::pass::low_precision::LayerTransformation::Params& params,
+    const bool updatePrecisions,
     const ActualValues& actualValues) {
     const auto input = std::make_shared<ngraph::opset1::Parameter>(
-        params.updatePrecisions ? actualValues.lowPrecision : precision,
+        updatePrecisions ? actualValues.lowPrecision : precision,
         ngraph::Shape(inputShape));
     std::shared_ptr<ngraph::Node> parent = input;
 
@@ -76,7 +76,7 @@ std::shared_ptr<ngraph::Function> ConvolutionFunction::getOriginal(
 std::shared_ptr<ngraph::Function> ConvolutionFunction::getReference(
     const ngraph::element::Type precision,
     const ngraph::Shape& inputShape,
-    const ngraph::pass::low_precision::LayerTransformation::Params& params,
+    const bool updatePrecisions,
     const ExpectedValues& expectedValues) {
     std::shared_ptr<ngraph::opset1::Parameter> input = std::make_shared<ngraph::opset1::Parameter>(
         precision,
@@ -142,13 +142,13 @@ std::shared_ptr<ngraph::Function> ConvolutionFunction::getReference(
             expectedValues.mutliplyValues));
     parent = multiply;
 
-    if (params.updatePrecisions) {
+    if (updatePrecisions) {
         // this is not working
         // input->set_output_type(0, expectedValues.activationPrecision, input->get_output_partial_shape(0));
         input = as_type_ptr<ngraph::opset1::Parameter>(replace_node(
             input,
             std::make_shared<ngraph::opset1::Parameter>(
-                params.updatePrecisions ? expectedValues.activationPrecision : precision,
+                expectedValues.activationPrecision,
                 ngraph::Shape(inputShape))));
 
         if (subtract != nullptr) {

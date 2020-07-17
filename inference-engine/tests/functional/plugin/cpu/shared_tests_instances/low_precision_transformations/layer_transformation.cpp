@@ -107,7 +107,7 @@ std::shared_ptr<InferenceEngine::ICNNNetwork> convert(std::shared_ptr<ngraph::Fu
     return clonedNetwork;
 }
 
-InferenceEngine::CNNNetwork LayerTransformation::transform(InferenceEngine::details::LayerTransformation::Params& params) {
+InferenceEngine::CNNNetwork LayerTransformation::transform(const InferenceEngine::details::LayerTransformation::Params& params) {
     std::shared_ptr<InferenceEngine::ICNNNetwork> clonedNetwork = convert(function, LayerTransformation::LptVersion::cnnNetwork);
 
     auto implNetwork = std::dynamic_pointer_cast<InferenceEngine::details::CNNNetworkImpl>(clonedNetwork);
@@ -122,10 +122,8 @@ InferenceEngine::CNNNetwork LayerTransformation::transform(InferenceEngine::deta
     InferenceEngine::NetPass::ConvertPrecision(*implNetwork, InferenceEngine::Precision::FP16, InferenceEngine::Precision::FP32);
     InferenceEngine::NetPass::ConvertPrecision(*implNetwork, InferenceEngine::Precision::BOOL, InferenceEngine::Precision::U8);
 
-    // implNetwork->serialize("c:\\Projects\\temp\\test.original.xml", "c:\\Projects\\temp\\test.original.bin", nullptr);
     auto transformer = getLowPrecisionTransformer(params);
     transformer.transform(*implNetwork);
-    // implNetwork->serialize("c:\\Projects\\temp\\test.transformed.xml", "c:\\Projects\\temp\\test.transformed.bin", nullptr);
 
     return InferenceEngine::CNNNetwork(implNetwork);
 }

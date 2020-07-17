@@ -168,6 +168,9 @@ void LayerTransformation::checkPrecisions(
     const bool asymmetricQuantizationOnData,
     const bool asymmetricQuantizationOnWeights) {
     EXPECT_EQ(expectedInputPrecisions.size(), layer.insData.size()) << "insert data count is no expected: " << layer.insData.size();
+    if (expectedInputPrecisions.size() != layer.insData.size()) {
+        return;
+    }
 
     const auto checkPrecision = [](
         const InferenceEngine::CNNLayer& layer,

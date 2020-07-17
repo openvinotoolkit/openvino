@@ -19,14 +19,14 @@ public:
     static std::shared_ptr<ngraph::Function> getOriginal(
         const ngraph::element::Type precision,
         const ngraph::Shape& inputShape,
-        const ngraph::pass::low_precision::LayerTransformation::Params& params,
         const FakeQuantizeOnData& fakeQuantizeOnData);
 
     static std::shared_ptr<ngraph::Function> getReference(
         const ngraph::element::Type precision,
         const ngraph::Shape& inputShape,
-        const ngraph::pass::low_precision::LayerTransformation::Params& params,
+        const bool updatePrecisions,
         const FakeQuantizeOnData& fakeQuantizeOnData,
+        const ngraph::element::Type fakeQuantizeOutputPrecision,
         const std::vector<float>& expectedSubtractValues,
         const std::vector<float>& expectedMultiplyValues);
 };

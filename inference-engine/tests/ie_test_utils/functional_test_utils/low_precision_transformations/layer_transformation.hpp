@@ -65,7 +65,7 @@ protected:
     ngraph::pass::low_precision::LowPrecisionTransformer getLowPrecisionTransformerNGraph(
         const ngraph::pass::low_precision::LayerTransformation::Params& params) const;
 
-    InferenceEngine::CNNNetwork transform(InferenceEngine::details::LayerTransformation::Params& params);
+    InferenceEngine::CNNNetwork transform(const InferenceEngine::details::LayerTransformation::Params& params);
 
     std::shared_ptr<ngraph::Function> transformNGraph(InferenceEngine::details::LayerTransformation::Params& params);
 

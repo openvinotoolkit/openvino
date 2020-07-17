@@ -120,10 +120,10 @@ void TypeRelaxed<BaseOp>::validate_and_infer_types() {
 
 
 template <typename BaseOp>
-RTTI_DEFINITION_1(BaseOp::get_type_info_static().name, TypeRelaxed<BaseOp>, BaseOp, 0)
+RTTI_DEFINITION_1(BaseOp::type_info.name, TypeRelaxed<BaseOp>, BaseOp, BaseOp::type_info.version)
 
 template <typename BaseOp>
-RTTI_DEFINITION_2(BaseOp::get_type_info_static().name, TypeRelaxed<BaseOp>, BaseOp, 0)
+RTTI_DEFINITION_2(BaseOp::type_info.name, TypeRelaxed<BaseOp>, BaseOp, BaseOp::type_info.version)
 
         template <typename BaseOp>
 std::shared_ptr<Node> TypeRelaxed<BaseOp>::clone_with_new_inputs(const OutputVector& new_args) const {

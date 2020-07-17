@@ -21,8 +21,43 @@ bool WeightableLayerTransformation::canBeTransformed(const TransformationContext
         return false;
     }
 
-    const bool isDepthwiseConvolution = isDepthwise(layer);
-    if (!isDepthwiseConvolution) {
+    if (isGroup(layer)) {
+        FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(layer);
+        std::shared_ptr<opset1::Constant> multiplyConst = as_type_ptr<opset1::Constant>(dequantization.multiply->get_input_node_shared_ptr(1));
+        const ngraph::Shape constShape = multiplyConst->get_output_shape(0);
+        if ((constShape.size() != 0) && (constShape.size() != 1ul) && (constShape.size() != 3ul) && (constShape.size() != 4ul)) {
+            return false;
+        }
+
+        const ngraph::Shape inputShape = layer->get_input_shape(0);
+
+        const std::vector<float> scales = multiplyConst->cast_vector<float>();
+        if (scales.size() != 1ul) {
+            if ((scales.size() != 1) && (scales.size() != inputShape[1])) {
+                return false;
+            }
+
+            if ((inputShape.size() != 4ul) && (inputShape.size() != 5ul)) {
+                return false;
+            }
+
+            const size_t groupsCount = NetworkHelper::getGroupsCount(layer);
+            const size_t inputChannelsInGroup = inputShape[1] / groupsCount;
+            for (size_t group = 0; group < groupsCount; ++group) {
+                for (size_t i = 0; i < inputChannelsInGroup; ++i) {
+                    size_t index = group * inputChannelsInGroup + i;
+                    if (scales[group * inputChannelsInGroup] != scales[group * inputChannelsInGroup + i]) {
+                        return false;
+                    }
+                }
+            }
+
+            const ngraph::Shape outputShape = layer->get_output_shape(0);
+            if ((outputShape.size() != 4ul) && (outputShape.size() != 5ul)) {
+                return false;
+            }
+        }
+    } else {
         // TODO: move scale values validation to standalone method for FullyConnected & GEMM
         const std::shared_ptr<opset1::Multiply> multiply = as_type_ptr<opset1::Multiply>(layer->input_value(0).get_node_shared_ptr());
         if (multiply == nullptr) {
@@ -115,7 +150,14 @@ DataPrecision WeightableLayerTransformation::decomposeFakeQuantizeForWeightsPath
     // The second part of this function calculates new FQ limits and corresponding dequantization scale and shift.
     // To maintain all shapes in a consistent way, ngraph ops are used to build constant sub-expressions.
 
-    auto tuple = NetworkHelper::decomposeFakeQuantize(fq, dataPrecision.precision, dataPrecision.min, dataPrecision.max, updatePrecisions);
+    auto tuple = NetworkHelper::decomposeFakeQuantize(
+        fq,
+        dataPrecision.precision,
+        dataPrecision.min,
+        dataPrecision.max,
+        dataPrecision.hasZeroPoint,
+        updatePrecisions);
+
     std::shared_ptr<ngraph::Node> fqOnWeights = std::get<0>(tuple);
     if (as_type_ptr<ngraph::opset1::Constant>(fqOnWeights) == nullptr) {
         THROW_IE_LPT_EXCEPTION(*fqOnWeights) << "FakeQuantize on weights was not folded to constant";
@@ -124,7 +166,16 @@ DataPrecision WeightableLayerTransformation::decomposeFakeQuantizeForWeightsPath
     return dataPrecision;
 }
 
-bool WeightableLayerTransformation::isDepthwise(std::shared_ptr<Node> layer) {
+bool WeightableLayerTransformation::isGroup(const std::shared_ptr<Node>& layer) {
+    if (!as_type_ptr<opset1::Convolution>(layer) && !as_type_ptr<opset1::GroupConvolution>(layer)) {
+        return false;
+    }
+
+    const size_t group = NetworkHelper::getGroupsCount(layer);
+    return group != 1ul;
+}
+
+bool WeightableLayerTransformation::isDepthwise(const std::shared_ptr<Node>& layer) {
     if (!as_type_ptr<opset1::Convolution>(layer) && !as_type_ptr<opset1::GroupConvolution>(layer)) {
         return false;
     }

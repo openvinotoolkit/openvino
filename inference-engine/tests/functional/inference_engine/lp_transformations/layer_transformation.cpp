@@ -15,6 +15,9 @@
 
 #include "simple_low_precision_transformer.hpp"
 
+// TODO: debug only
+#include <ngraph/pass/visualize_tree.hpp>
+
 using namespace testing;
 using namespace ngraph::pass;
 
@@ -43,6 +46,20 @@ ngraph::pass::low_precision::LayerTransformation::Params LayerTransformation::cr
         true,
         true,
         { ngraph::element::i8 },
+        { ngraph::element::i8 });
+}
+
+ngraph::pass::low_precision::LayerTransformation::Params LayerTransformation::createParamsU8I8AndI8() {
+    return low_precision::LayerTransformation::Params(
+        true,
+        true,
+        true,
+        low_precision::LayerTransformation::QuantizedTensorAlignment::None,
+        low_precision::LayerTransformation::QuantizedTensorAlignment::None,
+        false,
+        true,
+        true,
+        { ngraph::element::u8, ngraph::element::i8 },
         { ngraph::element::i8 });
 }
 
