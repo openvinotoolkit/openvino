@@ -29,6 +29,10 @@ This guide provides installation steps for Intel® Distribution of OpenVINO™ t
    ```sh
    conda install openvino-ie4py-ubuntu18 -c intel
    ```
+ - CentOS* 7.4 
+   ```sh
+   conda install openvino-ie4py-centos7 -c intel
+   ```
  - Windows* 10 and macOS*
    ```sh
    conda install openvino-ie4py -c intel
