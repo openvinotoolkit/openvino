@@ -112,7 +112,7 @@ NGRAPH_OP(Reshape, ngraph::op::v1)
 NGRAPH_OP(Result, ngraph::op::v0)
 
 // Moved out of opset2, it was added to opset1 by mistake
-// NGRAPH_OP(Reverse, ngraph::op::v1)
+NGRAPH_OP(Reverse, ngraph::op::v1)
 
 NGRAPH_OP(ReverseSequence, ngraph::op::v0)
 
