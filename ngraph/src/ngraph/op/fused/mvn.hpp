@@ -77,6 +77,8 @@ namespace ngraph
                 bool get_normalize_variance() const { return m_normalize_variance; }
                 AxisSet get_reduction_axes() const { return m_reduction_axes; }
                 void set_reduction_axes(AxisSet axes) { m_reduction_axes = axes; }
+
+                bool evaluate(const HostTensorVector& output_values, const HostTensorVector& input_values) override;
             private:
                 double m_eps = 1e-9;
                 bool m_across_channels;

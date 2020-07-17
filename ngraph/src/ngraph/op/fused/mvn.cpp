@@ -23,6 +23,7 @@
 #include "ngraph/op/divide.hpp"
 #include "ngraph/op/sqrt.hpp"
 #include "ngraph/op/subtract.hpp"
+#include "ngraph/runtime/reference/mvn.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -115,4 +116,43 @@ bool op::MVN::visit_attributes(AttributeVisitor& visitor)
     visitor.on_attribute("normalize_variance", m_normalize_variance);
     visitor.on_attribute("reduction_axes", m_reduction_axes);
     return true;
+}
+
+
+namespace {
+    template<element::Type_t ET>
+    inline bool
+    evaluate(const HostTensorPtr &arg, const HostTensorPtr &out, bool normalize_variance,
+             AxisSet reduction_axes, double eps) {
+        using T = typename element_type_traits<ET>::value_type;
+        runtime::reference::mvn<T>(arg->get_data_ptr<ET>(), out->get_data_ptr<ET>(), arg->get_shape(), normalize_variance,
+                                   reduction_axes, eps);
+        return true;
+    }
+
+    bool evaluate_mvn(const HostTensorPtr &args, const HostTensorPtr &out, bool normalize_variance, AxisSet reduction_axes,
+                      double eps) {
+        bool rc = true;
+
+        switch (out->get_element_type()) {
+            TYPE_CASE(i8)(args, out, normalize_variance, reduction_axes, eps);
+                break;
+            TYPE_CASE(i32)(args, out, normalize_variance, reduction_axes, eps);
+                break;
+            TYPE_CASE(u8)(args, out, normalize_variance, reduction_axes, eps);
+                break;
+            TYPE_CASE(f16)(args, out, normalize_variance, reduction_axes, eps);
+                break;
+            TYPE_CASE(f32)(args, out, normalize_variance, reduction_axes, eps);
+                break;
+            default:
+                rc = false;
+                break;
+        }
+        return rc;
+    }
+}
+
+bool op::MVN::evaluate(const HostTensorVector &outputs, const HostTensorVector &inputs) {
+    return evaluate_mvn(inputs[0], outputs[0], m_normalize_variance, m_reduction_axes, m_eps);
 }
