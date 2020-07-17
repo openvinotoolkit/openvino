@@ -402,7 +402,11 @@ protected:
         //    PluginConfigInternalParams::KEY_LP_TRANSFORMS_MODE,
         //    transformationsParams.transformationsInPluginEnabled ? PluginConfigParams::YES : PluginConfigParams::NO);
 
-        usedNetwork = cloneNet(network);
+        if (network.getFunction()) {
+            usedNetwork = std::make_shared<InferenceEngine::details::CNNNetworkImpl>(network);
+        } else {
+            usedNetwork = cloneNet(network);
+        }
         ExecutableNetwork exeNetwork = ie.LoadNetwork(network, p.deviceName, config);
         InferRequest inferRequest = exeNetwork.CreateInferRequest();
         if (inputs.empty()) {
