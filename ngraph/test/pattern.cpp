@@ -323,7 +323,7 @@ TEST(pattern, matcher)
     auto b = make_shared<op::Parameter>(element::i32, shape);
 
     auto is_bea = [](std::shared_ptr<Node> node) -> bool {
-        return op::util::is_binary_elementwise_arithmetic(node.get());
+        return op::is_binary_elementwise_arithmetic(node);
     };
     auto bea = std::make_shared<pattern::op::Any>(a, is_bea, NodeVector{a, b});
     auto add_ab = a + b;

@@ -25,11 +25,10 @@ namespace ngraph
 {
     namespace op
     {
-        namespace util
-        {
-            ONNX_IMPORTER_API
-            bool is_null(const ngraph::Node* node);
-        }
+        ONNX_IMPORTER_API
+        bool is_null(const ngraph::Node* node);
+        ONNX_IMPORTER_API
+        bool is_null(const std::shared_ptr<ngraph::Node>& node);
     }
     namespace onnx_import
     {

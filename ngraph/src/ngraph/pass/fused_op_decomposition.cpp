@@ -31,7 +31,7 @@ bool pass::FusedOpDecomposition::run_on_node(shared_ptr<Node> node)
 {
     bool modified = false;
 
-    if (op::util::supports_decompose(node.get()))
+    if (op::supports_decompose(node))
     {
         if (m_has_direct_support && m_has_direct_support(*node))
         {

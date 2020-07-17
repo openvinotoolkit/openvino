@@ -32,7 +32,12 @@ namespace ngraph
     } // namespace onnx_import
 } // namespace ngraph
 
-bool ngraph::op::util::is_null(const ngraph::Node* node)
+bool ngraph::op::is_null(const ngraph::Node* node)
 {
     return dynamic_cast<const ngraph::onnx_import::NullNode*>(node) != nullptr;
+}
+
+bool ngraph::op::is_null(const std::shared_ptr<ngraph::Node>& node)
+{
+    return is_null(node.get());
 }

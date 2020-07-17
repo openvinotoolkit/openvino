@@ -136,7 +136,7 @@ namespace
                      *node);
         const auto& arg_shape = arg_pshape.to_shape();
 
-        NGRAPH_CHECK(op::util::is_constant(target_shape_input.get_node()));
+        NGRAPH_CHECK(op::is_constant(target_shape_input.get_node()));
         auto target_shape = node->get_output_shape(0);
         NGRAPH_CHECK(node->get_broadcast_axes().first);
 
@@ -251,8 +251,8 @@ namespace
 
         const auto target_shape_input = node->input_value(1).get_node_shared_ptr();
         const auto input_rank = node->get_input_partial_shape(0).rank();
-        if (op::util::is_constant(target_shape_input.get()) &&
-            node->get_output_partial_shape(0).is_static() && input_rank.is_static())
+        if (op::is_constant(target_shape_input) && node->get_output_partial_shape(0).is_static() &&
+            input_rank.is_static())
         {
             const auto output_shape = node->get_output_shape(0);
             replacement_node = make_shared<op::Reshape>(
@@ -422,7 +422,7 @@ namespace
         auto off_value = node->input_value(3);
         const auto axis = node->get_axis();
 
-        NGRAPH_CHECK(op::util::is_constant(depth), "depth input must be constant", *node);
+        NGRAPH_CHECK(op::is_constant(depth), "depth input must be constant", *node);
         const auto output_pshape = node->get_output_partial_shape(0);
         NGRAPH_CHECK(output_pshape.is_static(), "output shape must be static", *node);
         const auto output_shape = output_pshape.to_shape();
@@ -530,7 +530,7 @@ namespace
     shared_ptr<Node> op_cast(shared_ptr<op::v1::Reverse> node)
     {
         auto axes_node = node->input_value(1).get_node_shared_ptr();
-        NGRAPH_CHECK(op::util::is_constant(axes_node.get()),
+        NGRAPH_CHECK(op::is_constant(axes_node),
                      "Unable to convert Reverse:v1 to Reverse:v0 "
                      "if reduction axes are not constant. Node: ",
                      *node);
@@ -686,7 +686,7 @@ namespace
         const auto data_shape = data_pshape.to_shape();
 
         const auto order_node = node->input_value(1).get_node_shared_ptr();
-        NGRAPH_CHECK(op::util::is_constant(order_node.get()),
+        NGRAPH_CHECK(op::is_constant(order_node),
                      "Unable to convert Transpose:v1 to Reshape:v0 "
                      "if order node is not constant. Node: ",
                      *node);
@@ -716,7 +716,7 @@ namespace
     {
         const auto split_lengths = node->input_value(2).get_node_shared_ptr();
 
-        NGRAPH_CHECK(op::util::is_constant(split_lengths.get()),
+        NGRAPH_CHECK(op::is_constant(split_lengths),
                      "Unable to convert VariadicSplit:v1 to Split:v0 "
                      "if 'split_lengths' input is not constant. Node: ",
                      *node);

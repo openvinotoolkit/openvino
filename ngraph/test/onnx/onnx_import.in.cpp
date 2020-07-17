@@ -377,7 +377,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_missing_input)
             std::shared_ptr<ngraph::Node> C = ng_inputs.at(2);
 
             A = A * C;
-            if (!ngraph::op::util::is_null(B.get()))
+            if (!ngraph::op::is_null(B))
             {
                 B = B / C;
             }
@@ -394,7 +394,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_missing_input)
 
             for (const auto& ng_input : ng_inputs)
             {
-                if (!ngraph::op::util::is_null(ng_input.get()))
+                if (!ngraph::op::is_null(ng_input))
                 {
                     result = ng_input * result;
                 }

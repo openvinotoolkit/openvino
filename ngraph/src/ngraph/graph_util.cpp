@@ -131,7 +131,7 @@ void ngraph::replace_node(std::shared_ptr<Node> target,
                           std::shared_ptr<Node> replacement,
                           const std::vector<int64_t>& output_order)
 {
-    if (ngraph::op::util::is_output(target.get()))
+    if (ngraph::op::is_output(target))
     {
         throw ngraph_error("Result nodes cannot be replaced.");
     }
@@ -186,7 +186,7 @@ void ngraph::replace_node(std::shared_ptr<Node> target,
 void ngraph::replace_node(const std::shared_ptr<Node>& target,
                           const OutputVector& replacement_values)
 {
-    if (ngraph::op::util::is_output(target.get()))
+    if (ngraph::op::is_output(target))
     {
         throw ngraph_error("Result nodes cannot be replaced.");
     }
@@ -259,7 +259,7 @@ bool ngraph::is_post_dominated(Node* X, Node* Y)
     {
         ngraph::Node* curr = stack.top();
         visited.insert(curr);
-        if (ngraph::op::util::is_output(curr))
+        if (ngraph::op::is_output(curr))
         {
             return false;
         }
@@ -640,7 +640,7 @@ bool ngraph::is_used(Node* node)
         ngraph::Node* n = stack.top();
         if (instances_seen.count(n) == 0)
         {
-            if (ngraph::op::util::is_output(n))
+            if (ngraph::op::is_output(n))
             {
                 return true;
             }
@@ -674,7 +674,7 @@ bool ngraph::possibly_overwritten(Node* node)
     {
         for (auto& input : output.get_target_inputs())
         {
-            if (op::util::is_op(input.get_node()))
+            if (op::is_op(input.get_node()))
             {
                 auto op = static_cast<ngraph::op::Op*>(input.get_node());
                 if (auto op_annotations = op->get_op_annotations())
@@ -713,7 +713,7 @@ bool ngraph::is_valid_rank(const std::shared_ptr<Node>& node, std::vector<size_t
 
 bool ngraph::compare_constants(const std::shared_ptr<Node>& n1, const std::shared_ptr<Node>& n2)
 {
-    if (!(op::util::is_constant(n1.get()) && op::util::is_constant(n2.get())))
+    if (!(op::is_constant(n1) && op::is_constant(n2)))
     {
         return false;
     }

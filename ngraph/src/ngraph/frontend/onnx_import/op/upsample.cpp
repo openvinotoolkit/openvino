@@ -138,7 +138,7 @@ namespace ngraph
                         attrs.axes.insert(ax);
                     }
 
-                    if (ngraph::op::util::is_constant(scales.get()) && data_shape.is_static())
+                    if (ngraph::op::is_constant(scales) && data_shape.is_static())
                     {
                         const auto scales_const =
                             as_type_ptr<default_opset::Constant>(scales->shared_from_this());

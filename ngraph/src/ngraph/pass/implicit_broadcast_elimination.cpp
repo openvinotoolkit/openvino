@@ -28,7 +28,7 @@ using namespace ngraph;
 
 bool ngraph::pass::ImplicitBroadcastElimination::run_on_node(std::shared_ptr<Node> node)
 {
-    if (ngraph::op::util::supports_auto_broadcast(node.get()))
+    if (ngraph::op::supports_auto_broadcast(node))
     {
         if (node->get_autob().m_type != op::AutoBroadcastType::NONE)
         {
@@ -46,7 +46,7 @@ bool ngraph::pass::ImplicitBroadcastElimination::run_on_node(std::shared_ptr<Nod
 NodeVector ngraph::pass::explicit_broadcast(std::shared_ptr<Node>& node)
 {
     NodeVector rc;
-    if (ngraph::op::util::supports_auto_broadcast(node.get()))
+    if (ngraph::op::supports_auto_broadcast(node))
     {
         auto autob = node->get_autob();
         if (autob.m_type == op::AutoBroadcastType::NONE)

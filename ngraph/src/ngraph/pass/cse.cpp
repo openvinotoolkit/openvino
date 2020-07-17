@@ -278,7 +278,7 @@ namespace std
 
             // TODO: Do we need another map, so we could
             // specify how to compute hash for each op?
-            if (ngraph::op::util::is_commutative(&p_this))
+            if (ngraph::op::is_commutative(&p_this))
             {
                 sort(begin(cargs), end(cargs));
             }
@@ -302,7 +302,7 @@ bool ngraph::pass::CommonSubexpressionElimination::run_on_function(shared_ptr<ng
 
     for (auto n : f->get_ordered_ops())
     {
-        if (op::util::is_output(n.get()) || op::util::is_parameter(n.get()))
+        if (op::is_output(n) || op::is_parameter(n))
         {
             continue;
         }

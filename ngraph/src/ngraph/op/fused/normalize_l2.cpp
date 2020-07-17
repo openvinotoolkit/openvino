@@ -56,8 +56,7 @@ void op::NormalizeL2::pre_validate_and_infer_types()
     const auto& input_rank = input_pshape.rank();
     const auto& axes_rank = axes_pshape.rank();
 
-    NODE_VALIDATION_CHECK(
-        this, op::util::is_constant(axes_node.get()), "Input axes must be Constant type");
+    NODE_VALIDATION_CHECK(this, op::is_constant(axes_node), "Input axes must be Constant type");
 
     if (axes_rank.is_static())
     {

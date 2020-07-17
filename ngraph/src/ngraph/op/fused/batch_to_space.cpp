@@ -153,13 +153,13 @@ void ngraph::op::v1::BatchToSpace::pre_validate_and_infer_types()
     auto block = input_value(1);
     auto crops_begin = input_value(2);
     auto crops_end = input_value(3);
-    NGRAPH_CHECK(ngraph::op::util::is_constant(block.get_node()),
+    NGRAPH_CHECK(ngraph::op::is_constant(block.get_node()),
                  "block_shape input node is expected to be a static constant");
 
-    NGRAPH_CHECK(ngraph::op::util::is_constant(crops_begin.get_node()),
+    NGRAPH_CHECK(ngraph::op::is_constant(crops_begin.get_node()),
                  "crops_begin input node is expected to be a static constant");
 
-    NGRAPH_CHECK(ngraph::op::util::is_constant(crops_end.get_node()),
+    NGRAPH_CHECK(ngraph::op::is_constant(crops_end.get_node()),
                  "crops_end input node is expected to be a static constant");
 
     const auto& data_type = get_input_element_type(0);

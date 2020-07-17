@@ -272,8 +272,8 @@ void op::v1::Pad::validate_and_infer_types()
 
     auto pads_begin_node = input_value(1).get_node_shared_ptr();
     auto pads_end_node = input_value(2).get_node_shared_ptr();
-    if (arg_shape_rank.is_static() && op::util::is_constant(pads_begin_node.get()) &&
-        op::util::is_constant(pads_end_node.get()))
+    if (arg_shape_rank.is_static() && op::is_constant(pads_begin_node) &&
+        op::is_constant(pads_end_node))
     {
         const auto implied_rank = pads_begin_coord.size();
         std::vector<Dimension> result_dims(implied_rank, Dimension::dynamic());

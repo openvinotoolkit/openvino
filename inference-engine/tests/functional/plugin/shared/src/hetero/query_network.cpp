@@ -28,9 +28,9 @@ TEST_P(QueryNetworkTest, queryNetworkResultContainAllAndOnlyInputLayers) {
     ASSERT_NE(nullptr, cnnNetwork.getFunction());
     std::set<std::string> expectedLayers;
     for (auto&& node : function->get_ops()) {
-        if (!ngraph::op::util::is_parameter(node.get()) &&
-                !ngraph::op::util::is_constant(node.get()) &&
-                !ngraph::op::util::is_output(node.get())) {
+        if (!ngraph::op::is_parameter(node) &&
+                !ngraph::op::is_constant(node) &&
+                !ngraph::op::is_output(node)) {
             expectedLayers.insert(node->get_friendly_name());
         }
     }

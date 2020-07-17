@@ -182,7 +182,7 @@ void swim(Input<Node> input, shared_ptr<op::Reshape> reshape)
             continue;
         }
         NGRAPH_DEBUG << "Processing (swimming) " << n->get_name();
-        if (op::util::is_unary_elementwise_arithmetic(n.get()))
+        if (op::is_unary_elementwise_arithmetic(n))
         {
             Swimmer nsw{n->input(0), csw.reshape};
             work_queue.push_back(nsw);
@@ -550,7 +550,7 @@ bool ngraph::pass::ReshapeSinking::run_on_function(shared_ptr<ngraph::Function> 
     {
         NGRAPH_DEBUG << "Start: Processing node " << n->get_name();
         // collect all Result nodes for a sanity check
-        if (ngraph::op::util::is_output(n.get()))
+        if (ngraph::op::is_output(n))
         {
             results.push_back(n);
         }
@@ -559,11 +559,11 @@ bool ngraph::pass::ReshapeSinking::run_on_function(shared_ptr<ngraph::Function> 
         {
             sink_reshape(reshape, reorders, reshapes_to_delete);
         }
-        else if (op::util::is_unary_elementwise_arithmetic(n.get()))
+        else if (op::is_unary_elementwise_arithmetic(n))
         {
             sink_unary(n, reorders, reshapes_to_delete);
         }
-        else if (op::util::is_binary_elementwise_arithmetic(n.get()))
+        else if (op::is_binary_elementwise_arithmetic(n))
         {
             sink_binary(n, reorders, reshapes_to_delete);
         }

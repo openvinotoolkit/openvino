@@ -63,8 +63,8 @@ void ngraph::op::v1::VariadicSplit::validate_and_infer_types()
         const auto& data_type = data.get_element_type();
 
         set_output_size(num_outputs);
-        if (data_shape.rank().is_static() && op::util::is_constant(axis_input.get()) &&
-            op::util::is_constant(split_lengths_input.get()))
+        if (data_shape.rank().is_static() && op::is_constant(axis_input) &&
+            op::is_constant(split_lengths_input))
         {
             const auto axis_input_constant = as_type_ptr<op::Constant>(axis_input);
             auto axis_val = axis_input_constant->cast_vector<int64_t>()[0];

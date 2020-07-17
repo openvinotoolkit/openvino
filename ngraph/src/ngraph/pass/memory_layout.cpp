@@ -49,7 +49,7 @@ bool pass::MemoryLayout::run_on_function(shared_ptr<Function> function)
         std::map<descriptor::Tensor*, descriptor::Tensor*> in_place_outputs;
         std::set<const descriptor::Tensor*> reused_inputs;
 
-        if (op::util::is_op(node.get()))
+        if (op::is_op(node))
         {
             auto op = std::static_pointer_cast<op::Op>(node);
             // concat and slice in_place_oi should be treated differently
@@ -68,8 +68,7 @@ bool pass::MemoryLayout::run_on_function(shared_ptr<Function> function)
                         if ((node->liveness_free_list.count(input) != 0 ||
                              is_type<op::GetOutputElement>(node) ||
                              (m_disable_memory_sharing && !oi_pair.destructive &&
-                              !op::util::is_parameter(input_node) &&
-                              !op::util::is_constant(input_node))) &&
+                              !op::is_parameter(input_node) && !op::is_constant(input_node))) &&
                             node->liveness_new_list.count(output) != 0)
 
                         {

@@ -165,7 +165,7 @@ bool runtime::interpreter::INTExecutable::call(const vector<shared_ptr<runtime::
     for (auto op : m_nodes)
     {
         event::Duration d2(op->description(), "Interpreter");
-        if (op::util::is_parameter(op.get()))
+        if (op::is_parameter(op))
         {
             continue;
         }

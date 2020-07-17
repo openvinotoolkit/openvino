@@ -345,7 +345,7 @@ static bool eliminate_squeeze(const std::shared_ptr<Node>& node)
     if (auto unsqueeze = as_type_ptr<opset3::Unsqueeze>(input))
     {
         PartialShape data_shape;
-        if (op::util::is_parameter(input.get()))
+        if (op::is_parameter(input))
         {
             data_shape = unsqueeze->input(0).get_partial_shape();
         }
@@ -394,7 +394,7 @@ static bool eliminate_squeeze(const std::shared_ptr<Node>& node)
     if (auto squeeze_i = as_type_ptr<opset3::Squeeze>(input))
     {
         PartialShape data_shape;
-        if (op::util::is_parameter(input.get()))
+        if (op::is_parameter(input))
         {
             data_shape = squeeze_i->input(0).get_partial_shape();
         }

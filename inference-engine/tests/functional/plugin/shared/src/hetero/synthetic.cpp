@@ -23,9 +23,9 @@ std::vector<FunctionParameter> HeteroSyntheticTest::_singleMajorNodeFunctions{[]
     for (auto&& builder : builders) {
         auto function = builder();
         for (auto&& node : function->get_ordered_ops()) {
-            if (!ngraph::op::util::is_constant(node.get()) &&
-                    !(ngraph::op::util::is_parameter(node.get())) &&
-                    !(ngraph::op::util::is_output(node.get()))) {
+            if (!ngraph::op::is_constant(node) &&
+                    !(ngraph::op::is_parameter(node)) &&
+                    !(ngraph::op::is_output(node))) {
                 result.push_back(FunctionParameter{{node->get_friendly_name()}, function});
             }
         }
@@ -44,9 +44,9 @@ std::vector<FunctionParameter> HeteroSyntheticTest::_randomMajorNodeFunctions{[]
             for (std::size_t i = 0; i < ordered_ops.size(); ++i) {
                 std::unordered_set<std::string> majorPluginNodeIds;
                 for (auto&& node : ordered_ops) {
-                    if (!(ngraph::op::util::is_constant(node.get())) &&
-                            !(ngraph::op::util::is_parameter(node.get())) &&
-                            !(ngraph::op::util::is_output(node.get())) && d(e)) {
+                    if (!(ngraph::op::is_constant(node)) &&
+                            !(ngraph::op::is_parameter(node)) &&
+                            !(ngraph::op::is_output(node)) && d(e)) {
                         majorPluginNodeIds.emplace(node->get_friendly_name());
                     }
                 }
@@ -122,9 +122,9 @@ std::string HeteroSyntheticTest::SetUpAffinity() {
     auto& pluginParameters = std::get<Plugin>(param);
     affinities += "\n{\n";
     for (auto&& node : std::get<Function>(param)._function->get_ordered_ops()) {
-        if (!ngraph::op::util::is_constant(node.get()) &&
-                !(ngraph::op::util::is_parameter(node.get())) &&
-                !(ngraph::op::util::is_output(node.get()))) {
+        if (!ngraph::op::is_constant(node) &&
+                !(ngraph::op::is_parameter(node)) &&
+                !(ngraph::op::is_output(node))) {
             std::string affinity;
             if (std::get<Function>(param)._majorPluginNodeIds.end() !=
                 std::get<Function>(param)._majorPluginNodeIds.find(node->get_friendly_name())) {

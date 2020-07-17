@@ -54,7 +54,7 @@ namespace ngraph
                         const std::shared_ptr<ngraph::Node>& body_cond)
                     {
                         bool loop_cond_value = false;
-                        if (ngraph::op::util::is_constant(loop_cond.get()) &&
+                        if (ngraph::op::is_constant(loop_cond) &&
                             loop_cond->get_element_type() == element::boolean)
                         {
                             loop_cond_value = as_type_ptr<default_opset::Constant>(loop_cond)
@@ -64,7 +64,7 @@ namespace ngraph
                         // According to ONNX skipped cond input (is_null) means
                         // that is has true value
                         bool is_loop_cond_true =
-                            ngraph::op::util::is_null(loop_cond.get()) || loop_cond_value == true;
+                            ngraph::op::is_null(loop_cond) || loop_cond_value == true;
 
                         if (!is_loop_cond_true)
                         {
@@ -79,7 +79,7 @@ namespace ngraph
                         {
                             const auto second_input =
                                 body_cond->input_value(1).get_node_shared_ptr();
-                            if (ngraph::op::util::is_constant(second_input.get()) &&
+                            if (ngraph::op::is_constant(second_input) &&
                                 second_input->get_element_type() == element::boolean &&
                                 as_type_ptr<default_opset::Constant>(second_input)
                                         ->cast_vector<bool>()
@@ -102,7 +102,7 @@ namespace ngraph
                     // At this moment nGraph TensorIterator doesn't have support for conditional
                     // termination of iterations.
                     CHECK_VALID_NODE(node,
-                                     !ngraph::op::util::is_null(trip_count.get()),
+                                     !ngraph::op::is_null(trip_count),
                                      "Currently nGraph requires trip count input to be provided.");
 
                     const OutputVector loop_carried_dependencies{std::next(ng_inputs.begin(), 2),

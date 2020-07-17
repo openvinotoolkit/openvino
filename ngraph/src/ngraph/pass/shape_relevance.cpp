@@ -92,7 +92,7 @@ bool pass::ShapeRelevance::run_on_function(std::shared_ptr<Function> f)
             shape_determinants.insert(node);
             already_visited.insert(node);
 
-            if (op::util::is_parameter(node))
+            if (op::is_parameter(node))
             {
                 auto node_as_param = static_cast<op::Parameter*>(node);
                 if (!node_as_param->is_relevant_to_shapes())

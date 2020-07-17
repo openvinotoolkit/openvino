@@ -54,7 +54,7 @@ op::v0::Softmax::Softmax(const Output<Node>& arg, const Output<Node>& axes)
 
 bool op::v0::Softmax::are_axes_constant() const
 {
-    return op::util::is_constant(input_value(1).get_node());
+    return op::is_constant(input_value(1).get_node());
 }
 
 const AxisSet op::v0::Softmax::get_axes() const

@@ -84,7 +84,7 @@ void Function::validate_nodes_and_infer_types()
         node->revalidate_and_infer_types();
 
         // If we find a parameter make sure it is in the list of parameters of the function
-        if (op::util::is_parameter(node.get()))
+        if (op::is_parameter(node))
         {
             auto it = std::find(m_parameters.begin(), m_parameters.end(), node);
             if (it == m_parameters.end())

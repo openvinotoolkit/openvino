@@ -76,7 +76,7 @@ void check_rt_info(const std::shared_ptr<ngraph::Function> & f) {
 
     std::ostringstream err_log;
     for (auto & op : f->get_ops()) {
-        if (ngraph::op::util::is_constant(op.get())) continue;
+        if (ngraph::op::is_constant(op)) continue;
 
         const auto & rt_info = op->get_rt_info();
         for (const auto & attr_name : attrs_to_check) {

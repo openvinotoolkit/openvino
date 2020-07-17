@@ -38,7 +38,7 @@ namespace ngraph
             {
                 std::shared_ptr<ngraph::Node> get_zero_point(const NodeVector& inputs)
                 {
-                    if (inputs.size() == 3 && !ngraph::op::util::is_null(inputs[2].get()))
+                    if (inputs.size() == 3 && !ngraph::op::is_null(inputs[2]))
                     {
                         auto zero_point = inputs[2];
 

@@ -349,7 +349,7 @@ static std::string pretty_value(const vector<T>& value)
 
 std::string pass::VisualizeTree::get_constant_value(std::shared_ptr<Node> node, size_t max_elements)
 {
-    if (!op::util::is_constant(node.get()))
+    if (!op::is_constant(node))
         return {};
     std::stringstream ss;
     ss << "{" << node->get_element_type().get_type_name() << "}";
@@ -393,7 +393,7 @@ string pass::VisualizeTree::get_attributes(shared_ptr<Node> node)
     vector<string> attributes;
     attributes.push_back("shape=box");
 
-    if (ngraph::op::util::is_output(node.get()))
+    if (ngraph::op::is_output(node))
     {
         attributes.push_back("color=crimson");
         attributes.push_back("penwidth=1.5");

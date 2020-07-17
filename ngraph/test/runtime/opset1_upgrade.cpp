@@ -405,7 +405,7 @@ namespace
 
     shared_ptr<Node> op_cast(shared_ptr<op::Softmax> node)
     {
-        NGRAPH_CHECK(op::util::is_constant(node->input_value(1).get_node()),
+        NGRAPH_CHECK(op::is_constant(node->input_value(1).get_node()),
                      "axes parameter is expected to be a static constant");
 
         AxisSet axes = node->get_axes();
@@ -488,9 +488,9 @@ namespace
 
     shared_ptr<Node> op_cast(shared_ptr<op::TopK> node)
     {
-        NGRAPH_CHECK(op::util::is_constant(node->input_value(1).get_node()),
+        NGRAPH_CHECK(op::is_constant(node->input_value(1).get_node()),
                      "parameter k is expected to be a static constant");
-        NGRAPH_CHECK(op::util::is_constant(node->input_value(2).get_node()),
+        NGRAPH_CHECK(op::is_constant(node->input_value(2).get_node()),
                      "parameter top_k_axis is expected to be a static constant");
 
         const auto k = node->get_k();

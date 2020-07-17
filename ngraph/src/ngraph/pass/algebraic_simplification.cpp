@@ -819,7 +819,7 @@ bool pass::AlgebraicSimplification::run_on_function(shared_ptr<Function> f)
     bool replaced = false;
     for (auto n : f->get_ordered_ops())
     {
-        if (op::util::is_output(n.get()) || op::util::is_parameter(n.get()))
+        if (op::is_output(n) || op::is_parameter(n))
         {
             continue;
         }

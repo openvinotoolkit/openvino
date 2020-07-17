@@ -188,7 +188,7 @@ namespace ngraph
                 return false;
             }
 
-            if (ngraph::op::util::is_commutative(graph_node.get()))
+            if (ngraph::op::is_commutative(graph_node))
             {
                 // TODO: [nikolayk] we don't really have to use lexicographically-based perms,
                 // heap's algo should be faster

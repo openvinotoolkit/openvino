@@ -81,7 +81,7 @@ void op::util::ScatterBase::validate_and_infer_types()
 
     bool compatible = true;
     int64_t axis;
-    bool is_axis_constant = op::util::is_constant(input_value(AXIS).get_node());
+    bool is_axis_constant = op::is_constant(input_value(AXIS).get_node());
 
     // Get axis value if possible.
     if (is_axis_constant && data_shape.rank().is_static())

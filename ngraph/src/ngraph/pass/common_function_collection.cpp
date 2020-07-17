@@ -49,11 +49,11 @@ bool pass::CommonFunctionCollection::run_on_module(vector<shared_ptr<Function>>&
     {
         for (const shared_ptr<Node>& n : current_function->get_ordered_ops())
         {
-            if (op::util::is_constant(n.get()) || op::util::is_parameter(n.get()))
+            if (op::is_constant(n) || op::is_parameter(n))
             {
                 continue;
             }
-            if (op::util::is_op(n.get()))
+            if (op::is_op(n))
             {
                 auto op = std::static_pointer_cast<op::Op>(n);
                 auto annotations = op->get_op_annotations();

@@ -56,7 +56,7 @@ namespace
                 std::shared_ptr<ngraph::Node>(m_opset.create(op_type_name));
 
             NGRAPH_CHECK(op_node != nullptr, "Couldn't create operator: ", op_type_name);
-            NGRAPH_CHECK(!ngraph::op::util::is_constant(op_node.get()),
+            NGRAPH_CHECK(!ngraph::op::is_constant(op_node),
                          "Currently NodeFactory doesn't support Constant node: ",
                          op_type_name);
 
