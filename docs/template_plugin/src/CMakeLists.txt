@@ -34,8 +34,7 @@ target_link_libraries(${TARGET_NAME} PRIVATE
 # Link inference backend library to plugin. Here we use ngraph interpreter_backend as example
 target_link_libraries(${TARGET_NAME} PRIVATE
     ngraph_backend
-    interpreter_backend
-    half)
+    interpreter_backend)
 
 # ATTENTION: uncomment to register a plugin in the plugins.xml file
 # ie_register_plugins(MAIN_TARGET ${TARGET_NAME}
