@@ -55,16 +55,18 @@ class Eltwise4dBroadcast : public testing::WithParamInterface<eltwiseParams>,
             std::tie(netPrecision, targetDevice, configuration, eltwiseType) = this->GetParam();
             auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
-            auto params = ngraph::builder::makeParams(ngPrc, { {1, 7728} });
+            outPrc = InferenceEngine::Precision::FP32;
 
-            std::vector<size_t> outFormShapes1 = { 1, 1, 644, 12 };
+            auto params = ngraph::builder::makeParams(ngPrc, { {1, 72} });
+
+            std::vector<size_t> outFormShapes1 = { 1, 1, 6, 12 };
             auto pattern1 = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 4 }, outFormShapes1);
             auto reshape1 = std::make_shared<ngraph::opset1::Reshape>(params[0], pattern1, false);
 
             auto constant1 = ngraph::builder::makeConstant(ngPrc, { 1, 1, 1, 12 }, {}, true);
             auto eltwise = ngraph::builder::makeEltwise(reshape1, constant1, eltwiseType);
 
-            std::vector<size_t> outFormShapes2 = { 1, 7728 };
+            std::vector<size_t> outFormShapes2 = { 1, 72 };
             auto pattern2 = std::make_shared<ngraph::opset1::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{ 2 }, outFormShapes2);
             auto reshape2 = std::make_shared<ngraph::opset1::Reshape>(eltwise, pattern2, false);
 
@@ -100,8 +102,7 @@ protected:
         std::tie(netPrecision, targetDevice, configuration, eltwiseType) = this->GetParam();
         auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
-        inPrc = netPrecision;
-        outPrc = netPrecision;
+        outPrc = InferenceEngine::Precision::FP32;
 
         auto params = ngraph::builder::makeParams(ngPrc, { {1, 72}, {1, 72} });
 
@@ -131,7 +132,9 @@ protected:
     };
 
     const std::vector<InferenceEngine::Precision> netPrecisions = {
-        InferenceEngine::Precision::FP32
+        InferenceEngine::Precision::FP32,
+        //BroadcastPass doesn't work with FP16
+        //InferenceEngine::Precision::FP16
     };
 
     const std::vector<std::map<std::string, std::string>> configs = {
