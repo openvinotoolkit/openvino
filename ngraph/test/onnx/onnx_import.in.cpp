@@ -1225,7 +1225,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_resize11_sizes_linear)
 
     const Shape expected_output_shape{2, 1, 4, 8};
     auto test_case = test::TestCase<TestEngine>(function);
-    std::vector<float> input_data{1.0f, 3.0f, 4.0f, 8.0f, 6.0f, 2.0f, 7.0f, 11.0f};
+    std::vector<float> input_data{2.0f, 4.0f, 1.0f, 3.0f, 7.0f, 8.0f, 9.0f, 6.0f};
     test_case.add_input<float>(input_data);
     test_case.add_expected_output<float>(
         expected_output_shape,
