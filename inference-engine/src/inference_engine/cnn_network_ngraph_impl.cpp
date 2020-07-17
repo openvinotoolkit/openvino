@@ -42,6 +42,8 @@ using ngraph::Function;
 static std::shared_ptr<ngraph::Function> copyFunction(const std::shared_ptr<const ngraph::Function>& func,
                                                       bool constFolding,
                                                       const std::map<std::string, std::vector<size_t>>& inputShapes) {
+    if (func == nullptr)
+        return nullptr;
     ::ngraph::op::GenericIE::DisableReshape noReshape(func);
     auto original_parameters = func->get_parameters();
 
@@ -71,14 +73,25 @@ static std::shared_ptr<ngraph::Function> copyFunction(const std::shared_ptr<cons
     return specialized_function;
 }
 
-// WA: for cnnNetwork ngraph constructor
-CNNNetwork::CNNNetwork(const std::shared_ptr<const ngraph::Function>& graph) {
+CNNNetwork::CNNNetwork(const std::shared_ptr<const ngraph::Function>& graph): CNNNetwork(copyFunction(graph, false, {})) {
+}
+
+CNNNetwork::CNNNetwork(const std::shared_ptr<ngraph::Function>& graph) {
     if (graph == nullptr) {
         THROW_IE_EXCEPTION << "CNNNetwork was not initialized: 'graph' object is empty";
     }
 
+    // Create CNNNetworkNGraphImpl
+    network = std::make_shared<CNNNetworkNGraphImpl>(graph);
+    actual = network.get();
+    if (actual == nullptr) {
+        THROW_IE_EXCEPTION << "CNNNetwork was not initialized.";
+    }
+}
+
+CNNNetwork::CNNNetwork(const ICNNNetwork& graph) {
     // Copy nGraph function
-    network = std::make_shared<CNNNetworkNGraphImpl>(copyFunction(graph, false, {}));
+    network = std::make_shared<CNNNetworkNGraphImpl>(graph);
     actual = network.get();
     if (actual == nullptr) {
         THROW_IE_EXCEPTION << "CNNNetwork was not initialized.";
@@ -143,6 +156,35 @@ CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const std::shared_ptr<Function>& nGra
             output.second->getPrecision() != Precision::I32) {
             output.second->setPrecision(Precision::FP32);
         }
+    }
+}
+
+CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const ICNNNetwork& network) {
+    if (network.getFunction() == nullptr) {
+        cnnNetwork.reset(new CNNNetworkImpl(network));
+        return;
+    }
+
+    _ngraph_function = copyFunction(network.getFunction(), false, {});
+    InputsDataMap inputs;
+    OutputsDataMap outputs;
+    network.getInputsInfo(inputs);
+    network.getOutputsInfo(outputs);
+
+    for (const auto& outputInfo : outputs) {
+        const auto& name = outputInfo.second->getName();
+        DataPtr output = std::make_shared<Data>(name, outputInfo.second->getTensorDesc());
+        _outputData[name] = output;
+    }
+    for (const auto& inputInfo : inputs) {
+        InputInfo::Ptr info = std::make_shared<InputInfo>();
+        const auto& name = inputInfo.second->getInputData()->getName();
+        DataPtr input = std::make_shared<Data>(name, inputInfo.second->getInputData()->getTensorDesc());
+        info->setInputData(input);
+        info->getPreProcess() = inputInfo.second->getPreProcess();
+        info->setPrecision(inputInfo.second->getPrecision());
+        info->setLayout(inputInfo.second->getLayout());
+        _inputData[name] = info;
     }
 }
 

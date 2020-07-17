@@ -149,29 +149,7 @@ CNNLayerPtr clonelayer(const CNNLayer& source) {
 
 std::shared_ptr<ICNNNetwork> cloneNetwork(const ICNNNetwork& network) {
     if (auto func = network.getFunction()) {
-        CNNNetwork net(func);
-
-        InputsDataMap originInputs;
-        OutputsDataMap originOutputs;
-        network.getInputsInfo(originInputs);
-        network.getOutputsInfo(originOutputs);
-        InputsDataMap clonedInputs = net.getInputsInfo();
-        OutputsDataMap clonedOutputs = net.getOutputsInfo();
-
-        for (const auto& outputInfo : originOutputs) {
-            if (clonedOutputs.find(outputInfo.first) == clonedOutputs.end())
-                THROW_IE_EXCEPTION << "Cannot clone network! Cloned network doesn't contain all outputs";
-            clonedOutputs[outputInfo.first]->setPrecision(outputInfo.second->getPrecision());
-            clonedOutputs[outputInfo.first]->setLayout(outputInfo.second->getLayout());
-        }
-        for (const auto& inputInfo : originInputs) {
-            if (clonedInputs.find(inputInfo.first) == clonedInputs.end())
-                THROW_IE_EXCEPTION << "Cannot clone network! Cloned network doesn't contain all inputs";
-            clonedInputs[inputInfo.first]->setPrecision(inputInfo.second->getPrecision());
-            clonedInputs[inputInfo.first]->setLayout(inputInfo.second->getLayout());
-            clonedInputs[inputInfo.first]->getPreProcess() = inputInfo.second->getPreProcess();
-        }
-        return net;
+        return CNNNetwork(network);
     }
 
     return cloneNet(network);
