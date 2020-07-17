@@ -25,13 +25,15 @@ using namespace ngraph::pass;
 class GroupConvolutionTransformationTestParams {
 public:
     low_precision::LayerTransformation::Params transformationParams;
+    ngraph::Shape inputShape;
+    ngraph::Shape outputShape;
+    size_t group;
     ngraph::builder::subgraph::GroupConvolutionFunction::ActualValues actual;
     ngraph::builder::subgraph::GroupConvolutionFunction::ExpectedValues expected;
 };
 
 typedef std::tuple<
     ngraph::element::Type,
-    ngraph::Shape,
     bool,
     GroupConvolutionTransformationTestParams> ConvolutionTransformationParams;
 
@@ -39,18 +41,19 @@ class GroupConvolutionTransformation : public LayerTransformation, public testin
 public:
     void SetUp() override {
         const ngraph::element::Type precision = std::get<0>(GetParam());
-        const ngraph::Shape shape = std::get<1>(GetParam());
-        const bool updatePrecisions = std::get<2>(GetParam());
-        const GroupConvolutionTransformationTestParams testParams = std::get<3>(GetParam());
+        const bool updatePrecisions = std::get<1>(GetParam());
+        const GroupConvolutionTransformationTestParams testValues = std::get<2>(GetParam());
 
-        const low_precision::LayerTransformation::Params params = low_precision::LayerTransformation::Params(testParams.transformationParams).
+        const low_precision::LayerTransformation::Params params = low_precision::LayerTransformation::Params(testValues.transformationParams).
             setUpdatePrecisions(updatePrecisions);
 
         actualFunction = ngraph::builder::subgraph::GroupConvolutionFunction::getOriginal(
             precision,
-            shape,
+            testValues.inputShape,
+            testValues.outputShape,
+            testValues.group,
             params.updatePrecisions,
-            testParams.actual);
+            testValues.actual);
 
         SimpleLowPrecisionTransformer transform;
         transform.add<ngraph::pass::low_precision::GroupConvolutionTransformation, ngraph::opset1::GroupConvolution>(params);
@@ -58,22 +61,26 @@ public:
 
         referenceFunction = ngraph::builder::subgraph::GroupConvolutionFunction::getReference(
             precision,
-            shape,
+            testValues.inputShape,
+            testValues.outputShape,
+            testValues.group,
             params.updatePrecisions,
-            testParams.expected);
+            testValues.expected);
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<ConvolutionTransformationParams> obj) {
         ngraph::element::Type precision;
-        ngraph::Shape shape;
         bool updatePrecisions;
         GroupConvolutionTransformationTestParams params;
-        std::tie(precision, shape, updatePrecisions, params) = obj.param;
+        std::tie(precision, updatePrecisions, params) = obj.param;
 
         std::ostringstream result;
         result <<
-            LayerTransformation::getTestCaseNameByParams(precision, shape, params.transformationParams.setUpdatePrecisions(updatePrecisions)) <<
-            params.actual << params.expected;
+            LayerTransformation::getTestCaseNameByParams(precision, params.inputShape, params.transformationParams.setUpdatePrecisions(updatePrecisions)) <<
+            params.outputShape << "_" <<
+            params.group << "_" <<
+            params.actual << "_" <<
+            params.expected;
         return result.str();
     }
 };
@@ -89,16 +96,15 @@ const std::vector<ngraph::element::Type> precisions = {
     // ngraph::element::f16
 };
 
-const std::vector<ngraph::Shape> shapes = {
-    { 1, 6, 224, 224 }
-};
-
-const std::vector<bool> updatePrecisions = { true /*, false */ };
+const std::vector<bool> updatePrecisions = { true, false };
 
 const std::vector<GroupConvolutionTransformationTestParams> testParams = {
-    // with zero point
+    // group convolution, tensor quantization, with zero point
     {
         LayerTransformation::createParamsU8I8(),
+        { 1, 6, 224, 224 },
+        { 1, 24, 218, 218 },
+        3ul,
         // ActualValues
         {
             ngraph::element::u8,
@@ -117,9 +123,12 @@ const std::vector<GroupConvolutionTransformationTestParams> testParams = {
             std::vector<float>(24, 0.0002f)  // 0.0002 = 0.02 (on data) * 0.01 (on weights)
         }
     },
-    // without zero point
+    // group convolution, per-channel quantization, without zero point
     {
         LayerTransformation::createParamsU8I8(),
+        { 1, 6, 224, 224 },
+        { 1, 24, 218, 218 },
+        3ul,
         // ActualValues
         {
             ngraph::element::u8,
@@ -138,10 +147,65 @@ const std::vector<GroupConvolutionTransformationTestParams> testParams = {
             {
                 // 0.0002 = 0.02 (on data) * 0.01 (on weights)
                 0.0002f, 0.0002f, 0.0002f, 0.0002f, 0.0002f, 0.0002f, 0.0002f, 0.0002f,
-                // 0.0004 = 0.02 (on data) * 0.01 (on weights)
+                // 0.0004 = 0.04 (on data) * 0.01 (on weights)
                 0.0004f, 0.0004f, 0.0004f, 0.0004f, 0.0004f, 0.0004f, 0.0004f, 0.0004f,
-                // 0.0008 = 0.02 (on data) * 0.01 (on weights)
+                // 0.0008 = 0.08 (on data) * 0.01 (on weights)
                 0.0008f, 0.0008f, 0.0008f, 0.0008f, 0.0008f, 0.0008f, 0.0008f, 0.0008f
+            }
+        }
+    },
+    // depth-wise convolution, tensor quantization, with zero point
+    {
+        LayerTransformation::createParamsU8I8(),
+        { 1, 6, 224, 224 },
+        { 1, 6, 218, 218 },
+        3ul,
+        // ActualValues
+        {
+            ngraph::element::u8,
+            { 128 },
+            { 0.02f },
+            { 2.f },
+            { 255ul, Shape({1, 1, 1, 1}), {0.f}, {254.f}, {-1.27f}, {1.27f} }
+        },
+        // ExpectedValues
+        {
+            ngraph::element::u8,
+            { 128 },
+            ngraph::element::i8,
+            { -125.f }, // 2 (in: 0 - 254) => -125 (out: -127 - 127)
+            { },
+            std::vector<float>(6, 0.0002f)  // 0.0002 = 0.02 (on data) * 0.01 (on weights)
+        }
+    },
+    // depth-wise convolution, per-channel quantization, without zero point
+    {
+        LayerTransformation::createParamsU8I8(),
+        { 1, 6, 224, 224 },
+        { 1, 6, 218, 218 },
+        6ul,
+        // ActualValues
+        {
+            ngraph::element::u8,
+            { },
+            { 0.02f, 0.02f, 0.04f, 0.04f, 0.08f, 0.08f },
+            { 2.f },
+            { 255ul, Shape({1, 1, 1, 1}), {0.f}, {254.f}, {-1.27f}, {1.27f} }
+        },
+        // ExpectedValues
+        {
+            ngraph::element::u8,
+            { },
+            ngraph::element::i8,
+            { -125.f }, // 2 (in: 0 - 254) => -125 (out: -127 - 127)
+            { },
+            {
+                // 0.0002 = 0.02 (on data) * 0.01 (on weights)
+                0.0002f, 0.0002f,
+                // 0.0004 = 0.04 (on data) * 0.01 (on weights)
+                0.0004f, 0.0004f,
+                // 0.0008 = 0.08 (on data) * 0.01 (on weights)
+                0.0008f, 0.0008f
             }
         }
     },
@@ -152,7 +216,6 @@ INSTANTIATE_TEST_CASE_P(
     GroupConvolutionTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(precisions),
-        ::testing::ValuesIn(shapes),
         ::testing::ValuesIn(updatePrecisions),
         ::testing::ValuesIn(testParams)),
     GroupConvolutionTransformation::getTestCaseName);
