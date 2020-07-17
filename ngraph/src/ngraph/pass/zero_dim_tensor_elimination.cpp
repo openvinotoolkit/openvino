@@ -116,7 +116,7 @@ bool pass::ZeroDimTensorElimination::run_on_function(shared_ptr<Function> f)
         if (auto concat = as_type_ptr<op::Concat>(n))
         {
             OutputVector non_zero_dim_args;
-            for (auto arg : concat->get_arguments())
+            for (auto arg : concat->input_values())
             {
                 if (!has_zero_dim(arg))
                 {
