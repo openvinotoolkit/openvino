@@ -448,8 +448,6 @@ set (SRC
     op/util/embeddingbag_packed_base.hpp
     op/util/embeddingbag_offsets_base.cpp
     op/util/embeddingbag_offsets_base.hpp
-    op/util/eval_helpers.cpp
-    op/util/eval_helpers.hpp
     op/util/fused_op.cpp
     op/util/fused_op.hpp
     op/util/index_reduction.cpp
@@ -592,6 +590,8 @@ set (SRC
     runtime/host_tensor.hpp
     runtime/tensor.cpp
     runtime/tensor.hpp
+    runtime/reference/eval_helpers.cpp
+    runtime/reference/eval_helpers.hpp
     shape.cpp
     shape.hpp
     shape_util.cpp

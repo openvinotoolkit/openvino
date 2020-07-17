@@ -17,7 +17,7 @@
 #include <algorithm>
 
 #include "ngraph/check.hpp"
-#include "ngraph/op/util/eval_helpers.hpp"
+#include "ngraph/runtime/reference/eval_helpers.hpp"
 
 namespace ngraph
 {
