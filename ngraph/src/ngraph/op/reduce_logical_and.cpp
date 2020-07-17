@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include "ngraph/op/reduce_logical_and.hpp"
+#include "ngraph/log.hpp"
 #include "ngraph/runtime/host_tensor.hpp"
 #include "ngraph/runtime/reference/logical_reduction.hpp"
 
@@ -39,19 +40,42 @@ shared_ptr<Node> op::v1::ReduceLogicalAnd::clone_with_new_inputs(const OutputVec
 
 namespace
 {
-    void evaluate_reduce_logical_and(const HostTensorPtr& data,
-                                     const HostTensorPtr& axes,
-                                     const HostTensorPtr& out)
+    AxisSet extract_reduction_axes(const HostTensorPtr& axes)
     {
         const auto axes_count = axes->get_element_count();
         const auto axes_buffer = axes->get_data_ptr<int64_t>();
-        const AxisSet reduction_axes(
-            std::vector<AxisSet::value_type>(axes_buffer, axes_buffer + axes_count));
 
-        runtime::reference::reduce_logical_and(data->get_data_ptr<char>(),
-                                               out->get_data_ptr<char>(),
-                                               data->get_shape(),
-                                               reduction_axes);
+        const bool negative_axis_received = std::any_of(
+            axes_buffer, axes_buffer + axes_count, [](const int64_t axis) { return axis < 0; });
+
+        NGRAPH_CHECK(
+            !negative_axis_received,
+            "Negative axis value received in the ReduceLogicalAnd evaluation. This case is not "
+            "supported.");
+
+        return AxisSet(std::vector<AxisSet::value_type>(axes_buffer, axes_buffer + axes_count));
+    }
+
+    bool evaluate_reduce_logical_and(const HostTensorPtr& data,
+                                     const HostTensorPtr& axes,
+                                     const HostTensorPtr& out)
+    {
+        try
+        {
+            const AxisSet reduction_axes = extract_reduction_axes(axes);
+
+            runtime::reference::reduce_logical_and(data->get_data_ptr<char>(),
+                                                   out->get_data_ptr<char>(),
+                                                   data->get_shape(),
+                                                   reduction_axes);
+
+            return true;
+        }
+        catch (const ngraph_error& e)
+        {
+            NGRAPH_WARN << e.what();
+            return false;
+        }
     }
 }
 
@@ -62,13 +86,12 @@ bool op::v1::ReduceLogicalAnd::evaluate(const HostTensorVector& outputs,
     const auto& axes = inputs[1];
     const auto& out = outputs[0];
 
-    if (data->get_element_type() != element::boolean)
+    if (data->get_element_type() != element::boolean || axes->get_element_type() != element::i64)
     {
         return false;
     }
     else
     {
-        evaluate_reduce_logical_and(data, axes, out);
-        return true;
+        return evaluate_reduce_logical_and(data, axes, out);
     }
 }
