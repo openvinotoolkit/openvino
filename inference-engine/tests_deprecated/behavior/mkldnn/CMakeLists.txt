@@ -22,9 +22,6 @@ add_executable(${TARGET_NAME}
         ${TEST_SRC}
         ${TEST_INCLUDE})
 
-target_compile_definitions(${TARGET_NAME} PRIVATE
-        INSTANTIATE_TESTS=1)
-
 target_link_libraries(${TARGET_NAME} PRIVATE IEBehaviorSharedTests)
 
 target_include_directories(${TARGET_NAME} PRIVATE $<TARGET_PROPERTY:inference_engine_preproc,INTERFACE_INCLUDE_DIRECTORIES> ${IE_MAIN_SOURCE_DIR}/samples)

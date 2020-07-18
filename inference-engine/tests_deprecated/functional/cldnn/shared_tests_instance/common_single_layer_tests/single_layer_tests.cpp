@@ -101,10 +101,9 @@ getTestCaseName(testing::TestParamInfo<std::tuple<InitialShapes, NewShapes, Plug
     return "CLDNN" + helper->getType();
 }
 
-#if (defined INSTANTIATE_TESTS)
-
 INSTANTIATE_TEST_CASE_P(
-        Conv_nightly, CommonSingleLayerTest,
+        // TODO: rewrite to ngraph to have reshape functionality
+        DISABLED_Conv_nightly, CommonSingleLayerTest,
         ::testing::Combine(
         ::testing::Values(InitialShapes({
                                                 {{1, 2, 16, 16}},           // input
@@ -120,7 +119,8 @@ INSTANTIATE_TEST_CASE_P(
 );
 
 INSTANTIATE_TEST_CASE_P(
-        Deconv_nightly, CommonSingleLayerTest,
+        // TODO: rewrite to ngraph to have reshape functionality
+        DISABLED_Deconv_nightly, CommonSingleLayerTest,
         ::testing::Combine(
         ::testing::Values(InitialShapes({
                                                 {{1, 2, 8,  8}},             // input
@@ -136,7 +136,8 @@ INSTANTIATE_TEST_CASE_P(
 );
 
 INSTANTIATE_TEST_CASE_P(
-        Pool_nightly, CommonSingleLayerTest,
+        // TODO: rewrite to ngraph to have reshape functionality
+        DISABLED_Pool_nightly, CommonSingleLayerTest,
         ::testing::Combine(
         ::testing::Values(InitialShapes({
                                                 {{1, 2, 16, 16}},           // input
@@ -230,5 +231,3 @@ INSTANTIATE_TEST_CASE_P(
                 ::testing::Values(Helper(std::make_shared<DeformableConvolutionTestHelper>(defConvParamsHeavy, 4)))
         ), getTestCaseName
 );
-
-#endif

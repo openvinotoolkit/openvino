@@ -44,8 +44,6 @@ getTestCaseName(testing::TestParamInfo<std::tuple<InitialShapes, NewShapes, Plug
     return device2FilterName[pluginParams.deviceName] + helper->getType();
 }
 
-#if (defined INSTANTIATE_TESTS)
-
 INSTANTIATE_TEST_CASE_P(
         Conv_nightly, CommonSingleLayerTest,
         ::testing::Combine(
@@ -93,5 +91,3 @@ INSTANTIATE_TEST_CASE_P(
         ::testing::Values(Helper(std::make_shared<PoolingTestHelper>(poolParams)))
 ), getTestCaseName
 );
-
-#endif

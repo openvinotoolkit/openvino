@@ -359,8 +359,9 @@ StatusCode CNNNetworkImpl::reshape(const std::map<std::string, std::vector<size_
         auto info = pair.second;
         if (info) {
             auto data = info->getInputData();
-            if (data) {
-                auto newDims = inputShapes.at(pair.first);
+            auto it = inputShapes.find(pair.first);
+            if (data && it != inputShapes.end()) {
+                auto newDims = it->second;
                 auto currentDims = data->getTensorDesc().getDims();
                 if (newDims != currentDims) {
                     return NOT_IMPLEMENTED;

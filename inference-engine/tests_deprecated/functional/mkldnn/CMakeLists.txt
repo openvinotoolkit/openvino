@@ -47,9 +47,6 @@ add_executable(${TARGET_NAME}
                ${TEST_INCLUDE})
 
 target_compile_definitions(${TARGET_NAME}
-        PRIVATE
-        USE_MKL_DNN=ON
-        INSTANTIATE_TESTS=1
         PUBLIC ${ARGV}
         DATA_PATH=\"${DATA_PATH}\"
         MODELS_PATH=\"${MODELS_PATH}\" PARENT_SCOPE)
