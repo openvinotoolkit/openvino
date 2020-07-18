@@ -17,7 +17,6 @@ file(GLOB
         graph_tools/*.cpp
         inference_engine_tests/*.cpp
         stress_tests/*.cpp
-        topology_verification_tests/*.cpp
         )
 
 if (ENABLE_GNA)
