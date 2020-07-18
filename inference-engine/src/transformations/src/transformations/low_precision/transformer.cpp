@@ -195,7 +195,7 @@ LowPrecisionTransformations LowPrecisionTransformer::getAllTransformations(const
         add<MatMulTransformation, opset1::MatMul>(params).
         add<MaxPoolTransformation, opset1::MaxPool>(params).
         add<MultiplyTransformation, opset1::Multiply>(params).
-        //add<NormalizeL2Transformation, opset1::NormalizeL2>(params).
+        add<NormalizeL2Transformation, opset1::NormalizeL2>(params).
         add<ReluTransformation, opset1::Relu>(params).
         // Multiply const change is not supported
         // add<ReshapeTransformation, opset1::Reshape>(params).

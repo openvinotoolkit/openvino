@@ -8,6 +8,7 @@
 #include <memory>
 
 #include "functional_test_utils/low_precision_transformations/layer_transformation.hpp"
+#include "ngraph_functions/low_precision_transformations/common/fake_quantize_on_data.hpp"
 
 namespace LayerTestsDefinitions {
 
@@ -15,23 +16,22 @@ typedef std::tuple<
     InferenceEngine::Precision,
     std::pair<ngraph::Shape, ngraph::Shape>,
     std::string,
-    InferenceEngine::details::LayerTransformation::Params,
     LayerTestsUtils::LayerTransformation::LptVersion,
+    std::vector<uint64_t>,
     bool,
-    bool> NormalizeTransformationParams;
+    bool> NormalizeL2TransformationParams;
 
-class NormalizeTransformation :
-    public testing::WithParamInterface<NormalizeTransformationParams>,
+class NormalizeL2Transformation :
+    public testing::WithParamInterface<NormalizeL2TransformationParams>,
     public LayerTestsUtils::LayerTransformation {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<NormalizeTransformationParams> obj);
+    static std::string getTestCaseName(testing::TestParamInfo<NormalizeL2TransformationParams> obj);
 
 protected:
     void SetUp() override;
 
 private:
-    void validateCNNNetwork();
-    void validateNGraph();
+    void validate();
 };
 
 }  // namespace LayerTestsDefinitions
