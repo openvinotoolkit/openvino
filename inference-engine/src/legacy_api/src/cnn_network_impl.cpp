@@ -355,7 +355,21 @@ size_t CNNNetworkImpl::getBatchSize() const noexcept {
 
 StatusCode CNNNetworkImpl::reshape(const std::map<std::string, std::vector<size_t>>& inputShapes,
                                    ResponseDesc* responseDesc) noexcept {
-    return NOT_IMPLEMENTED;
+    for (const auto& pair : _inputData) {
+        auto info = pair.second;
+        if (info) {
+            auto data = info->getInputData();
+            if (data) {
+                auto newDims = inputShapes.at(pair.first);
+                auto currentDims = data->getTensorDesc().getDims();
+                if (newDims != currentDims) {
+                    return NOT_IMPLEMENTED;
+                }
+            }
+        }
+    }
+
+    return OK;
 }
 
 StatusCode CNNNetworkImpl::AddExtension(const InferenceEngine::IShapeInferExtensionPtr& extension,

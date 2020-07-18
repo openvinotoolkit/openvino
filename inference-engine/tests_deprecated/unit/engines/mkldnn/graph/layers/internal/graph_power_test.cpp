@@ -318,33 +318,34 @@ protected:
 
 TEST_P(MKLDNNGraphDynBatchPowerTests, TestsDynBatchPower) {}
 
-INSTANTIATE_TEST_CASE_P(
-        TestsDynBatchPower, MKLDNNGraphDynBatchPowerTests,
-        ::testing::Values(
-                power_test_params{
-                        {1, 3, 13, 13}, 1, 2, 0.5f, 3, MKLDNNPlugin::impl_desc_type::unknown, {
-                                [](MKLDNNPlugin::PrimitiveDescInfo impl) {
-                                    ASSERT_EQ(MKLDNNPlugin::impl_desc_type::unknown, impl.getImplementationType());
-                                    ASSERT_EQ(1, impl.getConfig().inConfs.size());
-                                    ASSERT_EQ(1, impl.getConfig().outConfs.size());
-                                    ASSERT_EQ(InferenceEngine::Layout::NCHW, impl.getConfig().inConfs.at(0).desc.getLayout());
-                                    ASSERT_EQ(InferenceEngine::Layout::NCHW, impl.getConfig().outConfs.at(0).desc.getLayout());
-                                },
-                                [](MKLDNNPlugin::PrimitiveDescInfo impl) {
-                                    ASSERT_EQ(MKLDNNPlugin::impl_desc_type::unknown, impl.getImplementationType());
-                                    ASSERT_EQ(1, impl.getConfig().inConfs.size());
-                                    ASSERT_EQ(1, impl.getConfig().outConfs.size());
-                                    ASSERT_EQ(InferenceEngine::Layout::BLOCKED, impl.getConfig().inConfs.at(0).desc.getLayout());
-                                    ASSERT_EQ(InferenceEngine::Layout::BLOCKED, impl.getConfig().outConfs.at(0).desc.getLayout());
-                                },
-                                [](MKLDNNPlugin::PrimitiveDescInfo impl) {
-                                    ASSERT_EQ(MKLDNNPlugin::impl_desc_type::unknown, impl.getImplementationType());
-                                    ASSERT_EQ(1, impl.getConfig().inConfs.size());
-                                    ASSERT_EQ(1, impl.getConfig().outConfs.size());
-                                    ASSERT_EQ(InferenceEngine::Layout::BLOCKED, impl.getConfig().inConfs.at(0).desc.getLayout());
-                                    ASSERT_EQ(InferenceEngine::Layout::BLOCKED, impl.getConfig().outConfs.at(0).desc.getLayout());
-                                }}},
-                power_test_params{{1, 1, 23, 23}, 3, 8, 2, 3 },
-                power_test_params{{1, 8, 23, 23}, 8, 2, 1, 3 },
-                power_test_params{{1, 8, 23, 23}, 2, 2, 4, 3 }
-        ));
+// TODO: rewrite to ngraph to have reshape functionality
+// INSTANTIATE_TEST_CASE_P(
+//         TestsDynBatchPower, MKLDNNGraphDynBatchPowerTests,
+//         ::testing::Values(
+//                 power_test_params{
+//                         {1, 3, 13, 13}, 1, 2, 0.5f, 3, MKLDNNPlugin::impl_desc_type::unknown, {
+//                                 [](MKLDNNPlugin::PrimitiveDescInfo impl) {
+//                                     ASSERT_EQ(MKLDNNPlugin::impl_desc_type::unknown, impl.getImplementationType());
+//                                     ASSERT_EQ(1, impl.getConfig().inConfs.size());
+//                                     ASSERT_EQ(1, impl.getConfig().outConfs.size());
+//                                     ASSERT_EQ(InferenceEngine::Layout::NCHW, impl.getConfig().inConfs.at(0).desc.getLayout());
+//                                     ASSERT_EQ(InferenceEngine::Layout::NCHW, impl.getConfig().outConfs.at(0).desc.getLayout());
+//                                 },
+//                                 [](MKLDNNPlugin::PrimitiveDescInfo impl) {
+//                                     ASSERT_EQ(MKLDNNPlugin::impl_desc_type::unknown, impl.getImplementationType());
+//                                     ASSERT_EQ(1, impl.getConfig().inConfs.size());
+//                                     ASSERT_EQ(1, impl.getConfig().outConfs.size());
+//                                     ASSERT_EQ(InferenceEngine::Layout::BLOCKED, impl.getConfig().inConfs.at(0).desc.getLayout());
+//                                     ASSERT_EQ(InferenceEngine::Layout::BLOCKED, impl.getConfig().outConfs.at(0).desc.getLayout());
+//                                 },
+//                                 [](MKLDNNPlugin::PrimitiveDescInfo impl) {
+//                                     ASSERT_EQ(MKLDNNPlugin::impl_desc_type::unknown, impl.getImplementationType());
+//                                     ASSERT_EQ(1, impl.getConfig().inConfs.size());
+//                                     ASSERT_EQ(1, impl.getConfig().outConfs.size());
+//                                     ASSERT_EQ(InferenceEngine::Layout::BLOCKED, impl.getConfig().inConfs.at(0).desc.getLayout());
+//                                     ASSERT_EQ(InferenceEngine::Layout::BLOCKED, impl.getConfig().outConfs.at(0).desc.getLayout());
+//                                 }}},
+//                 power_test_params{{1, 1, 23, 23}, 3, 8, 2, 3 },
+//                 power_test_params{{1, 8, 23, 23}, 8, 2, 1, 3 },
+//                 power_test_params{{1, 8, 23, 23}, 2, 2, 4, 3 }
+//         ));

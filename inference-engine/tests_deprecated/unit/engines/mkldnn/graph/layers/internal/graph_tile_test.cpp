@@ -265,16 +265,17 @@ protected:
 TEST_P(MKLDNNGraphDynBatchTileTests, TestsDynBatchTile) {}
 
 
-INSTANTIATE_TEST_CASE_P(
-        TestsDynBatchTile, MKLDNNGraphDynBatchTileTests,
-        ::testing::Values(
-                tile_test_params{
-                        {1, 128, 1, 1}, 3, 24, 1, MKLDNNPlugin::impl_desc_type::unknown, {
-                                [](MKLDNNPlugin::PrimitiveDescInfo impl) {
-                                    ASSERT_EQ(MKLDNNPlugin::impl_desc_type::unknown, impl.getImplementationType());
-                                    ASSERT_EQ(1, impl.getConfig().inConfs.size());
-                                    ASSERT_EQ(1, impl.getConfig().outConfs.size());
-                                    ASSERT_EQ(InferenceEngine::Layout::NCHW, impl.getConfig().inConfs.at(0).desc.getLayout());
-                                    ASSERT_EQ(InferenceEngine::Layout::NCHW, impl.getConfig().outConfs.at(0).desc.getLayout());
-                                }
-                        }}));
+// TODO: rewrite to ngraph to have reshape functionality
+// INSTANTIATE_TEST_CASE_P(
+//         TestsDynBatchTile, MKLDNNGraphDynBatchTileTests,
+//         ::testing::Values(
+//                 tile_test_params{
+//                         {1, 128, 1, 1}, 3, 24, 1, MKLDNNPlugin::impl_desc_type::unknown, {
+//                                 [](MKLDNNPlugin::PrimitiveDescInfo impl) {
+//                                     ASSERT_EQ(MKLDNNPlugin::impl_desc_type::unknown, impl.getImplementationType());
+//                                     ASSERT_EQ(1, impl.getConfig().inConfs.size());
+//                                     ASSERT_EQ(1, impl.getConfig().outConfs.size());
+//                                     ASSERT_EQ(InferenceEngine::Layout::NCHW, impl.getConfig().inConfs.at(0).desc.getLayout());
+//                                     ASSERT_EQ(InferenceEngine::Layout::NCHW, impl.getConfig().outConfs.at(0).desc.getLayout());
+//                                 }
+//                         }}));
