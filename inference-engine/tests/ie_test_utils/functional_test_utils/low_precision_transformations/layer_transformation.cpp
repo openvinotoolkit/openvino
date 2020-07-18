@@ -394,7 +394,7 @@ InferenceEngine::details::LayerTransformation::Params LayerTransformation::toCNN
 }
 
 InferenceEngine::Precision LayerTransformation::toCNNNetwork(const ngraph::element::Type_t precision) {
-    switch(precision) {
+    switch (precision) {
         case ngraph::element::Type_t::u8: {
             return InferenceEngine::Precision::U8;
         }
