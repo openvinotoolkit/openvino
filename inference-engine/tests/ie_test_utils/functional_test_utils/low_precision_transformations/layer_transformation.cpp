@@ -121,7 +121,7 @@ void LayerTransformation::ConfigurePlugin(const LptVersion lptVersion) {
 }
 
 InferenceEngine::Blob::Ptr LayerTransformation::GenerateInput(
-    const InferenceEngine::Precision precision,
+    const ngraph::element::Type_t precision,
     const InferenceEngine::TensorDesc& tensorDesc,
     const float k) {
     const auto interval = getQuantizationInterval(precision);
@@ -214,8 +214,8 @@ void LayerTransformation::checkPrecisions(
 
 IE_SUPPRESS_DEPRECATED_END
 
-std::pair<float, float> LayerTransformation::getQuantizationInterval(const InferenceEngine::Precision precision) {
-    const bool unsignedInterval = precision == InferenceEngine::Precision::U8;
+std::pair<float, float> LayerTransformation::getQuantizationInterval(const ngraph::element::Type_t precision) {
+    const bool unsignedInterval = precision == ngraph::element::u8;
     const float low = unsignedInterval ? 0.f : -128.f;
     const float hight = unsignedInterval ? 255.f : 127.f;
     return std::make_pair(low, hight);
@@ -391,6 +391,23 @@ InferenceEngine::details::LayerTransformation::Params LayerTransformation::toCNN
         params.supportAsymmetricQuantization,
         precisionsOnActivations,
         precisionsOnWeights);
+}
+
+InferenceEngine::Precision LayerTransformation::toCNNNetwork(const ngraph::element::Type_t precision) {
+    switch(precision) {
+        case ngraph::element::Type_t::u8: {
+            return InferenceEngine::Precision::U8;
+        }
+        case ngraph::element::Type_t::f16: {
+            return InferenceEngine::Precision::FP16;
+        }
+        case ngraph::element::Type_t::f32: {
+            return InferenceEngine::Precision::FP32;
+        }
+        default: {
+            THROW_IE_EXCEPTION << "not supported precision " << precision;
+        }
+    }
 }
 
 }  // namespace LayerTestsUtils

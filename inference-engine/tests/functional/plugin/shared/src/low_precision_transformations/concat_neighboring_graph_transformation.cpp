@@ -15,22 +15,22 @@
 
 namespace LayerTestsDefinitions {
 
-std::string ConcatNeighboringGraphTransformation::getTestCaseName(testing::TestParamInfo<LayerTestsUtils::LayerTransformationParams> obj) {
-    InferenceEngine::Precision netPrecision;
-    InferenceEngine::SizeVector inputShapes;
+std::string ConcatNeighboringGraphTransformation::getTestCaseName(testing::TestParamInfo<ConcatNeighboringGraphTransformationParams> obj) {
+    ngraph::element::Type_t precision;
+    ngraph::Shape inputShapes;
     std::string targetDevice;
-    InferenceEngine::details::LayerTransformation::Params params;
+    ngraph::pass::low_precision::LayerTransformation::Params params;
     LayerTestsUtils::LayerTransformation::LptVersion version;
-    std::tie(netPrecision, inputShapes, targetDevice, params, version) = obj.param;
+    std::tie(precision, inputShapes, targetDevice, params, version) = obj.param;
 
-    return getTestCaseNameByParams(netPrecision, inputShapes, targetDevice, params, version);
+    return getTestCaseNameByParams(precision, inputShapes, targetDevice, params, version);
 }
 
 InferenceEngine::Blob::Ptr ConcatNeighboringGraphTransformation::GenerateInput(const InferenceEngine::InputInfo &info) const {
-    InferenceEngine::SizeVector inputShape;
-    InferenceEngine::Precision netPrecision;
+    ngraph::element::Type_t netPrecision;
+    ngraph::Shape inputShape;
     std::string targetDevice;
-    InferenceEngine::details::LayerTransformation::Params params;
+    ngraph::pass::low_precision::LayerTransformation::Params params;
     LayerTestsUtils::LayerTransformation::LptVersion version;
     std::tie(netPrecision, inputShape, targetDevice, params, version) = this->GetParam();
 
@@ -43,62 +43,62 @@ InferenceEngine::Blob::Ptr ConcatNeighboringGraphTransformation::GenerateInput(c
 
 void ConcatNeighboringGraphTransformation::SetUp() {
     threshold = 2.e-2;
-    InferenceEngine::SizeVector inputShape;
-    InferenceEngine::Precision netPrecision;
-    InferenceEngine::details::LayerTransformation::Params params;
+    ngraph::element::Type_t ngPrecision;
+    ngraph::Shape inputShape;
+    ngraph::pass::low_precision::LayerTransformation::Params params;
     LayerTestsUtils::LayerTransformation::LptVersion version;
-    std::tie(netPrecision, inputShape, targetDevice, params, version) = this->GetParam();
+    std::tie(ngPrecision, inputShape, targetDevice, params, version) = this->GetParam();
 
     ConfigurePlugin(version);
 
-    const auto ngPrecision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+    {
+        const auto interval = getQuantizationInterval(params.precisionsOnActivations[0]);
+        const float low = interval.first;
+        const float hight = interval.second;
 
-    const auto interval = getQuantizationInterval(params.precisionsOnActivations[0]);
-    const float low = interval.first;
-    const float hight = interval.second;
+        const auto input1 = std::make_shared<ngraph::opset1::Parameter>(ngPrecision, ngraph::Shape(inputShape));
+        input1->set_friendly_name("input1");
+        const auto fakeQuantize1 = ngraph::builder::makeFakeQuantize(
+            input1, ngPrecision, 256ul, { 1ul },
+            { low }, { hight }, { low }, { hight });
+        fakeQuantize1->set_friendly_name("fakeQuantize1");
 
-    const auto input1 = std::make_shared<ngraph::opset1::Parameter>(ngPrecision, ngraph::Shape(inputShape));
-    input1->set_friendly_name("input1");
-    const auto fakeQuantize1 = ngraph::builder::makeFakeQuantize(
-        input1, ngPrecision, 256ul, { 1ul },
-        { low }, { hight }, { low }, { hight });
-    fakeQuantize1->set_friendly_name("fakeQuantize1");
+        const auto input2 = std::make_shared<ngraph::opset1::Parameter>(ngPrecision, ngraph::Shape(inputShape));
+        input2->set_friendly_name("input2");
+        const auto fakeQuantize2 = ngraph::builder::makeFakeQuantize(
+            input2, ngPrecision, 256ul, { 1ul },
+            { low / 2.f }, { hight / 2.f }, { low / 2.f }, { hight / 2.f });
+        fakeQuantize2->set_friendly_name("fakeQuantize2");
 
-    const auto input2 = std::make_shared<ngraph::opset1::Parameter>(ngPrecision, ngraph::Shape(inputShape));
-    input2->set_friendly_name("input2");
-    const auto fakeQuantize2 = ngraph::builder::makeFakeQuantize(
-        input2, ngPrecision, 256ul, { 1ul },
-        { low / 2.f }, { hight / 2.f }, { low / 2.f }, { hight / 2.f });
-    fakeQuantize2->set_friendly_name("fakeQuantize2");
+        const auto input3 = std::make_shared<ngraph::opset1::Parameter>(ngPrecision, ngraph::Shape(inputShape));
+        input3->set_friendly_name("input3");
+        const auto fakeQuantize3 = ngraph::builder::makeFakeQuantize(
+            input3, ngPrecision, 256ul, { 1ul },
+            { low / 3.f }, { hight / 3.f }, { low / 3.f }, { hight / 3.f });
+        fakeQuantize3->set_friendly_name("fakeQuantize3");
 
-    const auto input3 = std::make_shared<ngraph::opset1::Parameter>(ngPrecision, ngraph::Shape(inputShape));
-    input3->set_friendly_name("input3");
-    const auto fakeQuantize3 = ngraph::builder::makeFakeQuantize(
-        input3, ngPrecision, 256ul, { 1ul },
-        { low / 3.f }, { hight / 3.f }, { low / 3.f }, { hight / 3.f });
-    fakeQuantize3->set_friendly_name("fakeQuantize3");
+        const auto concat1 = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector{
+            fakeQuantize1->output(0),
+            fakeQuantize2->output(0) },
+            1ull);
+        concat1->set_friendly_name("concat1");
 
-    const auto concat1 = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector{
-        fakeQuantize1->output(0),
-        fakeQuantize2->output(0) },
-        1ull);
-    concat1->set_friendly_name("concat1");
+        const auto concat2 = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector{
+            fakeQuantize2->output(0),
+            fakeQuantize3->output(0) },
+            1ull);
+        concat2->set_friendly_name("concat2");
 
-    const auto concat2 = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector{
-        fakeQuantize2->output(0),
-        fakeQuantize3->output(0) },
-        1ull);
-    concat2->set_friendly_name("concat2");
+        const ngraph::ResultVector results{
+            std::make_shared<ngraph::opset1::Result>(concat1),
+            std::make_shared<ngraph::opset1::Result>(concat2)
+        };
 
-    const ngraph::ResultVector results {
-        std::make_shared<ngraph::opset1::Result>(concat1),
-        std::make_shared<ngraph::opset1::Result>(concat2)
-    };
-
-    function = std::make_shared<ngraph::Function>(
-        results,
-        ngraph::ParameterVector { input1, input2, input3 },
-        "ConcatNeighboringGraphTransformation");
+        function = std::make_shared<ngraph::Function>(
+            results,
+            ngraph::ParameterVector{ input1, input2, input3 },
+            "ConcatNeighboringGraphTransformation");
+    }
 
     if (version == LptVersion::cnnNetwork) {
         validate();
@@ -106,13 +106,13 @@ void ConcatNeighboringGraphTransformation::SetUp() {
 }
 
 void ConcatNeighboringGraphTransformation::validate() {
-    InferenceEngine::SizeVector inputShape;
-    InferenceEngine::Precision netPrecision;
-    InferenceEngine::details::LayerTransformation::Params params;
+    ngraph::element::Type_t netPrecision;
+    ngraph::Shape inputShape;
+    ngraph::pass::low_precision::LayerTransformation::Params params;
     LayerTestsUtils::LayerTransformation::LptVersion version;
     std::tie(netPrecision, inputShape, targetDevice, params, version) = this->GetParam();
 
-    const InferenceEngine::CNNNetwork network = transform(params);
+    const InferenceEngine::CNNNetwork network = transform(toCNNNetwork(params));
 
     IE_SUPPRESS_DEPRECATED_START
 
@@ -131,7 +131,7 @@ void ConcatNeighboringGraphTransformation::validate() {
 
             checkPrecisions(*layer, { { expectedPrecision }, { expectedPrecision } }, { { expectedPrecision } });
         } else {
-            checkPrecisions(*layer, netPrecision);
+            checkPrecisions(*layer, toCNNNetwork(netPrecision));
         }
     }
 

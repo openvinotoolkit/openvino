@@ -15,7 +15,6 @@ namespace subgraph {
 
 using namespace ngraph::pass;
 
-// TODO: copy/paster from LayerTransformation::getQuantizationInterval
 std::pair<float, float> getQuantizationInterval(const ngraph::element::Type precision) {
     const bool unsignedInterval = precision == ngraph::element::u8;
     const float low = unsignedInterval ? 0.f : -128.f;
@@ -23,34 +22,45 @@ std::pair<float, float> getQuantizationInterval(const ngraph::element::Type prec
     return std::make_pair(low, hight);
 }
 
-// TODO: use dequantization operations only (remove FQ later)
 std::shared_ptr<ngraph::Function> ConcatFunction::getOriginal(
     const ngraph::element::Type ngPrecision,
     const ngraph::Shape& inputShape,
-    const ngraph::pass::low_precision::LayerTransformation::Params& params) {
-    const auto interval = getQuantizationInterval(params.precisionsOnActivations[0]);
-    const float low = interval.first;
-    const float hight = interval.second;
-
+    const FakeQuantizeOnData& fqOnData1,
+    const FakeQuantizeOnData& fqOnData2) {
     const auto input1 = std::make_shared<ngraph::opset1::Parameter>(ngPrecision, inputShape);
     input1->set_friendly_name("input1");
     const auto fakeQuantize1 = ngraph::builder::makeFakeQuantize(
-        input1, ngPrecision, 256ul, { 1ul },
-        { low }, { hight }, { low }, { hight });
+        input1,
+        ngPrecision,
+        fqOnData1.quantizationLevel,
+        fqOnData1.constantShape,
+        fqOnData1.inputLowValues,
+        fqOnData1.inputHighValues,
+        fqOnData1.outputLowValues,
+        fqOnData1.outputHighValues);
 
-    //const std::vector<size_t> inputShape2 = { inputShape[0], inputShape[1], inputShape[2] / 2, inputShape[3] / 2 };
     const std::vector<size_t> inputShape2 = inputShape;
     const auto input2 = std::make_shared<ngraph::opset1::Parameter>(ngPrecision, ngraph::Shape(inputShape2));
     input2->set_friendly_name("input2");
     const auto fakeQuantize2 = ngraph::builder::makeFakeQuantize(
-        input2, ngPrecision, 256ul, { 1ul },
-        { low / 2.f }, { hight / 2.f }, { low / 2.f }, { hight / 2.f });
+        input2,
+        ngPrecision,
+        fqOnData2.quantizationLevel,
+        fqOnData2.constantShape,
+        fqOnData2.inputLowValues,
+        fqOnData2.inputHighValues,
+        fqOnData2.outputLowValues,
+        fqOnData2.outputHighValues);
 
     const std::shared_ptr<ngraph::opset1::Concat> concat = std::make_shared<ngraph::opset1::Concat>(
         ngraph::OutputVector{ fakeQuantize1->output(0), fakeQuantize2->output(0) }, 1);
 
     ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(concat) };
-    std::shared_ptr<ngraph::Function> function = std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input1, input2 }, "ConcatTransformation");
+    std::shared_ptr<ngraph::Function> function = std::make_shared<ngraph::Function>(
+        results,
+        ngraph::ParameterVector{ input1, input2 },
+        "ConcatTransformation");
+
     return function;
 }
 

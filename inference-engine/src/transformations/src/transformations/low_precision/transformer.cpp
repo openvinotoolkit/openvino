@@ -184,7 +184,7 @@ LowPrecisionTransformations LowPrecisionTransformer::getAllTransformations(const
     // one operation type => one transformation
     // TODO: refactor: duplication: declaration & registerMatcherIn
     return LowPrecisionTransformations().
-        addBranchSpecific<pass::low_precision::ConcatTransformation, opset1::Concat>(params).
+        addBranchSpecific<pass::low_precision::ConcatMultiChannelsTransformation, opset1::Concat>(params).
 
         add<AddTransformation, opset1::Add>(params).
         add<AvgPoolTransformation, opset1::AvgPool>(params).

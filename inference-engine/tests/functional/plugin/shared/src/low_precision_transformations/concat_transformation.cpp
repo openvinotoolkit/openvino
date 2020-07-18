@@ -16,44 +16,55 @@
 
 namespace LayerTestsDefinitions {
 
-std::string ConcatTransformation::getTestCaseName(testing::TestParamInfo<LayerTestsUtils::LayerTransformationParams> obj) {
-    InferenceEngine::Precision netPrecision;
-    InferenceEngine::SizeVector inputShapes;
+std::string ConcatTransformation::getTestCaseName(testing::TestParamInfo<ConcatTransformationParams> obj) {
+    ngraph::element::Type_t precision;
+    ngraph::Shape inputShapes;
     std::string targetDevice;
-    InferenceEngine::details::LayerTransformation::Params params;
+    ConcatTransformationTestValues testValues;
     LayerTestsUtils::LayerTransformation::LptVersion version;
-    std::tie(netPrecision, inputShapes, targetDevice, params, version) = obj.param;
+    std::tie(precision, inputShapes, targetDevice, testValues, version) = obj.param;
 
-    return getTestCaseNameByParams(netPrecision, inputShapes, targetDevice, params, version);
+    const auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
+
+    std::ostringstream result;
+    result <<
+        getTestCaseNameByParams(precision, inputShapes, targetDevice, params, version) <<
+        testValues.fqOnData1 <<
+        testValues.fqOnData2;
+    return result.str();
 }
 
 InferenceEngine::Blob::Ptr ConcatTransformation::GenerateInput(const InferenceEngine::InputInfo &info) const {
     InferenceEngine::SizeVector inputShape;
-    InferenceEngine::Precision netPrecision;
+    ngraph::element::Type_t netPrecision;
     std::string targetDevice;
-    InferenceEngine::details::LayerTransformation::Params params;
+    ConcatTransformationTestValues testValues;
     LayerTestsUtils::LayerTransformation::LptVersion version;
-    std::tie(netPrecision, inputShape, targetDevice, params, version) = this->GetParam();
+    std::tie(netPrecision, inputShape, targetDevice, testValues, version) = this->GetParam();
+
+    const auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
 
     const float k = (info.name() == "input1") ? 1.f : (info.name() == "input2" ? 2.f : 3.f);
-    return LayerTransformation::GenerateInput(params.precisionsOnActivations[0], info.getTensorDesc(), k);
+    return LayerTransformation::GenerateInput(
+        params.precisionsOnActivations[0],
+        info.getTensorDesc(),
+        k);
 }
 
 void ConcatTransformation::SetUp() {
-    // SetRefMode(LayerTestsUtils::RefMode::IE);
-
     InferenceEngine::SizeVector inputShape;
-    InferenceEngine::Precision netPrecision;
-    InferenceEngine::details::LayerTransformation::Params params;
+    ngraph::element::Type_t precision;
+    ConcatTransformationTestValues testValues;
     LayerTestsUtils::LayerTransformation::LptVersion version;
-    std::tie(netPrecision, inputShape, targetDevice, params, version) = this->GetParam();
+    std::tie(precision, inputShape, targetDevice, testValues, version) = this->GetParam();
 
     ConfigurePlugin(version);
 
     function = ngraph::builder::subgraph::ConcatFunction::getOriginal(
-        FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision),
+        precision,
         inputShape,
-        toNGraph(params));
+        testValues.fqOnData1,
+        testValues.fqOnData2);
 
     if (version == LptVersion::cnnNetwork) {
         validate();
@@ -61,13 +72,15 @@ void ConcatTransformation::SetUp() {
 }
 
 void ConcatTransformation::validate() {
+    ngraph::element::Type_t precision;
     InferenceEngine::SizeVector inputShape;
-    InferenceEngine::Precision netPrecision;
-    InferenceEngine::details::LayerTransformation::Params params;
+    std::string targetDevice;
+    ConcatTransformationTestValues testValues;
     LayerTestsUtils::LayerTransformation::LptVersion version;
-    std::tie(netPrecision, inputShape, targetDevice, params, version) = this->GetParam();
+    std::tie(precision, inputShape, targetDevice, testValues, version) = this->GetParam();
 
-    const InferenceEngine::CNNNetwork network = transform(params);
+    const auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
+    const InferenceEngine::CNNNetwork network = transform(toCNNNetwork(params));
 
     IE_SUPPRESS_DEPRECATED_START
 
@@ -85,7 +98,7 @@ void ConcatTransformation::validate() {
         const InferenceEngine::Precision expectedPrecision = interval.first >= 0.f ? InferenceEngine::Precision::U8 : InferenceEngine::Precision::I8;
         checkPrecisions(*layer, { { expectedPrecision }, { expectedPrecision } }, { { expectedPrecision } });
     } else {
-        checkPrecisions(*layer, netPrecision);
+        checkPrecisions(*layer, toCNNNetwork(precision));
     }
 
     IE_SUPPRESS_DEPRECATED_END

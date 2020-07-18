@@ -20,46 +20,12 @@
 #include "transformations/low_precision/common/subgraph.hpp"
 #include "transformations/low_precision/network_helper.hpp"
 
-// TODO: debug only
-#include <ngraph/pass/visualize_tree.hpp>
-
 namespace ngraph {
 namespace pass {
 namespace low_precision {
 
 void ConcatTransformation::registerMatcherIn(GraphRewrite& pass, TransformationContext& context) const {
-    // TODO: new way
-    //addPattern(
-    //    pass,
-    //    context,
-    //    make_op_pattern<opset1::Concat>({ make_op_label<ngraph::opset1::Multiply>(), make_op_label<ngraph::opset1::Multiply>() }));
-
-    // TODO: current way
-
-    // TODO: unlimited FQ amount
-    // addSingleNodePattern<opset1::FakeQuantize>(pass, context);
-
-    addPattern(
-        pass,
-        context,
-        make_op_pattern<opset1::Concat>({ make_op_label<ngraph::opset1::FakeQuantize>(), make_op_label<ngraph::opset1::FakeQuantize>() }));
-
-    addPattern(
-        pass,
-        context,
-        make_op_pattern<opset1::Concat>({
-            make_op_label<ngraph::opset1::FakeQuantize>(),
-            make_op_label<ngraph::opset1::FakeQuantize>(),
-            make_op_label<ngraph::opset1::FakeQuantize>() }));
-
-    addPattern(
-        pass,
-        context,
-        make_op_pattern<opset1::Concat>({
-            make_op_label<ngraph::opset1::FakeQuantize>(),
-            make_op_label<ngraph::opset1::FakeQuantize>(),
-            make_op_label<ngraph::opset1::FakeQuantize>(),
-            make_op_label<ngraph::opset1::FakeQuantize>() }));
+    addSingleNodePattern<opset1::Concat>(pass, context);
 }
 
 void ConcatTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) const {
@@ -71,12 +37,9 @@ void ConcatTransformation::transform(TransformationContext& context, ngraph::pat
         return;
     }
 
-    // TODO: check if FQ has been handled already
-    // for (const CNNLayerPtr& quantizationLayer : subgraph.quantizationLayers) {
-    //    if (context.quantizedFakeQuantizeNames.find(quantizationLayer->name) != context.quantizedFakeQuantizeNames.end()) {
-    //        return;
-    //    }
-    // }
+    if (subgraph.quantizationLayers.empty() || isHandled(subgraph.quantizationLayers)) {
+        return;
+    }
 
     // TODO: update later
     // TODO: check if precisions are different and return
@@ -426,6 +389,21 @@ void ConcatTransformation::addDequantizationLayers(
             }
         }
     }
+}
+
+bool ConcatTransformation::isHandled(const std::vector<ngraph::Node*>& quantizationOperations) {
+    for (ngraph::Node* quantizationLayer : quantizationOperations) {
+        const ngraph::element::Type_t precision = quantizationLayer->get_output_element_type(0);
+
+        ngraph::opset1::FakeQuantize* fakeQuantize = as_type<opset1::FakeQuantize>(quantizationLayer);
+
+        // TODO: precision is hardcoded
+        if ((precision == ngraph::element::u8) || (precision == ngraph::element::i8)) {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 size_t ConcatTransformation::getMinQuantizationLevels(

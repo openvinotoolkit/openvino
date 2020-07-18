@@ -21,10 +21,10 @@ using namespace InferenceEngine::details;
 namespace LayerTestsDefinitions {
 
 std::string ConcatWithIntermediateTransformation::getTestCaseName(testing::TestParamInfo<ConcatWithIntermediateTransformationParams> obj) {
-    InferenceEngine::Precision netPrecision;
-    InferenceEngine::SizeVector inputShapes;
+    ngraph::element::Type_t netPrecision;
+    ngraph::Shape inputShapes;
     std::string targetDevice;
-    InferenceEngine::details::LayerTransformation::Params params;
+    ngraph::pass::low_precision::LayerTransformation::Params params;
     LayerTestsUtils::LayerTransformation::LptVersion version;
     bool transparentIntermediate;
     bool multichannel;
@@ -40,10 +40,10 @@ std::string ConcatWithIntermediateTransformation::getTestCaseName(testing::TestP
 }
 
 InferenceEngine::Blob::Ptr ConcatWithIntermediateTransformation::GenerateInput(const InferenceEngine::InputInfo &info) const {
+    ngraph::element::Type_t netPrecision;
     InferenceEngine::SizeVector inputShape;
     std::string targetDevice;
-    InferenceEngine::Precision netPrecision;
-    InferenceEngine::details::LayerTransformation::Params trasformationParams;
+    ngraph::pass::low_precision::LayerTransformation::Params trasformationParams;
     LayerTestsUtils::LayerTransformation::LptVersion version;
     bool transparentIntermediate;
     bool multichannel;
@@ -62,17 +62,15 @@ InferenceEngine::Blob::Ptr ConcatWithIntermediateTransformation::GenerateInput(c
 */
 
 void ConcatWithIntermediateTransformation::SetUp() {
-    InferenceEngine::SizeVector inputShape;
-    InferenceEngine::Precision netPrecision;
-    InferenceEngine::details::LayerTransformation::Params trasformationParams;
+    ngraph::element::Type_t ngPrecision;
+    ngraph::Shape inputShape;
+    ngraph::pass::low_precision::LayerTransformation::Params trasformationParams;
     LayerTestsUtils::LayerTransformation::LptVersion version;
     bool transparentIntermediate;
     bool multichannel;
-    std::tie(netPrecision, inputShape, targetDevice, trasformationParams, version, transparentIntermediate, multichannel) = this->GetParam();
+    std::tie(ngPrecision, inputShape, targetDevice, trasformationParams, version, transparentIntermediate, multichannel) = this->GetParam();
 
     ConfigurePlugin(version);
-
-    const auto ngPrecision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
     const std::vector<size_t> inputShape1 = {
         inputShape[0],
@@ -154,17 +152,17 @@ void ConcatWithIntermediateTransformation::SetUp() {
 }
 
 void ConcatWithIntermediateTransformation::validate() {
-    InferenceEngine::SizeVector inputShape;
-    InferenceEngine::Precision netPrecision;
-    InferenceEngine::details::LayerTransformation::Params params;
+    ngraph::element::Type_t netPrecision;
+    ngraph::Shape inputShape;
+    ngraph::pass::low_precision::LayerTransformation::Params params;
     LayerTestsUtils::LayerTransformation::LptVersion version;
     bool transparentIntermediate;
     bool multichannel;
     std::tie(netPrecision, inputShape, targetDevice, params, version, transparentIntermediate, multichannel) = this->GetParam();
 
-    InferenceEngine::details::LowPrecisionTransformations transformations = getLowPrecisionTransformations(params);
+    InferenceEngine::details::LowPrecisionTransformations transformations = getLowPrecisionTransformations(toCNNNetwork(params));
     if (!multichannel) {
-        transformations.addBranchSpecific<InferenceEngine::details::ConcatTransformation>(params, "Concat");
+        transformations.addBranchSpecific<InferenceEngine::details::ConcatTransformation>(toCNNNetwork(params), "Concat");
     }
     const InferenceEngine::CNNNetwork network = transform(transformations);
 
@@ -192,7 +190,7 @@ void ConcatWithIntermediateTransformation::validate() {
             const InferenceEngine::Precision expectedPrecision = interval.first >= 0.f ? InferenceEngine::Precision::U8 : InferenceEngine::Precision::I8;
             checkPrecisions(*layer, { { expectedPrecision }, { expectedPrecision } }, { { expectedPrecision } });
         } else {
-            checkPrecisions(*layer, netPrecision);
+            checkPrecisions(*layer, toCNNNetwork(netPrecision));
         }
     } else {
         std::vector<CNNLayerPtr> children = CNNNetworkHelper::getChildren(*intermediate);

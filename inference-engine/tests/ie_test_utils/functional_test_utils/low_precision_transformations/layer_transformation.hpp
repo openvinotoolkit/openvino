@@ -29,6 +29,7 @@ class LayerTransformationParamsNGraphFactory {
 public:
     static ngraph::pass::low_precision::LayerTransformation::Params createParamsU8I8();
     static ngraph::pass::low_precision::LayerTransformation::Params createParamsI8I8();
+    static ngraph::pass::low_precision::LayerTransformation::Params createParams();
 };
 
 IE_SUPPRESS_DEPRECATED_START
@@ -42,6 +43,7 @@ public:
 
     static ngraph::pass::low_precision::LayerTransformation::Params toNGraph(const InferenceEngine::details::LayerTransformation::Params& params);
     static InferenceEngine::details::LayerTransformation::Params toCNNNetwork(const ngraph::pass::low_precision::LayerTransformation::Params& params);
+    static InferenceEngine::Precision toCNNNetwork(const ngraph::element::Type_t precision);
 
 protected:
     LayerTransformation();
@@ -49,7 +51,7 @@ protected:
     void ConfigurePlugin(const LptVersion lptVersion);
 
     static InferenceEngine::Blob::Ptr GenerateInput(
-        const InferenceEngine::Precision precision,
+        const ngraph::element::Type_t precision,
         const InferenceEngine::TensorDesc& tensorDesc,
         const float k = 1.f);
 
@@ -80,7 +82,7 @@ protected:
         const bool asymmetricQuantizationOnData = false,
         const bool asymmetricQuantizationOnWeights = false);
 
-    static std::pair<float, float> getQuantizationInterval(const InferenceEngine::Precision precision);
+    static std::pair<float, float> getQuantizationInterval(const ngraph::element::Type_t precision);
 
     static std::string toString(const InferenceEngine::details::LayerTransformation::Params& params);
 

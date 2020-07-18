@@ -31,6 +31,8 @@ protected:
             const std::string originalLayerName,
             std::vector<FakeQuantizeDequantization>& dequantizationsToConcatenate)> getLayerDequantizationCallback) const;
 
+    static bool isHandled(const std::vector<ngraph::Node*>& quantizationOperations);
+
 private:
     size_t getMinQuantizationLevels(
         const DataPrecision& dataPrecision,

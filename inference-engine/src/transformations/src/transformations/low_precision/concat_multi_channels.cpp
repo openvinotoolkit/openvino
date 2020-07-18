@@ -20,46 +20,28 @@
 #include "transformations/low_precision/common/subgraph.hpp"
 #include "transformations/low_precision/network_helper.hpp"
 
-// TODO: debug only
-#include <ngraph/pass/visualize_tree.hpp>
-
 namespace ngraph {
 namespace pass {
 namespace low_precision {
 
+bool isMultiChannel(const std::vector<ngraph::opset1::Concat*>& concatLayers) {
+    for (ngraph::opset1::Concat* concat : concatLayers) {
+        std::shared_ptr<ngraph::Node> concatPtr = concat->shared_from_this();
+        const std::vector<std::shared_ptr<ngraph::Node>> children = NetworkHelper::getChildrenRecursivelyExceptTypes(
+            concatPtr,
+            { "Pooling", "Resample" });
+
+        for (const std::shared_ptr<ngraph::Node>& child : children) {
+            if (is_type<ngraph::opset1::Convolution>(child.get())) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
 void ConcatMultiChannelsTransformation::registerMatcherIn(GraphRewrite& pass, TransformationContext& context) const {
-    // TODO: new way
-    //addPattern(
-    //    pass,
-    //    context,
-    //    make_op_pattern<opset1::Concat>({ make_op_label<ngraph::opset1::Multiply>(), make_op_label<ngraph::opset1::Multiply>() }));
-
-    // TODO: current way
-
-    // TODO: unlimited FQ amount
-    // addSingleNodePattern<opset1::FakeQuantize>(pass, context);
-
-    addPattern(
-        pass,
-        context,
-        make_op_pattern<opset1::Concat>({ make_op_label<ngraph::opset1::FakeQuantize>(), make_op_label<ngraph::opset1::FakeQuantize>() }));
-
-    addPattern(
-        pass,
-        context,
-        make_op_pattern<opset1::Concat>({
-            make_op_label<ngraph::opset1::FakeQuantize>(),
-            make_op_label<ngraph::opset1::FakeQuantize>(),
-            make_op_label<ngraph::opset1::FakeQuantize>() }));
-
-    addPattern(
-        pass,
-        context,
-        make_op_pattern<opset1::Concat>({
-            make_op_label<ngraph::opset1::FakeQuantize>(),
-            make_op_label<ngraph::opset1::FakeQuantize>(),
-            make_op_label<ngraph::opset1::FakeQuantize>(),
-            make_op_label<ngraph::opset1::FakeQuantize>() }));
+    addSingleNodePattern<opset1::Concat>(pass, context);
 }
 
 void ConcatMultiChannelsTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) const {
@@ -71,18 +53,14 @@ void ConcatMultiChannelsTransformation::transform(TransformationContext& context
         return;
     }
 
-    // TODO: check if FQ has been handled already
-    // for (const CNNLayerPtr& quantizationLayer : subgraph.quantizationLayers) {
-    //    if (context.quantizedFakeQuantizeNames.find(quantizationLayer->name) != context.quantizedFakeQuantizeNames.end()) {
-    //        return;
-    //    }
-    // }
+    if (subgraph.quantizationLayers.empty() || isHandled(subgraph.quantizationLayers)) {
+        return;
+    }
 
-    // TODO: uncomment
-    // if (!isMultiChannel(subgraph.concatLayers)) {
-    //    ConcatMultiChannelsTransformation::transform(context, concat);
-    //    return;
-    // }
+    if (!isMultiChannel(subgraph.concatLayers)) {
+        ConcatTransformation::transform(context, m);
+        return;
+    }
 
     // TODO: update later
     // TODO: check if precisions are different and return
@@ -170,7 +148,7 @@ void ConcatMultiChannelsTransformation::transform(TransformationContext& context
     //    context.quantizedFakeQuantizeNames.insert(quantizationLayer->name);
     //}
 
-    std::cout << "ConcatMultiChannelsTransformation::transform: done: " << concat->get_friendly_name() << std::endl;
+    // std::cout << "ConcatMultiChannelsTransformation::transform: done: " << concat->get_friendly_name() << std::endl;
 }
 
 bool ConcatMultiChannelsTransformation::isPrecisionPreserved(std::shared_ptr<Node>) const noexcept {

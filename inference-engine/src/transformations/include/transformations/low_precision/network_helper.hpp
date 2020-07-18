@@ -135,6 +135,10 @@ public:
 
     static bool isZeroConst(const std::shared_ptr<Node>& node);
 
+    static std::vector<std::shared_ptr<Node>> getChildrenRecursivelyExceptTypes(
+        const std::shared_ptr<Node>& layer,
+        const std::unordered_set<std::string>& exceptionLayerTypes = {});
+
 private:
     // 1  - on weights
     // 0  - weightable layer was not found

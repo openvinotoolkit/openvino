@@ -13,6 +13,7 @@
 #include <unordered_set>
 #include <utility>
 #include <vector>
+#include <queue>
 
 #include <ngraph/rt_info.hpp>
 #include <transformations/low_precision/common/ie_lpt_exception.hpp>
@@ -424,8 +425,9 @@ FakeQuantizeDequantization NetworkHelper::createDequantizationFromFakeQuantize(
     float max) {
     using std::make_shared;
 
-    auto newMin = make_shared<opset1::Constant>(fq->get_output_element_type(0), Shape{}, min);
-    auto newMax = make_shared<opset1::Constant>(fq->get_output_element_type(0), Shape{}, max);
+    const ngraph::element::Type_t fqPrecision = fq->get_output_element_type(0);
+    auto newMin = make_shared<opset1::Constant>(fqPrecision, Shape{}, min);
+    auto newMax = make_shared<opset1::Constant>(fqPrecision, Shape{}, max);
 
     auto outputLow = fq->input_value(3);
     auto outputHigh = fq->input_value(4);
@@ -505,6 +507,41 @@ bool NetworkHelper::isZeroConst(const std::shared_ptr<Node>& node) {
     } else {
         return false;
     }
+}
+
+std::vector<std::shared_ptr<Node>> NetworkHelper::getChildrenRecursivelyExceptTypes(
+    const std::shared_ptr<Node>& layer,
+    const std::unordered_set<std::string>& exceptionLayerTypes) {
+    std::queue<std::shared_ptr<Node>> notHandledChildren;
+
+    for (const ngraph::descriptor::Output& output : layer->get_outputs()) {
+        for (const ngraph::descriptor::Input* input : output.get_inputs()) {
+            std::shared_ptr<Node> child = input->get_node();
+            notHandledChildren.emplace(child);
+        }
+    }
+
+    std::vector<std::shared_ptr<Node>> resultChildren;
+
+    while (!notHandledChildren.empty()) {
+        const std::shared_ptr<ngraph::Node> operation = notHandledChildren.front();
+        notHandledChildren.pop();
+
+        const std::string typeName = operation->get_type_name();
+        if (exceptionLayerTypes.find(typeName) == exceptionLayerTypes.end()) {
+            resultChildren.push_back(operation);
+            continue;
+        }
+
+        for (auto output : operation->get_outputs()) {
+            for (auto input : output.get_inputs()) {
+                std::shared_ptr<Node> child = input->get_node();
+                notHandledChildren.emplace(child);
+            }
+        }
+    }
+
+    return resultChildren;
 }
 
 std::shared_ptr<Node> NetworkHelper::optimizeSubtract(std::shared_ptr<opset1::Subtract> add) {
