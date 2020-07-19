@@ -811,8 +811,7 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
                 cnnLayer->outData.clear();
                 continue;
             }
-            std::string outName = layer->get_friendly_name();
-            if (layer->get_output_size() != 1) outName += "." + std::to_string(i);
+            std::string outName = ngraph::op::util::create_ie_output_name(layer->output(i));
             DataPtr &ptr = cnnNetworkImpl->getData(outName.c_str());
             SizeVector dims;
             dims = layer->get_output_shape(i);

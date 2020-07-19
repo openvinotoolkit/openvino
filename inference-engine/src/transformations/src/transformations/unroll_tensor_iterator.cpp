@@ -64,6 +64,7 @@ void ngraph::pass::UnrollTensorIterator::unroll_tensor_iterator() {
                                                       inBuffers, false, true);
             for (auto &node : body_functions[idx]->get_ops()) {
                 node->set_friendly_name("TensorIterator/" + std::to_string(idx + 1) + "/" + node->get_friendly_name());
+                copy_runtime_info(ti, node);
             }
         }
 

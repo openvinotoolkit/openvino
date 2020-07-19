@@ -101,41 +101,6 @@ void ngraph::traverse_nodes(const NodeVector& subgraph_results,
     }
 }
 
-void ngraph::traverse_nodes(const OutputVector& subgraph_results,
-                            std::function<void(std::shared_ptr<Node>)> f,
-                            const OutputVector& subgraph_params)
-{
-    std::unordered_set<Node*> instances_seen;
-    std::stack<Node*, std::vector<Node*>> stack;
-    for (auto& node_ptr : subgraph_params)
-    {
-        instances_seen.insert(node_ptr.get_node_shared_ptr().get());
-    }
-    for (auto& node_ptr : subgraph_results)
-    {
-        stack.push(node_ptr.get_node_shared_ptr().get());
-    }
-
-    while (!stack.empty())
-    {
-        Node* n = stack.top();
-        stack.pop();
-        if (instances_seen.insert(n).second)
-        {
-            f(n->shared_from_this());
-            for (size_t i = 0; i < n->inputs().size(); i++)
-            {
-                stack.push(n->get_input_node_ptr(i));
-            }
-
-            for (auto& cdep : n->get_control_dependencies())
-            {
-                stack.push(cdep.get());
-            }
-        }
-    }
-}
-
 NodeVector ngraph::find_common_args(std::shared_ptr<Node> node1, std::shared_ptr<Node> node2)
 {
     std::unordered_set<std::shared_ptr<Node>> node1_args;
@@ -664,13 +629,6 @@ NodeVector ngraph::get_subgraph_outputs(const NodeVector& nodes,
 }
 
 NodeVector ngraph::extract_subgraph(const NodeVector& results, const NodeVector& args)
-{
-    NodeVector subgraph;
-    traverse_nodes(results, [&](std::shared_ptr<Node> n) { subgraph.push_back(n); }, args);
-    return subgraph;
-}
-
-NodeVector ngraph::extract_subgraph(const OutputVector& results, const OutputVector& args)
 {
     NodeVector subgraph;
     traverse_nodes(results, [&](std::shared_ptr<Node> n) { subgraph.push_back(n); }, args);
