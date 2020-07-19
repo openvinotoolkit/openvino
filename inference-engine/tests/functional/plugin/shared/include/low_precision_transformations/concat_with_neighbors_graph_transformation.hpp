@@ -18,7 +18,7 @@ typedef std::tuple<
     ngraph::pass::low_precision::LayerTransformation::Params,
     LayerTestsUtils::LayerTransformation::LptVersion> ConcatNeighboringGraphTransformationParams;
 
-class ConcatNeighboringGraphTransformation :
+class ConcatWithNeighborsGraphTransformation :
     public testing::WithParamInterface<ConcatNeighboringGraphTransformationParams>,
     public LayerTestsUtils::LayerTransformation {
 public:

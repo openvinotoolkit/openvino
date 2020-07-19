@@ -380,7 +380,7 @@ std::shared_ptr<opset1::FakeQuantize> NetworkHelper::updateFakeQuantize(
     return newFQ;
 }
 
-FakeQuantizeDequantization NetworkHelper::createDequantization(
+FakeQuantizeDequantization NetworkHelper::makeDequantization(
     const float dequantizationScale,
     const float dequantizationShift,
     const ngraph::element::Type originalPrecision,

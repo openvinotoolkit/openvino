@@ -23,12 +23,28 @@ public:
         const FakeQuantizeOnData& fakeQuantize1,
         const FakeQuantizeOnData& fakeQuantize2);
 
+    static std::shared_ptr<ngraph::Function> getOriginalWithNeighbors(
+        const ngraph::element::Type precision,
+        const ngraph::Shape& inputShape,
+        const FakeQuantizeOnData& fqOnData1,
+        const FakeQuantizeOnData& fqOnData2,
+        const FakeQuantizeOnData& fqOnData3);
+
     static std::shared_ptr<ngraph::Function> getReference(
         const ngraph::element::Type precision,
         const ngraph::Shape& inputShape,
         const FakeQuantizeOnData& fakeQuantize1,
         const FakeQuantizeOnData& fakeQuantize2,
         const DequantizationOperations& dequantizationOperations);
+
+    static std::shared_ptr<ngraph::Function> getReferenceWithNeighbors(
+        const ngraph::element::Type precision,
+        const ngraph::Shape& inputShape,
+        const FakeQuantizeOnData& fqOnData1,
+        const FakeQuantizeOnData& fqOnData2,
+        const FakeQuantizeOnData& fqOnData3,
+        const DequantizationOperations& dequantizationOperations1,
+        const DequantizationOperations& dequantizationOperations2);
 };
 
 }  // namespace subgraph

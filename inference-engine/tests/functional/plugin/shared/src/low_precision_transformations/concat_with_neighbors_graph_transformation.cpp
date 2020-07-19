@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "low_precision_transformations/concat_neighboring_graph_transformation.hpp"
+#include "low_precision_transformations/concat_with_neighbors_graph_transformation.hpp"
 
 #include <memory>
 #include <tuple>
@@ -12,10 +12,11 @@
 
 #include <transformations/init_node_info.hpp>
 #include "ngraph_functions/builders.hpp"
+#include "ngraph_functions/low_precision_transformations/concat_function.hpp"
 
 namespace LayerTestsDefinitions {
 
-std::string ConcatNeighboringGraphTransformation::getTestCaseName(testing::TestParamInfo<ConcatNeighboringGraphTransformationParams> obj) {
+std::string ConcatWithNeighborsGraphTransformation::getTestCaseName(testing::TestParamInfo<ConcatNeighboringGraphTransformationParams> obj) {
     ngraph::element::Type_t precision;
     ngraph::Shape inputShapes;
     std::string targetDevice;
@@ -26,7 +27,7 @@ std::string ConcatNeighboringGraphTransformation::getTestCaseName(testing::TestP
     return getTestCaseNameByParams(precision, inputShapes, targetDevice, params, version);
 }
 
-InferenceEngine::Blob::Ptr ConcatNeighboringGraphTransformation::GenerateInput(const InferenceEngine::InputInfo &info) const {
+InferenceEngine::Blob::Ptr ConcatWithNeighborsGraphTransformation::GenerateInput(const InferenceEngine::InputInfo &info) const {
     ngraph::element::Type_t netPrecision;
     ngraph::Shape inputShape;
     std::string targetDevice;
@@ -41,7 +42,7 @@ InferenceEngine::Blob::Ptr ConcatNeighboringGraphTransformation::GenerateInput(c
     return LayerTransformation::GenerateInput(params.precisionsOnActivations[0], info.getTensorDesc(), k);
 }
 
-void ConcatNeighboringGraphTransformation::SetUp() {
+void ConcatWithNeighborsGraphTransformation::SetUp() {
     threshold = 2.e-2;
     ngraph::element::Type_t ngPrecision;
     ngraph::Shape inputShape;
@@ -51,61 +52,19 @@ void ConcatNeighboringGraphTransformation::SetUp() {
 
     ConfigurePlugin(version);
 
-    {
-        const auto interval = getQuantizationInterval(params.precisionsOnActivations[0]);
-        const float low = interval.first;
-        const float hight = interval.second;
-
-        const auto input1 = std::make_shared<ngraph::opset1::Parameter>(ngPrecision, ngraph::Shape(inputShape));
-        input1->set_friendly_name("input1");
-        const auto fakeQuantize1 = ngraph::builder::makeFakeQuantize(
-            input1, ngPrecision, 256ul, { 1ul },
-            { low }, { hight }, { low }, { hight });
-        fakeQuantize1->set_friendly_name("fakeQuantize1");
-
-        const auto input2 = std::make_shared<ngraph::opset1::Parameter>(ngPrecision, ngraph::Shape(inputShape));
-        input2->set_friendly_name("input2");
-        const auto fakeQuantize2 = ngraph::builder::makeFakeQuantize(
-            input2, ngPrecision, 256ul, { 1ul },
-            { low / 2.f }, { hight / 2.f }, { low / 2.f }, { hight / 2.f });
-        fakeQuantize2->set_friendly_name("fakeQuantize2");
-
-        const auto input3 = std::make_shared<ngraph::opset1::Parameter>(ngPrecision, ngraph::Shape(inputShape));
-        input3->set_friendly_name("input3");
-        const auto fakeQuantize3 = ngraph::builder::makeFakeQuantize(
-            input3, ngPrecision, 256ul, { 1ul },
-            { low / 3.f }, { hight / 3.f }, { low / 3.f }, { hight / 3.f });
-        fakeQuantize3->set_friendly_name("fakeQuantize3");
-
-        const auto concat1 = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector{
-            fakeQuantize1->output(0),
-            fakeQuantize2->output(0) },
-            1ull);
-        concat1->set_friendly_name("concat1");
-
-        const auto concat2 = std::make_shared<ngraph::opset1::Concat>(ngraph::OutputVector{
-            fakeQuantize2->output(0),
-            fakeQuantize3->output(0) },
-            1ull);
-        concat2->set_friendly_name("concat2");
-
-        const ngraph::ResultVector results{
-            std::make_shared<ngraph::opset1::Result>(concat1),
-            std::make_shared<ngraph::opset1::Result>(concat2)
-        };
-
-        function = std::make_shared<ngraph::Function>(
-            results,
-            ngraph::ParameterVector{ input1, input2, input3 },
-            "ConcatNeighboringGraphTransformation");
-    }
+    function = ngraph::builder::subgraph::ConcatFunction::getOriginalWithNeighbors(
+        ngPrecision,
+        inputShape,
+        { 256ul, ngraph::Shape({}), {0.f}, {2.55f}, {0.f}, {2.55f} },
+        { 256ul, ngraph::Shape({}), {0.f}, {2.55f}, {0.f}, {2.55f / 2.f} },
+        { 256ul, ngraph::Shape({}), {0.f}, {2.55f}, {0.f}, {2.55f / 3.f} });
 
     if (version == LptVersion::cnnNetwork) {
         validate();
     }
 }
 
-void ConcatNeighboringGraphTransformation::validate() {
+void ConcatWithNeighborsGraphTransformation::validate() {
     ngraph::element::Type_t netPrecision;
     ngraph::Shape inputShape;
     ngraph::pass::low_precision::LayerTransformation::Params params;
@@ -140,7 +99,7 @@ void ConcatNeighboringGraphTransformation::validate() {
     IE_SUPPRESS_DEPRECATED_END
 }
 
-TEST_P(ConcatNeighboringGraphTransformation, CompareWithRefImpl) {
+TEST_P(ConcatWithNeighborsGraphTransformation, CompareWithRefImpl) {
     Run();
 };
 

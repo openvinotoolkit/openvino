@@ -41,8 +41,9 @@ std::pair<bool, std::string> compare_functions(
     auto f1_results = f1->get_results();
     auto f2_results = f2->get_results();
 
-    assert(f1_results.size() == 1);
-    assert(f2_results.size() == 1);
+    if (f1_results.size() != f2_results.size()) {
+        return { false, "Number of results is different: " + std::to_string(f1_results.size()) + " and " + std::to_string(f2_results.size()) };
+    }
 
     auto typeInfoToStr = [](const ngraph::Node::type_info_t & typeInfo) {
         return std::string(typeInfo.name) + "/" + std::to_string(typeInfo.version);
@@ -50,8 +51,11 @@ std::pair<bool, std::string> compare_functions(
 
     std::ostringstream err_log;
 
-    std::queue<std::pair<std::shared_ptr<ngraph::Node>, std::shared_ptr<ngraph::Node> > > q;
-    q.push({f1_results[0], f2_results[0]});
+    std::queue<std::pair<std::shared_ptr<ngraph::Node>, std::shared_ptr<ngraph::Node>>> q;
+    for (size_t i = 0; i < f1_results.size(); ++i) {
+        q.push({ f1_results[i], f2_results[i] });
+    }
+
     while (!q.empty()) {
         auto node1 = q.front().first;
         auto node2 = q.front().second;

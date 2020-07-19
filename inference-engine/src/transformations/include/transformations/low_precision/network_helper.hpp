@@ -87,7 +87,7 @@ public:
         float min,
         float max);
 
-    static FakeQuantizeDequantization createDequantization(
+    static FakeQuantizeDequantization makeDequantization(
         const float dequantizationScale,
         const float dequantizationShift,
         const ngraph::element::Type originalPrecision,
