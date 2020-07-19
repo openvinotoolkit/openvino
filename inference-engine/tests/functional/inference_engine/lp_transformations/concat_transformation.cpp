@@ -180,4 +180,4 @@ INSTANTIATE_TEST_CASE_P(
         ::testing::ValuesIn(testValues)
     ),
     ConcatTransformation::getTestCaseName);
-}
+}  // namespace
