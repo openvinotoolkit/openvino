@@ -9,51 +9,55 @@
 
 namespace FusingTestUtils {
 
+struct postNode {
+    std::shared_ptr<ngraph::Node> nodePtr;
+    std::map<std::string, std::string> addInfo;
+};
+
 typedef std::tuple<
         std::shared_ptr<ngraph::Function>,
-        std::vector<std::shared_ptr<ngraph::Node>>,
+        std::vector<postNode>,
         std::vector<std::string>> fusingSpecificParams;
 
 const std::vector<size_t> fakeShape = {1};
 const auto fakeConstNode = ngraph::builder::makeConstant(ngraph::element::f32, fakeShape, {}, true);
-const auto fakeParamNode = ngraph::builder::makeParams(ngraph::element::f32, {fakeShape})[0];
 
 /* FUSING PATTERNS */
 const auto fusingRelu = fusingSpecificParams{nullptr,
-        {ngraph::builder::makeActivation(fakeParamNode, ngraph::element::f32, ngraph::helpers::Relu)}, {"Relu"}};
+        {{ngraph::builder::makeActivation(fakeConstNode, ngraph::element::f32, ngraph::helpers::Relu)}}, {"Relu"}};
 const auto fusingElu = fusingSpecificParams{nullptr,
-        {ngraph::builder::makeActivation(fakeParamNode, ngraph::element::f32, ngraph::helpers::Elu, 2.0f)}, {"Elu"}};
+        {{ngraph::builder::makeActivation(fakeConstNode, ngraph::element::f32, ngraph::helpers::Elu, 2.0f)}}, {"Elu"}};
 const auto fusingSigmoid = fusingSpecificParams{nullptr,
-        {ngraph::builder::makeActivation(fakeParamNode, ngraph::element::f32, ngraph::helpers::Sigmoid)}, {"Sigmoid"}};
+        {{ngraph::builder::makeActivation(fakeConstNode, ngraph::element::f32, ngraph::helpers::Sigmoid)}}, {"Sigmoid"}};
 const auto fusingClamp = fusingSpecificParams{nullptr,
-        {ngraph::builder::makeActivation(fakeParamNode, ngraph::element::f32, ngraph::helpers::Clamp, 3.0f, 6.0f)}, {"Clamp"}};
+        {{ngraph::builder::makeActivation(fakeConstNode, ngraph::element::f32, ngraph::helpers::Clamp, 3.0f, 6.0f)}}, {"Clamp"}};
 const auto fusingPRelu = fusingSpecificParams{nullptr,
-        {fakeConstNode, ngraph::builder::makeActivation(fakeParamNode, ngraph::element::f32, ngraph::helpers::LeakyRelu)}, {"PRelu"}};
+        {{ngraph::builder::makeActivation(fakeConstNode, ngraph::element::f32, ngraph::helpers::LeakyRelu), {{"Granularity" , "PerChannel"}}}}, {"PRelu"}};
 
 const auto fusingReluScaleShift = fusingSpecificParams{nullptr,
-        {ngraph::builder::makeActivation(fakeParamNode, ngraph::element::f32, ngraph::helpers::Relu),
-         fakeConstNode, std::make_shared<ngraph::opset1::Multiply>(fakeParamNode, fakeConstNode),
-         fakeConstNode, std::make_shared<ngraph::opset1::Add>(fakeParamNode, fakeConstNode)}, {"Relu", "Add"}};
- const auto fusingFakeQuantizeRelu = fusingSpecificParams{nullptr,
-        {fakeConstNode, fakeConstNode, fakeConstNode, fakeConstNode,
-         ngraph::builder::makeFakeQuantize(fakeParamNode, ngraph::element::f32, 256, fakeShape),
-         ngraph::builder::makeActivation(fakeParamNode, ngraph::element::f32, ngraph::helpers::Relu)}, {"FakeQuantize", "Relu"}};
+        {{ngraph::builder::makeActivation(fakeConstNode, ngraph::element::f32, ngraph::helpers::Relu)},
+         {std::make_shared<ngraph::opset1::Multiply>(fakeConstNode, fakeConstNode), {{"Granularity" , "PerChannel"}}},
+         {std::make_shared<ngraph::opset1::Add>(fakeConstNode, fakeConstNode), {{"Granularity" , "PerChannel"}}}}, {"Relu", "Add"}};
+const auto fusingFakeQuantizePerChannelRelu = fusingSpecificParams{nullptr,
+        {{ngraph::builder::makeFakeQuantize(fakeConstNode, ngraph::element::f32, 256, fakeShape), {{"Granularity", "PerChannel"}}},
+         {ngraph::builder::makeActivation(fakeConstNode, ngraph::element::f32, ngraph::helpers::Relu)}}, {"FakeQuantize", "Relu"}};
+// TODO: failed test
+// const auto fusingFakeQuantizePerTensorRelu = fusingSpecificParams{nullptr,
+//         {{ngraph::builder::makeFakeQuantize(fakeConstNode, ngraph::element::f32, 256, fakeShape), {{"Granularity", "PerTensor"}}},
+//          {ngraph::builder::makeActivation(fakeConstNode, ngraph::element::f32, ngraph::helpers::Relu)}}, {"FakeQuantize", "Relu"}};
 const auto fusingSum = fusingSpecificParams{nullptr,
-        {fakeParamNode, std::make_shared<ngraph::opset1::Add>(fakeParamNode, fakeParamNode)}, {"Add"}};
+        {{std::make_shared<ngraph::opset1::Add>(fakeConstNode, fakeConstNode), {{"Inputs", "Parameters"}}}}, {"Add"}};
 // todo: DWConvolution (not supported for GroupConvolution)
 
-
 /* "HARD" FUSING PATTERNS */
-std::shared_ptr<ngraph::Function> makeSwishPattern(std::vector<size_t> shape);
-std::shared_ptr<ngraph::Function> makeFakeQuantizeActivationPattern(size_t levels, ngraph::helpers::ActivationTypes type, std::vector<size_t> shape);
+std::shared_ptr<ngraph::Function> makeSwishPattern();
+const auto fusingSwishPattern = fusingSpecificParams{makeSwishPattern(), {}, {"Swish"}};
 
-
-std::string postNodes2str(const std::vector<std::shared_ptr<ngraph::Node>> &postNodes);
+std::string postNodes2str(const std::vector<postNode> &postNodes);
 std::shared_ptr<ngraph::Function> makeNgraphFunction(const ngraph::element::Type &ngPrc, ngraph::ParameterVector &params,
         const std::shared_ptr<ngraph::Node> &lastNode, const std::shared_ptr<ngraph::Function> &postFunction);
 std::shared_ptr<ngraph::Function> makeNgraphFunction(const ngraph::element::Type &ngPrc, ngraph::ParameterVector &params,
-        const std::shared_ptr<ngraph::Node> &lastNode, const std::vector<std::shared_ptr<ngraph::Node>> &postNodes);
-
+        const std::shared_ptr<ngraph::Node> &lastNode, const std::vector<postNode> &postNodes);
 
 void inline CheckFusing(InferenceEngine::ExecutableNetwork &execNet, std::string nodeType, std::vector<std::string> fusedOps) {
     InferenceEngine::CNNNetwork execGraphInfo = execNet.GetExecGraphInfo();
