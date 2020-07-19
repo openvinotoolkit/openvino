@@ -224,36 +224,6 @@ const std::vector<ConcatTransformationTestValues> testValues = {
             { ngraph::element::f32, {-255.f}, { 0.005f } }
         }
     },
-    //// I8
-    //{
-    //    { 1, 3, 9, 9 },
-    //    LayerTransformation::createParamsI8I8(),
-    //    false,
-    //    {
-    //        { 256ul, ngraph::Shape({}), {-1.28f}, {1.27f}, {-1.28f}, {1.27f} },
-    //        { 256ul, ngraph::Shape({}), {-1.28f}, {1.27f}, {-1.28f}, {1.27f} }
-    //    },
-    //    {
-    //        { 256ul, ngraph::Shape({}), {-1.28f}, {1.27f}, {-128.f}, {127.f}, ngraph::element::i8 },
-    //        { 256ul, ngraph::Shape({}), {-1.28f}, {1.27f}, {-128.f}, {127.f}, ngraph::element::i8 },
-    //        { ngraph::element::f32, {}, { 0.01f } }
-    //    }
-    //},
-    //// mixed: U8 + I8: concat multi channels
-    //{
-    //    { 1, 3, 9, 9 },
-    //    LayerTransformation::createParamsU8I8(),
-    //    true,
-    //    {
-    //        { 256ul, ngraph::Shape({}), {0.f}, {2.55f}, {0.f}, {2.55f} },
-    //        { 256ul, ngraph::Shape({}), {-1.28f}, {1.27f}, {-1.28f}, {1.27f} }
-    //    },
-    //    {
-    //        { 256ul, ngraph::Shape({}), {0.f}, {2.55f}, {0.f}, {255.f}, ngraph::element::u8 },
-    //        { 256ul, ngraph::Shape({}), {-1.28f}, {1.27f}, {0.f}, {255.f}, ngraph::element::u8 },
-    //        { ngraph::element::f32, { 0.f, 0.f, 0.f, 128.f, 128.f, 128.f }, { 0.01f } }
-    //    }
-    //},
 };
 
 INSTANTIATE_TEST_CASE_P(
