@@ -84,7 +84,6 @@ class GNAPlugin : public InferenceEngine::IInferencePluginInternal, public std::
     InferenceEngine::InputsDataMap inputsDataMapOriginal;
     InferenceEngine::InputsDataMap inputsDataMap;
     InferenceEngine::OutputsDataMap outputsDataMap;
-    std::vector<InferenceEngine::MemoryStateInternal::Ptr> memoryStates;
     InferenceEngine::OutputsDataMap outputsDataMapOriginal;
 
  public:

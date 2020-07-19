@@ -115,13 +115,13 @@ static void InsertMemoryLayer(InferenceEngine::CNNLayerPtr prevLayer,
 
     auto memoryLayerWithQuant = quantized ? InferenceEngine::injectData<QuantizedLayerParams>(memoryLayer) : memoryLayer;
 
-    InferenceEngine::getCreatorLayer(dataPtr) = memoryLayerWithQuant;
+    dataPtr->getCreatorLayer() = memoryLayerWithQuant;
     memoryLayerWithQuant->outData.push_back(dataPtr);
 
     // TODO: insert layer algo doesn't support inserting between given layer and void if there are active connection
     // CNNNetworkInsertLayer(prevLayer, nullptr, memoryLayer, portId);
 
-    InferenceEngine::getInputTo(prevLayer->outData[portId])[memoryName] = memoryLayerWithQuant;
+    prevLayer->outData[portId]->getInputTo()[memoryName] = memoryLayerWithQuant;
     memoryLayerWithQuant->insData.push_back(prevLayer->outData[portId]);
     memoryLayerWithQuant->params["id"] = id;
     memoryLayerWithQuant->params["index"] = "0";
@@ -1223,7 +1223,7 @@ void MakeExtraMemoryLayersPass::run() {
         }
 
         // checking that index for given out data might changed during previous transformations
-        auto parent = InferenceEngine::getCreatorLayer(outputIt->second).lock();
+        auto parent = outputIt->second->getCreatorLayer().lock();
         auto outDataIt = std::find(parent->outData.begin(), parent->outData.end(), outputIt->second);
         auto outDataIdxActual = std::distance(parent->outData.begin(), outDataIt);
         // real insertion of memory layer
@@ -1234,9 +1234,9 @@ void MakeExtraMemoryLayersPass::run() {
         implNetwork->removeOutputInfo(outDataIt->get()->getName());
 
         // replacing type of input layer to be memory layer
-        auto firtstLayerAfterInput = InferenceEngine::getInputTo(input.second->getInputData()).begin()->second;
+        auto firtstLayerAfterInput = input.second->getInputData()->getInputTo().begin()->second;
         auto insDataIdx = CNNLayerFindInsDataIdxes(input.second->getInputData(), firtstLayerAfterInput);
-        auto inputLayer = InferenceEngine::getCreatorLayer(firtstLayerAfterInput->insData[insDataIdx.front()].lock()).lock();
+        auto inputLayer = firtstLayerAfterInput->insData[insDataIdx.front()].lock()->getCreatorLayer().lock();
         inputLayer->type = "Memory";
         inputLayer->params["id"] = id;
         inputLayer->params["index"] = "1";
