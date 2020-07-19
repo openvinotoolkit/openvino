@@ -32,10 +32,15 @@ const std::vector<ConcatTransformationTestValues> testValues = {
         { 256ul, ngraph::Shape({}), {-1.28f}, {1.27f}, {-1.28f}, {1.27f} },
         { 256ul, ngraph::Shape({}), {-1.28f}, {1.27f}, {-1.28f}, {1.27f} }
     },
-    // mixed
+    // mixed: U8 + I8
     {
         { 256ul, ngraph::Shape({}), {0.f}, {2.55f}, {0.f}, {2.55f} },
         { 256ul, ngraph::Shape({}), {-1.28f}, {1.27f}, {-1.28f}, {1.27f} }
+    },
+    // mixed: I8 + U8
+    {
+        { 256ul, ngraph::Shape({}), {-1.28f}, {1.27f}, {-1.28f}, {1.27f} },
+        { 256ul, ngraph::Shape({}), {0.f}, {2.55f}, {0.f}, {2.55f} }
     }
 };
 

@@ -106,9 +106,9 @@ void ConcatMultiChannelsTransformation::transform(TransformationContext& context
         // 2. update FakeQuantize - one time action
         subgraph.quantizationLayers[i] = ngraph::pass::low_precision::NetworkHelper::updateFakeQuantize(
             fq,
-            dataPrecision.precision,
-            dataPrecision.min,
-            dataPrecision.max).get();
+            updatePrecisions ? dataPrecision.precision : fakeQuantizeLayer->get_output_element_type(0),
+            roundf(dataPrecision.min),
+            roundf(dataPrecision.max)).get();
     }
 
     //if (updatePrecisions) {
@@ -144,15 +144,19 @@ void ConcatMultiChannelsTransformation::transform(TransformationContext& context
 
     addDequantizationLayers(context, subgraph, dequantizationValuesCallback);
 
-    //for (const CNNLayerPtr& quantizationLayer : subgraph.quantizationLayers) {
-    //    context.quantizedFakeQuantizeNames.insert(quantizationLayer->name);
-    //}
+    if (updatePrecisions) {
+        for (const auto it : subgraph.layers) {
+            ngraph::Node* node = it.second;
+            ngraph::pass::low_precision::NetworkHelper::setOutDataPrecision(node->shared_from_this(), dataPrecision.precision);
+            // std::cout << "\t" << node->get_friendly_name() << ": " << dataPrecision.precision << std::endl;
+        }
+    }
 
     // std::cout << "ConcatMultiChannelsTransformation::transform: done: " << concat->get_friendly_name() << std::endl;
 }
 
 bool ConcatMultiChannelsTransformation::isPrecisionPreserved(std::shared_ptr<Node>) const noexcept {
-    return false;
+    return true;
 }
 
 // fill dequantizationsToMerge collection for layer with using dequantizationByFakeQuantize

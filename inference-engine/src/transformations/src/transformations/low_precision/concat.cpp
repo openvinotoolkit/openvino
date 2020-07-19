@@ -168,9 +168,9 @@ void ConcatTransformation::transform(TransformationContext& context, ngraph::pat
                     // 2. update FakeQuantize - one time action
                     std::shared_ptr<opset1::FakeQuantize> newFakeQuantizeLayer = ngraph::pass::low_precision::NetworkHelper::updateFakeQuantize(
                         fakeQuantizeLayer,
-                        dataPrecision.precision,
-                        updatePrecisions ? roundf(updatedOutputLowValue) : updatedOutputLowValue,
-                        updatePrecisions ? roundf(updatedOutputHighValue) : updatedOutputHighValue);
+                        updatePrecisions ? dataPrecision.precision : fakeQuantizeLayer->get_output_element_type(0),
+                        roundf(updatedOutputLowValue),
+                        roundf(updatedOutputHighValue));
 
                     const size_t levels = static_cast<size_t>(fabs(roundf(updatedOutputHighValue) - roundf(updatedOutputLowValue)) + 1.0);
                     newFakeQuantizeLayer->set_levels(levels);
@@ -216,7 +216,20 @@ void ConcatTransformation::transform(TransformationContext& context, ngraph::pat
 }
 
 bool ConcatTransformation::isPrecisionPreserved(std::shared_ptr<Node>) const noexcept {
-    return false;
+    return true;
+}
+
+std::shared_ptr<Node> toScalarIfPossible(std::shared_ptr<Node> node) {
+    std::shared_ptr<opset1::Constant> constant = as_type_ptr<opset1::Constant>(node);
+    if (constant == nullptr) {
+        return node;
+    }
+
+    if (!NetworkHelper::isScalarLike(constant)) {
+        return node;
+    }
+
+    return NetworkHelper::toScalar(constant);
 }
 
 void ConcatTransformation::addDequantizationLayers(
@@ -283,6 +296,17 @@ void ConcatTransformation::addDequantizationLayers(
                                 return broadcast;
                             };
 
+                            bool allDequantizationShiftAreZero = true;
+                            bool allDequantizationMultiplyAreZero = true;
+                            for (FakeQuantizeDequantization dequantization : layerDequantizations) {
+                                if (dequantization.subtract != nullptr) {
+                                    allDequantizationShiftAreZero = false;
+                                }
+                                if (dequantization.multiply != nullptr) {
+                                    allDequantizationMultiplyAreZero = false;
+                                }
+                            }
+
                             for (FakeQuantizeDequantization dequantization : layerDequantizations) {
                                 convertNodes.push_back(dequantization.convert);
 
@@ -298,18 +322,21 @@ void ConcatTransformation::addDequantizationLayers(
                                 targetShape[2] = 1ul;
                                 targetShape[3] = 1ul;
 
-                                subtractNodes.push_back(dequantization.subtract == nullptr ?
-                                    // TODO: question vector precision is hardcoded - is it OK?
-                                    std::make_shared<ngraph::opset1::Constant>(precision, targetShape, std::vector<size_t>({ 0 })) :
-                                    broadcastElementWiseConst(
-                                        as_type_ptr<ngraph::opset1::Constant>(dequantization.subtract->input_value(1).get_node_shared_ptr()),
-                                        targetShape));
+                                if (!allDequantizationShiftAreZero) {
+                                    subtractNodes.push_back(dequantization.subtract == nullptr ?
+                                        std::make_shared<ngraph::opset1::Constant>(precision, targetShape, std::vector<float>({ 0.f })) :
+                                        broadcastElementWiseConst(
+                                            as_type_ptr<ngraph::opset1::Constant>(dequantization.subtract->input_value(1).get_node_shared_ptr()),
+                                            targetShape));
+                                }
 
-                                multiplyNodes.push_back(dequantization.multiply == nullptr ?
-                                    std::make_shared<ngraph::opset1::Constant>(precision, targetShape, std::vector<float>({ 1.0 })) :
-                                    broadcastElementWiseConst(
-                                        as_type_ptr<ngraph::opset1::Constant>(dequantization.multiply->input_value(1).get_node_shared_ptr()),
-                                        targetShape));
+                                if (!allDequantizationMultiplyAreZero) {
+                                    multiplyNodes.push_back(dequantization.multiply == nullptr ?
+                                        std::make_shared<ngraph::opset1::Constant>(precision, targetShape, std::vector<float>({ 1.0f })) :
+                                        broadcastElementWiseConst(
+                                            as_type_ptr<ngraph::opset1::Constant>(dequantization.multiply->input_value(1).get_node_shared_ptr()),
+                                            targetShape));
+                                }
                             }
                         } else {
                             // TODO: check constant shapes here - has to be scalar
@@ -349,9 +376,9 @@ void ConcatTransformation::addDequantizationLayers(
 
                             std::shared_ptr<ngraph::opset1::Subtract> subtract = std::make_shared<ngraph::opset1::Subtract>(
                                 source,
-                                subtractNodes.size() == 1ul ?
+                                toScalarIfPossible(subtractNodes.size() == 1ul ?
                                     subtractNodes[0] :
-                                    ngraph::pass::low_precision::fold<ngraph::opset1::Concat>(subtractNodes, 1));
+                                    ngraph::pass::low_precision::fold<ngraph::opset1::Concat>(subtractNodes, 1)));
                             insert_new_node_between(source, destination, subtract);
                             source = subtract;
 
@@ -362,9 +389,9 @@ void ConcatTransformation::addDequantizationLayers(
                         if (!multiplyNodes.empty()) {
                             std::shared_ptr<ngraph::opset1::Multiply> multiply = std::make_shared<ngraph::opset1::Multiply>(
                                 source,
-                                multiplyNodes.size() == 1ul ?
+                                toScalarIfPossible(multiplyNodes.size() == 1ul ?
                                     multiplyNodes[0] :
-                                    ngraph::pass::low_precision::fold<ngraph::opset1::Concat>(multiplyNodes, 1));
+                                    ngraph::pass::low_precision::fold<ngraph::opset1::Concat>(multiplyNodes, 1)));
                             insert_new_node_between(source, destination, multiply);
                             source = multiply;
                         }

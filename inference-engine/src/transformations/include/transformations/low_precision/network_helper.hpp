@@ -64,7 +64,7 @@ public:
 
     static bool isScalarLike(std::shared_ptr<opset1::Constant> constant);
 
-    static std::shared_ptr<opset1::Constant> distillToScalar(std::shared_ptr<opset1::Constant> constant);
+    static std::shared_ptr<opset1::Constant> toScalar(std::shared_ptr<opset1::Constant> constant);
 
     static std::shared_ptr<Node> getConstantInput(std::shared_ptr<Node> node);
 

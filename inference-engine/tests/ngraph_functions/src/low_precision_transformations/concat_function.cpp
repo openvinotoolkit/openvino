@@ -44,7 +44,7 @@ std::shared_ptr<Node> createDequantization(
                 parent->get_output_element_type(0),
                 dequantizationOperations.subtractValues.size() == 1ul ?
                     Shape{} :
-                    Shape{dequantizationOperations.subtractValues.size(), 1, 1},
+                    Shape{ 1, dequantizationOperations.subtractValues.size(), 1, 1 },
                 dequantizationOperations.subtractValues));
         parent = subtract;
     }
@@ -56,7 +56,7 @@ std::shared_ptr<Node> createDequantization(
                 parent->get_output_element_type(0),
                 dequantizationOperations.multiplyValues.size() == 1ul ?
                     Shape{} :
-                    Shape{ dequantizationOperations.multiplyValues.size(), 1, 1 },
+                    Shape{ 1, dequantizationOperations.multiplyValues.size(), 1, 1 },
                 dequantizationOperations.multiplyValues));
         parent = multiply;
     }
@@ -105,31 +105,6 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getOriginal(
 
     return function;
 }
-
-//std::shared_ptr<ngraph::Function> ConcatFunction::getOriginal(
-//    const ngraph::element::Type ngPrecision,
-//    const ngraph::Shape& inputShape,
-//    const DequantizationOperations& dequantizationOperations1,
-//    const DequantizationOperations& dequantizationOperations2) {
-//    const auto input1 = std::make_shared<ngraph::opset1::Parameter>(ngPrecision, inputShape);
-//    input1->set_friendly_name("input1");
-//    const std::shared_ptr<Node> branch1 = createBranch(input1, dequantizationOperations1);
-//
-//    const auto input2 = std::make_shared<ngraph::opset1::Parameter>(ngPrecision, inputShape);
-//    input1->set_friendly_name("input2");
-//    const std::shared_ptr<Node> branch2 = createBranch(input1, dequantizationOperations2);
-//
-//    const std::shared_ptr<ngraph::opset1::Concat> concat = std::make_shared<ngraph::opset1::Concat>(
-//        ngraph::OutputVector{ branch1->output(0), branch2->output(0) }, 1);
-//
-//    ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(concat) };
-//    std::shared_ptr<ngraph::Function> function = std::make_shared<ngraph::Function>(
-//        results,
-//        ngraph::ParameterVector{ input1, input2 },
-//        "ConcatTransformation");
-//
-//    return function;
-//}
 
 std::shared_ptr<ngraph::Function> ConcatFunction::getReference(
     const ngraph::element::Type precision,
