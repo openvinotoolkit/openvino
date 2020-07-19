@@ -262,6 +262,9 @@ void ConcatTransformation::addDequantizationLayers(
             for (const auto childInput : childInputs) {
                 ngraph::Node& child = *childInput.get_node();
                 if (subgraph.layers.find(child.get_friendly_name()) == subgraph.layers.end()) {
+
+                    std::cout << child.get_type_name() << ": " << child.get_friendly_name() << std::endl;
+
                     // child operation is out of Concat subgraph: we need to add dequantization operations
                     // std::cout << "\tadd dequantization operations: " << layer->get_friendly_name() << " -> " << child.get_friendly_name() << std::endl;
                     if (layerDequantizations.size() == 0ul) {
@@ -400,7 +403,7 @@ void ConcatTransformation::addDequantizationLayers(
                         source->set_friendly_name(originalName);
                         subgraph.layers[layer->get_friendly_name()] = layer;
 
-                        subgraph.layers.erase(subgraph.layers.find(originalName));
+                        // subgraph.layers.erase(subgraph.layers.find(originalName));
                     }
                 }
             }

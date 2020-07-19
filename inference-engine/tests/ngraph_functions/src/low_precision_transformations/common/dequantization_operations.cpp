@@ -20,6 +20,10 @@ DequantizationOperations::DequantizationOperations(
     multiplyValues(multiplyValues)
 {}
 
+bool DequantizationOperations::empty() const {
+    return (convertOutputPrecision == ngraph::element::undefined) && subtractValues.empty() && multiplyValues.empty();
+}
+
 }  // namespace subgraph
 }  // namespace builder
 }  // namespace ngraph

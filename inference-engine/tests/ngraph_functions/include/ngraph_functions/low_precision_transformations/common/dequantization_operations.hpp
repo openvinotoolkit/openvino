@@ -20,6 +20,8 @@ public:
         const std::vector<float>& subtractValues,
         const std::vector<float>& multiplyValues);
 
+    bool empty() const;
+
     ngraph::element::Type_t convertOutputPrecision;
     std::vector<float> subtractValues;
     std::vector<float> multiplyValues;

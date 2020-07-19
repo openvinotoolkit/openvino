@@ -30,6 +30,13 @@ public:
         const FakeQuantizeOnData& fqOnData2,
         const FakeQuantizeOnData& fqOnData3);
 
+    static std::shared_ptr<ngraph::Function> getOriginalWithIntermediate(
+        const ngraph::element::Type precision,
+        const ngraph::Shape& inputShape,
+        const bool transparentIntermediate,
+        const FakeQuantizeOnData& fqOnData1,
+        const FakeQuantizeOnData& fqOnData2);
+
     static std::shared_ptr<ngraph::Function> getReference(
         const ngraph::element::Type precision,
         const ngraph::Shape& inputShape,
@@ -43,6 +50,15 @@ public:
         const FakeQuantizeOnData& fqOnData1,
         const FakeQuantizeOnData& fqOnData2,
         const FakeQuantizeOnData& fqOnData3,
+        const DequantizationOperations& dequantizationOperations1,
+        const DequantizationOperations& dequantizationOperations2);
+
+    static std::shared_ptr<ngraph::Function> getReferenceWithIntermediate(
+        const ngraph::element::Type precision,
+        const ngraph::Shape& inputShape,
+        const bool transparentIntermediate,
+        const FakeQuantizeOnData& fqOnData1,
+        const FakeQuantizeOnData& fqOnData2,
         const DequantizationOperations& dequantizationOperations1,
         const DequantizationOperations& dequantizationOperations2);
 };

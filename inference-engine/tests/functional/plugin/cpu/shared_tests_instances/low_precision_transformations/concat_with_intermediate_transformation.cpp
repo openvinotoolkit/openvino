@@ -13,7 +13,7 @@ using namespace InferenceEngine::details;
 namespace {
 const std::vector<ngraph::element::Type_t> netPrecisions = {
     ngraph::element::Type_t::f32,
-    ngraph::element::Type_t::f16
+    // ngraph::element::Type_t::f16
 };
 
 const std::vector<ngraph::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
@@ -25,7 +25,7 @@ const std::vector<ngraph::pass::low_precision::LayerTransformation::Params> tras
 
 const std::vector<LayerTestsUtils::LayerTransformation::LptVersion> versions = {
     LayerTestsUtils::LayerTransformation::LptVersion::cnnNetwork,
-    // LayerTestsUtils::LayerTransformation::LptVersion::nGraph
+    LayerTestsUtils::LayerTransformation::LptVersion::nGraph
 };
 
 const std::vector<bool> transparentIntermediateValues = { true, false };

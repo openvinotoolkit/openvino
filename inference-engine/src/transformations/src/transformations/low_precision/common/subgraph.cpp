@@ -31,15 +31,18 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-// TODO: temporary commented : possible it doesn't need
-// static const std::unordered_set<std::string> intermediateLayers{
-//    "MaxPool",
-//    "Resample"
-// };
+static const std::unordered_set<std::string> intermediateLayers{
+    "MaxPool",
+    "Resample"
+};
 
 // TODO: Resample is skipped
 bool isIntermediate(const ngraph::Node& node) {
-    return is_type<ngraph::opset1::MaxPool>(&node);
+    if (is_type<ngraph::opset1::MaxPool>(&node)) {
+        return true;
+    }
+
+    return false;
 }
 
 bool Subgraph::fillSubgraphForQuantization(ngraph::opset1::FakeQuantize& fakeQuantize, std::unordered_set<std::string>& handledLayers) {
@@ -70,13 +73,12 @@ bool Subgraph::fillSubgraphForQuantization(ngraph::opset1::FakeQuantize& fakeQua
                 if (fakeQuantizeChild != nullptr) {
                 //
                 } else {
-                    return false;
                     // TODO: possible not neccessary
-                    //if (intermediateLayers.find(child->type) != intermediateLayers.end()) {
-                    //    if (!fillSubgraphForIntermediate(child, handledLayers)) {
-                    //        return false;
-                    //    }
-                    //}
+                    if (isIntermediate(child)) {
+                        if (!fillSubgraphForIntermediate(child, handledLayers)) {
+                            return false;
+                        }
+                    }
                 }
             }
         }
@@ -107,13 +109,13 @@ bool Subgraph::fill(ngraph::Node& layer, std::unordered_set<std::string>& handle
                 // TODO: if we move Concat transformation from branch specific to original map then we can remove it
                 // TODO: temporary commented: possible it doesn't need
                 // if (intermediateLayers.find(parent->type) != intermediateLayers.end()) {
-                //    if (!fillSubgraphForIntermediate(parent, handledLayers)) {
-                //        return false;
-                //    }
-
-                // } else {
-                //    return false;
-                // }
+                if (isIntermediate(parent)) {
+                    if (!fillSubgraphForIntermediate(parent, handledLayers)) {
+                        return false;
+                    }
+                } else {
+                    return false;
+                }
             }
         }
     }
