@@ -452,7 +452,9 @@ FakeQuantizeDequantization NetworkHelper::createDequantizationFromFakeQuantize(
     }
 
     const auto input = std::make_shared<ngraph::opset1::Parameter>(precision, fq->get_output_shape(0));
-    const std::shared_ptr<ngraph::opset1::Convert> convert =  as_type_ptr<ngraph::opset1::Convert>(fold<opset1::Convert>(input, fq->get_output_element_type(0)));
+    const std::shared_ptr<ngraph::opset1::Convert> convert =  as_type_ptr<ngraph::opset1::Convert>(fold<opset1::Convert>(
+        input,
+        fq->get_output_element_type(0)));
 
     const std::shared_ptr<ngraph::opset1::Subtract> subtract = shift == nullptr ?
         nullptr :

@@ -374,7 +374,7 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getReferenceWithNeighbors(
     const ngraph::element::Type fqOnDataPrecision = fqOnData1.outputPrecision;
     if (fqOnDataPrecision != ngraph::element::undefined) {
         if ((fakeQuantize1->get_output_element_type(0) != fakeQuantize2->get_output_element_type(0)) ||
-            (fakeQuantize2->get_output_element_type(0) != fakeQuantize3->get_output_element_type(0))){
+            (fakeQuantize2->get_output_element_type(0) != fakeQuantize3->get_output_element_type(0))) {
             THROW_IE_EXCEPTION << "FakeQuantize operation precisions are different";
         }
         const ngraph::element::Type fakeQuantizePrecision = fakeQuantize1->get_output_element_type(0);
