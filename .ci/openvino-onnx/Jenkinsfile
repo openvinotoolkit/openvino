@@ -84,7 +84,7 @@ pipeline {
                 gitSubmoduleUpdate(PROJECT_NAME)
             }
         }
-        stage("Build docker image with tests") {
+        stage("Run tests") {
             steps{
                 dir("${WORKDIR}") {
                     buildDockerImage()
@@ -102,6 +102,9 @@ pipeline {
         cleanup {
             dir("${WORKDIR}") {
                 deleteDir()
+                sh """
+                    docker image prune -f
+                """
             }
         }
     }
