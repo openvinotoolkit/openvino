@@ -4,16 +4,16 @@
 
 #include <vector>
 
-#include "low_precision_transformations/concat_with_intermediate_transformation.hpp"
+#include "low_precision_transformations/concat_with_neighbors_graph_transformation.hpp"
 #include "common_test_utils/test_constants.hpp"
 
 using namespace LayerTestsDefinitions;
 using namespace InferenceEngine::details;
 
 namespace {
-const std::vector<ngraph::element::Type_t> netPrecisions = {
-    ngraph::element::Type_t::f32,
-    // ngraph::element::Type_t::f16
+const std::vector<ngraph::element::Type_t> precisions = {
+    ngraph::element::f32,
+    // ngraph::element::f16
 };
 
 const std::vector<ngraph::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
@@ -28,17 +28,12 @@ const std::vector<LayerTestsUtils::LayerTransformation::LptVersion> versions = {
     LayerTestsUtils::LayerTransformation::LptVersion::nGraph
 };
 
-const std::vector<bool> transparentIntermediateValues = { true, false };
-const std::vector<bool> multiChannelValues = { /*true,*/ false };
-
-INSTANTIATE_TEST_CASE_P(LPT, ConcatWithIntermediateTransformation,
+INSTANTIATE_TEST_CASE_P(LPT, ConcatWithNeighborsGraphTransformation,
     ::testing::Combine(
-        ::testing::ValuesIn(netPrecisions),
+        ::testing::ValuesIn(precisions),
         ::testing::Values(ngraph::Shape({ 1, 3, 16, 16 })),
         ::testing::Values(CommonTestUtils::DEVICE_CPU),
         ::testing::ValuesIn(trasformationParamValues),
-        ::testing::ValuesIn(versions),
-        ::testing::ValuesIn(transparentIntermediateValues),
-        ::testing::ValuesIn(multiChannelValues)),
-    ConcatWithIntermediateTransformation::getTestCaseName);
+        ::testing::ValuesIn(versions)),
+    ConcatWithNeighborsGraphTransformation::getTestCaseName);
 }  // namespace

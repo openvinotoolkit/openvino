@@ -50,10 +50,12 @@ std::string MultiplyTransformation::getTestCaseName(testing::TestParamInfo<Multi
 void MultiplyTransformation::SetUp() {
     InferenceEngine::Precision netPrecision;
     InferenceEngine::SizeVector inputShape1;
-    InferenceEngine::details::LayerTransformation::Params params;
     LayerTestsUtils::LayerTransformation::LptVersion version;
     MultiplyTestValues param;
     std::tie(netPrecision, inputShape1, targetDevice, version, param) = this->GetParam();
+
+    ConfigurePlugin(LptVersion::cnnNetwork);
+
     auto precision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
     InferenceEngine::SizeVector inputShape2 = inputShape1;

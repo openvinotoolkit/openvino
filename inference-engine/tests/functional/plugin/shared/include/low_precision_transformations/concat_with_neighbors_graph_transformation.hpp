@@ -11,11 +11,18 @@
 
 namespace LayerTestsDefinitions {
 
-class ConcatNeighboringGraphTransformation :
-    public testing::WithParamInterface<LayerTestsUtils::LayerTransformationParams>,
+typedef std::tuple<
+    ngraph::element::Type_t,
+    ngraph::Shape,
+    std::string,
+    ngraph::pass::low_precision::LayerTransformation::Params,
+    LayerTestsUtils::LayerTransformation::LptVersion> ConcatNeighboringGraphTransformationParams;
+
+class ConcatWithNeighborsGraphTransformation :
+    public testing::WithParamInterface<ConcatNeighboringGraphTransformationParams>,
     public LayerTestsUtils::LayerTransformation {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<LayerTestsUtils::LayerTransformationParams> obj);
+    static std::string getTestCaseName(testing::TestParamInfo<ConcatNeighboringGraphTransformationParams> obj);
     InferenceEngine::Blob::Ptr GenerateInput(const InferenceEngine::InputInfo &info) const override;
 
 protected:

@@ -41,8 +41,9 @@ std::pair<bool, std::string> compare_functions(
     auto f1_results = f1->get_results();
     auto f2_results = f2->get_results();
 
-    assert(f1_results.size() == 1);
-    assert(f2_results.size() == 1);
+    if (f1_results.size() != f2_results.size()) {
+        return { false, "Number of results is different: " + std::to_string(f1_results.size()) + " and " + std::to_string(f2_results.size()) };
+    }
 
     auto typeInfoToStr = [](const ngraph::Node::type_info_t & typeInfo) {
         return std::string(typeInfo.name) + "/" + std::to_string(typeInfo.version);
@@ -50,15 +51,21 @@ std::pair<bool, std::string> compare_functions(
 
     std::ostringstream err_log;
 
-    std::queue<std::pair<std::shared_ptr<ngraph::Node>, std::shared_ptr<ngraph::Node> > > q;
-    q.push({f1_results[0], f2_results[0]});
+    std::queue<std::pair<std::shared_ptr<ngraph::Node>, std::shared_ptr<ngraph::Node>>> q;
+    for (size_t i = 0; i < f1_results.size(); ++i) {
+        q.push({ f1_results[i], f2_results[i] });
+    }
+
     while (!q.empty()) {
         auto node1 = q.front().first;
         auto node2 = q.front().second;
         q.pop();
 
-        if (node1->get_type_info() != node2->get_type_info()) {
-            return {false, typeInfoToStr(node1->get_type_info()) + " != " + typeInfoToStr(node2->get_type_info())};
+        auto type_info1 = node1->get_type_info();
+        auto type_info2 = node2->get_type_info();
+
+        if (type_info1 != type_info2) {
+            return {false, typeInfoToStr(type_info1) + " != " + typeInfoToStr(type_info2)};
         }
 
         if (node1->inputs().size() != node2->inputs().size()) {
@@ -84,14 +91,14 @@ std::pair<bool, std::string> compare_functions(
 
             if (node1->input(i).get_element_type() != node2->input(i).get_element_type()) {
                 err_log << "Different element type detected" << std::endl
-                    << node1->description() << " Input(" << i << ") " << node1->input(i).get_element_type() << " and "
-                    << node2->description() << " Input(" << i << ") " << node2->input(i).get_element_type() << std::endl;
+                        << node1->get_friendly_name() << " Input(" << i << ") " << node1->input(i).get_element_type() << " and "
+                        << node2->get_friendly_name() << " Input(" << i << ") " << node2->input(i).get_element_type() << std::endl;
             }
 
             if (!node1->input(i).get_partial_shape().same_scheme(node2->input(i).get_partial_shape())) {
                 err_log << "Different shape detected" << std::endl
-                        << node1->description() << " Input(" << i << ") " << node1->input(i).get_partial_shape() << " and "
-                        << node2->description() << " Input(" << i << ") " << node2->input(i).get_partial_shape() << std::endl;
+                        << node1->get_friendly_name() << " Input(" << i << ") " << node1->input(i).get_partial_shape() << " and "
+                        << node2->get_friendly_name() << " Input(" << i << ") " << node2->input(i).get_partial_shape() << std::endl;
             }
 
             q.push({node1->input_value(i).get_node_shared_ptr(), node2->input_value(i).get_node_shared_ptr()});
@@ -100,8 +107,8 @@ std::pair<bool, std::string> compare_functions(
         for (int i = 0; i < node1->outputs().size(); ++i) {
             if (!node1->output(i).get_partial_shape().same_scheme(node2->output(i).get_partial_shape())) {
                 err_log << "Different shape detected" << std::endl
-                        << node1->description() << " Output(" << i << ") " << node1->output(i).get_partial_shape() << " and "
-                        << node2->description() << " Output(" << i << ") " << node2->output(i).get_partial_shape() << std::endl;
+                        << node1->get_friendly_name() << " Output(" << i << ") " << node1->output(i).get_partial_shape() << " and "
+                        << node2->get_friendly_name() << " Output(" << i << ") " << node2->output(i).get_partial_shape() << std::endl;
             }
         }
     }

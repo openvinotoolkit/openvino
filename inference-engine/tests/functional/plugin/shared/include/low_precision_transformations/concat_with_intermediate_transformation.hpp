@@ -12,10 +12,10 @@
 namespace LayerTestsDefinitions {
 
 typedef std::tuple<
-    InferenceEngine::Precision,
-    InferenceEngine::SizeVector,
+    ngraph::element::Type_t,
+    ngraph::Shape,
     std::string, // target device: CPU, GPU
-    InferenceEngine::details::LayerTransformation::Params, // transformation parameters
+    ngraph::pass::low_precision::LayerTransformation::Params, // transformation parameters
     LayerTestsUtils::LayerTransformation::LptVersion,
     bool, // transparent intermediate
     // multichannel

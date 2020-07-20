@@ -64,7 +64,7 @@ public:
 
     static bool isScalarLike(std::shared_ptr<opset1::Constant> constant);
 
-    static std::shared_ptr<opset1::Constant> distillToScalar(std::shared_ptr<opset1::Constant> constant);
+    static std::shared_ptr<opset1::Constant> toScalar(std::shared_ptr<opset1::Constant> constant);
 
     static std::shared_ptr<Node> getConstantInput(std::shared_ptr<Node> node);
 
@@ -87,7 +87,7 @@ public:
         float min,
         float max);
 
-    static FakeQuantizeDequantization createDequantization(
+    static FakeQuantizeDequantization makeDequantization(
         const float dequantizationScale,
         const float dequantizationShift,
         const ngraph::element::Type originalPrecision,
@@ -134,6 +134,10 @@ public:
     static FakeQuantizeDequantizationValues createEmptyValues(const FakeQuantizeDequantization& dequantization);
 
     static bool isZeroConst(const std::shared_ptr<Node>& node);
+
+    static std::vector<std::shared_ptr<Node>> getChildrenRecursivelyExceptTypes(
+        const std::shared_ptr<Node>& layer,
+        const std::unordered_set<std::string>& exceptionLayerTypes = {});
 
 private:
     // 1  - on weights
