@@ -109,16 +109,16 @@ void op::CTCLoss::validate_and_infer_types()
     size_t time_steps = 1;
     bool is_time_steps_set = false;
 
-    if (logits_pshape.is_static())
+    if (logits_pshape.rank().is_static())
     {
         if (logits_pshape[0].is_static())
         {
-            batch_size = logits_pshape.to_shape()[0];
+            batch_size = logits_pshape[0].get_length();
             is_batch_size_set = true;
         }
         if (logits_pshape[1].is_static())
         {
-            time_steps = logits_pshape.to_shape()[1];
+            time_steps = logits_pshape[1].get_length();
             is_time_steps_set = true;
         }
     }
@@ -138,7 +138,7 @@ void op::CTCLoss::validate_and_infer_types()
         }
         else if (logit_length_pshape[0].is_static())
         {
-            batch_size = logit_length_pshape.to_shape()[0];
+            batch_size = logit_length_pshape[0].get_length();
             is_batch_size_set = true;
         }
     }
@@ -158,7 +158,7 @@ void op::CTCLoss::validate_and_infer_types()
         }
         else if (labels_pshape[0].is_static())
         {
-            batch_size = labels_pshape.to_shape()[0];
+            batch_size = labels_pshape[0].get_length();
             is_batch_size_set = true;
         }
 
@@ -173,31 +173,23 @@ void op::CTCLoss::validate_and_infer_types()
                 " and: ",
                 time_steps);
         }
-        else if (labels_pshape[1].is_static())
-        {
-            time_steps = labels_pshape.to_shape()[1];
-            is_time_steps_set = true;
-        }
     }
 
     if (label_length_pshape.is_static())
     {
-        if (is_batch_size_set)
+        if (!is_batch_size_set && label_length_pshape[0].is_static())
         {
-            NODE_VALIDATION_CHECK(
-                this,
-                label_length_pshape[0].compatible(batch_size),
-                "The first dimension of label length must be equal to the first dimension ",
-                "of the logits, the logit length and labels. Got: ",
-                label_length_pshape[0],
-                " and: ",
-                batch_size);
-        }
-        else if (label_length_pshape[0].is_static())
-        {
-            batch_size = label_length_pshape.to_shape()[0];
+            batch_size = label_length_pshape[0].get_length();
             is_batch_size_set = true;
         }
+        NODE_VALIDATION_CHECK(
+            this,
+            label_length_pshape[0].compatible(batch_size),
+            "The first dimension of label length must be equal to the first dimension ",
+            "of the logits, the logit length and labels. Got: ",
+            label_length_pshape[0],
+            " and: ",
+            batch_size);
     }
 
     // set output shape
