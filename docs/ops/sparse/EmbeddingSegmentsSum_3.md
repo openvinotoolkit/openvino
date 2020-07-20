@@ -1,4 +1,4 @@
-## EmbeddingSegmentsSum <a name="EmbeddingSegmentsSum"></a>
+## EmbeddingSegmentsSum <a name="EmbeddingSegmentsSum"></a> {#openvino_docs_ops_sparse_EmbeddingSegmentsSum_3}
 
 **Versioned name**: *EmbeddingSegmentsSum-3*
 
