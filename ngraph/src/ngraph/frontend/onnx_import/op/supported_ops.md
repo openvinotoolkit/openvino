@@ -154,8 +154,6 @@ opset versions starting from `1` to `6` and to the latest opset version.
 | Multinomial | - | 199 | 435 | Lack of PRNG in nGraph. |
 | RandomNormal | - | 199 | 434 | Lack of PRNG in nGraph. |
 | RandomNormalLike | - | 199 | 434 | Lack of PRNG in nGraph. |
-| RandomUniform | - | 199 | 434 | Lack of PRNG in nGraph. |
-| RandomUniformLike | - | 199 | 434 | Lack of PRNG in nGraph. |
 | IsInf | (10) | | 528 | 
 | StringNormalizer | (10) | | 600 | Need support for `string` data type.
 | TfIdfVectorizer | (9) | | 523 |

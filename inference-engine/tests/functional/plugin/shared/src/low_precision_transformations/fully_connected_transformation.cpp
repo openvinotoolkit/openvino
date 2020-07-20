@@ -88,7 +88,7 @@ void FullyConnectedTransformation::validate() {
     EXPECT_EQ(1, outputs.size());
 
     for (const auto it : outputs) {
-        const InferenceEngine::CNNLayerPtr outputLayer = it.second->getCreatorLayer().lock();
+        const InferenceEngine::CNNLayerPtr outputLayer = getCreatorLayer(it.second).lock();
         EXPECT_TRUE(outputLayer != nullptr);
         EXPECT_EQ("ScaleShift", outputLayer->type);
 

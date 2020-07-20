@@ -1,4 +1,4 @@
-## ReduceSum <a name="ReduceSum"></a>
+## ReduceSum <a name="ReduceSum"></a> {#openvino_docs_ops_reduction_ReduceSum_1}
 
 **Versioned name**: *ReduceSum-1*
 

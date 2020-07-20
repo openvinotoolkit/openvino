@@ -127,6 +127,16 @@ namespace ngraph
                 return shifted_square_identity(Shape{n, n}, type, 0);
             }
 
+            /// \brief Performs validation of an input that is expected to be a scalar.
+            /// \note  This function throws an exception if any of the validation steps fails.
+            ///
+            /// \param[in] input_name A human-readable name of an input (used for logging)
+            /// \param[in] input An input node to be validated
+            /// \param[in] allowed_types An optional set of allowed element types for this input
+            void validate_scalar_input(const char* input_name,
+                                       const std::shared_ptr<ngraph::Node> input,
+                                       const std::set<element::Type> allowed_types = {});
+
         } // namespace  common
     }     // namespace onnx_import
 } // namespace ngraph

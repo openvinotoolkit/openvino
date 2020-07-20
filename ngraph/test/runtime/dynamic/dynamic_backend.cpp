@@ -19,10 +19,6 @@
 #include "ngraph/op/avg_pool.hpp"
 #include "ngraph/op/broadcast.hpp"
 #include "ngraph/op/convolution.hpp"
-#include "ngraph/op/experimental/dyn_broadcast.hpp"
-#include "ngraph/op/experimental/dyn_replace_slice.hpp"
-#include "ngraph/op/experimental/dyn_slice.hpp"
-#include "ngraph/op/experimental/generate_mask.hpp"
 #include "ngraph/op/range.hpp"
 #include "ngraph/op/reshape.hpp"
 #include "ngraph/op/transpose.hpp"
@@ -93,11 +89,8 @@ runtime::dynamic::DynamicExecutable::DynamicExecutable(shared_ptr<Function> wrap
 // count_dyn_nodes.
 bool is_dynamic_op(const std::shared_ptr<Node>& op)
 {
-    return is_type<op::Transpose>(op) || is_type<op::DynBroadcast>(op) ||
-           is_type<op::DynReplaceSlice>(op) || is_type<op::DynSlice>(op) ||
-           is_type<op::v1::Reshape>(op) || is_type<op::Range>(op) ||
-           is_type<op::v1::ConvolutionBackpropData>(op) || is_type<op::v3::Broadcast>(op) ||
-           is_type<op::v1::GenerateMask>(op);
+    return is_type<op::Transpose>(op) || is_type<op::v1::Reshape>(op) || is_type<op::Range>(op) ||
+           is_type<op::v1::ConvolutionBackpropData>(op) || is_type<op::v3::Broadcast>(op);
 }
 
 // Helper for a vile hack in DynamicExecutable::call. See body of that function for details.
@@ -388,13 +381,6 @@ void runtime::dynamic::DynamicTensor::read(void* p, size_t n) const
     NGRAPH_CHECK(m_wrapped_tensor != nullptr,
                  "tried to read from a dynamic tensor with no allocated storage");
     m_wrapped_tensor->read(p, n);
-}
-
-void runtime::dynamic::DynamicTensor::copy_from(const ngraph::runtime::Tensor& source)
-{
-    NGRAPH_CHECK(m_wrapped_tensor != nullptr,
-                 "tried to copy_from to a dynamic tensor with no allocated storage");
-    m_wrapped_tensor->copy_from(source);
 }
 
 bool runtime::dynamic::DynamicTensor::has_storage() const

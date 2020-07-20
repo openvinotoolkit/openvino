@@ -13,14 +13,12 @@
 
 #include "ngraph/pattern/matcher.hpp"
 #include "ngraph/op/broadcast.hpp"
-#include "ngraph/op/experimental/dyn_broadcast.hpp"
-#include "ngraph/op/fused/conv_fused.hpp"
 #include "ngraph/op/reshape.hpp"
 #include "ngraph/op/add.hpp"
 
 #include "ngraph_ops/convolution_ie.hpp"
 #include "ngraph_ops/deconvolution_ie.hpp"
-#include "ngraph/op/fused/group_conv.hpp"
+#include "ngraph/op/group_conv.hpp"
 #include "ngraph/rt_info.hpp"
 
 #include <ngraph/pass/graph_rewrite.hpp>

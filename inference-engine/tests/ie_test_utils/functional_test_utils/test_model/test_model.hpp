@@ -7,6 +7,7 @@
 #include <string>
 #include <vector>
 
+#include "ie_layers.h"
 #include "inference_engine.hpp"
 
 namespace FuncTestUtils {
@@ -42,6 +43,7 @@ const TestModel convReluNormPoolFcModelFP16 = getConvReluNormPoolFcModel(Inferen
 const TestModel convReluNormPoolFcModelQ78 = getConvReluNormPoolFcModel(InferenceEngine::Precision::Q78);
 
 TestModel getModelWithMemory(InferenceEngine::Precision netPrc);
+TestModel getModelWithMultipleMemoryConnections(InferenceEngine::Precision netPrc);
 
 const char incorrect_input_name[] = "incorrect_input_name";
 

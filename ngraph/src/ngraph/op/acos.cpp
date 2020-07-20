@@ -47,18 +47,6 @@ shared_ptr<Node> op::Acos::clone_with_new_inputs(const OutputVector& new_args) c
     return make_shared<Acos>(new_args.at(0));
 }
 
-void op::Acos::generate_adjoints(autodiff::Adjoints& adjoints, const OutputVector& deltas)
-{
-    auto delta = deltas.at(0);
-
-    auto x = input_value(0);
-
-    auto one = make_shared<op::ScalarConstantLike>(x, 1.0);
-    auto ones = make_shared<op::BroadcastLike>(one, x, AxisSet());
-
-    adjoints.add_delta(x, -delta / make_shared<op::Sqrt>(ones - x * x));
-}
-
 namespace
 {
     template <element::Type_t ET>

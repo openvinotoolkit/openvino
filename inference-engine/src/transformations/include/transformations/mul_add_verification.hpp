@@ -12,12 +12,10 @@
 
 #include "ngraph/pattern/matcher.hpp"
 #include "ngraph/op/broadcast.hpp"
-#include "ngraph/op/experimental/dyn_broadcast.hpp"
-#include "ngraph/op/fused/conv_fused.hpp"
 #include "ngraph/op/reshape.hpp"
 #include "ngraph/op/add.hpp"
 
-#include "ngraph/op/fused/group_conv.hpp"
+#include "ngraph/op/group_conv.hpp"
 
 #include <ngraph/pass/graph_rewrite.hpp>
 

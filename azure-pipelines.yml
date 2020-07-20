@@ -6,6 +6,7 @@ jobs:
     #vmImage: 'ubuntu-18.04'
     name: LIN_VMSS_VENV_F8S_WU2
   variables:
+    system.debug: true
     WORKERS_NUMBER: 8
     BUILD_TYPE: Release
     BIN_DIR: ../bin/intel64/$(BUILD_TYPE)
@@ -34,7 +35,10 @@ jobs:
       unzip ninja-linux.zip
       sudo cp -v ninja /usr/local/bin/
     displayName: 'Install Ninja'
-  - script: git submodule update --init --recursive --jobs $(WORKERS_NUMBER)
+  - script: |
+      git clean -xdf
+      git reset --hard HEAD
+      git submodule update --init --recursive --jobs $(WORKERS_NUMBER)
     displayName: 'Clone submodules'
   - script: |
       mkdir dldt-build
@@ -124,6 +128,7 @@ jobs:
   pool:
     vmImage: 'macOS-10.15'
   variables:
+    system.debug: true
     WORKERS_NUMBER: 3
     BUILD_TYPE: Release
     BIN_DIR: ../bin/intel64/$(BUILD_TYPE)
@@ -147,7 +152,10 @@ jobs:
     displayName: 'Install dependencies'
   - script: brew install ninja
     displayName: 'Install Ninja'
-  - script: git submodule update --init --recursive --jobs $(WORKERS_NUMBER)
+  - script: |
+      git clean -xdf
+      git reset --hard HEAD
+      git submodule update --init --recursive --jobs $(WORKERS_NUMBER)
     displayName: 'Clone submodules'
   - script: |
       mkdir dldt-build
@@ -249,7 +257,10 @@ jobs:
       certutil -urlcache -split -f https://github.com/ninja-build/ninja/releases/download/v1.10.0/ninja-win.zip ninja-win.zip
       powershell -command "Expand-Archive -Force ninja-win.zip"
     displayName: Install Ninja
-  - script: git submodule update --init --recursive --jobs $(WORKERS_NUMBER)
+  - script: |
+      git clean -xdf
+      git reset --hard HEAD
+      git submodule update --init --recursive --jobs $(WORKERS_NUMBER)
     displayName: 'Clone submodules'
   - script: |
       rd /Q /S $(BUILD_DIR)

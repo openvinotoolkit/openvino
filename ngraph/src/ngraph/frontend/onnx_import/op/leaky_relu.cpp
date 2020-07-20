@@ -33,8 +33,8 @@ namespace ngraph
                     auto data = node.get_ng_inputs().at(0);
                     double alpha = node.get_attribute_value<double>("alpha", 0.01);
 
-                    ASSERT_VALID_ARGUMENT(node, ((alpha >= 0) && (alpha <= 1)))
-                        << " alpha value should be in range (0,1)";
+                    CHECK_VALID_NODE(
+                        node, alpha >= 0 && alpha <= 1, " alpha value should be in range (0,1)");
 
                     std::shared_ptr<ngraph::Node> alpha_node =
                         default_opset::Constant::create(data->get_element_type(), Shape{}, {alpha});

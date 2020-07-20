@@ -21,7 +21,7 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*(QuantGroupConv2D).*)",
         R"(.*(QuantGroupConv3D).*)",
         // TODO: Issue 31845
-        R"(.*(FakeQuantize).*)",
+        R"(.*(FakeQuantizeLayerTest).*)",
         R"(.*(EltwiseLayerTest).*IS=\(.*\..*\..*\..*\..*\).*secondaryInputType=PARAMETER.*opType=SCALAR.*)",
         // TODO: Issue 32756
         R"(.*Transpose.*inputOrder=\(\).*)",
@@ -31,12 +31,25 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*Reduce.*type=Logical.*)",
         R"(.*Reduce.*axes=\(1\.-1\).*)",
         R"(.*Reduce.*axes=\(0\.3\)_type=Prod.*)",
-        // TODO: Issue 34055
+        // TODO: Issue: 34518
         R"(.*RangeLayerTest.*)",
+        R"(.*(RangeAddSubgraphTest).*Start=1.2.*Stop=(5.2|-5.2).*Step=(0.1|-0.1).*netPRC=FP16.*)",
+        // TODO: Issue: 34083
 #if (defined(_WIN32) || defined(_WIN64))
-        R"(.*(CoreThreadingTestsWithIterations).*(smoke_LoadNetworkAccuracy).*(targetDevice=HETERO).*)",
+        R"(.*(CoreThreadingTestsWithIterations).*(smoke_LoadNetworkAccuracy).*)",
 #endif
         // TODO: Issue: 34348
         R"(.*IEClassGetAvailableDevices.*)",
+        // TODO: Issue: 25533
+        R"(.*ConvertLikeLayerTest.*)",
+        // TODO: Issue: 34516
+        R"(.*ConvertLayerTest.*)",
+        // TODO: Issue: 34055
+        R"(.*ShapeOfLayerTest.*)",
+        R"(.*ReluShapeOfSubgraphTest.*)",
+        // TODO: Issue: 34805
+        R"(.*ActivationLayerTest.*Ceiling.*)",
+        // TODO: Issue: 32032
+        R"(.*ActivationParamLayerTest.*)",
     };
 }

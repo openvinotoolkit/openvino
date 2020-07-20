@@ -35,11 +35,6 @@ namespace ngraph
             public:
                 static constexpr NodeTypeInfo type_info{"Parameter", 0};
                 const NodeTypeInfo& get_type_info() const override { return type_info; }
-            protected:
-                virtual void generate_adjoints(autodiff::Adjoints& adjoints,
-                                               const OutputVector& deltas) override;
-
-            public:
                 /// \brief Constructions a tensor-typed parameter node.
                 Parameter() = default;
                 /// \brief Constructions a tensor-typed parameter node.

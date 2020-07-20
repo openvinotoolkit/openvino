@@ -105,12 +105,12 @@ kernels_cache::sorted_code kernels_cache::get_program_source(const kernels_code&
     sorted_code scode;
 
     for (const auto& code : kernels_source_code) {
-        const source_code org_source_code = {code.second.kernel_strings->jit, code.second.kernel_strings->str};
-        std::string entry_point = code.second.kernel_strings->entry_point;
-        std::string options = code.second.kernel_strings->options;
-        bool batch_compilation = code.second.kernel_strings->batch_compilation;
-        bool dump_custom_program = code.second.dump_custom_program;
-        bool one_time_kernel = code.second.one_time_kernel;
+        const source_code org_source_code = {code.kernel_strings->jit, code.kernel_strings->str};
+        std::string entry_point = code.kernel_strings->entry_point;
+        std::string options = code.kernel_strings->options;
+        bool batch_compilation = code.kernel_strings->batch_compilation;
+        bool dump_custom_program = code.dump_custom_program;
+        bool one_time_kernel = code.one_time_kernel;
 
         batch_compilation &= does_options_support_batch_compilation(options);
 
@@ -144,7 +144,7 @@ kernels_cache::sorted_code kernels_cache::get_program_source(const kernels_code&
             current_bucket.source.push_back({});
         }
 
-        current_bucket.entry_point_to_id[entry_point] = code.second.id;
+        current_bucket.entry_point_to_id[entry_point] = code.id;
 
         source_code new_source_code = org_source_code;
 
@@ -168,26 +168,18 @@ kernels_cache::kernel_id kernels_cache::set_kernel_source(
     const std::shared_ptr<kernel_selector::kernel_string>& kernel_string,
     bool dump_custom_program,
     bool one_time_kernel) {
-    kernels_cache::kernel_id id;
-
-    // same kernel_string == same kernel
-    const auto key = kernel_string.get()->get_hash();
-
     std::lock_guard<std::mutex> lock(_context.get_cache_mutex());
 
-    const auto it = _kernels_code.find(key);
+    // we need unique id in order to avoid conflict across topologies.
+    const auto kernel_num = _kernels.size() + _kernels_code.size();
+    kernels_cache::kernel_id id = kernel_string->entry_point + "_" + std::to_string(kernel_num);
 
-    if (it == _kernels_code.end()) {
-        // we need unique id in order to avoid conflict across topologies.
-        const auto kernel_num = _kernels.size() + _kernels_code.size();
-        id = kernel_string->entry_point + "_" + std::to_string(kernel_num);
-        _kernels_code[key] = {kernel_string, id, dump_custom_program, one_time_kernel};
-    } else {
-        id = it->second.id;
-    }
+    auto res = _kernels_code.emplace( kernel_string, id, dump_custom_program, one_time_kernel );
 
     assert(_kernels.find(id) == _kernels.end());
-    _pending_compilation = true;
+    if (res.second) {
+        _pending_compilation = true;
+    }
     return id;
 }
 
@@ -227,8 +219,6 @@ kernels_cache::kernels_map kernels_cache::build_program(const program_code& prog
             try {
                 cl::Program program(_context.context(), sources);
                 program.build({_context.device()}, program_source.options.c_str());
-                // Store kernels for serialization process.
-                _context.store_binaries(program.getInfo<CL_PROGRAM_BINARIES>(), _prog_id);
 
                 if (dump_sources && dump_file.good()) {
                     dump_file << "\n/* Build Log:\n";
@@ -239,7 +229,6 @@ kernels_cache::kernels_map kernels_cache::build_program(const program_code& prog
 
                 cl::vector<cl::Kernel> kernels;
                 program.createKernels(&kernels);
-
 
                 for (auto& k : kernels) {
                     auto kernel_name = k.getInfo<CL_KERNEL_FUNCTION_NAME>();

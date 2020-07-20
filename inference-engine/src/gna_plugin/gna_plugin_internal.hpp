@@ -35,7 +35,7 @@ public:
         updated_config.UpdateFromMap(config);
         auto plg = std::make_shared<GNAPlugin>(updated_config.key_config_map);
         plgPtr = plg;
-        return std::make_shared<GNAExecutableNetwork>(*cloneNet(network), plg);
+        return std::make_shared<GNAExecutableNetwork>(*cloneNetwork(network), plg);
     }
 
     void SetConfig(const std::map<std::string, std::string> &config) override {

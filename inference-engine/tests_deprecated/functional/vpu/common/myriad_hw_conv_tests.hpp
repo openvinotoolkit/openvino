@@ -6,6 +6,8 @@
 
 #include "myriad_hw_tests_base.hpp"
 
+#include <vpu_case_common.hpp>
+
 using HWConvParams = std::tuple<DimsInput, kernel, stride, pad, out_channels, group, dilation_factor>;
 
 class MyriadX_HW_Convolution_Tests_nightly
@@ -143,6 +145,18 @@ TEST_P(MyriadX_HW_Convolution_Tests_nightly, WithLeakyReLU) {
 TEST_P(MyriadX_HW_Convolution_Tests_nightly, WithClamp) {
     if (!CheckMyriadX()) {
         SKIP() << "Non-MyriadX device";
+    }
+
+    // TODO: Issue: 34466
+    if (CheckMA2085()) {
+        const ::testing::TestInfo* const test_info =
+              ::testing::UnitTest::GetInstance()->current_test_info();
+        const char* test_name = test_info->name();
+        const char* test_case = test_info->test_case_name();
+        if (!strcmp(test_name, "WithClamp/0") &&
+            !strcmp(test_case, "conv_3x3s1p1_vgg/MyriadX_HW_Convolution_Tests_nightly")) {
+            SKIP() << "Issue: 34466";
+        }
     }
 
     AddConvolutionLayer();

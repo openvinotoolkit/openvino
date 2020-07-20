@@ -83,15 +83,6 @@ bool op::Negative::evaluate(const HostTensorVector& outputs, const HostTensorVec
     return evaluate_negative(inputs[0], outputs[0], shape_size(get_output_shape(0)));
 }
 
-void op::Negative::generate_adjoints(autodiff::Adjoints& adjoints, const OutputVector& deltas)
-{
-    auto delta = deltas.at(0);
-
-    auto x = input_value(0);
-
-    adjoints.add_delta(x, -delta);
-}
-
 shared_ptr<Node> ngraph::operator-(const Output<Node>& arg0)
 {
     return make_shared<op::Negative>(arg0);

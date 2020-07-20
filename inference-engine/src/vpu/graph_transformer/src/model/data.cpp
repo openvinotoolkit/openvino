@@ -176,6 +176,10 @@ void DataNode::setShapeAllocationInfo(const ShapeLocation& shapeLocation) {
     _shapeLocation = shapeLocation;
 }
 
+bool DataNode::isShapeAllocated() const {
+    return _shapeLocation != defaultShapeLocation;
+}
+
 void DataNode::serializeBuffer(
         BlobSerializer& serializer) {
     serializeDescImpl(serializer, _desc, this->shapeLocation());

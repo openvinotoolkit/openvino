@@ -38,8 +38,6 @@ namespace ngraph
                 static constexpr int UPDATES = 2;
                 virtual void validate_and_infer_types() override;
                 virtual bool visit_attributes(AttributeVisitor& visitor) override;
-                virtual void generate_adjoints(autodiff::Adjoints& adjoints,
-                                               const OutputVector& deltas) override;
 
             protected:
                 ScatterNDBase() = default;

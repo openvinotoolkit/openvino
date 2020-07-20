@@ -30,7 +30,6 @@
 #include "ngraph/pass/visualize_tree.hpp"
 #include "ngraph/serializer.hpp"
 #include "util/all_close.hpp"
-#include "util/autodiff/backprop_function.hpp"
 #include "util/ndarray.hpp"
 
 using namespace std;
@@ -165,20 +164,6 @@ TEST(util, all_close)
     EXPECT_TRUE(ngraph::test::all_close<float>(c, a, .11f, 0));
 }
 #endif
-
-TEST(util, traverse_functions)
-{
-    // First create "f(A,B,C) = (A+B)*C".
-    Shape shape{2, 2};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto B = make_shared<op::Parameter>(element::f32, shape);
-    auto C = make_shared<op::Parameter>(element::f32, shape);
-    auto f = make_shared<Function>((A + B) * C, ParameterVector{A, B, C}, "f");
-
-    vector<Function*> functions;
-    traverse_functions(f, [&](shared_ptr<Function> fp) { functions.push_back(fp.get()); });
-    ASSERT_EQ(1, functions.size());
-}
 
 class CloneTest : public ::testing::Test
 {
@@ -343,24 +328,6 @@ TEST(graph_util, get_subgraph_outputs_trivial_tests)
     // now add_b uses abs_b_neg
     outputs = ngraph::get_subgraph_outputs(NodeVector{B, abs_b, abs_b_neg}, NodeVector{});
     ASSERT_EQ(outputs, (NodeVector{B, abs_b_neg}));
-}
-
-TEST(util, test_fprop_cache)
-{
-    Shape shape{2, 2};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto B = make_shared<op::Parameter>(element::f32, shape);
-    auto C = make_shared<op::Parameter>(element::f32, shape);
-    auto output = (A + B) * C + A;
-
-    auto f = make_shared<Function>(NodeVector{output}, ParameterVector{A, B, C});
-
-    auto bf = autodiff::backprop_function(f);
-
-    auto fprop_cache = cache_fprop(f, bf);
-
-    EXPECT_EQ(fprop_cache.fprop->get_results().size(), 2);
-    EXPECT_EQ(fprop_cache.bprop->get_parameters().size(), 5);
 }
 
 TEST(graph_util, test_subgraph_topological_sort)

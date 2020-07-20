@@ -46,6 +46,8 @@ public:
     std::string getPrimitivesPriority() const;
 };
 
+extern template class TRANSFORMATIONS_API VariantImpl<PrimitivesPriority>;
+
 template<>
 class TRANSFORMATIONS_API VariantWrapper<PrimitivesPriority> : public VariantImpl<PrimitivesPriority> {
 public:

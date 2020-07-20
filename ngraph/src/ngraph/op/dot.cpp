@@ -177,33 +177,6 @@ shared_ptr<op::Reshape> make_reshape_axes_to_front(const Output<Node>& n,
     return make_shared<op::Reshape>(n, input_order, output_shape);
 }
 
-void op::Dot::generate_adjoints(autodiff::Adjoints& adjoints, const OutputVector& deltas)
-{
-    auto delta = deltas.at(0);
-
-    auto x = input_value(0);
-    auto y = input_value(1);
-
-    auto x_shape = x.get_shape();         // shape IJ
-    auto y_shape = y.get_shape();         // shape JK
-    auto delta_shape = delta.get_shape(); // shape IK
-
-    Shape I_shape;
-    Shape J_shape;
-    Shape K_shape;
-    I_shape.insert(I_shape.begin(), x_shape.begin(), x_shape.end() - m_reduction_axes_count);
-    J_shape.insert(J_shape.begin(), y_shape.begin(), y_shape.begin() + m_reduction_axes_count);
-    K_shape.insert(K_shape.begin(), y_shape.begin() + J_shape.size(), y_shape.end());
-
-    auto y_reshaped = make_reshape_axes_to_front(y, J_shape, K_shape);               // KJ
-    auto delta_dot_y_reshaped = make_shared<Dot>(delta, y_reshaped, K_shape.size()); // IK.KJ->IJ
-    adjoints.add_delta(x, delta_dot_y_reshaped);
-
-    auto x_reshaped = make_reshape_axes_to_front(x, I_shape, J_shape);               // JI
-    auto x_reshaped_dot_delta = make_shared<Dot>(x_reshaped, delta, I_shape.size()); // JI.IK->JK
-    adjoints.add_delta(y, x_reshaped_dot_delta);
-}
-
 shared_ptr<Node> op::Dot::get_default_value() const
 {
     return ngraph::make_constant_from_string("0", get_element_type(), get_shape());

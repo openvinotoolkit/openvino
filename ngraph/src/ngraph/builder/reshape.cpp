@@ -23,7 +23,7 @@
 #include "ngraph/builder/reshape.hpp"
 #include "ngraph/op/concat.hpp"
 #include "ngraph/op/constant.hpp"
-#include "ngraph/op/experimental/dyn_slice.hpp"
+#include "ngraph/op/fused/squeeze.hpp"
 #include "ngraph/op/product.hpp"
 #include "ngraph/op/reduce_prod.hpp"
 #include "ngraph/op/reshape.hpp"
@@ -90,44 +90,6 @@ shared_ptr<Node> builder::flatten(const Output<Node>& value, int axis)
         ->add_provenance_group_members_above({value});
 }
 
-// Dynamic version of "flatten".
-shared_ptr<Node> builder::flatten(const Output<Node>& value, const Output<Node>& axis)
-{
-    // value_shape := ShapeOf(value)
-    auto value_shape = make_shared<op::ShapeOf>(value);
-    // value_shape_shape := ShapeOf(value_shape)
-    auto value_shape_shape = make_shared<op::ShapeOf>(value_shape);
-
-    // shape_1_vector := Constant(i64, Shape{1}, [1])
-    auto shape_1_vector = make_shared<op::Constant>(element::i64, Shape{1}, vector<int64_t>{1});
-    // unit_strides := Constant(i64, Shape{1}, [1])
-    auto unit_strides = make_shared<op::Constant>(element::i64, Shape{1}, vector<int64_t>{1});
-
-    // row_dims := value_shape[0:axis]
-    auto row_dims_slice_start =
-        make_shared<op::Constant>(element::i64, Shape{1}, vector<int64_t>{0});
-    auto row_dims_slice_end = make_shared<op::v1::Reshape>(axis, shape_1_vector, true);
-    auto row_dims = make_shared<op::DynSlice>(
-        value_shape, row_dims_slice_start, row_dims_slice_end, unit_strides);
-
-    // col_dims := value_shape[axis:ReshapeToScalar(value_shape_shape)]
-    auto col_dims =
-        make_shared<op::DynSlice>(value_shape, row_dims_slice_end, value_shape_shape, unit_strides);
-
-    // row_dims_prod := [Product(row_dims, axis=0)]
-    auto row_dims_prod = make_shared<op::Reshape>(
-        make_shared<op::Product>(row_dims, AxisSet{0}), AxisVector{}, Shape{1});
-    // col_dims_prod := [Product(col_dims, axis=0)]
-    auto col_dims_prod = make_shared<op::Reshape>(
-        make_shared<op::Product>(col_dims, AxisSet{0}), AxisVector{}, Shape{1});
-
-    // flattened_dims := Concat({row_dims_prod, col_dims_prod})
-    auto flattened_dims = make_shared<op::Concat>(NodeVector{row_dims_prod, col_dims_prod}, 0);
-
-    return make_shared<op::v1::Reshape>(value, flattened_dims, true)
-        ->add_provenance_group_members_above({value});
-}
-
 shared_ptr<Node> builder::squeeze(const Output<Node>& value, vector<size_t> axes)
 {
     if (axes.empty())
@@ -177,13 +139,29 @@ shared_ptr<Node> builder::expand_dims(const Output<Node>& value, size_t axis)
         ->add_provenance_group_members_above({value});
 }
 
+NGRAPH_API
 shared_ptr<Node> builder::opset1::reshape(const Output<Node>& value, const Shape& shape)
 {
-    const auto out_pattern = op::Constant::create(
-        element::i64, Shape{shape.size()}, vector<int64_t>(shape.begin(), shape.end()));
-    const bool special_zero = false;
-    return make_shared<ngraph::opset1::Reshape>(value, out_pattern, special_zero)
-        ->add_provenance_group_members_above({value});
+    if (value.get_partial_shape().same_scheme(shape))
+    {
+        return value.get_node_shared_ptr();
+    }
+    else if (is_scalar(shape))
+    {
+        auto value_rank = value.get_shape().size();
+        AxisVector axes_vector(value_rank);
+        std::iota(axes_vector.begin(), axes_vector.end(), 0);
+        auto axes = op::Constant::create(element::i64, Shape{value_rank}, axes_vector);
+        return std::make_shared<op::Squeeze>(value, axes);
+    }
+    else
+    {
+        auto out_pattern = op::Constant::create(
+            element::i64, Shape{shape.size()}, vector<int64_t>(shape.begin(), shape.end()));
+
+        return make_shared<ngraph::opset1::Reshape>(value, out_pattern, false)
+            ->add_provenance_group_members_above({value});
+    }
 }
 
 shared_ptr<Node> builder::opset1::reorder_axes(const Output<Node>& value, vector<size_t> axes_order)

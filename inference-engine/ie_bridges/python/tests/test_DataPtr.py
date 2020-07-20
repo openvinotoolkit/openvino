@@ -40,3 +40,39 @@ def test_layout():
 
 def test_initialized():
     assert layer_out_data().initialized, "Incorrect value for initialized property for layer '19/Fused_Add_'"
+
+
+def test_input_to():
+    ie = IECore()
+    net = ie.read_network(model=test_net_xml, weights=test_net_bin)
+    input_to = net.layers['26'].out_data[0].input_to
+    assert len(input_to) == 1
+    assert input_to[0].name == '27'
+
+def test_input_to_via_input_info():
+    ie = IECore()
+    net = ie.read_network(model=test_net_xml, weights=test_net_bin)
+    input_infos = net.input_info
+    assert len(input_infos) == 1
+    input_to = input_infos['data'].input_data.input_to
+    assert len(input_to) == 1
+    assert input_to[0].name == '19/Fused_Add_'
+
+def test_input_to_via_inputs():
+    ie = IECore()
+    net = ie.read_network(model=test_net_xml, weights=test_net_bin)
+    inputs = net.inputs
+    assert len(inputs) == 1
+    input_to = inputs['data'].input_to
+    assert len(input_to) == 1
+    assert input_to[0].name == '19/Fused_Add_'
+
+def test_creator_layer():
+    ie = IECore()
+    net = ie.read_network(model=test_net_xml, weights=test_net_bin)
+    outputs = net.outputs
+    assert len(outputs) == 1
+    creator_layer = outputs['fc_out'].creator_layer
+    params = creator_layer.params
+    params['originalLayersNames'] == 'fc_out'
+    params['axis'] == '1'

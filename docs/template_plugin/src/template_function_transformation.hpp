@@ -7,7 +7,7 @@
 #include <vector>
 #include <memory>
 
-#include <ngraph/pass/pass.hpp>
+#include <ngraph/ngraph.hpp>
 
 // ! [function_pass:template_transformation_hpp]
 // template_function_transformation.hpp
