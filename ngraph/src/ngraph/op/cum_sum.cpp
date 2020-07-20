@@ -19,6 +19,7 @@
 #include "ngraph/graph_util.hpp"
 #include "ngraph/op/broadcast.hpp"
 #include "ngraph/op/constant.hpp"
+#include "ngraph/runtime/reference/cum_sum.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -87,4 +88,46 @@ void op::v0::CumSum::generate_adjoints(autodiff::Adjoints& adjoints, const Outpu
 shared_ptr<Node> op::v0::CumSum::get_default_value() const
 {
     return ngraph::make_constant_from_string("0", get_element_type(), get_shape());
+}
+
+namespace {
+    template<element::Type_t ET>
+    inline bool
+    evaluate(const HostTensorVector &args, const HostTensorPtr &out,bool exclusive, bool reverse) {
+        using T = typename element_type_traits<ET>::value_type;
+        // TODO: For validation purposes only i64 axis_tensor is used. Types coverage have to be extended if needed
+        using P = typename element_type_traits<ngraph::element::Type_t::i64>::value_type;
+        runtime::reference::cumsum<T, P>(args[0]->get_data_ptr<ET>(),
+                                         args[1]->get_data_ptr<ngraph::element::Type_t::i64>(),
+                                         out->get_data_ptr<ET>(), args[0]->get_shape(),
+                                         exclusive, reverse);
+        return true;
+    }
+
+    bool evaluate_cumsum(const HostTensorVector &args, const HostTensorPtr &out,bool exclusive, bool reverse) {
+        bool rc = true;
+
+        switch (out->get_element_type()) {
+            TYPE_CASE(i8)(args, out,exclusive, reverse);
+                break;
+            TYPE_CASE(i16)(args, out,exclusive, reverse);
+                break;
+            TYPE_CASE(i32)(args, out,exclusive, reverse);
+                break;
+            TYPE_CASE(u8)(args, out,exclusive, reverse);
+                break;
+            TYPE_CASE(f16)(args, out,exclusive, reverse);
+                break;
+            TYPE_CASE(f32)(args, out,exclusive, reverse);
+                break;
+            default:
+                rc = false;
+                break;
+        }
+        return rc;
+    }
+}
+
+bool op::CumSum::evaluate(const HostTensorVector &outputs, const HostTensorVector &inputs) {
+    return evaluate_cumsum(inputs, outputs[0], m_exclusive, m_reverse);
 }
