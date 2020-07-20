@@ -1,4 +1,4 @@
-## GRUCell <a name="GRUCell"></a>
+## GRUCell <a name="GRUCell"></a> {#openvino_docs_ops_sequence_GRUCell_3}
 
 **Versioned name**: *GRUCell-3*
 

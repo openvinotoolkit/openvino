@@ -1,4 +1,4 @@
-## LessEqual <a name="LessEqual"></a>
+## LessEqual <a name="LessEqual"></a> {#openvino_docs_ops_comparison_LessEqual_1}
 
 **Versioned name**: *LessEqual-1*
 

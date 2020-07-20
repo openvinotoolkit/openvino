@@ -1,4 +1,4 @@
-## Cos <a name="Cos"></a>
+## Cos <a name="Cos"></a> {#openvino_docs_ops_arithmetic_Cos_1}
 
 **Versioned name**: *Cos-1*
 

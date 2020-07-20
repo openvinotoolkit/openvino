@@ -1,4 +1,4 @@
-## VariadicSplit <a name="VariadicSplit"></a>
+## VariadicSplit <a name="VariadicSplit"></a> {#openvino_docs_ops_movement_VariadicSplit_1}
 
 **Versioned name**: *VariadicSplit-1*
 

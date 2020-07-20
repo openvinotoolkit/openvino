@@ -1,4 +1,4 @@
-## Range<a name="Range"></a>
+## Range<a name="Range"></a> {#openvino_docs_ops_generation_Range_1}
 
 **Versioned name**: *Range-1*
 

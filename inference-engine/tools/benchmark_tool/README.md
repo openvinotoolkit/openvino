@@ -1,14 +1,14 @@
-# Benchmark Python* Tool
+# Benchmark Python* Tool {#openvino_inference_engine_tools_benchmark_tool_README}
 
 This topic demonstrates how to run the Benchmark Python* Tool, which performs inference using convolutional networks. Performance can be measured for two inference modes: synchronous (latency-oriented) and asynchronous (throughput-oriented).
 
-> **NOTE:** This topic describes usage of Python implementation of the Benchmark Tool. For the C++ implementation, refer to [Benchmark C++ Tool](./inference-engine/samples/benchmark_app/README.md).
+> **NOTE:** This topic describes usage of Python implementation of the Benchmark Tool. For the C++ implementation, refer to [Benchmark C++ Tool](../../samples/benchmark_app/README.md).
 
 ## How It Works
 
 Upon start-up, the application reads command-line parameters and loads a network and images/binary files to the Inference Engine plugin, which is chosen depending on a specified device. The number of infer requests and execution approach depend on the mode defined with the `-api` command-line parameter.
 
-> **NOTE**: By default, Inference Engine samples, tools and demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channels order in the sample or demo application or reconvert your model using the Model Optimizer tool with `--reverse_input_channels` argument specified. For more information about the argument, refer to **When to Reverse Input Channels** section of [Converting a Model Using General Conversion Parameters](./docs/MO_DG/prepare_model/convert_model/Converting_Model_General.md).
+> **NOTE**: By default, Inference Engine samples, tools and demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channels order in the sample or demo application or reconvert your model using the Model Optimizer tool with `--reverse_input_channels` argument specified. For more information about the argument, refer to **When to Reverse Input Channels** section of [Converting a Model Using General Conversion Parameters](../../../docs/MO_DG/prepare_model/convert_model/Converting_Model_General.md).
 
 ### Synchronous API
 
@@ -47,7 +47,7 @@ Notice that the benchmark_app usually produces optimal performance for any devic
 python3 benchmark_app.py -m <model> -i <input> -d CPU
 ```
 
-But it is still may be non-optimal for some cases, especially for very small networks. More details can read in [Introduction to Performance Topics](./docs/IE_DG/Intro_to_Performance.md).
+But it is still may be non-optimal for some cases, especially for very small networks. More details can read in [Introduction to Performance Topics](../../../docs/IE_DG/Intro_to_Performance.md).
 
 Running the application with the `-h` or `--help`' option yields the following usage message:
 
@@ -129,9 +129,9 @@ If a model has only image input(s), please a provide folder with images or a pat
 If a model has some specific input(s) (not images), please prepare a binary file(s), which is filled with data of appropriate precision and provide a path to them as input.
 If a model has mixed input types, input folder should contain all required files. Image inputs are filled with image files one by one. Binary inputs are filled with binary inputs one by one.
 
-To run the tool, you can use public or Intel's pre-trained models. To download the models, use the OpenVINO [Model Downloader](./tools/downloader/README.md) or go to [https://download.01.org/opencv/](https://download.01.org/opencv/).
+To run the tool, you can use public or Intel's pre-trained models. To download the models, use the OpenVINO [Model Downloader](@ref omz_tools_downloader_README) or go to [https://download.01.org/opencv/](https://download.01.org/opencv/).
 
-> **NOTE**: Before running the tool with a trained model, make sure the model is converted to the Inference Engine format (\*.xml + \*.bin) using the [Model Optimizer tool](./docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
+> **NOTE**: Before running the tool with a trained model, make sure the model is converted to the Inference Engine format (\*.xml + \*.bin) using the [Model Optimizer tool](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
 
 ## Examples of Running the Tool
 
@@ -195,6 +195,6 @@ Below are fragments of sample output for CPU and FPGA devices:
    ```
 
 ## See Also
-* [Using Inference Engine Samples](./docs/IE_DG/Samples_Overview.md)
-* [Model Optimizer](./docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
-* [Model Downloader](./tools/downloader/README.md)
+* [Using Inference Engine Samples](../../../docs/IE_DG/Samples_Overview.md)
+* [Model Optimizer](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
+* [Model Downloader](@ref omz_tools_downloader_README)

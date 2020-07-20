@@ -1,4 +1,4 @@
-## ReduceMean <a name="ReduceMean"></a>
+## ReduceMean <a name="ReduceMean"></a> {#openvino_docs_ops_reduction_ReduceMean_1}
 
 **Versioned name**: *ReduceMean-1*
 

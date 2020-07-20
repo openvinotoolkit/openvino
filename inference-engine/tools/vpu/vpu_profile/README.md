@@ -1,4 +1,4 @@
-# vpu_profile tool
+# vpu_profile tool {#openvino_inference_engine_tools_vpu_vpu_profile_README}
 
 This topic demonstrates how to run the `vpu_profile` tool application, which intended to get per layer or per stage
 performance statistics for vpu plugins of Inference Engine by configuration options.

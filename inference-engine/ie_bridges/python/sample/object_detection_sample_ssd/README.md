@@ -1,9 +1,9 @@
-# Object Detection Python* Sample SSD
+# Object Detection Python* Sample SSD {#openvino_inference_engine_ie_bridges_python_sample_object_detection_sample_ssd_README}
 
 This sample demonstrates how to run the Object Detection sample application.
 
 The sample demonstrates how to use the new Infer Request API of Inference Engine in applications.
-Refer to [Integrate the Inference Engine New Request API with Your Application](./docs/IE_DG/Integrate_with_customer_application_new_API.md) for details.
+Refer to [Integrate the Inference Engine New Request API with Your Application](../../../../../docs/IE_DG/Integrate_with_customer_application_new_API.md) for details.
 The sample demonstrates how to build and execute an inference request on example of object detection networks.
 
 Due to properties of SSD networks, this sample works correctly only on a batch of the size 1. For a greater number of images in a batch, network reshape is required.
@@ -17,7 +17,7 @@ Then, the sample creates an inference request object and executes inference on i
 
 When inference is done, the application outputs data to the standard output stream and creates an output image with bounding boxes drawn atop the initial image.
 
-> **NOTE**: By default, Inference Engine samples and demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channels order in the sample or demo application or reconvert your model using the Model Optimizer tool with `--reverse_input_channels` argument specified. For more information about the argument, refer to **When to Reverse Input Channels** section of [Converting a Model Using General Conversion Parameters](./docs/MO_DG/prepare_model/convert_model/Converting_Model_General.md).
+> **NOTE**: By default, Inference Engine samples and demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channels order in the sample or demo application or reconvert your model using the Model Optimizer tool with `--reverse_input_channels` argument specified. For more information about the argument, refer to **When to Reverse Input Channels** section of [Converting a Model Using General Conversion Parameters](../../../../../docs/MO_DG/prepare_model/convert_model/Converting_Model_General.md).
 
 ## Running
 
@@ -55,9 +55,9 @@ Options:
 
 Running the application with the empty list of options yields the usage message given above and an error message.
 
-To run the sample, you can use RMNet_SSD or other object-detection models. You can download the pre-trained models with the OpenVINO [Model Downloader](https://github.com/opencv/open_model_zoo/tree/2018/model_downloader) or from [https://download.01.org/opencv/](https://download.01.org/opencv/).
+To run the sample, you can use RMNet_SSD or other object-detection models. You can download the pre-trained models with the OpenVINO [Model Downloader](@ref omz_tools_downloader_README) or from [https://download.01.org/opencv/](https://download.01.org/opencv/).
 
-> **NOTE**: Before running the sample with a trained model, make sure the model is converted to the Inference Engine format (\*.xml + \*.bin) using the [Model Optimizer tool](./docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
+> **NOTE**: Before running the sample with a trained model, make sure the model is converted to the Inference Engine format (\*.xml + \*.bin) using the [Model Optimizer tool](../../../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
 
 
 You can do inference of an image using a trained RMNet_SSD network on FPGA with fallback to CPU using the following command:
@@ -70,4 +70,4 @@ You can do inference of an image using a trained RMNet_SSD network on FPGA with 
 By default, the application outputs all inference results and draws bounding boxes for inference results with an over 50% confidence.
 
 ## See Also
-* [Using Inference Engine Samples](./docs/IE_DG/Samples_Overview.md)
+* [Using Inference Engine Samples](../../../../../docs/IE_DG/Samples_Overview.md)

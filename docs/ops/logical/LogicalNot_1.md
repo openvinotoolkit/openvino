@@ -1,4 +1,4 @@
-## LogicalNot <a name="LogicalNot"></a>
+## LogicalNot <a name="LogicalNot"></a> {#openvino_docs_ops_logical_LogicalNot_1}
 
 **Versioned name**: *LogicalNot-1*
 

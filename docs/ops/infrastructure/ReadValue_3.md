@@ -1,4 +1,4 @@
-## ReadValue <a name="ReadValue"></a>
+## ReadValue <a name="ReadValue"></a> {#openvino_docs_ops_infrastructure_ReadValue_3}
 
 **Versioned name**: *ReadValue-3*
 

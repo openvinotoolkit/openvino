@@ -1,4 +1,4 @@
-# Operation Set `opset4` Specification
+# Operation Set `opset4` Specification {#openvino_docs_ops_opset4}
 
 This specification document describes `opset4` operation set supported in OpenVINO.
 Support for each particular operation from the list below depends on the capabilities available in a inference plugin

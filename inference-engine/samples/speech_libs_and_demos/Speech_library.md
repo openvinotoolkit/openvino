@@ -1,4 +1,4 @@
-# Speech Library
+# Speech Library {#openvino_inference_engine_samples_speech_libs_and_demos_Speech_library}
 
 ## Overview
 
@@ -24,7 +24,7 @@ The pipeline consists of the following stages:
 2. Neural acoustic scoring: the OpenVINO &trade; Inference Engine transcribes the extracted features into a sequence of phonemes using a neural acoustic model
 3. Language model decoding: the Intel&reg; Speech Decoder turns the phonemes into text hypothesis. The decoding graph takes into account the grammar of the data, as well as the distribution and probabilities of contiguous specific words (n-grams)
 
-![](./inference-engine/samples/speech_libs_and_demos/img/asr_pipeline.png)
+![](img/asr_pipeline.png)
 
 ## Speech Library API
 
@@ -35,11 +35,11 @@ The Speech Library API consists of simple routines:
 * Inform about new stable recognition result
 
 The flow is described below:
-![](./inference-engine/samples/speech_libs_and_demos/img/speech_library_api.png)
+![](img/speech_library_api.png)
 
 See `<INSTALL_DIR>/data_processing/audio/speech_recognition/include/speech_library.h` for details about the API.
 
-A great example on how to use the API is the source code of [offline speech recognition demo](./inference-engine/samples/speech_libs_and_demos/Offline_speech_recognition_demo.md).
+A great example on how to use the API is the source code of [offline speech recognition demo](Offline_speech_recognition_demo.md).
 
 ## Run Your Application
 
