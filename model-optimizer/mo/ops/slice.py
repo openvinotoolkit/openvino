@@ -162,9 +162,6 @@ class Slice(Op):
 
         if input_value is None:
             output_shape = get_shape_after_slice(input_shape, slice_idx)
-            if np.any(output_shape == 0):
-                # todo: add unittest for this case
-                raise Error("Output shape ({}) for Slice node {} has zero elements".format(output_shape, node.name))
             node.out_port(0).data.set_shape(output_shape)
         else:
             node.out_port(0).data.set_value(input_value[tuple(slice_idx)])

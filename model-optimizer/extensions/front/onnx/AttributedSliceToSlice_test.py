@@ -17,46 +17,46 @@
 import unittest
 
 import numpy as np
+from generator import generator, generate
 
 from extensions.front.onnx.AttributedSliceToSlice import AttributedSliceToSliceReplacer
 from mo.utils.ir_engine.compare_graphs import compare_graphs
-from mo.utils.unittest.graph import build_graph, regular_op_with_empty_data, result, const
-
-nodes = {
-    **regular_op_with_empty_data('input', {'type': 'Parameter'}),
-    **regular_op_with_empty_data('attributed_slice', {'op': 'AttributedSlice', 'type': None,
-                                                      # todo: add test for the case when does not have axes attribute
-                                             # 'start': np.array([0, 0]), 'end': np.array([1, -1]), 'axis': np.array([0, 1])}),
-                                              'starts': np.array([0, 0]), 'ends': np.array([1, -1])}),
-                                                      **result(),
-
-    # nodes after replacement
-    **const('start', np.array([0, 0])),
-    **const('end', np.array([1, -1])),
-    **const('axis', np.array(np.array([0, 1]))),
-    **regular_op_with_empty_data('slice', {'op': 'Slice', 'type': None}),
-}
+from mo.utils.unittest.graph import build_graph, regular_op_with_empty_data, result, const, connect_on_front
 
 
+@generator
 class SliceReplacerTest(unittest.TestCase):
+    @generate(*[
+       {'op': 'AttributedSlice', 'type': None, 'starts': np.array([0, 0]), 'ends': np.array([1, -1])},
+       {'op': 'AttributedSlice', 'type': None, 'starts': np.array([0, 0]), 'ends': np.array([1, -1]), 'axis': np.array([0, 1])}
+    ])
+    def test_attributed_slice_replacer(self, attributed_slice_attrs):
+        nodes = {
+            **regular_op_with_empty_data('input', {'type': 'Parameter'}),
+            **regular_op_with_empty_data('attributed_slice', attributed_slice_attrs),
+            **result(),
 
-    def test_attributed_slice_replacer(self):
+            # nodes after replacement
+            **const('start', np.array([0, 0])),
+            **const('end', np.array([1, -1])),
+            **const('axis', np.array(np.array([0, 1]))),
+            **regular_op_with_empty_data('slice', {'op': 'Slice', 'type': None}),
+        }
+
         graph = build_graph(nodes_attrs=nodes, edges=[
-            ('input', 'attributed_slice', {'out': 0}),
-            ('attributed_slice', 'output', {'out': 0}),
+            ('input', 'attributed_slice'),
+            ('attributed_slice', 'output'),
         ], nodes_with_edges_only=True)
         graph.stage = 'front'
 
         AttributedSliceToSliceReplacer().find_and_replace_pattern(graph)
 
         graph_ref = build_graph(nodes_attrs=nodes, edges=[
-            ('input', 'slice', {'out': 0}),
-
-            ('start', 'slice', {'out': 0, 'in': 1}),
-            ('end', 'slice', {'out': 0, 'in': 2}),
-            ('axis', 'slice', {'out': 0, 'in': 3}),
-
-            ('slice', 'output', {'out': 0}),
+            ('input', 'slice'),
+            *connect_on_front('start', '1:slice'),
+            *connect_on_front('end', '2:slice'),
+            *connect_on_front('axis', '3:slice'),
+            ('slice', 'output'),
         ], nodes_with_edges_only=True)
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'output', check_op_attrs=True)

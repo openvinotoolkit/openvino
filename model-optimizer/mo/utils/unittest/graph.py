@@ -198,6 +198,7 @@ def build_graph(nodes_attrs: dict, edges: list, update_attributes: dict = None, 
         # Add in_ports attribute
         in_edges = node.in_edges()
         for attr in in_edges.values():
+            # node.add_input_port(idx=attr['in'], skip_if_exist=True)
             node.add_input_port(idx=attr['in'])
 
         # Add out_ports attribute
@@ -348,3 +349,14 @@ def connect(first_tensor_name, second_tensor_name, skip_data=False):
 
 def connect_data(first_tensor_name, second_tensor_name):
     return connect(first_tensor_name, second_tensor_name, skip_data=True)
+
+
+def connect_on_front(first_tensor_name, second_tensor_name, skip_data=False):
+    # ports could be skipped -- then zero in/out ports would be used
+    # first_tensor_name = first_op_name:out_port
+    # second_tensor_name = in_port:second_op_name
+
+    first_op_name, out_port = get_name_and_port(first_tensor_name)
+    second_op_name, in_port = get_name_and_port(second_tensor_name)
+
+    return [(first_op_name, second_op_name, {'out': out_port, 'in': in_port})]

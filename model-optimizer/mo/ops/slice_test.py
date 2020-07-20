@@ -21,49 +21,39 @@ from generator import generator, generate
 from mo.front.common.partial_infer.utils import int64_array
 from mo.graph.graph import Node
 from mo.ops.slice import Slice
+from mo.utils.error import Error
 from mo.utils.unittest.graph import build_graph, valued_const_with_data, valued_data, regular_op_with_empty_data, \
-    connect
+    connect, shaped_data, shaped_const_with_data
 
 
 @generator
 class TestSliceOp(unittest.TestCase):
-    # todo: add this case through @generate and remove
-    # def test_slice_infer_non_constant(self):
-    #     # Testing non-constant path case (when value in input is None)
-    #     # with multiply params
-    #     graph = build_graph(nodes_attributes,
-    #                         [('data_1', 'slice'),
-    #                          ('starts', 'slice'),
-    #                          ('ends', 'slice'),
-    #                          ('axes', 'slice'),
-    #                          ('slice', 'data_2')],
-    #                         {'data_1': {'shape': np.array([4, 5, 6])},
-    #                          'starts': {'value': np.array([1, 2])},
-    #                          'ends': {'value': np.array([4, 3])},
-    #                          'axes': {'value': np.array([0, 1])}})
-    #
-    #     slice_node = Node(graph, 'slice')
-    #
-    #     Slice.infer(slice_node)
-    #     self.assertTrue(np.array_equal(slice_node.out_node().value, None))
-    #     self.assertTrue(np.array_equal(slice_node.out_node().shape, np.array([3, 1, 6])))
-    #
-
         @generate(*[
+            # standard case
+            ([[4, 5, 6, 7], [2, 3, 5, 6], [5, 6, 8, 9], [5, 6, 8, 9]], [0, 1], [3, 2], [0, 1], [1, 1], [[5], [3], [6]]),
             # negative bounds
             ([[4, 5, 6, 7], [2, 3, 5, 6], [5, 6, 8, 9], [5, 6, 8, 9]], [0, 1], [3, -2], [0, 1], [1, 1], [[5], [3], [6]]),
             # unusual order of axes
             ([[4, 5, 6, 7], [2, 3, 5, 6], [5, 6, 8, 9], [5, 6, 8, 9]], [0, 1], [3, -2], [1, 0], [1, 1], [[2, 3, 5]]),
-            # second case
-            ([1, 3, 224, 224], [1], [2], [0], [1], [3])
-            # # third case
-            # ()
+            # when only input_shape is defined without values (one from buttom element is shape)
+            (None, [1, 2], [4, 3], [0, 1], [1, 1], [3, 1, 6], [4, 5, 6]),
+            # boundary case
+            (None, [0, 2], [np.iinfo(np.int32).max, 3], [0, 1], [1, 1], [4, 1, 6], [4, 5, 6]),
+            # boundary case
+            (None, [np.iinfo(np.int32).min, 2], [3, 3], [0, 1], [1, 1], [3, 1, 6], [4, 5, 6]),
+            # 1D input
+            ([1, 3, 224, 224], [1], [2], [0], [1], [3]),
+            # case when output shape has zero elements
+            (None, [1], [1], [0], [1], [0], [4])
         ])
         def test_slice_infer(self, inp_value, starts, ends, axes, steps, expected, inp_shape=None):
-            inp_shape = int64_array(inp_value).shape if inp_value is not None else inp_shape
-            inp_value = int64_array(inp_value) if inp_value is not None else inp_value
+            if inp_value is None:
+                input_node = shaped_data('data_1', int64_array(inp_shape))
+            else:
+                input_node = valued_data('data_1', int64_array(inp_value))
+
             nodes = {
-                **valued_data('data_1', inp_value),
+                **input_node,
                 **regular_op_with_empty_data('slice', {'op': 'Slice'}),
                 **valued_const_with_data('starts', int64_array(starts)),
                 **valued_const_with_data('ends', int64_array(ends)),
@@ -83,4 +73,51 @@ class TestSliceOp(unittest.TestCase):
             slice_node = Node(graph, 'slice')
 
             Slice.infer(slice_node)
-            self.assertTrue(np.array_equal(slice_node.out_node().value, expected))
+            if inp_value is not None:
+                self.assertTrue(np.array_equal(slice_node.out_node().value, expected))
+            else:
+                self.assertTrue(np.array_equal(slice_node.out_node().shape, expected))
+
+        # negative tests
+        @generate(*[
+            # starts are non-constant
+            ([[4, 5, 6, 7], [2, 3, 5, 6], [5, 6, 8, 9], [5, 6, 8, 9]], None, [3, 2], [0, 1], [1, 1], [[5], [3], [6]]),
+            # ends are non-constant
+            ([[4, 5, 6, 7], [2, 3, 5, 6], [5, 6, 8, 9], [5, 6, 8, 9]], [0, 1], None, [0, 1], [1, 1], [[5], [3], [6]]),
+            # axes are non-constant
+            ([[4, 5, 6, 7], [2, 3, 5, 6], [5, 6, 8, 9], [5, 6, 8, 9]], [0, 1], [3, -2], None, [1, 1], [[5], [3], [6]]),
+            # steps are non-constant
+            ([[4, 5, 6, 7], [2, 3, 5, 6], [5, 6, 8, 9], [5, 6, 8, 9]], [0, 1], [3, -2], [0, 1], None, [[5], [3], [6]]),
+        ])
+        def test_slice_infer_negative(self, inp_value, starts, ends, axes, steps, expected, inp_shape=None):
+            if inp_value is None:
+                input_node = shaped_data('data_1', int64_array(inp_shape))
+            else:
+                input_node = valued_data('data_1', int64_array(inp_value))
+
+            def convert_args(val, name=''):
+                if val is not None:
+                    return valued_const_with_data(name, int64_array(val))
+                else:
+                    return shaped_const_with_data(name, [0]) #fake shape
+
+            starts = convert_args(starts, 'starts')
+            ends = convert_args(ends, 'ends')
+            axes = convert_args(axes, 'axes')
+            steps = convert_args(steps, 'steps')
+
+            nodes = { **input_node,
+                      **regular_op_with_empty_data('slice', {'op': 'Slice'}),
+                      **starts, **ends, **axes, **steps }
+
+            graph = build_graph(nodes,
+                                [('data_1', 'slice'),
+                                 *connect('starts', '1:slice'),
+                                 *connect('ends', '2:slice'),
+                                 *connect('axes', '3:slice'),
+                                 *connect('steps', '4:slice'),
+                                 *connect('slice', 'slice_d')])
+
+            graph.stage = 'middle'
+            slice_node = Node(graph, 'slice')
+            self.assertRaises(Error, Slice.infer, slice_node)

@@ -20,7 +20,7 @@ import numpy as np
 
 from extensions.front.tf.TFSliceToSlice import TFSliceToSliceReplacer
 from mo.utils.ir_engine.compare_graphs import compare_graphs
-from mo.utils.unittest.graph import build_graph, regular_op_with_empty_data, result, const
+from mo.utils.unittest.graph import build_graph, regular_op_with_empty_data, result, const, connect_on_front
 
 nodes = {
     **regular_op_with_empty_data('input', {'type': 'Parameter'}),
@@ -41,37 +41,37 @@ nodes = {
 
 
 class SliceReplacerTest(unittest.TestCase):
-
+    # test case when input goes besides from TFSlice to other nodes
     def test_slice_replacer_begin_with_2_inputs(self):
         graph = build_graph(nodes_attrs=nodes, edges=[
-            ('input', 'tfslice', {'out': 0}),
-            ('begin', 'tfslice', {'out': 0, 'in': 1}),
-            ('begin', 'john_doe', {'out': 0, 'in': 0}),
-            ('size', 'tfslice', {'out': 0, 'in': 2}),
-            ('tfslice', 'output', {'out': 0}),
+            ('input', 'tfslice'),
+            *connect_on_front('begin:0', '1:tfslice'),
+            *connect_on_front('begin:0', '0:john_doe'),
+            *connect_on_front('size:0', '2:tfslice'),
+            *connect_on_front('tfslice:0', 'output'),
         ], nodes_with_edges_only=True)
         graph.stage = 'front'
 
         TFSliceToSliceReplacer().find_and_replace_pattern(graph)
 
         graph_ref = build_graph(nodes_attrs=nodes, edges=[
-            ('input', 'slice', {'out': 0}),
-            ('begin', 'slice', {'out': 0, 'in': 1}),
-            ('begin', 'john_doe', {'out': 0, 'in': 1}),
+            *connect_on_front('input:0', 'slice'),
+            *connect_on_front('begin:0', 'slice:1'),
+            *connect_on_front('begin:0', 'john_doe:1'),
 
-            ('begin', 'end_const', {'out': 0, 'in': 0}),
-            ('size', 'end_const', {'out': 0, 'in': 1}),
-            ('size', 'equal', {'out': 0, 'in': 0}),
+            *connect_on_front('begin:0', 'end_const:0'),
+            *connect_on_front('size:0', 'end_const:1'),
+            *connect_on_front('size:0', 'equal:0'),
 
-            ('int32_max', 'select', {'out': 0, 'in': 1}),
-            ('minus_one', 'equal', {'out': 0, 'in': 1}),
+            *connect_on_front('int32_max:0', 'select:1'),
+            *connect_on_front('minus_one:0', 'equal:1'),
 
-            ('equal', 'select', {'out': 0, 'in': 0}),
+            *connect_on_front('equal:0', 'select:0'),
 
-            ('end_const', 'select', {'out': 0, 'in': 2}),
-            ('select', 'slice', {'out': 0, 'in': 2}),
+            *connect_on_front('end_const:0', 'select:2'),
+            *connect_on_front('select:0', 'slice:2'),
 
-            ('slice', 'output', {'out': 0}),
+            *connect_on_front('slice:0', 'output'),
         ], nodes_with_edges_only=True)
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'output', check_op_attrs=True)
@@ -79,32 +79,27 @@ class SliceReplacerTest(unittest.TestCase):
 
     def test_slice_replacer(self):
         graph = build_graph(nodes_attrs=nodes, edges=[
-            ('input', 'tfslice', {'out': 0}),
-            ('begin', 'tfslice', {'out': 0, 'in': 1}),
-            ('size', 'tfslice', {'out': 0, 'in': 2}),
-            ('tfslice', 'output', {'out': 0}),
+            *connect_on_front('input:0', 'tfslice'),
+            *connect_on_front('begin:0', '1:tfslice'),
+            *connect_on_front('size:0', '2:tfslice'),
+            *connect_on_front('tfslice:0', 'output'),
         ], nodes_with_edges_only=True)
         graph.stage = 'front'
 
         TFSliceToSliceReplacer().find_and_replace_pattern(graph)
 
         graph_ref = build_graph(nodes_attrs=nodes, edges=[
-            ('input', 'slice', {'out': 0}),
-            ('begin', 'slice', {'out': 0, 'in': 1}),
-
-            ('begin', 'end_const', {'out': 0, 'in': 0}),
-            ('size', 'end_const', {'out': 0, 'in': 1}),
-            ('size', 'equal', {'out': 0, 'in': 0}),
-
-            ('int32_max', 'select', {'out': 0, 'in': 1}),
-            ('minus_one', 'equal', {'out': 0, 'in': 1}),
-
-            ('equal', 'select', {'out': 0, 'in': 0}),
-
-            ('end_const', 'select', {'out': 0, 'in': 2}),
-            ('select', 'slice', {'out': 0, 'in': 2}),
-
-            ('slice', 'output', {'out': 0}),
+            *connect_on_front('input:0', 'slice'),
+            *connect_on_front('begin:0', '1:slice'),
+            *connect_on_front('begin:0', '0:end_const'),
+            *connect_on_front('size:0', '1:end_const'),
+            *connect_on_front('size:0', '0:equal'),
+            *connect_on_front('int32_max:0', '1:select'),
+            *connect_on_front('minus_one:0', '1:equal'),
+            *connect_on_front('equal:0', '0:select'),
+            *connect_on_front('end_const:0', '2:select'),
+            *connect_on_front('select:0', '2:slice'),
+            *connect_on_front('slice:0', 'output'),
         ], nodes_with_edges_only=True)
 
         (flag, resp) = compare_graphs(graph, graph_ref, 'output', check_op_attrs=True)
