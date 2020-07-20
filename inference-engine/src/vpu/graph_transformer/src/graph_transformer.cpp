@@ -101,7 +101,7 @@ void CompileEnv::init(Platform platform, const CompilationConfig& config, const 
     const auto tilingCMXLimit  = config.tilingCMXLimitKB != -1 ? std::min(config.tilingCMXLimitKB * 1024, defaultCmxLimit) : defaultCmxLimit;
     VPU_THROW_UNLESS(tilingCMXLimit >= 0,
         R"(Value of configuration option ("{}") must be greater than {}, actual is "{}")",
-        VPU_CONFIG_KEY(TILING_CMX_LIMIT_KB), 0, tilingCMXLimit);
+        ie::MYRIAD_TILING_CMX_LIMIT_KB, 0, tilingCMXLimit);
 
     const auto numShaves = config.numSHAVEs != -1 ? config.numSHAVEs : DefaultAllocation::numShaves(platform, numExecutors, numSlices);
     VPU_THROW_UNLESS(numShaves >= 1 && numShaves <= DeviceResources::numShaves(platform),
