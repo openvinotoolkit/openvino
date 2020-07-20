@@ -120,7 +120,7 @@ void ngraph::pass::ConvertBatchToSpace::convert_batch_to_space() {
     this->add_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
 }
 
-void ngraph::pass::ConvertBatchToSpace::convert_batch_to_space_ie_side() {
+void ngraph::pass::ConvertBatchToSpace::convert_batch_to_space_by_elements() {
     auto input0 = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1, 1});
     auto input1 = ngraph::op::Constant::create(element::i64, Shape{4}, Shape{1, 1, 1, 1});
     auto input2 = ngraph::op::Constant::create(element::i64, Shape{4}, {0, 0, 0, 0});
@@ -215,7 +215,7 @@ void ngraph::pass::ConvertBatchToSpace::convert_batch_to_space_ie_side() {
         new_ops.push_back(flat_node);
 
         flat_node->set_friendly_name(batch_to_space->get_friendly_name());
-        ngraph::copy_runtime_info(batch_to_space, flat_node);
+        ngraph::copy_runtime_info(batch_to_space, new_ops);
         ngraph::replace_node(batch_to_space, flat_node);
         return true;
     };

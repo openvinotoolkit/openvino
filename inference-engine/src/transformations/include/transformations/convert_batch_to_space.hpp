@@ -25,10 +25,10 @@ class ngraph::pass::ConvertBatchToSpace: public ngraph::pass::GraphRewrite, publ
 public:
     ConvertBatchToSpace() : GraphRewrite(), PassParam() {
         // convert_batch_to_space();
-        convert_batch_to_space_ie_side();
+        convert_batch_to_space_by_elements();
     }
 
 private:
     void convert_batch_to_space();
-    void convert_batch_to_space_ie_side();
+    void convert_batch_to_space_by_elements();
 };
