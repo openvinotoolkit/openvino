@@ -8,15 +8,10 @@
 #include <tuple>
 #include <vector>
 #include <string>
-
 #include <ie_core.hpp>
 
-#include "common_test_utils/common_utils.hpp"
-#include "functional_test_utils/plugin_cache.hpp"
-#include "functional_test_utils/layer_test_utils.hpp"
-#include "functional_test_utils/blob_utils.hpp"
-#include "ngraph_functions/pass/convert_prc.hpp"
 #include "ngraph_functions/builders.hpp"
+#include <transformations/init_node_info.hpp>
 
 
 namespace LayerTestsDefinitions {
@@ -29,9 +24,7 @@ std::string ReshapeTransformation::getTestCaseName(testing::TestParamInfo<LayerT
     LayerTestsUtils::LayerTransformation::LptVersion version;
     std::tie(netPrecision, inputShapes, targetDevice, params, version) = obj.param;
 
-    std::ostringstream result;
-    result << netPrecision.name() << "_" << targetDevice << "_" << toString(params);
-    return result.str();
+    return getTestCaseNameByParams(netPrecision, inputShapes, targetDevice, params, version);
 }
 
 void ReshapeTransformation::SetUp() {
@@ -41,6 +34,8 @@ void ReshapeTransformation::SetUp() {
     LayerTestsUtils::LayerTransformation::LptVersion version;
     std::tie(netPrecision, inputShape, targetDevice, params, version) = this->GetParam();
     const auto precision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+
+    ConfigurePlugin(version);
 
     const float k = 50.f;
 
@@ -65,7 +60,9 @@ void ReshapeTransformation::SetUp() {
     ngraph::ResultVector results {std::make_shared<ngraph::opset1::Result>(convolution)};
     function = std::make_shared<ngraph::Function>(results, ngraph::ParameterVector { input }, "ReshapeTransformation");
 
-    validate();
+    if (version == LptVersion::cnnNetwork) {
+        validate();
+    }
 }
 
 void ReshapeTransformation::validate() {

@@ -19,8 +19,9 @@ const std::vector<LayerTransformation::Params> trasformationParamValues = {
     LayerTestsUtils::LayerTransformationParamsFactory::createParams()
 };
 
-const std::vector<LayerTestsUtils::LayerTransformation::LptVersion> versions = {
-    LayerTestsUtils::LayerTransformation::LptVersion::cnnNetwork
+const std::vector<LayerTestsUtils::LayerTransformation::LptVersion> versionValues = {
+    LayerTestsUtils::LayerTransformation::LptVersion::cnnNetwork,
+    LayerTestsUtils::LayerTransformation::LptVersion::nGraph
 };
 
 // disabled while GPU is not supported DepthToSpace
@@ -30,6 +31,6 @@ INSTANTIATE_TEST_CASE_P(DISABLED_LPT, DepthToSpaceTransformation,
         ::testing::Values(InferenceEngine::SizeVector({ 1, 32, 72, 48 })),
         ::testing::Values(CommonTestUtils::DEVICE_GPU),
         ::testing::ValuesIn(trasformationParamValues),
-        ::testing::ValuesIn(versions)),
+        ::testing::ValuesIn(versionValues)),
     DepthToSpaceTransformation::getTestCaseName);
 }  // namespace
