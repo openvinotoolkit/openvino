@@ -16,7 +16,6 @@
 
 #include "ngraph/op/interpolate.hpp"
 #include "ngraph/op/constant.hpp"
-#include <algorithm>
 
 using namespace std;
 using namespace ngraph;
@@ -166,7 +165,7 @@ std::vector<int64_t> op::v4::Interpolate::get_axes() const
 
     if (auto axes_node = as_type_ptr<op::Constant>(input_value(2).get_node_shared_ptr()))
     {
-        result = const_shape->cast_vector<int64_t>();
+        result = axes_node->cast_vector<int64_t>();
     }
 
     return result;
@@ -188,13 +187,16 @@ std::vector<size_t> op::v4::Interpolate::correct_pad(const std::vector<size_t>& 
     }
 
     std::vector<size_t> result;
-    result.insert(result.end(), pad.begin(), pad.begin() + std::min(input_rank, pad_len));
     if (pad_len > input_rank)
     {
-        return result;
+        result.insert(result.end(), pad.begin(), pad.begin() + input_rank);
+    }
+    else
+    {
+        result.insert(result.end(), pad.begin(), pad.end());
+        result.insert(result.end(), input_rank - pad_len, 0);
     }
 
-    result.insert(result.end(), input_rank - pad_len, 0);
     return result;
 }
 
@@ -212,8 +214,8 @@ void op::v4::Interpolate::validate_and_infer_types()
     m_attrs.pads_end = correct_pad(m_attrs.pads_end);
     if (output_shape.rank().is_static())
     {
-        const auto input_rank = output_shape().rank().get_length();
-        for (size_t i = 0; i < input_rank: ++i)
+        const auto input_rank = output_shape.rank().get_length();
+        for (size_t i = 0; i < input_rank; ++i)
         {
             if (output_shape[i].is_static())
             {
