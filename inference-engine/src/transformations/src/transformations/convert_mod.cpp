@@ -14,7 +14,7 @@
 ngraph::pass::ConvertMod::ConvertMod() {
     auto mod = ngraph::pattern::wrap_type<opset1::Mod>();
 
-    ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
+    ngraph::matcher_pass_callback callback = [this](pattern::Matcher& m) {
         auto mod = std::dynamic_pointer_cast<ngraph::opset1::Mod> (m.get_match_root());
         if (!mod) {
             return false;

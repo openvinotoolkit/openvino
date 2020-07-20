@@ -13,7 +13,7 @@
 #include <transformations/utils/utils.hpp>
 #include <ngraph/rt_info.hpp>
 
-ngraph::pass::ConvertPReLUToReLUIEMatcher::ConvertPReLUToReLUIEMatcher() {
+ngraph::pass::ConvertPReLUToReLUIE::ConvertPReLUToReLUIE() {
     auto input_0 = std::make_shared<pattern::op::Label>(element::f32, Shape{1});
     auto input_1 = std::make_shared<pattern::op::Label>(element::f32, Shape{1});
     auto prelu = std::make_shared<ngraph::opset1::PRelu>(input_0, input_1);

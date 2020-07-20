@@ -86,8 +86,7 @@ bool pass::GraphRewrite::run_on_function(shared_ptr<Function> f)
 
         auto root = matcher->get_pattern_value().get_node_shared_ptr();
         // pattern::op::AnyOutput operation automatically appends for multi output operations inside
-        // Matcher and
-        // to gen actual root node we need to take it's parent.
+        // Matcher and to gen actual root node we need to take it's parent.
         if (auto any_type = dynamic_pointer_cast<pattern::op::AnyOutput>(root))
         {
             root = any_type->input_value(0).get_node_shared_ptr();

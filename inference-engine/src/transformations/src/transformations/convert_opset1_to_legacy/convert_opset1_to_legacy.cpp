@@ -122,7 +122,7 @@ bool ngraph::pass::ConvertOpSet1ToLegacy::run_on_function(std::shared_ptr<ngraph
     anchor->add_matcher<ngraph::pass::ConvertStridedSliceToCropMatcher>();
     anchor->add_matcher<ngraph::pass::ConvertPowerToPowerIEMatcher>();
     anchor->add_matcher<ngraph::pass::ConvertSqrtToPowerIEMatcher>();
-    anchor->add_matcher<ngraph::pass::ConvertPReLUToReLUIEMatcher>();
+    anchor->add_matcher<ngraph::pass::ConvertPReLUToReLUIE>();
     anchor->add_matcher<ngraph::pass::ConvertGatherToGatherIEMatcher>();
     anchor->add_matcher<ngraph::pass::ConvertSeluToSeluIEMatcher>();
     anchor->add_matcher<ngraph::pass::ConvertOneHotToOneHotIEMatcher>()->detect_output_type(f);
