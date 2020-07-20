@@ -12,10 +12,10 @@
 
 #include <transformations/utils/utils.hpp>
 #include <transformations/init_node_info.hpp>
-#include <transformations/convert_opset1_to_legacy/conv_bias_fusion.hpp>
 #include <transformations/low_precision/transformer.hpp>
 #include <transformations/low_precision/concat.hpp>
 #include <transformations/low_precision/concat_multi_channels.hpp>
+#include <transformations/low_precision/max_pool.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 #include "ngraph_functions/low_precision_transformations/concat_function.hpp"
@@ -100,6 +100,7 @@ public:
         } else {
             transform.add<ngraph::pass::low_precision::ConcatTransformation, ngraph::opset1::Concat>(testValues.params);
         }
+        transform.add<ngraph::pass::low_precision::MaxPoolTransformation, ngraph::opset1::MaxPool>(testValues.params);
         transform.transform(actualFunction);
 
         referenceFunction = ngraph::builder::subgraph::ConcatFunction::getReferenceWithIntermediate(

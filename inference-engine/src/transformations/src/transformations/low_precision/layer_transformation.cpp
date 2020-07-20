@@ -201,33 +201,6 @@ void LayerTransformation::checkAndUpdateDequantizationShiftWithZero(
     }
 }
 
-void LayerTransformation::fillFromDequantizationLayer(
-    std::shared_ptr<Node> dequantizationLayer,
-    std::vector<float>& dequantizationScales,
-    std::vector<float>& dequantizationShifts) const {
-    // std::cerr << "[ ERROR ] NOT IMPLEMENTED METHOD IS CALLED " << __FILE__ << ":" << __LINE__ << "\n";
-#if 0 // TODO LPT-TO-NGRAPH
-    if (dequantizationLayer.type != "ScaleShift") {
-        THROW_TRANSFORMATION_EXCEPTION << "unexpected dequantization layer type " << dequantizationLayer.type;
-    }
-
-    CNNLayerPtr dequantizationLayerPtr = std::make_shared<CNNLayer>(dequantizationLayer);
-    Blob::Ptr weightsBlob = CNNNetworkHelper::getBlob(dequantizationLayerPtr, "weights");
-    const auto weightsBuffer = CNNNetworkHelper::getFloatData(weightsBlob);
-
-    Blob::Ptr shiftsBlob = CNNNetworkHelper::getBlob(dequantizationLayerPtr, "biases");
-    const auto shiftsBuffer = CNNNetworkHelper::getFloatData(shiftsBlob);
-
-    const size_t inputCannelsCount = CNNNetworkHelper::getInputChannelsCount(dequantizationLayer);
-    dequantizationScales.resize(inputCannelsCount);
-    dequantizationShifts.resize(inputCannelsCount);
-    for (size_t channel = 0; channel < inputCannelsCount; ++channel) {
-        dequantizationScales[channel] = (weightsBlob->size() == 1ul) ? weightsBuffer.get()[0] : weightsBuffer.get()[channel];
-        dequantizationShifts[channel] = (shiftsBlob->size() == 1ul) ? shiftsBuffer.get()[0] : shiftsBuffer.get()[channel];
-    }
-#endif
-}
-
 void LayerTransformation::setQuantizationIntervalAsymmetryThreshold(const float value) {
     this->quantizationIntervalAsymmetryThreshold = value;
 }

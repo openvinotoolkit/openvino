@@ -12,7 +12,6 @@
 
 #include <transformations/utils/utils.hpp>
 #include <transformations/init_node_info.hpp>
-#include <transformations/convert_opset1_to_legacy/conv_bias_fusion.hpp>
 #include <transformations/low_precision/transformer.hpp>
 #include <transformations/low_precision/concat.hpp>
 #include <transformations/low_precision/concat_multi_channels.hpp>

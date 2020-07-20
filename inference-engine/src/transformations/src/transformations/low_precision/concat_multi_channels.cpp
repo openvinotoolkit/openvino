@@ -47,7 +47,7 @@ void ConcatMultiChannelsTransformation::registerMatcherIn(GraphRewrite& pass, Tr
 void ConcatMultiChannelsTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) const {
     std::shared_ptr<ngraph::opset1::Concat> concat = ngraph::as_type_ptr<ngraph::opset1::Concat>(m.get_match_root());
 
-    ngraph::pass::low_precision::Subgraph subgraph;
+    ngraph::pass::low_precision::Subgraph subgraph(layerTransformationsManager);
     std::unordered_set<std::string> handledLayers;
     if (!subgraph.fillSubgraphForConcat(*concat, handledLayers)) {
         return;

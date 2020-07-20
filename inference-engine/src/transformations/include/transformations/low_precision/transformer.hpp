@@ -150,8 +150,8 @@ public:
     std::vector<element::Type> getPrecisionsOnActivations(const Node& op) const noexcept override;
 
     // ILayerTransformationsManager interface implementation
-    bool isQuantized(std::shared_ptr<Node> layer) const noexcept override;
-    bool isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept override;
+    bool isQuantized(const std::shared_ptr<Node>& layer) const noexcept override;
+    bool isPrecisionPreserved(const std::shared_ptr<Node>& layer) const noexcept override;
 
 private:
     LowPrecisionTransformations transformations;

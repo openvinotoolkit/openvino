@@ -21,13 +21,7 @@ namespace ngraph {
 namespace pass {
 namespace low_precision {
 
-bool isIntermediate(const ngraph::Node& node) {
-    if (is_type<ngraph::opset1::MaxPool>(&node)) {
-        return true;
-    }
-
-    // add Resample here
-    return false;
+Subgraph::Subgraph(ngraph::pass::ILayerTransformationsManager* layerTransformationsManager) : layerTransformationsManager(layerTransformationsManager) {
 }
 
 bool Subgraph::fillSubgraphForQuantization(ngraph::opset1::FakeQuantize& fakeQuantize, std::unordered_set<std::string>& handledLayers) {
@@ -53,7 +47,7 @@ bool Subgraph::fillSubgraphForQuantization(ngraph::opset1::FakeQuantize& fakeQua
                 if (fakeQuantizeChild != nullptr) {
                     //
                 } else {
-                    if (isIntermediate(child)) {
+                    if (layerTransformationsManager->isPrecisionPreserved(child.shared_from_this())) {
                         if (!fillSubgraphForIntermediate(child, handledLayers)) {
                             return false;
                         }
@@ -85,7 +79,7 @@ bool Subgraph::fill(ngraph::Node& layer, std::unordered_set<std::string>& handle
                     return false;
                 }
             } else {
-                if (isIntermediate(parent)) {
+                if (layerTransformationsManager->isPrecisionPreserved(parent.shared_from_this())) {
                     if (!fillSubgraphForIntermediate(parent, handledLayers)) {
                         return false;
                     }
@@ -114,7 +108,7 @@ bool Subgraph::fill(ngraph::Node& layer, std::unordered_set<std::string>& handle
                 ngraph::opset1::FakeQuantize* fakeQuantizeChild = ngraph::as_type<ngraph::opset1::FakeQuantize>(&child);
                 if (fakeQuantizeChild == nullptr) {
                     //
-                } else if (isIntermediate(child)) {
+                } else if (layerTransformationsManager->isPrecisionPreserved(child.shared_from_this())) {
                     if (!fillSubgraphForIntermediate(child, handledLayers)) {
                         return false;
                     }

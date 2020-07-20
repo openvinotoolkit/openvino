@@ -27,7 +27,7 @@ std::vector<ngraph::element::Type> SimpleLowPrecisionTransformer::getPrecisionsO
     return transformation->getPrecisionsOnActivations();
 }
 
-bool SimpleLowPrecisionTransformer::isQuantized(std::shared_ptr<ngraph::Node> layer) const noexcept {
+bool SimpleLowPrecisionTransformer::isQuantized(const std::shared_ptr<ngraph::Node>& layer) const noexcept {
     const std::string operantionType = ngraph::pass::low_precision::LowPrecisionTransformations::getType(*layer);
 
     const auto it = transformations.find(operantionType);
@@ -39,7 +39,7 @@ bool SimpleLowPrecisionTransformer::isQuantized(std::shared_ptr<ngraph::Node> la
     return transformation->isQuantized(layer);
 }
 
-bool SimpleLowPrecisionTransformer::isPrecisionPreserved(std::shared_ptr<ngraph::Node> layer) const noexcept {
+bool SimpleLowPrecisionTransformer::isPrecisionPreserved(const std::shared_ptr<ngraph::Node>& layer) const noexcept {
     const std::string operantionType = ngraph::pass::low_precision::LowPrecisionTransformations::getType(*layer);
 
     const auto it = transformations.find(operantionType);

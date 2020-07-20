@@ -275,7 +275,7 @@ std::vector<element::Type> LowPrecisionTransformer::getPrecisionsOnActivations(c
     return transformation->getPrecisionsOnActivations();
 }
 
-bool LowPrecisionTransformer::isQuantized(std::shared_ptr<Node> layer) const noexcept {
+bool LowPrecisionTransformer::isQuantized(const std::shared_ptr<Node>& layer) const noexcept {
     const std::string operantionType = LowPrecisionTransformations::getType(*layer);
 
     const LayerTransformationPtr transformation = transformations.find(operantionType);
@@ -285,7 +285,7 @@ bool LowPrecisionTransformer::isQuantized(std::shared_ptr<Node> layer) const noe
     return transformation->isQuantized(layer);
 }
 
-bool LowPrecisionTransformer::isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept {
+bool LowPrecisionTransformer::isPrecisionPreserved(const std::shared_ptr<Node>& layer) const noexcept {
     const std::string operantionType = LowPrecisionTransformations::getType(*layer);
     const LayerTransformationPtr transformation = transformations.find(operantionType);
     if (transformation == nullptr) {

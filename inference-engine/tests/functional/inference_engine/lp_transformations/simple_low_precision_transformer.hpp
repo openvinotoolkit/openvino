@@ -25,8 +25,8 @@ public:
     std::vector<ngraph::element::Type> getPrecisionsOnActivations(const ngraph::Node& op) const noexcept override;
 
     // ILayerTransformationsManager interface implementation
-    bool isQuantized(std::shared_ptr<ngraph::Node> layer) const noexcept override;
-    bool isPrecisionPreserved(std::shared_ptr<ngraph::Node> layer) const noexcept override;
+    bool isQuantized(const std::shared_ptr<ngraph::Node>& layer) const noexcept override;
+    bool isPrecisionPreserved(const std::shared_ptr<ngraph::Node>& layer) const noexcept override;
 
     template <class T, class Operation>
     ngraph::pass::low_precision::LayerTransformationPtr add(const ngraph::pass::low_precision::LayerTransformation::Params& params) {

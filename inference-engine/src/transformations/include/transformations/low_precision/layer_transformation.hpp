@@ -286,11 +286,6 @@ protected:
             const QuantizationDetails& quantizationDetails,
             std::vector<float>& dequantizationShifts) const;
 
-    void fillFromDequantizationLayer(
-            std::shared_ptr<Node> dequantizationLayer,
-            std::vector<float>& dequantizationScales,
-            std::vector<float>& dequantizationShifts) const;
-
     bool updatePrecisions;
     QuantizedTensorAlignment quantizedTensorAlignmentOnActivations;
     QuantizedTensorAlignment quantizedTensorAlignmentOnWeights;

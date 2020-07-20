@@ -11,6 +11,7 @@
 #include <vector>
 
 #include <ngraph/node.hpp>
+#include "transformations_visibility.hpp"
 
 namespace ngraph {
 namespace pass {
@@ -20,8 +21,8 @@ namespace pass {
   */
 class TRANSFORMATIONS_API ILayerTransformationsManager {
 public:
-    virtual bool isQuantized(std::shared_ptr<Node> layer) const noexcept = 0;
-    virtual bool isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept = 0;
+    virtual bool isQuantized(const std::shared_ptr<Node>& layer) const noexcept = 0;
+    virtual bool isPrecisionPreserved(const std::shared_ptr<Node>& layer) const noexcept = 0;
 };
 
 }  // namespace pass
