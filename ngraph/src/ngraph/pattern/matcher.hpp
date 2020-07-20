@@ -128,9 +128,9 @@ namespace ngraph
             static std::shared_ptr<T> unique_match(std::shared_ptr<Node> node)
             {
                 std::shared_ptr<T> matched;
-                for (auto arg : node->get_arguments())
+                for (auto arg : node->input_values())
                 {
-                    if (auto t_casted = as_type_ptr<T>(arg))
+                    if (auto t_casted = as_type_ptr<T>(arg.get_node_shared_ptr()))
                     {
                         if (matched)
                         {

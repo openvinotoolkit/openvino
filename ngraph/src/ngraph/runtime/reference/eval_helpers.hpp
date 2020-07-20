@@ -14,4 +14,14 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include "ngraph/op/group_conv.hpp"
+#pragma once
+
+#include "ngraph/runtime/host_tensor.hpp"
+
+namespace ngraph
+{
+    namespace eval
+    {
+        AxisSet extract_reduction_axes(const HostTensorPtr& axes, const char* op_name);
+    }
+}

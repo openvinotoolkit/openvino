@@ -140,7 +140,7 @@ bool pass::GraphRewrite::run_on_function(shared_ptr<Function> f)
 
         // In case if MatcherPass registered nodes they will be added to the beginning of execution
         // queue
-        const auto & new_nodes = m_pass->get_new_nodes();
+        const auto& new_nodes = m_pass->get_new_nodes();
         if (!new_nodes.empty())
         {
             // Need to push nodes in reverse order as we expect that nodes in new_nodes
