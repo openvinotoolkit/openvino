@@ -37,7 +37,7 @@ if (CMAKE_BUILD_TYPE STREQUAL "Release")
             set(IE_C_CXX_FLAGS "${IE_C_CXX_FLAGS} /sdl")
         endif()
         set(IE_C_CXX_FLAGS "${IE_C_CXX_FLAGS} /guard:cf")
-        set(IE_LINKER_FLAGS "${IE_LINKER_FLAGS} /INTEGRITYCHECK")
+        set(CMAKE_SHARED_LINKER_FLAGS_RELEASE "${CMAKE_SHARED_LINKER_FLAGS_RELEASE} /INTEGRITYCHECK")
     endif()
 
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${IE_C_CXX_FLAGS}")
