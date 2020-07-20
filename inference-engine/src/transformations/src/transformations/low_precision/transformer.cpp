@@ -30,11 +30,11 @@
 #include "transformations/low_precision/fuse_fake_quantize.hpp"
 #include "transformations/low_precision/group_convolution.hpp"
 #include "transformations/low_precision/multiply.hpp"
-// #include "transformations/low_precision/mat_mul.hpp"
+#include "transformations/low_precision/mat_mul.hpp"
 #include "transformations/low_precision/max_pool.hpp"
 #include "transformations/low_precision/normalize_l2.hpp"
-// #include "transformations/low_precision/reshape.hpp"
-// #include "transformations/low_precision/relu.hpp"
+#include "transformations/low_precision/reshape.hpp"
+#include "transformations/low_precision/relu.hpp"
 #include "transformations/low_precision/subtract.hpp"
 
 // uncomment to display precision info during low precision transformations
@@ -161,13 +161,13 @@ LowPrecisionTransformations LowPrecisionTransformer::getAllTransformations(const
         add<ConvolutionTransformation, opset1::Convolution>(params).
         add<FakeQuantizeTransformation, opset1::FakeQuantize>(params).
         add<GroupConvolutionTransformation, opset1::GroupConvolution>(params).
-        // add<MatMulTransformation, opset1::MatMul>(params).
+        add<MatMulTransformation, opset1::MatMul>(params).
         add<MaxPoolTransformation, opset1::MaxPool>(params).
         add<MultiplyTransformation, opset1::Multiply>(params).
         add<NormalizeL2Transformation, opset1::NormalizeL2>(params).
-        // add<ReluTransformation, opset1::Relu>(params).
+        add<ReluTransformation, opset1::Relu>(params).
 
-        // addCleanup<FuseFakeQuantizeTransformation, opset1::FakeQuantize>(params).
+        addCleanup<FuseFakeQuantizeTransformation, opset1::FakeQuantize>(params).
         // workaround: Convert I8 -> FP32 is not supported by CPU plugin
         addCleanup<ConvertTransformation, opset1::Convert>(params);
 }
