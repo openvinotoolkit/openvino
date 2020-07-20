@@ -892,7 +892,7 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
 
         // execution ngraph is fake graph and should not be validated
         if (layer->params.count(ExecGraphInfoSerialization::PERF_COUNTER) == 0) {
-            layer->validateLayer();
+            layer->parseParams();
         }
     }
 

@@ -20,6 +20,8 @@ struct InOutDims {
     std::vector<std::vector<size_t>> outDims;
 };
 
+void validateLayer(const CNNLayer * layer);
+
 /**
  * @brief Contains methods to validate layer of specific type
  */
@@ -29,13 +31,6 @@ public:
 
     explicit LayerValidator(const std::string& _type): _type(_type) {}
     virtual ~LayerValidator() = default;
-
-    /**
-     * @brief It parses map of params <string,string> and applies to the layer's fields.
-     * This checks for presence of all required attributes, and that there's no extraneous parameters only.
-     * Throws exception in case of parsing error
-     */
-    virtual void parseParams(CNNLayer* layer) {}
 
     /**
      * @brief Validates layer parameters separately from blobs and shapes
@@ -108,8 +103,6 @@ public:
 
 class ConvolutionValidator : public LayerValidator {
 public:
-    void parseParams(CNNLayer* layer) override;
-
     void checkParams(const CNNLayer* layer) override;
 
     explicit ConvolutionValidator(const std::string& _type);
@@ -122,8 +115,6 @@ public:
 
 class DeconvolutionValidator : public ConvolutionValidator {
 public:
-    void parseParams(CNNLayer* layer) override;
-
     void checkParams(const CNNLayer* layer) override;
 
     explicit DeconvolutionValidator(const std::string& _type);
@@ -136,8 +127,6 @@ public:
 
 class DeformableConvolutionValidator : public ConvolutionValidator {
 public:
-    void parseParams(CNNLayer* layer) override;
-
     void checkParams(const CNNLayer* layer) override;
 
     explicit DeformableConvolutionValidator(const std::string& _type);
@@ -150,8 +139,6 @@ public:
 
 class PoolingValidator : public LayerValidator {
 public:
-    void parseParams(CNNLayer* layer) override;
-
     void checkParams(const CNNLayer* layer) override;
 
     void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
@@ -162,8 +149,6 @@ public:
 class FullyConnectedValidator : public LayerValidator {
 public:
     explicit FullyConnectedValidator(const std::string& _type);
-
-    void parseParams(CNNLayer* layer) override;
 
     void checkParams(const CNNLayer* layer) override;
 
@@ -177,8 +162,6 @@ class CropValidator : public LayerValidator {
 public:
     explicit CropValidator(const std::string& _type);
 
-    void parseParams(CNNLayer* layer) override;
-
     void checkParams(const CNNLayer* layer) override;
 
     void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
@@ -187,8 +170,6 @@ public:
 class TileValidator : public LayerValidator {
 public:
     explicit TileValidator(const std::string& _type);
-
-    void parseParams(CNNLayer* layer) override;
 
     void checkParams(const CNNLayer* layer) override;
 
@@ -199,8 +180,6 @@ class BatchNormalizationValidator : public LayerValidator {
 public:
     explicit BatchNormalizationValidator(const std::string& _type);
 
-    void parseParams(CNNLayer* layer) override;
-
     void checkParams(const CNNLayer* layer) override;
 
     void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
@@ -209,8 +188,6 @@ public:
 class PowerValidator : public LayerValidator {
 public:
     explicit PowerValidator(const std::string& _type);
-
-    void parseParams(CNNLayer* layer) override;
 
     void checkParams(const CNNLayer* layer) override;
 
@@ -221,8 +198,6 @@ class PReLUValidator : public LayerValidator {
 public:
     explicit PReLUValidator(const std::string& _type);
 
-    void parseParams(CNNLayer* layer) override;
-
     void checkParams(const CNNLayer* layer) override;
 
     void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
@@ -231,8 +206,6 @@ public:
 class ScaleShiftValidator : public LayerValidator {
 public:
     explicit ScaleShiftValidator(const std::string& _type);
-
-    void parseParams(CNNLayer* layer) override;
 
     void checkParams(const CNNLayer* layer) override;
 
@@ -243,16 +216,12 @@ class ReshapeValidator : public LayerValidator {
 public:
     explicit ReshapeValidator(const std::string& _type);
 
-    void parseParams(CNNLayer* layer) override;
-
     void checkParams(const CNNLayer* layer) override;
 };
 
 class EltwiseValidator : public LayerValidator {
 public:
     explicit EltwiseValidator(const std::string& _type);
-
-    void parseParams(CNNLayer* layer) override;
 
     void checkParams(const CNNLayer* layer) override;
 
@@ -263,16 +232,12 @@ class ClampValidator : public LayerValidator {
 public:
     explicit ClampValidator(const std::string& _type);
 
-    void parseParams(CNNLayer* layer) override;
-
     void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
 };
 
 class ReLUValidator : public LayerValidator {
 public:
     explicit ReLUValidator(const std::string& _type);
-
-    void parseParams(CNNLayer* layer) override;
 
     void checkParams(const CNNLayer* layer) override;
 
@@ -283,8 +248,6 @@ class MVNValidator : public LayerValidator {
 public:
     explicit MVNValidator(const std::string& _type);
 
-    void parseParams(CNNLayer* layer) override;
-
     void checkParams(const CNNLayer* layer) override;
 
     void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
@@ -293,8 +256,6 @@ public:
 class GRNValidator : public LayerValidator {
 public:
     explicit GRNValidator(const std::string& _type);
-
-    void parseParams(CNNLayer* layer) override;
 
     void checkParams(const CNNLayer* layer) override;
 
@@ -305,8 +266,6 @@ class SoftMaxValidator : public LayerValidator {
 public:
     explicit SoftMaxValidator(const std::string& _type);
 
-    void parseParams(CNNLayer* layer) override;
-
     void checkParams(const CNNLayer* layer) override;
 
     void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
@@ -315,8 +274,6 @@ public:
 class NormValidator : public LayerValidator {
 public:
     explicit NormValidator(const std::string& _type);
-
-    void parseParams(CNNLayer* layer) override;
 
     void checkParams(const CNNLayer* layer) override;
 
@@ -327,8 +284,6 @@ class SplitValidator : public LayerValidator {
 public:
     explicit SplitValidator(const std::string& _type);
 
-    void parseParams(CNNLayer* layer) override;
-
     void checkParams(const CNNLayer* layer) override;
 
     void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
@@ -337,8 +292,6 @@ public:
 class ConcatValidator : public LayerValidator {
 public:
     explicit ConcatValidator(const std::string& _type);
-
-    void parseParams(CNNLayer* layer) override;
 
     void checkParams(const CNNLayer* layer) override;
 
@@ -349,8 +302,6 @@ class GemmValidator : public LayerValidator {
 public:
     explicit GemmValidator(const std::string& _type);
 
-    void parseParams(CNNLayer* layer) override;
-
     void checkParams(const CNNLayer* layer) override;
 
     void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
@@ -359,8 +310,6 @@ public:
 class PadValidator : public LayerValidator {
 public:
     explicit PadValidator(const std::string& _type);
-
-    void parseParams(CNNLayer* layer) override;
 
     void checkParams(const CNNLayer* layer) override;
 
@@ -371,8 +320,6 @@ class GatherValidator : public LayerValidator {
 public:
     explicit GatherValidator(const std::string& _type);
 
-    void parseParams(CNNLayer* layer) override;
-
     void checkParams(const CNNLayer* layer) override;
 
     void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
@@ -381,8 +328,6 @@ public:
 class StridedSliceValidator : public LayerValidator {
 public:
     explicit StridedSliceValidator(const std::string& _type);
-
-    void parseParams(CNNLayer* layer) override;
 
     void checkParams(const CNNLayer* layer) override;
 
@@ -393,8 +338,6 @@ class ShuffleChannelsValidator : public LayerValidator {
 public:
     explicit ShuffleChannelsValidator(const std::string& _type);
 
-    void parseParams(CNNLayer* layer) override;
-
     void checkParams(const CNNLayer* layer) override;
 
     void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
@@ -403,8 +346,6 @@ public:
 class DepthToSpaceValidator : public LayerValidator {
 public:
     explicit DepthToSpaceValidator(const std::string& _type);
-
-    void parseParams(CNNLayer* layer) override;
 
     void checkParams(const CNNLayer* layer) override;
 
@@ -415,8 +356,6 @@ class SpaceToDepthValidator : public LayerValidator {
 public:
     explicit SpaceToDepthValidator(const std::string& _type);
 
-    void parseParams(CNNLayer* layer) override;
-
     void checkParams(const CNNLayer* layer) override;
 
     void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
@@ -425,8 +364,6 @@ public:
 class SpaceToBatchValidator : public LayerValidator {
 public:
     explicit SpaceToBatchValidator(const std::string& _type);
-
-    void parseParams(CNNLayer* layer) override;
 
     void checkParams(const CNNLayer* layer) override;
 
@@ -437,8 +374,6 @@ class BatchToSpaceValidator : public LayerValidator {
 public:
     explicit BatchToSpaceValidator(const std::string& _type);
 
-    void parseParams(CNNLayer* layer) override;
-
     void checkParams(const CNNLayer* layer) override;
 
     void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
@@ -447,8 +382,6 @@ public:
 class SparseFillEmptyRowsValidator : public LayerValidator {
 public:
     explicit SparseFillEmptyRowsValidator(const std::string& _type);
-
-    void parseParams(CNNLayer* layer) override;
 
     void checkParams(const CNNLayer* layer) override;
 
@@ -459,8 +392,6 @@ class SparseSegmentReduceValidator : public LayerValidator {
 public:
     explicit SparseSegmentReduceValidator(const std::string& _type);
 
-    void parseParams(CNNLayer* layer) override;
-
     void checkParams(const CNNLayer* layer) override;
 
     void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
@@ -469,8 +400,6 @@ public:
 class ExperimentalSparseWeightedReduceValidator : public LayerValidator {
 public:
     explicit ExperimentalSparseWeightedReduceValidator(const std::string& _type);
-
-    void parseParams(CNNLayer* layer) override;
 
     void checkParams(const CNNLayer* layer) override;
 
@@ -481,8 +410,6 @@ class SparseToDenseValidator : public LayerValidator {
 public:
     explicit SparseToDenseValidator(const std::string& _type);
 
-    void parseParams(CNNLayer* layer) override;
-
     void checkParams(const CNNLayer* layer) override;
 
     void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
@@ -491,8 +418,6 @@ public:
 class BucketizeValidator : public LayerValidator {
 public:
     explicit BucketizeValidator(const std::string& _type);
-
-    void parseParams(CNNLayer* layer) override;
 
     void checkParams(const CNNLayer* layer) override;
 
@@ -503,8 +428,6 @@ class ReverseSequenceValidator : public LayerValidator {
 public:
     explicit ReverseSequenceValidator(const std::string& _type);
 
-    void parseParams(CNNLayer* layer) override;
-
     void checkParams(const CNNLayer* layer) override;
 
     void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
@@ -513,8 +436,6 @@ public:
 class SqueezeValidator : public LayerValidator {
 public:
     explicit SqueezeValidator(const std::string& _type);
-
-    void parseParams(CNNLayer* layer) override;
 
     void checkParams(const CNNLayer* layer) override;
 
@@ -525,8 +446,6 @@ class UnsqueezeValidator : public LayerValidator {
 public:
     explicit UnsqueezeValidator(const std::string& _type);
 
-    void parseParams(CNNLayer* layer) override;
-
     void checkParams(const CNNLayer* layer) override;
 
     void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
@@ -535,8 +454,6 @@ public:
 class RangeValidator : public LayerValidator {
 public:
     explicit RangeValidator(const std::string& _type);
-
-    void parseParams(CNNLayer* layer) override;
 
     void checkParams(const CNNLayer* layer) override;
 
@@ -547,8 +464,6 @@ class FillValidator : public LayerValidator {
 public:
     explicit FillValidator(const std::string& _type);
 
-    void parseParams(CNNLayer* layer) override;
-
     void checkParams(const CNNLayer* layer) override;
 
     void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
@@ -558,8 +473,6 @@ class BroadcastValidator : public LayerValidator {
 public:
     explicit BroadcastValidator(const std::string& _type);
 
-    void parseParams(CNNLayer* layer) override;
-
     void checkParams(const CNNLayer* layer) override;
 
     void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
@@ -568,8 +481,6 @@ public:
 class RNNBaseValidator : public LayerValidator {
 public:
     RNNBaseValidator(const std::string& _type, RNNSequenceLayer::CellType CELL);
-
-    void parseParams(CNNLayer* layer) override;
 
     void checkParams(const CNNLayer* layer) override;
 
@@ -600,8 +511,6 @@ template <RNNSequenceLayer::CellType CELL>
 class RNNSequenceValidator : public RNNBaseValidator {
 public:
     explicit RNNSequenceValidator(const std::string& _type);
-
-    void parseParams(CNNLayer* layer) override;
 
     void checkParams(const CNNLayer* layer) override;
 
@@ -634,8 +543,6 @@ class DetectionOutputValidator : public LayerValidator {
 public:
     explicit DetectionOutputValidator(const std::string& _type);
 
-    void parseParams(CNNLayer* layer) override;
-
     void checkParams(const CNNLayer* layer) override;
 
     void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
@@ -644,8 +551,6 @@ public:
 class InterpValidator : public LayerValidator {
 public:
     explicit InterpValidator(const std::string& _type);
-
-    void parseParams(CNNLayer* layer) override;
 
     void checkParams(const CNNLayer* layer) override;
 
@@ -682,8 +587,6 @@ public:
 class ProposalValidator : public LayerValidator {
 public:
     explicit ProposalValidator(const std::string& _type);
-
-    void parseParams(CNNLayer* layer) override;
 
     void checkParams(const CNNLayer* layer) override;
 
@@ -756,8 +659,6 @@ public:
 class OneHotValidator : public LayerValidator {
 public:
     explicit OneHotValidator(const std::string& _type);
-
-    void parseParams(CNNLayer* layer) override;
 
     void checkParams(const CNNLayer* layer) override;
 
@@ -883,8 +784,6 @@ class QuantizeValidator : public LayerValidator {
 public:
     explicit QuantizeValidator(const std::string& _type);
 
-    void parseParams(CNNLayer* layer) override;
-
     void checkParams(const CNNLayer* layer) override;
 
     void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
@@ -892,8 +791,6 @@ public:
 
 class BinaryConvolutionValidator : public LayerValidator {
 public:
-    void parseParams(CNNLayer* layer) override;
-
     void checkParams(const CNNLayer* layer) override;
 
     explicit BinaryConvolutionValidator(const std::string& _type);
@@ -922,8 +819,6 @@ class ReduceValidator : public LayerValidator {
 public:
     explicit ReduceValidator(const std::string& _type);
 
-    void parseParams(CNNLayer* layer) override;
-
     void checkParams(const CNNLayer* layer) override;
 
     void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
@@ -932,8 +827,6 @@ public:
 class GatherTreeValidator : public LayerValidator {
 public:
     explicit GatherTreeValidator(const std::string& _type);
-
-    void parseParams(CNNLayer* layer) override;
 
     void checkParams(const CNNLayer* layer) override;
 
@@ -944,8 +837,6 @@ class TopKValidator : public LayerValidator {
 public:
     explicit TopKValidator(const std::string& _type);
 
-    void parseParams(CNNLayer* layer) override;
-
     void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
 };
 
@@ -953,16 +844,12 @@ class UniqueValidator : public LayerValidator {
 public:
     explicit UniqueValidator(const std::string& _type);
 
-    void parseParams(CNNLayer* layer) override;
-
     void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
 };
 
 class NMSValidator : public LayerValidator {
 public:
     explicit NMSValidator(const std::string& _type);
-
-    void parseParams(CNNLayer* layer) override;
 
     void checkParams(const CNNLayer* layer) override;
 
@@ -973,16 +860,12 @@ class ScatterUpdateValidator : public LayerValidator {
 public:
     explicit ScatterUpdateValidator(const std::string& _type);
 
-    void parseParams(CNNLayer* layer) override;
-
     void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
 };
 
 class ScatterElementsUpdateValidator : public LayerValidator {
 public:
     explicit ScatterElementsUpdateValidator(const std::string& _type);
-
-    void parseParams(CNNLayer* layer) override;
 
     void checkShapes(const CNNLayer* layer, const std::vector<SizeVector>& inShapes) const override;
 };
