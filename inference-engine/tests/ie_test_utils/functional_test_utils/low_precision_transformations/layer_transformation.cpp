@@ -75,12 +75,8 @@ InferenceEngine::details::LayerTransformation::Params LayerTransformationParamsF
 ngraph::pass::low_precision::LayerTransformation::Params LayerTransformationParamsNGraphFactory::createParamsU8I8() {
     return ngraph::pass::low_precision::LayerTransformation::Params(
         true,
-        true,
-        true,
         ngraph::pass::low_precision::LayerTransformation::QuantizedTensorAlignment::None,
         ngraph::pass::low_precision::LayerTransformation::QuantizedTensorAlignment::None,
-        false,
-        true,
         true,
         { ngraph::element::u8 },
         { ngraph::element::i8 });
@@ -89,12 +85,8 @@ ngraph::pass::low_precision::LayerTransformation::Params LayerTransformationPara
 ngraph::pass::low_precision::LayerTransformation::Params LayerTransformationParamsNGraphFactory::createParamsI8I8() {
     return ngraph::pass::low_precision::LayerTransformation::Params(
         true,
-        true,
-        true,
         ngraph::pass::low_precision::LayerTransformation::QuantizedTensorAlignment::None,
         ngraph::pass::low_precision::LayerTransformation::QuantizedTensorAlignment::None,
-        false,
-        true,
         true,
         { ngraph::element::i8 },
         { ngraph::element::i8 });
@@ -366,12 +358,8 @@ ngraph::pass::low_precision::LayerTransformation::Params LayerTransformation::to
     const auto precisionsOnWeights = LayerTestsUtils::toNGraph(params.precisionsOnWeights);
     return ngraph::pass::low_precision::LayerTransformation::Params(
         params.updatePrecisions,
-        params.quantizeOutputs,
-        params.weightsToConst,
         LayerTestsUtils::toNGraph(params.quantizedTensorAlignmentOnActivations),
         LayerTestsUtils::toNGraph(params.quantizedTensorAlignmentOnWeights),
-        params.roundQuantizedValues,
-        params.updateBiases,
         params.supportAsymmetricQuantization,
         precisionsOnActivations,
         precisionsOnWeights);
@@ -382,12 +370,12 @@ InferenceEngine::details::LayerTransformation::Params LayerTransformation::toCNN
     const auto precisionsOnWeights = LayerTestsUtils::toCNNNetwork(params.precisionsOnWeights);
     return InferenceEngine::details::LayerTransformation::Params(
         params.updatePrecisions,
-        params.quantizeOutputs,
-        params.weightsToConst,
+        true,
+        true,
         LayerTestsUtils::toCNNNetwork(params.quantizedTensorAlignmentOnActivations),
         LayerTestsUtils::toCNNNetwork(params.quantizedTensorAlignmentOnWeights),
-        params.roundQuantizedValues,
-        params.updateBiases,
+        true,
+        true,
         params.supportAsymmetricQuantization,
         precisionsOnActivations,
         precisionsOnWeights);

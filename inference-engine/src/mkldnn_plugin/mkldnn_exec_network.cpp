@@ -25,6 +25,7 @@
 #include <algorithm>
 #include <unordered_set>
 #include <utility>
+#include <cstring>
 
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
@@ -101,6 +102,8 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::ICNNNetwork &network
     }
 
     MKLDNNGraph::ApplyUnrollPasses(static_cast<ICNNNetwork&>(*_clonedNetwork));
+
+    // _clonedNetwork->serialize("after_old_LPT.xml", "after_old_LPT.bin", 0);
 
     if (_cfg.batchLimit > 1) {
         // check topology for applicability

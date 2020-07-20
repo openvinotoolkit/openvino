@@ -19,9 +19,23 @@
 
 #include "ngraph_ops/type_relaxed.hpp"
 
+#include "transformations/low_precision/add.hpp"
+#include "transformations/low_precision/avg_pool.hpp"
+#include "transformations/low_precision/concat.hpp"
+#include "transformations/low_precision/concat_multi_channels.hpp"
 #include "transformations/low_precision/convert.hpp"
 #include "transformations/low_precision/convolution.hpp"
+#include "transformations/low_precision/depth_to_space.hpp"
 #include "transformations/low_precision/fake_quantize.hpp"
+#include "transformations/low_precision/fuse_fake_quantize.hpp"
+#include "transformations/low_precision/group_convolution.hpp"
+#include "transformations/low_precision/multiply.hpp"
+// #include "transformations/low_precision/mat_mul.hpp"
+#include "transformations/low_precision/max_pool.hpp"
+#include "transformations/low_precision/normalize_l2.hpp"
+// #include "transformations/low_precision/reshape.hpp"
+// #include "transformations/low_precision/relu.hpp"
+#include "transformations/low_precision/subtract.hpp"
 
 // uncomment to display precision info during low precision transformations
 // #define DISPLAY_PECISION
@@ -47,24 +61,6 @@ void LowPrecisionTransformations::setUpdatePrecisions(const bool updatePrecision
     }
 }
 
-void LowPrecisionTransformations::setQuantizeOutputs(const bool quantizeOutputs) {
-    for (auto it = branchSpecificTransformations.begin(); it != branchSpecificTransformations.end(); ++it) {
-        it->second->setQuantizeOutputs(quantizeOutputs);
-    }
-    for (auto it = transformations.begin(); it != transformations.end(); ++it) {
-        it->second->setQuantizeOutputs(quantizeOutputs);
-    }
-}
-
-void LowPrecisionTransformations::setWeightsToConst(const bool weightsToConst) {
-    for (auto it = branchSpecificTransformations.begin(); it != branchSpecificTransformations.end(); ++it) {
-        it->second->setWeightsToConst(weightsToConst);
-    }
-    for (auto it = transformations.begin(); it != transformations.end(); ++it) {
-        it->second->setWeightsToConst(weightsToConst);
-    }
-}
-
 void LowPrecisionTransformations::setQuantizedTensorAlignmentOnActivations(
     const LayerTransformation::QuantizedTensorAlignment quantizedTensorAlignmentOnActivations) {
     for (auto it = branchSpecificTransformations.begin(); it != branchSpecificTransformations.end(); ++it) {
@@ -85,25 +81,25 @@ void LowPrecisionTransformations::setQuantizedTensorAlignmentOnWeights(
     }
 }
 
-LowPrecisionTransformations& LowPrecisionTransformations::remove(const std::string& layerName) {
-    removeBranchSpecificTransformations(layerName);
-    removeTransformations(layerName);
-    removeCleanupTransformations(layerName);
+LowPrecisionTransformations& LowPrecisionTransformations::remove(const std::string& operationType) {
+    removeBranchSpecificTransformations(operationType);
+    removeTransformations(operationType);
+    removeCleanupTransformations(operationType);
     return *this;
 }
 
-LowPrecisionTransformations& LowPrecisionTransformations::removeBranchSpecificTransformations(const std::string& layerName) {
-    branchSpecificTransformations.erase(layerName);
+LowPrecisionTransformations& LowPrecisionTransformations::removeBranchSpecificTransformations(const std::string& operationType) {
+    branchSpecificTransformations.erase(operationType);
     return *this;
 }
 
-LowPrecisionTransformations& LowPrecisionTransformations::removeTransformations(const std::string& layerName) {
-    transformations.erase(layerName);
+LowPrecisionTransformations& LowPrecisionTransformations::removeTransformations(const std::string& operationType) {
+    transformations.erase(operationType);
     return *this;
 }
 
-LowPrecisionTransformations& LowPrecisionTransformations::removeCleanupTransformations(const std::string& layerName) {
-    cleanupTransformations.erase(layerName);
+LowPrecisionTransformations& LowPrecisionTransformations::removeCleanupTransformations(const std::string& operationType) {
+    cleanupTransformations.erase(operationType);
     return *this;
 }
 
@@ -157,12 +153,22 @@ void LowPrecisionTransformations::setLayerTransformationsManager(
 LowPrecisionTransformations LowPrecisionTransformer::getAllTransformations(const LayerTransformation::Params& params) {
     using namespace pass::low_precision;
 
-    // TODO: refactor: duplication: declaration & registerMatcherIn
     return LowPrecisionTransformations().
+        addBranchSpecific<pass::low_precision::ConcatMultiChannelsTransformation, opset1::Concat>(params).
+
+        add<AddTransformation, opset1::Add>(params).
+        add<AvgPoolTransformation, opset1::AvgPool>(params).
         add<ConvolutionTransformation, opset1::Convolution>(params).
         add<FakeQuantizeTransformation, opset1::FakeQuantize>(params).
+        add<GroupConvolutionTransformation, opset1::GroupConvolution>(params).
+        // add<MatMulTransformation, opset1::MatMul>(params).
+        add<MaxPoolTransformation, opset1::MaxPool>(params).
+        add<MultiplyTransformation, opset1::Multiply>(params).
+        add<NormalizeL2Transformation, opset1::NormalizeL2>(params).
+        // add<ReluTransformation, opset1::Relu>(params).
 
-        // TODO: workaround: Convert I8 -> FP32 is not supported by CPU plugin
+        // addCleanup<FuseFakeQuantizeTransformation, opset1::FakeQuantize>(params).
+        // workaround: Convert I8 -> FP32 is not supported by CPU plugin
         addCleanup<ConvertTransformation, opset1::Convert>(params);
 }
 

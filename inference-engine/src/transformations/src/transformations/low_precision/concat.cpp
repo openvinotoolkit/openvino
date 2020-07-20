@@ -147,8 +147,7 @@ void ConcatTransformation::transform(TransformationContext& context, ngraph::pat
             const QuantizationDetails& quantizationDetails = quantizationLayersDetails[index];
 
             switch (quantizedTensorAlignmentOnActivations) {
-                case QuantizedTensorAlignment::None:
-                case QuantizedTensorAlignment::UpdateIntervals: {
+                case QuantizedTensorAlignment::None: {
                     THROW_TRANSFORMATION_EXCEPTION << "not implemented: " << quantizedTensorAlignmentOnActivations;
                 }
                 case QuantizedTensorAlignment::UpdateLevel: {
