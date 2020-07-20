@@ -25,12 +25,8 @@ const char LayerTransformation::originalLayerPostfix[] = "_original";
 
 LayerTransformation::LayerTransformation(const Params& params) :
     updatePrecisions(params.updatePrecisions),
-    quantizeOutputs(params.quantizeOutputs),
-    weightsToConst(params.weightsToConst),
     quantizedTensorAlignmentOnActivations(params.quantizedTensorAlignmentOnActivations),
     quantizedTensorAlignmentOnWeights(params.quantizedTensorAlignmentOnWeights),
-    roundQuantizedValues(params.roundQuantizedValues),
-    updateBiases(params.updateBiases),
     supportAsymmetricQuantization(params.supportAsymmetricQuantization),
     precisionsOnActivations(params.precisionsOnActivations),
     precisionsOnWeights(params.precisionsOnWeights),
@@ -51,14 +47,6 @@ void LayerTransformation::setLayerTransformationsManager(ILayerTransformationsMa
 
 void LayerTransformation::setUpdatePrecisions(const bool updatePrecisions) {
     this->updatePrecisions = updatePrecisions;
-}
-
-void LayerTransformation::setQuantizeOutputs(const bool quantizeOutputs) {
-    this->quantizeOutputs = quantizeOutputs;
-}
-
-void LayerTransformation::setWeightsToConst(const bool weightsToConst) {
-    this->weightsToConst = weightsToConst;
 }
 
 void LayerTransformation::setQuantizedTensorAlignmentOnActivations(
@@ -84,42 +72,8 @@ bool LayerTransformation::canBeTransformed(const TransformationContext& context,
         return false;
     }
 
-    if (!quantizeOutputs) {
-        for (auto consumer : NetworkHelper::consumers(layer)) {
-            if (consumer->get_type_info().is_castable(opset1::Result::get_type_info_static())) {
-                return false;
-            }
-        }
-    }
     return true;
 }
-
-#if 0 // TODO LPT-TO-NGRAPH
-
-Precision LayerTransformation::getPrecisionBeforeParentDequantizationScaleShift(const CNNLayer& layer) {
-    const CNNLayerPtr scaleShift = CNNNetworkHelper::getParent(layer, 0);
-    if (scaleShift == nullptr) {
-        THROW_TRANSFORMATION_EXCEPTION << "dequantization ScaleShift layer is absent";
-    }
-
-    if (scaleShift->type != "ScaleShift") {
-        THROW_TRANSFORMATION_EXCEPTION << "not expected dequantization layer type " << scaleShift->type;
-    }
-
-    if (scaleShift->insData.size() < 1) {
-        THROW_TRANSFORMATION_EXCEPTION << "is not expected ScaleShift '" << scaleShift->name << "' insert data size "
-                           << scaleShift->insData.size();
-    }
-
-    const DataWeakPtr insDataWeak = scaleShift->insData[0];
-    const DataPtr insData = insDataWeak.lock();
-    if (insData == nullptr) {
-        THROW_TRANSFORMATION_EXCEPTION << "input data is absent";
-    }
-
-    return insData->getPrecision();
-}
-#endif
 
 #ifdef LPT_PRINT_DEQUANTIZATION_INFO
 std::stringstream toStream(const std::vector<float>& dequantizationValues) {

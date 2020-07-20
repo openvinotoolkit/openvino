@@ -151,32 +151,21 @@ class TRANSFORMATIONS_API LayerTransformation {
 public:
     enum QuantizedTensorAlignment {
         None,
-        UpdateIntervals,
-        UpdateLevel,
-        // UpdateIntervals & UpdateLevel & ...
-                Mixed
+        UpdateLevel
     };
 
     class Params {
     public:
         Params(
                 const bool updatePrecisions = true,
-                const bool quantizeOutputs = false,
-                const bool weightsToConst = true,
                 const QuantizedTensorAlignment quantizedTensorAlignmentOnActivations = QuantizedTensorAlignment::UpdateLevel,
                 const QuantizedTensorAlignment quantizedTensorAlignmentOnWeights = QuantizedTensorAlignment::None,
-                const bool roundQuantizedValues = true,
-                const bool updateBiases = true,
                 bool supportAsymmetricQuantization = true,
                 std::vector<element::Type> precisionsOnActivations = { element::u8, element::i8 },
                 std::vector<element::Type> precisionsOnWeights = { element::i8 }) :
                 updatePrecisions(updatePrecisions),
-                quantizeOutputs(quantizeOutputs),
-                weightsToConst(weightsToConst),
                 quantizedTensorAlignmentOnActivations(quantizedTensorAlignmentOnActivations),
                 quantizedTensorAlignmentOnWeights(quantizedTensorAlignmentOnWeights),
-                roundQuantizedValues(roundQuantizedValues),
-                updateBiases(updateBiases),
                 supportAsymmetricQuantization(supportAsymmetricQuantization),
                 precisionsOnActivations(precisionsOnActivations),
                 precisionsOnWeights(precisionsOnWeights) {
@@ -194,16 +183,6 @@ public:
             return *this;
         }
 
-        Params& setQuantizeOutputs(const bool quantizeOutputs) {
-            this->quantizeOutputs = quantizeOutputs;
-            return *this;
-        }
-
-        Params& setWeightsToConst(const bool weightsToConst) {
-            this->weightsToConst = weightsToConst;
-            return *this;
-        }
-
         Params& setQuantizedTensorAlignmentOnActivations(const QuantizedTensorAlignment quantizedTensorAlignmentOnActivations) {
             this->quantizedTensorAlignmentOnActivations = quantizedTensorAlignmentOnActivations;
             return *this;
@@ -211,16 +190,6 @@ public:
 
         Params& setQuantizedTensorAlignmentOnWeights(const QuantizedTensorAlignment quantizedTensorAlignmentOnWeights) {
             this->quantizedTensorAlignmentOnWeights = quantizedTensorAlignmentOnWeights;
-            return *this;
-        }
-
-        Params& setRoundQuantizedValues(const bool roundQuantizedValues) {
-            this->roundQuantizedValues = roundQuantizedValues;
-            return *this;
-        }
-
-        Params& setUpdateBiases(const bool updateBiases) {
-            this->updateBiases = updateBiases;
             return *this;
         }
 
@@ -240,12 +209,8 @@ public:
         }
 
         bool updatePrecisions;
-        bool quantizeOutputs;
-        bool weightsToConst;
         QuantizedTensorAlignment quantizedTensorAlignmentOnActivations;
         QuantizedTensorAlignment quantizedTensorAlignmentOnWeights;
-        bool roundQuantizedValues;
-        bool updateBiases;
         bool supportAsymmetricQuantization;
         std::vector<element::Type> precisionsOnActivations;
         std::vector<element::Type> precisionsOnWeights;
@@ -272,8 +237,6 @@ public:
     void setLayerTransformationsManager(ILayerTransformationsManager* layerTransformationsManager) noexcept;
 
     void setUpdatePrecisions(const bool updatePrecisions);
-    void setQuantizeOutputs(const bool quantizeOutputs);
-    void setWeightsToConst(const bool weightsToConst);
     void setQuantizedTensorAlignmentOnActivations(const QuantizedTensorAlignment quantizedTensorAlignmentOnActivations);
     void setQuantizedTensorAlignmentOnWeights(const QuantizedTensorAlignment quantizedTensorAlignmentOnWeights);
 
@@ -329,12 +292,8 @@ protected:
             std::vector<float>& dequantizationShifts) const;
 
     bool updatePrecisions;
-    bool quantizeOutputs;
-    bool weightsToConst;
     QuantizedTensorAlignment quantizedTensorAlignmentOnActivations;
     QuantizedTensorAlignment quantizedTensorAlignmentOnWeights;
-    bool roundQuantizedValues;
-    bool updateBiases;
     bool supportAsymmetricQuantization;
     std::vector<element::Type> precisionsOnActivations;
     std::vector<element::Type> precisionsOnWeights;
@@ -386,16 +345,8 @@ inline std::ostream &operator << (std::ostream &os, const LayerTransformation::Q
             os << "None";
             break;
         }
-        case LayerTransformation::QuantizedTensorAlignment::UpdateIntervals: {
-            os << "UpdateIntervals";
-            break;
-        }
         case LayerTransformation::QuantizedTensorAlignment::UpdateLevel: {
             os << "UpdateLevel";
-            break;
-        }
-        case LayerTransformation::QuantizedTensorAlignment::Mixed: {
-            os << "Mixed";
             break;
         }
         default: {

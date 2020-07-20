@@ -88,14 +88,11 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork, const Config& conf) 
 
     using namespace ngraph::pass::low_precision;
     if ((conf.lptVersion == Config::LptVersion::nGraph) && (conf.lpTransformsMode == Config::LPTransformsMode::On)) {
-        auto params = LayerTransformation::Params(true,  // updatePrecisions
-                                                    true,  // quantizeOutputs
-                                                    true,  // weightsToConst
-                                                    LayerTransformation::QuantizedTensorAlignment::UpdateLevel,  // quantizedTensorAlignmentOnActivations
-                                                    LayerTransformation::QuantizedTensorAlignment::None,  // quantizedTensorAlignmentOnWeights
-                                                    true,  // roundQuantizedValues
-                                                    true,  // updateBiases
-                                                    true);  // supportAsymmetricQuantization
+        auto params = LayerTransformation::Params(
+            true,  // updatePrecisions
+            LayerTransformation::QuantizedTensorAlignment::UpdateLevel,  // quantizedTensorAlignmentOnActivations
+            LayerTransformation::QuantizedTensorAlignment::None,  // quantizedTensorAlignmentOnWeights
+            true);  // supportAsymmetricQuantization
         LowPrecisionTransformer transformer(LowPrecisionTransformer::getAllTransformations(params)
             .add<ConvolutionTransformation, ngraph::opset1::Convolution>(
                 LayerTransformation::Params(params).setPrecisionsOnActivations({ngraph::element::u8}))

@@ -23,32 +23,22 @@
 #include "transformations/low_precision/avg_pool.hpp"
 #include "transformations/low_precision/concat.hpp"
 #include "transformations/low_precision/concat_multi_channels.hpp"
-// #include "low_precision_transformations/const.hpp"
 #include "transformations/low_precision/convert.hpp"
 #include "transformations/low_precision/convolution.hpp"
 #include "transformations/low_precision/depth_to_space.hpp"
 #include "transformations/low_precision/fake_quantize.hpp"
-// #include "low_precision_transformations/fully_connected.hpp"
 #include "transformations/low_precision/fuse_fake_quantize.hpp"
 #include "transformations/low_precision/group_convolution.hpp"
 #include "transformations/low_precision/multiply.hpp"
-#include "transformations/low_precision/mat_mul.hpp"
-// #include "low_precision_transformations/mvn.hpp"
-// #include "low_precision_transformations/permute.hpp"
+// #include "transformations/low_precision/mat_mul.hpp"
 #include "transformations/low_precision/max_pool.hpp"
 #include "transformations/low_precision/normalize_l2.hpp"
-// #include "low_precision_transformations/resample.hpp"
-#include "transformations/low_precision/reshape.hpp"
-#include "transformations/low_precision/relu.hpp"
-// #include "low_precision_transformations/scaleshift_to_convolution.hpp"
-// #include "low_precision_transformations/squeeze.hpp"
+// #include "transformations/low_precision/reshape.hpp"
+// #include "transformations/low_precision/relu.hpp"
 #include "transformations/low_precision/subtract.hpp"
 
 // uncomment to display precision info during low precision transformations
 // #define DISPLAY_PECISION
-
-// TODO: debug only
-#include <ngraph/pass/visualize_tree.hpp>
 
 namespace ngraph {
 namespace pass {
@@ -68,24 +58,6 @@ void LowPrecisionTransformations::setUpdatePrecisions(const bool updatePrecision
     }
     for (auto it = transformations.begin(); it != transformations.end(); ++it) {
         it->second->setUpdatePrecisions(updatePrecisions);
-    }
-}
-
-void LowPrecisionTransformations::setQuantizeOutputs(const bool quantizeOutputs) {
-    for (auto it = branchSpecificTransformations.begin(); it != branchSpecificTransformations.end(); ++it) {
-        it->second->setQuantizeOutputs(quantizeOutputs);
-    }
-    for (auto it = transformations.begin(); it != transformations.end(); ++it) {
-        it->second->setQuantizeOutputs(quantizeOutputs);
-    }
-}
-
-void LowPrecisionTransformations::setWeightsToConst(const bool weightsToConst) {
-    for (auto it = branchSpecificTransformations.begin(); it != branchSpecificTransformations.end(); ++it) {
-        it->second->setWeightsToConst(weightsToConst);
-    }
-    for (auto it = transformations.begin(); it != transformations.end(); ++it) {
-        it->second->setWeightsToConst(weightsToConst);
     }
 }
 
@@ -181,27 +153,22 @@ void LowPrecisionTransformations::setLayerTransformationsManager(
 LowPrecisionTransformations LowPrecisionTransformer::getAllTransformations(const LayerTransformation::Params& params) {
     using namespace pass::low_precision;
 
-    // one operation type => one transformation
-    // TODO: refactor: duplication: declaration & registerMatcherIn
     return LowPrecisionTransformations().
         addBranchSpecific<pass::low_precision::ConcatMultiChannelsTransformation, opset1::Concat>(params).
 
         add<AddTransformation, opset1::Add>(params).
         add<AvgPoolTransformation, opset1::AvgPool>(params).
         add<ConvolutionTransformation, opset1::Convolution>(params).
-        //add<DepthToSpaceTransformation, opset1::DepthToSpace>(params).
         add<FakeQuantizeTransformation, opset1::FakeQuantize>(params).
         add<GroupConvolutionTransformation, opset1::GroupConvolution>(params).
-        add<MatMulTransformation, opset1::MatMul>(params).
+        // add<MatMulTransformation, opset1::MatMul>(params).
         add<MaxPoolTransformation, opset1::MaxPool>(params).
         add<MultiplyTransformation, opset1::Multiply>(params).
         add<NormalizeL2Transformation, opset1::NormalizeL2>(params).
-        add<ReluTransformation, opset1::Relu>(params).
-        // Multiply const change is not supported
-        // add<ReshapeTransformation, opset1::Reshape>(params).
+        // add<ReluTransformation, opset1::Relu>(params).
 
-        addCleanup<FuseFakeQuantizeTransformation, opset1::FakeQuantize>(params).
-        //// TODO: workaround: Convert I8 -> FP32 is not supported by CPU plugin
+        // addCleanup<FuseFakeQuantizeTransformation, opset1::FakeQuantize>(params).
+        // workaround: Convert I8 -> FP32 is not supported by CPU plugin
         addCleanup<ConvertTransformation, opset1::Convert>(params);
 }
 
