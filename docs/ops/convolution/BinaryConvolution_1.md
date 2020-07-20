@@ -1,4 +1,4 @@
-## BinaryConvolution<a name="BinaryConvolution"></a>
+## BinaryConvolution<a name="BinaryConvolution"></a> {#openvino_docs_ops_convolution_BinaryConvolution_1}
 
 **Versioned name**: *BinaryConvolution-1*
 

@@ -103,6 +103,7 @@
 #include "ngraph/op/maximum.hpp"
 #include "ngraph/op/min.hpp"
 #include "ngraph/op/minimum.hpp"
+#include "ngraph/op/mish.hpp"
 #include "ngraph/op/multiply.hpp"
 #include "ngraph/op/negative.hpp"
 #include "ngraph/op/non_max_suppression.hpp"
