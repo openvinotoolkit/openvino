@@ -44,6 +44,9 @@ void PermuteTransformation::SetUp() {
     bool perTensor;
     bool transposeChannelDim;
     std::tie(netPrecision, inputShape, targetDevice, params, perTensor, transposeChannelDim) = this->GetParam();
+
+    ConfigurePlugin(LptVersion::cnnNetwork);
+
     const auto precision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
     const auto input1 = std::make_shared<ngraph::opset1::Parameter>(precision, ngraph::Shape(inputShape));

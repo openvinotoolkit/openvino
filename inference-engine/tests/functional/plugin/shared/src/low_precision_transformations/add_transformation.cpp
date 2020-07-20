@@ -53,6 +53,9 @@ void AddTransformation::SetUp() {
     LayerTestsUtils::LayerTransformation::LptVersion version;
     AddTestValues param;
     std::tie(netPrecision, inputShape1, targetDevice, version, param) = this->GetParam();
+
+    ConfigurePlugin(LptVersion::cnnNetwork);
+
     auto precision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
     InferenceEngine::SizeVector inputShape2 = inputShape1;

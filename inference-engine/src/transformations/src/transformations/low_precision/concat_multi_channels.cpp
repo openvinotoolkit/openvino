@@ -62,8 +62,7 @@ void ConcatMultiChannelsTransformation::transform(TransformationContext& context
         return;
     }
 
-    // TODO: update later
-    // TODO: check if precisions are different and return
+    // precisions can be different
     ngraph::Node& quantizationLayer = *subgraph.quantizationLayers[0];
     std::shared_ptr<ngraph::opset1::FakeQuantize> fq = ngraph::as_type_ptr<ngraph::opset1::FakeQuantize>(quantizationLayer.shared_from_this());
     DataPrecision dataPrecision = getDataPrecision(fq, QuantizationDetails::getDetails(fq), false, false);
@@ -76,27 +75,17 @@ void ConcatMultiChannelsTransformation::transform(TransformationContext& context
 
     for (size_t i = 0; i < subgraph.quantizationLayers.size(); ++i) {
         ngraph::Node* fakeQuantizeLayer = subgraph.quantizationLayers[i];
+        const ngraph::Shape shape = fakeQuantizeLayer->get_output_shape(0);
+        if (shape.size() < 4ul) {
+            return;
+        }
+
         std::shared_ptr<ngraph::opset1::FakeQuantize> fq = ngraph::as_type_ptr<ngraph::opset1::FakeQuantize>(fakeQuantizeLayer->shared_from_this());
+        if (fq == nullptr) {
+            return;
+        }
 
         const QuantizationDetails& quantizationDetails = QuantizationDetails::getDetails(fq);
-
-        // TODO: uncomment
-        // const size_t channelsCount = CNNNetworkHelper::getOutputChannelsCount(fq);
-        // const size_t channelsCount = 3ul;
-
-        // std::vector<float> dequantizationScales(channelsCount);
-        // std::vector<float> dequantizationShifts(channelsCount);
-        // for (size_t i = 0ul; i < channelsCount; ++i) {
-        //    dequantizationScales[i] = QuantizationDetails::isSupportedLevel(quantizationDetails.levels) ?
-        //        (quantizationDetails.getOutputHighValue(i) - quantizationDetails.getOutputLowValue(i)) / (dataPrecision.max - dataPrecision.min) :
-        //        1.0;
-
-        //    dequantizationShifts[i] = QuantizationDetails::isSupportedLevel(quantizationDetails.levels) ?
-        //        (quantizationDetails.getOutputHighValue(i) - (quantizationDetails.getOutputHighValue(i) - quantizationDetails.getOutputLowValue(i)) *
-        //        (dataPrecision.max / (dataPrecision.max - dataPrecision.min))) :
-        //        0.f;
-        // }
-        // checkAndUpdateDequantizationShiftWithZero(quantizationDetails, dequantizationShifts);
 
         // 1. get data for dequantization. Dequantization data will be used several times later.
         FakeQuantizeDequantization fakeQuantizeDequantization = ngraph::pass::low_precision::NetworkHelper::createDequantizationFromFakeQuantize(
@@ -113,13 +102,6 @@ void ConcatMultiChannelsTransformation::transform(TransformationContext& context
         subgraph.quantizationLayers[i] = newFakeQuantizeLayer.get();
         subgraph.layers[fakeQuantizeLayer->get_friendly_name()] = newFakeQuantizeLayer.get();
     }
-
-    //if (updatePrecisions) {
-    //    for (const auto it : subgraph.layers) {
-    //        const CNNLayer* layer = it.second;
-    //        CNNNetworkHelper::setOutDataPrecision(*layer, dataPrecision.precision);
-    //    }
-    //}
 
     auto dequantizationValuesCallback = [&](
         ngraph::Node& layer,
