@@ -18,6 +18,7 @@
 #include <list>
 #include <memory>
 
+#include <openvino/itt.hpp>
 #include "ngraph/function.hpp"
 #include "ngraph/graph_util.hpp"
 #include "ngraph/log.hpp"
@@ -26,6 +27,7 @@
 
 using namespace std;
 using namespace ngraph;
+using namespace openvino;
 
 constexpr DiscreteTypeInfo Function::type_info;
 
@@ -102,6 +104,8 @@ void Function::init()
 
 std::vector<shared_ptr<Node>> Function::get_ordered_ops() const
 {
+    OV_ITT_SCOPED_TASK(itt::domains::Ngraph, "Function::get_ordered_ops");
+
     vector<shared_ptr<Node>> nodes;
     for (auto& r : get_results())
     {

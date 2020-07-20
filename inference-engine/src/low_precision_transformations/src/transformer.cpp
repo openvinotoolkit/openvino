@@ -42,11 +42,14 @@
 #include "low_precision_transformations/eltwise.hpp"
 #include "low_precision_transformations/normalize.hpp"
 
+#include <openvino/itt.hpp>
+
 // uncomment to display precision info during low precision transformations
 // #define DISPLAY_PECISION
 
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
+using namespace openvino;
 
 LowPrecisionTransformations::LowPrecisionTransformations(
     const std::map<std::string, LayerTransformationPtr>& branchSpecificTransformations,
@@ -289,6 +292,8 @@ void LowPrecisionTransformer::rename(ICNNNetwork& network) const {
 }
 
 void LowPrecisionTransformer::transform(ICNNNetwork& network) {
+    OV_ITT_SCOPED_TASK(itt::domains::LPT, "LowPrecisionTransformer::transform");
+
 #ifdef LPT_ORIGINAL_MODEL_PATH
     ResponseDesc originalModelResponse;
     network.serialize(

@@ -20,12 +20,14 @@
 #include <unordered_set>
 #include <vector>
 
+#include <openvino/itt.hpp>
 #include "graph_rewrite.hpp"
 #include "ngraph/env_util.hpp"
 #include "ngraph/log.hpp"
 
 using namespace std;
 using namespace ngraph;
+using namespace openvino;
 
 // GraphRewrite algorithm:
 // GraphRewrite processes an input graph in an topological order(i.e. args before users)
@@ -63,6 +65,8 @@ using namespace ngraph;
 
 bool pass::GraphRewrite::run_on_function(shared_ptr<Function> f)
 {
+    OV_ITT_SCOPED_TASK(itt::domains::Ngraph, "pass::GraphRewrite::run_on_function");
+
     bool rewritten = false;
     const size_t NUM_TRIES = 10;
     size_t tries = NUM_TRIES;

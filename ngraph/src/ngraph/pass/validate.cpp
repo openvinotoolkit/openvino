@@ -15,12 +15,15 @@
 //*****************************************************************************
 
 #include "ngraph/pass/validate.hpp"
+#include <openvino/itt.hpp>
 #include "ngraph/graph_util.hpp"
 
 using namespace ngraph;
+using namespace openvino;
 
 bool pass::Validate::run_on_function(std::shared_ptr<Function> f)
 {
+    OV_ITT_SCOPED_TASK(itt::domains::Ngraph, "pass::Validate::run_on_function");
     f->validate_nodes_and_infer_types();
     return false;
 }

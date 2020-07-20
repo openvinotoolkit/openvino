@@ -9,9 +9,9 @@
 #include <memory>
 
 #include <ie_blob.h>
-#include <ie_profiling.hpp>
 #include <file_utils.h>
 #include <ie_preprocess.hpp>
+#include <openvino/itt.hpp>
 
 #include <details/ie_so_pointer.hpp>
 

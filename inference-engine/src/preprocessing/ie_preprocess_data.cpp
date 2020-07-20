@@ -749,7 +749,7 @@ void resize(Blob::Ptr inBlob, Blob::Ptr outBlob, const ResizeAlgorithm &algorith
 //----------------------------------------------------------------------
 
 using namespace Resize;
-
+using namespace openvino;
 
 /**
  * @brief This class stores pre-process information for exact input
@@ -768,10 +768,10 @@ class PreProcessData : public IPreProcessData {
      */
     std::shared_ptr<PreprocEngine> _preproc;
 
-    InferenceEngine::ProfilingTask perf_resize {"Resize"};
-    InferenceEngine::ProfilingTask perf_reorder_before {"Reorder before"};
-    InferenceEngine::ProfilingTask perf_reorder_after {"Reorder after"};
-    InferenceEngine::ProfilingTask perf_preprocessing {"Preprocessing"};
+    itt::handle_t perf_resize = itt::handle("Resize");
+    itt::handle_t perf_reorder_before = itt::handle("Reorder before");
+    itt::handle_t perf_reorder_after = itt::handle("Reorder after");
+    itt::handle_t perf_preprocessing = itt::handle("Preprocessing");
 
 public:
     void setRoiBlob(const Blob::Ptr &blob) override;
@@ -804,7 +804,7 @@ Blob::Ptr PreProcessData::getRoiBlob() const {
 
 void PreProcessData::execute(Blob::Ptr &outBlob, const PreProcessInfo& info, bool serial,
         int batchSize) {
-    IE_PROFILING_AUTO_SCOPE_TASK(perf_preprocessing)
+    itt::ScopedTask<itt::domains::IEPreproc> task(perf_preprocessing);
 
     auto algorithm = info.getResizeAlgorithm();
     auto fmt = info.getColorFormat();
@@ -850,7 +850,7 @@ void PreProcessData::execute(Blob::Ptr &outBlob, const PreProcessInfo& info, boo
         }
 
         {
-            IE_PROFILING_AUTO_SCOPE_TASK(perf_reorder_before)
+            itt::ScopedTask<itt::domains::IEPreproc> task(perf_reorder_before);
             blob_copy(_roiBlob, _tmp1);
         }
         res_in = _tmp1;
@@ -873,12 +873,12 @@ void PreProcessData::execute(Blob::Ptr &outBlob, const PreProcessInfo& info, boo
     }
 
     {
-        IE_PROFILING_AUTO_SCOPE_TASK(perf_resize)
+        itt::ScopedTask<itt::domains::IEPreproc> task(perf_resize);
         resize(res_in, res_out, algorithm);
     }
 
     if (res_out == _tmp2) {
-        IE_PROFILING_AUTO_SCOPE_TASK(perf_reorder_after)
+        itt::ScopedTask<itt::domains::IEPreproc> task(perf_reorder_after);
         blob_copy(_tmp2, outBlob);
     }
 }

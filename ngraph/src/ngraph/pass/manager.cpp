@@ -23,6 +23,7 @@
 #include <iostream>
 #include <memory>
 
+#include <openvino/itt.hpp>
 #include "ngraph/env_util.hpp"
 #include "ngraph/function.hpp"
 #include "ngraph/graph_util.hpp"
@@ -35,6 +36,7 @@
 
 using namespace std;
 using namespace ngraph;
+using namespace openvino;
 
 pass::Manager::Manager()
     : m_visualize(getenv_bool("NGRAPH_ENABLE_VISUALIZE_TRACING"))
@@ -49,6 +51,8 @@ pass::Manager::~Manager()
 
 void pass::Manager::run_passes(shared_ptr<Function> func, bool /* transitive */)
 {
+    OV_ITT_SCOPED_TASK(itt::domains::Ngraph, "pass::Manager::run_passes");
+
     static bool profile_enabled = getenv_bool("NGRAPH_PROFILE_PASS_ENABLE");
 
     get_state().set_function(func);

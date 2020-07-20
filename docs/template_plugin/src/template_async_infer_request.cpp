@@ -4,12 +4,12 @@
 
 #include <utility>
 
-#include <ie_profiling.hpp>
-
 #include "template_async_infer_request.hpp"
 #include "template_executable_network.hpp"
+#include <openvino/itt.hpp>
 
 using namespace TemplatePlugin;
+using namespace openvino;
 
 // ! [async_infer_request:ctor]
 TemplateAsyncInferRequest::TemplateAsyncInferRequest(
@@ -21,16 +21,16 @@ TemplateAsyncInferRequest::TemplateAsyncInferRequest(
     _inferRequest(inferRequest), _waitExecutor(waitExecutor) {
     _pipeline = {
         {cpuTaskExecutor, [this] {
-            IE_PROFILING_AUTO_SCOPE(PreprocessingAndStartPipeline)
+            OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, "PreprocessingAndStartPipeline");
             _inferRequest->inferPreprocess();
             _inferRequest->startPipeline();
         }},
         {_waitExecutor, [this] {
-            IE_PROFILING_AUTO_SCOPE(WaitPipeline)
+            OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, "WaitPipeline");
             _inferRequest->waitPipeline();
         }},
         {cpuTaskExecutor, [this] {
-            IE_PROFILING_AUTO_SCOPE(Postprocessing)
+            OV_ITT_SCOPED_TASK(itt::domains::TemplatePlugin, "Postprocessing");
             _inferRequest->inferPostprocess();
         }}
     };

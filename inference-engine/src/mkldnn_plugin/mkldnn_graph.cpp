@@ -35,6 +35,8 @@
 
 #include "utils/blob_dump.h"
 
+#include <openvino/itt.hpp>
+
 /*****************************************************
  * Debug capability
  *  - BLOB_DUMP_PATH : Specify with existing folder name
@@ -60,9 +62,12 @@ using namespace mkldnn;
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
+using namespace openvino;
 
 template<typename NET>
 void MKLDNNGraph::ApplyUnrollPasses(NET &net) {
+    OV_ITT_SCOPED_TASK(itt::domains::MKLDNNPlugin, "MKLDNNGraph::ApplyUnrollPasses");
+
     NetPass::CombineRNNSeq(net);
     bool ti_proc_ok = NetPass::UnrollRNN_if(net, [] (const RNNCellBase &rnn) -> bool {
         if (rnn.clip != 0.0f)
@@ -695,7 +700,8 @@ void MKLDNNGraph::Allocate() {
     for (auto& edge : graphEdges) edge->validate();
 }
 
-void MKLDNNGraph::CreatePrimitives() { IE_PROFILING_AUTO_SCOPE(MKLDNNGraph::CreatePrimitives)
+void MKLDNNGraph::CreatePrimitives() {
+    OV_ITT_SCOPED_TASK(itt::domains::MKLDNNPlugin, "MKLDNNGraph::CreatePrimitives");
     for (auto& node : graphNodes) {
         node->createPrimitive();
     }
@@ -794,7 +800,8 @@ void MKLDNNGraph::Infer(int batch) {
         ENABLE_DUMP(do_before(DUMP_DIR, graphNodes[i]));
 
         if (!graphNodes[i]->isConstant()) {
-            IE_PROFILING_AUTO_SCOPE_TASK(graphNodes[i]->profilingTask)
+            using namespace openvino::itt;
+            ScopedTask<domains::MKLDNNPlugin> task(graphNodes[i]->profilingTask);
             graphNodes[i]->execute(stream);
         }
 

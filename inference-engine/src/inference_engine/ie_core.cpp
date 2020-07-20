@@ -22,13 +22,14 @@
 #include "details/ie_so_pointer.hpp"
 #include "ie_icore.hpp"
 #include "ie_plugin_config.hpp"
-#include "ie_profiling.hpp"
 #include "ie_util_internal.hpp"
 #include "ie_network_reader.hpp"
 #include "multi-device/multi_device_config.hpp"
 #include "xml_parse_utils.h"
+#include <openvino/itt.hpp>
 
 using namespace InferenceEngine::PluginConfigParams;
+using namespace openvino;
 
 namespace InferenceEngine {
 
@@ -262,18 +263,18 @@ public:
     }
 
     CNNNetwork ReadNetwork(const std::string& modelPath, const std::string& binPath) const override {
-        IE_PROFILING_AUTO_SCOPE(Core::ReadNetwork)
+        OV_ITT_SCOPED_TASK(itt::domains::IE, "Core::Impl::ReadNetwork1");
         return details::ReadNetwork(modelPath, binPath, extensions);
     }
 
     CNNNetwork ReadNetwork(const std::string& model, const Blob::CPtr& weights) const override {
-        IE_PROFILING_AUTO_SCOPE(Core::ReadNetwork)
+        OV_ITT_SCOPED_TASK(itt::domains::IE, "Core::Impl::ReadNetwork2");
         return details::ReadNetwork(model, weights, extensions);
     }
 
     ExecutableNetwork LoadNetwork(const CNNNetwork& network, const std::string& deviceName,
                                   const std::map<std::string, std::string>& config) override {
-        IE_PROFILING_AUTO_SCOPE(Core::LoadNetwork)
+        OV_ITT_SCOPED_TASK(itt::domains::IE, "Core::Impl::LoadNetwork");
         auto parsed = parseDeviceNameIntoConfig(deviceName, config);
         return GetCPPPluginByName(parsed._deviceName).LoadNetwork(network, parsed._config);
     }
@@ -602,7 +603,7 @@ void Core::AddExtension(const IExtensionPtr& extension) {
 
 ExecutableNetwork Core::LoadNetwork(const CNNNetwork& network, RemoteContext::Ptr context,
                                     const std::map<std::string, std::string>& config) {
-    IE_PROFILING_AUTO_SCOPE(Core::LoadNetwork)
+    OV_ITT_SCOPED_TASK(itt::domains::IE, "Core::LoadNetwork");
     std::map<std::string, std::string> config_ = config;
 
     if (context == nullptr) {
@@ -699,7 +700,7 @@ ExecutableNetwork Core::ImportNetwork(std::istream& networkModel, const std::str
 ExecutableNetwork Core::ImportNetwork(std::istream& networkModel,
                                       const RemoteContext::Ptr& context,
                                       const std::map<std::string, std::string>& config) {
-    IE_PROFILING_AUTO_SCOPE(Core::ImportNetwork)
+    OV_ITT_SCOPED_TASK(itt::domains::IE, "Core::ImportNetwork");
 
     if (context == nullptr) {
         THROW_IE_EXCEPTION << "Remote context is null";

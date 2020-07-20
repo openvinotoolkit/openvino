@@ -12,14 +12,22 @@
 #include <vector>
 
 #include <ngraph/pass/manager.hpp>
+#include <openvino/itt.hpp>
+
+using namespace openvino;
 
 bool ngraph::pass::ConvertOpSet2ToOpSet1::run_on_function(std::shared_ptr<ngraph::Function> f) {
+    OV_ITT_SCOPED_TASK(itt::domains::IETransform, "ngraph::pass::ConvertOpSet2ToOpSet1");
+
     ngraph::pass::Manager OpSet2ToOpSet1;
     std::vector<std::shared_ptr<ngraph::pass::PassBase> > transforms;
 
+    {
+        OV_ITT_SCOPED_TASK(itt::domains::IETransform, "ngraph::pass::ConvertOpSet2ToOpSet1::register_pass");
 #define NGRAPH_PASS(NAME, NAMESPACE) transforms.push_back(OpSet2ToOpSet1.register_pass<NAMESPACE::NAME>());
 #include <transformations/convert_opset2_to_opset1/convert_opset2_to_opset1_tbl.hpp>
 #undef NGRAPH_PASS
+    }
 
     for (auto & t : transforms) {
         if (auto t_param = std::dynamic_pointer_cast<PassParam>(t)) {

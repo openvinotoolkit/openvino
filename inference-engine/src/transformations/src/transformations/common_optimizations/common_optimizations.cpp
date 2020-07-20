@@ -15,15 +15,22 @@
 #include <ngraph/pass/nop_elimination.hpp>
 #include <ngraph/pass/algebraic_simplification.hpp>
 #include <ngraph/pass/constant_folding.hpp>
+#include <openvino/itt.hpp>
 
+using namespace openvino;
 
 bool ngraph::pass::CommonOptimizations::run_on_function(std::shared_ptr<ngraph::Function> f) {
+    OV_ITT_SCOPED_TASK(itt::domains::IETransform, "ngraph::pass::CommonOptimizations");
+
     ngraph::pass::Manager CommonOptimizations;
     std::vector<std::shared_ptr<ngraph::pass::PassBase> > transforms;
 
+    {
+        OV_ITT_SCOPED_TASK(itt::domains::IETransform, "ngraph::pass::CommonOptimizations::register_pass");
 #define NGRAPH_PASS(NAME, NAMESPACE) transforms.push_back(CommonOptimizations.register_pass<NAMESPACE::NAME>());
 #include <transformations/common_optimizations/common_optimizations_tbl.hpp>
 #undef NGRAPH_PASS
+    }
 
     for (auto & t : transforms) {
         if (auto t_param = std::dynamic_pointer_cast<PassParam>(t)) {

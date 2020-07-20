@@ -23,7 +23,7 @@ target_include_directories(${TARGET_NAME} PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}"
     "${IE_MAIN_TEMPLATE_PLUGIN_SOURCE_DIR}/include")
 
-target_link_libraries(${TARGET_NAME} PRIVATE IE::inference_engine IE::inference_engine_transformations ${NGRAPH_LIBRARIES} ${INTEL_ITT_LIBS})
+target_link_libraries(${TARGET_NAME} PRIVATE IE::inference_engine IE::inference_engine_transformations ${NGRAPH_LIBRARIES})
 
 # ATTENTION: uncomment to register a plugin in the plugins.xml file
 # ie_register_plugins(MAIN_TARGET ${TARGET_NAME}

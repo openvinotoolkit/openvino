@@ -12,6 +12,7 @@
 #include <ie_memcpy.h>
 #include <algorithm>
 #include <set>
+#include <cmath>
 #include "details/caseless.hpp"
 
 using namespace mkldnn;

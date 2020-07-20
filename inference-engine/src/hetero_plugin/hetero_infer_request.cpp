@@ -15,6 +15,7 @@
 using namespace HeteroPlugin;
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
+using namespace openvino;
 
 HeteroInferRequest::HeteroInferRequest(InferenceEngine::InputsDataMap networkInputs,
                                        InferenceEngine::OutputsDataMap networkOutputs,
@@ -89,7 +90,7 @@ void HeteroInferRequest::InferImpl() {
     updateInOutIfNeeded();
     size_t i = 0;
     for (auto &&desc : _inferRequests) {
-        IE_PROFILING_AUTO_SCOPE_TASK(desc._profilingTask);
+        itt::ScopedTask<itt::domains::HeteroPlugin> task(desc._profilingTask);
         auto &r = desc._request;
         assert(nullptr != r);
         r->Infer();
@@ -107,7 +108,7 @@ void HeteroInferRequest::GetPerformanceCounts(std::map<std::string, InferenceEng
 }
 
 void HeteroInferRequest::updateInOutIfNeeded() {
-    IE_PROFILING_AUTO_SCOPE(updateInOutIfNeeded);
+    OV_ITT_SCOPED_TASK(itt::domains::HeteroPlugin, "updateInOutIfNeeded");
     assert(!_inferRequests.empty());
     for (auto &&desc : _inferRequests) {
         auto &r = desc._request;

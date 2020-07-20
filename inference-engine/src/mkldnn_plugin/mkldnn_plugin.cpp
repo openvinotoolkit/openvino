@@ -28,6 +28,7 @@
 #include <ngraph/op/fused/gelu.hpp>
 #include <ngraph/op/util/op_types.hpp>
 #include "ngraph_ops/fully_connected.hpp"
+#include <openvino/itt.hpp>
 
 #if !defined(__arm__) && !defined(_M_ARM) && !defined(__aarch64__) && !defined(_M_ARM64)
 #if defined(_WIN32) || defined(WIN32)
@@ -41,6 +42,7 @@
 
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
+using namespace openvino;
 
 Engine::Engine() {
     _pluginName = "CPU";
@@ -53,6 +55,8 @@ Engine::~Engine() {
 }
 
 static void Transformation(ICNNNetwork::Ptr& clonedNetwork) {
+    OV_ITT_SCOPED_TASK(itt::domains::MKLDNNPlugin, "Transformation");
+
     const auto transformations_callback = [](const std::shared_ptr<const ::ngraph::Node> &node) -> bool {
         // DepthToSpace node implementation supports only equal input/output tensors with rank <= 5
         if (auto dtsOp = std::dynamic_pointer_cast<const ::ngraph::opset3::DepthToSpace>(node)) {
@@ -86,6 +90,8 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork) {
 
 InferenceEngine::ExecutableNetworkInternal::Ptr
 Engine::LoadExeNetworkImpl(const InferenceEngine::ICNNNetwork &network, const std::map<std::string, std::string> &config) {
+    OV_ITT_SCOPED_TASK(itt::domains::MKLDNNPlugin, "Engine::LoadExeNetworkImpl");
+
     // verification of supported input
     InferenceEngine::InputsDataMap _networkInputs;
     network.getInputsInfo(_networkInputs);

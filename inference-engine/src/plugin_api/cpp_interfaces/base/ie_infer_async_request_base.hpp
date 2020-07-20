@@ -11,7 +11,7 @@
 #include "cpp_interfaces/exception2status.hpp"
 #include "ie_iinfer_request.hpp"
 #include "ie_preprocess.hpp"
-#include "ie_profiling.hpp"
+#include <openvino/itt.hpp>
 
 namespace InferenceEngine {
 
@@ -32,7 +32,7 @@ public:
     explicit InferRequestBase(std::shared_ptr<T> impl): _impl(impl) {}
 
     StatusCode Infer(ResponseDesc* resp) noexcept override {
-        IE_PROFILING_AUTO_SCOPE(Infer);
+        OV_ITT_SCOPED_TASK(openvino::itt::domains::Plugin, "Infer");
         TO_STATUS(_impl->Infer());
     }
 
@@ -58,12 +58,12 @@ public:
     }
 
     StatusCode StartAsync(ResponseDesc* resp) noexcept override {
-        IE_PROFILING_AUTO_SCOPE(StartAsync);
+        OV_ITT_SCOPED_TASK(openvino::itt::domains::Plugin, "StartAsync");
         TO_STATUS(_impl->StartAsync());
     }
 
     StatusCode Wait(int64_t millis_timeout, ResponseDesc* resp) noexcept override {
-        IE_PROFILING_AUTO_SCOPE(Wait);
+        OV_ITT_SCOPED_TASK(openvino::itt::domains::Plugin, "Wait");
         NO_EXCEPT_CALL_RETURN_STATUS(_impl->Wait(millis_timeout));
     }
 

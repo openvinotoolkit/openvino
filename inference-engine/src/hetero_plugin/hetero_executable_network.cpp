@@ -39,6 +39,7 @@ using namespace details;
 using namespace HeteroPlugin;
 using namespace InferenceEngine::PluginConfigParams;
 using namespace InferenceEngine::HeteroConfigParams;
+using namespace openvino;
 
 namespace {
 
@@ -938,7 +939,7 @@ InferRequestInternal::Ptr HeteroExecutableNetwork::CreateInferRequestImpl(
     for (auto&& subnetwork : networks) {
         HeteroInferRequest::SubRequestDesc desc;
         desc._network = subnetwork._network;
-        desc._profilingTask = ProfilingTask{"Infer" + std::to_string(index++)};
+        desc._profilingTask = itt::handle("Infer" + std::to_string(index++));
         inferRequests.push_back(desc);
     }
     return std::make_shared<HeteroInferRequest>(networkInputs,

@@ -49,17 +49,25 @@
 
 #include <ngraph/pass/constant_folding.hpp>
 #include <ngraph/pass/manager.hpp>
+#include <openvino/itt.hpp>
 
 #include <memory>
 #include <vector>
 
+using namespace openvino;
+
 bool ngraph::pass::ConvertOpSet1ToLegacy::run_on_function(std::shared_ptr<ngraph::Function> f) {
+    OV_ITT_SCOPED_TASK(itt::domains::IETransform, "ngraph::pass::ConvertOpSet1ToLegacy");
+
     ngraph::pass::Manager OpSet1ToLegacy;
     std::vector<std::shared_ptr<ngraph::pass::PassBase> > transforms;
 
+    {
+        OV_ITT_SCOPED_TASK(itt::domains::IETransform, "ngraph::pass::ConvertOpSet1ToLegacy::register_pass");
 #define NGRAPH_PASS(NAME, NAMESPACE) transforms.push_back(OpSet1ToLegacy.register_pass<NAMESPACE::NAME>());
 #include <transformations/convert_opset1_to_legacy/convert_opset1_to_legacy_tbl.hpp>
 #undef NGRAPH_PASS
+    }
 
     for (auto & t : transforms) {
         if (auto t_param = std::dynamic_pointer_cast<PassParam>(t)) {

@@ -32,6 +32,7 @@ target_include_directories(${TARGET_NAME} PRIVATE "${IE_MAIN_SOURCE_DIR}/src/inf
 
 target_link_libraries(${TARGET_NAME} PUBLIC inference_engine_reader_api inference_engine_plugin_api ${NGRAPH_LIBRARIES} inference_engine)
 target_link_libraries(${TARGET_NAME} PRIVATE pugixml)
+target_link_libraries(${TARGET_NAME} PRIVATE openvino::itt)
 
 # code style
 

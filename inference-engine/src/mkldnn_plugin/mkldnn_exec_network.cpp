@@ -25,10 +25,12 @@
 #include <algorithm>
 #include <unordered_set>
 #include <utility>
+#include <openvino/itt.hpp>
 
 using namespace MKLDNNPlugin;
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
+using namespace openvino;
 
 InferenceEngine::InferRequestInternal::Ptr
 MKLDNNExecNetwork::CreateInferRequestImpl(InferenceEngine::InputsDataMap networkInputs,
@@ -44,6 +46,8 @@ MKLDNNExecNetwork::MKLDNNExecNetwork(const InferenceEngine::ICNNNetwork &network
     extensionManager(extMgr),
     _cfg{cfg},
     _name{network.getName()} {
+    OV_ITT_SCOPED_TASK(itt::domains::MKLDNNPlugin, "MKLDNNExecNetwork::MKLDNNExecNetwork");
+
     // we are cloning network if we have statistics and we can transform network.
     _clonedNetwork = cloneNet(network);
 

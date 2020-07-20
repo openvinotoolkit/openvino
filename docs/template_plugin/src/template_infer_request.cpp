@@ -25,6 +25,7 @@
 #include "template_plugin.hpp"
 
 using namespace TemplatePlugin;
+using namespace openvino;
 
 using Time = std::chrono::high_resolution_clock;
 using ns = std::chrono::nanoseconds;
@@ -42,12 +43,12 @@ TemplateInferRequest::TemplateInferRequest(const InferenceEngine::InputsDataMap&
     _executableNetwork->_requestId++;
 
     std::string name = _executableNetwork->_name + "_Req" + requestID;
-    _profilingTask = { {
-        { ProfilingTask("Template" + std::to_string(_executableNetwork->_cfg.deviceId) + "_" + name + "_Preprocess") },
-        { ProfilingTask("Template" + std::to_string(_executableNetwork->_cfg.deviceId) + "_" + name + "_Postprocess") },
-        { ProfilingTask("Template" + std::to_string(_executableNetwork->_cfg.deviceId) + "_" + name + "_StartPipline") },
-        { ProfilingTask("Template" + std::to_string(_executableNetwork->_cfg.deviceId) + "_" + name + "_WaitPipline") },
-    } };
+    _profilingTask = {
+        itt::handle("Template" + std::to_string(_executableNetwork->_cfg.deviceId) + "_" + name + "_Preprocess"),
+        itt::handle("Template" + std::to_string(_executableNetwork->_cfg.deviceId) + "_" + name + "_Postprocess"),
+        itt::handle("Template" + std::to_string(_executableNetwork->_cfg.deviceId) + "_" + name + "_StartPipline"),
+        itt::handle("Template" + std::to_string(_executableNetwork->_cfg.deviceId) + "_" + name + "_WaitPipline"),
+    };
 
     allocateDeviceBuffers();
     allocateInputBlobs();
@@ -183,19 +184,19 @@ void TemplateInferRequest::inferPreprocess() {
 // ! [infer_request:infer_preprocess]
 
 void TemplateInferRequest::startPipeline() {
-    IE_PROFILING_AUTO_SCOPE_TASK(_profilingTask[StartPipeline])
+    itt::ScopedTask<itt::domains::TemplatePlugin> task(_profilingTask[StartPipeline]);
     // TODO: Start pipeline and fill _inputTransferTime, _executeTime, _outputTransferTime
 }
 
 void TemplateInferRequest::waitPipeline() {
-    IE_PROFILING_AUTO_SCOPE_TASK(_profilingTask[WaitPipeline])
+    itt::ScopedTask<itt::domains::TemplatePlugin> task(_profilingTask[WaitPipeline]);
     auto prev = Time::now();
     // TODO: Wait pipeline using driver API or other synronizations methods
     _inputPreprocessTime = static_cast<double>(std::chrono::duration_cast<ns>(Time::now() - prev).count());
 }
 
 void TemplateInferRequest::inferPostprocess() {
-    IE_PROFILING_AUTO_SCOPE_TASK(_profilingTask[Postprocess])
+    itt::ScopedTask<itt::domains::TemplatePlugin> task(_profilingTask[Postprocess]);
     auto prev = Time::now();
     // TODO: perform post-processing and convert to NHWC layout
     _outputPostProcessTime = static_cast<double>(std::chrono::duration_cast<ns>(Time::now() - prev).count());

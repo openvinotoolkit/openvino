@@ -10,7 +10,7 @@
 #include <unordered_map>
 #include <set>
 
-#include <ie_profiling.hpp>
+#include <openvino/itt.hpp>
 
 #include <vpu/utils/extra.hpp>
 #include <vpu/utils/logger.hpp>
@@ -90,11 +90,11 @@ private:
 };
 
 #define VPU_PROFILER_SECTION(name) vpu::Profiler::Section VPU_COMBINE(profileSec, __LINE__) (# name)
-#define VPU_PROFILE(name) IE_PROFILING_AUTO_SCOPE(VPU_ ## name); VPU_PROFILER_SECTION(name)
+#define VPU_PROFILE(name) OV_ITT_SCOPED_TASK(openvino::itt::domains::IE, "VPU_" #name); VPU_PROFILER_SECTION(name)
 
 #else
 
-#define VPU_PROFILE(name) IE_PROFILING_AUTO_SCOPE(VPU_ ## name)
+#define VPU_PROFILE(name) OV_ITT_SCOPED_TASK(openvino::itt::domains::IE, "VPU_" #name);
 
 #endif  // ENABLE_PROFILING_RAW
 

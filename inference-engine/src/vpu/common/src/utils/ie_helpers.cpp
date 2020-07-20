@@ -11,11 +11,13 @@
 #include <details/ie_exception.hpp>
 #include <blob_transform.hpp>
 #include <blob_factory.hpp>
-#include <ie_profiling.hpp>
+#include <openvino/itt.hpp>
 
 #include <vector>
 #include <functional>
 #include <algorithm>
+
+using namespace openvino;
 
 namespace vpu {
 
@@ -41,7 +43,7 @@ InferenceEngine::Layout deviceLayout(InferenceEngine::Layout const& layout,
 }
 
 ie::Blob::Ptr convertBlobFP32toFP16(const ie::Blob::CPtr& in) {
-    IE_PROFILING_AUTO_SCOPE(convertBlobFP32toFP16);
+    OV_ITT_SCOPED_TASK(itt::domains::IE, "convertBlobFP32toFP16");
 
     auto inDesc = in->getTensorDesc();
 
