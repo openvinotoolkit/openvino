@@ -14,7 +14,10 @@
 #include <utility>
 
 #include "ie_api.h"
+#include "ie_layers.h"
 #include "ie_icnn_network.hpp"
+#include "cnn_network_impl.hpp"
+#include "cpp/ie_cnn_network.h"
 #include "ie_locked_memory.hpp"
 
 namespace InferenceEngine {
@@ -32,6 +35,21 @@ CNNNetworkIterator {
     std::list<CNNLayerPtr> nextLayersTovisit;
     InferenceEngine::CNNLayerPtr currentLayer;
     ICNNNetwork* network = nullptr;
+
+    void init(const ICNNNetwork* network) {
+        if (network == nullptr) THROW_IE_EXCEPTION << "ICNNNetwork object is nullptr";
+        // IE_ASSERT(dynamic_cast<const details::CNNNetworkImpl*>(network) != nullptr);
+        InputsDataMap inputs;
+        network->getInputsInfo(inputs);
+        if (!inputs.empty()) {
+            auto& nextLayers = getInputTo(inputs.begin()->second->getInputData());
+            if (!nextLayers.empty()) {
+                currentLayer = nextLayers.begin()->second;
+                nextLayersTovisit.push_back(currentLayer);
+                visited.insert(currentLayer.get());
+            }
+        }
+    }
 
 public:
     /**
@@ -53,17 +71,12 @@ public:
      * scope.
      */
     explicit CNNNetworkIterator(const ICNNNetwork* network) {
-        if (network == nullptr) THROW_IE_EXCEPTION << "ICNNNetwork object is nullptr";
-        InputsDataMap inputs;
-        network->getInputsInfo(inputs);
-        if (!inputs.empty()) {
-            auto& nextLayers = inputs.begin()->second->getInputData()->getInputTo();
-            if (!nextLayers.empty()) {
-                currentLayer = nextLayers.begin()->second;
-                nextLayersTovisit.push_back(currentLayer);
-                visited.insert(currentLayer.get());
-            }
-        }
+        init(network);
+    }
+
+    explicit CNNNetworkIterator(const CNNNetwork & network) {
+        const auto & inetwork = static_cast<const InferenceEngine::ICNNNetwork&>(network);
+        init(&inetwork);
     }
 
     /**
@@ -134,7 +147,7 @@ private:
 
         // visit child that not visited
         for (auto&& output : nextLayer->outData) {
-            for (auto&& child : output->getInputTo()) {
+            for (auto&& child : getInputTo(output)) {
                 if (visited.find(child.second.get()) == visited.end()) {
                     nextLayersTovisit.push_back(child.second);
                     visited.insert(child.second.get());
@@ -144,7 +157,7 @@ private:
 
         // visit parents
         for (auto&& parent : nextLayer->insData) {
-            auto parentLayer = parent.lock()->getCreatorLayer().lock();
+            auto parentLayer = getCreatorLayer(parent.lock()).lock();
             if (parentLayer && visited.find(parentLayer.get()) == visited.end()) {
                 nextLayersTovisit.push_back(parentLayer);
                 visited.insert(parentLayer.get());

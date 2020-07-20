@@ -13,10 +13,12 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
+import logging as log
+
 import numpy as np
 
 from mo.front.extractor import FrontExtractorOp
-from mo.front.onnx.extractors.utils import onnx_attr, get_onnx_opset_version
+from mo.front.onnx.extractors.utils import onnx_attr, get_onnx_opset_version, onnx_node_has_attr
 from mo.ops.clamp import Clamp, AttributedClamp
 
 
@@ -33,5 +35,9 @@ class ClipFrontExtractor(FrontExtractorOp):
             }
             AttributedClamp.update_node_stat(node, attrs)
         else:
+            if onnx_node_has_attr(node, 'min') or onnx_node_has_attr(node, 'max'):
+                log.error("ONNX Clip-11 operation '{}' shouldn't have attributes 'min' and 'max', this may mean that "
+                          "this operation created with older opset version.".format(
+                    node.soft_get('name', node.id)), extra={'is_warning': True})
             Clamp.update_node_stat(node)
         return cls.enabled

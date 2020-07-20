@@ -358,27 +358,6 @@ TYPED_TEST_P(BroadcastTests, broadcast_fail_axes_map_shape)
     }
 }
 
-TYPED_TEST_P(BroadcastTests, broadcast_shape_wrong_rank)
-{
-    auto arg = make_shared<op::Parameter>(element::f32, Shape{2, 4});
-    auto bc_shape = make_shared<op::Parameter>(element::i64, Shape{1, 1});
-    auto bc_axes = make_shared<op::Parameter>(element::i64, Shape{1});
-
-    try
-    {
-        auto bc = make_shared<TypeParam>(arg, bc_shape, bc_axes);
-        FAIL() << "DynBroadcast: wrong shape rank not detected";
-    }
-    catch (const NodeValidationFailure& error)
-    {
-        EXPECT_HAS_SUBSTRING(error.what(), "Broadcast shape rank must be 1");
-    }
-    catch (...)
-    {
-        FAIL() << "Deduced type check failed for unexpected reason";
-    }
-}
-
 TYPED_TEST_P(BroadcastTests, broadcast_axes_wrong_rank)
 {
     auto arg = make_shared<op::Parameter>(element::f32, Shape{2, 4});
@@ -469,7 +448,6 @@ REGISTER_TYPED_TEST_CASE_P(BroadcastTests,
                            broadcast_fail_transpose,
                            broadcast_fail_axes_map,
                            broadcast_fail_axes_map_shape,
-                           broadcast_shape_wrong_rank,
                            broadcast_axes_wrong_rank,
                            broadcast_fully_dynamic_target_shape,
                            broadcast_broadcast_shape_et_wrong,

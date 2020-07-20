@@ -23,8 +23,10 @@ typedef std::tuple<
 
 class RangeLayerTest : public testing::WithParamInterface<RangeParams>,
                        public LayerTestsUtils::LayerTestsCommon {
+    float start, stop, step;
 public:
     static std::string getTestCaseName(testing::TestParamInfo<RangeParams> obj);
+    void Infer();
 
 protected:
     void SetUp() override;

@@ -17,8 +17,9 @@
 """Helper functions for validating user input."""
 
 import logging
-import numpy as np
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Type
+
+import numpy as np
 
 from ngraph.exceptions import UserInputError
 

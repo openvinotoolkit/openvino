@@ -1,0 +1,108 @@
+
+// Copyright (C) 2018-2020 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+
+def getGitPrInfo(String project) {
+    def gitPrInfo = [
+        prAuthorEmail : "",
+        commitAuthorEmail : "",
+        commitHash : "",
+        commitSubject : ""
+    ]
+    try {
+        dir ("${WORKDIR}/${project}") {
+            gitPrInfo.prAuthorEmail = sh (script: 'git log -1 --pretty="format:%ae" ', returnStdout: true).trim()
+            gitPrInfo.commitAuthorEmail = sh (script: 'git log -1 --pretty="format:%ce" ', returnStdout: true).trim()
+            gitPrInfo.commitSubject = sh (script: 'git log -1 --pretty="format:%H" ', returnStdout: true).trim()
+            gitPrInfo.commitHash = sh (script: 'git log -1 --pretty="format:%s" ', returnStdout: true).trim()
+        }
+    }
+    catch(e) {
+        echo "Failed to retrieve ${project} git repository information!"
+        echo "ERROR: ${e}"
+    }
+    return gitPrInfo
+}
+
+def notifyByEmail(def gitPrInfo) {
+    stage('Notify') {
+        String notifyPeople = "${gitPrInfo.prAuthorEmail}, ${gitPrInfo.commitAuthorEmail}"
+        emailext (
+            subject: "OpenVino CI: PR ${CHANGE_ID} ${currentBuild.result}!",
+            body: """
+                    Status: ${currentBuild.result}
+                    Pull Request Title: ${CHANGE_TITLE}
+                    Pull Request: ${CHANGE_URL}
+                    Branch: ${CHANGE_BRANCH}
+                    Commit Hash: ${gitPrInfo.commitSubject}
+                    Commit Subject: ${gitPrInfo.commitHash}
+                    Jenkins Build: ${RUN_DISPLAY_URL}
+            """,
+            to: "${notifyPeople}"
+        )
+    }
+}
+
+def gitSubmoduleUpdate(String repository_name) {
+    dir ("${WORKDIR}/${repository_name}") {
+        sh  label: "Init ${repository_name} submodules",
+            script:
+        """
+            git submodule init && git submodule update \
+                --init \
+                --no-fetch \
+                --recursive 
+        """
+    }
+}
+
+def buildDockerImage() {
+    sh """
+        docker build --tag=openvino-onnx-ci  --file=.ci/openvino-onnx/Dockerfile \
+        --build-arg http_proxy=http://proxy-chain.intel.com:911/ \
+        --build-arg https_proxy=http://proxy-chain.intel.com:912/ .
+    """
+}
+
+pipeline {
+    agent {
+        label "OpenVino"
+    }
+    environment {
+        PROJECT_NAME = "openvino"
+        WORKDIR = "${WORKSPACE}/${BUILD_NUMBER}"
+    }
+    options {
+        skipDefaultCheckout true
+    }
+    stages {
+        stage("Clone repository") {
+            steps{
+                dir("${WORKDIR}") {
+                    checkout scm
+                }
+                gitSubmoduleUpdate(PROJECT_NAME)
+            }
+        }
+        stage("Build docker image with tests") {
+            steps{
+                dir("${WORKDIR}") {
+                    buildDockerImage()
+                }
+            }
+        }
+    }
+    post {
+        failure {
+            script {
+                gitPrInfo = getGitPrInfo(PROJECT_NAME)
+                notifyByEmail(gitPrInfo)
+            }
+        }
+        cleanup {
+            dir("${WORKDIR}") {
+                deleteDir()
+            }
+        }
+    }
+}

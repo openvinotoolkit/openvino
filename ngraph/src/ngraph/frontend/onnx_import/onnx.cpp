@@ -58,6 +58,9 @@ namespace ngraph
             // Try parsing input as a binary protobuf message
             if (!model_proto.ParseFromIstream(&stream))
             {
+#ifdef NGRAPH_USE_PROTOBUF_LITE
+                throw detail::error::stream_parse{stream};
+#else
                 // Rewind to the beginning and clear stream state.
                 stream.clear();
                 stream.seekg(0);
@@ -67,6 +70,7 @@ namespace ngraph
                 {
                     throw detail::error::stream_parse{stream};
                 }
+#endif
             }
 
             Model model{model_proto};

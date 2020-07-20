@@ -93,14 +93,14 @@ void DepthToSpaceTransformation::validate() {
     EXPECT_EQ(1, outputs.size());
 
     std::map<std::string, InferenceEngine::DataPtr>::iterator it = outputs.begin();
-    const InferenceEngine::CNNLayerPtr outputLayer = it->second->getCreatorLayer().lock();
+    const InferenceEngine::CNNLayerPtr outputLayer = getCreatorLayer(it->second).lock();
     EXPECT_TRUE(outputLayer != nullptr);
     EXPECT_EQ("ScaleShift", outputLayer->type);
 
     EXPECT_EQ(1ul, outputLayer->insData.size());
     const InferenceEngine::DataPtr insData = outputLayer->insData[0].lock();
     EXPECT_TRUE(insData != nullptr);
-    const InferenceEngine::CNNLayerPtr depthToSpace = insData->getCreatorLayer().lock();
+    const InferenceEngine::CNNLayerPtr depthToSpace = getCreatorLayer(insData).lock();
     EXPECT_TRUE(depthToSpace != nullptr);
     EXPECT_EQ("DepthToSpace", depthToSpace->type);
 

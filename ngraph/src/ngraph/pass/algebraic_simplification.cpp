@@ -28,7 +28,6 @@
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/divide.hpp"
 #include "ngraph/op/exp.hpp"
-#include "ngraph/op/experimental/transpose.hpp"
 #include "ngraph/op/gather.hpp"
 #include "ngraph/op/log.hpp"
 #include "ngraph/op/multiply.hpp"
@@ -38,6 +37,7 @@
 #include "ngraph/op/slice.hpp"
 #include "ngraph/op/subtract.hpp"
 #include "ngraph/op/sum.hpp"
+#include "ngraph/op/transpose.hpp"
 #include "ngraph/opsets/opset2.hpp"
 #include "ngraph/opsets/opset3.hpp"
 #include "ngraph/pattern/matcher.hpp"
@@ -662,7 +662,8 @@ static bool simplify_reduction(shared_ptr<Node> n)
     auto cnst = as_type_ptr<op::Constant>(broadcast->input_value(0).get_node_shared_ptr());
     if (!cnst || cnst->get_shape().size() > 0 /*not a scalar*/)
     {
-        NGRAPH_DEBUG << broadcast->get_argument(0)->get_name() << " isn't a scalar constant";
+        NGRAPH_DEBUG << broadcast->input_value(0).get_node_shared_ptr()->get_name()
+                     << " isn't a scalar constant";
         return false;
     }
 

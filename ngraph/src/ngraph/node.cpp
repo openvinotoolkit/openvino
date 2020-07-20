@@ -19,7 +19,6 @@
 #include <typeindex>
 #include <typeinfo>
 
-#include "ngraph/autodiff/adjoints.hpp"
 #include "ngraph/descriptor/input.hpp"
 #include "ngraph/descriptor/layout/tensor_layout.hpp"
 #include "ngraph/graph_util.hpp"
@@ -494,13 +493,6 @@ void Node::transfer_provenance_tags(const shared_ptr<Node>& replacement)
     traverse_nodes({replacement}, set_prov_new_nodes, common_args);
 }
 
-std::shared_ptr<Node> Node::get_argument(size_t index) const
-{
-    NGRAPH_CHECK(
-        index < m_inputs.size(), "index '", index, "' out of range in get_argument(size_t index)");
-    return input_value(index).as_single_output_node();
-}
-
 Node* Node::get_input_node_ptr(size_t index) const
 {
     NGRAPH_CHECK(
@@ -518,18 +510,6 @@ std::shared_ptr<Node> Node::get_input_node_shared_ptr(size_t index) const
 Output<Node> Node::get_input_source_output(size_t i) const
 {
     return input(i).get_source_output();
-}
-
-NodeVector Node::get_arguments() const
-{
-    NodeVector result;
-    for (size_t i = 0; i < get_input_size(); ++i)
-    {
-        {
-            result.push_back(get_argument(i));
-        }
-    }
-    return result;
 }
 
 const std::vector<std::shared_ptr<Node>>& Node::get_control_dependencies() const
@@ -719,13 +699,6 @@ shared_ptr<descriptor::Tensor> Node::get_output_tensor_ptr() const
             "get_output_tensor_ptr() must be called on a node with exactly one output.");
     }
     return m_outputs[0].get_tensor_ptr();
-}
-
-const std::vector<descriptor::Input*>& Node::get_output_inputs(size_t i) const
-{
-    NGRAPH_CHECK(
-        i < m_outputs.size(), "index '", i, "' out of range in get_output_inputs(size_t i)");
-    return m_outputs[i].get_inputs();
 }
 
 std::set<Input<Node>> Node::get_output_target_inputs(size_t i) const

@@ -12,9 +12,7 @@
 #include <ie_iextension.h>
 #include <ie_blob.h>
 
-#include <ngraph/op/op.hpp>
-#include <ngraph/node.hpp>
-#include <ngraph/opsets/opset.hpp>
+#include <ngraph/ngraph.hpp>
 
 #define CUSTOM_RELU_TYPE "CustomReLU"
 

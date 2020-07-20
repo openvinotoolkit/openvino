@@ -52,10 +52,6 @@ namespace ngraph
                 bool constant_fold(OutputVector& output_values,
                                    const OutputVector& inputs_values) override;
 
-            protected:
-                virtual void generate_adjoints(autodiff::Adjoints& adjoints,
-                                               const OutputVector& deltas) override;
-
             private:
                 bool m_needs_default_layout{false};
             };

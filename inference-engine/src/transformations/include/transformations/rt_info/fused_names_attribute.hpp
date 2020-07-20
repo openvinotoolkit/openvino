@@ -61,6 +61,8 @@ public:
     std::vector<std::string> getVectorNames() const;
 };
 
+extern template class TRANSFORMATIONS_API VariantImpl<FusedNames>;
+
 template<>
 class TRANSFORMATIONS_API VariantWrapper<FusedNames> : public VariantImpl<FusedNames> {
 public:

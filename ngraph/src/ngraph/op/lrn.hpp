@@ -74,9 +74,6 @@ namespace ngraph
                 AxisSet get_reduction_axes() const;
 
             protected:
-                virtual void generate_adjoints(autodiff::Adjoints& adjoints,
-                                               const OutputVector& deltas) override;
-
                 double m_alpha;
                 double m_beta;
                 double m_bias;

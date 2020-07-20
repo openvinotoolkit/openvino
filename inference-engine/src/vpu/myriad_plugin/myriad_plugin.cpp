@@ -19,6 +19,8 @@
 #include <transformations/common_optimizations/common_optimizations.hpp>
 
 #include "vpu/ngraph/transformations/dynamic_to_static_shape.hpp"
+#include "vpu/ngraph/transformations/eliminate_shapeof_after_dsr.hpp"
+
 #include "generic_ie.hpp"
 
 #include "myriad_plugin.h"
@@ -41,6 +43,7 @@ ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(
         ngraph::op::GenericIE::DisableReshape noReshape(function);
         ngraph::pass::CommonOptimizations().run_on_function(function);
         vpu::DynamicToStaticShape().transform(function);
+        vpu::EliminateShapeOfAfterDSR().run_on_function(function);
     }
 
     return std::make_shared<ExecutableNetwork>(*clonedNetwork, _mvnc, _devicePool, parsedConfigCopy);
@@ -82,6 +85,10 @@ void Engine::QueryNetwork(
     if (!deviceName.empty()) {
         const auto deviceIDs = GetMetric(METRIC_KEY(AVAILABLE_DEVICES), {}).as<std::vector<std::string>>();
         VPU_THROW_UNLESS(!(std::find(deviceIDs.begin(), deviceIDs.end(), deviceName) == deviceIDs.end()), "Myriad device: {} not found.", deviceName);
+    }
+
+    if (network.getFunction()) {
+        THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str << " ngraph::Function is not supported natively";
     }
 
     const auto log = std::make_shared<Logger>(

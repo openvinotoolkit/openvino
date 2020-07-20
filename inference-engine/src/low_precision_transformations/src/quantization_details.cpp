@@ -136,7 +136,7 @@ void QuantizationDetails::getInputIntervals(
     if (inputLowData == nullptr) {
         THROW_IE_LPT_EXCEPTION(quantize) << "input low data is absent";
     }
-    const CNNLayerPtr inputLowLayer = inputLowData->getCreatorLayer().lock();
+    const CNNLayerPtr inputLowLayer = getCreatorLayer(inputLowData).lock();
     validate(inputLowLayer);
     const std::vector<float> inputLowBlobValues = getBlobValue(inputLowLayer);
     inputLowValues.insert(inputLowValues.end(), inputLowBlobValues.begin(), inputLowBlobValues.end());
@@ -145,7 +145,7 @@ void QuantizationDetails::getInputIntervals(
     if (inputHighData == nullptr) {
         THROW_IE_LPT_EXCEPTION(quantize) << "input high data is absent";
     }
-    const CNNLayerPtr inputHighLayer = inputHighData->getCreatorLayer().lock();
+    const CNNLayerPtr inputHighLayer = getCreatorLayer(inputHighData).lock();
     validate(inputHighLayer);
     const std::vector<float> inputHighBlobValues = getBlobValue(inputHighLayer);
     inputHighValues.insert(inputHighValues.end(), inputHighBlobValues.begin(), inputHighBlobValues.end());
@@ -170,7 +170,7 @@ void QuantizationDetails::getOutputIntervals(
     if (outputLowData == nullptr) {
         THROW_IE_LPT_EXCEPTION(quantize) << "output low data is absent";
     }
-    const CNNLayerPtr outputLowLayer = outputLowData->getCreatorLayer().lock();
+    const CNNLayerPtr outputLowLayer = getCreatorLayer(outputLowData).lock();
     validate(outputLowLayer);
     const std::vector<float>& outputLowBlobValues = getBlobValue(outputLowLayer);
     outputLowValues.insert(outputLowValues.end(), outputLowBlobValues.begin(), outputLowBlobValues.end());
@@ -179,7 +179,7 @@ void QuantizationDetails::getOutputIntervals(
     if (outputHighData == nullptr) {
         THROW_IE_LPT_EXCEPTION(quantize) << "output high data is absent";
     }
-    const CNNLayerPtr outputHighLayer = outputHighData->getCreatorLayer().lock();
+    const CNNLayerPtr outputHighLayer = getCreatorLayer(outputHighData).lock();
     validate(outputHighLayer);
     const std::vector<float> outputHighBlobValues = getBlobValue(outputHighLayer);
     outputHighValues.insert(outputHighValues.end(), outputHighBlobValues.begin(), outputHighBlobValues.end());

@@ -27,7 +27,9 @@
 #include "runtime/backend.hpp"
 #include "util/all_close.hpp"
 #include "util/all_close_f.hpp"
+#include "util/engine/test_engines.hpp"
 #include "util/ndarray.hpp"
+#include "util/test_case.hpp"
 #include "util/test_control.hpp"
 #include "util/test_tools.hpp"
 
@@ -35,6 +37,8 @@ using namespace std;
 using namespace ngraph;
 
 static string s_manifest = "${MANIFEST}";
+
+using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
 NGRAPH_TEST(${BACKEND_NAME}, reshape_t2v_012)
 {
@@ -564,6 +568,36 @@ NGRAPH_TEST(${BACKEND_NAME}, reshape_6d)
             215., 287., 200., 272., 208., 280., 216., 288.}),
         read_vector<float>(result),
         MIN_FLOAT_TOLERANCE_BITS));
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, builder_reshape_1D_to_scalar)
+{
+    const Shape input_shape{1};
+    const auto input = make_shared<op::Parameter>(element::f32, input_shape);
+    const auto reshape_builder = builder::opset1::reshape(input, Shape{});
+    auto function = make_shared<Function>(reshape_builder, ParameterVector{input});
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    vector<float> input_values(shape_size(input_shape), 1.f);
+    test_case.add_input<float>(input_shape, input_values);
+    test_case.add_expected_output<float>(Shape{}, vector<float>{1.f});
+
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, builder_reshape_3D_to_scalar)
+{
+    const Shape input_shape{1, 1, 1};
+    const auto input = make_shared<op::Parameter>(element::f32, input_shape);
+    const auto reshape_builder = builder::opset1::reshape(input, Shape{});
+    auto function = make_shared<Function>(reshape_builder, ParameterVector{input});
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    vector<float> input_values(shape_size(input_shape), 1.f);
+    test_case.add_input<float>(input_shape, input_values);
+    test_case.add_expected_output<float>(Shape{}, vector<float>{1.f});
+
+    test_case.run();
 }
 
 #if NGRAPH_INTERPRETER_ENABLE
