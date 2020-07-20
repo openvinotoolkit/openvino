@@ -1,4 +1,4 @@
-# Image Classification Python* Sample
+# Image Classification Python* Sample {#openvino_inference_engine_ie_bridges_python_sample_classification_sample_README}
 
 This topic demonstrates how to run the Image Classification sample application, which performs
 inference using image classification networks such as AlexNet and GoogLeNet.
@@ -9,7 +9,7 @@ Upon the start-up, the sample application reads command line parameters and load
 Engine plugin. When inference is done, the application creates an
 output image and outputs data to the standard output stream.
 
-> **NOTE**: By default, Inference Engine samples and demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channels order in the sample or demo application or reconvert your model using the Model Optimizer tool with `--reverse_input_channels` argument specified. For more information about the argument, refer to **When to Reverse Input Channels** section of [Converting a Model Using General Conversion Parameters](./docs/MO_DG/prepare_model/convert_model/Converting_Model_General.md).
+> **NOTE**: By default, Inference Engine samples and demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channels order in the sample or demo application or reconvert your model using the Model Optimizer tool with `--reverse_input_channels` argument specified. For more information about the argument, refer to **When to Reverse Input Channels** section of [Converting a Model Using General Conversion Parameters](../../../../../docs/MO_DG/prepare_model/convert_model/Converting_Model_General.md).
 
 ## Running
 
@@ -46,9 +46,9 @@ Options:
 
 Running the application with the empty list of options yields the usage message given above.
 
-To run the sample, you can use AlexNet and GoogLeNet or other image classification models. You can download the pre-trained models with the OpenVINO [Model Downloader](https://github.com/opencv/open_model_zoo/tree/2018/model_downloader) or from [https://download.01.org/opencv/](https://download.01.org/opencv/).
+To run the sample, you can use AlexNet and GoogLeNet or other image classification models. You can download the pre-trained models with the OpenVINO [Model Downloader](@ref omz_tools_downloader_README) or from [https://download.01.org/opencv/](https://download.01.org/opencv/).
 
-> **NOTE**: Before running the sample with a trained model, make sure the model is converted to the Inference Engine format (\*.xml + \*.bin) using the [Model Optimizer tool](./docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
+> **NOTE**: Before running the sample with a trained model, make sure the model is converted to the Inference Engine format (\*.xml + \*.bin) using the [Model Optimizer tool](../../../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
 
 For example, to perform inference of an AlexNet model (previously converted to the Inference Engine format) on CPU, use the following command:
 
@@ -66,6 +66,6 @@ For example, to get the top-5 results on GPU, run the following command:
 ```
 
 ## See Also
-* [Using Inference Engine Samples](./docs/IE_DG/Samples_Overview.md)
-* [Model Optimizer tool](./docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
-* [Model Downloader](https://github.com/opencv/open_model_zoo/tree/2018/model_downloader)
+* [Using Inference Engine Samples](../../../../../docs/IE_DG/Samples_Overview.md)
+* [Model Optimizer tool](../../../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
+* [Model Downloader](@ref omz_tools_downloader_README)
