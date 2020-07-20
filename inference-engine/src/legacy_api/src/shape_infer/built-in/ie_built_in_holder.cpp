@@ -16,7 +16,6 @@
 #include "ie_sparse_to_dense_shape_infer.hpp"
 #include "ie_unique_shape_infer.hpp"
 #include "ie_proposal_shape_infer.hpp"
-#include "impl_register.hpp"
 
 namespace InferenceEngine {
 namespace ShapeInfer {
@@ -55,6 +54,17 @@ StatusCode BuiltInShapeInferHolder::getShapeInferImpl(IShapeInferImpl::Ptr& impl
     impl.reset();
     return NOT_FOUND;
 }
+
+template <typename Impl>
+class ImplRegisterBase {
+public:
+    explicit ImplRegisterBase(const std::string& type) {
+        BuiltInShapeInferHolder::AddImpl(type, std::make_shared<Impl>(type));
+    }
+};
+
+#define REG_SHAPE_INFER_FOR_TYPE(__prim, __type) \
+    static ImplRegisterBase<__prim> __bi_reg__##__type(#__type)
 
 REG_SHAPE_INFER_FOR_TYPE(EqualShapeProp, PowerFile);
 REG_SHAPE_INFER_FOR_TYPE(SimplerNMSShapeProp, SimplerNMS);

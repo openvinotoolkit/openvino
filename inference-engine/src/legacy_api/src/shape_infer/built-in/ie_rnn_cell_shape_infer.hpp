@@ -38,7 +38,6 @@ public:
 
 using RNNCellShapeProp = RNNBaseCellShapeProp<RNNCell, 1>;
 using GRUCellShapeProp = RNNBaseCellShapeProp<GRUCell, 1>;
-using LSTMCellShapeProp = RNNBaseCellShapeProp<LSTMCell, 2>;
 
 }  // namespace ShapeInfer
 }  // namespace InferenceEngine
