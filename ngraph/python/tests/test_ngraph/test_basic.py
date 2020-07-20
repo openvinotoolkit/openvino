@@ -272,6 +272,21 @@ def test_result():
     assert np.allclose(result, node)
 
 
+def test_node_friendly_name():
+    dummy_node = ng.parameter(shape=[1], name="dummy_name")
+
+    assert(dummy_node.name == "Parameter_0")
+    assert(dummy_node.friendly_name == "dummy_name")
+
+    dummy_node.set_friendly_name("changed_name")
+
+    assert(dummy_node.get_friendly_name() == "changed_name")
+
+    dummy_node.friendly_name = "new_name"
+
+    assert(dummy_node.get_friendly_name() == "new_name")
+
+
 def test_node_output():
     input_array = np.array([0, 1, 2, 3, 4, 5])
     splits = 3
