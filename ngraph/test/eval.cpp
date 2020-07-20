@@ -51,6 +51,7 @@
 #include "ngraph/op/not.hpp"
 #include "ngraph/op/parameter.hpp"
 #include "ngraph/op/range.hpp"
+#include "ngraph/op/reduce_logical_and.hpp"
 #include "ngraph/op/relu.hpp"
 #include "ngraph/op/reshape.hpp"
 #include "ngraph/op/round.hpp"
@@ -1891,4 +1892,26 @@ TEST(eval, topk_v0_param_dyn_k0)
 
     vector<int32_t> expec0{0, 1, 1, 2, 2, 0, 2, 2, 0, 1, 1, 0};
     ASSERT_EQ(result0_val, expec0);
+}
+
+TEST(eval, reduce_logical_and__neg_axis)
+{
+    const auto data = make_shared<op::Parameter>(element::boolean, Shape{2, 2, 2});
+    const auto axes = make_shared<op::Parameter>(element::i64, Shape{});
+
+    const auto op = make_shared<op::v1::ReduceLogicalAnd>(data, axes);
+
+    auto fun = make_shared<Function>(op, ParameterVector{data, axes});
+
+    auto result = make_shared<HostTensor>();
+
+    // when ReduceLogicalAnd node evaluator returns false -> the Function object throws
+    EXPECT_THROW(
+        fun->evaluate({result},
+                      {
+                          make_host_tensor<element::Type_t::boolean>(
+                              Shape{2, 2, 2}, {true, false, true, false, true, false, true, false}),
+                          make_host_tensor<element::Type_t::i64>(Shape{}, {-1}),
+                      }),
+        ngraph::ngraph_error);
 }
