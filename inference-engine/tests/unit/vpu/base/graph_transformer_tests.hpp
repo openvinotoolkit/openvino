@@ -88,11 +88,8 @@ public:
     const DataVector& getOutputs() const;
     const StageVector& getStages() const;
 
-    void createInputs(std::vector<DataDesc> inputDescs);
-    void createOutputs(std::vector<DataDesc> outputDescs);
-
-    void createInputs(int numInputs);
-    void createOutputs(int numOutputs);
+    void createInputs(std::vector<DataDesc> inputDescs = {}, int numIn = 0);
+    void createOutputs(std::vector<DataDesc> outputDescs = {}, int numOut = 0);
 
     Stage addStage(
             std::initializer_list<InputInfo> curInputInfos,

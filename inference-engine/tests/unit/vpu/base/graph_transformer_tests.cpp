@@ -128,43 +128,33 @@ const StageVector& TestModel::getStages() const {
     return _stages;
 }
 
-void TestModel::createInputs(std::vector<DataDesc> inputDescs) {
-    const auto numInputs = inputDescs.size();
+void TestModel::createInputs(std::vector<DataDesc> inputDescs, int numIn) {
+    const auto numInputs = (numIn > 0)? numIn : inputDescs.size();
 
     _model->attrs().set<int>("numInputs", numInputs);
     _inputs.resize(numInputs);
 
     for (int i = 0; i < numInputs; ++i) {
-        _inputs[i] = _model->addInputData(formatString("Input %d", i), inputDescs[i]);
+        if (numIn > 0) {
+            _inputs[i] = _model->addInputData(formatString("Input %d", i), _dataDesc);
+        } else {
+            _inputs[i] = _model->addInputData(formatString("Input %d", i), inputDescs[i]);
+        }
     }
 }
 
-void TestModel::createOutputs(std::vector<DataDesc> outputDescs) {
-    const auto numOutputs = outputDescs.size();
+void TestModel::createOutputs(std::vector<DataDesc> outputDescs, int numOut) {
+    const auto numOutputs = (numOut > 0)? numOut : outputDescs.size();
 
     _model->attrs().set<int>("numOutputs", numOutputs);
     _outputs.resize(numOutputs);
 
     for (int i = 0; i < numOutputs; ++i) {
-        _outputs[i] = _model->addOutputData(formatString("Output %d", i), outputDescs[i]);
-    }
-}
-
-void TestModel::createInputs(int numInputs) {
-    _model->attrs().set<int>("numInputs", numInputs);
-    _inputs.resize(numInputs);
-
-    for (int i = 0; i < numInputs; ++i) {
-        _inputs[i] = _model->addInputData(formatString("Input %d", i), _dataDesc);
-    }
-}
-
-void TestModel::createOutputs(int numOutputs) {
-    _model->attrs().set<int>("numOutputs", numOutputs);
-    _outputs.resize(numOutputs);
-
-    for (int i = 0; i < numOutputs; ++i) {
-        _outputs[i] = _model->addOutputData(formatString("Output %d", i), _dataDesc);
+        if (numOut > 0) {
+            _outputs[i] = _model->addOutputData(formatString("Output %d", i), _dataDesc);
+        } else {
+            _outputs[i] = _model->addOutputData(formatString("Output %d", i), outputDescs[i]);
+        }
     }
 }
 
