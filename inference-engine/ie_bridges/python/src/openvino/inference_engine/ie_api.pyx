@@ -245,7 +245,7 @@ cdef class IECore:
         return versions
 
     ## Reads a network from the Intermediate Representation (IR) and creates an `IENetwork`.
-    #  @param model: A `.xml` file of the IR or string with IR.
+    #  @param model: A `.xml`, `.onnx`or `.prototxt` model file or string with IR.
     #  @param weights: A `.bin` file of the IR. Depending on `init_from_buffer` value, can be a string path or
     #                  bytes with file content.
     #  @param init_from_buffer: Defines the way of how `model` and `weights` attributes are interpreted.
@@ -274,10 +274,10 @@ cdef class IECore:
             free(xml_buffer)
         else:
             weights_ = "".encode()
-            if isinstance(model, Path) and isinstance(weights, Path):
+            if isinstance(model, Path) and (isinstance(weights, Path) or not weights):
                 if not model.is_file():
                     raise Exception("Path to the model {} doesn't exist or it's a directory".format(model))
-                if model.suffix != ".onnx":
+                if model.suffix not in [ ".onnx", ".prototxt"]:
                     if not weights.is_file():
                         raise Exception("Path to the weights {} doesn't exist or it's a directory".format(weights))
                     weights_ = bytes(weights)
@@ -285,7 +285,7 @@ cdef class IECore:
             else:
                 if not os.path.isfile(model):
                     raise Exception("Path to the model {} doesn't exist or it's a directory".format(model))
-                if not fnmatch(model, "*.onnx"):
+                if not (fnmatch(model, "*.onnx") or fnmatch(model, "*.prototxt")):
                     if not os.path.isfile(weights):
                         raise Exception("Path to the weights {} doesn't exist or it's a directory".format(weights))
                     weights_ = weights.encode()
@@ -651,6 +651,7 @@ cdef class InputInfoPtr:
     def input_data(self):
         cdef C.DataPtr c_data_ptr = deref(self._ptr).getInputData()
         data_ptr = DataPtr()
+        data_ptr._ptr_network = self._ptr_network
         data_ptr._ptr = c_data_ptr
         return data_ptr
 
@@ -694,6 +695,10 @@ cdef class InputInfoCPtr:
 
 ## This class is the layer data representation.
 cdef class DataPtr:
+    ## Default constructor
+    def __init__(self):
+        self._ptr_network = NULL
+
     ## Name of the data object
     @property
     def name(self):
@@ -735,8 +740,13 @@ cdef class DataPtr:
 
     @property
     def creator_layer(self):
-        cdef C.CNNLayerWeakPtr _l_ptr = C.getCreatorLayer(self._ptr)
+        cdef C.CNNLayerWeakPtr _l_ptr
         cdef IENetLayer creator_layer
+
+        if self._ptr_network != NULL:
+            deref(self._ptr_network).convertToOldRepresentation()
+        _l_ptr = C.getCreatorLayer(self._ptr)
+
         creator_layer = IENetLayer()
         if _l_ptr.lock() != NULL:
             creator_layer._ptr = _l_ptr.lock()
@@ -746,8 +756,13 @@ cdef class DataPtr:
 
     @property
     def input_to(self):
-        cdef map[string, C.CNNLayerPtr] _l_ptr_map = C.getInputTo(self._ptr)
+        cdef map[string, C.CNNLayerPtr] _l_ptr_map
         cdef IENetLayer input_to
+
+        if self._ptr_network != NULL:
+            deref(self._ptr_network).convertToOldRepresentation()
+        _l_ptr_map = C.getInputTo(self._ptr)
+
         input_to_list = []
         for layer in _l_ptr_map:
             input_to = IENetLayer()
@@ -1496,6 +1511,7 @@ cdef class IENetwork:
         for input in c_inputs:
             input_info_ptr = InputInfoPtr()
             input_info_ptr._ptr = input.second
+            input_info_ptr._ptr_network = &self.impl
             inputs[input.first.decode()] = input_info_ptr
         return inputs
 
@@ -1514,6 +1530,7 @@ cdef class IENetwork:
         cdef DataPtr data_ptr
         for input in c_inputs:
             data_ptr = DataPtr()
+            data_ptr._ptr_network = &self.impl
             data_ptr._ptr = input.second
             inputs[input.first.decode()] = data_ptr
         return inputs
@@ -1526,6 +1543,7 @@ cdef class IENetwork:
         cdef DataPtr data_ptr
         for output in c_outputs:
             data_ptr = DataPtr()
+            data_ptr._ptr_network = &self.impl
             data_ptr._ptr = output.second
             outputs[output.first.decode()] = data_ptr
         return outputs
@@ -1687,8 +1705,9 @@ cdef class BlobBuffer:
             'I8': 'b',  # signed char
             'I16': 'h',  # signed short
             'I32': 'i',  # signed int
+            'U32': 'I',  # unsigned int
             'I64': 'q',  # signed long int
-            'U64': 'Q',  # signed long int
+            'U64': 'Q',  # unsigned long int
         }
         if name not in precision_to_format:
             raise ValueError("Unknown Blob precision: {}".format(name))

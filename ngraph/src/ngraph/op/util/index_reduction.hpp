@@ -49,9 +49,6 @@ namespace ngraph
             protected:
                 uint64_t m_axis{0};
                 element::Type m_index_element_type;
-
-                virtual void generate_adjoints(autodiff::Adjoints& adjoints,
-                                               const OutputVector& deltas) override;
             };
         }
     }

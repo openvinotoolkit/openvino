@@ -634,29 +634,6 @@ bool op::v0::Constant::evaluate(const HostTensorVector& outputs, const HostTenso
     return true;
 }
 
-constexpr NodeTypeInfo op::ScalarConstantLike::type_info;
-
-shared_ptr<op::Constant> op::ScalarConstantLike::as_constant() const
-{
-    return std::make_shared<op::Constant>(m_element_type, m_shape, get_data_ptr());
-}
-
-std::shared_ptr<Node>
-    op::ScalarConstantLike::clone_with_new_inputs(const OutputVector& new_args) const
-{
-    return std::make_shared<ScalarConstantLike>(new_args.at(0), m_value);
-}
-
-void op::ScalarConstantLike::infer_element_type()
-{
-    m_element_type = get_input_element_type(0);
-    if (nullptr == m_data)
-    {
-        allocate_buffer();
-        write_values(std::vector<double>(1, m_value));
-    }
-}
-
 //
 // We have to open up namespace blocks here to work around a problem with gcc:
 //

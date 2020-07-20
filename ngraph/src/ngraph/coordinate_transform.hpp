@@ -60,17 +60,16 @@ namespace ngraph
 
         /// \brief Increments iterator using specified axis of the shape n times.
         /// \param axis index used for iteration
-        void advance(size_t axis) noexcept;
+        size_t advance(size_t axis) noexcept;
 
         /// \brief Useful function to build the last iterator.
         ///        Returns a singleton that points to the last iterator.
         static const CoordinateIterator& end();
 
     private:
-        Shape m_target_shape;
+        const Shape& m_target_shape;
         Coordinate m_coordinate;
         bool m_oob;
-        bool m_empty;
     };
 
     /// \brief Class which allows to calculate item index with given coordinates in tensor

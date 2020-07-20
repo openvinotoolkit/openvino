@@ -20,6 +20,7 @@
 #include <cstring>
 #include <deque>
 #include <iostream>
+#include <map>
 #include <memory>
 #include <set>
 #include <string>
@@ -30,7 +31,6 @@
 #include <vector>
 
 #include "ngraph/attribute_visitor.hpp"
-#include "ngraph/autodiff/adjoints.hpp"
 #include "ngraph/check.hpp"
 #include "ngraph/coordinate.hpp"
 #include "ngraph/deprecated.hpp"
@@ -68,13 +68,6 @@ namespace ngraph
     using HostTensorPtr = std::shared_ptr<HostTensor>;
     using HostTensorVector = std::vector<HostTensorPtr>;
 
-    // Intermal, controls whether GetOutputElement nodes are elided
-    // Defaults to being elided. Transformer should set to false if
-    // it has passes that depend on GetOutputElement.
-    NGRAPH_API void set_remove_goe(bool value)
-        NGRAPH_DEPRECATED("Remove dependencies on GetOrderedOutput");
-    NGRAPH_API bool get_remove_goe() NGRAPH_DEPRECATED("Remove dependencies on GetOrderedOutput");
-
     namespace op
     {
         struct AutoBroadcastSpec;
@@ -91,11 +84,6 @@ namespace ngraph
     }
 
     using ResultVector = std::vector<std::shared_ptr<op::v0::Result>>;
-
-    namespace autodiff
-    {
-        class Adjoints;
-    }
 
     NGRAPH_API
     std::string node_validation_failure_loc_string(const Node* node);
@@ -141,9 +129,6 @@ namespace ngraph
     /// or a (possibly empty) tuple of values.
     class NGRAPH_API Node : public std::enable_shared_from_this<Node>
     {
-        // For access to generate_adjoints.
-        friend class autodiff::Adjoints;
-
         // For access to m_outputs.
         friend class descriptor::Input;
 
@@ -186,14 +171,6 @@ namespace ngraph
         /// \param arguments Output i will connect to input i
         /// \param output_size Number of outputs for this node
         Node(const OutputVector& arguments, size_t output_size = 1);
-
-        // For back-compatibility
-        virtual void generate_adjoints(autodiff::Adjoints& adjoints, const NodeVector& deltas)
-            NGRAPH_DEPRECATED("use OutputVector version instead")
-        {
-            generate_adjoints(adjoints, as_output_vector(deltas));
-        }
-        virtual void generate_adjoints(autodiff::Adjoints& adjoints, const OutputVector& deltas) {}
         /// \brief Moves nodes that would be deleted from inputs to nodes to avoid stack overflows
         /// on deep networks.
         void safe_delete(NodeVector& nodes, bool recurse);
@@ -417,10 +394,6 @@ namespace ngraph
             "use &node->output(i).get_tensor() instead; insert a check that the node has only one "
             "output, or update calling code not to assume only one output");
 
-        /// Returns the set of inputs using output i
-        const std::vector<descriptor::Input*>& get_output_inputs(size_t i) const
-            NGRAPH_DEPRECATED("use node->output(i).get_target_inputs() instead");
-
         std::set<Input<Node>> get_output_target_inputs(size_t i) const;
 
         /// Returns the number of inputs for the op
@@ -443,10 +416,6 @@ namespace ngraph
 
         std::unordered_set<descriptor::Tensor*> liveness_new_list;
         std::unordered_set<descriptor::Tensor*> liveness_free_list;
-
-        virtual NodeVector get_arguments() const NGRAPH_DEPRECATED("Use input_values().");
-        std::shared_ptr<Node> get_argument(size_t index) const
-            NGRAPH_DEPRECATED("use input_value(i).");
 
         Node* get_input_node_ptr(size_t index) const;
         std::shared_ptr<Node> get_input_node_shared_ptr(size_t index) const;
@@ -588,7 +557,6 @@ namespace ngraph
         std::set<std::shared_ptr<Node>> m_provenance_group;
         std::deque<descriptor::Input> m_inputs;
         std::deque<descriptor::Output> m_outputs;
-        std::unordered_map<Node*, autodiff::Adjoints> m_adjoint_map;
         Placement m_placement = Placement::DEFAULT;
         std::shared_ptr<ngraph::op::util::OpAnnotations> m_op_annotations;
         std::map<std::string, std::shared_ptr<Variant>> m_rt_info;
@@ -687,11 +655,11 @@ namespace ngraph
     void check_new_args_count(const Node* node, T new_args)
     {
         NODE_VALIDATION_CHECK(node,
-                              new_args.size() == node->get_arguments().size(),
+                              new_args.size() == node->input_values().size(),
                               "copy_with_new_args() expected ",
-                              node->get_arguments().size(),
+                              node->input_values().size(),
                               " argument",
-                              (node->get_arguments().size() == 1 ? "" : "s"),
+                              (node->input_values().size() == 1 ? "" : "s"),
                               " but got ",
                               new_args.size());
     }

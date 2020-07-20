@@ -50,7 +50,8 @@ NodeVector ngraph::pass::explicit_broadcast(std::shared_ptr<Node>& node)
         auto autob = node->get_autob();
         if (autob.m_type == op::AutoBroadcastType::NONE)
         {
-            rc = node->get_arguments();
+            for (auto& val : node->input_values())
+                rc.emplace_back(val.get_node_shared_ptr());
         }
         else if (autob.m_type == op::AutoBroadcastType::NUMPY)
         {

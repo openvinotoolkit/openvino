@@ -6,6 +6,7 @@
 #include <cnn_network_ngraph_impl.hpp>
 #include <precision_utils.h>
 #include <cpp/ie_cnn_network.h>
+#include <cnn_network_impl.hpp>
 
 #include <limits>
 #include <cmath>
@@ -151,7 +152,8 @@ CNNLayer::Ptr NodeConverter<ngraph::op::TensorIterator>::createLayer(const std::
     std::map<std::string, std::vector<TensorDesc>> layer_name_to_tensor_desc;
     {
         auto tiBody = std::make_shared<details::TINGraphBody>(std::make_shared<ngraph::Function>(results, parameters));
-        CNNNetwork net(tiBody);
+        CNNNetwork ngraphNet(tiBody);
+        CNNNetwork net(std::make_shared<InferenceEngine::details::CNNNetworkImpl>(ngraphNet));
         // Paranoid check for cycles
         bool res = CNNNetForestDFS(
             CNNNetGetAllInputLayers(net), [](const CNNLayerPtr& layer) {}, false);
@@ -401,14 +403,17 @@ CNNLayer::Ptr NodeConverter<ngraph::op::Convert>::createLayer(const std::shared_
     case Precision::I64:
         precision_str = "I64";
         break;
-    case Precision::U64:
-        precision_str = "U64";
-        break;
     case Precision::U8:
         precision_str = "U8";
         break;
     case Precision::U16:
         precision_str = "U16";
+        break;
+    case Precision::U32:
+        precision_str = "U32";
+        break;
+    case Precision::U64:
+        precision_str = "U64";
         break;
     case Precision::BOOL:
         precision_str = "BOOL";

@@ -29,8 +29,6 @@
 #include "ngraph/pass/manager.hpp"
 #include "ngraph/serializer.hpp"
 #include "ngraph/util.hpp"
-#include "op/and.hpp"
-#include "op/atan2.hpp"
 #include "opset0_downgrade.hpp"
 #include "opset1_downgrade.hpp"
 
@@ -80,6 +78,7 @@ runtime::interpreter::INTExecutable::INTExecutable(const shared_ptr<Function>& f
         case OP_TYPEID::Clamp:
         case OP_TYPEID::MatMul:
         case OP_TYPEID::Squeeze:
+        case OP_TYPEID::PRelu:
         case OP_TYPEID::Unsqueeze: retval = true; break;
         default: break;
         }

@@ -5140,8 +5140,7 @@ TEST_F(MKLDNNGraphStructureTests, TestGemmConvolutionWithConcat) {
 
     auto graphInfer = [](InferenceEngine::CNNNetwork network, InferenceEngine::BlobMap& inBlobs,
             InferenceEngine::BlobMap& outBlobs, std::string primitivesPriority) {
-        const auto & inetwork = static_cast<const InferenceEngine::ICNNNetwork&>(network);
-        for (auto it = InferenceEngine::details::CNNNetworkIterator(&inetwork); !primitivesPriority.empty() &&
+        for (auto it = InferenceEngine::details::CNNNetworkIterator(network); !primitivesPriority.empty() &&
             it != InferenceEngine::details::CNNNetworkIterator(); it++) {
             (*it)->params["PrimitivesPriority"] = primitivesPriority;
         }
@@ -5426,8 +5425,7 @@ TEST_F(MKLDNNGraphStructureTests, TestRefPoolingWithConcat) {
 
     auto graphInfer = [](InferenceEngine::CNNNetwork network, InferenceEngine::BlobMap& inBlobs,
                          InferenceEngine::BlobMap& outBlobs, std::string primitivesPriority) {
-        const auto & inetwork = static_cast<const InferenceEngine::ICNNNetwork&>(network);
-        for (auto it = InferenceEngine::details::CNNNetworkIterator(&inetwork); !primitivesPriority.empty() &&
+        for (auto it = InferenceEngine::details::CNNNetworkIterator(network); !primitivesPriority.empty() &&
             it != InferenceEngine::details::CNNNetworkIterator(); it++) {
             (*it)->params["PrimitivesPriority"] = primitivesPriority;
         }

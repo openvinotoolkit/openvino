@@ -560,41 +560,7 @@ namespace ngraph
                 bool m_all_elements_bitwise_identical;
                 bool are_all_data_elements_bitwise_identical() const;
             };
-
-            /// \brief A scalar constant whose element type is the same as like.
-            class NGRAPH_API ScalarConstantLike : public Constant
-            {
-            public:
-                static constexpr NodeTypeInfo type_info{"ScalarConstantLike", 0};
-                const NodeTypeInfo& get_type_info() const override { return type_info; }
-                /// \brief A scalar constant whose element type is the same as like.
-                ///
-                /// Once the element type is known, the dependency on like will be removed and
-                /// this node will be replaced with an equivalent constant.
-                ///
-                /// \param like A tensor that will supply the element type.
-                /// \param value The value of the scalar.
-                template <typename T>
-                ScalarConstantLike(const Output<Node>& like, T value)
-                    : Constant(OutputVector{like})
-                    , m_value(static_cast<double>(value))
-                {
-                    constructor_validate_and_infer_types();
-                }
-
-                ScalarConstantLike() = default;
-
-                std::shared_ptr<Node>
-                    clone_with_new_inputs(const OutputVector& new_args) const override;
-                std::shared_ptr<op::v0::Constant> as_constant() const;
-
-            protected:
-                void infer_element_type() override;
-
-                double m_value;
-            };
         }
         using v0::Constant;
-        using v0::ScalarConstantLike;
     }
 }

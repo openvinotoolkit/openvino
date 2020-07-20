@@ -9,6 +9,7 @@
 #include <ie_blob_stream.hpp>
 #include <ie_profiling.hpp>
 #include <ie_reader.hpp>
+#include <ie_ir_version.hpp>
 
 #include <fstream>
 #include <istream>
@@ -132,6 +133,23 @@ void registerReaders() {
     initialized = true;
 }
 
+void assertIfIRv7LikeModel(std::istream & modelStream) {
+    auto irVersion = details::GetIRVersion(modelStream);
+    bool isIRv7 = irVersion > 1 && irVersion <= 7;
+
+    if (!isIRv7)
+        return;
+
+    for (auto && kvp : readers) {
+        Reader::Ptr reader = kvp.second;
+        if (reader->getName() == "IRv7") {
+            return;
+        }
+    }
+
+    THROW_IE_EXCEPTION << "IR v" << irVersion << " is deprecated. Please, migrate to IR v10 version";
+}
+
 }  // namespace
 
 CNNNetwork details::ReadNetwork(const std::string& modelPath, const std::string& binPath, const std::vector<IExtensionPtr>& exts) {
@@ -149,6 +167,8 @@ CNNNetwork details::ReadNetwork(const std::string& modelPath, const std::string&
     std::ifstream modelStream(model_path, std::ios::binary);
     if (!modelStream.is_open())
         THROW_IE_EXCEPTION << "Model file " << modelPath << " cannot be opened!";
+
+    assertIfIRv7LikeModel(modelStream);
 
     // Find reader for model extension
     auto fileExt = modelPath.substr(modelPath.find_last_of(".") + 1);
@@ -202,6 +222,8 @@ CNNNetwork details::ReadNetwork(const std::string& model, const Blob::CPtr& weig
     registerReaders();
     std::istringstream modelStream(model);
     details::BlobStream binStream(weights);
+
+    assertIfIRv7LikeModel(modelStream);
 
     for (auto it = readers.begin(); it != readers.end(); it++) {
         auto reader = it->second;

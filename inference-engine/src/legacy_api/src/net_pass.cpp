@@ -1336,7 +1336,7 @@ void convertArrayPrecision(typename PrecisionTrait<PREC_TO>::value_type* dst,
     using dst_type = typename PrecisionTrait<PREC_TO>::value_type;
 
     for (size_t i = 0; i < nelem; i++) {
-        dst[i] = static_cast<dst_type>(src[i]);
+        dst[i] = PrecisionUtils::saturate_cast<dst_type>(src[i]);
     }
 }
 
@@ -1456,6 +1456,9 @@ details::CNNSubnet GetInternalSubnet(const CNNLayerPtr &layer) {
 void ConvertPrecision(ICNNNetwork& net, Precision from, Precision to) {
     auto compare = getPrecisionMask(from, to);
     switch (compare) {
+        case getPrecisionMask(Precision::U32, Precision::I32):
+            convertPrecisionForAll<Precision::U32, Precision::I32>(net);
+            break;
         case getPrecisionMask(Precision::U64, Precision::I32):
             convertPrecisionForAll<Precision::U64, Precision::I32>(net);
             break;
