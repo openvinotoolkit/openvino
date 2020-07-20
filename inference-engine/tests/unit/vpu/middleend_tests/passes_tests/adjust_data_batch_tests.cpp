@@ -12,9 +12,7 @@ using namespace vpu;
 
 class VPU_AdjustDataBatchTest : public GraphTransformerTest {
 protected:
-    constexpr int batchSize() {
-        return 4;
-    }
+    const int batchSize = 4;
     TestModel testModel;
 
 public:
@@ -23,7 +21,7 @@ public:
 
         ASSERT_NO_FATAL_FAILURE(InitCompileEnv());
 
-        DataDesc dataDesc(DataType::FP16, DimsOrder::NCHW, {16, 16, 3, batchSize()});
+        DataDesc dataDesc(DataType::FP16, DimsOrder::NCHW, {16, 16, 3, batchSize});
         testModel = CreateTestModel(dataDesc);
     }
 
@@ -138,7 +136,7 @@ TEST_F(VPU_AdjustDataBatchTest, LinearWithBatchedInTheEnd) {
     const auto& data6 = CheckSingleConnection(data5, 5);
     const auto& data7 = singleElement(checkSingleLoopEnd(data6));
 
-    const auto& data8 = CheckSingleConnection(data7, 6, batchSize());
+    const auto& data8 = CheckSingleConnection(data7, 6, batchSize);
 
     ASSERT_EQ(data8, testModel.getOutputs().at(0));
 }
@@ -179,11 +177,11 @@ TEST_F(VPU_AdjustDataBatchTest, BranchedWithBatchSplitItems) {
     const auto& withBatch_1 = branches[1];
 
     ASSERT_EQ(withBatch->producer()->attrs().get<int>("test_ind"), 7);
-    ASSERT_EQ(withBatch->desc().dim(Dim::N), batchSize());
+    ASSERT_EQ(withBatch->desc().dim(Dim::N), batchSize);
     ASSERT_EQ(withBatch, testModel.getOutputs().at(0));
 
     ASSERT_EQ(withBatch_1->producer()->attrs().get<int>("test_ind"), 8);
-    ASSERT_EQ(withBatch_1->desc().dim(Dim::N), batchSize());
+    ASSERT_EQ(withBatch_1->desc().dim(Dim::N), batchSize);
     ASSERT_EQ(withBatch_1, testModel.getOutputs().at(1));
 }
 
@@ -209,7 +207,7 @@ TEST_F(VPU_AdjustDataBatchTest, LinearWithBatchedInTheBeginning) {
 
     RunPass();
 
-    const auto& data0 = CheckSingleConnection(testModel.getInputs().at(0), 0, batchSize());
+    const auto& data0 = CheckSingleConnection(testModel.getInputs().at(0), 0, batchSize);
     const auto& data7 = singleElement(checkSingleLoopStart(data0));
     const auto& data3 = CheckSingleConnection(data7, 1);
     const auto& data4 = CheckSingleConnection(data3, 2);
@@ -253,18 +251,18 @@ TEST_F(VPU_AdjustDataBatchTest, BranchedWithBatchItemsInTheEnd) {
     const auto& data6 = CheckSingleConnection(data5, 5);
     const auto& data7 = singleElement(checkSingleLoopEnd(data6));
 
-    const auto& data8 = CheckSingleConnection(data7, 6, batchSize());
+    const auto& data8 = CheckSingleConnection(data7, 6, batchSize);
 
     const auto& branches = checkBranches(data8, {StageType::None, StageType::None});
     const auto& withBatch = branches[0];
     const auto& withBatch_1 = branches[1];
 
     ASSERT_EQ(withBatch->producer()->attrs().get<int>("test_ind"), 7);
-    ASSERT_EQ(withBatch->desc().dim(Dim::N), batchSize());
+    ASSERT_EQ(withBatch->desc().dim(Dim::N), batchSize);
     ASSERT_EQ(withBatch, testModel.getOutputs().at(0));
 
     ASSERT_EQ(withBatch_1->producer()->attrs().get<int>("test_ind"), 8);
-    ASSERT_EQ(withBatch_1->desc().dim(Dim::N), batchSize());
+    ASSERT_EQ(withBatch_1->desc().dim(Dim::N), batchSize);
     ASSERT_EQ(withBatch_1, testModel.getOutputs().at(1));
 }
 
@@ -303,7 +301,7 @@ TEST_F(VPU_AdjustDataBatchTest, DISABLED_BranchedWithSplitAndBatchItemsInTheEnd)
 
     const auto& data4 = CheckSingleConnection(branch1, 3);
     const auto& data7 = singleElement(checkSingleLoopEnd(data4));
-    const auto& data5 = CheckSingleConnection(data7, 4, batchSize());
+    const auto& data5 = CheckSingleConnection(data7, 4, batchSize);
     ASSERT_EQ(data5, testModel.getOutputs().at(0));
     const auto& data6 = CheckSingleConnection(branch2, 5);
     ASSERT_EQ(data6, testModel.getOutputs().at(1));
