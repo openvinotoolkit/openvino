@@ -10,8 +10,10 @@
 #
 #-------------------------------------------------------------------------------
 
+# Segmentation fault
+onnx_model_quantize_linear_const_scale_const_zero_p
 
-# Not supported ONNX op: QuantizeLinear
+# Quantize layer input 'Multiply_7' doesn't have blobs
 onnx_model_quantize_linear
 onnx_model_quantize_linear_zero_point
 onnx_model_quantize_linear_axis_zero
@@ -167,6 +169,8 @@ arg_min_no_keep_dims_dyn_shape
 
 # Dynamic function 'get_shape was called on a descriptor::Tensor with dynamic shape'
 onnx_upsample9_scales_input_nearest_infer
+onnx_dyn_shapes_slice_1_3d_input_21_axes_ends_max
+
 
 #-------------------------------------------------------------------------------
 #
@@ -644,12 +648,6 @@ reshape_v1
 dyn_convolution_backprop_data
 dyn_convolution_backprop_filter
 
-# Cannot cast ngraph node PartialSlice to CNNLayer!
-partial_slice_static
-partial_slice_partial_shape
-partial_slice_unkown_rank
-partial_slice_bprop_unkown_rank
-
 # Pad Pad_524448 with not constant pad_value is not allowed
 pad_exterior_1d
 pad_negative_exterior_1d
@@ -694,14 +692,6 @@ lrn_6D_across_2_axes
 # std::exception
 lrn_2d_across_outermost_axis
 
-# Cannot cast ngraph node LayerNorm_664923 to CNNLayer!
-layer_norm_affine_stats
-
-# Cannot cast ngraph node LayerNormBackprop_669060 to CNNLayer!
-layer_norm_bprop_affine_stats
-layer_norm_bprop_affine
-layer_norm_bprop_4d_input
-
 # Cannot cast ngraph node GroupConvolutionBackpropFilters_686350 to CNNLayer!
 dyn_group_convolution_backprop_filters
 
@@ -726,22 +716,6 @@ gather_nd_batch_scalar_from_3d
 gather_nd_batch_1d_from_3d
 gather_nd_batch_2d_from_3d
 
-# Cannot cast ngraph node Stack to CNNLayer!
-stack_matrix_rowise
-stack_matrix_colwise
-stack_negative_axis
-
-# Cannot cast ngraph node ConvolutionBias to CNNLayer!
-conv_bias_1d
-conv_bias_2d
-conv_bias_3d
-
-# Cannot cast ngraph node ConvolutionBiasBackpropFiltersBias to CNNLayer!
-conv_bias_bprop_2d
-
-# Cannot cast ngraph node ConvolutionBiasAdd to CNNLayer!
-conv_bias_add_2d
-
 # Unsupported primitive of type: SpaceToBatch
 space_to_batch
 
@@ -751,17 +725,6 @@ batch_to_space
 # [Validation] Argument must have rank >= 2 and <= 4 (argument shape: {1,2,2,2,3})
 normalize_across_1axis_5d
 normalize_across_123axes_5d
-
-# Cannot cast ngraph node Gemm to CNNLayer!
-gemm
-gemm_C
-gemm_broadcast_input_C
-gemm_broadcast_axes_0_input_C
-gemm_broadcast_axes_1_input_C
-
-# Cannot cast ngraph node ScaleShift to CNNLayer!
-scale_shift_no_broadcast
-scale_shift
 
 # Cannot cast ngraph node ShuffleChannels to CNNLayer!
 shuffle_channels_simple
@@ -786,10 +749,6 @@ rnn_cell_activation_function
 gru_cell_bias_clip
 gru_cell_linear_before_reset
 gru_cell_activation_function
-
-# Cannot cast ngraph node CrossEntropy to CNNLayer!
-cross_entropy_with_soft_labels
-cross_entropy_with_one_hot
 
 # Cannot cast ngraph node EmbeddingLookup to CNNLayer!
 embedding_lookup_4x5_reverse

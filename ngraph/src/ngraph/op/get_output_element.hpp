@@ -49,8 +49,6 @@ namespace ngraph
 
                 /// \return The index of the tuple element to get.
                 size_t get_n() const { return m_n; }
-                NodeVector get_arguments() const override;
-
             protected:
                 size_t m_n;
             };

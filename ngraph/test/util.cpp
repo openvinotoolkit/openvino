@@ -165,20 +165,6 @@ TEST(util, all_close)
 }
 #endif
 
-TEST(util, traverse_functions)
-{
-    // First create "f(A,B,C) = (A+B)*C".
-    Shape shape{2, 2};
-    auto A = make_shared<op::Parameter>(element::f32, shape);
-    auto B = make_shared<op::Parameter>(element::f32, shape);
-    auto C = make_shared<op::Parameter>(element::f32, shape);
-    auto f = make_shared<Function>((A + B) * C, ParameterVector{A, B, C}, "f");
-
-    vector<Function*> functions;
-    traverse_functions(f, [&](shared_ptr<Function> fp) { functions.push_back(fp.get()); });
-    ASSERT_EQ(1, functions.size());
-}
-
 class CloneTest : public ::testing::Test
 {
 public:

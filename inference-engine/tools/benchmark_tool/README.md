@@ -69,7 +69,9 @@ Options:
                         Optional. Path to a folder with images and/or binaries
                         or to specific image or binary file.
   -m PATH_TO_MODEL, --path_to_model PATH_TO_MODEL
-                        Required. Path to an .xml file with a trained model.
+                        Required. Path to an .xml/.onnx/.prototxt file with a
+                        trained model or to a .blob file with a trained
+                        compiled model.
   -d TARGET_DEVICE, --target_device TARGET_DEVICE
                         Optional. Specify a target device to infer on: CPU,
                         GPU, FPGA, HDDL or MYRIAD.

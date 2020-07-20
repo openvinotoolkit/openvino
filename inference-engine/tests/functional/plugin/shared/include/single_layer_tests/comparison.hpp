@@ -7,7 +7,6 @@
 #include <map>
 #include <functional_test_utils/layer_test_utils.hpp>
 
-#include "common_test_utils/common_layers_params.hpp"
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/test_common.hpp"
 #include "common_test_utils/test_constants.hpp"
@@ -35,6 +34,5 @@ protected:
 
 public:
     static std::string getTestCaseName(testing::TestParamInfo<ComparisonTestParams> obj);
-    static std::vector<ComparisonParams::InputShapesTuple> combineShapes(const std::map<std::vector<size_t>, std::vector<std::vector<size_t >>>& inputShapes);
 };
 } // namespace LayerTestsDefinitions

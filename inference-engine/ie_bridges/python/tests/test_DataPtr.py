@@ -49,6 +49,24 @@ def test_input_to():
     assert len(input_to) == 1
     assert input_to[0].name == '27'
 
+def test_input_to_via_input_info():
+    ie = IECore()
+    net = ie.read_network(model=test_net_xml, weights=test_net_bin)
+    input_infos = net.input_info
+    assert len(input_infos) == 1
+    input_to = input_infos['data'].input_data.input_to
+    assert len(input_to) == 1
+    assert input_to[0].name == '19/Fused_Add_'
+
+def test_input_to_via_inputs():
+    ie = IECore()
+    net = ie.read_network(model=test_net_xml, weights=test_net_bin)
+    inputs = net.inputs
+    assert len(inputs) == 1
+    input_to = inputs['data'].input_to
+    assert len(input_to) == 1
+    assert input_to[0].name == '19/Fused_Add_'
+
 def test_creator_layer():
     ie = IECore()
     net = ie.read_network(model=test_net_xml, weights=test_net_bin)
