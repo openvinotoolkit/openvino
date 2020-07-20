@@ -86,7 +86,7 @@ set (SRC
     except.hpp
     factory.cpp
     factory.hpp
-    factory_adapter.hpp 
+    factory_adapter.hpp
     file_util.cpp
     file_util.hpp
     function.cpp
@@ -570,6 +570,8 @@ set (SRC
     runtime/host_tensor.hpp
     runtime/tensor.cpp
     runtime/tensor.hpp
+    runtime/reference/eval_helpers.cpp
+    runtime/reference/eval_helpers.hpp
     shape.cpp
     shape.hpp
     shape_util.cpp
