@@ -165,6 +165,8 @@ namespace ngraph
                     clone_with_new_inputs(const OutputVector& new_args) const override;
 
                 const InterpolateAttrs& get_attrs() const { return m_attrs; }
+
+                std::vector<int64_t> get_axes() const;
             private:
                 InterpolateAttrs m_attrs;
             };

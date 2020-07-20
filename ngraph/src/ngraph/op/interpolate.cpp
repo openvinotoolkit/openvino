@@ -132,6 +132,12 @@ bool op::v4::Interpolate::visit_attributes(AttributeVisitor& visitor)
     return true;
 }
 
+std::vector<int64_t> op::v4::Interpolate::get_axes() const
+{
+    std::vector<int64_t> result;
+    return result;
+}
+
 void op::v4::Interpolate::validate_and_infer_types()
 {
     NODE_VALIDATION_CHECK(this,
@@ -140,9 +146,11 @@ void op::v4::Interpolate::validate_and_infer_types()
     set_input_is_relevant_to_shape(1);
 
     PartialShape output_shape = PartialShape(get_input_partial_shape(0));
+
+    auto axes  = get_axes();
     if (output_shape.rank().is_static())
     {
-        for (auto axis : m_attrs.axes)
+        for (auto axis : axes)
         {
             NGRAPH_CHECK(axis < output_shape.rank().get_length());
             output_shape[axis] = Dimension::dynamic();
@@ -153,7 +161,7 @@ void op::v4::Interpolate::validate_and_infer_types()
     {
         auto out_shape = const_shape->cast_vector<int64_t>();
         size_t i = 0;
-        for (auto axis : m_attrs.axes)
+        for (auto axis : axes)
         {
             output_shape[axis] = Dimension(out_shape[i++]);
         }
