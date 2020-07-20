@@ -78,9 +78,11 @@ namespace ngraph
                     y->set_name(output);
                 }
 
+                const ONNX_NAMESPACE::OperatorSetIdProto& opset_version = node.get_opset_version();
+
                 // Get vector of nGraph nodes after expanding ONNX function
                 std::vector<std::shared_ptr<ngraph::Node>> nodes =
-                    get_nodes_from_onnx_function(new_node, graph, 11);
+                    get_nodes_from_onnx_function(new_node, graph, opset_version);
 
                 // Extract inputs from expanded function and names of operators which return final
                 // ouputs
@@ -140,13 +142,13 @@ namespace ngraph
                 return target_type;
             }
 
-            std::vector<std::shared_ptr<ngraph::Node>>
-                get_nodes_from_onnx_function(ONNX_NAMESPACE::NodeProto* new_node,
-                                             ONNX_NAMESPACE::GraphProto graph,
-                                             int opset_version)
+            std::vector<std::shared_ptr<ngraph::Node>> get_nodes_from_onnx_function(
+                ONNX_NAMESPACE::NodeProto* new_node,
+                ONNX_NAMESPACE::GraphProto graph,
+                const ONNX_NAMESPACE::OperatorSetIdProto& opset_version)
             {
                 const auto* schema = ONNX_NAMESPACE::OpSchemaRegistry::Schema(
-                    new_node->op_type(), opset_version, "");
+                    new_node->op_type(), opset_version.version(), "");
                 const ONNX_NAMESPACE::FunctionProto* func = schema->GetFunction();
 
                 FunctionExpandHelper(*new_node, *func, graph);
@@ -159,7 +161,7 @@ namespace ngraph
                 auto* graph_ptr = model.mutable_graph();
                 *graph_ptr = graph;
                 auto* model_opset_version = model.add_opset_import();
-                model_opset_version->set_version(11);
+                model_opset_version->set_version(opset_version.version());
 
                 std::istringstream model_stream{model.SerializeAsString()};
                 auto function = ngraph::onnx_import::import_onnx_model(model_stream);

@@ -27,6 +27,7 @@ namespace ONNX_NAMESPACE
 {
     // forward declaration
     class NodeProto;
+    class OperatorSetIdProto;
 }
 
 namespace ngraph
@@ -67,6 +68,7 @@ namespace ngraph
             NodeVector get_ng_inputs() const;
             NodeVector get_ng_nodes() const;
             const ONNX_NAMESPACE::NodeProto& node_proto() const;
+            const ONNX_NAMESPACE::OperatorSetIdProto& get_opset_version(int index = 0) const;
             const std::string& domain() const;
             const std::string& op_type() const;
             const std::string& get_name() const;

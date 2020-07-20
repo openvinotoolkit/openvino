@@ -63,10 +63,10 @@ namespace ngraph
             ///
             /// \return     Vector of nGraph nodes equivalent of the ONNX fuction.
             ///
-            std::vector<std::shared_ptr<ngraph::Node>>
-                get_nodes_from_onnx_function(ONNX_NAMESPACE::NodeProto* node,
-                                             ONNX_NAMESPACE::GraphProto graph,
-                                             int opset_version);
+            std::vector<std::shared_ptr<ngraph::Node>> get_nodes_from_onnx_function(
+                ONNX_NAMESPACE::NodeProto* node,
+                ONNX_NAMESPACE::GraphProto graph,
+                const ONNX_NAMESPACE::OperatorSetIdProto& opset_version);
         }
     }
 }
