@@ -65,6 +65,7 @@ namespace
 #define VSUF0(NAME) NAME
 #define VSUF1(NAME) NAME##_v1
 #define VSUF3(NAME) NAME##_v3
+#define VSUF4(NAME) NAME##_v4
 #define NGRAPH_OP(NAME, NAMESPACE, VERSION) VSUF##VERSION(NAME),
 #include "ngraph/op/op_version_tbl.hpp"
 #undef NGRAPH_OP
