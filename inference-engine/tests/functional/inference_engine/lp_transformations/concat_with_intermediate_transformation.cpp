@@ -22,8 +22,6 @@
 #include "ngraph_functions/low_precision_transformations/common/fake_quantize_on_data.hpp"
 #include "simple_low_precision_transformer.hpp"
 
-#include <ngraph/pass/visualize_tree.hpp>
-
 using namespace testing;
 using namespace ngraph;
 using namespace ngraph::pass;
@@ -96,8 +94,6 @@ public:
             testValues.actual.fakeQuantize1,
             testValues.actual.fakeQuantize2);
 
-        ngraph::pass::VisualizeTree("C:\\Projects\\temp\\test.actual").run_on_module(std::vector<std::shared_ptr<ngraph::Function>>{ actualFunction });
-
         SimpleLowPrecisionTransformer transform;
         if (testValues.multiChannels) {
             transform.add<ngraph::pass::low_precision::ConcatMultiChannelsTransformation, ngraph::opset1::Concat>(testValues.params);
@@ -105,8 +101,6 @@ public:
             transform.add<ngraph::pass::low_precision::ConcatTransformation, ngraph::opset1::Concat>(testValues.params);
         }
         transform.transform(actualFunction);
-
-        ngraph::pass::VisualizeTree("C:\\Projects\\temp\\test.transformed").run_on_module(std::vector<std::shared_ptr<ngraph::Function>>{ actualFunction });
 
         referenceFunction = ngraph::builder::subgraph::ConcatFunction::getReferenceWithIntermediate(
             precision,
@@ -116,8 +110,6 @@ public:
             testValues.result.fakeQuantize2,
             testValues.result.dequantizationOperations1,
             testValues.result.dequantizationOperations2);
-
-        ngraph::pass::VisualizeTree("C:\\Projects\\temp\\test.reference").run_on_module(std::vector<std::shared_ptr<ngraph::Function>>{ referenceFunction });
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<ConcatTransformationParams> obj) {

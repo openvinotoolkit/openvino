@@ -45,7 +45,7 @@ struct Config {
     bool enforceBF16 = false;
 #else
     LPTransformsMode lpTransformsMode = LPTransformsMode::On;
-    LptVersion lptVersion = LptVersion::cnnNetwork;
+    LptVersion lptVersion = LptVersion::nGraph;
     bool enforceBF16 = true;
 #endif
 
