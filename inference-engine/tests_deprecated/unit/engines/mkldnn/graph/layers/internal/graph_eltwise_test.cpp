@@ -893,22 +893,22 @@ protected:
 TEST_P(MKLDNNGraphEltwiseDynBatchTests, TestsDynBatchEltwise) {}
 
 // TODO: rewrite to ngraph to have reshape functionality
-// INSTANTIATE_TEST_CASE_P(
-//         TestsDynBatchEltwise, MKLDNNGraphEltwiseDynBatchTests,
-//         ::testing::Values(
-//                 eltwise_test_params{{1, 3, 3, 3},{1, 3, 3, 3},{1, 3, 3, 3}, eltwise_test_params::opType::Sum, "", 3, MKLDNNPlugin::impl_desc_type::ref},
-//                 eltwise_test_params{{1, 3, 3, 3},{1, 3, 3, 3},{1, 3, 3, 3}, eltwise_test_params::opType::Sum, "1.0,1.0,1.0", 3, MKLDNNPlugin::impl_desc_type::ref},
-//                 eltwise_test_params{{1, 3, 3, 3},{1, 3, 3, 3},{1, 3, 3, 3}, eltwise_test_params::opType::Sum, "1.5,0.5,-2.0", 3, MKLDNNPlugin::impl_desc_type::ref},
-//                 eltwise_test_params{{1, 3, 3, 3},{1, 3, 3, 3},{1, 3, 3, 3}, eltwise_test_params::opType::Prod, "", 3, MKLDNNPlugin::impl_desc_type::ref},
-//                 eltwise_test_params{{1, 3, 3, 3},{1, 3, 3, 3},{1, 3, 3, 3}, eltwise_test_params::opType::Max, "", 3, MKLDNNPlugin::impl_desc_type::ref},
-//                 eltwise_test_params{{1, 3, 3, 3},{1, 3, 3, 3},{1, 3, 3, 3}, eltwise_test_params::opType::Sub, "", 3, MKLDNNPlugin::impl_desc_type::ref},
-//                 eltwise_test_params{{1, 3, 3, 3},{1, 3, 3, 3},{1, 3, 3, 3}, eltwise_test_params::opType::Min, "", 3, MKLDNNPlugin::impl_desc_type::ref},
-//                 eltwise_test_params{{1, 3, 3, 3},{1, 3, 3, 3},{1, 3, 3, 3}, eltwise_test_params::opType::Div, "", 3, MKLDNNPlugin::impl_desc_type::ref},
-//                 eltwise_test_params{{1, 3, 3, 3},{1, 3, 3, 3},{1, 3, 3, 3}, eltwise_test_params::opType::Pow, "", 3, MKLDNNPlugin::impl_desc_type::ref},
-//                 eltwise_test_params{{1, 3, 3, 3},{1, 3, 3, 3},{1, 3, 3, 3}, eltwise_test_params::opType::Logical_AND, "", 3, MKLDNNPlugin::impl_desc_type::ref},
-//                 eltwise_test_params{{1, 3, 3, 3},{1, 3, 3, 3},{1, 3, 3, 3}, eltwise_test_params::opType::Logical_OR, "", 3, MKLDNNPlugin::impl_desc_type::ref},
-//                 eltwise_test_params{{1, 3, 3, 3},{1, 3, 3, 3},{1, 3, 3, 3}, eltwise_test_params::opType::Logical_XOR, "", 3, MKLDNNPlugin::impl_desc_type::ref}
-//                 ));
+INSTANTIATE_TEST_CASE_P(
+        DISABLED_TestsDynBatchEltwise, MKLDNNGraphEltwiseDynBatchTests,
+        ::testing::Values(
+                eltwise_test_params{{1, 3, 3, 3},{1, 3, 3, 3},{1, 3, 3, 3}, eltwise_test_params::opType::Sum, "", 3, MKLDNNPlugin::impl_desc_type::ref},
+                eltwise_test_params{{1, 3, 3, 3},{1, 3, 3, 3},{1, 3, 3, 3}, eltwise_test_params::opType::Sum, "1.0,1.0,1.0", 3, MKLDNNPlugin::impl_desc_type::ref},
+                eltwise_test_params{{1, 3, 3, 3},{1, 3, 3, 3},{1, 3, 3, 3}, eltwise_test_params::opType::Sum, "1.5,0.5,-2.0", 3, MKLDNNPlugin::impl_desc_type::ref},
+                eltwise_test_params{{1, 3, 3, 3},{1, 3, 3, 3},{1, 3, 3, 3}, eltwise_test_params::opType::Prod, "", 3, MKLDNNPlugin::impl_desc_type::ref},
+                eltwise_test_params{{1, 3, 3, 3},{1, 3, 3, 3},{1, 3, 3, 3}, eltwise_test_params::opType::Max, "", 3, MKLDNNPlugin::impl_desc_type::ref},
+                eltwise_test_params{{1, 3, 3, 3},{1, 3, 3, 3},{1, 3, 3, 3}, eltwise_test_params::opType::Sub, "", 3, MKLDNNPlugin::impl_desc_type::ref},
+                eltwise_test_params{{1, 3, 3, 3},{1, 3, 3, 3},{1, 3, 3, 3}, eltwise_test_params::opType::Min, "", 3, MKLDNNPlugin::impl_desc_type::ref},
+                eltwise_test_params{{1, 3, 3, 3},{1, 3, 3, 3},{1, 3, 3, 3}, eltwise_test_params::opType::Div, "", 3, MKLDNNPlugin::impl_desc_type::ref},
+                eltwise_test_params{{1, 3, 3, 3},{1, 3, 3, 3},{1, 3, 3, 3}, eltwise_test_params::opType::Pow, "", 3, MKLDNNPlugin::impl_desc_type::ref},
+                eltwise_test_params{{1, 3, 3, 3},{1, 3, 3, 3},{1, 3, 3, 3}, eltwise_test_params::opType::Logical_AND, "", 3, MKLDNNPlugin::impl_desc_type::ref},
+                eltwise_test_params{{1, 3, 3, 3},{1, 3, 3, 3},{1, 3, 3, 3}, eltwise_test_params::opType::Logical_OR, "", 3, MKLDNNPlugin::impl_desc_type::ref},
+                eltwise_test_params{{1, 3, 3, 3},{1, 3, 3, 3},{1, 3, 3, 3}, eltwise_test_params::opType::Logical_XOR, "", 3, MKLDNNPlugin::impl_desc_type::ref}
+                ));
 
 struct precisions_test_2params {
     struct {

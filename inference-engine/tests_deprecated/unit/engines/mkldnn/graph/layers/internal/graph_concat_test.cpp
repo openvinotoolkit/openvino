@@ -313,7 +313,6 @@ protected:
             size_t MB = p.in1[0];
             if (MB < 2)
                 MB = 2;
-            std::cout << MB << std::endl;
 
             InferenceEngine::Core core;
             InferenceEngine::CNNNetwork network;
@@ -384,44 +383,44 @@ TEST_P(MKLDNNGraphDynBatchConcatTests, TestsDynBatchConcat) {}
 
 
 // TODO: rewrite to ngraph to have reshape functionality
-// INSTANTIATE_TEST_CASE_P(
-//         TestsDynBatchConcat, MKLDNNGraphDynBatchConcatTests,
-//         ::testing::Values(
-//                 concat_test_params {
-//                         {1, 7, 2, 5},
-//                         {1, 7, 2, 5},
-//                         2, 1, MKLDNNPlugin::impl_desc_type::ref
-//                 },
-//                 concat_test_params {
-//                         {1, 7, 2, 5},
-//                         {1, 13, 2, 5},
-//                         1, 2, MKLDNNPlugin::impl_desc_type::unknown
-//                 },
-//                 concat_test_params {
-//                         {1, 7, 2, 13},
-//                         {1, 7, 2, 17},
-//                         3, 1, MKLDNNPlugin::impl_desc_type::ref
-//                 },
-//                 concat_test_params {
-//                         {1, 8, 8, 16},
-//                         {1, 16, 8, 16},
-//                         1, 4, MKLDNNPlugin::impl_desc_type::unknown
-//                 },
-//                 concat_test_params {
-//                         {3, 7, 2, 5},
-//                         {3, 13, 2, 5},
-//                         1, 2, MKLDNNPlugin::impl_desc_type::unknown
-//                 },
-//                 concat_test_params {
-//                         {2, 2, 3, 3},
-//                         {2, 3, 3, 3},
-//                         1, 2, MKLDNNPlugin::impl_desc_type::unknown
-//                 },
-//                 concat_test_params {
-//                         {2, 2, 3, 3, 3},
-//                         {2, 3, 3, 3, 3},
-//                         1, 2, MKLDNNPlugin::impl_desc_type::unknown
-//                 }));
+INSTANTIATE_TEST_CASE_P(
+        DISABLED_TestsDynBatchConcat, MKLDNNGraphDynBatchConcatTests,
+        ::testing::Values(
+                concat_test_params {
+                        {1, 7, 2, 5},
+                        {1, 7, 2, 5},
+                        2, 1, MKLDNNPlugin::impl_desc_type::ref
+                },
+                concat_test_params {
+                        {1, 7, 2, 5},
+                        {1, 13, 2, 5},
+                        1, 2, MKLDNNPlugin::impl_desc_type::unknown
+                },
+                concat_test_params {
+                        {1, 7, 2, 13},
+                        {1, 7, 2, 17},
+                        3, 1, MKLDNNPlugin::impl_desc_type::ref
+                },
+                concat_test_params {
+                        {1, 8, 8, 16},
+                        {1, 16, 8, 16},
+                        1, 4, MKLDNNPlugin::impl_desc_type::unknown
+                },
+                concat_test_params {
+                        {3, 7, 2, 5},
+                        {3, 13, 2, 5},
+                        1, 2, MKLDNNPlugin::impl_desc_type::unknown
+                },
+                concat_test_params {
+                        {2, 2, 3, 3},
+                        {2, 3, 3, 3},
+                        1, 2, MKLDNNPlugin::impl_desc_type::unknown
+                },
+                concat_test_params {
+                        {2, 2, 3, 3, 3},
+                        {2, 3, 3, 3, 3},
+                        1, 2, MKLDNNPlugin::impl_desc_type::unknown
+                }));
 
 struct concat_param {
     std::string name;

@@ -495,10 +495,10 @@ protected:
 TEST_P(MKLDNNGraphDynBatchPoolingTests, TestsDynBatchPooling) {}
 
 // TODO: rewrite to ngraph to have reshape functionality
-// INSTANTIATE_TEST_CASE_P(
-//         TestsDynBatchPooling, MKLDNNGraphDynBatchPoolingTests,
-//         ::testing::Values(
-//                 pooling_test_params{{1, 3, 228, 228}, {4, 2}, {2, 1}, {0, 0}, {0, 0}, PoolingLayer::MAX, false, 4, MKLDNNPlugin::impl_desc_type::jit},
-//                 pooling_test_params{{1, 3, 228, 228}, {2, 2}, {2, 2}, {0, 0}, {0, 0}, PoolingLayer::MAX, false, 6, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref_any}},
-//                 pooling_test_params{{1, 3, 228, 228}, {4, 2}, {2, 2}, {0, 0}, {0, 0}, PoolingLayer::MAX, false, 4, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref_any}},
-//                 pooling_test_params{{1, 3, 228, 228}, {4, 2}, {2, 1}, {0, 0}, {0, 0}, PoolingLayer::MAX, false, 4, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref_any}}));
+INSTANTIATE_TEST_CASE_P(
+        DISABLED_TestsDynBatchPooling, MKLDNNGraphDynBatchPoolingTests,
+        ::testing::Values(
+                pooling_test_params{{1, 3, 228, 228}, {4, 2}, {2, 1}, {0, 0}, {0, 0}, PoolingLayer::MAX, false, 4, MKLDNNPlugin::impl_desc_type::jit},
+                pooling_test_params{{1, 3, 228, 228}, {2, 2}, {2, 2}, {0, 0}, {0, 0}, PoolingLayer::MAX, false, 6, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref_any}},
+                pooling_test_params{{1, 3, 228, 228}, {4, 2}, {2, 2}, {0, 0}, {0, 0}, PoolingLayer::MAX, false, 4, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref_any}},
+                pooling_test_params{{1, 3, 228, 228}, {4, 2}, {2, 1}, {0, 0}, {0, 0}, PoolingLayer::MAX, false, 4, MKLDNNPlugin::impl_desc_type::ref, {MKLDNNPlugin::impl_desc_type::ref_any}}));
