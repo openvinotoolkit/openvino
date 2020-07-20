@@ -82,8 +82,9 @@ void ngraph::pass::UnrollTensorIterator::unroll_tensor_iterator() {
                 const auto const_axis = opset3::Constant::create(element::i64, Shape{}, {input_desc->m_axis});
                 in_data->get_outputs().clear();
                 in_data->set_output_size(1);
-
+                in_data->validate_and_infer_types();
                 auto split = std::make_shared<ngraph::opset3::Split>(in_data, const_axis, num_iter);
+                copy_runtime_info(ti, split);
                 auto stride = input_desc->m_stride;
                 // connect to the body
                 for (uint64_t j = 0; j < num_iter; j++) {
@@ -152,6 +153,7 @@ void ngraph::pass::UnrollTensorIterator::unroll_tensor_iterator() {
                     to_concat[j] = input_to_res;
                 }
                 auto concat = std::make_shared<ngraph::opset3::Concat>(to_concat, output_desc->m_axis);
+                copy_runtime_info(ti, concat);
                 //concat->set_friendly_name(op::util::create_ie_output_name(concat));
                 for (auto &input : ti->output(output_desc->m_output_index).get_target_inputs()) {
                     input.replace_source_output(concat);
