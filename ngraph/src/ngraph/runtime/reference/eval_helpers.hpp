@@ -16,26 +16,12 @@
 
 #pragma once
 
-#include "core/node.hpp"
-#include "default_opset.hpp"
-#include "ngraph/node.hpp"
+#include "ngraph/runtime/host_tensor.hpp"
 
 namespace ngraph
 {
-    namespace onnx_import
+    namespace eval
     {
-        namespace op
-        {
-            namespace set_1
-            {
-                inline NodeVector acosh(const Node& node)
-                {
-                    return {std::make_shared<default_opset::Acosh>(node.get_ng_inputs().at(0))};
-                }
-            } // namespace set_1
-
-        } // namespace op
-
-    } // namespace onnx_import
-
-} // namespace ngraph
+        AxisSet extract_reduction_axes(const HostTensorPtr& axes, const char* op_name);
+    }
+}
