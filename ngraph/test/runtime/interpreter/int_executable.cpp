@@ -21,43 +21,14 @@
 #include "ngraph/descriptor/layout/dense_tensor_layout.hpp"
 #include "ngraph/except.hpp"
 #include "ngraph/ops.hpp"
-#include "ngraph/pass/assign_layout.hpp"
 #include "ngraph/pass/core_fusion.hpp"
-#include "ngraph/pass/fused_op_decomposition.hpp"
-#include "ngraph/pass/like_replacement.hpp"
-#include "ngraph/pass/liveness.hpp"
-#include "ngraph/pass/manager.hpp"
 #include "ngraph/serializer.hpp"
 #include "ngraph/util.hpp"
-#include "opset0_downgrade.hpp"
-#include "opset1_downgrade.hpp"
 
 using namespace std;
 using namespace ngraph;
 
 using descriptor::layout::DenseTensorLayout;
-
-runtime::interpreter::OP_TYPEID runtime::interpreter::INTExecutable::get_typeid(const Node& node)
-{
-    const NodeTypeInfo& type_info = node.get_type_info();
-    // This expands the op list in op_tbl.hpp into a list of enumerations that look like this:
-    // {Abs::type_info, OP_TYPEID::Abs},
-    // {Acos::type_info, OP_TYPEID::Acos},
-    // ...
-    static const map<NodeTypeInfo, OP_TYPEID> type_info_map{
-#define NGRAPH_OP(NAME, NAMESPACE) {NAMESPACE::NAME::type_info, OP_TYPEID::ID_SUFFIX(NAME)},
-#include "opset_int_tbl.hpp"
-#undef NGRAPH_OP
-    };
-    OP_TYPEID rc = OP_TYPEID::UnknownOp;
-
-    auto it = type_info_map.find(type_info);
-    if (it != type_info_map.end())
-    {
-        rc = it->second;
-    }
-    return rc;
-}
 
 runtime::interpreter::INTExecutable::INTExecutable(const shared_ptr<Function>& function,
                                                    bool enable_performance_collection)
@@ -221,40 +192,6 @@ bool runtime::interpreter::INTExecutable::call(const vector<shared_ptr<runtime::
     }
 
     return true;
-}
-
-void runtime::interpreter::INTExecutable::generate_calls(const element::Type& type,
-                                                         const Node& op,
-                                                         const vector<shared_ptr<HostTensor>>& out,
-                                                         const vector<shared_ptr<HostTensor>>& in)
-{
-    stringstream ss;
-    switch (type)
-    {
-    case element::Type_t::boolean: op_engine<char>(op, out, in); break;
-    case element::Type_t::f32: op_engine<float>(op, out, in); break;
-    case element::Type_t::f64: op_engine<double>(op, out, in); break;
-    case element::Type_t::i8: op_engine<int8_t>(op, out, in); break;
-    case element::Type_t::i16: op_engine<int16_t>(op, out, in); break;
-    case element::Type_t::i32: op_engine<int32_t>(op, out, in); break;
-    case element::Type_t::i64: op_engine<int64_t>(op, out, in); break;
-    case element::Type_t::u8: op_engine<uint8_t>(op, out, in); break;
-    case element::Type_t::u16: op_engine<uint16_t>(op, out, in); break;
-    case element::Type_t::u32: op_engine<uint32_t>(op, out, in); break;
-    case element::Type_t::u64: op_engine<uint64_t>(op, out, in); break;
-    case element::Type_t::undefined:
-    case element::Type_t::dynamic:
-    case element::Type_t::u1:
-    case element::Type_t::bf16:
-    case element::Type_t::f16:
-        ss << "unsupported element type " << type << " op " << op.get_name();
-        throw ngraph_error(ss.str());
-    }
-}
-
-void runtime::interpreter::INTExecutable::set_nan_check(bool enable)
-{
-    m_nan_check_enabled = enable;
 }
 
 vector<runtime::PerformanceCounter>
