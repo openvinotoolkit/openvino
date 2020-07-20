@@ -3,11 +3,11 @@
 //
 
 /**
- * @deprecated Use vpu/vpu_config.hpp instead.
+ * @deprecated Use vpu/myriad_config.hpp instead.
  * @brief A header that defines advanced related properties for VPU plugins.
  * These properties should be used in SetConfig() and LoadNetwork() methods of plugins
  *
- * @file myriad_plugin_config
+ * @file myriad_plugin_config.hpp
  */
 
 #pragma once
@@ -65,18 +65,18 @@ INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::MYRIAD_DDR_TYPE instead")
 DECLARE_VPU_MYRIAD_CONFIG_KEY(MOVIDIUS_DDR_TYPE);
 
 /**
- * @deprecated Use DDR type values from InferenceEngine namespace with MYRIAD_ prefix
+ * @deprecated Use DDR type values from InferenceEngine namespace with MYRIAD_DDR_ prefix
  * @brief Supported keys definition for VPU_MYRIAD_CONFIG_KEY(MOVIDIUS_DDR_TYPE) option.
  */
-INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::MYRIAD_AUTO instead")
+INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::MYRIAD_DDR_AUTO instead")
 DECLARE_VPU_MYRIAD_CONFIG_VALUE(DDR_AUTO);
-INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::MYRIAD_MICRON_2GB instead")
+INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::MYRIAD_DDR_MICRON_2GB instead")
 DECLARE_VPU_MYRIAD_CONFIG_VALUE(MICRON_2GB);
-INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::MYRIAD_SAMSUNG_2GB instead")
+INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::MYRIAD_DDR_SAMSUNG_2GB instead")
 DECLARE_VPU_MYRIAD_CONFIG_VALUE(SAMSUNG_2GB);
-INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::MYRIAD_HYNIX_2GB instead")
+INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::MYRIAD_DDR_HYNIX_2GB instead")
 DECLARE_VPU_MYRIAD_CONFIG_VALUE(HYNIX_2GB);
-INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::MYRIAD_MICRON_1GB instead")
+INFERENCE_ENGINE_DEPRECATED("Use InferenceEngine::MYRIAD_DDR_MICRON_1GB instead")
 DECLARE_VPU_MYRIAD_CONFIG_VALUE(MICRON_1GB);
 
 }  // namespace VPUConfigParams

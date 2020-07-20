@@ -3,7 +3,7 @@
 //
 
 /**
- * @brief A header that defines advanced related properties for VPU plugins.
+ * @brief A header that defines advanced related properties for HDDL plugin.
  * These properties should be used in SetConfig() and LoadNetwork() methods of plugins
  *
  * @file hddl_config.hpp
@@ -11,12 +11,78 @@
 
 #pragma once
 
-#include "common_utils.hpp"
-
-#include "ie_plugin_config.hpp"
-#include "ie_api.h"
+#include "vpu_config.hpp"
 
 namespace InferenceEngine {
+
+namespace Metrics {
+
+/**
+* @brief Metric to get a int of the device number, String value is METRIC_HDDL_DEVICE_NUM
+*/
+DECLARE_METRIC_KEY(HDDL_DEVICE_NUM, int);
+
+/**
+* @brief Metric to get a std::vector<std::string> of device names, String value is METRIC_HDDL_DEVICE_NAME
+*/
+DECLARE_METRIC_KEY(HDDL_DEVICE_NAME, std::vector<std::string>);
+
+/**
+* @brief  Metric to get a std::vector<float> of device thermal, String value is METRIC_HDDL_DEVICE_THERMAL
+*/
+DECLARE_METRIC_KEY(HDDL_DEVICE_THERMAL, std::vector<float>);
+
+/**
+* @brief  Metric to get a std::vector<uint32> of device ids, String value is METRIC_HDDL_DEVICE_ID
+*/
+DECLARE_METRIC_KEY(HDDL_DEVICE_ID, std::vector<unsigned int>);
+
+/**
+* @brief  Metric to get a std::vector<int> of device subclasses, String value is METRIC_HDDL_DEVICE_SUBCLASS
+*/
+DECLARE_METRIC_KEY(HDDL_DEVICE_SUBCLASS, std::vector<int>);
+
+/**
+* @brief  Metric to get a std::vector<uint32> of device total memory, String value is METRIC_HDDL_MEMORY_TOTAL
+*/
+DECLARE_METRIC_KEY(HDDL_DEVICE_MEMORY_TOTAL, std::vector<unsigned int>);
+
+/**
+* @brief  Metric to get a std::vector<uint32> of device used memory, String value is METRIC_HDDL_DEVICE_MEMORY_USED
+*/
+DECLARE_METRIC_KEY(HDDL_DEVICE_MEMORY_USED, std::vector<unsigned int>);
+
+/**
+* @brief  Metric to get a std::vector<float> of device utilization, String value is METRIC_HDDL_DEVICE_UTILIZATION
+*/
+DECLARE_METRIC_KEY(HDDL_DEVICE_UTILIZATION, std::vector<float>);
+
+/**
+* @brief  Metric to get a std::vector<std::string> of stream ids, String value is METRIC_HDDL_DEVICE_STREAM_ID
+*/
+DECLARE_METRIC_KEY(HDDL_STREAM_ID, std::vector<std::string>);
+
+/**
+* @brief  Metric to get a std::vector<std::string> of device tags, String value is METRIC_HDDL_DEVICE_TAG
+*/
+DECLARE_METRIC_KEY(HDDL_DEVICE_TAG, std::vector<std::string>);
+
+/**
+* @brief  Metric to get a std::vector<int> of group ids, String value is METRIC_HDDL_GROUP_ID
+*/
+DECLARE_METRIC_KEY(HDDL_GROUP_ID, std::vector<int>);
+
+/**
+* @brief  Metric to get a int number of device be using for group, String value is METRIC_HDDL_DEVICE_GROUP_USING_NUM
+*/
+DECLARE_METRIC_KEY(HDDL_DEVICE_GROUP_USING_NUM, int);
+
+/**
+* @brief  Metric to get a int number of total device, String value is METRIC_HDDL_DEVICE_TOTAL_NUM
+*/
+DECLARE_METRIC_KEY(HDDL_DEVICE_TOTAL_NUM, int);
+
+}  // namespace Metrics
 
 /**
  * @brief [Only for HDDLPlugin]
@@ -34,7 +100,7 @@ namespace InferenceEngine {
  * }
  * It means that an executable network marked with tagA will be executed on 3 devices
  */
-DECLARE_MYRIAD_CONFIG_KEY(GRAPH_TAG);
+DECLARE_VPU_CONFIG(HDDL_GRAPH_TAG);
 
 /**
  * @brief [Only for HDDLPlugin]
@@ -50,7 +116,7 @@ DECLARE_MYRIAD_CONFIG_KEY(GRAPH_TAG);
  * }
  * It means that 5 device will be used for stream-affinity
  */
-DECLARE_MYRIAD_CONFIG_KEY(STREAM_ID);
+DECLARE_VPU_CONFIG(HDDL_STREAM_ID);
 
 /**
  * @brief [Only for HDDLPlugin]
@@ -66,7 +132,7 @@ DECLARE_MYRIAD_CONFIG_KEY(STREAM_ID);
  * }
  * It means that 5 device will be used for Bypass scheduler.
  */
-DECLARE_MYRIAD_CONFIG_KEY(DEVICE_TAG);
+DECLARE_VPU_CONFIG(HDDL_DEVICE_TAG);
 
 /**
  * @brief [Only for HDDLPlugin]
@@ -79,7 +145,7 @@ DECLARE_MYRIAD_CONFIG_KEY(DEVICE_TAG);
  * is allocated on multiple other devices (also set BIND_DEVICE to "False"), then inference through any handle of these
  * networks may be executed on any of these devices those have the network loaded.
  */
-DECLARE_MYRIAD_CONFIG_KEY(BIND_DEVICE);
+DECLARE_VPU_CONFIG(HDDL_BIND_DEVICE);
 
 /**
  * @brief [Only for HDDLPlugin]
@@ -88,7 +154,7 @@ DECLARE_MYRIAD_CONFIG_KEY(BIND_DEVICE);
  * When there are multiple devices running a certain network (a same network running on multiple devices in Bypass Scheduler),
  * the device with a larger number has a higher priority, and more inference tasks will be fed to it with priority.
  */
-DECLARE_MYRIAD_CONFIG_KEY(RUNTIME_PRIORITY);
+DECLARE_VPU_CONFIG(HDDL_RUNTIME_PRIORITY);
 
 /**
  * @brief [Only for HDDLPlugin]
@@ -97,7 +163,7 @@ DECLARE_MYRIAD_CONFIG_KEY(RUNTIME_PRIORITY);
  * (managed by SGAD scheduler) will be loaded with this graph. The number of network that can be loaded to one device
  * can exceed one. Once application deallocates 1 network from device, all devices will unload the network from them.
  */
-DECLARE_MYRIAD_CONFIG_KEY(USE_SGAD);
+DECLARE_VPU_CONFIG(HDDL_USE_SGAD);
 
 /**
  * @brief [Only for HDDLPlugin]
@@ -106,6 +172,6 @@ DECLARE_MYRIAD_CONFIG_KEY(USE_SGAD);
  * can use this device grouped by calling this group id while other client can't use this device
  * Each device has their own group id. Device in one group shares same group id.
   */
-DECLARE_MYRIAD_CONFIG_KEY(GROUP_DEVICE);
+DECLARE_VPU_CONFIG(HDDL_GROUP_DEVICE);
 
 }  // namespace InferenceEngine

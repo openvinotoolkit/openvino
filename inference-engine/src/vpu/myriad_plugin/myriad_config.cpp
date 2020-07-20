@@ -12,6 +12,7 @@
 #include <cpp_interfaces/exception2status.hpp>
 
 #include <vpu/vpu_plugin_config.hpp>
+#include <vpu/myriad_config.hpp>
 
 namespace vpu {
 namespace MyriadPlugin {
@@ -110,11 +111,11 @@ IE_SUPPRESS_DEPRECATED_END
     };
 
     static const std::unordered_map<std::string, MovidiusDdrType> memoryTypes = {
-        { ie::MYRIAD_AUTO,         MovidiusDdrType::AUTO },
-        { ie::MYRIAD_MICRON_2GB,   MovidiusDdrType::MICRON_2GB },
-        { ie::MYRIAD_SAMSUNG_2GB,  MovidiusDdrType::SAMSUNG_2GB },
-        { ie::MYRIAD_HYNIX_2GB,    MovidiusDdrType::HYNIX_2GB },
-        { ie::MYRIAD_MICRON_1GB,   MovidiusDdrType::MICRON_1GB }
+        { ie::MYRIAD_DDR_AUTO,         MovidiusDdrType::AUTO },
+        { ie::MYRIAD_DDR_MICRON_2GB,   MovidiusDdrType::MICRON_2GB },
+        { ie::MYRIAD_DDR_SAMSUNG_2GB,  MovidiusDdrType::SAMSUNG_2GB },
+        { ie::MYRIAD_DDR_HYNIX_2GB,    MovidiusDdrType::HYNIX_2GB },
+        { ie::MYRIAD_DDR_MICRON_1GB,   MovidiusDdrType::MICRON_1GB }
     };
 
     ParsedConfig::parse(config);

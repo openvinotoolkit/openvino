@@ -3,7 +3,7 @@
 //
 
 /**
- * @brief A header that defines advanced related properties for VPU plugins.
+ * @brief A header that defines advanced related properties for Myriad plugin.
  * These properties should be used in SetConfig() and LoadNetwork() methods of plugins
  *
  * @file myriad_config.hpp
@@ -11,12 +11,7 @@
 
 #pragma once
 
-#include "common_utils.hpp"
-
-#include "ie_plugin_config.hpp"
-#include "ie_api.h"
-
-#include <string>
+#include "vpu_config.hpp"
 
 namespace InferenceEngine {
 
@@ -24,31 +19,31 @@ namespace InferenceEngine {
  * @brief The flag to reset stalled devices: CONFIG_VALUE(YES) or CONFIG_VALUE(NO) (default)
  * This is a plugin scope option and must be used with the plugin's SetConfig method
  */
-DECLARE_MYRIAD_CONFIG_KEY(ENABLE_FORCE_RESET);
+DECLARE_VPU_CONFIG(MYRIAD_ENABLE_FORCE_RESET);
 
 /**
  * @brief This option allows to specify device memory type.
  */
-DECLARE_MYRIAD_CONFIG_KEY(DDR_TYPE);
+DECLARE_VPU_CONFIG(MYRIAD_DDR_TYPE);
 
 /**
  * @brief Supported keys definition for CONFIG_KEY(MYRIAD_DDR_TYPE) option.
  */
-DECLARE_MYRIAD_CONFIG_VALUE(AUTO);
-DECLARE_MYRIAD_CONFIG_VALUE(MICRON_2GB);
-DECLARE_MYRIAD_CONFIG_VALUE(SAMSUNG_2GB);
-DECLARE_MYRIAD_CONFIG_VALUE(HYNIX_2GB);
-DECLARE_MYRIAD_CONFIG_VALUE(MICRON_1GB);
+DECLARE_VPU_CONFIG(MYRIAD_DDR_AUTO);
+DECLARE_VPU_CONFIG(MYRIAD_DDR_MICRON_2GB);
+DECLARE_VPU_CONFIG(MYRIAD_DDR_SAMSUNG_2GB);
+DECLARE_VPU_CONFIG(MYRIAD_DDR_HYNIX_2GB);
+DECLARE_VPU_CONFIG(MYRIAD_DDR_MICRON_1GB);
 
 /**
  * @brief This option allows to specify protocol.
  */
-DECLARE_MYRIAD_CONFIG_KEY(PROTOCOL);
+DECLARE_VPU_CONFIG(MYRIAD_PROTOCOL);
 
 /**
  * @brief Supported keys definition for InferenceEngine::MYRIAD_PROTOCOL option.
  */
-DECLARE_MYRIAD_CONFIG_VALUE(PCIE);
-DECLARE_MYRIAD_CONFIG_VALUE(USB);
+DECLARE_VPU_CONFIG(MYRIAD_PCIE);
+DECLARE_VPU_CONFIG(MYRIAD_USB);
 
 }  // namespace InferenceEngine

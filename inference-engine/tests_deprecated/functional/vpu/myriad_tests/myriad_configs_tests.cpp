@@ -83,7 +83,7 @@ TEST_P(myriadIncorrectModelsConfigsTests_nightly, LoadNetworkWithIncorrectConfig
 
 static const std::vector<config_t> myriadCorrectPackageTypeConfigValues = {
     // Please do not use other types of DDR in tests with a real device, because it may hang.
-    {{InferenceEngine::MYRIAD_DDR_TYPE, InferenceEngine::MYRIAD_AUTO}}
+    {{InferenceEngine::MYRIAD_DDR_TYPE, InferenceEngine::MYRIAD_DDR_AUTO}}
 };
 
 static const std::vector<config_t> myriadIncorrectPackageTypeConfigValues = {

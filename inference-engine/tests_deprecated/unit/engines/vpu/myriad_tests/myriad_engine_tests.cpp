@@ -52,11 +52,11 @@ static const std::vector<config_t> myriadCorrectPowerConfigValues = {
 };
 
 static const std::vector<config_t> myriadCorrectPackageTypeConfigValues = {
-    {{InferenceEngine::MYRIAD_DDR_TYPE, InferenceEngine::MYRIAD_AUTO}},
-    {{InferenceEngine::MYRIAD_DDR_TYPE, InferenceEngine::MYRIAD_MICRON_2GB}},
-    {{InferenceEngine::MYRIAD_DDR_TYPE, InferenceEngine::MYRIAD_SAMSUNG_2GB}},
-    {{InferenceEngine::MYRIAD_DDR_TYPE, InferenceEngine::MYRIAD_HYNIX_2GB}},
-    {{InferenceEngine::MYRIAD_DDR_TYPE, InferenceEngine::MYRIAD_MICRON_1GB}}
+    {{InferenceEngine::MYRIAD_DDR_TYPE, InferenceEngine::MYRIAD_DDR_AUTO}},
+    {{InferenceEngine::MYRIAD_DDR_TYPE, InferenceEngine::MYRIAD_DDR_MICRON_2GB}},
+    {{InferenceEngine::MYRIAD_DDR_TYPE, InferenceEngine::MYRIAD_DDR_SAMSUNG_2GB}},
+    {{InferenceEngine::MYRIAD_DDR_TYPE, InferenceEngine::MYRIAD_DDR_HYNIX_2GB}},
+    {{InferenceEngine::MYRIAD_DDR_TYPE, InferenceEngine::MYRIAD_DDR_MICRON_1GB}}
 };
 
 static const std::vector<config_t> myriadIncorrectPackageTypeConfigValues = {

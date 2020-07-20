@@ -108,7 +108,7 @@ const std::vector<BehTestParams> deviceAgnosticConfigurations = {
     }),
 
     // Please do not use other types of DDR in tests with a real device, because it may hang.
-    BEH_MYRIAD.withConfig({{InferenceEngine::MYRIAD_DDR_TYPE, InferenceEngine::MYRIAD_AUTO}}),
+    BEH_MYRIAD.withConfig({{InferenceEngine::MYRIAD_DDR_TYPE, InferenceEngine::MYRIAD_DDR_AUTO}}),
 };
 
 const std::vector<BehTestParams> withCorrectConfValuesPluginOnly = {

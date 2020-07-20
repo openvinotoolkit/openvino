@@ -3,7 +3,7 @@
 //
 
 /**
- * @deprecated Use vpu/vpu_config.hpp instead.
+ * @deprecated Use vpu/myriad_config.hpp or vpu/hddl_config.hpp instead.
  * @brief A header that defines advanced related properties for VPU plugins.
  * These properties should be used in SetConfig() and LoadNetwork() methods of plugins
  *
