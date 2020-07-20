@@ -559,6 +559,8 @@ if(NOT NGRAPH_JSON_ENABLE)
     target_compile_definitions(ngraph PUBLIC NGRAPH_JSON_DISABLE)
 endif()
 
+target_link_libraries(ngraph PRIVATE openvino::itt)
+
 add_subdirectory(frontend)
 
 find_package(Graphviz QUIET)

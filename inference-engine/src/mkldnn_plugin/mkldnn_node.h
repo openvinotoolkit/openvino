@@ -12,7 +12,6 @@
 #include <cassert>
 #include <algorithm>
 #include <ie_common.h>
-#include <ie_profiling.hpp>
 #include <ie_layers_property.hpp>
 #include "mkldnn_dims.h"
 #include "mkldnn_memory.h"
@@ -23,6 +22,7 @@
 #include "mkldnn_primitive.h"
 #include "mkldnn_weights_cache.hpp"
 #include "mkldnn.hpp"
+#include <openvino/itt.hpp>
 
 namespace MKLDNNPlugin {
 
@@ -548,7 +548,7 @@ private:
     std::string typeToStr(Type type);
 
     PerfCount perfCounter;
-    InferenceEngine::ProfilingTask profilingTask;
+    openvino::itt::handle_t profilingTask;
 
     bool isEdgesEmpty(const std::vector<MKLDNNEdgeWeakPtr>& edges) const;
 
