@@ -24,9 +24,11 @@ import hashlib
 import yaml
 from pymongo import MongoClient
 
+# Database arguments
+DATABASE = 'memcheck'   # database name for memcheck results
+DB_COLLECTIONS = ["commit", "nightly", "weekly"]
 
-PRODUCT_NAME = 'dldt'  # product name from build manifest
-DATABASE = 'memcheck'  # database name for memcheck results
+PRODUCT_NAME = 'dldt'   # product name from build manifest
 RE_GTEST_MODEL_XML = re.compile(r'<model[^>]*>')
 RE_GTEST_CUR_MEASURE = re.compile(
     r'Current values of virtual memory consumption')
@@ -238,7 +240,7 @@ def main():
                         help='MongoDB URL in a for "mongodb://server:port".')
     parser.add_argument('--db_collection', required=not is_dryrun,
                         help=f'Collection name in {DATABASE} database to upload.',
-                        choices=["commit", "nightly", "weekly"])
+                        choices=DB_COLLECTIONS)
     parser.add_argument('--artifact_root', required=True,
                         help=f'A root directory to strip from log path before upload.')
     parser.add_argument('--append', help='JSON to append to each item.')
