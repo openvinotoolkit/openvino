@@ -13,7 +13,7 @@ using namespace InferenceEngine::details;
 namespace {
 const std::vector<InferenceEngine::Precision> netPrecisions = {
     InferenceEngine::Precision::FP32,
-    InferenceEngine::Precision::FP16
+    //InferenceEngine::Precision::FP16
 };
 
 const std::vector<LayerTestsUtils::LayerTransformation::LptVersion> versions = {

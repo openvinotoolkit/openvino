@@ -54,7 +54,7 @@ void MultiplyTransformation::SetUp() {
     MultiplyTestValues param;
     std::tie(netPrecision, inputShape1, targetDevice, version, param) = this->GetParam();
 
-    ConfigurePlugin(LptVersion::cnnNetwork);
+    ConfigurePlugin(version);
 
     auto precision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
 
