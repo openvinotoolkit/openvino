@@ -1,13 +1,13 @@
-# Neural Style Transfer Python* Sample
+# Neural Style Transfer Python* Sample {#openvino_inference_engine_ie_bridges_python_sample_style_transfer_sample_README}
 
 This topic demonstrates how to run the Neural Style Transfer sample application, which performs
 inference of style transfer models.
 
-> **NOTE**: The OpenVINO™ toolkit does not include a pre-trained model to run the Neural Style Transfer sample. A public model from the [Zhaw's Neural Style Transfer repository](https://github.com/zhaw/neural_style) can be used. Read the [Converting a Style Transfer Model from MXNet*](./docs/MO_DG/prepare_model/convert_model/mxnet_specific/Convert_Style_Transfer_From_MXNet.md) topic from the [Model Optimizer Developer Guide](./docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md) to learn about how to get the trained model and how to convert it to the Inference Engine format (\*.xml + \*.bin).
+> **NOTE**: The OpenVINO™ toolkit does not include a pre-trained model to run the Neural Style Transfer sample. A public model from the [Zhaw's Neural Style Transfer repository](https://github.com/zhaw/neural_style) can be used. Read the [Converting a Style Transfer Model from MXNet*](../../../../../docs/MO_DG/prepare_model/convert_model/mxnet_specific/Convert_Style_Transfer_From_MXNet.md) topic from the [Model Optimizer Developer Guide](../../../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md) to learn about how to get the trained model and how to convert it to the Inference Engine format (\*.xml + \*.bin).
 
 ## How It Works
 
-> **NOTE**: By default, Inference Engine samples and demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channels order in the sample or demo application or reconvert your model using the Model Optimizer tool with `--reverse_input_channels` argument specified. For more information about the argument, refer to **When to Reverse Input Channels** section of [Converting a Model Using General Conversion Parameters](./docs/MO_DG/prepare_model/convert_model/Converting_Model_General.md).
+> **NOTE**: By default, Inference Engine samples and demos expect input with BGR channels order. If you trained your model to work with RGB order, you need to manually rearrange the default channels order in the sample or demo application or reconvert your model using the Model Optimizer tool with `--reverse_input_channels` argument specified. For more information about the argument, refer to **When to Reverse Input Channels** section of [Converting a Model Using General Conversion Parameters](../../../../../docs/MO_DG/prepare_model/convert_model/Converting_Model_General.md).
 
 ## Running
 
@@ -62,7 +62,7 @@ To perform inference of an image using a trained model of NST network on Intel®
 
 The application outputs an image (`out1.bmp`) or a sequence of images (`out1.bmp`, ..., `out<N>.bmp`) which are redrawn in style of the style transfer model used for sample.
 
-## See Also
-* [Using Inference Engine Samples](./docs/IE_DG/Samples_Overview.md)
+## See Also 
+* [Using Inference Engine Samples](../../../../../docs/IE_DG/Samples_Overview.md)
 
 

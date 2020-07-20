@@ -1,4 +1,4 @@
-## CumSum <a name="CumSum"></a>
+## CumSum <a name="CumSum"></a> {#openvino_docs_ops_arithmetic_CumSum_3}
 
 **Versioned name**: *CumSum-3*
 
