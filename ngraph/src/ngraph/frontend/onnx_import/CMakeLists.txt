@@ -42,7 +42,6 @@ add_library(onnx_importer SHARED
         exceptions.cpp
         exceptions.hpp
         op/acos.hpp
-        op/acosh.cpp
         op/acosh.hpp
         op/add.hpp
         op/add.cpp
