@@ -50,7 +50,7 @@ namespace ngraph
                               const HostTensorVector& inputs) override;
                 bool constant_fold(OutputVector& output_values,
                                    const OutputVector& inputs_values) override;
-
+                bool is_output() const override { return true; }
             private:
                 bool m_needs_default_layout{false};
             };

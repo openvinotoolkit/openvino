@@ -68,7 +68,7 @@ namespace ngraph
                 {
                     m_element_type = element_type;
                 }
-
+                bool is_parameter() const override { return true; }
             protected:
                 bool m_cacheable;
                 PartialShape m_partial_shape;

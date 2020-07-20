@@ -168,6 +168,9 @@ namespace ngraph
         void safe_delete(NodeVector& nodes, bool recurse);
 
     public:
+        virtual bool is_parameter() const { return false; }
+        virtual bool is_output() const { return false; }
+        virtual bool is_constant() const { return false; }
         virtual ~Node();
 
         virtual bool visit_attributes(AttributeVisitor& visitor) { return false; }
