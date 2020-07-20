@@ -56,7 +56,7 @@ namespace ngraph
                             const std::vector<float>& activations_alpha,
                             const std::vector<float>& activations_beta);
 
-                RNNCellBase() = default;
+                RNNCellBase();
                 virtual ~RNNCellBase() = default;
 
                 virtual bool visit_attributes(AttributeVisitor& visitor);
