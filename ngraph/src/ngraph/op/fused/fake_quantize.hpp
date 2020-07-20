@@ -43,7 +43,7 @@ namespace ngraph
             class NGRAPH_API FakeQuantize : public ngraph::op::util::FusedOp
             {
             public:
-                RTTI_DECLARATION
+                NGRAPH_RTTI_DECLARATION
 
                 FakeQuantize() = default;
                 ///

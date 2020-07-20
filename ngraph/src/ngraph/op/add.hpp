@@ -74,7 +74,7 @@ namespace ngraph
             class NGRAPH_API Add : public util::BinaryElementwiseArithmetic
             {
             public:
-                RTTI_DECLARATION
+                NGRAPH_RTTI_DECLARATION
 
                 /// \brief Constructs an uninitialized addition operation
                 Add()

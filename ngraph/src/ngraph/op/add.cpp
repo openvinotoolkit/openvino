@@ -127,7 +127,7 @@ bool op::v0::Add::evaluate(const HostTensorVector& outputs, const HostTensorVect
 
 // ------------------------------- v1 ------------------------------------------
 
-RTTI_DEFINITION("Add", op::v1::Add, Node, 1)
+NGRAPH_RTTI_DEFINITION("Add", op::v1::Add, Node, 1)
 
 op::v1::Add::Add(const Output<Node>& arg0,
                  const Output<Node>& arg1,

@@ -616,7 +616,7 @@ namespace ngraph
 ///     class MyOp : public Node
 ///     {
 ///         public:
-///             RTTI_DECLARATION
+///             NGRAPH_RTTI_DECLARATION
 ///
 ///             ...
 ///     };
@@ -624,50 +624,51 @@ namespace ngraph
 ///     class MyInheritedOp : public MyOp
 ///     {
 ///         public:
-///             RTTI_DECLARATION
+///             NGRAPH_RTTI_DECLARATION
 ///
 ///             ...
 ///     };
 ///
-/// All the details necessary for real type identification are provided in RTTI_DEFINITION helper
+/// All the details necessary for real type identification are provided in NGRAPH_RTTI_DEFINITION
+/// helper
 /// macro
 ///
-#define RTTI_DECLARATION                                                                           \
+#define NGRAPH_RTTI_DECLARATION                                                                    \
     static const ::ngraph::Node::type_info_t type_info;                                            \
     static const ::ngraph::Node::type_info_t& get_type_info_static();                              \
     const ::ngraph::Node::type_info_t& get_type_info() const override { return type_info; }
-/// Helper macro to build RTTI_DEFINITION macro.
-#define RTTI_DEFINITION_1(TYPE_NAME, CLASS, PARENT_CLASS, _VERSION_INDEX)                          \
+/// Helper macro to build NGRAPH_RTTI_DEFINITION macro.
+#define NGRAPH_RTTI_DEFINITION_1(TYPE_NAME, CLASS, PARENT_CLASS, _VERSION_INDEX)                   \
     const ::ngraph::Node::type_info_t CLASS::type_info{                                            \
         TYPE_NAME, _VERSION_INDEX, &PARENT_CLASS::get_type_info_static()};
 
-/// Helper macro to build RTTI_DEFINITION macro.
-#define RTTI_DEFINITION_2(TYPE_NAME, CLASS, PARENT_CLASS, _VERSION_INDEX)                          \
+/// Helper macro to build NGRAPH_RTTI_DEFINITION macro.
+#define NGRAPH_RTTI_DEFINITION_2(TYPE_NAME, CLASS, PARENT_CLASS, _VERSION_INDEX)                   \
     const ::ngraph::Node::type_info_t& CLASS::get_type_info_static() { return type_info; }
-/// Complementary to RTTI_DECLARATION, this helper macro _defines_ items _declared_ by
-/// RTTI_DECLARATION accepting necessary type identification details.
+/// Complementary to NGRAPH_RTTI_DECLARATION, this helper macro _defines_ items _declared_ by
+/// NGRAPH_RTTI_DECLARATION accepting necessary type identification details.
 /// Should be used outside the class definition scope.
 /// \param TYPE_NAME a string literal of type const char* that names your class in type
 /// identification namespace;
 ///        It is your choice how to name it, but it should be unique among all
-///        RTTI_DECLARATION-enabled classes that can be
+///        NGRAPH_RTTI_DECLARATION-enabled classes that can be
 ///        used in conjunction with each other in one transformation flow.
-/// \param CLASS is a C++ name of the class where corresponding RTTI_DECLARATION was applied
+/// \param CLASS is a C++ name of the class where corresponding NGRAPH_RTTI_DECLARATION was applied
 /// \param PARENT_CLASS is a parent class for class CLASS; should match real inheritance relation
 /// between CLASS and PARENT_CLASS
 /// \param _VERSION_INDEX is an unsigned integer index to distinguish different versions of
 /// operations that shares the same TYPE_NAME
 ///
-/// Examples (see corresponding declarations in RTTI_DECLARATION description):
+/// Examples (see corresponding declarations in NGRAPH_RTTI_DECLARATION description):
 ///
-///     RTTI_DEFINITION("MyOp", MyOp, ngraph::Node, 1)
-///     RTTI_DEFINITION("MyInheritedOp", MyInheritedOp, MyOp, 1)
+///     NGRAPH_RTTI_DEFINITION("MyOp", MyOp, ngraph::Node, 1)
+///     NGRAPH_RTTI_DEFINITION("MyInheritedOp", MyInheritedOp, MyOp, 1)
 ///
 /// For convenience, TYPE_NAME and CLASS name are recommended to be the same.
 ///
-#define RTTI_DEFINITION(TYPE_NAME, CLASS, PARENT_CLASS, _VERSION_INDEX)                            \
-    RTTI_DEFINITION_1(TYPE_NAME, CLASS, PARENT_CLASS, _VERSION_INDEX)                              \
-    RTTI_DEFINITION_2(TYPE_NAME, CLASS, PARENT_CLASS, _VERSION_INDEX)
+#define NGRAPH_RTTI_DEFINITION(TYPE_NAME, CLASS, PARENT_CLASS, _VERSION_INDEX)                     \
+    NGRAPH_RTTI_DEFINITION_1(TYPE_NAME, CLASS, PARENT_CLASS, _VERSION_INDEX)                       \
+    NGRAPH_RTTI_DEFINITION_2(TYPE_NAME, CLASS, PARENT_CLASS, _VERSION_INDEX)
 
     // Like an Output but with a Node* instead of a shared_ptr<Node>
     struct RawNodeOutput

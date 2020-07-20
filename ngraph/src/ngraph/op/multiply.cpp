@@ -106,7 +106,7 @@ bool op::v0::Multiply::evaluate(const HostTensorVector& outputs, const HostTenso
 
 // ------------------------------------ v1 -------------------------------------
 
-RTTI_DEFINITION("Multiply", op::v1::Multiply, Node, 1);
+NGRAPH_RTTI_DEFINITION("Multiply", op::v1::Multiply, Node, 1);
 
 op::v1::Multiply::Multiply(const Output<Node>& arg0,
                            const Output<Node>& arg1,

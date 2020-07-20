@@ -62,7 +62,7 @@ namespace ngraph
             class NGRAPH_API Subtract : public util::BinaryElementwiseArithmetic
             {
             public:
-                RTTI_DECLARATION
+                NGRAPH_RTTI_DECLARATION
 
                 Subtract()
                     : util::BinaryElementwiseArithmetic(AutoBroadcastSpec::NUMPY)

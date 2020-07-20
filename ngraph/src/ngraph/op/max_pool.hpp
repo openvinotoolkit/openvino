@@ -158,7 +158,7 @@ namespace ngraph
             class NGRAPH_API MaxPool : public Op
             {
             public:
-                RTTI_DECLARATION
+                NGRAPH_RTTI_DECLARATION
 
                 /// \brief Constructs a batched max pooling operation.
                 MaxPool() = default;
