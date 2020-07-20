@@ -31,7 +31,6 @@ namespace ngraph
             public:
                 static constexpr NodeTypeInfo type_info{"BinaryConvolution", 1};
                 const NodeTypeInfo& get_type_info() const override { return type_info; }
-
                 enum class BinaryConvolutionMode
                 {
                     // Interpret input data and kernel values: 0 as -1, 1 as 1

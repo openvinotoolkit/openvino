@@ -32,7 +32,6 @@ namespace ngraph
             public:
                 static constexpr NodeTypeInfo type_info{"ScatterNDBase", 3};
                 const NodeTypeInfo& get_type_info() const override { return type_info; }
-
                 // Respective input ordinal number.
                 static constexpr int INPUTS = 0;
                 static constexpr int INDICES = 1;

@@ -982,9 +982,11 @@ bool Node::match_node(pattern::Matcher* matcher, const Output<Node>& graph_value
 {
     matcher->add_node(graph_value);
     // Check if a type of a given node, which produces graph_value, matches the type of `this` node
-    // or `this` node type is an ancestor of that node type. It is not the exact matching, types of the nodes
+    // or `this` node type is an ancestor of that node type. It is not the exact matching, types of
+    // the nodes
     // may not match, but they are connected by the inheritance relation.
-    // Not exact matching allows using base classes in the patterns and successfully matching such patterns
+    // Not exact matching allows using base classes in the patterns and successfully matching such
+    // patterns
     // with sub-graph of descent nodes types.
     return graph_value.get_node_shared_ptr()->get_type_info().is_castable(get_type_info()) &&
            matcher->match_arguments(this, graph_value.get_node_shared_ptr());

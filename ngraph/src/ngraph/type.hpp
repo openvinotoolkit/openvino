@@ -39,13 +39,20 @@ namespace ngraph
     {
         const char* name;
         uint64_t version;
-        // A pointer to a parent type info; used for casting and inheritance traversal, not for exact type identification
+        // A pointer to a parent type info; used for casting and inheritance traversal, not for
+        // exact type identification
         const DiscreteTypeInfo* parent;
 
-        DiscreteTypeInfo () = default;
+        DiscreteTypeInfo() = default;
 
-        constexpr DiscreteTypeInfo (const char* _name, uint64_t _version, const DiscreteTypeInfo* _parent = nullptr) :
-            name(_name), version(_version), parent(_parent) {}
+        constexpr DiscreteTypeInfo(const char* _name,
+                                   uint64_t _version,
+                                   const DiscreteTypeInfo* _parent = nullptr)
+            : name(_name)
+            , version(_version)
+            , parent(_parent)
+        {
+        }
 
         bool is_castable(const DiscreteTypeInfo& target_type) const
         {

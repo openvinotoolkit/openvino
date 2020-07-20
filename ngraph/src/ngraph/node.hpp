@@ -222,17 +222,16 @@ namespace ngraph
         /// \return A vector of nodes comprising the sub-graph. The order of output
         ///         tensors must match the match output tensors of the FusedOp
         virtual NodeVector decompose_op() const { return NodeVector(); }
-
         /// Defines the NodeTypeInfo for the node's class.
         static const type_info_t type_info;
 
         /// Returns the NodeTypeInfo for the class, static version of the function
-        /// Required for platforms where static data of the class cannot be declared as exported symbol
-        static const type_info_t& get_type_info_static () { return type_info; }
-
-        /// Returns the NodeTypeInfo for the node's class, virtual version of the function to determine real type info for an object
-        virtual const type_info_t& get_type_info () const { return type_info; }
-
+        /// Required for platforms where static data of the class cannot be declared as exported
+        /// symbol
+        static const type_info_t& get_type_info_static() { return type_info; }
+        /// Returns the NodeTypeInfo for the node's class, virtual version of the function to
+        /// determine real type info for an object
+        virtual const type_info_t& get_type_info() const { return type_info; }
         const char* get_type_name() const { return get_type_info().name; }
         /// Sets/replaces the arguments with new arguments.
         void set_arguments(const NodeVector& arguments);
@@ -606,10 +605,11 @@ namespace ngraph
     NGRAPH_API std::ostream& operator<<(std::ostream&, const Node&);
     NGRAPH_API std::ostream& operator<<(std::ostream&, const Node*);
 
-
 /// Helper macro that puts necessary declarations of RTTI block inside a class definition.
-/// Should be used in the scope of class that requires type identification besides one provided by C++ RTTI.
-/// Required to be used for all classes that are inherited from class ngraph::Node to enable pattern matching for them.
+/// Should be used in the scope of class that requires type identification besides one provided by
+/// C++ RTTI.
+/// Required to be used for all classes that are inherited from class ngraph::Node to enable pattern
+/// matching for them.
 ///
 /// Use this macro as a public part of the class definition:
 ///
@@ -629,29 +629,34 @@ namespace ngraph
 ///             ...
 ///     };
 ///
-/// All the details necessary for real type identification are provided in RTTI_DEFINITION helper macro
+/// All the details necessary for real type identification are provided in RTTI_DEFINITION helper
+/// macro
 ///
-#define RTTI_DECLARATION \
-    static const ::ngraph::Node::type_info_t type_info;   \
-    static const ::ngraph::Node::type_info_t& get_type_info_static (); \
-    const ::ngraph::Node::type_info_t& get_type_info () const override { return type_info; }
+#define RTTI_DECLARATION                                                                           \
+    static const ::ngraph::Node::type_info_t type_info;                                            \
+    static const ::ngraph::Node::type_info_t& get_type_info_static();                              \
+    const ::ngraph::Node::type_info_t& get_type_info() const override { return type_info; }
+/// Helper macro to build RTTI_DEFINITION macro.
+#define RTTI_DEFINITION_1(TYPE_NAME, CLASS, PARENT_CLASS, _VERSION_INDEX)                          \
+    const ::ngraph::Node::type_info_t CLASS::type_info{                                            \
+        TYPE_NAME, _VERSION_INDEX, &PARENT_CLASS::get_type_info_static()};
 
 /// Helper macro to build RTTI_DEFINITION macro.
-#define RTTI_DEFINITION_1(TYPE_NAME, CLASS, PARENT_CLASS, _VERSION_INDEX)  \
-    const ::ngraph::Node::type_info_t CLASS::type_info{TYPE_NAME, _VERSION_INDEX, &PARENT_CLASS::get_type_info_static()};
-
-/// Helper macro to build RTTI_DEFINITION macro.
-#define RTTI_DEFINITION_2(TYPE_NAME, CLASS, PARENT_CLASS, _VERSION_INDEX)  \
-    const ::ngraph::Node::type_info_t& CLASS::get_type_info_static () { return type_info; }
-
-/// Complementary to RTTI_DECLARATION, this helper macro _defines_ items _declared_ by RTTI_DECLARATION accepting necessary type identification details.
+#define RTTI_DEFINITION_2(TYPE_NAME, CLASS, PARENT_CLASS, _VERSION_INDEX)                          \
+    const ::ngraph::Node::type_info_t& CLASS::get_type_info_static() { return type_info; }
+/// Complementary to RTTI_DECLARATION, this helper macro _defines_ items _declared_ by
+/// RTTI_DECLARATION accepting necessary type identification details.
 /// Should be used outside the class definition scope.
-/// \param TYPE_NAME a string literal of type const char* that names your class in type identification namespace;
-///        It is your choice how to name it, but it should be unique among all RTTI_DECLARATION-enabled classes that can be
+/// \param TYPE_NAME a string literal of type const char* that names your class in type
+/// identification namespace;
+///        It is your choice how to name it, but it should be unique among all
+///        RTTI_DECLARATION-enabled classes that can be
 ///        used in conjunction with each other in one transformation flow.
 /// \param CLASS is a C++ name of the class where corresponding RTTI_DECLARATION was applied
-/// \param PARENT_CLASS is a parent class for class CLASS; should match real inheritance relation between CLASS and PARENT_CLASS
-/// \param _VERSION_INDEX is an unsigned integer index to distinguish different versions of operations that shares the same TYPE_NAME
+/// \param PARENT_CLASS is a parent class for class CLASS; should match real inheritance relation
+/// between CLASS and PARENT_CLASS
+/// \param _VERSION_INDEX is an unsigned integer index to distinguish different versions of
+/// operations that shares the same TYPE_NAME
 ///
 /// Examples (see corresponding declarations in RTTI_DECLARATION description):
 ///
@@ -660,10 +665,9 @@ namespace ngraph
 ///
 /// For convenience, TYPE_NAME and CLASS name are recommended to be the same.
 ///
-#define RTTI_DEFINITION(TYPE_NAME, CLASS, PARENT_CLASS, _VERSION_INDEX)  \
-    RTTI_DEFINITION_1(TYPE_NAME, CLASS, PARENT_CLASS, _VERSION_INDEX) \
+#define RTTI_DEFINITION(TYPE_NAME, CLASS, PARENT_CLASS, _VERSION_INDEX)                            \
+    RTTI_DEFINITION_1(TYPE_NAME, CLASS, PARENT_CLASS, _VERSION_INDEX)                              \
     RTTI_DEFINITION_2(TYPE_NAME, CLASS, PARENT_CLASS, _VERSION_INDEX)
-
 
     // Like an Output but with a Node* instead of a shared_ptr<Node>
     struct RawNodeOutput
