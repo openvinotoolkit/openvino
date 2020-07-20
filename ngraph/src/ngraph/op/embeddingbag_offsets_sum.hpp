@@ -69,6 +69,7 @@ namespace ngraph
 
                 virtual std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
+                bool evaluate(const HostTensorVector& output_values, const HostTensorVector& input_values) override;
             };
         }
         using v3::EmbeddingBagOffsetsSum;

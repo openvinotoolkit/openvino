@@ -79,6 +79,8 @@ namespace ngraph
                     clone_with_new_inputs(const OutputVector& new_args) const override;
 
                 virtual bool visit_attributes(AttributeVisitor& visitor) override { return true; }
+
+                bool evaluate(const HostTensorVector& output_values, const HostTensorVector& input_values) override;
             private:
                 static constexpr int EMB_TABLE = 0;
                 static constexpr int INDICES = 1;

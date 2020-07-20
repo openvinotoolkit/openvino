@@ -17,6 +17,7 @@
 #include "ngraph/op/embedding_segments_sum.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/opsets/opset3.hpp"
+#include "ngraph/runtime/reference/embedding_segments_sum.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -206,4 +207,60 @@ shared_ptr<Node>
     {
         throw ngraph_error("Incorrect number of arguments");
     }
+}
+
+
+namespace {
+    template<element::Type_t ET>
+    inline bool
+    evaluate(const HostTensorVector &args, const HostTensorPtr &out) {
+        using T = typename element_type_traits<ET>::value_type;
+#define REF_CALL(elType) \
+        runtime::reference::embeddingSegmentsSum<T, typename element_type_traits<elType>::value_type>( \
+                                                       args[0]->get_data_ptr<ET>(), \
+                                                       args[1]->get_data_ptr<elType>(), \
+                                                       args[2]->get_data_ptr<elType>(), \
+                                                       args.size() > 4 ? args[4]->get_data_ptr<elType>() : nullptr, \
+                                                       args.size() > 5 ? args[5]->get_data_ptr<ET>() : nullptr, \
+                                                       out->get_data_ptr<ET>(), \
+                                                       args[0]->get_shape(), \
+                                                       args[1]->get_shape(), \
+                                                       out->get_shape()); \
+        break;
+
+        switch (args[1]->get_element_type()) {
+            case element::Type_t::i32:
+                REF_CALL(element::Type_t::i32);
+            case element::Type_t::i64:
+                REF_CALL(element::Type_t::i64);
+            default:
+                return false;
+        }
+#undef REF_CALL
+        return true;
+    }
+
+
+    bool evaluate_ess(const HostTensorVector &args, const HostTensorPtr &out) {
+        bool rc = true;
+
+        switch (out->get_element_type()) {
+            TYPE_CASE(u8)(args, out);
+                break;
+            TYPE_CASE(i32)(args, out);
+                break;
+            TYPE_CASE(f16)(args, out);
+                break;
+            TYPE_CASE(f32)(args, out);
+                break;
+            default:
+                rc = false;
+                break;
+        }
+        return rc;
+    }
+}
+
+bool op::EmbeddingSegmentsSum::evaluate(const HostTensorVector &outputs, const HostTensorVector &inputs) {
+    return evaluate_ess(inputs, outputs[0]);
 }
