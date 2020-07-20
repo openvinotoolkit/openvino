@@ -22,10 +22,10 @@
 namespace LayerTestsDefinitions {
 
 std::string NormalizeL2Transformation::getTestCaseName(testing::TestParamInfo<NormalizeL2TransformationParams> obj) {
-    InferenceEngine::Precision netPrecision;
+    ngraph::element::Type netPrecision;
     std::pair<ngraph::Shape, ngraph::Shape> shapes;
     std::string targetDevice;
-    InferenceEngine::details::LayerTransformation::Params params = LayerTestsUtils::LayerTransformationParamsFactory::createParams();
+    auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
     LayerTestsUtils::LayerTransformation::LptVersion version;
     std::vector<uint64_t> axes;
     bool fuseMultiply;
@@ -33,7 +33,7 @@ std::string NormalizeL2Transformation::getTestCaseName(testing::TestParamInfo<No
     std::tie(netPrecision, shapes, targetDevice, version, axes, fuseMultiply, shift) = obj.param;
 
     std::ostringstream result;
-    result << netPrecision.name() << "_" <<
+    result << netPrecision << "_" <<
         shapes.first << "_" <<
         shapes.second << "_" <<
         targetDevice << "_" <<
@@ -48,22 +48,20 @@ std::string NormalizeL2Transformation::getTestCaseName(testing::TestParamInfo<No
 void NormalizeL2Transformation::SetUp() {
     threshold = 3.e-3;
     std::pair<ngraph::Shape, ngraph::Shape> shapes;
-    InferenceEngine::Precision netPrecision;
-    InferenceEngine::details::LayerTransformation::Params params = LayerTestsUtils::LayerTransformationParamsFactory::createParams();
+    ngraph::element::Type precision;
+    auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
     LayerTestsUtils::LayerTransformation::LptVersion version;
     std::vector<uint64_t> axes;
     bool fuseMultiply;
     bool shift;
-    std::tie(netPrecision, shapes, targetDevice, version, axes, fuseMultiply, shift) = this->GetParam();
+    std::tie(precision, shapes, targetDevice, version, axes, fuseMultiply, shift) = this->GetParam();
 
     ConfigurePlugin(version);
 
-    auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-
     function = ngraph::builder::subgraph::NormalizeL2Function::getOriginal(
-        ngPrc,
+        precision,
         shapes,
-        FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(params.precisionsOnActivations[0]),
+        params.precisionsOnActivations[0],
         axes,
         fuseMultiply,
         shift);
@@ -74,16 +72,16 @@ void NormalizeL2Transformation::SetUp() {
 }
 
 void NormalizeL2Transformation::validate() {
-    InferenceEngine::Precision netPrecision;
+    ngraph::element::Type netPrecision;
     std::pair<ngraph::Shape, ngraph::Shape> shapes;
-    InferenceEngine::details::LayerTransformation::Params params = LayerTestsUtils::LayerTransformationParamsFactory::createParams();
+    auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
     LayerTestsUtils::LayerTransformation::LptVersion version;
     std::vector<uint64_t> axes;
     bool fuseMultiply;
     bool shift;
     std::tie(netPrecision, shapes, targetDevice, version, axes, fuseMultiply, shift) = this->GetParam();
 
-    const InferenceEngine::CNNNetwork network = transform(params);
+    const InferenceEngine::CNNNetwork network = transform(toCNNNetwork(params));
 
     IE_SUPPRESS_DEPRECATED_START
 

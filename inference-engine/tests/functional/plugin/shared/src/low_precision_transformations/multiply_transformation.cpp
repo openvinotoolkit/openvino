@@ -18,17 +18,20 @@
 namespace LayerTestsDefinitions {
 
 std::string MultiplyTransformation::getTestCaseName(testing::TestParamInfo<MultiplyTransformationParams> obj) {
-    InferenceEngine::Precision netPrecision;
-    InferenceEngine::SizeVector inputShapes;
+    ngraph::element::Type precision;
+    ngraph::Shape inputShapes;
     std::string targetDevice;
-    InferenceEngine::details::LayerTransformation::Params params = LayerTestsUtils::LayerTransformationParamsFactory::createParams();
+    auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
     LayerTestsUtils::LayerTransformation::LptVersion version;
     MultiplyTestValues param;
-    std::tie(netPrecision, inputShapes, targetDevice, version, param) = obj.param;
+    std::tie(precision, inputShapes, targetDevice, version, param) = obj.param;
+
+    if (!param.precisionOnActivations.empty()) {
+        params.precisionsOnActivations = param.precisionOnActivations;
+    }
 
     std::ostringstream result;
-    result << getTestCaseNameByParams(netPrecision, inputShapes, targetDevice, params, version) <<
-        param.precisionOnActivations <<
+    result << getTestCaseNameByParams(precision, inputShapes, targetDevice, params, version) <<
         (param.broadcast ? "_broadcast" : "");
     if (!param.fakeQuantize1.empty()) {
         result << "_on_branch1_" <<
@@ -48,17 +51,15 @@ std::string MultiplyTransformation::getTestCaseName(testing::TestParamInfo<Multi
 }
 
 void MultiplyTransformation::SetUp() {
-    InferenceEngine::Precision netPrecision;
-    InferenceEngine::SizeVector inputShape1;
+    ngraph::element::Type precision;
+    ngraph::Shape inputShape1;
     LayerTestsUtils::LayerTransformation::LptVersion version;
     MultiplyTestValues param;
-    std::tie(netPrecision, inputShape1, targetDevice, version, param) = this->GetParam();
+    std::tie(precision, inputShape1, targetDevice, version, param) = this->GetParam();
 
     ConfigurePlugin(version);
 
-    auto precision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-
-    InferenceEngine::SizeVector inputShape2 = inputShape1;
+    ngraph::Shape inputShape2 = inputShape1;
 
     if (param.broadcast) {
         inputShape2[2] = 1;
@@ -68,14 +69,14 @@ void MultiplyTransformation::SetUp() {
     auto fq1 = param.fakeQuantize1;
     auto fq2 = param.fakeQuantize2;
 
-    const auto input1 = std::make_shared<ngraph::opset1::Parameter>(precision, ngraph::Shape(inputShape1));
+    const auto input1 = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape1);
     const auto fakeQuantize1 = fq1.empty() ?
         nullptr :
         ngraph::builder::makeFakeQuantize(
             input1, precision, fq1.quantizationLevel, fq1.constantShape,
             fq1.inputLowValues, fq1.inputHighValues, fq1.outputLowValues, fq1.outputHighValues);
 
-    const auto input2 = std::make_shared<ngraph::opset1::Parameter>(precision, ngraph::Shape(inputShape2));
+    const auto input2 = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape2);
     const auto fakeQuantize2 = fq2.empty() ?
         nullptr :
         ngraph::builder::makeFakeQuantize(
@@ -97,17 +98,19 @@ void MultiplyTransformation::SetUp() {
 }
 
 void MultiplyTransformation::validate() {
-    InferenceEngine::Precision netPrecision;
-    InferenceEngine::SizeVector inputShape;
+    ngraph::element::Type precision;
+    ngraph::Shape inputShape;
     std::string targetDevice;
-    InferenceEngine::details::LayerTransformation::Params params = LayerTestsUtils::LayerTransformationParamsFactory::createParams();
+    auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
     LayerTestsUtils::LayerTransformation::LptVersion version;
     MultiplyTestValues param;
-    std::tie(netPrecision, inputShape, targetDevice, version, param) = this->GetParam();
+    std::tie(precision, inputShape, targetDevice, version, param) = this->GetParam();
 
-    params.precisionsOnActivations = param.precisionOnActivations;
+    if (!param.precisionOnActivations.empty()) {
+        params.precisionsOnActivations = param.precisionOnActivations;
+    }
 
-    const InferenceEngine::CNNNetwork network = transform(params);
+    const InferenceEngine::CNNNetwork network = transform(toCNNNetwork(params));
 
     IE_SUPPRESS_DEPRECATED_START
 
@@ -125,8 +128,8 @@ void MultiplyTransformation::validate() {
         const InferenceEngine::Precision precision2 =
             InferenceEngine::details::CNNNetworkHelper::getParents(*outputLayer)[1]->outData[0]->getPrecision();
 
-        EXPECT_EQ(precision1, param.expectedPrecisions[0]);
-        EXPECT_EQ(precision2, param.expectedPrecisions[1]);
+        EXPECT_EQ(precision1, toCNNNetwork(param.expectedPrecisions[0]));
+        EXPECT_EQ(precision2, toCNNNetwork(param.expectedPrecisions[1]));
     }
 
     IE_SUPPRESS_DEPRECATED_END

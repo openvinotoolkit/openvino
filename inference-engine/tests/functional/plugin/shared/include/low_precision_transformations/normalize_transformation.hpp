@@ -12,8 +12,8 @@
 
 namespace LayerTestsDefinitions {
 
-typedef std::tuple<
-    InferenceEngine::Precision,
+typedef std::tuple <
+    ngraph::element::Type,
     std::pair<ngraph::Shape, ngraph::Shape>,
     std::string,
     LayerTestsUtils::LayerTransformation::LptVersion,

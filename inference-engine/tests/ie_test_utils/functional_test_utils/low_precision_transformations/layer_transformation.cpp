@@ -299,6 +299,12 @@ InferenceEngine::Precision toNGraph(const ngraph::element::Type precision) {
     case ngraph::element::Type_t::i8: {
         return InferenceEngine::Precision::I8;
     }
+    case ngraph::element::Type_t::f32: {
+        return InferenceEngine::Precision::FP32;
+    }
+    case ngraph::element::Type_t::f16: {
+        return InferenceEngine::Precision::FP16;
+    }
     default: {
         THROW_IE_EXCEPTION << "unknown precision " << precision;
     }
@@ -383,6 +389,9 @@ InferenceEngine::details::LayerTransformation::Params LayerTransformation::toCNN
 
 InferenceEngine::Precision LayerTransformation::toCNNNetwork(const ngraph::element::Type_t precision) {
     switch (precision) {
+        case ngraph::element::Type_t::i8: {
+            return InferenceEngine::Precision::I8;
+        }
         case ngraph::element::Type_t::u8: {
             return InferenceEngine::Precision::U8;
         }

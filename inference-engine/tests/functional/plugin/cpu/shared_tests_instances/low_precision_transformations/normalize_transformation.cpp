@@ -11,9 +11,9 @@ using namespace LayerTestsDefinitions;
 using namespace InferenceEngine::details;
 
 namespace {
-const std::vector<InferenceEngine::Precision> precisions = {
-    InferenceEngine::Precision::FP32,
-    //InferenceEngine::Precision::FP16
+const std::vector<ngraph::element::Type> precisions = {
+    ngraph::element::f32,
+    //ngraph::element::f16
 };
 
 const std::vector<std::pair<ngraph::Shape, ngraph::Shape> > inputAndQuantizationShapes = {

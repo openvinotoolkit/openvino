@@ -11,9 +11,9 @@ using namespace LayerTestsDefinitions;
 using namespace InferenceEngine::details;
 
 namespace {
-const std::vector<InferenceEngine::Precision> netPrecisions = {
-    InferenceEngine::Precision::FP32,
-    //InferenceEngine::Precision::FP16
+const std::vector<ngraph::element::Type> netPrecisions = {
+    ngraph::element::f32,
+    //ngraph::element::f16
 };
 
 const std::vector<LayerTestsUtils::LayerTransformation::LptVersion> versions = {
@@ -26,49 +26,49 @@ const std::vector<LayerTestsDefinitions::AddTestValues> params = {
         { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 255.f } },
         { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 255.f }, { -128.f }, { 127.f } },
         false,
-        {InferenceEngine::Precision::I8}, {InferenceEngine::Precision::FP32, InferenceEngine::Precision::I8}
+        {ngraph::element::i8}, {ngraph::element::f32, ngraph::element::i8}
     },
     {
         { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { -128.f }, { 127.f }, { -128.f }, { 127.f } },
         { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 255.f } },
         false,
-        {InferenceEngine::Precision::I8}, {InferenceEngine::Precision::FP32, InferenceEngine::Precision::I8}
+        {ngraph::element::i8}, {ngraph::element::f32, ngraph::element::i8}
     },
     {
         { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 255.f } },
         { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 255.f }, { -128.f }, { 127.f } },
         true,
-        {InferenceEngine::Precision::I8}, {InferenceEngine::Precision::I8, InferenceEngine::Precision::FP32}
+        {ngraph::element::i8}, {ngraph::element::i8, ngraph::element::f32}
     },
     {
         { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { -128.f }, { 127.f }, { -128.f }, { 127.f } },
         { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 255.f } },
         true,
-        {InferenceEngine::Precision::I8}, {InferenceEngine::Precision::I8, InferenceEngine::Precision::FP32}
+        {ngraph::element::i8}, {ngraph::element::i8, ngraph::element::f32}
     },
     {
         { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 255.f } },
         { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 255.f }, { -127.f }, { 128.f } },
         false,
-        {InferenceEngine::Precision::U8}, {InferenceEngine::Precision::FP32, InferenceEngine::Precision::U8}
+        {ngraph::element::u8}, {ngraph::element::f32, ngraph::element::u8}
     },
     {
         { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { -128.f }, { 127.f }, { -128.f }, { 127.f } },
         { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 255.f } },
         false,
-        {InferenceEngine::Precision::U8}, {InferenceEngine::Precision::FP32, InferenceEngine::Precision::U8}
+        {ngraph::element::u8}, {ngraph::element::f32, ngraph::element::u8}
     },
     {
         { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 255.f } },
         { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 255.f }, { -127.f }, { 128.f } },
         true,
-        {InferenceEngine::Precision::U8}, {InferenceEngine::Precision::U8, InferenceEngine::Precision::FP32}
+        {ngraph::element::u8}, {ngraph::element::u8, ngraph::element::f32}
     },
     {
         { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { -128.f }, { 127.f }, { -128.f }, { 127.f } },
         { 256ul, ngraph::Shape { 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 255.f } },
         true,
-        {InferenceEngine::Precision::U8}, {InferenceEngine::Precision::U8, InferenceEngine::Precision::FP32}
+        {ngraph::element::u8}, {ngraph::element::u8, ngraph::element::f32}
     },
     { {}, {}, false }, { {}, {}, true },
 };
