@@ -238,7 +238,7 @@ namespace ngraph
         : public EnumAttributeAdapterBase<op::v4::Interpolate::CoordinateTransformMode>
     {
     public:
-        AttributeAdapter(op::v3::Interpolate::CoordinateTransformMode& value)
+        AttributeAdapter(op::v4::Interpolate::CoordinateTransformMode& value)
             : EnumAttributeAdapterBase<op::v4::Interpolate::CoordinateTransformMode>(value)
         {
         }

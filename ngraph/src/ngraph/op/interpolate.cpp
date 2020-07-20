@@ -147,7 +147,7 @@ void op::v4::Interpolate::validate_and_infer_types()
 
     PartialShape output_shape = PartialShape(get_input_partial_shape(0));
 
-    auto axes  = get_axes();
+    auto axes = get_axes();
     if (output_shape.rank().is_static())
     {
         for (auto axis : axes)
