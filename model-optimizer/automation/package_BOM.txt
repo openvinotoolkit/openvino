@@ -232,6 +232,7 @@ extensions/front/onnx/activation_ext.py
 extensions/front/onnx/affine_ext.py
 extensions/front/onnx/argmax_ext.py
 extensions/front/onnx/aten_ext.py
+extensions/front/onnx/AttributedSliceToSlice.py
 extensions/front/onnx/cast_ext.py
 extensions/front/onnx/clip_ext.py
 extensions/front/onnx/const_ext.py
@@ -303,7 +304,6 @@ extensions/front/onnx/roifeatureextractor_ext.py
 extensions/front/onnx/scatter_ext.py
 extensions/front/onnx/shape_ext.py
 extensions/front/onnx/slice_ext.py
-extensions/front/onnx/slice_replacers.py
 extensions/front/onnx/softmax_ext.py
 extensions/front/onnx/softmaxONNX_to_softmax.py
 extensions/front/onnx/softplus_ext.py
@@ -425,7 +425,6 @@ extensions/front/tf/select_ext.py
 extensions/front/tf/sign_ext.py
 extensions/front/tf/SizeReplacer.py
 extensions/front/tf/slice_ext.py
-extensions/front/tf/slice_replacers.py
 extensions/front/tf/softmax_ext.py
 extensions/front/tf/softplus_ext.py
 extensions/front/tf/space_to_batch.py
@@ -450,6 +449,7 @@ extensions/front/tf/SwitchMergeOptimization.py
 extensions/front/tf/TensorArrayExtractors.py
 extensions/front/tf/TensorArrayGatherV3.py
 extensions/front/tf/tensorflow_custom_operations_config_update.py
+extensions/front/tf/TFSliceToSlice.py
 extensions/front/tf/tile_ext.py
 extensions/front/tf/topk_ext.py
 extensions/front/tf/transpose_ext.py

@@ -18,7 +18,7 @@ import unittest
 
 import numpy as np
 
-from extensions.front.onnx.slice_replacers import AttributedSliceToSliceReplacer
+from extensions.front.onnx.AttributedSliceToSlice import AttributedSliceToSliceReplacer
 from mo.utils.ir_engine.compare_graphs import compare_graphs
 from mo.utils.unittest.graph import build_graph, regular_op_with_empty_data, result, const
 

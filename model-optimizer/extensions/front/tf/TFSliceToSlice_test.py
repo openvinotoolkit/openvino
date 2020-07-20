@@ -18,7 +18,7 @@ import unittest
 
 import numpy as np
 
-from extensions.front.tf.slice_replacers import TFSliceToSliceReplacer
+from extensions.front.tf.TFSliceToSlice import TFSliceToSliceReplacer
 from mo.utils.ir_engine.compare_graphs import compare_graphs
 from mo.utils.unittest.graph import build_graph, regular_op_with_empty_data, result, const
 
