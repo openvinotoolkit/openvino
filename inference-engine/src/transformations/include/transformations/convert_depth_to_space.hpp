@@ -19,12 +19,7 @@ class TRANSFORMATIONS_API ConvertDepthToSpace;
 }  // namespace pass
 }  // namespace ngraph
 
-class ngraph::pass::ConvertDepthToSpace: public ngraph::pass::GraphRewrite {
+class ngraph::pass::ConvertDepthToSpace: public ngraph::pass::MatcherPass {
 public:
-    ConvertDepthToSpace() : GraphRewrite() {
-        convert_depth_to_space();
-    }
-
-private:
-    void convert_depth_to_space();
+    ConvertDepthToSpace();
 };

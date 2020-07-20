@@ -84,7 +84,7 @@ public:
         return node;
     }
 
-    std::vector<std::shared_ptr<ngraph::Node>> get_new_nodes() { return m_new_nodes; }
+    const std::vector<std::shared_ptr<ngraph::Node>> & get_new_nodes() { return m_new_nodes; }
     void clear_new_nodes() { m_new_nodes.clear(); }
     std::shared_ptr<pattern::Matcher> get_matcher() { return m_matcher; }
 protected:
