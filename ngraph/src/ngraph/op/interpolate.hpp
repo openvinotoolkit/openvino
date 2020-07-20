@@ -72,8 +72,8 @@ namespace ngraph
                 /// \param output_shape Output shape of spatial axes
                 /// \param attrs        Interpolation attributes
                 Interpolate(const Output<Node>& image,
-                            const Output<Node>& output_shape,
-                            const InterpolateAttrs& attrs);
+                                 const Output<Node>& output_shape,
+                                 const InterpolateAttrs& attrs);
                 bool visit_attributes(AttributeVisitor& visitor) override;
 
                 void validate_and_infer_types() override;
@@ -151,14 +151,25 @@ namespace ngraph
                 static constexpr NodeTypeInfo type_info{"Interpolate", 4};
                 const NodeTypeInfo& get_type_info() const override { return type_info; }
                 Interpolate() = default;
-                /// \brief Constructs a Interpolate operation
+                /// \brief Constructs a Interpolate operation without 'axes' input.
                 ///
                 /// \param image        Input image
                 /// \param output_shape Output shape of spatial axes
                 /// \param attrs        Interpolation attributes
                 Interpolate(const Output<Node>& image,
-                            const Output<Node>& output_shape,
-                            const InterpolateAttrs& attrs);
+                                 const Output<Node>& output_shape,
+                                 const InterpolateAttrs& attrs);
+
+                /// \brief Constructs a Interpolate operation with 'axes' input.
+                ///
+                /// \param image        Input image
+                /// \param output_shape Output shape of spatial axes
+                /// \param axes        Interpolation axes
+                /// \param attrs        Interpolation attributes
+                Interpolate(const Output<Node>& image,
+                                 const Output<Node>& output_shape,
+                                 const Output<Node>& axes,
+                                 const InterpolateAttrs& attrs);
                 bool visit_attributes(AttributeVisitor& visitor) override;
 
                 void validate_and_infer_types() override;
@@ -171,6 +182,8 @@ namespace ngraph
                 std::vector<int64_t> get_axes() const;
             private:
                 InterpolateAttrs m_attrs;
+
+                std::vector<size_t> correct_pad(const std::vector<size_t>& pad);
             };
         }
         using v0::InterpolateAttrs;

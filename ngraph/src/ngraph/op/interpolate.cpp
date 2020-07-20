@@ -16,6 +16,7 @@
 
 #include "ngraph/op/interpolate.hpp"
 #include "ngraph/op/constant.hpp"
+#include <algorithm>
 
 using namespace std;
 using namespace ngraph;
@@ -119,6 +120,16 @@ constexpr NodeTypeInfo op::v4::Interpolate::type_info;
 
 op::v4::Interpolate::Interpolate(const Output<Node>& image,
                                  const Output<Node>& output_shape,
+                                 const Output<Node>& axes,
+                                 const InterpolateAttrs& attrs)
+    : Op({image, output_shape, axes})
+    , m_attrs(attrs)
+{
+    constructor_validate_and_infer_types();
+}
+
+op::v4::Interpolate::Interpolate(const Output<Node>& image,
+                                 const Output<Node>& output_shape,
                                  const op::v4::Interpolate::InterpolateAttrs& attrs)
     : Op({image, output_shape})
     , m_attrs(attrs)
@@ -135,6 +146,55 @@ bool op::v4::Interpolate::visit_attributes(AttributeVisitor& visitor)
 std::vector<int64_t> op::v4::Interpolate::get_axes() const
 {
     std::vector<int64_t> result;
+    PartialShape input_shape = PartialShape(get_input_partial_shape(0));
+    if (input_shape.rank().is_dynamic())
+    {
+        throw std::invalid_argument("Cannot get dynamic rank of input node.");
+    }
+    const auto input_rank = input_shape.rank().get_length();
+    std::vector<int64_t> default_value(input_rank);
+    for (int64_t i = 0; i < input_rank; ++i)
+    {
+        default_value[i] = i;
+    }
+    result = default_value;
+
+    auto inputs = input_values();
+    if (inputs.size() <= 2) {
+        return result;
+    }
+
+    if (auto axes_node = as_type_ptr<op::Constant>(input_value(2).get_node_shared_ptr()))
+    {
+        result = const_shape->cast_vector<int64_t>();
+    }
+
+    return result;
+}
+
+
+std::vector<size_t> op::v4::Interpolate::correct_pad(const std::vector<size_t>& pad)
+{
+    PartialShape input_shape = PartialShape(get_input_partial_shape(0));
+    if (input_shape.rank().is_dynamic())
+    {
+        throw std::invalid_argument("Cannot get dynamic rank of input node.");
+    }
+    const auto input_rank = input_shape.rank().get_length();
+    const auto pad_len    = pad.size();
+    if (pad_len == input_rank)
+    {
+        return pad;
+    }
+
+    std::vector<size_t> result;
+    result.insert(result.end(), pad.begin(), pad.begin() + std::min(input_rank, pad_len));
+    if (pad_len > input_rank)
+    {
+        return result;
+    }
+
+    result.insert(result.end(), input_rank - pad_len, 0);
     return result;
 }
 
@@ -148,11 +208,24 @@ void op::v4::Interpolate::validate_and_infer_types()
     PartialShape output_shape = PartialShape(get_input_partial_shape(0));
 
     auto axes = get_axes();
+    m_attrs.pads_begin = correct_pad(m_attrs.pads_begin);
+    m_attrs.pads_end = correct_pad(m_attrs.pads_end);
     if (output_shape.rank().is_static())
     {
+        const auto input_rank = output_shape().rank().get_length();
+        for (size_t i = 0; i < input_rank: ++i)
+        {
+            if (output_shape[i].is_static())
+            {
+                auto new_length = m_attrs.pads_begin[i] +
+                                  m_attrs.pads_end[i]   +
+                                  output_shape[i].get_length();
+                output_shape[i] = Dimension(new_length);
+            }
+        }
         for (auto axis : axes)
         {
-            NGRAPH_CHECK(axis < output_shape.rank().get_length());
+            NGRAPH_CHECK(axis < input_rank);
             output_shape[axis] = Dimension::dynamic();
         }
     }
