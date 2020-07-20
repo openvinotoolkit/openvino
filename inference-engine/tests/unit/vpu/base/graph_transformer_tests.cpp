@@ -170,8 +170,7 @@ void TestModel::createOutputs(int numOutputs) {
 
 Stage TestModel::addStage(
         std::initializer_list<InputInfo> curInputInfos,
-        std::initializer_list<OutputInfo> curOutputInfos,
-        bool write_to_dataDesc) {
+        std::initializer_list<OutputInfo> curOutputInfos) {
     DataVector curInputs;
     for (const auto& info : curInputInfos) {
         if (info.type == InputType::Original) {

@@ -107,7 +107,7 @@ public:
     }
 };
 
-TEST_F(VPU_AdjustDataBatchTest, Case_LinearWithBatchedInTheEnd) {
+TEST_F(VPU_AdjustDataBatchTest, LinearWithBatchedInTheEnd) {
     //
     // [Input] -> (Split) -> (Split) -> (Split) -> (Split) -> (Split) -> (Split) -> (Batched) -> [Output]
     //
@@ -117,12 +117,12 @@ TEST_F(VPU_AdjustDataBatchTest, Case_LinearWithBatchedInTheEnd) {
 
     for (int i = 0; i < 6; i++) {
         if (i > 0)
-            testModel.addStage({InputInfo::fromPrevStage(i - 1)}, {OutputInfo::intermediate()}, true);
+            testModel.addStage({InputInfo::fromPrevStage(i - 1)}, {OutputInfo::intermediate()});
         else
-            testModel.addStage({InputInfo::fromNetwork()}, {OutputInfo::intermediate()}, true);
+            testModel.addStage({InputInfo::fromNetwork()}, {OutputInfo::intermediate()});
         testModel.setStageBatchInfo(i, {{0, BatchSupport::Split}});
     }
-    testModel.addStage({InputInfo::fromPrevStage(5)}, {OutputInfo::fromNetwork()}, true);
+    testModel.addStage({InputInfo::fromPrevStage(5)}, {OutputInfo::fromNetwork()});
 
     RunPass();
 
@@ -140,7 +140,7 @@ TEST_F(VPU_AdjustDataBatchTest, Case_LinearWithBatchedInTheEnd) {
     ASSERT_EQ(data8, testModel.getOutputs().at(0));
 }
 
-TEST_F(VPU_AdjustDataBatchTest, Case_BranchedWithBatchSplitItems) {
+TEST_F(VPU_AdjustDataBatchTest, BranchedWithBatchSplitItems) {
     //                                                                                      -> (Batched) -> [Output]
     // [Input] -> (Split) -> (Split) -> (Split) -> (Split) -> (Split) -> (Split) -> (Split)
     //                                                                                      -> (Batched) -> [Output]
@@ -150,14 +150,14 @@ TEST_F(VPU_AdjustDataBatchTest, Case_BranchedWithBatchSplitItems) {
 
     for (int i = 0; i < 7; i++) {
         if (i > 0)
-            testModel.addStage({InputInfo::fromPrevStage(i - 1)}, {OutputInfo::intermediate()}, true);
+            testModel.addStage({InputInfo::fromPrevStage(i - 1)}, {OutputInfo::intermediate()});
         else
-            testModel.addStage({InputInfo::fromNetwork()}, {OutputInfo::intermediate()}, true);
+            testModel.addStage({InputInfo::fromNetwork()}, {OutputInfo::intermediate()});
         testModel.setStageBatchInfo(i, {{0, BatchSupport::Split}});
     }
 
-    testModel.addStage({InputInfo::fromPrevStage(6)}, {OutputInfo::fromNetwork(0)}, true);
-    testModel.addStage({InputInfo::fromPrevStage(6)}, {OutputInfo::fromNetwork(1)}, true);
+    testModel.addStage({InputInfo::fromPrevStage(6)}, {OutputInfo::fromNetwork(0)});
+    testModel.addStage({InputInfo::fromPrevStage(6)}, {OutputInfo::fromNetwork(1)});
 
     RunPass();
 
@@ -184,7 +184,7 @@ TEST_F(VPU_AdjustDataBatchTest, Case_BranchedWithBatchSplitItems) {
     ASSERT_EQ(withBatch_1, testModel.getOutputs().at(1));
 }
 
-TEST_F(VPU_AdjustDataBatchTest, Case_LinearWithBatchedInTheBeginning) {
+TEST_F(VPU_AdjustDataBatchTest, LinearWithBatchedInTheBeginning) {
     //
     // [Input] -> (Batched) -> (Split) -> (Split) -> (Split) -> (Split) -> (Split) -> (Split) -> [Output]
     //
@@ -194,14 +194,14 @@ TEST_F(VPU_AdjustDataBatchTest, Case_LinearWithBatchedInTheBeginning) {
 
     for (int i = 0; i < 6; i++) {
         if (i > 0)
-            testModel.addStage({InputInfo::fromPrevStage(i - 1)}, {OutputInfo::intermediate()}, true);
+            testModel.addStage({InputInfo::fromPrevStage(i - 1)}, {OutputInfo::intermediate()});
         else
-            testModel.addStage({InputInfo::fromNetwork()}, {OutputInfo::intermediate()}, true);
+            testModel.addStage({InputInfo::fromNetwork()}, {OutputInfo::intermediate()});
         if (i > 0)
             testModel.setStageBatchInfo(i, {{0, BatchSupport::Split}});
     }
 
-    testModel.addStage({InputInfo::fromPrevStage(5)}, {OutputInfo::fromNetwork()}, true);
+    testModel.addStage({InputInfo::fromPrevStage(5)}, {OutputInfo::fromNetwork()});
     testModel.setStageBatchInfo(6, {{0, BatchSupport::Split}});
 
     RunPass();
@@ -219,7 +219,7 @@ TEST_F(VPU_AdjustDataBatchTest, Case_LinearWithBatchedInTheBeginning) {
     ASSERT_EQ(data11, testModel.getOutputs());
 }
 
-TEST_F(VPU_AdjustDataBatchTest, Case_BranchedWithBatchItemsInTheEnd) {
+TEST_F(VPU_AdjustDataBatchTest, BranchedWithBatchItemsInTheEnd) {
     //                                                                                      -> (Batched) -> [Output]
     // [Input] -> (Split) -> (Split) -> (Split) -> (Split) -> (Split) -> (Split) -> (Batch)
     //                                                                                      -> (Batched) -> [Output]
@@ -229,15 +229,15 @@ TEST_F(VPU_AdjustDataBatchTest, Case_BranchedWithBatchItemsInTheEnd) {
 
     for (int i = 0; i < 6; i++) {
         if (i > 0)
-            testModel.addStage({InputInfo::fromPrevStage(i - 1)}, {OutputInfo::intermediate()}, true);
+            testModel.addStage({InputInfo::fromPrevStage(i - 1)}, {OutputInfo::intermediate()});
         else
-            testModel.addStage({InputInfo::fromNetwork()}, {OutputInfo::intermediate()}, true);
+            testModel.addStage({InputInfo::fromNetwork()}, {OutputInfo::intermediate()});
         testModel.setStageBatchInfo(i, {{0, BatchSupport::Split}});
     }
 
-    testModel.addStage({InputInfo::fromPrevStage(5)}, {OutputInfo::intermediate()}, true);
-    testModel.addStage({InputInfo::fromPrevStage(6)}, {OutputInfo::fromNetwork(0)}, true);
-    testModel.addStage({InputInfo::fromPrevStage(6)}, {OutputInfo::fromNetwork(1)}, true);
+    testModel.addStage({InputInfo::fromPrevStage(5)}, {OutputInfo::intermediate()});
+    testModel.addStage({InputInfo::fromPrevStage(6)}, {OutputInfo::fromNetwork(0)});
+    testModel.addStage({InputInfo::fromPrevStage(6)}, {OutputInfo::fromNetwork(1)});
 
     RunPass();
 
@@ -265,7 +265,7 @@ TEST_F(VPU_AdjustDataBatchTest, Case_BranchedWithBatchItemsInTheEnd) {
     ASSERT_EQ(withBatch_1, testModel.getOutputs().at(1));
 }
 
-TEST_F(VPU_AdjustDataBatchTest, DISABLED_Case_BranchedWithSplitAndBatchItemsInTheEnd) {
+TEST_F(VPU_AdjustDataBatchTest, DISABLED_BranchedWithSplitAndBatchItemsInTheEnd) {
     //
     //                                         -> (Split) -> (Batched) -> [Output]
     // [Input] -> (Split) -> (Split) -> (Split)
@@ -277,14 +277,14 @@ TEST_F(VPU_AdjustDataBatchTest, DISABLED_Case_BranchedWithSplitAndBatchItemsInTh
 
     for (int i = 0; i < 5; i++) {
         if (i > 0)
-            testModel.addStage({InputInfo::fromPrevStage(i - 1)}, {OutputInfo::intermediate()}, true);
+            testModel.addStage({InputInfo::fromPrevStage(i - 1)}, {OutputInfo::intermediate()});
         else
-            testModel.addStage({InputInfo::fromNetwork()}, {OutputInfo::intermediate()}, true);
+            testModel.addStage({InputInfo::fromNetwork()}, {OutputInfo::intermediate()});
         if (i != 3)
             testModel.setStageBatchInfo(i, {{0, BatchSupport::Split}});
     }
 
-    testModel.addStage({InputInfo::fromPrevStage(2)}, {OutputInfo::fromNetwork(1)}, true);
+    testModel.addStage({InputInfo::fromPrevStage(2)}, {OutputInfo::fromNetwork(1)});
     testModel.setStageBatchInfo(5, {{0, BatchSupport::Split}});
 
     RunPass();
@@ -306,7 +306,7 @@ TEST_F(VPU_AdjustDataBatchTest, DISABLED_Case_BranchedWithSplitAndBatchItemsInTh
     ASSERT_EQ(data6, testModel.getOutputs().at(1));
 }
 
-TEST_F(VPU_AdjustDataBatchTest, DISABLED_Case_BranchedWithBatchAndSplitItemsInTheEnd) {
+TEST_F(VPU_AdjustDataBatchTest, DISABLED_BranchedWithBatchAndSplitItemsInTheEnd) {
     //
     //                                         -> (Split) -> [Output]
     // [Input] -> (Split) -> (Split) -> (Split)
@@ -318,19 +318,19 @@ TEST_F(VPU_AdjustDataBatchTest, DISABLED_Case_BranchedWithBatchAndSplitItemsInTh
 
     for (int i = 0; i < 3; i++) {
         if (i > 0)
-            testModel.addStage({InputInfo::fromPrevStage(i - 1)}, {OutputInfo::intermediate()}, true);
+            testModel.addStage({InputInfo::fromPrevStage(i - 1)}, {OutputInfo::intermediate()});
         else
-            testModel.addStage({InputInfo::fromNetwork()}, {OutputInfo::intermediate()}, true);
+            testModel.addStage({InputInfo::fromNetwork()}, {OutputInfo::intermediate()});
         testModel.setStageBatchInfo(i, {{0, BatchSupport::Split}});
     }
     for (int i = 0; i < 2; i++) {
-        testModel.addStage({InputInfo::fromNetwork(2)}, {OutputInfo::intermediate()}, true);
+        testModel.addStage({InputInfo::fromNetwork(2)}, {OutputInfo::intermediate()});
         testModel.setStageBatchInfo(3 + i, {{0, BatchSupport::Split}});
     }
 
-    testModel.addStage({InputInfo::fromPrevStage(2)}, {OutputInfo::fromNetwork(0)}, true);
+    testModel.addStage({InputInfo::fromPrevStage(2)}, {OutputInfo::fromNetwork(0)});
     testModel.setStageBatchInfo(3, {{0, BatchSupport::Split}});
-    testModel.addStage({InputInfo::fromPrevStage(2)}, {OutputInfo::fromNetwork(1)}, true);
+    testModel.addStage({InputInfo::fromPrevStage(2)}, {OutputInfo::fromNetwork(1)});
     testModel.setStageBatchInfo(4, {{0, BatchSupport::Split}});
 
     RunPass();
