@@ -19,6 +19,8 @@
 #include "ngraph/attribute_adapter.hpp"
 #include "ngraph/op/op.hpp"
 #include "ngraph/op/util/attr_types.hpp"
+#include <vector>
+#include <cstdint>
 
 namespace ngraph
 {
