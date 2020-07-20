@@ -46,9 +46,9 @@ namespace ngraph
             const std::string& get_name() const { return m_graph_proto->name(); }
             NodeVector make_ng_nodes(const Node& onnx_node) const;
             const GraphCache& get_graph_cache() const;
-            const ONNX_NAMESPACE::OperatorSetIdProto& get_opset_version(int index) const
+            const ONNX_NAMESPACE::OperatorSetIdProto& opset_version(int index) const
             {
-                return m_model->get_opset_version(index);
+                return m_model->opset_version(index);
             }
 
         protected:

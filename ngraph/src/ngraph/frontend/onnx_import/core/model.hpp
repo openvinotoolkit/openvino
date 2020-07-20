@@ -39,7 +39,7 @@ namespace ngraph
             Model& operator=(const Model&) = delete;
             Model& operator=(Model&&) = delete;
 
-            const ONNX_NAMESPACE::OperatorSetIdProto& get_opset_version(int index) const
+            const ONNX_NAMESPACE::OperatorSetIdProto& opset_version(int index) const
             {
                 return m_model_proto->opset_import(index);
             }

@@ -78,7 +78,7 @@ namespace ngraph
                     y->set_name(output);
                 }
 
-                const ONNX_NAMESPACE::OperatorSetIdProto& opset_version = node.get_opset_version();
+                const ONNX_NAMESPACE::OperatorSetIdProto& opset_version = node.opset_version();
 
                 // Get vector of nGraph nodes after expanding ONNX function
                 std::vector<std::shared_ptr<ngraph::Node>> nodes =

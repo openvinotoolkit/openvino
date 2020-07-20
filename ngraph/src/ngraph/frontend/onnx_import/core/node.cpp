@@ -61,7 +61,7 @@ namespace ngraph
             T get_attribute_value(const std::string& name) const;
 
             const ONNX_NAMESPACE::NodeProto& node_proto() const;
-            const ONNX_NAMESPACE::OperatorSetIdProto& get_opset_version(int index) const;
+            const ONNX_NAMESPACE::OperatorSetIdProto& opset_version(int index) const;
             const Graph& graph() const;
 
         private:
@@ -73,9 +73,9 @@ namespace ngraph
         };
 
         const ONNX_NAMESPACE::NodeProto& Node::Impl::node_proto() const { return *m_node_proto; }
-        const ONNX_NAMESPACE::OperatorSetIdProto& Node::Impl::get_opset_version(int index) const
+        const ONNX_NAMESPACE::OperatorSetIdProto& Node::Impl::opset_version(int index) const
         {
-            return m_graph->get_opset_version(index);
+            return m_graph->opset_version(index);
         }
         const Graph& Node::Impl::graph() const { return *m_graph; }
         const std::vector<Attribute>& Node::Impl::attributes() const { return m_attributes; }
@@ -205,9 +205,9 @@ namespace ngraph
         NodeVector Node::get_ng_inputs() const { return m_pimpl->get_ng_inputs(); }
         NodeVector Node::get_ng_nodes() const { return m_pimpl->get_ng_nodes(*this); }
         const ONNX_NAMESPACE::NodeProto& Node::node_proto() const { return m_pimpl->node_proto(); }
-        const ONNX_NAMESPACE::OperatorSetIdProto& Node::get_opset_version(int index) const
+        const ONNX_NAMESPACE::OperatorSetIdProto& Node::opset_version(int index) const
         {
-            return m_pimpl->get_opset_version(index);
+            return m_pimpl->opset_version(index);
         }
         const std::string& Node::domain() const { return m_pimpl->domain(); }
         const std::string& Node::op_type() const { return m_pimpl->op_type(); }
