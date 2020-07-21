@@ -3780,6 +3780,9 @@ void Program::CreateGatherPrimitive(cldnn::topology& topology, InferenceEngine::
         }
     }
 
+    // BFYX WA START ========================================================================================================
+    // This is temporary workaround meant to fall back to bfyx implementation when possible.
+    // It won't be needed when proper support of 5d/6d inputs will be added for clDNN Gather primitive.
     auto indicesDims = layer->insData[1].lock()->getTensorDesc().getDims();
     auto indicesLayout = layer->insData[1].lock()->getTensorDesc().getLayout();
     auto indicesFormat = FormatFromLayout(indicesLayout);
@@ -3797,6 +3800,20 @@ void Program::CreateGatherPrimitive(cldnn::topology& topology, InferenceEngine::
 
     auto nonNegativeAxis = (axis >= 0) ? axis : axis + 3;
 
+    // following code is meant to support cases where we can merge dims after the one specified by 'axis'
+    if (nonNegativeAxis < 3) {
+        inputDims[nonNegativeAxis + 1] = std::accumulate(inputDims.begin() + nonNegativeAxis + 1, inputDims.end(), 1, std::multiplies<size_t>());
+        inputDims.erase(inputDims.begin() + nonNegativeAxis + 2, inputDims.end());
+        if (inputDims.size() < 4) {
+            inputDims.resize(4, 1);
+        }
+        outDims[nonNegativeAxis + indicesDims.size()] = std::accumulate(outDims.begin() + nonNegativeAxis + indicesDims.size(), outDims.end(), 1, std::multiplies<size_t>());
+        outDims.erase(outDims.begin() + nonNegativeAxis + indicesDims.size() + 1, outDims.end());
+        if (outDims.size() < 4 + indicesDims.size() - 1) {
+            outDims.resize(4 + indicesDims.size() - 1, 1);
+        }
+    }
+
     // following vector is needed just to check if we can apply bfyx WA
     SizeVector originalRequiredDims;
     for (size_t d = 0; d < inputDims.size(); d++) {
@@ -3805,8 +3822,8 @@ void Program::CreateGatherPrimitive(cldnn::topology& topology, InferenceEngine::
         }
     }
 
+    // make sure that we will have at least 4 output dimensions
     if (originalRequiredDims.size() < 4) {
-        // make sure that we will have at least 4 required dimensions
         auto originalAxesIt = originalRequiredDims.begin();
         for (size_t i = 0; i < 4; i++) {
             int dimFoundAtIndex = -1;
@@ -3824,7 +3841,7 @@ void Program::CreateGatherPrimitive(cldnn::topology& topology, InferenceEngine::
 
     // clDNN primitive is missing proper support of 5d/6d inputs
     // but we can still fall back to bfyx format in some cases
-    bool bfyx_wa = ((inputFormat == cldnn::format::bfzyx || inputFormat == cldnn::format::bfwzyx) &&
+    bool bfyx_wa = ((inputFormat == cldnn::format::bfyx || inputFormat == cldnn::format::bfzyx || inputFormat == cldnn::format::bfwzyx) &&
                     (originalRequiredDims.size() == 4) &&
                     (indicesFormat == cldnn::format::bfyx));
 
@@ -3876,7 +3893,10 @@ void Program::CreateGatherPrimitive(cldnn::topology& topology, InferenceEngine::
         topology.add(reshapePrim);
         AddInnerPrimitiveToProfiler(reshapeName, gatherLayerName, layer);
         reorderedInputs[0] = reshapeName;
+    } else {
+        outDims = outDimsOriginal;
     }
+    // BFYX WA END ==========================================================================================================
 
     auto gatherPrim = cldnn::gather(
         gatherLayerName,
