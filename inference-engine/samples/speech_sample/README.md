@@ -1,4 +1,4 @@
-# Automatic Speech Recognition C++ Sample
+# Automatic Speech Recognition C++ Sample {#openvino_inference_engine_samples_speech_sample_README}
 
 This topic shows how to run the speech sample application, which
 demonstrates acoustic model inference based on Kaldi\* neural networks
@@ -136,7 +136,7 @@ The following pre-trained models are available:
 * rm\_lstm4f
 * rm\_cnn4a\_smbr
 
-All of them can be downloaded from [https://download.01.org/openvinotoolkit/models_contrib/speech/kaldi](https://download.01.org/openvinotoolkit/models_contrib/speech/kaldi) or using the OpenVINO [Model Downloader](https://github.com/opencv/open_model_zoo/tree/2018/model_downloader) .
+All of them can be downloaded from [https://download.01.org/openvinotoolkit/models_contrib/speech/kaldi](https://download.01.org/openvinotoolkit/models_contrib/speech/kaldi) or using the OpenVINO [Model Downloader](@ref omz_tools_downloader_README) .
 
 
 ### Speech Inference
@@ -154,7 +154,7 @@ scores (`wsj_dnn5b_smbr_dev93_scores_10.ark`) corresponding to the input
 feature file (`wsj_dnn5b_smbr_dev93_10.ark`) are assumed to be available
 for comparison.
 
-> **NOTE**: Before running the sample with a trained model, make sure the model is converted to the Inference Engine format (\*.xml + \*.bin) using the [Model Optimizer tool](./docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
+> **NOTE**: Before running the sample with a trained model, make sure the model is converted to the Inference Engine format (\*.xml + \*.bin) using the [Model Optimizer tool](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md).
 
 ## Sample Output
 
@@ -202,6 +202,6 @@ cat out.txt | utils/int2sym.pl -f 2- words.txt | sed s:\<UNK\>::g | compute-wer 
 ```
 
 ## See Also
-* [Using Inference Engine Samples](./docs/IE_DG/Samples_Overview.md)
-* [Model Optimizer](./docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
-* [Model Downloader](https://github.com/opencv/open_model_zoo/tree/2018/model_downloader)
+* [Using Inference Engine Samples](../../../docs/IE_DG/Samples_Overview.md)
+* [Model Optimizer](../../../docs/MO_DG/Deep_Learning_Model_Optimizer_DevGuide.md)
+* [Model Downloader](@ref omz_tools_downloader_README)

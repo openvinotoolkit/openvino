@@ -1,4 +1,4 @@
-## Tan <a name="Tan"></a>
+## Tan <a name="Tan"></a> {#openvino_docs_ops_arithmetic_Tan_1}
 
 **Versioned name**: *Tan-1*
 
