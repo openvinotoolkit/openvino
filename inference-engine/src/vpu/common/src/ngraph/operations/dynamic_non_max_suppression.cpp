@@ -22,7 +22,7 @@ DynamicNonMaxSuppression::DynamicNonMaxSuppression(
     const BoxEncodingType box_encoding,
     const bool sort_result_descending,
     const element::Type& output_type)
-    : ngraph::op::v3::NonMaxSuppression(boxes,
+    : ngraph::op::v4::NonMaxSuppression(boxes,
                                         scores,
                                         max_output_boxes_per_class,
                                         iou_threshold,
@@ -39,7 +39,7 @@ DynamicNonMaxSuppression::DynamicNonMaxSuppression(
     const BoxEncodingType box_encoding,
     const bool sort_result_descending,
     const element::Type& output_type)
-    : ngraph::op::v3::NonMaxSuppression(boxes,
+    : ngraph::op::v4::NonMaxSuppression(boxes,
                                         scores,
                                         ngraph::op::Constant::create(element::i64, Shape{}, {0}),
                                         ngraph::op::Constant::create(element::f32, Shape{}, {.0f}),
@@ -77,7 +77,7 @@ std::shared_ptr<Node> DynamicNonMaxSuppression::clone_with_new_inputs(const Outp
 }
 
 void DynamicNonMaxSuppression::validate_and_infer_types() {
-    ngraph::op::v3::NonMaxSuppression::validate_and_infer_types();
+    ngraph::op::v4::NonMaxSuppression::validate_and_infer_types();
 
     // NonMaxSuppression produces triplets
     // that have the following format: [batch_index, class_index, box_index]

@@ -8,7 +8,7 @@
 
 namespace ngraph { namespace vpu { namespace op {
 
-class DynamicNonMaxSuppression : public ngraph::op::v3::NonMaxSuppression {
+class DynamicNonMaxSuppression : public ngraph::op::v4::NonMaxSuppression {
 public:
     static constexpr NodeTypeInfo type_info{"DynamicNonMaxSuppression", 0};
     const NodeTypeInfo& get_type_info() const override { return type_info; }
@@ -27,13 +27,13 @@ public:
     /// boxes across batches
     /// \param output_type Specifies the output tensor type
     DynamicNonMaxSuppression(const Output<Node>& boxes,
-                      const Output<Node>& scores,
-                      const Output<Node>& max_output_boxes_per_class,
-                      const Output<Node>& iou_threshold,
-                      const Output<Node>& score_threshold,
-                      const BoxEncodingType box_encoding = BoxEncodingType::CORNER,
-                      const bool sort_result_descending = true,
-                      const ngraph::element::Type& output_type = ngraph::element::i64);
+                             const Output<Node>& scores,
+                             const Output<Node>& max_output_boxes_per_class,
+                             const Output<Node>& iou_threshold,
+                             const Output<Node>& score_threshold,
+                             const BoxEncodingType box_encoding = BoxEncodingType::CORNER,
+                             const bool sort_result_descending = true,
+                             const ngraph::element::Type& output_type = ngraph::element::i64);
 
     /// \brief Constructs a DynamicNonMaxSuppression operation with default values for the last
     ///        3 inputs
@@ -45,10 +45,10 @@ public:
     /// boxes across batches
     /// \param output_type Specifies the output tensor type
     DynamicNonMaxSuppression(const Output<Node>& boxes,
-                      const Output<Node>& scores,
-                      const BoxEncodingType box_encoding = BoxEncodingType::CORNER,
-                      const bool sort_result_descending = true,
-                      const ngraph::element::Type& output_type = ngraph::element::i64);
+                             const Output<Node>& scores,
+                             const BoxEncodingType box_encoding = BoxEncodingType::CORNER,
+                             const bool sort_result_descending = true,
+                             const ngraph::element::Type& output_type = ngraph::element::i64);
 
     void validate_and_infer_types() override;
 
