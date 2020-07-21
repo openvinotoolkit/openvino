@@ -19,7 +19,6 @@
 #include "debug.h"
 #include "graph_tools.hpp"
 #include "ie_profiling.hpp"
-#include "network_serializer.h"
 #include "details/ie_cnn_network_tools.h"
 
 #include "generic_ie.hpp"
@@ -386,16 +385,7 @@ StatusCode CNNNetworkImpl::AddExtension(const InferenceEngine::IShapeInferExtens
 
 StatusCode CNNNetworkImpl::serialize(const std::string& xmlPath, const std::string& binPath, ResponseDesc* resp) const
     noexcept {
-    try {
-        Serialization::Serialize(xmlPath, binPath, (InferenceEngine::ICNNNetwork&)*this);
-    } catch (const InferenceEngineException& e) {
-        return DescriptionBuffer(GENERAL_ERROR, resp) << e.what();
-    } catch (const std::exception& e) {
-        return DescriptionBuffer(UNEXPECTED, resp) << e.what();
-    } catch (...) {
-        return DescriptionBuffer(UNEXPECTED, resp);
-    }
-    return OK;
+    return DescriptionBuffer(NOT_IMPLEMENTED, resp) << "The CNNNetworkImpl::serialize is not implemented";
 }
 
 StatusCode CNNNetworkImpl::setBatchSize(size_t size, ResponseDesc* responseDesc) noexcept {
