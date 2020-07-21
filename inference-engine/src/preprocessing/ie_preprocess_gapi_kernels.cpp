@@ -805,7 +805,7 @@ static void calcRowLinear(const cv::gapi::fluid::View  & in,
         src1[l] = in.InLine<const T>(index1);
         dst[l] = out.OutLine<T>(l);
     }
-#if 1
+
     #ifdef HAVE_AVX2
     if (with_cpu_x86_avx2()) {
         if (std::is_same<T, uint8_t>::value) {
@@ -825,7 +825,7 @@ static void calcRowLinear(const cv::gapi::fluid::View  & in,
         }
     }
     #endif
-#endif
+
     #ifdef HAVE_SSE
     if (with_cpu_x86_sse42()) {
         if (std::is_same<T, uint8_t>::value) {
