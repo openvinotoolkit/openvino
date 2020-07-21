@@ -13,7 +13,7 @@
 void ngraph::pass::MishFusion::mish_fusion() {
     auto input0 = std::make_shared<pattern::op::Label>(element::f64, Shape{1, 1, 1, 1});
     auto exp = std::make_shared<ngraph::opset4::Exp>(input0);
-    auto input_const = op::Constant::create(element::f64, Shape{1}, {-1})
+    auto input_const = op::Constant::create(element::f64, Shape{1}, {-1});
     auto add = std::make_shared<ngraph::opset4::Add>(exp, input_const);
     auto log = std::make_shared<ngraph::opset4::Log>(add);
     auto tanh = std::make_shared<ngraph::opset4::Tanh>(log);

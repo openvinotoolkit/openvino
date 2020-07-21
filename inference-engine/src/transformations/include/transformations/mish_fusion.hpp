@@ -22,7 +22,7 @@ class TRANSFORMATIONS_API MishFusion;
 class ngraph::pass::MishFusion: public ngraph::pass::GraphRewrite {
 public:
     MishFusion() : GraphRewrite() {
-        mish_fusion()();
+        mish_fusion();
     }
 
 private:
