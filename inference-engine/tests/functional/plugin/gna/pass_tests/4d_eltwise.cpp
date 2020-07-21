@@ -133,8 +133,7 @@ protected:
 
     const std::vector<InferenceEngine::Precision> netPrecisions = {
         InferenceEngine::Precision::FP32,
-        //BroadcastPass doesn't work with FP16
-        //InferenceEngine::Precision::FP16
+        InferenceEngine::Precision::FP16
     };
 
     const std::vector<std::map<std::string, std::string>> configs = {

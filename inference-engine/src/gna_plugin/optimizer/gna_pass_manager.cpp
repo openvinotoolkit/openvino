@@ -1217,13 +1217,16 @@ void BroadcastConstPass::run() {
         }
 
         auto currentConstBlob = constLayer->blobs.begin()->second;
-        auto newConstBlob = make_blob_with_precision(nextLayer->outData.front()->getTensorDesc());
+        auto constPrecision = constLayer->blobs.begin()->second->getTensorDesc().getPrecision();
+        auto newConstBlob = make_blob_with_precision(InferenceEngine::TensorDesc(constPrecision,
+            nextLayer->outData.front()->getTensorDesc().getDims(),
+            nextLayer->outData.front()->getTensorDesc().getLayout()));
         newConstBlob->allocate();
         std::size_t offset = 0;
         for (std::size_t i = 0; i < (eltwiseDims / constDims); ++i) {
-            ie_memcpy(newConstBlob->cbuffer().as<char*>() + (i * currentConstBlob->byteSize()),
+            ie_memcpy(newConstBlob->buffer().as<char*>() + (i * currentConstBlob->byteSize()),
                 currentConstBlob->byteSize(),
-                currentConstBlob->cbuffer(),
+                currentConstBlob->buffer(),
                 currentConstBlob->byteSize());
         }
         constLayer->blobs.begin()->second->deallocate();
