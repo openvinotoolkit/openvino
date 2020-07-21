@@ -16,7 +16,11 @@
 
 #include "ngraph/op/fused/shuffle_channels.hpp"
 #include "ngraph/attribute_visitor.hpp"
+#include "ngraph/runtime/host_tensor.hpp"
+#include "ngraph/type/element_type.hpp"
+#include "ngraph/type/element_type_traits.hpp"
 #include "ngraph/builder/reshape.hpp"
+#include "ngraph/runtime/reference/shuffle_channels.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -134,4 +138,41 @@ Shape op::ShuffleChannels::get_pre_shuffle_shape(const Shape& data_shape) const
     }
 
     return res;
+}
+
+namespace {
+    template<element::Type_t ET>
+    inline bool
+    evaluate(const HostTensorPtr &arg, const HostTensorPtr &out, int64_t axis, int64_t group) {
+        using T = typename element_type_traits<ET>::value_type;
+        runtime::reference::shuffle_channels(arg->get_data_ptr<T>(), out->get_data_ptr<T>(), arg->get_shape(), axis,
+                                             group);
+        return true;
+    }
+
+
+    bool evaluate_shuffle_channels(const HostTensorPtr &arg, const HostTensorPtr &out, int64_t axis, int64_t group) {
+        bool rc = true;
+
+        switch (out->get_element_type()) {
+            TYPE_CASE(u8)(arg, out, axis, group);
+                break;
+            TYPE_CASE(i8)(arg, out, axis, group);
+                break;
+            TYPE_CASE(i16)(arg, out, axis, group);
+                break;
+            TYPE_CASE(i32)(arg, out, axis, group);
+                break;
+            TYPE_CASE(f32)(arg, out, axis, group);
+                break;
+            default:
+                rc = false;
+                break;
+        }
+        return rc;
+    }
+}
+
+bool op::ShuffleChannels::evaluate(const HostTensorVector &outputs, const HostTensorVector &inputs) {
+    return evaluate_shuffle_channels(inputs[0], outputs[0], m_axis, m_group);
 }

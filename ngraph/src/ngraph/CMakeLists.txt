@@ -678,7 +678,7 @@ set (SRC
     validation_util.hpp
     variant.cpp
     variant.hpp
-    )
+)
 
 if(NGRAPH_JSON_ENABLE)
     list(APPEND SRC serializer.cpp serializer.hpp)

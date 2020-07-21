@@ -209,7 +209,6 @@ shared_ptr<Node>
     }
 }
 
-
 namespace {
     template<element::Type_t ET>
     inline bool
