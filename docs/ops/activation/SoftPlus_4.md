@@ -1,4 +1,4 @@
-## SoftPlus <a name="SoftPlus"></a>
+## SoftPlus <a name="SoftPlus"></a> {#openvino_docs_ops_activation_SoftPlus_4}
 
 **Versioned name**: *SoftPlus-4*
 
