@@ -111,6 +111,7 @@ public:
     Pass::Ptr splitHwConvAndPool();
     Pass::Ptr hwPadding();
     Pass::Ptr splitLargeKernelConv();
+    Pass::Ptr reshapeBeforeConvTiling();
 
     //
     // Batch support
