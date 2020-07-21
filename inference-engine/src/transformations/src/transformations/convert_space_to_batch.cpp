@@ -7,19 +7,19 @@
 #include <memory>
 #include <vector>
 
-#include <ngraph/opsets/opset2.hpp>
+#include <ngraph/opsets/opset3.hpp>
 #include <ngraph/rt_info.hpp>
 #include <ngraph/builder/reshape.hpp>
 
 void ngraph::pass::ConvertSpaceToBatch::convert_space_to_batch() {
     auto input0 = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1, 1});
-    auto input1 = ngraph::opset2::Constant::create(element::i64, Shape{4}, Shape{1, 1, 1, 1});
-    auto input2 = ngraph::opset2::Constant::create(element::i64, Shape{4}, {0, 0, 0, 0});
-    auto input3 = ngraph::opset2::Constant::create(element::i64, Shape{4}, {0, 0, 0, 0});
-    auto space_to_batch = std::make_shared<ngraph::opset2::SpaceToBatch>(input0, input1, input2, input3);
+    auto input1 = ngraph::opset3::Constant::create(element::i64, Shape{4}, Shape{1, 1, 1, 1});
+    auto input2 = ngraph::opset3::Constant::create(element::i64, Shape{4}, {0, 0, 0, 0});
+    auto input3 = ngraph::opset3::Constant::create(element::i64, Shape{4}, {0, 0, 0, 0});
+    auto space_to_batch = std::make_shared<ngraph::opset3::SpaceToBatch>(input0, input1, input2, input3);
 
     ngraph::graph_rewrite_callback callback = [](pattern::Matcher& m) {
-        auto space_to_batch = std::dynamic_pointer_cast<ngraph::opset2::SpaceToBatch> (m.get_match_root());
+        auto space_to_batch = std::dynamic_pointer_cast<ngraph::opset3::SpaceToBatch> (m.get_match_root());
         if (!space_to_batch) {
             return false;
         }
@@ -31,9 +31,9 @@ void ngraph::pass::ConvertSpaceToBatch::convert_space_to_batch() {
 
         const auto& data_shape = data.get_shape();
 
-        const auto block_const = std::dynamic_pointer_cast<opset2::Constant>(block.get_node_shared_ptr());
-        const auto pads_begin_const = std::dynamic_pointer_cast<opset2::Constant>(pads_begin.get_node_shared_ptr());
-        const auto pads_end_const = std::dynamic_pointer_cast<opset2::Constant>(pads_end.get_node_shared_ptr());
+        const auto block_const = std::dynamic_pointer_cast<opset3::Constant>(block.get_node_shared_ptr());
+        const auto pads_begin_const = std::dynamic_pointer_cast<opset3::Constant>(pads_begin.get_node_shared_ptr());
+        const auto pads_end_const = std::dynamic_pointer_cast<opset3::Constant>(pads_end.get_node_shared_ptr());
 
         if (!block_const || !pads_begin_const || !pads_end_const) {
             return false;
@@ -48,7 +48,7 @@ void ngraph::pass::ConvertSpaceToBatch::convert_space_to_batch() {
         //    note: P_0 for batch dimension is expected to be 0 (no-padding).
         //      x = [batch + P_0, D_1 + P_1, D_2 + P_2, ..., D_{N - 1} + P_{N - 1}], where P_i =
         //      pads_begin[i] + pads_end[i]
-        auto out = std::make_shared<opset2::Pad>(data, pads_begin_const, pads_end_const, ngraph::op::PadMode::CONSTANT);
+        auto out = std::make_shared<opset3::Pad>(data, pads_begin_const, pads_end_const, ngraph::op::PadMode::CONSTANT);
         auto out_shape = out->get_shape();
 
         // First we have to disperse the data from spatial dimensions, then
@@ -103,13 +103,13 @@ void ngraph::pass::ConvertSpaceToBatch::convert_space_to_batch() {
 
 void ngraph::pass::ConvertSpaceToBatch::convert_space_to_batch_by_elements() {
     auto input0 = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1, 1});
-    auto input1 = ngraph::op::Constant::create(element::i64, Shape{4}, Shape{1, 1, 1, 1});
-    auto input2 = ngraph::op::Constant::create(element::i64, Shape{4}, {0, 0, 0, 0});
-    auto input3 = ngraph::op::Constant::create(element::i64, Shape{4}, {0, 0, 0, 0});
-    auto space_to_batch = std::make_shared<ngraph::opset2::SpaceToBatch>(input0, input1, input2, input3);
+    auto input1 = ngraph::opset3::Constant::create(element::i64, Shape{4}, Shape{1, 1, 1, 1});
+    auto input2 = ngraph::opset3::Constant::create(element::i64, Shape{4}, {0, 0, 0, 0});
+    auto input3 = ngraph::opset3::Constant::create(element::i64, Shape{4}, {0, 0, 0, 0});
+    auto space_to_batch = std::make_shared<ngraph::opset3::SpaceToBatch>(input0, input1, input2, input3);
 
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
-        auto space_to_batch = std::dynamic_pointer_cast<ngraph::opset2::SpaceToBatch> (m.get_match_root());
+        auto space_to_batch = std::dynamic_pointer_cast<ngraph::opset3::SpaceToBatch> (m.get_match_root());
         if (!space_to_batch) {
             return false;
         }
@@ -125,9 +125,9 @@ void ngraph::pass::ConvertSpaceToBatch::convert_space_to_batch_by_elements() {
         auto pads_begin = space_to_batch->input_value(2);
         auto pads_end = space_to_batch->input_value(3);
 
-        const auto block_const = as_type_ptr<op::Constant>(block.get_node_shared_ptr());
-        const auto pads_begin_const = as_type_ptr<op::Constant>(pads_begin.get_node_shared_ptr());
-        const auto pads_end_const = as_type_ptr<op::Constant>(pads_end.get_node_shared_ptr());
+        const auto block_const = as_type_ptr<opset3::Constant>(block.get_node_shared_ptr());
+        const auto pads_begin_const = as_type_ptr<opset3::Constant>(pads_begin.get_node_shared_ptr());
+        const auto pads_end_const = as_type_ptr<opset3::Constant>(pads_end.get_node_shared_ptr());
 
         std::vector<int64_t> block_values;
         block_values = block_const->cast_vector<int64_t>();
@@ -135,7 +135,7 @@ void ngraph::pass::ConvertSpaceToBatch::convert_space_to_batch_by_elements() {
         NodeVector new_ops;
 
         std::shared_ptr<Node> flat_node = data.get_node_shared_ptr();
-        flat_node = std::make_shared<opset2::Pad>(flat_node, pads_begin_const, pads_end_const, ngraph::op::PadMode::CONSTANT);
+        flat_node = std::make_shared<opset3::Pad>(flat_node, pads_begin_const, pads_end_const, ngraph::op::PadMode::CONSTANT);
         new_ops.push_back(flat_node);
         auto out_shape = flat_node->get_shape();
 
@@ -163,23 +163,23 @@ void ngraph::pass::ConvertSpaceToBatch::convert_space_to_batch_by_elements() {
             }
 
             const auto out_pattern_1 =
-                    op::Constant::create(element::i64, Shape{dispersed_shape.size()}, dispersed_shape);
+                    opset3::Constant::create(element::i64, Shape{dispersed_shape.size()}, dispersed_shape);
             const bool special_zero = false;
-            flat_node = std::make_shared<ngraph::op::v1::Reshape>(flat_node, out_pattern_1, special_zero);
+            flat_node = std::make_shared<ngraph::opset3::Reshape>(flat_node, out_pattern_1, special_zero);
             new_ops.push_back(flat_node);
 
             const auto axes_order_const =
-                    op::Constant::create(element::i64,
+                    opset3::Constant::create(element::i64,
                                          Shape{axes_order.size()},
                                          std::vector<int64_t>(axes_order.begin(), axes_order.end()));
-            flat_node = std::make_shared<ngraph::opset1::Transpose>(flat_node, axes_order_const)
+            flat_node = std::make_shared<ngraph::opset3::Transpose>(flat_node, axes_order_const)
                     ->add_provenance_group_members_above({flat_node});
             new_ops.push_back(flat_node);
             squeezed_shape[0] *= block_values[block_idx];
             squeezed_shape[block_idx] /= block_values[block_idx];
             const auto out_pattern_2 =
-                    op::Constant::create(element::i64, Shape{squeezed_shape.size()}, squeezed_shape);
-            flat_node = std::make_shared<ngraph::op::v1::Reshape>(flat_node, out_pattern_2, special_zero)
+                    opset3::Constant::create(element::i64, Shape{squeezed_shape.size()}, squeezed_shape);
+            flat_node = std::make_shared<ngraph::opset3::Reshape>(flat_node, out_pattern_2, special_zero)
                     ->add_provenance_group_members_above({data});
             new_ops.push_back(flat_node);
         }
