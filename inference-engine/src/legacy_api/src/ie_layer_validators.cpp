@@ -1245,7 +1245,6 @@ LayerValidators::LayerValidators() {
     REG_LAYER_VALIDATOR_FOR_TYPE(TopKValidator, TopK);
     REG_LAYER_VALIDATOR_FOR_TYPE(UniqueValidator, Unique);
     REG_LAYER_VALIDATOR_FOR_TYPE(NMSValidator, NonMaxSuppression);
-    REG_LAYER_VALIDATOR_FOR_TYPE(BucketizeValidator, Bucketize);
 }
 
 }  // namespace InferenceEngine
