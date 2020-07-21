@@ -11,88 +11,13 @@
 #include "ngraph_functions/subgraph_builders.hpp"
 #include "ngraph_functions/low_precision_transformations/common/fake_quantize_on_data.hpp"
 #include "ngraph_functions/low_precision_transformations/common/dequantization_operations.hpp"
+#include "ngraph_functions/low_precision_transformations/common/builders.hpp"
 
 namespace ngraph {
 namespace builder {
 namespace subgraph {
 
 using namespace ngraph::pass;
-
-std::pair<float, float> getQuantizationInterval(const ngraph::element::Type precision) {
-    const bool unsignedInterval = precision == ngraph::element::u8;
-    const float low = unsignedInterval ? 0.f : -128.f;
-    const float hight = unsignedInterval ? 255.f : 127.f;
-    return std::make_pair(low, hight);
-}
-
-std::shared_ptr<Node> makeDequantization(
-    const std::shared_ptr<ngraph::Node> data,
-    const DequantizationOperations& dequantizationOperations) {
-    std::shared_ptr<ngraph::Node> parent = data;
-
-    if (dequantizationOperations.convertOutputPrecision != ngraph::element::undefined) {
-        std::shared_ptr<ngraph::opset1::Convert> convert = std::make_shared<ngraph::opset1::Convert>(
-            parent,
-            dequantizationOperations.convertOutputPrecision);
-        parent = convert;
-    }
-
-    if (!dequantizationOperations.subtractValues.empty()) {
-        std::shared_ptr<ngraph::opset1::Subtract> subtract = std::make_shared<ngraph::opset1::Subtract>(
-            parent,
-            std::make_shared<ngraph::opset1::Constant>(
-                parent->get_output_element_type(0),
-                dequantizationOperations.subtractValues.size() == 1ul ?
-                    Shape{} :
-                    Shape{ 1, dequantizationOperations.subtractValues.size(), 1, 1 },
-                dequantizationOperations.subtractValues));
-        parent = subtract;
-    }
-
-    if (!dequantizationOperations.multiplyValues.empty()) {
-        std::shared_ptr<ngraph::opset1::Multiply> multiply = std::make_shared<ngraph::opset1::Multiply>(
-            parent,
-            std::make_shared<ngraph::opset1::Constant>(
-                parent->get_output_element_type(0),
-                dequantizationOperations.multiplyValues.size() == 1ul ?
-                    Shape{} :
-                    Shape{ 1, dequantizationOperations.multiplyValues.size(), 1, 1 },
-                dequantizationOperations.multiplyValues));
-        parent = multiply;
-    }
-
-    return parent;
-}
-
-std::shared_ptr<Node> makeFakeQuantize(
-    const std::shared_ptr<ngraph::op::v0::Parameter>& input,
-    const ngraph::element::Type precision,
-    const FakeQuantizeOnData& fqOnData) {
-    return ngraph::builder::makeFakeQuantize(
-        input,
-        precision,
-        fqOnData.quantizationLevel,
-        fqOnData.constantShape,
-        fqOnData.inputLowValues,
-        fqOnData.inputHighValues,
-        fqOnData.outputLowValues,
-        fqOnData.outputHighValues);
-}
-
-std::shared_ptr<Node> makeFakeQuantizeTypeRelaxed(
-    const std::shared_ptr<ngraph::op::v0::Parameter>& input,
-    const ngraph::element::Type precision,
-    const FakeQuantizeOnData& fqOnData) {
-    return ngraph::builder::makeFakeQuantizeTypeRelaxed(
-        input,
-        precision,
-        fqOnData.quantizationLevel,
-        fqOnData.constantShape,
-        fqOnData.inputLowValues,
-        fqOnData.inputHighValues,
-        fqOnData.outputLowValues,
-        fqOnData.outputHighValues);
-}
 
 std::shared_ptr<ngraph::Function> ConcatFunction::getOriginal(
     const ngraph::element::Type precision,
@@ -126,10 +51,6 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getOriginalWithNeighbors(
     const FakeQuantizeOnData& fqOnData1,
     const FakeQuantizeOnData& fqOnData2,
     const FakeQuantizeOnData& fqOnData3) {
-    const auto interval = getQuantizationInterval(ngraph::element::u8);
-    const float low = interval.first;
-    const float hight = interval.second;
-
     const auto input1 = std::make_shared<ngraph::opset1::Parameter>(precision, ngraph::Shape(inputShape));
     input1->set_friendly_name("input1");
     const auto fakeQuantize1 = makeFakeQuantize(input1, precision, fqOnData1);
@@ -325,10 +246,6 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getReferenceWithNeighbors(
     const FakeQuantizeOnData& fqOnData3,
     const DequantizationOperations& dequantizationOperations1,
     const DequantizationOperations& dequantizationOperations2) {
-    const auto interval = getQuantizationInterval(ngraph::element::u8);
-    const float low = interval.first;
-    const float hight = interval.second;
-
     const auto input1 = std::make_shared<ngraph::opset1::Parameter>(precision, ngraph::Shape(inputShape));
     input1->set_friendly_name("input1");
     const auto fakeQuantize1 = makeFakeQuantizeTypeRelaxed(input1, precision, fqOnData1);

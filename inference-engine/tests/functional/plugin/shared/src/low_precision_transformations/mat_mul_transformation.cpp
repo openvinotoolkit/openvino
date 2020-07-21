@@ -25,13 +25,11 @@ std::string MatMulTransformation::getTestCaseName(testing::TestParamInfo<MatMulT
     std::string targetDevice;
     InferenceEngine::details::LayerTransformation::Params params;
     LayerTestsUtils::LayerTransformation::LptVersion version;
-    ngraph::builder::subgraph::MatMulFunctionBranches branches;
-    std::tie(netPrecision, inputShapes, targetDevice, params, version, branches) = obj.param;
+    MatMulTransformationTestValues testValues;
+    std::tie(netPrecision, inputShapes, targetDevice, params, version, testValues) = obj.param;
 
     std::ostringstream result;
     result << version << "_" <<
-        branches.first.shape << "_" <<
-        branches.second.shape << "_" <<
         netPrecision.name() << "_" <<
         targetDevice << "_" <<
         toString(params);
@@ -62,13 +60,18 @@ void MatMulTransformation::SetUp() {
     InferenceEngine::Precision netPrecision;
     InferenceEngine::details::LayerTransformation::Params params;
     LayerTestsUtils::LayerTransformation::LptVersion version;
-    ngraph::builder::subgraph::MatMulFunctionBranches branches;
-    std::tie(netPrecision, inputShape, targetDevice, params, version, branches) = this->GetParam();
+    MatMulTransformationTestValues testValues;
+    std::tie(netPrecision, inputShape, targetDevice, params, version, testValues) = this->GetParam();
 
     ConfigurePlugin(version);
 
     const auto ngPrecision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    function = ngraph::builder::subgraph::MatMulFunction::getOriginal(ngPrecision, inputShape, branches);
+    function = ngraph::builder::subgraph::MatMulFunction::getOriginal(
+        ngPrecision,
+        testValues.inputShape1,
+        testValues.fqOnData1,
+        testValues.inputShape2,
+        testValues.fqOnData2);
 
     ngraph::pass::InitNodeInfo().run_on_function(function);
 
@@ -82,8 +85,8 @@ void MatMulTransformation::validate() {
     InferenceEngine::Precision netPrecision;
     InferenceEngine::details::LayerTransformation::Params params;
     LayerTestsUtils::LayerTransformation::LptVersion version;
-    ngraph::builder::subgraph::MatMulFunctionBranches branches;
-    std::tie(netPrecision, inputShape, targetDevice, params, version, branches) = this->GetParam();
+    MatMulTransformationTestValues testValues;
+    std::tie(netPrecision, inputShape, targetDevice, params, version, testValues) = this->GetParam();
 
     {
         InferenceEngine::CNNNetwork net(function);
@@ -118,7 +121,8 @@ void MatMulTransformation::validate() {
     const InferenceEngine::CNNLayerPtr layer = getCreatorLayer(insData).lock();
     EXPECT_TRUE(layer != nullptr);
 
-    if (inputs.size() == 2ul) {
+    const std::vector<std::shared_ptr<ngraph::op::Parameter>> parameters = function->get_parameters();
+    if (parameters.size() == 2ul) {
         EXPECT_EQ("Gemm", layer->type);
 
         if (params.updatePrecisions) {
@@ -146,7 +150,9 @@ void MatMulTransformation::validate() {
             }
             EXPECT_EQ(params.precisionsOnActivations[0], fakeQuantizeOnActivations->outData[0]->getTensorDesc().getPrecision());
             EXPECT_EQ(params.precisionsOnWeights[0], parents[1]->outData[0]->getTensorDesc().getPrecision());
-            EXPECT_EQ(InferenceEngine::Precision::FP32, parents[2]->outData[0]->getTensorDesc().getPrecision());
+            if (parents.size() > 2ul) {
+                EXPECT_EQ(InferenceEngine::Precision::FP32, parents[2]->outData[0]->getTensorDesc().getPrecision());
+            }
         }
     }
 

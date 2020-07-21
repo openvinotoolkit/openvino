@@ -9,19 +9,33 @@ namespace ngraph {
 namespace builder {
 namespace subgraph {
 
-DequantizationOperations::DequantizationOperations() : convertOutputPrecision(ngraph::element::undefined) {}
+DequantizationOperations::Convert::Convert() :
+    isEmpty(true),
+    outPrecision(ngraph::element::undefined)
+{}
+
+DequantizationOperations::Convert::Convert(const ngraph::element::Type outPrecision) :
+    isEmpty(false),
+    outPrecision(outPrecision)
+{}
+
+bool DequantizationOperations::Convert::empty() const noexcept {
+    return isEmpty;
+}
+
+DequantizationOperations::DequantizationOperations() {}
 
 DequantizationOperations::DequantizationOperations(
-    const ngraph::element::Type_t convertOutputPrecision,
+    const Convert& convert,
     const std::vector<float>& subtractValues,
     const std::vector<float>& multiplyValues) :
-    convertOutputPrecision(convertOutputPrecision),
+    convert(convert),
     subtractValues(subtractValues),
     multiplyValues(multiplyValues)
 {}
 
 bool DequantizationOperations::empty() const {
-    return (convertOutputPrecision == ngraph::element::undefined) && subtractValues.empty() && multiplyValues.empty();
+    return convert.empty() && subtractValues.empty() && multiplyValues.empty();
 }
 
 }  // namespace subgraph

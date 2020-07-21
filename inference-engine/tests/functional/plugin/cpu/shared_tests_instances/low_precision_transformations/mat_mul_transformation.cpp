@@ -19,8 +19,7 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
 };
 
 const std::vector<LayerTransformation::Params> trasformationParamValues = {
-    LayerTestsUtils::LayerTransformationParamsFactory::createParamsI8I8(),
-    LayerTestsUtils::LayerTransformationParamsFactory::createParamsU8I8()
+    LayerTestsUtils::LayerTransformationParamsFactory::createParams()
 };
 
 const std::vector<LayerTestsUtils::LayerTransformation::LptVersion> versionValues = {
@@ -28,13 +27,13 @@ const std::vector<LayerTestsUtils::LayerTransformation::LptVersion> versionValue
     LayerTestsUtils::LayerTransformation::LptVersion::nGraph
 };
 
-static const size_t levels = 256ul;
-static const float k = 2.f;
-static const float lowU8 = 0.f;
-static const float highU8 = 255.f / k;
-static const float lowI8 = -128.f / k;
-static const float highI8 = 127.f / k;
-static const ngraph::element::Type precision = ngraph::element::f32;
+//static const size_t levels = 256ul;
+//static const float k = 2.f;
+//static const float lowU8 = 0.f;
+//static const float highU8 = 255.f / k;
+//static const float lowI8 = -128.f / k;
+//static const float highI8 = 127.f / k;
+//static const ngraph::element::Type precision = ngraph::element::f32;
 
 // 384  / 64 = 6
 // 1000 / 64 =>16
@@ -42,26 +41,35 @@ static const ngraph::element::Type precision = ngraph::element::f32;
 // 2048 / 64 = 32
 // 4096 / 64 = 64
 
-std::vector<ngraph::builder::subgraph::MatMulFunctionBranches> branches = {
-    // {
-    //    {{ 1, 16, 384, 64 }, {}, {}, {}, {}},
-    //    {{ 1, 16, 64, 384 }, {}, {}, {}, {}}
-    // },
+//std::vector<ngraph::builder::subgraph::MatMulFunctionBranches> branches = {
+//    // {
+//    //    {{ 1, 16, 384, 64 }, {}, {}, {}, {}},
+//    //    {{ 1, 16, 64, 384 }, {}, {}, {}, {}}
+//    // },
+//
+//    // {
+//    //    {{ 1, 16, 384, 64 }, {ngraph::element::u8}, {ngraph::element::f32}, {}, {{1, 16, 1, 1}, {}}},
+//    //    {{ 1, 16, 64, 384 }, {ngraph::element::u8}, {ngraph::element::f32}, {}, {{1, 16, 1, 1}, {}}}
+//    // },
+//
+//    {
+//        {{ 1, 4, 16, 6 }, {ngraph::element::u8}, {ngraph::element::f32}, {}, {{1, 4, 1, 1}, {}}},
+//        {{ 1, 4, 6, 16 }, {ngraph::element::u8}, {ngraph::element::f32}, {}, {{1, 4, 1, 1}, {}}}
+//    },
+//
+//    // {
+//    //    {{ 1, 16, 384, 64 }, {ngraph::element::u8}, {ngraph::element::f32}, {}, {{1}, {2.f}}},
+//    //    {{ 1, 16, 64, 384 }, {ngraph::element::u8}, {ngraph::element::f32}, {}, {{1}, {3.f}}}
+//    // }
+//};
 
-    // {
-    //    {{ 1, 16, 384, 64 }, {ngraph::element::u8}, {ngraph::element::f32}, {}, {{1, 16, 1, 1}, {}}},
-    //    {{ 1, 16, 64, 384 }, {ngraph::element::u8}, {ngraph::element::f32}, {}, {{1, 16, 1, 1}, {}}}
-    // },
-
+std::vector<MatMulTransformationTestValues> testValues = {
     {
-        {{ 1, 4, 16, 6 }, {ngraph::element::u8}, {ngraph::element::f32}, {}, {{1, 4, 1, 1}, {}}},
-        {{ 1, 4, 6, 16 }, {ngraph::element::u8}, {ngraph::element::f32}, {}, {{1, 4, 1, 1}, {}}}
-    },
-
-    // {
-    //    {{ 1, 16, 384, 64 }, {ngraph::element::u8}, {ngraph::element::f32}, {}, {{1}, {2.f}}},
-    //    {{ 1, 16, 64, 384 }, {ngraph::element::u8}, {ngraph::element::f32}, {}, {{1}, {3.f}}}
-    // }
+        { 1, 16, 384, 64 },
+        { 256ul, ngraph::Shape({}), {0.f}, {25.5f}, {0.f}, {25.5f} },
+        { 1, 16, 64, 384 },
+        { 256ul, ngraph::Shape({}), {-12.8f}, {12.7f}, {-12.8f}, {12.7f} }
+    }
 };
 
 // std::vector<std::vector<std::shared_ptr<ngraph::Node>>> branches = {
@@ -146,6 +154,6 @@ INSTANTIATE_TEST_CASE_P(LPT, MatMulTransformation,
         ::testing::Values(CommonTestUtils::DEVICE_CPU),
         ::testing::ValuesIn(trasformationParamValues),
         ::testing::ValuesIn(versionValues),
-        ::testing::ValuesIn(branches)),
+        ::testing::ValuesIn(testValues)),
     MatMulTransformation::getTestCaseName);
 }  // namespace

@@ -13,22 +13,36 @@ namespace subgraph {
 
 class DequantizationOperations {
 public:
+    class Convert {
+    public:
+        Convert();
+        Convert(const ngraph::element::Type outPrecision);
+        bool empty() const noexcept;
+
+        ngraph::element::Type outPrecision;
+    private:
+        bool isEmpty;
+    };
+
     DequantizationOperations();
 
     DequantizationOperations(
-        const ngraph::element::Type_t convertOutputPrecision,
+        const Convert& convert,
         const std::vector<float>& subtractValues,
         const std::vector<float>& multiplyValues);
 
     bool empty() const;
 
-    ngraph::element::Type_t convertOutputPrecision;
+    Convert convert;
     std::vector<float> subtractValues;
     std::vector<float> multiplyValues;
 };
 
 inline std::ostream& operator<<(std::ostream& out, const DequantizationOperations& data) {
-    return out << "_" << data.convertOutputPrecision << "_" << data.subtractValues << "_" << data.multiplyValues;
+    return out << "_" <<
+        data.convert.outPrecision << "_" <<
+        data.subtractValues << "_" <<
+        data.multiplyValues;
 }
 
 }  // namespace subgraph
