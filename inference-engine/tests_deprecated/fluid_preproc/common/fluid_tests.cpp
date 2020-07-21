@@ -1058,7 +1058,11 @@ TEST_P(PreprocTest, Performance)
     std::tie(in_size, out_size) = sizes;
     int in_ocv_chan = -1, out_ocv_chan = -1;
     std::tie(in_ocv_chan, out_ocv_chan) = ocv_channels;
+#if defined(__arm__) || defined(__aarch64__)
+    double tolerance = Precision::U8 ? 4 : 0.015;
+#else
     double tolerance = Precision::U8 ? 1 : 0.015;
+#endif
 
     const int ocv_depth = prec == Precision::U8 ? CV_8U :
         prec == Precision::FP32 ? CV_32F : -1;
