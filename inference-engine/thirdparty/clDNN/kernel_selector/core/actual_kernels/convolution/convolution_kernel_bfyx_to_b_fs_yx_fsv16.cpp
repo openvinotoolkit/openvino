@@ -111,7 +111,7 @@ bool ConvolutionKernel_bfyx_to_bfyx_f16::Validate(const Params& p, const optiona
     const auto& output = params.output;
 
     // TODO Add support for different input features number in kernel
-    if (input.Feature().v != 3) {
+    if (input.Feature().v != 33) {
         return false;
     }
 
