@@ -16,22 +16,16 @@
 
 #pragma once
 
-#include <memory>
-#include <string>
-#include <unordered_map>
-#include <unordered_set>
-#include <vector>
+#include "ngraph/node.hpp"
 
 namespace ngraph
 {
-    enum class Placement
+    namespace op
     {
-        DEFAULT,
-        INTERPRETER,
-        CPU,
-        GPU,
-        NNP,
-    };
-
-    std::string placement_to_string(Placement placement);
+        namespace util
+        {
+            std::tuple<element::Type, PartialShape> validate_and_infer_elementwise_args(
+                Node* node, const op::AutoBroadcastSpec& autob = op::AutoBroadcastSpec());
+        }
+    }
 }
