@@ -11,6 +11,8 @@
 
 using namespace InferenceEngine;
 
+IE_SUPPRESS_DEPRECATED_START
+
 std::vector<InferenceEngine::CNNLayerPtr> TopologicalSort(const InferenceEngine::ICNNNetwork& network) {
     std::vector<CNNLayerPtr> ordered;
     std::unordered_set<std::string> used;
