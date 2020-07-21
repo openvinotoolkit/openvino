@@ -47,6 +47,7 @@ const std::vector<ActivationTypes> activationTypes = {
         HardSigmoid,
         Selu,
         Ceiling,
+        Mish
 };
 
 const std::vector<ActivationTypes> activationParamTypes = {

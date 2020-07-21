@@ -107,7 +107,8 @@ enum ActivationTypes {
     HardSigmoid,
     Selu,
     Ceiling,
-    PReLu
+    PReLu,
+    Mish
 };
 
 enum EltwiseTypes {
