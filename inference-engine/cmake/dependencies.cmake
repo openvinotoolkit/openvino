@@ -49,26 +49,31 @@ endif ()
 
 ## Intel OMP package
 if (THREADING STREQUAL "OMP")
-    if (WIN32)
-        RESOLVE_DEPENDENCY(OMP
-                ARCHIVE_WIN "iomp.zip"
-                TARGET_PATH "${TEMP}/omp"
-                ENVIRONMENT "OMP"
-                VERSION_REGEX ".*_([a-z]*_([a-z0-9]+\\.)*[0-9]+).*")
-    elseif(LINUX)
-        RESOLVE_DEPENDENCY(OMP
-                ARCHIVE_LIN "iomp.tgz"
-                TARGET_PATH "${TEMP}/omp"
-                ENVIRONMENT "OMP"
-                VERSION_REGEX ".*_([a-z]*_([a-z0-9]+\\.)*[0-9]+).*")
-    else(APPLE)
-        RESOLVE_DEPENDENCY(OMP
-                ARCHIVE_MAC "iomp_20190130_mac.tgz"
-                TARGET_PATH "${TEMP}/omp"
-                ENVIRONMENT "OMP"
-                VERSION_REGEX ".*_([a-z]*_([a-z0-9]+\\.)*[0-9]+).*")
-    endif()
-    log_rpath_from_dir(OMP "${OMP}/lib")
+	if (NOT DEFINED OMP_DIR)
+		if (WIN32)
+			RESOLVE_DEPENDENCY(OMP
+					ARCHIVE_WIN "iomp.zip"
+					TARGET_PATH "${TEMP}/omp"
+					ENVIRONMENT "OMP"
+					VERSION_REGEX ".*_([a-z]*_([a-z0-9]+\\.)*[0-9]+).*")
+		elseif(LINUX)
+			RESOLVE_DEPENDENCY(OMP
+					ARCHIVE_LIN "iomp.tgz"
+					TARGET_PATH "${TEMP}/omp"
+					ENVIRONMENT "OMP"
+					VERSION_REGEX ".*_([a-z]*_([a-z0-9]+\\.)*[0-9]+).*")
+		else(APPLE)
+			RESOLVE_DEPENDENCY(OMP
+					ARCHIVE_MAC "iomp_20190130_mac.tgz"
+					TARGET_PATH "${TEMP}/omp"
+					ENVIRONMENT "OMP"
+					VERSION_REGEX ".*_([a-z]*_([a-z0-9]+\\.)*[0-9]+).*")
+		endif()
+		log_rpath_from_dir(OMP "${OMP}/lib")
+	else()
+		set(OMP ${IE_MAIN_SOURCE_DIR}/${OMP_DIR})
+		log_rpath_from_dir(OMP "${OMP}/lib")
+	endif()
     debug_message(STATUS "intel_omp=" ${OMP})
 endif ()
 
@@ -183,22 +188,26 @@ if (ENABLE_GNA)
             GNA_LIB_DIR
             libGNA_INCLUDE_DIRS
             libGNA_LIBRARIES_BASE_PATH)
-    if (GNA_LIBRARY_VERSION STREQUAL "GNA1")
-        RESOLVE_DEPENDENCY(GNA
-                ARCHIVE_UNIFIED "gna_20181120.zip"
-                TARGET_PATH "${TEMP}/gna")
-    else()
-        if(GNA_LIBRARY_VERSION STREQUAL "GNA1_1401")
-            set(GNA_VERSION "01.00.00.1401")
-        endif()
-        if(GNA_LIBRARY_VERSION STREQUAL "GNA2")
-            set(GNA_VERSION "02.00.00.0587")
-        endif()
-        RESOLVE_DEPENDENCY(GNA
-                ARCHIVE_UNIFIED "GNA_${GNA_VERSION}.zip"
-                TARGET_PATH "${TEMP}/gna_${GNA_VERSION}"
-                VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+.[0-9]+).*")
-    endif()
+	if (NOT DEFINED GNA_DIR)
+		if (GNA_LIBRARY_VERSION STREQUAL "GNA1")
+			RESOLVE_DEPENDENCY(GNA
+					ARCHIVE_UNIFIED "gna_20181120.zip"
+					TARGET_PATH "${TEMP}/gna")
+		else()
+			if(GNA_LIBRARY_VERSION STREQUAL "GNA1_1401")
+				set(GNA_VERSION "01.00.00.1401")
+			endif()
+			if(GNA_LIBRARY_VERSION STREQUAL "GNA2")
+				set(GNA_VERSION "02.00.00.0587")
+			endif()
+			RESOLVE_DEPENDENCY(GNA
+					ARCHIVE_UNIFIED "GNA_${GNA_VERSION}.zip"
+					TARGET_PATH "${TEMP}/gna_${GNA_VERSION}"
+					VERSION_REGEX ".*_([0-9]+.[0-9]+.[0-9]+.[0-9]+).*")
+		endif()
+	else()
+		set(GNA ${IE_MAIN_SOURCE_DIR}/${GNA_DIR})
+	endif()
     debug_message(STATUS "gna=" ${GNA})
 endif()
 
