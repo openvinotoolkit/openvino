@@ -72,8 +72,8 @@ namespace ngraph
                 /// \param output_shape Output shape of spatial axes
                 /// \param attrs        Interpolation attributes
                 Interpolate(const Output<Node>& image,
-                                 const Output<Node>& output_shape,
-                                 const InterpolateAttrs& attrs);
+                            const Output<Node>& output_shape,
+                            const InterpolateAttrs& attrs);
                 bool visit_attributes(AttributeVisitor& visitor) override;
 
                 void validate_and_infer_types() override;
@@ -157,8 +157,8 @@ namespace ngraph
                 /// \param output_shape Output shape of spatial axes
                 /// \param attrs        Interpolation attributes
                 Interpolate(const Output<Node>& image,
-                                 const Output<Node>& output_shape,
-                                 const InterpolateAttrs& attrs);
+                            const Output<Node>& output_shape,
+                            const InterpolateAttrs& attrs);
 
                 /// \brief Constructs a Interpolate operation with 'axes' input.
                 ///
@@ -167,9 +167,9 @@ namespace ngraph
                 /// \param axes        Interpolation axes
                 /// \param attrs        Interpolation attributes
                 Interpolate(const Output<Node>& image,
-                                 const Output<Node>& output_shape,
-                                 const Output<Node>& axes,
-                                 const InterpolateAttrs& attrs);
+                            const Output<Node>& output_shape,
+                            const Output<Node>& axes,
+                            const InterpolateAttrs& attrs);
                 bool visit_attributes(AttributeVisitor& visitor) override;
 
                 void validate_and_infer_types() override;
