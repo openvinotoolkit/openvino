@@ -41,7 +41,8 @@ const std::vector<ActivationTypes> activationTypes = {
         Erf,
         HardSigmoid,
         Selu,
-        Ceiling
+        Ceiling,
+        Mish
 };
 
 std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> basic = {
