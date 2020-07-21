@@ -17,6 +17,7 @@
 #include "resize.hpp"
 #include "default_opset.hpp"
 #include "exceptions.hpp"
+#include "ngraph/op/util/op_types.hpp"
 
 namespace ngraph
 {
@@ -75,7 +76,7 @@ namespace ngraph
                     attrs.mode = mode;
                     attrs.align_corners = false;
 
-                    if (scales->is_constant() && data_shape.is_static())
+                    if (ngraph::op::is_constant(scales) && data_shape.is_static())
                     {
                         const auto scales_const =
                             as_type_ptr<default_opset::Constant>(scales->shared_from_this());

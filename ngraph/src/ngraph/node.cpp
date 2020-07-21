@@ -28,7 +28,6 @@
 #include "ngraph/op/parameter.hpp"
 #include "ngraph/op/result.hpp"
 #include "ngraph/pattern/matcher.hpp"
-#include "ngraph/placement.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -298,16 +297,6 @@ const std::deque<descriptor::Output>& Node::get_outputs() const
     return m_outputs;
 }
 
-bool Node::is_output() const
-{
-    return false;
-}
-
-bool Node::is_constant() const
-{
-    return false;
-}
-
 const std::string& Node::description() const
 {
     // Terrible transitional kludge to keep description working while we change
@@ -337,16 +326,6 @@ const std::string& Node::get_name() const
 void Node::set_friendly_name(const string& name)
 {
     m_friendly_name = name;
-}
-
-Placement Node::get_placement() const
-{
-    return m_placement;
-}
-
-void Node::set_placement(Placement placement)
-{
-    m_placement = placement;
 }
 
 void Node::add_provenance_group_member(const shared_ptr<Node>& node)
@@ -863,76 +842,6 @@ ResultVector ngraph::as_result_vector(const OutputVector& values)
                                                    : make_shared<op::Result>(value));
     }
     return result;
-}
-
-std::tuple<element::Type, PartialShape>
-    Node::validate_and_infer_elementwise_args(const op::AutoBroadcastSpec& autob)
-{
-    element::Type element_type = get_input_element_type(0);
-    PartialShape pshape = get_input_partial_shape(0);
-
-    if (get_input_size() > 1)
-    {
-        for (size_t i = 1; i < get_input_size(); ++i)
-        {
-            NODE_VALIDATION_CHECK(
-                this,
-                element::Type::merge(element_type, element_type, get_input_element_type(i)),
-                "Argument element types are inconsistent.");
-
-            if (autob.m_type == op::AutoBroadcastType::NONE)
-            {
-                NODE_VALIDATION_CHECK(this,
-                                      PartialShape::merge_into(pshape, get_input_partial_shape(i)),
-                                      "Argument shapes are inconsistent.");
-            }
-            else if (autob.m_type == op::AutoBroadcastType::NUMPY ||
-                     autob.m_type == op::AutoBroadcastType::PDPD)
-            {
-                NODE_VALIDATION_CHECK(
-                    this,
-                    PartialShape::broadcast_merge_into(pshape, get_input_partial_shape(i), autob),
-                    "Argument shapes are inconsistent.");
-            }
-            else
-            {
-                NODE_VALIDATION_CHECK(this, false, "Unsupported auto broadcast specification");
-            }
-        }
-    }
-
-    return std::make_tuple(element_type, pshape);
-}
-
-void Node::validate_and_infer_elementwise_arithmetic(const op::AutoBroadcastSpec& autob)
-{
-    auto args_et_pshape = validate_and_infer_elementwise_args(autob);
-    element::Type& args_et = std::get<0>(args_et_pshape);
-    PartialShape& args_pshape = std::get<1>(args_et_pshape);
-
-    NODE_VALIDATION_CHECK(this,
-                          args_et.is_dynamic() || args_et != element::boolean,
-                          "Arguments cannot have boolean element type (argument element type: ",
-                          args_et,
-                          ").");
-
-    set_output_type(0, args_et, args_pshape);
-}
-
-void Node::validate_and_infer_elementwise_logical(const op::AutoBroadcastSpec& autob)
-{
-    auto args_et_pshape = validate_and_infer_elementwise_args(autob);
-    element::Type& args_et = std::get<0>(args_et_pshape);
-    PartialShape& args_pshape = std::get<1>(args_et_pshape);
-
-    NODE_VALIDATION_CHECK(
-        this,
-        args_et.is_dynamic() || args_et == element::boolean,
-        "Operands for logical operators must have boolean element type but have element type ",
-        args_et,
-        ".");
-
-    set_output_type(0, element::boolean, args_pshape);
 }
 
 bool Node::match_value(pattern::Matcher* matcher,

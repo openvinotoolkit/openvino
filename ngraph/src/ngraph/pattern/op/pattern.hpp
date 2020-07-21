@@ -85,7 +85,6 @@ namespace ngraph
 
                 ValuePredicate get_predicate() const;
 
-                bool is_pattern() const override { return true; }
             protected:
                 ValuePredicate m_predicate;
             };

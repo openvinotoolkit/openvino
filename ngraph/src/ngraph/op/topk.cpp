@@ -20,6 +20,7 @@
 #include "ngraph/axis_vector.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/topk.hpp"
+#include "ngraph/op/util/op_types.hpp"
 #include "ngraph/shape.hpp"
 #include "ngraph/validation_util.hpp"
 
@@ -482,7 +483,7 @@ void op::v1::TopK::validate_and_infer_types()
         this, k_partial_shape.rank().compatible(0), "The 'K' input must be a scalar.");
 
     size_t k = 0;
-    if (input_value(1).get_node_shared_ptr()->is_constant())
+    if (op::is_constant(input_value(1).get_node()))
     {
         k = read_k_from_constant_node(input_value(1).get_node_shared_ptr(),
                                       get_input_element_type(1));
@@ -638,7 +639,7 @@ shared_ptr<Node> op::v1::TopK::clone_with_new_inputs(const OutputVector& new_arg
 size_t op::v1::TopK::get_k() const
 {
     size_t k = 0;
-    if (input_value(1).get_node_shared_ptr()->is_constant())
+    if (op::is_constant(input_value(1).get_node()))
     {
         k = read_k_from_constant_node(input_value(1).get_node_shared_ptr(),
                                       get_input_element_type(1));
@@ -668,7 +669,7 @@ bool op::v1::TopK::evaluate(const HostTensorVector& outputs, const HostTensorVec
 
     // 2. get value of k - from constant node or from HT
     size_t k = 0;
-    if (input_value(1).get_node_shared_ptr()->is_constant())
+    if (op::is_constant(input_value(1).get_node()))
     {
         k = read_k_from_constant_node(input_value(1).get_node_shared_ptr(),
                                       get_input_element_type(1));

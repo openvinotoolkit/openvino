@@ -426,6 +426,8 @@ set (SRC
     op/util/binary_elementwise_logical.hpp
     op/util/broadcast_base.cpp
     op/util/broadcast_base.hpp
+    op/util/elementwise_args.cpp
+    op/util/elementwise_args.hpp
     op/util/embeddingbag_packed_base.cpp
     op/util/embeddingbag_packed_base.hpp
     op/util/embeddingbag_offsets_base.cpp
@@ -447,6 +449,8 @@ set (SRC
     op/util/unary_elementwise_arithmetic.cpp
     op/util/unary_elementwise_arithmetic.hpp
     op/util/variable.hpp
+    op/util/op_types.cpp
+    op/util/op_types.hpp
     ops.hpp
     opsets/opset.cpp
     partial_shape.cpp
@@ -559,8 +563,6 @@ set (SRC
     pattern/op/skip.hpp
     pattern/op/true.cpp
     pattern/op/true.hpp
-    placement.cpp
-    placement.hpp
     provenance.cpp
     provenance.hpp
     rank.hpp

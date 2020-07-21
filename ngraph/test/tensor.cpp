@@ -86,6 +86,6 @@ TEST(tensor, output_flag)
 
     for (size_t i = 0; i < f0->get_output_size(); ++i)
     {
-        EXPECT_TRUE(f0->get_output_op(i)->is_output());
+        EXPECT_TRUE(op::is_output(f0->get_output_op(i)));
     }
 }

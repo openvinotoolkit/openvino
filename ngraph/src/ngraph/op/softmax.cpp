@@ -25,6 +25,7 @@
 #include "ngraph/op/reshape.hpp"
 #include "ngraph/op/subtract.hpp"
 #include "ngraph/op/sum.hpp"
+#include "ngraph/op/util/op_types.hpp"
 #include "ngraph/runtime/reference/softmax.hpp"
 #include "ngraph/util.hpp"
 
@@ -53,7 +54,7 @@ op::v0::Softmax::Softmax(const Output<Node>& arg, const Output<Node>& axes)
 
 bool op::v0::Softmax::are_axes_constant() const
 {
-    return input_value(1).get_node_shared_ptr()->is_constant();
+    return op::is_constant(input_value(1).get_node());
 }
 
 const AxisSet op::v0::Softmax::get_axes() const

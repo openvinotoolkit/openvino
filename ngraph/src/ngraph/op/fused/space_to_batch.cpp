@@ -22,6 +22,7 @@
 #include "ngraph/node.hpp"
 #include "ngraph/op/fused/space_to_batch.hpp"
 #include "ngraph/op/pad.hpp"
+#include "ngraph/op/util/op_types.hpp"
 #include "ngraph/shape.hpp"
 
 using namespace std;
@@ -135,13 +136,13 @@ void ngraph::op::v1::SpaceToBatch::pre_validate_and_infer_types()
     auto block = input_value(1);
     auto crops_begin = input_value(2);
     auto crops_end = input_value(3);
-    NGRAPH_CHECK(block.get_node_shared_ptr()->is_constant(),
+    NGRAPH_CHECK(ngraph::op::is_constant(block.get_node()),
                  "block_shape input node is expected to be a static constant");
 
-    NGRAPH_CHECK(crops_begin.get_node_shared_ptr()->is_constant(),
+    NGRAPH_CHECK(ngraph::op::is_constant(crops_begin.get_node()),
                  "crops_begin input node is expected to be a static constant");
 
-    NGRAPH_CHECK(crops_end.get_node_shared_ptr()->is_constant(),
+    NGRAPH_CHECK(ngraph::op::is_constant(crops_end.get_node()),
                  "crops_end input node is expected to be a static constant");
 
     const auto& data_type = get_input_element_type(0);

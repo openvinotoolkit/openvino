@@ -8,6 +8,7 @@
 
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/opsets/opset3.hpp>
+#include <ngraph/op/util/op_types.hpp>
 #include <ngraph/specialize_function.hpp>
 
 #include <ngraph_functions/utils/ngraph_helpers.hpp>
@@ -126,7 +127,7 @@ std::shared_ptr<Function> foldFunction(const std::shared_ptr<Function> &function
 
     const auto &foldedFunc = specialize_function(function, paramElementTypes, paramShapes, inBuffers, true, true);
     for (const auto &op : foldedFunc->get_ops()) {
-        NGRAPH_CHECK(op->is_constant() || op->is_output() || op->is_parameter(),
+        NGRAPH_CHECK(op::is_constant(op) || op::is_output(op) || op::is_parameter(op),
                      "Function was not fully folded to constant state!\n",
                      "At least one non constant node with type ", op->get_type_name(),
                      " present in function.");
@@ -141,7 +142,7 @@ std::vector<std::vector<std::uint8_t>> getConstData(const std::shared_ptr<Functi
         const auto &output = function->output(i).get_node_shared_ptr();
         NGRAPH_CHECK(output->inputs().size() == 1);
         auto parrentNode = output->input_value(0).get_node_shared_ptr();
-        NGRAPH_CHECK(parrentNode->is_constant(), "Function was not fully folded to constant state!\n",
+        NGRAPH_CHECK(op::is_constant(parrentNode), "Function was not fully folded to constant state!\n",
                      "Parent node of one of results is not constant and has type ", parrentNode->get_type_name());
 
         const auto data = std::dynamic_pointer_cast<opset1::Constant>(parrentNode)->get_data_ptr<std::uint8_t>();

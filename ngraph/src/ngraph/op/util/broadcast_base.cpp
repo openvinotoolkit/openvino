@@ -19,6 +19,7 @@
 #include "ngraph/op/concat.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/sum.hpp"
+#include "ngraph/op/util/op_types.hpp"
 #include "ngraph/partial_shape.hpp"
 
 #include "ngraph/runtime/reference/broadcast.hpp"
@@ -192,7 +193,7 @@ void op::util::BroadcastBase::validate_and_infer_types()
                                   " doesn't match rank of input tensor ",
                                   arg_shape.size());
 
-            if (shape_constant && input_value(2).get_node_shared_ptr()->is_constant())
+            if (shape_constant && op::is_constant(input_value(2).get_node()))
             {
                 auto target_shape = shape_constant->get_shape_val();
                 auto axes_mapping_val =

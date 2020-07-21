@@ -20,6 +20,7 @@
 #include "ngraph/file_util.hpp"
 #include "ngraph/frontend/onnx_import/default_opset.hpp"
 #include "ngraph/frontend/onnx_import/onnx.hpp"
+#include "ngraph/op/util/op_types.hpp"
 #include "ngraph/pass/constant_folding.hpp"
 #include "ngraph/pass/manager.hpp"
 #include "util/all_close.hpp"
@@ -44,7 +45,7 @@ namespace
 
         for (auto ng_node : ng_function->get_ordered_ops())
         {
-            if (ng_node->is_constant())
+            if (op::is_constant(ng_node))
             {
                 const auto folded_node = as_type_ptr<default_opset::Constant>(ng_node);
                 const auto output_values = folded_node->cast_vector<T>();

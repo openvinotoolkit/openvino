@@ -40,6 +40,7 @@ namespace ngraph
             public:
                 static constexpr NodeTypeInfo type_info{"Constant", 0};
                 const NodeTypeInfo& get_type_info() const override { return type_info; }
+                bool is_constant() const override { return true; }
                 Constant() = default;
 
                 /// \brief Initialize a constant from tensor
@@ -442,7 +443,6 @@ namespace ngraph
                         get_data_ptr());
                 }
 
-                bool is_constant() const override { return true; }
                 bool get_all_data_elements_bitwise_identical() const
                 {
                     return m_all_elements_bitwise_identical;

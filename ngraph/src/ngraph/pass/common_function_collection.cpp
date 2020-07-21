@@ -17,6 +17,7 @@
 #include <sstream>
 
 #include "common_function_collection.hpp"
+#include "ngraph/op/util/op_types.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -48,11 +49,11 @@ bool pass::CommonFunctionCollection::run_on_module(vector<shared_ptr<Function>>&
     {
         for (const shared_ptr<Node>& n : current_function->get_ordered_ops())
         {
-            if (n->is_constant() || n->is_parameter())
+            if (op::is_constant(n) || op::is_parameter(n))
             {
                 continue;
             }
-            if (n->is_op())
+            if (op::is_op(n))
             {
                 auto op = std::static_pointer_cast<op::Op>(n);
                 auto annotations = op->get_op_annotations();

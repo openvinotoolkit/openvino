@@ -26,6 +26,7 @@
 #include <ngraph/opsets/opset2.hpp>
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/op/fused/gelu.hpp>
+#include <ngraph/op/util/op_types.hpp>
 #include "ngraph_ops/fully_connected.hpp"
 
 #if !defined(__arm__) && !defined(_M_ARM) && !defined(__aarch64__) && !defined(_M_ARM64)
@@ -227,7 +228,7 @@ void Engine::QueryNetwork(const ICNNNetwork& network, const std::map<std::string
     if (function != nullptr) {
         std::unordered_set<std::string> originalOps;
         for (auto&& node : function->get_ops()) {
-            if (!node->is_constant() && !node->is_parameter() && !node->is_output()) {
+            if (!ngraph::op::is_constant(node) && !ngraph::op::is_parameter(node) && !ngraph::op::is_output(node)) {
                 originalOps.emplace(node->get_friendly_name());
             }
         }

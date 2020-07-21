@@ -35,6 +35,7 @@
 // clang-format on
 
 #include "gtest/gtest.h"
+#include "ngraph/frontend/onnx_import/core/null_node.hpp"
 #include "ngraph/frontend/onnx_import/onnx.hpp"
 #include "ngraph/frontend/onnx_import/onnx_utils.hpp"
 #include "ngraph/frontend/onnx_import/default_opset.hpp"
@@ -376,7 +377,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_missing_input)
             std::shared_ptr<ngraph::Node> C = ng_inputs.at(2);
 
             A = A * C;
-            if (!B->is_null())
+            if (!ngraph::op::is_null(B))
             {
                 B = B / C;
             }
@@ -393,7 +394,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_missing_input)
 
             for (const auto& ng_input : ng_inputs)
             {
-                if (!ng_input->is_null())
+                if (!ngraph::op::is_null(ng_input))
                 {
                     result = ng_input * result;
                 }

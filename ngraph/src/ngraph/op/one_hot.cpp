@@ -16,6 +16,7 @@
 
 #include "ngraph/op/one_hot.hpp"
 #include "ngraph/attribute_visitor.hpp"
+#include "ngraph/op/util/op_types.hpp"
 #include "ngraph/validation_util.hpp"
 
 using namespace std;
@@ -152,7 +153,7 @@ void op::v1::OneHot::validate_and_infer_types()
     const auto& depth = input_value(1).get_node_shared_ptr();
     PartialShape result_shape{PartialShape::dynamic()};
 
-    if (indices_shape.is_static() && indices_shape.rank().is_static() && depth->is_constant())
+    if (indices_shape.is_static() && indices_shape.rank().is_static() && op::is_constant(depth))
     {
         const auto indices_rank = indices_shape.rank().get_length();
 
