@@ -29,7 +29,7 @@ Output<Node> eltwise_fold(const Output<Node> & input0, const Output<Node> & inpu
 
 ngraph::pass::AddMultiplyFusion::AddMultiplyFusion() {
     // Create Add->Multiply pattern where Add has exactly one consumer
-    auto m_data = std::make_shared<pattern::op::Label>();
+    auto m_data = ngraph::pattern::any_input();
     auto m_add_constant = ngraph::pattern::wrap_type<opset3::Constant>();
     auto m_add = ngraph::pattern::wrap_type<opset3::Add>({m_data, m_add_constant}, pattern::consumers_count(1));
     auto m_mul_constant = ngraph::pattern::wrap_type<opset3::Constant>();
@@ -65,7 +65,7 @@ ngraph::pass::AddMultiplyFusion::AddMultiplyFusion() {
 
 ngraph::pass::AddAddFusion::AddAddFusion() {
     // Create Add->Add pattern where first Add has exactly one consumer
-    auto m_data = std::make_shared<pattern::op::Label>();
+    auto m_data = ngraph::pattern::any_input();
     auto m_add1_constant = ngraph::pattern::wrap_type<opset3::Constant>();
     auto m_add1 = ngraph::pattern::wrap_type<opset3::Add>({m_data, m_add1_constant}, pattern::consumers_count(1));
     auto m_add2_constant = ngraph::pattern::wrap_type<opset3::Constant>();
@@ -97,7 +97,7 @@ ngraph::pass::AddAddFusion::AddAddFusion() {
 
 ngraph::pass::MultiplyMultiplyFusion::MultiplyMultiplyFusion() {
     // Create Multiply->Multiply pattern where first Multiply has exactly one consumer
-    auto m_data = std::make_shared<pattern::op::Label>();
+    auto m_data = ngraph::pattern::any_input();
     auto m_mul1_constant = ngraph::pattern::wrap_type<opset3::Constant>();
     auto m_mul1 = ngraph::pattern::wrap_type<opset3::Multiply>({m_data, m_mul1_constant}, pattern::consumers_count(1));
     auto m_mul2_constant = ngraph::pattern::wrap_type<opset3::Constant>();

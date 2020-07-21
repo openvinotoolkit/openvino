@@ -142,5 +142,8 @@ namespace ngraph
                 static Output<Node> wrap_values(const OutputVector& wrapped_values);
             };
         }
+
+        NGRAPH_API
+        std::shared_ptr<Node> any_input();
     }
 }
