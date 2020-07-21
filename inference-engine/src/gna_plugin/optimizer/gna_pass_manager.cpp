@@ -1199,20 +1199,15 @@ void BroadcastConstPass::run() {
             continue;
         }
 
-        auto mulVector = [](TensorDesc desc) {
-            std::size_t result = 1;
-            for (int i = 0; i < desc.getDims().size(); ++i) {
-                result *= desc.getDims()[i];
-            }
-            return result;
-        };
-        auto constDims = mulVector(constLayer->outData.front()->getTensorDesc());
-        auto eltwiseDims = mulVector(nextLayer->outData.front()->getTensorDesc());
+        auto constDims = constLayer->outData.front()->getTensorDesc().getDims();
+        auto constDimsSize = InferenceEngine::details::product(constDims.begin(), constDims.end());
+        auto eltwiseDims = nextLayer->outData.front()->getTensorDesc().getDims();
+        auto eltwiseDimsSize = InferenceEngine::details::product(eltwiseDims.begin(), eltwiseDims.end());
 
-        if (constDims == eltwiseDims) {
+        if (constDimsSize == eltwiseDimsSize) {
             continue;
         }
-        if (eltwiseDims % constDims != 0) {
+        if (eltwiseDimsSize % constDimsSize != 0) {
             continue;
         }
 
@@ -1223,13 +1218,12 @@ void BroadcastConstPass::run() {
             nextLayer->outData.front()->getTensorDesc().getLayout()));
         newConstBlob->allocate();
         std::size_t offset = 0;
-        for (std::size_t i = 0; i < (eltwiseDims / constDims); ++i) {
+        for (std::size_t i = 0; i < (eltwiseDimsSize / constDimsSize); ++i) {
             ie_memcpy(newConstBlob->buffer().as<char*>() + (i * currentConstBlob->byteSize()),
                 currentConstBlob->byteSize(),
                 currentConstBlob->buffer(),
                 currentConstBlob->byteSize());
         }
-        constLayer->blobs.begin()->second->deallocate();
         constLayer->blobs.begin()->second = newConstBlob;
         constLayer->outData.front()->setDims(nextLayer->outData.front()->getDims());
         gnalog() << "Const layer '" << constLayer->name << "' was changed to match output of '" << nextLayer->name << "'\n";
