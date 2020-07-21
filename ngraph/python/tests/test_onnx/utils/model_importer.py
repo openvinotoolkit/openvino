@@ -15,8 +15,13 @@
 # ******************************************************************************
 
 from collections import defaultdict
+import glob
+import numpy as np
+import os
 from typing import Dict, List, Optional, Pattern, Set, Text, Type
 
+import onnx
+from onnx import numpy_helper
 import onnx.backend.test
 from onnx.backend.base import Backend
 from onnx.backend.test.case.test_case import TestCase as OnnxTestCase
@@ -40,11 +45,11 @@ class ModelImportRunner(onnx.backend.test.BackendTest):
                 url=None,
                 model_name=model["model_name"],
                 model_dir=model["dir"],
-                model=None,
+                model=model["model_file"],
                 data_sets=None,
                 kind="OnnxBackendRealModelImportTest",
-                rtol=None,
-                atol=None,
+                rtol=model.get("rtol", 0.001),
+                atol=model.get("atol", 1e-07),
             )
             self._add_model_test(test_case, "Validation")
 
@@ -53,17 +58,62 @@ class ModelImportRunner(onnx.backend.test.BackendTest):
         # never loaded if the test skipped
         model_marker = [None]  # type: List[Optional[Union[ModelProto, NodeProto]]]
 
-        def run(test_self, device):  # type: (Any, Text) -> None
+        def run_import(test_self, device):  # type: (Any, Text) -> None
             if model_test.model_dir is None:
-                raise unittest.SkipTest('Model directory not provided')
+                raise unittest.SkipTest("Model directory not provided")
             else:
                 model_dir = model_test.model_dir
-            model = onnx.load(model_dir)
+            model_pb_path = os.path.join(model_dir, model_test.model)
+            model = onnx.load(model_pb_path)
             model_marker[0] = model
-            if not hasattr(self.backend, 'is_compatible') \
+            if not hasattr(self.backend, "is_compatible") \
                and not callable(self.backend.is_compatible):
                 raise unittest.SkipTest(
-                    'Provided backend does not provide is_compatible method')
+                    "Provided backend does not provide is_compatible method")
             self.backend.is_compatible(model)
 
-        self._add_test(kind + 'Model', model_test.name, run, model_marker)
+        def run_execution(test_self, device):
+            if model_test.model_dir is None:
+                raise unittest.SkipTest("Model directory not provided")
+            else:
+                model_dir = model_test.model_dir
+            model_pb_path = os.path.join(model_dir, model_test.model)
+            model = onnx.load(model_pb_path)
+            # model_marker[0] = model
+
+            prepared_model = self.backend.prepare(model, device)
+            assert prepared_model is not None
+
+            for test_data_npz in glob.glob(os.path.join(model_dir, 'test_data_*.npz')):
+                test_data = np.load(test_data_npz, encoding='bytes')
+                inputs = list(test_data['inputs'])
+                outputs = list(prepared_model.run(inputs))
+                ref_outputs = test_data['outputs']
+                self.assert_similar_outputs(ref_outputs, outputs,
+                                            rtol=model_test.rtol,
+                                            atol=model_test.atol)
+
+            for test_data_dir in glob.glob(os.path.join(model_dir, "test_data_set*")):
+                inputs = []
+                inputs_num = len(glob.glob(os.path.join(test_data_dir, 'input_*.pb')))
+                for i in range(inputs_num):
+                    input_file = os.path.join(test_data_dir, 'input_{}.pb'.format(i))
+                    tensor = onnx.TensorProto()
+                    with open(input_file, 'rb') as f:
+                        tensor.ParseFromString(f.read())
+                    inputs.append(numpy_helper.to_array(tensor))
+                ref_outputs = []
+                ref_outputs_num = len(glob.glob(os.path.join(test_data_dir, 'output_*.pb')))
+                for i in range(ref_outputs_num):
+                    output_file = os.path.join(test_data_dir, 'output_{}.pb'.format(i))
+                    tensor = onnx.TensorProto()
+                    with open(output_file, 'rb') as f:
+                        tensor.ParseFromString(f.read())
+                    ref_outputs.append(numpy_helper.to_array(tensor))
+                outputs = list(prepared_model.run(inputs))
+                self.assert_similar_outputs(ref_outputs, outputs,
+                                            rtol=model_test.rtol,
+                                            atol=model_test.atol)
+
+        self._add_test(kind + "ModelImport", model_test.name, run_import, model_marker)
+        self._add_test(kind + "ModelExecution", model_test.name, run_execution, model_marker)
