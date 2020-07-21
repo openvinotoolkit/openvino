@@ -703,7 +703,7 @@ void InsertCopyLayerPass::run() {
             if (LayerInfo(l).isConcat() && LayerInfo(prevIndirectLayer).isCrop()) { bInsert = true; }
 
             if (bInsert) {
-                if (LayerInfo(prevIndirectLayer).isCrop() && LayerInfo(prevIndirectLayer).isCropAffined()) {
+                if (LayerInfo(prevIndirectLayer).isCropAffined()) {
                     // The crop will be replaced by affine.
                     // Copy layer insertion is not required
                     continue;
