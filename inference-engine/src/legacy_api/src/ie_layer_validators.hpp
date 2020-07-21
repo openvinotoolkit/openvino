@@ -15,11 +15,6 @@
 namespace InferenceEngine {
 namespace details {
 
-struct InOutDims {
-    std::vector<std::vector<size_t>> inDims;
-    std::vector<std::vector<size_t>> outDims;
-};
-
 /**
  * @brief Contains methods to validate layer of specific type
  */
