@@ -59,9 +59,14 @@ namespace ngraph
                     {"round_prefer_ceil",  Nearest_mode::round_prefer_ceil},
                     {"floor",              Nearest_mode::floor},
                     {"ceil",               Nearest_mode::ceil},
-                    {"simple"              Nearest_mode::simple}
+                    {"simple",             Nearest_mode::simple}
                 };
 
+                static bool is_supported_str_value(const std::unordered_set<std::string>& modes,
+                                                   const std::string& checked_mode)
+                {
+                    return std::find(modes.begin(), modes.end(), checked_mode) != modes.end();
+                }
 
                 NodeVector resize(const onnx_import::Node& node)
                 {
@@ -75,12 +80,6 @@ namespace ngraph
                     auto get_str_attr = [&node](const std::string& name,
                                                 const std::string& default_value) {
                         return node.get_attribute_value<std::string>(name, default_value);
-                    };
-
-                    using set = std::unordered_set<std::string>;
-                    using str = std::string;
-                    auto is_supported_str_value = [](const set& modes, const str& checked_mode) {
-                        return std::find(modes.begin(), modes.end(), checked_mode) != modes.end();
                     };
 
                     const auto mode = get_str_attr("mode", "nearest");
