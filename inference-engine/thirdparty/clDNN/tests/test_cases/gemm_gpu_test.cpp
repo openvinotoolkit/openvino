@@ -3284,6 +3284,11 @@ struct gemm_int8_test_params {
 #define CASE_GEMM_INT8_COMBO_3 11, 31, 21, 7, 15, 7, 15, 7, 15, 7, 15, true, false, 1.0f, 1.5f
 #define CASE_GEMM_INT8_COMBO_4 32, 32, 32, 3, 6, 3, 6, 3, 6, 3, 6, true, true, 1.2f, 4.0f
 
+#define CASE_GEMM_INT8_SLM_COMBO_1 64, 64, 64, 1, 2, 1, 1, 1, 1, 1, 2, false, false, 1.5f, 2.0f
+#define CASE_GEMM_INT8_SLM_COMBO_2 384, 384, 64, 2, 1, 1, 1, 1, 1, 2, 1, false, false, 1.7f, 0.0f
+#define CASE_GEMM_INT8_SLM_COMBO_3 128, 128, 64, 2, 3, 2, 3, 2, 3, 2, 3, false, false, 1.0f, 1.5f
+#define CASE_GEMM_INT8_SLM_COMBO_4 256, 64, 64, 3, 6, 3, 6, 3, 6, 3, 6, false, false, 1.2f, 4.0f
+
 template <typename T>
 class GemmInt8Test : public ::testing::TestWithParam<T> {
 public:
@@ -3456,4 +3461,14 @@ INSTANTIATE_TEST_CASE_P(gemm_gpu, gemm_int8_combo_tests, ::testing::ValuesIn(std
                         gemm_int8_test_params{ CASE_GEMM_INT8_COMBO_2, "gemm_mmad_int8" },
                         gemm_int8_test_params{ CASE_GEMM_INT8_COMBO_3, "gemm_mmad_int8" },
                         gemm_int8_test_params{ CASE_GEMM_INT8_COMBO_4, "gemm_mmad_int8" },
+}), );
+
+class gemm_int8_slm_combo_tests : public ::GemmInt8Test<gemm_int8_test_params> {};
+TEST_P(gemm_int8_slm_combo_tests, basic) { auto p = GetParam(); execute(p); }
+
+INSTANTIATE_TEST_CASE_P(gemm_gpu, gemm_int8_slm_combo_tests, ::testing::ValuesIn(std::vector <gemm_int8_test_params> {
+                        gemm_int8_test_params{ CASE_GEMM_INT8_SLM_COMBO_1, "gemm_mmad_int8_slm" },
+                        gemm_int8_test_params{ CASE_GEMM_INT8_SLM_COMBO_2, "gemm_mmad_int8_slm" },
+                        gemm_int8_test_params{ CASE_GEMM_INT8_SLM_COMBO_3, "gemm_mmad_int8_slm" },
+                        gemm_int8_test_params{ CASE_GEMM_INT8_SLM_COMBO_4, "gemm_mmad_int8_slm" },
 }), );
