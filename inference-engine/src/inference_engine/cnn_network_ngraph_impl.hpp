@@ -56,8 +56,6 @@ public:
 
     void setInputInfo(InputInfo::Ptr data);
 
-    void addLayer(const CNNLayerPtr& layer) noexcept;
-
     // public version
     StatusCode setBatchSize(size_t size, ResponseDesc* responseDesc) noexcept override;
 
