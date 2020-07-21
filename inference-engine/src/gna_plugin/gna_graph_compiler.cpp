@@ -847,8 +847,8 @@ void GNAGraphCompiler::CropPrimitive(InferenceEngine::CNNLayerPtr layer) {
     auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(layer);
     size_t cropOffset = offset.front() * cropLayer->precision.size();
     size_t cropOutputSize = dim.front() * cropLayer->precision.size();
-
-    if (ALIGN64(cropOffset) == cropOffset) {
+    
+    if (!LayerInfo(cropLayer).isCropAffined()) {
         // leave crop as it is
         GNAPluginNS::GNACropLayer cropLayerInfoItem(layer);
         std::string& id = layer->name;

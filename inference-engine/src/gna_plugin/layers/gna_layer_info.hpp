@@ -261,7 +261,10 @@ class LayerInfo {
         auto cropLayer = dynamic_cast<InferenceEngine::CropLayer *> (layer);
         if (cropLayer != nullptr && !cropLayer->offset.empty()) {
             try {
-                size_t cropOffset = cropLayer->offset.back() * cropLayer->precision.size();
+                // currently crop layer only supports 2 bytes in int16 and int8 mode.
+                // In fp32 mode this is not necessary but is useful for testing
+                auto bytesPerCropElement = 2;
+                size_t cropOffset = cropLayer->offset.back() * bytesPerCropElement;
                 return (ALIGN64(cropOffset) != cropOffset);
             } catch (InferenceEngine::details::InferenceEngineException) {}
         }
