@@ -25,7 +25,7 @@ void ngraph::pass::MishFusion::mish_fusion() {
             return false;
         }
 
-        auto tanh = std::dynamic_pointer_cast<ngraph::opset4::Tanh> (mul->input(0).get_source_output());
+        auto tanh = std::dynamic_pointer_cast<ngraph::opset4::Tanh> (mul->input(1).get_source_output());
         if (!tanh) {
             return false;
         }
