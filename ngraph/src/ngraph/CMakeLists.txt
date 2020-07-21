@@ -86,7 +86,7 @@ set (SRC
     except.hpp
     factory.cpp
     factory.hpp
-    factory_adapter.hpp 
+    factory_adapter.hpp
     file_util.cpp
     file_util.hpp
     function.cpp
@@ -230,6 +230,8 @@ set (SRC
     op/min.hpp
     op/minimum.cpp
     op/minimum.hpp
+    op/mish.cpp
+    op/mish.hpp
     op/multiply.cpp
     op/multiply.hpp
     op/negative.cpp
@@ -424,6 +426,8 @@ set (SRC
     op/util/binary_elementwise_logical.hpp
     op/util/broadcast_base.cpp
     op/util/broadcast_base.hpp
+    op/util/elementwise_args.cpp
+    op/util/elementwise_args.hpp
     op/util/embeddingbag_packed_base.cpp
     op/util/embeddingbag_packed_base.hpp
     op/util/embeddingbag_offsets_base.cpp
@@ -445,6 +449,8 @@ set (SRC
     op/util/unary_elementwise_arithmetic.cpp
     op/util/unary_elementwise_arithmetic.hpp
     op/util/variable.hpp
+    op/util/op_types.cpp
+    op/util/op_types.hpp
     ops.hpp
     opsets/opset.cpp
     partial_shape.cpp
@@ -557,8 +563,6 @@ set (SRC
     pattern/op/skip.hpp
     pattern/op/true.cpp
     pattern/op/true.hpp
-    placement.cpp
-    placement.hpp
     provenance.cpp
     provenance.hpp
     rank.hpp
@@ -570,6 +574,8 @@ set (SRC
     runtime/host_tensor.hpp
     runtime/tensor.cpp
     runtime/tensor.hpp
+    runtime/reference/eval_helpers.cpp
+    runtime/reference/eval_helpers.hpp
     shape.cpp
     shape.hpp
     shape_util.cpp

@@ -1,4 +1,4 @@
-## Swish <a name="Swish"></a>
+## Swish <a name="Swish"></a> {#openvino_docs_ops_activation_Swish_4}
 
 **Versioned name**: *Swish-4*
 
