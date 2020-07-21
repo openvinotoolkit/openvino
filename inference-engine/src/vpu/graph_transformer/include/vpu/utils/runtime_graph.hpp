@@ -11,8 +11,12 @@
 
 namespace vpu {
 
-InferenceEngine::ICNNNetwork::Ptr buildRuntimeGraph(
+InferenceEngine::ICNNNetwork::Ptr buildRuntimeGraphAsIeNet(
         GraphMetaInfo &graphMetaInfo,
         const std::vector<float>& perfInfo);
+InferenceEngine::ICNNNetwork::Ptr buildRuntimeGraphAsIeNgraphNet(
+        GraphMetaInfo &graphMetaInfo,
+        const std::vector<float>& perfInfo);
+
 
 }  // namespace vpu

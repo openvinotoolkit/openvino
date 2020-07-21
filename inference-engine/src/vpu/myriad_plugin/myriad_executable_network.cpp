@@ -186,7 +186,7 @@ void ExecutableNetwork::GetMetric(const std::string &name, Parameter &result, Re
 
 void ExecutableNetwork::GetExecGraphInfo(InferenceEngine::ICNNNetwork::Ptr &graphPtr) {
     auto perfInfo = _executor->getPerfTimeInfo(_graphDesc._graphHandle);
-    graphPtr = buildRuntimeGraph(_graphMetaData, perfInfo);
+    graphPtr = buildRuntimeGraphAsIeNgraphNet(_graphMetaData, perfInfo);
 }
 
 }  // namespace MyriadPlugin

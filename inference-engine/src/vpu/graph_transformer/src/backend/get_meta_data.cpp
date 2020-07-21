@@ -125,13 +125,22 @@ void BackEnd::getMetaData(
         }
 
         if (data->usage() != DataUsage::Output) {
+            size_t prIndex;
+            if (data->usage() == DataUsage::Input) {
+                prIndex = stagesMeta.size() - 1;
+            } else {
+                prIndex = stageToMetaIndex.find(data->producer())->second;
+            }
+
             for (const auto &child : data->consumers()) {
                 auto it = stageToMetaIndex.find(child);
 
                 if (it != stageToMetaIndex.end()) {
                     StageMetaInfo& meta = stagesMeta[it->second];
-
-                    meta.inputsNum++;
+                    stagesMeta[prIndex].childsNum++;
+                    meta.parentIndices.push_back(prIndex);
+                    meta.inputDims.push_back(dataMeta.desc.getDims());
+                    meta.inputPrecisions.push_back(dataMeta.desc.getPrecision());
                     dataMeta.childrenIndices.push_back(it->second);
                 }
             }
