@@ -14,27 +14,18 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include <deque>
-#include <sstream>
+#pragma once
 
-#include "ngraph/function.hpp"
-#include "ngraph/graph_util.hpp"
 #include "ngraph/node.hpp"
-#include "ngraph/placement.hpp"
-#include "ngraph/util.hpp"
 
-using namespace std;
-using namespace ngraph;
-
-std::string ngraph::placement_to_string(Placement placement)
+namespace ngraph
 {
-    switch (placement)
+    namespace op
     {
-    case Placement::DEFAULT: return "DEFAULT";
-    case Placement::INTERPRETER: return "INTERPRETER";
-    case Placement::CPU: return "CPU";
-    case Placement::GPU: return "GPU";
-    case Placement::NNP: return "NNP";
+        namespace util
+        {
+            std::tuple<element::Type, PartialShape> validate_and_infer_elementwise_args(
+                Node* node, const op::AutoBroadcastSpec& autob = op::AutoBroadcastSpec());
+        }
     }
-    throw runtime_error("unhandled placement type");
 }
