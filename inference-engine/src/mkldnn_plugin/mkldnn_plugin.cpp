@@ -54,6 +54,7 @@
 #include <transformations/op_conversions/gru_cell_decomposition.hpp>
 #include <transformations/op_conversions/log_softmax_decomposition.hpp>
 #include <transformations/op_conversions/convert_interpolate1_to_interpolate4.hpp>
+#include <transformations/op_conversions/convert_shuffle_channels3.hpp>
 #include <transformations/convert_precision.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/rt_info/fused_names_attribute.hpp>
@@ -203,6 +204,7 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork, const Config& conf) 
     pass_config->disable<ngraph::pass::ConvertMod>();
     pass_config->disable<ngraph::pass::LogSoftmaxDecomposition>();
     pass_config->disable<ngraph::pass::ConvertInterpolateToInterpOrResampleMatcher>();
+    pass_config->disable<ngraph::pass::ConvertShuffleChannels3>();
 
     pass_config->enable<ngraph::pass::ConvertInterpolate1ToInterpolate4>();
 

@@ -40,6 +40,7 @@ set(LAYERS
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_scatter_update_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_interpolate_node.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_reduce_node.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/mkldnn_shuffle_channels_node.cpp
 
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/list.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/batch_to_space.cpp
@@ -76,7 +77,6 @@ set(LAYERS
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/reverse_sequence.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/roifeatureextractor_onnx.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/select.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/nodes/shuffle_channels.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/simplernms.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/space_to_batch.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nodes/space_to_depth.cpp

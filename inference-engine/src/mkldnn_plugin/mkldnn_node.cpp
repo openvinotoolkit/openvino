@@ -41,6 +41,7 @@
 #include <nodes/mkldnn_mvn_node.h>
 #include <nodes/mkldnn_normalize_node.h>
 #include <nodes/mkldnn_reduce_node.h>
+#include <nodes/mkldnn_shuffle_channels_node.h>
 #include <nodes/mkldnn_tensoriterator_node.h>
 #include <nodes/mkldnn_scatter_update_node.h>
 #include <nodes/mkldnn_interpolate_node.h>
@@ -140,6 +141,7 @@ static const InferenceEngine::details::caseless_unordered_map<std::string, Type>
         { "ReduceProd", ReduceProd},
         { "ReduceSum", ReduceSum},
         { "ReduceSumSquare", ReduceSumSquare},
+        { "ShuffleChannels", ShuffleChannels},
 };
 
 Type TypeFromName(const std::string type) {

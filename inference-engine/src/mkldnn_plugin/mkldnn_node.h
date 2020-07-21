@@ -84,7 +84,8 @@ enum Type {
     ReduceOr,
     ReduceProd,
     ReduceSum,
-    ReduceSumSquare
+    ReduceSumSquare,
+    ShuffleChannels
 };
 
 Type TypeFromName(const std::string type);
@@ -197,6 +198,8 @@ static std::string NameFromType(Type type) {
             return "ReduceSum";
         case ReduceSumSquare:
             return "ReduceSumSquare";
+        case ShuffleChannels:
+            return "ShuffleChannels";
         default:
             return "Unknown";
     }
