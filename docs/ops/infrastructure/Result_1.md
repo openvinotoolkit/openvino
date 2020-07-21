@@ -1,4 +1,4 @@
-## Result <a name="Result"></a>
+## Result <a name="Result"></a> {#openvino_docs_ops_infrastructure_Result_1}
 
 **Versioned name**: *Result-1*
 

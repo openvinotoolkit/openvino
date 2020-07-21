@@ -14,27 +14,25 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include <deque>
-#include <sstream>
+#pragma once
 
-#include "ngraph/function.hpp"
-#include "ngraph/graph_util.hpp"
-#include "ngraph/node.hpp"
-#include "ngraph/placement.hpp"
-#include "ngraph/util.hpp"
+#include <cmath>
+#include <cstddef>
 
-using namespace std;
-using namespace ngraph;
-
-std::string ngraph::placement_to_string(Placement placement)
+namespace ngraph
 {
-    switch (placement)
+    namespace runtime
     {
-    case Placement::DEFAULT: return "DEFAULT";
-    case Placement::INTERPRETER: return "INTERPRETER";
-    case Placement::CPU: return "CPU";
-    case Placement::GPU: return "GPU";
-    case Placement::NNP: return "NNP";
+        namespace reference
+        {
+            template <typename T>
+            void mish(const T* arg, T* out, size_t count)
+            {
+                for (size_t i = 0; i < count; i++)
+                {
+                    out[i] = arg[i] * std::tanh(std::log((std::exp(arg[i]) + 1.0)));
+                }
+            }
+        }
     }
-    throw runtime_error("unhandled placement type");
 }
