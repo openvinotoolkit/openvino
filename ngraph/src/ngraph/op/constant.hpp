@@ -40,7 +40,6 @@ namespace ngraph
             public:
                 static constexpr NodeTypeInfo type_info{"Constant", 0};
                 const NodeTypeInfo& get_type_info() const override { return type_info; }
-                bool is_constant() const override { return true; }
                 Constant() = default;
 
                 /// \brief Initialize a constant from tensor
