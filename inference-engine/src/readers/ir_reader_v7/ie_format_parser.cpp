@@ -3,6 +3,7 @@
 //
 
 #include "ie_format_parser.h"
+#include "ie_layer_validators.hpp"
 
 #include <fstream>
 #include <set>
@@ -432,7 +433,8 @@ CNNNetworkImplPtr FormatParser::Parse(pugi::xml_node& root) {
                                    << parseInfo.inputPorts[i].portId << " is not connected to any data";
             }
         }
-        layer->validateLayer();
+        layer->parseParams();
+        details::validateLayer(layer.get());
     }
     // parse mean image
     ParsePreProcess(root);

@@ -198,7 +198,7 @@ public:
     /**
      * @brief Checks if the input data and layer data are legitimate
      */
-    void validateLayer();
+    void parseParams();
 
     /**
      * @brief Parse string with float in accordance with IE rules
