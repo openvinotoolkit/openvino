@@ -111,7 +111,7 @@ namespace ngraph
         visitor.on_attribute("pads_end", m_ref.pads_end);
         return true;
     }
-}
+} // namespace ngraph
 
 // Interpolate v4
 
@@ -159,7 +159,8 @@ std::vector<int64_t> op::v4::Interpolate::get_axes() const
     result = default_value;
 
     auto inputs = input_values();
-    if (inputs.size() <= 2) {
+    if (inputs.size() <= 2)
+    {
         return result;
     }
 
@@ -171,7 +172,6 @@ std::vector<int64_t> op::v4::Interpolate::get_axes() const
     return result;
 }
 
-
 std::vector<size_t> op::v4::Interpolate::correct_pad(const std::vector<size_t>& pad)
 {
     PartialShape input_shape = PartialShape(get_input_partial_shape(0));
@@ -180,7 +180,7 @@ std::vector<size_t> op::v4::Interpolate::correct_pad(const std::vector<size_t>& 
         throw std::invalid_argument("Cannot get dynamic rank of input node.");
     }
     const auto input_rank = input_shape.rank().get_length();
-    const auto pad_len    = pad.size();
+    const auto pad_len = pad.size();
     if (pad_len == input_rank)
     {
         return pad;
@@ -219,9 +219,8 @@ void op::v4::Interpolate::validate_and_infer_types()
         {
             if (output_shape[i].is_static())
             {
-                auto new_length = m_attrs.pads_begin[i] +
-                                  m_attrs.pads_end[i]   +
-                                  output_shape[i].get_length();
+                auto new_length =
+                    m_attrs.pads_begin[i] + m_attrs.pads_end[i] + output_shape[i].get_length();
                 output_shape[i] = Dimension(new_length);
             }
         }
@@ -251,10 +250,8 @@ shared_ptr<Node> op::v4::Interpolate::clone_with_new_inputs(const OutputVector& 
     {
         return make_shared<op::v4::Interpolate>(new_args.at(0), new_args.at(1), m_attrs);
     }
-    return make_shared<op::v4::Interpolate>(new_args.at(0),
-                                            new_args.at(1),
-                                            new_args.at(2),
-                                            m_attrs);
+    return make_shared<op::v4::Interpolate>(
+        new_args.at(0), new_args.at(1), new_args.at(2), m_attrs);
 }
 
 namespace ngraph
@@ -345,4 +342,4 @@ namespace ngraph
         visitor.on_attribute("cube_coeff", m_ref.cube_coeff);
         return true;
     }
-}
+} // namespace ngraph

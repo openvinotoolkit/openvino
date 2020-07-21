@@ -16,11 +16,11 @@
 
 #pragma once
 
+#include <cstdint>
+#include <vector>
 #include "ngraph/attribute_adapter.hpp"
 #include "ngraph/op/op.hpp"
 #include "ngraph/op/util/attr_types.hpp"
-#include <vector>
-#include <cstdint>
 
 namespace ngraph
 {
@@ -85,7 +85,7 @@ namespace ngraph
             private:
                 InterpolateAttrs m_attrs;
             };
-        }
+        } // namespace v0
 
         namespace v4
         {
@@ -180,15 +180,16 @@ namespace ngraph
                 const InterpolateAttrs& get_attrs() const { return m_attrs; }
 
                 std::vector<int64_t> get_axes() const;
+
             private:
                 InterpolateAttrs m_attrs;
 
                 std::vector<size_t> correct_pad(const std::vector<size_t>& pad);
             };
-        }
-        using v0::InterpolateAttrs;
+        } // namespace v4
         using v0::Interpolate;
-    }
+        using v0::InterpolateAttrs;
+    } // namespace op
 
     //---------------------------------------- v0 --------------------------------------------------
 
@@ -202,6 +203,7 @@ namespace ngraph
         static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::v0::InterpolateAttrs>",
                                                     0};
         const DiscreteTypeInfo& get_type_info() const override { return type_info; }
+
     protected:
         op::v0::InterpolateAttrs& m_ref;
     };
@@ -291,7 +293,8 @@ namespace ngraph
         static constexpr DiscreteTypeInfo type_info{
             "AttributeAdapter<op::v4::Interpolate::InterpolateAttrs>", 4};
         const DiscreteTypeInfo& get_type_info() const override { return type_info; }
+
     protected:
         op::v4::Interpolate::InterpolateAttrs& m_ref;
     };
-}
+} // namespace ngraph
