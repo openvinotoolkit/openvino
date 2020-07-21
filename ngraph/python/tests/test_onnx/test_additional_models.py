@@ -27,14 +27,12 @@ if (len(MODELS_ROOT_DIR) > 0):
     zoo_models = []
     for path in Path(MODELS_ROOT_DIR).rglob('*.onnx'):
         mdir, file = os.path.split(path)
-        # Since directory structure is not uniform just grab last two directories
-        # and join them with model file name without .onnx extension.
-        name = '_'.join(mdir.split(os.path.sep)[-2:]) + '_' + file[:file.rfind('.')]
-
-        zoo_models.append({
-            'model_name': name,
-            'dir': str(path)
-        })
+        if not file.startswith("."):
+            zoo_models.append({
+                'model_name': path,
+                'model_file': file,
+                'dir': str(mdir)
+            })
 
     sorted(zoo_models, key=itemgetter('model_name'))
 
@@ -43,6 +41,10 @@ if (len(MODELS_ROOT_DIR) > 0):
 
     # import all test cases at global scope to make them visible to pytest
     backend_test = ModelImportRunner(OpenVinoOnnxBackend, zoo_models, __name__)
-    test_cases = backend_test.test_cases["OnnxBackendValidationModelTest"]
+    test_cases = backend_test.test_cases["OnnxBackendValidationModelImportTest"]
+    del test_cases
+
+    test_cases = backend_test.test_cases["OnnxBackendValidationModelExecutionTest"]
+    del test_cases
 
     globals().update(backend_test.enable_report().test_cases)
