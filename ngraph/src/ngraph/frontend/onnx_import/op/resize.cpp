@@ -28,7 +28,6 @@ namespace ngraph
         {
             namespace set_1
             {
-
                 static const std::unordered_set<std::string> supported_modes = {
                     "nearest", "linear", "cubic"
                 };
@@ -56,11 +55,11 @@ namespace ngraph
 
                 using Nearest_mode = ngraph::op::v4::Interpolate::NearestMode;
                 static const std::map<std::string, Nearest_mode> nearest_mode_map = {
-                    {"round_prefer_floor", round_prefer_floor},
-                    {"round_prefer_ceil",  round_prefer_ceil},
-                    {"floor",              floor},
-                    {"ceil",               ceil},
-                    {"simple"              simple}
+                    {"round_prefer_floor", Nearest_mode::round_prefer_floor},
+                    {"round_prefer_ceil",  Nearest_mode::round_prefer_ceil},
+                    {"floor",              Nearest_mode::floor},
+                    {"ceil",               Nearest_mode::ceil},
+                    {"simple"              Nearest_mode::simple}
                 };
 
 
@@ -75,10 +74,12 @@ namespace ngraph
 
                     auto get_str_attr = [&node](const std::string& name,
                                                 const std::string& default_value) {
-                        return node.get_attribute_value<std::string>(name, default_value)
+                        return node.get_attribute_value<std::string>(name, default_value);
                     };
 
-                    auto is_supported_str_value = [](auto modes, auto checked_mode) {
+                    using set = std::unordered_set<std::string>;
+                    using str = std::string;
+                    auto is_supported_str_value = [](const set& modes, const str& checked_mode) {
                         return std::find(modes.begin(), modes.end(), checked_mode) != modes.end();
                     };
 
@@ -141,7 +142,7 @@ namespace ngraph
                     attrs.antialias = false;
                     attrs.cube_coeff = node.get_attribute_value<float>("cubic_coeff_a", -0.75);
 
-                    auto zero_pad = std::vector<int64_t>(1, 0);
+                    auto zero_pad = std::vector<size_t>(1, 0);
 
                     attrs.pads_begin = zero_pad;
                     attrs.pads_end = zero_pad;
