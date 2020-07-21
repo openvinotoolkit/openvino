@@ -22,7 +22,7 @@ void ngraph::pass::UnrollTensorIterator::unroll_tensor_iterator() {
         if (!ti) {
             return false;
         }
-        
+
         auto body = ti->get_body();
         const auto function = std::make_shared<ngraph::Function>(body->get_results(),
                 ngraph::ParameterVector{body->get_parameters()});

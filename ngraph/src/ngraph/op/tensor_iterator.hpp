@@ -22,7 +22,6 @@
 #include "ngraph/lambda.hpp"
 #include "ngraph/op/parameter.hpp"
 #include "ngraph/op/util/fused_op.hpp"
-#include "ngraph/pattern/matcher.hpp"
 
 namespace ngraph
 {

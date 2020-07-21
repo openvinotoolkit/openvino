@@ -439,9 +439,6 @@ namespace ngraph
     NodeVector extract_subgraph(const NodeVector& results, const NodeVector& args);
 
     NGRAPH_API
-    NodeVector extract_subgraph(const OutputVector& results, const OutputVector& args);
-
-    NGRAPH_API
     bool is_one(const Output<Node>& reduce_constant);
 
     NGRAPH_API
