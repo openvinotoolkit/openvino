@@ -58,6 +58,7 @@
 #include "ngraph/op/sum.hpp"
 #include "ngraph/op/tan.hpp"
 #include "ngraph/op/tanh.hpp"
+#include "ngraph/op/util/op_types.hpp"
 #include "ngraph/pattern/matcher.hpp"
 
 using namespace std;
@@ -277,7 +278,7 @@ namespace std
 
             // TODO: Do we need another map, so we could
             // specify how to compute hash for each op?
-            if (p_this.is_commutative())
+            if (ngraph::op::is_commutative(&p_this))
             {
                 sort(begin(cargs), end(cargs));
             }
@@ -301,7 +302,7 @@ bool ngraph::pass::CommonSubexpressionElimination::run_on_function(shared_ptr<ng
 
     for (auto n : f->get_ordered_ops())
     {
-        if (n->is_output() || n->is_parameter())
+        if (op::is_output(n) || op::is_parameter(n))
         {
             continue;
         }
