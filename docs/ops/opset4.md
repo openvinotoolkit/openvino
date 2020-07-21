@@ -1,4 +1,4 @@
-# Operation Set `opset4` Specification
+# Operation Set `opset4` Specification {#openvino_docs_ops_opset4}
 
 This specification document describes `opset4` operation set supported in OpenVINO.
 Support for each particular operation from the list below depends on the capabilities available in a inference plugin
@@ -99,6 +99,7 @@ declared in `namespace opset4`.
 * [Range](generation/Range_1.md)
 * [ReLU](activation/ReLU_1.md)
 * [ReadValue](infrastructure/ReadValue_3.md)
+* [ReduceLp](reduction/ReduceLp_4.md)
 * [ReduceLogicalAnd](reduction/ReduceLogicalAnd_1.md)
 * [ReduceLogicalOr](reduction/ReduceLogicalOr_1.md)
 * [ReduceMax](reduction/ReduceMax_1.md)

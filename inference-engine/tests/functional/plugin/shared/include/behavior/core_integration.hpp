@@ -15,6 +15,7 @@
 #include <graph_tools.hpp>
 #include <functional_test_utils/plugin_cache.hpp>
 #include <multi-device/multi_device_config.hpp>
+#include <ngraph/op/util/op_types.hpp>
 
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/unicode_utils.hpp"
@@ -1382,7 +1383,7 @@ TEST_P(IEClassLoadNetworkTest, QueryNetworkHETEROWithMULTINoThrow_V10) {
         ASSERT_NE(nullptr, function);
         std::unordered_set<std::string> expectedLayers;
         for (auto &&node : function->get_ops()) {
-            if (!node->is_constant() && !node->is_parameter() && !node->is_output()) {
+            if (!ngraph::op::is_constant(node) && !ngraph::op::is_parameter(node) && !ngraph::op::is_output(node)) {
                 expectedLayers.emplace(node->get_friendly_name());
             }
         }
@@ -1419,7 +1420,7 @@ TEST_P(IEClassLoadNetworkTest, QueryNetworkMULTIWithHETERONoThrow_V10) {
         ASSERT_NE(nullptr, function);
         std::unordered_set<std::string> expectedLayers;
         for (auto &&node : function->get_ops()) {
-            if (!node->is_constant() && !node->is_parameter() && !node->is_output()) {
+            if (!ngraph::op::is_constant(node) && !ngraph::op::is_parameter(node) && !ngraph::op::is_output(node)) {
                 expectedLayers.emplace(node->get_friendly_name());
             }
         }
