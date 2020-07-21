@@ -18,6 +18,7 @@
 #include "default_opset.hpp"
 #include "exceptions.hpp"
 #include "ngraph/op/util/op_types.hpp"
+#include <map>
 
 namespace ngraph
 {
@@ -27,6 +28,42 @@ namespace ngraph
         {
             namespace set_1
             {
+
+                static const std::unordered_set<std::string> supported_modes = {
+                    "nearest", "linear", "cubic"
+                };
+
+                static const std::unordered_set<std::string> supported_transforms = {
+                    "half_pixel", "pytorch_half_pixel", "align_corners",
+                    "asymmetric", "tf_half_pixel_for_nn"
+                };
+
+                using InterpolateMode = ngraph::op::v4::Interpolate::InterpolateMode;
+                static const std::map<std::string, InterpolateMode> interp_mode_map = {
+                     {"nearest", InterpolateMode::nearest},
+                     {"linear",  InterpolateMode::linear_onnx},
+                     {"cubic",   InterpolateMode::cubic}
+                };
+
+                using Transform_mode = ngraph::op::v4::Interpolate::CoordinateTransformMode;
+                static const std::map<std::string, Transform_mode> transform_mode_map = {
+                    {"half_pixel",           Transform_mode::half_pixel},
+                    {"pytorch_half_pixel",   Transform_mode::pytorch_half_pixel},
+                    {"align_corners",        Transform_mode::align_corners},
+                    {"asymmetric",           Transform_mode::asymmetric},
+                    {"tf_half_pixel_for_nn", Transform_mode::tf_half_pixel_for_nn}
+                };
+
+                using Nearest_mode = ngraph::op::v4::Interpolate::NearestMode;
+                static const std::map<std::string, Nearest_mode> nearest_mode_map = {
+                    {"round_prefer_floor", round_prefer_floor},
+                    {"round_prefer_ceil",  round_prefer_ceil},
+                    {"floor",              floor},
+                    {"ceil",               ceil},
+                    {"simple"              simple}
+                };
+
+
                 NodeVector resize(const onnx_import::Node& node)
                 {
                     const auto inputs = node.get_ng_inputs();
@@ -36,13 +73,21 @@ namespace ngraph
                     const auto data_shape = data->get_output_partial_shape(0);
                     const auto scales_shape = scales->get_output_partial_shape(0);
 
-                    const auto mode = node.get_attribute_value<std::string>("mode", "nearest");
+                    auto get_str_attr = [&node](const std::string& name,
+                                                const std::string& default_value) {
+                        return node.get_attribute_value<std::string>(name, default_value)
+                    };
 
-                    std::unordered_set<std::string> supported_modes = {"nearest", "linear"};
-                    bool is_mode_supported =
-                        (std::find(supported_modes.begin(), supported_modes.end(), mode) !=
-                         supported_modes.end());
+                    auto is_supported_str_value = [](auto modes, auto checked_mode) {
+                        return std::find(modes.begin(), modes.end(), checked_mode) != modes.end();
+                    };
 
+                    const auto mode = get_str_attr("mode", "nearest");
+                    const auto transform_mode = get_str_attr("coordinate_transformation_mode",
+                                                             "half_pixel");
+                    const auto nearest_mode = get_str_attr("nearest_mode", "round_prefer_floor");
+
+                    bool is_mode_supported = is_supported_str_value(supported_modes, mode);
                     if (!is_mode_supported)
                     {
                         std::string supported_modes_str = "";
@@ -55,6 +100,23 @@ namespace ngraph
                                          mode,
                                          " - this type of interpolation mode is not supported."
                                          " Choose one of the following modes: ",
+                                         supported_modes_str);
+                    }
+
+                    bool is_transform_mode_supported = is_supported_str_value(supported_transforms,
+                                                                              transform_mode);
+                    if (!is_transform_mode_supported)
+                    {
+                        std::string supported_modes_str = "";
+                        for (const auto& mode_name : supported_transforms)
+                        {
+                            supported_modes_str += (mode_name + ", ");
+                        }
+                        CHECK_VALID_NODE(node,
+                                         is_transform_mode_supported,
+                                         transform_mode,
+                                         " - this type of coordinate transformation mode is not "
+                                         "supported. Choose one of the following modes: ",
                                          supported_modes_str);
                     }
 
@@ -72,9 +134,17 @@ namespace ngraph
                     }
 
                     auto attrs = ngraph::op::v4::Interpolate::InterpolateAttrs();
-                    attrs.axes = axes;
-                    attrs.mode = mode;
-                    attrs.align_corners = false;
+//                     attrs.axes = axes;
+                    attrs.mode = interp_mode_map[mode];
+                    attrs.coordinate_transformation_mode = transform_mode_map[transform_mode];
+                    attrs.nearest_mode = nearest_mode_map[nearest_mode];
+                    attrs.antialias = false;
+                    attrs.cube_coeff = node.get_attribute_value<float>("cubic_coeff_a", -0.75);
+
+                    auto zero_pad = std::vector<int64_t>(1, 0);
+
+                    attrs.pads_begin = zero_pad;
+                    attrs.pads_end = zero_pad;
 
                     if (ngraph::op::is_constant(scales) && data_shape.is_static())
                     {
