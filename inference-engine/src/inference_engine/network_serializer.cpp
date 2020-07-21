@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "network_serializer.h"
+#include "network_serializer.hpp"
 
 #include <map>
 #include <deque>

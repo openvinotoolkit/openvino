@@ -28,7 +28,7 @@
 #include "ie_util_internal.hpp"
 #include "ie_ngraph_utils.hpp"
 #include "ie_profiling.hpp"
-#include "network_serializer.h"
+#include "network_serializer.hpp"
 #include "generic_ie.hpp"
 #include <shape_infer/built-in/ie_built_in_holder.hpp>
 
