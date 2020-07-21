@@ -45,12 +45,6 @@ namespace ngraph
                 TensorIterator() = default;
                 TensorIterator(const OutputVector& values);
 
-                bool match_node(pattern::Matcher* matcher, const Output<Node>& graph_value) override
-                {
-                    matcher->add_node(graph_value);
-                    return graph_value.get_node_shared_ptr()->get_type_info() == get_type_info();
-                }
-
                 class NGRAPH_API BodyLambda : public Lambda
                 {
                 public:

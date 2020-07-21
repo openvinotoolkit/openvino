@@ -14,35 +14,15 @@
 #include <ngraph/specialize_function.hpp>
 
 void ngraph::pass::UnrollTensorIterator::unroll_tensor_iterator() {
-    auto X = std::make_shared<pattern::op::Label>(element::f32, Shape{32, 40, 10});
-    auto Y = std::make_shared<pattern::op::Label>(element::f32, Shape{32, 40, 10});
-    auto M = std::make_shared<pattern::op::Label>(element::f32, Shape{32, 2, 10});
-
-    auto Xi = std::make_shared<opset3::Parameter>(element::f32, Shape{32, 2, 10});
-    auto Yi = std::make_shared<opset3::Parameter>(element::f32, Shape{32, 2, 10});
-    auto M_body = std::make_shared<opset3::Parameter>(element::f32, Shape{32, 2, 10});
-
-    // Body
-    auto Zo = (Xi + Yi) * M_body;
-    auto body = std::make_shared<opset3::TensorIterator::BodyLambda>(OutputVector{Zo},
-                                                            ParameterVector{Xi, Yi, M_body});
-
-    auto tensor_iterator = std::make_shared<opset3::TensorIterator>();
-    tensor_iterator->set_body(body);
-
-    tensor_iterator->set_sliced_input(Xi, X, 0, 2, 2, 39, 1);
-    tensor_iterator->set_sliced_input(Yi, Y, 0, 2, 2, -1, 1);
-    tensor_iterator->set_invariant_input(M_body, M);
-
-    auto out0 = tensor_iterator->get_iter_value(Zo, -1);
-    auto out1 = tensor_iterator->get_concatenated_slices(Zo, 0, 2, 2, 39, 1);
+    auto tensor_iterator = std::make_shared<ngraph::pattern::op::Label>(ngraph::element::f32,
+            ngraph::Shape{}, ngraph::pattern::has_class<ngraph::opset3::TensorIterator>());
 
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto ti = std::dynamic_pointer_cast<ngraph::opset3::TensorIterator>(m.get_match_root());
         if (!ti) {
             return false;
         }
-
+        
         auto body = ti->get_body();
         const auto function = std::make_shared<ngraph::Function>(body->get_results(),
                 ngraph::ParameterVector{body->get_parameters()});
