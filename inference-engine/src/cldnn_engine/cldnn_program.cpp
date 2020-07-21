@@ -3807,7 +3807,8 @@ void Program::CreateGatherPrimitive(cldnn::topology& topology, InferenceEngine::
         if (inputDims.size() < 4) {
             inputDims.resize(4, 1);
         }
-        outDims[nonNegativeAxis + indicesDims.size()] = std::accumulate(outDims.begin() + nonNegativeAxis + indicesDims.size(), outDims.end(), 1, std::multiplies<size_t>());
+        outDims[nonNegativeAxis + indicesDims.size()] = std::accumulate(outDims.begin() + nonNegativeAxis + indicesDims.size(),
+                                                                        outDims.end(), 1, std::multiplies<size_t>());
         outDims.erase(outDims.begin() + nonNegativeAxis + indicesDims.size() + 1, outDims.end());
         if (outDims.size() < 4 + indicesDims.size() - 1) {
             outDims.resize(4 + indicesDims.size() - 1, 1);
