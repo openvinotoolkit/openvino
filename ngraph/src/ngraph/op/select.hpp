@@ -117,7 +117,6 @@ namespace ngraph
                 {
                     m_auto_broadcast = auto_broadcast;
                 }
-                bool supports_auto_broadcast() const override { return true; }
                 // TODO: Move all uses of get_autob to get_auto_broadcast() and remove this.
                 const AutoBroadcastSpec& get_autob() const override { return m_auto_broadcast; }
             private:
