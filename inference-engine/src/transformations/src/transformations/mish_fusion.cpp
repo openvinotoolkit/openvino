@@ -25,22 +25,22 @@ void ngraph::pass::MishFusion::mish_fusion() {
             return false;
         }
 
-        auto tanh = std::dynamic_pointer_cast<ngraph::opset4::Tanh> (mul->input(1).get_source_output());
+        auto tanh = std::dynamic_pointer_cast<ngraph::opset4::Tanh> (mul->input_value(1).get_node_shared_ptr());
         if (!tanh) {
             return false;
         }
 
-        auto log = std::dynamic_pointer_cast<ngraph::opset4::Log> (tanh->input(0).get_source_output());
+        auto log = std::dynamic_pointer_cast<ngraph::opset4::Log> (tanh->input_value(0).get_node_shared_ptr());
         if (!log) {
             return false;
         }
 
-        auto add = std::dynamic_pointer_cast<ngraph::opset4::Add> (log->input(0).get_source_output());
+        auto add = std::dynamic_pointer_cast<ngraph::opset4::Add> (log->input_value(0).get_node_shared_ptr());
         if (!add) {
             return false;
         }
 
-        auto exp = std::dynamic_pointer_cast<ngraph::opset4::Add> (add->input(0).get_source_output());
+        auto exp = std::dynamic_pointer_cast<ngraph::opset4::Add> (add->input_value(0).get_node_shared_ptr());
         if (!exp) {
             return false;
         }
