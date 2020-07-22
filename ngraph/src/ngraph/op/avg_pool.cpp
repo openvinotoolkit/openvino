@@ -93,22 +93,34 @@ void op::v1::AvgPool::validate_and_infer_types()
     }
 
     const PartialShape& arg_shape = get_input_partial_shape(0);
+    auto output_shape = PartialShape::dynamic();
+    if (arg_shape.rank().is_static())
+    {
+        output_shape = std::vector<Dimension>(arg_shape.rank().get_length(), Dimension::dynamic());
+        if (arg_shape.rank().get_length() > 1)
+        {
+            output_shape[0] = arg_shape[0]; // batch size
+        }
+        if (arg_shape.rank().get_length() > 2)
+        {
+            output_shape[1] = arg_shape[1]; // channel size
+        }
+    }
 
+    bool update_auto_padding_succeed = true;
     if (m_auto_pad == PadType::SAME_UPPER || m_auto_pad == PadType::SAME_LOWER)
     {
-        if (arg_shape.is_static())
-        {
-            CoordinateDiff pads_end, pads_begin;
-            infer_auto_padding(arg_shape.to_shape(),
-                               m_kernel,
-                               m_strides,
-                               Strides(m_kernel.size(), 1), // No dilation
-                               m_auto_pad,
-                               pads_end,
-                               pads_begin);
-            m_pads_end = Shape(pads_end.begin(), pads_end.end());
-            m_pads_begin = Shape(pads_begin.begin(), pads_begin.end());
-        }
+        CoordinateDiff pads_end, pads_begin;
+        update_auto_padding_succeed =
+            try_apply_auto_padding(arg_shape,
+                                   m_kernel,
+                                   m_strides,
+                                   Strides(m_kernel.size(), 1), // No dilation
+                                   m_auto_pad,
+                                   pads_end,
+                                   pads_begin);
+        m_pads_end = Shape(pads_end.begin(), pads_end.end());
+        m_pads_begin = Shape(pads_begin.begin(), pads_begin.end());
     }
 
     // infer_batched_forward_pooling wants CoordinateDiffs for these, while the pooling ops for
@@ -118,14 +130,16 @@ void op::v1::AvgPool::validate_and_infer_types()
 
     set_output_type(0,
                     get_input_element_type(0),
-                    infer_batched_pooling_forward(this,
-                                                  arg_shape,
-                                                  pads_begin,
-                                                  pads_end,
-                                                  m_kernel,
-                                                  m_strides,
-                                                  !m_exclude_pad,
-                                                  m_rounding_type == op::RoundingType::CEIL));
+                    update_auto_padding_succeed
+                        ? infer_batched_pooling_forward(this,
+                                                        arg_shape,
+                                                        pads_begin,
+                                                        pads_end,
+                                                        m_kernel,
+                                                        m_strides,
+                                                        !m_exclude_pad,
+                                                        m_rounding_type == op::RoundingType::CEIL)
+                        : output_shape);
 }
 
 const Shape& op::v1::AvgPool::get_kernel() const
