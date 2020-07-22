@@ -19,6 +19,8 @@
 #include "debug.h"
 #include "graph_tools.hpp"
 #include "ie_profiling.hpp"
+#include "network_serializer_v7.hpp"
+#include "exec_graph_info.hpp"
 #include "details/ie_cnn_network_tools.h"
 
 #include "generic_ie.hpp"
@@ -385,6 +387,34 @@ StatusCode CNNNetworkImpl::AddExtension(const InferenceEngine::IShapeInferExtens
 
 StatusCode CNNNetworkImpl::serialize(const std::string& xmlPath, const std::string& binPath, ResponseDesc* resp) const
     noexcept {
+    // A flag for serializing executable graph information (not complete IR)
+    bool execGraphInfoSerialization = false;
+
+    const std::vector<CNNLayerPtr> ordered = Serialization::TopologicalSort((InferenceEngine::ICNNNetwork&)*this);
+    // If first layer has perfCounter parameter set then it's executable graph info serialization.
+    // All other layers must also have this parameter set.
+    if (ordered[0]->params.find(ExecGraphInfoSerialization::PERF_COUNTER) != ordered[0]->params.end()) {
+        execGraphInfoSerialization = true;
+        for (const auto& layer : ordered) {
+            if (layer->params.find(ExecGraphInfoSerialization::PERF_COUNTER) == layer->params.end()) {
+                THROW_IE_EXCEPTION << "Each node must have " << ExecGraphInfoSerialization::PERF_COUNTER
+                                   << " parameter set in case of executable graph info serialization";
+            }
+        }
+    }
+
+    if (execGraphInfoSerialization) {
+        try {
+            Serialization::Serialize(xmlPath, (InferenceEngine::ICNNNetwork&)*this);
+        } catch (const InferenceEngineException& e) {
+            return DescriptionBuffer(GENERAL_ERROR, resp) << e.what();
+        } catch (const std::exception& e) {
+            return DescriptionBuffer(UNEXPECTED, resp) << e.what();
+        } catch (...) {
+            return DescriptionBuffer(UNEXPECTED, resp);
+        }
+    }
+
     return DescriptionBuffer(NOT_IMPLEMENTED, resp) << "The CNNNetworkImpl::serialize is not implemented";
 }
 
