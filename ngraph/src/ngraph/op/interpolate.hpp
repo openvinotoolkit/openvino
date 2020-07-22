@@ -82,7 +82,6 @@ namespace ngraph
                     clone_with_new_inputs(const OutputVector& new_args) const override;
 
                 const InterpolateAttrs& get_attrs() const { return m_attrs; }
-
             private:
                 InterpolateAttrs m_attrs;
             };
@@ -179,7 +178,6 @@ namespace ngraph
                     clone_with_new_inputs(const OutputVector& new_args) const override;
 
                 const InterpolateAttrs& get_attrs() const { return m_attrs; }
-
                 std::vector<int64_t> get_axes() const;
 
             private:
@@ -204,7 +202,6 @@ namespace ngraph
         static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<op::v0::InterpolateAttrs>",
                                                     0};
         const DiscreteTypeInfo& get_type_info() const override { return type_info; }
-
     protected:
         op::v0::InterpolateAttrs& m_ref;
     };
@@ -294,7 +291,6 @@ namespace ngraph
         static constexpr DiscreteTypeInfo type_info{
             "AttributeAdapter<op::v4::Interpolate::InterpolateAttrs>", 4};
         const DiscreteTypeInfo& get_type_info() const override { return type_info; }
-
     protected:
         op::v4::Interpolate::InterpolateAttrs& m_ref;
     };
