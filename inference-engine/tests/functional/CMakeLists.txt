@@ -4,3 +4,4 @@
 
 add_subdirectory(inference_engine)
 add_subdirectory(plugin)
+add_subdirectory(ir_v7_reader)
