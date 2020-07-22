@@ -10,7 +10,6 @@
 #pragma once
 
 #include <ie_plugin_config.hpp>
-#include <details/ie_cnn_network_tools.h>
 #include <ie_util_internal.hpp>
 
 #include <details/caseless.hpp>
