@@ -122,6 +122,7 @@ set(SRC
     type_prop/convert.cpp
     type_prop/convolution.cpp
     type_prop/crop_and_resize.cpp
+    type_prop/ctc_loss.cpp
     type_prop/deformable_psroi_pooling.cpp
     type_prop/depth_to_space.cpp
     type_prop/dequantize.cpp

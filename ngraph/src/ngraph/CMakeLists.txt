@@ -157,6 +157,8 @@ set (SRC
     op/cosh.hpp
     op/ctc_greedy_decoder.cpp
     op/ctc_greedy_decoder.hpp
+    op/ctc_loss.cpp
+    op/ctc_loss.hpp
     op/cum_sum.cpp
     op/cum_sum.hpp
     op/crop_and_resize.cpp
