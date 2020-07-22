@@ -139,6 +139,8 @@ public:
         const std::shared_ptr<Node>& layer,
         const std::unordered_set<std::string>& exceptionLayerTypes = {});
 
+    static std::shared_ptr<Node> toScalarIfPossible(std::shared_ptr<Node> node);
+
 private:
     // 1  - on weights
     // 0  - weightable layer was not found

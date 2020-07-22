@@ -21,9 +21,6 @@
 #include "simple_low_precision_transformer.hpp"
 #include "ngraph_functions/low_precision_transformations/common/dequantization_operations.hpp"
 
-// TODO: debug only
-#include <ngraph/pass/visualize_tree.hpp>
-
 namespace {
 
 using namespace testing;
@@ -44,6 +41,7 @@ public:
     public:
         ngraph::element::Type precisionBeforeDequantization;
         ngraph::builder::subgraph::DequantizationOperations dequantization;
+        ngraph::element::Type weightsConstPrecision;
         ngraph::Shape weightsConstShape;
         std::vector<float> weightsConstValues;
         ngraph::element::Type precisionBeforeOperation1;
@@ -87,28 +85,31 @@ public:
         actualFunction = ngraph::builder::subgraph::MatMulFunction::getOriginal(
             precision,
             shape,
-            testValues.actual.dequantization,
+            testValues.actual.precisionBeforeDequantization,
+            {
+                testValues.actual.dequantization.convert.outPrecision == ngraph::element::undefined ?
+                    precision :
+                    testValues.actual.dequantization.convert.outPrecision,
+                testValues.actual.dequantization.subtractValues,
+                testValues.actual.dequantization.multiplyValues
+            },
             testValues.actual.weightsConstShape,
             testValues.actual.weightsConstValues,
             testValues.actual.fqOnWeights);
-
-        VisualizeTree("C:\\Projects\\temp\\test.actual").run_on_module(std::vector<std::shared_ptr<ngraph::Function>>{ actualFunction });
 
         SimpleLowPrecisionTransformer transformer;
         transformer.add<ngraph::pass::low_precision::MatMulTransformation, ngraph::opset1::MatMul>(params);
         transformer.transform(actualFunction);
 
-        VisualizeTree("C:\\Projects\\temp\\test.transformed").run_on_module(std::vector<std::shared_ptr<ngraph::Function>>{ actualFunction });
-
         referenceFunction = ngraph::builder::subgraph::MatMulFunction::getReference(
             precision,
             shape,
+            testValues.expected.precisionBeforeDequantization,
             testValues.expected.dequantization,
+            testValues.expected.weightsConstPrecision,
             testValues.expected.weightsConstShape,
             testValues.expected.weightsConstValues,
             testValues.expected.resultDequantization);
-
-        VisualizeTree("C:\\Projects\\temp\\test.reference").run_on_module(std::vector<std::shared_ptr<ngraph::Function>>{ actualFunction });
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<MatMulTransformationParams> obj) {
@@ -151,29 +152,52 @@ const std::vector<low_precision::LayerTransformation::Params> params = {
 const std::vector<bool> updatePrecisions = { true, false };
 
 std::vector<MatMullTransformationTestValues> testValues = {
+    // U8 & I8
+    //{
+    //    LayerTransformation::createParamsU8I8(),
+    //    {
+    //        ngraph::element::u8,
+    //        { ngraph::element::undefined, {}, { 0.02f } },
+    //        { 2048, 1000 },
+    //        std::vector<float>(2048 * 1000, 1.f),
+    //        { 255, { 1, 1 },  {0.f}, {254.f}, {-12.7f}, {12.7} },
+    //    },
+    //    {
+    //        ngraph::element::u8,
+    //        { ngraph::element::undefined, {}, {} },
+    //        ngraph::element::i8,
+    //        {2048, 1000},
+    //        std::vector<float>(2048 * 1000, 1.f),
+    //        ngraph::element::u8,
+    //        ngraph::element::i8,
+    //        { ngraph::element::undefined, {}, { 0.02f * 0.1f } },
+    //    }
+    //},
+    // I8 & I8
     {
         LayerTransformation::createParamsU8I8(),
         {
-            ngraph::element::u8,
+            ngraph::element::i8,
             { ngraph::element::undefined, {}, { 0.02f } },
             { 2048, 1000 },
             std::vector<float>(2048 * 1000, 1.f),
-            { 255, { 1, 1 },  {-12.7f}, {12.7f}, {-12.7f}, {12.7} },
+            { 255, { 1, 1 },  {0.f}, {254.f}, {-12.7f}, {12.7} },
         },
         {
-            ngraph::element::u8,
-            { ngraph::element::undefined, {}, {} },
-            {2048, 1000},
-            std::vector<float>(2048 * 1000, 1.f),
-            ngraph::element::u8,
             ngraph::element::i8,
-            { ngraph::element::undefined, {}, { 0.02f * 0.01f } },
+            { ngraph::element::undefined, {}, {} },
+            ngraph::element::i8,
+            {2048, 1000},
+            std::vector<float>(2048 * 1000, -126),
+            ngraph::element::i8,
+            ngraph::element::i8,
+            { ngraph::element::undefined, {}, { 0.02f * 0.1f } },
         }
     }
 };
 
 INSTANTIATE_TEST_CASE_P(
-    DISABLED_LPT,
+    LPT,
     MatMulWithConstantTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(precisions),

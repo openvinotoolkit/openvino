@@ -78,9 +78,10 @@ public:
 
     static std::shared_ptr<ngraph::Function> getOriginal(
         const ngraph::element::Type ngPrecision,
-        const ngraph::Shape& inputShape1,
-        const DequantizationOperations& dequantization1,
-        const ngraph::Shape& inputShape2,
+        const ngraph::Shape& inputShape,
+        const ngraph::element::Type precisionBeforeDequantization,
+        const DequantizationOperations& dequantization,
+        const ngraph::Shape& weightsConstShape,
         const std::vector<float>& weightsConstValues,
         const FakeQuantizeOnWeights& fqOnWeights);
 
@@ -95,7 +96,9 @@ public:
     static std::shared_ptr<ngraph::Function> getReference(
         const ngraph::element::Type precision,
         const ngraph::Shape& inputShape,
+        const ngraph::element::Type precisionBeforeDequantization,
         const DequantizationOperations& dequantization,
+        const ngraph::element::Type weightsConstPrecision,
         const ngraph::Shape& weightsConstShape,
         const std::vector<float>& weightsConstValues,
         const DequantizationOperations& resultDequantization);

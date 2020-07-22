@@ -202,19 +202,6 @@ bool ConcatTransformation::isPrecisionPreserved(std::shared_ptr<Node>) const noe
     return true;
 }
 
-std::shared_ptr<Node> toScalarIfPossible(std::shared_ptr<Node> node) {
-    std::shared_ptr<opset1::Constant> constant = as_type_ptr<opset1::Constant>(node);
-    if (constant == nullptr) {
-        return node;
-    }
-
-    if (!NetworkHelper::isScalarLike(constant)) {
-        return node;
-    }
-
-    return NetworkHelper::toScalar(constant);
-}
-
 void ConcatTransformation::addDequantizationLayers(
     TransformationContext& context,
     ngraph::pass::low_precision::Subgraph& subgraph,
@@ -341,7 +328,7 @@ void ConcatTransformation::addDequantizationLayers(
                         if (!subtractNodes.empty()) {
                             std::shared_ptr<ngraph::opset1::Subtract> subtract = std::make_shared<ngraph::opset1::Subtract>(
                                 source,
-                                toScalarIfPossible(subtractNodes.size() == 1ul ?
+                                NetworkHelper::toScalarIfPossible(subtractNodes.size() == 1ul ?
                                     subtractNodes[0] :
                                     ngraph::pass::low_precision::fold<ngraph::opset1::Concat>(subtractNodes, 1)));
                             insert_new_node_between(source, destination, subtract);
@@ -351,7 +338,7 @@ void ConcatTransformation::addDequantizationLayers(
                         if (!multiplyNodes.empty()) {
                             std::shared_ptr<ngraph::opset1::Multiply> multiply = std::make_shared<ngraph::opset1::Multiply>(
                                 source,
-                                toScalarIfPossible(multiplyNodes.size() == 1ul ?
+                                NetworkHelper::toScalarIfPossible(multiplyNodes.size() == 1ul ?
                                     multiplyNodes[0] :
                                     ngraph::pass::low_precision::fold<ngraph::opset1::Concat>(multiplyNodes, 1)));
                             insert_new_node_between(source, destination, multiply);

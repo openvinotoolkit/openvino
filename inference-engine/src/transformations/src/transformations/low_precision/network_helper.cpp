@@ -705,6 +705,19 @@ std::vector<Output<Node>> NetworkHelper::getInputs(const std::shared_ptr<ngraph:
     return inputs;
 }
 
+std::shared_ptr<Node> NetworkHelper::toScalarIfPossible(std::shared_ptr<Node> node) {
+    std::shared_ptr<opset1::Constant> constant = as_type_ptr<opset1::Constant>(node);
+    if (constant == nullptr) {
+        return node;
+    }
+
+    if (!NetworkHelper::isScalarLike(constant)) {
+        return node;
+    }
+
+    return NetworkHelper::toScalar(constant);
+}
+
 }  // namespace low_precision
 }  // namespace pass
 }  // namespace ngraph
