@@ -33,7 +33,6 @@
 #include "ngraph/op/batch_norm.hpp"
 #include "ngraph/op/binary_convolution.hpp"
 #include "ngraph/op/broadcast.hpp"
-#include "ngraph/op/broadcast_distributed.hpp"
 #include "ngraph/op/bucketize.hpp"
 #include "ngraph/op/ceiling.hpp"
 #include "ngraph/op/concat.hpp"
