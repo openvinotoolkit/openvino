@@ -85,6 +85,6 @@ std::shared_ptr<Node> makeFakeQuantizeTypeRelaxed(
         fqOnData.outputHighValues);
 }
 
-}
-}
-}
+} // subgraph
+} // builder
+} // ngraph

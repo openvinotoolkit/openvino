@@ -12,7 +12,6 @@
 
 #include <transformations/utils/utils.hpp>
 #include <transformations/init_node_info.hpp>
-#include <transformations/convert_opset1_to_legacy/conv_bias_fusion.hpp>
 #include <transformations/low_precision/transformer.hpp>
 #include <transformations/low_precision/mat_mul.hpp>
 
@@ -21,9 +20,6 @@
 #include "ngraph_functions/subgraph_builders.hpp"
 #include "simple_low_precision_transformer.hpp"
 #include "ngraph_functions/low_precision_transformations/common/dequantization_operations.hpp"
-
-// TODO: debug only
-#include <ngraph/pass/visualize_tree.hpp>
 
 namespace {
 
@@ -88,13 +84,9 @@ public:
             shapes.second,
             testValues.actual.dequantization2);
 
-        VisualizeTree("C:\\Projects\\temp\\test.actual").run_on_module(std::vector<std::shared_ptr<ngraph::Function>>{ actualFunction });
-
         SimpleLowPrecisionTransformer transformer;
         transformer.add<ngraph::pass::low_precision::MatMulTransformation, ngraph::opset1::MatMul>(params);
         transformer.transform(actualFunction);
-
-        VisualizeTree("C:\\Projects\\temp\\test.transformed").run_on_module(std::vector<std::shared_ptr<ngraph::Function>>{ actualFunction });
 
         referenceFunction = ngraph::builder::subgraph::MatMulFunction::getReference(
             precision,
@@ -103,8 +95,6 @@ public:
             shapes.second,
             testValues.expected.dequantization2,
             testValues.expected.result);
-
-        VisualizeTree("C:\\Projects\\temp\\test.reference").run_on_module(std::vector<std::shared_ptr<ngraph::Function>>{ referenceFunction });
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<MatMulTransformationParams> obj) {
@@ -125,7 +115,6 @@ public:
 
 TEST_P(MatMulTransformation, CompareFunctions) {
     InitNodeInfo().run_on_function(actualFunction);
-    ConvFusion().run_on_function(actualFunction);
 
     actualFunction->validate_nodes_and_infer_types();
 
@@ -148,42 +137,6 @@ const std::vector<low_precision::LayerTransformation::Params> params = {
 };
 
 const std::vector<bool> updatePrecisions = { true, false };
-
-//static const size_t levels = 256ul;
-//static const float k = 2.f;
-//static const float lowU8 = 0.f;
-//static const float highU8 = 255.f / k;
-//static const float lowI8 = -128.f / k;
-//static const float highI8 = 127.f / k;
-//static const ngraph::element::Type precision = ngraph::element::f32;
-
-// std::vector<std::vector<std::shared_ptr<ngraph::Node>>> branches = {
-//    // GEMM 4D : 1x16x384x64 & 1x16x64x384 = > 1x16x384x384(BERT MLPerf)
-//    {
-//        std::make_shared<ngraph::opset1::Multiply>(
-//            std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape({ 1, 16, 384, 64 })),
-//            ngraph::builder::makeConstant(precision, std::vector<size_t>{1, 16, 1, 1}, {}, true)),
-//
-//        std::make_shared<ngraph::opset1::Multiply>(
-//            std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape({ 1, 16, 64, 384 })),
-//            ngraph::builder::makeConstant(precision, std::vector<size_t>{1, 16, 1, 1}, {}, true))
-//    },
-//
-//    // GEMM 4D : 1x16x384x64 & 1x16x64x384 = > 1x16x384x384(BERT MLPerf)
-//    // {
-//    //    std::make_shared<ngraph::opset1::Multiply>(
-//    //        std::make_shared<ngraph::opset1::Convert>(
-//    //            std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape({ 1, 16, 384, 64 })),
-//    //            ngraph::element::u8),
-//    //        ngraph::builder::makeConstant(precision, std::vector<size_t>{1, 16, 1, 1}, {}, true)),
-//
-//    //    std::make_shared<ngraph::opset1::Multiply>(
-//    //        std::make_shared<ngraph::opset1::Convert>(
-//    //            std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape({ 1, 16, 64, 384 })),
-//    //            ngraph::element::u8),
-//    //        ngraph::builder::makeConstant(precision, std::vector<size_t>{1, 16, 1, 1}, {}, true))
-//    // }
-// };
 
 std::vector<MatMullTransformationTestValues> testValues = {
     {
