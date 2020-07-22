@@ -42,8 +42,8 @@ ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(
     auto clonedNetwork = cloneNetwork(network);
     if (auto function = clonedNetwork->getFunction()) {
         ngraph::op::GenericIE::DisableReshape noReshape(function);
-        ngraph::pass::CommonOptimizations().run_on_function(function);
         vpu::UpgradeNMS4ToNMSDynamic().run_on_function(function);
+        ngraph::pass::CommonOptimizations().run_on_function(function);
         vpu::DynamicToStaticShape().transform(function);
         vpu::EliminateShapeOfAfterDSR().run_on_function(function);
     }
