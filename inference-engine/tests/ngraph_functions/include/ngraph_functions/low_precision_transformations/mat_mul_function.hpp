@@ -7,6 +7,8 @@
 #include <memory>
 #include <ngraph/ngraph.hpp>
 #include "ngraph_functions/low_precision_transformations/common/dequantization_operations.hpp"
+#include "ngraph_functions/low_precision_transformations/common/fake_quantize_on_data.hpp"
+#include "ngraph_functions/low_precision_transformations/common/fake_quantize_on_weights.hpp"
 
 namespace ngraph {
 namespace builder {
@@ -70,17 +72,33 @@ public:
     static std::shared_ptr<ngraph::Function> getOriginal(
         const ngraph::element::Type ngPrecision,
         const ngraph::Shape& inputShape1,
-        const DequantizationOperations& dequantizationOperations1,
+        const DequantizationOperations& dequantization1,
         const ngraph::Shape& inputShape2,
-        const DequantizationOperations& dequantizationOperations2);
+        const DequantizationOperations& dequantization2);
+
+    static std::shared_ptr<ngraph::Function> getOriginal(
+        const ngraph::element::Type ngPrecision,
+        const ngraph::Shape& inputShape1,
+        const DequantizationOperations& dequantization1,
+        const ngraph::Shape& inputShape2,
+        const std::vector<float>& weightsConstValues,
+        const FakeQuantizeOnWeights& fqOnWeights);
 
     static std::shared_ptr<ngraph::Function> getReference(
         const ngraph::element::Type ngPrecision,
         const ngraph::Shape& inputShape1,
-        const DequantizationOperations& dequantizationOperations1,
+        const DequantizationOperations& dequantization1,
         const ngraph::Shape& inputShape2,
         const DequantizationOperations& dequantizationOperations2,
-        const DequantizationOperations& resultDequantizationOperations);
+        const DequantizationOperations& resultDequantization);
+
+    static std::shared_ptr<ngraph::Function> getReference(
+        const ngraph::element::Type precision,
+        const ngraph::Shape& inputShape,
+        const DequantizationOperations& dequantization,
+        const ngraph::Shape& weightsConstShape,
+        const std::vector<float>& weightsConstValues,
+        const DequantizationOperations& resultDequantization);
 };
 
 }  // namespace subgraph

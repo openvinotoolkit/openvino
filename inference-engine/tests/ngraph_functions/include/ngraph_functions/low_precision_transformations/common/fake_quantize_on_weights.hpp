@@ -23,7 +23,8 @@ public:
         const std::vector<float>& inputLowValues,
         const std::vector<float>& inputHighValues,
         const std::vector<float>& outputLowValues,
-        const std::vector<float>& outputHighValues);
+        const std::vector<float>& outputHighValues,
+        const ngraph::element::Type outputPrecision = ngraph::element::undefined);
 
     virtual ~FakeQuantizeOnWeights();
 

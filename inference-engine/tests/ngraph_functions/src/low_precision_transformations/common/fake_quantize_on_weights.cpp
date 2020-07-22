@@ -17,13 +17,13 @@ FakeQuantizeOnWeights::FakeQuantizeOnWeights(
     const std::vector<float>& inputLowValues,
     const std::vector<float>& inputHighValues,
     const std::vector<float>& outputLowValues,
-    const std::vector<float>& outputHighValues) :
-    FakeQuantizeOnData(quantizationLevel, constantShape, inputLowValues, inputHighValues, outputLowValues, outputHighValues) {}
+    const std::vector<float>& outputHighValues,
+    const ngraph::element::Type outputPrecision) :
+    FakeQuantizeOnData(quantizationLevel, constantShape, inputLowValues, inputHighValues, outputLowValues, outputHighValues, outputPrecision) {}
 
 FakeQuantizeOnWeights::~FakeQuantizeOnWeights() {}
 
 bool FakeQuantizeOnWeights::empty() const {
-    // TODO: add weights specific logic here
     return FakeQuantizeOnData::empty();
 }
 
