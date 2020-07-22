@@ -14,24 +14,28 @@
  limitations under the License.
 """
 
-from mo.front.extractor import FrontExtractorOp
-from mo.front.mxnet.extractors.utils import get_mxnet_layer_attrs
+import numpy as np
+
 from extensions.ops.Swish import Swish
+from mo.front.common.replacement import FrontReplacementOp
+from mo.front.mxnet.extractors.utils import get_mxnet_layer_attrs
+from mo.front.tf.graph_utils import create_op_node_with_second_input
+from mo.graph.graph import Node, Graph
 
 
-class SwishExtractor(FrontExtractorOp):
+class SwishFrontExtractor(FrontReplacementOp):
     op = 'Swish'
     enabled = True
 
-    @classmethod
-    def extract(cls, node):
+    def replace_op(self, graph: Graph, node: Node):
+
         attrs = get_mxnet_layer_attrs(node.symbol_dict)
+        beta = attrs.float('beta', 1.0)
 
-        update_attrs = {
-            'type': 'Swish',
-            'beta': attrs.float('beta', 1.0)
-        }
+        if beta != 1.0:
+            swish = create_op_node_with_second_input(graph, Swish, np.array(beta), {'name': node.name})
+        else:
+            swish = Swish(graph, {'name': node.name})
 
-        # update the attributes of the node
-        Swish.update_node_stat(node, update_attrs)
-        return cls.enabled
+        node.in_port(0).get_connection().set_destination(swish.in_port(0))
+        return [swish.id]
