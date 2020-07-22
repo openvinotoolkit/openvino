@@ -36,30 +36,77 @@ namespace ngraph
                 struct file_open : ngraph_error
                 {
                     explicit file_open(const std::string& path)
-                        : ngraph_error{"Failure opening file: " + path}
+                        : ngraph_error{
+                              "Error during import of ONNX model expected to be in file: " + path +
+                              ". Could not open the file."}
                     {
                     }
                 };
 
-                struct stream_parse : ngraph_error
+                struct stream_parse_binary : ngraph_error
                 {
-                    explicit stream_parse(std::istream&)
-                        : ngraph_error{"Failure parsing data from the provided input stream"}
+                    explicit stream_parse_binary()
+                        : ngraph_error{
+                              "Error during import of ONNX model provided as input stream "
+                              " with binary protobuf message."}
+                    {
+                    }
+                };
+
+                struct stream_parse_text : ngraph_error
+                {
+                    explicit stream_parse_text()
+                        : ngraph_error{
+                              "Error during import of ONNX model provided as input stream "
+                              " with prototxt protobuf message."}
+                    {
+                    }
+                };
+
+                struct stream_corrupted : ngraph_error
+                {
+                    explicit stream_corrupted()
+                        : ngraph_error{"Provided input stream has incorrect state."}
                     {
                     }
                 };
 
             } // namespace error
-        }     // namespace detail
+
+            std::shared_ptr<Function>
+                convert_to_ng_function(const ONNX_NAMESPACE::ModelProto& model_proto)
+            {
+                Model model{model_proto};
+                Graph graph{model_proto.graph(), model};
+                auto function = std::make_shared<Function>(
+                    graph.get_ng_outputs(), graph.get_ng_parameters(), graph.get_name());
+                for (std::size_t i{0}; i < function->get_output_size(); ++i)
+                {
+                    function->get_output_op(i)->set_friendly_name(
+                        graph.get_outputs().at(i).get_name());
+                }
+                return function;
+            }
+        } // namespace detail
 
         std::shared_ptr<Function> import_onnx_model(std::istream& stream)
         {
+            if (!stream.good())
+            {
+                stream.clear();
+                stream.seekg(0);
+                if (!stream.good())
+                {
+                    throw detail::error::stream_corrupted();
+                }
+            }
+
             ONNX_NAMESPACE::ModelProto model_proto;
             // Try parsing input as a binary protobuf message
             if (!model_proto.ParseFromIstream(&stream))
             {
 #ifdef NGRAPH_USE_PROTOBUF_LITE
-                throw detail::error::stream_parse{stream};
+                throw detail::error::stream_parse_binary();
 #else
                 // Rewind to the beginning and clear stream state.
                 stream.clear();
@@ -68,20 +115,11 @@ namespace ngraph
                 // Try parsing input as a prototxt message
                 if (!google::protobuf::TextFormat::Parse(&iistream, &model_proto))
                 {
-                    throw detail::error::stream_parse{stream};
+                    throw detail::error::stream_parse_text();
                 }
 #endif
             }
-
-            Model model{model_proto};
-            Graph graph{model_proto.graph(), model};
-            auto function = std::make_shared<Function>(
-                graph.get_ng_outputs(), graph.get_ng_parameters(), graph.get_name());
-            for (std::size_t i{0}; i < function->get_output_size(); ++i)
-            {
-                function->get_output_op(i)->set_friendly_name(graph.get_outputs().at(i).get_name());
-            }
-            return function;
+            return detail::convert_to_ng_function(model_proto);
         }
 
         std::shared_ptr<Function> import_onnx_model(const std::string& file_path)
