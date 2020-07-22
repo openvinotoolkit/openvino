@@ -5,7 +5,6 @@
 #include "graph_transformer.h"
 
 #include <cpp/ie_cnn_network.h>
-#include <details/ie_cnn_network_tools.h>
 
 #include <details/caseless.hpp>
 #include <iterator>
