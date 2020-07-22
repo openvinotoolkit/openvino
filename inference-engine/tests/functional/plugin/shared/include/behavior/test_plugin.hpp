@@ -62,12 +62,11 @@ TEST_P(BehaviorTests, pluginDoesNotChangeOriginalNetwork) {
     auto param = GetParam();
 
     InferenceEngine::CNNNetwork cnnNet(function);
-    InferenceEngine::CNNNetwork cnnNetCloned(InferenceEngine::cloneNetwork(cnnNet));
-
     ASSERT_NO_THROW(ie->LoadNetwork(cnnNet, targetDevice, configuration));
 
     // compare 2 networks
-    compare_functions(cnnNetCloned.getFunction(), cnnNet.getFunction());
+    auto referenceNetwork = ngraph::builder::subgraph::makeConvPoolRelu();
+    compare_functions(referenceNetwork, cnnNet.getFunction());
 }
 
 using BehaviorTestInput = BehaviorTestsUtils::BehaviorTestsBasic;
