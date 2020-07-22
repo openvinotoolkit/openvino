@@ -146,6 +146,10 @@ onnx_model_argmax_int32
 onnx_model_argmin_int32
 arg_max_dyn_shape
 
+# Result mismatch
+onnx_model_argmax_float
+onnx_model_argmin_float
+
 # Constant has zero dimension that is not allowable
 onnx_top_k_opset_10
 onnx_model_one_hot_with_axis
