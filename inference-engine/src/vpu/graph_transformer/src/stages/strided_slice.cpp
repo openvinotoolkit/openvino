@@ -11,28 +11,23 @@ namespace vpu {
 
 namespace {
 
-int maskStrToInt(std::string mask, int elemCount) {
-    std::vector<int> elemsToPack;
+std::uint32_t maskStrToInt(std::string mask) {
+    std::uint32_t result = 0;
+    int idx = 0;
 
     for (const auto& character : mask) {
         switch (character) {
             case ',':
                 continue;
             case '1':
-                elemsToPack.push_back(1);
+                result |= (0x1 << idx++);
                 break;
             case '0':
-                elemsToPack.push_back(0);
+                idx++;
                 break;
             default:
                 VPU_THROW_FORMAT("Unsupported mask value: only 0 or 1 are supported, but got {} instead", character);
         }
-    }
-
-    int result = 0;
-    int idx = 0;
-    for (auto it = elemsToPack.rbegin(); it != elemsToPack.rend(); it++) {
-        result = idx++ > 0 ? (result << 1) | *it : result | *it;
     }
 
     return result;
@@ -84,9 +79,8 @@ private:
     void serializeParamsImpl(BlobSerializer& serializer) const override {
         std::string beginMask = origLayer()->GetParamAsString("begin_mask", "");
         std::string endMask = origLayer()->GetParamAsString("end_mask", "");
-        const auto beginSize = input(1)->desc().totalDimSize();
-        serializer.append(maskStrToInt(beginMask, beginSize));
-        serializer.append(maskStrToInt(endMask, beginSize));
+        serializer.append(maskStrToInt(beginMask));
+        serializer.append(maskStrToInt(endMask));
     }
 
     void serializeDataImpl(BlobSerializer& serializer) const override {
@@ -108,17 +102,16 @@ void FrontEnd::parseStridedSlice(const Model& model, const ie::CNNLayerPtr& laye
         "Parsing layer {} with type {} failed: number of outputs should be 1, but {} were provided",
         layer->name, layer->type, outputs.size());
 
-    const auto beginSize = inputs[1]->desc().totalDimSize();
     std::string newAxisMask = layer->GetParamAsString("new_axis_mask", "");
-    VPU_THROW_UNLESS(maskStrToInt(newAxisMask, beginSize) == 0,
+    VPU_THROW_UNLESS(maskStrToInt(newAxisMask) == 0,
                      "Checking {} with type {} failed: new_axis_mask parameter is not supported",
                      layer->name, layer->type);
     std::string shrinkAxisMask = layer->GetParamAsString("shrink_axis_mask", "");
-    VPU_THROW_UNLESS(maskStrToInt(shrinkAxisMask, beginSize) == 0,
+    VPU_THROW_UNLESS(maskStrToInt(shrinkAxisMask) == 0,
                      "Checking {} with type {} failed: shrink_axis_mask parameter is not supported",
                      layer->name, layer->type);
     std::string ellipsisMask = layer->GetParamAsString("ellipsis_mask", "");
-    VPU_THROW_UNLESS(maskStrToInt(ellipsisMask, beginSize) == 0,
+    VPU_THROW_UNLESS(maskStrToInt(ellipsisMask) == 0,
                      "Checking {} with type {} failed: ellipsis_mask parameter is not supported",
                      layer->name, layer->type);
 
