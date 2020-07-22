@@ -70,12 +70,6 @@ namespace ngraph
                 virtual NodeVector decompose_op() const override;
                 virtual void validate_and_infer_types() override;
 
-                // This is a hack to work around dldt directly calling copy_with_new_args
-                // When that code is replace with clone_with_new_inputs then remove this
-                // method.
-                virtual std::shared_ptr<Node>
-                    copy_with_new_args(const NodeVector& new_args) const override;
-
                 virtual std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
 

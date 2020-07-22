@@ -31,7 +31,7 @@ void op::HardSigmoid_IE::validate_and_infer_types() {
     set_output_type(0, arg_type, arg_shape);
 }
 
-shared_ptr<Node> op::HardSigmoid_IE::copy_with_new_args(const NodeVector& new_args) const {
+shared_ptr<Node> op::HardSigmoid_IE::clone_with_new_inputs(const OutputVector& new_args) const {
     check_new_args_count(this, new_args);
     return make_shared<op::HardSigmoid_IE>(new_args.at(0), m_alpha, m_beta);
 }

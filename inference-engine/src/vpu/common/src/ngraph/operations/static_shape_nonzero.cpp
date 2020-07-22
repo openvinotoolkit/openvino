@@ -40,8 +40,8 @@ void StaticShapeNonZero::validate_and_infer_types() {
     set_output_type(1, m_output_type, {Dimension(2)});
 }
 
-std::shared_ptr<Node> StaticShapeNonZero::copy_with_new_args(
-        const NodeVector& new_args) const {
+std::shared_ptr<Node> StaticShapeNonZero::clone_with_new_inputs(
+        const OutputVector& new_args) const {
     check_new_args_count(this, new_args);
     return std::make_shared<StaticShapeNonZero>(new_args.at(0), m_output_type);
 }

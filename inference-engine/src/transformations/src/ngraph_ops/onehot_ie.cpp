@@ -31,7 +31,7 @@ void op::OneHotIE::validate_and_infer_types() {
     }
 }
 
-shared_ptr<Node> op::OneHotIE::copy_with_new_args(const NodeVector& new_args) const {
+shared_ptr<Node> op::OneHotIE::clone_with_new_inputs(const OutputVector& new_args) const {
     check_new_args_count(this, new_args);
     return make_shared<op::OneHotIE>(new_args.at(0), m_axis, m_depth, m_on_value, m_off_value, m_type);
 }

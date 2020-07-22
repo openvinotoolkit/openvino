@@ -32,7 +32,7 @@ void op::NormalizeIE::validate_and_infer_types() {
                           "Argument must have rank >= 2 and <= 4 (argument shape: ", input_shape, ").");
 }
 
-shared_ptr<Node> op::NormalizeIE::copy_with_new_args(const NodeVector& new_args) const {
+shared_ptr<Node> op::NormalizeIE::clone_with_new_inputs(const OutputVector& new_args) const {
     check_new_args_count(this, new_args);
     return make_shared<op::NormalizeIE>(new_args.at(0), new_args.at(1), m_eps, m_across_spatial, m_channel_shared);
 }

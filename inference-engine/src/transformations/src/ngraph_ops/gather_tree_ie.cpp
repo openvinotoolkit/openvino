@@ -20,7 +20,7 @@ op::GatherTreeIE::GatherTreeIE(const Output<Node>& step_ids,
     constructor_validate_and_infer_types();
 }
 
-shared_ptr<Node> op::GatherTreeIE::copy_with_new_args(const NodeVector& new_args) const {
+shared_ptr<Node> op::GatherTreeIE::clone_with_new_inputs(const OutputVector& new_args) const {
     check_new_args_count(this, new_args);
     return make_shared<GatherTreeIE>(
             new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3));

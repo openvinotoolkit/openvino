@@ -19,7 +19,7 @@ op::PowerIE::PowerIE(const Output<ngraph::Node>& data_batch, const float power, 
     constructor_validate_and_infer_types();
 }
 
-std::shared_ptr<Node> op::PowerIE::copy_with_new_args(const NodeVector& new_args) const {
+std::shared_ptr<Node> op::PowerIE::clone_with_new_inputs(const OutputVector& new_args) const {
     if (new_args.size() != 1) {
         throw ngraph_error("Incorrect number of new arguments");
     }
