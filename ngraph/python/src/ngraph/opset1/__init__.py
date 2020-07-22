@@ -13,15 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ******************************************************************************
-"""ngraph module namespace, exposing factory functions for all ops and other classes."""
-# noqa: F401
-
-from pkg_resources import get_distribution, DistributionNotFound
-
-try:
-    __version__ = get_distribution("ngraph-core").version
-except DistributionNotFound:
-    __version__ = "0.0.0.dev0"
 
 
 from ngraph.opset1.ops import absolute
