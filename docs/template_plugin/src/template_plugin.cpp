@@ -179,7 +179,7 @@ void Plugin::QueryNetwork(const ICNNNetwork &network, const ConfigMap& config, Q
     std::unordered_set<std::string> unsupported;
     auto opset = ngraph::get_opset4();
     for (auto&& node : transformedFunction->get_ops()) {
-        if (!node->is_parameter() && !node->is_constant() && !node->is_output()) {
+        if (!ngraph::op::is_constant(node) && !ngraph::op::is_parameter(node) && !ngraph::op::is_output(node)) {
             // Extract transformation history from transformed node as list of nodes
             for (auto&& fusedLayerName : ngraph::getFusedNamesVector(node)) {
                 // Filter just nodes from original operation set
