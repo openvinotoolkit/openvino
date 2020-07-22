@@ -124,31 +124,6 @@ std::shared_ptr<Node>
     return clone;
 }
 
-std::shared_ptr<Node> Node::copy_with_new_args(const NodeVector& args) const
-{
-    NODE_VALIDATION_CHECK(
-        this, false, "Internal error: copy_with_new_args not replaced by clone_with_new_inputs");
-}
-
-std::shared_ptr<Node> Node::clone_with_new_inputs(const OutputVector& inputs) const
-{
-    NodeVector args;
-    for (const Output<Node>& input : inputs)
-    {
-        args.push_back(get_output_element(input));
-    }
-    std::shared_ptr<Node> clone = copy_with_new_args(args);
-    // Remove the inserted GOEs
-    for (size_t i = 0; i < inputs.size(); ++i)
-    {
-        if (clone->input_value(i) != inputs.at(i))
-        {
-            clone->set_argument(i, inputs.at(i));
-        }
-    }
-    return clone;
-}
-
 void Node::safe_delete(NodeVector& nodes, bool recurse)
 {
     for (auto& input : m_inputs)

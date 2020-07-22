@@ -43,7 +43,6 @@
 * `Parameters` is now `ParameterVector`
 * `NodeVector`, `ParameterVector`, `AxisVector`, `AxisSet`, `Shape`, `Stride`, `Coordinate`, and `CoordinateDiff` are now classes, not type aliases.
 * `PrimaryTensorView` is now `TensorView` (and will merge into `Tensor`)
-* `copy_with_new_args` is protected; use `copy_with_new_inputs` which takes an `OutputVector` as an argument and preserves control dependencies.
 
 ## Changes to ops
 
