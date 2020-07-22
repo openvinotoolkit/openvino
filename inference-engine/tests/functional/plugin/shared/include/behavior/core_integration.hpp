@@ -5,7 +5,6 @@
 #pragma once
 
 #include <gtest/gtest.h>
-#include <details/ie_cnn_network_tools.h>
 #include <ie_core.hpp>
 #include <ie_plugin_config.hpp>
 #include <memory>

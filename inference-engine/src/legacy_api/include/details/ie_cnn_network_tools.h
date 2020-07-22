@@ -10,7 +10,7 @@
 #pragma once
 #include <vector>
 
-#include "ie_common.h"
+#include "ie_layers.h"
 #include "ie_icnn_network.hpp"
 
 namespace InferenceEngine {

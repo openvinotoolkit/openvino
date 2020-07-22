@@ -18,7 +18,6 @@
 #include "blob_factory.hpp"
 #include "debug.h"
 #include "util_test.hpp"
-#include <details/ie_cnn_network_tools.h>
 
 namespace IE = InferenceEngine;
 

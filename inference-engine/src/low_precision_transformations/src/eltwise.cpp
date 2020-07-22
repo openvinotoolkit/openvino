@@ -4,7 +4,6 @@
 
 #include "low_precision_transformations/eltwise.hpp"
 
-#include <details/ie_cnn_network_tools.h>
 #include <ie_common.h>
 
 #include <algorithm>

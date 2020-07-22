@@ -15,7 +15,6 @@
 
 #include "ie_layers.h"
 #include "details/caseless.hpp"
-#include "details/ie_cnn_network_tools.h"
 #include "exec_graph_info.hpp"
 #include "xml_parse_utils.h"
 #include "ie_ngraph_utils.hpp"

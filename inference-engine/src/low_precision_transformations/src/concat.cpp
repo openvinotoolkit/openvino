@@ -16,7 +16,6 @@
 #include <vector>
 
 #include <ie_common.h>
-#include <details/ie_cnn_network_tools.h>
 #include "cnn_network_impl.hpp"
 #include "ie_util_internal.hpp"
 
