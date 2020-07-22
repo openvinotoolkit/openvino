@@ -47,9 +47,11 @@ InferenceEngine::Blob::Ptr MatMulTransformation::GenerateInput(const InferenceEn
     if (info.name() == "input1") {
         low = 1ul;
         high = 10ul;
-    } else {
+    } else if (info.name() == "input2") {
         low = 10ul;
         high = 20ul;
+    } else {
+        THROW_IE_EXCEPTION << "unexpected input name " << info.name();
     }
 
     return FuncTestUtils::createAndFillBlobConsistently(info.getTensorDesc(), high - low, low, 1ul);
