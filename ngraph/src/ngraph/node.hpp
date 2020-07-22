@@ -168,9 +168,6 @@ namespace ngraph
         void safe_delete(NodeVector& nodes, bool recurse);
 
     public:
-        virtual bool is_parameter() const { return false; }
-        virtual bool is_output() const { return false; }
-        virtual bool is_constant() const { return false; }
         virtual ~Node();
 
         virtual bool visit_attributes(AttributeVisitor& visitor) { return false; }
@@ -400,15 +397,8 @@ namespace ngraph
         std::shared_ptr<Node> get_input_node_shared_ptr(size_t index) const;
         Output<Node> get_input_source_output(size_t i) const;
 
-    protected:
-        // Will be replaced with clone_with_new_inputs
-        virtual std::shared_ptr<Node> copy_with_new_args(const NodeVector& new_args) const
-            NGRAPH_DEPRECATED("use copy_with_new_inputs instead");
-
     public:
-        // TODO: When all copy_with_new_args have been replaced with copy_with_new_inputs, make
-        // this pure and remove copy_with_new_args
-        virtual std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const;
+        virtual std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const = 0;
 
         std::shared_ptr<Node> copy_with_new_inputs(const OutputVector& new_args) const;
 
@@ -628,7 +618,7 @@ namespace ngraph
     {
         NODE_VALIDATION_CHECK(node,
                               new_args.size() == node->input_values().size(),
-                              "copy_with_new_args() expected ",
+                              "clone_with_new_inputs() expected ",
                               node->input_values().size(),
                               " argument",
                               (node->input_values().size() == 1 ? "" : "s"),
