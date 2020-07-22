@@ -3,7 +3,7 @@
 //
 
 #include <gtest/gtest.h>
-
+#include <iostream>
 #include <cpp/ie_cnn_network.h>
 #include <cnn_network_impl.hpp>  // deprecated API
 
@@ -17,86 +17,73 @@
 #include "ngraph_functions/builders.hpp"
 #include "ngraph_functions/subgraph_builders.hpp"
 #include "low_precision_transformations/network_helper.hpp"
-
+#include "convert_function_to_cnn_network.hpp"
+#include "graph_tools.hpp"
 
 using namespace testing;
 using namespace InferenceEngine;
 
-bool isCNNNetworkQuantized(const InferenceEngine::CNNNetwork& network) {
-    CNNLayerPtr layerPtr = nullptr;
-    layerPtr = details::CNNNetworkHelper::getLayer(network, "FakeQuantize");
-    if (layerPtr != nullptr)
-        return true;
-    else
-        return false;
-}
-
-TEST(KeepConstantInputsTests, ConvertConvolutionNetwork) {
-    std::shared_ptr <ngraph::Function> f;
-    {
-        auto param1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 3, 64, 64});
-        auto param2 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{3, 3, 1, 1});
-        auto convolution = std::make_shared<ngraph::op::ConvolutionIE>(param1, param2,
-                                                                       ngraph::Strides{1, 1},
-                                                                       ngraph::Strides{1, 1},
-                                                                       ngraph::CoordinateDiff{0, 0},
-                                                                       ngraph::CoordinateDiff{0, 0});
-        convolution->set_friendly_name("convolution");
-        auto result = std::make_shared<ngraph::op::Result>(convolution);
-
-        f = std::make_shared<ngraph::Function>(ngraph::ResultVector{result},
-                                               ngraph::ParameterVector{param1, param2});
-
-        ngraph::pass::InitNodeInfo().run_on_function(f);
+bool isInputConstLayersInCNNNetwork(const InferenceEngine::CNNNetwork& network, const std::string& layerName) {
+    int numberOfInputs = 0;
+    CNNLayerPtr layerPtr = nullptr, parentLayerPtr = nullptr;
+    layerPtr = details::CNNNetworkHelper::getLayer(network, layerName);
+    if (layerPtr != nullptr) {
+        std::cout << "Found layer: " << layerPtr->name << ", type: " << layerPtr->type << std::endl;
+        std::cout << "Input dimensions: {";
+        for (auto dimention : layerPtr->input()->getDims()) {
+            std::cout << dimention << ", ";
+        }
+        std::cout << "\b\b}" << std::endl;
+        numberOfInputs = layerPtr->input()->getDims().size() / 2;
+//        std::cout << "Input dims size: " << layerPtr->input()->getDims().size() << std::endl;
+//        std::cout << "Input layout: " << layerPtr->input()->getLayout() << std::endl;
+        std::cout << "Number of inputs: " << numberOfInputs << std::endl;
     }
-
-    InferenceEngine::CNNNetwork nGraphImpl(f);
-
-    ASSERT_FALSE(isCNNNetworkQuantized(nGraphImpl));
-
-//    try {
-//        auto net = std::make_shared<InferenceEngine::details::CNNNetworkImpl>(
-//                                                        static_cast<const InferenceEngine::ICNNNetwork &>(nGraphImpl));
-//    } catch (InferenceEngine::details::InferenceEngineException &err) {
-//        FAIL();
-//    }
+    return  numberOfInputs > 1;
 }
 
-
-TEST(KeepConstantInputsTests, ConvertConvolutionPoolReluNetwork) {
+TEST(KeepConstantInputsTests, ConvertConvolutionPoolReluNetworkWithTrue) {
     std::shared_ptr <ngraph::Function> f_ptr;
-
     f_ptr = ngraph::builder::subgraph::makeConvPoolRelu();
+    InferenceEngine::CNNNetwork originalNetwork(f_ptr);
+    std::shared_ptr<ICNNNetwork> ptrToConvertedNetwork;
+//    ptrToConvertedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(f_ptr, originalNetwork, true);
+//    InferenceEngine::CNNNetwork convertedNetwork(ptrToConvertedNetwork->getFunction());
 
-    ngraph::pass::InitNodeInfo().run_on_function(f_ptr);
-
-    InferenceEngine::CNNNetwork nGraphImpl(f_ptr);
-
-    ASSERT_FALSE(isCNNNetworkQuantized(nGraphImpl));
-
-//    try {
-//    auto net = std::make_shared<InferenceEngine::details::CNNNetworkImpl>(
-//                                                        static_cast<const InferenceEngine::ICNNNetwork &>(nGraphImpl));
-//    } catch (InferenceEngine::details::InferenceEngineException &err) {
-//        FAIL();
-//    }
+    ASSERT_TRUE(isInputConstLayersInCNNNetwork(originalNetwork, "Conv_1"));
+//    ASSERT_TRUE(isInputConstLayersInCNNNetwork(convertedNetwork, "Conv_1"));
 }
 
-TEST(KeepConstantInputsTests, ConvertConvBiasNetwork) {
-std::shared_ptr <ngraph::Function> f_ptr;
-
-f_ptr = ngraph::builder::subgraph::makeConvBias();
-
-ngraph::pass::InitNodeInfo().run_on_function(f_ptr);
-
-InferenceEngine::CNNNetwork nGraphImpl(f_ptr);
-
-ASSERT_FALSE(isCNNNetworkQuantized(nGraphImpl));
-
-//    try {
-//    auto net = std::make_shared<InferenceEngine::details::CNNNetworkImpl>(
-//                                                        static_cast<const InferenceEngine::ICNNNetwork &>(nGraphImpl));
-//    } catch (InferenceEngine::details::InferenceEngineException &err) {
-//        FAIL();
-//    }
-}
+//TEST(KeepConstantInputsTests, ConvertConvolutionPoolReluNetworkWithFalse) {
+//    std::shared_ptr <ngraph::Function> f_ptr;
+//    f_ptr = ngraph::builder::subgraph::makeConvPoolRelu();
+//    ngraph::pass::InitNodeInfo().run_on_function(f_ptr);
+//    InferenceEngine::CNNNetwork nGraphImpl(f_ptr);
+//    auto originalNetwork = std::make_shared<InferenceEngine::details::CNNNetworkImpl>(
+//            static_cast<const InferenceEngine::ICNNNetwork &>(nGraphImpl));
+//    std::shared_ptr<ICNNNetwork> convertedNetwork;
+//    convertedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(f_ptr, originalNetwork, false);
+//}
+//
+//
+//TEST(KeepConstantInputsTests, ConvertConvBiasNetworkWithTrue) {
+//    std::shared_ptr <ngraph::Function> f_ptr;
+//    f_ptr = ngraph::builder::subgraph::makeConvBias();
+//    ngraph::pass::InitNodeInfo().run_on_function(f_ptr);
+//    InferenceEngine::CNNNetwork nGraphImpl(f_ptr);
+//    auto originalNetwork = std::make_shared<InferenceEngine::details::CNNNetworkImpl>(
+//                                        static_cast<const InferenceEngine::ICNNNetwork &>(nGraphImpl));
+//    std::shared_ptr<ICNNNetwork> convertedNetwork;
+//    convertedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(f_ptr, originalNetwork, true);
+//}
+//
+//TEST(KeepConstantInputsTests, ConvertConvBiasNetworkWithFalse) {
+//std::shared_ptr <ngraph::Function> f_ptr;
+//f_ptr = ngraph::builder::subgraph::makeConvBias();
+//ngraph::pass::InitNodeInfo().run_on_function(f_ptr);
+//InferenceEngine::CNNNetwork nGraphImpl(f_ptr);
+//auto originalNetwork = std::make_shared<InferenceEngine::details::CNNNetworkImpl>(
+//        static_cast<const InferenceEngine::ICNNNetwork &>(nGraphImpl));
+//std::shared_ptr<ICNNNetwork> convertedNetwork;
+//convertedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(f_ptr, originalNetwork, false);
+//}
