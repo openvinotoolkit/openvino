@@ -235,8 +235,11 @@ TEST_P(ExecGraphTests, CheckExecGraphInfoSerialization) {
         // Create InferRequest
         InferenceEngine::InferRequest req;
         ASSERT_NO_THROW(req = execNet.CreateInferRequest());
-        execGraph.serialize("exeNetwork.xml", "exeNetwork.bin");
-        ASSERT_EQ(0, std::remove("exeNetwork.xml"));
+        // TODO: fix for GPU once exec graph is implemented via ngraph::Function (see #32675)
+        if (targetDevice != CommonTestUtils::DEVICE_GPU) {
+            execGraph.serialize("exeNetwork.xml", "exeNetwork.bin");
+            ASSERT_EQ(0, std::remove("exeNetwork.xml"));
+        }
     } else {
         ASSERT_THROW(ie->LoadNetwork(cnnNet, targetDevice).GetExecGraphInfo(),
                      InferenceEngine::details::InferenceEngineException);
