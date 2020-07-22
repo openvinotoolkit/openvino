@@ -22,7 +22,7 @@ ie_add_plugin(NAME ${TARGET_NAME}
 target_include_directories(${TARGET_NAME} PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}")
 
-target_include_directories(${TARGET_NAME} PUBLIC
+target_include_directories(${TARGET_NAME} PRIVATE
     "${IE_MAIN_TEMPLATE_PLUGIN_SOURCE_DIR}/include")
 
 target_link_libraries(${TARGET_NAME} PRIVATE
