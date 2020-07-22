@@ -3802,14 +3802,22 @@ void Program::CreateGatherPrimitive(cldnn::topology& topology, InferenceEngine::
 
     // following code is meant to support cases where we can merge dims after the one specified by 'axis'
     if (nonNegativeAxis < 3) {
-        inputDims[nonNegativeAxis + 1] = std::accumulate(inputDims.begin() + nonNegativeAxis + 1, inputDims.end(), 1, std::multiplies<size_t>());
-        inputDims.erase(inputDims.begin() + nonNegativeAxis + 2, inputDims.end());
+        if (inputDims.size() > nonNegativeAxis + 1) {
+            inputDims[nonNegativeAxis + 1] = std::accumulate(inputDims.begin() + nonNegativeAxis + 1, inputDims.end(), 1, std::multiplies<size_t>());
+        }
+        if (inputDims.size() > nonNegativeAxis + 2) {
+            inputDims.erase(inputDims.begin() + nonNegativeAxis + 2, inputDims.end());
+        }
         if (inputDims.size() < 4) {
             inputDims.resize(4, 1);
         }
-        outDims[nonNegativeAxis + indicesDims.size()] = std::accumulate(outDims.begin() + nonNegativeAxis + indicesDims.size(),
-                                                                        outDims.end(), 1, std::multiplies<size_t>());
-        outDims.erase(outDims.begin() + nonNegativeAxis + indicesDims.size() + 1, outDims.end());
+        if (outDims.size() > nonNegativeAxis + indicesDims.size()) {
+            outDims[nonNegativeAxis + indicesDims.size()] = std::accumulate(outDims.begin() + nonNegativeAxis + indicesDims.size(),
+                                                                            outDims.end(), 1, std::multiplies<size_t>());
+        }
+        if (outDims.size() > nonNegativeAxis + indicesDims.size() + 1) {
+            outDims.erase(outDims.begin() + nonNegativeAxis + indicesDims.size() + 1, outDims.end());
+        }
         if (outDims.size() < 4 + indicesDims.size() - 1) {
             outDims.resize(4 + indicesDims.size() - 1, 1);
         }
