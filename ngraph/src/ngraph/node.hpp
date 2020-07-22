@@ -42,7 +42,6 @@
 #include "ngraph/op/util/attr_types.hpp"
 #include "ngraph/op/util/op_annotations.hpp"
 #include "ngraph/output_vector.hpp"
-#include "ngraph/placement.hpp"
 #include "ngraph/strides.hpp"
 #include "ngraph/type.hpp"
 
@@ -154,13 +153,6 @@ namespace ngraph
         using type_info_t = DiscreteTypeInfo;
 
     protected:
-        std::tuple<element::Type, PartialShape> validate_and_infer_elementwise_args(
-            const op::AutoBroadcastSpec& autob = op::AutoBroadcastSpec());
-        void validate_and_infer_elementwise_arithmetic(
-            const op::AutoBroadcastSpec& autob = op::AutoBroadcastSpec());
-        void validate_and_infer_elementwise_logical(
-            const op::AutoBroadcastSpec& autob = op::AutoBroadcastSpec());
-
         /// \brief Construct an unitialized Node
         Node() {}
         /// \brief Construct an unitialized Node
@@ -179,16 +171,8 @@ namespace ngraph
         virtual ~Node();
 
         virtual bool visit_attributes(AttributeVisitor& visitor) { return false; }
-        virtual bool is_unary_elementwise_arithmetic() const { return false; }
-        virtual bool is_binary_elementwise_arithmetic() const { return false; }
-        virtual bool is_binary_elementwise_comparison() const { return false; }
-        virtual bool is_binary_elementwise_logical() const { return false; }
-        /// \returns true if node supports autobroadcast operations
-        virtual bool supports_auto_broadcast() const { return false; }
         /// \returns the autobroadcasr spec
         virtual const op::AutoBroadcastSpec& get_autob() const;
-        /// \returns true if the node can decompose
-        virtual bool supports_decompose() const { return false; }
         /// \brief Evaluates the op on input_values putting results in output_values
         /// \returns true if successful
         virtual bool evaluate(const HostTensorVector& output_values,
@@ -276,15 +260,7 @@ namespace ngraph
                              const element::Type& element_type,
                              const PartialShape& pshape);
 
-        virtual bool is_parameter() const { return false; }
-        virtual bool is_output() const;
-        virtual bool is_constant() const;
-        virtual bool is_null() const { return false; }
-        virtual bool is_op() const { return false; }
-        virtual bool is_pattern() const { return false; }
-        virtual bool is_commutative() const { return false; }
         virtual bool is_dynamic() const;
-        virtual bool has_state() const { return false; }
         size_t get_instance_id() const { return m_instance_id; }
         /// \brief Writes a description of a node to a stream
         /// \param os The stream; should be returned
@@ -440,12 +416,6 @@ namespace ngraph
         /// True if this and node have one output with same element type and shape
         bool has_same_type(std::shared_ptr<const Node> node) const;
 
-        /// Get device placement
-        Placement get_placement() const;
-
-        /// Set device placement
-        void set_placement(Placement placement);
-
         using RTMap = std::map<std::string, std::shared_ptr<Variant>>;
 
         RTMap& get_rt_info() { return m_rt_info; }
@@ -557,7 +527,6 @@ namespace ngraph
         std::set<std::shared_ptr<Node>> m_provenance_group;
         std::deque<descriptor::Input> m_inputs;
         std::deque<descriptor::Output> m_outputs;
-        Placement m_placement = Placement::DEFAULT;
         std::shared_ptr<ngraph::op::util::OpAnnotations> m_op_annotations;
         std::map<std::string, std::shared_ptr<Variant>> m_rt_info;
     };

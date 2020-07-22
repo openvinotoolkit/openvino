@@ -15,7 +15,6 @@
 #include <utility>
 #include <vector>
 
-#include <details/ie_cnn_network_tools.h>
 #include <ie_common.h>
 #include <precision_utils.h>
 #include "cnn_network_impl.hpp"
