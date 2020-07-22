@@ -20,7 +20,7 @@ include(FetchContent)
 # ONNX.proto definition version
 #------------------------------------------------------------------------------
 
-set(ONNX_BRANCH etusien/attribute_in_function)
+set(ONNX_VERSION 1.7.0)
 
 #------------------------------------------------------------------------------
 # Download and install libonnx ...
@@ -30,8 +30,8 @@ set(ONNX_BRANCH etusien/attribute_in_function)
 # it so we won't overwrite the caller's CMAKE_CXX_FLAGS
 set(PUSH_CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
 
-set(ONNX_GIT_REPO_URL https://github.com/NervanaSystems/onnx.git)
-set(ONNX_GIT_BRANCH ${ONNX_BRANCH})
+set(ONNX_GIT_REPO_URL https://github.com/onnx/onnx.git)
+set(ONNX_GIT_BRANCH rel-${ONNX_VERSION})
 set(NGRAPH_ONNX_NAMESPACE ngraph_onnx)
 
 set(CMAKE_CXX_FLAGS ${CMAKE_ORIGINAL_CXX_FLAGS})
