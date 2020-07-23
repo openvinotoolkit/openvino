@@ -292,7 +292,7 @@ public:
         VPU_PROFILE(hwFullyConnectedTiling);
 
         const auto& env = CompileEnv::get();
-        const auto cmxLimit = tilingCMXLimit(env.resources.numCMXSlices);
+        const auto cmxLimit = env.resources.tilingCMXLimit;
 
         for (const auto& origStage : model->getStages()) {
             if (origStage->type() != StageType::StubFullyConnected) {

@@ -48,7 +48,8 @@ TEST(CSE, abs_abs)
 
     pass_manager.register_pass<ngraph::pass::CommonSubexpressionElimination>();
     pass_manager.run_passes(f);
-    ASSERT_EQ(f->get_results().at(0)->get_argument(0), f->get_results().at(1)->get_argument(0));
+    ASSERT_EQ(f->get_results().at(0)->input_value(0).get_node_shared_ptr(),
+              f->get_results().at(1)->input_value(0).get_node_shared_ptr());
 }
 
 TEST(CSE, abs_abs_negative)
@@ -63,8 +64,8 @@ TEST(CSE, abs_abs_negative)
 
     pass_manager.register_pass<ngraph::pass::CommonSubexpressionElimination>();
     pass_manager.run_passes(f);
-    ASSERT_EQ(f->get_results().at(0)->get_argument(0), abs1);
-    ASSERT_EQ(f->get_results().at(1)->get_argument(0), abs2);
+    ASSERT_EQ(f->get_results().at(0)->input_value(0).get_node_shared_ptr(), abs1);
+    ASSERT_EQ(f->get_results().at(1)->input_value(0).get_node_shared_ptr(), abs2);
 }
 
 TEST(CSE, add_add)
@@ -79,7 +80,8 @@ TEST(CSE, add_add)
 
     pass_manager.register_pass<ngraph::pass::CommonSubexpressionElimination>();
     pass_manager.run_passes(f);
-    ASSERT_EQ(f->get_results().at(0)->get_argument(0), f->get_results().at(1)->get_argument(0));
+    ASSERT_EQ(f->get_results().at(0)->input_value(0).get_node_shared_ptr(),
+              f->get_results().at(1)->input_value(0).get_node_shared_ptr());
 }
 
 TEST(CSE, add_add_commutative)
@@ -94,7 +96,8 @@ TEST(CSE, add_add_commutative)
 
     pass_manager.register_pass<ngraph::pass::CommonSubexpressionElimination>();
     pass_manager.run_passes(f);
-    ASSERT_EQ(f->get_results().at(0)->get_argument(0), f->get_results().at(1)->get_argument(0));
+    ASSERT_EQ(f->get_results().at(0)->input_value(0).get_node_shared_ptr(),
+              f->get_results().at(1)->input_value(0).get_node_shared_ptr());
 }
 
 TEST(CSE, add_add_negative)
@@ -111,8 +114,8 @@ TEST(CSE, add_add_negative)
 
     pass_manager.register_pass<ngraph::pass::CommonSubexpressionElimination>();
     pass_manager.run_passes(f);
-    ASSERT_EQ(f->get_results().at(0)->get_argument(0), add1);
-    ASSERT_EQ(f->get_results().at(1)->get_argument(0), add2);
+    ASSERT_EQ(f->get_results().at(0)->input_value(0).get_node_shared_ptr(), add1);
+    ASSERT_EQ(f->get_results().at(1)->input_value(0).get_node_shared_ptr(), add2);
 }
 
 TEST(CSE, abs_add)
@@ -131,7 +134,8 @@ TEST(CSE, abs_add)
 
     pass_manager.register_pass<ngraph::pass::CommonSubexpressionElimination>();
     pass_manager.run_passes(f);
-    ASSERT_EQ(f->get_results().at(0)->get_argument(0), f->get_results().at(1)->get_argument(0));
+    ASSERT_EQ(f->get_results().at(0)->input_value(0).get_node_shared_ptr(),
+              f->get_results().at(1)->input_value(0).get_node_shared_ptr());
 }
 
 TEST(CSE, abs_add_reshape_broadcast)
@@ -157,7 +161,8 @@ TEST(CSE, abs_add_reshape_broadcast)
 
         pass_manager.register_pass<ngraph::pass::CommonSubexpressionElimination>();
         pass_manager.run_passes(f);
-        ASSERT_EQ(f->get_results().at(0)->get_argument(0), f->get_results().at(1)->get_argument(0));
+        ASSERT_EQ(f->get_results().at(0)->input_value(0).get_node_shared_ptr(),
+                  f->get_results().at(1)->input_value(0).get_node_shared_ptr());
     }
     {
         // fail case
@@ -168,7 +173,8 @@ TEST(CSE, abs_add_reshape_broadcast)
 
         pass_manager.register_pass<ngraph::pass::CommonSubexpressionElimination>();
         pass_manager.run_passes(f);
-        ASSERT_NE(f->get_results().at(0)->get_argument(0), f->get_results().at(1)->get_argument(0));
+        ASSERT_NE(f->get_results().at(0)->input_value(0).get_node_shared_ptr(),
+                  f->get_results().at(1)->input_value(0).get_node_shared_ptr());
     }
     {
         // fail case
@@ -180,7 +186,8 @@ TEST(CSE, abs_add_reshape_broadcast)
 
         pass_manager.register_pass<ngraph::pass::CommonSubexpressionElimination>();
         pass_manager.run_passes(f);
-        ASSERT_NE(f->get_results().at(0)->get_argument(0), f->get_results().at(1)->get_argument(0));
+        ASSERT_NE(f->get_results().at(0)->input_value(0).get_node_shared_ptr(),
+                  f->get_results().at(1)->input_value(0).get_node_shared_ptr());
     }
 }
 
@@ -205,7 +212,8 @@ TEST(CSE, abs_add_abs_add)
 
     pass_manager.register_pass<ngraph::pass::CommonSubexpressionElimination>();
     pass_manager.run_passes(f);
-    ASSERT_EQ(f->get_results().at(0)->get_argument(0), f->get_results().at(1)->get_argument(0));
+    ASSERT_EQ(f->get_results().at(0)->input_value(0).get_node_shared_ptr(),
+              f->get_results().at(1)->input_value(0).get_node_shared_ptr());
 }
 
 TEST(CSE, abs_add_abs_add_negative)
@@ -230,13 +238,14 @@ TEST(CSE, abs_add_abs_add_negative)
 
     pass_manager.register_pass<ngraph::pass::CommonSubexpressionElimination>();
     pass_manager.run_passes(f);
-    auto oadd3 = f->get_results().at(0)->get_argument(0);
-    auto oadd4 = f->get_results().at(1)->get_argument(0);
+    auto oadd3 = f->get_results().at(0)->input_value(0).get_node_shared_ptr();
+    auto oadd4 = f->get_results().at(1)->input_value(0).get_node_shared_ptr();
     ASSERT_EQ(oadd3, add3);
     ASSERT_EQ(oadd4, add4);
-    ASSERT_EQ(oadd3->get_argument(1), C);
-    ASSERT_EQ(oadd4->get_argument(1), D);
-    ASSERT_EQ(oadd3->get_argument(0), oadd4->get_argument(0));
+    ASSERT_EQ(oadd3->input_value(1).get_node_shared_ptr(), C);
+    ASSERT_EQ(oadd4->input_value(1).get_node_shared_ptr(), D);
+    ASSERT_EQ(oadd3->input_value(0).get_node_shared_ptr(),
+              oadd4->input_value(0).get_node_shared_ptr());
 }
 
 template <typename T>
@@ -260,9 +269,12 @@ static void execute_cse_reduction_test()
     pass_manager.register_pass<ngraph::pass::CommonSubexpressionElimination>();
     pass_manager.run_passes(f);
 
-    ASSERT_EQ(sub_aa->get_argument(0), sub_aa->get_argument(1));
-    ASSERT_NE(sub_ab->get_argument(0), sub_ab->get_argument(1));
-    ASSERT_NE(f->get_results().at(2)->get_argument(0), sub_aa->get_argument(0));
+    ASSERT_EQ(sub_aa->input_value(0).get_node_shared_ptr(),
+              sub_aa->input_value(1).get_node_shared_ptr());
+    ASSERT_NE(sub_ab->input_value(0).get_node_shared_ptr(),
+              sub_ab->input_value(1).get_node_shared_ptr());
+    ASSERT_NE(f->get_results().at(2)->input_value(0).get_node_shared_ptr(),
+              sub_aa->input_value(0).get_node_shared_ptr());
 }
 
 TEST(CSE, reduction_ops)
@@ -300,11 +312,16 @@ TEST(CSE, constant)
     pass_manager.register_pass<ngraph::pass::CommonSubexpressionElimination>();
     pass_manager.run_passes(f);
 
-    ASSERT_EQ(abs0->get_argument(0), abs0_1->get_argument(0));
-    ASSERT_EQ(abs1->get_argument(0), abs1_1->get_argument(0));
-    ASSERT_NE(abs0->get_argument(0), abs1->get_argument(0));
-    ASSERT_NE(abs0->get_argument(0), absf->get_argument(0));
-    ASSERT_NE(abs111->get_argument(0), abs112->get_argument(0));
+    ASSERT_EQ(abs0->input_value(0).get_node_shared_ptr(),
+              abs0_1->input_value(0).get_node_shared_ptr());
+    ASSERT_EQ(abs1->input_value(0).get_node_shared_ptr(),
+              abs1_1->input_value(0).get_node_shared_ptr());
+    ASSERT_NE(abs0->input_value(0).get_node_shared_ptr(),
+              abs1->input_value(0).get_node_shared_ptr());
+    ASSERT_NE(abs0->input_value(0).get_node_shared_ptr(),
+              absf->input_value(0).get_node_shared_ptr());
+    ASSERT_NE(abs111->input_value(0).get_node_shared_ptr(),
+              abs112->input_value(0).get_node_shared_ptr());
 }
 
 TEST(CSE, one_hot)
@@ -319,7 +336,8 @@ TEST(CSE, one_hot)
         auto onehot2 = std::make_shared<op::OneHot>(A, out_shape, 1);
         auto f = std::make_shared<Function>(NodeVector{onehot1, onehot2}, ParameterVector{A});
         pass_manager.run_passes(f);
-        ASSERT_EQ(f->get_results().at(0)->get_argument(0), f->get_results().at(1)->get_argument(0));
+        ASSERT_EQ(f->get_results().at(0)->input_value(0).get_node_shared_ptr(),
+                  f->get_results().at(1)->input_value(0).get_node_shared_ptr());
     }
     {
         Shape param_shape{8, 1};
@@ -331,7 +349,8 @@ TEST(CSE, one_hot)
         auto onehot2 = std::make_shared<op::OneHot>(reshape2, out_shape, 1);
         auto f = std::make_shared<Function>(NodeVector{onehot1, onehot2}, ParameterVector{A});
         pass_manager.run_passes(f);
-        ASSERT_EQ(f->get_results().at(0)->get_argument(0), f->get_results().at(1)->get_argument(0));
+        ASSERT_EQ(f->get_results().at(0)->input_value(0).get_node_shared_ptr(),
+                  f->get_results().at(1)->input_value(0).get_node_shared_ptr());
     }
 }
 

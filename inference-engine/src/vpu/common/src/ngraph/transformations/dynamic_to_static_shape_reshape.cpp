@@ -17,13 +17,13 @@
 namespace vpu {
 
 void dynamicToStaticShapeReshape(std::shared_ptr<ngraph::Node> target) {
-    const auto dsr = target->get_argument(0);
+    const auto dsr = target->input_value(0).get_node_shared_ptr();
     VPU_THROW_UNLESS(ngraph::as_type_ptr<ngraph::vpu::op::DynamicShapeResolver>(dsr),
                      "DynamicToStaticShape transformation for {} of type {} expects {} as input with index {}",
                      target->get_friendly_name(), target->get_type_info(), ngraph::vpu::op::DynamicShapeResolver::type_info, 0);
 
     const auto reshape = std::dynamic_pointer_cast<ngraph::opset3::Reshape>(target);
-    const auto outShapeDescriptor = reshape->get_argument(1);
+    const auto outShapeDescriptor = reshape->input_value(1).get_node_shared_ptr();
 
     const auto replacement = ngraph::as_type_ptr<ngraph::opset3::Constant>(outShapeDescriptor)
         ? reshape->clone_with_new_inputs(reshape->input_values())

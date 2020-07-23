@@ -185,6 +185,8 @@ sources = [
     "pyngraph/dimension.cpp",
     "pyngraph/function.cpp",
     "pyngraph/node.cpp",
+    "pyngraph/node_input.cpp",
+    "pyngraph/node_output.cpp",
     "pyngraph/node_factory.cpp",
     "pyngraph/ops/constant.cpp",
     "pyngraph/ops/get_output_element.cpp",
@@ -215,6 +217,10 @@ sources = [
 
 packages = [
     "ngraph",
+    "ngraph.opset1",
+    "ngraph.opset2",
+    "ngraph.opset3",
+    "ngraph.opset4",
     "ngraph.utils",
     "ngraph.impl",
     "ngraph.impl.op",

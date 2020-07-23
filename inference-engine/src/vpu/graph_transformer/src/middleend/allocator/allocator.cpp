@@ -296,7 +296,7 @@ bool Allocator::allocateData(const Data& data) {
     return chunk->memType == memoryType;
 }
 
-ShapeLocation Allocator::allocateShape(Data& data) {
+ShapeLocation Allocator::allocateShape(const Data& data) {
     ShapeLocation shapeLocation;
 
     const auto dimsByteSize = data->desc().dimsByteSize();

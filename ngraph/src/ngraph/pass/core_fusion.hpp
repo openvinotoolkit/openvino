@@ -38,33 +38,18 @@ public:
             construct_folded_batch_norm();
             construct_conv_affine_folding();
             construct_sigmoid();
-            construct_optimized_strided_conv();
             construct_reshape_broadcast();
             construct_reshape_softmax_reshape();
             construct_zero_padded_reshaped_conv();
             construct_zero_padded_conv();
-            construct_softmax_cross_entropy_fprop();
-        }
-        // Patterns under FOP_FUSIONS create ops (FusedOps) that might not
-        // be all supported by certain backends. In such a case, backends
-        // can register a FusedOpDecomposition pass after CoreFusion that will
-        // selectively decompose the unsupported ops back to the Core opset
-        if (fusions.is_set(FusionType::FOP_FUSIONS))
-        {
-            construct_conv_bias();
-            construct_conv_bias_add();
         }
     }
     void construct_relu();
     void construct_folded_batch_norm();
     void construct_conv_affine_folding();
     void construct_sigmoid();
-    void construct_optimized_strided_conv();
     void construct_reshape_broadcast();
     void construct_reshape_softmax_reshape();
     void construct_zero_padded_reshaped_conv();
     void construct_zero_padded_conv();
-    void construct_conv_bias();
-    void construct_conv_bias_add();
-    void construct_softmax_cross_entropy_fprop();
 };

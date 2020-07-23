@@ -21,6 +21,7 @@
 #include "ngraph/function.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/reverse.hpp"
+#include "ngraph/op/util/op_types.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -133,7 +134,7 @@ void op::v1::Reverse::validate_and_infer_types()
         const auto rank = input_rank.get_length();
         const auto rev_axes_node = input_value(1).get_node_shared_ptr();
 
-        if (rev_axes_node->is_constant())
+        if (op::is_constant(rev_axes_node))
         {
             const auto rev_axes_constant = as_type_ptr<op::Constant>(rev_axes_node);
 

@@ -29,6 +29,7 @@
 #include "ngraph/op/product.hpp"
 #include "ngraph/op/replace_slice.hpp"
 #include "ngraph/op/sum.hpp"
+#include "ngraph/op/util/op_types.hpp"
 #include "ngraph/type.hpp"
 #include "zero_dim_tensor_elimination.hpp"
 
@@ -46,7 +47,8 @@ static bool verify_no_internal_zero_length_ops(shared_ptr<Function> f)
     set<Output<Node>> zero_length_source_outputs;
     for (auto n : f->get_ordered_ops())
     {
-        if (n->is_output() || n->is_parameter() || n->is_constant() || n->get_output_size() > 1)
+        if (op::is_output(n) || op::is_parameter(n) || op::is_constant(n) ||
+            n->get_output_size() > 1)
         {
             continue;
         }
@@ -92,7 +94,7 @@ bool pass::ZeroDimTensorElimination::run_on_function(shared_ptr<Function> f)
         // if any `GetOutputElement` is zero-length
         // we replace it w/ a signalling constant
         // so we don't have to deal w/ multi-output nodes directly
-        if (n->is_output() || n->is_parameter() || n->get_output_size() > 1)
+        if (op::is_output(n) || op::is_parameter(n) || n->get_output_size() > 1)
         {
             continue;
         }
@@ -116,7 +118,7 @@ bool pass::ZeroDimTensorElimination::run_on_function(shared_ptr<Function> f)
         if (auto concat = as_type_ptr<op::Concat>(n))
         {
             OutputVector non_zero_dim_args;
-            for (auto arg : concat->get_arguments())
+            for (auto arg : concat->input_values())
             {
                 if (!has_zero_dim(arg))
                 {

@@ -218,6 +218,9 @@ private:
             } else if (auto a = ngraph::as_type<ngraph::AttributeAdapter<ngraph::op::TopKMode>>(&adapter)) {
                 if (!getStrAttribute(node.child("data"), name, val)) return;
                 static_cast<ngraph::op::TopKMode&>(*a) = ngraph::as_enum<ngraph::op::TopKMode>(val);
+            }  else {
+                THROW_IE_EXCEPTION << "Error IR reading. Attribute adapter can not be found for " << name
+                                   << " parameter";
             }
         }
         void on_adapter(const std::string& name, ngraph::ValueAccessor<double>& adapter) override {

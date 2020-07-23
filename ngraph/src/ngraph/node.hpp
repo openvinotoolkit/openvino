@@ -42,7 +42,6 @@
 #include "ngraph/op/util/attr_types.hpp"
 #include "ngraph/op/util/op_annotations.hpp"
 #include "ngraph/output_vector.hpp"
-#include "ngraph/placement.hpp"
 #include "ngraph/strides.hpp"
 #include "ngraph/type.hpp"
 
@@ -67,13 +66,6 @@ namespace ngraph
     using HostTensor = runtime::HostTensor;
     using HostTensorPtr = std::shared_ptr<HostTensor>;
     using HostTensorVector = std::vector<HostTensorPtr>;
-
-    // Intermal, controls whether GetOutputElement nodes are elided
-    // Defaults to being elided. Transformer should set to false if
-    // it has passes that depend on GetOutputElement.
-    NGRAPH_API void set_remove_goe(bool value)
-        NGRAPH_DEPRECATED("Remove dependencies on GetOrderedOutput");
-    NGRAPH_API bool get_remove_goe() NGRAPH_DEPRECATED("Remove dependencies on GetOrderedOutput");
 
     namespace op
     {
@@ -161,13 +153,6 @@ namespace ngraph
         using type_info_t = DiscreteTypeInfo;
 
     protected:
-        std::tuple<element::Type, PartialShape> validate_and_infer_elementwise_args(
-            const op::AutoBroadcastSpec& autob = op::AutoBroadcastSpec());
-        void validate_and_infer_elementwise_arithmetic(
-            const op::AutoBroadcastSpec& autob = op::AutoBroadcastSpec());
-        void validate_and_infer_elementwise_logical(
-            const op::AutoBroadcastSpec& autob = op::AutoBroadcastSpec());
-
         /// \brief Construct an unitialized Node
         Node() {}
         /// \brief Construct an unitialized Node
@@ -186,16 +171,8 @@ namespace ngraph
         virtual ~Node();
 
         virtual bool visit_attributes(AttributeVisitor& visitor) { return false; }
-        virtual bool is_unary_elementwise_arithmetic() const { return false; }
-        virtual bool is_binary_elementwise_arithmetic() const { return false; }
-        virtual bool is_binary_elementwise_comparison() const { return false; }
-        virtual bool is_binary_elementwise_logical() const { return false; }
-        /// \returns true if node supports autobroadcast operations
-        virtual bool supports_auto_broadcast() const { return false; }
         /// \returns the autobroadcasr spec
         virtual const op::AutoBroadcastSpec& get_autob() const;
-        /// \returns true if the node can decompose
-        virtual bool supports_decompose() const { return false; }
         /// \brief Evaluates the op on input_values putting results in output_values
         /// \returns true if successful
         virtual bool evaluate(const HostTensorVector& output_values,
@@ -283,15 +260,7 @@ namespace ngraph
                              const element::Type& element_type,
                              const PartialShape& pshape);
 
-        virtual bool is_parameter() const { return false; }
-        virtual bool is_output() const;
-        virtual bool is_constant() const;
-        virtual bool is_null() const { return false; }
-        virtual bool is_op() const { return false; }
-        virtual bool is_pattern() const { return false; }
-        virtual bool is_commutative() const { return false; }
         virtual bool is_dynamic() const;
-        virtual bool has_state() const { return false; }
         size_t get_instance_id() const { return m_instance_id; }
         /// \brief Writes a description of a node to a stream
         /// \param os The stream; should be returned
@@ -401,10 +370,6 @@ namespace ngraph
             "use &node->output(i).get_tensor() instead; insert a check that the node has only one "
             "output, or update calling code not to assume only one output");
 
-        /// Returns the set of inputs using output i
-        const std::vector<descriptor::Input*>& get_output_inputs(size_t i) const
-            NGRAPH_DEPRECATED("use node->output(i).get_target_inputs() instead");
-
         std::set<Input<Node>> get_output_target_inputs(size_t i) const;
 
         /// Returns the number of inputs for the op
@@ -428,23 +393,12 @@ namespace ngraph
         std::unordered_set<descriptor::Tensor*> liveness_new_list;
         std::unordered_set<descriptor::Tensor*> liveness_free_list;
 
-        virtual NodeVector get_arguments() const NGRAPH_DEPRECATED("Use input_values().");
-        std::shared_ptr<Node> get_argument(size_t index) const
-            NGRAPH_DEPRECATED("use input_value(i).");
-
         Node* get_input_node_ptr(size_t index) const;
         std::shared_ptr<Node> get_input_node_shared_ptr(size_t index) const;
         Output<Node> get_input_source_output(size_t i) const;
 
-    protected:
-        // Will be replaced with clone_with_new_inputs
-        virtual std::shared_ptr<Node> copy_with_new_args(const NodeVector& new_args) const
-            NGRAPH_DEPRECATED("use copy_with_new_inputs instead");
-
     public:
-        // TODO: When all copy_with_new_args have been replaced with copy_with_new_inputs, make
-        // this pure and remove copy_with_new_args
-        virtual std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const;
+        virtual std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const = 0;
 
         std::shared_ptr<Node> copy_with_new_inputs(const OutputVector& new_args) const;
 
@@ -454,12 +408,6 @@ namespace ngraph
 
         /// True if this and node have one output with same element type and shape
         bool has_same_type(std::shared_ptr<const Node> node) const;
-
-        /// Get device placement
-        Placement get_placement() const;
-
-        /// Set device placement
-        void set_placement(Placement placement);
 
         using RTMap = std::map<std::string, std::shared_ptr<Variant>>;
 
@@ -572,7 +520,6 @@ namespace ngraph
         std::set<std::shared_ptr<Node>> m_provenance_group;
         std::deque<descriptor::Input> m_inputs;
         std::deque<descriptor::Output> m_outputs;
-        Placement m_placement = Placement::DEFAULT;
         std::shared_ptr<ngraph::op::util::OpAnnotations> m_op_annotations;
         std::map<std::string, std::shared_ptr<Variant>> m_rt_info;
     };
@@ -670,11 +617,11 @@ namespace ngraph
     void check_new_args_count(const Node* node, T new_args)
     {
         NODE_VALIDATION_CHECK(node,
-                              new_args.size() == node->get_arguments().size(),
-                              "copy_with_new_args() expected ",
-                              node->get_arguments().size(),
+                              new_args.size() == node->input_values().size(),
+                              "clone_with_new_inputs() expected ",
+                              node->input_values().size(),
                               " argument",
-                              (node->get_arguments().size() == 1 ? "" : "s"),
+                              (node->input_values().size() == 1 ? "" : "s"),
                               " but got ",
                               new_args.size());
     }
