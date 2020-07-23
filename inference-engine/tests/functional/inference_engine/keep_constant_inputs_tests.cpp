@@ -23,21 +23,16 @@
 using namespace testing;
 using namespace InferenceEngine;
 
-bool isInputConstLayersInCNNNetwork(const InferenceEngine::CNNNetwork& network, const std::string& layerName) {
+bool isInputConstLayersInCNNNetwork(const InferenceEngine::CNNNetwork& network, const std::string& layerType) {
     int numberOfInputs = 0;
-    CNNLayerPtr layerPtr = nullptr, parentLayerPtr = nullptr;
-    layerPtr = details::CNNNetworkHelper::getLayer(network, layerName);
-    if (layerPtr != nullptr) {
-        std::cout << "Found layer: " << layerPtr->name << ", type: " << layerPtr->type << std::endl;
-        std::cout << "Input dimensions: {";
-        for (auto dimention : layerPtr->input()->getDims()) {
-            std::cout << dimention << ", ";
+    auto layersInNetwork = network.getFunction()->get_ordered_ops();
+    for (auto layer : layersInNetwork) {
+        if (std::string(layer->get_type_name()) == layerType) {
+            std::cout << "Found layer " << layerType << std::endl;
+            numberOfInputs = layer->get_input_size();
+            std::cout << "Number of inputs in " << layerType << " = " << numberOfInputs << std::endl;
+            break;
         }
-        std::cout << "\b\b}" << std::endl;
-        numberOfInputs = layerPtr->input()->getDims().size() / 2;
-//        std::cout << "Input dims size: " << layerPtr->input()->getDims().size() << std::endl;
-//        std::cout << "Input layout: " << layerPtr->input()->getLayout() << std::endl;
-        std::cout << "Number of inputs: " << numberOfInputs << std::endl;
     }
     return  numberOfInputs > 1;
 }
@@ -50,8 +45,8 @@ TEST(KeepConstantInputsTests, ConvertConvolutionPoolReluNetworkWithTrue) {
 //    ptrToConvertedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(f_ptr, originalNetwork, true);
 //    InferenceEngine::CNNNetwork convertedNetwork(ptrToConvertedNetwork->getFunction());
 
-    ASSERT_TRUE(isInputConstLayersInCNNNetwork(originalNetwork, "Conv_1"));
-//    ASSERT_TRUE(isInputConstLayersInCNNNetwork(convertedNetwork, "Conv_1"));
+    ASSERT_TRUE(isInputConstLayersInCNNNetwork(originalNetwork, "Convolution"));
+//    ASSERT_TRUE(isInputConstLayersInCNNNetwork(convertedNetwork, "Convvolution"));
 }
 
 //TEST(KeepConstantInputsTests, ConvertConvolutionPoolReluNetworkWithFalse) {
