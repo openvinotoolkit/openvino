@@ -43,7 +43,6 @@ Thus the OpenVINO IR becomes a new serialization format for the nGraph IR, and i
 > **IMPORTANT**: Conventional interfaces are used (`CNNNetwork`, the reader), so no changes required in most applications.
 
 > **NOTE**: While you still can use old APIs, there is an independent process of continuous improvements in the Inference Engine API.
-> For example, the Core::Read API is recommended to use instead of `CNNNetworkReader`.
 > These changes are independent of nGraph integration and do not enable or disable new features.
 
 Interpretation of the IR version 10 differs from the old IR version.

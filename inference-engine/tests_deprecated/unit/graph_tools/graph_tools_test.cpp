@@ -12,7 +12,6 @@
 #include <gmock/gmock-more-actions.h>
 #include "ie_common.h"
 #include <memory>
-#include "details/ie_cnn_network_tools.h"
 #include "details/ie_cnn_network_iterator.hpp"
 #include <common_test_utils/common_utils.hpp>
 

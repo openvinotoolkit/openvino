@@ -97,12 +97,31 @@
     std::make_pair(cv::Size(  96,  256), cv::Size( 128,  384))
 
 using namespace testing;
+#if defined(__arm__) || defined(__aarch64__)
+INSTANTIATE_TEST_CASE_P(ResizeTestFluid_U8, ResizeTestGAPI,
+                        Combine(Values(CV_8UC1, CV_8UC3),
+                                Values(cv::INTER_LINEAR, cv::INTER_AREA),
+                                Values(TEST_RESIZE_PAIRS),
+                                Values(4))); // error not more than 4 unit
 
+INSTANTIATE_TEST_CASE_P(ResizeRGB8UTestFluid_U8, ResizeRGB8UTestGAPI,
+                        Combine(Values(CV_8UC3, CV_8UC4),
+                                Values(cv::INTER_LINEAR),
+                                Values(TEST_RESIZE_PAIRS),
+                                Values(4))); // error not more than 4 unit
+#else
 INSTANTIATE_TEST_CASE_P(ResizeTestFluid_U8, ResizeTestGAPI,
                         Combine(Values(CV_8UC1, CV_8UC3),
                                 Values(cv::INTER_LINEAR, cv::INTER_AREA),
                                 Values(TEST_RESIZE_PAIRS),
                                 Values(1))); // error not more than 1 unit
+
+INSTANTIATE_TEST_CASE_P(ResizeRGB8UTestFluid_U8, ResizeRGB8UTestGAPI,
+                        Combine(Values(CV_8UC3, CV_8UC4),
+                                Values(cv::INTER_LINEAR),
+                                Values(TEST_RESIZE_PAIRS),
+                                Values(1))); // error not more than 1 unit
+#endif
 
 INSTANTIATE_TEST_CASE_P(ResizeTestFluid_F32, ResizeTestGAPI,
                         Combine(Values(CV_32FC1, CV_32FC3),
@@ -110,11 +129,6 @@ INSTANTIATE_TEST_CASE_P(ResizeTestFluid_F32, ResizeTestGAPI,
                                 Values(TEST_RESIZE_PAIRS),
                                 Values(0.015))); // accuracy like ~1.5%
 
-INSTANTIATE_TEST_CASE_P(ResizeRGB8UTestFluid_U8, ResizeRGB8UTestGAPI,
-                        Combine(Values(CV_8UC3, CV_8UC4),
-                                Values(cv::INTER_LINEAR),
-                                Values(TEST_RESIZE_PAIRS),
-                                Values(1))); // error not more than 1 unit
 
 INSTANTIATE_TEST_CASE_P(SplitTestFluid, SplitTestGAPI,
                         Combine(Values(2, 3, 4),
@@ -179,11 +193,19 @@ INSTANTIATE_TEST_CASE_P(ResizeRGB8URoiTestFluid, ResizeRGB8URoiTestGAPI,
 
 //----------------------------------------------------------------------
 
+#if defined(__arm__) || defined(__aarch64__)
+INSTANTIATE_TEST_CASE_P(ResizeTestFluid_U8, ResizeTestIE,
+                        Combine(Values(CV_8UC1, CV_8UC3),
+                                Values(cv::INTER_LINEAR, cv::INTER_AREA),
+                                Values(TEST_RESIZE_PAIRS),
+                                Values(4))); // error not more than 4 unit
+#else
 INSTANTIATE_TEST_CASE_P(ResizeTestFluid_U8, ResizeTestIE,
                         Combine(Values(CV_8UC1, CV_8UC3),
                                 Values(cv::INTER_LINEAR, cv::INTER_AREA),
                                 Values(TEST_RESIZE_PAIRS),
                                 Values(1))); // error not more than 1 unit
+#endif
 
 INSTANTIATE_TEST_CASE_P(ResizeTestFluid_F32, ResizeTestIE,
                         Combine(Values(CV_32FC1, CV_32FC3),

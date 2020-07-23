@@ -29,20 +29,6 @@ namespace InferenceEngine {
 using SizeVector = std::vector<size_t>;
 
 /**
- * @brief This class represents the generic layer.
- */
-class CNNLayer;
-
-/**
- * @brief A smart pointer to the CNNLayer
- */
-using CNNLayerPtr = std::shared_ptr<CNNLayer>;
-/**
- * @brief A smart weak pointer to the CNNLayer
- */
-using CNNLayerWeakPtr = std::weak_ptr<CNNLayer>;
-
-/**
  * @brief The main data representation node
  */
 class Data;
