@@ -2,7 +2,7 @@
 
 > **NOTE**: This tutorial is deprecated. Since OpenVINO™ 2020.4 version, Inference Engine enables reading ONNX models via the Inference Engine Core API
 > and there is no need to use directly the low-level ONNX* Importer API anymore. 
-> To read ONNX\* models, it's recommended to use the `Core::ReadNetwork()` method that provide a uniform way to read models from IR or ONNX format.
+> To read ONNX\* models, it's recommended to use the InferenceEngine::Core::ReadNetwork method that provide a uniform way to read models from IR or ONNX format.
 
 This tutorial demonstrates how to use the ONNX\* Importer API.
 This API makes it possible to create an nGraph `Function` object from an imported ONNX model.
