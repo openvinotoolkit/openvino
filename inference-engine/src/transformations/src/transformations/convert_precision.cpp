@@ -18,30 +18,41 @@ bool ngraph::pass::ConvertPrecision::run_on_function(std::shared_ptr<ngraph::Fun
         {opset3::Parameter::type_info, fuse_type_to_parameter},
     };
 
+    // As Constant operations can be shared between multiple nGraph Functions so before
+    // changing precision we need to understand which Constant consumers belongs
+    // to the current nGraph Function
     std::map<std::shared_ptr<Node>, std::vector<Input<Node>>> const_to_internal_output;
     for (auto & node : f->get_ordered_ops()) {
         for (auto & input : node->inputs()) {
-            if (auto const_node = std::dynamic_pointer_cast<opset3::Constant>(input.get_source_output().get_node_shared_ptr())) {
-                const_to_internal_output[const_node].emplace_back(input);
+            if (ngraph::op::is_constant(std::dynamic_pointer_cast<opset3::Constant>(input.get_source_output().get_node_shared_ptr()))) {
+                const_to_internal_output[node].emplace_back(input);
             }
         }
     }
 
-     // TODO: add nodes from body
+    // TODO: add nodes from body
+
+    // Iterate over all nodes in topological order and then iterate over node outputs.
+    // If output type mismatch given type we try to fuse type into this operation
+    // otherwise we insert Convert operation.
     for (auto &node : f->get_ordered_ops()) {
+        // As input type could changed we need to propagate output type calculation manually
         node->validate_and_infer_types();
 
         for (auto output : node->outputs()) {
             if (output.get_element_type() == m_from) {
+                // Handle case with Constants as they can have consumers from other nGraph Function object
                 if (ngraph::op::is_constant(node) && const_to_internal_output.count(node)) {
                     fuse_type_to_constant(node, m_to, const_to_internal_output.at(node));
                     continue;
                 }
+
                 // If node type in map and convert can be fused into node we skip Convert creation
                 if (type_to_fuse.count(node->get_type_info()) &&
                     type_to_fuse.at(node->get_type_info())(node, m_to, output.get_index())) {
                     continue;
                 }
+
                 // Create Convert operation and reconnect consumers
                 auto consumers = output.get_target_inputs();
                 auto convert = std::make_shared<opset3::Convert>(output, m_to);
@@ -120,5 +131,3 @@ bool fuse_type_to_constant(std::shared_ptr<Node> node, element::Type to, const s
     }
     return false;
 }
-
-

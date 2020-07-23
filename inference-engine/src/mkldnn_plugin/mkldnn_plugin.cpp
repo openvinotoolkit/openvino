@@ -7,6 +7,8 @@
 #include "mkldnn_extension_mngr.h"
 #include "mkldnn_weights_cache.hpp"
 #include "mkldnn_itt.h"
+
+#include <net_pass.h>
 #include <cpp_interfaces/base/ie_plugin_base.hpp>
 #include <threading/ie_executor_manager.hpp>
 #include <memory>
@@ -96,6 +98,7 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork) {
     manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::f16, ngraph::element::f32);
 
     manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
+    manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::i64, ngraph::element::i32);
 
     manager.set_callback(transformations_callback);
     manager.run_passes(nGraphFunc);
@@ -137,12 +140,19 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::ICNNNetwork &network, const st
     std::shared_ptr<ICNNNetwork> clonedNetwork = cloneNetwork(network);
     if (clonedNetwork->getFunction()) {
         Transformation(clonedNetwork);
+        NetPass::ConvertPrecision(*clonedNetwork, Precision::BOOL, Precision::U8);
     }
     auto implNetwork = std::dynamic_pointer_cast<details::CNNNetworkImpl>(clonedNetwork);
     if (implNetwork) {
         // valid for CNNNetworkImpl only, while there's no API in ICNNNetwork to change network
         ConstTransformer transformator(implNetwork.get());
         transformator.fullTrim();
+        NetPass::ConvertPrecision(*implNetwork, Precision::I64, Precision::I32);
+        NetPass::ConvertPrecision(*implNetwork, Precision::U64, Precision::I32);
+        NetPass::ConvertPrecision(*implNetwork, Precision::U32, Precision::I32);
+        NetPass::ConvertPrecision(*implNetwork, Precision::FP16, Precision::FP32);
+        NetPass::ConvertPrecision(*implNetwork, Precision::BOOL, Precision::U8);
+        NetPass::ConvertPrecision(*implNetwork, Precision::U16, Precision::I32);
     }
 
     return std::make_shared<MKLDNNExecNetwork>(*clonedNetwork, conf, extensionManager, weightsSharing);
