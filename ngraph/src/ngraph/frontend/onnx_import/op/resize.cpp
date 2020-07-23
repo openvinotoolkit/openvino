@@ -159,7 +159,7 @@ namespace ngraph
                             (sizes_shape.is_static() || data_shape.rank().is_static()),
                             " Data rank or shape of sizes input is required to be static.");
 
-                        size_t axes_size = sizes_shape.is_static() ? sizes_shape.to_shape().at(0)
+                        size_t axes_size = sizes_shape.is_static() ? sizes_shape[0].get_length()
                                                                    : data_shape.rank().get_length();
 
                         return build_resize(
@@ -174,7 +174,7 @@ namespace ngraph
                         (scales_shape.is_static() || data_shape.rank().is_static()),
                         " Data rank or shape of scales input is required to be static.");
 
-                    size_t axes_size = scales_shape.is_static() ? scales_shape.to_shape().at(0)
+                    size_t axes_size = scales_shape.is_static() ? scales_shape[0].get_length()
                                                                 : data_shape.rank().get_length();
 
                     const auto output_shape = calculate_output_shape_based_on_scales(data, scales);
@@ -200,7 +200,7 @@ namespace ngraph
                         (scales_shape.is_static() || data_shape.rank().is_static()),
                         " Data rank or shape of scales input is required to be static.");
 
-                    size_t axes_size = scales_shape.is_static() ? scales_shape.to_shape().at(0)
+                    size_t axes_size = scales_shape.is_static() ? scales_shape[0].get_length()
                                                                 : data_shape.rank().get_length();
 
                     const auto output_shape = calculate_output_shape_based_on_scales(data, scales);
