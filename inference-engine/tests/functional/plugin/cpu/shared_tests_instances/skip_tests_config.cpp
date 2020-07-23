@@ -51,5 +51,7 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*ActivationLayerTest.*Ceiling.*)",
         // TODO: Issue: 32032
         R"(.*ActivationParamLayerTest.*)",
+        // TODO: Issue: 32959
+        R"(.*ActivationLayerTest.*Mish.*)",
     };
 }

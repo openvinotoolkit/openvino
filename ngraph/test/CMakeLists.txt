@@ -74,6 +74,7 @@ set(SRC
     nop_elimination.cpp
     op.cpp
     op_eval/matmul.cpp
+    op_eval/mish.cpp
     op_eval/non_zero.cpp
     op_eval/strided_slice.cpp
     op_is.cpp
@@ -120,8 +121,8 @@ set(SRC
     type_prop/constant.cpp
     type_prop/convert.cpp
     type_prop/convolution.cpp
-    type_prop/convolution_bias.cpp
     type_prop/crop_and_resize.cpp
+    type_prop/ctc_loss.cpp
     type_prop/deformable_psroi_pooling.cpp
     type_prop/depth_to_space.cpp
     type_prop/dequantize.cpp
@@ -138,19 +139,18 @@ set(SRC
     type_prop/gather.cpp
     type_prop/gather_nd.cpp
     type_prop/gather_tree.cpp
-    type_prop/gemm.cpp
     type_prop/get_output_element.cpp
     type_prop/grn.cpp
     type_prop/group_convolution.cpp
     type_prop/group_convolution_backprop_data.cpp
     type_prop/gru_cell.cpp
     type_prop/hard_sigmoid.cpp
-    type_prop/layer_norm.cpp
     type_prop/lrn.cpp
     type_prop/lstm_cell.cpp
     type_prop/lstm_sequence.cpp
     type_prop/matmul.cpp
     type_prop/max_pool.cpp
+    type_prop/mish.cpp
     type_prop/mvn.cpp
     type_prop/non_max_suppression.cpp
     type_prop/non_zero.cpp
@@ -171,7 +171,6 @@ set(SRC
     type_prop/reverse_sequence.cpp
     type_prop/roi_align.cpp
     type_prop/rnn_cell.cpp
-    type_prop/scale_shift.cpp
     type_prop/scatter_elements_update.cpp
     type_prop/scatter_nd_update.cpp
     type_prop/scatter_update.cpp
@@ -309,7 +308,6 @@ set(MULTI_TEST_SRC
     backend/gather.in.cpp
     backend/gelu.in.cpp
     backend/group_convolution.in.cpp
-    backend/layer_norm.in.cpp
     backend/log.in.cpp
     backend/logical_or.in.cpp
     backend/logical_xor.in.cpp
@@ -330,7 +328,6 @@ set(MULTI_TEST_SRC
     backend/one_hot.in.cpp
     backend/pad.in.cpp
     backend/parameter_as_output.in.cpp
-    backend/partial_slice.in.cpp
     backend/power.in.cpp
     backend/product.in.cpp
     backend/quantize_dequantize.in.cpp

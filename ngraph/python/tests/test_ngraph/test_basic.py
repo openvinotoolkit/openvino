@@ -268,9 +268,23 @@ def test_backend_config():
 
 def test_result():
     node = [[11, 10], [1, 8], [3, 4]]
-
-    result = run_op_node([node], ng.ops.result)
+    result = run_op_node([node], ng.result)
     assert np.allclose(result, node)
+
+
+def test_node_friendly_name():
+    dummy_node = ng.parameter(shape=[1], name="dummy_name")
+
+    assert(dummy_node.name == "Parameter_0")
+    assert(dummy_node.friendly_name == "dummy_name")
+
+    dummy_node.set_friendly_name("changed_name")
+
+    assert(dummy_node.get_friendly_name() == "changed_name")
+
+    dummy_node.friendly_name = "new_name"
+
+    assert(dummy_node.get_friendly_name() == "new_name")
 
 
 def test_node_output():

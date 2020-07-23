@@ -198,7 +198,7 @@ public:
     /**
      * @brief Checks if the input data and layer data are legitimate
      */
-    void validateLayer();
+    void parseParams();
 
     /**
      * @brief Parse string with float in accordance with IE rules
@@ -380,11 +380,22 @@ public:
     std::map<std::string, Blob::Ptr> blobs;
 };
 
+IE_SUPPRESS_DEPRECATED_START
+
 /**
  * @brief Alias for CNNLayer object
  */
-IE_SUPPRESS_DEPRECATED_START
 using GenericLayer = class CNNLayer;
+
+/**
+ * @brief A smart pointer to the CNNLayer
+ */
+using CNNLayerPtr = std::shared_ptr<CNNLayer>;
+/**
+ * @brief A smart weak pointer to the CNNLayer
+ */
+using CNNLayerWeakPtr = std::weak_ptr<CNNLayer>;
+
 IE_SUPPRESS_DEPRECATED_END
 
 INFERENCE_ENGINE_API_CPP(CNNLayerWeakPtr&) getCreatorLayer(const DataPtr & data);
