@@ -1,0 +1,18 @@
+{
+    "GITHUB_TOKEN": "<Put token here or set as arg or as env variable>",
+    "GITHUB_ORGANIZATION": "openvinotoolkit",
+    "GITHUB_REPO": "openvino",
+    "IGNORE_LOGINS": [
+        "openvino-ci",
+        "openvino-pushbot",
+        "lab-nerval",
+        "lab-nerval-onnx-ci"
+    ],
+    "EMAILS_FILE_PATH": "dev_emails-test.txt",
+    "PROXIES": {
+        "HTTP_PROXY": null,
+        "HTTPS_PROXY": null,
+        "NO_PROXY": "localhost,127.0.0.1,.intel.com"
+    },
+    "DRY_RUN": false
+}
