@@ -36,6 +36,7 @@
 #include "ngraph/pass/visualize_tree.hpp"
 #include "ngraph/serializer.hpp"
 #include "ngraph/util.hpp"
+#include "op/convolution.hpp"
 #include "util/all_close.hpp"
 #include "util/ndarray.hpp"
 #include "util/random.hpp"
@@ -87,7 +88,7 @@ TEST(reshape_sinking, broadcast_swimming)
     auto reshape_input = make_shared<op::Reshape>(input, to_nchw, shape_nchw);
 
     auto weights = make_shared<op::Parameter>(element::i32, shape_weights);
-    auto conv = make_shared<op::Convolution>(reshape_input, weights);
+    auto conv = make_shared<op::v0::Convolution>(reshape_input, weights);
     auto conv_reshape = make_shared<op::Reshape>(conv, to_nhwc, conv_nhwc);
     auto add = bias_broadcast + conv_reshape;
     auto relu = make_shared<op::Relu>(add);
@@ -120,13 +121,13 @@ TEST(reshape_sinking, concat)
     auto C = op::Constant::create(element::f32, Shape{1}, {2});
     auto R = make_shared<op::Parameter>(element::f32, r_shape);
 
-    auto conv = make_shared<op::Convolution>(A,
-                                             B,
-                                             Strides{1, 1},
-                                             Strides{1, 1},
-                                             CoordinateDiff{0, 0},
-                                             CoordinateDiff{0, 0},
-                                             Strides{1, 1});
+    auto conv = make_shared<op::v0::Convolution>(A,
+                                                 B,
+                                                 Strides{1, 1},
+                                                 Strides{1, 1},
+                                                 CoordinateDiff{0, 0},
+                                                 CoordinateDiff{0, 0},
+                                                 Strides{1, 1});
     auto reshape_conv =
         make_shared<op::Reshape>(conv, AxisVector{0, 2, 3, 1}, Shape{1, 3, 3, 1}); /* nhwc */
     auto broadcast = make_shared<op::Broadcast>(C, reshape_conv->get_shape(), AxisSet{0, 1, 2});
@@ -139,13 +140,13 @@ TEST(reshape_sinking, concat)
     auto C1 = op::Constant::create(element::f32, Shape{1}, {2});
     auto R1 = make_shared<op::Parameter>(element::f32, r_shape);
 
-    auto conv1 = make_shared<op::Convolution>(A1,
-                                              B1,
-                                              Strides{1, 1},
-                                              Strides{1, 1},
-                                              CoordinateDiff{0, 0},
-                                              CoordinateDiff{0, 0},
-                                              Strides{1, 1});
+    auto conv1 = make_shared<op::v0::Convolution>(A1,
+                                                  B1,
+                                                  Strides{1, 1},
+                                                  Strides{1, 1},
+                                                  CoordinateDiff{0, 0},
+                                                  CoordinateDiff{0, 0},
+                                                  Strides{1, 1});
     auto reshape_conv1 = make_shared<op::Reshape>(conv1, AxisVector{0, 2, 3, 1}, Shape{1, 3, 3, 1});
     auto broadcast1 = make_shared<op::Broadcast>(C1, reshape_conv->get_shape(), AxisSet{0, 1, 2});
     auto add1 = broadcast1 + reshape_conv1;
@@ -156,13 +157,13 @@ TEST(reshape_sinking, concat)
         make_shared<op::Reshape>(relu, AxisVector{0, 3, 1, 2}, Shape{1, 2, 3, 3}); /* nchw */
     auto B2_ = op::Constant::create(element::f32, Shape{1, 1, 2, 1}, {2});
     auto B2 = make_shared<op::Reshape>(B2_, AxisVector{3, 2, 0, 1}, Shape{1, 2, 1, 1});
-    auto conv2 = make_shared<op::Convolution>(reshape_relu,
-                                              B2,
-                                              Strides{1, 1},
-                                              Strides{1, 1},
-                                              CoordinateDiff{0, 0},
-                                              CoordinateDiff{0, 0},
-                                              Strides{1, 1});
+    auto conv2 = make_shared<op::v0::Convolution>(reshape_relu,
+                                                  B2,
+                                                  Strides{1, 1},
+                                                  Strides{1, 1},
+                                                  CoordinateDiff{0, 0},
+                                                  CoordinateDiff{0, 0},
+                                                  Strides{1, 1});
     auto reshape_conv2 =
         make_shared<op::Reshape>(conv2, AxisVector{0, 2, 3, 1}, Shape{1, 3, 3, 1}); /* nhwc */
     auto f = make_shared<Function>(reshape_conv2, ParameterVector{A_, A1_});

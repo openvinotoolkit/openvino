@@ -192,7 +192,6 @@ set(SRC
     type_prop/unary_elementwise.cpp
     type_prop/unsqueeze.cpp
     type_prop/variadic_split.cpp
-    type_prop_benchmark.cpp
     type_prop_layers.cpp
     util.cpp
     zero_dim_tensor_elimination.cpp
@@ -307,7 +306,6 @@ set(MULTI_TEST_SRC
     backend/fused_op.in.cpp
     backend/gather.in.cpp
     backend/gelu.in.cpp
-    backend/group_convolution.in.cpp
     backend/log.in.cpp
     backend/logical_or.in.cpp
     backend/logical_xor.in.cpp

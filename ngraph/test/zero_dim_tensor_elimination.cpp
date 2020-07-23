@@ -101,25 +101,6 @@ TEST(zero_dim_tensor_elimination, zero_max)
     EXPECT_EQ(count_ops_of_type<op::Max>(f), 0);
 }
 
-TEST(zero_dim_tensor_elimination, zero_const_conv)
-{
-    Shape zero_shape{0};
-    auto A = std::make_shared<op::Parameter>(element::f32, Shape{1, 1, 0});
-    auto weights = std::make_shared<op::Parameter>(element::f32, Shape{1, 1, 4});
-    auto convolution = std::make_shared<op::Convolution>(
-        A, weights, Strides{1}, Strides{1}, CoordinateDiff{2}, CoordinateDiff{2});
-    auto abs_node = std::make_shared<op::Abs>(convolution);
-    auto constant = std::make_shared<op::Constant>(element::i32, zero_shape, std::vector<string>{});
-    auto f =
-        std::make_shared<Function>(NodeVector{abs_node, constant}, ParameterVector{A, weights});
-    pass::Manager pass_manager;
-
-    pass_manager.register_pass<ngraph::pass::ZeroDimTensorElimination>();
-    EXPECT_EQ(count_ops_of_type<op::Convolution>(f), 1);
-    pass_manager.run_passes(f);
-    EXPECT_EQ(count_ops_of_type<op::Convolution>(f), 0);
-}
-
 TEST(zero_dim_tensor_elimination, zero_const_pad)
 {
     Shape zero_shape{0};

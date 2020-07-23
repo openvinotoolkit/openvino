@@ -35,21 +35,13 @@ public:
         if (fusions.is_set(FusionType::REGULAR_FUSIONS))
         {
             construct_relu();
-            construct_folded_batch_norm();
-            construct_conv_affine_folding();
             construct_sigmoid();
             construct_reshape_broadcast();
             construct_reshape_softmax_reshape();
-            construct_zero_padded_reshaped_conv();
-            construct_zero_padded_conv();
         }
     }
     void construct_relu();
-    void construct_folded_batch_norm();
-    void construct_conv_affine_folding();
     void construct_sigmoid();
     void construct_reshape_broadcast();
     void construct_reshape_softmax_reshape();
-    void construct_zero_padded_reshaped_conv();
-    void construct_zero_padded_conv();
 };

@@ -462,8 +462,6 @@ set (SRC
     pass/assign_layout.hpp
     pass/implicit_broadcast_elimination.hpp
     pass/implicit_broadcast_elimination.cpp
-    pass/batch_fusion.hpp
-    pass/batch_fusion.cpp
     pass/common_function_collection.cpp
     pass/common_function_collection.hpp
     pass/constant_folding_arithmetic_reduction.cpp

@@ -33,6 +33,8 @@ set (SRC
     dynamic/dynamic_backend.hpp
     op/avg_pool.cpp
     op/avg_pool.hpp
+    op/convolution.cpp
+    op/convolution.hpp
     )
 
 add_library(ngraph_backend SHARED ${SRC})

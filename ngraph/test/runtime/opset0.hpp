@@ -18,6 +18,7 @@
 
 #include "ngraph/ops.hpp"
 #include "op/avg_pool.hpp"
+#include "op/convolution.hpp"
 
 namespace ngraph
 {

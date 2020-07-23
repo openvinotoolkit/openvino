@@ -19,6 +19,7 @@
 #include "ngraph/ngraph.hpp"
 #include "ngraph/op/util/op_types.hpp"
 #include "ngraph/validation_util.hpp"
+#include "op/convolution.hpp"
 #include "util/test_tools.hpp"
 
 using namespace ngraph;
@@ -171,7 +172,7 @@ namespace
 
     void op_is_Convolution()
     {
-        op::Convolution node;
+        op::v0::Convolution node;
         EXPECT_FALSE(op::is_unary_elementwise_arithmetic(&node));
         EXPECT_FALSE(op::is_binary_elementwise_arithmetic(&node));
         EXPECT_FALSE(op::is_binary_elementwise_comparison(&node));
@@ -180,7 +181,7 @@ namespace
 
     void op_is_ConvolutionBackpropData()
     {
-        op::ConvolutionBackpropData node;
+        op::v0::ConvolutionBackpropData node;
         EXPECT_FALSE(op::is_unary_elementwise_arithmetic(&node));
         EXPECT_FALSE(op::is_binary_elementwise_arithmetic(&node));
         EXPECT_FALSE(op::is_binary_elementwise_comparison(&node));
@@ -427,24 +428,6 @@ namespace
         EXPECT_FALSE(op::is_unary_elementwise_arithmetic(&node));
         EXPECT_FALSE(op::is_binary_elementwise_arithmetic(&node));
         EXPECT_TRUE(op::is_binary_elementwise_comparison(&node));
-        EXPECT_FALSE(op::is_binary_elementwise_logical(&node));
-    }
-
-    void op_is_GroupConvolution()
-    {
-        op::GroupConvolution node;
-        EXPECT_FALSE(op::is_unary_elementwise_arithmetic(&node));
-        EXPECT_FALSE(op::is_binary_elementwise_arithmetic(&node));
-        EXPECT_FALSE(op::is_binary_elementwise_comparison(&node));
-        EXPECT_FALSE(op::is_binary_elementwise_logical(&node));
-    }
-
-    void op_is_GroupConvolutionBackpropData()
-    {
-        op::GroupConvolutionBackpropData node;
-        EXPECT_FALSE(op::is_unary_elementwise_arithmetic(&node));
-        EXPECT_FALSE(op::is_binary_elementwise_arithmetic(&node));
-        EXPECT_FALSE(op::is_binary_elementwise_comparison(&node));
         EXPECT_FALSE(op::is_binary_elementwise_logical(&node));
     }
 

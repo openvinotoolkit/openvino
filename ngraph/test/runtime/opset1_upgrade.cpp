@@ -27,6 +27,7 @@
 #include "ngraph/ops.hpp"
 #include "ngraph/provenance.hpp"
 #include "op/avg_pool.hpp"
+#include "op/convolution.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -59,7 +60,7 @@ namespace
     }
 
     shared_ptr<Node> op_cast(shared_ptr<op::BroadcastLike> node) { return nullptr; }
-    shared_ptr<Node> op_cast(shared_ptr<op::Convolution> node)
+    shared_ptr<Node> op_cast(shared_ptr<op::v0::Convolution> node)
     {
         auto strides = node->get_window_movement_strides();
         auto dilations = node->get_window_dilation_strides();
@@ -88,7 +89,7 @@ namespace
         return replacement_node;
     }
 
-    shared_ptr<Node> op_cast(shared_ptr<op::ConvolutionBackpropData> node)
+    shared_ptr<Node> op_cast(shared_ptr<op::v0::ConvolutionBackpropData> node)
     {
         auto data_batch_shape = node->get_data_batch_shape();
         auto strides = node->get_window_movement_strides_forward();
@@ -164,103 +165,6 @@ namespace
     shared_ptr<Node> op_cast(shared_ptr<op::GreaterEq> node)
     {
         return op_cast_binary_elementwise_node<op::v0::GreaterEq, op::v1::GreaterEqual>(node);
-    }
-
-    shared_ptr<Node> op_cast(shared_ptr<op::v0::GroupConvolution> node)
-    {
-        auto strides = node->get_window_movement_strides();
-        auto dilations = node->get_window_dilation_strides();
-        auto pads_begin = node->get_padding_below();
-        auto pads_end = node->get_padding_above();
-        auto data_dilation_strides = node->get_data_dilation_strides();
-        auto auto_pad = node->get_pad_type();
-
-        bool is_dds_valid = all_of(data_dilation_strides.begin(),
-                                   data_dilation_strides.end(),
-                                   [](size_t value) { return value == 1; });
-
-        NGRAPH_CHECK(is_dds_valid,
-                     "Unable to convert GroupConvolution:0 to GroupConvolution:1"
-                     "with data dilation strides other than `1`. Node: ",
-                     *node);
-
-        shared_ptr<Node> replacement_node;
-        if (node->has_groups_in_filters())
-        {
-            replacement_node = make_shared<op::v1::GroupConvolution>(node->input_value(0),
-                                                                     node->input_value(1),
-                                                                     strides,
-                                                                     pads_begin,
-                                                                     pads_end,
-                                                                     dilations,
-                                                                     auto_pad);
-        }
-        else
-        {
-            NGRAPH_CHECK(node->get_input_partial_shape(1).is_static(),
-                         "Unable to convert GroupConvolution:0 to GroupConvolution:1"
-                         "with dynamic filters shape. Node: ",
-                         *node);
-
-            auto filters_shape = node->get_input_shape(1);
-            auto groups = node->get_groups();
-            filters_shape[0] /= groups;
-            filters_shape.insert(filters_shape.begin(), groups);
-
-            auto reshaped_filters = builder::reshape(node->input_value(1), filters_shape);
-
-            replacement_node = make_shared<op::v1::GroupConvolution>(node->input_value(0),
-                                                                     reshaped_filters,
-                                                                     strides,
-                                                                     pads_begin,
-                                                                     pads_end,
-                                                                     dilations,
-                                                                     auto_pad);
-        }
-        replace_node(node, replacement_node);
-        return replacement_node;
-    }
-
-    shared_ptr<Node> op_cast(shared_ptr<op::v0::GroupConvolutionBackpropData> node)
-    {
-        const auto strides = node->get_window_movement_strides();
-        const auto dilations = node->get_window_dilation_strides();
-        const auto pads_begin = node->get_padding_below();
-        const auto pads_end = node->get_padding_above();
-
-        const auto data_batch_pshape = node->get_input_partial_shape(0);
-        const auto filters_pshape = node->get_input_partial_shape(1);
-
-        NGRAPH_CHECK(data_batch_pshape.is_static(),
-                     "Unable to convert GroupConvolutionBackpropData:0 to "
-                     "GroupConvolutionBackpropData:1 with dynamic data_batch shape. Node: ",
-                     *node);
-        NGRAPH_CHECK(filters_pshape.is_static(),
-                     "Unable to convert GroupConvolutionBackpropData:0 to "
-                     "GroupConvolutionBackpropData:1 with dynamic filters shape. Node: ",
-                     *node);
-
-        auto data_batch_shape = data_batch_pshape.to_shape();
-        // Remove N, C from output shape to preserve only spatial dimentions.
-        data_batch_shape.erase(std::begin(data_batch_shape),
-                               std::next(std::begin(data_batch_shape), 2));
-        auto filters_shape = filters_pshape.to_shape();
-        auto groups = node->get_groups();
-
-        filters_shape[0] /= groups;
-        filters_shape.insert(filters_shape.begin(), groups);
-        auto reshaped_filters = builder::reshape(node->input_value(1), filters_shape);
-
-        auto replacement_node = make_shared<op::v1::GroupConvolutionBackpropData>(
-            node->input_value(2),
-            reshaped_filters,
-            op::Constant::create(element::i64, Shape{data_batch_shape.size()}, data_batch_shape),
-            strides,
-            pads_begin,
-            pads_end,
-            dilations);
-        replace_node(node, replacement_node);
-        return replacement_node;
     }
 
     shared_ptr<Node> op_cast(shared_ptr<op::Less> node)
