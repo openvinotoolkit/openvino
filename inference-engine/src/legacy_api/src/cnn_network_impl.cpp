@@ -406,6 +406,7 @@ StatusCode CNNNetworkImpl::serialize(const std::string& xmlPath, const std::stri
 
         if (execGraphInfoSerialization) {
             Serialization::Serialize(xmlPath, (InferenceEngine::ICNNNetwork&)*this);
+            return OK;
         }
     } catch (const InferenceEngineException& e) {
         return DescriptionBuffer(GENERAL_ERROR, resp) << e.what();
