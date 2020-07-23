@@ -14,70 +14,24 @@ namespace ngraph {
 namespace builder {
 namespace subgraph {
 
-//class MatMulFunctionConvert {
-//public:
-//    MatMulFunctionConvert() : precision(ngraph::element::undefined) {}
-//    MatMulFunctionConvert(ngraph::element::Type precision) : precision(precision) {}
-//    bool empty() const { return precision == ngraph::element::undefined; }
-//    ngraph::element::Type precision;
-//};
-//
-//class MatMulFunctionSubConst {
-//public:
-//    MatMulFunctionSubConst() {}
-//    MatMulFunctionSubConst(ngraph::Shape shape, std::vector<float> values) : shape(shape), values(values) {}
-//    bool empty() const { return values.empty(); }
-//    ngraph::Shape shape;
-//    std::vector<float> values;
-//};
-//
-//class MatMulFunctionMultiplyConst {
-//public:
-//    MatMulFunctionMultiplyConst() {}
-//    MatMulFunctionMultiplyConst(ngraph::Shape shape, std::vector<float> values) : shape(shape), values(values) {}
-//    bool empty() const { return shape.empty() && values.empty(); }
-//    ngraph::Shape shape;
-//    std::vector<float> values;
-//};
-
-//class MatMulFunctionBranch {
-//public:
-//    // MatMulFunctionBranch() {}
-//    ngraph::Shape shape;
-//    MatMulFunctionConvert convert1;
-//    MatMulFunctionConvert convert2;
-//    MatMulFunctionSubConst subConst;
-//    MatMulFunctionMultiplyConst multiplyConst;
-//};
-//
-//typedef std::pair<ngraph::builder::subgraph::MatMulFunctionBranch, ngraph::builder::subgraph::MatMulFunctionBranch> MatMulFunctionBranches;
-
 class MatMulFunction {
 public:
-    // TODO: move to base class
-    static std::vector<std::shared_ptr<ngraph::op::Parameter>> getInputs(const std::vector<std::shared_ptr<ngraph::Node>>& nodes);
-
-    //static std::shared_ptr<ngraph::Function> getOriginal(
-    //    const ngraph::element::Type ngPrecision,
-    //    const ngraph::Shape& inputShape,
-    //    const ngraph::builder::subgraph::MatMulFunctionBranches& branches);
-
     static std::shared_ptr<ngraph::Function> getOriginal(
-        const ngraph::element::Type ngPrecision,
+        const ngraph::element::Type precision,
         const ngraph::Shape& inputShape1,
         const FakeQuantizeOnData& fqOnData1,
         const ngraph::Shape& inputShape2,
         const FakeQuantizeOnData& fqOnData2);
 
     static std::shared_ptr<ngraph::Function> getOriginal(
-        const ngraph::element::Type ngPrecision,
+        const ngraph::element::Type precision,
         const ngraph::Shape& inputShape1,
         const DequantizationOperations& dequantization1,
         const ngraph::Shape& inputShape2,
         const DequantizationOperations& dequantization2);
 
     static std::shared_ptr<ngraph::Function> getOriginal(
-        const ngraph::element::Type ngPrecision,
+        const ngraph::element::Type precision,
         const ngraph::Shape& inputShape,
         const ngraph::element::Type precisionBeforeDequantization,
         const DequantizationOperations& dequantization,
@@ -86,7 +40,7 @@ public:
         const FakeQuantizeOnWeights& fqOnWeights);
 
     static std::shared_ptr<ngraph::Function> getReference(
-        const ngraph::element::Type ngPrecision,
+        const ngraph::element::Type precision,
         const ngraph::Shape& inputShape1,
         const DequantizationOperations& dequantization1,
         const ngraph::Shape& inputShape2,
@@ -102,6 +56,14 @@ public:
         const ngraph::Shape& weightsConstShape,
         const std::vector<float>& weightsConstValues,
         const DequantizationOperations& resultDequantization);
+
+    static std::shared_ptr<ngraph::Function> getOriginal(
+        const ngraph::element::Type precision,
+        const ngraph::Shape& inputShape,
+        const FakeQuantizeOnData& fqOnData,
+        const ngraph::Shape& weightsConstShape,
+        const std::vector<float>& weightsConstValues,
+        const FakeQuantizeOnWeights& fqOnWeights);
 };
 
 }  // namespace subgraph

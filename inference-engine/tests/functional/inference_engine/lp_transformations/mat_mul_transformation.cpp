@@ -54,7 +54,12 @@ inline std::ostream& operator << (std::ostream& out, const MatMullTransformation
 }
 
 inline std::ostream& operator << (std::ostream& out, const MatMullTransformationTestValues::Expected& expected) {
-    return out << "_" << expected.dequantization1 << "_" << expected.dequantization2 << "_" << expected.result;
+    return out << "_" <<
+        expected.precisionBeforeDequantization << "_" <<
+        expected.dequantization1 << "_" <<
+        expected.dequantization2 << "_" <<
+        expected.precisionBeforeOperation << "_" <<
+        expected.result;
 }
 
 inline std::ostream& operator << (std::ostream& out, const MatMullTransformationTestValues& values) {
@@ -151,6 +156,21 @@ std::vector<MatMullTransformationTestValues> testValues = {
             { ngraph::element::undefined, {}, {} },
             { ngraph::element::undefined, {}, {} },
             ngraph::element::u8,
+            { ngraph::element::undefined, {}, { 0.02f * 0.03f } },
+        }
+    },
+    {
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::i8,
+            { ngraph::element::undefined, {}, { 0.02f } },
+            { ngraph::element::undefined, {}, { 0.03f } },
+        },
+        {
+            ngraph::element::i8,
+            { ngraph::element::undefined, {}, {} },
+            { ngraph::element::undefined, {}, {} },
+            ngraph::element::i8,
             { ngraph::element::undefined, {}, { 0.02f * 0.03f } },
         }
     }

@@ -11,7 +11,7 @@
 * @def THROW_TRANSFORMATION_EXCEPTION_LPT
 * @brief A macro used to throw the exception with a notable description for low precision transformations
 */
-#define THROW_IE_LPT_EXCEPTION(layer) throw ::ngraph::pass::low_precision::InferenceEngineLptException(__FILE__, __LINE__, layer)
+#define THROW_IE_LPT_EXCEPTION(node) throw ::ngraph::pass::low_precision::InferenceEngineLptException(__FILE__, __LINE__, node)
 
 namespace ngraph {
 namespace pass {
@@ -38,10 +38,10 @@ public:
 
 class TRANSFORMATIONS_API InferenceEngineLptException : public InferenceEngineException {
 public:
-    InferenceEngineLptException(const std::string& filename, const int line, const Node& layer) {
+    InferenceEngineLptException(const std::string& filename, const size_t line, const Node& node) {
         *this
             << filename << ":" << line << " Exception during low precision transformation for "
-            << layer << " node with name '" << layer.get_friendly_name() << "'. ";
+            << node << " node with type '" << node.get_type_name() << "', name '" << node.get_friendly_name() << "'. ";
     }
 };
 

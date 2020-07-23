@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include <algorithm>
 #include <memory>
+#include <vector>
 #include <ngraph/ngraph.hpp>
 #include "transformations/low_precision/layer_transformation.hpp"
 

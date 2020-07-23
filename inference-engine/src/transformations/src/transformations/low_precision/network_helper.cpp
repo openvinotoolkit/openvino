@@ -297,7 +297,7 @@ std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> NetworkHelper::decompos
 
     // Build a substitution sub-graph:
 
-    auto newFQ = fold_fake_quantize<opset1::FakeQuantize>(
+    std::shared_ptr<ngraph::Node> newFQ = fold_fake_quantize<opset1::FakeQuantize>(
             fq->input_value(0),
             fq->input_value(1),
             fq->input_value(2),
@@ -320,12 +320,21 @@ std::tuple<std::shared_ptr<Node>, std::shared_ptr<Node>> NetworkHelper::decompos
 
     std::shared_ptr<ngraph::Node> convert2;
     if (updatePrecision) {
-        std::shared_ptr<Node> convert = fold<opset1::Convert>(newFQ, precision);
-        // convert->set_friendly_name("convert1");
+        std::shared_ptr<Node> convert;
+        std::shared_ptr<opset1::Constant> newFqConstant = as_type_ptr<opset1::Constant>(newFQ);
+
+        if (is_type<opset1::Constant>(newFQ)) {
+            convert = fold<opset1::Convert>(newFQ, precision);
+        } else if (is_type<opset1::FakeQuantize>(newFQ)) {
+            newFQ = setOutDataPrecision(as_type_ptr<opset1::FakeQuantize>(newFQ), precision);
+            auto type = newFQ->get_output_element_type(0);
+            convert = newFQ;
+        } else {
+            THROW_IE_LPT_EXCEPTION(*newFQ) << "unexpected operation type";
+        }
 
         auto pre = fq->get_output_element_type(0);
         convert2 = make_shared<opset1::Convert>(convert, fq->get_output_element_type(0));
-        // convert2->set_friendly_name("convert2");
     }
 
     std::shared_ptr<ngraph::Node> sub = shift == nullptr ? nullptr :

@@ -70,6 +70,7 @@ std::shared_ptr<Node> makeFakeQuantize(
         fqOnData.outputHighValues);
 }
 
+// TODO: refactor
 std::shared_ptr<Node> makeFakeQuantizeTypeRelaxed(
     const std::shared_ptr<ngraph::Node>& input,
     const ngraph::element::Type precision,

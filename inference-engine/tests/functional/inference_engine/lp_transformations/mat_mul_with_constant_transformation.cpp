@@ -59,7 +59,11 @@ inline std::ostream& operator << (std::ostream& out, const MatMullTransformation
 }
 
 inline std::ostream& operator << (std::ostream& out, const MatMullTransformationTestValues::Expected& expected) {
-    return out << "_" << expected.dequantization << "_" << expected.resultDequantization;
+    return out << "_" <<
+        expected.dequantization << "_" <<
+        expected.precisionBeforeOperation1 << "_" <<
+        expected.precisionBeforeOperation2 << "_" <<
+        expected.resultDequantization;
 }
 
 inline std::ostream& operator << (std::ostream& out, const MatMullTransformationTestValues& values) {
@@ -153,26 +157,26 @@ const std::vector<bool> updatePrecisions = { true, false };
 
 std::vector<MatMullTransformationTestValues> testValues = {
     // U8 & I8
-    //{
-    //    LayerTransformation::createParamsU8I8(),
-    //    {
-    //        ngraph::element::u8,
-    //        { ngraph::element::undefined, {}, { 0.02f } },
-    //        { 2048, 1000 },
-    //        std::vector<float>(2048 * 1000, 1.f),
-    //        { 255, { 1, 1 },  {0.f}, {254.f}, {-12.7f}, {12.7} },
-    //    },
-    //    {
-    //        ngraph::element::u8,
-    //        { ngraph::element::undefined, {}, {} },
-    //        ngraph::element::i8,
-    //        {2048, 1000},
-    //        std::vector<float>(2048 * 1000, 1.f),
-    //        ngraph::element::u8,
-    //        ngraph::element::i8,
-    //        { ngraph::element::undefined, {}, { 0.02f * 0.1f } },
-    //    }
-    //},
+    {
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            { ngraph::element::undefined, {}, { 0.02f } },
+            { 2048, 1000 },
+            std::vector<float>(2048 * 1000, 1.f),
+            { 255, { 1, 1 },  {0.f}, {254.f}, {-12.7f}, {12.7} },
+        },
+        {
+            ngraph::element::u8,
+            { ngraph::element::undefined, {}, {} },
+            ngraph::element::i8,
+            {2048, 1000},
+            std::vector<float>(2048 * 1000, -126),
+            ngraph::element::u8,
+            ngraph::element::i8,
+            { ngraph::element::undefined, {}, { 0.02f * 0.1f } },
+        }
+    },
     // I8 & I8
     {
         LayerTransformation::createParamsU8I8(),

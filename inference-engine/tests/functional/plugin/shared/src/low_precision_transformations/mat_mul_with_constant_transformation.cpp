@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "low_precision_transformations/mat_mul_transformation.hpp"
+#include "low_precision_transformations/mat_mul_with_constant_transformation.hpp"
 
 #include <memory>
 #include <tuple>
@@ -19,27 +19,24 @@
 
 namespace LayerTestsDefinitions {
 
-std::string MatMulTransformation::getTestCaseName(testing::TestParamInfo<MatMulTransformationParams> obj) {
-    InferenceEngine::Precision netPrecision;
-    InferenceEngine::SizeVector inputShapes;
+std::string MatMulWithConstantTransformation::getTestCaseName(testing::TestParamInfo<MatMulWithConstantTransformationParams> obj) {
+    ngraph::element::Type precision;
     std::string targetDevice;
-    InferenceEngine::details::LayerTransformation::Params params;
     LayerTestsUtils::LayerTransformation::LptVersion version;
-    MatMulTransformationTestValues testValues;
-    std::tie(netPrecision, inputShapes, targetDevice, params, version, testValues) = obj.param;
+    MatMulWithConstantTransformationTestValues testValues;
+    std::tie(precision, targetDevice, version, testValues) = obj.param;
 
     std::ostringstream result;
     result << version << "_" <<
-        netPrecision.name() << "_" <<
+        precision << "_" <<
         targetDevice << "_" <<
-        toString(params) << "_" <<
-        testValues.fqOnData1 << "_" <<
-        testValues.fqOnData2;
+        testValues.fqOnData << "_" <<
+        testValues.fqOnWeights;
 
     return result.str();
 }
 
-InferenceEngine::Blob::Ptr MatMulTransformation::GenerateInput(const InferenceEngine::InputInfo &info) const {
+InferenceEngine::Blob::Ptr MatMulWithConstantTransformation::GenerateInput(const InferenceEngine::InputInfo &info) const {
     if ((info.name() != "input1") && (info.name() != "input2")) {
         THROW_IE_EXCEPTION << "unexpected layer name " << info.name();
     }
@@ -59,23 +56,21 @@ InferenceEngine::Blob::Ptr MatMulTransformation::GenerateInput(const InferenceEn
     return FuncTestUtils::createAndFillBlobConsistently(info.getTensorDesc(), high - low, low, 1ul);
 }
 
-void MatMulTransformation::SetUp() {
-    InferenceEngine::SizeVector inputShape;
-    InferenceEngine::Precision netPrecision;
-    InferenceEngine::details::LayerTransformation::Params params;
+void MatMulWithConstantTransformation::SetUp() {
+    ngraph::element::Type precision;
     LayerTestsUtils::LayerTransformation::LptVersion version;
-    MatMulTransformationTestValues testValues;
-    std::tie(netPrecision, inputShape, targetDevice, params, version, testValues) = this->GetParam();
+    MatMulWithConstantTransformationTestValues testValues;
+    std::tie(precision, targetDevice, version, testValues) = this->GetParam();
 
     ConfigurePlugin(version);
 
-    const auto ngPrecision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     function = ngraph::builder::subgraph::MatMulFunction::getOriginal(
-        ngPrecision,
-        testValues.inputShape1,
-        testValues.fqOnData1,
-        testValues.inputShape2,
-        testValues.fqOnData2);
+        precision,
+        testValues.inputShape,
+        testValues.fqOnData,
+        testValues.weightsConstShape,
+        testValues.weightsConstValues,
+        testValues.fqOnWeights);
 
     ngraph::pass::InitNodeInfo().run_on_function(function);
 
@@ -84,13 +79,12 @@ void MatMulTransformation::SetUp() {
     }
 }
 
-void MatMulTransformation::validate() {
-    InferenceEngine::SizeVector inputShape;
-    InferenceEngine::Precision netPrecision;
-    InferenceEngine::details::LayerTransformation::Params params;
+void MatMulWithConstantTransformation::validate() {
+    ngraph::element::Type_t precision;
+    std::string targetDevice;
     LayerTestsUtils::LayerTransformation::LptVersion version;
-    MatMulTransformationTestValues testValues;
-    std::tie(netPrecision, inputShape, targetDevice, params, version, testValues) = this->GetParam();
+    MatMulWithConstantTransformationTestValues testValues;
+    std::tie(precision, targetDevice, version, testValues) = this->GetParam();
 
     {
         InferenceEngine::CNNNetwork net(function);
@@ -100,7 +94,8 @@ void MatMulTransformation::validate() {
         }
     }
 
-    const InferenceEngine::CNNNetwork network = transform(params);
+    const auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
+    const InferenceEngine::CNNNetwork network = transform(toCNNNetwork(params));
 
     IE_SUPPRESS_DEPRECATED_START
 
@@ -120,23 +115,33 @@ void MatMulTransformation::validate() {
     EXPECT_TRUE(layer != nullptr);
 
     const std::vector<std::shared_ptr<ngraph::op::Parameter>> parameters = function->get_parameters();
-    ASSERT_EQ(2ul, parameters.size());
-    EXPECT_EQ("Gemm", layer->type);
+    EXPECT_EQ(1ul, parameters.size());
+    EXPECT_EQ("FullyConnected", layer->type);
 
     if (params.updatePrecisions) {
         const std::vector<InferenceEngine::CNNLayerPtr> parents = InferenceEngine::details::CNNNetworkHelper::getParents(*layer);
-        EXPECT_EQ(2, parents.size());
+        EXPECT_EQ(3, parents.size());
 
-        EXPECT_TRUE(
-            (params.precisionsOnActivations[0] == parents[0]->outData[0]->getTensorDesc().getPrecision()) ||
-            (params.precisionsOnActivations[1] == parents[0]->outData[0]->getTensorDesc().getPrecision()));
-        EXPECT_EQ(params.precisionsOnWeights[0], parents[1]->outData[0]->getTensorDesc().getPrecision());
+        InferenceEngine::CNNLayerPtr fakeQuantizeOnActivations;
+        if (parents[0]->type == "FakeQuantize") {
+            fakeQuantizeOnActivations = parents[0];
+        } else {
+            EXPECT_EQ("Eltwise", parents[0]->type) << "unexpected layer type " << parents[0]->type << " " << parents[0]->name;
+            const InferenceEngine::CNNLayerPtr parent = InferenceEngine::details::CNNNetworkHelper::getParent(*parents[0]);
+            EXPECT_EQ("FakeQuantize", parent->type) << "unexpected layer type " << parents[0]->type << " " << parents[0]->name;
+            fakeQuantizeOnActivations = parent;
+        }
+        EXPECT_EQ(toCNNNetwork(params).precisionsOnActivations[0], fakeQuantizeOnActivations->outData[0]->getTensorDesc().getPrecision());
+        EXPECT_EQ(toCNNNetwork(params).precisionsOnWeights[0], parents[1]->outData[0]->getTensorDesc().getPrecision());
+        if (parents.size() > 2ul) {
+            EXPECT_EQ(InferenceEngine::Precision::FP32, parents[2]->outData[0]->getTensorDesc().getPrecision());
+        }
     }
 
     IE_SUPPRESS_DEPRECATED_END
 }
 
-TEST_P(MatMulTransformation, CompareWithRefImpl) {
+TEST_P(MatMulWithConstantTransformation, CompareWithRefImpl) {
     Run();
 };
 

@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include <algorithm>
 #include <memory>
+#include <vector>
 #include <ngraph/ngraph.hpp>
 #include "fake_quantize_on_data.hpp"
 

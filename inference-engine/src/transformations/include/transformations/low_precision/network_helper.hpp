@@ -44,7 +44,7 @@ public:
     static bool onWeights(std::shared_ptr<Node> layer);
 
     template <typename OperationType>
-    static void setOutDataPrecision(std::shared_ptr<OperationType>, const element::Type& precision);
+    static std::shared_ptr<Node> setOutDataPrecision(std::shared_ptr<OperationType>, const element::Type& precision);
 
     static size_t getOutputChannelsCount(std::shared_ptr<const Node> layer, bool isOnWeights = false);
 
@@ -149,11 +149,12 @@ private:
 };
 
 template <typename OperationType>
-void NetworkHelper::setOutDataPrecision(std::shared_ptr<OperationType> layer, const element::Type& precision) {
+std::shared_ptr<Node> NetworkHelper::setOutDataPrecision(std::shared_ptr<OperationType> layer, const element::Type& precision) {
     // check if it already exteded operation node
     if (auto relaxed_layer = std::dynamic_pointer_cast<ngraph::op::TypeRelaxedBase>(layer)) {
         relaxed_layer->set_overriden_output_type(precision);
         std::dynamic_pointer_cast<ngraph::Node>(layer)->validate_and_infer_types();
+        return layer;
     } else {
         // TODO: Make such replacements in advance for all supported polymorphic layer types
         // extend a node with new semantics: overriden output data_type
@@ -161,6 +162,7 @@ void NetworkHelper::setOutDataPrecision(std::shared_ptr<OperationType> layer, co
         auto replacement = std::make_shared<ngraph::op::TypeRelaxed<OperationType>>(*layer, precision);
         copy_runtime_info(layer, replacement);
         replace_node(layer, replacement);
+        return replacement;
     }
 }
 

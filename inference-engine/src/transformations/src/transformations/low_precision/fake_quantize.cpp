@@ -18,6 +18,8 @@
 #include "transformations/low_precision/common/ie_lpt_exception.hpp"
 #include "transformations/low_precision/network_helper.hpp"
 
+// #include "ngraph/pass/visualize_tree.hpp"
+
 namespace ngraph {
 namespace pass {
 namespace low_precision {
@@ -64,6 +66,8 @@ void FakeQuantizeTransformation::transform(TransformationContext& context, ngrap
         dataPrecision.hasZeroPoint,
         updatePrecisions);
 
+    // VisualizeTree("C:\\Projects\\temp\\test.tmp").run_on_module(std::vector<std::shared_ptr<ngraph::Function>>{ context.network });
+
 #ifdef LPT_PRINT_DEQUANTIZATION_INFO
     {
         const std::shared_ptr<opset1::Multiply> multiply = as_type_ptr<opset1::Multiply>(std::get<1>(QDQ));
@@ -83,17 +87,17 @@ void FakeQuantizeTransformation::transform(TransformationContext& context, ngrap
     }
 #endif
 
-    std::vector<std::shared_ptr<ngraph::Function>> transformedModule{ context.network };
+    // std::vector<std::shared_ptr<ngraph::Function>> transformedModule{ context.network };
 
-    std::shared_ptr<opset1::FakeQuantize> quantize = as_type_ptr<opset1::FakeQuantize>(std::get<0>(QDQ));
-    if (quantize != nullptr) {
-        auto quantizeConvert = as_type_ptr<opset1::Convert>(quantize->get_output_target_inputs(0).begin()->get_node()->shared_from_this());
-        if (quantizeConvert != nullptr) {
-            // Remove the first Convert and built convert directly to FQ by modifying output type
-            NetworkHelper::setOutDataPrecision(quantize, quantizeConvert->get_output_element_type(0));
-            NetworkHelper::removeLayer(quantizeConvert);
-        }
-    }
+    //std::shared_ptr<opset1::FakeQuantize> quantize = as_type_ptr<opset1::FakeQuantize>(std::get<0>(QDQ));
+    //if (quantize != nullptr) {
+    //    auto quantizeConvert = as_type_ptr<opset1::Convert>(quantize->get_output_target_inputs(0).begin()->get_node()->shared_from_this());
+    //    if (quantizeConvert != nullptr) {
+    //        // Remove the first Convert and built convert directly to FQ by modifying output type
+    //        NetworkHelper::setOutDataPrecision(quantize, quantizeConvert->get_output_element_type(0));
+    //        NetworkHelper::removeLayer(quantizeConvert);
+    //    }
+    //}
 
     std::shared_ptr<ngraph::Node> dequantize = as_type_ptr<ngraph::Node>(std::get<1>(QDQ));
     updateOutput(context, dequantize, layer);
