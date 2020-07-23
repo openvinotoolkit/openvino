@@ -809,12 +809,6 @@ onnx_model_quant_conv_linear
 onnx_model_quant_conv_linear_2d
 onnx_model_quant_conv_linear_3d
 
-# Cannot cast ngraph node EmbeddingLookup to CNNLayer!
-embedding_lookup_4x5_reverse
-embedding_lookup_10x1_arbitrary
-embedding_lookup_10x1_arbitrary_index_type_int
-embedding_lookup_10x1_arbitrary_index_type_int64
-
 # Cannot cast ngraph node Dot to CNNLayer!
 dot_4d_5d_multi_axis
 dot_4d_5d_multi_axis_more
