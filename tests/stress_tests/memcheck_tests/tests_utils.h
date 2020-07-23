@@ -2,9 +2,34 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#pragma once
+
 #include "../common/tests_utils.h"
 
 #include <pugixml.hpp>
+
+// Measure values
+enum MeasureValue { VMRSS = 0, VMHWM, VMSIZE, VMPEAK, THREADS, MeasureValueMax };
+// Measure values headers
+const std::array<std::string, MeasureValueMax> MeasureValueHeader { "VMRSS", "VMHWM", "VMSIZE", "VMPEAK", "THREADS" };
+
+namespace util {
+    template <typename Type>
+    static std::string get_measure_values_as_str(const std::array<Type, MeasureValueMax> & array,
+                                                 const std::string & delimiter = "\t\t") {
+        std::string str = std::to_string(*array.begin());
+        for (auto it = array.begin() + 1; it != array.end(); it++)
+            str += delimiter + std::to_string(*it);
+        return str;
+    }
+
+    static std::string get_measure_values_headers(const std::string & delimiter = "\t\t") {
+        std::string str = *MeasureValueHeader.begin();
+        for (auto it = MeasureValueHeader.begin() + 1; it != MeasureValueHeader.end(); it++)
+            str += delimiter + *it;
+        return str;
+    }
+}
 
 class MemCheckEnvironment {
 private:
@@ -32,9 +57,11 @@ private:
     std::vector<std::string> model_path_v, test_name_v, device_v;
     std::vector<long> vmsize_v, vmpeak_v, vmrss_v, vmhwm_v;
 public:
-    long ref_vmsize = -1, ref_vmpeak = -1, ref_vmrss = -1, ref_vmhwm = -1;
+    std::array<long, MeasureValueMax> references;
 
     TestReferences () {
+        std::fill(references.begin(), references.end(), -1);
+
         // Parse RefsConfig from MemCheckEnvironment
         std::string models_path = Environment::Instance().getEnvConfig()
                 .child("attributes").child("irs_path").child("value").text().as_string();
@@ -68,10 +95,10 @@ public:
             if (test_name_v[i] == test_name)
                 if (model_path_v[i] == test_params.model)
                     if (device_v[i] == test_params.device) {
-                        ref_vmsize = vmsize_v[i];
-                        ref_vmpeak = vmpeak_v[i];
-                        ref_vmrss = vmrss_v[i];
-                        ref_vmhwm = vmhwm_v[i];
+                        references[VMSIZE] = vmsize_v[i];
+                        references[VMPEAK] = vmpeak_v[i];
+                        references[VMRSS] = vmrss_v[i];
+                        references[VMHWM] = vmhwm_v[i];
                     }
     }
 };
