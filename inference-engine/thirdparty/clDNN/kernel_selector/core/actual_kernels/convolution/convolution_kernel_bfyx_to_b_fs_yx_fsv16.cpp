@@ -17,6 +17,7 @@
 #include "kernel_selector_utils.h"
 #include <vector>
 #include <algorithm>
+#include <iostream>
 
 namespace kernel_selector {
 
@@ -111,7 +112,8 @@ bool ConvolutionKernel_bfyx_to_bfyx_f16::Validate(const Params& p, const optiona
     const auto& output = params.output;
 
     // TODO Add support for different input features number in kernel
-    if (input.Feature().v != 3) {
+    std::cout << "+-- bfyx_to_bfyx_f16 input features " << input.Feature().v << std::endl;
+    if (!(input.Feature().v == 3 || input.Feature().v == 1)) {
         return false;
     }
 

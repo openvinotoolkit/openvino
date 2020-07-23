@@ -21,6 +21,7 @@
 #include "sliding_window_utils.h"
 #include "error_handler.h"
 #include "json_object.h"
+#include "to_string_utils.h"
 #include <string>
 
 namespace cldnn {
@@ -341,6 +342,17 @@ std::string convolution_inst::to_string(convolution_node const& node) {
         conv_info.add("with user defined output size", ud_out_size_info);
     }
 
+    json_composite input_info;
+    for (auto dep : node.get_dependencies()) {
+        json_composite input;
+        auto input_id = "id : " + dep->id();
+        input.add("format", fmt_to_str(dep->get_output_layout().format));
+        input.add("size", dep->get_output_layout().size.to_string());
+        input.add("ptr", std::to_string(reinterpret_cast<uintptr_t>(dep)));
+        input_info.add(input_id, input);
+    }
+
+    node_info->add("input info", input_info);
     node_info->add("convolution info", conv_info);
     node_info->dump(primitive_description);
 
