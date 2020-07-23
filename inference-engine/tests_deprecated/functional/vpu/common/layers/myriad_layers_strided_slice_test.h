@@ -240,8 +240,16 @@ TEST_P(myriadLayersTestsStridedSlice_smoke, TestsStridedSlice) {
 
     // Load network.
     StatusCode st = GENERAL_ERROR;
+
+    std::map<std::string, std::string> config = {
+        { VPU_CONFIG_KEY(DETECT_NETWORK_BATCH), CONFIG_VALUE(NO) }
+    };
+    if (!CheckMyriadX()) {
+        config.insert({ VPU_CONFIG_KEY(DISABLE_REORDER), CONFIG_VALUE(YES) });
+    }
+
     ASSERT_NO_THROW(st = _vpuPluginPtr->LoadNetwork(
-        _exeNetwork, network, { {VPU_CONFIG_KEY(DETECT_NETWORK_BATCH), CONFIG_VALUE(NO)} },
+        _exeNetwork, network, config,
         &_resp));
     ASSERT_EQ(StatusCode::OK, st) << _resp.msg;
     ASSERT_NE(_exeNetwork, nullptr) << _resp.msg;
@@ -285,20 +293,19 @@ TEST_P(myriadLayersTestsStridedSlice_smoke, TestsStridedSlice) {
 
 // Params: in_shape, dim_size, begin, end, stride, begin_mask, end_mask, ellipsis_mask, new_axis_mask, shrink_axis_mask, out_shape
 static std::vector<strided_slice_test_param> s_stridedSliceParams = {
-    strided_slice_test_param{ { 10 }, 1, { 0 }, { 10 }, { 2 }, {}, {}, {}, {}, {}, { 5 } },
-    strided_slice_test_param{ { 10 }, 1, { 1 }, { 9 }, { 2 }, {}, {}, {}, {}, {}, { 4 } },
-    strided_slice_test_param{ { 10 }, 1, { 1 }, { 9 }, { 2 }, { 0 }, {}, {}, {}, {}, { 5 } },
+    strided_slice_test_param{ { 10 }, 1, { 0 }, { 10 }, { 2 }, { 1 }, { 1 }, {}, {}, {}, { 5 } },
+    strided_slice_test_param{ { 10 }, 1, { 1 }, { 9 }, { 2 }, { 1 }, { 1 }, {}, {}, {}, { 4 } },
+    strided_slice_test_param{ { 10 }, 1, { 1 }, { 9 }, { 2 }, { 0 }, { 1 }, {}, {}, {}, { 5 } },
     strided_slice_test_param{ { 1000, 4 }, 2, { 0, 0 }, { 1000, 4 }, { 1, 4 }, { 0, 1 }, { 0, 1 }, { 0, 0 }, { 0, 0 }, { 0, 0 }, { 1000, 1 } },
     strided_slice_test_param{ { 1000, 4 }, 2, { 200, 1 }, { 500, 3 }, { 1, 2 }, { 0, 1 }, { 0, 1 }, { 0, 0 }, { 0, 0 }, { 0, 0 }, { 1000, 1 } },
-    strided_slice_test_param{ { 1, 2, 35, 33 }, 4, { 0, 0, 0, 2 }, { 1, 2, 33, 31 }, {1, 1, 1, 2}, {}, {}, {}, {}, {}, { 1, 2, 33, 15 } },
+    strided_slice_test_param{ { 1, 2, 35, 33 }, 4, { 0, 0, 0, 2 }, { 1, 2, 33, 31 }, {1, 1, 1, 2}, { 0, 0, 0, 1 }, { 0, 0, 1, 1 }, {}, {}, {}, { 1, 2, 33, 15 } },
     strided_slice_test_param{ { 2, 2, 2, 3}, 4, { 0, 0, 0, 1 }, { 2, 2, 2, 3 }, { 1, 2, 2, 2 }, { 1, 1, 0, 1 }, { 1, 1, 0, 1 }, {}, {}, {}, { 2, 1, 1, 1 } },
-    strided_slice_test_param{ { 2, 8, 32, 32}, 4, { 0, 2, 0, 0 }, { 2, 7, 32, 32 }, { 1, 3, 1, 1 }, {}, {}, {}, {}, {}, { 2, 2, 32, 32 } },
-    strided_slice_test_param{ { 2, 8, 32, 32}, 4, { 0, 0, 2, 0 }, { 2, 8, 31, 32 }, { 1, 1, 3, 1 }, {}, {}, {}, {}, {}, { 2, 8, 10, 32 } },
-    strided_slice_test_param{ { 2, 8, 32, 32}, 4, { 0, 0, 0, 2 }, { 2, 8, 32, 32 }, { 1, 1, 1, 3 }, {}, {}, {}, {}, {}, { 2, 8, 32, 10 } },
-    strided_slice_test_param{ { 1, 32, 128, 128 }, 4, {0, 0, 0, 0 }, { 1, 32, 128, 128 }, { 1, 2, 4, 8 }, {}, {}, {}, {}, {}, { 1, 16, 32, 16 } },
-    strided_slice_test_param{ { 1, 32, 128, 128 }, 4, {0, 16, 0, 0 }, { 1, 32, 128, 128 }, {}, {}, {}, {}, {}, {}, { 1, 16, 128, 128 } },
-
+    strided_slice_test_param{ { 2, 8, 32, 32}, 4, { 0, 2, 0, 0 }, { 2, 7, 0, 0 }, { 1, 3, 1, 1 }, { 0, 1, 0, 0 }, { 0, 1, 0, 0 }, {}, {}, {}, { 2, 2, 32, 32 } },
+    strided_slice_test_param{ { 2, 8, 32, 32}, 4, { 0, 0, 2, 0 }, { 0, 0, 31, 0 }, { 1, 1, 3, 1 }, { 0, 0, 1, 0 }, { 0, 0, 1, 0 }, {}, {}, {}, { 2, 8, 10, 32 } },
+    strided_slice_test_param{ { 2, 8, 32, 32}, 4, { 0, 0, 0, 2 }, { 0, 0, 0, 0 }, { 1, 1, 1, 3 }, { 0, 0, 0, 1 }, { 0, 0, 0, 0 }, {}, {}, {}, { 2, 8, 32, 10 } },
+    strided_slice_test_param{ { 1, 32, 128, 128 }, 4, {0, 0, 0, 0 }, { 0, 0, 0, 0 }, { 1, 2, 4, 8 }, { 0, 0, 0, 0 }, { 0, 0, 0, 0 }, {}, {}, {}, { 1, 16, 32, 16 } },
+    strided_slice_test_param{ { 1, 32, 128, 128 }, 4, {0, 16, 0, 0 }, { 0, 0, 0, 0 }, {}, { 0, 1, 0, 0 }, { 0, 0, 0, 0 }, {}, {}, {}, { 1, 16, 128, 128 } },
     strided_slice_test_param{ { 4, 1000 }, 2, { 0, 0 }, { 4, 9999 }, { 1, 1 }, { 1, 1 }, { 1, 1 }, { 0, 0 }, { 0, 0 }, { 0, 0 }, { 4, 1000 } },
-    strided_slice_test_param{ { 4, 1000 }, 2, { 0, 0 }, { 4, -1 }, { 1, 1 }, { 1, 1 }, { 1, 1 }, { 0, 0 }, { 0, 0 }, { 0, 0 }, { 4, 1000 } },
-    strided_slice_test_param{ { 4, 1000 }, 2, { 0, 0 }, { 4, -3 }, { 1, 1 }, { 1, 1 }, { 1, 1 }, { 0, 0 }, { 0, 0 }, { 0, 0 }, { 4, 998 } },
+    strided_slice_test_param{ { 4, 1000 }, 2, { 0, 0 }, { 4, -1 }, { 1, 1 }, { 1, 1 }, { 1, 1 }, { 0, 0 }, { 0, 0 }, { 0, 0 }, { 4, 999 } },
+    strided_slice_test_param{ { 4, 1000 }, 2, { 0, 0 }, { 4, -3 }, { 1, 1 }, { 1, 1 }, { 1, 1 }, { 0, 0 }, { 0, 0 }, { 0, 0 }, { 4, 997 } },
 };

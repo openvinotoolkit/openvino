@@ -1,4 +1,4 @@
-# Offline Speech Recognition Demo
+# Offline Speech Recognition Demo {#openvino_inference_engine_samples_speech_libs_and_demos_Offline_speech_recognition_demo}
 
 This demo provides a command-line interface for automatic speech recognition using OpenVINO&trade;.  
 Components used by this executable:

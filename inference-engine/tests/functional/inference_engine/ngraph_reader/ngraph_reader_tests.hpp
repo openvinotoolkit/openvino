@@ -39,16 +39,18 @@ protected:
         auto network = ie.ReadNetwork(modelV10, weights);
         auto cnnNetwork = ie.ReadNetwork(oldModel, weights);
 
-        FuncTestUtils::compareCNNNetworks(network, cnnNetwork, false);
         IE_SUPPRESS_DEPRECATED_START
-        auto & inetwork = static_cast<const ICNNNetwork&>(network);
-        for (auto it = details::CNNNetworkIterator(&inetwork); it != details::CNNNetworkIterator(); it++) {
+        auto convertedNetwork = std::make_shared<InferenceEngine::details::CNNNetworkImpl>(network);
+
+        FuncTestUtils::compareCNNNetworks(InferenceEngine::CNNNetwork(convertedNetwork), cnnNetwork, false);
+
+        for (auto it = details::CNNNetworkIterator(convertedNetwork.get()); it != details::CNNNetworkIterator(); it++) {
             InferenceEngine::CNNLayerPtr layer = *it;
             ASSERT_NE(nullptr, layer->getNode());
         }
 
-        auto & icnnnetwork = static_cast<const ICNNNetwork&>(cnnNetwork);
-        for (auto it = details::CNNNetworkIterator(&icnnnetwork); it != details::CNNNetworkIterator(); it++) {
+        ASSERT_EQ(nullptr, cnnNetwork.getFunction());
+        for (auto it = details::CNNNetworkIterator(cnnNetwork); it != details::CNNNetworkIterator(); it++) {
             InferenceEngine::CNNLayerPtr layer = *it;
             ASSERT_EQ(nullptr, layer->getNode());
         }

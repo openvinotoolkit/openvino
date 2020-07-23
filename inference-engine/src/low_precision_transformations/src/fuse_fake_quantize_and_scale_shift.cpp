@@ -38,6 +38,7 @@ void FuseFakeQuantizeAndScaleShiftTransformation::transform(
     }
 
     auto dScaleShift = dScaleShiftsVector[0];
+
     const Blob::Ptr scalesBlob = CNNNetworkHelper::getBlob(dScaleShift, "weights");
     auto scalesBufferPtr = CNNNetworkHelper::getFloatData(scalesBlob);
 
@@ -55,9 +56,21 @@ void FuseFakeQuantizeAndScaleShiftTransformation::transform(
             return;
     }
 
+    OutputsDataMap outputs;
+    context.network.getOutputsInfo(outputs);
+    const bool dScaleShiftIsLastLayer = outputs.find(dScaleShift->name) != outputs.end();
+    if (dScaleShiftIsLastLayer && (dScaleShiftsVector.size() > 1ul)) {
+        // not possible to fuse ScaleShifts if at least one is output
+        return;
+    }
+
     // All ScaleShifts must be equal
     for (size_t i = 1lu; i < dScaleShiftsVector.size(); i++) {
         auto ssLayer = dScaleShiftsVector[i];
+        if (outputs.find(ssLayer->name) != outputs.end()) {
+            // not possible to fuse ScaleShifts if at least one is output
+            return;
+        }
 
         const Blob::Ptr scBlob = CNNNetworkHelper::getBlob(ssLayer, "weights");
         auto scBufferPtr = CNNNetworkHelper::getFloatData(scBlob);
@@ -143,5 +156,10 @@ void FuseFakeQuantizeAndScaleShiftTransformation::transform(
     if (updatePrecisions) {
         auto ssPrecision = dScaleShiftsVector[0]->outData[0]->getPrecision();
         fakeQuantizeLayer.outData[0]->setPrecision(ssPrecision);
+    }
+
+
+    if (dScaleShiftIsLastLayer) {
+        CNNNetworkHelper::renameLayer(context.network, fakeQuantizeLayer.name, dScaleShift->name);
     }
 }

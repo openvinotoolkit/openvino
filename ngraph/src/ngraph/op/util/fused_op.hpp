@@ -30,7 +30,6 @@ namespace ngraph
             class NGRAPH_API FusedOp : public Op
             {
             public:
-                bool supports_decompose() const final { return true; }
                 // Fused op decomposition can be performed in the presence of
                 // partial shapes
                 virtual bool can_decompose_with_partial_shapes() { return false; }
@@ -49,9 +48,6 @@ namespace ngraph
                 // Post-validation hook that will be invoked after op decomposition
                 // in validate_and_infer_types().
                 virtual void post_validate_and_infer_types() {}
-                void generate_adjoints(autodiff::Adjoints& adjoints,
-                                       const OutputVector& deltas) override;
-
             protected:
                 FusedOp();
 

@@ -76,10 +76,6 @@ namespace ngraph
                  const std::string& cname);
             ~Type() {}
             Type& operator=(const Type&) = default;
-            NGRAPH_DEPRECATED("Use operator Type_t()") Type_t get_type_enum() const
-            {
-                return m_type;
-            }
             const std::string& c_type_string() const;
             size_t size() const;
             size_t hash() const;

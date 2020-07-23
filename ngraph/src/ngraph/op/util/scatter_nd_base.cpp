@@ -102,8 +102,3 @@ void op::util::ScatterNDBase::validate_and_infer_types()
 
     set_output_type(0, inputs_et, inputs_shape);
 }
-
-void op::util::ScatterNDBase::generate_adjoints(autodiff::Adjoints&, const OutputVector&)
-{
-    throw ngraph_error("Not yet implemented");
-}

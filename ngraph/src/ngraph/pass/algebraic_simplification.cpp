@@ -38,6 +38,7 @@
 #include "ngraph/op/subtract.hpp"
 #include "ngraph/op/sum.hpp"
 #include "ngraph/op/transpose.hpp"
+#include "ngraph/op/util/op_types.hpp"
 #include "ngraph/opsets/opset2.hpp"
 #include "ngraph/opsets/opset3.hpp"
 #include "ngraph/pattern/matcher.hpp"
@@ -662,7 +663,8 @@ static bool simplify_reduction(shared_ptr<Node> n)
     auto cnst = as_type_ptr<op::Constant>(broadcast->input_value(0).get_node_shared_ptr());
     if (!cnst || cnst->get_shape().size() > 0 /*not a scalar*/)
     {
-        NGRAPH_DEBUG << broadcast->get_argument(0)->get_name() << " isn't a scalar constant";
+        NGRAPH_DEBUG << broadcast->input_value(0).get_node_shared_ptr()->get_name()
+                     << " isn't a scalar constant";
         return false;
     }
 
@@ -817,7 +819,7 @@ bool pass::AlgebraicSimplification::run_on_function(shared_ptr<Function> f)
     bool replaced = false;
     for (auto n : f->get_ordered_ops())
     {
-        if (n->is_output() || n->is_parameter())
+        if (op::is_output(n) || op::is_parameter(n))
         {
             continue;
         }

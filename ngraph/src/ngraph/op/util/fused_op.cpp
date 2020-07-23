@@ -40,7 +40,10 @@ void op::util::FusedOp::validate_and_infer_types()
     }
 
     auto subgraph_outputs = decompose_op();
-    auto subgraph = extract_subgraph(subgraph_outputs, get_arguments());
+    NodeVector nodes;
+    for (auto& val : input_values())
+        nodes.emplace_back(val.get_node_shared_ptr());
+    auto subgraph = extract_subgraph(subgraph_outputs, nodes);
     validate_nodes_and_infer_types(subgraph);
 
     size_t i = 0;
@@ -58,11 +61,4 @@ void op::util::FusedOp::validate_and_infer_types()
     }
 
     post_validate_and_infer_types();
-}
-
-void op::util::FusedOp::generate_adjoints(autodiff::Adjoints& /* adjoints */,
-                                          const OutputVector& /* deltas */)
-{
-    // TODO
-    throw ngraph_error("Autodiff on fused ops not supported yet");
 }

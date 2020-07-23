@@ -717,6 +717,18 @@ JitConstants MakeActivationJitConstants(ActivationFunction activation_function,
                     (input / (one + exp(neg(input)))).str()));
             break;
         }
+        case ActivationFunction::MISH: {
+            std::string type_suffix = out_dt == Datatype::F32 ? "f" : "h";
+            auto bound = out_dt == Datatype::F32 ? "9.9f"_jit : "4.75h"_jit;
+            const JitTerm two("2." + type_suffix);
+            const JitTerm n((exp(input) + two) * exp(input));
+            const JitTerm common_mish_formula((input * n) / (n + two));
+
+            jitConstants.AddConstant(MakeJitConstant(
+                macro_def,
+                ternary(input.ge(bound), input, common_mish_formula).str()));
+            break;
+        }
         case ActivationFunction::GELU: {
             std::string type_suffix = out_dt == Datatype::F32 ? "f" : "h";
             const JitTerm half{"0.5" + type_suffix};

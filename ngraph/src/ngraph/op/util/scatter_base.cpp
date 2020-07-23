@@ -15,6 +15,7 @@
 //*****************************************************************************
 
 #include "ngraph/op/util/scatter_base.hpp"
+#include "ngraph/op/util/op_types.hpp"
 #include "ngraph/shape.hpp"
 #include "ngraph/validation_util.hpp"
 
@@ -80,7 +81,7 @@ void op::util::ScatterBase::validate_and_infer_types()
 
     bool compatible = true;
     int64_t axis;
-    bool is_axis_constant = input_value(AXIS).get_node_shared_ptr()->is_constant();
+    bool is_axis_constant = op::is_constant(input_value(AXIS).get_node());
 
     // Get axis value if possible.
     if (is_axis_constant && data_shape.rank().is_static())
@@ -136,9 +137,4 @@ void op::util::ScatterBase::validate_and_infer_types()
 bool op::util::ScatterBase::visit_attributes(AttributeVisitor& visitor)
 {
     return true;
-}
-
-void op::util::ScatterBase::generate_adjoints(autodiff::Adjoints&, const OutputVector&)
-{
-    throw ngraph_error("Not yet implemented");
 }

@@ -51,9 +51,16 @@ void regclass_pyngraph_Function(py::module m)
     function.def("is_dynamic", &ngraph::Function::is_dynamic);
     function.def("__repr__", [](const ngraph::Function& self) {
         std::string class_name = py::cast(self).get_type().attr("__name__").cast<std::string>();
-        std::string shape =
-            py::cast(self.get_output_shape(0)).attr("__str__")().cast<std::string>();
-        return "<" + class_name + ": '" + self.get_friendly_name() + "' (" + shape + ")>";
+        std::stringstream shapes_ss;
+        for (size_t i = 0; i < self.get_output_size(); ++i)
+        {
+            if (i > 0)
+            {
+                shapes_ss << ", ";
+            }
+            shapes_ss << self.get_output_partial_shape(i);
+        }
+        return "<" + class_name + ": '" + self.get_friendly_name() + "' (" + shapes_ss.str() + ")>";
     });
     function.def_static("from_capsule", [](py::object* capsule) {
         // get the underlying PyObject* which is a PyCapsule pointer
@@ -71,7 +78,7 @@ void regclass_pyngraph_Function(py::module m)
             throw std::runtime_error("The provided capsule does not contain an ngraph::Function");
         }
     });
-    function.def("to_capsule", [](std::shared_ptr<ngraph::Function>& ngraph_function) {
+    function.def_static("to_capsule", [](std::shared_ptr<ngraph::Function>& ngraph_function) {
         // create a shared pointer on the heap before putting it in the capsule
         // this secures the lifetime of the object transferred by the capsule
         auto* sp_copy = new std::shared_ptr<ngraph::Function>(ngraph_function);

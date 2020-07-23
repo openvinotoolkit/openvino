@@ -53,8 +53,10 @@ namespace ngraph
                     const std::size_t channels_count = data_shape[channel_axis].get_length();
                     const std::int64_t p_norm{node.get_attribute_value<std::int64_t>("p", 2)};
 
-                    ASSERT_VALID_ARGUMENT(node, p_norm >= 0)
-                        << "Only positive (including zero) values are supported for 'p' attribute.";
+                    CHECK_VALID_NODE(
+                        node,
+                        p_norm >= 0,
+                        "Only positive (including zero) values are supported for 'p' attribute.");
 
                     NodeVector slices =
                         ngraph::builder::opset1::split(data, channels_count, channel_axis);

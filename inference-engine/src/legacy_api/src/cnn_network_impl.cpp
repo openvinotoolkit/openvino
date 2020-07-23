@@ -22,6 +22,14 @@
 #include "network_serializer.h"
 #include "details/ie_cnn_network_tools.h"
 
+#include "generic_ie.hpp"
+#include "cnn_network_ngraph_impl.hpp"
+#include <transformations/common_optimizations/common_optimizations.hpp>
+#include <transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
+#include <transformations/convert_opset2_to_opset1/convert_opset2_to_opset1.hpp>
+#include <transformations/convert_opset3_to_opset2/convert_opset3_to_opset2.hpp>
+#include "convert_function_to_cnn_network.hpp"
+
 using namespace std;
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
@@ -77,6 +85,21 @@ std::map<CNNLayer*, bool> getConstLayersMap(const ICNNNetwork& network) {
 ICNNNetwork::~ICNNNetwork() {}
 
 CNNNetworkImpl::CNNNetworkImpl() {}
+
+CNNNetworkImpl::CNNNetworkImpl(const ICNNNetwork & ngraphImpl) {
+    auto ngraphImplPtr = dynamic_cast<const details::CNNNetworkNGraphImpl*>(&ngraphImpl);
+    IE_ASSERT(ngraphImplPtr != nullptr);
+    IE_ASSERT(ngraphImplPtr->getFunction() != nullptr);
+    auto graph = ngraphImplPtr->cloneFunction();
+    // Disable shape inference (WA for generic operations)
+    ::ngraph::op::GenericIE::DisableReshape noReshape(graph);
+
+    ::ngraph::pass::CommonOptimizations().run_on_function(graph);
+    ::ngraph::pass::ConvertOpSet3ToOpSet2().run_on_function(graph);
+    ::ngraph::pass::ConvertOpSet2ToOpSet1().run_on_function(graph);
+    ::ngraph::pass::ConvertOpSet1ToLegacy().run_on_function(graph);
+    InferenceEngine::details::convertFunctionToICNNNetwork(graph, ngraphImpl, this, false);
+}
 
 CNNNetworkImpl::~CNNNetworkImpl() {
     // In case of cycles, memory leaks occur: Layer holds shared_ptr<Data>, and vice versa.

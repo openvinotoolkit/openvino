@@ -350,8 +350,8 @@ protected:
             ICNNNetwork& icnnnetwork = network;
             auto networkNGraph = dynamic_cast<CNNNetworkNGraphImpl*>(&icnnnetwork);
             if (networkNGraph) {
-                std::shared_ptr<ICNNNetwork> networkPtr = networkNGraph->getCNNNetwork();
-                network = CNNNetwork(networkPtr);
+                auto netPtr = std::make_shared<details::CNNNetworkImpl>(*networkNGraph);
+                network = CNNNetwork(netPtr);
             }
 
             auto originalLayersInfo = LowPrecisionTransformationValidation::getLayers(network);
@@ -402,7 +402,11 @@ protected:
         //    PluginConfigInternalParams::KEY_LP_TRANSFORMS_MODE,
         //    transformationsParams.transformationsInPluginEnabled ? PluginConfigParams::YES : PluginConfigParams::NO);
 
-        usedNetwork = cloneNet(network);
+        if (network.getFunction()) {
+            usedNetwork = std::make_shared<InferenceEngine::details::CNNNetworkImpl>(network);
+        } else {
+            usedNetwork = cloneNet(network);
+        }
         ExecutableNetwork exeNetwork = ie.LoadNetwork(network, p.deviceName, config);
         InferRequest inferRequest = exeNetwork.CreateInferRequest();
         if (inputs.empty()) {

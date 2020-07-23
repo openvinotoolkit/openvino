@@ -21,7 +21,7 @@ import numpy as np
 from openvino.inference_engine import IECore, IENetwork
 
 from ngraph.exceptions import UserInputError
-from ngraph.impl import Function, Node, PartialShape, Shape, serialize, util
+from ngraph.impl import Function, Node, serialize
 from ngraph.utils.types import NumericData
 import tests
 
@@ -43,7 +43,7 @@ class Runtime(object):
 
     def __init__(self, backend_name: str) -> None:
         self.backend_name = backend_name
-        log.debug("Creating Inference Engine for .".format(backend_name))
+        log.debug("Creating Inference Engine for %s" % backend_name)
         self.backend = IECore()
         assert backend_name in self.backend.available_devices, (
             'The requested device "' + backend_name + '" is not supported!'

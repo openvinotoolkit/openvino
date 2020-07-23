@@ -38,19 +38,6 @@ op::BatchNormInference::BatchNormInference(const Output<Node>& input,
     constructor_validate_and_infer_types();
 }
 
-// DEPRECATED
-op::BatchNormInference::BatchNormInference(double eps,
-                                           const Output<Node>& gamma,
-                                           const Output<Node>& beta,
-                                           const Output<Node>& input,
-                                           const Output<Node>& mean,
-                                           const Output<Node>& variance)
-    : Op({gamma, beta, input, mean, variance})
-    , m_epsilon(eps)
-{
-    constructor_validate_and_infer_types();
-}
-
 bool op::BatchNormInference::visit_attributes(AttributeVisitor& visitor)
 {
     visitor.on_attribute("epsilon", m_epsilon);

@@ -15,12 +15,6 @@
 #include "hetero/hetero_plugin_config.hpp"
 #include <cpp_interfaces/base/ie_plugin_base.hpp>
 #include "hetero_executable_network.hpp"
-#include "convert_function_to_cnn_network.hpp"
-#include <generic_ie.hpp>
-#include <transformations/common_optimizations/common_optimizations.hpp>
-#include <transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
-#include <transformations/convert_opset2_to_opset1/convert_opset2_to_opset1.hpp>
-#include <transformations/convert_opset3_to_opset2/convert_opset3_to_opset2.hpp>
 
 using namespace InferenceEngine;
 using namespace InferenceEngine::PluginConfigParams;
@@ -63,27 +57,23 @@ InferenceEngine::ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(const
     }
     DeviceMetaInformationMap metaDevices = GetDevicePlugins(it->second, tconfig);
 
-    auto function = network.getFunction();
-    if (function != nullptr) {
-        auto anyDeviceDoNotSupportNgraph =
-        std::any_of(std::begin(metaDevices), std::end(metaDevices),
-                    [&] (const DeviceMetaInformationMap::value_type& metaDevice) {
+    if (network.getFunction()) {
+        auto allSupportsNgraph =
+        std::all_of(std::begin(metaDevices), std::end(metaDevices),
+                    [&] (const DeviceMetaInformationMap::value_type& metaDevice) -> bool {
                         auto& deviceName = metaDevice.first;
                         auto clonedNetwork = cloneNetwork(network);
-                        GetCore()->QueryNetwork(*clonedNetwork, deviceName, metaDevice.second);
-                        return (clonedNetwork->getFunction() == nullptr);
+                        try { GetCore()->QueryNetwork(network, deviceName, metaDevice.second); }
+                        catch (const InferenceEngine::details::InferenceEngineException & ex) {
+                            std::string message = ex.what();
+                            return message.find(NOT_IMPLEMENTED_str) == std::string::npos;
+                        }
+                        return true;
                     });
-        if (anyDeviceDoNotSupportNgraph) {
-            auto clonedNetwork = cloneNetwork(network);
-            auto function = clonedNetwork->getFunction();
-            ::ngraph::op::GenericIE::DisableReshape noReshape(function);
-            ::ngraph::pass::CommonOptimizations().run_on_function(function);
-            ::ngraph::pass::ConvertOpSet3ToOpSet2().run_on_function(function);
-            ::ngraph::pass::ConvertOpSet2ToOpSet1().run_on_function(function);
-            ::ngraph::pass::ConvertOpSet1ToLegacy().run_on_function(function);
+        if (!allSupportsNgraph) {
+            auto cnnNetworkImpl = std::make_shared<details::CNNNetworkImpl>(network);
             return std::make_shared<HeteroExecutableNetwork>(
-                *InferenceEngine::details::convertFunctionToICNNNetwork(function, *clonedNetwork),
-                mergeConfigs(_config, config), this);
+                *cnnNetworkImpl, mergeConfigs(_config, config), this);
         } else {
             return std::make_shared<HeteroExecutableNetwork>(*cloneNetwork(network), mergeConfigs(_config, config), this);
         }
@@ -218,11 +208,37 @@ void Engine::QueryNetwork(const ICNNNetwork &network, const Configs& config, Que
     DeviceMetaInformationMap metaDevices = GetDevicePlugins(fallbackDevicesStr, tconfig);
 
     std::map<std::string, QueryNetworkResult> queryResults;
-    // go over devices and call query network
-    for (auto&& metaDevice : metaDevices) {
-        auto& deviceName = metaDevice.first;
-        auto clonedNetwork = cloneNetwork(network);
-        queryResults[deviceName] = GetCore()->QueryNetwork(*clonedNetwork, deviceName, metaDevice.second);
+    auto queryNetwork = [&] (const InferenceEngine::ICNNNetwork & networkObject) {
+        // go over devices and call query network
+        for (auto&& metaDevice : metaDevices) {
+            auto& deviceName = metaDevice.first;
+            auto clonedNetwork = cloneNetwork(networkObject);
+            queryResults[deviceName] = GetCore()->QueryNetwork(*clonedNetwork, deviceName, metaDevice.second);
+        }
+        return queryResults;
+    };
+
+    if (network.getFunction()) {
+        auto allSupportsNgraph =
+        std::all_of(std::begin(metaDevices), std::end(metaDevices),
+                    [&] (const DeviceMetaInformationMap::value_type& metaDevice) -> bool {
+                        auto& deviceName = metaDevice.first;
+                        auto clonedNetwork = cloneNetwork(network);
+                        try { GetCore()->QueryNetwork(*clonedNetwork, deviceName, metaDevice.second); }
+                        catch (const InferenceEngine::details::InferenceEngineException & ex) {
+                            std::string message = ex.what();
+                            return message.find(NOT_IMPLEMENTED_str) == std::string::npos;
+                        }
+                        return true;
+                    });
+        if (!allSupportsNgraph) {
+            auto cnnNetworkImpl = std::make_shared<details::CNNNetworkImpl>(network);
+            queryNetwork(*cnnNetworkImpl);
+        } else {
+            queryNetwork(network);
+        }
+    } else {
+        queryNetwork(network);
     }
 
     //  WARNING: Here is devices with user set priority

@@ -338,8 +338,8 @@ void GNAGraphCompiler::PowerPrimitive(InferenceEngine::CNNLayerPtr layer) {
     auto& power = dynamic_cast<PowerLayer&>(*layer.get());
     auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(layer);
 
-    if (power.power != 1.0) {
-        THROW_IE_EXCEPTION << "[GNA plugin] unsupported power factor, expected 1 but was " << power.power;
+    if (power.power < 0.0f || power.power > 2.8f) {
+        THROW_IE_EXCEPTION << "[GNA plugin] unsupported power factor, expected be in <0, 2.8> range but was " << power.power;
     }
 
     auto input = layer->insData[0].lock();
@@ -351,49 +351,117 @@ void GNAGraphCompiler::PowerPrimitive(InferenceEngine::CNNLayerPtr layer) {
     uint32_t num_rows_out = num_rows_in;
     uint32_t num_padding = ALIGN(num_rows_in, 8) - num_rows_in;
 
-    void* ptr_inputs = nullptr;
-    void* ptr_outputs = nullptr;
-    void* ptr_weights = nullptr;
-    void* ptr_biases = nullptr;
-
-    auto& currentComponent = dnnComponents.addComponent(layer->name, "power");
-
-    dnn->InitAffineComponent(currentComponent,
-        num_rows_in + num_padding,
-        num_columns_in,
-        num_rows_out + num_padding,
-        input->getPrecision().size(),
-        outputs->getPrecision().size(),
-        // TODO: only fp32 and Int16 tested
-        quantized == nullptr ? input->getPrecision().size() : 2,
-        quantized == nullptr ? input->getPrecision().size() : 4,
-        quantized == nullptr ? 1 : quantized->_weights_quant.scale,
-        quantized == nullptr ? 1 : quantized->_dst_quant.scale,
-        ptr_inputs,
-        ptr_outputs,
-        ptr_weights,
-        ptr_biases,
-        true);
-
     size_t num_data_bytes_out = InferenceEngine::details::product(begin(outputs->getDims()), end(outputs->getDims()))
         * outputs->getPrecision().size();
 
     size_t num_data_bytes_in = InferenceEngine::details::product(begin(input->getDims()), end(input->getDims()))
         * input->getPrecision().size();
 
-    connectOutput(layer, ptr_outputs, num_data_bytes_out);
-    connectInput(layer, ptr_inputs, num_data_bytes_in, 0, 0);
+    if (power.power == 1.0f) {
+        void* ptr_inputs = nullptr;
+        void* ptr_outputs = nullptr;
+        void* ptr_weights = nullptr;
+        void* ptr_biases = nullptr;
 
-    if (gnaFlags->sw_fp32) {
-        gnamem->readonly().push_value(ptr_weights, power.scale, num_rows_out, 64);
-        gnamem->readonly().push_value(ptr_biases, power.offset, num_rows_out, 64);
+        auto& currentComponent = dnnComponents.addComponent(layer->name, "power");
+
+        dnn->InitAffineComponent(currentComponent,
+            num_rows_in + num_padding,
+            num_columns_in,
+            num_rows_out + num_padding,
+            input->getPrecision().size(),
+            outputs->getPrecision().size(),
+            // TODO: only fp32 and Int16 tested
+            quantized == nullptr ? input->getPrecision().size() : 2,
+            quantized == nullptr ? input->getPrecision().size() : 4,
+            quantized == nullptr ? 1 : quantized->_weights_quant.scale,
+            quantized == nullptr ? 1 : quantized->_dst_quant.scale,
+            ptr_inputs,
+            ptr_outputs,
+            ptr_weights,
+            ptr_biases,
+            true);
+
+        connectOutput(layer, ptr_outputs, num_data_bytes_out);
+        connectInput(layer, ptr_inputs, num_data_bytes_in, 0, 0);
+
+        if (gnaFlags->sw_fp32) {
+            gnamem->readonly().push_value(ptr_weights, power.scale, num_rows_out, 64);
+            gnamem->readonly().push_value(ptr_biases, power.offset, num_rows_out, 64);
+        } else {
+            auto quantizedScale = FLOAT_TO_INT16(std::min(quantized->_weights_quant.scale * power.scale,
+                static_cast<float>(INT16_MAX)));
+            auto quantizedOffset = FLOAT_TO_INT32(std::min(quantized->_dst_quant.scale * power.offset,
+                static_cast<float>(INT32_MAX)));
+            gnamem->readonly().push_value<int16_t>(ptr_weights, quantizedScale, num_rows_out, 64);
+            gnamem->readonly().push_value<int32_t>(ptr_biases, quantizedOffset, num_rows_out, 64);
+        }
     } else {
-        auto quantizedScale = FLOAT_TO_INT16(std::min(quantized->_weights_quant.scale * power.scale,
-                                                      static_cast<float>(INT16_MAX)));
-        auto quantizedOffset = FLOAT_TO_INT32(std::min(quantized->_dst_quant.scale * power.offset,
-                                                       static_cast<float>(INT32_MAX)));
-        gnamem->readonly().push_value<int16_t>(ptr_weights, quantizedScale, num_rows_out, 64);
-        gnamem->readonly().push_value<int32_t>(ptr_biases, quantizedOffset, num_rows_out, 64);
+        //use PWL to calculate power
+        std::vector<intel_pwl_segment_t> ptr_pwl_segments;
+
+        auto orientation = kDnnInterleavedOrientation;
+
+        auto activation_type = DnnActivation::fromType(kActPow);
+        activation_type.args.pow.exponent = power.power;
+        activation_type.args.pow.scale = power.scale;
+        activation_type.args.pow.offset = power.offset;
+
+        auto& pwlComponent = dnnComponents.addComponent(layer->name, "power");
+
+        intel_pwl_segment_t* ptr_pwl_segments_target = nullptr;
+
+        float output_pwl_scale_factor = quantized != nullptr ? quantized->_dst_quant.scale : 1.0f;
+        float input_pwl_scale_factor = quantized != nullptr ? quantized->_src_quant.scale : 1.0f;
+
+        if (!gnaFlags->sw_fp32) {
+            if (gnaFlags->uniformPwlDesign) {
+                uint32_t num_segments = POW_NUM_SEGMENTS;
+                if (activation_type.args.pow.exponent == 0.0f || activation_type.args.pow.exponent == 1.0f) {
+                    num_segments = 3;
+                }
+                ptr_pwl_segments.resize(num_segments);
+
+                PwlDesign16(activation_type,
+                    &*ptr_pwl_segments.begin(),
+                    static_cast<uint32_t>(ptr_pwl_segments.size()),
+                    input_pwl_scale_factor,
+                    output_pwl_scale_factor);
+            } else {
+                PwlDesignOpt16(activation_type,
+                    ptr_pwl_segments,
+                    input_pwl_scale_factor,
+                    output_pwl_scale_factor);
+            }
+        }
+
+        ptr_pwl_segments_target = reinterpret_cast<intel_pwl_segment_t*>(&ptr_pwl_segments_target);
+
+        void* ptr_pwl_input = nullptr;
+        void* ptr_pwl_outputs = nullptr;
+        dnn->InitPiecewiseLinearComponent(pwlComponent,
+            activation_type,
+            orientation,
+            num_rows_in + num_padding,
+            num_columns_in,
+            input->getPrecision().size(),
+            outputs->getPrecision().size(),
+            ptr_pwl_segments.size(),
+            output_pwl_scale_factor,
+            output_pwl_scale_factor,
+            ptr_pwl_input,
+            ptr_pwl_outputs,
+            ptr_pwl_segments_target);
+
+        connectOutput(layer, ptr_pwl_outputs, num_data_bytes_out);
+        connectInput(layer, ptr_pwl_input, num_data_bytes_in, 0, 0);
+
+        if (ptr_pwl_segments_target != nullptr) {
+            gnamem->readonly().push_local_ptr(ptr_pwl_segments_target,
+                &ptr_pwl_segments.front(),
+                ptr_pwl_segments.size() * sizeof(intel_pwl_segment_t),
+                64);
+        }
     }
 }
 
@@ -1300,9 +1368,9 @@ void GNAGraphCompiler::PWLPrimitive(InferenceEngine::CNNLayerPtr layer) {
     auto activation_type = DnnActivation::fromType(it->second);
     if (it->second == kActRelu) {
         auto reluLayer = dynamic_cast<ReLULayer*>(layer.get());
-        activation_type.negative_slope = reluLayer != nullptr ? reluLayer->negative_slope : 0.0f;
+        activation_type.args.lrelu.negative_slope = reluLayer != nullptr ? reluLayer->negative_slope : 0.0f;
     } else {
-        activation_type.negative_slope = 0.0f;
+        activation_type.args.lrelu.negative_slope = 0.0f;
     }
 
     string actName = "unknown";

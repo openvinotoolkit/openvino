@@ -21,8 +21,6 @@ set (SRC
     attribute_adapter.hpp
     attribute_visitor.cpp
     attribute_visitor.hpp
-    autodiff/adjoints.cpp
-    autodiff/adjoints.hpp
     axis_set.cpp
     axis_set.hpp
     axis_vector.cpp
@@ -42,8 +40,6 @@ set (SRC
     builder/quantize_builder.hpp
     builder/quantized_concat_builder.cpp
     builder/quantized_concat_builder.hpp
-    builder/quantized_conv_builder.cpp
-    builder/quantized_conv_builder.hpp
     builder/quantized_dot_builder.cpp
     builder/quantized_dot_builder.hpp
     builder/quantization_utils.hpp
@@ -90,7 +86,7 @@ set (SRC
     except.hpp
     factory.cpp
     factory.hpp
-    factory_adapter.hpp 
+    factory_adapter.hpp
     file_util.cpp
     file_util.hpp
     function.cpp
@@ -119,10 +115,6 @@ set (SRC
     op/acosh.hpp
     op/add.cpp
     op/add.hpp
-    op/all.cpp
-    op/all.hpp
-    op/allreduce.cpp
-    op/allreduce.hpp
     op/and.cpp
     op/and.hpp
     op/any.cpp
@@ -165,6 +157,8 @@ set (SRC
     op/cosh.hpp
     op/ctc_greedy_decoder.cpp
     op/ctc_greedy_decoder.hpp
+    op/ctc_loss.cpp
+    op/ctc_loss.hpp
     op/cum_sum.cpp
     op/cum_sum.hpp
     op/crop_and_resize.cpp
@@ -238,6 +232,8 @@ set (SRC
     op/min.hpp
     op/minimum.cpp
     op/minimum.hpp
+    op/mish.cpp
+    op/mish.hpp
     op/multiply.cpp
     op/multiply.hpp
     op/negative.cpp
@@ -318,12 +314,8 @@ set (SRC
     op/reverse.hpp
     op/reverse_sequence.cpp
     op/reverse_sequence.hpp
-    op/scatter_add.cpp
-    op/scatter_add.hpp
     op/scatter_elements_update.cpp
     op/scatter_elements_update.hpp
-    op/scatter_nd_add.cpp
-    op/scatter_nd_add.hpp
     op/scatter_nd_update.cpp
     op/scatter_nd_update.hpp
     op/scatter_update.cpp
@@ -378,10 +370,6 @@ set (SRC
     op/fused/batch_to_space.hpp
     op/fused/clamp.cpp
     op/fused/clamp.hpp
-    op/fused/conv_fused.cpp
-    op/fused/conv_fused.hpp
-    op/fused/crossentropy.cpp
-    op/fused/crossentropy.hpp
     op/fused/hard_sigmoid.cpp
     op/fused/hard_sigmoid.hpp
     op/fused/depth_to_space.cpp
@@ -390,15 +378,10 @@ set (SRC
     op/fused/fake_quantize.hpp
     op/fused/gelu.cpp
     op/fused/gelu.hpp
-    op/fused/gemm.cpp
-    op/fused/gemm.hpp
     op/fused/grn.cpp
     op/fused/grn.hpp
-    op/fused/group_conv.hpp
     op/fused/gru_cell.cpp
     op/fused/gru_cell.hpp
-    op/fused/layer_norm.cpp
-    op/fused/layer_norm.hpp
     op/fused/lstm_cell.cpp
     op/fused/lstm_cell.hpp
     op/fused/lstm_sequence.cpp
@@ -411,29 +394,18 @@ set (SRC
     op/fused/mvn.hpp
     op/fused/normalize_l2.cpp
     op/fused/normalize_l2.hpp
-    op/fused/partial_slice.cpp
-    op/fused/partial_slice.hpp
     op/fused/prelu.cpp
     op/fused/prelu.hpp
     op/fused/rnn_cell.cpp
     op/fused/rnn_cell.hpp
-    op/fused/scale_shift.cpp
-    op/fused/scale_shift.hpp
-    op/fused/scatter_nd.cpp
-    op/fused/scatter_nd.hpp
-    op/fused/stack.cpp
-    op/fused/stack.hpp
     op/fused/selu.cpp
     op/fused/selu.hpp
     op/fused/shuffle_channels.cpp
     op/fused/shuffle_channels.hpp
-    op/fused/softmax_crossentropy.cpp
-    op/fused/softmax_crossentropy.hpp
     op/fused/space_to_batch.cpp
     op/fused/space_to_batch.hpp
     op/fused/space_to_depth.cpp
     op/fused/space_to_depth.hpp
-    op/fused/split.hpp
     op/fused/squared_difference.cpp
     op/fused/squared_difference.hpp
     op/fused/squeeze.cpp
@@ -456,6 +428,8 @@ set (SRC
     op/util/binary_elementwise_logical.hpp
     op/util/broadcast_base.cpp
     op/util/broadcast_base.hpp
+    op/util/elementwise_args.cpp
+    op/util/elementwise_args.hpp
     op/util/embeddingbag_packed_base.cpp
     op/util/embeddingbag_packed_base.hpp
     op/util/embeddingbag_offsets_base.cpp
@@ -477,6 +451,8 @@ set (SRC
     op/util/unary_elementwise_arithmetic.cpp
     op/util/unary_elementwise_arithmetic.hpp
     op/util/variable.hpp
+    op/util/op_types.cpp
+    op/util/op_types.hpp
     ops.hpp
     opsets/opset.cpp
     partial_shape.cpp
@@ -589,8 +565,6 @@ set (SRC
     pattern/op/skip.hpp
     pattern/op/true.cpp
     pattern/op/true.hpp
-    placement.cpp
-    placement.hpp
     provenance.cpp
     provenance.hpp
     rank.hpp
@@ -602,6 +576,8 @@ set (SRC
     runtime/host_tensor.hpp
     runtime/tensor.cpp
     runtime/tensor.hpp
+    runtime/reference/eval_helpers.cpp
+    runtime/reference/eval_helpers.hpp
     shape.cpp
     shape.hpp
     shape_util.cpp
