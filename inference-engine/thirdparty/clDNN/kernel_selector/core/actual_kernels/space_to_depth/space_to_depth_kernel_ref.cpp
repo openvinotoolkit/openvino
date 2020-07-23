@@ -22,8 +22,12 @@
 namespace kernel_selector {
     ParamsKey SpaceToDepthKernelRef::GetSupportedKey() const {
         ParamsKey k;
+        k.EnableInputDataType(Datatype::INT8);
+        k.EnableInputDataType(Datatype::UINT8);
         k.EnableInputDataType(Datatype::F16);
         k.EnableInputDataType(Datatype::F32);
+        k.EnableOutputDataType(Datatype::INT8);
+        k.EnableOutputDataType(Datatype::UINT8);
         k.EnableOutputDataType(Datatype::F16);
         k.EnableOutputDataType(Datatype::F32);
         k.EnableAllInputLayout();
@@ -40,7 +44,7 @@ namespace kernel_selector {
 
         std::vector<size_t> global = {params.output.Batch().v,
                                       params.output.Feature().v,
-                                      params.output.Y().v * params.output.X().v};
+                                      params.output.Z().v * params.output.Y().v * params.output.X().v};
 
         auto local = GetOptimalLocalWorkGroupSizes(global, params.engineInfo);
 
@@ -58,13 +62,11 @@ namespace kernel_selector {
     JitConstants SpaceToDepthKernelRef::GetJitConstants(const space_to_depth_params& params) const {
         JitConstants jit = MakeBaseParamsJitConstants(params);
 
-        const size_t block_size = params.block_size;
-        const size_t squared_block_size = params.block_size * params.block_size;
-        const size_t blocks_first_mode = (size_t)params.depth_mode;
-
-        jit.AddConstant(MakeJitConstant("BLOCK_SIZE", block_size));
-        jit.AddConstant(MakeJitConstant("SQUARED_BLOCK_SIZE", squared_block_size));
-        jit.AddConstant(MakeJitConstant("BLOCKS_FIRST_MODE", blocks_first_mode));
+        jit.AddConstant(MakeJitConstant("BLOCK_SIZE", params.block_size));
+        if (params.depth_mode == SpaceToDepthMode::BLOCKS_FIRST)
+            jit.AddConstant(MakeJitConstant("BLOCKS_FIRST_MODE", true));
+        else
+            jit.AddConstant(MakeJitConstant("DEPTH_FIRST_MODE", true));
 
         return jit;
     }

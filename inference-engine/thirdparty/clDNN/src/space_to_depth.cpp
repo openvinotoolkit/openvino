@@ -52,14 +52,29 @@ layout space_to_depth_inst::calc_output_layout(space_to_depth_node const& node) 
                 std::to_string(input_layout.size.spatial[0]) + ", " + std::to_string(input_layout.size.spatial[1]) +
                     " (x, y). Actual block size is " + std::to_string(block_size));
 
-    const size_t feature = input_layout.size.feature[0] * block_size * block_size;
-    const size_t y = input_layout.size.spatial[1] / block_size;
-    const size_t x = input_layout.size.spatial[0] / block_size;
 
-    return layout{
-        input_layout.data_type,
-        input_format,
-        tensor(TensorValue(input_layout.size.batch[0]), TensorValue(feature), TensorValue(x), TensorValue(y))};
+    if (input_layout.format.dimension() == 5) {
+        const size_t feature = input_layout.size.feature[0] * block_size * block_size * block_size;
+        const size_t z = input_layout.size.spatial[2] / block_size;
+        const size_t y = input_layout.size.spatial[1] / block_size;
+        const size_t x = input_layout.size.spatial[0] / block_size;
+
+        return layout{
+            input_layout.data_type,
+            input_format,
+            tensor(TensorValue(input_layout.size.batch[0]), TensorValue(feature), TensorValue(x), TensorValue(y), TensorValue(z))};
+
+    } else {
+        const size_t feature = input_layout.size.feature[0] * block_size * block_size;
+        const size_t y = input_layout.size.spatial[1] / block_size;
+        const size_t x = input_layout.size.spatial[0] / block_size;
+
+        return layout{
+            input_layout.data_type,
+            input_format,
+            tensor(TensorValue(input_layout.size.batch[0]), TensorValue(feature), TensorValue(x), TensorValue(y))};
+
+    }
 }
 
 std::string space_to_depth_inst::to_string(space_to_depth_node const& node) {
