@@ -20,7 +20,12 @@
 #define SPATIAL_BLOCK_SIZE (BLOCK_SIZE*BLOCK_SIZE)
 #endif
 
-KERNEL(space_to_depth_ref)(const __global INPUT0_TYPE* input, __global OUTPUT_TYPE* output)
+KERNEL(space_to_depth_ref)(const __global INPUT0_TYPE* input,
+                                 __global OUTPUT_TYPE* output
+#if HAS_FUSED_OPS_DECLS
+                           , FUSED_OPS_DECLS
+#endif
+)
 {
     const uint batch = get_global_id(0);
     const uint feature = get_global_id(1);
@@ -57,5 +62,11 @@ KERNEL(space_to_depth_ref)(const __global INPUT0_TYPE* input, __global OUTPUT_TY
     const uint output_index = OUTPUT_GET_INDEX(batch, feature, y, x);
 #endif
 
-    output[output_index] = ACTIVATION(input[input_index], ACTIVATION_PARAMS);
+    INPUT0_TYPE in_val = input[input_index];
+#if HAS_FUSED_OPS
+    FUSED_OPS;
+    output[output_index] = FUSED_OPS_RESULT;
+#else
+    output[output_index] = ACTIVATION(in_val, ACTIVATION_PARAMS);
+#endif
 }
