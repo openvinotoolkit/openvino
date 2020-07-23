@@ -179,7 +179,7 @@ bool runtime::interpreter::INTExecutable::call(const vector<shared_ptr<runtime::
         }
         if (!op->evaluate(op_outputs, op_inputs))
         {
-            throw std::runtime_error("Evaluate doesn't implemented");
+            throw std::runtime_error(std::string("Evaluate doesn't implemented for operation ") + op->get_type_name());
         }
         if (m_performance_counters_enabled)
         {
