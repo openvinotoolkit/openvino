@@ -48,7 +48,8 @@ class GNAInferRequest : public InferenceEngine::AsyncInferRequestInternal {
     void InferImpl() override {
         // execute input pre-processing.
         execDataPreprocessing(_inputs);
-        plg->Infer(_inputs, _outputs);
+        // request id stored in similar way it can be obtained using async API
+        inferRequestIdx = plg->Infer(_inputs, _outputs);
     }
 
     /**
