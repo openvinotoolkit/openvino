@@ -314,7 +314,7 @@ TEST(eval, evaluate_broadcast_v3_numpy_vs_bidi)
     Shape in_shape{1, 4, 1};
 
     auto A = make_shared<op::Parameter>(element::f32, in_shape);
-    auto target_shape = op::Constant::create<int64_t>(element::i64, Shape{3}, {1, 1, 4});
+    auto target_shape = op::Constant::create<int64_t>(element::i64, Shape{3}, {1, 4, 4});
     auto bcast_v3_num = make_shared<op::v3::Broadcast>(A, target_shape, op::BroadcastType::NUMPY);
     auto fun_num = make_shared<Function>(OutputVector{bcast_v3_num}, ParameterVector{A});
 

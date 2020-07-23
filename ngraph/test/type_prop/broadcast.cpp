@@ -699,30 +699,31 @@ TYPED_TEST_P(BroadcastTests, broadcast_numpy_input_static_shape)
 
 TYPED_TEST_P(BroadcastTests, broadcast_numpy_input_partially_dynamic)
 {
-    const auto target_shape =
-        op::Constant::create(element::i64, Shape{4}, vector<int64_t>{1, 2, 3, 4});
+    const Shape expected_target_shape{1, 2, 3, 4};
+    const auto target_shape = op::Constant::create(
+        element::i64,
+        {expected_target_shape.size()},
+        std::vector<int64_t>(expected_target_shape.begin(), expected_target_shape.end()));
 
     auto data = make_shared<op::Parameter>(element::f32, PartialShape{2, 3, Dimension::dynamic()});
     auto bc = make_shared<TypeParam>(data, target_shape, "NUMPY");
     ASSERT_TRUE(bc->get_output_partial_shape(0).rank().is_static());
     ASSERT_EQ(bc->get_output_partial_shape(0).rank().get_length(), 4);
-    ASSERT_EQ(bc->get_output_partial_shape(0), (PartialShape{1, 2, 3, Dimension::dynamic()}));
+    ASSERT_EQ(bc->get_output_partial_shape(0), expected_target_shape);
 
     data = make_shared<op::Parameter>(element::f32,
                                       PartialShape{Dimension::dynamic(), 3, Dimension::dynamic()});
     bc = make_shared<TypeParam>(data, target_shape, "NUMPY");
     ASSERT_TRUE(bc->get_output_partial_shape(0).rank().is_static());
     ASSERT_EQ(bc->get_output_partial_shape(0).rank().get_length(), 4);
-    ASSERT_EQ(bc->get_output_partial_shape(0),
-              (PartialShape{1, Dimension::dynamic(), 3, Dimension::dynamic()}));
+    ASSERT_EQ(bc->get_output_partial_shape(0), expected_target_shape);
 
     data = make_shared<op::Parameter>(element::f32,
                                       PartialShape{2, Dimension::dynamic(), Dimension::dynamic()});
     bc = make_shared<TypeParam>(data, target_shape, "NUMPY");
     ASSERT_TRUE(bc->get_output_partial_shape(0).rank().is_static());
     ASSERT_EQ(bc->get_output_partial_shape(0).rank().get_length(), 4);
-    ASSERT_EQ(bc->get_output_partial_shape(0),
-              (PartialShape{1, 2, Dimension::dynamic(), Dimension::dynamic()}));
+    ASSERT_EQ(bc->get_output_partial_shape(0), expected_target_shape);
 
     data = make_shared<op::Parameter>(
         element::f32,
@@ -730,8 +731,62 @@ TYPED_TEST_P(BroadcastTests, broadcast_numpy_input_partially_dynamic)
     bc = make_shared<TypeParam>(data, target_shape, "NUMPY");
     ASSERT_TRUE(bc->get_output_partial_shape(0).rank().is_static());
     ASSERT_EQ(bc->get_output_partial_shape(0).rank().get_length(), 4);
-    ASSERT_EQ(bc->get_output_partial_shape(0),
-              (PartialShape{1, Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()}));
+    ASSERT_EQ(bc->get_output_partial_shape(0), expected_target_shape);
+}
+
+TYPED_TEST_P(BroadcastTests, broadcast_numpy_static_dims_incorrect)
+{
+    const auto target_shape = op::Constant::create(element::i64, Shape{4}, {1, 2, 3, 4});
+
+    auto data =
+        make_shared<op::Parameter>(element::f32, PartialShape{Dimension::dynamic(), 999, 3, 4});
+    try
+    {
+        auto bc = make_shared<TypeParam>(data, target_shape, "NUMPY");
+    }
+    catch (const NodeValidationFailure& error)
+    {
+        EXPECT_HAS_SUBSTRING(error.what(),
+                             "Broadcast incorrect target shape. Expecting either 1 or 999 . Got 2");
+    }
+    catch (...)
+    {
+        FAIL() << "Deduced type check failed for unexpected reason";
+    }
+
+    data = make_shared<op::Parameter>(
+        element::f32,
+        PartialShape{Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), 888});
+    try
+    {
+        auto bc = make_shared<TypeParam>(data, target_shape, "NUMPY");
+    }
+    catch (const NodeValidationFailure& error)
+    {
+        EXPECT_HAS_SUBSTRING(error.what(),
+                             "Broadcast incorrect target shape. Expecting either 1 or 888 . Got 4");
+    }
+    catch (...)
+    {
+        FAIL() << "Deduced type check failed for unexpected reason";
+    }
+
+    data = make_shared<op::Parameter>(
+        element::f32,
+        PartialShape{Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), 1});
+    try
+    {
+        auto bc = make_shared<TypeParam>(data, target_shape, "NUMPY");
+    }
+    catch (const NodeValidationFailure& error)
+    {
+        EXPECT_HAS_SUBSTRING(error.what(),
+                             "Broadcast incorrect target shape. Expecting either 1 or 888 . Got 1");
+    }
+    catch (...)
+    {
+        FAIL() << "Deduced type check failed for unexpected reason";
+    }
 }
 
 REGISTER_TYPED_TEST_CASE_P(BroadcastTests,
@@ -761,7 +816,8 @@ REGISTER_TYPED_TEST_CASE_P(BroadcastTests,
                            broadcast_numpy_target_shape_dynamic,
                            broadcast_numpy_input_target_shape_static_rank,
                            broadcast_numpy_input_static_shape,
-                           broadcast_numpy_input_partially_dynamic);
+                           broadcast_numpy_input_partially_dynamic,
+                           broadcast_numpy_static_dims_incorrect);
 
 typedef ::testing::Types<op::v1::Broadcast, op::v3::Broadcast> BroadcastTypes;
 // the last empty argument resolves compiler warning on MAC:

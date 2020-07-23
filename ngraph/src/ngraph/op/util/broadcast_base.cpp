@@ -45,10 +45,10 @@ op::util::BroadcastBase::BroadcastBase(const Output<Node>& arg,
 {
 }
 
-PartialShape op::util::BroadcastBase::get_result_shape_numpy_pdpd(
-    const PartialShape& arg0_shape,
-    const Shape& target_shape,
-    const op::BroadcastModeSpec& broadcast_spec)
+PartialShape
+    op::util::BroadcastBase::get_result_shape_pdpd(const PartialShape& arg0_shape,
+                                                   const Shape& target_shape,
+                                                   const op::BroadcastModeSpec& broadcast_spec)
 {
     if (arg0_shape.rank().is_dynamic())
     {
@@ -56,9 +56,8 @@ PartialShape op::util::BroadcastBase::get_result_shape_numpy_pdpd(
     }
     const auto arg_rank_length = arg0_shape.rank().get_length();
     PartialShape result_shape = target_shape;
-    auto start_axis = (broadcast_spec.m_type == op::BroadcastType::PDPD)
-                          ? broadcast_spec.m_axis
-                          : target_shape.size() - arg_rank_length;
+    auto start_axis = broadcast_spec.m_axis;
+
     NODE_VALIDATION_CHECK(this,
                           start_axis >= 0,
                           "Broadcast target_shape has smaller rank ",
@@ -82,6 +81,37 @@ PartialShape op::util::BroadcastBase::get_result_shape_numpy_pdpd(
         result_shape[i] = std::max(arg_dim, target_shape[i]);
     }
     return result_shape;
+}
+
+void op::util::BroadcastBase::validate_target_shape_numpy(const PartialShape& arg_shape,
+                                                          const Shape& target_shape)
+{
+    if (arg_shape.rank().is_dynamic())
+    {
+        return;
+    }
+    const auto arg_rank_length = arg_shape.rank().get_length();
+    auto start_axis = target_shape.size() - arg_rank_length;
+    NODE_VALIDATION_CHECK(this,
+                          start_axis >= 0,
+                          "Broadcast target_shape has smaller rank ",
+                          target_shape.size(),
+                          " than arg shape ",
+                          arg_rank_length);
+    for (auto i = start_axis; i < target_shape.size(); i++)
+    {
+        if (arg_shape[i - start_axis].is_dynamic())
+        {
+            continue;
+        }
+        const size_t arg_dim = arg_shape[i - start_axis].get_length();
+        NODE_VALIDATION_CHECK(this,
+                              arg_dim == 1 || arg_dim == target_shape[i],
+                              "Broadcast incorrect target shape. Expecting either 1 or ",
+                              arg_dim,
+                              " . Got ",
+                              target_shape[i]);
+    }
 }
 
 void op::util::BroadcastBase::validate_target_shape_none(const Shape& arg_shape,
@@ -150,24 +180,25 @@ void op::util::BroadcastBase::validate_and_infer_types()
     }
 
     PartialShape result_shape{PartialShape::dynamic()};
-    const auto input_rank = input_value(0).get_partial_shape().rank();
-    const auto output_shape = input_value(1).get_partial_shape();
-    const bool is_output_rank_static =
-        output_shape.rank().is_static() && output_shape[0].is_static();
+    const auto& input_shape = get_input_partial_shape(0);
+    const auto input_rank = input_shape.rank();
+    const auto& target_shape = input_value(1).get_partial_shape();
+    const bool is_target_shape_known =
+        target_shape.rank().is_static() && target_shape[0].is_static();
 
     if (m_mode.m_type == BroadcastType::BIDIRECTIONAL)
     {
-        if (input_rank.is_static() && is_output_rank_static)
+        if (input_rank.is_static() && is_target_shape_known)
         {
             result_shape = PartialShape::dynamic(
-                std::max(input_rank.get_length(), output_shape[0].get_length()));
+                std::max(input_rank.get_length(), target_shape[0].get_length()));
         }
     }
     else
     {
-        if (is_output_rank_static)
+        if (is_target_shape_known)
         {
-            result_shape = PartialShape::dynamic(output_shape[0].get_length());
+            result_shape = PartialShape::dynamic(target_shape[0].get_length());
         }
     }
 
@@ -228,17 +259,21 @@ void op::util::BroadcastBase::validate_and_infer_types()
             }
         }
     }
-    else if (m_mode.m_type == BroadcastType::NUMPY || m_mode.m_type == BroadcastType::PDPD)
+    else if (m_mode.m_type == BroadcastType::NUMPY)
     {
-        if (get_input_partial_shape(0).rank().is_static() && get_input_partial_shape(1).is_static())
+        if (shape_constant)
         {
-            const auto& arg_shape = get_input_partial_shape(0);
-
-            if (shape_constant)
-            {
-                const auto target_shape = shape_constant->get_shape_val();
-                result_shape = get_result_shape_numpy_pdpd(arg_shape, target_shape, m_mode);
-            }
+            const auto target_shape = shape_constant->get_shape_val();
+            result_shape = target_shape;
+            validate_target_shape_numpy(input_shape, target_shape);
+        }
+    }
+    else if (m_mode.m_type == BroadcastType::PDPD)
+    {
+        if (shape_constant)
+        {
+            const auto target_shape = shape_constant->get_shape_val();
+            result_shape = get_result_shape_pdpd(input_shape, target_shape, m_mode);
         }
     }
     set_output_type(0, get_input_element_type(0), result_shape);
@@ -527,9 +562,16 @@ bool op::util::BroadcastBase::evaluate(const HostTensorVector& outputs,
         validate_target_shape_none(inputs[0]->get_shape(), axes_mapping_val, target_shape);
         result_shape = target_shape;
     }
-    else if (m_mode.m_type == BroadcastType::NUMPY || m_mode.m_type == BroadcastType::PDPD)
+    else if (m_mode.m_type == BroadcastType::PDPD)
     {
-        result_shape = get_result_shape_numpy_pdpd(arg_shape, target_shape, m_mode);
+        result_shape = get_result_shape_pdpd(arg_shape, target_shape, m_mode);
+        pair_broadcast_axes =
+            get_broadcast_axes_numpy_pdpd(arg_shape, result_shape.to_shape(), m_mode);
+    }
+    else if (m_mode.m_type == BroadcastType::NUMPY)
+    {
+        result_shape = target_shape;
+        validate_target_shape_numpy(arg_shape, target_shape);
         pair_broadcast_axes =
             get_broadcast_axes_numpy_pdpd(arg_shape, result_shape.to_shape(), m_mode);
     }
