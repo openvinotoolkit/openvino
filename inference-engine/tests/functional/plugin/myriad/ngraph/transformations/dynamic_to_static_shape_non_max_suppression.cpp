@@ -6,6 +6,7 @@
 #include <ngraph_functions/utils/ngraph_helpers.hpp>
 #include <ngraph/opsets/opset3.hpp>
 #include <vpu/ngraph/operations/dynamic_shape_resolver.hpp>
+#include <vpu/ngraph/operations/dynamic_non_max_suppression.hpp>
 #include <vpu/ngraph/transformations/dynamic_to_static_shape.hpp>
 #include <vpu/ngraph/transformations/dynamic_to_static_shape_non_max_suppression.hpp>
 #include <vpu/ngraph/operations/static_shape_non_maximum_suppression.hpp>
@@ -56,7 +57,7 @@ protected:
         const auto dims = std::make_shared<ngraph::opset3::Parameter>(ngraph::element::i64, ngraph::Shape{3});
         const auto dsr = std::make_shared<ngraph::vpu::op::DynamicShapeResolver>(scores, dims);
 
-        const auto node = std::make_shared<ngraph::op::dynamic::NonMaxSuppression>(
+        const auto node = std::make_shared<ngraph::vpu::op::DynamicNonMaxSuppression>(
                 boxes, dsr, max_output_boxes_per_class, iou_threshold, score_threshold);
 
         auto outputShape = node->get_output_partial_shape(0);

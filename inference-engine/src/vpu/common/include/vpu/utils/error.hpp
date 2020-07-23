@@ -41,7 +41,7 @@ void throwFormat(const char* fileName, int lineNumber, const char* messageFormat
 #define VPU_THROW_UNLESS(condition, ...)                                                       \
     do {                                                                                       \
         if (!(condition)) {                                                                    \
-            vpu::details::throwFormat<vpu::details::VPUException>(__FILE__, __LINE__, __VA_ARGS__); \
+            ::vpu::details::throwFormat<::vpu::details::VPUException>(__FILE__, __LINE__, __VA_ARGS__); \
         }                                                                                      \
     } while (false)
 
