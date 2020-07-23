@@ -106,8 +106,8 @@ public:
      * @param modelPath path to model
      * @param binPath path to data file
      * For IR format (*.bin):
-     *  * if path is empty, will try to read bin file with the same name as xml and
-     *  * if bin file with the same name was not found, will load IR without weights.
+     *  * if \p binPath is empty, tries to read *.bin file with the same name as xml and
+     *  * if *.bin file with the same name was not found, tries to load IR without weights.
      * ONNX models with data files are not supported
      * @return CNNNetwork
      */
