@@ -107,10 +107,14 @@ void op::util::BroadcastBase::validate_target_shape_numpy(const PartialShape& ar
         const size_t arg_dim = arg_shape[i - start_axis].get_length();
         NODE_VALIDATION_CHECK(this,
                               arg_dim == 1 || arg_dim == target_shape[i],
-                              "Broadcast incorrect target shape. Expecting either 1 or ",
+                              "Input shape dimension equals ",
                               arg_dim,
-                              " . Got ",
-                              target_shape[i]);
+                              " cannot be broadcasted (numpy mode) to ",
+                              target_shape[i],
+                              ". Allowed input dimension value would be 1",
+                              target_shape[i] != 1
+                                  ? (std::string(" or ") + std::to_string(target_shape[i])).c_str()
+                                  : "");
     }
 }
 

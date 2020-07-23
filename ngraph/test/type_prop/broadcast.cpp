@@ -747,7 +747,8 @@ TYPED_TEST_P(BroadcastTests, broadcast_numpy_static_dims_incorrect)
     catch (const NodeValidationFailure& error)
     {
         EXPECT_HAS_SUBSTRING(error.what(),
-                             "Broadcast incorrect target shape. Expecting either 1 or 999 . Got 2");
+                             "Input shape dimension equals 999 cannot be broadcasted (numpy mode) "
+                             "to 2. Allowed input dimension value would be 1 or 2");
     }
     catch (...)
     {
@@ -764,7 +765,8 @@ TYPED_TEST_P(BroadcastTests, broadcast_numpy_static_dims_incorrect)
     catch (const NodeValidationFailure& error)
     {
         EXPECT_HAS_SUBSTRING(error.what(),
-                             "Broadcast incorrect target shape. Expecting either 1 or 888 . Got 4");
+                             "Input shape dimension equals 888 cannot be broadcasted (numpy mode) "
+                             "to 4. Allowed input dimension value would be 1 or 4");
     }
     catch (...)
     {
@@ -773,7 +775,7 @@ TYPED_TEST_P(BroadcastTests, broadcast_numpy_static_dims_incorrect)
 
     data = make_shared<op::Parameter>(
         element::f32,
-        PartialShape{Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic(), 1});
+        PartialShape{5, Dimension::dynamic(), Dimension::dynamic(), Dimension::dynamic()});
     try
     {
         auto bc = make_shared<TypeParam>(data, target_shape, "NUMPY");
@@ -781,7 +783,8 @@ TYPED_TEST_P(BroadcastTests, broadcast_numpy_static_dims_incorrect)
     catch (const NodeValidationFailure& error)
     {
         EXPECT_HAS_SUBSTRING(error.what(),
-                             "Broadcast incorrect target shape. Expecting either 1 or 888 . Got 1");
+                             "Input shape dimension equals 5 cannot be broadcasted (numpy mode) to "
+                             "1. Allowed input dimension value would be 1");
     }
     catch (...)
     {
