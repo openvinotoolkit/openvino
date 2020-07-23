@@ -24,8 +24,8 @@ ngraph::graph_rewrite_callback callback = [](ngraph::pattern::Matcher& m) {
         return false;
     }
 
-    for (const auto& input : eltwise_node->get_inputs()) {
-        const auto& inputLayer = input.get_output().get_node();
+    for (const auto& input : eltwise_node->inputs()) {
+        const auto& inputLayer = input.get_source_output().get_node_shared_ptr();
         auto const_node = std::dynamic_pointer_cast<ngraph::opset1::Constant>(inputLayer);
         if (!const_node) continue;
 
