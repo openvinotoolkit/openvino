@@ -14,7 +14,7 @@
 
 #include "execution_graph_tests/num_inputs_fusing_bin_conv.hpp"
 
-#include "network_serializer.h"
+std::vector<InferenceEngine::CNNLayerPtr> TopologicalSort(const InferenceEngine::ICNNNetwork& network);
 
 namespace LayerTestsDefinitions {
 
@@ -78,7 +78,7 @@ TEST_P(ExecGraphInputsFusingBinConv, CheckNumInputsInBinConvFusingWithConv) {
     } else {
         IE_SUPPRESS_DEPRECATED_START
         std::vector<InferenceEngine::CNNLayerPtr> nodes;
-        ASSERT_NO_THROW(nodes = InferenceEngine::Serialization::TopologicalSort(execGraphInfo));
+        ASSERT_NO_THROW(nodes = TopologicalSort(execGraphInfo));
         for (auto &node : nodes) {
             if (node->type == "BinaryConvolution") {
                 std::string originalLayersNames = node->params["originalLayersNames"];

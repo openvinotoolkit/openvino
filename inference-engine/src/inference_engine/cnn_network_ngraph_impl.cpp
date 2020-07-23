@@ -28,7 +28,7 @@
 #include "ie_util_internal.hpp"
 #include "ie_ngraph_utils.hpp"
 #include "ie_profiling.hpp"
-#include "network_serializer.h"
+#include "network_serializer.hpp"
 #include "generic_ie.hpp"
 #include <shape_infer/built-in/ie_built_in_holder.hpp>
 
@@ -380,8 +380,7 @@ CNNNetworkNGraphImpl::reshape(const std::map<std::string, std::vector<size_t>>& 
 
 StatusCode CNNNetworkNGraphImpl::serialize(const std::string& xmlPath, const std::string& binPath,
                                            ResponseDesc* resp) const noexcept {
-    auto network = cnnNetwork;
-    if (!network) {
+    if (!cnnNetwork) {
         // TODO: once Serialization::Serialize supports true IR v10
         // remove this conversion and WA for execution graph
         try {
@@ -404,11 +403,9 @@ StatusCode CNNNetworkNGraphImpl::serialize(const std::string& xmlPath, const std
         } catch (...) {
             return DescriptionBuffer(UNEXPECTED, resp);
         }
-
-        network = std::make_shared<details::CNNNetworkImpl>(*this);
     }
-    if (!network) return GENERAL_ERROR;
-    return network->serialize(xmlPath, binPath, resp);
+
+    return DescriptionBuffer(NOT_IMPLEMENTED, resp) << "The serialize for IR v10 is not implemented";
 }
 
 StatusCode CNNNetworkNGraphImpl::setBatchSize(size_t size, ResponseDesc* responseDesc) noexcept {

@@ -6,7 +6,6 @@
 
 #include <string>
 #include <ngraph/variant.hpp>
-#include "network_serializer.h"
 #include "ie_system_conf.h"
 
 #include <ngraph/function.hpp>
