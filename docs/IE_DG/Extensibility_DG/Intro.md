@@ -40,13 +40,6 @@ The following pages describe how to integrate custom _kernels_ into the Inferenc
  * [Introduction to development of custom GPU kernels](GPU_Kernel.md)
  * [Introduction to development of custom VPU kernels](VPU_Kernel.md)
 
-## Deprecated Extensibility API
-
-Shape Inference API and some methods of extensibility mechanism was deprecated and will be removed soon.
-Old Extensibility mechanism contains two parts shape inference and execution kernel.
- * [Shape Inference](deprecated/ShapeInfer.md)
- * [Execution Kernel](deprecated/Factory.md)
-
 ## Additional Resources
 
 * [Build an extension library using CMake*](Building.md)

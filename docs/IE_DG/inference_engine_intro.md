@@ -21,20 +21,29 @@ Modules in the Inference Engine component
 ### Core Inference Engine Libraries ###
 
 Your application must link to the core Inference Engine libraries:
-* Linux* OS: 
+* Linux* OS:
     - `libinference_engine.so`, which depends on `libinference_engine_transformations.so` and `libngraph.so`
     - `libinference_engine_legacy.so`, which depends on `libtbb.so`
-* Windows* OS: 
+* Windows* OS:
     - `inference_engine.dll`, which depends on `inference_engine_transformations.dll` and `ngraph.dll`
     - `inference_engine_legacy.dll`, which depends on `tbb.dll`
 
 The required C++ header files are located in the `include` directory.
 
 This library contains the classes to:
-* Read the network (InferenceEngine::CNNNetReader)
+* Create Inference Engine Core object to work with devices and read network (InferenceEngine::Core)
 * Manipulate network information (InferenceEngine::CNNNetwork)
-* Create Inference Engine Core object to work with devices (InferenceEngine::Core)
 * Execute and pass inputs and outputs (InferenceEngine::ExecutableNetwork and InferenceEngine::InferRequest)
+
+### Plugin Libraries to read a network object ###
+
+Starting from 2020.4 release, Inference Engine introduced a concept of `CNNNetwork` reader plugins. Such plugins can be automatically dynamically loaded by Inference Engine in runtime depending on file format:
+* Linux* OS:
+    - `libinference_engine_ir_reader.so` to read a network from IR
+    - `libinference_engine_onnx_reader.so` to read a network from ONNX model format
+* Windows* OS:
+    - `inference_engine_ir_reader.dll` to read a network from IR
+    - `inference_engine_onnx_reader.dll` to read a network from ONNX model format
 
 ### Device-specific Plugin Libraries ###
 
