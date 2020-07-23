@@ -18,6 +18,7 @@
 #include "default_opset.hpp"
 #include "exceptions.hpp"
 #include "ngraph/op/util/op_types.hpp"
+#include "utils/common.hpp"
 
 namespace ngraph
 {
@@ -27,22 +28,12 @@ namespace ngraph
         {
             namespace
             {
-                AxisSet generate_axis_set(size_t axes_size)
-                {
-                    AxisSet axes;
-                    for (int ax = 0; ax < axes_size; ++ax)
-                    {
-                        axes.insert(ax);
-                    }
-                    return axes;
-                }
-
                 std::shared_ptr<ngraph::Node> calculate_output_shape_based_on_scales(
                     const std::shared_ptr<ngraph::Node>& data,
                     const std::shared_ptr<ngraph::Node>& scales)
                 {
-                    const auto data_shape = data->get_output_partial_shape(0);
-                    const auto scales_shape = scales->get_output_partial_shape(0);
+                    const auto& data_shape = data->get_output_partial_shape(0);
+                    const auto& scales_shape = scales->get_output_partial_shape(0);
 
                     if (ngraph::op::is_constant(scales) && data_shape.is_static())
                     {
@@ -65,11 +56,11 @@ namespace ngraph
                     }
 
                     const auto shape_of_data = std::make_shared<default_opset::Convert>(
-                        std::make_shared<default_opset::ShapeOf>(data), ngraph::element::f32);
+                        std::make_shared<default_opset::ShapeOf>(data), scales->get_element_type());
                     const auto multiply =
                         std::make_shared<default_opset::Multiply>(shape_of_data, scales);
-                    const auto output_shape = std::make_shared<default_opset::Convert>(
-                        std::make_shared<default_opset::Floor>(multiply), ngraph::element::i64);
+                    const auto output_shape =
+                        std::make_shared<default_opset::Convert>(multiply, ngraph::element::i64);
 
                     return output_shape;
                 }
@@ -171,7 +162,8 @@ namespace ngraph
                         size_t axes_size = sizes_shape.is_static() ? sizes_shape.to_shape().at(0)
                                                                    : data_shape.rank().get_length();
 
-                        return build_resize(node, sizes, generate_axis_set(axes_size));
+                        return build_resize(
+                            node, sizes, AxisSet(common::get_monotonic_range(axes_size)));
                     }
 
                     const auto& scales = inputs.at(2);
@@ -187,9 +179,11 @@ namespace ngraph
 
                     const auto output_shape = calculate_output_shape_based_on_scales(data, scales);
 
-                    return build_resize(node, output_shape, generate_axis_set(axes_size));
-                } // namespace set_11
-            }
+                    return build_resize(
+                        node, output_shape, AxisSet(common::get_monotonic_range(axes_size)));
+                }
+            } // namespace set_11
+
             namespace set_1
             {
                 NodeVector resize(const onnx_import::Node& node)
@@ -211,7 +205,8 @@ namespace ngraph
 
                     const auto output_shape = calculate_output_shape_based_on_scales(data, scales);
 
-                    return build_resize(node, output_shape, generate_axis_set(axes_size));
+                    return build_resize(
+                        node, output_shape, AxisSet(common::get_monotonic_range(axes_size)));
                 }
 
             } // namespace set_1
