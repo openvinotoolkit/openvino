@@ -10,8 +10,6 @@
 
 #include "transformations/low_precision/network_helper.hpp"
 
-#include "ngraph/pass/visualize_tree.hpp"
-
 using namespace ngraph;
 using namespace ngraph::pass;
 using namespace ngraph::pass::low_precision;
@@ -42,8 +40,6 @@ void MatMulTransformation::transform(TransformationContext &context, ngraph::pat
                 updatePrecisions);
 
             dequantization2 = ngraph::pass::low_precision::NetworkHelper::getDequantization(matMul, 1);
-
-            // VisualizeTree("C:\\Projects\\temp\\test.tmp").run_on_module(std::vector<std::shared_ptr<ngraph::Function>>{ context.network });
         }
     }
 
@@ -58,8 +54,6 @@ void MatMulTransformation::transform(TransformationContext &context, ngraph::pat
     replace_node(matMul, newMultiply);
 
     updateOutput(context, newMultiply, matMul);
-
-    VisualizeTree("C:\\Projects\\temp\\test.tmp").run_on_module(std::vector<std::shared_ptr<ngraph::Function>>{ context.network });
 }
 
 void MatMulTransformation::registerMatcherIn(GraphRewrite& pass, TransformationContext& context) const {

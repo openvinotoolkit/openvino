@@ -18,8 +18,6 @@
 #include "transformations/low_precision/common/ie_lpt_exception.hpp"
 #include "transformations/low_precision/network_helper.hpp"
 
-// #include "ngraph/pass/visualize_tree.hpp"
-
 namespace ngraph {
 namespace pass {
 namespace low_precision {
@@ -65,8 +63,6 @@ void FakeQuantizeTransformation::transform(TransformationContext& context, ngrap
         dataPrecision.max,
         dataPrecision.hasZeroPoint,
         updatePrecisions);
-
-    // VisualizeTree("C:\\Projects\\temp\\test.tmp").run_on_module(std::vector<std::shared_ptr<ngraph::Function>>{ context.network });
 
 #ifdef LPT_PRINT_DEQUANTIZATION_INFO
     {
