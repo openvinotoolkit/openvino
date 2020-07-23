@@ -241,6 +241,7 @@ extensions/front/onnx/conv_ext.py
 extensions/front/onnx/crop_ext.py
 extensions/front/onnx/cumsum_ext.py
 extensions/front/onnx/deformable_conv_ext.py
+extensions/front/onnx/depth_to_space_ext.py
 extensions/front/onnx/detection_output.py
 extensions/front/onnx/detectionoutput_ext.py
 extensions/front/onnx/dropout_ext.py
@@ -302,6 +303,7 @@ extensions/front/onnx/slice_ext.py
 extensions/front/onnx/softmax_ext.py
 extensions/front/onnx/softmaxONNX_to_softmax.py
 extensions/front/onnx/softplus_ext.py
+extensions/front/onnx/space_to_depth_ext.py
 extensions/front/onnx/split_ext.py
 extensions/front/onnx/squeeze_ext.py
 extensions/front/onnx/top_k_ext.py
