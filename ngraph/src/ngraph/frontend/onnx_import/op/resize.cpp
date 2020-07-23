@@ -68,6 +68,20 @@ namespace ngraph
                     return std::find(modes.begin(), modes.end(), checked_mode) != modes.end();
                 }
 
+                template <typename Map>
+                static std::string convert(const Map& converting_map, const std::string& mode)
+                {
+                    std::string result;
+                    auto it = converting_map.find(mode);
+                    if (it != converting_map.end())
+                    {
+                        result = it->second;
+                    }
+                    return result;
+                }
+
+                static std::string conver
+
                 NodeVector resize(const onnx_import::Node& node)
                 {
                     const auto inputs = node.get_ng_inputs();
@@ -135,9 +149,9 @@ namespace ngraph
 
                     auto attrs = ngraph::op::v4::Interpolate::InterpolateAttrs();
 //                     attrs.axes = axes;
-                    attrs.mode = interp_mode_map[mode];
-                    attrs.coordinate_transformation_mode = transform_mode_map[transform_mode];
-                    attrs.nearest_mode = nearest_mode_map[nearest_mode];
+                    attrs.mode = convert(interp_mode_map, mode);
+                    attrs.coordinate_transformation_mode = convert(transform_mode_map, transform_mode);
+                    attrs.nearest_mode = convert(nearest_mode_map, nearest_mode);
                     attrs.antialias = false;
                     attrs.cube_coeff = node.get_attribute_value<float>("cubic_coeff_a", -0.75);
 
@@ -173,8 +187,9 @@ namespace ngraph
                         std::make_shared<default_opset::Multiply>(shape_of_data, scales);
                     auto output_shape = std::make_shared<default_opset::Convert>(
                         std::make_shared<default_opset::Floor>(multiply), ngraph::element::i64);
+//                     auto axes = opset3::Constant::create(element::i64, Shape{}, std::vector<int64_t >({0}));
                     return {
-                        std::make_shared<default_opset::Interpolate>(data, output_shape, attrs)};
+                        std::make_shared<ngraph::op::v4::Interpolate>(data, output_shape, attrs)};
                 }
 
             } // namespace set_1
