@@ -150,6 +150,9 @@ void ngraph::pass::ConvertMatMulToFCorGemm::convert_matmul() {
 
             ngraph::copy_runtime_info(matmul, new_ops);
             ngraph::replace_node(matmul, fc);
+
+            fc->set_output_type(0, element::f32, fc->get_output_partial_shape(0));
+
         } else {
             // WA for IE that Gemm must have inputs with the same length.
             if (shape_a.size() < shape_b.size()) {
@@ -191,6 +194,11 @@ void ngraph::pass::ConvertMatMulToFCorGemm::convert_matmul() {
             } else {
                 gemm->set_friendly_name(matmul->get_friendly_name());
                 ngraph::copy_runtime_info(matmul, new_ops);
+
+                gemm->set_output_type(0, element::f32, gemm->get_output_partial_shape(0));
+                // const auto elementType = gemm->get_element_type();
+                // const auto outputType = gemm->get_output_element_type(0);
+
                 ngraph::replace_node(matmul, gemm);
             }
         }

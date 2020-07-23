@@ -318,7 +318,7 @@ namespace ngraph
 
     public:
         // TODO(amprocte): should this be protected?
-        void set_output_type(size_t i,
+        virtual void set_output_type(size_t i,
                              const element::Type& element_type,
                              const PartialShape& pshape);
 
@@ -606,9 +606,11 @@ namespace ngraph
             }
         }
 
+    protected:
+        descriptor::Output& get_output_descriptor(size_t position);
+
     private:
         descriptor::Input& get_input_descriptor(size_t position);
-        descriptor::Output& get_output_descriptor(size_t position);
 
         std::vector<Node*> m_control_dependents;
         std::vector<std::shared_ptr<Node>> m_control_dependencies;

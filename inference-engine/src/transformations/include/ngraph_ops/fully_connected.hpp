@@ -37,6 +37,10 @@ public:
 
     size_t get_out_size() { return m_output_size; }
 
+    void set_output_type(size_t i,
+        const element::Type& element_type,
+        const PartialShape& pshape) override;
+
 private:
     size_t m_output_size = 0;
     Shape m_output_shape = {};

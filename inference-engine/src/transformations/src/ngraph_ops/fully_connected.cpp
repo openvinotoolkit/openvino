@@ -32,3 +32,7 @@ void op::FullyConnected::validate_and_infer_types() {
     m_output_size = m_output_shape.back();
     set_output_type(0, input_value(0).get_element_type(), m_output_shape);
 }
+
+void op::FullyConnected::set_output_type(size_t i, const element::Type& element_type, const PartialShape& pshape) {
+    get_output_descriptor(i).get_tensor_ptr()->set_tensor_type(element::f32, pshape);
+}
