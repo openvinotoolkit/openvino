@@ -1199,32 +1199,47 @@ void BroadcastConstPass::run() {
             continue;
         }
 
-        auto constDims = constLayer->outData.front()->getTensorDesc().getDims();
-        auto constDimsSize = InferenceEngine::details::product(constDims.begin(), constDims.end());
-        auto eltwiseDims = nextLayer->outData.front()->getTensorDesc().getDims();
-        auto eltwiseDimsSize = InferenceEngine::details::product(eltwiseDims.begin(), eltwiseDims.end());
+        auto broadcastConstBlob = [](InferenceEngine::CNNLayerPtr constLayer, InferenceEngine::CNNLayerPtr eltwiseLayer) {
+            auto constDims = constLayer->outData.front()->getTensorDesc().getDims();
+            auto constDimsSize = InferenceEngine::details::product(constDims.begin(), constDims.end());
+            auto eltwiseDims = eltwiseLayer->outData.front()->getTensorDesc().getDims();
+            auto eltwiseDimsSize = InferenceEngine::details::product(eltwiseDims.begin(), eltwiseDims.end());
 
-        if (constDimsSize == eltwiseDimsSize) {
+            if (constDimsSize == eltwiseDimsSize) {
+                return false;
+            }
+            if (eltwiseDimsSize % constDimsSize != 0) {
+                return false;
+            }
+
+            if (constLayer->blobs.find("custom") == constLayer->blobs.end()) {
+                THROW_GNA_LAYER_EXCEPTION(constLayer) << "Const layer " << constLayer->name << " is missing 'custom' parameter";
+            }
+
+            auto currentConstBlob = constLayer->blobs.find("custom")->second;
+            auto constPrecision = currentConstBlob->getTensorDesc().getPrecision();
+            if (currentConstBlob->size() == 0) {
+                THROW_GNA_LAYER_EXCEPTION(constLayer) << "Const layer " << constLayer->name << " has an empty blob";
+            }
+            auto newConstBlob = make_blob_with_precision(InferenceEngine::TensorDesc(constPrecision,
+                eltwiseLayer->outData.front()->getTensorDesc().getDims(),
+                eltwiseLayer->outData.front()->getTensorDesc().getLayout()));
+            newConstBlob->allocate();
+
+            for (int i = 0; i < (eltwiseDimsSize / constDimsSize); ++i) {
+                ie_memcpy(newConstBlob->buffer().as<uint8_t*>() + (i * currentConstBlob->byteSize()),
+                    currentConstBlob->byteSize(),
+                    currentConstBlob->cbuffer(),
+                    currentConstBlob->byteSize());
+            }
+            constLayer->blobs.begin()->second = newConstBlob;
+            return true;
+        };
+
+        if (!broadcastConstBlob(constLayer, nextLayer)) {
             continue;
         }
-        if (eltwiseDimsSize % constDimsSize != 0) {
-            continue;
-        }
 
-        auto currentConstBlob = constLayer->blobs.begin()->second;
-        auto constPrecision = constLayer->blobs.begin()->second->getTensorDesc().getPrecision();
-        auto newConstBlob = make_blob_with_precision(InferenceEngine::TensorDesc(constPrecision,
-            nextLayer->outData.front()->getTensorDesc().getDims(),
-            nextLayer->outData.front()->getTensorDesc().getLayout()));
-        newConstBlob->allocate();
-        std::size_t offset = 0;
-        for (std::size_t i = 0; i < (eltwiseDimsSize / constDimsSize); ++i) {
-            ie_memcpy(newConstBlob->buffer().as<char*>() + (i * currentConstBlob->byteSize()),
-                currentConstBlob->byteSize(),
-                currentConstBlob->buffer(),
-                currentConstBlob->byteSize());
-        }
-        constLayer->blobs.begin()->second = newConstBlob;
         constLayer->outData.front()->setDims(nextLayer->outData.front()->getDims());
         gnalog() << "Const layer '" << constLayer->name << "' was changed to match output of '" << nextLayer->name << "'\n";
     }
