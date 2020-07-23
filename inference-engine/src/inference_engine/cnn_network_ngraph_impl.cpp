@@ -28,7 +28,7 @@
 #include "ie_util_internal.hpp"
 #include "ie_ngraph_utils.hpp"
 #include "ie_profiling.hpp"
-#include "network_serializer.h"
+#include "network_serializer.hpp"
 #include "generic_ie.hpp"
 #include <shape_infer/built-in/ie_built_in_holder.hpp>
 
@@ -352,11 +352,11 @@ CNNNetworkNGraphImpl::reshape(const std::map<std::string, std::vector<size_t>>& 
             std::unordered_set<std::string> opName;
             for (const auto & layer : specialized_ngraph_function->get_ordered_ops()) {
                 if (std::dynamic_pointer_cast<::ngraph::op::Result>(layer)) {
-                    IE_ASSERT(layer->get_inputs().size() == 1);
-                    const auto& input = layer->get_inputs()[0];
-                    std::string outName = input.get_output().get_node()->get_friendly_name();
-                    if (input.get_output().get_node()->get_output_size() != 1)
-                        outName += "." + std::to_string(input.get_output().get_index());
+                    IE_ASSERT(layer->inputs().size() == 1);
+                    const auto& output = layer->input(0).get_source_output();
+                    std::string outName = output.get_node()->get_friendly_name();
+                    if (output.get_node()->get_output_size() != 1)
+                        outName += "." + std::to_string(output.get_index());
                     addOutput(outName);
                     continue;
                 }
@@ -380,8 +380,7 @@ CNNNetworkNGraphImpl::reshape(const std::map<std::string, std::vector<size_t>>& 
 
 StatusCode CNNNetworkNGraphImpl::serialize(const std::string& xmlPath, const std::string& binPath,
                                            ResponseDesc* resp) const noexcept {
-    auto network = cnnNetwork;
-    if (!network) {
+    if (!cnnNetwork) {
         // TODO: once Serialization::Serialize supports true IR v10
         // remove this conversion and WA for execution graph
         try {
@@ -404,11 +403,9 @@ StatusCode CNNNetworkNGraphImpl::serialize(const std::string& xmlPath, const std
         } catch (...) {
             return DescriptionBuffer(UNEXPECTED, resp);
         }
-
-        network = std::make_shared<details::CNNNetworkImpl>(*this);
     }
-    if (!network) return GENERAL_ERROR;
-    return network->serialize(xmlPath, binPath, resp);
+
+    return DescriptionBuffer(NOT_IMPLEMENTED, resp) << "The serialize for IR v10 is not implemented";
 }
 
 StatusCode CNNNetworkNGraphImpl::setBatchSize(size_t size, ResponseDesc* responseDesc) noexcept {

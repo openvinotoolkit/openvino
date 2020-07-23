@@ -129,7 +129,7 @@ class GFluidExecutable final: public GIslandExecutable
 
     std::vector<FluidAgent*> m_script;
 
-    using Magazine = detail::magazine<cv::gapi::own::Scalar, cv::detail::VectorRef>;
+    using Magazine = detail::magazine<cv::Scalar, cv::detail::VectorRef, cv::detail::OpaqueRef>;
     Magazine m_res;
 
     std::size_t m_num_int_buffers; // internal buffers counter (m_buffers - num_scratch)
@@ -142,8 +142,8 @@ class GFluidExecutable final: public GIslandExecutable
     void bindOutArg(const RcDesc &rc, const GRunArgP &arg);
     void packArg   (GArg &in_arg, const GArg &op_arg);
 
-    void initBufferRois(std::vector<int>& readStarts, std::vector<cv::gapi::own::Rect>& rois, const std::vector<gapi::own::Rect> &out_rois);
-    void makeReshape(const std::vector<cv::gapi::own::Rect>& out_rois);
+    void initBufferRois(std::vector<int>& readStarts, std::vector<cv::Rect>& rois, const std::vector<cv::Rect> &out_rois);
+    void makeReshape(const std::vector<cv::Rect>& out_rois);
     std::size_t total_buffers_size() const;
 
 public:
@@ -159,7 +159,7 @@ public:
 
      GFluidExecutable(const ade::Graph                          &g,
                       const FluidGraphInputData                 &graph_data,
-                      const std::vector<cv::gapi::own::Rect>    &outputRois);
+                      const std::vector<cv::Rect>               &outputRois);
 };
 
 
