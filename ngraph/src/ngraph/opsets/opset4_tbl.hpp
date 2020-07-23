@@ -21,7 +21,6 @@
 
 NGRAPH_OP(Abs, ngraph::op::v0)
 NGRAPH_OP(Acos, ngraph::op::v0)
-NGRAPH_OP(Acosh, ngraph::op::v3)
 NGRAPH_OP(Add, ngraph::op::v1)
 NGRAPH_OP(Asin, ngraph::op::v0)
 NGRAPH_OP(Atan, ngraph::op::v0)
@@ -153,6 +152,9 @@ NGRAPH_OP(ReadValue, ngraph::op::v3)
 NGRAPH_OP(TopK, ngraph::op::v3)
 
 // New operations added in opset4
+NGRAPH_OP(Acosh, ngraph::op::v3)
+NGRAPH_OP(Asinh, ngraph::op::v3)
+NGRAPH_OP(Atanh, ngraph::op::v3)
 NGRAPH_OP(NonMaxSuppression, ngraph::op::v4)
 NGRAPH_OP(Mish, ngraph::op::v4)
 NGRAPH_OP(CTCLoss, ngraph::op::v4)
