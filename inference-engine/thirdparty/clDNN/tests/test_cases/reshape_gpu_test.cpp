@@ -593,3 +593,120 @@ TEST(reshape_gpu_f32, basic_bfwzyx) {
         EXPECT_TRUE(are_equal(expected_out[i], output_ptr[i]));
     }
 }
+
+TEST(reshape_gpu_f32, shrink_chain_partial) {
+    const auto& engine = get_test_engine();
+    auto batch_num = 2;
+    auto feature_num = 2;
+    auto x_size = 1;
+    auto y_size = 1;
+    auto input = memory::allocate(engine, {data_types::f32, format::bfyx, {tensor(spatial(x_size, y_size), feature(feature_num), batch(batch_num))}});
+    auto scale_in = memory::allocate(engine, {data_types::f32, format::bfyx, { tensor(feature(4)) }});
+    auto shift_in = memory::allocate(engine, {data_types::f32, format::bfyx, { tensor(feature(4)) }});
+
+    std::vector<float> scale_vals = {0.f, 1.f, 2.f, 3.f};
+    std::vector<float> scale_shifts = {5.f, 10.f, 15.f, 20.0f};
+    set_values(scale_in, scale_vals);
+    set_values(shift_in, scale_shifts);
+
+    topology topology;
+    topology.add(input_layout("input", input.get_layout()));
+    topology.add(data("scale_in", scale_in));
+    topology.add(data("shift_in", shift_in));
+    topology.add(activation("relu", "input", activation_func::relu));
+    topology.add(reshape("reshape", "relu", tensor(spatial(2, 2))));
+    topology.add(reorder("reorder", "reshape", format::bfyx, data_types::f32));
+    topology.add(reshape("reshape1", "reorder", tensor(feature(4))));
+    topology.add(scale("scale", "reshape1", "scale_in", "shift_in"));
+    topology.add(reorder("out_reorder", "scale", format::yxfb, data_types::f32));
+
+    std::vector<float> input_vec = {-1.f, 2.f, -3.f, 4.f};
+    std::vector<float> out = {5.f, 12.f, 15.f, 32.0f};
+    set_values(input, input_vec);
+
+    build_options bo;
+    bo.set_option(build_option::optimize_data(true));
+    network network(engine, topology, bo);
+    network.set_input_data("input", input);
+    auto outputs = network.execute();
+
+    auto output = outputs.at("out_reorder").get_memory();
+    auto output_ptr = output.pointer<float>();
+
+    for (size_t i = 0; i < out.size(); i++)
+        EXPECT_EQ(output_ptr[i], out[i]) << " i=" << i;
+}
+
+TEST(reshape_gpu_f32, shrink_chain_full) {
+    const auto& engine = get_test_engine();
+    auto input = memory::allocate(engine, {data_types::f32, format::bfyx, { tensor(feature(4)) }});
+    auto scale_in = memory::allocate(engine, {data_types::f32, format::bfyx, { tensor(feature(4)) }});
+    auto shift_in = memory::allocate(engine, {data_types::f32, format::bfyx, { tensor(feature(4)) }});
+
+    std::vector<float> scale_vals = {0.f, 1.f, 2.f, 3.f};
+    std::vector<float> scale_shifts = {5.f, 10.f, 15.f, 20.0f};
+    set_values(scale_in, scale_vals);
+    set_values(shift_in, scale_shifts);
+
+    topology topology;
+    topology.add(input_layout("input", input.get_layout()));
+    topology.add(data("scale_in", scale_in));
+    topology.add(data("shift_in", shift_in));
+    topology.add(activation("relu", "input", activation_func::relu));
+    topology.add(reshape("reshape", "relu", tensor(spatial(2, 2))));
+    topology.add(reorder("reorder", "reshape", format::bfyx, data_types::f32));
+    topology.add(reshape("reshape1", "reorder", tensor(feature(4))));
+    topology.add(scale("scale", "reshape1", "scale_in", "shift_in"));
+    topology.add(reorder("out_reorder", "scale", format::yxfb, data_types::f32));
+
+    std::vector<float> input_vec = {-1.f, 2.f, -3.f, 4.f};
+    std::vector<float> out = {5.f, 12.f, 15.f, 32.0f};
+    set_values(input, input_vec);
+
+    build_options bo;
+    bo.set_option(build_option::optimize_data(true));
+    network network(engine, topology, bo);
+    network.set_input_data("input", input);
+    auto outputs = network.execute();
+
+    auto output = outputs.at("out_reorder").get_memory();
+    auto output_ptr = output.pointer<float>();
+
+    for (size_t i = 0; i < out.size(); i++)
+        EXPECT_EQ(output_ptr[i], out[i]) << " i=" << i;
+}
+
+TEST(reshape_gpu_f32, shrink_chain_out) {
+    const auto& engine = get_test_engine();
+    auto input = memory::allocate(engine, {data_types::f32, format::bfyx, { tensor(feature(4)) }});
+    auto scale_in = memory::allocate(engine, {data_types::f32, format::bfyx, { tensor(feature(4)) }});
+    auto shift_in = memory::allocate(engine, {data_types::f32, format::bfyx, { tensor(feature(4)) }});
+
+    std::vector<float> scale_vals = {0.f, 1.f, 2.f, 3.f};
+    std::vector<float> scale_shifts = {5.f, 10.f, 15.f, 20.0f};
+    set_values(scale_in, scale_vals);
+    set_values(shift_in, scale_shifts);
+
+    topology topology;
+    topology.add(input_layout("input", input.get_layout()));
+    topology.add(activation("relu", "input", activation_func::relu));
+    topology.add(reshape("reshape", "relu", tensor(spatial(2, 2))));
+    topology.add(reorder("reorder", "reshape", format::bfyx, data_types::f32));
+    topology.add(reshape("reshape1", "reorder", tensor(feature(4))));
+
+    std::vector<float> input_vec = {-1.f, 2.f, -3.f, 4.f};
+    std::vector<float> out = {0.f, 2.f, 0.f, 4.0f};
+    set_values(input, input_vec);
+
+    build_options bo;
+    bo.set_option(build_option::optimize_data(true));
+    network network(engine, topology, bo);
+    network.set_input_data("input", input);
+    auto outputs = network.execute();
+
+    auto output = outputs.at("reshape1").get_memory();
+    auto output_ptr = output.pointer<float>();
+
+    for (size_t i = 0; i < out.size(); i++)
+        EXPECT_EQ(output_ptr[i], out[i]) << " i=" << i;
+}
