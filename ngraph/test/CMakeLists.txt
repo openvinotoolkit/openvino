@@ -64,6 +64,7 @@ set(SRC
     eval.cpp
     file_util.cpp
     float16.cpp
+    graph_rewrite.cpp
     includes.cpp
     input_output_assign.cpp
     intervals.cpp
