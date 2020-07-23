@@ -68,10 +68,11 @@ namespace ngraph
                     return std::find(modes.begin(), modes.end(), checked_mode) != modes.end();
                 }
 
-                template <typename Map>
-                static std::string convert(const Map& converting_map, const std::string& mode)
+                template <typename T>
+                static T convert(const std::map<std::string, T>& converting_map,
+                                 const std::string& mode)
                 {
-                    std::string result;
+                    T result;
                     auto it = converting_map.find(mode);
                     if (it != converting_map.end())
                     {
