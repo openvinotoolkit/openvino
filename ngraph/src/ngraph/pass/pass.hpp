@@ -16,11 +16,6 @@
 
 #pragma once
 
-#ifdef _WIN32
-#else
-#include <cxxabi.h>
-#endif
-
 #include <list>
 #include <memory>
 #include <vector>
@@ -88,29 +83,9 @@ public:
     bool get_property(const PassPropertyMask& prop_mask) const;
 
     void set_name(const std::string& name) { m_name = name; }
-    std::string get_name() const
-    {
-        if (m_name.empty())
-        {
-            const PassBase* p = this;
-            std::string pass_name = typeid(*p).name();
-#ifndef _WIN32
-            int status;
-            pass_name = abi::__cxa_demangle(pass_name.c_str(), nullptr, nullptr, &status);
-#endif
-            return pass_name;
-        }
-        else
-        {
-            return m_name;
-        }
-    }
+    std::string get_name() const;
 
-    void set_callback(const param_callback& callback)
-    {
-        m_transformation_callback = callback;
-        m_has_default_callback = false;
-    }
+    void set_callback(const param_callback& callback);
 
 protected:
     ManagerState& get_state();
