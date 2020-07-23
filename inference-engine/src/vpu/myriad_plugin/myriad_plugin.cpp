@@ -17,6 +17,7 @@
 #include <vpu/utils/profiling.hpp>
 #include <vpu/utils/error.hpp>
 #include <transformations/common_optimizations/common_optimizations.hpp>
+#include <vpu/ngraph/transformations/convert_nms_4_to_nms_dynamic.hpp>
 
 #include "vpu/ngraph/transformations/dynamic_to_static_shape.hpp"
 #include "vpu/ngraph/transformations/eliminate_shapeof_after_dsr.hpp"
@@ -41,6 +42,7 @@ ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(
     auto clonedNetwork = cloneNetwork(network);
     if (auto function = clonedNetwork->getFunction()) {
         ngraph::op::GenericIE::DisableReshape noReshape(function);
+        vpu::UpgradeNMS4ToNMSDynamic().run_on_function(function);
         ngraph::pass::CommonOptimizations().run_on_function(function);
         vpu::DynamicToStaticShape().transform(function);
         vpu::EliminateShapeOfAfterDSR().run_on_function(function);
@@ -85,6 +87,10 @@ void Engine::QueryNetwork(
     if (!deviceName.empty()) {
         const auto deviceIDs = GetMetric(METRIC_KEY(AVAILABLE_DEVICES), {}).as<std::vector<std::string>>();
         VPU_THROW_UNLESS(!(std::find(deviceIDs.begin(), deviceIDs.end(), deviceName) == deviceIDs.end()), "Myriad device: {} not found.", deviceName);
+    }
+
+    if (network.getFunction()) {
+        THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str << " ngraph::Function is not supported natively";
     }
 
     const auto log = std::make_shared<Logger>(

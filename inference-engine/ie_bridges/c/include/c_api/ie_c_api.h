@@ -182,6 +182,7 @@ typedef enum {
     I32 = 70,   /**< 32bit signed integer value */
     I64 = 72,   /**< 64bit signed integer value */
     U64 = 73,   /**< 64bit unsigned integer value */
+    U32 = 74,   /**< 32bit unsigned integer value */
     BIN = 71,   /**< 1bit integer value */
     CUSTOM = 80 /**< custom precision has it's own name and size of elements */
 }precision_e;

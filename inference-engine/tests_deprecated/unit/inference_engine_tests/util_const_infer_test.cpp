@@ -170,6 +170,13 @@ IE::BlobMap RemoveLayerTests::fillConstDataDiffPrec (const std::vector<std::stri
                     }
                     break;
                 }
+                case IE::Precision::U32: {
+                    auto *buffer = blob->buffer().as<unsigned int *>();
+                    for (int i = 0; i < blob->size(); i++) {
+                        buffer[i] = i + 2;
+                    }
+                    break;
+                }
                 case IE::Precision::I64: {
                     auto *buffer = blob->buffer().as<long long int *>();
                     for (int i = 0; i < blob->size(); i++) {

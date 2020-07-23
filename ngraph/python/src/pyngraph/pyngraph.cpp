@@ -22,6 +22,8 @@
 #include "pyngraph/function.hpp"
 #include "pyngraph/node.hpp"
 #include "pyngraph/node_factory.hpp"
+#include "pyngraph/node_input.hpp"
+#include "pyngraph/node_output.hpp"
 #if defined(NGRAPH_ONNX_IMPORT_ENABLE)
 #include "pyngraph/onnx_import/onnx_import.hpp"
 #endif
@@ -43,6 +45,8 @@ PYBIND11_MODULE(_pyngraph, m)
 {
     m.doc() = "Package ngraph.impl that wraps nGraph's namespace ngraph";
     regclass_pyngraph_Node(m);
+    regclass_pyngraph_Input(m);
+    regclass_pyngraph_Output(m);
     regclass_pyngraph_NodeFactory(m);
     regclass_pyngraph_Dimension(m); // Dimension must be registered before PartialShape
     regclass_pyngraph_PartialShape(m);

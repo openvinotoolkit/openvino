@@ -21,13 +21,14 @@
 #include "ngraph/op/util/binary_elementwise_arithmetic.hpp"
 #include "ngraph/op/util/binary_elementwise_comparison.hpp"
 #include "ngraph/op/util/binary_elementwise_logical.hpp"
+#include "ngraph/op/util/op_types.hpp"
 
 using namespace std;
 using namespace ngraph;
 
 bool ngraph::pass::ImplicitBroadcastElimination::run_on_node(std::shared_ptr<Node> node)
 {
-    if (node->supports_auto_broadcast())
+    if (ngraph::op::supports_auto_broadcast(node))
     {
         if (node->get_autob().m_type != op::AutoBroadcastType::NONE)
         {
@@ -45,12 +46,13 @@ bool ngraph::pass::ImplicitBroadcastElimination::run_on_node(std::shared_ptr<Nod
 NodeVector ngraph::pass::explicit_broadcast(std::shared_ptr<Node>& node)
 {
     NodeVector rc;
-    if (node->supports_auto_broadcast())
+    if (ngraph::op::supports_auto_broadcast(node))
     {
         auto autob = node->get_autob();
         if (autob.m_type == op::AutoBroadcastType::NONE)
         {
-            rc = node->get_arguments();
+            for (auto& val : node->input_values())
+                rc.emplace_back(val.get_node_shared_ptr());
         }
         else if (autob.m_type == op::AutoBroadcastType::NUMPY)
         {

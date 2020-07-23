@@ -62,16 +62,6 @@ namespace ngraph
         /// \brief Check whether this dimension is dynamic.
         /// \return `false` if the dimension is static, else `true`.
         bool is_dynamic() const { return m_dimension.size() != 1; }
-        /// \brief Convert this dimension to `value-type`. This dimension must be static.
-        /// \throws std::invalid_argument If this dimension is dynamic.
-        explicit operator value_type() const NGRAPH_DEPRECATED("use get_length() instead")
-        {
-            if (is_dynamic())
-            {
-                throw std::invalid_argument("Cannot convert dynamic dimension to value_type");
-            }
-            return m_dimension.get_min_val();
-        }
         /// \brief Convert this dimension to `value_type`. This dimension must be static and
         ///        non-negative.
         /// \throws std::invalid_argument If this dimension is dynamic or negative.
