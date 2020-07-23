@@ -24,8 +24,8 @@ bool ngraph::pass::ConvertPrecision::run_on_function(std::shared_ptr<ngraph::Fun
     std::map<std::shared_ptr<Node>, std::vector<Input<Node>>> const_to_internal_output;
     for (auto & node : f->get_ordered_ops()) {
         for (auto & input : node->inputs()) {
-            if (ngraph::op::is_constant(std::dynamic_pointer_cast<opset3::Constant>(input.get_source_output().get_node_shared_ptr()))) {
-                const_to_internal_output[node].emplace_back(input);
+            if (auto const_node = std::dynamic_pointer_cast<opset3::Constant>(input.get_source_output().get_node_shared_ptr())) {
+                const_to_internal_output[const_node].emplace_back(input);
             }
         }
     }
@@ -75,6 +75,7 @@ bool fuse_type_to_shapeof(std::shared_ptr<Node> node, element::Type to, size_t i
     if (auto shapeof = as_type_ptr<opset3::ShapeOf>(node)) {
         if (to == element::i32 || to == element::i64) {
             shapeof->set_output_type(to);
+            shapeof->validate_and_infer_types();
             return true;
         }
     }
@@ -84,6 +85,8 @@ bool fuse_type_to_shapeof(std::shared_ptr<Node> node, element::Type to, size_t i
 bool fuse_type_to_parameter(std::shared_ptr<Node> node, element::Type to, size_t idx) {
     if (auto param = as_type_ptr<opset3::Parameter>(node)) {
         param->set_element_type(to);
+        node->validate_and_infer_types();
+        return true;
     }
     return false;
 }
@@ -91,6 +94,8 @@ bool fuse_type_to_parameter(std::shared_ptr<Node> node, element::Type to, size_t
 bool fuse_type_to_convert(std::shared_ptr<Node> node, element::Type to, size_t idx) {
     if (auto convert = as_type_ptr<opset3::Convert>(node)) {
         convert->set_convert_element_type(to);
+        convert->validate_and_infer_types();
+        return true;
     }
     return false;
 }
@@ -126,8 +131,9 @@ bool fuse_type_to_constant(std::shared_ptr<Node> node, element::Type to, const s
             throw ngraph_error("not supported");
         }
         for (auto & output : consumers) {
-            output.replace_source_output(constant);
+            output.replace_source_output(new_const);
         }
+        constant->validate_and_infer_types();
     }
     return false;
 }
