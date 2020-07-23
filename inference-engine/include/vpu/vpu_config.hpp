@@ -27,13 +27,17 @@ namespace InferenceEngine {
 
 /**
  * @brief Turn on HW stages usage (applicable for MyriadX devices only).
- * This option should be used with values: CONFIG_VALUE(YES) (default) or CONFIG_VALUE(NO)
+ * The only possible values are:
+ *     CONFIG_VALUE(YES) (default value)
+ *     CONFIG_VALUE(NO)
  */
 DECLARE_VPU_CONFIG(MYRIAD_ENABLE_HW_ACCELERATION);
 
 /**
  * @brief The flag for adding to the profiling information the time of obtaining a tensor.
- * This option should be used with values: CONFIG_VALUE(YES) or CONFIG_VALUE(NO) (default)
+ * The only possible values are:
+ *     CONFIG_VALUE(YES)
+ *     CONFIG_VALUE(NO) (default value)
  */
 DECLARE_VPU_CONFIG(MYRIAD_ENABLE_RECEIVING_TENSOR_TIME);
 
@@ -46,7 +50,10 @@ DECLARE_VPU_CONFIG(MYRIAD_CUSTOM_LAYERS);
 /**
  * @brief Optimize vpu plugin execution to maximize throughput.
  * This option should be used with integer value which is the requested number of streams.
- * Possible values are 1, 2 or 3.
+ * The only possible values are:
+ *     1
+ *     2
+ *     3
  */
 DECLARE_VPU_CONFIG(MYRIAD_THROUGHPUT_STREAMS);
 

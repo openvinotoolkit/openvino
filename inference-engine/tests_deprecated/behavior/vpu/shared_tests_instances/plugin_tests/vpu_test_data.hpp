@@ -79,6 +79,9 @@ const BehTestParams allUnSupportedValues[] = {
 const std::vector<BehTestParams> deviceSpecificConfigurations = {
     BEH_MYRIAD.withConfig({{InferenceEngine::MYRIAD_PROTOCOL, InferenceEngine::MYRIAD_USB}}),
     BEH_MYRIAD.withConfig({{InferenceEngine::MYRIAD_PROTOCOL, InferenceEngine::MYRIAD_PCIE}}),
+
+    BEH_MYRIAD.withConfig({{VPU_MYRIAD_CONFIG_KEY(PLATFORM), VPU_MYRIAD_CONFIG_VALUE(2450)}}),
+    BEH_MYRIAD.withConfig({{VPU_MYRIAD_CONFIG_KEY(PLATFORM), VPU_MYRIAD_CONFIG_VALUE(2480)}}),
 };
 
 const std::vector<BehTestParams> deviceAgnosticConfigurations = {
@@ -129,6 +132,10 @@ const BehTestParams withIncorrectConfValues[] = {
 
     BEH_MYRIAD.withConfig({{CONFIG_KEY(LOG_LEVEL), "VERBOSE"}}),
 
+    BEH_MYRIAD.withConfig({{VPU_MYRIAD_CONFIG_KEY(PLATFORM), "-1"}}),
+    BEH_MYRIAD.withConfig({{VPU_MYRIAD_CONFIG_KEY(PLATFORM), "0"}}),
+    BEH_MYRIAD.withConfig({{VPU_MYRIAD_CONFIG_KEY(PLATFORM), "1"}}),
+
     BEH_MYRIAD.withConfig({{InferenceEngine::MYRIAD_ENABLE_RECEIVING_TENSOR_TIME, "ON"}}),
     BEH_MYRIAD.withConfig({{InferenceEngine::MYRIAD_ENABLE_RECEIVING_TENSOR_TIME, "OFF"}}),
 
@@ -136,6 +143,13 @@ const BehTestParams withIncorrectConfValues[] = {
                                  {InferenceEngine::MYRIAD_ENABLE_HW_ACCELERATION,"ON"}}),
     BEH_MULTI_CONFIG.withConfig({{MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, "MYRIAD"},
                                  {CONFIG_KEY(LOG_LEVEL), "VERBOSE"}}),
+
+    BEH_MULTI_CONFIG.withConfig({{MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, "MYRIAD"},
+                                 {VPU_MYRIAD_CONFIG_KEY(PLATFORM), "-1"}}),
+    BEH_MULTI_CONFIG.withConfig({{MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, "MYRIAD"},
+                                 {VPU_MYRIAD_CONFIG_KEY(PLATFORM), "0"}}),
+    BEH_MULTI_CONFIG.withConfig({{MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, "MYRIAD"},
+                                 {VPU_MYRIAD_CONFIG_KEY(PLATFORM), "1"}}),
 
     BEH_MYRIAD.withConfig({{InferenceEngine::MYRIAD_DDR_TYPE, "-1"}}),
     BEH_MYRIAD.withConfig({{InferenceEngine::MYRIAD_DDR_TYPE, "MICRON"}}),

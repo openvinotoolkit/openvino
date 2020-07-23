@@ -34,7 +34,10 @@ namespace {
             {{InferenceEngine::MYRIAD_ENABLE_RECEIVING_TENSOR_TIME, CONFIG_VALUE(YES)}},
             {{InferenceEngine::MYRIAD_ENABLE_RECEIVING_TENSOR_TIME, CONFIG_VALUE(NO)}},
             {{InferenceEngine::MYRIAD_PROTOCOL, InferenceEngine::MYRIAD_USB}},
-            {{InferenceEngine::MYRIAD_PROTOCOL, InferenceEngine::MYRIAD_PCIE}}
+            {{InferenceEngine::MYRIAD_PROTOCOL, InferenceEngine::MYRIAD_PCIE}},
+
+            {{VPU_MYRIAD_CONFIG_KEY(PLATFORM), VPU_MYRIAD_CONFIG_VALUE(2450)}},
+            {{VPU_MYRIAD_CONFIG_KEY(PLATFORM), VPU_MYRIAD_CONFIG_VALUE(2480)}}
     };
 
     const std::vector<std::map<std::string, std::string>> MultiConfigs = {
@@ -70,6 +73,10 @@ namespace {
 
             {{CONFIG_KEY(LOG_LEVEL), "VERBOSE"}},
 
+            {{VPU_MYRIAD_CONFIG_KEY(PLATFORM), "-1"}},
+            {{VPU_MYRIAD_CONFIG_KEY(PLATFORM), "0"}},
+            {{VPU_MYRIAD_CONFIG_KEY(PLATFORM), "1"}},
+
             {{InferenceEngine::MYRIAD_TILING_CMX_LIMIT_KB, "-10"}},
 
             {{InferenceEngine::MYRIAD_ENABLE_RECEIVING_TENSOR_TIME, "ON"}},
@@ -80,7 +87,14 @@ namespace {
             {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_MYRIAD},
              {InferenceEngine::MYRIAD_ENABLE_HW_ACCELERATION, "ON"}},
             {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_MYRIAD},
-             {CONFIG_KEY(LOG_LEVEL), "VERBOSE"}}
+             {CONFIG_KEY(LOG_LEVEL), "VERBOSE"}},
+
+            {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_MYRIAD},
+                    {VPU_MYRIAD_CONFIG_KEY(PLATFORM), "-1"}},
+            {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_MYRIAD},
+                    {VPU_MYRIAD_CONFIG_KEY(PLATFORM), "0"}},
+            {{InferenceEngine::MultiDeviceConfigParams::KEY_MULTI_DEVICE_PRIORITIES, CommonTestUtils::DEVICE_MYRIAD},
+                    {VPU_MYRIAD_CONFIG_KEY(PLATFORM), "1"}},
     };
 
     INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, IncorrectConfigTests,

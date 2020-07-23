@@ -19,6 +19,18 @@ TEST_P(MyriadEngineSetIncorrectConfigTest, SetIncorrectConfig) {
 
 IE_SUPPRESS_DEPRECATED_START
 
+static const std::vector<config_t> myriadCorrectPlatformConfigValues = {
+        {{VPU_MYRIAD_CONFIG_KEY(PLATFORM), VPU_MYRIAD_CONFIG_VALUE(2450)}},
+        {{VPU_MYRIAD_CONFIG_KEY(PLATFORM), VPU_MYRIAD_CONFIG_VALUE(2480)}},
+        {{VPU_MYRIAD_CONFIG_KEY(PLATFORM), ""}}
+};
+
+static const std::vector<config_t> myriadIncorrectPlatformConfigValues = {
+        {{VPU_MYRIAD_CONFIG_KEY(PLATFORM), "-1"}},
+        {{VPU_MYRIAD_CONFIG_KEY(PLATFORM), " 0"}},
+        {{VPU_MYRIAD_CONFIG_KEY(PLATFORM), "MyriadX"}}
+};
+
 static const std::vector<config_t> myriadCorrectProtocolConfigValues = {
     {{InferenceEngine::MYRIAD_PROTOCOL, InferenceEngine::MYRIAD_PCIE}},
     {{InferenceEngine::MYRIAD_PROTOCOL, InferenceEngine::MYRIAD_USB}},
@@ -65,6 +77,13 @@ static const std::vector<config_t> myriadIncorrectPackageTypeConfigValues = {
 };
 
 IE_SUPPRESS_DEPRECATED_END
+
+/// Platform
+INSTANTIATE_TEST_CASE_P(MyriadPlatformConfigs, MyriadEngineSetCorrectConfigTest,
+                        ::testing::ValuesIn(myriadCorrectPlatformConfigValues));
+
+INSTANTIATE_TEST_CASE_P(MyriadPlatformConfigs, MyriadEngineSetIncorrectConfigTest,
+                        ::testing::ValuesIn(myriadIncorrectPlatformConfigValues));
 
 /// Protocol
 INSTANTIATE_TEST_CASE_P(MyriadProtocolConfigs, MyriadEngineSetCorrectConfigTest,

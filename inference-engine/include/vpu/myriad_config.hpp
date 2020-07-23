@@ -16,8 +16,11 @@
 namespace InferenceEngine {
 
 /**
- * @brief The flag to reset stalled devices: CONFIG_VALUE(YES) or CONFIG_VALUE(NO) (default)
+ * @brief The flag to reset stalled devices.
  * This is a plugin scope option and must be used with the plugin's SetConfig method
+ * The only possible values are:
+ *     CONFIG_VALUE(YES)
+ *     CONFIG_VALUE(NO) (default value)
  */
 DECLARE_VPU_CONFIG(MYRIAD_ENABLE_FORCE_RESET);
 
@@ -27,7 +30,7 @@ DECLARE_VPU_CONFIG(MYRIAD_ENABLE_FORCE_RESET);
 DECLARE_VPU_CONFIG(MYRIAD_DDR_TYPE);
 
 /**
- * @brief Supported keys definition for CONFIG_KEY(MYRIAD_DDR_TYPE) option.
+ * @brief Supported keys definition for InferenceEngine::MYRIAD_DDR_TYPE option.
  */
 DECLARE_VPU_CONFIG(MYRIAD_DDR_AUTO);
 DECLARE_VPU_CONFIG(MYRIAD_DDR_MICRON_2GB);
