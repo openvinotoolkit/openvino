@@ -118,6 +118,7 @@ FrontEnd::FrontEnd(StageBuilder::Ptr stageBuilder)
         {"StaticShapeBroadcast",                               LAYER_PARSER(parseBroadcast)},
         {"StaticShapeNonMaxSuppression",                       LAYER_PARSER(parseStaticShapeNMS)},
         {"StaticShapeReshape",                                 LAYER_PARSER(parseReshape)},
+        {"Mish",                                               LAYER_PARSER(parseMish)},
         {"Gelu",                                               LAYER_PARSER(parseGelu)},
     }} {}
 
