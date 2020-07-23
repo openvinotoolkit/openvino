@@ -15,15 +15,28 @@ bool ngraph::pass::ConvertPrecision::run_on_function(std::shared_ptr<ngraph::Fun
     static std::map<ngraph::NodeTypeInfo, std::function<bool(std::shared_ptr<Node>, element::Type, size_t idx)>> type_to_fuse {
         {opset3::ShapeOf::type_info, fuse_type_to_shapeof},
         {opset3::Convert::type_info, fuse_type_to_convert},
-        {opset3::Constant::type_info, fuse_type_to_constant},
         {opset3::Parameter::type_info, fuse_type_to_parameter},
     };
-    // TODO: add nodes from body
+
+    std::map<std::shared_ptr<Node>, std::vector<Input<Node>>> const_to_internal_output;
+    for (auto & node : f->get_ordered_ops()) {
+        for (auto & input : node->inputs()) {
+            if (auto const_node = std::dynamic_pointer_cast<opset3::Constant>(input.get_source_output().get_node_shared_ptr())) {
+                const_to_internal_output[const_node].emplace_back(input);
+            }
+        }
+    }
+
+     // TODO: add nodes from body
     for (auto &node : f->get_ordered_ops()) {
         node->validate_and_infer_types();
 
         for (auto output : node->outputs()) {
             if (output.get_element_type() == m_from) {
+                if (ngraph::op::is_constant(node) && const_to_internal_output.count(node)) {
+                    fuse_type_to_constant(node, m_to, const_to_internal_output.at(node));
+                    continue;
+                }
                 // If node type in map and convert can be fused into node we skip Convert creation
                 if (type_to_fuse.count(node->get_type_info()) &&
                     type_to_fuse.at(node->get_type_info())(node, m_to, output.get_index())) {
@@ -78,7 +91,7 @@ std::shared_ptr<Node> change_constant_precision(std::shared_ptr<opset3::Constant
     return std::make_shared<ngraph::opset3::Constant>(PREC_TO, constant->get_shape(), constant->cast_vector<dst_type>());
 }
 
-bool fuse_type_to_constant(std::shared_ptr<Node> node, element::Type to, size_t idx) {
+bool fuse_type_to_constant(std::shared_ptr<Node> node, element::Type to, const std::vector<Input<Node>> & consumers) {
     if (auto constant = as_type_ptr<opset3::Constant>(node)) {
         auto from = constant->get_element_type();
         std::shared_ptr<Node> new_const;
@@ -101,7 +114,9 @@ bool fuse_type_to_constant(std::shared_ptr<Node> node, element::Type to, size_t 
         } else {
             throw ngraph_error("not supported");
         }
-        replace_node(constant, new_const);
+        for (auto & output : consumers) {
+            output.replace_source_output(constant);
+        }
     }
     return false;
 }

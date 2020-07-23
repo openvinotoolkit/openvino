@@ -38,7 +38,7 @@ private:
     element::Type m_from, m_to;
 };
 
+bool fuse_type_to_constant(std::shared_ptr<ngraph::Node> node, ngraph::element::Type to, const std::vector<ngraph::Input<ngraph::Node>> & consumers);
 bool fuse_type_to_shapeof(std::shared_ptr<ngraph::Node> node, ngraph::element::Type to, size_t idx);
-bool fuse_type_to_constant(std::shared_ptr<ngraph::Node> node, ngraph::element::Type to, size_t idx);
 bool fuse_type_to_parameter(std::shared_ptr<ngraph::Node> node, ngraph::element::Type to, size_t idx);
 bool fuse_type_to_convert(std::shared_ptr<ngraph::Node> node, ngraph::element::Type to, size_t idx);
