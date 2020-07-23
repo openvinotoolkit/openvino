@@ -116,7 +116,7 @@ void op::v1::NonMaxSuppression::validate_and_infer_types()
                           "Expected a 3D tensor for the 'scores' input. Got: ",
                           scores_ps);
 
-    if (get_inputs().size() >= 3)
+    if (inputs().size() >= 3)
     {
         const auto max_boxes_ps = get_input_partial_shape(2);
         NODE_VALIDATION_CHECK(this,
@@ -125,7 +125,7 @@ void op::v1::NonMaxSuppression::validate_and_infer_types()
                               max_boxes_ps);
     }
 
-    if (get_inputs().size() >= 4)
+    if (inputs().size() >= 4)
     {
         const auto iou_threshold_ps = get_input_partial_shape(3);
         NODE_VALIDATION_CHECK(this,
@@ -135,7 +135,7 @@ void op::v1::NonMaxSuppression::validate_and_infer_types()
                               iou_threshold_ps);
     }
 
-    if (get_inputs().size() >= 5)
+    if (inputs().size() >= 5)
     {
         const auto score_threshold_ps = get_input_partial_shape(4);
         NODE_VALIDATION_CHECK(this,
@@ -315,7 +315,7 @@ void op::v3::NonMaxSuppression::validate()
                           "Expected a 3D tensor for the 'scores' input. Got: ",
                           scores_ps);
 
-    if (get_inputs().size() >= 3)
+    if (inputs().size() >= 3)
     {
         const auto max_boxes_ps = get_input_partial_shape(2);
         NODE_VALIDATION_CHECK(this,
@@ -324,7 +324,7 @@ void op::v3::NonMaxSuppression::validate()
                               max_boxes_ps);
     }
 
-    if (get_inputs().size() >= 4)
+    if (inputs().size() >= 4)
     {
         const auto iou_threshold_ps = get_input_partial_shape(3);
         NODE_VALIDATION_CHECK(this,
@@ -334,7 +334,7 @@ void op::v3::NonMaxSuppression::validate()
                               iou_threshold_ps);
     }
 
-    if (get_inputs().size() >= 5)
+    if (inputs().size() >= 5)
     {
         const auto score_threshold_ps = get_input_partial_shape(4);
         NODE_VALIDATION_CHECK(this,

@@ -352,11 +352,11 @@ CNNNetworkNGraphImpl::reshape(const std::map<std::string, std::vector<size_t>>& 
             std::unordered_set<std::string> opName;
             for (const auto & layer : specialized_ngraph_function->get_ordered_ops()) {
                 if (std::dynamic_pointer_cast<::ngraph::op::Result>(layer)) {
-                    IE_ASSERT(layer->get_inputs().size() == 1);
-                    const auto& input = layer->get_inputs()[0];
-                    std::string outName = input.get_output().get_node()->get_friendly_name();
-                    if (input.get_output().get_node()->get_output_size() != 1)
-                        outName += "." + std::to_string(input.get_output().get_index());
+                    IE_ASSERT(layer->inputs().size() == 1);
+                    const auto& output = layer->input(0).get_source_output();
+                    std::string outName = output.get_node()->get_friendly_name();
+                    if (output.get_node()->get_output_size() != 1)
+                        outName += "." + std::to_string(output.get_index());
                     addOutput(outName);
                     continue;
                 }
