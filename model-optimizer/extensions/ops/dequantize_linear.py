@@ -13,28 +13,23 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
-import numpy as np
 
-from mo.graph.graph import Node, Graph
+from mo.graph.graph import Graph
 from mo.ops.op import Op
 
 
 class DequantizeLinear(Op):
     op = 'DequantizeLinear'
-    enabled = True
+    enabled = False
 
     def __init__(self, graph: Graph, attrs: dict):
         mandatory_props = {
             'type': None,
-            'op': __class__.op,
+            'op': self.op,
             'version': None,
             'infer': None,
-            'on_value': None,
-            'off_value': None,
             'out_ports_count': 1,
             'in_ports_count': 3,
-            'data_type': None,
-            'type_infer': None,
         }
         super().__init__(graph, mandatory_props, attrs)
 

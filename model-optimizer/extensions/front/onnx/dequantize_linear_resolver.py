@@ -22,6 +22,7 @@ from mo.front.common.partial_infer.utils import int64_array
 from mo.front.common.replacement import FrontReplacementOp
 from mo.front.tf.graph_utils import create_op_with_const_inputs
 from mo.graph.graph import Graph, Node, rename_nodes
+from mo.middle.passes.convert_data_type import data_type_str_to_np
 from mo.ops.broadcast import Broadcast
 from mo.ops.shape import Shape
 
@@ -38,11 +39,13 @@ class DequantizeLinearResolver(FrontReplacementOp):
 
     def replace_op(self, graph: Graph, node: Node):
         node_name = node.soft_get('name', node.id)
-        cast = Cast(graph, {'dst_type': np.float32, 'name': node_name + '/Cast'}).create_node()
+        model_data_type = data_type_str_to_np(graph.graph['cmd_params'].data_type)
+        cast = Cast(graph, {'dst_type': model_data_type, 'name': node_name + '/Cast'}).create_node()
         node.in_port(0).get_connection().set_destination(cast.in_port(0))
         mul = Mul(graph, {}).create_node()
 
         if node.has_valid('axis'):
+            # add Shape node if DequantizeLinear has "axis" attribute to perform correct broadcasting
             shape = Shape(graph, {'name': node_name + '/Shape'}).create_node()
             cast.in_port(0).get_connection().add_destination(shape.in_port(0))
 
@@ -50,6 +53,7 @@ class DequantizeLinearResolver(FrontReplacementOp):
             sub = Sub(graph, {'name': node_name + '/Sub'}).create_node()
             cast.out_port(0).connect(sub.in_port(0))
             if node.has_valid('axis'):
+                # Broadcast y_zero_point input if DequantizeLinear has "axis" attribute
                 bc2 = create_op_with_const_inputs(graph, Broadcast, {2: int64_array(node['axis'])},
                                                   {'mode': 'explicit', 'name': node_name + '/BC2'})
                 node.in_port(2).get_connection().set_destination(bc2.in_port(0))
@@ -61,6 +65,7 @@ class DequantizeLinearResolver(FrontReplacementOp):
         else:
             cast.out_port(0).connect(mul.in_port(0))
         if node.has_valid('axis'):
+            # Broadcast y_scale input if DequantizeLinear has "axis" attribute
             bc1 = create_op_with_const_inputs(graph, Broadcast, {2: int64_array(node['axis'])},
                                               {'mode': 'explicit', 'name': node_name + '/BC1'})
             node.in_port(1).get_connection().set_destination(bc1.in_port(0))
