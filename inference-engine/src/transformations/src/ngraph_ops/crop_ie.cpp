@@ -22,7 +22,7 @@ op::CropIE::CropIE(const Output<Node>& data, std::vector<int64_t> axes, std::vec
     constructor_validate_and_infer_types();
 }
 
-std::shared_ptr<Node> op::CropIE::copy_with_new_args(const NodeVector& new_args) const {
+std::shared_ptr<Node> op::CropIE::clone_with_new_inputs(const OutputVector& new_args) const {
     if (new_args.size() != 1) {
         throw ngraph_error("Incorrect number of new arguments");
     }

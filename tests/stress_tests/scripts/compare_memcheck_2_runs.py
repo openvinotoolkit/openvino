@@ -186,6 +186,15 @@ def cli_parser():
                              'Example: /home/.../file.csv')
 
     args = parser.parse_args()
+    missed_args = []
+    if not (os.path.isdir(args.cur_source) and os.path.isdir(args.ref_source)) and not args.db_url:
+        missed_args.append("--db_url")
+    if not os.path.isdir(args.cur_source) and not args.db_collection:
+        missed_args.append("--db_collection")
+    if not os.path.isdir(args.ref_source) and not args.ref_db_collection:
+        missed_args.append("--ref_db_collection")
+    if missed_args:
+        raise argparse.ArgumentError("Arguments {} are required".format(",".join(missed_args)))
 
     return args
 

@@ -11,6 +11,8 @@
 #include <ade/util/iota_range.hpp>
 #include "logger.hpp"
 
+#include <opencv2/gapi/core.hpp>
+
 namespace opencv_test
 {
 
@@ -40,6 +42,11 @@ namespace
         {
             out = in.clone();
         }
+    };
+
+    G_TYPED_KERNEL(GCustom, <GMat(GMat)>, "org.opencv.test.custom")
+    {
+         static GMatDesc outMeta(GMatDesc in) { return in; }
     };
 
     // These definitons test the correct macro work if the kernel has multiple output values
@@ -74,12 +81,12 @@ TEST(GAPI_Pipeline, OverloadUnary_MatMat)
 
     cv::Mat out_mat;
     comp.apply(in_mat, out_mat);
-    EXPECT_EQ(0, cv::countNonZero(out_mat != ref_mat));
+    EXPECT_EQ(0, cvtest::norm(out_mat, ref_mat, NORM_INF));
 
     out_mat = cv::Mat();
     auto cc = comp.compile(cv::descr_of(in_mat));
     cc(in_mat, out_mat);
-    EXPECT_EQ(0, cv::countNonZero(out_mat != ref_mat));
+    EXPECT_EQ(0, cvtest::norm(out_mat, ref_mat, NORM_INF));
 }
 
 TEST(GAPI_Pipeline, OverloadUnary_MatScalar)
@@ -110,12 +117,12 @@ TEST(GAPI_Pipeline, OverloadBinary_Mat)
 
     cv::Mat out_mat;
     comp.apply(in_mat, in_mat, out_mat);
-    EXPECT_EQ(0, cv::countNonZero(out_mat != ref_mat));
+    EXPECT_EQ(0, cvtest::norm(out_mat, ref_mat, NORM_INF));
 
     out_mat = cv::Mat();
     auto cc = comp.compile(cv::descr_of(in_mat), cv::descr_of(in_mat));
     cc(in_mat, in_mat, out_mat);
-    EXPECT_EQ(0, cv::countNonZero(out_mat != ref_mat));
+    EXPECT_EQ(0, cvtest::norm(out_mat, ref_mat, NORM_INF));
 }
 
 TEST(GAPI_Pipeline, OverloadBinary_Scalar)
@@ -186,9 +193,9 @@ TEST(GAPI_Pipeline, Sharpen)
         cv::Mat diff = out_mat_ocv != out_mat;
         std::vector<cv::Mat> diffBGR(3);
         cv::split(diff, diffBGR);
-        EXPECT_EQ(0, cv::countNonZero(diffBGR[0]));
-        EXPECT_EQ(0, cv::countNonZero(diffBGR[1]));
-        EXPECT_EQ(0, cv::countNonZero(diffBGR[2]));
+        EXPECT_EQ(0, cvtest::norm(diffBGR[0], NORM_INF));
+        EXPECT_EQ(0, cvtest::norm(diffBGR[1], NORM_INF));
+        EXPECT_EQ(0, cvtest::norm(diffBGR[2], NORM_INF));
     }
 
     // Metadata check /////////////////////////////////////////////////////////
@@ -276,9 +283,9 @@ TEST(GAPI_Pipeline, CustomRGB2YUV)
             diff_u = diff(out_mats_cv[1], out_mats_gapi[1], 2),
             diff_v = diff(out_mats_cv[2], out_mats_gapi[2], 2);
 
-        EXPECT_EQ(0, cv::countNonZero(diff_y));
-        EXPECT_EQ(0, cv::countNonZero(diff_u));
-        EXPECT_EQ(0, cv::countNonZero(diff_v));
+        EXPECT_EQ(0, cvtest::norm(diff_y, NORM_INF));
+        EXPECT_EQ(0, cvtest::norm(diff_u, NORM_INF));
+        EXPECT_EQ(0, cvtest::norm(diff_v, NORM_INF));
     }
 }
 
@@ -333,6 +340,109 @@ TEST(GAPI_Pipeline, CanUseOwnMatAsOutput)
 
     // FIXME add overload for apply(cv::gapi::own::Mat in, cv::gapi::own::Mat& out)
     EXPECT_NO_THROW(comp.apply({in_own_mat}, {out_own_mat}));
+}
+
+TEST(GAPI_Pipeline, CreateKernelImplFromLambda)
+{
+    cv::Size size(300, 300);
+    int type = CV_8UC3;
+    cv::Mat in_mat(size, type);
+    cv::randu(in_mat, cv::Scalar::all(0), cv::Scalar::all(255));
+    int value = 5;
+
+    cv::GMat in;
+    cv::GMat out = GCustom::on(in);
+    cv::GComputation comp(in, out);
+
+    // OpenCV //////////////////////////////////////////////////////////////////////////
+    auto ref_mat = in_mat + value;
+
+    // G-API //////////////////////////////////////////////////////////////////////////
+    auto impl = cv::gapi::cpu::ocv_kernel<GCustom>([&value](const cv::Mat& src, cv::Mat& dst)
+                {
+                    dst = src + value;
+                });
+
+    cv::Mat out_mat;
+    auto pkg = cv::gapi::kernels(impl);
+    comp.apply(in_mat, out_mat, cv::compile_args(pkg));
+
+    EXPECT_EQ(0, cv::norm(out_mat, ref_mat));
+}
+
+TEST(GAPI_Pipeline, ReplaceDefaultByLambda)
+{
+    cv::Size size(300, 300);
+    int type = CV_8UC3;
+    cv::Mat in_mat1(size, type);
+    cv::Mat in_mat2(size, type);
+    cv::randu(in_mat2, cv::Scalar::all(0), cv::Scalar::all(255));
+    cv::randu(in_mat1, cv::Scalar::all(0), cv::Scalar::all(255));
+
+    cv::GMat in1, in2;
+    cv::GMat out = cv::gapi::add(in1, in2);
+    cv::GComputation comp(cv::GIn(in1, in2), cv::GOut(out));
+
+    // OpenCV //////////////////////////////////////////////////////////////////////////
+    cv::Mat ref_mat = in_mat1 + in_mat2;
+
+
+    // G-API //////////////////////////////////////////////////////////////////////////
+    bool is_called = false;
+    auto impl = cv::gapi::cpu::ocv_kernel<cv::gapi::core::GAdd>([&is_called]
+                (const cv::Mat& src1, const cv::Mat& src2, int, cv::Mat& dst)
+                {
+                    is_called = true;
+                    dst = src1 + src2;
+                });
+
+    cv::Mat out_mat;
+    auto pkg = cv::gapi::kernels(impl);
+    comp.apply(cv::gin(in_mat1, in_mat2), cv::gout(out_mat), cv::compile_args(pkg));
+
+    EXPECT_EQ(0, cv::norm(out_mat, ref_mat));
+    EXPECT_TRUE(is_called);
+}
+
+struct AddImpl
+{
+    void operator()(const cv::Mat& in1, const cv::Mat& in2, int, cv::Mat& out)
+    {
+        out = in1 + in2;
+        is_called = true;
+    }
+
+    bool is_called = false;
+};
+
+TEST(GAPI_Pipeline, ReplaceDefaultByFunctor)
+{
+    cv::Size size(300, 300);
+    int type = CV_8UC3;
+    cv::Mat in_mat1(size, type);
+    cv::Mat in_mat2(size, type);
+    cv::randu(in_mat2, cv::Scalar::all(0), cv::Scalar::all(255));
+    cv::randu(in_mat1, cv::Scalar::all(0), cv::Scalar::all(255));
+
+    cv::GMat in1, in2;
+    cv::GMat out = cv::gapi::add(in1, in2);
+    cv::GComputation comp(cv::GIn(in1, in2), cv::GOut(out));
+
+    // OpenCV //////////////////////////////////////////////////////////////////////////
+    cv::Mat ref_mat = in_mat1 + in_mat2;
+
+
+    // G-API ///////////////////////////////////////////////////////////////////////////
+    AddImpl f;
+    EXPECT_FALSE(f.is_called);
+    auto impl = cv::gapi::cpu::ocv_kernel<cv::gapi::core::GAdd>(f);
+
+    cv::Mat out_mat;
+    auto pkg = cv::gapi::kernels(impl);
+    comp.apply(cv::gin(in_mat1, in_mat2), cv::gout(out_mat), cv::compile_args(pkg));
+
+    EXPECT_EQ(0, cv::norm(out_mat, ref_mat));
+    EXPECT_TRUE(f.is_called);
 }
 
 } // namespace opencv_test
