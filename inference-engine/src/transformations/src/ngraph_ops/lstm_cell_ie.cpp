@@ -37,7 +37,7 @@ void op::LSTMCellIE::validate_and_infer_types() {
     set_output_type(1, arg_type, output_shape);
 }
 
-shared_ptr<Node> op::LSTMCellIE::copy_with_new_args(const NodeVector& new_args) const {
+shared_ptr<Node> op::LSTMCellIE::clone_with_new_inputs(const OutputVector& new_args) const {
     check_new_args_count(this, new_args);
     return make_shared<op::LSTMCellIE>(new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3), new_args.at(4),
                                        m_hidden_size, m_activations, m_activations_alpha, m_activations_beta, m_clip);

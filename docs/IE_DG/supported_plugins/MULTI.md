@@ -41,17 +41,6 @@ Basically, there are three ways to specify the devices to be use by the "MULTI":
     ExecutableNetwork exec1 = ie.LoadNetwork(network, "MULTI", {{"MULTI_DEVICE_PRIORITIES", "HDDL,GPU"}});
     //NEW IE-CENTRIC API, same as previous, but configuration of the "MULTI" is part of the name (so config is empty), also network-specific:
     ExecutableNetwork exec2 = ie.LoadNetwork(network, "MULTI:HDDL,GPU", {});
-
-    //Similarly for the deprecated (plugin-centric) API
-    //for example globally pre-configuring the plugin with the explicit option:
-    //auto plugin0 = PluginDispatcher().getPluginByDevice("MULTI");
-    //plugin0.SetConfig({{"MULTI_DEVICE_PRIORITIES", "HDDL,GPU"}});
-    //ExecutableNetwork exec3 = plugin.LoadNetwork(network, {});
-    // part of the config for the LoadNetwork or device name
-    //ExecutableNetwork exec4 = plugin0.LoadNetwork(network, {{"MULTI_DEVICE_PRIORITIES", "HDDL,GPU"}});
-    // part of the device name
-    //auto plugin1 = PluginDispatcher().getPluginByDevice("MULTI:HDDL,GPU");
-    //ExecutableNetwork exec5 = plugin1.LoadNetwork(network, {});
 ```
 Notice that the priorities of the devices can be changed in real-time for the executable network:
 ```cpp
