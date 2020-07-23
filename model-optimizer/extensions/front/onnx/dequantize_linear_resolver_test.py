@@ -59,7 +59,7 @@ class TestDequantizeLinearResolver(unittest.TestCase):
                             {'scale_param_dq': {'shape': np.array([]), 'value': np.float32(1.0 / 255)},
                              'zerop_param_dq': {'shape': np.array([]), 'value': np.uint8(0)},
                              }, nodes_with_edges_only=True)
-        graph.graph['cmd_params'] = Namespace(keep_shape_ops=True)
+        graph.graph['cmd_params'] = Namespace(keep_shape_ops=True, data_type='FP32')
 
         graph_ref = build_graph(nodes_ref_attributes,
                                 [('input', 'cast'),
@@ -87,7 +87,7 @@ class TestDequantizeLinearResolver(unittest.TestCase):
                              ],
                             {'scale_param_dq': {'shape': np.array([]), 'value': np.float32(1.0 / 255)},
                              }, nodes_with_edges_only=True)
-        graph.graph['cmd_params'] = Namespace(keep_shape_ops=True)
+        graph.graph['cmd_params'] = Namespace(keep_shape_ops=True, data_type='FP32')
 
         graph_ref = build_graph(nodes_ref_attributes,
                                 [('input', 'cast'),
@@ -115,7 +115,7 @@ class TestDequantizeLinearResolver(unittest.TestCase):
                              'scale_param_dq': {'shape': np.array([]), 'value': np.float32(1.0 / 255)},
                              'zerop_param_dq': {'shape': np.array([]), 'value': np.uint8(0)},
                              }, nodes_with_edges_only=True)
-        graph.graph['cmd_params'] = Namespace(keep_shape_ops=True)
+        graph.graph['cmd_params'] = Namespace(keep_shape_ops=True, data_type='FP32')
 
         graph_ref = build_graph(nodes_ref_attributes,
                                 [('input', 'cast', {'out': 0}),
@@ -153,7 +153,7 @@ class TestDequantizeLinearResolver(unittest.TestCase):
                             {'dequantize': {'axis': 1},
                              'scale_param_dq': {'shape': np.array([]), 'value': np.float32(1.0 / 255)},
                              }, nodes_with_edges_only=True)
-        graph.graph['cmd_params'] = Namespace(keep_shape_ops=True)
+        graph.graph['cmd_params'] = Namespace(keep_shape_ops=True, data_type='FP32')
 
         graph_ref = build_graph(nodes_ref_attributes,
                                 [('input', 'cast', {'out': 0}),
