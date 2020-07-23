@@ -80,8 +80,6 @@ namespace ngraph
                     return result;
                 }
 
-                static std::string conver
-
                 NodeVector resize(const onnx_import::Node& node)
                 {
                     const auto inputs = node.get_ng_inputs();
@@ -92,7 +90,8 @@ namespace ngraph
                     const auto scales_shape = scales->get_output_partial_shape(0);
 
                     auto get_str_attr = [&node](const std::string& name,
-                                                const std::string& default_value) {
+                                                const std::string& default_value)
+                    {
                         return node.get_attribute_value<std::string>(name, default_value);
                     };
 
