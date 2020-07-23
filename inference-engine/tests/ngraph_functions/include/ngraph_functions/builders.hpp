@@ -132,6 +132,11 @@ std::shared_ptr<ngraph::Node> makeSplit(const ngraph::Output<Node> &in,
 
 std::shared_ptr<ngraph::Node> makeActivation(const ngraph::Output<Node> &in,
                                              const element::Type &type,
+                                             ngraph::helpers::ActivationTypes activationType,
+                                             std::vector<size_t> inShape = {});
+
+std::shared_ptr<ngraph::Node> makeActivation(const ngraph::ParameterVector &parameters,
+                                             const element::Type &type,
                                              ngraph::helpers::ActivationTypes activationType);
 
 std::shared_ptr<ngraph::Node> makeEltwise(const ngraph::Output<Node> &in0,

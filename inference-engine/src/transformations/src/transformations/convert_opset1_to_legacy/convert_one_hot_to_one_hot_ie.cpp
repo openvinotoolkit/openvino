@@ -28,9 +28,9 @@ void ngraph::pass::ConvertOneHotToOneHotIE::convert_one_hot() {
 
         element::Type output_type = is_f16 ? element::f16 : element::f32;
 
-        const auto depth_node = std::dynamic_pointer_cast<ngraph::opset1::Constant>(one_hot->get_inputs()[1].get_output().get_node());
-        const auto on_value_node = std::dynamic_pointer_cast<ngraph::opset1::Constant>(one_hot->get_inputs()[2].get_output().get_node());
-        const auto off_value_node = std::dynamic_pointer_cast<ngraph::opset1::Constant>(one_hot->get_inputs()[3].get_output().get_node());
+        const auto depth_node = std::dynamic_pointer_cast<ngraph::opset1::Constant>(one_hot->input(1).get_source_output().get_node_shared_ptr());
+        const auto on_value_node = std::dynamic_pointer_cast<ngraph::opset1::Constant>(one_hot->input(2).get_source_output().get_node_shared_ptr());
+        const auto off_value_node = std::dynamic_pointer_cast<ngraph::opset1::Constant>(one_hot->input(3).get_source_output().get_node_shared_ptr());
 
         // can be converted iff inputs with depth, on/off values are constants
         if (depth_node == nullptr || on_value_node == nullptr || off_value_node == nullptr) return false;
@@ -39,7 +39,7 @@ void ngraph::pass::ConvertOneHotToOneHotIE::convert_one_hot() {
         auto on_value = std::stof(on_value_node->convert_value_to_string(0));
         auto off_value = std::stof(off_value_node->convert_value_to_string(0));
 
-        auto one_hot_ie = std::make_shared<ngraph::op::OneHotIE>(one_hot->get_argument(0),
+        auto one_hot_ie = std::make_shared<ngraph::op::OneHotIE>(one_hot->input_value(0),
                                                                  one_hot->get_axis(), depth_value, on_value, off_value, output_type);
         one_hot_ie->set_friendly_name(one_hot->get_friendly_name());
 

@@ -37,6 +37,12 @@ static vector<string> to_lower_case(const vector<string>& vs)
     return res;
 }
 
+op::util::RNNCellBase::RNNCellBase()
+    : m_clip(0.f)
+    , m_hidden_size(0)
+{
+}
+
 op::util::RNNCellBase::RNNCellBase(size_t hidden_size,
                                    float clip,
                                    const vector<string>& activations,

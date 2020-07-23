@@ -1,4 +1,4 @@
-## Equal <a name="Equal"></a>
+## Equal <a name="Equal"></a> {#openvino_docs_ops_comparison_Equal_1}
 
 **Versioned name**: *Equal-1*
 

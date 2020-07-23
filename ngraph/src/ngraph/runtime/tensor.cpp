@@ -77,21 +77,3 @@ void runtime::Tensor::set_stale(bool val)
 {
     m_stale = val;
 }
-
-void runtime::Tensor::copy_from(const ngraph::runtime::Tensor& source)
-{
-    if (get_element_count() != source.get_element_count())
-    {
-        throw invalid_argument("runtime::Tensor::copy_from element count must match");
-    }
-    if (get_element_type() != source.get_element_type())
-    {
-        throw invalid_argument("runtime::Tensor::copy_from element types must match");
-    }
-    // This is potentially inefficient but is supplied only to get things going
-    // This is be replaced with more optimial implementations in later PRs
-    auto size = get_size_in_bytes();
-    AlignedBuffer buffer{size, 64};
-    source.read(buffer.get_ptr(), size);
-    write(buffer.get_ptr(), size);
-}

@@ -21,9 +21,11 @@
 
 #include <convert_function_to_cnn_network.hpp>
 #include <generic_ie.hpp>
+#include <ngraph/opsets/opset3.hpp>
 #include <transformations/convert_opset3_to_opset2/convert_opset3_to_opset2.hpp>
 #include <transformations/convert_opset2_to_opset1/convert_opset2_to_opset1.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
+#include <vpu/ngraph/transformations/merge_subsequent_dsr_operations.hpp>
 
 namespace vpu {
 
@@ -116,6 +118,7 @@ FrontEnd::FrontEnd(StageBuilder::Ptr stageBuilder)
         {"StaticShapeBroadcast",                               LAYER_PARSER(parseBroadcast)},
         {"StaticShapeNonMaxSuppression",                       LAYER_PARSER(parseStaticShapeNMS)},
         {"StaticShapeReshape",                                 LAYER_PARSER(parseReshape)},
+        {"Gelu",                                               LAYER_PARSER(parseGelu)},
     }} {}
 
 ModelPtr FrontEnd::buildInitialModel(ie::ICNNNetwork& network) {
@@ -372,13 +375,21 @@ ModelPtr FrontEnd::runCommonPasses(ie::ICNNNetwork& network, const UnsupportedLa
         VPU_LOGGER_SECTION(env.log);
 
         auto convertNetwork = [&convertedNetwork, &originalOrConvertNetwork]() {
+            // disable GeLU decomposition
+            const auto transformationsPredicate = [](const std::shared_ptr<const ::ngraph::Node> &node) -> bool {
+                return std::dynamic_pointer_cast<const ::ngraph::opset3::Gelu>(node) != nullptr;
+            };
+
             auto nGraphFunc = originalOrConvertNetwork->getFunction();
             // Disable shape inference (WA for generic operations)
             ngraph::op::GenericIE::DisableReshape noReshape(nGraphFunc);
 
-            ngraph::pass::ConvertOpSet3ToOpSet2().run_on_function(nGraphFunc);
-            ngraph::pass::ConvertOpSet2ToOpSet1().run_on_function(nGraphFunc);
-            ngraph::pass::ConvertOpSet1ToLegacy().run_on_function(nGraphFunc);
+            ngraph::pass::ConvertOpSet3ToOpSet2(transformationsPredicate).run_on_function(nGraphFunc);
+            ngraph::pass::ConvertOpSet2ToOpSet1(transformationsPredicate).run_on_function(nGraphFunc);
+            ngraph::pass::ConvertOpSet1ToLegacy(transformationsPredicate).run_on_function(nGraphFunc);
+
+            vpu::MergeSubsequentDSROperations().run_on_function(nGraphFunc);
+
             convertedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(nGraphFunc, *originalOrConvertNetwork);
             originalOrConvertNetwork = convertedNetwork.get();
         };

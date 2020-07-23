@@ -39,7 +39,7 @@ def test_precision_setter(recwarn):
     assert recwarn.pop(DeprecationWarning)
 
 
-def test_affinuty_getter():
+def test_affinity_getter():
     ie = IECore()
     net = ie.read_network(model=test_net_xml, weights=test_net_bin)
     assert net.layers['27'].affinity == ""

@@ -1,4 +1,4 @@
-# Live Speech Recognition Demo
+# Live Speech Recognition Demo {#openvino_inference_engine_samples_speech_libs_and_demos_Live_speech_recognition_demo}
 
 This demo provides a GUI interface for automatic speech recognition using selected OpenVINO&trade; Inference Engine plugin, OpenVINO&trade; Feature Extraction Library, and OpenVINO&trade; Decoder Library.
 
@@ -8,13 +8,13 @@ The application transcribes audio from a WAV file and/or audio device. It suppor
 
 The software stack used by the demo is as follows:
 
-![](./inference-engine/samples/speech_libs_and_demos/img/sw_components.png)
+![](img/sw_components.png)
 
 ## Running
 
 The application main window looks like this:
 
-![](./inference-engine/samples/speech_libs_and_demos/img/live_speech_recognition_demo_annotated.jpg)
+![](img/live_speech_recognition_demo_annotated.jpg)
 
 Refer to the sections below for instructions for particular scenarios.
 

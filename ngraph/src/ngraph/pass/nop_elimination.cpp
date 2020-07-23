@@ -35,6 +35,7 @@
 #include "ngraph/op/slice.hpp"
 #include "ngraph/op/stop_gradient.hpp"
 #include "ngraph/op/sum.hpp"
+#include "ngraph/op/util/op_types.hpp"
 #include "ngraph/opsets/opset3.hpp"
 #include "ngraph/util.hpp"
 #include "nop_elimination.hpp"
@@ -171,7 +172,7 @@ static bool replace_squeeze_unsqueeze(const std::shared_ptr<Node>& node)
         }
         else
         {
-            target_shape.emplace_back(shape_ps[i]);
+            target_shape.emplace_back(shape_ps[i].get_length());
         }
     }
 
@@ -344,7 +345,7 @@ static bool eliminate_squeeze(const std::shared_ptr<Node>& node)
     if (auto unsqueeze = as_type_ptr<opset3::Unsqueeze>(input))
     {
         PartialShape data_shape;
-        if (input->is_parameter())
+        if (op::is_parameter(input))
         {
             data_shape = unsqueeze->input(0).get_partial_shape();
         }
@@ -393,7 +394,7 @@ static bool eliminate_squeeze(const std::shared_ptr<Node>& node)
     if (auto squeeze_i = as_type_ptr<opset3::Squeeze>(input))
     {
         PartialShape data_shape;
-        if (input->is_parameter())
+        if (op::is_parameter(input))
         {
             data_shape = squeeze_i->input(0).get_partial_shape();
         }
