@@ -19,7 +19,6 @@ from copy import deepcopy
 import networkx as nx
 
 from mo.front.common.partial_infer.utils import int64_array
-from mo.front.extractor import extract_port_from_string
 from mo.graph.graph import Node, Graph
 from mo.middle.pattern_match import all_edges_in_nodes
 from mo.ops.const import Const
@@ -285,6 +284,37 @@ shaped_const_with_data = lambda name, shape: {**fake_const(name, shape), **shape
 valued_const_with_data = lambda name, value: {**const(name, value), **valued_data(name + '_d', value)}
 
 const_with_data = lambda name, value: {**const(name, value), **valued_data(name + '_d', value)}
+
+
+def extract_port_from_string(node_name: str):
+    """
+    Extracts port and node name from string
+
+    Raises if node name was not provided in the expected format:
+    NODE:OUT_PORT
+        or
+    IN_PORT:NODE
+
+    :param node_name: string value provided by user
+    :return: node name, input port and output port
+    """
+    parts = node_name.split(':')
+    if len(parts) > 2:
+        raise Error("Please provide only one port number for {}. Expected format is NODE:OUT_PORT or IN_PORT:NODE, "
+                    "where IN_PORT and OUTPUT_PORT are integers".format(node_name))
+    if len(parts) == 1:
+        return node_name, None, None
+    else:
+        in_port, out_port, name = None, None, None
+        try:
+            in_port, name = int(parts[0]), parts[1]
+        except ValueError:
+            try:
+                out_port, name = int(parts[1]), parts[0]
+            except ValueError:
+                raise Error("Non integer port number in {}. Expected format is NODE:OUT_PORT or IN_PORT:NODE, where "
+                            "IN_PORT and OUTPUT_PORT are integers".format(node_name))
+        return name, in_port, out_port
 
 
 def get_name_and_port(tensor_name):
