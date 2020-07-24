@@ -138,6 +138,11 @@ enum SqueezeOpType {
     UNSQUEEZE
 };
 
+enum MinMaxOpType {
+    MINIMUM,
+    MAXIMUM
+};
+
 enum QuantizationGranularity {
     Pertensor,
     Perchannel

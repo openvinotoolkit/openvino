@@ -14,17 +14,18 @@
 
 namespace LayerTestsDefinitions {
 
-using MaximumParamsTuple = typename std::tuple<
-        std::vector<std::vector<size_t>>, //input shapes
-        InferenceEngine::Precision,       //Network precision
-        std::string>;                     //Device name
+using MaxMinParamsTuple = typename std::tuple<
+        std::vector<std::vector<size_t>>, // Input shapes
+        ngraph::helpers::MinMaxOpType,    // OperationType
+        InferenceEngine::Precision,       // Network precision
+        ngraph::helpers::InputLayerType,  // Secondary input type
+        std::string>;                     // Device name
 
-class MaximumLayerTest:
-        public testing::WithParamInterface<MaximumParamsTuple>,
+class MaxMinLayerTest:
+        public testing::WithParamInterface<MaxMinParamsTuple>,
         public LayerTestsUtils::LayerTestsCommon{
 public:
-    std::shared_ptr<ngraph::Function> fn;
-    static std::string getTestCaseName(const testing::TestParamInfo<MaximumParamsTuple>& obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<MaxMinParamsTuple>& obj);
 protected:
     void SetUp() override;
 };
