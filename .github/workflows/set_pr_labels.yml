@@ -1,10 +1,10 @@
-name: Pull Request
+name: Pull Requests
 on:
   schedule:
     - cron: '*/10 * * * *'
 
 jobs:
-  SetLabels:
+  Set-Labels:
     runs-on: ubuntu-18.04
     steps:
       - uses: actions/checkout@v2
@@ -28,7 +28,7 @@ jobs:
           pip install -r requirements.txt
         working-directory: .github/org_control
 
-      - name: Check PR
+      - name: Check PRs
         run: |
           python3 check_pr.py
         env:
