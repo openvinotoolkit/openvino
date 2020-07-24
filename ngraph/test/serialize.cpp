@@ -826,7 +826,6 @@ TEST(serialize, opset3_interpolate)
     attrs.pads_begin = {0, 0, 0, 0};
     attrs.pads_end = {0, 0, 0, 0};
     attrs.cube_coeff = -0.75;
-    auto op = make_shared<Interpolate>(image, output_shape, axes, attrs);
 
     auto op = make_shared<Interpolate>(image, output_shape, axes, attrs);
     auto result = make_shared<op::Result>(op);
