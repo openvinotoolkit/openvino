@@ -4,20 +4,22 @@
 
 #include "low_precision_transformations/clamp_transformation.hpp"
 
-#include <sstream>
-#include <string>
+#include <memory>
+#include <tuple>
 #include <vector>
-#include <ngraph/ngraph.hpp>
+#include <string>
+#include <ie_core.hpp>
 
+#include <transformations/init_node_info.hpp>
 #include "ngraph_functions/low_precision_transformations/clamp_function.hpp"
 
 namespace LayerTestsDefinitions {
 
 std::string ClampTransformation::getTestCaseName(testing::TestParamInfo<ClampTransformationParams> obj) {
-    InferenceEngine::Precision netPrecision;
-    InferenceEngine::SizeVector inputShapes;
+    ngraph::element::Type netPrecision;
+    ngraph::Shape  inputShapes;
     std::string targetDevice;
-    InferenceEngine::details::LayerTransformation::Params params;
+    ngraph::pass::low_precision::LayerTransformation::Params params;
     LayerTestsUtils::LayerTransformation::LptVersion version;
     ClampTransformationParam param;;
     std::tie(netPrecision, inputShapes, targetDevice, params, version, param) = obj.param;
@@ -31,13 +33,12 @@ std::string ClampTransformation::getTestCaseName(testing::TestParamInfo<ClampTra
 }
 
 void ClampTransformation::SetUp() {
-    InferenceEngine::Precision netPrecision;
-    InferenceEngine::SizeVector inputShape;
-    InferenceEngine::details::LayerTransformation::Params params;
+    ngraph::element::Type precision;
+    ngraph::Shape  inputShape;
+    ngraph::pass::low_precision::LayerTransformation::Params params;
     LayerTestsUtils::LayerTransformation::LptVersion version;
     ClampTransformationParam param;
-    std::tie(netPrecision, inputShape, targetDevice, params, version, param) = this->GetParam();
-    auto precision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+    std::tie(precision, inputShape, targetDevice, params, version, param) = this->GetParam();
 
     ConfigurePlugin(version);
 
@@ -54,14 +55,13 @@ void ClampTransformation::SetUp() {
 }
 
 void ClampTransformation::validate() {
-    InferenceEngine::Precision netPrecision;
+    ngraph::element::Type precision;
     InferenceEngine::SizeVector inputShape;
     std::string targetDevice;
-    InferenceEngine::details::LayerTransformation::Params tmp;
+    ngraph::pass::low_precision::LayerTransformation::Params tmp;
     LayerTestsUtils::LayerTransformation::LptVersion version;
     ClampTransformationParam param;
-    std::tie(netPrecision, inputShape, targetDevice, tmp, version, param) = this->GetParam();
-    auto precision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+    std::tie(precision, inputShape, targetDevice, tmp, version, param) = this->GetParam();
 
     const auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
     const InferenceEngine::CNNNetwork network = transform(toCNNNetwork(params));
