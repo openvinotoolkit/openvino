@@ -11,13 +11,12 @@
 
 namespace LayerTestsDefinitions {
 
-// TODO: refactor: move to LayerTestsUtils::LayerTransformationParams
 typedef std::tuple<
-    InferenceEngine::Precision,
-    InferenceEngine::SizeVector,
+    ngraph::element::Type,
+    ngraph::Shape,
     std::string,
-    // TODO: refactor: CNNNetwork LPT is detected
-    InferenceEngine::details::LayerTransformation::Params,
+    ngraph::opset1::DepthToSpace::DepthToSpaceMode,
+    size_t,
     LayerTestsUtils::LayerTransformation::LptVersion> DepthToSpaceTransformationParams;
 
 class DepthToSpaceTransformation :
@@ -30,8 +29,7 @@ protected:
     void SetUp() override;
 
 private:
-    void validateCNNNetwork();
-    void validateNGraph();
+    void validate();
 };
 
 }  // namespace LayerTestsDefinitions

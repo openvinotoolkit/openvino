@@ -161,6 +161,7 @@ LowPrecisionTransformations LowPrecisionTransformer::getAllTransformations(const
         add<AvgPoolTransformation, opset1::AvgPool>(params).
         add<ClampTransformation, opset1::Clamp>(params).
         add<ConvolutionTransformation, opset1::Convolution>(params).
+        add<DepthToSpaceTransformation, opset1::DepthToSpace>(params).
         add<FakeQuantizeTransformation, opset1::FakeQuantize>(params).
         add<GroupConvolutionTransformation, opset1::GroupConvolution>(params).
         add<MatMulTransformation, opset1::MatMul>(params).
@@ -211,6 +212,7 @@ TypeRelaxedReplacer::TypeRelaxedReplacer() {
     make_matcher_type_relaxed<opset1::Clamp>(this);
     make_matcher_type_relaxed<opset1::Concat>(this);
     make_matcher_type_relaxed<opset1::Convolution>(this);
+    make_matcher_type_relaxed<opset1::DepthToSpace>(this);
     make_matcher_type_relaxed<opset1::FakeQuantize>(this);
     make_matcher_type_relaxed<opset1::GroupConvolution>(this);
     make_matcher_type_relaxed<opset1::Relu>(this);
