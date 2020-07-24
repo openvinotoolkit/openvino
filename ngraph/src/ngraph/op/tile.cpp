@@ -41,8 +41,8 @@ void op::Tile::validate_and_infer_types()
     // Repeats should have integer data type. For now we only allow i64
     auto repeats_et = get_input_element_type(1);
     NODE_VALIDATION_CHECK(this,
-                          repeats_et.compatible(element::Type_t::i64),
-                          "Tile repeats must have element type i64, but has ",
+                          repeats_et.is_integral(),
+                          "Tile repeats must have any integer element type, but has ",
                           repeats_et);
 
     auto arg_shape = get_input_partial_shape(0);
