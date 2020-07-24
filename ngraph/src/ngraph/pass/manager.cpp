@@ -29,7 +29,6 @@
 #include "ngraph/node.hpp"
 #include "ngraph/pass/manager.hpp"
 #include "ngraph/pass/pass.hpp"
-#include "ngraph/pass/serialize.hpp"
 #include "ngraph/pass/visualize_tree.hpp"
 #include "ngraph/util.hpp"
 
@@ -38,8 +37,6 @@ using namespace ngraph;
 
 pass::Manager::Manager()
     : m_visualize(getenv_bool("NGRAPH_ENABLE_VISUALIZE_TRACING"))
-    , m_serialize(getenv_bool("NGRAPH_ENABLE_SERIALIZE_TRACING"))
-
 {
 }
 
@@ -128,7 +125,7 @@ void pass::Manager::run_passes(shared_ptr<Function> func, bool /* transitive */)
             }
         }
 
-        if (m_visualize || m_serialize)
+        if (m_visualize)
         {
             // visualizations and serializations will be named after the outermost function
             const size_t num_digits_in_pass_index = 3;
@@ -144,12 +141,6 @@ void pass::Manager::run_passes(shared_ptr<Function> func, bool /* transitive */)
                 pass::VisualizeTree vt(base_filename + std::string(".") + file_ext);
                 vt.set_ops_to_details(get_state().get_visualize_tree_ops_map());
                 vt.run_on_module(f_array);
-            }
-
-            if (m_serialize)
-            {
-                pass::Serialization st(base_filename + ".json");
-                st.run_on_module(f_array);
             }
         }
         index++;

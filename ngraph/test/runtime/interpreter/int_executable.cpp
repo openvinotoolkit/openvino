@@ -22,16 +22,14 @@
 #include "ngraph/except.hpp"
 #include "ngraph/op/util/op_types.hpp"
 #include "ngraph/ops.hpp"
-#include "ngraph/pass/assign_layout.hpp"
-#include "ngraph/pass/core_fusion.hpp"
-#include "ngraph/pass/fused_op_decomposition.hpp"
-#include "ngraph/pass/like_replacement.hpp"
-#include "ngraph/pass/liveness.hpp"
 #include "ngraph/pass/manager.hpp"
 #include "ngraph/serializer.hpp"
 #include "ngraph/util.hpp"
 #include "opset0_downgrade.hpp"
 #include "opset1_downgrade.hpp"
+#include "pass/fused_op_decomposition.hpp"
+#include "pass/like_replacement.hpp"
+#include "pass/liveness.hpp"
 
 using namespace std;
 using namespace ngraph;
