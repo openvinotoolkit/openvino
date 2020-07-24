@@ -13,6 +13,8 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 """
+import logging as log
+
 from extensions.ops.dequantize_linear import DequantizeLinear
 from mo.front.extractor import FrontExtractorOp
 from mo.front.onnx.extractors.utils import onnx_attr, get_onnx_opset_version
@@ -24,9 +26,8 @@ class DequantizeLinearFrontExtractor(FrontExtractorOp):
 
     @classmethod
     def extract(cls, node):
-        attrs = {}
         if get_onnx_opset_version(node) >= 13:
-            axis = onnx_attr(node, 'axis', 'i', default=1)
-            attrs.update(axis=axis)
-        DequantizeLinear.update_node_stat(node, attrs)
+            log.warning('Ignoring "axis" attribute for DequantizeLinear-{} node, inference might be incorrect.'.format(
+                get_onnx_opset_version(node)))
+        DequantizeLinear.update_node_stat(node)
         return cls.enabled
