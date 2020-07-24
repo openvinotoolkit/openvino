@@ -32,7 +32,7 @@ TEST(TransformationTests, MishFusing) {
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{mul}, ngraph::ParameterVector{input0});
 
         ngraph::pass::InitNodeInfo().run_on_function(f);
-        ngraph::pass::MishFusing().run_on_function(f);
+        ngraph::pass::MishFusion().run_on_function(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
 
