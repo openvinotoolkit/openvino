@@ -10,6 +10,16 @@
 using namespace testing;
 using namespace ngraph::pass;
 
+ngraph::pass::low_precision::LayerTransformation::Params LayerTransformation::createParamsU8U8() {
+    return low_precision::LayerTransformation::Params(
+        true,
+        low_precision::LayerTransformation::QuantizedTensorAlignment::UpdateLevel,
+        low_precision::LayerTransformation::QuantizedTensorAlignment::None,
+        true,
+        { ngraph::element::u8 },
+        { ngraph::element::u8 });
+}
+
 ngraph::pass::low_precision::LayerTransformation::Params LayerTransformation::createParamsU8I8() {
     return low_precision::LayerTransformation::Params(
         true,

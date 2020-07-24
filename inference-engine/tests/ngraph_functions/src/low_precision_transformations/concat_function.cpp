@@ -184,28 +184,12 @@ std::shared_ptr<ngraph::Function> ConcatFunction::getReference(
     const DequantizationOperations& dequantizationOperations) {
     const auto input1 = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape);
     input1->set_friendly_name("input1");
-    const auto fakeQuantize1 = ngraph::builder::makeFakeQuantizeTypeRelaxed(
-        input1,
-        precision,
-        fqOnData1.quantizationLevel,
-        fqOnData1.constantShape,
-        fqOnData1.inputLowValues,
-        fqOnData1.inputHighValues,
-        fqOnData1.outputLowValues,
-        fqOnData1.outputHighValues);
+    const auto fakeQuantize1 = ngraph::builder::subgraph::makeFakeQuantizeTypeRelaxed(input1, precision, fqOnData1);
 
     const std::vector<size_t> inputShape2 = inputShape;
     const auto input2 = std::make_shared<ngraph::opset1::Parameter>(precision, ngraph::Shape(inputShape2));
     input2->set_friendly_name("input2");
-    const auto fakeQuantize2 = ngraph::builder::makeFakeQuantizeTypeRelaxed(
-        input2,
-        precision,
-        fqOnData2.quantizationLevel,
-        fqOnData2.constantShape,
-        fqOnData2.inputLowValues,
-        fqOnData2.inputHighValues,
-        fqOnData2.outputLowValues,
-        fqOnData2.outputHighValues);
+    const auto fakeQuantize2 = ngraph::builder::subgraph::makeFakeQuantizeTypeRelaxed(input2, precision, fqOnData2);
 
     const std::shared_ptr<ngraph::opset1::Concat> concat = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::Concat>>(
         ngraph::OutputVector{ fakeQuantize1->output(0), fakeQuantize2->output(0) }, 1);

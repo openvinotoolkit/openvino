@@ -22,9 +22,7 @@ void MatMulTransformation::transform(TransformationContext &context, ngraph::pat
 
     matMul = separateInStandaloneBranch(matMul);
 
-    FakeQuantizeDequantization dequantization1 = ngraph::pass::low_precision::NetworkHelper::getDequantization(matMul, 0);
     FakeQuantizeDequantization dequantization2 = ngraph::pass::low_precision::NetworkHelper::getDequantization(matMul, 1);
-
     if (dequantization2.empty()) {
         const std::shared_ptr<opset1::FakeQuantize> fakeQuantize = as_type_ptr<opset1::FakeQuantize>(dequantization2.data);
         if (fakeQuantize != nullptr) {
@@ -43,6 +41,7 @@ void MatMulTransformation::transform(TransformationContext &context, ngraph::pat
         }
     }
 
+    const FakeQuantizeDequantization dequantization1 = ngraph::pass::low_precision::NetworkHelper::getDequantization(matMul, 0);
     const std::shared_ptr<opset1::MatMul> newMatMul = std::make_shared<ngraph::op::TypeRelaxed<opset1::MatMul>>(dequantization1.data, dequantization2.data);
     newMatMul->set_output_type(0, matMul->get_output_element_type(0), matMul->get_output_partial_shape(0));
 

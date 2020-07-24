@@ -16,6 +16,7 @@ typedef std::tuple<
 
 class LayerTransformation : public CommonTestUtils::TestsCommon {
 public:
+    static ngraph::pass::low_precision::LayerTransformation::Params createParamsU8U8();
     static ngraph::pass::low_precision::LayerTransformation::Params createParamsU8I8();
     static ngraph::pass::low_precision::LayerTransformation::Params createParamsI8I8();
     static ngraph::pass::low_precision::LayerTransformation::Params createParamsU8I8AndI8();

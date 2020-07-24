@@ -7,6 +7,7 @@
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph_ops/type_relaxed.hpp>
 #include "ngraph_functions/subgraph_builders.hpp"
+#include "ngraph_functions/low_precision_transformations/common/builders.hpp"
 #include "transformations/low_precision/network_helper.hpp"
 
 namespace ngraph {
@@ -98,15 +99,10 @@ std::shared_ptr<ngraph::Function> FakeQuantizePrecisionSelectionFunction::getRef
     const auto input = std::make_shared<ngraph::opset1::Parameter>(precision, ngraph::Shape(inputShape));
     input->set_friendly_name("input");
 
-    const auto fakeQuantize = ngraph::builder::makeFakeQuantizeTypeRelaxed(
+    const auto fakeQuantize = ngraph::builder::subgraph::makeFakeQuantizeTypeRelaxed(
         input,
         precision,
-        values.fakeQuantizeOnData.quantizationLevel,
-        values.fakeQuantizeOnData.constantShape,
-        values.fakeQuantizeOnData.inputLowValues,
-        values.fakeQuantizeOnData.inputHighValues,
-        values.fakeQuantizeOnData.outputLowValues,
-        values.fakeQuantizeOnData.outputHighValues);
+        values.fakeQuantizeOnData);
     fakeQuantize->set_friendly_name("fakeQuantize");
 
     // branch with limitation precision operation (Convolution)

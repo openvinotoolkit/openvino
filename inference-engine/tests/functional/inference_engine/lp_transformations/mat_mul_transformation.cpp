@@ -21,6 +21,8 @@
 #include "simple_low_precision_transformer.hpp"
 #include "ngraph_functions/low_precision_transformations/common/dequantization_operations.hpp"
 
+#include <ngraph/pass/visualize_tree.hpp>
+
 namespace {
 
 using namespace testing;
@@ -30,17 +32,20 @@ class MatMullTransformationTestValues {
 public:
     class Actual {
     public:
-        ngraph::element::Type precisionBeforeDequantization;
+        ngraph::element::Type precisionBeforeDequantization1;
         ngraph::builder::subgraph::DequantizationOperations dequantization1;
+        ngraph::element::Type precisionBeforeDequantization2;
         ngraph::builder::subgraph::DequantizationOperations dequantization2;
     };
 
     class Expected {
     public:
-        ngraph::element::Type precisionBeforeDequantization;
+        ngraph::element::Type precisionBeforeDequantization1;
         ngraph::builder::subgraph::DequantizationOperations dequantization1;
+        ngraph::element::Type precisionBeforeDequantization2;
         ngraph::builder::subgraph::DequantizationOperations dequantization2;
-        ngraph::element::Type precisionBeforeOperation;
+        ngraph::element::Type precisionBeforeOperation1;
+        ngraph::element::Type precisionBeforeOperation2;
         ngraph::builder::subgraph::DequantizationOperations result;
     };
 
@@ -55,22 +60,22 @@ inline std::ostream& operator << (std::ostream& out, const MatMullTransformation
 
 inline std::ostream& operator << (std::ostream& out, const MatMullTransformationTestValues::Expected& expected) {
     return out << "_" <<
-        expected.precisionBeforeDequantization << "_" <<
+        expected.precisionBeforeDequantization1 << "_" <<
         expected.dequantization1 << "_" <<
+        expected.precisionBeforeDequantization2 << "_" <<
         expected.dequantization2 << "_" <<
-        expected.precisionBeforeOperation << "_" <<
+        expected.precisionBeforeOperation1 << "_" <<
+        expected.precisionBeforeOperation2 << "_" <<
         expected.result;
 }
 
 inline std::ostream& operator << (std::ostream& out, const MatMullTransformationTestValues& values) {
-    return out << "_" << values.actual << "_" << values.expected;
+    return out << "_" << values.params.updatePrecisions << "_" << values.actual << "_" << values.expected;
 }
 
 typedef std::tuple<
     ngraph::element::Type,
     std::pair<ngraph::Shape, ngraph::Shape>,
-    ngraph::pass::low_precision::LayerTransformation::Params,
-    bool,
     MatMullTransformationTestValues> MatMulTransformationParams;
 
 class MatMulTransformation : public LayerTransformation, public testing::WithParamInterface<MatMulTransformationParams> {
@@ -78,42 +83,44 @@ public:
     void SetUp() override {
         const ngraph::element::Type precision = std::get<0>(GetParam());
         const std::pair<ngraph::Shape, ngraph::Shape> shapes = std::get<1>(GetParam());
-        const low_precision::LayerTransformation::Params params = std::get<2>(GetParam());
-        const bool updatePrecisions = std::get<3>(GetParam());
-        const MatMullTransformationTestValues testValues = std::get<4>(GetParam());
+        const MatMullTransformationTestValues testValues = std::get<2>(GetParam());
 
         actualFunction = ngraph::builder::subgraph::MatMulFunction::getOriginal(
-            precision,
             shapes.first,
+            testValues.actual.precisionBeforeDequantization1,
             testValues.actual.dequantization1,
             shapes.second,
+            testValues.actual.precisionBeforeDequantization2,
             testValues.actual.dequantization2);
 
+        VisualizeTree("C:\\Projects\\temp\\test.actual").run_on_module(std::vector<std::shared_ptr<ngraph::Function>>{ actualFunction });
+
         SimpleLowPrecisionTransformer transformer;
-        transformer.add<ngraph::pass::low_precision::MatMulTransformation, ngraph::opset1::MatMul>(params);
+        transformer.add<ngraph::pass::low_precision::MatMulTransformation, ngraph::opset1::MatMul>(testValues.params);
         transformer.transform(actualFunction);
 
+        VisualizeTree("C:\\Projects\\temp\\test.transformed").run_on_module(std::vector<std::shared_ptr<ngraph::Function>>{ actualFunction });
+
         referenceFunction = ngraph::builder::subgraph::MatMulFunction::getReference(
-            precision,
             shapes.first,
+            testValues.expected.precisionBeforeDequantization1,
             testValues.expected.dequantization1,
             shapes.second,
+            testValues.expected.precisionBeforeDequantization2,
             testValues.expected.dequantization2,
             testValues.expected.result);
+
+        VisualizeTree("C:\\Projects\\temp\\test.reference").run_on_module(std::vector<std::shared_ptr<ngraph::Function>>{ referenceFunction });
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<MatMulTransformationParams> obj) {
         ngraph::element::Type precision;
         std::pair<ngraph::Shape, ngraph::Shape> shapes;
-        low_precision::LayerTransformation::Params params;
-        bool updatePrecisions;
         MatMullTransformationTestValues testValues;
-        std::tie(precision, shapes, params, updatePrecisions, testValues) = obj.param;
+        std::tie(precision, shapes, testValues) = obj.param;
 
         std::stringstream ss;
-        ss << LayerTransformation::getTestCaseNameByParams(precision, shapes.first, params) << "_" <<
-            (updatePrecisions ? "updatePrecisions_" : "notUpdatePrecisions_") <<
-            testValues;
+        ss << precision << "_" << shapes.first << "_" << shapes.second << "_" << testValues;
         return ss.str();
     }
 };
@@ -136,42 +143,79 @@ const std::vector<std::pair<ngraph::Shape, ngraph::Shape>> shapes = {
     { { 1, 16, 384, 64 }, { 1, 16, 64, 384 } }
 };
 
-const std::vector<low_precision::LayerTransformation::Params> params = {
-    LayerTransformation::createParamsI8I8(),
-    LayerTransformation::createParamsU8I8()
-};
-
 const std::vector<bool> updatePrecisions = { true, false };
 
 std::vector<MatMullTransformationTestValues> testValues = {
     {
-        LayerTransformation::createParamsU8I8(),
+        LayerTransformation::createParamsU8U8(),
         {
             ngraph::element::u8,
-            { ngraph::element::undefined, {}, { 0.02f } },
-            { ngraph::element::undefined, {}, { 0.03f } },
+            { ngraph::element::f32, {}, { 0.02f } },
+            ngraph::element::i8,
+            { ngraph::element::f32, {}, { 0.03f } },
         },
         {
             ngraph::element::u8,
-            { ngraph::element::undefined, {}, {} },
-            { ngraph::element::undefined, {}, {} },
+            { {}, {}, {} },
+            ngraph::element::i8,
+            { {}, {}, {} },
             ngraph::element::u8,
-            { ngraph::element::undefined, {}, { 0.02f * 0.03f } },
+            ngraph::element::i8,
+            { {}, {}, { 0.02f * 0.03f } },
         }
     },
     {
-        LayerTransformation::createParamsU8I8(),
+        LayerTransformation::createParamsU8U8(),
+        {
+            ngraph::element::u8,
+            { ngraph::element::f32, {}, { 0.02f } },
+            ngraph::element::u8,
+            { ngraph::element::f32, {}, { 0.03f } },
+        },
+        {
+            ngraph::element::u8,
+            { {}, {}, {} },
+            ngraph::element::u8,
+            { {}, {}, {} },
+            ngraph::element::u8,
+            ngraph::element::u8,
+            { {}, {}, { 0.02f * 0.03f } },
+        }
+    },
+    {
+        LayerTransformation::createParamsI8I8().setUpdatePrecisions(true),
         {
             ngraph::element::i8,
-            { ngraph::element::undefined, {}, { 0.02f } },
-            { ngraph::element::undefined, {}, { 0.03f } },
+            { ngraph::element::f32, {}, { 0.02f } },
+            ngraph::element::i8,
+            { ngraph::element::f32, {}, { 0.03f } },
         },
         {
             ngraph::element::i8,
-            { ngraph::element::undefined, {}, {} },
-            { ngraph::element::undefined, {}, {} },
+            { {}, {}, {} },
             ngraph::element::i8,
-            { ngraph::element::undefined, {}, { 0.02f * 0.03f } },
+            { {}, {}, {} },
+            ngraph::element::i8,
+            ngraph::element::i8,
+            { {}, {}, { 0.02f * 0.03f } },
+        }
+    },
+    {
+        LayerTransformation::createParamsI8I8().setUpdatePrecisions(false),
+        {
+            ngraph::element::f32,
+            { {}, {}, { 0.02f } },
+            ngraph::element::f32,
+            { {}, {}, { 0.03f } },
+        },
+        {
+            ngraph::element::f32,
+            { {}, {}, {} },
+            ngraph::element::f32,
+            { {}, {}, {} },
+            ngraph::element::f32,
+            ngraph::element::f32,
+            { {}, {}, { 0.02f * 0.03f } },
         }
     }
 };
@@ -182,8 +226,6 @@ INSTANTIATE_TEST_CASE_P(
     ::testing::Combine(
         ::testing::ValuesIn(precisions),
         ::testing::ValuesIn(shapes),
-        ::testing::ValuesIn(params),
-        ::testing::ValuesIn(updatePrecisions),
         ::testing::ValuesIn(testValues)),
     MatMulTransformation::getTestCaseName);
 

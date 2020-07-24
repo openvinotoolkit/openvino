@@ -46,20 +46,29 @@ std::shared_ptr<ngraph::Function> MatMulFunction::getOriginal(
 }
 
 std::shared_ptr<ngraph::Function> MatMulFunction::getOriginal(
-    const ngraph::element::Type precision,
     const ngraph::Shape& inputShape1,
-    const DequantizationOperations& dequantizationOperations1,
+    const ngraph::element::Type precisionBeforeDequantization1,
+    const DequantizationOperations& dequantization1,
     const ngraph::Shape& inputShape2,
-    const DequantizationOperations& dequantizationOperations2) {
-    const std::shared_ptr<ngraph::opset1::Parameter> input1 = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape1);
+    const ngraph::element::Type precisionBeforeDequantization2,
+    const DequantizationOperations& dequantization2) {
+    if (!dequantization1.convert.empty() && (precisionBeforeDequantization1 == dequantization1.convert.outPrecision)) {
+        THROW_IE_EXCEPTION << "unexpected input arguments for branch 1";
+    }
+
+    if (!dequantization2.convert.empty() && (precisionBeforeDequantization2 == dequantization2.convert.outPrecision)) {
+        THROW_IE_EXCEPTION << "unexpected input arguments for branch 2";
+    }
+
+    const std::shared_ptr<ngraph::opset1::Parameter> input1 = std::make_shared<ngraph::opset1::Parameter>(precisionBeforeDequantization1, inputShape1);
     input1->set_friendly_name("input1");
 
-    const std::shared_ptr<ngraph::opset1::Parameter> input2 = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape2);
+    const std::shared_ptr<ngraph::opset1::Parameter> input2 = std::make_shared<ngraph::opset1::Parameter>(precisionBeforeDequantization2, inputShape2);
     input2->set_friendly_name("input2");
 
     const std::shared_ptr<ngraph::opset1::MatMul> matMul = std::make_shared<ngraph::opset1::MatMul>(
-        makeDequantization(input1, dequantizationOperations1),
-        makeDequantization(input2, dequantizationOperations2),
+        makeDequantization(input1, dequantization1),
+        makeDequantization(input2, dequantization2),
         false,
         false);
     matMul->set_friendly_name("matMul");
@@ -117,21 +126,30 @@ std::shared_ptr<ngraph::Function> MatMulFunction::getOriginal(
 }
 
 std::shared_ptr<ngraph::Function> MatMulFunction::getReference(
-    const ngraph::element::Type precision,
     const ngraph::Shape& inputShape1,
-    const DequantizationOperations& dequantizationOperations1,
+    const ngraph::element::Type precisionBeforeDequantization1,
+    const DequantizationOperations& dequantization1,
     const ngraph::Shape& inputShape2,
-    const DequantizationOperations& dequantizationOperations2,
+    const ngraph::element::Type precisionBeforeDequantization2,
+    const DequantizationOperations& dequantization2,
     const DequantizationOperations& resultDequantizationOperations) {
-    const std::shared_ptr<ngraph::opset1::Parameter> input1 = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape1);
+    if (!dequantization1.convert.empty() && (precisionBeforeDequantization1 == dequantization1.convert.outPrecision)) {
+        THROW_IE_EXCEPTION << "unexpected input arguments for branch 1";
+    }
+
+    if (!dequantization2.convert.empty() && (precisionBeforeDequantization2 == dequantization2.convert.outPrecision)) {
+        THROW_IE_EXCEPTION << "unexpected input arguments for branch 2";
+    }
+
+    const std::shared_ptr<ngraph::opset1::Parameter> input1 = std::make_shared<ngraph::opset1::Parameter>(precisionBeforeDequantization1, inputShape1);
     input1->set_friendly_name("input1");
 
-    const std::shared_ptr<ngraph::opset1::Parameter> input2 = std::make_shared<ngraph::opset1::Parameter>(precision, inputShape2);
+    const std::shared_ptr<ngraph::opset1::Parameter> input2 = std::make_shared<ngraph::opset1::Parameter>(precisionBeforeDequantization2, inputShape2);
     input2->set_friendly_name("input2");
 
-    const std::shared_ptr<ngraph::opset1::MatMul> matMul = std::make_shared<ngraph::opset1::MatMul>(
-        makeDequantization(input1, dequantizationOperations1),
-        makeDequantization(input2, dequantizationOperations2),
+    const std::shared_ptr<ngraph::opset1::MatMul> matMul = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::MatMul>>(
+        makeDequantization(input1, dequantization1),
+        makeDequantization(input2, dequantization2),
         false,
         false);
     matMul->set_friendly_name("matMul");

@@ -20,8 +20,7 @@ std::shared_ptr<Node> makeDequantization(
     const DequantizationOperations& dequantizationOperations) {
     std::shared_ptr<ngraph::Node> parent = data;
 
-    // TODO: FIXME: dequantizationOperations.convert.empty()
-    if (dequantizationOperations.convert.outPrecision != ngraph::element::undefined) {
+    if (!dequantizationOperations.convert.empty()) {
         std::shared_ptr<ngraph::opset1::Convert> convert = std::make_shared<ngraph::opset1::Convert>(
             parent,
             dequantizationOperations.convert.outPrecision);
