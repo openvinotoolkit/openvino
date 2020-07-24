@@ -29,24 +29,6 @@ std::shared_ptr<Node> makeFakeQuantize(const ngraph::Output<Node> &in,
     return fq;
 }
 
-std::shared_ptr<Node> makeFakeQuantizeTypeRelaxed(const ngraph::Output<Node> &in,
-    const element::Type &type,
-    std::size_t levels,
-    std::vector<size_t> constShapes,
-    const std::vector<float> &inputLowData,
-    const std::vector<float> &inputHighData,
-    const std::vector<float> &outputLowData,
-    const std::vector<float> &outputHighData) {
-    auto inputLowNode = makeConstant(type, constShapes, inputLowData, inputLowData.empty());
-    auto inputHighNode = makeConstant(type, constShapes, inputHighData, inputHighData.empty());
-    auto outputLowNode = makeConstant(type, constShapes, outputLowData, outputLowData.empty());
-    auto outputHighNode = makeConstant(type, constShapes, outputHighData, outputHighData.empty());
-
-    auto fq = std::make_shared<op::TypeRelaxed<opset1::FakeQuantize>>(in, inputLowNode, inputHighNode, outputLowNode, outputHighNode, levels);
-
-    return fq;
-}
-
 std::shared_ptr<ngraph::Node> makeFakeQuantize(const ngraph::Output<ngraph::Node> &in,
                                                const ngraph::element::Type &type,
                                                std::size_t levels,

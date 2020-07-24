@@ -55,11 +55,11 @@ std::shared_ptr<Node> makeDequantization(
     return parent;
 }
 
-std::shared_ptr<Node> makeFakeQuantize(
+std::shared_ptr<ngraph::opset1::FakeQuantize> makeFakeQuantize(
     const std::shared_ptr<Node>& input,
     const ngraph::element::Type precision,
     const FakeQuantizeOnData& fqOnData) {
-    return ngraph::builder::makeFakeQuantize(
+    return as_type_ptr<ngraph::opset1::FakeQuantize>(ngraph::builder::makeFakeQuantize(
         input,
         precision,
         fqOnData.quantizationLevel,
@@ -67,23 +67,15 @@ std::shared_ptr<Node> makeFakeQuantize(
         fqOnData.inputLowValues,
         fqOnData.inputHighValues,
         fqOnData.outputLowValues,
-        fqOnData.outputHighValues);
+        fqOnData.outputHighValues));
 }
 
-// TODO: refactor
 std::shared_ptr<Node> makeFakeQuantizeTypeRelaxed(
     const std::shared_ptr<ngraph::Node>& input,
     const ngraph::element::Type precision,
     const FakeQuantizeOnData& fqOnData) {
-    return ngraph::builder::makeFakeQuantizeTypeRelaxed(
-        input,
-        precision,
-        fqOnData.quantizationLevel,
-        fqOnData.constantShape,
-        fqOnData.inputLowValues,
-        fqOnData.inputHighValues,
-        fqOnData.outputLowValues,
-        fqOnData.outputHighValues);
+    const std::shared_ptr<ngraph::opset1::FakeQuantize> fq = makeFakeQuantize(input, precision, fqOnData);
+    return std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::FakeQuantize>>(*fq, precision);
 }
 
 } // namespace subgraph
