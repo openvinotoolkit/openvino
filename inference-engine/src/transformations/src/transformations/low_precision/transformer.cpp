@@ -21,6 +21,7 @@
 
 #include "transformations/low_precision/add.hpp"
 #include "transformations/low_precision/avg_pool.hpp"
+#include "transformations/low_precision/clamp.hpp"
 #include "transformations/low_precision/concat.hpp"
 #include "transformations/low_precision/concat_multi_channels.hpp"
 #include "transformations/low_precision/convert.hpp"
@@ -158,6 +159,7 @@ LowPrecisionTransformations LowPrecisionTransformer::getAllTransformations(const
 
         add<AddTransformation, opset1::Add>(params).
         add<AvgPoolTransformation, opset1::AvgPool>(params).
+        add<ClampTransformation, opset1::Clamp>(params).
         add<ConvolutionTransformation, opset1::Convolution>(params).
         add<FakeQuantizeTransformation, opset1::FakeQuantize>(params).
         add<GroupConvolutionTransformation, opset1::GroupConvolution>(params).
@@ -206,6 +208,7 @@ void make_matcher_type_relaxed(ngraph::pass::GraphRewrite* transformation) {
 TypeRelaxedReplacer::TypeRelaxedReplacer() {
     // List all operations that support polymorphic inputs/outputs
     make_matcher_type_relaxed<opset1::AvgPool>(this);
+    make_matcher_type_relaxed<opset1::Clamp>(this);
     make_matcher_type_relaxed<opset1::Concat>(this);
     make_matcher_type_relaxed<opset1::Convolution>(this);
     make_matcher_type_relaxed<opset1::FakeQuantize>(this);
