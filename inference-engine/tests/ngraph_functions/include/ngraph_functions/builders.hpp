@@ -258,7 +258,9 @@ std::shared_ptr<Node> makeShuffleChannels(const ngraph::Output<Node> &in,
                                           int group);
 
 std::shared_ptr<Node> makeMatMul(const Output<Node> &A,
-                                 const Output<Node> &B);
+                                 const Output<Node> &B,
+                                 bool transpose_a = false,
+                                 bool transpose_b = false);
 
 std::shared_ptr<ngraph::Node> makeReduce(std::vector<ngraph::Output<Node>> &in,
                                          const std::vector<int> &reductionAxes,
