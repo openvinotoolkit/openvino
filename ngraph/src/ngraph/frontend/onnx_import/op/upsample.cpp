@@ -70,7 +70,7 @@ namespace ngraph
                     const auto mode = node.get_attribute_value<std::string>("mode", "nearest");
                     check_mode_support(node, mode);
 
-                    auto attrs = ngraph::op::v4::InterpolateAttrs();
+                    auto attrs = ngraph::op::v4::Interpolate::InterpolateAttrs();
                     attrs.mode = mode;
                     attrs.coordinate_transformation_mode = Transform_mode::half_pixel;
                     attrs.nearest_mode = Nearest_mode::round_prefer_floor;
@@ -119,9 +119,8 @@ namespace ngraph
                         std::make_shared<default_opset::Floor>(multiply), ngraph::element::i64);
                     auto axes_const = default_opset::Constant::create(
                         ngraph::element::i64, Shape({axes.size()}), axes);
-                    return {
-                        std::make_shared<ngraph::op::v4::Interpolate>(
-                            data, output_shape, axes_const, attrs)};
+                    return {std::make_shared<ngraph::op::v4::Interpolate>(
+                        data, output_shape, axes_const, attrs)};
                 }
 
             } // namespace set_1
@@ -145,15 +144,25 @@ namespace ngraph
                         (scales_shape.is_static() || data_shape.rank().is_static()),
                         " Data rank or shape of Scales input is required to be static.");
 
-                    auto attrs = ngraph::op::v4::InterpolateAttrs();
+                    auto attrs = ngraph::op::v4::Interpolate::InterpolateAttrs();
                     attrs.mode = mode;
-                    attrs.align_corners = false;
+                    attrs.coordinate_transformation_mode = Transform_mode::half_pixel;
+                    attrs.nearest_mode = Nearest_mode::round_prefer_floor;
+                    attrs.antialias = false;
+                    attrs.cube_coeff = -0.75;
+
+                    auto zero_pad = std::vector<size_t>(1, 0);
+
+                    attrs.pads_begin = zero_pad;
+                    attrs.pads_end = zero_pad;
 
                     size_t axes_size = scales_shape.is_static() ? scales_shape.to_shape().at(0)
                                                                 : data_shape.rank().get_length();
-                    for (size_t ax = 0; ax < axes_size; ++ax)
+
+                    std::vector<int64_t> axes;
+                    for (size_t ax = 0; ax < scales.size(); ++ax)
                     {
-                        attrs.axes.insert(ax);
+                        axes.push_back(ax);
                     }
 
                     if (ngraph::op::is_constant(scales) && data_shape.is_static())
@@ -173,8 +182,11 @@ namespace ngraph
                         auto output_shape_const = default_opset::Constant::create(
                             element::u64, Shape({output_shape.size()}), output_shape);
 
-                        return {std::make_shared<default_opset::Interpolate>(
-                            data, output_shape_const, attrs)};
+                        auto axes_const = default_opset::Constant::create(
+                            element::i64, Shape({axes.size()}), axes);
+
+                        return {std::make_shared<ngraph::op::v4::Interpolate>(
+                            data, output_shape_const, axes_const, attrs)};
                     }
 
                     auto shape_of_data = std::make_shared<default_opset::Convert>(
@@ -183,8 +195,10 @@ namespace ngraph
                         std::make_shared<default_opset::Multiply>(shape_of_data, scales);
                     auto output_shape = std::make_shared<default_opset::Convert>(
                         std::make_shared<default_opset::Floor>(multiply), ngraph::element::i64);
-                    return {
-                        std::make_shared<default_opset::Interpolate>(data, output_shape, attrs)};
+                    auto axes_const = default_opset::Constant::create(
+                        ngraph::element::i64, Shape({axes.size()}), axes);
+                    return {std::make_shared<ngraph::op::v4::Interpolate>(
+                        data, output_shape, axes_const, attrs)};
                 }
 
             } // namespace set_9

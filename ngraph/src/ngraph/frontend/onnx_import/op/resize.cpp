@@ -189,9 +189,8 @@ namespace ngraph
                         std::make_shared<default_opset::Floor>(multiply), ngraph::element::i64);
                     auto axes_const = default_opset::Constant::create(
                         ngraph::element::i64, Shape({axes.size()}), axes);
-                    return {
-                        std::make_shared<ngraph::op::v4::Interpolate>(
-                            data, output_shape, axes_const, attrs)};
+                    return {std::make_shared<ngraph::op::v4::Interpolate>(
+                        data, output_shape, axes_const, attrs)};
                 }
 
             } // namespace set_1
