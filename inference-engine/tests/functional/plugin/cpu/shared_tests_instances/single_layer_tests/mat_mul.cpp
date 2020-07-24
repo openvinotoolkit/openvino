@@ -32,6 +32,8 @@ INSTANTIATE_TEST_CASE_P(MatMul, MatMulTest,
                 ::testing::ValuesIn(inputPrecisions),
                 ::testing::ValuesIn(shapesA),
                 ::testing::ValuesIn(shapesB),
+                ::testing::Values(false),
+                ::testing::Values(false),
                 ::testing::ValuesIn(secondaryInputTypes),
                 ::testing::Values(CommonTestUtils::DEVICE_CPU)),
         MatMulTest::getTestCaseName);
