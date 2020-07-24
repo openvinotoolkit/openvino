@@ -22,9 +22,9 @@ namespace {
             {2, 19, 5, 4},
             {7, 13, 2, 8},
             {5, 8, 12, 5},
-            {4, 11, 6, 9},
-
+            {4, 11, 6, 9}
     };
+
     INSTANTIATE_TEST_CASE_P(NumSplitsCheck, VariadicSplitLayerTest,
             ::testing::Combine(
             ::testing::ValuesIn(numSplits),
