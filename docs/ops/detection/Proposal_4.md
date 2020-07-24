@@ -8,7 +8,14 @@
 
 **Detailed description**
 
-*Proposal* has three inputs: a tensor with probabilities whether particular bounding box corresponds to background and foreground, a tensor with deltas for each of the bounding boxes, a tensor with input image size in the [`image_height`, `image_width`, `scale_height_and_width`] or [`image_height`, `image_width`, `scale_height`, `scale_width`] format. Operation produces two tensors: the first mandatory tensor of shape `[batch_size * post_nms_topn, 5]` with proposed boxes and the second optional tensor of shape `[post_nms_topn]` with probabilities.
+*Proposal* has three inputs: a 4D tensor of shape `[num_batches, 2*K, H, W]` with probabilities whether particular 
+bounding box corresponds to background or foreground, a 4D tensor of shape `[num_batches, 4*K, H, W]` with deltas for each 
+of the bound box, and a tensor with input image size in the `[image_height, image_width, scale_height_and_width]` or 
+`[image_height, image_width, scale_height, scale_width]` format. `K` is number of anchors and `H, W` are height and 
+width of the feature map. Operation produces two tensors: 
+the first mandatory tensor of shape `[batch_size * post_nms_topn, 5]` with proposed boxes and 
+the second optional tensor of shape `[batch_size * post_nms_topn]` with probabilities (sometimes referred as scores).
+
 *Proposal* layer does the following with the input tensor:
 1.  Generates initial anchor boxes. Left top corner of all boxes is at (0, 0). Width and height of boxes are calculated from *base_size* with *scale* and *ratio* attributes.
 2.  For each point in the first input tensor:
@@ -110,7 +117,7 @@
 
 * *box_size_scale*
 
-  * **Description**: *box_size_scale* specifies the scale factor applied to logits of box sizes before decoding.
+  * **Description**: *box_size_scale* specifies the scale factor applied to box sizes before decoding.
   * **Range of values**: a positive floating-point number
   * **Type**: `float`
   * **Default value**: 1.0
@@ -118,7 +125,7 @@
 
 * *box_coordinate_scale*
 
-  * **Description**: *box_coordinate_scale* specifies the scale factor applied to logits of box coordinates before decoding.
+  * **Description**: *box_coordinate_scale* specifies the scale factor applied to box coordinates before decoding.
   * **Range of values**: a positive floating-point number
   * **Type**: `float`
   * **Default value**: 1.0
@@ -136,17 +143,17 @@
 
 **Inputs**:
 
-*   **1**: 4D tensor of type *T* with class prediction scores. Required.
+*   **1**: 4D tensor of type *T* and shape `[batch_size, 2*K, H, W]` with class prediction scores. Required.
 
-*   **2**: 4D tensor of type *T* with deltas for each bounding box. Required.
+*   **2**: 4D tensor of type *T* and shape `[batch_size, 4*K, H, W]` with deltas for each bounding box. Required.
 
-*   **3**: 1D tensor of type *T* with 3 or 4 elements:  `[image_height`, `image_width`, `scale_height_and_width]` or `[image_height`, `image_width`, `scale_height`, `scale_width]`. Required.
+*   **3**: 1D tensor of type *T* with 3 or 4 elements:  `[image_height, image_width, scale_height_and_width]` or `[image_height, image_width, scale_height, scale_width]`. Required.
 
-**Outputs**:
+**Outputs**4
 
 *   **1**: tensor of type *T* and shape `[batch_size * post_nms_topn, 5]`.
 
-*   **2**: tensor of type *T* and shape `[post_nms_topn]` with probabilities. *Optional*.
+*   **2**: tensor of type *T* and shape `[batch_size * post_nms_topn]` with probabilities. *Optional*.
 
 **Types**
 
