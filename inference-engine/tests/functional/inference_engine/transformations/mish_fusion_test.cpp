@@ -37,9 +37,9 @@ TEST(TransformationTests, MishFusing) {
     }
 
     {
-        auto mish = std::make_shared<ngraph::opset4::Mish>(ngraph::element::f32, ngraph::Shape{3, 1, 2});
+        auto mish = std::make_shared<ngraph::opset4::Mish>(ngraph::Shape{3, 1, 2});
 
-        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{mish}, ngraph::ParameterVector{data});
+        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{mish}, ngraph::ParameterVector{input0});
     }
 
     auto res = compare_functions(f, f_ref);
