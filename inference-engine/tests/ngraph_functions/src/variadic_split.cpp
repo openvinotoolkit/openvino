@@ -13,14 +13,11 @@ namespace builder {
                                                         const element::Type &type,
                                                         const std::vector<size_t> numSplits,
                                                         size_t axis) {
-            auto splitAxisOp = std::make_shared<ngraph::opset3::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{},
-                                                                          std::vector<uint64_t>{axis});
-            auto param = ngraph::builder::makeParams(type, {numSplits});
-            auto numSplit = ngraph::helpers::convert2OutputVector(
-                    ngraph::helpers::castOps2Nodes<ngraph::opset3::Parameter>(param));
-//            auto numSplit = std::make_shared<ngraph::opset3::Constant>(ngraph::element::Type_t::i64, ngraph::Shape{},
-//                                                                       numSplits);
-            auto VariadicSplitNode = std::make_shared<ngraph::opset3::VariadicSplit>(in, splitAxisOp, numSplit[0]);
+            auto splitAxisOp = std::make_shared<ngraph::opset3::Constant>(type, ngraph::Shape{},
+                                                                          std::vector<size_t>{axis});
+            auto numSplit = std::make_shared<ngraph::opset3::Constant>(type, ngraph::Shape{numSplits.size()},
+                                                                       numSplits);
+            auto VariadicSplitNode = std::make_shared<ngraph::opset3::VariadicSplit>(in, splitAxisOp, numSplit);
             return VariadicSplitNode;
         }
 }  // namespace builder

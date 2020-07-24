@@ -48,17 +48,18 @@ namespace LayerTestsDefinitions {
         auto params = ngraph::builder::makeParams(ngPrc, {inputShape});
         auto paramOuts = ngraph::helpers::convert2OutputVector(
                 ngraph::helpers::castOps2Nodes<ngraph::opset3::Parameter>(params));
-        auto VariadicSplit = std::dynamic_pointer_cast<ngraph::opset3::VariadicSplit>(ngraph::builder::makeVariadicSplit(paramOuts[0],
-                                                                                                 ngPrc, numSplits, axis));
+        auto VariadicSplit = std::dynamic_pointer_cast<ngraph::opset3::VariadicSplit>(ngraph::builder::makeVariadicSplit(params[0],
+                                              ngPrc, numSplits, axis));
+//        ngraph::ResultVector results{std::make_shared<ngraph::opset3::Result>(VariadicSplit)};
         ngraph::ResultVector results;
         for (int i = 0; i < numSplits.size(); i++) {
-            results.push_back(std::make_shared<ngraph::opset3::Result>(VariadicSplit));
+            results.push_back(std::make_shared<ngraph::opset3::Result>(VariadicSplit->output(i)));
         }
         function = std::make_shared<ngraph::Function>(results, params, "VariadicSplit");
     }
 
     TEST_P(VariadicSplitLayerTest, CompareWithRefs) {
         Run();
-    };
+    }
 
 }  // namespace LayerTestsDefinitions

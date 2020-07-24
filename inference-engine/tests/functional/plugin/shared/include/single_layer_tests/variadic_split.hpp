@@ -15,7 +15,7 @@
 namespace LayerTestsDefinitions {
 
     typedef std::tuple<
-            std::vector<size_t>,                         // Num splits
+            std::vector<size_t>,            // Num splits
             size_t,                         // Axis
             InferenceEngine::Precision,     // Net precision
             std::vector<size_t>,            // Input shapes

@@ -16,19 +16,14 @@ namespace {
             InferenceEngine::Precision::FP16
     };
 
+    // Sum of elements numSplits = inputShapes[Axis]
     const std::vector<std::vector<size_t>> numSplits = {
-            {1, 32, 17},
-            {1, 37, 9},
             {1, 16, 5, 8},
-            {2, 19, 5, 10},
-            {7, 32, 2, 8},
-            {5, 8, 3, 5},
-            {4, 41, 6, 9},
-            {1, 32, 8, 1, 6},
-            {1, 9, 1, 15, 9},
-            {6, 64, 6, 1, 18},
-            {2, 31, 2, 9, 1},
-            {10, 16, 5, 10, 6}
+            {2, 19, 5, 4},
+            {7, 13, 2, 8},
+            {5, 8, 12, 5},
+            {4, 11, 6, 9},
+
     };
     INSTANTIATE_TEST_CASE_P(NumSplitsCheck, VariadicSplitLayerTest,
             ::testing::Combine(
