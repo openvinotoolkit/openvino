@@ -808,10 +808,10 @@ TEST(serialize, opset1_interpolate)
 
 TEST(serialize, opset3_interpolate)
 {
-    using op::v3::Interpolate;
-    using InterpolateMode = op::v3::Interpolate::InterpolateMode;
-    using CoordinateTransformMode = op::v3::Interpolate::CoordinateTransformMode;
-    using InterpolateAttrs = op::v3::Interpolate::InterpolateAttrs;
+    using op::v4::Interpolate;
+    using InterpolateMode = op::v4::Interpolate::InterpolateMode;
+    using CoordinateTransformMode = op::v4::Interpolate::CoordinateTransformMode;
+    using InterpolateAttrs = op::v4::Interpolate::InterpolateAttrs;
 
     auto image = make_shared<op::Parameter>(element::f32, Shape{2, 2, 33, 65});
     auto output_shape = op::Constant::create<int64_t>(element::i64, Shape{2}, {15, 30});

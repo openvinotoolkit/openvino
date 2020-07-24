@@ -76,12 +76,12 @@ TEST(type_prop_layers, interpolate)
                     .same_scheme(PartialShape{2, 2, Dimension::dynamic(), Dimension::dynamic()}));
 }
 
-TEST(type_prop_layers, interpolate_v3)
+TEST(type_prop_layers, interpolate_v4)
 {
-    using op::v3::Interpolate;
-    using InterpolateMode = op::v3::Interpolate::InterpolateMode;
-    using CoordinateTransformMode = op::v3::Interpolate::CoordinateTransformMode;
-    using InterpolateAttrs = op::v3::Interpolate::InterpolateAttrs;
+    using op::v4::Interpolate;
+    using InterpolateMode = op::v4::Interpolate::InterpolateMode;
+    using CoordinateTransformMode = op::v4::Interpolate::CoordinateTransformMode;
+    using InterpolateAttrs = op::v4::Interpolate::InterpolateAttrs;
 
     auto image = make_shared<op::Parameter>(element::f32, Shape{2, 2, 33, 65});
     auto dyn_output_shape = make_shared<op::Parameter>(element::i64, Shape{2});
