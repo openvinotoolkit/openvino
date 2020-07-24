@@ -32,5 +32,5 @@ jobs:
         run: |
           python3 check_pr.py
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.CI }}
         working-directory: .github/org_control
