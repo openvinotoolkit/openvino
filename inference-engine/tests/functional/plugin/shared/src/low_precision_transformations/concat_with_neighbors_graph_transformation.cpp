@@ -17,7 +17,7 @@
 namespace LayerTestsDefinitions {
 
 std::string ConcatWithNeighborsGraphTransformation::getTestCaseName(testing::TestParamInfo<ConcatNeighboringGraphTransformationParams> obj) {
-    ngraph::element::Type_t precision;
+    ngraph::element::Type precision;
     ngraph::Shape inputShapes;
     std::string targetDevice;
     ngraph::pass::low_precision::LayerTransformation::Params params;
@@ -28,7 +28,7 @@ std::string ConcatWithNeighborsGraphTransformation::getTestCaseName(testing::Tes
 }
 
 InferenceEngine::Blob::Ptr ConcatWithNeighborsGraphTransformation::GenerateInput(const InferenceEngine::InputInfo &info) const {
-    ngraph::element::Type_t netPrecision;
+    ngraph::element::Type netPrecision;
     ngraph::Shape inputShape;
     std::string targetDevice;
     ngraph::pass::low_precision::LayerTransformation::Params params;
@@ -44,7 +44,7 @@ InferenceEngine::Blob::Ptr ConcatWithNeighborsGraphTransformation::GenerateInput
 
 void ConcatWithNeighborsGraphTransformation::SetUp() {
     threshold = 2.e-2;
-    ngraph::element::Type_t ngPrecision;
+    ngraph::element::Type ngPrecision;
     ngraph::Shape inputShape;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     LayerTestsUtils::LayerTransformation::LptVersion version;
@@ -65,7 +65,7 @@ void ConcatWithNeighborsGraphTransformation::SetUp() {
 }
 
 void ConcatWithNeighborsGraphTransformation::validate() {
-    ngraph::element::Type_t netPrecision;
+    ngraph::element::Type netPrecision;
     ngraph::Shape inputShape;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     LayerTestsUtils::LayerTransformation::LptVersion version;

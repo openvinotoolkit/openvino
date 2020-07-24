@@ -19,7 +19,7 @@ public:
 };
 
 typedef std::tuple<
-    ngraph::element::Type_t,
+    ngraph::element::Type,
     ngraph::Shape,
     std::string,
     ConcatTransformationTestValues,

@@ -11,13 +11,13 @@ using namespace LayerTestsDefinitions;
 using namespace InferenceEngine::details;
 
 namespace {
-const std::vector<ngraph::element::Type_t> precisions = {
+const std::vector<ngraph::element::Type> precisions = {
     ngraph::element::f32,
     // ngraph::element::f16
 };
 
 const std::vector<LayerTestsUtils::LayerTransformation::LptVersion> versions = {
-    // LayerTestsUtils::LayerTransformation::LptVersion::cnnNetwork,
+    LayerTestsUtils::LayerTransformation::LptVersion::cnnNetwork,
     LayerTestsUtils::LayerTransformation::LptVersion::nGraph
 };
 

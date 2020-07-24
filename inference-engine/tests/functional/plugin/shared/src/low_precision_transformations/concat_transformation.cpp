@@ -17,7 +17,7 @@
 namespace LayerTestsDefinitions {
 
 std::string ConcatTransformation::getTestCaseName(testing::TestParamInfo<ConcatTransformationParams> obj) {
-    ngraph::element::Type_t precision;
+    ngraph::element::Type precision;
     ngraph::Shape inputShapes;
     std::string targetDevice;
     ConcatTransformationTestValues testValues;
@@ -36,7 +36,7 @@ std::string ConcatTransformation::getTestCaseName(testing::TestParamInfo<ConcatT
 
 InferenceEngine::Blob::Ptr ConcatTransformation::GenerateInput(const InferenceEngine::InputInfo &info) const {
     InferenceEngine::SizeVector inputShape;
-    ngraph::element::Type_t netPrecision;
+    ngraph::element::Type netPrecision;
     std::string targetDevice;
     ConcatTransformationTestValues testValues;
     LayerTestsUtils::LayerTransformation::LptVersion version;
@@ -53,7 +53,7 @@ InferenceEngine::Blob::Ptr ConcatTransformation::GenerateInput(const InferenceEn
 
 void ConcatTransformation::SetUp() {
     InferenceEngine::SizeVector inputShape;
-    ngraph::element::Type_t precision;
+    ngraph::element::Type precision;
     ConcatTransformationTestValues testValues;
     LayerTestsUtils::LayerTransformation::LptVersion version;
     std::tie(precision, inputShape, targetDevice, testValues, version) = this->GetParam();
@@ -72,7 +72,7 @@ void ConcatTransformation::SetUp() {
 }
 
 void ConcatTransformation::validate() {
-    ngraph::element::Type_t precision;
+    ngraph::element::Type precision;
     InferenceEngine::SizeVector inputShape;
     std::string targetDevice;
     ConcatTransformationTestValues testValues;

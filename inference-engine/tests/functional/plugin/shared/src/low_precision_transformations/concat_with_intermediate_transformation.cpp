@@ -22,7 +22,7 @@ using namespace InferenceEngine::details;
 namespace LayerTestsDefinitions {
 
 std::string ConcatWithIntermediateTransformation::getTestCaseName(testing::TestParamInfo<ConcatWithIntermediateTransformationParams> obj) {
-    ngraph::element::Type_t netPrecision;
+    ngraph::element::Type netPrecision;
     ngraph::Shape inputShapes;
     std::string targetDevice;
     ngraph::pass::low_precision::LayerTransformation::Params params;
@@ -41,7 +41,7 @@ std::string ConcatWithIntermediateTransformation::getTestCaseName(testing::TestP
 }
 
 InferenceEngine::Blob::Ptr ConcatWithIntermediateTransformation::GenerateInput(const InferenceEngine::InputInfo &info) const {
-    ngraph::element::Type_t netPrecision;
+    ngraph::element::Type netPrecision;
     InferenceEngine::SizeVector inputShape;
     std::string targetDevice;
     ngraph::pass::low_precision::LayerTransformation::Params trasformationParams;
@@ -63,7 +63,7 @@ InferenceEngine::Blob::Ptr ConcatWithIntermediateTransformation::GenerateInput(c
 */
 
 void ConcatWithIntermediateTransformation::SetUp() {
-    ngraph::element::Type_t ngPrecision;
+    ngraph::element::Type ngPrecision;
     ngraph::Shape inputShape;
     ngraph::pass::low_precision::LayerTransformation::Params trasformationParams;
     LayerTestsUtils::LayerTransformation::LptVersion version;
@@ -72,82 +72,6 @@ void ConcatWithIntermediateTransformation::SetUp() {
     std::tie(ngPrecision, inputShape, targetDevice, trasformationParams, version, transparentIntermediate, multichannel) = this->GetParam();
 
     ConfigurePlugin(version);
-
-    //{
-    //    const std::vector<size_t> inputShape1 = {
-    //        inputShape[0],
-    //        inputShape[1],
-    //        inputShape[2] - (transparentIntermediate ? 2 : 0),
-    //        inputShape[3] - (transparentIntermediate ? 2 : 0)
-    //    };
-
-    //    const auto input1 = std::make_shared<ngraph::opset1::Parameter>(ngPrecision, ngraph::Shape(inputShape1));
-    //    input1->set_friendly_name("input1");
-    //    const auto fakeQuantize1 = ngraph::builder::makeFakeQuantize(input1, ngPrecision, 256ul, { 1ul }, { 0.f }, { 3.f }, { 0.f }, { 3.f });
-    //    fakeQuantize1->set_friendly_name("fakeQuantize1");
-
-    //    const std::vector<size_t> inputShape2 = { inputShape[0], inputShape[1], inputShape[2], inputShape[3] };
-    //    const auto input2 = std::make_shared<ngraph::opset1::Parameter>(ngPrecision, ngraph::Shape(inputShape2));
-    //    input2->set_friendly_name("input2");
-
-    //    const auto fakeQuantize2 = ngraph::builder::makeFakeQuantize(input2, ngPrecision, 256ul, { 1ul }, { 0.f }, { 9.f }, { 0.f }, { 9.f });
-    //    fakeQuantize2->set_friendly_name("fakeQuantize2");
-
-    //    const std::vector<size_t> kernel = { 3, 3 };
-    //    const std::vector<size_t> stride = { 1, 1 };
-    //    const std::vector<size_t> padBegin = { 0, 0 };
-    //    const std::vector<size_t> padEnd = { 0, 0 };
-    //    const ngraph::op::PadType padType = ngraph::op::PadType::NOTSET;
-    //    const ngraph::op::RoundingType roundingType = ngraph::op::RoundingType::FLOOR;
-    //    std::shared_ptr<ngraph::op::Op> intermediateOp;
-
-    //    if (transparentIntermediate) {
-    //        intermediateOp = std::make_shared<ngraph::opset1::MaxPool>(
-    //            fakeQuantize2->output(0),
-    //            stride,
-    //            padBegin,
-    //            padEnd,
-    //            kernel,
-    //            roundingType,
-    //            padType);
-    //    } else {
-    //        auto weights = ngraph::opset1::Constant::create(
-    //            ngPrecision,
-    //            ngraph::Shape{ inputShape[1], inputShape[1], 1, 1 },
-    //            std::vector<float>(inputShape[1] * inputShape[1], 1));
-
-    //        intermediateOp = std::make_shared<ngraph::opset1::Convolution>(
-    //            fakeQuantize2->output(0),
-    //            weights,
-    //            ngraph::Strides{ 1, 1 },
-    //            ngraph::CoordinateDiff{ 0, 0 },
-    //            ngraph::CoordinateDiff{ 0, 0 },
-    //            ngraph::Strides{ 1, 1 });
-    //    }
-
-    //    intermediateOp->set_friendly_name("intermediate");
-
-    //    const std::shared_ptr<ngraph::opset1::Concat> concat = std::make_shared<ngraph::opset1::Concat>(
-    //        ngraph::OutputVector{ fakeQuantize1->output(0), intermediateOp->output(0) }, 1);
-    //    concat->set_friendly_name("concat");
-
-
-    //    auto weights = ngraph::opset1::Constant::create(ngPrecision, ngraph::Shape{ inputShape[1], inputShape[1], 1, 1 }, { 1 });
-    //    auto convolution = std::make_shared<ngraph::opset1::Convolution>(
-    //        intermediateOp,
-    //        weights,
-    //        ngraph::Strides{ 1, 1 },
-    //        ngraph::CoordinateDiff{ 0, 0 },
-    //        ngraph::CoordinateDiff{ 0, 0 },
-    //        ngraph::Strides{ 1, 1 });
-    //    convolution->set_friendly_name("convolution");
-
-    //    ngraph::ResultVector results{
-    //        std::make_shared<ngraph::opset1::Result>(concat),
-    //        std::make_shared<ngraph::opset1::Result>(convolution)
-    //    };
-    //    function = std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input1, input2 }, "ConcatWithIntermediateTransformation");
-    //}
 
     function = ngraph::builder::subgraph::ConcatFunction::getOriginalWithIntermediate(
         ngPrecision,
@@ -162,7 +86,7 @@ void ConcatWithIntermediateTransformation::SetUp() {
 }
 
 void ConcatWithIntermediateTransformation::validate() {
-    ngraph::element::Type_t netPrecision;
+    ngraph::element::Type netPrecision;
     ngraph::Shape inputShape;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     LayerTestsUtils::LayerTransformation::LptVersion version;

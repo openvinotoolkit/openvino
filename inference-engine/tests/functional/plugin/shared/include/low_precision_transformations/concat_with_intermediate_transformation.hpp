@@ -12,7 +12,7 @@
 namespace LayerTestsDefinitions {
 
 typedef std::tuple<
-    ngraph::element::Type_t,
+    ngraph::element::Type,
     ngraph::Shape,
     std::string, // target device: CPU, GPU
     ngraph::pass::low_precision::LayerTransformation::Params, // transformation parameters
