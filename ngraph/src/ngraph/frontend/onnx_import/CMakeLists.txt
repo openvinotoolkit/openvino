@@ -51,7 +51,6 @@ add_library(onnx_importer SHARED
         op/argmin.cpp
         op/argmin.hpp
         op/asin.hpp
-        op/asinh.cpp
         op/asinh.hpp
         op/atan.hpp
         op/atanh.hpp
