@@ -18,6 +18,7 @@
 #include "ngraph_functions/subgraph_builders.hpp"
 #include "low_precision_transformations/network_helper.hpp"
 #include <convert_function_to_cnn_network.hpp>
+#include <ngraph_ops/fully_connected.hpp>
 #include <transformations/common_optimizations/common_optimizations.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
 #include <transformations/convert_opset2_to_opset1/convert_opset2_to_opset1.hpp>
@@ -122,4 +123,34 @@ TEST(KeepConstantInputsTests, ConvertConvolutionBiasNetworkWithFalse) {
     InferenceEngine::CNNNetwork convertedNetwork(clonedNetwork);
     std::cout << "Check for conversion of ConvolutionBias Network with keep_constant_inputs = false" << std::endl;
     ASSERT_EQ(isInputConstLayersInCNNNetwork(convertedNetwork, "Convolution"), 1);
+}
+
+TEST(KeepConstantInputsTests, ConvertFullyConnectedNetworkWithTrue) {
+    std::shared_ptr <ngraph::Function> f_ptr;
+    auto input1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 128});
+    auto weights = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{786, 128}, {1});
+    auto empty_bias = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{786}, {0});
+    auto fc = std::make_shared<ngraph::op::FullyConnected>(input1, weights, empty_bias, ngraph::Shape{1, 786});
+    f_ptr = std::make_shared<ngraph::Function>(ngraph::NodeVector{fc}, ngraph::ParameterVector{input1});
+    InferenceEngine::CNNNetwork originalNetwork(f_ptr);
+    std::shared_ptr<InferenceEngine::ICNNNetwork> clonedNetwork = InferenceEngine::cloneNetwork(originalNetwork);
+    transformNetwork(clonedNetwork, true);
+    InferenceEngine::CNNNetwork convertedNetwork(clonedNetwork);
+    std::cout << "Check for conversion of FullyConnected Network with keep_constant_inputs = true" << std::endl;
+    ASSERT_GT(isInputConstLayersInCNNNetwork(convertedNetwork, "FullyConnected"), 1);
+}
+
+TEST(KeepConstantInputsTests, ConvertFullyConnectedNetworkWithFalse) {
+    std::shared_ptr <ngraph::Function> f_ptr;
+    auto input1 = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{1, 128});
+    auto weights = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{786, 128}, {1});
+    auto empty_bias = ngraph::opset1::Constant::create(ngraph::element::f32, ngraph::Shape{786}, {0});
+    auto fc = std::make_shared<ngraph::op::FullyConnected>(input1, weights, empty_bias, ngraph::Shape{1, 786});
+    f_ptr = std::make_shared<ngraph::Function>(ngraph::NodeVector{fc}, ngraph::ParameterVector{input1});
+    InferenceEngine::CNNNetwork originalNetwork(f_ptr);
+    std::shared_ptr<InferenceEngine::ICNNNetwork> clonedNetwork = InferenceEngine::cloneNetwork(originalNetwork);
+    transformNetwork(clonedNetwork, false);
+    InferenceEngine::CNNNetwork convertedNetwork(clonedNetwork);
+    std::cout << "Check for conversion of FullyConnected Network with keep_constant_inputs = false" << std::endl;
+    ASSERT_EQ(isInputConstLayersInCNNNetwork(convertedNetwork, "FullyConnected"), 1);
 }
