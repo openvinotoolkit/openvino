@@ -1,5 +1,7 @@
 name: Pull Request
-on: [pull_request]
+on:
+  schedule:
+    - cron: '*/10 * * * *'
 
 jobs:
   SetLabels:
@@ -28,7 +30,7 @@ jobs:
 
       - name: Check PR
         run: |
-          python3 check_pr.py --pr=${{ github.event.pull_request.number }}
+          python3 check_pr.py
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         working-directory: .github/org_control
