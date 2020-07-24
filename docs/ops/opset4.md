@@ -96,7 +96,7 @@ declared in `namespace opset4`.
 * [PriorBox](detection/PriorBox_1.md)
 * [Proposal](detection/Proposal_1.md)
 * [PSROIPooling](detection/PSROIPooling_1.md)
-* [Range](generation/Range_1.md)
+* [Range](generation/Range_4.md)
 * [ReLU](activation/ReLU_1.md)
 * [ReadValue](infrastructure/ReadValue_3.md)
 * [ReduceLp](reduction/ReduceLp_4.md)
