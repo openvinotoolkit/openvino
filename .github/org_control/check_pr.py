@@ -54,16 +54,25 @@ def get_pr_type(pull):
 
 
 def get_label_by_team_name(team_name):
-    """Generates labels by PR reviwer teams"""
+    """Generates label by PR reviwer team name"""
     if 'admins' in team_name:
         return 'category: ci'
-    cfg = Config()
-    label = team_name
-    re_compile_label = re.compile(rf'{cfg.GITHUB_REPO}-(.+)-maintainers')
+    re_compile_label = re.compile(rf'{Config().GITHUB_REPO}-(.+)-maintainers')
     re_label = re_compile_label.match(team_name)
     if re_label:
-        label = re_label.group(1).strip()
-    return f'category: {label}'
+        return f'category: {re_label.group(1).strip()}'
+    return None
+
+
+def get_category_labels(pull):
+    """Gets list of category labels by all PR reviwer teams"""
+    labels = []
+    pr_lables = get_pr_labels(pull)
+    for reviewer_team in pull.get_review_requests()[1]:
+        reviewer_label = get_label_by_team_name(reviewer_team.name)
+        if reviewer_label and reviewer_label not in pr_lables:
+            labels.append(reviewer_label)
+    return labels
 
 
 def main():
@@ -87,15 +96,17 @@ def main():
         print(f'PRs count ({args.pr_state}):', pulls.totalCount)
     non_org_intel_pr_users = set()
     non_org_pr_users = set()
-    set_labels = []
     for pull in pulls:
         pr_lables = get_pr_labels(pull)
         pr_type = get_pr_type(pull)
+        set_labels = []
         print('\n', pull, f'- Labels: {pr_lables} -', f'Type: {pr_type}', end='')
+
+        # Checks PR source type
         if gh_api.is_org_user(pull.user):
             print(' - Org user')
             if pr_type is not PrType.ORG:
-                print(f'NO "{PrType.ORG.value}" label - ', end='')
+                print(f'NO "{PrType.ORG.value}" label: ', end='')
                 github_api.print_users(pull.user)
                 set_labels.append(PrType.ORG.value)
         elif github_api.is_intel_email(pull.user.email) or \
@@ -103,25 +114,19 @@ def main():
             print(' - Non org user with Intel email or company')
             non_org_intel_pr_users.add(pull.user)
             if pr_type is not PrType.INTEL:
-                print(f'NO "{PrType.INTEL.value}" label - ', end='')
+                print(f'NO "{PrType.INTEL.value}" label: ', end='')
                 github_api.print_users(pull.user)
                 set_labels.append(PrType.INTEL.value)
         else:
             print(f' - Non org user with NO Intel email or company')
             non_org_pr_users.add(pull.user)
             if pr_type is not PrType.EXTERNAL:
-                print(f'NO "{PrType.EXTERNAL.value}" label - ', end='')
+                print(f'NO "{PrType.EXTERNAL.value}" label: ', end='')
                 github_api.print_users(pull.user)
                 set_labels.append(PrType.EXTERNAL.value)
-        print('Add category labels: ', end='')
-        for reviewer_team in pull.get_review_requests()[1]:
-            reviewer_label = get_label_by_team_name(reviewer_team.name)
-            if reviewer_label and reviewer_label not in pr_lables:
-                print(get_label_by_team_name(reviewer_team.name), '| ', end='')
-                set_labels.append(reviewer_label)
-        print()
 
-    set_pr_label(pull, set_labels)
+        set_labels += get_category_labels(pull)
+        set_pr_label(pull, set_labels)
 
     print(f'\nNon org user with Intel email or company:')
     github_api.print_users(non_org_intel_pr_users)
