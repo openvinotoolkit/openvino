@@ -21,6 +21,7 @@
 #include <ngraph/op/relu.hpp>
 #include <ngraph/op/result.hpp>
 #include <ngraph/opsets/opset.hpp>
+#include <ngraph/graph_util.hpp>
 
 #include <ie_util_internal.hpp>
 #include <ie_core.hpp>
@@ -139,7 +140,7 @@ TEST_F(NGraphReshapeTests, CNNReshapeSpatialReLU) {
     ASSERT_EQ(ngraph->get_parameters()[0]->get_shape(), ngraph::Shape({1, 3, 22, 22}));
     ASSERT_EQ(ngraph->get_results()[0]->get_shape(), ngraph::Shape({1, 3, 22, 22}));
 
-    CNNNetwork cnnNetwork(ngraph);
+    CNNNetwork cnnNetwork(ngraph::clone_function(*ngraph));
     std::map<std::string, std::vector<size_t>> shapes;
     shapes["data"] = {1, 3, 25, 25};
 

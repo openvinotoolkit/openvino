@@ -73,24 +73,12 @@ static std::shared_ptr<ngraph::Function> copyFunction(const std::shared_ptr<cons
     return specialized_function;
 }
 
-CNNNetwork::CNNNetwork(const std::shared_ptr<const ngraph::Function>& graph): CNNNetwork(copyFunction(graph, false, {})) {
-}
-
 CNNNetwork::CNNNetwork(const std::shared_ptr<ngraph::Function>& graph) {
     if (graph == nullptr) {
         THROW_IE_EXCEPTION << "CNNNetwork was not initialized: 'graph' object is empty";
     }
 
     // Create CNNNetworkNGraphImpl
-    network = std::make_shared<CNNNetworkNGraphImpl>(graph);
-    actual = network.get();
-    if (actual == nullptr) {
-        THROW_IE_EXCEPTION << "CNNNetwork was not initialized.";
-    }
-}
-
-CNNNetwork::CNNNetwork(const ICNNNetwork& graph) {
-    // Copy nGraph function
     network = std::make_shared<CNNNetworkNGraphImpl>(graph);
     actual = network.get();
     if (actual == nullptr) {
@@ -161,8 +149,7 @@ CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const std::shared_ptr<Function>& nGra
 
 CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const ICNNNetwork& network) {
     if (network.getFunction() == nullptr) {
-        cnnNetwork.reset(new CNNNetworkImpl(network));
-        return;
+        THROW_IE_EXCEPTION << "Cannot create CNNNetwork with nGraph from legacy network format!";
     }
 
     _ngraph_function = copyFunction(network.getFunction(), false, {});

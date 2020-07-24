@@ -24,6 +24,7 @@
 #include "graph_tools.hpp"
 #include "net_pass.h"
 #include "precision_utils.h"
+#include "cnn_network_ngraph_impl.hpp"
 
 using std::string;
 
@@ -149,7 +150,7 @@ CNNLayerPtr clonelayer(const CNNLayer& source) {
 
 std::shared_ptr<ICNNNetwork> cloneNetwork(const ICNNNetwork& network) {
     if (auto func = network.getFunction()) {
-        return CNNNetwork(network);
+        return std::make_shared<details::CNNNetworkNGraphImpl>(network);
     }
 
     return cloneNet(network);

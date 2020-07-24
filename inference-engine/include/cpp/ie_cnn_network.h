@@ -53,9 +53,7 @@ public:
      * @brief A constructor from ngraph::Function object
      * @param network Pointer to the ngraph::Function object
      */
-    explicit CNNNetwork(const std::shared_ptr<const ngraph::Function>& network);
     explicit CNNNetwork(const std::shared_ptr<ngraph::Function>& network);
-    explicit CNNNetwork(const ICNNNetwork& network);
 
     /**
      * @brief A destructor
