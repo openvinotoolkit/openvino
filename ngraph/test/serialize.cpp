@@ -806,7 +806,7 @@ TEST(serialize, opset1_interpolate)
     EXPECT_EQ(g_attrs.pads_end, attrs.pads_end);
 }
 
-TEST(serialize, opset3_interpolate)
+TEST(serialize, opset4_interpolate)
 {
     using op::v4::Interpolate;
     using InterpolateMode = op::v4::Interpolate::InterpolateMode;
@@ -835,7 +835,7 @@ TEST(serialize, opset3_interpolate)
     shared_ptr<Function> g = deserialize(s);
     auto g_result = g->get_results().at(0);
     auto g_interpolate = g_result->get_input_node_shared_ptr(0);
-    auto g_op = as_type_ptr<op::v3::Interpolate>(g_interpolate);
+    auto g_op = as_type_ptr<op::v4::Interpolate>(g_interpolate);
     ASSERT_TRUE(g_op);
     InterpolateAttrs g_attrs = g_op->get_attrs();
     EXPECT_EQ(g_attrs.mode, attrs.mode);
