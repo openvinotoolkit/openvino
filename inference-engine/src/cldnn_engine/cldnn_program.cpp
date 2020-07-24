@@ -3843,6 +3843,9 @@ void Program::CreateGatherPrimitive(cldnn::topology& topology, InferenceEngine::
             }
             if (dimFoundAtIndex == -1) {
                 originalAxesIt = originalRequiredDims.insert(originalAxesIt, i);
+                if (originalRequiredDims.size() >= 4) {
+                    break;
+                }
             }
             originalAxesIt++;
         }
