@@ -29,33 +29,25 @@
 using namespace testing;
 using namespace InferenceEngine;
 
-bool isInputConstLayersInCNNNetwork(const InferenceEngine::CNNNetwork& network, const std::string& layerType) {
+int isInputConstLayersInCNNNetwork(const InferenceEngine::CNNNetwork& network, std::string layerType) {
     int numberOfInputs = 0;
+    InferenceEngine::CNNLayerPtr layer = nullptr;
 
-    if (network.getFunction())
-        std::cout << "network.getFunction() - success" << std::endl;
-    else
-        std::cout << "network.getFunction() - fails" << std::endl;
-
-    auto layersInNetwork = network.getFunction()->get_ops();
-    for (auto layer : layersInNetwork) {
-        if (std::string(layer->get_type_name()) == layerType) {
-            std::cout << "Found layer " << layerType << std::endl;
-            numberOfInputs = layer->get_input_size();
-            std::cout << "Number of inputs in " << layerType << " = " << numberOfInputs << std::endl;
+    IE_SUPPRESS_DEPRECATED_START
+    for (auto it = details::CNNNetworkIterator(network); it != details::CNNNetworkIterator(); it++) {
+        layer = *it;
+        if (layer->type == layerType) {
+            numberOfInputs = layer->insData.size();
+            std::cout << "Found layer: " << layer->name << " of type: " << layer->type << std::endl;
+            std::cout << "Number of inputs: " << numberOfInputs << std::endl;
             break;
         }
     }
-    return  numberOfInputs > 1;
+    IE_SUPPRESS_DEPRECATED_END
+    return numberOfInputs;
 }
 
-TEST(KeepConstantInputsTests, ConvertConvolutionPoolReluNetworkWithTrue) {
-    std::shared_ptr <ngraph::Function> f_ptr;
-    f_ptr = ngraph::builder::subgraph::makeConvPoolRelu();
-    InferenceEngine::CNNNetwork originalNetwork(f_ptr);
-
-    std::shared_ptr<InferenceEngine::ICNNNetwork> clonedNetwork = InferenceEngine::cloneNetwork(originalNetwork);
-
+void transformNetwork(std::shared_ptr<InferenceEngine::ICNNNetwork> clonedNetwork, bool keep_constant_inputs) {
     if (clonedNetwork->getFunction()) {
         const auto transformations_callback = [](const std::shared_ptr<const ::ngraph::Node> &node) -> bool {
             // DepthToSpace node implementation supports only equal input/output tensors with rank <= 5
@@ -84,44 +76,50 @@ TEST(KeepConstantInputsTests, ConvertConvolutionPoolReluNetworkWithTrue) {
         ngraph::pass::ConvertOpSet3ToOpSet2(transformations_callback).run_on_function(nGraphFunc);
         ngraph::pass::ConvertOpSet2ToOpSet1(transformations_callback).run_on_function(nGraphFunc);
         ngraph::pass::ConvertOpSet1ToLegacy(transformations_callback).run_on_function(nGraphFunc);
-        clonedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(nGraphFunc, *clonedNetwork, true);
+        clonedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(nGraphFunc, *clonedNetwork, keep_constant_inputs);
     }
-    InferenceEngine::CNNNetwork convertedNetwork(clonedNetwork);
-
-    ASSERT_TRUE(isInputConstLayersInCNNNetwork(originalNetwork, "Convolution"));
-    ASSERT_TRUE(isInputConstLayersInCNNNetwork(convertedNetwork, "Convolution"));
 }
 
-//TEST(KeepConstantInputsTests, ConvertConvolutionPoolReluNetworkWithFalse) {
-//    std::shared_ptr <ngraph::Function> f_ptr;
-//    f_ptr = ngraph::builder::subgraph::makeConvPoolRelu();
-//    ngraph::pass::InitNodeInfo().run_on_function(f_ptr);
-//    InferenceEngine::CNNNetwork nGraphImpl(f_ptr);
-//    auto originalNetwork = std::make_shared<InferenceEngine::details::CNNNetworkImpl>(
-//            static_cast<const InferenceEngine::ICNNNetwork &>(nGraphImpl));
-//    std::shared_ptr<ICNNNetwork> convertedNetwork;
-//    convertedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(f_ptr, originalNetwork, false);
-//}
-//
-//
-//TEST(KeepConstantInputsTests, ConvertConvBiasNetworkWithTrue) {
-//    std::shared_ptr <ngraph::Function> f_ptr;
-//    f_ptr = ngraph::builder::subgraph::makeConvBias();
-//    ngraph::pass::InitNodeInfo().run_on_function(f_ptr);
-//    InferenceEngine::CNNNetwork nGraphImpl(f_ptr);
-//    auto originalNetwork = std::make_shared<InferenceEngine::details::CNNNetworkImpl>(
-//                                        static_cast<const InferenceEngine::ICNNNetwork &>(nGraphImpl));
-//    std::shared_ptr<ICNNNetwork> convertedNetwork;
-//    convertedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(f_ptr, originalNetwork, true);
-//}
-//
-//TEST(KeepConstantInputsTests, ConvertConvBiasNetworkWithFalse) {
-//std::shared_ptr <ngraph::Function> f_ptr;
-//f_ptr = ngraph::builder::subgraph::makeConvBias();
-//ngraph::pass::InitNodeInfo().run_on_function(f_ptr);
-//InferenceEngine::CNNNetwork nGraphImpl(f_ptr);
-//auto originalNetwork = std::make_shared<InferenceEngine::details::CNNNetworkImpl>(
-//        static_cast<const InferenceEngine::ICNNNetwork &>(nGraphImpl));
-//std::shared_ptr<ICNNNetwork> convertedNetwork;
-//convertedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(f_ptr, originalNetwork, false);
-//}
+TEST(KeepConstantInputsTests, ConvertConvolutionPoolReluNetworkWithTrue) {
+    std::shared_ptr <ngraph::Function> f_ptr;
+    f_ptr = ngraph::builder::subgraph::makeConvPoolRelu();
+    InferenceEngine::CNNNetwork originalNetwork(f_ptr);
+    std::shared_ptr<InferenceEngine::ICNNNetwork> clonedNetwork = InferenceEngine::cloneNetwork(originalNetwork);
+    transformNetwork(clonedNetwork, true);
+    InferenceEngine::CNNNetwork convertedNetwork(clonedNetwork);
+    std::cout << "Check for conversion of ConvolutionPoolRelu Network with keep_constant_inputs = true" << std::endl;
+    ASSERT_GT(isInputConstLayersInCNNNetwork(convertedNetwork, "Convolution"), 1);
+}
+
+TEST(KeepConstantInputsTests, ConvertConvolutionPoolReluNetworkWithFalse) {
+    std::shared_ptr <ngraph::Function> f_ptr;
+    f_ptr = ngraph::builder::subgraph::makeConvPoolRelu();
+    InferenceEngine::CNNNetwork originalNetwork(f_ptr);
+    std::shared_ptr<InferenceEngine::ICNNNetwork> clonedNetwork = InferenceEngine::cloneNetwork(originalNetwork);
+    transformNetwork(clonedNetwork, false);
+    InferenceEngine::CNNNetwork convertedNetwork(clonedNetwork);
+    std::cout << "Check for conversion of ConvolutionPoolRelu Network with keep_constant_inputs = false" << std::endl;
+    ASSERT_EQ(isInputConstLayersInCNNNetwork(convertedNetwork, "Convolution"), 1);
+}
+
+TEST(KeepConstantInputsTests, ConvertConvolutionBiasNetworkWithTrue) {
+    std::shared_ptr <ngraph::Function> f_ptr;
+    f_ptr = ngraph::builder::subgraph::makeConvBias();
+    InferenceEngine::CNNNetwork originalNetwork(f_ptr);
+    std::shared_ptr<InferenceEngine::ICNNNetwork> clonedNetwork = InferenceEngine::cloneNetwork(originalNetwork);
+    transformNetwork(clonedNetwork, true);
+    InferenceEngine::CNNNetwork convertedNetwork(clonedNetwork);
+    std::cout << "Check for conversion of ConvolutionBias Network with keep_constant_inputs = true" << std::endl;
+    ASSERT_GT(isInputConstLayersInCNNNetwork(convertedNetwork, "Convolution"), 1);
+}
+
+TEST(KeepConstantInputsTests, ConvertConvolutionBiasNetworkWithFalse) {
+    std::shared_ptr <ngraph::Function> f_ptr;
+    f_ptr = ngraph::builder::subgraph::makeConvBias();
+    InferenceEngine::CNNNetwork originalNetwork(f_ptr);
+    std::shared_ptr<InferenceEngine::ICNNNetwork> clonedNetwork = InferenceEngine::cloneNetwork(originalNetwork);
+    transformNetwork(clonedNetwork, false);
+    InferenceEngine::CNNNetwork convertedNetwork(clonedNetwork);
+    std::cout << "Check for conversion of ConvolutionBias Network with keep_constant_inputs = false" << std::endl;
+    ASSERT_EQ(isInputConstLayersInCNNNetwork(convertedNetwork, "Convolution"), 1);
+}
