@@ -30,7 +30,7 @@
 using namespace testing;
 using namespace InferenceEngine;
 
-int isInputConstLayersInCNNNetwork(const InferenceEngine::CNNNetwork& network, std::string layerType) {
+int numberOfInputsForLayerInCNNNetwork(const InferenceEngine::CNNNetwork& network, std::string layerType) {
     int numberOfInputs = 0;
     InferenceEngine::CNNLayerPtr layer = nullptr;
 
@@ -89,7 +89,7 @@ TEST(KeepConstantInputsTests, ConvertConvolutionPoolReluNetworkWithTrue) {
     transformNetwork(clonedNetwork, true);
     InferenceEngine::CNNNetwork convertedNetwork(clonedNetwork);
     std::cout << "Check for conversion of ConvolutionPoolRelu Network with keep_constant_inputs = true" << std::endl;
-    ASSERT_GT(isInputConstLayersInCNNNetwork(convertedNetwork, "Convolution"), 1);
+    ASSERT_GT(numberOfInputsForLayerInCNNNetwork(convertedNetwork, "Convolution"), 1);
 }
 
 TEST(KeepConstantInputsTests, ConvertConvolutionPoolReluNetworkWithFalse) {
@@ -100,7 +100,7 @@ TEST(KeepConstantInputsTests, ConvertConvolutionPoolReluNetworkWithFalse) {
     transformNetwork(clonedNetwork, false);
     InferenceEngine::CNNNetwork convertedNetwork(clonedNetwork);
     std::cout << "Check for conversion of ConvolutionPoolRelu Network with keep_constant_inputs = false" << std::endl;
-    ASSERT_EQ(isInputConstLayersInCNNNetwork(convertedNetwork, "Convolution"), 1);
+    ASSERT_EQ(numberOfInputsForLayerInCNNNetwork(convertedNetwork, "Convolution"), 1);
 }
 
 TEST(KeepConstantInputsTests, ConvertConvolutionBiasNetworkWithTrue) {
@@ -111,7 +111,7 @@ TEST(KeepConstantInputsTests, ConvertConvolutionBiasNetworkWithTrue) {
     transformNetwork(clonedNetwork, true);
     InferenceEngine::CNNNetwork convertedNetwork(clonedNetwork);
     std::cout << "Check for conversion of ConvolutionBias Network with keep_constant_inputs = true" << std::endl;
-    ASSERT_GT(isInputConstLayersInCNNNetwork(convertedNetwork, "Convolution"), 1);
+    ASSERT_GT(numberOfInputsForLayerInCNNNetwork(convertedNetwork, "Convolution"), 1);
 }
 
 TEST(KeepConstantInputsTests, ConvertConvolutionBiasNetworkWithFalse) {
@@ -122,7 +122,7 @@ TEST(KeepConstantInputsTests, ConvertConvolutionBiasNetworkWithFalse) {
     transformNetwork(clonedNetwork, false);
     InferenceEngine::CNNNetwork convertedNetwork(clonedNetwork);
     std::cout << "Check for conversion of ConvolutionBias Network with keep_constant_inputs = false" << std::endl;
-    ASSERT_EQ(isInputConstLayersInCNNNetwork(convertedNetwork, "Convolution"), 1);
+    ASSERT_EQ(numberOfInputsForLayerInCNNNetwork(convertedNetwork, "Convolution"), 1);
 }
 
 TEST(KeepConstantInputsTests, ConvertFullyConnectedNetworkWithTrue) {
@@ -137,7 +137,7 @@ TEST(KeepConstantInputsTests, ConvertFullyConnectedNetworkWithTrue) {
     transformNetwork(clonedNetwork, true);
     InferenceEngine::CNNNetwork convertedNetwork(clonedNetwork);
     std::cout << "Check for conversion of FullyConnected Network with keep_constant_inputs = true" << std::endl;
-    ASSERT_GT(isInputConstLayersInCNNNetwork(convertedNetwork, "FullyConnected"), 1);
+    ASSERT_GT(numberOfInputsForLayerInCNNNetwork(convertedNetwork, "FullyConnected"), 1);
 }
 
 TEST(KeepConstantInputsTests, ConvertFullyConnectedNetworkWithFalse) {
@@ -152,5 +152,5 @@ TEST(KeepConstantInputsTests, ConvertFullyConnectedNetworkWithFalse) {
     transformNetwork(clonedNetwork, false);
     InferenceEngine::CNNNetwork convertedNetwork(clonedNetwork);
     std::cout << "Check for conversion of FullyConnected Network with keep_constant_inputs = false" << std::endl;
-    ASSERT_EQ(isInputConstLayersInCNNNetwork(convertedNetwork, "FullyConnected"), 1);
+    ASSERT_EQ(numberOfInputsForLayerInCNNNetwork(convertedNetwork, "FullyConnected"), 1);
 }
