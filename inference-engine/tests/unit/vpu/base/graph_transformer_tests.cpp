@@ -128,34 +128,38 @@ const StageVector& TestModel::getStages() const {
     return _stages;
 }
 
-void TestModel::createInputs(std::vector<DataDesc> inputDescs, int numIn) {
-    const auto numInputs = (numIn > 0)? numIn : inputDescs.size();
+void TestModel::createInputs(std::vector<DataDesc> inputDescs) {
+    const auto numInputs = inputDescs.size();
 
     _model->attrs().set<int>("numInputs", numInputs);
     _inputs.resize(numInputs);
 
     for (int i = 0; i < numInputs; ++i) {
-        if (numIn > 0) {
-            _inputs[i] = _model->addInputData(formatString("Input %d", i), _dataDesc);
-        } else {
-            _inputs[i] = _model->addInputData(formatString("Input %d", i), inputDescs[i]);
-        }
+        _inputs[i] = _model->addInputData(formatString("Input %d", i), inputDescs[i]);
     }
 }
 
-void TestModel::createOutputs(std::vector<DataDesc> outputDescs, int numOut) {
-    const auto numOutputs = (numOut > 0)? numOut : outputDescs.size();
+void TestModel::createInputs(int numInputs) {
+    std::vector<DataDesc> inDescs(numInputs);
+    std::fill(inDescs.begin(), inDescs.end(), _dataDesc);
+    createInputs(inDescs);
+}
+
+void TestModel::createOutputs(std::vector<DataDesc> outputDescs) {
+    const auto numOutputs = outputDescs.size();
 
     _model->attrs().set<int>("numOutputs", numOutputs);
     _outputs.resize(numOutputs);
 
     for (int i = 0; i < numOutputs; ++i) {
-        if (numOut > 0) {
-            _outputs[i] = _model->addOutputData(formatString("Output %d", i), _dataDesc);
-        } else {
-            _outputs[i] = _model->addOutputData(formatString("Output %d", i), outputDescs[i]);
-        }
+        _outputs[i] = _model->addOutputData(formatString("Output %d", i), outputDescs[i]);
     }
+}
+
+void TestModel::createOutputs(int numOutputs) {
+    std::vector<DataDesc> outDescs(numOutputs);
+    std::fill(outDescs.begin(), outDescs.end(), _dataDesc);
+    createOutputs(outDescs);
 }
 
 Stage TestModel::addStage(

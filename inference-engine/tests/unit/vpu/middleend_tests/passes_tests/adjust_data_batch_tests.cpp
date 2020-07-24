@@ -113,8 +113,8 @@ TEST_F(VPU_AdjustDataBatchTest, LinearWithBatchedInTheEnd) {
     // [Input] -> (Split) -> (Split) -> (Split) -> (Split) -> (Split) -> (Split) -> (Batched) -> [Output]
     //
 
-    testModel.createInputs({}, 1);
-    testModel.createOutputs({}, 1);
+    testModel.createInputs(1);
+    testModel.createOutputs(1);
 
     for (int i = 0; i < 6; i++) {
         if (i > 0)
@@ -146,8 +146,8 @@ TEST_F(VPU_AdjustDataBatchTest, BranchedWithBatchSplitItems) {
     // [Input] -> (Split) -> (Split) -> (Split) -> (Split) -> (Split) -> (Split) -> (Split)
     //                                                                                      -> (Batched) -> [Output]
 
-    testModel.createInputs({}, 1);
-    testModel.createOutputs({}, 2);
+    testModel.createInputs(1);
+    testModel.createOutputs(2);
 
     for (int i = 0; i < 7; i++) {
         if (i > 0)
@@ -190,8 +190,8 @@ TEST_F(VPU_AdjustDataBatchTest, LinearWithBatchedInTheBeginning) {
     // [Input] -> (Batched) -> (Split) -> (Split) -> (Split) -> (Split) -> (Split) -> (Split) -> [Output]
     //
 
-    testModel.createInputs({}, 1);
-    testModel.createOutputs({}, 1);
+    testModel.createInputs(1);
+    testModel.createOutputs(1);
 
     for (int i = 0; i < 6; i++) {
         if (i > 0)
@@ -225,8 +225,8 @@ TEST_F(VPU_AdjustDataBatchTest, BranchedWithBatchItemsInTheEnd) {
     // [Input] -> (Split) -> (Split) -> (Split) -> (Split) -> (Split) -> (Split) -> (Batch)
     //                                                                                      -> (Batched) -> [Output]
 
-    testModel.createInputs({}, 1);
-    testModel.createOutputs({}, 2);
+    testModel.createInputs(1);
+    testModel.createOutputs(2);
 
     for (int i = 0; i < 6; i++) {
         if (i > 0)
@@ -273,8 +273,8 @@ TEST_F(VPU_AdjustDataBatchTest, DISABLED_BranchedWithSplitAndBatchItemsInTheEnd)
     //                                         -> (Split) -> [Output]
     //
 
-    testModel.createInputs({}, 1);
-    testModel.createOutputs({}, 2);
+    testModel.createInputs(1);
+    testModel.createOutputs(2);
 
     for (int i = 0; i < 5; i++) {
         if (i > 0)
@@ -314,8 +314,8 @@ TEST_F(VPU_AdjustDataBatchTest, DISABLED_BranchedWithBatchAndSplitItemsInTheEnd)
     //                                         -> (Split) -> [Output]
     //
 
-    testModel.createInputs({}, 1);
-    testModel.createOutputs({}, 2);
+    testModel.createInputs(1);
+    testModel.createOutputs(2);
 
     for (int i = 0; i < 3; i++) {
         if (i > 0)
