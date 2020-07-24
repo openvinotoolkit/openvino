@@ -21,8 +21,6 @@
 #include "simple_low_precision_transformer.hpp"
 #include "ngraph_functions/low_precision_transformations/common/dequantization_operations.hpp"
 
-#include <ngraph/pass/visualize_tree.hpp>
-
 namespace {
 
 using namespace testing;
@@ -93,13 +91,9 @@ public:
             testValues.actual.precisionBeforeDequantization2,
             testValues.actual.dequantization2);
 
-        VisualizeTree("C:\\Projects\\temp\\test.actual").run_on_module(std::vector<std::shared_ptr<ngraph::Function>>{ actualFunction });
-
         SimpleLowPrecisionTransformer transformer;
         transformer.add<ngraph::pass::low_precision::MatMulTransformation, ngraph::opset1::MatMul>(testValues.params);
         transformer.transform(actualFunction);
-
-        VisualizeTree("C:\\Projects\\temp\\test.transformed").run_on_module(std::vector<std::shared_ptr<ngraph::Function>>{ actualFunction });
 
         referenceFunction = ngraph::builder::subgraph::MatMulFunction::getReference(
             shapes.first,
@@ -109,8 +103,6 @@ public:
             testValues.expected.precisionBeforeDequantization2,
             testValues.expected.dequantization2,
             testValues.expected.result);
-
-        VisualizeTree("C:\\Projects\\temp\\test.reference").run_on_module(std::vector<std::shared_ptr<ngraph::Function>>{ referenceFunction });
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<MatMulTransformationParams> obj) {
