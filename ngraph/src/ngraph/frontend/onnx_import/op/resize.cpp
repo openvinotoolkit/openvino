@@ -138,10 +138,10 @@ namespace ngraph
 
                     size_t axes_size = scales_shape.is_static() ? scales_shape.to_shape().at(0)
                                                                 : data_shape.rank().get_length();
-                    AxisSet axes;
+                    std::vector<int64_t> axes;
                     for (int ax = 0; ax < axes_size; ++ax)
                     {
-                        axes.insert(ax);
+                        axes.push_back(ax);
                     }
 
                     auto attrs = ngraph::op::v4::Interpolate::InterpolateAttrs();
@@ -174,8 +174,11 @@ namespace ngraph
                         auto output_shape_const = default_opset::Constant::create(
                             element::u64, Shape({output_shape.size()}), output_shape);
 
-                        return {std::make_shared<default_opset::Interpolate>(
-                            data, output_shape_const, attrs)};
+                        auto axes_const = default_opset::Constant::create(
+                            element::i64, Shape({axes.size()}), axes);
+
+                        return {std::make_shared<ngraph::op::v4::Interpolate>(
+                            data, output_shape_const, axes_const, attrs)};
                     }
 
                     auto shape_of_data = std::make_shared<default_opset::Convert>(
@@ -184,8 +187,11 @@ namespace ngraph
                         std::make_shared<default_opset::Multiply>(shape_of_data, scales);
                     auto output_shape = std::make_shared<default_opset::Convert>(
                         std::make_shared<default_opset::Floor>(multiply), ngraph::element::i64);
+                    auto axes_const = default_opset::Constant::create(
+                        ngraph::element::i64, Shape({axes.size()}), axes);
                     return {
-                        std::make_shared<ngraph::op::v4::Interpolate>(data, output_shape, attrs)};
+                        std::make_shared<ngraph::op::v4::Interpolate>(
+                            data, output_shape, axes_const, attrs)};
                 }
 
             } // namespace set_1
