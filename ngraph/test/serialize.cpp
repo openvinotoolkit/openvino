@@ -811,19 +811,24 @@ TEST(serialize, opset3_interpolate)
     using op::v4::Interpolate;
     using InterpolateMode = op::v4::Interpolate::InterpolateMode;
     using CoordinateTransformMode = op::v4::Interpolate::CoordinateTransformMode;
+    using Nearest_mode = op::v4::Interpolate::NearestMode;
     using InterpolateAttrs = op::v4::Interpolate::InterpolateAttrs;
 
     auto image = make_shared<op::Parameter>(element::f32, Shape{2, 2, 33, 65});
     auto output_shape = op::Constant::create<int64_t>(element::i64, Shape{2}, {15, 30});
+    auto axes = op::Constant::create<int64_t>(element::i64, Shape{2}, {2, 3});
+
     InterpolateAttrs attrs;
-    attrs.axes = {2, 3};
     attrs.mode = InterpolateMode::linear;
     attrs.coordinate_transformation_mode = CoordinateTransformMode::half_pixel;
+    attrs.nearest_mode = Nearest_mode::round_prefer_floor;
     attrs.antialias = false;
     attrs.pads_begin = {0, 0, 0, 0};
     attrs.pads_end = {0, 0, 0, 0};
+    attrs.cube_coeff = -0.75;
+    auto op = make_shared<Interpolate>(image, output_shape, axes, attrs);
 
-    auto op = make_shared<Interpolate>(image, output_shape, attrs);
+    auto op = make_shared<Interpolate>(image, output_shape, axes, attrs);
     auto result = make_shared<op::Result>(op);
     auto f = make_shared<Function>(ResultVector{result}, ParameterVector{image});
     string s = serialize(f);
@@ -834,7 +839,6 @@ TEST(serialize, opset3_interpolate)
     auto g_op = as_type_ptr<op::v3::Interpolate>(g_interpolate);
     ASSERT_TRUE(g_op);
     InterpolateAttrs g_attrs = g_op->get_attrs();
-    EXPECT_EQ(g_attrs.axes, attrs.axes);
     EXPECT_EQ(g_attrs.mode, attrs.mode);
     EXPECT_EQ(g_attrs.coordinate_transformation_mode, attrs.coordinate_transformation_mode);
     EXPECT_EQ(g_attrs.antialias, attrs.antialias);
