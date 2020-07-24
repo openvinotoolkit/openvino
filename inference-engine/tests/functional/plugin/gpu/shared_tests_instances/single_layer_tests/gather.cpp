@@ -61,6 +61,8 @@ const std::vector<std::vector<size_t>> indicesShapes2d = {
 // For axes 0, 1 and 2 we can provide pretty much any input, as dimensions after 'axis'
 // will be merged, so we will end up in bfyx format anyway
 
+const std::vector<int> axes012 = {0, 1, 2};
+
 const std::vector<std::vector<size_t>> inputShapesWAInd1dAxis012 = {
         std::vector<size_t>{5, 6, 7, 8, 9},
         std::vector<size_t>{5, 6, 7, 8, 9, 10},
@@ -69,7 +71,7 @@ const std::vector<std::vector<size_t>> inputShapesWAInd1dAxis012 = {
 const auto paramsWAInd1dAxis012 = testing::Combine(
         testing::ValuesIn(indices),
         testing::ValuesIn(indicesShapes1d),
-        testing::ValuesIn({0, 1, 2}),
+        testing::ValuesIn(axes012),
         testing::ValuesIn(inputShapesWAInd1dAxis012),
         testing::ValuesIn(netPrecisions),
         testing::Values(CommonTestUtils::DEVICE_GPU)
@@ -90,7 +92,7 @@ const std::vector<std::vector<size_t>> inputShapesWAInd2dAxis012 = {
 const auto paramsWAInd2dAxis012 = testing::Combine(
         testing::ValuesIn(indices),
         testing::ValuesIn(indicesShapes2d),
-        testing::ValuesIn({0, 1, 2}),
+        testing::ValuesIn(axes012),
         testing::ValuesIn(inputShapesWAInd2dAxis012),
         testing::ValuesIn(netPrecisions),
         testing::Values(CommonTestUtils::DEVICE_GPU)
@@ -105,6 +107,8 @@ INSTANTIATE_TEST_CASE_P(
 
 // For axes 3, 4 and 5 we can still support some inputs, as long as
 // they have enough unit dimensions to convert whole operation to bfyx format
+
+const std::vector<int> axis3 = {3};
 
 const std::vector<std::vector<size_t>> inputShapesWAInd1dAxis3 = {
         std::vector<size_t>{1, 6, 7, 8, 9},
@@ -126,7 +130,7 @@ const std::vector<std::vector<size_t>> inputShapesWAInd1dAxis3 = {
 const auto paramsWAInd1dAxis3 = testing::Combine(
         testing::ValuesIn(indices),
         testing::ValuesIn(indicesShapes1d),
-        testing::ValuesIn({3}),
+        testing::ValuesIn(axis3),
         testing::ValuesIn(inputShapesWAInd1dAxis3),
         testing::ValuesIn(netPrecisions),
         testing::Values(CommonTestUtils::DEVICE_GPU)
@@ -154,7 +158,7 @@ const std::vector<std::vector<size_t>> inputShapesWAInd2dAxis3 = {
 const auto paramsWAInd2dAxis3 = testing::Combine(
         testing::ValuesIn(indices),
         testing::ValuesIn(indicesShapes2d),
-        testing::ValuesIn({3}),
+        testing::ValuesIn(axis3),
         testing::ValuesIn(inputShapesWAInd2dAxis3),
         testing::ValuesIn(netPrecisions),
         testing::Values(CommonTestUtils::DEVICE_GPU)
@@ -166,6 +170,8 @@ INSTANTIATE_TEST_CASE_P(
         paramsWAInd2dAxis3,
         GatherLayerTest::getTestCaseName
 );
+
+const std::vector<int> axis4 = {4};
 
 const std::vector<std::vector<size_t>> inputShapesWAInd1dAxis4 = {
         std::vector<size_t>{1, 6, 7, 8, 9},
@@ -187,7 +193,7 @@ const std::vector<std::vector<size_t>> inputShapesWAInd1dAxis4 = {
 const auto paramsWAInd1dAxis4 = testing::Combine(
         testing::ValuesIn(indices),
         testing::ValuesIn(indicesShapes1d),
-        testing::ValuesIn({4}),
+        testing::ValuesIn(axis4),
         testing::ValuesIn(inputShapesWAInd1dAxis4),
         testing::ValuesIn(netPrecisions),
         testing::Values(CommonTestUtils::DEVICE_GPU)
@@ -212,7 +218,7 @@ const std::vector<std::vector<size_t>> inputShapesWAInd2dAxis4 = {
 const auto paramsWAInd2dAxis4 = testing::Combine(
         testing::ValuesIn(indices),
         testing::ValuesIn(indicesShapes2d),
-        testing::ValuesIn({4}),
+        testing::ValuesIn(axis4),
         testing::ValuesIn(inputShapesWAInd2dAxis4),
         testing::ValuesIn(netPrecisions),
         testing::Values(CommonTestUtils::DEVICE_GPU)
@@ -224,6 +230,8 @@ INSTANTIATE_TEST_CASE_P(
         paramsWAInd2dAxis4,
         GatherLayerTest::getTestCaseName
 );
+
+const std::vector<int> axis5 = {5};
 
 const std::vector<std::vector<size_t>> inputShapesWAInd1dAxis5 = {
         std::vector<size_t>{1, 1, 7, 8, 9, 10},
@@ -241,7 +249,7 @@ const std::vector<std::vector<size_t>> inputShapesWAInd1dAxis5 = {
 const auto paramsWAInd1dAxis5 = testing::Combine(
         testing::ValuesIn(indices),
         testing::ValuesIn(indicesShapes1d),
-        testing::ValuesIn({5}),
+        testing::ValuesIn(axis5),
         testing::ValuesIn(inputShapesWAInd1dAxis5),
         testing::ValuesIn(netPrecisions),
         testing::Values(CommonTestUtils::DEVICE_GPU)
