@@ -158,48 +158,37 @@ void NetworkHelper::removeLayer(std::shared_ptr<Node> layer) {
     ngraph::replace_output_update_name(layer->output(0), layer->input_value(0));
 }
 
-std::shared_ptr<opset1::Multiply> NetworkHelper::swapMultiplyAndAdd(std::shared_ptr<Node> addAfterMultiply, const std::pair<int, int> multiplyBranch) {
-    // multiplyBranch.first - index of multiply branch
-    // multiplyBranch.second - index of activation branch on multiply branch
-    //
+std::shared_ptr<Node> NetworkHelper::swapMultiplyAndAdd(std::shared_ptr<Node> addAfterMultiply, const int multiplyBranch) {
     // Multiply --> Add(addAfterMultiply)  ==>  Add(new) --> Multiply(new)
     // That means x*a + b ==> (x + b/a)*a; tries to fold b/a
-    const int constBranch = multiplyBranch.first == 0 ? 1 : 0;
-    const int multiplyConstBranch = multiplyBranch.second == 0 ? 1 : 0;
-    auto x = addAfterMultiply->input_value(multiplyBranch.first).get_node()->input_value(multiplyBranch.second);
-    auto a = addAfterMultiply->input_value(multiplyBranch.first).get_node()->input_value(multiplyConstBranch);
-    auto b = addAfterMultiply->input_value(constBranch);
-    auto bDivA = std::make_shared<opset1::Divide>(b, a);
-    OutputVector foldedTerm;
-    if (bDivA->constant_fold(foldedTerm)) {
-        assert(foldedTerm.size() == 1);
-        auto addTerm = as_type_ptr<opset1::Constant>(foldedTerm[0].get_node_shared_ptr());
-        // TODO: is it useful to optimize here?
-#if 0
-        if (isScalarLike(addTerm) && addTerm->cast_vector<float>()[0] == 0) {
-            foldedTerm.clear();
-        } else {
-#endif
-            replace_node(bDivA, foldedTerm);
-#if 0
-        }
-#endif
-    } else {
-        foldedTerm = {bDivA->output(0)};
+    auto multiply = addAfterMultiply->get_input_node_shared_ptr(multiplyBranch);
+
+    auto multiplyParent1 = multiply->get_input_node_shared_ptr(0);
+    auto multiplyParent2 = multiply->get_input_node_shared_ptr(1);
+
+    auto multiplyInput = as_type_ptr<opset1::Multiply>(multiplyParent1);
+    auto multiplyConst = as_type_ptr<opset1::Constant>(multiplyParent2);
+    int multiplyInputBranch = 0;
+
+    if (multiplyConst == nullptr) {
+        multiplyInput = as_type_ptr<opset1::Multiply>(multiplyParent2);
+        multiplyConst = as_type_ptr<opset1::Constant>(multiplyParent1);
+        multiplyInputBranch = 1;
     }
-    op::AutoReplaceInputTypes<Node> auto_type(
-        *addAfterMultiply->input_value(multiplyBranch.first).get_node(),
-        addAfterMultiply->get_output_element_type(multiplyBranch.first));
-    Output<Node> newMultiplyInput;
-    if (!foldedTerm.empty()) {
-        auto newAdd = std::make_shared<op::TypeRelaxed<opset1::Add>>(
-            opset1::Add(x, foldedTerm[0]),
-            addAfterMultiply->get_output_element_type(multiplyBranch.first));
-        newMultiplyInput = newAdd->output(0);
-    } else {
-        newMultiplyInput = x;
-    }
-    auto newMultiply = std::make_shared<opset1::Multiply>(newMultiplyInput, a);
+
+    if (multiplyConst == nullptr)
+        return addAfterMultiply;
+
+    auto x = multiply->get_input_node_shared_ptr(multiplyInputBranch);
+    auto a = multiply->get_input_node_shared_ptr(multiplyInputBranch == 0 ? 1 : 0);
+    auto b = addAfterMultiply->get_input_node_shared_ptr(multiplyBranch == 0 ? 1 : 0);
+    auto bDivA = fold<opset1::Divide>(b, a);
+
+    auto newAdd = std::make_shared<op::TypeRelaxed<opset1::Add>>(
+        opset1::Add(x, bDivA),
+        addAfterMultiply->get_output_element_type(multiplyBranch));
+
+    auto newMultiply = std::make_shared<opset1::Multiply>(newAdd, a);
     replace_node(addAfterMultiply, newMultiply);
     return newMultiply;
 }

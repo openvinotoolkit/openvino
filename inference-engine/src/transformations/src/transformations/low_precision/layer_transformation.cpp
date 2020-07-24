@@ -455,7 +455,6 @@ void LayerTransformation::addPattern(ngraph::pass::GraphRewrite& pass, Transform
     pass.add_matcher(m, internal_callback, ngraph::pass::PassProperty::CHANGE_DYNAMIC_STATE);
 }
 
-
 }  // namespace low_precision
 }  // namespace pass
 }  // namespace ngraph

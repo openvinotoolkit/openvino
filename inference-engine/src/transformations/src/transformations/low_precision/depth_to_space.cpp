@@ -15,24 +15,33 @@ using namespace ngraph;
 using namespace ngraph::pass;
 using namespace ngraph::pass::low_precision;
 
-void DepthToSpaceTransformation::transform(TransformationContext &context, ngraph::pattern::Matcher &m) const {
-    TransparentBaseTransformation::transform(context, m);
-}
-
 void DepthToSpaceTransformation::registerMatcherIn(GraphRewrite& pass, TransformationContext& context) const {
     addPattern(
         pass,
         context,
-        make_op_pattern<opset1::DepthToSpace>({ make_op_label<ngraph::op::DepthToSpace>() }));
+        make_op_pattern<opset1::DepthToSpace>({ make_op_label<ngraph::opset1::Multiply>() }));
 }
 
-//bool DepthToSpaceTransformation::isPrecisionPreserved(const CNNLayer& layer) const noexcept {
-//    return true;
-//}
+void DepthToSpaceTransformation::transform(TransformationContext &context, ngraph::pattern::Matcher &m) const {
+    const std::shared_ptr<Node> depthToSpace = separateInStandaloneBranch(m.get_match_root());
+    moveDequantizationAfter(context, depthToSpace, NetworkHelper::getDequantization(depthToSpace), true);
+}
 
 bool DepthToSpaceTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> layer) const {
-    if (!TransparentBaseTransformation::canBeTransformed(context, layer)) {
-        return false;
+    // TODO: change when getDequantization will be expanded
+    FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(layer);
+    if (dequantization.multiply != nullptr) {
+        auto multiplyConst = as_type_ptr<opset1::Constant>(dequantization.multiply->get_input_node_shared_ptr(1));
+        if (!NetworkHelper::isScalarLike(multiplyConst)) {
+            return false;
+        }
+    }
+
+    if (dequantization.subtract != nullptr) {
+        auto subtractConst = as_type_ptr<opset1::Constant>(dequantization.subtract->get_input_node_shared_ptr(1));
+        if (!NetworkHelper::isScalarLike(subtractConst)) {
+            return false;
+        }
     }
 
     return true;

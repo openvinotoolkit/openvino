@@ -43,26 +43,22 @@ void AddTransformation::registerMatcherIn(GraphRewrite &pass, TransformationCont
 
 
 void AddTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) const {
-    // TODO: move to handler
-    if (!canBeTransformed(context, m.get_match_root())) {
+    auto add = m.get_match_root();
+    if (!canBeTransformed(context, add)) {
         return;
     }
 
-    auto add = m.get_match_root();
-
     add = separateInStandaloneBranch(add);
-
     const int fullPathIndex = getNotEmpty(add);
-
-    std::shared_ptr<opset1::Multiply> newMultiply;
+    std::shared_ptr<Node> newMultiply;
 
     if (fullPathIndex == -1) {
         const auto multiplyBranch = getMultiplyConstBranch(add);
 
-        if (multiplyBranch.first == -1 || multiplyBranch.second == -1)
+        if (multiplyBranch.first == -1)
             return;
 
-        newMultiply = NetworkHelper::swapMultiplyAndAdd(add, multiplyBranch);
+        newMultiply = NetworkHelper::swapMultiplyAndAdd(add, multiplyBranch.first);
     } else {
         const int emptyPathIndex = fullPathIndex == 0 ? 1 : 0;
 

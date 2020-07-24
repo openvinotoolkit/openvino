@@ -79,15 +79,6 @@ void NormalizeL2Transformation::registerMatcherIn(GraphRewrite& pass, Transforma
             make_op_label<ngraph::opset1::Multiply>(),
             make_op_label<ngraph::opset1::Constant>()
             }));
-
-    //TODO: uncomment when getDequantization will be expanded
-    //addPattern(
-    //    pass,
-    //    context,
-    //    make_op_pattern<ngraph::opset1::NormalizeL2>({
-    //        make_op_label<ngraph::opset1::Constant>(),
-    //        make_op_label<ngraph::opset1::Multiply>()
-    //        }));
 }
 
 void NormalizeL2Transformation::transform(TransformationContext &context, ngraph::pattern::Matcher &m) const {
@@ -120,8 +111,6 @@ void NormalizeL2Transformation::transform(TransformationContext &context, ngraph
             THROW_TRANSFORMATION_EXCEPTION << "unexpected element type " << type;
         }
     }
-
-    //TODO: delete convert when u8 input precision will be supported
 
     auto newMultiply = std::make_shared<op::TypeRelaxed<opset1::Multiply>>(
         std::make_shared<opset1::NormalizeL2>(

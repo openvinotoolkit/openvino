@@ -256,7 +256,7 @@ std::string LayerTransformation::getTestCaseNameByParams(
     const ngraph::pass::low_precision::LayerTransformation::Params& params,
     const LayerTestsUtils::LayerTransformation::LptVersion version) {
     std::ostringstream result;
-    result << precision << "_" << targetDevice << "_" << version << "_" << toString(params);
+    result << precision << "_" << inputShapes << "_" << targetDevice << "_" << version << "_" << toString(params);
     return result.str();
 }
 
