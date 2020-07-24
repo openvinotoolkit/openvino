@@ -168,12 +168,8 @@ InferenceEngine::details::LayerTransformation::Params LayerTransformationParamsF
 ngraph::pass::low_precision::LayerTransformation::Params LayerTransformationParamsNGraphFactory::createParams() {
     return ngraph::pass::low_precision::LayerTransformation::Params(
         true,
-        true,
-        true,
         ngraph::pass::low_precision::LayerTransformation::QuantizedTensorAlignment::UpdateLevel,
         ngraph::pass::low_precision::LayerTransformation::QuantizedTensorAlignment::None,
-        true,
-        true,
         true);
 }
 

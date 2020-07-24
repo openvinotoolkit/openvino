@@ -94,8 +94,8 @@ void MatMulWithConstantTransformation::validate() {
         }
     }
 
-    const auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
-    const InferenceEngine::CNNNetwork network = transform(toCNNNetwork(params));
+    const auto params = LayerTestsUtils::LayerTransformationParamsFactory::createParams();
+    const InferenceEngine::CNNNetwork network = transform(params);
 
     IE_SUPPRESS_DEPRECATED_START
 
@@ -131,8 +131,8 @@ void MatMulWithConstantTransformation::validate() {
             EXPECT_EQ("FakeQuantize", parent->type) << "unexpected layer type " << parents[0]->type << " " << parents[0]->name;
             fakeQuantizeOnActivations = parent;
         }
-        EXPECT_EQ(toCNNNetwork(params).precisionsOnActivations[0], fakeQuantizeOnActivations->outData[0]->getTensorDesc().getPrecision());
-        EXPECT_EQ(toCNNNetwork(params).precisionsOnWeights[0], parents[1]->outData[0]->getTensorDesc().getPrecision());
+        EXPECT_EQ(params.precisionsOnActivations[0], fakeQuantizeOnActivations->outData[0]->getTensorDesc().getPrecision());
+        EXPECT_EQ(params.precisionsOnWeights[0], parents[1]->outData[0]->getTensorDesc().getPrecision());
         if (parents.size() > 2ul) {
             EXPECT_EQ(InferenceEngine::Precision::FP32, parents[2]->outData[0]->getTensorDesc().getPrecision());
         }

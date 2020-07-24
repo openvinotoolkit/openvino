@@ -20,19 +20,17 @@
 namespace LayerTestsDefinitions {
 
 std::string MatMulTransformation::getTestCaseName(testing::TestParamInfo<MatMulTransformationParams> obj) {
-    InferenceEngine::Precision netPrecision;
-    InferenceEngine::SizeVector inputShapes;
+    ngraph::element::Type precision;
+    ngraph::Shape inputShape;
     std::string targetDevice;
-    InferenceEngine::details::LayerTransformation::Params params;
     LayerTestsUtils::LayerTransformation::LptVersion version;
     MatMulTransformationTestValues testValues;
-    std::tie(netPrecision, inputShapes, targetDevice, params, version, testValues) = obj.param;
+    std::tie(precision, inputShape, targetDevice, version, testValues) = obj.param;
 
     std::ostringstream result;
     result << version << "_" <<
-        netPrecision.name() << "_" <<
+        precision << "_" <<
         targetDevice << "_" <<
-        toString(params) << "_" <<
         testValues.fqOnData1 << "_" <<
         testValues.fqOnData2;
 
@@ -60,18 +58,16 @@ InferenceEngine::Blob::Ptr MatMulTransformation::GenerateInput(const InferenceEn
 }
 
 void MatMulTransformation::SetUp() {
-    InferenceEngine::SizeVector inputShape;
-    InferenceEngine::Precision netPrecision;
-    InferenceEngine::details::LayerTransformation::Params params;
+    ngraph::element::Type precision;
+    ngraph::Shape inputShape;
     LayerTestsUtils::LayerTransformation::LptVersion version;
     MatMulTransformationTestValues testValues;
-    std::tie(netPrecision, inputShape, targetDevice, params, version, testValues) = this->GetParam();
+    std::tie(precision, inputShape, targetDevice, version, testValues) = this->GetParam();
 
     ConfigurePlugin(version);
 
-    const auto ngPrecision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     function = ngraph::builder::subgraph::MatMulFunction::getOriginal(
-        ngPrecision,
+        precision,
         testValues.inputShape1,
         testValues.fqOnData1,
         testValues.inputShape2,
@@ -85,12 +81,11 @@ void MatMulTransformation::SetUp() {
 }
 
 void MatMulTransformation::validate() {
-    InferenceEngine::SizeVector inputShape;
-    InferenceEngine::Precision netPrecision;
-    InferenceEngine::details::LayerTransformation::Params params;
+    ngraph::element::Type precision;
+    ngraph::Shape inputShape;
     LayerTestsUtils::LayerTransformation::LptVersion version;
     MatMulTransformationTestValues testValues;
-    std::tie(netPrecision, inputShape, targetDevice, params, version, testValues) = this->GetParam();
+    std::tie(precision, inputShape, targetDevice, version, testValues) = this->GetParam();
 
     {
         InferenceEngine::CNNNetwork net(function);
@@ -100,6 +95,7 @@ void MatMulTransformation::validate() {
         }
     }
 
+    const auto params = LayerTestsUtils::LayerTransformationParamsFactory::createParams();
     const InferenceEngine::CNNNetwork network = transform(params);
 
     IE_SUPPRESS_DEPRECATED_START

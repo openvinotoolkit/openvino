@@ -10,7 +10,7 @@ using namespace LayerTestsDefinitions;
 using namespace InferenceEngine::details;
 
 namespace {
-const std::vector<ngraph::element::Type_t> precisions = { ngraph::element::f32 };
+const std::vector<ngraph::element::Type> precisions = { ngraph::element::f32 };
 
 const std::vector<LayerTestsUtils::LayerTransformation::LptVersion> versionValues = {
     LayerTestsUtils::LayerTransformation::LptVersion::cnnNetwork,
