@@ -29,7 +29,7 @@ namespace ngraph
         {
             namespace
             {
-                bool check_mode_support(const onnx_import::Node& node, const std::string mode)
+                bool check_mode_support(const onnx_import::Node& node, const std::string& mode)
                 {
                     const std::unordered_set<std::string> supported_modes = {"nearest", "linear"};
                     bool is_mode_supported =
@@ -52,13 +52,24 @@ namespace ngraph
                     }
                     return is_mode_supported;
                 }
+
+                using Transform_mode = ngraph::op::v4::Interpolate::CoordinateTransformMode;
+                using Nearest_mode = ngraph::op::v4::Interpolate::NearestMode;
+                using InterpolateMode = ngraph::op::v4::Interpolate::InterpolateMode;
+
+                InterpolateMode convert_mode(const std::string& mode_str)
+                {
+                    InterpolateMode result = InterpolateMode::nearest;
+                    if (mode_str == "linear")
+                    {
+                        result = InterpolateMode::linear_onnx;
+                    }
+                    return result;
+                }
             }
 
             namespace set_1
             {
-                using Transform_mode = ngraph::op::v4::Interpolate::CoordinateTransformMode;
-                using Nearest_mode = ngraph::op::v4::Interpolate::NearestMode;
-
                 NodeVector upsample(const onnx_import::Node& node)
                 {
                     const auto inputs = node.get_ng_inputs();
@@ -71,7 +82,7 @@ namespace ngraph
                     check_mode_support(node, mode);
 
                     auto attrs = ngraph::op::v4::Interpolate::InterpolateAttrs();
-                    attrs.mode = mode;
+                    attrs.mode = convert_mode(mode);
                     attrs.coordinate_transformation_mode = Transform_mode::half_pixel;
                     attrs.nearest_mode = Nearest_mode::round_prefer_floor;
                     attrs.antialias = false;
@@ -145,7 +156,7 @@ namespace ngraph
                         " Data rank or shape of Scales input is required to be static.");
 
                     auto attrs = ngraph::op::v4::Interpolate::InterpolateAttrs();
-                    attrs.mode = mode;
+                    attrs.mode = convert_mode(mode);
                     attrs.coordinate_transformation_mode = Transform_mode::half_pixel;
                     attrs.nearest_mode = Nearest_mode::round_prefer_floor;
                     attrs.antialias = false;
@@ -160,7 +171,7 @@ namespace ngraph
                                                                 : data_shape.rank().get_length();
 
                     std::vector<int64_t> axes;
-                    for (size_t ax = 0; ax < scales.size(); ++ax)
+                    for (size_t ax = 0; ax < axes_size; ++ax)
                     {
                         axes.push_back(ax);
                     }
