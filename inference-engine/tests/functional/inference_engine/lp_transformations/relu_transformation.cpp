@@ -80,6 +80,7 @@ public:
         std::ostringstream result;
         result <<
             testValues.shape << "_" <<
+            testValues.actual.precisionBeforeDequantization << "_" <<
             testValues.actual.dequantization << "_" <<
             testValues.expected.dequantizationBefore;
         return result.str();
@@ -102,6 +103,7 @@ const std::vector<ngraph::Shape> shapes = {
 };
 
 const std::vector<ReluTransformationTestValues> testValues = {
+    // U8: no subtract
     {
         ngraph::Shape({ 1, 3, 16, 16 }),
         LayerTransformation::createParamsU8I8(),
@@ -116,6 +118,22 @@ const std::vector<ReluTransformationTestValues> testValues = {
             {{ngraph::element::f32}, {}, {0.1f}}
         }
     },
+    // I8: no subtract
+    {
+        ngraph::Shape({ 1, 3, 16, 16 }),
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::i8,
+            {{ngraph::element::f32}, {}, {0.1f}}
+        },
+        {
+            ngraph::element::i8,
+            {{}, {}, {}},
+            ngraph::element::i8,
+            {{ngraph::element::f32}, {}, {0.1f}}
+        }
+    },
+    // U8: with positive subtract value
     {
         ngraph::Shape({ 1, 3, 16, 16 }),
         LayerTransformation::createParamsU8I8(),
@@ -126,6 +144,36 @@ const std::vector<ReluTransformationTestValues> testValues = {
         {
             ngraph::element::u8,
             {{}, { {128}, ngraph::element::f32 }, {}},
+            ngraph::element::f32,
+            {{}, {}, {0.1f}}
+        }
+    },
+    // I8: with positive subtract value
+    {
+        ngraph::Shape({ 1, 3, 16, 16 }),
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::i8,
+            {{ngraph::element::f32}, { 127 }, {0.1f}}
+        },
+        {
+            ngraph::element::i8,
+            {{}, { {127}, ngraph::element::f32 }, {}},
+            ngraph::element::f32,
+            {{}, {}, {0.1f}}
+        }
+    },
+    // U8: with negative subtract value: Convert is still here
+    {
+        ngraph::Shape({ 1, 3, 16, 16 }),
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, { -128 }, {0.1f}}
+        },
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, { {-128}, ngraph::element::f32 }, {}},
             ngraph::element::f32,
             {{}, {}, {0.1f}}
         }

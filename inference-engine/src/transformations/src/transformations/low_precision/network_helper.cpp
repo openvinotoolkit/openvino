@@ -706,10 +706,17 @@ NetworkHelper::InsertDequantizationResult NetworkHelper::moveMultiplyAfter(
             const auto convertParent = dequantization.convert->get_input_node_shared_ptr(0);
             const size_t convertIndex = getInputIndex(convertParent, dequantization.convert);
             const element::Type precisionBeforeConvert = convertParent->get_output_element_type(convertIndex);
-            auto newSubtract = dequantization.subtract->clone_with_new_inputs({
-                dequantization.convert->get_input_node_shared_ptr(0),
-                fold<opset1::Convert>(dequantization.subtract->get_input_node_shared_ptr(1), precisionBeforeConvert)});
-            replace_node(dequantization.subtract, newSubtract);
+
+            const std::shared_ptr<opset1::Constant> subtractConstant = as_type_ptr<opset1::Constant>(dequantization.subtract->get_input_node_shared_ptr(1));
+            const auto values = subtractConstant->cast_vector<float>();
+            const bool convertCanBeRemoved =
+                (precisionBeforeConvert.is_signed() || (std::all_of(values.begin(), values.end(), [](const float value) { return value > 0.f; })));
+            if (convertCanBeRemoved) {
+                auto newSubtract = dequantization.subtract->clone_with_new_inputs({
+                    dequantization.convert->get_input_node_shared_ptr(0),
+                    fold<opset1::Convert>(dequantization.subtract->get_input_node_shared_ptr(1), precisionBeforeConvert) });
+                replace_node(dequantization.subtract, newSubtract);
+            }
         }
     }
 
