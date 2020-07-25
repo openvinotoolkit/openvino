@@ -24,25 +24,50 @@ public:
         bool isEmpty;
     };
 
+    class Subtract {
+    public:
+        Subtract();
+        Subtract(const float value);
+        Subtract(const std::vector<float>& values);
+        Subtract(const std::vector<float>& values, const ngraph::element::Type outPrecision);
+        bool empty() const noexcept;
+
+        std::vector<float> values;
+        ngraph::element::Type outPrecision;
+    private:
+        bool isEmpty;
+    };
+
+    class Multiply {
+    public:
+        Multiply();
+        Multiply(const float value);
+        Multiply(const std::vector<float>& values);
+        Multiply(const std::vector<float>& values, const ngraph::element::Type outPrecision);
+        bool empty() const noexcept;
+
+        std::vector<float> values;
+        ngraph::element::Type outPrecision;
+    private:
+        bool isEmpty;
+    };
+
     DequantizationOperations();
 
-    DequantizationOperations(
-        const Convert& convert,
-        const std::vector<float>& subtractValues,
-        const std::vector<float>& multiplyValues);
+    DequantizationOperations(const Convert& convert, const Subtract& subtract, const Multiply& multiply);
 
     bool empty() const;
 
     Convert convert;
-    std::vector<float> subtractValues;
-    std::vector<float> multiplyValues;
+    Subtract subtract;
+    Multiply multiply;
 };
 
 inline std::ostream& operator<<(std::ostream& out, const DequantizationOperations& data) {
     return out << "_" <<
         data.convert.outPrecision << "_" <<
-        data.subtractValues << "_" <<
-        data.multiplyValues;
+        data.subtract.values << "_" <<
+        data.multiply.values;
 }
 
 }  // namespace subgraph

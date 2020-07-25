@@ -15,28 +15,48 @@
 
 namespace LayerTestsDefinitions {
 
-std::string ReluTransformation::getTestCaseName(testing::TestParamInfo<LayerTestsUtils::LayerTransformationParams> obj) {
-    InferenceEngine::Precision netPrecision;
-    InferenceEngine::SizeVector inputShapes;
+std::string ReluTransformation::getTestCaseName(testing::TestParamInfo<ReluTransformationParams> obj) {
+    ngraph::element::Type precision;
+    ngraph::Shape inputShape;
     std::string targetDevice;
-    InferenceEngine::details::LayerTransformation::Params params;
     LayerTestsUtils::LayerTransformation::LptVersion version;
-    std::tie(netPrecision, inputShapes, targetDevice, params, version) = obj.param;
+    ngraph::builder::subgraph::FakeQuantizeOnData fqOnData;
+    std::tie(precision, inputShape, targetDevice, version, fqOnData) = obj.param;
 
-    return getTestCaseNameByParams(netPrecision, inputShapes, targetDevice, params, version);
+    std::ostringstream result;
+    result << version << "_" <<
+        precision << "_" <<
+        targetDevice << "_" <<
+        fqOnData;
+
+    return result.str();
+}
+
+InferenceEngine::Blob::Ptr ReluTransformation::GenerateInput(const InferenceEngine::InputInfo &info) const {
+    ngraph::element::Type precision;
+    ngraph::Shape inputShape;
+    std::string targetDevice;
+    LayerTestsUtils::LayerTransformation::LptVersion version;
+    ngraph::builder::subgraph::FakeQuantizeOnData fqOnData;
+    std::tie(precision, inputShape, targetDevice, version, fqOnData) = this->GetParam();
+
+    return FuncTestUtils::createAndFillBlobConsistently(
+        info.getTensorDesc(),
+        fqOnData.empty() ? 25.f : fqOnData.outputHighValues[0] - fqOnData.outputLowValues[0],
+        fqOnData.empty() ? -12.5f : fqOnData.outputLowValues[0],
+        1ul);
 }
 
 void ReluTransformation::SetUp() {
-    InferenceEngine::SizeVector inputShape;
-    InferenceEngine::Precision netPrecision;
-    InferenceEngine::details::LayerTransformation::Params params;
+    ngraph::element::Type precision;
+    ngraph::Shape inputShape;
     LayerTestsUtils::LayerTransformation::LptVersion version;
-    std::tie(netPrecision, inputShape, targetDevice, params, version) = this->GetParam();
+    ngraph::builder::subgraph::FakeQuantizeOnData fqOnData;
+    std::tie(precision, inputShape, targetDevice, version, fqOnData) = this->GetParam();
 
     ConfigurePlugin(version);
 
-    const auto ngPrecision = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
-    function = ngraph::builder::subgraph::ReluFunction::getOriginal(ngPrecision, inputShape);
+    function = ngraph::builder::subgraph::ReluFunction::getOriginal(inputShape, precision, fqOnData);
 
     ngraph::pass::InitNodeInfo().run_on_function(function);
 
@@ -46,12 +66,14 @@ void ReluTransformation::SetUp() {
 }
 
 void ReluTransformation::validate() {
-    InferenceEngine::SizeVector inputShape;
-    InferenceEngine::Precision netPrecision;
-    InferenceEngine::details::LayerTransformation::Params params;
+    ngraph::element::Type precision;
+    ngraph::Shape inputShape;
+    std::string targetDevice;
     LayerTestsUtils::LayerTransformation::LptVersion version;
-    std::tie(netPrecision, inputShape, targetDevice, params, version) = this->GetParam();
+    ngraph::builder::subgraph::FakeQuantizeOnData fqOnData;
+    std::tie(precision, inputShape, targetDevice, version, fqOnData) = this->GetParam();
 
+    const auto params = LayerTestsUtils::LayerTransformationParamsFactory::createParams();
     const InferenceEngine::CNNNetwork network = transform(params);
 
     IE_SUPPRESS_DEPRECATED_START
@@ -62,18 +84,25 @@ void ReluTransformation::validate() {
     std::map<std::string, InferenceEngine::DataPtr>::iterator it = outputs.begin();
     const InferenceEngine::CNNLayerPtr outputLayer = getCreatorLayer(it->second).lock();
     EXPECT_TRUE(outputLayer != nullptr);
-    EXPECT_EQ("ScaleShift", outputLayer->type);
 
-    EXPECT_EQ(1ul, outputLayer->insData.size());
-    const InferenceEngine::DataPtr insData = outputLayer->insData[0].lock();
-    EXPECT_TRUE(insData != nullptr);
-    const InferenceEngine::CNNLayerPtr relu = getCreatorLayer(insData).lock();
-    EXPECT_TRUE(relu != nullptr);
-    EXPECT_EQ("ReLU", relu->type);
+    if (fqOnData.empty() ||
+        (fqOnData.isSigned() && ((fqOnData.outputLowValues[0] / fqOnData.outputHighValues[0]) != (-128.f/127.f))) ||
+        (!fqOnData.isSigned() && ((fqOnData.outputLowValues[0] != 0.f)))) {
+        EXPECT_EQ("ReLU", outputLayer->type);
+    } else {
+        EXPECT_EQ("ScaleShift", outputLayer->type);
 
-    if (params.updatePrecisions) {
-        const InferenceEngine::Precision precision = relu->outData[0]->getTensorDesc().getPrecision();
-        EXPECT_TRUE((precision == InferenceEngine::Precision::U8) || (precision == InferenceEngine::Precision::I8));
+        EXPECT_EQ(1ul, outputLayer->insData.size());
+        const InferenceEngine::DataPtr insData = outputLayer->insData[0].lock();
+        EXPECT_TRUE(insData != nullptr);
+        const InferenceEngine::CNNLayerPtr relu = getCreatorLayer(insData).lock();
+        EXPECT_TRUE(relu != nullptr);
+        EXPECT_EQ("ReLU", relu->type);
+
+        if (params.updatePrecisions) {
+            const InferenceEngine::Precision precision = relu->outData[0]->getTensorDesc().getPrecision();
+            EXPECT_TRUE((precision == InferenceEngine::Precision::U8) || (precision == InferenceEngine::Precision::I8));
+        }
     }
 
     IE_SUPPRESS_DEPRECATED_END

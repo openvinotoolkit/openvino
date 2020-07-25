@@ -7,9 +7,6 @@
 #include <algorithm>
 #include <memory>
 #include <string>
-#include <unordered_set>
-#include <utility>
-#include <vector>
 
 #include "transformations/low_precision/common/ie_lpt_exception.hpp"
 #include "transformations/low_precision/network_helper.hpp"
@@ -20,41 +17,44 @@ namespace low_precision {
 
 void ReluTransformation::registerMatcherIn(GraphRewrite &pass, TransformationContext &context) const {
     addPattern(
-            pass,
-            context,
-            make_op_pattern<opset1::Relu>(
-                    { make_op_label<opset1::Multiply>()}));
+        pass,
+        context,
+        make_op_pattern<opset1::Relu>({ make_op_label<opset1::Multiply>()}));
 }
 
 void ReluTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) const {
-    auto relu = as_type_ptr<opset1::Relu>(m.get_match_root());
-    auto multiply = as_type_ptr<opset1::Multiply>(relu->input_value(0).get_node_shared_ptr());
-
-    std::shared_ptr<opset1::Constant> constant = as_type_ptr<opset1::Constant>(multiply->input_value(0).get_node_shared_ptr());
-    auto data = multiply->input_value(1);
-    if (!constant) {
-        constant = as_type_ptr<opset1::Constant>(multiply->input_value(1).get_node_shared_ptr());
-        data = multiply->input_value(0);
+    std::shared_ptr<Node> relu = m.get_match_root();
+    if (!canBeTransformed(context, relu)) {
+        return;
     }
 
-    assert(constant);
+    relu = separateInStandaloneBranch(relu);
+    const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(relu, 0);
+    if (dequantization.subtract == nullptr) {
+        moveDequantizationAfter(context, relu, dequantization, true);
+    } else {
+        const auto newRelu = relu->clone_with_new_inputs({ dequantization.subtract });
+        const auto multiply = dequantization.multiply->clone_with_new_inputs({
+            newRelu,
+            dequantization.multiply->get_input_node_shared_ptr(1) });
+        replace_node(relu, multiply);
+        updateOutput(context, multiply, newRelu);
+    }
+}
 
-    // Check if all scales are greater than zero
-    // TODO: supply necessary references in ngraph to write something like this
-    // fold<opset1::ReduceLogicalAnd>(fold<opset1::GreaterEqual>(constant,
-    //  std::make_shared<opset1::Constant>(constant->get_output_element_type(0), Shape{}, 0)));
+bool ReluTransformation::isPrecisionPreserved(std::shared_ptr<Node> op) const noexcept {
+    return true;
+}
 
-    auto scales = constant->cast_vector<float>();
-    if (std::all_of(scales.begin(), scales.end(), [](float value) {
-        return value >= 0.0;
-    })) {
-        auto replacement = multiply->copy_with_new_inputs({relu->copy_with_new_inputs({data}), constant});
-        replace_node(relu, replacement);
-        replacement->set_friendly_name(relu->get_friendly_name());
-        replacement->input_value(0).get_node_shared_ptr()->set_friendly_name(replacement->input_value(0).get_node_shared_ptr()->get_name());
+bool ReluTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> op) const {
+    const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(op, 0);
+    const std::shared_ptr<opset1::Constant> constant = as_type_ptr<opset1::Constant>(dequantization.multiply->input_value(1).get_node_shared_ptr());
+    const auto scales = constant->cast_vector<float>();
+    if (std::all_of(scales.begin(), scales.end(), [](const float value) { return value < 0.f; })) {
+        return false;
     }
 
-    // std::cout << "ReluTransformation::transform: done: " << relu->get_friendly_name() << std::endl;
+    return true;
 }
 
 } // namespace low_precision

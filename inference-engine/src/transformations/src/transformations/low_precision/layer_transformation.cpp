@@ -349,7 +349,7 @@ void LayerTransformation::fillAvailablePrecisions(std::shared_ptr<Node> layer, s
         }
 
         if (!layerTransformationsManager->isQuantized(child)) {
-            // low precision chain is interrupted here: next layer supported precisions are ignored
+            // low precision chain is interrupted here: next operation supported precisions are ignored
             continue;
         }
 

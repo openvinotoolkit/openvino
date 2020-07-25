@@ -23,19 +23,73 @@ bool DequantizationOperations::Convert::empty() const noexcept {
     return isEmpty;
 }
 
+DequantizationOperations::Subtract::Subtract() :
+    isEmpty(true),
+    outPrecision(ngraph::element::undefined)
+{}
+
+DequantizationOperations::Subtract::Subtract(const float value) :
+    isEmpty(false),
+    values({ value }),
+    outPrecision(ngraph::element::undefined) {
+}
+
+DequantizationOperations::Subtract::Subtract(const std::vector<float>& values) :
+    isEmpty(values.empty()),
+    values(values),
+    outPrecision(ngraph::element::undefined) {
+}
+
+DequantizationOperations::Subtract::Subtract(const std::vector<float>& values, const ngraph::element::Type outPrecision) :
+    isEmpty(false),
+    values(values),
+    outPrecision(outPrecision) {
+}
+
+bool DequantizationOperations::Subtract::empty() const noexcept {
+    return isEmpty;
+}
+
+DequantizationOperations::Multiply::Multiply() :
+    isEmpty(true),
+    outPrecision(ngraph::element::undefined)
+{}
+
+DequantizationOperations::Multiply::Multiply(const float value) :
+    isEmpty(false),
+    values({ value }),
+    outPrecision(ngraph::element::undefined) {
+}
+
+DequantizationOperations::Multiply::Multiply(const std::vector<float>& values) :
+    isEmpty(values.empty()),
+    values(values),
+    outPrecision(ngraph::element::undefined) {
+}
+
+DequantizationOperations::Multiply::Multiply(const std::vector<float>& values, const ngraph::element::Type outPrecision) :
+    isEmpty(false),
+    values(values),
+    outPrecision(outPrecision) {
+}
+
+bool DequantizationOperations::Multiply::empty() const noexcept {
+    return isEmpty;
+}
+
 DequantizationOperations::DequantizationOperations() {}
 
 DequantizationOperations::DequantizationOperations(
     const Convert& convert,
-    const std::vector<float>& subtractValues,
-    const std::vector<float>& multiplyValues) :
+    const Subtract& subtract,
+    const Multiply& multiply) :
     convert(convert),
-    subtractValues(subtractValues),
-    multiplyValues(multiplyValues)
+    subtract(subtract),
+    multiply(multiply)
 {}
 
 bool DequantizationOperations::empty() const {
-    return convert.empty() && subtractValues.empty() && multiplyValues.empty();
+    return convert.empty() && subtract.empty() && multiply.empty();
 }
 
 }  // namespace subgraph
