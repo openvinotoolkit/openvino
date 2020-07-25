@@ -127,6 +127,11 @@ public:
         const FakeQuantizeDequantization& dequantization,
         const bool updatePrecision);
 
+    static InsertDequantizationResult moveMultiplyAfter(
+        const std::shared_ptr<ngraph::Node>& operation,
+        const FakeQuantizeDequantization& dequantization,
+        const bool removeConvert);
+
     static size_t getInputIndex(const std::shared_ptr<ngraph::Node>& parent, const std::shared_ptr<ngraph::Node>& child);
 
     static std::vector<Output<Node>> getInputs(const std::shared_ptr<ngraph::Node>& node);

@@ -428,6 +428,16 @@ std::shared_ptr<ngraph::Node> LayerTransformation::moveDequantizationAfter(
     return result.newOperation;
 }
 
+std::shared_ptr<ngraph::Node> LayerTransformation::moveMultiplyAfter(
+    TransformationContext &context,
+    const std::shared_ptr<ngraph::Node>& operation,
+    const FakeQuantizeDequantization& dequantization,
+    const bool removeConvert) const {
+    const auto result = ngraph::pass::low_precision::NetworkHelper::moveMultiplyAfter(operation, dequantization, removeConvert);
+    updateOutput(context, result.lastDequantization, result.newOperation);
+    return result.newOperation;
+}
+
 void LayerTransformation::updateOutput(
     TransformationContext &context,
     std::shared_ptr<ngraph::Node> lastNode,

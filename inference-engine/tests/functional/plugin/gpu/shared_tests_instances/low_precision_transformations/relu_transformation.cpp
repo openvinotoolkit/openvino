@@ -4,19 +4,16 @@
 
 #include <vector>
 
-#include "low_precision_transformations/depth_to_space_transformation.hpp"
+#include "low_precision_transformations/relu_transformation.hpp"
 #include "common_test_utils/test_constants.hpp"
 
 using namespace LayerTestsDefinitions;
 using namespace InferenceEngine::details;
 
 namespace {
-const std::vector<InferenceEngine::Precision> netPrecisions = {
-        InferenceEngine::Precision::FP32
-};
-
-const std::vector<LayerTransformation::Params> trasformationParamValues = {
-    LayerTestsUtils::LayerTransformationParamsFactory::createParams()
+const std::vector<ngraph::element::Type> precisions = {
+    ngraph::element::f32,
+    // ngraph::element::f16
 };
 
 const std::vector<LayerTestsUtils::LayerTransformation::LptVersion> versionValues = {
@@ -24,13 +21,20 @@ const std::vector<LayerTestsUtils::LayerTransformation::LptVersion> versionValue
     LayerTestsUtils::LayerTransformation::LptVersion::nGraph
 };
 
-// disabled while GPU is not supported DepthToSpace
-INSTANTIATE_TEST_CASE_P(DISABLED_LPT, DepthToSpaceTransformation,
+std::vector<ngraph::builder::subgraph::FakeQuantizeOnData> testValues = {
+    {},
+    { 256ul, ngraph::Shape({}), {0.f}, {25.5f}, {0.f}, {25.5f} },
+    { 256ul, ngraph::Shape({}), {-12.8f}, {12.7f}, {-12.8f}, {12.7f} },
+    { 256ul, ngraph::Shape({}), {12.75f}, {25.5f}, {12.75f}, {25.5f} },
+    { 256ul, ngraph::Shape({}), {-12.8f / 2.f}, {12.7f}, {-12.8f / 2.f}, {12.7f} }
+};
+
+INSTANTIATE_TEST_CASE_P(LPT, ReluTransformation,
     ::testing::Combine(
-        ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(InferenceEngine::SizeVector({ 1, 32, 72, 48 })),
+        ::testing::ValuesIn(precisions),
+        ::testing::Values(InferenceEngine::SizeVector({ 1, 3, 16, 16 })),
         ::testing::Values(CommonTestUtils::DEVICE_GPU),
-        ::testing::ValuesIn(trasformationParamValues),
-        ::testing::ValuesIn(versionValues)),
-    DepthToSpaceTransformation::getTestCaseName);
+        ::testing::ValuesIn(versionValues),
+        ::testing::ValuesIn(testValues)),
+    ReluTransformation::getTestCaseName);
 }  // namespace

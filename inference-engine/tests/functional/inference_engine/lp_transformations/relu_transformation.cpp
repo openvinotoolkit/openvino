@@ -19,8 +19,6 @@
 #include "simple_low_precision_transformer.hpp"
 #include "ngraph_functions/low_precision_transformations/common/dequantization_operations.hpp"
 
-// #include <ngraph/pass/visualize_tree.hpp>
-
 namespace {
 
 using namespace testing;
@@ -64,13 +62,9 @@ public:
             testValues.actual.precisionBeforeDequantization,
             testValues.actual.dequantization);
 
-        // VisualizeTree("C:\\Projects\\temp\\test.actual").run_on_module(std::vector<std::shared_ptr<ngraph::Function>>{ actualFunction });
-
         SimpleLowPrecisionTransformer transformer;
         transformer.add<ngraph::pass::low_precision::ReluTransformation, ngraph::opset1::MatMul>(testValues.params);
         transformer.transform(actualFunction);
-
-        // VisualizeTree("C:\\Projects\\temp\\test.transformed").run_on_module(std::vector<std::shared_ptr<ngraph::Function>>{ actualFunction });
 
         referenceFunction = ngraph::builder::subgraph::ReluFunction::getReference(
             testValues.shape,
@@ -78,15 +72,16 @@ public:
             testValues.expected.dequantizationBefore,
             testValues.expected.precisionAfterOperation,
             testValues.expected.dequantizationAfter);
-
-        // VisualizeTree("C:\\Projects\\temp\\test.reference").run_on_module(std::vector<std::shared_ptr<ngraph::Function>>{ referenceFunction });
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<ReluTransformationTestValues> obj) {
         const ReluTransformationTestValues testValues = obj.param;
 
         std::ostringstream result;
-        result << testValues.shape;
+        result <<
+            testValues.shape << "_" <<
+            testValues.actual.dequantization << "_" <<
+            testValues.expected.dequantizationBefore;
         return result.str();
     }
 
@@ -121,20 +116,20 @@ const std::vector<ReluTransformationTestValues> testValues = {
             {{ngraph::element::f32}, {}, {0.1f}}
         }
     },
-    // {
-    //    ngraph::Shape({ 1, 3, 16, 16 }),
-    //    LayerTransformation::createParamsU8I8(),
-    //    {
-    //        ngraph::element::u8,
-    //        {{ngraph::element::f32}, { 128 }, {0.1f}}
-    //    },
-    //    {
-    //        ngraph::element::u8,
-    //        {{}, { 128 }, {}},
-    //        ngraph::element::f32,
-    //        {{}, {}, {0.1f}}
-    //    }
-    // }
+    {
+        ngraph::Shape({ 1, 3, 16, 16 }),
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, { 128 }, {0.1f}}
+        },
+        {
+            ngraph::element::u8,
+            {{}, { {128}, ngraph::element::f32 }, {}},
+            ngraph::element::f32,
+            {{}, {}, {0.1f}}
+        }
+    }
 };
 
 INSTANTIATE_TEST_CASE_P(

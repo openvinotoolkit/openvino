@@ -33,12 +33,7 @@ void ReluTransformation::transform(TransformationContext& context, ngraph::patte
     if (dequantization.subtract == nullptr) {
         moveDequantizationAfter(context, relu, dequantization, true);
     } else {
-        const auto newRelu = relu->clone_with_new_inputs({ dequantization.subtract });
-        const auto multiply = dequantization.multiply->clone_with_new_inputs({
-            newRelu,
-            dequantization.multiply->get_input_node_shared_ptr(1) });
-        replace_node(relu, multiply);
-        updateOutput(context, multiply, newRelu);
+        moveMultiplyAfter(context, relu, dequantization, true);
     }
 }
 

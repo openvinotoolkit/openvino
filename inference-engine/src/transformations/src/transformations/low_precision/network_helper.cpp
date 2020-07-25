@@ -638,12 +638,10 @@ void NetworkHelper::moveDequantization(
     replace_node(operation, newDequantization);
 }
 
-
 NetworkHelper::InsertDequantizationResult NetworkHelper::moveDequantizationAfter(
     const std::shared_ptr<ngraph::Node>& operation,
     const FakeQuantizeDequantization& dequantization,
     const bool updatePrecision) {
-
     std::vector<Output<Node>> inputs(operation->get_input_size());
     for (size_t i = 0; i < operation->get_input_size(); ++i) {
         inputs[i] = operation->get_input_node_shared_ptr(i);
@@ -676,6 +674,46 @@ NetworkHelper::InsertDequantizationResult NetworkHelper::moveDequantizationAfter
     }
 
     return InsertDequantizationResult(newOperation, replacement);
+}
+
+NetworkHelper::InsertDequantizationResult NetworkHelper::moveMultiplyAfter(
+    const std::shared_ptr<ngraph::Node>& operation,
+    const FakeQuantizeDequantization& dequantization,
+    const bool removeConvert) {
+    std::vector<Output<Node>> inputs(operation->get_input_size());
+    for (size_t i = 0; i < operation->get_input_size(); ++i) {
+        inputs[i] = operation->get_input_node_shared_ptr(i);
+    }
+
+    const size_t dequantizationIndex = getInputIndex(dequantization.multiply, operation);
+    inputs[dequantizationIndex] = dequantization.multiply->get_input_node_shared_ptr(0);
+
+    std::shared_ptr<ngraph::Node> newOperation = operation->clone_with_new_inputs(inputs);
+    newOperation->set_friendly_name(operation->get_friendly_name());
+
+    auto multiplyReplacement = as_type_ptr<opset1::Multiply>(dequantization.multiply->clone_with_new_inputs({
+        newOperation,
+        dequantization.multiply->get_input_node_shared_ptr(1)->clone_with_new_inputs({}) }));
+    replace_node(operation, multiplyReplacement);
+
+    if (removeConvert && (dequantization.convert != nullptr)) {
+        if (dequantization.subtract == nullptr) {
+            inputs[dequantizationIndex] = dequantization.convert->get_input_node_shared_ptr(0);
+            auto newOperation2 = newOperation->clone_with_new_inputs(inputs);
+            replace_node(newOperation, newOperation2);
+            newOperation = newOperation2;
+        } else {
+            const auto convertParent = dequantization.convert->get_input_node_shared_ptr(0);
+            const size_t convertIndex = getInputIndex(convertParent, dequantization.convert);
+            const element::Type precisionBeforeConvert = convertParent->get_output_element_type(convertIndex);
+            auto newSubtract = dequantization.subtract->clone_with_new_inputs({
+                dequantization.convert->get_input_node_shared_ptr(0),
+                fold<opset1::Convert>(dequantization.subtract->get_input_node_shared_ptr(1), precisionBeforeConvert)});
+            replace_node(dequantization.subtract, newSubtract);
+        }
+    }
+
+    return InsertDequantizationResult(newOperation, multiplyReplacement);
 }
 
 size_t NetworkHelper::getInputIndex(const std::shared_ptr<ngraph::Node>& parent, const std::shared_ptr<ngraph::Node>& child) {

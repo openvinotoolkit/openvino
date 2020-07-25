@@ -10,6 +10,7 @@
 #include <ngraph/opsets/opset1.hpp>
 #include "ngraph_ops/type_relaxed.hpp"
 #include "ngraph_functions/subgraph_builders.hpp"
+#include "transformations/low_precision/network_helper.hpp"
 
 namespace ngraph {
 namespace builder {
@@ -28,14 +29,20 @@ std::shared_ptr<Node> makeDequantization(
     }
 
     if (!dequantizationOperations.subtract.empty()) {
-        std::shared_ptr<ngraph::opset1::Subtract> subtract = std::make_shared<ngraph::opset1::Subtract>(
-            parent,
-            std::make_shared<ngraph::opset1::Constant>(
-                parent->get_output_element_type(0),
-                dequantizationOperations.subtract.values.size() == 1ul ?
-                Shape{} :
-                Shape{ 1, dequantizationOperations.subtract.values.size(), 1, 1 },
-                dequantizationOperations.subtract.values));
+        std::shared_ptr<ngraph::opset1::Subtract> subtract;
+        const auto subtractConst = std::make_shared<ngraph::opset1::Constant>(
+            parent->get_output_element_type(0),
+            dequantizationOperations.subtract.values.size() == 1ul ?
+            Shape{} :
+            Shape{ 1, dequantizationOperations.subtract.values.size(), 1, 1 },
+            dequantizationOperations.subtract.values);
+        if ((dequantizationOperations.subtract.outPrecision == element::undefined) ||
+            (dequantizationOperations.subtract.outPrecision == parent->get_output_element_type(0))) {
+            subtract = std::make_shared<ngraph::opset1::Subtract>(parent, subtractConst);
+        } else {
+            subtract = std::make_shared<op::TypeRelaxed<ngraph::opset1::Subtract>>(parent, subtractConst);
+            ngraph::pass::low_precision::NetworkHelper::setOutDataPrecision(subtract, dequantizationOperations.subtract.outPrecision);
+        }
         parent = subtract;
     }
 

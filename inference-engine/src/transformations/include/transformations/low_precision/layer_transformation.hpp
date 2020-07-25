@@ -320,6 +320,12 @@ protected:
         const FakeQuantizeDequantization& dequantization,
         const bool updatePrecision) const;
 
+    std::shared_ptr<ngraph::Node> moveMultiplyAfter(
+        TransformationContext &context,
+        const std::shared_ptr<ngraph::Node>& operation,
+        const FakeQuantizeDequantization& dequantization,
+        const bool removeConvert) const;
+
     void updateOutput(
         TransformationContext &context,
         std::shared_ptr<ngraph::Node> lastNode,
