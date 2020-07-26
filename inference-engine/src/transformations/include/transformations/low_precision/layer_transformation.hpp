@@ -314,6 +314,8 @@ protected:
 protected:
     std::shared_ptr<ngraph::Node> separateInStandaloneBranch(std::shared_ptr<ngraph::Node> node) const;
 
+    // TODO: remove context
+    // TODO: remove dequantization
     std::shared_ptr<ngraph::Node> moveDequantizationAfter(
         TransformationContext &context,
         const std::shared_ptr<ngraph::Node>& operation,
@@ -325,6 +327,10 @@ protected:
         const std::shared_ptr<ngraph::Node>& operation,
         const FakeQuantizeDequantization& dequantization,
         const bool removeConvert) const;
+
+    void removeConvertIfPossible(
+        TransformationContext &context,
+        const std::shared_ptr<ngraph::Node>& operation) const;
 
     void updateOutput(
         TransformationContext &context,

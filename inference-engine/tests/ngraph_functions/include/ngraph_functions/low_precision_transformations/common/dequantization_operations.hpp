@@ -30,10 +30,13 @@ public:
         Subtract(const float value);
         Subtract(const std::vector<float>& values);
         Subtract(const std::vector<float>& values, const ngraph::element::Type outPrecision);
+        Subtract(const std::vector<float>& values, const ngraph::element::Type outPrecision, const ngraph::Shape& constantShape);
         bool empty() const noexcept;
 
         std::vector<float> values;
         ngraph::element::Type outPrecision;
+        ngraph::Shape constantShape;
+        bool constantShapeIsDefined;
     private:
         bool isEmpty;
     };
@@ -44,10 +47,13 @@ public:
         Multiply(const float value);
         Multiply(const std::vector<float>& values);
         Multiply(const std::vector<float>& values, const ngraph::element::Type outPrecision);
+        Multiply(const std::vector<float>& values, const ngraph::element::Type outPrecision, const ngraph::Shape& constantShape);
         bool empty() const noexcept;
 
         std::vector<float> values;
         ngraph::element::Type outPrecision;
+        ngraph::Shape constantShape;
+        bool constantShapeIsDefined;
     private:
         bool isEmpty;
     };

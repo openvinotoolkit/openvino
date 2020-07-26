@@ -109,11 +109,23 @@ void TypeRelaxed<BaseOp>::validate_and_infer_types() {
         input_types.push_back(BaseOp::get_input_element_type(i));
         BaseOp::get_input_tensor(i).set_tensor_type(m_output_data_type, BaseOp::get_input_partial_shape(i));
     }
-    BaseOp::validate_and_infer_types();
-    // Restore original input data types
-    for (size_t i = 0; i < BaseOp::get_input_size(); ++i) {
-        BaseOp::get_input_tensor(i).set_tensor_type(input_types[i], BaseOp::get_input_partial_shape(i));
+
+    if (is_type<opset1::Reshape>(this)) {
+        // Restore original input data types
+        for (size_t i = 0; i < BaseOp::get_input_size(); ++i) {
+            BaseOp::get_input_tensor(i).set_tensor_type(input_types[i], BaseOp::get_input_partial_shape(i));
+        }
+
+        BaseOp::validate_and_infer_types();
+    } else {
+        BaseOp::validate_and_infer_types();
+
+        // Restore original input data types
+        for (size_t i = 0; i < BaseOp::get_input_size(); ++i) {
+            BaseOp::get_input_tensor(i).set_tensor_type(input_types[i], BaseOp::get_input_partial_shape(i));
+        }
     }
+
     // TODO Fix for multiple-output nodes as well
     BaseOp::set_output_type(0, m_output_data_type, BaseOp::get_output_partial_shape(0));
 }

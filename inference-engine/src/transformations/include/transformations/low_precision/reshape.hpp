@@ -19,17 +19,14 @@ public:
     ~ReshapeTransformation() override {}
     void registerMatcherIn(GraphRewrite& pass, TransformationContext& context) const override;
     void transform(TransformationContext& context, ngraph::pattern::Matcher &m) const override;
+    bool isPrecisionPreserved(std::shared_ptr<Node> layer) const noexcept override;
+    bool canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> op) const override;
 
-#if 0  // TODO: LPT-TO-NGRAPH
-    bool isBroadcastByChannels(std::shared_ptr<Node> layer) const;
-
-    static bool isSupported(const TensorDesc& tensorDesc1, const TensorDesc& tensorDesc2) noexcept;
-    static bool isBroadcasted(const TensorDesc& tensorDesc) noexcept;
-#endif
-private:
-#if 0  // TODO: LPT-TO-NGRAPH
-    static int getNotEmpty(const CNNLayer& eltwise);
-#endif
+    static bool canBeTransformed(
+        const ngraph::Shape& subtractShape,
+        const ngraph::Shape& multiplyShape,
+        const ngraph::Shape& inputShape,
+        const ngraph::Shape& outputShape);
 };
 
 } // namespace low_precision

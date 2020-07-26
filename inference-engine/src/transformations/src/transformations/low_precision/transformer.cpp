@@ -168,6 +168,7 @@ LowPrecisionTransformations LowPrecisionTransformer::getAllTransformations(const
         add<MaxPoolTransformation, opset1::MaxPool>(params).
         add<MultiplyTransformation, opset1::Multiply>(params).
         add<NormalizeL2Transformation, opset1::NormalizeL2>(params).
+        // add<ReshapeTransformation, opset1::Reshape>(params).
         add<ReluTransformation, opset1::Relu>(params).
 
         addCleanup<FuseFakeQuantizeTransformation, opset1::FakeQuantize>(params).
@@ -196,7 +197,6 @@ void make_matcher_type_relaxed(ngraph::pass::GraphRewrite* transformation) {
         // std::cerr << "My matcher pass was triggered: " << l_node->get_friendly_name() << " with " << l_node->get_inputs().size() << " inputs\n";
         // TODO: replaces only operation with one output port
         auto replacement = std::make_shared<ngraph::op::TypeRelaxed<BaseOp>>(*l_node, l_node->get_output_element_type(0));
-        // auto replacement = std::make_shared<BaseOp>(*l_node);
         copy_runtime_info(l_node, replacement);
         replace_node(l_node, replacement);
         return true;
@@ -216,6 +216,7 @@ TypeRelaxedReplacer::TypeRelaxedReplacer() {
     make_matcher_type_relaxed<opset1::FakeQuantize>(this);
     make_matcher_type_relaxed<opset1::GroupConvolution>(this);
     make_matcher_type_relaxed<opset1::Relu>(this);
+    // make_matcher_type_relaxed<opset1::Reshape>(this);
     make_matcher_type_relaxed<opset1::MaxPool>(this);
     make_matcher_type_relaxed<opset1::Add>(this);
     make_matcher_type_relaxed<opset1::Subtract>(this);

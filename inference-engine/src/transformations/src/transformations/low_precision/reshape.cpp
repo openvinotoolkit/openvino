@@ -28,61 +28,138 @@ void ReshapeTransformation::registerMatcherIn(GraphRewrite &pass, Transformation
         make_op_pattern<opset1::Reshape>({ make_op_label<opset1::Multiply>(), make_op_label<opset1::Constant>() }));
 }
 
+void broadcast(std::shared_ptr<Node>& reshape) {
+    FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(reshape, 0);
+    if (dequantization.multiply->get_input_node_ptr(1)->get_output_shape(0).size() > 1ul) {
+        //std::shared_ptr<Node> reshapeConstant = fold_reshape<opset1::Reshape>(
+        //    dequantization.multiply->get_input_node_shared_ptr(1),
+        //    std::make_shared<opset1::Constant>(element::i64, Shape{ 3 }, std::vector<size_t>{ 1ul, 3ul, 1ul}),
+        //    false);
+        //replace_node(dequantization.multiply->get_input_node_shared_ptr(1), reshapeConstant);
+
+
+
+        //std::vector<size_t> actualShape = dequantization.multiply->get_input_node_ptr(1)->get_output_shape(0);
+        //const size_t maxIndex = std::min(resultShape.size(), actualShape.size());
+        //for (size_t i = 0; i < maxIndex; ++i) {
+        //    resultShape[i] = actualShape[i];
+        //}
+
+        //std::shared_ptr<Node> reshapeConstant = fold_reshape<opset1::Reshape>(
+        //    dequantization.multiply->get_input_node_shared_ptr(1),
+        //    std::make_shared<opset1::Constant>(element::i64, Shape{ resultShape.size() }, resultShape),
+        //    false);
+        //replace_node(dequantization.multiply->get_input_node_shared_ptr(1), reshapeConstant);
+
+        auto replace = [](const std::shared_ptr<Node>& reshape, const std::shared_ptr<Node>& op) {
+            std::vector<size_t> resultShape(reshape->get_output_shape(0).size(), 1ul);
+
+            std::vector<size_t> actualShape = op->get_input_node_ptr(1)->get_output_shape(0);
+            const size_t maxIndex = std::min(resultShape.size(), actualShape.size());
+            for (size_t i = 0; i < maxIndex; ++i) {
+                resultShape[i] = actualShape[i];
+            }
+
+            std::shared_ptr<Node> reshapeConstant = fold_reshape<opset1::Reshape>(
+                op->get_input_node_shared_ptr(1),
+                std::make_shared<opset1::Constant>(element::i64, Shape{ resultShape.size() }, resultShape),
+                false);
+            replace_node(op->get_input_node_shared_ptr(1), reshapeConstant);
+        };
+
+        if (dequantization.subtract != nullptr) {
+            replace(reshape, dequantization.subtract);
+        }
+
+        if (dequantization.multiply != nullptr) {
+            replace(reshape, dequantization.multiply);
+        }
+
+
+        //const Shape multiplyConstantShape = dequantization.multiply->get_input_node_shared_ptr(1)->get_output_shape(0);
+        //
+        //const auto values = std::vector<size_t>(multiplyConstantShape);
+        //const auto shapeConstant = fold<opset1::Squeeze>(
+        //    std::make_shared<opset1::Constant>(element::i64, Shape{ multiplyConstantShape.size() }, values),
+        //    std::make_shared<opset1::Constant>(element::i64, Shape{ 1 }, std::vector<size_t>{ 3ul }));
+        //
+        //std::shared_ptr<Node> reshapeConstant = fold_reshape<opset1::Reshape>(
+        //    dequantization.multiply->get_input_node_shared_ptr(1),
+        //    shapeConstant,
+        //    false);
+        //replace_node(dequantization.multiply->get_input_node_shared_ptr(1), reshapeConstant);
+        //
+        //const Shape multiplyConstantShape2 = reshapeConstant->get_output_shape(0);
+    }
+}
+
 void ReshapeTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) const {
     std::shared_ptr<Node> reshape = m.get_match_root();
-
-    // TODO: dequantization operation handling: getDequantizationOperations()
-    // TODO: any operation below can have several children - should be handled in getDequantizationOperations()
-
-    std::shared_ptr<opset1::Multiply> multiply = as_type_ptr<opset1::Multiply>(reshape->input_value(0).get_node_shared_ptr());
-    if (multiply == nullptr) {
-        THROW_IE_LPT_EXCEPTION(*reshape) << "not expected dequantization operation type";
-    }
-
-    // TODO: move to canBeTransformed?
-    std::shared_ptr<opset1::Constant> scaleConstant = as_type_ptr<opset1::Constant>(multiply->input_value(1).get_node_shared_ptr());
-    const std::vector<float> scales = scaleConstant->cast_vector<float>();
-    if (std::any_of(scales.begin(), scales.end(), [](float value) { return value < 0.0; })) {
+    if (!canBeTransformed(context, reshape)) {
+        removeConvertIfPossible(context, reshape);
         return;
     }
 
-    std::shared_ptr<Node> parent = multiply->input_value(0).get_node_shared_ptr();
-    std::shared_ptr<opset1::Subtract> subtract = as_type_ptr<opset1::Subtract>(parent);
-    if (subtract != nullptr) {
-        parent = subtract->get_input_node_shared_ptr(0);
+    reshape = separateInStandaloneBranch(reshape);
+
+    broadcast(reshape);
+    FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(reshape, 0);
+
+    moveDequantizationAfter(context, reshape, dequantization, true);
+}
+
+bool ReshapeTransformation::isPrecisionPreserved(std::shared_ptr<Node> op) const noexcept {
+    return true;
+}
+
+size_t getLastNotBroadcastedChannel(const Shape& shape) {
+    for (int i = shape.size() - 1; i >= 0; --i) {
+        if (shape[i] != 1ul) {
+            return i;
+        }
+    }
+    return 0;
+}
+
+size_t getFirstChangedChannel(const Shape& shape1, const Shape& shape2) {
+    const size_t minSize = std::min(shape1.size(), shape2.size());
+    size_t i = 0;
+    for (; i < minSize; ++i) {
+        if (shape1[i] != shape2[i]) {
+            return i;
+        }
+    }
+    return i;
+}
+
+bool ReshapeTransformation::canBeTransformed(const TransformationContext& context, std::shared_ptr<Node> op) const {
+    const FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(op, 0);
+
+    const Shape subtractShape = dequantization.subtract == nullptr ? Shape{} : dequantization.subtract->get_input_node_ptr(1)->get_output_shape(0);
+    const Shape multiplyShape = dequantization.multiply == nullptr ? Shape{} : dequantization.multiply->get_input_node_ptr(1)->get_output_shape(0);
+    if ((subtractShape.empty() || (subtractShape.size() == 1ul)) && (multiplyShape.empty() || (multiplyShape.size() == 1ul))) {
+        return true;
     }
 
-    std::shared_ptr<opset1::Convert> convert = as_type_ptr<opset1::Convert>(parent);
-    if (convert != nullptr) {
-        parent = convert->get_input_node_shared_ptr(0);
+    const size_t index = NetworkHelper::getInputIndex(op->get_input_node_shared_ptr(0), op);
+    const auto inputShape = op->get_input_node_shared_ptr(0)->get_output_shape(index);
+    const auto outputShape = op->get_output_shape(0);
+
+    return canBeTransformed(subtractShape, multiplyShape, inputShape, outputShape);
+}
+
+bool ReshapeTransformation::canBeTransformed(
+    const ngraph::Shape& subtractShape,
+    const ngraph::Shape& multiplyShape,
+    const ngraph::Shape& inputShape,
+    const ngraph::Shape& outputShape) {
+    const size_t lastNotBroadcastedChannel = std::max(getLastNotBroadcastedChannel(subtractShape), getLastNotBroadcastedChannel(multiplyShape));
+    const size_t firstChangedChannel = getFirstChangedChannel(inputShape, outputShape);
+    if (lastNotBroadcastedChannel >= firstChangedChannel) {
+        return false;
     }
 
-    const Output<Node> dataNode = parent;
-
-    // TODO: dequantization operation handling: insertDequantizationOperations()
-
-    // std::shared_ptr<Node> newReshape = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::Reshape>>(
-    //    dataNode, reshape->input_value(1).get_node_shared_ptr());
-    std::shared_ptr<Node> newReshape = reshape->copy_with_new_inputs({ dataNode, reshape->input_value(1).get_node_shared_ptr() });
-
-
-    // TODO: Multiply Const has to change shape
-    std::shared_ptr<Node> replacement = multiply->copy_with_new_inputs({
-        subtract ?
-            (convert ?
-                subtract->copy_with_new_inputs({convert->copy_with_new_inputs({newReshape}), subtract->get_input_node_shared_ptr(1)}) :
-                subtract->copy_with_new_inputs({newReshape, subtract->get_input_node_shared_ptr(1)})) :
-            (convert ? convert->copy_with_new_inputs({newReshape}) : newReshape),
-        multiply->input_value(1) });
-    replace_node(reshape, replacement);
-
-    // auto elementType = newReshape->get_input_element_type(0);
-    // NetworkHelper::setOutDataPrecision(newReshape, elementType);
-
-    // ngraph::pass::VisualizeTree("C:\\Projects\\temp\\test.transformed").run_on_module(std::vector<std::shared_ptr<ngraph::Function>>{ context.network });
-
-    // TODO: NAMES!
-    replacement->set_friendly_name(reshape->get_friendly_name());
+    return true;
 }
 
 } // namespace low_precision

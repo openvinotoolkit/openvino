@@ -438,6 +438,20 @@ std::shared_ptr<ngraph::Node> LayerTransformation::moveMultiplyAfter(
     return result.newOperation;
 }
 
+void LayerTransformation::removeConvertIfPossible(
+    TransformationContext &context,
+    const std::shared_ptr<ngraph::Node>& operation) const {
+    FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(operation, 0);
+    if ((dequantization.subtract != nullptr) &&
+        NetworkHelper::checkConstantValuePrecision(
+            dequantization.convert->get_output_element_type(0),
+            dequantization.subtract->get_input_node_shared_ptr(1))) {
+        auto newOperation = separateInStandaloneBranch(operation);
+        dequantization = NetworkHelper::getDequantization(operation, 0);
+        NetworkHelper::removeConvertIfPossible(operation, dequantization);
+    }
+}
+
 void LayerTransformation::updateOutput(
     TransformationContext &context,
     std::shared_ptr<ngraph::Node> lastNode,

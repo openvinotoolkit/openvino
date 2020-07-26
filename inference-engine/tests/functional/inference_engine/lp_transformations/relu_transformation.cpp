@@ -15,9 +15,9 @@
 #include <transformations/low_precision/relu.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
+#include "ngraph_functions/low_precision_transformations/common/dequantization_operations.hpp"
 #include "ngraph_functions/low_precision_transformations/relu_function.hpp"
 #include "simple_low_precision_transformer.hpp"
-#include "ngraph_functions/low_precision_transformations/common/dequantization_operations.hpp"
 
 namespace {
 
@@ -46,12 +46,6 @@ public:
     Expected expected;
 };
 
-class ReluTransformationParams {
-public:
-    ngraph::Shape shape;
-    ReluTransformationTestValues testValues;
-};
-
 class ReluTransformation : public LayerTransformation, public testing::WithParamInterface<ReluTransformationTestValues> {
 public:
     void SetUp() override {
@@ -63,7 +57,7 @@ public:
             testValues.actual.dequantization);
 
         SimpleLowPrecisionTransformer transformer;
-        transformer.add<ngraph::pass::low_precision::ReluTransformation, ngraph::opset1::MatMul>(testValues.params);
+        transformer.add<ngraph::pass::low_precision::ReluTransformation, ngraph::opset1::Relu>(testValues.params);
         transformer.transform(actualFunction);
 
         referenceFunction = ngraph::builder::subgraph::ReluFunction::getReference(
@@ -121,7 +115,7 @@ const std::vector<ReluTransformationTestValues> testValues = {
     // I8: no subtract
     {
         ngraph::Shape({ 1, 3, 16, 16 }),
-        LayerTransformation::createParamsU8I8(),
+        LayerTransformation::createParamsI8I8(),
         {
             ngraph::element::i8,
             {{ngraph::element::f32}, {}, {0.1f}}
@@ -151,7 +145,7 @@ const std::vector<ReluTransformationTestValues> testValues = {
     // I8: with positive subtract value
     {
         ngraph::Shape({ 1, 3, 16, 16 }),
-        LayerTransformation::createParamsU8I8(),
+        LayerTransformation::createParamsI8I8(),
         {
             ngraph::element::i8,
             {{ngraph::element::f32}, { 127 }, {0.1f}}

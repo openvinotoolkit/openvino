@@ -12,64 +12,201 @@
 
 #include <transformations/utils/utils.hpp>
 #include <transformations/init_node_info.hpp>
-#include <transformations/convert_opset1_to_legacy/conv_bias_fusion.hpp>
+#include <transformations/low_precision/reshape.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
+#include "ngraph_functions/low_precision_transformations/common/dequantization_operations.hpp"
 #include "ngraph_functions/low_precision_transformations/reshape_function.hpp"
+#include "simple_low_precision_transformer.hpp"
+
+namespace {
 
 using namespace testing;
 using namespace ngraph::pass;
 
-class ReshapeTransformation : public LayerTransformation, public testing::WithParamInterface<LayerTransformationParams> {
+class ReshapeTransformationTestValues {
+public:
+    class Actual {
+    public:
+        ngraph::element::Type precisionBeforeDequantization;
+        ngraph::builder::subgraph::DequantizationOperations dequantization;
+    };
+
+    class Expected {
+    public:
+        ngraph::element::Type precisionBeforeDequantization;
+        ngraph::builder::subgraph::DequantizationOperations dequantizationBefore;
+        ngraph::element::Type precisionAfterOperation;
+        ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
+    };
+
+    ngraph::Shape inputShape;
+    std::vector<int> reshapeConstValues;
+    ngraph::pass::low_precision::LayerTransformation::Params params;
+    Actual actual;
+    Expected expected;
+};
+
+inline std::ostream& operator<<(std::ostream& os, const std::vector<int>& values) {
+    os << "{ ";
+    for (size_t i = 0; i < values.size(); ++i) {
+        os << values[i];
+        if (i != (values.size() - 1ul)) {
+            os << ", ";
+        }
+    }
+    os << " }";
+    return os;
+}
+
+class ReshapeTransformation : public LayerTransformation, public testing::WithParamInterface<ReshapeTransformationTestValues> {
 public:
     void SetUp() override {
-        const ngraph::element::Type precision = std::get<0>(GetParam());
-        const ngraph::Shape shape = std::get<1>(GetParam());
+        const ReshapeTransformationTestValues testValues = GetParam();
 
-        actualFunction = ngraph::builder::subgraph::ReshapeFunction::getOriginal(precision, shape);
-        // transform(actualFunction);
-        referenceFunction = ngraph::builder::subgraph::ReshapeFunction::getReference(precision, shape);
+        actualFunction = ngraph::builder::subgraph::ReshapeFunction::getOriginal(
+            testValues.inputShape,
+            testValues.reshapeConstValues,
+            testValues.actual.precisionBeforeDequantization,
+            testValues.actual.dequantization);
+
+        SimpleLowPrecisionTransformer transformer;
+        transformer.add<ngraph::pass::low_precision::ReshapeTransformation, ngraph::opset1::Reshape>(testValues.params);
+        transformer.transform(actualFunction);
+
+        referenceFunction = ngraph::builder::subgraph::ReshapeFunction::getReference(
+            testValues.inputShape,
+            testValues.reshapeConstValues,
+            testValues.expected.precisionBeforeDequantization,
+            testValues.expected.dequantizationBefore,
+            testValues.expected.precisionAfterOperation,
+            testValues.expected.dequantizationAfter);
     }
 
-    static std::string getTestCaseName(testing::TestParamInfo<LayerTransformationParams> obj) {
-        ngraph::element::Type precision;
-        ngraph::Shape shape;
-        low_precision::LayerTransformation::Params params;
-        std::tie(precision, shape, params) = obj.param;
+    static std::string getTestCaseName(testing::TestParamInfo<ReshapeTransformationTestValues> obj) {
+        const ReshapeTransformationTestValues testValues = obj.param;
 
-        return LayerTransformation::getTestCaseNameByParams(precision, shape, params);
+        std::ostringstream result;
+        result <<
+            testValues.inputShape << "_" <<
+            testValues.reshapeConstValues << "_" <<
+            testValues.actual.precisionBeforeDequantization << "_" <<
+            testValues.actual.dequantization << "_" <<
+            testValues.expected.dequantizationBefore;
+        return result.str();
     }
+};
+
+const std::vector<ReshapeTransformationTestValues> testValues = {
+    // U8: no subtract 3D -> 4D: channels are not affected
+    {
+        ngraph::Shape({ 1, 384, 1024 }),
+        { 1, 384, 16, 64},
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {}, {0.1f}}
+        },
+        {
+            ngraph::element::u8,
+            {{}, {}, {}},
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {}, {0.1f}}
+        }
+    },
+    // U8: no subtract 3D -> 4D: channels are not affected
+    {
+        ngraph::Shape({ 1, 3, 20 }),
+        { 1, 3, 4, 5},
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {}, {{0.1f, 0.2f, 0.3f}, ngraph::element::f32, {1, 3, 1}}}
+        },
+        {
+            ngraph::element::u8,
+            {{}, {}, {}},
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {}, {{0.1f, 0.2f, 0.3f}, ngraph::element::f32, {1, 3, 1, 1}}}
+        }
+    },
+    // U8: no subtract 4D -> 3D: channels are not affected
+    {
+        ngraph::Shape({ 1, 3, 4, 5 }),
+        { 1, 3, 20},
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {}, {{0.1f, 0.2f, 0.3f}, ngraph::element::f32, {1, 3, 1, 1}}}
+        },
+        {
+            ngraph::element::u8,
+            {{}, {}, {}},
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {}, {{0.1f, 0.2f, 0.3f}, ngraph::element::f32, {1, 3, 1}}}
+        }
+    },
+    // U8: no subtract 2D -> 4D: channels are affected: per tensor quantization
+    {
+        ngraph::Shape({ 1, 16, 384, 384 }),
+        { 6144, -1 },
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {}, {0.1f}}
+        },
+        {
+            ngraph::element::u8,
+            {{}, {}, {}},
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {}, {0.1f}}
+        }
+    },
+    // U8: no subtract 2D -> 4D: channels are affected: per channel quantization
+    {
+        ngraph::Shape({ 1, 3, 4, 5 }),
+        { 12, -1 },
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {}, {{0.1f, 0.2f, 0.3f}}}
+        },
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {}, {{0.1f, 0.2f, 0.3f}}},
+            ngraph::element::f32,
+            {{}, {}, {}}
+        }
+    },
+    // U8: no subtract 2D -> 4D: channels are affected: per channel quantization
+    {
+        ngraph::Shape({ 1, 3, 4, 8 }),
+        { 12, -1 },
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            {{ngraph::element::f32}, {{0.f, 128.f, 255.f}}, {{0.1f, 0.2f, 0.3f}}}
+        },
+        {
+            ngraph::element::u8,
+            {{}, {{0.f, 128.f, 255.f}, ngraph::element::f32}, {{0.1f, 0.2f, 0.3f}}},
+            ngraph::element::f32,
+            {{}, {}, {}}
+        }
+    },
 };
 
 TEST_P(ReshapeTransformation, CompareFunctions) {
-    // InitNodeInfo().run_on_function(actualFunction);
-    // ConvFusion().run_on_function(actualFunction);
-
-    // actualFunction->validate_nodes_and_infer_types();
-
-    // auto res = compare_functions(referenceFunction, actualFunction);
-    // ASSERT_TRUE(res.first) << res.second;
+    InitNodeInfo().run_on_function(actualFunction);
+    actualFunction->validate_nodes_and_infer_types();
+    auto res = compare_functions(referenceFunction, actualFunction);
+    ASSERT_TRUE(res.first) << res.second;
 }
 
-const std::vector<ngraph::element::Type> precisions = {
-    ngraph::element::f32,
-    ngraph::element::f16
-};
-
-const std::vector<ngraph::Shape> shapes = {
-    { 1, 32, 72, 48 }
-};
-
-const std::vector<low_precision::LayerTransformation::Params> trasformationParamValues = {
-    LayerTransformation::createParamsI8I8(),
-    LayerTransformation::createParamsU8I8()
-};
-
 INSTANTIATE_TEST_CASE_P(
-    LPT,
+    DISABLED_LPT,
     ReshapeTransformation,
-    ::testing::Combine(
-        ::testing::ValuesIn(precisions),
-        ::testing::ValuesIn(shapes),
-        ::testing::ValuesIn(trasformationParamValues)),
+    ::testing::ValuesIn(testValues),
     ReshapeTransformation::getTestCaseName);
+
+} // namespace

@@ -132,6 +132,12 @@ public:
         const FakeQuantizeDequantization& dequantization,
         const bool removeConvert);
 
+    static void removeConvertIfPossible(
+        const std::shared_ptr<ngraph::Node>& operation,
+        const FakeQuantizeDequantization& dequantization);
+
+    static bool checkConstantValuePrecision(const element::Type expectedPrecision, const std::shared_ptr<Node>& constant);
+
     static size_t getInputIndex(const std::shared_ptr<ngraph::Node>& parent, const std::shared_ptr<ngraph::Node>& child);
 
     static std::vector<Output<Node>> getInputs(const std::shared_ptr<ngraph::Node>& node);
