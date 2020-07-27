@@ -266,10 +266,10 @@ static inline void horizontalPass_lpi4_8UC1(const short clone[], const short map
             v_int16 a76 = vx_load(&clone[4 * (x + 12)]);
 
             v_setr64(val_0, val_1, val_2, val_3, mapsx, tmp, x, shift);
-            val_0 = v_permutevar8x32(val_0, idxs);
-            val_1 = v_permutevar8x32(val_1, idxs);
-            val_2 = v_permutevar8x32(val_2, idxs);
-            val_3 = v_permutevar8x32(val_3, idxs);
+            val_0 = v_permute32(val_0, idxs);
+            val_1 = v_permute32(val_1, idxs);
+            val_2 = v_permute32(val_2, idxs);
+            val_3 = v_permute32(val_3, idxs);
 
             main_computation_horizontalPass_lpi4(val_0, val_1, val_2, val_3,
                                                  a10, a32, a54, a76,
@@ -312,7 +312,7 @@ static inline void horizontalPass_anylpi_8U(const short alpha[], const short map
         for (; x <= length - half_nlanes; x += half_nlanes) {
             v_int16 a0 = vx_load(&alpha[x]);        // as signed Q1.1.14
             v_int16 sx = vx_load(&mapsx[x]);        // as integer (int16)
-            v_uint8 t = v_gather_pairs(tmp, sx);  // 8 pairs of src0 pixels
+            v_uint8 t = v_gather_pairs(tmp, sx);  // 16 pairs of src0 pixels
             v_int16 t0, t1;
             v_deinterleave_expand(t, t0, t1);        // tmp pixels as int16
             v_int16 d = v_mulhrs(t0 - t1, a0) + t1;
