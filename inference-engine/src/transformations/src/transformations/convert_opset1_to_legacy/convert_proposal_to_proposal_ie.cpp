@@ -12,7 +12,7 @@
 #include <ngraph_ops/proposal_ie.hpp>
 #include <ngraph/rt_info.hpp>
 
-void ngraph::pass::ConvertProposalToProposalIE::convert_proposal() {
+ngraph::pass::ConvertProposalToLegacyMatcher::ConvertProposalToLegacyMatcher() {
     auto input_0 = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1, 1});
     auto input_1 = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1, 1});
     auto input_2 = std::make_shared<pattern::op::Label>(element::f32, Shape{3});
@@ -21,7 +21,7 @@ void ngraph::pass::ConvertProposalToProposalIE::convert_proposal() {
 
     auto proposal = std::make_shared<ngraph::opset1::Proposal>(input_0, input_1, input_2, attr);
 
-    ngraph::graph_rewrite_callback callback = [](pattern::Matcher& m) {
+    ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
         auto proposal = std::dynamic_pointer_cast<ngraph::opset1::Proposal> (m.get_match_root());
 
         if (!proposal) {
@@ -60,6 +60,6 @@ void ngraph::pass::ConvertProposalToProposalIE::convert_proposal() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(proposal, "CPUFusion.ConvertProposalToProposalIE");
-    this->add_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
+    auto m = std::make_shared<ngraph::pattern::Matcher>(proposal, "ConvertProposalToProposalIE");
+    this->register_matcher(m, callback);
 }

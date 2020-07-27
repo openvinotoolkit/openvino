@@ -809,8 +809,14 @@ bool Node::match_node(pattern::Matcher* matcher, const Output<Node>& graph_value
     // Not exact matching allows using base classes in the patterns and successfully matching such
     // patterns
     // with sub-graph of descent nodes types.
-    return graph_value.get_node_shared_ptr()->get_type_info().is_castable(get_type_info()) &&
-           matcher->match_arguments(this, graph_value.get_node_shared_ptr());
+    if (graph_value.get_node_shared_ptr()->get_type_info().is_castable(get_type_info()) &&
+        matcher->match_arguments(this, graph_value.get_node_shared_ptr()))
+    {
+        auto& pattern_map = matcher->get_pattern_value_map();
+        pattern_map[shared_from_this()] = graph_value;
+        return true;
+    }
+    return false;
 }
 
 // default implementation for the node to check if it contains partial shape
