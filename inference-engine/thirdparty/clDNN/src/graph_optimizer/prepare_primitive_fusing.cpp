@@ -42,6 +42,7 @@
 #include "scale_inst.h"
 #include "resample_inst.h"
 #include "depth_to_space_inst.h"
+#include "space_to_depth_inst.h"
 #include "gather_inst.h"
 #include "reverse_sequence_inst.h"
 #include "shuffle_channels_inst.h"
@@ -375,6 +376,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
 
             should_fuse |= input_data.is_type<depth_to_space>();
 
+            should_fuse |= input_data.is_type<space_to_depth>();
+
             if (!should_fuse)
                 return;
 
@@ -419,6 +422,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
             should_fuse |= input_data.is_type<gather>();
 
             should_fuse |= input_data.is_type<depth_to_space>();
+
+            should_fuse |= input_data.is_type<space_to_depth>();
 
             if (!should_fuse)
                 return;
@@ -496,6 +501,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
 
             should_fuse |= input_data.is_type<depth_to_space>() && quantize_node.get_scale_shift_opt();
 
+            should_fuse |= input_data.is_type<space_to_depth>() && quantize_node.get_scale_shift_opt();
+
             if (!should_fuse)
                 return;
 
@@ -517,12 +524,12 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
             bool can_fuse_parent1 = (parent1->is_type<convolution>() && conv_supports_fusings(parent1->as<convolution>())) ||
                                     (parent1->is_type<mvn>() && mvn_supports_fusings(parent1->as<mvn>())) ||
                                     (parent1->is_type<deconvolution>()) || (parent1->is_type<permute>()) ||
-                                    (parent1->is_type<depth_to_space>()) || (parent1->is_type<gemm>());
+                                    (parent1->is_type<depth_to_space>()) || (parent1->is_type<space_to_depth>()) || (parent1->is_type<gemm>());
 
             bool can_fuse_parent2 = (parent2->is_type<convolution>() && conv_supports_fusings(parent2->as<convolution>())) ||
                                     (parent2->is_type<mvn>() && mvn_supports_fusings(parent2->as<mvn>())) ||
                                     (parent2->is_type<deconvolution>()) || (parent2->is_type<permute>()) ||
-                                    (parent1->is_type<depth_to_space>()) || (parent2->is_type<gemm>());
+                                    (parent1->is_type<depth_to_space>()) || (parent1->is_type<space_to_depth>()) || (parent2->is_type<gemm>());
 
             std::vector<bool> can_fuse_parents = { can_fuse_parent1, can_fuse_parent2 };
 

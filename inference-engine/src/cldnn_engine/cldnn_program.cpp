@@ -3979,7 +3979,7 @@ void Program::CreateSpaceToDepthPrimitive(cldnn::topology& topology, InferenceEn
     auto spaceToDepth = as<InferenceEngine::GenericLayer*> (layer);
 
     size_t blockSize = static_cast<size_t>(spaceToDepth->GetParamAsUInt("block_size", 1));
-    std::string modeAsString = spaceToDepth->GetParamAsString("depth_mode", "blocks_first");
+    std::string modeAsString = spaceToDepth->GetParamAsString("mode", "blocks_first");
     cldnn::space_to_depth::depth_mode mode;
     mode = (modeAsString == "blocks_first") ? cldnn::space_to_depth::blocks_first : cldnn::space_to_depth::depth_first;
 

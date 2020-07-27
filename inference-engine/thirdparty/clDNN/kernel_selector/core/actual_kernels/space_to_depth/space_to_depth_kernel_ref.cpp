@@ -20,72 +20,109 @@
 #include <vector>
 
 namespace kernel_selector {
-    ParamsKey SpaceToDepthKernelRef::GetSupportedKey() const {
-        ParamsKey k;
-        k.EnableInputDataType(Datatype::F16);
-        k.EnableInputDataType(Datatype::F32);
-        k.EnableOutputDataType(Datatype::F16);
-        k.EnableOutputDataType(Datatype::F32);
-        k.EnableAllInputLayout();
-        k.EnableAllOutputLayout();
-        k.EnableTensorOffset();
-        k.EnableTensorPitches();
-        k.EnableBatching();
-        return k;
+ParamsKey SpaceToDepthKernelRef::GetSupportedKey() const {
+    ParamsKey k;
+    k.EnableInputDataType(Datatype::INT8);
+    k.EnableInputDataType(Datatype::UINT8);
+    k.EnableInputDataType(Datatype::F16);
+    k.EnableInputDataType(Datatype::F32);
+    k.EnableOutputDataType(Datatype::INT8);
+    k.EnableOutputDataType(Datatype::UINT8);
+    k.EnableOutputDataType(Datatype::F16);
+    k.EnableOutputDataType(Datatype::F32);
+    k.EnableAllInputLayout();
+    k.EnableAllOutputLayout();
+    k.EnableTensorOffset();
+    k.EnableTensorPitches();
+    k.EnableBatching();
+    k.EnableDifferentTypes();
+    return k;
+}
+
+bool SpaceToDepthKernelRef::Validate(const Params& p, const optional_params& o) const {
+    if (p.GetType() != KernelType::SPACE_TO_DEPTH ||
+        o.GetType() != KernelType::SPACE_TO_DEPTH) {
+        return false;
     }
 
-    CommonDispatchData SpaceToDepthKernelRef::SetDefault(const space_to_depth_params& params,
-                                                         const optional_params&) const {
-        CommonDispatchData runInfo;
-
-        std::vector<size_t> global = {params.output.Batch().v,
-                                      params.output.Feature().v,
-                                      params.output.Y().v * params.output.X().v};
-
-        auto local = GetOptimalLocalWorkGroupSizes(global, params.engineInfo);
-
-        runInfo.gws0 = global[0];
-        runInfo.gws1 = global[1];
-        runInfo.gws2 = global[2];
-
-        runInfo.lws0 = local[0];
-        runInfo.lws1 = local[1];
-        runInfo.lws2 = local[2];
-
-        return runInfo;
+    const space_to_depth_params& params = static_cast<const space_to_depth_params&>(p);
+    for (auto& fused_op : params.fused_ops) {
+        if (!IsFusedPrimitiveSupported(fused_op))
+            return false;
     }
 
-    JitConstants SpaceToDepthKernelRef::GetJitConstants(const space_to_depth_params& params) const {
-        JitConstants jit = MakeBaseParamsJitConstants(params);
+    if (params.inputs[0].Dimentions() > 5)
+        return false;
 
-        const size_t block_size = params.block_size;
-        const size_t squared_block_size = params.block_size * params.block_size;
-        const size_t blocks_first_mode = (size_t)params.depth_mode;
+    return true;
+}
 
-        jit.AddConstant(MakeJitConstant("BLOCK_SIZE", block_size));
-        jit.AddConstant(MakeJitConstant("SQUARED_BLOCK_SIZE", squared_block_size));
-        jit.AddConstant(MakeJitConstant("BLOCKS_FIRST_MODE", blocks_first_mode));
+CommonDispatchData SpaceToDepthKernelRef::SetDefault(const space_to_depth_params& params,
+                                                     const optional_params&) const {
+    CommonDispatchData runInfo;
 
-        return jit;
+    std::vector<size_t> global = {params.output.Batch().v,
+                                  params.output.Feature().v,
+                                  params.output.Z().v * params.output.Y().v * params.output.X().v};
+
+    auto local = GetOptimalLocalWorkGroupSizes(global, params.engineInfo);
+
+    runInfo.gws0 = global[0];
+    runInfo.gws1 = global[1];
+    runInfo.gws2 = global[2];
+
+    runInfo.lws0 = local[0];
+    runInfo.lws1 = local[1];
+    runInfo.lws2 = local[2];
+
+    return runInfo;
+}
+
+JitConstants SpaceToDepthKernelRef::GetJitConstants(const space_to_depth_params& params) const {
+    JitConstants jit = MakeBaseParamsJitConstants(params);
+
+    jit.AddConstant(MakeJitConstant("BLOCK_SIZE", params.block_size));
+    if (params.depth_mode == SpaceToDepthMode::BLOCKS_FIRST)
+        jit.AddConstant(MakeJitConstant("BLOCKS_FIRST_MODE", true));
+    else
+        jit.AddConstant(MakeJitConstant("DEPTH_FIRST_MODE", true));
+
+    auto input = params.inputs[0];
+    auto input_dt = input.GetDType();
+    if (!params.fused_ops.empty()) {
+        std::vector<std::string> idx_order;
+        if (input.Dimentions() == 5) {
+            idx_order = {"batch", "feature", "z", "y", "x"};
+        } else if (input.Dimentions() == 4) {
+            idx_order = {"batch", "feature", "y", "x"};
+        }
+        FusedOpsConfiguration conf = {"", idx_order, "in_val", input_dt, 1};
+        jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
     }
 
-    KernelsData SpaceToDepthKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {
-        KernelData kd = KernelData::Default<space_to_depth_params>(params);
-        space_to_depth_params& newParams = *static_cast<space_to_depth_params*>(kd.params.get());
+    return jit;
+}
 
-        assert(params.GetType() == KernelType::SPACE_TO_DEPTH);
+KernelsData SpaceToDepthKernelRef::GetKernelsData(const Params& params, const optional_params& options) const {
+    KernelData kd = KernelData::Default<space_to_depth_params>(params);
+    space_to_depth_params& newParams = *static_cast<space_to_depth_params*>(kd.params.get());
 
-        auto runInfo = SetDefault(newParams, options);
-        auto entry_point = GetEntryPoint(kernelName, newParams.layerID, options);
-        auto cldnn_jit = GetJitConstants(newParams);
-        std::string jit = CreateJit(kernelName, cldnn_jit, entry_point);
-
-        auto& kernel = kd.kernels[0];
-
-        FillCLKernelData(kernel, runInfo, params.engineInfo, kernelName, jit, entry_point);
-
-        kd.estimatedTime = DONT_USE_IF_HAVE_SOMETHING_ELSE;
-
-        return {kd};
+    if (!Validate(params, options)) {
+        return {};
     }
+
+    auto runInfo = SetDefault(newParams, options);
+    auto entry_point = GetEntryPoint(kernelName, newParams.layerID, options);
+    auto cldnn_jit = GetJitConstants(newParams);
+    std::string jit = CreateJit(kernelName, cldnn_jit, entry_point);
+
+    auto& kernel = kd.kernels[0];
+
+    FillCLKernelData(kernel, runInfo, params.engineInfo, kernelName, jit, entry_point,
+                     DEFAULT, false, false, 1, GetFusedPrimitiveInputsCount(params));
+
+    kd.estimatedTime = DONT_USE_IF_HAVE_SOMETHING_ELSE;
+
+    return {kd};
+}
 }  // namespace kernel_selector

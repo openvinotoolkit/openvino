@@ -186,7 +186,8 @@ InferenceEngine::ICNNNetwork::Ptr CLDNNGraph::GetExecGraphInfoByPrimitivesInfo(s
                 { "reduce_l1", "ReduceL1" },
                 { "reduce_l2", "ReduceL2" },
                 { "reduce_log_sum", "ReduceLogSum" },
-                { "reduce_log_sum_exp", "ReduceLogSumExp" }
+                { "reduce_log_sum_exp", "ReduceLogSumExp" },
+                { "space_to_depth", "SpaceToDepth" },
         };
 
         if (type_n2l.find(cldnn_name) != type_n2l.end())
