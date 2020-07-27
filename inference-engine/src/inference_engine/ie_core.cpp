@@ -32,17 +32,15 @@ using namespace InferenceEngine::PluginConfigParams;
 
 namespace InferenceEngine {
 
+IInferencePlugin::~IInferencePlugin() {}
+
 namespace {
 
-IInferencePluginAPI* getInferencePluginAPIInterface(IInferencePlugin* iplugin) {
-    return dynamic_cast<IInferencePluginAPI*>(iplugin);
+IInferencePlugin* getInferencePluginAPIInterface(InferenceEnginePluginPtr iplugin) {
+    return static_cast<IInferencePlugin*>(iplugin.operator->());
 }
 
-IInferencePluginAPI* getInferencePluginAPIInterface(InferenceEnginePluginPtr iplugin) {
-    return getInferencePluginAPIInterface(static_cast<IInferencePlugin*>(iplugin.operator->()));
-}
-
-IInferencePluginAPI* getInferencePluginAPIInterface(InferencePlugin plugin) {
+IInferencePlugin* getInferencePluginAPIInterface(InferencePlugin plugin) {
     return getInferencePluginAPIInterface(static_cast<InferenceEnginePluginPtr>(plugin));
 }
 
@@ -364,15 +362,13 @@ public:
 
             try {
                 InferenceEnginePluginPtr plugin(desc.libraryLocation);
-                IInferencePlugin* pplugin = static_cast<IInferencePlugin*>(plugin.operator->());
-                IInferencePluginAPI* iplugin_api_ptr = dynamic_cast<IInferencePluginAPI*>(pplugin);
 
-                if (iplugin_api_ptr != nullptr) {
-                    iplugin_api_ptr->SetName(deviceName);
+                {
+                    plugin->SetName(deviceName);
 
                     // Set Inference Engine class reference to plugins
                     ICore* mutableCore = const_cast<ICore*>(static_cast<const ICore*>(this));
-                    iplugin_api_ptr->SetCore(mutableCore);
+                    plugin->SetCore(mutableCore);
                 }
 
                 // Add registered extensions to new plugin
