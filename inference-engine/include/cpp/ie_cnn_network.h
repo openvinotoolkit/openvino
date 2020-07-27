@@ -51,6 +51,8 @@ public:
 
     /**
      * @brief A constructor from ngraph::Function object
+     * This constructor wraps existing ngraph::Function
+     * If you want to avoid modification of original Function, please create a copy
      * @param network Pointer to the ngraph::Function object
      */
     explicit CNNNetwork(const std::shared_ptr<ngraph::Function>& network);

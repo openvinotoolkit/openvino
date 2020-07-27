@@ -149,7 +149,7 @@ CNNLayerPtr clonelayer(const CNNLayer& source) {
 }
 
 std::shared_ptr<ICNNNetwork> cloneNetwork(const ICNNNetwork& network) {
-    if (auto func = network.getFunction()) {
+    if (network.getFunction()) {
         return std::make_shared<details::CNNNetworkNGraphImpl>(network);
     }
 

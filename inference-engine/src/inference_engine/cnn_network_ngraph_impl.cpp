@@ -42,8 +42,6 @@ using ngraph::Function;
 static std::shared_ptr<ngraph::Function> copyFunction(const std::shared_ptr<const ngraph::Function>& func,
                                                       bool constFolding,
                                                       const std::map<std::string, std::vector<size_t>>& inputShapes) {
-    if (func == nullptr)
-        return nullptr;
     ::ngraph::op::GenericIE::DisableReshape noReshape(func);
     auto original_parameters = func->get_parameters();
 
@@ -162,11 +160,13 @@ CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const ICNNNetwork& network) {
         const auto& name = outputInfo.second->getName();
         DataPtr output = std::make_shared<Data>(name, outputInfo.second->getTensorDesc());
         _outputData[name] = output;
+        _data[name] = output;
     }
     for (const auto& inputInfo : inputs) {
         InputInfo::Ptr info = std::make_shared<InputInfo>();
         const auto& name = inputInfo.second->getInputData()->getName();
         DataPtr input = std::make_shared<Data>(name, inputInfo.second->getInputData()->getTensorDesc());
+        _data[name] = input;
         info->setInputData(input);
         info->getPreProcess() = inputInfo.second->getPreProcess();
         info->setPrecision(inputInfo.second->getPrecision());
