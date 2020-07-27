@@ -52,7 +52,7 @@ std::vector<std::string> disabledTestPatterns() {
         // TODO: Issue: 32032
         R"(.*ActivationParamLayerTest.*)",
         // TODO: Issue: 32959
-        R"(.*ActivationLayerTest.*Mish.*)",
+        // R"(.*ActivationLayerTest.*Mish.*)",
         // TODO: Issue: 30999 (Implement Interpolate reference in NGraph)
         R"(.*InterpolateLayerTest.*)"
     };

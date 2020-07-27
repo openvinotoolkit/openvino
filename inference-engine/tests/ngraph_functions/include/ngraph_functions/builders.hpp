@@ -139,6 +139,8 @@ std::shared_ptr<ngraph::Node> makeActivation(const ngraph::ParameterVector &para
                                              const element::Type &type,
                                              ngraph::helpers::ActivationTypes activationType);
 
+std::shared_ptr<ngraph::Node> makeActivationMish(const ngraph::Output<Node> &in);
+
 std::shared_ptr<ngraph::Node> makeEltwise(const ngraph::Output<Node> &in0,
                                           const ngraph::Output<Node> &in1,
                                           ngraph::helpers::EltwiseTypes eltwiseType);
