@@ -64,17 +64,17 @@ InferenceEnginePluginPtr PluginTest::getPtr() {
 }
 
 TEST_F(PluginTest, canSetConfiguration) {
-    // InferenceEnginePluginPtr ptr = getPtr();
-    // // TODO: dynamic->reinterpret because of calng/gcc cannot
-    // // dynamically cast this MOCK object
-    // ASSERT_TRUE(reinterpret_cast<MockPlugin*>(*ptr)->config.empty());
+    InferenceEnginePluginPtr ptr = getPtr();
+    // TODO: dynamic->reinterpret because of calng/gcc cannot
+    // dynamically cast this MOCK object
+    ASSERT_TRUE(reinterpret_cast<MockPlugin*>(*ptr)->config.empty());
 
-    // ResponseDesc resp;
-    // std::map<std::string, std::string> config = { { "key", "value" } };
-    // ASSERT_EQ(ptr->SetConfig(config, &resp), OK);
-    // config.clear();
+    ResponseDesc resp;
+    std::map<std::string, std::string> config = { { "key", "value" } };
+    ASSERT_EQ(ptr->SetConfig(config, &resp), OK);
+    config.clear();
 
-    // ASSERT_STREQ(reinterpret_cast<MockPlugin*>(*ptr)->config["key"].c_str(), "value");
+    ASSERT_STREQ(reinterpret_cast<MockPlugin*>(*ptr)->config["key"].c_str(), "value");
 }
 
 IE_SUPPRESS_DEPRECATED_END
