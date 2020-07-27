@@ -114,7 +114,7 @@ const std::vector<ReshapeTransformationTestValues> testValues = {
             {{ngraph::element::f32}, {}, {0.1f}}
         }
     },
-    // U8: no subtract 3D -> 4D: channels are not affected
+    // U8: no subtract 3D -> 4D: channels are not affected: no subtract
     {
         ngraph::Shape({ 1, 3, 20 }),
         { 1, 3, 4, 5},
@@ -130,7 +130,31 @@ const std::vector<ReshapeTransformationTestValues> testValues = {
             {{ngraph::element::f32}, {}, {{0.1f, 0.2f, 0.3f}, ngraph::element::f32, {1, 3, 1, 1}}}
         }
     },
-    // U8: no subtract 4D -> 3D: channels are not affected
+    // U8: no subtract 3D -> 4D: channels are not affected: with subtract
+    {
+        ngraph::Shape({ 1, 3, 20 }),
+        { 1, 3, 4, 5},
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            {
+                {ngraph::element::f32},
+                {{32, 64, 128}, ngraph::element::f32, {1, 3, 1}},
+                {{0.1f, 0.2f, 0.3f}, ngraph::element::f32, {1, 3, 1}}
+            }
+        },
+        {
+            ngraph::element::u8,
+            {{}, {}, {}},
+            ngraph::element::u8,
+            {
+                {ngraph::element::f32},
+                {{32, 64, 128}, ngraph::element::f32, {1, 3, 1, 1}},
+                {{0.1f, 0.2f, 0.3f}, ngraph::element::f32, {1, 3, 1, 1}}
+            }
+        }
+    },
+    // U8: no subtract 4D -> 3D: channels are not affected: no subtract
     {
         ngraph::Shape({ 1, 3, 4, 5 }),
         { 1, 3, 20},
@@ -144,6 +168,30 @@ const std::vector<ReshapeTransformationTestValues> testValues = {
             {{}, {}, {}},
             ngraph::element::u8,
             {{ngraph::element::f32}, {}, {{0.1f, 0.2f, 0.3f}, ngraph::element::f32, {1, 3, 1}}}
+        }
+    },
+    // U8: no subtract 4D -> 3D: channels are not affected: with subtract
+    {
+        ngraph::Shape({ 1, 3, 4, 5 }),
+        { 1, 3, 20},
+        LayerTransformation::createParamsU8I8(),
+        {
+            ngraph::element::u8,
+            {
+                {ngraph::element::f32},
+                {{32, 64, 128}, ngraph::element::f32, {1, 3, 1, 1}},
+                {{0.1f, 0.2f, 0.3f}, ngraph::element::f32, {1, 3, 1, 1}}
+            }
+        },
+        {
+            ngraph::element::u8,
+            {{}, {}, {}},
+            ngraph::element::u8,
+            {
+                {ngraph::element::f32},
+                {{32, 64, 128}, ngraph::element::f32, {1, 3, 1}},
+                {{0.1f, 0.2f, 0.3f}, ngraph::element::f32, {1, 3, 1}}
+            }
         }
     },
     // U8: no subtract 2D -> 4D: channels are affected: per tensor quantization
