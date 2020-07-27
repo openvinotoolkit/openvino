@@ -741,7 +741,7 @@ bool NetworkHelper::checkConstantValuePrecision(const element::Type expectedPrec
 
     const auto values = constantOp->cast_vector<float>();
     const bool convertCanBeRemoved =
-        (expectedPrecision.is_signed() || (std::all_of(values.begin(), values.end(), [](const float value) { return value > 0.f; })));
+        (expectedPrecision.is_signed() || (std::all_of(values.begin(), values.end(), [](const float value) { return value >= 0.f; })));
     return convertCanBeRemoved;
 }
 
