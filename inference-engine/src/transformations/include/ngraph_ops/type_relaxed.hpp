@@ -11,6 +11,7 @@
 #include <transformations_visibility.hpp>
 
 #include "ngraph/op/op.hpp"
+#include "ngraph/opsets/opset1.hpp"
 #include "ngraph/op/reshape.hpp"
 
 namespace ngraph {
@@ -111,7 +112,7 @@ void TypeRelaxed<BaseOp>::validate_and_infer_types() {
         BaseOp::get_input_tensor(i).set_tensor_type(m_output_data_type, BaseOp::get_input_partial_shape(i));
     }
 
-    if (is_type<opset1::Reshape>(this)) {
+    if (is_type<ngraph::opset1::Reshape>(this)) {
         // Restore original input data types
         for (size_t i = 0; i < BaseOp::get_input_size(); ++i) {
             BaseOp::get_input_tensor(i).set_tensor_type(input_types[i], BaseOp::get_input_partial_shape(i));
