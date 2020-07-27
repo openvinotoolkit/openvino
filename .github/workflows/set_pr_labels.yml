@@ -1,7 +1,7 @@
 name: Pull Requests
 on:
   schedule:
-    - cron: '*/10 * * * *'
+    - cron: '0 */4 * * *'
 
 jobs:
   Set-Labels:
