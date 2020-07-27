@@ -261,7 +261,7 @@ CNNLayer::Ptr NodeConverter<ngraph::op::TensorIterator>::createLayer(const std::
 
     // Port map: outputs
     for (const auto& desc : tensor_iterator->get_output_descriptions()) {
-        auto result = results[desc->m_body_value_index]->inputs()[0].get_source_output();
+        auto result = results[desc->m_body_value_index]->input(0).get_source_output();
 
         // GetOutputElement layer can be inserted by ngraph deep copy functions
         // (e.g. specialize_function, clone_function)
@@ -785,7 +785,7 @@ CNNLayer::Ptr NodeConverter<ngraph::op::ConvolutionIE>::createLayer(
         res->_weights = weights->blobs["custom"];
 
         if (castedLayer->inputs().size() == 3) {
-            const auto biasNode = castedLayer->get_inputs()[2].get_output().get_node();
+            const auto biasNode = castedLayer->input_value(2).get_node_shared_ptr();
             if (converter.canCreate(biasNode)) {
                 const auto& bias = converter.createLayer(biasNode);
                 res->blobs["biases"] = bias->blobs["custom"];
@@ -853,7 +853,7 @@ CNNLayer::Ptr NodeConverter<ngraph::op::DeconvolutionIE>::createLayer(
         res->_weights = weights->blobs["custom"];
 
         if (castedLayer->inputs().size() == 3) {
-            const auto biasNode = castedLayer->get_inputs()[2].get_output().get_node();
+            const auto biasNode = castedLayer->input_value(2).get_node_shared_ptr();
             if (converter.canCreate(biasNode)) {
                 const auto& bias = converter.createLayer(biasNode);
                 res->blobs["biases"] = bias->blobs["custom"];
@@ -1137,7 +1137,7 @@ CNNLayer::Ptr NodeConverter<ngraph::op::PRelu>::createLayer(const std::shared_pt
     auto castedLayer = ngraph::as_type_ptr<ngraph::op::PRelu>(layer);
     if (castedLayer == nullptr) THROW_IE_EXCEPTION << "Cannot get " << params.type << " layer " << params.name;
 
-    const auto weightsNode = castedLayer->input(1).get_source_output().get_node_shared_ptr();
+    const auto weightsNode = castedLayer->input_value(1).get_node_shared_ptr();
     if (auto const_weights = ngraph::as_type_ptr<ngraph::op::Constant>(weightsNode)) {
         SizeVector dataShape = const_weights->get_shape();
         if (dataShape.size() >= 2 && ngraph::shape_size(dataShape) == dataShape[1]) {
@@ -1282,7 +1282,7 @@ CNNLayer::Ptr NodeConverter<ngraph::op::v1::Reshape>::createLayer(const std::sha
         THROW_IE_EXCEPTION << "Cannot get " << params.type << " layer " << params.name;
 
 
-    const auto constNode = castedLayer->get_inputs()[1].get_output().get_node();
+    const auto constNode = castedLayer->input_value(1).get_node_shared_ptr();
     if (auto constValue = ngraph::as_type_ptr<ngraph::op::Constant>(constNode)) {
         auto value = constValue->cast_vector<int64_t>();
         for (auto & i : value) {
@@ -1344,14 +1344,14 @@ CNNLayer::Ptr NodeConverter<ngraph::op::ScaleShiftIE>::createLayer(const std::sh
     auto res = std::make_shared<InferenceEngine::ScaleShiftLayer>(params);
 
     NodeConverter<ngraph::op::Constant> converter;
-    const auto weightsNode = layer->get_inputs()[1].get_output().get_node();
+    const auto weightsNode = layer->input_value(1).get_node_shared_ptr();
     if (converter.canCreate(weightsNode)) {
         const auto& weightsLayer = converter.createLayer(weightsNode);
         res->blobs["weights"] = weightsLayer->blobs["custom"];
         res->_weights = weightsLayer->blobs["custom"];
     }
 
-    const auto biasNode = layer->get_inputs()[2].get_output().get_node();
+    const auto biasNode = layer->input_value(2).get_node_shared_ptr();
     if (converter.canCreate(biasNode)) {
         const auto& bias = converter.createLayer(biasNode);
         res->blobs["biases"] = bias->blobs["custom"];
@@ -1641,13 +1641,13 @@ CNNLayer::Ptr NodeConverter<ngraph::op::FullyConnected>::createLayer(const std::
 
     NodeConverter<ngraph::op::Constant> converter;
 
-    const auto weightsNode = layer->get_inputs()[1].get_output().get_node();
+    const auto weightsNode = layer->input_value(1).get_node_shared_ptr();
     if (!keep_constants && converter.canCreate(weightsNode)) {
         const auto& weights = converter.createLayer(weightsNode);
         res->blobs["weights"] = weights->blobs["custom"];
         res->_weights = weights->blobs["custom"];
 
-        const auto biasNode = layer->get_inputs()[2].get_output().get_node();
+        const auto biasNode = layer->input_value(2).get_node_shared_ptr();
         if (converter.canCreate(biasNode)) {
             const auto& bias = converter.createLayer(biasNode);
             res->blobs["biases"] = bias->blobs["custom"];
@@ -1694,14 +1694,14 @@ CNNLayer::Ptr NodeConverter<ngraph::op::LSTMCellIE>::createLayer(const std::shar
     res->params["clip"] = asString(castedLayer->get_clip());
 
     NodeConverter<ngraph::op::Constant> converter;
-    const auto weightsNode = layer->get_inputs()[3].get_output().get_node();
+    const auto weightsNode = layer->input_value(3).get_node_shared_ptr();
     if (converter.canCreate(weightsNode)) {
         const auto& weights = converter.createLayer(weightsNode);
         res->blobs["weights"] = weights->blobs["custom"];
         res->_weights = weights->blobs["custom"];
     }
 
-    const auto biasNode = layer->get_inputs()[4].get_output().get_node();
+    const auto biasNode = layer->input_value(4).get_node_shared_ptr();
     if (converter.canCreate(biasNode)) {
         const auto& bias = converter.createLayer(biasNode);
         res->blobs["biases"] = bias->blobs["custom"];
@@ -1862,7 +1862,7 @@ CNNLayer::Ptr NodeConverter<ngraph::op::NormalizeIE>::createLayer(const std::sha
     res->params["across_spatial"] = castedLayer->get_across_spatial() ? "1" : "0";
 
     NodeConverter<ngraph::op::Constant> converter;
-    const auto weightsNode = castedLayer->get_inputs()[1].get_output().get_node();
+    const auto weightsNode = castedLayer->input_value(1).get_node_shared_ptr();
     if (converter.canCreate(weightsNode)) {
         const auto& weights = converter.createLayer(weightsNode);
         res->blobs["weights"] = weights->blobs["custom"];

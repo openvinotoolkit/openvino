@@ -136,7 +136,6 @@ set (SRC
     op/binary_convolution.cpp
     op/binary_convolution.hpp
     op/broadcast.cpp
-    op/broadcast_distributed.cpp
     op/bucketize.cpp
     op/bucketize.hpp
     op/ceiling.cpp
@@ -157,6 +156,8 @@ set (SRC
     op/cosh.hpp
     op/ctc_greedy_decoder.cpp
     op/ctc_greedy_decoder.hpp
+    op/ctc_loss.cpp
+    op/ctc_loss.hpp
     op/cum_sum.cpp
     op/cum_sum.hpp
     op/crop_and_resize.cpp
