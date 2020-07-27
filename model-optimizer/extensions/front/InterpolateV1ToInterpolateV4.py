@@ -27,7 +27,7 @@ def correct_pad(pad):
 
 class InterpolateV1ToInterpolateV4(FrontReplacementSubgraph):
     """
-    This transformation replaces the layer Interpolate-1 with the layer Interpolate-3.
+    This transformation replaces the operation Interpolate-1 with the operation Interpolate-3.
     """
     enabled = True
 
