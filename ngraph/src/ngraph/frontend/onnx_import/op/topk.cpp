@@ -20,7 +20,6 @@
 #include "default_opset.hpp"
 #include "ngraph/node.hpp"
 #include "ngraph/op/constant.hpp"
-#include "ngraph/op/get_output_element.hpp"
 #include "ngraph/op/topk.hpp"
 #include "ngraph/shape.hpp"
 #include "ngraph/type/element_type.hpp"
@@ -49,17 +48,6 @@ namespace
                      node);
 
         return ngraph::onnx_import::reshape::interpret_as_scalar(k_node);
-    }
-
-    /// \return Return the outputs of the TopK node.
-    ngraph::OutputVector get_outputs(const std::shared_ptr<ngraph::Node>& node)
-    {
-        std::shared_ptr<ngraph::Node> values =
-            std::make_shared<ngraph::op::v0::GetOutputElement>(node, 0);
-        std::shared_ptr<ngraph::Node> indices =
-            std::make_shared<ngraph::op::v0::GetOutputElement>(node, 1);
-
-        return {values, indices};
     }
 }
 
