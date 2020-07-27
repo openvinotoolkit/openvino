@@ -101,6 +101,10 @@ if exist %INTEL_OPENVINO_DIR%\deployment_tools\open_model_zoo\tools\accuracy_che
     set PYTHONPATH=%INTEL_OPENVINO_DIR%\deployment_tools\open_model_zoo\tools\accuracy_checker;%PYTHONPATH%
 )
 
+if exist %INTEL_OPENVINO_DIR%\deployment_tools\tools\post_training_optimization_toolkit (
+    set PYTHONPATH=%INTEL_OPENVINO_DIR%\deployment_tools\tools\post_training_optimization_toolkit;%PYTHONPATH%
+)
+
 echo [setupvars.bat] OpenVINO environment initialized
 
 exit /B 0
