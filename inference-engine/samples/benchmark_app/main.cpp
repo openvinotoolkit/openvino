@@ -513,13 +513,19 @@ int main(int argc, char *argv[]) {
         if (!inferRequest) {
             THROW_IE_EXCEPTION << "No idle Infer Requests!";
         }
-
         if (FLAGS_api == "sync") {
             inferRequest->infer();
         } else {
             inferRequest->startAsync();
         }
         inferRequestsQueue.waitAll();
+        auto duration_ms = double_to_string(inferRequestsQueue.getLatencies()[0]);
+        slog::info << "First inference took " << duration_ms << " ms" << slog::endl;
+        if (statistics)
+            statistics->addParameters(StatisticsReport::Category::EXECUTION_RESULTS,
+                                        {
+                                                {"first inference time (ms)", duration_ms}
+                                        });
         inferRequestsQueue.resetTimes();
 
         auto startTime = Time::now();
