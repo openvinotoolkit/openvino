@@ -13,6 +13,16 @@
 
 using namespace ngraph;
 
+bool fuse_type_to_constant(std::shared_ptr<ngraph::Node> node, ngraph::element::Type to, const std::vector<ngraph::Input<ngraph::Node>> & consumers);
+bool fuse_type_to_shapeof(std::shared_ptr<ngraph::Node> node, ngraph::element::Type to, size_t idx);
+bool fuse_type_to_parameter(std::shared_ptr<ngraph::Node> node, ngraph::element::Type to, size_t idx);
+bool fuse_type_to_convert(std::shared_ptr<ngraph::Node> node, ngraph::element::Type to, size_t idx);
+bool fuse_type_to_nms3(std::shared_ptr<ngraph::Node> node, ngraph::element::Type to, size_t idx);
+bool fuse_type_to_nms4(std::shared_ptr<ngraph::Node> node, ngraph::element::Type to, size_t idx);
+bool fuse_type_to_topk(std::shared_ptr<ngraph::Node> node, ngraph::element::Type to, size_t idx);
+bool fuse_type_to_nonzero(std::shared_ptr<ngraph::Node> node, ngraph::element::Type to, size_t idx);
+bool fuse_type_to_bucketize(std::shared_ptr<ngraph::Node> node, ngraph::element::Type to, size_t idx);
+
 static std::map<ngraph::NodeTypeInfo, std::function<bool(std::shared_ptr<Node>, element::Type, size_t idx)>> type_to_fuse {
         {opset3::Parameter::type_info, fuse_type_to_parameter},
         {opset3::Convert::type_info, fuse_type_to_convert},
