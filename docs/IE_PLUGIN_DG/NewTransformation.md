@@ -17,7 +17,6 @@ Transformations root directory contains two folders:
 2. transformations - includes all transformations, utils, runtime info attributes and pass managers.
 > **Note**: do not use transformation that belongs to `ngraph::pass::ConvertOpSet1ToLegacy` transformations until they are not moved to separate directory with allowed transformations.
 
-TODO: show layer approach
 Transformation flow in transformation library has several layers:
 1. Pass managers - executes any type of transformations and provides additional debug capabilities.
 2. Transformations - performs particular transformation algorithm on `ngraph::Function`.
@@ -182,8 +181,6 @@ This example shows how to use predicate to construct pattern where operation has
 @snippet example_ngraph_utils.cpp pattern:predicate_example
 
 > **Note**: be careful with manual matching because Matcher object holds matched nodes. To clear match use m->clear_state() method.
-
-TODO: add examples for ngraph::pattern::op::Any
 
 ## Working with ngraph::Function <a name="working_with_ngraph_function"></a>
 
@@ -400,7 +397,7 @@ ngraph::graph_rewrite_callback callback = [this](pattern::Matcher &m) {
     ...
 }
 
-// Use transformation_callback not to execute transformation if callback returns true fro given node
+// Use transformation_callback not to execute transformation if callback returns true for given node
 if (m_transformation_callback(node)) {
     return false;
 }
@@ -410,12 +407,9 @@ const auto transformations_callback = [](const std::shared_ptr<const ::ngraph::N
     return std::dynamic_pointer_cast<const ::ngraph::opset3::StridedSlice>(node) != nullptr;
 };
 
-// Register transformations and pass callback to pass::Manager
+// Register transformation and pass callback to pass::Manager
 ngraph::pass::Manager manager;
-manager.register_pass<ngraph::pass::CommonOptimizations>();
-...
-// ConvertOpSet1ToLegacy contains ConvertStridedSliceToCrop transformation
-manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
+manager.register_pass<ngraph::pass::ConvertStridedSliceToCrop>();
 // pass::Manager will set callback to all reistered transformations automatically
 manager.set_callback(transformations_callback);
 manager.run_passes(f);
@@ -431,7 +425,6 @@ The basic transformation test looks like this:
 
 @snippet tests/functional/transformations/template_transformations_test.cpp transformation:test
 
-TODO: insert advanced transformation tests
 
 [ngraph_replace_node]: ../images/ngraph_replace_node.png
 [ngraph_insert_node]: ../images/ngraph_insert_node.png
