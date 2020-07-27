@@ -67,5 +67,5 @@ NGRAPH_TEST(${BACKEND_NAME}, ceiling_int64)
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_input<int64_t>(expected);
     test_case.add_expected_output<int64_t>(shape, expected);
-    test_case.run();  
+    test_case.run();
 }
