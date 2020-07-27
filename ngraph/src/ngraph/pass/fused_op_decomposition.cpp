@@ -40,11 +40,7 @@ bool pass::FusedOpDecomposition::run_on_node(shared_ptr<Node> node)
         }
 
         OutputVector output_vector = node->decompose_op();
-        NodeVector subgraph_outputs;
-        for (auto output : output_vector)
-        {
-            subgraph_outputs.push_back(output.get_node_shared_ptr());
-        }
+        NodeVector subgraph_outputs = as_node_vector(output_vector);
 
         if (ngraph::get_provenance_enabled())
         {
@@ -62,10 +58,7 @@ bool pass::FusedOpDecomposition::run_on_node(shared_ptr<Node> node)
         }
 
         // Run recursively until no more fused ops
-        NodeVector nodes;
-        for (auto& val : node->input_values())
-            nodes.emplace_back(val.get_node_shared_ptr());
-        auto subgraph = extract_subgraph(subgraph_outputs, nodes);
+        auto subgraph = extract_subgraph(subgraph_outputs, as_node_vector(node->input_values()));
         for (auto subgraph_node : subgraph)
         {
             run_on_node(subgraph_node);
