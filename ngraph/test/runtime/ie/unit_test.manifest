@@ -154,6 +154,10 @@ onnx_model_argmax_int32
 onnx_model_argmin_int32
 arg_max_dyn_shape
 
+# Result mismatch
+onnx_model_argmax_float
+onnx_model_argmin_float
+
 # Constant has zero dimension that is not allowable
 onnx_dyn_shapes_transpose
 
@@ -808,12 +812,6 @@ gru_cell_activation_function
 onnx_model_quant_conv_linear
 onnx_model_quant_conv_linear_2d
 onnx_model_quant_conv_linear_3d
-
-# Cannot cast ngraph node EmbeddingLookup to CNNLayer!
-embedding_lookup_4x5_reverse
-embedding_lookup_10x1_arbitrary
-embedding_lookup_10x1_arbitrary_index_type_int
-embedding_lookup_10x1_arbitrary_index_type_int64
 
 # Cannot cast ngraph node Dot to CNNLayer!
 dot_4d_5d_multi_axis
