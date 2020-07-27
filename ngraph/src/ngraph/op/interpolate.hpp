@@ -125,6 +125,14 @@ namespace ngraph
                     // specifies type of interpolation
                     // one of `nearest`, `linear`, `linear_onnx`, `cubic`, `area`. Required.
                     InterpolateMode mode;
+                    // specify the number of pixels to add to the beginning of the image being
+                    // interpolated. This addition of pixels is done before interpolation
+                    // calculation.
+                    std::vector<size_t> pads_begin;
+                    // specify the number of pixels to add to the end of the image being
+                    // interpolated. This addition of pixels is done before interpolation
+                    // calculation.
+                    std::vector<size_t> pads_end;
                     // specifies how to transform the coordinate in the resized tensor to the
                     // coordinate in the original tensor. one of `half_pixel`, `pytorch_half_pixel`,
                     // `asymmetric`, `tf_half_pixel_for_nn`, `align_corners`
@@ -136,18 +144,38 @@ namespace ngraph
                     NearestMode nearest_mode = NearestMode::round_prefer_floor;
                     // a flag that specifies whether to perform anti-aliasing. default is `false`
                     bool antialias = false;
-                    // specify the number of pixels to add to the beginning of the image being
-                    // interpolated. This addition of pixels is done before interpolation
-                    // calculation.
-                    std::vector<size_t> pads_begin;
-                    // specify the number of pixels to add to the end of the image being
-                    // interpolated. This addition of pixels is done before interpolation
-                    // calculation.
-                    std::vector<size_t> pads_end;
                     // specifies the parameter *a* for cubic interpolation (see, e.g.
                     // [article](https://ieeexplore.ieee.org/document/1163711/)).  *cube_coeff* is
                     // used only when `mode == cubic`
                     double cube_coeff = -0.75;
+
+                    InterpolateAttrs()
+                        : coordinate_transformation_mode(CoordinateTransformMode::half_pixel)
+                        , nearest_mode(NearestMode::round_prefer_floor)
+                        , antialias(false)
+                        , cube_coeff(-0.75f)
+                    {
+                    }
+
+                    InterpolateAttrs(AxisSet axes,
+                                     InterpolateMode mode,
+                                     std::vector<size_t> pads_begin,
+                                     std::vector<size_t> pads_end,
+                                     CoordinateTransformMode coordinate_transformation_mode =
+                                         CoordinateTransformMode::half_pixel,
+                                     NearestMode nearest_mode = NearestMode::round_prefer_floor,
+                                     bool antialias = false,
+                                     double cube_coeff = -0.75)
+                        : axes(axes)
+                        , mode(mode)
+                        , pads_begin(pads_begin)
+                        , pads_end(pads_end)
+                        , coordinate_transformation_mode(coordinate_transformation_mode)
+                        , nearest_mode(nearest_mode)
+                        , antialias(antialias)
+                        , cube_coeff(cube_coeff)
+                    {
+                    }
                 };
 
                 static constexpr NodeTypeInfo type_info{"Interpolate", 3};

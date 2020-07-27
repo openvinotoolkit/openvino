@@ -8,6 +8,7 @@
 #include <sstream>
 #include <iterator>
 #include <vector>
+#include <set>
 
 #include <cpp/ie_cnn_network.h>
 #include <details/ie_cnn_network_iterator.hpp>
@@ -32,6 +33,18 @@ inline std::string vec2str(const std::vector<std::vector<vecElementType>> &vec) 
         result << vec2str<vecElementType>(v);
     }
     return result.str();
+}
+
+template<typename vecElementType>
+inline std::string set2str(const std::set<vecElementType> &set) {
+    if (!set.empty()) {
+        std::ostringstream result;
+        result << "(";
+        std::copy(set.begin(), std::prev(set.end()), std::ostream_iterator<vecElementType>(result, "."));
+        result << *set.rbegin() << ")";
+        return result.str();
+    }
+    return std::string("()");
 }
 
 inline InferenceEngine::CNNLayerPtr getLayerByName(const InferenceEngine::ICNNNetwork * icnnnetwork,
