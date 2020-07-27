@@ -15,6 +15,8 @@
 #include <ie_system_conf.h>
 #include <generic_ie.hpp>
 #include <nodes/list.hpp>
+#include <ie_util_internal.hpp>
+#include <graph_transformer.h>
 
 #include "convert_function_to_cnn_network.hpp"
 #include <transformations/common_optimizations/common_optimizations.hpp>

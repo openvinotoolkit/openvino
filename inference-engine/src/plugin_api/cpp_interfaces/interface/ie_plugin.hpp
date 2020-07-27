@@ -10,19 +10,14 @@
 #pragma once
 
 #include <ie_iextension.h>
-
 #include <ie_icnn_network.hpp>
+#include <ie_core.hpp>
+
 #include <map>
 #include <memory>
 #include <set>
 #include <string>
 #include <vector>
-
-#include "details/ie_no_copy.hpp"
-#include "ie_api.h"
-#include "ie_core.hpp"
-#include "ie_iexecutable_network.hpp"
-#include "ie_version.hpp"
 
 namespace InferenceEngine {
 

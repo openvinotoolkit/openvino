@@ -17,7 +17,6 @@
 #include "cpp_interfaces/base/ie_inference_plugin_api.hpp"
 #include "cpp_interfaces/exception2status.hpp"
 #include "description_buffer.hpp"
-#include "ie_common.h"
 
 namespace InferenceEngine {
 
