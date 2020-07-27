@@ -325,7 +325,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
 
         Builder::NodeConverter<::ngraph::op::Constant> converter;
 
-        const auto weightsNode = castedLayer->get_inputs()[1].get_output().get_node();
+        const auto weightsNode = castedLayer->input(1).get_source_output().get_node_shared_ptr();
         if (converter.canCreate(weightsNode)) {
             const auto& weights = converter.createLayer(weightsNode);
             res->blobs["weights"] = weights->blobs["custom"];
@@ -351,7 +351,7 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         res->params = params;
         return res;
     });
-    
+
     addSpecificCreator({"Assign"}, [](const std::shared_ptr<::ngraph::Node>& node,
                                             const std::map<std::string, std::string> params) -> CNNLayerPtr {
         LayerParams attrs = {node->get_friendly_name(), "Memory",
@@ -706,8 +706,8 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
                                      const std::unordered_set<std::string> &names,
                                      bool keep_constant) -> bool {
         if (auto constantNode = ::ngraph::as_type_ptr<::ngraph::op::Constant>(node)) {
-            for (const auto &consumerInputPort : constantNode->get_outputs()[0].get_inputs()) {
-                const auto &consumerLayer = consumerInputPort->get_node();
+            for (const auto &consumerInputPort : constantNode->output(0).get_target_inputs()) {
+                const auto &consumerLayer = consumerInputPort.get_node()->shared_from_this();
                 if (names.find(consumerLayer->get_name()) == names.end())
                     continue;
                 if (!isInternalConstLayer(constantNode, consumerLayer, keep_constant))
@@ -779,7 +779,7 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
 
         size_t inputCount(0);
         for (size_t i = 0; i < layer->get_input_size(); i++) {
-            const auto &constant = ngraph::as_type_ptr<ngraph::op::Constant>(layer->get_inputs()[i].get_output().get_node());
+            const auto &constant = ngraph::as_type_ptr<ngraph::op::Constant>(layer->input(i).get_source_output().get_node_shared_ptr());
             if (constant && isInternalConstLayer(constant, layer, keep_constants)) {
                 continue;
             }
