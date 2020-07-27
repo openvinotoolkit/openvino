@@ -136,11 +136,15 @@ CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const std::shared_ptr<Function>& nGra
         keep_input_info(*this, ptr);
     }
     for (auto& output : _outputData) {
+        if (output.second->getPrecision() == Precision::FP32 ||
+            output.second->getPrecision() == Precision::I32 ||
+            output.second->getPrecision() == Precision::BOOL) {
+            continue;
+        }
         // Convert precision into native format. Be consistent with possible conversion to CNNNetwork later.
         if (output.second->getPrecision() == Precision::I64) {
             output.second->setPrecision(Precision::I32);
-        } else if (output.second->getPrecision() != Precision::FP32 &&
-            output.second->getPrecision() != Precision::I32) {
+        } else {
             output.second->setPrecision(Precision::FP32);
         }
     }
