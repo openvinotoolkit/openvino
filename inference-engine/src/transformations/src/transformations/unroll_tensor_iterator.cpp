@@ -58,11 +58,8 @@ void ngraph::pass::UnrollTensorIterator::unroll_tensor_iterator() {
                     return false;
                 }
 
-                auto in_data = ti->input_values()[input_desc->m_input_index].get_node_shared_ptr();
+                auto in_data = ti->input_values()[input_desc->m_input_index];
                 const auto const_axis = opset3::Constant::create(element::i64, Shape{}, {input_desc->m_axis});
-                in_data->get_outputs().clear();
-                in_data->set_output_size(1);
-                in_data->validate_and_infer_types();
                 auto split = std::make_shared<ngraph::opset3::Split>(in_data, const_axis, num_iter);
                 copy_runtime_info(ti, split);
                 auto stride = input_desc->m_stride;
