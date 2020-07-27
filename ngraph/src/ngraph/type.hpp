@@ -19,11 +19,11 @@
 #include <cstdint>
 #include <cstring>
 #include <functional>
+#include <iostream>
 #include <memory>
 #include <string>
 #include <utility>
 #include <vector>
-#include <iostream>
 
 #include "ngraph/ngraph_visibility.hpp"
 
@@ -46,8 +46,7 @@ namespace ngraph
 
         DiscreteTypeInfo() = default;
 
-        constexpr DiscreteTypeInfo(const char* _name,
-                                   uint64_t _version)
+        constexpr DiscreteTypeInfo(const char* _name, uint64_t _version)
             : name(_name)
             , version(_version)
             , parent(nullptr)
