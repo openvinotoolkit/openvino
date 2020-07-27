@@ -50,19 +50,19 @@
 
 **Inputs**
 
-* **1**: `X` - 2D tensor of type *T* `[batch_size, input_size]`, input data. Required.
+* **1**: `X` - 2D tensor of type *T* `[batch_size, input_size]`, input data. **Required.**
 
-* **2**: `initial_hidden_state` - 2D tensor of type *T* `[batch_size, hidden_size]`. Required.
+* **2**: `initial_hidden_state` - 2D tensor of type *T* `[batch_size, hidden_size]`. **Required.**
 
-* **3**: `W` - 2D tensor of type *T* `[3 * hidden_size, input_size]`, the weights for matrix multiplication, gate order: zrh. Required.
+* **3**: `W` - 2D tensor of type *T* `[3 * hidden_size, input_size]`, the weights for matrix multiplication, gate order: zrh. **Required.**
 
-* **4**: `R` - 2D tensor of type *T* `[3 * hidden_size, hidden_size]`, the recurrence weights for matrix multiplication, gate order: zrh. Required.
+* **4**: `R` - 2D tensor of type *T* `[3 * hidden_size, hidden_size]`, the recurrence weights for matrix multiplication, gate order: zrh. **Required.**
 
-* **5**: `B` - 1D tensor of type *T*. If *linear_before_reset* is set to 1, then the shape is `[4 * hidden_size]` - the sum of biases for z and r gates (weights and recurrence weights), the biases for h gate are placed separately. Otherwise the shape is `[3 * hidden_size]`, the sum of biases (weights and recurrence weights). Required.
+* **5**: `B` - 1D tensor of type *T*. If *linear_before_reset* is set to 1, then the shape is `[4 * hidden_size]` - the sum of biases for z and r gates (weights and recurrence weights), the biases for h gate are placed separately. Otherwise the shape is `[3 * hidden_size]`, the sum of biases (weights and recurrence weights). **Required.**
 
 **Outputs**
 
-* **1**: `Ho` - 2D tensor of type *T* `[batch_size, hidden_size]`, hidden state output.
+* **1**: `Ho` - 2D tensor of type *T* `[batch_size, hidden_size]`, the last output value of hidden state.
 
 **Types**
 
