@@ -717,11 +717,7 @@ void NetworkHelper::removeConvertIfPossible(
     const size_t convertIndex = getInputIndex(convertParent, dequantization.convert);
     const element::Type precisionBeforeConvert = convertParent->get_output_element_type(convertIndex);
 
-    const std::shared_ptr<opset1::Constant> subtractConstant = as_type_ptr<opset1::Constant>(dequantization.subtract->get_input_node_shared_ptr(1));
-    const auto values = subtractConstant->cast_vector<float>();
-    const bool convertCanBeRemoved =
-        (precisionBeforeConvert.is_signed() || (std::all_of(values.begin(), values.end(), [](const float value) { return value >= 0.f; })));
-    if (convertCanBeRemoved) {
+    if (checkConstantValuePrecision(precisionBeforeConvert, dequantization.subtract->get_input_node_shared_ptr(1))) {
         auto newSubtract = dequantization.subtract->clone_with_new_inputs({
             dequantization.convert->get_input_node_shared_ptr(0),
             fold<opset1::Convert>(dequantization.subtract->get_input_node_shared_ptr(1), precisionBeforeConvert) });
@@ -741,7 +737,7 @@ bool NetworkHelper::checkConstantValuePrecision(const element::Type expectedPrec
 
     const auto values = constantOp->cast_vector<float>();
     const bool convertCanBeRemoved =
-        (expectedPrecision.is_signed() || (std::all_of(values.begin(), values.end(), [](const float value) { return value > 0.f; })));
+        (expectedPrecision.is_signed() || (std::all_of(values.begin(), values.end(), [](const float value) { return value >= 0.f; })));
     return convertCanBeRemoved;
 }
 

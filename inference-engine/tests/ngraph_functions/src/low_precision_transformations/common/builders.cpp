@@ -37,8 +37,7 @@ std::shared_ptr<Node> makeDequantization(
         } else {
             if (dequantizationOperations.subtract.values.size() == 1ul) {
                 shape = std::vector<size_t>({});
-            }
-            else {
+            } else {
                 shape = std::vector<size_t>(parent->get_output_shape(0).size(), 1ul);
                 shape[shape.size() >= 2 ? 1ul : 0] = dequantizationOperations.subtract.values.size();
             }
@@ -66,8 +65,7 @@ std::shared_ptr<Node> makeDequantization(
         } else {
             if (dequantizationOperations.multiply.values.size() == 1ul) {
                 shape = std::vector<size_t>({});
-            }
-            else {
+            } else {
                 shape = std::vector<size_t>(parent->get_output_shape(0).size(), 1ul);
                 shape[shape.size() >= 2 ? 1ul : 0] = dequantizationOperations.multiply.values.size();
             }
