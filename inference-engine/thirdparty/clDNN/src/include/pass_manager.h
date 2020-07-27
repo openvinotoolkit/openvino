@@ -332,6 +332,28 @@ public:
     void run(program_impl& p) override;
 };
 
+class concat_input_order : public base_pass {
+    // This optimization changes order of inputs for concatenation to provide
+    // better alignment for execution and allow for optimizing out in some cases.
+    // For example concatenation along features with inputs [13, 1024] in format fsv16
+    // has only first input aligned to feature blocks, blocking performant implementation
+    // for second one.
+    // This can be fixed by chaning order to [1024, 13] and fusing reshuffling of those features
+    // into following layers, such as convolution or fully connected, where it can be
+    // implemented as compile-time weights shuffling.
+    //
+    // Requirements - may work incorrectly if not fullfiled:
+    // - formats are selected
+    // - implementations aren't selected
+    //
+    // Soft requirements - reduce applicability if not fullfiled:
+    // - constant primitives are reduced to data nodes
+    // - no fused primitives
+public:
+    concat_input_order() : base_pass("concat_input_order") {}
+    void run(program_impl& p) override;
+};
+
 class memory_dependency_pass : public base_pass {
 public:
     explicit memory_dependency_pass(const std::string& pass_name) : base_pass(pass_name) {}
