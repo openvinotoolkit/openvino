@@ -27,7 +27,6 @@ class ONNXResize11Op(Op):
     def __init__(self, graph: Graph, attrs: dict):
         mandatory_props = {
             'op': __class__.op,
-            'version': 'opset4',
             'out_ports_count': 1,
             'infer': ONNXResize11Op.onnx_resize_infer
         }
@@ -46,7 +45,7 @@ class ONNXResize11Op(Op):
     @staticmethod
     def onnx_resize_infer(node: Node):
 
-        input_shape = node.in_node(0).shape
+        input_shape = node.in_port(0).data.get_shape()
         if input_shape is None:
             return
 
@@ -59,14 +58,16 @@ class ONNXResize11Op(Op):
 
         if num_of_in_nodes == 3:
             # i.e. input 'sizes' is not given
-            assert node.in_node(2).has_valid('value'), \
-                "Node {} with op {} has no value in input port 2".format(node.name, node.op)
-            scale = int64_array(node.in_node(2).value)
+            input2_value = node.in_port(2).data.get_value
+            assert input2_value is not None, \
+                "Node {} with op {} has no value in input port 2".format(node.soft_get('name', node.id), node.op)
+            scale = int64_array(input2_value)
             output_shape = np.floor(input_shape * scale).astype(np.int64)
         else:
             # i.e. input 'sizes' is given
-            assert node.in_node(3).has_valid('value'), \
+            sizes = node.in_port(3).data.get_value()
+            assert sizes is not None, \
                 "Node {} with op {} has no value in input port 3".format(node.name, node.op)
-            output_shape = node.in_node(3).value
+            output_shape = sizes
 
         node.out_node().shape = output_shape
