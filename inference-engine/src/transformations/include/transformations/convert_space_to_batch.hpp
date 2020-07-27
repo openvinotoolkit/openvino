@@ -10,7 +10,6 @@
 #include <transformations_visibility.hpp>
 
 #include <ngraph/pass/graph_rewrite.hpp>
-#include "transformations/utils/pass_param.hpp"
 
 namespace ngraph {
 namespace pass {
@@ -20,9 +19,9 @@ class TRANSFORMATIONS_API ConvertSpaceToBatch;
 }  // namespace pass
 }  // namespace ngraph
 
-class ngraph::pass::ConvertSpaceToBatch: public ngraph::pass::GraphRewrite, public ngraph::pass::PassParam  {
+class ngraph::pass::ConvertSpaceToBatch: public ngraph::pass::GraphRewrite {
 public:
-    ConvertSpaceToBatch() : GraphRewrite(), PassParam() {
+    ConvertSpaceToBatch() : GraphRewrite() {
         // convert_space_to_batch();
         convert_space_to_batch_by_elements();
     }

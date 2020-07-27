@@ -17,6 +17,7 @@
 #include <transformations/convert_mod.hpp>
 #include <ngraph/pass/constant_folding.hpp>
 #include <transformations/init_node_info.hpp>
+#include <ngraph/pass/manager.hpp>
 #include "common_test_utils/ngraph_test_utils.hpp"
 
 using namespace testing;
@@ -30,8 +31,10 @@ TEST(TransformationTests, ModDecompositionTests) {
         auto mod = std::make_shared<ngraph::op::v1::Mod>(data1, data2);
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{mod}, ngraph::ParameterVector{});
-        ngraph::pass::InitNodeInfo().run_on_function(f);
-        ngraph::pass::ConvertMod().run_on_function(f);
+        ngraph::pass::Manager m;
+        m.register_pass<ngraph::pass::InitNodeInfo>();
+        m.register_pass<ngraph::pass::ConvertMod>();
+        m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
     ASSERT_EQ(f->get_ops().size(), 12);

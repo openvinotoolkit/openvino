@@ -60,3 +60,8 @@ bool pattern::op::Label::match_value(Matcher* matcher,
     }
     return false;
 }
+
+std::shared_ptr<Node> pattern::any_input()
+{
+    return std::make_shared<pattern::op::Label>();
+}

@@ -20,6 +20,7 @@
 #include <memory>
 #include <vector>
 
+#include "ngraph/deprecated.hpp"
 #include "ngraph/function.hpp"
 #include "ngraph/node.hpp"
 #include "ngraph/pass/manager_state.hpp"
@@ -32,8 +33,8 @@ namespace ngraph
         class PassBase;
         class ModulePass;
         class FunctionPass;
-        class NodePass;
-        class CallGraphPass;
+        class NodePass NGRAPH_DEPRECATED("Use MatcherPass or FunctionPass instead.");
+        class CallGraphPass NGRAPH_DEPRECATED("Use MatcherPass or FunctionPass instead.");
         class Manager;
         enum class FusionType : uint32_t
         {
@@ -53,8 +54,10 @@ namespace ngraph
             // Pass requires node shapes to be static
             REQUIRE_STATIC_SHAPE = 0x1,
             // Pass transformation will change the function's dynamic state
-            CHANGE_DYNAMIC_STATE = 1 << 1
+            CHANGE_DYNAMIC_STATE = 1 << 1,
         };
+
+        using param_callback = std::function<bool(const std::shared_ptr<const ::ngraph::Node>)>;
     }
 }
 
@@ -79,14 +82,25 @@ public:
     /// Check if this pass has all the pass properties.
     bool get_property(const PassPropertyMask& prop_mask) const;
 
+    void set_name(const std::string& name) { m_name = name; }
+    std::string get_name() const;
+
+    void set_callback(const param_callback& callback);
+
 protected:
     ManagerState& get_state();
     void set_state(ManagerState&);
     void set_property(const PassPropertyMask& prop, bool value);
 
+    param_callback m_transformation_callback = [](const std::shared_ptr<const Node>&) -> bool {
+        return false;
+    };
+    bool m_has_default_callback = true;
+
 private:
     PassPropertyMask m_property;
     ManagerState* m_state{nullptr};
+    std::string m_name;
 };
 
 class NGRAPH_API ngraph::pass::ModulePass : public PassBase

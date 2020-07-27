@@ -64,10 +64,12 @@ set(SRC
     eval.cpp
     file_util.cpp
     float16.cpp
+    graph_rewrite.cpp
     includes.cpp
     input_output_assign.cpp
     intervals.cpp
     main.cpp
+    matcher_pass.cpp
     misc.cpp
     ngraph_api.cpp
     node_input_output.cpp

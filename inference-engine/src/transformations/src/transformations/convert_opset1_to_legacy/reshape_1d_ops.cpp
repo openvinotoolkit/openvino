@@ -9,6 +9,7 @@
 
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/rt_info.hpp>
+#include <ngraph/pattern/op/wrap_type.hpp>
 
 #include "ngraph_ops/convolution_ie.hpp"
 #include "transformations/utils/utils.hpp"
@@ -103,14 +104,8 @@ std::shared_ptr<Node> convert(const Output<Node> & data, std::shared_ptr<opset1:
                                              node->get_auto_pad());
 }
 
-void ngraph::pass::Reshape1DOps::reshape_ops() {
-    auto node = std::make_shared<pattern::op::Label>(element::f32, Shape{},
-            [](const std::shared_ptr<Node> & node) {
-                return std::dynamic_pointer_cast<op::ConvolutionIE>(node) ||
-                       std::dynamic_pointer_cast<opset1::MaxPool>(node) ||
-                       std::dynamic_pointer_cast<opset1::AvgPool>(node);});
-
-    ngraph::graph_rewrite_callback callback = [](pattern::Matcher& m) {
+matcher_pass_callback get_callback() {
+    return [](pattern::Matcher& m) {
         auto node = m.get_match_root();
         if (!node || node->input(0).get_partial_shape().rank().get_length() != 3) {
             return false;
@@ -150,7 +145,22 @@ void ngraph::pass::Reshape1DOps::reshape_ops() {
         node->output(0).replace(last);
         return true;
     };
+}
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(node, "Reshape1DOps");
-    this->add_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
+ngraph::pass::Reshape1DConvolution::Reshape1DConvolution() {
+    auto conv = ngraph::pattern::wrap_type<op::ConvolutionIE>();
+    auto m = std::make_shared<ngraph::pattern::Matcher>(conv, "Reshape1DConvolution");
+    this->register_matcher(m, get_callback());
+}
+
+ngraph::pass::Reshape1DAvgPool::Reshape1DAvgPool() {
+    auto pool = ngraph::pattern::wrap_type<opset1::AvgPool>();
+    auto m = std::make_shared<ngraph::pattern::Matcher>(pool, "Reshape1DAvgPool");
+    this->register_matcher(m, get_callback());
+}
+
+ngraph::pass::Reshape1DMaxPool::Reshape1DMaxPool() {
+    auto pool = ngraph::pattern::wrap_type<opset1::MaxPool>();
+    auto m = std::make_shared<ngraph::pattern::Matcher>(pool, "Reshape1DMaxPool");
+    this->register_matcher(m, get_callback());
 }

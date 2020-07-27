@@ -18,12 +18,12 @@
 #include <transformations/utils/utils.hpp>
 
 
-void ngraph::pass::ConvertMatMulToFCorGemm::convert_matmul() {
+ngraph::pass::ConvertMatMulToFCorGemm::ConvertMatMulToFCorGemm() {
     auto input_0 = std::make_shared<pattern::op::Label>(element::f32, Shape {1, 1});
     auto input_1 = std::make_shared<pattern::op::Label>(element::f32, Shape {1, 1});
     auto matmul = std::make_shared<ngraph::opset1::MatMul>(input_0, input_1);
 
-    ngraph::graph_rewrite_callback callback = [](pattern::Matcher& m) {
+    ngraph::matcher_pass_callback callback = [this](pattern::Matcher& m) {
         auto matmul = std::dynamic_pointer_cast<ngraph::opset1::MatMul>(m.get_match_root());
         if (!matmul) {
             return false;
@@ -79,14 +79,14 @@ void ngraph::pass::ConvertMatMulToFCorGemm::convert_matmul() {
          *  order will be [0, 1, 3, 2] that emulates transpose_a or transpose_b attribute.
          */
 
-        auto create_transpose = [](Output<Node> node, const std::string& transpose_name) -> std::shared_ptr<Node> {
+        auto create_transpose = [this](Output<Node> node, const std::string& transpose_name) -> std::shared_ptr<Node> {
             Shape output_shape = node.get_node_shared_ptr()->get_shape();
 
             std::vector<size_t> transpose_order(output_shape.size());
             std::iota(transpose_order.begin(), transpose_order.end(), 0);
             std::swap(*(transpose_order.end() - 1), *(transpose_order.end() - 2));
 
-            auto transpose = std::make_shared<ngraph::opset1::Transpose>(
+            auto transpose = register_new_node<ngraph::opset1::Transpose>(
                     node, opset1::Constant::create(element::i64, Shape {transpose_order.size()}, transpose_order));
             transpose->set_friendly_name(transpose_name);
             return transpose;
@@ -199,5 +199,5 @@ void ngraph::pass::ConvertMatMulToFCorGemm::convert_matmul() {
     };
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(matmul, "ConvertMatMulToFCorGemm");
-    this->add_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
+    this->register_matcher(m, callback);
 }

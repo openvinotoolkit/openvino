@@ -48,7 +48,7 @@ void ngraph::pass::ConvertBatchToSpace::convert_batch_to_space_ie_side() {
         auto data = batch_to_space->input_value(0);
         auto data_shape = data.get_shape();
 
-        if (transformation_callback(batch_to_space) && (data_shape.size() == 4 || data_shape.size() == 5)) {
+        if (m_transformation_callback(batch_to_space) && (data_shape.size() == 4 || data_shape.size() == 5)) {
             return false;
         }
         auto block = batch_to_space->input_value(1);

@@ -2789,13 +2789,6 @@ TEST(constant_folding, constant_tile_0_rank_data)
     ASSERT_EQ(values_expected, values_out);
 }
 
-TEST(constant_folding, pass_property)
-{
-    auto pass = std::make_shared<ngraph::pass::ConstantFolding>();
-    ASSERT_FALSE(pass->get_property(pass::PassProperty::REQUIRE_STATIC_SHAPE));
-    ASSERT_TRUE(pass->get_property(pass::PassProperty::CHANGE_DYNAMIC_STATE));
-}
-
 TEST(constant_folding, constant_non_zero_0D)
 {
     auto data = op::Constant::create(element::i32, Shape{}, {1});

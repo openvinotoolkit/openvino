@@ -27,80 +27,132 @@ namespace ngraph
 {
     namespace pass
     {
-        class GraphRewriteBase;
         class GraphRewrite;
         class RecurrentGraphRewrite;
+        class MatcherPass;
     }
 
+    using matcher_pass_callback = std::function<bool(ngraph::pattern::Matcher& m)>;
     using graph_rewrite_callback = std::function<bool(ngraph::pattern::Matcher& m)>;
     using recurrent_graph_rewrite_callback =
         std::function<bool(ngraph::pattern::RecurrentMatcher& m)>;
+    using handler_callback = std::function<bool(const std::shared_ptr<Node>& node)>;
 }
 
-class NGRAPH_API ngraph::pass::GraphRewriteBase : public ngraph::pass::FunctionPass
+/// \brief MatcherPass is a basic block for pattern based transformations. It describes pattern and
+/// action that is applied if pattern is matched.
+///
+/// MatcherPass consists of Matcher and matcher_pass_callback that needs to be implemented and
+/// finally registered by using \sa register_matcher. MatcherPass can be executed on node within
+/// \sa apply method. To run matcher pass on Function use GraphRewrite.
+/// In addition MatcherPass provides a way for adding new operations into GraphRewrite execution
+/// queue. That means that operations that were created inside transformation callback can be added
+/// for matching. To register node use \sa register_new_node method. GraphRewrite automatically
+/// takes registered nodes and put them to execution queue. If multiple nodes were register make
+/// sure that they were registered in topological order.
+/// Note: when implementing pattern for Matcher make sure that root node is an operation from opset
+/// or has ngraph::pattern::op::WrapType. That will help GraphRewrite to execute matcher passes more
+/// efficient.
+
+class NGRAPH_API ngraph::pass::MatcherPass : public ngraph::pass::PassBase
 {
 public:
-    /// \brief Add an arbitrary handler for nodes
-    /// \param name The name of the handler
-    /// \param handler Function responsible for deciding if the graph should be changed and making
-    /// the changes. Returns true if changes are made.
-    void add_handler(const std::string& name,
-                     std::function<bool(const std::shared_ptr<Node>& node)> handler,
-                     const PassPropertyMask& property);
+    MatcherPass() = default;
 
-protected:
-    GraphRewriteBase()
-        : FunctionPass()
+    MatcherPass(const MatcherPass&) = delete;
+    MatcherPass& operator=(const MatcherPass&) = delete;
+
+    explicit MatcherPass(const std::string& name,
+                         const std::shared_ptr<pattern::Matcher>& m,
+                         const handler_callback& handler,
+                         const PassPropertyMask& property = PassProperty::CHANGE_DYNAMIC_STATE)
+        : PassBase()
+        , m_handler(handler)
+        , m_matcher(m)
     {
-        // Being explicit:
-        // Setting REQUIRE_STATIC_SHAPE to false because we will check if each
-        // callback needs static shape during run_on_function().
-        set_property(PassProperty::REQUIRE_STATIC_SHAPE, false);
+        set_name(name);
+        set_property(property, true);
     }
 
-    bool is_enabled(const std::string& name) const;
+    bool apply(std::shared_ptr<ngraph::Node> node);
 
-    struct MatchClosure
+    template <typename T, class... Args>
+    std::shared_ptr<T> register_new_node(Args&&... args)
     {
-        std::string name;
-        std::function<bool(const std::shared_ptr<Node>& node)> handler;
-        PassPropertyMask property;
-    };
-    std::vector<MatchClosure> m_matchers;
+        auto node = std::make_shared<T>(std::forward<Args>(args)...);
+        m_new_nodes.push_back(node);
+        return node;
+    }
+
+    const std::vector<std::shared_ptr<ngraph::Node>>& get_new_nodes() { return m_new_nodes; }
+    void clear_new_nodes() { m_new_nodes.clear(); }
+    std::shared_ptr<pattern::Matcher> get_matcher() { return m_matcher; }
+protected:
+    void register_matcher(const std::shared_ptr<pattern::Matcher>& m,
+                          const ngraph::graph_rewrite_callback& callback,
+                          const PassPropertyMask& property = PassProperty::CHANGE_DYNAMIC_STATE);
+
+private:
+    handler_callback m_handler;
+    std::shared_ptr<pattern::Matcher> m_matcher;
+    std::vector<std::shared_ptr<ngraph::Node>> m_new_nodes;
 };
 
-/// \brief GraphRewrite (in tandem with \sa Matcher) performs transformations on specified patterns
+/// \brief GraphRewrite is a container for MatcherPasses that allows to run them on Function in
+/// efficient way
 ///
-/// Graph rewrite pass essentially allows pass users to rewrite parts of the
-/// input graph in any way they want. Fusion is one example of graph rewrite that
-/// fuses multiple ops together. At a high-level users of the pass need to
-/// specify 2 things: 1) which ops to fuse (via \sa Matcher, and 2) how to create new op(s) from
-/// the existing ops by providing a callback to \p Matcher object
-/// Patterns can be added by using \sa add_matcher
-/// Callbacks should use \sa replace_node to transform matched sub graphs
+/// Graph rewrite pass is used for matcher passes execution on Function.
+/// To register MatcherPass use \sa add_matcher<T>(args) method where T is a MatcherPass class.
+/// As a default algorithm graph rewrite pass traverse Function in topological order and applies
+/// registered matcher passes for each node. But if all registered matcher passes have type based
+/// root node in Matcher pattern then efficient mechanism is used to execute them.
+/// Matcher pattern root is type based if it's operation from opset or pattern::op::WrapType.
+/// Note: when implementing pattern for Matcher make sure that root node is an operation from opset
+/// or has ngraph::pattern::op::WrapType. That will help GraphRewrite to execute matcher passes more
+/// efficient.
 
-class NGRAPH_API ngraph::pass::GraphRewrite : public ngraph::pass::GraphRewriteBase
+class NGRAPH_API ngraph::pass::GraphRewrite : public ngraph::pass::FunctionPass
 {
 public:
+    GraphRewrite() = default;
+
+    explicit GraphRewrite(const std::shared_ptr<MatcherPass>& pass)
+        : FunctionPass()
+    {
+        m_matchers.push_back(pass);
+    }
+
+    template <typename T, class... Args>
+    std::shared_ptr<T> add_matcher(Args&&... args)
+    {
+        static_assert(std::is_base_of<pass::MatcherPass, T>::value,
+                      "pass not derived from MatcherPass");
+        auto pass = std::make_shared<T>(std::forward<Args>(args)...);
+        m_matchers.push_back(pass);
+        return pass;
+    }
+
     void add_matcher(const std::shared_ptr<pattern::Matcher>& m,
                      const ngraph::graph_rewrite_callback& callback,
-                     const PassPropertyMask& property);
+                     const PassPropertyMask& property) NGRAPH_DEPRECATED("Use MatcherPass instead");
 
-    // TODO: This interface may deprecate after all passes are refactored.
     void add_matcher(const std::shared_ptr<pattern::Matcher>& m,
-                     const ngraph::graph_rewrite_callback& callback);
+                     const ngraph::graph_rewrite_callback& callback)
+        NGRAPH_DEPRECATED("Use MatcherPass instead");
 
-    virtual bool run_on_function(std::shared_ptr<ngraph::Function> f);
+    bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
 
 protected:
     bool m_enable_shape_inference = false;
+
+    std::vector<std::shared_ptr<ngraph::pass::MatcherPass>> m_matchers;
 };
 
-class NGRAPH_API ngraph::pass::RecurrentGraphRewrite : public ngraph::pass::GraphRewriteBase
+class NGRAPH_API ngraph::pass::RecurrentGraphRewrite : public ngraph::pass::FunctionPass
 {
 public:
     RecurrentGraphRewrite(size_t num_iters = 10)
-        : GraphRewriteBase()
+        : FunctionPass()
         , m_num_iters(num_iters)
     {
     }
@@ -117,4 +169,6 @@ public:
 
 private:
     size_t m_num_iters;
+
+    std::vector<std::shared_ptr<ngraph::pass::MatcherPass>> m_matchers;
 };

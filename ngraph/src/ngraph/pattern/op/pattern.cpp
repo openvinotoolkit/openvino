@@ -61,5 +61,11 @@ namespace ngraph
             }
             return result;
         }
+
+        std::function<bool(Output<Node>)> consumers_count(size_t n)
+        {
+            return
+                [=](Output<Node> output) -> bool { return output.get_target_inputs().size() == n; };
+        }
     }
 }

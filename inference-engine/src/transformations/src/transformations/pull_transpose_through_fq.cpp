@@ -10,7 +10,7 @@
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/rt_info.hpp>
 
-void ngraph::pass::PullTransposeThroughFQUp::pull_transpose_through_fq() {
+ngraph::pass::PullTransposeThroughFQUp::PullTransposeThroughFQUp() {
     auto data1 = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1, 1});
     auto data2 = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1, 1});
     auto data3 = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1, 1});
@@ -70,5 +70,5 @@ void ngraph::pass::PullTransposeThroughFQUp::pull_transpose_through_fq() {
     };
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(transpose, "PullTransposeThroughFQUp");
-    this->add_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
+    this->register_matcher(m, callback);
 }

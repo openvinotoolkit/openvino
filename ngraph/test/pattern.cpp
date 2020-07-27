@@ -19,6 +19,7 @@
 #include <iostream>
 #include <list>
 #include <memory>
+#include <ngraph/pattern/op/wrap_type.hpp>
 
 #include "gtest/gtest.h"
 #include "ngraph/file_util.hpp"
@@ -576,7 +577,7 @@ TEST(pattern, recurrent_pattern)
     std::set<std::shared_ptr<pattern::op::Label>> empty_correlated_matches;
     RecurrentMatcher rm(padd, rpattern, empty_correlated_matches);
     ASSERT_TRUE(rm.match(add3));
-    ASSERT_EQ(rm.get_number_of_bound_labels(), 1);
+    ASSERT_EQ(rm.get_number_of_bound_labels(), 3);
     auto recurrent_matches = rm.get_bound_nodes_for_pattern(rpattern);
     ASSERT_EQ(recurrent_matches.at(0), add2);
     ASSERT_EQ(recurrent_matches.at(1), add1);
@@ -590,7 +591,7 @@ TEST(pattern, recurrent_pattern)
     auto padd2 = iconst_label + rpattern;
     RecurrentMatcher rm2(padd2, rpattern, empty_correlated_matches);
     ASSERT_TRUE(rm2.match(add3_2));
-    ASSERT_EQ(rm2.get_number_of_bound_labels(), 2);
+    ASSERT_EQ(rm2.get_number_of_bound_labels(), 4);
     recurrent_matches = rm2.get_bound_nodes_for_pattern(rpattern);
     ASSERT_EQ(recurrent_matches.at(0), add2_2);
     ASSERT_EQ(recurrent_matches.at(1), add1);
@@ -605,7 +606,7 @@ TEST(pattern, recurrent_pattern)
     correlated_matches.insert(iconst_label);
     RecurrentMatcher rm3(padd2, rpattern, correlated_matches);
     ASSERT_TRUE(rm3.match(add3_2));
-    ASSERT_EQ(rm3.get_number_of_bound_labels(), 2);
+    ASSERT_EQ(rm3.get_number_of_bound_labels(), 4);
     iconst_matches = rm3.get_bound_nodes_for_pattern(iconst_label);
     ASSERT_EQ(iconst_matches.size(), 1);
     ASSERT_EQ(iconst_matches.at(0), iconst0);
@@ -613,7 +614,7 @@ TEST(pattern, recurrent_pattern)
     // Matching correlated labels and
     // testing if RecurrentMatcher can be reused for different nodes
     ASSERT_TRUE(rm3.match(add3));
-    ASSERT_EQ(rm3.get_number_of_bound_labels(), 2);
+    ASSERT_EQ(rm3.get_number_of_bound_labels(), 4);
     recurrent_matches = rm3.get_bound_nodes_for_pattern(rpattern);
     ASSERT_EQ(recurrent_matches.at(0), add2);
     ASSERT_EQ(recurrent_matches.at(1), add1);
@@ -762,4 +763,47 @@ TEST(pattern, is_contained_match)
     auto label_abs2 = make_shared<op::Abs>(label_abs);
     ASSERT_TRUE(n.match(label_abs2, absn2));
     ASSERT_FALSE(n.is_contained_match());
+}
+
+TEST(pattern, wrap_type)
+{
+    auto a = make_shared<op::Parameter>(element::f32, Shape{1, 3, 64, 64});
+    auto b = make_shared<op::Abs>(a);
+    auto c = make_shared<op::Relu>(a);
+    auto mul1 = make_shared<op::v1::Multiply>(a, op::Constant::create(element::f32, Shape{}, {1}));
+    auto mul2 = make_shared<op::v1::Multiply>(op::Constant::create(element::f32, Shape{}, {1}), a);
+
+    {
+        auto m = pattern::wrap_type<op::Abs>();
+        auto matcher = std::make_shared<pattern::Matcher>(m, "AbsMatcher");
+        ASSERT_TRUE(matcher->match(static_pointer_cast<Node>(b)));
+        ASSERT_EQ(matcher->get_matched_nodes().size(), 1);
+        ASSERT_EQ(matcher->get_matched_nodes()[0], b);
+        ASSERT_EQ(matcher->get_pattern_map().count(m), 1);
+        ASSERT_FALSE(matcher->match(static_pointer_cast<Node>(c)));
+    }
+    {
+        auto m1 = pattern::wrap_type<op::Parameter>();
+        auto m2 = pattern::wrap_type<op::Abs>({m1});
+        auto matcher = std::make_shared<pattern::Matcher>(m2, "ParamAbsMatcher");
+        ASSERT_TRUE(matcher->match(static_pointer_cast<Node>(b)));
+        ASSERT_EQ(matcher->get_matched_nodes().size(), 2);
+        ASSERT_EQ(matcher->get_pattern_map().count(m1), 1);
+        ASSERT_EQ(matcher->get_pattern_map().count(m2), 1);
+        ASSERT_FALSE(matcher->match(static_pointer_cast<Node>(c)));
+    }
+    {
+        auto m1 = pattern::wrap_type<op::v1::Multiply>(
+            {pattern::any_input(), pattern::wrap_type<op::Constant>()});
+        auto matcher = std::make_shared<pattern::Matcher>(m1, "MultiplyMatcher");
+        ASSERT_TRUE(matcher->match(static_pointer_cast<Node>(mul1)));
+        ASSERT_TRUE(matcher->match(static_pointer_cast<Node>(mul2)));
+    }
+    {
+        auto m1 = pattern::wrap_type<op::v1::Multiply>(
+            {pattern::wrap_type<op::Constant>(), pattern::any_input()});
+        auto matcher = std::make_shared<pattern::Matcher>(m1, "MultiplyMatcher");
+        ASSERT_TRUE(matcher->match(static_pointer_cast<Node>(mul1)));
+        ASSERT_TRUE(matcher->match(static_pointer_cast<Node>(mul2)));
+    }
 }

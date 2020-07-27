@@ -385,9 +385,12 @@ ModelPtr FrontEnd::runCommonPasses(ie::ICNNNetwork& network, const UnsupportedLa
             // Disable shape inference (WA for generic operations)
             ngraph::op::GenericIE::DisableReshape noReshape(nGraphFunc);
 
-            ngraph::pass::ConvertOpSet3ToOpSet2(transformationsPredicate).run_on_function(nGraphFunc);
-            ngraph::pass::ConvertOpSet2ToOpSet1(transformationsPredicate).run_on_function(nGraphFunc);
-            ngraph::pass::ConvertOpSet1ToLegacy(transformationsPredicate).run_on_function(nGraphFunc);
+            ngraph::pass::Manager manager;
+            manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
+            manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
+            manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
+            manager.set_callback(transformationsPredicate);
+            manager.run_passes(nGraphFunc);
 
             vpu::MergeSubsequentDSROperations().run_on_function(nGraphFunc);
 

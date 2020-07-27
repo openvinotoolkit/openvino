@@ -9,11 +9,10 @@
 
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/rt_info.hpp>
+#include <ngraph/pattern/op/wrap_type.hpp>
 
-void ngraph::pass::ConvertMinimum::convert_minimum() {
-    auto input0 = std::make_shared<pattern::op::Label>(element::i64, Shape{1, 1, 1, 1});
-    auto input1 = std::make_shared<pattern::op::Label>(element::i64, Shape{1, 1, 1, 1});
-    auto minimum = std::make_shared<ngraph::opset1::Minimum>(input0, input1);
+ngraph::pass::ConvertMinimum::ConvertMinimum() {
+    auto minimum = ngraph::pattern::wrap_type<opset1::Minimum>();
 
     ngraph::graph_rewrite_callback callback = [](pattern::Matcher& m) {
         auto minimum = std::dynamic_pointer_cast<ngraph::opset1::Minimum> (m.get_match_root());
@@ -43,5 +42,5 @@ void ngraph::pass::ConvertMinimum::convert_minimum() {
     };
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(minimum, "ConvertMinimum");
-    this->add_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
+    this->register_matcher(m, callback);
 }

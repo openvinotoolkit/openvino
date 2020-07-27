@@ -12,11 +12,12 @@
 
 #include <ngraph_ops/topk_ie.hpp>
 #include <ngraph/rt_info.hpp>
+#include <ngraph/pattern/op/wrap_type.hpp>
 
-void ngraph::pass::ConvertTopKToTopKIE::convert_topk_to_topk_ie() {
-    auto topk = std::make_shared<pattern::op::Label>(element::f32, Shape{1}, pattern::has_class<opset1::TopK>());
+ngraph::pass::ConvertTopKToTopKIEMatcher::ConvertTopKToTopKIEMatcher() {
+    auto topk = ngraph::pattern::wrap_type<opset1::TopK>();
 
-    ngraph::graph_rewrite_callback callback = [](pattern::Matcher &m) {
+    ngraph::matcher_pass_callback callback = [](pattern::Matcher &m) {
         auto topk = std::dynamic_pointer_cast<opset1::TopK>(m.get_match_root());
         if (!topk || topk->input(1).get_partial_shape().rank().is_dynamic()) {
             return false;
@@ -74,5 +75,5 @@ void ngraph::pass::ConvertTopKToTopKIE::convert_topk_to_topk_ie() {
     };
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(topk, "ConvertTopKToTopKIE");
-    this->add_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
+    this->register_matcher(m, callback);
 }

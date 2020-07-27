@@ -15,6 +15,7 @@
 #include <vector>
 #include <unordered_set>
 #include <ngraph/ngraph.hpp>
+#include <ngraph/pass/manager.hpp>
 #include <ngraph/pass/get_output_element_elimination.hpp>
 #include <set>
 #include <string>
@@ -307,7 +308,9 @@ CNNNetworkNGraphImpl::reshape(const std::map<std::string, std::vector<size_t>>& 
             // Call this transformation because OneHot IE and nGraph have different output precisions
             {
                 IE_PROFILING_AUTO_SCOPE(ConvertOneHot);
-                ::ngraph::pass::ConvertOneHotToOneHotIE().run_on_function(specialized_ngraph_function);
+                ::ngraph::pass::Manager manager;
+                manager.register_pass<::ngraph::pass::ConvertOneHotToOneHotIEMatcher>()->detect_output_type(specialized_ngraph_function);
+                manager.run_passes(specialized_ngraph_function);
             }
             specialized_ngraph_function->validate_nodes_and_infer_types();
 

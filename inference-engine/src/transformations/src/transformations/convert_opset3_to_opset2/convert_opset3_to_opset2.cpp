@@ -16,18 +16,15 @@
 #include <ngraph/pass/manager.hpp>
 
 bool ngraph::pass::ConvertOpSet3ToOpSet2::run_on_function(std::shared_ptr<ngraph::Function> f) {
-    ngraph::pass::Manager OpSet3ToOpSet2;
-    std::vector<std::shared_ptr<ngraph::pass::PassBase> > transforms;
+    ngraph::pass::Manager manager;
 
-#define NGRAPH_PASS(NAME, NAMESPACE) transforms.push_back(OpSet3ToOpSet2.register_pass<NAMESPACE::NAME>());
-#include <transformations/convert_opset3_to_opset2/convert_opset3_to_opset2_tbl.hpp>
-#undef NGRAPH_PASS
+    manager.register_pass<ngraph::pass::ConvertBroadcast3>();
+    manager.register_pass<ngraph::pass::ConvertNMS3>();
+    manager.register_pass<ngraph::pass::ConvertShapeOf3>();
+    manager.register_pass<ngraph::pass::ConvertShuffleChannels3>();
+    manager.register_pass<ngraph::pass::ConvertTopK3>();
 
-    for (auto & t : transforms) {
-        if (auto t_param = std::dynamic_pointer_cast<PassParam>(t)) {
-            t_param->setCallback(transformation_callback);
-        }
-    }
-    OpSet3ToOpSet2.run_passes(f);
+    manager.set_callback(m_transformation_callback);
+    manager.run_passes(f);
     return true;
 }

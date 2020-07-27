@@ -13,6 +13,7 @@
 #include <transformations/convert_divide.hpp>
 #include <transformations/init_node_info.hpp>
 #include <transformations/utils/utils.hpp>
+#include <ngraph/pass/manager.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 
@@ -27,8 +28,10 @@ TEST(TransformationTests, ConvertDivide) {
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{divide}, ngraph::ParameterVector{data});
 
-        ngraph::pass::InitNodeInfo().run_on_function(f);
-        ngraph::pass::ConvertDivide().run_on_function(f);
+        ngraph::pass::Manager m;
+        m.register_pass<ngraph::pass::InitNodeInfo>();
+        m.register_pass<ngraph::pass::ConvertDivide>();
+        m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
 
@@ -55,8 +58,10 @@ TEST(TransformationTests, ConvertDivideNegative) {
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{divide}, ngraph::ParameterVector{data});
 
-        ngraph::pass::InitNodeInfo().run_on_function(f);
-        ngraph::pass::ConvertDivide().run_on_function(f);
+        ngraph::pass::Manager m;
+        m.register_pass<ngraph::pass::InitNodeInfo>();
+        m.register_pass<ngraph::pass::ConvertDivide>();
+        m.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
     }
 

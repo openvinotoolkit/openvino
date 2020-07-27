@@ -61,7 +61,8 @@ namespace ngraph
                     set_output_type(0, type, s);
                 }
 
-                Label(const element::Type& type, const PartialShape& s)
+                explicit Label(const element::Type& type = element::dynamic,
+                               const PartialShape& s = PartialShape::dynamic())
                     : Label(type, s, [](const Output<Node>&) { return true; }, OutputVector())
                 {
                 }
@@ -141,5 +142,8 @@ namespace ngraph
                 static Output<Node> wrap_values(const OutputVector& wrapped_values);
             };
         }
+
+        NGRAPH_API
+        std::shared_ptr<Node> any_input();
     }
 }

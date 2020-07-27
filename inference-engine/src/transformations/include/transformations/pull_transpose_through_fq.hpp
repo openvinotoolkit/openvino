@@ -19,12 +19,7 @@ class TRANSFORMATIONS_API PullTransposeThroughFQUp;
 }  // namespace pass
 }  // namespace ngraph
 
-class ngraph::pass::PullTransposeThroughFQUp: public ngraph::pass::GraphRewrite {
+class ngraph::pass::PullTransposeThroughFQUp: public ngraph::pass::MatcherPass {
 public:
-    PullTransposeThroughFQUp() : GraphRewrite() {
-        pull_transpose_through_fq();
-    }
-
-private:
-    void pull_transpose_through_fq();
+    PullTransposeThroughFQUp();
 };

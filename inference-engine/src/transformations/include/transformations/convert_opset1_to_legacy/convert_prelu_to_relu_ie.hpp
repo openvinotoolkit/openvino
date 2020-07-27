@@ -20,12 +20,7 @@ class TRANSFORMATIONS_API ConvertPReLUToReLUIE;
 }  // namespace pass
 }  // namespace ngraph
 
-class ngraph::pass::ConvertPReLUToReLUIE: public ngraph::pass::GraphRewrite {
+class ngraph::pass::ConvertPReLUToReLUIE: public ngraph::pass::MatcherPass {
 public:
-    ConvertPReLUToReLUIE() : GraphRewrite() {
-        convert_prelu();
-    }
-
-private:
-    void convert_prelu();
+    ConvertPReLUToReLUIE();
 };
