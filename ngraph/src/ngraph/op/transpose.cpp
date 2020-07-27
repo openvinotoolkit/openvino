@@ -78,12 +78,6 @@ shared_ptr<Node> op::v1::Transpose::clone_with_new_inputs(const OutputVector& ne
     return make_shared<v1::Transpose>(new_args[0], new_args[1]);
 }
 
-shared_ptr<Node> op::v1::Transpose::copy_with_new_args(const NodeVector& new_args) const
-{
-    check_new_args_count(this, new_args);
-    return make_shared<v1::Transpose>(new_args[0], new_args[1]);
-}
-
 namespace
 {
     template <element::Type_t ET>

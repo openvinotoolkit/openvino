@@ -21,7 +21,7 @@
   * **Description**: activation functions for gates
   * **Range of values**: any combination of *relu*, *sigmoid*, *tanh*
   * **Type**: a list of strings
-  * **Default value**: *sigmoid,tanh*
+  * **Default value**: *tanh*
   * **Required**: *no*
 
 * *activations_alpha, activations_beta*
@@ -42,19 +42,19 @@
 
 **Inputs**
 
-* **1**: `X` - 2D tensor of type *T* `[batch_size, input_size]`, input data. Required.
+* **1**: `X` - 2D tensor of type *T* `[batch_size, input_size]`, input data. **Required.**
 
-* **2**: `initial_hidden_state` - 2D tensor of type *T* `[batch_size, hidden_size]`. Required.
+* **2**: `initial_hidden_state` - 2D tensor of type *T* `[batch_size, hidden_size]`. **Required.**
 
-* **3**: `W` - 2D tensor tensor of type *T* `[hidden_size, input_size]`, the weights for matrix multiplication. Required.
+* **3**: `W` - 2D tensor tensor of type *T* `[hidden_size, input_size]`, the weights for matrix multiplication. **Required.**
 
-* **4**: `R` - 2D tensor tensor of type *T* `[hidden_size, hidden_size]`, the recurrence weights for matrix multiplication. Required.
+* **4**: `R` - 2D tensor tensor of type *T* `[hidden_size, hidden_size]`, the recurrence weights for matrix multiplication. **Required.**
 
-* **5**: `B` 1D tensor tensor of type *T* `[hidden_size]`, the sum of biases (weights and recurrence weights). Required.
+* **5**: `B` 1D tensor tensor of type *T* `[hidden_size]`, the sum of biases (weights and recurrence weights). **Required.**
 
 **Outputs**
 
-* **1**: `Ho` - 2D tensor of type *T* `[batch_size, hidden_size]`, output hidden state.
+* **1**: `Ho` - 2D tensor of type *T* `[batch_size, hidden_size]`, the last output value of hidden state.
 
 **Types**
 

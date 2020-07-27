@@ -21,6 +21,8 @@ const std::vector<ActivationTypes> activationTypes = {
         Relu,
         Exp,
         Log,
+        Gelu,
+        Mish
 };
 
 std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> basic = {
