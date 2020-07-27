@@ -191,6 +191,7 @@ public:
         TopK,
         Floor,
         Ceil,
+        Ceiling,
         Erf,
         HardSigmoid,
         Log,

@@ -646,7 +646,7 @@ bool ngraph::try_apply_auto_padding(const PartialShape& image_shape,
 
     for (size_t i = 0; i < static_cast<size_t>(filter_shape.size()); i++)
     {
-        int64_t image_size = static_cast<int64_t>(image_dims[i + 2]);
+        int64_t image_size = static_cast<int64_t>(image_dims[i + 2].get_length());
         int64_t filter_size = (static_cast<int64_t>(filter_shape[i]) - 1) * filter_dilations[i] + 1;
         int64_t filter_stride = static_cast<int64_t>(filter_strides[i]);
         auto output_size = (image_size + filter_stride - 1) / filter_stride;
@@ -767,6 +767,14 @@ PartialShape ngraph::infer_slice_shape(const Node* node,
                 int64_t lb = begin[axis];
                 int64_t ub = end[axis];
 
+                // set default value for stride or use given value
+                int64_t stride = 1;
+                if (strides.size() > axis)
+                {
+                    stride = strides[axis];
+                }
+                NODE_VALIDATION_CHECK(node, stride != 0, "Stride must be non-zero");
+
                 // convert negative indexes to positive
                 // take max for this case: if abs(lb) > input_shape[input_shape_idx],then after
                 // conversion lb < 0
@@ -778,21 +786,13 @@ PartialShape ngraph::infer_slice_shape(const Node* node,
 
                 if (ub < 0)
                 {
-                    ub = std::max(input_shape[input_shape_idx].get_length() + ub, int64_t(0));
+                    ub = std::max(input_shape[input_shape_idx].get_length() + ub,
+                                  stride > 0 ? int64_t(0) : int64_t(-1));
                 }
 
                 // apply restrictions when begin or end values more than max possible values.
                 lb = std::min(input_shape[input_shape_idx].get_length(), lb);
                 ub = std::min(input_shape[input_shape_idx].get_length(), ub);
-
-                // set default value for stride or use given value
-                int64_t stride = 1;
-                if (strides.size() > axis)
-                {
-                    stride = strides[axis];
-                }
-
-                NODE_VALIDATION_CHECK(node, stride != 0, "Stride must be non-zero");
 
                 int64_t dimension = 0;
                 if (stride < 0)

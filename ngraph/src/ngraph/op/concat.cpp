@@ -113,37 +113,6 @@ shared_ptr<Node> op::Concat::clone_with_new_inputs(const OutputVector& new_args)
     return make_shared<Concat>(new_args, m_axis);
 }
 
-void op::Concat::generate_adjoints(autodiff::Adjoints& adjoints, const OutputVector& deltas)
-{
-    auto delta = deltas.at(0);
-
-    auto concat_result_shape = get_output_shape(0);
-
-    Coordinate arg_delta_slice_lower = Coordinate(concat_result_shape.size(), 0);
-    Coordinate arg_delta_slice_upper = concat_result_shape;
-    Coordinate arg_delta_slice_strides = Coordinate(concat_result_shape.size(), 1);
-
-    size_t pos = 0;
-
-    for (auto value : input_values())
-    {
-        auto arg_shape = value.get_shape();
-
-        auto slice_width = arg_shape[m_axis];
-
-        size_t next_pos = pos + slice_width;
-        arg_delta_slice_lower[m_axis] = pos;
-        arg_delta_slice_upper[m_axis] = next_pos;
-
-        adjoints.add_delta(
-            value,
-            make_shared<op::Slice>(
-                delta, arg_delta_slice_lower, arg_delta_slice_upper, arg_delta_slice_strides));
-
-        pos = next_pos;
-    }
-}
-
 namespace
 {
     template <element::Type_t ET>

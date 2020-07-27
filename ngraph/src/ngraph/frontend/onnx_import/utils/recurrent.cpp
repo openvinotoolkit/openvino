@@ -24,6 +24,7 @@
 #include "ngraph/builder/split.hpp"
 #include "ngraph/check.hpp"
 #include "ngraph/enum_names.hpp"
+#include "ngraph/frontend/onnx_import/core/null_node.hpp"
 #include "recurrent.hpp"
 
 namespace ngraph
@@ -60,7 +61,7 @@ namespace ngraph
                 const std::size_t batch_size = m_map[OpInput::X].get_shape().at(1);
                 const std::size_t num_directions = m_map[OpInput::W].get_shape().front();
 
-                if (ng_inputs.size() > 3 && !ng_inputs.at(3).get_node()->is_null())
+                if (ng_inputs.size() > 3 && !ngraph::op::is_null(ng_inputs.at(3).get_node()))
                 {
                     auto bias = ng_inputs.at(3);
                     auto split_bias = builder::opset1::split(bias, 2, 1);
@@ -71,7 +72,7 @@ namespace ngraph
                     m_map[OpInput::B] = std::make_shared<default_opset::Constant>(
                         el_type, Shape{num_directions, gates_count * hidden_size}, 0.f);
                 }
-                if (ng_inputs.size() > 4 && !ng_inputs.at(4).get_node()->is_null())
+                if (ng_inputs.size() > 4 && !ngraph::op::is_null(ng_inputs.at(4).get_node()))
                 {
                     m_map[OpInput::SEQ_LENGTHS] = ng_inputs.at(4);
                 }
@@ -81,7 +82,7 @@ namespace ngraph
                         element::i32, Shape{batch_size}, m_map[OpInput::X].get_shape().at(0));
                 }
                 // The initial value of the hidden.
-                if (ng_inputs.size() > 5 && !ng_inputs.at(5).get_node()->is_null())
+                if (ng_inputs.size() > 5 && !ngraph::op::is_null(ng_inputs.at(5).get_node()))
                 {
                     m_map[OpInput::INIT_H] = ng_inputs.at(5);
                 }

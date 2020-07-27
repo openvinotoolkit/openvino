@@ -1,0 +1,10 @@
+flake8
+flake8-comprehensions
+flake8-docstrings
+flake8-quotes
+onnx
+pydocstyle
+pytest
+retrying
+tox
+wheel

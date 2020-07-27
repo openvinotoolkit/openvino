@@ -20,6 +20,7 @@
 #include "default_opset.hpp"
 #include "gru.hpp"
 #include "ngraph/builder/split.hpp"
+#include "ngraph/frontend/onnx_import/core/null_node.hpp"
 #include "ngraph/shape.hpp"
 #include "utils/recurrent.hpp"
 
@@ -47,7 +48,8 @@ namespace ngraph
                                 const auto& ng_inputs = node.get_ng_inputs();
                                 const auto el_type = ng_inputs.at(0).get_element_type();
 
-                                if (ng_inputs.size() > 3 && !ng_inputs.at(3).get_node()->is_null())
+                                if (ng_inputs.size() > 3 &&
+                                    !ngraph::op::is_null(ng_inputs.at(3).get_node()))
                                 {
                                     auto bias = ng_inputs.at(3);
                                     // gates_count * 2 since B is: [Wb, Rb]

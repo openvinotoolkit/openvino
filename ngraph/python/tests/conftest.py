@@ -38,6 +38,7 @@ def pytest_configure(config):
     config.addinivalue_line("markers", "skip_on_hddl: Skip test on HDDL")
     config.addinivalue_line("markers", "skip_on_myriad: Skip test on MYRIAD")
     config.addinivalue_line("markers", "skip_on_hetero: Skip test on HETERO")
+    config.addinivalue_line("markers", "onnx_coverage: Collect ONNX operator coverage")
 
 
 def pytest_collection_modifyitems(config, items):

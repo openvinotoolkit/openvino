@@ -420,6 +420,10 @@ void program_impl::pre_optimize_graph(bool is_internal) {
         apply_opt_pass<prepare_primitive_fusing>(lo);
 
         apply_opt_pass<reorder_inputs>(lo, rf);
+        // Ideally this should be done before fusing to simplify logic and make the pass more powerful,
+        // but after format selection to select correct alignment.
+        // Unfortunately those passes currently happen in reverse order.
+        apply_opt_pass<concat_input_order>();
 
         // TODO this code should be moved to post compilation after kernel selector will support handling reorder bias
         apply_opt_pass<pre_optimize_bias>(rf);
@@ -1164,11 +1168,12 @@ void program_impl::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::mutable_data::type_id())
             can_use_fsv16 = false;
 
-        // WA to keep bfyx_f16 layout disabled for some topologies where it leads to regressions.
-        // Detects if given crop layer is located in the very beginning of the graph.
+        // WA to keep fsv16 layout disabled for some topologies where it leads to regressions.
+        // For reshape bfy*x is preferred, as fsv16 introduces extra reorders
         if (prim.type() == cldnn::crop::type_id()) {
-            if (!prim.get_dependencies()[0]->is_type<reorder>() || !prim.get_dependencies()[0]->get_dependencies()[0]->is_input())
+            if (prim.get_dependencies()[0]->is_type<reshape>() || prim.get_dependencies()[0]->is_type<concatenation>()) {
                 can_use_fsv16 = false;
+            }
         }
 
         if (prim.is_in_data_flow() &&

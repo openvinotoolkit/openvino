@@ -40,13 +40,20 @@ const std::vector<ActivationTypes> activationTypes = {
         Elu,
         Erf,
         HardSigmoid,
-        Selu
+        Selu,
+        Ceiling,
+        Mish
+};
+
+std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> basic = {
+        {{1, 50}, {{}}},
+        {{1, 128}, {{}}},
 };
 
 const auto basicCases = ::testing::Combine(
         ::testing::ValuesIn(activationTypes),
         ::testing::ValuesIn(netPrecisions),
-        ::testing::Values(std::vector<size_t>({1, 50}), std::vector<size_t>({1, 128})),
+        ::testing::ValuesIn(CommonTestUtils::combineShapes<size_t>(basic)),
         ::testing::Values(CommonTestUtils::DEVICE_GPU)
 );
 

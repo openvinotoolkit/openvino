@@ -96,7 +96,14 @@ class LayerInfo {
              "abs",
              "neglog",
              "neghalflog",
-             "softsign"};
+             "softsign",
+             "power"};
+
+        if (isPower()) {
+            auto powerLayer = as<const InferenceEngine::PowerLayer*>();
+            return powerLayer != nullptr && powerLayer->power != 1.0f;
+        }
+
         return activations.find(layer->type) != activations.end();
     }
 

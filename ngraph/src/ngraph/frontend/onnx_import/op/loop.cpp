@@ -21,7 +21,9 @@
 #include "core/graph.hpp"
 #include "default_opset.hpp"
 #include "exceptions.hpp"
+#include "ngraph/frontend/onnx_import/core/null_node.hpp"
 #include "ngraph/function.hpp"
+#include "ngraph/op/util/op_types.hpp"
 #include "utils/reshape.hpp"
 
 namespace ngraph
@@ -51,8 +53,8 @@ namespace ngraph
                                                               const Output<ngraph::Node>& body_cond)
                     {
                         bool loop_cond_value = false;
-                        if (loop_cond.get_node()->is_constant() &&
-                            loop_cond.get_node()->get_element_type() == element::boolean)
+                        if (ngraph::op::is_constant(loop_cond.get_node()) &&
+                            loop_cond.get_element_type() == element::boolean)
                         {
                             loop_cond_value = as_type_ptr<default_opset::Constant>(
                                                   loop_cond.get_node_shared_ptr())
@@ -62,7 +64,7 @@ namespace ngraph
                         // According to ONNX skipped cond input (is_null) means
                         // that is has true value
                         bool is_loop_cond_true =
-                            loop_cond.get_node()->is_null() || loop_cond_value == true;
+                            ngraph::op::is_null(loop_cond.get_node()) || loop_cond_value == true;
 
                         if (!is_loop_cond_true)
                         {
@@ -78,7 +80,7 @@ namespace ngraph
                             const auto second_input = body_cond.get_node_shared_ptr()
                                                           ->input_value(1)
                                                           .get_node_shared_ptr();
-                            if (second_input->is_constant() &&
+                            if (ngraph::op::is_constant(second_input) &&
                                 second_input->get_element_type() == element::boolean &&
                                 as_type_ptr<default_opset::Constant>(second_input)
                                         ->cast_vector<bool>()
@@ -101,7 +103,7 @@ namespace ngraph
                     // At this moment nGraph TensorIterator doesn't have support for conditional
                     // termination of iterations.
                     CHECK_VALID_NODE(node,
-                                     !trip_count.get_node_shared_ptr()->is_null(),
+                                     !ngraph::op::is_null(trip_count.get_node_shared_ptr()),
                                      "Currently nGraph requires trip count input to be provided.");
 
                     const OutputVector loop_carried_dependencies{std::next(ng_inputs.begin(), 2),

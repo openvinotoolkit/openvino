@@ -26,6 +26,8 @@ set(IE_BASE_SOURCE_FILES
       ${CMAKE_CURRENT_SOURCE_DIR}/ie_parameter.cpp
       ${CMAKE_CURRENT_SOURCE_DIR}/ie_rtti.cpp
       ${CMAKE_CURRENT_SOURCE_DIR}/precision_utils.cpp
+      ${CMAKE_CURRENT_SOURCE_DIR}/network_serializer.cpp
+      ${CMAKE_CURRENT_SOURCE_DIR}/network_serializer.hpp
       ${CMAKE_CURRENT_SOURCE_DIR}/system_allocator.cpp
       ${CMAKE_CURRENT_SOURCE_DIR}/system_allocator.hpp)
 list(REMOVE_ITEM LIBRARY_SRC ${IE_BASE_SOURCE_FILES})
@@ -108,6 +110,7 @@ target_include_directories(${TARGET_NAME}_common_obj PRIVATE
     $<TARGET_PROPERTY:${TARGET_NAME}_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>)
 
 target_include_directories(${TARGET_NAME}_common_obj SYSTEM PRIVATE
+    $<TARGET_PROPERTY:pugixml,INTERFACE_INCLUDE_DIRECTORIES>
     $<TARGET_PROPERTY:ngraph::ngraph,INTERFACE_INCLUDE_DIRECTORIES>)
 
 # Create object library
@@ -119,15 +122,11 @@ add_library(${TARGET_NAME}_obj OBJECT
 
 target_compile_definitions(${TARGET_NAME}_obj PRIVATE IMPLEMENT_INFERENCE_ENGINE_API)
 
-# TODO: Remove this definitios when readers will be loaded from xml
-if(NGRAPH_ONNX_IMPORT_ENABLE)
-    target_compile_definitions(${TARGET_NAME}_obj PRIVATE ONNX_IMPORT_ENABLE)
-endif()
-
 target_include_directories(${TARGET_NAME}_obj SYSTEM PRIVATE $<TARGET_PROPERTY:ngraph::ngraph,INTERFACE_INCLUDE_DIRECTORIES>
                                                              $<TARGET_PROPERTY:pugixml,INTERFACE_INCLUDE_DIRECTORIES>)
 
 target_include_directories(${TARGET_NAME}_obj PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}"
+                                                      "${IE_MAIN_SOURCE_DIR}/src/readers/ir_reader" # for ie_ir_version.hpp
                                                       $<TARGET_PROPERTY:${TARGET_NAME}_reader_api,INTERFACE_INCLUDE_DIRECTORIES>
                                                       $<TARGET_PROPERTY:${TARGET_NAME}_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>)
 

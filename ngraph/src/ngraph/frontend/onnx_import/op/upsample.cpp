@@ -18,6 +18,7 @@
 
 #include "default_opset.hpp"
 #include "exceptions.hpp"
+#include "ngraph/op/util/op_types.hpp"
 #include "upsample.hpp"
 
 namespace ngraph
@@ -137,7 +138,7 @@ namespace ngraph
                         attrs.axes.insert(ax);
                     }
 
-                    if (scales.get_node()->is_constant() && data_shape.is_static())
+                    if (ngraph::op::is_constant(scales.get_node()) && data_shape.is_static())
                     {
                         const auto scales_const =
                             as_type_ptr<default_opset::Constant>(scales.get_node_shared_ptr());

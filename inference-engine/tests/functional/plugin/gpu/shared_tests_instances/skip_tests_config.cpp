@@ -16,5 +16,7 @@ std::vector<std::string> disabledTestPatterns() {
             ".*BehaviorTests\\.pluginDoesNotChangeOriginalNetwork.*",
             //TODO: Issue: 34349
             R"(.*(IEClassLoadNetwork).*(QueryNetworkMULTIWithHETERONoThrow_V10|QueryNetworkHETEROWithMULTINoThrow_V10).*)",
+            //TODO: Issue: 34748
+            R"(.*(ComparisonLayerTest).*)",
     };
 }

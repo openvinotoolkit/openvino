@@ -35,6 +35,7 @@
 // clang-format on
 
 #include "gtest/gtest.h"
+#include "ngraph/frontend/onnx_import/core/null_node.hpp"
 #include "ngraph/frontend/onnx_import/onnx.hpp"
 #include "ngraph/frontend/onnx_import/onnx_utils.hpp"
 #include "ngraph/frontend/onnx_import/default_opset.hpp"
@@ -376,7 +377,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_missing_input)
             Output<ngraph::Node> C = ng_inputs.at(2);
 
             A = A * C;
-            if (!B.get_node()->is_null())
+            if (!ngraph::op::is_null(B.get_node()))
             {
                 B = B / C;
             }
@@ -393,7 +394,7 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_missing_input)
 
             for (const auto& ng_input : ng_inputs)
             {
-                if (!ng_input.get_node()->is_null())
+                if (!ngraph::op::is_null(ng_input.get_node()))
                 {
                     result = ng_input * result;
                 }
@@ -1622,6 +1623,28 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_argmin_int32)
     auto test_case = test::TestCase<TestEngine>(function);
     test_case.add_input<std::int32_t>({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12});
     test_case.add_expected_output<std::int32_t>({0, 0, 0, 0});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_argmax_float)
+{
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/argmax_float.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_input<float>({4, 0.1, 2, 3, -3, 1, -0.9, 0, 1, 2, 3, 0});
+    test_case.add_expected_output<std::int64_t>({0, 3, 0});
+    test_case.run();
+}
+
+NGRAPH_TEST(${BACKEND_NAME}, onnx_model_argmin_float)
+{
+    auto function = onnx_import::import_onnx_model(
+        file_util::path_join(SERIALIZED_ZOO, "onnx/argmin_float.prototxt"));
+
+    auto test_case = test::TestCase<TestEngine>(function);
+    test_case.add_input<float>({4, 0.1, 2, 3, -3, 1, -0.9, 0, 1, 2, 3, 0});
+    test_case.add_expected_output<std::int64_t>({1, 1, 0, 2});
     test_case.run();
 }
 

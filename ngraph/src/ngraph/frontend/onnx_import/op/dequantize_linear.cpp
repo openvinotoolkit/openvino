@@ -21,6 +21,7 @@
 #include "dequantize_linear.hpp"
 #include "ngraph/axis_set.hpp"
 #include "ngraph/builder/make_constant.hpp"
+#include "ngraph/frontend/onnx_import/core/null_node.hpp"
 #include "ngraph/op/convert.hpp"
 #include "ngraph/op/dequantize.hpp"
 #include "ngraph/shape.hpp"
@@ -37,7 +38,7 @@ namespace ngraph
             {
                 Output<ngraph::Node> get_zero_point(const OutputVector& inputs)
                 {
-                    if (inputs.size() == 3 && !inputs[2].get_node()->is_null())
+                    if (inputs.size() == 3 && !ngraph::op::is_null(inputs[2].get_node()))
                     {
                         auto zero_point = inputs[2];
 

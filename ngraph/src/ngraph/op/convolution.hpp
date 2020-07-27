@@ -67,8 +67,6 @@ namespace ngraph
 
                 virtual std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
-                void generate_adjoints(autodiff::Adjoints& adjoints,
-                                       const OutputVector& deltas) override;
 
                 /// \return The strides.
                 const Strides& get_strides() const { return m_strides; }
@@ -161,8 +159,6 @@ namespace ngraph
                 bool visit_attributes(AttributeVisitor& visitor) override;
                 virtual bool is_dynamic() const override;
 
-                void generate_adjoints(autodiff::Adjoints& adjoints,
-                                       const OutputVector& deltas) override;
                 virtual std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
 
@@ -346,8 +342,6 @@ namespace ngraph
 
                 virtual std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
-                void generate_adjoints(autodiff::Adjoints& adjoints,
-                                       const OutputVector& deltas) override;
 
                 /// \return The window movement strides.
                 const Strides& get_window_movement_strides() const
@@ -439,8 +433,6 @@ namespace ngraph
                 void validate_and_infer_types() override;
                 bool visit_attributes(AttributeVisitor& visitor) override;
 
-                void generate_adjoints(autodiff::Adjoints& adjoints,
-                                       const OutputVector& deltas) override;
                 virtual std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
 
