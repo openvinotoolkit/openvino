@@ -76,7 +76,7 @@ class InterpolateTranspose(FrontReplacementSubgraph):
 
         # because we remove Transpose layers the ResizeNearestNeighbor should be updated for NCHW layout
         opset = interpolate.get_opset()
-        assert opset in ['opset1', 'opset4', 'extension'], \
+        assert opset in ['opset1', 'opset4'], \
             'Interpolate node with name {} has unsupported opset'.format(interpolate.soft_get('name', interpolate.id))
         if opset in ['opset1', 'extension']:
             interpolate.axes = int64_array([2, 3])
