@@ -25,13 +25,13 @@
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 #include "hetero/hetero_plugin_config.hpp"
 #include "hetero_plugin.hpp"
-#include "network_serializer.h"
 
 #include <ngraph/function.hpp>
 #include <ngraph/variant.hpp>
 #include <ngraph/graph_util.hpp>
 #include <ngraph/op/result.hpp>
 #include <ngraph/op/parameter.hpp>
+#include <ngraph/op/util/op_types.hpp>
 #include <ngraph/rt_info.hpp>
 
 using namespace InferenceEngine;
@@ -364,7 +364,7 @@ void HeteroExecutableNetwork::InitNgraph(const InferenceEngine::ICNNNetwork& net
     auto orderedOps = function->get_ordered_ops();
     orderedOps.erase(
         std::remove_if(std::begin(orderedOps), std::end(orderedOps), [] (const std::shared_ptr<ngraph::Node>& node) {
-            return node->is_constant();
+            return ngraph::op::is_constant(node);
         }),
         std::end(orderedOps));
     bool allEmpty = true;
@@ -401,7 +401,7 @@ void HeteroExecutableNetwork::InitNgraph(const InferenceEngine::ICNNNetwork& net
     auto NoConstants = [] (std::vector<ngraph::Input<ngraph::Node>>&& inputs) {
         std::vector<ngraph::Input<ngraph::Node>> result;
         for (auto&& input : inputs) {
-            if (!(input.get_source_output().get_node()->is_constant())) {
+            if (!(ngraph::op::is_constant(input.get_source_output().get_node()))) {
                 result.emplace_back(std::move(input));
             }
         }
@@ -478,7 +478,7 @@ void HeteroExecutableNetwork::InitNgraph(const InferenceEngine::ICNNNetwork& net
     InputSet subgraphInputs;
     // Get all subgraph inputs using just node affinities. Also collect transitive closure
     for (auto&& node : orderedOps) {
-        if (node->is_parameter()) {
+        if (ngraph::op::is_parameter(node)) {
             graphInputNodes.insert(node.get());
             subgraphInputs.insert(Input{node.get(), 0});
             nodeInputDependencies[node.get()].insert(Input{node.get(), 0});
@@ -550,7 +550,8 @@ void HeteroExecutableNetwork::InitNgraph(const InferenceEngine::ICNNNetwork& net
             }
             auto& nodeSubgraphCyclicInputDependency = nodeSubgraphCyclicInputDependencies[node.get()];
             for (auto&& subgraphInput : allNodeSubgraphInputs) {
-                if (!subgraphInput.get_node()->is_parameter() && subgraphIds[node.get()] == subgraphIds[InputNode(subgraphInput)]) {
+                if (!ngraph::op::is_parameter(subgraphInput.get_node()) &&
+                        subgraphIds[node.get()] == subgraphIds[InputNode(subgraphInput)]) {
                     nodeSubgraphCyclicInputDependency.emplace(subgraphInput);
                 }
             }
@@ -585,7 +586,7 @@ void HeteroExecutableNetwork::InitNgraph(const InferenceEngine::ICNNNetwork& net
     NodeMap<ngraph::Node*> subgraphParameterToPrevResult;
     std::vector<std::shared_ptr<ngraph::op::Result>> results;
     for (auto&& input : subgraphInputs) {
-        if (!(input.get_node()->is_parameter())) {
+        if (!ngraph::op::is_parameter(input.get_node())) {
             auto output = input.get_source_output();
             output.remove_target_input(input);
             auto result = std::make_shared<ngraph::op::Result>(output);
@@ -614,10 +615,10 @@ void HeteroExecutableNetwork::InitNgraph(const InferenceEngine::ICNNNetwork& net
     for (auto&& subgraphIdPtrValue : subgraphIds) {
         auto node = subgraphIdPtrValue.first;
         auto& subgraph = subgraphs[subgraphIdPtrValue.second];
-        if (node->is_output()) {
+        if (ngraph::op::is_output(node)) {
             subgraph._results.emplace_back(
                 std::dynamic_pointer_cast<ngraph::op::v0::Result>(node->shared_from_this()));
-        } else if (node->is_parameter()) {
+        } else if (ngraph::op::is_parameter(node)) {
             subgraph._parameters.emplace_back(
                 std::dynamic_pointer_cast<ngraph::op::v0::Parameter>(node->shared_from_this()));
         }
@@ -906,6 +907,11 @@ void HeteroExecutableNetwork::ExportImpl(std::ostream& heteroModel) {
             subnetwork._network.Export(heteroModel);
         } catch (InferenceEngine::details::InferenceEngineException& ie_ex) {
             if (std::string::npos != std::string{ie_ex.what()}.find(NOT_IMPLEMENTED_str)) {
+                // TODO: enable once serialization to IR v10 is implemented
+#if 1
+                THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str
+                    << "Device " << subnetwork._device << " does not implement Export method";
+#else
                 pugi::xml_document doc;
                 auto subnet = subnetwork._clonedNetwork;
                 if (subnet.getFunction()) {
@@ -916,6 +922,7 @@ void HeteroExecutableNetwork::ExportImpl(std::ostream& heteroModel) {
                 heteroModel << std::endl;
                 heteroModel.write(reinterpret_cast<char*>(&dataSize), sizeof(dataSize));
                 InferenceEngine::Serialization::SerializeBlobs(heteroModel, subnet);
+#endif
             } else {
                 throw;
             }

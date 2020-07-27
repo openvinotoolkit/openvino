@@ -24,6 +24,7 @@
 #include "ngraph/graph_util.hpp"
 #include "ngraph/node.hpp"
 #include "ngraph/op/util/attr_types.hpp"
+#include "ngraph/op/util/op_types.hpp"
 #include "ngraph/ops.hpp"
 #include "ngraph/pass/implicit_broadcast_elimination.hpp"
 #include "ngraph/provenance.hpp"
@@ -135,7 +136,7 @@ namespace
                      *node);
         const auto& arg_shape = arg_pshape.to_shape();
 
-        NGRAPH_CHECK(target_shape_input.get_node_shared_ptr()->is_constant());
+        NGRAPH_CHECK(op::is_constant(target_shape_input.get_node()));
         auto target_shape = node->get_output_shape(0);
         NGRAPH_CHECK(node->get_broadcast_axes().first);
 
@@ -250,7 +251,7 @@ namespace
 
         const auto target_shape_input = node->input_value(1).get_node_shared_ptr();
         const auto input_rank = node->get_input_partial_shape(0).rank();
-        if (target_shape_input->is_constant() && node->get_output_partial_shape(0).is_static() &&
+        if (op::is_constant(target_shape_input) && node->get_output_partial_shape(0).is_static() &&
             input_rank.is_static())
         {
             const auto output_shape = node->get_output_shape(0);
@@ -416,12 +417,12 @@ namespace
     shared_ptr<Node> op_cast(shared_ptr<op::v1::OneHot> node)
     {
         const auto indices = node->input_value(0);
-        const auto depth = node->input_value(1).get_node_shared_ptr();
+        const auto depth = node->input_value(1).get_node();
         auto on_value = node->input_value(2);
         auto off_value = node->input_value(3);
         const auto axis = node->get_axis();
 
-        NGRAPH_CHECK(depth->is_constant(), "depth input must be constant", *node);
+        NGRAPH_CHECK(op::is_constant(depth), "depth input must be constant", *node);
         const auto output_pshape = node->get_output_partial_shape(0);
         NGRAPH_CHECK(output_pshape.is_static(), "output shape must be static", *node);
         const auto output_shape = output_pshape.to_shape();
@@ -529,7 +530,7 @@ namespace
     shared_ptr<Node> op_cast(shared_ptr<op::v1::Reverse> node)
     {
         auto axes_node = node->input_value(1).get_node_shared_ptr();
-        NGRAPH_CHECK(axes_node->is_constant(),
+        NGRAPH_CHECK(op::is_constant(axes_node),
                      "Unable to convert Reverse:v1 to Reverse:v0 "
                      "if reduction axes are not constant. Node: ",
                      *node);
@@ -685,7 +686,7 @@ namespace
         const auto data_shape = data_pshape.to_shape();
 
         const auto order_node = node->input_value(1).get_node_shared_ptr();
-        NGRAPH_CHECK(order_node->is_constant(),
+        NGRAPH_CHECK(op::is_constant(order_node),
                      "Unable to convert Transpose:v1 to Reshape:v0 "
                      "if order node is not constant. Node: ",
                      *node);
@@ -715,7 +716,7 @@ namespace
     {
         const auto split_lengths = node->input_value(2).get_node_shared_ptr();
 
-        NGRAPH_CHECK(split_lengths->is_constant(),
+        NGRAPH_CHECK(op::is_constant(split_lengths),
                      "Unable to convert VariadicSplit:v1 to Split:v0 "
                      "if 'split_lengths' input is not constant. Node: ",
                      *node);

@@ -107,7 +107,8 @@ enum ActivationTypes {
     HardSigmoid,
     Selu,
     Ceiling,
-    PReLu
+    PReLu,
+    Mish
 };
 
 enum EltwiseTypes {
@@ -135,6 +136,11 @@ enum LogicalTypes {
 enum SqueezeOpType {
     SQUEEZE,
     UNSQUEEZE
+};
+
+enum MinMaxOpType {
+    MINIMUM,
+    MAXIMUM
 };
 
 enum QuantizationGranularity {

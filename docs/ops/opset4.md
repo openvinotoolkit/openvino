@@ -1,4 +1,4 @@
-# Operation Set `opset4` Specification
+# Operation Set `opset4` Specification {#openvino_docs_ops_opset4}
 
 This specification document describes `opset4` operation set supported in OpenVINO.
 Support for each particular operation from the list below depends on the capabilities available in a inference plugin
@@ -96,7 +96,7 @@ declared in `namespace opset4`.
 * [PriorBox](detection/PriorBox_1.md)
 * [Proposal](detection/Proposal_1.md)
 * [PSROIPooling](detection/PSROIPooling_1.md)
-* [Range](generation/Range_1.md)
+* [Range](generation/Range_4.md)
 * [ReLU](activation/ReLU_1.md)
 * [ReadValue](infrastructure/ReadValue_3.md)
 * [ReduceLp](reduction/ReduceLp_4.md)
