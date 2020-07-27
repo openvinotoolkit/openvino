@@ -152,7 +152,7 @@ void Node::safe_delete(NodeVector& nodes, bool recurse)
     }
 }
 
-const Node::type_info_t Node::type_info("Node", 0);
+constexpr Node::type_info_t Node::type_info;
 
 void Node::set_arguments(const NodeVector& arguments)
 {

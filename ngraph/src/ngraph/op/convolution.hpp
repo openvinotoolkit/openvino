@@ -31,7 +31,7 @@ namespace ngraph
             class NGRAPH_API Convolution : public Op
             {
             public:
-                NGRAPH_RTTI_DECLARATION
+                NGRAPH_RTTI_DECLARATION("Convolution", Node, 1);
 
                 /// \brief Constructs a batched convolution operation.
                 Convolution() = default;

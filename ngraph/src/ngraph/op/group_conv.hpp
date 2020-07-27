@@ -31,7 +31,7 @@ namespace ngraph
             class NGRAPH_API GroupConvolution : public Op
             {
             public:
-                NGRAPH_RTTI_DECLARATION
+                NGRAPH_RTTI_DECLARATION("GroupConvolution", Node, 1)
 
                 /// \brief Constructs a batched convolution operation.
                 GroupConvolution() = default;

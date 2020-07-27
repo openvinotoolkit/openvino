@@ -184,12 +184,12 @@ namespace ngraph
         ///         tensors must match the match output tensors of the FusedOp
         virtual NodeVector decompose_op() const { return NodeVector(); }
         /// Defines the NodeTypeInfo for the node's class.
-        static const type_info_t type_info;
+        static constexpr type_info_t type_info{"Node", 0, nullptr};
 
         /// Returns the NodeTypeInfo for the class, static version of the function
         /// Required for platforms where static data of the class cannot be declared as exported
         /// symbol
-        static const type_info_t& get_type_info_static() { return type_info; }
+        //static const type_info_t& get_type_info_static() { return type_info; }
         /// Returns the NodeTypeInfo for the node's class, virtual version of the function to
         /// determine real type info for an object
         virtual const type_info_t& get_type_info() const { return type_info; }
@@ -534,18 +534,17 @@ namespace ngraph
 /// helper
 /// macro
 ///
-#define NGRAPH_RTTI_DECLARATION                                                                    \
-    static const ::ngraph::Node::type_info_t type_info;                                            \
-    static const ::ngraph::Node::type_info_t& get_type_info_static();                              \
+#define NGRAPH_RTTI_DECLARATION(TYPE_NAME, PARENT_CLASS, _VERSION_INDEX)                                                                    \
+    static constexpr ::ngraph::Node::type_info_t type_info{TYPE_NAME, _VERSION_INDEX, &PARENT_CLASS::type_info};                                            \
+    /*static const ::ngraph::Node::type_info_t& get_type_info_static();*/                              \
     const ::ngraph::Node::type_info_t& get_type_info() const override { return type_info; }
 /// Helper macro to build NGRAPH_RTTI_DEFINITION macro.
 #define NGRAPH_RTTI_DEFINITION_1(TYPE_NAME, CLASS, PARENT_CLASS, _VERSION_INDEX)                   \
-    const ::ngraph::Node::type_info_t CLASS::type_info{                                            \
-        TYPE_NAME, _VERSION_INDEX, &PARENT_CLASS::get_type_info_static()};
+    constexpr ::ngraph::Node::type_info_t CLASS::type_info;
 
 /// Helper macro to build NGRAPH_RTTI_DEFINITION macro.
 #define NGRAPH_RTTI_DEFINITION_2(TYPE_NAME, CLASS, PARENT_CLASS, _VERSION_INDEX)                   \
-    const ::ngraph::Node::type_info_t& CLASS::get_type_info_static() { return type_info; }
+    /*const ::ngraph::Node::type_info_t& CLASS::get_type_info_static() { return type_info; }*/
 /// Complementary to NGRAPH_RTTI_DECLARATION, this helper macro _defines_ items _declared_ by
 /// NGRAPH_RTTI_DECLARATION accepting necessary type identification details.
 /// Should be used outside the class definition scope.
