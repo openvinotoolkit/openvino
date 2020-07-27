@@ -44,6 +44,7 @@
 #include "ngraph/op/cosh.hpp"
 #include "ngraph/op/crop_and_resize.hpp"
 #include "ngraph/op/ctc_greedy_decoder.hpp"
+#include "ngraph/op/ctc_loss.hpp"
 #include "ngraph/op/cum_sum.hpp"
 #include "ngraph/op/deformable_convolution.hpp"
 #include "ngraph/op/deformable_psroi_pooling.hpp"

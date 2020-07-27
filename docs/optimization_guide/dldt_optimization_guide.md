@@ -272,15 +272,13 @@ using namespace InferenceEngine::PluginConfigParams;
 using namespace InferenceEngine::HeteroConfigParams;
 
 ...
-enginePtr = dispatcher.getPluginByDevice("HETERO:FPGA,CPU");
-InferencePlugin plugin(enginePtr);
-plugin.SetConfig({ {KEY_HETERO_DUMP_GRAPH_DOT, YES} });
+auto execNetwork = ie.LoadNetwork(network, "HETERO:FPGA,CPU", { {KEY_HETERO_DUMP_GRAPH_DOT, YES} });
 ```
 
 After enabling the configuration key, the heterogeneous plugin generates two files:
 
 -	`hetero_affinity.dot` - per-layer affinities. This file is generated only if default fallback policy was executed (as otherwise you have set the affinities by yourself, so you know them).
--	`hetero_subgraphs.dot` - affinities per sub-graph. This file is written to the disk during execution of `ICNNNetwork::LoadNetwork` for the heterogeneous plugin.
+-	`hetero_subgraphs.dot` - affinities per sub-graph. This file is written to the disk during execution of `Core::LoadNetwork` for the heterogeneous flow.
 
 You can use GraphViz\* utility or `.dot` converters (for example, to `.png` or `.pdf`), like xdot\*, available on Linux\* OS with `sudo apt-get install xdot`. Below is an example of the output trimmed to the two last layers (one executed on the FPGA and another on the CPU):
 
@@ -439,16 +437,11 @@ Infer Request based API offers two types of request: Sync and Async. The Sync is
 More importantly, an infer request encapsulates the reference to the “executable” network and actual inputs/outputs. Now, when you load the network to the plugin, you get a reference to the executable network (you may consider that as a queue). Actual infer requests are created by the executable network:
 
 ```cpp
-CNNNetReader network_reader;
-network_reader.ReadNetwork("Model.xml");
-network_reader.ReadWeights("Model.bin");
-auto network = network_reader.getNetwork();
+Core ie;
+auto network = ie.ReadNetwork("Model.xml", "Model.bin");
 InferenceEngine::InputsDataMap input_info(network.getInputsInfo());
 
-InferenceEnginePluginPtr engine_ptr = PluginDispatcher(pluginDirs).getSuitablePlugin(TargetDevice::eGPU);
-InferencePlugin plugin(engine_ptr);
-
-auto executable_network = plugin.LoadNetwork(network, {/*opt config*/});
+auto executable_network = ie.LoadNetwork(network, "GPU");
 auto infer_request = executable_network.CreateInferRequest();
 
 for (auto & item : inputInfo) {

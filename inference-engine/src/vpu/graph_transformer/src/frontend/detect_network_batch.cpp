@@ -142,10 +142,10 @@ void FrontEnd::detectNetworkBatch(
                 VPU_THROW_FORMAT("Unsupported layer %s configuration: no outputs", layer->get_name());
 
             // 1. Don't support if DetectionOutput is not the last layer in network
-            for (const auto& outputHandle : layer->get_outputs()) {
-                for (const auto& inputHandle : outputHandle.get_inputs()) {
-                    auto outNode = inputHandle->get_node();
-                    if (std::dynamic_pointer_cast<::ngraph::opset3::Result>(outNode)) {
+            for (const auto& outputHandle : layer->outputs()) {
+                for (const auto& inputHandle : outputHandle.get_target_inputs()) {
+                    auto outNode = inputHandle.get_node();
+                    if (dynamic_cast<::ngraph::opset3::Result *>(outNode)) {
                         continue;
                     }
                     VPU_THROW_FORMAT("Unsupported layer %s configuration : it is not a network output", layer->get_name());
