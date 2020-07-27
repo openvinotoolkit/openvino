@@ -136,18 +136,17 @@ namespace ngraph
                     // specifies how to transform the coordinate in the resized tensor to the
                     // coordinate in the original tensor. one of `half_pixel`, `pytorch_half_pixel`,
                     // `asymmetric`, `tf_half_pixel_for_nn`, `align_corners`
-                    CoordinateTransformMode coordinate_transformation_mode =
-                        CoordinateTransformMode::half_pixel;
+                    CoordinateTransformMode coordinate_transformation_mode;
                     // specifies round mode when `mode == nearest` and is used only when `mode ==
                     // nearest`. one of `round_prefer_floor`, `round_prefer_ceil`, `floor`, `ceil`,
                     // `simple`
-                    NearestMode nearest_mode = NearestMode::round_prefer_floor;
+                    NearestMode nearest_mode;
                     // a flag that specifies whether to perform anti-aliasing. default is `false`
-                    bool antialias = false;
+                    bool antialias;
                     // specifies the parameter *a* for cubic interpolation (see, e.g.
                     // [article](https://ieeexplore.ieee.org/document/1163711/)).  *cube_coeff* is
                     // used only when `mode == cubic`
-                    double cube_coeff = -0.75;
+                    double cube_coeff;
 
                     InterpolateAttrs()
                         : coordinate_transformation_mode(CoordinateTransformMode::half_pixel)
