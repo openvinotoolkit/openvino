@@ -515,6 +515,52 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         res->params = params;
         return res;
     });
+
+    addSpecificCreator({"LSTMSequence"}, [](const std::shared_ptr<::ngraph::Node>& node,
+                                                 const std::map<std::string, std::string> params) -> CNNLayerPtr {
+        THROW_IE_EXCEPTION << "LSTMSequence operation has a form that is not supported." << node->get_friendly_name()
+                           << " should be converted to LSTMSequenceIE operation.";
+        return nullptr;
+    });
+
+    addSpecificCreator({"RNNSequence"}, [](const std::shared_ptr<::ngraph::Node>& node,
+                                                 const std::map<std::string, std::string> params) -> CNNLayerPtr {
+        THROW_IE_EXCEPTION << "RNNSequence operation has a form that is not supported." << node->get_friendly_name()
+                           << " should be converted to RNNSequenceIE operation.";
+        return nullptr;
+    });
+
+    addSpecificCreator({"GRUSequence"}, [](const std::shared_ptr<::ngraph::Node>& node,
+                                                 const std::map<std::string, std::string> params) -> CNNLayerPtr {
+        THROW_IE_EXCEPTION << "GRUSequence operation has a form that is not supported." << node->get_friendly_name()
+                           << " should be converted to GRUSequenceIE operation.";
+        return nullptr;
+    });
+
+    addSpecificCreator({"GRUSequenceIE", "RNNSequenceIE", "LSTMSequenceIE"},
+                    [](const std::shared_ptr<::ngraph::Node>& node,
+                    const std::map<std::string, std::string> params) -> CNNLayerPtr {
+        LayerParams attrs = {node->get_friendly_name(), "GRUCell",
+                             details::convertPrecision(node->get_output_element_type(0))};
+        auto res = std::make_shared<GRUCell>(attrs);
+        res->params = params;
+
+        Builder::NodeConverter<ngraph::op::Constant> converter;
+        const auto weightsNode = node->input_value(2).get_node_shared_ptr();
+        if (converter.canCreate(weightsNode)) {
+            const auto& weights = converter.createLayer(weightsNode);
+            res->blobs["weights"] = weights->blobs["custom"];
+            res->_weights = weights->blobs["custom"];
+        }
+
+        const auto biasNode = node->input_value(3).get_node_shared_ptr();
+        if (converter.canCreate(biasNode)) {
+            const auto& bias = converter.createLayer(biasNode);
+            res->blobs["biases"] = bias->blobs["custom"];
+            res->_biases = bias->blobs["custom"];
+        }
+        return res;
+    });
 }
 
 CNNLayerPtr InferenceEngine::details::CNNLayerCreator::create() {

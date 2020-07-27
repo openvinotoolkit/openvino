@@ -212,6 +212,8 @@ set (SRC
     op/greater_eq.hpp
     op/group_conv.hpp
     op/group_conv.cpp
+    op/gru_sequence.cpp
+    op/gru_sequence.hpp
     op/interpolate.cpp
     op/interpolate.hpp
     op/less.cpp
@@ -314,6 +316,8 @@ set (SRC
     op/reverse.hpp
     op/reverse_sequence.cpp
     op/reverse_sequence.hpp
+    op/rnn_sequence.cpp
+    op/rnn_sequence.hpp
     op/scatter_elements_update.cpp
     op/scatter_elements_update.hpp
     op/scatter_nd_update.cpp
