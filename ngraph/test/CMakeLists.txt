@@ -305,6 +305,7 @@ set(MULTI_TEST_SRC
     backend/gather.in.cpp
     backend/gelu.in.cpp
     backend/group_convolution.in.cpp
+    backend/interpolate.in.cpp
     backend/log.in.cpp
     backend/logical_or.in.cpp
     backend/logical_xor.in.cpp
