@@ -32,9 +32,9 @@ TEST(TransformationTests, ConvertExtractImagePatchesToReorgYoloTests) {
     {
         auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{ 1, 3, 10, 10 });
 
-        auto sizes = Shape{ 5, 5 };
-        auto strides = Stride{ 5, 5 };
-        auto rates = Shape{ 1, 1 };
+        auto sizes = ngraph::Shape{ 5, 5 };
+        auto strides = ngraph::Stride{ 5, 5 };
+        auto rates = ngraph::Shape{ 1, 1 };
         ngraph::op::PadType auto_pad = ngraph::op::PadType::VALID;
 
 
@@ -65,9 +65,9 @@ TEST(TransformationTests, ConvertExtractImagePatchesToReorgYoloTestsNegative) {
     {
         auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{ 1, 3, 10, 10 });
 
-        auto sizes = Shape{ 5, 5 };
-        auto strides = Stride{ 5, 5 };
-        auto rates = Shape{ 1, 1 };
+        auto sizes = ngraph::Shape{ 5, 5 };
+        auto strides = ngraph::Stride{ 5, 5 };
+        auto rates = ngraph::Shape{ 1, 1 };
         ngraph::op::PadType auto_pad = ngraph::op::PadType::SAME_LOWER;
 
         auto eip = std::make_shared<ngraph::opset3::ExtractImagePatches>(input, sizes, strides, rates, auto_pad);
