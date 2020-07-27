@@ -21,7 +21,6 @@ namespace ngraph {
 namespace pass {
 
 class TRANSFORMATIONS_API ConvertPrecision;
-class TRANSFORMATIONS_API FuseShapeOfConvert;
 
 }  // namespace pass
 }  // namespace ngraph
