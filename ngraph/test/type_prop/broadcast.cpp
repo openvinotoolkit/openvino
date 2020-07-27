@@ -512,7 +512,7 @@ TYPED_TEST_P(BroadcastTests, broadcast_explicit_input_rank_static)
     ASSERT_TRUE(bc->get_output_partial_shape(0).rank().is_dynamic());
 }
 
-TYPED_TEST_P(BroadcastTests, broadcast_explicit_target_shape_rank_static)
+TYPED_TEST_P(BroadcastTests, broadcast_explicit_target_shape_and_input_data_rank_static)
 {
     // static rank data
     const auto data = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(3));
@@ -1085,7 +1085,7 @@ TEST(type_prop, broadcast_v3_output_rank_deduced_from_new_shape_input)
                                                                            Dimension::dynamic()}));
 }
 
-TEST(type_prop, broadcast_v3_bideractional_dynamic_input)
+TEST(type_prop, broadcast_v3_bidirectional_dynamic_input)
 {
     const auto arg = make_shared<op::Parameter>(element::f32, PartialShape::dynamic());
 
@@ -1105,7 +1105,7 @@ TEST(type_prop, broadcast_v3_bideractional_dynamic_input)
     ASSERT_TRUE(broadcast_v3->get_output_partial_shape(0).rank().is_dynamic());
 }
 
-TEST(type_prop, broadcast_v3_bideractional_static_rank_input)
+TEST(type_prop, broadcast_v3_bidirectional_static_rank_input)
 {
     const auto arg = make_shared<op::Parameter>(element::f32, PartialShape::dynamic(4));
 
@@ -1127,7 +1127,7 @@ TEST(type_prop, broadcast_v3_bideractional_static_rank_input)
     ASSERT_TRUE(broadcast_v3->get_output_partial_shape(0).is_dynamic());
 }
 
-TEST(type_prop, broadcast_v3_bideractional_static_shape_input)
+TEST(type_prop, broadcast_v3_bidirectional_static_shape_input)
 {
     const auto arg = make_shared<op::Parameter>(element::f32, PartialShape{1, 2, 3, 1});
 
@@ -1150,7 +1150,7 @@ TEST(type_prop, broadcast_v3_bideractional_static_shape_input)
     ASSERT_EQ(broadcast_v3->get_output_partial_shape(0), (PartialShape{2, 2, 3, 2}));
 }
 
-TEST(type_prop, broadcast_v3_bideractional_partially_dynamic_input)
+TEST(type_prop, broadcast_v3_bidirectional_partially_dynamic_input)
 {
     const auto target_shape =
         op::Constant::create(element::i64, Shape{4}, vector<int64_t>{1, 1, 50, 50});

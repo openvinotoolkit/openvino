@@ -108,7 +108,7 @@ void op::util::BroadcastBase::validate_target_shape_numpy(const PartialShape& ar
         const size_t arg_dim = arg_shape[i - start_axis].get_length();
         NODE_VALIDATION_CHECK(this,
                               arg_dim == 1 || arg_dim == target_shape[i],
-                              "Input shape dimension equals ",
+                              "Input shape dimension equal ",
                               arg_dim,
                               " cannot be broadcasted (numpy mode) to ",
                               target_shape[i],
