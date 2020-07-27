@@ -306,7 +306,7 @@ Standard ONNX\* operators:
 | Cosh | No |
 | Crop | No |
 | CumSum | No |
-| DequantizeLinear | Only in combination with QuantizeLinear, refer to the desc of the latter |
+| DequantizeLinear | No |
 | DetectionOutput (Intel experimental) | No |
 | Div | No |
 | Dropout | Not needed for inference |

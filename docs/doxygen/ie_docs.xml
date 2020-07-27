@@ -323,8 +323,6 @@
 					</tab>
 					<tab type="user" title="Select Environment" url="@ref workbench_docs_Workbench_DG_Select_Environment"/>
 					<tab type="user" title="Run Baseline Inference" url="@ref workbench_docs_Workbench_DG_Run_Baseline_Inference"/>
-					<tab type="user" title="Work with Docker Container" url="@ref workbench_docs_Workbench_DG_Docker_Container"/>
-					<tab type="user" title="Persist Database State" url="@ref workbench_docs_Workbench_DG_Persist_Database"/>
 				</tab>
 				<tab type="usergroup" title="DL Workbench Developer Guide" url="@ref workbench_docs_Workbench_DG_Run_Single_Inference">
 					<tab type="usergroup" title="Measure and Interpret Model Performance" url="@ref workbench_docs_Workbench_DG_Run_Single_Inference">
@@ -351,6 +349,8 @@
 					</tab>
 					<tab type="user" title="Build Application with Deployment Package" url="@ref workbench_docs_Workbench_DG_Deployment_Package"/>
 					<tab type="user" title="Deploy and Integrate Performance Criteria into Application" url="@ref workbench_docs_Workbench_DG_Deploy_and_Integrate_Performance_Criteria_into_Application"/>
+					<tab type="user" title="Persist Database State" url="@ref workbench_docs_Workbench_DG_Persist_Database"/>
+					<tab type="user" title="Work with Docker Container" url="@ref workbench_docs_Workbench_DG_Docker_Container"/>
 				</tab>
 				<tab type="usergroup" title="DL Workbench Security Guide" url="@ref workbench_docs_Workbench_DG_Configure_TLS">
 					<tab type="user" title="Configure Transport Layer Security (TLS)" url="@ref workbench_docs_Workbench_DG_Configure_TLS"/>
