@@ -11,6 +11,7 @@
 #include <transformations_visibility.hpp>
 
 #include "ngraph/op/op.hpp"
+#include "ngraph/op/reshape.hpp"
 
 namespace ngraph {
 namespace op {

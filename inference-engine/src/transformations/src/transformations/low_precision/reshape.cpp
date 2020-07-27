@@ -14,9 +14,6 @@
 #include "transformations/low_precision/common/ie_lpt_exception.hpp"
 #include "transformations/low_precision/network_helper.hpp"
 
-// TODO: remove after debugging
-#include <ngraph/pass/visualize_tree.hpp>
-
 namespace ngraph {
 namespace pass {
 namespace low_precision {
@@ -145,7 +142,17 @@ bool ReshapeTransformation::canBeTransformed(const TransformationContext& contex
     const auto inputShape = op->get_input_node_shared_ptr(0)->get_output_shape(index);
     const auto outputShape = op->get_output_shape(0);
 
-    return canBeTransformed(subtractShape, multiplyShape, inputShape, outputShape);
+    Shape subtractShapeWithBatch = subtractShape;
+    if ((dequantization.subtract != nullptr) && (subtractShapeWithBatch.size() < inputShape.size())) {
+        subtractShapeWithBatch.insert(subtractShapeWithBatch.begin(), inputShape[0]);
+    }
+
+    Shape multiplyShapeWithBatch = multiplyShape;
+    if ((dequantization.multiply != nullptr) && (multiplyShapeWithBatch.size() < inputShape.size())) {
+        multiplyShapeWithBatch.insert(multiplyShapeWithBatch.begin(), inputShape[0]);
+    }
+
+    return canBeTransformed(subtractShapeWithBatch, multiplyShapeWithBatch, inputShape, outputShape);
 }
 
 bool ReshapeTransformation::canBeTransformed(

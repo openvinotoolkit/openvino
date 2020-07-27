@@ -168,7 +168,7 @@ LowPrecisionTransformations LowPrecisionTransformer::getAllTransformations(const
         add<MaxPoolTransformation, opset1::MaxPool>(params).
         add<MultiplyTransformation, opset1::Multiply>(params).
         add<NormalizeL2Transformation, opset1::NormalizeL2>(params).
-        // add<ReshapeTransformation, opset1::Reshape>(params).
+        add<ReshapeTransformation, opset1::Reshape>(params).
         add<ReluTransformation, opset1::Relu>(params).
 
         addCleanup<FuseFakeQuantizeTransformation, opset1::FakeQuantize>(params).
@@ -216,11 +216,10 @@ TypeRelaxedReplacer::TypeRelaxedReplacer() {
     make_matcher_type_relaxed<opset1::FakeQuantize>(this);
     make_matcher_type_relaxed<opset1::GroupConvolution>(this);
     make_matcher_type_relaxed<opset1::Relu>(this);
-    // make_matcher_type_relaxed<opset1::Reshape>(this);
+    make_matcher_type_relaxed<opset1::Reshape>(this);
     make_matcher_type_relaxed<opset1::MaxPool>(this);
     make_matcher_type_relaxed<opset1::Add>(this);
     make_matcher_type_relaxed<opset1::Subtract>(this);
-    make_matcher_type_relaxed<ngraph::op::Subtract>(this);
     make_matcher_type_relaxed<opset1::NormalizeL2>(this);
     make_matcher_type_relaxed<opset1::Multiply>(this);
 }
