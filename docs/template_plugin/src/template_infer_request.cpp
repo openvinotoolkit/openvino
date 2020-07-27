@@ -63,7 +63,9 @@ TemplateInferRequest::~TemplateInferRequest() {
 // ! [infer_request:dtor]
 
 void TemplateInferRequest::allocateDeviceBuffers() {
-    // TODO: allocate device buffers if Template device is a remote one
+    // Allocate plugin backend specific memory handles
+    _inputTensors.resize(_networkInputs.size());
+    _outputTensors.resize(_networkOutputs.size());
 }
 
 template<typename BlobDataMap, typename GetNetworkPrecisionF>
@@ -108,8 +110,6 @@ static void AllocateImpl(const BlobDataMap& blobDataMap,
 }
 
 void TemplateInferRequest::allocateBlobs() {
-    _inputTensors.resize(_networkInputs.size());
-    _outputTensors.resize(_networkOutputs.size());
     auto&& parameters = _executableNetwork->_function->get_parameters();
     AllocateImpl(_networkInputs, _inputs, _networkInputBlobs, [&] (const std::string& blobName) {
         return parameters.at(_executableNetwork->_inputIndex.at(blobName))->get_element_type();

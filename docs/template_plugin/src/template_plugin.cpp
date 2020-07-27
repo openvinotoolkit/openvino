@@ -70,7 +70,7 @@ std::shared_ptr<ngraph::Function> Plugin::Transform(const std::shared_ptr<const 
         new_types.emplace_back(parameter->get_element_type());
     }
 
-    auto copyFunction = ngraph::specialize_function(std::const_pointer_cast<ngraph::Function>(ngraphFunction),
+    auto copyFunction = ngraph::specialize_function(std::const_pointer_cast<ngraph::Function>(function),
         new_types, new_shapes, std::vector<void *>(new_types.size(), nullptr), constFolding, shareConsts);
 
     copyFunction->set_friendly_name(function->get_friendly_name());
