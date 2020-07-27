@@ -59,24 +59,24 @@ tanh - (e^{2x} - 1)/(e^{2x} + 1)
 
 **Inputs**
 
-* **1**: `X` - 2D tensor of type *T* `[batch_size, input_size]`, input data. Required.
+* **1**: `X` - 2D tensor of type *T* `[batch_size, input_size]`, input data. **Required.**
 
-* **2**: `initial_hidden_state` - 2D ([batch_size, hidden_size]) tensor of type *T*. Required.
+* **2**: `initial_hidden_state` - 2D tensor of type *T* `[batch_size, hidden_size]`. **Required.**
 
-* **3**: `initial_cell_state` - 2D ([batch_size, hidden_size]) tensor of type *T*. Required.
+* **3**: `initial_cell_state` - 2D tensor of type *T* `[batch_size, hidden_size]`. **Required.**
 
-* **4**: `W` - 2D tensor of type *T* `[4 * hidden_size, input_size]`, the weights for matrix multiplication, gate order: fico. Required.
+* **4**: `W` - 2D tensor of type *T* `[4 * hidden_size, input_size]`, the weights for matrix multiplication, gate order: fico. **Required.**
 
-* **5**: `R` - 2D tensor of type *T* `[4 * hidden_size, hidden_size]`, the recurrence weights for matrix multiplication, gate order: fico. Required.
+* **5**: `R` - 2D tensor of type *T* `[4 * hidden_size, hidden_size]`, the recurrence weights for matrix multiplication, gate order: fico. **Required.**
 
-* **6**: `B` 1D tensor of type *T* `[4 * hidden_size]`, the sum of biases (weights and recurrence weights). Required.
+* **6**: `B` 1D tensor of type *T* `[4 * hidden_size]`, the sum of biases (weights and recurrence weights). **Required.**
 
 
 **Outputs**
 
-* **1**: `Ho` - 2D tensor of type *T* `[batch_size, hidden_size]`, output hidden state, .
+* **1**: `Ho` - 2D tensor of type *T* `[batch_size, hidden_size]`, the last output value of hidden state.
 
-* **2**: `Co` - 2D tensor of type *T* `[batch_size, hidden_size]`, output cell state.
+* **2**: `Co` - 2D tensor of type *T* `[batch_size, hidden_size]`, the last output value of cell state.
 
 **Types**
 

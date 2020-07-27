@@ -1,14 +1,14 @@
-## LSTMSequence <a name="LSTMSequence"></a> {#openvino_docs_ops_sequence_LSTMSequence_1}
+## RNNSequence <a name="RNNSequence"></a> {#openvino_docs_ops_sequence_RNNSequence_4}
 
-**Versioned name**: *LSTMSequence-1*
+**Versioned name**: *RNNSequence-4*
 
 **Category**: *Sequence processing*
 
-**Short description**: *LSTMSequence* operation represents a series of LSTM cells. Each cell is implemented as <a href="#LSTMCell">LSTMCell</a> operation.
+**Short description**: *RNNSequence* operation represents a series of RNN cells. Each cell is implemented as <a href="#RNNCell">RNNCell</a> operation.
 
 **Detailed description**
 
-A single cell in the sequence is implemented in the same way as in <a href="#LSTMCell">LSTMCell</a> operation. *LSTMSequence* represents a sequence of LSTM cells. The sequence can be connected differently depending on `direction` attribute that specifies the direction of traversing of input data along sequence dimension or specifies whether it should be a bidirectional sequence. The most of the attributes are in sync with the specification of ONNX LSTM operator defined <a href="https://github.com/onnx/onnx/blob/master/docs/Operators.md#lstm">LSTMCell</a>.
+A single cell in the sequence is implemented in the same way as in <a href="#RNNCell">RNNCell</a> operation. *RNNSequence* represents a sequence of RNN cells. The sequence can be connected differently depending on `direction` attribute that specifies the direction of traversing of input data along sequence dimension or specifies whether it should be a bidirectional sequence. The most of the attributes are in sync with the specification of ONNX RNN operator defined <a href="https://github.com/onnx/onnx/blob/master/docs/Operators.md#rnn">RNNCell</a>.
 
 
 **Attributes**
@@ -23,10 +23,10 @@ A single cell in the sequence is implemented in the same way as in <a href="#LST
 
 * *activations*
 
-  * **Description**: *activations* specifies activation functions for gates, there are three gates, so three activation functions should be specified as a value for this attributes
+  * **Description**: activation functions for gates
   * **Range of values**: any combination of *relu*, *sigmoid*, *tanh*
   * **Type**: a list of strings
-  * **Default value**: *sigmoid,tanh,tanh*
+  * **Default value**: *tanh*
   * **Required**: *no*
 
 * *activations_alpha, activations_beta*
@@ -55,27 +55,23 @@ A single cell in the sequence is implemented in the same way as in <a href="#LST
 
 **Inputs**
 
-* **1**: `X` - 3D tensor of type *T1* `[batch_size, seq_length, input_size]`, input data. It differs from LSTMCell 1st input only by additional axis with size `seq_length`. **Required.**
+* **1**: `X` - 3D tensor of type *T1* `[batch_size, seq_length, input_size]`, input data. It differs from RNNCell 1st input only by additional axis with size `seq_length`. **Required.**
 
 * **2**: `initial_hidden_state` - 3D tensor of type *T1* `[batch_size, num_directions, hidden_size]`, input hidden state data. **Required.**
 
-* **3**: `initial_cell_state` - 3D tensor of type *T1* `[batch_size, num_directions, hidden_size]`, input cell state data. **Required.**
+* **3**: `sequence_lengths` - 1D tensor of type *T2* `[batch_size]`, specifies real sequence lengths for each batch element. **Required.**
 
-* **4**: `sequence_lengths` - 1D tensor of type *T2* `[batch_size]`, specifies real sequence lengths for each batch element. **Required.**
+* **4**: `W` - 3D tensor of type *T1* `[num_directions, hidden_size, input_size]`, the weights for matrix multiplication. **Required.**
 
-* **5**: `W` - 3D tensor of type *T1* `[num_directions, 4 * hidden_size, input_size]`, the weights for matrix multiplication, gate order: fico. **Required.**
+* **5**: `R` - 3D tensor of type *T1* `[num_directions, hidden_size, hidden_size]`, the recurrence weights for matrix multiplication. **Required.**
 
-* **6**: `R` - 3D tensor of type *T1* `[num_directions, 4 * hidden_size, hidden_size]`, the recurrence weights for matrix multiplication, gate order: fico. **Required.**
-
-* **7**: `B` - 2D tensor of type *T1* `[num_directions, 4 * hidden_size]`, the sum of biases (weights and recurrence weights). **Required.**
+* **6**: `B` - 2D tensor of type *T1* `[num_directions, hidden_size]`, the sum of biases (weights and recurrence weights). **Required.**
 
 **Outputs**
 
 * **1**: `Y` – 3D tensor of type *T1* `[batch_size, num_directions, seq_len, hidden_size]`, concatenation of all the intermediate output values of the hidden.
 
 * **2**: `Ho` - 3D tensor of type *T1* `[batch_size, num_directions, hidden_size]`, the last output value of hidden state.
-
-* **3**: `Co` - 3D tensor of type *T1* `[batch_size, num_directions, hidden_size]`, the last output value of cell state.
 
 **Types**
 
@@ -84,7 +80,7 @@ A single cell in the sequence is implemented in the same way as in <a href="#LST
 
 **Example**
 ```xml
-<layer ... type="LSTMSequence" ...>
+<layer ... type="RNNSequence" ...>
     <data hidden_size="128"/>
     <input>
         <port id="0">
@@ -99,40 +95,30 @@ A single cell in the sequence is implemented in the same way as in <a href="#LST
         </port>
         <port id="2">
             <dim>1</dim>
+        </port>
+         <port id="3">
             <dim>1</dim>
             <dim>128</dim>
-        </port>
-        <port id="3">
-            <dim>1</dim>
+            <dim>16</dim>
         </port>
          <port id="4">
             <dim>1</dim>
-            <dim>512</dim>
-            <dim>16</dim>
+            <dim>128</dim>
+            <dim>128</dim>
         </port>
          <port id="5">
             <dim>1</dim>
-            <dim>512</dim>
             <dim>128</dim>
-        </port>
-         <port id="6">
-            <dim>1</dim>
-            <dim>512</dim>
         </port>
     </input>
     <output>
-        <port id="7">
+        <port id="6">
             <dim>1</dim>
             <dim>1</dim>
             <dim>4</dim>
             <dim>128</dim>
         </port>
-        <port id="8">
-            <dim>1</dim>
-            <dim>1</dim>
-            <dim>128</dim>
-        </port>
-        <port id="9">
+        <port id="7">
             <dim>1</dim>
             <dim>1</dim>
             <dim>128</dim>
