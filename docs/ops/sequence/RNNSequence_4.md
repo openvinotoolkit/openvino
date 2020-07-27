@@ -1,6 +1,6 @@
-## RNNSequence <a name="RNNSequence"></a> {#openvino_docs_ops_sequence_RNNSequence_1}
+## RNNSequence <a name="RNNSequence"></a> {#openvino_docs_ops_sequence_RNNSequence_4}
 
-**Versioned name**: *RNNSequence-1*
+**Versioned name**: *RNNSequence-4*
 
 **Category**: *Sequence processing*
 

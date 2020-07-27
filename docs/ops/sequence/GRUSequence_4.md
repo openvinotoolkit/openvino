@@ -1,6 +1,6 @@
-## GRUSequence <a name="GRUSequence"></a> {#openvino_docs_ops_sequence_GRUSequence_1}
+## GRUSequence <a name="GRUSequence"></a> {#openvino_docs_ops_sequence_GRUSequence_4}
 
-**Versioned name**: *GRUSequence-1*
+**Versioned name**: *GRUSequence-4*
 
 **Category**: *Sequence processing*
 
