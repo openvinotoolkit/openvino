@@ -18,14 +18,6 @@ void Environment::setTestConfig(const pugi::xml_document &test_config) {
     _test_config.reset(test_config);
 }
 
-const pugi::xml_document & Environment::getEnvConfig() {
-    return _env_config;
-}
-
-void Environment::setEnvConfig(const pugi::xml_document &env_config) {
-    _env_config.reset(env_config);
-}
-
 const bool & Environment::getCollectResultsOnly() {
     return _collect_results_only;
 }
