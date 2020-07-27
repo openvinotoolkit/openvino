@@ -37,7 +37,6 @@
 #include "ngraph/runtime/reference/avg_pool.hpp"
 #include "ngraph/runtime/reference/batch_norm.hpp"
 #include "ngraph/runtime/reference/broadcast.hpp"
-#include "ngraph/runtime/reference/broadcast_distributed.hpp"
 #include "ngraph/runtime/reference/ceiling.hpp"
 #include "ngraph/runtime/reference/concat.hpp"
 #include "ngraph/runtime/reference/constant.hpp"
@@ -272,33 +271,6 @@ protected:
                                                args[4]->get_data_ptr<const T>(),
                                                out[0]->get_data_ptr<T>(),
                                                node.get_input_shape(2));
-            break;
-        }
-        case OP_TYPEID::BroadcastDistributed:
-        {
-            const ngraph::op::BroadcastDistributed* broadcast =
-                static_cast<const ngraph::op::BroadcastDistributed*>(&node);
-            int rank_ID;
-            rank_ID = get_distributed_interface()->get_rank();
-            int root_id = broadcast->get_root_id();
-            if (rank_ID == root_id)
-            {
-                reference::broadcastdistributed<T>(
-                    args[0]->get_data_ptr<T>(),
-                    node.get_input_element_type(0),
-                    static_cast<int>(shape_size(node.get_input_shape(0))),
-                    root_id);
-                auto memSize = static_cast<int>(shape_size(node.get_input_shape(0))) * sizeof(T);
-                memcpy(out[0]->get_data_ptr<T>(), args[0]->get_data_ptr<T>(), memSize);
-            }
-            else
-            {
-                reference::broadcastdistributed<T>(
-                    out[0]->get_data_ptr<T>(),
-                    node.get_input_element_type(0),
-                    static_cast<int>(shape_size(node.get_input_shape(0))),
-                    root_id);
-            }
             break;
         }
         case OP_TYPEID::BroadcastLike: break;

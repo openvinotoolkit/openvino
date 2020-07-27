@@ -136,7 +136,6 @@ set (SRC
     op/binary_convolution.cpp
     op/binary_convolution.hpp
     op/broadcast.cpp
-    op/broadcast_distributed.cpp
     op/bucketize.cpp
     op/bucketize.hpp
     op/ceiling.cpp
