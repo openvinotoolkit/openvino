@@ -30,6 +30,10 @@
 #include <transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
 #include <transformations/convert_opset2_to_opset1/convert_opset2_to_opset1.hpp>
 #include <transformations/convert_opset3_to_opset2/convert_opset3_to_opset2.hpp>
+
+#include <transformations/low_precision/transformer.hpp>
+#include <transformations/low_precision/mat_mul.hpp>
+
 #include "convert_function_to_cnn_network.hpp"
 
 #undef min
@@ -69,7 +73,7 @@ cldnn::device_info clDNNEngine::GetDeviceInfo(const std::map<std::string, std::s
     return device_info;
 }
 
-InferenceEngine::ICNNNetwork::Ptr clDNNEngine::CloneNetwork(const InferenceEngine::ICNNNetwork& network) const {
+InferenceEngine::ICNNNetwork::Ptr clDNNEngine::CloneNetwork(const InferenceEngine::ICNNNetwork& network, const Config& config) const {
     std::shared_ptr<ICNNNetwork> clonedNetwork = cloneNetwork(network);
     if (clonedNetwork->getFunction()) {
         const auto transformations_callback = [](const std::shared_ptr<const ::ngraph::Node> &node) -> bool {
@@ -93,6 +97,20 @@ InferenceEngine::ICNNNetwork::Ptr clDNNEngine::CloneNetwork(const InferenceEngin
         ngraph::pass::CommonOptimizations(transformations_callback).run_on_function(nGraphFunc);
         ngraph::pass::ConvertOpSet3ToOpSet2(transformations_callback).run_on_function(nGraphFunc);
         ngraph::pass::ConvertOpSet2ToOpSet1(transformations_callback).run_on_function(nGraphFunc);
+
+        using namespace ngraph::pass::low_precision;
+        if (config.enableInt8 && (config.lptVersion == Config::LptVersion::nGraph)) {
+            auto params = LayerTransformation::Params(
+                true,  // updatePrecisions
+                LayerTransformation::QuantizedTensorAlignment::UpdateLevel,  // quantizedTensorAlignmentOnActivations
+                LayerTransformation::QuantizedTensorAlignment::None,  // quantizedTensorAlignmentOnWeights
+                true);  // supportAsymmetricQuantization
+            LowPrecisionTransformer transformer(LowPrecisionTransformer::getAllTransformations(params)
+                .add<MatMulTransformation, ngraph::opset1::MatMul>(LayerTransformation::Params(params).setSupportAsymmetricQuantization(false)));
+
+            transformer.transform(nGraphFunc);
+        }
+
         ngraph::pass::ConvertOpSet1ToLegacy(transformations_callback).run_on_function(nGraphFunc);
         clonedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(nGraphFunc, *clonedNetwork);
     }
@@ -164,7 +182,8 @@ ExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceEn
 
     CLDNNPlugin::Config conf = _impl->m_config;
     auto device_info = GetDeviceInfo(config);
-    conf.enableInt8 = device_info.supports_imad || device_info.supports_immad;
+    // TODO: comment this line to support INT8 on any GPU
+    // conf.enableInt8 = device_info.supports_imad || device_info.supports_immad;
     conf.UpdateFromMap(config);
 
     if (conf.enableDynamicBatch) {
@@ -201,7 +220,7 @@ ExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceEn
 
     context = m_defaultContext;
 
-    return std::make_shared<CLDNNExecNetwork>(*CloneNetwork(network), context, conf);
+    return std::make_shared<CLDNNExecNetwork>(*CloneNetwork(network, conf), context, conf);
 }
 
 ExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceEngine::ICNNNetwork &network,
@@ -225,7 +244,7 @@ ExecutableNetworkInternal::Ptr clDNNEngine::LoadExeNetworkImpl(const InferenceEn
         conf.max_dynamic_batch = static_cast<int>(network.getBatchSize());
     }
 
-    return std::make_shared<CLDNNExecNetwork>(*CloneNetwork(network), casted, conf);
+    return std::make_shared<CLDNNExecNetwork>(*CloneNetwork(network, conf), casted, conf);
 }
 
 RemoteContext::Ptr clDNNEngine::CreateContext(const ParamMap& params) {

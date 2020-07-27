@@ -226,7 +226,7 @@ Program::Program(InferenceEngine::ICNNNetwork& network, std::shared_ptr<const cl
     , p_currentOutputs({}) {
     InitFormat(network);
 
-    if (config.enableInt8) {
+    if (config.enableInt8 && (config.lptVersion == Config::LptVersion::cnnNetwork)) {
         auto params = LayerTransformation::Params(true,  // updatePrecisions
                                                   true,  // quantizeOutputs
                                                   true,  // weightsToConst

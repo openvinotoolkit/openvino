@@ -19,7 +19,7 @@ const std::vector<ngraph::element::Type> precisions = {
 
 const std::vector<LayerTestsUtils::LayerTransformation::LptVersion> versions = {
     LayerTestsUtils::LayerTransformation::LptVersion::cnnNetwork,
-    // LayerTestsUtils::LayerTransformation::LptVersion::nGraph
+    LayerTestsUtils::LayerTransformation::LptVersion::nGraph
 };
 
 const std::vector<DepthToSpace::DepthToSpaceMode> modes = {

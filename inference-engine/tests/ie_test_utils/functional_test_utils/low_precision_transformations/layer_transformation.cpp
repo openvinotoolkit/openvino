@@ -110,6 +110,8 @@ void LayerTransformation::ConfigurePlugin(const LptVersion lptVersion) {
             THROW_IE_EXCEPTION << "unexpected LPT version " << lptVersion;
         }
     }
+
+    configuration[PluginConfigInternalParams::KEY_LP_TRANSFORMS_MODE] = PluginConfigParams::YES;
 }
 
 InferenceEngine::Blob::Ptr LayerTransformation::GenerateInput(
