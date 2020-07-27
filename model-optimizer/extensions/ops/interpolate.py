@@ -129,7 +129,8 @@ class Interpolate(Op):
             axes = list(range(0, input_rank))
         else:
             axes = node.in_port(2).get_source().data.get_value()
-            assert axes is not None
+            assert "Interpolate node with name {} has None as 'axes' input".format(node.soft_get('name', node.id)), \
+                axes is not None
 
         axes = int64_array(axes)
         dst_shape = node.in_port(1).data.get_value()
