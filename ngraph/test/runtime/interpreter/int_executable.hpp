@@ -50,7 +50,6 @@
 #include "ngraph/runtime/reference/elu.hpp"
 #include "ngraph/runtime/reference/embedding_bag_offsets_sum.hpp"
 #include "ngraph/runtime/reference/embedding_bag_packed_sum.hpp"
-#include "ngraph/runtime/reference/embedding_lookup.hpp"
 #include "ngraph/runtime/reference/embedding_segments_sum.hpp"
 #include "ngraph/runtime/reference/erf.hpp"
 #include "ngraph/runtime/reference/exp.hpp"
@@ -470,51 +469,6 @@ protected:
                            node.get_input_shape(1),
                            node.get_output_shape(0),
                            dot->get_reduction_axes_count());
-            break;
-        }
-        case OP_TYPEID::EmbeddingLookup:
-        {
-            const op::EmbeddingLookup* embed = static_cast<const op::EmbeddingLookup*>(&node);
-            auto type = embed->input(0).get_element_type();
-            size_t element_count = shape_size(embed->get_input_shape(0));
-
-            if (type == element::f32)
-            {
-                reference::embedding<T, float>(args[0]->get_data_ptr<const float>(),
-                                               args[1]->get_data_ptr<const T>(),
-                                               out[0]->get_data_ptr<T>(),
-                                               element_count,
-                                               embed->get_shape());
-            }
-            else if (type == element::f64)
-            {
-                reference::embedding<T, double>(args[0]->get_data_ptr<const double>(),
-                                                args[1]->get_data_ptr<const T>(),
-                                                out[0]->get_data_ptr<T>(),
-                                                element_count,
-                                                embed->get_shape());
-            }
-            else if (type == element::i32)
-            {
-                reference::embedding<T, int32_t>(args[0]->get_data_ptr<const int>(),
-                                                 args[1]->get_data_ptr<const T>(),
-                                                 out[0]->get_data_ptr<T>(),
-                                                 element_count,
-                                                 embed->get_shape());
-            }
-            else if (type == element::i64)
-            {
-                reference::embedding<T, int64_t>(args[0]->get_data_ptr<const int64_t>(),
-                                                 args[1]->get_data_ptr<const T>(),
-                                                 out[0]->get_data_ptr<T>(),
-                                                 element_count,
-                                                 embed->get_shape());
-            }
-            else
-            {
-                throw ngraph_error(std::string("Unsupported index type ") + type.c_type_string() +
-                                   std::string(" in EmbeddingLookup"));
-            }
             break;
         }
         case OP_TYPEID::EmbeddingBagOffsetsSum_v3:
@@ -1208,7 +1162,6 @@ protected:
         }
 
         // Fused Ops are not supported in interpreter. They need to be decomposed before execution
-        case OP_TYPEID::CropAndResize:
         case OP_TYPEID::DepthToSpace:
         case OP_TYPEID::FakeQuantize:
         case OP_TYPEID::Gather:

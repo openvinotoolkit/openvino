@@ -160,8 +160,6 @@ set (SRC
     op/ctc_loss.hpp
     op/cum_sum.cpp
     op/cum_sum.hpp
-    op/crop_and_resize.cpp
-    op/crop_and_resize.hpp
     op/deformable_convolution.cpp
     op/deformable_convolution.hpp
     op/deformable_psroi_pooling.cpp
@@ -178,8 +176,6 @@ set (SRC
     op/elu.hpp
     op/embeddingbag_offsets_sum.cpp
     op/embeddingbag_offsets_sum.hpp
-    op/embedding_lookup.cpp
-    op/embedding_lookup.hpp
     op/embeddingbag_packedsum.cpp
     op/embeddingbag_packedsum.hpp
     op/embedding_segments_sum.cpp

@@ -1116,15 +1116,6 @@ shared_ptr<Node> JSONDeserializer::deserialize_node(json node_js)
             node = make_shared<op::CumSum>(args[0], args[1], exclusive, reverse);
             break;
         }
-        case OP_TYPEID::CropAndResize:
-        {
-            auto resize_method =
-                as_type<op::CropAndResize::ResizeMethod>(node_js.at("resize_method").get<string>());
-            auto extrapolation_value = node_js.at("extrapolation_value").get<float>();
-            node = make_shared<op::CropAndResize>(
-                args[0], args[1], args[2], args[3], resize_method, extrapolation_value);
-            break;
-        }
         case OP_TYPEID::CTCGreedyDecoder: { break;
         }
         case OP_TYPEID::DeformableConvolution_v1:
@@ -1191,11 +1182,6 @@ shared_ptr<Node> JSONDeserializer::deserialize_node(json node_js)
         {
             auto alpha = node_js.at("alpha").get<double>();
             node = make_shared<op::Elu>(args[0], alpha);
-            break;
-        }
-        case OP_TYPEID::EmbeddingLookup:
-        {
-            node = make_shared<op::EmbeddingLookup>(args[0], args[1]);
             break;
         }
         case OP_TYPEID::Equal:
@@ -2311,13 +2297,6 @@ json JSONSerializer::serialize_node(const Node& n)
         node["reverse"] = tmp->is_reverse();
         break;
     }
-    case OP_TYPEID::CropAndResize:
-    {
-        auto tmp = static_cast<const op::CropAndResize*>(&n);
-        node["resize_method"] = as_string(tmp->get_resize_method());
-        node["extrapolation_value"] = tmp->get_extrapolation_value();
-        break;
-    }
     case OP_TYPEID::CTCGreedyDecoder: { break;
     }
     case OP_TYPEID::DetectionOutput: { break;
@@ -2380,8 +2359,6 @@ json JSONSerializer::serialize_node(const Node& n)
         auto tmp = static_cast<const op::Elu*>(&n);
         node["alpha"] = tmp->get_alpha();
         break;
-    }
-    case OP_TYPEID::EmbeddingLookup: { break;
     }
     case OP_TYPEID::Equal:
     {
