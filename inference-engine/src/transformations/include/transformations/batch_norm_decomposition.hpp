@@ -22,12 +22,7 @@ class TRANSFORMATIONS_API BatchNormDecomposition;
 }  // namespace pass
 }  // namespace ngraph
 
-class ngraph::pass::BatchNormDecomposition: public ngraph::pass::GraphRewrite {
+class ngraph::pass::BatchNormDecomposition: public ngraph::pass::MatcherPass {
 public:
-    BatchNormDecomposition() : GraphRewrite() {
-        batch_norm_decomposition();
-    }
-
-private:
-    void batch_norm_decomposition();
+    BatchNormDecomposition();
 };

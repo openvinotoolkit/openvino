@@ -560,6 +560,8 @@ set (SRC
     pattern/op/skip.hpp
     pattern/op/true.cpp
     pattern/op/true.hpp
+    pattern/op/wrap_type.hpp
+    pattern/op/wrap_type.cpp
     provenance.cpp
     provenance.hpp
     rank.hpp
