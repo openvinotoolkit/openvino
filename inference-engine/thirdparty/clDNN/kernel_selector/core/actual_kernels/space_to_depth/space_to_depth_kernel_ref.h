@@ -43,10 +43,19 @@ struct space_to_depth_optional_params : optional_params {
 class SpaceToDepthKernelRef : public common_kernel_base {
 public:
     SpaceToDepthKernelRef() : common_kernel_base("space_to_depth_ref") {}
-    virtual ~SpaceToDepthKernelRef() {}
-    virtual JitConstants GetJitConstants(const space_to_depth_params& params) const;
-    virtual CommonDispatchData SetDefault(const space_to_depth_params& params, const optional_params&) const;
+    virtual ~SpaceToDepthKernelRef() = default;
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
     ParamsKey GetSupportedKey() const override;
+
+protected:
+    virtual CommonDispatchData SetDefault(const space_to_depth_params& params, const optional_params&) const;
+    virtual JitConstants GetJitConstants(const space_to_depth_params& params) const;
+    virtual bool Validate(const Params& p, const optional_params& o) const;
+    std::vector<FusedOpType> GetSupportedFusedOps() const override {
+        return { FusedOpType::ELTWISE,
+                 FusedOpType::QUANTIZE,
+                 FusedOpType::SCALE,
+                 FusedOpType::ACTIVATION };
+    }
 };
 }  // namespace kernel_selector
