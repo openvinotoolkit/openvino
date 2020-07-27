@@ -91,9 +91,6 @@ public:
     void createInputs(std::vector<DataDesc> inputDescs);
     void createOutputs(std::vector<DataDesc> outputDescs);
 
-    void createInputs(int numInputs);
-    void createOutputs(int numOutputs);
-
     Stage addStage(
             std::initializer_list<InputInfo> curInputInfos,
             std::initializer_list<OutputInfo> curOutputInfos);
@@ -112,9 +109,11 @@ public:
             int stageInd,
             const InOutPortMap<BatchSupport>& inputInfo);
 
+public:
+    DataDesc _dataDesc;
+
 private:
     Model _model;
-    DataDesc _dataDesc;
 
     DataVector _inputs;
     DataVector _outputs;

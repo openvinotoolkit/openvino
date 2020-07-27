@@ -139,12 +139,6 @@ void TestModel::createInputs(std::vector<DataDesc> inputDescs) {
     }
 }
 
-void TestModel::createInputs(int numInputs) {
-    std::vector<DataDesc> inDescs(numInputs);
-    std::fill(inDescs.begin(), inDescs.end(), _dataDesc);
-    createInputs(inDescs);
-}
-
 void TestModel::createOutputs(std::vector<DataDesc> outputDescs) {
     const auto numOutputs = outputDescs.size();
 
@@ -154,12 +148,6 @@ void TestModel::createOutputs(std::vector<DataDesc> outputDescs) {
     for (int i = 0; i < numOutputs; ++i) {
         _outputs[i] = _model->addOutputData(formatString("Output %d", i), outputDescs[i]);
     }
-}
-
-void TestModel::createOutputs(int numOutputs) {
-    std::vector<DataDesc> outDescs(numOutputs);
-    std::fill(outDescs.begin(), outDescs.end(), _dataDesc);
-    createOutputs(outDescs);
 }
 
 Stage TestModel::addStage(
