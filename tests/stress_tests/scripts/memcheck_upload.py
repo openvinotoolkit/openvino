@@ -30,8 +30,7 @@ DB_COLLECTIONS = ["commit", "nightly", "weekly"]
 
 PRODUCT_NAME = 'dldt'   # product name from build manifest
 RE_GTEST_MODEL_XML = re.compile(r'<model[^>]*>')
-RE_GTEST_CUR_MEASURE = re.compile(
-    r'Current values of virtual memory consumption')
+RE_GTEST_CUR_MEASURE = re.compile(r'\[\s*MEASURE\s*\]')
 RE_GTEST_REF_MEASURE = re.compile(
     r'Reference values of virtual memory consumption')
 RE_GTEST_PASSED = re.compile(r'\[\s*PASSED\s*\]')
@@ -99,13 +98,14 @@ def parse_memcheck_log(log_path):
             ref_metrics = dict(zip(heading, values))
     for index in reversed(range(len(log_lines))):
         if RE_GTEST_CUR_MEASURE.search(log_lines[index]):
+            test_name = log_lines[index].split()[-1]
             heading = [name.lower() for name in log_lines[index+1]
                        [len(GTEST_INFO):].split()]
             values = [int(val) for val in log_lines[index+2]
                       [len(GTEST_INFO):].split()]
             entry = SimpleNamespace(
                 metrics=dict(zip(heading, values)),
-                test_name=model['test'],
+                test_name=test_name,
                 model_name=os.path.splitext(
                     os.path.basename(model['path']))[0],
                 precision=next(pr for pr in PRECISSIONS if pr.upper()

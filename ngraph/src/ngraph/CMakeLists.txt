@@ -136,7 +136,6 @@ set (SRC
     op/binary_convolution.cpp
     op/binary_convolution.hpp
     op/broadcast.cpp
-    op/broadcast_distributed.cpp
     op/bucketize.cpp
     op/bucketize.hpp
     op/ceiling.cpp
@@ -157,10 +156,10 @@ set (SRC
     op/cosh.hpp
     op/ctc_greedy_decoder.cpp
     op/ctc_greedy_decoder.hpp
+    op/ctc_loss.cpp
+    op/ctc_loss.hpp
     op/cum_sum.cpp
     op/cum_sum.hpp
-    op/crop_and_resize.cpp
-    op/crop_and_resize.hpp
     op/deformable_convolution.cpp
     op/deformable_convolution.hpp
     op/deformable_psroi_pooling.cpp
@@ -177,8 +176,6 @@ set (SRC
     op/elu.hpp
     op/embeddingbag_offsets_sum.cpp
     op/embeddingbag_offsets_sum.hpp
-    op/embedding_lookup.cpp
-    op/embedding_lookup.hpp
     op/embeddingbag_packedsum.cpp
     op/embeddingbag_packedsum.hpp
     op/embedding_segments_sum.cpp
@@ -563,6 +560,8 @@ set (SRC
     pattern/op/skip.hpp
     pattern/op/true.cpp
     pattern/op/true.hpp
+    pattern/op/wrap_type.hpp
+    pattern/op/wrap_type.cpp
     provenance.cpp
     provenance.hpp
     rank.hpp

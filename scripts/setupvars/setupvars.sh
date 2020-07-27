@@ -94,6 +94,10 @@ if [ -e $INTEL_OPENVINO_DIR/deployment_tools/open_model_zoo/tools/accuracy_check
     export PYTHONPATH="$INTEL_OPENVINO_DIR/deployment_tools/open_model_zoo/tools/accuracy_checker:$PYTHONPATH"
 fi
 
+if [ -e $INTEL_OPENVINO_DIR/deployment_tools/tools/post_training_optimization_toolkit ]; then
+    export PYTHONPATH="$INTEL_OPENVINO_DIR/deployment_tools/tools/post_training_optimization_toolkit:$PYTHONPATH"
+fi
+
 if [ -z "$python_version" ]; then
     if command -v python3.7 >/dev/null 2>&1; then
         python_version=3.7

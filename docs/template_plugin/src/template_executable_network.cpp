@@ -13,7 +13,6 @@
 #include <ie_metric_helpers.hpp>
 #include <ie_util_internal.hpp>
 #include <ie_plugin_config.hpp>
-#include <network_serializer.h>
 #include <threading/ie_executor_manager.hpp>
 #include <details/ie_cnn_network_tools.h>
 
@@ -87,7 +86,8 @@ void TemplatePlugin::ExecutableNetwork::CompileGraph(const std::shared_ptr<const
     // Example: register CommonOptimizations transformation from transformations library
     passManager.register_pass<ngraph::pass::CommonOptimizations>();
     // Example: register plugin specific transformation
-    passManager.register_pass<ngraph::pass::MyPatternBasedTransformation>();
+    passManager.register_pass<ngraph::pass::DecomposeDivideMatcher>();
+    passManager.register_pass<ngraph::pass::ReluReluFusionMatcher>();
     // Register any other transformations
     // ..
 

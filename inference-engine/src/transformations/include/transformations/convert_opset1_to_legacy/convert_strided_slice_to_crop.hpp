@@ -15,17 +15,12 @@
 namespace ngraph {
 namespace pass {
 
-class TRANSFORMATIONS_API ConvertStridedSliceToCrop;
+class TRANSFORMATIONS_API ConvertStridedSliceToCropMatcher;
 
 }  // namespace pass
 }  // namespace ngraph
 
-class ngraph::pass::ConvertStridedSliceToCrop: public ngraph::pass::GraphRewrite {
+class ngraph::pass::ConvertStridedSliceToCropMatcher: public ngraph::pass::MatcherPass {
 public:
-    ConvertStridedSliceToCrop() : GraphRewrite() {
-        convert_strided_slice_to_crop();
-    }
-
-private:
-    void convert_strided_slice_to_crop();
+    ConvertStridedSliceToCropMatcher();
 };
