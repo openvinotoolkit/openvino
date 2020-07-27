@@ -36,13 +36,10 @@ class ResizeExtractor(FrontExtractorOp):
                                             's',
                                             default=b'half_pixel').decode()
             nearest_mode = onnx_attr(node, 'nearest_mode', 's', default=b'round_prefer_floor').decode()
-            extrapolation_value = onnx_attr(node, 'extrapolation_value ', 'f', default=0.0)
-            exclude_outside = onnx_attr(node, 'exclude_outside', 'f', default=0.0)
             cubic_coeff_a = onnx_attr(node, 'cubic_coeff_a', 'f', default=-0.75)
             attrs = {
                 'mode': mode, 'coordinate_transformation_mode': transformation_mode,
-                'nearest_mode': nearest_mode, 'extrapolation_value': extrapolation_value,
-                'exclude_outside': exclude_outside, 'cube_coeff': cubic_coeff_a
+                'nearest_mode': nearest_mode, 'cube_coeff': cubic_coeff_a
             }
             ONNXResize11Op.update_node_stat(node, attrs)
         else:
