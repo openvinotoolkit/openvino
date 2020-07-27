@@ -1065,7 +1065,7 @@ void GNAPlugin::Reset() {
     graphCompiler.Reset();
 }
 
-uint32_t GNAPlugin::Infer(const InferenceEngine::Blob &input, InferenceEngine::Blob &output) {
+bool GNAPlugin::Infer(const InferenceEngine::Blob &input, InferenceEngine::Blob &output) {
     BlobMap bmInput;
     BlobMap bmOutput;
     if (inputsDataMap.size() != 1) {
@@ -1079,10 +1079,8 @@ uint32_t GNAPlugin::Infer(const InferenceEngine::Blob &input, InferenceEngine::B
     return Infer(bmInput, bmOutput);
 }
 
-uint32_t GNAPlugin::Infer(const InferenceEngine::BlobMap &input, InferenceEngine::BlobMap &result) {
-    auto queue_id = QueueInference(input, result);
-    Wait(queue_id);
-    return queue_id;
+bool GNAPlugin::Infer(const InferenceEngine::BlobMap &input, InferenceEngine::BlobMap &result) {
+    return  Wait(QueueInference(input, result));
 }
 
 Blob::Ptr GNAPlugin::GetOutputBlob(const std::string& name, InferenceEngine::Precision precision) {
