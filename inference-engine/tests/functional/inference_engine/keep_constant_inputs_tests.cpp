@@ -3,7 +3,6 @@
 //
 
 #include <gtest/gtest.h>
-#include <iostream>
 #include <cpp/ie_cnn_network.h>
 #include <cnn_network_impl.hpp>  // deprecated API
 
@@ -14,9 +13,7 @@
 
 #include <ie_precision.hpp>
 #include <functional_test_utils/precision_utils.hpp>
-#include "ngraph_functions/builders.hpp"
 #include "ngraph_functions/subgraph_builders.hpp"
-#include "low_precision_transformations/network_helper.hpp"
 #include <convert_function_to_cnn_network.hpp>
 #include <ngraph_ops/fully_connected.hpp>
 #include <transformations/common_optimizations/common_optimizations.hpp>
@@ -24,7 +21,6 @@
 #include <transformations/convert_opset2_to_opset1/convert_opset2_to_opset1.hpp>
 #include <transformations/convert_opset3_to_opset2/convert_opset3_to_opset2.hpp>
 #include "generic_ie.hpp"
-#include "graph_tools.hpp"
 #include "functional_test_utils/low_precision_transformations/layer_transformation.hpp"
 
 using namespace testing;
@@ -32,15 +28,12 @@ using namespace InferenceEngine;
 
 int numberOfInputsForLayerInCNNNetwork(const InferenceEngine::CNNNetwork& network, std::string layerType) {
     int numberOfInputs = 0;
-    InferenceEngine::CNNLayerPtr layer = nullptr;
 
     IE_SUPPRESS_DEPRECATED_START
     for (auto it = details::CNNNetworkIterator(network); it != details::CNNNetworkIterator(); it++) {
-        layer = *it;
+        InferenceEngine::CNNLayerPtr layer = *it;
         if (layer->type == layerType) {
             numberOfInputs = layer->insData.size();
-            std::cout << "Found layer: " << layer->name << " of type: " << layer->type << std::endl;
-            std::cout << "Number of inputs: " << numberOfInputs << std::endl;
             break;
         }
     }
@@ -69,8 +62,6 @@ void transformNetwork(std::shared_ptr<InferenceEngine::ICNNNetwork> clonedNetwor
                    std::dynamic_pointer_cast<const ::ngraph::opset3::ShuffleChannels>(node);
         };
         auto nGraphFunc = clonedNetwork->getFunction();
-        // Disable shape inference (WA for generic operations)
-        ::ngraph::op::GenericIE::DisableReshape noReshape(nGraphFunc);
 
         // Note: instead of running all Conversion Transformations you can make up your own transformation pipeline
         ngraph::pass::CommonOptimizations(transformations_callback).run_on_function(nGraphFunc);
@@ -85,44 +76,32 @@ TEST(KeepConstantInputsTests, ConvertConvolutionPoolReluNetworkWithTrue) {
     std::shared_ptr <ngraph::Function> f_ptr;
     f_ptr = ngraph::builder::subgraph::makeConvPoolRelu();
     InferenceEngine::CNNNetwork originalNetwork(f_ptr);
-    std::shared_ptr<InferenceEngine::ICNNNetwork> clonedNetwork = InferenceEngine::cloneNetwork(originalNetwork);
-    transformNetwork(clonedNetwork, true);
-    InferenceEngine::CNNNetwork convertedNetwork(clonedNetwork);
-    std::cout << "Check for conversion of ConvolutionPoolRelu Network with keep_constant_inputs = true" << std::endl;
-    ASSERT_GT(numberOfInputsForLayerInCNNNetwork(convertedNetwork, "Convolution"), 1);
+    transformNetwork(originalNetwork, true);
+    ASSERT_GT(numberOfInputsForLayerInCNNNetwork(originalNetwork, "Convolution"), 1);
 }
 
 TEST(KeepConstantInputsTests, ConvertConvolutionPoolReluNetworkWithFalse) {
     std::shared_ptr <ngraph::Function> f_ptr;
     f_ptr = ngraph::builder::subgraph::makeConvPoolRelu();
     InferenceEngine::CNNNetwork originalNetwork(f_ptr);
-    std::shared_ptr<InferenceEngine::ICNNNetwork> clonedNetwork = InferenceEngine::cloneNetwork(originalNetwork);
-    transformNetwork(clonedNetwork, false);
-    InferenceEngine::CNNNetwork convertedNetwork(clonedNetwork);
-    std::cout << "Check for conversion of ConvolutionPoolRelu Network with keep_constant_inputs = false" << std::endl;
-    ASSERT_EQ(numberOfInputsForLayerInCNNNetwork(convertedNetwork, "Convolution"), 1);
+    transformNetwork(originalNetwork, false);
+    ASSERT_EQ(numberOfInputsForLayerInCNNNetwork(originalNetwork, "Convolution"), 1);
 }
 
 TEST(KeepConstantInputsTests, ConvertConvolutionBiasNetworkWithTrue) {
     std::shared_ptr <ngraph::Function> f_ptr;
     f_ptr = ngraph::builder::subgraph::makeConvBias();
     InferenceEngine::CNNNetwork originalNetwork(f_ptr);
-    std::shared_ptr<InferenceEngine::ICNNNetwork> clonedNetwork = InferenceEngine::cloneNetwork(originalNetwork);
-    transformNetwork(clonedNetwork, true);
-    InferenceEngine::CNNNetwork convertedNetwork(clonedNetwork);
-    std::cout << "Check for conversion of ConvolutionBias Network with keep_constant_inputs = true" << std::endl;
-    ASSERT_GT(numberOfInputsForLayerInCNNNetwork(convertedNetwork, "Convolution"), 1);
+    transformNetwork(originalNetwork, true);
+    ASSERT_GT(numberOfInputsForLayerInCNNNetwork(originalNetwork, "Convolution"), 1);
 }
 
 TEST(KeepConstantInputsTests, ConvertConvolutionBiasNetworkWithFalse) {
     std::shared_ptr <ngraph::Function> f_ptr;
     f_ptr = ngraph::builder::subgraph::makeConvBias();
     InferenceEngine::CNNNetwork originalNetwork(f_ptr);
-    std::shared_ptr<InferenceEngine::ICNNNetwork> clonedNetwork = InferenceEngine::cloneNetwork(originalNetwork);
-    transformNetwork(clonedNetwork, false);
-    InferenceEngine::CNNNetwork convertedNetwork(clonedNetwork);
-    std::cout << "Check for conversion of ConvolutionBias Network with keep_constant_inputs = false" << std::endl;
-    ASSERT_EQ(numberOfInputsForLayerInCNNNetwork(convertedNetwork, "Convolution"), 1);
+    transformNetwork(originalNetwork, false);
+    ASSERT_EQ(numberOfInputsForLayerInCNNNetwork(originalNetwork, "Convolution"), 1);
 }
 
 TEST(KeepConstantInputsTests, ConvertFullyConnectedNetworkWithTrue) {
@@ -133,11 +112,8 @@ TEST(KeepConstantInputsTests, ConvertFullyConnectedNetworkWithTrue) {
     auto fc = std::make_shared<ngraph::op::FullyConnected>(input1, weights, empty_bias, ngraph::Shape{1, 786});
     f_ptr = std::make_shared<ngraph::Function>(ngraph::NodeVector{fc}, ngraph::ParameterVector{input1});
     InferenceEngine::CNNNetwork originalNetwork(f_ptr);
-    std::shared_ptr<InferenceEngine::ICNNNetwork> clonedNetwork = InferenceEngine::cloneNetwork(originalNetwork);
-    transformNetwork(clonedNetwork, true);
-    InferenceEngine::CNNNetwork convertedNetwork(clonedNetwork);
-    std::cout << "Check for conversion of FullyConnected Network with keep_constant_inputs = true" << std::endl;
-    ASSERT_GT(numberOfInputsForLayerInCNNNetwork(convertedNetwork, "FullyConnected"), 1);
+    transformNetwork(originalNetwork, true);
+    ASSERT_GT(numberOfInputsForLayerInCNNNetwork(originalNetwork, "FullyConnected"), 1);
 }
 
 TEST(KeepConstantInputsTests, ConvertFullyConnectedNetworkWithFalse) {
@@ -148,9 +124,6 @@ TEST(KeepConstantInputsTests, ConvertFullyConnectedNetworkWithFalse) {
     auto fc = std::make_shared<ngraph::op::FullyConnected>(input1, weights, empty_bias, ngraph::Shape{1, 786});
     f_ptr = std::make_shared<ngraph::Function>(ngraph::NodeVector{fc}, ngraph::ParameterVector{input1});
     InferenceEngine::CNNNetwork originalNetwork(f_ptr);
-    std::shared_ptr<InferenceEngine::ICNNNetwork> clonedNetwork = InferenceEngine::cloneNetwork(originalNetwork);
-    transformNetwork(clonedNetwork, false);
-    InferenceEngine::CNNNetwork convertedNetwork(clonedNetwork);
-    std::cout << "Check for conversion of FullyConnected Network with keep_constant_inputs = false" << std::endl;
-    ASSERT_EQ(numberOfInputsForLayerInCNNNetwork(convertedNetwork, "FullyConnected"), 1);
+    transformNetwork(originalNetwork, false);
+    ASSERT_EQ(numberOfInputsForLayerInCNNNetwork(originalNetwork, "FullyConnected"), 1);
 }
