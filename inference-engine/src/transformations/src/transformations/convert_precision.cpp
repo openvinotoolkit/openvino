@@ -55,6 +55,7 @@ bool ngraph::pass::ConvertPrecision::run_on_function(std::shared_ptr<ngraph::Fun
                 // If node type in map and convert can be fused into node we skip Convert creation
                 if (type_to_fuse.count(node->get_type_info()) &&
                     type_to_fuse.at(node->get_type_info())(node, m_to, output.get_index())) {
+                    node->validate_and_infer_types();
                     continue;
                 }
 
@@ -82,7 +83,6 @@ bool fuse_type_to_shapeof(std::shared_ptr<Node> node, element::Type to, size_t i
     if (auto shapeof = as_type_ptr<opset3::ShapeOf>(node)) {
         if (to == element::i32 || to == element::i64) {
             shapeof->set_output_type(to);
-            shapeof->validate_and_infer_types();
             return true;
         }
     }
@@ -92,7 +92,6 @@ bool fuse_type_to_shapeof(std::shared_ptr<Node> node, element::Type to, size_t i
 bool fuse_type_to_parameter(std::shared_ptr<Node> node, element::Type to, size_t idx) {
     if (auto param = as_type_ptr<opset3::Parameter>(node)) {
         param->set_element_type(to);
-        node->validate_and_infer_types();
         return true;
     }
     return false;
@@ -101,7 +100,6 @@ bool fuse_type_to_parameter(std::shared_ptr<Node> node, element::Type to, size_t
 bool fuse_type_to_convert(std::shared_ptr<Node> node, element::Type to, size_t idx) {
     if (auto convert = as_type_ptr<opset3::Convert>(node)) {
         convert->set_convert_element_type(to);
-        convert->validate_and_infer_types();
         return true;
     }
     return false;
@@ -110,7 +108,6 @@ bool fuse_type_to_convert(std::shared_ptr<Node> node, element::Type to, size_t i
 bool fuse_type_to_nms3(std::shared_ptr<ngraph::Node> node, ngraph::element::Type to, size_t idx) {
     if (auto nms = as_type_ptr<opset3::NonMaxSuppression>(node)) {
         nms->set_output_type(to);
-        nms->validate_and_infer_types();
         return true;
     }
     return false;
@@ -119,7 +116,6 @@ bool fuse_type_to_nms3(std::shared_ptr<ngraph::Node> node, ngraph::element::Type
 bool fuse_type_to_nms4(std::shared_ptr<ngraph::Node> node, ngraph::element::Type to, size_t idx) {
     if (auto nms = as_type_ptr<opset4::NonMaxSuppression>(node)) {
         nms->set_output_type(to);
-        nms->validate_and_infer_types();
         return true;
     }
     return false;
@@ -129,7 +125,6 @@ bool fuse_type_to_topk(std::shared_ptr<ngraph::Node> node, ngraph::element::Type
     if (auto topk = as_type_ptr<opset4::TopK>(node)) {
         if (idx == 1 && (to == element::i32 || to == element::i64)) {
             topk->set_index_element_type(to);
-            topk->validate_and_infer_types();
             return true;
         }
     }
@@ -140,7 +135,6 @@ bool fuse_type_to_nonzero(std::shared_ptr<ngraph::Node> node, ngraph::element::T
     if (auto nonzero = as_type_ptr<opset4::NonZero>(node)) {
         if (to == element::i32 || to == element::i64) {
             nonzero->set_output_type(to);
-            nonzero->validate_and_infer_types();
             return true;
         }
     }
@@ -151,7 +145,6 @@ bool fuse_type_to_bucketize(std::shared_ptr<ngraph::Node> node, ngraph::element:
     if (auto b = as_type_ptr<opset4::Bucketize>(node)) {
         if (to == element::i32 || to == element::i64) {
             b->set_output_type(to);
-            b->validate_and_infer_types();
             return true;
         }
     }
