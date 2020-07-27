@@ -37,4 +37,6 @@ NGRAPH_OP(EmbeddingSegmentsSum, op::v3)
 NGRAPH_OP(ExtractImagePatches, op::v3)
 NGRAPH_OP(ShapeOf, op::v3)
 NGRAPH_OP(NonZero, op::v3)
+NGRAPH_OP(ScatterNDUpdate, op::v3)
+NGRAPH_OP(ScatterUpdate, op::v3)
 #undef ID_SUFFIX
