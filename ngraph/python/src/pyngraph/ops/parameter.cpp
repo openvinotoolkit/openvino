@@ -20,6 +20,7 @@
 
 #include "ngraph/node.hpp"
 #include "ngraph/op/parameter.hpp"
+#include "ngraph/partial_shape.hpp" // ngraph::PartialShape
 #include "pyngraph/ops/parameter.hpp"
 
 namespace py = pybind11;
@@ -39,5 +40,6 @@ void regclass_pyngraph_op_Parameter(py::module m)
     });
 
     parameter.def(py::init<const ngraph::element::Type&, const ngraph::Shape&>());
+    parameter.def(py::init<const ngraph::element::Type&, const ngraph::PartialShape&>());
     //    parameter.def_property_readonly("description", &ngraph::op::Parameter::description);
 }

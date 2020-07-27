@@ -132,6 +132,11 @@ std::shared_ptr<ngraph::Node> makeSplit(const ngraph::Output<Node> &in,
 
 std::shared_ptr<ngraph::Node> makeActivation(const ngraph::Output<Node> &in,
                                              const element::Type &type,
+                                             ngraph::helpers::ActivationTypes activationType,
+                                             std::vector<size_t> inShape = {});
+
+std::shared_ptr<ngraph::Node> makeActivation(const ngraph::ParameterVector &parameters,
+                                             const element::Type &type,
                                              ngraph::helpers::ActivationTypes activationType);
 
 std::shared_ptr<ngraph::Node> makeEltwise(const ngraph::Output<Node> &in0,
@@ -170,6 +175,10 @@ std::shared_ptr<ngraph::Node> makeSqueezeUnsqueeze(const ngraph::Output<Node> &i
                                                    const element::Type &type,
                                                    const std::vector<int> &squeeze_indices,
                                                    ngraph::helpers::SqueezeOpType opType);
+
+std::shared_ptr<ngraph::Node> makeMinMax(const ngraph::Output<Node> &in1,
+                                         const ngraph::Output<Node> &in2,
+                                         ngraph::helpers::MinMaxOpType opType);
 
 std::shared_ptr<ngraph::Node> makeProposal(const ngraph::Output<Node> &class_probs,
                                            const ngraph::Output<Node> &class_logits,
@@ -253,7 +262,9 @@ std::shared_ptr<Node> makeShuffleChannels(const ngraph::Output<Node> &in,
                                           int group);
 
 std::shared_ptr<Node> makeMatMul(const Output<Node> &A,
-                                 const Output<Node> &B);
+                                 const Output<Node> &B,
+                                 bool transpose_a = false,
+                                 bool transpose_b = false);
 
 std::shared_ptr<ngraph::Node> makeReduce(std::vector<ngraph::Output<Node>> &in,
                                          const std::vector<int> &reductionAxes,

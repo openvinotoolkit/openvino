@@ -106,7 +106,9 @@ enum ActivationTypes {
     Erf,
     HardSigmoid,
     Selu,
-    Ceiling
+    Ceiling,
+    PReLu,
+    Mish
 };
 
 enum EltwiseTypes {
@@ -134,6 +136,11 @@ enum LogicalTypes {
 enum SqueezeOpType {
     SQUEEZE,
     UNSQUEEZE
+};
+
+enum MinMaxOpType {
+    MINIMUM,
+    MAXIMUM
 };
 
 enum QuantizationGranularity {
@@ -223,6 +230,12 @@ std::ostream& operator<<(std::ostream& os, ngraph::helpers::InputLayerType type)
 std::ostream& operator<<(std::ostream & os, ngraph::helpers::ComparisonTypes type);
 
 std::ostream& operator<<(std::ostream & os, ngraph::helpers::LogicalTypes type);
+
+std::ostream& operator<<(std::ostream & os, ngraph::op::v3::Interpolate::InterpolateMode type);
+
+std::ostream& operator<<(std::ostream & os, ngraph::op::v3::Interpolate::CoordinateTransformMode type);
+
+std::ostream& operator<<(std::ostream & os, ngraph::op::v3::Interpolate::NearestMode type);
 
 }  // namespace helpers
 }  // namespace ngraph

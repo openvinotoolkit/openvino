@@ -18,7 +18,7 @@ from .cimport ie_api_impl_defs as C
 import numpy as np
 from enum import Enum
 
-supported_precisions = ["FP32", "FP16", "I64", "U64", "I32", "I16", "I8", "U16", "U8"]
+supported_precisions = ["FP32", "FP16", "I64", "U64", "I32", "U32", "I16", "I8", "U16", "U8"]
 
 known_plugins = ['CPU', 'GPU', 'FPGA', 'MYRIAD', 'HETERO', 'HDDL', 'MULTI']
 

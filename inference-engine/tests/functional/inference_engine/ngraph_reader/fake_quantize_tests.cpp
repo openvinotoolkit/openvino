@@ -258,6 +258,7 @@ TEST_F(NGraphReaderTests, ReadFQNetwork) {
 
     IE_SUPPRESS_DEPRECATED_START
     // convert to old representation
-    getCreatorLayer(cnn.getInputsInfo().begin()->second->getInputData());
+    auto convertedNetwork = std::make_shared<details::CNNNetworkImpl>(cnn);
+    (void)convertedNetwork;
     IE_SUPPRESS_DEPRECATED_END
 }

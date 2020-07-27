@@ -1,4 +1,4 @@
-# Operation Set `opset4` Specification
+# Operation Set `opset4` Specification {#openvino_docs_ops_opset4}
 
 This specification document describes `opset4` operation set supported in OpenVINO.
 Support for each particular operation from the list below depends on the capabilities available in a inference plugin
@@ -25,6 +25,7 @@ declared in `namespace opset4`.
 * [Broadcast](movement/Broadcast_3.md)
 * [Bucketize](condition/Bucketize_3.md)
 * [CTCGreedyDecoder](sequence/CTCGreedyDecoder_1.md)
+* [CTCLoss](sequence/CTCLoss_4.md)
 * [Ceiling](arithmetic/Ceiling_1.md)
 * [Clamp](activation/Clamp_1.md)
 * [Concat](movement/Concat_1.md)
@@ -61,8 +62,9 @@ declared in `namespace opset4`.
 * [GroupConvolution](convolution/GroupConvolution_1.md)
 * [GroupConvolutionBackpropData](convolution/GroupConvolutionBackpropData_1.md)
 * [GRUCell](sequence/GRUCell_3.md)
+* [GRUSequence](sequence/GRUSequence_4.md)
 * [HardSigmoid](activation/HardSigmoid_1.md)
-* [Interpolate](image/Interpolate_1.md)
+* [Interpolate](image/Interpolate_4.md)
 * [Less](comparison/Less_1.md)
 * [LessEqual](comparison/LessEqual_1.md)
 * [Log](arithmetic/Log_1.md)
@@ -77,6 +79,7 @@ declared in `namespace opset4`.
 * [MaxPool](pooling/MaxPool_1.md)
 * [Maximum](arithmetic/Maximum_1.md)
 * [Minimum](arithmetic/Minimum_1.md)
+* [Mish](activation/Mish_4.md)
 * [Mod](arithmetic/Mod_1.md)
 * [MVN](normalization/MVN_1.md)
 * [Multiply](arithmetic/Multiply_1.md)
@@ -94,9 +97,10 @@ declared in `namespace opset4`.
 * [PriorBox](detection/PriorBox_1.md)
 * [Proposal](detection/Proposal_1.md)
 * [PSROIPooling](detection/PSROIPooling_1.md)
-* [Range](generation/Range_1.md)
+* [Range](generation/Range_4.md)
 * [ReLU](activation/ReLU_1.md)
 * [ReadValue](infrastructure/ReadValue_3.md)
+* [ReduceLp](reduction/ReduceLp_4.md)
 * [ReduceLogicalAnd](reduction/ReduceLogicalAnd_1.md)
 * [ReduceLogicalOr](reduction/ReduceLogicalOr_1.md)
 * [ReduceMax](reduction/ReduceMax_1.md)
@@ -111,6 +115,7 @@ declared in `namespace opset4`.
 * [Reverse](movement/Reverse_1.md)
 * [ReverseSequence](movement/ReverseSequence_1.md)
 * [RNNCell](sequence/RNNCell_3.md)
+* [RNNSequence](sequence/RNNSequence_4.md)
 * [ROIAlign](detection/ROIAlign_3.md)
 * [ROIPooling](detection/ROIPooling_1.md)
 * [ScatterElementsUpdate](movement/ScatterElementsUpdate_3.md)
