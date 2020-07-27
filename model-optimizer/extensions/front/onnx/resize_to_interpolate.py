@@ -78,7 +78,7 @@ class ResizeToInterpolate2D(FrontReplacementSubgraph):
 
     def replace_sub_graph(self, graph: Graph, match: dict):
         resize_node = match['resize']
-        resize_node_name = resize_node.name
+        resize_node_name = resize_node.soft_get('name', resize_node.id)
 
         axes_node = Const(graph, {'name': resize_node_name + '/axis_', 'value': int64_array([2, 3])}).create_node()
 
@@ -179,7 +179,7 @@ class ResizeToInterpolate3D(FrontReplacementSubgraph):
 
     def replace_sub_graph(self, graph: Graph, match: dict):
         resize_node = match['resize']
-        resize_node_name = resize_node.name
+        resize_node_name = resize_node.soft_get('name', resize_node.id)
 
         axes_node = Const(graph, {'name': resize_node_name + '/axis_', 'value': int64_array([2, 3, 4])}).create_node()
 
