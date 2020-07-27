@@ -26,6 +26,7 @@ struct concatenation_params : public base_params {
 
     ConcatAxis axis = ConcatAxis::FEATURE;
     bool isAligned = true;
+    size_t misalignment = 0;
 
     virtual ParamsKey GetParamsKey() const {
         auto k = base_params::GetParamsKey();
@@ -71,5 +72,8 @@ protected:
     KernelsData GetCommonKernelsData(const Params& params, const optional_params&) const;
     int32_t GetConcatChannelIndex(const concatenation_params& params) const;
     Tensor::DataChannelName GetConcatChannel(const concatenation_params& params) const;
+    virtual size_t GetAlignment(const concatenation_params& /*params*/) const {
+        return 1;
+    }
 };
 }  // namespace kernel_selector
