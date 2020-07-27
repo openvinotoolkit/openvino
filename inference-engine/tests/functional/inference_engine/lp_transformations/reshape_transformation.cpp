@@ -204,7 +204,7 @@ TEST_P(ReshapeTransformation, CompareFunctions) {
 }
 
 INSTANTIATE_TEST_CASE_P(
-    DISABLED_LPT,
+    LPT,
     ReshapeTransformation,
     ::testing::ValuesIn(testValues),
     ReshapeTransformation::getTestCaseName);
