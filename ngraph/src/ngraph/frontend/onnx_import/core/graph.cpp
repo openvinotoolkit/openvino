@@ -193,7 +193,7 @@ namespace ngraph
         {
             const auto ng_node_factory =
                 m_model->get_operator(onnx_node.op_type(), onnx_node.domain());
-            NodeVector ng_node_vector;
+            OutputVector ng_node_vector;
             try
             {
                 ng_node_vector = ng_node_factory(onnx_node);
