@@ -104,6 +104,7 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork) {
     manager.run_passes(nGraphFunc);
 
     clonedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(nGraphFunc, *clonedNetwork);
+    NetPass::ConvertPrecision(*clonedNetwork, Precision::BOOL, Precision::U8);
 }
 
 InferenceEngine::ExecutableNetworkInternal::Ptr
@@ -140,7 +141,6 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::ICNNNetwork &network, const st
     std::shared_ptr<ICNNNetwork> clonedNetwork = cloneNetwork(network);
     if (clonedNetwork->getFunction()) {
         Transformation(clonedNetwork);
-        NetPass::ConvertPrecision(*clonedNetwork, Precision::BOOL, Precision::U8);
     }
     auto implNetwork = std::dynamic_pointer_cast<details::CNNNetworkImpl>(clonedNetwork);
     if (implNetwork) {
