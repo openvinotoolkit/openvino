@@ -15,7 +15,7 @@
 # ******************************************************************************
 import numpy as np
 import pytest
-from _pyngraph import PartialShape
+from ngraph.pyngraph import PartialShape
 
 import ngraph as ng
 import ngraph.opset1 as ng_opset1

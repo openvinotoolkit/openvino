@@ -14,13 +14,13 @@
 # limitations under the License.
 # ******************************************************************************
 
-import distutils.ccompiler
 import os
 import re
 import sys
 
 import setuptools
 from setuptools import Extension, setup
+from setuptools._distutils import ccompiler
 from setuptools.command.build_ext import build_ext
 
 __version__ = os.environ.get("NGRAPH_VERSION", "0.0.0.dev0")
@@ -171,7 +171,7 @@ def parallelCCompile(
     return objects
 
 
-distutils.ccompiler.CCompiler.compile = parallelCCompile
+ccompiler.CCompiler.compile = parallelCCompile
 
 
 def has_flag(compiler, flagname):
@@ -284,7 +284,7 @@ data_files = [
 
 ext_modules = [
     Extension(
-        "_pyngraph",
+        "ngraph.pyngraph",
         sources=sources,
         include_dirs=include_dirs,
         define_macros=[("VERSION_INFO", __version__)],
