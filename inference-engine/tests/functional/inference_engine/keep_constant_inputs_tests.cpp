@@ -57,7 +57,7 @@ TEST(KeepConstantInputsTests, ConvertConvolutionPoolReluNetworkWithTrue) {
     f_ptr = ngraph::builder::subgraph::makeConvPoolRelu();
     InferenceEngine::CNNNetwork originalNetwork(f_ptr);
     transformNetwork(originalNetwork, true);
-    ASSERT_GT(numberOfInputsForLayerInCNNNetwork(originalNetwork, "Convolution"), 1);
+    ASSERT_EQ(numberOfInputsForLayerInCNNNetwork(originalNetwork, "Convolution"), 2);
 }
 
 TEST(KeepConstantInputsTests, ConvertConvolutionPoolReluNetworkWithFalse) {
@@ -73,7 +73,7 @@ TEST(KeepConstantInputsTests, ConvertConvolutionBiasNetworkWithTrue) {
     f_ptr = ngraph::builder::subgraph::makeConvBias();
     InferenceEngine::CNNNetwork originalNetwork(f_ptr);
     transformNetwork(originalNetwork, true);
-    ASSERT_GT(numberOfInputsForLayerInCNNNetwork(originalNetwork, "Convolution"), 1);
+    ASSERT_EQ(numberOfInputsForLayerInCNNNetwork(originalNetwork, "Convolution"), 3);
 }
 
 TEST(KeepConstantInputsTests, ConvertConvolutionBiasNetworkWithFalse) {
@@ -93,7 +93,7 @@ TEST(KeepConstantInputsTests, ConvertFullyConnectedNetworkWithTrue) {
     f_ptr = std::make_shared<ngraph::Function>(ngraph::NodeVector{fc}, ngraph::ParameterVector{input1});
     InferenceEngine::CNNNetwork originalNetwork(f_ptr);
     transformNetwork(originalNetwork, true);
-    ASSERT_GT(numberOfInputsForLayerInCNNNetwork(originalNetwork, "FullyConnected"), 1);
+    ASSERT_EQ(numberOfInputsForLayerInCNNNetwork(originalNetwork, "FullyConnected"), 3);
 }
 
 TEST(KeepConstantInputsTests, ConvertFullyConnectedNetworkWithFalse) {
