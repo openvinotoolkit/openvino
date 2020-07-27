@@ -607,5 +607,74 @@ std::ostream& operator<<(std::ostream & os, ngraph::helpers::LogicalTypes type) 
     return os;
 }
 
+std::ostream& operator<<(std::ostream & os, ngraph::op::v3::Interpolate::InterpolateMode type) {
+    switch (type) {
+        case ngraph::op::v3::Interpolate::InterpolateMode::area:
+            os << "area";
+            break;
+        case ngraph::op::v3::Interpolate::InterpolateMode::cubic:
+            os << "cubic";
+            break;
+        case ngraph::op::v3::Interpolate::InterpolateMode::linear:
+            os << "linear";
+            break;
+        case ngraph::op::v3::Interpolate::InterpolateMode::linear_onnx:
+            os << "linear_onnx";
+            break;
+        case ngraph::op::v3::Interpolate::InterpolateMode::nearest:
+            os << "nearest";
+            break;
+        default:
+            throw std::runtime_error("NOT_SUPPORTED_OP_TYPE");
+    }
+    return os;
+}
+
+std::ostream& operator<<(std::ostream & os, ngraph::op::v3::Interpolate::CoordinateTransformMode type) {
+    switch (type) {
+        case ngraph::op::v3::Interpolate::CoordinateTransformMode::align_corners:
+            os << "align_corners";
+            break;
+        case ngraph::op::v3::Interpolate::CoordinateTransformMode::asymmetric:
+            os << "asymmetric";
+            break;
+        case ngraph::op::v3::Interpolate::CoordinateTransformMode::half_pixel:
+            os << "half_pixel";
+            break;
+        case ngraph::op::v3::Interpolate::CoordinateTransformMode::pytorch_half_pixel:
+            os << "pytorch_half_pixel";
+            break;
+        case ngraph::op::v3::Interpolate::CoordinateTransformMode::tf_half_pixel_for_nn:
+            os << "tf_half_pixel_for_nn";
+            break;
+        default:
+            throw std::runtime_error("NOT_SUPPORTED_OP_TYPE");
+    }
+    return os;
+}
+
+std::ostream& operator<<(std::ostream & os, ngraph::op::v3::Interpolate::NearestMode type) {
+    switch (type) {
+        case ngraph::op::v3::Interpolate::NearestMode::ceil:
+            os << "ceil";
+            break;
+        case ngraph::op::v3::Interpolate::NearestMode::round_prefer_ceil:
+            os << "round_prefer_ceil";
+            break;
+        case ngraph::op::v3::Interpolate::NearestMode::floor:
+            os << "floor";
+            break;
+        case ngraph::op::v3::Interpolate::NearestMode::round_prefer_floor:
+            os << "round_prefer_floor";
+            break;
+        case ngraph::op::v3::Interpolate::NearestMode::simple:
+            os << "simple";
+            break;
+        default:
+            throw std::runtime_error("NOT_SUPPORTED_OP_TYPE");
+    }
+    return os;
+}
+
 }  // namespace helpers
 }  // namespace ngraph
