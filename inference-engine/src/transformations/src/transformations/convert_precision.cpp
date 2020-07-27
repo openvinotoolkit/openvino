@@ -7,17 +7,24 @@
 #include <memory>
 #include <vector>
 
+#include <ngraph/opsets/opset4.hpp>
 #include <ngraph/opsets/opset3.hpp>
+#include <ngraph/opsets/opset1.hpp>
 
 using namespace ngraph;
 
-bool ngraph::pass::ConvertPrecision::run_on_function(std::shared_ptr<ngraph::Function> f) {
-    static std::map<ngraph::NodeTypeInfo, std::function<bool(std::shared_ptr<Node>, element::Type, size_t idx)>> type_to_fuse {
-        {opset3::ShapeOf::type_info, fuse_type_to_shapeof},
-        {opset3::Convert::type_info, fuse_type_to_convert},
+static std::map<ngraph::NodeTypeInfo, std::function<bool(std::shared_ptr<Node>, element::Type, size_t idx)>> type_to_fuse {
         {opset3::Parameter::type_info, fuse_type_to_parameter},
-    };
+        {opset3::Convert::type_info, fuse_type_to_convert},
+        {opset4::ShapeOf::type_info, fuse_type_to_shapeof},
+        {opset3::NonMaxSuppression::type_info, fuse_type_to_nms3},
+        {opset4::NonMaxSuppression::type_info, fuse_type_to_nms4},
+        {opset4::TopK::type_info, fuse_type_to_topk},
+        {opset4::NonZero::type_info, fuse_type_to_nonzero},
+        {opset4::Bucketize::type_info, fuse_type_to_bucketize},
+};
 
+bool ngraph::pass::ConvertPrecision::run_on_function(std::shared_ptr<ngraph::Function> f) {
     // As Constant operations can be shared between multiple nGraph Functions so before
     // changing precision we need to understand which Constant consumers belongs
     // to the current nGraph Function
@@ -29,8 +36,6 @@ bool ngraph::pass::ConvertPrecision::run_on_function(std::shared_ptr<ngraph::Fun
             }
         }
     }
-
-    // TODO: add nodes from body
 
     // Iterate over all nodes in topological order and then iterate over node outputs.
     // If output type mismatch given type we try to fuse type into this operation
@@ -63,9 +68,11 @@ bool ngraph::pass::ConvertPrecision::run_on_function(std::shared_ptr<ngraph::Fun
         }
     }
 
-    // Check that function has no more operations with output type equal to m_to
     for (auto &node : f->get_ordered_ops()) {
-        for (auto &output : node->outputs()) {
+        if (auto convert = std::dynamic_pointer_cast<opset3::Convert>(node)) {
+            if (convert->input(0).get_element_type() == convert->get_convert_element_type()) {
+                replace_output_update_name(convert->output(0), convert->input_value(0));
+            }
         }
     }
     return true;
@@ -100,11 +107,73 @@ bool fuse_type_to_convert(std::shared_ptr<Node> node, element::Type to, size_t i
     return false;
 }
 
+bool fuse_type_to_nms3(std::shared_ptr<ngraph::Node> node, ngraph::element::Type to, size_t idx) {
+    if (auto nms = as_type_ptr<opset3::NonMaxSuppression>(node)) {
+        nms->set_output_type(to);
+        nms->validate_and_infer_types();
+        return true;
+    }
+    return false;
+}
+
+bool fuse_type_to_nms4(std::shared_ptr<ngraph::Node> node, ngraph::element::Type to, size_t idx) {
+    if (auto nms = as_type_ptr<opset4::NonMaxSuppression>(node)) {
+        nms->set_output_type(to);
+        nms->validate_and_infer_types();
+        return true;
+    }
+    return false;
+}
+
+bool fuse_type_to_topk(std::shared_ptr<ngraph::Node> node, ngraph::element::Type to, size_t idx) {
+    if (auto topk = as_type_ptr<opset4::TopK>(node)) {
+        if (idx == 1 && (to == element::i32 || to == element::i64)) {
+            topk->set_index_element_type(to);
+            topk->validate_and_infer_types();
+            return true;
+        }
+    }
+    return false;
+}
+
+bool fuse_type_to_nonzero(std::shared_ptr<ngraph::Node> node, ngraph::element::Type to, size_t idx) {
+    if (auto nonzero = as_type_ptr<opset4::NonZero>(node)) {
+        if (to == element::i32 || to == element::i64) {
+            nonzero->set_output_type(to);
+            nonzero->validate_and_infer_types();
+            return true;
+        }
+    }
+    return false;
+}
+
+bool fuse_type_to_bucketize(std::shared_ptr<ngraph::Node> node, ngraph::element::Type to, size_t idx) {
+    if (auto b = as_type_ptr<opset4::Bucketize>(node)) {
+        if (to == element::i32 || to == element::i64) {
+            b->set_output_type(to);
+            b->validate_and_infer_types();
+            return true;
+        }
+    }
+    return false;
+}
+
 template <element::Type_t PREC_FROM, element::Type_t PREC_TO>
 std::shared_ptr<Node> change_constant_precision(std::shared_ptr<opset3::Constant> constant) {
     using src_type = typename element_type_traits<PREC_FROM>::value_type;
     using dst_type = typename element_type_traits<PREC_TO>::value_type;
-    return std::make_shared<ngraph::opset3::Constant>(PREC_TO, constant->get_shape(), constant->cast_vector<dst_type>());
+
+    std::vector<src_type> data(std::move(constant->get_vector<src_type>()));
+    std::vector<dst_type> final_data;
+    std::transform(data.begin(), data.end(), std::back_inserter(final_data),
+                   [](src_type val) {
+                       if (val > std::numeric_limits<dst_type>::max()) {
+                           return std::numeric_limits<dst_type>::max();
+                       } else {
+                           return static_cast<dst_type>(val);
+                       }
+                   });
+    return std::make_shared<ngraph::opset3::Constant>(PREC_TO, constant->get_shape(), final_data);
 }
 
 bool fuse_type_to_constant(std::shared_ptr<Node> node, element::Type to, const std::vector<Input<Node>> & consumers) {

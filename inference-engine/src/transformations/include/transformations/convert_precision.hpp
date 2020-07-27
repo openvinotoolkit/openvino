@@ -42,3 +42,8 @@ bool fuse_type_to_constant(std::shared_ptr<ngraph::Node> node, ngraph::element::
 bool fuse_type_to_shapeof(std::shared_ptr<ngraph::Node> node, ngraph::element::Type to, size_t idx);
 bool fuse_type_to_parameter(std::shared_ptr<ngraph::Node> node, ngraph::element::Type to, size_t idx);
 bool fuse_type_to_convert(std::shared_ptr<ngraph::Node> node, ngraph::element::Type to, size_t idx);
+bool fuse_type_to_nms3(std::shared_ptr<ngraph::Node> node, ngraph::element::Type to, size_t idx);
+bool fuse_type_to_nms4(std::shared_ptr<ngraph::Node> node, ngraph::element::Type to, size_t idx);
+bool fuse_type_to_topk(std::shared_ptr<ngraph::Node> node, ngraph::element::Type to, size_t idx);
+bool fuse_type_to_nonzero(std::shared_ptr<ngraph::Node> node, ngraph::element::Type to, size_t idx);
+bool fuse_type_to_bucketize(std::shared_ptr<ngraph::Node> node, ngraph::element::Type to, size_t idx);
