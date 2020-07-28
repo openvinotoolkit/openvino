@@ -12,43 +12,42 @@
 
 namespace LayerTestsDefinitions {
 
-const float nmsThreshold = 0.5f;
-const float confidenceThreshold = 0.3f;
-const float objectnessScore = 0.4f;
-
 std::string DetectionOutputLayerTest::getTestCaseName(testing::TestParamInfo<DetectionOutputParams> obj) {
     DetectionOutputAttributes commonAttrs;
     ParamsWhichSizeDepends specificAttrs;
+    ngraph::op::DetectionOutputAttrs attrs;
     size_t batch;
     std::string targetDevice;
-    std::tie(commonAttrs, specificAttrs, batch, targetDevice) = obj.param;
+    std::tie(commonAttrs, specificAttrs, batch, attrs.objectness_score, targetDevice) = obj.param;
 
-    ngraph::op::DetectionOutputAttrs attrs;
-    std::tie(attrs.num_classes, attrs.top_k, attrs.keep_top_k, attrs.code_type, attrs.clip_after_nms, attrs.clip_before_nms,
-             attrs.decrease_label_id) = commonAttrs;
+    std::tie(attrs.num_classes, attrs.background_label_id, attrs.top_k, attrs.keep_top_k, attrs.code_type, attrs.nms_threshold, attrs.confidence_threshold,
+             attrs.clip_after_nms, attrs.clip_before_nms, attrs.decrease_label_id) = commonAttrs;
 
     const size_t numInputs = 5;
     std::vector<InferenceEngine::SizeVector> inShapes(numInputs);
     std::tie(attrs.variance_encoded_in_target, attrs.share_location, attrs.normalized, attrs.input_height, attrs.input_width,
              inShapes[idxLocation], inShapes[idxConfidence], inShapes[idxPriors], inShapes[idxArmConfidence], inShapes[idxArmLocation]) = specificAttrs;
 
-    for (size_t i = 0; i < inShapes.size(); i++) {
-        if (inShapes[i].empty())
-            break;
-        inShapes[i][0] = batch;
+    if (inShapes[idxArmConfidence].empty()) {
+        inShapes.resize(3);
     }
 
-    attrs.nms_threshold = nmsThreshold;
-    attrs.confidence_threshold = confidenceThreshold;
-    attrs.objectness_score = objectnessScore;
+    for (size_t i = 0; i < inShapes.size(); i++) {
+        inShapes[i][0] = batch;
+    }
 
     std::ostringstream result;
     result << "IS = { ";
     result << "LOC=" << CommonTestUtils::vec2str(inShapes[0]) << "_";
     result << "CONF=" << CommonTestUtils::vec2str(inShapes[1]) << "_";
-    result << "PRIOR" << CommonTestUtils::vec2str(inShapes[2]) << "_";
-    result << "ARM_CONF" << CommonTestUtils::vec2str(inShapes[3]) << "_";
-    result << "ARM_LOC" << CommonTestUtils::vec2str(inShapes[4]) << " }_";
+    result << "PRIOR=" << CommonTestUtils::vec2str(inShapes[2]);
+    std::string armConf, armLoc;
+    if (inShapes.size() > 3) {
+        armConf = "_ARM_CONF=" + CommonTestUtils::vec2str(inShapes[3]) + "_";
+        armLoc = "ARM_LOC=" + CommonTestUtils::vec2str(inShapes[4]);
+    }
+    result << armConf;
+    result << armLoc << " }_";
 
     result << "Classes=" << attrs.num_classes << "_";
     result << "backgrId=" << attrs.background_label_id << "_";
@@ -87,14 +86,16 @@ void DetectionOutputLayerTest::Infer() {
             } else {
                 CommonTestUtils::fill_data_random<InferenceEngine::Precision::FP32>(blob, 10, 0, 1);
             }
-        } else if (it == 1 || it == 3) {
-            blob = make_blob_with_precision(info->getTensorDesc());
-            blob->allocate();
-            CommonTestUtils::fill_data_random_float<InferenceEngine::Precision::FP32>(blob, 1, 0, 1000);
         } else {
+            int32_t resolution;
+            if (it == 1 || it == 3) {
+                resolution = 1000;
+            } else {
+                resolution = 10;
+            }
             blob = make_blob_with_precision(info->getTensorDesc());
             blob->allocate();
-            CommonTestUtils::fill_data_random_float<InferenceEngine::Precision::FP32>(blob, 1, 0, 10);
+            CommonTestUtils::fill_data_random_float<InferenceEngine::Precision::FP32>(blob, 1, 0, resolution);
         }
         inferRequest.SetBlob(info->name(), blob);
         inputs.push_back(blob);
@@ -115,21 +116,17 @@ void DetectionOutputLayerTest::SetUp() {
     DetectionOutputAttributes commonAttrs;
     ParamsWhichSizeDepends specificAttrs;
     size_t batch;
-    std::tie(commonAttrs, specificAttrs, batch, targetDevice) = this->GetParam();
+    std::tie(commonAttrs, specificAttrs, batch, attrs.objectness_score, targetDevice) = this->GetParam();
 
-    std::tie(attrs.num_classes, attrs.top_k, attrs.keep_top_k, attrs.code_type, attrs.clip_after_nms, attrs.clip_before_nms,
-             attrs.decrease_label_id) = commonAttrs;
+    std::tie(attrs.num_classes, attrs.background_label_id, attrs.top_k, attrs.keep_top_k, attrs.code_type, attrs.nms_threshold, attrs.confidence_threshold,
+             attrs.clip_after_nms, attrs.clip_before_nms, attrs.decrease_label_id) = commonAttrs;
 
     inShapes.resize(numInputs);
     std::tie(attrs.variance_encoded_in_target, attrs.share_location, attrs.normalized, attrs.input_height, attrs.input_width,
              inShapes[idxLocation], inShapes[idxConfidence], inShapes[idxPriors], inShapes[idxArmConfidence], inShapes[idxArmLocation]) = specificAttrs;
 
-    attrs.nms_threshold = nmsThreshold;
-    attrs.confidence_threshold = confidenceThreshold;
-    attrs.objectness_score = objectnessScore;
-
-    if (inShapes[idxArmLocation].empty()) {
-        inShapes[idxArmConfidence].empty() ? inShapes.resize(3) : inShapes.resize(4);
+    if (inShapes[idxArmConfidence].empty()) {
+        inShapes.resize(3);
     }
 
     for (size_t i = 0; i < inShapes.size(); i++) {

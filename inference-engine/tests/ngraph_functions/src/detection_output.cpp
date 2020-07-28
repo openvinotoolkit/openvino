@@ -11,8 +11,10 @@ std::shared_ptr<ngraph::Node> makeDetectionOutput(const ngraph::OutputVector &in
                                                   const ngraph::op::DetectionOutputAttrs& attrs) {
     if (inputs.size() == 3)
         return std::make_shared<ngraph::opset3::DetectionOutput>(inputs[0], inputs[1], inputs[2], attrs);
-    else
+    else if (inputs.size() == 5)
         return std::make_shared<ngraph::opset3::DetectionOutput>(inputs[0], inputs[1], inputs[2], inputs[3], inputs[4], attrs);
+    else
+        throw std::runtime_error("DetectionOutput layer supports only 3 or 5 inputs");
 }
 
 }  // namespace builder

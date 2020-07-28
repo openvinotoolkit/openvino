@@ -498,10 +498,13 @@ class referenceDetectionOutput {
 };
 
 using DetectionOutputAttributes = std::tuple<
-    size_t,             // numClasses
+    int,                // numClasses
+    int,                // backgroundLabelId
     int,                // topK
     std::vector<int>,   // keepTopK
     std::string,        // codeType
+    float,              // nmsThreshold
+    float,              // confidenceThreshold
     bool,               // clip_afterNms
     bool,               // clip_beforeNms
     bool                // decreaseLabelId
@@ -524,6 +527,7 @@ using DetectionOutputParams = std::tuple<
     DetectionOutputAttributes,
     ParamsWhichSizeDepends,
     size_t,     // Number of batch
+    float,      // objectnessScore
     std::string // Device name
 >;
 

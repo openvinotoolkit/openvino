@@ -50,8 +50,8 @@ public:
             _offset = _normalized ? 0 : 1;
             _num_loc_classes = _share_location ? 1 : _num_classes;
 
-            if (layer->insData.size() == 5)
-                _objectness_score = layer->GetParamAsFloat("objectness_score", 0.0f);
+            with_add_box_pred = layer->insData.size() == 5;
+            _objectness_score = layer->GetParamAsFloat("objectness_score", 0.0f);
 
             std::string code_type_str = layer->GetParamAsString("code_type", "caffe.PriorBoxParameter.CORNER");
             _code_type = (code_type_str == "caffe.PriorBoxParameter.CENTER_SIZE" ? CodeType::CENTER_SIZE
@@ -152,7 +152,7 @@ public:
                 float *pboxes = decoded_bboxes_data + n*4*_num_priors;
                 float *psizes = bbox_sizes_data + n*_num_priors;
 
-                if (inputs.size() > 4) {
+                if (with_add_box_pred) {
                     const float *p_arm_loc = arm_loc_data + n*4*_num_priors;
                     decodeBBoxes(ppriors, p_arm_loc, prior_variances, pboxes, psizes, num_priors_actual, n, _offset, _prior_size);
                     decodeBBoxes(pboxes, ploc, prior_variances, pboxes, psizes, num_priors_actual, n, 0, 4, false);
@@ -167,7 +167,7 @@ public:
                     const float *ploc = loc_data + n*4*_num_loc_classes*_num_priors + c*4;
                     float *pboxes = decoded_bboxes_data + n*4*_num_loc_classes*_num_priors + c*4*_num_priors;
                     float *psizes = bbox_sizes_data + n*_num_loc_classes*_num_priors + c*_num_priors;
-                    if (inputs.size() > 4) {
+                    if (with_add_box_pred) {
                         const float *p_arm_loc = arm_loc_data + n*4*_num_loc_classes*_num_priors + c*4;
                         decodeBBoxes(ppriors, p_arm_loc, prior_variances, pboxes, psizes, num_priors_actual, n, _offset, _prior_size);
                         decodeBBoxes(pboxes, ploc, prior_variances, pboxes, psizes, num_priors_actual, n, 0, 4, false);
@@ -178,7 +178,7 @@ public:
             }
         }
 
-        if (inputs.size() > 3) {
+        if (with_add_box_pred) {
             for (int n = 0; n < N; ++n) {
                 for (int p = 0; p < _num_priors; ++p) {
                     if (arm_conf_data[n*_num_priors*2 + p * 2 + 1] < _objectness_score) {
@@ -371,6 +371,8 @@ private:
     bool _clip_before_nms   = false;  // clip bounding boxes before nms step
     bool _clip_after_nms    = false;  // clip bounding boxes after nms step
     bool _decrease_label_id = false;
+
+    bool with_add_box_pred = false;
 
     int _image_width = 0;
     int _image_height = 0;
