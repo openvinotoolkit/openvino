@@ -16,20 +16,17 @@
 
 #pragma once
 
-#include "ngraph/node.hpp"
+#include "backend_visibility.hpp"
 #include "ngraph/pass/pass.hpp"
 
 namespace ngraph
 {
     namespace pass
     {
-        NodeVector explicit_broadcast(std::shared_ptr<Node>& node);
-        class ImplicitBroadcastElimination;
+        class BACKEND_API LikeReplacement : public FunctionPass
+        {
+        public:
+            bool run_on_function(std::shared_ptr<ngraph::Function> function) override;
+        };
     }
 }
-
-class NGRAPH_API ngraph::pass::ImplicitBroadcastElimination : public ngraph::pass::NodePass
-{
-public:
-    bool run_on_node(std::shared_ptr<ngraph::Node> node) override;
-};

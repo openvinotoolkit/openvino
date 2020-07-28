@@ -18,6 +18,7 @@
 #include <sstream>
 #include <unordered_set>
 
+#include "liveness.hpp"
 #include "ngraph/descriptor/input.hpp"
 #include "ngraph/descriptor/output.hpp"
 #include "ngraph/function.hpp"
@@ -27,7 +28,6 @@
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/parameter.hpp"
 #include "ngraph/op/result.hpp"
-#include "ngraph/pass/liveness.hpp"
 #include "ngraph/util.hpp"
 
 using namespace std;

@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //*****************************************************************************
-#include "ngraph/pass/fused_op_decomposition.hpp"
+#include "fused_op_decomposition.hpp"
 #include "ngraph/graph_util.hpp"
 #include "ngraph/op/get_output_element.hpp"
 #include "ngraph/op/util/op_types.hpp"

@@ -16,23 +16,21 @@
 
 #pragma once
 
-#include <memory>
-
+#include "backend_visibility.hpp"
+#include "ngraph/node.hpp"
 #include "ngraph/pass/pass.hpp"
 
 namespace ngraph
 {
     namespace pass
     {
-        class ValidateGraph;
+        NodeVector explicit_broadcast(std::shared_ptr<Node>& node);
+        class ImplicitBroadcastElimination;
     }
 }
 
-class NGRAPH_API ngraph::pass::ValidateGraph : public ModulePass
+class BACKEND_API ngraph::pass::ImplicitBroadcastElimination : public ngraph::pass::NodePass
 {
 public:
-    bool run_on_module(std::vector<std::shared_ptr<ngraph::Function>>&) override;
-
-private:
-    void validate_parameters(const Function&);
+    bool run_on_node(std::shared_ptr<ngraph::Node> node) override;
 };

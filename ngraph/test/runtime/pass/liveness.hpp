@@ -16,25 +16,20 @@
 
 #pragma once
 
-#include <string>
-
+#include "backend_visibility.hpp"
+#include "ngraph/descriptor/tensor.hpp"
 #include "ngraph/pass/pass.hpp"
 
 namespace ngraph
 {
     namespace pass
     {
-        class Serialization;
+        class Liveness;
     }
 }
 
-class NGRAPH_API ngraph::pass::Serialization : public ModulePass
+class BACKEND_API ngraph::pass::Liveness : public FunctionPass
 {
 public:
-    Serialization(const std::string& name);
-
-    virtual bool run_on_module(std::vector<std::shared_ptr<ngraph::Function>>&) override;
-
-private:
-    const std::string m_name;
+    bool run_on_function(std::shared_ptr<ngraph::Function>) override;
 };

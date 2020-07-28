@@ -17,7 +17,6 @@
 #include <ngraph/pass/constant_folding.hpp>
 #include <transformations/utils/utils.hpp>
 #include <transformations/init_node_info.hpp>
-#include <ngraph/pass/algebraic_simplification.hpp>
 #include <ngraph/pass/visualize_tree.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_convolutions.hpp>
 #include <ngraph_ops/convolution_ie.hpp>

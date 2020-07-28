@@ -33,6 +33,18 @@ set (SRC
     dynamic/dynamic_backend.hpp
     op/avg_pool.cpp
     op/avg_pool.hpp
+    pass/dyn_elimination.cpp
+    pass/dyn_elimination.hpp
+    pass/fused_op_decomposition.cpp
+    pass/fused_op_decomposition.hpp
+    pass/implicit_broadcast_elimination.cpp
+    pass/implicit_broadcast_elimination.hpp
+    pass/like_replacement.cpp
+    pass/like_replacement.hpp
+    pass/liveness.cpp
+    pass/liveness.hpp
+    pass/shape_relevance.cpp
+    pass/shape_relevance.hpp
     )
 
 add_library(ngraph_backend SHARED ${SRC})

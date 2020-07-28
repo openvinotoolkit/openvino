@@ -25,11 +25,11 @@
 #include "ngraph/builder/norm.hpp"
 #include "ngraph/graph_util.hpp"
 #include "ngraph/ngraph.hpp"
-#include "ngraph/pass/fused_op_decomposition.hpp"
 #include "ngraph/pass/manager.hpp"
 #include "ngraph/provenance.hpp"
 #include "opset0_downgrade.hpp"
 #include "opset1_upgrade.hpp"
+#include "pass/fused_op_decomposition.hpp"
 #include "util/provenance_enabler.hpp"
 
 using namespace std;

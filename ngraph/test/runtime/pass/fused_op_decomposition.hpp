@@ -18,6 +18,7 @@
 
 #include <memory>
 
+#include "backend_visibility.hpp"
 #include "ngraph/op/util/fused_op.hpp"
 #include "ngraph/pass/pass.hpp"
 
@@ -50,7 +51,7 @@ namespace ngraph
         ///      <td> \image html decompose_gelu_post.svg </td>
         /// </tr>
         /// </table>
-        class NGRAPH_API FusedOpDecomposition : public NodePass
+        class BACKEND_API FusedOpDecomposition : public NodePass
         {
         public:
             /// \brief  Function signature type for callback used to check whether provided node

@@ -58,7 +58,6 @@ public:
     PassConfig& get_pass_config() { return m_pass_config; }
     void set_pass_config(const PassConfig& pass_config) { m_pass_config = pass_config; }
     void set_pass_visualization(bool new_state) { m_visualize = new_state; }
-    void set_pass_serialization(bool new_state) { m_serialize = new_state; }
     /// \brief Set flag to enable/disable running Validate pass after executing
     /// each registered pass
     /// \param new_state Value "true" enables Validate pass run; "false", otherwise
@@ -106,6 +105,5 @@ private:
     ManagerState m_state;
     PassConfig m_pass_config;
     bool m_visualize = false;
-    bool m_serialize = false;
     bool m_per_pass_validation = true;
 };
