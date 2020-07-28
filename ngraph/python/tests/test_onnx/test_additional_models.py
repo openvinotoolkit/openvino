@@ -22,18 +22,23 @@ import os
 from tests.test_onnx.utils import OpenVinoOnnxBackend
 from tests.test_onnx.utils.model_importer import ModelImportRunner
 
-MODELS_ROOT_DIR = tests.ADDITIONAL_MODELS_DIR
-if (len(MODELS_ROOT_DIR) > 0):
-    zoo_models = []
-    for path in Path(MODELS_ROOT_DIR).rglob("*.onnx"):
-        mdir, file = os.path.split(path)
-        if not file.startswith("."):
-            zoo_models.append({
-                "model_name": path,
-                "model_file": file,
-                "dir": str(mdir)
-            })
 
+def _get_default_additional_models_dir():
+    onnx_home = os.path.expanduser(os.getenv("ONNX_HOME", os.path.join("~", ".onnx")))
+    return os.path.join(onnx_home, "additonal_models")
+
+
+MODELS_ROOT_DIR = tests.ADDITIONAL_MODELS_DIR
+if len(MODELS_ROOT_DIR) == 0:
+    MODELS_ROOT_DIR = _get_default_additional_models_dir()
+
+zoo_models = []
+for path in Path(MODELS_ROOT_DIR).rglob("*.onnx"):
+    mdir, file = os.path.split(path)
+    if not file.startswith("."):
+        zoo_models.append({"model_name": path, "model_file": file, "dir": str(mdir)})
+
+if len(zoo_models) > 0:
     sorted(zoo_models, key=itemgetter("model_name"))
 
     # Set backend device name to be used instead of hardcoded by ONNX BackendTest class ones.
