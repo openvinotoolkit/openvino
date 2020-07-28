@@ -39,8 +39,6 @@ def import_and_compute(op_type, input_data_left, input_data_right, opset=7, **no
 
 @segfault
 def test_add_opset4():
-    import faulthandler
-    faulthandler.enable()
     assert np.array_equal(import_and_compute("Add", 1, 2, opset=4), np.array(3, dtype=np.float32))
 
     assert np.array_equal(import_and_compute("Add", [1], [2], opset=4), np.array([3], dtype=np.float32))

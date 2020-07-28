@@ -112,7 +112,6 @@ def import_and_compute_gemm(input_a, input_b, input_c, **kwargs):
         (([[1, 2], [3, 4]], [[5, 6], [7, 8]]), "matrix at matrix 1"),
         (([[1, 2, 3], [4, 5, 6]], [[7, 8], [9, 10], [11, 12]]), "matrix at matrix 2"),
         (([[1, 2], [3, 4], [5, 6]], [[7, 8, 9], [10, 11, 12]]), "matrix at matrix 3")
-
     ],
 )
 def test_op_matmul(data, description):

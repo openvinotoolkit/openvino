@@ -60,7 +60,6 @@ issue_17 = xfail_test(reason="onnx.onnx_cpp2py_export.checker.ValidationError: "
                              "Required attribute 'to' is missing.")
 issue_18 = xfail_test(reason="Assertion error - logsoftmax results mismatch")
 
-
 reduce_max = "ReduceMax"
 reduce_min = "ReduceMin"
 reduce_mean = "ReduceMean"
