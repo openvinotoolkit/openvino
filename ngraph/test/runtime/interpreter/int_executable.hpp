@@ -94,6 +94,8 @@
 #include "ngraph/state/bernoulli_rng_state.hpp"
 #include "ngraph/state/uniform_rng_state.hpp"
 #include "op/avg_pool.hpp"
+#include "op/convolution.hpp"
+#include "op/group_conv.hpp"
 
 namespace ngraph
 {
@@ -353,7 +355,7 @@ protected:
         }
         case OP_TYPEID::Convolution:
         {
-            const op::Convolution* c = static_cast<const op::Convolution*>(&node);
+            const op::v0::Convolution* c = static_cast<const op::v0::Convolution*>(&node);
             reference::convolution<T>(args[0]->get_data_ptr<const T>(),
                                       args[1]->get_data_ptr<const T>(),
                                       out[0]->get_data_ptr<T>(),
@@ -371,8 +373,8 @@ protected:
         case OP_TYPEID::ConvolutionBackpropData:
         {
             // Note that args[1] and args[0] are switched here from the usual order.
-            const op::ConvolutionBackpropData* c =
-                static_cast<const op::ConvolutionBackpropData*>(&node);
+            const op::v0::ConvolutionBackpropData* c =
+                static_cast<const op::v0::ConvolutionBackpropData*>(&node);
             reference::convolution_backprop_in<T>(args[1]->get_data_ptr<const T>(),
                                                   args[0]->get_data_ptr<const T>(),
                                                   out[0]->get_data_ptr<T>(),
