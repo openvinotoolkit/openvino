@@ -17,10 +17,9 @@
 namespace LayerTestsDefinitions {
 
 typedef std::tuple<
-        std::set<size_t>,                                      // Axes
-        ngraph::op::v3::Interpolate::InterpolateMode,          // InterpolateMode
-        ngraph::op::v3::Interpolate::CoordinateTransformMode,  // CoordinateTransformMode
-        ngraph::op::v3::Interpolate::NearestMode,              // NearestMode
+        ngraph::op::v4::Interpolate::InterpolateMode,          // InterpolateMode
+        ngraph::op::v4::Interpolate::CoordinateTransformMode,  // CoordinateTransformMode
+        ngraph::op::v4::Interpolate::NearestMode,              // NearestMode
         bool,                                                  // AntiAlias
         std::vector<size_t>,                                   // PadBegin
         std::vector<size_t>,                                   // PadEnd

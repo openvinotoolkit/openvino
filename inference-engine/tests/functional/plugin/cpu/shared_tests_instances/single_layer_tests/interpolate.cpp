@@ -28,28 +28,27 @@ const std::vector<std::set<size_t>> axes = {
         {2, 3},
 };
 
-const  std::vector<ngraph::op::v3::Interpolate::InterpolateMode> modes = {
-        ngraph::op::v3::Interpolate::InterpolateMode::nearest,
-        ngraph::op::v3::Interpolate::InterpolateMode::linear,
-        ngraph::op::v3::Interpolate::InterpolateMode::linear_onnx,
-        ngraph::op::v3::Interpolate::InterpolateMode::cubic,
-        ngraph::op::v3::Interpolate::InterpolateMode::area,
+const  std::vector<ngraph::op::v4::Interpolate::InterpolateMode> modes = {
+        ngraph::op::v4::Interpolate::InterpolateMode::nearest,
+        ngraph::op::v4::Interpolate::InterpolateMode::linear,
+        ngraph::op::v4::Interpolate::InterpolateMode::linear_onnx,
+        ngraph::op::v4::Interpolate::InterpolateMode::cubic,
 };
 
-const std::vector<ngraph::op::v3::Interpolate::CoordinateTransformMode> coordinateTransformModes = {
-        ngraph::op::v3::Interpolate::CoordinateTransformMode::tf_half_pixel_for_nn,
-        ngraph::op::v3::Interpolate::CoordinateTransformMode::pytorch_half_pixel,
-        ngraph::op::v3::Interpolate::CoordinateTransformMode::half_pixel,
-        ngraph::op::v3::Interpolate::CoordinateTransformMode::asymmetric,
-        ngraph::op::v3::Interpolate::CoordinateTransformMode::align_corners,
+const std::vector<ngraph::op::v4::Interpolate::CoordinateTransformMode> coordinateTransformModes = {
+        ngraph::op::v4::Interpolate::CoordinateTransformMode::tf_half_pixel_for_nn,
+        ngraph::op::v4::Interpolate::CoordinateTransformMode::pytorch_half_pixel,
+        ngraph::op::v4::Interpolate::CoordinateTransformMode::half_pixel,
+        ngraph::op::v4::Interpolate::CoordinateTransformMode::asymmetric,
+        ngraph::op::v4::Interpolate::CoordinateTransformMode::align_corners,
 };
 
-const std::vector<ngraph::op::v3::Interpolate::NearestMode> nearestModes = {
-        ngraph::op::v3::Interpolate::NearestMode::simple,
-        ngraph::op::v3::Interpolate::NearestMode::round_prefer_floor,
-        ngraph::op::v3::Interpolate::NearestMode::floor,
-        ngraph::op::v3::Interpolate::NearestMode::ceil,
-        ngraph::op::v3::Interpolate::NearestMode::round_prefer_ceil,
+const std::vector<ngraph::op::v4::Interpolate::NearestMode> nearestModes = {
+        ngraph::op::v4::Interpolate::NearestMode::simple,
+        ngraph::op::v4::Interpolate::NearestMode::round_prefer_floor,
+        ngraph::op::v4::Interpolate::NearestMode::floor,
+        ngraph::op::v4::Interpolate::NearestMode::ceil,
+        ngraph::op::v4::Interpolate::NearestMode::round_prefer_ceil,
 };
 
 const std::vector<std::vector<size_t>> pads = {
@@ -68,7 +67,6 @@ const std::vector<double> cubeCoefs = {
 };
 
 const auto interpolateCases = ::testing::Combine(
-        ::testing::ValuesIn(axes),
         ::testing::ValuesIn(modes),
         ::testing::ValuesIn(coordinateTransformModes),
         ::testing::ValuesIn(nearestModes),
