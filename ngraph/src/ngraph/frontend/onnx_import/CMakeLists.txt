@@ -53,7 +53,6 @@ add_library(onnx_importer SHARED
         op/asin.hpp
         op/asinh.hpp
         op/atan.hpp
-        op/atanh.cpp
         op/atanh.hpp
         op/average_pool.cpp
         op/average_pool.hpp
