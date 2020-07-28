@@ -306,20 +306,27 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
             auto in1_dt = node.get_dependency(1).get_output_layout().data_type;
             auto in0_fmt = node.get_dependency(0).get_output_layout().format;
             auto in1_fmt = node.get_dependency(1).get_output_layout().format;
-            if ((in0_dt == data_types::u8 || in0_dt == data_types::i8) &&
-                (in1_dt == data_types::u8 || in1_dt == data_types::i8) &&
-                in0_fmt == format::bfyx && in1_fmt == format::bfyx)
+
+            if (data_type_traits::is_floating_point(in0_dt) &&
+                data_type_traits::is_floating_point(in1_dt))
                 does_support_fusings = true;
 
-            if (node.inputs_count() == 3) {
-                auto in2_dt = node.get_dependency(2).get_output_layout().data_type;
-                auto in2_fmt = node.get_dependency(2).get_output_layout().format;
-                if ((in2_dt == data_types::u8 || in2_dt == data_types::i8) &&
-                    in2_fmt == format::bfyx)
+            if ((in0_dt == data_types::u8 || in0_dt == data_types::i8) &&
+                (in1_dt == data_types::u8 || in1_dt == data_types::i8) &&
+                in0_fmt == format::bfyx && in1_fmt == format::bfyx) {
+                if (node.inputs_count() == 3) {
+                    auto in2_dt = node.get_dependency(2).get_output_layout().data_type;
+                    auto in2_fmt = node.get_dependency(2).get_output_layout().format;
+                    if ((in2_dt == data_types::u8 || in2_dt == data_types::i8) &&
+                        in2_fmt == format::bfyx)
+                        does_support_fusings = true;
+                    else
+                        does_support_fusings = false;
+                } else {
                     does_support_fusings = true;
-                else
-                    does_support_fusings = false;
+                }
             }
+
             return does_support_fusings;
         };
 
@@ -524,12 +531,14 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
             bool can_fuse_parent1 = (parent1->is_type<convolution>() && conv_supports_fusings(parent1->as<convolution>())) ||
                                     (parent1->is_type<mvn>() && mvn_supports_fusings(parent1->as<mvn>())) ||
                                     (parent1->is_type<deconvolution>()) || (parent1->is_type<permute>()) ||
-                                    (parent1->is_type<depth_to_space>()) || (parent1->is_type<space_to_depth>()) || (parent1->is_type<gemm>());
+                                    (parent1->is_type<depth_to_space>()) || (parent1->is_type<space_to_depth>()) ||
+                                    (parent1->is_type<gemm>() && gemm_supports_fusings(parent1->as<gemm>()));
 
             bool can_fuse_parent2 = (parent2->is_type<convolution>() && conv_supports_fusings(parent2->as<convolution>())) ||
                                     (parent2->is_type<mvn>() && mvn_supports_fusings(parent2->as<mvn>())) ||
                                     (parent2->is_type<deconvolution>()) || (parent2->is_type<permute>()) ||
-                                    (parent1->is_type<depth_to_space>()) || (parent1->is_type<space_to_depth>()) || (parent2->is_type<gemm>());
+                                    (parent2->is_type<depth_to_space>()) || (parent2->is_type<space_to_depth>()) ||
+                                    (parent2->is_type<gemm>() && gemm_supports_fusings(parent2->as<gemm>()));
 
             std::vector<bool> can_fuse_parents = { can_fuse_parent1, can_fuse_parent2 };
 
