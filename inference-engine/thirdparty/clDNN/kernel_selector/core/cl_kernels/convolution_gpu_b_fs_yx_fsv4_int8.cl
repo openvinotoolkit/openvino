@@ -51,13 +51,13 @@ KERNEL(convolution_gpu_b_fs_yx_fsv4_int8)(
 #else
 #define FILTER_OFM_MAX FILTER_OFM_NUM
 #endif
-    __attribute__((opencl_unroll_hint(1)))
+    __attribute__((opencl_unroll_hint(FILTER_OFM_NUM / FILTER_OFM_MAX)))
         for (int iter = 0; iter < FILTER_OFM_NUM / FILTER_OFM_MAX + (FILTER_OFM_NUM % FILTER_OFM_MAX != 0); iter++) {
             int out1[FILTER_OFM_MAX] = { 0 };
             int out2[FILTER_OFM_MAX] = { 0 };
             filter_idx = FILTER_OFM_MAX * iter * packed_values;
 
-            __attribute__((opencl_unroll_hint((FILTER_IFM_NUM + 3) / 4)))
+            __attribute__((opencl_unroll_hint(1)))
                 for (int ifm = 0; ifm < (FILTER_IFM_NUM + 3) / 4; ifm++) {
                     __attribute__((opencl_unroll_hint(FILTER_SIZE_Y)))
                         for (int yy = 0; yy < FILTER_SIZE_Y; yy++) {
@@ -79,7 +79,7 @@ KERNEL(convolution_gpu_b_fs_yx_fsv4_int8)(
                         }
                 }
 
-            __attribute__((opencl_unroll_hint(1)))
+            __attribute__((opencl_unroll_hint(FILTER_OFM_MAX / 4)))
                 for (int ofm = 0; ofm < FILTER_OFM_MAX; ofm += packed_values) {
 
 #if BIAS_TERM
