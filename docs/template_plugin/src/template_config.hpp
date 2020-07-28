@@ -4,19 +4,14 @@
 
 #pragma once
 
-#include <vector>
 #include <string>
 #include <map>
-#include <unordered_map>
 
 #include <ie_parameter.hpp>
 
 #include <threading/ie_istreams_executor.hpp>
 
 namespace TemplatePlugin {
-
-template<typename T>
-using IOMap = std::unordered_map<std::string, T>;
 
 // ! [configuration:header]
 using ConfigMap = std::map<std::string, std::string>;

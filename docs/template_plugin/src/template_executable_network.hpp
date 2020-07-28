@@ -5,25 +5,13 @@
 
 #pragma once
 
-#include <utility>
-#include <tuple>
-#include <memory>
-#include <string>
-#include <vector>
-#include <map>
-#include <unordered_map>
-#include <list>
-
-#include <ie_common.h>
-#include <cpp_interfaces/impl/ie_executable_network_thread_safe_default.hpp>
-#include <cnn_network_impl.hpp>
-#include <threading/ie_itask_executor.hpp>
-
-#include <ngraph/ngraph.hpp>
+#include <ngraph/function.hpp>
 
 #include "template_config.hpp"
 #include "template_infer_request.hpp"
 #include "template_async_infer_request.hpp"
+
+#include <cpp_interfaces/impl/ie_executable_network_thread_safe_default.hpp>
 
 namespace TemplatePlugin {
 
@@ -58,7 +46,7 @@ public:
 private:
     friend class TemplateInferRequest;
 
-    void CompileGraph();
+    void MapGraph();
     void InitExecutor();
 
     std::atomic<std::size_t>                    _requestId = {0};

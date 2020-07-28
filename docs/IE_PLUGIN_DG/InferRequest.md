@@ -20,9 +20,14 @@ The example class has several fields:
 
 - `_executableNetwork` - reference to an executable network instance. From this reference, an inference request instance can take a task executor, use counter for a number of created inference requests, and so on.
 - `_profilingTask` - array of the `std::array<InferenceEngine::ProfilingTask, numOfStages>` type. Defines names for pipeline stages. Used to profile an inference pipeline execution with the Intel® instrumentation and tracing technology (ITT).
-- `_inputsNCHW` - input blob map
-- `_outputsNCHW` - output blob map
-- Several double values to hold an execution time for pipeline stages.
+- `_durations` - array of durations of each pipeline stage.
+- `_networkInputBlobs` - input blob map.
+- `_networkOutputBlobs` - output blob map.
+- `_parameters` - `ngraph::Function` parameter operations.
+- `_results` - `ngraph::Function` result operations.
+- `_inputTensors` - inputs tensors which wrap `_networkInputBlobs` blobs. They are used as inputs to backend `_executable` computational graph.
+- `_outputTensors` - output tensors which wrap `_networkOutputBlobs` blobs. They are used as outputs from backend `_executable` computational graph.
+- `_executable` - an executable object / backend computational graph.
 
 ### `InferRequest` Constructor
 
@@ -51,6 +56,8 @@ Decrements a number of created inference requests:
 
 @snippet src/template_infer_request.cpp infer_request:infer_impl
 
+#### 1. `inferPreprocess`
+
 Below is the code of the the `inferPreprocess` method to demonstrate Inference Engine common preprocessing step handling:
 
 @snippet src/template_infer_request.cpp infer_request:infer_preprocess
@@ -59,6 +66,18 @@ Below is the code of the the `inferPreprocess` method to demonstrate Inference E
 * `InferImpl` must call the InferenceEngine::InferRequestInternal::execDataPreprocessing function, which executes common Inference Engine preprocessing step (for example, applies resize or color conversion operations) if it is set by the user. The output dimensions, layout and precision matches the input information set via InferenceEngine::CNNNetwork::getInputsInfo.
 * To handle both InferenceEngine::NCHW and InferenceEngine::NHWC input layouts, the `TemplateInferRequest` class has the `_inputsNCHW` field, which holds blobs in the InferenceEngine::NCHW layout. During Inference Request execution, `InferImpl` copies from the input InferenceEngine::NHWC layout to `_inputsNCHW` if needed.
 * The next logic of `InferImpl` works with `_inputsNCHW`.
+
+#### 2. `startPipeline`
+
+Executes a pipeline synchronously using `_executable` object:
+
+@snippet src/template_infer_request.cpp infer_request:start_pipeline
+
+#### 3. `inferPostprocess`
+
+Executes a pipeline synchronously using `_executable` object:
+
+@snippet src/template_infer_request.cpp infer_request:infer_postprocess
 
 ### `GetPerformanceCounts()`
 

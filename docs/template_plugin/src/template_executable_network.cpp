@@ -2,19 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <atomic>
-#include <set>
-#include <utility>
-#include <algorithm>
-#include <memory>
-#include <string>
-#include <vector>
-
 #include <ie_metric_helpers.hpp>
-#include <ie_util_internal.hpp>
 #include <ie_plugin_config.hpp>
 #include <threading/ie_executor_manager.hpp>
-#include <details/ie_cnn_network_tools.h>
 
 #include "template/template_config.hpp"
 #include "template_plugin.hpp"
@@ -34,7 +24,7 @@ TemplatePlugin::ExecutableNetwork::ExecutableNetwork(const std::shared_ptr<ngrap
     // you should select proper device based on KEY_DEVICE_ID or automatic behavior
     // In this case, _waitExecutor should also be created per device.
     try {
-        CompileGraph();
+        MapGraph();
         InitExecutor();
     } catch (const InferenceEngineException&) {
         throw;
@@ -53,12 +43,13 @@ TemplatePlugin::ExecutableNetwork::ExecutableNetwork(std::istream &             
     _cfg(cfg),
     _plugin(plugin) {
     // TODO: since Import network is not a mandatory functionality, this ctor can just be removed
+    THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
 }
 // ! [executable_network:ctor_import_stream]
 
-// ! [executable_network:compile_graph]
-void TemplatePlugin::ExecutableNetwork::CompileGraph() {
-    // TODO: perform actual graph compilation taking `_cfg` into account
+// ! [executable_network:map_graph]
+void TemplatePlugin::ExecutableNetwork::MapGraph() {
+    // TODO: perform actual graph mapping to backend graph representation / kernels
 
     // Generate backend specific blob mappings. For example Inference Engine uses not ngraph::Result nodes friendly name
     // as inference request output names but the name of the layer before.
@@ -74,13 +65,14 @@ void TemplatePlugin::ExecutableNetwork::CompileGraph() {
         _inputIndex.emplace(parameter->get_friendly_name(), _function->get_parameter_index(parameter));
     }
 
-    // Perform any other steps like allocation and filling device buffers, and so on
+    // Perform any other steps like allocation and filling device buffers for weights, and so on
 }
-// ! [executable_network:compile_graph]
+// ! [executable_network:init_executor]
+
 
 // ! [executable_network:init_executor]
 void TemplatePlugin::ExecutableNetwork::InitExecutor() {
-    // Default mutlitthreaded configuration is balanced for throughtput and latency cases and takes into account
+    // Default multi-threaded configuration is balanced for throughtput and latency cases and takes into account
     // real hardware cores and NUMA nodes.
     auto streamsExecutorConfig = InferenceEngine::IStreamsExecutor::Config::MakeDefaultMultiThreaded(_cfg._streamsExecutorConfig);
     streamsExecutorConfig._name = "TemplateStreamsExecutor";
@@ -153,5 +145,6 @@ void TemplatePlugin::ExecutableNetwork::GetMetric(const std::string &name, Infer
 // ! [executable_network:export_impl]
 void TemplatePlugin::ExecutableNetwork::ExportImpl(std::ostream& dlaModel) {
     // TODO: Code which exports graph from std::ostream
+    THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
 }
 // ! [executable_network:export_impl]
