@@ -25,14 +25,13 @@ std::string InterpolateLayerTest::getTestCaseName(testing::TestParamInfo<Interpo
     InferenceEngine::SizeVector inputShapes, targetShapes;
     std::string targetDevice;
     std::tie(interpolateParams, netPrecision, inputShapes, targetShapes, targetDevice) = obj.param;
-    std::set<size_t> axes;
     std::vector<size_t> padBegin, padEnd;
     bool antialias;
     ngraph::op::v4::Interpolate::InterpolateMode mode;
     ngraph::op::v4::Interpolate::CoordinateTransformMode coordinateTransformMode;
     ngraph::op::v4::Interpolate::NearestMode nearestMode;
     double cubeCoef;
-    std:tie(axes, mode, coordinateTransformMode, nearestMode, antialias, padBegin, padEnd, cubeCoef) = interpolateParams;
+    std:tie(mode, coordinateTransformMode, nearestMode, antialias, padBegin, padEnd, cubeCoef) = interpolateParams;
     std::ostringstream result;
     result << "IS=" << CommonTestUtils::vec2str(inputShapes) << "_";
     result << "TS=" << CommonTestUtils::vec2str(targetShapes) << "_";
