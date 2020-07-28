@@ -19,9 +19,6 @@
 #include <transformations/low_precision/add.hpp>
 #include "ngraph_functions/low_precision_transformations/add_function.hpp"
 
-// TODO: remove after debugging
-#include <ngraph/pass/visualize_tree.hpp>
-
 using namespace testing;
 using namespace ngraph::pass;
 using namespace ngraph::builder::subgraph;
