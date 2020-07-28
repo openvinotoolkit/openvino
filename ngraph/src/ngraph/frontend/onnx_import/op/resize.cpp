@@ -18,6 +18,7 @@
 #include "default_opset.hpp"
 #include "exceptions.hpp"
 #include "ngraph/op/util/op_types.hpp"
+#include "utils/common.hpp"
 
 namespace ngraph
 {
@@ -25,17 +26,49 @@ namespace ngraph
     {
         namespace op
         {
-            namespace set_1
+            namespace
             {
-                NodeVector resize(const onnx_import::Node& node)
+                std::shared_ptr<ngraph::Node> calculate_output_shape_based_on_scales(
+                    const std::shared_ptr<ngraph::Node>& data,
+                    const std::shared_ptr<ngraph::Node>& scales)
                 {
-                    const auto inputs = node.get_ng_inputs();
-                    const auto data = inputs.at(0);
-                    const auto scales = inputs.at(1);
+                    const auto& data_shape = data->get_output_partial_shape(0);
+                    const auto& scales_shape = scales->get_output_partial_shape(0);
 
-                    const auto data_shape = data->get_output_partial_shape(0);
-                    const auto scales_shape = scales->get_output_partial_shape(0);
+                    if (ngraph::op::is_constant(scales) && data_shape.is_static())
+                    {
+                        const auto scales_const =
+                            as_type_ptr<default_opset::Constant>(scales->shared_from_this());
 
+                        const auto scales_vector = scales_const->cast_vector<float>();
+                        const auto data_static_shape = data_shape.to_shape();
+
+                        std::vector<int64_t> output_shape;
+                        for (size_t i = 0; i < data_static_shape.size(); ++i)
+                        {
+                            output_shape.push_back(
+                                std::floor(data_static_shape.at(i) * scales_vector.at(i)));
+                        }
+                        auto output_shape_const = default_opset::Constant::create(
+                            element::u64, Shape({output_shape.size()}), output_shape);
+
+                        return output_shape_const;
+                    }
+
+                    const auto shape_of_data = std::make_shared<default_opset::Convert>(
+                        std::make_shared<default_opset::ShapeOf>(data), scales->get_element_type());
+                    const auto multiply =
+                        std::make_shared<default_opset::Multiply>(shape_of_data, scales);
+                    const auto output_shape =
+                        std::make_shared<default_opset::Convert>(multiply, ngraph::element::i64);
+
+                    return output_shape;
+                }
+
+                NodeVector build_resize(const Node& node,
+                                        const std::shared_ptr<ngraph::Node>& output_shape,
+                                        const AxisSet& axes)
+                {
                     const auto mode = node.get_attribute_value<std::string>("mode", "nearest");
 
                     std::unordered_set<std::string> supported_modes = {"nearest", "linear"};
@@ -58,53 +91,122 @@ namespace ngraph
                                          supported_modes_str);
                     }
 
-                    CHECK_VALID_NODE(
-                        node,
-                        (scales_shape.is_static() || data_shape.rank().is_static()),
-                        " Data rank or shape of Scales input is required to be static.");
-
-                    size_t axes_size = scales_shape.is_static() ? scales_shape.to_shape().at(0)
-                                                                : data_shape.rank().get_length();
-                    AxisSet axes;
-                    for (int ax = 0; ax < axes_size; ++ax)
-                    {
-                        axes.insert(ax);
-                    }
-
                     auto attrs = ngraph::op::v0::InterpolateAttrs();
                     attrs.axes = axes;
                     attrs.mode = mode;
                     attrs.align_corners = false;
 
-                    if (ngraph::op::is_constant(scales) && data_shape.is_static())
-                    {
-                        const auto scales_const =
-                            as_type_ptr<default_opset::Constant>(scales->shared_from_this());
+                    const auto inputs = node.get_ng_inputs();
+                    const auto& data = inputs.at(0);
 
-                        auto scales_vector = scales_const->cast_vector<float>();
-                        auto data_static_shape = data_shape.to_shape();
-
-                        std::vector<int64_t> output_shape;
-                        for (size_t i = 0; i < data_static_shape.size(); ++i)
-                        {
-                            output_shape.push_back(
-                                std::floor(data_static_shape.at(i) * scales_vector.at(i)));
-                        }
-                        auto output_shape_const = default_opset::Constant::create(
-                            element::u64, Shape({output_shape.size()}), output_shape);
-
-                        return {std::make_shared<default_opset::Interpolate>(
-                            data, output_shape_const, attrs)};
-                    }
-
-                    auto shape_of_data = std::make_shared<default_opset::Convert>(
-                        std::make_shared<default_opset::ShapeOf>(data), ngraph::element::f32);
-                    auto multiply =
-                        std::make_shared<default_opset::Multiply>(shape_of_data, scales);
-                    auto output_shape = std::make_shared<default_opset::Convert>(
-                        std::make_shared<default_opset::Floor>(multiply), ngraph::element::i64);
                     return {
                         std::make_shared<default_opset::Interpolate>(data, output_shape, attrs)};
+                }
+            }
+
+            namespace set_11
+            {
+                NodeVector resize(const onnx_import::Node& node)
+                {
+                    // cubic_coeff_a, extrapolation_value attributes are ignored
+                    // (they do not have influence on supported modes)
+                    const auto coordinate_transformation_mode =
+                        node.get_attribute_value<std::string>("coordinate_transformation_mode",
+                                                              "half_pixel");
+                    CHECK_VALID_NODE(
+                        node,
+                        coordinate_transformation_mode == "asymmetric",
+                        coordinate_transformation_mode,
+                        " - this type of coordinate transformation mode is not supported."
+                        " Only asymmetric mode is supported by current version.");
+
+                    const auto exclude_outside =
+                        node.get_attribute_value<int64_t>("exclude_outside ", 0);
+                    CHECK_VALID_NODE(node,
+                                     exclude_outside == 0,
+                                     "Expected exclude_outside=",
+                                     exclude_outside,
+                                     " mode is not supported. ",
+                                     "Current version supports only exclude_outside equals `0`.");
+
+                    const auto mode = node.get_attribute_value<std::string>("mode", "nearest");
+                    if (mode == "nearest")
+                    {
+                        const auto nearest_mode = node.get_attribute_value<std::string>(
+                            "nearest_mode", "round_prefer_floor");
+                        CHECK_VALID_NODE(
+                            node,
+                            nearest_mode == "floor",
+                            "Expected nearest_mode=",
+                            nearest_mode,
+                            " mode is not supported. ",
+                            "Current version support only nearest_mode equals `floor`");
+                    }
+
+                    // roi input (inputs.at(2)) is ignored because it is used only
+                    // in "tf_crop_and_resize" which is not handled now
+                    const auto inputs = node.get_ng_inputs();
+                    const auto& data = inputs.at(0);
+                    const auto& data_shape = data->get_output_partial_shape(0);
+
+                    if (inputs.size() == 4) // sizes input is provided
+                    {
+                        const auto& sizes = inputs.at(3);
+                        const auto& sizes_shape = sizes->get_output_partial_shape(0);
+
+                        CHECK_VALID_NODE(
+                            node,
+                            (sizes_shape.is_static() || data_shape.rank().is_static()),
+                            " Data rank or shape of sizes input is required to be static.");
+
+                        size_t axes_size = sizes_shape.is_static() ? sizes_shape[0].get_length()
+                                                                   : data_shape.rank().get_length();
+
+                        return build_resize(
+                            node, sizes, AxisSet(common::get_monotonic_range(axes_size)));
+                    }
+
+                    const auto& scales = inputs.at(2);
+                    const auto& scales_shape = scales->get_output_partial_shape(0);
+
+                    CHECK_VALID_NODE(
+                        node,
+                        (scales_shape.is_static() || data_shape.rank().is_static()),
+                        " Data rank or shape of scales input is required to be static.");
+
+                    size_t axes_size = scales_shape.is_static() ? scales_shape[0].get_length()
+                                                                : data_shape.rank().get_length();
+
+                    const auto output_shape = calculate_output_shape_based_on_scales(data, scales);
+
+                    return build_resize(
+                        node, output_shape, AxisSet(common::get_monotonic_range(axes_size)));
+                }
+            } // namespace set_11
+
+            namespace set_1
+            {
+                NodeVector resize(const onnx_import::Node& node)
+                {
+                    const auto inputs = node.get_ng_inputs();
+                    const auto& data = inputs.at(0);
+                    const auto& scales = inputs.at(1);
+
+                    const auto& data_shape = data->get_output_partial_shape(0);
+                    const auto& scales_shape = scales->get_output_partial_shape(0);
+
+                    CHECK_VALID_NODE(
+                        node,
+                        (scales_shape.is_static() || data_shape.rank().is_static()),
+                        " Data rank or shape of scales input is required to be static.");
+
+                    size_t axes_size = scales_shape.is_static() ? scales_shape[0].get_length()
+                                                                : data_shape.rank().get_length();
+
+                    const auto output_shape = calculate_output_shape_based_on_scales(data, scales);
+
+                    return build_resize(
+                        node, output_shape, AxisSet(common::get_monotonic_range(axes_size)));
                 }
 
             } // namespace set_1

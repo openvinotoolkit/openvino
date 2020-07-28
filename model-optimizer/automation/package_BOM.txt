@@ -242,6 +242,8 @@ extensions/front/onnx/crop_ext.py
 extensions/front/onnx/cumsum_ext.py
 extensions/front/onnx/deformable_conv_ext.py
 extensions/front/onnx/depth_to_space_ext.py
+extensions/front/onnx/dequantize_linear_ext.py
+extensions/front/onnx/dequantize_linear_resolver.py
 extensions/front/onnx/detection_output.py
 extensions/front/onnx/detectionoutput_ext.py
 extensions/front/onnx/dropout_ext.py
@@ -594,6 +596,7 @@ extensions/ops/ctc_greedy_decoder.py
 extensions/ops/cumsum.py
 extensions/ops/data_augmentation.py
 extensions/ops/depth_to_space.py
+extensions/ops/dequantize_linear.py
 extensions/ops/DetectionOutput.py
 extensions/ops/detectionoutput_onnx.py
 extensions/ops/elementwise.py
@@ -784,7 +787,6 @@ mo/front/kaldi/extractors/pnorm_component_ext.py
 mo/front/kaldi/extractors/rectified_linear_component_ext.py
 mo/front/kaldi/extractors/rescale_ext.py
 mo/front/kaldi/extractors/scale_component_ext.py
-mo/front/kaldi/extractors/slice_ext.py
 mo/front/kaldi/extractors/softmax_ext.py
 mo/front/kaldi/extractors/splice_component_ext.py
 mo/front/kaldi/loader/__init__.py

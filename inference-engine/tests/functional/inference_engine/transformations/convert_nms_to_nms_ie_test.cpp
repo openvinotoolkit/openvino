@@ -15,6 +15,7 @@
 #include <transformations/utils/utils.hpp>
 #include <ngraph_ops/nms_ie.hpp>
 #include <ngraph/pass/constant_folding.hpp>
+#include <ngraph/pass/manager.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
 
@@ -35,8 +36,10 @@ TEST(TransformationTests, ConvertNMSToNMSIEStatic) {
         f = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
 
         const auto & orig_shape = f->get_output_partial_shape(0);
-        pass::InitNodeInfo().run_on_function(f);
-        pass::ConvertNMSToNMSIE().run_on_function(f);
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<ngraph::pass::ConvertNMSToNMSIEMatcher>();
+        manager.run_passes(f);
         ASSERT_NO_THROW(check_rt_info(f));
         ASSERT_TRUE(f->get_output_partial_shape(0).is_static()) << "Shape " << f->get_output_partial_shape(0) << " should be static";
     }
@@ -73,8 +76,10 @@ TEST(TransformationTests, ConvertNMSToNMSIEDynamic1) {
 
         f = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
 
-        pass::InitNodeInfo().run_on_function(f);
-        pass::ConvertNMSToNMSIE().run_on_function(f);
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<ngraph::pass::ConvertNMSToNMSIEMatcher>();
+        manager.run_passes(f);
         f->validate_nodes_and_infer_types();
         ASSERT_NO_THROW(check_rt_info(f));
     }
@@ -110,8 +115,10 @@ TEST(TransformationTests, ConvertNMSToNMSIEDynamic2) {
 
         f = std::make_shared<Function>(NodeVector{nms}, ParameterVector{boxes, scores});
 
-        pass::InitNodeInfo().run_on_function(f);
-        pass::ConvertNMSToNMSIE().run_on_function(f);
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<ngraph::pass::ConvertNMSToNMSIEMatcher>();
+        manager.run_passes(f);
         f->validate_nodes_and_infer_types();
         ASSERT_NO_THROW(check_rt_info(f));
     }
