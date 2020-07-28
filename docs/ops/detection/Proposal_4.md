@@ -163,7 +163,7 @@ the second optional tensor of shape `[batch_size * post_nms_topn]` with probabil
 
 ```xml
 <layer ... type="Proposal" ... >
-    <data base_size="16" feat_stride="8" for_deformable="0" min_size="16" nms_thresh="1.0" normalize="0" post_nms_topn="1000" pre_nms_topn="1000" ratio="1" scale="1,2"/>
+    <data base_size="16" feat_stride="8" min_size="16" nms_thresh="1.0" normalize="0" post_nms_topn="1000" pre_nms_topn="1000" ratio="1" scale="1,2"/>
     <input>
         <port id="0">
             <dim>1</dim>
