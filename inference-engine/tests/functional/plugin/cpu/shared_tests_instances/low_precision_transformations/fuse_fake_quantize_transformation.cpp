@@ -18,7 +18,7 @@ const std::vector<LayerTestsUtils::LayerTransformation::LptVersion> versions = {
 const std::vector<FuseFakeQuantizeTransformationTestValues> testValues = {
     // Multiply
     {
-        ngraph::Shape{1,3,16,16},
+        ngraph::Shape{1, 3, 16, 16},
         LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),
         {
             ngraph::element::f32,
@@ -29,7 +29,7 @@ const std::vector<FuseFakeQuantizeTransformationTestValues> testValues = {
     },
     // Subtract + Multiply
     {
-        ngraph::Shape{1,3,16,16},
+        ngraph::Shape{1, 3, 16, 16},
         LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),
         {
             ngraph::element::f32,
@@ -40,7 +40,7 @@ const std::vector<FuseFakeQuantizeTransformationTestValues> testValues = {
     },
     // Convert + Subtract + Multiply
     {
-        ngraph::Shape{1,3,16,16},
+        ngraph::Shape{1, 3, 16, 16},
         LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),
         {
             ngraph::element::u8,

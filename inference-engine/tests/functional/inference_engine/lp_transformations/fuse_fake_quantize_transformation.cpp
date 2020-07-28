@@ -101,7 +101,7 @@ TEST_P(FuseFakeQuantizeTransformation, CompareFunctions) {
 const std::vector<FuseFakeQuantizeTransformationTestValues> testValues = {
     // Multiply
     {
-        Shape{1,3,16,16},
+        Shape{1, 3, 16, 16},
         LayerTransformation::createParamsU8I8(),
         {
             element::f32,
@@ -119,7 +119,7 @@ const std::vector<FuseFakeQuantizeTransformationTestValues> testValues = {
     },
     // Subtract + Multiply
     {
-        Shape{1,3,16,16},
+        Shape{1, 3, 16, 16},
         LayerTransformation::createParamsU8I8(),
         {
             element::f32,
@@ -137,7 +137,7 @@ const std::vector<FuseFakeQuantizeTransformationTestValues> testValues = {
     },
     // Convert + Subtract + Multiply
     {
-        Shape{1,3,16,16},
+        Shape{1, 3, 16, 16},
         LayerTransformation::createParamsU8I8(),
         {
             element::u8,
