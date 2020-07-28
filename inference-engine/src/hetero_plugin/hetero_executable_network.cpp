@@ -8,6 +8,7 @@
 #include "ie_util_internal.hpp"
 #include "hetero_graph_splitter.hpp"
 #include "xml_parse_utils.h"
+#include <details/caseless.hpp>
 
 #include <vector>
 #include <deque>
