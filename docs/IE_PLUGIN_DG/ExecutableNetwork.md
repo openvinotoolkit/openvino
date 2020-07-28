@@ -21,7 +21,7 @@ The example class has several fields:
 - `_requestId` - Tracks a number of created inference requests, which is used to distinguish different inference requests during profiling via the Intel® Instrumentation and Tracing Technology (ITT) library.
 - `_cfg` - Defines a configuration an executable network was compiled with.
 - `_plugin` - Refers to a plugin instance.
-- `_function` - Keeps a reference to transformed `ngraph::Function` which is used in ngraph reference backend computations. Note, in case of other backends with backend-specific graph representation `_function` has different type and representation backend-specific graph or just a set of computational kernels to perform an inference.
+- `_function` - Keeps a reference to transformed `ngraph::Function` which is used in ngraph reference backend computations. Note, in case of other backends with backend-specific graph representation `_function` has different type and represents backend-specific graph or just a set of computational kernels to perform an inference.
 - `_inputIndex` - maps a name of input with its index among all network inputs.
 - `_outputIndex` - maps a name of output with its index among all network outputs.
 
@@ -37,20 +37,12 @@ The implementation `MapGraph` is fully device-specific.
 
 The function accepts a const shared pointer to `const ngraph::Function` object and performs the following steps:
 
-1. Maps the transformed graph to a plugin-specific graph representation (for example, to MKLDNN graph for CPU). See detailed topics about network representation:
-    * [Intermediate Representation and Operation Sets](../_docs_MO_DG_IR_and_opsets.html)
-    * [Quantized networks](@ref quantized_networks).
+1. Maps the transformed graph to a backend-specific graph representation (for example, to MKLDNN graph for CPU).
 2. Allocates and fills memory for graph weights, device buffers and so on.
 
 @snippet src/template_executable_network.cpp executable_network:map_graph
 
 > **NOTE**: After all these steps, the backend-specific graph is ready to create inference requests and perform inference.
-
-### `InitExecutor`
-
-Initializes thread executor which is used in asyncronous operations to optimally perform parallel inferences:
-
-@snippet src/template_executable_network.cpp executable_network:init_executor
 
 ### `ExecutableNetwork` Constructor Importing from Stream
 
@@ -79,7 +71,6 @@ The method creates an asynchronous inference request and returns it. While the p
 - [Asynchronous inference request](@ref async_infer_request), which is a wrapper for a synchronous inference request and can run a pipeline asynchronously. Depending on a device pipeline structure, it can has one or several stages:
    - For single-stage pipelines, there is no need to define this method and create a class derived from InferenceEngine::AsyncInferRequestThreadSafeDefault. For single stage pipelines, a default implementation of this method creates InferenceEngine::AsyncInferRequestThreadSafeDefault wrapping a synchronous inference request and runs it asynchronously in the `_taskExecutor` executor.
    - For pipelines with multiple stages, such as performing some preprocessing on host, uploading input data to a device, running inference on a device, or downloading and postprocessing output data, schedule stages on several task executors to achieve better device use and performance. You can do it by creating a sufficient number of inference requests running in parallel. In this case, device stages of different inference requests are overlapped with preprocessing and postprocessing stage giving better performance.
-
    > **IMPORTANT**: It is up to you to decide how many task executors you need to optimally execute a device pipeline.
 
 @snippet src/template_executable_network.cpp executable_network:create_infer_request

@@ -50,7 +50,7 @@ A plugin must define a device name enabled via the `_pluginName` field of a base
 of the public InferenceEngine::InferencePluginInternal::LoadNetwork method that calls plugin-specific `LoadExeNetworkImpl`, which is defined in a derived class.
 
 This is the most important function of the `Plugin` class and creates an instance of compiled `ExecutableNetwork`,
-which holds a hardware-dependent compiled graph in an internal representation:
+which holds a backend-dependent compiled graph in an internal representation:
 
 @snippet src/template_plugin.cpp plugin:load_exe_network_impl
 
@@ -67,7 +67,7 @@ Actual graph compilation is done in the `ExecutableNetwork` constructor. Refer t
 
 ### `TransformNetwork()`
 
-The function accepts a const shared pointer to `const ngraph::Function` object and performs the following steps:
+The function accepts a const shared pointer to `ngraph::Function` object and performs the following steps:
 
 1. Deep copies a const object to a local object, which can later be modified.
 2. Applies common and plugin-specific transformations on a copied graph to make the graph more friendly to hardware operations. For details how to write custom plugin-specific transformation, please, refer to [Writing ngraph transformations](@ref new_ngraph_transformation) guide. See detailed topics about network representation:
@@ -76,19 +76,19 @@ The function accepts a const shared pointer to `const ngraph::Function` object a
 
 @snippet src/template_plugin.cpp plugin:transform_network
 
-> **NOTE**: After all these transformations, a `ngraph::Function` object cointains operations which are perfectly can be mapped to backend kernels. E.g. if backend has kernel computing `A + B` operations at once, the `TransformNetwork` function should contain a pass which fuses operations `A` and `B` into a single custom operation `A + B` which fits backend kernels set. 
+> **NOTE**: After all these transformations, a `ngraph::Function` object cointains operations which can be perfectly mapped to backend kernels. E.g. if backend has kernel computing `A + B` operations at once, the `TransformNetwork` function should contain a pass which fuses operations `A` and `B` into a single custom operation `A + B` which fits backend kernels set. 
 
 ### `QueryNetwork()`
 
 Use the method with the `HETERO` mode, which allows to distribute network execution between different 
 devices based on the `ngraph::Node::get_rt_info()` map, which can contain the `"affinity"` key.
 The `QueryNetwork` method analyzes operations of provided `network` and returns a list of supported
-operations via the InferenceEngine::QueryNetworkResult structure. The `QueryNetwork` firstly applies `TransformNetwork` passes to input `ngraph::Function` argument. After this, the transformed network contains only operations are 1:1 mapped to kernels in computational backend. In this case, it's very easy to analyze which operations is supposed (`_backend` has a kernel for such operation or extensions for the operation is provided) and not supported (kernel is missed in `_backend`):
+operations via the InferenceEngine::QueryNetworkResult structure. The `QueryNetwork` firstly applies `TransformNetwork` passes to input `ngraph::Function` argument. After this, the transformed network in ideal case contains only operations are 1:1 mapped to kernels in computational backend. In this case, it's very easy to analyze which operations is supposed (`_backend` has a kernel for such operation or extensions for the operation is provided) and not supported (kernel is missed in `_backend`):
 
 1. Store original names of all operations in input `ngraph::Function`
 2. Apply `TransformNetwork` passes. Note, the names of operations in a transformed network can be different and we need to restore the mapping in the steps below.
-3. Construct `supported` and `unsupported` maps which contains names of original operations. Note, that since the inference is performed using ngraph reference backend, the decision whether the operation is supported or not is whether the latest opset contains such operation.
-4. `QueryNetworkResult.supportedLayersMap` contains only operations which are fully supported by `_backend`. 
+3. Construct `supported` and `unsupported` maps which contains names of original operations. Note, that since the inference is performed using ngraph reference backend, the decision whether the operation is supported or not depends on whether the latest OpenVINO opset contains such operation.
+4. `QueryNetworkResult.supportedLayersMap` contains only operations which are fully supported by `_backend`.
 
 @snippet src/template_plugin.cpp plugin:query_network
 

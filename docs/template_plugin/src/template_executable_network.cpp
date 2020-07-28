@@ -25,7 +25,7 @@ TemplatePlugin::ExecutableNetwork::ExecutableNetwork(const std::shared_ptr<ngrap
     // In this case, _waitExecutor should also be created per device.
     try {
         MapGraph();
-        InitExecutor();
+        InitExecutor(); // creates thread-based executor using for async requests
     } catch (const InferenceEngineException&) {
         throw;
     } catch (const std::exception & e) {
@@ -67,7 +67,7 @@ void TemplatePlugin::ExecutableNetwork::MapGraph() {
 
     // Perform any other steps like allocation and filling device buffers for weights, and so on
 }
-// ! [executable_network:init_executor]
+// ! [executable_network:map_graph]
 
 
 // ! [executable_network:init_executor]

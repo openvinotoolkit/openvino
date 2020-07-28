@@ -33,7 +33,7 @@ Plugin::Plugin() {
     ngraph::runtime::Backend::set_backend_shared_library_search_directory("");
     _backend = ngraph::runtime::Backend::create("INTERPRETER");
 
-    // create default stream executor via a given name
+    // create default stream executor with a given name
     _waitExecutor = ExecutorManager::getInstance()->getIdleCPUStreamsExecutor({"TemplateWaitExecutor"});
 }
 // ! [plugin:ctor]
@@ -77,7 +77,7 @@ std::shared_ptr<ngraph::Function> Plugin::TransformNetwork(const std::shared_ptr
     // ..
 
     // After `run_passes`, we have the transformed function, where operations match device operations,
-    // and we can create device hardware-dependent graph
+    // and we can create device backend-dependent graph
     passManager.run_passes(transformedNetwork);
 
     return transformedNetwork;

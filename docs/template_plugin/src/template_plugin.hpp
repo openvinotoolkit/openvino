@@ -40,8 +40,8 @@ private:
 
     static std::shared_ptr<ngraph::Function> TransformNetwork(const std::shared_ptr<const ngraph::Function>& function);
 
-    Configuration                               _cfg;
     std::shared_ptr<ngraph::runtime::Backend>   _backend;
+    Configuration                               _cfg;
     InferenceEngine::ITaskExecutor::Ptr         _waitExecutor;
 };
 

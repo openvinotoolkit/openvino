@@ -1,7 +1,6 @@
 # Plugin Testing {#plugin_testing}
 
-Inference Engine (IE) tests infrastructure provides a predefined set of functional tests and utilities exported via the Inference
-Engine developer package. They are used to verify a plugin using the Inference Engine public API.
+Inference Engine (IE) tests infrastructure provides a predefined set of functional tests and utilities. They are used to verify a plugin using the Inference Engine public API.
 All the tests are written in the [Google Test C++ framework](https://github.com/google/googletest).
 
 Inference Engine Plugin tests are included in the `IE::funcSharedTests` CMake target which is built within the  Deep Learning Deployment Toolkit (DLDT) repository
@@ -27,8 +26,7 @@ Engine concepts: plugin creation, multiple executable networks support, multiple
     @snippet single_layer_tests/convolution.cpp test_convolution:instantiate
 
 3. **Sub-graph tests** (`subgraph_tests` sub-folder). This group of tests is designed to tests small patterns or combination of layers. E.g. when a particular topology is being enabled in a plugin e.g. TF ResNet-50, there is no need to add the whole topology to test tests. In opposite way, a particular repetative subgraph or pattern can be extracted from `ResNet-50` and added to the tests. The instantiation of the sub-graph tests is done in the same way as for single layer tests.  
-
-Note, such sub-graphs or patterns for sub-graph tests should be added to `IE::ngraphFunctions` library first (this library is a pre-defined set of small `ngraph::Function`) and re-used in sub-graph tests after.
+> **Note**, such sub-graphs or patterns for sub-graph tests should be added to `IE::ngraphFunctions` library first (this library is a pre-defined set of small `ngraph::Function`) and re-used in sub-graph tests after.
 
 4. **HETERO tests** (`subgraph_tests` sub-folder) contains tests for `HETERO` scenario (manual or automatic affinities settings, tests for `QueryNetwork`).
 
