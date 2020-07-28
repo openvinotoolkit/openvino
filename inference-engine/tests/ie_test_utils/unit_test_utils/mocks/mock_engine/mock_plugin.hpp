@@ -35,5 +35,25 @@ public:
 
     void Release() noexcept override;
 
+    void SetName(const std::string& pluginName) noexcept override;
+    std::string GetName() const noexcept override;
+    void SetCore(InferenceEngine::ICore* core) noexcept override;
+    const InferenceEngine::ICore& GetCore() const override;
+    InferenceEngine::Parameter
+    GetConfig(const std::string& name, const std::map<std::string, InferenceEngine::Parameter>& options) const override;
+    InferenceEngine::Parameter
+    GetMetric(const std::string& name, const std::map<std::string, InferenceEngine::Parameter>& options) const override;
+    InferenceEngine::RemoteContext::Ptr
+    CreateContext(const InferenceEngine::ParamMap& params) override;
+    InferenceEngine::RemoteContext::Ptr GetDefaultContext() override;
+    InferenceEngine::ExecutableNetwork
+    LoadNetwork(const InferenceEngine::ICNNNetwork& network, const std::map<std::string, std::string>& config,
+                InferenceEngine::RemoteContext::Ptr context) override;
+    InferenceEngine::ExecutableNetwork
+    ImportNetwork(std::istream& networkModel, const std::map<std::string, std::string>& config) override;
+    InferenceEngine::ExecutableNetwork
+    ImportNetwork(std::istream& networkModel, const InferenceEngine::RemoteContext::Ptr& context,
+                  const std::map<std::string, std::string>& config) override;
+
     std::map<std::string, std::string> config;
 };

@@ -119,4 +119,20 @@ using ExportMagic = std::array<char, 4>;
  */
 constexpr static const ExportMagic exportMagic = {{0x1, 0xE, 0xE, 0x1}};
 
+/**
+ * @private
+ */
+class INFERENCE_ENGINE_API_CLASS(DeviceIDParser) {
+    std::string deviceName;
+    std::string deviceID;
+public:
+    explicit DeviceIDParser(const std::string& deviceNameWithID);
+
+    std::string getDeviceID() const;
+    std::string getDeviceName() const;
+
+    static std::vector<std::string> getHeteroDevices(std::string fallbackDevice);
+    static std::vector<std::string> getMultiDevices(std::string devicesList);
+};
+
 }  // namespace InferenceEngine

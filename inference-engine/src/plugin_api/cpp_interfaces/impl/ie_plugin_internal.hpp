@@ -10,9 +10,7 @@
 #pragma once
 
 #include <ie_plugin_config.hpp>
-#include <ie_util_internal.hpp>
 
-#include <details/caseless.hpp>
 #include <map>
 #include <memory>
 #include <string>
@@ -21,7 +19,6 @@
 #include "cpp_interfaces/base/ie_executable_network_base.hpp"
 #include "cpp_interfaces/impl/ie_executable_network_internal.hpp"
 #include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
-#include "graph_transformer.h"
 
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;

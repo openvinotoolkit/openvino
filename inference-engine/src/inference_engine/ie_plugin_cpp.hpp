@@ -18,6 +18,10 @@
 #include "details/ie_exception_conversion.hpp"
 #include "ie_plugin_ptr.hpp"
 
+#define CALL_RETURN_FNC_NO_ARGS(function, ...)         \
+    if (!actual) THROW_IE_EXCEPTION << "Wrapper used in the CALL_RETURN_FNC_NO_ARGS was not initialized."; \
+    return actual->function(__VA_ARGS__);
+
 namespace InferenceEngine {
 
 /**
@@ -139,6 +143,38 @@ public:
         if (actual == nullptr) THROW_IE_EXCEPTION << "InferencePlugin wrapper was not initialized";
         actual->QueryNetwork(network, config, res);
         if (res.rc != OK) THROW_IE_EXCEPTION << res.resp.msg;
+    }
+
+    ExecutableNetwork ImportNetwork(std::istream& networkModel,
+                                    const std::map<std::string, std::string> &config) {
+        CALL_RETURN_FNC_NO_ARGS(ImportNetwork, networkModel, config);
+    }
+
+    Parameter GetMetric(const std::string& name, const std::map<std::string, Parameter>& options) const {
+        CALL_RETURN_FNC_NO_ARGS(GetMetric, name, options);
+    }
+
+    ExecutableNetwork LoadNetwork(const ICNNNetwork& network, const std::map<std::string, std::string>& config,
+                                  RemoteContext::Ptr context) {
+        CALL_RETURN_FNC_NO_ARGS(LoadNetwork, network, config, context);
+    }
+
+    RemoteContext::Ptr CreateContext(const ParamMap& params) {
+        CALL_RETURN_FNC_NO_ARGS(CreateContext, params);
+    }
+
+    RemoteContext::Ptr GetDefaultContext() {
+        CALL_RETURN_FNC_NO_ARGS(GetDefaultContext);
+    }
+
+    ExecutableNetwork ImportNetwork(std::istream& networkModel,
+                                    const RemoteContext::Ptr& context,
+                                    const std::map<std::string, std::string>& config) {
+        CALL_RETURN_FNC_NO_ARGS(ImportNetwork, networkModel, context, config);
+    }
+
+    Parameter GetConfig(const std::string& name, const std::map<std::string, Parameter>& options) const {
+        CALL_RETURN_FNC_NO_ARGS(GetConfig, name, options);
     }
 
     /**
