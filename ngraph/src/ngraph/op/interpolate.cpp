@@ -254,6 +254,13 @@ shared_ptr<Node> op::v4::Interpolate::clone_with_new_inputs(const OutputVector& 
         new_args.at(0), new_args.at(1), new_args.at(2), m_attrs);
 }
 
+
+bool op::v4::Interpolate::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
+{
+    return true;
+}
+
+
 namespace ngraph
 {
     template <>
