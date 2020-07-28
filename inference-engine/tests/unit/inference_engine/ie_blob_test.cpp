@@ -395,3 +395,53 @@ TEST_F(BlobTests, makeRoiBlobWrongSize) {
     InferenceEngine::ROI roi = {0, 1, 1, 4, 4};  // cropped picture with: id = 0, (x,y) = (1,1), sizeX (W) = 4, sizeY (H) = 4
     ASSERT_THROW(make_shared_blob(blob, roi), InferenceEngine::details::InferenceEngineException);
 }
+
+TEST_F(BlobTests, readRoiBlob) {
+    // Create original Blob
+
+    const auto origDesc =
+        InferenceEngine::TensorDesc(
+            InferenceEngine::Precision::I32,
+            {1, 3, 4, 8},
+            InferenceEngine::NCHW);
+
+    const auto origBlob =
+        InferenceEngine::make_shared_blob<int32_t>(origDesc);
+    origBlob->allocate();
+
+    // Fill the original Blob
+
+    {
+        auto origMemory = origBlob->wmap();
+        const auto origPtr = origMemory.as<int32_t*>();
+        ASSERT_NE(nullptr, origPtr);
+
+        for (size_t i = 0; i < origBlob->size(); ++i) {
+            origPtr[i] = i;
+        }
+    }
+
+    // Create ROI Blob
+
+    const auto roi = InferenceEngine::ROI(0, 4, 2, 4, 2);
+
+    const auto roiBlob = InferenceEngine::as<InferenceEngine::MemoryBlob>(origBlob->createROI(roi));
+    ASSERT_NE(nullptr, roiBlob);
+
+    // Read ROI Blob
+
+    {
+        const auto roiOffset = roiBlob->getTensorDesc().getBlockingDesc().getOffsetPadding();
+
+        auto roiMemory = roiBlob->rmap();
+        auto roiPtr = roiMemory.as<const int32_t*>();
+        ASSERT_NE(nullptr, roiPtr);
+
+        // Blob::rmap returns pointer to the original blob start, we have to add ROI offset manually.
+        roiPtr += roiOffset;
+
+        for (size_t i = 0; i < roiBlob->size(); ++i) {
+            ASSERT_EQ(roiPtr[i], i + roiOffset);
+        }
+    }
+}

@@ -117,6 +117,8 @@ public:
      */
     virtual Blob::Ptr getBlob(size_t i) const noexcept;
 
+    Blob::Ptr createROI(const ROI& roi) const override;
+
 protected:
     /**
      * @brief A default constructor
@@ -219,6 +221,8 @@ public:
      * @brief Returns a shared pointer to UV plane
      */
     virtual const Blob::Ptr& uv() const noexcept;
+
+    Blob::Ptr createROI(const ROI& roi) const override;
 };
 
 /**
@@ -342,5 +346,7 @@ public:
      * @return constant reference to shared pointer object of V plane
      */
     const Blob::Ptr& v() const noexcept;
+
+    Blob::Ptr createROI(const ROI& roi) const override;
 };
 }  // namespace InferenceEngine

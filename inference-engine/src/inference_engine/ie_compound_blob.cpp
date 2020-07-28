@@ -15,7 +15,9 @@
 #include <vector>
 
 namespace InferenceEngine {
+
 namespace {
+
 void verifyNV12BlobInput(const Blob::Ptr& y, const Blob::Ptr& uv) {
     // Y and UV must be valid pointers
     if (y == nullptr || uv == nullptr) {
@@ -189,6 +191,7 @@ void verifyI420BlobInput(const Blob::Ptr& y, const Blob::Ptr& u, const Blob::Ptr
                            << yDims[3] << "(Y plane) and " << vDims[3] << "(V plane)";
     }
 }
+
 }  // anonymous namespace
 
 CompoundBlob::CompoundBlob(): Blob(TensorDesc(Precision::UNSPECIFIED, {}, Layout::ANY)) {}
@@ -272,6 +275,17 @@ Blob::Ptr CompoundBlob::getBlob(size_t i) const noexcept {
     return _blobs[i];
 }
 
+Blob::Ptr CompoundBlob::createROI(const ROI& roi) const {
+    std::vector<Blob::Ptr> roiBlobs;
+    roiBlobs.reserve(_blobs.size());
+
+    for (const auto& blob : _blobs) {
+        roiBlobs.push_back(blob->createROI(roi));
+    }
+
+    return std::make_shared<CompoundBlob>(std::move(roiBlobs));
+}
+
 const std::shared_ptr<IAllocator>& CompoundBlob::getAllocator() const noexcept {
     static std::shared_ptr<IAllocator> _allocator = nullptr;
     return _allocator;
@@ -317,6 +331,19 @@ Blob::Ptr& NV12Blob::uv() noexcept {
 const Blob::Ptr& NV12Blob::uv() const noexcept {
     // NOTE: UV plane is a memory blob, which is checked in the constructor
     return _blobs[1];
+}
+
+Blob::Ptr NV12Blob::createROI(const ROI& roi) const {
+    auto yROI = roi;
+    yROI.sizeX += yROI.sizeX % 2;
+    yROI.sizeY += yROI.sizeY % 2;
+
+    const auto uvROI = ROI(yROI.id, yROI.posX / 2, yROI.posY / 2, yROI.sizeX / 2, yROI.sizeY / 2);
+
+    const auto yRoiBlob = y()->createROI(yROI);
+    const auto uvRoiBlob = uv()->createROI(uvROI);
+
+    return std::make_shared<NV12Blob>(yRoiBlob, uvRoiBlob);
 }
 
 I420Blob::I420Blob(const Blob::Ptr& y, const Blob::Ptr& u, const Blob::Ptr& v) {
@@ -369,6 +396,20 @@ Blob::Ptr& I420Blob::v() noexcept {
 const Blob::Ptr& I420Blob::v() const noexcept {
     // NOTE: V plane is a memory blob, which is checked in the constructor
     return _blobs[2];
+}
+
+Blob::Ptr I420Blob::createROI(const ROI& roi) const {
+    auto yROI = roi;
+    yROI.sizeX += yROI.sizeX % 2;
+    yROI.sizeY += yROI.sizeY % 2;
+
+    const auto uvROI = ROI(yROI.id, yROI.posX / 2, yROI.posY / 2, yROI.sizeX / 2, yROI.sizeY / 2);
+
+    const auto yRoiBlob = y()->createROI(yROI);
+    const auto uRoiBlob = u()->createROI(uvROI);
+    const auto vRoiBlob = v()->createROI(uvROI);
+
+    return std::make_shared<I420Blob>(yRoiBlob, uRoiBlob, vRoiBlob);
 }
 
 }  // namespace InferenceEngine
