@@ -106,7 +106,7 @@ bool Subgraph::fill(ngraph::Node& layer, std::unordered_set<std::string>& handle
                 }
             } else {
                 ngraph::opset1::FakeQuantize* fakeQuantizeChild = ngraph::as_type<ngraph::opset1::FakeQuantize>(&child);
-                if (fakeQuantizeChild == nullptr) {
+                if (fakeQuantizeChild != nullptr) {
                     //
                 } else if (layerTransformationsManager->isPrecisionPreserved(child.shared_from_this())) {
                     if (!fillSubgraphForIntermediate(child, handledLayers)) {
