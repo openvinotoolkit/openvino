@@ -6,7 +6,6 @@
 #include <gmock/gmock-spec-builders.h>
 
 #include <ie_version.hpp>
-#include <cpp_interfaces/base/ie_plugin_base.hpp>
 
 #include "unit_test_utils/mocks/mock_not_empty_icnn_network.hpp"
 #include "unit_test_utils/mocks/cpp_interfaces/mock_plugin_impl.hpp"
@@ -21,9 +20,7 @@ using namespace InferenceEngine::details;
 
 class InferenceEnginePluginInternalTest : public ::testing::Test {
 protected:
-    IE_SUPPRESS_DEPRECATED_START
-    shared_ptr<IInferencePlugin> plugin;
-    IE_SUPPRESS_DEPRECATED_END
+    shared_ptr<IInferencePluginInternal> plugin;
     shared_ptr<MockInferencePluginInternal> mock_plugin_impl;
     shared_ptr<MockExecutableNetworkInternal> mockExeNetworkInternal;
     shared_ptr<MockExecutableNetworkThreadSafe> mockExeNetworkTS;
@@ -45,7 +42,7 @@ protected:
         pluginId = "TEST";
         mock_plugin_impl.reset(new MockInferencePluginInternal());
         mock_plugin_impl->SetName(pluginId);
-        plugin = details::shared_from_irelease(make_ie_compatible_plugin({{2, 1}, "test", "version"}, mock_plugin_impl));
+        plugin = details::shared_from_irelease(mock_plugin_impl));
         mockExeNetworkInternal = make_shared<MockExecutableNetworkInternal>();
         mockExeNetworkInternal->SetPointerToPluginInternal(mock_plugin_impl);
     }
@@ -60,10 +57,7 @@ protected:
         mockExeNetworkTS = make_shared<MockExecutableNetworkThreadSafe>();
         EXPECT_CALL(*mock_plugin_impl.get(), LoadExeNetworkImpl(_, _)).WillOnce(Return(mockExeNetworkTS));
         EXPECT_CALL(*mockExeNetworkTS.get(), CreateInferRequestImpl(_, _)).WillOnce(Return(mockInferRequestInternal));
-        IE_SUPPRESS_DEPRECATED_START
-        sts = plugin->LoadNetwork(exeNetwork, mockNotEmptyNet, {}, &dsc);
-        IE_SUPPRESS_DEPRECATED_END
-        ASSERT_EQ((int) StatusCode::OK, sts) << dsc.msg;
+        plugin->LoadNetwork(exeNetwork, mockNotEmptyNet, {});
         ASSERT_NE(exeNetwork, nullptr) << dsc.msg;
         sts = exeNetwork->CreateInferRequest(request, &dsc);
         ASSERT_EQ((int) StatusCode::OK, sts) << dsc.msg;

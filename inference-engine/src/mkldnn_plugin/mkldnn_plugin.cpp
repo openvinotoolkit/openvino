@@ -6,7 +6,6 @@
 #include "mkldnn_plugin.h"
 #include "mkldnn_extension_mngr.h"
 #include "mkldnn_weights_cache.hpp"
-#include <cpp_interfaces/base/ie_plugin_base.hpp>
 #include <threading/ie_executor_manager.hpp>
 #include <memory>
 #include <ie_plugin_config.hpp>
@@ -284,12 +283,13 @@ void Engine::QueryNetwork(const ICNNNetwork& network, const std::map<std::string
     }
 }
 
-INFERENCE_PLUGIN_API(StatusCode) CreatePluginEngine(IInferencePlugin*& plugin, ResponseDesc *resp) noexcept {
+INFERENCE_PLUGIN_API(StatusCode) CreatePluginEngine(IInferencePluginInternal*& plugin, ResponseDesc *resp) noexcept {
     try {
-        plugin = make_ie_compatible_plugin(
-                {{2, 1},
-                 CI_BUILD_NUMBER,
-                 "MKLDNNPlugin"}, std::make_shared<Engine>());
+        // plugin = make_ie_compatible_plugin(
+        //         {{2, 1},
+        //          CI_BUILD_NUMBER,
+        //          "MKLDNNPlugin"}, std::make_shared<Engine>());
+        plugin = new Engine();
         return OK;
     }
     catch (std::exception &ex) {

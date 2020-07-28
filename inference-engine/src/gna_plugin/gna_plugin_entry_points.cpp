@@ -3,7 +3,6 @@
 //
 
 #include <memory>
-#include <cpp_interfaces/base/ie_plugin_base.hpp>
 #include "gna_plugin_internal.hpp"
 
 using namespace InferenceEngine;
@@ -20,9 +19,10 @@ static const Version gnaPluginDescription = {
         "GNAPlugin"
 };
 
-INFERENCE_PLUGIN_API(StatusCode) CreatePluginEngine(IInferencePlugin *&plugin, ResponseDesc *resp) noexcept {
+INFERENCE_PLUGIN_API(StatusCode) CreatePluginEngine(IInferencePluginInternal *&plugin, ResponseDesc *resp) noexcept {
     try {
-        plugin = make_ie_compatible_plugin(gnaPluginDescription, make_shared<GNAPluginInternal>());
+        // plugin = make_ie_compatible_plugin(gnaPluginDescription, make_shared<GNAPluginInternal>());
+        plugin = new GNAPluginInternal();
         return OK;
     }
     catch (std::exception &ex) {

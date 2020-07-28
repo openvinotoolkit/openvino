@@ -15,12 +15,10 @@ using namespace InferenceEngine;
 using namespace ::testing;
 using namespace InferenceEngine::details;
 
-IE_SUPPRESS_DEPRECATED_START
-
 class PluginTest: public ::testing::Test {
 protected:
     unique_ptr<SharedObjectLoader> sharedObjectLoader;
-    std::function<IInferencePlugin*(IInferencePlugin*)> createPluginEngineProxy;
+    std::function<IInferencePluginInternal*(IInferencePluginInternal*)> createPluginEngineProxy;
     InferenceEnginePluginPtr getPtr();
 
     std::string get_mock_engine_name() {
@@ -31,7 +29,7 @@ protected:
     virtual void SetUp() {
         std::string libraryName = get_mock_engine_name();
         sharedObjectLoader.reset(new SharedObjectLoader(libraryName.c_str()));
-        createPluginEngineProxy = make_std_function<IInferencePlugin*(IInferencePlugin*)>("CreatePluginEngineProxy");
+        createPluginEngineProxy = make_std_function<IInferencePluginInternal*(IInferencePluginInternal*)>("CreatePluginEngineProxy");
     }
     template <class T>
     std::function<T> make_std_function(const std::string& functionName) {
@@ -43,9 +41,10 @@ protected:
 };
 
 TEST_F(PluginTest, canCreatePlugin) {
-    auto ptr = make_std_function<IInferencePlugin*(IInferencePlugin*)>("CreatePluginEngineProxy");
+    auto ptr = make_std_function<IInferencePluginInternal*
+        (IInferencePluginInternal*)>("CreatePluginEngineProxy");
 
-    unique_ptr<IInferencePlugin, std::function<void(IInferencePlugin*)>> smart_ptr(ptr(nullptr), [](IInferencePlugin *p) {
+    unique_ptr<IInferencePluginInternal, std::function<void(IInferencePluginInternal*)>> smart_ptr(ptr(nullptr), [](IInferencePlugin *p) {
         p->Release();
     });
 }
@@ -69,12 +68,9 @@ TEST_F(PluginTest, canSetConfiguration) {
     // dynamically cast this MOCK object
     ASSERT_TRUE(reinterpret_cast<MockPlugin*>(*ptr)->config.empty());
 
-    ResponseDesc resp;
     std::map<std::string, std::string> config = { { "key", "value" } };
-    ASSERT_EQ(ptr->SetConfig(config, &resp), OK);
+    ASSERT_NO_THROW(ptr->SetConfig(config));
     config.clear();
 
     ASSERT_STREQ(reinterpret_cast<MockPlugin*>(*ptr)->config["key"].c_str(), "value");
 }
-
-IE_SUPPRESS_DEPRECATED_END

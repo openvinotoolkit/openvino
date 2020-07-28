@@ -13,7 +13,6 @@
 #include <unordered_set>
 #include "ie_plugin_config.hpp"
 #include "hetero/hetero_plugin_config.hpp"
-#include <cpp_interfaces/base/ie_plugin_base.hpp>
 #include "hetero_executable_network.hpp"
 
 using namespace InferenceEngine;
@@ -291,11 +290,12 @@ Parameter Engine::GetConfig(const std::string& name, const std::map<std::string,
 }
 
 INFERENCE_PLUGIN_API(InferenceEngine::StatusCode) CreatePluginEngine(
-        InferenceEngine::IInferencePlugin *&plugin,
+        InferenceEngine::IInferencePluginInternal *&plugin,
         InferenceEngine::ResponseDesc *resp) noexcept {
     try {
-        plugin = make_ie_compatible_plugin({{2, 1}, CI_BUILD_NUMBER, "heteroPlugin"},
-                                           std::make_shared<Engine>());
+        // plugin = make_ie_compatible_plugin({{2, 1}, CI_BUILD_NUMBER, "heteroPlugin"},
+        //                                    std::make_shared<Engine>());
+        plugin = new Engine();
         return OK;
     }
     catch (std::exception &ex) {

@@ -18,7 +18,6 @@
 #include <cpp/ie_cnn_network.h>
 #include <description_buffer.hpp>
 #include <memory>
-#include <cpp_interfaces/base/ie_plugin_base.hpp>
 #include "ie_plugin_config.hpp"
 #include "details/caseless.hpp"
 #include <details/ie_cnn_network_tools.h>
@@ -424,12 +423,13 @@ Parameter clDNNEngine::GetMetric(const std::string& name, const std::map<std::st
 
 };  // namespace CLDNNPlugin
 
-INFERENCE_PLUGIN_API(StatusCode) CreatePluginEngine(IInferencePlugin*& plugin, ResponseDesc* resp) noexcept {
+INFERENCE_PLUGIN_API(StatusCode) CreatePluginEngine(IInferencePluginInternal*& plugin, ResponseDesc* resp) noexcept {
     try {
-        plugin = make_ie_compatible_plugin(
-            { 2, 1,
-             CI_BUILD_NUMBER,
-             "clDNNPlugin" }, std::make_shared<CLDNNPlugin::clDNNEngine>());
+        // plugin = make_ie_compatible_plugin(
+        //     { 2, 1,
+        //      CI_BUILD_NUMBER,
+        //      "clDNNPlugin" }, std::make_shared<CLDNNPlugin::clDNNEngine>());
+        plugin = new CLDNNPlugin::clDNNEngine();
         return OK;
     }
     catch (std::exception & ex) {

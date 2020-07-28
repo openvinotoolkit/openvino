@@ -14,6 +14,7 @@
 #include <multi-device/multi_device_config.hpp>
 #include <ngraph/opsets/opset.hpp>
 
+#include <cpp_interfaces/exception2status.hpp>
 #include "ie_plugin_cpp.hpp"
 #include "ie_plugin_config.hpp"
 #include "ie_profiling.hpp"
@@ -24,8 +25,6 @@
 using namespace InferenceEngine::PluginConfigParams;
 
 namespace InferenceEngine {
-
-IInferencePlugin::~IInferencePlugin() {}
 
 namespace {
 
@@ -83,6 +82,18 @@ Parameter copyParameterValue(const Parameter & value) {
     }
 
     return std::move(value);
+}
+
+template <typename F>
+void allowNotImplemented(F && f) {
+    try {
+        f();
+    } catch (const details::InferenceEngineException & ex) {
+        std::string message = ex.what();
+        if (message.find(NOT_IMPLEMENTED_str) == std::string::npos) {
+            throw ex;
+        }
+    }
 }
 
 }  // namespace
@@ -334,35 +345,33 @@ public:
             PluginDescriptor desc = it->second;
 
             try {
-                InferenceEnginePluginPtr plugin(desc.libraryLocation);
+                InferencePlugin plugin(desc.libraryLocation);
 
                 {
-                    plugin->SetName(deviceName);
+                    plugin.SetName(deviceName);
 
                     // Set Inference Engine class reference to plugins
                     ICore* mutableCore = const_cast<ICore*>(static_cast<const ICore*>(this));
-                    plugin->SetCore(mutableCore);
+                    plugin.SetCore(mutableCore);
                 }
 
                 // Add registered extensions to new plugin
                 for (const auto& ext : extensions) {
-                    plugin->AddExtension(ext, nullptr);
+                    plugin.AddExtension(ext);
                 }
-
-                InferencePlugin cppPlugin(plugin);
 
                 // configuring
                 {
-                    cppPlugin.SetConfig(desc.defaultConfig);
+                    allowNotImplemented([&](){ plugin.SetConfig(desc.defaultConfig); });
 
                     for (auto&& extensionLocation : desc.listOfExtentions) {
                         // TODO: fix once InferenceEngine::Extension can accept FileUtils::FilePath
                         // currently, extensions cannot be loaded using wide path
-                        cppPlugin.AddExtension(make_so_pointer<IExtension>(FileUtils::fromFilePath(extensionLocation)));
+                        plugin.AddExtension(make_so_pointer<IExtension>(FileUtils::fromFilePath(extensionLocation)));
                     }
                 }
 
-                plugins[deviceName] = cppPlugin;
+                plugins[deviceName] = plugin;
             } catch (const details::InferenceEngineException& ex) {
                 THROW_IE_EXCEPTION << "Failed to create plugin " << FileUtils::fromFilePath(desc.libraryLocation) << " for device " << deviceName
                                    << "\n"
@@ -458,7 +467,7 @@ public:
         // set config for already created plugins
         for (auto& plugin : plugins) {
             if (deviceName.empty() || deviceName == plugin.first) {
-                plugin.second.SetConfig(config);
+                allowNotImplemented([&](){ plugin.second.SetConfig(config); });
             }
         }
     }
@@ -545,8 +554,8 @@ std::map<std::string, Version> Core::GetVersions(const std::string& deviceName) 
         std::string deviceNameLocal = parser.getDeviceName();
 
         InferenceEngine::InferencePlugin cppPlugin = _impl->GetCPPPluginByName(deviceNameLocal);
-        const Version * version = cppPlugin.GetVersion();
-        versions[deviceNameLocal] = *version;
+        const Version version = cppPlugin.GetVersion();
+        versions[deviceNameLocal] = version;
     }
 
     return versions;

@@ -7,7 +7,6 @@
 
 #include <ie_version.hpp>
 #include <ie_plugin_cpp.hpp>
-#include <cpp_interfaces/base/ie_plugin_base.hpp>
 
 #include "unit_test_utils/mocks/cpp_interfaces/mock_plugin_impl.hpp"
 
@@ -16,17 +15,16 @@ using namespace std;
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 
-IE_SUPPRESS_DEPRECATED_START
 class PluginBaseTests: public ::testing::Test {
 protected:
     std::shared_ptr<MockPluginImpl> mock_impl;
-    shared_ptr<IInferencePlugin> plugin;
+    shared_ptr<IInferencePluginInternal> plugin;
     ResponseDesc dsc;
     virtual void TearDown() {
     }
     virtual void SetUp() {
         mock_impl.reset(new MockPluginImpl());
-        plugin = details::shared_from_irelease(make_ie_compatible_plugin({{2, 1}, "test", "version"}, mock_impl));
+        plugin = details::shared_from_irelease(mock_impl);
     }
 };
 
@@ -120,4 +118,3 @@ TEST(InferencePluginTests, nothrowsUninitializedCast) {
     InferencePlugin plg;
     ASSERT_NO_THROW(auto plgPtr = static_cast<InferenceEnginePluginPtr>(plg));
 }
-IE_SUPPRESS_DEPRECATED_END

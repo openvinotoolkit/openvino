@@ -16,7 +16,6 @@
 #include "helpers/myriad_devices.hpp"
 #include <details/ie_exception.hpp>
 
-#include <cpp_interfaces/interface/ie_plugin.hpp>
 #include <ie_plugin_ptr.hpp>
 
 using namespace std;
@@ -127,7 +126,7 @@ TEST_P(MYRIADWatchdog, canDisableWatchdog) {
 
     auto ctime = Time::now();
     SharedObjectLoader myriadPlg (make_plugin_name("myriadPlugin").c_str());
-    void *p = myriadPlg.get_symbol(SOCreatorTrait<IInferencePlugin>::name);
+    void *p = myriadPlg.get_symbol(SOCreatorTrait<IInferencePluginInternal>::name);
 
     bootOneDevice(0,  p);
 
@@ -156,7 +155,7 @@ TEST_P(MYRIADWatchdog, canDetectWhenHostSiteStalled) {
     auto ctime = Time::now();
 
     SharedObjectLoader myriadPlg (make_plugin_name("myriadPlugin").c_str());
-    void *p = myriadPlg.get_symbol(SOCreatorTrait<IInferencePlugin>::name);
+    void *p = myriadPlg.get_symbol(SOCreatorTrait<IInferencePluginInternal>::name);
 
     bootOneDevice(20000, p);
 

@@ -13,14 +13,19 @@
 #include <memory>
 #include <string>
 
+#include "file_utils.h"
 #include "cpp/ie_executable_network.hpp"
 #include "cpp/ie_cnn_network.h"
 #include "details/ie_exception_conversion.hpp"
 #include "ie_plugin_ptr.hpp"
 
-#define CALL_RETURN_FNC_NO_ARGS(function, ...)         \
-    if (!actual) THROW_IE_EXCEPTION << "Wrapper used in the CALL_RETURN_FNC_NO_ARGS was not initialized."; \
+#define CALL_RETURN_FNC(function, ...)         \
+    if (!actual) THROW_IE_EXCEPTION << "Wrapper used in the CALL_RETURN_FNC was not initialized."; \
     return actual->function(__VA_ARGS__);
+
+#define CALL_FNC(function, ...)         \
+    if (!actual) THROW_IE_EXCEPTION << "Wrapper used in the CALL_RETURN_FNC was not initialized."; \
+    actual->function(__VA_ARGS__);
 
 namespace InferenceEngine {
 
@@ -47,35 +52,29 @@ public:
         }
     }
 
+    explicit InferencePlugin(const FileUtils::FilePath & libraryLocation) :
+        actual(libraryLocation) {
+        if (actual == nullptr) {
+            THROW_IE_EXCEPTION << "InferencePlugin wrapper was not initialized.";
+        }
+    }
+
+    void SetName(const std::string & deviceName) {
+        CALL_FNC(SetName, deviceName);
+    }
+
+    void SetCore(ICore* core) {
+        CALL_FNC(SetCore, core);
+    }
+
     /**
      * @copybrief IInferencePlugin::GetVersion
      *
      * Wraps IInferencePlugin::GetVersion
      * @return A plugin version
      */
-    const Version* GetVersion() {
-        const Version* versionInfo = nullptr;
-        if (actual == nullptr) THROW_IE_EXCEPTION << "InferencePlugin wrapper was not initialized";
-        actual->GetVersion(versionInfo);
-        if (versionInfo == nullptr) {
-            THROW_IE_EXCEPTION << "Unknown device is used";
-        }
-        return versionInfo;
-    }
-
-    /**
-     * @copybrief IInferencePlugin::LoadNetwork
-     *
-     * Wraps IInferencePlugin::LoadNetwork
-     *
-     * @param network A network object to load
-     * @param config A map of configuration options
-     * @return Created Executable Network object
-     */
-    ExecutableNetwork LoadNetwork(const ICNNNetwork& network, const std::map<std::string, std::string>& config) {
-        IExecutableNetwork::Ptr ret;
-        CALL_STATUS_FNC(LoadNetwork, ret, network, config);
-        return ExecutableNetwork(ret, actual);
+    const Version GetVersion() const noexcept {
+        CALL_RETURN_FNC(GetVersion);
     }
 
     /**
@@ -88,7 +87,7 @@ public:
      */
     ExecutableNetwork LoadNetwork(CNNNetwork network, const std::map<std::string, std::string>& config) {
         IExecutableNetwork::Ptr ret;
-        CALL_STATUS_FNC(LoadNetwork, ret, network, config);
+        CALL_FNC(LoadNetwork, ret, network, config);
         if (ret.get() == nullptr) THROW_IE_EXCEPTION << "Internal error: pointer to executable network is null";
         return ExecutableNetwork(ret, actual);
     }
@@ -101,7 +100,7 @@ public:
      * @param extension Pointer to loaded Extension
      */
     void AddExtension(InferenceEngine::IExtensionPtr extension) {
-        CALL_STATUS_FNC(AddExtension, extension);
+        CALL_FNC(AddExtension, extension);
     }
 
     /**
@@ -111,7 +110,7 @@ public:
      * @param config A configuration map
      */
     void SetConfig(const std::map<std::string, std::string>& config) {
-        CALL_STATUS_FNC(SetConfig, config);
+        CALL_FNC(SetConfig, config);
     }
 
     /**
@@ -124,8 +123,8 @@ public:
      */
     ExecutableNetwork ImportNetwork(const std::string& modelFileName,
                                     const std::map<std::string, std::string>& config) {
-        IExecutableNetwork::Ptr ret;
-        CALL_STATUS_FNC(ImportNetwork, ret, modelFileName, config);
+        if (!actual) THROW_IE_EXCEPTION << "Wrapper used in the CALL_RETURN_FNC was not initialized."; \
+        auto ret = actual->ImportNetwork(modelFileName, config);
         return ExecutableNetwork(ret, actual);
     }
 
@@ -147,34 +146,34 @@ public:
 
     ExecutableNetwork ImportNetwork(std::istream& networkModel,
                                     const std::map<std::string, std::string> &config) {
-        CALL_RETURN_FNC_NO_ARGS(ImportNetwork, networkModel, config);
+        CALL_RETURN_FNC(ImportNetwork, networkModel, config);
     }
 
     Parameter GetMetric(const std::string& name, const std::map<std::string, Parameter>& options) const {
-        CALL_RETURN_FNC_NO_ARGS(GetMetric, name, options);
+        CALL_RETURN_FNC(GetMetric, name, options);
     }
 
     ExecutableNetwork LoadNetwork(const ICNNNetwork& network, const std::map<std::string, std::string>& config,
                                   RemoteContext::Ptr context) {
-        CALL_RETURN_FNC_NO_ARGS(LoadNetwork, network, config, context);
+        CALL_RETURN_FNC(LoadNetwork, network, config, context);
     }
 
     RemoteContext::Ptr CreateContext(const ParamMap& params) {
-        CALL_RETURN_FNC_NO_ARGS(CreateContext, params);
+        CALL_RETURN_FNC(CreateContext, params);
     }
 
     RemoteContext::Ptr GetDefaultContext() {
-        CALL_RETURN_FNC_NO_ARGS(GetDefaultContext);
+        CALL_RETURN_FNC(GetDefaultContext);
     }
 
     ExecutableNetwork ImportNetwork(std::istream& networkModel,
                                     const RemoteContext::Ptr& context,
                                     const std::map<std::string, std::string>& config) {
-        CALL_RETURN_FNC_NO_ARGS(ImportNetwork, networkModel, context, config);
+        CALL_RETURN_FNC(ImportNetwork, networkModel, context, config);
     }
 
     Parameter GetConfig(const std::string& name, const std::map<std::string, Parameter>& options) const {
-        CALL_RETURN_FNC_NO_ARGS(GetConfig, name, options);
+        CALL_RETURN_FNC(GetConfig, name, options);
     }
 
     /**

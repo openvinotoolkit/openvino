@@ -90,7 +90,23 @@ static void copyInputOutputInfo(const InputsDataMap & networkInputs, const Outpu
  * @brief An internal API of plugin to be implemented by a plugin, which is used in PluginBase forwarding mechanism
  * @ingroup ie_dev_api_plugin_api
  */
-class IInferencePluginInternal {
+class IInferencePluginInternal : public details::IRelease {
+    class VersionStore : public Version {
+    std::string _dsc;
+    std::string _buildNumber;
+
+    public:
+        VersionStore() = default;
+
+        explicit VersionStore(const Version& v) {
+            _dsc = v.description;
+            _buildNumber = v.buildNumber;
+            description = _dsc.c_str();
+            buildNumber = _buildNumber.c_str();
+            apiVersion = v.apiVersion;
+        }
+    } _version;
+
 public:
     /**
      * @brief A shared pointer to IInferencePluginInternal interface
@@ -101,6 +117,14 @@ public:
      * @brief      Destroys the object.
      */
     virtual ~IInferencePluginInternal() = default;
+
+    const Version GetVersion() const noexcept {
+        return _version;
+    }
+
+    void Release() noexcept override {
+        // delete this;
+    }
 
     /**
      * @brief      Provides a name of a plugin
@@ -220,7 +244,7 @@ public:
     virtual ICore* GetCore() const noexcept = 0;
 
     /**
-     * @brief      Queries a plugin about support layers in network
+     * @brief      Queries a plugin about supported layers in network
      * @param[in]  network  The network object to query
      * @param[in]  config   The map of configuration parameters
      * @param      res      The result of query operator containing supported layers map
@@ -228,5 +252,15 @@ public:
     virtual void QueryNetwork(const ICNNNetwork& network, const std::map<std::string, std::string>& config,
                               QueryNetworkResult& res) const = 0;
 };
+
+/**
+ * @brief Creates the default instance of the interface (per plugin)
+ *
+ * @param plugin Pointer to the plugin
+ * @param resp Pointer to the response message that holds a description of an error if any occurred
+ * @return Status code of the operation. InferenceEngine::OK if succeeded
+ */
+INFERENCE_PLUGIN_API(StatusCode) CreatePluginEngine(IInferencePluginInternal*& plugin, ResponseDesc* resp) noexcept;
+
 
 }  // namespace InferenceEngine

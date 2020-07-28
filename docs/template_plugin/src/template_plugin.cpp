@@ -17,7 +17,6 @@
 #include <ie_util_internal.hpp>
 #include <inference_engine.hpp>
 #include <file_utils.h>
-#include <cpp_interfaces/base/ie_plugin_base.hpp>
 #include <cpp_interfaces/interface/ie_internal_plugin_config.hpp>
 #include <threading/ie_executor_manager.hpp>
 #include <graph_tools.hpp>
@@ -174,10 +173,11 @@ InferenceEngine::Parameter Plugin::GetMetric(const std::string& name, const std:
 // ! [plugin:get_metric]
 
 // ! [plugin:create_plugin_engine]
-INFERENCE_PLUGIN_API(StatusCode) CreatePluginEngine(IInferencePlugin *&plugin, ResponseDesc *resp) noexcept {
+INFERENCE_PLUGIN_API(StatusCode) CreatePluginEngine(IInferencePluginInternal *&plugin, ResponseDesc *resp) noexcept {
     try {
-        plugin = make_ie_compatible_plugin({2, 1, CI_BUILD_NUMBER, "templatePlugin"},
-                                           std::make_shared<Plugin>());
+        // plugin = make_ie_compatible_plugin({2, 1, CI_BUILD_NUMBER, "templatePlugin"},
+        //                                    std::make_shared<Plugin>());
+        plugin = new Plugin();
         return OK;
     }
     catch (std::exception &ex) {

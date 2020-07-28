@@ -12,8 +12,7 @@
 #include <string>
 
 #include "details/ie_so_pointer.hpp"
-#include "ie_extension.h"
-#include "cpp_interfaces/interface/ie_plugin.hpp"
+#include "cpp_interfaces/interface/ie_iplugin_internal.hpp"
 
 namespace InferenceEngine {
 namespace details {
@@ -22,7 +21,7 @@ namespace details {
  * @brief This class defines the name of the fabric for creating an IInferencePlugin object in DLL
  */
 template <>
-class SOCreatorTrait<IInferencePlugin> {
+class SOCreatorTrait<IInferencePluginInternal> {
 public:
     /**
      * @brief A name of the fabric for creating IInferencePlugin object in DLL
@@ -37,6 +36,6 @@ public:
  *
  * Implements different interfaces.
  */
-using InferenceEnginePluginPtr = InferenceEngine::details::SOPointer<IInferencePlugin>;
+using InferenceEnginePluginPtr = InferenceEngine::details::SOPointer<IInferencePluginInternal>;
 
 }  // namespace InferenceEngine

@@ -25,6 +25,7 @@
 #include <gna/gna_config.hpp>
 #include "gna_plugin_config.hpp"
 #include <ie_util_internal.hpp>
+#include <cpp_interfaces/exception2status.hpp>
 #include "gna_plugin.hpp"
 #include "optimizer/gna_pass_manager.hpp"
 #include "layers/gna_layer_type.hpp"
