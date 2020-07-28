@@ -17,27 +17,11 @@
 #include "transformations/low_precision/common/ie_lpt_exception.hpp"
 #include "transformations/low_precision/network_helper.hpp"
 
-// TODO: remove after debugging
-#include <ngraph/pass/visualize_tree.hpp>
-
 namespace ngraph {
 namespace pass {
 namespace low_precision {
 
 void AddTransformation::registerMatcherIn(GraphRewrite &pass, TransformationContext &context) const {
-    // addPattern(
-    //        pass,
-    //        context,
-    //        make_op_pattern<opset1::Add>(
-    //                { make_op_label<opset1::Multiply>(),
-    //                  make_op_label<opset1::Constant>()}));
-    // addPattern(
-    //        pass,
-    //        context,
-    //        make_op_pattern<opset1::Add>(
-    //                { make_op_label<opset1::Constant>(),
-    //                  make_op_label<opset1::Multiply>() }));
-
     addSingleNodePattern<opset1::Add>(pass, context);
 }
 
@@ -61,9 +45,6 @@ void AddTransformation::transform(TransformationContext& context, ngraph::patter
         newMultiply = NetworkHelper::swapMultiplyAndAdd(add, multiplyBranch.first);
     } else {
         const int emptyPathIndex = fullPathIndex == 0 ? 1 : 0;
-
-        // TODO: question: is it reasonable to create Constant? (performance issue?)
-        // TODO: question: should we clone constant here?
 
         FakeQuantizeDequantization dequantizationEmptyPath = NetworkHelper::getDequantization(add, emptyPathIndex);
         std::shared_ptr<Node> subtractEmptyPathValues;
@@ -96,12 +77,7 @@ void AddTransformation::transform(TransformationContext& context, ngraph::patter
         std::vector<std::shared_ptr<Node>> inputs{ {}, {} };
         auto fullPathInput = dequantizationFullPath.convert == nullptr ? dequantizationFullPath.data : dequantizationFullPath.convert;
 
-        inputs[emptyPathIndex] = dequantizationEmptyPath.convert == nullptr ?
-            ((dequantizationEmptyPath.data->get_output_element_type(0) == newMultiplyFullPathValues->get_output_element_type(0)) ?
-                dequantizationEmptyPath.data :
-                std::make_shared<op::TypeRelaxed<opset1::Convert>>(
-                    dequantizationEmptyPath.data, newMultiplyFullPathValues->get_output_element_type(0))) :
-            dequantizationEmptyPath.convert;
+        inputs[emptyPathIndex] = dequantizationEmptyPath.data;
         inputs[fullPathIndex] = std::make_shared<opset1::Multiply>(
             newSubtractFullPathValues == nullptr ?
                 fullPathInput :
@@ -109,12 +85,13 @@ void AddTransformation::transform(TransformationContext& context, ngraph::patter
             newMultiplyFullPathValues);
 
         newMultiply = std::make_shared<opset1::Multiply>(
-            std::make_shared<op::TypeRelaxed<opset1::Add>>(inputs[0], inputs[1]),
+            add->clone_with_new_inputs({ inputs[0], inputs[1] }),
             multiplyEmptyPathValues);
 
         replace_node(add, newMultiply);
     }
 
+    newMultiply->set_friendly_name(add->get_friendly_name());
     updateOutput(context, newMultiply, add);
 }
 
