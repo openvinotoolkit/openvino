@@ -747,7 +747,7 @@ TYPED_TEST_P(BroadcastTests, broadcast_numpy_static_dims_incorrect)
     catch (const NodeValidationFailure& error)
     {
         EXPECT_HAS_SUBSTRING(error.what(),
-                             "Input shape dimension equals 999 cannot be broadcasted (numpy mode) "
+                             "Input shape dimension equal 999 cannot be broadcasted (numpy mode) "
                              "to 2. Allowed input dimension value would be 1 or 2");
     }
     catch (...)
@@ -765,7 +765,7 @@ TYPED_TEST_P(BroadcastTests, broadcast_numpy_static_dims_incorrect)
     catch (const NodeValidationFailure& error)
     {
         EXPECT_HAS_SUBSTRING(error.what(),
-                             "Input shape dimension equals 888 cannot be broadcasted (numpy mode) "
+                             "Input shape dimension equal 888 cannot be broadcasted (numpy mode) "
                              "to 4. Allowed input dimension value would be 1 or 4");
     }
     catch (...)
@@ -783,7 +783,7 @@ TYPED_TEST_P(BroadcastTests, broadcast_numpy_static_dims_incorrect)
     catch (const NodeValidationFailure& error)
     {
         EXPECT_HAS_SUBSTRING(error.what(),
-                             "Input shape dimension equals 5 cannot be broadcasted (numpy mode) to "
+                             "Input shape dimension equal 5 cannot be broadcasted (numpy mode) to "
                              "1. Allowed input dimension value would be 1");
     }
     catch (...)
