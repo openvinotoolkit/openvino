@@ -9,14 +9,14 @@
 
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/rt_info.hpp>
+#include <ngraph/pattern/op/wrap_type.hpp>
 
-void ngraph::pass::ConvertSpaceToDepth::convert() {
-    auto input0 = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1, 1});
-    auto dts = std::make_shared<ngraph::opset1::SpaceToDepth>(input0, ngraph::opset1::SpaceToDepth::SpaceToDepthMode::DEPTH_FIRST);
+ngraph::pass::ConvertSpaceToDepth::ConvertSpaceToDepth() {
+    auto dts = ngraph::pattern::wrap_type<ngraph::opset1::SpaceToDepth>();
 
     ngraph::graph_rewrite_callback callback = [this](pattern::Matcher& m) {
         auto std_node = std::dynamic_pointer_cast<ngraph::opset1::SpaceToDepth> (m.get_match_root());
-        if (!std_node || transformation_callback(std_node)) {
+        if (!std_node || m_transformation_callback(std_node)) {
             return false;
         }
 
@@ -88,5 +88,5 @@ void ngraph::pass::ConvertSpaceToDepth::convert() {
     };
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(dts, "ConvertSpaceToDepth");
-    this->add_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
+    this->register_matcher(m, callback);
 }
