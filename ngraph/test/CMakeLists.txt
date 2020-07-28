@@ -61,10 +61,12 @@ set(SRC
     eval.cpp
     file_util.cpp
     float16.cpp
+    graph_rewrite.cpp
     includes.cpp
     input_output_assign.cpp
     intervals.cpp
     main.cpp
+    matcher_pass.cpp
     misc.cpp
     ngraph_api.cpp
     node_input_output.cpp
@@ -114,7 +116,6 @@ set(SRC
     type_prop/constant.cpp
     type_prop/convert.cpp
     type_prop/convolution.cpp
-    type_prop/crop_and_resize.cpp
     type_prop/ctc_loss.cpp
     type_prop/deformable_psroi_pooling.cpp
     type_prop/depth_to_space.cpp
@@ -124,7 +125,6 @@ set(SRC
     type_prop/strided_slice.cpp
     type_prop/elu.cpp
     type_prop/embeddingbag_offsetssum.cpp
-    type_prop/embedding_lookup.cpp
     type_prop/extractimagepatches.cpp
     type_prop/embeddingbag_packedsum.cpp
     type_prop/embedding_segments_sum.cpp
@@ -285,7 +285,6 @@ set(MULTI_TEST_SRC
     backend/dyn_reshape.in.cpp
     backend/strided_slice.in.cpp
     backend/dynamic.in.cpp
-    backend/embedding_lookup.in.cpp
     backend/erf.in.cpp
     backend/exp.in.cpp
     backend/floor.in.cpp
@@ -294,6 +293,7 @@ set(MULTI_TEST_SRC
     backend/gather.in.cpp
     backend/gelu.in.cpp
     backend/group_convolution.in.cpp
+    backend/interpolate.in.cpp
     backend/log.in.cpp
     backend/logical_or.in.cpp
     backend/logical_xor.in.cpp

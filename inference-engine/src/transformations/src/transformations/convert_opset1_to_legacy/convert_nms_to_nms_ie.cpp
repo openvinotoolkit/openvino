@@ -11,11 +11,12 @@
 
 #include <ngraph_ops/nms_ie.hpp>
 #include <ngraph/rt_info.hpp>
+#include <ngraph/pattern/op/wrap_type.hpp>
 
-void ngraph::pass::ConvertNMSToNMSIE::convert_nms_to_nms_ie() {
-    auto nms = std::make_shared<pattern::op::Label>(element::f32, Shape{}, pattern::has_class<opset1::NonMaxSuppression>());
+ngraph::pass::ConvertNMSToNMSIEMatcher::ConvertNMSToNMSIEMatcher() {
+    auto nms = ngraph::pattern::wrap_type<opset1::NonMaxSuppression>();
 
-    ngraph::graph_rewrite_callback callback = [](pattern::Matcher &m) {
+    ngraph::matcher_pass_callback callback = [](pattern::Matcher &m) {
         auto nms = std::dynamic_pointer_cast<opset1::NonMaxSuppression>(m.get_match_root());
         if (!nms) {
             return false;
@@ -95,5 +96,5 @@ void ngraph::pass::ConvertNMSToNMSIE::convert_nms_to_nms_ie() {
     };
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(nms, "ConvertNMSToNMSIE");
-    this->add_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
+    this->register_matcher(m, callback);
 }
