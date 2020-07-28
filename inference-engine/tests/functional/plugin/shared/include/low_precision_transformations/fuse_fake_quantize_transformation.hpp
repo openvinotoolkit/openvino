@@ -5,19 +5,33 @@
 #pragma once
 
 #include <string>
-#include <memory>
-#include "ngraph_functions/low_precision_transformations/fuse_fake_quantize_function.hpp"
+
+#include <ngraph/ngraph.hpp>
+#include "ngraph_functions/low_precision_transformations/common/fake_quantize_on_data.hpp"
+#include "ngraph_functions/low_precision_transformations/common/dequantization_operations.hpp"
 #include "functional_test_utils/low_precision_transformations/layer_transformation.hpp"
 
 namespace LayerTestsDefinitions {
 
+class FuseFakeQuantizeTransformationTestValues {
+public:
+    class Actual {
+    public:
+        ngraph::element::Type precisionBeforeDequantization;
+        ngraph::builder::subgraph::DequantizationOperations dequantization;
+        ngraph::element::Type precisionAfterDequantization;
+        ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData;
+    };
+
+    ngraph::Shape inputShape;
+    ngraph::pass::low_precision::LayerTransformation::Params params;
+    Actual actual;
+};
+
 typedef std::tuple<
-    InferenceEngine::Precision,
-    InferenceEngine::SizeVector,
     std::string,
-    InferenceEngine::details::LayerTransformation::Params,
     LayerTestsUtils::LayerTransformation::LptVersion,
-    ngraph::builder::subgraph::FakeQuantizeOnData> FuseFakeQuantizeTransformationParams;
+    FuseFakeQuantizeTransformationTestValues> FuseFakeQuantizeTransformationParams;
 
 class FuseFakeQuantizeTransformation :
     public testing::WithParamInterface<FuseFakeQuantizeTransformationParams>,
@@ -27,9 +41,6 @@ public:
 
 protected:
     void SetUp() override;
-
-private:
-    void validate();
 };
 
 }  // namespace LayerTestsDefinitions

@@ -23,7 +23,6 @@ public:
 
     static std::string toString(const ngraph::pass::low_precision::LayerTransformation::Params& params);
 
-    //static std::string getTestCaseName(testing::TestParamInfo<LayerTransformationParams> obj);
     static std::string getTestCaseNameByParams(
         const ngraph::element::Type& type,
         const ngraph::Shape& shape,

@@ -9,6 +9,7 @@
 #include <ngraph/ngraph.hpp>
 #include "transformations/low_precision/layer_transformation.hpp"
 #include "common/fake_quantize_on_data.hpp"
+#include "common/dequantization_operations.hpp"
 
 namespace ngraph {
 namespace builder {
@@ -16,18 +17,13 @@ namespace subgraph {
 
 class FuseFakeQuantizeFunction {
 public:
-    static std::shared_ptr<ngraph::Function> getOriginal(
-        const ngraph::element::Type precision,
+    static std::shared_ptr<ngraph::Function> get(
         const ngraph::Shape& inputShape,
-        const ngraph::pass::low_precision::LayerTransformation::Params& params,
-        const FakeQuantizeOnData& fakeQuantizeOnData);
-
-    static std::shared_ptr<ngraph::Function> getReference(
-        const ngraph::element::Type precision,
-        const ngraph::Shape& inputShape,
-        const ngraph::pass::low_precision::LayerTransformation::Params& params,
-        const FakeQuantizeOnData& fakeQuantizeOnData,
-        const std::vector<float>& expectedSubtractValues);
+        const ngraph::element::Type precisionBeforeDequantization,
+        const DequantizationOperations& dequantization,
+        const ngraph::element::Type precisionAfterDequantization,
+        const ngraph::element::Type precisionFqOnData,
+        const FakeQuantizeOnData& fqOnData);
 };
 
 }  // namespace subgraph
