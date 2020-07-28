@@ -46,7 +46,9 @@ namespace ngraph
 
         DiscreteTypeInfo() = default;
 
-        constexpr DiscreteTypeInfo(const char* _name, uint64_t _version, const DiscreteTypeInfo* _parent = nullptr)
+        constexpr DiscreteTypeInfo(const char* _name,
+                                   uint64_t _version,
+                                   const DiscreteTypeInfo* _parent = nullptr)
             : name(_name)
             , version(_version)
             , parent(_parent)
