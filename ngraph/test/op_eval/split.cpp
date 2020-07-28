@@ -46,14 +46,19 @@ TEST(op_eval, split)
     std::vector<std::vector<int64_t>> expected_results{
         {0, 1, 2, 3, 4, 5, 24, 25, 26, 27, 28, 29, 48, 49, 50, 51, 52, 53},
         {6, 7, 8, 9, 10, 11, 30, 31, 32, 33, 34, 35, 54, 55, 56, 57, 58, 59},
-        {12, 13, 14, 15, 16, 17, 36, 37, 38, 39, 40, 41, 60, 61, 62, 63, 64, 6},
+        {12, 13, 14, 15, 16, 17, 36, 37, 38, 39, 40, 41, 60, 61, 62, 63, 64, 65},
         {18, 19, 20, 21, 22, 23, 42, 43, 44, 45, 46, 47, 66, 67, 68, 69, 70, 71}};
 
-    HostTensorVector results(num_splits, make_shared<HostTensor>());
+    HostTensorVector results(num_splits);
+    for (auto& result : results)
+    {
+        result = make_shared<HostTensor>();
+    }
     ASSERT_TRUE(
         f->evaluate(results,
                     {make_host_tensor<element::Type_t::i64>(data_shape, data_vec),
                      make_host_tensor<element::Type_t::i64>(Shape{}, std::vector<int64_t>{1})}));
+
     for (int i = 0; i < num_splits; ++i)
     {
         EXPECT_EQ(results[i]->get_element_type(), element::i64);
