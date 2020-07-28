@@ -2642,6 +2642,27 @@ TEST(type_prop, conv_v1_partial_auto_padding_same_spatial_dims_dynamic)
     ASSERT_EQ(conv->get_pads_end(), (CoordinateDiff{}));
 }
 
+TEST(type_prop, conv_v1_partial_data_shape_dynamic)
+{
+    const PartialShape data_batch_shape{PartialShape::dynamic()};
+    const PartialShape filters_shape{1, 1, 3, 3};
+    Strides strides{1, 1};
+    CoordinateDiff pads_begin{0, 0};
+    CoordinateDiff pads_end{0, 0};
+    Strides dilations{1, 1};
+    const auto auto_pad = op::PadType::SAME_LOWER;
+
+    auto data_batch = make_shared<op::Parameter>(element::f32, data_batch_shape);
+    auto filters = make_shared<op::Parameter>(element::f32, filters_shape);
+
+    auto conv = make_shared<op::v1::Convolution>(
+        data_batch, filters, strides, pads_begin, pads_end, dilations, auto_pad);
+
+    ASSERT_TRUE(conv->get_output_partial_shape(0).same_scheme({PartialShape::dynamic()}));
+    ASSERT_EQ(conv->get_pads_begin(), (CoordinateDiff{}));
+    ASSERT_EQ(conv->get_pads_end(), (CoordinateDiff{}));
+}
+
 TEST(type_prop, deformable_conv_incorrect_group)
 {
     const PartialShape data_batch_shape{1, 3, 96, 96};

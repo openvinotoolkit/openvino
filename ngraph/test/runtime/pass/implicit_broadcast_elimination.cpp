@@ -14,7 +14,7 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include "ngraph/pass/implicit_broadcast_elimination.hpp"
+#include "implicit_broadcast_elimination.hpp"
 
 #include "ngraph/builder/autobroadcast.hpp"
 #include "ngraph/graph_util.hpp"
