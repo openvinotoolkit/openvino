@@ -110,11 +110,7 @@ const SizeVector& Data::getDims() const {
 // compatibility
 
 CNNLayerWeakPtr& InferenceEngine::getCreatorLayer(const DataPtr & data) {
-    if (auto ndata = std::dynamic_pointer_cast<details::NGraphData>(data)) {
-        return ndata->getCreatorLayer();
-    } else {
-        return data->_impl->creatorLayer;
-    }
+    return data->_impl->creatorLayer;
 }
 
 std::map<std::string, CNNLayerPtr>& InferenceEngine::getInputTo(const DataPtr & data) {
@@ -123,12 +119,4 @@ std::map<std::string, CNNLayerPtr>& InferenceEngine::getInputTo(const DataPtr & 
 
 std::map<std::string, CNNLayerPtr>& InferenceEngine::getInputTo(Data * data) {
     return data->_impl->inputTo;
-}
-
-CNNLayerWeakPtr& details::NGraphData::getCreatorLayer() {
-    return _impl->creatorLayer;
-}
-
-std::map<std::string, CNNLayerPtr>& details::NGraphData::getInputTo() {
-    return _impl->inputTo;
 }

@@ -63,11 +63,6 @@ public:
     Data & operator = (const Data& data);
 
     /**
-     * @brief A virtual destructor
-     */
-    virtual ~Data() = default;
-
-    /**
      * @brief Checks if the current node is resolved
      *
      * @return true if resolved, false otherwise.

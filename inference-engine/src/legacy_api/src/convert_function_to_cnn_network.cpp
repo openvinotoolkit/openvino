@@ -814,8 +814,7 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
             std::string outName = layer->get_friendly_name();
             if (layer->get_output_size() != 1) outName += "." + std::to_string(i);
             DataPtr &ptr = cnnNetworkImpl->getData(outName.c_str());
-            SizeVector dims;
-            dims = layer->get_output_shape(i);
+            SizeVector dims = layer->get_output_shape(i);
             for (const auto &dim : dims) {
                 if (!dim)
                     THROW_IE_EXCEPTION << cnnLayer->type << " layer " << cnnLayer->name
@@ -823,14 +822,13 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
             }
             if (!ptr && nGraphImpl && nGraphImpl->_data.find(outName) != nGraphImpl->_data.end()) {
                 ptr = nGraphImpl->_data.at(outName);
-                if (auto nData = std::dynamic_pointer_cast<InferenceEngine::details::NGraphData>(ptr)) {
+                {
                     const auto layout =
-                        dims.size() == nData->getTensorDesc().getDims().size() ?
-                        nData->getTensorDesc().getLayout() :
+                        dims.size() == ptr->getTensorDesc().getDims().size() ?
+                        ptr->getTensorDesc().getLayout() :
                         TensorDesc::getLayoutByDims(dims);
 
-                    nData->reset();
-                    nData->reshape(dims, layout);
+                    ptr->reshape(dims, layout);
                 }
                 cnnNetworkImpl->addData(outName.c_str(), ptr);
             }
