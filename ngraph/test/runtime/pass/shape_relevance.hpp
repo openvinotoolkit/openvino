@@ -16,24 +16,21 @@
 
 #pragma once
 
+#include "backend_visibility.hpp"
 #include "ngraph/pass/pass.hpp"
 
 namespace ngraph
 {
     namespace pass
     {
-        class ZeroDimTensorElimination;
+        class BACKEND_API ShapeRelevance : public FunctionPass
+        {
+        public:
+            ShapeRelevance()
+                : FunctionPass()
+            {
+            }
+            virtual bool run_on_function(std::shared_ptr<ngraph::Function> f) override;
+        };
     }
 }
-
-class NGRAPH_API ngraph::pass::ZeroDimTensorElimination : public FunctionPass
-{
-public:
-    ZeroDimTensorElimination()
-        : FunctionPass()
-    {
-        set_property(PassProperty::REQUIRE_STATIC_SHAPE, true);
-    }
-
-    virtual bool run_on_function(std::shared_ptr<ngraph::Function> f);
-};
