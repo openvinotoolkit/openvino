@@ -426,6 +426,20 @@ std::vector<std::string> ParseScaleFactors(const std::string& str) {
     return scaleFactorInput;
 }
 
+std::vector<std::string> ParseBlobName(std::string str) {
+    std::vector<std::string> blobName;
+    if (!str.empty()) {
+        size_t pos;
+        std::string outputLayer;
+        while ((pos = str.find(",")) != std::string::npos) {
+            blobName.push_back(str.substr(0, pos));
+            str.erase(0, pos + 1);
+        }
+        blobName.push_back(str.substr(0, str.length()));
+    }
+    return blobName;
+}
+
 bool ParseAndCheckCommandLine(int argc, char *argv[]) {
     // ---------------------------Parsing and validation of input args--------------------------------------
     slog::info << "Parsing input parameters" << slog::endl;
@@ -673,9 +687,26 @@ int main(int argc, char *argv[]) {
             genericPluginConfig.insert(std::begin(gnaPluginConfig), std::end(gnaPluginConfig));
         }
         auto t0 = Time::now();
+        std::vector<std::string> outputs;
         ExecutableNetwork executableNet;
-
         if (!FLAGS_m.empty()) {
+            if (!FLAGS_oname.empty()) {
+                std::vector<std::string> outputs_names = ParseBlobName(FLAGS_oname);
+                std::vector<size_t> ports;
+                for (const std::string& outBlobName : outputs_names) {
+                    size_t pos_layer = outBlobName.rfind(":");
+                    outputs.push_back(outBlobName.substr(0, pos_layer));
+                    try {
+                        ports.push_back(std::stoi(outBlobName.substr(pos_layer + 1, outBlobName.length())));
+                    } catch (std::exception) {
+                        throw std::logic_error("Ports should have integer type");
+                    }
+                }
+
+                for (size_t i = 0; i < outputs.size(); i++) {
+                    network.addOutput(outputs[i], ports[i]);
+                }
+            }
             slog::info << "Loading model to the device" << slog::endl;
             executableNet = ie.LoadNetwork(network, deviceStr, genericPluginConfig);
         } else {
@@ -717,10 +748,21 @@ int main(int argc, char *argv[]) {
 
         /** Stores all input blobs data **/
         std::vector<Blob::Ptr> ptrInputBlobs;
-        for (auto& input : cInputInfo) {
-            ptrInputBlobs.push_back(inferRequests.begin()->inferRequest.GetBlob(input.first));
+        if (!FLAGS_iname.empty()) {
+            std::vector<std::string> string_input = ParseBlobName(FLAGS_iname);
+            for (std::string input : string_input) {
+                Blob::Ptr blob = inferRequests.begin()->inferRequest.GetBlob(input);
+                if (!blob) {
+                    std::string errMessage("No blob with name : " + input);
+                    throw std::logic_error(errMessage);
+                }
+                ptrInputBlobs.push_back(blob);
+            }
+        } else {
+            for (auto &input : cInputInfo) {
+                ptrInputBlobs.push_back(inferRequests.begin()->inferRequest.GetBlob(input.first));
+            }
         }
-
         InputsDataMap inputInfo;
         if (!FLAGS_m.empty()) {
             inputInfo = network.getInputsInfo();
@@ -739,20 +781,21 @@ int main(int argc, char *argv[]) {
         if (!FLAGS_m.empty()) {
             outputInfo = network.getOutputsInfo();
         }
-
         std::vector<Blob::Ptr> ptrOutputBlob;
-        std::string string_oname = FLAGS_oname;
-        std::vector<std::string> string_output;
-        size_t pos = 0;
-        while ((pos = string_oname.find(".")) != std::string::npos) {
-            string_output.push_back(string_oname.substr(0, pos));
-            string_oname.erase(0, pos + 1);
+        if (!FLAGS_oname.empty()) {
+            for (std::string output : outputs) {
+                Blob::Ptr blob = inferRequests.begin()->inferRequest.GetBlob(output);
+                if (!blob) {
+                    std::string errMessage("No blob with name : " + output);
+                    throw std::logic_error(errMessage);
+                }
+                ptrOutputBlob.push_back(blob);
+            }
+        } else {
+            for (auto& output : cOutputInfo) {
+                ptrOutputBlob.push_back(inferRequests.begin()->inferRequest.GetBlob(output.first));
+            }
         }
-        for (std::string output : string_output) {
-//            ptrOutputBlob.push_back(inferRequests.begin()->inferRequest.GetBlob(output.first));
-            ptrOutputBlob.push_back(inferRequests.begin()->inferRequest.GetBlob(output));
-        }
-//        Blob::Ptr ptrOutputBlob = inferRequests.begin()->inferRequest.GetBlob(cOutputInfo.rbegin()->first);
 
         for (auto &item : outputInfo) {
             DataPtr outData = item.second;
@@ -885,12 +928,20 @@ int main(int argc, char *argv[]) {
                             if (!useHetero) continue;
                             if (code != StatusCode::INFER_NOT_STARTED) continue;
                         }
-
+                        ConstOutputsDataMap newOutputInfo;
                         if (inferRequest.frameIndex >= 0) {
                             if (!FLAGS_o.empty()) {
                                 outputFrame =
                                         &ptrScores.front() + numScoresPerFrame * sizeof(float) * (inferRequest.frameIndex);
-                                MemoryBlob::CPtr moutput = as<MemoryBlob>(inferRequest.inferRequest.GetBlob(cOutputInfo.rbegin()->first));
+                                if (!FLAGS_oname.empty()) {
+                                    for (std::string output : outputs) {
+                                        newOutputInfo[output] = cOutputInfo[output];
+                                    }
+                                } else {
+                                    newOutputInfo = cOutputInfo;
+                                }
+                                MemoryBlob::CPtr moutput = as<MemoryBlob>(inferRequest.inferRequest.GetBlob(newOutputInfo.rbegin()->first));
+
                                 if (!moutput) {
                                     throw std::logic_error("We expect output to be inherited from MemoryBlob, "
                                                            "but by fact we were not able to cast output to MemoryBlob");
@@ -904,7 +955,7 @@ int main(int argc, char *argv[]) {
                             }
 
                             if (!FLAGS_r.empty()) {
-                                Blob::Ptr outputBlob = inferRequest.inferRequest.GetBlob(cOutputInfo.rbegin()->first);
+                                Blob::Ptr outputBlob = inferRequest.inferRequest.GetBlob(newOutputInfo.rbegin()->first);
                                 MemoryBlob::CPtr moutput = as<MemoryBlob>(outputBlob);
                                 if (!moutput) {
                                     throw std::logic_error("We expect output to be inherited from MemoryBlob, "
@@ -933,11 +984,6 @@ int main(int argc, char *argv[]) {
                     if (frameIndex == numFrames) {
                         inferRequest.frameIndex = -1;
                         continue;
-                    }
-
-                    ptrInputBlobs.clear();
-                    for (auto& input : cInputInfo) {
-                        ptrInputBlobs.push_back(inferRequest.inferRequest.GetBlob(input.first));
                     }
 
                     for (size_t i = 0; i < numInputArkFiles; ++i) {
