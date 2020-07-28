@@ -141,18 +141,31 @@ static void blobCopy(const Blob::Ptr& src, const Blob::Ptr& dst) {
     switch (src->getTensorDesc().getPrecision()) {
         case Precision::U8 : {
             switch (dst->getTensorDesc().getPrecision()) {
+                case Precision::U8 : break;
                 case Precision::FP32 : {
                     blobCopy<std::uint8_t, float>(src, dst);
                 } break;
+                default : {
+                    THROW_IE_EXCEPTION << "Unsupported precision conversion from "
+                        << src->getTensorDesc().getPrecision() <<" to " << dst->getTensorDesc().getPrecision();
+                }
             }
         } break;
         case Precision::FP32 : {
             switch (dst->getTensorDesc().getPrecision()) {
+                case Precision::FP32 : break;
                 case Precision::U8 : {
                     blobCopy<float, std::uint8_t>(src, dst);
                 } break;
+                default : {
+                    THROW_IE_EXCEPTION << "Unsupported precision conversion from "
+                        << src->getTensorDesc().getPrecision() <<" to " << dst->getTensorDesc().getPrecision();
+                }
             }
         } break;
+        default : {
+            THROW_IE_EXCEPTION << "Unsupported precision conversion from " << src->getTensorDesc().getPrecision();
+        }
     }
 }
 
