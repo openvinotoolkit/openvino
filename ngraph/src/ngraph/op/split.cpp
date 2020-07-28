@@ -226,8 +226,7 @@ namespace
         Shape output_shape = data_shape;
         output_shape.at(axis) = part_length;
 
-        std::vector<size_t> lower_bounds = data_shape;
-        lower_bounds.at(axis) = 0;
+        std::vector<size_t> lower_bounds(data_shape.size(), 0);
         std::vector<size_t> upper_bounds = data_shape;
         upper_bounds.at(axis) = part_length;
 
