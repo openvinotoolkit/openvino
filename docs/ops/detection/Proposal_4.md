@@ -183,11 +183,11 @@ the second optional tensor of shape `[batch_size * post_nms_topn]` with probabil
     </input>
     <output>
         <port id="3" precision="FP32">
-            <dim>1000</dim>
+            <dim>7000</dim>
             <dim>5</dim>
         </port>
         <port id="4" precision="FP32">
-            <dim>1000</dim>
+            <dim>7000</dim>
         </port>
     </output>
 </layer>
