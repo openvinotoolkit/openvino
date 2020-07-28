@@ -66,7 +66,7 @@ TEST(TransformationTests, ConvertExtractImagePatchesToReorgYoloTestsNegative) {
         auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{ 1, 3, 10, 10 });
 
         auto sizes = ngraph::Shape{ 5, 5 };
-        auto strides = ngraph::Stride{ 5, 5 };
+        auto strides = ngraph::Strides{ 5, 5 };
         auto rates = ngraph::Shape{ 1, 1 };
         ngraph::op::PadType auto_pad = ngraph::op::PadType::SAME_LOWER;
 
