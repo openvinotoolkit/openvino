@@ -101,7 +101,7 @@ void CNNNetworkNGraphImpl::createDataForResult(const ::ngraph::Output<::ngraph::
     } else {
         const auto precision = details::convertPrecision(output.get_element_type());
         const auto layout = TensorDesc::getLayoutByDims(dims);
-        ptr.reset(new NGraphData(this, outName, {precision, dims, layout}));
+        ptr.reset(new Data(outName, {precision, dims, layout}));
     }
 }
 
@@ -142,15 +142,6 @@ CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const std::shared_ptr<Function>& nGra
         } else if (output.second->getPrecision() != Precision::FP32 &&
             output.second->getPrecision() != Precision::I32) {
             output.second->setPrecision(Precision::FP32);
-        }
-    }
-}
-
-CNNNetworkNGraphImpl::~CNNNetworkNGraphImpl() {
-    for (auto& data : _data) {
-        if (!data.second) continue;
-        if (auto nData = std::dynamic_pointer_cast<NGraphData>(data.second)) {
-            nData->reset();
         }
     }
 }

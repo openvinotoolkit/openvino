@@ -32,6 +32,8 @@
 #include <transformations/convert_opset2_to_opset1/convert_opset2_to_opset1.hpp>
 #include <transformations/convert_opset3_to_opset2/convert_opset3_to_opset2.hpp>
 #include "convert_function_to_cnn_network.hpp"
+#include <ie_util_internal.hpp>
+#include <graph_transformer.h>
 
 #undef min
 #undef max
