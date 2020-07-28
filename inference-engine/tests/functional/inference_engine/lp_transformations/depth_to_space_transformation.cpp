@@ -21,7 +21,6 @@
 // TODO: remove after debugging
 #include <ngraph/pass/visualize_tree.hpp>
 
-using namespace testing;
 using namespace ngraph::pass;
 using namespace ngraph::builder::subgraph;
 using namespace ngraph::opset1;

@@ -112,7 +112,7 @@ void TypeRelaxed<BaseOp>::validate_and_infer_types() {
         BaseOp::get_input_tensor(i).set_tensor_type(m_output_data_type, BaseOp::get_input_partial_shape(i));
     }
 
-    if (is_type<ngraph::opset1::Reshape>(this)) {
+    if (is_type<ngraph::opset1::Reshape>(this) || is_type<ngraph::opset1::Interpolate>(this)) {
         // Restore original input data types
         for (size_t i = 0; i < BaseOp::get_input_size(); ++i) {
             BaseOp::get_input_tensor(i).set_tensor_type(input_types[i], BaseOp::get_input_partial_shape(i));
