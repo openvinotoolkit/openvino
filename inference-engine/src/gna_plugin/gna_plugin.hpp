@@ -117,7 +117,8 @@ class GNAPlugin : public InferenceEngine::IInferencePlugin {
                       const std::map<std::string, std::string>& config,
                       InferenceEngine::QueryNetworkResult &res) const override;
     uint32_t QueueInference(const InferenceEngine::BlobMap &input, InferenceEngine::BlobMap &result);
-    bool Wait(uint32_t idx = 0);
+    bool Wait(uint32_t idx);
+    bool WaitFor(uint32_t idx, int64_t millisTimeout);
 
     InferenceEngine::Parameter GetConfig(const std::string& name,
                                          const std::map<std::string, InferenceEngine::Parameter> & options) const override;

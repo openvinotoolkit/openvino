@@ -968,6 +968,10 @@ uint32_t GNAPlugin::QueueInference(const InferenceEngine::BlobMap &inputs, Infer
 }
 
 bool GNAPlugin::Wait(uint32_t request_idx) {
+    return WaitFor(request_idx, MAX_TIMEOUT);
+}
+
+bool GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
 #if GNA_LIB_VER == 2
     auto& nnets = gnaRequestConfigToRequestIdMap;
 #endif
@@ -976,7 +980,7 @@ bool GNAPlugin::Wait(uint32_t request_idx) {
     if (std::get<1>(nnets[request_idx]) == -1) return true;
 
     if (gnadevice) {
-        if (!gnadevice->wait(std::get<1>(nnets[request_idx]))) {
+        if (!gnadevice->wait(std::get<1>(nnets[request_idx]), millisTimeout)) {
             std::get<1>(nnets[request_idx]) = -1;
             return false;
         }
