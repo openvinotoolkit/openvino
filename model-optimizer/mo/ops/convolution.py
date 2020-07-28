@@ -66,26 +66,6 @@ class Convolution(Op):
             'mode',
         ]
 
-    def backend_attrs_v2(self):
-        return [
-            spatial_getter('stride-x', 'stride', 1),
-            spatial_getter('stride-y', 'stride', 0),
-
-            ('kernel-x', lambda node: node.kernel_spatial[1]),
-            ('kernel-y', lambda node: node.kernel_spatial[0]),
-
-            spatial_getter('dilation-x', 'dilation', 0),
-            spatial_getter('dilation-y', 'dilation', 1),
-            spatial_getter('pad-x', 'pad', 1, lambda x: x[0]),
-            spatial_getter('pad-y', 'pad', 0, lambda x: x[0]),
-            spatial_getter('pad-r', 'pad', 1, lambda x: x[1]),
-            spatial_getter('pad-b', 'pad', 0, lambda x: x[1]),
-
-            'auto_pad',
-            'output',
-            'group',
-        ]
-
     @staticmethod
     def calc_convolution(input_spatial_shape, stride_spatial_shape, pad_spatial_shape, kernel_extent):
         ''' Calculates output shape for Convolution.
