@@ -5,6 +5,7 @@
 #include "multi-device/multi_device_config.hpp"
 
 #include "behavior/config.hpp"
+#include <template/template_config.hpp>
 
 using namespace BehaviorTestsDefinitions;
 namespace {
@@ -14,14 +15,20 @@ namespace {
     };
 
     const std::vector<std::map<std::string, std::string>> configs = {
-            {}
+            {{TEMPLATE_CONFIG_KEY(THROUGHPUT_STREAMS), InferenceEngine::PluginConfigParams::CPU_THROUGHPUT_AUTO}},
+            {{TEMPLATE_CONFIG_KEY(THROUGHPUT_STREAMS), InferenceEngine::PluginConfigParams::CPU_THROUGHPUT_NUMA}},
+            {{TEMPLATE_CONFIG_KEY(THROUGHPUT_STREAMS), "8"}},
+    };
+
+    const std::vector<std::map<std::string, std::string>> inconfigs = {
+            {{TEMPLATE_CONFIG_KEY(THROUGHPUT_STREAMS), "OFF"}},
     };
 
     INSTANTIATE_TEST_CASE_P(smoke_BehaviorTests, IncorrectConfigTests,
                             ::testing::Combine(
                                     ::testing::ValuesIn(netPrecisions),
                                     ::testing::Values("TEMPLATE"),
-                                    ::testing::ValuesIn(configs)),
+                                    ::testing::ValuesIn(inconfigs)),
                             IncorrectConfigTests::getTestCaseName);
 
 
@@ -29,7 +36,7 @@ namespace {
                             ::testing::Combine(
                                     ::testing::ValuesIn(netPrecisions),
                                     ::testing::Values("TEMPLATE"),
-                                    ::testing::ValuesIn(configs)),
+                                    ::testing::ValuesIn(inconfigs)),
                             IncorrectConfigAPITests::getTestCaseName);
 
 

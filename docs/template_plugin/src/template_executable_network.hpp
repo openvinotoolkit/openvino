@@ -27,7 +27,7 @@
 
 namespace TemplatePlugin {
 
-class Engine;
+class Plugin;
 
 /**
  * @class ExecutableNetwork
@@ -36,11 +36,13 @@ class Engine;
 // ! [executable_network:header]
 class ExecutableNetwork : public InferenceEngine::ExecutableNetworkThreadSafeDefault {
 public:
-    ExecutableNetwork(InferenceEngine::ICNNNetwork&  network,
-                      const Configuration&           cfg);
+    ExecutableNetwork(const std::shared_ptr<ngraph::Function>&  function,
+                      const Configuration&                      cfg,
+                      const std::shared_ptr<Plugin>&            plugin);
 
-    ExecutableNetwork(std::istream &                 model,
-                      const Configuration&           cfg);
+    ExecutableNetwork(std::istream&                  model,
+                      const Configuration&           cfg,
+                      const std::shared_ptr<Plugin>& plugin);
 
     ~ExecutableNetwork() override = default;
 
@@ -53,15 +55,18 @@ public:
     void GetMetric(const std::string &name, InferenceEngine::Parameter &result, InferenceEngine::ResponseDesc *resp) const override;
     void GetConfig(const std::string &name, InferenceEngine::Parameter &result, InferenceEngine::ResponseDesc *resp) const override;
 
-    std::atomic<std::size_t>                    _requestId = {0};
-    std::string                                 _name;
-    Configuration                               _cfg;
-
 private:
-    void CompileGraph(const std::shared_ptr<const ngraph::Function> & ngraphFunction);
+    friend class TemplateInferRequest;
 
-    std::shared_ptr<Engine>                     _plugin;
-    InferenceEngine::ITaskExecutor::Ptr         _waitExecutor;
+    void CompileGraph();
+    void InitExecutor();
+
+    std::atomic<std::size_t>                    _requestId = {0};
+    Configuration                               _cfg;
+    std::shared_ptr<Plugin>                     _plugin;
+    std::shared_ptr<ngraph::Function>           _function;
+    std::map<std::string, std::size_t>          _inputIndex;
+    std::map<std::string, std::size_t>          _outputIndex;
 };
 // ! [executable_network:header]
 

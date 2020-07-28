@@ -24,11 +24,17 @@
 #include <ie_input_info.hpp>
 #include <ie_layouts.h>
 #include <hetero/hetero_plugin_config.hpp>
-#include <template/template_config.hpp>
-
+#include <backend.hpp>
+#include <ngraph/specialize_function.hpp>
+#include <ngraph/pass/manager.hpp>
+#include <ngraph/opsets/opset.hpp>
+#include <transformations/common_optimizations/common_optimizations.hpp>
+#include <transformations/rt_info/fused_names_attribute.hpp>
+#include "template/template_config.hpp"
 #include "template_plugin.hpp"
 #include "template_executable_network.hpp"
 #include "template_infer_request.hpp"
+#include "template_pattern_transformation.hpp"
 
 using namespace TemplatePlugin;
 
@@ -36,8 +42,60 @@ using namespace TemplatePlugin;
 Plugin::Plugin() {
     // TODO: fill with actual device name
     _pluginName = "TEMPLATE";
+    ngraph::runtime::Backend::set_backend_shared_library_search_directory("");
+    _backend = ngraph::runtime::Backend::create("INTERPRETER");
+    _waitExecutor = ExecutorManager::getInstance()->getIdleCPUStreamsExecutor({"TemplateWaitExecutor"});
 }
 // ! [plugin:ctor]
+
+// ! [plugin:dtor]
+Plugin::~Plugin() {
+    // Plugin should remove executors from executor cache to avoid threads number growth in the whole application
+    ExecutorManager::getInstance()->clear("TemplateStreamsExecutor");
+    ExecutorManager::getInstance()->clear("TemplateWaitExecutor");
+    // NOTE: Uncomment this if Inference Engine Executor cache is used to create callback executor
+    // ExecutorManager::getInstance()->clear("TemplateCallbackExecutor");
+}
+// ! [plugin:dtor]
+
+// ! [plugin:transform]
+std::shared_ptr<ngraph::Function> Plugin::Transform(const std::shared_ptr<const ngraph::Function>& function) {
+    // 1.Copy ngraph::Function first to apply some transformations which modify original ngraph::Function
+    const bool shareConsts = false, constFolding = false;
+    std::vector<::ngraph::element::Type> new_types;
+    std::vector<::ngraph::PartialShape> new_shapes;
+
+    for (const auto &parameter : function->get_parameters()) {
+        new_shapes.emplace_back(parameter->get_partial_shape());
+        new_types.emplace_back(parameter->get_element_type());
+    }
+
+    auto copyFunction = ngraph::specialize_function(std::const_pointer_cast<ngraph::Function>(function),
+        new_types, new_shapes, std::vector<void *>(new_types.size(), nullptr), constFolding, shareConsts);
+
+    copyFunction->set_friendly_name(function->get_friendly_name());
+
+    // 2. Perform common optimizations and device-specific transformations
+    ngraph::pass::Manager passManager;
+    // Example: register CommonOptimizations transformation from transformations library
+    passManager.register_pass<ngraph::pass::CommonOptimizations>();
+    // Example: register plugin specific transformation
+    passManager.register_pass<ngraph::pass::DecomposeDivideMatcher>();
+    passManager.register_pass<ngraph::pass::ReluReluFusionMatcher>();
+    // Register any other transformations
+    // ..
+
+    // After `run_passes`, we have the transformed function, where operations match device operations,
+    // and we can create device hardware-dependent graph
+    passManager.run_passes(copyFunction);
+
+    // 3. Iterate over operations and create hardware-specific ngraph
+    for (const auto& op : copyFunction->get_ordered_ops()) {
+        // TODO: map ngraph `op` to device operation
+    }
+    return copyFunction;
+}
+// ! [plugin:transform]
 
 // ! [plugin:load_exe_network_impl]
 InferenceEngine::ExecutableNetworkInternal::Ptr Plugin::LoadExeNetworkImpl(const InferenceEngine::ICNNNetwork & network,
@@ -72,9 +130,12 @@ InferenceEngine::ExecutableNetworkInternal::Ptr Plugin::LoadExeNetworkImpl(const
         }
     }
 
-    auto clonedNetwork = cloneNet(network);
+    auto function = network.getFunction();
+    if (function == nullptr) {
+        THROW_IE_EXCEPTION << "TEMPLATE plugin can compile only IR v10 networks";
+    }
 
-    return std::make_shared<ExecutableNetwork>(*clonedNetwork, cfg);
+    return std::make_shared<ExecutableNetwork>(Transform(function), cfg, std::static_pointer_cast<Plugin>(shared_from_this()));
 }
 // ! [plugin:load_exe_network_impl]
 
@@ -90,7 +151,7 @@ InferenceEngine::ExecutableNetwork Plugin::ImportNetworkImpl(std::istream& model
     auto cfg = Configuration(config, exportedCfg);
 
     IExecutableNetwork::Ptr executableNetwork;
-    auto exec_network_impl = std::make_shared<ExecutableNetwork>(model, cfg);
+    auto exec_network_impl = std::make_shared<ExecutableNetwork>(model, cfg, std::static_pointer_cast<Plugin>(shared_from_this()));
     executableNetwork.reset(new ExecutableNetworkBase<ExecutableNetworkInternal>(exec_network_impl),
                             [](InferenceEngine::details::IRelease *p) {p->Release(); });
 
@@ -101,19 +162,42 @@ InferenceEngine::ExecutableNetwork Plugin::ImportNetworkImpl(std::istream& model
 // ! [plugin:query_network]
 void Plugin::QueryNetwork(const ICNNNetwork &network, const ConfigMap& config, QueryNetworkResult &res) const {
     Configuration cfg{config, _cfg, false};
-    res.rc = StatusCode::OK;
-
-    if (std::shared_ptr<const ngraph::Function> ngraphFunction = network.getFunction()) {
-        auto ops = ngraphFunction->get_ordered_ops();
-        for (auto&& op : ops) {
-            // TODO: investigate if an op is actually supported by Template device
-            bool supported = true;
-            if (supported) {
-                res.supportedLayersMap.insert({ op->get_friendly_name(), GetName() });
+    auto function = network.getFunction();
+    if (function == nullptr) {
+         THROW_IE_EXCEPTION << "Template Plugin supports only ngraph cnn network representation";
+    }
+    // First of all we should store initial input operation set
+    std::unordered_set<std::string> originalOps;
+    for (auto&& node : function->get_ops()) {
+        originalOps.emplace(node->get_friendly_name());
+    }
+    // It is needed to apply all transformations as it is done in LoadExeNetworkImpl
+    auto transformedFunction = Transform(function);
+    // The same input node can be transformed into supported and unsupported backend node
+    // So we need store as supported ether unsupported node sets
+    std::unordered_set<std::string> supported;
+    std::unordered_set<std::string> unsupported;
+    auto opset = ngraph::get_opset4();
+    for (auto&& node : transformedFunction->get_ops()) {
+        if (!ngraph::op::is_constant(node) && !ngraph::op::is_parameter(node) && !ngraph::op::is_output(node)) {
+            // Extract transformation history from transformed node as list of nodes
+            for (auto&& fusedLayerName : ngraph::getFusedNamesVector(node)) {
+                // Filter just nodes from original operation set
+                if (contains(originalOps, fusedLayerName)) {
+                    if (opset.contains_type_insensitive(fusedLayerName)) {
+                        supported.emplace(fusedLayerName);
+                    } else {
+                        unsupported.emplace(fusedLayerName);
+                    }
+                }
             }
         }
-    } else {
-        THROW_IE_EXCEPTION << "TEMPLATE plugin can query only IR v10 networks";
+    }
+    // The result set should contains just nodes from supported set
+    for (auto&& layerName : supported) {
+        if (!contains(unsupported, layerName)) {
+            res.supportedLayersMap.emplace(layerName, GetName());
+        }
     }
 }
 // ! [plugin:query_network]
@@ -148,10 +232,17 @@ InferenceEngine::Parameter Plugin::GetMetric(const std::string& name, const std:
             METRIC_KEY(RANGE_FOR_ASYNC_INFER_REQUESTS) };
         IE_SET_METRIC_RETURN(SUPPORTED_METRICS, supportedMetrics);
     } else if (METRIC_KEY(SUPPORTED_CONFIG_KEYS) == name) {
-        std::vector<std::string> confiKeys = {
+        std::vector<std::string> configKeys = {
             CONFIG_KEY(DEVICE_ID),
-            CONFIG_KEY(PERF_COUNT) };
-        IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, confiKeys);
+            CONFIG_KEY(PERF_COUNT),
+            TEMPLATE_CONFIG_KEY(THROUGHPUT_STREAMS)};
+        auto streamExecutorConfigKeys = IStreamsExecutor::Config{}.SupportedKeys();
+        for (auto&& configKey : streamExecutorConfigKeys) {
+            if (configKey != InferenceEngine::PluginConfigParams::KEY_CPU_THROUGHPUT_STREAMS) {
+                configKeys.emplace_back(configKey);
+            }
+        }
+        IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, configKeys);
     } else if (METRIC_KEY(AVAILABLE_DEVICES) == name) {
         // TODO: fill list of available devices
         std::vector<std::string> availableDevices = { "" };
@@ -161,7 +252,7 @@ InferenceEngine::Parameter Plugin::GetMetric(const std::string& name, const std:
         IE_SET_METRIC_RETURN(FULL_DEVICE_NAME, name);
     } else if (METRIC_KEY(OPTIMIZATION_CAPABILITIES) == name) {
         // TODO: fill actual list of supported capabilities: e.g. Template device supports only FP32
-        std::vector<std::string> capabilities = { METRIC_VALUE(FP32), TEMPLATE_METRIC_VALUE(HARDWARE_CONVOLUTION) };
+        std::vector<std::string> capabilities = { METRIC_VALUE(FP32) /*, TEMPLATE_METRIC_VALUE(HARDWARE_CONVOLUTION)*/ };
         IE_SET_METRIC_RETURN(OPTIMIZATION_CAPABILITIES, capabilities);
     } else if (METRIC_KEY(RANGE_FOR_ASYNC_INFER_REQUESTS) == name) {
         // TODO: fill with actual values
