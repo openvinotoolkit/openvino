@@ -166,13 +166,13 @@ the second optional tensor of shape `[batch_size * post_nms_topn]` with probabil
     <data base_size="16" feat_stride="8" min_size="16" nms_thresh="1.0" normalize="0" post_nms_topn="1000" pre_nms_topn="1000" ratio="1" scale="1,2"/>
     <input>
         <port id="0">
-            <dim>1</dim>
+            <dim>3</dim>
             <dim>4</dim>
             <dim>28</dim>
             <dim>28</dim>
         </port>
         <port id="1">
-            <dim>1</dim>
+            <dim>3</dim>
             <dim>8</dim>
             <dim>28</dim>
             <dim>28</dim>
