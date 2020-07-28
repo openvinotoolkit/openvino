@@ -97,7 +97,6 @@ std::ostream& runtime::operator<<(std::ostream& ostr, const NDimIndex& index)
 
 NDimIndex runtime::NDimIndex::after_high_limit() const
 {
-
     NDimIndex temp{m_high_limit, m_low_limit, m_high_limit};
     ++temp;
     return temp;

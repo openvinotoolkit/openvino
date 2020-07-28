@@ -82,6 +82,6 @@ namespace ngraph
             std::vector<std::int64_t> m_high_limit;
         };
 
-        std::ostream& operator << (std::ostream& ostr, const NDimIndex& index);
+        std::ostream& operator<<(std::ostream& ostr, const NDimIndex& index);
     }
 }
