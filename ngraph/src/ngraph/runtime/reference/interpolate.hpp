@@ -86,8 +86,28 @@ namespace ngraph
             {
                 switch (attrs.mode)
                 {
-                    case op::v4::Interpolate::InterpolateMode::nearest:
-                        nearest_interpolate<T>(input_data,
+                case op::v4::Interpolate::InterpolateMode::nearest:
+                    nearest_interpolate<T>(input_data,
+                                           target_spatial_shape,
+                                           axes,
+                                           out,
+                                           input_data_shape,
+                                           target_spatial_shape_size,
+                                           axes_size,
+                                           attrs);
+                    break;
+                case op::v4::Interpolate::InterpolateMode::linear:
+                    linear_interpolate<T>(input_data,
+                                          target_spatial_shape,
+                                          axes,
+                                          out,
+                                          input_data_shape,
+                                          target_spatial_shape_size,
+                                          axes_size,
+                                          attrs);
+                    break;
+                case op::v4::Interpolate::InterpolateMode::linear_onnx:
+                    linear_onnx_interpolate<T>(input_data,
                                                target_spatial_shape,
                                                axes,
                                                out,
@@ -95,37 +115,17 @@ namespace ngraph
                                                target_spatial_shape_size,
                                                axes_size,
                                                attrs);
-                        break;
-                    case op::v4::Interpolate::InterpolateMode::linear:
-                        linear_interpolate<T>(input_data,
-                                              target_spatial_shape,
-                                              axes,
-                                              out,
-                                              input_data_shape,
-                                              target_spatial_shape_size,
-                                              axes_size,
-                                              attrs);
-                        break;
-                    case op::v4::Interpolate::InterpolateMode::linear_onnx:
-                        linear_onnx_interpolate<T>(input_data,
-                                                   target_spatial_shape,
-                                                   axes,
-                                                   out,
-                                                   input_data_shape,
-                                                   target_spatial_shape_size,
-                                                   axes_size,
-                                                   attrs);
-                        break;
-                    case op::v4::Interpolate::InterpolateMode::cubic:
-                        cubic_interpolate<T>(input_data,
-                                             target_spatial_shape,
-                                             axes,
-                                             out,
-                                             input_data_shape,
-                                             target_spatial_shape_size,
-                                             axes_size,
-                                             attrs);
-                        break;
+                    break;
+                case op::v4::Interpolate::InterpolateMode::cubic:
+                    cubic_interpolate<T>(input_data,
+                                         target_spatial_shape,
+                                         axes,
+                                         out,
+                                         input_data_shape,
+                                         target_spatial_shape_size,
+                                         axes_size,
+                                         attrs);
+                    break;
                 }
             }
         }
