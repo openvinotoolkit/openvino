@@ -17,6 +17,8 @@
 #include "template_executable_network.hpp"
 #include "template_config.hpp"
 
+#include "backend.hpp"
+
 //! [plugin:header]
 namespace TemplatePlugin {
 
@@ -25,7 +27,7 @@ public:
     using Ptr = std::shared_ptr<Plugin>;
 
     Plugin();
-    ~Plugin() override = default;
+    ~Plugin() override;
 
     void SetConfig(const std::map<std::string, std::string> &config) override;
     void QueryNetwork(const InferenceEngine::ICNNNetwork &network,
@@ -40,7 +42,14 @@ public:
     InferenceEngine::ExecutableNetwork ImportNetworkImpl(std::istream& model, const std::map<std::string, std::string>& config) override;
 
 private:
-    Configuration                    _cfg;
+    friend class ExecutableNetwork;
+    friend class TemplateInferRequest;
+
+    static std::shared_ptr<ngraph::Function> Transform(const std::shared_ptr<const ngraph::Function>& function);
+
+    Configuration                               _cfg;
+    std::shared_ptr<ngraph::runtime::Backend>   _backend;
+    InferenceEngine::ITaskExecutor::Ptr         _waitExecutor;
 };
 
 }  // namespace TemplatePlugin

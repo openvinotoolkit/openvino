@@ -12,13 +12,13 @@ No attributes available.
 
 **Inputs**:
 
-* **1**: "start" - If a value is not given then *start* = 0. A scalar of type T. **Required.**
+* **1**: "start" - A scalar of type T. **Required.**
 * **2**: "stop" - A scalar of type T. **Required.**
-* **3**: "step" - If a value is not given then *step* = 1. A scalar of type T. **Required.**
+* **3**: "step" - A scalar of type T. **Required.**
 
 **Outputs**:
 
-* **1**: A tensor with type matching 2nd tensor.
+* **1**: A tensor of type T.
 
 **Types**
 
@@ -28,8 +28,22 @@ No attributes available.
 
 *Range* operation generates a sequence of numbers starting from the value in the first input (start) up to but not including the value in the second input (stop) with a step equal to the value in the third input, according to the following formula:
 
+For a positive `step`:
+
 \f[
-[start, start + step, start + 2 * step, ..., start + K * step], where K is the maximal integer value that satisfies condition start + K*step < stop, then step is positive value and start + K*step > stop, then step is negative value.
+start<=val[i]<stop,
+\f]
+
+for a negative `step`:
+
+\f[
+start>=val[i]>stop,
+\f]
+
+where
+
+\f[
+val[i]=start+i*step
 \f]
 
 **Examples**

@@ -15,17 +15,12 @@
 namespace ngraph {
 namespace pass {
 
-class TRANSFORMATIONS_API ConvertPowerToPowerIE;
+class TRANSFORMATIONS_API ConvertPowerToPowerIEMatcher;
 
 }  // namespace pass
 }  // namespace ngraph
 
-class ngraph::pass::ConvertPowerToPowerIE: public ngraph::pass::GraphRewrite {
+class ngraph::pass::ConvertPowerToPowerIEMatcher: public ngraph::pass::MatcherPass {
 public:
-    ConvertPowerToPowerIE() : GraphRewrite() {
-        convert_power();
-    }
-
-private:
-    void convert_power();
+    ConvertPowerToPowerIEMatcher();
 };
