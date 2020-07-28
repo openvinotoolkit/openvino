@@ -33,9 +33,11 @@ void op::Eltwise::validate_and_infer_types() {
     element::Type data1_et = get_input_element_type(0);
     element::Type data2_et = get_input_element_type(1);
 
-    element::Type et_result;
-    NODE_VALIDATION_CHECK(this, element::Type::merge(et_result, data1_et, data2_et),
-                          "Element types for first and second do not match :", data1_et, " and ", data2_et);
+    element::Type et_result = element::f32;;
+
+    // workaround to support Add with different input precisions
+    //NODE_VALIDATION_CHECK(this, element::Type::merge(et_result, data1_et, data2_et),
+    //                      "Element types for first and second do not match :", data1_et, " and ", data2_et);
 
     if (get_input_partial_shape(0).rank().is_dynamic() ||
         get_input_partial_shape(1).rank().is_dynamic()) {
