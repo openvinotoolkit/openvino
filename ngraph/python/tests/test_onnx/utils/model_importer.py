@@ -14,18 +14,19 @@
 # limitations under the License.
 # ******************************************************************************
 
-from collections import defaultdict
 import glob
 import numpy as np
-import os
 import onnx
-from onnx import numpy_helper, NodeProto, ModelProto
 import onnx.backend.test
+import os
+import unittest
+
+from collections import defaultdict
+from onnx import numpy_helper, NodeProto, ModelProto
 from onnx.backend.base import Backend, BackendRep
 from onnx.backend.test.case.test_case import TestCase as OnnxTestCase
 from onnx.backend.test.runner import TestItem
 from typing import Any, Dict, List, Optional, Pattern, Set, Text, Type, Union
-import unittest
 
 
 class ModelImportRunner(onnx.backend.test.BackendTest):
