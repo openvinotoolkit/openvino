@@ -26,7 +26,7 @@ using namespace std;
 using namespace ngraph;
 
 // *** Convolution OP SET 1 ***
-NGRAPH_RTTI_DEFINITION("Convolution", op::v1::Convolution, Node, 1)
+NGRAPH_RTTI_DEFINITION(op::v1::Convolution);
 
 op::v1::Convolution::Convolution(const Output<Node>& data_batch,
                                  const Output<Node>& filters,

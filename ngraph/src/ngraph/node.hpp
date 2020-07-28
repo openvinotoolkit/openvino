@@ -186,10 +186,6 @@ namespace ngraph
         /// Defines the NodeTypeInfo for the node's class.
         static constexpr type_info_t type_info{"Node", 0, nullptr};
 
-        /// Returns the NodeTypeInfo for the class, static version of the function
-        /// Required for platforms where static data of the class cannot be declared as exported
-        /// symbol
-        // static const type_info_t& get_type_info_static() { return type_info; }
         /// Returns the NodeTypeInfo for the node's class, virtual version of the function to
         /// determine real type info for an object
         virtual const type_info_t& get_type_info() const { return type_info; }
@@ -510,14 +506,24 @@ namespace ngraph
 /// Should be used in the scope of class that requires type identification besides one provided by
 /// C++ RTTI.
 /// Required to be used for all classes that are inherited from class ngraph::Node to enable pattern
-/// matching for them.
+/// matching for them. Accepts necessary type identification details like type of the operation, version and
+/// parent class.
+///
+/// \param TYPE_NAME a string literal of type const char* that names your class in type
+/// identification namespace;
+///        It is your choice how to name it, but it should be unique among all
+///        NGRAPH_RTTI_DECLARATION-enabled classes that can be
+///        used in conjunction with each other in one transformation flow.
+/// \param PARENT_CLASS is direct or inderect parent class for this class;
+/// \param _VERSION_INDEX is an unsigned integer index to distinguish different versions of
+/// operations that shares the same TYPE_NAME
 ///
 /// Use this macro as a public part of the class definition:
 ///
 ///     class MyOp : public Node
 ///     {
 ///         public:
-///             NGRAPH_RTTI_DECLARATION
+///             NGRAPH_RTTI_DECLARATION("MyOp", ngraph::Node, 1);
 ///
 ///             ...
 ///     };
@@ -525,51 +531,32 @@ namespace ngraph
 ///     class MyInheritedOp : public MyOp
 ///     {
 ///         public:
-///             NGRAPH_RTTI_DECLARATION
+///             NGRAPH_RTTI_DECLARATION("MyInheritedOp", MyOp, 1)
 ///
 ///             ...
 ///     };
 ///
-/// All the details necessary for real type identification are provided in NGRAPH_RTTI_DEFINITION
-/// helper
-/// macro
+/// To complete type identification for a class, use NGRAPH_RTTI_DEFINITION.
 ///
 #define NGRAPH_RTTI_DECLARATION(TYPE_NAME, PARENT_CLASS, _VERSION_INDEX)                           \
     static constexpr ::ngraph::Node::type_info_t type_info{                                        \
         TYPE_NAME, _VERSION_INDEX, &PARENT_CLASS::type_info};                                      \
-    /*static const ::ngraph::Node::type_info_t& get_type_info_static();*/                          \
     const ::ngraph::Node::type_info_t& get_type_info() const override { return type_info; }
-/// Helper macro to build NGRAPH_RTTI_DEFINITION macro.
-#define NGRAPH_RTTI_DEFINITION_1(TYPE_NAME, CLASS, PARENT_CLASS, _VERSION_INDEX)                   \
-    constexpr ::ngraph::Node::type_info_t CLASS::type_info;
 
-/// Helper macro to build NGRAPH_RTTI_DEFINITION macro.
-#define NGRAPH_RTTI_DEFINITION_2(TYPE_NAME, CLASS, PARENT_CLASS, _VERSION_INDEX)                   \
-/*const ::ngraph::Node::type_info_t& CLASS::get_type_info_static() { return type_info; }*/
 /// Complementary to NGRAPH_RTTI_DECLARATION, this helper macro _defines_ items _declared_ by
-/// NGRAPH_RTTI_DECLARATION accepting necessary type identification details.
-/// Should be used outside the class definition scope.
-/// \param TYPE_NAME a string literal of type const char* that names your class in type
-/// identification namespace;
-///        It is your choice how to name it, but it should be unique among all
-///        NGRAPH_RTTI_DECLARATION-enabled classes that can be
-///        used in conjunction with each other in one transformation flow.
-/// \param CLASS is a C++ name of the class where corresponding NGRAPH_RTTI_DECLARATION was applied
-/// \param PARENT_CLASS is a parent class for class CLASS; should match real inheritance relation
-/// between CLASS and PARENT_CLASS
-/// \param _VERSION_INDEX is an unsigned integer index to distinguish different versions of
-/// operations that shares the same TYPE_NAME
+/// NGRAPH_RTTI_DECLARATION.
+/// Should be used outside the class definition scope in place where ODR is ensured.
+///
+/// \param CLASS is a C++ name of the class where corresponding NGRAPH_RTTI_DECLARATION was applied.
 ///
 /// Examples (see corresponding declarations in NGRAPH_RTTI_DECLARATION description):
 ///
-///     NGRAPH_RTTI_DEFINITION("MyOp", MyOp, ngraph::Node, 1)
-///     NGRAPH_RTTI_DEFINITION("MyInheritedOp", MyInheritedOp, MyOp, 1)
+///     NGRAPH_RTTI_DEFINITION(MyOp)
+///     NGRAPH_RTTI_DEFINITION(MyInheritedOp)
 ///
 /// For convenience, TYPE_NAME and CLASS name are recommended to be the same.
 ///
-#define NGRAPH_RTTI_DEFINITION(TYPE_NAME, CLASS, PARENT_CLASS, _VERSION_INDEX)                     \
-    NGRAPH_RTTI_DEFINITION_1(TYPE_NAME, CLASS, PARENT_CLASS, _VERSION_INDEX)                       \
-    NGRAPH_RTTI_DEFINITION_2(TYPE_NAME, CLASS, PARENT_CLASS, _VERSION_INDEX)
+#define NGRAPH_RTTI_DEFINITION(CLASS)  constexpr ::ngraph::Node::type_info_t CLASS::type_info
 
     // Like an Output but with a Node* instead of a shared_ptr<Node>
     struct RawNodeOutput
