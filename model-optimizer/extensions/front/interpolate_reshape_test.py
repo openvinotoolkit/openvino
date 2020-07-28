@@ -44,7 +44,8 @@ nodes = {
     **regular_op_with_shaped_data('identity_11', [1, 3, 60, 160], {'identity': True, 'op': 'Identity'}),
     **regular_op_with_shaped_data('concat', [1, 7, 60, 160], {'type': 'Concat', 'axis': 1, 'op': 'Concat'}),
 
-    **result(),
+    **result('output'),
+    **result('output_1'),
 }
 
 
@@ -106,6 +107,29 @@ class TestInterpolateConcat(unittest.TestCase):
             *connect('identity_10', 'identity_11'),
             *connect('identity_11', '1:concat'),
             *connect('concat', 'output'),
+        ], nodes_with_edges_only=True)
+        (flag, resp) = compare_graphs(graph, graph_ref, 'output', check_op_attrs=True)
+        self.assertTrue(flag, resp)
+
+    def test_interpolate_concat_negate(self):
+        graph = build_graph(nodes, [
+            *connect('placeholder', '0:interpolate'),
+            *connect('out_shape', '1:interpolate'),
+            *connect('interpolate', 'identity_00'),
+            *connect('interpolate', 'identity_01'),
+            *connect('identity_00', 'output'),
+            *connect('identity_01', 'output_1'),
+        ], nodes_with_edges_only=True)
+
+        InterpolateWithConcat().find_and_replace_pattern(graph)
+        graph.clean_up()
+        graph_ref = build_graph(nodes, [
+            *connect('placeholder', '0:interpolate'),
+            *connect('out_shape', '1:interpolate'),
+            *connect('interpolate', 'identity_00'),
+            *connect('interpolate', 'identity_01'),
+            *connect('identity_00', 'output'),
+            *connect('identity_01', 'output_1'),
         ], nodes_with_edges_only=True)
         (flag, resp) = compare_graphs(graph, graph_ref, 'output', check_op_attrs=True)
         self.assertTrue(flag, resp)
