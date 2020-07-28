@@ -18,18 +18,18 @@ import onnx
 import pytest
 
 # [PARAMETER_MISMATCH] Failed to set Blob with precision FP32
-from tests.test_onnx.utils import run_node
+from tests.test_onnx.utils import run_node, issue_4, issue_5
 
 
 @pytest.mark.parametrize(
     "onnx_op, numpy_func, data_type",
     [
-        ("And", np.logical_and, np.bool),
-        ("Or", np.logical_or, np.bool),
-        ("Xor", np.logical_xor, np.bool),
-        ("Equal", np.equal, np.int32),
-        ("Greater", np.greater, np.int32),
-        ("Less", np.less, np.int32),
+        pytest.param("And", np.logical_and, np.bool, marks=issue_4),
+        pytest.param("Or", np.logical_or, np.bool, marks=issue_4),
+        pytest.param("Xor", np.logical_xor, np.bool, marks=issue_4),
+        pytest.param("Equal", np.equal, np.int32, marks=issue_5),
+        pytest.param("Greater", np.greater, np.int32, marks=issue_5),
+        pytest.param("Less", np.less, np.int32, marks=issue_5),
     ],
 )
 def test_logical(onnx_op, numpy_func, data_type):
