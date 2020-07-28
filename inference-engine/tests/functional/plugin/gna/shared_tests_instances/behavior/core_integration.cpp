@@ -76,12 +76,14 @@ INSTANTIATE_TEST_CASE_P(
 // Executable Network GetMetric
 //
 
+// TODO: 2D convolution is not supported by GNA
 INSTANTIATE_TEST_CASE_P(
-        IEClassExecutableNetworkGetMetricTest, IEClassExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS,
+        DISABLED_IEClassExecutableNetworkGetMetricTest, IEClassExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS,
         ::testing::Values("GNA" /*, "MULTI:GNA", "HETERO:GNA" */));
 
+// TODO: 2D convolution is not supported by GNA
 INSTANTIATE_TEST_CASE_P(
-        IEClassExecutableNetworkGetMetricTest, IEClassExecutableNetworkGetMetricTest_SUPPORTED_METRICS,
+        DISABLED_IEClassExecutableNetworkGetMetricTest, IEClassExecutableNetworkGetMetricTest_SUPPORTED_METRICS,
         ::testing::Values("GNA" /*, "MULTI:GNA",  "HETERO:GNA" */));
 
 // TODO: this metric is not supported by the plugin
@@ -89,12 +91,14 @@ INSTANTIATE_TEST_CASE_P(
         DISABLED_IEClassExecutableNetworkGetMetricTest, IEClassExecutableNetworkGetMetricTest_NETWORK_NAME,
         ::testing::Values("GNA", "MULTI:GNA", "HETERO:GNA"));
 
+// TODO: 2D convolution is not supported by GNA
 INSTANTIATE_TEST_CASE_P(
-        IEClassExecutableNetworkGetMetricTest, IEClassExecutableNetworkGetMetricTest_OPTIMAL_NUMBER_OF_INFER_REQUESTS,
+        DISABLED_IEClassExecutableNetworkGetMetricTest, IEClassExecutableNetworkGetMetricTest_OPTIMAL_NUMBER_OF_INFER_REQUESTS,
         ::testing::Values("GNA"/*, "MULTI:GNA", "HETERO:GNA" */));
 
+// TODO: 2D convolution is not supported by GNA
 INSTANTIATE_TEST_CASE_P(
-        IEClassExecutableNetworkGetMetricTest, IEClassExecutableNetworkGetMetricTest_ThrowsUnsupported,
+        DISABLED_IEClassExecutableNetworkGetMetricTest, IEClassExecutableNetworkGetMetricTest_ThrowsUnsupported,
         ::testing::Values("GNA", /* "MULTI:GNA", */ "HETERO:GNA"));
 
 //

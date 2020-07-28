@@ -582,11 +582,6 @@ void RemovePermutationsNHWCToNCHWPass::run() {
             continue;
         }
 
-        gnalog() << "Found Permute->Convolution->Permute pattern: " << "\n";
-        gnalog() << "'" << prev->name << "' order: [" << prev->GetParamAsString("order") << "]" << "\n";
-        gnalog() << "'" << l->name << "'" << "\n";
-        gnalog() << "'" << next->name << "' order: [" << next->GetParamAsString("order") << "]" << "\n";
-
         if (getPassManager()->getPolicy().NHWCToNCHWPolicy == Policy::NHWCToNCHW::REMOVE_ALL) {
             permutationsToRemove.push_back(prev);
         }
