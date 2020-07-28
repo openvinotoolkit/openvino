@@ -9,10 +9,10 @@
 
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph/rt_info.hpp>
+#include <ngraph/pattern/op/wrap_type.hpp>
 
-void ngraph::pass::ConvertNegative::convert_negative() {
-    auto input = std::make_shared<pattern::op::Label>(element::f32, Shape{1});
-    auto neg = std::make_shared<ngraph::opset1::Negative>(input);
+ngraph::pass::ConvertNegative::ConvertNegative() {
+    auto neg = ngraph::pattern::wrap_type<ngraph::opset1::Negative>();
 
     ngraph::graph_rewrite_callback callback = [](pattern::Matcher& m) {
         auto neg = std::dynamic_pointer_cast<ngraph::opset1::Negative> (m.get_match_root());
@@ -29,5 +29,5 @@ void ngraph::pass::ConvertNegative::convert_negative() {
     };
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(neg, "ConvertNegative");
-    this->add_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
+    this->register_matcher(m, callback);
 }

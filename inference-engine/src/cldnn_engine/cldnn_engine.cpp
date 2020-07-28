@@ -25,6 +25,7 @@
 #include <ngraph/opsets/opset2.hpp>
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/op/fused/gelu.hpp>
+#include <ngraph/pass/manager.hpp>
 #include <generic_ie.hpp>
 #include <transformations/common_optimizations/common_optimizations.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
@@ -73,11 +74,16 @@ InferenceEngine::ICNNNetwork::Ptr clDNNEngine::CloneNetwork(const InferenceEngin
     std::shared_ptr<ICNNNetwork> clonedNetwork = cloneNetwork(network);
     if (clonedNetwork->getFunction()) {
         const auto transformations_callback = [](const std::shared_ptr<const ::ngraph::Node> &node) -> bool {
-            // DepthToSpace node implementation supports only equal input/output tensors with rank <= 5
             // Reshape->Permute->Reshape pattern in theory can change output rank, so this check is added to be sure
-            // that DepthToSpace impl will handle fused case
+            // that the following primitives will be handled correctly
+            // DepthToSpace node implementation supports only equal input/output tensors with rank <= 5
             if (auto dtsOp = std::dynamic_pointer_cast<const ::ngraph::opset3::DepthToSpace>(node)) {
                 return dtsOp->input_value(0).get_shape().size() <= 5lu && dtsOp->input_value(0).get_shape().size() == dtsOp->get_output_shape(0).size();
+            }
+
+            // SpaceToDepth node implementation supports only equal input/output tensors with rank <= 5
+            if (auto stdOp = std::dynamic_pointer_cast<const ::ngraph::opset3::SpaceToDepth>(node)) {
+                return stdOp->input_value(0).get_shape().size() <= 5lu && stdOp->input_value(0).get_shape().size() == stdOp->get_output_shape(0).size();
             }
 
             return std::dynamic_pointer_cast<const ::ngraph::opset2::Gelu>(node) ||
@@ -90,10 +96,14 @@ InferenceEngine::ICNNNetwork::Ptr clDNNEngine::CloneNetwork(const InferenceEngin
         ::ngraph::op::GenericIE::DisableReshape noReshape(nGraphFunc);
 
         // Note: instead of running all Conversion Transformations you can make up your own transformation pipeline
-        ngraph::pass::CommonOptimizations(transformations_callback).run_on_function(nGraphFunc);
-        ngraph::pass::ConvertOpSet3ToOpSet2(transformations_callback).run_on_function(nGraphFunc);
-        ngraph::pass::ConvertOpSet2ToOpSet1(transformations_callback).run_on_function(nGraphFunc);
-        ngraph::pass::ConvertOpSet1ToLegacy(transformations_callback).run_on_function(nGraphFunc);
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::CommonOptimizations>();
+        manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
+        manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
+        manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
+
+        manager.set_callback(transformations_callback);
+        manager.run_passes(nGraphFunc);
         clonedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(nGraphFunc, *clonedNetwork);
     }
 
