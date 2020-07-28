@@ -31,6 +31,7 @@
 #include "transformations/low_precision/depth_to_space.hpp"
 #include "transformations/low_precision/fake_quantize.hpp"
 #include "transformations/low_precision/group_convolution.hpp"
+#include "transformations/low_precision/interpolate.hpp"
 #include "transformations/low_precision/mat_mul.hpp"
 #include "transformations/low_precision/max_pool.hpp"
 #include "transformations/low_precision/multiply.hpp"
@@ -196,6 +197,7 @@ LowPrecisionTransformations LowPrecisionTransformer::getAllTransformations(const
         add<DepthToSpaceTransformation, opset1::DepthToSpace>(params).
         add<FakeQuantizeTransformation, opset1::FakeQuantize>(params).
         add<GroupConvolutionTransformation, opset1::GroupConvolution>(params).
+        add<InterpolateTransformation, opset1::Interpolate>(params).
         add<MatMulTransformation, opset1::MatMul>(params).
         add<MaxPoolTransformation, opset1::MaxPool>(params).
         add<MultiplyTransformation, opset1::Multiply>(params).
@@ -258,12 +260,14 @@ TypeRelaxedReplacer::TypeRelaxedReplacer() {
     make_matcher_type_relaxed<opset1::DepthToSpace>(this);
     make_matcher_type_relaxed<opset1::FakeQuantize>(this);
     make_matcher_type_relaxed<opset1::GroupConvolution>(this);
-    make_matcher_type_relaxed<opset1::Relu>(this);
+    make_matcher_type_relaxed<opset1::Interpolate>(this);
     make_matcher_type_relaxed<opset1::MaxPool>(this);
-    make_matcher_type_relaxed<opset1::Subtract>(this);
     make_matcher_type_relaxed<opset1::Multiply>(this);
-    make_matcher_type_relaxed<opset1::NormalizeL2>(this);
     make_matcher_type_relaxed<op::MVN>(this);
+    make_matcher_type_relaxed<opset1::NormalizeL2>(this);
+    make_matcher_type_relaxed<opset1::Relu>(this);
+    make_matcher_type_relaxed<opset1::Reshape>(this);
+    make_matcher_type_relaxed<opset1::Subtract>(this);
 }
 
 LowPrecisionTransformer::LowPrecisionTransformer(const LowPrecisionTransformations& transformations)

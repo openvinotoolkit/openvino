@@ -18,7 +18,6 @@
 #include "simple_low_precision_transformer.hpp"
 #include "ngraph_functions/low_precision_transformations/depth_to_space_function.hpp"
 
-using namespace testing;
 using namespace ngraph::pass;
 using namespace ngraph::builder::subgraph;
 using namespace ngraph::opset1;
