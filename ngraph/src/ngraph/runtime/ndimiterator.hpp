@@ -22,45 +22,38 @@ namespace ngraph
 {
     namespace runtime
     {
-        class NDimIterator{
+        class NDimIterator
+        {
         public:
             NDimIterator() = default;
             NDimIterator(const NDimIterator& rhs) = default;
             NDimIterator(NDimIterator&& rhs) = default;
-            NDimIterator& operator = (const NDimIterator& rhs) = default;
-            NDimIterator& operator = (NDimIterator&& rhs) = default;
+            NDimIterator& operator=(const NDimIterator& rhs) = default;
+            NDimIterator& operator=(NDimIterator&& rhs) = default;
 
             virtual ~NDimIterator() = default;
 
-            explicit NDimIterator(const NDimIndex& index) : m_index{index} {}
+            explicit NDimIterator(const NDimIndex& index)
+                : m_index{index}
+            {
+            }
 
-            NDimIterator& operator ++()
+            NDimIterator& operator++()
             {
                 ++m_index;
                 return *this;
             }
 
-            NDimIterator operator ++ (int)
+            NDimIterator operator++(int)
             {
                 NDimIterator old_value{*this};
                 ++(*this);
                 return old_value;
             }
 
-            bool operator == (const NDimIterator& rhs) const
-            {
-                return m_index == rhs.m_index;
-            }
-
-            bool operator != (const NDimIterator& rhs) const
-            {
-                return m_index != rhs.m_index;
-            }
-
-            NDimIndex operator * () const
-            {
-                return m_index;
-            }
+            bool operator==(const NDimIterator& rhs) const { return m_index == rhs.m_index; }
+            bool operator!=(const NDimIterator& rhs) const { return m_index != rhs.m_index; }
+            NDimIndex operator*() const { return m_index; }
         private:
             NDimIndex m_index;
         };

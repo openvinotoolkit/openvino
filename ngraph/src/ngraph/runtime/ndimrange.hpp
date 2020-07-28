@@ -22,34 +22,37 @@ namespace ngraph
 {
     namespace runtime
     {
-        class NDimRange{
+        class NDimRange
+        {
         public:
             NDimRange() = default;
             NDimRange(const NDimRange& rhs) = default;
             NDimRange(NDimRange&& rhs) = default;
-            NDimRange& operator = (const NDimRange& rhs) = default;
-            NDimRange& operator = (NDimRange&& rhs) = default;
+            NDimRange& operator=(const NDimRange& rhs) = default;
+            NDimRange& operator=(NDimRange&& rhs) = default;
 
             virtual ~NDimRange() = default;
 
-            NDimRange(const NDimIterator& first, const NDimIterator& last) :
-                m_first{first}, m_last{last} {}
-
-            NDimRange(const NDimIndex& fst_index, const NDimIndex& snd_index) :
-                m_first{fst_index}, m_last{snd_index.next()} {}
-
-            explicit NDimRange(const NDimIndex& snd_index) :
-                m_first{snd_index.zeros()}, m_last{snd_index.next()} {}
-
-            NDimIterator begin() const
+            NDimRange(const NDimIterator& first, const NDimIterator& last)
+                : m_first{first}
+                , m_last{last}
             {
-                return m_first;
             }
 
-            NDimIterator end() const
+            NDimRange(const NDimIndex& fst_index, const NDimIndex& snd_index)
+                : m_first{fst_index}
+                , m_last{snd_index.next()}
             {
-                return m_last;
             }
+
+            explicit NDimRange(const NDimIndex& snd_index)
+                : m_first{snd_index.zeros()}
+                , m_last{snd_index.next()}
+            {
+            }
+
+            NDimIterator begin() const { return m_first; }
+            NDimIterator end() const { return m_last; }
         private:
             NDimIterator m_first;
             NDimIterator m_last;

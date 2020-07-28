@@ -18,14 +18,16 @@
 
 using namespace ngraph;
 
-bool runtime::NDimIndex::operator==(const NDimIndex &rhs) const
+bool runtime::NDimIndex::operator==(const NDimIndex& rhs) const
 {
-    return std::tie(m_value, m_low_limit, m_high_limit) == std::tie(rhs.m_value, rhs.m_low_limit, rhs.m_high_limit);
+    return std::tie(m_value, m_low_limit, m_high_limit) ==
+           std::tie(rhs.m_value, rhs.m_low_limit, rhs.m_high_limit);
 }
 
-bool runtime::NDimIndex::operator!=(const NDimIndex &rhs) const
+bool runtime::NDimIndex::operator!=(const NDimIndex& rhs) const
 {
-    return std::tie(m_value, m_low_limit, m_high_limit) != std::tie(rhs.m_value, rhs.m_low_limit, rhs.m_high_limit);
+    return std::tie(m_value, m_low_limit, m_high_limit) !=
+           std::tie(rhs.m_value, rhs.m_low_limit, rhs.m_high_limit);
 }
 
 NDimIndex& runtime::NDimIndex::operator++()
@@ -40,7 +42,9 @@ NDimIndex& runtime::NDimIndex::operator++()
         if (i > *high_limit_it)
         {
             *value_it = *low_limit_it;
-        }else{
+        }
+        else
+        {
             *value_it = i;
             return *this;
         }
@@ -65,25 +69,28 @@ NDimIndex runtime::NDimIndex::next() const
     return temp;
 }
 
-std::ostream& runtime::operator<<(std::ostream &ostr, const NDimIndex& index)
+std::ostream& runtime::operator<<(std::ostream& ostr, const NDimIndex& index)
 {
     std::string value_str;
     std::string low_limit_str;
     std::string high_limit_str;
 
     std::size_t len = index.m_value.size();
-    for(std::size_t i = 0; i < len; ++i)
+    for (std::size_t i = 0; i < len; ++i)
     {
         value_str += std::to_string(index.m_value[i]) + ", ";
         low_limit_str += std::to_string(index.m_low_limit[i]) + ", ";
         high_limit_str += std::to_string(index.m_high_limit[i]) + ", ";
     }
-    value_str.pop_back(); value_str.pop_back();
-    low_limit_str.pop_back(); low_limit_str.pop_back();
-    high_limit_str.pop_back(); high_limit_str.pop_back();
+    value_str.pop_back();
+    value_str.pop_back();
+    low_limit_str.pop_back();
+    low_limit_str.pop_back();
+    high_limit_str.pop_back();
+    high_limit_str.pop_back();
 
-    std::string resulting_str = "NDimensionalIndex{value: {" + value_str +
-        "}, low_limit: {" + low_limit_str + "}, high_limit: {" + high_limit_str + "}}";
+    std::string resulting_str = "NDimensionalIndex{value: {" + value_str + "}, low_limit: {" +
+                                low_limit_str + "}, high_limit: {" + high_limit_str + "}}";
     ostr << resulting_str;
     return ostr;
 }

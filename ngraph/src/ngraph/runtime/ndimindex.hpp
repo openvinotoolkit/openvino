@@ -16,70 +16,57 @@
 
 #pragma once
 
-#include <vector>
-#include <cstdint>
 #include <cstddef>
-#include <tuple>
+#include <cstdint>
 #include <ostream>
+#include <tuple>
+#include <vector>
 
 namespace ngraph
 {
     namespace runtime
     {
-        class NDimIndex{
+        class NDimIndex
+        {
         public:
             NDimIndex() = default;
             NDimIndex(const NDimIndex& rhs) = default;
             NDimIndex(NDimIndex&& rhs) = default;
-            NDimIndex& operator = (const NDimIndex& rhs) = default;
-            NDimIndex& operator = (NDimIndex&& rhs) = default;
+            NDimIndex& operator=(const NDimIndex& rhs) = default;
+            NDimIndex& operator=(NDimIndex&& rhs) = default;
 
             virtual ~NDimIndex() = default;
 
             NDimIndex(const std::vector<int64_t>& value,
                       const std::vector<int64_t>& low_limit,
-                      const std::vector<int64_t>& high_limit) :
-                m_value{value}, m_low_limit{low_limit}, m_high_limit{high_limit} {}
+                      const std::vector<int64_t>& high_limit)
+                : m_value{value}
+                , m_low_limit{low_limit}
+                , m_high_limit{high_limit}
+            {
+            }
 
             NDimIndex(const std::vector<std::int64_t>& value,
-                      const std::vector<int64_t>& high_limit) :
-                m_value{value},
-                m_low_limit{std::vector<std::int64_t>(value.size(), 0)},
-                m_high_limit{high_limit} {}
+                      const std::vector<int64_t>& high_limit)
+                : m_value{value}
+                , m_low_limit{std::vector<std::int64_t>(value.size(), 0)}
+                , m_high_limit{high_limit}
+            {
+            }
 
-            bool operator == (const NDimIndex& rhs) const;
-            bool operator != (const NDimIndex& rhs) const;
+            bool operator==(const NDimIndex& rhs) const;
+            bool operator!=(const NDimIndex& rhs) const;
 
-            NDimIndex& operator ++();
-            NDimIndex operator ++(int);
+            NDimIndex& operator++();
+            NDimIndex operator++(int);
 
             NDimIndex next() const;
 
-            int64_t& operator [](std::size_t idx)
-            {
-                return m_value[idx];
-            }
-
-            int64_t operator [](std::size_t idx) const
-            {
-                return m_value[idx];
-            }
-
-            std::vector<std::int64_t> get_low_limit() const
-            {
-                return m_low_limit;
-            }
-
-            std::vector<std::int64_t> get_high_limit() const
-            {
-                return m_high_limit;
-            }
-
-            std::size_t size() const
-            {
-                return m_value.size();
-            }
-
+            int64_t& operator[](std::size_t idx) { return m_value[idx]; }
+            int64_t operator[](std::size_t idx) const { return m_value[idx]; }
+            std::vector<std::int64_t> get_low_limit() const { return m_low_limit; }
+            std::vector<std::int64_t> get_high_limit() const { return m_high_limit; }
+            std::size_t size() const { return m_value.size(); }
             NDimIndex zeros() const
             {
                 return {std::vector<std::int64_t>(m_value.size(), 0), m_low_limit, m_high_limit};
@@ -87,7 +74,8 @@ namespace ngraph
 
             NDimIndex after_high_limit() const;
 
-            friend std::ostream& operator << (std::ostream& ostr, const NDimIndex& index);
+            friend std::ostream& operator<<(std::ostream& ostr, const NDimIndex& index);
+
         private:
             std::vector<std::int64_t> m_value;
             std::vector<std::int64_t> m_low_limit;

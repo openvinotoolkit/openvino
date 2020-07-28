@@ -16,36 +16,41 @@
 
 #pragma once
 
-#include <cstdint>
 #include <cstddef>
+#include <cstdint>
 #include "ndimindex.hpp"
 
 namespace ngraph
 {
     namespace runtime
     {
-        template<typename T>
-        class NDimArrayView{
+        template <typename T>
+        class NDimArrayView
+        {
         public:
             NDimArrayView() = default;
             NDimArrayView(const NDimArrayView& rhs) = default;
-            NDimArrayView& operator = (const NDimArrayView& rhs) = default;
+            NDimArrayView& operator=(const NDimArrayView& rhs) = default;
 
             virtual ~NDimArrayView() = default;
 
-            explicit NDimArrayView(T* data) : m_data{data} {}
+            explicit NDimArrayView(T* data)
+                : m_data{data}
+            {
+            }
 
-            T& operator [](const NDimIndex& index)
+            T& operator[](const NDimIndex& index)
             {
                 std::int64_t offset = get_offset(index);
                 return m_data[offset];
             }
 
-            T operator [](const NDimIndex& index) const
+            T operator[](const NDimIndex& index) const
             {
                 std::int64_t offset = get_offset(index);
                 return m_data[offset];
             }
+
         private:
             T* m_data = nullptr;
 
