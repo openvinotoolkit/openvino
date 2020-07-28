@@ -23,11 +23,9 @@
 
 #include "ngraph/log.hpp"
 #include "ngraph/ngraph.hpp"
-#include "ngraph/pass/dump_sorted.hpp"
-#include "ngraph/pass/liveness.hpp"
-#include "ngraph/pass/liveness.hpp"
 #include "ngraph/pass/manager.hpp"
 #include "ngraph/pass/visualize_tree.hpp"
+#include "pass/liveness.hpp"
 
 #include "util/test_tools.hpp"
 
