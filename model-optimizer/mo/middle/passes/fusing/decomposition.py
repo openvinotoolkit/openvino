@@ -89,7 +89,6 @@ def _fused_batch_norm_decomposition(graph: Graph, tinput: Port, toutput: Port, g
     This is common function for TF, Caffe and MXNet
     It creates Mul->Add->Mul->Add sub graph
     """
-    shape = tinput.data.get_shape()
     batch_norm_name = tinput.get_connection().get_destination().node.name
 
     # Create first Mul & Add operations
