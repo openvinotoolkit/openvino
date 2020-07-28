@@ -195,7 +195,7 @@ namespace ngraph
                     auto axes_const = default_opset::Constant::create(
                         ngraph::element::i64, Shape({axes_vector.size()}), axes_vector);
                     return {std::make_shared<ngraph::op::v4::Interpolate>(
-                        data, output_shape, axes_vector, attrs)};
+                        data, output_shape, axes_const, attrs)};
                 }
             }
 
