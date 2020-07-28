@@ -127,7 +127,7 @@ namespace ngraph
                                          supported_modes_str);
                     }
 
-                    Interpolate4Attrs attrs;
+                    InterpolateV4Attrs attrs;
                     attrs.mode = convert(interp_mode_map, mode);
                     attrs.coordinate_transformation_mode =
                         convert(transform_mode_map, transform_mode);
@@ -189,7 +189,7 @@ namespace ngraph
                     const auto inputs = node.get_ng_inputs();
                     const auto& data = inputs.at(0);
 
-                    std::vecto<int64_t> axes_vector;
+                    std::vector<int64_t> axes_vector;
                     axes_vector.insert(axes_vector.end(), axes.begin(), axes.end());
 
                     auto axes_const = default_opset::Constant::create(
