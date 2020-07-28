@@ -84,7 +84,6 @@ namespace ngraph
 
                 InterpolateV4Attrs get_resize_attrs(const onnx_import::Node& node)
                 {
-
                     auto get_str_attr = [&node](const std::string& name,
                                                 const std::string& default_value) {
                         return node.get_attribute_value<std::string>(name, default_value);
