@@ -55,13 +55,6 @@ shared_ptr<Node> op::Result::clone_with_new_inputs(const OutputVector& new_args)
     return std::move(res);
 }
 
-void op::Result::generate_adjoints(autodiff::Adjoints& adjoints, const OutputVector& deltas)
-{
-    auto delta = deltas.at(0);
-
-    adjoints.add_delta(input_value(0), delta);
-}
-
 bool op::Result::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
 {
     outputs[0]->set_unary(inputs[0]);

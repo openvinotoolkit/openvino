@@ -42,7 +42,7 @@ bool UpdateBiasesConvolutionTestModel::transform(CNNNetwork& network, LayerTrans
                 }
             }
 
-            //CNNLayerPtr convolution = dequantizationLayer->insData[0].lock()->getCreatorLayer().lock();
+            //CNNLayerPtr convolution = getCreatorLayer(dequantizationLayer->insData[0].lock()).lock();
             //CNNLayerPtr convolutionBiases = CNNNetworkHelper::getParent(*convolution, 2);
             //if (convolutionBiases == nullptr) {
             //    THROW_IE_EXCEPTION << "biases const layer was not added";

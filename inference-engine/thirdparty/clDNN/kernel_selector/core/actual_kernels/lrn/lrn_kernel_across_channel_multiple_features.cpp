@@ -27,12 +27,9 @@ ParamsKey LRNKernelAcrossChannelMultipleFeatures::GetSupportedKey() const {
     k.EnableOutputDataType(Datatype::UINT8);
     k.EnableInputLayout(DataLayout::bfyx);
     k.EnableInputLayout(DataLayout::b_fs_yx_fsv4);
-    k.EnableInputLayout(DataLayout::b_fs_yx_fsv16);
     k.EnableInputLayout(DataLayout::yxfb);
     k.EnableOutputLayout(DataLayout::bfyx);
-    k.EnableOutputLayout(DataLayout::bfyx);
     k.EnableOutputLayout(DataLayout::b_fs_yx_fsv4);
-    k.EnableOutputLayout(DataLayout::b_fs_yx_fsv16);
     k.EnableOutputLayout(DataLayout::yxfb);
     k.EnableLRNMode(LRNMode::ACROSS_CHANNEL);
     k.EnableLRNKernelDividerMode(KernelDividerMode::FIXED);
@@ -64,8 +61,7 @@ CommonDispatchData LRNKernelAcrossChannelMultipleFeatures::SetDefault(const lrn_
 
     unsigned int ofm_per_simd = GetOfmPerSimd(params);
 
-    if (input.GetLayout() == DataLayout::bfyx || input.GetLayout() == DataLayout::b_fs_yx_fsv4 ||
-        input.GetLayout() == DataLayout::b_fs_yx_fsv16) {
+    if (input.GetLayout() == DataLayout::bfyx || input.GetLayout() == DataLayout::b_fs_yx_fsv4) {
         const auto& out = params.output;
         const unsigned int alignment = out.X().v > 16 ? 32 : 16;
 
@@ -111,8 +107,8 @@ JitConstants LRNKernelAcrossChannelMultipleFeatures::GetJitConstants(const lrn_p
     unsigned int ofm_per_simd = GetOfmPerSimd(params);
     jit.AddConstant(MakeJitConstant("OFM_PER_SIMD", ofm_per_simd));
 
-    if ((input.GetLayout() == DataLayout::bfyx || input.GetLayout() == DataLayout::b_fs_yx_fsv4 ||
-         input.GetLayout() == DataLayout::b_fs_yx_fsv16) && output.X().v <= 16) {
+    if ((input.GetLayout() == DataLayout::bfyx || input.GetLayout() == DataLayout::b_fs_yx_fsv4) &&
+        output.X().v <= 16) {
         jit.AddConstant(MakeJitConstant("FORCE_SIMD_16", 1));
     }
 

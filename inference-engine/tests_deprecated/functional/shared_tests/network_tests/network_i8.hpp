@@ -350,8 +350,8 @@ protected:
             ICNNNetwork& icnnnetwork = network;
             auto networkNGraph = dynamic_cast<CNNNetworkNGraphImpl*>(&icnnnetwork);
             if (networkNGraph) {
-                std::shared_ptr<ICNNNetwork> networkPtr = networkNGraph->getCNNNetwork();
-                network = CNNNetwork(networkPtr);
+                auto netPtr = std::make_shared<details::CNNNetworkImpl>(*networkNGraph);
+                network = CNNNetwork(netPtr);
             }
 
             auto originalLayersInfo = LowPrecisionTransformationValidation::getLayers(network);
@@ -402,7 +402,11 @@ protected:
         //    PluginConfigInternalParams::KEY_LP_TRANSFORMS_MODE,
         //    transformationsParams.transformationsInPluginEnabled ? PluginConfigParams::YES : PluginConfigParams::NO);
 
-        usedNetwork = cloneNet(network);
+        if (network.getFunction()) {
+            usedNetwork = std::make_shared<InferenceEngine::details::CNNNetworkImpl>(network);
+        } else {
+            usedNetwork = cloneNet(network);
+        }
         ExecutableNetwork exeNetwork = ie.LoadNetwork(network, p.deviceName, config);
         InferRequest inferRequest = exeNetwork.CreateInferRequest();
         if (inputs.empty()) {
@@ -463,13 +467,13 @@ private:
         return (children.size() == 1) &&
                (children[0]->type == "Convolution") &&
                (children[0]->insData.size() >= 2) &&
-               (children[0]->insData[1].lock()->getCreatorLayer().lock()->name == layer.name);
+               (getCreatorLayer(children[0]->insData[1].lock()).lock()->name == layer.name);
     }
 
     static std::vector<CNNLayerPtr> getChildren(const CNNLayer& layer, const std::string& exceptionLayerName = "") {
         std::vector<CNNLayerPtr> children;
         for (const DataPtr outData : layer.outData) {
-            const std::map<std::string, CNNLayerPtr>& inputTo = outData->getInputTo();
+            const std::map<std::string, CNNLayerPtr>& inputTo = getInputTo(outData);
             for (auto it = inputTo.begin(); it != inputTo.end(); ++it) {
                 CNNLayerPtr child = it->second;
                 if (exceptionLayerName.empty() || child->name != exceptionLayerName) {

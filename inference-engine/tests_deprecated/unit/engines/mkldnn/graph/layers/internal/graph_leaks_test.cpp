@@ -47,7 +47,7 @@ protected:
         new_outputs.push_back(cnnLayer->name);
 
         for (const auto &layer : cnnLayer->outData) {
-            for (const auto &data : layer->getInputTo()) {
+            for (const auto &data : getInputTo(layer)) {
                 addOutputToEachNode(network, new_outputs, data.second);
             }
         }
@@ -250,7 +250,7 @@ TEST_F(MKLDNNGraphLeaksTests, MKLDNN_not_release_outputs_fp32) {
         std::vector<std::string> new_outputs;
 
         for (auto input : network.getInputsInfo()) {
-            for (const auto &layer : input.second->getInputData()->getInputTo()) {
+            for (const auto &layer : getInputTo(input.second->getInputData())) {
                 addOutputToEachNode(network, new_outputs, layer.second);
             }
         }

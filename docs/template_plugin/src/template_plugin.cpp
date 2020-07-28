@@ -73,8 +73,6 @@ InferenceEngine::ExecutableNetworkInternal::Ptr Plugin::LoadExeNetworkImpl(const
     }
 
     auto clonedNetwork = cloneNet(network);
-    ConstTransformer transformator(clonedNetwork.get());
-    transformator.fullTrim();
 
     return std::make_shared<ExecutableNetwork>(*clonedNetwork, cfg);
 }
@@ -175,8 +173,6 @@ InferenceEngine::Parameter Plugin::GetMetric(const std::string& name, const std:
 }
 // ! [plugin:get_metric]
 
-IE_SUPPRESS_DEPRECATED_START
-
 // ! [plugin:create_plugin_engine]
 INFERENCE_PLUGIN_API(StatusCode) CreatePluginEngine(IInferencePlugin *&plugin, ResponseDesc *resp) noexcept {
     try {
@@ -189,5 +185,3 @@ INFERENCE_PLUGIN_API(StatusCode) CreatePluginEngine(IInferencePlugin *&plugin, R
     }
 }
 // ! [plugin:create_plugin_engine]
-
-IE_SUPPRESS_DEPRECATED_END

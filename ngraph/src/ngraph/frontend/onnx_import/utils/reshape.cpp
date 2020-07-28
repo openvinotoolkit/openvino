@@ -22,6 +22,7 @@
 #include "default_opset.hpp"
 #include "ngraph/builder/make_constant.hpp"
 #include "ngraph/builder/reshape.hpp"
+#include "ngraph/op/util/op_types.hpp"
 #include "ngraph/shape.hpp"
 #include "reshape.hpp"
 
@@ -92,7 +93,7 @@ namespace ngraph
                 Shape node_shape = node->get_shape();
 
                 // If node is already a scalar, return original
-                if (node_shape.empty())
+                if (is_scalar(node_shape))
                 {
                     return node;
                 }
@@ -102,7 +103,7 @@ namespace ngraph
                              node_shape);
 
                 // If node is a Constant, recreate as Constant with Shape{}
-                if (node->is_constant())
+                if (ngraph::op::is_constant(node))
                 {
                     const auto value =
                         ngraph::as_type_ptr<default_opset::Constant>(node)->get_data_ptr();
@@ -110,10 +111,7 @@ namespace ngraph
                         node->get_element_type(), ngraph::Shape{}, value);
                 }
 
-                const auto axis =
-                    default_opset::Constant::create(element::i64, ngraph::Shape{}, {0});
-
-                return std::make_shared<default_opset::Squeeze>(node, axis);
+                return builder::opset1::reshape(node, Shape{});
             }
 
         } // namespace  reshape

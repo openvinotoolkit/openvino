@@ -15,15 +15,11 @@
 #include <vector>
 #include <unordered_set>
 #include <ngraph/ngraph.hpp>
+#include <ngraph/pass/manager.hpp>
 #include <ngraph/pass/get_output_element_elimination.hpp>
 #include <set>
-// #include <shape_infer/ie_reshaper.hpp>
 #include <string>
 
-#include <transformations/common_optimizations/common_optimizations.hpp>
-#include <transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
-#include <transformations/convert_opset2_to_opset1/convert_opset2_to_opset1.hpp>
-#include <transformations/convert_opset3_to_opset2/convert_opset3_to_opset2.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_one_hot_to_one_hot_ie.hpp>
 
 #include "ngraph_ops/eltwise.hpp"
@@ -33,9 +29,8 @@
 #include "ie_util_internal.hpp"
 #include "ie_ngraph_utils.hpp"
 #include "ie_profiling.hpp"
-#include "network_serializer.h"
+#include "network_serializer.hpp"
 #include "generic_ie.hpp"
-#include "convert_function_to_cnn_network.hpp"
 #include <shape_infer/built-in/ie_built_in_holder.hpp>
 
 using namespace std;
@@ -106,14 +101,8 @@ void CNNNetworkNGraphImpl::createDataForResult(const ::ngraph::Output<::ngraph::
     } else {
         const auto precision = details::convertPrecision(output.get_element_type());
         const auto layout = TensorDesc::getLayoutByDims(dims);
-        ptr.reset(new NGraphData(this, outName, {precision, dims, layout}));
+        ptr.reset(new Data(outName, {precision, dims, layout}));
     }
-}
-
-std::shared_ptr<ICNNNetwork> CNNNetworkNGraphImpl::getCNNNetwork() {
-    if (!cnnNetwork)
-        convertToCNNNetworkImpl();
-    return cnnNetwork;
 }
 
 CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const std::shared_ptr<Function>& nGraph)
@@ -153,15 +142,6 @@ CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const std::shared_ptr<Function>& nGra
         } else if (output.second->getPrecision() != Precision::FP32 &&
             output.second->getPrecision() != Precision::I32) {
             output.second->setPrecision(Precision::FP32);
-        }
-    }
-}
-
-CNNNetworkNGraphImpl::~CNNNetworkNGraphImpl() {
-    for (auto& data : _data) {
-        if (!data.second) continue;
-        if (auto nData = std::dynamic_pointer_cast<NGraphData>(data.second)) {
-            nData->reset();
         }
     }
 }
@@ -206,17 +186,6 @@ void CNNNetworkNGraphImpl::getInputsInfo(InputsDataMap& inputs) const noexcept {
 size_t CNNNetworkNGraphImpl::layerCount() const noexcept {
     if (cnnNetwork) return cnnNetwork->layerCount();
     return _ngraph_function->get_ops().size();
-}
-
-void CNNNetworkNGraphImpl::addLayer(const CNNLayerPtr& layer) noexcept {
-    try {
-        if (!cnnNetwork) {
-            convertToCNNNetworkImpl();
-        }
-        cnnNetwork->addLayer(layer);
-    } catch (...) {
-        return;
-    }
 }
 
 void CNNNetworkNGraphImpl::validate(int version) {
@@ -325,14 +294,14 @@ CNNNetworkNGraphImpl::reshape(const std::map<std::string, std::vector<size_t>>& 
         }
         _ngraph_function->validate_nodes_and_infer_types();
 
-        if (cnnNetwork) {
-            convertToCNNNetworkImpl();
-        } else {
+        {
             auto specialized_ngraph_function = cloneFunction(true, inputShapes);
             // Call this transformation because OneHot IE and nGraph have different output precisions
             {
                 IE_PROFILING_AUTO_SCOPE(ConvertOneHot);
-                ::ngraph::pass::ConvertOneHotToOneHotIE().run_on_function(specialized_ngraph_function);
+                ::ngraph::pass::Manager manager;
+                manager.register_pass<::ngraph::pass::ConvertOneHotToOneHotIEMatcher>()->detect_output_type(specialized_ngraph_function);
+                manager.run_passes(specialized_ngraph_function);
             }
             specialized_ngraph_function->validate_nodes_and_infer_types();
 
@@ -377,11 +346,11 @@ CNNNetworkNGraphImpl::reshape(const std::map<std::string, std::vector<size_t>>& 
             std::unordered_set<std::string> opName;
             for (const auto & layer : specialized_ngraph_function->get_ordered_ops()) {
                 if (std::dynamic_pointer_cast<::ngraph::op::Result>(layer)) {
-                    IE_ASSERT(layer->get_inputs().size() == 1);
-                    const auto& input = layer->get_inputs()[0];
-                    std::string outName = input.get_output().get_node()->get_friendly_name();
-                    if (input.get_output().get_node()->get_output_size() != 1)
-                        outName += "." + std::to_string(input.get_output().get_index());
+                    IE_ASSERT(layer->inputs().size() == 1);
+                    const auto& output = layer->input(0).get_source_output();
+                    std::string outName = output.get_node()->get_friendly_name();
+                    if (output.get_node()->get_output_size() != 1)
+                        outName += "." + std::to_string(output.get_index());
                     addOutput(outName);
                     continue;
                 }
@@ -405,8 +374,7 @@ CNNNetworkNGraphImpl::reshape(const std::map<std::string, std::vector<size_t>>& 
 
 StatusCode CNNNetworkNGraphImpl::serialize(const std::string& xmlPath, const std::string& binPath,
                                            ResponseDesc* resp) const noexcept {
-    auto network = cnnNetwork;
-    if (!network) {
+    if (!cnnNetwork) {
         // TODO: once Serialization::Serialize supports true IR v10
         // remove this conversion and WA for execution graph
         try {
@@ -429,19 +397,9 @@ StatusCode CNNNetworkNGraphImpl::serialize(const std::string& xmlPath, const std
         } catch (...) {
             return DescriptionBuffer(UNEXPECTED, resp);
         }
-
-        auto graph = cloneFunction();
-        // Disable shape inference (WA for generic operations)
-        ::ngraph::op::GenericIE::DisableReshape noReshape(graph);
-
-        ::ngraph::pass::CommonOptimizations().run_on_function(graph);
-        ::ngraph::pass::ConvertOpSet3ToOpSet2().run_on_function(graph);
-        ::ngraph::pass::ConvertOpSet2ToOpSet1().run_on_function(graph);
-        ::ngraph::pass::ConvertOpSet1ToLegacy().run_on_function(graph);
-        network = InferenceEngine::details::convertFunctionToICNNNetwork(graph, *this);
     }
-    if (!network) return GENERAL_ERROR;
-    return network->serialize(xmlPath, binPath, resp);
+
+    return DescriptionBuffer(NOT_IMPLEMENTED, resp) << "The serialize for IR v10 is not implemented";
 }
 
 StatusCode CNNNetworkNGraphImpl::setBatchSize(size_t size, ResponseDesc* responseDesc) noexcept {
@@ -492,15 +450,6 @@ StatusCode CNNNetworkNGraphImpl::setBatchSizeReshape(size_t size, ResponseDesc* 
 
 void CNNNetworkNGraphImpl::convertToCNNNetworkImpl() {
     IE_PROFILING_AUTO_SCOPE(convertToCNNNetworkImpl)
-    if (cnnNetwork)
-        return;
-    auto graph = cloneFunction();
-    // Disable shape inference (WA for generic operations)
-    ::ngraph::op::GenericIE::DisableReshape noReshape(graph);
-
-    ::ngraph::pass::CommonOptimizations().run_on_function(graph);
-    ::ngraph::pass::ConvertOpSet3ToOpSet2().run_on_function(graph);
-    ::ngraph::pass::ConvertOpSet2ToOpSet1().run_on_function(graph);
-    ::ngraph::pass::ConvertOpSet1ToLegacy().run_on_function(graph);
-    cnnNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(graph, *this);
+    if (!cnnNetwork)
+        cnnNetwork = std::make_shared<details::CNNNetworkImpl>(*this);
 }

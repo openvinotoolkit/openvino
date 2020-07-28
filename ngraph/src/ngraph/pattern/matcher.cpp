@@ -23,6 +23,7 @@
 #include "ngraph/log.hpp"
 #include "ngraph/op/get_output_element.hpp"
 #include "ngraph/op/parameter.hpp"
+#include "ngraph/op/util/op_types.hpp"
 
 namespace ngraph
 {
@@ -187,7 +188,7 @@ namespace ngraph
                 return false;
             }
 
-            if (graph_node->is_commutative())
+            if (ngraph::op::is_commutative(graph_node))
             {
                 // TODO: [nikolayk] we don't really have to use lexicographically-based perms,
                 // heap's algo should be faster
@@ -220,8 +221,6 @@ namespace ngraph
 
         bool Matcher::match(const Output<Node>& graph_value)
         {
-            // clear our state
-            m_matched_list.clear();
             return match(graph_value, PatternValueMap{});
         }
 
@@ -229,10 +228,7 @@ namespace ngraph
         bool Matcher::match(const Output<Node>& graph_value,
                             const PatternValueMap& previous_matches)
         {
-            // clear our state
-            m_match_root.reset();
-            m_pattern_map.clear();
-            m_matched_list.clear();
+            clear_state();
 
             // insert previous matches
             m_pattern_map.insert(previous_matches.cbegin(), previous_matches.cend());
@@ -248,6 +244,14 @@ namespace ngraph
         bool Matcher::match(const Output<Node>& graph_value, const PatternMap& previous_matches)
         {
             return match(graph_value, as_pattern_value_map(previous_matches));
+        }
+
+        void Matcher::clear_state()
+        {
+            m_match_root.reset();
+            m_pattern_map.clear();
+            m_pattern_value_maps.clear();
+            m_matched_list.clear();
         }
 
         namespace

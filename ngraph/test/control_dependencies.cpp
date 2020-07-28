@@ -21,7 +21,6 @@
 #include <memory>
 
 #include "gtest/gtest.h"
-#include "ngraph/autodiff/adjoints.hpp"
 #include "ngraph/file_util.hpp"
 #include "ngraph/graph_util.hpp"
 #include "ngraph/log.hpp"
@@ -35,8 +34,6 @@
 #include "ngraph/serializer.hpp"
 #include "ngraph/util.hpp"
 #include "util/all_close.hpp"
-#include "util/autodiff/backprop_function.hpp"
-#include "util/autodiff/numeric_compare.hpp"
 #include "util/ndarray.hpp"
 #include "util/random.hpp"
 #include "util/test_tools.hpp"
@@ -132,7 +129,7 @@ TEST(control_dependencies, clone_function_cdop)
     test_ordered_ops(f, NodeVector{absn});
     auto clone = ngraph::clone_function(*f.get());
     auto matcher = std::make_shared<pattern::Matcher>(cdop);
-    auto cdop_clone = clone->get_results().at(0)->get_argument(0);
+    auto cdop_clone = clone->get_results().at(0)->input_value(0).get_node_shared_ptr();
     ASSERT_TRUE(matcher->match(cdop_clone));
     auto cloned_deps = cdop_clone->get_control_dependencies();
     ASSERT_EQ(cloned_deps.size(), 1);
@@ -153,7 +150,12 @@ TEST(control_dependencies, clone_function_cdop_abs)
     auto f = make_shared<Function>(absn_cdop, ParameterVector{A, B});
     auto clone = ngraph::clone_function(*f.get());
     auto matcher = std::make_shared<pattern::Matcher>(cdop);
-    auto cdop_clone = clone->get_results().at(0)->get_argument(0)->get_argument(0);
+    auto cdop_clone = clone->get_results()
+                          .at(0)
+                          ->input_value(0)
+                          .get_node_shared_ptr()
+                          ->input_value(0)
+                          .get_node_shared_ptr();
     ASSERT_TRUE(matcher->match(cdop_clone));
     auto cloned_deps = cdop_clone->get_control_dependencies();
     ASSERT_EQ(cloned_deps.size(), 2);
@@ -200,7 +202,7 @@ TEST(control_dependencies, serialize_cdop)
     shared_ptr<Function> clone = deserialize(js);
 
     auto matcher = std::make_shared<pattern::Matcher>(cdop);
-    auto cdop_clone = clone->get_results().at(0)->get_argument(0);
+    auto cdop_clone = clone->get_results().at(0)->input_value(0).get_node_shared_ptr();
     ASSERT_TRUE(matcher->match(cdop_clone));
     auto cloned_deps = cdop_clone->get_control_dependencies();
     ASSERT_EQ(cloned_deps.size(), 1);
@@ -224,7 +226,12 @@ TEST(control_dependencies, serialize_cdop_abs)
     string js = serialize(f, 4);
     shared_ptr<Function> clone = deserialize(js);
     auto matcher = std::make_shared<pattern::Matcher>(cdop);
-    auto cdop_clone = clone->get_results().at(0)->get_argument(0)->get_argument(0);
+    auto cdop_clone = clone->get_results()
+                          .at(0)
+                          ->input_value(0)
+                          .get_node_shared_ptr()
+                          ->input_value(0)
+                          .get_node_shared_ptr();
     ASSERT_TRUE(matcher->match(cdop_clone));
     auto cloned_deps = cdop_clone->get_control_dependencies();
     ASSERT_EQ(cloned_deps.size(), 2);

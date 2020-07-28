@@ -78,8 +78,6 @@ namespace ngraph
 
                 std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
-                void generate_adjoints(autodiff::Adjoints& adjoints,
-                                       const OutputVector& deltas) override;
 
                 /// \return The strides.
                 const Strides& get_strides() const { return m_strides; }

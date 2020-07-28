@@ -8,7 +8,7 @@
 
 #include <transformations_visibility.hpp>
 
-#include <ngraph/op/experimental/layers/proposal.hpp>
+#include <ngraph/op/proposal.hpp>
 #include "ngraph/op/op.hpp"
 
 namespace ngraph {
@@ -33,7 +33,7 @@ public:
     void validate_and_infer_types() override;
 
     std::shared_ptr<Node>
-    copy_with_new_args(const NodeVector& new_args) const override;
+    clone_with_new_inputs(const OutputVector& new_args) const override;
 
     const ProposalAttrs& get_attrs() const { return m_attrs; }
 

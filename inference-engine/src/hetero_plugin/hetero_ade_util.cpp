@@ -33,7 +33,7 @@ void translateVisitLayer(VisitedLayersMap& visited,
     }
     visited.insert({layer, node});
     for (auto&& data : layer->outData) {
-        for (auto&& layerIt : data->getInputTo()) {
+        for (auto&& layerIt : getInputTo(data)) {
             auto nextLayer = layerIt.second;
             auto it = visited.find(nextLayer);
             if (visited.end() == it) {
@@ -51,7 +51,7 @@ void translateNetworkToAde(ade::Graph& gr, ICNNNetwork& network) {
     VisitedLayersMap visited;
     for (auto& data : getRootDataObjects(network)) {
         assert(nullptr != data);
-        for (auto& layerIt : data->getInputTo()) {
+        for (auto& layerIt : getInputTo(data)) {
             auto layer = layerIt.second;
             assert(nullptr != layer);
             if (!ade::util::contains(visited, layer)) {

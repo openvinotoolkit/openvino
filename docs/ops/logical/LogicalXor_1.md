@@ -1,4 +1,4 @@
-## LogicalXor <a name="LogicalXor"></a>
+## LogicalXor <a name="LogicalXor"></a> {#openvino_docs_ops_logical_LogicalXor_1}
 
 **Versioned name**: *LogicalXor-1*
 

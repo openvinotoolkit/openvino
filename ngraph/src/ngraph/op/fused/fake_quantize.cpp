@@ -149,7 +149,7 @@ NodeVector op::FakeQuantize::decompose_op() const
                                   zero_point,
                                   element::i32,
                                   axes,
-                                  op::Quantize::RoundMode::ROUND_NEAREST_TOWARD_INFINITY);
+                                  op::Quantize::RoundMode::ROUND_NEAREST_TOWARD_EVEN);
 
     quantized_data = make_shared<op::Convert>(quantized_data, input_data_type);
 
@@ -158,18 +158,6 @@ NodeVector op::FakeQuantize::decompose_op() const
 
     // shift the results so that they fall into the <output_low;output_high> range
     return {dequantized_data + output_low};
-}
-
-shared_ptr<Node> op::FakeQuantize::copy_with_new_args(const NodeVector& new_args) const
-{
-    check_new_args_count(this, new_args);
-    return make_shared<FakeQuantize>(new_args.at(0), // X
-                                     new_args.at(1), // input_low
-                                     new_args.at(2), // input_high
-                                     new_args.at(3), // output_low
-                                     new_args.at(4), // output_high
-                                     m_levels,
-                                     m_auto_broadcast);
 }
 
 shared_ptr<Node> op::FakeQuantize::clone_with_new_inputs(const OutputVector& new_args) const

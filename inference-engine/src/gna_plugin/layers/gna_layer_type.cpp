@@ -40,7 +40,7 @@ bool GNAPluginNS::AreLayersSupported(InferenceEngine::ICNNNetwork& network, std:
         return false;
     }
 
-    auto & secondLayers = inputs.begin()->second->getInputData()->getInputTo();
+    auto & secondLayers = getInputTo(inputs.begin()->second->getInputData());
     if (secondLayers.empty()) {
         errMessage = "Network consists of input layer only (GNA)\n";
         return false;

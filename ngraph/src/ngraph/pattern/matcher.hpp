@@ -128,9 +128,9 @@ namespace ngraph
             static std::shared_ptr<T> unique_match(std::shared_ptr<Node> node)
             {
                 std::shared_ptr<T> matched;
-                for (auto arg : node->get_arguments())
+                for (auto arg : node->input_values())
                 {
-                    if (auto t_casted = as_type_ptr<T>(arg))
+                    if (auto t_casted = as_type_ptr<T>(arg.get_node_shared_ptr()))
                     {
                         if (matched)
                         {
@@ -175,6 +175,8 @@ namespace ngraph
                                          const std::shared_ptr<Node>& graph_node);
 
             void capture(const std::set<Node*>& static_nodes);
+
+            void clear_state();
 
             size_t get_number_of_recurrent_matches() const { return m_pattern_value_maps.size(); }
             NodeVector get_bound_nodes_for_pattern(const Output<Node>& pattern) const;

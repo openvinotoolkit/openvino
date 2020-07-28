@@ -1,4 +1,4 @@
-# Hello Query Device Python* Sample
+# Hello Query Device Python* Sample {#openvino_inference_engine_ie_bridges_python_sample_hello_query_device_README}
 
 This topic demonstrates how to run the Hello Query Device sample application, which queries Inference Engine 
 devices and prints their metrics and default configuration values. The sample shows 
@@ -47,4 +47,4 @@ Available devices:
 		RANGE_FOR_STREAMS: 6
 ```
 ## See Also
-* [Using Inference Engine Samples](./docs/IE_DG/Samples_Overview.md)
+* [Using Inference Engine Samples](../../../../../docs/IE_DG/Samples_Overview.md)

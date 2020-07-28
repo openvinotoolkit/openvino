@@ -1,4 +1,4 @@
-## LSTMSequence <a name="LSTMSequence"></a>
+## LSTMSequence <a name="LSTMSequence"></a> {#openvino_docs_ops_sequence_LSTMSequence_1}
 
 **Versioned name**: *LSTMSequence-1*
 
@@ -55,24 +55,88 @@ A single cell in the sequence is implemented in the same way as in <a href="#LST
 
 **Inputs**
 
-* **1**: `X` - 3D ([batch_size, seq_length, input_size]) input data. It differs from LSTMCell 1st input only by additional axis with size `seq_length`. Floating point type. Required.
+* **1**: `X` - 3D tensor of type *T1* `[batch_size, seq_length, input_size]`, input data. It differs from LSTMCell 1st input only by additional axis with size `seq_length`. **Required.**
 
-* **2**: `initial_hidden_state` - 3D ([batch_size, num_directions, hidden_size]) input hidden state data. Floating point type. Required.
+* **2**: `initial_hidden_state` - 3D tensor of type *T1* `[batch_size, num_directions, hidden_size]`, input hidden state data. **Required.**
 
-* **3**: `initial_cell_state` - 3D ([batch_size, num_directions, hidden_size]) input cell state data. Floating point type. Required.
+* **3**: `initial_cell_state` - 3D tensor of type *T1* `[batch_size, num_directions, hidden_size]`, input cell state data. **Required.**
 
-* **4**: `sequence_lengths` - 1D ([batch_size]) specifies real sequence lengths for each batch element. Integer type. Required.
+* **4**: `sequence_lengths` - 1D tensor of type *T2* `[batch_size]`, specifies real sequence lengths for each batch element. **Required.**
 
-* **5**: `W` - 3D tensor with weights for matrix multiplication operation with input portion of data, shape is `[num_directions, 4 * hidden_size, input_size]`, output gate order: fico. Floating point type. Required.
+* **5**: `W` - 3D tensor of type *T1* `[num_directions, 4 * hidden_size, input_size]`, the weights for matrix multiplication, gate order: fico. **Required.**
 
-* **6**: `R` - 3D tensor with weights for matrix multiplication operation with hidden state, shape is `[num_directions, 4 * hidden_size, hidden_size]`, output gate order: fico. Floating point type. Required.
+* **6**: `R` - 3D tensor of type *T1* `[num_directions, 4 * hidden_size, hidden_size]`, the recurrence weights for matrix multiplication, gate order: fico. **Required.**
 
-* **7**: `B` - 2D tensor with biases, shape is `[num_directions, 4 * hidden_size]`. Floating point type. Required.
+* **7**: `B` - 2D tensor of type *T1* `[num_directions, 4 * hidden_size]`, the sum of biases (weights and recurrence weights). **Required.**
 
 **Outputs**
 
-* **1**: `Y` – 3D output, shape [batch_size, num_directions, seq_len, hidden_size]
+* **1**: `Y` – 3D tensor of type *T1* `[batch_size, num_directions, seq_len, hidden_size]`, concatenation of all the intermediate output values of the hidden.
 
-* **2**: `Ho` - 3D ([batch_size, num_directions, hidden_size]) output hidden state.
+* **2**: `Ho` - 3D tensor of type *T1* `[batch_size, num_directions, hidden_size]`, the last output value of hidden state.
 
-* **3**: `Co` - 3D ([batch_size, num_directions, hidden_size]) output cell state.
+* **3**: `Co` - 3D tensor of type *T1* `[batch_size, num_directions, hidden_size]`, the last output value of cell state.
+
+**Types**
+
+* *T1*: any supported floating point type.
+* *T2*: any supported integer type.
+
+**Example**
+```xml
+<layer ... type="LSTMSequence" ...>
+    <data hidden_size="128"/>
+    <input>
+        <port id="0">
+            <dim>1</dim>
+            <dim>4</dim>
+            <dim>16</dim>
+        </port>
+        <port id="1">
+            <dim>1</dim>
+            <dim>1</dim>
+            <dim>128</dim>
+        </port>
+        <port id="2">
+            <dim>1</dim>
+            <dim>1</dim>
+            <dim>128</dim>
+        </port>
+        <port id="3">
+            <dim>1</dim>
+        </port>
+         <port id="4">
+            <dim>1</dim>
+            <dim>512</dim>
+            <dim>16</dim>
+        </port>
+         <port id="5">
+            <dim>1</dim>
+            <dim>512</dim>
+            <dim>128</dim>
+        </port>
+         <port id="6">
+            <dim>1</dim>
+            <dim>512</dim>
+        </port>
+    </input>
+    <output>
+        <port id="7">
+            <dim>1</dim>
+            <dim>1</dim>
+            <dim>4</dim>
+            <dim>128</dim>
+        </port>
+        <port id="8">
+            <dim>1</dim>
+            <dim>1</dim>
+            <dim>128</dim>
+        </port>
+        <port id="9">
+            <dim>1</dim>
+            <dim>1</dim>
+            <dim>128</dim>
+        </port>
+    </output>
+</layer>
+```

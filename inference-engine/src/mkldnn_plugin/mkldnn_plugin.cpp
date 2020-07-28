@@ -15,6 +15,8 @@
 #include <ie_system_conf.h>
 #include <generic_ie.hpp>
 #include <nodes/list.hpp>
+#include <ie_util_internal.hpp>
+#include <graph_transformer.h>
 
 #include "convert_function_to_cnn_network.hpp"
 #include <transformations/common_optimizations/common_optimizations.hpp>
@@ -26,6 +28,8 @@
 #include <ngraph/opsets/opset2.hpp>
 #include <ngraph/opsets/opset3.hpp>
 #include <ngraph/op/fused/gelu.hpp>
+#include <ngraph/op/util/op_types.hpp>
+#include <ngraph/pass/manager.hpp>
 #include "ngraph_ops/fully_connected.hpp"
 
 #if !defined(__arm__) && !defined(_M_ARM) && !defined(__aarch64__) && !defined(_M_ARM64)
@@ -76,10 +80,15 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork) {
     ::ngraph::op::GenericIE::DisableReshape noReshape(nGraphFunc);
 
     // Note: instead of running all Conversion Transformations you can make up your own transformation pipeline
-    ngraph::pass::CommonOptimizations(transformations_callback).run_on_function(nGraphFunc);
-    ngraph::pass::ConvertOpSet3ToOpSet2(transformations_callback).run_on_function(nGraphFunc);
-    ngraph::pass::ConvertOpSet2ToOpSet1(transformations_callback).run_on_function(nGraphFunc);
-    ngraph::pass::ConvertOpSet1ToLegacy(transformations_callback).run_on_function(nGraphFunc);
+    ngraph::pass::Manager manager;
+    manager.register_pass<ngraph::pass::CommonOptimizations>();
+    manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
+    manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
+    manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
+
+    manager.set_callback(transformations_callback);
+    manager.run_passes(nGraphFunc);
+
     clonedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(nGraphFunc, *clonedNetwork);
 }
 
@@ -227,7 +236,7 @@ void Engine::QueryNetwork(const ICNNNetwork& network, const std::map<std::string
     if (function != nullptr) {
         std::unordered_set<std::string> originalOps;
         for (auto&& node : function->get_ops()) {
-            if (!node->is_constant() && !node->is_parameter() && !node->is_output()) {
+            if (!ngraph::op::is_constant(node) && !ngraph::op::is_parameter(node) && !ngraph::op::is_output(node)) {
                 originalOps.emplace(node->get_friendly_name());
             }
         }

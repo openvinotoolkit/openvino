@@ -89,7 +89,6 @@ TestResult common_test_pipeline(const std::function<void()>& test_pipeline, cons
             progress_str = std::to_string(iteration) + "\t" + std::to_string(sliding_avg[VMRSS]) + "\t" +
                            std::to_string(sliding_avg[VMHWM]) + "\t" + std::to_string(sliding_avg[VMSIZE]) + "\t" +
                            std::to_string(sliding_avg[VMPEAK]) + "\t" + std::to_string(sliding_avg[THREADS]);
-            log_info(progress_str);
 
             // compute test info
             if (iteration >= WARMUP_STEPS) {
@@ -136,6 +135,7 @@ TestResult common_test_pipeline(const std::function<void()>& test_pipeline, cons
                 if (outlier[VMRSS]) progress_str += "\t<-VMRSS outlier";
                 if (outlier[VMHWM]) progress_str += "\t<-VMHWM outlier";
             }
+            log_info(progress_str);
         }
     }
 

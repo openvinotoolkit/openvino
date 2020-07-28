@@ -33,7 +33,7 @@ TEST(op, is_op)
 {
     auto arg0 = make_shared<op::Parameter>(element::f32, Shape{1});
     ASSERT_NE(nullptr, arg0);
-    EXPECT_TRUE(arg0->is_parameter());
+    EXPECT_TRUE(op::is_parameter(arg0));
 }
 
 TEST(op, is_parameter)
@@ -42,7 +42,7 @@ TEST(op, is_parameter)
     ASSERT_NE(nullptr, arg0);
     auto t0 = make_shared<op::Add>(arg0, arg0);
     ASSERT_NE(nullptr, t0);
-    EXPECT_FALSE(t0->is_parameter());
+    EXPECT_FALSE(op::is_parameter(t0));
 }
 
 TEST(op, provenance_tag)
@@ -69,6 +69,11 @@ struct Ship
 
 namespace ngraph
 {
+    template <typename T>
+    VariantImpl<T>::~VariantImpl()
+    {
+    }
+
     template <>
     class VariantWrapper<Ship> : public VariantImpl<Ship>
     {
@@ -109,21 +114,3 @@ TEST(op, variant)
     Ship& node_ship = as_type_ptr<VariantWrapper<Ship>>(node_var_ship)->get();
     EXPECT_EQ(&node_ship, &ship);
 }
-
-// TODO: Need to mock Node, Op etc to be able to unit test functions like replace_node().
-// Mocking them directly isn't possible because google test requires methods to be
-// non-virtual. For non-virtual methods we will need to templatize these classes and call using
-// different template argument between testing and production.
-/*
-TEST(op, provenance_replace_node)
-{
-    class MockOp: public op::Op
-    {
-        MOCK_CONST_METHOD1(copy_with_new_args, std::shared_ptr<Node>(const NodeVector& new_args));
-        MOCK_CONST_METHOD1(get_users, NodeVector (bool check_is_used)); // This can't be mocked as
-                                                                        // it's non-virtual
-    };
-
-    ::testing::NiceMock<MockOp> mock_op;
-}
-*/

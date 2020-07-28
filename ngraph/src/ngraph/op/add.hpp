@@ -57,13 +57,8 @@ namespace ngraph
                     clone_with_new_inputs(const OutputVector& new_args) const override;
 
                 bool visit_attributes(AttributeVisitor& visitor) override;
-                virtual bool is_commutative() const override { return true; }
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) override;
-
-            protected:
-                virtual void generate_adjoints(autodiff::Adjoints& adjoints,
-                                               const OutputVector& deltas) override;
             };
         } // namespace v0
 
@@ -101,14 +96,9 @@ namespace ngraph
                 std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
                 bool visit_attributes(AttributeVisitor& visitor) override;
-                virtual bool is_commutative() const override { return true; }
                 size_t get_version() const override { return 1; }
                 bool evaluate(const HostTensorVector& outputs,
                               const HostTensorVector& inputs) override;
-
-            protected:
-                virtual void generate_adjoints(autodiff::Adjoints& adjoints,
-                                               const OutputVector& deltas) override;
             };
 
         } // namespace v1
