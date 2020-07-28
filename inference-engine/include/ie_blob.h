@@ -29,6 +29,7 @@
 #include "ie_precision.hpp"
 
 namespace InferenceEngine {
+
 /**
  * @brief This class represents a universal container in the Inference Engine
  *
@@ -198,6 +199,17 @@ public:
      * @return A LockedMemory object
      */
     virtual LockedMemory<const void> cbuffer() const noexcept = 0;
+
+    /**
+     * @brief Creates a blob describing given ROI object based on the current blob with memory sharing.
+     *
+     * Note: default implementation throws "not implemented" exception.
+     *
+     * @param roi A ROI object inside of the current blob.
+     *
+     * @return A shared pointer to the newly created ROI blob.
+     */
+    virtual Blob::Ptr createROI(const ROI& roi) const;
 
 protected:
     /**
@@ -437,8 +449,6 @@ public:
      */
     virtual LockedMemory<void> wmap()noexcept = 0;
 
-
-
 protected:
     /**
      * @brief Gets the allocator for allocator-based blobs.
@@ -594,10 +604,18 @@ public:
      * @brief Allocates or reallocates memory
      */
     void allocate() noexcept override {
-        if (_handle != nullptr) {
-            getAllocator()->free(_handle);
+        const auto allocator = getAllocator();
+        const auto rawHandle = allocator->alloc(size() * sizeof(T));
+
+        if (rawHandle == nullptr) {
+            return;
         }
-        _handle = getAllocator()->alloc(size() * sizeof(T));
+
+        _handle.reset(
+            rawHandle,
+            [allocator](void* rawHandle) {
+                allocator->free(rawHandle);
+            });
     }
 
     /**
@@ -634,6 +652,10 @@ public:
     }
     LockedMemory<void> wmap()noexcept override {
         return std::move(lockme<void>());
+    }
+
+    Blob::Ptr createROI(const ROI& roi) const override {
+        return Blob::Ptr(new TBlob<T>(*this, roi));
     }
 
     /**
@@ -689,7 +711,7 @@ protected:
     /**
      * @brief A handle for the stored memory returned from _allocator.alloc().
      */
-    void* _handle = nullptr;
+    std::shared_ptr<void> _handle;
 
     /**
      * @brief Copies dimensions and data from the TBlob object.
@@ -720,8 +742,8 @@ protected:
      * @brief Frees handler and cleans up the stored data.
      */
     virtual bool free() {
-        bool bCanRelease = getAllocator()->free(_handle);
-        _handle = nullptr;
+        bool bCanRelease = _handle != nullptr;
+        _handle.reset();
         return bCanRelease;
     }
 
@@ -733,7 +755,7 @@ protected:
      */
     template <class S>
     LockedMemory<S> lockme() const {
-        return LockedMemory<S>(_allocator.get(), _handle, 0);
+        return LockedMemory<S>(_allocator.get(), getHandle(), 0);
     }
 
     /**
@@ -754,7 +776,16 @@ protected:
      * @brief Returns handle to the stored data.
      */
     void* getHandle() const noexcept override {
-        return _handle;
+        return _handle.get();
+    }
+
+    TBlob(const TBlob& origBlob, const ROI& roi) :
+            MemoryBlob(make_roi_desc(origBlob.getTensorDesc(), roi, true)),
+            _allocator(origBlob._allocator) {
+        IE_ASSERT(origBlob._handle != nullptr)
+            << "Original Blob must be allocated before ROI creation";
+
+        _handle = origBlob._handle;
     }
 };
 
@@ -845,17 +876,6 @@ template <typename T, typename... Args, typename std::enable_if<std::is_base_of<
 std::shared_ptr<T> make_shared_blob(Args&&... args) {
     return std::make_shared<T>(std::forward<Args>(args)...);
 }
-
-/**
- * @brief This structure describes ROI data.
- */
-struct ROI {
-    size_t id;  //!< ID of a ROI
-    size_t posX;  //!< W upper left coordinate of ROI
-    size_t posY;  //!< H upper left coordinate of ROI
-    size_t sizeX;  //!< W size of ROI
-    size_t sizeY;  //!< H size of ROI
-};
 
 /**
  * @brief Creates a blob describing given ROI object based on the given blob with pre-allocated memory.
