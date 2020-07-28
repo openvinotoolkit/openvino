@@ -32,8 +32,6 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip setuptools
-          # For Pylint
-          pip install pylint==2.5.0 pyenchant==1.6.11
           # For UT
           pip install unittest-xml-reporting==3.0.2
           # MO requirements
