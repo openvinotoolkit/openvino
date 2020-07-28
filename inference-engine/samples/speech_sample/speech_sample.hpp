@@ -145,6 +145,9 @@ DEFINE_int32(cw_r, 0, context_window_message_r);
 /// @brief Left context window size (default 0)
 DEFINE_int32(cw_l, 0, context_window_message_l);
 
+/// @brief outputs name
+DEFINE_string(oname, "", context_window_message_l);
+
 /**
  * \brief This function show a help message
  */

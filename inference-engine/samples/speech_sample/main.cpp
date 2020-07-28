@@ -740,7 +740,19 @@ int main(int argc, char *argv[]) {
             outputInfo = network.getOutputsInfo();
         }
 
-        Blob::Ptr ptrOutputBlob = inferRequests.begin()->inferRequest.GetBlob(cOutputInfo.rbegin()->first);
+        std::vector<Blob::Ptr> ptrOutputBlob;
+        std::string string_oname = FLAGS_oname;
+        std::vector<std::string> string_output;
+        size_t pos = 0;
+        while ((pos = string_oname.find(".")) != std::string::npos) {
+            string_output.push_back(string_oname.substr(0, pos));
+            string_oname.erase(0, pos + 1);
+        }
+        for (std::string output : string_output) {
+//            ptrOutputBlob.push_back(inferRequests.begin()->inferRequest.GetBlob(output.first));
+            ptrOutputBlob.push_back(inferRequests.begin()->inferRequest.GetBlob(output));
+        }
+//        Blob::Ptr ptrOutputBlob = inferRequests.begin()->inferRequest.GetBlob(cOutputInfo.rbegin()->first);
 
         for (auto &item : outputInfo) {
             DataPtr outData = item.second;
@@ -774,7 +786,7 @@ int main(int argc, char *argv[]) {
 
             uint32_t numFramesReference(0), numFrameElementsReference(0), numBytesPerElementReference(0),
                     numBytesReferenceScoreThisUtterance(0);
-            const uint32_t numScoresPerFrame = ptrOutputBlob->size() / batchSize;
+            const uint32_t numScoresPerFrame = ptrOutputBlob.size() / batchSize;
 
             numFrameElementsInput.resize(numInputArkFiles);
             for (size_t i = 0; i < inputArkFiles.size(); i++) {
