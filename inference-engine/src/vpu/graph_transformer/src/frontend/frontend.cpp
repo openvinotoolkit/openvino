@@ -381,7 +381,8 @@ ModelPtr FrontEnd::runCommonPasses(ie::ICNNNetwork& network, const UnsupportedLa
         auto convertNetwork = [&convertedNetwork, &originalOrConvertNetwork]() {
             // disable GeLU decomposition
             const auto transformationsPredicate = [](const std::shared_ptr<const ::ngraph::Node> &node) -> bool {
-                return std::dynamic_pointer_cast<const ::ngraph::opset3::Gelu>(node) != nullptr;
+                return std::dynamic_pointer_cast<const ::ngraph::opset3::Gelu>(node) ||
+                       std::dynamic_pointer_cast<const ::ngraph::opset3::MatMul>(node);
             };
 
             auto nGraphFunc = originalOrConvertNetwork->getFunction();
