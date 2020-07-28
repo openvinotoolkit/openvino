@@ -154,8 +154,7 @@ namespace ngraph
                     {
                     }
 
-                    InterpolateAttrs(AxisSet axes,
-                                     InterpolateMode mode,
+                    InterpolateAttrs(InterpolateMode mode,
                                      std::vector<size_t> pads_begin,
                                      std::vector<size_t> pads_end,
                                      CoordinateTransformMode coordinate_transformation_mode =
@@ -163,8 +162,7 @@ namespace ngraph
                                      NearestMode nearest_mode = NearestMode::round_prefer_floor,
                                      bool antialias = false,
                                      double cube_coeff = -0.75)
-                        : axes(axes)
-                        , mode(mode)
+                        : mode(mode)
                         , pads_begin(pads_begin)
                         , pads_end(pads_end)
                         , coordinate_transformation_mode(coordinate_transformation_mode)
