@@ -42,7 +42,6 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
 endif()
 
 set(SRC
-    algebraic_simplification.cpp
     aligned_buffer.cpp
     all_close_f.cpp
     assertion.cpp
@@ -58,8 +57,6 @@ set(SRC
     coordinate.cpp
     copy.cpp
     cpio.cpp
-    cse.cpp
-    dyn_elimination.cpp
     element_type.cpp
     eval.cpp
     file_util.cpp
@@ -98,16 +95,12 @@ set(SRC
     opset_pass/topk_opset_pass.cpp
     opset_pass/transpose_opset_pass.cpp
     partial_shape.cpp
-    pass.cpp
     pass_liveness.cpp
     pass_manager.cpp
-    pass_memory_layout.cpp
     pass_shape_relevance.cpp
     pattern.cpp
     provenance.cpp
     replace_node.cpp
-    reshape_elimination.cpp
-    reshape_sinking.cpp
     shape.cpp
     specialize_function.cpp
     tensor.cpp
@@ -195,14 +188,7 @@ set(SRC
     type_prop_benchmark.cpp
     type_prop_layers.cpp
     util.cpp
-    zero_dim_tensor_elimination.cpp
 )
-
-if(NGRAPH_INTERPRETER_ENABLE)
-    list(APPEND SRC
-        concat_fusion.cpp
-    )
-endif()
 
 # This code generates one source file per header file under ngraph/src where the source file
 # has just a single #include statement. This checks that each header in the source tree is

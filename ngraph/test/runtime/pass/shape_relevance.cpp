@@ -14,7 +14,7 @@
 // limitations under the License.
 //*****************************************************************************
 
-#include "ngraph/pass/shape_relevance.hpp"
+#include "pass/shape_relevance.hpp"
 #include "ngraph/graph_util.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/util/op_types.hpp"
