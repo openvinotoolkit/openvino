@@ -14,17 +14,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-INSTALLDIR="${INTEL_OPENVINO_DIR:-<INSTALLDIR>}"
-if [[ ! -d "${INSTALLDIR}" ]]; then
-  # Script has not been processed by installer, so INSTALLDIR is not valid
-  # Using autodetection assuming:
-  # - current shell is "bash"
-  # - location of the current script is in "INSTALLDIR/bin"
-  SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
-  BASE_DIR="$( dirname "$SCRIPT_DIR" )"
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+BASE_DIR="$( dirname "$SCRIPT_DIR" )"
 
-  INSTALLDIR="${BASE_DIR}"
-fi
+INSTALLDIR="${BASE_DIR}"
+
 
 export INTEL_OPENVINO_DIR="$INSTALLDIR"
 export INTEL_CVSDK_DIR="$INTEL_OPENVINO_DIR"
