@@ -3,7 +3,6 @@
 //
 
 #include <gtest/gtest.h>
-#include <tests_common.hpp>
 #include <memory>
 
 #include <ie_common.h>
@@ -13,15 +12,16 @@
 #include <vpu/graph_transformer.hpp>
 #include <vpu/utils/logger.hpp>
 
-#include <myriad_plugin/myriad_config.h>
 #include <ngraph/op/util/attr_types.hpp>
 #include <ngraph_functions/subgraph_builders.hpp>
+
+#include <unit_test_utils/mocks/cpp_interfaces/interface/mock_icore.hpp>
 
 using namespace ::testing;
 using namespace vpu;
 using namespace InferenceEngine;
 
-class VPUBlobReaderHeaderTests: public TestsCommon, public testing::WithParamInterface<std::vector<size_t>> {
+class VPUBlobReaderHeaderTests: public ::testing::Test, public testing::WithParamInterface<std::vector<size_t>> {
 private:
     std::vector<size_t> inputShape;
 
@@ -50,11 +50,12 @@ public:
 
         CompilationConfig compileConfig;
         auto log = std::make_shared<Logger>("GraphCompiler", LogLevel::None, consoleOutput());
-        _compiledGraph = compileNetwork(_network, Platform::MYRIAD_X, compileConfig, log);
+        _compiledGraph = compileNetwork(_network, Platform::MYRIAD_X, compileConfig, log, &_mockCore);
     }
 
     CNNNetwork _network;
     CompiledGraph::Ptr _compiledGraph;
+    MockICore _mockCore;
 };
 
 TEST_P(VPUBlobReaderHeaderTests, canReadCorrectMagicNumber) {
@@ -113,7 +114,7 @@ TEST_P(VPUBlobReaderInputTests, canGetCorrectInputDimsFromImportedNetwork) {
         auto actualDims = actual.second->getTensorDesc().getDims();
         size_t actualTotalSize = std::accumulate(actualDims.begin(), actualDims.end(), 1, std::multiplies<size_t>());
 
-        ASSERT_TRUE(expectedNetworkInputs.count(actual.first) > 0);
+        ASSERT_GT(expectedNetworkInputs.count(actual.first), 0);
         auto expectedDims = expectedNetworkInputs[actual.first]->getTensorDesc().getDims();
         size_t expectedTotalSize = std::accumulate(expectedDims.begin(), expectedDims.end(), 1, std::multiplies<size_t>());
 
@@ -130,11 +131,11 @@ TEST_P(VPUBlobReaderInputTests, canGetCorrectInputNamesFromImportedNetwork) {
     auto expectedNetworkInputs = _network.getInputsInfo();
 
     for (auto&& actual : parsedNetworkInputs) {
-        ASSERT_TRUE(expectedNetworkInputs.count(actual.first) > 0);
+        ASSERT_GT(expectedNetworkInputs.count(actual.first), 0);
     }
 
     for (auto&& expected : expectedNetworkInputs) {
-        ASSERT_TRUE(parsedNetworkInputs.count(expected.first) > 0);
+        ASSERT_GT(parsedNetworkInputs.count(expected.first), 0);
     }
 }
 
@@ -169,7 +170,7 @@ TEST_P(VPUBlobReaderOutputTests, canGetCorrectOutputDimsFromImportedNetwork) {
         auto actualDims = actual.second->getDims();
         size_t actualTotalSize = std::accumulate(actualDims.begin(), actualDims.end(), 1, std::multiplies<size_t>());
 
-        ASSERT_TRUE(expectedNetworkOutputs.count(actual.first) > 0);
+        ASSERT_GT(expectedNetworkOutputs.count(actual.first), 0);
         auto expectedDims = expectedNetworkOutputs[actual.first]->getDims();
         size_t expectedTotalSize = std::accumulate(expectedDims.begin(), expectedDims.end(), 1, std::multiplies<size_t>());
 
@@ -186,11 +187,11 @@ TEST_P(VPUBlobReaderOutputTests, canGetCorrectOutputNamesFromImportedNetwork) {
     auto expectedNetworkOutputs = _network.getOutputsInfo();
 
     for (auto&& actual : parsedNetworkOutputs) {
-        ASSERT_TRUE(expectedNetworkOutputs.count(actual.first) > 0);
+        ASSERT_GT(expectedNetworkOutputs.count(actual.first), 0);
     }
 
     for (auto&& expected : expectedNetworkOutputs) {
-        ASSERT_TRUE(parsedNetworkOutputs.count(expected.first) > 0);
+        ASSERT_GT(parsedNetworkOutputs.count(expected.first), 0);
     }
 }
 
