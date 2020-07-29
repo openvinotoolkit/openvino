@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2020 Intel Corporation
+﻿// Copyright (C) 2020 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -25,10 +25,11 @@ void ReshapeTransformation::registerMatcherIn(GraphRewrite &pass, Transformation
         make_op_pattern<opset1::Reshape>({ make_op_label<opset1::Multiply>(), make_op_label<opset1::Constant>() }));
 }
 
-void broadcast(std::shared_ptr<Node>& reshape) {
+void reshapeDequantizationConstant(std::shared_ptr<Node>& reshape) {
     FakeQuantizeDequantization dequantization = NetworkHelper::getDequantization(reshape, 0);
     if (dequantization.multiply->get_input_node_ptr(1)->get_output_shape(0).size() > 1ul) {
-        auto replace = [](const std::shared_ptr<Node>& reshape, const std::shared_ptr<Node>& op) {
+        // TODO: refactor: use constant instead op
+        auto replaceConstant = [](const std::shared_ptr<Node>& reshape, const std::shared_ptr<Node>& op) {
             std::vector<size_t> resultShape(reshape->get_output_shape(0).size(), 1ul);
 
             std::vector<size_t> actualShape = op->get_input_node_ptr(1)->get_output_shape(0);
@@ -45,11 +46,11 @@ void broadcast(std::shared_ptr<Node>& reshape) {
         };
 
         if (dequantization.subtract != nullptr) {
-            replace(reshape, dequantization.subtract);
+            replaceConstant(reshape, dequantization.subtract);
         }
 
         if (dequantization.multiply != nullptr) {
-            replace(reshape, dequantization.multiply);
+            replaceConstant(reshape, dequantization.multiply);
         }
     }
 }
@@ -63,8 +64,8 @@ void ReshapeTransformation::transform(TransformationContext& context, ngraph::pa
 
     reshape = separateInStandaloneBranch(reshape);
 
-    broadcast(reshape);
-    moveDequantizationAfter(context, reshape, NetworkHelper::getDequantization(reshape, 0), true);
+    reshapeDequantizationConstant(reshape);
+    moveDequantizationAfter(context, reshape, NetworkHelper::getDequantization(reshape, 0), false);
 }
 
 bool ReshapeTransformation::isPrecisionPreserved(std::shared_ptr<Node> op) const noexcept {

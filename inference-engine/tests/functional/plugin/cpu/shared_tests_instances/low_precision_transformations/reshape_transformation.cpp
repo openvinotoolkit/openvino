@@ -34,7 +34,3 @@ INSTANTIATE_TEST_CASE_P(LPT, ReshapeTransformation,
         ::testing::ValuesIn(versions)),
     ReshapeTransformation::getTestCaseName);
 }  // namespace
-
-
-
-

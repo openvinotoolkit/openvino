@@ -652,28 +652,28 @@ NetworkHelper::InsertDequantizationResult NetworkHelper::moveDequantizationAfter
 
     std::shared_ptr<ngraph::Node> newOperation = operation->clone_with_new_inputs(inputs);
     newOperation->set_friendly_name(operation->get_friendly_name());
+    bool shouldConvert = (newOperation->get_output_element_type(0) != dequantization.multiply->get_output_element_type(0));
+    const std::shared_ptr<ngraph::opset1::Convert> convert = (updatePrecision || shouldConvert) ? dequantization.convert : nullptr;
 
-    const std::shared_ptr<ngraph::opset1::Convert> convert = updatePrecision ? dequantization.convert : nullptr;
-
-    std::shared_ptr<opset1::Multiply> replacement = std::make_shared<opset1::Multiply>(
-        dequantization.subtract ?
-            (convert ?
-                std::make_shared<opset1::Subtract>(
-                    convert->clone_with_new_inputs({ newOperation }),
-                    dequantization.subtract->get_input_node_shared_ptr(1)->clone_with_new_inputs({})) :
-                std::make_shared<opset1::Subtract>(
-                    newOperation,
-                    dequantization.subtract->get_input_node_shared_ptr(1)->clone_with_new_inputs({}))) :
-            (convert ? convert->clone_with_new_inputs({ newOperation }) : newOperation),
-        dequantization.multiply->get_input_node_shared_ptr(1)->clone_with_new_inputs({}));
-
-    replace_node(operation, replacement);
+    auto parent = newOperation;
+    if (convert != nullptr) {
+        parent = std::make_shared<opset1::Convert>(parent, convert->get_output_element_type(0));
+    }
+    if (dequantization.subtract != nullptr) {
+        auto subtractConstant = dequantization.subtract->get_input_node_shared_ptr(1);
+        parent = std::make_shared<opset1::Subtract>(parent, subtractConstant);
+    }
+    if (dequantization.multiply != nullptr) {
+        auto multiplyConstant = dequantization.multiply->get_input_node_shared_ptr(1);
+        parent = std::make_shared<opset1::Multiply>(parent, multiplyConstant);
+    }
+    replace_node(operation, parent);
 
     if (updatePrecision) {
         NetworkHelper::setOutDataPrecision(newOperation, newOperation->get_input_element_type(0));
     }
 
-    return InsertDequantizationResult(newOperation, replacement);
+    return InsertDequantizationResult(newOperation, parent);
 }
 
 NetworkHelper::InsertDequantizationResult NetworkHelper::moveMultiplyAfter(

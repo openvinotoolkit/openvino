@@ -37,6 +37,7 @@
 #include "transformations/low_precision/reshape.hpp"
 #include "transformations/low_precision/relu.hpp"
 #include "transformations/low_precision/subtract.hpp"
+#include "transformations/low_precision/transpose.hpp"
 
 // uncomment to display precision info during low precision transformations
 // #define DISPLAY_PECISION
@@ -170,6 +171,7 @@ LowPrecisionTransformations LowPrecisionTransformer::getAllTransformations(const
         add<NormalizeL2Transformation, opset1::NormalizeL2>(params).
         add<ReshapeTransformation, opset1::Reshape>(params).
         add<ReluTransformation, opset1::Relu>(params).
+        add<TransposeTransformation, opset1::Transpose>(params).
 
         addCleanup<FuseFakeQuantizeTransformation, opset1::FakeQuantize>(params).
         // workaround: Convert I8 -> FP32 is not supported by CPU plugin
@@ -207,7 +209,7 @@ void make_matcher_type_relaxed(ngraph::pass::GraphRewrite* transformation) {
 }
 
 TypeRelaxedReplacer::TypeRelaxedReplacer() {
-    // List all operations that support polymorphic inputs/outputs
+    make_matcher_type_relaxed<opset1::Add>(this);
     make_matcher_type_relaxed<opset1::AvgPool>(this);
     make_matcher_type_relaxed<opset1::Clamp>(this);
     make_matcher_type_relaxed<opset1::Concat>(this);
@@ -216,12 +218,10 @@ TypeRelaxedReplacer::TypeRelaxedReplacer() {
     make_matcher_type_relaxed<opset1::FakeQuantize>(this);
     make_matcher_type_relaxed<opset1::GroupConvolution>(this);
     make_matcher_type_relaxed<opset1::Relu>(this);
-    make_matcher_type_relaxed<opset1::Reshape>(this);
     make_matcher_type_relaxed<opset1::MaxPool>(this);
-    make_matcher_type_relaxed<opset1::Add>(this);
     make_matcher_type_relaxed<opset1::Subtract>(this);
-    make_matcher_type_relaxed<opset1::NormalizeL2>(this);
     make_matcher_type_relaxed<opset1::Multiply>(this);
+    make_matcher_type_relaxed<opset1::NormalizeL2>(this);
 }
 
 LowPrecisionTransformer::LowPrecisionTransformer(const LowPrecisionTransformations& transformations)

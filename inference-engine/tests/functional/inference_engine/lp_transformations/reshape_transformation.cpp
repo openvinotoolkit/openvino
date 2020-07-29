@@ -41,7 +41,7 @@ public:
     };
 
     ngraph::Shape inputShape;
-    std::vector<int> reshapeConstValues;
+    std::vector<int> transposeConstValues;
     ngraph::pass::low_precision::LayerTransformation::Params params;
     Actual actual;
     Expected expected;
@@ -66,7 +66,7 @@ public:
 
         actualFunction = ngraph::builder::subgraph::ReshapeFunction::getOriginal(
             testValues.inputShape,
-            testValues.reshapeConstValues,
+            testValues.transposeConstValues,
             testValues.actual.precisionBeforeDequantization,
             testValues.actual.dequantization);
 
@@ -76,7 +76,7 @@ public:
 
         referenceFunction = ngraph::builder::subgraph::ReshapeFunction::getReference(
             testValues.inputShape,
-            testValues.reshapeConstValues,
+            testValues.transposeConstValues,
             testValues.expected.precisionBeforeDequantization,
             testValues.expected.dequantizationBefore,
             testValues.expected.precisionAfterOperation,
@@ -89,7 +89,7 @@ public:
         std::ostringstream result;
         result <<
             testValues.inputShape << "_" <<
-            testValues.reshapeConstValues << "_" <<
+            testValues.transposeConstValues << "_" <<
             testValues.actual.precisionBeforeDequantization << "_" <<
             testValues.actual.dequantization << "_" <<
             testValues.expected.dequantizationBefore;

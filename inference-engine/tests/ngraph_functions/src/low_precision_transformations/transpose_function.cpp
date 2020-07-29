@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph_functions/low_precision_transformations/reshape_function.hpp"
+#include "ngraph_functions/low_precision_transformations/transpose_function.hpp"
 
 #include <ngraph/opsets/opset1.hpp>
 #include "ngraph_functions/low_precision_transformations/common/builders.hpp"
@@ -11,9 +11,9 @@ namespace ngraph {
 namespace builder {
 namespace subgraph {
 
-std::shared_ptr<ngraph::Function> ReshapeFunction::getOriginal(
+std::shared_ptr<ngraph::Function> TransposeFunction::getOriginal(
     const ngraph::Shape& inputShape,
-    const std::vector<int>& reshapeConstValues,
+    const std::vector<int>& transposeConstValues,
     const ngraph::element::Type precisionBeforeDequantization,
     const ngraph::builder::subgraph::DequantizationOperations& dequantization) {
     const std::shared_ptr<op::v0::Parameter> input = std::make_shared<ngraph::opset1::Parameter>(
@@ -22,18 +22,17 @@ std::shared_ptr<ngraph::Function> ReshapeFunction::getOriginal(
 
     const std::shared_ptr<Node> dequantizationOp = makeDequantization(input, dequantization);
 
-    const std::shared_ptr<Node> reshape = std::make_shared<ngraph::opset1::Reshape>(
+    const std::shared_ptr<Node> transpose = std::make_shared<ngraph::opset1::Transpose>(
         dequantizationOp,
-        std::make_shared<ngraph::opset1::Constant>(ngraph::element::i64, ngraph::Shape{ reshapeConstValues.size() }, reshapeConstValues),
-        true);
+        std::make_shared<ngraph::opset1::Constant>(ngraph::element::i64, ngraph::Shape{ transposeConstValues.size() }, transposeConstValues));
 
-    ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(reshape) };
-    return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "ReshapeFunction");
+    ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(transpose) };
+    return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "TransposeFunction");
 }
 
-std::shared_ptr<ngraph::Function> ReshapeFunction::getOriginal(
+std::shared_ptr<ngraph::Function> TransposeFunction::getOriginal(
     const ngraph::Shape& inputShape,
-    const std::vector<int>& reshapeConstValues,
+    const std::vector<int>& transposeConstValues,
     const ngraph::element::Type precisionBeforeFq,
     const FakeQuantizeOnData& fqOnData) {
     const std::shared_ptr<op::v0::Parameter> input = std::make_shared<ngraph::opset1::Parameter>(
@@ -44,18 +43,17 @@ std::shared_ptr<ngraph::Function> ReshapeFunction::getOriginal(
         as_type_ptr<ngraph::Node>(input) :
         makeFakeQuantize(input, precisionBeforeFq, fqOnData);
 
-    const std::shared_ptr<Node> reshape = std::make_shared<ngraph::opset1::Reshape>(
+    const std::shared_ptr<Node> transpose = std::make_shared<ngraph::opset1::Transpose>(
         quantizationOp,
-        std::make_shared<ngraph::opset1::Constant>(ngraph::element::i64, ngraph::Shape{ reshapeConstValues.size() }, reshapeConstValues),
-        true);
+        std::make_shared<ngraph::opset1::Constant>(ngraph::element::i64, ngraph::Shape{ transposeConstValues.size() }, transposeConstValues));
 
-    ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(reshape) };
-    return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "ReshapeFunction");
+    ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(transpose) };
+    return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "TransposeFunction");
 }
 
-std::shared_ptr<ngraph::Function> ReshapeFunction::getReference(
+std::shared_ptr<ngraph::Function> TransposeFunction::getReference(
     const ngraph::Shape& inputShape,
-    const std::vector<int>& reshapeConstValues,
+    const std::vector<int>& transposeConstValues,
     const ngraph::element::Type precisionBeforeDequantization,
     const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
     const ngraph::element::Type precisionAfterOperation,
@@ -66,22 +64,22 @@ std::shared_ptr<ngraph::Function> ReshapeFunction::getReference(
 
     const std::shared_ptr<Node> quantizationOpBefore = makeDequantization(input, dequantizationBefore);
 
-    const std::shared_ptr<ngraph::opset1::Constant> reshapeConstant = std::make_shared<ngraph::opset1::Constant>(
+    const std::shared_ptr<ngraph::opset1::Constant> transposeConstant = std::make_shared<ngraph::opset1::Constant>(
         ngraph::element::i64,
-        ngraph::Shape{ reshapeConstValues.size() },
-        reshapeConstValues);
-    const std::shared_ptr<ngraph::opset1::Reshape> reshape = std::make_shared<ngraph::opset1::Reshape>(quantizationOpBefore, reshapeConstant, true);
+        ngraph::Shape{ transposeConstValues.size() },
+        transposeConstValues);
+    const std::shared_ptr<ngraph::opset1::Transpose> transpose = std::make_shared<ngraph::opset1::Transpose>(quantizationOpBefore, transposeConstant);
     if (quantizationOpBefore->get_output_element_type(0) != precisionAfterOperation) {
         THROW_IE_LPT_EXCEPTION(*quantizationOpBefore) << "unexpected precision '" << precisionAfterOperation << "' after operation";
     }
-    if (reshape->get_output_element_type(0) != precisionAfterOperation) {
-        THROW_IE_LPT_EXCEPTION(*reshape) << "unexpected precision '" << precisionAfterOperation << "' after operation";
+    if (transpose->get_output_element_type(0) != precisionAfterOperation) {
+        THROW_IE_LPT_EXCEPTION(*transpose) << "unexpected precision '" << precisionAfterOperation << "' after operation";
     }
 
-    const std::shared_ptr<Node> quantizationOpAfter = makeDequantization(reshape, dequantizationAfter);
+    const std::shared_ptr<Node> quantizationOpAfter = makeDequantization(transpose, dequantizationAfter);
 
     ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(quantizationOpAfter) };
-    return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "ReshapeFunction");
+    return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "TransposeFunction");
 }
 
 }  // namespace subgraph
