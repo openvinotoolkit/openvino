@@ -106,6 +106,18 @@ void regclass_pyngraph_op_Constant(py::module m)
                           const std::vector<uint64_t>&>());
 
     constant.def("get_value_strings", &ngraph::op::Constant::get_value_strings);
+    constant.def("get_vector", &ngraph::op::Constant::get_vector<char>);
+    constant.def("get_vector", &ngraph::op::Constant::get_vector<float>);
+    constant.def("get_vector", &ngraph::op::Constant::get_vector<double>);
+    constant.def("get_vector", &ngraph::op::Constant::get_vector<int8_t>);
+    constant.def("get_vector", &ngraph::op::Constant::get_vector<int16_t>);
+    constant.def("get_vector", &ngraph::op::Constant::get_vector<int32_t>);
+    constant.def("get_vector", &ngraph::op::Constant::get_vector<int64_t>);
+    constant.def("get_vector", &ngraph::op::Constant::get_vector<uint8_t>);
+    constant.def("get_vector", &ngraph::op::Constant::get_vector<uint16_t>);
+    constant.def("get_vector", &ngraph::op::Constant::get_vector<uint32_t>);
+    constant.def("get_vector", &ngraph::op::Constant::get_vector<uint64_t>);
+
     // Provide buffer access
     constant.def_buffer([](const ngraph::op::Constant& self) -> py::buffer_info {
         auto element_type = self.get_element_type();

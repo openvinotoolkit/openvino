@@ -85,7 +85,7 @@ public:
         m_has_default_callback = false;
     }
 
-private:
+protected:
     template <typename T, class... Args>
     std::shared_ptr<T> push_pass(Args&&... args)
     {

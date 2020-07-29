@@ -14,33 +14,50 @@
 # limitations under the License.
 # ******************************************************************************
 # flake8: noqa
+import json
+
 import numpy as np
+import pytest
 
 import ngraph as ng
-from ngraph.impl import AxisSet, Function, Shape, Type
-from ngraph.impl.op import Constant, Parameter
+from ngraph.impl import Function, PartialShape, Shape
 from ngraph.impl.passes import Manager
-from tests.runtime import get_runtime
+from tests.test_ngraph.util import count_ops_of_type
+from ngraph.utils.types import (
+    NodeInput,
+    NumericData,
+    NumericType,
+    ScalarData,
+    TensorShape,
+    as_node,
+    as_nodes,
+    get_dtype,
+    get_element_type,
+    get_element_type_str,
+    make_constant_node,
+)
 
 
-def test_constant_folding_ceiling():
-    input_array = [ [0.0, 0.1, -0.1], [-2.5, 2.5, 3.0] ]
-    node_constant = Constant(input_array, dtype=np.float32) # TODO: Shape{2, 3}
-    node_ceil = ng.ceiling(constant)
-    func = Function(node_ceil, ParameterVector()) # TODO: ParameterVector
-    # result = run_op_node(input_array, ng_api_fn)
+def test_constant_folding():
+    node_constant = ng.constant(np.array([[0.0, 0.1, -0.1], [-2.5, 2.5, 3.0]], dtype=np.float32))
+    node_ceil = ng.ceiling(node_constant)
+    func = Function(node_ceil, [], "TestFunction")
+
+    assert count_ops_of_type(func, node_ceil) == 1
+    assert count_ops_of_type(func, node_constant) == 1
 
     pass_manager = Manager()
     pass_manager.register_pass("ConstantFolding")
-    # pass_manager.run_passes(func)
+    pass_manager.run_passes(func, None)
+
+    assert count_ops_of_type(func, node_ceil) == 0 
+    assert count_ops_of_type(func, node_constant) == 1
+
+    # print(as_node(func.get_results()[0]))
+    # new_const = ng.constant(as_node(func.get_results()[0]))
+    # print(new_const.get_vector())
+    # ASSERT_TRUE(new_const);
+    # auto values_out = new_const->get_vector<float>();
 
     # assert f.get_ops() == 0
-    print(func.get_ops())
-
-    new_const = Constant(func.get_results()[0])
-    assert new_const
-    values_out = new_const.get_vector()
-
-    values_expected = [0.0, 1.0, 0.0, -2.0, 3.0, 3.0]
-
-    assert np.all_close(values_out, values_expected)
+    # assert shape_out == shape_expected
