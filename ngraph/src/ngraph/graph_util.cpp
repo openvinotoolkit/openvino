@@ -305,11 +305,9 @@ std::vector<std::shared_ptr<ngraph::Node>>
                 }
             }
             auto cloned_node = node->copy_with_new_inputs(cloned_args, cloned_dependencies);
-            if (node->get_friendly_name() != node->get_name())
-            {
-                // There is a friendly name for this node so copy it
-                cloned_node->set_friendly_name(node->get_friendly_name());
-            }
+            cloned_node->get_rt_info() = node->get_rt_info();
+            // There is a friendly name for this node so copy it
+            cloned_node->set_friendly_name(node->get_friendly_name());
 
             for (auto tag : node->get_provenance_tags())
             {
@@ -369,11 +367,9 @@ std::list<std::shared_ptr<ngraph::Node>>
                 }
                 auto cloned_node = node->copy_with_new_inputs(cloned_args, cloned_dependencies);
                 cloned_nodes.push_back(cloned_node);
-                if (node->get_friendly_name() != node->get_name())
-                {
-                    // There is a friendly name for this node so copy it
-                    cloned_node->set_friendly_name(node->get_friendly_name());
-                }
+                // There is a friendly name for this node so copy it
+                cloned_node->set_friendly_name(node->get_friendly_name());
+                cloned_node->get_rt_info() = node->get_rt_info();
 
                 for (auto tag : node->get_provenance_tags())
                 {

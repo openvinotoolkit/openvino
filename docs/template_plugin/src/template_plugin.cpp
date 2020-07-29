@@ -10,7 +10,8 @@
 #include <threading/ie_executor_manager.hpp>
 
 #include <ngraph/op/util/op_types.hpp>
-#include <ngraph/specialize_function.hpp>
+#include <ngraph/graph_util.hpp>
+#include <ngraph/pass/constant_folding.hpp>
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/opsets/opset.hpp>
 #include <transformations/common_optimizations/common_optimizations.hpp>
@@ -61,14 +62,16 @@ std::shared_ptr<ngraph::Function> TransformNetwork(const std::shared_ptr<const n
         new_types.emplace_back(parameter->get_element_type());
     }
 
-    auto clonedNetwork = ngraph::specialize_function(std::const_pointer_cast<ngraph::Function>(function),
-        new_types, new_shapes, std::vector<void *>(new_types.size(), nullptr), constFolding, shareConsts);
+    auto clonedNetwork = ngraph::clone_function(*function);
 
     auto transformedNetwork = clonedNetwork;
     transformedNetwork->set_friendly_name(function->get_friendly_name());
 
     // 2. Perform common optimizations and device-specific transformations
     ngraph::pass::Manager passManager;
+    if (constFolding) {
+        passManager.register_pass<ngraph::pass::ConstantFolding>();
+    }
     // Example: register CommonOptimizations transformation from transformations library
     passManager.register_pass<ngraph::pass::CommonOptimizations>();
     // Example: register plugin specific transformation
