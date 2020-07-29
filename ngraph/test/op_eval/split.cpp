@@ -100,3 +100,72 @@ TEST(op_eval, split_neg_axis)
         EXPECT_EQ(read_vector<int64_t>(results[i]), expected_results[i]);
     }
 }
+
+TEST(op_eval, split_boolean_type)
+{
+    const auto data_shape = Shape{2, 1, 2, 1, 2};
+    const auto data = make_shared<op::Parameter>(element::boolean, data_shape);
+    const auto axis = make_shared<op::Parameter>(element::i64, Shape{});
+    const size_t num_splits = 2;
+
+    auto split = make_shared<op::v1::Split>(data, axis, num_splits);
+
+    auto f = make_shared<Function>(split, ParameterVector{data, axis});
+
+    std::vector<char> data_vec{true, false, true, false, true, false, true, false};
+
+    std::vector<std::vector<char>> expected_results{{true, false, true, false},
+                                                    {true, false, true, false}};
+
+    HostTensorVector results(num_splits);
+    for (auto& result : results)
+    {
+        result = make_shared<HostTensor>();
+    }
+    ASSERT_TRUE(
+        f->evaluate(results,
+                    {make_host_tensor<element::Type_t::boolean>(data_shape, data_vec),
+                     make_host_tensor<element::Type_t::i64>(Shape{}, std::vector<int64_t>{2})}));
+
+    for (int i = 0; i < num_splits; ++i)
+    {
+        EXPECT_EQ(results[i]->get_element_type(), element::boolean);
+        EXPECT_EQ(results[i]->get_shape(), (Shape{2, 1, 1, 1, 2}));
+        EXPECT_EQ(read_vector<char>(results[i]), expected_results[i]);
+    }
+}
+
+TEST(op_eval, split_1d)
+{
+    const auto data_shape = Shape{8};
+    const auto data = make_shared<op::Parameter>(element::f32, data_shape);
+    const auto axis = make_shared<op::Parameter>(element::i64, Shape{});
+    const size_t num_splits = 4;
+
+    auto split = make_shared<op::v1::Split>(data, axis, num_splits);
+
+    auto f = make_shared<Function>(split, ParameterVector{data, axis});
+
+    std::vector<float> data_vec(shape_size(data_shape));
+    std::iota(data_vec.begin(), data_vec.end(), 0.0f);
+
+    std::vector<std::vector<float>> expected_results{
+        {0.0f, 1.0f}, {2.0f, 3.0f}, {4.0f, 5.0f}, {6.0f, 7.0f}};
+
+    HostTensorVector results(num_splits);
+    for (auto& result : results)
+    {
+        result = make_shared<HostTensor>();
+    }
+    ASSERT_TRUE(
+        f->evaluate(results,
+                    {make_host_tensor<element::Type_t::f32>(data_shape, data_vec),
+                     make_host_tensor<element::Type_t::i64>(Shape{}, std::vector<int64_t>{0})}));
+
+    for (int i = 0; i < num_splits; ++i)
+    {
+        EXPECT_EQ(results[i]->get_element_type(), element::f32);
+        EXPECT_EQ(results[i]->get_shape(), (Shape{2}));
+        EXPECT_EQ(read_vector<float>(results[i]), expected_results[i]);
+    }
+}

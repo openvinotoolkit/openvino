@@ -255,9 +255,13 @@ namespace
                 break;
                 TYPE_CASE(bf16)(data_tensor, output, lower_bounds, upper_bounds);
                 break;
+                TYPE_CASE(f16)(data_tensor, output, lower_bounds, upper_bounds);
+                break;
                 TYPE_CASE(f32)(data_tensor, output, lower_bounds, upper_bounds);
                 break;
                 TYPE_CASE(f64)(data_tensor, output, lower_bounds, upper_bounds);
+                break;
+                TYPE_CASE(boolean)(data_tensor, output, lower_bounds, upper_bounds);
                 break;
             default: rc = false; break;
             }
