@@ -132,10 +132,11 @@ void op::v1::DeformableConvolution::validate_and_infer_types()
         {
             result_shape[0] = data_batch_shape[0]; // batch size
         }
-    }
-    if (filters_shape.rank().is_static() && filters_shape.rank().get_length() > 1)
-    {
-        result_shape[1] = filters_shape[0]; // filter channel size
+
+        if (filters_shape.rank().is_static() && filters_shape.rank().get_length() > 1)
+        {
+            result_shape[1] = filters_shape[0]; // filter channel size
+        }
     }
 
     if (m_strides.size() == 0)
