@@ -102,7 +102,8 @@ TEST(type_prop_layers, interpolate)
 //
 //     EXPECT_TRUE(make_shared<Interpolate>(image, dyn_output_shape, attrs)
 //                     ->get_output_partial_shape(0)
-//                     .same_scheme(PartialShape{2, 2, Dimension::dynamic(), Dimension::dynamic()}));
+//                     .same_scheme(PartialShape{2, 2, Dimension::dynamic(),
+//                     Dimension::dynamic()}));
 // }
 
 TEST(type_prop_layers, prior_box1)

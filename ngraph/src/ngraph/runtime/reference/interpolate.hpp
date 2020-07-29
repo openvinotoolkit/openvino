@@ -32,13 +32,14 @@ namespace ngraph
             class GetNearestPixel final
             {
             public:
-                GetNearestPixel() :
-                    GetNearestPixel(Nearest_mode::round_prefer_floor)
+                GetNearestPixel()
+                    : GetNearestPixel(Nearest_mode::round_prefer_floor)
                 {
                 }
 
-                GetNearestPixel(Nearest_mode mode) :
-                    m_mode{mode}, m_func{get_func(mode)}
+                GetNearestPixel(Nearest_mode mode)
+                    : m_mode{mode}
+                    , m_func{get_func(mode)}
                 {
                 }
 
@@ -59,7 +60,7 @@ namespace ngraph
                     switch (mode)
                     {
                     case Nearest_mode::round_prefer_floor:
-                        return [](float x_original, bool){
+                        return [](float x_original, bool) {
                             if (x_original == static_cast<int64_t>(x_original) + 0.5f)
                             {
                                 return static_cast<int64_t>(std::floor(x_original));
@@ -67,7 +68,7 @@ namespace ngraph
                             return static_cast<int64_t>(std::round(x_original));
                         };
                     case round_prefer_ceil:
-                        return [](float x_original, bool){
+                        return [](float x_original, bool) {
                             return static_cast<int64_t>(std::round(x_original));
                         };
                     case Nearest_mode::floor:
@@ -81,7 +82,7 @@ namespace ngraph
                         };
                         break;
                     case Nearest_mode::simple:
-                        return  [](float x_original, bool is_downsample) {
+                        return [](float x_original, bool is_downsample) {
                             if (is_downsample)
                             {
                                 return static_cast<int64_t>(std::ceil(x_original));
@@ -96,7 +97,9 @@ namespace ngraph
                 }
             };
 
-            class GetOriginalCoordinate{};
+            class GetOriginalCoordinate
+            {
+            };
 
             template <typename T>
             void nearest_interpolate(const T* input_data,
