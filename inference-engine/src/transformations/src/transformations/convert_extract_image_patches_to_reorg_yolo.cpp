@@ -22,6 +22,10 @@ void ngraph::pass::ConvertExtractImagePatchesToReorgYolo::convert_extract_image_
             return false;
         }
 
+        if (extract_image_patches->get_auto_pad() != ngraph::op::PadType::VALID) {
+            return false;
+        }
+
         if (extract_image_patches->get_strides() != extract_image_patches->get_sizes()) {
             return false;
         }
