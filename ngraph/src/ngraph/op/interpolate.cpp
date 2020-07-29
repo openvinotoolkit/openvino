@@ -17,6 +17,8 @@
 #include "ngraph/op/interpolate.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/runtime/ndim_array_view.hpp"
+#include "ngraph/runtime/ndimindex.hpp"
+#include "ngraph/runtime/ndimrange.hpp"
 #include "ngraph/runtime/reference/interpolate.hpp"
 
 using namespace std;
@@ -379,9 +381,29 @@ namespace
         auto padded_input_shape = get_padded_input_shape(input_shape, pads_begin, pads_end);
 
         std::vector<T> padded_input_data(shape_size(Shape{padded_input_shape}));
-        NDimArrayView<T> padded_array_view{padded_input_data.data()};
 
-        runtime::reference::interpolate(args[0]->get_data_ptr<ET>(),
+        runtime::NDimArrayView<T> padded_array_view{padded_input_data.data()};
+        runtime::NDimArrayView<T> input_array_view{args[0]->get_data_ptr<ET>()};
+
+        std::vector<int64_t> limits_for_indices(padded_input_shape.size());
+        for (std::size_t i = 0; i < limits_for_indices.size(); ++i)
+        {
+            limits_for_indices[i] = padded_input_shape[i] - 1;
+        }
+
+        runtime::NDimIndex limits{limits_for_indices};
+        runtime::NDimRange index_range{limits};
+        for (const auto& index : index_range)
+        {
+            auto padded_index = index;
+            for (std::size_t i = 0; i < input_rank; ++i)
+            {
+                padded_index[i] += pads_begin[i];
+            }
+            padded_array_view[padded_index] = input_array_view[index];
+        }
+
+        runtime::reference::interpolate(padded_input_data.data(),
                                         input_shape,
                                         target_spatial_shape,
                                         axes,

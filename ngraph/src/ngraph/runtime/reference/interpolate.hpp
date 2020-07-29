@@ -199,6 +199,28 @@ namespace ngraph
                     std::size_t output_data_size = shape_size(out_shape);
 
                     std::fill(out, out + output_data_size, T{});
+
+                    for (std::size_t i = 0; i < input_data_shape.size(); ++i)
+                    {
+                        m_scales[i] = static_cast<float>(m_out_shape[i]) /
+                                      static_cast<float>(m_input_data_shape[i]);
+                    }
+
+                    switch (m_mode)
+                    {
+                    case InterpolateMode::nearest:
+                        nearest_func(input_data, out);
+                        break;
+                    case InterpolateMode::linear:
+                        linear_func(input_data, out);
+                        break;
+                    case InterpolateMode::linear_onnx:
+                        linear_onnx_func(input_data, out);
+                        break;
+                    case InterpolateMode::cubic:
+                        cubic_func(input_data, out);
+                        break;
+                    }
                 }
 
             private:
@@ -212,7 +234,30 @@ namespace ngraph
                 std::vector<std::size_t> m_target_spatial_shape;
                 std::vector<std::size_t> m_axes;
                 Shape m_out_shape
+
+                std::vector<float> m_scales;
+
+                void linear_func(const T* input_data, T* out);
+                void linear_onnx_func(const T* input_data, T* out);
+                void cubic_func(const T* input_data, T* out);
+                void nearest_func(const T* input_data, T* out);
             };
+
+            template <typename T>
+            void InterpolateEval<T>::linear_func(const T* input_data, T* out)
+            {}
+
+            template <typename T>
+            void InterpolateEval<T>::linear_onnx_func(const T* input_data, T* out)
+            {}
+
+            template <typename T>
+            void InterpolateEval<T>::cubic_func(const T* input_data, T* out)
+            {}
+
+            template <typename T>
+            void InterpolateEval<T>::nearest_func(const T* input_data, T* out)
+            {}
 
             template <typename T>
             void interpolate(const T* input_data,
@@ -224,6 +269,7 @@ namespace ngraph
                              const op::v4::Interpolate::InterpolateAttrs& attrs)
             {
                 InterpolateEval<T> evaluator{attrs};
+                evaluator();
             }
         }
     }
