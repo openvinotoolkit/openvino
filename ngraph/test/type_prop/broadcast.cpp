@@ -1142,12 +1142,19 @@ TEST(type_prop, broadcast_v3_bidirectional_static_shape_input)
     ASSERT_TRUE(broadcast_v3->get_output_partial_shape(0).rank().is_dynamic());
 
     // constant target shape
-    const auto target_shape_const = op::Constant::create(element::i64, {4}, {2, 2, 3, 2});
+    auto target_shape_const = op::Constant::create(element::i64, {4}, {2, 2, 3, 2});
     broadcast_v3 = make_shared<op::v3::Broadcast>(arg, target_shape_const, "BIDIRECTIONAL");
     ASSERT_TRUE(broadcast_v3->get_output_partial_shape(0).rank().is_static());
     ASSERT_EQ(broadcast_v3->get_output_partial_shape(0).rank().get_length(), 4);
     ASSERT_TRUE(broadcast_v3->get_output_partial_shape(0).is_static());
     ASSERT_EQ(broadcast_v3->get_output_partial_shape(0), (PartialShape{2, 2, 3, 2}));
+
+    target_shape_const = op::Constant::create(element::i64, {4}, {5, 2, 3, 7});
+    broadcast_v3 = make_shared<op::v3::Broadcast>(arg, target_shape_const, "BIDIRECTIONAL");
+    ASSERT_TRUE(broadcast_v3->get_output_partial_shape(0).rank().is_static());
+    ASSERT_EQ(broadcast_v3->get_output_partial_shape(0).rank().get_length(), 4);
+    ASSERT_TRUE(broadcast_v3->get_output_partial_shape(0).is_static());
+    ASSERT_EQ(broadcast_v3->get_output_partial_shape(0), (PartialShape{5, 2, 3, 7}));
 }
 
 TEST(type_prop, broadcast_v3_bidirectional_partially_dynamic_input)
