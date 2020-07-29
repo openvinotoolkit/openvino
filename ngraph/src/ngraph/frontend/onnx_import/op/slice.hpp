@@ -27,13 +27,13 @@ namespace ngraph
         {
             namespace set_10
             {
-                NodeVector slice(const Node& node);
+                OutputVector slice(const Node& node);
 
             } // namespace set_10
 
             namespace set_1
             {
-                NodeVector slice(const Node& node);
+                OutputVector slice(const Node& node);
 
             } // namespace set_1
 
