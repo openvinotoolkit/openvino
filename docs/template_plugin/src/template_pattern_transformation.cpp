@@ -5,9 +5,10 @@
 #include "template_pattern_transformation.hpp"
 #include "template_function_transformation.hpp"
 
-#include <ngraph/ngraph.hpp>
 #include <ngraph/opsets/opset3.hpp>
+#include <ngraph/pass/manager.hpp>
 #include <ngraph/pattern/op/wrap_type.hpp>
+#include <ngraph/rt_info.hpp>
 
 using namespace ngraph;
 

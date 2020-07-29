@@ -3,7 +3,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(TARGET_NAME TemplateFuncTests)
+# [cmake:functional_tests]
+set(TARGET_NAME templateFuncTests)
 
 addIeTargetTest(
         NAME ${TARGET_NAME}
@@ -12,9 +13,10 @@ addIeTargetTest(
             templatePlugin
         LINK_LIBRARIES
             IE::funcSharedTests
+        INCLUDES
+            "${IE_MAIN_TEMPLATE_PLUGIN_SOURCE_DIR}/include"
         ADD_CPPLINT
         LABELS
             TEMPLATE
 )
-
-target_include_directories(${TARGET_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../../include)
+# [cmake:functional_tests]

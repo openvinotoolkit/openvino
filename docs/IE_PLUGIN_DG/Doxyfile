@@ -869,6 +869,8 @@ EXAMPLE_PATH           = ../template_plugin/src \
                          ../template_plugin/src/CMakeLists.txt \
                          ../template_plugin/tests/functional/CMakeLists.txt \
                          ../template_plugin/tests/functional/transformations \
+                         ../template_plugin/tests/functional/shared_tests_instances/ \
+                         ../../inference-engine/tests/functional/plugin/shared/include \
                          ../examples
 
 # If the value of the EXAMPLE_PATH tag contains directories, you can use the
@@ -877,7 +879,8 @@ EXAMPLE_PATH           = ../template_plugin/src \
 # files are included.
 
 EXAMPLE_PATTERNS       = *.cpp \
-						 *.hpp
+                         *.hpp \
+                         *.txt
 
 # If the EXAMPLE_RECURSIVE tag is set to YES then subdirectories will be
 # searched for input files to be used with the \include or \dontinclude commands
@@ -2044,7 +2047,8 @@ INCLUDE_FILE_PATTERNS  =
 # recursively expanded use the := operator instead of the = operator.
 # This tag requires that the tag ENABLE_PREPROCESSING is set to YES.
 
-PREDEFINED             = INFERENCE_ENGINE_API \
+PREDEFINED             = INFERENCE_PLUGIN_API \
+                         INFERENCE_ENGINE_API \
                          INFERENCE_ENGINE_API_CPP \
                          INFERENCE_ENGINE_API_CLASS \
                          INFERENCE_ENGINE_DEPRECATED \

@@ -25,7 +25,6 @@ if(ENABLE_TESTS)
 	if(ENABLE_FUNCTIONAL_TESTS)
 	    add_subdirectory(tests/functional)
 	endif()
-
 endif()
 # [cmake:main]
 

@@ -11,21 +11,23 @@ using namespace LayerTestsDefinitions;
 
 namespace {
 
+// ! [test_convolution:declare_parameters]
 const std::vector<InferenceEngine::Precision> netPrecisions = {
-        InferenceEngine::Precision::FP32,
+    InferenceEngine::Precision::FP32,
 };
 
 /* ============= 2D Convolution ============= */
+
 const std::vector<std::vector<size_t >> kernels = {{3, 3},
-                                                          {3, 5}};
+                                                   {3, 5}};
 const std::vector<std::vector<size_t >> strides = {{1, 1},
-                                                          {1, 3}};
+                                                   {1, 3}};
 const std::vector<std::vector<ptrdiff_t>> padBegins = {{0, 0},
                                                        {0, 3}};
 const std::vector<std::vector<ptrdiff_t>> padEnds = {{0, 0},
                                                      {0, 3}};
 const std::vector<std::vector<size_t >> dilations = {{1, 1},
-                                                            {3, 1}};
+                                                     {3, 1}};
 const std::vector<size_t> numOutChannels = {1, 5};
 const std::vector<ngraph::op::PadType> padTypes = {
         ngraph::op::PadType::EXPLICIT,
@@ -41,6 +43,8 @@ const auto conv2DParams_ExplicitPadding = ::testing::Combine(
         ::testing::ValuesIn(numOutChannels),
         ::testing::Values(ngraph::op::PadType::EXPLICIT)
 );
+// ! [test_convolution:declare_parameters]
+
 const auto conv2DParams_AutoPadValid = ::testing::Combine(
         ::testing::ValuesIn(kernels),
         ::testing::ValuesIn(strides),
@@ -51,6 +55,7 @@ const auto conv2DParams_AutoPadValid = ::testing::Combine(
         ::testing::Values(ngraph::op::PadType::VALID)
 );
 
+// ! [test_convolution:instantiate]
 INSTANTIATE_TEST_CASE_P(Convolution2D_ExplicitPadding, ConvolutionLayerTest,
                         ::testing::Combine(
                                 conv2DParams_ExplicitPadding,
@@ -58,6 +63,7 @@ INSTANTIATE_TEST_CASE_P(Convolution2D_ExplicitPadding, ConvolutionLayerTest,
                                 ::testing::Values(std::vector<size_t >({1, 3, 30, 30})),
                                 ::testing::Values("TEMPLATE")),
                         ConvolutionLayerTest::getTestCaseName);
+// ! [test_convolution:instantiate]
 
 INSTANTIATE_TEST_CASE_P(Convolution2D_AutoPadValid, ConvolutionLayerTest,
                         ::testing::Combine(
@@ -66,7 +72,9 @@ INSTANTIATE_TEST_CASE_P(Convolution2D_AutoPadValid, ConvolutionLayerTest,
                                 ::testing::Values(std::vector<size_t >({1, 3, 30, 30})),
                                 ::testing::Values("TEMPLATE")),
                         ConvolutionLayerTest::getTestCaseName);
+
 /* ============= 3D Convolution ============= */
+
 const std::vector<std::vector<size_t >> kernels3d = {{3, 3, 3},
                                                             {3, 5, 3}};
 const std::vector<std::vector<ptrdiff_t>> paddings3d = {{0, 0, 0},

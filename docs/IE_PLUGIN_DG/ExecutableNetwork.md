@@ -1,7 +1,7 @@
 # Executable Network {#executable_network}
 
 `ExecutableNetwork` class functionality:
-- Compile an InferenceEngine::ICNNNetwork instance to a hardware-specific graph representation
+- Compile an InferenceEngine::ICNNNetwork instance to a backend specific graph representation
 - Create an arbitrary number of `InferRequest` objects
 - Hold some common resources shared between different instances of `InferRequest`. For example:
 	- InferenceEngine::ExecutableNetworkInternal::_taskExecutor task executor to implement asynchronous execution
@@ -19,38 +19,37 @@ Inference Engine Plugin API provides the helper InferenceEngine::ExecutableNetwo
 The example class has several fields:
 
 - `_requestId` - Tracks a number of created inference requests, which is used to distinguish different inference requests during profiling via the Intel® Instrumentation and Tracing Technology (ITT) library.
-- `_name` - Provides a network name.
 - `_cfg` - Defines a configuration an executable network was compiled with.
 - `_plugin` - Refers to a plugin instance.
+- `_function` - Keeps a reference to transformed `ngraph::Function` which is used in ngraph reference backend computations. Note, in case of other backends with backend specific graph representation `_function` has different type and represents backend specific graph or just a set of computational kernels to perform an inference.
+- `_inputIndex` - maps a name of input with its index among all network inputs.
+- `_outputIndex` - maps a name of output with its index among all network outputs.
 
 ### `ExecutableNetwork` Constructor with `ICNNNetwork`
 
-This constructor accepts a generic representation of a neural network as an InferenceEngine::ICNNNetwork reference and is compiled into a hardware-specific device graph:
+This constructor accepts a generic representation of a neural network as an InferenceEngine::ICNNNetwork reference and is compiled into a backend specific device graph:
 
 @snippet src/template_executable_network.cpp executable_network:ctor_cnnnetwork
 
-The implementation `CompileGraph` is fully device-specific.
+The implementation `CompileNetwork` is fully device-specific.
 
-### `CompileGraph()`
+### `CompileNetwork()`
 
-The function accepts a const shared pointer to `const ngraph::Function` object and performs the following steps:
+The function accepts a const shared pointer to `ngraph::Function` object and performs the following steps:
 
-1. Deep copies a const object to a local object, which can later be modified.
-2. Applies common and plugin-specific transformations on a copied graph to make the graph more friendly to hardware operations. For details how to write custom plugin-specific transformation, please, refer to [Writing ngraph transformations](@ref new_ngraph_transformation) guide.
-3. Maps the transformed graph to a plugin-specific graph representation (for example, to MKLDNN graph for CPU). See details topics about network representation:
-    * [Intermediate Representation and Operation Sets](../_docs_MO_DG_IR_and_opsets.html)
-    * [Quantized networks](@ref quantized_networks).
-4. Allocates and fills memory for graph weights.
+1. Applies ngraph passes using `TransformNetwork` function, which defines plugin-specific conversion pipeline. 
+2. Maps the transformed graph to a backend specific graph representation (for example, to MKLDNN graph for Intel CPU).
+3. Allocates and fills memory for graph weights, backend specific memory handles and so on.
 
-@snippet src/template_executable_network.cpp executable_network:compile_graph
+@snippet src/template_executable_network.cpp executable_network:map_graph
 
-> **NOTE**: After all these steps, the hardware-specific graph is ready to create inference requests and perform inference.
+> **NOTE**: After all these steps, the backend specific graph is ready to create inference requests and perform inference.
 
 ### `ExecutableNetwork` Constructor Importing from Stream
 
-This constructor creates a hardware-specific graph by importing from a stream object:
+This constructor creates a backend specific graph by importing from a stream object:
 
-> **NOTE**: The export of hardware-specific graph is done in the `ExportImpl` method, and data formats must be the same for both import and export.
+> **NOTE**: The export of backend specific graph is done in the `ExportImpl` method, and data formats must be the same for both import and export.
 
 @snippet src/template_executable_network.cpp executable_network:ctor_import_stream
 
@@ -59,9 +58,9 @@ This constructor creates a hardware-specific graph by importing from a stream ob
 **Implementation details:**   
 Base InferenceEngine::ExecutableNetworkThreadSafeDefault class implements the public InferenceEngine::ExecutableNetworkThreadSafeDefault::Export method as following:
 - Writes `_plugin->GetName()` to the `model` stream.
-- Calls the `ExportImpl` method defined in a derived class to dump a hardware-specific graph.
+- Calls the `ExportImpl` method defined in a derived class to dump a backend specific graph.
 
-The implementation of the method should write all data to the `model` stream, which is required to import a hardware-specific graph later in the `Plugin::Import` method:
+The implementation of the method should write all data to the `model` stream, which is required to import a backend specific graph later in the `Plugin::Import` method:
 
 @snippet src/template_executable_network.cpp executable_network:export_impl
 
@@ -73,7 +72,6 @@ The method creates an asynchronous inference request and returns it. While the p
 - [Asynchronous inference request](@ref async_infer_request), which is a wrapper for a synchronous inference request and can run a pipeline asynchronously. Depending on a device pipeline structure, it can has one or several stages:
    - For single-stage pipelines, there is no need to define this method and create a class derived from InferenceEngine::AsyncInferRequestThreadSafeDefault. For single stage pipelines, a default implementation of this method creates InferenceEngine::AsyncInferRequestThreadSafeDefault wrapping a synchronous inference request and runs it asynchronously in the `_taskExecutor` executor.
    - For pipelines with multiple stages, such as performing some preprocessing on host, uploading input data to a device, running inference on a device, or downloading and postprocessing output data, schedule stages on several task executors to achieve better device use and performance. You can do it by creating a sufficient number of inference requests running in parallel. In this case, device stages of different inference requests are overlapped with preprocessing and postprocessing stage giving better performance.
-
    > **IMPORTANT**: It is up to you to decide how many task executors you need to optimally execute a device pipeline.
 
 @snippet src/template_executable_network.cpp executable_network:create_infer_request

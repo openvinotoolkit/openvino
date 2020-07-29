@@ -4,10 +4,7 @@
 
 #pragma once
 
-#include <vector>
-#include <memory>
-
-#include <ngraph/ngraph.hpp>
+#include <ngraph/pass/pass.hpp>
 
 namespace ngraph {
 namespace pass {

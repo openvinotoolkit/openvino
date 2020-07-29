@@ -2,15 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-
-#include <string>
-#include <vector>
-#include <algorithm>
-
-#include <ie_util_internal.hpp>
 #include <ie_plugin_config.hpp>
 #include <cpp_interfaces/interface/ie_internal_plugin_config.hpp>
-#include <file_utils.h>
 #include <cpp_interfaces/exception2status.hpp>
 
 #include "template_config.hpp"

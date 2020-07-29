@@ -125,7 +125,7 @@ void TemplateInferRequest::InferImpl() {
     // TODO: fill with actual list of pipeline stages, which are executed synchronously for sync infer requests
     inferPreprocess();
     startPipeline();
-    waitPipeline();
+    waitPipeline();  // does nothing in current implementation
     inferPostprocess();
 }
 // ! [infer_request:infer_impl]
@@ -208,49 +208,53 @@ void TemplateInferRequest::inferPreprocess() {
 }
 // ! [infer_request:infer_preprocess]
 
+// ! [infer_request:start_pipeline]
 void TemplateInferRequest::startPipeline() {
     IE_PROFILING_AUTO_SCOPE_TASK(_profilingTask[StartPipeline])
     auto start = Time::now();
     _executable->call(_outputTensors, _inputTensors);
     _durations[StartPipeline] = Time::now() - start;
 }
+// ! [infer_request:start_pipeline]
 
 void TemplateInferRequest::waitPipeline() {
     IE_PROFILING_AUTO_SCOPE_TASK(_profilingTask[WaitPipeline])
     auto start = Time::now();
     // TODO: Wait pipeline using driver API or other synchronizations methods
+    // NOTE: not used in current implementation since `startPipeline` executes pipiline synchronously
     _durations[WaitPipeline] = Time::now() - start;
 }
 
+// ! [infer_request:infer_postprocess]
 void TemplateInferRequest::inferPostprocess() {
     IE_PROFILING_AUTO_SCOPE_TASK(_profilingTask[Postprocess]);
     auto start = Time::now();
     for (auto&& output : _outputs) {
         auto outputBlob = output.second;
         auto networkOutput = _networkOutputBlobs[output.first];
+        // perform precision conversion of network output's precision and computational
+        // graph output's precision are different
         if (outputBlob->getTensorDesc().getPrecision() != networkOutput->getTensorDesc().getPrecision()) {
             blobCopy(networkOutput, outputBlob);
         }
     }
     _durations[Postprocess] = Time::now() - start;
 }
+// ! [infer_request:infer_postprocess]
 
 // ! [infer_request:get_performance_counts]
 void TemplateInferRequest::GetPerformanceCounts(std::map<std::string, InferenceEngineProfileInfo> &perfMap) const {
     InferenceEngineProfileInfo info;
     info.execution_index = 0;
     info.status = InferenceEngineProfileInfo::EXECUTED;
+
     info.cpu_uSec = info.realTime_uSec = _durations[Preprocess].count();
     perfMap["1. input preprocessing"] = info;
-    info.cpu_uSec = 0;
-    info.realTime_uSec = 0;
+    info.cpu_uSec = info.realTime_uSec = 0;
     perfMap["2. input transfer to a device"] = info;
-    info.cpu_uSec = 0;
-    info.status = InferenceEngineProfileInfo::EXECUTED;
     info.cpu_uSec = info.realTime_uSec = _durations[StartPipeline].count();
     perfMap["3. execution time"] = info;
-    info.cpu_uSec = 0;
-    info.realTime_uSec = 0;
+    info.cpu_uSec = info.realTime_uSec = 0;
     perfMap["4. output transfer from a device"] = info;
     info.cpu_uSec = info.realTime_uSec = _durations[Postprocess].count();
     perfMap["5. output postprocessing"] = info;

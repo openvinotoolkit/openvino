@@ -2,34 +2,20 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-
-#include <utility>
-#include <memory>
-#include <vector>
-#include <sstream>
-#include <regex>
-#include <string>
-#include <map>
-
 #include <ie_metric_helpers.hpp>
-#include <details/ie_cnn_network_tools.h>
 #include <ie_plugin_config.hpp>
-#include <ie_util_internal.hpp>
-#include <inference_engine.hpp>
-#include <file_utils.h>
-#include <cpp_interfaces/base/ie_plugin_base.hpp>
-#include <cpp_interfaces/interface/ie_internal_plugin_config.hpp>
-#include <threading/ie_executor_manager.hpp>
-#include <graph_tools.hpp>
-#include <ie_input_info.hpp>
-#include <ie_layouts.h>
+
 #include <hetero/hetero_plugin_config.hpp>
-#include <backend.hpp>
+#include <cpp_interfaces/base/ie_plugin_base.hpp>
+#include <threading/ie_executor_manager.hpp>
+
+#include <ngraph/op/util/op_types.hpp>
 #include <ngraph/specialize_function.hpp>
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/opsets/opset.hpp>
 #include <transformations/common_optimizations/common_optimizations.hpp>
 #include <transformations/rt_info/fused_names_attribute.hpp>
+
 #include "template/template_config.hpp"
 #include "template_plugin.hpp"
 #include "template_executable_network.hpp"
@@ -40,10 +26,14 @@ using namespace TemplatePlugin;
 
 // ! [plugin:ctor]
 Plugin::Plugin() {
-    // TODO: fill with actual device name
+    // TODO: fill with actual device name, backend engine
     _pluginName = "TEMPLATE";
+
+    // create ngraph backend which performs inference using ngraph reference implementations
     ngraph::runtime::Backend::set_backend_shared_library_search_directory("");
     _backend = ngraph::runtime::Backend::create("INTERPRETER");
+
+    // create default stream executor with a given name
     _waitExecutor = ExecutorManager::getInstance()->getIdleCPUStreamsExecutor({"TemplateWaitExecutor"});
 }
 // ! [plugin:ctor]
@@ -58,9 +48,10 @@ Plugin::~Plugin() {
 }
 // ! [plugin:dtor]
 
-// ! [plugin:transform]
-std::shared_ptr<ngraph::Function> Plugin::Transform(const std::shared_ptr<const ngraph::Function>& function) {
-    // 1.Copy ngraph::Function first to apply some transformations which modify original ngraph::Function
+// ! [plugin:transform_network]
+
+std::shared_ptr<ngraph::Function> TransformNetwork(const std::shared_ptr<const ngraph::Function>& function) {
+    // 1. Copy ngraph::Function first to apply some transformations which modify original ngraph::Function
     const bool shareConsts = false, constFolding = false;
     std::vector<::ngraph::element::Type> new_types;
     std::vector<::ngraph::PartialShape> new_shapes;
@@ -70,10 +61,11 @@ std::shared_ptr<ngraph::Function> Plugin::Transform(const std::shared_ptr<const 
         new_types.emplace_back(parameter->get_element_type());
     }
 
-    auto copyFunction = ngraph::specialize_function(std::const_pointer_cast<ngraph::Function>(function),
+    auto clonedNetwork = ngraph::specialize_function(std::const_pointer_cast<ngraph::Function>(function),
         new_types, new_shapes, std::vector<void *>(new_types.size(), nullptr), constFolding, shareConsts);
 
-    copyFunction->set_friendly_name(function->get_friendly_name());
+    auto transformedNetwork = clonedNetwork;
+    transformedNetwork->set_friendly_name(function->get_friendly_name());
 
     // 2. Perform common optimizations and device-specific transformations
     ngraph::pass::Manager passManager;
@@ -86,16 +78,12 @@ std::shared_ptr<ngraph::Function> Plugin::Transform(const std::shared_ptr<const 
     // ..
 
     // After `run_passes`, we have the transformed function, where operations match device operations,
-    // and we can create device hardware-dependent graph
-    passManager.run_passes(copyFunction);
+    // and we can create device backend-dependent graph
+    passManager.run_passes(transformedNetwork);
 
-    // 3. Iterate over operations and create hardware-specific ngraph
-    for (const auto& op : copyFunction->get_ordered_ops()) {
-        // TODO: map ngraph `op` to device operation
-    }
-    return copyFunction;
+    return transformedNetwork;
 }
-// ! [plugin:transform]
+// ! [plugin:transform_network]
 
 // ! [plugin:load_exe_network_impl]
 InferenceEngine::ExecutableNetworkInternal::Ptr Plugin::LoadExeNetworkImpl(const InferenceEngine::ICNNNetwork & network,
@@ -135,7 +123,7 @@ InferenceEngine::ExecutableNetworkInternal::Ptr Plugin::LoadExeNetworkImpl(const
         THROW_IE_EXCEPTION << "TEMPLATE plugin can compile only IR v10 networks";
     }
 
-    return std::make_shared<ExecutableNetwork>(Transform(function), cfg, std::static_pointer_cast<Plugin>(shared_from_this()));
+    return std::make_shared<ExecutableNetwork>(function, cfg, std::static_pointer_cast<Plugin>(shared_from_this()));
 }
 // ! [plugin:load_exe_network_impl]
 
@@ -166,14 +154,17 @@ void Plugin::QueryNetwork(const ICNNNetwork &network, const ConfigMap& config, Q
     if (function == nullptr) {
          THROW_IE_EXCEPTION << "Template Plugin supports only ngraph cnn network representation";
     }
-    // First of all we should store initial input operation set
+
+    // 1. First of all we should store initial input operation set
     std::unordered_set<std::string> originalOps;
     for (auto&& node : function->get_ops()) {
         originalOps.emplace(node->get_friendly_name());
     }
-    // It is needed to apply all transformations as it is done in LoadExeNetworkImpl
-    auto transformedFunction = Transform(function);
-    // The same input node can be transformed into supported and unsupported backend node
+
+    // 2. It is needed to apply all transformations as it is done in LoadExeNetworkImpl
+    auto transformedFunction = TransformNetwork(function);
+
+    // 3. The same input node can be transformed into supported and unsupported backend node
     // So we need store as supported ether unsupported node sets
     std::unordered_set<std::string> supported;
     std::unordered_set<std::string> unsupported;
@@ -183,6 +174,7 @@ void Plugin::QueryNetwork(const ICNNNetwork &network, const ConfigMap& config, Q
             // Extract transformation history from transformed node as list of nodes
             for (auto&& fusedLayerName : ngraph::getFusedNamesVector(node)) {
                 // Filter just nodes from original operation set
+                // TODO: fill with actual decision rules based on whether kernel is supported by backend
                 if (contains(originalOps, fusedLayerName)) {
                     if (opset.contains_type_insensitive(fusedLayerName)) {
                         supported.emplace(fusedLayerName);
@@ -193,7 +185,8 @@ void Plugin::QueryNetwork(const ICNNNetwork &network, const ConfigMap& config, Q
             }
         }
     }
-    // The result set should contains just nodes from supported set
+
+    // 4. The result set should contains just nodes from supported set
     for (auto&& layerName : supported) {
         if (!contains(unsupported, layerName)) {
             res.supportedLayersMap.emplace(layerName, GetName());
@@ -205,6 +198,7 @@ void Plugin::QueryNetwork(const ICNNNetwork &network, const ConfigMap& config, Q
 // ! [plugin:add_extension]
 void Plugin::AddExtension(InferenceEngine::IExtensionPtr /*extension*/) {
     // TODO: add extensions if plugin supports extensions
+    THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
 }
 // ! [plugin:add_extension]
 

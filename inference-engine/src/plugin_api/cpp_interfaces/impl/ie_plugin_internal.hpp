@@ -144,7 +144,6 @@ protected:
      * @note The function is used in
      * InferencePluginInternal::LoadNetwork(IExecutableNetwork::Ptr&, const ICNNNetwork&, const std::map<std::string, std::string>&)
      * which performs common steps first and calls this plugin-dependent method implementation after.
-     * @param core A pointer to ICore interface.
      * @param network A network object
      * @param config string-string map of config parameters relevant only for this load operation
      * @return Shared pointer to the ExecutableNetwork object

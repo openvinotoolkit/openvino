@@ -4,18 +4,11 @@
 
 #pragma once
 
-#include <inference_engine.hpp>
-#include <description_buffer.hpp>
+#include "template_config.hpp"
+#include "template_executable_network.hpp"
 #include <cpp_interfaces/impl/ie_plugin_internal.hpp>
 
-#include <memory>
-#include <string>
-#include <map>
-#include <unordered_map>
-#include <vector>
-
-#include "template_executable_network.hpp"
-#include "template_config.hpp"
+#include "backend.hpp"
 
 #include "backend.hpp"
 
@@ -45,10 +38,8 @@ private:
     friend class ExecutableNetwork;
     friend class TemplateInferRequest;
 
-    static std::shared_ptr<ngraph::Function> Transform(const std::shared_ptr<const ngraph::Function>& function);
-
-    Configuration                               _cfg;
     std::shared_ptr<ngraph::runtime::Backend>   _backend;
+    Configuration                               _cfg;
     InferenceEngine::ITaskExecutor::Ptr         _waitExecutor;
 };
 

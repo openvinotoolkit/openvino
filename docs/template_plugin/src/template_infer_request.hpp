@@ -18,7 +18,6 @@
 #include <threading/ie_itask_executor.hpp>
 
 #include <ngraph/runtime/tensor.hpp>
-#include <ngraph/runtime/tensor.hpp>
 #include <executable.hpp>
 
 #include "template_config.hpp"
@@ -47,8 +46,6 @@ public:
     void waitPipeline();
     void inferPostprocess();
 
-    std::shared_ptr<ExecutableNetwork>                      _executableNetwork;
-
 private:
     void allocateDeviceBuffers();
     void allocateBlobs();
@@ -61,6 +58,7 @@ private:
         numOfStages
     };
 
+    std::shared_ptr<ExecutableNetwork>                                  _executableNetwork;
     std::array<InferenceEngine::ProfilingTask, numOfStages>             _profilingTask;
     // for performance counters
     std::array<std::chrono::duration<float, std::micro>, numOfStages>   _durations;
