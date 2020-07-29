@@ -35,17 +35,20 @@ public:
     explicit ExecutableNetwork(InferenceEngine::ICNNNetwork &network,
                                std::shared_ptr<IMvnc> mvnc,
                                std::vector<DevicePtr> &devicePool,
-                               const MyriadConfig& config);
+                               const MyriadConfig& config,
+                               const ie::ICore* core);
 
     explicit ExecutableNetwork(std::istream& strm,
                                std::shared_ptr<IMvnc> mvnc,
                                std::vector<DevicePtr> &devicePool,
-                               const MyriadConfig& config);
+                               const MyriadConfig& config,
+                               const ie::ICore* core);
 
     explicit ExecutableNetwork(const std::string &blobFilename,
                                std::shared_ptr<IMvnc> mvnc,
                                std::vector<DevicePtr> &devicePool,
-                               const MyriadConfig& config);
+                               const MyriadConfig& config,
+                               const ie::ICore* core);
 
 
     virtual ~ExecutableNetwork() {
@@ -120,6 +123,7 @@ private:
     DevicePtr _device;
     GraphMetaInfo _graphMetaData;
     MyriadConfig _config;
+    const ie::ICore* _core = nullptr;
     int _actualNumExecutors = 0;
     std::vector<std::string> _supportedMetrics;
 
@@ -131,7 +135,8 @@ private:
 
     ExecutableNetwork(std::shared_ptr<IMvnc> mvnc,
         std::vector<DevicePtr> &devicePool,
-        const MyriadConfig& config);
+        const MyriadConfig& config,
+        const ie::ICore* core);
 
     InferenceEngine::ITaskExecutor::Ptr getNextTaskExecutor() {
         std::string id = _taskExecutorGetResultIds.front();

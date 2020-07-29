@@ -33,9 +33,10 @@ namespace vpu {
     [this](const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) \
         { functor_name(model, layer, inputs, outputs); }
 
-FrontEnd::FrontEnd(StageBuilder::Ptr stageBuilder)
-    : _stageBuilder(std::move(stageBuilder))
-    , parsers{{
+FrontEnd::FrontEnd(StageBuilder::Ptr stageBuilder, const ie::ICore* core)
+    : _stageBuilder(std::move(stageBuilder)),
+    _core(core),
+    parsers{{
         {"Convolution",                                        LAYER_PARSER(parseConvolution)},
         {"Pooling",                                            LAYER_PARSER(parsePooling)},
         {"ReLU",                                               LAYER_PARSER(parseReLU)},
@@ -120,7 +121,9 @@ FrontEnd::FrontEnd(StageBuilder::Ptr stageBuilder)
         {"StaticShapeReshape",                                 LAYER_PARSER(parseReshape)},
         {"Mish",                                               LAYER_PARSER(parseMish)},
         {"Gelu",                                               LAYER_PARSER(parseGelu)},
-    }} {}
+    }} {
+        VPU_THROW_UNLESS(_core != nullptr, "Argument core is null");
+    }
 
 ModelPtr FrontEnd::buildInitialModel(ie::ICNNNetwork& network) {
     VPU_PROFILE(buildInitialModel);

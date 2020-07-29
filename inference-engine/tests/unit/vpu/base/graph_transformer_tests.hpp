@@ -4,6 +4,10 @@
 
 #pragma once
 
+#include <list>
+
+#include <gtest/gtest.h>
+
 #include <vpu/compile_env.hpp>
 #include <vpu/model/stage.hpp>
 #include <vpu/model/model.hpp>
@@ -12,9 +16,7 @@
 #include <vpu/backend/backend.hpp>
 #include <vpu/utils/ie_helpers.hpp>
 
-#include <gtest/gtest.h>
-
-#include <list>
+#include <unit_test_utils/mocks/cpp_interfaces/interface/mock_icore.hpp>
 
 namespace vpu {
 
@@ -144,6 +146,7 @@ public:
     TestModel CreateTestModel();
 
 private:
+    MockICore  _mockCore;
     Logger::Ptr _log;
     std::list<ModelPtr> _models;
 };
