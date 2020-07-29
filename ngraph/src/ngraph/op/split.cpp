@@ -213,22 +213,24 @@ namespace
     bool evaluate_split(const HostTensorPtr& data_tensor,
                         const HostTensorPtr& axis_tensor,
                         const HostTensorVector& outputs,
-                        const int64_t num_splits)
+                        const int64_t num_splits,
+                        const Node* split_node)
     {
         bool rc = true;
 
         const auto axis = read_vector<int64_t>(axis_tensor)[0];
-        // TODO normalization
+        const auto normalized_axis =
+            ngraph::normalize_axis(split_node, axis, data_tensor->get_partial_shape().rank());
         const auto data_shape = data_tensor->get_shape();
-        const size_t axis_dim_length = data_shape.at(axis);
+        const size_t axis_dim_length = data_shape.at(normalized_axis);
         const size_t part_length = axis_dim_length / num_splits;
 
         Shape output_shape = data_shape;
-        output_shape.at(axis) = part_length;
+        output_shape.at(normalized_axis) = part_length;
 
         std::vector<size_t> lower_bounds(data_shape.size(), 0);
         std::vector<size_t> upper_bounds = data_shape;
-        upper_bounds.at(axis) = part_length;
+        upper_bounds.at(normalized_axis) = part_length;
 
         for (const auto& output : outputs)
         {
@@ -259,9 +261,8 @@ namespace
                 break;
             default: rc = false; break;
             }
-            // TODO assert
-            lower_bounds.at(axis) += part_length;
-            upper_bounds.at(axis) += part_length;
+            lower_bounds.at(normalized_axis) += part_length;
+            upper_bounds.at(normalized_axis) += part_length;
         }
         return rc;
     }
@@ -272,7 +273,7 @@ bool op::v1::Split::evaluate(const HostTensorVector& outputs, const HostTensorVe
     const auto& data = inputs[0];
     const auto& axis = inputs[1];
 
-    const auto num_splits = evaluate_split(data, axis, outputs, m_num_splits);
+    const auto num_splits = evaluate_split(data, axis, outputs, m_num_splits, this);
 
     return true;
 }

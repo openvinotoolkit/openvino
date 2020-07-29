@@ -66,3 +66,37 @@ TEST(op_eval, split)
         EXPECT_EQ(read_vector<int64_t>(results[i]), expected_results[i]);
     }
 }
+
+TEST(op_eval, split_neg_axis)
+{
+    const auto data_shape = Shape{2, 1, 4, 1};
+    const auto data = make_shared<op::Parameter>(element::i64, data_shape);
+    const auto axis = make_shared<op::Parameter>(element::i64, Shape{});
+    const size_t num_splits = 4;
+
+    auto split = make_shared<op::v1::Split>(data, axis, num_splits);
+
+    auto f = make_shared<Function>(split, ParameterVector{data, axis});
+
+    std::vector<int64_t> data_vec(shape_size(data_shape));
+    std::iota(data_vec.begin(), data_vec.end(), 0);
+
+    std::vector<std::vector<int64_t>> expected_results{{0, 4}, {1, 5}, {2, 6}, {3, 7}};
+
+    HostTensorVector results(num_splits);
+    for (auto& result : results)
+    {
+        result = make_shared<HostTensor>();
+    }
+    ASSERT_TRUE(
+        f->evaluate(results,
+                    {make_host_tensor<element::Type_t::i64>(data_shape, data_vec),
+                     make_host_tensor<element::Type_t::i64>(Shape{}, std::vector<int64_t>{-2})}));
+
+    for (int i = 0; i < num_splits; ++i)
+    {
+        EXPECT_EQ(results[i]->get_element_type(), element::i64);
+        EXPECT_EQ(results[i]->get_shape(), (Shape{2, 1, 1, 1}));
+        EXPECT_EQ(read_vector<int64_t>(results[i]), expected_results[i]);
+    }
+}
