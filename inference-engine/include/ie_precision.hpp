@@ -8,6 +8,7 @@
  * @file ie_precision.hpp
  */
 #pragma once
+
 #include <string>
 #include <unordered_map>
 #include <vector>

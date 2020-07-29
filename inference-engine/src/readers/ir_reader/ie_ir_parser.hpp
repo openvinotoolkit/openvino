@@ -11,7 +11,6 @@
 #include <xml_parse_utils.h>
 
 #include <algorithm>
-#include <details/caseless.hpp>
 #include <map>
 #include <memory>
 #include <ngraph/ngraph.hpp>
