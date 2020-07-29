@@ -27,7 +27,7 @@ namespace ngraph
         {
             namespace set_1
             {
-                NodeVector roi_align(const Node& node)
+                OutputVector roi_align(const Node& node)
                 {
                     const auto inputs = node.get_ng_inputs();
 

@@ -14,6 +14,9 @@
 // limitations under the License.
 //*****************************************************************************
 
+// Disabled in CMakeList
+// Update to higher opset required
+
 #pragma once
 
 #include "core/node.hpp"
@@ -27,7 +30,7 @@ namespace ngraph
         {
             namespace set_1
             {
-                NodeVector gather_nd(const Node& node);
+                OutputVector gather_nd(const Node& node);
 
             } // namespace set_1
 

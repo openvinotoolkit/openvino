@@ -27,7 +27,7 @@ namespace ngraph
         {
             namespace set_1
             {
-                NodeVector add(const Node& node)
+                OutputVector add(const Node& node)
                 {
                     const Output<ngraph::Node> lhs_node = node.get_ng_inputs().at(0);
                     Output<ngraph::Node> rhs_node = node.get_ng_inputs().at(1);
@@ -45,7 +45,7 @@ namespace ngraph
 
             namespace set_7
             {
-                NodeVector add(const Node& node)
+                OutputVector add(const Node& node)
                 {
                     return {std::make_shared<default_opset::Add>(node.get_ng_inputs().at(0),
                                                                  node.get_ng_inputs().at(1))};

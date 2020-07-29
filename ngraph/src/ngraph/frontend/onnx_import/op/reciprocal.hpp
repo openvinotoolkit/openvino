@@ -27,7 +27,7 @@ namespace ngraph
         {
             namespace set_1
             {
-                NodeVector reciprocal(const Node& node);
+                OutputVector reciprocal(const Node& node);
 
             } // namespace set_1
 

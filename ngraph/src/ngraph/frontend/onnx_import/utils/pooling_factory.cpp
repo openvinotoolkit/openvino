@@ -42,7 +42,7 @@ namespace ngraph
                 m_padding_above = Shape{std::begin(padding_above), std::end(padding_above)};
             }
 
-            NodeVector PoolingFactory::make_avg_pool() const
+            OutputVector PoolingFactory::make_avg_pool() const
             {
                 const bool count_include_pad =
                     m_onnx_node.get_attribute_value<std::int64_t>("count_include_pad", 0);
@@ -56,7 +56,7 @@ namespace ngraph
                                                                  m_auto_pad)};
             }
 
-            NodeVector PoolingFactory::make_max_pool() const
+            OutputVector PoolingFactory::make_max_pool() const
             {
                 return {std::make_shared<default_opset::MaxPool>(m_inputs.at(0),
                                                                  m_strides,
@@ -77,7 +77,7 @@ namespace ngraph
             GlobalPoolingFactory::GlobalPoolingFactory(const Node& node)
                 : PoolingFactory(node)
             {
-                const auto data_shape = node.get_ng_inputs().at(0)->get_output_partial_shape(0);
+                const auto data_shape = node.get_ng_inputs().at(0).get_partial_shape();
                 const auto data_rank = data_shape.rank();
                 CHECK_VALID_NODE(
                     node, data_rank.is_static(), "Data rank must be static for global pooling ops");

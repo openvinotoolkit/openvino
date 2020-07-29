@@ -27,11 +27,11 @@ namespace ngraph
         {
             namespace set_1
             {
-                NodeVector range(const Node& node)
+                OutputVector range(const Node& node)
                 {
-                    const std::shared_ptr<ngraph::Node> start{node.get_ng_inputs().at(0)};
-                    const std::shared_ptr<ngraph::Node> stop{node.get_ng_inputs().at(1)};
-                    const std::shared_ptr<ngraph::Node> step{node.get_ng_inputs().at(2)};
+                    const Output<ngraph::Node> start{node.get_ng_inputs().at(0)};
+                    const Output<ngraph::Node> stop{node.get_ng_inputs().at(1)};
+                    const Output<ngraph::Node> step{node.get_ng_inputs().at(2)};
                     return {std::make_shared<default_opset::Range>(start, stop, step)};
                 }
             } // namespace set_1

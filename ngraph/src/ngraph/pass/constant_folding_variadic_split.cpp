@@ -99,12 +99,12 @@ void pass::ConstantFolding::construct_constant_variadic_split()
         {
             for (auto& input : variadic_split->output(i).get_target_inputs())
             {
-                input.replace_source_output((slices[i]->output(0)));
+                input.replace_source_output(slices[i]);
             }
         }
         variadic_split->outputs().clear();
 
-        for (auto& slice : slices)
+        for (auto& slice : as_node_vector(slices))
         {
             auto const_data = std::dynamic_pointer_cast<op::Constant>(
                 slice->input_value(0).get_node_shared_ptr());

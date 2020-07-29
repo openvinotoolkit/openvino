@@ -28,17 +28,17 @@ namespace ngraph
         {
             namespace
             {
-                std::shared_ptr<ngraph::Node> calculate_output_shape_based_on_scales(
-                    const std::shared_ptr<ngraph::Node>& data,
-                    const std::shared_ptr<ngraph::Node>& scales)
+                std::shared_ptr<ngraph::Node>
+                    calculate_output_shape_based_on_scales(const Output<ngraph::Node>& data,
+                                                           const Output<ngraph::Node>& scales)
                 {
-                    const auto& data_shape = data->get_output_partial_shape(0);
-                    const auto& scales_shape = scales->get_output_partial_shape(0);
+                    const auto& data_shape = data.get_partial_shape();
+                    const auto& scales_shape = scales.get_partial_shape();
 
-                    if (ngraph::op::is_constant(scales) && data_shape.is_static())
+                    if (ngraph::op::is_constant(scales.get_node()) && data_shape.is_static())
                     {
                         const auto scales_const =
-                            as_type_ptr<default_opset::Constant>(scales->shared_from_this());
+                            as_type_ptr<default_opset::Constant>(scales.get_node_shared_ptr());
 
                         const auto scales_vector = scales_const->cast_vector<float>();
                         const auto data_static_shape = data_shape.to_shape();
@@ -56,7 +56,7 @@ namespace ngraph
                     }
 
                     const auto shape_of_data = std::make_shared<default_opset::Convert>(
-                        std::make_shared<default_opset::ShapeOf>(data), scales->get_element_type());
+                        std::make_shared<default_opset::ShapeOf>(data), scales.get_element_type());
                     const auto multiply =
                         std::make_shared<default_opset::Multiply>(shape_of_data, scales);
                     const auto output_shape =
@@ -65,9 +65,9 @@ namespace ngraph
                     return output_shape;
                 }
 
-                NodeVector build_resize(const Node& node,
-                                        const std::shared_ptr<ngraph::Node>& output_shape,
-                                        const AxisSet& axes)
+                OutputVector build_resize(const Node& node,
+                                          const std::shared_ptr<ngraph::Node>& output_shape,
+                                          const AxisSet& axes)
                 {
                     const auto mode = node.get_attribute_value<std::string>("mode", "nearest");
 
@@ -106,7 +106,7 @@ namespace ngraph
 
             namespace set_11
             {
-                NodeVector resize(const onnx_import::Node& node)
+                OutputVector resize(const onnx_import::Node& node)
                 {
                     // cubic_coeff_a, extrapolation_value attributes are ignored
                     // (they do not have influence on supported modes)
@@ -147,12 +147,12 @@ namespace ngraph
                     // in "tf_crop_and_resize" which is not handled now
                     const auto inputs = node.get_ng_inputs();
                     const auto& data = inputs.at(0);
-                    const auto& data_shape = data->get_output_partial_shape(0);
+                    const auto& data_shape = data.get_partial_shape();
 
                     if (inputs.size() == 4) // sizes input is provided
                     {
                         const auto& sizes = inputs.at(3);
-                        const auto& sizes_shape = sizes->get_output_partial_shape(0);
+                        const auto& sizes_shape = sizes.get_partial_shape();
 
                         CHECK_VALID_NODE(
                             node,
@@ -162,12 +162,13 @@ namespace ngraph
                         size_t axes_size = sizes_shape.is_static() ? sizes_shape[0].get_length()
                                                                    : data_shape.rank().get_length();
 
-                        return build_resize(
-                            node, sizes, AxisSet(common::get_monotonic_range(axes_size)));
+                        return build_resize(node,
+                                            sizes.get_node_shared_ptr(),
+                                            AxisSet(common::get_monotonic_range(axes_size)));
                     }
 
                     const auto& scales = inputs.at(2);
-                    const auto& scales_shape = scales->get_output_partial_shape(0);
+                    const auto& scales_shape = scales.get_partial_shape();
 
                     CHECK_VALID_NODE(
                         node,
@@ -186,14 +187,14 @@ namespace ngraph
 
             namespace set_1
             {
-                NodeVector resize(const onnx_import::Node& node)
+                OutputVector resize(const onnx_import::Node& node)
                 {
                     const auto inputs = node.get_ng_inputs();
                     const auto& data = inputs.at(0);
                     const auto& scales = inputs.at(1);
 
-                    const auto& data_shape = data->get_output_partial_shape(0);
-                    const auto& scales_shape = scales->get_output_partial_shape(0);
+                    const auto& data_shape = data.get_partial_shape();
+                    const auto& scales_shape = scales.get_partial_shape();
 
                     CHECK_VALID_NODE(
                         node,

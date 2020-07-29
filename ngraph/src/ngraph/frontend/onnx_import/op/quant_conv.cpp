@@ -14,6 +14,9 @@
 // limitations under the License.
 //*****************************************************************************
 
+// Disabled in CMakeList
+// Update to higher opset required
+
 #include <cstddef>
 #include <memory>
 #include <vector>
@@ -40,21 +43,21 @@ namespace ngraph
                 {
                     struct OpScale
                     {
-                        std::shared_ptr<ngraph::Node> data_scale;
-                        std::shared_ptr<ngraph::Node> filter_scale;
-                        std::shared_ptr<ngraph::Node> output_scale;
+                        Output<ngraph::Node> data_scale;
+                        Output<ngraph::Node> filter_scale;
+                        Output<ngraph::Node> output_scale;
                     };
 
                     struct OpZeroPoint
                     {
-                        std::shared_ptr<ngraph::Node> data_zero_point;
-                        std::shared_ptr<ngraph::Node> filter_zero_point;
-                        std::shared_ptr<ngraph::Node> output_zero_point;
+                        Output<ngraph::Node> data_zero_point;
+                        Output<ngraph::Node> filter_zero_point;
+                        Output<ngraph::Node> output_zero_point;
                     };
 
                     std::shared_ptr<ngraph::Node>
-                        make_ng_quant_conv(const std::shared_ptr<ngraph::Node>& data,
-                                           const std::shared_ptr<ngraph::Node>& filters,
+                        make_ng_quant_conv(const Output<ngraph::Node>& data,
+                                           const Output<ngraph::Node>& filters,
                                            const Strides& strides,
                                            const Strides& filter_dilations,
                                            const CoordinateDiff& padding_below,
@@ -63,16 +66,16 @@ namespace ngraph
                                            int groups,
                                            const OpScale& op_scale,
                                            const OpZeroPoint& op_zero_point,
-                                           const std::shared_ptr<ngraph::Node>& bias = nullptr)
+                                           const Output<ngraph::Node>& bias = nullptr)
                     {
                         ngraph::element::Type output_type;
-                        if (data->get_element_type() == ngraph::element::u8 &&
-                            filters->get_element_type() == ngraph::element::i8)
+                        if (data.get_element_type() == ngraph::element::u8 &&
+                            filters.get_element_type() == ngraph::element::i8)
                         {
                             output_type = ngraph::element::i8;
                         }
-                        else if (data->get_element_type() == ngraph::element::u8 &&
-                                 filters->get_element_type() == ngraph::element::u8)
+                        else if (data.get_element_type() == ngraph::element::u8 &&
+                                 filters.get_element_type() == ngraph::element::u8)
                         {
                             output_type = ngraph::element::u8;
                         }
@@ -80,19 +83,19 @@ namespace ngraph
                         {
                             // Split one convolution op to N ops where N is the number of groups
                             // and concat results after computation.
-                            std::size_t n_data_channels{data->get_shape().at(1)};
-                            std::size_t n_filters_channels{filters->get_shape().at(0)};
+                            std::size_t n_data_channels{data.get_shape().at(1)};
+                            std::size_t n_filters_channels{filters.get_shape().at(0)};
 
                             std::size_t data_group_size{n_data_channels / groups};
                             std::size_t filters_group_size{n_filters_channels / groups};
-                            NodeVector convolution_nodes;
+                            OutputVector convolution_nodes;
 
                             // initial bounds for splice
-                            std::vector<std::size_t> data_lower_bounds(data->get_shape().size());
-                            std::vector<std::size_t> data_upper_bounds{data->get_shape()};
+                            std::vector<std::size_t> data_lower_bounds(data.get_shape().size());
+                            std::vector<std::size_t> data_upper_bounds{data.get_shape()};
                             std::vector<std::size_t> filters_lower_bounds(
                                 filters->get_shape().size());
-                            std::vector<std::size_t> filters_upper_bounds{filters->get_shape()};
+                            std::vector<std::size_t> filters_upper_bounds{filters.get_shape()};
 
                             for (int64_t group{0}; group < groups; ++group)
                             {
@@ -107,7 +110,7 @@ namespace ngraph
                                 auto sliced_filters = std::make_shared<ngraph::opset0::Slice>(
                                     filters, filters_lower_bounds, filters_upper_bounds);
 
-                                if (bias)
+                                if (bias.get_node())
                                 {
                                     throw ngraph_error(
                                         "Groups != 1 not supported for Quantized Convolution with "
@@ -142,7 +145,7 @@ namespace ngraph
                         }
                         else
                         {
-                            if (bias)
+                            if (bias.get_node())
                             {
                                 return ngraph::builder::quantization::
                                     QuantizedLinearConvolutionBias(data,
@@ -183,9 +186,9 @@ namespace ngraph
 
                 } // namespace
 
-                NodeVector quant_conv(const Node& node)
+                OutputVector quant_conv(const Node& node)
                 {
-                    const NodeVector& inputs = node.get_ng_inputs();
+                    const OutputVector& inputs = node.get_ng_inputs();
                     auto data = inputs.at(0);
                     auto filters = inputs.at(3);
 
@@ -200,13 +203,13 @@ namespace ngraph
 
                     CHECK_VALID_NODE(node,
                                      ((groups >= 0) &&
-                                      (groups <= static_cast<int64_t>(data->get_shape().at(1))) &&
-                                      (groups <= static_cast<int64_t>(filters->get_shape().at(0)))),
+                                      (groups <= static_cast<int64_t>(data.get_shape().at(1))) &&
+                                      (groups <= static_cast<int64_t>(filters.get_shape().at(0)))),
                                      "incorrect value of 'group' attribute: ",
                                      groups);
 
-                    std::size_t n_data_channels{data->get_shape().at(1)};
-                    std::size_t n_filters_channels{filters->get_shape().at(0)};
+                    std::size_t n_data_channels{data.get_shape().at(1)};
+                    std::size_t n_filters_channels{filters.get_shape().at(0)};
 
                     CHECK_VALID_NODE(
                         node,
@@ -226,8 +229,8 @@ namespace ngraph
                     ngraph::op::PadType auto_pad_type = convpool::get_auto_pad(node);
                     CoordinateDiff& padding_below = paddings.first;
                     CoordinateDiff& padding_above = paddings.second;
-                    convpool::calculate_auto_pads(data->get_shape(),
-                                                  filters->get_shape(),
+                    convpool::calculate_auto_pads(data.get_shape(),
+                                                  filters.get_shape(),
                                                   strides,
                                                   filter_dilations,
                                                   auto_pad_type,
@@ -237,7 +240,7 @@ namespace ngraph
                     std::shared_ptr<ngraph::Node> conv_node = nullptr;
 
                     // no bias param
-                    if (inputs.size() == 9 && !inputs.at(8)->is_null())
+                    if (inputs.size() == 9 && !ngraph::op::is_null(inputs.at(8)))
                     {
                         auto bias = inputs.at(8);
                         conv_node = make_ng_quant_conv(

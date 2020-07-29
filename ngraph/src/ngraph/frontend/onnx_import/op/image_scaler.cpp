@@ -25,14 +25,14 @@ namespace ngraph
         {
             namespace set_1
             {
-                NodeVector image_scaler(const Node& node)
+                OutputVector image_scaler(const Node& node)
                 {
                     const auto inputs = node.get_ng_inputs();
                     NGRAPH_CHECK(
                         inputs.size() == 1, "ImageScaler 1 input tensor. Got: ", inputs.size());
 
                     const auto data = inputs[0];
-                    const auto& data_shape = data->get_output_partial_shape(0);
+                    const auto& data_shape = data.get_partial_shape();
                     NGRAPH_CHECK(data_shape.rank().same_scheme({4}),
                                  "ImageScaler expects a 4D tensor with NCHW format. Got: ",
                                  data_shape);

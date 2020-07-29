@@ -31,7 +31,7 @@ namespace ngraph
         {
             namespace set_1
             {
-                NodeVector reverse_sequence(const Node& node)
+                OutputVector reverse_sequence(const Node& node)
                 {
                     const auto data = node.get_ng_inputs().at(0);
 
@@ -39,7 +39,7 @@ namespace ngraph
                     // nGraph supports only int32 type of sequence_lengths
                     const auto sequence_lengths_i32 = std::make_shared<default_opset::Convert>(
                         node.get_ng_inputs().at(1), element::i32);
-                    const auto data_rank = data->get_output_partial_shape(0).rank();
+                    const auto data_rank = data.get_partial_shape().rank();
 
                     const auto batch_axis = node.get_attribute_value<int64_t>("batch_axis", 1);
                     const auto normalized_batch_axis =

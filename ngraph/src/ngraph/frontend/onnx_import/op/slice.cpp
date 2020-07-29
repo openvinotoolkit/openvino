@@ -108,15 +108,14 @@ namespace ngraph
                 ///
                 /// \return Sub-graph represents adjusted indices or input indices
                 ///         if any transformation was needed.
-                std::shared_ptr<ngraph::Node>
-                    adjust_indices_if_needed(const std::shared_ptr<ngraph::Node>& indices,
-                                             const std::vector<uint64_t>& axes,
-                                             uint64_t slice_indices_length,
-                                             int64_t fill_in_value)
+                Output<ngraph::Node> adjust_indices_if_needed(const Output<ngraph::Node>& indices,
+                                                              const std::vector<uint64_t>& axes,
+                                                              uint64_t slice_indices_length,
+                                                              int64_t fill_in_value)
                 {
                     const bool are_axes_sorted = std::is_sorted(axes.begin(), axes.end());
 
-                    const auto indices_shape = indices->get_output_partial_shape(0);
+                    const auto indices_shape = indices.get_partial_shape();
                     // if length of slice indices vector is known
                     if (indices_shape.rank().is_static() &&
                         indices_shape.rank().get_length() == 1 && indices_shape[0].is_static())
@@ -177,22 +176,23 @@ namespace ngraph
 
             namespace set_10
             {
-                NodeVector slice(const Node& node)
+                OutputVector slice(const Node& node)
                 {
-                    NodeVector inputs{node.get_ng_inputs()};
+                    OutputVector inputs{node.get_ng_inputs()};
                     const auto data = inputs.at(0);
-                    const auto data_rank = data->get_output_partial_shape(0).rank();
+                    const auto data_rank = data.get_partial_shape().rank();
 
                     auto starts = inputs.at(1);
                     auto ends = inputs.at(2);
 
                     // Slice is calculated over all axes as default
-                    std::shared_ptr<ngraph::Node> axes;
+                    Output<ngraph::Node> axes;
                     if (inputs.size() >= 4) // axes input provided
                     {
                         axes = inputs.at(3);
-                        CHECK_VALID_NODE(
-                            node, ngraph::op::is_constant(axes), "Axes input must be constant");
+                        CHECK_VALID_NODE(node,
+                                         ngraph::op::is_constant(axes.get_node()),
+                                         "Axes input must be constant");
                     }
                     else
                     {
@@ -207,7 +207,8 @@ namespace ngraph
                             common::get_monotonic_range<int64_t>(data_rank_value));
                     }
 
-                    const auto axes_const = as_type_ptr<default_opset::Constant>(axes);
+                    const auto axes_const =
+                        as_type_ptr<default_opset::Constant>(axes.get_node_shared_ptr());
                     auto raw_axes_vec = axes_const->cast_vector<int64_t>();
                     std::vector<uint64_t> axes_vec =
                         get_normalized_axes_vector(node, data_rank, raw_axes_vec);
@@ -216,7 +217,7 @@ namespace ngraph
                         *std::max_element(std::begin(axes_vec), std::end(axes_vec)) + 1;
                     const auto begin_end_mask = axes_to_mask(axes_vec, slice_indices_length);
 
-                    std::shared_ptr<ngraph::Node> steps = nullptr;
+                    Output<ngraph::Node> steps;
                     if (inputs.size() == 5) // steps input provided
                     {
                         steps = inputs.at(4);
@@ -240,10 +241,10 @@ namespace ngraph
 
             namespace set_1
             {
-                NodeVector slice(const Node& node)
+                OutputVector slice(const Node& node)
                 {
-                    std::shared_ptr<ngraph::Node> data = node.get_ng_inputs().at(0);
-                    const auto data_rank = data->get_output_partial_shape(0).rank();
+                    Output<ngraph::Node> data = node.get_ng_inputs().at(0);
+                    const auto data_rank = data.get_partial_shape().rank();
 
                     const auto starts_atr =
                         node.get_attribute_value<std::vector<int64_t>>("starts");
@@ -281,10 +282,13 @@ namespace ngraph
                         std::vector<int64_t>(slice_indices_length, 1));
 
                     starts =
-                        adjust_indices_if_needed(starts, normalized_axes, slice_indices_length, 0);
-                    ends = adjust_indices_if_needed(ends, normalized_axes, slice_indices_length, 0);
+                        adjust_indices_if_needed(starts, normalized_axes, slice_indices_length, 0)
+                            .get_node_shared_ptr();
+                    ends = adjust_indices_if_needed(ends, normalized_axes, slice_indices_length, 0)
+                               .get_node_shared_ptr();
                     strides =
-                        adjust_indices_if_needed(strides, normalized_axes, slice_indices_length, 1);
+                        adjust_indices_if_needed(strides, normalized_axes, slice_indices_length, 1)
+                            .get_node_shared_ptr();
 
                     return {std::make_shared<default_opset::StridedSlice>(
                         data, starts, ends, strides, begin_end_mask, begin_end_mask)};

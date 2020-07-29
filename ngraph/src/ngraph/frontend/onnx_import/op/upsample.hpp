@@ -27,13 +27,13 @@ namespace ngraph
         {
             namespace set_1
             {
-                NodeVector upsample(const Node& node);
+                OutputVector upsample(const Node& node);
 
             } // namespace set_1
 
             namespace set_9
             {
-                NodeVector upsample(const Node& node);
+                OutputVector upsample(const Node& node);
 
             } // namespace set_9
 

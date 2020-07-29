@@ -64,9 +64,9 @@ namespace ngraph
                                                 const ngraph::element::Type& output_type,
                                                 const bool requantize = true);
 
-            void check_concat(const NodeVector& args,
-                              const NodeVector& mins,
-                              const NodeVector& maxs);
+            void check_concat(const OutputVector& args,
+                              const OutputVector& mins,
+                              const OutputVector& maxs);
         }
     }
 }

@@ -65,7 +65,7 @@ opset versions starting from `1` to `6` and to the latest opset version.
 | Identity | 1- | 0,1 | 
 | InstanceNormalization | 1- | 0, (1) | Have to change to only v1 ops (NGONNX-1015)
 | LRN | 1- | 0,1 |
-| LSTM | 1-7- | 0,(1) | (NGONNX-1015), there is `GetOutputElement` (3 outputs), LSTMSequence and LSTMCell uses some v0 ops which aren't used in v1
+| LSTM | 1-7- | 0,(1) |
 | LeakyRelu | 1-6- | 0,(1) | (NGONNX-1015)
 | Less | 1-7-9 | 0,1 |
 | Log | 1-6- | 0,1 |

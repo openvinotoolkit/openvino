@@ -63,7 +63,7 @@ namespace ngraph
                     bool normalize_variance = true,
                     double eps = 1e-9);
 
-                virtual NodeVector decompose_op() const override;
+                virtual OutputVector decompose_op() const override;
 
                 virtual void validate_and_infer_types() override;
 

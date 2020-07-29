@@ -146,7 +146,7 @@ void op::RNNCell::pre_validate_and_infer_types()
                           ".");
 }
 
-NodeVector op::RNNCell::decompose_op() const
+OutputVector op::RNNCell::decompose_op() const
 {
     // ------ VARIABLE'S NAMES AND ACRONYM DEFINITIONS ------
     // The names used below are analogous to the one used in ONNX documentation.

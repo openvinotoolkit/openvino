@@ -20,7 +20,6 @@
 #include "default_opset.hpp"
 #include "ngraph/node.hpp"
 #include "ngraph/op/constant.hpp"
-#include "ngraph/op/get_output_element.hpp"
 #include "ngraph/op/topk.hpp"
 #include "ngraph/shape.hpp"
 #include "ngraph/type/element_type.hpp"
@@ -36,30 +35,19 @@ namespace
         std::int64_t axis{node.get_attribute_value<std::int64_t>("axis", -1)};
 
         const auto data = node.get_ng_inputs().at(0);
-        const auto data_rank = data->get_output_partial_shape(0).rank();
+        const auto data_rank = data.get_partial_shape().rank();
         return ngraph::normalize_axis(node.get_description(), axis, data_rank);
     }
 
     /// \return Return the second input to the TopK node reshaped to a scalar.
-    std::shared_ptr<ngraph::Node> get_k(const ngraph::onnx_import::Node& node)
+    ngraph::Output<ngraph::Node> get_k(const ngraph::onnx_import::Node& node)
     {
         auto k_node = node.get_ng_inputs().at(1);
-        NGRAPH_CHECK(shape_size(k_node->get_shape()) == 1,
+        NGRAPH_CHECK(shape_size(k_node.get_shape()) == 1,
                      "ONNX TopK operator: 'K' parameter must contain a single positive value.",
                      node);
 
         return ngraph::onnx_import::reshape::interpret_as_scalar(k_node);
-    }
-
-    /// \return Return the outputs of the TopK node.
-    ngraph::NodeVector get_outputs(const std::shared_ptr<ngraph::Node>& node)
-    {
-        std::shared_ptr<ngraph::Node> values =
-            std::make_shared<ngraph::op::v0::GetOutputElement>(node, 0);
-        std::shared_ptr<ngraph::Node> indices =
-            std::make_shared<ngraph::op::v0::GetOutputElement>(node, 1);
-
-        return {values, indices};
     }
 }
 
@@ -71,7 +59,7 @@ namespace ngraph
         {
             namespace set_1
             {
-                NodeVector topk(const Node& node)
+                OutputVector topk(const Node& node)
                 {
                     auto data = node.get_ng_inputs().at(0);
                     std::int64_t k{node.get_attribute_value<std::int64_t>("k")};
@@ -86,13 +74,13 @@ namespace ngraph
                         default_opset::TopK::SortType::SORT_VALUES,
                         element::i64);
 
-                    return get_outputs(top_k);
+                    return {top_k->output(0), top_k->output(1)};
                 }
             }
 
             namespace set_10
             {
-                NodeVector topk(const Node& node)
+                OutputVector topk(const Node& node)
                 {
                     auto data = node.get_ng_inputs().at(0);
                     auto k = get_k(node);
@@ -106,13 +94,13 @@ namespace ngraph
                         default_opset::TopK::SortType::SORT_VALUES,
                         element::i64);
 
-                    return get_outputs(top_k);
+                    return {top_k->output(0), top_k->output(1)};
                 }
             }
 
             namespace set_11
             {
-                NodeVector topk(const Node& node)
+                OutputVector topk(const Node& node)
                 {
                     // Process inputs
                     auto data = node.get_ng_inputs().at(0);
@@ -134,7 +122,7 @@ namespace ngraph
                     std::shared_ptr<ngraph::Node> top_k = std::make_shared<default_opset::TopK>(
                         data, k, axis, mode, sort_type, element::i64);
 
-                    return get_outputs(top_k);
+                    return {top_k->output(0), top_k->output(1)};
                 }
             }
 

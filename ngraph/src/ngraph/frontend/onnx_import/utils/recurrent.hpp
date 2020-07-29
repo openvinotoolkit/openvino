@@ -55,14 +55,14 @@ namespace ngraph
             ///
             struct OpInputMap
             {
-                using container_type = std::map<OpInput, std::shared_ptr<ngraph::Node>>;
+                using container_type = std::map<OpInput, Output<ngraph::Node>>;
 
                 explicit OpInputMap(const onnx_import::Node& node, std::size_t gates_count);
                 OpInputMap(container_type&& map);
                 virtual ~OpInputMap() = default;
 
-                std::shared_ptr<ngraph::Node>& at(const OpInput& key);
-                const std::shared_ptr<ngraph::Node>& at(const OpInput& key) const;
+                Output<ngraph::Node>& at(const OpInput& key);
+                const Output<ngraph::Node>& at(const OpInput& key) const;
 
                 container_type m_map;
             };
@@ -133,7 +133,7 @@ namespace ngraph
                 ///
                 /// \return     The node vector containing results from all sequence steps.
                 ///
-                NodeVector run_sequence(const RecurrentCellFunction& kernel);
+                OutputVector run_sequence(const RecurrentCellFunction& kernel);
 
             private:
                 ///
@@ -174,8 +174,8 @@ namespace ngraph
                 ///
                 /// \return     The node vector with pass results.
                 ///
-                NodeVector recurrent_sequence_pass(const RecurrentCellFunction& kernel,
-                                                   bool is_reverse = false);
+                OutputVector recurrent_sequence_pass(const RecurrentCellFunction& kernel,
+                                                     bool is_reverse = false);
 
                 OpInputMap& m_args;
                 ngraph::op::RecurrentSequenceDirection m_direction;

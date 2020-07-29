@@ -61,7 +61,7 @@ namespace ngraph
 
                 struct LSTMNgInputMap
                 {
-                    using container_type = std::map<LSTMInput, std::shared_ptr<ngraph::Node>>;
+                    using container_type = std::map<LSTMInput, Output<ngraph::Node>>;
                     using iterator = typename container_type::iterator;
 
                     explicit LSTMNgInputMap(const Node& node)
@@ -84,11 +84,11 @@ namespace ngraph
                         m_map[LSTMInput::LSTM_INPUT_R] = ng_inputs.at(2);
 
                         const std::size_t hidden_size =
-                            m_map[LSTMInput::LSTM_INPUT_R]->get_shape().back();
+                            m_map[LSTMInput::LSTM_INPUT_R].get_shape().back();
                         const std::size_t batch_size =
-                            m_map[LSTMInput::LSTM_INPUT_X]->get_shape().at(0);
+                            m_map[LSTMInput::LSTM_INPUT_X].get_shape().at(0);
                         const std::size_t num_directions =
-                            m_map[LSTMInput::LSTM_INPUT_W]->get_shape().front();
+                            m_map[LSTMInput::LSTM_INPUT_W].get_shape().front();
 
                         // ------ Optional inputs ------
                         // The bias tensor for input gate. Shape [num_directions, 4*hidden_size]
@@ -119,7 +119,7 @@ namespace ngraph
                                     Shape{batch_size},
                                     std::vector<std::int32_t>(
                                         batch_size,
-                                        m_map[LSTMInput::LSTM_INPUT_X]->get_shape().at(1)));
+                                        m_map[LSTMInput::LSTM_INPUT_X].get_shape().at(1)));
                         }
                         // The initial value of the hidden.
                         // Shape [num_directions, batch_size, hidden_size]
@@ -164,10 +164,7 @@ namespace ngraph
                         }
                     }
 
-                    std::shared_ptr<ngraph::Node>& at(const LSTMInput& key)
-                    {
-                        return m_map.at(key);
-                    }
+                    Output<ngraph::Node>& at(const LSTMInput& key) { return m_map.at(key); }
                     container_type m_map;
                 };
 
@@ -209,7 +206,7 @@ namespace ngraph
 
             namespace set_1
             {
-                NodeVector lstm(const Node& node)
+                OutputVector lstm(const Node& node)
                 {
                     LSTMNgInputMap input_map{node};
                     LSTMAttributes attributes{node};

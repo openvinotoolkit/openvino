@@ -28,7 +28,7 @@ namespace ngraph
         {
             namespace set_1
             {
-                inline NodeVector logical_xor(const Node& node)
+                inline OutputVector logical_xor(const Node& node)
                 {
                     return {std::make_shared<default_opset::LogicalXor>(
                         node.get_ng_inputs().at(0),

@@ -27,7 +27,7 @@ namespace ngraph
         {
             namespace set_1
             {
-                NodeVector squeeze(const Node& node);
+                OutputVector squeeze(const Node& node);
 
             } // namespace set_1
 

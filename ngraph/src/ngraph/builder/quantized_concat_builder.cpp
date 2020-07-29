@@ -25,28 +25,28 @@ namespace ngraph
 {
     namespace builder
     {
-        shared_ptr<Node> QuantizedConcatBuilder(const NodeVector& args,
+        shared_ptr<Node> QuantizedConcatBuilder(const OutputVector& args,
                                                 size_t concatenation_axis,
-                                                const NodeVector& mins,
-                                                const NodeVector& maxs)
+                                                const OutputVector& mins,
+                                                const OutputVector& maxs)
         {
             quantization_utils::check_concat(args, mins, maxs);
-            auto quant_type = args[0]->get_element_type();
+            auto quant_type = args[0].get_element_type();
 
             // output scale
             auto min = make_shared<op::Min>(make_shared<op::Concat>(mins, 0), ngraph::AxisSet{0});
             auto max = make_shared<op::Max>(make_shared<op::Concat>(maxs, 0), ngraph::AxisSet{0});
             auto out_scale = quantization_utils::get_scale(min, max, quant_type);
 
-            NodeVector rescaled_args(args.size());
+            OutputVector rescaled_args(args.size());
             for (size_t i = 0; i < args.size(); ++i)
             {
-                auto q_type = args[i]->get_element_type();
+                auto q_type = args[i].get_element_type();
                 auto in_scale = make_shared<ngraph::op::Reshape>(
                     quantization_utils::get_scale(mins[i], maxs[i], q_type),
                     AxisVector{0},
                     Shape{});
-                auto zero = make_constant(q_type, in_scale->get_shape(), 0);
+                auto zero = make_constant(q_type, in_scale->get_output_shape(0), 0);
 
                 rescaled_args[i] =
                     make_shared<op::Dequantize>(args[i], in_scale, zero, element::f32, AxisSet{});
@@ -58,7 +58,7 @@ namespace ngraph
                                               AxisSet{},
                                               op::Quantize::RoundMode::ROUND_NEAREST_TOWARD_EVEN);
             }
-            OutputVector base = as_output_vector(args);
+            OutputVector base = args;
             for (auto node : mins)
             {
                 base.push_back(node);

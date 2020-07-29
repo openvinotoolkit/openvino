@@ -85,7 +85,7 @@ void op::ShuffleChannels::pre_validate_and_infer_types()
     }
 }
 
-NodeVector op::ShuffleChannels::decompose_op() const
+OutputVector op::ShuffleChannels::decompose_op() const
 {
     const auto data = input_value(0);
     const auto& data_shape = data.get_shape();

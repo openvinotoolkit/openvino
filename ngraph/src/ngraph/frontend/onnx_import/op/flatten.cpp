@@ -29,12 +29,12 @@ namespace ngraph
         {
             namespace set_1
             {
-                NodeVector flatten(const Node& node)
+                OutputVector flatten(const Node& node)
                 {
-                    NodeVector inputs{node.get_ng_inputs()};
+                    OutputVector inputs{node.get_ng_inputs()};
                     auto data = inputs.at(0);
                     auto axis = node.get_attribute_value<std::int64_t>("axis", 1);
-                    const auto data_rank = data->get_output_partial_shape(0).rank();
+                    const auto data_rank = data.get_partial_shape().rank();
 
                     if (data_rank.is_static())
                     {

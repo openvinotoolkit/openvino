@@ -21,12 +21,12 @@ namespace ngraph
 {
     namespace onnx_import
     {
-        void GraphCache::emplace_node(const std::string& name, std::shared_ptr<ngraph::Node>&& node)
+        void GraphCache::emplace_node(const std::string& name, Output<ngraph::Node>&& node)
         {
             m_graph_cache_map[name] = std::move(node);
         }
 
-        std::shared_ptr<ngraph::Node> GraphCache::get_node(const std::string& name) const
+        Output<ngraph::Node> GraphCache::get_node(const std::string& name) const
         {
             try
             {
@@ -52,7 +52,7 @@ namespace ngraph
             }
         }
 
-        std::shared_ptr<ngraph::Node> SubgraphCache::get_node(const std::string& name) const
+        Output<ngraph::Node> SubgraphCache::get_node(const std::string& name) const
         {
             // present in subgraph scope
             if (GraphCache::contains(name))

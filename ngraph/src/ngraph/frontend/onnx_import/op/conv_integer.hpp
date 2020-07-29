@@ -14,6 +14,9 @@
 // limitations under the License.
 //*****************************************************************************
 
+// Disabled in CMakeList
+// Update to higher opset required
+
 #pragma once
 
 #include "core/node.hpp"
@@ -33,7 +36,7 @@ namespace ngraph
                 ///
                 /// \return The vector containing Ngraph nodes producing output of quantized ONNX
                 ///         convolution operation.
-                NodeVector conv_integer(const Node& node);
+                OutputVector conv_integer(const Node& node);
 
             } // namespace set_1
 

@@ -27,13 +27,13 @@ namespace ngraph
         {
             namespace set_1
             {
-                NodeVector resize(const Node& node);
+                OutputVector resize(const Node& node);
 
             } // namespace set_1
 
             namespace set_11
             {
-                NodeVector resize(const Node& node);
+                OutputVector resize(const Node& node);
             }
 
         } // namespace op

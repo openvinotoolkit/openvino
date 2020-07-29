@@ -49,7 +49,7 @@ namespace ngraph
                     };
                 }
 
-                NodeVector rnn(const Node& node)
+                OutputVector rnn(const Node& node)
                 {
                     constexpr std::size_t gates_count = 1;
                     RNNInputMap input_map{node, gates_count};

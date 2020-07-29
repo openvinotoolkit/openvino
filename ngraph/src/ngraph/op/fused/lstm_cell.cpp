@@ -224,7 +224,7 @@ void op::LSTMCell::pre_validate_and_infer_types()
                           ".");
 }
 
-NodeVector op::LSTMCell::decompose_op() const
+OutputVector op::LSTMCell::decompose_op() const
 {
     // ------ VARIABLE'S NAMES AND ACRONYM DEFINITIONS ------
     // The names used below are analogous to the one used in ONNX documentation.
@@ -270,7 +270,7 @@ NodeVector op::LSTMCell::decompose_op() const
     Output<Node> W = input_value(3);
     Output<Node> R = input_value(4);
     Output<Node> bias = input_value(5);
-    NodeVector p_iof = builder::split(input_value(6), s_peepholes_count);
+    OutputVector p_iof = builder::split(input_value(6), s_peepholes_count);
 
     // Converting to IFCO format since it's DNNL default.
     if (m_weights_format != op::LSTMWeightsFormat::IFCO)
@@ -291,7 +291,7 @@ NodeVector op::LSTMCell::decompose_op() const
     // Xt*(W^T) + Ht-1*(R^T) + Wb + Rb  -- for [iofc] gates.
     auto gates = add(Xt_W, add(Ht_R, bias));
 
-    NodeVector split_gates = builder::split(gates, 4, -1);
+    OutputVector split_gates = builder::split(gates, 4, -1);
     auto i_t = split_gates.at(0);
     auto f_t = split_gates.at(1);
     auto c_t = split_gates.at(2);
@@ -302,9 +302,9 @@ NodeVector op::LSTMCell::decompose_op() const
     if (m_input_forget)
     {
         // Couple input with forget gate: 1 - i_t
-        f_t = sub(op::Constant::create(i_t->get_element_type(),
-                                       i_t->get_shape(),
-                                       vector<float>(shape_size(i_t->get_shape()), 1.f)),
+        f_t = sub(op::Constant::create(i_t.get_element_type(),
+                                       i_t.get_shape(),
+                                       vector<float>(shape_size(i_t.get_shape()), 1.f)),
                   i_t);
     }
     else
@@ -344,8 +344,8 @@ shared_ptr<Node> op::LSTMCell::convert_node_format(const Output<Node>& node) con
         {op::LSTMWeightsFormat::IOFC, {0, 2, 3, 1}},
     };
 
-    NodeVector splitted_node = builder::split(node, s_gates_count);
-    NodeVector nodes_in_new_format;
+    OutputVector splitted_node = builder::split(node, s_gates_count);
+    OutputVector nodes_in_new_format;
     nodes_in_new_format.reserve(s_gates_count);
     for (const auto& axis : gate_order_conversion_map.at(m_weights_format))
     {

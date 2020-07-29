@@ -36,7 +36,7 @@ namespace ngraph
                 ///
                 /// \return     Vector of nodes containting resulting nGraph nodes.
                 ///
-                NodeVector loop(const Node& node);
+                OutputVector loop(const Node& node);
             } // namespace set_1
 
         } // namespace op

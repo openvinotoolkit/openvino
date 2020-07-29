@@ -27,7 +27,7 @@ namespace ngraph
         {
             namespace set_1
             {
-                NodeVector cosh(const Node& node);
+                OutputVector cosh(const Node& node);
             }
         }
     } // namespace onnx_import

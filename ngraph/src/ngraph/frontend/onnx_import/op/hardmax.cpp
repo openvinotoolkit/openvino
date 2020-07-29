@@ -31,10 +31,10 @@ namespace ngraph
         {
             namespace set_1
             {
-                NodeVector hardmax(const Node& node)
+                OutputVector hardmax(const Node& node)
                 {
                     const auto input = node.get_ng_inputs().at(0);
-                    const auto& input_shape = input->get_output_partial_shape(0);
+                    const auto& input_shape = input.get_partial_shape();
 
                     auto axis = node.get_attribute_value<std::int64_t>("axis", 1);
                     if (input_shape.rank().is_static())
@@ -48,11 +48,10 @@ namespace ngraph
 
                     const auto coerced_tensor_shape =
                         std::make_shared<default_opset::ShapeOf>(coerced_tensor);
-                    std::shared_ptr<ngraph::Node> row_size =
-                        std::make_shared<default_opset::Gather>(
-                            coerced_tensor_shape,
-                            default_opset::Constant::create(element::i64, {1}, {1}),
-                            default_opset::Constant::create(element::i64, {}, {0}));
+                    Output<ngraph::Node> row_size = std::make_shared<default_opset::Gather>(
+                        coerced_tensor_shape,
+                        default_opset::Constant::create(element::i64, {1}, {1}),
+                        default_opset::Constant::create(element::i64, {}, {0}));
                     row_size = ngraph::onnx_import::reshape::interpret_as_scalar(row_size);
 
                     const auto indices_axis = 1;
@@ -70,8 +69,8 @@ namespace ngraph
 
                     const auto results = std::make_shared<default_opset::OneHot>(
                         topk->output(1), row_size, on_value, off_value, indices_axis);
-                    const auto converted_results = std::make_shared<default_opset::Convert>(
-                        results, input->get_element_type());
+                    const auto converted_results =
+                        std::make_shared<default_opset::Convert>(results, input.get_element_type());
 
                     if (input_shape.is_static())
                     {

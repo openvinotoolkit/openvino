@@ -29,6 +29,8 @@ namespace ngraph
         bool is_null(const ngraph::Node* node);
         ONNX_IMPORTER_API
         bool is_null(const std::shared_ptr<ngraph::Node>& node);
+        ONNX_IMPORTER_API
+        bool is_null(const Output<ngraph::Node>& output);
     }
     namespace onnx_import
     {

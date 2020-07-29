@@ -39,7 +39,7 @@ ngraph::op::v1::SpaceToBatch::SpaceToBatch(const ngraph::Output<ngraph::Node>& d
     constructor_validate_and_infer_types();
 }
 
-NodeVector op::v1::SpaceToBatch::decompose_op() const
+OutputVector op::v1::SpaceToBatch::decompose_op() const
 {
     auto data = input_value(0);
     auto block = input_value(1);
@@ -125,7 +125,7 @@ NodeVector op::v1::SpaceToBatch::decompose_op() const
     }
     flat_node = builder::opset1::reshape(flat_node, squeezed_shape);
 
-    return NodeVector{flat_node};
+    return OutputVector{flat_node};
 }
 
 void ngraph::op::v1::SpaceToBatch::pre_validate_and_infer_types()

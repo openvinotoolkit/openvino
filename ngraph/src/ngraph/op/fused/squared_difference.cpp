@@ -41,7 +41,7 @@ bool ngraph::op::v0::SquaredDifference::visit_attributes(AttributeVisitor& visit
     return true;
 }
 
-NodeVector op::SquaredDifference::decompose_op() const
+OutputVector op::SquaredDifference::decompose_op() const
 {
     const auto x1 = input_value(0);
     const auto x2 = input_value(1);

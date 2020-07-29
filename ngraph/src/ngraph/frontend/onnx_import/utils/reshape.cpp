@@ -87,10 +87,9 @@ namespace ngraph
                 return inferred_dims;
             }
 
-            std::shared_ptr<ngraph::Node>
-                interpret_as_scalar(const std::shared_ptr<ngraph::Node>& node)
+            Output<ngraph::Node> interpret_as_scalar(const Output<ngraph::Node>& node)
             {
-                Shape node_shape = node->get_shape();
+                Shape node_shape = node.get_shape();
 
                 // If node is already a scalar, return original
                 if (is_scalar(node_shape))
@@ -103,12 +102,13 @@ namespace ngraph
                              node_shape);
 
                 // If node is a Constant, recreate as Constant with Shape{}
-                if (ngraph::op::is_constant(node))
+                if (ngraph::op::is_constant(node.get_node()))
                 {
                     const auto value =
-                        ngraph::as_type_ptr<default_opset::Constant>(node)->get_data_ptr();
+                        ngraph::as_type_ptr<default_opset::Constant>(node.get_node_shared_ptr())
+                            ->get_data_ptr();
                     return std::make_shared<default_opset::Constant>(
-                        node->get_element_type(), ngraph::Shape{}, value);
+                        node.get_element_type(), ngraph::Shape{}, value);
                 }
 
                 return builder::opset1::reshape(node, Shape{});

@@ -766,7 +766,7 @@ NodeVector ngraph::as_node_vector(const OutputVector& values)
     NodeVector node_vector;
     for (auto& value : values)
     {
-        node_vector.push_back(value.as_single_output_node());
+        node_vector.emplace_back(value.get_node_shared_ptr());
     }
     return node_vector;
 }

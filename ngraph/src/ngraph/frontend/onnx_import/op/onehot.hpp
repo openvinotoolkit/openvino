@@ -27,7 +27,7 @@ namespace ngraph
         {
             namespace set_1
             {
-                NodeVector onehot(const Node& node);
+                OutputVector onehot(const Node& node);
 
             } // namespace set_1
 

@@ -29,12 +29,12 @@ namespace ngraph
         {
             namespace set_1
             {
-                NodeVector squeeze(const Node& node)
+                OutputVector squeeze(const Node& node)
                 {
                     auto data = node.get_ng_inputs().at(0);
                     std::vector<std::int64_t> axes =
                         node.get_attribute_value<std::vector<std::int64_t>>("axes", {});
-                    const auto data_rank = data->get_output_partial_shape(0).rank();
+                    const auto data_rank = data.get_partial_shape().rank();
 
                     std::vector<std::size_t> normalized_axes =
                         ngraph::normalize_axes(node.get_description(), axes, data_rank);
