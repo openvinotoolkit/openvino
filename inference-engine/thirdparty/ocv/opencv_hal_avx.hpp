@@ -3173,7 +3173,7 @@ static inline void v_setr64(v_uint8x32& val_0, v_uint8x32& val_1,v_uint8x32& val
                                   *reinterpret_cast<int64_t*>(&tmp[4 * mapsx[x + 3 * shift + 3]]));
 }
 
-static inline v_uint8x32 v_permutevar8x32(v_uint8x32& a, v_uint32x8& idxs)
+static inline v_uint8x32 v_permute32(v_uint8x32& a, v_uint32x8& idxs)
 {
     return v_uint8x32(_mm256_permutevar8x32_epi32(a.val, idxs.val));
 }
