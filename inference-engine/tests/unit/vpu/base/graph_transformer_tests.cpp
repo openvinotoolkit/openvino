@@ -179,7 +179,6 @@ Stage TestModel::addStage(
 
     return stage;
 }
-
 void TestModel::setStageDataOrderInfo(
         int stageInd,
         const InOutPortMap<DimsOrder>& inputInfo,
