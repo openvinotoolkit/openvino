@@ -15,7 +15,7 @@ TEST_F(CNNNetworkTests, throwsOnInitWithNull) {
 }
 
 TEST_F(CNNNetworkTests, throwsOnInitWithNullNgraph) {
-    std::shared_ptr<const ngraph::Function> nlptr = nullptr;
+    std::shared_ptr<ngraph::Function> nlptr = nullptr;
     ASSERT_THROW(CNNNetwork network(nlptr), InferenceEngine::details::InferenceEngineException);
 }
 

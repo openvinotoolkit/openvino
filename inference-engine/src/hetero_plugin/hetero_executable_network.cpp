@@ -143,7 +143,7 @@ void dumpGraph(InferenceEngine::ICNNNetwork &network,
 
 
 void dumpGraph(InferenceEngine::ICNNNetwork&                                network,
-               const std::vector<std::shared_ptr<const ngraph::Function>>&  subFunctions,
+               const std::vector<std::shared_ptr<ngraph::Function>>&  subFunctions,
                std::ostream&                                                stream) {
     static const std::array<const char *, 9> colors{{"#FFC405",
                                                      "#20F608",
@@ -665,13 +665,13 @@ void HeteroExecutableNetwork::InitNgraph(const InferenceEngine::ICNNNetwork& net
     InputsDataMap externalInputsData;
     network.getInputsInfo(externalInputsData);
     networks.resize(orderedSubgraphs.size());
-    std::vector<std::shared_ptr<const ngraph::Function>> subFunctions(orderedSubgraphs.size());
+    std::vector<std::shared_ptr<ngraph::Function>> subFunctions(orderedSubgraphs.size());
     std::vector<bool> isInputSubnetwork(orderedSubgraphs.size());
     int id = 0;
     for (auto&& subgraph : orderedSubgraphs) {
         networks[id]._device = subgraph._affinity;
         subFunctions[id] =
-            std::make_shared<const ngraph::Function>(subgraph._results, subgraph._parameters,
+            std::make_shared<ngraph::Function>(subgraph._results, subgraph._parameters,
                                                      _name + '_' + std::to_string(id));
         networks[id]._clonedNetwork = CNNNetwork{subFunctions[id]};
         // update of pre-processing info
