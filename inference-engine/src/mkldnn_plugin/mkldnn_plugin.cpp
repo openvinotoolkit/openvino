@@ -20,6 +20,7 @@
 #include <nodes/list.hpp>
 #include <ie_util_internal.hpp>
 #include <graph_transformer.h>
+#include <ie_ngraph_utils.hpp>
 
 #include "convert_function_to_cnn_network.hpp"
 #include <transformations/common_optimizations/common_optimizations.hpp>
@@ -91,11 +92,17 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork) {
     manager.register_pass<ngraph::pass::ConvertOpSet3ToOpSet2>();
     manager.register_pass<ngraph::pass::ConvertOpSet2ToOpSet1>();
 
-    manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::i64, ngraph::element::i32);
-    manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::u64, ngraph::element::i32);
-    manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::u16, ngraph::element::i32);
-    manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::u32, ngraph::element::i32);
-    manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::f16, ngraph::element::f32);
+    std::vector<std::pair<ngraph::element::Type, ngraph::element::Type>> convert_precision_list {
+            {ngraph::element::i64, ngraph::element::i32},
+            {ngraph::element::u64, ngraph::element::i32},
+            {ngraph::element::u16, ngraph::element::i32},
+            {ngraph::element::u32, ngraph::element::i32},
+            {ngraph::element::f16, ngraph::element::f32},
+    };
+
+    for (auto & precision : convert_precision_list) {
+        manager.register_pass<ngraph::pass::ConvertPrecision>(precision.first, precision.second);
+    }
 
     manager.register_pass<ngraph::pass::ConvertOpSet1ToLegacy>();
     manager.register_pass<ngraph::pass::ConvertPrecision>(ngraph::element::i64, ngraph::element::i32);
@@ -105,6 +112,12 @@ static void Transformation(ICNNNetwork::Ptr& clonedNetwork) {
 
     clonedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(nGraphFunc, *clonedNetwork);
     NetPass::ConvertPrecision(*clonedNetwork, Precision::BOOL, Precision::U8);
+
+    // WA: after conversion to CNNNetwork user precision can redefine input/output precisions
+    // so we need to apply additional precision conversion but only for inputs and outputs
+    for (auto & precision : convert_precision_list) {
+        NetPass::ConvertIOPrecision(*clonedNetwork, convertPrecision(precision.first), convertPrecision(precision.second));
+    }
 }
 
 InferenceEngine::ExecutableNetworkInternal::Ptr
@@ -139,20 +152,24 @@ Engine::LoadExeNetworkImpl(const InferenceEngine::ICNNNetwork &network, const st
     }
 
     std::shared_ptr<ICNNNetwork> clonedNetwork = cloneNetwork(network);
+    bool is_transformed = false;
     if (clonedNetwork->getFunction()) {
         Transformation(clonedNetwork);
+        is_transformed = true;
     }
     auto implNetwork = std::dynamic_pointer_cast<details::CNNNetworkImpl>(clonedNetwork);
     if (implNetwork) {
         // valid for CNNNetworkImpl only, while there's no API in ICNNNetwork to change network
         ConstTransformer transformator(implNetwork.get());
         transformator.fullTrim();
-        NetPass::ConvertPrecision(*implNetwork, Precision::I64, Precision::I32);
-        NetPass::ConvertPrecision(*implNetwork, Precision::U64, Precision::I32);
-        NetPass::ConvertPrecision(*implNetwork, Precision::U32, Precision::I32);
-        NetPass::ConvertPrecision(*implNetwork, Precision::FP16, Precision::FP32);
-        NetPass::ConvertPrecision(*implNetwork, Precision::BOOL, Precision::U8);
-        NetPass::ConvertPrecision(*implNetwork, Precision::U16, Precision::I32);
+        if (!is_transformed) {
+            NetPass::ConvertPrecision(*implNetwork, Precision::I64, Precision::I32);
+            NetPass::ConvertPrecision(*implNetwork, Precision::U64, Precision::I32);
+            NetPass::ConvertPrecision(*implNetwork, Precision::U32, Precision::I32);
+            NetPass::ConvertPrecision(*implNetwork, Precision::FP16, Precision::FP32);
+            NetPass::ConvertPrecision(*implNetwork, Precision::BOOL, Precision::U8);
+            NetPass::ConvertPrecision(*implNetwork, Precision::U16, Precision::I32);
+        }
     }
 
     return std::make_shared<MKLDNNExecNetwork>(*clonedNetwork, conf, extensionManager, weightsSharing);
