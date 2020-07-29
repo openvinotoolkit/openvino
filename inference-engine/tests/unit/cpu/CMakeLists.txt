@@ -14,11 +14,13 @@ addIeTargetTest(
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
         INCLUDES
             ${IE_MAIN_SOURCE_DIR}/src/mkldnn_plugin
+            ${IE_MAIN_SOURCE_DIR}/src/transformations/include
         OBJECT_FILES
             ${MKLDNN_SRC_OBJ}
         LINK_LIBRARIES
             unitTestUtils
             mkldnn
+            inference_engine_transformations
         ADD_CPPLINT
         LABELS
             CPU
