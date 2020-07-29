@@ -30,9 +30,10 @@
 #include "transformations/low_precision/fake_quantize.hpp"
 #include "transformations/low_precision/fuse_fake_quantize.hpp"
 #include "transformations/low_precision/group_convolution.hpp"
-#include "transformations/low_precision/multiply.hpp"
 #include "transformations/low_precision/mat_mul.hpp"
 #include "transformations/low_precision/max_pool.hpp"
+#include "transformations/low_precision/multiply.hpp"
+#include "transformations/low_precision/mvn.hpp"
 #include "transformations/low_precision/normalize_l2.hpp"
 #include "transformations/low_precision/reshape.hpp"
 #include "transformations/low_precision/relu.hpp"
@@ -168,6 +169,7 @@ LowPrecisionTransformations LowPrecisionTransformer::getAllTransformations(const
         add<MatMulTransformation, opset1::MatMul>(params).
         add<MaxPoolTransformation, opset1::MaxPool>(params).
         add<MultiplyTransformation, opset1::Multiply>(params).
+        add<MVNTransformation, op::MVN>(params).
         add<NormalizeL2Transformation, opset1::NormalizeL2>(params).
         add<ReshapeTransformation, opset1::Reshape>(params).
         add<ReluTransformation, opset1::Relu>(params).
@@ -222,6 +224,7 @@ TypeRelaxedReplacer::TypeRelaxedReplacer() {
     make_matcher_type_relaxed<opset1::Subtract>(this);
     make_matcher_type_relaxed<opset1::Multiply>(this);
     make_matcher_type_relaxed<opset1::NormalizeL2>(this);
+    make_matcher_type_relaxed<op::MVN>(this);
 }
 
 LowPrecisionTransformer::LowPrecisionTransformer(const LowPrecisionTransformations& transformations)
