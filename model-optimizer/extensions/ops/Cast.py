@@ -28,11 +28,11 @@ class Cast(Op):
 
     def __init__(self, graph: Graph, attrs: dict):
         mandatory_props = {
-            'op': __class__.op,
+            'op': self.op,
             'type': 'Convert',
             'version': 'opset1',
-            'infer': __class__.infer,
-            'type_infer': __class__.type_infer,
+            'infer': self.infer,
+            'type_infer': self.type_infer,
             'dst_type': None,
             'in_ports_count': 1,
             'out_ports_count': 1,
@@ -40,10 +40,7 @@ class Cast(Op):
         super().__init__(graph, mandatory_props, attrs)
 
     def backend_attrs(self):
-        if self.ir_version == 10:
-            return [('destination_type', lambda node: np_data_type_to_destination_type(node.dst_type))]
-        else:
-            return [('precision', lambda node: np_data_type_to_precision(node.dst_type))]
+        return [('destination_type', lambda node: np_data_type_to_destination_type(node.dst_type))]
 
     @staticmethod
     def type_infer(node: Node):

@@ -53,24 +53,6 @@ class Pooling(Op):
             'auto_pad',
         ]
 
-    def backend_attrs_v2(self):
-        return [
-            ('stride', lambda node: attr_getter(node, 'stride')),
-
-            spatial_getter('stride-x', 'stride', 1),
-            spatial_getter('stride-y', 'stride', 0),
-            spatial_getter('kernel-x', 'window', 1),
-            spatial_getter('kernel-y', 'window', 0),
-            spatial_getter('pad-x', 'pad', 1, lambda x: x[0]),
-            spatial_getter('pad-y', 'pad', 0, lambda x: x[0]),
-
-            ('pool-method', 'pool_method'),
-            ('exclude-pad', 'exclude_pad'),
-
-            'rounding_type',
-            'auto_pad',
-        ]
-
     @staticmethod
     def infer(node: Node):
         assert (len(node.in_nodes()) == 1)

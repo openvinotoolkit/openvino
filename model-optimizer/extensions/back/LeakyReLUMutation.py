@@ -16,7 +16,7 @@
 import numpy as np
 
 from extensions.back.ForceStrictPrecision import ForceStrictPrecision
-from extensions.ops.prelu import PreluOp
+from extensions.ops.prelu import PReLU
 from mo.back.replacement import BackReplacementPattern
 from mo.graph.graph import Graph, rename_node
 from mo.ops.const import Const
@@ -45,7 +45,7 @@ class LeakyReLUMutation(BackReplacementPattern):
 
         rename_node(relu, relu_name + '/to_delete')
         # Create PReLU op and reconnect input/output from LeakyReLU to PReLU
-        prelu = PreluOp(graph, dict(name=relu_name)).create_node()
+        prelu = PReLU(graph, dict(name=relu_name)).create_node()
         rename_node(prelu, relu_name)
 
         const = Const(graph, dict(name=relu_name + "/weights", value=np.array([relu.negative_slope]))).create_node()

@@ -47,13 +47,10 @@ class Parameter(Op):
         node.out_port(0).set_data_type(node.data_type)
 
     def supported_attrs(self):
-        if self.ir_version == 10:
-            return [
-                ('shape', lambda node: ','.join([str(i) for i in node.shape])),
-                ('element_type', lambda node: np_data_type_to_destination_type(node.data_type)),
-            ]
-        else:
-            return []
+        return [
+            ('shape', lambda node: ','.join([str(i) for i in node.shape])),
+            ('element_type', lambda node: np_data_type_to_destination_type(node.data_type)),
+        ]
 
     @staticmethod
     def infer(node):

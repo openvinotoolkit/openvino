@@ -975,9 +975,6 @@ class Graph(nx.MultiDiGraph):
         if undead_node_types is None:
             undead_node_types = []
 
-        if 'fw' in self.graph and self.graph['fw'] == 'tf':
-            undead_node_types.append('TFCustomSubgraphCall')
-
         if 'cmd_params' in self.graph and getattr(self.graph['cmd_params'], 'keep_shape_ops'):
             undead_node_types.extend(['ShapeOf', 'Shape', 'slice_like'])
 

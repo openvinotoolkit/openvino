@@ -51,16 +51,13 @@ class Const(Op):
             self.attrs['data_type'] = data_type_str_to_np(self.attrs['force_type'])
 
     def supported_attrs(self):
-        if self.ir_version == 10:
-            return [
-                'offset',
-                'size',
-                ('shape', lambda node: ','.join([str(i) for i in node.shape])),
-                ('element_type', lambda node: precision_to_destination_type(node.force_type)
-                if node.has_valid('force_type') else np_data_type_to_destination_type(node.value.dtype)),
-            ]
-        else:
-            return []
+        return [
+            'offset',
+            'size',
+            ('shape', lambda node: ','.join([str(i) for i in node.shape])),
+            ('element_type', lambda node: precision_to_destination_type(node.force_type)
+            if node.has_valid('force_type') else np_data_type_to_destination_type(node.value.dtype)),
+        ]
 
     @staticmethod
     def type_infer(node):
