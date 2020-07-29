@@ -204,11 +204,9 @@ public:
 
         memset(detections_data, 0, N*_num_classes*sizeof(int));
 
-        std::vector<int> detections_batch(N);
-        std::vector<int> num_output_scores(N);
-        std::vector<std::vector<int>> res_indices(N);
         for (int n = 0; n < N; ++n) {
             int detections_total = 0;
+
             if (!_decrease_label_id) {
                 // Caffe style
                 parallel_for(_num_classes, [&](int c) {
@@ -227,6 +225,7 @@ public:
                             pboxes = decoded_bboxes_data + n*4*_num_classes*_num_priors + c*4*_num_priors;
                             psizes = bbox_sizes_data + n*_num_classes*_num_priors + c*_num_priors;
                         }
+
                         nms_cf(pconf, pboxes, psizes, pbuffer, pindices, *pdetections, num_priors_actual[n]);
                     }
                 });
@@ -240,7 +239,7 @@ public:
                 const float *pboxes = decoded_bboxes_data + n*4*_num_loc_classes*_num_priors;
                 const float *psizes = bbox_sizes_data + n*_num_loc_classes*_num_priors;
 
-                nms_mx(pconf, pboxes, psizes, pbuffer, pindices, pdetections, _num_priors, res_indices[n], num_output_scores[n]);
+                nms_mx(pconf, pboxes, psizes, pbuffer, pindices, pdetections, _num_priors);
             }
 
             for (int c = 0; c < _num_classes; ++c) {
@@ -252,12 +251,8 @@ public:
 
                 for (int c = 0; c < _num_classes; ++c) {
                     int detections = detections_data[n*_num_classes + c];
-                    int *pindices = nullptr;
-                    if (_decrease_label_id) {
-                        pindices = res_indices[n].data() + c*num_output_scores[n];
-                    } else {
-                        pindices = indices_data + n*_num_classes*_num_priors + c*_num_priors;
-                    }
+                    int *pindices = indices_data + n*_num_classes*_num_priors + c*_num_priors;
+
                     float *pconf  = reordered_conf_data + n*_num_classes*_num_priors + c*_num_priors;
 
                     for (int i = 0; i < detections; ++i) {
@@ -281,7 +276,6 @@ public:
                     detections_data[n*_num_classes + label]++;
                 }
             }
-            detections_batch[n] = detections_total;
         }
 
         const int DETECTION_SIZE = outputs[0]->getTensorDesc().getDims()[3];
@@ -301,19 +295,11 @@ public:
         for (int n = 0; n < N; ++n) {
             const float *pconf   = reordered_conf_data + n * _num_priors * _num_classes;
             const float *pboxes  = decoded_bboxes_data + n*_num_priors*4*_num_loc_classes;
-            const int *pindices = nullptr;
-
-            bool isStoreIndices = false;
-            if (_decrease_label_id) {
-                isStoreIndices = _keep_top_k > -1 && detections_batch[n] > _keep_top_k;
-                pindices  = isStoreIndices ? indices_data + n*_num_classes*_num_priors : res_indices[n].data();
-            } else {
-                pindices  = indices_data + n*_num_classes*_num_priors;
-            }
+            const int *pindices  = indices_data + n*_num_classes*_num_priors;
 
             for (int c = 0; c < _num_classes; ++c) {
                 for (int i = 0; i < detections_data[n*_num_classes + c]; ++i) {
-                    int idx = (_decrease_label_id && !isStoreIndices) ? pindices[c*num_output_scores[n] + i] : pindices[c*_num_priors + i];
+                    int idx = pindices[c*_num_priors + i];
 
                     dst_data[count * DETECTION_SIZE + 0] = static_cast<float>(n);
                     dst_data[count * DETECTION_SIZE + 1] = static_cast<float>(_decrease_label_id ? c-1 : c);
@@ -402,7 +388,7 @@ private:
                 int *buffer, int *indices, int &detections, int num_priors_actual);
 
     void nms_mx(const float *conf_data, const float *bboxes, const float *sizes,
-                int *buffer, int *indices, int *detections, int num_priors_actual, std::vector<int>& res_indices, int& num_output_scores);
+                int *buffer, int *indices, int *detections, int num_priors_actual);
 
     InferenceEngine::Blob::Ptr _decoded_bboxes;
     InferenceEngine::Blob::Ptr _buffer;
@@ -610,9 +596,7 @@ void DetectionOutputImpl::nms_mx(const float* conf_data,
                           int* buffer,
                           int* indices,
                           int* detections,
-                          int num_priors_actual,
-                          std::vector<int>& res_indices,
-                          int& num_output_scores) {
+                          int num_priors_actual) {
     int count = 0;
     for (int i = 0; i < num_priors_actual; ++i) {
         float conf = -1;
@@ -630,47 +614,36 @@ void DetectionOutputImpl::nms_mx(const float* conf_data,
         }
     }
 
-    num_output_scores = (_top_k == -1 ? count : (std::min)(_top_k, count));
+    int num_output_scores = (_top_k == -1 ? count : (std::min)(_top_k, count));
 
     std::partial_sort_copy(indices, indices + count,
                            buffer, buffer + num_output_scores,
                            ConfidenceComparator(conf_data));
-
-    std::vector<int> num_output_scores_by_cls(_num_classes, 0);
-    res_indices.resize(_num_classes*num_output_scores, 0);
 
     for (int i = 0; i < num_output_scores; ++i) {
         const int idx = buffer[i];
         const int cls = idx/_num_priors;
         const int prior = idx%_num_priors;
 
-        res_indices[cls*num_output_scores + num_output_scores_by_cls[cls]] = prior;
-        num_output_scores_by_cls[cls]++;
-    }
+        int &ndetection = detections[cls];
+        int *pindices = indices + cls*_num_priors;
 
-    for (int c = 0; c < _num_classes; ++c) {
-        int &ndetection = detections[c];
-        int *pindices = res_indices.data() + c*num_output_scores;
-
-        for (int i = 0; i < num_output_scores_by_cls[c]; ++i) {
-            const int curr_prior = pindices[i];
-            bool keep = true;
-            for (int k = 0; k < ndetection; ++k) {
-                const int kept_idx = pindices[k];
-                float overlap = 0.0f;
-                if (_share_location) {
-                    overlap = JaccardOverlap(bboxes, sizes, curr_prior, kept_idx);
-                } else {
-                    overlap = JaccardOverlap(bboxes, sizes, c*_num_priors + curr_prior, c*_num_priors + kept_idx);
-                }
-                if (overlap > _nms_threshold) {
-                    keep = false;
-                    break;
-                }
+        bool keep = true;
+        for (int k = 0; k < ndetection; ++k) {
+            const int kept_idx = pindices[k];
+            float overlap = 0.0f;
+            if (_share_location) {
+                overlap = JaccardOverlap(bboxes, sizes, prior, kept_idx);
+            } else {
+                overlap = JaccardOverlap(bboxes, sizes, cls*_num_priors + prior, cls*_num_priors + kept_idx);
             }
-            if (keep) {
-                pindices[ndetection++] = curr_prior;
+            if (overlap > _nms_threshold) {
+                keep = false;
+                break;
             }
+        }
+        if (keep) {
+            pindices[ndetection++] = prior;
         }
     }
 }
