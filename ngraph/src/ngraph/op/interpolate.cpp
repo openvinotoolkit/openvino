@@ -335,7 +335,7 @@ namespace
 
     std::vector<std::size_t> correct_pad(const std::vector<std::size_t>& p, std::size_t rank)
     {
-        std::size pad_len = p.size();
+        std::size_t pad_len = p.size();
         if (pad_len == rank)
         {
             return p;
@@ -385,13 +385,14 @@ namespace
         runtime::NDimArrayView<T> padded_array_view{padded_input_data.data()};
         runtime::NDimArrayView<T> input_array_view{args[0]->get_data_ptr<ET>()};
 
-        std::vector<int64_t> limits_for_indices(padded_input_shape.size());
-        for (std::size_t i = 0; i < limits_for_indices.size(); ++i)
+        std::vector<int64_t> limits_for_indices(input_rank);
+        for (std::size_t i = 0; i < input_rank; ++i)
         {
             limits_for_indices[i] = padded_input_shape[i] - 1;
         }
+        auto index_vector = limits_for_indices;
 
-        runtime::NDimIndex limits{limits_for_indices};
+        runtime::NDimIndex limits{index_vector, limits_for_indices};
         runtime::NDimRange index_range{limits};
         for (const auto& index : index_range)
         {

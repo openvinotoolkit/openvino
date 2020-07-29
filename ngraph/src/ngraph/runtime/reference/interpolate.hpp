@@ -206,7 +206,7 @@ namespace ngraph
                                       static_cast<float>(m_input_data_shape[i]);
                     }
 
-                    switch (m_mode)
+                    switch (m_interp_mode)
                     {
                     case InterpolateMode::nearest:
                         nearest_func(input_data, out);
@@ -233,7 +233,7 @@ namespace ngraph
                 Shape m_input_data_shape;
                 std::vector<std::size_t> m_target_spatial_shape;
                 std::vector<std::size_t> m_axes;
-                Shape m_out_shape
+                Shape m_out_shape;
 
                 std::vector<float> m_scales;
 
@@ -262,8 +262,8 @@ namespace ngraph
             template <typename T>
             void interpolate(const T* input_data,
                              const Shape& input_data_shape,
-                             const std::vector<int64_t>& target_spatial_shape,
-                             const std::vector<int64_t>& axes,
+                             const std::vector<std::size_t>& target_spatial_shape,
+                             const std::vector<std::size_t>& axes,
                              T* out,
                              const Shape& out_shape,
                              const op::v4::Interpolate::InterpolateAttrs& attrs)
