@@ -430,9 +430,8 @@ void GNAPluginNS::backend::AMIntelDNN::Propagate() {
                 break;
             case kDnnCopyOp:ApplyCopy(comp);
                 break;
-            default:fprintf(stderr, "Bad operation in Propagate!\n");
-                throw -1;
-                break;
+            default:
+                THROW_GNA_EXCEPTION << "Bad operation in Propagate : " << comp->operation;
         }
         //  PrintOutputs(i); fflush(stdout);
     }
@@ -1318,7 +1317,7 @@ void GNAPluginNS::backend::AMIntelDNN::InitGNAStruct(intel_nnet_type_t *ptr_nnet
 #if  GNA_LIB_VER == 2
         auto& comp = component[i];
 #endif
-        switch (component[i].operation) {
+        switch (comp.operation) {
             case kDnnAffineOp:
 #if  GNA_LIB_VER == 2
                 HelperGna2OperationInitFullyConnectedAffine(gnaOperation, gnaUserAllocator, gnaUserFree,

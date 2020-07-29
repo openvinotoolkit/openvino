@@ -13,6 +13,7 @@
 #include "backend/gna_types.h"
 #include "gna_permute.hpp"
 #include "gna_lib_ver_selector.hpp"
+#include "gna_copy_layer.hpp"
 
 
 namespace GNAPluginNS {
@@ -268,7 +269,10 @@ class LayerInfo {
         return false;
     }
     bool isCopy() const noexcept {
-        return isOfType("copy");
+        return isOfType(CopyLayerName) || isOfType(DelayedCopyLayerName);
+    }
+    bool isCopyDelayed() const noexcept {
+        return isOfType(DelayedCopyLayerName);
     }
     size_t paddingSize() const {
         static InferenceEngine::details::caseless_set<std::string> layersWithPossiblePadding = {"FullyConnected",

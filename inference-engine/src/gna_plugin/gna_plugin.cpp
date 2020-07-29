@@ -556,15 +556,15 @@ void GNAPlugin::LoadNetwork(ICNNNetwork & _network) {
             auto irLayerAvatar = std::find_if(
                 graphCompiler.dnnComponents.components.begin(),
                 graphCompiler.dnnComponents.components.end(),
-                [&layer](std::pair<std::string, intel_dnn_component_t> & value) {
-                    return value.first == layer->name;
+                [&layer](const backend::DnnComponents::storage_type::value_type & value) {
+                    return value.name == layer->name;
             });
 
             gnalog() << "[UFS] from : "<< outPort.first <<" reached: " << layer->name << "\n";
 
             // probing gna_primitives
             if (irLayerAvatar != graphCompiler.dnnComponents.components.end()) {
-                initOutput(portId, irLayerAvatar->second, layer);
+                initOutput(portId, irLayerAvatar->dnnComponent, layer);
                 stopSearching = true;
             }
 
@@ -619,10 +619,8 @@ void GNAPlugin::LoadNetwork(ICNNNetwork & _network) {
              gnaFlags->sw_fp32 ? kDnnFloat : kDnnInt,
              1);
 
-    // TODO: this copy is unneeded; in fact, we can directly create gna structs from list
-    for (auto &element : graphCompiler.dnnComponents.components) {
-        dnn->component.push_back(element.second);
-    }
+    auto execOrder = graphCompiler.dnnComponents.getExecutionOrder();
+    dnn->component.insert(dnn->component.begin(), execOrder.begin(), execOrder.end());
 
     // in fp32 mode last PWL cannot be computed without that
     dnn->InitActiveList(NULL);
@@ -1002,9 +1000,11 @@ bool GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
 #endif
     int output_idx = 0;
     for (auto && outputBlobIt : request) {
-        auto & outputBlob = outputBlobIt.second;
-        auto & outputDesc = outputsDesc[output_idx];
-        if (outputBlob->getTensorDesc().getLayout() == Layout::NC) {
+        auto &outputBlob = outputBlobIt.second;
+        auto &outputDesc = outputsDesc[output_idx];
+        if (outputBlob->getTensorDesc().getLayout() == Layout::NC ||
+            outputBlob->getTensorDesc().getLayout() == Layout::CHW ||
+            outputBlob->getTensorDesc().getLayout() == Layout::NCHW) {
             // TODO: rotate can be incorporated with exporting - used only in unit tests so far
             // TODO: restore:
 //        if (orientation_out != kDnnInterleavedOrientation) {
@@ -1021,14 +1021,16 @@ bool GNAPlugin::WaitFor(uint32_t request_idx, int64_t millisTimeout) {
 //                           dims[dims.size() - 1]);
 //        }
             auto& exportOutputDims = outputBlob->getTensorDesc().getDims();
+            auto fullDims = details::product(exportOutputDims);
+
             ExportScores(outputBlob->buffer(),
                          outputDesc.ptrs[request_idx],
                          outputDesc.orientation,
+                         1,
                          exportOutputDims[0],
-                         exportOutputDims[exportOutputDims.size() - 2],
-                         exportOutputDims[exportOutputDims.size() - 1],
-                         exportOutputDims[exportOutputDims.size() - 1],
-                         exportOutputDims[exportOutputDims.size() - 1],
+                         fullDims / exportOutputDims[0],
+                         fullDims / exportOutputDims[0],
+                         fullDims / exportOutputDims[0],
                          outputDesc.num_bytes_per_element,
                          sizeof(float));
         }

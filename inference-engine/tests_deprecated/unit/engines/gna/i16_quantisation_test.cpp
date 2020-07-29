@@ -316,7 +316,7 @@ TEST_F(I16QuantisationTest, MemoryAfterConcat_ResultInCopyInsertion) {
         called_with().copy_inserted_into_nnet();
 }
 
-TEST_F(I16QuantisationTest, MemoryAndConcatAfterOneNode_ResultInCopyInsertion) {
+TEST_F(I16QuantisationTest, DISABLED_MemoryAndConcatAfterOneNode_ResultInCopyInsertion) {
     assert_that().onInferModel(MemoryAndConcatAfterOneNode()).inNotCompactMode().gna().propagate_forward().
         called_with().copy_inserted_into_nnet();
 }

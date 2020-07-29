@@ -19,10 +19,12 @@
 #include <blob_factory.hpp>
 #include <ie_memcpy.h>
 #include <ie_algorithm.hpp>
+
 #include <legacy/details/ie_cnn_network_tools.h>
 #include <legacy/ie_util_internal.hpp>
 #include <legacy/graph_tools.hpp>
 #include <legacy/net_pass.h>
+#include <layers/gna_copy_layer.hpp>
 
 #include "gna_plugin_log.hpp"
 #include "frontend/quantized_layer_params.hpp"
@@ -94,12 +96,13 @@ static void insertDiagonalLayerBetween(InferenceEngine::CNNLayerPtr prevLayer,
  * @brief copy layer inserted by several passes
  * @returns pointer to newly created COPYLayer
  */
-static CNNLayerPtr InsertCopyLayer(CNNLayerPtr prevLayer, CNNLayerPtr nextLayer, int beforeIdx, std::shared_ptr<IPassManager> passmanager) {
+static CNNLayerPtr InsertCopyLayer(CNNLayerPtr prevLayer, CNNLayerPtr nextLayer, int beforeIdx,
+        std::shared_ptr<IPassManager> passmanager,  std::string copyLayerType) {
     auto quantized = InferenceEngine::getInjectedData<QuantizedLayerParams>(prevLayer);
-    std::string copyName = std::string("copy_") + std::to_string(passmanager->getIntVar(copyLayersCounter)++);
+    std::string copyName = copyLayerType + std::string("_") + std::to_string(passmanager->getIntVar(copyLayersCounter)++);
     gnalog() << "Inserted " << copyName << " between: " << prevLayer->name << " and " << nextLayer->name << std::endl;
 
-    CNNLayerPtr copyLayer = std::make_shared<GenericLayer>(LayerParams({copyName, "Copy", Precision::FP32}));
+    CNNLayerPtr copyLayer = std::make_shared<GenericLayer>(LayerParams({copyName, copyLayerType, Precision::FP32}));
 
     auto inputData = nextLayer->insData[beforeIdx].lock();
     auto dataPtr = std::make_shared<Data>(copyName, inputData->getTensorDesc());
@@ -683,26 +686,87 @@ void InsertCopyLayerPass::run() {
     for (auto & l : *pLayers) {
         if (l->insData.empty()) continue;
         auto prevLayers = CNNNetGetPrevLayersSkip(l, [](CNNLayerPtr origin){
-            return !LayerInfo(origin).isNonFunctional();
+        // split and crop layers at that time need to be either backed by align filter or will be trivial
+        // so we are treating it as non functional  - other wise we will got unconnected split->memory
+            return !(LayerInfo(origin).isNonFunctional() || LayerInfo(origin).isSplit());
         });
 
         for (int i=0; i != prevLayers.size(); i++) {
-            auto & prevIndirectLayer = prevLayers[i].first;
+            auto prevIndirectLayer = prevLayers[i].first;
             bool bInsert = false;
+            /// Delayed copy layers need to be moved to the very end of processing
+            bool bInsertDelayed = false;
+
+            auto isInserted = [&bInsertDelayed, &bInsert]() {
+                return bInsert || bInsertDelayed;
+            };
+
             if (LayerInfo(l).isMemory()) {
-                if (LayerInfo(prevIndirectLayer).isConcat()) { bInsert = true;}
-                // memory usualy preceded by either activation or split, or other layers in order to have 2b precision
+                if (LayerInfo(prevIndirectLayer).isConcat() || LayerInfo(prevIndirectLayer).isCrop()) { bInsertDelayed = true;}
+                // memory usually preceded by either activation or split, or other layers in order to have 2b precision
                 for (auto && inputto : getInputTo(prevLayers[i].first->outData[prevLayers[i].second])) {
                     // if preceding layer is common for memory and concat
-                    if (LayerInfo(inputto.second).isConcat()) {
-                        bInsert = true;
+                    if (LayerInfo(inputto.second).isConcat() || LayerInfo(inputto.second).isSplit()) {
+                        bInsertDelayed = true;
                         break;
                     }
                 }
             }
-            if (LayerInfo(l).isConcat() && LayerInfo(prevIndirectLayer).isCrop()) { bInsert = true; }
+            if (!isInserted() && LayerInfo(l).isConcat() && LayerInfo(prevIndirectLayer).isCrop()) { bInsert = true; }
 
-            if (bInsert) {
+            // if split layer has more than one concat connected - they cannot be implemented inplace
+            if (!isInserted() && LayerInfo(l).isConcat()) {
+                if (l->insData.size() != prevLayers.size()) {
+                    THROW_GNA_LAYER_EXCEPTION(l) << "Unsupported case: concat with preceding split, or split cascade";
+                }
+                // starting UFS for locating that indirectinput
+                bool bFinish = false;
+                // making a link activation possible without extra layer if first input to concat not a parent / indirect parent of second input
+                // using ufs - upper first search
+                gnalog() << "[UFS] searching for: "<< prevIndirectLayer->name << "\n";
+                auto i_thInputToConcat = CNNNetPrevLayer(l, i);
+                CNNLayerPtr intermidiateSplit;
+
+                // TODO: this wont work if split cascade found
+                CNNNetDFS(i_thInputToConcat, [&l, &prevIndirectLayer, &bFinish, &intermidiateSplit](CNNLayerPtr layer) {
+                    gnalog() << "[UFS] from : "<< l->name <<" reached: " << layer->name << "\n";
+                    // found that direct input to concat is an indirect parent of align filter - so no link required
+                    if (LayerInfo(layer).isSplit()) {
+                        gnalog() << "[UFS] found " << LAYER_NAME(layer) << "\n";
+                        intermidiateSplit = layer;
+                        bFinish = true;
+                    }
+                    if (layer == prevIndirectLayer) {
+                        gnalog() << "[UFS] split not found \n";
+                        bFinish = true;
+                    }
+                }, true, [&bFinish](InferenceEngine::CNNLayer* from) {
+                    // aborting UFS once link not need
+                    return make_upstream_order(!bFinish ? from : nullptr);
+                });
+                // check how many additional connected outputs this split layer have
+                if (intermidiateSplit) {
+                    size_t splitOutputs = 0;
+                    for (size_t oData = 0; oData != intermidiateSplit->outData.size(); oData++) {
+                        auto nextLayers = CNNNetGetAllNextLayersSkipCertain(intermidiateSplit, oData,
+                                                                            [](CNNLayerPtr origin) {
+                                                                                return LayerInfo(
+                                                                                        origin).isNonFunctional();
+                                                                            });
+                        for (auto && nextLayer  : nextLayers) {
+                            if (nextLayer != l) {
+                                bInsert = true;
+                                break;
+                            }
+                        }
+                        if (bInsert) {
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if (isInserted()) {
                 if (LayerInfo(prevIndirectLayer).isCrop()) {
                     auto cropLayer = LayerInfo(prevIndirectLayer).as<CropLayer *>();
                     size_t cropOffset = cropLayer->offset.back() * cropLayer->precision.size();
@@ -713,7 +777,7 @@ void InsertCopyLayerPass::run() {
                     }
                 }
                 auto prevLayer = CNNNetPrevLayer(l, i);
-                InsertCopyLayer(prevLayer, l, i, getPassManager());
+                InsertCopyLayer(prevLayer, l, i, getPassManager(), bInsertDelayed ? DelayedCopyLayerName : CopyLayerName);
             }
         }
     }

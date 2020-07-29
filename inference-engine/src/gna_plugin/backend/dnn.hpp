@@ -65,7 +65,6 @@ void ApplyTranspose(intel_dnn_component_t *component);
 void ApplyCopy(intel_dnn_component_t *component);
 
 void PlotFloatIntDnn(GNAPluginNS::backend::AMIntelDNN *dnn, GNAPluginNS::backend::AMIntelDNN *dnn_int);
-bool isCompatibleDnn(GNAPluginNS::backend::AMIntelDNN dnn1, GNAPluginNS::backend::AMIntelDNN dnn2);
 void ClearScoreError(intel_score_error_t *error);
 void UpdateScoreError(intel_score_error_t *error, intel_score_error_t *total_error);
 void SoftmaxGoogle(float *ptr_output, float *ptr_input, const uint32_t num_outputs, const uint32_t num_inputs);
