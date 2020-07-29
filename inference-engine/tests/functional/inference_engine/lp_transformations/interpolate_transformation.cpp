@@ -23,6 +23,25 @@ using namespace testing;
 using namespace ngraph::pass;
 using namespace ngraph::builder::subgraph;
 
+class interpAttributes {
+public:
+    ngraph::AxisSet axes;
+    std::string mode;
+    bool align_corners;
+    bool antialias;
+    std::vector<size_t> pads_begin;
+    std::vector<size_t> pads_end;
+
+    interpAttributes(ngraph::AxisSet axes,
+        std::string mode,
+        bool align_corners,
+        bool antialias,
+        std::vector<size_t> pads_begin,
+        std::vector<size_t> pads_end
+        ) : axes(axes), mode(mode), align_corners(align_corners),
+        antialias(antialias), pads_begin(pads_begin), pads_end(pads_end) {}
+};
+
 class InterpolateTransformationTestValues {
 public:
     class Actual {
@@ -42,18 +61,11 @@ public:
     ngraph::Shape inputShape;
     ngraph::Shape outputShape;
     ngraph::pass::low_precision::LayerTransformation::Params params;
-    ngraph::op::InterpolateAttrs interpAttrs;
+    //ngraph::op::InterpolateAttrs interpAttrs;
+    interpAttributes interpAttrs;
     Actual actual;
     Expected expected;
 
-    InterpolateTransformationTestValues(const ngraph::Shape& inputShape,
-        const ngraph::Shape& outputShape,
-        const ngraph::pass::low_precision::LayerTransformation::Params& params,
-        const ngraph::op::InterpolateAttrs& interpAttrs,
-        const Actual& actual,
-        const Expected& expected) :
-        inputShape(inputShape), outputShape(outputShape), params(params),
-        interpAttrs(interpAttrs), actual(actual), expected(expected) {}
 };
 
 template <typename T>
@@ -74,10 +86,19 @@ public:
     void SetUp() override {
         const InterpolateTransformationTestValues testValues = GetParam();
 
+        const ngraph::op::InterpolateAttrs interpAttrs{
+            testValues.interpAttrs.axes,
+            testValues.interpAttrs.mode,
+            testValues.interpAttrs.align_corners,
+            testValues.interpAttrs.antialias,
+            testValues.interpAttrs.pads_begin,
+            testValues.interpAttrs.pads_end
+        };
+
         actualFunction = ngraph::builder::subgraph::InterpolateFunction::getOriginal(
             testValues.inputShape,
             testValues.outputShape,
-            testValues.interpAttrs,
+            interpAttrs,
             testValues.actual.precisionBeforeDequantization,
             testValues.actual.dequantization);
 
@@ -88,7 +109,7 @@ public:
         referenceFunction = ngraph::builder::subgraph::InterpolateFunction::getReference(
             testValues.inputShape,
             testValues.outputShape,
-            testValues.interpAttrs,
+            interpAttrs,
             testValues.expected.precisionBeforeDequantization,
             testValues.expected.dequantizationBefore,
             testValues.expected.precisionAfterOperation,
@@ -121,14 +142,14 @@ const std::vector<InterpolateTransformationTestValues> testValues {
         ngraph::Shape{ 1, 4, 16, 16 },
         ngraph::Shape{ 1, 4, 32, 32 },
         LayerTransformation::createParamsU8I8(),
-        {
+        interpAttributes(
             ngraph::AxisSet{2, 3},
             "nearest",
             false,
             false,
             {0},
             {0}
-        },
+        ),
         {
             ngraph::element::u8,
             {{ngraph::element::f32}, {-0.32f}, {0.1f}}
@@ -146,14 +167,14 @@ const std::vector<InterpolateTransformationTestValues> testValues {
         ngraph::Shape{ 1, 4, 16, 16 },
         ngraph::Shape{ 1, 4, 32, 32 },
         LayerTransformation::createParamsU8I8(),
-        {
+        interpAttributes(
             ngraph::AxisSet{2, 3},
             "linear",
             false,
             false,
             {0},
             {0}
-        },
+        ),
         {
             ngraph::element::u8,
             {{ngraph::element::f32}, {-0.32f}, {0.1f}}
@@ -171,14 +192,14 @@ const std::vector<InterpolateTransformationTestValues> testValues {
         ngraph::Shape{ 1, 4, 16, 16 },
         ngraph::Shape{ 1, 8, 32, 32 },
         LayerTransformation::createParamsU8I8(),
-        {
+        interpAttributes(
             ngraph::AxisSet{1, 2, 3},
             "nearest",
             false,
             false,
             {0},
             {0}
-        },
+        ),
         {
             ngraph::element::u8,
             {{ngraph::element::f32}, {-0.32f}, {0.1f}}
@@ -196,14 +217,14 @@ const std::vector<InterpolateTransformationTestValues> testValues {
         ngraph::Shape{ 1, 4, 16, 16 },
         ngraph::Shape{ 1, 4, 32, 32 },
         LayerTransformation::createParamsU8I8(),
-        {
+        interpAttributes(
             ngraph::AxisSet{2, 3},
             "nearest",
             true,
             false,
             {0},
             {0}
-        },
+        ),
         {
             ngraph::element::u8,
             {{ngraph::element::f32}, {-0.32f}, {0.1f}}
@@ -221,14 +242,14 @@ const std::vector<InterpolateTransformationTestValues> testValues {
         ngraph::Shape{ 1, 4, 16, 16 },
         ngraph::Shape{ 1, 4, 32, 32 },
         LayerTransformation::createParamsU8I8(),
-        {
+        interpAttributes(
             ngraph::AxisSet{2, 3},
             "nearest",
             false,
             false,
             {1},
             {1}
-        },
+        ),
         {
             ngraph::element::u8,
             {{ngraph::element::f32}, {-0.32f}, {0.1f}}
@@ -239,7 +260,7 @@ const std::vector<InterpolateTransformationTestValues> testValues {
             ngraph::element::u8,
             {{}, {}, {}}
         }
-    },
+    }
 };
 
 TEST_P(InterpolateTransformation, CompareFunctions) {
