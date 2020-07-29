@@ -16,6 +16,7 @@
 
 #include "ngraph/op/interpolate.hpp"
 #include "ngraph/op/constant.hpp"
+#include "ngraph/runtime/reference/interpolate.hpp"
 
 using namespace std;
 using namespace ngraph;
@@ -262,6 +263,25 @@ namespace
                          const op::v4::Interpolate::InterpolateAttrs& attrs)
     {
         using T = typename element_type_traits<ET>::value_type;
+        std::size_t num_of_inputs = args.size();
+        Shape input_shape{args[0]->get_shape()};
+        std::vector<int64_t> axes;
+        std::size_t input_rank = input_shape.size();
+        if (num_of_inputs == 3)
+        {
+            int64_t* axes_data_ptr = args[2]->get_data_ptr<int64_t>();
+            std::size_t num_of_axes = args[2]->get_shape()[0];
+            axes.insert(axes.end(), axes_data_ptr, axes_data_ptr + num_of_axes);
+        }
+        else
+        {
+            for (std::size_t i = 0; i < input_rank; ++i)
+            {
+                axes.push_back(i);
+            }
+        }
+        Shape target_spatial_shape{args[1]->get_shape()};
+        Shape out_shape{out->get_shape()};
         return true;
     }
 
@@ -284,7 +304,6 @@ namespace
         return rc;
     }
 }
-
 
 bool op::v4::Interpolate::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
 {

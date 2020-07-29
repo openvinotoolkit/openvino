@@ -31,7 +31,6 @@ namespace ngraph
             using Transform_mode = ngraph::op::v4::Interpolate::CoordinateTransformMode;
             using InterpolateMode = op::v4::Interpolate::InterpolateMode;
 
-            template <typename T>
             class GetNearestPixel final
             {
             public:
@@ -48,12 +47,13 @@ namespace ngraph
 
                 ~GetNearestPixel() = default;
 
-                int64_t operator()(T original, bool is_downsample) const
+                int64_t operator()(float original, bool is_downsample) const
                 {
                     return m_func(original, is_downsample);
                 }
+
             private:
-                using Func = std::function<int64_t(T, bool)>;
+                using Func = std::function<int64_t(float, bool)>;
 
                 Nearest_mode m_mode;
                 Func m_func;
@@ -63,7 +63,7 @@ namespace ngraph
                     switch (mode)
                     {
                     case Nearest_mode::round_prefer_floor:
-                        return [](T x_original, bool) {
+                        return [](float x_original, bool) {
                             if (x_original == static_cast<int64_t>(x_original) + 0.5f)
                             {
                                 return static_cast<int64_t>(std::floor(x_original));
@@ -71,21 +71,21 @@ namespace ngraph
                             return static_cast<int64_t>(std::round(x_original));
                         };
                     case round_prefer_ceil:
-                        return [](T x_original, bool) {
+                        return [](float x_original, bool) {
                             return static_cast<int64_t>(std::round(x_original));
                         };
                     case Nearest_mode::floor:
-                        return [](T x_original, bool) {
+                        return [](float x_original, bool) {
                             return static_cast<int64_t>(std::floor(x_original));
                         };
                         break;
                     case Nearest_mode::ceil:
-                        return [](T x_original, bool) {
+                        return [](float x_original, bool) {
                             return static_cast<int64_t>(std::ceil(x_original));
                         };
                         break;
                     case Nearest_mode::simple:
-                        return [](T x_original, bool is_downsample) {
+                        return [](float x_original, bool is_downsample) {
                             if (is_downsample)
                             {
                                 return static_cast<int64_t>(std::ceil(x_original));
@@ -100,7 +100,6 @@ namespace ngraph
                 }
             };
 
-            template <typename T>
             class GetOriginalCoordinate final
             {
             public:
@@ -117,12 +116,16 @@ namespace ngraph
 
                 ~GetOriginalCoordinate() = default;
 
-                T operator()(T x_resized, T x_scale, T length_resized, T length_original)
+                T operator()(float x_resized,
+                             float x_scale,
+                             float length_resized,
+                             float length_original) const
                 {
                     return m_func(x_resized, x_scale, length_resized, length_original);
                 }
+
             private:
-                using Func = std::function<T(T, T, T, T)>;
+                using Func = std::function<float(float, float, float, float)>;
 
                 Transform_mode m_mode;
                 Func m_func;
@@ -132,29 +135,33 @@ namespace ngraph
                     switch (mode)
                     {
                     case Transform_mode::half_pixel:
-                        return [](T x_resized, T x_scale, T, T) {
+                        return [](float x_resized, float x_scale, float, float) {
                             return ((x_resized + 0.5f) / x_scale) - 0.5f;
                         };
                         break;
                     case Transform_mode::pytorch_half_pixel:
-                        return [](T x_resized, T x_scale, T length_resized, T) {
+                        return [](float x_resized, float x_scale, float length_resized, float) {
                             return length_resized > 1 ? (x_resized + 0.5f) / x_scale - 0.5f : 0.0f;
                         };
                         break;
                     case Transform_mode::asymmetric:
-                        return [](T x_resized, T x_scale, T, T) {
+                        return [](float x_resized, float x_scale, float, float) {
                             return x_resized / x_scale;
                         };
                         break;
                     case Transform_mode::tf_half_pixel_for_nn:
-                        return [](T x_resized, T x_scale, T, T) {
+                        return [](float x_resized, float x_scale, float, float) {
                             return (x_resized + 0.5f) / x_scale;
                         };
                         break;
                     case Transform_mode::align_corners:
-                         return [](T x_resized, T, T length_resized, T length_original) {
-                            return length_resized == 1 ? 0 :
-                                x_resized * (length_original - 1) / (length_resized - 1);
+                         return [](float x_resized,
+                                   float,
+                                   float length_resized,
+                                   float length_original) {
+                            return length_resized == 1
+                                       ? 0
+                                       : x_resized * (length_original - 1) / (length_resized - 1);
                         };
                         break;
                     }
@@ -162,10 +169,32 @@ namespace ngraph
             };
 
             template <typename T>
-            class InterpolateEval
+            class InterpolateEval final
             {
-            };
+            public:
+                InterpolateEval() = default;
 
+                InterpolateEval(op::v4::Interpolate::InterpolateAttrs attrs)
+                    : m_get_nearest_pixel{attrs.nearest_mode}
+                    , m_get_original_coord{attrs.coordinate_transformation_mode}
+                    , m_interp_mode{attrs.mode}
+                    , m_pads_begin{attrs.pads_begin}
+                    , m_pads_end{attrs.pads_end}
+                    , m_antialias{attrs.antialias}
+                    , m_cube_coeff{attrs.m_cube_coeff}
+                {
+                }
+
+                ~InterpolateEval() = default;
+            private:
+                GetNearestPixel m_get_nearest_pixel;
+                GetOriginalCoordinate m_get_original_coord;
+                InterpolateMode m_interp_mode;
+                std::vector<size_t> m_pads_begin;
+                std::vector<size_t> m_pads_end;
+                double m_cube_coeff;
+                bool m_antialias;
+            };
 
             template <typename T>
             void interpolate(const T* input_data,
