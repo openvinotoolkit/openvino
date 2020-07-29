@@ -27,7 +27,40 @@
 
 using namespace testing;
 
-TEST(TransformationTests, ConvertExtractImagePatchesToReorgYoloTests) {
+TEST(TransformationTests, ConvertExtractImagePatchesToReorgYoloTests1) {
+    std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
+    {
+        auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{ 1, 3, 10, 10 });
+
+        auto sizes = ngraph::Shape{ 5, 5 };
+        auto strides = ngraph::Strides{ 5, 5 };
+        auto rates = ngraph::Shape{ 1, 1 };
+        ngraph::op::PadType auto_pad = ngraph::op::PadType::VALID;
+
+
+        auto eip = std::make_shared<ngraph::opset3::ExtractImagePatches>(input, sizes, strides, rates, auto_pad);
+
+        f = std::make_shared<ngraph::Function>(ngraph::NodeVector{ eip }, ngraph::ParameterVector{ input });
+        ngraph::pass::InitNodeInfo().run_on_function(f);
+        ngraph::pass::ConvertExtractImagePatchesToReorgYolo().run_on_function(f);
+        ASSERT_NO_THROW(check_rt_info(f));
+    }
+
+    {
+        auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{ 1, 3, 10, 10 });
+
+        auto strides = ngraph::Strides{ 5, 5 };
+
+        auto reorg_yolo = std::make_shared<ngraph::opset3::ReorgYolo>(input, strides);
+
+        f_ref = std::make_shared<ngraph::Function>(ngraph::NodeVector{ reorg_yolo }, ngraph::ParameterVector{ input });
+    }
+
+    auto res = compare_functions(f, f_ref);
+    ASSERT_TRUE(res.first) << res.second;
+}
+
+TEST(TransformationTests, ConvertExtractImagePatchesToReorgYoloTests2) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32, ngraph::Shape{ 1, 3, 10, 10 });
