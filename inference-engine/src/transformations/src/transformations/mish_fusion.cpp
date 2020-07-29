@@ -20,6 +20,7 @@ void ngraph::pass::MishFusion::mish_fusion() {
     auto mul = std::make_shared<ngraph::opset4::Multiply>(input0, tanh);
 
     ngraph::graph_rewrite_callback callback = [](pattern::Matcher& m) {
+
         auto mul = std::dynamic_pointer_cast<ngraph::opset4::Multiply> (m.get_match_root());
         if (!mul) {
             return false;
@@ -40,7 +41,7 @@ void ngraph::pass::MishFusion::mish_fusion() {
             return false;
         }
 
-        auto exp = std::dynamic_pointer_cast<ngraph::opset4::Add> (add->input_value(0).get_node_shared_ptr());
+        auto exp = std::dynamic_pointer_cast<ngraph::opset4::Exp> (add->input_value(0).get_node_shared_ptr());
         if (!exp) {
             return false;
         }
@@ -49,7 +50,7 @@ void ngraph::pass::MishFusion::mish_fusion() {
 
         mish->set_friendly_name(exp->get_friendly_name());
         ngraph::copy_runtime_info({mul, tanh, log, add, exp}, mish);
-        ngraph::replace_node(exp, mish);
+        ngraph::replace_node(mul, mish);
         return true;
     };
 
