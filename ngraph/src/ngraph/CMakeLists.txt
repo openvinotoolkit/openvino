@@ -136,7 +136,6 @@ set (SRC
     op/binary_convolution.cpp
     op/binary_convolution.hpp
     op/broadcast.cpp
-    op/broadcast_distributed.cpp
     op/bucketize.cpp
     op/bucketize.hpp
     op/ceiling.cpp
@@ -161,8 +160,6 @@ set (SRC
     op/ctc_loss.hpp
     op/cum_sum.cpp
     op/cum_sum.hpp
-    op/crop_and_resize.cpp
-    op/crop_and_resize.hpp
     op/deformable_convolution.cpp
     op/deformable_convolution.hpp
     op/deformable_psroi_pooling.cpp
@@ -179,8 +176,6 @@ set (SRC
     op/elu.hpp
     op/embeddingbag_offsets_sum.cpp
     op/embeddingbag_offsets_sum.hpp
-    op/embedding_lookup.cpp
-    op/embedding_lookup.hpp
     op/embeddingbag_packedsum.cpp
     op/embeddingbag_packedsum.hpp
     op/embedding_segments_sum.cpp
@@ -461,13 +456,6 @@ set (SRC
     partial_shape.hpp
     pass/algebraic_simplification.cpp
     pass/algebraic_simplification.hpp
-    pass/assign_layout.hpp
-    pass/implicit_broadcast_elimination.hpp
-    pass/implicit_broadcast_elimination.cpp
-    pass/batch_fusion.hpp
-    pass/batch_fusion.cpp
-    pass/common_function_collection.cpp
-    pass/common_function_collection.hpp
     pass/constant_folding_arithmetic_reduction.cpp
     pass/constant_folding_convert.cpp
     pass/constant_folding_dequantize.cpp
@@ -487,62 +475,25 @@ set (SRC
     pass/constant_folding_transpose.cpp
     pass/constant_folding.cpp
     pass/constant_folding.hpp
-    pass/constant_to_broadcast.cpp
     pass/convert_fp32_to_fp16.hpp
     pass/convert_fp32_to_fp16.cpp
-    pass/core_fusion.cpp
-    pass/core_fusion.hpp
-    pass/cse.cpp
-    pass/cse.hpp
-    pass/dump_sorted.cpp
-    pass/dump_sorted.hpp
-    pass/dyn_elimination.cpp
-    pass/dyn_elimination.hpp
-    pass/fused_op_decomposition.cpp
-    pass/fused_op_decomposition.hpp
     pass/get_output_element_elimination.cpp
     pass/get_output_element_elimination.hpp
     pass/graph_rewrite.cpp
     pass/graph_rewrite.hpp
-    pass/like_replacement.cpp
-    pass/like_replacement.hpp
-    pass/liveness.cpp
-    pass/liveness.hpp
     pass/manager.cpp
     pass/manager.hpp
     pass/manager_state.hpp
-    pass/memory_layout.cpp
-    pass/memory_layout.hpp
-    pass/memory_visualize.cpp
-    pass/memory_visualize.hpp
     pass/nop_elimination.cpp
     pass/nop_elimination.hpp
     pass/pass.cpp
     pass/pass.hpp
     pass/pass_config.cpp
     pass/pass_config.hpp
-    pass/propagate_cacheability.cpp
-    pass/propagate_cacheability.hpp
-    pass/reshape_elimination.cpp
-    pass/reshape_elimination.hpp
-    pass/reshape_sinking.cpp
-    pass/reshape_sinking.hpp
-    pass/serialize.cpp
-    pass/serialize.hpp
-    pass/shape_relevance.cpp
-    pass/shape_relevance.hpp
-    pass/validate_graph.cpp
-    pass/validate_graph.hpp
     pass/validate.cpp
     pass/validate.hpp
     pass/visualize_tree.cpp
     pass/visualize_tree.hpp
-    pass/zero_dim_tensor_elimination.cpp
-    pass/zero_dim_tensor_elimination.cpp
-    pass/zero_dim_tensor_elimination.hpp
-    pass/zero_dim_tensor_elimination.hpp
-    pass/concat_fusion.hpp
-    pass/concat_fusion.cpp
     pass/pass_util.hpp
     pass/pass_util.cpp
     pattern/matcher.cpp
@@ -567,6 +518,8 @@ set (SRC
     pattern/op/skip.hpp
     pattern/op/true.cpp
     pattern/op/true.hpp
+    pattern/op/wrap_type.hpp
+    pattern/op/wrap_type.cpp
     provenance.cpp
     provenance.hpp
     rank.hpp

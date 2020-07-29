@@ -172,7 +172,7 @@ void Node::set_arguments(const OutputVector& arguments)
     for (auto& output : arguments)
     {
         auto output_node = output.get_node();
-        auto& output_descriptor = output_node->get_outputs().at(output.get_index());
+        auto& output_descriptor = output_node->m_outputs.at(output.get_index());
         m_inputs.emplace_back(this, i++, output_descriptor);
     }
 }
@@ -260,16 +260,6 @@ void Node::set_input_is_relevant_to_value(size_t i, bool relevant)
 void Node::set_output_type(size_t i, const element::Type& element_type, const PartialShape& pshape)
 {
     get_output_descriptor(i).get_tensor_ptr()->set_tensor_type(element_type, pshape);
-}
-
-std::deque<descriptor::Output>& Node::get_outputs()
-{
-    return m_outputs;
-}
-
-const std::deque<descriptor::Output>& Node::get_outputs() const
-{
-    return m_outputs;
 }
 
 const std::string& Node::description() const
@@ -638,23 +628,6 @@ const Shape& Node::get_shape() const
     return get_output_shape(0);
 }
 
-shared_ptr<descriptor::Tensor> Node::get_output_tensor_ptr(size_t i) const
-{
-    NGRAPH_CHECK(
-        i < m_outputs.size(), "index '", i, "' out of range in get_output_tensor_ptr(size_t i)");
-    return m_outputs[i].get_tensor_ptr();
-}
-
-shared_ptr<descriptor::Tensor> Node::get_output_tensor_ptr() const
-{
-    if (get_output_size() != 1)
-    {
-        throw ngraph_error(
-            "get_output_tensor_ptr() must be called on a node with exactly one output.");
-    }
-    return m_outputs[0].get_tensor_ptr();
-}
-
 std::set<Input<Node>> Node::get_output_target_inputs(size_t i) const
 {
     std::set<Input<Node>> result;
@@ -686,15 +659,6 @@ const string& Node::get_output_tensor_name(size_t i) const
     NGRAPH_CHECK(
         i < m_outputs.size(), "index '", i, "' out of range in get_output_tensor_name(size_t i)");
     return m_outputs[i].get_tensor().get_name();
-}
-
-descriptor::Tensor& Node::get_output_tensor() const
-{
-    if (get_output_size() != 1)
-    {
-        throw ngraph_error("get_output_tensor() must be called on a node with exactly one output.");
-    }
-    return get_output_tensor(0);
 }
 
 size_t Node::get_input_size() const
@@ -836,8 +800,14 @@ bool Node::match_value(pattern::Matcher* matcher,
 bool Node::match_node(pattern::Matcher* matcher, const Output<Node>& graph_value)
 {
     matcher->add_node(graph_value);
-    return graph_value.get_node_shared_ptr()->get_type_info() == get_type_info() &&
-           matcher->match_arguments(this, graph_value.get_node_shared_ptr());
+    if (graph_value.get_node_shared_ptr()->get_type_info() == get_type_info() &&
+        matcher->match_arguments(this, graph_value.get_node_shared_ptr()))
+    {
+        auto& pattern_map = matcher->get_pattern_value_map();
+        pattern_map[shared_from_this()] = graph_value;
+        return true;
+    }
+    return false;
 }
 
 // default implementation for the node to check if it contains partial shape

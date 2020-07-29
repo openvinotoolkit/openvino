@@ -8,6 +8,7 @@
 #include "ie_util_internal.hpp"
 #include "hetero_graph_splitter.hpp"
 #include "xml_parse_utils.h"
+#include <details/caseless.hpp>
 
 #include <vector>
 #include <deque>
@@ -25,7 +26,6 @@
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 #include "hetero/hetero_plugin_config.hpp"
 #include "hetero_plugin.hpp"
-#include "network_serializer.h"
 
 #include <ngraph/function.hpp>
 #include <ngraph/variant.hpp>
@@ -908,6 +908,11 @@ void HeteroExecutableNetwork::ExportImpl(std::ostream& heteroModel) {
             subnetwork._network.Export(heteroModel);
         } catch (InferenceEngine::details::InferenceEngineException& ie_ex) {
             if (std::string::npos != std::string{ie_ex.what()}.find(NOT_IMPLEMENTED_str)) {
+                // TODO: enable once serialization to IR v10 is implemented
+#if 1
+                THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str
+                    << "Device " << subnetwork._device << " does not implement Export method";
+#else
                 pugi::xml_document doc;
                 auto subnet = subnetwork._clonedNetwork;
                 if (subnet.getFunction()) {
@@ -918,6 +923,7 @@ void HeteroExecutableNetwork::ExportImpl(std::ostream& heteroModel) {
                 heteroModel << std::endl;
                 heteroModel.write(reinterpret_cast<char*>(&dataSize), sizeof(dataSize));
                 InferenceEngine::Serialization::SerializeBlobs(heteroModel, subnet);
+#endif
             } else {
                 throw;
             }
