@@ -26,6 +26,7 @@ from onnx import numpy_helper, NodeProto, ModelProto
 from onnx.backend.base import Backend, BackendRep
 from onnx.backend.test.case.test_case import TestCase as OnnxTestCase
 from onnx.backend.test.runner import TestItem
+from tests.test_onnx.utils.onnx_helpers import import_onnx_model
 from typing import Any, Dict, List, Optional, Pattern, Set, Text, Type, Union
 
 
@@ -75,11 +76,7 @@ class ModelImportRunner(onnx.backend.test.BackendTest):
         def run_import(test_self: Any, device: Text) -> None:
             model = ModelImportRunner._load_onnx_model(model_test.model_dir, model_test.model)
             model_marker[0] = model
-            if not hasattr(self.backend, "is_compatible") and not callable(
-                self.backend.is_compatible
-            ):
-                raise unittest.SkipTest("Provided backend does not provide is_compatible method")
-            self.backend.is_compatible(model)
+            assert import_onnx_model(model)
 
         self._add_test(kind + "ModelImport", model_test.name, run_import, model_marker)
 
