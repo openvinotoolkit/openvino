@@ -270,14 +270,14 @@ ncStatus_t bootDevice(deviceDesc_t* deviceDescToBoot,
                 free(firmware);
                 return sc;
             }
-        }
-
-        sc = patchSetMemTypeCommand(&firmware, &length, bootOptions.memType);
-        if(sc) {
-            mvLog(MVLOG_ERROR, "Fail to patch \"Set memory type\" command for firmware sc = %d", sc);
-            free(firmware);
-            return sc;
-        }
+            
+            sc = patchSetMemTypeCommand(&firmware, &length, bootOptions.memType);
+            if(sc) {
+                mvLog(MVLOG_ERROR, "Fail to patch \"Set memory type\" command for firmware sc = %d", sc);
+                free(firmware);
+                return sc;
+            }
+        }       
     }
 
     XLinkError_t rc = XLinkBootFirmware(deviceDescToBoot, firmware, length);
