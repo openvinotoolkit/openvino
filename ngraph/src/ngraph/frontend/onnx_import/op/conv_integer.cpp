@@ -14,6 +14,9 @@
 // limitations under the License.
 //*****************************************************************************
 
+// Disabled in CMakeList
+// Update to higher opset required
+
 #include "conv_integer.hpp"
 #include "exceptions.hpp"
 #include "ngraph/builder/make_constant.hpp"

@@ -14,6 +14,9 @@
 // limitations under the License.
 //*****************************************************************************
 
+// Disabled in CMakeList
+// Update to higher opset required
+
 #include "ngraph/opsets/opset0.hpp"
 #include "utils/common.hpp"
 
