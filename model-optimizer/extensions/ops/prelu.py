@@ -21,7 +21,7 @@ from mo.graph.graph import Graph
 from mo.ops.op import Op
 
 
-class PreluOp(Op):
+class PReLU(Op):
     op = 'PReLU'
     enabled = True
 
