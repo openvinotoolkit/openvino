@@ -76,34 +76,34 @@ TEST(type_prop_layers, interpolate)
                     .same_scheme(PartialShape{2, 2, Dimension::dynamic(), Dimension::dynamic()}));
 }
 
-TEST(type_prop_layers, interpolate_v4)
-{
-    using op::v4::Interpolate;
-    using InterpolateMode = op::v4::Interpolate::InterpolateMode;
-    using CoordinateTransformMode = op::v4::Interpolate::CoordinateTransformMode;
-    using Nearest_mode = op::v4::Interpolate::NearestMode;
-    using InterpolateAttrs = op::v4::Interpolate::InterpolateAttrs;
-
-    auto image = make_shared<op::Parameter>(element::f32, Shape{2, 2, 33, 65});
-    auto dyn_output_shape = make_shared<op::Parameter>(element::i64, Shape{2});
-    auto output_shape = op::Constant::create<int64_t>(element::i64, Shape{2}, {15, 30});
-    auto axes = op::Constant::create<int64_t>(element::i64, Shape{2}, {2, 3});
-
-    InterpolateAttrs attrs;
-    attrs.mode = InterpolateMode::nearest;
-    attrs.coordinate_transformation_mode = CoordinateTransformMode::half_pixel;
-    attrs.nearest_mode = Nearest_mode::round_prefer_floor;
-    attrs.antialias = false;
-    attrs.pads_begin = {0, 0, 0, 0};
-    attrs.pads_end = {0, 0, 0, 0};
-    attrs.cube_coeff = -0.75;
-    auto op = make_shared<Interpolate>(image, output_shape, axes, attrs);
-    ASSERT_EQ(op->get_shape(), (Shape{2, 2, 15, 30}));
-
-    EXPECT_TRUE(make_shared<Interpolate>(image, dyn_output_shape, attrs)
-                    ->get_output_partial_shape(0)
-                    .same_scheme(PartialShape{2, 2, Dimension::dynamic(), Dimension::dynamic()}));
-}
+// TEST(type_prop_layers, interpolate_v4)
+// {
+//     using op::v4::Interpolate;
+//     using InterpolateMode = op::v4::Interpolate::InterpolateMode;
+//     using CoordinateTransformMode = op::v4::Interpolate::CoordinateTransformMode;
+//     using Nearest_mode = op::v4::Interpolate::NearestMode;
+//     using InterpolateAttrs = op::v4::Interpolate::InterpolateAttrs;
+//
+//     auto image = make_shared<op::Parameter>(element::f32, Shape{2, 2, 33, 65});
+//     auto dyn_output_shape = make_shared<op::Parameter>(element::i64, Shape{2});
+//     auto output_shape = op::Constant::create<int64_t>(element::i64, Shape{2}, {15, 30});
+//     auto axes = op::Constant::create<int64_t>(element::i64, Shape{2}, {2, 3});
+//
+//     InterpolateAttrs attrs;
+//     attrs.mode = InterpolateMode::nearest;
+//     attrs.coordinate_transformation_mode = CoordinateTransformMode::half_pixel;
+//     attrs.nearest_mode = Nearest_mode::round_prefer_floor;
+//     attrs.antialias = false;
+//     attrs.pads_begin = {0, 0, 0, 0};
+//     attrs.pads_end = {0, 0, 0, 0};
+//     attrs.cube_coeff = -0.75;
+//     auto op = make_shared<Interpolate>(image, output_shape, axes, attrs);
+//     ASSERT_EQ(op->get_shape(), (Shape{2, 2, 15, 30}));
+//
+//     EXPECT_TRUE(make_shared<Interpolate>(image, dyn_output_shape, attrs)
+//                     ->get_output_partial_shape(0)
+//                     .same_scheme(PartialShape{2, 2, Dimension::dynamic(), Dimension::dynamic()}));
+// }
 
 TEST(type_prop_layers, prior_box1)
 {

@@ -1064,20 +1064,20 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_reduce_sum_square)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_model_resize10_import_only)
-{
-    const auto resize_fn = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/resize_opset10.prototxt"));
-
-    // Input data shape (1, 2, 3, 4)
-    // Scales input constant values {4, 3, 2, 1}
-
-    Shape expected_output_shape{4, 6, 6, 4};
-    EXPECT_EQ(resize_fn->get_output_size(), 1);
-    EXPECT_EQ(resize_fn->get_output_shape(0), expected_output_shape);
-    EXPECT_EQ(count_ops_of_type<onnx_import::default_opset::Interpolate>(resize_fn), 1);
-    EXPECT_EQ(count_ops_of_type<onnx_import::default_opset::Constant>(resize_fn), 1);
-}
+// NGRAPH_TEST(${BACKEND_NAME}, onnx_model_resize10_import_only)
+// {
+//     const auto resize_fn = onnx_import::import_onnx_model(
+//         file_util::path_join(SERIALIZED_ZOO, "onnx/resize_opset10.prototxt"));
+//
+//     // Input data shape (1, 2, 3, 4)
+//     // Scales input constant values {4, 3, 2, 1}
+//
+//     Shape expected_output_shape{4, 6, 6, 4};
+//     EXPECT_EQ(resize_fn->get_output_size(), 1);
+//     EXPECT_EQ(resize_fn->get_output_shape(0), expected_output_shape);
+//     EXPECT_EQ(count_ops_of_type<onnx_import::default_opset::Interpolate>(resize_fn), 1);
+//     EXPECT_EQ(count_ops_of_type<onnx_import::default_opset::Constant>(resize_fn), 1);
+// }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_resize10_down_scales_const_linear)
 {
@@ -1095,58 +1095,58 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_resize10_down_scales_const_linear)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_resize10_down_scales_const_nearest)
-{
-    const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/resize10_down_scales_const_nearest.prototxt"));
+// NGRAPH_TEST(${BACKEND_NAME}, onnx_resize10_down_scales_const_nearest)
+// {
+//     const auto function = onnx_import::import_onnx_model(
+//         file_util::path_join(SERIALIZED_ZOO, "onnx/resize10_down_scales_const_nearest.prototxt"));
+//
+//     // Input data shape (1, 1, 2, 4)
+//     // Input const scales values {1.0, 1.0, 0.6, 0.6}
+//     // mode: linear
+//
+//     Shape expected_output_shape{1, 1, 1, 2};
+//     auto test_case = test::TestCase<TestEngine>(function);
+//     test_case.add_input<float>({1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0});
+//     test_case.add_expected_output<float>(expected_output_shape, {1.0, 3.0});
+//     test_case.run();
+// }
 
-    // Input data shape (1, 1, 2, 4)
-    // Input const scales values {1.0, 1.0, 0.6, 0.6}
-    // mode: linear
+// NGRAPH_TEST(${BACKEND_NAME}, onnx_resize10_up_scales_const_linear)
+// {
+//     const auto function = onnx_import::import_onnx_model(
+//         file_util::path_join(SERIALIZED_ZOO, "onnx/resize10_up_scales_const_linear.prototxt"));
+//
+//     // Input data shape (1, 1, 2, 2)
+//     // Input const scales values {1.0, 1.0, 2.0, 2.0}
+//     // mode: nearest
+//
+//     Shape expected_output_shape{1, 1, 4, 4};
+//     auto test_case = test::TestCase<TestEngine>(function);
+//     test_case.add_input<float>({1.0, 2.0, 3.0, 4.0});
+//     test_case.add_expected_output<float>(
+//         expected_output_shape,
+//         {1.0, 1.5, 2.0, 2.0, 2.0, 2.5, 3.0, 3.0, 3.0, 3.5, 4.0, 4.0, 3.0, 3.5, 4.0, 4.0});
+//     test_case.run();
+// }
 
-    Shape expected_output_shape{1, 1, 1, 2};
-    auto test_case = test::TestCase<TestEngine>(function);
-    test_case.add_input<float>({1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0});
-    test_case.add_expected_output<float>(expected_output_shape, {1.0, 3.0});
-    test_case.run();
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, onnx_resize10_up_scales_const_linear)
-{
-    const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/resize10_up_scales_const_linear.prototxt"));
-
-    // Input data shape (1, 1, 2, 2)
-    // Input const scales values {1.0, 1.0, 2.0, 2.0}
-    // mode: nearest
-
-    Shape expected_output_shape{1, 1, 4, 4};
-    auto test_case = test::TestCase<TestEngine>(function);
-    test_case.add_input<float>({1.0, 2.0, 3.0, 4.0});
-    test_case.add_expected_output<float>(
-        expected_output_shape,
-        {1.0, 1.5, 2.0, 2.0, 2.0, 2.5, 3.0, 3.0, 3.0, 3.5, 4.0, 4.0, 3.0, 3.5, 4.0, 4.0});
-    test_case.run();
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, onnx_resize10_up_scales_const_nearest)
-{
-    const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/resize10_up_scales_const_nearest.prototxt"));
-
-    // Input data shape (1, 1, 2, 2)
-    // Input const scales values {1.0, 1.0, 2.0, 3.0}
-    // mode: linear
-
-    Shape expected_output_shape{1, 1, 4, 6};
-    auto test_case = test::TestCase<TestEngine>(function);
-    test_case.add_input<float>({1.0, 2.0, 3.0, 4.0});
-    test_case.add_expected_output<float>(
-        expected_output_shape, {1.0, 1.0, 1.0, 2.0, 2.0, 2.0, 1.0, 1.0, 1.0, 2.0, 2.0, 2.0,
-                                3.0, 3.0, 3.0, 4.0, 4.0, 4.0, 3.0, 3.0, 3.0, 4.0, 4.0, 4.0});
-
-    test_case.run();
-}
+// NGRAPH_TEST(${BACKEND_NAME}, onnx_resize10_up_scales_const_nearest)
+// {
+//     const auto function = onnx_import::import_onnx_model(
+//         file_util::path_join(SERIALIZED_ZOO, "onnx/resize10_up_scales_const_nearest.prototxt"));
+//
+//     // Input data shape (1, 1, 2, 2)
+//     // Input const scales values {1.0, 1.0, 2.0, 3.0}
+//     // mode: linear
+//
+//     Shape expected_output_shape{1, 1, 4, 6};
+//     auto test_case = test::TestCase<TestEngine>(function);
+//     test_case.add_input<float>({1.0, 2.0, 3.0, 4.0});
+//     test_case.add_expected_output<float>(
+//         expected_output_shape, {1.0, 1.0, 1.0, 2.0, 2.0, 2.0, 1.0, 1.0, 1.0, 2.0, 2.0, 2.0,
+//                                 3.0, 3.0, 3.0, 4.0, 4.0, 4.0, 3.0, 3.0, 3.0, 4.0, 4.0, 4.0});
+//
+//     test_case.run();
+// }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_resize11_scales_down_linear)
 {
@@ -1164,43 +1164,43 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_resize11_scales_down_linear)
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_resize11_scales_up_linear_asymmetric)
-{
-    const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/resize11_scales_up_linear_asymmetric.prototxt"));
+// NGRAPH_TEST(${BACKEND_NAME}, onnx_resize11_scales_up_linear_asymmetric)
+// {
+//     const auto function = onnx_import::import_onnx_model(
+//         file_util::path_join(SERIALIZED_ZOO, "onnx/resize11_scales_up_linear_asymmetric.prototxt"));
+//
+//     const Shape expected_output_shape{2, 1, 4, 8};
+//     auto test_case = test::TestCase<TestEngine>(function);
+//     const size_t input_size = 8;
+//     std::vector<float> input_data{1.0f, 3.0f, 4.0f, 8.0f, 6.0f, 2.0f, 7.0f, 11.0f};
+//     test_case.add_input<float>(input_data);
+//     test_case.add_expected_output<float>(
+//         expected_output_shape,
+//         {1.0f,  1.5f,  2.0f, 2.5f, 3.0f, 3.0f,  3.0f,  3.0f,  2.5f,  3.25f, 4.0f,
+//          4.75f, 5.5f,  5.5f, 5.5f, 5.5f, 4.0f,  5.0f,  6.0f,  7.0f,  8.0f,  8.0f,
+//          8.0f,  8.0f,  4.0f, 5.0f, 6.0f, 7.0f,  8.0f,  8.0f,  8.0f,  8.0f,
+//
+//          6.0f,  5.0f,  4.0f, 3.0f, 2.0f, 2.0f,  2.0f,  2.0f,  6.5f,  6.5f,  6.5f,
+//          6.5f,  6.5f,  6.5f, 6.5f, 6.5f, 7.0f,  8.0f,  9.0f,  10.0f, 11.0f, 11.0f,
+//          11.0f, 11.0f, 7.0f, 8.0f, 9.0f, 10.0f, 11.0f, 11.0f, 11.0f, 11.0f});
+//
+//     test_case.run();
+// }
 
-    const Shape expected_output_shape{2, 1, 4, 8};
-    auto test_case = test::TestCase<TestEngine>(function);
-    const size_t input_size = 8;
-    std::vector<float> input_data{1.0f, 3.0f, 4.0f, 8.0f, 6.0f, 2.0f, 7.0f, 11.0f};
-    test_case.add_input<float>(input_data);
-    test_case.add_expected_output<float>(
-        expected_output_shape,
-        {1.0f,  1.5f,  2.0f, 2.5f, 3.0f, 3.0f,  3.0f,  3.0f,  2.5f,  3.25f, 4.0f,
-         4.75f, 5.5f,  5.5f, 5.5f, 5.5f, 4.0f,  5.0f,  6.0f,  7.0f,  8.0f,  8.0f,
-         8.0f,  8.0f,  4.0f, 5.0f, 6.0f, 7.0f,  8.0f,  8.0f,  8.0f,  8.0f,
-
-         6.0f,  5.0f,  4.0f, 3.0f, 2.0f, 2.0f,  2.0f,  2.0f,  6.5f,  6.5f,  6.5f,
-         6.5f,  6.5f,  6.5f, 6.5f, 6.5f, 7.0f,  8.0f,  9.0f,  10.0f, 11.0f, 11.0f,
-         11.0f, 11.0f, 7.0f, 8.0f, 9.0f, 10.0f, 11.0f, 11.0f, 11.0f, 11.0f});
-
-    test_case.run();
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, onnx_resize11_scales_nearest_asymmetric_floor)
-{
-    const auto function = onnx_import::import_onnx_model(file_util::path_join(
-        SERIALIZED_ZOO, "onnx/resize11_scales_nearest_asymmetric_floor.prototxt"));
-
-    const Shape expected_output_shape{2, 1, 4, 1};
-    auto test_case = test::TestCase<TestEngine>(function);
-    const std::vector<float> input_data{1.0f, 3.0f, 4.0f, 8.0f, 6.0f, 2.0f, 7.0f, 11.0f};
-    test_case.add_input<float>(input_data);
-    test_case.add_expected_output<float>(expected_output_shape,
-                                         {1.0f, 1.0f, 4.0f, 4.0f, 6.0f, 6.0f, 7.0f, 7.0f});
-
-    test_case.run();
-}
+// NGRAPH_TEST(${BACKEND_NAME}, onnx_resize11_scales_nearest_asymmetric_floor)
+// {
+//     const auto function = onnx_import::import_onnx_model(file_util::path_join(
+//         SERIALIZED_ZOO, "onnx/resize11_scales_nearest_asymmetric_floor.prototxt"));
+//
+//     const Shape expected_output_shape{2, 1, 4, 1};
+//     auto test_case = test::TestCase<TestEngine>(function);
+//     const std::vector<float> input_data{1.0f, 3.0f, 4.0f, 8.0f, 6.0f, 2.0f, 7.0f, 11.0f};
+//     test_case.add_input<float>(input_data);
+//     test_case.add_expected_output<float>(expected_output_shape,
+//                                          {1.0f, 1.0f, 4.0f, 4.0f, 6.0f, 6.0f, 7.0f, 7.0f});
+//
+//     test_case.run();
+// }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_resize11_scales_nearest_asymmetric_floor_dynamic_sizes)
 {
@@ -1220,40 +1220,40 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_resize11_scales_nearest_asymmetric_floor_dynam
     test_case.run();
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_resize11_sizes_nearest_asymmetric_floor)
-{
-    const auto function = onnx_import::import_onnx_model(file_util::path_join(
-        SERIALIZED_ZOO, "onnx/resize11_sizes_nearest_asymmetric_floor.prototxt"));
+// NGRAPH_TEST(${BACKEND_NAME}, onnx_resize11_sizes_nearest_asymmetric_floor)
+// {
+//     const auto function = onnx_import::import_onnx_model(file_util::path_join(
+//         SERIALIZED_ZOO, "onnx/resize11_sizes_nearest_asymmetric_floor.prototxt"));
+//
+//     const Shape expected_output_shape{2, 1, 4, 1};
+//     auto test_case = test::TestCase<TestEngine>(function);
+//     std::vector<float> input_data{1.0f, 3.0f, 4.0f, 8.0f, 6.0f, 2.0f, 7.0f, 11.0f};
+//     test_case.add_input<float>(input_data);
+//     test_case.add_expected_output<float>(expected_output_shape,
+//                                          {1.0f, 1.0f, 4.0f, 4.0f, 6.0f, 6.0f, 7.0f, 7.0f});
+//
+//     test_case.run();
+// }
 
-    const Shape expected_output_shape{2, 1, 4, 1};
-    auto test_case = test::TestCase<TestEngine>(function);
-    std::vector<float> input_data{1.0f, 3.0f, 4.0f, 8.0f, 6.0f, 2.0f, 7.0f, 11.0f};
-    test_case.add_input<float>(input_data);
-    test_case.add_expected_output<float>(expected_output_shape,
-                                         {1.0f, 1.0f, 4.0f, 4.0f, 6.0f, 6.0f, 7.0f, 7.0f});
-
-    test_case.run();
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, onnx_resize11_sizes_linear)
-{
-    const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/resize11_sizes_linear.prototxt"));
-
-    const Shape expected_output_shape{2, 1, 4, 8};
-    auto test_case = test::TestCase<TestEngine>(function);
-    std::vector<float> input_data{2.0f, 4.0f, 1.0f, 3.0f, 7.0f, 8.0f, 9.0f, 6.0f};
-    test_case.add_input<float>(input_data);
-    test_case.add_expected_output<float>(
-        expected_output_shape,
-        {2.0f, 2.5f, 3.0f,  3.5f, 4.0f,  4.0f,  4.0f, 4.0f,  1.5f, 2.0f,  2.5f,  3.0f, 3.5f,
-         3.5f, 3.5f, 3.5f,  1.0f, 1.5f,  2.0f,  2.5f, 3.0f,  3.0f, 3.0f,  3.0f,  1.0f, 1.5f,
-         2.0f, 2.5f, 3.0f,  3.0f, 3.0f,  3.0f,  7.0f, 7.25f, 7.5f, 7.75f, 8.0f,  8.0f, 8.0f,
-         8.0f, 8.0f, 7.75f, 7.5f, 7.25f, 7.0f,  7.0f, 7.0f,  7.0f, 9.0f,  8.25f, 7.5f, 6.75f,
-         6.0f, 6.0f, 6.0f,  6.0f, 9.0f,  8.25f, 7.5f, 6.75f, 6.0f, 6.0f,  6.0f,  6.0f});
-
-    test_case.run();
-}
+// NGRAPH_TEST(${BACKEND_NAME}, onnx_resize11_sizes_linear)
+// {
+//     const auto function = onnx_import::import_onnx_model(
+//         file_util::path_join(SERIALIZED_ZOO, "onnx/resize11_sizes_linear.prototxt"));
+//
+//     const Shape expected_output_shape{2, 1, 4, 8};
+//     auto test_case = test::TestCase<TestEngine>(function);
+//     std::vector<float> input_data{2.0f, 4.0f, 1.0f, 3.0f, 7.0f, 8.0f, 9.0f, 6.0f};
+//     test_case.add_input<float>(input_data);
+//     test_case.add_expected_output<float>(
+//         expected_output_shape,
+//         {2.0f, 2.5f, 3.0f,  3.5f, 4.0f,  4.0f,  4.0f, 4.0f,  1.5f, 2.0f,  2.5f,  3.0f, 3.5f,
+//          3.5f, 3.5f, 3.5f,  1.0f, 1.5f,  2.0f,  2.5f, 3.0f,  3.0f, 3.0f,  3.0f,  1.0f, 1.5f,
+//          2.0f, 2.5f, 3.0f,  3.0f, 3.0f,  3.0f,  7.0f, 7.25f, 7.5f, 7.75f, 8.0f,  8.0f, 8.0f,
+//          8.0f, 8.0f, 7.75f, 7.5f, 7.25f, 7.0f,  7.0f, 7.0f,  7.0f, 9.0f,  8.25f, 7.5f, 6.75f,
+//          6.0f, 6.0f, 6.0f,  6.0f, 9.0f,  8.25f, 7.5f, 6.75f, 6.0f, 6.0f,  6.0f,  6.0f});
+//
+//     test_case.run();
+// }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_model_shape)
 {
@@ -2309,107 +2309,107 @@ NGRAPH_TEST(${BACKEND_NAME}, onnx_model_scatter_elements_import_only)
     EXPECT_EQ(count_ops_of_type<op::v0::Constant>(scatter_fn), 4);
 }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_upsample8_import_only)
-{
-    const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/upsample8_nearest.prototxt"));
+// NGRAPH_TEST(${BACKEND_NAME}, onnx_upsample8_import_only)
+// {
+//     const auto function = onnx_import::import_onnx_model(
+//         file_util::path_join(SERIALIZED_ZOO, "onnx/upsample8_nearest.prototxt"));
+//
+//     // Input data shape (1, 1, 2, 2)
+//     // Scales attribute values {1.0, 1.0, 2.0, 3.0}
+//
+//     const Shape expected_output_shape{1, 1, 4, 6};
+//     EXPECT_EQ(function->get_output_size(), 1);
+//     EXPECT_EQ(function->get_output_shape(0), expected_output_shape);
+//     EXPECT_EQ(count_ops_of_type<onnx_import::default_opset::Interpolate>(function), 1);
+//     EXPECT_EQ(count_ops_of_type<onnx_import::default_opset::Constant>(function), 1);
+// }
 
-    // Input data shape (1, 1, 2, 2)
-    // Scales attribute values {1.0, 1.0, 2.0, 3.0}
+// NGRAPH_TEST(${BACKEND_NAME}, onnx_upsample8_nearest_infer)
+// {
+//     const auto function = onnx_import::import_onnx_model(
+//         file_util::path_join(SERIALIZED_ZOO, "onnx/upsample8_nearest.prototxt"));
+//
+//     // Input data shape (1, 1, 2, 2)
+//     // Scales attribute values {1.0, 1.0, 2.0, 3.0}
+//     // mode: nearest
+//
+//     const Shape expected_output_shape{1, 1, 4, 6};
+//     auto test_case = test::TestCase<TestEngine>(function);
+//     test_case.add_input<float>({1.0, 2.0, 3.0, 4.0});
+//     test_case.add_expected_output<float>(
+//         expected_output_shape, {1.0, 1.0, 1.0, 2.0, 2.0, 2.0, 1.0, 1.0, 1.0, 2.0, 2.0, 2.0,
+//                                 3.0, 3.0, 3.0, 4.0, 4.0, 4.0, 3.0, 3.0, 3.0, 4.0, 4.0, 4.0});
+//     test_case.run();
+// }
 
-    const Shape expected_output_shape{1, 1, 4, 6};
-    EXPECT_EQ(function->get_output_size(), 1);
-    EXPECT_EQ(function->get_output_shape(0), expected_output_shape);
-    EXPECT_EQ(count_ops_of_type<onnx_import::default_opset::Interpolate>(function), 1);
-    EXPECT_EQ(count_ops_of_type<onnx_import::default_opset::Constant>(function), 1);
-}
+// NGRAPH_TEST(${BACKEND_NAME}, onnx_upsample8_linear_infer)
+// {
+//     const auto function = onnx_import::import_onnx_model(
+//         file_util::path_join(SERIALIZED_ZOO, "onnx/upsample8_linear.prototxt"));
+//
+//     // Input data shape (1, 1, 2, 2)
+//     // Scales attribute values {1.0, 1.0, 2.0, 2.0}
+//     // mode: linear
+//
+//     const Shape expected_output_shape{1, 1, 4, 4};
+//     auto test_case = test::TestCase<TestEngine>(function);
+//     test_case.add_input<float>({1.0, 2.0, 3.0, 4.0});
+//     test_case.add_expected_output<float>(
+//         expected_output_shape,
+//         {1.0, 1.5, 2.0, 2.0, 2.0, 2.5, 3.0, 3.0, 3.0, 3.5, 4.0, 4.0, 3.0, 3.5, 4.0, 4.0});
+//     test_case.run();
+// }
 
-NGRAPH_TEST(${BACKEND_NAME}, onnx_upsample8_nearest_infer)
-{
-    const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/upsample8_nearest.prototxt"));
+// NGRAPH_TEST(${BACKEND_NAME}, onnx_upsample9_scales_const_import_only)
+// {
+//     const auto function = onnx_import::import_onnx_model(
+//         file_util::path_join(SERIALIZED_ZOO, "onnx/upsample9_scales_const_nearest.prototxt"));
+//
+//     // Input data shape (1, 1, 2, 2)
+//     // Input const scales values {1.0, 1.0, 2.0, 3.0}
+//
+//     const Shape expected_output_shape{1, 1, 4, 6};
+//     EXPECT_EQ(function->get_output_size(), 1);
+//     EXPECT_EQ(function->get_output_shape(0), expected_output_shape);
+//     EXPECT_EQ(count_ops_of_type<onnx_import::default_opset::Interpolate>(function), 1);
+//     EXPECT_EQ(count_ops_of_type<onnx_import::default_opset::Constant>(function), 1);
+// }
 
-    // Input data shape (1, 1, 2, 2)
-    // Scales attribute values {1.0, 1.0, 2.0, 3.0}
-    // mode: nearest
+// NGRAPH_TEST(${BACKEND_NAME}, onnx_upsample9_scales_const_nearest_infer)
+// {
+//     const auto function = onnx_import::import_onnx_model(
+//         file_util::path_join(SERIALIZED_ZOO, "onnx/upsample9_scales_const_nearest.prototxt"));
+//
+//     // Input data shape (1, 1, 2, 2)
+//     // Input const scales values {1.0, 1.0, 2.0, 3.0}
+//     // mode: nearest
+//
+//     const Shape expected_output_shape{1, 1, 4, 6};
+//     auto test_case = test::TestCase<TestEngine>(function);
+//     test_case.add_input<float>({1.0, 2.0, 3.0, 4.0});
+//     test_case.add_expected_output<float>(
+//         expected_output_shape, {1.0, 1.0, 1.0, 2.0, 2.0, 2.0, 1.0, 1.0, 1.0, 2.0, 2.0, 2.0,
+//                                 3.0, 3.0, 3.0, 4.0, 4.0, 4.0, 3.0, 3.0, 3.0, 4.0, 4.0, 4.0});
+//     test_case.run();
+// }
 
-    const Shape expected_output_shape{1, 1, 4, 6};
-    auto test_case = test::TestCase<TestEngine>(function);
-    test_case.add_input<float>({1.0, 2.0, 3.0, 4.0});
-    test_case.add_expected_output<float>(
-        expected_output_shape, {1.0, 1.0, 1.0, 2.0, 2.0, 2.0, 1.0, 1.0, 1.0, 2.0, 2.0, 2.0,
-                                3.0, 3.0, 3.0, 4.0, 4.0, 4.0, 3.0, 3.0, 3.0, 4.0, 4.0, 4.0});
-    test_case.run();
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, onnx_upsample8_linear_infer)
-{
-    const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/upsample8_linear.prototxt"));
-
-    // Input data shape (1, 1, 2, 2)
-    // Scales attribute values {1.0, 1.0, 2.0, 2.0}
-    // mode: linear
-
-    const Shape expected_output_shape{1, 1, 4, 4};
-    auto test_case = test::TestCase<TestEngine>(function);
-    test_case.add_input<float>({1.0, 2.0, 3.0, 4.0});
-    test_case.add_expected_output<float>(
-        expected_output_shape,
-        {1.0, 1.5, 2.0, 2.0, 2.0, 2.5, 3.0, 3.0, 3.0, 3.5, 4.0, 4.0, 3.0, 3.5, 4.0, 4.0});
-    test_case.run();
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, onnx_upsample9_scales_const_import_only)
-{
-    const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/upsample9_scales_const_nearest.prototxt"));
-
-    // Input data shape (1, 1, 2, 2)
-    // Input const scales values {1.0, 1.0, 2.0, 3.0}
-
-    const Shape expected_output_shape{1, 1, 4, 6};
-    EXPECT_EQ(function->get_output_size(), 1);
-    EXPECT_EQ(function->get_output_shape(0), expected_output_shape);
-    EXPECT_EQ(count_ops_of_type<onnx_import::default_opset::Interpolate>(function), 1);
-    EXPECT_EQ(count_ops_of_type<onnx_import::default_opset::Constant>(function), 1);
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, onnx_upsample9_scales_const_nearest_infer)
-{
-    const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/upsample9_scales_const_nearest.prototxt"));
-
-    // Input data shape (1, 1, 2, 2)
-    // Input const scales values {1.0, 1.0, 2.0, 3.0}
-    // mode: nearest
-
-    const Shape expected_output_shape{1, 1, 4, 6};
-    auto test_case = test::TestCase<TestEngine>(function);
-    test_case.add_input<float>({1.0, 2.0, 3.0, 4.0});
-    test_case.add_expected_output<float>(
-        expected_output_shape, {1.0, 1.0, 1.0, 2.0, 2.0, 2.0, 1.0, 1.0, 1.0, 2.0, 2.0, 2.0,
-                                3.0, 3.0, 3.0, 4.0, 4.0, 4.0, 3.0, 3.0, 3.0, 4.0, 4.0, 4.0});
-    test_case.run();
-}
-
-NGRAPH_TEST(${BACKEND_NAME}, onnx_upsample9_scales_const_linear_infer)
-{
-    const auto function = onnx_import::import_onnx_model(
-        file_util::path_join(SERIALIZED_ZOO, "onnx/upsample9_scales_const_linear.prototxt"));
-
-    // Input data shape (1, 1, 2, 2)
-    // Input const scales values {1.0, 1.0, 2.0, 2.0}
-    // mode: linear
-
-    const Shape expected_output_shape{1, 1, 4, 4};
-    auto test_case = test::TestCase<TestEngine>(function);
-    test_case.add_input<float>({1.0, 2.0, 3.0, 4.0});
-    test_case.add_expected_output<float>(
-        expected_output_shape,
-        {1.0, 1.5, 2.0, 2.0, 2.0, 2.5, 3.0, 3.0, 3.0, 3.5, 4.0, 4.0, 3.0, 3.5, 4.0, 4.0});
-    test_case.run();
-}
+// NGRAPH_TEST(${BACKEND_NAME}, onnx_upsample9_scales_const_linear_infer)
+// {
+//     const auto function = onnx_import::import_onnx_model(
+//         file_util::path_join(SERIALIZED_ZOO, "onnx/upsample9_scales_const_linear.prototxt"));
+//
+//     // Input data shape (1, 1, 2, 2)
+//     // Input const scales values {1.0, 1.0, 2.0, 2.0}
+//     // mode: linear
+//
+//     const Shape expected_output_shape{1, 1, 4, 4};
+//     auto test_case = test::TestCase<TestEngine>(function);
+//     test_case.add_input<float>({1.0, 2.0, 3.0, 4.0});
+//     test_case.add_expected_output<float>(
+//         expected_output_shape,
+//         {1.0, 1.5, 2.0, 2.0, 2.0, 2.5, 3.0, 3.0, 3.0, 3.5, 4.0, 4.0, 3.0, 3.5, 4.0, 4.0});
+//     test_case.run();
+// }
 
 NGRAPH_TEST(${BACKEND_NAME}, onnx_image_scaler)
 {
