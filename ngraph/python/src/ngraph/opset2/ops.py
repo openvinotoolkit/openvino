@@ -21,7 +21,7 @@ import numpy as np
 from functools import partial
 
 from ngraph.impl import Node, Shape
-from ngraph.impl.op import Constant, GetOutputElement, Parameter
+from ngraph.impl.op import Constant, Parameter
 from ngraph.opset_utils import _get_node_factory
 from ngraph.utils.decorators import binary_op, nameable_op, unary_op
 from ngraph.utils.input_validation import (

@@ -26,9 +26,8 @@ namespace py = pybind11;
 void regclass_pyngraph_op_util_ArithmeticReduction(py::module m)
 {
     py::class_<ngraph::op::util::ArithmeticReduction,
-               std::shared_ptr<ngraph::op::util::ArithmeticReduction>,
-               ngraph::op::Op>
-        arithmeticReduction(m, "ArithmeticRedection");
+               std::shared_ptr<ngraph::op::util::ArithmeticReduction>>
+        arithmeticReduction(m, "ArithmeticReduction");
     // arithmeticReduction.def(py::init<const std::string&,
     //                                  const std::shared_ptr<ngraph::Node>&,
     //                                  const ngraph::AxisSet& >());

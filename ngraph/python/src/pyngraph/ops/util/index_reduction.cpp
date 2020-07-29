@@ -25,9 +25,7 @@ namespace py = pybind11;
 
 void regclass_pyngraph_op_util_IndexReduction(py::module m)
 {
-    py::class_<ngraph::op::util::IndexReduction,
-               std::shared_ptr<ngraph::op::util::IndexReduction>,
-               ngraph::op::Op>
+    py::class_<ngraph::op::util::IndexReduction, std::shared_ptr<ngraph::op::util::IndexReduction>>
         indexReduction(m, "IndexRedection");
     indexReduction.def_property_readonly("reduction_axis",
                                          &ngraph::op::util::IndexReduction::get_reduction_axis);
