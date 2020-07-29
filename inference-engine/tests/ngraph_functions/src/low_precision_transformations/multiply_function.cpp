@@ -3,6 +3,7 @@
 //
 
 #include "ngraph_functions/low_precision_transformations/multiply_function.hpp"
+#include "transformations/low_precision/network_helper.hpp"
 
 #include <ngraph/opsets/opset1.hpp>
 #include <ngraph_ops/type_relaxed.hpp>
@@ -124,14 +125,14 @@ std::shared_ptr<ngraph::Function> MultiplyFunction::getReference(
         parent2 = const2;
     } else {
         input2 = std::make_shared<ngraph::opset1::Parameter>(
-            expectedValues.precision2,
+            precision,
             ngraph::Shape(inputShape));
         parent2 = input2;
 
-        //if (!(expectedValues.subtractValues2.empty() && expectedValues.mutliplyValues2.empty())) {
-        const std::shared_ptr<ngraph::Node> convert2 = std::make_shared<ngraph::opset1::Convert>(parent2, precision);
-        parent2 = convert2;
-        //}
+        if (!(expectedValues.subtractValues2.empty() && expectedValues.mutliplyValues2.empty())) {
+            const std::shared_ptr<ngraph::Node> convert2 = std::make_shared<ngraph::opset1::Convert>(parent2, precision);
+            parent2 = convert2;
+        }
 
         if (!expectedValues.subtractValues2.empty()) {
             const std::shared_ptr<ngraph::Node> subtract2 = std::make_shared<ngraph::opset1::Subtract>(
@@ -149,10 +150,16 @@ std::shared_ptr<ngraph::Function> MultiplyFunction::getReference(
             parent2 = multiply2;
         }
     }
-    const auto multiply = std::make_shared< ngraph::opset1::Multiply >(parent1, parent2);
+    std::shared_ptr<ngraph::Node> multiply = std::make_shared< ngraph::op::TypeRelaxed<ngraph::opset1::Multiply> >(parent1, parent2);
+
+    std::shared_ptr<ngraph::op::TypeRelaxed<ngraph::opset1::Parameter>> relaxedInput2;
+    if (!constInput) {
+        relaxedInput2 = as_type_ptr < ngraph::op::TypeRelaxed<ngraph::opset1::Parameter> >(
+            ngraph::pass::low_precision::NetworkHelper::setOutDataPrecision(input2, expectedValues.precision2));
+    }
 
     ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(multiply) };
-    const auto inputs = constInput ? ngraph::ParameterVector{ input1 } : ngraph::ParameterVector{ input1, input2 };
+    const auto inputs = constInput ? ngraph::ParameterVector{ input1 } : ngraph::ParameterVector{ input1, relaxedInput2 };
 
     return std::make_shared<ngraph::Function>(results, inputs, "MultiplyTransformation");
 }

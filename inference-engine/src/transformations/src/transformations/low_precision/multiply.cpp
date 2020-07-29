@@ -75,10 +75,8 @@ void MultiplyTransformation::transform(TransformationContext& context, ngraph::p
         // after : Y = (SC1' * (X1 - SH1)) * (X2) , where :
         //         SC1' = SC1 * SC2
         std::shared_ptr<Node> newMultiplyValuesFullPath = fold<opset1::Multiply>(multiplyValuesEmptyPath, multiplyValuesFullPath);
-        std::vector<std::shared_ptr<Node>> inputs{ {}, {} };
-        inputs[emptyPathIndex] = dequantizationEmptyPath.subtract == nullptr ?
-            dequantizationEmptyPath.multiply->get_input_node_shared_ptr(0) :
-            dequantizationEmptyPath.subtract->get_input_node_shared_ptr(0);
+        std::vector<Output<Node>> inputs{ {}, {} };
+        inputs[emptyPathIndex] = dequantizationEmptyPath.data;
         inputs[fullPathIndex] = std::make_shared<opset1::Multiply>(
             dequantizationFullPath.subtract == nullptr ?
                 (dequantizationFullPath.convert == nullptr ?
@@ -86,7 +84,7 @@ void MultiplyTransformation::transform(TransformationContext& context, ngraph::p
                 dequantizationFullPath.subtract,
             newMultiplyValuesFullPath);
 
-        newMultiply = std::make_shared<opset1::Multiply>(inputs[0], inputs[1]);
+        newMultiply = multiply->clone_with_new_inputs(inputs);
     }
 
     replace_node(multiply, newMultiply);
