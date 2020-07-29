@@ -153,7 +153,7 @@ namespace ngraph
                     }
                 }
 
-                NodeVector constant(const onnx_import::Node& node)
+                OutputVector constant(const onnx_import::Node& node)
                 {
                     return {make_constant(node.get_attribute_value<Tensor>("value"))};
                 }

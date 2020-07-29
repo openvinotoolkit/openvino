@@ -30,7 +30,7 @@ namespace ngraph
         {
             namespace set_1
             {
-                inline NodeVector abs(const Node& node)
+                inline OutputVector abs(const Node& node)
                 {
                     return {std::make_shared<default_opset::Abs>(node.get_ng_inputs().at(0))};
                 }
