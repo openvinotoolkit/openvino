@@ -106,11 +106,7 @@ void TestStage::serializeParamsImpl(BlobSerializer&) const {
 void TestStage::serializeDataImpl(BlobSerializer&) const {
 }
 
-TestModel::TestModel(const Model& model) : _model(model), _dataDesc() {}
-
-TestModel::TestModel(const Model& model, const DataDesc& dataDesc) :
-        _model(model), _dataDesc(dataDesc) {
-}
+TestModel::TestModel(const Model& model) : _model(model) {}
 
 const Model& TestModel::getBaseModel() const {
     return _model;
@@ -167,8 +163,7 @@ Stage TestModel::addStage(
         if (info.type == OutputType::Original) {
             curOutputs.push_back(_outputs.at(info.originalOutputInd));
         } else {
-            auto data = (info.desc == DataDesc())? _dataDesc : info.desc;
-            curOutputs.push_back(_model->addNewData(formatString("Data %d / %d", _stages.size(), curOutputs.size()), data));
+            curOutputs.push_back(_model->addNewData(formatString("Data %d / %d", _stages.size(), curOutputs.size()), info.desc));
         }
     }
 
@@ -324,10 +319,6 @@ Model GraphTransformerTest::CreateModel() {
 
 TestModel GraphTransformerTest::CreateTestModel() {
     return TestModel(CreateModel());
-}
-
-TestModel GraphTransformerTest::CreateTestModel(const DataDesc& dataDesc) {
-    return TestModel(CreateModel(), dataDesc);
 }
 
 } // namespace vpu

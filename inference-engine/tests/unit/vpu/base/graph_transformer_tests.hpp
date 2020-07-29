@@ -79,11 +79,8 @@ struct OutputInfo final {
 
 class TestModel final {
 public:
-    DataDesc _dataDesc;
-
     TestModel() = default;
     TestModel(const Model& model);
-    TestModel(const Model& model, const DataDesc& dataDesc);
 
     const Model& getBaseModel() const;
     const DataVector& getInputs() const;
@@ -147,8 +144,6 @@ public:
     Model CreateModel();
 
     TestModel CreateTestModel();
-
-    TestModel CreateTestModel(const DataDesc& dataDesc);
 
 private:
     MockICore  _mockCore;

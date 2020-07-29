@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <vpu/middleend/allocator/allocator.hpp>
 #include <vpu/stages/mx_stage.hpp>
 #include <vpu/utils/numeric.hpp>
 
@@ -16,25 +15,12 @@ protected:
     TestModel testModel;
 
 public:
-    void createInputs(int numInputs) {
-        std::vector<DataDesc> inDescs(numInputs);
-        std::fill(inDescs.begin(), inDescs.end(), testModel._dataDesc);
-        testModel.createInputs(inDescs);
-    }
-
-    void createOutputs(int numOutputs) {
-        std::vector<DataDesc> outDescs(numOutputs);
-        std::fill(outDescs.begin(), outDescs.end(), testModel._dataDesc);
-        testModel.createOutputs(outDescs);
-    }
-
     void SetUp() override {
         ASSERT_NO_FATAL_FAILURE(GraphTransformerTest::SetUp());
 
         ASSERT_NO_FATAL_FAILURE(InitCompileEnv());
 
-        DataDesc dataDesc(DataType::FP16, DimsOrder::NCHW, {16, 16, 3, batchSize});
-        testModel = CreateTestModel(dataDesc);
+        testModel = CreateTestModel();
     }
 
     void RunPass() {
@@ -124,18 +110,19 @@ TEST_F(VPU_AdjustDataBatchTest, LinearWithBatchedInTheEnd) {
     //
     // [Input] -> (Split) -> (Split) -> (Split) -> (Split) -> (Split) -> (Split) -> (Batched) -> [Output]
     //
+    const DataDesc desc{16, 16, 3, batchSize};
 
-    createInputs(1);
-    createOutputs(1);
+    testModel.createInputs({desc});
+    testModel.createOutputs({desc});
 
     for (int i = 0; i < 6; i++) {
         if (i > 0)
-            testModel.addStage({InputInfo::fromPrevStage(i - 1)}, {OutputInfo::intermediate()});
+            testModel.addStage({InputInfo::fromPrevStage(i - 1)}, {OutputInfo::intermediate(desc)});
         else
-            testModel.addStage({InputInfo::fromNetwork()}, {OutputInfo::intermediate()});
+            testModel.addStage({InputInfo::fromNetwork()}, {OutputInfo::intermediate(desc)});
         testModel.setStageBatchInfo(i, {{0, BatchSupport::Split}});
     }
-    testModel.addStage({InputInfo::fromPrevStage(5)}, {OutputInfo::fromNetwork()});
+    testModel.addStage({InputInfo::fromPrevStage(5)}, {OutputInfo::fromNetwork(0)});
 
     RunPass();
 
@@ -157,15 +144,16 @@ TEST_F(VPU_AdjustDataBatchTest, BranchedWithBatchSplitItems) {
     //                                                                                      -> (Batched) -> [Output]
     // [Input] -> (Split) -> (Split) -> (Split) -> (Split) -> (Split) -> (Split) -> (Split)
     //                                                                                      -> (Batched) -> [Output]
+    const DataDesc desc{16, 16, 3, batchSize};
 
-    createInputs(1);
-    createOutputs(2);
+    testModel.createInputs({desc});
+    testModel.createOutputs({desc, desc});
 
     for (int i = 0; i < 7; i++) {
         if (i > 0)
-            testModel.addStage({InputInfo::fromPrevStage(i - 1)}, {OutputInfo::intermediate()});
+            testModel.addStage({InputInfo::fromPrevStage(i - 1)}, {OutputInfo::intermediate(desc)});
         else
-            testModel.addStage({InputInfo::fromNetwork()}, {OutputInfo::intermediate()});
+            testModel.addStage({InputInfo::fromNetwork()}, {OutputInfo::intermediate(desc)});
         testModel.setStageBatchInfo(i, {{0, BatchSupport::Split}});
     }
 
@@ -201,15 +189,16 @@ TEST_F(VPU_AdjustDataBatchTest, LinearWithBatchedInTheBeginning) {
     //
     // [Input] -> (Batched) -> (Split) -> (Split) -> (Split) -> (Split) -> (Split) -> (Split) -> [Output]
     //
+    const DataDesc desc{16, 16, 3, batchSize};
 
-    createInputs(1);
-    createOutputs(1);
+    testModel.createInputs({desc});
+    testModel.createOutputs({desc});
 
     for (int i = 0; i < 6; i++) {
         if (i > 0)
-            testModel.addStage({InputInfo::fromPrevStage(i - 1)}, {OutputInfo::intermediate()});
+            testModel.addStage({InputInfo::fromPrevStage(i - 1)}, {OutputInfo::intermediate(desc)});
         else
-            testModel.addStage({InputInfo::fromNetwork()}, {OutputInfo::intermediate()});
+            testModel.addStage({InputInfo::fromNetwork()}, {OutputInfo::intermediate(desc)});
         if (i > 0)
             testModel.setStageBatchInfo(i, {{0, BatchSupport::Split}});
     }
@@ -236,19 +225,20 @@ TEST_F(VPU_AdjustDataBatchTest, BranchedWithBatchItemsInTheEnd) {
     //                                                                                      -> (Batched) -> [Output]
     // [Input] -> (Split) -> (Split) -> (Split) -> (Split) -> (Split) -> (Split) -> (Batch)
     //                                                                                      -> (Batched) -> [Output]
+    const DataDesc desc{16, 16, 3, batchSize};
 
-    createInputs(1);
-    createOutputs(2);
+    testModel.createInputs({desc});
+    testModel.createOutputs({desc, desc});
 
     for (int i = 0; i < 6; i++) {
         if (i > 0)
-            testModel.addStage({InputInfo::fromPrevStage(i - 1)}, {OutputInfo::intermediate()});
+            testModel.addStage({InputInfo::fromPrevStage(i - 1)}, {OutputInfo::intermediate(desc)});
         else
-            testModel.addStage({InputInfo::fromNetwork()}, {OutputInfo::intermediate()});
+            testModel.addStage({InputInfo::fromNetwork()}, {OutputInfo::intermediate(desc)});
         testModel.setStageBatchInfo(i, {{0, BatchSupport::Split}});
     }
 
-    testModel.addStage({InputInfo::fromPrevStage(5)}, {OutputInfo::intermediate()});
+    testModel.addStage({InputInfo::fromPrevStage(5)}, {OutputInfo::intermediate(desc)});
     testModel.addStage({InputInfo::fromPrevStage(6)}, {OutputInfo::fromNetwork(0)});
     testModel.addStage({InputInfo::fromPrevStage(6)}, {OutputInfo::fromNetwork(1)});
 
@@ -284,15 +274,16 @@ TEST_F(VPU_AdjustDataBatchTest, DISABLED_BranchedWithSplitAndBatchItemsInTheEnd)
     // [Input] -> (Split) -> (Split) -> (Split)
     //                                         -> (Split) -> [Output]
     //
+    const DataDesc desc{16, 16, 3, batchSize};
 
-    createInputs(1);
-    createOutputs(2);
+    testModel.createInputs({desc});
+    testModel.createOutputs({desc, desc});
 
     for (int i = 0; i < 5; i++) {
         if (i > 0)
-            testModel.addStage({InputInfo::fromPrevStage(i - 1)}, {OutputInfo::intermediate()});
+            testModel.addStage({InputInfo::fromPrevStage(i - 1)}, {OutputInfo::intermediate(desc)});
         else
-            testModel.addStage({InputInfo::fromNetwork()}, {OutputInfo::intermediate()});
+            testModel.addStage({InputInfo::fromNetwork()}, {OutputInfo::intermediate(desc)});
         if (i != 3)
             testModel.setStageBatchInfo(i, {{0, BatchSupport::Split}});
     }
@@ -325,19 +316,20 @@ TEST_F(VPU_AdjustDataBatchTest, DISABLED_BranchedWithBatchAndSplitItemsInTheEnd)
     // [Input] -> (Split) -> (Split) -> (Split)
     //                                         -> (Split) -> [Output]
     //
+    const DataDesc desc{16, 16, 3, batchSize};
 
-    createInputs(1);
-    createOutputs(2);
+    testModel.createInputs({desc});
+    testModel.createOutputs({desc, desc});
 
     for (int i = 0; i < 3; i++) {
         if (i > 0)
-            testModel.addStage({InputInfo::fromPrevStage(i - 1)}, {OutputInfo::intermediate()});
+            testModel.addStage({InputInfo::fromPrevStage(i - 1)}, {OutputInfo::intermediate(desc)});
         else
-            testModel.addStage({InputInfo::fromNetwork()}, {OutputInfo::intermediate()});
+            testModel.addStage({InputInfo::fromNetwork()}, {OutputInfo::intermediate(desc)});
         testModel.setStageBatchInfo(i, {{0, BatchSupport::Split}});
     }
     for (int i = 0; i < 2; i++) {
-        testModel.addStage({InputInfo::fromNetwork(2)}, {OutputInfo::intermediate()});
+        testModel.addStage({InputInfo::fromNetwork(2)}, {OutputInfo::intermediate(desc)});
         testModel.setStageBatchInfo(3 + i, {{0, BatchSupport::Split}});
     }
 
