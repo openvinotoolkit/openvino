@@ -76,27 +76,23 @@ void DetectionOutputLayerTest::Infer() {
     size_t it = 0;
     for (const auto &input : cnnNetwork.getInputsInfo()) {
         const auto &info = input.second;
-
         InferenceEngine::Blob::Ptr blob;
+        int32_t resolution = 1;
+        uint32_t range = 1;
         if (it == 2) {
-            blob = make_blob_with_precision(info->getTensorDesc());
-            blob->allocate();
             if (attrs.normalized) {
-                CommonTestUtils::fill_data_random_float<InferenceEngine::Precision::FP32>(blob, 1, 0, 100);
+                resolution = 100;
             } else {
-                CommonTestUtils::fill_data_random<InferenceEngine::Precision::FP32>(blob, 10, 0, 1);
+                range = 10;
             }
+        } else if (it == 1 || it == 3) {
+            resolution = 1000;
         } else {
-            int32_t resolution;
-            if (it == 1 || it == 3) {
-                resolution = 1000;
-            } else {
-                resolution = 10;
-            }
-            blob = make_blob_with_precision(info->getTensorDesc());
-            blob->allocate();
-            CommonTestUtils::fill_data_random_float<InferenceEngine::Precision::FP32>(blob, 1, 0, resolution);
+            resolution = 10;
         }
+        blob = make_blob_with_precision(info->getTensorDesc());
+        blob->allocate();
+        CommonTestUtils::fill_data_random_float<InferenceEngine::Precision::FP32>(blob, range, 0, resolution);
         inferRequest.SetBlob(info->name(), blob);
         inputs.push_back(blob);
         it++;
@@ -104,12 +100,32 @@ void DetectionOutputLayerTest::Infer() {
     inferRequest.Infer();
 }
 
-void DetectionOutputLayerTest::Validate() {
-    referenceDetectionOutput refDetOut(attrs, inShapes);
-    std::vector<float> refOutput = refDetOut.run(inputs);
-    const auto& actualOutputs = GetOutputs();
-    const float *actualOutputData = actualOutputs[0]->cbuffer().as<const float *>();
-    Compare<float>(refOutput.data(), actualOutputData, actualOutputs[0]->size(), 1e-2f);
+void DetectionOutputLayerTest::Compare(const std::vector<std::uint8_t> &expected, const InferenceEngine::Blob::Ptr &actual) {
+    ASSERT_EQ(expected.size(), actual->byteSize());
+
+    size_t expSize = 0;
+    size_t actSize = 0;
+
+    const auto &expectedBuffer = expected.data();
+    auto memory = InferenceEngine::as<InferenceEngine::MemoryBlob>(actual);
+    IE_ASSERT(memory);
+    const auto lockedMemory = memory->wmap();
+    const auto actualBuffer = lockedMemory.as<const std::uint8_t *>();
+
+    const float *expBuf = reinterpret_cast<const float *>(expectedBuffer);
+    const float *actBuf = reinterpret_cast<const float *>(actualBuffer);
+    for (size_t i = 0; i < actual->size(); i+=7) {
+        if (expBuf[i] == -1)
+            break;
+        expSize += 7;
+    }
+    for (size_t i = 0; i < actual->size(); i+=7) {
+        if (actBuf[i] == -1)
+            break;
+        actSize += 7;
+    }
+    ASSERT_EQ(expSize, actSize);
+    LayerTestsCommon::Compare<float>(expBuf, actBuf, expSize, 1e-2f);
 }
 
 void DetectionOutputLayerTest::SetUp() {
