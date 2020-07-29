@@ -280,8 +280,19 @@ namespace
                 axes.push_back(i);
             }
         }
-        Shape target_spatial_shape{args[1]->get_shape()};
+        int64_t* target_shape_ptr = args[1]->get_data_ptr<int64_t>();
+        std::vector<int64_t> target_spatial_shape;
+        target_spatial_shape.insert(target_spatial_shape.end(),
+                                    target_shape_ptr,
+                                    target_shape_ptr + axes.size());
         Shape out_shape{out->get_shape()};
+        runtime::reference::interpolate(args[0]->get_data_ptr<ET>(),
+                                        input_shape,
+                                        target_spatial_shape,
+                                        axes,
+                                        out->get_data_ptr<ET>(),
+                                        out_shape,
+                                        attrs);
         return true;
     }
 

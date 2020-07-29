@@ -70,7 +70,7 @@ namespace ngraph
                             }
                             return static_cast<int64_t>(std::round(x_original));
                         };
-                    case round_prefer_ceil:
+                    case Nearest_mode::round_prefer_ceil:
                         return [](float x_original, bool) {
                             return static_cast<int64_t>(std::round(x_original));
                         };
@@ -116,10 +116,10 @@ namespace ngraph
 
                 ~GetOriginalCoordinate() = default;
 
-                T operator()(float x_resized,
-                             float x_scale,
-                             float length_resized,
-                             float length_original) const
+                float operator()(float x_resized,
+                                 float x_scale,
+                                 float length_resized,
+                                 float length_original) const
                 {
                     return m_func(x_resized, x_scale, length_resized, length_original);
                 }
@@ -155,10 +155,8 @@ namespace ngraph
                         };
                         break;
                     case Transform_mode::align_corners:
-                         return [](float x_resized,
-                                   float,
-                                   float length_resized,
-                                   float length_original) {
+                         return [](
+                             float x_resized, float, float length_resized, float length_original) {
                             return length_resized == 1
                                        ? 0
                                        : x_resized * (length_original - 1) / (length_resized - 1);
@@ -174,18 +172,26 @@ namespace ngraph
             public:
                 InterpolateEval() = default;
 
-                InterpolateEval(op::v4::Interpolate::InterpolateAttrs attrs)
+                InterpolateEval(const op::v4::Interpolate::InterpolateAttrs& attrs)
                     : m_get_nearest_pixel{attrs.nearest_mode}
                     , m_get_original_coord{attrs.coordinate_transformation_mode}
                     , m_interp_mode{attrs.mode}
                     , m_pads_begin{attrs.pads_begin}
                     , m_pads_end{attrs.pads_end}
                     , m_antialias{attrs.antialias}
-                    , m_cube_coeff{attrs.m_cube_coeff}
+                    , m_cube_coeff{attrs.cube_coeff}
                 {
                 }
 
                 ~InterpolateEval() = default;
+
+                bool operator()(const T* input_data,
+                                const Shape& input_data_shape,
+                                const std::vector<int64_t>& target_spatial_shape,
+                                const std::vector<int64_t>& axes,
+                                T* out,
+                                const Shape& out_shape);
+
             private:
                 GetNearestPixel m_get_nearest_pixel;
                 GetOriginalCoordinate m_get_original_coord;
@@ -198,14 +204,14 @@ namespace ngraph
 
             template <typename T>
             void interpolate(const T* input_data,
-                             const T* target_spatial_shape,
-                             const T* axes,
-                             T* out,
                              const Shape& input_data_shape,
-                             const Shape& target_spatial_shape_size,
-                             const Shape& axes_size,
+                             const std::vector<int64_t>& target_spatial_shape,
+                             const std::vector<int64_t>& axes,
+                             T* out,
+                             const Shape& out_shape,
                              const op::v4::Interpolate::InterpolateAttrs& attrs)
             {
+                InterpolateEval evaluator{attrs};
             }
         }
     }
