@@ -42,3 +42,8 @@ bool ngraph::op::is_null(const std::shared_ptr<ngraph::Node>& node)
 {
     return is_null(node.get());
 }
+
+bool ngraph::op::is_null(const Output<ngraph::Node>& output)
+{
+    return is_null(output.get_node());
+}

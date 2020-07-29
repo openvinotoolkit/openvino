@@ -27,13 +27,13 @@ namespace ngraph
         {
             namespace set_1
             {
-                NodeVector cum_sum(const Node& node)
+                OutputVector cum_sum(const Node& node)
                 {
                     auto inputs = node.get_ng_inputs();
                     auto data = inputs.at(0);
                     bool exclusive = node.get_attribute_value<std::int64_t>("exclusive", 0);
                     bool reverse = node.get_attribute_value<std::int64_t>("reverse", 0);
-                    std::shared_ptr<ngraph::Node> axis;
+                    Output<ngraph::Node> axis;
 
                     if (inputs.size() > 1)
                     {
@@ -44,7 +44,7 @@ namespace ngraph
                         axis =
                             default_opset::Constant::create(element::i64, Shape{}, {0}); // default
                     }
-                    return NodeVector{
+                    return OutputVector{
                         std::make_shared<default_opset::CumSum>(data, axis, exclusive, reverse)};
                 }
 

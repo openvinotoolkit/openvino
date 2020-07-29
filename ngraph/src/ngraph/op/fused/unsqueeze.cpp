@@ -75,7 +75,7 @@ void op::Unsqueeze::pre_validate_and_infer_types()
     set_output_type(0, get_input_element_type(0), PartialShape{output_shape});
 }
 
-NodeVector op::Unsqueeze::decompose_op() const
+OutputVector op::Unsqueeze::decompose_op() const
 {
     NODE_VALIDATION_CHECK(
         this,
