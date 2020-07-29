@@ -256,6 +256,7 @@ ncStatus_t bootDevice(deviceDesc_t* deviceDescToBoot,
 
     char* firmware = NULL;
     size_t length = 0;
+    mvLog(MVLOG_ERROR, "Firmware2: %s", mv_cmd_file_path);
     ncStatus_t sc = readFirmware(mv_cmd_file_path, &firmware, &length);
     if(sc) {
         mvLog(MVLOG_ERROR, "Fail to read firmware by path %s. sc = %d", mv_cmd_file_path, sc);

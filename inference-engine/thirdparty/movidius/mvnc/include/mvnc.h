@@ -16,6 +16,7 @@ extern "C"
 #define NC_DEBUG_BUFFER_SIZE   120
 #define NC_MAX_DEVICES         (32)
 #define NC_MAX_NAME_SIZE       (64)
+#define NC_MAX_FIRMWARE_PATH   190
 
 #define NOMINMAX
 #define MVNC_EXPORT_API
@@ -165,7 +166,8 @@ typedef struct ncDeviceOpenParams {
     WatchdogHndl_t* watchdogHndl;
     int watchdogInterval;
     char memoryType;
-    const char* customFirmwareDirectory;
+    //const char* customFirmwareDirectory;
+    char customFirmwareDirectory[NC_MAX_FIRMWARE_PATH];
 } ncDeviceOpenParams_t;
 
 typedef enum {

@@ -142,7 +142,9 @@ class AOTBehaviorTests : public BehaviorPluginTest {
         ncDeviceOpenParams_t deviceOpenParams = {};
         deviceOpenParams.watchdogHndl = m_watchdogHndl;
         deviceOpenParams.watchdogInterval = 1000;
-        deviceOpenParams.customFirmwareDirectory = absPathToFw.c_str();
+        snprintf(deviceOpenParams.customFirmwareDirectory, strlen(deviceOpenParams.customFirmwareDirectory),
+             "%s", absPathToFw.c_str());
+        //deviceOpenParams.customFirmwareDirectory = absPathToFw.c_str();
 
         statusOpen = ncDeviceOpen(&device, deviceDesc, deviceOpenParams);
 

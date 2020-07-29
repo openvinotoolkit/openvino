@@ -46,6 +46,7 @@ std::string getFirmwareDir() {
     char firmware_dir[firmwareDirLength]  = {0};
     if (utf8_getenv_s(firmwareDirLength - 1, firmware_dir, "IE_VPU_FIRMWARE_DIR")) {
         absPathToFw = firmware_dir;
+        printf("EVN: %s ||| %s\n", firmware_dir, absPathToFw.c_str());
     }
     return absPathToFw.c_str();
 }
@@ -145,8 +146,10 @@ ncStatus_t MyriadExecutor::bootNextDevice(std::vector<DevicePtr> &devicePool,
     deviceOpenParams.watchdogHndl = _mvnc->watchdogHndl();
     deviceOpenParams.watchdogInterval = config.watchdogInterval().count();
     deviceOpenParams.memoryType = checked_cast<char>(config.memoryType());
-    deviceOpenParams.customFirmwareDirectory = getFirmwareDir().c_str();
+    snprintf(deviceOpenParams.customFirmwareDirectory, NC_MAX_FIRMWARE_PATH,
+             "%s", getFirmwareDir().c_str());
 
+    printf("Firmware: %s\n", getFirmwareDir().c_str());
     // Open new device with specific path to FW folder
     statusOpen = ncDeviceOpen(&device._deviceHandle, in_deviceDesc, deviceOpenParams);
 

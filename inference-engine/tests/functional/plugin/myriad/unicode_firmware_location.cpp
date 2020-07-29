@@ -10,7 +10,6 @@
 #include "ie_core.hpp"
 #include "ie_precision.hpp"
 #include "file_utils.h"
-#include "details/os/os_filesystem.hpp"
 
 #include "common_test_utils/unicode_utils.hpp"
 #include "ngraph_functions/builders.hpp"
@@ -49,9 +48,9 @@ std::vector<std::wstring> listFiles(const std::wstring& path, const std::wstring
     DIR* dir = nullptr;
     dirent* ent = nullptr;
 
-    if ((dir = opendir(InferenceEngine::details::wStringtoMBCSstringChar(path).c_str())) != nullptr) {
+    if ((dir = opendir(FileUtils::wStringtoMBCSstringChar(path).c_str())) != nullptr) {
         while ((ent = readdir(dir)) != nullptr) {
-            const auto wname = InferenceEngine::details::multiByteCharToWString(ent->d_name);
+            const auto wname = FileUtils::multiByteCharToWString(ent->d_name);
             if (wname.rfind(extension) == wname.size() - extension.size()) // not the efficient one, but ok for tests
                 result.push_back(wname);
         }
@@ -74,7 +73,7 @@ bool unicodeSetEnv(const std::wstring& key, const std::wstring& value) {
 #ifdef _WIN32
     return SetEnvironmentVariableW(key.c_str(), value.c_str());
 #else
-    return 0 == setenv(InferenceEngine::details::wStringtoMBCSstringChar(key).c_str(), InferenceEngine::details::wStringtoMBCSstringChar(value).c_str(), 1);
+    return 0 == setenv(FileUtils::wStringtoMBCSstringChar(key).c_str(), FileUtils::wStringtoMBCSstringChar(value).c_str(), 1);
 #endif
 }
 
@@ -92,7 +91,7 @@ public:
         #ifdef _WIN32
             _wmkdir(m_tempDirPath.c_str());
         #else
-            mkdir(InferenceEngine::details::wStringtoMBCSstringChar(m_tempDirPath).c_str(), 0755);
+            mkdir(FileUtils::wStringtoMBCSstringChar(m_tempDirPath).c_str(), 0755);
         #endif
 
         for (const auto& filename : m_filenames) {
@@ -108,9 +107,9 @@ public:
         _wrmdir(m_tempDirPath.c_str());
 #else
         for (const auto& filename : m_filenames) {
-            unlink(InferenceEngine::details::wStringtoMBCSstringChar(m_tempDirPath + pathSeparator + filename).c_str());
+            unlink(FileUtils::wStringtoMBCSstringChar(m_tempDirPath + pathSeparator + filename).c_str());
         }
-        rmdir(InferenceEngine::details::wStringtoMBCSstringChar(m_tempDirPath).c_str());
+        rmdir(FileUtils::wStringtoMBCSstringChar(m_tempDirPath).c_str());
 #endif
     }
 };

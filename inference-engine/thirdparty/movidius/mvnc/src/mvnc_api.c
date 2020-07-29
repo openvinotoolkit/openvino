@@ -817,6 +817,7 @@ ncStatus_t ncDeviceOpen(struct ncDeviceHandle_t **deviceHandlePtr,
         ncStatus_t sc;
         char mv_cmd_file_path[MAX_PATH_LENGTH] = { 0 };
 
+        mvLog(MVLOG_ERROR, "Firmware1: %s", customFirmwareDirectory);
         if (customFirmwareDirectory && strnlen(customFirmwareDirectory, MAX_PATH_LENGTH) > 1) {
             mv_strncpy(mv_cmd_file_path, MAX_PATH_LENGTH, customFirmwareDirectory, MAX_PATH_LENGTH - 1);
             addEndPathSeparator(mv_cmd_file_path, MAX_PATH_LENGTH);
