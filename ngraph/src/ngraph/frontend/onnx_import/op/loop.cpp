@@ -64,7 +64,7 @@ namespace ngraph
                         // According to ONNX skipped cond input (is_null) means
                         // that is has true value
                         bool is_loop_cond_true =
-                            ngraph::op::is_null(loop_cond.get_node()) || loop_cond_value == true;
+                            ngraph::op::is_null(loop_cond) || loop_cond_value == true;
 
                         if (!is_loop_cond_true)
                         {
@@ -103,7 +103,7 @@ namespace ngraph
                     // At this moment nGraph TensorIterator doesn't have support for conditional
                     // termination of iterations.
                     CHECK_VALID_NODE(node,
-                                     !ngraph::op::is_null(trip_count.get_node_shared_ptr()),
+                                     !ngraph::op::is_null(trip_count),
                                      "Currently nGraph requires trip count input to be provided.");
 
                     const OutputVector loop_carried_dependencies{std::next(ng_inputs.begin(), 2),

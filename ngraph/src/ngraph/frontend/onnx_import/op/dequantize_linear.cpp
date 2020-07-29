@@ -38,7 +38,7 @@ namespace ngraph
             {
                 Output<ngraph::Node> get_zero_point(const OutputVector& inputs)
                 {
-                    if (inputs.size() == 3 && !ngraph::op::is_null(inputs[2].get_node()))
+                    if (inputs.size() == 3 && !ngraph::op::is_null(inputs[2]))
                     {
                         auto zero_point = inputs[2];
 

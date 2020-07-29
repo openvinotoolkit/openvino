@@ -237,7 +237,7 @@ namespace ngraph
                     std::shared_ptr<ngraph::Node> conv_node = nullptr;
 
                     // no bias param
-                    if (inputs.size() == 9 && !inputs.at(8).get_node()->is_null())
+                    if (inputs.size() == 9 && !ngraph::op::is_null(inputs.at(8)))
                     {
                         auto bias = inputs.at(8);
                         conv_node = make_ng_quant_conv(
