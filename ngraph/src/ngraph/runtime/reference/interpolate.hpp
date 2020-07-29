@@ -16,6 +16,7 @@
 
 #pragma once
 
+#include <algorithm>
 #include <cmath>
 #include <cstddef>
 #include <functional>
@@ -155,7 +156,7 @@ namespace ngraph
                         };
                         break;
                     case Transform_mode::align_corners:
-                         return [](
+                        return [](
                             float x_resized, float, float length_resized, float length_original) {
                             return length_resized == 1
                                        ? 0
@@ -176,8 +177,6 @@ namespace ngraph
                     : m_get_nearest_pixel{attrs.nearest_mode}
                     , m_get_original_coord{attrs.coordinate_transformation_mode}
                     , m_interp_mode{attrs.mode}
-                    , m_pads_begin{attrs.pads_begin}
-                    , m_pads_end{attrs.pads_end}
                     , m_antialias{attrs.antialias}
                     , m_cube_coeff{attrs.cube_coeff}
                 {
@@ -185,21 +184,34 @@ namespace ngraph
 
                 ~InterpolateEval() = default;
 
-                bool operator()(const T* input_data,
+                void operator()(const T* input_data,
                                 const Shape& input_data_shape,
-                                const std::vector<int64_t>& target_spatial_shape,
-                                const std::vector<int64_t>& axes,
+                                const std::vector<std::size_t>& target_spatial_shape,
+                                const std::vector<std::size_t>& axes,
                                 T* out,
-                                const Shape& out_shape);
+                                const Shape& out_shape)
+                {
+                    m_input_data_shape = input_data_shape;
+                    m_target_spatial_shape = target_spatial_shape;
+                    m_axes = axes;
+                    m_out_shape = out_shape;
+
+                    std::size_t output_data_size = shape_size(out_shape);
+
+                    std::fill(out, out + output_data_size, T{});
+                }
 
             private:
                 GetNearestPixel m_get_nearest_pixel;
                 GetOriginalCoordinate m_get_original_coord;
                 InterpolateMode m_interp_mode;
-                std::vector<size_t> m_pads_begin;
-                std::vector<size_t> m_pads_end;
                 double m_cube_coeff;
                 bool m_antialias;
+
+                Shape m_input_data_shape;
+                std::vector<std::size_t> m_target_spatial_shape;
+                std::vector<std::size_t> m_axes;
+                Shape m_out_shape
             };
 
             template <typename T>

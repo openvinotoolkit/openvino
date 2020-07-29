@@ -16,6 +16,7 @@
 
 #include "ngraph/op/interpolate.hpp"
 #include "ngraph/op/constant.hpp"
+#include "ngraph/runtime/ndim_array_view.hpp"
 #include "ngraph/runtime/reference/interpolate.hpp"
 
 using namespace std;
@@ -194,7 +195,7 @@ std::vector<size_t> op::v4::Interpolate::correct_pad(const std::vector<size_t>& 
     }
     else
     {
-        result.insert(result.end(), pad.begin(), pad.end());
+        result = pad;
         result.insert(result.end(), input_rank - pad_len, 0);
     }
 
@@ -257,19 +258,17 @@ shared_ptr<Node> op::v4::Interpolate::clone_with_new_inputs(const OutputVector& 
 
 namespace
 {
-    template <element::Type_t ET>
-    inline bool evaluate(const HostTensorVector& args,
-                         const HostTensorPtr& out,
-                         const op::v4::Interpolate::InterpolateAttrs& attrs)
+    std::vector<std::size_t> get_axes_vector(const HostTensorVector& args)
     {
-        using T = typename element_type_traits<ET>::value_type;
-        std::size_t num_of_inputs = args.size();
         Shape input_shape{args[0]->get_shape()};
-        std::vector<int64_t> axes;
         std::size_t input_rank = input_shape.size();
+        std::size_t num_of_inputs = args.size();
+
+        std::vector<std::size_t> axes;
+
         if (num_of_inputs == 3)
         {
-            int64_t* axes_data_ptr = args[2]->get_data_ptr<int64_t>();
+            std::size_t* axes_data_ptr = args[2]->get_data_ptr<std::size_t>();
             std::size_t num_of_axes = args[2]->get_shape()[0];
             axes.insert(axes.end(), axes_data_ptr, axes_data_ptr + num_of_axes);
         }
@@ -280,11 +279,108 @@ namespace
                 axes.push_back(i);
             }
         }
-        int64_t* target_shape_ptr = args[1]->get_data_ptr<int64_t>();
-        std::vector<int64_t> target_spatial_shape;
+
+        return axes;
+    }
+
+    std::vector<std::size_t> get_target_spatial_shape_vector(const HostTensorVector& args,
+                                                             std::size_t num_of_axes)
+    {
+        std::vector<std::size_t> target_spatial_shape;
+
+        std::size_t* target_shape_ptr = args[1]->get_data_ptr<std::size_t>();
         target_spatial_shape.insert(
-            target_spatial_shape.end(), target_shape_ptr, target_shape_ptr + axes.size());
-        Shape out_shape{out->get_shape()};
+            target_spatial_shape.end(), target_shape_ptr, target_shape_ptr + num_of_axes);
+
+        return target_spatial_shape;
+    }
+
+    std::vector<std::size_t> out_shape_infer(const Shape& input_shape,
+                                             const std::vector<std::size_t>& pads_begin,
+                                             const std::vector<std::size_t>& pads_end,
+                                             const std::vector<std::size_t>& axes,
+                                             const std::vector<std::size_t>& target_shape)
+    {
+        std::vector<std::size_t> out_shape = input_shape;
+        std::size_t rank = input_shape.size();
+        for (std::size_t i = 0; i < rank; ++i)
+        {
+            out_shape[i] += pads_begin[i] + pads_end[i];
+        }
+        std::size_t num_of_axes = axes.size();
+        for (std::size_t i = 0; i < axes.size(); ++i)
+        {
+            out_shape[axes[i]] = target_shape[i];
+        }
+
+        return out_shape;
+    }
+
+
+    std::vector<std::size_t> get_padded_input_shape(const Shape& input_shape,
+                                                    const std::vector<std::size_t>& pads_begin,
+                                                    const std::vector<std::size_t>& pads_end)
+    {
+        std::vector<std::size_t> result = input_shape;
+        std::size_t rank = input_shape.size();
+        for (std::size_t i = 0; i < rank; ++i)
+        {
+            result[i] += pads_begin[i] + pads_end[i];
+        }
+
+        return result;
+    }
+
+    std::vector<std::size_t> correct_pad(const std::vector<std::size_t>& p, std::size_t rank)
+    {
+        std::size pad_len = p.size();
+        if (pad_len == rank)
+        {
+            return p;
+        }
+
+        std::vector<std::size_t> result;
+
+        if (pad_len > rank)
+        {
+            result.insert(result.end(), p.begin(), p.begin() + rank);
+        }
+        else
+        {
+            result = pad;
+            result.insert(result.end(), rank - pad_len, 0);
+        }
+
+        return result;
+    }
+
+    template <element::Type_t ET>
+    inline bool evaluate(const HostTensorVector& args,
+                         const HostTensorPtr& out,
+                         const op::v4::Interpolate::InterpolateAttrs& attrs)
+    {
+        using T = typename element_type_traits<ET>::value_type;
+
+        Shape input_shape{args[0]->get_shape()};
+        std::size_t input_rank = input_shape.size();
+
+        auto axes = get_axes_vector(args);
+        auto target_spatial_shape = get_target_spatial_shape_vector(args, axes.size());
+
+        auto pads_begin = correct_pad(attrs.pads_begin, input_rank);
+        auto pads_end = correct_pad(attrs.pads_end, input_rank);
+
+        auto out_shape_vector = out_shape_infer(
+            input_shape, pads_begin, pads_end, axes, target_spatial_shape);
+        Shape out_shape{out_shape_vector};
+
+        out->set_shape(out_shape);
+
+        auto padded_input_shape = get_padded_input_shape(input_shape, pads_begin, pads_end);
+
+        std::vector<T> padded_input_data(shape_size(Shape{padded_input_shape}));
+        NDimArrayView<T> padded_array_view{padded_input_data.data()};
+
         runtime::reference::interpolate(args[0]->get_data_ptr<ET>(),
                                         input_shape,
                                         target_spatial_shape,
