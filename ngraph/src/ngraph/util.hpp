@@ -50,9 +50,6 @@ namespace ngraph
         class Tensor;
     }
 
-    NGRAPH_API
-    std::string to_cplusplus_sourcecode_literal(bool val);
-
     template <typename T>
     std::string join(const T& v, const std::string& sep = ", ")
     {
@@ -202,11 +199,6 @@ namespace ngraph
         return y > x ? 0 : x - y;
     }
 
-    void check_fp_values_isinf(const char* name, const float* array, size_t n);
-    void check_fp_values_isinf(const char* name, const double* array, size_t n);
-    void check_fp_values_isnan(const char* name, const float* array, size_t n);
-    void check_fp_values_isnan(const char* name, const double* array, size_t n);
-
     NGRAPH_API
     void* ngraph_malloc(size_t size);
     NGRAPH_API
@@ -237,34 +229,6 @@ namespace ngraph
     NGRAPH_API
     AxisVector get_default_order(const Shape& shape);
 
-    NGRAPH_API
-    AxisVector get_permutation_to_default_order(const AxisVector& axis_order);
-
-    //
-    // Return type struct for cache_fprop, with the modified fprop and bprop
-    // functions
-    // and a list of the nodes that have been appended to fprop output/bprop
-    // input
-    //
-    struct FpropCache
-    {
-        std::shared_ptr<Function> fprop;
-        std::shared_ptr<Function> bprop;
-        std::vector<RawNodeOutput> fprop_output_nodes;
-        RawNodeOutputMap node_param_map;
-    };
-
-    //
-    // This utility takes forward-propogation and back-propagation functions
-    // and turns them into clone functions where the intermediate values of
-    // the forward prop are added to the output of fprop and the input of the bprop
-    // to avoid repeat calculations.
-    // The last argument is the adjoints coming into the bprop function, the output
-    // bprop function will have these nodes as the first N input parameters
-    //
-    NGRAPH_API
-    FpropCache cache_fprop(std::shared_ptr<Function> fprop, std::shared_ptr<Function> bprop);
-
     // NodeExecutors are used in compiler optimization passes like ConstantFolding to execute a node
     // using the supplied input and output memory locations.
     // A BuildNodeExecutor returns a backend-specific NodeExecutor for a given Node type
@@ -273,15 +237,6 @@ namespace ngraph
     using BuildNodeExecutor = std::function<NodeExecutorTy(const ngraph::Node*)>;
 
     using BuildNodeExecutorMap = std::unordered_map<std::type_index, BuildNodeExecutor>;
-
-    enum class TensorRole
-    {
-        INPUT,
-        CONSTANT,
-        OUTPUT,
-        INTERMEDIATE,
-        UNKNOWN
-    };
 
     //
     // EnumMask is intended to work with a scoped enum type. It's used to store
