@@ -27,7 +27,7 @@ namespace ngraph
         {
             namespace set_1
             {
-                NodeVector image_scaler(const Node& node);
+                OutputVector image_scaler(const Node& node);
             }
         }
     }

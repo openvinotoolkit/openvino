@@ -30,7 +30,7 @@ namespace ngraph
         {
             namespace set_1
             {
-                inline NodeVector ceil(const Node& node)
+                inline OutputVector ceil(const Node& node)
                 {
                     return {std::make_shared<default_opset::Ceiling>(node.get_ng_inputs().at(0))};
                 }
