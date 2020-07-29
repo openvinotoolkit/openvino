@@ -100,7 +100,7 @@ void prepare_buffer_fusing::run(program_impl& p) {
                 if (l.format == format::bs_fs_yx_bsv16_fsv16)
                     return;
 
-                if (l.format == format::b_fs_yx_fsv4 && (l.size.feature[0] % 4 != 0 || node.get_primitive()->axis != concatenation::along_f))
+                if (l.format == format::b_fs_yx_fsv4 && (l.size.feature[0] != 8 || node.get_primitive()->axis != concatenation::along_f))
                     return;
             }
 
