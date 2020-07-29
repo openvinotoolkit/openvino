@@ -254,24 +254,40 @@ shared_ptr<Node> op::v4::Interpolate::clone_with_new_inputs(const OutputVector& 
         new_args.at(0), new_args.at(1), new_args.at(2), m_attrs);
 }
 
-bool evaluate_interpolate_v4(const HostTensorPtr& data,
-                             const HostTensorPtr& target_spatial_shape,
-                             const HostTensorPtr& axes,
-                             const HostTensorPtr& out,
-                             const op::v4::Interpolate::InterpolateAttrs& attrs)
-{
-    return true;
+namespace{
+    template <element::Type_t ET>
+    inline bool evaluate(const HostTensorVector& args,
+                         const HostTensorPtr& out,
+                         const op::v4::Interpolate::InterpolateAttrs& attrs)
+    {
+        using T = typename element_type_traits<ET>::value_type;
+        return true;
+    }
+
+    bool evaluate_interpolate_v4(const HostTensorVector& args,
+                                 const HostTensorPtr& out,
+                                 const op::v4::Interpolate::InterpolateAttrs& attrs)
+    {
+        bool rc = true;
+
+        switch (out->get_element_type())
+        {
+            TYPE_CASE(i8)(args, out, attrs);
+            break;
+            TYPE_CASE(f16)(args, out, attrs);
+            break;
+            TYPE_CASE(f32)(args, out, attrs);
+            break;
+        default: rc = false; break;
+        }
+        return rc;
+    }
 }
+
 
 bool op::v4::Interpolate::evaluate(const HostTensorVector& outputs, const HostTensorVector& inputs)
 {
-    std::size_t num_of_inputs = inputs.size();
-    HostTensorPtr axes_ptr = nullptr;
-    if (num_of_inputs == 3)
-    {
-        axes_ptr = inputs[2];
-    }
-    return evaluate_interpolate_v4(inputs[0], inputs[1], axes_ptr, outputs[0], m_attrs);
+    return evaluate_interpolate_v4(inputs, outputs[0], m_attrs)
 }
 
 namespace ngraph
