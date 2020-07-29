@@ -180,7 +180,7 @@ arg_min_no_keep_dims_dyn_shape
 onnx_model_one_hot_with_axis
 
 # Dynamic function 'get_shape was called on a descriptor::Tensor with dynamic shape'
-onnx_upsample9_scales_input_nearest_infer
+# onnx_upsample9_scales_input_nearest_infer
 fused_clamp_uint16
 fused_clamp_uint8
 fused_clamp_int32
@@ -1089,7 +1089,7 @@ IE_CPU.acosh
 
 # Interpolate-1 in linear mode
 # 2.666666507720947266 is not close to 3 at index 1
-IE_CPU.interpolate_down_scales_const_linear
+# IE_CPU.interpolate_down_scales_const_linear
 
 # Result mismatch 2.666666507720947266 is not close to 3 at index 1
 # IE_CPU.onnx_resize10_down_scales_const_linear
@@ -1397,7 +1397,7 @@ IE_GPU.onnx_dyn_shapes_model_acosh_1_3
 IE_GPU.onnx_dyn_shapes_model_acosh_3_2
 IE_GPU.onnx_dyn_shapes_model_asinh_1_3
 IE_GPU.onnx_dyn_shapes_model_asinh_3_2
-IE_GPU.onnx_upsample9_scales_input_nearest_infer
+# IE_GPU.onnx_upsample9_scales_input_nearest_infer
 
 IE_GPU.sum_matrix_6d
 IE_GPU.sqrt
