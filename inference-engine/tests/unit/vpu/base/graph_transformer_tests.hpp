@@ -79,6 +79,8 @@ struct OutputInfo final {
 
 class TestModel final {
 public:
+    DataDesc _dataDesc;
+
     TestModel() = default;
     TestModel(const Model& model);
     TestModel(const Model& model, const DataDesc& dataDesc);
@@ -108,9 +110,6 @@ public:
     void setStageBatchInfo(
             int stageInd,
             const InOutPortMap<BatchSupport>& inputInfo);
-
-public:
-    DataDesc _dataDesc;
 
 private:
     Model _model;
