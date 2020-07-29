@@ -18,7 +18,6 @@ from typing import Optional
 import numpy as np
 
 from ngraph.impl import Node
-from ngraph.impl.op import GetOutputElement
 from ngraph.utils.decorators import nameable_op
 from ngraph.utils.node_factory import NodeFactory
 from ngraph.utils.types import (
