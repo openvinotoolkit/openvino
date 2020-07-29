@@ -138,6 +138,11 @@ enum SqueezeOpType {
     UNSQUEEZE
 };
 
+enum MinMaxOpType {
+    MINIMUM,
+    MAXIMUM
+};
+
 enum QuantizationGranularity {
     Pertensor,
     Perchannel
@@ -225,6 +230,12 @@ std::ostream& operator<<(std::ostream& os, ngraph::helpers::InputLayerType type)
 std::ostream& operator<<(std::ostream & os, ngraph::helpers::ComparisonTypes type);
 
 std::ostream& operator<<(std::ostream & os, ngraph::helpers::LogicalTypes type);
+
+std::ostream& operator<<(std::ostream & os, ngraph::op::v3::Interpolate::InterpolateMode type);
+
+std::ostream& operator<<(std::ostream & os, ngraph::op::v3::Interpolate::CoordinateTransformMode type);
+
+std::ostream& operator<<(std::ostream & os, ngraph::op::v3::Interpolate::NearestMode type);
 
 }  // namespace helpers
 }  // namespace ngraph
