@@ -97,7 +97,7 @@ TEST(TransformationTests, ConvertExtractImagePatchesToReorgYoloTestsNegative1) {
     std::shared_ptr<ngraph::Function> f(nullptr), f_ref(nullptr);
     {
         auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32,
-            ngraph::Shape{ 1, 3, ngraph::Dimension::dynamic(), ngraph::Dimension::dynamic()  });
+            ngraph::PartialShape{ 1, 3, ngraph::Dimension::dynamic(), ngraph::Dimension::dynamic()  });
 
         auto sizes = ngraph::Shape{ 5, 5 };
         auto strides = ngraph::Strides{ 5, 5 };
@@ -114,7 +114,7 @@ TEST(TransformationTests, ConvertExtractImagePatchesToReorgYoloTestsNegative1) {
 
     {
         auto input = std::make_shared<ngraph::opset1::Parameter>(ngraph::element::f32,
-            ngraph::Shape{ 1, 3, ngraph::Dimension::dynamic(), ngraph::Dimension::dynamic() });
+            ngraph::PartialShape{ 1, 3, ngraph::Dimension::dynamic(), ngraph::Dimension::dynamic() });
 
         auto sizes = ngraph::Shape{ 5, 5 };
         auto strides = ngraph::Strides{ 5, 5 };
