@@ -48,7 +48,16 @@ class GNAInferRequest : public InferenceEngine::AsyncInferRequestInternal {
     void InferImpl() override {
         // execute input pre-processing.
         execDataPreprocessing(_inputs);
-        plg->Infer(_inputs, _outputs);
+        // result returned from sync infer wait method
+        auto result = plg->Infer(_inputs, _outputs);
+
+        // if result is false we are dealing with QoS feature
+        // if result is ok, next call to wait() will return Ok, if request not in gna_queue
+        if (!result) {
+            inferRequestIdx = -1;
+        } else {
+            inferRequestIdx = -2;
+        }
     }
 
     /**
@@ -92,7 +101,13 @@ class GNAInferRequest : public InferenceEngine::AsyncInferRequestInternal {
             qosOK = plg->WaitFor(inferRequestIdx, millis_timeout);
         }
 
-        return qosOK ? InferenceEngine::OK : InferenceEngine::INFER_NOT_STARTED;
+        if (qosOK) {
+            return InferenceEngine::OK;
+        } else {
+            // need to preserve invalid state here to avoid next Wait() from clearing it
+            inferRequestIdx = -1;
+            return InferenceEngine::INFER_NOT_STARTED;
+        }
     }
 };
 }  // namespace GNAPluginNS

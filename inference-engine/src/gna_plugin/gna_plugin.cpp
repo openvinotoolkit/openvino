@@ -1069,7 +1069,7 @@ void GNAPlugin::Reset() {
     graphCompiler.Reset();
 }
 
-void GNAPlugin::Infer(const InferenceEngine::Blob &input, InferenceEngine::Blob &output) {
+bool GNAPlugin::Infer(const InferenceEngine::Blob &input, InferenceEngine::Blob &output) {
     BlobMap bmInput;
     BlobMap bmOutput;
     if (inputsDataMap.size() != 1) {
@@ -1080,11 +1080,11 @@ void GNAPlugin::Infer(const InferenceEngine::Blob &input, InferenceEngine::Blob 
     bmInput[inputsDataMap.begin()->first] = std::shared_ptr<Blob>(const_cast<Blob*>(&input), [](Blob*){});
     IE_ASSERT(!outputsDataMap.empty());
     bmOutput[outputsDataMap.begin()->first] = std::shared_ptr<Blob>(&output, [](Blob*){});
-    Infer(bmInput, bmOutput);
+    return Infer(bmInput, bmOutput);
 }
 
-void GNAPlugin::Infer(const InferenceEngine::BlobMap &input, InferenceEngine::BlobMap &result) {
-    Wait(QueueInference(input, result));
+bool GNAPlugin::Infer(const InferenceEngine::BlobMap &input, InferenceEngine::BlobMap &result) {
+    return  Wait(QueueInference(input, result));
 }
 
 Blob::Ptr GNAPlugin::GetOutputBlob(const std::string& name, InferenceEngine::Precision precision) {
