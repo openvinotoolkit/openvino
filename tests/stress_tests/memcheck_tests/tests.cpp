@@ -8,6 +8,7 @@
 #include "tests_pipelines/tests_pipelines.h"
 
 #include <gtest/gtest.h>
+#include <chrono>
 
 #include <inference_engine.hpp>
 
@@ -49,11 +50,27 @@ TEST_P(MemCheckTestSuite, create_exenetwork) {
                                                          << "\" for device: \"" << device << "\"");
     auto test_pipeline = [&]{
         MemCheckPipeline memCheckPipeline;
+        std::chrono::high_resolution_clock::time_point t1, t2;
 
         Core ie;
+
+        t1 = std::chrono::high_resolution_clock::now();
         ie.GetVersions(device);
+        t2 = std::chrono::high_resolution_clock::now();
+        auto tm_duration = std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count();
+        log_info("Time of load plugin: " << tm_duration);
+
+        t1 = std::chrono::high_resolution_clock::now();
         CNNNetwork cnnNetwork = ie.ReadNetwork(model);
+        t2 = std::chrono::high_resolution_clock::now();
+        tm_duration = std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count();
+        log_info("Time of read network: " << tm_duration);
+
+        t1 = std::chrono::high_resolution_clock::now();
         ExecutableNetwork exeNetwork = ie.LoadNetwork(cnnNetwork, device);
+        t2 = std::chrono::high_resolution_clock::now();
+        tm_duration = std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count();
+        log_info("Time of load_network: " << tm_duration);
 
         log_info("Memory consumption after LoadNetwork:");
         memCheckPipeline.record_measures(test_name);
@@ -71,16 +88,37 @@ TEST_P(MemCheckTestSuite, infer_request_inference) {
                                                           << "\" for device: \"" << device << "\"");
     auto test_pipeline = [&]{
         MemCheckPipeline memCheckPipeline;
+        std::chrono::high_resolution_clock::time_point t1, t2;
 
         Core ie;
+
+        t1 = std::chrono::high_resolution_clock::now();
         ie.GetVersions(device);
+        t2 = std::chrono::high_resolution_clock::now();
+        auto tm_duration = std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count();
+        log_info("Time of load plugin: " << tm_duration);
+
+        t1 = std::chrono::high_resolution_clock::now();
         CNNNetwork cnnNetwork = ie.ReadNetwork(model);
+        t2 = std::chrono::high_resolution_clock::now();
+        tm_duration = std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count();
+        log_info("Time of read network: " << tm_duration);
+
+        t1 = std::chrono::high_resolution_clock::now();
         ExecutableNetwork exeNetwork = ie.LoadNetwork(cnnNetwork, device);
+        t2 = std::chrono::high_resolution_clock::now();
+        tm_duration = std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count();
+        log_info("Time of load_network: " << tm_duration);
+
+        t1 = std::chrono::high_resolution_clock::now();
         InferRequest inferRequest = exeNetwork.CreateInferRequest();
         inferRequest.Infer();
         OutputsDataMap output_info(cnnNetwork.getOutputsInfo());
         for (auto &output : output_info)
             Blob::Ptr outputBlob = inferRequest.GetBlob(output.first);
+        t2 = std::chrono::high_resolution_clock::now();
+        tm_duration = std::chrono::duration_cast<std::chrono::microseconds>(t2 - t1).count();
+        log_info("Time of inference: " << tm_duration);
 
         log_info("Memory consumption after Inference:");
         memCheckPipeline.record_measures(test_name);
