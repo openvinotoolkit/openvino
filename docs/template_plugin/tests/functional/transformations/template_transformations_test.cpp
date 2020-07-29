@@ -18,7 +18,7 @@
 using namespace testing;
 
 // ! [transformation:test]
-TEST(TransformationTests, TemplateTest) {
+TEST(TransformationTests, DISABLED_TemplateTest) {
     std::shared_ptr<ngraph::Function> f, f_ref;
     // f - ngraph::Function for applying transformation
     // f_ref - ngraph::Function that is expected after applying transformation
