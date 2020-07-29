@@ -24,7 +24,6 @@
 #include "ngraph/pass/constant_folding.hpp"
 #include "ngraph/pass/convert_fp32_to_fp16.hpp"
 #include "ngraph/pass/get_output_element_elimination.hpp"
-#include "ngraph/pass/graph_rewrite.hpp"
 #include "ngraph/pass/nop_elimination.hpp"
 #include "ngraph/pass/validate.hpp"
 
@@ -37,9 +36,6 @@ namespace
     class ManagerWrapper : public ngraph::pass::Manager
     {
     public:
-        using node_modifiers_t =
-            std::function<void(const ngraph::Node& node, std::vector<std::string>& attributes)>;
-
         ManagerWrapper() {}
         ~ManagerWrapper() {}
         void register_pass(std::string pass_name)
@@ -52,8 +48,6 @@ namespace
                 push_pass<ngraph::pass::ConvertFP32ToFP16>();
             if (pass_name == "GetOutputElementElimination")
                 push_pass<ngraph::pass::GetOutputElementElimination>();
-            if (pass_name == "GraphRewrite")
-                push_pass<ngraph::pass::GraphRewrite>();
             if (pass_name == "NopElimination")
                 push_pass<ngraph::pass::NopElimination>();
             if (pass_name == "Validate")
