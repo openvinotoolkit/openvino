@@ -1,4 +1,4 @@
-tensorflow>=1.2.0
+tensorflow>=1.15.2
 networkx>=1.11
 numpy>=1.13.0
 test-generator==0.1.1

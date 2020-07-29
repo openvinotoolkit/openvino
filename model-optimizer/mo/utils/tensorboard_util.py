@@ -19,7 +19,7 @@ try:
 except ImportError:
     import tensorflow as tf_v1
 try:
-    import tensorflow.contrib
+    import tensorflow.contrib  # pylint: disable=no-name-in-module,import-error
 except:
     pass  # we try to import contrib for loading models that use contrib operations
 from mo.utils.error import Error

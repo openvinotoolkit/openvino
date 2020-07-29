@@ -1,4 +1,4 @@
-tensorflow>=1.2.0
+tensorflow>=1.15.2
 mxnet>=1.0.0,<=1.5.1
 networkx>=1.11
 numpy>=1.13.0
