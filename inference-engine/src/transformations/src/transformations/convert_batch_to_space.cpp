@@ -23,8 +23,8 @@ void ngraph::pass::ConvertBatchToSpace::convert_batch_to_space() {
             return false;
         }
         auto last_node = batch_to_space->decompose_op()[0];
-        last_node->set_friendly_name(batch_to_space->get_friendly_name());
-        ngraph::replace_node(batch_to_space, last_node);
+        last_node.get_node()->set_friendly_name(batch_to_space->get_friendly_name());
+        ngraph::replace_node(batch_to_space, last_node.get_node_shared_ptr());
         return true;
     };
 
@@ -48,7 +48,7 @@ void ngraph::pass::ConvertBatchToSpace::convert_batch_to_space_ie_side() {
         auto data = batch_to_space->input_value(0);
         auto data_shape = data.get_shape();
 
-        if (transformation_callback(batch_to_space) && (data_shape.size() == 4 || data_shape.size() == 5)) {
+        if (m_transformation_callback(batch_to_space) && (data_shape.size() == 4 || data_shape.size() == 5)) {
             return false;
         }
         auto block = batch_to_space->input_value(1);

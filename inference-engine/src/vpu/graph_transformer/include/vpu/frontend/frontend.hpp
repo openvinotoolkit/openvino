@@ -12,6 +12,7 @@
 #include <tuple>
 #include <set>
 
+#include <ie_icore.hpp>
 #include <cpp/ie_cnn_network.h>
 #include <details/caseless.hpp>
 
@@ -30,7 +31,7 @@ class FrontEnd final {
 public:
     using Ptr = std::shared_ptr<FrontEnd>;
 
-    explicit FrontEnd(StageBuilder::Ptr stageBuilder);
+    explicit FrontEnd(StageBuilder::Ptr stageBuilder, const ie::ICore* core);
 
     ModelPtr buildInitialModel(ie::ICNNNetwork& network);
 
@@ -154,6 +155,8 @@ public:
     void parseOutShapeOfReshape(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
     void parseBroadcast(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
     void parseStaticShapeNMS(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
+    void parseMish(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
+    void parseGelu(const Model& model, const ie::CNNLayerPtr& layer, const DataVector& inputs, const DataVector& outputs) const;
 
     //
     // Special layers
@@ -202,6 +205,7 @@ private:
 
 private:
     StageBuilder::Ptr _stageBuilder;
+    const ie::ICore* _core = nullptr;
 
     IeParsedNetwork _ieParsedNetwork;
     std::unordered_set<ie::DataPtr> _unbatchedOutputs;

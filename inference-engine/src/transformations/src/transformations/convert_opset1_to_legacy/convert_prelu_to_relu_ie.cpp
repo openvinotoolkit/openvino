@@ -13,13 +13,13 @@
 #include <transformations/utils/utils.hpp>
 #include <ngraph/rt_info.hpp>
 
-void ngraph::pass::ConvertPReLUToReLUIE::convert_prelu() {
+ngraph::pass::ConvertPReLUToReLUIE::ConvertPReLUToReLUIE() {
     auto input_0 = std::make_shared<pattern::op::Label>(element::f32, Shape{1});
     auto input_1 = std::make_shared<pattern::op::Label>(element::f32, Shape{1});
     auto prelu = std::make_shared<ngraph::opset1::PRelu>(input_0, input_1);
 
 
-    ngraph::graph_rewrite_callback callback = [](pattern::Matcher& m) {
+    ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
         auto prelu = std::dynamic_pointer_cast<ngraph::opset1::PRelu> (m.get_match_root());
         if (!prelu) {
             return false;
@@ -41,5 +41,5 @@ void ngraph::pass::ConvertPReLUToReLUIE::convert_prelu() {
     };
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(prelu, "ConvertPReLUToReLUIE");
-    this->add_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
+    this->register_matcher(m, callback);
 }

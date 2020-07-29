@@ -12,7 +12,7 @@
 
 #include "ngraph_ops/normalize_ie.hpp"
 
-void ngraph::pass::ConvertNormalizeL2WithMulToNormalizeIE::convert_normalize_l2_with_mul() {
+ngraph::pass::ConvertNormalizeL2WithMulToNormalizeIE::ConvertNormalizeL2WithMulToNormalizeIE() {
     auto input_0 = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1, 1});
     auto input_1 = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1, 1});
     auto axis = std::make_shared<ngraph::opset1::Constant>(element::i64, Shape{1}, std::vector<int64_t>{0});
@@ -69,15 +69,15 @@ void ngraph::pass::ConvertNormalizeL2WithMulToNormalizeIE::convert_normalize_l2_
     };
 
     auto m = std::make_shared<ngraph::pattern::Matcher>(mul, "CPUFusion.ConvertNormalizeL2WithMulToNormalizeIE");
-    this->add_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
+    this->register_matcher(m, callback);
 }
 
-void ngraph::pass::ConvertNormalizeL2ToNormalizeIE::convert_normalize_l2() {
+ngraph::pass::ConvertNormalizeL2ToLegacyMatcher::ConvertNormalizeL2ToLegacyMatcher() {
     auto input_0 = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1, 1});
     auto axis = std::make_shared<ngraph::opset1::Constant>(element::i64, Shape{1}, std::vector<int64_t>{0});
     auto normalize = std::make_shared<ngraph::op::NormalizeL2>(input_0, axis, 0, ngraph::op::EpsMode::ADD);
 
-    ngraph::graph_rewrite_callback callback = [](pattern::Matcher& m) {
+    ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
         auto normalize = std::dynamic_pointer_cast<ngraph::op::NormalizeL2> (m.get_match_root());
         if (!normalize) return false;
 
@@ -103,6 +103,6 @@ void ngraph::pass::ConvertNormalizeL2ToNormalizeIE::convert_normalize_l2() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(normalize, "CPUFusion.ConvertNormalizeL2ToNormalizeIE");
-    this->add_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
+    auto m = std::make_shared<ngraph::pattern::Matcher>(normalize, "ConvertNormalizeL2ToNormalizeIE");
+    this->register_matcher(m, callback);
 }

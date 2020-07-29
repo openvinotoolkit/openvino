@@ -147,7 +147,9 @@ void assertIfIRv7LikeModel(std::istream & modelStream) {
         }
     }
 
-    THROW_IE_EXCEPTION << "IR v" << irVersion << " is deprecated. Please, migrate to IR v10 version";
+    THROW_IE_EXCEPTION << "The support of IR v" << irVersion <<  " has been removed from the product. "
+        "Please, convert the original model using the Model Optimizer which comes with this "
+        "version of the OpenVINO to generate supported IR version.";
 }
 
 }  // namespace

@@ -69,33 +69,33 @@ inline uint FUNC(get_output_batch_offset)(uint b, uint f, uint w, uint z) {
 inline uint FUNC(get_common_input1_offset)(uint batch_offset_input1, uint k, uint i, uint output_x_tile, uint lid) {
 #if !TRANSPOSE_INPUT1
     return batch_offset_input1 + (k * TILE_SIZE_K + i * PACK_SIZE) * INPUT1_SIZE_X + output_x_tile * TILE_SIZE_N;
-#else
+#else // !TRANSPOSE_INPUT1
     return batch_offset_input1 + (output_x_tile * TILE_SIZE_N + lid) * INPUT1_SIZE_X + k * TILE_SIZE_K + i * PACK_SIZE;
-#endif
+#endif // !TRANSPOSE_INPUT1
 }
 
 inline uint FUNC(get_current_input1_offset)(uint common_input1_offset, uint i, uint lid) {
 #if !TRANSPOSE_INPUT1
     return common_input1_offset + INPUT1_SIZE_X * i + lid;
-#else
+#else // !TRANSPOSE_INPUT1
     return common_input1_offset + i;
-#endif
+#endif // !TRANSPOSE_INPUT1
 }
 
 inline uint FUNC(get_common_input0_offset)(uint batch_offset_input0, uint k, uint i, uint output_y_tile, uint lid) {
 #if !TRANSPOSE_INPUT0
     return batch_offset_input0 + (output_y_tile * TILE_SIZE_M + i) * INPUT0_SIZE_X + k * TILE_SIZE_K;
-#else
+#else // !TRANSPOSE_INPUT0
     return batch_offset_input0 + (k * TILE_SIZE_K + lid * PACK_SIZE) * INPUT0_SIZE_X + output_y_tile * TILE_SIZE_M + i;
-#endif
+#endif // !TRANSPOSE_INPUT0
 }
 
 inline uint FUNC(get_current_input0_offset)(uint common_input0_offset, uint i, uint lid) {
 #if !TRANSPOSE_INPUT0
     return common_input0_offset + lid * PACK_SIZE + i;
-#else
+#else // !TRANSPOSE_INPUT0
     return common_input0_offset + INPUT0_SIZE_X * i;
-#endif
+#endif // !TRANSPOSE_INPUT0
 }
 
 __attribute__((reqd_work_group_size(SUB_GROUP_SIZE, 1, 1)))
