@@ -44,7 +44,7 @@ def test_node_factory_wrapper_add():
     assert node.get_type_name() == "Add"
     assert node.get_output_size() == 1
     assert list(node.get_output_shape(0)) == [2, 2]
-    assert node.name == "TestNode"
+    assert node.friendly_name == "TestNode"
 
 
 def test_node_factory_topk():

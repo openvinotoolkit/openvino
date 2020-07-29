@@ -275,7 +275,6 @@ def test_result():
 def test_node_friendly_name():
     dummy_node = ng.parameter(shape=[1], name="dummy_name")
 
-    assert(dummy_node.name == "Parameter_0")
     assert(dummy_node.friendly_name == "dummy_name")
 
     dummy_node.set_friendly_name("changed_name")
