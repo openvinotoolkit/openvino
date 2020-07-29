@@ -13,9 +13,9 @@
 using namespace TemplatePlugin;
 
 // ! [executable_network:ctor_cnnnetwork]
-TemplatePlugin::ExecutableNetwork::ExecutableNetwork(const std::shared_ptr<const ngraph::Function>&   function,
-                                                     const Configuration&                       cfg,
-                                                     const Plugin::Ptr&                         plugin) :
+TemplatePlugin::ExecutableNetwork::ExecutableNetwork(const std::shared_ptr<const ngraph::Function>& function,
+                                                     const Configuration&                           cfg,
+                                                     const Plugin::Ptr&                             plugin) :
     InferenceEngine::ExecutableNetworkThreadSafeDefault(nullptr, nullptr), // Disable default threads creation
     _cfg(cfg),
     _plugin(plugin) {

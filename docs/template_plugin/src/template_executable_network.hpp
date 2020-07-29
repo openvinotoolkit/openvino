@@ -24,9 +24,9 @@ class Plugin;
 // ! [executable_network:header]
 class ExecutableNetwork : public InferenceEngine::ExecutableNetworkThreadSafeDefault {
 public:
-    ExecutableNetwork(const std::shared_ptr<ngraph::Function>&  function,
-                      const Configuration&                      cfg,
-                      const std::shared_ptr<Plugin>&            plugin);
+    ExecutableNetwork(const std::shared_ptr<const ngraph::Function>& function,
+                      const Configuration&                           cfg,
+                      const std::shared_ptr<Plugin>&                 plugin);
 
     ExecutableNetwork(std::istream&                  model,
                       const Configuration&           cfg,
