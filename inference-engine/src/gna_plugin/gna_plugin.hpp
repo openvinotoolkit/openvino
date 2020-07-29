@@ -98,7 +98,7 @@ class GNAPlugin : public InferenceEngine::IInferencePlugin {
 
     void LoadNetwork(InferenceEngine::ICNNNetwork &network);
 
-    void Infer(const InferenceEngine::BlobMap &input, InferenceEngine::BlobMap &result);
+    bool Infer(const InferenceEngine::BlobMap &input, InferenceEngine::BlobMap &result);
     void GetPerformanceCounts(std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> &perfMap);
     void AddExtension(InferenceEngine::IExtensionPtr extension) override;
 
@@ -109,7 +109,7 @@ class GNAPlugin : public InferenceEngine::IInferencePlugin {
     InferenceEngine::ExecutableNetwork LoadNetwork(const InferenceEngine::ICNNNetwork &network,
                                   const std::map<std::string, std::string> &config_map,
                                   InferenceEngine::RemoteContext::Ptr context) override { THROW_GNA_EXCEPTION << "Not implemented"; }
-    void Infer(const InferenceEngine::Blob &input, InferenceEngine::Blob &result);
+    bool Infer(const InferenceEngine::Blob &input, InferenceEngine::Blob &result);
     void SetCore(InferenceEngine::ICore*) noexcept override {}
     InferenceEngine::ICore* GetCore() const noexcept override {return nullptr;}
     void Reset();
