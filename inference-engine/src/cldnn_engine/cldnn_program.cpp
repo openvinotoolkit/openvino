@@ -1318,9 +1318,18 @@ void Program::CreateScaleShiftPrimitive(cldnn::topology& topology, InferenceEngi
     cldnn::primitive_id biasPrimID = scaleShiftLayer->name + m_biasesTag;
 
     const auto& wDims = scaleShiftLayer->_weights->getTensorDesc().getDims();
+    const auto& iDims = scaleShiftLayer->insData.front().lock()->getTensorDesc().getDims();
     cldnn::tensor weightTensor(1);
     switch (wDims.size()) {
-    case 1: weightTensor = (cldnn::tensor) cldnn::feature(TensorValue(wDims[0]));  // value per feature (or 1 global value)
+    case 1:
+        if (iDims.size() != 1) {
+            weightTensor = (cldnn::tensor) cldnn::feature(TensorValue(wDims[0]));  // value per feature (or 1 global value)
+        } else if (iDims.size() == 1 && wDims[0] == iDims[0]) {
+            // If input tensor is 1D, then we need to interpret weights as batch to have consistent shapes.
+            weightTensor = (cldnn::tensor) cldnn::batch(TensorValue(wDims[0]));
+        } else {
+            THROW_IE_EXCEPTION << "inconsistent input tensor and scale shapes in scaleshift layer " << layer->name;
+        }
         break;
     default: weightTensor = CldnnTensorFromIEDims(wDims);
         break;
@@ -3532,6 +3541,15 @@ void Program::AddConstantBlobInput(cldnn::topology& topology, InferenceEngine::C
                     needsBatchInterpretation = true;
                     break;
                 }
+            } else if (LayerTypeFromStr(next->type) == Eltwise) {
+                bool all_inputs_1d = true;
+                for (auto& in : next->insData) {
+                    auto& in_shape = in.lock()->getTensorDesc().getDims();
+                    if (in_shape.size() != 1)
+                        all_inputs_1d = false;
+                }
+                needsBatchInterpretation = all_inputs_1d;
+                break;
             } else if (LayerTypeFromStr(next->type) == Gather) {
                 needsBatchInterpretation = true;
                 break;
