@@ -10,48 +10,50 @@
 
 #include <transformations_visibility.hpp>
 
-#include "ngraph/opsets/opset3.hpp"
+#include "ngraph/opsets/opset4.hpp"
 #include "ngraph/op/op.hpp"
 
 namespace ngraph {
 namespace op {
-class TRANSFORMATIONS_API GRUSequenceIE : public Op {
+class TRANSFORMATIONS_API GRUSequenceIE : public Op, public ngraph::op::util::RNNCellBase {
 public:
-GRUSequenceIE(const Output<Node> &X,
-              const Output<Node> &H_t,
-              const Output<Node>& sequence_lengths,
-              const Output<Node> &WR,
-              const Output<Node> &B,
-              size_t hidden_size,
-              op::RecurrentSequenceDirection direction,
-              const std::vector<std::string>& activations,
-              const std::vector<float>& activations_alpha,
-              const std::vector<float>& activations_beta,
-              float clip);
+    GRUSequenceIE(const Output <Node> &X,
+                  const Output <Node> &H_t,
+                  const Output <Node> &sequence_lengths,
+                  const Output <Node> &WR,
+                  const Output <Node> &B,
+                  size_t hidden_size,
+                  op::RecurrentSequenceDirection direction,
+                  const std::vector<std::string> &activations,
+                  const std::vector<float> &activations_alpha,
+                  const std::vector<float> &activations_beta,
+                  float clip,
+                  bool linear_before_reset);
 
-static constexpr NodeTypeInfo type_info{"GRUSequenceIE", 1};
-const NodeTypeInfo& get_type_info() const override { return type_info; }
+    static constexpr NodeTypeInfo type_info{"GRUSequenceIE", 4};
 
-GRUSequenceIE() = delete;
+    const NodeTypeInfo &get_type_info() const override { return type_info; }
 
-std::shared_ptr<Node> copy_with_new_args(const NodeVector& new_args) const override;
-void validate_and_infer_types() override;
+    GRUSequenceIE() = delete;
 
-std::size_t get_hidden_size() { return m_hidden_size; }
-const std::vector<std::string>& get_activations() { return m_activations; }
-const std::vector<float>& get_activations_alpha() { return m_activations_alpha; }
-const std::vector<float>& get_activations_beta() { return m_activations_beta; }
-float get_clip() {return m_clip;}
+    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector &new_args) const override;
+
+    void validate_and_infer_types() override;
+
+    std::size_t get_hidden_size() { return m_hidden_size; }
+
+    const std::vector<std::string> &get_activations() { return m_activations; }
+
+    const std::vector<float> &get_activations_alpha() { return m_activations_alpha; }
+
+    const std::vector<float> &get_activations_beta() { return m_activations_beta; }
+
+    float get_clip() { return m_clip; }
 
 protected:
-int64_t m_hidden_size{};
-
-const std::vector<std::string> m_activations;
-const std::vector<float> m_activations_alpha;
-const std::vector<float>  m_activations_beta;
-op::RecurrentSequenceDirection m_direction;
-float m_clip;
+    op::RecurrentSequenceDirection m_direction;
+    bool m_linear_before_reset;
 };
 
-}  // namespace op
+    }  // namespace op
 }  // namespace ngraph

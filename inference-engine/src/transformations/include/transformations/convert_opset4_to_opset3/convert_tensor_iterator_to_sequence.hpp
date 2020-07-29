@@ -7,10 +7,12 @@
 #include <vector>
 #include <memory>
 
+#include <vector>
+#include <memory>
+
 #include <transformations_visibility.hpp>
 
 #include <ngraph/pass/graph_rewrite.hpp>
-#include "transformations/utils/pass_param.hpp"
 
 namespace ngraph {
 namespace pass {
@@ -32,9 +34,9 @@ namespace pass {
  *
  */
 
-class ngraph::pass::ConvertTensorIteratorToSequence: public ngraph::pass::GraphRewrite, public ngraph::pass::PassParam {
+class ngraph::pass::ConvertTensorIteratorToSequence: public ngraph::pass::GraphRewrite {
 public:
-    ConvertTensorIteratorToSequence() : GraphRewrite(), PassParam() {
+    ConvertTensorIteratorToSequence() : GraphRewrite() {
         convert_ti_to_sequence();
     }
 

@@ -1,6 +1,18 @@
-// Copyright (C) 2020 Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
+//*****************************************************************************
+// Copyright 2020 Intel Corporation
 //
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//*****************************************************************************
 
 #pragma once
 
@@ -8,50 +20,48 @@
 #include <string>
 #include <vector>
 
-#include <transformations_visibility.hpp>
-
-#include "ngraph/opsets/opset3.hpp"
 #include "ngraph/op/op.hpp"
+#include "ngraph/op/util/rnn_cell_base.hpp"
 
-namespace ngraph {
-namespace op {
-class NGRAPH_API RNNSequence : public Op {
-public:
-    RNNSequence(const Output<Node> &X,
-               const Output<Node> &H_t,
-               const Output<Node>& sequence_lengths,
-               const Output<Node> &WR,
-               const Output<Node> &B,
-               size_t hidden_size,
-               op::RecurrentSequenceDirection direction,
-               const std::vector<std::string>& activations,
-               const std::vector<float>& activations_alpha,
-               const std::vector<float>& activations_beta,
-               float clip);
+namespace ngraph
+{
+    namespace op
+    {
+        namespace v4
+        {
+            class NGRAPH_API RNNSequence : public Op, public util::RNNCellBase
+            {
+            public:
+                static constexpr NodeTypeInfo type_info{"RNNSequence", 4};
 
-    static constexpr NodeTypeInfo type_info{"RNNSequenceIE", 1};
-    const NodeTypeInfo& get_type_info() const override { return type_info; }
+                const NodeTypeInfo& get_type_info() const override { return type_info; }
+                RNNSequence();
 
-    RNNSequence() = delete;
+                RNNSequence(
+                    const Output<Node>& X,
+                    const Output<Node>& H_t,
+                    const Output<Node>& sequence_lengths,
+                    const Output<Node>& W,
+                    const Output<Node>& R,
+                    const Output<Node>& B,
+                    size_t hidden_size,
+                    op::RecurrentSequenceDirection direction,
+                    const std::vector<std::string>& activations = std::vector<std::string>{"tanh"},
+                    const std::vector<float>& activations_alpha = {},
+                    const std::vector<float>& activations_beta = {},
+                    float clip = 0.f);
 
-    std::shared_ptr<Node> copy_with_new_inputs(const NodeVector& new_args) const override;
-    void validate_and_infer_types() override;
+                std::shared_ptr<Node>
+                    clone_with_new_inputs(const OutputVector& new_args) const override;
 
-    std::size_t get_hidden_size() { return m_hidden_size; }
-    const std::vector<std::string>& get_activations() { return m_activations; }
-    const std::vector<float>& get_activations_alpha() { return m_activations_alpha; }
-    const std::vector<float>& get_activations_beta() { return m_activations_beta; }
-    float get_clip() {return m_clip;}
+                void validate_and_infer_types() override;
 
-    protected:
-    int64_t m_hidden_size{};
+                bool visit_attributes(AttributeVisitor& visitor) override;
 
-    const std::vector<std::string> m_activations;
-    const std::vector<float> m_activations_alpha;
-    const std::vector<float>  m_activations_beta;
-    op::RecurrentSequenceDirection m_direction;
-    float m_clip;
-};
-
-}  // namespace op
-}  // namespace ngraph
+                op::RecurrentSequenceDirection get_direction() { return m_direction; }
+            protected:
+                op::RecurrentSequenceDirection m_direction;
+            };
+        }
+    } // namespace op
+} // namespace ngraph

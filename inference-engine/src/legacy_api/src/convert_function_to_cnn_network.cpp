@@ -537,23 +537,80 @@ InferenceEngine::details::CNNLayerCreator::CNNLayerCreator(const std::shared_ptr
         return nullptr;
     });
 
-    addSpecificCreator({"GRUSequenceIE", "RNNSequenceIE", "LSTMSequenceIE"},
-                    [](const std::shared_ptr<::ngraph::Node>& node,
+    addSpecificCreator({"GRUSequenceIE"}, [](const std::shared_ptr<::ngraph::Node>& node,
                     const std::map<std::string, std::string> params) -> CNNLayerPtr {
-        LayerParams attrs = {node->get_friendly_name(), "GRUCell",
+
+        LayerParams attrs = {node->get_friendly_name(), "GRUSequence",
                              details::convertPrecision(node->get_output_element_type(0))};
-        auto res = std::make_shared<GRUCell>(attrs);
+        auto res = std::make_shared<RNNSequenceLayer>(attrs);
         res->params = params;
 
+        res->cellType = RNNSequenceLayer::CellType::GRU;
+//        if (params.at("linear_before_reset")) {
+//            res->cellType = RNNSequenceLayer::CellType::GRU_LBR;
+//        }
+
         Builder::NodeConverter<ngraph::op::Constant> converter;
-        const auto weightsNode = node->input_value(2).get_node_shared_ptr();
+        const auto weightsNode = node->input_value(4).get_node_shared_ptr();
         if (converter.canCreate(weightsNode)) {
             const auto& weights = converter.createLayer(weightsNode);
             res->blobs["weights"] = weights->blobs["custom"];
             res->_weights = weights->blobs["custom"];
         }
 
-        const auto biasNode = node->input_value(3).get_node_shared_ptr();
+        const auto biasNode = node->input_value(5).get_node_shared_ptr();
+        if (converter.canCreate(biasNode)) {
+            const auto& bias = converter.createLayer(biasNode);
+            res->blobs["biases"] = bias->blobs["custom"];
+            res->_biases = bias->blobs["custom"];
+        }
+        return res;
+    });
+
+    addSpecificCreator({"RNNSequenceIE"}, [](const std::shared_ptr<::ngraph::Node>& node,
+                    const std::map<std::string, std::string> params) -> CNNLayerPtr {
+
+        LayerParams attrs = {node->get_friendly_name(), "RNNSequence",
+                             details::convertPrecision(node->get_output_element_type(0))};
+        auto res = std::make_shared<RNNSequenceLayer>(attrs);
+        res->params = params;
+
+        res->cellType = RNNSequenceLayer::CellType::RNN;
+        Builder::NodeConverter<ngraph::op::Constant> converter;
+        const auto weightsNode = node->input_value(3).get_node_shared_ptr();
+        if (converter.canCreate(weightsNode)) {
+            const auto& weights = converter.createLayer(weightsNode);
+            res->blobs["weights"] = weights->blobs["custom"];
+            res->_weights = weights->blobs["custom"];
+        }
+
+        const auto biasNode = node->input_value(4).get_node_shared_ptr();
+        if (converter.canCreate(biasNode)) {
+            const auto& bias = converter.createLayer(biasNode);
+            res->blobs["biases"] = bias->blobs["custom"];
+            res->_biases = bias->blobs["custom"];
+        }
+        return res;
+    });
+
+    addSpecificCreator({"LSTMSequenceIE"}, [](const std::shared_ptr<::ngraph::Node>& node,
+                    const std::map<std::string, std::string> params) -> CNNLayerPtr {
+
+        LayerParams attrs = {node->get_friendly_name(), "LSTMSequence",
+                             details::convertPrecision(node->get_output_element_type(0))};
+        auto res = std::make_shared<RNNSequenceLayer>(attrs);
+        res->params = params;
+
+        res->cellType = RNNSequenceLayer::CellType::LSTM;
+        Builder::NodeConverter<ngraph::op::Constant> converter;
+        const auto weightsNode = node->input_value(3).get_node_shared_ptr();
+        if (converter.canCreate(weightsNode)) {
+            const auto& weights = converter.createLayer(weightsNode);
+            res->blobs["weights"] = weights->blobs["custom"];
+            res->_weights = weights->blobs["custom"];
+        }
+
+        const auto biasNode = node->input_value(4).get_node_shared_ptr();
         if (converter.canCreate(biasNode)) {
             const auto& bias = converter.createLayer(biasNode);
             res->blobs["biases"] = bias->blobs["custom"];
