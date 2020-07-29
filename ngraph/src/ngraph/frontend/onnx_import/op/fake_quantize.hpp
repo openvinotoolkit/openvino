@@ -27,7 +27,7 @@ namespace ngraph
         {
             namespace set_1
             {
-                NodeVector fake_quantize(const Node& node);
+                OutputVector fake_quantize(const Node& node);
 
             } // namespace set_1
 

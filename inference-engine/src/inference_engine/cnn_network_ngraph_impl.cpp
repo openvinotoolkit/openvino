@@ -15,6 +15,7 @@
 #include <vector>
 #include <unordered_set>
 #include <ngraph/ngraph.hpp>
+#include <ngraph/pass/manager.hpp>
 #include <ngraph/pass/get_output_element_elimination.hpp>
 #include <set>
 #include <string>
@@ -70,14 +71,13 @@ static std::shared_ptr<ngraph::Function> copyFunction(const std::shared_ptr<cons
     return specialized_function;
 }
 
-// WA: for cnnNetwork ngraph constructor
-CNNNetwork::CNNNetwork(const std::shared_ptr<const ngraph::Function>& graph) {
+CNNNetwork::CNNNetwork(const std::shared_ptr<ngraph::Function>& graph) {
     if (graph == nullptr) {
         THROW_IE_EXCEPTION << "CNNNetwork was not initialized: 'graph' object is empty";
     }
 
-    // Copy nGraph function
-    network = std::make_shared<CNNNetworkNGraphImpl>(copyFunction(graph, false, {}));
+    // Create CNNNetworkNGraphImpl
+    network = std::make_shared<CNNNetworkNGraphImpl>(graph);
     actual = network.get();
     if (actual == nullptr) {
         THROW_IE_EXCEPTION << "CNNNetwork was not initialized.";
@@ -100,7 +100,7 @@ void CNNNetworkNGraphImpl::createDataForResult(const ::ngraph::Output<::ngraph::
     } else {
         const auto precision = details::convertPrecision(output.get_element_type());
         const auto layout = TensorDesc::getLayoutByDims(dims);
-        ptr.reset(new NGraphData(this, outName, {precision, dims, layout}));
+        ptr.reset(new Data(outName, {precision, dims, layout}));
     }
 }
 
@@ -145,12 +145,33 @@ CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const std::shared_ptr<Function>& nGra
     }
 }
 
-CNNNetworkNGraphImpl::~CNNNetworkNGraphImpl() {
-    for (auto& data : _data) {
-        if (!data.second) continue;
-        if (auto nData = std::dynamic_pointer_cast<NGraphData>(data.second)) {
-            nData->reset();
-        }
+CNNNetworkNGraphImpl::CNNNetworkNGraphImpl(const ICNNNetwork& network) {
+    if (network.getFunction() == nullptr) {
+        THROW_IE_EXCEPTION << "Cannot create CNNNetwork with nGraph from legacy network format!";
+    }
+
+    _ngraph_function = copyFunction(network.getFunction(), false, {});
+    InputsDataMap inputs;
+    OutputsDataMap outputs;
+    network.getInputsInfo(inputs);
+    network.getOutputsInfo(outputs);
+
+    for (const auto& outputInfo : outputs) {
+        const auto& name = outputInfo.second->getName();
+        DataPtr output = std::make_shared<Data>(name, outputInfo.second->getTensorDesc());
+        _outputData[name] = output;
+        _data[name] = output;
+    }
+    for (const auto& inputInfo : inputs) {
+        InputInfo::Ptr info = std::make_shared<InputInfo>();
+        const auto& name = inputInfo.second->getInputData()->getName();
+        DataPtr input = std::make_shared<Data>(name, inputInfo.second->getInputData()->getTensorDesc());
+        _data[name] = input;
+        info->setInputData(input);
+        info->getPreProcess() = inputInfo.second->getPreProcess();
+        info->setPrecision(inputInfo.second->getPrecision());
+        info->setLayout(inputInfo.second->getLayout());
+        _inputData[name] = info;
     }
 }
 
@@ -307,7 +328,9 @@ CNNNetworkNGraphImpl::reshape(const std::map<std::string, std::vector<size_t>>& 
             // Call this transformation because OneHot IE and nGraph have different output precisions
             {
                 IE_PROFILING_AUTO_SCOPE(ConvertOneHot);
-                ::ngraph::pass::ConvertOneHotToOneHotIE().run_on_function(specialized_ngraph_function);
+                ::ngraph::pass::Manager manager;
+                manager.register_pass<::ngraph::pass::ConvertOneHotToOneHotIEMatcher>()->detect_output_type(specialized_ngraph_function);
+                manager.run_passes(specialized_ngraph_function);
             }
             specialized_ngraph_function->validate_nodes_and_infer_types();
 

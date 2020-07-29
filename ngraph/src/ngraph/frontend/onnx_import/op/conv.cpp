@@ -38,8 +38,8 @@ namespace ngraph
                 namespace
                 {
                     std::shared_ptr<ngraph::op::Op>
-                        make_ng_convolution(const std::shared_ptr<ngraph::Node>& data,
-                                            const std::shared_ptr<ngraph::Node>& filters,
+                        make_ng_convolution(const Output<ngraph::Node>& data,
+                                            const Output<ngraph::Node>& filters,
                                             const ngraph::Strides& strides,
                                             const ngraph::Strides& dilations,
                                             const ngraph::CoordinateDiff& padding_below,
@@ -49,7 +49,7 @@ namespace ngraph
                     {
                         if (groups > 1)
                         {
-                            auto filters_shape = filters->get_shape();
+                            auto filters_shape = filters.get_shape();
                             filters_shape.at(0) = filters_shape.at(0) / groups;
                             filters_shape.insert(filters_shape.begin(), groups);
 
@@ -77,18 +77,16 @@ namespace ngraph
                         }
                     }
 
-                    std::shared_ptr<ngraph::Node>
-                        add_bias(const std::shared_ptr<ngraph::Node>& ng_conv,
-                                 const std::shared_ptr<ngraph::Node>& bias)
+                    std::shared_ptr<ngraph::Node> add_bias(const Output<ngraph::Node>& ng_conv,
+                                                           const Output<ngraph::Node>& bias)
                     {
-                        const auto rank_of_conv =
-                            ng_conv->get_output_partial_shape(0).rank().get_length();
+                        const auto rank_of_conv = ng_conv.get_partial_shape().rank().get_length();
 
                         // reshape the bias node {M} to {1, M, 1, 1, ..., 1}
                         // this is required by the addition operation that needs to be able
                         // to broadcast the bias to match the shape of the convolution node
                         std::vector<size_t> reshape_pattern_values(rank_of_conv, 1U);
-                        reshape_pattern_values[1] = bias->get_shape().front();
+                        reshape_pattern_values[1] = bias.get_shape().front();
                         const auto reshape_pattern =
                             default_opset::Constant::create(element::u64,
                                                             Shape{reshape_pattern_values.size()},
@@ -101,16 +99,16 @@ namespace ngraph
                     }
                 } // namespace
 
-                NodeVector conv(const Node& node)
+                OutputVector conv(const Node& node)
                 {
                     // in the current implementation we assume that the data input rank is static
                     // and only the 'batch' dimension can be dynamic
-                    const NodeVector& inputs = node.get_ng_inputs();
+                    const OutputVector& inputs = node.get_ng_inputs();
                     const auto data = inputs.at(0);
                     const auto filters = inputs.at(1);
                     const auto groups = node.get_attribute_value<int64_t>("group", 1);
 
-                    NGRAPH_CHECK(data->get_output_partial_shape(0).rank().is_static(),
+                    NGRAPH_CHECK(data.get_partial_shape().rank().is_static(),
                                  "The input data tensor's rank has to be known (static)");
 
                     const auto strides = convpool::get_strides(node);
@@ -137,7 +135,7 @@ namespace ngraph
                     else
                     {
                         const auto bias = inputs.at(2);
-                        const auto bias_ps = bias->get_output_partial_shape(0);
+                        const auto bias_ps = bias.get_partial_shape();
 
                         NGRAPH_CHECK(bias_ps.is_static() && is_vector(bias_ps.to_shape()),
                                      "The bias input needs to be a static 1D vector");
