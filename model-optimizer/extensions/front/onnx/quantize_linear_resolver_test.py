@@ -48,7 +48,7 @@ nodes_ref_attributes = {
 
 class TestQuantizeLinearResolver(unittest.TestCase):
 
-    def test_quantize(self):
+    def test_quantize_uint8(self):
         graph = build_graph(nodes1_attributes,
                             [('input', 'quantize'),
                              ('scale_param_q', 'quantize'),
@@ -56,7 +56,7 @@ class TestQuantizeLinearResolver(unittest.TestCase):
                              ('quantize', 'out'),
                              ],
                             {'scale_param_q': {'shape': np.array([]), 'value': np.float32(1.0 / 255)},
-                             'zerop_param_q': {'shape': np.array([]), 'value': np.uint8(0)},
+                             'zerop_param_q': {'shape': np.array([]), 'value': np.uint8(128)},
                              }, nodes_with_edges_only=True)
         graph.graph['cmd_params'] = Namespace(keep_shape_ops=True)
 
@@ -73,10 +73,49 @@ class TestQuantizeLinearResolver(unittest.TestCase):
                                  ('f_quantize', 'cast'),
                                  ('cast', 'out'),
                                  ],
-                                {'in_low': {'shape': np.array([]), 'value': 0},
-                                 'in_high': {'shape': np.array([]), 'value': 255},
+                                {'in_low': {'shape': np.array([]), 'value': -128},
+                                 'in_high': {'shape': np.array([]), 'value': 127},
                                  'out_low': {'shape': np.array([]), 'value': 0},
-                                 'out_high': {'shape': np.array([]), 'value': 255}
+                                 'out_high': {'shape': np.array([]), 'value': 255},
+                                 'cast': {'dst_type': np.uint8}
+                                 }, nodes_with_edges_only=True)
+
+        graph.stage = 'front'
+        QuantizeLinearResolver().find_and_replace_pattern(graph)
+
+        (flag, resp) = compare_graphs(graph, graph_ref, 'out', check_op_attrs=True)
+        self.assertTrue(flag, resp)
+
+    def test_quantize_int8(self):
+        graph = build_graph(nodes1_attributes,
+                            [('input', 'quantize'),
+                             ('scale_param_q', 'quantize'),
+                             ('zerop_param_q', 'quantize'),
+                             ('quantize', 'out'),
+                             ],
+                            {'scale_param_q': {'shape': np.array([]), 'value': np.float32(1.0 / 255)},
+                             'zerop_param_q': {'shape': np.array([]), 'value': np.int8(0)},
+                             }, nodes_with_edges_only=True)
+        graph.graph['cmd_params'] = Namespace(keep_shape_ops=True)
+
+        graph_ref = build_graph(nodes_ref_attributes,
+                                [('input', 'f_quantize'),
+                                 ('scale_param_q', 'mul1', {'out': 0}),
+                                 ('in_low', 'mul1'),
+                                 ('mul1', 'f_quantize'),
+                                 ('scale_param_q', 'mul2', {'out': 0}),
+                                 ('in_high', 'mul2'),
+                                 ('mul2', 'f_quantize'),
+                                 ('out_low', 'f_quantize'),
+                                 ('out_high', 'f_quantize'),
+                                 ('f_quantize', 'cast'),
+                                 ('cast', 'out'),
+                                 ],
+                                {'in_low': {'shape': np.array([]), 'value': -128},
+                                 'in_high': {'shape': np.array([]), 'value': 127},
+                                 'out_low': {'shape': np.array([]), 'value': -128},
+                                 'out_high': {'shape': np.array([]), 'value': 127},
+                                 'cast': {'dst_type': np.int8}
                                  }, nodes_with_edges_only=True)
 
         graph.stage = 'front'
@@ -111,7 +150,8 @@ class TestQuantizeLinearResolver(unittest.TestCase):
                                 {'in_low': {'shape': np.array([]), 'value': 0},
                                  'in_high': {'shape': np.array([]), 'value': 255},
                                  'out_low': {'shape': np.array([]), 'value': 0},
-                                 'out_high': {'shape': np.array([]), 'value': 255}
+                                 'out_high': {'shape': np.array([]), 'value': 255},
+                                 'cast': {'dst_type': np.uint8}
                                  }, nodes_with_edges_only=True)
 
         graph.stage = 'front'

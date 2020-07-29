@@ -17,15 +17,13 @@ import numpy as np
 
 from extensions.front.onnx.quantize_dequantize_linear import QuantizeDequantizeLinear
 from extensions.ops.Cast import Cast
-from extensions.ops.elementwise import Mul, Sub
+from extensions.ops.elementwise import Mul
 from extensions.ops.fakequantize import FakeQuantize
-from mo.front.common.partial_infer.utils import int64_array, float_array
+from mo.front.common.partial_infer.utils import float_array
 from mo.front.common.replacement import FrontReplacementOp
 from mo.front.tf.graph_utils import create_op_with_const_inputs
 from mo.graph.graph import Graph, Node, rename_nodes
-from mo.ops.broadcast import Broadcast
 from mo.ops.const import Const
-from mo.ops.shape import Shape
 from mo.utils.error import Error
 
 
@@ -77,7 +75,7 @@ class QuantizeLinearResolver(FrontReplacementOp):
         mul_low.in_port(0).get_connection().add_destination(mul_high.in_port(0))
         mul_high.out_port(0).connect(fake_quantize.in_port(2))
 
-        cast = Cast(graph, {'dst_type': np.float32, 'name': node_name + '/Cast'}).create_node()
+        cast = Cast(graph, {'dst_type': zero_point_type, 'name': node_name + '/Cast'}).create_node()
         rename_nodes([(node, node_name + '/TBD'), (cast, node_name)])
         fake_quantize.out_port(0).connect(cast.in_port(0))
 
