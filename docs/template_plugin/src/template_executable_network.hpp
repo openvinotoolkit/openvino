@@ -46,7 +46,7 @@ public:
 private:
     friend class TemplateInferRequest;
 
-    void MapGraph();
+    void CompileNetwork(const std::shared_ptr<const ngraph::Function>& function);
     void InitExecutor();
 
     std::atomic<std::size_t>                    _requestId = {0};

@@ -3,7 +3,7 @@
 Inference Engine (IE) tests infrastructure provides a predefined set of functional tests and utilities. They are used to verify a plugin using the Inference Engine public API.
 All the tests are written in the [Google Test C++ framework](https://github.com/google/googletest).
 
-Inference Engine Plugin tests are included in the `IE::funcSharedTests` CMake target which is built within the  Deep Learning Deployment Toolkit (DLDT) repository
+Inference Engine Plugin tests are included in the `IE::funcSharedTests` CMake target which is built within the OpenVINO repository
 (see [Build Plugin Using CMake](@ref plugin_build) guide). This library contains tests definitions (the tests bodies) which can be parametrized and instantiated in plugins depending on whether a plugin supports a particular feature, specific sets of parameters for test on supported operation set and so on.
 
 Test definitions are splitted into tests class declaration (see `inference_engine/tests/functional/plugin/shared/include`) and tests class implementation (see `inference_engine/tests/functional/plugin/shared/src`) and include the following scopes of plugin conformance tests:
@@ -36,9 +36,7 @@ Engine concepts: plugin creation, multiple executable networks support, multiple
 
 To use these tests for your own plugin development, link the `IE::funcSharedTests` library to your test binary and instantiate required test cases with desired parameters values.
 
-> **NOTE**: A plugin may contain its own tests for use cases that are specific to hardware or need to be extensively
-> tested. Depending on your device positioning, you can implement more specific tests for your device. Such tests can
-> be defined both for conformance and other API tests groups within your own test binary.
+> **NOTE**: A plugin may contain its own tests for use cases that are specific to hardware or need to be extensively tested.
 
 To build test binaries together with other build artifacts, use the `make all` command. For details, see
 [Build Plugin Using CMake*](@ref plugin_build).

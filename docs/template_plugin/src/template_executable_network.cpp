@@ -13,18 +13,17 @@
 using namespace TemplatePlugin;
 
 // ! [executable_network:ctor_cnnnetwork]
-TemplatePlugin::ExecutableNetwork::ExecutableNetwork(const std::shared_ptr<ngraph::Function>&   function,
+TemplatePlugin::ExecutableNetwork::ExecutableNetwork(const std::shared_ptr<const ngraph::Function>&   function,
                                                      const Configuration&                       cfg,
                                                      const Plugin::Ptr&                         plugin) :
     InferenceEngine::ExecutableNetworkThreadSafeDefault(nullptr, nullptr), // Disable default threads creation
     _cfg(cfg),
-    _plugin(plugin),
-    _function(function) {
+    _plugin(plugin) {
     // TODO: if your plugin supports device ID (more that single instance of device can be on host machine)
     // you should select proper device based on KEY_DEVICE_ID or automatic behavior
     // In this case, _waitExecutor should also be created per device.
     try {
-        MapGraph();
+        CompileNetwork(function);
         InitExecutor(); // creates thread-based executor using for async requests
     } catch (const InferenceEngineException&) {
         throw;
@@ -48,8 +47,12 @@ TemplatePlugin::ExecutableNetwork::ExecutableNetwork(std::istream &             
 // ! [executable_network:ctor_import_stream]
 
 // ! [executable_network:map_graph]
-void TemplatePlugin::ExecutableNetwork::MapGraph() {
-    // TODO: perform actual graph mapping to backend graph representation / kernels
+// forward declaration
+std::shared_ptr<ngraph::Function> TransformNetwork(const std::shared_ptr<const ngraph::Function>& function);
+
+void TemplatePlugin::ExecutableNetwork::CompileNetwork(const std::shared_ptr<const ngraph::Function>& function) {
+    // TODO: perform actual graph compilation / mapping to backend graph representation / kernels
+    _function = TransformNetwork(function);
 
     // Generate backend specific blob mappings. For example Inference Engine uses not ngraph::Result nodes friendly name
     // as inference request output names but the name of the layer before.
@@ -65,7 +68,7 @@ void TemplatePlugin::ExecutableNetwork::MapGraph() {
         _inputIndex.emplace(parameter->get_friendly_name(), _function->get_parameter_index(parameter));
     }
 
-    // Perform any other steps like allocation and filling device buffers for weights, and so on
+    // Perform any other steps like allocation and filling backend specific memory handles and so on
 }
 // ! [executable_network:map_graph]
 
@@ -143,7 +146,7 @@ void TemplatePlugin::ExecutableNetwork::GetMetric(const std::string &name, Infer
 // ! [executable_network:get_metric]
 
 // ! [executable_network:export_impl]
-void TemplatePlugin::ExecutableNetwork::ExportImpl(std::ostream& dlaModel) {
+void TemplatePlugin::ExecutableNetwork::ExportImpl(std::ostream& modelStream) {
     // TODO: Code which exports graph from std::ostream
     THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
 }

@@ -16,7 +16,7 @@ $ cmake -DCMAKE_BUILD_TYPE=Release ../dldt
 Once the commands above are executed, the Inference Engine Developer Package is generated in the `dldt-release-build` folder. It consists of several files:
  - `InferenceEngineDeveloperPackageConfig.cmake` - the main CMake script which imports targets and provides compilation flags and CMake options.
  - `InferenceEngineDeveloperPackageConfig-version.cmake` - a file with a package version.
- - `targets_developer.cmake` - an automatically generated file which contains all targets exported from the Deep Learning Deployment Toolkit (DLDT) build tree. This file is included by `InferenceEngineDeveloperPackageConfig.cmake` to import the following targets:
+ - `targets_developer.cmake` - an automatically generated file which contains all targets exported from the OpenVINO build tree. This file is included by `InferenceEngineDeveloperPackageConfig.cmake` to import the following targets:
    - Libraries for plugin development:
        * `IE::ngraph` - shared nGraph library
        * `IE::inference_engine` - shared Inference Engine library

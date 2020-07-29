@@ -49,7 +49,8 @@ Plugin::~Plugin() {
 // ! [plugin:dtor]
 
 // ! [plugin:transform_network]
-std::shared_ptr<ngraph::Function> Plugin::TransformNetwork(const std::shared_ptr<const ngraph::Function>& function) {
+
+std::shared_ptr<ngraph::Function> TransformNetwork(const std::shared_ptr<const ngraph::Function>& function) {
     // 1. Copy ngraph::Function first to apply some transformations which modify original ngraph::Function
     const bool shareConsts = false, constFolding = false;
     std::vector<::ngraph::element::Type> new_types;
@@ -122,10 +123,7 @@ InferenceEngine::ExecutableNetworkInternal::Ptr Plugin::LoadExeNetworkImpl(const
         THROW_IE_EXCEPTION << "TEMPLATE plugin can compile only IR v10 networks";
     }
 
-    // apply ngraph transformation passes
-    auto transformedNetwork = TransformNetwork(function);
-
-    return std::make_shared<ExecutableNetwork>(transformedNetwork, cfg, std::static_pointer_cast<Plugin>(shared_from_this()));
+    return std::make_shared<ExecutableNetwork>(function, cfg, std::static_pointer_cast<Plugin>(shared_from_this()));
 }
 // ! [plugin:load_exe_network_impl]
 

@@ -25,9 +25,10 @@ The example class has several fields:
 - `_networkOutputBlobs` - output blob map.
 - `_parameters` - `ngraph::Function` parameter operations.
 - `_results` - `ngraph::Function` result operations.
-- `_inputTensors` - inputs tensors which wrap `_networkInputBlobs` blobs. They are used as inputs to backend `_executable` computational graph.
-- `_outputTensors` - output tensors which wrap `_networkOutputBlobs` blobs. They are used as outputs from backend `_executable` computational graph.
-- `_executable` - an executable object / backend computational graph.
+- backend specific fields:
+	- `_inputTensors` - inputs tensors which wrap `_networkInputBlobs` blobs. They are used as inputs to backend `_executable` computational graph.
+	- `_outputTensors` - output tensors which wrap `_networkOutputBlobs` blobs. They are used as outputs from backend `_executable` computational graph.
+	- `_executable` - an executable object / backend computational graph.
 
 ### `InferRequest` Constructor
 

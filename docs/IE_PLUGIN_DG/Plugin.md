@@ -1,5 +1,15 @@
 # Plugin {#plugin}
 
+Inference Engine Plugin usually represents a wrapper around a backend. Backends can be:
+- OpenCL-like backend (e.g. clDNN library) for GPU devices.
+- MKLDNN backend for Intel CPU devices.
+- NVIDIA cuDNN for NVIDIA GPUs.
+
+The responsibility of Inference Engine Plugin:
+- Initializes a backend and throw exception in `Engine` constructor if backend cannot be initialized.
+- Provides information about devices enabled by a particular backend, e.g. how many devices, their properties and so on.
+- Loads or imports [executable network](@ref executable_network) objects.
+
 In addition to the Inference Engine Public API, the Inference Engine provides the Plugin API, which is a set of functions and helper classes that simplify new plugin development:
 
 - header files in the `inference_engine/src/plugin_api` directory
@@ -20,7 +30,7 @@ Based on that, declaration of a plugin class can look as follows:
 
 The provided plugin class also has several fields:
 
-* `_backend` - a backend engine that is used to perform actual computations for network inference. For demontrational purposes `ngraph::runtime::Backend` is used which performs computations using ngraph reference implementations.
+* `_backend` - a backend engine that is used to perform actual computations for network inference. For `Template` plugin `ngraph::runtime::Backend` is used which performs computations using ngraph reference implementations.
 * `_waitExecutor` - a task executor that waits for a response from a device about device tasks completion.
 * `_cfg` of type `Configuration`:
 
@@ -106,7 +116,7 @@ Sets new values for plugin configuration keys:
 @snippet src/template_plugin.cpp plugin:set_config
 
 In the snippet above, the `Configuration` class overrides previous configuration values with the new 
-ones. All these values are used during backend-specific graph compilation and execution of inference requests.
+ones. All these values are used during backend specific graph compilation and execution of inference requests.
 
 > **NOTE**: The function must throw an exception if it receives an unsupported configuration key.
 
@@ -134,7 +144,7 @@ all devices of the same `Template` type with automatic logic of the `MULTI` devi
 in the `option` parameter as `{ CONFIG_KEY(KEY_DEVICE_ID), "deviceID" }`.
 - METRIC_KEY(SUPPORTED_METRICS) - list of metrics supported by a plugin
 - METRIC_KEY(SUPPORTED_CONFIG_KEYS) - list of configuration keys supported by a plugin that
-affects their behavior during a backend-specific graph compilation or an inference requests execution
+affects their behavior during a backend specific graph compilation or an inference requests execution
 - METRIC_KEY(OPTIMIZATION_CAPABILITIES) - list of optimization capabilities of a device.
 For example, supported data types and special optimizations for them.
 - Any other device-specific metrics. In this case, place metrics declaration and possible values to 
@@ -151,9 +161,9 @@ The snippet below provides an example of the implementation for `GetMetric`:
 
 ### `ImportNetworkImpl()`
 
-The importing network mechanism allows to import a previously exported backend-specific graph and wrap it 
+The importing network mechanism allows to import a previously exported backend specific graph and wrap it 
 using an [ExecutableNetwork](@ref executable_network) object. This functionality is useful if 
-backend-specific graph compilation takes significant time and/or cannot be done on a target host 
+backend specific graph compilation takes significant time and/or cannot be done on a target host 
 device due to other reasons.
 
 **Implementation details:** The base plugin class InferenceEngine::InferencePluginInternal implements InferenceEngine::InferencePluginInternal::ImportNetwork 
@@ -164,7 +174,7 @@ implementation and define an output blob structure up to its needs. This
 can be useful if a plugin exports a blob in a special format for integration with other frameworks 
 where a common Inference Engine header from a base class implementation is not appropriate. 
 
-During export of backend-specific graph using `ExecutableNetwork::Export`, a plugin may export any 
+During export of backend specific graph using `ExecutableNetwork::Export`, a plugin may export any 
 type of information it needs to import a compiled graph properly and check its correctness. 
 For example, the export information may include:
 
@@ -173,7 +183,7 @@ For example, the export information may include:
 throw an exception if the `model` stream contains wrong data. For example, if devices have different 
 capabilities and a graph compiled for a particular device cannot be used for another, such type of 
 information must be stored and checked during the import. 
-- Compiled backend-specific graph itself
+- Compiled backend specific graph itself
 - Information about precisions and shapes set by the user
 
 @snippet src/template_plugin.cpp plugin:import_network_impl
