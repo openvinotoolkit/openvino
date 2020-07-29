@@ -16,17 +16,15 @@
 
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
-#include "util/all_close.hpp"
-#include "util/all_close_f.hpp"
-#include "util/known_element_types.hpp"
-#include "util/ndarray.hpp"
+#include "util/engine/test_engines.hpp"
+#include "util/test_case.hpp"
 #include "util/test_control.hpp"
-#include "util/test_tools.hpp"
 
 using namespace std;
 using namespace ngraph;
 
 static string s_manifest = "${MANIFEST}";
+using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
 // ----------------------- keep dims = false ----------------------- //
 
@@ -38,16 +36,13 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_max_to_scalar)
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceMax>(A, axes, false), ParameterVector{A});
 
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape);
-    copy_data(a, vector<float>{1, 2, 3, 4});
-    auto result = backend->create_tensor(element::f32, Shape{});
+    std::vector<float> a{1, 2, 3, 4};
 
-    auto handle = backend->compile(f);
-    handle->call_with_validate({result}, {a});
-    EXPECT_TRUE(test::all_close_f((vector<float>{4}), read_vector<float>(result)));
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_input<float>({a});
+    test_case.add_expected_output<float>({4});
+    test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, reduce_max_to_scalar_int8)
@@ -58,16 +53,13 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_max_to_scalar_int8)
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceMax>(A, axes, false), ParameterVector{A});
 
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::i8, shape);
-    copy_data(a, vector<int8_t>{1, 2, 3, 4});
-    auto result = backend->create_tensor(element::i8, Shape{});
+    std::vector<int8_t> a{1, 2, 3, 4};
 
-    auto handle = backend->compile(f);
-    handle->call_with_validate({result}, {a});
-    EXPECT_EQ((vector<int8_t>{4}), read_vector<int8_t>(result));
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_input<int8_t>({a});
+    test_case.add_expected_output<int8_t>({4});
+    test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, reduce_max_matrix_columns)
@@ -79,16 +71,13 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_max_matrix_columns)
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceMax>(A, axes, false), ParameterVector{A});
 
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape_a);
-    copy_data(a, vector<float>{1, 2, 3, 4, 5, 6});
-    auto result = backend->create_tensor(element::f32, shape_rt);
+    std::vector<float> a{1, 2, 3, 4, 5, 6};
 
-    auto handle = backend->compile(f);
-    handle->call_with_validate({result}, {a});
-    EXPECT_TRUE(test::all_close_f((vector<float>{5, 6}), read_vector<float>(result)));
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_input<float>({a});
+    test_case.add_expected_output<float>(shape_rt, {5, 6});
+    test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, reduce_max_matrix_rows)
@@ -100,16 +89,13 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_max_matrix_rows)
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceMax>(A, axes, false), ParameterVector{A});
 
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape_a);
-    copy_data(a, vector<float>{1, 2, 3, 4, 5, 6});
-    auto result = backend->create_tensor(element::f32, shape_rt);
+    std::vector<float> a{1, 2, 3, 4, 5, 6};
 
-    auto handle = backend->compile(f);
-    handle->call_with_validate({result}, {a});
-    EXPECT_TRUE(test::all_close_f((vector<float>{2, 4, 6}), read_vector<float>(result)));
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_input<float>({a});
+    test_case.add_expected_output<float>(shape_rt, {2, 4, 6});
+    test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, reduce_max_matrix_rows_int32)
@@ -121,16 +107,13 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_max_matrix_rows_int32)
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceMax>(A, axes, false), ParameterVector{A});
 
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::i32, shape_a);
-    copy_data(a, vector<int32_t>{1, 2, 3, 4, 5, 6});
-    auto result = backend->create_tensor(element::i32, shape_rt);
+    std::vector<int32_t> a{1, 2, 3, 4, 5, 6};
 
-    auto handle = backend->compile(f);
-    handle->call_with_validate({result}, {a});
-    EXPECT_EQ((vector<int32_t>{2, 4, 6}), read_vector<int32_t>(result));
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_input<int32_t>({a});
+    test_case.add_expected_output<int32_t>(shape_rt, {2, 4, 6});
+    test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, reduce_max_matrix_rows_zero)
@@ -142,20 +125,16 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_max_matrix_rows_zero)
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceMax>(A, axes, false), ParameterVector{A});
 
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape_a);
-    copy_data(a, vector<float>{});
-    auto result = backend->create_tensor(element::f32, shape_rt);
-    copy_data(result, vector<float>({3, 3, 3}));
+    std::vector<float> a{};
 
-    auto handle = backend->compile(f);
-    handle->call_with_validate({result}, {a});
-    EXPECT_EQ((vector<float>{-std::numeric_limits<float>::infinity(),
-                             -std::numeric_limits<float>::infinity(),
-                             -std::numeric_limits<float>::infinity()}),
-              read_vector<float>(result));
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_input<float>({a});
+    test_case.add_expected_output<float>(shape_rt,
+                                         {-std::numeric_limits<float>::infinity(),
+                                          -std::numeric_limits<float>::infinity(),
+                                          -std::numeric_limits<float>::infinity()});
+    test_case.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, reduce_max_matrix_rows_zero_int32)
@@ -263,19 +242,14 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_max_3d_to_matrix_most_sig)
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceMax>(A, axes, false), ParameterVector{A});
 
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape_a);
-    copy_data(a, vector<float>{1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12, 13, 14,
-                               15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27});
-    auto result = backend->create_tensor(element::f32, shape_rt);
+    std::vector<float> a{1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12, 13, 14,
+                         15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27};
 
-    auto handle = backend->compile(f);
-    handle->call_with_validate({result}, {a});
-    EXPECT_TRUE(test::all_close_f((vector<float>{19, 20, 21, 22, 23, 24, 25, 26, 27}),
-                                  read_vector<float>(result),
-                                  MIN_FLOAT_TOLERANCE_BITS));
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_input<float>({a});
+    test_case.add_expected_output<float>(shape_rt, {19, 20, 21, 22, 23, 24, 25, 26, 27});
+    test_case.run(MIN_FLOAT_TOLERANCE_BITS);
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, reduce_max_3d_to_matrix_least_sig)
@@ -287,19 +261,14 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_max_3d_to_matrix_least_sig)
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceMax>(A, axes, false), ParameterVector{A});
 
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape_a);
-    copy_data(a, vector<float>{1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12, 13, 14,
-                               15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27});
-    auto result = backend->create_tensor(element::f32, shape_rt);
+    std::vector<float> a{1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12, 13, 14,
+                         15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27};
 
-    auto handle = backend->compile(f);
-    handle->call_with_validate({result}, {a});
-    EXPECT_TRUE(test::all_close_f((vector<float>{3, 6, 9, 12, 15, 18, 21, 24, 27}),
-                                  read_vector<float>(result),
-                                  MIN_FLOAT_TOLERANCE_BITS));
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_input<float>({a});
+    test_case.add_expected_output<float>(shape_rt, {3, 6, 9, 12, 15, 18, 21, 24, 27});
+    test_case.run(MIN_FLOAT_TOLERANCE_BITS);
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, reduce_max_3d_to_vector)
@@ -311,19 +280,14 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_max_3d_to_vector)
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceMax>(A, axes, false), ParameterVector{A});
 
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape_a);
-    copy_data(a, vector<float>{1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12, 13, 14,
-                               15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27});
-    auto result = backend->create_tensor(element::f32, shape_rt);
+    std::vector<float> a{1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12, 13, 14,
+                         15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27};
 
-    auto handle = backend->compile(f);
-    handle->call_with_validate({result}, {a});
-    EXPECT_TRUE(test::all_close_f((vector<float>{25.0f, 26.0f, 27.0f}),
-                                  read_vector<float>(result),
-                                  MIN_FLOAT_TOLERANCE_BITS));
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_input<float>({a});
+    test_case.add_expected_output<float>(shape_rt, {25.0f, 26.0f, 27.0f});
+    test_case.run(MIN_FLOAT_TOLERANCE_BITS);
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, reduce_max_3d_to_scalar)
@@ -335,18 +299,14 @@ NGRAPH_TEST(${BACKEND_NAME}, reduce_max_3d_to_scalar)
     auto f =
         make_shared<Function>(make_shared<op::v1::ReduceMax>(A, axes, false), ParameterVector{A});
 
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-
     // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape_a);
-    copy_data(a, vector<float>{1,  2,  3,  4,  5, 6, 7, 8, 9, 10, 11, 12, 13, 14,
-                               13, 12, 11, 10, 9, 8, 7, 6, 5, 4,  3,  2,  1});
-    auto result = backend->create_tensor(element::f32, shape_rt);
+    std::vector<float> a{1,  2,  3,  4,  5, 6, 7, 8, 9, 10, 11, 12, 13, 14,
+                         13, 12, 11, 10, 9, 8, 7, 6, 5, 4,  3,  2,  1};
 
-    auto handle = backend->compile(f);
-    handle->call_with_validate({result}, {a});
-    EXPECT_TRUE(test::all_close_f(
-        (vector<float>{14.0f}), read_vector<float>(result), MIN_FLOAT_TOLERANCE_BITS));
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_input<float>({a});
+    test_case.add_expected_output<float>(shape_rt, {14.0f});
+    test_case.run(MIN_FLOAT_TOLERANCE_BITS);
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, reduce_max_3d_to_scalar_int32)
