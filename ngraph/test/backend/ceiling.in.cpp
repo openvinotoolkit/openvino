@@ -52,7 +52,7 @@ NGRAPH_TEST(${BACKEND_NAME}, ceiling)
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_input<float>({-2.5f, -2.0f, 0.3f, 4.8f});
     test_case.add_expected_output<float>(shape, {-2.0f, -2.0f, 1.0f, 5.0f});
-    test_case.run();
+    test_case.run(MIN_FLOAT_TOLERANCE_BITS);
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, ceiling_int64)

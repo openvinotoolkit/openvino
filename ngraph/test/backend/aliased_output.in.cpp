@@ -51,5 +51,5 @@ NGRAPH_TEST(${BACKEND_NAME}, aliased_output)
     test_case.add_expected_output<float>(shape, expectedC);
     test_case.add_expected_output<float>(shape, expectedE);
     test_case.add_expected_output<float>(shape, expectedE);
-    test_case.run();
+    test_case.run(MIN_FLOAT_TOLERANCE_BITS);
 }

@@ -52,5 +52,5 @@ NGRAPH_TEST(${BACKEND_NAME}, abs)
     auto test_case = test::TestCase<TestEngine>(f);
     test_case.add_input<float>({1, -2, 0, -4.75f});
     test_case.add_expected_output<float>(shape, {1, 2, 0, 4.75f});
-    test_case.run();
+    test_case.run(MIN_FLOAT_TOLERANCE_BITS);
 }
