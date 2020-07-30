@@ -1,12 +1,9 @@
 """
  Copyright (C) 2020 Intel Corporation
-
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
  You may obtain a copy of the License at
-
       http://www.apache.org/licenses/LICENSE-2.0
-
  Unless required by applicable law or agreed to in writing, software
  distributed under the License is distributed on an "AS IS" BASIS,
  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -22,12 +19,12 @@ from mo.graph.graph import Node
 
 
 class ReduceL2FrontExtractor(FrontExtractorOp):
-    op = 'ReduceL2'
+    op = 'ReduceL1'
     enabled = True
 
     @classmethod
     def extract(cls, node: Node):
         axis = onnx_attr(node, 'axes', 'ints', default=None, dst_type=lambda x: int64_array(x))
         keep_dims = onnx_attr(node, 'keepdims', 'i', default=True)
-        ReduceLp.update_node_stat(node, {'axis': axis, 'keep_dims': keep_dims, 'p': 2})
+        ReduceLp.update_node_stat(node, {'axis': axis, 'keep_dims': keep_dims, 'p': 1})
         return cls.enabled

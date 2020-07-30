@@ -24,7 +24,7 @@ from mo.ops.op import Op
 reduce_map = {
     'ReduceSum': np.sum,
     'ReduceProd': np.prod,
-    'ReduceL2': lambda x, axis, keepdims: np.sqrt(np.sum(a=np.square(x), axis=axis, keepdims=keepdims)),
+    'ReduceLp': lambda x, axis, keepdims, p: np.power(np.sum(a=np.abs(np.power(x, p)), axis=axis, keepdims=keepdims), 1/p),
     'ReduceMax': np.max,
     'ReduceMin': np.min,
     'ReduceMean': np.mean,
@@ -36,9 +36,10 @@ reduce_map = {
 
 def reduce_infer(node: Node):
     connected_in_ports = [port for port in node.in_ports().values() if not port.disconnected()]
-    assert len(connected_in_ports) == 2, \
-        "{} node `{}` should have 2 input ports, where 0-input is data input and 1-input represent " \
-        "`reduction_indices`".format(node.op, node.id)
+    assert len(connected_in_ports) in [2, 3], \
+        "{} node `{}` should have 2 or 3 input ports, where 0-input is data input, 1-input represent " \
+        "`reduction_indices` and 3-input is order for normalization function for ReduceLp operation" \
+        "".format(node.op, node.id)
 
     in_data = node.in_port(0).data
     in_shape = in_data.get_shape()
@@ -56,9 +57,10 @@ def reduce_infer(node: Node):
         axis = int64_array([axis.item()])
 
     in_value = in_data.get_value()
+    p = node.in_port(2).data.get_value() if node.op == 'ReduceLp' else None
 
     if in_value is not None:
-        value = reduce_map[node.op](in_value.copy(), axis=tuple(axis), keepdims=node.keep_dims)
+        value = reduce_map[node.op](in_value.copy(), axis=tuple(axis), keepdims=node.keep_dims, p=p)
         node.out_port(0).data.set_value(value)
     else:
         used_dims = np.zeros(len(in_shape), dtype=np.bool)
@@ -138,10 +140,15 @@ class ReduceMean(ReduceOp):
     enabled = True
 
 
-class ReduceL2(ReduceOp):
-    op = 'ReduceL2'
-    op_type = None
+class ReduceLp(ReduceOp):
+    op = 'ReduceLp'
+    op_type = 'ReduceLp'
     enabled = True
+
+    def __init__(self, graph: Graph, attrs: dict):
+        op_attrs = {'version': 'opset4'}
+        op_attrs.update(attrs)
+        super().__init__(graph, op_attrs)
 
 
 class ReduceAnd(ReduceOp):

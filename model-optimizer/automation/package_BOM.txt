@@ -286,6 +286,7 @@ extensions/front/onnx/proposal_ext.py
 extensions/front/onnx/quantize_dequantize_linear.py
 extensions/front/onnx/quantize_ext.py
 extensions/front/onnx/range_ext.py
+extensions/front/onnx/reduce_l1_ext.py
 extensions/front/onnx/reduce_l2_ext.py
 extensions/front/onnx/reduce_max_ext.py
 extensions/front/onnx/reduce_mean_ext.py
@@ -322,7 +323,6 @@ extensions/front/PowerToEltwises.py
 extensions/front/rank_decomposer.py
 extensions/front/reciprocal.py
 extensions/front/reduce_axis_normalizer.py
-extensions/front/ReduceL2Decomposition.py
 extensions/front/reshape_dim_normalizer.py
 extensions/front/restore_ports.py
 extensions/front/scatter_normalizer.py
