@@ -20,8 +20,6 @@
 namespace InferenceEngine {
 namespace ShapeInfer {
 
-IE_SUPPRESS_DEPRECATED_START
-
 /**
  *@brief Base class for all built-in shape infer implementations. Contains common logic with validators and errors
  *handling
@@ -66,8 +64,6 @@ protected:
     details::LayerValidator::Ptr _validator;
     std::vector<SizeVector> inShapes;
 };
-
-IE_SUPPRESS_DEPRECATED_END
 
 }  // namespace ShapeInfer
 }  // namespace InferenceEngine

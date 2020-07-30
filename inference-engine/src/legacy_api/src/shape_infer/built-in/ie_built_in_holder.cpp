@@ -8,14 +8,8 @@
 #include <memory>
 #include <string>
 
-#include "ie_equal_shape_infer.hpp"
-#include "ie_rnn_cell_shape_infer.hpp"
 #include "ie_simpler_nms_shape_infer.hpp"
-#include "ie_sparse_fill_empty_rows_shape_infer.hpp"
-#include "ie_sparse_segment_reduce_shape_infer.hpp"
-#include "ie_sparse_to_dense_shape_infer.hpp"
 #include "ie_unique_shape_infer.hpp"
-#include "ie_proposal_shape_infer.hpp"
 
 namespace InferenceEngine {
 namespace ShapeInfer {
@@ -66,17 +60,8 @@ public:
 #define REG_SHAPE_INFER_FOR_TYPE(__prim, __type) \
     static ImplRegisterBase<__prim> __bi_reg__##__type(#__type)
 
-REG_SHAPE_INFER_FOR_TYPE(EqualShapeProp, PowerFile);
-REG_SHAPE_INFER_FOR_TYPE(SimplerNMSShapeProp, SimplerNMS);
-REG_SHAPE_INFER_FOR_TYPE(ProposalShapeProp, Proposal);
-REG_SHAPE_INFER_FOR_TYPE(RNNCellShapeProp, RNNCell);
-REG_SHAPE_INFER_FOR_TYPE(GRUCellShapeProp, GRUCell);
-REG_SHAPE_INFER_FOR_TYPE(SparseFillEmptyRowsShapeProp, SparseFillEmptyRows);
-REG_SHAPE_INFER_FOR_TYPE(SparseSegmentReduceShapeProp, SparseSegmentMean);
-REG_SHAPE_INFER_FOR_TYPE(SparseSegmentReduceShapeProp, SparseSegmentSqrtN);
-REG_SHAPE_INFER_FOR_TYPE(SparseSegmentReduceShapeProp, SparseSegmentSum);
-REG_SHAPE_INFER_FOR_TYPE(SparseToDenseShapeProp, SparseToDense);
-REG_SHAPE_INFER_FOR_TYPE(UniqueShapeProp, Unique);
+REG_SHAPE_INFER_FOR_TYPE(SimplerNMSShapeProp, SimplerNMS);  // USED: ask Nosov
+REG_SHAPE_INFER_FOR_TYPE(UniqueShapeProp, Unique);  // USED: need replacement in ngraph
 
 }  // namespace ShapeInfer
 }  // namespace InferenceEngine
