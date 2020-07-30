@@ -17,6 +17,7 @@
 #include <algorithm>
 #include <vector>
 
+#include "ngraph/itt.hpp"
 #include "ngraph/op/concat.hpp"
 #include "ngraph/op/constant.hpp"
 #include "ngraph/op/gather.hpp"
@@ -158,11 +159,13 @@ namespace
 bool op::v3::ShapeOf::evaluate(const HostTensorVector& output_values,
                                const HostTensorVector& input_values) const
 {
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v3::ShapeOf::evaluate");
     return evaluate_shape_of(output_values[0], input_values[0]);
 }
 
 bool op::v3::ShapeOf::constant_fold(OutputVector& output_values, const OutputVector& input_values)
 {
+    OV_ITT_SCOPED_TASK(itt::domains::nGraph, "op::v3::ShapeOf::constant_fold");
     return constant_fold_shape_of(this, output_values[0], input_values[0], m_is_foldable);
 }
 
@@ -197,10 +200,12 @@ shared_ptr<Node> op::v0::ShapeOf::clone_with_new_inputs(const OutputVector& new_
 bool op::v0::ShapeOf::evaluate(const HostTensorVector& output_values,
                                const HostTensorVector& input_values) const
 {
+    OV_ITT_SCOPED_TASK(itt::domains::nGraphOp, "op::v0::ShapeOf::evaluate");
     return evaluate_shape_of(output_values[0], input_values[0]);
 }
 
 bool op::v0::ShapeOf::constant_fold(OutputVector& output_values, const OutputVector& input_values)
 {
+    OV_ITT_SCOPED_TASK(itt::domains::nGraph, "op::v0::ShapeOf::constant_fold");
     return constant_fold_shape_of(this, output_values[0], input_values[0], m_is_foldable);
 }
