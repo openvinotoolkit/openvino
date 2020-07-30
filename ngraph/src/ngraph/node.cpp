@@ -152,8 +152,6 @@ void Node::safe_delete(NodeVector& nodes, bool recurse)
     }
 }
 
-constexpr Node::type_info_t Node::type_info;
-
 void Node::set_arguments(const NodeVector& arguments)
 {
     OutputVector outputs;
@@ -771,7 +769,7 @@ NodeVector ngraph::as_node_vector(const OutputVector& values)
     NodeVector node_vector;
     for (auto& value : values)
     {
-        node_vector.push_back(value.as_single_output_node());
+        node_vector.emplace_back(value.get_node_shared_ptr());
     }
     return node_vector;
 }

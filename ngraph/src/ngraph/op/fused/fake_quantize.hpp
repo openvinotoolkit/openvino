@@ -42,7 +42,7 @@ namespace ngraph
             class NGRAPH_API FakeQuantize : public ngraph::op::util::FusedOp
             {
             public:
-                NGRAPH_RTTI_DECLARATION("FakeQuantize", Node, 0);
+                NGRAPH_RTTI_DECLARATION("FakeQuantize", 0);
 
                 FakeQuantize() = default;
                 ///
@@ -67,7 +67,7 @@ namespace ngraph
                                  AutoBroadcastSpec(AutoBroadcastType::NUMPY));
 
                 bool visit_attributes(AttributeVisitor& visitor) override;
-                virtual NodeVector decompose_op() const override;
+                virtual OutputVector decompose_op() const override;
                 virtual void validate_and_infer_types() override;
 
                 virtual std::shared_ptr<Node>

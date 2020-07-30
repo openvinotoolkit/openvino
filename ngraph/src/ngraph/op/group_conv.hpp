@@ -31,7 +31,7 @@ namespace ngraph
             class NGRAPH_API GroupConvolution : public Op
             {
             public:
-                NGRAPH_RTTI_DECLARATION("GroupConvolution", Node, 1)
+                NGRAPH_RTTI_DECLARATION("GroupConvolution", 1)
 
                 /// \brief Constructs a batched convolution operation.
                 GroupConvolution() = default;
@@ -208,7 +208,7 @@ namespace ngraph
 
                 bool visit_attributes(AttributeVisitor& visitor) override;
                 virtual bool is_dynamic() const override;
-                virtual NodeVector decompose_op() const override;
+                virtual OutputVector decompose_op() const override;
                 virtual void pre_validate_and_infer_types() override;
 
                 virtual std::shared_ptr<Node>
@@ -296,7 +296,7 @@ namespace ngraph
                 virtual std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
 
-                virtual NodeVector decompose_op() const override;
+                virtual OutputVector decompose_op() const override;
 
                 virtual void pre_validate_and_infer_types() override;
                 virtual void post_validate_and_infer_types() override;
@@ -345,7 +345,7 @@ namespace ngraph
                 virtual std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
 
-                virtual NodeVector decompose_op() const override;
+                virtual OutputVector decompose_op() const override;
 
                 virtual void pre_validate_and_infer_types() override;
 

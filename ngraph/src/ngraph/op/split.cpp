@@ -104,7 +104,7 @@ void op::v0::Split::pre_validate_and_infer_types()
     set_input_is_relevant_to_shape(0);
 }
 
-NodeVector op::v0::Split::decompose_op() const
+OutputVector op::v0::Split::decompose_op() const
 {
     return builder::split(input_value(0), m_splits, m_axis);
 }

@@ -20,6 +20,7 @@
 #include <cstdlib>
 #include <iterator>
 #include <limits>
+#include <numeric>
 #include <random>
 #include <string>
 

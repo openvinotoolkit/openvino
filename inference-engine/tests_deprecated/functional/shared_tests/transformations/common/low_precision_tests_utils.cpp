@@ -5,7 +5,6 @@
 #include "low_precision_tests_utils.hpp"
 
 #include <details/ie_cnn_network_tools.h>
-#include <details/caseless.hpp>
 #include <precision_utils.h>
 #include <cmath>
 

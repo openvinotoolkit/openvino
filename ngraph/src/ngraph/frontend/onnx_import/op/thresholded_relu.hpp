@@ -27,7 +27,7 @@ namespace ngraph
         {
             namespace set_1
             {
-                NodeVector thresholded_relu(const Node& node);
+                OutputVector thresholded_relu(const Node& node);
 
             } // namespace set_1
 
