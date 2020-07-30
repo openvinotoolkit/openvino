@@ -2,22 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <file_utils.h>
 #include <xml_parse_utils.h>
 
 #include <ie_ir_version.hpp>
 #include <ie_ir_reader.hpp>
 #include <memory>
-#include <ngraph/ngraph.hpp>
 #include <string>
 #include <vector>
 #include <sstream>
 #include <algorithm>
-#include <cctype>
 
-#include "description_buffer.hpp"
 #include "ie_ir_parser.hpp"
-#include "ie_ngraph_utils.hpp"
 
 using namespace InferenceEngine;
 
