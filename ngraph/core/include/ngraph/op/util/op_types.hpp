@@ -49,6 +49,10 @@ namespace ngraph
         bool is_constant(const ngraph::Node* node);
         NGRAPH_API
         bool is_commutative(const ngraph::Node* node);
+        NGRAPH_API
+        const ngraph::op::Parameter* as_parameter(const ngraph::Node* node);
+        NGRAPH_API
+        const ngraph::op::Constant* as_constant(const ngraph::Node* node);
 
         NGRAPH_API
         bool is_unary_elementwise_arithmetic(const std::shared_ptr<ngraph::Node>& node);
@@ -75,5 +79,9 @@ namespace ngraph
         bool is_constant(const std::shared_ptr<ngraph::Node>& node);
         NGRAPH_API
         bool is_commutative(const std::shared_ptr<ngraph::Node>& node);
+        NGRAPH_API
+        const ngraph::op::Parameter* as_parameter(const std::shared_ptr<ngraph::Node>& node);
+        NGRAPH_API
+        const ngraph::op::Constant* as_constant(const std::shared_ptr<ngraph::Node>& node);
     }
 }

@@ -109,6 +109,16 @@ bool ngraph::op::is_commutative(const ngraph::Node* node)
            dynamic_cast<const ngraph::op::v1::LogicalOr*>(node) != nullptr;
 }
 
+const ngraph::op::Parameter* ngraph::op::as_parameter(const ngraph::Node* node)
+{
+    return dynamic_cast<const ngraph::op::Parameter*>(node);
+}
+
+const ngraph::op::Constant* ngraph::op::as_constant(const ngraph::Node* node)
+{
+    return dynamic_cast<const ngraph::op::Constant*>(node);
+}
+
 bool ngraph::op::is_unary_elementwise_arithmetic(const std::shared_ptr<ngraph::Node>& node)
 {
     return is_unary_elementwise_arithmetic(node.get());
@@ -155,4 +165,12 @@ bool ngraph::op::is_constant(const std::shared_ptr<ngraph::Node>& node)
 bool ngraph::op::is_commutative(const std::shared_ptr<ngraph::Node>& node)
 {
     return is_commutative(node.get());
+}
+const ngraph::op::Parameter* ngraph::op::as_parameter(const std::shared_ptr<ngraph::Node>& node)
+{
+    return as_parameter(node.get());
+}
+const ngraph::op::Constant* ngraph::op::as_constant(const std::shared_ptr<ngraph::Node>& node)
+{
+    return as_constant(node.get());
 }
