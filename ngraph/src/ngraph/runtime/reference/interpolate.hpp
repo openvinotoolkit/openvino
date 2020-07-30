@@ -313,7 +313,7 @@ namespace ngraph
                     in_x = std::max(0.0f, std::min(in_x, static_cast<float>(input_width - 1)));
                     in_y1[x] = std::min(
                         static_cast<int64_t>(in_x), static_cast<int64_t>(input_width - 1));
-                    in_y2[x] = std::min(in_x1[y] + 1, static_cast<int64_t>(input_width - 1));
+                    in_y2[x] = std::min(in_x1[x] + 1, static_cast<int64_t>(input_width - 1));
                     dx1[x] = std::fabs(in_x - in_x1[x]);
                     dx2[x] = std::fabs(in_x - in_x2[x]);
 
@@ -324,13 +324,33 @@ namespace ngraph
                     }
                 }
 
-                std::vector<int64_t> coords_limits_vector =
-                    {batch_size - 1, num_channels - 1, output_height - 1, output_width - 1};
-
-                runtime::NDimIndex out_limits{coords_limits_vector, coords_limits_vector};
-                runtime::NDimRange coords_range{out_limits};
-                runtime::NDimArrayView<T> result{out};
-                runtime::NDimArrayView<T> input_view{const_cast<T*>(input_data)};
+                for (std::size_t n = 0; n < batch_size; ++n)
+                {
+                    for (std::size_t c = 0; c < num_channels; ++c)
+                    {
+                        T* out_data_ptr_nc = out
+                                             + n * num_channels * output_height * output_width
+                                             + c * output_height * output_width;
+                        T* in_data_ptr_nc = input_data
+                                             + n * num_channels * input_height * input_width
+                                             + c * input_height * input_width;
+                        for (std::size_t y = 0; y < output_height; ++y)
+                        {
+                            for (std::size_t x = 0; x < output_width; ++x)
+                            {
+                                T x11 = in_data_ptr_nc[in_y1[y] * input_width + in_x1[x]];
+                                T x21 = in_data_ptr_nc[in_y1[y] * input_width + in_x2[x]];
+                                T x12 = in_data_ptr_nc[in_y2[y] * input_width + in_x1[x]];
+                                T x22 = in_data_ptr_nc[in_y2[y] * input_width + in_x2[x]];
+                                float temp = dx2[x] * dy2[y] * x11
+                                             + dx1[x] * dy2[y] * x21
+                                             + dx2[x] * dy1[y] * x12
+                                             + dx1[x] * dy1[y] * x22;
+                                out_data_ptr_nc[output_width * y + x] = static_cast<T>(temp);
+                            }
+                        }
+                    }
+                }
             }
 
             template <typename T>
@@ -365,6 +385,7 @@ namespace ngraph
                             coordinate, scale, length_resized, length_original);
                         int64_t nearest_pixel = m_get_nearest_pixel(in_coord, scale < 1.0);
                         input_coords[axis] = clip_coord(nearest_pixel, length_original);
+                        input_coords.set_axes_high_limit(m_input_data_shape[axis], axis);
                     }
                     result[coordinates] = input_view[input_coords];
                 }
