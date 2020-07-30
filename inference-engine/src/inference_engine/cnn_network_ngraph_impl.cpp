@@ -9,7 +9,6 @@
 #include <math.h>
 
 #include <cassert>
-#include <details/caseless.hpp>
 #include <map>
 #include <memory>
 #include <vector>

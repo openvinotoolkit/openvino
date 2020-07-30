@@ -26,7 +26,6 @@
 #include <atomic>
 
 #include <precision_utils.h>
-#include <details/caseless.hpp>
 #include <graph_tools.hpp>
 #include <description_buffer.hpp>
 #include <xml_parse_utils.h>
