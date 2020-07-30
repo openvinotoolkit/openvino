@@ -32,19 +32,17 @@ class FuseFakeQuantizeTransformationTestValues {
 public:
     class Actual {
     public:
-        ngraph::element::Type precisionBeforeDequantization;
-        ngraph::builder::subgraph::DequantizationOperations dequantization;
-        ngraph::element::Type precisionAfterDequantization;
+        std::vector<ngraph::builder::subgraph::FuseFakeQuantizeFunction::Branch> branches;
+        ngraph::element::Type precisionFakeQuantizeOnData;
         ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData;
     };
 
     class Expected {
     public:
-        ngraph::element::Type precisionBeforeDequantization;
-        ngraph::builder::subgraph::DequantizationOperations dequantization;
-        ngraph::element::Type precisionAfterDequantization;
+        std::vector<ngraph::builder::subgraph::FuseFakeQuantizeFunction::Branch> branches;
         ngraph::element::Type precisionFakeQuantizeOnData;
         ngraph::builder::subgraph::FakeQuantizeOnData fakeQuantizeOnData;
+        ngraph::builder::subgraph::DequantizationOperations dequantization;
     };
 
     ngraph::Shape inputShape;
@@ -53,17 +51,15 @@ public:
     Expected expected;
 };
 
-class FuseFakeQuantizeTransformation : public LayerTransformation, public testing::WithParamInterface<FuseFakeQuantizeTransformationTestValues> {
+class FuseFakeQuantizeWithMultiInputsTransformation : public LayerTransformation, public testing::WithParamInterface<FuseFakeQuantizeTransformationTestValues> {
 public:
     void SetUp() override {
         const FuseFakeQuantizeTransformationTestValues testValues = GetParam();
 
         actualFunction = ngraph::builder::subgraph::FuseFakeQuantizeFunction::get(
             testValues.inputShape,
-            testValues.actual.precisionBeforeDequantization,
-            testValues.actual.dequantization,
-            testValues.actual.precisionAfterDequantization,
-            testValues.actual.precisionAfterDequantization,
+            testValues.actual.branches,
+            testValues.actual.precisionFakeQuantizeOnData,
             testValues.actual.fakeQuantizeOnData);
 
         SimpleLowPrecisionTransformer transformer;
@@ -72,9 +68,7 @@ public:
 
         referenceFunction = ngraph::builder::subgraph::FuseFakeQuantizeFunction::get(
             testValues.inputShape,
-            testValues.expected.precisionBeforeDequantization,
-            testValues.expected.dequantization,
-            testValues.expected.precisionAfterDequantization,
+            testValues.expected.branches,
             testValues.expected.precisionFakeQuantizeOnData,
             testValues.expected.fakeQuantizeOnData);
     }
@@ -84,17 +78,18 @@ public:
 
         std::ostringstream result;
         result << testValues.params.updatePrecisions << "_" <<
-            testValues.actual.precisionBeforeDequantization <<
-            testValues.actual.dequantization << "_" <<
-            testValues.actual.precisionBeforeDequantization << "_" <<
+            testValues.actual.branches[0].dequantization << "_" <<
+            testValues.actual.branches[1].dequantization << "_" <<
+            testValues.actual.precisionFakeQuantizeOnData << "_" <<
             testValues.actual.fakeQuantizeOnData << "_" <<
+            testValues.expected.fakeQuantizeOnData << "_" <<
             testValues.expected.dequantization;
         return result.str();
         return result.str();
     }
 };
 
-TEST_P(FuseFakeQuantizeTransformation, CompareFunctions) {
+TEST_P(FuseFakeQuantizeWithMultiInputsTransformation, CompareFunctions) {
     actualFunction->validate_nodes_and_infer_types();
     auto res = compare_functions(referenceFunction, actualFunction);
     ASSERT_TRUE(res.first) << res.second;
@@ -106,61 +101,44 @@ const std::vector<FuseFakeQuantizeTransformationTestValues> testValues = {
         Shape{1, 3, 16, 16},
         LayerTransformation::createParamsU8I8(),
         {
-            element::f32,
-            { {}, {}, { 0.01f } },
+            {
+                {
+                    element::f32,
+                    { {}, {}, { 0.01f } },
+                    element::f32
+                },
+                {
+                    element::f32,
+                    { {}, {}, { 0.01f } },
+                    element::f32
+                }
+            },
             element::f32,
             { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } }
         },
         {
-            element::f32,
-            { {}, {}, {} },
-            element::f32,
+            {
+                {
+                    element::f32,
+                    { {}, {}, { 0.01f } },
+                    element::f32
+                },
+                {
+                    element::f32,
+                    { {}, {}, { 0.01f } },
+                    element::f32
+                }
+            },
             element::f32,
             { 256ul, {}, { 0.f }, { 255.f }, { 0.f }, { 2.55f } }
         }
-    },
-    // Subtract + Multiply
-    {
-        Shape{1, 3, 16, 16},
-        LayerTransformation::createParamsU8I8(),
-        {
-            element::f32,
-            { {}, { -128 }, { 0.01f } },
-            element::f32,
-            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } }
-        },
-        {
-            element::f32,
-            { {}, {}, {} },
-            element::f32,
-            element::f32,
-            { 256ul, {}, { -128.f }, { 127.f }, { 0.f }, { 2.55f } }
-        }
-    },
-    // Convert + Subtract + Multiply
-    {
-        Shape{1, 3, 16, 16},
-        LayerTransformation::createParamsU8I8(),
-        {
-            element::u8,
-            { {element::f32}, { -128 }, { 0.01f } },
-            element::f32,
-            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } }
-        },
-        {
-            element::u8,
-            { {}, {}, {} },
-            element::u8,
-            element::f32,
-            { 256ul, {}, { -128.f }, { 127.f }, { 0.f }, { 2.55f } }
-        }
-    },
+    }
 };
 
 INSTANTIATE_TEST_CASE_P(
     LPT,
-    FuseFakeQuantizeTransformation,
+    FuseFakeQuantizeWithMultiInputsTransformation,
     ::testing::ValuesIn(testValues),
-    FuseFakeQuantizeTransformation::getTestCaseName);
+    FuseFakeQuantizeWithMultiInputsTransformation::getTestCaseName);
 
 } // namespace

@@ -15,9 +15,6 @@
 #include "transformations/low_precision/common/ie_lpt_exception.hpp"
 #include "transformations/low_precision/network_helper.hpp"
 
-// TODO: remove after debugging
-#include <ngraph/pass/visualize_tree.hpp>
-
 namespace ngraph {
 namespace pass {
 namespace low_precision {

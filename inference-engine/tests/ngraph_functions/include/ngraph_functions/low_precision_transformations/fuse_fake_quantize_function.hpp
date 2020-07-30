@@ -17,11 +17,24 @@ namespace subgraph {
 
 class FuseFakeQuantizeFunction {
 public:
+    class Branch {
+    public:
+        ngraph::element::Type precisionBeforeDequantization;
+        ngraph::builder::subgraph::DequantizationOperations dequantization;
+        ngraph::element::Type precisionAfterDequantization;
+    };
+
     static std::shared_ptr<ngraph::Function> get(
         const ngraph::Shape& inputShape,
         const ngraph::element::Type precisionBeforeDequantization,
         const DequantizationOperations& dequantization,
         const ngraph::element::Type precisionAfterDequantization,
+        const ngraph::element::Type precisionFqOnData,
+        const FakeQuantizeOnData& fqOnData);
+
+    static std::shared_ptr<ngraph::Function> get(
+        const ngraph::Shape& inputShape,
+        const std::vector<Branch>& branches,
         const ngraph::element::Type precisionFqOnData,
         const FakeQuantizeOnData& fqOnData);
 };
