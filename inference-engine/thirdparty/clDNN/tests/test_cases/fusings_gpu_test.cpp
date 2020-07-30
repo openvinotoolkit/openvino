@@ -5040,7 +5040,7 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, gather_quantize,
                         gather_test_params{ CASE_GATHER_FP32_3, 2, 3 },
                         gather_test_params{ CASE_GATHER_FP32_4, 2, 3 },
                         gather_test_params{ CASE_GATHER_FP32_5, 2, 3 },
-                        
+
                         gather_test_params{ CASE_GATHER_FP16_1, 2, 3 },
                         gather_test_params{ CASE_GATHER_FP16_2, 2, 3 },
                         gather_test_params{ CASE_GATHER_FP16_3, 2, 3 },
@@ -5083,7 +5083,7 @@ INSTANTIATE_TEST_CASE_P(fusings_gpu, gather_scale_activation,
                         gather_test_params{ CASE_GATHER_FP32_3, 2, 4 },
                         gather_test_params{ CASE_GATHER_FP32_4, 2, 4 },
                         gather_test_params{ CASE_GATHER_FP32_5, 2, 4 },
-                        
+
                         gather_test_params{ CASE_GATHER_FP16_1, 2, 4 },
                         gather_test_params{ CASE_GATHER_FP16_2, 2, 4 },
                         gather_test_params{ CASE_GATHER_FP16_3, 2, 4 },

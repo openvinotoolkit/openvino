@@ -3761,7 +3761,6 @@ void Program::CreateGatherPrimitive(cldnn::topology& topology, InferenceEngine::
 
     // Be careful, TensorFlow consist negative axis interpretation bug. Here: -3 = b, -2 = f, -1 = y, but must be -3 = f, -2 = y, -1 = x
     auto cldnnAxisFromIE = [](int axis, cldnn::format inputFormat) {
-
         if (axis == 0) {
             return cldnn::gather::gather_axis::along_b;
         } else if (axis == 1) {
@@ -3777,9 +3776,7 @@ void Program::CreateGatherPrimitive(cldnn::topology& topology, InferenceEngine::
                 case -3: return cldnn::gather::gather_axis::along_b;
                 default: THROW_CLDNN_EXCEPTION("Unsupported gather axis: " << axis);
             }
-        }
-        else if (inputFormat == cldnn::format::bfzyx)
-        {
+        } else if (inputFormat == cldnn::format::bfzyx) {
             switch (axis) {
                 case 2: return cldnn::gather::gather_axis::along_z;
                 case 3: return cldnn::gather::gather_axis::along_y;
@@ -3790,9 +3787,7 @@ void Program::CreateGatherPrimitive(cldnn::topology& topology, InferenceEngine::
                 case -4: return cldnn::gather::gather_axis::along_b;
                 default: THROW_CLDNN_EXCEPTION("Unsupported gather axis: " << axis);
             }
-        }
-        else if (inputFormat == cldnn::format::bfwzyx)
-        {
+        } else if (inputFormat == cldnn::format::bfwzyx) {
             switch (axis) {
                 case 2: return cldnn::gather::gather_axis::along_w;
                 case 3: return cldnn::gather::gather_axis::along_z;
@@ -3805,6 +3800,8 @@ void Program::CreateGatherPrimitive(cldnn::topology& topology, InferenceEngine::
                 case -5: return cldnn::gather::gather_axis::along_b;
                 default: THROW_CLDNN_EXCEPTION("Unsupported gather axis: " << axis);
             }
+        } else {
+            THROW_CLDNN_EXCEPTION("Unsupported gather axis: " << axis);
         }
     };
 
@@ -3845,7 +3842,6 @@ void Program::CreateGatherPrimitive(cldnn::topology& topology, InferenceEngine::
 
     topology.add(gatherPrim);
     AddPrimitiveToProfiler(gatherLayerName, layer);
-
 }
 
 void CLDNNPlugin::Program::CreateGatherTreePrimitive(cldnn::topology & topology, InferenceEngine::CNNLayerPtr & layer) {

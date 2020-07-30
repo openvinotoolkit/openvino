@@ -188,14 +188,7 @@ JitConstants GatherKernelRef::GetJitConstants(const gather_params& params) const
     jit.AddConstant(MakeJitConstant("INDICES_INDEX_ORDER", GetIndecesIdxOrder(params, GetGatherChannelIndex(params))));
 
     if (!params.fused_ops.empty()) {
-        std::vector<std::string> idx_order;
-        if (params.inputs[0].GetDims().size() <= 4) {
-            idx_order = {"b", "f", "y", "x"};
-        } else if (params.inputs[0].GetDims().size() == 5) {
-            idx_order = {"b", "f", "z", "y", "x"};
-        } else if (params.inputs[0].GetDims().size() == 6) {
-            idx_order = {"b", "f", "w", "z", "y", "x"};
-        }
+        std::vector<std::string> idx_order = GetOrder(params.inputs[0].GetDims().size());
 
         FusedOpsConfiguration conf = { "", idx_order, "val", params.inputs[0].GetDType() };
         jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
