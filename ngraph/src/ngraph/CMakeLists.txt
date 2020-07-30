@@ -64,8 +64,6 @@ set (SRC
     descriptor/tensor.hpp
     dimension.cpp
     dimension.hpp
-    distributed/null.cpp
-    distributed/null.hpp
     distributed.cpp
     distributed.hpp
     enum_names.hpp
@@ -284,8 +282,6 @@ set (SRC
     op/quantized_dot.hpp
     op/range.cpp
     op/range.hpp
-    op/recv.cpp
-    op/recv.hpp
     op/relu.cpp
     op/relu.hpp
     op/replace_slice.cpp
@@ -306,8 +302,6 @@ set (SRC
     op/scatter_update.hpp
     op/select.cpp
     op/select.hpp
-    op/send.cpp
-    op/send.hpp
     op/shape_of.cpp
     op/shape_of.hpp
     op/sigmoid.cpp
@@ -528,10 +522,6 @@ set (SRC
     slice_plan.hpp
     specialize_function.cpp
     specialize_function.hpp
-    state/bernoulli_rng_state.cpp
-    state/bernoulli_rng_state.hpp
-    state/uniform_rng_state.cpp
-    state/uniform_rng_state.hpp
     strides.cpp
     strides.hpp
     type/bfloat16.cpp
