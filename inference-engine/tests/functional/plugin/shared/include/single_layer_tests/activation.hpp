@@ -78,7 +78,7 @@ typedef std::tuple<
         std::string> activationParams;
 
 class ActivationLayerTest : public testing::WithParamInterface<activationParams>,
-                            public LayerTestsUtils::LayerTestsCommon {
+                            virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     ngraph::helpers::ActivationTypes activationType;
     static std::string getTestCaseName(const testing::TestParamInfo<activationParams> &obj);

@@ -21,7 +21,7 @@ using spaceToDepthParamsTuple = typename std::tuple<
         std::string>;                                   // Device name>
 
 class SpaceToDepthLayerTest : public testing::WithParamInterface<spaceToDepthParamsTuple>,
-                              public LayerTestsUtils::LayerTestsCommon {
+                              virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<spaceToDepthParamsTuple> &obj);
 

@@ -28,7 +28,7 @@ typedef std::tuple<
 > ComparisonTestParams;
 
 class ComparisonLayerTest : public testing::WithParamInterface<ComparisonTestParams>,
-    public LayerTestsUtils::LayerTestsCommon {
+    virtual public LayerTestsUtils::LayerTestsCommon {
 protected:
     void SetUp() override;
 

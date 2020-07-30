@@ -25,7 +25,7 @@ struct DataShapeWithUpperBound {
     DataShape upperBoundShape;
 };
 
-class DSR_TestsCommon : public LayerTestsUtils::LayerTestsCommon {
+class DSR_TestsCommon : virtual public LayerTestsUtils::LayerTestsCommon {
 protected:
     std::unordered_map<std::string, DataShape> m_shapes;
     ngraph::ParameterVector m_parameterVector;

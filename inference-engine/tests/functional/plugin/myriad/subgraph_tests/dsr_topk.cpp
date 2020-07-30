@@ -44,7 +44,7 @@ using Parameters = std::tuple<
 >;
 
 class DSR_TopK_Const : public testing::WithParamInterface<Parameters>,
-        public LayerTestsUtils::LayerTestsCommon {
+        virtual public LayerTestsUtils::LayerTestsCommon {
 protected:
     void SetUp() override {
         const auto& parameters = GetParam();
@@ -80,7 +80,7 @@ TEST_P(DSR_TopK_Const, CompareWithReference) {
 INSTANTIATE_TEST_CASE_P(DISABLED_DynamicTopKConst, DSR_TopK_Const, combinations);
 
 class DSR_TopK : public testing::WithParamInterface<Parameters>,
-        public LayerTestsUtils::LayerTestsCommon {
+        virtual public LayerTestsUtils::LayerTestsCommon {
 protected:
     void SetUp() override {
         const auto& parameters = GetParam();

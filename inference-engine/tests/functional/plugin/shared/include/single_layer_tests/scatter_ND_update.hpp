@@ -25,7 +25,7 @@ using scatterNDUpdateParamsTuple = typename std::tuple<
         std::string>;                      // Device name
 
 class ScatterNDUpdateLayerTest : public testing::WithParamInterface<scatterNDUpdateParamsTuple>,
-                                 public LayerTestsUtils::LayerTestsCommon {
+                                 virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<scatterNDUpdateParamsTuple> &obj);
     static std::vector<sliceSelcetInShape> combineShapes(

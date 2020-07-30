@@ -46,7 +46,7 @@ typedef std::tuple<
 namespace LayerTestsDefinitions {
 class PriorBoxClusteredLayerTest
     : public testing::WithParamInterface<priorBoxClusteredLayerParams>,
-      public LayerTestsUtils::LayerTestsCommon {
+      virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<priorBoxClusteredLayerParams>& obj);
 

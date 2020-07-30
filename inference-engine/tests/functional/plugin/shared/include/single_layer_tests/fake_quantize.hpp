@@ -27,7 +27,7 @@ namespace LayerTestsDefinitions {
 
 
 class FakeQuantizeLayerTest : public testing::WithParamInterface<fqLayerTestParamsSet>,
-                              public LayerTestsUtils::LayerTestsCommon {
+                              virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<fqLayerTestParamsSet> obj);
 

@@ -33,7 +33,7 @@ namespace LayerTestsDefinitions {
 
 
 class ConvolutionLayerTest : public testing::WithParamInterface<convLayerTestParamsSet>,
-                             public LayerTestsUtils::LayerTestsCommon {
+                             virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<convLayerTestParamsSet> obj);
 

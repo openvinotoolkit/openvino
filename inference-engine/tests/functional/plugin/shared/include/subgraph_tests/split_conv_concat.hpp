@@ -16,7 +16,7 @@
 namespace LayerTestsDefinitions {
 
 class SplitConvConcat : public testing::WithParamInterface<LayerTestsUtils::basicParams>,
-                        public LayerTestsUtils::LayerTestsCommon {
+                        virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<LayerTestsUtils::basicParams> obj);
 

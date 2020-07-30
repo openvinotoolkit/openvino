@@ -25,7 +25,7 @@ using scatterElementsUpdateParamsTuple = typename std::tuple<
         std::string>;                      // Device name
 
 class ScatterElementsUpdateLayerTest : public testing::WithParamInterface<scatterElementsUpdateParamsTuple>,
-                                       public LayerTestsUtils::LayerTestsCommon {
+                                       virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<scatterElementsUpdateParamsTuple> &obj);
     static std::vector<axisShapeInShape> combineShapes(

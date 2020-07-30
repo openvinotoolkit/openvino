@@ -42,7 +42,7 @@ typedef std::tuple<
 > globalPoolLayerTestParamsSet;
 
 class PoolingLayerTest : public testing::WithParamInterface<poolLayerTestParamsSet>,
-                         public LayerTestsUtils::LayerTestsCommon {
+                         virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<poolLayerTestParamsSet> obj);
 
@@ -51,7 +51,7 @@ protected:
 };
 
 class GlobalPoolingLayerTest : public testing::WithParamInterface<globalPoolLayerTestParamsSet>,
-                               public LayerTestsUtils::LayerTestsCommon {
+                               virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<globalPoolLayerTestParamsSet> obj);
 

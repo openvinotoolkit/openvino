@@ -23,7 +23,7 @@ using MaxMinParamsTuple = typename std::tuple<
 
 class MaxMinLayerTest:
         public testing::WithParamInterface<MaxMinParamsTuple>,
-        public LayerTestsUtils::LayerTestsCommon{
+        virtual public LayerTestsUtils::LayerTestsCommon{
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<MaxMinParamsTuple>& obj);
 protected:

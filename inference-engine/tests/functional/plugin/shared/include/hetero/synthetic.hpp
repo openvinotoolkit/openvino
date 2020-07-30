@@ -29,7 +29,7 @@ using HeteroSyntheticTestParameters = std::tuple<
 >;
 
 struct HeteroSyntheticTest : public testing::WithParamInterface<HeteroSyntheticTestParameters>,
-                             public LayerTestsUtils::LayerTestsCommon {
+                             virtual public LayerTestsUtils::LayerTestsCommon {
     enum {Plugin, Function};
     ~HeteroSyntheticTest() override = default;
     void SetUp() override;

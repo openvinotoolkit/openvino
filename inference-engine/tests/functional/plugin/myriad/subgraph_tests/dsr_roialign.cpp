@@ -26,7 +26,7 @@ using Parameters = std::tuple<
 >;
 
 class DSR_ROIAlignDataDSR : public testing::WithParamInterface<Parameters>,
-        public LayerTestsUtils::LayerTestsCommon {
+        virtual public LayerTestsUtils::LayerTestsCommon {
 protected:
     void SetUp() override {
         const auto& parameters = GetParam();
@@ -71,7 +71,7 @@ INSTANTIATE_TEST_CASE_P(DISABLED_DynamicROIAlignDataDSR, DSR_ROIAlignDataDSR,
 
 
 class DSR_ROIAlignROIDSR : public testing::WithParamInterface<Parameters>,
-        public LayerTestsUtils::LayerTestsCommon {
+        virtual public LayerTestsUtils::LayerTestsCommon {
 protected:
     void SetUp() override {
         const auto& parameters = GetParam();
@@ -115,7 +115,7 @@ INSTANTIATE_TEST_CASE_P(DISABLED_DynamicROIAlign, DSR_ROIAlignROIDSR,
         ::testing::Values(CommonTestUtils::DEVICE_MYRIAD)));
 
 class DSR_ROIAlign : public testing::WithParamInterface<Parameters>,
-        public LayerTestsUtils::LayerTestsCommon {
+        virtual public LayerTestsUtils::LayerTestsCommon {
 protected:
     void SetUp() override {
         const auto& parameters = GetParam();

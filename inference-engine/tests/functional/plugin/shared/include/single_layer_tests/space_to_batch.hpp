@@ -22,7 +22,7 @@ using spaceToBatchParamsTuple = typename std::tuple<
         std::string>;                      // Device name>;
 
 class SpaceToBatchLayerTest : public testing::WithParamInterface<spaceToBatchParamsTuple>,
-                              public LayerTestsUtils::LayerTestsCommon {
+                              virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<spaceToBatchParamsTuple> &obj);
 

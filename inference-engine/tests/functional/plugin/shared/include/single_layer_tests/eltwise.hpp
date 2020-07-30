@@ -33,7 +33,7 @@ typedef std::tuple<
 > EltwiseTestParams;
 
 class EltwiseLayerTest : public testing::WithParamInterface<EltwiseTestParams>,
-    public LayerTestsUtils::LayerTestsCommon {
+    virtual public LayerTestsUtils::LayerTestsCommon {
 protected:
     void SetUp() override;
 

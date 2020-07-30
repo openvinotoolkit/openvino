@@ -24,7 +24,7 @@ typedef std::tuple<
         std::string                        // Device name
 > gatherParamsTuple;
 class GatherLayerTest : public testing::WithParamInterface<gatherParamsTuple>,
-                        public LayerTestsUtils::LayerTestsCommon {
+                        virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<gatherParamsTuple> &obj);
 

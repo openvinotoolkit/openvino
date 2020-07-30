@@ -25,7 +25,7 @@ namespace LayerTestsDefinitions {
 
 
 class ShuffleChannelsLayerTest : public testing::WithParamInterface<shuffleChannelsLayerTestParamsSet>,
-                                 public LayerTestsUtils::LayerTestsCommon {
+                                 virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<shuffleChannelsLayerTestParamsSet> obj);
 

@@ -19,7 +19,7 @@ typedef std::tuple<
 > MultipleAllocationsParams;
 
 class MultipleAllocations : public testing::WithParamInterface<MultipleAllocationsParams>,
-                        public LayerTestsUtils::LayerTestsCommon {
+                        virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<MultipleAllocationsParams>& obj);
 

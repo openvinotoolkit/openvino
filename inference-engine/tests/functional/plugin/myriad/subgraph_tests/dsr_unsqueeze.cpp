@@ -24,7 +24,7 @@ using Parameters = std::tuple<
     LayerTestsUtils::TargetDevice
 >;
 
-class DSR_Unsqueeze : public testing::WithParamInterface<Parameters>, public LayerTestsUtils::LayerTestsCommon {
+class DSR_Unsqueeze : public testing::WithParamInterface<Parameters>, virtual public LayerTestsUtils::LayerTestsCommon {
 protected:
     void SetUp() override {
         const auto& parameters = GetParam();

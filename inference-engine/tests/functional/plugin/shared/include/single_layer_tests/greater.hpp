@@ -24,7 +24,7 @@ using GreaterTestParam = typename std::tuple<
         LayerTestsUtils::TargetDevice>;            // Config
 
 class GreaterLayerTest : public testing::WithParamInterface<GreaterTestParam>,
-                         public LayerTestsUtils::LayerTestsCommon {
+                         virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<GreaterTestParam>& obj);
 
