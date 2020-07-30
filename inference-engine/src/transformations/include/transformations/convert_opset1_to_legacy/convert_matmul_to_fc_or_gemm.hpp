@@ -19,11 +19,26 @@ namespace ngraph {
 namespace pass {
 
 class TRANSFORMATIONS_API ConvertMatMulToFCorGemm;
+class TRANSFORMATIONS_API ConvertMatMulToFC;
+class TRANSFORMATIONS_API ConvertMatMulToGemm;
 
 }  // namespace pass
 }  // namespace ngraph
 
-class ngraph::pass::ConvertMatMulToFCorGemm: public ngraph::pass::MatcherPass {
+class ngraph::pass::ConvertMatMulToFCorGemm: public ngraph::pass::GraphRewrite {
 public:
-    ConvertMatMulToFCorGemm();
+    ConvertMatMulToFCorGemm() {
+        add_matcher<ngraph::pass::ConvertMatMulToFC>();
+        add_matcher<ngraph::pass::ConvertMatMulToGemm>();
+    }
+};
+
+class ngraph::pass::ConvertMatMulToFC: public ngraph::pass::MatcherPass {
+public:
+    ConvertMatMulToFC();
+};
+
+class ngraph::pass::ConvertMatMulToGemm: public ngraph::pass::MatcherPass {
+public:
+    ConvertMatMulToGemm();
 };

@@ -12,11 +12,13 @@
 
 #include <memory>
 #include <string>
+
 #include "ie_compound_blob.h"
-#include "ie_core.hpp"
-#include "gpu_params.hpp"
-#include "details/gpu_context_helpers.hpp"
-#include "gpu_ocl_wrapper.hpp"
+#include "ie_remote_context.hpp"
+
+#include "gpu/gpu_params.hpp"
+#include "gpu/gpu_ocl_wrapper.hpp"
+#include "gpu/details/gpu_context_helpers.hpp"
 
 namespace InferenceEngine {
 

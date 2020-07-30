@@ -16,8 +16,7 @@
 
 import numpy as np
 
-from mo.front.common.partial_infer.utils import mark_input_bins, assign_dims_to_weights, \
-    tf_window_op_pad_infer
+from mo.front.common.partial_infer.utils import mark_input_bins, assign_dims_to_weights, tf_window_op_pad_infer
 from mo.front.extractor import spatial_getter
 from mo.front.onnx.extractors.utils import get_backend_pad
 from mo.graph.graph import Node, Graph
@@ -30,58 +29,25 @@ class Deconvolution(Op):
 
     def __init__(self, graph: Graph, attrs: dict):
         super().__init__(graph, {
-            'type': __class__.op,
-            'op': __class__.op,
+            'type': self.op,
+            'op': self.op,
             'version': 'opset1',
-            'infer': __class__.infer,
+            'infer': self.infer,
             'in_ports_count': 3,
             'out_ports_count': 1,
-
         }, attrs)
 
     def backend_attrs(self):
-        if self.ir_version == 10:
-            return [
-                ('dilations', lambda node: ','.join(map(str, node['dilation'][node.spatial_dims]))),
-                ('strides', lambda node: ','.join(map(str, node['stride'][node.spatial_dims]))),
-                ('pads_begin',
-                 lambda node: ','.join(map(str, get_backend_pad(node.pad, node.spatial_dims, 0))) if node.has_valid(
-                     'pad') else None),
-                ('pads_end',
-                 lambda node: ','.join(map(str, get_backend_pad(node.pad, node.spatial_dims, 1))) if node.has_valid(
-                     'pad') else None),
-                'auto_pad',
-            ]
         return [
-            ('dilations',
-             lambda node: ','.join(map(str, node['dilation'][node.spatial_dims])) if node.has_valid('dilation')
-             else None),
-            'auto_pad',
-            'group',
+            ('dilations', lambda node: ','.join(map(str, node['dilation'][node.spatial_dims]))),
             ('strides', lambda node: ','.join(map(str, node['stride'][node.spatial_dims]))),
-            ('kernel', lambda node: ','.join(map(str, node['kernel_spatial']))),
-
-            ('pads_begin', lambda node: ','.join(map(str, get_backend_pad(node.pad, node.spatial_dims, 0)))),
-            ('pads_end', lambda node: ','.join(map(str, get_backend_pad(node.pad, node.spatial_dims, 1)))),
-            'output'
-        ]
-
-    def backend_attrs_v2(self):
-        return [
-            spatial_getter('stride-x', 'stride', 1),
-            spatial_getter('stride-y', 'stride', 0),
-
-            ('kernel-x', lambda node: node.kernel_spatial[1]),
-            ('kernel-y', lambda node: node.kernel_spatial[0]),
-
-            spatial_getter('pad-x', 'pad', 1, lambda x: x[0]),
-            spatial_getter('pad-y', 'pad', 0, lambda x: x[0]),
-            spatial_getter('pad-r', 'pad', 1, lambda x: x[1]),
-            spatial_getter('pad-b', 'pad', 0, lambda x: x[1]),
-
+            ('pads_begin',
+             lambda node: ','.join(map(str, get_backend_pad(node.pad, node.spatial_dims, 0))) if node.has_valid(
+                 'pad') else None),
+            ('pads_end',
+             lambda node: ','.join(map(str, get_backend_pad(node.pad, node.spatial_dims, 1))) if node.has_valid(
+                 'pad') else None),
             'auto_pad',
-            'output',
-            'group',
         ]
 
     @staticmethod

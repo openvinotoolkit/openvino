@@ -3,10 +3,8 @@
 //
 
 /**
- * @brief a header for advanced hardware related properties for IE plugins
- *
- *        To use in SetConfig() method of plugins
- *        LoadNetwork() method overloads that accept config as parameter
+ * @brief A header for advanced hardware related properties for IE plugins
+ *        To use in SetConfig, LoadNetwork, ImportNetwork methods of plugins
  *
  * @file ie_plugin_config.hpp
  */

@@ -26,6 +26,7 @@
 #include <transformations/convert_opset2_to_opset1/convert_opset2_to_opset1.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
 #include <vpu/ngraph/transformations/merge_subsequent_dsr_operations.hpp>
+#include <vpu/ngraph/operations/dynamic_shape_resolver.hpp>
 
 namespace vpu {
 
@@ -380,8 +381,10 @@ ModelPtr FrontEnd::runCommonPasses(ie::ICNNNetwork& network, const UnsupportedLa
 
         auto convertNetwork = [&convertedNetwork, &originalOrConvertNetwork]() {
             // disable GeLU decomposition
-            const auto transformationsPredicate = [](const std::shared_ptr<const ::ngraph::Node> &node) -> bool {
-                return std::dynamic_pointer_cast<const ::ngraph::opset3::Gelu>(node) != nullptr;
+            const auto transformationsPredicate = [](const std::shared_ptr<const ngraph::Node> &node) -> bool {
+                return std::dynamic_pointer_cast<const ngraph::opset3::Gelu>(node) ||
+                       (std::dynamic_pointer_cast<const ngraph::opset3::MatMul>(node) &&
+                        std::dynamic_pointer_cast<const ngraph::vpu::op::DynamicShapeResolver>(node->input_value(0).get_node_shared_ptr()));
             };
 
             auto nGraphFunc = originalOrConvertNetwork->getFunction();

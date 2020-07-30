@@ -27,7 +27,7 @@ namespace ngraph
         {
             namespace set_1
             {
-                NodeVector mean(const Node& node);
+                OutputVector mean(const Node& node);
 
             } // namespace set_1
 

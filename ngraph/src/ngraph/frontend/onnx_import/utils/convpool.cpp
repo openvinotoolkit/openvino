@@ -30,7 +30,7 @@ namespace ngraph
         {
             Shape get_kernel_shape(const Node& node)
             {
-                const auto& data_shape = node.get_ng_inputs().at(0)->get_output_partial_shape(0);
+                const auto& data_shape = node.get_ng_inputs().at(0).get_partial_shape();
                 const size_t input_spatial_dims = data_shape.rank().get_length() - 2;
                 return node.get_attribute_value<std::vector<size_t>>(
                     "kernel_shape", std::vector<size_t>(input_spatial_dims, 1UL));
@@ -48,8 +48,7 @@ namespace ngraph
                 std::vector<std::size_t> get_attr_default_value(const Node& node,
                                                                 const std::string& attr_name)
                 {
-                    const auto data_rank =
-                        node.get_ng_inputs().at(0)->get_output_partial_shape(0).rank();
+                    const auto data_rank = node.get_ng_inputs().at(0).get_partial_shape().rank();
                     CHECK_VALID_NODE(node,
                                      data_rank.is_static(),
                                      "If '",
@@ -152,8 +151,7 @@ namespace ngraph
 
             std::pair<CoordinateDiff, CoordinateDiff> get_pads(const Node& node)
             {
-                const auto data_rank =
-                    node.get_ng_inputs().at(0)->get_output_partial_shape(0).rank();
+                const auto data_rank = node.get_ng_inputs().at(0).get_partial_shape().rank();
                 CHECK_VALID_NODE(node,
                                  data_rank.is_static(),
                                  "The rank of node must be static in order to calculate pads");

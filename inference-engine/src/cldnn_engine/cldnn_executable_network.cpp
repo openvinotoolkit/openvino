@@ -21,7 +21,6 @@
 #include <net_pass.h>
 #include "cldnn_infer_request.h"
 #include <threading/ie_executor_manager.hpp>
-#include "details/caseless.hpp"
 #include "cldnn_async_infer_request.h"
 #include <fstream>
 #include <utility>

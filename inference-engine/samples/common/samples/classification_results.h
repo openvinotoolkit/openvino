@@ -12,7 +12,7 @@
 #include <utility>
 #include <algorithm>
 
-#include <ie_blob.h>
+#include <inference_engine.hpp>
 
 /**
  * @class ClassificationResult

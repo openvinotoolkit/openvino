@@ -68,7 +68,7 @@ void op::MatMul::pre_validate_and_infer_types()
     }
 }
 
-NodeVector op::MatMul::decompose_op() const
+OutputVector op::MatMul::decompose_op() const
 {
     auto A = input_value(0);
     auto B = input_value(1);

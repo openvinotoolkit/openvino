@@ -36,13 +36,13 @@ namespace ngraph
         {
             namespace
             {
-                std::shared_ptr<ngraph::Node> get_zero_point(const NodeVector& inputs)
+                Output<ngraph::Node> get_zero_point(const OutputVector& inputs)
                 {
                     if (inputs.size() == 3 && !ngraph::op::is_null(inputs[2]))
                     {
                         auto zero_point = inputs[2];
 
-                        if (zero_point->get_element_type() != element::f32)
+                        if (zero_point.get_element_type() != element::f32)
                         {
                             zero_point =
                                 std::make_shared<default_opset::Convert>(zero_point, element::f32);
@@ -58,9 +58,9 @@ namespace ngraph
             }
             namespace set_1
             {
-                NodeVector dequantize_linear(const Node& node)
+                OutputVector dequantize_linear(const Node& node)
                 {
-                    const NodeVector inputs{node.get_ng_inputs()};
+                    const OutputVector inputs{node.get_ng_inputs()};
 
                     NGRAPH_CHECK(
                         2 <= inputs.size() && inputs.size() <= 3,
@@ -71,8 +71,9 @@ namespace ngraph
                     const auto scale = inputs[1];
                     const auto zero_point = get_zero_point(inputs);
 
-                    common::validate_scalar_input("Dequantization scale", scale, {element::f32});
-                    common::validate_scalar_input("Zero point", zero_point);
+                    common::validate_scalar_input(
+                        "Dequantization scale", scale.get_node_shared_ptr(), {element::f32});
+                    common::validate_scalar_input("Zero point", zero_point.get_node_shared_ptr());
 
                     const auto converted_x =
                         std::make_shared<default_opset::Convert>(x, element::f32);
@@ -86,11 +87,11 @@ namespace ngraph
             {
                 namespace
                 {
-                    void validate_scale(const std::shared_ptr<ngraph::Node> scale,
-                                        const std::shared_ptr<ngraph::Node> x,
+                    void validate_scale(const Output<ngraph::Node> scale,
+                                        const Output<ngraph::Node> x,
                                         const int64_t axis)
                     {
-                        const auto& scale_shape = scale->get_output_partial_shape(0);
+                        const auto& scale_shape = scale.get_partial_shape();
                         NGRAPH_CHECK(scale_shape.rank().get_length() == 0 ||
                                          scale_shape.rank().get_length() == 1,
                                      "Dequantization scale needs to be a scalar or a vector.");
@@ -98,7 +99,7 @@ namespace ngraph
                         if (scale_shape.rank().get_length() == 1)
                         {
                             const auto& scale_dim = scale_shape[0];
-                            const auto& x_shape = x->get_output_partial_shape(0);
+                            const auto& x_shape = x.get_partial_shape();
                             const auto& x_dim_at_axis = x_shape[axis];
 
                             NGRAPH_CHECK(scale_dim.same_scheme(x_dim_at_axis),
@@ -111,11 +112,11 @@ namespace ngraph
                         }
                     }
 
-                    void validate_zero_point(const std::shared_ptr<ngraph::Node> zero_point,
-                                             const std::shared_ptr<ngraph::Node> x,
+                    void validate_zero_point(const Output<ngraph::Node> zero_point,
+                                             const Output<ngraph::Node> x,
                                              const int64_t axis)
                     {
-                        const auto& zero_point_shape = zero_point->get_output_partial_shape(0);
+                        const auto& zero_point_shape = zero_point.get_partial_shape();
                         NGRAPH_CHECK(zero_point_shape.rank().get_length() == 0 ||
                                          zero_point_shape.rank().get_length() == 1,
                                      "Zero point needs to be a scalar or a vector.");
@@ -123,7 +124,7 @@ namespace ngraph
                         if (zero_point_shape.rank().get_length() == 1)
                         {
                             const auto& zero_point_dim = zero_point_shape[0];
-                            const auto& x_shape = x->get_output_partial_shape(0);
+                            const auto& x_shape = x.get_partial_shape();
                             const auto& x_dim_at_axis = x_shape[axis];
 
                             NGRAPH_CHECK(zero_point_dim.same_scheme(x_dim_at_axis),
@@ -136,10 +137,9 @@ namespace ngraph
                         }
                     }
 
-                    std::shared_ptr<ngraph::Node>
-                        reshape_input(const std::shared_ptr<ngraph::Node> input,
-                                      const int64_t axis,
-                                      const PartialShape& x_shape)
+                    std::shared_ptr<ngraph::Node> reshape_input(const Output<ngraph::Node> input,
+                                                                const int64_t axis,
+                                                                const PartialShape& x_shape)
                     {
                         std::vector<int64_t> target_dims;
 
@@ -170,9 +170,9 @@ namespace ngraph
                     }
                 }
 
-                NodeVector dequantize_linear(const Node& node)
+                OutputVector dequantize_linear(const Node& node)
                 {
-                    const NodeVector inputs{node.get_ng_inputs()};
+                    const OutputVector inputs{node.get_ng_inputs()};
 
                     NGRAPH_CHECK(2 <= inputs.size() && inputs.size() <= 3,
                                  "The DequantizeLinear op expects 2 required and one optional "
@@ -183,7 +183,7 @@ namespace ngraph
                     auto scale = inputs[1];
                     auto zero_point = get_zero_point(inputs);
 
-                    const auto x_shape = x->get_output_partial_shape(0);
+                    const auto x_shape = x.get_partial_shape();
 
                     NGRAPH_CHECK(x_shape.rank().is_static(),
                                  "Rank of the input data tensor has to be known (static).");

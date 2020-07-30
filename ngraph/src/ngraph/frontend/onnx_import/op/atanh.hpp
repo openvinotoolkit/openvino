@@ -28,7 +28,7 @@ namespace ngraph
         {
             namespace set_1
             {
-                inline NodeVector atanh(const Node& node)
+                inline OutputVector atanh(const Node& node)
                 {
                     return {std::make_shared<default_opset::Atanh>(node.get_ng_inputs().at(0))};
                 }
