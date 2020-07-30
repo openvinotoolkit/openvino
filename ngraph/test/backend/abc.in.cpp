@@ -16,17 +16,15 @@
 
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
-#include "ngraph/runtime/tensor.hpp"
-#include "runtime/backend.hpp"
-#include "util/all_close_f.hpp"
-#include "util/ndarray.hpp"
+#include "util/engine/test_engines.hpp"
+#include "util/test_case.hpp"
 #include "util/test_control.hpp"
-#include "util/test_tools.hpp"
 
 using namespace std;
 using namespace ngraph;
 
 static string s_manifest = "${MANIFEST}";
+using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
 NGRAPH_TEST(${BACKEND_NAME}, abc)
 {
@@ -36,30 +34,27 @@ NGRAPH_TEST(${BACKEND_NAME}, abc)
     auto C = make_shared<op::Parameter>(element::f32, shape);
     auto f = make_shared<Function>((A + B) * C, ParameterVector{A, B, C});
 
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
+    std::vector<float> a{1, 2, 3, 4};
+    std::vector<float> b{5, 6, 7, 8};
+    std::vector<float> c{9, 10, 11, 12};
 
-    // Create some tensors for input/output
-    shared_ptr<runtime::Tensor> a = backend->create_tensor(element::f32, shape);
-    shared_ptr<runtime::Tensor> b = backend->create_tensor(element::f32, shape);
-    shared_ptr<runtime::Tensor> c = backend->create_tensor(element::f32, shape);
-    shared_ptr<runtime::Tensor> result = backend->create_tensor(element::f32, shape);
+    // (a + b) * c
+    auto test_case_1 = test::TestCase<TestEngine>(f);
+    test_case_1.add_multiple_inputs<float>({a, b, c});
+    test_case_1.add_expected_output<float>(shape, {54, 80, 110, 144});
+    test_case_1.run();
 
-    copy_data(a, test::NDArray<float, 2>({{1, 2}, {3, 4}}).get_vector());
-    copy_data(b, test::NDArray<float, 2>({{5, 6}, {7, 8}}).get_vector());
-    copy_data(c, test::NDArray<float, 2>({{9, 10}, {11, 12}}).get_vector());
+    // (b + a) * c
+    auto test_case_2 = test::TestCase<TestEngine>(f);
+    test_case_2.add_multiple_inputs<float>({b, a, c});
+    test_case_2.add_expected_output<float>(shape, {54, 80, 110, 144});
+    test_case_2.run();
 
-    auto handle = backend->compile(f);
-    handle->call_with_validate({result}, {a, b, c});
-    EXPECT_TRUE(test::all_close_f(read_vector<float>(result),
-                                  (test::NDArray<float, 2>({{54, 80}, {110, 144}})).get_vector()));
-
-    handle->call_with_validate({result}, {b, a, c});
-    EXPECT_TRUE(test::all_close_f(read_vector<float>(result),
-                                  (test::NDArray<float, 2>({{54, 80}, {110, 144}})).get_vector()));
-
-    handle->call_with_validate({result}, {a, c, b});
-    EXPECT_TRUE(test::all_close_f(read_vector<float>(result),
-                                  (test::NDArray<float, 2>({{50, 72}, {98, 128}})).get_vector()));
+    // (a + c) * b
+    auto test_case_3 = test::TestCase<TestEngine>(f);
+    test_case_3.add_multiple_inputs<float>({a, c, b});
+    test_case_3.add_expected_output<float>(shape, {50, 72, 98, 128});
+    test_case_3.run();
 }
 
 NGRAPH_TEST(${BACKEND_NAME}, abc_int64)
@@ -70,24 +65,25 @@ NGRAPH_TEST(${BACKEND_NAME}, abc_int64)
     auto C = make_shared<op::Parameter>(element::i64, shape);
     auto f = make_shared<Function>((A + B) * C, ParameterVector{A, B, C});
 
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
+    std::vector<int64_t> a{1, 2, 3, 4};
+    std::vector<int64_t> b{5, 6, 7, 8};
+    std::vector<int64_t> c{9, 10, 11, 12};
 
-    // Create some tensors for input/output
-    auto a = backend->create_tensor(element::i64, shape);
-    copy_data(a, vector<int64_t>{1, 2, 3, 4});
-    auto b = backend->create_tensor(element::i64, shape);
-    copy_data(b, vector<int64_t>{5, 6, 7, 8});
-    auto c = backend->create_tensor(element::i64, shape);
-    copy_data(c, vector<int64_t>{9, 10, 11, 12});
-    auto result = backend->create_tensor(element::i64, shape);
+    // (a + b) * c
+    auto test_case_1 = test::TestCase<TestEngine>(f);
+    test_case_1.add_multiple_inputs<int64_t>({a, b, c});
+    test_case_1.add_expected_output<int64_t>(shape, {54, 80, 110, 144});
+    test_case_1.run();
 
-    auto handle = backend->compile(f);
-    handle->call_with_validate({result}, {a, b, c});
-    EXPECT_EQ((vector<int64_t>{54, 80, 110, 144}), read_vector<int64_t>(result));
+    // (b + a) * c
+    auto test_case_2 = test::TestCase<TestEngine>(f);
+    test_case_2.add_multiple_inputs<int64_t>({b, a, c});
+    test_case_2.add_expected_output<int64_t>(shape, {54, 80, 110, 144});
+    test_case_2.run();
 
-    handle->call_with_validate({result}, {b, a, c});
-    EXPECT_EQ((vector<int64_t>{54, 80, 110, 144}), read_vector<int64_t>(result));
-
-    handle->call_with_validate({result}, {a, c, b});
-    EXPECT_EQ((vector<int64_t>{50, 72, 98, 128}), read_vector<int64_t>(result));
+    // (a + c) * b
+    auto test_case_3 = test::TestCase<TestEngine>(f);
+    test_case_3.add_multiple_inputs<int64_t>({a, c, b});
+    test_case_3.add_expected_output<int64_t>(shape, {50, 72, 98, 128});
+    test_case_3.run();
 }

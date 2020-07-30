@@ -34,7 +34,7 @@ namespace ngraph
                 ///
                 /// \return     Ngraph node representing this operation.
                 ///
-                NodeVector reshape(const Node& node);
+                OutputVector reshape(const Node& node);
 
             } // namespace set_1
 

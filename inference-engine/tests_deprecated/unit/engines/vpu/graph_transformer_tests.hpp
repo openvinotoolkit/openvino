@@ -17,6 +17,8 @@
 #include <vpu/middleend/pass_manager.hpp>
 #include <vpu/backend/backend.hpp>
 
+#include <unit_test_utils/mocks/cpp_interfaces/interface/mock_icore.hpp>
+
 namespace vpu {
 
 template <class Cont, class Cond>
@@ -196,6 +198,7 @@ public:
     TestModel CreateTestModel(const DataDesc& dataDesc);
 
 private:
+    MockICore  _mockCore;
     Logger::Ptr _log;
     std::list<ModelPtr> _models;
 };

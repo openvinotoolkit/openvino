@@ -10,7 +10,6 @@
 #include <set>
 #include <map>
 
-#include <details/caseless.hpp>
 #include <details/ie_cnn_network_iterator.hpp>
 #include <cpp/ie_cnn_network.h>
 #include <graph_tools.hpp>

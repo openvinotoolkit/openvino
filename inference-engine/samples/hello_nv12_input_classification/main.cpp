@@ -11,7 +11,6 @@
 #include <memory>
 
 #include <inference_engine.hpp>
-#include <ie_compound_blob.h>
 
 #include <samples/common.hpp>
 #include <samples/classification_results.h>

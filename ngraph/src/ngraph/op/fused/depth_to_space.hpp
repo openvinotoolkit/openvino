@@ -66,7 +66,7 @@ namespace ngraph
 
                 std::size_t get_block_size() const { return m_blocksize; }
                 DepthToSpaceMode get_mode() const { return m_mode; }
-                virtual NodeVector decompose_op() const override;
+                virtual OutputVector decompose_op() const override;
 
                 virtual std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;

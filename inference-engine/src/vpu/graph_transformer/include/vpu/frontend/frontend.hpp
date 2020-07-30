@@ -12,8 +12,8 @@
 #include <tuple>
 #include <set>
 
+#include <ie_icore.hpp>
 #include <cpp/ie_cnn_network.h>
-#include <details/caseless.hpp>
 
 #include <vpu/stage_builder.hpp>
 #include <vpu/frontend/ie_parsed_network.hpp>
@@ -30,7 +30,7 @@ class FrontEnd final {
 public:
     using Ptr = std::shared_ptr<FrontEnd>;
 
-    explicit FrontEnd(StageBuilder::Ptr stageBuilder);
+    explicit FrontEnd(StageBuilder::Ptr stageBuilder, const ie::ICore* core);
 
     ModelPtr buildInitialModel(ie::ICNNNetwork& network);
 
@@ -204,6 +204,7 @@ private:
 
 private:
     StageBuilder::Ptr _stageBuilder;
+    const ie::ICore* _core = nullptr;
 
     IeParsedNetwork _ieParsedNetwork;
     std::unordered_set<ie::DataPtr> _unbatchedOutputs;

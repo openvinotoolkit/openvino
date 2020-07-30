@@ -4,23 +4,24 @@
 
 #pragma once
 
-#include <ngraph/opsets/opset.hpp>
+#ifdef IR_READER_V10
+# include <ngraph/node.hpp>
+# include <ie_ngraph_utils.hpp>
+#endif  // IR_READER_V10
+
 #include <ie_blob.h>
 #include <ie_icnn_network.hpp>
 #include <ie_iextension.h>
 #include <xml_parse_utils.h>
 
+#include <cctype>
 #include <algorithm>
-#include <details/caseless.hpp>
 #include <map>
 #include <memory>
-#include <ngraph/ngraph.hpp>
 #include <set>
 #include <sstream>
 #include <string>
 #include <vector>
-
-#include "ie_ngraph_utils.hpp"
 
 namespace InferenceEngine {
 
@@ -47,6 +48,8 @@ public:
     CNNParser() = default;
     std::shared_ptr<ICNNNetwork> parse(const pugi::xml_node& root, std::istream& binStream) override;
 };
+
+#ifdef IR_READER_V10
 
 class V10Parser : public IParser {
 public:
@@ -290,5 +293,7 @@ private:
         }
     };
 };
+
+#endif  // IR_READER_V10
 
 }  // namespace InferenceEngine
