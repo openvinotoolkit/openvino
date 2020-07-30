@@ -17,6 +17,7 @@
 #pragma once
 
 #include <algorithm>
+#include <cassert>
 #include <cmath>
 #include <cstddef>
 #include <functional>
@@ -233,6 +234,12 @@ namespace ngraph
                 void linear_onnx_func(const T* input_data, T* out);
                 void cubic_func(const T* input_data, T* out);
                 void nearest_func(const T* input_data, T* out);
+
+                int64_t clip_coord(int64_t coord, float length)
+                {
+                    return std::max(static_cast<int64_t>(0),
+                                    std::min(coord, static_cast<int64_t>(length) - 1));
+                }
             };
 
             template <typename T>
@@ -243,6 +250,39 @@ namespace ngraph
             template <typename T>
             void InterpolateEval<T>::linear_onnx_func(const T* input_data, T* out)
             {
+                std::size_t input_rank = m_input_data_shape.size();
+                assert((input_rank == 2) || (input_rank == 4));
+
+                Shape input_shape = Shape{1, 1, m_input_data_shape[0], m_input_data_shape[1]};
+                Shape output_shape = Shape{1, 1, m_out_shape[0], m_out_shape[1]};
+                std::vector<float> scales = {1.0, 1.0, m_scales[0], m_scales[1]};
+                if (input_rank == 4)
+                {
+                    input_shape = m_input_data_shape;
+                    output_shape = m_out_shape;
+                    scales = m_scales;
+                }
+                std::size_t output_height = self.output_shape[2];
+                std::size_t output_width = output_shape[3];
+                std::size_t input_height = input_shape[2];
+                std::size_t input_width = input_shape[3];
+                float height_scale = scales[2];
+                float width_scale = scales[3];
+                std::size_t batch_size = input_shape[0];
+                std::size_t num_channels = input_shape[1];
+
+                std::vector<int64_t> in_y1(output_height);
+                std::vector<int64_t> in_y2(output_height);
+                std::vector<int64_t> in_x1(output_width);
+                std::vector<int64_t> in_x2(output_width);
+
+                std::vector<float> dy1(output_height);
+                std::vector<float> dy2(output_height);
+                std::vector<float> dx1(output_width);
+                std::vector<float> dx2(output_width);
+
+                std::vector<float> y_original(output_height);
+                std::vector<float> x_original(output_width);
             }
 
             template <typename T>
@@ -275,9 +315,7 @@ namespace ngraph
                         float in_coord = m_get_original_coord(
                             coordinate, scale, length_resized, length_original);
                         int64_t nearest_pixel = m_get_nearest_pixel(in_coord, scale < 1.0);
-                        int64_t clipped_coord =
-                            std::min(nearest_pixel, static_cast<int64_t>(length_original) - 1);
-                        input_coords[axis] = std::max(0, clipped_coord);
+                        input_coords[axis] = clip_coord(nearest_pixel, length_original);
                     }
                     result[coordinates] = input_data[input_coords];
                 }
