@@ -4,69 +4,75 @@
 
 #include "layer_transformation.hpp"
 
+#include <string>
+#include <sstream>
 #include <gtest/gtest.h>
 
 #include <transformations/init_node_info.hpp>
 #include <transformations/low_precision/clamp.hpp>
 
 #include "common_test_utils/ngraph_test_utils.hpp"
-#include "simple_low_precision_transformer.hpp"
+#include "ngraph_functions/low_precision_transformations/common/dequantization_operations.hpp"
 #include "ngraph_functions/low_precision_transformations/clamp_function.hpp"
+#include "simple_low_precision_transformer.hpp"
 
+namespace {
 using namespace testing;
 using namespace ngraph::pass;
 
 class ClampTransformationTestValues {
 public:
-    low_precision::LayerTransformation::Params transformationParams;
-    ngraph::builder::subgraph::ClampFunction::ActualValues actual;
-    ngraph::builder::subgraph::ClampFunction::ExpectedValues expected;
+    class Actual {
+    public:
+        ngraph::element::Type precisionBeforeDequantization;
+        ngraph::builder::subgraph::DequantizationOperations dequantization;
+    };
+
+    class Expected {
+    public:
+        ngraph::element::Type precisionBeforeDequantization;
+        ngraph::builder::subgraph::DequantizationOperations dequantizationBefore;
+        ngraph::element::Type precisionAfterOperation;
+        ngraph::builder::subgraph::DequantizationOperations dequantizationAfter;
+    };
+
+    ngraph::Shape inputShape;
+    ngraph::pass::low_precision::LayerTransformation::Params params;
+    Actual actual;
+    Expected expected;
 };
 
-typedef std::tuple<
-    ngraph::element::Type,
-    ngraph::Shape,
-    bool,
-    ClampTransformationTestValues> ClampTransformationParams;
-
-class ClampTransformation : public LayerTransformation, public testing::WithParamInterface<ClampTransformationParams> {
+class ClampTransformation : public LayerTransformation, public testing::WithParamInterface<ClampTransformationTestValues> {
 public:
     void SetUp() override {
-        const ngraph::element::Type precision = std::get<0>(GetParam());
-        const ngraph::Shape shape = std::get<1>(GetParam());
-        const bool updatePrecisions = std::get<2>(GetParam());
-        const ClampTransformationTestValues testValues = std::get<3>(GetParam());
-
-        const low_precision::LayerTransformation::Params params = low_precision::LayerTransformation::Params(testValues.transformationParams).
-            setUpdatePrecisions(updatePrecisions);
+        const ClampTransformationTestValues testValues = GetParam();
 
         actualFunction = ngraph::builder::subgraph::ClampFunction::getOriginal(
-            precision,
-            shape,
-            updatePrecisions,
-            testValues.actual);
+            testValues.inputShape,
+            testValues.actual.precisionBeforeDequantization,
+            testValues.actual.dequantization);
 
-        SimpleLowPrecisionTransformer transform;
-        transform.add<ngraph::pass::low_precision::ClampTransformation, ngraph::opset1::Clamp>(testValues.transformationParams);
-        transform.transform(actualFunction);
+        SimpleLowPrecisionTransformer transformer;
+        transformer.add<ngraph::pass::low_precision::ClampTransformation, ngraph::opset1::Clamp>(testValues.params);
+        transformer.transform(actualFunction);
 
         referenceFunction = ngraph::builder::subgraph::ClampFunction::getReference(
-            precision,
-            shape,
-            updatePrecisions,
-            testValues.expected);
+            testValues.inputShape,
+            testValues.expected.precisionBeforeDequantization,
+            testValues.expected.dequantizationBefore,
+            testValues.expected.precisionAfterOperation,
+            testValues.expected.dequantizationAfter);
     }
 
-    static std::string getTestCaseName(testing::TestParamInfo<ClampTransformationParams> obj) {
-        const ngraph::element::Type precision = std::get<0>(obj.param);
-        const ngraph::Shape shape = std::get<1>(obj.param);
-        const bool updatePrecisions = std::get<2>(obj.param);
-        ClampTransformationTestValues testValues = std::get<3>(obj.param);
+    static std::string getTestCaseName(testing::TestParamInfo<ClampTransformationTestValues> obj) {
+        const ClampTransformationTestValues testValues = obj.param;
 
         std::ostringstream result;
         result <<
-            LayerTransformation::getTestCaseNameByParams(precision, shape, testValues.transformationParams.setUpdatePrecisions(updatePrecisions)) <<
-            testValues.actual << testValues.expected;
+            testValues.inputShape << "_" <<
+            testValues.actual.precisionBeforeDequantization << "_" <<
+            testValues.actual.dequantization << "_" <<
+            testValues.expected.dequantizationBefore;
         return result.str();
     }
 };
@@ -79,103 +85,107 @@ TEST_P(ClampTransformation, CompareFunctions) {
     ASSERT_TRUE(res.first) << res.second;
 }
 
-const std::vector<ngraph::element::Type> precisions = {
-    ngraph::element::f32,
-    ngraph::element::f16
-};
-
-const std::vector<ngraph::Shape> shapes = {
-    { 1, 3, 224, 224 }
-};
-
-const std::vector<bool> updatePrecision = {
-    true,
-    false
-};
-
 const std::vector<ClampTransformationTestValues> testValues = {
     {
+        ngraph::Shape({ 1, 3, 224, 224 }),
         LayerTransformation::createParamsU8I8(),
         // ActualValues
         {
             ngraph::element::u8,
-            { 128.f },
-            { 3.f }
+            {{ngraph::element::f32}, {128.f}, {3.f}}
         },
         // ExpectedValues
         {
             ngraph::element::u8,
-            { 128.f },
-            { 3.f }
+            {{}, {}, {}},
+            ngraph::element::f32,
+            {{}, {128.f}, {3.f}}
         }
     },
     {
-        LayerTransformation::createParamsU8I8(),
-        // ActualValues
-        {
-            ngraph::element::u8,
-            { 128.f },
-            { -5.f }
-        },
-        // ExpectedValues
-        {
-            ngraph::element::u8,
-            { 128.f },
-            { -5.f }
-        }
-    },
-    {
-        LayerTransformation::createParamsU8I8(),
-        // ActualValues
-        {
-            ngraph::element::u8,
-            { },
-            { 3.f }
-        },
-        // ExpectedValues
-        {
-            ngraph::element::u8,
-            { },
-            { 3.f }
-        }
-    },
-    {
+        ngraph::Shape({ 1, 3, 224, 224 }),
         LayerTransformation::createParamsI8I8(),
         // ActualValues
         {
             ngraph::element::i8,
-            { 0.f },
-            { 5.f }
+            {{ngraph::element::f32}, {128.f}, {-5.f}}
         },
         // ExpectedValues
         {
             ngraph::element::i8,
-            { 0.f },
-            { 5.f }
+            {{}, {}, {}},
+            ngraph::element::f32,
+            {{}, {128.f}, {-5.f}}
         }
     },
     {
+        ngraph::Shape({ 1, 3, 224, 224 }),
         LayerTransformation::createParamsU8I8(),
         // ActualValues
         {
             ngraph::element::u8,
-            { 0.f, 0.f, -255.f },
-            { 0.01f, 0.01f, 0.005f }
+            {{ngraph::element::f32}, {}, {3.f}}
         },
         // ExpectedValues
         {
             ngraph::element::u8,
-            { 0.f, 0.f, -255.f },
-            { 0.01f, 0.01f, 0.005f }
+            {{}, {}, {}},
+            ngraph::element::f32,
+            {{}, {}, {3.f}}
         }
-    }
+    },
+    {
+        ngraph::Shape({ 1, 3, 224, 224 }),
+        LayerTransformation::createParamsU8I8(),
+        // ActualValues
+        {
+            ngraph::element::u8,
+            {
+                {ngraph::element::f32},
+                {{128.f, 0.f, 128.f}},
+                {{3.f, 1.f, 2.f}}
+            }
+        },
+        // ExpectedValues
+        {
+            ngraph::element::u8,
+            {
+                {ngraph::element::f32},
+                {{128.f, 0.f, 128.f}},
+                {{3.f, 1.f, 2.f}}
+            },
+            ngraph::element::f32,
+            {{}, {}, {}}
+        }
+    },
+    {
+        ngraph::Shape({ 1, 3, 224, 224 }),
+        LayerTransformation::createParamsU8I8(),
+        // ActualValues
+        {
+            ngraph::element::i8,
+            {
+                {ngraph::element::f32},
+                {},
+                {{3.f, 1.f, 2.f}}
+            }
+        },
+        // ExpectedValues
+        {
+            ngraph::element::i8,
+            {
+                {ngraph::element::f32},
+                {},
+                {{3.f, 1.f, 2.f}}
+            },
+            ngraph::element::f32,
+            {{}, {}, {}}
+        }
+    },
 };
 INSTANTIATE_TEST_CASE_P(
     LPT,
     ClampTransformation,
-    ::testing::Combine(
-        ::testing::ValuesIn(precisions),
-        ::testing::ValuesIn(shapes),
-        ::testing::ValuesIn(updatePrecision),
-        ::testing::ValuesIn(testValues)),
+    ::testing::ValuesIn(testValues),
     ClampTransformation::getTestCaseName);
+} // namespace

@@ -8,7 +8,10 @@
 #include <vector>
 #include <ngraph/ngraph.hpp>
 
+
+#include <ngraph/opsets/opset1.hpp>
 #include "ngraph_functions/subgraph_builders.hpp"
+#include "ngraph_functions/low_precision_transformations/common/builders.hpp"
 #include "transformations/low_precision/network_helper.hpp"
 
 namespace ngraph {
@@ -16,39 +19,18 @@ namespace builder {
 namespace subgraph {
 
 std::shared_ptr<ngraph::Function> ClampFunction::getOriginal(
-    const ngraph::element::Type originalFunctionPrecision,
     const ngraph::Shape& inputShape,
-    const bool updatePrecision,
-    const ActualValues& values) {
-    const auto input = std::make_shared<ngraph::opset1::Parameter>(
-        updatePrecision ? values.lowPrecision : originalFunctionPrecision,
+    const ngraph::element::Type precisionBeforeDequantization,
+    const ngraph::builder::subgraph::DequantizationOperations& dequantization) {
+    const std::shared_ptr<op::v0::Parameter> input = std::make_shared<ngraph::opset1::Parameter>(
+        precisionBeforeDequantization,
         ngraph::Shape(inputShape));
-    std::shared_ptr<ngraph::Node> parent = input;
 
-    const std::shared_ptr<ngraph::Node> convert = std::make_shared<ngraph::opset1::Convert>(parent, originalFunctionPrecision);
-    parent = convert;
-
-    if (!values.subtractValues.empty()) {
-        auto constant = std::make_shared<ngraph::opset1::Constant>(
-            originalFunctionPrecision,
-            Shape({ 1, values.subtractValues.size(), 1, 1 }),
-            values.subtractValues);
-        const std::shared_ptr<ngraph::Node> subtract = std::make_shared<ngraph::opset1::Subtract>(
-            parent,
-            constant);
-        parent = subtract;
-    }
-    if (!values.multiplyValues.empty()) {
-        const std::shared_ptr<ngraph::Node> multiply = std::make_shared<ngraph::opset1::Multiply>(
-            parent,
-            std::make_shared<ngraph::opset1::Constant>(originalFunctionPrecision, Shape({ 1, values.multiplyValues.size(), 1, 1 }), values.multiplyValues));
-        parent = multiply;
-    }
-
-    const std::shared_ptr<ngraph::Node> clamp = std::make_shared<ngraph::opset1::Clamp>(parent, 0.0, 10.0);
+    const std::shared_ptr<Node> dequantizationOp = makeDequantization(input, dequantization);
+    const std::shared_ptr<Node> clamp = std::make_shared<ngraph::opset1::Clamp>(dequantizationOp, 0, 10);
 
     ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(clamp) };
-    return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "ClampTransformation");
+    return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "ClampFunction");
 }
 
 std::shared_ptr<ngraph::Function> ClampFunction::getOriginal(
@@ -80,44 +62,28 @@ std::shared_ptr<ngraph::Function> ClampFunction::getOriginal(
 }
 
 std::shared_ptr<ngraph::Function> ClampFunction::getReference(
-    const ngraph::element::Type precision,
     const ngraph::Shape& inputShape,
-    const bool updatePrecisions,
-    const ExpectedValues& values) {
-    if (values.subtractValues.size() > 1 || values.multiplyValues.size() > 1) {
-        return getOriginal(precision, inputShape, updatePrecisions, { values.lowPrecision, values.subtractValues, values.multiplyValues });
+    const ngraph::element::Type precisionBeforeDequantization,
+    const ngraph::builder::subgraph::DequantizationOperations& dequantizationBefore,
+    const ngraph::element::Type precisionAfterOperation,
+    const ngraph::builder::subgraph::DequantizationOperations& dequantizationAfter) {
+    const std::shared_ptr<op::v0::Parameter> input = std::make_shared<ngraph::opset1::Parameter>(
+        precisionBeforeDequantization,
+        ngraph::Shape(inputShape));
+
+    const std::shared_ptr<Node> quantizationOpBefore = makeDequantization(input, dequantizationBefore);
+    std::shared_ptr<ngraph::opset1::Clamp> clamp;
+    if (quantizationOpBefore->get_output_element_type(0) == precisionAfterOperation) {
+        clamp = std::make_shared<ngraph::opset1::Clamp>(quantizationOpBefore, 0, 10);
     }
-
-    auto input = std::make_shared<ngraph::opset1::Parameter>(values.lowPrecision, ngraph::Shape(inputShape));
-    std::shared_ptr<ngraph::Node> parent = input;
-
-    const std::shared_ptr<ngraph::Node> clamp = std::make_shared<ngraph::op::TypeRelaxed<ngraph::opset1::Clamp>>(parent, 0.0, 10.0);
-    ngraph::pass::low_precision::NetworkHelper::setOutDataPrecision(clamp, precision);
-    parent = clamp;
-
-    if (!values.subtractValues.empty()) {
-        const std::shared_ptr<ngraph::Node> subtract = std::make_shared<op::TypeRelaxed<ngraph::opset1::Subtract>>(
-            parent,
-            std::make_shared<ngraph::opset1::Constant>(precision, Shape({ 1, values.subtractValues.size(), 1, 1 }), values.subtractValues));
-        parent = subtract;
-        ngraph::pass::low_precision::NetworkHelper::setOutDataPrecision(subtract, precision);
+    else {
+        clamp = std::make_shared<op::TypeRelaxed<ngraph::opset1::Clamp>>(quantizationOpBefore, 0, 10);
+        ngraph::pass::low_precision::NetworkHelper::setOutDataPrecision(clamp, precisionAfterOperation);
     }
+    const std::shared_ptr<Node> quantizationOpAfter = makeDequantization(clamp, dequantizationAfter);
 
-    const std::shared_ptr<ngraph::Node> multiply = std::make_shared<op::TypeRelaxed<ngraph::opset1::Multiply>>(
-        parent,
-        std::make_shared<ngraph::opset1::Constant>(precision, Shape({ 1, values.multiplyValues.size(), 1, 1 }), values.multiplyValues));
-    ngraph::pass::low_precision::NetworkHelper::setOutDataPrecision(multiply, precision);
-
-    if (!updatePrecisions) {
-        input = as_type_ptr<ngraph::opset1::Parameter>(replace_node(
-            input,
-            std::make_shared<ngraph::opset1::Parameter>(
-                precision,
-                ngraph::Shape(inputShape))));
-    }
-
-    ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(multiply) };
-    return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "ClampTransformation");
+    ngraph::ResultVector results{ std::make_shared<ngraph::opset1::Result>(quantizationOpAfter) };
+    return std::make_shared<ngraph::Function>(results, ngraph::ParameterVector{ input }, "ClampFunction");
 }
 
 }  // namespace subgraph
