@@ -47,14 +47,4 @@ DECLARE_VPU_CONFIG(MYRIAD_ENABLE_RECEIVING_TENSOR_TIME);
  */
 DECLARE_VPU_CONFIG(MYRIAD_CUSTOM_LAYERS);
 
-/**
- * @brief Optimize vpu plugin execution to maximize throughput.
- * This option should be used with integer value which is the requested number of streams.
- * The only possible values are:
- *     1
- *     2
- *     3
- */
-DECLARE_VPU_CONFIG(MYRIAD_THROUGHPUT_STREAMS);
-
 }  // namespace InferenceEngine

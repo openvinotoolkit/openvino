@@ -20,21 +20,28 @@ TEST_P(MyriadEngineSetIncorrectConfigTest, SetIncorrectConfig) {
 IE_SUPPRESS_DEPRECATED_START
 
 static const std::vector<config_t> myriadCorrectPlatformConfigValues = {
-        {{VPU_MYRIAD_CONFIG_KEY(PLATFORM), VPU_MYRIAD_CONFIG_VALUE(2450)}},
-        {{VPU_MYRIAD_CONFIG_KEY(PLATFORM), VPU_MYRIAD_CONFIG_VALUE(2480)}},
-        {{VPU_MYRIAD_CONFIG_KEY(PLATFORM), ""}}
+    // Deprecated
+    {{VPU_MYRIAD_CONFIG_KEY(PLATFORM), VPU_MYRIAD_CONFIG_VALUE(2450)}},
+    {{VPU_MYRIAD_CONFIG_KEY(PLATFORM), VPU_MYRIAD_CONFIG_VALUE(2480)}},
+    {{VPU_MYRIAD_CONFIG_KEY(PLATFORM), ""}}
 };
 
 static const std::vector<config_t> myriadIncorrectPlatformConfigValues = {
-        {{VPU_MYRIAD_CONFIG_KEY(PLATFORM), "-1"}},
-        {{VPU_MYRIAD_CONFIG_KEY(PLATFORM), " 0"}},
-        {{VPU_MYRIAD_CONFIG_KEY(PLATFORM), "MyriadX"}}
+    // Deprecated
+    {{VPU_MYRIAD_CONFIG_KEY(PLATFORM), "-1"}},
+    {{VPU_MYRIAD_CONFIG_KEY(PLATFORM), " 0"}},
+    {{VPU_MYRIAD_CONFIG_KEY(PLATFORM), "MyriadX"}}
 };
 
 static const std::vector<config_t> myriadCorrectProtocolConfigValues = {
     {{InferenceEngine::MYRIAD_PROTOCOL, InferenceEngine::MYRIAD_PCIE}},
     {{InferenceEngine::MYRIAD_PROTOCOL, InferenceEngine::MYRIAD_USB}},
     {{InferenceEngine::MYRIAD_PROTOCOL, ""}},
+
+    // Deprecated
+    {{VPU_MYRIAD_CONFIG_KEY(PROTOCOL), VPU_MYRIAD_CONFIG_VALUE(PCIE)}},
+    {{VPU_MYRIAD_CONFIG_KEY(PROTOCOL), VPU_MYRIAD_CONFIG_VALUE(USB)}},
+    {{VPU_MYRIAD_CONFIG_KEY(PROTOCOL), ""}},
 };
 
 static const std::vector<config_t> myriadIncorrectProtocolConfigValues = {
@@ -42,10 +49,17 @@ static const std::vector<config_t> myriadIncorrectProtocolConfigValues = {
     {{InferenceEngine::MYRIAD_PROTOCOL, "0"}},
     {{InferenceEngine::MYRIAD_PROTOCOL, "2450"}},
     {{InferenceEngine::MYRIAD_PROTOCOL, "PCI"}},
+
+    // Deprecated
+    {{VPU_MYRIAD_CONFIG_KEY(PROTOCOL), "0"}},
+    {{VPU_MYRIAD_CONFIG_KEY(PROTOCOL), "2450"}},
+    {{VPU_MYRIAD_CONFIG_KEY(PROTOCOL), "PCI"}},
 };
 
 static const std::vector<config_t> myriadCorrectConfigCombinationValues = {
-    {{InferenceEngine::MYRIAD_PROTOCOL, ""}}
+    {{InferenceEngine::MYRIAD_PROTOCOL, ""},
+    // Deprecated
+    {VPU_MYRIAD_CONFIG_KEY(PROTOCOL), ""}}
 };
 
 static const std::vector<config_t> myriadIncorrectPowerConfigValues = {
@@ -68,12 +82,23 @@ static const std::vector<config_t> myriadCorrectPackageTypeConfigValues = {
     {{InferenceEngine::MYRIAD_DDR_TYPE, InferenceEngine::MYRIAD_DDR_MICRON_2GB}},
     {{InferenceEngine::MYRIAD_DDR_TYPE, InferenceEngine::MYRIAD_DDR_SAMSUNG_2GB}},
     {{InferenceEngine::MYRIAD_DDR_TYPE, InferenceEngine::MYRIAD_DDR_HYNIX_2GB}},
-    {{InferenceEngine::MYRIAD_DDR_TYPE, InferenceEngine::MYRIAD_DDR_MICRON_1GB}}
+    {{InferenceEngine::MYRIAD_DDR_TYPE, InferenceEngine::MYRIAD_DDR_MICRON_1GB}},
+
+    // Deprecated
+    {{VPU_MYRIAD_CONFIG_KEY(MOVIDIUS_DDR_TYPE), VPU_MYRIAD_CONFIG_VALUE(DDR_AUTO)}},
+    {{VPU_MYRIAD_CONFIG_KEY(MOVIDIUS_DDR_TYPE), VPU_MYRIAD_CONFIG_VALUE(MICRON_2GB)}},
+    {{VPU_MYRIAD_CONFIG_KEY(MOVIDIUS_DDR_TYPE), VPU_MYRIAD_CONFIG_VALUE(SAMSUNG_2GB)}},
+    {{VPU_MYRIAD_CONFIG_KEY(MOVIDIUS_DDR_TYPE), VPU_MYRIAD_CONFIG_VALUE(HYNIX_2GB)}},
+    {{VPU_MYRIAD_CONFIG_KEY(MOVIDIUS_DDR_TYPE), VPU_MYRIAD_CONFIG_VALUE(MICRON_1GB)}},
 };
 
 static const std::vector<config_t> myriadIncorrectPackageTypeConfigValues = {
     {{InferenceEngine::MYRIAD_DDR_TYPE, "-1"}},
     {{InferenceEngine::MYRIAD_DDR_TYPE, "-MICRON_1GB"}},
+
+    // Deprecated
+    {{VPU_MYRIAD_CONFIG_KEY(MOVIDIUS_DDR_TYPE), "-1"}},
+    {{VPU_MYRIAD_CONFIG_KEY(MOVIDIUS_DDR_TYPE), "-MICRON_1GB"}},
 };
 
 IE_SUPPRESS_DEPRECATED_END
