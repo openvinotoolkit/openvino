@@ -487,7 +487,6 @@ namespace ngraph
             }
         }
 
-
     private:
         descriptor::Input& get_input_descriptor(size_t position);
         descriptor::Output& get_output_descriptor(size_t position);
@@ -516,7 +515,8 @@ namespace ngraph
 /// Should be used in the scope of class that requires type identification besides one provided by
 /// C++ RTTI.
 /// Required to be used for all classes that are inherited from class ngraph::Node to enable pattern
-/// matching for them. Accepts necessary type identification details like type of the operation, version and
+/// matching for them. Accepts necessary type identification details like type of the operation,
+/// version and
 /// parent class.
 ///
 /// \param TYPE_NAME a string literal of type const char* that names your class in type
@@ -552,7 +552,6 @@ namespace ngraph
     static constexpr ::ngraph::Node::type_info_t type_info{                                        \
         TYPE_NAME, _VERSION_INDEX, &PARENT_CLASS::type_info};                                      \
     const ::ngraph::Node::type_info_t& get_type_info() const override { return type_info; }
-
 /// Complementary to NGRAPH_RTTI_DECLARATION, this helper macro _defines_ items _declared_ by
 /// NGRAPH_RTTI_DECLARATION.
 /// Should be used outside the class definition scope in place where ODR is ensured.
@@ -566,7 +565,7 @@ namespace ngraph
 ///
 /// For convenience, TYPE_NAME and CLASS name are recommended to be the same.
 ///
-#define NGRAPH_RTTI_DEFINITION(CLASS)  constexpr ::ngraph::Node::type_info_t CLASS::type_info
+#define NGRAPH_RTTI_DEFINITION(CLASS) constexpr ::ngraph::Node::type_info_t CLASS::type_info
 
     // Like an Output but with a Node* instead of a shared_ptr<Node>
     struct RawNodeOutput

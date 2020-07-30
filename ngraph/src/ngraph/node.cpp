@@ -229,11 +229,14 @@ void Node::delayed_validate_and_infer_types()
 
 void Node::set_output_size(size_t n)
 {
-    if (n < m_outputs.size()) {
+    if (n < m_outputs.size())
+    {
         m_outputs.resize(n);
     }
-    else {
-        for (size_t i = m_outputs.size(); i < n; ++i) {
+    else
+    {
+        for (size_t i = m_outputs.size(); i < n; ++i)
+        {
             // create the descriptors
             get_output_descriptor(i);
         }

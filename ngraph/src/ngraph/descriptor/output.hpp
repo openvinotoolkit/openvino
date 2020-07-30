@@ -39,7 +39,7 @@ namespace ngraph
         {
         public:
             Output()
-                    : m_node(nullptr)
+                : m_node(nullptr)
             {
             }
 
