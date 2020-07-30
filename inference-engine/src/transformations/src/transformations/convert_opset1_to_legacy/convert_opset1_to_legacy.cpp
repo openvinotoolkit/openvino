@@ -80,7 +80,8 @@ bool ngraph::pass::ConvertOpSet1ToLegacy::run_on_function(std::shared_ptr<ngraph
     decomp->add_matcher<ngraph::pass::ConvertDeconvolution>();
     decomp->add_matcher<ngraph::pass::ConvertGroupDeconvolution>();
     decomp->add_matcher<ngraph::pass::BatchNormDecomposition>();
-    decomp->add_matcher<ngraph::pass::ConvertMatMulToFCorGemm>();
+    decomp->add_matcher<ngraph::pass::ConvertMatMulToFC>();
+    decomp->add_matcher<ngraph::pass::ConvertMatMulToGemm>();
     decomp->add_matcher<ngraph::pass::PullTransposeThroughFQUp>();
     decomp->set_name("ngraph::pass::Decompositions");
 
