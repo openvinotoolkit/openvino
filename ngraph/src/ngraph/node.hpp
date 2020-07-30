@@ -492,10 +492,18 @@ namespace ngraph
 #define EXPAND(X) X
 #define _NGRAPH_RTTI_DECLARATION_WITH_PARENT(TYPE_NAME, _VERSION_INDEX, PARENT_CLASS)              \
     static constexpr ::ngraph::Node::type_info_t type_info{                                        \
-        TYPE_NAME, _VERSION_INDEX, &PARENT_CLASS::type_info};                                      \
+        TYPE_NAME, _VERSION_INDEX, &PARENT_CLASS::get_type_info_static()};                         \
+    static constexpr const ::ngraph::Node::type_info_t& get_type_info_static()                     \
+    {                                                                                              \
+        return type_info;                                                                          \
+    }                                                                                              \
     const ::ngraph::Node::type_info_t& get_type_info() const override { return type_info; }
 #define _NGRAPH_RTTI_DECLARATION_NO_PARENT(TYPE_NAME, _VERSION_INDEX)                              \
     static constexpr ::ngraph::Node::type_info_t type_info{TYPE_NAME, _VERSION_INDEX};             \
+    static constexpr const ::ngraph::Node::type_info_t& get_type_info_static()                     \
+    {                                                                                              \
+        return type_info;                                                                          \
+    }                                                                                              \
     const ::ngraph::Node::type_info_t& get_type_info() const override { return type_info; }
 #define _NGRAPH_RTTI_DECLARATION_SELECTOR(_1, _2, _3, NAME, ...) NAME
 
