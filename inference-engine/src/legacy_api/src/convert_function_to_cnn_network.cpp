@@ -854,7 +854,12 @@ void convertFunctionToICNNNetwork(const std::shared_ptr<const ::ngraph::Function
         if (std::dynamic_pointer_cast<::ngraph::op::Result>(layer)) {
             IE_ASSERT(layer->get_input_size() == 1);
             const auto &input = layer->input_value(0);
-            cnnNetworkImpl->addOutput(ngraph::op::util::create_ie_output_name(input));
+            auto name = input.get_tensor().get_name();
+            if (!name.empty()) {
+                cnnNetworkImpl->addOutput(name);
+            }
+            else
+                cnnNetworkImpl->addOutput(ngraph::op::util::create_ie_output_name(input));
             continue;
         }
 

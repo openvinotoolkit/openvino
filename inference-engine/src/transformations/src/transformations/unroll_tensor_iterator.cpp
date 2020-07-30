@@ -43,7 +43,7 @@ void ngraph::pass::UnrollTensorIterator::unroll_tensor_iterator() {
             body_functions[idx] = specialize_function(function, paramElementTypes, paramShapes,
                                                       inBuffers, false, true);
             for (auto &node : body_functions[idx]->get_ops()) {
-                node->set_friendly_name("TensorIterator/" + std::to_string(idx + 1) + "/" + node->get_friendly_name());
+                node->set_friendly_name(ti->get_friendly_name() + "/" + std::to_string(idx + 1) + "/" + node->get_friendly_name());
                 copy_runtime_info(ti, node);
             }
         }
@@ -131,7 +131,7 @@ void ngraph::pass::UnrollTensorIterator::unroll_tensor_iterator() {
                 }
                 auto concat = std::make_shared<ngraph::opset3::Concat>(to_concat, output_desc->m_axis);
                 copy_runtime_info(ti, concat);
-                //concat->set_friendly_name(op::util::create_ie_output_name(concat));
+                concat->output(0).get_tensor().set_name(op::util::create_ie_output_name(ti->output(output_desc->m_output_index)));
                 for (auto &input : ti->output(output_desc->m_output_index).get_target_inputs()) {
                     input.replace_source_output(concat);
                 }
@@ -144,7 +144,8 @@ void ngraph::pass::UnrollTensorIterator::unroll_tensor_iterator() {
                 iter = iter >= 0? iter: num_iter - 1;
                 std::shared_ptr<opset3::Result> result = body_functions[iter]->get_results()[output_desc->m_body_value_index];
                 const auto& in_value = result->input_value(0);
-                in_value.get_node_shared_ptr()->set_friendly_name(in_value.get_node_shared_ptr()->get_friendly_name());
+
+                in_value.get_tensor().set_name(op::util::create_ie_output_name(ti->output(output_desc->m_output_index)));
                 for (const auto &input : ti->output(output_desc->m_output_index).get_target_inputs()) {
                     input.replace_source_output(result->get_input_source_output(0));
                 }

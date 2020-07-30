@@ -30,6 +30,7 @@
 #include "ngraph_ops/lrn_ie.hpp"
 #include <ngraph_ops/lstm_cell_ie.hpp>
 #include <transformations/rt_info/primitives_priority_attribute.hpp>
+#include <transformations/unroll_tensor_iterator.hpp>
 #include "ngraph_ops/normalize_ie.hpp"
 #include "ngraph_ops/nms_ie.hpp"
 #include "ngraph_ops/onehot_ie.hpp"
@@ -153,7 +154,11 @@ CNNLayer::Ptr NodeConverter<ngraph::op::TensorIterator>::createLayer(const std::
     {
         auto tiBody = std::make_shared<details::TINGraphBody>(std::make_shared<ngraph::Function>(results, parameters));
         CNNNetwork ngraphNet(tiBody);
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::UnrollTensorIterator>();
+        manager.run_passes(ngraphNet.getFunction());
         CNNNetwork net(std::make_shared<InferenceEngine::details::CNNNetworkImpl>(ngraphNet));
+
         // Paranoid check for cycles
         bool res = CNNNetForestDFS(
             CNNNetGetAllInputLayers(net), [](const CNNLayerPtr& layer) {}, false);

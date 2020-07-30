@@ -51,21 +51,6 @@ inline std::string create_ie_output_name(const ngraph::Output<ngraph::Node>& inp
     std::string out_name = prev_layer->get_friendly_name();
     if (prev_layer->get_output_size() != 1)
         out_name += "." + std::to_string(out_idx);
-
-    // replace output name with output name of a body in case of TensorIterator
-    if (const auto& ti = std::dynamic_pointer_cast<::ngraph::opset3::TensorIterator>(prev_layer)) {
-        const auto& body_results = ti->get_body()->get_results();
-
-        for (const auto& output_desc : ti->get_output_descriptions()) {
-            if (output_desc->m_output_index == out_idx) {
-                const auto& body_val = body_results[output_desc->m_body_value_index]->input_value(0);
-                if (const auto& body_desc = std::dynamic_pointer_cast<ngraph::opset3::TensorIterator::BodyOutputDescription>(output_desc))
-                    out_name = "TensorIterator/" + std::to_string(body_desc->m_iteration == -1 ? ti->get_num_iterations() : body_desc->m_iteration) + "/";
-                out_name += create_ie_output_name(body_val);
-                break;
-            }
-        }
-    }
     return out_name;
 }
 
