@@ -259,19 +259,15 @@ cdef class IECore:
     #  net = ie.read_network(model=path_to_xml_file, weights=path_to_bin_file)
     #  ```
     cpdef IENetwork read_network(self, model: [str, bytes, Path], weights: [str, bytes, Path] = "", init_from_buffer: bool = False):
-        cdef char*xml_buffer
         cdef uint8_t*bin_buffer
         cdef string weights_
         cdef string model_
         cdef IENetwork net = IENetwork()
         if init_from_buffer:
-            xml_buffer = <char*> malloc(len(model)+1)
             bin_buffer = <uint8_t *> malloc(len(weights))
-            memcpy(xml_buffer, <char*> model, len(model))
             memcpy(bin_buffer, <uint8_t *> weights, len(weights))
-            xml_buffer[len(model)] = b'\0'
-            net.impl = self.impl.readNetwork(xml_buffer, bin_buffer, len(weights))
-            free(xml_buffer)
+            model_ = bytes(model)
+            net.impl = self.impl.readNetwork(model_, bin_buffer, len(weights))
         else:
             weights_ = "".encode()
             if isinstance(model, Path) and (isinstance(weights, Path) or not weights):

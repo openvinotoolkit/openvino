@@ -33,7 +33,7 @@ namespace ngraph
                 ///
                 /// \return The vector containing Ngraph nodes producing output of ONNX
                 ///         GlobalAveragePool operation.
-                NodeVector global_average_pool(const Node& node);
+                OutputVector global_average_pool(const Node& node);
 
             } // namespace set_1
 

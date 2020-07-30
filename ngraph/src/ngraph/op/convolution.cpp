@@ -72,10 +72,10 @@ void op::v1::Convolution::validate_and_infer_types()
         {
             result_shape[0] = data_batch_shape[0]; // batch size
         }
-    }
-    if (filters_shape.rank().is_static() && filters_shape.rank().get_length() > 1)
-    {
-        result_shape[1] = filters_shape[0]; // filter channel size
+        if (filters_shape.rank().is_static() && filters_shape.rank().get_length() > 1)
+        {
+            result_shape[1] = filters_shape[0]; // filter channel size
+        }
     }
 
     element::Type result_et;
@@ -215,7 +215,7 @@ op::v1::ConvolutionBackpropData::ConvolutionBackpropData(const Output<Node>& dat
 bool op::v1::ConvolutionBackpropData::is_dynamic() const
 {
     bool is_dynamic = Node::is_dynamic();
-    if (get_inputs().size() == 3 && !is_dynamic)
+    if (inputs().size() == 3 && !is_dynamic)
     {
         return !is_type<op::Constant>(input_value(2).get_node());
     }
@@ -235,7 +235,7 @@ const PartialShape op::v1::ConvolutionBackpropData::get_output_shape() const
     {
         shape = PartialShape{vector<Dimension>(m_strides.size())};
     }
-    bool is_output_shape_present = get_inputs().size() == 3;
+    bool is_output_shape_present = inputs().size() == 3;
     if (is_output_shape_present)
     {
         if (auto const_op = as_type<op::Constant>(input_value(2).get_node()))
@@ -297,7 +297,7 @@ void op::v1::ConvolutionBackpropData::validate_and_infer_types()
     const PartialShape& filters_pshape = get_input_partial_shape(1);
     element::Type filters_et = get_input_element_type(1);
 
-    bool is_output_shape_present = get_inputs().size() == 3;
+    bool is_output_shape_present = inputs().size() == 3;
     PartialShape output_pshape = get_output_shape();
 
     element::Type result_et;

@@ -67,7 +67,6 @@ class OpenVinoOnnxBackend(Backend):
         device="CPU",  # type: Text
         **kwargs  # type: Any
     ):  # type: (...) -> OpenVinoOnnxBackendRep
-        onnx.checker.check_model(onnx_model)
         super().prepare(onnx_model, device, **kwargs)
         ng_model_function = import_onnx_model(onnx_model)
         return OpenVinoOnnxBackendRep(ng_model_function, cls.backend_name)
@@ -98,7 +97,9 @@ class OpenVinoOnnxBackend(Backend):
         output_tensor_shapes = [()]  # type: List[Tuple[int, ...]]
 
         if outputs_info is not None:
-            output_tensor_types = [np_dtype_to_tensor_type(dtype) for (dtype, shape) in outputs_info]
+            output_tensor_types = [
+                np_dtype_to_tensor_type(dtype) for (dtype, shape) in outputs_info
+            ]
             output_tensor_shapes = [shape for (dtype, shape) in outputs_info]
 
         input_tensors = [
@@ -107,7 +108,9 @@ class OpenVinoOnnxBackend(Backend):
         ]
         output_tensors = [
             make_tensor_value_info(name, tensor_type, shape)
-            for name, shape, tensor_type in zip(node.output, output_tensor_shapes, output_tensor_types)
+            for name, shape, tensor_type in zip(
+                node.output, output_tensor_shapes, output_tensor_types
+            )
         ]
 
         graph = make_graph([node], "compute_graph", input_tensors, output_tensors)

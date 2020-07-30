@@ -23,8 +23,8 @@
 #include "gtest/gtest.h"
 #include "ngraph/function.hpp"
 #include "ngraph/ngraph.hpp"
-#include "ngraph/pass/liveness.hpp"
 #include "ngraph/pass/manager.hpp"
+#include "pass/liveness.hpp"
 #include "util/test_tools.hpp"
 
 using namespace std;

@@ -8,6 +8,7 @@
 #include "ie_util_internal.hpp"
 #include "hetero_graph_splitter.hpp"
 #include "xml_parse_utils.h"
+#include <details/caseless.hpp>
 
 #include <vector>
 #include <deque>
@@ -25,7 +26,6 @@
 #include "cpp_interfaces/interface/ie_internal_plugin_config.hpp"
 #include "hetero/hetero_plugin_config.hpp"
 #include "hetero_plugin.hpp"
-#include "network_serializer.h"
 
 #include <ngraph/function.hpp>
 #include <ngraph/variant.hpp>
@@ -143,7 +143,7 @@ void dumpGraph(InferenceEngine::ICNNNetwork &network,
 
 
 void dumpGraph(InferenceEngine::ICNNNetwork&                                network,
-               const std::vector<std::shared_ptr<const ngraph::Function>>&  subFunctions,
+               const std::vector<std::shared_ptr<ngraph::Function>>&  subFunctions,
                std::ostream&                                                stream) {
     static const std::array<const char *, 9> colors{{"#FFC405",
                                                      "#20F608",
@@ -665,13 +665,13 @@ void HeteroExecutableNetwork::InitNgraph(const InferenceEngine::ICNNNetwork& net
     InputsDataMap externalInputsData;
     network.getInputsInfo(externalInputsData);
     networks.resize(orderedSubgraphs.size());
-    std::vector<std::shared_ptr<const ngraph::Function>> subFunctions(orderedSubgraphs.size());
+    std::vector<std::shared_ptr<ngraph::Function>> subFunctions(orderedSubgraphs.size());
     std::vector<bool> isInputSubnetwork(orderedSubgraphs.size());
     int id = 0;
     for (auto&& subgraph : orderedSubgraphs) {
         networks[id]._device = subgraph._affinity;
         subFunctions[id] =
-            std::make_shared<const ngraph::Function>(subgraph._results, subgraph._parameters,
+            std::make_shared<ngraph::Function>(subgraph._results, subgraph._parameters,
                                                      _name + '_' + std::to_string(id));
         networks[id]._clonedNetwork = CNNNetwork{subFunctions[id]};
         // update of pre-processing info
@@ -908,6 +908,11 @@ void HeteroExecutableNetwork::ExportImpl(std::ostream& heteroModel) {
             subnetwork._network.Export(heteroModel);
         } catch (InferenceEngine::details::InferenceEngineException& ie_ex) {
             if (std::string::npos != std::string{ie_ex.what()}.find(NOT_IMPLEMENTED_str)) {
+                // TODO: enable once serialization to IR v10 is implemented
+#if 1
+                THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str
+                    << "Device " << subnetwork._device << " does not implement Export method";
+#else
                 pugi::xml_document doc;
                 auto subnet = subnetwork._clonedNetwork;
                 if (subnet.getFunction()) {
@@ -918,6 +923,7 @@ void HeteroExecutableNetwork::ExportImpl(std::ostream& heteroModel) {
                 heteroModel << std::endl;
                 heteroModel.write(reinterpret_cast<char*>(&dataSize), sizeof(dataSize));
                 InferenceEngine::Serialization::SerializeBlobs(heteroModel, subnet);
+#endif
             } else {
                 throw;
             }

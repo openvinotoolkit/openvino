@@ -27,7 +27,7 @@ namespace ngraph
         {
             namespace set_1
             {
-                NodeVector scatter_elements(const Node& node);
+                OutputVector scatter_elements(const Node& node);
 
             } // namespace set_1
 

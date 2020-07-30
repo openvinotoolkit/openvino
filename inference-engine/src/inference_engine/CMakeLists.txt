@@ -20,12 +20,15 @@ set(IE_BASE_SOURCE_FILES
       ${CMAKE_CURRENT_SOURCE_DIR}/cnn_network_ngraph_impl.cpp
       ${CMAKE_CURRENT_SOURCE_DIR}/generic_ie.cpp
       ${CMAKE_CURRENT_SOURCE_DIR}/blob_factory.cpp
+      ${CMAKE_CURRENT_SOURCE_DIR}/ie_blob_common.cpp
       ${CMAKE_CURRENT_SOURCE_DIR}/ie_data.cpp
       ${CMAKE_CURRENT_SOURCE_DIR}/ie_layouts.cpp
       ${CMAKE_CURRENT_SOURCE_DIR}/ie_memcpy.cpp
       ${CMAKE_CURRENT_SOURCE_DIR}/ie_parameter.cpp
       ${CMAKE_CURRENT_SOURCE_DIR}/ie_rtti.cpp
       ${CMAKE_CURRENT_SOURCE_DIR}/precision_utils.cpp
+      ${CMAKE_CURRENT_SOURCE_DIR}/network_serializer.cpp
+      ${CMAKE_CURRENT_SOURCE_DIR}/network_serializer.hpp
       ${CMAKE_CURRENT_SOURCE_DIR}/system_allocator.cpp
       ${CMAKE_CURRENT_SOURCE_DIR}/system_allocator.hpp)
 list(REMOVE_ITEM LIBRARY_SRC ${IE_BASE_SOURCE_FILES})
@@ -108,6 +111,7 @@ target_include_directories(${TARGET_NAME}_common_obj PRIVATE
     $<TARGET_PROPERTY:${TARGET_NAME}_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>)
 
 target_include_directories(${TARGET_NAME}_common_obj SYSTEM PRIVATE
+    $<TARGET_PROPERTY:pugixml,INTERFACE_INCLUDE_DIRECTORIES>
     $<TARGET_PROPERTY:ngraph::ngraph,INTERFACE_INCLUDE_DIRECTORIES>)
 
 # Create object library

@@ -26,13 +26,13 @@
 #include "ngraph/op/util/attr_types.hpp"
 #include "ngraph/op/util/op_types.hpp"
 #include "ngraph/ops.hpp"
-#include "ngraph/pass/implicit_broadcast_elimination.hpp"
 #include "ngraph/provenance.hpp"
 #include "ngraph/slice_plan.hpp"
 #include "ngraph/type.hpp"
 #include "ngraph/validation_util.hpp"
 #include "op/avg_pool.hpp"
 #include "opset0_downgrade.hpp"
+#include "pass/implicit_broadcast_elimination.hpp"
 
 using namespace std;
 using namespace ngraph;

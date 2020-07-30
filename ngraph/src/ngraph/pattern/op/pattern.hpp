@@ -49,6 +49,9 @@ namespace ngraph
             return pred;
         }
 
+        NGRAPH_API
+        std::function<bool(Output<Node>)> consumers_count(size_t n);
+
         namespace op
         {
             using NodePredicate = std::function<bool(std::shared_ptr<Node>)>;
@@ -78,7 +81,7 @@ namespace ngraph
                 }
 
                 virtual std::shared_ptr<Node>
-                    copy_with_new_args(const NodeVector& /* new_args */) const override
+                    clone_with_new_inputs(const OutputVector& /* new_args */) const override
                 {
                     throw ngraph_error("Uncopyable");
                 }

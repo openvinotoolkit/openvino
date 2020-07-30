@@ -68,7 +68,7 @@ Output<Node> builder::MatmulFactory::get_right()
     return m_inputs.at(1);
 }
 
-NodeVector builder::MatmulFactory::make_matmul_op()
+OutputVector builder::MatmulFactory::make_matmul_op()
 {
     auto left = get_left();
     auto right = get_right();

@@ -107,7 +107,7 @@ public:
         set_output_type(0, get_input_element_type(0), ngraph::PartialShape(output_shape));
     }
 
-    std::shared_ptr<ngraph::Node> copy_with_new_args(const ngraph::NodeVector& new_args) const override {
+    std::shared_ptr<ngraph::Node> clone_with_new_inputs(const ngraph::OutputVector& new_args) const override {
         if (new_args.size() != 1) {
             throw ngraph::ngraph_error("Incorrect number of new arguments");
         }

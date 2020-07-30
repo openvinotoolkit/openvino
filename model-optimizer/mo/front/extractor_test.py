@@ -19,8 +19,8 @@ import unittest
 import numpy as np
 from generator import generator, generate
 
-from mo.front.extractor import input_user_data_repack, output_user_data_repack, extract_port_from_string, \
-    update_ie_fields, add_input_op
+from mo.front.extractor import input_user_data_repack, output_user_data_repack, update_ie_fields, add_input_op, \
+    get_node_id_with_ports
 from mo.front.extractor import spatial_attr_getter, add_input_ops, attr_getter, CaffePythonFrontExtractorOp, \
     add_output_ops
 from mo.graph.graph import Node
@@ -443,6 +443,7 @@ class TestInputAddition(unittest.TestCase):
         self.assertTrue((new_input, 'conv_data') in graph.edges())
         self.assertTrue(('conv_1', 'conv_data') not in graph.edges())
 
+
 @generator
 class TestOutputCut(unittest.TestCase):
     # {'embeddings': [{'port': None}]}
@@ -601,29 +602,52 @@ class TestUserDataRepack(unittest.TestCase):
 
 
 class TestExtractPort(unittest.TestCase):
+    def setUp(self) -> None:
+        nodes = {
+            'input_id': {'type': 'Parameter', 'kind': 'op', 'op': 'Parameter', 'name': '1input1:0'},
+            'conv_id': {'type': 'Convolution', 'kind': 'op', 'op': 'NotPlaceholder', 'name': '1input1'},
+            'relu_id': {'type': 'ReLU', 'kind': 'op', 'op': 'NotPlaceholder', 'name': 'relu'},
+            'squeeze_id': {'type': 'Squeeze', 'kind': 'op', 'op': 'NotPlaceholder', 'name': 'relu:0'},
+        }
+        edges = [
+            ('input_id', 'conv_id'),
+            ('conv_id', 'relu_id'),
+            ('relu_id', 'squeeze_id'),
+        ]
+        self.graph = build_graph(nodes, edges)
+
     def test_out_port(self):
-        name, in_port, out_port = extract_port_from_string('node_name:1')
-        self.assertEqual(name, 'node_name')
-        self.assertEqual(in_port, None)
-        self.assertEqual(out_port, 1)
+        node_id, direction, port = get_node_id_with_ports(self.graph, '1input1:0:0')
+        self.assertEqual(node_id, 'input_id')
+        self.assertEqual(direction, 'out')
+        self.assertEqual(port, 0)
 
-    def test_in_port(self):
-        name, in_port, out_port = extract_port_from_string('0:node_name')
-        self.assertEqual(name, 'node_name')
-        self.assertEqual(in_port, 0)
-        self.assertEqual(out_port, None)
+    def test_in_port1(self):
+        node_id, direction, port = get_node_id_with_ports(self.graph, '0:1input1')
+        self.assertEqual(node_id, 'conv_id')
+        self.assertEqual(direction, 'in')
+        self.assertEqual(port, 0)
 
-    def test_no_port(self):
-        name, in_port, out_port = extract_port_from_string('node_name')
-        self.assertEqual(name, 'node_name')
-        self.assertEqual(in_port, None)
-        self.assertEqual(out_port, None)
+    def test_in_port2(self):
+        node_id, direction, port = get_node_id_with_ports(self.graph, '0:1input1:0')
+        self.assertEqual(node_id, 'input_id')
+        self.assertEqual(direction, 'in')
+        self.assertEqual(port, 0)
+
+    def test_no_port1(self):
+        node_id, direction, port = get_node_id_with_ports(self.graph, '1input1')
+        self.assertEqual(node_id, 'conv_id')
+        self.assertEqual(direction, 'port')
+        self.assertEqual(port, None)
+
+    def test_no_port2(self):
+        self.assertRaises(Error, get_node_id_with_ports, self.graph, '1input1:0')
 
     def test_non_int(self):
-        self.assertRaises(Error, extract_port_from_string, 'port:node_name')
+        self.assertRaises(Error, get_node_id_with_ports, self.graph, 'port:1input1')
 
     def test_two_ports(self):
-        self.assertRaises(Error, extract_port_from_string, '1:node_name:0')
+        self.assertRaises(Error, get_node_id_with_ports, self.graph, '0:1input1:1')
 
 
 class TestCaffePythonFrontExtractorOp(unittest.TestCase):

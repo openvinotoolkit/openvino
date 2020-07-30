@@ -116,7 +116,7 @@ void op::v1::NonMaxSuppression::validate_and_infer_types()
                           "Expected a 3D tensor for the 'scores' input. Got: ",
                           scores_ps);
 
-    if (get_inputs().size() >= 3)
+    if (inputs().size() >= 3)
     {
         const auto max_boxes_ps = get_input_partial_shape(2);
         NODE_VALIDATION_CHECK(this,
@@ -125,7 +125,7 @@ void op::v1::NonMaxSuppression::validate_and_infer_types()
                               max_boxes_ps);
     }
 
-    if (get_inputs().size() >= 4)
+    if (inputs().size() >= 4)
     {
         const auto iou_threshold_ps = get_input_partial_shape(3);
         NODE_VALIDATION_CHECK(this,
@@ -135,7 +135,7 @@ void op::v1::NonMaxSuppression::validate_and_infer_types()
                               iou_threshold_ps);
     }
 
-    if (get_inputs().size() >= 5)
+    if (inputs().size() >= 5)
     {
         const auto score_threshold_ps = get_input_partial_shape(4);
         NODE_VALIDATION_CHECK(this,
@@ -315,7 +315,7 @@ void op::v3::NonMaxSuppression::validate()
                           "Expected a 3D tensor for the 'scores' input. Got: ",
                           scores_ps);
 
-    if (get_inputs().size() >= 3)
+    if (inputs().size() >= 3)
     {
         const auto max_boxes_ps = get_input_partial_shape(2);
         NODE_VALIDATION_CHECK(this,
@@ -324,7 +324,7 @@ void op::v3::NonMaxSuppression::validate()
                               max_boxes_ps);
     }
 
-    if (get_inputs().size() >= 4)
+    if (inputs().size() >= 4)
     {
         const auto iou_threshold_ps = get_input_partial_shape(3);
         NODE_VALIDATION_CHECK(this,
@@ -334,7 +334,7 @@ void op::v3::NonMaxSuppression::validate()
                               iou_threshold_ps);
     }
 
-    if (get_inputs().size() >= 5)
+    if (inputs().size() >= 5)
     {
         const auto score_threshold_ps = get_input_partial_shape(4);
         NODE_VALIDATION_CHECK(this,
@@ -529,84 +529,4 @@ void op::v4::NonMaxSuppression::validate_and_infer_types()
         }
     }
     set_output_type(0, m_output_type, out_shape);
-}
-
-// ------------------------------ dynamic ------------------------------
-
-constexpr NodeTypeInfo op::dynamic::NonMaxSuppression::type_info;
-
-op::dynamic::NonMaxSuppression::NonMaxSuppression(
-    const Output<Node>& boxes,
-    const Output<Node>& scores,
-    const Output<Node>& max_output_boxes_per_class,
-    const Output<Node>& iou_threshold,
-    const Output<Node>& score_threshold,
-    const op::dynamic::NonMaxSuppression::BoxEncodingType box_encoding,
-    const bool sort_result_descending,
-    const element::Type& output_type)
-    : op::v3::NonMaxSuppression(boxes,
-                                scores,
-                                max_output_boxes_per_class,
-                                iou_threshold,
-                                score_threshold,
-                                box_encoding,
-                                sort_result_descending,
-                                output_type)
-{
-    constructor_validate_and_infer_types();
-}
-
-op::dynamic::NonMaxSuppression::NonMaxSuppression(
-    const Output<Node>& boxes,
-    const Output<Node>& scores,
-    const op::dynamic::NonMaxSuppression::BoxEncodingType box_encoding,
-    const bool sort_result_descending,
-    const element::Type& output_type)
-    : op::v3::NonMaxSuppression(boxes,
-                                scores,
-                                op::Constant::create(element::i64, Shape{}, {0}),
-                                op::Constant::create(element::f32, Shape{}, {.0f}),
-                                op::Constant::create(element::f32, Shape{}, {.0f}),
-                                box_encoding,
-                                sort_result_descending,
-                                output_type)
-{
-    constructor_validate_and_infer_types();
-}
-
-shared_ptr<Node>
-    op::dynamic::NonMaxSuppression::clone_with_new_inputs(const OutputVector& new_args) const
-{
-    check_new_args_count(this, new_args);
-    NODE_VALIDATION_CHECK(this,
-                          new_args.size() >= 2 && new_args.size() <= 5,
-                          "Number of inputs must be 2, 3, 4 or 5");
-
-    const auto& arg2 = new_args.size() > 2
-                           ? new_args.at(2)
-                           : ngraph::op::Constant::create(element::i32, Shape{}, {0});
-    const auto& arg3 = new_args.size() > 3
-                           ? new_args.at(3)
-                           : ngraph::op::Constant::create(element::f32, Shape{}, {.0f});
-    const auto& arg4 = new_args.size() > 4
-                           ? new_args.at(4)
-                           : ngraph::op::Constant::create(element::f32, Shape{}, {.0f});
-
-    return std::make_shared<op::dynamic::NonMaxSuppression>(new_args.at(0),
-                                                            new_args.at(1),
-                                                            arg2,
-                                                            arg3,
-                                                            arg4,
-                                                            m_box_encoding,
-                                                            m_sort_result_descending,
-                                                            m_output_type);
-}
-
-void op::dynamic::NonMaxSuppression::validate_and_infer_types()
-{
-    op::v3::NonMaxSuppression::validate_and_infer_types();
-
-    // NonMaxSuppression produces triplets
-    // that have the following format: [batch_index, class_index, box_index]
-    set_output_type(0, m_output_type, PartialShape{Dimension::dynamic(), 3});
 }
