@@ -60,7 +60,10 @@ public:
     // Remove node by connecting its 0th input with 0th output
     static void removeLayer(std::shared_ptr<Node> node);
 
-    static std::shared_ptr<Node> swapMultiplyAndAdd(std::shared_ptr<Node> addAfterMultiply, const int multiplyBranch);
+    static std::shared_ptr<Node> swapMultiplyAndAdd(std::shared_ptr<opset1::Add> addAfterMultiply, const int multiplyBranch);
+
+    template <typename Operation1, typename Operation2>
+    static void copyInfo(const Operation1& source, Operation2& target);
 
     static bool isScalarLike(std::shared_ptr<opset1::Constant> constant);
 
@@ -158,6 +161,12 @@ private:
     // -1 - on activations
     static int onWeightsInDepth(std::shared_ptr<Node> layer);
 };
+
+template <typename Operation1, typename Operation2>
+void NetworkHelper::copyInfo(const Operation1& source, Operation2& target) {
+    copy_runtime_info(source, target);
+    target->set_friendly_name(source->get_friendly_name());
+}
 
 template <typename OperationType>
 std::shared_ptr<Node> NetworkHelper::setOutDataPrecision(std::shared_ptr<OperationType> layer, const element::Type& precision) {

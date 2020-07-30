@@ -158,7 +158,7 @@ void NetworkHelper::removeLayer(std::shared_ptr<Node> layer) {
     ngraph::replace_output_update_name(layer->output(0), layer->input_value(0));
 }
 
-std::shared_ptr<Node> NetworkHelper::swapMultiplyAndAdd(std::shared_ptr<Node> addAfterMultiply, const int multiplyBranch) {
+std::shared_ptr<Node> NetworkHelper::swapMultiplyAndAdd(std::shared_ptr<opset1::Add> addAfterMultiply, const int multiplyBranch) {
     // Multiply --> Add(addAfterMultiply)  ==>  Add(new) --> Multiply(new)
     // That means x*a + b ==> (x + b/a)*a; tries to fold b/a
     auto multiply = addAfterMultiply->get_input_node_shared_ptr(multiplyBranch);
@@ -190,6 +190,8 @@ std::shared_ptr<Node> NetworkHelper::swapMultiplyAndAdd(std::shared_ptr<Node> ad
 
     auto newMultiply = std::make_shared<opset1::Multiply>(newAdd, a);
     replace_node(addAfterMultiply, newMultiply);
+
+    copyInfo(addAfterMultiply, newAdd);
     return newMultiply;
 }
 

@@ -27,12 +27,12 @@ void AddTransformation::registerMatcherIn(GraphRewrite &pass, TransformationCont
 
 
 void AddTransformation::transform(TransformationContext& context, ngraph::pattern::Matcher &m) const {
-    auto add = m.get_match_root();
-    if (!canBeTransformed(context, add)) {
+    std::shared_ptr<opset1::Add> op = as_type_ptr<opset1::Add>(m.get_match_root());
+    if (!canBeTransformed(context, op)) {
         return;
     }
 
-    add = separateInStandaloneBranch(add);
+    const std::shared_ptr<opset1::Add> add = as_type_ptr<opset1::Add>(separateInStandaloneBranch(op));
     const int fullPathIndex = getNotEmpty(add);
     std::shared_ptr<Node> newMultiply;
 
@@ -84,14 +84,13 @@ void AddTransformation::transform(TransformationContext& context, ngraph::patter
                 std::make_shared<opset1::Subtract>(fullPathInput, newSubtractFullPathValues),
             newMultiplyFullPathValues);
 
-        newMultiply = std::make_shared<opset1::Multiply>(
-            add->clone_with_new_inputs({ inputs[0], inputs[1] }),
-            multiplyEmptyPathValues);
+        auto newAdd = add->clone_with_new_inputs({ inputs[0], inputs[1] });
+        newMultiply = std::make_shared<opset1::Multiply>(newAdd, multiplyEmptyPathValues);
 
         replace_node(add, newMultiply);
+        NetworkHelper::copyInfo(add, newAdd);
     }
 
-    newMultiply->set_friendly_name(add->get_friendly_name());
     updateOutput(context, newMultiply, add);
 }
 
