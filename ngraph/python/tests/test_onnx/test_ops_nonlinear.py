@@ -17,7 +17,7 @@ import numpy as np
 import onnx
 import pytest
 
-from tests.test_onnx.utils import run_node, issue_8, issue_10, issue_11
+from tests.test_onnx.utils import run_node, xfail_issue_35918, xfail_issue_35923, xfail_issue_35924
 
 
 def import_and_compute(op_type, input_data, **node_attrs):
@@ -70,7 +70,7 @@ def test_leaky_relu():
     assert_onnx_import_equals_callable("LeakyRelu", leaky_relu, [[-3, -2, -1], [1, 2, 3]])
 
 
-@issue_10
+@xfail_issue_35923
 @pytest.mark.parametrize(
     "x, slope",
     [
@@ -107,11 +107,11 @@ def test_selu():
 @pytest.mark.parametrize(
     "data, alpha_value",
     [
-        pytest.param([-2, -1.0, 0.0, 1.0, 2.0], 1, marks=issue_8),
-        pytest.param([0.0], 1, marks=issue_8),
-        pytest.param([-0.9, -0.8, -0.7, -0.4, -0.3, -0.2, -0.1], 1, marks=issue_8),
-        pytest.param([[1, 2, 3], [4, 5, 6]], 1, marks=issue_8),
-        pytest.param([-2, -1.0, 0.0, 1.0, 2.0], 0.5, marks=issue_11)
+        pytest.param([-2, -1.0, 0.0, 1.0, 2.0], 1, marks=xfail_issue_35918),
+        pytest.param([0.0], 1, marks=xfail_issue_35918),
+        pytest.param([-0.9, -0.8, -0.7, -0.4, -0.3, -0.2, -0.1], 1, marks=xfail_issue_35918),
+        pytest.param([[1, 2, 3], [4, 5, 6]], 1, marks=xfail_issue_35918),
+        pytest.param([-2, -1.0, 0.0, 1.0, 2.0], 0.5, marks=xfail_issue_35924)
     ]
 )
 def test_elu(data, alpha_value):

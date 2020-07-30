@@ -18,7 +18,7 @@ import onnx
 from onnx.helper import make_graph, make_model, make_node, make_tensor_value_info
 
 from tests.runtime import get_runtime
-from tests.test_onnx.utils import import_onnx_model, issue_6, issue_7, issue_8, issue_9
+from tests.test_onnx.utils import import_onnx_model, xfail_issue_35916, xfail_issue_35917, xfail_issue_35918, xfail_issue_35921
 
 import pytest
 
@@ -104,7 +104,7 @@ def import_and_compute_gemm(input_a, input_b, input_c, **kwargs):
 @pytest.mark.parametrize(
     "data, description",
     [
-        pytest.param(([1, 2], [1, 3]), "vector at vector 1", marks=issue_6),
+        pytest.param(([1, 2], [1, 3]), "vector at vector 1", marks=xfail_issue_35916),
         (([1, 2, 3], [[4], [5], [6]]), "vector at vector 2"),
         (([[1, 2, 3]], [1, 2, 3]), "vector at vector 3"),
         (([1, 2, 3], [[4, 5], [6, 7], [8, 9]]), "vector at matrix"),
@@ -130,13 +130,13 @@ def test_op_matmul_3d():
 @pytest.mark.parametrize(
     "data, kwargs, description",
     [
-        pytest.param(([1, 2], [1, 3], [1, 4]), {}, "vectors", marks=issue_7),
-        pytest.param(([1, 2], [1, 3], 1), {}, "vectors and scalar", marks=issue_7),
-        pytest.param(([1, 2], [1, 3], [1]), {}, "vectors and identity vector", marks=issue_7),
+        pytest.param(([1, 2], [1, 3], [1, 4]), {}, "vectors", marks=xfail_issue_35917),
+        pytest.param(([1, 2], [1, 3], 1), {}, "vectors and scalar", marks=xfail_issue_35917),
+        pytest.param(([1, 2], [1, 3], [1]), {}, "vectors and identity vector", marks=xfail_issue_35917),
         pytest.param(([1, 2], [1, 3], [1, 4]), {"alpha": 7, "beta": 9},
-                     "vectors with alpha and beta", marks=issue_8),
+                     "vectors with alpha and beta", marks=xfail_issue_35918),
         pytest.param(([1, 2, 3, 4], [1, 3, 5, 7], [1, 4]), {"alpha": 7, "beta": 9},
-                     "longer vectors with alpha and beta", marks=issue_8)
+                     "longer vectors with alpha and beta", marks=xfail_issue_35918)
     ],
 )
 def test_gemm(data, kwargs, description):
@@ -147,21 +147,21 @@ def test_gemm(data, kwargs, description):
     "data, kwargs, description",
     [
         pytest.param(([1, 2], [1, 3], [1, 4]), {"trans_a": True, "trans_b": True},
-                     "vectors with trans_a/trans_b", marks=issue_7),
+                     "vectors with trans_a/trans_b", marks=xfail_issue_35917),
         pytest.param(([[1, 2], [1, 2]], [[1, 3], [1, 3]], [4, 1]),
                      {"trans_a": True, "trans_b": True, "alpha": 7, "beta": 9},
-                     "matrices and vector with trans_b and alpha/beta", marks=issue_8),
+                     "matrices and vector with trans_b and alpha/beta", marks=xfail_issue_35918),
         pytest.param(([[1, 2]], [[1, 3]], 1), {"trans_b": True, "alpha": 7, "beta": 9},
-                     "matrices and scalar with trans_b and alpha/beta", marks=issue_8),
+                     "matrices and scalar with trans_b and alpha/beta", marks=xfail_issue_35918),
         pytest.param(([[1], [2]], [[1], [3]], 1), {"trans_a": True, "alpha": 7, "beta": 9},
-                     "matrices and scalar with trans_a and alpha/beta", marks=issue_8),
+                     "matrices and scalar with trans_a and alpha/beta", marks=xfail_issue_35918),
     ],
 )
 def test_gemm_transpositions(data, kwargs, description):
     assert np.array_equal(import_and_compute_gemm(*data, **kwargs), numpy_gemm(*data, **kwargs))
 
 
-@issue_9
+@xfail_issue_35921
 def test_gemm_flatten():
     # input_a.shape is (4,1,1)
     data = ([[[1]], [[2]], [[3]], [[4]]], [1, 3, 5, 7], [1, 4])

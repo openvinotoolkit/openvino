@@ -20,10 +20,10 @@ from onnx.helper import make_graph, make_model, make_node, make_tensor_value_inf
 
 from tests.runtime import get_runtime
 from tests.test_onnx.utils import all_arrays_equal, get_node_model, import_onnx_model,\
-    run_model, run_node, issue_13, issue_14
+    run_model, run_node, xfail_issue_35926, xfail_issue_35927
 
 
-@issue_13
+@xfail_issue_35926
 def test_reshape():
     input_data = np.arange(2560).reshape([16, 4, 4, 10])
     reshape_node = onnx.helper.make_node("Reshape", inputs=["x"], outputs=["y"], shape=(256, 10))
@@ -72,7 +72,7 @@ def test_reshape_opset5():
         assert np.array_equal(ng_results[0], expected_output)
 
 
-@issue_13
+@xfail_issue_35926
 def test_reshape_opset5_param_err():
     original_shape = [2, 3, 4]
     output_shape = np.array([4, 2, 3], dtype=np.int64)
@@ -82,7 +82,7 @@ def test_reshape_opset5_param_err():
     assert ng_result[0].shape == output_shape
 
 
-@issue_13
+@xfail_issue_35926
 @pytest.mark.parametrize(
     "axis,expected_output",
     [
@@ -108,7 +108,7 @@ def test_flatten_exception():
         run_node(node, [data])
 
 
-@issue_13
+@xfail_issue_35926
 def test_transpose():
     data = np.arange(120).reshape([2, 3, 4, 5])
 
@@ -123,7 +123,7 @@ def test_transpose():
     assert np.array_equal(ng_results, [expected_output])
 
 
-@issue_14
+@xfail_issue_35927
 def test_slice_opset1():
     data = np.array([[1, 2, 3, 4], [5, 6, 7, 8]])
 
@@ -172,7 +172,7 @@ def test_slice_opset1():
     assert np.array_equal(ng_results, [expected_output])
 
 
-@issue_13
+@xfail_issue_35926
 def test_concat():
     a = np.array([[1, 2], [3, 4]])
     b = np.array([[5, 6]])
@@ -209,7 +209,7 @@ def test_concat():
             assert np.array_equal(ng_results, [expected_output])
 
 
-@issue_13
+@xfail_issue_35926
 def test_squeeze():
     data = np.arange(6).reshape([1, 2, 3, 1])
     expected_output = data.reshape([2, 3])
@@ -243,7 +243,7 @@ def test_unsqueeze():
     assert np.array_equal(ng_results, [expected_output])
 
 
-@issue_13
+@xfail_issue_35926
 @pytest.mark.parametrize(
     "node, expected_output",
     [

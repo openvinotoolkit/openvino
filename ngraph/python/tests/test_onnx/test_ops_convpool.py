@@ -19,7 +19,7 @@ import pytest
 from onnx.helper import make_graph, make_model, make_node, make_tensor_value_info
 
 from tests.runtime import get_runtime
-from tests.test_onnx.utils import get_node_model, import_onnx_model, run_model, run_node, issue_2, issue_3
+from tests.test_onnx.utils import get_node_model, import_onnx_model, run_model, run_node, xfail_issue_35911, xfail_issue_35912
 
 
 @pytest.fixture
@@ -268,7 +268,7 @@ def test_2d_conv_transpose():
     )
 
 
-@issue_2
+@xfail_issue_35911
 def test_pad_opset_1():
     x = np.ones((2, 2), dtype=np.float32)
     y = np.pad(x, pad_width=1, mode="constant")
@@ -318,7 +318,7 @@ def test_pad_opset_2():
         run_model(model, [x])
 
 
-@issue_3
+@xfail_issue_35912
 def test_pad_negative_values_begin():
     x = np.ones((2, 2), dtype=np.float32)
 
@@ -333,7 +333,7 @@ def test_pad_negative_values_begin():
     assert np.array_equal(ng_result, np.array([[1], [1]]))
 
 
-@issue_3
+@xfail_issue_35912
 def test_pad_negative_values_end():
     x = np.ones((2, 2), dtype=np.float32)
 
