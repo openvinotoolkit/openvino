@@ -5,6 +5,7 @@
 #include "transformations/convert_opset1_to_legacy/conv_bias_fusion.hpp"
 
 #include <memory>
+#include <numeric>
 #include <vector>
 
 #include <ngraph/opsets/opset1.hpp>

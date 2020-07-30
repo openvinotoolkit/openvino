@@ -14,6 +14,8 @@
 // limitations under the License.
 //*****************************************************************************
 
+#include <numeric>
+
 #include "gtest/gtest.h"
 #include "ngraph/ngraph.hpp"
 #include "ngraph/runtime/tensor.hpp"

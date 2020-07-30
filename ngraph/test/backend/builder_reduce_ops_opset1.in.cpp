@@ -14,6 +14,8 @@
 // limitations under the License.
 //*****************************************************************************
 
+#include <numeric>
+
 #include "ngraph/ngraph.hpp"
 #include "util/engine/test_engines.hpp"
 #include "util/test_case.hpp"
