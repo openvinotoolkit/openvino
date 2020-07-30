@@ -100,12 +100,12 @@ def non_max_suppression(
 
     return _get_node_factory_opset4().create("NonMaxSuppression", inputs, attributes)
 
+
 @nameable_op
-def softplus(data: NodeInput, slope: NodeInput, name: Optional[str] = None) -> Node:
+def softplus(data: NodeInput, name: Optional[str] = None) -> Node:
     """Apply SoftPlus operation on each element of input tensor.
 
     :param data: The tensor providing input data.
-    :param axis: An axis along which SoftPlus should be calculated
     :return: The new node with SoftPlus operation applied on each element.
     """
-    return _get_node_factory_opset4().create("SoftPlus", as_nodes(data, slope))
+    return _get_node_factory_opset4().create("SoftPlus", as_nodes(data))
