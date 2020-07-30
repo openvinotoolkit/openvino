@@ -539,10 +539,6 @@ set (SRC
     slice_plan.hpp
     specialize_function.cpp
     specialize_function.hpp
-    state/bernoulli_rng_state.cpp
-    state/bernoulli_rng_state.hpp
-    state/uniform_rng_state.cpp
-    state/uniform_rng_state.hpp
     strides.cpp
     strides.hpp
     type/bfloat16.cpp
