@@ -318,7 +318,6 @@ namespace
         return out_shape;
     }
 
-
     std::vector<std::size_t> get_padded_input_shape(const Shape& input_shape,
                                                     const std::vector<std::size_t>& pads_begin,
                                                     const std::vector<std::size_t>& pads_end)
@@ -372,8 +371,8 @@ namespace
         auto pads_begin = correct_pad(attrs.pads_begin, input_rank);
         auto pads_end = correct_pad(attrs.pads_end, input_rank);
 
-        auto out_shape_vector = out_shape_infer(
-            input_shape, pads_begin, pads_end, axes, target_spatial_shape);
+        auto out_shape_vector =
+            out_shape_infer(input_shape, pads_begin, pads_end, axes, target_spatial_shape);
         Shape out_shape{out_shape_vector};
 
         out->set_shape(out_shape);
@@ -404,13 +403,13 @@ namespace
             padded_array_view[padded_index] = input_array_view[index];
         }
 
-        runtime::reference::interpolate(padded_input_data.data(),
-                                        input_shape,
-                                        target_spatial_shape,
-                                        axes,
-                                        out->get_data_ptr<ET>(),
-                                        out_shape,
-                                        attrs);
+        runtime::reference::interpolate<T>(padded_input_data.data(),
+                                           input_shape,
+                                           target_spatial_shape,
+                                           axes,
+                                           out->get_data_ptr<ET>(),
+                                           out_shape,
+                                           attrs);
         return true;
     }
 

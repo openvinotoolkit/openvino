@@ -208,18 +208,10 @@ namespace ngraph
 
                     switch (m_interp_mode)
                     {
-                    case InterpolateMode::nearest:
-                        nearest_func(input_data, out);
-                        break;
-                    case InterpolateMode::linear:
-                        linear_func(input_data, out);
-                        break;
-                    case InterpolateMode::linear_onnx:
-                        linear_onnx_func(input_data, out);
-                        break;
-                    case InterpolateMode::cubic:
-                        cubic_func(input_data, out);
-                        break;
+                    case InterpolateMode::nearest: nearest_func(input_data, out); break;
+                    case InterpolateMode::linear: linear_func(input_data, out); break;
+                    case InterpolateMode::linear_onnx: linear_onnx_func(input_data, out); break;
+                    case InterpolateMode::cubic: cubic_func(input_data, out); break;
                     }
                 }
 
@@ -245,19 +237,52 @@ namespace ngraph
 
             template <typename T>
             void InterpolateEval<T>::linear_func(const T* input_data, T* out)
-            {}
+            {
+            }
 
             template <typename T>
             void InterpolateEval<T>::linear_onnx_func(const T* input_data, T* out)
-            {}
+            {
+            }
 
             template <typename T>
             void InterpolateEval<T>::cubic_func(const T* input_data, T* out)
-            {}
+            {
+            }
 
             template <typename T>
             void InterpolateEval<T>::nearest_func(const T* input_data, T* out)
-            {}
+            {
+                std::size_t input_rank = m_input_data_shape.size();
+                std::size_t num_of_axes = m_axes.size();
+                std::vector<int64_t> coords_limits_vector(input_rank);
+                for (std::size_t i = 0; i < input_rank; ++i)
+                {
+                    coords_limits_vector[i] = m_out_shape[i] - 1;
+                }
+                runtime::NDimIndex out_limits{coords_limits_vector, coords_limits_vector};
+                runtime::NDimRange coords_range{out_limits};
+                runtime::NDimArrayView<T> result{out};
+                for(const auto& coordinates : coords_range)
+                {
+                    runtime::NDimIndex input_coords{coordinates};
+                    for (std::size_t axis : m_axes)
+                    {
+                        float coordinate = static_cast<float>(coordinates[axis]);
+                        float scale = m_scales[axis];
+                        float length_resized = static_cast<float>(m_out_shape[axis]);
+                        float length_original = static_cast<float>(m_input_data_shape[axis]);
+                        float in_coord = m_get_original_coord(coordinate,
+                                                              scale,
+                                                              length_resized,
+                                                              length_original);
+                        int64_t nearest_pixel = m_get_nearest_pixel(in_coord, scale < 1.0);
+                        input_coords[axis] = std::max(0,
+                                                      std::min(nearest_pixel, length_original - 1));
+                    }
+                    result[coordinates] = input_data[input_coords];
+                }
+            }
 
             template <typename T>
             void interpolate(const T* input_data,
@@ -269,7 +294,13 @@ namespace ngraph
                              const op::v4::Interpolate::InterpolateAttrs& attrs)
             {
                 InterpolateEval<T> evaluator{attrs};
-                evaluator();
+                evaluator(input_data,
+                          input_data_shape,
+                          target_spatial_shape,
+                          axes,
+                          out,
+                          out_shape,
+                          attrs);
             }
         }
     }
