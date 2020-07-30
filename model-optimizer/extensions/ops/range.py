@@ -48,7 +48,7 @@ class Range(Op):
             'type': self.op,
             'op': self.op,
 
-            'version': 'opset1',
+            'version': 'opset4',
             'infer': self.infer,
 
             'in_ports_count': 3,
@@ -69,4 +69,4 @@ class Range(Op):
 
         assert start is not None and limit is not None and delta is not None, \
             'Range operation {} with dynamic inputs is not supported'.format(name)
-        node.out_port(0).data.set_value(np.arange(start, limit, delta, dtype=node.soft_get('dtype', start.dtype)))
+        node.out_port(0).data.set_value(np.arange(start, limit, delta, dtype=node.soft_get('output_type', start.dtype)))
