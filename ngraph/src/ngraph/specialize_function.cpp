@@ -28,18 +28,7 @@ std::shared_ptr<Function>
                                 const std::vector<element::Type>& parameter_element_types,
                                 const std::vector<PartialShape>& parameter_shapes,
                                 const std::vector<void*>& parameter_values)
-{
-    return specialize_function(
-        f, parameter_element_types, parameter_shapes, parameter_values, false, false);
-}
 
-std::shared_ptr<Function>
-    ngraph::specialize_function(std::shared_ptr<Function> f,
-                                const std::vector<element::Type>& parameter_element_types,
-                                const std::vector<PartialShape>& parameter_shapes,
-                                const std::vector<void*>& parameter_values,
-                                bool constant_folding,
-                                bool share_constants)
 {
     NGRAPH_CHECK(f->get_parameters().size() == parameter_shapes.size());
     NGRAPH_CHECK(f->get_parameters().size() == parameter_element_types.size());
@@ -80,31 +69,24 @@ std::shared_ptr<Function>
             new_args.push_back(output.for_node(m[output.get_node()]));
         }
 
-        if (share_constants && as_type_ptr<op::Constant>(old_node))
+        NodeVector cloned_dependencies;
+        for (auto& dependency : old_node->get_control_dependencies())
         {
-            m[old_node.get()] = old_node;
-        }
-        else
-        {
-            NodeVector cloned_dependencies;
-            for (auto& dependency : old_node->get_control_dependencies())
+            std::shared_ptr<Node> dependent = m.at(dependency.get());
+            if (find(cloned_dependencies.begin(), cloned_dependencies.end(), dependent) ==
+                cloned_dependencies.end())
             {
-                std::shared_ptr<Node> dependent = m.at(dependency.get());
-                if (find(cloned_dependencies.begin(), cloned_dependencies.end(), dependent) ==
-                    cloned_dependencies.end())
-                {
-                    cloned_dependencies.push_back(dependent);
-                }
+                cloned_dependencies.push_back(dependent);
             }
-            m[old_node.get()] = old_node->copy_with_new_inputs(new_args, cloned_dependencies);
+        }
+        m[old_node.get()] = old_node->copy_with_new_inputs(new_args, cloned_dependencies);
 
-            //  TODO: workaround for shape inference, delete it after fix
-            if (::ngraph::as_type_ptr<ngraph::op::TensorIterator>(m[old_node.get()]))
-            {
-                m[old_node.get()]->validate_and_infer_types();
-            }
-            m[old_node.get()]->get_rt_info() = old_node->get_rt_info();
+        //  TODO: workaround for shape inference, delete it after fix
+        if (::ngraph::as_type_ptr<ngraph::op::TensorIterator>(m[old_node.get()]))
+        {
+            m[old_node.get()]->validate_and_infer_types();
         }
+        m[old_node.get()]->get_rt_info() = old_node->get_rt_info();
 
         m[old_node.get()]->set_friendly_name(old_node->get_friendly_name());
     }
@@ -134,10 +116,5 @@ std::shared_ptr<Function>
         new_results[i]->set_friendly_name(name);
     }
 
-    auto function = std::make_shared<Function>(new_results, new_parameters);
-    if (constant_folding)
-    {
-        ngraph::pass::ConstantFolding().run_on_function(function);
-    }
-    return function;
+    return std::make_shared<Function>(new_results, new_parameters);
 }
