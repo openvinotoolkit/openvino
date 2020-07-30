@@ -25,7 +25,7 @@ using Parameters = std::tuple<
 >;
 
 class DSR_NonMaxSuppression : public testing::WithParamInterface<Parameters>,
-        public LayerTestsUtils::LayerTestsCommon {
+        virtual public LayerTestsUtils::LayerTestsCommon {
 protected:
     void SetUp() override {
         const auto& parameters = GetParam();
