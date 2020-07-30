@@ -9,8 +9,6 @@
 #include <vpu/utils/file_system.hpp>
 #include <vpu/model/data_contents/mtcnn_blob_content.hpp>
 
-#include <ie_core.hpp>
-
 #include <vector>
 #include <fstream>
 #include <string>
