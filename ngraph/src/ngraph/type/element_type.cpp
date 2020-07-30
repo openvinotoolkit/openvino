@@ -25,6 +25,7 @@
 using namespace ngraph;
 using namespace std;
 
+const element::Type element::undefined(element::Type_t::undefined);
 const element::Type element::dynamic(element::Type_t::dynamic);
 const element::Type element::boolean(element::Type_t::boolean);
 const element::Type element::bf16(element::Type_t::bf16);

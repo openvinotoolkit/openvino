@@ -229,11 +229,14 @@ void Node::delayed_validate_and_infer_types()
 
 void Node::set_output_size(size_t n)
 {
-    NGRAPH_CHECK(n >= m_outputs.size(), "shrinking ", m_outputs.size(), " to ", n);
-    for (size_t i = m_outputs.size(); i < n; ++i)
-    {
-        // create the descriptors
-        get_output_descriptor(i);
+    if (n < m_outputs.size()) {
+        m_outputs.resize(n);
+    }
+    else {
+        for (size_t i = m_outputs.size(); i < n; ++i) {
+            // create the descriptors
+            get_output_descriptor(i);
+        }
     }
 }
 
@@ -264,12 +267,9 @@ void Node::set_output_type(size_t i, const element::Type& element_type, const Pa
     get_output_descriptor(i).get_tensor_ptr()->set_tensor_type(element_type, pshape);
 }
 
-const std::string& Node::description() const
+std::string Node::description() const
 {
-    // Terrible transitional kludge to keep description working while we change
-    // type_name to const_char and virtual description() to virtual get_type_name()
-    const_cast<Node*>(this)->m_node_type = get_type_name();
-    return m_node_type;
+    return get_type_name();
 }
 
 const std::string& Node::get_friendly_name() const
@@ -732,7 +732,7 @@ NodeVector Node::get_users(bool check_is_used) const
 std::string ngraph::node_validation_failure_loc_string(const Node* node)
 {
     std::stringstream ss;
-    ss << "While validating node '" << *node << "'";
+    ss << "While validating node '" << *node << "'with friendly_name " << node->get_friendly_name();
     return ss.str();
 }
 

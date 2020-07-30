@@ -207,7 +207,7 @@ namespace ngraph
         /// \brief Get the string name for the type of the node, such as `Add` or `Multiply`.
         ///        The class name, must not contain spaces as it is used for codegen.
         /// \returns A const reference to the node's type name
-        virtual const std::string& description() const;
+        virtual std::string description() const;
         /// \brief Get the unique name of the node.
         /// \returns A const reference to the node's unique name.
         const std::string& get_name() const;
@@ -477,6 +477,16 @@ namespace ngraph
                                  const Output<Node>& graph_value);
 
         virtual bool match_node(pattern::Matcher* matcher, const Output<Node>& graph_value);
+
+        void update_inputs_after_copy_tmp()
+        {
+            for (auto& input : m_inputs)
+            {
+                input = descriptor::Input(this, input.get_index(), input.get_output());
+                input.get_output().add_input(&input);
+            }
+        }
+
 
     private:
         descriptor::Input& get_input_descriptor(size_t position);
