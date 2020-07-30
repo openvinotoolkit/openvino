@@ -489,6 +489,7 @@ namespace ngraph
     NGRAPH_API std::ostream& operator<<(std::ostream&, const Node&);
     NGRAPH_API std::ostream& operator<<(std::ostream&, const Node*);
 
+#define EXPAND(X) X
 #define _NGRAPH_RTTI_DECLARATION_WITH_PARENT(TYPE_NAME, _VERSION_INDEX, PARENT_CLASS)              \
     static constexpr ::ngraph::Node::type_info_t type_info{                                        \
         TYPE_NAME, _VERSION_INDEX, &PARENT_CLASS::type_info};                                      \
@@ -542,9 +543,9 @@ namespace ngraph
 /// To complete type identification for a class, use NGRAPH_RTTI_DEFINITION.
 ///
 #define NGRAPH_RTTI_DECLARATION(...)                                                               \
-    _NGRAPH_RTTI_DECLARATION_SELECTOR(                                                             \
-        __VA_ARGS__, _NGRAPH_RTTI_DECLARATION_WITH_PARENT, _NGRAPH_RTTI_DECLARATION_NO_PARENT)     \
-    (__VA_ARGS__)
+    EXPAND(_NGRAPH_RTTI_DECLARATION_SELECTOR(__VA_ARGS__,                                          \
+                                             _NGRAPH_RTTI_DECLARATION_WITH_PARENT,                 \
+                                             _NGRAPH_RTTI_DECLARATION_NO_PARENT)(__VA_ARGS__))
 
 /// Complementary to NGRAPH_RTTI_DECLARATION, this helper macro _defines_ items _declared_ by
 /// NGRAPH_RTTI_DECLARATION.
