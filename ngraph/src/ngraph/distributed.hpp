@@ -53,29 +53,4 @@ namespace ngraph
         static constexpr DiscreteTypeInfo type_info{"AttributeAdapter<reduction::Type>", 0};
         const DiscreteTypeInfo& get_type_info() const override { return type_info; }
     };
-
-    class DistributedInterface
-    {
-    public:
-        virtual ~DistributedInterface() {}
-        virtual const std::string& get_name() const = 0;
-        virtual int get_size() = 0;
-        virtual int get_rank() = 0;
-
-        virtual void all_reduce(void* in,
-                                void* out,
-                                element::Type_t element_type,
-                                reduction::Type reduce_type,
-                                size_t count) = 0;
-        virtual void
-            broadcast(void* in, element::Type_t element_type, size_t count, int root_id) = 0;
-        virtual void recv(void* in, element::Type_t element_type, size_t count, int src_id) = 0;
-        virtual void
-            send(const void* in, element::Type_t element_type, size_t count, int dest_id) = 0;
-    };
-
-    void set_distributed_interface(std::unique_ptr<DistributedInterface> distributed_interface);
-
-    NGRAPH_API
-    DistributedInterface* get_distributed_interface();
 }
