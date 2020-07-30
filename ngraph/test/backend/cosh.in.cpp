@@ -32,19 +32,16 @@
 // clang-format on
 
 #include "gtest/gtest.h"
-#include "runtime/backend.hpp"
-#include "ngraph/runtime/tensor.hpp"
 #include "ngraph/ngraph.hpp"
-#include "util/all_close.hpp"
-#include "util/all_close_f.hpp"
-#include "util/ndarray.hpp"
+#include "util/engine/test_engines.hpp"
+#include "util/test_case.hpp"
 #include "util/test_control.hpp"
-#include "util/test_tools.hpp"
 
 using namespace std;
 using namespace ngraph;
 
 static string s_manifest = "${MANIFEST}";
+using TestEngine = test::ENGINE_CLASS_NAME(${BACKEND_NAME});
 
 NGRAPH_TEST(${BACKEND_NAME}, cosh)
 {
@@ -52,18 +49,15 @@ NGRAPH_TEST(${BACKEND_NAME}, cosh)
     auto A = make_shared<op::Parameter>(element::f32, shape);
     auto f = make_shared<Function>(make_shared<op::Cosh>(A), ParameterVector{A});
 
-    auto backend = runtime::Backend::create("${BACKEND_NAME}");
-
-    // Create some tensors for input/output
-    auto a = backend->create_tensor(element::f32, shape);
     vector<float> input{1.0f, 0.0f, -0.0f, -1.0f, 5.0f, -5.0f};
-    copy_data(a, input);
-    auto result = backend->create_tensor(element::f32, shape);
+    vector<float> expected;
+    for (float f : input)
+    {
+        expected.push_back(coshf(f));
+    }
 
-    std::transform(
-        input.begin(), input.end(), input.begin(), [](float x) -> float { return coshf(x); });
-
-    auto handle = backend->compile(f);
-    handle->call_with_validate({result}, {a});
-    EXPECT_TRUE(test::all_close_f(input, read_vector<float>(result)));
+    auto test_case = test::TestCase<TestEngine>(f);
+    test_case.add_input<float>(input);
+    test_case.add_expected_output<float>(shape, expected);
+    test_case.run();
 }
