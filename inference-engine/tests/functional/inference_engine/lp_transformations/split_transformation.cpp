@@ -104,7 +104,7 @@ TEST_P(SplitTransformation, CompareFunctions) {
 
 const std::vector<SplitTransformationTestValues> testValues = {
     {
-        ngraph::Shape({ 1, 3, 16, 16 }), 2, 2,
+        ngraph::Shape({ 1, 3, 16, 16 }), std::int64_t{2}, size_t{2},
         LayerTransformation::createParamsU8I8(),
         // ActualValues
         {
@@ -121,7 +121,7 @@ const std::vector<SplitTransformationTestValues> testValues = {
         }
     },
     {
-        ngraph::Shape({ 1, 3, 16, 16 }), 1, 3,
+        ngraph::Shape({ 1, 3, 16, 16 }), std::int64_t{1}, size_t{3},
         LayerTransformation::createParamsI8I8(),
         // ActualValues
         {
@@ -153,7 +153,7 @@ const std::vector<SplitTransformationTestValues> testValues = {
         }
     },
     {
-        ngraph::Shape({ 1, 3, 16, 16 }), -1, 2,
+        ngraph::Shape({ 1, 3, 16, 16 }), std::int64_t{-1}, size_t{2},
         LayerTransformation::createParamsU8I8(),
         // Actualvalues
         {
@@ -185,7 +185,7 @@ const std::vector<SplitTransformationTestValues> testValues = {
         }
     },
     {
-        ngraph::Shape({ 1, 3, 16, 16 }), -3, 3,
+        ngraph::Shape({ 1, 3, 16, 16 }), std::int64_t{-3}, size_t{3},
         LayerTransformation::createParamsI8I8(),
         // ActualValues
         {
@@ -217,7 +217,7 @@ const std::vector<SplitTransformationTestValues> testValues = {
         }
     },
     {
-        ngraph::Shape({ 1, 3, 4, 4 }), {2}, {2},
+        ngraph::Shape({ 1, 3, 4, 4 }), std::int64_t{2}, size_t{2},
         LayerTransformation::createParamsI8I8(),
         // ActualValues
         {
