@@ -100,7 +100,9 @@ struct eltwise_optional_params : optional_params {
 // fuse_params
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 struct eltwise_fuse_params : fuse_params {
-    eltwise_fuse_params() : fuse_params(KernelType::ELTWISE) {}
+    EltwiseMode mode;
+
+    eltwise_fuse_params(EltwiseMode mode) : fuse_params(KernelType::ELTWISE), mode(mode) {}
 };
 
 struct scale_fuse_params : fuse_params {

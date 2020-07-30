@@ -1142,8 +1142,25 @@ JitConstants FusedOpsCodeGenerator::MakeOpJitConstants(const FusedOpsConfigurati
             break;
         }
         case KernelType::ELTWISE: {
+            auto p = desc.GetOpParams<eltwise_fuse_params>();
+            if (!p)
+                throw std::runtime_error("[clDNN] Eltwise fuse params can't be nullptr");
+
+            std::string op = "";
+            switch (p->mode)
+            {
+            case kernel_selector::EltwiseMode::ADD:
+                op = "+";
+                break;
+            case kernel_selector::EltwiseMode::MUL:
+                op = "*";
+                break;
+            default:
+                throw std::runtime_error("[clDNN] Eltwise mode is not supported in fused ops codegen");
+            }
+
             op_decls += "\\\n\t" + GetOutputType(vec_size) + " " + out_var + " = " + in_vars_converted[0] +
-                        " + " + ConvertToOutputType(in_var, vec_size) + ";";
+                        op + ConvertToOutputType(in_var, vec_size) + ";";
             break;
         }
         case KernelType::QUANTIZE: {

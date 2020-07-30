@@ -518,8 +518,14 @@ void prepare_primitive_fusing::fuse_simple_primitives(program_impl &p) {
 
         auto fuse_eltwise_f = [&](eltwise_node& node) {
             std::shared_ptr<const cldnn::eltwise> prim = node.get_primitive();
+            const std::vector<eltwise_mode> supported_modes = {
+                eltwise_mode::sum,
+                eltwise_mode::prod
+            };
+
             if (node.is_output() || node.inputs_count() != 2 ||
-                prim->mode != eltwise_mode::sum || !prim->stride.empty())
+                std::find(supported_modes.begin(), supported_modes.end(), prim->mode) == supported_modes.end() ||
+                !prim->stride.empty())
                 return;
 
             std::vector<cldnn::program_node*> parents = node.get_dependencies();
