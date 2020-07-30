@@ -26,7 +26,7 @@ namespace ngraph
         namespace v4
         {
             /// \brief A Self Regularized Non-Monotonic Neural Activation Function
-            /// f(x) =  x * tanh(log(exp(x) + 1.))
+            /// f(x) =  ln(exp(x) + 1.)
             ///
             class NGRAPH_API SoftPlus : public ngraph::op::Op
             {

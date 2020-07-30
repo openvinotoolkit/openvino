@@ -45,7 +45,7 @@ void op::v4::SoftPlus::validate_and_infer_types()
 shared_ptr<Node> op::v4::SoftPlus::clone_with_new_inputs(const OutputVector& new_args) const
 {
     check_new_args_count(this, new_args);
-    return make_shared<SoftPlus>(new_args.at(0));
+    return make_shared<op::v4::SoftPlus>(new_args.at(0));
 }
 
 namespace

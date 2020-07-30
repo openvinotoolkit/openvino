@@ -333,8 +333,8 @@ set (SRC
     op/slice.hpp
     op/softmax.cpp
     op/softmax.hpp
-	op/softplus.cpp
-	op/softplus.hpp
+    op/softplus.cpp
+    op/softplus.hpp
     op/split.cpp
     op/split.hpp
     op/strided_slice.cpp
