@@ -236,11 +236,17 @@ namespace ngraph
                     return std::max(static_cast<int64_t>(0),
                                     std::min(coord, static_cast<int64_t>(length) - 1));
                 }
+
+                float triangle_coeff(float dz)
+                {
+                    return std::max(0.0f, 1.0f - std::fabs(dz));
+                }
             };
 
             template <typename T>
             void InterpolateEval<T>::linear_func(const T* input_data, T* out)
             {
+                std::size_t input_rank = m_input_data_shape.size();
                 std::size_t num_of_axes = m_axes.size();
                 bool is_downsample = false;
                 for (std::size_t axis : m_axes)
@@ -252,11 +258,102 @@ namespace ngraph
 
                 std::vector<float> a(num_of_axes);
                 std::vector<int64_t> r(num_of_axes);
+                std::vector<int64_t> low_limits_vector(num_of_axes);
+                std::vector<int64_t> high_limits_vector(num_of_axes);
                 float prod_a = 1;
                 for (std::size_t i = 0; i < num_of_axes; ++i)
                 {
-                    a[i] = antialias ? m_scales[axis[i]] : 1.0;
+                    a[i] = antialias ? m_scales[m_axes[i]] : 1.0;
                     prod_a *= a[i];
+                    r[i] = (m_scales[m_axes[i]] > 1.0) ? static_cast<int64_t>(2) : static_cast<int64_t>(std::ceil(2.0f/a[i]));
+                    low_limits_vector[i] = -r[i];
+                    high_limits_vector[i] = r[i];
+                }
+
+                runtime::NDimIndex minimal_indices{low_limits_vector, low_limits_vector, high_limits_vector};
+                runtime::NDimIndex maximal_indices{high_limits_vector, low_limits_vector, high_limits_vector};
+
+                std::vector<int64_t> coords_limits_vector(input_rank);
+                for (std::size_t i = 0; i < input_rank; ++i)
+                {
+                    coords_limits_vector[i] = m_out_shape[i] - 1;
+                }
+
+                runtime::NDimIndex out_limits{coords_limits_vector, coords_limits_vector};
+                runtime::NDimRange coords_range{out_limits};
+                runtime::NDimArrayView<T> result{out};
+                runtime::NDimArrayView<T> input_view{const_cast<T*>(input_data)};
+
+                for (const auto& coordinates : coords_range)
+                {
+                    std::vector<float> icoords(input_rank);
+                    std::vector<int64_t> icoords_r(input_rank);
+                    for (std::size_t i = 0; i < input_rank; ++i)
+                    {
+                        icoords[i] = static_cast<float>(coordinates[i]);
+                        icoords_r[i] = coordinates[i];
+                    }
+
+                    for (std::size_t axis : m_axes)
+                    {
+                        float coordinate = static_cast<float>(coordinates[axis]);
+                        float scale = m_scales[axis];
+                        float length_resized = static_cast<float>(m_out_shape[axis]);
+                        float length_original = static_cast<float>(m_input_data_shape[axis]);
+                        float in_coord = m_get_original_coord(
+                            coordinate, scale, length_resized, length_original);
+                        icoords[axis] = in_coord;
+                        icoords_r[axis] = static_cast<int64_t>(std::round(in_coord));
+                    }
+
+                    float summa = 0.0f;
+                    float wsum = 0.0f;
+
+                    runtime::NDimRange indices{minimal_indices, maximal_indices};
+                    for (const auto& index : indices)
+                    {
+                        runtime::NDimIndex inner_coords{coordinates};
+                        for (std::size_t i = 0; i < num_of_axes; ++i)
+                        {
+                            std::size_t axis = m_axes[i];
+                            inner_coords[axis] = index[i] + icoords_r[axis];
+                            inner_coords.set_axes_high_limit(m_input_data_shape[axis], axis);
+                        }
+
+                        bool condition = true;
+                        for (std::size_t axis : m_axes)
+                        {
+                            condition = condition && (inner_coords[axis] >= 0) &&
+                                        (inner_coords[axis] < m_input_data_shape[axis]);
+                        }
+
+                        if (!condition) { continue; }
+
+                        std::vector<float> dz(num_of_axes);
+                        for (std::size_t i = 0; i < num_of_axes; ++i)
+                        {
+                            std::size_t axis = m_axes[i];
+                            dz[i] = icoords[axis] - inner_coords[axis];
+                        }
+
+                        float w = prod_a;
+                        for (std::size_t i = 0; i < num_of_axes; ++i)
+                        {
+                            w *= triangle_coeff(a[i] * dz[i]);
+                        }
+
+                        wsum += w;
+                        summa += w * static_cast<float>(input_view[inner_coords]);
+                    }
+
+                    if (wsum == 0.0f)
+                    {
+                        result[coordinates] = T{};
+                    }
+                    else
+                    {
+                        result[coordinates] = static_cast<T>(summa / wsum);
+                    }
                 }
             }
 
