@@ -23,7 +23,13 @@ std::string FuseFakeQuantizeTransformation::getTestCaseName(testing::TestParamIn
     std::ostringstream result;
     result << targetDevice << "_" <<
         version << "_" <<
+        testValues.actual.precisionBeforeAdd << "_" <<
+        testValues.actual.add.values.size() << "_" <<
+        testValues.actual.add.outPrecision << "_" <<
+        testValues.actual.add.constantShape << "_" <<
+        testValues.actual.precisionBeforeDequantization << "_" <<
         testValues.actual.dequantization << "_" <<
+        testValues.actual.precisionAfterDequantization << "_" <<
         testValues.actual.fakeQuantizeOnData;
     return result.str();
 }
@@ -37,6 +43,8 @@ void FuseFakeQuantizeTransformation::SetUp() {
 
     function = ngraph::builder::subgraph::FuseFakeQuantizeFunction::get(
         testValues.inputShape,
+        testValues.actual.precisionBeforeAdd,
+        testValues.actual.add,
         testValues.actual.precisionBeforeDequantization,
         testValues.actual.dequantization,
         testValues.actual.precisionAfterDequantization,

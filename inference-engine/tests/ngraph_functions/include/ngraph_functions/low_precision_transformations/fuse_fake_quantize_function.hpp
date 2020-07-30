@@ -8,6 +8,7 @@
 #include <memory>
 #include <ngraph/ngraph.hpp>
 #include "transformations/low_precision/layer_transformation.hpp"
+#include "common/add.hpp"
 #include "common/fake_quantize_on_data.hpp"
 #include "common/dequantization_operations.hpp"
 
@@ -26,6 +27,8 @@ public:
 
     static std::shared_ptr<ngraph::Function> get(
         const ngraph::Shape& inputShape,
+        const ngraph::element::Type precisionBeforeAdd,
+        const Add& add,
         const ngraph::element::Type precisionBeforeDequantization,
         const DequantizationOperations& dequantization,
         const ngraph::element::Type precisionAfterDequantization,

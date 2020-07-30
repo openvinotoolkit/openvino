@@ -18,6 +18,15 @@ public:
     ~FuseFakeQuantizeTransformation() override {}
     void registerMatcherIn(GraphRewrite& pass, TransformationContext& context) const override;
     void transform(TransformationContext& context, ngraph::pattern::Matcher &m) const override;
+
+private:
+    std::shared_ptr<opset1::FakeQuantize> handleDequantization(
+        TransformationContext& context,
+        const std::shared_ptr<opset1::FakeQuantize>& fakeQuantize) const;
+
+    std::shared_ptr<opset1::FakeQuantize> handleAdd(
+        TransformationContext& context,
+        const std::shared_ptr<opset1::FakeQuantize>& fakeQuantize) const;
 };
 
 } // namespace low_precision

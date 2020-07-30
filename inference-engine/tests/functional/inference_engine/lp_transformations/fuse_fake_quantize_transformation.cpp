@@ -14,6 +14,7 @@
 #include <transformations/init_node_info.hpp>
 #include <transformations/low_precision/transformer.hpp>
 #include <transformations/low_precision/fuse_fake_quantize.hpp>
+#include "ngraph_functions/low_precision_transformations/common/add.hpp"
 #include "ngraph_functions/low_precision_transformations/common/fake_quantize_on_data.hpp"
 #include "ngraph_functions/low_precision_transformations/common/dequantization_operations.hpp"
 
@@ -32,6 +33,8 @@ class FuseFakeQuantizeTransformationTestValues {
 public:
     class Actual {
     public:
+        ngraph::element::Type precisionBeforeAdd;
+        ngraph::builder::subgraph::Add add;
         ngraph::element::Type precisionBeforeDequantization;
         ngraph::builder::subgraph::DequantizationOperations dequantization;
         ngraph::element::Type precisionAfterDequantization;
@@ -40,6 +43,8 @@ public:
 
     class Expected {
     public:
+        ngraph::element::Type precisionBeforeAdd;
+        ngraph::builder::subgraph::Add add;
         ngraph::element::Type precisionBeforeDequantization;
         ngraph::builder::subgraph::DequantizationOperations dequantization;
         ngraph::element::Type precisionAfterDequantization;
@@ -60,6 +65,8 @@ public:
 
         actualFunction = ngraph::builder::subgraph::FuseFakeQuantizeFunction::get(
             testValues.inputShape,
+            testValues.actual.precisionBeforeAdd,
+            testValues.actual.add,
             testValues.actual.precisionBeforeDequantization,
             testValues.actual.dequantization,
             testValues.actual.precisionAfterDequantization,
@@ -72,6 +79,8 @@ public:
 
         referenceFunction = ngraph::builder::subgraph::FuseFakeQuantizeFunction::get(
             testValues.inputShape,
+            testValues.expected.precisionBeforeAdd,
+            testValues.expected.add,
             testValues.expected.precisionBeforeDequantization,
             testValues.expected.dequantization,
             testValues.expected.precisionAfterDequantization,
@@ -84,12 +93,18 @@ public:
 
         std::ostringstream result;
         result << testValues.params.updatePrecisions << "_" <<
+            testValues.actual.precisionBeforeAdd << "_" <<
+            testValues.actual.add.values.size() << "_" <<
+            testValues.actual.add.outPrecision << "_" <<
+            testValues.actual.add.constantShape << "_" <<
             testValues.actual.precisionBeforeDequantization <<
             testValues.actual.dequantization << "_" <<
             testValues.actual.precisionBeforeDequantization << "_" <<
             testValues.actual.fakeQuantizeOnData << "_" <<
-            testValues.expected.dequantization;
-        return result.str();
+            testValues.expected.dequantization << "_" <<
+            testValues.expected.add.values.size() << "_" <<
+            testValues.expected.add.outPrecision << "_" <<
+            testValues.expected.add.constantShape;
         return result.str();
     }
 };
@@ -101,11 +116,13 @@ TEST_P(FuseFakeQuantizeTransformation, CompareFunctions) {
 }
 
 const std::vector<FuseFakeQuantizeTransformationTestValues> testValues = {
-    // Multiply
+    // 1) Multiply
     {
         Shape{1, 3, 16, 16},
         LayerTransformation::createParamsU8I8(),
         {
+            element::f32,
+            {},
             element::f32,
             { {}, {}, { 0.01f } },
             element::f32,
@@ -113,17 +130,43 @@ const std::vector<FuseFakeQuantizeTransformationTestValues> testValues = {
         },
         {
             element::f32,
+            {},
+            element::f32,
             { {}, {}, {} },
             element::f32,
             element::f32,
             { 256ul, {}, { 0.f }, { 255.f }, { 0.f }, { 2.55f } }
         }
     },
-    // Subtract + Multiply
+    // 1) Multiply + 2) Add
     {
         Shape{1, 3, 16, 16},
         LayerTransformation::createParamsU8I8(),
         {
+            element::f32,
+            { {128} },
+            element::f32,
+            { {}, {}, { 0.01f } },
+            element::f32,
+            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } }
+        },
+        {
+            element::f32,
+            {},
+            element::f32,
+            { {}, {}, {} },
+            element::f32,
+            element::f32,
+            { 256ul, {}, { -128.f }, { 127.f }, { 0.f }, { 2.55f } }
+        }
+    },
+    // 1) Subtract + Multiply
+    {
+        Shape{1, 3, 16, 16},
+        LayerTransformation::createParamsU8I8(),
+        {
+            element::f32,
+            {},
             element::f32,
             { {}, { -128 }, { 0.01f } },
             element::f32,
@@ -131,28 +174,56 @@ const std::vector<FuseFakeQuantizeTransformationTestValues> testValues = {
         },
         {
             element::f32,
+            {},
+            element::f32,
             { {}, {}, {} },
             element::f32,
             element::f32,
             { 256ul, {}, { -128.f }, { 127.f }, { 0.f }, { 2.55f } }
         }
     },
-    // Convert + Subtract + Multiply
+    // 1) Convert + Subtract + Multiply
     {
         Shape{1, 3, 16, 16},
         LayerTransformation::createParamsU8I8(),
         {
+            element::f32,
+            {},
             element::u8,
             { {element::f32}, { -128 }, { 0.01f } },
             element::f32,
             { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } }
         },
         {
+            element::f32,
+            {},
             element::u8,
             { {}, {}, {} },
             element::u8,
             element::f32,
             { 256ul, {}, { -128.f }, { 127.f }, { 0.f }, { 2.55f } }
+        }
+    },
+    // 1) Convert + Subtract + Multiply 2) Add
+    {
+        Shape{1, 3, 16, 16},
+        LayerTransformation::createParamsU8I8(),
+        {
+            element::f32,
+            { {128} },
+            element::f32,
+            { {element::f32}, { -128 }, { 0.01f } },
+            element::f32,
+            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } }
+        },
+        {
+            element::f32,
+            {},
+            element::f32,
+            { {}, {}, {} },
+            element::f32,
+            element::f32,
+            { 256ul, {}, { -255.f }, { 0.f }, { 0.f }, { 2.55f } }
         }
     },
 };

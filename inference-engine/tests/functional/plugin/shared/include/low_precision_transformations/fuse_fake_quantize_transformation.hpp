@@ -7,6 +7,7 @@
 #include <string>
 
 #include <ngraph/ngraph.hpp>
+#include "ngraph_functions/low_precision_transformations/common/add.hpp"
 #include "ngraph_functions/low_precision_transformations/common/fake_quantize_on_data.hpp"
 #include "ngraph_functions/low_precision_transformations/common/dequantization_operations.hpp"
 #include "functional_test_utils/low_precision_transformations/layer_transformation.hpp"
@@ -17,6 +18,8 @@ class FuseFakeQuantizeTransformationTestValues {
 public:
     class Actual {
     public:
+        ngraph::element::Type precisionBeforeAdd;
+        ngraph::builder::subgraph::Add add;
         ngraph::element::Type precisionBeforeDequantization;
         ngraph::builder::subgraph::DequantizationOperations dequantization;
         ngraph::element::Type precisionAfterDequantization;

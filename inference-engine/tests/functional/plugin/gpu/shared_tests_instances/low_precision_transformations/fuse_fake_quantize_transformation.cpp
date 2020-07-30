@@ -16,33 +16,52 @@ const std::vector<LayerTestsUtils::LayerTransformation::LptVersion> versions = {
 };
 
 const std::vector<FuseFakeQuantizeTransformationTestValues> testValues = {
-    // Multiply
+    // 1) Multiply
     {
         ngraph::Shape{1, 3, 16, 16},
         LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),
         {
+            ngraph::element::f32,
+            { },
             ngraph::element::f32,
             { {}, {}, { 0.01f } },
             ngraph::element::f32,
             { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } }
         }
     },
-    // Subtract + Multiply
+    // 1) Subtract + Multiply
     {
         ngraph::Shape{1, 3, 16, 16},
         LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),
         {
+            ngraph::element::f32,
+            { },
             ngraph::element::f32,
             { {}, { -128 }, { 0.01f } },
             ngraph::element::f32,
             { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } }
         }
     },
-    // Convert + Subtract + Multiply
+    // 1) Convert + Subtract + Multiply
     {
         ngraph::Shape{1, 3, 16, 16},
         LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),
         {
+            ngraph::element::f32,
+            { },
+            ngraph::element::u8,
+            { {ngraph::element::f32}, { -128 }, { 0.01f } },
+            ngraph::element::f32,
+            { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } }
+        }
+    },
+    // 1) Convert + Subtract + Multiply 2) Add
+    {
+        ngraph::Shape{1, 3, 16, 16},
+        LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),
+        {
+            ngraph::element::f32,
+            { {128} },
             ngraph::element::u8,
             { {ngraph::element::f32}, { -128 }, { 0.01f } },
             ngraph::element::f32,
