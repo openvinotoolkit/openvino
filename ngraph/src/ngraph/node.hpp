@@ -489,28 +489,44 @@ namespace ngraph
     NGRAPH_API std::ostream& operator<<(std::ostream&, const Node&);
     NGRAPH_API std::ostream& operator<<(std::ostream&, const Node*);
 
+#define _NGRAPH_RTTI_DECLARATION_WITH_PARENT(TYPE_NAME, _VERSION_INDEX, PARENT_CLASS)              \
+    static constexpr ::ngraph::Node::type_info_t type_info{                                        \
+        TYPE_NAME, _VERSION_INDEX, &PARENT_CLASS::type_info};                                      \
+    const ::ngraph::Node::type_info_t& get_type_info() const override { return type_info; }
+#define _NGRAPH_RTTI_DECLARATION_NO_PARENT(TYPE_NAME, _VERSION_INDEX)                              \
+    static constexpr ::ngraph::Node::type_info_t type_info{TYPE_NAME, _VERSION_INDEX};             \
+    const ::ngraph::Node::type_info_t& get_type_info() const override { return type_info; }
+#define _NGRAPH_RTTI_DECLARATION_SELECTOR(_1, _2, _3, NAME, ...) NAME
+
 /// Helper macro that puts necessary declarations of RTTI block inside a class definition.
 /// Should be used in the scope of class that requires type identification besides one provided by
 /// C++ RTTI.
 /// Required to be used for all classes that are inherited from class ngraph::Node to enable pattern
 /// matching for them. Accepts necessary type identification details like type of the operation,
-/// version and parent class.
+/// version and optional parent class.
 ///
 /// \param TYPE_NAME a string literal of type const char* that names your class in type
 /// identification namespace;
 ///        It is your choice how to name it, but it should be unique among all
 ///        NGRAPH_RTTI_DECLARATION-enabled classes that can be
 ///        used in conjunction with each other in one transformation flow.
-/// \param PARENT_CLASS is direct or inderect parent class for this class;
 /// \param _VERSION_INDEX is an unsigned integer index to distinguish different versions of
-/// operations that shares the same TYPE_NAME
+///        operations that shares the same TYPE_NAME
+/// \param PARENT_CLASS is an optional direct or indirect parent class for this class; define
+///        it only in case if there is a need to capture any operation from some group of operations
+///        that all derived from some common base class. Don't use Node as a parent, it is a base
+///        class
+///        for all operations and doesn't provide ability to define some perfect subset of
+///        operations.
 ///
 /// Use this macro as a public part of the class definition:
 ///
 ///     class MyOp : public Node
 ///     {
 ///         public:
-///             NGRAPH_RTTI_DECLARATION("MyOp", ngraph::Node, 1);
+///             // Don't use Node as a parent for type_info, it doesn't have any value and
+///             prohibited
+///             NGRAPH_RTTI_DECLARATION("MyOp", 1);
 ///
 ///             ...
 ///     };
@@ -518,17 +534,18 @@ namespace ngraph
 ///     class MyInheritedOp : public MyOp
 ///     {
 ///         public:
-///             NGRAPH_RTTI_DECLARATION("MyInheritedOp", MyOp, 1)
+///             NGRAPH_RTTI_DECLARATION("MyInheritedOp", 1, MyOp)
 ///
 ///             ...
 ///     };
 ///
 /// To complete type identification for a class, use NGRAPH_RTTI_DEFINITION.
 ///
-#define NGRAPH_RTTI_DECLARATION(TYPE_NAME, PARENT_CLASS, _VERSION_INDEX)                           \
-    static constexpr ::ngraph::Node::type_info_t type_info{                                        \
-        TYPE_NAME, _VERSION_INDEX, &PARENT_CLASS::type_info};                                      \
-    const ::ngraph::Node::type_info_t& get_type_info() const override { return type_info; }
+#define NGRAPH_RTTI_DECLARATION(...)                                                               \
+    _NGRAPH_RTTI_DECLARATION_SELECTOR(                                                             \
+        __VA_ARGS__, _NGRAPH_RTTI_DECLARATION_WITH_PARENT, _NGRAPH_RTTI_DECLARATION_NO_PARENT)     \
+    (__VA_ARGS__)
+
 /// Complementary to NGRAPH_RTTI_DECLARATION, this helper macro _defines_ items _declared_ by
 /// NGRAPH_RTTI_DECLARATION.
 /// Should be used outside the class definition scope in place where ODR is ensured.

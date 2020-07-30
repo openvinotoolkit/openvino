@@ -30,7 +30,7 @@ namespace ngraph
             class NGRAPH_API AvgPool : public Op
             {
             public:
-                NGRAPH_RTTI_DECLARATION("AvgPool", Node, 1)
+                NGRAPH_RTTI_DECLARATION("AvgPool", 1)
 
                 /// \brief Constructs a batched average pooling operation.
                 AvgPool() = default;

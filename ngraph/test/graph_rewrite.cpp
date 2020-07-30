@@ -121,7 +121,7 @@ TEST(GraphRewriteTest, ManagerCallback2)
 class PrivateDivide : public ngraph::opset3::Divide
 {
 public:
-    NGRAPH_RTTI_DECLARATION("PrivateDivide", ngraph::opset3::Divide, 0);
+    NGRAPH_RTTI_DECLARATION("PrivateDivide", 0, ngraph::opset3::Divide);
     using ngraph::opset3::Divide::Divide;
 };
 

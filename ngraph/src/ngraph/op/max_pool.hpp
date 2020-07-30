@@ -29,7 +29,7 @@ namespace ngraph
             class NGRAPH_API MaxPool : public Op
             {
             public:
-                NGRAPH_RTTI_DECLARATION("MaxPool", Node, 1);
+                NGRAPH_RTTI_DECLARATION("MaxPool", 1);
 
                 /// \brief Constructs a batched max pooling operation.
                 MaxPool() = default;
