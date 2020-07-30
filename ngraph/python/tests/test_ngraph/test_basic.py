@@ -43,7 +43,7 @@ def test_ngraph_function_api():
     assert list(function.get_output_shape(0)) == [2, 2]
     assert len(function.get_parameters()) == 3
     assert len(function.get_results()) == 1
-    assert function.get_name() == "TestFunction"
+    assert function.get_friendly_name() == "TestFunction"
 
 
 @pytest.mark.parametrize(
