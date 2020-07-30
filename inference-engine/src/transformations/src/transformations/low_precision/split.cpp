@@ -115,8 +115,7 @@ std::vector<size_t> SplitTransformation::getConstSplitLengths(
             result[i] = result[i - 1] + constShape[splitedAxis] / outputSize;
         }
         return result;
-    }
-    else {
+    } else {
         return std::vector<size_t>();
     }
 }

@@ -36,8 +36,7 @@ std::vector<size_t> VariadicSplitTransformation::getConstSplitLengths(
             result[i] = result[i - 1] + lengths[i - 1];
         }
         return result;
-    }
-    else {
+    } else {
         return std::vector<size_t>();
     }
 }
