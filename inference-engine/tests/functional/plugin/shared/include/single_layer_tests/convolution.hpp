@@ -13,6 +13,7 @@
 #include "ngraph_functions/builders.hpp"
 #include "ngraph_functions/utils/ngraph_helpers.hpp"
 
+// ! [test_convolution:definition]
 typedef std::tuple<
         InferenceEngine::SizeVector,    // Kernel size
         InferenceEngine::SizeVector,    // Strides
@@ -39,5 +40,6 @@ public:
 protected:
     void SetUp() override;
 };
+// ! [test_convolution:definition]
 
 }  // namespace LayerTestsDefinitions

@@ -62,12 +62,11 @@ namespace ngraph
         {
             namespace set_1
             {
-                NodeVector pad(const Node& node)
+                OutputVector pad(const Node& node)
                 {
                     auto data = node.get_ng_inputs().at(0);
 
-                    const auto data_rank =
-                        node.get_ng_inputs().at(0)->get_output_partial_shape(0).rank();
+                    const auto data_rank = node.get_ng_inputs().at(0).get_partial_shape().rank();
                     CHECK_VALID_NODE(
                         node, data_rank.is_static(), "Data rank must be static for pad op");
                     const auto data_rank_value = data_rank.get_length();
@@ -88,20 +87,20 @@ namespace ngraph
                         std::make_shared<default_opset::Constant>(
                             element::i64, ngraph::Shape{padding_above.size()}, padding_above),
                         std::make_shared<default_opset::Constant>(
-                            data->get_element_type(), ngraph::Shape{}, std::vector<double>{value}),
+                            data.get_element_type(), ngraph::Shape{}, std::vector<double>{value}),
                         pad_mode)};
                 }
 
             } // namespace set_1
             namespace set_11
             {
-                NodeVector pad(const Node& node)
+                OutputVector pad(const Node& node)
                 {
                     auto data = node.get_ng_inputs().at(0);
                     auto pads = node.get_ng_inputs().at(1);
-                    std::shared_ptr<ngraph::Node> values;
-                    std::shared_ptr<ngraph::Node> padding_begin;
-                    std::shared_ptr<ngraph::Node> padding_end;
+                    Output<ngraph::Node> values;
+                    Output<ngraph::Node> padding_begin;
+                    Output<ngraph::Node> padding_end;
 
                     if (node.get_ng_inputs().size() == 3)
                     {
@@ -110,13 +109,13 @@ namespace ngraph
                     else
                     {
                         values = default_opset::Constant::create(
-                            data->get_element_type(), ngraph::Shape{}, {0});
+                            data.get_element_type(), ngraph::Shape{}, {0});
                     }
 
-                    if (ngraph::op::is_constant(pads))
+                    if (ngraph::op::is_constant(pads.get_node()))
                     {
                         std::vector<std::int64_t> pads_vector =
-                            ngraph::as_type_ptr<default_opset::Constant>(pads)
+                            ngraph::as_type_ptr<default_opset::Constant>(pads.get_node_shared_ptr())
                                 ->get_vector<std::int64_t>();
 
                         std::size_t const half_size = pads_vector.size() / 2;
@@ -134,7 +133,7 @@ namespace ngraph
                     {
                         auto axis =
                             default_opset::Constant::create(element::i64, ngraph::Shape{}, {0});
-                        NodeVector padding = builder::opset1::split(pads, 2, 0);
+                        OutputVector padding = builder::opset1::split(pads, 2, 0);
 
                         padding_begin =
                             std::make_shared<default_opset::Convert>(padding.at(0), element::i64);

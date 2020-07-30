@@ -69,11 +69,11 @@ void pass::ConstantFolding::construct_constant_split()
         int index = 0;
         for (auto& output : split->outputs())
         {
-            output.replace(slices[index++]->output(0));
+            output.replace(slices[index++]);
         }
         split->outputs().clear();
 
-        for (auto& slice : slices)
+        for (auto& slice : as_node_vector(slices))
         {
             auto const_data = std::dynamic_pointer_cast<op::Constant>(
                 slice->input_value(0).get_node_shared_ptr());
