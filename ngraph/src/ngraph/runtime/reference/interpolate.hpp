@@ -282,7 +282,7 @@ namespace ngraph
                 std::vector<float> y_original(output_height);
                 std::vector<float> x_original(output_width);
 
-                for (std::size_t y = 0; y < output_height)
+                for (std::size_t y = 0; y < output_height; ++y)
                 {
                     float in_y = m_get_original_coord(static_cast<float>(y),
                                                       height_scale,
@@ -290,17 +290,47 @@ namespace ngraph
                                                       static_cast<float>(input_height));
                     y_original[y] = in_y;
                     in_y = std::max(0.0f, std::min(in_y, static_cast<float>(input_height - 1)));
-                    in_y1[y] = std::min(static_cast<int64_t>(in_y), input_height - 1);
-                    in_y2[y] = std::min(in_y1[y] + 1, input_height - 1);
+                    in_y1[y] = std::min(
+                        static_cast<int64_t>(in_y), static_cast<int64_t>(input_height - 1));
+                    in_y2[y] = std::min(in_y1[y] + 1, static_cast<int64_t>(input_height - 1));
                     dy1[y] = std::fabs(in_y - in_y1[y]);
                     dy2[y] = std::fabs(in_y - in_y2[y]);
 
                     if (in_y1[y] == in_y2[y])
                     {
-                        dy1[y] = 0.5f
-                        dy2[y] = 0.5f
+                        dy1[y] = 0.5f;
+                        dy2[y] = 0.5f;
                     }
                 }
+
+                for (std::size_t x = 0; x < output_width; ++x)
+                {
+                    float in_x = m_get_original_coord(static_cast<float>(x),
+                                                      width_scale,
+                                                      static_cast<float>(output_width),
+                                                      static_cast<float>(input_width));
+                    x_original[x] = in_x;
+                    in_x = std::max(0.0f, std::min(in_x, static_cast<float>(input_width - 1)));
+                    in_y1[x] = std::min(
+                        static_cast<int64_t>(in_x), static_cast<int64_t>(input_width - 1));
+                    in_y2[x] = std::min(in_x1[y] + 1, static_cast<int64_t>(input_width - 1));
+                    dx1[x] = std::fabs(in_x - in_x1[x]);
+                    dx2[x] = std::fabs(in_x - in_x2[x]);
+
+                    if (in_y1[x] == in_y2[x])
+                    {
+                        dx1[x] = 0.5f;
+                        dx2[x] = 0.5f;
+                    }
+                }
+
+                std::vector<int64_t> coords_limits_vector =
+                    {batch_size - 1, num_channels - 1, output_height - 1, output_width - 1};
+
+                runtime::NDimIndex out_limits{coords_limits_vector, coords_limits_vector};
+                runtime::NDimRange coords_range{out_limits};
+                runtime::NDimArrayView<T> result{out};
+                runtime::NDimArrayView<T> input_view{const_cast<T*>(input_data)};
             }
 
             template <typename T>
@@ -321,7 +351,7 @@ namespace ngraph
                 runtime::NDimIndex out_limits{coords_limits_vector, coords_limits_vector};
                 runtime::NDimRange coords_range{out_limits};
                 runtime::NDimArrayView<T> result{out};
-                runtime::NDimArrayView<T> input_view{input_data};
+                runtime::NDimArrayView<T> input_view{const_cast<T*>(input_data)};
                 for (const auto& coordinates : coords_range)
                 {
                     runtime::NDimIndex input_coords{coordinates};
