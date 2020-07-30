@@ -36,10 +36,15 @@ TEST(TransformationTests, FullyConnectedBiasFusionTest3D) {
         auto add = std::make_shared<ngraph::opset1::Add>(fc, const_bias);
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{add}, ngraph::ParameterVector{input1});
-        ngraph::pass::InitNodeInfo().run_on_function(f);
-        ngraph::pass::FullyConnectedBiasFusion().run_on_function(f);
-        ASSERT_NO_THROW(check_rt_info(f));
-        ngraph::pass::ConstantFolding().run_on_function(f);
+
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<ngraph::pass::FullyConnectedBiasFusion>();
+        manager.register_pass<ngraph::pass::InjectionPass>([](std::shared_ptr<ngraph::Function> f) {
+            check_rt_info(f);
+        });
+        manager.register_pass<ngraph::pass::ConstantFolding>();
+        ASSERT_NO_THROW(manager.run_passes(f));
     }
 
     {
@@ -67,10 +72,14 @@ TEST(TransformationTests, FullyConnectedBiasFusionTest2D) {
         auto add = std::make_shared<ngraph::opset1::Add>(fc, const_bias);
 
         f = std::make_shared<ngraph::Function>(ngraph::NodeVector{add}, ngraph::ParameterVector{input1});
-        ngraph::pass::InitNodeInfo().run_on_function(f);
-        ngraph::pass::FullyConnectedBiasFusion().run_on_function(f);
-        ASSERT_NO_THROW(check_rt_info(f));
-        ngraph::pass::ConstantFolding().run_on_function(f);
+        ngraph::pass::Manager manager;
+        manager.register_pass<ngraph::pass::InitNodeInfo>();
+        manager.register_pass<ngraph::pass::FullyConnectedBiasFusion>();
+        manager.register_pass<ngraph::pass::InjectionPass>([](std::shared_ptr<ngraph::Function> f) {
+            check_rt_info(f);
+        });
+        manager.register_pass<ngraph::pass::ConstantFolding>();
+        ASSERT_NO_THROW(manager.run_passes(f));
     }
 
     {

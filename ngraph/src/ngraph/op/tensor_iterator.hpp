@@ -324,7 +324,7 @@ namespace ngraph
 
                 std::shared_ptr<Node>
                     clone_with_new_inputs(const OutputVector& new_args) const override;
-                NodeVector decompose_op() const override;
+                OutputVector decompose_op() const override;
                 /// \return the body of the iteration
                 std::shared_ptr<BodyLambda> get_body() const { return m_body; }
                 /// \param body set the body of the iteration

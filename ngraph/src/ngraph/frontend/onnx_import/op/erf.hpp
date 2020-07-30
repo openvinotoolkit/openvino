@@ -30,7 +30,7 @@ namespace ngraph
         {
             namespace set_1
             {
-                inline NodeVector erf(const Node& node)
+                inline OutputVector erf(const Node& node)
                 {
                     return {std::make_shared<default_opset::Erf>(node.get_ng_inputs().at(0))};
                 }

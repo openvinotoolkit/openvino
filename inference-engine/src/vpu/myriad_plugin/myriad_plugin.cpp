@@ -11,6 +11,7 @@
 #include <cpp/ie_cnn_network.h>
 #include <cpp_interfaces/base/ie_plugin_base.hpp>
 #include <cpp_interfaces/impl/ie_executable_network_internal.hpp>
+#include <ie_util_internal.hpp>
 
 #include <vpu/vpu_plugin_config.hpp>
 #include <vpu/parsed_config.hpp>
@@ -48,7 +49,9 @@ ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(
         vpu::EliminateShapeOfAfterDSR().run_on_function(function);
     }
 
-    return std::make_shared<ExecutableNetwork>(*clonedNetwork, _mvnc, _devicePool, parsedConfigCopy);
+    return std::make_shared<ExecutableNetwork>(*clonedNetwork,
+        _mvnc, _devicePool,
+        parsedConfigCopy, GetCore());
 }
 
 void Engine::SetConfig(const std::map<std::string, std::string> &config) {
@@ -102,7 +105,8 @@ void Engine::QueryNetwork(
         network,
         static_cast<Platform>(parsedConfigCopy.platform()),
         parsedConfigCopy.compileConfig(),
-        log);
+        log,
+        GetCore());
 
     for (const auto& layerName : layerNames) {
         res.supportedLayersMap.insert({ layerName, GetName() });
@@ -140,7 +144,7 @@ InferenceEngine::ExecutableNetwork Engine::ImportNetwork(
 
     const auto executableNetwork =
             std::make_shared<ExecutableNetwork>(
-                model, _mvnc, _devicePool, parsedConfigCopy);
+                model, _mvnc, _devicePool, parsedConfigCopy, GetCore());
 
     return InferenceEngine::ExecutableNetwork{IExecutableNetwork::Ptr(
         new ExecutableNetworkBase<ExecutableNetworkInternal>(executableNetwork),

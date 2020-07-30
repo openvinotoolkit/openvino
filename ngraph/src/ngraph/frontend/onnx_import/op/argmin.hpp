@@ -33,7 +33,7 @@ namespace ngraph
                 ///
                 /// \return The vector containing an Ngraph node which produces the output
                 ///         of an ONNX ArgMin operation.
-                NodeVector argmin(const Node& node);
+                OutputVector argmin(const Node& node);
 
             } // namespace set_1
 

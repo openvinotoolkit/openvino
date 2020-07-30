@@ -39,11 +39,11 @@ namespace ngraph
             {
                 namespace
                 {
-                    std::shared_ptr<ngraph::Node> get_zero_point(const NodeVector& inputs)
+                    std::shared_ptr<ngraph::Node> get_zero_point(const OutputVector& inputs)
                     {
                         if (inputs.size() > 2)
                         {
-                            return inputs.at(2);
+                            return inputs.at(2).get_node_shared_ptr();
                         }
                         else
                         {
@@ -171,11 +171,11 @@ namespace ngraph
 
             namespace set_1
             {
-                NodeVector quantize_linear(const Node& node)
+                OutputVector quantize_linear(const Node& node)
                 {
-                    NodeVector inputs{node.get_ng_inputs()};
-                    auto x = inputs.at(0);
-                    auto y_scale = inputs.at(1);
+                    OutputVector inputs{node.get_ng_inputs()};
+                    auto x = inputs.at(0).get_node_shared_ptr();
+                    auto y_scale = inputs.at(1).get_node_shared_ptr();
                     auto y_zero_point = detail::get_zero_point(inputs);
 
                     x = detail::validate_data(node, x);
@@ -188,11 +188,11 @@ namespace ngraph
 
             namespace set_13
             {
-                NodeVector quantize_linear(const Node& node)
+                OutputVector quantize_linear(const Node& node)
                 {
-                    NodeVector inputs{node.get_ng_inputs()};
-                    auto x = inputs.at(0);
-                    auto y_scale = inputs.at(1);
+                    OutputVector inputs{node.get_ng_inputs()};
+                    auto x = inputs.at(0).get_node_shared_ptr();
+                    auto y_scale = inputs.at(1).get_node_shared_ptr();
                     auto y_zero_point = detail::get_zero_point(inputs);
 
                     x = detail::validate_data(node, x);

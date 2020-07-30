@@ -2,49 +2,32 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ie_core.hpp"
 
-#include <unordered_set>
-#include <functional>
-#include <limits>
 #include <map>
 #include <memory>
 #include <string>
-#include <utility>
 #include <vector>
 #include <istream>
 #include <mutex>
 
+#include <ie_core.hpp>
+#include <multi-device/multi_device_config.hpp>
 #include <ngraph/opsets/opset.hpp>
+
 #include "ie_plugin_cpp.hpp"
-#include "cpp_interfaces/base/ie_plugin_base.hpp"
-#include "details/ie_exception_conversion.hpp"
-#include "details/ie_so_pointer.hpp"
-#include "ie_icore.hpp"
 #include "ie_plugin_config.hpp"
 #include "ie_profiling.hpp"
-#include "ie_util_internal.hpp"
+#include "file_utils.h"
 #include "ie_network_reader.hpp"
-#include "multi-device/multi_device_config.hpp"
 #include "xml_parse_utils.h"
 
 using namespace InferenceEngine::PluginConfigParams;
 
 namespace InferenceEngine {
 
+IInferencePlugin::~IInferencePlugin() {}
+
 namespace {
-
-IInferencePluginAPI* getInferencePluginAPIInterface(IInferencePlugin* iplugin) {
-    return dynamic_cast<IInferencePluginAPI*>(iplugin);
-}
-
-IInferencePluginAPI* getInferencePluginAPIInterface(InferenceEnginePluginPtr iplugin) {
-    return getInferencePluginAPIInterface(static_cast<IInferencePlugin*>(iplugin.operator->()));
-}
-
-IInferencePluginAPI* getInferencePluginAPIInterface(InferencePlugin plugin) {
-    return getInferencePluginAPIInterface(static_cast<InferenceEnginePluginPtr>(plugin));
-}
 
 template <typename T>
 struct Parsed {
@@ -293,13 +276,7 @@ public:
             networkModel.seekg(currentPos, networkModel.beg);
         }
 
-        auto cppPlugin = GetCPPPluginByName(parsed._deviceName);
-        auto pluginAPIInterface = getInferencePluginAPIInterface(cppPlugin);
-        if (pluginAPIInterface == nullptr) {
-            THROW_IE_EXCEPTION << parsed._deviceName << " does not implement the ImportNetwork method";
-        }
-
-        return pluginAPIInterface->ImportNetwork(networkModel, parsed._config);
+        return GetCPPPluginByName(parsed._deviceName).ImportNetwork(networkModel, parsed._config);
     }
 
     QueryNetworkResult QueryNetwork(const ICNNNetwork& network, const std::string& deviceName,
@@ -330,17 +307,11 @@ public:
         }
 
         auto parsed = parseDeviceNameIntoConfig(deviceName);
-        InferencePlugin cppPlugin = GetCPPPluginByName(parsed._deviceName);
-        auto pluginAPIInterface = getInferencePluginAPIInterface(cppPlugin);
-
-        if (pluginAPIInterface == nullptr) {
-            THROW_IE_EXCEPTION << parsed._deviceName << " does not implement the GetMetric method";
-        }
 
         // we need to return a copy of Parameter object which is created on Core side,
         // not in InferenceEngine plugin side, which can be unloaded from Core in a parallel thread
         // TODO: remove this WA after *-31417 is resolved
-        return copyParameterValue(pluginAPIInterface->GetMetric(name, parsed._config));
+        return copyParameterValue(GetCPPPluginByName(parsed._deviceName).GetMetric(name, parsed._config));
     }
 
     /**
@@ -364,15 +335,13 @@ public:
 
             try {
                 InferenceEnginePluginPtr plugin(desc.libraryLocation);
-                IInferencePlugin* pplugin = static_cast<IInferencePlugin*>(plugin.operator->());
-                IInferencePluginAPI* iplugin_api_ptr = dynamic_cast<IInferencePluginAPI*>(pplugin);
 
-                if (iplugin_api_ptr != nullptr) {
-                    iplugin_api_ptr->SetName(deviceName);
+                {
+                    plugin->SetName(deviceName);
 
                     // Set Inference Engine class reference to plugins
                     ICore* mutableCore = const_cast<ICore*>(static_cast<const ICore*>(this));
-                    iplugin_api_ptr->SetCore(mutableCore);
+                    plugin->SetCore(mutableCore);
                 }
 
                 // Add registered extensions to new plugin
@@ -613,14 +582,7 @@ ExecutableNetwork Core::LoadNetwork(const CNNNetwork& network, RemoteContext::Pt
     DeviceIDParser device(deviceName_);
     std::string deviceName = device.getDeviceName();
 
-    auto cppPlugin = _impl->GetCPPPluginByName(deviceName);
-    auto pluginAPIInterface = getInferencePluginAPIInterface(cppPlugin);
-
-    if (pluginAPIInterface == nullptr) {
-        THROW_IE_EXCEPTION << deviceName << " does not implement the LoadNetwork method";
-    }
-
-    return pluginAPIInterface->LoadNetwork(network, config_, context);
+    return _impl->GetCPPPluginByName(deviceName).LoadNetwork(network, config_, context);
 }
 
 RemoteContext::Ptr Core::CreateContext(const std::string& deviceName_, const ParamMap& params) {
@@ -634,14 +596,7 @@ RemoteContext::Ptr Core::CreateContext(const std::string& deviceName_, const Par
     DeviceIDParser device(deviceName_);
     std::string deviceName = device.getDeviceName();
 
-    auto cppPlugin = _impl->GetCPPPluginByName(deviceName);
-    auto pluginAPIInterface = getInferencePluginAPIInterface(cppPlugin);
-
-    if (pluginAPIInterface == nullptr) {
-        THROW_IE_EXCEPTION << deviceName << " does not implement the CreateContext method";
-    }
-
-    return pluginAPIInterface->CreateContext(params);
+    return _impl->GetCPPPluginByName(deviceName).CreateContext(params);
 }
 
 RemoteContext::Ptr Core::GetDefaultContext(const std::string& deviceName_) {
@@ -655,14 +610,7 @@ RemoteContext::Ptr Core::GetDefaultContext(const std::string& deviceName_) {
     DeviceIDParser device(deviceName_);
     std::string deviceName = device.getDeviceName();
 
-    auto cppPlugin = _impl->GetCPPPluginByName(deviceName);
-    auto pluginAPIInterface = getInferencePluginAPIInterface(cppPlugin);
-
-    if (pluginAPIInterface == nullptr) {
-        THROW_IE_EXCEPTION << deviceName << " does not implement the CreateContext method";
-    }
-
-    return pluginAPIInterface->GetDefaultContext();
+    return _impl->GetCPPPluginByName(deviceName).GetDefaultContext();
 }
 
 void Core::AddExtension(IExtensionPtr extension, const std::string& deviceName_) {
@@ -710,14 +658,7 @@ ExecutableNetwork Core::ImportNetwork(std::istream& networkModel,
     std::string deviceName = device.getDeviceName();
 
     auto parsed = parseDeviceNameIntoConfig(deviceName, config);
-
-    auto cppPlugin = _impl->GetCPPPluginByName(deviceName);
-    auto pluginAPIInterface = getInferencePluginAPIInterface(cppPlugin);
-
-    if (pluginAPIInterface == nullptr) {
-        THROW_IE_EXCEPTION << deviceName << " does not implement the ImportNetwork method";
-    }
-    return pluginAPIInterface->ImportNetwork(networkModel, context, parsed._config);
+    return _impl->GetCPPPluginByName(deviceName).ImportNetwork(networkModel, context, parsed._config);
 }
 
 QueryNetworkResult Core::QueryNetwork(const ICNNNetwork& network, const std::string& deviceName,
@@ -769,17 +710,11 @@ Parameter Core::GetConfig(const std::string& deviceName, const std::string& name
     }
 
     auto parsed = parseDeviceNameIntoConfig(deviceName);
-    auto cppPlugin = _impl->GetCPPPluginByName(parsed._deviceName);
-    auto pluginAPIInterface = getInferencePluginAPIInterface(cppPlugin);
-
-    if (pluginAPIInterface == nullptr) {
-        THROW_IE_EXCEPTION << parsed._deviceName << " does not implement the GetConfig method";
-    }
 
     // we need to return a copy of Parameter object which is created on Core side,
     // not in InferenceEngine plugin side, which can be unloaded from Core in a parallel thread
     // TODO: remove this WA after *-31417 is resolved
-    return copyParameterValue(pluginAPIInterface->GetConfig(name, parsed._config));
+    return copyParameterValue(_impl->GetCPPPluginByName(parsed._deviceName).GetConfig(name, parsed._config));
 }
 
 Parameter Core::GetMetric(const std::string& deviceName, const std::string& name) const {

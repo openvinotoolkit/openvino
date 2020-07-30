@@ -12,12 +12,12 @@
 #include <ngraph_ops/tile_ie.hpp>
 #include <ngraph/rt_info.hpp>
 
-void ngraph::pass::ConvertTileToIETile::convert_tile() {
+ngraph::pass::ConvertTileToLegacyMatcher::ConvertTileToLegacyMatcher() {
     auto data = std::make_shared<pattern::op::Label>(element::f32, Shape{1, 1, 1, 1});
     auto shp = std::make_shared<pattern::op::Label>(element::i64, Shape{4});
     auto tile = std::make_shared<ngraph::opset1::Tile>(data, shp);
 
-    ngraph::graph_rewrite_callback callback = [](pattern::Matcher& m) {
+    ngraph::matcher_pass_callback callback = [](pattern::Matcher& m) {
         auto tile = std::dynamic_pointer_cast<ngraph::opset1::Tile> (m.get_match_root());
         if (!tile) {
             return false;
@@ -90,6 +90,6 @@ void ngraph::pass::ConvertTileToIETile::convert_tile() {
         return true;
     };
 
-    auto m = std::make_shared<ngraph::pattern::Matcher>(tile, "CPUFusion.ConvertTileToIETiles");
-    this->add_matcher(m, callback, PassProperty::CHANGE_DYNAMIC_STATE);
+    auto m = std::make_shared<ngraph::pattern::Matcher>(tile, "ConvertTileToIETiles");
+    this->register_matcher(m, callback);
 }

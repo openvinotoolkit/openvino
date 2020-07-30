@@ -25,11 +25,11 @@
 #include "ngraph/builder/norm.hpp"
 #include "ngraph/graph_util.hpp"
 #include "ngraph/ngraph.hpp"
-#include "ngraph/pass/fused_op_decomposition.hpp"
 #include "ngraph/pass/manager.hpp"
 #include "ngraph/provenance.hpp"
 #include "opset0_downgrade.hpp"
 #include "opset1_upgrade.hpp"
+#include "pass/fused_op_decomposition.hpp"
 #include "util/provenance_enabler.hpp"
 
 using namespace std;
@@ -523,9 +523,8 @@ TEST(provenance, scaled_quantize_concat_unsigned)
     An->add_provenance_tag("in1");
     Ax->add_provenance_tag("in2");
     ngraph::Shape shape_r{2, 2};
-    auto QConcat = ngraph::builder::QuantizedConcatBuilder(
-        ngraph::NodeVector{A}, 0, ngraph::NodeVector{An}, ngraph::NodeVector{Ax});
-    auto f = make_shared<ngraph::Function>(ngraph::NodeVector{QConcat},
+    auto QConcat = ngraph::builder::QuantizedConcatBuilder({A}, 0, {An}, {Ax});
+    auto f = make_shared<ngraph::Function>(ngraph::OutputVector{QConcat},
                                            ngraph::ParameterVector{A, An, Ax});
     QConcat->add_provenance_tag("hello");
     auto check_if_result = [](shared_ptr<Node> n) {
