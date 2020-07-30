@@ -1,6 +1,6 @@
-## Proposal <a name="Proposal"></a> {#openvino_docs_ops_detection_Proposal_1}
+## Proposal <a name="Proposal"></a>
 
-**Versioned name**: *Proposal-1*
+**Versioned name**: *Proposal-4*
 
 **Category**: *Object detection*
 
@@ -8,7 +8,14 @@
 
 **Detailed description**
 
-*Proposal* has three inputs: a tensor with probabilities whether particular bounding box corresponds to background and foreground, a tensor with bbox_deltas for each of the bounding boxes, a tensor with input image size in the [`image_height`, `image_width`, `scale_height_and_width`] or [`image_height`, `image_width`, `scale_height`, `scale_width`] format. The produced tensor has two dimensions `[batch_size * post_nms_topn, 5]`.
+*Proposal* has three inputs: a 4D tensor of shape `[num_batches, 2*K, H, W]` with probabilities whether particular 
+bounding box corresponds to background or foreground, a 4D tensor of shape `[num_batches, 4*K, H, W]` with deltas for each 
+of the bound box, and a tensor with input image size in the `[image_height, image_width, scale_height_and_width]` or 
+`[image_height, image_width, scale_height, scale_width]` format. `K` is number of anchors and `H, W` are height and 
+width of the feature map. Operation produces two tensors: 
+the first mandatory tensor of shape `[batch_size * post_nms_topn, 5]` with proposed boxes and 
+the second optional tensor of shape `[batch_size * post_nms_topn]` with probabilities (sometimes referred as scores).
+
 *Proposal* layer does the following with the input tensor:
 1.  Generates initial anchor boxes. Left top corner of all boxes is at (0, 0). Width and height of boxes are calculated from *base_size* with *scale* and *ratio* attributes.
 2.  For each point in the first input tensor:
@@ -19,7 +26,7 @@
 5.  Takes top *pre_nms_topn* proposals
 6.  Calculates intersections for boxes and filter out all boxes with \f$intersection/union > nms\_thresh\f$
 7.  Takes top *post_nms_topn* proposals
-8.  Returns top proposals
+8.  Returns top proposals and optionally their probabilities 
 
 
 * *base_size*
@@ -110,7 +117,7 @@
 
 * *box_size_scale*
 
-  * **Description**: *box_size_scale* specifies the scale factor applied to bbox_deltas of box sizes before decoding.
+  * **Description**: *box_size_scale* specifies the scale factor applied to box sizes before decoding.
   * **Range of values**: a positive floating-point number
   * **Type**: `float`
   * **Default value**: 1.0
@@ -118,7 +125,7 @@
 
 * *box_coordinate_scale*
 
-  * **Description**: *box_coordinate_scale* specifies the scale factor applied to bbox_deltas of box coordinates before decoding.
+  * **Description**: *box_coordinate_scale* specifies the scale factor applied to box coordinates before decoding.
   * **Range of values**: a positive floating-point number
   * **Type**: `float`
   * **Default value**: 1.0
@@ -136,23 +143,52 @@
 
 **Inputs**:
 
-*   **1**: 4D input floating point tensor with class prediction scores. Required.
+*   **1**: 4D tensor of type *T* and shape `[batch_size, 2*K, H, W]` with class prediction scores. Required.
 
-*   **2**: 4D input floating point tensor with box bbox_deltas. Required.
+*   **2**: 4D tensor of type *T* and shape `[batch_size, 4*K, H, W]` with deltas for each bounding box. Required.
 
-*   **3**: 1D input floating tensor 3 or 4 elements:  [`image_height`, `image_width`, `scale_height_and_width`] or [`image_height`, `image_width`, `scale_height`, `scale_width`]. Required.
+*   **3**: 1D tensor of type *T* with 3 or 4 elements:  `[image_height, image_width, scale_height_and_width]` or `[image_height, image_width, scale_height, scale_width]`. Required.
 
-**Outputs**:
+**Outputs**4
 
-*   **1**: Floating point tensor of shape `[batch_size * post_nms_topn, 5]`.
+*   **1**: tensor of type *T* and shape `[batch_size * post_nms_topn, 5]`.
+
+*   **2**: tensor of type *T* and shape `[batch_size * post_nms_topn]` with probabilities. *Optional*.
+
+**Types**
+
+* *T*: floating point type.
 
 **Example**
 
 ```xml
 <layer ... type="Proposal" ... >
-    <data base_size="16" feat_stride="16" min_size="16" nms_thresh="0.6" post_nms_topn="200" pre_nms_topn="6000"
-     ratio="2.67" scale="4.0,6.0,9.0,16.0,24.0,32.0"/>
-    <input> ... </input>
-    <output> ... </output>
+    <data base_size="16" feat_stride="8" min_size="16" nms_thresh="1.0" normalize="0" post_nms_topn="1000" pre_nms_topn="1000" ratio="1" scale="1,2"/>
+    <input>
+        <port id="0">
+            <dim>7</dim>
+            <dim>4</dim>
+            <dim>28</dim>
+            <dim>28</dim>
+        </port>
+        <port id="1">
+            <dim>7</dim>
+            <dim>8</dim>
+            <dim>28</dim>
+            <dim>28</dim>
+        </port>
+        <port id="2">
+            <dim>3</dim>
+        </port>
+    </input>
+    <output>
+        <port id="3" precision="FP32">
+            <dim>7000</dim>
+            <dim>5</dim>
+        </port>
+        <port id="4" precision="FP32">
+            <dim>7000</dim>
+        </port>
+    </output>
 </layer>
 ```
