@@ -22,7 +22,7 @@ using ConvertParamsTuple = typename std::tuple<
         std::string>;                      // Device name
 
 class ConvertLayerTest : public testing::WithParamInterface<ConvertParamsTuple>,
-                        public LayerTestsUtils::LayerTestsCommon {
+                        virtual public LayerTestsUtils::LayerTestsCommon {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<ConvertParamsTuple> &obj);
 
