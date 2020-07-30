@@ -14,8 +14,9 @@
 #include <string>
 #include <vector>
 
-#include "details/ie_so_pointer.hpp"
+#include "ie_unicode.hpp"
 #include "ie_iextension.h"
+#include "details/ie_so_pointer.hpp"
 
 namespace InferenceEngine {
 namespace details {

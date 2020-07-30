@@ -6,11 +6,10 @@
  * @brief A header for advanced hardware related properties for clDNN plugin
  *        To use in SetConfig() method of plugins
  *
- * @file
+ * @file cldnn_config.hpp
  */
 #pragma once
 
-#include <string>
 #include "ie_plugin_config.hpp"
 
 namespace InferenceEngine {
