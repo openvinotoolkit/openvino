@@ -87,8 +87,7 @@ namespace ngraph
                                 return static_cast<int64_t>(x_original);
                             }
                         };
-                    default:
-                        ;
+                    default:;
                     }
                     return [](float x_original, bool) {
                         if (x_original == static_cast<int64_t>(x_original) + 0.5f)
@@ -157,8 +156,7 @@ namespace ngraph
                                        : x_resized * (length_original - 1) / (length_resized - 1);
                         };
                         break;
-                    default:
-                        ;
+                    default:;
                     }
                     return [](float x_resized, float x_scale, float, float) {
                         return ((x_resized + 0.5f) / x_scale) - 0.5f;
@@ -290,8 +288,8 @@ namespace ngraph
                                                       static_cast<float>(input_height));
                     y_original[y] = in_y;
                     in_y = std::max(0.0f, std::min(in_y, static_cast<float>(input_height - 1)));
-                    in_y1[y] = std::min(
-                        static_cast<int64_t>(in_y), static_cast<int64_t>(input_height - 1));
+                    in_y1[y] = std::min(static_cast<int64_t>(in_y),
+                                        static_cast<int64_t>(input_height - 1));
                     in_y2[y] = std::min(in_y1[y] + 1, static_cast<int64_t>(input_height - 1));
                     dy1[y] = std::fabs(in_y - in_y1[y]);
                     dy2[y] = std::fabs(in_y - in_y2[y]);
@@ -311,9 +309,9 @@ namespace ngraph
                                                       static_cast<float>(input_width));
                     x_original[x] = in_x;
                     in_x = std::max(0.0f, std::min(in_x, static_cast<float>(input_width - 1)));
-                    in_y1[x] = std::min(
-                        static_cast<int64_t>(in_x), static_cast<int64_t>(input_width - 1));
-                    in_y2[x] = std::min(in_x1[x] + 1, static_cast<int64_t>(input_width - 1));
+                    in_x1[x] =
+                        std::min(static_cast<int64_t>(in_x), static_cast<int64_t>(input_width - 1));
+                    in_x2[x] = std::min(in_x1[x] + 1, static_cast<int64_t>(input_width - 1));
                     dx1[x] = std::fabs(in_x - in_x1[x]);
                     dx2[x] = std::fabs(in_x - in_x2[x]);
 
@@ -328,12 +326,11 @@ namespace ngraph
                 {
                     for (std::size_t c = 0; c < num_channels; ++c)
                     {
-                        T* out_data_ptr_nc = out
-                                             + n * num_channels * output_height * output_width
-                                             + c * output_height * output_width;
-                        T* in_data_ptr_nc = input_data
-                                             + n * num_channels * input_height * input_width
-                                             + c * input_height * input_width;
+                        T* out_data_ptr_nc = out + n * num_channels * output_height * output_width +
+                                             c * output_height * output_width;
+                        const T* in_data_ptr_nc = input_data +
+                                                  n * num_channels * input_height * input_width  +
+                                                  c * input_height * input_width;
                         for (std::size_t y = 0; y < output_height; ++y)
                         {
                             for (std::size_t x = 0; x < output_width; ++x)
@@ -342,10 +339,8 @@ namespace ngraph
                                 T x21 = in_data_ptr_nc[in_y1[y] * input_width + in_x2[x]];
                                 T x12 = in_data_ptr_nc[in_y2[y] * input_width + in_x1[x]];
                                 T x22 = in_data_ptr_nc[in_y2[y] * input_width + in_x2[x]];
-                                float temp = dx2[x] * dy2[y] * x11
-                                             + dx1[x] * dy2[y] * x21
-                                             + dx2[x] * dy1[y] * x12
-                                             + dx1[x] * dy1[y] * x22;
+                                float temp = dx2[x] * dy2[y] * x11 + dx1[x] * dy2[y] * x21 +
+                                             dx2[x] * dy1[y] * x12 + dx1[x] * dy1[y] * x22;
                                 out_data_ptr_nc[output_width * y + x] = static_cast<T>(temp);
                             }
                         }
@@ -401,12 +396,7 @@ namespace ngraph
                              const op::v4::Interpolate::InterpolateAttrs& attrs)
             {
                 InterpolateEval<T> evaluator{attrs};
-                evaluator(input_data,
-                          input_data_shape,
-                          target_spatial_shape,
-                          axes,
-                          out,
-                          out_shape);
+                evaluator(input_data, input_data_shape, target_spatial_shape, axes, out, out_shape);
             }
         }
     }

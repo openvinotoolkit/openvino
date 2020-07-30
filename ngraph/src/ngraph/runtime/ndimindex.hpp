@@ -72,8 +72,12 @@ namespace ngraph
                 return {std::vector<std::int64_t>(m_value.size(), 0), m_low_limit, m_high_limit};
             }
 
-            void set_axes_high_limit(int64_t limit, std::size_t axis) {m_high_limit[axis] = limit; }
-            void set_axes_low_limit(int64_t limit, std::size_t axis) {m_low_limit[axis] = limit; }
+            void set_axes_high_limit(int64_t limit, std::size_t axis)
+            {
+                m_high_limit[axis] = limit;
+
+            }
+            void set_axes_low_limit(int64_t limit, std::size_t axis) { m_low_limit[axis] = limit; }
 
             NDimIndex after_high_limit() const;
 
